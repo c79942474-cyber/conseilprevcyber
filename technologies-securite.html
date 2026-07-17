@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Technologies de sécurité (IEC TR 62443-3-1) — CONSEILPREV Cyber</title>
+<meta name="description" content="Panorama des technologies de sécurité applicables aux IACS selon IEC TR 62443-3-1 : authentification, filtrage, chiffrement, détection, sécurité des hôtes et sécurité physique.">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .techgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:6px}
+  @media(max-width:820px){.techgrid{grid-template-columns:1fr}}
+  .tech{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:14px;padding:20px;position:relative;overflow:hidden}
+  .tech::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--tc,linear-gradient(90deg,var(--cyan),var(--teal)))}
+  .tech:nth-child(1){--tc:linear-gradient(90deg,var(--cyan),var(--teal))}
+  .tech:nth-child(2){--tc:linear-gradient(90deg,var(--violet),var(--cyan))}
+  .tech:nth-child(3){--tc:linear-gradient(90deg,var(--terra),var(--violet))}
+  .tech:nth-child(4){--tc:linear-gradient(90deg,var(--amber),var(--terra))}
+  .tech:nth-child(5){--tc:linear-gradient(90deg,var(--teal),var(--green))}
+  .tech:nth-child(6){--tc:linear-gradient(90deg,var(--green),var(--cyan))}
+  .tech .ico{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:12px;background:rgba(34,211,238,.10);border:1px solid var(--line)}
+  .tech h3{font-size:15px;margin-bottom:6px}
+  .tech p{font-size:12.5px;color:var(--muted)}
+  .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  .tags span{font-family:var(--mono);font-size:10.5px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 9px}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><a href="/">CONSEILPREV</a><span class="tag">Cyber</span></div>
+      <div class="spacer"></div>
+      <nav class="links">
+        <a href="/">Accueil</a>
+        <a href="/services">Services</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/demo">Démo temps réel</a>
+        <a href="/contact" class="cta">Nous contacter</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow"><span class="dot"></span>Référentiel · IEC TR 62443‑3‑1</span>
+      <h1>La <span class="grad">boîte à outils</span> technologique de la sécurité OT.</h1>
+      <p class="lead" style="margin-top:18px">Ce rapport technique recense les grandes familles de technologies de sécurité et
+        évalue leur pertinence, leurs forces et leurs limites en environnement industriel. C'est un
+        <strong>panorama d'outils</strong> — pas une liste d'exigences — qui aide à choisir les bonnes mesures.</p>
+    </section>
+
+    <section class="section" style="padding-top:24px">
+      <div class="prose" style="max-width:none">
+        <p class="muted">⚠️ Rapport technique de 2009&nbsp;: le <strong>cadre de catégories</strong> reste très utile, mais certains
+        détails technologiques ont évolué (algorithmes, produits). Nous l'appliquons avec l'état de l'art actuel.</p>
+      </div>
+
+      <div class="sec-title" style="margin-top:20px">// Six familles de technologies</div>
+      <div class="techgrid">
+        <div class="tech">
+          <div class="ico">🔑</div>
+          <h3>Authentification &amp; autorisation</h3>
+          <p>Prouver l'identité et contrôler les droits — le premier verrou.</p>
+          <div class="tags"><span>Autorisation par rôles (RBAC)</span><span>Mot de passe</span><span>Défi/réponse</span><span>Jetons physiques</span><span>Cartes à puce</span><span>Biométrie</span><span>PKI</span></div>
+        </div>
+        <div class="tech">
+          <div class="ico">🧱</div>
+          <h3>Filtrage, blocage &amp; contrôle d'accès</h3>
+          <p>Cloisonner les réseaux et maîtriser les flux entre zones.</p>
+          <div class="tags"><span>Firewalls réseau</span><span>Firewalls hôtes</span><span>VLAN</span><span>Séparation en zones</span></div>
+        </div>
+        <div class="tech">
+          <div class="ico">🔒</div>
+          <h3>Chiffrement &amp; validation des données</h3>
+          <p>Protéger la confidentialité et l'intégrité des échanges.</p>
+          <div class="tags"><span>Chiffrement symétrique</span><span>Chiffrement asymétrique</span><span>VPN</span><span>Validation d'intégrité</span></div>
+        </div>
+        <div class="tech">
+          <div class="ico">📈</div>
+          <h3>Supervision, audit &amp; détection</h3>
+          <p>Voir ce qui se passe et repérer les anomalies.</p>
+          <div class="tags"><span>IDS</span><span>Journalisation / audit</span><span>Scanners de vulnérabilité</span><span>Forensics</span><span>Corrélation (SIEM)</span></div>
+        </div>
+        <div class="tech">
+          <div class="ico">💻</div>
+          <h3>Logiciels des systèmes de contrôle</h3>
+          <p>Sécuriser les hôtes (postes, serveurs, automates).</p>
+          <div class="tags"><span>Sécurité du système d'exploitation</span><span>Antivirus</span><span>Gestion des correctifs</span><span>Sécurité applicative</span></div>
+        </div>
+        <div class="tech">
+          <div class="ico">🚪</div>
+          <h3>Sécurité physique</h3>
+          <p>Une technologie « non‑cyber » mais indispensable à plusieurs mesures.</p>
+          <div class="tags"><span>Contrôle d'accès physique</span><span>Vidéosurveillance</span><span>Protection des locaux techniques</span></div>
+        </div>
+      </div>
+
+      <div class="prose" style="max-width:none;margin-top:24px">
+        <p>Pour chaque technologie, le rapport décrit son usage, les vulnérabilités qu'elle traite, ses limites et son
+        adéquation au contexte industriel. Nous nous en servons comme d'une <strong>grille de choix</strong>&nbsp;: quelle
+        mesure, pour quelle zone, à quel niveau de sécurité cible.</p>
+      </div>
+
+      <div class="band" style="margin-top:14px">
+        <div class="status" style="color:var(--muted)">📚 <strong style="color:var(--ink)">Référence</strong> — IEC TR 62443‑3‑1:2009, <em>Security technologies for IACS</em>. Contenu paraphrasé&nbsp;; rapport non reproduit.</div>
+      </div>
+
+      <div class="divider"></div>
+      <div style="text-align:center">
+        <h2>Choisir les bonnes mesures&nbsp;?</h2>
+        <p class="lead" style="margin:10px auto 0">Nous croisons ces familles de technologies avec vos zones et vos niveaux SL cibles.</p>
+        <div class="actions" style="justify-content:center">
+          <a href="/contact" class="btn btn-p">Nous contacter</a>
+          <a href="/exigences-systeme" class="btn btn-s">Voir les exigences système (3‑3)</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Cybersécurité industrielle IT / OT / IIoT</div>
+      <div class="fnav">
+        <a href="/about">À propos</a>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/demo">Démo</a>
+        <a href="/contact">Contact</a>
+        <a href="/mentions-legales">Mentions légales</a>
+      </div>
+    </div>
+  </footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+</body>
+</html>
