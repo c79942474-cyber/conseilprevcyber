@@ -33,6 +33,7 @@ PAGES = {
     "/methodologie": "methodologie.html",
     "/exigences-systeme": "exigences-systeme.html",
     "/exigences-composants": "exigences-composants.html",
+    "/exigences-prestataires": "exigences-prestataires.html",
     "/programme-securite": "programme-securite.html",
     "/gestion-correctifs": "gestion-correctifs.html",
     "/demo": "demo.html",
@@ -79,6 +80,11 @@ def exigences_systeme():
 @app.route("/exigences-composants")
 def exigences_composants():
     return _page(PAGES["/exigences-composants"])
+
+
+@app.route("/exigences-prestataires")
+def exigences_prestataires():
+    return _page(PAGES["/exigences-prestataires"])
 
 
 @app.route("/programme-securite")
