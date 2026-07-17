@@ -8,3 +8,7 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
+      # Clé API Brevo (transactional email) — à renseigner dans le dashboard Render.
+      # Sans elle, le formulaire de contact bascule sur un lien mailto.
+      - key: BREVO_API_KEY
+        sync: false

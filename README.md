@@ -21,24 +21,40 @@ python app.py
 |-------|---------|---------|
 | `/` | `index.html` | Accueil (hero, domaines d'intervention, approche) |
 | `/services` | `services.html` | Détail des prestations |
-| `/contact` | `contact.html` | Formulaire (via `mailto`) + coordonnées |
+| `/about` | `about.html` | À propos (mission, engagements) |
+| `/contact` | `contact.html` | Formulaire + coordonnées |
 | `/mentions-legales` | `mentions-legales.html` | Mentions légales (⚠️ champs `[À COMPLÉTER]`) |
+| `/api/contact` | — | POST — envoi du formulaire via Brevo |
 | `/health` | — | Point de santé JSON |
 
 ## Structure
 
 | Fichier | Rôle |
 |---------|------|
-| `app.py` | Application Flask (routes des pages + `/health`) |
-| `index.html`, `services.html`, `contact.html`, `mentions-legales.html` | Pages du site |
+| `app.py` | Application Flask (routes des pages, envoi email, `/health`) |
+| `index.html`, `services.html`, `about.html`, `contact.html`, `mentions-legales.html` | Pages du site |
 | `styles.css` | Feuille de style partagée (thème cyber) |
-| `requirements.txt` | Dépendances Python |
+| `requirements.txt` | Dépendances Python (Flask, Gunicorn, Requests) |
 | `Procfile` | Commande de démarrage (`gunicorn app:app`) |
 | `runtime.txt` | Version de Python |
 | `render.yaml` | Blueprint de déploiement Render |
 
-> **À faire avant mise en ligne** : compléter les champs `[À COMPLÉTER]` de `mentions-legales.html`
-> (éditeur, SIRET, directeur de publication, adresse de l'hébergeur).
+## Formulaire de contact (email via Brevo)
+
+Le formulaire poste sur `POST /api/contact`, qui envoie un email via l'API transactionnelle
+[Brevo](https://www.brevo.com). Configuration :
+
+1. Créer une **clé API** dans Brevo (*SMTP & API → API Keys*).
+2. La renseigner dans Render comme variable d'environnement **`BREVO_API_KEY`**
+   (déjà déclarée dans `render.yaml` avec `sync:false`).
+3. L'expéditeur utilisé est l'expéditeur **vérifié** `CONSEILPREV <christophe.cerf@i-aes.com>` ;
+   les messages arrivent sur `christophe.cerf@outlook.com` (visiteur en `reply-to`).
+
+> Tant que `BREVO_API_KEY` n'est pas définie, le formulaire **bascule automatiquement** sur un lien
+> `mailto` côté client — le site reste fonctionnel.
+
+> **À compléter avant mise en ligne** : les champs `[À COMPLÉTER]` de `mentions-legales.html`
+> (éditeur, SIRET, directeur de publication, adresse de l'hébergeur) et le bloc personnalisable de `about.html`.
 
 ## Déploiement Render
 
