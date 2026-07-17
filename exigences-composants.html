@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exigences composants (IEC 62443-4-2) — CONSEILPREV Cyber</title>
+<meta name="description" content="Exigences techniques de sécurité des composants IACS selon IEC 62443-4-2 : exigences de composant (CR) par type — applications, équipements embarqués, hôtes et réseau — et niveaux SL 1-4.">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .cmpgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:6px}
+  @media(max-width:900px){.cmpgrid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:520px){.cmpgrid{grid-template-columns:1fr}}
+  .cmp{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:14px;padding:18px;position:relative;overflow:hidden}
+  .cmp::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--c,var(--cyan))}
+  .cmp:nth-child(1){--c:linear-gradient(90deg,var(--cyan),var(--teal))}
+  .cmp:nth-child(2){--c:linear-gradient(90deg,var(--violet),var(--cyan))}
+  .cmp:nth-child(3){--c:linear-gradient(90deg,var(--amber),var(--terra))}
+  .cmp:nth-child(4){--c:linear-gradient(90deg,var(--teal),var(--green))}
+  .cmp .ab{font-family:var(--mono);font-size:11px;color:var(--cyan);letter-spacing:.06em}
+  .cmp h3{font-size:15px;margin:4px 0 6px}
+  .cmp p{font-size:12.5px;color:var(--muted)}
+  .adds{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+  .add{display:grid;grid-template-columns:64px 1fr;gap:10px;align-items:baseline;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:10px 12px}
+  .add .n{font-family:var(--mono);font-size:10.5px;color:var(--amber)}
+  .add .t{font-size:13px;color:var(--ink)}
+  .add .t span{color:var(--muted);display:block;font-size:12px}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><a href="/">CONSEILPREV</a><span class="tag">Cyber</span></div>
+      <div class="spacer"></div>
+      <nav class="links">
+        <a href="/">Accueil</a>
+        <a href="/services">Services</a>
+        <a href="/methodologie">Méthodologie</a>
+        <a href="/demo">Démo temps réel</a>
+        <a href="/contact" class="cta">Nous contacter</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow"><span class="dot"></span>Référentiel · IEC 62443‑4‑2</span>
+      <h1>Exigences de sécurité <span class="grad">des composants</span>.</h1>
+      <p class="lead" style="margin-top:18px">Là où 62443‑3‑3 fixe les exigences au niveau du <strong>système</strong>, 62443‑4‑2
+        les décline au niveau du <strong>composant</strong>&nbsp;: chaque automate, poste, switch ou logiciel doit offrir des
+        capacités de sécurité mesurables, associées aux niveaux <strong>SL 1‑4</strong>.</p>
+    </section>
+
+    <section class="section" style="padding-top:24px">
+      <div class="prose" style="max-width:none"><h2>Quatre types de composants</h2>
+        <p>Les exigences communes (CR, alignées sur les exigences système) sont complétées par des exigences propres à chaque type&nbsp;:</p></div>
+      <div class="cmpgrid">
+        <div class="cmp"><div class="ab">SAR</div><h3>Applications logicielles</h3><p>Logiciels IACS (SCADA, MES, configurateurs…) — <em>Software Application Requirements</em>.</p></div>
+        <div class="cmp"><div class="ab">EDR</div><h3>Équipements embarqués</h3><p>Automates, RTU, capteurs intelligents — <em>Embedded Device Requirements</em>.</p></div>
+        <div class="cmp"><div class="ab">HDR</div><h3>Équipements hôtes</h3><p>Postes et serveurs industriels — <em>Host Device Requirements</em>.</p></div>
+        <div class="cmp"><div class="ab">NDR</div><h3>Équipements réseau</h3><p>Switches, firewalls, passerelles — <em>Network Device Requirements</em>.</p></div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <div class="prose" style="max-width:none">
+        <h2>Le modèle 4‑2</h2>
+        <p>Les <strong>exigences de composant (CR)</strong> suivent les <strong>sept exigences fondamentales</strong>
+        (IAC, UC, SI, DC, RDF, TRE, RA) et reprennent, au niveau du composant, la base des exigences système de
+        62443‑3‑3. Chaque exigence est associée à une <strong>capacité</strong> par niveau — notée
+        <em>SL‑C(FR, composant)</em> — et peut comporter des <strong>renforcements (RE)</strong> pour atteindre SL&nbsp;2, 3 ou 4.</p>
+        <p class="muted">La base commune (les 51 exigences système, FR 1 à 7) est détaillée sur la page
+        <a href="/exigences-systeme">exigences système (62443‑3‑3)</a>. Ci‑dessous, ce que 62443‑4‑2 ajoute spécifiquement
+        au niveau des composants — l'essentiel de la sécurité <strong>matérielle et embarquée</strong>.</p>
+      </div>
+
+      <div class="sec-title" style="margin-top:26px">// Ce que 4‑2 ajoute au niveau composant</div>
+      <div class="adds">
+        <div class="add"><span class="n">CR 1.14</span><span class="t">Robustesse de l'authentification par clé symétrique</span></div>
+        <div class="add"><span class="n">CR 2.13</span><span class="t">Usage des interfaces physiques de diagnostic et de test<span>Encadrer les ports de maintenance (JTAG, consoles…).</span></span></div>
+        <div class="add"><span class="n">CR 3.10</span><span class="t">Prise en charge des mises à jour<span>Capacité à recevoir et vérifier les correctifs (lien avec 62443‑2‑3).</span></span></div>
+        <div class="add"><span class="n">CR 3.11</span><span class="t">Résistance et détection de l'altération physique<span>Protection anti‑<em>tamper</em> du matériel.</span></span></div>
+        <div class="add"><span class="n">CR 3.12</span><span class="t">Provisionnement des racines de confiance du fournisseur</span></div>
+        <div class="add"><span class="n">CR 3.13</span><span class="t">Provisionnement des racines de confiance de l'exploitant</span></div>
+        <div class="add"><span class="n">CR 3.14</span><span class="t">Intégrité du processus de démarrage (<em>secure boot</em>)</span></div>
+      </div>
+
+      <div class="band" style="margin-top:22px">
+        <div class="status" style="color:var(--muted)">📚 <strong style="color:var(--ink)">Référence</strong> — IEC 62443‑4‑2:2019, <em>Technical security requirements for IACS components</em>. Intitulés traduits&nbsp;; exigences non reproduites.</div>
+      </div>
+
+      <div class="divider"></div>
+      <div style="text-align:center">
+        <h2>Choisir des composants à la hauteur de vos zones&nbsp;?</h2>
+        <p class="lead" style="margin:10px auto 0">Nous traduisons vos niveaux SL cibles en critères d'achat et d'audit produit.</p>
+        <div class="actions" style="justify-content:center">
+          <a href="/contact" class="btn btn-p">Nous contacter</a>
+          <a href="/exigences-systeme" class="btn btn-s">Voir les exigences système (3‑3)</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Cybersécurité industrielle IT / OT / IIoT</div>
+      <div class="fnav">
+        <a href="/about">À propos</a>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/methodologie">Méthodologie</a>
+        <a href="/exigences-systeme">Exigences système</a>
+        <a href="/exigences-composants">Exigences composants</a>
+        <a href="/programme-securite">Programme CSMS</a>
+        <a href="/gestion-correctifs">Correctifs</a>
+        <a href="/demo">Démo</a>
+        <a href="/contact">Contact</a>
+        <a href="/mentions-legales">Mentions légales</a>
+      </div>
+    </div>
+  </footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+</body>
+</html>
