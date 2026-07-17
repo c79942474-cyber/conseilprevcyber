@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Référentiel IEC 62443 — CONSEILPREV Cyber</title>
+<meta name="description" content="Notre lecture de la série IEC 62443 : concepts (1-1), programme de sécurité (2-1), gestion des correctifs (2-3), exigences système (3-3) et composants (4-2).">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .modcard{display:block;text-decoration:none;background:linear-gradient(180deg,var(--panel),var(--bg2));
+    border:1px solid var(--line);border-radius:14px;padding:22px;position:relative;overflow:hidden;transition:transform .18s,border-color .18s}
+  .modcard::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--c,linear-gradient(90deg,var(--cyan),var(--teal)))}
+  .modcard:hover{transform:translateY(-4px);border-color:#2A3A50}
+  .modcard .part{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--cyan);border:1px solid var(--line);border-radius:6px;padding:3px 9px;display:inline-block;margin-bottom:12px}
+  .modcard h3{font-size:18px;color:var(--ink);margin-bottom:6px;letter-spacing:-.01em}
+  .modcard p{font-size:13px;color:var(--muted)}
+  .modcard .go{margin-top:12px;font-family:var(--mono);font-size:11px;color:var(--cyan)}
+  .modcard.m1{--c:linear-gradient(90deg,var(--cyan),var(--teal))}
+  .modcard.m2{--c:linear-gradient(90deg,var(--violet),var(--cyan))}
+  .modcard.m3{--c:linear-gradient(90deg,var(--terra),var(--violet))}
+  .modcard.m4{--c:linear-gradient(90deg,var(--amber),var(--terra))}
+  .modcard.m5{--c:linear-gradient(90deg,var(--teal),var(--green))}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><a href="/">CONSEILPREV</a><span class="tag">Cyber</span></div>
+      <div class="spacer"></div>
+      <nav class="links">
+        <a href="/">Accueil</a>
+        <a href="/services">Services</a>
+        <a href="/referentiel" class="active">Référentiel 62443</a>
+        <a href="/demo">Démo temps réel</a>
+        <a href="/contact" class="cta">Nous contacter</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow"><span class="dot"></span>Référentiel · série IEC 62443</span>
+      <h1>Notre lecture de la <span class="grad">série IEC 62443</span>.</h1>
+      <p class="lead" style="margin-top:18px">La série 62443 couvre la cybersécurité des systèmes d'automatisation industrielle
+        sous plusieurs angles — concepts, organisation, système, composant, exploitation. Voici les parties que nous
+        appliquons, et où chacune intervient.</p>
+    </section>
+
+    <section class="section" style="padding-top:24px">
+      <div class="grid grid-2">
+        <a class="modcard m1" href="/methodologie">
+          <span class="part">IEC 62443‑1‑1</span>
+          <h3>Concepts &amp; méthodologie</h3>
+          <p>Terminologie, exigences fondamentales (FR), niveaux de sécurité (SL), défense en profondeur et cycle de vie — le socle et notre démarche en six phases.</p>
+          <div class="go">Ouvrir la méthodologie →</div>
+        </a>
+        <a class="modcard m2" href="/programme-securite">
+          <span class="part">IEC 62443‑2‑1</span>
+          <h3>Programme de sécurité (CSMS)</h3>
+          <p>Le volet organisationnel&nbsp;: établir et maintenir un système de management de la cybersécurité — 3 catégories, 19 éléments.</p>
+          <div class="go">Ouvrir le programme CSMS →</div>
+        </a>
+        <a class="modcard m3" href="/exigences-systeme">
+          <span class="part">IEC 62443‑3‑3</span>
+          <h3>Exigences système</h3>
+          <p>Les 7 exigences fondamentales déclinées en 51 exigences système (SR), associées aux niveaux SL 1‑4.</p>
+          <div class="go">Ouvrir les exigences système →</div>
+        </a>
+        <a class="modcard m4" href="/exigences-composants">
+          <span class="part">IEC 62443‑4‑2</span>
+          <h3>Exigences composants</h3>
+          <p>Les exigences au niveau du composant (CR) par type — applications, embarqués, hôtes, réseau — et la sécurité matérielle.</p>
+          <div class="go">Ouvrir les exigences composants →</div>
+        </a>
+        <a class="modcard m5" href="/gestion-correctifs">
+          <span class="part">IEC 62443‑2‑3</span>
+          <h3>Gestion des correctifs</h3>
+          <p>Le patch management en environnement IACS&nbsp;: rôles, modèle d'états des correctifs et mesures compensatoires.</p>
+          <div class="go">Ouvrir la gestion des correctifs →</div>
+        </a>
+        <div class="card" style="display:flex;flex-direction:column;justify-content:center">
+          <h3 style="font-family:var(--serif,inherit)">Comment lire la série</h3>
+          <p style="color:var(--muted);font-size:13px;margin-top:8px"><strong style="color:var(--ink)">1‑1</strong> pose les concepts,
+          <strong style="color:var(--ink)">2‑1</strong> l'organisation, <strong style="color:var(--ink)">3‑3</strong> le système,
+          <strong style="color:var(--ink)">4‑2</strong> le composant, <strong style="color:var(--ink)">2‑3</strong> l'exploitation.
+          Nous les articulons en un dispositif unique, proportionné à vos enjeux.</p>
+          <div class="actions" style="margin-top:16px"><a href="/contact" class="btn btn-p">Nous en parler</a></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Cybersécurité industrielle IT / OT / IIoT</div>
+      <div class="fnav">
+        <a href="/about">À propos</a>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/demo">Démo</a>
+        <a href="/contact">Contact</a>
+        <a href="/mentions-legales">Mentions légales</a>
+      </div>
+    </div>
+  </footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+</body>
+</html>

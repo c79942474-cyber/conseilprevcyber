@@ -21,6 +21,7 @@ python app.py
 |-------|---------|---------|
 | `/` | `index.html` | Accueil (positionnement IT/OT/IIoT, domaines, approche) |
 | `/services` | `services.html` | Objectifs, livrables et compétences (IEC 62443…) |
+| `/referentiel` | `referentiel.html` | Sommaire de la série IEC 62443 (hub vers les 5 modules) |
 | `/secteurs` | `secteurs.html` | Secteurs (énergie, eau, manufacturing, agro, chimie-pharma, logistique) |
 | `/methodologie` | `methodologie.html` | Démarche en 6 phases + concepts IEC 62443‑1‑1 (FR, SL, défense en profondeur) |
 | `/exigences-systeme` | `exigences-systeme.html` | 62443‑3‑3 : 7 FR, 51 exigences système (SR), niveaux SL 1‑4 |
