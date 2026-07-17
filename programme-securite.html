@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Programme de sécurité — CSMS (IEC 62443-2-1) — CONSEILPREV Cyber</title>
+<meta name="description" content="Établir un programme de sécurité industrielle (CSMS) selon IEC 62443-2-1 : analyse de risque, traitement du risque et amélioration continue — 3 catégories, 19 éléments.">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .cats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:6px 0 10px}
+  @media(max-width:820px){.cats{grid-template-columns:1fr}}
+  .catc{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;border-top-width:2px}
+  .catc:nth-child(1){border-top-color:var(--cyan)}.catc:nth-child(2){border-top-color:var(--violet)}.catc:nth-child(3){border-top-color:var(--teal)}
+  .catc .n{font-family:var(--mono);font-size:10px;color:var(--muted2);letter-spacing:.08em;margin-bottom:6px}
+  .catc h3{font-size:15px;margin-bottom:6px}
+  .catc p{font-size:12.5px;color:var(--muted)}
+  .egrp{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:14px}
+  .egrp .gh{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .egrp .gh .cat{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--cyan);border:1px solid var(--line);border-radius:6px;padding:2px 8px}
+  .egrp .gh h3{font-size:15px}
+  .egrp .gh .sub{font-size:12px;color:var(--muted2)}
+  .els{display:flex;flex-wrap:wrap;gap:8px}
+  .el{font-size:12.5px;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 11px}
+  .el span{color:var(--muted2);font-family:var(--mono);font-size:10px;margin-left:6px}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><a href="/">CONSEILPREV</a><span class="tag">Cyber</span></div>
+      <div class="spacer"></div>
+      <nav class="links">
+        <a href="/">Accueil</a>
+        <a href="/services">Services</a>
+        <a href="/methodologie">Méthodologie</a>
+        <a href="/demo">Démo temps réel</a>
+        <a href="/contact" class="cta">Nous contacter</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow"><span class="dot"></span>Gouvernance · IEC 62443‑2‑1</span>
+      <h1>Un programme de sécurité <span class="grad">qui tient dans la durée</span>.</h1>
+      <p class="lead" style="margin-top:18px">IEC 62443‑2‑1 définit les éléments d'un <strong>CSMS</strong> (système de management
+        de la cybersécurité industrielle)&nbsp;: le volet <strong>organisationnel</strong> — politiques, rôles, formation,
+        continuité, incidents — qui complète les exigences techniques de 62443‑3‑3.</p>
+    </section>
+
+    <section class="section" style="padding-top:24px">
+      <div class="prose" style="max-width:none"><h2>Le cycle du CSMS</h2>
+        <p>Le programme s'organise en trois grandes catégories, dans une logique d'amélioration continue&nbsp;:</p></div>
+      <div class="cats">
+        <div class="catc"><div class="n">Catégorie 1</div><h3>Analyse de risque</h3><p>Comprendre les enjeux métier et identifier, classer et évaluer les risques — la base qui alimente tout le reste.</p></div>
+        <div class="catc"><div class="n">Catégorie 2</div><h3>Traiter le risque</h3><p>La majeure partie du dispositif&nbsp;: politiques et organisation, contre‑mesures retenues, et mise en œuvre.</p></div>
+        <div class="catc"><div class="n">Catégorie 3</div><h3>Surveiller &amp; améliorer</h3><p>Vérifier la conformité, puis revoir, améliorer et maintenir le CSMS dans le temps.</p></div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <div class="sec-title">// Les 19 éléments du CSMS</div>
+
+      <div class="egrp">
+        <div class="gh"><span class="cat">Catégorie 1</span><h3>Analyse de risque</h3></div>
+        <div class="els">
+          <div class="el">Justification métier <span>Business rationale</span></div>
+          <div class="el">Identification, classification et évaluation des risques <span>Risk assessment</span></div>
+        </div>
+      </div>
+
+      <div class="egrp">
+        <div class="gh"><span class="cat">Catégorie 2</span><h3>Traiter le risque</h3><span class="sub">— Groupe : politique, organisation &amp; sensibilisation</span></div>
+        <div class="els">
+          <div class="el">Périmètre du CSMS <span>CSMS scope</span></div>
+          <div class="el">Organisation de la sécurité <span>Organizing for security</span></div>
+          <div class="el">Formation &amp; sensibilisation du personnel</div>
+          <div class="el">Plan de continuité d'activité <span>BCP</span></div>
+          <div class="el">Politiques &amp; procédures de sécurité</div>
+        </div>
+      </div>
+
+      <div class="egrp">
+        <div class="gh"><span class="cat">Catégorie 2</span><h3>Traiter le risque</h3><span class="sub">— Groupe : contre‑mesures de sécurité retenues</span></div>
+        <div class="els">
+          <div class="el">Sécurité du personnel</div>
+          <div class="el">Sécurité physique &amp; environnementale</div>
+          <div class="el">Segmentation réseau</div>
+          <div class="el">Contrôle d'accès — administration des comptes</div>
+          <div class="el">Contrôle d'accès — authentification</div>
+          <div class="el">Contrôle d'accès — autorisation</div>
+        </div>
+      </div>
+
+      <div class="egrp">
+        <div class="gh"><span class="cat">Catégorie 2</span><h3>Traiter le risque</h3><span class="sub">— Groupe : mise en œuvre</span></div>
+        <div class="els">
+          <div class="el">Gestion du risque &amp; mise en œuvre</div>
+          <div class="el">Développement &amp; maintenance des systèmes</div>
+          <div class="el">Gestion de l'information &amp; des documents</div>
+          <div class="el">Planification &amp; réponse aux incidents</div>
+        </div>
+      </div>
+
+      <div class="egrp">
+        <div class="gh"><span class="cat">Catégorie 3</span><h3>Surveiller &amp; améliorer le CSMS</h3></div>
+        <div class="els">
+          <div class="el">Conformité <span>Conformance</span></div>
+          <div class="el">Revue, amélioration &amp; maintien du CSMS</div>
+        </div>
+      </div>
+
+      <div class="band" style="margin-top:8px">
+        <div class="status" style="color:var(--muted)">📚 <strong style="color:var(--ink)">Référence</strong> — IEC 62443‑2‑1:2010, <em>Establishing an IACS security program</em> (dérivé d'ANSI/ISA‑99.02.01). Intitulés traduits&nbsp;; exigences non reproduites.</div>
+      </div>
+
+      <div class="divider"></div>
+      <div style="text-align:center">
+        <h2>Bâtir ou faire mûrir votre CSMS&nbsp;?</h2>
+        <p class="lead" style="margin:10px auto 0">Nous cadrons un programme proportionné — de l'analyse de risque à l'amélioration continue.</p>
+        <div class="actions" style="justify-content:center">
+          <a href="/contact" class="btn btn-p">Nous contacter</a>
+          <a href="/exigences-systeme" class="btn btn-s">Voir les exigences techniques (3‑3)</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Cybersécurité industrielle IT / OT / IIoT</div>
+      <div class="fnav">
+        <a href="/about">À propos</a>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/methodologie">Méthodologie</a>
+        <a href="/exigences-systeme">Exigences système</a>
+        <a href="/programme-securite">Programme CSMS</a>
+        <a href="/gestion-correctifs">Correctifs</a>
+        <a href="/demo">Démo</a>
+        <a href="/contact">Contact</a>
+        <a href="/mentions-legales">Mentions légales</a>
+      </div>
+    </div>
+  </footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+</body>
+</html>
