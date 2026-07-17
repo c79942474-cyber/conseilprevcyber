@@ -82,16 +82,35 @@
         <p class="muted" style="margin-top:12px">On distingue le niveau <em>cible</em> (SL-T), le niveau <em>atteint</em> (SL-A) et le
         niveau <em>capacité</em> des composants (SL-C) — l'écart guide le plan de remédiation.</p>
 
-        <h3>Exigences fondamentales (Foundational Requirements)</h3>
+        <h3>Les sept exigences fondamentales (IEC 62443‑1‑1, §5.3)</h3>
+        <p>La sécurité d'un système industriel ne se réduit pas au triptyque confidentialité‑intégrité‑disponibilité.
+        Le standard identifie <strong>sept exigences fondamentales</strong> qui structurent toute la démarche&nbsp;:</p>
         <ul>
-          <li><strong>FR1 — Contrôle d'identification et d'authentification</strong></li>
-          <li><strong>FR2 — Contrôle d'usage</strong> (droits, moindre privilège)</li>
-          <li><strong>FR3 — Intégrité du système</strong></li>
-          <li><strong>FR4 — Confidentialité des données</strong></li>
-          <li><strong>FR5 — Restriction des flux de données</strong> (segmentation)</li>
-          <li><strong>FR6 — Réponse en temps utile aux événements</strong> (détection)</li>
-          <li><strong>FR7 — Disponibilité des ressources</strong> (continuité)</li>
+          <li><strong>AC — Contrôle d'accès</strong> : protéger contre l'interrogation non autorisée des dispositifs et des informations.</li>
+          <li><strong>UC — Contrôle d'usage</strong> : protéger contre l'utilisation ou l'exploitation non autorisée.</li>
+          <li><strong>DI — Intégrité des données</strong> : garantir l'intégrité des données sur les canaux de communication.</li>
+          <li><strong>DC — Confidentialité des données</strong> : protéger les données contre l'écoute (eavesdropping).</li>
+          <li><strong>RDF — Restriction des flux de données</strong> : limiter les flux pour éviter la diffusion vers des sources non autorisées (segmentation).</li>
+          <li><strong>TRE — Réponse en temps utile aux événements</strong> : notifier l'autorité compétente, conserver les preuves et déclencher une action corrective.</li>
+          <li><strong>RA — Disponibilité des ressources</strong> : garantir la disponibilité des ressources réseau face aux attaques par déni de service.</li>
         </ul>
+        <p class="muted">Ces exigences sont précisées et renumérotées (FR&nbsp;1 à FR&nbsp;7) dans IEC 62443‑3‑3.</p>
+
+        <h3>Défense en profondeur</h3>
+        <p>Aucune contre‑mesure isolée ne suffit&nbsp;: le standard privilégie une approche en <strong>couches successives</strong>
+        (§5.4). Un pare‑feu, une segmentation, une détection d'intrusion et un durcissement se complètent — la défaillance
+        d'une couche ne compromet pas l'ensemble.</p>
+
+        <h3>Cycle de vie du niveau de sécurité</h3>
+        <p>Le niveau de sécurité d'une zone se pilote dans le temps selon trois phases (§5.12)&nbsp;: <strong>Évaluer</strong>
+        (attribuer le SL cible), <strong>Mettre en œuvre</strong> (atteindre le SL) et <strong>Maintenir</strong>
+        (surveiller et corriger la dérive). La gestion des correctifs et le maintien en condition de sécurité s'inscrivent
+        dans la phase « Maintenir ».</p>
+
+        <div class="band" style="margin-top:26px">
+          <div class="status" style="color:var(--muted)">📚 <strong style="color:var(--ink)">Références normatives</strong> —
+          IEC TS 62443‑1‑1:2009 (terminologie, concepts et modèles) · IEC TR 62443‑2‑3:2015 (gestion des correctifs).</div>
+        </div>
 
         <div class="divider"></div>
         <div style="text-align:center">
@@ -114,6 +133,7 @@
         <a href="/services">Services</a>
         <a href="/secteurs">Secteurs</a>
         <a href="/methodologie">Méthodologie</a>
+        <a href="/gestion-correctifs">Correctifs</a>
         <a href="/demo">Démo</a>
         <a href="/contact">Contact</a>
         <a href="/mentions-legales">Mentions légales</a>

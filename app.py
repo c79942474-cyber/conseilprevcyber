@@ -30,6 +30,7 @@ PAGES = {
     "/services": "services.html",
     "/secteurs": "secteurs.html",
     "/methodologie": "methodologie.html",
+    "/gestion-correctifs": "gestion-correctifs.html",
     "/demo": "demo.html",
     "/about": "about.html",
     "/contact": "contact.html",
@@ -59,6 +60,11 @@ def secteurs():
 @app.route("/methodologie")
 def methodologie():
     return _page(PAGES["/methodologie"])
+
+
+@app.route("/gestion-correctifs")
+def gestion_correctifs():
+    return _page(PAGES["/gestion-correctifs"])
 
 
 @app.route("/demo")
