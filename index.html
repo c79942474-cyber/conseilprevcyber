@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CONSEILPREV Cyber — Conseil & conformité en cybersécurité</title>
+<meta name="description" content="CONSEILPREV Cyber — audit, conformité (NIS2, DORA, ISO 27001) et sensibilisation en cybersécurité.">
+<style>
+  :root{
+    --bg:#0A0E14; --bg2:#0F1520; --panel:#121A26; --line:#1E2A3A;
+    --ink:#E7EDF5; --muted:#8A9AB0; --muted2:#5E6E85;
+    --cyan:#22D3EE; --teal:#2DD4BF; --green:#34D399;
+    --terra:#D9603A; --violet:#8B7CF6;
+    --mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+    --sans:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:var(--sans);background:var(--bg);color:var(--ink);
+    line-height:1.6;font-size:16px;-webkit-font-smoothing:antialiased;
+    background-image:
+      radial-gradient(900px 500px at 85% -10%, rgba(34,211,238,.10), transparent 60%),
+      radial-gradient(700px 500px at -5% 110%, rgba(139,124,246,.10), transparent 60%),
+      linear-gradient(rgba(30,42,58,.35) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(30,42,58,.35) 1px, transparent 1px);
+    background-size:auto,auto,44px 44px,44px 44px;
+    min-height:100vh;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+  /* Header */
+  header{position:sticky;top:0;z-index:10;backdrop-filter:blur(10px);
+    background:rgba(10,14,20,.72);border-bottom:1px solid var(--line)}
+  .nav{display:flex;align-items:center;gap:14px;height:64px}
+  .brand{display:flex;align-items:baseline;gap:8px;font-weight:700;letter-spacing:-.02em;font-size:18px}
+  .brand b{color:var(--ink)}
+  .brand .tag{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.12em;
+    text-transform:uppercase;color:#04121A;background:linear-gradient(135deg,var(--cyan),var(--teal));
+    padding:3px 7px;border-radius:4px}
+  .nav .spacer{flex:1}
+  .nav a{color:var(--muted);text-decoration:none;font-size:14px;transition:color .15s}
+  .nav a:hover{color:var(--cyan)}
+  .nav .cta{color:#04121A;background:linear-gradient(135deg,var(--cyan),var(--teal));
+    padding:8px 16px;border-radius:6px;font-weight:600;font-size:13px}
+  .nav .cta:hover{color:#04121A;filter:brightness(1.08)}
+  @media(max-width:680px){.nav a.hide{display:none}}
+
+  /* Hero */
+  .hero{padding:96px 0 72px;text-align:center}
+  .eyebrow{display:inline-block;font-family:var(--mono);font-size:12px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--cyan);border:1px solid var(--line);
+    background:var(--panel);padding:6px 14px;border-radius:999px;margin-bottom:26px}
+  .eyebrow .dot{display:inline-block;width:7px;height:7px;border-radius:50%;
+    background:var(--green);margin-right:8px;vertical-align:middle;box-shadow:0 0 8px var(--green)}
+  h1{font-size:clamp(34px,6vw,60px);line-height:1.05;letter-spacing:-.03em;font-weight:800;margin-bottom:22px}
+  h1 .grad{background:linear-gradient(120deg,var(--cyan),var(--teal) 55%,var(--violet));
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .lead{max-width:620px;margin:0 auto 34px;color:var(--muted);font-size:clamp(16px,2.2vw,19px)}
+  .actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .btn{padding:13px 26px;border-radius:8px;font-weight:600;font-size:15px;text-decoration:none;
+    transition:transform .15s,filter .15s,border-color .15s;display:inline-block}
+  .btn-p{color:#04121A;background:linear-gradient(135deg,var(--cyan),var(--teal))}
+  .btn-p:hover{transform:translateY(-2px);filter:brightness(1.08)}
+  .btn-s{color:var(--ink);border:1px solid var(--line);background:var(--panel)}
+  .btn-s:hover{transform:translateY(-2px);border-color:var(--cyan)}
+
+  /* Features */
+  .section{padding:40px 0 24px}
+  .sec-title{font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--muted2);text-align:center;margin-bottom:34px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  @media(max-width:760px){.grid{grid-template-columns:1fr}}
+  .card{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);
+    border-radius:14px;padding:26px;position:relative;overflow:hidden;transition:transform .18s,border-color .18s}
+  .card::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;
+    background:var(--accent,linear-gradient(90deg,var(--cyan),var(--teal)))}
+  .card:nth-child(1){--accent:linear-gradient(90deg,var(--cyan),var(--teal))}
+  .card:nth-child(2){--accent:linear-gradient(90deg,var(--violet),var(--cyan))}
+  .card:nth-child(3){--accent:linear-gradient(90deg,var(--terra),var(--violet))}
+  .card:hover{transform:translateY(-4px);border-color:#2A3A50}
+  .card .ico{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+    font-size:22px;margin-bottom:16px;background:rgba(34,211,238,.10);border:1px solid var(--line)}
+  .card:nth-child(2) .ico{background:rgba(139,124,246,.12)}
+  .card:nth-child(3) .ico{background:rgba(217,96,58,.12)}
+  .card h3{font-size:19px;letter-spacing:-.01em;margin-bottom:8px}
+  .card p{color:var(--muted);font-size:14.5px}
+  .card ul{list-style:none;margin-top:14px;display:flex;flex-wrap:wrap;gap:6px}
+  .card li{font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--line);
+    border-radius:999px;padding:3px 10px}
+
+  /* Status band */
+  .band{margin:56px 0 24px;border:1px solid var(--line);border-radius:14px;background:var(--bg2);
+    padding:22px 26px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .band .status{font-family:var(--mono);font-size:13px;color:var(--green)}
+  .band .status .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);
+    margin-right:8px;box-shadow:0 0 10px var(--green);animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .band .meta{color:var(--muted2);font-family:var(--mono);font-size:12px;margin-left:auto}
+
+  /* Footer */
+  footer{border-top:1px solid var(--line);margin-top:40px;padding:30px 0;color:var(--muted2);font-size:13px}
+  .foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}
+  footer a{color:var(--muted);text-decoration:none}
+  footer a:hover{color:var(--cyan)}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><b>CONSEILPREV</b><span class="tag">Cyber</span></div>
+      <div class="spacer"></div>
+      <a href="#offres" class="hide">Offres</a>
+      <a href="#conformite" class="hide">Conformité</a>
+      <a href="#contact" class="cta">Nous contacter</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <span class="eyebrow"><span class="dot"></span>Sécurité &amp; conformité opérationnelle</span>
+      <h1>La cybersécurité,<br><span class="grad">maîtrisée de bout en bout.</span></h1>
+      <p class="lead">CONSEILPREV Cyber accompagne les organisations dans l'audit, la mise en
+        conformité (NIS2, DORA, ISO&nbsp;27001) et la montée en résilience face aux menaces.</p>
+      <div class="actions">
+        <a href="#contact" class="btn btn-p">Demander un diagnostic</a>
+        <a href="#offres" class="btn btn-s">Découvrir nos offres</a>
+      </div>
+    </section>
+
+    <section id="offres" class="section">
+      <div class="sec-title">// Nos domaines d'intervention</div>
+      <div class="grid">
+        <div class="card">
+          <div class="ico">🛡️</div>
+          <h3>Audit &amp; test d'intrusion</h3>
+          <p>Cartographie des risques, audit technique et organisationnel, tests d'intrusion et plan de remédiation priorisé.</p>
+          <ul><li>Pentest</li><li>Revue de config</li><li>Surface d'attaque</li></ul>
+        </div>
+        <div class="card">
+          <div class="ico">📋</div>
+          <h3>Conformité réglementaire</h3>
+          <p>Mise en conformité NIS2, DORA, RGPD et ISO&nbsp;27001&nbsp;: analyse d'écarts, politiques, preuves et gouvernance.</p>
+          <ul><li>NIS2</li><li>DORA</li><li>ISO 27001</li></ul>
+        </div>
+        <div class="card">
+          <div class="ico">🎯</div>
+          <h3>Sensibilisation &amp; réponse</h3>
+          <p>Formation des équipes, simulations de phishing et préparation à la gestion d'incident et à la reprise d'activité.</p>
+          <ul><li>Phishing</li><li>Plan de réponse</li><li>PCA / PRA</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="conformite" class="band">
+      <div class="status"><span class="dot"></span>Service en ligne — plateforme opérationnelle</div>
+      <div class="meta">CONSEILPREV Cyber · déployé sur Render</div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot" id="contact">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Conseil &amp; conformité en cybersécurité</div>
+      <div><a href="mailto:christophe.cerf@outlook.com">christophe.cerf@outlook.com</a></div>
+    </div>
+  </footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+</body>
+</html>
