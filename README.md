@@ -15,16 +15,30 @@ python app.py
 # → http://localhost:5000
 ```
 
+## Pages
+
+| Route | Fichier | Contenu |
+|-------|---------|---------|
+| `/` | `index.html` | Accueil (hero, domaines d'intervention, approche) |
+| `/services` | `services.html` | Détail des prestations |
+| `/contact` | `contact.html` | Formulaire (via `mailto`) + coordonnées |
+| `/mentions-legales` | `mentions-legales.html` | Mentions légales (⚠️ champs `[À COMPLÉTER]`) |
+| `/health` | — | Point de santé JSON |
+
 ## Structure
 
 | Fichier | Rôle |
 |---------|------|
-| `app.py` | Application Flask (page d'accueil + `/health`) |
-| `index.html` | Page d'accueil (statique, autonome) |
+| `app.py` | Application Flask (routes des pages + `/health`) |
+| `index.html`, `services.html`, `contact.html`, `mentions-legales.html` | Pages du site |
+| `styles.css` | Feuille de style partagée (thème cyber) |
 | `requirements.txt` | Dépendances Python |
 | `Procfile` | Commande de démarrage (`gunicorn app:app`) |
 | `runtime.txt` | Version de Python |
 | `render.yaml` | Blueprint de déploiement Render |
+
+> **À faire avant mise en ligne** : compléter les champs `[À COMPLÉTER]` de `mentions-legales.html`
+> (éditeur, SIRET, directeur de publication, adresse de l'hébergeur).
 
 ## Déploiement Render
 

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contact — CONSEILPREV Cyber</title>
+<meta name="description" content="Contactez CONSEILPREV Cyber pour un diagnostic de sécurité ou un accompagnement en conformité.">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><a href="/">CONSEILPREV</a><span class="tag">Cyber</span></div>
+      <div class="spacer"></div>
+      <nav class="links">
+        <a href="/">Accueil</a>
+        <a href="/services">Services</a>
+        <a href="/contact" class="active">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow"><span class="dot"></span>Prise de contact</span>
+      <h1>Parlons de votre <span class="grad">sécurité</span>.</h1>
+      <p class="lead" style="margin-top:18px">Décrivez votre besoin en quelques lignes&nbsp;: nous revenons vers vous rapidement pour un premier échange sans engagement.</p>
+    </section>
+
+    <section class="section" style="padding-top:24px">
+      <div class="grid grid-2" style="align-items:start">
+        <form class="form" id="cform" onsubmit="return sendMail(event)">
+          <div class="row">
+            <div class="field"><label for="nom">Nom</label><input id="nom" name="nom" required autocomplete="name"></div>
+            <div class="field"><label for="org">Organisation</label><input id="org" name="org" autocomplete="organization"></div>
+          </div>
+          <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" required autocomplete="email"></div>
+          <div class="field">
+            <label for="sujet">Sujet</label>
+            <select id="sujet" name="sujet">
+              <option>Diagnostic de sécurité</option>
+              <option>Conformité (NIS2, DORA, ISO 27001, RGPD)</option>
+              <option>Test d'intrusion</option>
+              <option>Sensibilisation / formation</option>
+              <option>Réponse à incident / continuité</option>
+              <option>Autre</option>
+            </select>
+          </div>
+          <div class="field"><label for="msg">Message</label><textarea id="msg" name="msg" required placeholder="Votre contexte, vos enjeux, une échéance éventuelle…"></textarea></div>
+          <button type="submit" class="btn btn-p" style="width:100%">Envoyer le message</button>
+          <p class="muted" style="margin-top:12px;color:var(--muted2);font-size:13px">
+            Le bouton ouvre votre logiciel de messagerie avec le message pré‑rempli. Vous pouvez aussi écrire directement à
+            <a href="mailto:christophe.cerf@outlook.com">christophe.cerf@outlook.com</a>.
+          </p>
+        </form>
+
+        <div>
+          <h3 style="margin-bottom:16px">Coordonnées</h3>
+          <ul class="info-list">
+            <li><span class="k">Email</span><span class="v"><a href="mailto:christophe.cerf@outlook.com">christophe.cerf@outlook.com</a></span></li>
+            <li><span class="k">Domaine</span><span class="v">Conseil &amp; conformité en cybersécurité</span></li>
+            <li><span class="k">Cadres</span><span class="v">NIS2 · DORA · ISO/IEC 27001 · RGPD</span></li>
+            <li><span class="k">Zone</span><span class="v">France · à distance et sur site</span></li>
+          </ul>
+          <div class="band" style="margin-top:24px">
+            <div class="status"><span class="dot"></span>Réponse sous 48&nbsp;h ouvrées</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Conseil &amp; conformité en cybersécurité</div>
+      <div class="fnav">
+        <a href="/services">Services</a>
+        <a href="/contact">Contact</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="mailto:christophe.cerf@outlook.com">Email</a>
+      </div>
+    </div>
+  </footer>
+  <script>
+    document.getElementById('y').textContent=new Date().getFullYear();
+    function sendMail(e){
+      e.preventDefault();
+      var nom=document.getElementById('nom').value.trim();
+      var org=document.getElementById('org').value.trim();
+      var email=document.getElementById('email').value.trim();
+      var sujet=document.getElementById('sujet').value;
+      var msg=document.getElementById('msg').value.trim();
+      var body="Nom : "+nom+"\nOrganisation : "+org+"\nEmail : "+email+"\n\n"+msg;
+      var url="mailto:christophe.cerf@outlook.com"
+        +"?subject="+encodeURIComponent("[Contact site] "+sujet)
+        +"&body="+encodeURIComponent(body);
+      window.location.href=url;
+      return false;
+    }
+  </script>
+</body>
+</html>
