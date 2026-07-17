@@ -27,6 +27,7 @@ python app.py
 | `/exigences-systeme` | `exigences-systeme.html` | 62443‑3‑3 : 7 FR, 51 exigences système (SR), niveaux SL 1‑4 |
 | `/exigences-composants` | `exigences-composants.html` | 62443‑4‑2 : exigences composant (CR) par type SAR/EDR/HDR/NDR |
 | `/exigences-prestataires` | `exigences-prestataires.html` | 62443‑2‑4 : programme des prestataires IACS, maturité CMMI‑SVC, profils |
+| `/developpement-securise` | `developpement-securise.html` | 62443‑4‑1 : cycle de développement sécurisé (8 pratiques SDL), maturité CMMI‑DEV |
 | `/programme-securite` | `programme-securite.html` | 62443‑2‑1 : programme de sécurité / CSMS (3 catégories, 19 éléments) |
 | `/gestion-correctifs` | `gestion-correctifs.html` | Module patch management selon IEC 62443‑2‑3 (rôles, modèle d'états, mitigations) |
 | `/demo` | `demo.html` | Cockpit OT **temps réel** : KPI, journal, zones, carte réseau, export PDF (démo, données simulées) |

@@ -34,6 +34,7 @@ PAGES = {
     "/exigences-systeme": "exigences-systeme.html",
     "/exigences-composants": "exigences-composants.html",
     "/exigences-prestataires": "exigences-prestataires.html",
+    "/developpement-securise": "developpement-securise.html",
     "/programme-securite": "programme-securite.html",
     "/gestion-correctifs": "gestion-correctifs.html",
     "/demo": "demo.html",
@@ -85,6 +86,11 @@ def exigences_composants():
 @app.route("/exigences-prestataires")
 def exigences_prestataires():
     return _page(PAGES["/exigences-prestataires"])
+
+
+@app.route("/developpement-securise")
+def developpement_securise():
+    return _page(PAGES["/developpement-securise"])
 
 
 @app.route("/programme-securite")
