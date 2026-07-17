@@ -29,6 +29,7 @@ PAGES = {
     "/": "index.html",
     "/services": "services.html",
     "/referentiel": "referentiel.html",
+    "/analyse-de-risque": "analyse-de-risque.html",
     "/secteurs": "secteurs.html",
     "/methodologie": "methodologie.html",
     "/exigences-systeme": "exigences-systeme.html",
@@ -62,6 +63,11 @@ def services():
 @app.route("/referentiel")
 def referentiel():
     return _page(PAGES["/referentiel"])
+
+
+@app.route("/analyse-de-risque")
+def analyse_de_risque():
+    return _page(PAGES["/analyse-de-risque"])
 
 
 @app.route("/secteurs")

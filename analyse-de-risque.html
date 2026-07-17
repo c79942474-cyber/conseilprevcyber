@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analyse de risque — zones & conduits (IEC 62443-3-2) — CONSEILPREV Cyber</title>
+<meta name="description" content="L'analyse de risque de conception selon IEC 62443-3-2 : système considéré (SUC), découpage en zones et conduits, attribution des niveaux de sécurité cibles (SL-T) et spécification des exigences (CRS).">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .concepts{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:6px}
+  @media(max-width:820px){.concepts{grid-template-columns:1fr}}
+  .cc{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:14px;border-left-width:3px}
+  .cc:nth-child(1){border-left-color:var(--cyan)}.cc:nth-child(2){border-left-color:var(--teal)}
+  .cc:nth-child(3){border-left-color:var(--violet)}.cc:nth-child(4){border-left-color:var(--amber)}
+  .cc:nth-child(5){border-left-color:var(--terra)}.cc:nth-child(6){border-left-color:var(--green)}
+  .cc .n{font-size:13.5px;font-weight:700;margin-bottom:3px}
+  .cc .ab{font-family:var(--mono);font-size:10px;color:var(--muted2)}
+  .cc .d{font-size:12px;color:var(--muted);margin-top:5px}
+  .steps{margin-top:8px}
+  .step{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:start;padding:16px 0;border-bottom:1px solid var(--line)}
+  .step:last-child{border-bottom:none}
+  .step .no{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#04121A;background:linear-gradient(135deg,var(--cyan),var(--teal))}
+  .step:nth-child(2) .no{background:linear-gradient(135deg,var(--violet),var(--cyan))}
+  .step:nth-child(3) .no{background:linear-gradient(135deg,var(--terra),var(--violet))}
+  .step:nth-child(4) .no{background:linear-gradient(135deg,var(--amber),var(--terra))}
+  .step:nth-child(5) .no{background:linear-gradient(135deg,var(--teal),var(--green))}
+  .step:nth-child(6) .no{background:linear-gradient(135deg,var(--cyan),var(--violet))}
+  .step:nth-child(7) .no{background:linear-gradient(135deg,var(--green),var(--cyan))}
+  .step .code{font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:.05em}
+  .step h3{font-size:15px;margin:2px 0 4px}
+  .step p{font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><a href="/">CONSEILPREV</a><span class="tag">Cyber</span></div>
+      <div class="spacer"></div>
+      <nav class="links">
+        <a href="/">Accueil</a>
+        <a href="/services">Services</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/demo">Démo temps réel</a>
+        <a href="/contact" class="cta">Nous contacter</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow"><span class="dot"></span>Référentiel · IEC 62443‑3‑2</span>
+      <h1>Analyse de risque par <span class="grad">zones &amp; conduits</span>.</h1>
+      <p class="lead" style="margin-top:18px">62443‑3‑2 définit <em>comment</em> conduire l'analyse de risque d'une installation&nbsp;:
+        délimiter le périmètre, le découper en <strong>zones et conduits</strong>, puis attribuer à chacun un
+        <strong>niveau de sécurité cible (SL‑T)</strong>. C'est le pont entre le risque et les exigences techniques.</p>
+    </section>
+
+    <section class="section" style="padding-top:24px">
+      <div class="prose" style="max-width:none"><h2>Les concepts clés</h2></div>
+      <div class="concepts">
+        <div class="cc"><div class="n">SUC</div><div class="ab">System Under Consideration</div><div class="d">Le périmètre d'actifs soumis à l'analyse de risque.</div></div>
+        <div class="cc"><div class="n">Zone</div><div class="ab">Zone de sécurité</div><div class="d">Un groupe d'actifs partageant les mêmes exigences de sécurité.</div></div>
+        <div class="cc"><div class="n">Conduit</div><div class="ab">Conduit de communication</div><div class="d">Les canaux de communication reliant les zones, avec leurs propres exigences.</div></div>
+        <div class="cc"><div class="n">SL‑T</div><div class="ab">Target Security Level</div><div class="d">Le niveau de sécurité visé pour une zone ou un conduit, issu du risque.</div></div>
+        <div class="cc"><div class="n">Risque tolérable</div><div class="ab">Tolerable risk</div><div class="d">Le seuil de risque que l'organisation accepte&nbsp;; il déclenche l'action.</div></div>
+        <div class="cc"><div class="n">CRS</div><div class="ab">Cybersecurity Requirements Specification</div><div class="d">Le livrable qui consigne zones, conduits, SL‑T, hypothèses et contraintes.</div></div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <div class="sec-title">// Le déroulé de l'analyse (ZCR 1 → 7)</div>
+      <div class="steps">
+        <div class="step"><div class="no">1</div><div><div class="code">ZCR 1</div><h3>Identifier le système considéré (SUC)</h3><p>Délimiter clairement le périmètre&nbsp;: actifs, interfaces, frontières.</p></div></div>
+        <div class="step"><div class="no">2</div><div><div class="code">ZCR 2</div><h3>Analyse de risque initiale</h3><p>Évaluer le risque au pire cas, sans contre‑mesures, pour cadrer les enjeux.</p></div></div>
+        <div class="step"><div class="no">3</div><div><div class="code">ZCR 3</div><h3>Découper en zones &amp; conduits</h3><p>Regrouper les actifs par exigences de sécurité homogènes et expliciter les flux (conduits).</p></div></div>
+        <div class="step"><div class="no">4</div><div><div class="code">ZCR 4</div><h3>Comparer au risque tolérable</h3><p>Si le risque initial dépasse le seuil acceptable, une analyse détaillée est requise.</p></div></div>
+        <div class="step"><div class="no">5</div><div><div class="code">ZCR 5</div><h3>Analyse de risque détaillée</h3><p>Par zone/conduit&nbsp;: menaces, vulnérabilités, conséquences, vraisemblance → risque, contre‑mesures et <strong>SL‑T</strong>, puis risque résiduel.</p></div></div>
+        <div class="step"><div class="no">6</div><div><div class="code">ZCR 6</div><h3>Documenter les exigences (CRS)</h3><p>Consigner zones, conduits, SL‑T, exigences, hypothèses et contraintes — le dossier remis à la conception.</p></div></div>
+        <div class="step"><div class="no">7</div><div><div class="code">ZCR 7</div><h3>Validation par l'exploitant</h3><p>L'asset owner approuve les résultats et les niveaux cibles retenus.</p></div></div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <div class="prose" style="max-width:none">
+        <p>Le résultat — les zones, les conduits et leurs SL‑T — alimente directement le choix des exigences&nbsp;:
+        <a href="/exigences-systeme">exigences système (62443‑3‑3)</a> côté système et
+        <a href="/exigences-composants">exigences composants (62443‑4‑2)</a> côté équipements.</p>
+      </div>
+
+      <div class="band" style="margin-top:14px">
+        <div class="status" style="color:var(--muted)">📚 <strong style="color:var(--ink)">Référence</strong> — IEC 62443‑3‑2, <em>Security risk assessment for system design</em>. Page rédigée d'après la méthodologie publiée de la norme (document non fourni ici)&nbsp;; à aligner au mot près sur demande.</div>
+      </div>
+
+      <div class="divider"></div>
+      <div style="text-align:center">
+        <h2>Cadrer votre analyse de risque&nbsp;?</h2>
+        <p class="lead" style="margin:10px auto 0">Nous conduisons le découpage en zones &amp; conduits et l'attribution des SL‑T sur votre installation.</p>
+        <div class="actions" style="justify-content:center">
+          <a href="/contact" class="btn btn-p">Demander un état des lieux</a>
+          <a href="/methodologie" class="btn btn-s">Voir la méthodologie</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Cybersécurité industrielle IT / OT / IIoT</div>
+      <div class="fnav">
+        <a href="/about">À propos</a>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/demo">Démo</a>
+        <a href="/contact">Contact</a>
+        <a href="/mentions-legales">Mentions légales</a>
+      </div>
+    </div>
+  </footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+</body>
+</html>
