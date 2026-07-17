@@ -28,6 +28,8 @@ NOTIFY_TO = "christophe.cerf@outlook.com"
 PAGES = {
     "/": "index.html",
     "/services": "services.html",
+    "/secteurs": "secteurs.html",
+    "/methodologie": "methodologie.html",
     "/demo": "demo.html",
     "/about": "about.html",
     "/contact": "contact.html",
@@ -47,6 +49,16 @@ def index():
 @app.route("/services")
 def services():
     return _page(PAGES["/services"])
+
+
+@app.route("/secteurs")
+def secteurs():
+    return _page(PAGES["/secteurs"])
+
+
+@app.route("/methodologie")
+def methodologie():
+    return _page(PAGES["/methodologie"])
 
 
 @app.route("/demo")

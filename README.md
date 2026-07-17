@@ -21,7 +21,9 @@ python app.py
 |-------|---------|---------|
 | `/` | `index.html` | Accueil (positionnement IT/OT/IIoT, domaines, approche) |
 | `/services` | `services.html` | Objectifs, livrables et compétences (IEC 62443…) |
-| `/demo` | `demo.html` | Cockpit de supervision OT **temps réel** (démo, données simulées) |
+| `/secteurs` | `secteurs.html` | Secteurs (énergie, eau, manufacturing, agro, chimie-pharma, logistique) |
+| `/methodologie` | `methodologie.html` | Démarche en 6 phases + concepts IEC 62443 |
+| `/demo` | `demo.html` | Cockpit OT **temps réel** : KPI, journal, zones, carte réseau, export PDF (démo, données simulées) |
 | `/about` | `about.html` | À propos (mission, engagements) |
 | `/contact` | `contact.html` | Formulaire + coordonnées |
 | `/mentions-legales` | `mentions-legales.html` | Mentions légales (⚠️ champs `[À COMPLÉTER]`) |

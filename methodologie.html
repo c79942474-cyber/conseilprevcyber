@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Méthodologie IEC 62443 — CONSEILPREV Cyber</title>
+<meta name="description" content="Notre démarche cybersécurité industrielle alignée IEC/ISA 62443 : zones & conduits, niveaux de sécurité, analyse de risques et maintien en condition de sécurité.">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .steps{position:relative;margin-top:8px}
+  .step{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:start;padding:16px 0;border-bottom:1px solid var(--line)}
+  .step:last-child{border-bottom:none}
+  .step .no{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:16px;color:#04121A;background:linear-gradient(135deg,var(--cyan),var(--teal))}
+  .step:nth-child(2) .no{background:linear-gradient(135deg,var(--violet),var(--cyan))}
+  .step:nth-child(3) .no{background:linear-gradient(135deg,var(--terra),var(--violet))}
+  .step:nth-child(4) .no{background:linear-gradient(135deg,var(--amber),var(--terra))}
+  .step:nth-child(5) .no{background:linear-gradient(135deg,var(--teal),var(--green))}
+  .step:nth-child(6) .no{background:linear-gradient(135deg,var(--cyan),var(--violet))}
+  .step h3{margin-bottom:4px}
+  .step p{color:var(--muted);font-size:14px}
+  .sl{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:6px}
+  @media(max-width:720px){.sl{grid-template-columns:repeat(2,1fr)}}
+  .slb{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:14px}
+  .slb .n{font-family:var(--mono);font-size:12px;color:var(--cyan);margin-bottom:4px}
+  .slb .d{font-size:12.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><a href="/">CONSEILPREV</a><span class="tag">Cyber</span></div>
+      <div class="spacer"></div>
+      <nav class="links">
+        <a href="/">Accueil</a>
+        <a href="/services">Services</a>
+        <a href="/demo">Démo temps réel</a>
+        <a href="/about" class="hide">À propos</a>
+        <a href="/contact" class="cta">Nous contacter</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow"><span class="dot"></span>Méthodologie · IEC/ISA 62443</span>
+      <h1>Une démarche <span class="grad">structurée</span>, alignée IEC&nbsp;62443.</h1>
+      <p class="lead" style="margin-top:18px">Le standard international de référence pour la sécurité des systèmes d'automatisation
+        et de contrôle industriels (IACS). Nous en appliquons les principes de façon pragmatique, étape par étape.</p>
+    </section>
+
+    <section class="section" style="padding-top:24px">
+      <div class="panel-lite prose" style="max-width:none">
+        <h2>Notre démarche en six phases</h2>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="no">1</div><div><h3>État des lieux &amp; discovery</h3><p>Découverte passive du réseau, inventaire des actifs IT/OT/IIoT et cartographie des flux réels — la base de toute décision.</p></div></div>
+        <div class="step"><div class="no">2</div><div><h3>Analyse de risques</h3><p>Identification des scénarios redoutés, évaluation de l'impact et de la vraisemblance, détermination des niveaux de sécurité cibles (SL-T).</p></div></div>
+        <div class="step"><div class="no">3</div><div><h3>Zones &amp; conduits</h3><p>Découpage de l'installation en zones de confiance homogènes et en conduits (les flux entre zones), cœur du modèle IEC&nbsp;62443.</p></div></div>
+        <div class="step"><div class="no">4</div><div><h3>Architecture cible &amp; remédiation</h3><p>Segmentation, matrices de flux, NAC, firewalls NextGen, durcissement — un plan priorisé par le risque et réaliste pour le terrain.</p></div></div>
+        <div class="step"><div class="no">5</div><div><h3>Mise en œuvre &amp; supervision</h3><p>Déploiement progressif, détection d'anomalies (IDS/IPS OT), sécurité endpoint et documentation des choix.</p></div></div>
+        <div class="step"><div class="no">6</div><div><h3>Maintien en condition de sécurité</h3><p>Validation des demandes de flux, mise à jour des standards, revues régulières et montée en compétence des équipes.</p></div></div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <div class="prose" style="max-width:none">
+        <h2>Concepts clés d'IEC 62443</h2>
+        <h3>Zones &amp; conduits</h3>
+        <p>Une <strong>zone</strong> regroupe des actifs partageant les mêmes exigences de sécurité&nbsp;; un <strong>conduit</strong>
+        est le canal de communication entre zones. Isoler, puis contrôler chaque conduit, permet de limiter la propagation
+        d'une attaque et de rendre les flux explicites et vérifiables.</p>
+
+        <h3>Niveaux de sécurité (Security Levels)</h3>
+        <p>Le standard gradue l'exigence de protection face à des attaquants de capacités croissantes&nbsp;:</p>
+        <div class="sl">
+          <div class="slb"><div class="n">SL 1</div><div class="d">Protection contre les erreurs et usages accidentels.</div></div>
+          <div class="slb"><div class="n">SL 2</div><div class="d">Contre une attaque simple, moyens limités.</div></div>
+          <div class="slb"><div class="n">SL 3</div><div class="d">Contre une attaque ciblée, moyens et compétences avancés.</div></div>
+          <div class="slb"><div class="n">SL 4</div><div class="d">Contre une attaque sophistiquée, moyens étendus.</div></div>
+        </div>
+        <p class="muted" style="margin-top:12px">On distingue le niveau <em>cible</em> (SL-T), le niveau <em>atteint</em> (SL-A) et le
+        niveau <em>capacité</em> des composants (SL-C) — l'écart guide le plan de remédiation.</p>
+
+        <h3>Exigences fondamentales (Foundational Requirements)</h3>
+        <ul>
+          <li><strong>FR1 — Contrôle d'identification et d'authentification</strong></li>
+          <li><strong>FR2 — Contrôle d'usage</strong> (droits, moindre privilège)</li>
+          <li><strong>FR3 — Intégrité du système</strong></li>
+          <li><strong>FR4 — Confidentialité des données</strong></li>
+          <li><strong>FR5 — Restriction des flux de données</strong> (segmentation)</li>
+          <li><strong>FR6 — Réponse en temps utile aux événements</strong> (détection)</li>
+          <li><strong>FR7 — Disponibilité des ressources</strong> (continuité)</li>
+        </ul>
+
+        <div class="divider"></div>
+        <div style="text-align:center">
+          <h2>Passons à votre installation</h2>
+          <p class="lead" style="margin:10px auto 0">Un état des lieux est le meilleur point de départ pour situer vos zones et vos niveaux cibles.</p>
+          <div class="actions" style="justify-content:center">
+            <a href="/contact" class="btn btn-p">Demander un état des lieux</a>
+            <a href="/demo" class="btn btn-s">Voir la supervision en action</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Cybersécurité industrielle IT / OT / IIoT</div>
+      <div class="fnav">
+        <a href="/about">À propos</a>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/methodologie">Méthodologie</a>
+        <a href="/demo">Démo</a>
+        <a href="/contact">Contact</a>
+        <a href="/mentions-legales">Mentions légales</a>
+      </div>
+    </div>
+  </footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+</body>
+</html>

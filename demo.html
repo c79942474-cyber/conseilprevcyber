@@ -47,6 +47,19 @@
   .tg.crit{background:rgba(217,96,58,.14);color:var(--terra)}
   .fi .tx{color:var(--ink)}
   .fi .tm{font-family:var(--mono);font-size:10px;color:var(--muted2);white-space:nowrap}
+  .toolbar{display:flex;justify-content:flex-end;margin-bottom:14px}
+  .netmap{display:flex;flex-direction:column;align-items:center;padding:8px 0}
+  .node{width:100%;max-width:540px;display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;
+    background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:11px 15px}
+  .node .lv{font-family:var(--mono);font-size:10px;color:var(--muted2);border:1px solid var(--line);border-radius:6px;padding:3px 7px;white-space:nowrap}
+  .node .zn{font-size:13.5px;font-weight:600}
+  .node .zc{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .node .st{width:9px;height:9px;border-radius:50%}
+  .conduit{width:3px;height:30px;background:var(--line);position:relative;overflow:hidden;border-radius:2px}
+  .conduit i{position:absolute;left:0;right:0;height:45%;top:-45%;background:linear-gradient(var(--cyan),transparent);animation:flow 1.3s linear infinite}
+  @keyframes flow{0%{top:-45%}100%{top:105%}}
+  .conduit.fw{height:46px;background:var(--amber)}
+  .conduit.fw::before{content:"🔥 pare-feu IT / OT";position:absolute;left:12px;top:50%;transform:translateY(-50%);white-space:nowrap;font-family:var(--mono);font-size:10px;color:var(--amber)}
 </style>
 </head>
 <body>
@@ -92,6 +105,8 @@
         </div>
       </div>
 
+      <div class="toolbar"><button id="btnPdf" class="btn btn-s">📄 Exporter le rapport (PDF)</button></div>
+
       <div class="dash">
         <div class="panel">
           <div class="ph"><h3>Journal d'événements</h3><span class="live"><span class="dot"></span>EN DIRECT</span></div>
@@ -103,6 +118,11 @@
           <div class="zones" id="zones"></div>
         </div>
       </div>
+
+      <div class="panel" style="margin-top:16px">
+        <div class="ph"><h3>Carte réseau — zones &amp; conduits (IEC 62443)</h3><span class="live"><span class="dot"></span>FLUX</span></div>
+        <div class="netmap" id="netmap"></div>
+      </div>
     </section>
   </main>
 
@@ -112,6 +132,8 @@
       <div class="fnav">
         <a href="/about">À propos</a>
         <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/methodologie">Méthodologie</a>
         <a href="/demo">Démo</a>
         <a href="/contact">Contact</a>
         <a href="/mentions-legales">Mentions légales</a>
@@ -138,7 +160,7 @@
     var INFO = ['Segmentation vérifiée','Matrice de flux validée','Sauvegarde config automate',
       'Correctif appliqué (Historian)','Règle NGFW mise à jour','Durcissement poste OT'];
 
-    var feed=document.getElementById('feed'), zonesEl=document.getElementById('zones');
+    var feed=document.getElementById('feed'), zonesEl=document.getElementById('zones'), netmap=document.getElementById('netmap');
     var assets=0, alerts=0, risk=72;
     function rnd(a){return a[Math.floor(Math.random()*a.length)];}
     function ri(min,max){return Math.floor(min+Math.random()*(max-min+1));}
@@ -163,6 +185,7 @@
           +'<div><div class="zn">'+z.n+'</div><div class="zc">'+z.c+' actifs</div></div>'
           +'<span class="st '+st+'" title="'+st+'"></span></div>';
       }).join('');
+      updateMapCounts();
     }
     function addEvent(tag,txt){
       var el=document.createElement('div');
@@ -173,6 +196,52 @@
       while(feed.children.length>10){ feed.removeChild(feed.lastChild); }
     }
 
+    function buildMap(){
+      if(!netmap)return;
+      var html='';
+      ZONES.forEach(function(z,i){
+        html+='<div class="node" id="node-'+z.id+'"><span class="lv">'+z.lv+'</span>'
+          +'<div><div class="zn">'+z.n+'</div><div class="zc">'+z.c+' actifs</div></div>'
+          +'<span class="st ok"></span></div>';
+        if(i<ZONES.length-1){ html+='<div class="conduit'+(i===1?' fw':'')+'"><i></i></div>'; }
+      });
+      netmap.innerHTML=html;
+    }
+    function updateMapCounts(){
+      if(!netmap)return;
+      ZONES.forEach(function(z){
+        var n=document.getElementById('node-'+z.id); if(!n)return;
+        n.querySelector('.zc').textContent=z.c+' actifs';
+        n.querySelector('.st').className='st '+(z.alert?'alert':(z.watch?'watch':'ok'));
+      });
+    }
+    function exportPDF(){
+      var win=window.open('','_blank'); if(!win)return;
+      var rows=ZONES.map(function(z){var s=z.alert?'Alerte':(z.watch?'Surveillé':'OK');
+        return '<tr><td>'+z.n+'</td><td>'+z.lv+'</td><td>'+z.c+'</td><td>'+s+'</td></tr>';}).join('');
+      var d=new Date();
+      var doc='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Rapport supervision OT — CONSEILPREV Cyber</title>'
+        +'<style>@page{margin:2cm}body{font-family:Arial,sans-serif;color:#1c1c1c;max-width:820px;margin:0 auto;line-height:1.5}'
+        +'h1{font-size:22px;border-bottom:3px solid #0f7a86;padding-bottom:8px;margin-bottom:2px}'
+        +'.sub{color:#666;font-size:12px;margin-bottom:18px}h2{font-size:15px;color:#0f7a86;margin-top:22px}'
+        +'table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}th{background:#f2f6f7}'
+        +'.kpis{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}.kpi{border:1px solid #ddd;border-radius:6px;padding:8px 12px;font-size:12px}.kpi b{font-size:18px;display:block}'
+        +'.disc{margin-top:24px;font-size:11px;color:#999;font-style:italic}</style></head><body>'
+        +'<h1>Rapport de supervision OT</h1>'
+        +'<div class="sub">CONSEILPREV Cyber — Démonstration (données simulées) — généré le '+d.toLocaleString('fr-FR')+'</div>'
+        +'<h2>Indicateurs</h2><div class="kpis">'
+        +'<div class="kpi"><b>'+assets+'</b>Actifs découverts</div>'
+        +'<div class="kpi"><b>'+ZONES.length+'</b>Zones (IEC 62443)</div>'
+        +'<div class="kpi"><b>'+alerts+'</b>Alertes actives</div>'
+        +'<div class="kpi"><b>'+Math.round(risk)+'/100</b>Score de risque</div></div>'
+        +'<h2>Zones &amp; segmentation</h2><table><tr><th>Zone</th><th>Niveau</th><th>Actifs</th><th>État</th></tr>'+rows+'</table>'
+        +'<p class="disc">Données simulées à des fins de démonstration. Ce document ne constitue pas un audit ni un avis de sécurité.</p>'
+        +'<scr'+'ipt>window.onload=function(){window.print();}</scr'+'ipt></body></html>';
+      win.document.write(doc); win.document.close();
+    }
+
+    buildMap();
+    var pdfBtn=document.getElementById('btnPdf'); if(pdfBtn){ pdfBtn.addEventListener('click',exportPDF); }
     render();
     addEvent('info','Découverte réseau démarrée — mode passif');
 
