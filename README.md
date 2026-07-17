@@ -19,8 +19,9 @@ python app.py
 
 | Route | Fichier | Contenu |
 |-------|---------|---------|
-| `/` | `index.html` | Accueil (hero, domaines d'intervention, approche) |
-| `/services` | `services.html` | Détail des prestations |
+| `/` | `index.html` | Accueil (positionnement IT/OT/IIoT, domaines, approche) |
+| `/services` | `services.html` | Objectifs, livrables et compétences (IEC 62443…) |
+| `/demo` | `demo.html` | Cockpit de supervision OT **temps réel** (démo, données simulées) |
 | `/about` | `about.html` | À propos (mission, engagements) |
 | `/contact` | `contact.html` | Formulaire + coordonnées |
 | `/mentions-legales` | `mentions-legales.html` | Mentions légales (⚠️ champs `[À COMPLÉTER]`) |
