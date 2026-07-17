@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exigences système (IEC 62443-3-3) — CONSEILPREV Cyber</title>
+<meta name="description" content="Les exigences de sécurité des systèmes selon IEC 62443-3-3 : 7 exigences fondamentales, 51 exigences système (SR) et niveaux de sécurité SL 1-4.">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .sl4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:6px 0 8px}
+  @media(max-width:820px){.sl4{grid-template-columns:repeat(2,1fr)}}
+  .slc{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:14px;border-top-width:2px}
+  .slc:nth-child(1){border-top-color:var(--teal)}.slc:nth-child(2){border-top-color:var(--cyan)}
+  .slc:nth-child(3){border-top-color:var(--amber)}.slc:nth-child(4){border-top-color:var(--terra)}
+  .slc .n{font-family:var(--mono);font-size:12px;color:var(--ink);margin-bottom:4px}
+  .slc .d{font-size:12px;color:var(--muted)}
+  .frgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:820px){.frgrid{grid-template-columns:1fr}}
+  .frcard{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:14px;padding:20px;position:relative;overflow:hidden}
+  .frcard::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--fc,linear-gradient(90deg,var(--cyan),var(--teal)))}
+  .frcard .frh{font-size:15px;font-weight:700;margin-bottom:2px}
+  .frcard .frab{font-family:var(--mono);font-size:10px;color:var(--muted2);letter-spacing:.06em;margin-bottom:10px}
+  .srlist{list-style:none}
+  .srlist li{font-size:12.5px;color:var(--muted);padding:5px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:52px 1fr;gap:8px}
+  .srlist li:first-child{border-top:none}
+  .srlist .n{font-family:var(--mono);font-size:10.5px;color:var(--cyan)}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><a href="/">CONSEILPREV</a><span class="tag">Cyber</span></div>
+      <div class="spacer"></div>
+      <nav class="links">
+        <a href="/">Accueil</a>
+        <a href="/services">Services</a>
+        <a href="/methodologie">Méthodologie</a>
+        <a href="/demo">Démo temps réel</a>
+        <a href="/contact" class="cta">Nous contacter</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow"><span class="dot"></span>Référentiel · IEC 62443‑3‑3</span>
+      <h1>Exigences de sécurité <span class="grad">des systèmes</span>.</h1>
+      <p class="lead" style="margin-top:18px">IEC 62443‑3‑3 décline les sept exigences fondamentales en <strong>51 exigences
+        système (SR)</strong>, assorties de renforcements (RE) et associées à quatre <strong>niveaux de sécurité (SL)</strong>.
+        C'est le socle technique de nos audits et de nos architectures.</p>
+    </section>
+
+    <section class="section" style="padding-top:24px">
+      <div class="prose" style="max-width:none"><h2>Les quatre niveaux de sécurité (SL)</h2>
+        <p>Chaque exigence se lit selon le niveau de menace à contrer&nbsp;:</p></div>
+      <div class="sl4">
+        <div class="slc"><div class="n">SL 1</div><div class="d">Violation <b>fortuite</b> ou accidentelle.</div></div>
+        <div class="slc"><div class="n">SL 2</div><div class="d">Violation <b>intentionnelle</b>, moyens simples, ressources faibles, compétences génériques.</div></div>
+        <div class="slc"><div class="n">SL 3</div><div class="d">Moyens <b>sophistiqués</b>, ressources modérées, compétences spécifiques IACS.</div></div>
+        <div class="slc"><div class="n">SL 4</div><div class="d">Moyens sophistiqués, <b>ressources étendues</b>, compétences IACS, forte motivation.</div></div>
+      </div>
+      <p class="muted" style="max-width:760px">On distingue le SL <em>cible</em> (SL‑T), <em>atteint</em> (SL‑A) et de <em>capacité</em> (SL‑C).
+      Une exigence de base (SR) correspond généralement au SL&nbsp;1&nbsp;; ses renforcements (RE) relèvent le niveau vers SL&nbsp;2, 3 ou 4.</p>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <div class="sec-title">// Les 7 exigences fondamentales et leurs 51 exigences système</div>
+      <div class="frgrid">
+
+        <div class="frcard" style="--fc:linear-gradient(90deg,var(--cyan),var(--teal))">
+          <div class="frh">FR 1 — Contrôle d'identification et d'authentification</div>
+          <div class="frab">IAC · Identification and authentication control</div>
+          <ul class="srlist">
+            <li><span class="n">SR 1.1</span><span>Identification &amp; authentification des utilisateurs humains</span></li>
+            <li><span class="n">SR 1.2</span><span>Identification &amp; authentification des processus logiciels et équipements</span></li>
+            <li><span class="n">SR 1.3</span><span>Gestion des comptes</span></li>
+            <li><span class="n">SR 1.4</span><span>Gestion des identifiants</span></li>
+            <li><span class="n">SR 1.5</span><span>Gestion des authentifiants</span></li>
+            <li><span class="n">SR 1.6</span><span>Gestion des accès sans fil</span></li>
+            <li><span class="n">SR 1.7</span><span>Robustesse de l'authentification par mot de passe</span></li>
+            <li><span class="n">SR 1.8</span><span>Certificats d'infrastructure à clés publiques (PKI)</span></li>
+            <li><span class="n">SR 1.9</span><span>Robustesse de l'authentification par clé publique</span></li>
+            <li><span class="n">SR 1.10</span><span>Retour d'information d'authentification</span></li>
+            <li><span class="n">SR 1.11</span><span>Tentatives de connexion infructueuses</span></li>
+            <li><span class="n">SR 1.12</span><span>Notification d'utilisation du système</span></li>
+            <li><span class="n">SR 1.13</span><span>Accès via des réseaux non fiables</span></li>
+          </ul>
+        </div>
+
+        <div class="frcard" style="--fc:linear-gradient(90deg,var(--violet),var(--cyan))">
+          <div class="frh">FR 2 — Contrôle d'usage</div>
+          <div class="frab">UC · Use control</div>
+          <ul class="srlist">
+            <li><span class="n">SR 2.1</span><span>Application des autorisations</span></li>
+            <li><span class="n">SR 2.2</span><span>Contrôle d'usage du sans-fil</span></li>
+            <li><span class="n">SR 2.3</span><span>Contrôle d'usage des équipements portables et mobiles</span></li>
+            <li><span class="n">SR 2.4</span><span>Code mobile</span></li>
+            <li><span class="n">SR 2.5</span><span>Verrouillage de session</span></li>
+            <li><span class="n">SR 2.6</span><span>Terminaison de session distante</span></li>
+            <li><span class="n">SR 2.7</span><span>Contrôle des sessions concurrentes</span></li>
+            <li><span class="n">SR 2.8</span><span>Événements auditables</span></li>
+            <li><span class="n">SR 2.9</span><span>Capacité de stockage des journaux</span></li>
+            <li><span class="n">SR 2.10</span><span>Réponse aux défaillances de journalisation</span></li>
+            <li><span class="n">SR 2.11</span><span>Horodatage</span></li>
+            <li><span class="n">SR 2.12</span><span>Non-répudiation</span></li>
+          </ul>
+        </div>
+
+        <div class="frcard" style="--fc:linear-gradient(90deg,var(--terra),var(--violet))">
+          <div class="frh">FR 3 — Intégrité du système</div>
+          <div class="frab">SI · System integrity</div>
+          <ul class="srlist">
+            <li><span class="n">SR 3.1</span><span>Intégrité des communications</span></li>
+            <li><span class="n">SR 3.2</span><span>Protection contre les codes malveillants</span></li>
+            <li><span class="n">SR 3.3</span><span>Vérification des fonctions de sécurité</span></li>
+            <li><span class="n">SR 3.4</span><span>Intégrité du logiciel et de l'information</span></li>
+            <li><span class="n">SR 3.5</span><span>Validation des entrées</span></li>
+            <li><span class="n">SR 3.6</span><span>Sortie déterministe</span></li>
+            <li><span class="n">SR 3.7</span><span>Gestion des erreurs</span></li>
+            <li><span class="n">SR 3.8</span><span>Intégrité de session</span></li>
+            <li><span class="n">SR 3.9</span><span>Protection des informations d'audit</span></li>
+          </ul>
+        </div>
+
+        <div class="frcard" style="--fc:linear-gradient(90deg,var(--amber),var(--terra))">
+          <div class="frh">FR 4 — Confidentialité des données</div>
+          <div class="frab">DC · Data confidentiality</div>
+          <ul class="srlist">
+            <li><span class="n">SR 4.1</span><span>Confidentialité de l'information</span></li>
+            <li><span class="n">SR 4.2</span><span>Persistance de l'information</span></li>
+            <li><span class="n">SR 4.3</span><span>Usage de la cryptographie</span></li>
+          </ul>
+        </div>
+
+        <div class="frcard" style="--fc:linear-gradient(90deg,var(--teal),var(--green))">
+          <div class="frh">FR 5 — Restriction des flux de données</div>
+          <div class="frab">RDF · Restricted data flow</div>
+          <ul class="srlist">
+            <li><span class="n">SR 5.1</span><span>Segmentation réseau</span></li>
+            <li><span class="n">SR 5.2</span><span>Protection des frontières de zone</span></li>
+            <li><span class="n">SR 5.3</span><span>Restriction des communications personne-à-personne à usage général</span></li>
+            <li><span class="n">SR 5.4</span><span>Cloisonnement applicatif</span></li>
+          </ul>
+        </div>
+
+        <div class="frcard" style="--fc:linear-gradient(90deg,var(--cyan),var(--violet))">
+          <div class="frh">FR 6 — Réponse en temps utile aux événements</div>
+          <div class="frab">TRE · Timely response to events</div>
+          <ul class="srlist">
+            <li><span class="n">SR 6.1</span><span>Accessibilité des journaux d'audit</span></li>
+            <li><span class="n">SR 6.2</span><span>Surveillance continue</span></li>
+          </ul>
+        </div>
+
+        <div class="frcard" style="--fc:linear-gradient(90deg,var(--green),var(--cyan))">
+          <div class="frh">FR 7 — Disponibilité des ressources</div>
+          <div class="frab">RA · Resource availability</div>
+          <ul class="srlist">
+            <li><span class="n">SR 7.1</span><span>Protection contre le déni de service</span></li>
+            <li><span class="n">SR 7.2</span><span>Gestion des ressources</span></li>
+            <li><span class="n">SR 7.3</span><span>Sauvegarde du système de contrôle</span></li>
+            <li><span class="n">SR 7.4</span><span>Restauration et reconstitution du système</span></li>
+            <li><span class="n">SR 7.5</span><span>Alimentation de secours</span></li>
+            <li><span class="n">SR 7.6</span><span>Paramètres de configuration réseau et de sécurité</span></li>
+            <li><span class="n">SR 7.7</span><span>Fonctionnalité minimale (least functionality)</span></li>
+            <li><span class="n">SR 7.8</span><span>Inventaire des composants du système de contrôle</span></li>
+          </ul>
+        </div>
+
+        <div class="frcard" style="--fc:linear-gradient(90deg,var(--amber),var(--cyan));display:flex;flex-direction:column;justify-content:center">
+          <div class="frh">Comment nous l'utilisons</div>
+          <p style="color:var(--muted);font-size:13px;margin-top:8px">Chaque SR devient un point de contrôle d'audit&nbsp;: nous
+          évaluons l'écart entre le SL <em>atteint</em> et le SL <em>cible</em> de vos zones, puis nous priorisons les
+          renforcements (RE) qui comblent cet écart au meilleur coût pour la production.</p>
+          <div class="actions" style="margin-top:16px"><a href="/contact" class="btn btn-p">Évaluer vos zones</a></div>
+        </div>
+
+      </div>
+
+      <div class="band" style="margin-top:22px">
+        <div class="status" style="color:var(--muted)">📚 <strong style="color:var(--ink)">Référence</strong> — IEC 62443‑3‑3:2013, <em>System security requirements and security levels</em>. Intitulés paraphrasés en français&nbsp;; contenu des exigences non reproduit.</div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Cybersécurité industrielle IT / OT / IIoT</div>
+      <div class="fnav">
+        <a href="/about">À propos</a>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/methodologie">Méthodologie</a>
+        <a href="/exigences-systeme">Exigences système</a>
+        <a href="/gestion-correctifs">Correctifs</a>
+        <a href="/demo">Démo</a>
+        <a href="/contact">Contact</a>
+        <a href="/mentions-legales">Mentions légales</a>
+      </div>
+    </div>
+  </footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+</body>
+</html>

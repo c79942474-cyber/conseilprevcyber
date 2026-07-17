@@ -23,6 +23,7 @@ python app.py
 | `/services` | `services.html` | Objectifs, livrables et compétences (IEC 62443…) |
 | `/secteurs` | `secteurs.html` | Secteurs (énergie, eau, manufacturing, agro, chimie-pharma, logistique) |
 | `/methodologie` | `methodologie.html` | Démarche en 6 phases + concepts IEC 62443‑1‑1 (FR, SL, défense en profondeur) |
+| `/exigences-systeme` | `exigences-systeme.html` | 62443‑3‑3 : 7 FR, 51 exigences système (SR), niveaux SL 1‑4 |
 | `/gestion-correctifs` | `gestion-correctifs.html` | Module patch management selon IEC 62443‑2‑3 (rôles, modèle d'états, mitigations) |
 | `/demo` | `demo.html` | Cockpit OT **temps réel** : KPI, journal, zones, carte réseau, export PDF (démo, données simulées) |
 | `/about` | `about.html` | À propos (mission, engagements) |
