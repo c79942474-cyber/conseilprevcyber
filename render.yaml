@@ -39,8 +39,12 @@ services:
       # Clé de signature des sessions : générée automatiquement par Render.
       - key: FLASK_SECRET_KEY
         generateValue: true
-      # Email qui reçoit les demandes d'accès à approuver.
+      # Email qui reçoit les demandes d'accès à approuver (= compte admin).
       - key: ADMIN_EMAIL
+        sync: false
+      # Mot de passe initial du compte admin (créé au premier démarrage s'il
+      # n'existe pas ; modifiable ensuite via « mot de passe oublié »).
+      - key: ADMIN_PASSWORD
         sync: false
       # URL publique (liens des emails de confirmation / réinitialisation).
       - key: PUBLIC_BASE_URL

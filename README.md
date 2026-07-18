@@ -135,6 +135,10 @@ saisir le mapping à la main.
   restent ouverts. Variables : `FLASK_SECRET_KEY` (signature des sessions), `ADMIN_EMAIL` (destinataire
   des demandes), `PUBLIC_BASE_URL` (liens des emails). Pages : `/inscription`, `/connexion`,
   `/mot-de-passe-oublie`. Nécessite `DATABASE_URL` (table `users`) pour la persistance des comptes.
+- **Tableau d'administration** — `/admin/comptes` (rôle `admin` requis) : compteurs (en attente /
+  actifs / admins), liste des comptes et actions (approuver, suspendre, promouvoir/rétrograder,
+  supprimer). Le compte admin est créé au premier démarrage depuis `ADMIN_EMAIL` + `ADMIN_PASSWORD`
+  (déjà vérifié/approuvé) ; suspendre un compte invalide immédiatement sa session.
 - **Haute disponibilité (multi-instance)** — définir `REDIS_URL` diffuse les événements à **toutes les
   instances** via Redis pub/sub (fan-out SSE partagé) ; combiné à `DATABASE_URL` (état partagé), le
   cockpit tient plusieurs instances derrière un load-balancer. Sans `REDIS_URL` : une seule instance.

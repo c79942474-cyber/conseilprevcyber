@@ -137,6 +137,18 @@ class _JsonStore:
             self._dump(d)
             return True
 
+    def delete(self, email):
+        with self._lock:
+            d = self._load()
+            if email not in d:
+                return False
+            del d[email]
+            self._dump(d)
+            return True
+
+    def list_all(self):
+        return sorted(self._load().values(), key=lambda u: u.get("created_at") or 0, reverse=True)
+
 
 class _PgStore:
     """Stockage PostgreSQL (persistant). Table `users`."""
@@ -203,6 +215,15 @@ class _PgStore:
             c.execute("UPDATE users SET %s WHERE email=%%s" % sets,
                       tuple(fields.values()) + (email,))
             return True
+
+    def delete(self, email):
+        with self._pool.connection() as c:
+            c.execute("DELETE FROM users WHERE email=%s", (email,))
+            return True
+
+    def list_all(self):
+        with self._pool.connection() as c:
+            return c.execute("SELECT * FROM users ORDER BY created_at DESC NULLS LAST").fetchall()
 
 
 def _make_store():
@@ -276,8 +297,10 @@ def _notify_admin(user):
                       "<ul><li><b>Nom :</b> %s</li><li><b>Organisation :</b> %s</li>"
                       "<li><b>Email :</b> %s</li></ul>"
                       "<p>Après confirmation de son email par l'utilisateur, approuvez l'accès :</p>%s"
+                      "<p style=\"color:#8a9ab0;font-size:12px\">Gérer tous les comptes : "
+                      "<a href=\"%s/admin/comptes\">%s/admin/comptes</a></p>"
                       % (user["name"] or "—", user["org"] or "—", user["email"],
-                         _btn(url, "Approuver cet accès"))))
+                         _btn(url, "Approuver cet accès"), _base_url(), _base_url())))
 
 
 def _send_approved(user):
@@ -316,6 +339,22 @@ def login_required(f):
             if request.path.startswith("/api/"):
                 return jsonify(error="Authentification requise."), 401
             return redirect("/connexion?next=" + request.path)
+        return f(*a, **k)
+    return wrap
+
+
+def admin_required(f):
+    @functools.wraps(f)
+    def wrap(*a, **k):
+        u = current_user()
+        if not u:
+            if request.path.startswith("/api/"):
+                return jsonify(error="Authentification requise."), 401
+            return redirect("/connexion?next=" + request.path)
+        if (u.get("role") or "user") != "admin":
+            if request.path.startswith("/api/"):
+                return jsonify(error="Accès réservé à l'administrateur."), 403
+            return "<meta charset='utf-8'><p style='font-family:Arial;margin:60px auto;max-width:480px;text-align:center'>Accès réservé à l'administrateur.</p>", 403
         return f(*a, **k)
     return wrap
 
@@ -493,6 +532,87 @@ def api_reset():
     return jsonify(ok=True)
 
 
+# ------------------------------------------------------------ administration ---
+def _public_user(u):
+    """Vue « sûre » d'un utilisateur (jamais de hash ni de jetons)."""
+    return {"email": u.get("email"), "name": u.get("name"), "org": u.get("org"),
+            "email_verified": bool(u.get("email_verified")), "approved": bool(u.get("approved")),
+            "role": u.get("role") or "user", "created_at": u.get("created_at"),
+            "last_login": u.get("last_login")}
+
+
+@auth_bp.route("/admin/comptes")
+@admin_required
+def page_admin_users():
+    return send_from_directory(HERE, "admin-comptes.html")
+
+
+@auth_bp.route("/api/admin/users")
+@admin_required
+def api_admin_users():
+    return jsonify(users=[_public_user(u) for u in store.list_all()])
+
+
+@auth_bp.route("/api/admin/users/<path:email>", methods=["PATCH", "DELETE"])
+@admin_required
+def api_admin_user_update(email):
+    email = (email or "").strip().lower()
+    me = current_user()
+    target = store.get(email)
+    if not target:
+        return jsonify(error="Compte introuvable."), 404
+    # Garde-fou : l'admin ne peut ni se suspendre ni se supprimer lui-même.
+    if email == me["email"]:
+        return jsonify(error="Vous ne pouvez pas modifier votre propre compte ici."), 400
+
+    if request.method == "DELETE":
+        store.delete(email)
+        return jsonify(ok=True)
+
+    d = request.get_json(silent=True) or {}
+    action = d.get("action")
+    if action == "approve":
+        store.update(email, approved=True, approve_token=None)
+        u = store.get(email)
+        threading.Thread(target=_send_approved, args=(u,), daemon=True).start()
+    elif action == "suspend":
+        store.update(email, approved=False)
+    elif action == "make_admin":
+        store.update(email, role="admin")
+    elif action == "make_user":
+        store.update(email, role="user")
+    else:
+        return jsonify(error="Action inconnue."), 400
+    return jsonify(ok=True, user=_public_user(store.get(email)))
+
+
+def _bootstrap_admin():
+    """Crée / promeut le compte admin depuis ADMIN_EMAIL (+ ADMIN_PASSWORD au 1er lancement).
+
+    - Si le compte ADMIN_EMAIL existe : on s'assure qu'il a le rôle admin.
+    - Sinon, si ADMIN_PASSWORD est défini : on le crée déjà vérifié + approuvé.
+    """
+    email = (ADMIN_EMAIL or "").strip().lower()
+    if not valid_email(email):
+        return
+    u = store.get(email)
+    if u:
+        if (u.get("role") or "user") != "admin":
+            store.update(email, role="admin")
+        return
+    pw = os.environ.get("ADMIN_PASSWORD")
+    if not pw:
+        return
+    store.create({
+        "email": email, "name": "Administrateur", "org": "CONSEILPREV",
+        "password_hash": generate_password_hash(pw),
+        "email_verified": True, "approved": True, "role": "admin",
+        "verify_token": None, "verify_expire": None, "approve_token": None,
+        "reset_token": None, "reset_expire": None,
+        "created_at": _now_ms(), "last_login": None,
+    })
+
+
 def init_app(app):
     """Configure la session et enregistre les routes d'authentification."""
     app.secret_key = (os.environ.get("FLASK_SECRET_KEY", "").strip()
@@ -504,4 +624,9 @@ def init_app(app):
         PERMANENT_SESSION_LIFETIME=7 * 24 * 3600,
     )
     app.register_blueprint(auth_bp)
+    try:
+        _bootstrap_admin()
+    except Exception:
+        import logging
+        logging.getLogger("auth").exception("bootstrap admin impossible")
     return login_required
