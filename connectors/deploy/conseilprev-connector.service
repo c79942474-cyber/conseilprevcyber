@@ -1,0 +1,41 @@
+# Service systemd — connecteur plateforme OT -> cockpit (interrogation continue).
+#
+# Installation :
+#   sudo mkdir -p /etc/conseilprev /opt/conseilprev
+#   sudo cp -r connectors /opt/conseilprev/                    # le code (Python stdlib)
+#   sudo cp connectors/deploy/connector.env.example /etc/conseilprev/connector.env
+#   sudo nano /etc/conseilprev/connector.env                  # renseigner + chmod 600
+#   sudo cp connectors/deploy/conseilprev-connector.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now conseilprev-connector
+#   journalctl -u conseilprev-connector -f                    # suivre les logs
+#
+# Pour une source syslog au lieu d'une plateforme OT, remplacer la ligne ExecStart par :
+#   ExecStart=/usr/bin/python3 -m connectors.connector syslog --listen 0.0.0.0:5514
+
+[Unit]
+Description=Connecteur OT -> cockpit CONSEILPREV Cyber
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/conseilprev
+EnvironmentFile=/etc/conseilprev/connector.env
+ExecStart=/usr/bin/python3 -m connectors.connector otplatform \
+    --url ${OT_API_URL} \
+    --header "Authorization: Bearer ${OT_API_TOKEN}" \
+    --alerts-path ${OT_ALERTS_PATH} \
+    --interval ${OT_INTERVAL}
+Restart=always
+RestartSec=5
+
+# Durcissement (le connecteur ne fait que lire une API et poster en HTTPS).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+DynamicUser=true
+
+[Install]
+WantedBy=multi-user.target

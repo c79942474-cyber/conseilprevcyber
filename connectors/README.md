@@ -61,6 +61,11 @@ python -m connectors.connector syslog --listen 0.0.0.0:5514
 La sévérité est déduite de la priorité `<PRI>` ; à défaut, des mots‑clés du message
 (`denied`, `attack`, `scan`, `bloqué`…). Options `--zone` / `--asset` pour forcer.
 
+Le format **CEF** (Common Event Format) est décodé automatiquement : nom d'alerte,
+sévérité, hôte (`dvchost`/`dhost`) et zone (`deviceZone`/`cs1`). C'est le moyen le plus
+simple de brancher Nozomi, Claroty ou Defender for IoT — configurez leur *forwarding*
+syslog/CEF vers ce collecteur.
+
 ## 3. Plateforme OT (API REST)
 
 Interroge périodiquement l'API d'une plateforme OT/IDS (Nozomi, Claroty, Tenable.ot,
@@ -101,10 +106,21 @@ Ouvrez `/demo`, basculez sur **Temps réel** : les événements apparaissent en 
 
 > Test rapide sans aucune source : `python -m connectors.connector demo --interval 1`.
 
+## Déploiement automatisé (24/7)
+
+Pour brancher **en continu** une vraie plateforme OT (service systemd, Docker,
+mapping par éditeur, architecture réseau, sécurité), voir
+**[`deploy/DEPLOY.md`](deploy/DEPLOY.md)** — avec un modèle de service systemd
+(`deploy/conseilprev-connector.service`), un `Dockerfile` et un fichier d'environnement
+d'exemple (`deploy/connector.env.example`).
+
 ## Sécurité
 
 - Le jeton `INGEST_TOKEN` est un **secret** : passez‑le par variable d'environnement,
   jamais en clair dans un dépôt.
 - Collecte **passive** par défaut (lecture d'API, écoute syslog) — cohérent IEC 62443.
+- Le connecteur tourne **côté OT** et n'ouvre que des connexions **sortantes** (HTTPS)
+  vers le cockpit.
 - Ne faites transiter **aucune donnée réelle** par la démo publique : pour de vraies
-  données, hébergez une instance privée (voir `docs/integration-donnees-reelles.md`).
+  données, hébergez une **instance privée** (voir `deploy/DEPLOY.md` et
+  `docs/integration-donnees-reelles.md`).
