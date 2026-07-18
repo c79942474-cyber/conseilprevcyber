@@ -179,7 +179,16 @@ class PostgresStore:
         dsn = dsn + sep + "connect_timeout=5"
         self._pool = ConnectionPool(dsn, min_size=1, max_size=4,
                                     kwargs={"autocommit": True}, timeout=8, open=True)
-        self._init_schema()
+        try:
+            self._init_schema()
+        except Exception:
+            # Ferme le pool pour stopper ses threads de reconnexion (sinon spam de
+            # logs « error connecting in 'pool-1' ») avant de remonter l'échec.
+            try:
+                self._pool.close()
+            except Exception:
+                pass
+            raise
 
     # Verrou consultatif : sérialise la création du schéma entre instances
     # concurrentes (sinon deux « CREATE ... IF NOT EXISTS » simultanés se heurtent
