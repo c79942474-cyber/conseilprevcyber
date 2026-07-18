@@ -52,6 +52,7 @@ python app.py
 |---------|------|
 | `app.py` | Application Flask (routes des pages, envoi email, flux SSE `/api/stream` + `/api/ingest`, `/health`) |
 | `*.html` | Pages du site (accueil, services, études de cas, référentiel 62443 et ses modules, démo, ressources, FAQ, à propos, contact, mentions légales) |
+| `connectors/` | Connecteurs d'ingestion (CSV, syslog, plateforme OT) + mock de test — voir `connectors/README.md` |
 | `styles.css` | Feuille de style partagée (thème cyber) |
 | `requirements.txt` | Dépendances Python (Flask, Gunicorn, Requests) |
 | `Procfile` | Commande de démarrage (`gunicorn app:app`) |
@@ -94,6 +95,20 @@ curl -X POST https://conseilprevcyber.onrender.com/api/ingest \
   (voir `Procfile` / `render.yaml`). Le broker pub/sub est **en mémoire** (mono‑instance, sans persistance) —
   suffisant pour une démo / un pilote. Le cadrage complet (sources, stockage, industrialisation) est dans
   [`docs/integration-donnees-reelles.md`](docs/integration-donnees-reelles.md).
+
+### Alimenter en données réelles (connecteurs)
+
+Le dossier [`connectors/`](connectors/) fournit des connecteurs prêts à l'emploi (Python standard, sans
+dépendance) qui lisent une source et postent sur `/api/ingest` :
+
+```bash
+python -m connectors.connector csv --file connectors/samples/events.csv --interval 1   # export CSV
+python -m connectors.connector syslog --listen 0.0.0.0:5514                             # syslog UDP
+python -m connectors.connector otplatform --url https://plateforme/api/alerts           # plateforme OT (API)
+```
+
+Pour tester sans matériel, un mock de plateforme OT est inclus
+(`python -m connectors.mock_ot`) — voir [`connectors/README.md`](connectors/README.md).
 
 > Aucune donnée réelle ne doit transiter par la page de démonstration publique — voir la note de cadrage.
 

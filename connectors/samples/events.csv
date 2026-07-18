@@ -1,0 +1,11 @@
+asset,zone,type,event,severity
+Automate S7-1500,Supervision (SCADA),discovery,Nouvel actif inventorié,info
+IHM Panel,Cellule / Contrôle,anomaly,Protocole en clair détecté (Modbus),critical
+Passerelle Modbus/TCP,DMZ industrielle,policy,Flux non autorisé Terrain -> IT bloqué,warning
+Serveur Historian,Supervision (SCADA),patch,Correctif « Installed »,info
+Capteur IIoT,Terrain (capteurs),discovery,Nouvel actif inventorié,info
+Firewall NGFW,DMZ industrielle,threat,Scan de ports depuis la DMZ,critical
+Switch industriel,Terrain (capteurs),info,Segmentation vérifiée,info
+Station SCADA,Supervision (SCADA),vulnerability,Firmware non à jour (CVE-2023-XXXX),warning
+Poste ingénierie,Entreprise (IT),policy,Compte par défaut détecté sur IHM,warning
+Débitmètre,Terrain (capteurs),discovery,Nouvel actif inventorié,info

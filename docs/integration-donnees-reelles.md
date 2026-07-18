@@ -36,8 +36,10 @@ production ; toute sonde active est validée au cas par cas.
 
 ## 3. Composants à ajouter au projet
 
-1. **Connecteurs d'ingestion** — un module par source (webhook, API pull, écoute syslog), qui normalise
-   vers un modèle commun `{asset, zone, type, event, severity, ts}`.
+1. **Connecteurs d'ingestion** ✅ *implémentation de référence* (`connectors/`) — un module par source
+   (CSV/export, syslog fichier + écoute UDP, plateforme OT via API REST), qui normalise vers le modèle
+   commun `{asset, zone, type, event, severity, ts}` et poste sur `/api/ingest`. Sans dépendance (Python
+   standard) ; un mock de plateforme OT (`connectors/mock_ot.py`) permet de tester de bout en bout.
 2. **Stockage** — une base (PostgreSQL / série temporelle) pour l'inventaire et l'historique des événements.
 3. **API temps réel** ✅ *implémentée* — endpoint `GET /api/stream` en **SSE** (Server-Sent Events) poussant
    les nouveaux événements au cockpit (réponse `text/event-stream`, broker pub/sub en mémoire, keep-alive).
@@ -76,8 +78,10 @@ production ; toute sonde active est validée au cas par cas.
 - `Procfile` / `render.yaml` : ✅ démarrage en worker à threads (`gunicorn -k gthread --threads 8`) requis par le SSE.
 - `demo.html` : ✅ interrupteur Démo ⇄ Temps réel, abonnement `EventSource`, **mode démo** de repli conservé.
 - `render.yaml` : ✅ variable `INGEST_TOKEN` (sync:false) déclarée.
-- **Reste à faire** : dossier `connectors/` (un module par source), **stockage** (`psycopg[binary]` +
-  base série temporelle), remplacement du broker mémoire par un bus partagé si multi-instance.
+- `connectors/` : ✅ connecteurs de référence (CSV, syslog, plateforme OT) + mock de test.
+- **Reste à faire** : **stockage** (`psycopg[binary]` + base série temporelle pour l'inventaire et
+  l'historique), remplacement du broker mémoire par un bus partagé (Redis/NATS) si multi-instance,
+  durcissement des connecteurs pour la production (secrets, TLS, supervision).
 
 ---
 
