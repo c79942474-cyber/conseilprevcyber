@@ -46,6 +46,7 @@ python app.py
 | `/api/ingest` | — | POST — ingestion d'un événement OT (protégé par `INGEST_TOKEN`) |
 | `/api/state` | — | GET — instantané de l'état courant (inventaire, alertes, événements récents) |
 | `/api/reset` | — | POST — réinitialise l'état du cockpit (protégé par `INGEST_TOKEN`) |
+| `/api/maintenance/purge` | — | POST — purge l'historique (rétention ; protégé par `INGEST_TOKEN`) |
 | `/health` | — | Point de santé JSON |
 
 ## Structure
@@ -130,6 +131,12 @@ saisir le mapping à la main.
 - **Haute disponibilité (multi-instance)** — définir `REDIS_URL` diffuse les événements à **toutes les
   instances** via Redis pub/sub (fan-out SSE partagé) ; combiné à `DATABASE_URL` (état partagé), le
   cockpit tient plusieurs instances derrière un load-balancer. Sans `REDIS_URL` : une seule instance.
+- **Rétention de l'historique** — `EVENT_RETENTION_DAYS` et/ou `EVENT_MAX_ROWS` déclenchent une **purge
+  périodique** (toutes les `MAINTENANCE_INTERVAL_HOURS`, défaut 6 h) ; `EVENT_ARCHIVE_PATH` archive en
+  JSONL les événements supprimés. Purge à la demande : `POST /api/maintenance/purge` (jeton).
+- **Supervision du connecteur** — l'option `--metrics-port` expose des **métriques Prometheus**
+  (`/metrics`) et un `/healthz`. Alerting sur l'échec de scrape (connecteur mort), l'augmentation de
+  `conseilprev_connector_events_failed_total`, ou la fraîcheur de `..._last_success_timestamp_seconds`.
 
 Guide complet (base Render Postgres, instance privée, presets par éditeur, service systemd) :
 [`connectors/deploy/DEPLOY.md`](connectors/deploy/DEPLOY.md).

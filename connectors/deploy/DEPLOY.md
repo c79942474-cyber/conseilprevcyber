@@ -185,3 +185,62 @@ Sans `REDIS_URL`, la diffusion est locale (une seule instance) — c'est le mode
 Le fan-out passe systématiquement par Redis (y compris pour l'instance émettrice), ce qui
 garantit une diffusion **exactement une fois** par client, sans doublon. *(Alternative au
 choix : un bus NATS ; l'abstraction `EventBus` de `app.py` se transpose directement.)*
+
+## 9. Rétention et archivage de l'historique
+
+La table `events` peut être élaguée automatiquement (côté cockpit) :
+
+```bash
+EVENT_RETENTION_DAYS=90                  # purge au-delà de 90 jours
+EVENT_MAX_ROWS=500000                    # et/ou ne garder que N lignes
+EVENT_ARCHIVE_PATH=/data/archive.jsonl   # archive JSONL avant suppression (volume durable)
+MAINTENANCE_INTERVAL_HOURS=6             # période de la purge auto (défaut 6 h)
+```
+
+- Purge auto en tâche de fond ; en **multi-instance**, une seule instance purge à la fois
+  (verrou consultatif). À la demande : `POST /api/maintenance/purge?max_rows=…&retention_days=…`
+  (en-tête `X-Ingest-Token`).
+- `EVENT_ARCHIVE_PATH` doit pointer un stockage **durable** (volume, pas le disque éphémère
+  de Render). Pour une archive froide (S3…), planifier l'export du JSONL vers l'objet.
+
+## 10. Supervision du connecteur (Prometheus / alerting)
+
+Le connecteur expose des métriques avec `--metrics-port` (sur n'importe quelle sous-commande) :
+
+```bash
+python -m connectors.connector otplatform --preset nozomi --url … --metrics-port 9109
+# -> /metrics (format Prometheus) et /healthz sur le port 9109
+```
+
+Scrape Prometheus :
+```yaml
+scrape_configs:
+  - job_name: conseilprev-connector
+    static_configs:
+      - targets: ['collecteur.interne:9109']
+```
+
+Règles d'alerte (exemples) :
+```yaml
+groups:
+  - name: conseilprev-connector
+    rules:
+      - alert: ConnecteurOTInjoignable
+        expr: up{job="conseilprev-connector"} == 0
+        for: 5m
+        labels: { severity: critical }
+        annotations: { summary: "Connecteur OT injoignable (scrape en échec)" }
+      - alert: ConnecteurOTSansEnvoi
+        expr: time() - conseilprev_connector_last_success_timestamp_seconds > 900
+        for: 10m
+        labels: { severity: warning }
+        annotations: { summary: "Aucun événement envoyé depuis plus de 15 min" }
+      - alert: ConnecteurOTEchecs
+        expr: increase(conseilprev_connector_events_failed_total[15m]) > 0
+        for: 5m
+        labels: { severity: warning }
+        annotations: { summary: "Échecs d'envoi vers le cockpit" }
+```
+
+Le service systemd peut ajouter `--metrics-port ${METRICS_PORT}` à `ExecStart` (voir
+`connector.env.example`).

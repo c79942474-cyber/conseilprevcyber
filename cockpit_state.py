@@ -16,8 +16,10 @@ Sémantique commune :
   - score de risque : valeur courante [0..98] (crit +2, disc +0.4, info -1).
   - événements : 50 derniers (ordre chronologique).
 """
+import json
 import os
 import threading
+import time
 
 # Zones IEC 62443 du cockpit (doivent correspondre à demo.html).
 ZONES_META = [
@@ -112,6 +114,17 @@ class CockpitState:
     def snapshot(self):
         with self._lock:
             return self._snapshot_locked()
+
+    def purge(self, retention_days=None, max_rows=None, archive_path=None):
+        """Élague l'historique en mémoire (déjà borné à MAX_EVENTS)."""
+        with self._lock:
+            before = len(self.events)
+            if retention_days:
+                cutoff = int((time.time() - retention_days * 86400) * 1000)
+                self.events = [e for e in self.events if (e.get("ts") or 0) >= cutoff]
+            if max_rows and len(self.events) > max_rows:
+                self.events = self.events[-max_rows:]
+            return before - len(self.events)
 
 
 _SCHEMA = [
@@ -222,6 +235,48 @@ class PostgresStore:
                 conn.execute("TRUNCATE assets")
                 conn.execute("UPDATE zone_status SET status='ok'")
                 conn.execute("UPDATE meta SET v=50 WHERE k='risk'")
+
+    _PURGE_LOCK = 907244
+
+    def purge(self, retention_days=None, max_rows=None, archive_path=None):
+        """Élague la table `events` (rétention par âge et/ou par nombre de lignes).
+
+        Archive éventuellement les lignes supprimées en JSONL avant de les effacer.
+        Protégé par un verrou consultatif non bloquant : en multi-instance, une
+        seule instance purge à la fois (les autres passent leur tour).
+        """
+        with self._pool.connection() as conn:
+            got = conn.execute("SELECT pg_try_advisory_lock(%s)", (self._PURGE_LOCK,)).fetchone()[0]
+            if not got:
+                return 0
+            try:
+                ids = set()
+                if retention_days:
+                    cutoff = int((time.time() - float(retention_days) * 86400) * 1000)
+                    ids.update(r[0] for r in conn.execute(
+                        "SELECT id FROM events WHERE ts < %s", (cutoff,)).fetchall())
+                if max_rows:
+                    ids.update(r[0] for r in conn.execute(
+                        "SELECT id FROM events ORDER BY id DESC OFFSET %s", (int(max_rows),)).fetchall())
+                if not ids:
+                    return 0
+                ids = list(ids)
+                if archive_path:
+                    self._archive(conn, ids, archive_path)
+                conn.execute("DELETE FROM events WHERE id = ANY(%s)", (ids,))
+                return len(ids)
+            finally:
+                conn.execute("SELECT pg_advisory_unlock(%s)", (self._PURGE_LOCK,))
+
+    def _archive(self, conn, ids, path):
+        rows = conn.execute(
+            "SELECT ts,asset,zone,type,event,severity,tag FROM events WHERE id = ANY(%s) ORDER BY id",
+            (ids,)).fetchall()
+        with open(path, "a", encoding="utf-8") as f:
+            for ts, asset, zone, typ, ev, sev, tag in rows:
+                f.write(json.dumps({"ts": ts, "asset": asset, "zone": zone, "type": typ,
+                                    "event": ev, "severity": sev, "tag": tag},
+                                   ensure_ascii=False) + "\n")
 
 
 def make_store():

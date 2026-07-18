@@ -29,6 +29,7 @@ peut donc tourner sur un collecteur isolé.
 | `--interval S` | Pause entre deux envois (visualisation temps réel) | 0 |
 | `--cafile` / `$COCKPIT_CAFILE` | Bundle CA d'entreprise pour la vérification TLS | CA système |
 | `--insecure` | Désactive la vérification TLS (**lab uniquement**) | off |
+| `--metrics-port` | Expose des métriques Prometheus (`/metrics`) + `/healthz` | off |
 
 ```bash
 export COCKPIT_URL="https://conseilprevcyber.onrender.com"

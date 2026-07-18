@@ -90,8 +90,12 @@ production ; toute sonde active est validée au cas par cas.
   déploiement (`connectors/deploy/`).
 - `app.py` `EventBus` : ✅ bus d'événements **multi-instance** (Redis pub/sub via `REDIS_URL`,
   repli local sinon) — haute disponibilité derrière load-balancer avec état PostgreSQL partagé.
-- **Reste à faire** : rétention / archivage de l'historique (purge, agrégats) ; supervision du
-  connecteur (métriques, alerting) ; le cas échéant, bascule du bus vers NATS.
+- ✅ **Rétention / archivage** : purge périodique (`EVENT_RETENTION_DAYS` / `EVENT_MAX_ROWS`),
+  archive JSONL (`EVENT_ARCHIVE_PATH`), endpoint `POST /api/maintenance/purge`.
+- ✅ **Supervision du connecteur** : métriques Prometheus (`--metrics-port` → `/metrics`, `/healthz`),
+  exemples de règles d'alerte dans `connectors/deploy/DEPLOY.md`.
+- **Reste à faire (pistes)** : archive froide vers stockage objet (S3) ; agrégats/dashboards de
+  tendance ; bascule éventuelle du bus vers NATS.
 
 ---
 

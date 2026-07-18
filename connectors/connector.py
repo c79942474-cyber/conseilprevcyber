@@ -27,22 +27,32 @@ import time
 
 # Imports robustes : fonctionne en module (-m) comme en script direct.
 try:
-    from . import core, csv_source, syslog_source, ot_platform_source, mock_ot
+    from . import core, csv_source, syslog_source, ot_platform_source, mock_ot, metrics
 except ImportError:  # exécution directe : python connectors/connector.py
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from connectors import core, csv_source, syslog_source, ot_platform_source, mock_ot
+    from connectors import core, csv_source, syslog_source, ot_platform_source, mock_ot, metrics
+
+
+def build_client(args):
+    """Construit le client d'ingestion et, si demandé, démarre le serveur de métriques."""
+    client = core.client_from_args(args)
+    if getattr(args, "metrics_port", None):
+        metrics.start_metrics_server(client, args.metrics_host, args.metrics_port)
+        client._log("Métriques Prometheus : http://%s:%d/metrics (liveness : /healthz)"
+                    % (args.metrics_host, args.metrics_port))
+    return client
 
 
 # --------------------------------------------------------------------------- CSV
 def cmd_csv(args):
-    client = core.client_from_args(args)
+    client = build_client(args)
     events = (row for row in csv_source.read_csv(args.file, delimiter=args.delimiter))
     core.send_all(client, events, interval=args.interval, loop=args.loop)
 
 
 # ------------------------------------------------------------------------ SYSLOG
 def cmd_syslog(args):
-    client = core.client_from_args(args)
+    client = build_client(args)
     if args.listen:
         host, _, port = args.listen.partition(":")
         lines = syslog_source.udp_listener(host or "0.0.0.0", int(port or 5514))
@@ -70,7 +80,7 @@ def cmd_syslog(args):
 
 # -------------------------------------------------------------------- OT PLATFORM
 def cmd_otplatform(args):
-    client = core.client_from_args(args)
+    client = build_client(args)
     headers = {}
     for h in args.header or []:
         k, _, v = h.partition(":")
@@ -96,7 +106,7 @@ def cmd_otplatform(args):
 
 # ---------------------------------------------------------------------------- DEMO
 def cmd_demo(args):
-    client = core.client_from_args(args)
+    client = build_client(args)
     sample = [
         {"asset": "Automate S7-1500", "zone": "Supervision (SCADA)", "type": "discovery",
          "event": "Nouvel actif inventorié", "severity": "info"},
@@ -133,6 +143,9 @@ def build_parser():
     common.add_argument("--cafile", default=None, help="Bundle CA d'entreprise pour la vérification TLS")
     common.add_argument("--insecure", action="store_true",
                         help="Désactiver la vérification TLS (déconseillé — lab uniquement)")
+    common.add_argument("--metrics-port", type=int, default=None,
+                        help="Expose des métriques Prometheus (/metrics) et /healthz sur ce port")
+    common.add_argument("--metrics-host", default="0.0.0.0", help="Hôte du serveur de métriques")
 
     sub = p.add_subparsers(dest="cmd", required=True)
 

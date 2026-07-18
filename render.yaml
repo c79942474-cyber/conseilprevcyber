@@ -29,6 +29,12 @@ services:
       # Requiert aussi DATABASE_URL (état partagé). Sinon : une seule instance.
       - key: REDIS_URL
         sync: false
+      # Rétention de l'historique (optionnel, nécessite DATABASE_URL). Purge auto
+      # des événements au-delà de N jours et/ou au-delà de N lignes.
+      - key: EVENT_RETENTION_DAYS
+        sync: false
+      - key: EVENT_MAX_ROWS
+        sync: false
       # Instance PRIVÉE (optionnel). Définir ces deux variables place TOUT le
       # site derrière une authentification HTTP Basic (voir connectors/deploy/DEPLOY.md).
       # Laisser vide pour une instance publique (ex. la démo).

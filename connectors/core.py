@@ -119,6 +119,8 @@ class IngestClient:
         self.retries = retries
         self.sent = 0
         self.failed = 0
+        self.started_ts = time.time()
+        self.last_success_ts = 0.0
         self._ctx = build_ssl_context(cafile, insecure)
         if insecure:
             self._log("ATTENTION : vérification TLS désactivée (--insecure). À éviter en production.")
@@ -146,6 +148,7 @@ class IngestClient:
                 with urllib.request.urlopen(req, timeout=self.timeout, context=self._ctx) as resp:
                     if resp.status in (200, 201):
                         self.sent += 1
+                        self.last_success_ts = time.time()
                         self._log("OK   " + line)
                         return True
                     self._log("HTTP %s  %s" % (resp.status, line))

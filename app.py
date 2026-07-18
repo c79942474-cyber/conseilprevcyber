@@ -23,6 +23,10 @@ Variables d'environnement :
   COCKPIT_AUTH_PASSWORD— (optionnel) mot de passe associé. Définir les deux place
                          tout le site derrière authentification (sauf /health et
                          les endpoints machine protégés par jeton).
+  EVENT_RETENTION_DAYS — (optionnel) purge des événements plus vieux que N jours.
+  EVENT_MAX_ROWS       — (optionnel) ne conserver que les N derniers événements.
+  EVENT_ARCHIVE_PATH   — (optionnel) archive JSONL des événements purgés (cible durable).
+  MAINTENANCE_INTERVAL_HOURS — (optionnel) période de la purge auto (défaut : 6 h).
 """
 import base64
 import hmac
@@ -146,6 +150,37 @@ broker = EventBus()
 # mémoire. Voir cockpit_state.py.
 state = make_store()
 
+# --- Rétention de l'historique ------------------------------------------------
+# Purge périodique des événements au-delà d'un âge (EVENT_RETENTION_DAYS) et/ou
+# d'un nombre de lignes (EVENT_MAX_ROWS). Archivage JSONL optionnel avant suppression
+# (EVENT_ARCHIVE_PATH — cible durable requise, cf. DEPLOY.md). Sans ces variables,
+# aucune purge (l'historique complet est conservé).
+_RETENTION_DAYS = float(os.environ.get("EVENT_RETENTION_DAYS") or 0) or None
+_MAX_ROWS = int(os.environ.get("EVENT_MAX_ROWS") or 0) or None
+_ARCHIVE_PATH = os.environ.get("EVENT_ARCHIVE_PATH") or None
+_MAINTENANCE_HOURS = float(os.environ.get("MAINTENANCE_INTERVAL_HOURS") or 6)
+
+
+def _start_maintenance():
+    if not (_RETENTION_DAYS or _MAX_ROWS):
+        return
+
+    def loop():
+        while True:
+            time.sleep(max(0.1, _MAINTENANCE_HOURS) * 3600)
+            try:
+                n = state.purge(retention_days=_RETENTION_DAYS, max_rows=_MAX_ROWS,
+                                archive_path=_ARCHIVE_PATH)
+                if n:
+                    app.logger.info("maintenance : %d événement(s) purgé(s)", n)
+            except Exception:
+                app.logger.exception("maintenance : échec de la purge")
+
+    threading.Thread(target=loop, daemon=True).start()
+
+
+_start_maintenance()
+
 # --- Authentification (instance privée) ---------------------------------------
 # Si COCKPIT_AUTH_USER et COCKPIT_AUTH_PASSWORD sont définis, tout le site passe
 # derrière une authentification HTTP Basic. Sinon (démo publique), aucun contrôle.
@@ -154,7 +189,7 @@ state = make_store()
 AUTH_USER = os.environ.get("COCKPIT_AUTH_USER")
 AUTH_PASSWORD = os.environ.get("COCKPIT_AUTH_PASSWORD")
 _AUTH_ENABLED = bool(AUTH_USER and AUTH_PASSWORD)
-_AUTH_EXEMPT = {"/health", "/api/ingest", "/api/reset"}
+_AUTH_EXEMPT = {"/health", "/api/ingest", "/api/reset", "/api/maintenance/purge"}
 
 
 def _check_basic_auth(header):
@@ -455,6 +490,24 @@ def api_reset():
     state.reset()
     broker.publish({"reset": True, "state": state.snapshot()})
     return jsonify(ok=True)
+
+
+@app.route("/api/maintenance/purge", methods=["POST"])
+def api_purge():
+    """Élague l'historique des événements (rétention). Protégé par INGEST_TOKEN.
+
+    Paramètres (query) : retention_days, max_rows. À défaut, valeurs des variables
+    d'environnement EVENT_RETENTION_DAYS / EVENT_MAX_ROWS.
+    """
+    if not INGEST_TOKEN:
+        return jsonify(ok=False, error="not_configured"), 503
+    if request.headers.get("X-Ingest-Token") != INGEST_TOKEN:
+        return jsonify(ok=False, error="unauthorized"), 401
+    days = request.args.get("retention_days", type=float) or _RETENTION_DAYS
+    max_rows = request.args.get("max_rows", type=int) or _MAX_ROWS
+    deleted = state.purge(retention_days=days or None, max_rows=max_rows or None,
+                          archive_path=_ARCHIVE_PATH)
+    return jsonify(ok=True, deleted=deleted)
 
 
 @app.route("/health")
