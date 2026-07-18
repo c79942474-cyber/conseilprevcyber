@@ -16,10 +16,16 @@ Sémantique commune :
   - score de risque : valeur courante [0..98] (crit +2, disc +0.4, info -1).
   - événements : 50 derniers (ordre chronologique).
 """
+import datetime
 import json
 import os
 import threading
 import time
+
+
+def _day_utc(ts_ms):
+    return datetime.datetime.fromtimestamp((ts_ms or 0) / 1000,
+                                           tz=datetime.timezone.utc).strftime("%Y-%m-%d")
 
 # Zones IEC 62443 du cockpit (doivent correspondre à demo.html).
 ZONES_META = [
@@ -125,6 +131,25 @@ class CockpitState:
             if max_rows and len(self.events) > max_rows:
                 self.events = self.events[-max_rows:]
             return before - len(self.events)
+
+    def trends(self, days=14):
+        """Agrège l'historique en mémoire (limité aux MAX_EVENTS derniers)."""
+        since = int((time.time() - days * 86400) * 1000)
+        by_day, by_tag, by_zone = {}, {}, {}
+        with self._lock:
+            evs = [e for e in self.events if (e.get("ts") or 0) >= since]
+            total_all = len(self.events)
+        for e in evs:
+            tag = e.get("tag", "info")
+            d = _day_utc(e.get("ts"))
+            by_day.setdefault(d, {})
+            by_day[d][tag] = by_day[d].get(tag, 0) + 1
+            by_tag[tag] = by_tag.get(tag, 0) + 1
+            text = e.get("text", "")
+            zone = text.split(" — ")[-1] if " — " in text else "—"
+            by_zone[zone] = by_zone.get(zone, 0) + 1
+        return {"days": days, "by_day": by_day, "by_tag": by_tag, "by_zone": by_zone,
+                "total": len(evs), "total_all": total_all}
 
 
 _SCHEMA = [
@@ -277,6 +302,26 @@ class PostgresStore:
                 f.write(json.dumps({"ts": ts, "asset": asset, "zone": zone, "type": typ,
                                     "event": ev, "severity": sev, "tag": tag},
                                    ensure_ascii=False) + "\n")
+
+    def trends(self, days=14):
+        """Agrège l'historique persisté (comptages par jour, par catégorie, par zone)."""
+        since = int((time.time() - float(days) * 86400) * 1000)
+        with self._pool.connection() as conn:
+            by_day = {}
+            for day, tag, c in conn.execute(
+                    "SELECT to_char(to_timestamp(ts/1000.0),'YYYY-MM-DD') d, COALESCE(tag,'info') t, "
+                    "count(*) FROM events WHERE ts>=%s GROUP BY d,t", (since,)).fetchall():
+                by_day.setdefault(day, {})[tag] = c
+            by_tag = {t: c for t, c in conn.execute(
+                "SELECT COALESCE(tag,'info'), count(*) FROM events WHERE ts>=%s GROUP BY 1",
+                (since,)).fetchall()}
+            by_zone = {(z or "—"): c for z, c in conn.execute(
+                "SELECT zone, count(*) FROM events WHERE ts>=%s GROUP BY 1 ORDER BY 2 DESC",
+                (since,)).fetchall()}
+            total = conn.execute("SELECT count(*) FROM events WHERE ts>=%s", (since,)).fetchone()[0]
+            total_all = conn.execute("SELECT count(*) FROM events").fetchone()[0]
+        return {"days": days, "by_day": by_day, "by_tag": by_tag, "by_zone": by_zone,
+                "total": total, "total_all": total_all}
 
 
 def make_store():

@@ -231,6 +231,7 @@ PAGES = {
     "/glossaire-62443": "glossaire-62443.html",
     "/metriques-62443": "metriques-62443.html",
     "/demo": "demo.html",
+    "/tendances": "tendances.html",
     "/ressources": "ressources.html",
     "/faq": "faq.html",
     "/about": "about.html",
@@ -326,6 +327,11 @@ def metriques_62443():
 @app.route("/demo")
 def demo():
     return _page(PAGES["/demo"])
+
+
+@app.route("/tendances")
+def tendances():
+    return _page(PAGES["/tendances"])
 
 
 @app.route("/ressources")
@@ -478,6 +484,14 @@ def api_ingest():
 def api_state():
     """Instantané de l'état courant du cockpit (inventaire, alertes, événements récents)."""
     return jsonify(state.snapshot())
+
+
+@app.route("/api/trends")
+def api_trends():
+    """Agrégats de tendance de l'historique (par jour, catégorie, zone)."""
+    days = request.args.get("days", default=14, type=int) or 14
+    days = max(1, min(days, 90))
+    return jsonify(state.trends(days=days))
 
 
 @app.route("/api/reset", methods=["POST"])

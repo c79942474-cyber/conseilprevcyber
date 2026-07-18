@@ -36,6 +36,7 @@ python app.py
 | `/glossaire-62443` | `glossaire-62443.html` | 62443‑1‑2 : glossaire de la série (17 termes reformulés) |
 | `/metriques-62443` | `metriques-62443.html` | 62443‑1‑3 : métriques de conformité (méthodologie, 6 principes) |
 | `/demo` | `demo.html` | Cockpit OT : mode **Démo** (données simulées) ⇄ mode **Temps réel** (flux SSE) — KPI, journal, zones, carte réseau, export PDF |
+| `/tendances` | `tendances.html` | Tableau de bord de tendances (événements/jour, par zone, par catégorie) sur l'historique |
 | `/ressources` | `ressources.html` | Ressources & références (ANSSI, CERT‑FR, ENISA, CISA, IEC, ISO, NIST, NIS2, DORA…) |
 | `/faq` | `faq.html` | Questions fréquentes (OT/IACS, 62443, NIS2, zones & conduits, correctifs…) |
 | `/about` | `about.html` | À propos (mission, engagements) |
@@ -45,6 +46,7 @@ python app.py
 | `/api/stream` | — | GET — flux Server‑Sent Events (instantané d'ouverture + événements) |
 | `/api/ingest` | — | POST — ingestion d'un événement OT (protégé par `INGEST_TOKEN`) |
 | `/api/state` | — | GET — instantané de l'état courant (inventaire, alertes, événements récents) |
+| `/api/trends` | — | GET — agrégats de tendance (par jour, catégorie, zone) — `?days=N` |
 | `/api/reset` | — | POST — réinitialise l'état du cockpit (protégé par `INGEST_TOKEN`) |
 | `/api/maintenance/purge` | — | POST — purge l'historique (rétention ; protégé par `INGEST_TOKEN`) |
 | `/health` | — | Point de santé JSON |
@@ -137,6 +139,8 @@ saisir le mapping à la main.
 - **Supervision du connecteur** — l'option `--metrics-port` expose des **métriques Prometheus**
   (`/metrics`) et un `/healthz`. Alerting sur l'échec de scrape (connecteur mort), l'augmentation de
   `conseilprev_connector_events_failed_total`, ou la fraîcheur de `..._last_success_timestamp_seconds`.
+- **Tendances** — la page `/tendances` (accessible depuis le cockpit) visualise l'historique persisté :
+  volume d'événements par jour, répartition par zone et par catégorie, avec sélecteur de période (7/14/30 j).
 
 Guide complet (base Render Postgres, instance privée, presets par éditeur, service systemd) :
 [`connectors/deploy/DEPLOY.md`](connectors/deploy/DEPLOY.md).
