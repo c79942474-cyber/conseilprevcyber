@@ -144,6 +144,70 @@ def _make_claroty_devices(batch=4):
     return out
 
 
+# Tenable OT Security — événements et actifs.
+_TEN_EVENTS = [
+    ("Unauthorized PLC configuration change", "Policy", "High", "PLC-Line1", "Zone-Cell"),
+    ("New asset detected on network", "AssetDiscovery", "Info", "RTU-22", "Zone-Field"),
+    ("Suspicious SCADA command", "IntrusionDetection", "Critical", "HMI-01", "Zone-Supervision"),
+]
+_TEN_ASSETS = [
+    ("PLC-Line1", "PLC", "Zone-Cell", 74), ("HMI-01", "HMI", "Zone-Supervision", 58),
+    ("RTU-22", "RTU", "Zone-Field", 22), ("Hist-DB", "Server", "Zone-Supervision", 40),
+]
+# Defender for IoT — alertes capteur (sévérités Minor/Major/Critical) et actifs.
+_DEF_ALERTS = [
+    ("Unauthorized Internet Connectivity", "Anomaly", "Major", "hmi-2", "Production"),
+    ("New Asset Detected", "Discovery", "Minor", "plc-7", "Production"),
+    ("Firmware Change Detected", "ProtocolViolation", "Critical", "rtu-3", "Field"),
+    ("Suspicious Traffic", "Malware", "Warning", "ws-eng", "IT"),
+]
+_DEF_DEVICES = [
+    ("plc-7", "PLC", "Production", "High"), ("hmi-2", "HMI", "Production", "Medium"),
+    ("rtu-3", "RTU", "Field", "Low"), ("ws-eng", "Workstation", "IT", "High"),
+]
+_tdc = {"te": 0, "ta": 0, "da": 0, "dd": 0}
+
+
+def _make_tenable_events(batch=3):
+    out = []
+    for _ in range(batch):
+        i = _tdc["te"]; _tdc["te"] += 1
+        title, typ, sev, asset, seg = _TEN_EVENTS[i % len(_TEN_EVENTS)]
+        out.append({"id": "ten-ev-%05d" % i, "title": title, "type": typ, "severity": sev,
+                    "asset_name": asset, "network_segment": seg, "time": int(time.time() * 1000)})
+    return out
+
+
+def _make_tenable_assets(batch=4):
+    out = []
+    for _ in range(batch):
+        i = _tdc["ta"]; _tdc["ta"] += 1
+        name, typ, seg, risk = _TEN_ASSETS[i % len(_TEN_ASSETS)]
+        out.append({"id": "ten-as-%05d" % i, "name": name, "type": typ,
+                    "network_segment": seg, "risk": risk, "last_seen": int(time.time() * 1000)})
+    return out
+
+
+def _make_defender_alerts(batch=3):
+    out = []
+    for _ in range(batch):
+        i = _tdc["da"]; _tdc["da"] += 1
+        name, engine, sev, dev, zone = _DEF_ALERTS[i % len(_DEF_ALERTS)]
+        out.append({"id": "def-al-%05d" % i, "name": name, "engine": engine, "severity": sev,
+                    "sourceDeviceName": dev, "zone": zone, "timeReceived": int(time.time() * 1000)})
+    return out
+
+
+def _make_defender_devices(batch=4):
+    out = []
+    for _ in range(batch):
+        i = _tdc["dd"]; _tdc["dd"] += 1
+        name, typ, zone, risk = _DEF_DEVICES[i % len(_DEF_DEVICES)]
+        out.append({"id": "def-dev-%05d" % i, "name": name, "type": typ,
+                    "zone": zone, "riskLevel": risk, "lastSeen": int(time.time() * 1000)})
+    return out
+
+
 def _make_wireless(batch=4):
     out = []
     for _ in range(batch):
@@ -185,6 +249,14 @@ class _Handler(BaseHTTPRequestHandler):
             self._json({"results": _make_claroty_alerts(batch=3)})
         elif self.path.startswith("/api/claroty_devices"):
             self._json({"results": _make_claroty_devices(batch=4)})
+        elif self.path.startswith("/api/tenable_events"):
+            self._json({"events": _make_tenable_events(batch=3)})
+        elif self.path.startswith("/api/tenable_assets"):
+            self._json({"assets": _make_tenable_assets(batch=4)})
+        elif self.path.startswith("/api/defender_alerts"):
+            self._json({"alerts": _make_defender_alerts(batch=4)})
+        elif self.path.startswith("/api/defender_devices"):
+            self._json({"devices": _make_defender_devices(batch=4)})
         elif self.path.startswith("/api/nozomi"):
             self._json({"result": _make_nozomi(batch=3)})
         elif self.path.startswith("/api/assets"):

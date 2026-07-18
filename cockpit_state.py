@@ -52,9 +52,9 @@ def tag_for(evt):
         return "patch"
     if "disc" in t or "découv" in t or "asset" in t or "inventaire" in t:
         return "disc"
-    if "crit" in s or s in ("high", "very-high", "very high", "élevé", "eleve"):
+    if "crit" in s or s in ("high", "very-high", "very high", "major", "élevé", "eleve"):
         return "crit"
-    if "warn" in s or s in ("medium", "moyen") or "avert" in s:
+    if "warn" in s or s in ("medium", "minor", "moyen") or "avert" in s:
         return "warn"
     try:
         n = float(s.replace(",", "."))

@@ -50,8 +50,8 @@ _ZONE_HINTS = [
 # (plus haut = plus grave), traités à part ci-dessous — à ne pas confondre avec
 # la priorité syslog (où 0 = le plus grave), déjà convertie en texte par la source syslog.
 _SEV_CRIT = {"critical", "crit", "high", "very-high", "very high", "severe", "fatal",
-             "emergency", "alert", "error", "élevé", "eleve", "critique"}
-_SEV_WARN = {"warning", "warn", "medium", "moderate", "notice", "moyen", "avertissement"}
+             "emergency", "alert", "error", "major", "élevé", "eleve", "critique"}
+_SEV_WARN = {"warning", "warn", "medium", "moderate", "notice", "minor", "moyen", "avertissement"}
 _SEV_INFO = {"info", "informational", "low", "debug", "faible", "none", "unknown", "ok"}
 
 

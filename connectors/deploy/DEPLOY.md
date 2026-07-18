@@ -146,6 +146,33 @@ python -m connectors.connector otplatform --preset claroty \
 > Claroty **CTD** (on-prem) sait aussi pousser en **syslog/CEF** — dans ce cas,
 > `connector syslog --listen` est souvent le plus simple (pas d'appel API).
 
+**Tenable OT Security** — deux flux (auth `X-ApiKeys: accessKey=…;secretKey=…`) :
+
+- **Actifs** (`/v1/assets`, preset `tenable_ot_assets`) — sévérité = score de risque (0-100).
+- **Événements** (`/v1/events`, preset `tenable_ot`) — sévérité textuelle (None/Low/Medium/High/Critical).
+
+```bash
+python -m connectors.connector otplatform --preset tenable_ot_assets \
+  --url "https://<tenableot>/v1/assets" \
+  --header "X-ApiKeys: accessKey=$AK;secretKey=$SK" --interval 30 --metrics-port 9114
+```
+
+**Microsoft Defender for IoT** — trois chemins possibles :
+
+- **CEF (capteur on-prem)** — *recommandé, le plus simple* : le capteur pousse en CEF vers
+  `connector syslog --listen 0.0.0.0:5514` (règle de transfert syslog côté capteur).
+- **API capteur on-prem** : actifs `/api/v1/devices` (preset `defender_iot_assets`,
+  sévérité = `riskLevel`), alertes `/api/v1/alerts` (preset `defender_iot_sensor`).
+  Les sévérités capteur *Minor/Major/Warning/Critical* sont gérées.
+- **API cloud (Graph)** : `security/alerts_v2` (preset `defender_iot`), auth Azure AD.
+
+```bash
+# capteur on-prem — actifs
+python -m connectors.connector otplatform --preset defender_iot_assets \
+  --url "https://<capteur>/api/v1/devices" \
+  --header "Authorization: Bearer $TOKEN" --interval 30 --metrics-port 9115
+```
+
 **Exemple — plateforme au schéma imbriqué (Armis, `data.results`)** — déjà géré par le preset :
 ```bash
 python -m connectors.connector otplatform --preset armis \

@@ -67,17 +67,35 @@ PRESETS = {
                     "event": "name", "severity": "risk_score", "ts": "last_seen"},
     },
     "tenable_ot": {
-        "label": "Tenable OT Security (ex-Indegy)",
+        "label": "Tenable OT Security — alertes/événements (/v1/events)",
         "alerts_path": "events",
         "mapping": {"id": "id", "asset": "asset_name", "zone": "network_segment",
                     "type": "type", "event": "title", "severity": "severity", "ts": "time"},
     },
+    "tenable_ot_assets": {
+        "label": "Tenable OT Security — actifs (/v1/assets) — sévérité = risk score",
+        "alerts_path": "assets",
+        "mapping": {"id": "id", "asset": "name", "zone": "network_segment", "type": "type",
+                    "event": "name", "severity": "risk", "ts": "last_seen"},
+    },
     "defender_iot": {
-        "label": "Microsoft Defender for IoT",
+        "label": "Microsoft Defender for IoT — alertes cloud (Graph security/alerts_v2)",
         "alerts_path": "value",
         "mapping": {"id": "id", "asset": "properties.deviceName", "zone": "properties.zone",
                     "type": "properties.alertType", "event": "properties.alertDisplayName",
                     "severity": "properties.severity", "ts": "properties.startTimeUtc"},
+    },
+    "defender_iot_sensor": {
+        "label": "Microsoft Defender for IoT — alertes capteur on-prem (/api/v1/alerts)",
+        "alerts_path": "alerts",
+        "mapping": {"id": "id", "asset": "sourceDeviceName", "zone": "zone", "type": "engine",
+                    "event": "name", "severity": "severity", "ts": "timeReceived"},
+    },
+    "defender_iot_assets": {
+        "label": "Microsoft Defender for IoT — actifs capteur (/api/v1/devices) — sévérité = riskLevel",
+        "alerts_path": "devices",
+        "mapping": {"id": "id", "asset": "name", "zone": "zone", "type": "type",
+                    "event": "name", "severity": "riskLevel", "ts": "lastSeen"},
     },
     "dragos": {
         "label": "Dragos Platform (notifications)",
