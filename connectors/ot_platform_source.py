@@ -47,6 +47,12 @@ PRESETS = {
         "mapping": {"id": "id", "asset": "name", "zone": "site_name",
                     "event": "name", "ts": "record_created_at"},
     },
+    "nozomi_assets": {
+        "label": "Nozomi — actifs OT (query=nodes) — sévérité = score de risque de l'actif",
+        "alerts_path": "result",
+        "mapping": {"id": "id", "asset": "label", "zone": "zone", "type": "type",
+                    "event": "label", "severity": "risk", "ts": "record_created_at"},
+    },
     "claroty": {
         "label": "Claroty — CTD / xDome",
         "alerts_path": "objects",

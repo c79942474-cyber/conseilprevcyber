@@ -91,13 +91,22 @@ python -m connectors.connector otplatform --preset nozomi \
   --header "Authorization: Bearer $TOKEN" --interval 10 --metrics-port 9109
 ```
 
-**Nozomi a deux flux utiles** (N2QL sur Guardian) :
+**Nozomi expose trois flux utiles** (requêtes N2QL sur Guardian) :
 
-- **Alertes** (sécurité → alertes actives, sévérité) : `query=alerts`, preset `nozomi`.
-  La gravité Nozomi est le score numérique `risk` (0-10) — géré automatiquement.
-- **Inventaire / réseaux sans fil** (→ actifs découverts) : `query=wireless_networks`
-  (ou `nodes` pour les actifs filaires), preset `nozomi_wireless`. Ces lignes ne sont
-  pas des alertes : on force `type=discovery` et on choisit la zone du cockpit avec `--set` :
+- **Actifs OT** (`query=nodes`, preset `nozomi_assets`) — *recommandé*. Chaque actif
+  arrive avec son **score de risque** (0-100) mappé sur la sévérité : risque ≥ 70 →
+  critique, 40-69 → avertissement, < 40 → info. Alimente l'inventaire ET pondère les zones.
+
+```bash
+python -m connectors.connector otplatform --preset nozomi_assets \
+  --url "https://guardian/api/open/query/do?query=nodes" \
+  --header "Authorization: Bearer $TOKEN" --interval 30 --metrics-port 9109
+```
+
+- **Alertes** (`query=alerts`, preset `nozomi`) — sécurité (alertes actives). La gravité
+  est le score numérique `risk` — géré automatiquement.
+- **Réseaux sans fil** (`query=wireless_networks`, preset `nozomi_wireless`) — inventaire
+  Wi-Fi/IIoT. Pas des alertes : on force `type=discovery` et on choisit la zone avec `--set` :
 
 ```bash
 python -m connectors.connector otplatform --preset nozomi_wireless \
@@ -106,6 +115,10 @@ python -m connectors.connector otplatform --preset nozomi_wireless \
   --set type=discovery --set "zone=Terrain (capteurs)" \
   --interval 30 --metrics-port 9110
 ```
+
+> *Autres tables Nozomi exploitables de la même façon si besoin :* `vulnerabilities`
+> (CVE par actif), `sessions`, `variables`. Le Threat Intelligence (CVE/malware/acteurs)
+> relève plutôt de la gestion de vulnérabilités que du flux temps réel du cockpit.
 
 > `--set CHAMP=VALEUR` force une valeur constante sur chaque événement (utile quand la
 > source n'a pas de champ `type`/`severity`, ou pour rattacher tout un flux à une zone

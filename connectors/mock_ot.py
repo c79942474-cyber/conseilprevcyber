@@ -77,6 +77,36 @@ _WIFI = [
 _wcount = {"n": 0}
 
 
+# Actifs OT (structure de la vue Assets / nodes de Nozomi, avec score de risque).
+_NODES = [
+    ("secrescontrollogix/first_controller", "Controller", "Cellule / Contrôle", "Rockwell Automation", 55),
+    ("hmi-panelview-02", "HMI", "Cellule / Contrôle", "Rockwell Automation", 82),
+    ("scada-server-01", "Server", "Supervision (SCADA)", "AVEVA", 41),
+    ("flow-meter-14", "Sensor", "Terrain (capteurs)", "Endress+Hauser", 18),
+    ("engineering-ws-03", "Workstation", "Entreprise (IT)", "Dell", 63),
+]
+_ncount = {"n": 0}
+
+
+def _make_nodes(batch=3):
+    out = []
+    for _ in range(batch):
+        i = _ncount["n"]
+        _ncount["n"] += 1
+        label, typ, zone, vendor, risk = _NODES[i % len(_NODES)]
+        out.append({
+            "id": "node-%05d" % i,
+            "label": label,
+            "type": typ,
+            "zone": zone,
+            "vendor": vendor,
+            "risk": risk,
+            "vulnerabilities": (i % 5) * 4,
+            "record_created_at": int(time.time() * 1000),
+        })
+    return out
+
+
 def _make_wireless(batch=4):
     out = []
     for _ in range(batch):
@@ -112,6 +142,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._json({"alerts": _make_alerts(batch=3)})
         elif self.path.startswith("/api/nozomi_wireless"):
             self._json({"result": _make_wireless(batch=4)})
+        elif self.path.startswith("/api/nozomi_nodes"):
+            self._json({"result": _make_nodes(batch=5)})
         elif self.path.startswith("/api/nozomi"):
             self._json({"result": _make_nozomi(batch=3)})
         elif self.path.startswith("/api/assets"):
