@@ -46,10 +46,13 @@ _ZONE_HINTS = [
 ]
 
 # Synonymes de sévérité -> valeur normalisée comprise par le cockpit.
-_SEV_CRIT = {"critical", "crit", "high", "severe", "fatal", "emergency", "alert", "error",
-             "élevé", "eleve", "critique", "0", "1", "2", "3"}
-_SEV_WARN = {"warning", "warn", "medium", "moderate", "notice", "moyen", "avertissement", "4"}
-_SEV_INFO = {"info", "informational", "low", "debug", "faible", "5", "6", "7"}
+# NB : les valeurs numériques des plateformes OT sont des SCORES DE RISQUE
+# (plus haut = plus grave), traités à part ci-dessous — à ne pas confondre avec
+# la priorité syslog (où 0 = le plus grave), déjà convertie en texte par la source syslog.
+_SEV_CRIT = {"critical", "crit", "high", "very-high", "very high", "severe", "fatal",
+             "emergency", "alert", "error", "élevé", "eleve", "critique"}
+_SEV_WARN = {"warning", "warn", "medium", "moderate", "notice", "moyen", "avertissement"}
+_SEV_INFO = {"info", "informational", "low", "debug", "faible", "none", "unknown", "ok"}
 
 
 def guess_zone(text):
@@ -64,7 +67,12 @@ def guess_zone(text):
 
 
 def normalize_severity(value):
-    """Ramène une sévérité arbitraire à critical / warning / info (sinon minuscule brute)."""
+    """Ramène une sévérité arbitraire à critical / warning / info.
+
+    Textuel : critical/high/medium/low… (+ synonymes FR). Numérique : interprété
+    comme un score de risque (plus haut = plus grave) — échelle 0-10 par défaut,
+    0-100 si la valeur dépasse 10.
+    """
     if value is None:
         return "info"
     s = str(value).strip().lower()
@@ -74,7 +82,13 @@ def normalize_severity(value):
         return "warning"
     if s in _SEV_INFO:
         return "info"
-    return s or "info"
+    try:
+        n = float(s.replace(",", "."))
+    except ValueError:
+        return s or "info"
+    if n > 10:  # échelle 0-100
+        return "critical" if n >= 70 else "warning" if n >= 40 else "info"
+    return "critical" if n >= 7 else "warning" if n >= 4 else "info"  # échelle 0-10
 
 
 def infer_type(text, default="event"):

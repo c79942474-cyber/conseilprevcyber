@@ -61,53 +61,53 @@ journalctl -u conseilprev-connector -f
 Le service redémarre tout seul en cas de coupure (`Restart=always`) et au boot.
 Variante **Docker** : voir `connectors/deploy/Dockerfile`.
 
-## 4. Régler le mapping selon la plateforme
+## 4. Brancher votre plateforme (8 éditeurs préconfigurés)
 
-Le plus simple : un **préréglage** `--preset` fixe d'emblée `--alerts-path` et le mapping
-pour un éditeur donné — surchargeable au besoin avec `--map champ=chemin`. Éditeurs fournis :
-`nozomi`, `claroty`, `tenable_ot`, `defender_iot`, `dragos`, `armis`, `forescout`,
-`cisco_cyber_vision`, `generic`. La liste et les champs : `python -m connectors.connector presets`.
-**À confirmer avec la version et la doc API de votre plateforme.**
+Un **préréglage** `--preset` fixe d'emblée `--alerts-path` et le mapping des champs ;
+tout reste surchargeable avec `--map champ=chemin`. Voir les mappings exacts avec
+`python -m connectors.connector presets`.
 
+> ⚠️ Les endpoints / champs ci-dessous sont des **points de départ réalistes** : ils
+> varient selon la **version** et l'édition (on-prem vs cloud) de chaque produit —
+> confirmez-les avec la doc API de votre instance. La sévérité est gérée quelle qu'en
+> soit la forme : texte (`High`/`Medium`/`Low`, `Critical`, `Very-High`…) **ou** score
+> numérique de risque (0-10 ou 0-100, plus haut = plus grave).
+
+| Éditeur | `--preset` | Mode conseillé | Endpoint type | Authentification |
+|---|---|---|---|---|
+| Nozomi (Guardian/Vantage) | `nozomi` | API **ou** CEF | `/api/open/query/do?query=alerts` (`result`) | `Authorization: Bearer` ou clé de session |
+| Claroty (CTD/xDome) | `claroty` | API **ou** CEF | `/api/v1/alerts` (`objects`) | `Authorization: Bearer` |
+| Tenable OT Security | `tenable_ot` | API | `/v1/events` (`events`) | `X-ApiKeys: accessKey=…;secretKey=…` |
+| Microsoft Defender for IoT | `defender_iot` | **CEF** (capteur) ou Graph API | Graph `/v1.0/security/alerts_v2` (`value`) | Azure AD `Bearer` |
+| Dragos Platform | `dragos` | API | `/api/v1/notifications` (`data`) | `Authorization: Bearer` / API-Token |
+| Armis Centrix | `armis` | API | `/api/v1/alerts/` (`data.results`) | jeton d'accès (via secret key) |
+| Forescout (eyeInspect) | `forescout` | API **ou** CEF | Command Center API (`alerts`) | jeton |
+| Cisco Cyber Vision | `cisco_cyber_vision` | API | `/api/3.0/events` (`events`) | `x-token-id` |
+
+**Exemple — pull API (Nozomi)** :
 ```bash
 python -m connectors.connector otplatform --preset nozomi \
   --url "https://guardian/api/open/query/do?query=alerts" \
-  --header "Authorization: Bearer $TOKEN"
+  --header "Authorization: Bearer $TOKEN" --interval 10 --metrics-port 9109
 ```
 
-Sans preset, on ajuste tout à la main avec `--alerts-path` (où se trouve la liste) et
-`--map champ=chemin`. Équivalents détaillés des presets :
-
-**Nozomi (Guardian / Vantage)** — pull
+**Exemple — plateforme au schéma imbriqué (Armis, `data.results`)** — déjà géré par le preset :
 ```bash
-python -m connectors.connector otplatform \
-  --url "https://guardian/api/open/query/do?query=alerts" \
-  --header "Authorization: Bearer $TOKEN" \
-  --alerts-path "result" \
-  --map event=name --map asset=appliance_host --map zone=zone --map severity=severity --map id=id
+python -m connectors.connector otplatform --preset armis \
+  --url "https://<tenant>.armis.com/api/v1/alerts/" \
+  --header "Authorization: $ARMIS_TOKEN" --interval 15
 ```
 
-**Claroty (CTD / xDome)** — pull
+**Exemple — push syslog/CEF (recommandé pour Defender for IoT, aussi possible Nozomi/Claroty/Forescout)** :
 ```bash
-python -m connectors.connector otplatform \
-  --url "https://ctd/api/v1/alerts" --header "Authorization: Bearer $TOKEN" \
-  --alerts-path "objects" \
-  --map event=description --map asset=hostname --map zone=site_name --map severity=severity --map id=resource_id
+# Sur le collecteur : écouter le CEF (le connecteur décode nom, sévérité, hôte, zone)
+python -m connectors.connector syslog --listen 0.0.0.0:5514 --metrics-port 9109
+# Sur la plateforme : créer une règle de transfert syslog/CEF -> IP_collecteur:5514
 ```
 
-**Tenable.ot** — pull
+**Ajuster un champ** si votre version diffère (ex. la zone est dans `site` au lieu de `zone`) :
 ```bash
-python -m connectors.connector otplatform \
-  --url "https://tenableot/v1/events" --header "X-ApiKeys: accessKey=$AK; secretKey=$SK" \
-  --alerts-path "events" \
-  --map event=title --map asset=asset_name --map severity=severity --map id=id
-```
-
-**Microsoft Defender for IoT** — push (syslog/CEF, recommandé)
-```bash
-# Côté connecteur : écouter le CEF
-python -m connectors.connector syslog --listen 0.0.0.0:5514
-# Côté Defender for IoT : configurer un « Forwarding rule » syslog CEF -> IP:5514 du collecteur
+python -m connectors.connector otplatform --preset nozomi --url … --map zone=site --map asset=host
 ```
 
 Le connecteur normalise ensuite vers `{asset, zone, type, event, severity, ts}` et

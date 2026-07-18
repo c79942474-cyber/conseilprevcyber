@@ -41,18 +41,28 @@ MAX_EVENTS = 50
 
 
 def tag_for(evt):
-    """Catégorise un événement : disc / crit / warn / patch / info."""
+    """Catégorise un événement : disc / crit / warn / patch / info.
+
+    Sévérité textuelle (crit/high/medium/low…) ou numérique (score de risque,
+    plus haut = plus grave : échelle 0-10, ou 0-100 si > 10).
+    """
     t = (evt.get("type") or "").lower()
     s = (evt.get("severity") or "").lower()
     if "patch" in t or "correctif" in t:
         return "patch"
     if "disc" in t or "découv" in t or "asset" in t or "inventaire" in t:
         return "disc"
-    if "crit" in s or s in ("high", "élevé", "eleve"):
+    if "crit" in s or s in ("high", "very-high", "very high", "élevé", "eleve"):
         return "crit"
     if "warn" in s or s in ("medium", "moyen") or "avert" in s:
         return "warn"
-    return "info"
+    try:
+        n = float(s.replace(",", "."))
+        if n > 10:
+            return "crit" if n >= 70 else "warn" if n >= 40 else "info"
+        return "crit" if n >= 7 else "warn" if n >= 4 else "info"
+    except ValueError:
+        return "info"
 
 
 def _risk_delta(tag):
