@@ -104,13 +104,26 @@ class EventBus:
     def __init__(self):
         self._local = _Broker()
         self._redis = None
+        self._channel = os.environ.get("REDIS_CHANNEL", "cockpit:events")
         url = os.environ.get("REDIS_URL")
-        if url:
+        if not url:
+            return
+        # Redis injoignable NE DOIT PAS empêcher le démarrage : on bascule en
+        # diffusion locale (mono-instance) et on journalise clairement.
+        try:
             import redis  # dépendance chargée uniquement si REDIS_URL est défini
-            self._channel = os.environ.get("REDIS_CHANNEL", "cockpit:events")
-            self._redis = redis.Redis.from_url(url, socket_keepalive=True)
-            self._redis.ping()  # échoue tôt et clairement si Redis est injoignable
+            client = redis.Redis.from_url(
+                url, socket_keepalive=True, socket_connect_timeout=5,
+                socket_timeout=5, health_check_interval=30)
+            client.ping()  # vérifie l'accès avec un timeout court
+            self._redis = client
             threading.Thread(target=self._subscribe_loop, daemon=True).start()
+            app.logger.info("EventBus : Redis connecté (canal %s)", self._channel)
+        except Exception as exc:
+            self._redis = None
+            app.logger.warning(
+                "EventBus : Redis injoignable (%s) — repli en diffusion LOCALE "
+                "(mono-instance). Vérifiez REDIS_URL (URL interne, même région).", exc)
 
     def subscribe(self):
         return self._local.subscribe()

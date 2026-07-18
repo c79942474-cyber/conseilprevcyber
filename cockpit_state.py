@@ -18,6 +18,7 @@ Sémantique commune :
 """
 import datetime
 import json
+import logging
 import os
 import threading
 import time
@@ -173,8 +174,11 @@ class PostgresStore:
 
     def __init__(self, dsn):
         from psycopg_pool import ConnectionPool
+        # connect_timeout borne l'attente si la base est injoignable (échoue vite).
+        sep = "&" if "?" in dsn else "?"
+        dsn = dsn + sep + "connect_timeout=5"
         self._pool = ConnectionPool(dsn, min_size=1, max_size=4,
-                                    kwargs={"autocommit": True}, open=True)
+                                    kwargs={"autocommit": True}, timeout=8, open=True)
         self._init_schema()
 
     # Verrou consultatif : sérialise la création du schéma entre instances
@@ -325,10 +329,21 @@ class PostgresStore:
 
 
 def make_store():
-    """Retourne un store persistant si DATABASE_URL est défini, sinon en mémoire."""
+    """Retourne un store persistant si DATABASE_URL est défini, sinon en mémoire.
+
+    Si PostgreSQL est injoignable au démarrage, on NE crashe PAS : repli en mémoire
+    avec un avertissement (le service reste disponible ; corriger DATABASE_URL puis
+    redéployer pour retrouver la persistance).
+    """
     dsn = os.environ.get("DATABASE_URL")
     if not dsn:
         return CockpitState()
     if dsn.startswith("postgres://"):  # normalisation (Heroku/Render historique)
         dsn = "postgresql://" + dsn[len("postgres://"):]
-    return PostgresStore(dsn)
+    try:
+        return PostgresStore(dsn)
+    except Exception as exc:
+        logging.getLogger("cockpit").warning(
+            "PostgreSQL injoignable (%s) — repli en mémoire (état NON persistant). "
+            "Vérifiez DATABASE_URL (URL interne, même région).", exc)
+        return CockpitState()
