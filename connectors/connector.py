@@ -146,6 +146,9 @@ def build_parser():
     common.add_argument("--metrics-port", type=int, default=None,
                         help="Expose des métriques Prometheus (/metrics) et /healthz sur ce port")
     common.add_argument("--metrics-host", default="0.0.0.0", help="Hôte du serveur de métriques")
+    common.add_argument("--set", action="append", metavar="CHAMP=VALEUR",
+                        help="Force une valeur constante sur chaque événement (répétable), "
+                             "ex. --set type=discovery --set severity=info")
 
     sub = p.add_subparsers(dest="cmd", required=True)
 

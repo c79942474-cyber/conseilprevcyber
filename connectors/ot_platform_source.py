@@ -35,11 +35,17 @@ PRESETS = {
         "alerts_path": "alerts", "mapping": GENERIC_MAPPING,
     },
     "nozomi": {
-        "label": "Nozomi Networks — Guardian / Vantage",
+        "label": "Nozomi Networks — Guardian / Vantage (alertes, query=alerts)",
         "alerts_path": "result",
         "mapping": {"id": "id", "asset": "appliance_host", "zone": "zone",
-                    "type": "type_id", "event": "name", "severity": "severity",
+                    "type": "type_id", "event": "name", "severity": "risk",
                     "ts": "record_created_at"},
+    },
+    "nozomi_wireless": {
+        "label": "Nozomi — réseaux sans fil / inventaire (query=wireless_networks) — utiliser --set type=discovery",
+        "alerts_path": "result",
+        "mapping": {"id": "id", "asset": "name", "zone": "site_name",
+                    "event": "name", "ts": "record_created_at"},
     },
     "claroty": {
         "label": "Claroty — CTD / xDome",

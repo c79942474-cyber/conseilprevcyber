@@ -124,13 +124,14 @@ class IngestClient:
     """Poste des événements normalisés sur /api/ingest (avec en-tête X-Ingest-Token)."""
 
     def __init__(self, base_url, token, timeout=10, dry_run=False, verbose=True, retries=3,
-                 cafile=None, insecure=False):
+                 cafile=None, insecure=False, overrides=None):
         self.url = base_url.rstrip("/") + "/api/ingest"
         self.token = token
         self.timeout = timeout
         self.dry_run = dry_run
         self.verbose = verbose
         self.retries = retries
+        self.overrides = overrides or {}  # valeurs constantes appliquées à chaque événement
         self.sent = 0
         self.failed = 0
         self.started_ts = time.time()
@@ -144,7 +145,7 @@ class IngestClient:
             print(*args, file=sys.stderr, flush=True)
 
     def post(self, raw_event):
-        evt = normalize_event(raw_event)
+        evt = normalize_event(dict(raw_event, **self.overrides) if self.overrides else raw_event)
         line = "[{sev:^8}] {zone:<20} {asset:<22} {event}".format(
             sev=evt["severity"], zone=evt["zone"] or "-", asset=evt["asset"] or "-", event=evt["event"])
         if self.dry_run:
@@ -203,8 +204,13 @@ def client_from_args(args):
               "(401/503). Utilisez --dry-run pour tester sans envoyer.", file=sys.stderr)
     cafile = getattr(args, "cafile", None) or os.environ.get("COCKPIT_CAFILE")
     insecure = getattr(args, "insecure", False)
+    overrides = {}
+    for item in getattr(args, "set", None) or []:
+        k, _, v = item.partition("=")
+        if k:
+            overrides[k.strip()] = v.strip()
     return IngestClient(base, token, timeout=args.timeout, dry_run=args.dry_run,
-                        cafile=cafile, insecure=insecure)
+                        cafile=cafile, insecure=insecure, overrides=overrides)
 
 
 def send_all(client, events, interval=0.0, loop=False):

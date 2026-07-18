@@ -61,9 +61,41 @@ def _make_alerts(batch=3):
 
 def _make_nozomi(batch=3):
     """Mêmes alertes, mais au format des champs Nozomi (pour tester --preset nozomi)."""
+    # Nozomi exprime la gravité par un score numérique `risk` (0-10).
+    risk = {"info": 2, "warning": 5, "critical": 9}
     return [{"id": a["id"], "appliance_host": a["device"], "zone": a["zone"],
-             "type_id": a["type"], "name": a["name"], "severity": a["severity"],
+             "type_id": a["type"], "name": a["name"], "risk": risk.get(a["severity"], 5),
              "record_created_at": a["ts"]} for a in _make_alerts(batch)]
+
+
+# Inventaire « réseaux sans fil » (structure de la vue Wireless/Networks de Nozomi).
+_WIFI = [
+    ("Pharaoh", "802.11", True, -68), ("xfinitywifi", "802.11", True, -87),
+    ("0x50a6", "802.15.4", True, -90), ("MariaFlores1", "802.11", True, -106),
+    ("Porsche_WLAN_1232", "802.11", False, -88), ("Orange", "lora", False, -99),
+]
+_wcount = {"n": 0}
+
+
+def _make_wireless(batch=4):
+    out = []
+    for _ in range(batch):
+        i = _wcount["n"]
+        _wcount["n"] += 1
+        name, proto, enabled, rssi = _WIFI[i % len(_WIFI)]
+        out.append({
+            "id": "wnet-%05d" % i,
+            "name": name,
+            "protocol": proto,
+            "enabled": enabled,
+            "avg_rssi": rssi,
+            "avg_noise": None,
+            "avg_snr": None,
+            "network_domain_name": "Miramar",
+            "site_name": "Miramar",
+            "record_created_at": int(time.time() * 1000),
+        })
+    return out
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -78,6 +110,8 @@ class _Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith("/api/alerts"):
             self._json({"alerts": _make_alerts(batch=3)})
+        elif self.path.startswith("/api/nozomi_wireless"):
+            self._json({"result": _make_wireless(batch=4)})
         elif self.path.startswith("/api/nozomi"):
             self._json({"result": _make_nozomi(batch=3)})
         elif self.path.startswith("/api/assets"):

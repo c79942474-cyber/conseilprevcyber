@@ -91,6 +91,27 @@ python -m connectors.connector otplatform --preset nozomi \
   --header "Authorization: Bearer $TOKEN" --interval 10 --metrics-port 9109
 ```
 
+**Nozomi a deux flux utiles** (N2QL sur Guardian) :
+
+- **Alertes** (sécurité → alertes actives, sévérité) : `query=alerts`, preset `nozomi`.
+  La gravité Nozomi est le score numérique `risk` (0-10) — géré automatiquement.
+- **Inventaire / réseaux sans fil** (→ actifs découverts) : `query=wireless_networks`
+  (ou `nodes` pour les actifs filaires), preset `nozomi_wireless`. Ces lignes ne sont
+  pas des alertes : on force `type=discovery` et on choisit la zone du cockpit avec `--set` :
+
+```bash
+python -m connectors.connector otplatform --preset nozomi_wireless \
+  --url "https://guardian/api/open/query/do?query=wireless_networks" \
+  --header "Authorization: Bearer $TOKEN" \
+  --set type=discovery --set "zone=Terrain (capteurs)" \
+  --interval 30 --metrics-port 9110
+```
+
+> `--set CHAMP=VALEUR` force une valeur constante sur chaque événement (utile quand la
+> source n'a pas de champ `type`/`severity`, ou pour rattacher tout un flux à une zone
+> du cockpit). Le cockpit a **5 zones fixes** (modèle IEC) : les sites/zones Nozomi
+> (ex. « Miramar ») n'y correspondent pas automatiquement — d'où le `--set zone=…`.
+
 **Exemple — plateforme au schéma imbriqué (Armis, `data.results`)** — déjà géré par le preset :
 ```bash
 python -m connectors.connector otplatform --preset armis \
