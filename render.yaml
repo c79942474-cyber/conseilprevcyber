@@ -4,7 +4,9 @@ services:
     region: frankfurt
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    # Worker à threads (gthread) : requis pour le flux SSE du cockpit (/api/stream),
+    # qui maintient des connexions longues.
+    startCommand: gunicorn -k gthread --threads 8 --timeout 120 app:app
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
@@ -12,4 +14,8 @@ services:
       # Clé API Brevo (transactional email) — à renseigner dans le dashboard Render.
       # Sans elle, le formulaire de contact bascule sur un lien mailto.
       - key: BREVO_API_KEY
+        sync: false
+      # Jeton du flux temps réel du cockpit (protège POST /api/ingest).
+      # Sans lui, l'ingestion est fermée et le cockpit reste en mode démo.
+      - key: INGEST_TOKEN
         sync: false

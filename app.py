@@ -1,20 +1,28 @@
 """CONSEILPREV Cyber — application web Flask.
 
-Sert les pages statiques du site, expose un point de santé pour Render et
-traite le formulaire de contact via l'API transactionnelle Brevo.
+Sert les pages statiques du site, expose un point de santé pour Render,
+traite le formulaire de contact via l'API transactionnelle Brevo et alimente
+le cockpit de supervision OT (démo + flux temps réel SSE).
 
 Démarrage local :  python app.py
-Production (Render) :  gunicorn app:app
+Production (Render) :  gunicorn -k gthread --threads 8 --timeout 120 app:app
 
 Variables d'environnement :
   BREVO_API_KEY  — clé API Brevo (transactional email). Si absente, le
                    formulaire bascule côté client sur un lien mailto.
+  INGEST_TOKEN   — jeton partagé protégeant POST /api/ingest (flux temps réel
+                   du cockpit). Si absent, l'ingestion est désactivée et le
+                   cockpit reste en mode démo (données simulées).
 """
 import html as html_lib
+import json
 import os
+import queue
+import threading
+import time
 
 import requests
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, Response, jsonify, request, send_from_directory
 
 app = Flask(__name__)
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -24,10 +32,51 @@ BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 SENDER = {"name": "CONSEILPREV", "email": "christophe.cerf@i-aes.com"}
 NOTIFY_TO = "christophe.cerf@outlook.com"
 
+# --- Flux temps réel du cockpit (SSE) -----------------------------------------
+# Jeton protégeant l'ingestion : sans lui, /api/ingest est fermé (503) et le
+# cockpit /demo reste en mode démonstration (données simulées).
+INGEST_TOKEN = os.environ.get("INGEST_TOKEN")
+
+
+class _Broker:
+    """Diffuseur pub/sub en mémoire pour le flux Server-Sent Events.
+
+    Chaque client SSE obtient sa propre file ; publish() y dépose l'événement.
+    Suffisant pour une démo / un pilote mono-instance (pas de persistance,
+    pas de partage entre workers — voir docs/integration-donnees-reelles.md).
+    """
+
+    def __init__(self):
+        self._subs = set()
+        self._lock = threading.Lock()
+
+    def subscribe(self):
+        q = queue.Queue(maxsize=200)
+        with self._lock:
+            self._subs.add(q)
+        return q
+
+    def unsubscribe(self, q):
+        with self._lock:
+            self._subs.discard(q)
+
+    def publish(self, data):
+        with self._lock:
+            subs = list(self._subs)
+        for q in subs:
+            try:
+                q.put_nowait(data)
+            except queue.Full:
+                pass  # client trop lent : on saute l'événement pour ne pas bloquer
+
+
+broker = _Broker()
+
 # URL propre -> fichier HTML servi
 PAGES = {
     "/": "index.html",
     "/services": "services.html",
+    "/etudes-de-cas": "etudes-de-cas.html",
     "/referentiel": "referentiel.html",
     "/analyse-de-risque": "analyse-de-risque.html",
     "/secteurs": "secteurs.html",
@@ -39,7 +88,11 @@ PAGES = {
     "/technologies-securite": "technologies-securite.html",
     "/programme-securite": "programme-securite.html",
     "/gestion-correctifs": "gestion-correctifs.html",
+    "/glossaire-62443": "glossaire-62443.html",
+    "/metriques-62443": "metriques-62443.html",
     "/demo": "demo.html",
+    "/ressources": "ressources.html",
+    "/faq": "faq.html",
     "/about": "about.html",
     "/contact": "contact.html",
     "/mentions-legales": "mentions-legales.html",
@@ -58,6 +111,11 @@ def index():
 @app.route("/services")
 def services():
     return _page(PAGES["/services"])
+
+
+@app.route("/etudes-de-cas")
+def etudes_de_cas():
+    return _page(PAGES["/etudes-de-cas"])
 
 
 @app.route("/referentiel")
@@ -115,9 +173,29 @@ def gestion_correctifs():
     return _page(PAGES["/gestion-correctifs"])
 
 
+@app.route("/glossaire-62443")
+def glossaire_62443():
+    return _page(PAGES["/glossaire-62443"])
+
+
+@app.route("/metriques-62443")
+def metriques_62443():
+    return _page(PAGES["/metriques-62443"])
+
+
 @app.route("/demo")
 def demo():
     return _page(PAGES["/demo"])
+
+
+@app.route("/ressources")
+def ressources():
+    return _page(PAGES["/ressources"])
+
+
+@app.route("/faq")
+def faq():
+    return _page(PAGES["/faq"])
 
 
 @app.route("/about")
@@ -193,6 +271,64 @@ def api_contact():
     if resp.status_code in (200, 201):
         return jsonify(ok=True)
     return jsonify(ok=False, error="send_failed", status=resp.status_code), 502
+
+
+@app.route("/api/stream")
+def api_stream():
+    """Flux Server-Sent Events du cockpit (mode « Temps réel »).
+
+    Diffuse les événements poussés via POST /api/ingest. Un commentaire
+    « keep-alive » est émis périodiquement pour maintenir la connexion à
+    travers les proxies. Nécessite un worker à threads (gunicorn -k gthread).
+    """
+
+    def gen():
+        q = broker.subscribe()
+        try:
+            yield ": connecté\n\n"  # ouvre le flux immédiatement
+            while True:
+                try:
+                    evt = q.get(timeout=15)
+                    yield "data: " + json.dumps(evt, ensure_ascii=False) + "\n\n"
+                except queue.Empty:
+                    yield ": keep-alive\n\n"
+        except GeneratorExit:  # client déconnecté
+            pass
+        finally:
+            broker.unsubscribe(q)
+
+    resp = Response(gen(), mimetype="text/event-stream")
+    resp.headers["Cache-Control"] = "no-cache"
+    resp.headers["X-Accel-Buffering"] = "no"  # désactive le buffering côté proxy
+    resp.headers["Connection"] = "keep-alive"
+    return resp
+
+
+@app.route("/api/ingest", methods=["POST"])
+def api_ingest():
+    """Reçoit un événement OT normalisé et le diffuse au cockpit temps réel.
+
+    Protégé par le jeton INGEST_TOKEN (en-tête X-Ingest-Token). Sans jeton
+    configuré, l'ingestion est désactivée : le cockpit reste en mode démo.
+
+    Corps attendu (JSON) : {asset, zone, type, event, severity, ts}
+    """
+    if not INGEST_TOKEN:
+        return jsonify(ok=False, error="not_configured"), 503
+    if request.headers.get("X-Ingest-Token") != INGEST_TOKEN:
+        return jsonify(ok=False, error="unauthorized"), 401
+
+    data = request.get_json(silent=True) or {}
+    evt = {
+        "asset": str(data.get("asset", ""))[:120],
+        "zone": str(data.get("zone", ""))[:80],
+        "type": str(data.get("type", "event"))[:40],
+        "event": str(data.get("event", ""))[:240],
+        "severity": str(data.get("severity", "info")).lower()[:16],
+        "ts": data.get("ts") or int(time.time() * 1000),
+    }
+    broker.publish(evt)
+    return jsonify(ok=True)
 
 
 @app.route("/health")

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ressources — CONSEILPREV Cyber</title>
+<meta name="description" content="Ressources et références en cybersécurité industrielle : ANSSI, CERT-FR, ENISA, CISA, IEC 62443, ISO, NIST SP 800-82, NIS2, DORA.">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .resgrid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:8px}
+  @media(max-width:820px){.resgrid{grid-template-columns:1fr}}
+  .resgroup{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);
+    border-radius:14px;padding:22px}
+  .resgroup > h3{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--cyan);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+  .reslink{display:block;text-decoration:none;padding:12px 0;border-bottom:1px dashed var(--line)}
+  .reslink:last-child{border-bottom:none}
+  .reslink .t{color:var(--ink);font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px}
+  .reslink .t .ext{font-family:var(--mono);font-size:11px;color:var(--muted2)}
+  .reslink:hover .t{color:var(--cyan)}
+  .reslink .d{color:var(--muted);font-size:13px;margin-top:3px}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><a href="/">CONSEILPREV</a><span class="tag">Cyber</span></div>
+      <div class="spacer"></div>
+      <nav class="links">
+        <a href="/">Accueil</a>
+        <a href="/services">Services</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/demo">Démo temps réel</a>
+        <a href="/contact" class="cta">Nous contacter</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow"><span class="dot"></span>Ressources</span>
+      <h1>Sources &amp; <span class="grad">références utiles</span>.</h1>
+      <p class="lead" style="margin-top:18px">Une sélection de références officielles pour approfondir la cybersécurité
+        industrielle&nbsp;: autorités et CERT, normes et référentiels, réglementation et guides pratiques. Les liens
+        externes ouvrent les sites des organismes cités.</p>
+    </section>
+
+    <section class="section" style="padding-top:24px">
+      <div class="resgrid">
+        <div class="resgroup">
+          <h3>Autorités &amp; CERT</h3>
+          <a class="reslink" href="https://cyber.gouv.fr" target="_blank" rel="noopener">
+            <span class="t">ANSSI <span class="ext">↗</span></span>
+            <span class="d">Agence nationale de la sécurité des systèmes d'information : doctrine, alertes et accompagnement des opérateurs.</span>
+          </a>
+          <a class="reslink" href="https://www.cert.ssi.gouv.fr" target="_blank" rel="noopener">
+            <span class="t">CERT-FR <span class="ext">↗</span></span>
+            <span class="d">Centre gouvernemental de veille, d'alerte et de réponse aux attaques informatiques (avis, bulletins, IOC).</span>
+          </a>
+          <a class="reslink" href="https://www.enisa.europa.eu" target="_blank" rel="noopener">
+            <span class="t">ENISA <span class="ext">↗</span></span>
+            <span class="d">Agence de l'Union européenne pour la cybersécurité : études, bonnes pratiques et référentiels sectoriels.</span>
+          </a>
+          <a class="reslink" href="https://www.cisa.gov" target="_blank" rel="noopener">
+            <span class="t">CISA <span class="ext">↗</span></span>
+            <span class="d">Agence américaine de cybersécurité : avis ICS/OT, alertes et guides de sécurité des infrastructures critiques.</span>
+          </a>
+        </div>
+        <div class="resgroup">
+          <h3>Normes &amp; référentiels</h3>
+          <a class="reslink" href="https://www.iec.ch" target="_blank" rel="noopener">
+            <span class="t">IEC (série 62443) <span class="ext">↗</span></span>
+            <span class="d">Commission électrotechnique internationale, éditrice de la série IEC 62443 pour la sécurité des systèmes d'automatisation industrielle (IACS).</span>
+          </a>
+          <a class="reslink" href="https://www.isasecure.org" target="_blank" rel="noopener">
+            <span class="t">ISA / ISASecure <span class="ext">↗</span></span>
+            <span class="d">Programme de certification de conformité à l'IEC 62443 pour les composants, systèmes et processus de développement.</span>
+          </a>
+          <a class="reslink" href="https://www.iso.org" target="_blank" rel="noopener">
+            <span class="t">ISO <span class="ext">↗</span></span>
+            <span class="d">Organisation internationale de normalisation : famille ISO/IEC 27000 pour le management de la sécurité de l'information.</span>
+          </a>
+          <a class="reslink" href="https://www.nist.gov" target="_blank" rel="noopener">
+            <span class="t">NIST <span class="ext">↗</span></span>
+            <span class="d">Institut américain de normalisation : cadres et publications de référence en cybersécurité (Cybersecurity Framework, série SP 800).</span>
+          </a>
+          <a class="reslink" href="https://csrc.nist.gov/pubs/sp/800/82/r3/final" target="_blank" rel="noopener">
+            <span class="t">NIST SP 800-82 <span class="ext">↗</span></span>
+            <span class="d">Guide to Operational Technology (OT) Security : référence pour la sécurisation des systèmes industriels et ICS.</span>
+          </a>
+        </div>
+        <div class="resgroup">
+          <h3>Réglementation</h3>
+          <a class="reslink" href="https://eur-lex.europa.eu/eli/dir/2022/2555" target="_blank" rel="noopener">
+            <span class="t">Directive NIS2 <span class="ext">↗</span></span>
+            <span class="d">Directive (UE) 2022/2555 rehaussant le niveau commun de cybersécurité des entités essentielles et importantes dans l'UE.</span>
+          </a>
+          <a class="reslink" href="https://eur-lex.europa.eu/eli/reg/2022/2554" target="_blank" rel="noopener">
+            <span class="t">Règlement DORA <span class="ext">↗</span></span>
+            <span class="d">Règlement (UE) 2022/2554 sur la résilience opérationnelle numérique du secteur financier.</span>
+          </a>
+          <a class="reslink" href="https://unece.org" target="_blank" rel="noopener">
+            <span class="t">UNECE R155 &amp; R156 (WP.29) <span class="ext">↗</span></span>
+            <span class="d">Règlements ONU sur la cybersécurité des véhicules (R155) et la gestion des mises à jour logicielles (R156).</span>
+          </a>
+        </div>
+        <div class="resgroup">
+          <h3>Guides pratiques</h3>
+          <a class="reslink" href="https://cyber.gouv.fr" target="_blank" rel="noopener">
+            <span class="t">Guides ANSSI — Systèmes industriels <span class="ext">↗</span></span>
+            <span class="d">Guides de l'ANSSI sur la cybersécurité des systèmes industriels : méthode de classification et mesures de sécurité détaillées.</span>
+          </a>
+          <a class="reslink" href="https://www.cisa.gov" target="_blank" rel="noopener">
+            <span class="t">CISA — ICS / OT <span class="ext">↗</span></span>
+            <span class="d">Ressources, avis et bonnes pratiques de la CISA dédiés à la sécurité des systèmes de contrôle industriel.</span>
+          </a>
+        </div>
+      </div>
+      <p class="muted" style="color:var(--muted2);font-size:13px;margin-top:22px">Liens vers des sites tiers, fournis à
+        titre informatif&nbsp;; leur contenu n'engage pas CONSEILPREV. Pour la lecture de la série IEC 62443,
+        voir notre <a href="/referentiel">référentiel</a>.</p>
+
+      <div class="divider"></div>
+      <div style="text-align:center">
+        <h2>Besoin d'y voir clair&nbsp;?</h2>
+        <p class="lead" style="margin:10px auto 0">Nous traduisons ces référentiels en actions concrètes pour votre installation.</p>
+        <div class="actions" style="justify-content:center">
+          <a href="/contact" class="btn btn-p">Nous contacter</a>
+          <a href="/referentiel" class="btn btn-s">Voir le référentiel 62443</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Cybersécurité industrielle IT / OT / IIoT</div>
+      <div class="fnav">
+        <a href="/about">À propos</a>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/demo">Démo</a>
+        <a href="/contact">Contact</a>
+        <a href="/mentions-legales">Mentions légales</a>
+      </div>
+    </div>
+  </footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+</body>
+</html>

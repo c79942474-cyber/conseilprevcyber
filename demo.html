@@ -61,6 +61,12 @@
   @keyframes flow{0%{top:-45%}100%{top:105%}}
   .conduit.fw{height:46px;background:var(--amber)}
   .conduit.fw::before{content:"🔥 pare-feu IT / OT";position:absolute;left:12px;top:50%;transform:translateY(-50%);white-space:nowrap;font-family:var(--mono);font-size:10px;color:var(--amber)}
+  .modeswitch{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--panel2)}
+  .modeswitch .ms{background:transparent;border:none;color:var(--muted);font-family:var(--mono);font-size:12px;
+    letter-spacing:.04em;padding:9px 16px;cursor:pointer;transition:background .15s,color .15s}
+  .modeswitch .ms:hover{color:var(--ink)}
+  .modeswitch .ms.active{color:#04121A;background:linear-gradient(135deg,var(--cyan),var(--teal));font-weight:600}
+  .demo-banner.live{background:rgba(34,211,238,.08);border-color:rgba(34,211,238,.35);color:var(--cyan)}
 </style>
 </head>
 <body>
@@ -71,6 +77,7 @@
       <nav class="links">
         <a href="/">Accueil</a>
         <a href="/services">Services</a>
+        <a href="/etudes-de-cas">Études de cas</a>
         <a href="/referentiel">Référentiel 62443</a>
         <a href="/demo" class="active">Démo temps réel</a>
         <a href="/about" class="hide">À propos</a>
@@ -85,7 +92,7 @@
       <h1>Cockpit de <span class="grad">supervision</span> cybersécurité OT.</h1>
     </section>
 
-    <div class="demo-banner">
+    <div class="demo-banner" id="banner">
       <span class="k">⚠ Démonstration</span>
       <span>Données <strong>simulées</strong> à des fins d'illustration — représente la découverte d'actifs, la
       cartographie par zones IEC&nbsp;62443 et la détection d'anomalies en continu.</span>
@@ -107,7 +114,13 @@
         </div>
       </div>
 
-      <div class="toolbar"><button id="btnPdf" class="btn btn-s">📄 Exporter le rapport (PDF)</button></div>
+      <div class="toolbar" style="justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+        <div class="modeswitch" role="tablist" aria-label="Mode d'affichage">
+          <button id="mDemo" class="ms active" role="tab" aria-selected="true" type="button">● Démo</button>
+          <button id="mLive" class="ms" role="tab" aria-selected="false" type="button">◉ Temps réel</button>
+        </div>
+        <button id="btnPdf" class="btn btn-s">📄 Exporter le rapport (PDF)</button>
+      </div>
 
       <div class="dash">
         <div class="panel">
@@ -135,7 +148,10 @@
         <a href="/about">À propos</a>
         <a href="/services">Services</a>
         <a href="/secteurs">Secteurs</a>
+        <a href="/etudes-de-cas">Études de cas</a>
         <a href="/referentiel">Référentiel 62443</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
         <a href="/demo">Démo</a>
         <a href="/contact">Contact</a>
         <a href="/mentions-legales">Mentions légales</a>
@@ -166,7 +182,7 @@
       'Mesure compensatoire appliquée (système non supporté)'];
 
     var feed=document.getElementById('feed'), zonesEl=document.getElementById('zones'), netmap=document.getElementById('netmap');
-    var assets=0, alerts=0, risk=72;
+    var assets=0, alerts=0, risk=72, liveMode=false, simTimer=null, es=null;
     function rnd(a){return a[Math.floor(Math.random()*a.length)];}
     function ri(min,max){return Math.floor(min+Math.random()*(max-min+1));}
     function now(){var d=new Date();function p(n){return(n<10?'0':'')+n;}return p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());}
@@ -233,24 +249,22 @@
         +'.kpis{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}.kpi{border:1px solid #ddd;border-radius:6px;padding:8px 12px;font-size:12px}.kpi b{font-size:18px;display:block}'
         +'.disc{margin-top:24px;font-size:11px;color:#999;font-style:italic}</style></head><body>'
         +'<h1>Rapport de supervision OT</h1>'
-        +'<div class="sub">CONSEILPREV Cyber — Démonstration (données simulées) — généré le '+d.toLocaleString('fr-FR')+'</div>'
+        +'<div class="sub">CONSEILPREV Cyber — '+(liveMode?'Flux temps réel':'Démonstration (données simulées)')+' — généré le '+d.toLocaleString('fr-FR')+'</div>'
         +'<h2>Indicateurs</h2><div class="kpis">'
         +'<div class="kpi"><b>'+assets+'</b>Actifs découverts</div>'
         +'<div class="kpi"><b>'+ZONES.length+'</b>Zones (IEC 62443)</div>'
         +'<div class="kpi"><b>'+alerts+'</b>Alertes actives</div>'
         +'<div class="kpi"><b>'+Math.round(risk)+'/100</b>Score de risque</div></div>'
         +'<h2>Zones &amp; segmentation</h2><table><tr><th>Zone</th><th>Niveau</th><th>Actifs</th><th>État</th></tr>'+rows+'</table>'
-        +'<p class="disc">Données simulées à des fins de démonstration. Ce document ne constitue pas un audit ni un avis de sécurité.</p>'
+        +'<p class="disc">'+(liveMode?'Données reçues du flux temps réel. Instantané non contractuel — ne constitue pas un audit ni un avis de sécurité.':'Données simulées à des fins de démonstration. Ce document ne constitue pas un audit ni un avis de sécurité.')+'</p>'
         +'<scr'+'ipt>window.onload=function(){window.print();}</scr'+'ipt></body></html>';
       win.document.write(doc); win.document.close();
     }
 
-    buildMap();
-    var pdfBtn=document.getElementById('btnPdf'); if(pdfBtn){ pdfBtn.addEventListener('click',exportPDF); }
-    render();
-    addEvent('info','Découverte réseau démarrée — mode passif');
+    function esc(s){return(''+s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 
-    setInterval(function(){
+    // ---- Mode DÉMO (simulation, données simulées) ----------------------------
+    function simTick(){
       var roll=Math.random();
       if(roll<0.42){ // découverte d'un actif
         var z=rnd(ZONES); z.c++; assets++;
@@ -273,7 +287,102 @@
         var z4=rnd(ZONES); z4.alert=false; z4.watch=false;
       }
       render();
-    },1900);
+    }
+    function startSim(){ if(simTimer)return; simTimer=setInterval(simTick,1900); }
+    function stopSim(){ if(simTimer){ clearInterval(simTimer); simTimer=null; } }
+    function seedDemo(){
+      feed.innerHTML=''; assets=0; alerts=0; risk=72;
+      ZONES.forEach(function(z){ z.alert=false; z.watch=false; z.c=ri(Math.floor(z.base*0.4),z.base); assets+=z.c; });
+      render(); buildMap();
+      addEvent('info','Découverte réseau démarrée — mode passif');
+    }
+
+    // ---- Mode TEMPS RÉEL (flux SSE /api/stream) ------------------------------
+    function tagFor(evt){
+      var s=(evt.severity||'').toLowerCase(), t=(evt.type||'').toLowerCase();
+      if(t.indexOf('patch')>=0||t.indexOf('correctif')>=0) return 'patch';
+      if(t.indexOf('disc')>=0||t.indexOf('découv')>=0||t.indexOf('asset')>=0||t.indexOf('inventaire')>=0) return 'disc';
+      if(s.indexOf('crit')>=0||s==='high'||s==='élevé'||s==='eleve') return 'crit';
+      if(s.indexOf('warn')>=0||s==='medium'||s==='moyen'||s.indexOf('avert')>=0) return 'warn';
+      return 'info';
+    }
+    function zoneByName(name){
+      if(!name) return null;
+      name=(''+name).toLowerCase();
+      for(var i=0;i<ZONES.length;i++){
+        if(ZONES[i].id===name || ZONES[i].n.toLowerCase().indexOf(name)>=0 || name.indexOf(ZONES[i].id)>=0) return ZONES[i];
+      }
+      return null;
+    }
+    function applyLive(evt){
+      var tag=tagFor(evt), z=zoneByName(evt.zone);
+      var txt=(evt.event||evt.asset||'Événement')+(z?(' — '+z.n):(evt.zone?(' — '+evt.zone):''));
+      addEvent(tag, esc(txt));
+      if(tag==='disc'){ if(z){z.c++;} assets++; risk=Math.min(98,risk+0.4); }
+      else if(tag==='crit'){ alerts++; if(z){z.alert=true;z.watch=false;} risk=Math.min(98,risk+2); }
+      else if(tag==='warn'){ if(z){z.watch=true;} }
+      else if(tag==='info'){ if(alerts>0)alerts--; risk=Math.max(0,risk-1); if(z){z.alert=false;z.watch=false;} }
+      render();
+    }
+    function startLive(){
+      liveMode=true; stopSim(); stopLive();
+      feed.innerHTML=''; alerts=0;
+      ZONES.forEach(function(z){ z.alert=false; z.watch=false; });
+      render();
+      setBanner(true,'Connexion au flux…');
+      addEvent('info','Mode temps réel — abonnement au flux /api/stream');
+      if(typeof EventSource==='undefined'){ setBanner(true,'EventSource non supporté par ce navigateur'); return; }
+      try{
+        es=new EventSource('/api/stream');
+        es.addEventListener('open',function(){ setBanner(true,'Flux connecté — en attente d\'événements'); });
+        es.onmessage=function(e){
+          if(!e.data) return;
+          var evt; try{ evt=JSON.parse(e.data); }catch(_){ return; }
+          setBanner(true,'Flux connecté — réception en cours');
+          applyLive(evt);
+        };
+        es.onerror=function(){ setBanner(true,'Flux interrompu — reconnexion automatique…'); };
+      }catch(err){ setBanner(true,'Impossible d\'ouvrir le flux temps réel'); }
+    }
+    function stopLive(){ if(es){ try{es.close();}catch(_){ } es=null; } }
+
+    // ---- Bandeau & bascule de mode -------------------------------------------
+    var banner=document.getElementById('banner');
+    function setBanner(live,liveMsg){
+      if(!banner) return;
+      if(live){
+        banner.className='demo-banner live';
+        banner.innerHTML='<span class="k">◉ Temps réel</span><span>Cockpit branché sur le flux <strong>/api/stream</strong> '
+          +'(Server-Sent Events). Les événements affichés proviennent des connecteurs d\'ingestion lorsqu\'ils sont '
+          +'configurés (<code style="font-family:var(--mono);font-size:11px">POST /api/ingest</code>) — voir la note de '
+          +'cadrage. <em style="color:var(--muted2);font-style:normal">'+esc(liveMsg||'')+'</em></span>';
+      } else {
+        banner.className='demo-banner';
+        banner.innerHTML='<span class="k">⚠ Démonstration</span><span>Données <strong>simulées</strong> à des fins '
+          +'d\'illustration — représente la découverte d\'actifs, la cartographie par zones IEC&nbsp;62443 et la '
+          +'détection d\'anomalies en continu.</span>';
+      }
+    }
+    var bDemo=document.getElementById('mDemo'), bLive=document.getElementById('mLive');
+    function selectBtn(live){
+      if(bLive){ bLive.classList.toggle('active',live); bLive.setAttribute('aria-selected',live?'true':'false'); }
+      if(bDemo){ bDemo.classList.toggle('active',!live); bDemo.setAttribute('aria-selected',!live?'true':'false'); }
+    }
+    function setMode(live){
+      if(live===liveMode && (live? es!==null : simTimer!==null)) return;
+      if(live){ selectBtn(true); startLive(); }
+      else { liveMode=false; stopLive(); selectBtn(false); setBanner(false); seedDemo(); startSim(); }
+    }
+    if(bDemo) bDemo.addEventListener('click',function(){ setMode(false); });
+    if(bLive) bLive.addEventListener('click',function(){ setMode(true); });
+    window.addEventListener('beforeunload',stopLive);
+
+    // ---- Démarrage : mode démo par défaut ------------------------------------
+    buildMap();
+    var pdfBtn=document.getElementById('btnPdf'); if(pdfBtn){ pdfBtn.addEventListener('click',exportPDF); }
+    render();
+    addEvent('info','Découverte réseau démarrée — mode passif');
+    startSim();
   })();
   </script>
 </body>

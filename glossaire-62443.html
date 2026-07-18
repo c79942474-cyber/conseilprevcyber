@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glossaire IEC 62443‑1‑2 — CONSEILPREV Cyber</title>
+<meta name="description" content="Glossaire de la série IEC 62443 (partie 1-2) : IACS, BPCS, SIS, SCADA, DCS, zones, conduits, niveaux de sécurité (SL), CSMS — termes reformulés.">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .terms{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}
+  @media(max-width:820px){.terms{grid-template-columns:1fr}}
+  .term{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);
+    border-radius:12px;padding:18px 20px}
+  .term .th{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+  .term .tt{font-weight:700;font-size:15.5px;color:var(--ink);letter-spacing:-.01em}
+  .term .ab{font-family:var(--mono);font-size:11px;color:var(--cyan);border:1px solid var(--line);
+    border-radius:6px;padding:2px 8px}
+  .term p{color:var(--muted);font-size:13.5px;line-height:1.6}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><a href="/">CONSEILPREV</a><span class="tag">Cyber</span></div>
+      <div class="spacer"></div>
+      <nav class="links">
+        <a href="/">Accueil</a>
+        <a href="/services">Services</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/referentiel" class="active">Référentiel 62443</a>
+        <a href="/demo">Démo temps réel</a>
+        <a href="/contact" class="cta">Nous contacter</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow"><span class="dot"></span>IEC 62443‑1‑2 · Glossaire</span>
+      <h1>Glossaire de la <span class="grad">série IEC 62443</span>.</h1>
+      <p class="lead" style="margin-top:18px">La partie IEC 62443-1-2, intitulée « Master glossary of terms and abbreviations », a pour vocation de constituer le glossaire normatif de référence de toute la série IEC 62443 consacrée à la cybersécurité des systèmes d'automatisation et de contrôle industriels. Son rôle est d'harmoniser la terminologie employée dans l'ensemble des autres parties (1-x, 2-x, 3-x et 4-x), afin que chaque terme et chaque abréviation possède une définition unique, cohérente et partagée par les exploitants, les fournisseurs de produits et les prestataires de services. En centralisant le vocabulaire, cette partie vise à éviter les divergences d'interprétation entre documents et sert de fondement commun pour comprendre les concepts clés de la série : zones, conduits, niveaux de sécurité, exigences fondamentales ou encore système de gestion de la cybersécurité. Les définitions ci-dessous sont reformulées à des fins pédagogiques et ne reprennent pas le texte exact de la norme.</p>
+    </section>
+
+    <section class="section" style="padding-top:24px">
+      <div class="terms">
+        <div class="term">
+          <div class="th"><span class="tt">Système d'automatisation et de contrôle industriel</span><span class="ab">IACS</span></div>
+          <p>Ensemble du matériel, des logiciels, des réseaux et du personnel qui assure la conduite, la surveillance et la sécurité d'un procédé industriel. C'est l'objet central de protection de toute la série 62443.</p>
+        </div>
+        <div class="term">
+          <div class="th"><span class="tt">Système de conduite de procédé de base</span><span class="ab">BPCS</span></div>
+          <p>Système qui assure le pilotage normal et courant d'un procédé (régulation, séquences, commandes), distinct des systèmes dédiés à la sécurité fonctionnelle. Il gère l'exploitation en conditions ordinaires.</p>
+        </div>
+        <div class="term">
+          <div class="th"><span class="tt">Système instrumenté de sécurité</span><span class="ab">SIS</span></div>
+          <p>Système indépendant conçu pour amener ou maintenir le procédé dans un état sûr lorsque des seuils critiques sont atteints. Il constitue une couche de protection distincte du BPCS pour prévenir les événements dangereux.</p>
+        </div>
+        <div class="term">
+          <div class="th"><span class="tt">Supervision, commande et acquisition de données</span><span class="ab">SCADA</span></div>
+          <p>Architecture de supervision permettant de surveiller et de commander à distance des installations souvent géographiquement dispersées, en collectant les données de terrain et en transmettant les consignes aux équipements.</p>
+        </div>
+        <div class="term">
+          <div class="th"><span class="tt">Système numérique de contrôle-commande</span><span class="ab">DCS</span></div>
+          <p>Système de contrôle réparti dans lequel les fonctions de régulation sont distribuées entre plusieurs contrôleurs reliés par un réseau, typiquement utilisé pour piloter des procédés continus au sein d'un même site.</p>
+        </div>
+        <div class="term">
+          <div class="th"><span class="tt">Automate programmable industriel</span><span class="ab">PLC / API</span></div>
+          <p>Calculateur industriel programmable qui exécute des fonctions logiques, séquentielles ou de régulation en pilotant des capteurs et des actionneurs. C'est un composant de base de nombreuses architectures de contrôle.</p>
+        </div>
+        <div class="term">
+          <div class="th"><span class="tt">Zone (de sécurité)</span><span class="ab">Zone</span></div>
+          <p>Regroupement logique ou physique d'actifs partageant des exigences de sécurité communes. Le découpage en zones permet de segmenter l'installation et d'appliquer des protections adaptées à chaque périmètre.</p>
+        </div>
+        <div class="term">
+          <div class="th"><span class="tt">Conduit</span><span class="ab">Conduit</span></div>
+          <p>Regroupement des communications qui relient deux zones ou traversent leurs frontières. Le conduit encadre et protège les flux d'échange entre zones, servant de point de contrôle des accès réseau.</p>
+        </div>
+        <div class="term">
+          <div class="th"><span class="tt">Système considéré</span><span class="ab">SUC (System Under Consideration)</span></div>
+          <p>Périmètre précis d'équipements, de réseaux et de fonctions retenu pour une analyse ou une évaluation de sécurité donnée. Il délimite clairement ce qui est inclus dans l'étude.</p>
+        </div>
+        <div class="term">
+          <div class="th"><span class="tt">Niveau de sécurité</span><span class="ab">SL (Security Level)</span></div>
+          <p>Mesure graduée de la robustesse attendue face à une menace, exprimée sur une échelle. On distingue le niveau visé (SL-T), le niveau de capacité (SL-C) et le niveau atteint (SL-A), ce qui permet de comparer besoin et capacité réelle.</p>
+        </div>
+        <div class="term">
+          <div class="th"><span class="tt">Exigence fondamentale</span><span class="ab">FR (Foundational Requirement)</span></div>
+          <p>Chacune des sept grandes catégories d'objectifs de sécurité de la série (contrôle de l'identification et de l'authentification, contrôle de l'usage, intégrité du système, confidentialité des données, restriction des flux de données, réponse en temps utile aux événements et disponibilité des ressources) qui structurent les exigences détaillées.</p>
+        </div>
+        <div class="term">
+          <div class="th"><span class="tt">Système de gestion de la cybersécurité</span><span class="ab">CSMS</span></div>
+          <p>Cadre organisationnel réunissant politiques, procédures, rôles et pratiques pour gérer les risques cyber d'un IACS tout au long de son cycle de vie, sur le modèle d'un système de management continu.</p>
+        </div>
+        <div class="term">
+          <div class="th"><span class="tt">Défense en profondeur</span><span class="ab">Defense in depth</span></div>
+          <p>Stratégie consistant à superposer plusieurs couches de protection indépendantes, de sorte que la défaillance d'une mesure ne compromette pas l'ensemble. Elle combine barrières techniques, organisationnelles et physiques.</p>
+        </div>
+        <div class="term">
+          <div class="th"><span class="tt">Exploitant (propriétaire d'actif)</span><span class="ab">Asset owner</span></div>
+          <p>Organisation responsable de l'installation industrielle et de son IACS en exploitation. Elle assume la gestion des risques, l'organisation de la sécurité et la responsabilité globale du système sur le terrain.</p>
+        </div>
+        <div class="term">
+          <div class="th"><span class="tt">Fournisseur de produit</span><span class="ab">Product supplier</span></div>
+          <p>Entité qui conçoit et met à disposition les produits (matériels, logiciels, composants) intégrés dans un IACS. La série lui adresse des exigences de sécurité sur le développement et les caractéristiques de ses produits.</p>
+        </div>
+        <div class="term">
+          <div class="th"><span class="tt">Prestataire de service</span><span class="ab">Service provider</span></div>
+          <p>Organisation qui fournit des services d'intégration, de maintenance ou d'exploitation autour de l'IACS. Elle intervient sur le système pour le compte de l'exploitant et doit respecter des exigences de sécurité dédiées.</p>
+        </div>
+        <div class="term">
+          <div class="th"><span class="tt">Fonction essentielle</span><span class="ab">Essential function</span></div>
+          <p>Fonction dont l'interruption ou l'altération porterait atteinte à la sécurité des personnes, à l'environnement ou à la disponibilité du procédé. Les mesures de cybersécurité ne doivent pas compromettre ces fonctions.</p>
+        </div>
+      </div>
+      <p class="muted" style="color:var(--muted2);font-size:13px;margin-top:22px">Définitions reformulées à des fins
+        pédagogiques&nbsp;; le texte normatif de référence reste l'IEC 62443‑1‑2. Voir aussi le
+        <a href="/referentiel">référentiel</a> et les <a href="/metriques-62443">métriques (1‑3)</a>.</p>
+
+      <div class="divider"></div>
+      <p><a href="/referentiel">← Retour au référentiel 62443</a></p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Cybersécurité industrielle IT / OT / IIoT</div>
+      <div class="fnav">
+        <a href="/about">À propos</a>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/demo">Démo</a>
+        <a href="/contact">Contact</a>
+        <a href="/mentions-legales">Mentions légales</a>
+      </div>
+    </div>
+  </footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+</body>
+</html>

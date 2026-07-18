@@ -1,7 +1,12 @@
 # Brancher le cockpit à des données réelles — note de cadrage
 
-> **Statut :** cadrage / avant-projet. Le cockpit `/demo` actuel fonctionne avec des **données simulées**
+> **Statut :** cadrage / avant-projet. Le cockpit `/demo` fonctionne par défaut avec des **données simulées**
 > (aucune collecte réelle). Ce document décrit ce qu'il faudrait pour l'alimenter avec des données OT réelles.
+>
+> **Déjà en place (brique « API temps réel » du schéma ci-dessous) :** le cockpit sait basculer en mode
+> **Temps réel** et s'abonner au flux **SSE `GET /api/stream`** ; un point d'ingestion **`POST /api/ingest`**
+> (protégé par `INGEST_TOKEN`) permet à un connecteur d'y pousser des événements normalisés. Reste à
+> construire les **connecteurs**, le **stockage** et l'**industrialisation** décrits ci-dessous.
 
 ## 1. Principe
 
@@ -34,14 +39,20 @@ production ; toute sonde active est validée au cas par cas.
 1. **Connecteurs d'ingestion** — un module par source (webhook, API pull, écoute syslog), qui normalise
    vers un modèle commun `{asset, zone, type, event, severity, ts}`.
 2. **Stockage** — une base (PostgreSQL / série temporelle) pour l'inventaire et l'historique des événements.
-3. **API temps réel** — un endpoint `GET /api/stream` en **SSE** (Server-Sent Events) ou WebSocket poussant
-   les nouveaux événements au cockpit. Flask supporte le SSE via une réponse `text/event-stream`.
-4. **Adaptation du cockpit** — remplacer la boucle `setInterval` de `demo.html` par un abonnement au flux :
+3. **API temps réel** ✅ *implémentée* — endpoint `GET /api/stream` en **SSE** (Server-Sent Events) poussant
+   les nouveaux événements au cockpit (réponse `text/event-stream`, broker pub/sub en mémoire, keep-alive).
+   Ingestion via `POST /api/ingest` (jeton `INGEST_TOKEN`). Nécessite un worker à threads
+   (`gunicorn -k gthread`). Le broker mémoire est mono-instance : pour du multi-worker/multi-instance,
+   remplacer par un bus partagé (Redis pub/sub, NATS…).
+4. **Adaptation du cockpit** ✅ *implémentée* — `demo.html` propose un interrupteur **Démo ⇄ Temps réel**.
+   En temps réel, la boucle `setInterval` est arrêtée et la page s'abonne au flux :
 
    ```js
    const es = new EventSource('/api/stream');
-   es.onmessage = e => { const evt = JSON.parse(e.data); addEvent(evt.tag, evt.txt); /* maj KPI/zones */ };
+   es.onmessage = e => { const evt = JSON.parse(e.data); applyLive(evt); /* addEvent + maj KPI/zones */ };
    ```
+
+   Le mode **Démo reste le mode par défaut** (repli si aucune donnée réelle n'est branchée).
 
 ## 4. Trajectoire proposée
 
@@ -61,10 +72,12 @@ production ; toute sonde active est validée au cas par cas.
 
 ## 6. Impact sur le dépôt actuel
 
-- `app.py` : ajouter le blueprint d'ingestion + l'endpoint `/api/stream` (SSE).
-- `requirements.txt` : ajouter la base (`psycopg[binary]`) et, si WebSocket, `flask-sock`.
-- `demo.html` : basculer la simulation vers l'abonnement au flux (garder un **mode démo** de repli).
-- Nouveau : dossier `connectors/` (un module par source) + schéma de base de données.
+- `app.py` : ✅ endpoint `/api/stream` (SSE) + `/api/ingest` (jeton) + broker pub/sub en mémoire.
+- `Procfile` / `render.yaml` : ✅ démarrage en worker à threads (`gunicorn -k gthread --threads 8`) requis par le SSE.
+- `demo.html` : ✅ interrupteur Démo ⇄ Temps réel, abonnement `EventSource`, **mode démo** de repli conservé.
+- `render.yaml` : ✅ variable `INGEST_TOKEN` (sync:false) déclarée.
+- **Reste à faire** : dossier `connectors/` (un module par source), **stockage** (`psycopg[binary]` +
+  base série temporelle), remplacement du broker mémoire par un bus partagé si multi-instance.
 
 ---
 

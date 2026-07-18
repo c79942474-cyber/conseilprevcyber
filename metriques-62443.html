@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Métriques IEC 62443‑1‑3 — CONSEILPREV Cyber</title>
+<meta name="description" content="Métriques de conformité de la série IEC 62443 (partie 1-3) : indicateurs quantitatifs, écart au niveau cible, suivi de tendance et tableau de bord.">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .points{display:flex;flex-direction:column;gap:16px;margin-top:8px;max-width:860px}
+  .point{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);
+    border-radius:14px;padding:22px 24px;display:flex;gap:18px}
+  .point .n{font-family:var(--mono);font-size:22px;font-weight:800;color:var(--cyan);line-height:1;flex-shrink:0;
+    width:44px;height:44px;border-radius:11px;background:rgba(34,211,238,.10);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center}
+  .point h3{color:var(--ink);margin-bottom:6px;font-size:17px}
+  .point p{color:var(--muted);font-size:14px;line-height:1.65}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><a href="/">CONSEILPREV</a><span class="tag">Cyber</span></div>
+      <div class="spacer"></div>
+      <nav class="links">
+        <a href="/">Accueil</a>
+        <a href="/services">Services</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/referentiel" class="active">Référentiel 62443</a>
+        <a href="/demo">Démo temps réel</a>
+        <a href="/contact" class="cta">Nous contacter</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow"><span class="dot"></span>IEC 62443‑1‑3 · Métriques</span>
+      <h1>Mesurer la conformité&nbsp;: <span class="grad">les métriques 62443</span>.</h1>
+      <p class="lead" style="margin-top:18px">La partie IEC 62443-1-3 (System security compliance metrics) définit une méthodologie destinée à élaborer des métriques quantitatives permettant de mesurer et de comparer le niveau de conformité et de sécurité d'un système d'automatisation et de contrôle industriel (IACS) au regard des exigences de la série 62443. Son objet n'est pas de fixer un score unique, mais de fournir un cadre structuré pour construire des indicateurs cohérents, reproductibles et vérifiables. Là où l'évaluation de la sécurité reste souvent qualitative et sujette à interprétation, cette partie vise à objectiver l'état de sécurité : traduire des constats en grandeurs mesurables, suivre leur évolution dans le temps et rendre comparables des situations, des systèmes ou des périmètres différents. Les métriques deviennent ainsi un langage commun entre les équipes techniques, le management et les auditeurs, servant de base au pilotage de la conformité plutôt qu'à un simple jugement ponctuel.</p>
+    </section>
+
+    <section class="section" style="padding-top:24px">
+      <div class="points">
+        <div class="point">
+          <div class="n">1</div>
+          <div>
+            <h3>Des métriques quantitatives, pas des appréciations subjectives</h3>
+            <p>La méthodologie repose sur la définition d'indicateurs mesurables, exprimés sous forme de grandeurs objectives et reproductibles. L'enjeu est de sortir des évaluations purement déclaratives ou d'opinion pour disposer de valeurs vérifiables, obtenues de manière cohérente et reproductible d'un évaluateur à l'autre, afin que le résultat reflète l'état réel du système et non l'interprétation de celui qui le mesure.</p>
+          </div>
+        </div>
+        <div class="point">
+          <div class="n">2</div>
+          <div>
+            <h3>Des indicateurs alignés sur les exigences de la série 62443</h3>
+            <p>Les métriques ne sont pas définies en isolement : elles se rattachent directement aux exigences et aux concepts de la série (notamment les fondements de sécurité, les exigences système et les niveaux de sécurité). Chaque indicateur se rapporte à une exigence ou à un ensemble d'exigences identifiables, ce qui garantit que ce qui est mesuré correspond bien à ce que le référentiel demande et rend la démarche traçable jusqu'au texte normatif.</p>
+          </div>
+        </div>
+        <div class="point">
+          <div class="n">3</div>
+          <div>
+            <h3>La mesure de l'écart au niveau cible</h3>
+            <p>Le cadre permet de positionner l'état observé d'un système par rapport à un niveau de sécurité visé (niveau cible). Les métriques servent alors à caractériser l'écart entre la situation constatée et l'objectif fixé, mettant en évidence les domaines où la conformité est atteinte et ceux où des actions restent nécessaires, sans préjuger d'une méthode de calcul particulière.</p>
+          </div>
+        </div>
+        <div class="point">
+          <div class="n">4</div>
+          <div>
+            <h3>Le suivi de tendance dans le temps</h3>
+            <p>Parce que les indicateurs sont définis de façon reproductible, ils peuvent être recalculés périodiquement et comparés d'une campagne d'évaluation à la suivante. La méthodologie ouvre ainsi la voie à un suivi de tendance : observer si le niveau de conformité et de sécurité progresse, se maintient ou se dégrade, et mesurer l'effet des mesures correctives engagées.</p>
+          </div>
+        </div>
+        <div class="point">
+          <div class="n">5</div>
+          <div>
+            <h3>Une aide à la décision et au reporting</h3>
+            <p>En rendant l'état de sécurité mesurable et comparable, les métriques alimentent la décision : elles aident à prioriser les actions, à justifier des choix d'investissement et à rendre compte de l'avancement auprès des différentes parties prenantes. Elles constituent un support de reporting exploitable aussi bien par les équipes opérationnelles que par le management ou les auditeurs.</p>
+          </div>
+        </div>
+        <div class="point">
+          <div class="n">6</div>
+          <div>
+            <h3>La base d'un tableau de bord de sécurité</h3>
+            <p>Consolidées, ces métriques peuvent servir de fondement à un tableau de bord de conformité et de sécurité de l'IACS, offrant une vue synthétique et suivie dans le temps du niveau atteint. Elles fournissent les briques élémentaires à partir desquelles une organisation peut construire son pilotage : agréger les indicateurs par périmètre, par zone ou par exigence, et disposer d'une vision d'ensemble cohérente de sa posture de sécurité.</p>
+          </div>
+        </div>
+      </div>
+      <p class="muted" style="color:var(--muted2);font-size:13px;margin-top:22px">Présentation pédagogique de la
+        méthodologie de l'IEC 62443‑1‑3&nbsp;; le texte normatif reste la référence. Les indicateurs alimentent
+        naturellement un cockpit de supervision comme notre <a href="/demo">démo temps réel</a>.</p>
+
+      <div class="divider"></div>
+      <p><a href="/referentiel">← Retour au référentiel 62443</a></p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Cybersécurité industrielle IT / OT / IIoT</div>
+      <div class="fnav">
+        <a href="/about">À propos</a>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/demo">Démo</a>
+        <a href="/contact">Contact</a>
+        <a href="/mentions-legales">Mentions légales</a>
+      </div>
+    </div>
+  </footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+</body>
+</html>

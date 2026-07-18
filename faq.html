@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FAQ — CONSEILPREV Cyber</title>
+<meta name="description" content="Questions fréquentes sur la cybersécurité industrielle (OT/IACS), l&#x27;IEC 62443, NIS2, l&#x27;audit sans arrêt de production et le déroulé d&#x27;une mission.">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .faqlist{display:flex;flex-direction:column;gap:12px;margin-top:8px;max-width:820px}
+  details.faq{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);
+    border-radius:12px;overflow:hidden;transition:border-color .18s}
+  details.faq[open]{border-color:#2A3A50}
+  details.faq summary{list-style:none;cursor:pointer;padding:18px 22px;display:flex;align-items:center;
+    gap:14px;font-weight:600;font-size:15.5px;color:var(--ink)}
+  details.faq summary::-webkit-details-marker{display:none}
+  details.faq summary .qn{font-family:var(--mono);font-size:12px;color:var(--cyan);border:1px solid var(--line);
+    border-radius:6px;padding:2px 8px;flex-shrink:0}
+  details.faq summary .chev{margin-left:auto;color:var(--muted2);transition:transform .2s;flex-shrink:0}
+  details.faq[open] summary .chev{transform:rotate(90deg);color:var(--cyan)}
+  details.faq .ans{padding:0 22px 20px 22px;color:var(--muted);font-size:14.5px;line-height:1.65}
+  details.faq .ans{border-top:1px solid transparent}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><a href="/">CONSEILPREV</a><span class="tag">Cyber</span></div>
+      <div class="spacer"></div>
+      <nav class="links">
+        <a href="/">Accueil</a>
+        <a href="/services">Services</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/demo">Démo temps réel</a>
+        <a href="/contact" class="cta">Nous contacter</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow"><span class="dot"></span>Questions fréquentes</span>
+      <h1>Vos questions sur la <span class="grad">cybersécurité industrielle</span>.</h1>
+      <p class="lead" style="margin-top:18px">OT, IEC 62443, NIS2, zones &amp; conduits, gestion des correctifs… les
+        réponses aux questions qui reviennent le plus souvent. Une interrogation qui n'y figure pas&nbsp;?
+        <a href="/contact">Écrivez-nous</a>.</p>
+    </section>
+
+    <section class="section" style="padding-top:24px">
+      <div class="faqlist">
+        <details class="faq">
+          <summary><span class="qn">01</span><span>Qu'est-ce que la cybersécurité OT/IACS et en quoi diffère-t-elle de la cybersécurité IT ?</span><span class="chev">▸</span></summary>
+          <div class="ans">L'OT (Operational Technology) et les IACS (Industrial Automation and Control Systems) désignent les systèmes qui pilotent les procédés industriels : automates, SCADA, DCS, capteurs et actionneurs. Contrairement à l'IT où la confidentialité prime, l'OT priorise la disponibilité et la sûreté du procédé : un arrêt ou un comportement erratique peut avoir des conséquences physiques et humaines. Les équipements y ont souvent des cycles de vie très longs, des protocoles industriels spécifiques et une faible tolérance aux interruptions, ce qui impose des méthodes d'analyse et de traitement distinctes de l'IT classique.</div>
+        </details>
+        <details class="faq">
+          <summary><span class="qn">02</span><span>Qu'est-ce que la série de normes IEC 62443, en bref ?</span><span class="chev">▸</span></summary>
+          <div class="ans">L'IEC 62443 est le référentiel international dédié à la cybersécurité des systèmes d'automatisation et de contrôle industriels. Elle couvre l'ensemble de l'écosystème : les politiques et l'organisation, les exigences envers les intégrateurs et exploitants, ainsi que les exigences techniques applicables aux systèmes et aux composants. Elle introduit des concepts structurants comme les zones et conduits, les niveaux de sécurité (SL) et une approche par le risque adaptée à l'industriel.</div>
+        </details>
+        <details class="faq">
+          <summary><span class="qn">03</span><span>Qui est concerné par la directive NIS2 ?</span><span class="chev">▸</span></summary>
+          <div class="ans">NIS2 élargit sensiblement le périmètre par rapport à NIS1 en visant un grand nombre de secteurs, comme l'énergie, l'eau, la santé, les transports, l'agroalimentaire ou la fabrication. Les entités concernées sont généralement qualifiées d'essentielles ou d'importantes selon leur secteur d'activité et leur taille, avec des obligations renforcées de gestion des risques, de mesures techniques et organisationnelles, et de notification des incidents. Nous vous aidons à déterminer si votre organisation entre dans le champ d'application et à cadrer les obligations correspondantes en fonction de votre situation.</div>
+        </details>
+        <details class="faq">
+          <summary><span class="qn">04</span><span>Par où commencer quand on ne sait pas ce qu'on a sur son réseau industriel ?</span><span class="chev">▸</span></summary>
+          <div class="ans">La première étape est un état des lieux : cartographier les équipements, les flux et les points de connexion entre IT et OT. Nous privilégions une approche de découverte passive, c'est-à-dire l'analyse du trafic réseau sans émettre de sollicitations vers les automates, afin de ne pas perturber les systèmes sensibles. Cet inventaire constitue la base pour identifier les vulnérabilités, définir les zones et prioriser les actions.</div>
+        </details>
+        <details class="faq">
+          <summary><span class="qn">05</span><span>Peut-on auditer notre installation sans arrêter la production ?</span><span class="chev">▸</span></summary>
+          <div class="ans">Oui, c'est un principe fondamental de notre démarche. Nous utilisons des méthodes non intrusives, comme l'écoute passive du trafic et l'analyse documentaire, qui n'interrompent pas les procédés. Lorsqu'un test plus poussé est envisagé, il est systématiquement cadré avec vos équipes et, si nécessaire, réalisé lors de fenêtres de maintenance planifiées pour éviter tout impact sur l'exploitation.</div>
+        </details>
+        <details class="faq">
+          <summary><span class="qn">06</span><span>Que sont les zones et les conduits au sens de l'IEC 62443 ?</span><span class="chev">▸</span></summary>
+          <div class="ans">Une zone regroupe des actifs qui partagent des exigences de sécurité communes, par exemple une ligne de production ou un poste de supervision. Un conduit est le canal de communication qui relie ces zones et à travers lequel transitent les échanges. Découper l'installation en zones et conduits permet de segmenter le réseau, de maîtriser les flux et de concentrer les mesures de protection là où les risques sont les plus élevés.</div>
+        </details>
+        <details class="faq">
+          <summary><span class="qn">07</span><span>Que signifient les niveaux de sécurité (Security Levels, SL) ?</span><span class="chev">▸</span></summary>
+          <div class="ans">Les niveaux de sécurité de l'IEC 62443 expriment la robustesse attendue face à des menaces d'intensité croissante, du profil accidentel jusqu'à l'attaquant disposant de moyens et de motivations importants. On distingue le SL cible, défini à partir de l'analyse de risque, et le SL atteint, qui reflète la protection réellement en place. L'objectif d'une mission est souvent de réduire l'écart entre ces deux niveaux, zone par zone.</div>
+        </details>
+        <details class="faq">
+          <summary><span class="qn">08</span><span>Comment gérer les correctifs de sécurité (patchs) en environnement OT ?</span><span class="chev">▸</span></summary>
+          <div class="ans">En OT, appliquer un correctif ne se fait jamais à la légère : il faut vérifier la compatibilité avec les équipements, l'homologation du constructeur et l'absence d'impact sur le procédé. Les correctifs sont donc évalués, testés lorsque c'est possible, puis déployés lors de fenêtres de maintenance planifiées. Quand un correctif ne peut pas être appliqué à court terme, on met en place des mesures compensatoires comme la segmentation réseau, le filtrage des flux ou une surveillance renforcée.</div>
+        </details>
+        <details class="faq">
+          <summary><span class="qn">09</span><span>Comment se passe la réponse à incident sur un système industriel ?</span><span class="chev">▸</span></summary>
+          <div class="ans">La réponse à incident en OT vise d'abord à préserver la sûreté et la continuité du procédé, avant même la remédiation technique. Elle s'appuie sur la préparation en amont : plans définis, rôles clairs, sauvegardes et procédures de repli connues des équipes. Nous vous accompagnons pour construire ces plans, coordonner les acteurs IT et OT le moment venu et tirer les enseignements après l'incident afin de renforcer votre posture.</div>
+        </details>
+        <details class="faq">
+          <summary><span class="qn">10</span><span>Comment se déroule concrètement une mission avec CONSEILPREV Cyber ?</span><span class="chev">▸</span></summary>
+          <div class="ans">Une mission débute par un cadrage du périmètre et des objectifs avec vos équipes, suivi d'un état des lieux technique et organisationnel. Nous analysons ensuite les risques au regard de l'IEC 62443 et de vos obligations réglementaires, puis nous formalisons des recommandations priorisées et une feuille de route réaliste. Nous pouvons également vous accompagner dans la mise en œuvre et le suivi des actions dans la durée.</div>
+        </details>
+        <details class="faq">
+          <summary><span class="qn">11</span><span>Quel est le prix d'une prestation ?</span><span class="chev">▸</span></summary>
+          <div class="ans">Nos prestations sont établies sur devis, en fonction du périmètre à couvrir. Le budget dépend notamment du nombre de sites, de la taille et de la complexité de l'installation, ainsi que du niveau d'accompagnement souhaité. Nous vous proposons un échange préalable gratuit pour cadrer votre besoin, puis une proposition détaillée et transparente.</div>
+        </details>
+        <details class="faq">
+          <summary><span class="qn">12</span><span>Comment garantissez-vous la confidentialité de nos informations ?</span><span class="chev">▸</span></summary>
+          <div class="ans">La confidentialité est au cœur de notre métier : les informations relatives à vos installations sont sensibles et traitées comme telles. Nous encadrons chaque mission par des engagements de confidentialité et, sur demande, la signature d'un accord de non-divulgation (NDA). L'accès aux données est limité aux intervenants strictement nécessaires, et les livrables comme les éléments collectés sont protégés et restitués ou détruits selon vos exigences.</div>
+        </details>
+        <details class="faq">
+          <summary><span class="qn">13</span><span>Quelle est la différence entre OT et IIoT, et couvrez-vous les deux ?</span><span class="chev">▸</span></summary>
+          <div class="ans">L'OT désigne les systèmes historiques de contrôle-commande industriel, tandis que l'IIoT (Industrial Internet of Things) regroupe les capteurs et objets connectés plus récents, souvent reliés au cloud, qui viennent enrichir ou moderniser ces installations. L'IIoT augmente la surface d'exposition en multipliant les points de connexion vers l'extérieur. Notre approche couvre l'ensemble de la chaîne, de l'automate historique aux équipements connectés, afin d'assurer une sécurité cohérente sur tout le périmètre industriel.</div>
+        </details>
+        <details class="faq">
+          <summary><span class="qn">14</span><span>Faut-il segmenter les réseaux IT et OT, et pourquoi ?</span><span class="chev">▸</span></summary>
+          <div class="ans">Oui, la séparation entre les réseaux IT et OT est l'une des mesures les plus efficaces pour limiter la propagation d'une attaque d'un environnement à l'autre. Cette segmentation s'appuie sur la logique de zones et conduits de l'IEC 62443, avec un contrôle strict des flux autorisés entre les deux mondes. Nous vous aidons à concevoir cette architecture de manière progressive, sans remettre en cause le fonctionnement de vos procédés.</div>
+        </details>
+      </div>
+
+      <div class="divider"></div>
+      <div style="text-align:center">
+        <h2>Une question plus précise&nbsp;?</h2>
+        <p class="lead" style="margin:10px auto 0">Parlons de votre installation — le premier échange est sans engagement.</p>
+        <div class="actions" style="justify-content:center">
+          <a href="/contact" class="btn btn-p">Nous contacter</a>
+          <a href="/services" class="btn btn-s">Voir nos services</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Cybersécurité industrielle IT / OT / IIoT</div>
+      <div class="fnav">
+        <a href="/about">À propos</a>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/demo">Démo</a>
+        <a href="/contact">Contact</a>
+        <a href="/mentions-legales">Mentions légales</a>
+      </div>
+    </div>
+  </footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+</body>
+</html>

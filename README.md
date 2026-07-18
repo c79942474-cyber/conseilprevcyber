@@ -21,6 +21,7 @@ python app.py
 |-------|---------|---------|
 | `/` | `index.html` | Accueil (positionnement IT/OT/IIoT, domaines, approche) |
 | `/services` | `services.html` | Objectifs, livrables et compétences (IEC 62443…) |
+| `/etudes-de-cas` | `etudes-de-cas.html` | Références & missions (EDF, Renault, Atos/SGP, Alstom, GRDF, TechnipEnergies) |
 | `/referentiel` | `referentiel.html` | Sommaire de la série IEC 62443 (hub vers les modules) |
 | `/analyse-de-risque` | `analyse-de-risque.html` | 62443‑3‑2 : analyse de risque, zones & conduits, SL‑T, CRS (déroulé ZCR 1→7) |
 | `/secteurs` | `secteurs.html` | Secteurs (énergie, eau, manufacturing, agro, chimie-pharma, logistique) |
@@ -32,19 +33,25 @@ python app.py
 | `/technologies-securite` | `technologies-securite.html` | TR 62443‑3‑1 : panorama des technologies de sécurité IACS (6 familles) |
 | `/programme-securite` | `programme-securite.html` | 62443‑2‑1 : programme de sécurité / CSMS (3 catégories, 19 éléments) |
 | `/gestion-correctifs` | `gestion-correctifs.html` | Module patch management selon IEC 62443‑2‑3 (rôles, modèle d'états, mitigations) |
-| `/demo` | `demo.html` | Cockpit OT **temps réel** : KPI, journal, zones, carte réseau, export PDF (démo, données simulées) |
+| `/glossaire-62443` | `glossaire-62443.html` | 62443‑1‑2 : glossaire de la série (17 termes reformulés) |
+| `/metriques-62443` | `metriques-62443.html` | 62443‑1‑3 : métriques de conformité (méthodologie, 6 principes) |
+| `/demo` | `demo.html` | Cockpit OT : mode **Démo** (données simulées) ⇄ mode **Temps réel** (flux SSE) — KPI, journal, zones, carte réseau, export PDF |
+| `/ressources` | `ressources.html` | Ressources & références (ANSSI, CERT‑FR, ENISA, CISA, IEC, ISO, NIST, NIS2, DORA…) |
+| `/faq` | `faq.html` | Questions fréquentes (OT/IACS, 62443, NIS2, zones & conduits, correctifs…) |
 | `/about` | `about.html` | À propos (mission, engagements) |
 | `/contact` | `contact.html` | Formulaire + coordonnées |
-| `/mentions-legales` | `mentions-legales.html` | Mentions légales (⚠️ champs `[À COMPLÉTER]`) |
+| `/mentions-legales` | `mentions-legales.html` | Mentions légales (société CONSEILPREV, hébergement Render Francfort) |
 | `/api/contact` | — | POST — envoi du formulaire via Brevo |
+| `/api/stream` | — | GET — flux Server‑Sent Events du cockpit temps réel |
+| `/api/ingest` | — | POST — ingestion d'un événement OT (protégé par `INGEST_TOKEN`) |
 | `/health` | — | Point de santé JSON |
 
 ## Structure
 
 | Fichier | Rôle |
 |---------|------|
-| `app.py` | Application Flask (routes des pages, envoi email, `/health`) |
-| `index.html`, `services.html`, `about.html`, `contact.html`, `mentions-legales.html` | Pages du site |
+| `app.py` | Application Flask (routes des pages, envoi email, flux SSE `/api/stream` + `/api/ingest`, `/health`) |
+| `*.html` | Pages du site (accueil, services, études de cas, référentiel 62443 et ses modules, démo, ressources, FAQ, à propos, contact, mentions légales) |
 | `styles.css` | Feuille de style partagée (thème cyber) |
 | `requirements.txt` | Dépendances Python (Flask, Gunicorn, Requests) |
 | `Procfile` | Commande de démarrage (`gunicorn app:app`) |
@@ -65,8 +72,30 @@ Le formulaire poste sur `POST /api/contact`, qui envoie un email via l'API trans
 > Tant que `BREVO_API_KEY` n'est pas définie, le formulaire **bascule automatiquement** sur un lien
 > `mailto` côté client — le site reste fonctionnel.
 
-> **À compléter avant mise en ligne** : les champs `[À COMPLÉTER]` de `mentions-legales.html`
-> (éditeur, SIRET, directeur de publication, adresse de l'hébergeur) et le bloc personnalisable de `about.html`.
+## Cockpit de supervision OT (`/demo`)
+
+Le cockpit propose deux modes, commutables par l'interrupteur en haut du tableau de bord :
+
+- **Démo** (par défaut) : le navigateur génère des événements **simulés** (aucune donnée réelle).
+- **Temps réel** : la page s'abonne au flux **SSE** `GET /api/stream` et affiche les événements poussés
+  par les connecteurs d'ingestion.
+
+Pour alimenter le mode temps réel, un connecteur poste des événements normalisés sur `POST /api/ingest` :
+
+```bash
+curl -X POST https://conseilprevcyber.onrender.com/api/ingest \
+  -H "content-type: application/json" -H "X-Ingest-Token: $INGEST_TOKEN" \
+  -d '{"asset":"Automate S7-1500","zone":"Supervision (SCADA)","type":"discovery","event":"Nouvel actif inventorié","severity":"info"}'
+```
+
+- L'ingestion est **protégée** par la variable `INGEST_TOKEN` (en‑tête `X-Ingest-Token`). Sans jeton
+  configuré, `/api/ingest` renvoie `503` et le cockpit reste en mode démo.
+- Le flux SSE exige un worker **multi‑thread** : le démarrage utilise `gunicorn -k gthread --threads 8`
+  (voir `Procfile` / `render.yaml`). Le broker pub/sub est **en mémoire** (mono‑instance, sans persistance) —
+  suffisant pour une démo / un pilote. Le cadrage complet (sources, stockage, industrialisation) est dans
+  [`docs/integration-donnees-reelles.md`](docs/integration-donnees-reelles.md).
+
+> Aucune donnée réelle ne doit transiter par la page de démonstration publique — voir la note de cadrage.
 
 ## Déploiement Render
 
