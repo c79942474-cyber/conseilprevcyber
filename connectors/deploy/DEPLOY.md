@@ -64,9 +64,10 @@ Variante **Docker** : voir `connectors/deploy/Dockerfile`.
 ## 4. Régler le mapping selon la plateforme
 
 Le plus simple : un **préréglage** `--preset` fixe d'emblée `--alerts-path` et le mapping
-pour un éditeur donné (`nozomi`, `claroty`, `tenable_ot`, `defender_iot`, `generic`) —
-surchargeable au besoin avec `--map champ=chemin`. **À confirmer avec la version et la
-doc API de votre plateforme.**
+pour un éditeur donné — surchargeable au besoin avec `--map champ=chemin`. Éditeurs fournis :
+`nozomi`, `claroty`, `tenable_ot`, `defender_iot`, `dragos`, `armis`, `forescout`,
+`cisco_cyber_vision`, `generic`. La liste et les champs : `python -m connectors.connector presets`.
+**À confirmer avec la version et la doc API de votre plateforme.**
 
 ```bash
 python -m connectors.connector otplatform --preset nozomi \
@@ -162,3 +163,25 @@ COCKPIT_AUTH_PASSWORD=un-mot-de-passe-fort
   `/api/reset` — déjà protégés par `INGEST_TOKEN`, pour que les connecteurs restent
   simples (ils n'envoient que le jeton, pas d'identifiants Basic).
 - Non défini ⇒ site public (la démo). À combiner avec HTTPS (fourni par Render).
+
+## 8. Haute disponibilité (multi-instance)
+
+Pour tenir plusieurs instances derrière un load-balancer, deux briques partagées :
+
+- **État partagé** : `DATABASE_URL` (PostgreSQL) — toutes les instances lisent/écrivent
+  le même inventaire et le même historique (l'instantané d'ouverture est donc cohérent
+  quelle que soit l'instance qui répond).
+- **Bus d'événements partagé** : `REDIS_URL` (Redis pub/sub) — un événement ingéré sur
+  **n'importe quelle** instance est rediffusé à **toutes** les instances, donc à tous les
+  cockpits connectés, où qu'ils soient. Canal configurable via `REDIS_CHANNEL`
+  (défaut `cockpit:events`).
+
+```bash
+DATABASE_URL=postgresql://…    # état partagé (obligatoire en multi-instance)
+REDIS_URL=redis://…            # bus d'événements partagé (Render « Key Value »)
+```
+
+Sans `REDIS_URL`, la diffusion est locale (une seule instance) — c'est le mode par défaut.
+Le fan-out passe systématiquement par Redis (y compris pour l'instance émettrice), ce qui
+garantit une diffusion **exactement une fois** par client, sans doublon. *(Alternative au
+choix : un bus NATS ; l'abstraction `EventBus` de `app.py` se transpose directement.)*

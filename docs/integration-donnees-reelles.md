@@ -47,8 +47,9 @@ production ; toute sonde active est validée au cas par cas.
 3. **API temps réel** ✅ *implémentée* — endpoint `GET /api/stream` en **SSE** (Server-Sent Events) poussant
    les nouveaux événements au cockpit (réponse `text/event-stream`, broker pub/sub en mémoire, keep-alive).
    Ingestion via `POST /api/ingest` (jeton `INGEST_TOKEN`). Nécessite un worker à threads
-   (`gunicorn -k gthread`). Le broker mémoire est mono-instance : pour du multi-worker/multi-instance,
-   remplacer par un bus partagé (Redis pub/sub, NATS…).
+   (`gunicorn -k gthread`). ✅ **Multi-instance** : si `REDIS_URL` est défini, le fan-out passe par
+   un **bus Redis pub/sub** partagé (diffusion à toutes les instances, exactement une fois) ; sinon
+   diffusion locale. Abstraction `EventBus` transposable à NATS.
 4. **Adaptation du cockpit** ✅ *implémentée* — `demo.html` propose un interrupteur **Démo ⇄ Temps réel**.
    En temps réel, la boucle `setInterval` est arrêtée et la page s'abonne au flux :
 
@@ -87,9 +88,10 @@ production ; toute sonde active est validée au cas par cas.
 - `connectors/` : ✅ connecteurs de référence (CSV, syslog/CEF, plateforme OT avec presets éditeurs),
   durcis (TLS vérifié, validation, dédoublonnage borné, arrêt propre SIGTERM) + mock de test + kit de
   déploiement (`connectors/deploy/`).
-- **Reste à faire** : remplacement du broker mémoire par un bus partagé (Redis/NATS) pour du
-  **multi-instance** à haute disponibilité ; rétention/archivage de l'historique ; supervision du
-  connecteur (métriques, alerting).
+- `app.py` `EventBus` : ✅ bus d'événements **multi-instance** (Redis pub/sub via `REDIS_URL`,
+  repli local sinon) — haute disponibilité derrière load-balancer avec état PostgreSQL partagé.
+- **Reste à faire** : rétention / archivage de l'historique (purge, agrégats) ; supervision du
+  connecteur (métriques, alerting) ; le cas échéant, bascule du bus vers NATS.
 
 ---
 

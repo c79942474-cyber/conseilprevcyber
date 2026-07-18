@@ -116,6 +116,10 @@ def cmd_mock_ot(args):
     mock_ot.main(["--host", args.host, "--port", str(args.port)])
 
 
+def cmd_presets(args):
+    print(ot_platform_source.preset_summary())
+
+
 # ----------------------------------------------------------------------------- CLI
 def build_parser():
     p = argparse.ArgumentParser(prog="connector", description="Connecteurs d'ingestion du cockpit OT.")
@@ -165,6 +169,9 @@ def build_parser():
     m.add_argument("--host", default="127.0.0.1")
     m.add_argument("--port", type=int, default=8899)
     m.set_defaults(func=cmd_mock_ot)
+
+    pp = sub.add_parser("presets", help="Lister les préréglages de plateforme OT disponibles")
+    pp.set_defaults(func=cmd_presets)
 
     return p
 

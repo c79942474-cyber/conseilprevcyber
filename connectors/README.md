@@ -81,7 +81,8 @@ python -m connectors.connector otplatform --preset nozomi \
   --header "Authorization: Bearer XXXX" --interval 10
 ```
 
-`--preset` accepte `nozomi`, `claroty`, `tenable_ot`, `defender_iot`, `generic`. Sinon, tout
+`--preset` accepte `nozomi`, `claroty`, `tenable_ot`, `defender_iot`, `dragos`, `armis`,
+`forescout`, `cisco_cyber_vision`, `generic` (liste + champs : `connector presets`). Sinon, tout
 s'ajuste à la main :
 
 ```bash

@@ -25,35 +25,83 @@ GENERIC_MAPPING = {
     "ts": "ts",
 }
 
-# Presets par éditeur : chemin de la liste d'alertes + correspondance des champs.
-# ⚠ Exemples de départ — À CONFIRMER avec la version et la doc API de votre plateforme.
-# Les chemins pointés (« properties.deviceName ») sont résolus par _dig.
+# Presets par éditeur : libellé, chemin de la liste d'alertes, correspondance des champs.
+# ⚠ Points de départ — À CONFIRMER avec la version et la doc API de votre plateforme
+# (les schémas évoluent entre versions). Les chemins pointés (« properties.deviceName »)
+# sont résolus par _dig ; tout champ se surcharge ensuite avec --map champ=chemin.
 PRESETS = {
-    "generic": {"alerts_path": "alerts", "mapping": GENERIC_MAPPING},
+    "generic": {
+        "label": "Schéma générique {alerts:[{id,device,zone,type,name,severity,ts}]}",
+        "alerts_path": "alerts", "mapping": GENERIC_MAPPING,
+    },
     "nozomi": {
+        "label": "Nozomi Networks — Guardian / Vantage",
         "alerts_path": "result",
         "mapping": {"id": "id", "asset": "appliance_host", "zone": "zone",
                     "type": "type_id", "event": "name", "severity": "severity",
                     "ts": "record_created_at"},
     },
     "claroty": {
+        "label": "Claroty — CTD / xDome",
         "alerts_path": "objects",
         "mapping": {"id": "resource_id", "asset": "hostname", "zone": "site_name",
                     "type": "category", "event": "description", "severity": "severity",
                     "ts": "timestamp"},
     },
     "tenable_ot": {
+        "label": "Tenable OT Security (ex-Indegy)",
         "alerts_path": "events",
         "mapping": {"id": "id", "asset": "asset_name", "zone": "network_segment",
                     "type": "type", "event": "title", "severity": "severity", "ts": "time"},
     },
     "defender_iot": {
+        "label": "Microsoft Defender for IoT",
         "alerts_path": "value",
         "mapping": {"id": "id", "asset": "properties.deviceName", "zone": "properties.zone",
                     "type": "properties.alertType", "event": "properties.alertDisplayName",
                     "severity": "properties.severity", "ts": "properties.startTimeUtc"},
     },
+    "dragos": {
+        "label": "Dragos Platform (notifications)",
+        "alerts_path": "data",
+        "mapping": {"id": "id", "asset": "asset_hostname", "zone": "zone",
+                    "type": "type", "event": "summary", "severity": "severity",
+                    "ts": "created_at"},
+    },
+    "armis": {
+        "label": "Armis Centrix",
+        "alerts_path": "data.results",
+        "mapping": {"id": "alertId", "asset": "deviceName", "zone": "site",
+                    "type": "type", "event": "title", "severity": "severity", "ts": "time"},
+    },
+    "forescout": {
+        "label": "Forescout — eyeInspect / SilentDefense",
+        "alerts_path": "alerts",
+        "mapping": {"id": "id", "asset": "host", "zone": "network",
+                    "type": "category", "event": "name", "severity": "severity",
+                    "ts": "timestamp"},
+    },
+    "cisco_cyber_vision": {
+        "label": "Cisco Cyber Vision",
+        "alerts_path": "events",
+        "mapping": {"id": "id", "asset": "device", "zone": "group",
+                    "type": "category", "event": "label", "severity": "severity",
+                    "ts": "datetime"},
+    },
 }
+
+
+def preset_summary():
+    """Texte listant les presets disponibles (pour la commande `presets`)."""
+    lines = ["Presets disponibles (--preset) — mappings à confirmer selon votre version d'API :"]
+    for name in sorted(PRESETS):
+        p = PRESETS[name]
+        m = p["mapping"]
+        lines.append("  %-18s %s" % (name, p.get("label", "")))
+        lines.append("      alerts-path=%s  event<-%s  asset<-%s  zone<-%s  severity<-%s"
+                     % (p["alerts_path"], m.get("event"), m.get("asset"),
+                        m.get("zone"), m.get("severity")))
+    return "\n".join(lines)
 
 
 class _BoundedSeen:

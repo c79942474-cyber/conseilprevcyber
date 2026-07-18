@@ -24,6 +24,11 @@ services:
       # Render Postgres et coller son URL interne ici.
       - key: DATABASE_URL
         sync: false
+      # Haute disponibilité multi-instance (optionnel). Si défini, les événements
+      # sont diffusés via Redis pub/sub à toutes les instances (fan-out SSE partagé).
+      # Requiert aussi DATABASE_URL (état partagé). Sinon : une seule instance.
+      - key: REDIS_URL
+        sync: false
       # Instance PRIVÉE (optionnel). Définir ces deux variables place TOUT le
       # site derrière une authentification HTTP Basic (voir connectors/deploy/DEPLOY.md).
       # Laisser vide pour une instance publique (ex. la démo).

@@ -15,6 +15,10 @@ Variables d'environnement :
                          reste en mode démo (données simulées).
   DATABASE_URL         — (optionnel) URL PostgreSQL. Si défini, l'inventaire et
                          l'historique du cockpit sont persistés ; sinon en mémoire.
+  REDIS_URL            — (optionnel) URL Redis. Si défini, les événements sont
+                         diffusés à toutes les instances via pub/sub (multi-instance,
+                         haute dispo). Sinon, diffusion locale (une seule instance).
+  REDIS_CHANNEL        — (optionnel) nom du canal Redis (défaut : cockpit:events).
   COCKPIT_AUTH_USER    — (optionnel) identifiant HTTP Basic pour une instance privée.
   COCKPIT_AUTH_PASSWORD— (optionnel) mot de passe associé. Définir les deux place
                          tout le site derrière authentification (sauf /health et
@@ -80,7 +84,63 @@ class _Broker:
                 pass  # client trop lent : on saute l'événement pour ne pas bloquer
 
 
-broker = _Broker()
+class EventBus:
+    """Bus d'événements du cockpit, compatible **multi-instance** (haute dispo).
+
+    - Sans REDIS_URL : diffusion locale uniquement (une seule instance).
+    - Avec REDIS_URL : chaque événement est publié sur un canal Redis ; toutes les
+      instances y sont abonnées et le rediffusent à LEURS clients SSE. Le fan-out
+      local passe donc toujours par Redis (y compris pour l'instance émettrice),
+      ce qui évite les doublons et traite toutes les instances de façon uniforme.
+
+    L'état (instantané d'ouverture) reste cohérent entre instances via la base
+    PostgreSQL partagée (voir cockpit_state.py).
+    """
+
+    def __init__(self):
+        self._local = _Broker()
+        self._redis = None
+        url = os.environ.get("REDIS_URL")
+        if url:
+            import redis  # dépendance chargée uniquement si REDIS_URL est défini
+            self._channel = os.environ.get("REDIS_CHANNEL", "cockpit:events")
+            self._redis = redis.Redis.from_url(url, socket_keepalive=True)
+            self._redis.ping()  # échoue tôt et clairement si Redis est injoignable
+            threading.Thread(target=self._subscribe_loop, daemon=True).start()
+
+    def subscribe(self):
+        return self._local.subscribe()
+
+    def unsubscribe(self, q):
+        self._local.unsubscribe(q)
+
+    def publish(self, data):
+        if self._redis is not None:
+            try:
+                self._redis.publish(self._channel, json.dumps(data))
+                return
+            except Exception:
+                pass  # Redis indisponible : repli sur la diffusion locale
+        self._local.publish(data)
+
+    def _subscribe_loop(self):
+        while True:
+            try:
+                pubsub = self._redis.pubsub(ignore_subscribe_messages=True)
+                pubsub.subscribe(self._channel)
+                for msg in pubsub.listen():
+                    if msg.get("type") != "message":
+                        continue
+                    try:
+                        payload = json.loads(msg["data"])
+                    except (ValueError, TypeError):
+                        continue
+                    self._local.publish(payload)
+            except Exception:
+                time.sleep(2)  # perte de connexion Redis : on retente
+
+
+broker = EventBus()
 
 # État du cockpit : persistant (PostgreSQL) si DATABASE_URL est défini, sinon en
 # mémoire. Voir cockpit_state.py.

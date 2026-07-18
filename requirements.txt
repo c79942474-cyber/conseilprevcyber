@@ -4,3 +4,5 @@ requests==2.31.0
 # Persistance du cockpit (activée si DATABASE_URL est défini) — voir cockpit_state.py.
 psycopg[binary]==3.3.4
 psycopg-pool==3.3.1
+# Bus d'événements partagé pour le multi-instance (activé si REDIS_URL est défini).
+redis==5.2.1

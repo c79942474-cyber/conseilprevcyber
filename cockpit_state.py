@@ -139,14 +139,23 @@ class PostgresStore:
                                     kwargs={"autocommit": True}, open=True)
         self._init_schema()
 
+    # Verrou consultatif : sérialise la création du schéma entre instances
+    # concurrentes (sinon deux « CREATE ... IF NOT EXISTS » simultanés se heurtent
+    # dans le catalogue Postgres). Clé arbitraire mais stable.
+    _SCHEMA_LOCK = 907243
+
     def _init_schema(self):
         with self._pool.connection() as conn:
-            for stmt in _SCHEMA:
-                conn.execute(stmt)
-            for zid, _, _ in ZONES_META:
-                conn.execute("INSERT INTO zone_status(id,status) VALUES(%s,'ok') "
-                             "ON CONFLICT (id) DO NOTHING", (zid,))
-            conn.execute("INSERT INTO meta(k,v) VALUES('risk',50) ON CONFLICT (k) DO NOTHING")
+            conn.execute("SELECT pg_advisory_lock(%s)", (self._SCHEMA_LOCK,))
+            try:
+                for stmt in _SCHEMA:
+                    conn.execute(stmt)
+                for zid, _, _ in ZONES_META:
+                    conn.execute("INSERT INTO zone_status(id,status) VALUES(%s,'ok') "
+                                 "ON CONFLICT (id) DO NOTHING", (zid,))
+                conn.execute("INSERT INTO meta(k,v) VALUES('risk',50) ON CONFLICT (k) DO NOTHING")
+            finally:
+                conn.execute("SELECT pg_advisory_unlock(%s)", (self._SCHEMA_LOCK,))
 
     def apply(self, evt):
         tag = tag_for(evt)

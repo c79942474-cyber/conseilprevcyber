@@ -127,6 +127,9 @@ saisir le mapping à la main.
 - **Instance privée** — définir `COCKPIT_AUTH_USER` + `COCKPIT_AUTH_PASSWORD` place **tout le site**
   derrière une **authentification HTTP Basic** (sauf `/health` et les endpoints machine protégés par
   jeton, pour que les connecteurs restent simples). Laisser vide pour une instance publique (la démo).
+- **Haute disponibilité (multi-instance)** — définir `REDIS_URL` diffuse les événements à **toutes les
+  instances** via Redis pub/sub (fan-out SSE partagé) ; combiné à `DATABASE_URL` (état partagé), le
+  cockpit tient plusieurs instances derrière un load-balancer. Sans `REDIS_URL` : une seule instance.
 
 Guide complet (base Render Postgres, instance privée, presets par éditeur, service systemd) :
 [`connectors/deploy/DEPLOY.md`](connectors/deploy/DEPLOY.md).
