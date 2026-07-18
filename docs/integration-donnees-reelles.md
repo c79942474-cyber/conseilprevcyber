@@ -74,14 +74,17 @@ production ; toute sonde active est validée au cas par cas.
 
 ## 6. Impact sur le dépôt actuel
 
-- `app.py` : ✅ endpoint `/api/stream` (SSE) + `/api/ingest` (jeton) + broker pub/sub en mémoire.
+- `app.py` : ✅ endpoints `/api/stream` (SSE, avec instantané d'ouverture) + `/api/ingest` (jeton) +
+  `/api/state` + `/api/reset` ; broker pub/sub **et état courant** (inventaire, alertes, événements
+  récents) en mémoire.
 - `Procfile` / `render.yaml` : ✅ démarrage en worker à threads (`gunicorn -k gthread --threads 8`) requis par le SSE.
 - `demo.html` : ✅ interrupteur Démo ⇄ Temps réel, abonnement `EventSource`, **mode démo** de repli conservé.
 - `render.yaml` : ✅ variable `INGEST_TOKEN` (sync:false) déclarée.
 - `connectors/` : ✅ connecteurs de référence (CSV, syslog, plateforme OT) + mock de test.
-- **Reste à faire** : **stockage** (`psycopg[binary]` + base série temporelle pour l'inventaire et
-  l'historique), remplacement du broker mémoire par un bus partagé (Redis/NATS) si multi-instance,
-  durcissement des connecteurs pour la production (secrets, TLS, supervision).
+- **Reste à faire** : **persistance** de l'état (aujourd'hui en mémoire, perdu au redémarrage) vers une
+  base (`psycopg[binary]` + série temporelle pour l'inventaire et l'historique), remplacement du broker
+  mémoire par un bus partagé (Redis/NATS) si multi-instance, durcissement des connecteurs pour la
+  production (secrets, TLS, supervision).
 
 ---
 

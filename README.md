@@ -42,8 +42,10 @@ python app.py
 | `/contact` | `contact.html` | Formulaire + coordonnées |
 | `/mentions-legales` | `mentions-legales.html` | Mentions légales (société CONSEILPREV, hébergement Render Francfort) |
 | `/api/contact` | — | POST — envoi du formulaire via Brevo |
-| `/api/stream` | — | GET — flux Server‑Sent Events du cockpit temps réel |
+| `/api/stream` | — | GET — flux Server‑Sent Events (instantané d'ouverture + événements) |
 | `/api/ingest` | — | POST — ingestion d'un événement OT (protégé par `INGEST_TOKEN`) |
+| `/api/state` | — | GET — instantané de l'état courant (inventaire, alertes, événements récents) |
+| `/api/reset` | — | POST — réinitialise l'état du cockpit (protégé par `INGEST_TOKEN`) |
 | `/health` | — | Point de santé JSON |
 
 ## Structure
@@ -95,6 +97,10 @@ curl -X POST https://conseilprevcyber.onrender.com/api/ingest \
   (voir `Procfile` / `render.yaml`). Le broker pub/sub est **en mémoire** (mono‑instance, sans persistance) —
   suffisant pour une démo / un pilote. Le cadrage complet (sources, stockage, industrialisation) est dans
   [`docs/integration-donnees-reelles.md`](docs/integration-donnees-reelles.md).
+- Le serveur tient un **état courant** (inventaire par zone, alertes actives, score de risque, derniers
+  événements). À la connexion, `/api/stream` envoie un **instantané** (`event: snapshot`) : un cockpit
+  ouvert en cours de route affiche immédiatement la situation, puis reçoit les nouveautés en flux. L'état
+  est aussi lisible via `GET /api/state` et remis à zéro via `POST /api/reset` (jeton requis).
 
 ### Alimenter en données réelles (connecteurs)
 

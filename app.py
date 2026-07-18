@@ -72,6 +72,104 @@ class _Broker:
 
 broker = _Broker()
 
+# --- État courant du cockpit (inventaire + alertes + événements récents) -------
+# Les 5 zones IEC 62443 du cockpit (doivent correspondre à demo.html).
+ZONES_META = [
+    ("ent", "Entreprise (IT)", "Niv. 4-5"),
+    ("dmz", "DMZ industrielle", "Niv. 3.5"),
+    ("sup", "Supervision (SCADA)", "Niv. 3"),
+    ("cel", "Cellule / Contrôle", "Niv. 2"),
+    ("ter", "Terrain (capteurs)", "Niv. 0-1"),
+]
+_ZONE_ID_BY_NAME = {name: zid for zid, name, _ in ZONES_META}
+
+
+def _tag_for(evt):
+    """Catégorise un événement (disc/crit/warn/patch/info) — miroir de la logique cockpit."""
+    t = (evt.get("type") or "").lower()
+    s = (evt.get("severity") or "").lower()
+    if "patch" in t or "correctif" in t:
+        return "patch"
+    if "disc" in t or "découv" in t or "asset" in t or "inventaire" in t:
+        return "disc"
+    if "crit" in s or s in ("high", "élevé", "eleve"):
+        return "crit"
+    if "warn" in s or s in ("medium", "moyen") or "avert" in s:
+        return "warn"
+    return "info"
+
+
+class CockpitState:
+    """État courant alimenté par les événements ingérés (thread-safe).
+
+    Permet à un cockpit fraîchement ouvert d'afficher immédiatement l'inventaire,
+    les alertes actives et les derniers événements (instantané), avant de recevoir
+    les nouveautés en flux. En mémoire (mono-instance), comme le broker.
+    """
+
+    MAX_EVENTS = 50
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self.reset()
+
+    def reset(self):
+        with self._lock:
+            self.assets = 0
+            self.alerts = 0
+            self.risk = 50.0
+            self.zones = {zid: {"id": zid, "name": name, "level": lvl, "count": 0, "status": "ok"}
+                          for zid, name, lvl in ZONES_META}
+            self.events = []  # ordre chronologique (ancien -> récent)
+
+    def apply(self, evt):
+        """Applique un événement normalisé ; renvoie (événement enrichi du tag, instantané)."""
+        tag = _tag_for(evt)
+        with self._lock:
+            zone = self.zones.get(_ZONE_ID_BY_NAME.get(evt.get("zone", "")))
+            if tag == "disc":
+                if zone:
+                    zone["count"] += 1
+                self.assets += 1
+                self.risk = min(98.0, self.risk + 0.4)
+            elif tag == "crit":
+                self.alerts += 1
+                if zone:
+                    zone["status"] = "alert"
+                self.risk = min(98.0, self.risk + 2)
+            elif tag == "warn":
+                if zone:
+                    zone["status"] = "watch"
+            elif tag == "info":
+                self.alerts = max(0, self.alerts - 1)
+                self.risk = max(0.0, self.risk - 1)
+                if zone:
+                    zone["status"] = "ok"
+            # patch : trace sans impact sur les compteurs
+            text = evt.get("event") or evt.get("asset") or "Événement"
+            if evt.get("zone"):
+                text += " — " + evt["zone"]
+            self.events.append({"tag": tag, "text": text, "ts": evt.get("ts")})
+            if len(self.events) > self.MAX_EVENTS:
+                self.events = self.events[-self.MAX_EVENTS:]
+            return dict(evt, tag=tag), self._snapshot_locked()
+
+    def _snapshot_locked(self):
+        return {
+            "assets": self.assets,
+            "alerts": self.alerts,
+            "risk": round(self.risk),
+            "zones": [dict(z) for z in self.zones.values()],
+            "events": list(self.events),
+        }
+
+    def snapshot(self):
+        with self._lock:
+            return self._snapshot_locked()
+
+
+state = CockpitState()
+
 # URL propre -> fichier HTML servi
 PAGES = {
     "/": "index.html",
@@ -285,11 +383,13 @@ def api_stream():
     def gen():
         q = broker.subscribe()
         try:
-            yield ": connecté\n\n"  # ouvre le flux immédiatement
+            # Instantané d'ouverture : le cockpit affiche l'état courant tout de suite.
+            snap = json.dumps(state.snapshot(), ensure_ascii=False)
+            yield "event: snapshot\ndata: " + snap + "\n\n"
             while True:
                 try:
-                    evt = q.get(timeout=15)
-                    yield "data: " + json.dumps(evt, ensure_ascii=False) + "\n\n"
+                    payload = q.get(timeout=15)
+                    yield "data: " + json.dumps(payload, ensure_ascii=False) + "\n\n"
                 except queue.Empty:
                     yield ": keep-alive\n\n"
         except GeneratorExit:  # client déconnecté
@@ -327,7 +427,26 @@ def api_ingest():
         "severity": str(data.get("severity", "info")).lower()[:16],
         "ts": data.get("ts") or int(time.time() * 1000),
     }
-    broker.publish(evt)
+    enriched, snap = state.apply(evt)
+    broker.publish({"event": enriched, "state": snap})
+    return jsonify(ok=True)
+
+
+@app.route("/api/state")
+def api_state():
+    """Instantané de l'état courant du cockpit (inventaire, alertes, événements récents)."""
+    return jsonify(state.snapshot())
+
+
+@app.route("/api/reset", methods=["POST"])
+def api_reset():
+    """Réinitialise l'état du cockpit (protégé par INGEST_TOKEN)."""
+    if not INGEST_TOKEN:
+        return jsonify(ok=False, error="not_configured"), 503
+    if request.headers.get("X-Ingest-Token") != INGEST_TOKEN:
+        return jsonify(ok=False, error="unauthorized"), 401
+    state.reset()
+    broker.publish({"reset": True, "state": state.snapshot()})
     return jsonify(ok=True)
 
 

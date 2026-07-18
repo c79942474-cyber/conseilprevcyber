@@ -314,32 +314,53 @@
       }
       return null;
     }
-    function applyLive(evt){
-      var tag=tagFor(evt), z=zoneByName(evt.zone);
-      var txt=(evt.event||evt.asset||'Événement')+(z?(' — '+z.n):(evt.zone?(' — '+evt.zone):''));
-      addEvent(tag, esc(txt));
-      if(tag==='disc'){ if(z){z.c++;} assets++; risk=Math.min(98,risk+0.4); }
-      else if(tag==='crit'){ alerts++; if(z){z.alert=true;z.watch=false;} risk=Math.min(98,risk+2); }
-      else if(tag==='warn'){ if(z){z.watch=true;} }
-      else if(tag==='info'){ if(alerts>0)alerts--; risk=Math.max(0,risk-1); if(z){z.alert=false;z.watch=false;} }
+    function zoneById(id,name){
+      for(var i=0;i<ZONES.length;i++){ if(ZONES[i].id===id||ZONES[i].n===name) return ZONES[i]; }
+      return null;
+    }
+    function textFor(evt){
+      return (evt.event||evt.asset||'Événement')+(evt.zone?(' — '+evt.zone):'');
+    }
+    // Applique l'état serveur (instantané d'ouverture, ou état joint à chaque événement).
+    function applyState(st, rebuildFeed){
+      if(!st) return;
+      assets=st.assets||0; alerts=st.alerts||0; if(st.risk!=null) risk=st.risk;
+      (st.zones||[]).forEach(function(sz){
+        var z=zoneById(sz.id,sz.name);
+        if(z){ z.c=sz.count||0; z.alert=(sz.status==='alert'); z.watch=(sz.status==='watch'); }
+      });
+      if(rebuildFeed){
+        feed.innerHTML='';
+        (st.events||[]).forEach(function(ev){ addEvent(ev.tag||'info', esc(ev.text||'')); });
+      }
       render();
     }
     function startLive(){
       liveMode=true; stopSim(); stopLive();
-      feed.innerHTML=''; alerts=0;
-      ZONES.forEach(function(z){ z.alert=false; z.watch=false; });
+      // Vue « réelle » vierge : les compteurs seront renseignés par l'instantané serveur.
+      feed.innerHTML=''; assets=0; alerts=0; risk=0;
+      ZONES.forEach(function(z){ z.c=0; z.alert=false; z.watch=false; });
       render();
       setBanner(true,'Connexion au flux…');
-      addEvent('info','Mode temps réel — abonnement au flux /api/stream');
       if(typeof EventSource==='undefined'){ setBanner(true,'EventSource non supporté par ce navigateur'); return; }
       try{
         es=new EventSource('/api/stream');
-        es.addEventListener('open',function(){ setBanner(true,'Flux connecté — en attente d\'événements'); });
+        es.addEventListener('open',function(){ setBanner(true,'Flux connecté'); });
+        // Instantané d'ouverture : inventaire, alertes actives et derniers événements.
+        es.addEventListener('snapshot',function(e){
+          var st; try{ st=JSON.parse(e.data); }catch(_){ return; }
+          applyState(st,true);
+          var n=(st.events||[]).length;
+          setBanner(true, n?('Flux connecté — état courant chargé ('+n+' évén.)'):'Flux connecté — en attente d\'événements');
+        });
+        // Nouveaux événements : {event, state} ; ou réinitialisation {reset, state}.
         es.onmessage=function(e){
           if(!e.data) return;
-          var evt; try{ evt=JSON.parse(e.data); }catch(_){ return; }
+          var m; try{ m=JSON.parse(e.data); }catch(_){ return; }
+          if(m.reset){ applyState(m.state,true); setBanner(true,'État réinitialisé'); return; }
+          if(m.event){ addEvent(m.event.tag||tagFor(m.event), esc(textFor(m.event))); }
+          applyState(m.state,false);
           setBanner(true,'Flux connecté — réception en cours');
-          applyLive(evt);
         };
         es.onerror=function(){ setBanner(true,'Flux interrompu — reconnexion automatique…'); };
       }catch(err){ setBanner(true,'Impossible d\'ouvrir le flux temps réel'); }
