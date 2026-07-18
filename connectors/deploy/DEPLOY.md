@@ -63,9 +63,19 @@ Variante **Docker** : voir `connectors/deploy/Dockerfile`.
 
 ## 4. Régler le mapping selon la plateforme
 
-Chaque plateforme a son schéma JSON : on l'ajuste avec `--alerts-path` (où se trouve
-la liste) et `--map champ=chemin` (correspondance des champs). Exemples de départ —
-**à confirmer avec la version et la doc API de votre plateforme** :
+Le plus simple : un **préréglage** `--preset` fixe d'emblée `--alerts-path` et le mapping
+pour un éditeur donné (`nozomi`, `claroty`, `tenable_ot`, `defender_iot`, `generic`) —
+surchargeable au besoin avec `--map champ=chemin`. **À confirmer avec la version et la
+doc API de votre plateforme.**
+
+```bash
+python -m connectors.connector otplatform --preset nozomi \
+  --url "https://guardian/api/open/query/do?query=alerts" \
+  --header "Authorization: Bearer $TOKEN"
+```
+
+Sans preset, on ajuste tout à la main avec `--alerts-path` (où se trouve la liste) et
+`--map champ=chemin`. Équivalents détaillés des presets :
 
 **Nozomi (Guardian / Vantage)** — pull
 ```bash
@@ -114,5 +124,41 @@ rattache automatiquement la zone aux 5 zones du cockpit quand c'est possible.
   chiffrement en transit (TLS) et accès restreint (RBAC). La démo publique ne reçoit
   aucune donnée réelle.
 - **Robustesse** : le broker SSE est en mémoire (mono-instance). Pour de la
-  disponibilité 24/7 multi-instance, prévoir un bus partagé (Redis/NATS) et un
-  stockage — voir `docs/integration-donnees-reelles.md`.
+  disponibilité 24/7 multi-instance, prévoir un bus partagé (Redis/NATS) — voir
+  `docs/integration-donnees-reelles.md`.
+- **TLS** : la vérification des certificats est active par défaut. Pour une PKI
+  interne, `--cafile /chemin/ca.pem` (ou `COCKPIT_CAFILE`). `--insecure` existe
+  pour un lab uniquement — jamais en production.
+
+## 6. Persistance (conserver l'inventaire et l'historique)
+
+Par défaut l'état du cockpit est **en mémoire** (perdu au redémarrage). Pour le
+conserver dans la durée, définir **`DATABASE_URL`** (PostgreSQL) côté cockpit :
+
+```bash
+# Render : créer une base « Postgres » puis coller son URL interne dans la variable
+# d'environnement DATABASE_URL du service (dashboard) — le schéma se crée tout seul.
+DATABASE_URL=postgresql://user:pass@host:5432/cockpit
+```
+
+- Tables créées automatiquement : `events` (série temporelle horodatée),
+  `assets` (inventaire), `zone_status`, `meta`. La table `events` peut devenir une
+  **hypertable TimescaleDB** si l'extension est disponible, sans changer le code.
+- Sans `DATABASE_URL`, rien ne change : l'état reste en mémoire (parfait pour la démo).
+
+## 7. Instance privée (authentification)
+
+Pour une instance qui reçoit de **vraies** données, protéger tout le site par
+authentification HTTP Basic en définissant côté cockpit :
+
+```bash
+COCKPIT_AUTH_USER=exploitant
+COCKPIT_AUTH_PASSWORD=un-mot-de-passe-fort
+```
+
+- Tout le site (pages, `/api/state`, `/api/stream`) passe alors derrière la
+  fenêtre de connexion du navigateur.
+- **Exemptés** : `/health` (sonde Render) et les endpoints machine `/api/ingest`,
+  `/api/reset` — déjà protégés par `INGEST_TOKEN`, pour que les connecteurs restent
+  simples (ils n'envoient que le jeton, pas d'identifiants Basic).
+- Non défini ⇒ site public (la démo). À combiner avec HTTPS (fourni par Render).

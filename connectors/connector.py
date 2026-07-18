@@ -20,6 +20,8 @@ Exemples :
   python -m connectors.connector otplatform --url http://127.0.0.1:8899/api/alerts --interval 3
 """
 import argparse
+import os
+import signal
 import sys
 import time
 
@@ -27,7 +29,6 @@ import time
 try:
     from . import core, csv_source, syslog_source, ot_platform_source, mock_ot
 except ImportError:  # exécution directe : python connectors/connector.py
-    import os
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from connectors import core, csv_source, syslog_source, ot_platform_source, mock_ot
 
@@ -75,15 +76,21 @@ def cmd_otplatform(args):
         k, _, v = h.partition(":")
         if k:
             headers[k.strip()] = v.strip()
-    mapping = dict(ot_platform_source.GENERIC_MAPPING)
+    preset = ot_platform_source.PRESETS.get(args.preset or "generic",
+                                            ot_platform_source.PRESETS["generic"])
+    mapping = dict(preset["mapping"])
     for m in args.map or []:
         k, _, v = m.partition("=")
         if k:
             mapping[k.strip()] = v.strip()
-    client._log("Interrogation de %s toutes les %ss (Ctrl-C pour arrêter)…" % (args.url, args.interval))
+    alerts_path = args.alerts_path or preset["alerts_path"]
+    ctx = core.build_ssl_context(getattr(args, "cafile", None) or os.environ.get("COCKPIT_CAFILE"),
+                                 getattr(args, "insecure", False))
+    client._log("Interrogation de %s (preset=%s) toutes les %ss (Ctrl-C pour arrêter)…"
+                % (args.url, args.preset or "generic", args.interval))
     events = ot_platform_source.poll(
-        args.url, headers=headers, mapping=mapping, alerts_path=args.alerts_path,
-        id_field=args.id_field, interval=args.interval, once=args.once, timeout=args.timeout)
+        args.url, headers=headers, mapping=mapping, alerts_path=alerts_path,
+        id_field=args.id_field, interval=args.interval, once=args.once, timeout=args.timeout, context=ctx)
     core.send_all(client, events)
 
 
@@ -119,6 +126,9 @@ def build_parser():
     common.add_argument("--timeout", type=float, default=10, help="Timeout HTTP (s)")
     common.add_argument("--dry-run", action="store_true", help="Afficher sans envoyer")
     common.add_argument("--interval", type=float, default=0.0, help="Pause entre envois (s)")
+    common.add_argument("--cafile", default=None, help="Bundle CA d'entreprise pour la vérification TLS")
+    common.add_argument("--insecure", action="store_true",
+                        help="Désactiver la vérification TLS (déconseillé — lab uniquement)")
 
     sub = p.add_subparsers(dest="cmd", required=True)
 
@@ -138,8 +148,10 @@ def build_parser():
 
     o = sub.add_parser("otplatform", parents=[common], help="Interroger une plateforme OT (API REST)")
     o.add_argument("--url", required=True, help="URL de l'API d'alertes")
+    o.add_argument("--preset", choices=sorted(ot_platform_source.PRESETS.keys()),
+                   help="Préréglage éditeur (nozomi, claroty, tenable_ot, defender_iot, generic)")
     o.add_argument("--header", action="append", help="En-tête HTTP 'Clé: valeur' (répétable)")
-    o.add_argument("--alerts-path", default="alerts", help="Chemin JSON de la liste (déf. 'alerts')")
+    o.add_argument("--alerts-path", default=None, help="Chemin JSON de la liste (déf. selon le preset)")
     o.add_argument("--id-field", default="id", help="Champ identifiant pour le dédoublonnage")
     o.add_argument("--map", action="append", help="Mapping champ=chemin (répétable), ex. event=name")
     o.add_argument("--once", action="store_true", help="Un seul appel puis quitter")
@@ -157,7 +169,18 @@ def build_parser():
     return p
 
 
+def _install_sigterm():
+    """Arrêt propre sur SIGTERM (systemd / Docker) : on le traite comme un Ctrl-C."""
+    def handler(signum, frame):
+        raise KeyboardInterrupt()
+    try:
+        signal.signal(signal.SIGTERM, handler)
+    except Exception:
+        pass
+
+
 def main(argv=None):
+    _install_sigterm()
     args = build_parser().parse_args(argv)
     return args.func(args) or 0
 

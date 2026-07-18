@@ -8,6 +8,7 @@ Un preset générique est fourni pour un schéma courant {alerts:[{id,name,sever
 
 Fonctionne en mode passif : simple lecture (GET) de l'API de la plateforme.
 """
+import collections
 import json
 import time
 import urllib.error
@@ -24,6 +25,56 @@ GENERIC_MAPPING = {
     "ts": "ts",
 }
 
+# Presets par éditeur : chemin de la liste d'alertes + correspondance des champs.
+# ⚠ Exemples de départ — À CONFIRMER avec la version et la doc API de votre plateforme.
+# Les chemins pointés (« properties.deviceName ») sont résolus par _dig.
+PRESETS = {
+    "generic": {"alerts_path": "alerts", "mapping": GENERIC_MAPPING},
+    "nozomi": {
+        "alerts_path": "result",
+        "mapping": {"id": "id", "asset": "appliance_host", "zone": "zone",
+                    "type": "type_id", "event": "name", "severity": "severity",
+                    "ts": "record_created_at"},
+    },
+    "claroty": {
+        "alerts_path": "objects",
+        "mapping": {"id": "resource_id", "asset": "hostname", "zone": "site_name",
+                    "type": "category", "event": "description", "severity": "severity",
+                    "ts": "timestamp"},
+    },
+    "tenable_ot": {
+        "alerts_path": "events",
+        "mapping": {"id": "id", "asset": "asset_name", "zone": "network_segment",
+                    "type": "type", "event": "title", "severity": "severity", "ts": "time"},
+    },
+    "defender_iot": {
+        "alerts_path": "value",
+        "mapping": {"id": "id", "asset": "properties.deviceName", "zone": "properties.zone",
+                    "type": "properties.alertType", "event": "properties.alertDisplayName",
+                    "severity": "properties.severity", "ts": "properties.startTimeUtc"},
+    },
+}
+
+
+class _BoundedSeen:
+    """Ensemble d'identifiants déjà vus, borné (évite une croissance mémoire infinie)."""
+
+    def __init__(self, cap=5000):
+        self.cap = cap
+        self._set = set()
+        self._order = collections.deque()
+
+    def __contains__(self, key):
+        return key in self._set
+
+    def add(self, key):
+        if key in self._set:
+            return
+        self._set.add(key)
+        self._order.append(key)
+        if len(self._order) > self.cap:
+            self._set.discard(self._order.popleft())
+
 
 def _dig(obj, path):
     """Extrait obj[a][b][c] pour un chemin 'a.b.c' (renvoie None si absent)."""
@@ -38,9 +89,11 @@ def _dig(obj, path):
     return cur
 
 
-def _http_get_json(url, headers, timeout):
-    req = urllib.request.Request(url, headers=headers or {}, method="GET")
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+def _http_get_json(url, headers, timeout, context=None):
+    hs = dict(headers or {})
+    hs.setdefault("User-Agent", "conseilprev-connector/1.0")
+    req = urllib.request.Request(url, headers=hs, method="GET")
+    with urllib.request.urlopen(req, timeout=timeout, context=context) as resp:
         return json.loads(resp.read().decode("utf-8", "replace"))
 
 
@@ -55,17 +108,18 @@ def map_record(record, mapping):
 
 
 def poll(url, headers=None, mapping=None, alerts_path="alerts", id_field="id",
-         interval=10.0, once=False, timeout=10, verbose=True):
+         interval=10.0, once=False, timeout=10, verbose=True, context=None):
     """Interroge l'API périodiquement et génère les nouveaux enregistrements mappés.
 
     Dédoublonne sur `id_field` (ou le champ mappé `id`) pour ne pas re-poster.
+    Le suivi des identifiants vus est borné pour éviter toute fuite mémoire.
     """
     import sys
     mapping = mapping or GENERIC_MAPPING
-    seen = set()
+    seen = _BoundedSeen()
     while True:
         try:
-            data = _http_get_json(url, headers, timeout)
+            data = _http_get_json(url, headers, timeout, context=context)
         except urllib.error.HTTPError as e:
             if verbose:
                 print("Plateforme HTTP %s : %s" % (e.code, e.reason), file=sys.stderr)

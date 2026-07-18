@@ -40,7 +40,10 @@ production ; toute sonde active est validée au cas par cas.
    (CSV/export, syslog fichier + écoute UDP, plateforme OT via API REST), qui normalise vers le modèle
    commun `{asset, zone, type, event, severity, ts}` et poste sur `/api/ingest`. Sans dépendance (Python
    standard) ; un mock de plateforme OT (`connectors/mock_ot.py`) permet de tester de bout en bout.
-2. **Stockage** — une base (PostgreSQL / série temporelle) pour l'inventaire et l'historique des événements.
+2. **Stockage** ✅ *implémenté* — persistance PostgreSQL (activée par `DATABASE_URL`) : tables `events`
+   (série temporelle horodatée, convertible en hypertable TimescaleDB), `assets` (inventaire),
+   `zone_status`, `meta`. L'état survit aux redémarrages ; sans `DATABASE_URL`, repli en mémoire.
+   Voir `cockpit_state.py`.
 3. **API temps réel** ✅ *implémentée* — endpoint `GET /api/stream` en **SSE** (Server-Sent Events) poussant
    les nouveaux événements au cockpit (réponse `text/event-stream`, broker pub/sub en mémoire, keep-alive).
    Ingestion via `POST /api/ingest` (jeton `INGEST_TOKEN`). Nécessite un worker à threads
@@ -75,16 +78,18 @@ production ; toute sonde active est validée au cas par cas.
 ## 6. Impact sur le dépôt actuel
 
 - `app.py` : ✅ endpoints `/api/stream` (SSE, avec instantané d'ouverture) + `/api/ingest` (jeton) +
-  `/api/state` + `/api/reset` ; broker pub/sub **et état courant** (inventaire, alertes, événements
-  récents) en mémoire.
+  `/api/state` + `/api/reset` ; broker pub/sub + état courant (inventaire, alertes, événements récents).
+  ✅ **authentification HTTP Basic** optionnelle (instance privée) via `COCKPIT_AUTH_USER/PASSWORD`.
+- `cockpit_state.py` : ✅ état **persistant PostgreSQL** (`DATABASE_URL`) ou en mémoire (repli).
 - `Procfile` / `render.yaml` : ✅ démarrage en worker à threads (`gunicorn -k gthread --threads 8`) requis par le SSE.
 - `demo.html` : ✅ interrupteur Démo ⇄ Temps réel, abonnement `EventSource`, **mode démo** de repli conservé.
-- `render.yaml` : ✅ variable `INGEST_TOKEN` (sync:false) déclarée.
-- `connectors/` : ✅ connecteurs de référence (CSV, syslog, plateforme OT) + mock de test.
-- **Reste à faire** : **persistance** de l'état (aujourd'hui en mémoire, perdu au redémarrage) vers une
-  base (`psycopg[binary]` + série temporelle pour l'inventaire et l'historique), remplacement du broker
-  mémoire par un bus partagé (Redis/NATS) si multi-instance, durcissement des connecteurs pour la
-  production (secrets, TLS, supervision).
+- `render.yaml` : ✅ variables `INGEST_TOKEN`, `DATABASE_URL`, `COCKPIT_AUTH_*` (sync:false) déclarées.
+- `connectors/` : ✅ connecteurs de référence (CSV, syslog/CEF, plateforme OT avec presets éditeurs),
+  durcis (TLS vérifié, validation, dédoublonnage borné, arrêt propre SIGTERM) + mock de test + kit de
+  déploiement (`connectors/deploy/`).
+- **Reste à faire** : remplacement du broker mémoire par un bus partagé (Redis/NATS) pour du
+  **multi-instance** à haute disponibilité ; rétention/archivage de l'historique ; supervision du
+  connecteur (métriques, alerting).
 
 ---
 

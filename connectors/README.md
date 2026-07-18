@@ -27,6 +27,8 @@ peut donc tourner sur un collecteur isolé.
 | `--token` / `$INGEST_TOKEN` | Jeton d'ingestion (en‑tête `X-Ingest-Token`) | — |
 | `--dry-run` | Affiche les événements sans les envoyer | off |
 | `--interval S` | Pause entre deux envois (visualisation temps réel) | 0 |
+| `--cafile` / `$COCKPIT_CAFILE` | Bundle CA d'entreprise pour la vérification TLS | CA système |
+| `--insecure` | Désactive la vérification TLS (**lab uniquement**) | off |
 
 ```bash
 export COCKPIT_URL="https://conseilprevcyber.onrender.com"
@@ -69,7 +71,18 @@ syslog/CEF vers ce collecteur.
 ## 3. Plateforme OT (API REST)
 
 Interroge périodiquement l'API d'une plateforme OT/IDS (Nozomi, Claroty, Tenable.ot,
-Microsoft Defender for IoT, un SIEM…) et poste les alertes. Le mapping est configurable :
+Microsoft Defender for IoT, un SIEM…) et poste les alertes.
+
+Le plus simple : un **préréglage** éditeur qui fixe le chemin de la liste et le mapping :
+
+```bash
+python -m connectors.connector otplatform --preset nozomi \
+  --url https://guardian.local/api/open/query/do?query=alerts \
+  --header "Authorization: Bearer XXXX" --interval 10
+```
+
+`--preset` accepte `nozomi`, `claroty`, `tenable_ot`, `defender_iot`, `generic`. Sinon, tout
+s'ajuste à la main :
 
 ```bash
 python -m connectors.connector otplatform \
@@ -80,10 +93,11 @@ python -m connectors.connector otplatform \
   --interval 10
 ```
 
+- `--preset` : préréglage éditeur (surchargé par `--alerts-path` / `--map`).
 - `--alerts-path` : chemin (pointé) vers la liste dans la réponse JSON.
 - `--map champ=chemin` : associe un champ cible à une clé source (répétable).
-- Dédoublonnage automatique sur `--id-field` (déf. `id`).
-- Lecture seule (GET) — **mode passif**.
+- Dédoublonnage automatique et **borné** sur `--id-field` (déf. `id`).
+- Lecture seule (GET) — **mode passif**, vérification TLS active (`--cafile` pour une PKI interne).
 
 ## Tester sans matériel (mock de plateforme OT)
 

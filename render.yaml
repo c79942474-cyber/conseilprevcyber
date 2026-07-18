@@ -19,3 +19,15 @@ services:
       # Sans lui, l'ingestion est fermée et le cockpit reste en mode démo.
       - key: INGEST_TOKEN
         sync: false
+      # Persistance (optionnel). Si défini, l'inventaire et l'historique sont
+      # conservés dans PostgreSQL ; sinon l'état est en mémoire. Créer une base
+      # Render Postgres et coller son URL interne ici.
+      - key: DATABASE_URL
+        sync: false
+      # Instance PRIVÉE (optionnel). Définir ces deux variables place TOUT le
+      # site derrière une authentification HTTP Basic (voir connectors/deploy/DEPLOY.md).
+      # Laisser vide pour une instance publique (ex. la démo).
+      - key: COCKPIT_AUTH_USER
+        sync: false
+      - key: COCKPIT_AUTH_PASSWORD
+        sync: false

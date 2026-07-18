@@ -115,6 +115,21 @@ python -m connectors.connector otplatform --url https://plateforme/api/alerts   
 
 Pour tester sans matériel, un mock de plateforme OT est inclus
 (`python -m connectors.mock_ot`) — voir [`connectors/README.md`](connectors/README.md).
+Des **préréglages par éditeur** (`--preset nozomi|claroty|tenable_ot|defender_iot`) évitent de
+saisir le mapping à la main.
+
+### Persistance & instance privée
+
+- **Persistance** — définir `DATABASE_URL` (PostgreSQL) conserve l'inventaire et l'historique dans la
+  durée : l'état survit aux redémarrages. Sans cette variable, l'état reste en mémoire. La table
+  `events` est une **série temporelle** (horodatage), convertible en hypertable TimescaleDB sans
+  changer le code.
+- **Instance privée** — définir `COCKPIT_AUTH_USER` + `COCKPIT_AUTH_PASSWORD` place **tout le site**
+  derrière une **authentification HTTP Basic** (sauf `/health` et les endpoints machine protégés par
+  jeton, pour que les connecteurs restent simples). Laisser vide pour une instance publique (la démo).
+
+Guide complet (base Render Postgres, instance privée, presets par éditeur, service systemd) :
+[`connectors/deploy/DEPLOY.md`](connectors/deploy/DEPLOY.md).
 
 > Aucune donnée réelle ne doit transiter par la page de démonstration publique — voir la note de cadrage.
 

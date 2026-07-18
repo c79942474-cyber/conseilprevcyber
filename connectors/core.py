@@ -5,10 +5,26 @@ collecteur isolé avec un simple Python 3.
 """
 import json
 import os
+import ssl
 import sys
 import time
 import urllib.error
 import urllib.request
+
+USER_AGENT = "conseilprev-connector/1.0"
+
+
+def build_ssl_context(cafile=None, insecure=False):
+    """Contexte TLS pour les appels HTTPS. Vérifie les certificats par défaut.
+
+    `cafile` : bundle CA d'entreprise éventuel. `insecure` : DÉSACTIVE la
+    vérification (déconseillé — uniquement pour un lab, jamais en production).
+    """
+    ctx = ssl.create_default_context(cafile=cafile) if cafile else ssl.create_default_context()
+    if insecure:
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    return ctx
 
 # Zones canoniques du cockpit (doivent correspondre à demo.html pour que la carte
 # réseau se mette à jour). Les autres valeurs restent affichées telles quelles.
@@ -93,7 +109,8 @@ def normalize_event(raw):
 class IngestClient:
     """Poste des événements normalisés sur /api/ingest (avec en-tête X-Ingest-Token)."""
 
-    def __init__(self, base_url, token, timeout=10, dry_run=False, verbose=True, retries=3):
+    def __init__(self, base_url, token, timeout=10, dry_run=False, verbose=True, retries=3,
+                 cafile=None, insecure=False):
         self.url = base_url.rstrip("/") + "/api/ingest"
         self.token = token
         self.timeout = timeout
@@ -102,6 +119,9 @@ class IngestClient:
         self.retries = retries
         self.sent = 0
         self.failed = 0
+        self._ctx = build_ssl_context(cafile, insecure)
+        if insecure:
+            self._log("ATTENTION : vérification TLS désactivée (--insecure). À éviter en production.")
 
     def _log(self, *args):
         if self.verbose:
@@ -117,12 +137,13 @@ class IngestClient:
             return True
 
         payload = json.dumps(evt).encode("utf-8")
-        headers = {"content-type": "application/json", "X-Ingest-Token": self.token or ""}
+        headers = {"content-type": "application/json", "X-Ingest-Token": self.token or "",
+                   "User-Agent": USER_AGENT}
         delay = 1.0
         for attempt in range(1, self.retries + 1):
             try:
                 req = urllib.request.Request(self.url, data=payload, headers=headers, method="POST")
-                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                with urllib.request.urlopen(req, timeout=self.timeout, context=self._ctx) as resp:
                     if resp.status in (200, 201):
                         self.sent += 1
                         self._log("OK   " + line)
@@ -155,10 +176,18 @@ def client_from_args(args):
     """Construit un IngestClient depuis les options CLI communes (+ variables d'env)."""
     base = args.target or os.environ.get("COCKPIT_URL", "http://127.0.0.1:5000")
     token = args.token or os.environ.get("INGEST_TOKEN", "")
+    if not base.startswith(("http://", "https://")):
+        raise SystemExit("Cible invalide (--target / $COCKPIT_URL) : doit commencer par http:// ou https://")
+    if base.startswith("http://") and not any(h in base for h in ("127.0.0.1", "localhost")):
+        print("Attention : cible en HTTP non chiffré (hors localhost). Préférez HTTPS en production.",
+              file=sys.stderr)
     if not token and not args.dry_run:
         print("Attention : aucun jeton (--token ou $INGEST_TOKEN). Le serveur refusera l'ingestion "
               "(401/503). Utilisez --dry-run pour tester sans envoyer.", file=sys.stderr)
-    return IngestClient(base, token, timeout=args.timeout, dry_run=args.dry_run)
+    cafile = getattr(args, "cafile", None) or os.environ.get("COCKPIT_CAFILE")
+    insecure = getattr(args, "insecure", False)
+    return IngestClient(base, token, timeout=args.timeout, dry_run=args.dry_run,
+                        cafile=cafile, insecure=insecure)
 
 
 def send_all(client, events, interval=0.0, loop=False):

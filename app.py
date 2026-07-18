@@ -8,12 +8,20 @@ Démarrage local :  python app.py
 Production (Render) :  gunicorn -k gthread --threads 8 --timeout 120 app:app
 
 Variables d'environnement :
-  BREVO_API_KEY  — clé API Brevo (transactional email). Si absente, le
-                   formulaire bascule côté client sur un lien mailto.
-  INGEST_TOKEN   — jeton partagé protégeant POST /api/ingest (flux temps réel
-                   du cockpit). Si absent, l'ingestion est désactivée et le
-                   cockpit reste en mode démo (données simulées).
+  BREVO_API_KEY        — clé API Brevo (transactional email). Si absente, le
+                         formulaire bascule côté client sur un lien mailto.
+  INGEST_TOKEN         — jeton partagé protégeant POST /api/ingest (et /api/reset).
+                         Si absent, l'ingestion est désactivée et le cockpit
+                         reste en mode démo (données simulées).
+  DATABASE_URL         — (optionnel) URL PostgreSQL. Si défini, l'inventaire et
+                         l'historique du cockpit sont persistés ; sinon en mémoire.
+  COCKPIT_AUTH_USER    — (optionnel) identifiant HTTP Basic pour une instance privée.
+  COCKPIT_AUTH_PASSWORD— (optionnel) mot de passe associé. Définir les deux place
+                         tout le site derrière authentification (sauf /health et
+                         les endpoints machine protégés par jeton).
 """
+import base64
+import hmac
 import html as html_lib
 import json
 import os
@@ -23,6 +31,8 @@ import time
 
 import requests
 from flask import Flask, Response, jsonify, request, send_from_directory
+
+from cockpit_state import make_store
 
 app = Flask(__name__)
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -72,103 +82,40 @@ class _Broker:
 
 broker = _Broker()
 
-# --- État courant du cockpit (inventaire + alertes + événements récents) -------
-# Les 5 zones IEC 62443 du cockpit (doivent correspondre à demo.html).
-ZONES_META = [
-    ("ent", "Entreprise (IT)", "Niv. 4-5"),
-    ("dmz", "DMZ industrielle", "Niv. 3.5"),
-    ("sup", "Supervision (SCADA)", "Niv. 3"),
-    ("cel", "Cellule / Contrôle", "Niv. 2"),
-    ("ter", "Terrain (capteurs)", "Niv. 0-1"),
-]
-_ZONE_ID_BY_NAME = {name: zid for zid, name, _ in ZONES_META}
+# État du cockpit : persistant (PostgreSQL) si DATABASE_URL est défini, sinon en
+# mémoire. Voir cockpit_state.py.
+state = make_store()
+
+# --- Authentification (instance privée) ---------------------------------------
+# Si COCKPIT_AUTH_USER et COCKPIT_AUTH_PASSWORD sont définis, tout le site passe
+# derrière une authentification HTTP Basic. Sinon (démo publique), aucun contrôle.
+# Exemptés : /health (sonde Render) et les endpoints machine déjà protégés par
+# jeton (/api/ingest, /api/reset), pour que les connecteurs restent simples.
+AUTH_USER = os.environ.get("COCKPIT_AUTH_USER")
+AUTH_PASSWORD = os.environ.get("COCKPIT_AUTH_PASSWORD")
+_AUTH_ENABLED = bool(AUTH_USER and AUTH_PASSWORD)
+_AUTH_EXEMPT = {"/health", "/api/ingest", "/api/reset"}
 
 
-def _tag_for(evt):
-    """Catégorise un événement (disc/crit/warn/patch/info) — miroir de la logique cockpit."""
-    t = (evt.get("type") or "").lower()
-    s = (evt.get("severity") or "").lower()
-    if "patch" in t or "correctif" in t:
-        return "patch"
-    if "disc" in t or "découv" in t or "asset" in t or "inventaire" in t:
-        return "disc"
-    if "crit" in s or s in ("high", "élevé", "eleve"):
-        return "crit"
-    if "warn" in s or s in ("medium", "moyen") or "avert" in s:
-        return "warn"
-    return "info"
+def _check_basic_auth(header):
+    if not header or not header.startswith("Basic "):
+        return False
+    try:
+        user, _, pwd = base64.b64decode(header[6:]).decode("utf-8").partition(":")
+    except Exception:
+        return False
+    return (hmac.compare_digest(user, AUTH_USER or "") and
+            hmac.compare_digest(pwd, AUTH_PASSWORD or ""))
 
 
-class CockpitState:
-    """État courant alimenté par les événements ingérés (thread-safe).
-
-    Permet à un cockpit fraîchement ouvert d'afficher immédiatement l'inventaire,
-    les alertes actives et les derniers événements (instantané), avant de recevoir
-    les nouveautés en flux. En mémoire (mono-instance), comme le broker.
-    """
-
-    MAX_EVENTS = 50
-
-    def __init__(self):
-        self._lock = threading.Lock()
-        self.reset()
-
-    def reset(self):
-        with self._lock:
-            self.assets = 0
-            self.alerts = 0
-            self.risk = 50.0
-            self.zones = {zid: {"id": zid, "name": name, "level": lvl, "count": 0, "status": "ok"}
-                          for zid, name, lvl in ZONES_META}
-            self.events = []  # ordre chronologique (ancien -> récent)
-
-    def apply(self, evt):
-        """Applique un événement normalisé ; renvoie (événement enrichi du tag, instantané)."""
-        tag = _tag_for(evt)
-        with self._lock:
-            zone = self.zones.get(_ZONE_ID_BY_NAME.get(evt.get("zone", "")))
-            if tag == "disc":
-                if zone:
-                    zone["count"] += 1
-                self.assets += 1
-                self.risk = min(98.0, self.risk + 0.4)
-            elif tag == "crit":
-                self.alerts += 1
-                if zone:
-                    zone["status"] = "alert"
-                self.risk = min(98.0, self.risk + 2)
-            elif tag == "warn":
-                if zone:
-                    zone["status"] = "watch"
-            elif tag == "info":
-                self.alerts = max(0, self.alerts - 1)
-                self.risk = max(0.0, self.risk - 1)
-                if zone:
-                    zone["status"] = "ok"
-            # patch : trace sans impact sur les compteurs
-            text = evt.get("event") or evt.get("asset") or "Événement"
-            if evt.get("zone"):
-                text += " — " + evt["zone"]
-            self.events.append({"tag": tag, "text": text, "ts": evt.get("ts")})
-            if len(self.events) > self.MAX_EVENTS:
-                self.events = self.events[-self.MAX_EVENTS:]
-            return dict(evt, tag=tag), self._snapshot_locked()
-
-    def _snapshot_locked(self):
-        return {
-            "assets": self.assets,
-            "alerts": self.alerts,
-            "risk": round(self.risk),
-            "zones": [dict(z) for z in self.zones.values()],
-            "events": list(self.events),
-        }
-
-    def snapshot(self):
-        with self._lock:
-            return self._snapshot_locked()
-
-
-state = CockpitState()
+@app.before_request
+def _require_auth():
+    if not _AUTH_ENABLED or request.path in _AUTH_EXEMPT:
+        return None
+    if _check_basic_auth(request.headers.get("Authorization", "")):
+        return None
+    return Response("Authentification requise.", 401,
+                    {"WWW-Authenticate": 'Basic realm="CONSEILPREV Cockpit"'})
 
 # URL propre -> fichier HTML servi
 PAGES = {

@@ -1,3 +1,6 @@
 flask==3.0.0
 gunicorn==21.2.0
 requests==2.31.0
+# Persistance du cockpit (activée si DATABASE_URL est défini) — voir cockpit_state.py.
+psycopg[binary]==3.3.4
+psycopg-pool==3.3.1

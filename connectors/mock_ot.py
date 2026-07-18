@@ -59,6 +59,13 @@ def _make_alerts(batch=3):
     return out
 
 
+def _make_nozomi(batch=3):
+    """Mêmes alertes, mais au format des champs Nozomi (pour tester --preset nozomi)."""
+    return [{"id": a["id"], "appliance_host": a["device"], "zone": a["zone"],
+             "type_id": a["type"], "name": a["name"], "severity": a["severity"],
+             "record_created_at": a["ts"]} for a in _make_alerts(batch)]
+
+
 class _Handler(BaseHTTPRequestHandler):
     def _json(self, obj, code=200):
         body = json.dumps(obj).encode("utf-8")
@@ -71,6 +78,8 @@ class _Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith("/api/alerts"):
             self._json({"alerts": _make_alerts(batch=3)})
+        elif self.path.startswith("/api/nozomi"):
+            self._json({"result": _make_nozomi(batch=3)})
         elif self.path.startswith("/api/assets"):
             self._json({"assets": [{"id": "asset-%03d" % i, "device": d, "zone": z}
                                    for i, (d, z) in enumerate(_DEVICES)]})
