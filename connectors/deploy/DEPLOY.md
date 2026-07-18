@@ -125,6 +125,27 @@ python -m connectors.connector otplatform --preset nozomi_wireless \
 > du cockpit). Le cockpit a **5 zones fixes** (modèle IEC) : les sites/zones Nozomi
 > (ex. « Miramar ») n'y correspondent pas automatiquement — d'où le `--set zone=…`.
 
+**Claroty** existe en deux produits (API différentes) — le connecteur **détecte
+automatiquement** l'enveloppe de la liste (`results` xDome, `objects` CTD…), donc le
+même preset marche pour les deux ; ajustez juste l'URL/auth. Deux flux, comme Nozomi :
+
+- **Actifs** (xDome `GET /api/v1/devices`, preset `claroty_assets`) — sévérité = `risk_score` (0-100).
+- **Alertes** (xDome `GET /api/v1/alerts`, preset `claroty`) — sévérité textuelle (Low/Medium/High/Critical).
+
+```bash
+# Actifs (risque -> sévérité)
+python -m connectors.connector otplatform --preset claroty_assets \
+  --url "https://<tenant>.claroty.com/api/v1/devices" \
+  --header "Authorization: Bearer $TOKEN" --interval 30 --metrics-port 9112
+# Alertes
+python -m connectors.connector otplatform --preset claroty \
+  --url "https://<tenant>.claroty.com/api/v1/alerts" \
+  --header "Authorization: Bearer $TOKEN" --interval 10 --metrics-port 9113
+```
+
+> Claroty **CTD** (on-prem) sait aussi pousser en **syslog/CEF** — dans ce cas,
+> `connector syslog --listen` est souvent le plus simple (pas d'appel API).
+
 **Exemple — plateforme au schéma imbriqué (Armis, `data.results`)** — déjà géré par le preset :
 ```bash
 python -m connectors.connector otplatform --preset armis \

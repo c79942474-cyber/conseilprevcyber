@@ -54,11 +54,17 @@ PRESETS = {
                     "event": "label", "severity": "risk", "ts": "record_created_at"},
     },
     "claroty": {
-        "label": "Claroty — CTD / xDome",
-        "alerts_path": "objects",
-        "mapping": {"id": "resource_id", "asset": "hostname", "zone": "site_name",
+        "label": "Claroty — alertes (xDome /api/v1/alerts ou CTD)",
+        "alerts_path": "objects",  # xDome renvoie souvent 'results', CTD 'objects' — auto-détecté
+        "mapping": {"id": "id", "asset": "device_name", "zone": "zone",
                     "type": "category", "event": "description", "severity": "severity",
-                    "ts": "timestamp"},
+                    "ts": "detected_time"},
+    },
+    "claroty_assets": {
+        "label": "Claroty — actifs (xDome devices) — sévérité = risk_score",
+        "alerts_path": "objects",
+        "mapping": {"id": "id", "asset": "name", "zone": "zone", "type": "asset_type",
+                    "event": "name", "severity": "risk_score", "ts": "last_seen"},
     },
     "tenable_ot": {
         "label": "Tenable OT Security (ex-Indegy)",
@@ -190,8 +196,17 @@ def poll(url, headers=None, mapping=None, alerts_path="alerts", id_field="id",
             data = None
 
         records = _dig(data, alerts_path) if (data is not None and alerts_path) else data
+        if records is None:  # chemin absent : on repart de la racine
+            records = data
         if isinstance(records, dict):
-            records = records.get("items") or records.get("data") or []
+            # Enveloppes courantes selon l'éditeur : results (xDome), objects (CTD),
+            # value (Azure/Graph), items/data/alerts…
+            for key in ("results", "objects", "items", "data", "alerts", "value", "result"):
+                if isinstance(records.get(key), list):
+                    records = records[key]
+                    break
+            else:
+                records = []
         if isinstance(records, list):
             for rec in records:
                 if not isinstance(rec, dict):

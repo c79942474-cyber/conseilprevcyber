@@ -107,6 +107,43 @@ def _make_nodes(batch=3):
     return out
 
 
+# Claroty xDome — alertes et actifs (réponses enveloppées dans "results").
+_CL_ALERTS = [
+    ("Unauthorized asset communication", "Network", "High", "hmi-panel-3", "Cellule / Contrôle"),
+    ("New OT protocol command", "Anomaly", "Medium", "plc-line-2", "Cellule / Contrôle"),
+    ("Suspicious external connection", "Threat", "Critical", "hist-01", "Supervision (SCADA)"),
+    ("Baseline deviation", "Anomaly", "Low", "rtu-07", "Terrain (capteurs)"),
+]
+_CL_DEVICES = [
+    ("plc-line-2", "PLC", "Cellule / Contrôle", 78),
+    ("hmi-panel-3", "HMI", "Cellule / Contrôle", 52),
+    ("hist-01", "Server", "Supervision (SCADA)", 34),
+    ("rtu-07", "RTU", "Terrain (capteurs)", 15),
+]
+_clc = {"a": 0, "d": 0}
+
+
+def _make_claroty_alerts(batch=3):
+    out = []
+    for _ in range(batch):
+        i = _clc["a"]; _clc["a"] += 1
+        name, cat, sev, dev, zone = _CL_ALERTS[i % len(_CL_ALERTS)]
+        out.append({"id": "cl-alert-%05d" % i, "description": name, "category": cat,
+                    "severity": sev, "device_name": dev, "zone": zone,
+                    "detected_time": int(time.time() * 1000)})
+    return out
+
+
+def _make_claroty_devices(batch=4):
+    out = []
+    for _ in range(batch):
+        i = _clc["d"]; _clc["d"] += 1
+        name, atype, zone, risk = _CL_DEVICES[i % len(_CL_DEVICES)]
+        out.append({"id": "cl-dev-%05d" % i, "name": name, "asset_type": atype,
+                    "zone": zone, "risk_score": risk, "last_seen": int(time.time() * 1000)})
+    return out
+
+
 def _make_wireless(batch=4):
     out = []
     for _ in range(batch):
@@ -144,6 +181,10 @@ class _Handler(BaseHTTPRequestHandler):
             self._json({"result": _make_wireless(batch=4)})
         elif self.path.startswith("/api/nozomi_nodes"):
             self._json({"result": _make_nodes(batch=5)})
+        elif self.path.startswith("/api/claroty_alerts"):
+            self._json({"results": _make_claroty_alerts(batch=3)})
+        elif self.path.startswith("/api/claroty_devices"):
+            self._json({"results": _make_claroty_devices(batch=4)})
         elif self.path.startswith("/api/nozomi"):
             self._json({"result": _make_nozomi(batch=3)})
         elif self.path.startswith("/api/assets"):
