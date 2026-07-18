@@ -54,6 +54,7 @@
         <a href="/etudes-de-cas">Études de cas</a>
         <a href="/referentiel">Référentiel 62443</a>
         <a href="/demo">Démo temps réel</a>
+        <a href="/connexion">Espace client</a>
         <a href="/contact" class="cta">Nous contacter</a>
       </nav>
     </div>
@@ -250,6 +251,20 @@
       });
     });
     load(14);
+  })();
+  </script>
+  <script>
+  /* Indicateur de connexion dans l'en-tête (Espace client -> Déconnexion). */
+  (function(){
+    var link=document.querySelector('.nav .links a[href="/connexion"]');
+    if(!link) return;
+    fetch('/api/auth/me').then(function(r){return r.json();}).then(function(a){
+      if(!a.authenticated) return;
+      link.textContent='Déconnexion'+(a.name?(' ('+a.name.split(' ')[0]+')'):'');
+      link.href='#';
+      link.addEventListener('click',function(e){e.preventDefault();
+        fetch('/api/auth/logout',{method:'POST'}).then(function(){location.href='/connexion?deconnecte=1';});});
+    }).catch(function(){});
   })();
   </script>
 </body>

@@ -19,17 +19,17 @@ Variables d'environnement :
                          diffusés à toutes les instances via pub/sub (multi-instance,
                          haute dispo). Sinon, diffusion locale (une seule instance).
   REDIS_CHANNEL        — (optionnel) nom du canal Redis (défaut : cockpit:events).
-  COCKPIT_AUTH_USER    — (optionnel) identifiant HTTP Basic pour une instance privée.
-  COCKPIT_AUTH_PASSWORD— (optionnel) mot de passe associé. Définir les deux place
-                         tout le site derrière authentification (sauf /health et
-                         les endpoints machine protégés par jeton).
+  FLASK_SECRET_KEY     — clé de signature des sessions (comptes). À DÉFINIR en prod
+                         (sinon les sessions sont invalidées à chaque redémarrage).
+  ADMIN_EMAIL          — email qui reçoit les demandes d'accès à approuver
+                         (défaut : christophe.cerf@outlook.com).
+  PUBLIC_BASE_URL      — URL publique du site (pour les liens des emails, ex.
+                         https://conseilprevcyber.onrender.com). Sinon déduit de la requête.
   EVENT_RETENTION_DAYS — (optionnel) purge des événements plus vieux que N jours.
   EVENT_MAX_ROWS       — (optionnel) ne conserver que les N derniers événements.
   EVENT_ARCHIVE_PATH   — (optionnel) archive JSONL des événements purgés (cible durable).
   MAINTENANCE_INTERVAL_HOURS — (optionnel) période de la purge auto (défaut : 6 h).
 """
-import base64
-import hmac
 import html as html_lib
 import json
 import os
@@ -40,6 +40,7 @@ import time
 import requests
 from flask import Flask, Response, jsonify, request, send_from_directory
 
+from auth import init_app as init_auth
 from cockpit_state import make_store
 
 app = Flask(__name__)
@@ -194,36 +195,11 @@ def _start_maintenance():
 
 _start_maintenance()
 
-# --- Authentification (instance privée) ---------------------------------------
-# Si COCKPIT_AUTH_USER et COCKPIT_AUTH_PASSWORD sont définis, tout le site passe
-# derrière une authentification HTTP Basic. Sinon (démo publique), aucun contrôle.
-# Exemptés : /health (sonde Render) et les endpoints machine déjà protégés par
-# jeton (/api/ingest, /api/reset), pour que les connecteurs restent simples.
-AUTH_USER = os.environ.get("COCKPIT_AUTH_USER")
-AUTH_PASSWORD = os.environ.get("COCKPIT_AUTH_PASSWORD")
-_AUTH_ENABLED = bool(AUTH_USER and AUTH_PASSWORD)
-_AUTH_EXEMPT = {"/health", "/api/ingest", "/api/reset", "/api/maintenance/purge"}
-
-
-def _check_basic_auth(header):
-    if not header or not header.startswith("Basic "):
-        return False
-    try:
-        user, _, pwd = base64.b64decode(header[6:]).decode("utf-8").partition(":")
-    except Exception:
-        return False
-    return (hmac.compare_digest(user, AUTH_USER or "") and
-            hmac.compare_digest(pwd, AUTH_PASSWORD or ""))
-
-
-@app.before_request
-def _require_auth():
-    if not _AUTH_ENABLED or request.path in _AUTH_EXEMPT:
-        return None
-    if _check_basic_auth(request.headers.get("Authorization", "")):
-        return None
-    return Response("Authentification requise.", 401,
-                    {"WWW-Authenticate": 'Basic realm="CONSEILPREV Cockpit"'})
+# --- Authentification (comptes : inscription + validation admin + connexion) ---
+# Système de comptes (voir auth.py) : sessions, mots de passe hachés, emails Brevo.
+# Le contenu public reste ouvert ; seuls le cockpit temps réel et la supervision
+# (protégés par @login_required plus bas) exigent un compte connecté.
+login_required = init_auth(app)
 
 # URL propre -> fichier HTML servi
 PAGES = {
@@ -343,6 +319,7 @@ def demo():
 
 
 @app.route("/tendances")
+@login_required
 def tendances():
     return _page(PAGES["/tendances"])
 
@@ -433,6 +410,7 @@ def api_contact():
 
 
 @app.route("/api/stream")
+@login_required
 def api_stream():
     """Flux Server-Sent Events du cockpit (mode « Temps réel »).
 
@@ -494,12 +472,14 @@ def api_ingest():
 
 
 @app.route("/api/state")
+@login_required
 def api_state():
     """Instantané de l'état courant du cockpit (inventaire, alertes, événements récents)."""
     return jsonify(state.snapshot())
 
 
 @app.route("/api/trends")
+@login_required
 def api_trends():
     """Agrégats de tendance de l'historique (par jour, catégorie, zone)."""
     days = request.args.get("days", default=14, type=int) or 14

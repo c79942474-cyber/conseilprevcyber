@@ -81,6 +81,7 @@
         <a href="/referentiel">Référentiel 62443</a>
         <a href="/demo" class="active">Démo temps réel</a>
         <a href="/about" class="hide">À propos</a>
+        <a href="/connexion">Espace client</a>
         <a href="/contact" class="cta">Nous contacter</a>
       </nav>
     </div>
@@ -345,6 +346,19 @@
       ZONES.forEach(function(z){ z.c=0; z.alert=false; z.watch=false; });
       render();
       setBanner(true,'Connexion au flux…');
+      // Les données réelles sont réservées aux comptes connectés : on vérifie d'abord.
+      fetch('/api/auth/me').then(function(r){return r.json();}).then(function(a){
+        if(!a.authenticated){
+          if(banner){ banner.className='demo-banner';
+            banner.innerHTML='<span class="k">🔒 Accès restreint</span><span>Les données <strong>réelles</strong> '
+              +'sont réservées aux comptes. <a href="/connexion?next=/demo">Connectez-vous</a> ou '
+              +'<a href="/inscription">créez un compte</a> — ou restez en mode Démo.</span>'; }
+          return;
+        }
+        openLiveStream();
+      }).catch(function(){ openLiveStream(); });
+    }
+    function openLiveStream(){
       if(typeof EventSource==='undefined'){ setBanner(true,'EventSource non supporté par ce navigateur'); return; }
       try{
         es=new EventSource('/api/stream');
@@ -407,6 +421,20 @@
     render();
     addEvent('info','Découverte réseau démarrée — mode passif');
     startSim();
+  })();
+  </script>
+  <script>
+  /* Indicateur de connexion dans l'en-tête (Espace client -> Déconnexion). */
+  (function(){
+    var link=document.querySelector('.nav .links a[href="/connexion"]');
+    if(!link) return;
+    fetch('/api/auth/me').then(function(r){return r.json();}).then(function(a){
+      if(!a.authenticated) return;
+      link.textContent='Déconnexion'+(a.name?(' ('+a.name.split(' ')[0]+')'):'');
+      link.href='#';
+      link.addEventListener('click',function(e){e.preventDefault();
+        fetch('/api/auth/logout',{method:'POST'}).then(function(){location.href='/connexion?deconnecte=1';});});
+    }).catch(function(){});
   })();
   </script>
 </body>

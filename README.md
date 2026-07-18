@@ -127,9 +127,14 @@ saisir le mapping à la main.
   durée : l'état survit aux redémarrages. Sans cette variable, l'état reste en mémoire. La table
   `events` est une **série temporelle** (horodatage), convertible en hypertable TimescaleDB sans
   changer le code.
-- **Instance privée** — définir `COCKPIT_AUTH_USER` + `COCKPIT_AUTH_PASSWORD` place **tout le site**
-  derrière une **authentification HTTP Basic** (sauf `/health` et les endpoints machine protégés par
-  jeton, pour que les connecteurs restent simples). Laisser vide pour une instance publique (la démo).
+- **Comptes (inscription + validation admin + connexion)** — système de comptes complet (voir
+  `auth.py`) : inscription avec captcha → confirmation de l'email → **validation par un admin** (lien
+  reçu par email) → connexion. Mots de passe hachés (werkzeug), sessions signées, protection
+  anti‑bruteforce, emails via Brevo. **Seuls le cockpit temps réel et les tendances** sont protégés
+  (`/api/state`, `/api/stream`, `/api/trends`, `/tendances`) ; le contenu public et la **démo simulée**
+  restent ouverts. Variables : `FLASK_SECRET_KEY` (signature des sessions), `ADMIN_EMAIL` (destinataire
+  des demandes), `PUBLIC_BASE_URL` (liens des emails). Pages : `/inscription`, `/connexion`,
+  `/mot-de-passe-oublie`. Nécessite `DATABASE_URL` (table `users`) pour la persistance des comptes.
 - **Haute disponibilité (multi-instance)** — définir `REDIS_URL` diffuse les événements à **toutes les
   instances** via Redis pub/sub (fan-out SSE partagé) ; combiné à `DATABASE_URL` (état partagé), le
   cockpit tient plusieurs instances derrière un load-balancer. Sans `REDIS_URL` : une seule instance.

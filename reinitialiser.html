@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nouveau mot de passe — CONSEILPREV Cyber</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .authwrap{min-height:calc(100vh - 64px);display:flex;align-items:center;justify-content:center;padding:40px 20px}
+  .authcard{width:100%;max-width:420px;background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:16px;padding:32px}
+  .authcard h1{font-size:23px;margin-bottom:6px}.authcard .sub{color:var(--muted);font-size:14px;margin-bottom:22px}
+  .msg{border-radius:9px;padding:11px 14px;font-size:13.5px;margin-bottom:16px;display:none}
+  .msg.err{background:rgba(217,96,58,.12);border:1px solid rgba(217,96,58,.3);color:var(--terra);display:block}
+  .msg.ok{background:rgba(52,211,153,.10);border:1px solid rgba(52,211,153,.3);color:var(--green);display:block}
+  .authcard .btn-p{width:100%;text-align:center}.hint{color:var(--muted2);font-size:12px;margin-top:4px}
+  .authlinks{margin-top:18px;font-size:13px;text-align:center}.authlinks a{color:var(--cyan)}
+</style>
+</head>
+<body>
+  <header><div class="wrap nav"><div class="brand"><a href="/">CONSEILPREV</a><span class="tag">Cyber</span></div>
+    <div class="spacer"></div><nav class="links"><a href="/connexion">← Connexion</a></nav></div></header>
+  <main class="authwrap">
+    <div class="authcard">
+      <h1>Nouveau mot de passe</h1>
+      <p class="sub">Choisissez un nouveau mot de passe pour votre compte.</p>
+      <div id="msg" class="msg"></div>
+      <form id="f" class="form" style="max-width:none;background:none;border:none;padding:0">
+        <div class="field"><label>Nouveau mot de passe</label><input id="password" type="password" autocomplete="new-password" required>
+          <div class="hint">Au moins 10 caractères, avec lettres et chiffres.</div></div>
+        <button class="btn btn-p" type="submit">Enregistrer</button>
+      </form>
+      <div class="authlinks"><a href="/connexion">Retour à la connexion</a></div>
+    </div>
+  </main>
+  <script>
+  (function(){
+    var msg=document.getElementById('msg');
+    var token=location.pathname.split('/').filter(Boolean).pop();
+    function show(t,cls){msg.textContent=t;msg.className='msg '+cls;}
+    document.getElementById('f').addEventListener('submit',function(e){
+      e.preventDefault();show('Enregistrement…','ok');
+      fetch('/api/auth/reset',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({token:token,password:document.getElementById('password').value})})
+        .then(function(r){return r.json();})
+        .then(function(j){ if(j.ok){ document.getElementById('f').style.display='none';
+            show('Mot de passe modifié ✅ Vous pouvez vous connecter.','ok');
+            setTimeout(function(){location.href='/connexion';},1800); }
+          else { show(j.error||'Erreur.','err'); } })
+        .catch(function(){show('Erreur réseau, réessayez.','err');});
+    });
+  })();
+  </script>
+</body>
+</html>
