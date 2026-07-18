@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Connecter votre plateforme — CONSEILPREV Cyber</title>
+<meta name="description" content="Brancher votre plateforme OT (Nozomi, Claroty, Tenable, Defender for IoT…) ou vos flux CSV/syslog au cockpit de supervision.">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .flow{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:10px;align-items:stretch;margin:8px 0 26px}
+  @media(max-width:820px){.flow{grid-template-columns:1fr}.flow .arr{transform:rotate(90deg);justify-self:center}}
+  .fbox{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .fbox .t{font-weight:700;color:var(--ink);font-size:14.5px;margin-bottom:4px}
+  .fbox .d{font-size:12.5px;color:var(--muted)}
+  .flow .arr{align-self:center;color:var(--cyan);font-size:20px;font-family:var(--mono)}
+  .step{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:16px;position:relative;overflow:hidden}
+  .step::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--sc,linear-gradient(90deg,var(--cyan),var(--teal)))}
+  .step h3{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .step h3 .n{font-family:var(--mono);font-size:13px;color:#04121A;background:linear-gradient(135deg,var(--cyan),var(--teal));
+    width:26px;height:26px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
+  .step p{color:var(--muted);font-size:14px;margin-bottom:8px}
+  pre.code{background:#060A10;border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto;
+    font-family:var(--mono);font-size:12.5px;line-height:1.6;color:var(--ink);position:relative;white-space:pre}
+  pre.code .c{color:var(--muted2)}
+  .codewrap{position:relative;margin:10px 0}
+  .copy{position:absolute;top:8px;right:8px;font-family:var(--mono);font-size:11px;padding:5px 10px;border-radius:7px;
+    cursor:pointer;border:1px solid var(--line);background:var(--panel2);color:var(--muted)}
+  .copy:hover{color:var(--cyan);border-color:#2A3A50}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
+  .chips button{font-family:var(--mono);font-size:12px;padding:7px 13px;border-radius:999px;cursor:pointer;
+    border:1px solid var(--line);background:var(--panel2);color:var(--muted);transition:all .15s}
+  .chips button:hover{color:var(--ink);border-color:#2A3A50}
+  .chips button.active{color:#04121A;background:linear-gradient(135deg,var(--cyan),var(--teal));border-color:transparent;font-weight:600}
+  .tokenrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px}
+  .tokenbox{font-family:var(--mono);font-size:12.5px;background:#060A10;border:1px solid var(--line);border-radius:8px;padding:9px 12px;color:var(--ink);min-width:220px}
+  .hintbox{background:rgba(34,211,238,.07);border:1px solid rgba(34,211,238,.25);border-radius:10px;padding:11px 15px;font-size:13px;color:var(--muted);margin-top:10px}
+  .hintbox strong{color:var(--cyan)}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><a href="/">CONSEILPREV</a><span class="tag">Cyber</span></div>
+      <div class="spacer"></div>
+      <nav class="links">
+        <a href="/">Accueil</a>
+        <a href="/demo">Cockpit</a>
+        <a href="/tendances">Tendances</a>
+        <a href="/connecter" class="active">Connecter</a>
+        <a href="/contact" class="cta">Nous contacter</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head" style="padding-bottom:0">
+      <span class="eyebrow"><span class="dot"></span>Intégration · données réelles</span>
+      <h1>Connecter votre <span class="grad">plateforme</span>.</h1>
+      <p class="lead" style="margin-top:14px">Branchez votre plateforme OT (Nozomi, Claroty, Tenable, Defender for IoT…),
+        un flux syslog/CEF ou un simple export CSV : le cockpit affiche vos données en temps réel.</p>
+    </section>
+
+    <section style="padding:24px 0 56px">
+      <div class="flow">
+        <div class="fbox"><div class="t">🏭 Votre plateforme OT</div><div class="d">Nozomi, Claroty, Tenable.ot, Defender for IoT, Dragos, Armis, Forescout, Cisco CV — ou syslog/CSV.</div></div>
+        <div class="arr">→</div>
+        <div class="fbox"><div class="t">🔌 Le connecteur</div><div class="d">Un petit programme Python (sans dépendance) qui tourne <strong>chez vous</strong>, lit la source et pousse en HTTPS sortant.</div></div>
+        <div class="arr">→</div>
+        <div class="fbox"><div class="t">📊 Ce cockpit</div><div class="d">Réception sur <code style="font-family:var(--mono)">/api/ingest</code> (jeton), affichage temps réel, historique &amp; tendances.</div></div>
+      </div>
+
+      <div class="step" style="--sc:linear-gradient(90deg,var(--cyan),var(--teal))">
+        <h3><span class="n">1</span>Télécharger le connecteur</h3>
+        <p>Python 3 standard, <strong>aucune dépendance</strong> à installer — il tourne sur n'importe quelle machine
+        (collecteur, VM, poste) qui voit votre plateforme et peut sortir en HTTPS.</p>
+        <div class="actions" style="margin-top:12px">
+          <a class="btn btn-p" href="/telecharger/connecteur.zip">⬇ Télécharger le connecteur (.zip)</a>
+        </div>
+        <p style="font-size:12.5px;color:var(--muted2);margin-top:10px">Contient les connecteurs (API plateforme, syslog/CEF, CSV),
+        le mock de test, le guide <code style="font-family:var(--mono)">deploy/DEPLOY.md</code> et le service systemd pour tourner 24/7.</p>
+      </div>
+
+      <div class="step" style="--sc:linear-gradient(90deg,var(--violet),var(--cyan))">
+        <h3><span class="n">2</span>Configurer la cible et le jeton</h3>
+        <p>Le connecteur doit connaître l'adresse de ce cockpit et le <strong>jeton d'ingestion</strong> :</p>
+        <div class="codewrap"><button class="copy" data-copy="env">Copier</button><pre class="code" id="envblock"></pre></div>
+        <div class="tokenrow" id="tokadmin" style="display:none">
+          <span style="font-size:13px;color:var(--muted)">Jeton d'ingestion :</span>
+          <span class="tokenbox" id="tokval">••••••••••••••••</span>
+          <button class="btn btn-s" id="tokreveal" type="button" style="padding:8px 14px;font-size:13px">Afficher</button>
+        </div>
+        <div class="hintbox" id="tokhint">Le jeton d'ingestion (<code style="font-family:var(--mono)">INGEST_TOKEN</code>) vous est
+          remis par l'administrateur du cockpit. Il protège l'envoi de données — ne le publiez jamais.</div>
+      </div>
+
+      <div class="step" style="--sc:linear-gradient(90deg,var(--amber),var(--terra))">
+        <h3><span class="n">3</span>Lancer le connecteur pour votre plateforme</h3>
+        <p>Choisissez votre source — la commande est pré-remplie avec l'adresse de ce cockpit :</p>
+        <div class="chips" id="chips"></div>
+        <p id="pdesc" style="font-size:13px;color:var(--muted2)"></p>
+        <div class="codewrap"><button class="copy" data-copy="cmd">Copier</button><pre class="code" id="cmdblock"></pre></div>
+        <div class="hintbox">Pour tourner <strong>24/7</strong> : service systemd fourni dans le zip
+          (<code style="font-family:var(--mono)">connectors/deploy/</code>) — démarrage automatique, redémarrage en cas de coupure,
+          métriques Prometheus avec <code style="font-family:var(--mono)">--metrics-port</code>.</div>
+      </div>
+
+      <div class="step" style="--sc:linear-gradient(90deg,var(--teal),var(--green))">
+        <h3><span class="n">4</span>Vérifier</h3>
+        <p>Ouvrez le <a href="/demo">cockpit</a> et basculez sur <strong>◉ Temps réel</strong> : vos événements
+        apparaissent dans le journal, l'inventaire et les <a href="/tendances">tendances</a> se construisent.</p>
+        <p style="margin-top:10px">Test rapide sans plateforme (envoie un événement de démonstration) :</p>
+        <div class="codewrap"><button class="copy" data-copy="test">Copier</button><pre class="code" id="testblock"></pre></div>
+      </div>
+
+      <div class="divider"></div>
+      <div style="text-align:center">
+        <h2>Besoin d'aide pour l'intégration&nbsp;?</h2>
+        <p class="lead" style="margin:10px auto 0">Cadrage, cloisonnement réseau, choix des flux : nous vous accompagnons.</p>
+        <div class="actions" style="justify-content:center">
+          <a href="/contact" class="btn btn-p">Nous contacter</a>
+          <a href="/demo" class="btn btn-s">Retour au cockpit</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Cybersécurité industrielle IT / OT / IIoT</div>
+      <div class="fnav">
+        <a href="/about">À propos</a>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/demo">Démo</a>
+        <a href="/contact">Contact</a>
+        <a href="/mentions-legales">Mentions légales</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+  document.getElementById('y').textContent=new Date().getFullYear();
+  (function(){
+    var ORIGIN=location.origin, TOKEN='VOTRE_JETON';
+    var PF=[
+      {id:'nozomi', label:'Nozomi', desc:'Guardian / Vantage — actifs (score de risque) puis alertes.',
+       cmd:['# Actifs OT (recommandé) — le score de risque pondère les zones',
+            'python -m connectors.connector otplatform --preset nozomi_assets \\',
+            '  --url "https://<guardian>/api/open/query/do?query=nodes" \\',
+            '  --header "Authorization: Bearer $TOKEN_PLATEFORME" \\',
+            '  --target {O} --token {T} --interval 30','',
+            '# Alertes de sécurité','python -m connectors.connector otplatform --preset nozomi \\',
+            '  --url "https://<guardian>/api/open/query/do?query=alerts" \\',
+            '  --header "Authorization: Bearer $TOKEN_PLATEFORME" \\',
+            '  --target {O} --token {T} --interval 10']},
+      {id:'claroty', label:'Claroty', desc:'xDome / CTD — actifs (risk score) et alertes. CTD peut aussi pousser en CEF (voir Syslog).',
+       cmd:['# Actifs (risk score)','python -m connectors.connector otplatform --preset claroty_assets \\',
+            '  --url "https://<tenant>.claroty.com/api/v1/devices" \\',
+            '  --header "Authorization: Bearer $TOKEN_PLATEFORME" \\',
+            '  --target {O} --token {T} --interval 30','',
+            '# Alertes','python -m connectors.connector otplatform --preset claroty \\',
+            '  --url "https://<tenant>.claroty.com/api/v1/alerts" \\',
+            '  --header "Authorization: Bearer $TOKEN_PLATEFORME" \\',
+            '  --target {O} --token {T} --interval 10']},
+      {id:'tenable', label:'Tenable.ot', desc:'Tenable OT Security — actifs (risque 0-100, ≥70 = high) et événements.',
+       cmd:['# Actifs','python -m connectors.connector otplatform --preset tenable_ot_assets \\',
+            '  --url "https://<tenableot>/v1/assets" \\',
+            '  --header "X-ApiKeys: accessKey=$AK;secretKey=$SK" \\',
+            '  --target {O} --token {T} --interval 30','',
+            '# Événements','python -m connectors.connector otplatform --preset tenable_ot \\',
+            '  --url "https://<tenableot>/v1/events" \\',
+            '  --header "X-ApiKeys: accessKey=$AK;secretKey=$SK" \\',
+            '  --target {O} --token {T} --interval 60']},
+      {id:'defender', label:'Defender for IoT', desc:'Microsoft Defender for IoT — le plus simple : transfert syslog/CEF du capteur. Sinon API capteur.',
+       cmd:['# Recommandé : CEF du capteur -> écouteur syslog du connecteur',
+            'python -m connectors.connector syslog --listen 0.0.0.0:5514 \\',
+            '  --target {O} --token {T}',
+            '# (côté capteur : règle de transfert syslog/CEF vers IP_collecteur:5514)','',
+            '# Ou API du capteur — actifs','python -m connectors.connector otplatform --preset defender_iot_assets \\',
+            '  --url "https://<capteur>/api/v1/devices" \\',
+            '  --header "Authorization: Bearer $TOKEN_PLATEFORME" \\',
+            '  --target {O} --token {T} --interval 30']},
+      {id:'dragos', label:'Dragos', desc:'Dragos Platform — notifications.',
+       cmd:['python -m connectors.connector otplatform --preset dragos \\',
+            '  --url "https://<dragos>/api/v1/notifications" \\',
+            '  --header "Authorization: Bearer $TOKEN_PLATEFORME" \\',
+            '  --target {O} --token {T} --interval 15']},
+      {id:'armis', label:'Armis', desc:'Armis Centrix — alertes.',
+       cmd:['python -m connectors.connector otplatform --preset armis \\',
+            '  --url "https://<tenant>.armis.com/api/v1/alerts/" \\',
+            '  --header "Authorization: $TOKEN_PLATEFORME" \\',
+            '  --target {O} --token {T} --interval 15']},
+      {id:'forescout', label:'Forescout', desc:'eyeInspect — alertes (ou transfert CEF, voir Syslog).',
+       cmd:['python -m connectors.connector otplatform --preset forescout \\',
+            '  --url "https://<command-center>/api/alerts" \\',
+            '  --header "Authorization: Bearer $TOKEN_PLATEFORME" \\',
+            '  --target {O} --token {T} --interval 15']},
+      {id:'cisco', label:'Cisco Cyber Vision', desc:'Cyber Vision — événements.',
+       cmd:['python -m connectors.connector otplatform --preset cisco_cyber_vision \\',
+            '  --url "https://<cybervision>/api/3.0/events" \\',
+            '  --header "x-token-id: $TOKEN_PLATEFORME" \\',
+            '  --target {O} --token {T} --interval 15']},
+      {id:'syslog', label:'Syslog / CEF', desc:'N\'importe quel équipement ou plateforme qui émet du syslog (RFC 3164/5424) ou du CEF : firewalls, switches, sondes…',
+       cmd:['# Écouter en UDP (pointez vos équipements vers ce collecteur, port 5514)',
+            'python -m connectors.connector syslog --listen 0.0.0.0:5514 \\',
+            '  --target {O} --token {T}','',
+            '# Ou suivre un fichier de log existant',
+            'python -m connectors.connector syslog --file /var/log/syslog \\',
+            '  --target {O} --token {T}']},
+      {id:'csv', label:'Export CSV', desc:'Rejouer un export (inventaire, journal) — colonnes asset, zone, type, event, severity (toutes optionnelles).',
+       cmd:['python -m connectors.connector csv --file mon-export.csv \\',
+            '  --target {O} --token {T} --interval 1']},
+    ];
+    var chips=document.getElementById('chips'), cmdblock=document.getElementById('cmdblock'), pdesc=document.getElementById('pdesc');
+    function fill(tpl){return tpl.replace(/\{O\}/g,ORIGIN).replace(/\{T\}/g,TOKEN);}
+    function renderEnv(){
+      document.getElementById('envblock').textContent=
+        'export COCKPIT_URL="'+ORIGIN+'"\nexport INGEST_TOKEN="'+TOKEN+'"';
+      renderTest();
+      var a=document.querySelector('#chips button.active'); if(a) select(a.getAttribute('data-id'));
+    }
+    function renderTest(){
+      document.getElementById('testblock').textContent=
+        'curl -X POST '+ORIGIN+'/api/ingest \\\n  -H "content-type: application/json" -H "X-Ingest-Token: '+TOKEN+'" \\\n  -d \'{"asset":"Automate-Test","zone":"Supervision (SCADA)","type":"discovery","event":"Premier événement","severity":"info"}\'';
+    }
+    function select(id){
+      var pf=PF.find(function(p){return p.id===id;})||PF[0];
+      document.querySelectorAll('#chips button').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-id')===pf.id);});
+      pdesc.textContent=pf.desc;
+      cmdblock.textContent=pf.cmd.map(fill).join('\n');
+    }
+    PF.forEach(function(p,i){
+      var b=document.createElement('button'); b.type='button'; b.textContent=p.label; b.setAttribute('data-id',p.id);
+      b.addEventListener('click',function(){select(p.id);});
+      chips.appendChild(b);
+    });
+    document.querySelectorAll('.copy').forEach(function(b){
+      b.addEventListener('click',function(){
+        var src={env:'envblock',cmd:'cmdblock',test:'testblock'}[b.getAttribute('data-copy')];
+        navigator.clipboard.writeText(document.getElementById(src).textContent).then(function(){
+          b.textContent='Copié ✓'; setTimeout(function(){b.textContent='Copier';},1500);
+        });
+      });
+    });
+    renderEnv(); select('nozomi');
+    // Admin : possibilité de révéler le jeton réel.
+    fetch('/api/auth/me').then(function(r){return r.json();}).then(function(me){
+      if(me.role!=='admin') return;
+      document.getElementById('tokadmin').style.display='flex';
+      document.getElementById('tokhint').innerHTML='Vous êtes administrateur : vous pouvez afficher le jeton et le transmettre '
+        +'de façon sécurisée à la personne qui installe le connecteur. Ne le publiez jamais.';
+      document.getElementById('tokreveal').addEventListener('click',function(){
+        fetch('/api/admin/ingest-token').then(function(r){return r.json();}).then(function(j){
+          if(!j.configured){document.getElementById('tokval').textContent='(INGEST_TOKEN non configuré côté serveur)';return;}
+          TOKEN=j.token; document.getElementById('tokval').textContent=j.token;
+          renderEnv();
+        });
+      });
+    }).catch(function(){});
+  })();
+  </script>
+</body>
+</html>

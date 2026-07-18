@@ -489,7 +489,8 @@ def api_logout():
 def api_me():
     u = current_user()
     return jsonify(authenticated=bool(u), name=(u or {}).get("name") or "",
-                   email=(u or {}).get("email") or "")
+                   email=(u or {}).get("email") or "",
+                   role=(u or {}).get("role") or "user")
 
 
 @auth_bp.route("/api/auth/forgot", methods=["POST"])

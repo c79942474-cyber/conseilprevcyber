@@ -107,6 +107,12 @@ curl -X POST https://conseilprevcyber.onrender.com/api/ingest \
 
 ### Alimenter en données réelles (connecteurs)
 
+**L'entrée côté site : `/connecter`** (compte requis, lien « 🔌 Connecter une plateforme » dans le
+cockpit) — choix de la plateforme (Nozomi, Claroty, Tenable.ot, Defender for IoT, Dragos, Armis,
+Forescout, Cisco CV, syslog/CEF, CSV), commandes pré‑remplies avec l'URL du cockpit, téléchargement
+du connecteur en zip (`/telecharger/connecteur.zip`) et test curl. L'administrateur peut y afficher
+le jeton d'ingestion (`GET /api/admin/ingest-token`, rôle admin).
+
 Le dossier [`connectors/`](connectors/) fournit des connecteurs prêts à l'emploi (Python standard, sans
 dépendance) qui lisent une source et postent sur `/api/ingest` :
 

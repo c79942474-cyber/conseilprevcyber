@@ -121,6 +121,7 @@
           <button id="mLive" class="ms" role="tab" aria-selected="false" type="button">◉ Temps réel</button>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <a href="/connecter" class="btn btn-s">🔌 Connecter une plateforme</a>
           <a href="/tendances" class="btn btn-s">📈 Tendances</a>
           <button id="btnPdf" class="btn btn-s">📄 Exporter le rapport (PDF)</button>
         </div>
@@ -391,9 +392,9 @@
       if(live){
         banner.className='demo-banner live';
         banner.innerHTML='<span class="k">◉ Temps réel</span><span>Cockpit branché sur le flux <strong>/api/stream</strong> '
-          +'(Server-Sent Events). Les événements affichés proviennent des connecteurs d\'ingestion lorsqu\'ils sont '
-          +'configurés (<code style="font-family:var(--mono);font-size:11px">POST /api/ingest</code>) — voir la note de '
-          +'cadrage. <em style="color:var(--muted2);font-style:normal">'+esc(liveMsg||'')+'</em></span>';
+          +'(Server-Sent Events). Pour alimenter ce cockpit avec vos données : '
+          +'<a href="/connecter" style="font-weight:600">🔌 Connecter votre plateforme</a>. '
+          +'<em style="color:var(--muted2);font-style:normal">'+esc(liveMsg||'')+'</em></span>';
       } else {
         banner.className='demo-banner';
         banner.innerHTML='<span class="k">⚠ Démonstration</span><span>Données <strong>simulées</strong> à des fins '

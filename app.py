@@ -33,14 +33,16 @@ Variables d'environnement :
 import html as html_lib
 import json
 import os
+import io
 import queue
 import threading
 import time
+import zipfile
 
 import requests
-from flask import Flask, Response, jsonify, request, send_from_directory
+from flask import Flask, Response, jsonify, request, send_file, send_from_directory
 
-from auth import init_app as init_auth
+from auth import admin_required, init_app as init_auth
 from cockpit_state import make_store
 
 app = Flask(__name__)
@@ -221,6 +223,7 @@ PAGES = {
     "/metriques-62443": "metriques-62443.html",
     "/demo": "demo.html",
     "/tendances": "tendances.html",
+    "/connecter": "connecter.html",
     "/ressources": "ressources.html",
     "/faq": "faq.html",
     "/about": "about.html",
@@ -322,6 +325,38 @@ def demo():
 @login_required
 def tendances():
     return _page(PAGES["/tendances"])
+
+
+@app.route("/connecter")
+@login_required
+def connecter():
+    """Page « Connecter votre plateforme » : l'entrée pour brancher une source réelle."""
+    return _page(PAGES["/connecter"])
+
+
+@app.route("/telecharger/connecteur.zip")
+@login_required
+def download_connector():
+    """Archive zip du connecteur (Python standard, sans dépendance) + guide de déploiement."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        base = os.path.join(HERE, "connectors")
+        for root, _dirs, files in os.walk(base):
+            for name in sorted(files):
+                if name.endswith((".pyc", ".pyo")) or "__pycache__" in root:
+                    continue
+                full = os.path.join(root, name)
+                z.write(full, os.path.relpath(full, HERE))
+    buf.seek(0)
+    return send_file(buf, mimetype="application/zip", as_attachment=True,
+                     download_name="conseilprev-connecteur.zip")
+
+
+@app.route("/api/admin/ingest-token")
+@admin_required
+def api_admin_ingest_token():
+    """Révèle le jeton d'ingestion à l'administrateur (pour la page Connecter)."""
+    return jsonify(configured=bool(INGEST_TOKEN), token=INGEST_TOKEN or "")
 
 
 @app.route("/ressources")
