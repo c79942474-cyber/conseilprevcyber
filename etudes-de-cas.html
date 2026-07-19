@@ -9,8 +9,8 @@
 <style>
   .cases{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:8px}
   @media(max-width:820px){.cases{grid-template-columns:1fr}}
-  .case{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:16px;padding:24px;position:relative;overflow:hidden}
-  .case::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--cc,linear-gradient(90deg,var(--cyan),var(--teal)))}
+  .case{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:16px;padding:24px;position:relative}
+  .case::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;border-radius:16px 16px 0 0;background:var(--cc,linear-gradient(90deg,var(--cyan),var(--teal)))}
   .case.e1{--cc:linear-gradient(90deg,var(--cyan),var(--teal))}
   .case.e2{--cc:linear-gradient(90deg,var(--violet),var(--cyan))}
   .case.e3{--cc:linear-gradient(90deg,var(--terra),var(--violet))}

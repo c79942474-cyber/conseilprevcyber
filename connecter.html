@@ -13,8 +13,8 @@
   .fbox .t{font-weight:700;color:var(--ink);font-size:14.5px;margin-bottom:4px}
   .fbox .d{font-size:12.5px;color:var(--muted)}
   .flow .arr{align-self:center;color:var(--cyan);font-size:20px;font-family:var(--mono)}
-  .step{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:16px;position:relative;overflow:hidden}
-  .step::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--sc,linear-gradient(90deg,var(--cyan),var(--teal)))}
+  .step{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:16px;position:relative}
+  .step::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;border-radius:14px 14px 0 0;background:var(--sc,linear-gradient(90deg,var(--cyan),var(--teal)))}
   .step h3{display:flex;align-items:center;gap:10px;margin-bottom:10px}
   .step h3 .n{font-family:var(--mono);font-size:13px;color:#04121A;background:linear-gradient(135deg,var(--cyan),var(--teal));
     width:26px;height:26px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
@@ -85,7 +85,7 @@
       </div>
 
       <div class="step" style="--sc:linear-gradient(90deg,var(--violet),var(--cyan))">
-        <h3><span class="n">2</span>Configurer la cible et le jeton</h3>
+        <h3><span class="n">2</span>Configurer la cible et le jeton <button type="button" class="tipi" data-tip="Le jeton INGEST_TOKEN autorise l'envoi de données vers votre cockpit. Gardez-le secret : variables d'environnement uniquement, jamais dans un dépôt de code." aria-label="Aide : jeton d'ingestion">i</button></h3>
         <p>Le connecteur doit connaître l'adresse de ce cockpit et le <strong>jeton d'ingestion</strong> :</p>
         <div class="codewrap"><button class="copy" data-copy="env">Copier</button><pre class="code" id="envblock"></pre></div>
         <div class="tokenrow" id="tokadmin" style="display:none">
@@ -98,7 +98,7 @@
       </div>
 
       <div class="step" style="--sc:linear-gradient(90deg,var(--amber),var(--terra))">
-        <h3><span class="n">3</span>Lancer le connecteur pour votre plateforme</h3>
+        <h3><span class="n">3</span>Lancer le connecteur pour votre plateforme <button type="button" class="tipi" data-tip="Choisissez le préréglage de votre éditeur : le mapping des champs (actif, zone, gravité) est déjà configuré. Les noms de champs restent à confirmer sur votre instance." aria-label="Aide : préréglages éditeurs">i</button></h3>
         <p>Choisissez votre source — la commande est pré-remplie avec l'adresse de ce cockpit :</p>
         <div class="chips" id="chips"></div>
         <p id="pdesc" style="font-size:13px;color:var(--muted2)"></p>
@@ -109,7 +109,7 @@
       </div>
 
       <div class="step" style="--sc:linear-gradient(90deg,var(--teal),var(--green))">
-        <h3><span class="n">4</span>Vérifier</h3>
+        <h3><span class="n">4</span>Vérifier <button type="button" class="tipi" data-tip="Ouvrez le cockpit en mode Temps réel : vos événements doivent apparaître dans le journal en quelques secondes." aria-label="Aide : vérification du branchement">i</button></h3>
         <p>Ouvrez le <a href="/demo">cockpit</a> et basculez sur <strong>◉ Temps réel</strong> : vos événements
         apparaissent dans le journal, l'inventaire et les <a href="/tendances">tendances</a> se construisent.</p>
         <p style="margin-top:10px">Test rapide sans plateforme (envoie un événement de démonstration) :</p>
