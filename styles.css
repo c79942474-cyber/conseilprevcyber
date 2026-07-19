@@ -3,13 +3,13 @@
    Thème cyber sombre, accents cyan/teal + terracotta (lien avec la marque).
    ========================================================================== */
 :root{
-  /* Fond « Latérite » : base rouge-orangé chaud (terre latéritique), halos orange clair. */
-  --bg:#542C1E; --bg2:#5A3021; --panel:#7A5040; --panel2:#623E2D; --line:#8A5B44;
-  --ink:#F5EFE7; --muted:#D8C6B6; --muted2:#B69A88;
+  /* Fond « Latérite brique » : base rouge brique saturée, halos orange clair intenses. */
+  --bg:#6E2A18; --bg2:#762E1A; --panel:#8A6350; --panel2:#6E4836; --line:#9A6650;
+  --ink:#F6F0E8; --muted:#E6D5C6; --muted2:#C2A695;
   --cyan:#22D3EE; --teal:#2DD4BF; --green:#34D399;
   --terra:#D9603A; --violet:#8B7CF6; --amber:#F0B429;
-  /* Blobs flottants — latérite rouge & orange clair. */
-  --blob-ocre:rgba(255,196,140,.26); --blob-turquoise:rgba(240,150,100,.20); --blob-rouge:rgba(224,96,58,.24);
+  /* Blobs flottants — brique rouge & orange clair. */
+  --blob-ocre:rgba(255,185,120,.30); --blob-turquoise:rgba(255,140,80,.24); --blob-rouge:rgba(214,64,40,.28);
   --mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
   --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   --maxw:1080px;
@@ -20,12 +20,12 @@ body{
   font-family:var(--sans);background-color:var(--bg);color:var(--ink);
   line-height:1.6;font-size:16px;-webkit-font-smoothing:antialiased;min-height:100vh;
   background-image:
-    radial-gradient(1020px 660px at 90% -10%, rgba(255,190,120,.18), transparent 60%),
-    radial-gradient(1120px 720px at -6% 108%, rgba(240,130,80,.30), transparent 62%),
-    radial-gradient(820px 560px at 106% 84%, rgba(255,170,110,.16), transparent 60%),
-    linear-gradient(168deg, #4E2418 0%, #5C2C1C 32%, #6E3620 62%, #7A3E24 86%, #824326 100%),
-    linear-gradient(rgba(140,96,66,.26) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(140,96,66,.26) 1px, transparent 1px);
+    radial-gradient(1040px 680px at 90% -10%, rgba(255,180,100,.26), transparent 60%),
+    radial-gradient(1160px 740px at -6% 108%, rgba(255,120,58,.38), transparent 62%),
+    radial-gradient(860px 580px at 106% 84%, rgba(255,158,88,.24), transparent 60%),
+    linear-gradient(168deg, #5C2415 0%, #6E2A18 32%, #83321C 62%, #92381F 86%, #9C3C20 100%),
+    linear-gradient(rgba(168,104,68,.24) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(168,104,68,.24) 1px, transparent 1px);
   background-size:auto,auto,auto,auto,44px 44px,44px 44px;
   background-attachment:fixed;
 }
@@ -78,7 +78,7 @@ a{color:var(--cyan);text-decoration:none}
 
 /* Header / nav (partagé) */
 header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
-  background:rgba(78,42,28,.76);border-bottom:1px solid var(--line)}
+  background:rgba(110,42,24,.78);border-bottom:1px solid var(--line)}
 .nav{display:flex;align-items:center;gap:18px;height:64px}
 .brand{display:flex;align-items:baseline;gap:8px;font-weight:700;letter-spacing:-.02em;font-size:18px;color:var(--ink)}
 .brand a{color:var(--ink)}
@@ -111,7 +111,7 @@ header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
   .js-nav .nav .links{
     position:absolute;top:100%;left:0;right:0;
     flex-direction:column;align-items:stretch;gap:0;
-    background:rgba(78,42,28,.97);backdrop-filter:blur(12px);
+    background:rgba(110,42,24,.97);backdrop-filter:blur(12px);
     border-bottom:1px solid var(--line);box-shadow:0 18px 40px rgba(0,0,0,.42);
     padding:6px 0;
     max-height:0;overflow:hidden;opacity:0;visibility:hidden;
@@ -124,6 +124,26 @@ header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
   .js-nav .nav .links a.cta{margin:10px 24px 6px;padding:12px 16px;text-align:center;
     border-top:none;border-radius:8px}
 }
+
+/* ── Navigation de page : flèches précédent/suivant + haut/bas (injecté par nav.js) ──
+   Bloc flottant discret en bas à droite ; s'éclaircit au survol/focus. */
+.pagenav{position:fixed;right:16px;bottom:16px;z-index:40;
+  display:grid;grid-template-columns:repeat(2,1fr);gap:6px;padding:7px;
+  border-radius:14px;border:1px solid var(--line);
+  background:rgba(48,26,18,.64);backdrop-filter:blur(8px);
+  box-shadow:0 10px 26px rgba(0,0,0,.34);
+  opacity:.5;transition:opacity .2s ease}
+.pagenav:hover,.pagenav:focus-within{opacity:1}
+.pagenav-btn{width:38px;height:34px;display:flex;align-items:center;justify-content:center;
+  font-size:17px;line-height:1;color:var(--muted);cursor:pointer;
+  background:var(--panel2);border:1px solid var(--line);border-radius:9px;
+  transition:color .15s,border-color .15s,background .15s,transform .1s}
+.pagenav-btn:hover{color:var(--ink);border-color:var(--terra);background:var(--panel)}
+.pagenav-btn:active{transform:translateY(1px)}
+.pagenav-btn:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+@media(max-width:520px){.pagenav{right:10px;bottom:10px;gap:5px;padding:6px}
+  .pagenav-btn{width:34px;height:31px;font-size:15px}}
+@media print{.pagenav{display:none}}
 
 /* Titres / sections */
 h1{font-size:clamp(32px,6vw,58px);line-height:1.06;letter-spacing:-.03em;font-weight:800}

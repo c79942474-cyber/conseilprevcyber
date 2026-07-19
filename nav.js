@@ -1,13 +1,12 @@
-/* CONSEILPREV Cyber — en-tête responsive (menu « burger »).
-   Chargé sur toutes les pages. Injecte un bouton de menu dans l'en-tête et
-   gère l'ouverture/fermeture du panneau de navigation sur écran étroit.
-   Aucune balise à ajouter aux pages : tout est construit ici. La feuille de
-   style (styles.css) ne masque la navigation que si ce script s'est exécuté
-   (classe .js-nav) — sans JavaScript, les liens restent visibles (repli). */
+/* CONSEILPREV Cyber — en-tête responsive + navigation de page.
+   Chargé sur toutes les pages. Injecte (1) un bouton de menu « burger » dans
+   l'en-tête sur écran étroit, et (2) un petit bloc de flèches flottant :
+   précédent / suivant (historique) et haut / bas (défilement).
+   Aucune balise à ajouter aux pages : tout est construit ici. */
 (function () {
   document.documentElement.classList.add("js-nav");
 
-  function init() {
+  function initBurger() {
     var nav = document.querySelector("header .nav");
     if (!nav) return;
     var links = nav.querySelector(".links");
@@ -36,23 +35,68 @@
       e.stopPropagation();
       setOpen(!nav.classList.contains("open"));
     });
-    // Fermer après un clic sur un lien du menu.
     links.addEventListener("click", function (e) {
       if (e.target.closest("a")) setOpen(false);
     });
-    // Fermer si l'on clique en dehors de l'en-tête.
     document.addEventListener("click", function (e) {
       if (nav.classList.contains("open") && !nav.contains(e.target)) setOpen(false);
     });
-    // Fermer avec la touche Échap.
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape" || e.key === "Esc") setOpen(false);
     });
-    // Repasser en mode bureau referme proprement le panneau.
     var mq = window.matchMedia("(min-width: 861px)");
     var onChange = function () { if (mq.matches) setOpen(false); };
     if (mq.addEventListener) mq.addEventListener("change", onChange);
     else if (mq.addListener) mq.addListener(onChange);
+  }
+
+  function initPageNav() {
+    if (document.querySelector(".pagenav")) return;
+    var box = document.createElement("div");
+    box.className = "pagenav";
+    box.setAttribute("role", "group");
+    box.setAttribute("aria-label", "Navigation de page");
+    // [clé, glyphe, libellé accessible, infobulle]
+    var defs = [
+      ["back", "←", "Page précédente", "Précédent"],
+      ["forward", "→", "Page suivante", "Suivant"],
+      ["top", "↑", "Haut de la page", "Haut"],
+      ["bottom", "↓", "Bas de la page", "Bas"],
+    ];
+    defs.forEach(function (d) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "pagenav-btn";
+      b.setAttribute("data-nav", d[0]);
+      b.setAttribute("aria-label", d[2]);
+      b.title = d[3];
+      b.textContent = d[1];
+      box.appendChild(b);
+    });
+    document.body.appendChild(box);
+
+    var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var behavior = reduce ? "auto" : "smooth";
+    box.addEventListener("click", function (e) {
+      var b = e.target.closest(".pagenav-btn");
+      if (!b) return;
+      switch (b.getAttribute("data-nav")) {
+        case "back": history.back(); break;
+        case "forward": history.forward(); break;
+        case "top": window.scrollTo({ top: 0, behavior: behavior }); break;
+        case "bottom":
+          window.scrollTo({
+            top: document.documentElement.scrollHeight,
+            behavior: behavior,
+          });
+          break;
+      }
+    });
+  }
+
+  function init() {
+    initBurger();
+    initPageNav();
   }
 
   if (document.readyState === "loading")
