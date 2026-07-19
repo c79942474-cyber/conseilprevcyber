@@ -85,6 +85,10 @@ def _client_ip():
     return (xff.split(",")[0].strip() if xff else request.remote_addr) or "?"
 
 
+# Alias public (réutilisé par app.py pour la limitation de débit du formulaire de contact).
+client_ip = _client_ip
+
+
 # ------------------------------------------------------------------- stockage ---
 _FIELDS = ["email", "name", "org", "password_hash", "email_verified", "approved",
            "role", "verify_token", "verify_expire", "approve_token",
@@ -399,7 +403,12 @@ def api_captcha():
 @auth_bp.route("/api/auth/register", methods=["POST"])
 def api_register():
     d = request.get_json(silent=True) or {}
-    email = (d.get("email") or "").strip().lower()
+    # Anti-abus : limite les demandes d'inscription par IP (anti-flood d'emails).
+    rk = "register:%s" % _client_ip()
+    if guard.blocked(rk, limit=8, window=900):
+        return jsonify(error="Trop de demandes. Réessayez dans quelques minutes."), 429
+    guard.fail(rk)
+    email = (d.get("email") or "").strip().lower()[:200]
     name = (d.get("name") or "").strip()[:120]
     org = (d.get("org") or "").strip()[:160]
     pw = d.get("password") or ""
@@ -496,8 +505,13 @@ def api_me():
 @auth_bp.route("/api/auth/forgot", methods=["POST"])
 def api_forgot():
     d = request.get_json(silent=True) or {}
-    email = (d.get("email") or "").strip().lower()
+    email = (d.get("email") or "").strip().lower()[:200]
     generic = jsonify(ok=True, message="Si un compte existe, un email de réinitialisation a été envoyé.")
+    # Anti-abus : coupe l'email-bombing par IP (réponse générique, aucune fuite).
+    fk = "forgot:%s" % _client_ip()
+    if guard.blocked(fk, limit=6, window=900):
+        return generic
+    guard.fail(fk)
     if not valid_email(email):
         return generic
     u = store.get(email)
@@ -520,6 +534,11 @@ def page_reset(token):
 @auth_bp.route("/api/auth/reset", methods=["POST"])
 def api_reset():
     d = request.get_json(silent=True) or {}
+    # Anti-abus : limite les tentatives de réinitialisation par IP (anti-bruteforce de jeton).
+    rk = "reset:%s" % _client_ip()
+    if guard.blocked(rk, limit=10, window=900):
+        return jsonify(error="Trop de tentatives. Réessayez plus tard."), 429
+    guard.fail(rk)
     token = (d.get("token") or "").strip()
     pw = d.get("password") or ""
     ok, msg = password_strength(pw)
@@ -619,6 +638,7 @@ def init_app(app):
     app.secret_key = (os.environ.get("FLASK_SECRET_KEY", "").strip()
                       or "cpcyber-dev-" + secrets.token_hex(16))
     app.config.update(
+        SESSION_COOKIE_NAME="cpc_session",
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=bool(os.environ.get("PUBLIC_BASE_URL", "").startswith("https")),

@@ -39,14 +39,83 @@ import threading
 import time
 import zipfile
 
+from urllib.parse import urlparse
+
 import requests
 from flask import Flask, Response, jsonify, request, send_file, send_from_directory
 
-from auth import admin_required, init_app as init_auth
+from auth import admin_required, client_ip, guard, init_app as init_auth
 from cockpit_state import make_store
 
 app = Flask(__name__)
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+# --- Sécurité applicative (en-têtes, anti-CSRF, taille de requête) -------------
+# Plafond de taille du corps d'une requête (anti-abus mémoire / DoS).
+app.config["MAX_CONTENT_LENGTH"] = 512 * 1024
+
+# Points protégés par jeton (server-to-server) : exemptés du contrôle d'origine
+# CSRF, car authentifiés par un secret d'en-tête (X-Ingest-Token) et non par un
+# cookie de session — donc non vulnérables au CSRF (qui exploite le cookie ambiant).
+_CSRF_EXEMPT = {"/api/ingest", "/api/reset", "/api/maintenance/purge"}
+
+# En-têtes de sécurité appliqués à toutes les réponses. La CSP autorise le style
+# et le script « inline » (site statique : nombreux <style>/<script> intégrés),
+# mais verrouille le reste : pas de ressource tierce, pas d'iframe (anti-clickjacking),
+# pas d'objet, formulaires et base-uri limités à l'origine.
+_SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "geolocation=(), microphone=(), camera=(), interest-cohort=()",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Content-Security-Policy": (
+        "default-src 'self'; base-uri 'self'; form-action 'self'; "
+        "frame-ancestors 'none'; object-src 'none'; "
+        "img-src 'self' data:; font-src 'self' data:; "
+        "style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; "
+        "connect-src 'self'"
+    ),
+}
+
+
+def _request_is_https():
+    return request.is_secure or request.headers.get("X-Forwarded-Proto", "") == "https"
+
+
+def _same_origin_request():
+    """Vrai si la requête provient de notre propre origine (défense anti-CSRF)."""
+    src = request.headers.get("Origin") or request.headers.get("Referer") or ""
+    if not src:
+        return False
+    return urlparse(src).netloc == request.host
+
+
+@app.before_request
+def _csrf_guard():
+    """Bloque les requêtes d'état d'origine tierce (CSRF) sur les points à cookie.
+
+    Défense en profondeur : cookies SameSite=Lax + contrôle d'origine. Les points
+    protégés par jeton (ingestion, reset, purge) sont exemptés — authentifiés par
+    secret et non par cookie de session.
+    """
+    if request.method in ("GET", "HEAD", "OPTIONS"):
+        return
+    if request.path in _CSRF_EXEMPT:
+        return
+    if not _same_origin_request():
+        return jsonify(ok=False, error="csrf",
+                       message="Origine de la requête non autorisée."), 403
+
+
+@app.after_request
+def _security_headers(resp):
+    for key, value in _SECURITY_HEADERS.items():
+        resp.headers.setdefault(key, value)
+    if _request_is_https():
+        resp.headers.setdefault(
+            "Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    return resp
 
 # --- Configuration email (expéditeur vérifié Brevo) ---------------------------
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
@@ -407,6 +476,13 @@ def nav_js():
 def api_contact():
     """Traite le formulaire de contact et envoie un email via Brevo."""
     data = request.get_json(silent=True) or request.form
+
+    # Anti-abus : limite le nombre d'envois par IP (anti-spam / anti-flood).
+    ckey = "contact:%s" % client_ip()
+    if guard.blocked(ckey, limit=8, window=900):
+        return jsonify(ok=False, error="rate_limited",
+                       message="Trop d'envois. Réessayez dans quelques minutes."), 429
+    guard.fail(ckey)
 
     # Anti-spam : champ piège (honeypot). Rempli => bot => on accepte sans agir.
     if (data.get("site") or "").strip():

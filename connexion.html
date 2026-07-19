@@ -35,9 +35,10 @@
       <p class="sub">Accédez à votre cockpit de supervision OT.</p>
       <div id="msg" class="msg"></div>
       <form id="f" class="form" style="max-width:none;background:none;border:none;padding:0">
-        <div class="field"><label>Email</label><input id="email" type="email" autocomplete="username" required></div>
-        <div class="field"><label>Mot de passe</label><input id="password" type="password" autocomplete="current-password" required></div>
+        <div class="field"><label>Email <button type="button" class="tipi" data-tip="L'adresse de votre compte (email professionnel utilisé à l'inscription)." aria-label="Aide : quel email utiliser">i</button></label><input id="email" type="email" autocomplete="username" required></div>
+        <div class="field"><label>Mot de passe <button type="button" class="tipi" data-tip="Connexion chiffrée. Après plusieurs essais infructueux, l'accès est temporairement bloqué." aria-label="Aide : sécurité du mot de passe">i</button></label><input id="password" type="password" autocomplete="current-password" required></div>
         <button class="btn btn-p" type="submit">Se connecter</button>
+        <div class="secnote"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>Connexion chiffrée · protection anti-bruteforce · session sécurisée.</div>
       </form>
       <div class="authlinks">
         <a href="/mot-de-passe-oublie">Mot de passe oublié&nbsp;?</a>

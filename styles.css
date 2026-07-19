@@ -145,6 +145,38 @@ header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
   .pagenav-btn{width:34px;height:31px;font-size:15px}}
 @media print{.pagenav{display:none}}
 
+/* ── Infobulles (UI/UX) : petit « i » d'aide, accessible clavier + tactile ────
+   Usage : <button type="button" class="tipi" data-tip="…" aria-label="…">i</button>
+   S'affiche au survol et au focus (clavier / tap mobile). */
+.tipi{display:inline-flex;align-items:center;justify-content:center;
+  width:16px;height:16px;padding:0;margin-left:5px;vertical-align:middle;
+  border-radius:50%;border:1px solid var(--line);background:transparent;
+  color:var(--muted2);font:700 11px/1 var(--mono);cursor:help;
+  transition:color .15s,border-color .15s,background .15s;position:relative}
+.tipi:hover,.tipi:focus-visible{color:var(--ink);border-color:var(--terra);
+  background:rgba(217,96,58,.12);outline:none}
+.tipi::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 10px);left:-6px;
+  width:max-content;max-width:250px;
+  background:#2A1A12;color:#F3EEE7;border:1px solid var(--line);border-radius:10px;
+  padding:9px 12px;font:400 12.5px/1.45 var(--sans);letter-spacing:normal;
+  text-transform:none;text-align:left;white-space:normal;
+  box-shadow:0 14px 34px rgba(0,0,0,.45);
+  opacity:0;visibility:hidden;transform:translateY(5px);pointer-events:none;
+  transition:opacity .16s ease,transform .16s ease;z-index:60}
+.tipi::before{content:"";position:absolute;bottom:calc(100% + 4px);left:2px;
+  border:6px solid transparent;border-top-color:var(--line);
+  opacity:0;visibility:hidden;transition:opacity .16s ease;z-index:61}
+.tipi:hover::after,.tipi:focus-visible::after,.tipi:focus::after,
+.tipi:hover::before,.tipi:focus-visible::before,.tipi:focus::before{
+  opacity:1;visibility:visible;transform:translateY(0)}
+@media(max-width:520px){.tipi::after{max-width:200px;left:auto;right:-6px}
+  .tipi::before{left:auto;right:2px}}
+@media print{.tipi{display:none}}
+/* Petit bandeau « formulaire sécurisé » (confiance) */
+.secnote{display:flex;align-items:center;gap:8px;margin-top:14px;
+  font-size:12.5px;color:var(--muted2);line-height:1.4}
+.secnote svg{flex:0 0 auto;width:15px;height:15px;fill:none;stroke:var(--teal);stroke-width:1.8}
+
 /* Titres / sections */
 h1{font-size:clamp(32px,6vw,58px);line-height:1.06;letter-spacing:-.03em;font-weight:800}
 h2{font-size:clamp(24px,4vw,34px);letter-spacing:-.02em;font-weight:800;margin-bottom:12px}
