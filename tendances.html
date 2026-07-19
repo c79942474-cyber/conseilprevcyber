@@ -203,7 +203,7 @@
       rows.forEach(function(r,i){
         var y=top+i*rowH, bh=18, w=r.v?Math.max(2,bw*r.v/max):0;
         var lab=el('text',{x:labelW,y:y+bh/2+4,'text-anchor':'end',class:'rowlabel'});lab.textContent=r.label;svg.appendChild(lab);
-        svg.appendChild(el('rect',{x:bx,y:y,width:bw,height:bh,rx:4,fill:'#21363F','fill-opacity':0.4}));
+        svg.appendChild(el('rect',{x:bx,y:y,width:bw,height:bh,rx:4,fill:'#2E3A36','fill-opacity':0.45}));
         var b=el('rect',{x:bx,y:y,width:w,height:bh,rx:4,fill:colorFn(r,i)});svg.appendChild(b);
         var vt=el('text',{x:bx+bw+4,y:y+bh/2+4,'text-anchor':'end',class:'vlabel'});vt.setAttribute('x',W);vt.textContent=r.v;svg.appendChild(vt);
         var hit=el('rect',{x:0,y:y-pad/2,width:W,height:rowH,fill:'transparent'});

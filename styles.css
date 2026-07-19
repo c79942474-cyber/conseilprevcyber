@@ -3,13 +3,13 @@
    Thème cyber sombre, accents cyan/teal + terracotta (lien avec la marque).
    ========================================================================== */
 :root{
-  /* Fond : bleu foncé turquoise, nuancé d'ocre (voir dégradés du body). */
-  --bg:#08161D; --bg2:#0B1C24; --panel:#0F222B; --panel2:#0C1B23; --line:#21363F;
-  --ink:#E9EEF3; --muted:#93A3AF; --muted2:#657883;
+  /* Fond « Crépuscule » : base sombre chaude, du bleu-vert éteint vers le brun ocre. */
+  --bg:#121A1C; --bg2:#141B1D; --panel:#16211F; --panel2:#121B1A; --line:#2E3A36;
+  --ink:#EDEFE9; --muted:#A2ABA0; --muted2:#75807A;
   --cyan:#22D3EE; --teal:#2DD4BF; --green:#34D399;
   --terra:#D9603A; --violet:#8B7CF6; --amber:#F0B429;
-  /* Pastels des blobs flottants (ocre orangé, turquoise, rouge ocré). */
-  --blob-ocre:rgba(244,187,122,.15); --blob-turquoise:rgba(108,214,204,.13); --blob-rouge:rgba(233,142,110,.12);
+  /* Pastels des blobs flottants — ocre orangé et rouge ocré renforcés, turquoise discret. */
+  --blob-ocre:rgba(246,183,112,.20); --blob-turquoise:rgba(104,206,196,.10); --blob-rouge:rgba(235,138,100,.17);
   --mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
   --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   --maxw:1080px;
@@ -20,12 +20,12 @@ body{
   font-family:var(--sans);background-color:var(--bg);color:var(--ink);
   line-height:1.6;font-size:16px;-webkit-font-smoothing:antialiased;min-height:100vh;
   background-image:
-    radial-gradient(1100px 680px at 88% -12%, rgba(45,212,191,.11), transparent 62%),
-    radial-gradient(880px 600px at -8% 108%, rgba(217,96,58,.10), transparent 60%),
-    radial-gradient(760px 520px at 106% 86%, rgba(240,180,41,.07), transparent 60%),
-    linear-gradient(168deg, #0A1D26 0%, #08161D 42%, #0C1B1E 74%, #171A17 100%),
-    linear-gradient(rgba(38,62,74,.35) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(38,62,74,.35) 1px, transparent 1px);
+    radial-gradient(1000px 640px at 90% -10%, rgba(240,180,41,.10), transparent 60%),
+    radial-gradient(900px 620px at -8% 106%, rgba(217,96,58,.14), transparent 60%),
+    radial-gradient(760px 520px at 104% 88%, rgba(45,212,191,.07), transparent 60%),
+    linear-gradient(168deg, #101B1E 0%, #121A1C 38%, #1B1916 70%, #221A12 100%),
+    linear-gradient(rgba(64,58,46,.35) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(64,58,46,.35) 1px, transparent 1px);
   background-size:auto,auto,auto,auto,44px 44px,44px 44px;
   background-attachment:fixed;
 }
@@ -78,7 +78,7 @@ a{color:var(--cyan);text-decoration:none}
 
 /* Header / nav (partagé) */
 header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
-  background:rgba(8,20,26,.72);border-bottom:1px solid var(--line)}
+  background:rgba(16,21,20,.72);border-bottom:1px solid var(--line)}
 .nav{display:flex;align-items:center;gap:18px;height:64px}
 .brand{display:flex;align-items:baseline;gap:8px;font-weight:700;letter-spacing:-.02em;font-size:18px;color:var(--ink)}
 .brand a{color:var(--ink)}
@@ -130,7 +130,7 @@ h3{font-size:19px;letter-spacing:-.01em;font-weight:700}
 .card.a2{--accent:linear-gradient(90deg,var(--violet),var(--cyan))}
 .card.a3{--accent:linear-gradient(90deg,var(--terra),var(--violet))}
 .card.a4{--accent:linear-gradient(90deg,var(--amber),var(--terra))}
-.card:hover{transform:translateY(-4px);border-color:#2A3A50}
+.card:hover{transform:translateY(-4px);border-color:#41493F}
 .card .ico{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;
   font-size:22px;margin-bottom:16px;background:rgba(34,211,238,.10);border:1px solid var(--line)}
 .card.a2 .ico{background:rgba(139,124,246,.12)}
