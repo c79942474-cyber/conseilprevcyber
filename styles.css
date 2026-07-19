@@ -3,9 +3,9 @@
    Thème cyber sombre, accents cyan/teal + terracotta (lien avec la marque).
    ========================================================================== */
 :root{
-  /* Fond « Crépuscule » : base sombre chaude, du bleu-vert éteint vers le brun ocre. */
-  --bg:#121A1C; --bg2:#141B1D; --panel:#16211F; --panel2:#121B1A; --line:#2E3A36;
-  --ink:#EDEFE9; --muted:#A2ABA0; --muted2:#75807A;
+  /* Fond « Crépuscule » éclairci : base chaude adoucie (moins sombre), du bleu-vert vers le brun ocre. */
+  --bg:#22302F; --bg2:#243231; --panel:#2C3A36; --panel2:#26332F; --line:#3E4C46;
+  --ink:#EEF0EA; --muted:#B0B7AC; --muted2:#848E87;
   --cyan:#22D3EE; --teal:#2DD4BF; --green:#34D399;
   --terra:#D9603A; --violet:#8B7CF6; --amber:#F0B429;
   /* Pastels des blobs flottants — plus présents ; turquoise remonté. */
@@ -23,7 +23,7 @@ body{
     radial-gradient(1000px 640px at 90% -10%, rgba(240,180,41,.10), transparent 60%),
     radial-gradient(1080px 700px at -6% 108%, rgba(214,104,52,.22), transparent 62%),
     radial-gradient(820px 560px at 106% 86%, rgba(45,212,191,.12), transparent 60%),
-    linear-gradient(168deg, #101B1E 0%, #121A1C 34%, #1C1914 64%, #241A11 86%, #2C1C0E 100%),
+    linear-gradient(168deg, #202E31 0%, #223130 34%, #302B23 64%, #3A2A1C 86%, #442E18 100%),
     linear-gradient(rgba(64,58,46,.35) 1px, transparent 1px),
     linear-gradient(90deg, rgba(64,58,46,.35) 1px, transparent 1px);
   background-size:auto,auto,auto,auto,44px 44px,44px 44px;
@@ -78,7 +78,7 @@ a{color:var(--cyan);text-decoration:none}
 
 /* Header / nav (partagé) */
 header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
-  background:rgba(16,21,20,.72);border-bottom:1px solid var(--line)}
+  background:rgba(32,44,42,.74);border-bottom:1px solid var(--line)}
 .nav{display:flex;align-items:center;gap:18px;height:64px}
 .brand{display:flex;align-items:baseline;gap:8px;font-weight:700;letter-spacing:-.02em;font-size:18px;color:var(--ink)}
 .brand a{color:var(--ink)}
@@ -111,7 +111,7 @@ header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
   .js-nav .nav .links{
     position:absolute;top:100%;left:0;right:0;
     flex-direction:column;align-items:stretch;gap:0;
-    background:rgba(14,19,18,.98);backdrop-filter:blur(12px);
+    background:rgba(32,44,42,.97);backdrop-filter:blur(12px);
     border-bottom:1px solid var(--line);box-shadow:0 18px 40px rgba(0,0,0,.42);
     padding:6px 0;
     max-height:0;overflow:hidden;opacity:0;visibility:hidden;
