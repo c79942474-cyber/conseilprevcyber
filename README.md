@@ -113,6 +113,12 @@ Forescout, Cisco CV, syslog/CEF, CSV), commandes pré‑remplies avec l'URL du c
 du connecteur en zip (`/telecharger/connecteur.zip`) et test curl. L'administrateur peut y afficher
 le jeton d'ingestion (`GET /api/admin/ingest-token`, rôle admin).
 
+**Le guide détaillé : `/guide-integration`** (compte requis, bouton en haut de `/connecter`) —
+pas‑à‑pas professionnel en 11 sections : architecture & modèle de sécurité, prérequis, installation,
+configuration & premier test, commandes par plateforme, modèle de données, production 24/7 (systemd),
+supervision Prometheus, checklist de recette, dépannage, bonnes pratiques. Sommaire collant,
+version imprimable (bouton Imprimer/PDF).
+
 Le dossier [`connectors/`](connectors/) fournit des connecteurs prêts à l'emploi (Python standard, sans
 dépendance) qui lisent une source et postent sur `/api/ingest` :
 

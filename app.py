@@ -224,6 +224,7 @@ PAGES = {
     "/demo": "demo.html",
     "/tendances": "tendances.html",
     "/connecter": "connecter.html",
+    "/guide-integration": "guide-integration.html",
     "/ressources": "ressources.html",
     "/faq": "faq.html",
     "/about": "about.html",
@@ -332,6 +333,13 @@ def tendances():
 def connecter():
     """Page « Connecter votre plateforme » : l'entrée pour brancher une source réelle."""
     return _page(PAGES["/connecter"])
+
+
+@app.route("/guide-integration")
+@login_required
+def guide_integration():
+    """Guide d'intégration détaillé (pas-à-pas professionnel du branchement)."""
+    return _page(PAGES["/guide-integration"])
 
 
 @app.route("/telecharger/connecteur.zip")

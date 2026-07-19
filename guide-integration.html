@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guide d'intégration — Connecter votre plateforme — CONSEILPREV Cyber</title>
+<meta name="description" content="Guide d'intégration détaillé : brancher une plateforme OT (Nozomi, Claroty, Tenable, Defender for IoT…), un flux syslog/CEF ou un export CSV au cockpit de supervision.">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .layout{display:grid;grid-template-columns:250px 1fr;gap:28px;align-items:start}
+  .layout>div{min-width:0}
+  @media(max-width:960px){.layout{grid-template-columns:1fr}}
+  .toc{position:sticky;top:84px;background:linear-gradient(180deg,var(--panel),var(--bg2));
+    border:1px solid var(--line);border-radius:14px;padding:18px;font-size:13px}
+  @media(max-width:960px){.toc{position:static}}
+  .toc .tt{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted2);margin-bottom:10px}
+  .toc a{display:block;color:var(--muted);padding:5px 8px;border-left:2px solid transparent;border-radius:0 6px 6px 0;line-height:1.35}
+  .toc a:hover{color:var(--ink)}
+  .toc a.on{color:var(--cyan);border-left-color:var(--cyan);background:rgba(34,211,238,.06)}
+  .gsec{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);
+    border-radius:14px;padding:26px 28px;margin-bottom:18px;position:relative;overflow:hidden;scroll-margin-top:84px}
+  .gsec::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--sc,linear-gradient(90deg,var(--cyan),var(--teal)))}
+  .gsec h2{display:flex;align-items:baseline;gap:12px;font-size:21px;margin-bottom:14px}
+  .gsec h2 .n{font-family:var(--mono);font-size:13px;color:var(--cyan);border:1px solid var(--line);border-radius:8px;padding:3px 10px;flex-shrink:0}
+  .gsec h3{font-size:15.5px;color:var(--ink);margin:20px 0 8px}
+  .gsec p,.gsec li{color:var(--muted);font-size:14px;line-height:1.65}
+  .gsec ul,.gsec ol{margin:8px 0 8px 22px}
+  .gsec li{margin:5px 0}
+  .gsec strong{color:var(--ink)}
+  .gsec code{font-family:var(--mono);font-size:12.5px;color:var(--cyan)}
+  pre.code{background:#060A10;border:1px solid var(--line);border-radius:10px;padding:13px 15px;overflow-x:auto;
+    font-family:var(--mono);font-size:12.5px;line-height:1.6;color:var(--ink);white-space:pre;margin:10px 0}
+  pre.code .c{color:var(--muted2)}
+  pre.code code{color:inherit}
+  table.g{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0}
+  table.g th{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted2);
+    text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+  table.g td{padding:8px 10px;border-bottom:1px solid rgba(30,42,58,.5);color:var(--muted);vertical-align:top}
+  table.g td:first-child{color:var(--ink)}
+  .callout{border-radius:10px;padding:12px 16px;font-size:13.5px;margin:12px 0;border:1px solid}
+  .callout.info{background:rgba(34,211,238,.06);border-color:rgba(34,211,238,.25);color:var(--muted)}
+  .callout.warn{background:rgba(240,180,41,.08);border-color:rgba(240,180,41,.3);color:var(--amber)}
+  .callout.ok{background:rgba(52,211,153,.07);border-color:rgba(52,211,153,.28);color:var(--muted)}
+  .callout strong{color:inherit}
+  .check{list-style:none;margin-left:0 !important}
+  .check li{padding-left:26px;position:relative}
+  .check li::before{content:"☐";position:absolute;left:2px;color:var(--cyan);font-size:15px}
+  .topbtns{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+  @media print{
+    header,footer,.toc,.topbtns,.nav{display:none !important}
+    body{background:#fff;color:#111}
+    .layout{grid-template-columns:1fr}
+    .gsec{border:1px solid #ccc;background:#fff;break-inside:avoid}
+    .gsec p,.gsec li,table.g td{color:#222}
+    .gsec h2,.gsec h3,.gsec strong,table.g td:first-child{color:#000}
+    pre.code{background:#f5f5f5;border-color:#ccc;color:#111}
+    a{color:#0a4a55 !important;text-decoration:underline}
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><a href="/">CONSEILPREV</a><span class="tag">Cyber</span></div>
+      <div class="spacer"></div>
+      <nav class="links">
+        <a href="/">Accueil</a>
+        <a href="/demo">Cockpit</a>
+        <a href="/tendances">Tendances</a>
+        <a href="/connecter" class="active">Connecter</a>
+        <a href="/contact" class="cta">Nous contacter</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head" style="padding-bottom:0">
+      <span class="eyebrow"><span class="dot"></span>Guide d'intégration · v1</span>
+      <h1>Guide <span class="grad">d'intégration</span> détaillé.</h1>
+      <p class="lead" style="margin-top:14px">Le pas-à-pas professionnel pour raccorder votre plateforme OT, vos flux
+        syslog/CEF ou vos exports au cockpit de supervision — de l'installation à la mise en production 24/7.</p>
+      <div class="topbtns">
+        <a class="btn btn-s" href="/connecter">← Retour à « Connecter »</a>
+        <a class="btn btn-s" href="/telecharger/connecteur.zip">⬇ Connecteur (.zip)</a>
+        <button class="btn btn-s" onclick="window.print()" type="button">🖨 Imprimer / PDF</button>
+      </div>
+    </section>
+
+    <section style="padding:26px 0 56px">
+      <div class="layout">
+        <nav class="toc" aria-label="Sommaire">
+          <div class="tt">Sommaire</div>
+          <a href="#s1">1. Vue d'ensemble &amp; sécurité</a>
+          <a href="#s2">2. Prérequis</a>
+          <a href="#s3">3. Installation</a>
+          <a href="#s4">4. Configuration &amp; premier test</a>
+          <a href="#s5">5. Selon votre plateforme</a>
+          <a href="#s6">6. Modèle de données</a>
+          <a href="#s7">7. Production 24/7</a>
+          <a href="#s8">8. Supervision du connecteur</a>
+          <a href="#s9">9. Recette de l'intégration</a>
+          <a href="#s10">10. Dépannage</a>
+          <a href="#s11">11. Bonnes pratiques sécurité</a>
+        </nav>
+
+        <div>
+          <div class="gsec" id="s1" style="--sc:linear-gradient(90deg,var(--cyan),var(--teal))">
+            <h2><span class="n">1</span>Vue d'ensemble &amp; modèle de sécurité</h2>
+            <p>Le raccordement repose sur un <strong>connecteur</strong> : un programme Python léger, fourni par
+            CONSEILPREV, que vous exécutez <strong>dans votre environnement</strong> (collecteur, VM, poste d'administration).
+            Il lit votre source de données puis pousse des événements normalisés vers le cockpit.</p>
+            <pre class="code">[ Plateforme OT / syslog / CSV ]  →  [ Connecteur (chez vous) ]  →  HTTPS sortant  →  [ Cockpit /api/ingest ]</pre>
+            <h3>Principes de sécurité</h3>
+            <ul>
+              <li><strong>Flux sortant uniquement</strong> : le connecteur ouvre une connexion HTTPS <em>vers</em> le cockpit.
+                Aucun flux entrant n'est requis vers votre réseau industriel.</li>
+              <li><strong>Collecte passive</strong> : lecture d'API (GET) ou réception syslog — le connecteur n'émet rien
+                vers vos automates et n'écrit rien sur votre plateforme.</li>
+              <li><strong>Authentification par jeton</strong> : chaque envoi porte l'en-tête <code>X-Ingest-Token</code> ;
+                sans jeton valide, le cockpit refuse (401).</li>
+              <li><strong>Cohérence IEC 62443</strong> : placez le connecteur dans une zone de supervision dédiée ;
+                le flux sortant vers le cockpit constitue un conduit maîtrisé et documenté.</li>
+            </ul>
+            <div class="callout info"><strong>Où l'installer ?</strong> Sur une machine qui ① voit l'API de votre plateforme
+              (ou reçoit ses syslog) et ② peut sortir en HTTPS (port 443) vers le cockpit. Typiquement : une VM de la
+              zone de supervision ou une DMZ industrielle.</div>
+          </div>
+
+          <div class="gsec" id="s2" style="--sc:linear-gradient(90deg,var(--violet),var(--cyan))">
+            <h2><span class="n">2</span>Prérequis</h2>
+            <table class="g">
+              <tr><th>Élément</th><th>Détail</th></tr>
+              <tr><td>Machine hôte</td><td>Linux, Windows ou macOS — 1 vCPU / 512 Mo suffisent. Pour la production : Linux avec systemd recommandé.</td></tr>
+              <tr><td>Python</td><td>Python <strong>3.8 ou plus</strong> (vérifier : <code>python3 --version</code>). <strong>Aucune dépendance</strong> à installer (bibliothèque standard uniquement).</td></tr>
+              <tr><td>Flux réseau</td><td>Sortant HTTPS (443) vers le cockpit. Selon la source : accès à l'API de la plateforme, ou port UDP local (ex. 5514) pour recevoir le syslog.</td></tr>
+              <tr><td>Jeton d'ingestion</td><td><code>INGEST_TOKEN</code> — remis par l'administrateur du cockpit (visible pour lui sur la page <a href="/connecter">Connecter</a>).</td></tr>
+              <tr><td>Accès plateforme</td><td>Un jeton/compte API <strong>en lecture seule</strong> sur votre plateforme OT (ou une règle de transfert syslog/CEF).</td></tr>
+            </table>
+            <div class="callout warn"><strong>À demander à votre équipe réseau :</strong> l'ouverture du flux sortant
+              « connecteur → cockpit » en HTTPS, et si besoin le renvoi syslog « plateforme → connecteur ». Rien d'autre.</div>
+          </div>
+
+          <div class="gsec" id="s3" style="--sc:linear-gradient(90deg,var(--amber),var(--terra))">
+            <h2><span class="n">3</span>Installation</h2>
+            <ol>
+              <li>Téléchargez le connecteur : <a href="/telecharger/connecteur.zip">conseilprev-connecteur.zip</a> (bouton
+                aussi disponible sur la page <a href="/connecter">Connecter</a>).</li>
+              <li>Décompressez-le sur la machine hôte :</li>
+            </ol>
+            <pre class="code">mkdir -p /opt/conseilprev && cd /opt/conseilprev
+unzip ~/conseilprev-connecteur.zip
+<span class="c"># le dossier connectors/ contient : connector.py (CLI), les sources (API, syslog, CSV),
+# un mock de test, et deploy/ (guide + service systemd + Dockerfile)</span></pre>
+            <ol start="3">
+              <li>Vérifiez que tout répond :</li>
+            </ol>
+            <pre class="code">python3 -m connectors.connector --help
+python3 -m connectors.connector presets      <span class="c"># liste des plateformes préconfigurées</span></pre>
+            <div class="callout ok">Aucun <code>pip install</code>, aucun accès Internet requis pour l'installation :
+              le connecteur n'utilise que la bibliothèque standard Python.</div>
+          </div>
+
+          <div class="gsec" id="s4" style="--sc:linear-gradient(90deg,var(--teal),var(--green))">
+            <h2><span class="n">4</span>Configuration &amp; premier test</h2>
+            <h3>4.1 Variables d'environnement</h3>
+            <pre class="code" id="envpre">export COCKPIT_URL="{ORIGIN}"
+export INGEST_TOKEN="VOTRE_JETON"          <span class="c"># remis par l'administrateur</span>
+<span class="c"># PKI interne (optionnel) : export COCKPIT_CAFILE=/chemin/ca.pem</span></pre>
+            <h3>4.2 Test à blanc (aucun envoi)</h3>
+            <p>Le mode <code>--dry-run</code> affiche ce qui <em>serait</em> envoyé, sans rien transmettre —
+              idéal pour valider le mapping avant d'ouvrir le flux :</p>
+            <pre class="code">python3 -m connectors.connector demo --dry-run</pre>
+            <h3>4.3 Premier envoi réel</h3>
+            <pre class="code">python3 -m connectors.connector demo --interval 1
+<span class="c"># puis ouvrez le cockpit → « ◉ Temps réel » : les événements de démonstration apparaissent</span></pre>
+            <p>Ou en un seul appel HTTP (sans le connecteur) :</p>
+            <pre class="code" id="curlpre">curl -X POST {ORIGIN}/api/ingest \
+  -H "content-type: application/json" -H "X-Ingest-Token: $INGEST_TOKEN" \
+  -d '{"asset":"Automate-Test","zone":"Supervision (SCADA)","type":"discovery","event":"Premier événement","severity":"info"}'</pre>
+          </div>
+
+          <div class="gsec" id="s5" style="--sc:linear-gradient(90deg,var(--cyan),var(--violet))">
+            <h2><span class="n">5</span>Selon votre plateforme</h2>
+            <p>Les <strong>presets</strong> préconfigurent l'endpoint attendu et la correspondance des champs.
+              Deux modes selon la plateforme :</p>
+            <table class="g">
+              <tr><th>Mode</th><th>Principe</th><th>Quand le choisir</th></tr>
+              <tr><td>Pull (API)</td><td>Le connecteur interroge l'API de la plateforme toutes les N secondes (lecture seule, dédoublonnage automatique).</td><td>Vous avez un compte API lecture seule.</td></tr>
+              <tr><td>Push (syslog/CEF)</td><td>La plateforme émet ses alertes vers le connecteur qui écoute en UDP.</td><td>Le plus simple si la plateforme sait « forwarder » (Defender for IoT, Nozomi, Claroty CTD, Forescout…).</td></tr>
+            </table>
+
+            <h3>Nozomi Networks (Guardian / Vantage)</h3>
+            <pre class="code"><span class="c"># Actifs OT — le score de risque (0-100) pondère les zones du cockpit</span>
+python3 -m connectors.connector otplatform --preset nozomi_assets \
+  --url "https://&lt;guardian&gt;/api/open/query/do?query=nodes" \
+  --header "Authorization: Bearer $TOKEN_PLATEFORME" --interval 30
+<span class="c"># Alertes de sécurité</span>
+python3 -m connectors.connector otplatform --preset nozomi \
+  --url "https://&lt;guardian&gt;/api/open/query/do?query=alerts" \
+  --header "Authorization: Bearer $TOKEN_PLATEFORME" --interval 10
+<span class="c"># Réseaux sans fil (inventaire Wi-Fi/IIoT)</span>
+python3 -m connectors.connector otplatform --preset nozomi_wireless \
+  --url "https://&lt;guardian&gt;/api/open/query/do?query=wireless_networks" \
+  --set type=discovery --set "zone=Terrain (capteurs)" --interval 60</pre>
+
+            <h3>Claroty (xDome / CTD)</h3>
+            <pre class="code"><span class="c"># Actifs (risk score)</span>
+python3 -m connectors.connector otplatform --preset claroty_assets \
+  --url "https://&lt;tenant&gt;.claroty.com/api/v1/devices" \
+  --header "Authorization: Bearer $TOKEN_PLATEFORME" --interval 30
+<span class="c"># Alertes</span>
+python3 -m connectors.connector otplatform --preset claroty \
+  --url "https://&lt;tenant&gt;.claroty.com/api/v1/alerts" \
+  --header "Authorization: Bearer $TOKEN_PLATEFORME" --interval 10
+<span class="c"># CTD on-prem : possible aussi en transfert syslog/CEF → voir « Syslog / CEF »</span></pre>
+
+            <h3>Tenable OT Security</h3>
+            <pre class="code"><span class="c"># Actifs (risque 0-100 ; ≥ 70 = high risk chez Tenable, aligné sur le cockpit)</span>
+python3 -m connectors.connector otplatform --preset tenable_ot_assets \
+  --url "https://&lt;tenableot&gt;/v1/assets" \
+  --header "X-ApiKeys: accessKey=$AK;secretKey=$SK" --interval 30
+<span class="c"># Événements</span>
+python3 -m connectors.connector otplatform --preset tenable_ot \
+  --url "https://&lt;tenableot&gt;/v1/events" \
+  --header "X-ApiKeys: accessKey=$AK;secretKey=$SK" --interval 60</pre>
+
+            <h3>Microsoft Defender for IoT</h3>
+            <pre class="code"><span class="c"># Recommandé : transfert syslog/CEF du capteur vers le connecteur</span>
+python3 -m connectors.connector syslog --listen 0.0.0.0:5514
+<span class="c"># (sur le capteur : Forwarding rule « syslog CEF » vers IP_connecteur:5514)</span>
+<span class="c"># Alternative API capteur — actifs puis alertes</span>
+python3 -m connectors.connector otplatform --preset defender_iot_assets \
+  --url "https://&lt;capteur&gt;/api/v1/devices" --header "Authorization: Bearer $TOKEN_PLATEFORME" --interval 30
+python3 -m connectors.connector otplatform --preset defender_iot_sensor \
+  --url "https://&lt;capteur&gt;/api/v1/alerts" --header "Authorization: Bearer $TOKEN_PLATEFORME" --interval 15</pre>
+
+            <h3>Dragos · Armis · Forescout · Cisco Cyber Vision</h3>
+            <pre class="code">python3 -m connectors.connector otplatform --preset dragos \
+  --url "https://&lt;dragos&gt;/api/v1/notifications" --header "Authorization: Bearer $T" --interval 15
+python3 -m connectors.connector otplatform --preset armis \
+  --url "https://&lt;tenant&gt;.armis.com/api/v1/alerts/" --header "Authorization: $T" --interval 15
+python3 -m connectors.connector otplatform --preset forescout \
+  --url "https://&lt;command-center&gt;/api/alerts" --header "Authorization: Bearer $T" --interval 15
+python3 -m connectors.connector otplatform --preset cisco_cyber_vision \
+  --url "https://&lt;cybervision&gt;/api/3.0/events" --header "x-token-id: $T" --interval 15</pre>
+
+            <h3>Syslog / CEF (toute source)</h3>
+            <pre class="code"><span class="c"># Écoute UDP — pointez firewalls, switches, sondes vers le connecteur (port 5514)</span>
+python3 -m connectors.connector syslog --listen 0.0.0.0:5514
+<span class="c"># Ou suivi d'un fichier de log</span>
+python3 -m connectors.connector syslog --file /var/log/syslog</pre>
+            <p>Le format <strong>CEF</strong> est décodé automatiquement (nom d'alerte, sévérité, hôte, zone).</p>
+
+            <h3>Export CSV</h3>
+            <pre class="code">python3 -m connectors.connector csv --file mon-export.csv --interval 1
+<span class="c"># Colonnes reconnues (toutes optionnelles) : asset, zone, type, event, severity, ts</span></pre>
+
+            <div class="callout info"><strong>Champ différent dans votre version ?</strong> Chaque champ se surcharge sans
+              toucher au code : <code>--map severity=risk_level</code>, <code>--map asset=hostname</code>… Et
+              <code>--set champ=valeur</code> force une constante (ex. <code>--set "zone=Terrain (capteurs)"</code>).
+              La liste des mappings par preset : <code>python3 -m connectors.connector presets</code>.</div>
+          </div>
+
+          <div class="gsec" id="s6" style="--sc:linear-gradient(90deg,var(--green),var(--cyan))">
+            <h2><span class="n">6</span>Modèle de données (référence)</h2>
+            <p>Chaque événement envoyé au cockpit est normalisé vers :</p>
+            <pre class="code">{ "asset": "Automate S7-1500", "zone": "Supervision (SCADA)",
+  "type": "discovery", "event": "Nouvel actif inventorié",
+  "severity": "info", "ts": 1712345678901 }</pre>
+            <table class="g">
+              <tr><th>Champ</th><th>Rôle</th><th>Valeurs</th></tr>
+              <tr><td>asset</td><td>Nom de l'équipement (alimente l'inventaire — dédoublonné)</td><td>libre (120 car. max)</td></tr>
+              <tr><td>zone</td><td>Rattachement à l'une des 5 zones du cockpit</td><td>Entreprise (IT) · DMZ industrielle · Supervision (SCADA) · Cellule / Contrôle · Terrain (capteurs) — rattachement automatique par mots-clés, sinon <code>--set zone=…</code></td></tr>
+              <tr><td>type</td><td>Nature de l'événement</td><td><code>discovery</code> (découverte), <code>patch</code> (correctif), autre = alerte/info</td></tr>
+              <tr><td>event</td><td>Texte affiché dans le journal</td><td>libre (240 car. max)</td></tr>
+              <tr><td>severity</td><td>Gravité</td><td>Texte : critical/high/major → <strong>critique</strong> ; medium/minor/warning → <strong>avertissement</strong> ; low/info → info. Numérique (score de risque) : 0-10 (≥7 critique, 4-6 avert.) ou 0-100 (≥70 critique, 40-69 avert.)</td></tr>
+              <tr><td>ts</td><td>Horodatage (ms epoch)</td><td>ajouté automatiquement si absent</td></tr>
+            </table>
+          </div>
+
+          <div class="gsec" id="s7" style="--sc:linear-gradient(90deg,var(--violet),var(--terra))">
+            <h2><span class="n">7</span>Mise en production 24/7 (systemd)</h2>
+            <ol>
+              <li>Créez le fichier d'environnement (contient les secrets — protégez-le) :</li>
+            </ol>
+            <pre class="code">sudo mkdir -p /etc/conseilprev
+sudo cp connectors/deploy/connector.env.example /etc/conseilprev/connector.env
+sudo nano /etc/conseilprev/connector.env      <span class="c"># COCKPIT_URL, INGEST_TOKEN, OT_API_URL, OT_API_TOKEN, OT_PRESET…</span>
+sudo chmod 600 /etc/conseilprev/connector.env</pre>
+            <ol start="2">
+              <li>Installez et démarrez le service :</li>
+            </ol>
+            <pre class="code">sudo cp connectors/deploy/conseilprev-connector.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now conseilprev-connector
+journalctl -u conseilprev-connector -f          <span class="c"># suivre les logs</span></pre>
+            <p>Le service redémarre automatiquement en cas de coupure et au démarrage de la machine.
+              Une alternative <strong>Docker</strong> est fournie (<code>connectors/deploy/Dockerfile</code>).</p>
+          </div>
+
+          <div class="gsec" id="s8" style="--sc:linear-gradient(90deg,var(--amber),var(--cyan))">
+            <h2><span class="n">8</span>Supervision du connecteur</h2>
+            <p>Ajoutez <code>--metrics-port 9109</code> à n'importe quelle commande : le connecteur expose alors</p>
+            <ul>
+              <li><code>/metrics</code> — métriques <strong>Prometheus</strong> : événements envoyés/échoués,
+                horodatage du dernier succès, disponibilité ;</li>
+              <li><code>/healthz</code> — sonde de vie (supervision simple, load-balancer, Zabbix…).</li>
+            </ul>
+            <pre class="code">scrape_configs:
+  - job_name: conseilprev-connector
+    static_configs: [{ targets: ['collecteur.interne:9109'] }]</pre>
+            <p>Alertes recommandées : scrape en échec (connecteur mort) · aucun envoi réussi depuis 15 min ·
+              compteur d'échecs qui augmente. Exemples de règles complets dans <code>connectors/deploy/DEPLOY.md</code> (§10).</p>
+          </div>
+
+          <div class="gsec" id="s9" style="--sc:linear-gradient(90deg,var(--teal),var(--cyan))">
+            <h2><span class="n">9</span>Recette de l'intégration (checklist)</h2>
+            <ul class="check">
+              <li><code>connector … --dry-run</code> affiche des événements corrects (bonnes zones, bonnes sévérités).</li>
+              <li>Le test curl renvoie <code>{"ok": true}</code>.</li>
+              <li>Le cockpit en mode <strong>◉ Temps réel</strong> affiche les événements (journal + inventaire).</li>
+              <li>Les zones passent en <em>surveillance/alerte</em> selon la gravité attendue.</li>
+              <li>La page <a href="/tendances">Tendances</a> se construit (historique persisté).</li>
+              <li>Le service systemd est <code>active (running)</code> et survit à un <code>reboot</code>.</li>
+              <li>Les métriques répondent sur <code>:9109/metrics</code> et l'alerte « connecteur mort » est en place.</li>
+              <li>Le jeton plateforme est en <strong>lecture seule</strong> ; le fichier d'env est en <code>chmod 600</code>.</li>
+            </ul>
+          </div>
+
+          <div class="gsec" id="s10" style="--sc:linear-gradient(90deg,var(--terra),var(--amber))">
+            <h2><span class="n">10</span>Dépannage</h2>
+            <table class="g">
+              <tr><th>Symptôme</th><th>Cause probable</th><th>Correctif</th></tr>
+              <tr><td>« AUTH 401 » côté connecteur</td><td>Jeton d'ingestion absent ou erroné</td><td>Vérifiez <code>INGEST_TOKEN</code> (identique à celui du cockpit — demandez à l'administrateur).</td></tr>
+              <tr><td>« 503 ingestion désactivée »</td><td>Le cockpit n'a pas de jeton configuré côté serveur</td><td>L'administrateur doit définir <code>INGEST_TOKEN</code> dans l'hébergement du cockpit.</td></tr>
+              <tr><td>Erreur TLS / certificat</td><td>PKI interne, proxy SSL</td><td><code>--cafile /chemin/ca.pem</code> (bundle de votre PKI). Ne désactivez jamais la vérification en production.</td></tr>
+              <tr><td>« Plateforme injoignable »</td><td>URL/API inaccessibles depuis la machine hôte</td><td>Testez <code>curl -k https://plateforme/…</code> depuis la même machine ; vérifiez pare-feu et DNS.</td></tr>
+              <tr><td>Rien ne s'affiche en Temps réel</td><td>Événements envoyés avant l'ouverture de la page ?</td><td>Le cockpit charge l'état courant à la connexion — vérifiez <code>/api/state</code> (compte requis) et le journal du connecteur (« OK … »).</td></tr>
+              <tr><td>Tous les événements en « info »</td><td>Champ de gravité non mappé</td><td>Surchargez : <code>--map severity=risk</code> (ou le nom exact du champ chez vous).</td></tr>
+              <tr><td>Zone « — » ou mal rattachée</td><td>Libellé de zone inconnu du cockpit</td><td>Forcez : <code>--set "zone=Cellule / Contrôle"</code> (une des 5 zones), ou mappez : <code>--map zone=site_name</code>.</td></tr>
+              <tr><td>Doublons d'événements</td><td>Champ identifiant absent</td><td>Précisez <code>--id-field</code> (défaut <code>id</code>) — le dédoublonnage s'appuie dessus.</td></tr>
+            </table>
+          </div>
+
+          <div class="gsec" id="s11" style="--sc:linear-gradient(90deg,var(--cyan),var(--green))">
+            <h2><span class="n">11</span>Bonnes pratiques sécurité</h2>
+            <ul>
+              <li><strong>Secrets</strong> : jeton d'ingestion et jeton plateforme uniquement en variables d'environnement
+                (<code>chmod 600</code>), jamais dans un dépôt ni un ticket. Prévoyez une rotation périodique.</li>
+              <li><strong>Moindre privilège</strong> : compte API plateforme en <strong>lecture seule</strong> ;
+                le connecteur n'a besoin de rien d'autre.</li>
+              <li><strong>Cloisonnement</strong> : connecteur en zone de supervision ; seul le flux sortant HTTPS est ouvert
+                (conduit documenté, cohérent IEC 62443).</li>
+              <li><strong>Confidentialité</strong> : n'envoyez de vraies données que vers une instance de cockpit
+                <strong>privée</strong> (comptes utilisateurs activés — c'est le cas ici).</li>
+              <li><strong>Traçabilité</strong> : conservez les journaux du connecteur (systemd/journald) et surveillez
+                les métriques (§8).</li>
+            </ul>
+            <div class="callout ok"><strong>Besoin d'aide ?</strong> Cadrage des flux, cloisonnement, validation avec votre
+              exploitant : <a href="/contact">contactez-nous</a> — l'intégration peut être réalisée avec vous en atelier.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Cybersécurité industrielle IT / OT / IIoT</div>
+      <div class="fnav">
+        <a href="/about">À propos</a>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/demo">Démo</a>
+        <a href="/contact">Contact</a>
+        <a href="/mentions-legales">Mentions légales</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+  document.getElementById('y').textContent=new Date().getFullYear();
+  (function(){
+    // URL réelle du cockpit dans les exemples.
+    ['envpre','curlpre'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el) el.innerHTML=el.innerHTML.replace(/\{ORIGIN\}/g, location.origin);
+    });
+    // Sommaire actif au défilement.
+    var links=[].slice.call(document.querySelectorAll('.toc a'));
+    var secs=links.map(function(a){return document.querySelector(a.getAttribute('href'));});
+    function onScroll(){
+      var y=window.scrollY+120, cur=0;
+      secs.forEach(function(s,i){ if(s && s.offsetTop<=y) cur=i; });
+      links.forEach(function(a,i){ a.classList.toggle('on', i===cur); });
+    }
+    window.addEventListener('scroll', onScroll, {passive:true}); onScroll();
+  })();
+  </script>
+</body>
+</html>
