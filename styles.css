@@ -15,7 +15,7 @@
   --maxw:1080px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
+html{scroll-behavior:smooth;overflow-x:clip}
 body{
   font-family:var(--sans);background-color:var(--bg);color:var(--ink);
   line-height:1.6;font-size:16px;-webkit-font-smoothing:antialiased;min-height:100vh;
@@ -155,22 +155,21 @@ header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
   transition:color .15s,border-color .15s,background .15s;position:relative}
 .tipi:hover,.tipi:focus-visible{color:var(--ink);border-color:var(--terra);
   background:rgba(217,96,58,.12);outline:none}
-.tipi::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 10px);left:-6px;
-  width:max-content;max-width:250px;
+.tipi::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 10px);left:50%;
+  width:max-content;max-width:230px;
   background:#2A1A12;color:#F3EEE7;border:1px solid var(--line);border-radius:10px;
   padding:9px 12px;font:400 12.5px/1.45 var(--sans);letter-spacing:normal;
   text-transform:none;text-align:left;white-space:normal;
   box-shadow:0 14px 34px rgba(0,0,0,.45);
-  opacity:0;visibility:hidden;transform:translateY(5px);pointer-events:none;
+  opacity:0;visibility:hidden;transform:translate(-50%,5px);pointer-events:none;
   transition:opacity .16s ease,transform .16s ease;z-index:60}
-.tipi::before{content:"";position:absolute;bottom:calc(100% + 4px);left:2px;
+.tipi::before{content:"";position:absolute;bottom:calc(100% + 4px);left:50%;
   border:6px solid transparent;border-top-color:var(--line);
-  opacity:0;visibility:hidden;transition:opacity .16s ease;z-index:61}
-.tipi:hover::after,.tipi:focus-visible::after,.tipi:focus::after,
-.tipi:hover::before,.tipi:focus-visible::before,.tipi:focus::before{
-  opacity:1;visibility:visible;transform:translateY(0)}
-@media(max-width:520px){.tipi::after{max-width:200px;left:auto;right:-6px}
-  .tipi::before{left:auto;right:2px}}
+  opacity:0;visibility:hidden;transform:translateX(-50%);transition:opacity .16s ease;z-index:61}
+.tipi:hover::after,.tipi:focus-visible::after,.tipi:focus::after{
+  opacity:1;visibility:visible;transform:translate(-50%,0)}
+.tipi:hover::before,.tipi:focus-visible::before,.tipi:focus::before{opacity:1;visibility:visible}
+@media(max-width:520px){.tipi::after{max-width:190px}}
 @media print{.tipi{display:none}}
 /* Petit bandeau « formulaire sécurisé » (confiance) */
 .secnote{display:flex;align-items:center;gap:8px;margin-top:14px;

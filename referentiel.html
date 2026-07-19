@@ -8,8 +8,8 @@
 <link rel="stylesheet" href="/styles.css">
 <style>
   .modcard{display:block;text-decoration:none;background:linear-gradient(180deg,var(--panel),var(--bg2));
-    border:1px solid var(--line);border-radius:14px;padding:22px;position:relative;overflow:hidden;transition:transform .18s,border-color .18s}
-  .modcard::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--c,linear-gradient(90deg,var(--cyan),var(--teal)))}
+    border:1px solid var(--line);border-radius:14px;padding:22px;position:relative;transition:transform .18s,border-color .18s}
+  .modcard::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;border-radius:14px 14px 0 0;background:var(--c,linear-gradient(90deg,var(--cyan),var(--teal)))}
   .modcard:hover{transform:translateY(-4px);border-color:#41493F}
   .modcard .part{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--cyan);border:1px solid var(--line);border-radius:6px;padding:3px 9px;display:inline-block;margin-bottom:12px}
   .modcard h3{font-size:18px;color:var(--ink);margin-bottom:6px;letter-spacing:-.01em}
@@ -51,67 +51,67 @@
     <section class="section" style="padding-top:24px">
       <div class="grid grid-2">
         <a class="modcard m1" href="/methodologie">
-          <span class="part">IEC 62443‑1‑1</span>
+          <span class="part">IEC 62443‑1‑1</span><span class="tipi" tabindex="0" data-tip="Partie 1‑1 : concepts, terminologie et modèles fondateurs de la série." aria-label="Aide : Partie 1‑1" onclick="event.preventDefault();event.stopPropagation();">i</span>
           <h3>Concepts &amp; méthodologie</h3>
           <p>Terminologie, exigences fondamentales (FR), niveaux de sécurité (SL), défense en profondeur et cycle de vie — le socle et notre démarche en six phases.</p>
           <div class="go">Ouvrir la méthodologie →</div>
         </a>
         <a class="modcard" style="--c:linear-gradient(90deg,var(--cyan),var(--violet))" href="/analyse-de-risque">
-          <span class="part">IEC 62443‑3‑2</span>
+          <span class="part">IEC 62443‑3‑2</span><span class="tipi" tabindex="0" data-tip="Partie 3‑2 : découper l'installation en zones et conduits et fixer les niveaux de sécurité cibles (analyse de risque)." aria-label="Aide : Partie 3‑2" onclick="event.preventDefault();event.stopPropagation();">i</span>
           <h3>Analyse de risque (zones &amp; conduits)</h3>
           <p>Découper le système en zones et conduits, attribuer les niveaux de sécurité cibles (SL‑T) et produire la spécification des exigences (CRS).</p>
           <div class="go">Ouvrir l'analyse de risque →</div>
         </a>
         <a class="modcard m2" href="/programme-securite">
-          <span class="part">IEC 62443‑2‑1</span>
+          <span class="part">IEC 62443‑2‑1</span><span class="tipi" tabindex="0" data-tip="Partie 2‑1 : le programme de management de la cybersécurité (CSMS) — volet organisationnel." aria-label="Aide : Partie 2‑1" onclick="event.preventDefault();event.stopPropagation();">i</span>
           <h3>Programme de sécurité (CSMS)</h3>
           <p>Le volet organisationnel&nbsp;: établir et maintenir un système de management de la cybersécurité — 3 catégories, 19 éléments.</p>
           <div class="go">Ouvrir le programme CSMS →</div>
         </a>
         <a class="modcard m3" href="/exigences-systeme">
-          <span class="part">IEC 62443‑3‑3</span>
+          <span class="part">IEC 62443‑3‑3</span><span class="tipi" tabindex="0" data-tip="Partie 3‑3 : les exigences de sécurité au niveau du système (51 SR, niveaux SL 1‑4)." aria-label="Aide : Partie 3‑3" onclick="event.preventDefault();event.stopPropagation();">i</span>
           <h3>Exigences système</h3>
           <p>Les 7 exigences fondamentales déclinées en 51 exigences système (SR), associées aux niveaux SL 1‑4.</p>
           <div class="go">Ouvrir les exigences système →</div>
         </a>
         <a class="modcard m4" href="/exigences-composants">
-          <span class="part">IEC 62443‑4‑2</span>
+          <span class="part">IEC 62443‑4‑2</span><span class="tipi" tabindex="0" data-tip="Partie 4‑2 : les exigences de sécurité au niveau des composants (CR), par type." aria-label="Aide : Partie 4‑2" onclick="event.preventDefault();event.stopPropagation();">i</span>
           <h3>Exigences composants</h3>
           <p>Les exigences au niveau du composant (CR) par type — applications, embarqués, hôtes, réseau — et la sécurité matérielle.</p>
           <div class="go">Ouvrir les exigences composants →</div>
         </a>
         <a class="modcard m5" href="/gestion-correctifs">
-          <span class="part">IEC 62443‑2‑3</span>
+          <span class="part">IEC 62443‑2‑3</span><span class="tipi" tabindex="0" data-tip="Partie 2‑3 : la gestion des correctifs (patch management) en environnement industriel." aria-label="Aide : Partie 2‑3" onclick="event.preventDefault();event.stopPropagation();">i</span>
           <h3>Gestion des correctifs</h3>
           <p>Le patch management en environnement IACS&nbsp;: rôles, modèle d'états des correctifs et mesures compensatoires.</p>
           <div class="go">Ouvrir la gestion des correctifs →</div>
         </a>
         <a class="modcard" style="--c:linear-gradient(90deg,var(--amber),var(--cyan))" href="/exigences-prestataires">
-          <span class="part">IEC 62443‑2‑4</span>
+          <span class="part">IEC 62443‑2‑4</span><span class="tipi" tabindex="0" data-tip="Partie 2‑4 : les exigences de sécurité pour les prestataires d'intégration et de maintenance." aria-label="Aide : Partie 2‑4" onclick="event.preventDefault();event.stopPropagation();">i</span>
           <h3>Exigences prestataires</h3>
           <p>Sécurité des prestataires d'intégration et de maintenance&nbsp;: capacités, modèle de maturité (CMMI‑SVC) et profils sectoriels.</p>
           <div class="go">Ouvrir les exigences prestataires →</div>
         </a>
         <a class="modcard" style="--c:linear-gradient(90deg,var(--green),var(--cyan))" href="/developpement-securise">
-          <span class="part">IEC 62443‑4‑1</span>
+          <span class="part">IEC 62443‑4‑1</span><span class="tipi" tabindex="0" data-tip="Partie 4‑1 : le cycle de développement sécurisé des produits (SDL)." aria-label="Aide : Partie 4‑1" onclick="event.preventDefault();event.stopPropagation();">i</span>
           <h3>Développement sécurisé</h3>
           <p>Le cycle de développement sécurisé des produits (SDL)&nbsp;: 8 pratiques, threat modelling et maturité CMMI‑DEV.</p>
           <div class="go">Ouvrir le développement sécurisé →</div>
         </a>
         <a class="modcard" style="--c:linear-gradient(90deg,var(--cyan),var(--amber))" href="/technologies-securite">
-          <span class="part">IEC TR 62443‑3‑1</span>
+          <span class="part">IEC TR 62443‑3‑1</span><span class="tipi" tabindex="0" data-tip="Rapport technique 3‑1 : panorama des technologies de sécurité applicables à l'OT." aria-label="Aide : Rapport technique 3‑1" onclick="event.preventDefault();event.stopPropagation();">i</span>
           <h3>Technologies de sécurité</h3>
           <p>Panorama des familles de technologies (authentification, filtrage, chiffrement, détection, hôtes, physique) et leur usage en OT.</p>
           <div class="go">Ouvrir les technologies de sécurité →</div>
         </a>
         <a class="modcard" style="--c:linear-gradient(90deg,var(--violet),var(--teal))" href="/glossaire-62443">
-          <span class="part">IEC 62443‑1‑2</span>
+          <span class="part">IEC 62443‑1‑2</span><span class="tipi" tabindex="0" data-tip="Partie 1‑2 : le glossaire et le vocabulaire de référence de la série." aria-label="Aide : Partie 1‑2" onclick="event.preventDefault();event.stopPropagation();">i</span>
           <h3>Glossaire</h3>
           <p>Le vocabulaire de référence de la série&nbsp;: IACS, BPCS, SIS, SCADA, DCS, zones, conduits, SL, CSMS… reformulés pour être compris de tous.</p>
           <div class="go">Ouvrir le glossaire →</div>
         </a>
         <a class="modcard" style="--c:linear-gradient(90deg,var(--amber),var(--green))" href="/metriques-62443">
-          <span class="part">IEC 62443‑1‑3</span>
+          <span class="part">IEC 62443‑1‑3</span><span class="tipi" tabindex="0" data-tip="Partie 1‑3 : les métriques de conformité et indicateurs de sécurité." aria-label="Aide : Partie 1‑3" onclick="event.preventDefault();event.stopPropagation();">i</span>
           <h3>Métriques de conformité</h3>
           <p>Une méthodologie pour construire des indicateurs mesurables&nbsp;: écart au niveau cible, suivi de tendance et tableau de bord de sécurité.</p>
           <div class="go">Ouvrir les métriques →</div>
