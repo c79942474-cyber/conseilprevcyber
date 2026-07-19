@@ -397,6 +397,12 @@ def styles():
     return send_from_directory(HERE, "styles.css", mimetype="text/css")
 
 
+@app.route("/nav.js")
+def nav_js():
+    """Script partagé de l'en-tête responsive (menu « burger » sur mobile)."""
+    return send_from_directory(HERE, "nav.js", mimetype="text/javascript")
+
+
 @app.route("/api/contact", methods=["POST"])
 def api_contact():
     """Traite le formulaire de contact et envoie un email via Brevo."""

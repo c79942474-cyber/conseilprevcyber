@@ -93,6 +93,38 @@ header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
 .nav .cta:hover{filter:brightness(1.08)}
 @media(max-width:720px){.nav .links a.hide{display:none}}
 
+/* ── En-tête responsive : bouton « burger » + menu déroulant (mobile) ──────────
+   Le bouton est injecté par /nav.js ; la bascule ne s'active que si le script
+   s'est exécuté (html.js-nav). Sans JavaScript, les liens passent simplement à
+   la ligne (repli accessible). */
+.nav-toggle{display:none;flex:0 0 auto;margin-left:auto;width:44px;height:40px;
+  padding:11px 9px;background:transparent;border:1px solid var(--line);border-radius:9px;
+  cursor:pointer;flex-direction:column;justify-content:space-between;align-items:stretch}
+.nav-toggle:hover{border-color:#41493F}
+.nav-toggle-bar{display:block;height:2px;border-radius:2px;background:var(--ink);
+  transition:transform .22s ease,opacity .2s ease}
+.nav.open .nav-toggle-bar:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.nav.open .nav-toggle-bar:nth-child(2){opacity:0}
+.nav.open .nav-toggle-bar:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+@media(max-width:860px){
+  .js-nav .nav-toggle{display:flex}
+  .js-nav .nav .links{
+    position:absolute;top:100%;left:0;right:0;
+    flex-direction:column;align-items:stretch;gap:0;
+    background:rgba(14,19,18,.98);backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--line);box-shadow:0 18px 40px rgba(0,0,0,.42);
+    padding:6px 0;
+    max-height:0;overflow:hidden;opacity:0;visibility:hidden;
+    transition:max-height .28s ease,opacity .2s ease,visibility .28s ease}
+  .js-nav .nav.open .links{max-height:min(82vh,560px);overflow-y:auto;opacity:1;visibility:visible}
+  .js-nav .nav .links a{padding:13px 24px;font-size:15px;color:var(--muted);
+    border-top:1px solid rgba(46,58,54,.5)}
+  .js-nav .nav .links a:first-child{border-top:none}
+  .js-nav .nav .links a.active{color:var(--cyan)}
+  .js-nav .nav .links a.cta{margin:10px 24px 6px;padding:12px 16px;text-align:center;
+    border-top:none;border-radius:8px}
+}
+
 /* Titres / sections */
 h1{font-size:clamp(32px,6vw,58px);line-height:1.06;letter-spacing:-.03em;font-weight:800}
 h2{font-size:clamp(24px,4vw,34px);letter-spacing:-.02em;font-weight:800;margin-bottom:12px}
