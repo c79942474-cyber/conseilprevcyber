@@ -3,13 +3,13 @@
    Thème cyber sombre, accents cyan/teal + terracotta (lien avec la marque).
    ========================================================================== */
 :root{
-  /* Fond « Crépuscule » chaud & éclairci : base ocre-rouge pastel, plus claire. */
-  --bg:#3A302A; --bg2:#3E332B; --panel:#4C3E34; --panel2:#413428; --line:#63513F;
-  --ink:#F3EEE7; --muted:#C9BAAB; --muted2:#A2937F;
+  /* Fond « Latérite » : base rouge-orangé chaud (terre latéritique), halos orange clair. */
+  --bg:#542C1E; --bg2:#5A3021; --panel:#7A5040; --panel2:#623E2D; --line:#8A5B44;
+  --ink:#F5EFE7; --muted:#D8C6B6; --muted2:#B69A88;
   --cyan:#22D3EE; --teal:#2DD4BF; --green:#34D399;
   --terra:#D9603A; --violet:#8B7CF6; --amber:#F0B429;
-  /* Blobs pastel flottants — tonalité ocre-rouge dominante, plus douce. */
-  --blob-ocre:rgba(248,200,150,.26); --blob-turquoise:rgba(228,158,126,.18); --blob-rouge:rgba(230,140,105,.24);
+  /* Blobs flottants — latérite rouge & orange clair. */
+  --blob-ocre:rgba(255,196,140,.26); --blob-turquoise:rgba(240,150,100,.20); --blob-rouge:rgba(224,96,58,.24);
   --mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
   --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   --maxw:1080px;
@@ -20,12 +20,12 @@ body{
   font-family:var(--sans);background-color:var(--bg);color:var(--ink);
   line-height:1.6;font-size:16px;-webkit-font-smoothing:antialiased;min-height:100vh;
   background-image:
-    radial-gradient(1020px 660px at 90% -10%, rgba(246,208,156,.16), transparent 60%),
-    radial-gradient(1120px 720px at -6% 108%, rgba(228,148,112,.26), transparent 62%),
-    radial-gradient(820px 560px at 106% 84%, rgba(214,150,120,.15), transparent 60%),
-    linear-gradient(168deg, #38302A 0%, #40342A 32%, #4A382B 62%, #52392A 86%, #573A28 100%),
-    linear-gradient(rgba(104,84,62,.28) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(104,84,62,.28) 1px, transparent 1px);
+    radial-gradient(1020px 660px at 90% -10%, rgba(255,190,120,.18), transparent 60%),
+    radial-gradient(1120px 720px at -6% 108%, rgba(240,130,80,.30), transparent 62%),
+    radial-gradient(820px 560px at 106% 84%, rgba(255,170,110,.16), transparent 60%),
+    linear-gradient(168deg, #4E2418 0%, #5C2C1C 32%, #6E3620 62%, #7A3E24 86%, #824326 100%),
+    linear-gradient(rgba(140,96,66,.26) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(140,96,66,.26) 1px, transparent 1px);
   background-size:auto,auto,auto,auto,44px 44px,44px 44px;
   background-attachment:fixed;
 }
@@ -78,7 +78,7 @@ a{color:var(--cyan);text-decoration:none}
 
 /* Header / nav (partagé) */
 header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
-  background:rgba(58,48,42,.74);border-bottom:1px solid var(--line)}
+  background:rgba(78,42,28,.76);border-bottom:1px solid var(--line)}
 .nav{display:flex;align-items:center;gap:18px;height:64px}
 .brand{display:flex;align-items:baseline;gap:8px;font-weight:700;letter-spacing:-.02em;font-size:18px;color:var(--ink)}
 .brand a{color:var(--ink)}
@@ -111,7 +111,7 @@ header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
   .js-nav .nav .links{
     position:absolute;top:100%;left:0;right:0;
     flex-direction:column;align-items:stretch;gap:0;
-    background:rgba(58,48,42,.97);backdrop-filter:blur(12px);
+    background:rgba(78,42,28,.97);backdrop-filter:blur(12px);
     border-bottom:1px solid var(--line);box-shadow:0 18px 40px rgba(0,0,0,.42);
     padding:6px 0;
     max-height:0;overflow:hidden;opacity:0;visibility:hidden;
