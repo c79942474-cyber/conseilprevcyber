@@ -161,14 +161,12 @@ header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
   padding:9px 12px;font:400 12.5px/1.45 var(--sans);letter-spacing:normal;
   text-transform:none;text-align:left;white-space:normal;
   box-shadow:0 14px 34px rgba(0,0,0,.45);
-  opacity:0;visibility:hidden;transform:translate(-50%,5px);pointer-events:none;
-  transition:opacity .16s ease,transform .16s ease;z-index:60}
+  display:none;transform:translateX(-50%);pointer-events:none;z-index:60}
 .tipi::before{content:"";position:absolute;bottom:calc(100% + 4px);left:50%;
   border:6px solid transparent;border-top-color:var(--line);
-  opacity:0;visibility:hidden;transform:translateX(-50%);transition:opacity .16s ease;z-index:61}
-.tipi:hover::after,.tipi:focus-visible::after,.tipi:focus::after{
-  opacity:1;visibility:visible;transform:translate(-50%,0)}
-.tipi:hover::before,.tipi:focus-visible::before,.tipi:focus::before{opacity:1;visibility:visible}
+  display:none;transform:translateX(-50%);z-index:61}
+.tipi:hover::after,.tipi:focus-visible::after,.tipi:focus::after,
+.tipi:hover::before,.tipi:focus-visible::before,.tipi:focus::before{display:block}
 @media(max-width:520px){.tipi::after{max-width:190px}}
 @media print{.tipi{display:none}}
 /* Petit bandeau « formulaire sécurisé » (confiance) */
@@ -202,6 +200,7 @@ h3{font-size:19px;letter-spacing:-.01em;font-weight:700}
 
 /* Cartes */
 .grid{display:grid;gap:18px}
+.grid>*{min-width:0} /* les enfants de grille peuvent rétrécir (tableaux à défilement interne) */
 .grid-3{grid-template-columns:repeat(3,1fr)}
 .grid-2{grid-template-columns:repeat(2,1fr)}
 @media(max-width:820px){.grid-3,.grid-2{grid-template-columns:1fr}}

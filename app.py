@@ -291,6 +291,7 @@ PAGES = {
     "/glossaire-62443": "glossaire-62443.html",
     "/metriques-62443": "metriques-62443.html",
     "/demo": "demo.html",
+    "/audit-conformite": "audit-conformite.html",
     "/tendances": "tendances.html",
     "/connecter": "connecter.html",
     "/guide-integration": "guide-integration.html",
@@ -389,6 +390,12 @@ def metriques_62443():
 @app.route("/demo")
 def demo():
     return _page(PAGES["/demo"])
+
+
+@app.route("/audit-conformite")
+def audit_conformite():
+    """Étude & audit de conformité IEC 62443 (mode démo public ; temps réel via compte)."""
+    return _page(PAGES["/audit-conformite"])
 
 
 @app.route("/tendances")
@@ -601,6 +608,13 @@ def api_ingest():
 def api_state():
     """Instantané de l'état courant du cockpit (inventaire, alertes, événements récents)."""
     return jsonify(state.snapshot())
+
+
+@app.route("/api/assets")
+@login_required
+def api_assets():
+    """Inventaire des actifs connus du cockpit (pour l'étude de conformité)."""
+    return jsonify(assets=state.inventory())
 
 
 @app.route("/api/trends")

@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Étude &amp; audit de conformité IEC 62443 — CONSEILPREV Cyber</title>
+<meta name="description" content="Étude et audit de conformité IEC 62443 : état des lieux des actifs, répartition par couches IT/OT, niveaux de sécurité, risques et vulnérabilités, remédiations et cycle de vie.">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  /* KPIs */
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+  @media(max-width:820px){.metrics{grid-template-columns:repeat(2,1fr)}}
+  .metric{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:14px;padding:18px 20px;position:relative}
+  .metric::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;border-radius:14px 14px 0 0;background:var(--mc,linear-gradient(90deg,var(--cyan),var(--teal)))}
+  .metric .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted2);margin-bottom:8px}
+  .metric .val{font-size:32px;font-weight:800;letter-spacing:-.02em;line-height:1}
+  .metric .sub{font-size:12px;color:var(--muted);margin-top:4px}
+
+  .panel{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:14px;padding:20px;margin-top:16px}
+  .panel h3{font-size:16px;margin-bottom:4px}
+  .panel .ph{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .panel .ph .live{font-family:var(--mono);font-size:11px;color:var(--green)}
+
+  .stepnum{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;
+    font-family:var(--mono);font-size:13px;font-weight:700;color:#2A1206;background:linear-gradient(135deg,var(--amber),var(--terra));margin-right:9px;vertical-align:-5px}
+
+  .modeswitch{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--panel2)}
+  .ms{font-family:var(--mono);font-size:12px;padding:8px 14px;background:none;border:none;color:var(--muted);cursor:pointer}
+  .ms.active{background:linear-gradient(135deg,var(--cyan),var(--teal));color:#04121A;font-weight:700}
+
+  /* Tables */
+  .tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel2)}
+  table{width:100%;border-collapse:collapse;font-size:13px;min-width:720px}
+  th{font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted2);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:9px 12px;border-bottom:1px solid rgba(154,102,80,.28);color:var(--muted);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td .an{color:var(--ink);font-weight:600}
+  .rk{display:inline-block;font-family:var(--mono);font-size:10.5px;border-radius:999px;padding:2px 10px;border:1px solid transparent;white-space:nowrap}
+  .rk.crit{color:#FFD9CE;background:rgba(228,87,63,.28);border-color:rgba(228,87,63,.55)}
+  .rk.high{color:#FFE3C4;background:rgba(240,138,60,.24);border-color:rgba(240,138,60,.5)}
+  .rk.med{color:#FFF0C2;background:rgba(240,194,75,.20);border-color:rgba(240,194,75,.45)}
+  .rk.low{color:#CFF5DF;background:rgba(52,211,153,.16);border-color:rgba(52,211,153,.4)}
+  .sl{font-family:var(--mono);font-size:11px;color:var(--cyan)}
+  .gap{font-family:var(--mono);font-size:10.5px;border-radius:6px;padding:2px 7px}
+  .gap.g0{color:var(--green);background:rgba(52,211,153,.14)}
+  .gap.g1{color:#FFE3C4;background:rgba(240,138,60,.22)}
+  .gap.g2{color:#FFD9CE;background:rgba(228,87,63,.26)}
+
+  /* Schéma en couches IT/OT */
+  .layers{display:flex;flex-direction:column;gap:0;margin-top:6px}
+  .layer{display:grid;grid-template-columns:210px 1fr;gap:14px;border:1px solid var(--line);border-radius:12px;
+    padding:13px 15px;background:linear-gradient(90deg,var(--panel2),transparent);position:relative}
+  .layer.alert{border-color:rgba(228,87,63,.65);box-shadow:inset 3px 0 0 rgba(228,87,63,.8)}
+  .layer.watch{border-color:rgba(240,194,75,.55);box-shadow:inset 3px 0 0 rgba(240,194,75,.7)}
+  @media(max-width:680px){.layer{grid-template-columns:1fr}}
+  .layer .lz .niv{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--muted2);text-transform:uppercase}
+  .layer .lz .nm{color:var(--ink);font-weight:700;font-size:14px;margin:2px 0}
+  .layer .lz .de{font-size:11.5px;color:var(--muted2)}
+  .layer .lz .slb{margin-top:6px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start}
+  .chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);
+    border:1px solid var(--line);border-radius:999px;padding:3px 10px;background:rgba(0,0,0,.14)}
+  .chip i{width:8px;height:8px;border-radius:50%;display:inline-block;flex:0 0 auto}
+  .conduitv{display:flex;align-items:center;gap:8px;height:26px;margin-left:96px;font-family:var(--mono);font-size:10px;color:var(--muted2)}
+  .conduitv i{display:block;width:2px;height:100%;background:var(--line)}
+  .conduitv.bad{color:#FFD9CE}.conduitv.bad i{background:rgba(228,87,63,.8)}
+
+  /* Panorama FR */
+  .frrow{display:grid;grid-template-columns:190px 1fr 52px;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(154,102,80,.28)}
+  .frrow:last-child{border-bottom:none}
+  @media(max-width:680px){.frrow{grid-template-columns:130px 1fr 44px}}
+  .frrow .fn{font-size:12.5px;color:var(--muted)}
+  .frrow .fn b{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--cyan)}
+  .frbar{height:10px;border-radius:6px;background:rgba(0,0,0,.28);border:1px solid var(--line);overflow:hidden}
+  .frbar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--terra),var(--amber),var(--green));transition:width .5s ease}
+  .frrow .pv{font-family:var(--mono);font-size:12px;text-align:right;color:var(--ink)}
+
+  /* Remédiations */
+  .horizon{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+  @media(max-width:820px){.horizon{grid-template-columns:1fr}}
+  .hz{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--panel2)}
+  .hz .ht{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+  .hz ul{list-style:none;margin:0}
+  .hz li{font-size:12.5px;color:var(--muted);padding:5px 0 5px 16px;position:relative}
+  .hz li::before{content:"▸";position:absolute;left:0;color:var(--cyan)}
+
+  /* Cycle de vie */
+  .cycle{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:10px}
+  @media(max-width:900px){.cycle{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.cycle{grid-template-columns:1fr}}
+  .cyc{border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--panel2);position:relative}
+  .cyc .cn{font-family:var(--mono);font-size:10px;color:var(--muted2);letter-spacing:.1em;text-transform:uppercase}
+  .cyc .ct{color:var(--ink);font-weight:700;font-size:13.5px;margin:4px 0 6px}
+  .cyc p{font-size:12px;color:var(--muted)}
+  .cyc .pp{margin-top:8px;display:flex;flex-wrap:wrap;gap:5px}
+  .cyc .pp a{font-family:var(--mono);font-size:10px;border:1px solid var(--line);border-radius:6px;padding:2px 7px;color:var(--cyan)}
+
+  .note{border:1px solid rgba(240,194,75,.4);background:rgba(240,180,41,.08);border-radius:11px;
+    padding:11px 14px;font-size:12.5px;color:var(--muted);margin-top:12px}
+  .note b{color:var(--amber)}
+  #liveNotice{display:none;border:1px solid rgba(34,211,238,.4);background:rgba(34,211,238,.07);
+    border-radius:11px;padding:12px 15px;font-size:13px;color:var(--muted);margin-top:14px}
+  .toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:18px 0 4px}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><a href="/">CONSEILPREV</a><span class="tag">Cyber</span></div>
+      <div class="spacer"></div>
+      <nav class="links">
+        <a href="/">Accueil</a>
+        <a href="/services">Services</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/demo">Démo temps réel</a>
+        <a href="/audit-conformite" class="active">Audit 62443</a>
+        <a href="/connexion">Espace client</a>
+        <a href="/contact" class="cta">Nous contacter</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head" style="padding-bottom:6px">
+      <span class="eyebrow"><span class="dot"></span>Étude &amp; audit · IEC 62443</span>
+      <h1>Étude de <span class="grad">conformité IEC&nbsp;62443</span> de vos actifs IT/OT.</h1>
+      <p class="lead" style="margin-top:16px">De l'état des lieux à la feuille de route&nbsp;: inventaire audité des actifs,
+      répartition par couches IT/OT et niveaux de sécurité, analyse de risque et vulnérabilités, panorama de conformité
+      selon la série IEC&nbsp;62443, remédiations — et connexion au cockpit temps réel pour une analyse automatique continue.</p>
+    </section>
+
+    <section style="padding-bottom:60px">
+      <div class="toolbar">
+        <div style="display:flex;align-items:center">
+          <div class="modeswitch" role="tablist" aria-label="Source des données">
+            <button id="mDemo" class="ms active" role="tab" aria-selected="true" type="button">● Démo</button>
+            <button id="mLive" class="ms" role="tab" aria-selected="false" type="button">◉ Temps réel</button>
+          </div>
+          <button type="button" class="tipi" data-tip="Démo : site industriel fictif représentatif. Temps réel : l'étude se branche sur l'inventaire réel de votre cockpit (/api/state et /api/assets) et se réanalyse automatiquement." aria-label="Aide : modes Démo et Temps réel">i</button>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <a href="/demo" class="btn btn-s">📡 Ouvrir le cockpit</a>
+          <a href="/connecter" class="btn btn-s">🔌 Connecter une plateforme</a>
+          <button id="btnPdf" class="btn btn-p" type="button">📄 Exporter l'étude (PDF)</button>
+        </div>
+      </div>
+      <div id="liveNotice"></div>
+
+      <!-- ÉTAPE 1 — État des lieux -->
+      <h2 style="margin-top:26px"><span class="stepnum">1</span>État des lieux &amp; audit des actifs</h2>
+      <p class="lead" style="font-size:14.5px;margin-top:8px">Inventaire des actifs IT/OT/IIoT, criticité métier, exposition et constats d'audit.</p>
+      <div class="metrics" style="margin-top:16px">
+        <div class="metric" style="--mc:linear-gradient(90deg,var(--cyan),var(--teal))">
+          <div class="lbl">Actifs inventoriés <button type="button" class="tipi" data-tip="Nombre d'équipements identifiés (découverte passive + relevés terrain) répartis sur les 5 couches IT/OT." aria-label="Aide : actifs inventoriés">i</button></div>
+          <div class="val" id="kAssets">—</div><div class="sub">IT · OT · IIoT</div>
+        </div>
+        <div class="metric" style="--mc:linear-gradient(90deg,var(--violet),var(--cyan))">
+          <div class="lbl">Constats d'audit <button type="button" class="tipi" data-tip="Vulnérabilités et écarts relevés lors de l'analyse (obsolescence, segmentation, authentification…)." aria-label="Aide : constats d'audit">i</button></div>
+          <div class="val" id="kFindings">—</div><div class="sub" id="kFindingsSub">dont — majeurs</div>
+        </div>
+        <div class="metric" style="--mc:linear-gradient(90deg,var(--amber),var(--terra))">
+          <div class="lbl">Actifs à risque élevé <button type="button" class="tipi" data-tip="Actifs dont le niveau de risque calculé (criticité × exposition) est Élevé ou Critique." aria-label="Aide : actifs à risque">i</button></div>
+          <div class="val" id="kHigh">—</div><div class="sub">risque élevé ou critique</div>
+        </div>
+        <div class="metric" style="--mc:linear-gradient(90deg,var(--terra),var(--violet))">
+          <div class="lbl">Indice de risque global <button type="button" class="tipi" data-tip="Moyenne pondérée des risques par actif, ramenée sur 100. Plus l'indice est haut, plus l'exposition globale est forte." aria-label="Aide : indice de risque global">i</button></div>
+          <div class="val" id="kRisk">—</div><div class="sub" id="kRiskSub">évaluation</div>
+        </div>
+      </div>
+      <div class="panel" style="margin-top:4px">
+        <div class="ph"><h3>Inventaire audité <button type="button" class="tipi" data-tip="Trié du risque le plus fort au plus faible. En mode Temps réel, l'inventaire provient de votre cockpit." aria-label="Aide : inventaire">i</button></h3><span class="live" id="invSrc">SITE DÉMO</span></div>
+        <div class="tblwrap">
+          <table>
+            <thead><tr>
+              <th>Actif</th><th>Type</th><th>Couche</th>
+              <th>Criticité <button type="button" class="tipi" data-tip="Impact métier/sûreté en cas de compromission, de 1 (faible) à 5 (vital pour la production ou la sécurité)." aria-label="Aide : criticité">i</button></th>
+              <th>Exposition <button type="button" class="tipi" data-tip="Surface d'attaque de 1 à 5 : proximité de l'IT/Internet, statut de la zone et constats aggravants." aria-label="Aide : exposition">i</button></th>
+              <th>Vulnérabilités</th>
+              <th>Risque <button type="button" class="tipi" data-tip="Criticité × exposition, classé Faible / Modéré / Élevé / Critique." aria-label="Aide : niveau de risque">i</button></th>
+              <th>SL cible <button type="button" class="tipi" data-tip="Niveau de sécurité visé (SL 1 à 4) pour la zone de l'actif, au sens de la série IEC 62443." aria-label="Aide : SL cible">i</button></th>
+            </tr></thead>
+            <tbody id="invRows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ÉTAPE 2 — Schéma couches IT/OT -->
+      <h2 style="margin-top:34px"><span class="stepnum">2</span>Répartition des actifs par couches IT/OT</h2>
+      <p class="lead" style="font-size:14.5px;margin-top:8px">Modèle en couches (niveaux 0-1 à 4-5) aligné sur le découpage en zones &amp; conduits de l'IEC&nbsp;62443. Chaque pastille est colorée selon le risque de l'actif.</p>
+      <div class="panel">
+        <div class="ph"><h3>Schéma des couches &amp; conduits <button type="button" class="tipi" data-tip="Les conduits sont les liaisons maîtrisées entre zones : chaque échange inter-couches doit être filtré et journalisé." aria-label="Aide : couches et conduits">i</button></h3>
+          <span style="font-size:11.5px;color:var(--muted2)">● <i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#34D399"></i> faible&nbsp;
+          <i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#F0C24B"></i> modéré&nbsp;
+          <i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#F08A3C"></i> élevé&nbsp;
+          <i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#E4573F"></i> critique</span></div>
+        <div class="layers" id="layers"></div>
+      </div>
+
+      <!-- ÉTAPE 3 — Risques & vulnérabilités -->
+      <h2 style="margin-top:34px"><span class="stepnum">3</span>Analyse de risque &amp; vulnérabilités</h2>
+      <p class="lead" style="font-size:14.5px;margin-top:8px">Constats hiérarchisés par gravité, rattachés aux exigences fondamentales (FR) de la norme et aux actifs concernés.</p>
+      <div class="panel">
+        <div class="ph"><h3>Constats &amp; vulnérabilités <button type="button" class="tipi" data-tip="Chaque constat référence l'exigence fondamentale (FR1 à FR7) qu'il affaiblit — c'est ce qui guide la remédiation." aria-label="Aide : constats">i</button></h3><span class="live" id="finSrc">ANALYSE</span></div>
+        <div class="tblwrap">
+          <table style="min-width:640px">
+            <thead><tr><th>Constat</th><th>Gravité</th><th>Exigence affaiblie</th><th>Actifs concernés</th></tr></thead>
+            <tbody id="finRows"></tbody>
+          </table>
+        </div>
+        <div class="note"><b>Méthodologie.</b> Modèle d'évaluation illustratif (criticité × exposition, ajusté par les constats) —
+        les pondérations sont calibrées lors de l'audit terrain avec vos équipes exploitation &amp; sûreté. Les intitulés IEC&nbsp;62443
+        sont reformulés&nbsp;: la norme officielle fait foi.</div>
+      </div>
+
+      <!-- ÉTAPE 4 — Panorama de conformité -->
+      <h2 style="margin-top:34px"><span class="stepnum">4</span>Panorama de conformité IEC&nbsp;62443</h2>
+      <p class="lead" style="font-size:14.5px;margin-top:8px">Couverture estimée des 7 exigences fondamentales, et écart entre niveau de sécurité cible (SL‑T) et niveau atteint (SL‑A) par couche.</p>
+      <div class="grid grid-2" style="margin-top:14px;align-items:start">
+        <div class="panel" style="margin-top:0">
+          <div class="ph"><h3>Exigences fondamentales (FR) <button type="button" class="tipi" data-tip="Les 7 familles d'exigences de la série 62443 (reformulées). Chaque barre estime la couverture actuelle, dégradée par les constats." aria-label="Aide : exigences fondamentales">i</button></h3></div>
+          <div id="frBars"></div>
+          <p style="font-size:12px;color:var(--muted2);margin-top:10px">Détail des exigences système&nbsp;: <a href="/exigences-systeme">IEC 62443‑3‑3</a> · composants&nbsp;: <a href="/exigences-composants">4‑2</a></p>
+        </div>
+        <div class="panel" style="margin-top:0">
+          <div class="ph"><h3>Niveaux de sécurité par couche <button type="button" class="tipi" data-tip="SL-T = niveau visé (issu de l'analyse de risque 62443-3-2). SL-A = niveau estimé atteint aujourd'hui. L'écart guide les priorités." aria-label="Aide : SL-T et SL-A">i</button></h3></div>
+          <div class="tblwrap">
+            <table style="min-width:0">
+              <thead><tr><th>Couche</th><th>SL‑T</th><th>SL‑A</th><th>Écart</th></tr></thead>
+              <tbody id="slRows"></tbody>
+            </table>
+          </div>
+          <p style="font-size:12px;color:var(--muted2);margin-top:10px">Méthode zones &amp; conduits&nbsp;: <a href="/analyse-de-risque">IEC 62443‑3‑2</a> · programme&nbsp;: <a href="/programme-securite">2‑1</a> · correctifs&nbsp;: <a href="/gestion-correctifs">2‑3</a></p>
+        </div>
+      </div>
+
+      <!-- ÉTAPE 5 — Remédiations -->
+      <h2 style="margin-top:34px"><span class="stepnum">5</span>Remédiations &amp; feuille de route</h2>
+      <p class="lead" style="font-size:14.5px;margin-top:8px">Actions priorisées par risque, rattachées aux parties applicables de la série — des capteurs aux API, SCADA et contrôle de procédé.</p>
+      <div class="panel">
+        <div class="ph"><h3>Plan de remédiation priorisé <button type="button" class="tipi" data-tip="Priorité héritée du risque le plus fort parmi les actifs concernés. Chaque action renvoie à la partie IEC 62443 qui la cadre." aria-label="Aide : plan de remédiation">i</button></h3></div>
+        <div class="tblwrap">
+          <table style="min-width:680px">
+            <thead><tr><th>#</th><th>Action</th><th>Cadre 62443</th><th>Actifs</th><th>Priorité</th><th>Horizon</th></tr></thead>
+            <tbody id="remRows"></tbody>
+          </table>
+        </div>
+        <div class="horizon" id="hzBands"></div>
+      </div>
+
+      <!-- ÉTAPE 6 — Cycle de vie -->
+      <h2 style="margin-top:34px"><span class="stepnum">6</span>Cycle de vie des actifs industriels</h2>
+      <p class="lead" style="font-size:14.5px;margin-top:8px">La conformité s'entretient à chaque étape de la vie d'un actif — la série IEC&nbsp;62443 couvre l'ensemble du cycle.</p>
+      <div class="cycle">
+        <div class="cyc"><div class="cn">Phase 1</div><div class="ct">Spécification</div>
+          <p>Analyse de risque, zonage, niveaux SL cibles et exigences de sécurité dès le cahier des charges.</p>
+          <div class="pp"><a href="/analyse-de-risque">3‑2</a><a href="/exigences-systeme">3‑3</a></div></div>
+        <div class="cyc"><div class="cn">Phase 2</div><div class="ct">Conception &amp; intégration</div>
+          <p>Composants certifiables, développement sécurisé et exigences envers les intégrateurs.</p>
+          <div class="pp"><a href="/exigences-composants">4‑2</a><a href="/developpement-securise">4‑1</a><a href="/exigences-prestataires">2‑4</a></div></div>
+        <div class="cyc"><div class="cn">Phase 3</div><div class="ct">Mise en service</div>
+          <p>Vérification des SL atteints, durcissement, comptes &amp; accès, recette de sécurité.</p>
+          <div class="pp"><a href="/exigences-systeme">3‑3</a><a href="/technologies-securite">TR 3‑1</a></div></div>
+        <div class="cyc"><div class="cn">Phase 4</div><div class="ct">Exploitation &amp; maintenance</div>
+          <p>Supervision continue (cockpit), gestion des correctifs, programme CSMS et métriques.</p>
+          <div class="pp"><a href="/demo">Cockpit</a><a href="/gestion-correctifs">2‑3</a><a href="/programme-securite">2‑1</a><a href="/metriques-62443">1‑3</a></div></div>
+        <div class="cyc"><div class="cn">Phase 5</div><div class="ct">Fin de vie</div>
+          <p>Décommissionnement maîtrisé&nbsp;: purge des secrets, mise à jour de l'inventaire et du zonage.</p>
+          <div class="pp"><a href="/programme-securite">2‑1</a><a href="/glossaire-62443">1‑2</a></div></div>
+      </div>
+
+      <div class="divider"></div>
+      <div style="text-align:center">
+        <h2>Lancer l'étude sur <span class="grad">votre installation</span>&nbsp;?</h2>
+        <p class="lead" style="margin:10px auto 0">Branchez votre plateforme OT au cockpit pour une analyse continue, ou planifions l'audit terrain.</p>
+        <div class="actions" style="justify-content:center">
+          <a href="/contact" class="btn btn-p">Planifier un audit</a>
+          <a href="/connecter" class="btn btn-s">Connecter ma plateforme</a>
+          <a href="/referentiel" class="btn btn-s">Explorer le référentiel</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Cybersécurité industrielle IT / OT / IIoT</div>
+      <div class="fnav">
+        <a href="/about">À propos</a>
+        <a href="/services">Services</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/audit-conformite">Audit 62443</a>
+        <a href="/demo">Démo</a>
+        <a href="/contact">Contact</a>
+        <a href="/mentions-legales">Mentions légales</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+  (function(){
+    document.getElementById('y').textContent=new Date().getFullYear();
+
+    /* ── Référentiel interne ──────────────────────────────────────────────── */
+    var LAYERS=[
+      {id:'ent',nm:'Entreprise (IT)',niv:'Niv. 4-5',de:'ERP, messagerie, postes de travail',expo:3,slt:1},
+      {id:'dmz',nm:'DMZ industrielle',niv:'Niv. 3.5',de:'Échanges IT↔OT, rebond, télémaintenance',expo:4,slt:2},
+      {id:'sup',nm:'Supervision (SCADA)',niv:'Niv. 3',de:'SCADA, historian, ingénierie',expo:3,slt:3},
+      {id:'cel',nm:'Cellule / Contrôle',niv:'Niv. 2',de:'DCS, automates (PLC), IHM locales',expo:2,slt:3},
+      {id:'ter',nm:'Terrain (capteurs)',niv:'Niv. 0-1',de:'Capteurs, actionneurs, RTU, IIoT',expo:1,slt:2}
+    ];
+    var LBYID={}; LAYERS.forEach(function(l){LBYID[l.id]=l;});
+    var ZONE2LAYER={'Entreprise (IT)':'ent','DMZ industrielle':'dmz','Supervision (SCADA)':'sup','Cellule / Contrôle':'cel','Terrain (capteurs)':'ter'};
+
+    var FRS=[
+      {k:'FR1',nm:'Identification & authentification'},
+      {k:'FR2',nm:'Contrôle d’utilisation'},
+      {k:'FR3',nm:'Intégrité du système'},
+      {k:'FR4',nm:'Confidentialité des données'},
+      {k:'FR5',nm:'Cloisonnement des flux'},
+      {k:'FR6',nm:'Réponse aux événements'},
+      {k:'FR7',nm:'Disponibilité des ressources'}
+    ];
+
+    /* Constats types (démo) : clé → libellé, FR, gravité, action de remédiation */
+    var VULNS={
+      obso:{lb:'Système obsolète (OS non maintenu)',fr:'FR3',g:3,fix:'Plan de migration + durcissement et mesures compensatoires en attendant',part:'2-3',url:'/gestion-correctifs',hz:'0-3 mois'},
+      defpwd:{lb:'Mot de passe constructeur par défaut',fr:'FR1',g:3,fix:'Rotation des secrets, comptes nominatifs, coffre-fort de mots de passe',part:'3-3',url:'/exigences-systeme',hz:'0-3 mois'},
+      nomfa:{lb:'Télémaintenance sans authentification forte',fr:'FR1',g:3,fix:'MFA + bastion d’accès distant avec enregistrement de session',part:'3-3',url:'/exigences-systeme',hz:'0-3 mois'},
+      flat:{lb:'Flux IT→OT non filtrés (segmentation incomplète)',fr:'FR5',g:3,fix:'Zones & conduits : pare-feu inter-couches, matrice de flux, DMZ stricte',part:'3-2',url:'/analyse-de-risque',hz:'3-12 mois'},
+      fw:{lb:'Firmware non signé / intégrité non vérifiée',fr:'FR3',g:2,fix:'Vérification d’intégrité et exigences composants envers les fournisseurs',part:'4-2',url:'/exigences-composants',hz:'3-12 mois'},
+      nodetect:{lb:'Absence de détection d’anomalies OT',fr:'FR6',g:2,fix:'Sonde de détection OT + supervision continue (cockpit temps réel)',part:'TR 3-1',url:'/technologies-securite',hz:'0-3 mois'},
+      nobackup:{lb:'Sauvegardes automates non testées',fr:'FR7',g:2,fix:'Sauvegarde programmes + tests de restauration périodiques',part:'2-1',url:'/programme-securite',hz:'0-3 mois'},
+      clear:{lb:'Protocoles en clair sur le réseau de supervision',fr:'FR4',g:2,fix:'Chiffrement des liaisons quand le procédé le permet, sinon cloisonnement renforcé',part:'3-3',url:'/exigences-systeme',hz:'3-12 mois'},
+      shared:{lb:'Comptes partagés en salle de contrôle',fr:'FR2',g:2,fix:'Comptes nominatifs + traçabilité des actions opérateur',part:'2-1',url:'/programme-securite',hz:'0-3 mois'},
+      livecrit:{lb:'Alerte critique active détectée par la supervision',fr:'FR6',g:3,fix:'Investigation immédiate de l’alerte + confinement de la zone concernée',part:'2-1',url:'/programme-securite',hz:'immédiat'},
+      livewarn:{lb:'Signaux à surveiller détectés par la supervision',fr:'FR6',g:2,fix:'Analyse des signaux faibles et ajustement des règles de détection',part:'TR 3-1',url:'/technologies-securite',hz:'0-3 mois'}
+    };
+
+    /* Site démo représentatif (déterministe : l'étude reste stable et imprimable) */
+    var DEMO=[
+      {n:'Serveur ERP',t:'Serveur',l:'ent',c:3,v:[]},
+      {n:'Messagerie',t:'Serveur',l:'ent',c:2,v:[]},
+      {n:'Contrôleur de domaine',t:'Serveur',l:'ent',c:4,v:[]},
+      {n:'Parc postes de travail (12)',t:'Poste de travail',l:'ent',c:2,v:[]},
+      {n:'Serveur d’échanges (miroir historian)',t:'Serveur',l:'dmz',c:3,v:['clear']},
+      {n:'Passerelle de télémaintenance',t:'Passerelle',l:'dmz',c:4,v:['nomfa']},
+      {n:'Serveur de rebond',t:'Serveur',l:'dmz',c:3,v:[]},
+      {n:'SCADA primaire',t:'SCADA',l:'sup',c:5,v:['clear','nodetect']},
+      {n:'SCADA secours',t:'SCADA',l:'sup',c:4,v:['nodetect']},
+      {n:'Historian',t:'Historian',l:'sup',c:3,v:['clear']},
+      {n:'Station d’ingénierie',t:'Poste ingénierie',l:'sup',c:4,v:['obso']},
+      {n:'Console d’alarmes',t:'IHM',l:'sup',c:4,v:[]},
+      {n:'PLC Ligne A',t:'Automate (PLC)',l:'cel',c:5,v:['flat','fw']},
+      {n:'PLC Ligne B',t:'Automate (PLC)',l:'cel',c:5,v:['flat','nobackup']},
+      {n:'PLC Utilités',t:'Automate (PLC)',l:'cel',c:4,v:['defpwd']},
+      {n:'DCS Unité 1',t:'DCS',l:'cel',c:5,v:['flat','nobackup']},
+      {n:'IHM locale Ligne A',t:'IHM',l:'cel',c:3,v:['shared']},
+      {n:'IHM locale Ligne B',t:'IHM',l:'cel',c:3,v:['obso']},
+      {n:'Variateurs (groupe)',t:'Actionneur',l:'cel',c:3,v:[]},
+      {n:'Capteurs de température (14)',t:'Capteur',l:'ter',c:2,v:[]},
+      {n:'Capteurs de pression (9)',t:'Capteur',l:'ter',c:3,v:[]},
+      {n:'Débitmètres (6)',t:'Capteur',l:'ter',c:2,v:[]},
+      {n:'Vannes motorisées (11)',t:'Actionneur',l:'ter',c:4,v:[]},
+      {n:'RTU poste 1',t:'RTU',l:'ter',c:4,v:['fw']},
+      {n:'Caméra IIoT périmètre',t:'IIoT',l:'ter',c:2,v:['defpwd']}
+    ];
+
+    /* ── Moteur d'analyse ─────────────────────────────────────────────────── */
+    function esc(s){return (''+(s==null?'':s)).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+    function riskLevel(p){return p>=16?['crit','Critique','#E4573F']:p>=10?['high','Élevé','#F08A3C']:p>=6?['med','Modéré','#F0C24B']:['low','Faible','#34D399'];}
+
+    function analyse(assets,zoneStatus){
+      assets.forEach(function(a){
+        var l=LBYID[a.l], st=(zoneStatus&&zoneStatus[a.l])||'ok';
+        var g3=a.v.filter(function(k){return VULNS[k]&&VULNS[k].g>=3;}).length;
+        a.expo=Math.min(5,l.expo+Math.min(2,g3)+(st==='alert'?2:st==='watch'?1:0));
+        a.p=a.c*a.expo; a.rk=riskLevel(a.p);
+      });
+      assets.sort(function(x,y){return y.p-x.p;});
+      var findings={};
+      assets.forEach(function(a){a.v.forEach(function(k){
+        if(!VULNS[k])return;
+        (findings[k]=findings[k]||{k:k,d:VULNS[k],assets:[],maxp:0}).assets.push(a.n);
+        findings[k].maxp=Math.max(findings[k].maxp,a.p);
+      });});
+      var fins=Object.keys(findings).map(function(k){return findings[k];})
+        .sort(function(x,y){return (y.d.g-x.d.g)||(y.maxp-x.maxp);});
+      var fr={}; FRS.forEach(function(f){fr[f.k]=100;});
+      fins.forEach(function(f){fr[f.d.fr]=Math.max(8,fr[f.d.fr]-(f.d.g>=3?26:13)-Math.min(8,f.assets.length*2));});
+      var sl={};
+      LAYERS.forEach(function(l){
+        var worst=0;
+        fins.forEach(function(f){
+          var touches=f.assets.some(function(n){var a=assets.find(function(x){return x.n===n;});return a&&a.l===l.id;});
+          if(touches)worst=Math.max(worst,f.d.g);
+        });
+        var st=(zoneStatus&&zoneStatus[l.id])||'ok';
+        if(st==='alert')worst=Math.max(worst,3);else if(st==='watch')worst=Math.max(worst,2);
+        var sla=Math.max(0,l.slt-(worst>=3?2:worst===2?1:0));
+        sl[l.id]={slt:l.slt,sla:sla,gap:l.slt-sla};
+      });
+      var tot=0; assets.forEach(function(a){tot+=a.p;});
+      var risk=assets.length?Math.round(tot/(assets.length*25)*100):0;
+      return {assets:assets,fins:fins,fr:fr,sl:sl,risk:risk};
+    }
+
+    /* ── Rendu ────────────────────────────────────────────────────────────── */
+    var R=null, zoneStatusLive=null, zoneCounts=null;
+    function render(res,liveMeta){
+      R=res;
+      var a=res.assets, fins=res.fins;
+      document.getElementById('kAssets').textContent=liveMeta&&liveMeta.total!=null?liveMeta.total:a.length;
+      document.getElementById('kFindings').textContent=fins.length;
+      document.getElementById('kFindingsSub').textContent='dont '+fins.filter(function(f){return f.d.g>=3;}).length+' majeurs';
+      var high=a.filter(function(x){return x.p>=10;}).length;
+      document.getElementById('kHigh').textContent=high;
+      var risk=liveMeta&&liveMeta.risk!=null?liveMeta.risk:res.risk;
+      document.getElementById('kRisk').textContent=risk+'/100';
+      document.getElementById('kRiskSub').textContent=risk>=70?'niveau élevé':risk>=40?'niveau modéré':'niveau maîtrisé';
+
+      document.getElementById('invRows').innerHTML=a.map(function(x){
+        var l=LBYID[x.l];
+        return '<tr><td><span class="an">'+esc(x.n)+'</span></td><td>'+esc(x.t)+'</td>'
+          +'<td><span class="sl">'+esc(l.niv)+'</span> '+esc(l.nm)+'</td>'
+          +'<td>'+x.c+'/5</td><td>'+x.expo+'/5</td>'
+          +'<td>'+(x.v.length?x.v.map(function(k){return esc(VULNS[k]?VULNS[k].lb:k);}).join('<br>'):'<span style="color:var(--green)">aucune relevée</span>')+'</td>'
+          +'<td><span class="rk '+x.rk[0]+'">'+x.rk[1]+' · '+x.p+'</span></td>'
+          +'<td><span class="sl">SL '+l.slt+'</span></td></tr>';
+      }).join('');
+
+      document.getElementById('layers').innerHTML=LAYERS.map(function(l,i){
+        var inL=a.filter(function(x){return x.l===l.id;});
+        var st=(zoneStatusLive&&zoneStatusLive[l.id])||'ok';
+        var chips=inL.slice(0,14).map(function(x){
+          return '<span class="chip"><i style="background:'+x.rk[2]+'"></i>'+esc(x.n)+'</span>';
+        }).join('');
+        var extra=inL.length>14?'<span class="chip">+'+(inL.length-14)+' autres</span>':'';
+        if(!inL.length&&zoneCounts&&zoneCounts[l.id]) chips='<span class="chip">'+zoneCounts[l.id]+' actif(s) — détail via le connecteur</span>';
+        if(!inL.length&&!chips) chips='<span class="chip">aucun actif recensé</span>';
+        var slrow=R.sl[l.id];
+        var band='<div class="layer '+(st==='alert'?'alert':st==='watch'?'watch':'')+'">'
+          +'<div class="lz"><div class="niv">'+esc(l.niv)+'</div><div class="nm">'+esc(l.nm)+'</div>'
+          +'<div class="de">'+esc(l.de)+'</div>'
+          +'<div class="slb"><span class="sl">SL‑T '+slrow.slt+'</span> · <span class="gap g'+Math.min(2,slrow.gap)+'">'
+          +(slrow.gap===0?'conforme':'écart −'+slrow.gap)+'</span></div></div>'
+          +'<div class="chips">'+chips+extra+'</div></div>';
+        var conduit=i<LAYERS.length-1?'<div class="conduitv'+(st!=='ok'?' bad':'')+'"><i></i>conduit — flux filtré &amp; journalisé</div>':'';
+        return band+conduit;
+      }).join('');
+
+      document.getElementById('finRows').innerHTML=fins.length?fins.map(function(f){
+        var g=f.d.g>=3?'<span class="rk crit">Majeur</span>':'<span class="rk med">Significatif</span>';
+        return '<tr><td><span class="an">'+esc(f.d.lb)+'</span></td><td>'+g+'</td>'
+          +'<td><span class="sl">'+f.d.fr+'</span> — '+esc((FRS.find(function(x){return x.k===f.d.fr;})||{}).nm||'')+'</td>'
+          +'<td>'+f.assets.map(esc).join(', ')+'</td></tr>';
+      }).join(''):'<tr><td colspan="4" style="color:var(--green)">Aucun constat actif — poursuivre la surveillance continue.</td></tr>';
+
+      document.getElementById('frBars').innerHTML=FRS.map(function(f){
+        var v=res.fr[f.k];
+        return '<div class="frrow"><div class="fn"><b>'+f.k+'</b>'+esc(f.nm)+'</div>'
+          +'<div class="frbar"><i style="width:'+v+'%"></i></div><div class="pv">'+v+'%</div></div>';
+      }).join('');
+
+      document.getElementById('slRows').innerHTML=LAYERS.map(function(l){
+        var s=res.sl[l.id];
+        return '<tr><td><span class="an">'+esc(l.nm)+'</span> <span class="sl">'+esc(l.niv)+'</span></td>'
+          +'<td><span class="sl">SL '+s.slt+'</span></td><td><span class="sl">SL '+s.sla+'</span></td>'
+          +'<td><span class="gap g'+Math.min(2,s.gap)+'">'+(s.gap===0?'conforme':'−'+s.gap)+'</span></td></tr>';
+      }).join('');
+
+      var rem=fins.map(function(f,i){
+        var pr=f.maxp>=16?['crit','P1 — Critique']:f.maxp>=10?['high','P2 — Élevée']:['med','P3 — Normale'];
+        return {i:i+1,f:f,pr:pr};
+      });
+      document.getElementById('remRows').innerHTML=rem.length?rem.map(function(r){
+        return '<tr><td>'+r.i+'</td><td><span class="an">'+esc(r.f.d.fix)+'</span><br><span style="font-size:11.5px;color:var(--muted2)">répond à : '+esc(r.f.d.lb)+'</span></td>'
+          +'<td><a class="sl" href="'+r.f.d.url+'">IEC 62443‑'+r.f.d.part+'</a></td>'
+          +'<td>'+r.f.assets.length+'</td><td><span class="rk '+r.pr[0]+'">'+r.pr[1]+'</span></td><td>'+esc(r.f.d.hz)+'</td></tr>';
+      }).join(''):'<tr><td colspan="6" style="color:var(--green)">Aucune action corrective en attente.</td></tr>';
+
+      var bands={'immédiat':[],'0-3 mois':[],'3-12 mois':[]};
+      rem.forEach(function(r){(bands[r.f.d.hz]=bands[r.f.d.hz]||[]).push(r.f.d.fix);});
+      document.getElementById('hzBands').innerHTML=[
+        ['immédiat','Immédiat',['#E4573F']],['0-3 mois','Gains rapides · 0-3 mois',['#F0C24B']],['3-12 mois','Chantiers · 3-12 mois',['#2DD4BF']]
+      ].map(function(b){
+        var items=bands[b[0]]||[];
+        return '<div class="hz"><div class="ht" style="color:'+b[2][0]+'">'+b[1]+'</div><ul>'
+          +(items.length?items.map(function(t){return '<li>'+esc(t)+'</li>';}).join(''):'<li>—</li>')+'</ul></div>';
+      }).join('');
+    }
+
+    /* ── Sources de données ───────────────────────────────────────────────── */
+    var live=false, timer=null, notice=document.getElementById('liveNotice');
+    function setMode(isLive){
+      live=isLive;
+      document.getElementById('mDemo').className='ms'+(isLive?'':' active');
+      document.getElementById('mLive').className='ms'+(isLive?' active':'');
+      document.getElementById('mDemo').setAttribute('aria-selected',!isLive);
+      document.getElementById('mLive').setAttribute('aria-selected',isLive);
+      if(timer){clearInterval(timer);timer=null;}
+      if(!isLive){
+        notice.style.display='none';
+        zoneStatusLive=null; zoneCounts=null;
+        document.getElementById('invSrc').textContent='SITE DÉMO';
+        document.getElementById('finSrc').textContent='ANALYSE (DÉMO)';
+        render(analyse(DEMO.map(function(x){return {n:x.n,t:x.t,l:x.l,c:x.c,v:x.v.slice()};}),null),null);
+      } else {
+        syncLive();
+        timer=setInterval(syncLive,30000);
+      }
+    }
+
+    function typeFor(name){
+      var n=name.toLowerCase();
+      if(/plc|automate/.test(n))return ['Automate (PLC)',5];
+      if(/dcs/.test(n))return ['DCS',5];
+      if(/scada/.test(n))return ['SCADA',4];
+      if(/rtu/.test(n))return ['RTU',4];
+      if(/ihm|hmi|console/.test(n))return ['IHM',3];
+      if(/histor/.test(n))return ['Historian',3];
+      if(/passerelle|gateway|bastion|rebond/.test(n))return ['Passerelle',4];
+      if(/capteur|sensor|temp|press|débit|debit/.test(n))return ['Capteur',2];
+      if(/vanne|action|variateur|pompe/.test(n))return ['Actionneur',3];
+      if(/cam|iiot/.test(n))return ['IIoT',3];
+      if(/serveur|server|srv/.test(n))return ['Serveur',3];
+      if(/poste|pc|laptop/.test(n))return ['Poste de travail',2];
+      return ['Équipement',3];
+    }
+
+    function syncLive(){
+      Promise.all([
+        fetch('/api/state').then(function(r){if(r.status===401)throw 401;return r.json();}),
+        fetch('/api/assets').then(function(r){if(r.status===401)throw 401;return r.json();})
+      ]).then(function(rs){
+        var st=rs[0], inv=(rs[1]&&rs[1].assets)||[];
+        zoneStatusLive={}; zoneCounts={};
+        (st.zones||[]).forEach(function(z){zoneStatusLive[z.id]=z.status; zoneCounts[z.id]=z.count;});
+        var assets=inv.map(function(r){
+          var tc=typeFor(r.asset||''), lid=ZONE2LAYER[r.zone]||'cel';
+          return {n:r.asset,t:tc[0],l:lid,c:tc[1],v:[]};
+        });
+        var nCrit=0,nWarn=0;
+        (st.events||[]).forEach(function(e){
+          var zone=(e.text||'').split(' — ').pop(), lid=ZONE2LAYER[zone];
+          if(e.tag==='crit'){nCrit++; assets.forEach(function(a){if(a.l===lid&&a.v.indexOf('livecrit')<0)a.v.push('livecrit');});}
+          if(e.tag==='warn'){nWarn++; assets.forEach(function(a){if(a.l===lid&&a.v.indexOf('livewarn')<0)a.v.push('livewarn');});}
+        });
+        document.getElementById('invSrc').textContent='TEMPS RÉEL — synchro '+new Date().toLocaleTimeString('fr-FR');
+        document.getElementById('finSrc').textContent='TEMPS RÉEL ('+nCrit+' crit · '+nWarn+' à surveiller)';
+        notice.style.display='block';
+        notice.innerHTML='◉ Étude branchée sur votre cockpit : <b>'+(st.assets||0)+'</b> actif(s), indice de risque <b>'
+          +(st.risk||0)+'/100</b>. L’analyse se réactualise automatiquement toutes les 30 s. '
+          +'Les constats issus du flux temps réel complètent — sans remplacer — l’audit terrain.';
+        render(analyse(assets,zoneStatusLive),{total:st.assets,risk:st.risk});
+      }).catch(function(e){
+        if(timer){clearInterval(timer);timer=null;}
+        notice.style.display='block';
+        if(e===401){
+          notice.innerHTML='🔐 Le mode temps réel se branche sur votre cockpit privé. '
+            +'<a href="/connexion?next=/audit-conformite">Connectez-vous</a> puis relancez la synchronisation. '
+            +'Pas encore de flux ? <a href="/connecter">Connecter votre plateforme</a>.';
+        } else {
+          notice.innerHTML='Flux temps réel momentanément indisponible — l’étude reste affichée en mode démo. Réessayez dans un instant.';
+        }
+        setMode(false);
+        document.getElementById('mLive').className='ms';
+        document.getElementById('mDemo').className='ms active';
+        notice.style.display='block';
+      });
+    }
+
+    document.getElementById('mDemo').addEventListener('click',function(){setMode(false);});
+    document.getElementById('mLive').addEventListener('click',function(){setMode(true);});
+
+    /* ── Export PDF (rapport imprimable) ──────────────────────────────────── */
+    document.getElementById('btnPdf').addEventListener('click',function(){
+      if(!R)return;
+      var d=new Date();
+      var rows=R.assets.map(function(x){var l=LBYID[x.l];
+        return '<tr><td>'+esc(x.n)+'</td><td>'+esc(x.t)+'</td><td>'+esc(l.nm)+' ('+esc(l.niv)+')</td><td>'+x.c+'/5</td><td>'+x.expo+'/5</td><td>'+x.rk[1]+' ('+x.p+')</td><td>SL '+l.slt+'</td></tr>';}).join('');
+      var fins=R.fins.map(function(f){return '<tr><td>'+esc(f.d.lb)+'</td><td>'+(f.d.g>=3?'Majeur':'Significatif')+'</td><td>'+f.d.fr+'</td><td>'+f.assets.map(esc).join(', ')+'</td></tr>';}).join('');
+      var rem=R.fins.map(function(f,i){return '<tr><td>'+(i+1)+'</td><td>'+esc(f.d.fix)+'</td><td>IEC 62443‑'+f.d.part+'</td><td>'+esc(f.d.hz)+'</td></tr>';}).join('');
+      var sl=LAYERS.map(function(l){var s=R.sl[l.id];return '<tr><td>'+esc(l.nm)+'</td><td>SL '+s.slt+'</td><td>SL '+s.sla+'</td><td>'+(s.gap===0?'conforme':'−'+s.gap)+'</td></tr>';}).join('');
+      var fr=FRS.map(function(f){return '<tr><td>'+f.k+'</td><td>'+esc(f.nm)+'</td><td>'+R.fr[f.k]+'%</td></tr>';}).join('');
+      var w=window.open('','_blank');
+      w.document.write('<html><head><meta charset="utf-8"><title>Étude de conformité IEC 62443 — CONSEILPREV Cyber</title><style>'
+        +'body{font-family:Arial,Helvetica,sans-serif;color:#1c2530;margin:36px;font-size:12px}'
+        +'h1{font-size:20px;margin-bottom:2px}h2{font-size:14px;margin:22px 0 8px;border-bottom:2px solid #12a3b3;padding-bottom:4px}'
+        +'.meta{color:#6a7686;font-size:11px;margin-bottom:14px}'
+        +'table{width:100%;border-collapse:collapse;margin-top:6px}th,td{border:1px solid #cfd8e3;padding:5px 7px;text-align:left;font-size:10.5px}'
+        +'th{background:#eef4f9}p.note{color:#6a7686;font-size:10px;margin-top:18px}'
+        +'</style></head><body>'
+        +'<h1>Étude &amp; audit de conformité IEC 62443</h1>'
+        +'<div class="meta">CONSEILPREV Cyber — édition du '+d.toLocaleDateString('fr-FR')+' '+d.toLocaleTimeString('fr-FR')
+        +' · mode '+(live?'temps réel':'démonstration')+' · '+R.assets.length+' actifs · indice de risque '+R.risk+'/100</div>'
+        +'<h2>1. Inventaire audité des actifs</h2><table><tr><th>Actif</th><th>Type</th><th>Couche</th><th>Criticité</th><th>Exposition</th><th>Risque</th><th>SL cible</th></tr>'+rows+'</table>'
+        +'<h2>2. Niveaux de sécurité par couche (SL‑T vs SL‑A)</h2><table><tr><th>Couche</th><th>SL‑T</th><th>SL‑A</th><th>Écart</th></tr>'+sl+'</table>'
+        +'<h2>3. Constats &amp; vulnérabilités</h2><table><tr><th>Constat</th><th>Gravité</th><th>FR</th><th>Actifs concernés</th></tr>'+(fins||'<tr><td colspan=4>Aucun</td></tr>')+'</table>'
+        +'<h2>4. Couverture des exigences fondamentales</h2><table><tr><th>FR</th><th>Exigence (reformulée)</th><th>Couverture estimée</th></tr>'+fr+'</table>'
+        +'<h2>5. Plan de remédiation priorisé</h2><table><tr><th>#</th><th>Action</th><th>Cadre</th><th>Horizon</th></tr>'+(rem||'<tr><td colspan=4>Aucun</td></tr>')+'</table>'
+        +'<p class="note">Modèle d’évaluation illustratif (criticité × exposition, ajusté des constats) calibré en mission avec les équipes exploitation. '
+        +'Les intitulés IEC 62443 sont reformulés — la norme officielle fait foi. Document généré par le cockpit CONSEILPREV Cyber.</p>'
+        +'<script>window.print();<\/script></body></html>');
+      w.document.close();
+    });
+
+    setMode(false);
+  })();
+  </script>
+  <script src="/nav.js" defer></script>
+</body>
+</html>

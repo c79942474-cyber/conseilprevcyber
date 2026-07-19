@@ -132,6 +132,12 @@ class CockpitState:
         with self._lock:
             return self._snapshot_locked()
 
+    def inventory(self):
+        """Inventaire des actifs connus (nom + zone). Pour l'étude de conformité."""
+        with self._lock:
+            return [{"asset": a, "zone": z, "first_seen": None, "last_seen": None}
+                    for a, z in sorted(self.assets_zone.items())]
+
     def purge(self, retention_days=None, max_rows=None, archive_path=None):
         """Élague l'historique en mémoire (déjà borné à MAX_EVENTS)."""
         with self._lock:
@@ -275,6 +281,15 @@ class PostgresStore:
     def snapshot(self):
         with self._pool.connection() as conn:
             return self._snapshot(conn)
+
+    def inventory(self):
+        """Inventaire des actifs connus (nom, zone, première/dernière vue)."""
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                "SELECT asset, zone, first_seen, last_seen FROM assets "
+                "ORDER BY zone NULLS LAST, asset LIMIT 2000").fetchall()
+        return [{"asset": a, "zone": z, "first_seen": f, "last_seen": l}
+                for a, z, f, l in rows]
 
     def reset(self):
         with self._pool.connection() as conn:
