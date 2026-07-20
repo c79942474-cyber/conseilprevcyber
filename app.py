@@ -53,6 +53,7 @@ import requests
 from flask import Flask, Response, jsonify, request, send_file, send_from_directory
 
 import assistant
+import livrables
 from auth import admin_required, client_ip, guard, init_app as init_auth
 from cockpit_state import make_store
 from rag_store import RagError, THEMES, build_context, make_rag_store
@@ -714,6 +715,76 @@ def api_rag_download(doc_id):
     except RagError as exc:
         return jsonify(ok=False, error=exc.code), exc.status
     return send_file(io.BytesIO(data), download_name=filename, as_attachment=True)
+
+
+# ============================================================================
+#  Génération de livrables (LLM ancré sur la base de connaissance) — admin
+# ============================================================================
+# Le générateur produit un BROUILLON à relire/valider par un consultant. Il
+# s'appuie sur la base de connaissance RAG : documents PUBLICS ET INTERNES
+# (usage interne, contrairement à l'assistant public). Réservé à l'administrateur.
+
+_ASSISTANT_MSG = {
+    "not_configured": "Aucun modèle d'IA n'est activé (clé API manquante). Configurez "
+                      "MISTRAL_API_KEY ou ANTHROPIC_API_KEY, puis réessayez.",
+    "auth": "Le service d'IA a refusé la clé configurée. Vérifiez-la, puis réessayez.",
+    "busy": "Le service d'IA est très sollicité. Réessayez dans un instant.",
+    "network": "Service d'IA momentanément injoignable. Réessayez dans un instant.",
+    "upstream": "La génération a échoué. Réessayez, ou changez de modèle.",
+    "empty": "Requête vide.",
+}
+
+
+@app.route("/admin/livrables")
+@admin_required
+def admin_livrables_page():
+    """Console de génération de livrables (réservée à l'administrateur)."""
+    return send_from_directory(HERE, "admin-livrables.html")
+
+
+@app.route("/api/admin/livrables/types", methods=["GET"])
+@admin_required
+def api_livrables_types():
+    """Types de livrables disponibles + modèles d'IA configurés."""
+    return jsonify(ok=True, types=livrables.public_types(), models=assistant.available())
+
+
+@app.route("/api/admin/livrables/generate", methods=["POST"])
+@admin_required
+def api_livrables_generate():
+    """Génère un livrable ancré sur la base de connaissance (documents publics + internes)."""
+    ckey = "gen:%s" % client_ip()
+    if guard.blocked(ckey, limit=12, window=600):
+        return jsonify(ok=False, error="rate_limited",
+                       message="Trop de générations en peu de temps. Patientez quelques minutes."), 429
+    guard.fail(ckey)
+
+    data = request.get_json(silent=True) or {}
+    type_id = (data.get("type") or "").strip()
+    prompts = livrables.build_prompts(type_id, data)
+    if not prompts:
+        return jsonify(ok=False, error="type_inconnu",
+                       message="Type de livrable inconnu."), 400
+    system, user = prompts
+    model = "mistral" if data.get("model") == "mistral" else "claude"
+
+    # Ancrage RAG : documents publics ET internes (un livrable est un usage interne).
+    hits = []
+    try:
+        hits = rag.search(livrables.retrieval_query(type_id, data), k=6, public_only=False)
+    except Exception:
+        hits = []
+    context = build_context(hits, max_chars=6000)
+
+    try:
+        text, used_model = assistant.generate(model, system, user, context=context)
+    except assistant.AssistantError as exc:
+        return jsonify(ok=False, error=exc.code,
+                       message=_ASSISTANT_MSG.get(exc.code, "Génération indisponible.")), exc.status
+
+    sources = [{"title": h.get("title"), "theme": h.get("theme"),
+                "visibility": h.get("visibility")} for h in hits]
+    return jsonify(ok=True, document=text, model=model, sources=sources)
 
 
 @app.route("/offre-conseilprev-cyber.pdf")

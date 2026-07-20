@@ -108,7 +108,8 @@ def _system(context):
     return SYSTEM_PROMPT
 
 
-def _ask_claude(history, context=None):
+def _claude_call(system, messages, max_tokens):
+    """Appel bas niveau à Claude (Anthropic). Renvoie le texte (peut être vide)."""
     if not os.environ.get("ANTHROPIC_API_KEY"):
         raise AssistantError("not_configured", 503)
     try:
@@ -117,14 +118,8 @@ def _ask_claude(history, context=None):
         raise AssistantError("not_configured", 503)
     client = anthropic.Anthropic()  # lit ANTHROPIC_API_KEY dans l'environnement
     try:
-        # Opus 4.8 : en omettant « thinking », le modèle répond sans phase de
-        # réflexion (latence réduite) ; le prompt système impose une réponse directe.
         resp = client.messages.create(
-            model=CLAUDE_MODEL,
-            max_tokens=MAX_OUTPUT_TOKENS,
-            system=_system(context),
-            messages=history,
-        )
+            model=CLAUDE_MODEL, max_tokens=max_tokens, system=system, messages=messages)
     except anthropic.APIConnectionError as exc:
         _log.warning("Claude : connexion impossible (%s)", type(exc).__name__)
         raise AssistantError("network", 502)
@@ -140,21 +135,21 @@ def _ask_claude(history, context=None):
         _log.error("Claude : réponse en erreur (HTTP %s, type=%s)",
                    getattr(exc, "status_code", "?"), getattr(exc, "type", None))
         raise AssistantError("upstream", 502)
-    text = "".join(
+    return "".join(
         getattr(b, "text", "") for b in resp.content if getattr(b, "type", "") == "text"
     ).strip()
-    return text or _FALLBACK
 
 
-def _ask_mistral(history, context=None):
+def _mistral_call(system, messages, max_tokens):
+    """Appel bas niveau à Mistral. Renvoie le texte (peut être vide)."""
     key = os.environ.get("MISTRAL_API_KEY")
     if not key:
         raise AssistantError("not_configured", 503)
     import requests
     payload = {
         "model": MISTRAL_MODEL,
-        "messages": [{"role": "system", "content": _system(context)}] + history,
-        "max_tokens": MAX_OUTPUT_TOKENS,
+        "messages": [{"role": "system", "content": system}] + messages,
+        "max_tokens": max_tokens,
         "temperature": 0.3,
     }
     try:
@@ -175,11 +170,19 @@ def _ask_mistral(history, context=None):
         _log.error("Mistral : réponse en erreur (HTTP %s)", r.status_code)
         raise AssistantError("upstream", 502)
     try:
-        text = (r.json()["choices"][0]["message"]["content"] or "").strip()
+        return (r.json()["choices"][0]["message"]["content"] or "").strip()
     except (KeyError, IndexError, TypeError, ValueError):
         _log.error("Mistral : réponse illisible (JSON inattendu)")
         raise AssistantError("upstream", 502)
-    return text or _FALLBACK
+
+
+def _ask_claude(history, context=None):
+    # Opus 4.8 : sans phase de « thinking » explicite, réponse directe (latence réduite).
+    return _claude_call(_system(context), history, MAX_OUTPUT_TOKENS) or _FALLBACK
+
+
+def _ask_mistral(history, context=None):
+    return _mistral_call(_system(context), history, MAX_OUTPUT_TOKENS) or _FALLBACK
 
 
 def answer(model, messages, context=None):
@@ -202,6 +205,20 @@ def last_user_message(messages):
         if m.get("role") == "user" and (m.get("content") or "").strip():
             return m["content"].strip()
     return ""
+
+
+GEN_MAX_TOKENS = 3000
+
+
+def generate(model, system, user, context=None, max_tokens=GEN_MAX_TOKENS):
+    """Génère un document (livrable) en un seul tour, ancré sur `context` (RAG).
+
+    Renvoie (texte_markdown, id_modèle). `model` : « claude » ou « mistral »."""
+    full_system = system + ("\n\n" + context if context else "")
+    messages = [{"role": "user", "content": user}]
+    if model == "mistral":
+        return (_mistral_call(full_system, messages, max_tokens) or _FALLBACK), MISTRAL_MODEL
+    return (_claude_call(full_system, messages, max_tokens) or _FALLBACK), CLAUDE_MODEL
 
 
 # --- Diagnostic (self-test) ---------------------------------------------------
