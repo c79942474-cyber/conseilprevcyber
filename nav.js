@@ -205,14 +205,24 @@
     if (/^\/reinitialiser\//.test(path)) path = "/mot-de-passe-oublie";
     var g = GUIDES[path] || GUIDE_DEFAULT;
 
+    // Bouton « Guide de la page » placé en début de page (juste sous l'en-tête),
+    // légèrement clignotant pour être repéré.
     var btn = document.createElement("button");
     btn.type = "button";
     btn.className = "guide-btn";
-    btn.textContent = "?";
-    btn.title = "Guide de la page";
-    btn.setAttribute("aria-label", "Ouvrir le guide de la page");
+    btn.innerHTML = '<span class="gi" aria-hidden="true">?</span><span class="gt">Guide de la page</span>';
+    btn.title = "Ouvrir le guide de cette page";
+    btn.setAttribute("aria-label", "Ouvrir le guide de cette page");
     btn.setAttribute("aria-haspopup", "dialog");
-    document.body.appendChild(btn);
+    var bar = document.createElement("div");
+    bar.className = "guide-bar";
+    var inner = document.createElement("div");
+    inner.className = "wrap guide-bar-in";
+    inner.appendChild(btn);
+    bar.appendChild(inner);
+    var hdr = document.querySelector("header");
+    if (hdr && hdr.parentNode) hdr.parentNode.insertBefore(bar, hdr.nextSibling);
+    else document.body.insertBefore(bar, document.body.firstChild);
 
     var ov = document.createElement("div");
     ov.className = "guide-overlay";

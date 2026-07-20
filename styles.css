@@ -180,16 +180,28 @@ header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
   font-size:12.5px;color:var(--muted2);line-height:1.4}
 .secnote svg{flex:0 0 auto;width:15px;height:15px;fill:none;stroke:var(--teal);stroke-width:1.8}
 
-/* ── Guide utilisateur de page : bouton « ? » + panneau d'aide (nav.js) ─────── */
-.guide-btn{position:fixed;right:16px;bottom:122px;z-index:41;width:44px;height:44px;
-  border-radius:50%;border:none;cursor:pointer;
-  background:linear-gradient(135deg,var(--cyan),var(--teal));color:#04121A;
-  font:800 20px/1 var(--mono);box-shadow:0 10px 26px rgba(0,0,0,.35);
-  transition:filter .15s,transform .12s}
-.guide-btn:hover{filter:brightness(1.1)}
-.guide-btn:active{transform:scale(.96)}
+/* ── Guide utilisateur de page : bouton en début de page + panneau (nav.js) ─── */
+.guide-bar{padding:14px 0 0}
+.guide-bar-in{display:flex}
+.guide-btn{display:inline-flex;align-items:center;gap:9px;cursor:pointer;
+  padding:8px 15px 8px 10px;border-radius:999px;
+  border:1px solid rgba(45,212,191,.55);
+  background:linear-gradient(135deg,rgba(34,211,238,.16),rgba(45,212,191,.12));
+  color:var(--ink);font:600 13.5px/1 var(--sans);
+  box-shadow:0 6px 18px rgba(0,0,0,.22);
+  animation:guidepulse 2.4s ease-in-out infinite;
+  transition:filter .15s,transform .12s,border-color .15s}
+.guide-btn .gi{display:inline-flex;align-items:center;justify-content:center;
+  width:22px;height:22px;border-radius:50%;flex:0 0 auto;
+  background:linear-gradient(135deg,var(--cyan),var(--teal));color:#04121A;font:800 13px/1 var(--mono)}
+.guide-btn:hover{filter:brightness(1.08);border-color:var(--teal)}
+.guide-btn:active{transform:scale(.97)}
 .guide-btn:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
-@media(max-width:520px){.guide-btn{right:10px;bottom:104px;width:40px;height:40px;font-size:18px}}
+@keyframes guidepulse{
+  0%,100%{box-shadow:0 6px 18px rgba(0,0,0,.22),0 0 0 0 rgba(45,212,191,.5)}
+  50%{box-shadow:0 6px 18px rgba(0,0,0,.22),0 0 0 7px rgba(45,212,191,0)}}
+@media(prefers-reduced-motion:reduce){.guide-btn{animation:none}}
+@media(max-width:520px){.guide-btn{font-size:13px}}
 .guide-overlay{position:fixed;inset:0;z-index:70;display:none;
   background:rgba(26,12,6,.55);backdrop-filter:blur(3px);
   align-items:stretch;justify-content:flex-end}
@@ -217,7 +229,7 @@ header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
 .guide-close{position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:9px;
   border:1px solid var(--line);background:var(--panel2);color:var(--muted);cursor:pointer;font-size:14px}
 .guide-close:hover{color:var(--ink);border-color:var(--terra)}
-@media print{.guide-btn,.guide-overlay{display:none !important}}
+@media print{.guide-bar,.guide-overlay{display:none !important}}
 
 /* Titres / sections */
 h1{font-size:clamp(32px,6vw,58px);line-height:1.06;letter-spacing:-.03em;font-weight:800}
