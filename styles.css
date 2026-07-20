@@ -91,6 +91,9 @@ header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
 .nav .cta{color:#04121A !important;background:linear-gradient(135deg,var(--cyan),var(--teal));
   padding:8px 16px;border-radius:6px;font-weight:600;font-size:13px}
 .nav .cta:hover{filter:brightness(1.08)}
+.nav .cta-alt{color:var(--cyan);border:1px solid var(--cyan);background:rgba(34,211,238,.09);
+  padding:7px 15px;border-radius:6px;font-weight:600;font-size:13px}
+.nav .cta-alt:hover{background:rgba(34,211,238,.18);border-color:var(--teal);color:var(--teal)}
 @media(max-width:720px){.nav .links a.hide{display:none}}
 
 /* ── En-tête responsive : bouton « burger » + menu déroulant (mobile) ──────────
@@ -121,7 +124,7 @@ header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
     border-top:1px solid rgba(46,58,54,.5)}
   .js-nav .nav .links a:first-child{border-top:none}
   .js-nav .nav .links a.active{color:var(--cyan)}
-  .js-nav .nav .links a.cta{margin:10px 24px 6px;padding:12px 16px;text-align:center;
+  .js-nav .nav .links a.cta,.js-nav .nav .links a.cta-alt{margin:10px 24px 6px;padding:12px 16px;text-align:center;
     border-top:none;border-radius:8px}
 }
 

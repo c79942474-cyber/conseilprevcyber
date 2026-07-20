@@ -547,6 +547,48 @@ def nav_js():
     return send_from_directory(HERE, "nav.js", mimetype="text/javascript")
 
 
+@app.route("/offre-conseilprev-cyber.pdf")
+def offre_pdf():
+    """Plaquette PDF de l'offre cybersécurité industrielle (téléchargement direct)."""
+    return send_from_directory(HERE, "offre-conseilprev-cyber.pdf",
+                               mimetype="application/pdf")
+
+
+def _send_ack(api_key, email, nom, sujet, msg):
+    """Accusé de réception au demandeur (best-effort : n'interrompt jamais le flux).
+
+    La notification interne est déjà partie ; si cet envoi échoue, on l'ignore.
+    """
+    prenom = (nom.split()[0] if nom.split() else "").strip()
+    hi = html_lib.escape
+    ack_html = (
+        f"<p>Bonjour {hi(prenom)},</p>"
+        "<p>Merci pour votre message. Nous avons bien reçu votre demande "
+        f"«&nbsp;<strong>{hi(sujet)}</strong>&nbsp;» et reviendrons vers vous "
+        "sous 48&nbsp;h ouvrées.</p>"
+        "<p>Pour rappel, voici les éléments transmis&nbsp;:</p>"
+        "<blockquote style=\"border-left:3px solid #22d3ee;padding-left:12px;color:#555\">"
+        f"{hi(msg).replace(chr(10), '<br>')}</blockquote>"
+        "<p>À très bientôt,<br>L'équipe CONSEILPREV Cyber<br>"
+        "<span style=\"color:#888;font-size:13px\">Cybersécurité industrielle IT / OT / IIoT</span></p>"
+    )
+    try:
+        requests.post(
+            BREVO_API_URL,
+            json={
+                "sender": SENDER,
+                "to": [{"email": email, "name": nom}],
+                "replyTo": {"email": NOTIFY_TO, "name": "CONSEILPREV Cyber"},
+                "subject": "Bien reçu — CONSEILPREV Cyber",
+                "htmlContent": ack_html,
+            },
+            headers={"api-key": api_key, "accept": "application/json", "content-type": "application/json"},
+            timeout=12,
+        )
+    except requests.RequestException:
+        pass
+
+
 @app.route("/api/contact", methods=["POST"])
 def api_contact():
     """Traite le formulaire de contact et envoie un email via Brevo."""
@@ -605,6 +647,7 @@ def api_contact():
         return jsonify(ok=False, error="network", message="Impossible de joindre le service d'envoi."), 502
 
     if resp.status_code in (200, 201):
+        _send_ack(api_key, email, nom, sujet, msg)  # accusé de réception (best-effort)
         return jsonify(ok=True)
     return jsonify(ok=False, error="send_failed", status=resp.status_code), 502
 
