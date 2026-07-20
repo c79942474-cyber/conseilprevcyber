@@ -760,9 +760,12 @@ def _livrables_run(type_id, data, system, user, extra_query=""):
     Partagé par la génération et l'affinage."""
     model = "mistral" if data.get("model") == "mistral" else "claude"
     query = (livrables.retrieval_query(type_id, data) + " " + extra_query).strip()
+    # Documents de référence choisis manuellement (facultatif) ; sinon récupération auto.
+    doc_ids = [d for d in (data.get("doc_ids") or []) if _rag_valid_doc_id(d)]
     hits = []
     try:
-        hits = rag.search(query, k=6, public_only=False)
+        hits = rag.search(query, k=8 if doc_ids else 6, public_only=False,
+                          doc_ids=doc_ids or None)
     except Exception:
         hits = []
     context = build_context(hits, max_chars=6000)

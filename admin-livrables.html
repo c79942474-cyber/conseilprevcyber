@@ -23,6 +23,15 @@
   .models label:has(input:checked){border-color:var(--cyan);background:rgba(34,211,238,.08);color:var(--ink)}
   .models input{accent-color:var(--cyan)}
   .models label.off{opacity:.5;pointer-events:none}
+  .docpick{border:1px solid var(--line);border-radius:10px;background:var(--bg2);padding:10px;max-height:184px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:8px}
+  .docpick .dphint{color:var(--muted2);font-size:13px;padding:6px 4px}
+  .docpick .dphint a{color:var(--cyan)}
+  .docpick label{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-size:12.5px;color:var(--muted);cursor:pointer;transition:border-color .15s,background .15s,color .15s}
+  .docpick label:hover{border-color:var(--teal);color:var(--ink)}
+  .docpick label:has(input:checked){border-color:var(--cyan);background:rgba(34,211,238,.09);color:var(--ink)}
+  .docpick input{accent-color:var(--cyan)}
+  .docpick .th{font-family:var(--mono);font-size:9px;text-transform:uppercase;color:var(--muted2);margin-left:4px}
+  .docpick .iv{color:var(--violet)}
   .warn{border:1px solid rgba(240,180,41,.35);background:rgba(240,180,41,.08);border-radius:11px;
     padding:11px 15px;font-size:13px;color:var(--ink);margin-bottom:18px;display:flex;gap:10px;align-items:flex-start}
   .warn b{color:var(--amber)}
@@ -140,6 +149,10 @@
         </div>
         <div class="field"><label for="perimetre">Périmètre</label><input type="text" id="perimetre" placeholder="Ex. 2 sites de production, réseau OT SCADA + automates"></div>
         <div class="field"><label for="consignes">Consignes particulières (facultatif)</label><textarea id="consignes" placeholder="Points à mettre en avant, contraintes, échéances…"></textarea></div>
+        <div class="field">
+          <label>Documents de référence <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted2)">— facultatif ; sinon sélection automatique dans toute la base</span></label>
+          <div class="docpick" id="docpick"><div class="dphint">Chargement…</div></div>
+        </div>
         <div class="field">
           <label>Modèle d'IA</label>
           <div class="models" id="models">
@@ -284,6 +297,19 @@
     });
     document.getElementById('histRefresh').addEventListener('click',loadHistory);
 
+    function selectedDocIds(){return Array.prototype.slice.call(document.querySelectorAll('#docpick input:checked')).map(function(c){return c.value;});}
+    function loadDocs(){
+      fetch('/api/admin/rag/documents').then(function(r){return r.ok?r.json():null;}).then(function(j){
+        var box=document.getElementById('docpick');
+        if(!j||!j.ok){box.innerHTML='<div class="dphint">—</div>';return;}
+        var docs=(j.documents||[]).filter(function(d){return d.status==='ready';});
+        if(!docs.length){box.innerHTML='<div class="dphint">Aucun document exploitable dans la base — la génération s\'appuiera sur vos saisies. <a href="/admin/base-connaissance">Charger des documents →</a></div>';return;}
+        box.innerHTML=docs.map(function(d){
+          return '<label><input type="checkbox" value="'+d.id+'"><span>'+esc(d.title)+'<span class="th">'+esc(d.theme||'')+'</span>'+(d.visibility==='internal'?' <span class="iv th">interne</span>':'')+'</span></label>';
+        }).join('');
+      }).catch(function(){});
+    }
+
     function loadTypes(){
       fetch('/api/admin/livrables/types').then(function(r){
         if(r.status===401){location.href='/connexion?next=/admin/livrables';return null;}
@@ -307,7 +333,7 @@
     function generate(){
       var body={type:typeSel.value,client:document.getElementById('client').value.trim(),
         secteur:document.getElementById('secteur').value.trim(),perimetre:document.getElementById('perimetre').value.trim(),
-        consignes:document.getElementById('consignes').value.trim(),
+        consignes:document.getElementById('consignes').value.trim(),doc_ids:selectedDocIds(),
         model:(document.querySelector('input[name=model]:checked')||{}).value||'mistral'};
       genBtn.disabled=true; note('<span class="spin"></span>Génération en cours… (cela peut prendre 10–30 s)','info');
       fetch('/api/admin/livrables/generate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)})
@@ -353,7 +379,7 @@
         body:JSON.stringify({type:typeSel.value,client:document.getElementById('client').value.trim(),
           secteur:document.getElementById('secteur').value.trim(),perimetre:document.getElementById('perimetre').value.trim(),
           model:(document.querySelector('input[name=model]:checked')||{}).value||'mistral',
-          previous:lastMd,instructions:instr})})
+          doc_ids:selectedDocIds(),previous:lastMd,instructions:instr})})
         .then(function(r){return r.json();})
         .then(function(j){
           if(j.ok){
@@ -368,7 +394,7 @@
     document.getElementById('refineInput').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();refine();}});
     document.getElementById('logout').addEventListener('click',function(e){e.preventDefault();
       fetch('/api/auth/logout',{method:'POST'}).then(function(){location.href='/connexion?deconnecte=1';});});
-    loadTypes(); loadHistory();
+    loadTypes(); loadHistory(); loadDocs();
   })();
   </script>
   <script src="/nav.js" defer></script>

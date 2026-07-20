@@ -305,15 +305,18 @@ class MemoryRagStore:
                     "chunks": sum(len(c) for c in self._chunks.values()),
                     "themes": themes, "mode": "lexical"}
 
-    def search(self, query, k=5, public_only=True, theme=None):
+    def search(self, query, k=5, public_only=True, theme=None, doc_ids=None):
         qtok = _tokens(query)
         if not qtok:
             return []
         qset = set(qtok)
+        doc_ids = set(doc_ids) if doc_ids else None
         results = []
         with self._lock:
             for doc_id, chunks in self._chunks.items():
                 meta = self._docs[doc_id]
+                if doc_ids and doc_id not in doc_ids:
+                    continue
                 if public_only and meta["visibility"] != "public":
                     continue
                 if theme and meta["theme"] != theme:
@@ -580,7 +583,7 @@ class PostgresRagStore:
         return {"documents": docs, "chunks": chunks, "themes": themes,
                 "mode": self.capabilities()["mode"]}
 
-    def search(self, query, k=5, public_only=True, theme=None):
+    def search(self, query, k=5, public_only=True, theme=None, doc_ids=None):
         query = (query or "").strip()
         if not query:
             return []
@@ -591,6 +594,9 @@ class PostgresRagStore:
         if theme:
             where.append("d.theme=%s")
             params.append(theme)
+        if doc_ids:
+            where.append("d.id = ANY(%s)")
+            params.append(list(doc_ids))
         clause = " AND ".join(where)
         with self._pool.connection() as conn:
             # Recherche vectorielle si des embeddings existent et que la requête s'embarque.
