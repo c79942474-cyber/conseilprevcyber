@@ -9,3 +9,8 @@ redis==5.2.1
 # Assistant IA conversationnel (Claude). Activé si ANTHROPIC_API_KEY est défini ;
 # Mistral est appelé via son API HTTPS (aucune dépendance dédiée).
 anthropic==0.75.0
+# Base de connaissance RAG : extraction de texte des documents chargés (PDF, DOCX).
+# La recherche vectorielle utilise pgvector (extension PostgreSQL) + embeddings
+# Mistral ; repli plein-texte natif PostgreSQL si pgvector est indisponible.
+pypdf==5.1.0
+python-docx==1.1.2

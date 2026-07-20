@@ -29,6 +29,14 @@ Variables d'environnement :
   EVENT_MAX_ROWS       — (optionnel) ne conserver que les N derniers événements.
   EVENT_ARCHIVE_PATH   — (optionnel) archive JSONL des événements purgés (cible durable).
   MAINTENANCE_INTERVAL_HOURS — (optionnel) période de la purge auto (défaut : 6 h).
+
+  Base de connaissance RAG (administration réservée à l'admin) — voir rag_store.py :
+  DATABASE_URL         — (réutilisé) si défini, la base de connaissance est persistée
+                         (PostgreSQL) et utilise pgvector si l'extension est disponible ;
+                         sinon repli plein-texte (PostgreSQL) ou lexical (mémoire).
+  MISTRAL_API_KEY      — (réutilisé) active les embeddings « mistral-embed » (recherche
+                         sémantique). Absent : repli sur la recherche plein-texte.
+  RAG_MAX_FILE_MB      — (optionnel) taille max d'un document chargé (défaut : 30 Mo).
 """
 import html as html_lib
 import json
@@ -47,6 +55,7 @@ from flask import Flask, Response, jsonify, request, send_file, send_from_direct
 import assistant
 from auth import admin_required, client_ip, guard, init_app as init_auth
 from cockpit_state import make_store
+from rag_store import RagError, THEMES, build_context, make_rag_store
 
 app = Flask(__name__)
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -235,6 +244,11 @@ broker = EventBus()
 # État du cockpit : persistant (PostgreSQL) si DATABASE_URL est défini, sinon en
 # mémoire. Voir cockpit_state.py.
 state = make_store()
+
+# Base de connaissance RAG : persistante (PostgreSQL + pgvector si disponible) si
+# DATABASE_URL est défini, sinon en mémoire. Alimente l'assistant et les livrables.
+# Voir rag_store.py. Gérée uniquement par l'administrateur (routes @admin_required).
+rag = make_rag_store()
 
 # --- Rétention de l'historique ------------------------------------------------
 # Purge périodique des événements au-delà d'un âge (EVENT_RETENTION_DAYS) et/ou
@@ -436,8 +450,20 @@ def api_chat():
 
     data = request.get_json(silent=True) or {}
     model = "mistral" if data.get("model") == "mistral" else "claude"
+    messages = data.get("messages")
+
+    # Récupération RAG : on ancre la réponse sur la base de connaissance (documents
+    # PUBLICS uniquement). Best-effort : une erreur de récupération ne casse jamais le chat.
+    context = None
     try:
-        reply, used_model = assistant.answer(model, data.get("messages"))
+        query = assistant.last_user_message(messages)
+        if query:
+            context = build_context(rag.search(query, k=5, public_only=True))
+    except Exception:
+        context = None
+
+    try:
+        reply, used_model = assistant.answer(model, messages, context=context)
     except assistant.AssistantError as exc:
         messages = {
             "not_configured": "Ce modèle n'est pas encore activé. Essayez l'autre modèle, ou "
@@ -557,6 +583,137 @@ def emblem_svg():
 def og_cover():
     """Image de partage social (Open Graph / Twitter Card) — 1200×630."""
     return send_from_directory(HERE, "og-cover.png", mimetype="image/png")
+
+
+# ============================================================================
+#  Base de connaissance RAG — administration (réservée à l'administrateur)
+# ============================================================================
+# Toutes ces routes sont protégées par @admin_required : seul le compte admin
+# (ADMIN_EMAIL) peut charger, indexer, lister, télécharger ou supprimer des
+# documents. Les identifiants sont validés (défense contre les chemins/injections).
+
+def _rag_hex(s, length=32):
+    return isinstance(s, str) and len(s) == length and all(c in "0123456789abcdef" for c in s)
+
+
+def _rag_valid_doc_id(s):
+    return _rag_hex(s)
+
+
+def _rag_valid_upload_id(s):
+    if not isinstance(s, str) or "/" in s or "\\" in s:
+        return False
+    base, _, ext = s.partition(".")
+    return _rag_hex(base) and (ext == "" or (1 <= len(ext) <= 8 and ext.isalnum()))
+
+
+@app.route("/admin/base-connaissance")
+@admin_required
+def admin_rag_page():
+    """Console d'administration de la base de connaissance RAG."""
+    return send_from_directory(HERE, "admin-base-connaissance.html")
+
+
+@app.route("/api/admin/rag/documents", methods=["GET"])
+@admin_required
+def api_rag_list():
+    """Liste des documents + statistiques + capacités (mode de recherche actif)."""
+    return jsonify(ok=True, documents=rag.list_documents(), stats=rag.stats(),
+                   capabilities=rag.capabilities(), themes=THEMES)
+
+
+@app.route("/api/admin/rag/upload/init", methods=["POST"])
+@admin_required
+def api_rag_upload_init():
+    """Ouvre une session d'upload par morceaux (fichiers lourds)."""
+    data = request.get_json(silent=True) or {}
+    filename = (data.get("filename") or "").strip()
+    if not filename:
+        return jsonify(ok=False, error="filename_manquant"), 400
+    try:
+        upload_id = rag.create_upload(filename, int(data.get("total_bytes") or 0))
+    except (RagError,) as exc:
+        return jsonify(ok=False, error=exc.code), exc.status
+    except (TypeError, ValueError):
+        return jsonify(ok=False, error="taille_invalide"), 400
+    return jsonify(ok=True, upload_id=upload_id)
+
+
+@app.route("/api/admin/rag/upload/chunk", methods=["POST"])
+@admin_required
+def api_rag_upload_chunk():
+    """Reçoit un morceau brut (< MAX_CONTENT_LENGTH) et l'assemble côté serveur."""
+    upload_id = (request.args.get("upload_id") or "").strip()
+    if not _rag_valid_upload_id(upload_id):
+        return jsonify(ok=False, error="upload_invalide"), 400
+    try:
+        idx = int(request.args.get("idx"))
+    except (TypeError, ValueError):
+        return jsonify(ok=False, error="idx_invalide"), 400
+    data = request.get_data(cache=False)
+    if not data:
+        return jsonify(ok=False, error="morceau_vide"), 400
+    try:
+        rag.add_chunk(upload_id, idx, data)
+    except RagError as exc:
+        return jsonify(ok=False, error=exc.code), exc.status
+    return jsonify(ok=True)
+
+
+@app.route("/api/admin/rag/upload/finish", methods=["POST"])
+@admin_required
+def api_rag_upload_finish():
+    """Assemble, extrait, découpe et enregistre le document. Réponse immédiate ;
+    l'indexation (embeddings) est ensuite pilotée par le client via index-next."""
+    data = request.get_json(silent=True) or {}
+    upload_id = (data.get("upload_id") or "").strip()
+    if not _rag_valid_upload_id(upload_id):
+        return jsonify(ok=False, error="upload_invalide"), 400
+    try:
+        doc = rag.finish_upload(upload_id, (data.get("title") or "").strip(),
+                                (data.get("theme") or "").strip(),
+                                (data.get("visibility") or "public").strip())
+    except RagError as exc:
+        return jsonify(ok=False, error=exc.code), exc.status
+    return jsonify(ok=True, document=doc)
+
+
+@app.route("/api/admin/rag/documents/<doc_id>/index-next", methods=["POST"])
+@admin_required
+def api_rag_index_next(doc_id):
+    """Indexe le prochain lot de chunks (piloté par le client : ne bloque pas le worker)."""
+    if not _rag_valid_doc_id(doc_id):
+        return jsonify(ok=False, error="document_invalide"), 400
+    try:
+        return jsonify(ok=True, **rag.index_next(doc_id))
+    except RagError as exc:
+        return jsonify(ok=False, error=exc.code), exc.status
+
+
+@app.route("/api/admin/rag/documents/<doc_id>", methods=["DELETE"])
+@admin_required
+def api_rag_delete(doc_id):
+    """Supprime un document et tous ses chunks (et son fichier d'origine)."""
+    if not _rag_valid_doc_id(doc_id):
+        return jsonify(ok=False, error="document_invalide"), 400
+    try:
+        rag.delete_document(doc_id)
+    except RagError as exc:
+        return jsonify(ok=False, error=exc.code), exc.status
+    return jsonify(ok=True)
+
+
+@app.route("/api/admin/rag/documents/<doc_id>/download", methods=["GET"])
+@admin_required
+def api_rag_download(doc_id):
+    """Télécharge le fichier d'origine (administrateur uniquement)."""
+    if not _rag_valid_doc_id(doc_id):
+        return jsonify(ok=False, error="document_invalide"), 400
+    try:
+        filename, data = rag.get_blob(doc_id)
+    except RagError as exc:
+        return jsonify(ok=False, error=exc.code), exc.status
+    return send_file(io.BytesIO(data), download_name=filename, as_attachment=True)
 
 
 @app.route("/offre-conseilprev-cyber.pdf")

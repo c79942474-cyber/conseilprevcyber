@@ -101,7 +101,14 @@ def _clean_history(messages):
 _FALLBACK = "Désolé, je n'ai pas pu formuler de réponse. Pouvez-vous reformuler votre question ?"
 
 
-def _ask_claude(history):
+def _system(context):
+    """Prompt système, augmenté du contexte issu de la base de connaissance."""
+    if context:
+        return SYSTEM_PROMPT + "\n\n" + context
+    return SYSTEM_PROMPT
+
+
+def _ask_claude(history, context=None):
     if not os.environ.get("ANTHROPIC_API_KEY"):
         raise AssistantError("not_configured", 503)
     try:
@@ -115,7 +122,7 @@ def _ask_claude(history):
         resp = client.messages.create(
             model=CLAUDE_MODEL,
             max_tokens=MAX_OUTPUT_TOKENS,
-            system=SYSTEM_PROMPT,
+            system=_system(context),
             messages=history,
         )
     except anthropic.APIConnectionError as exc:
@@ -139,14 +146,14 @@ def _ask_claude(history):
     return text or _FALLBACK
 
 
-def _ask_mistral(history):
+def _ask_mistral(history, context=None):
     key = os.environ.get("MISTRAL_API_KEY")
     if not key:
         raise AssistantError("not_configured", 503)
     import requests
     payload = {
         "model": MISTRAL_MODEL,
-        "messages": [{"role": "system", "content": SYSTEM_PROMPT}] + history,
+        "messages": [{"role": "system", "content": _system(context)}] + history,
         "max_tokens": MAX_OUTPUT_TOKENS,
         "temperature": 0.3,
     }
@@ -175,14 +182,26 @@ def _ask_mistral(history):
     return text or _FALLBACK
 
 
-def answer(model, messages):
-    """Renvoie (réponse, id_modèle) pour le modèle demandé (« claude » ou « mistral »)."""
+def answer(model, messages, context=None):
+    """Renvoie (réponse, id_modèle) pour le modèle demandé (« claude » ou « mistral »).
+
+    `context` (optionnel) : extraits de la base de connaissance RAG à injecter dans
+    le prompt système pour ancrer la réponse sur des sources internes fiables.
+    """
     history = _clean_history(messages)
     if not history:
         raise AssistantError("empty", 400)
     if model == "mistral":
-        return _ask_mistral(history), MISTRAL_MODEL
-    return _ask_claude(history), CLAUDE_MODEL
+        return _ask_mistral(history, context), MISTRAL_MODEL
+    return _ask_claude(history, context), CLAUDE_MODEL
+
+
+def last_user_message(messages):
+    """Dernier message utilisateur (pour la requête de récupération RAG)."""
+    for m in reversed(messages or []):
+        if m.get("role") == "user" and (m.get("content") or "").strip():
+            return m["content"].strip()
+    return ""
 
 
 # --- Diagnostic (self-test) ---------------------------------------------------
