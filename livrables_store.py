@@ -27,6 +27,10 @@ def _now_ms():
     return int(time.time() * 1000)
 
 
+def _valid_id(v):
+    return isinstance(v, str) and len(v) == 32 and all(c in "0123456789abcdef" for c in v)
+
+
 def _clean(rec):
     """Normalise et borne un enregistrement entrant."""
     md = (rec.get("markdown") or "").strip()
@@ -35,6 +39,7 @@ def _clean(rec):
     sources = rec.get("sources") or []
     if not isinstance(sources, list):
         sources = []
+    pid = rec.get("parent_id")
     return {
         "type": (rec.get("type") or "")[:80],
         "label": (rec.get("label") or rec.get("type") or "Livrable")[:200],
@@ -44,6 +49,7 @@ def _clean(rec):
         "model": (rec.get("model") or "")[:80],
         "markdown": md,
         "sources": sources,
+        "parent_id": pid if _valid_id(pid) else None,
     }
 
 
@@ -88,7 +94,7 @@ class MemoryLivrablesStore:
     @staticmethod
     def _meta(r):
         m = {k: r[k] for k in ("id", "type", "label", "client", "secteur",
-                               "model", "created_at")}
+                               "model", "created_at", "parent_id")}
         m["chars"] = len(r.get("markdown") or "")
         return m
 
@@ -109,6 +115,8 @@ _SCHEMA = [
         sources TEXT,
         created_at BIGINT)""",
     "CREATE INDEX IF NOT EXISTS livrables_created_idx ON livrables (created_at DESC)",
+    # Ajout du chaînage de versions (compatible bases existantes).
+    "ALTER TABLE livrables ADD COLUMN IF NOT EXISTS parent_id TEXT",
 ]
 
 
@@ -148,30 +156,33 @@ class PostgresLivrablesStore:
         with self._pool.connection() as conn:
             conn.execute(
                 "INSERT INTO livrables(id,type,label,client,secteur,perimetre,model,"
-                "markdown,sources,created_at) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                "markdown,sources,created_at,parent_id) "
+                "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (lid, rec["type"], rec["label"], rec["client"], rec["secteur"],
                  rec["perimetre"], rec["model"], rec["markdown"],
-                 json.dumps(rec["sources"], ensure_ascii=False), _now_ms()))
+                 json.dumps(rec["sources"], ensure_ascii=False), _now_ms(),
+                 rec["parent_id"]))
         return lid
 
     def list(self):
         with self._pool.connection() as conn:
             rows = conn.execute(
-                "SELECT id,type,label,client,secteur,model,created_at,"
+                "SELECT id,type,label,client,secteur,model,created_at,parent_id,"
                 "char_length(markdown) FROM livrables ORDER BY created_at DESC "
                 "LIMIT %s", (LIST_LIMIT,)).fetchall()
-        keys = ("id", "type", "label", "client", "secteur", "model", "created_at", "chars")
+        keys = ("id", "type", "label", "client", "secteur", "model", "created_at",
+                "parent_id", "chars")
         return [dict(zip(keys, r)) for r in rows]
 
     def get(self, lid):
         with self._pool.connection() as conn:
             r = conn.execute(
                 "SELECT id,type,label,client,secteur,perimetre,model,markdown,sources,"
-                "created_at FROM livrables WHERE id=%s", (lid,)).fetchone()
+                "created_at,parent_id FROM livrables WHERE id=%s", (lid,)).fetchone()
         if not r:
             return None
         keys = ("id", "type", "label", "client", "secteur", "perimetre", "model",
-                "markdown", "sources", "created_at")
+                "markdown", "sources", "created_at", "parent_id")
         rec = dict(zip(keys, r))
         try:
             rec["sources"] = json.loads(rec["sources"]) if rec["sources"] else []

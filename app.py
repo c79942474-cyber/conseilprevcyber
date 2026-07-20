@@ -818,6 +818,9 @@ def _livrables_run(type_id, data, system, user, extra_query=""):
     query = (livrables.retrieval_query(type_id, data) + " " + extra_query).strip()
     # Documents de référence choisis manuellement (facultatif) ; sinon récupération auto.
     doc_ids = [d for d in (data.get("doc_ids") or []) if _rag_valid_doc_id(d)]
+    # Version parente (chaînage des itérations) — présent lors d'un affinage.
+    parent_id = data.get("parent_id")
+    parent_id = parent_id if _rag_valid_doc_id(parent_id) else None
     hits = []
     try:
         hits = rag.search(query, k=8 if doc_ids else 6, public_only=False,
@@ -843,7 +846,7 @@ def _livrables_run(type_id, data, system, user, extra_query=""):
             "type": type_id, "label": t["label"] if t else type_id,
             "client": data.get("client"), "secteur": data.get("secteur"),
             "perimetre": data.get("perimetre"), "model": used_model,
-            "markdown": text, "sources": sources})
+            "markdown": text, "sources": sources, "parent_id": parent_id})
     except Exception:
         saved_id = None
 

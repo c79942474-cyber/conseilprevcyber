@@ -206,7 +206,7 @@
   (function(){
     var notice=document.getElementById('notice'), typeSel=document.getElementById('type'), typedesc=document.getElementById('typedesc');
     var result=document.getElementById('result'), docEl=document.getElementById('doc'), genBtn=document.getElementById('genBtn');
-    var TYPES=[], lastMd='';
+    var TYPES=[], lastMd='', lastId=null;
     function esc(s){return (''+(s==null?'':s)).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
     function note(t,cls){notice.innerHTML=t;notice.className=cls;notice.style.display=t?'block':'none';}
 
@@ -266,7 +266,8 @@
         var items=j.items||[];
         if(!items.length){rows.innerHTML='<tr><td colspan="5" class="hempty">Aucun livrable enregistré pour l\'instant.</td></tr>';return;}
         rows.innerHTML=items.map(function(it){
-          return '<tr><td><div class="who">'+esc(it.label||it.type||'Livrable')+'</div></td>'
+          var iter=it.parent_id?' <span class="pill" style="border-color:rgba(139,124,246,.4);color:var(--violet);background:rgba(139,124,246,.08)">↳ itération</span>':'';
+          return '<tr><td><div class="who">'+esc(it.label||it.type||'Livrable')+iter+'</div></td>'
             +'<td>'+(it.client?esc(it.client):'—')+'</td>'
             +'<td><span class="pill">'+esc(it.model||'—')+'</span></td>'
             +'<td class="sub">'+fmtTs(it.created_at)+'</td>'
@@ -281,7 +282,7 @@
       if(a==='open'){
         fetch('/api/admin/livrables/history/'+id).then(function(r){return r.json();}).then(function(j){
           if(!j.ok){note('Livrable introuvable.','err');return;}
-          var it=j.item;
+          var it=j.item; lastId=it.id;
           if(it.type){typeSel.value=it.type;showDesc();}
           document.getElementById('client').value=it.client||'';
           document.getElementById('secteur').value=it.secteur||'';
@@ -341,6 +342,7 @@
         .then(function(o){
           var j=o.j||{};
           if(j.ok){
+            lastId=j.id||null;
             showResult(j.document||'','Modèle : '+(j.model||'')+' · généré le '+new Date().toLocaleString('fr-FR'),j.sources);
             note('',''); loadHistory();
           } else {
@@ -379,10 +381,11 @@
         body:JSON.stringify({type:typeSel.value,client:document.getElementById('client').value.trim(),
           secteur:document.getElementById('secteur').value.trim(),perimetre:document.getElementById('perimetre').value.trim(),
           model:(document.querySelector('input[name=model]:checked')||{}).value||'mistral',
-          doc_ids:selectedDocIds(),previous:lastMd,instructions:instr})})
+          doc_ids:selectedDocIds(),previous:lastMd,instructions:instr,parent_id:lastId})})
         .then(function(r){return r.json();})
         .then(function(j){
           if(j.ok){
+            lastId=j.id||null;
             showResult(j.document||'','Modèle : '+(j.model||'')+' · affiné le '+new Date().toLocaleString('fr-FR'),j.sources);
             note('Livrable affiné.','info'); setTimeout(function(){note('','');},2200);
             document.getElementById('refineInput').value=''; loadHistory();
