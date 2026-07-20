@@ -102,7 +102,7 @@ header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
   cursor:pointer;flex-direction:column;justify-content:space-between;align-items:stretch}
 .nav-toggle:hover{border-color:#41493F}
 .nav-toggle-bar{display:block;height:2px;border-radius:2px;background:var(--ink);
-  transition:transform .22s ease,opacity .2s ease}
+  transition:transform .15s ease,opacity .15s ease}
 .nav.open .nav-toggle-bar:nth-child(1){transform:translateY(7px) rotate(45deg)}
 .nav.open .nav-toggle-bar:nth-child(2){opacity:0}
 .nav.open .nav-toggle-bar:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
@@ -115,7 +115,7 @@ header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
     border-bottom:1px solid var(--line);box-shadow:0 18px 40px rgba(0,0,0,.42);
     padding:6px 0;
     max-height:0;overflow:hidden;opacity:0;visibility:hidden;
-    transition:max-height .28s ease,opacity .2s ease,visibility .28s ease}
+    transition:max-height .18s ease,opacity .18s ease,visibility .18s ease}
   .js-nav .nav.open .links{max-height:min(82vh,560px);overflow-y:auto;opacity:1;visibility:visible}
   .js-nav .nav .links a{padding:13px 24px;font-size:15px;color:var(--muted);
     border-top:1px solid rgba(46,58,54,.5)}
@@ -132,7 +132,7 @@ header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
   border-radius:14px;border:1px solid var(--line);
   background:rgba(48,26,18,.64);backdrop-filter:blur(8px);
   box-shadow:0 10px 26px rgba(0,0,0,.34);
-  opacity:.5;transition:opacity .2s ease}
+  opacity:.5;transition:opacity .18s ease}
 .pagenav:hover,.pagenav:focus-within{opacity:1}
 .pagenav-btn{width:38px;height:34px;display:flex;align-items:center;justify-content:center;
   font-size:17px;line-height:1;color:var(--muted);cursor:pointer;
@@ -209,7 +209,7 @@ header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
 .guide-panel{width:min(440px,100%);height:100%;overflow-y:auto;position:relative;
   background:linear-gradient(180deg,var(--panel),var(--bg2));
   border-left:1px solid var(--line);padding:26px 28px 42px;
-  animation:gslide .22s ease}
+  animation:gslide .18s ease}
 @keyframes gslide{from{transform:translateX(28px);opacity:0}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion: reduce){.guide-panel{animation:none}}
 .guide-kicker{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--cyan);margin-bottom:6px}
