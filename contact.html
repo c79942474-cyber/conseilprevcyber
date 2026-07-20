@@ -42,15 +42,36 @@
           <div class="field">
             <label for="sujet">Sujet <button type="button" class="tipi" data-tip="Choisissez le thème le plus proche — vous pourrez préciser dans le message." aria-label="Aide : choix du sujet">i</button></label>
             <select id="sujet" name="sujet">
-              <option>Démonstration / demande de renseignements</option>
-              <option>Diagnostic de sécurité</option>
-              <option>Conformité (NIS2, DORA, ISO 27001, RGPD)</option>
-              <option>Mise en conformité &amp; mise en sécurité (actifs / process OT)</option>
-              <option>Veille réglementaire ICS/OT</option>
-              <option>Test d'intrusion</option>
-              <option>Sensibilisation / formation</option>
-              <option>Réponse à incident / continuité</option>
-              <option>Autre</option>
+              <optgroup label="Découverte">
+                <option>Démonstration / demande de renseignements</option>
+                <option>Devis / estimation</option>
+              </optgroup>
+              <optgroup label="Audit &amp; conseil">
+                <option>État des lieux &amp; cartographie réseau OT (inventaire d'actifs)</option>
+                <option>Architecture &amp; segmentation (zones &amp; conduits IEC 62443)</option>
+                <option>Analyse de risques &amp; remédiation</option>
+                <option>Diagnostic de sécurité</option>
+                <option>Audit de conformité IEC 62443</option>
+                <option>Test d'intrusion</option>
+              </optgroup>
+              <optgroup label="Conformité">
+                <option>Conformité (NIS2, DORA, ISO 27001, RGPD)</option>
+                <option>Mise en conformité &amp; mise en sécurité (actifs / process OT)</option>
+                <option>Veille réglementaire ICS/OT</option>
+              </optgroup>
+              <optgroup label="Supervision &amp; réponse">
+                <option>Supervision &amp; détection (SOC OT, IDS/IPS, EDR)</option>
+                <option>Réponse à incident / continuité d'activité</option>
+              </optgroup>
+              <optgroup label="Accompagnement">
+                <option>Sensibilisation / formation</option>
+                <option>Accompagnement projet / AMOA cyber OT</option>
+              </optgroup>
+              <optgroup label="Autre demande">
+                <option>Partenariat / revendeur</option>
+                <option>Recrutement / candidature spontanée</option>
+                <option>Autre</option>
+              </optgroup>
             </select>
           </div>
           <div class="field"><label for="msg">Message <button type="button" class="tipi" data-tip="Décrivez votre contexte OT/IT, vos enjeux et une échéance éventuelle." aria-label="Aide : que mettre dans le message">i</button></label><textarea id="msg" name="msg" required placeholder="Votre contexte, vos enjeux, une échéance éventuelle…"></textarea></div>
