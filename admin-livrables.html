@@ -59,6 +59,20 @@
   .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--cyan);border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px;margin-right:8px}
   @keyframes sp{to{transform:rotate(360deg)}}
 
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:34px 0 14px}
+  .tblwrap{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:14px;padding:6px;overflow-x:auto}
+  table.hist{width:100%;border-collapse:collapse;font-size:13.5px;min-width:680px}
+  table.hist th{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2);text-align:left;padding:12px 14px;border-bottom:1px solid var(--line)}
+  table.hist td{padding:11px 14px;border-bottom:1px solid rgba(30,42,58,.55);color:var(--muted);vertical-align:middle}
+  table.hist tr:last-child td{border-bottom:none}
+  table.hist .who{color:var(--ink);font-weight:600}
+  table.hist .pill{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;border-radius:999px;padding:3px 10px;border:1px solid var(--line)}
+  .hact{display:flex;gap:6px;flex-wrap:wrap}
+  .hact button{font-family:var(--mono);font-size:11px;padding:6px 11px;border-radius:7px;cursor:pointer;border:1px solid var(--line);background:var(--panel2);color:var(--muted);transition:color .15s,border-color .15s}
+  .hact button:hover{color:var(--ink);border-color:var(--cyan)}
+  .hact button.danger:hover{color:var(--terra);border-color:rgba(217,96,58,.5)}
+  .hempty{color:var(--muted2);text-align:center;padding:26px}
+
   .letterhead,.printfoot{display:none}
   @media print{
     body *{visibility:hidden}
@@ -148,6 +162,17 @@
         </div>
         <div class="sources" id="sources" style="display:none"><div class="lbl">Sources utilisées (base de connaissance)</div><div id="srclist"></div></div>
       </div>
+
+      <div class="topbar">
+        <div class="sec-title" style="margin:0">Historique des livrables</div>
+        <button class="btn btn-s" id="histRefresh" type="button">↻ Actualiser</button>
+      </div>
+      <div class="tblwrap">
+        <table class="hist">
+          <thead><tr><th>Livrable</th><th>Client</th><th>Modèle</th><th>Généré</th><th>Actions</th></tr></thead>
+          <tbody id="histRows"><tr><td colspan="5" class="hempty">Chargement…</td></tr></tbody>
+        </table>
+      </div>
     </section>
   </main>
 
@@ -194,6 +219,58 @@
       return out.join('\n');
     }
 
+    function fmtTs(ts){if(!ts)return '—';var d=new Date(ts);return d.toLocaleDateString('fr-FR')+' '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}
+    function showResult(md,metaText,sources){
+      lastMd=md||'';
+      docEl.innerHTML=mdToHtml(lastMd);
+      document.getElementById('rmeta').textContent=metaText;
+      var src=document.getElementById('sources'), list=document.getElementById('srclist');
+      if(sources&&sources.length){
+        list.innerHTML=sources.map(function(s){return '<span class="srcpill">'+esc(s.title||'Document')+'<span class="v">'+(s.visibility==='internal'?'interne':'public')+'</span></span>';}).join('');
+        src.style.display='block';
+      } else { src.style.display='none'; }
+      result.classList.add('on');
+      result.scrollIntoView({behavior:'smooth',block:'start'});
+    }
+
+    function loadHistory(){
+      fetch('/api/admin/livrables/history').then(function(r){return r.ok?r.json():null;}).then(function(j){
+        var rows=document.getElementById('histRows');
+        if(!j||!j.ok){rows.innerHTML='<tr><td colspan="5" class="hempty">—</td></tr>';return;}
+        var items=j.items||[];
+        if(!items.length){rows.innerHTML='<tr><td colspan="5" class="hempty">Aucun livrable enregistré pour l\'instant.</td></tr>';return;}
+        rows.innerHTML=items.map(function(it){
+          return '<tr><td><div class="who">'+esc(it.label||it.type||'Livrable')+'</div></td>'
+            +'<td>'+(it.client?esc(it.client):'—')+'</td>'
+            +'<td><span class="pill">'+esc(it.model||'—')+'</span></td>'
+            +'<td class="sub">'+fmtTs(it.created_at)+'</td>'
+            +'<td><div class="hact"><button data-a="open" data-id="'+it.id+'">Ouvrir</button>'
+            +'<button class="danger" data-a="del" data-id="'+it.id+'" data-l="'+esc(it.label||'')+'">Supprimer</button></div></td></tr>';
+        }).join('');
+      }).catch(function(){});
+    }
+    document.getElementById('histRows').addEventListener('click',function(e){
+      var b=e.target.closest('button'); if(!b)return;
+      var a=b.getAttribute('data-a'), id=b.getAttribute('data-id');
+      if(a==='open'){
+        fetch('/api/admin/livrables/history/'+id).then(function(r){return r.json();}).then(function(j){
+          if(!j.ok){note('Livrable introuvable.','err');return;}
+          var it=j.item;
+          if(it.type){typeSel.value=it.type;showDesc();}
+          document.getElementById('client').value=it.client||'';
+          document.getElementById('secteur').value=it.secteur||'';
+          document.getElementById('perimetre').value=it.perimetre||'';
+          showResult(it.markdown||'','Modèle : '+(it.model||'')+' · '+fmtTs(it.created_at)+' · (historique)',it.sources);
+        }).catch(function(){note('Erreur de chargement.','err');});
+      } else if(a==='del'){
+        if(!confirm('Supprimer « '+b.getAttribute('data-l')+' » de l\'historique ?'))return;
+        fetch('/api/admin/livrables/history/'+id,{method:'DELETE'}).then(function(r){return r.json();}).then(function(j){
+          if(j.ok){note('Livrable supprimé.','info');setTimeout(function(){note('','');},2000);loadHistory();}else{note('Suppression impossible.','err');}
+        }).catch(function(){note('Erreur réseau.','err');});
+      }
+    });
+    document.getElementById('histRefresh').addEventListener('click',loadHistory);
+
     function loadTypes(){
       fetch('/api/admin/livrables/types').then(function(r){
         if(r.status===401){location.href='/connexion?next=/admin/livrables';return null;}
@@ -225,16 +302,8 @@
         .then(function(o){
           var j=o.j||{};
           if(j.ok){
-            lastMd=j.document||'';
-            docEl.innerHTML=mdToHtml(lastMd);
-            document.getElementById('rmeta').textContent='Modèle : '+(j.model||'')+' · généré le '+new Date().toLocaleString('fr-FR');
-            var src=document.getElementById('sources'), list=document.getElementById('srclist');
-            if(j.sources&&j.sources.length){
-              list.innerHTML=j.sources.map(function(s){return '<span class="srcpill">'+esc(s.title||'Document')+'<span class="v">'+(s.visibility==='internal'?'interne':'public')+'</span></span>';}).join('');
-              src.style.display='block';
-            } else { src.style.display='none'; }
-            result.classList.add('on'); note('','');
-            result.scrollIntoView({behavior:'smooth',block:'start'});
+            showResult(j.document||'','Modèle : '+(j.model||'')+' · généré le '+new Date().toLocaleString('fr-FR'),j.sources);
+            note('',''); loadHistory();
           } else {
             note(esc(j.message||'Génération indisponible.'),'err');
           }
@@ -263,7 +332,7 @@
     document.getElementById('printBtn').addEventListener('click',function(){window.print();});
     document.getElementById('logout').addEventListener('click',function(e){e.preventDefault();
       fetch('/api/auth/logout',{method:'POST'}).then(function(){location.href='/connexion?deconnecte=1';});});
-    loadTypes();
+    loadTypes(); loadHistory();
   })();
   </script>
   <script src="/nav.js" defer></script>

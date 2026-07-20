@@ -57,6 +57,7 @@ import livrables
 import livrables_export
 from auth import admin_required, client_ip, guard, init_app as init_auth
 from cockpit_state import make_store
+from livrables_store import make_livrables_store
 from rag_store import RagError, THEMES, build_context, make_rag_store
 
 app = Flask(__name__)
@@ -251,6 +252,9 @@ state = make_store()
 # DATABASE_URL est défini, sinon en mémoire. Alimente l'assistant et les livrables.
 # Voir rag_store.py. Gérée uniquement par l'administrateur (routes @admin_required).
 rag = make_rag_store()
+
+# Historique des livrables générés (persistant si DATABASE_URL). Voir livrables_store.py.
+livrables_hist = make_livrables_store()
 
 # --- Rétention de l'historique ------------------------------------------------
 # Purge périodique des événements au-delà d'un âge (EVENT_RETENTION_DAYS) et/ou
@@ -785,7 +789,50 @@ def api_livrables_generate():
 
     sources = [{"title": h.get("title"), "theme": h.get("theme"),
                 "visibility": h.get("visibility")} for h in hits]
-    return jsonify(ok=True, document=text, model=model, sources=sources)
+
+    # Enregistrement dans l'historique (best-effort : n'interrompt jamais la réponse).
+    saved_id = None
+    try:
+        t = livrables.get_type(type_id)
+        saved_id = livrables_hist.save({
+            "type": type_id, "label": t["label"] if t else type_id,
+            "client": data.get("client"), "secteur": data.get("secteur"),
+            "perimetre": data.get("perimetre"), "model": used_model,
+            "markdown": text, "sources": sources})
+    except Exception:
+        saved_id = None
+
+    return jsonify(ok=True, document=text, model=model, sources=sources, id=saved_id)
+
+
+@app.route("/api/admin/livrables/history", methods=["GET"])
+@admin_required
+def api_livrables_history():
+    """Liste des livrables générés (métadonnées, sans le contenu)."""
+    return jsonify(ok=True, items=livrables_hist.list(), stats=livrables_hist.stats())
+
+
+@app.route("/api/admin/livrables/history/<lid>", methods=["GET"])
+@admin_required
+def api_livrables_history_get(lid):
+    """Récupère un livrable enregistré (contenu complet) pour reconsultation / ré-export."""
+    if not _rag_hex(lid):
+        return jsonify(ok=False, error="id_invalide"), 400
+    rec = livrables_hist.get(lid)
+    if not rec:
+        return jsonify(ok=False, error="introuvable"), 404
+    return jsonify(ok=True, item=rec)
+
+
+@app.route("/api/admin/livrables/history/<lid>", methods=["DELETE"])
+@admin_required
+def api_livrables_history_delete(lid):
+    """Supprime un livrable de l'historique."""
+    if not _rag_hex(lid):
+        return jsonify(ok=False, error="id_invalide"), 400
+    if not livrables_hist.delete(lid):
+        return jsonify(ok=False, error="introuvable"), 404
+    return jsonify(ok=True)
 
 
 @app.route("/api/admin/livrables/export", methods=["POST"])
