@@ -754,29 +754,15 @@ def api_livrables_types():
     return jsonify(ok=True, types=livrables.public_types(), models=assistant.available())
 
 
-@app.route("/api/admin/livrables/generate", methods=["POST"])
-@admin_required
-def api_livrables_generate():
-    """Génère un livrable ancré sur la base de connaissance (documents publics + internes)."""
-    ckey = "gen:%s" % client_ip()
-    if guard.blocked(ckey, limit=12, window=600):
-        return jsonify(ok=False, error="rate_limited",
-                       message="Trop de générations en peu de temps. Patientez quelques minutes."), 429
-    guard.fail(ckey)
-
-    data = request.get_json(silent=True) or {}
-    type_id = (data.get("type") or "").strip()
-    prompts = livrables.build_prompts(type_id, data)
-    if not prompts:
-        return jsonify(ok=False, error="type_inconnu",
-                       message="Type de livrable inconnu."), 400
-    system, user = prompts
+def _livrables_run(type_id, data, system, user, extra_query=""):
+    """Ancre le prompt sur la base de connaissance (documents publics + internes),
+    génère le livrable, l'enregistre dans l'historique et renvoie la réponse JSON.
+    Partagé par la génération et l'affinage."""
     model = "mistral" if data.get("model") == "mistral" else "claude"
-
-    # Ancrage RAG : documents publics ET internes (un livrable est un usage interne).
+    query = (livrables.retrieval_query(type_id, data) + " " + extra_query).strip()
     hits = []
     try:
-        hits = rag.search(livrables.retrieval_query(type_id, data), k=6, public_only=False)
+        hits = rag.search(query, k=6, public_only=False)
     except Exception:
         hits = []
     context = build_context(hits, max_chars=6000)
@@ -803,6 +789,49 @@ def api_livrables_generate():
         saved_id = None
 
     return jsonify(ok=True, document=text, model=model, sources=sources, id=saved_id)
+
+
+@app.route("/api/admin/livrables/generate", methods=["POST"])
+@admin_required
+def api_livrables_generate():
+    """Génère un livrable ancré sur la base de connaissance (documents publics + internes)."""
+    ckey = "gen:%s" % client_ip()
+    if guard.blocked(ckey, limit=12, window=600):
+        return jsonify(ok=False, error="rate_limited",
+                       message="Trop de générations en peu de temps. Patientez quelques minutes."), 429
+    guard.fail(ckey)
+    data = request.get_json(silent=True) or {}
+    type_id = (data.get("type") or "").strip()
+    prompts = livrables.build_prompts(type_id, data)
+    if not prompts:
+        return jsonify(ok=False, error="type_inconnu", message="Type de livrable inconnu."), 400
+    system, user = prompts
+    return _livrables_run(type_id, data, system, user)
+
+
+@app.route("/api/admin/livrables/refine", methods=["POST"])
+@admin_required
+def api_livrables_refine():
+    """Affine (régénère) un livrable existant selon des ajustements — ancré RAG, historisé."""
+    ckey = "gen:%s" % client_ip()
+    if guard.blocked(ckey, limit=12, window=600):
+        return jsonify(ok=False, error="rate_limited",
+                       message="Trop de générations en peu de temps. Patientez quelques minutes."), 429
+    guard.fail(ckey)
+    data = request.get_json(silent=True) or {}
+    type_id = (data.get("type") or "").strip()
+    previous = (data.get("previous") or "").strip()
+    instructions = (data.get("instructions") or "").strip()
+    if not previous:
+        return jsonify(ok=False, error="sans_base", message="Aucun livrable à affiner."), 400
+    if not instructions:
+        return jsonify(ok=False, error="sans_consigne",
+                       message="Précisez les ajustements souhaités."), 400
+    prompts = livrables.build_refine_prompts(type_id, data, previous, instructions)
+    if not prompts:
+        return jsonify(ok=False, error="type_inconnu", message="Type de livrable inconnu."), 400
+    system, user = prompts
+    return _livrables_run(type_id, data, system, user, extra_query=instructions)
 
 
 @app.route("/api/admin/livrables/history", methods=["GET"])

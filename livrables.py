@@ -161,6 +161,27 @@ def build_prompts(type_id, inputs, context=None):
     return SYSTEM_PROMPT, user
 
 
+def build_refine_prompts(type_id, inputs, previous, instructions):
+    """Construit (system, user) pour AFFINER un livrable existant selon des ajustements."""
+    t = get_type(type_id)
+    if not t:
+        return None
+    client = (inputs.get("client") or "").strip() or "[client à préciser]"
+    user = (
+        "Tu vas AMÉLIORER un livrable existant selon des ajustements précis.\n\n"
+        "Type de livrable : " + t["label"] + "\n"
+        "Client / organisation : " + client + "\n\n"
+        "Brouillon actuel (Markdown) :\n---\n" + (previous or "")[:12000] + "\n---\n\n"
+        "Ajustements demandés :\n" + instructions + "\n\n"
+        "Réécris le livrable COMPLET en français, au format Markdown, en appliquant ces "
+        "ajustements et en conservant la structure et le contenu pertinent existant. "
+        "Respecte les mêmes garde-fous : aucune invention de faits ou de chiffres "
+        "spécifiques au client (« [à compléter] » si une information manque), paraphrase "
+        "des normes, et conserve la mention « Brouillon — à valider »."
+    )
+    return SYSTEM_PROMPT, user
+
+
 def retrieval_query(type_id, inputs):
     """Requête de récupération RAG pour ancrer le livrable."""
     t = get_type(type_id)

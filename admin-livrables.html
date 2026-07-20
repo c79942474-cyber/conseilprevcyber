@@ -56,6 +56,12 @@
   .sources .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted2);margin-bottom:8px}
   .srcpill{display:inline-block;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 11px;margin:0 6px 6px 0}
   .srcpill .v{font-family:var(--mono);font-size:9px;text-transform:uppercase;margin-left:6px;color:var(--muted2)}
+  .refine{padding:16px 22px 20px;border-top:1px solid var(--line)}
+  .refine label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted2);margin-bottom:8px}
+  .refrow{display:flex;gap:10px;flex-wrap:wrap}
+  .refrow input{flex:1 1 340px;background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:11px 13px;color:var(--ink);font-size:14px;font-family:inherit}
+  .refrow input:focus{outline:none;border-color:var(--cyan)}
+  .refrow .btn{white-space:nowrap}
   .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--cyan);border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px;margin-right:8px}
   @keyframes sp{to{transform:rotate(360deg)}}
 
@@ -161,6 +167,13 @@
           <div class="printfoot">CONSEILPREV · christophe.cerf@outlook.com · +33 6 60 69 21 45 · conseilprevcyber.onrender.com — Brouillon assisté par IA, à relire et valider.</div>
         </div>
         <div class="sources" id="sources" style="display:none"><div class="lbl">Sources utilisées (base de connaissance)</div><div id="srclist"></div></div>
+        <div class="refine">
+          <label>Affiner ce livrable</label>
+          <div class="refrow">
+            <input type="text" id="refineInput" placeholder="Ex. Raccourcis la section Écarts · ajoute un tableau des risques · ton plus formel…">
+            <button class="btn btn-p" id="refineBtn">↻ Régénérer avec ces ajustements</button>
+          </div>
+        </div>
       </div>
 
       <div class="topbar">
@@ -330,6 +343,29 @@
       a.href=URL.createObjectURL(blob); a.download=(typeSel.value||'livrable')+'.md'; a.click(); URL.revokeObjectURL(a.href);
     });
     document.getElementById('printBtn').addEventListener('click',function(){window.print();});
+    function refine(){
+      var instr=document.getElementById('refineInput').value.trim();
+      if(!instr){note('Précisez les ajustements souhaités.','err');return;}
+      if(!lastMd)return;
+      var btn=document.getElementById('refineBtn'); btn.disabled=true;
+      note('<span class="spin"></span>Régénération en cours… (10–30 s)','info');
+      fetch('/api/admin/livrables/refine',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({type:typeSel.value,client:document.getElementById('client').value.trim(),
+          secteur:document.getElementById('secteur').value.trim(),perimetre:document.getElementById('perimetre').value.trim(),
+          model:(document.querySelector('input[name=model]:checked')||{}).value||'mistral',
+          previous:lastMd,instructions:instr})})
+        .then(function(r){return r.json();})
+        .then(function(j){
+          if(j.ok){
+            showResult(j.document||'','Modèle : '+(j.model||'')+' · affiné le '+new Date().toLocaleString('fr-FR'),j.sources);
+            note('Livrable affiné.','info'); setTimeout(function(){note('','');},2200);
+            document.getElementById('refineInput').value=''; loadHistory();
+          } else { note(esc(j.message||'Régénération indisponible.'),'err'); }
+        }).catch(function(){note('Erreur réseau pendant la régénération.','err');})
+        .then(function(){btn.disabled=false;});
+    }
+    document.getElementById('refineBtn').addEventListener('click',refine);
+    document.getElementById('refineInput').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();refine();}});
     document.getElementById('logout').addEventListener('click',function(e){e.preventDefault();
       fetch('/api/auth/logout',{method:'POST'}).then(function(){location.href='/connexion?deconnecte=1';});});
     loadTypes(); loadHistory();
