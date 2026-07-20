@@ -553,6 +553,12 @@ def emblem_svg():
     return send_from_directory(HERE, "emblem.svg", mimetype="image/svg+xml")
 
 
+@app.route("/og-cover.png")
+def og_cover():
+    """Image de partage social (Open Graph / Twitter Card) — 1200×630."""
+    return send_from_directory(HERE, "og-cover.png", mimetype="image/png")
+
+
 @app.route("/offre-conseilprev-cyber.pdf")
 def offre_pdf():
     """Plaquette PDF de l'offre cybersécurité industrielle (téléchargement direct)."""
