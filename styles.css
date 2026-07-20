@@ -281,8 +281,8 @@ h3{font-size:19px;letter-spacing:-.01em;font-weight:700}
 .card.a2{--accent:linear-gradient(90deg,var(--violet),var(--cyan))}
 .card.a3{--accent:linear-gradient(90deg,var(--terra),var(--violet))}
 .card.a4{--accent:linear-gradient(90deg,var(--amber),var(--terra))}
-.card:hover{transform:scale(1.035) translateY(-4px);border-color:var(--cyan);
-  box-shadow:0 20px 44px rgba(0,0,0,.40),0 0 0 1px rgba(34,211,238,.28);z-index:3}
+.card:hover{transform:scale(1.05) translateY(-5px);border-color:var(--cyan);
+  box-shadow:0 24px 54px rgba(0,0,0,.44),0 0 0 1px rgba(34,211,238,.55),0 0 30px 5px rgba(34,211,238,.32);z-index:3}
 .card .ico{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;
   font-size:22px;margin-bottom:16px;background:rgba(34,211,238,.10);border:1px solid var(--line)}
 .card.a2 .ico{background:rgba(139,124,246,.12)}
@@ -298,11 +298,17 @@ h3{font-size:19px;letter-spacing:-.01em;font-weight:700}
    les pages ; .card ci-dessus, .modcard traité dans referentiel.html). ───────── */
 .metric,.case,.kpi,.stat{transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
 .metric:hover,.case:hover,.kpi:hover,.stat:hover{
-  transform:scale(1.035) translateY(-4px);border-color:var(--cyan);
-  box-shadow:0 20px 44px rgba(0,0,0,.40),0 0 0 1px rgba(34,211,238,.28);
+  transform:scale(1.05) translateY(-5px);border-color:var(--cyan);
+  box-shadow:0 24px 54px rgba(0,0,0,.44),0 0 0 1px rgba(34,211,238,.55),0 0 30px 5px rgba(34,211,238,.32);
+  position:relative;z-index:3}
+/* Rangées d'étapes : loupe adaptée — fond mis en avant + halo étendu, zoom un peu
+   plus léger (1.03) car ces rangées sont en pleine largeur. */
+.step{transition:transform .18s ease,background .18s ease,box-shadow .18s ease,border-color .18s ease}
+.step:hover{transform:scale(1.03);background:var(--panel2);border-radius:12px;border-color:transparent;
+  box-shadow:0 18px 44px rgba(0,0,0,.42),0 0 0 1px rgba(34,211,238,.5),0 0 28px 4px rgba(34,211,238,.28);
   position:relative;z-index:3}
 @media (prefers-reduced-motion: reduce){
-  .card:hover,.metric:hover,.case:hover,.kpi:hover,.stat:hover,.modcard:hover{transform:none}
+  .card:hover,.metric:hover,.case:hover,.kpi:hover,.stat:hover,.step:hover,.modcard:hover{transform:none}
 }
 
 /* Contenu long (services / légal) */
