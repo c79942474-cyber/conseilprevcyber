@@ -300,6 +300,7 @@ PAGES = {
     "/ressources": "ressources.html",
     "/faq": "faq.html",
     "/about": "about.html",
+    "/vos-projets": "vos-projets.html",
     "/contact": "contact.html",
     "/mentions-legales": "mentions-legales.html",
 }
@@ -517,6 +518,12 @@ def faq():
 @app.route("/about")
 def about():
     return _page(PAGES["/about"])
+
+
+@app.route("/vos-projets")
+def vos_projets():
+    """Formulaire détaillé de soumission de projet cyber industriel (IT/OT/IIoT)."""
+    return _page(PAGES["/vos-projets"])
 
 
 @app.route("/contact")

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vos projets — Cybersécurité industrielle | CONSEILPREV Cyber</title>
+<meta name="description" content="Soumettez votre projet de cybersécurité industrielle (IT / OT / IIoT) : état des lieux, segmentation IEC 62443, audit de conformité, supervision OT, mise en conformité NIS2/DORA. Réponse sous 48 h ouvrées avec une proposition adaptée.">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  /* Bandeau « recevoir l'offre » */
+  .offer-strip{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;
+    border:1px dashed var(--line);border-radius:12px;padding:12px 18px;margin:0 auto 26px;max-width:640px;
+    background:rgba(0,0,0,.10);font-size:13.5px;color:var(--muted)}
+  .offer-strip .btn{padding:9px 15px;font-size:13px}
+
+  /* Groupe de champs (titre de section) */
+  .fgroup{margin:26px 0 8px;font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--cyan)}
+  .fgroup:first-of-type{margin-top:6px}
+
+  /* Cases à cocher « environnements OT » (chips) */
+  .checks{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+  .checks label{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);
+    border:1px solid var(--line);border-radius:999px;padding:7px 13px;cursor:pointer;
+    transition:border-color .15s,color .15s,background .15s}
+  .checks label:hover{border-color:var(--teal);color:var(--ink)}
+  .checks label:has(input:checked){border-color:var(--cyan);color:var(--ink);background:rgba(34,211,238,.09)}
+  .checks input{accent-color:var(--cyan);width:15px;height:15px}
+
+  /* Consentement RGPD */
+  .consent{display:flex;gap:11px;align-items:flex-start;margin-top:8px;font-size:13px;color:var(--muted);line-height:1.5}
+  .consent input{accent-color:var(--cyan);width:17px;height:17px;margin-top:2px;flex:0 0 auto}
+  .consent a{color:var(--cyan)}
+  .req{color:var(--terra)}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><a href="/">CONSEILPREV</a><span class="tag">Cyber</span></div>
+      <div class="spacer"></div>
+      <nav class="links">
+        <a href="/">Accueil</a>
+        <a href="/about">À propos</a>
+        <a href="/services">Services</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/demo">Démo temps réel</a>
+        <a href="/vos-projets" class="active">Vos projets</a>
+        <a href="/contact" class="cta">Nous contacter</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow"><span class="dot"></span>Formulaire de projet</span>
+      <h1>Soumettez votre projet <span class="grad">cybersécurité industrielle</span>.</h1>
+      <p class="lead" style="margin-top:18px">Décrivez votre besoin OT / ICS / IIoT — état des lieux, segmentation
+        IEC&nbsp;62443, audit de conformité, supervision temps réel ou mise en conformité NIS2&nbsp;/&nbsp;DORA.
+        Nous revenons vers vous <strong>sous 48&nbsp;h ouvrées</strong> avec une proposition adaptée à vos contraintes de production.</p>
+    </section>
+
+    <section class="section" style="padding-top:16px">
+      <div class="offer-strip">
+        <span>📄 Vous préférez découvrir notre offre d'abord&nbsp;?</span>
+        <a class="btn btn-s" href="mailto:christophe.cerf@outlook.com?subject=%5BCONSEILPREV%20Cyber%5D%20Demande%20d%27offre&body=Bonjour%2C%20je%20souhaite%20recevoir%20votre%20offre%20de%20cybers%C3%A9curit%C3%A9%20industrielle%20(IT%2FOT%2FIIoT).">📥 Recevoir l'offre</a>
+      </div>
+
+      <form class="form" id="pform" style="max-width:760px;margin:0 auto" onsubmit="return sendProjet(event)" novalidate>
+
+        <div class="fgroup">Vos coordonnées</div>
+        <div class="row">
+          <div class="field"><label for="prenom">Prénom <span class="req">*</span></label><input id="prenom" required autocomplete="given-name"></div>
+          <div class="field"><label for="nom">Nom <span class="req">*</span></label><input id="nom" required autocomplete="family-name"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label for="email">Email professionnel <span class="req">*</span></label><input id="email" type="email" required autocomplete="email" placeholder="prenom.nom@entreprise.com"></div>
+          <div class="field"><label for="tel">Téléphone</label><input id="tel" type="tel" autocomplete="tel" placeholder="+33 6 00 00 00 00"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label for="entreprise">Entreprise / Site <span class="req">*</span></label><input id="entreprise" required autocomplete="organization" placeholder="Raison sociale ou nom du site industriel"></div>
+          <div class="field"><label for="poste">Poste / Fonction <button type="button" class="tipi" data-tip="Ex. RSSI, RSSI OT, DSI, responsable méthodes/maintenance, directeur de site, ingénieur automatisme, HSE." aria-label="Aide : votre fonction">i</button></label><input id="poste" placeholder="RSSI OT, DSI, resp. méthodes…"></div>
+        </div>
+
+        <div class="fgroup">Votre contexte industriel</div>
+        <div class="row">
+          <div class="field">
+            <label for="secteur">Secteur d'activité <span class="req">*</span></label>
+            <select id="secteur" required>
+              <option value="">— Sélectionnez un secteur —</option>
+              <option>⚡ Énergie &amp; utilities</option>
+              <option>💧 Eau &amp; assainissement</option>
+              <option>🛢️ Oil &amp; Gas / pétrochimie</option>
+              <option>🏭 Industrie manufacturière</option>
+              <option>🚗 Automobile &amp; équipementiers</option>
+              <option>🧪 Chimie &amp; procédés</option>
+              <option>🌾 Agroalimentaire</option>
+              <option>💊 Pharma &amp; santé</option>
+              <option>🚆 Transport &amp; logistique</option>
+              <option>🏗️ BTP &amp; bâtiment intelligent</option>
+              <option>⛏️ Mines &amp; métallurgie</option>
+              <option>🎖️ Défense &amp; sites sensibles</option>
+              <option>🏛️ Public &amp; collectivités</option>
+              <option>➕ Autre</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="taille">Périmètre <button type="button" class="tipi" data-tip="Ordre de grandeur du périmètre concerné : nombre de sites, taille de l'installation ou effectif. Aide à calibrer la proposition." aria-label="Aide : périmètre">i</button></label>
+            <select id="taille">
+              <option value="">— Taille / nombre de sites —</option>
+              <option>1 site / atelier</option>
+              <option>2 à 5 sites</option>
+              <option>6 à 20 sites</option>
+              <option>Plus de 20 sites</option>
+              <option>Groupe multi-sites international</option>
+              <option>OIV / entité essentielle (NIS2)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="fgroup">Votre projet</div>
+        <div class="field">
+          <label for="prestation">Type de prestation <span class="req">*</span></label>
+          <select id="prestation" required>
+            <option value="">— Sélectionnez une prestation —</option>
+            <optgroup label="🛰️ État des lieux &amp; visibilité">
+              <option>Discovery &amp; inventaire d'actifs OT / IIoT</option>
+              <option>Cartographie des flux réseau industriels</option>
+            </optgroup>
+            <optgroup label="🧱 Architecture &amp; segmentation">
+              <option>Zones &amp; conduits (IEC 62443-3-2)</option>
+              <option>Segmentation IT / OT — NAC &amp; firewalls NextGen</option>
+              <option>Durcissement des équipements (PLC, IHM, postes)</option>
+            </optgroup>
+            <optgroup label="📋 Audit &amp; conformité">
+              <option>Audit de conformité IEC 62443</option>
+              <option>Analyse de risques OT (niveaux SL-T)</option>
+              <option>Mise en conformité NIS2</option>
+              <option>Conformité DORA (résilience opérationnelle)</option>
+              <option>Diagnostic / gap analysis cyber OT</option>
+            </optgroup>
+            <optgroup label="📡 Supervision &amp; détection">
+              <option>Supervision temps réel OT (IDS / IPS)</option>
+              <option>SOC OT / détection d'anomalies</option>
+              <option>EDR industriel &amp; maintien en condition de sécurité</option>
+            </optgroup>
+            <optgroup label="🚨 Réponse &amp; résilience">
+              <option>Réponse à incident OT</option>
+              <option>Plan de continuité / reprise (PCA / PRA)</option>
+              <option>Exercices de crise &amp; entraînement</option>
+            </optgroup>
+            <optgroup label="🎓 Accompagnement">
+              <option>AMOA / conduite de projet cyber OT</option>
+              <option>Sensibilisation &amp; formation des équipes</option>
+              <option>Veille réglementaire ICS / OT</option>
+            </optgroup>
+            <option>➕ Autre besoin</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Environnements OT concernés <button type="button" class="tipi" data-tip="Cochez les technologies présentes sur votre périmètre. Facultatif — cela nous aide à préparer un premier échange pertinent." aria-label="Aide : environnements concernés">i</button></label>
+          <div class="checks">
+            <label><input type="checkbox" value="SCADA / DCS"><span>SCADA / DCS</span></label>
+            <label><input type="checkbox" value="Automates (PLC)"><span>Automates (PLC)</span></label>
+            <label><input type="checkbox" value="IHM / HMI"><span>IHM / HMI</span></label>
+            <label><input type="checkbox" value="Capteurs IIoT"><span>Capteurs IIoT</span></label>
+            <label><input type="checkbox" value="Réseaux industriels"><span>Réseaux industriels</span></label>
+            <label><input type="checkbox" value="Télégestion / RTU"><span>Télégestion / RTU</span></label>
+            <label><input type="checkbox" value="Systèmes de sûreté (SIS)"><span>Systèmes de sûreté (SIS)</span></label>
+            <label><input type="checkbox" value="Postes d'ingénierie"><span>Postes d'ingénierie</span></label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="normes">Normes / référentiels ciblés</label>
+          <select id="normes">
+            <option value="">— Référentiel —</option>
+            <option>IEC 62443</option>
+            <option>NIS2</option>
+            <option>DORA</option>
+            <option>ISO 27001</option>
+            <option>RGPD</option>
+            <option>NIST CSF</option>
+            <option>Plusieurs référentiels</option>
+            <option>À définir ensemble</option>
+          </select>
+        </div>
+
+        <div class="fgroup">Cadrage</div>
+        <div class="row">
+          <div class="field">
+            <label for="budget">Budget indicatif <button type="button" class="tipi" data-tip="Fourchette purement indicative — pour proposer un format adapté (diagnostic court, accompagnement, projet complet). Aucune valeur n'est engageante." aria-label="Aide : budget">i</button></label>
+            <select id="budget">
+              <option value="">— Fourchette budgétaire —</option>
+              <option>&lt; 10 000 €</option>
+              <option>10 000 – 25 000 €</option>
+              <option>25 000 – 50 000 €</option>
+              <option>50 000 – 100 000 €</option>
+              <option>100 000 – 250 000 €</option>
+              <option>&gt; 250 000 €</option>
+              <option>À définir</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="delai">Horizon de démarrage</label>
+            <select id="delai">
+              <option value="">— Délai souhaité —</option>
+              <option>🔴 Urgent — sous 2 semaines</option>
+              <option>🟠 Dans le mois</option>
+              <option>🟡 Sous 3 mois</option>
+              <option>🟢 Sous 6 mois</option>
+              <option>📅 Horizon 1 an</option>
+              <option>💡 Phase d'exploration</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="desc">Description de votre besoin <span class="req">*</span></label>
+          <textarea id="desc" required placeholder="Contexte, installations concernées, enjeux (production, sûreté, conformité), contraintes et échéances éventuelles…"></textarea>
+        </div>
+        <div class="field">
+          <label for="source">Comment nous avez-vous connus&nbsp;?</label>
+          <select id="source">
+            <option value="">— Source —</option>
+            <option>LinkedIn</option>
+            <option>Google / moteur de recherche</option>
+            <option>Recommandation</option>
+            <option>Salon / conférence</option>
+            <option>Presse / article</option>
+            <option>Autre</option>
+          </select>
+        </div>
+
+        <!-- Anti-spam : champ piège, laissé vide par les humains (masqué). -->
+        <input type="text" id="hp" name="site" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0" aria-hidden="true">
+
+        <label class="consent"><input type="checkbox" id="consent" required>
+          <span>J'accepte que mes données soient traitées par <strong>CONSEILPREV&nbsp;Cyber</strong> pour répondre à ma demande de projet, conformément aux <a href="/mentions-legales" target="_blank" rel="noopener">mentions légales</a>. Aucune donnée n'est revendue ni partagée avec des tiers. <span class="req">*</span></span>
+        </label>
+
+        <button type="submit" id="submitBtn" class="btn btn-p" style="width:100%;margin-top:18px">📨 Envoyer ma demande de projet</button>
+        <div id="formStatus" role="status" aria-live="polite" style="margin-top:14px;display:none"></div>
+        <div class="secnote"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>Transmission chiffrée (HTTPS) · protection anti-spam · réponse sous 48 h ouvrées · vos données ne servent qu'à traiter votre demande.</div>
+        <p class="muted" style="margin-top:12px;color:var(--muted2);font-size:13px">
+          Vous pouvez aussi écrire directement à
+          <a href="mailto:christophe.cerf@outlook.com">christophe.cerf@outlook.com</a>.
+        </p>
+      </form>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Cybersécurité industrielle IT / OT / IIoT</div>
+      <div class="fnav">
+        <a href="/about">À propos</a>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/vos-projets">Vos projets</a>
+        <a href="/faq">FAQ</a>
+        <a href="/demo">Démo</a>
+        <a href="/contact">Contact</a>
+        <a href="/mentions-legales">Mentions légales</a>
+      </div>
+    </div>
+  </footer>
+  <script>
+    document.getElementById('y').textContent=new Date().getFullYear();
+
+    function pv(id){var e=document.getElementById(id);return e?(''+e.value).trim():'';}
+    function psel(id){var e=document.getElementById(id);return (e&&e.selectedIndex>0)?e.options[e.selectedIndex].text.trim():'';}
+    function penvs(){return Array.prototype.slice.call(document.querySelectorAll('.checks input:checked')).map(function(c){return c.value;}).join(', ');}
+
+    function buildBrief(){
+      function line(k,v){return v?(k+' : '+v):null;}
+      var parts=[
+        line('Poste / fonction', pv('poste')),
+        line('Téléphone', pv('tel')),
+        line('Secteur', psel('secteur')),
+        line('Périmètre', psel('taille')),
+        line('Prestation demandée', psel('prestation')),
+        line('Environnements OT', penvs()),
+        line('Normes ciblées', psel('normes')),
+        line('Budget indicatif', psel('budget')),
+        line('Horizon de démarrage', psel('delai')),
+        line('Source', psel('source'))
+      ].filter(Boolean);
+      parts.push('', 'Description du besoin :', pv('desc'));
+      return parts.join('\n');
+    }
+
+    function mailtoFallback(nom,org,email,sujet,msg){
+      var body="Nom : "+nom+"\nEntreprise : "+org+"\nEmail : "+email+"\n\n"+msg;
+      return "mailto:christophe.cerf@outlook.com?subject="+encodeURIComponent("[Projet] "+sujet)
+        +"&body="+encodeURIComponent(body);
+    }
+    function setStatus(msg,kind){
+      var s=document.getElementById('formStatus');
+      s.style.display='block'; s.innerHTML=msg;
+      s.style.color = kind==='ok' ? 'var(--green)' : (kind==='err' ? 'var(--terra)' : 'var(--muted)');
+    }
+
+    function sendProjet(e){
+      e.preventDefault();
+      var form=document.getElementById('pform');
+      if(!form.checkValidity()){ form.reportValidity(); return false; }
+      // Honeypot : si rempli, on simule un succès sans rien envoyer.
+      if(pv('hp')){ setStatus('✓ Merci, votre demande a bien été envoyée.','ok'); form.reset(); return false; }
+
+      var nom=((pv('prenom')+' '+pv('nom')).trim());
+      var org=pv('entreprise'), email=pv('email');
+      var sujet=(psel('prestation')||'Cybersécurité industrielle');
+      var msg=buildBrief();
+      var btn=document.getElementById('submitBtn'); var label=btn.textContent;
+      btn.disabled=true; btn.textContent='Envoi…'; setStatus('Envoi en cours…','info');
+
+      fetch('/api/contact',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({nom:nom,org:org,email:email,sujet:sujet,msg:msg,site:pv('hp')})})
+       .then(function(r){return r.json().then(function(d){return {status:r.status,d:d};});})
+       .then(function(res){
+          var d=res.d||{};
+          if(d.ok){
+            setStatus('✓ Merci&nbsp;! Votre demande de projet a bien été envoyée. Nous revenons vers vous sous 48&nbsp;h ouvrées.','ok');
+            form.reset();
+          } else if(d.error==='not_configured'){
+            setStatus('Ouverture de votre messagerie…','info');
+            window.location.href=mailtoFallback(nom,org,email,sujet,msg);
+          } else {
+            setStatus('Envoi indisponible pour le moment. <a href="'+mailtoFallback(nom,org,email,sujet,msg)+'">Envoyer par email</a>.','err');
+          }
+       })
+       .catch(function(){
+          setStatus('Envoi indisponible. <a href="'+mailtoFallback(nom,org,email,sujet,msg)+'">Envoyer par email</a>.','err');
+       })
+       .then(function(){ btn.disabled=false; btn.textContent=label; });
+      return false;
+    }
+  </script>
+  <script src="/nav.js" defer></script>
+</body>
+</html>
