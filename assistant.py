@@ -180,3 +180,50 @@ def answer(model, messages):
     if model == "mistral":
         return _ask_mistral(history), MISTRAL_MODEL
     return _ask_claude(history), CLAUDE_MODEL
+
+
+# --- Diagnostic (self-test) ---------------------------------------------------
+# Appel minimal par fournisseur pour révéler la cause réelle d'un échec (clé,
+# modèle, crédit). Ne renvoie QUE des métadonnées techniques : jamais la clé,
+# jamais de contenu de conversation.
+
+def _selftest_claude():
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        return {"configured": False, "ok": False, "detail": "ANTHROPIC_API_KEY absente"}
+    try:
+        import anthropic
+    except ImportError:
+        return {"configured": False, "ok": False, "detail": "paquet anthropic non installé"}
+    try:
+        anthropic.Anthropic().messages.create(
+            model=CLAUDE_MODEL, max_tokens=4,
+            messages=[{"role": "user", "content": "ping"}])
+    except anthropic.APIConnectionError:
+        return {"configured": True, "ok": False, "model": CLAUDE_MODEL, "detail": "réseau injoignable"}
+    except anthropic.APIStatusError as exc:
+        return {"configured": True, "ok": False, "model": CLAUDE_MODEL,
+                "status": getattr(exc, "status_code", None),
+                "type": getattr(exc, "type", None)}
+    return {"configured": True, "ok": True, "model": CLAUDE_MODEL, "detail": "OK"}
+
+
+def _selftest_mistral():
+    key = os.environ.get("MISTRAL_API_KEY")
+    if not key:
+        return {"configured": False, "ok": False, "detail": "MISTRAL_API_KEY absente"}
+    import requests
+    try:
+        r = requests.post(
+            MISTRAL_API_URL, timeout=REQUEST_TIMEOUT,
+            headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"},
+            json={"model": MISTRAL_MODEL, "max_tokens": 4,
+                  "messages": [{"role": "user", "content": "ping"}]})
+    except requests.RequestException:
+        return {"configured": True, "ok": False, "model": MISTRAL_MODEL, "detail": "réseau injoignable"}
+    return {"configured": True, "ok": r.status_code == 200, "model": MISTRAL_MODEL,
+            "status": r.status_code}
+
+
+def selftest():
+    """Diagnostic par fournisseur (statuts techniques uniquement, aucun secret)."""
+    return {"claude": _selftest_claude(), "mistral": _selftest_mistral()}

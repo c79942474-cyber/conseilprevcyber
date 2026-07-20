@@ -406,6 +406,18 @@ def api_assistant_config():
     return jsonify(models=assistant.available())
 
 
+@app.route("/api/assistant/selftest")
+def api_assistant_selftest():
+    """Diagnostic : ping minimal de chaque modèle, renvoie le statut technique
+    (code HTTP, type d'erreur). Aucun secret ni contenu. Limité par IP."""
+    ckey = "selftest:%s" % client_ip()
+    if guard.blocked(ckey, limit=6, window=600):
+        return jsonify(ok=False, error="rate_limited",
+                       message="Trop de tests en peu de temps. Réessayez dans quelques minutes."), 429
+    guard.fail(ckey)
+    return jsonify(results=assistant.selftest())
+
+
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
     """Point d'entrée du chat sécurisé. Sans état : aucune conversation n'est stockée.
