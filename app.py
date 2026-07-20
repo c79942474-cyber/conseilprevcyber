@@ -426,6 +426,8 @@ def api_chat():
         messages = {
             "not_configured": "Ce modèle n'est pas encore activé. Essayez l'autre modèle, ou "
                               "écrivez-nous via la page Contact.",
+            "auth": "Le service d'IA a refusé la clé d'accès configurée. Vérifiez la clé API "
+                    "du modèle dans le tableau de bord (sans espace ni guillemet), puis réessayez.",
             "empty": "Votre message est vide.",
             "busy": "L'assistant est très sollicité pour le moment. Réessayez dans un instant.",
             "network": "Service d'IA momentanément injoignable. Réessayez dans un instant.",

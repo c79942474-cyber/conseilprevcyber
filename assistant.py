@@ -11,7 +11,12 @@ Dégradation propre : si une clé d'API n'est pas configurée (ANTHROPIC_API_KEY
 MISTRAL_API_KEY), le modèle correspondant est signalé « non configuré » sans
 faire planter l'application.
 """
+import logging
 import os
+
+# Journalisation : uniquement des métadonnées techniques (codes HTTP, types
+# d'erreur). Jamais de clé d'API ni de contenu de conversation (minimisation RGPD).
+_log = logging.getLogger("assistant")
 
 # --- Périmètre et posture de l'assistant (prompt système partagé) -------------
 SYSTEM_PROMPT = (
@@ -110,11 +115,20 @@ def _ask_claude(history):
             system=SYSTEM_PROMPT,
             messages=history,
         )
-    except anthropic.APIConnectionError:
+    except anthropic.APIConnectionError as exc:
+        _log.warning("Claude : connexion impossible (%s)", type(exc).__name__)
         raise AssistantError("network", 502)
     except anthropic.RateLimitError:
         raise AssistantError("busy", 429)
-    except anthropic.APIStatusError:
+    except (anthropic.AuthenticationError, anthropic.PermissionDeniedError) as exc:
+        # Clé absente/erronée ou non autorisée. On journalise le code HTTP, jamais la clé.
+        _log.error("Claude : authentification refusée (HTTP %s). Vérifier "
+                   "ANTHROPIC_API_KEY (valeur exacte, sans espace ni guillemet).",
+                   getattr(exc, "status_code", "?"))
+        raise AssistantError("auth", 502)
+    except anthropic.APIStatusError as exc:
+        _log.error("Claude : réponse en erreur (HTTP %s, type=%s)",
+                   getattr(exc, "status_code", "?"), getattr(exc, "type", None))
         raise AssistantError("upstream", 502)
     text = "".join(
         getattr(b, "text", "") for b in resp.content if getattr(b, "type", "") == "text"
@@ -138,15 +152,22 @@ def _ask_mistral(history):
             MISTRAL_API_URL, timeout=REQUEST_TIMEOUT,
             headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"},
             json=payload)
-    except requests.RequestException:
+    except requests.RequestException as exc:
+        _log.warning("Mistral : connexion impossible (%s)", type(exc).__name__)
         raise AssistantError("network", 502)
     if r.status_code == 429:
         raise AssistantError("busy", 429)
+    if r.status_code in (401, 403):
+        _log.error("Mistral : authentification refusée (HTTP %s). Vérifier "
+                   "MISTRAL_API_KEY (valeur exacte, sans espace ni guillemet).", r.status_code)
+        raise AssistantError("auth", 502)
     if r.status_code != 200:
+        _log.error("Mistral : réponse en erreur (HTTP %s)", r.status_code)
         raise AssistantError("upstream", 502)
     try:
         text = (r.json()["choices"][0]["message"]["content"] or "").strip()
     except (KeyError, IndexError, TypeError, ValueError):
+        _log.error("Mistral : réponse illisible (JSON inattendu)")
         raise AssistantError("upstream", 502)
     return text or _FALLBACK
 
