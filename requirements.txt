@@ -6,3 +6,6 @@ psycopg[binary]==3.3.4
 psycopg-pool==3.3.1
 # Bus d'événements partagé pour le multi-instance (activé si REDIS_URL est défini).
 redis==5.2.1
+# Assistant IA conversationnel (Claude). Activé si ANTHROPIC_API_KEY est défini ;
+# Mistral est appelé via son API HTTPS (aucune dépendance dédiée).
+anthropic==0.75.0

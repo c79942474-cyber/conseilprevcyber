@@ -153,6 +153,10 @@
       s: ["Explorez d'abord le site démo (mode Démo).", "Basculez en Temps réel pour analyser vos données du cockpit (connexion requise).", "Exportez l'étude en PDF pour la partager."],
       k: [["Criticité", "Impact métier/sûreté si l'actif est compromis (1 à 5)."], ["Exposition", "Surface d'attaque de l'actif (1 à 5)."], ["SL-T / SL-A", "Niveau de sécurité cible / atteint — l'écart guide les priorités."]],
       l: [["Cockpit", "/demo"], ["Connecter une plateforme", "/connecter"], ["Référentiel", "/referentiel"]] },
+    "/assistant": { t: "Assistant IA", p: "Un chat sécurisé (Claude & Mistral) dédié à la cybersécurité industrielle et à la conformité, transparent (AI Act) et respectueux du RGPD.",
+      s: ["Posez votre question ou cliquez une suggestion.", "Choisissez le modèle : Claude ou Mistral.", "N'indiquez pas de données personnelles ou confidentielles — les échanges ne sont pas conservés."],
+      k: [["Transparence (AI Act)", "Vous êtes clairement informé que vous parlez à une IA ; ses réponses ne remplacent pas un audit."], ["Sans conservation (RGPD)", "Aucune conversation stockée, aucune donnée utilisée pour l'entraînement des modèles."]],
+      l: [["Audit 62443", "/audit-conformite"], ["Contact humain", "/contact"]] },
     "/tendances": { t: "Tendances", p: "L'historique agrégé du cockpit : volumes par jour, par zone et par catégorie d'événement.",
       s: ["Choisissez la période d'analyse.", "Repérez les zones les plus actives.", "Croisez avec l'audit pour prioriser."],
       k: [["Catégorie", "Classement automatique des événements : découverte, critique, avertissement, correctif, info."]],
@@ -330,11 +334,25 @@
     });
   }
 
+  /* ── 5. Lanceur flottant de l'assistant IA (toutes pages sauf /assistant) ── */
+  function initChatLauncher() {
+    var path = location.pathname.replace(/\/+$/, "") || "/";
+    if (path === "/assistant") return;
+    if (document.querySelector(".chat-launch")) return;
+    var a = document.createElement("a");
+    a.className = "chat-launch";
+    a.href = "/assistant";
+    a.setAttribute("aria-label", "Ouvrir l'assistant IA");
+    a.innerHTML = '<span class="cl-i" aria-hidden="true">💬</span><span class="cl-t">Assistant IA</span>';
+    document.body.appendChild(a);
+  }
+
   function init() {
     initBurger();
     initPageNav();
     initGuide();
     initJargon();
+    initChatLauncher();
   }
 
   if (document.readyState === "loading")

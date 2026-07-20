@@ -231,6 +231,18 @@ header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
 .guide-close:hover{color:var(--ink);border-color:var(--terra)}
 @media print{.guide-bar,.guide-overlay{display:none !important}}
 
+/* ── Lanceur flottant de l'assistant IA (injecté par nav.js) ─────────────────── */
+.chat-launch{position:fixed;left:16px;bottom:16px;z-index:41;display:inline-flex;align-items:center;gap:9px;
+  padding:9px 15px 9px 12px;border-radius:999px;text-decoration:none;
+  border:1px solid rgba(45,212,191,.5);background:linear-gradient(135deg,rgba(34,211,238,.18),rgba(45,212,191,.14));
+  color:var(--ink);font:600 13.5px/1 var(--sans);box-shadow:0 8px 22px rgba(0,0,0,.30);
+  backdrop-filter:blur(6px);transition:filter .15s,transform .12s,border-color .15s}
+.chat-launch:hover{filter:brightness(1.08);border-color:var(--teal)}
+.chat-launch:active{transform:scale(.97)}
+.chat-launch .cl-i{font-size:16px;line-height:1}
+@media(max-width:520px){.chat-launch{left:10px;bottom:10px;padding:9px 12px}.chat-launch .cl-t{display:none}}
+@media print{.chat-launch{display:none !important}}
+
 /* Titres / sections */
 h1{font-size:clamp(32px,6vw,58px);line-height:1.06;letter-spacing:-.03em;font-weight:800}
 h2{font-size:clamp(24px,4vw,34px);letter-spacing:-.02em;font-weight:800;margin-bottom:12px}

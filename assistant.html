@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assistant IA — Cybersécurité industrielle & conformité — CONSEILPREV Cyber</title>
+<meta name="description" content="Assistant conversationnel sécurisé (Claude & Mistral) sur la cybersécurité industrielle IT/OT/IIoT et la conformité IEC 62443, NIS2, DORA — transparent (AI Act), respectueux du RGPD.">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .compliance{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .cbadge{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);
+    border:1px solid var(--line);border-radius:999px;padding:5px 12px;background:rgba(0,0,0,.14)}
+  .cbadge svg{width:14px;height:14px;fill:none;stroke:var(--teal);stroke-width:1.8;flex:0 0 auto}
+
+  .chat{max-width:880px;margin:18px auto 0;display:flex;flex-direction:column;
+    height:min(72vh,700px);background:linear-gradient(180deg,var(--panel),var(--bg2));
+    border:1px solid var(--line);border-radius:16px;overflow:hidden;position:relative}
+  .chat-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    padding:12px 16px;border-bottom:1px solid var(--line);background:rgba(0,0,0,.10)}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--panel2)}
+  .seg button{background:transparent;border:none;color:var(--muted);font-family:var(--mono);font-size:12px;
+    padding:7px 13px;cursor:pointer;transition:background .15s,color .15s}
+  .seg button:hover:not(:disabled){color:var(--ink)}
+  .seg button.active{color:#04121A;background:linear-gradient(135deg,var(--cyan),var(--teal));font-weight:700}
+  .seg button:disabled{opacity:.4;cursor:not-allowed}
+  .chat-top .st{font-family:var(--mono);font-size:11px;color:var(--muted2);display:flex;align-items:center;gap:6px}
+  .chat-top .st .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+
+  .msgs{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:12px}
+  .msg{max-width:88%;padding:11px 14px;border-radius:14px;font-size:14px;line-height:1.55}
+  .msg .who{font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted2);margin-bottom:5px;display:block}
+  .msg.user{align-self:flex-end;background:linear-gradient(135deg,rgba(34,211,238,.16),rgba(45,212,191,.12));border:1px solid var(--line);color:var(--ink);border-bottom-right-radius:5px}
+  .msg.bot{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-bottom-left-radius:5px}
+  .msg.err{align-self:flex-start;background:rgba(217,96,58,.12);border:1px solid rgba(217,96,58,.35);color:var(--terra);border-bottom-left-radius:5px}
+  .msg strong{color:var(--ink)}
+  .msg a{color:var(--cyan)}
+  .typing{align-self:flex-start;display:inline-flex;gap:4px;padding:13px 15px;background:var(--panel2);border:1px solid var(--line);border-radius:14px;border-bottom-left-radius:5px}
+  .typing i{width:7px;height:7px;border-radius:50%;background:var(--muted2);display:inline-block;animation:blink 1.2s infinite}
+  .typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,60%,100%{opacity:.25}30%{opacity:1}}
+  @media (prefers-reduced-motion: reduce){.typing i{animation:none;opacity:.6}}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px;padding:2px 18px 4px}
+  .chip{font-size:12.5px;color:var(--muted);border:1px solid var(--line);border-radius:999px;
+    padding:6px 12px;cursor:pointer;background:transparent;transition:border-color .15s,color .15s}
+  .chip:hover{color:var(--ink);border-color:var(--teal)}
+
+  .composer{border-top:1px solid var(--line);padding:12px 14px;display:flex;gap:10px;align-items:flex-end;background:rgba(0,0,0,.10)}
+  .composer textarea{flex:1;resize:none;max-height:140px;min-height:44px;background:var(--panel2);
+    border:1px solid var(--line);border-radius:11px;padding:11px 13px;color:var(--ink);
+    font-family:var(--sans);font-size:14px;line-height:1.5}
+  .composer textarea:focus{outline:none;border-color:var(--teal)}
+  .composer textarea:disabled{opacity:.5}
+  .composer .send{flex:0 0 auto;border:none;border-radius:11px;cursor:pointer;padding:0 18px;height:44px;
+    font-weight:700;font-size:14px;color:#04121A;background:linear-gradient(135deg,var(--cyan),var(--teal))}
+  .composer .send:disabled{opacity:.5;cursor:not-allowed}
+  .cc{font-family:var(--mono);font-size:10px;color:var(--muted2);text-align:right;padding:4px 16px 0}
+  .disclaimer{text-align:center;font-size:12px;color:var(--muted2);margin-top:14px;line-height:1.5}
+  .disclaimer a{color:var(--cyan)}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><a href="/">CONSEILPREV</a><span class="tag">Cyber</span></div>
+      <div class="spacer"></div>
+      <nav class="links">
+        <a href="/">Accueil</a>
+        <a href="/services">Services</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/audit-conformite">Audit 62443</a>
+        <a href="/assistant" class="active">Assistant IA</a>
+        <a href="/contact" class="cta">Nous contacter</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head" style="padding-bottom:0">
+      <span class="eyebrow"><span class="dot"></span>Assistant IA · sécurisé &amp; conforme</span>
+      <h1>Posez vos questions sur la <span class="grad">cybersécurité industrielle</span>.</h1>
+      <p class="lead" style="margin-top:14px">Un assistant conversationnel propulsé par <strong>Claude</strong> (Anthropic)
+        et <strong>Mistral</strong>, dédié à l'IT/OT/IIoT et à la conformité (IEC&nbsp;62443, NIS2, DORA, RGPD).
+        Transparent (AI&nbsp;Act), respectueux du RGPD&nbsp;: vos échanges ne sont pas conservés.</p>
+      <div class="compliance">
+        <span class="cbadge"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>Transmission chiffrée · anti-abus</span>
+        <span class="cbadge"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16h.01"></path></svg>IA transparente (AI&nbsp;Act)</span>
+        <span class="cbadge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7 10 17l-5-5"></path></svg>RGPD · aucune conservation, pas d'entraînement</span>
+        <span class="cbadge"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"></path></svg>Fournisseurs Anthropic &amp; Mistral (UE)</span>
+      </div>
+    </section>
+
+    <section style="padding:6px 0 40px">
+      <div class="chat">
+        <div class="chat-top">
+          <div style="display:flex;align-items:center;gap:9px">
+            <div class="seg" role="tablist" aria-label="Choix du modèle">
+              <button id="mC" class="active" role="tab" aria-selected="true" type="button">◆ Claude</button>
+              <button id="mM" role="tab" aria-selected="false" type="button">◈ Mistral</button>
+            </div>
+            <button type="button" class="tipi" data-tip="Claude (Anthropic) et Mistral (fournisseur européen) sont deux modèles d'IA distincts. Les deux sont utilisés sans entraînement sur vos échanges. Choisissez, comparez — la conversation repart du même contexte." aria-label="Aide : choix du modèle">i</button>
+          </div>
+          <div class="st"><span class="dot" id="stDot"></span><span id="stTxt">En ligne</span></div>
+        </div>
+
+        <div class="msgs" id="msgs" aria-live="polite"></div>
+
+        <div class="chips" id="chips">
+          <button class="chip" type="button">Qu'est-ce que la norme IEC 62443&nbsp;?</button>
+          <button class="chip" type="button">Différence entre IT et OT&nbsp;?</button>
+          <button class="chip" type="button">Comment segmenter un réseau industriel&nbsp;?</button>
+          <button class="chip" type="button">Par où commencer une mise en conformité&nbsp;?</button>
+        </div>
+
+        <div class="composer">
+          <textarea id="inp" rows="1" maxlength="2000" placeholder="Votre question sur la cybersécurité industrielle ou la conformité…" aria-label="Votre message"></textarea>
+          <button class="send" id="send" type="button" aria-label="Envoyer">Envoyer</button>
+        </div>
+        <div class="cc"><span id="cc">0</span>/2000</div>
+      </div>
+
+      <p class="disclaimer">🤖 Vous échangez avec une <strong>intelligence artificielle</strong>. Les réponses sont informatives et
+        ne remplacent ni un audit, ni un avis juridique. <strong>N'indiquez pas de données personnelles ou confidentielles.</strong>
+        Pour un échange humain, <a href="/contact">contactez-nous</a> — réponse sous 48&nbsp;h ouvrées.</p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Cybersécurité industrielle IT / OT / IIoT</div>
+      <div class="fnav">
+        <a href="/about">À propos</a>
+        <a href="/services">Services</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/audit-conformite">Audit 62443</a>
+        <a href="/assistant">Assistant IA</a>
+        <a href="/contact">Contact</a>
+        <a href="/mentions-legales">Mentions légales</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+  (function(){
+    document.getElementById('y').textContent=new Date().getFullYear();
+    var msgs=[], model='claude', sending=false, avail={claude:true,mistral:true};
+    var elMsgs=document.getElementById('msgs'), inp=document.getElementById('inp'),
+        sendBtn=document.getElementById('send'), stTxt=document.getElementById('stTxt'),
+        stDot=document.getElementById('stDot'), cc=document.getElementById('cc'),
+        mC=document.getElementById('mC'), mM=document.getElementById('mM');
+
+    function esc(s){return (''+(s==null?'':s)).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+    function fmt(s){
+      s=esc(s).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+      // URLs complètes → nouvel onglet
+      s=s.replace(/(https?:\/\/[^\s<]+?)(?=[\s.,;)]|$)/g,function(u){return '<a href="'+u+'" target="_blank" rel="noopener">'+u+'</a>';});
+      // Chemins internes (précédés d'un espace/début/parenthèse, en minuscules) → même onglet
+      s=s.replace(/(^|[\s(])(\/[a-z][a-z0-9\-]*(?:\/[a-z0-9\-]+)*)/g,'$1<a href="$2">$2</a>');
+      return s.replace(/\n/g,'<br>');
+    }
+    function scrollDown(){elMsgs.scrollTop=elMsgs.scrollHeight;}
+
+    function bubble(role,html,who){
+      var d=document.createElement('div');
+      d.className='msg '+role;
+      d.innerHTML='<span class="who">'+esc(who)+'</span>'+html;
+      elMsgs.appendChild(d); scrollDown(); return d;
+    }
+    function whoFor(){return model==='mistral'?'Assistant · Mistral':'Assistant · Claude';}
+
+    // Message d'accueil (non compté dans le contexte envoyé)
+    bubble('bot',fmt("Bonjour 👋 Je suis l'assistant IA de CONSEILPREV Cyber. Posez-moi vos questions sur la "
+      +"**cybersécurité industrielle** (IT/OT/IIoT) et la **conformité** (IEC 62443, NIS2, DORA, RGPD). "
+      +"Je peux aussi vous orienter vers l'**audit de conformité** ou le **cockpit de supervision**."),'Assistant');
+
+    var typingNode=null;
+    function showTyping(){ hideTyping();
+      typingNode=document.createElement('div');
+      typingNode.className='typing'; typingNode.setAttribute('aria-label','L’assistant rédige…');
+      typingNode.innerHTML='<i></i><i></i><i></i>';
+      elMsgs.appendChild(typingNode); scrollDown();
+    }
+    function hideTyping(){ if(typingNode){typingNode.remove();typingNode=null;} }
+
+    function setSending(v){
+      sending=v; sendBtn.disabled=v||!inp.value.trim(); inp.disabled=v;
+      stTxt.textContent=v?'Réflexion…':'En ligne'; stDot.style.background=v?'var(--amber)':'var(--green)';
+    }
+
+    function send(text){
+      text=(text||inp.value).trim();
+      if(!text||sending) return;
+      if(!avail[model]){ bubble('err','Ce modèle n’est pas activé. Choisissez l’autre modèle, ou <a href="/contact">contactez-nous</a>.','Assistant'); return; }
+      var chips=document.getElementById('chips'); if(chips) chips.style.display='none';
+      bubble('user',fmt(text),'Vous');
+      msgs.push({role:'user',content:text});
+      inp.value=''; cc.textContent='0'; autosize();
+      setSending(true); showTyping();
+      fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({model:model,messages:msgs})})
+        .then(function(r){return r.json().then(function(j){return {s:r.status,j:j};});})
+        .then(function(o){
+          hideTyping();
+          if(o.j&&o.j.ok){
+            bubble('bot',fmt(o.j.reply),whoFor());
+            msgs.push({role:'assistant',content:o.j.reply});
+          } else {
+            bubble('err',fmt((o.j&&o.j.message)||'Assistant indisponible pour le moment.'),'Assistant');
+          }
+        })
+        .catch(function(){ hideTyping(); bubble('err','Erreur réseau. Vérifiez votre connexion et réessayez.','Assistant'); })
+        .then(function(){ setSending(false); inp.focus(); });
+    }
+
+    function setModel(m){
+      if(m==='mistral'&&!avail.mistral) return;
+      if(m==='claude'&&!avail.claude) return;
+      model=m;
+      mC.className=m==='claude'?'active':''; mM.className=m==='mistral'?'active':'';
+      mC.setAttribute('aria-selected',m==='claude'); mM.setAttribute('aria-selected',m==='mistral');
+    }
+    mC.addEventListener('click',function(){setModel('claude');});
+    mM.addEventListener('click',function(){setModel('mistral');});
+
+    function autosize(){ inp.style.height='auto'; inp.style.height=Math.min(inp.scrollHeight,140)+'px'; }
+    inp.addEventListener('input',function(){ cc.textContent=inp.value.length; sendBtn.disabled=sending||!inp.value.trim(); autosize(); });
+    inp.addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); send(); } });
+    sendBtn.addEventListener('click',function(){ send(); });
+    document.getElementById('chips').addEventListener('click',function(e){
+      var b=e.target.closest('.chip'); if(b) send(b.textContent.replace(/ /g,' ').trim());
+    });
+    sendBtn.disabled=true;
+
+    // Disponibilité des modèles (active/désactive l'UI proprement)
+    fetch('/api/assistant/config').then(function(r){return r.json();}).then(function(j){
+      avail=(j&&j.models)||avail;
+      if(!avail.claude){ mC.disabled=true; mC.title='Non configuré'; }
+      if(!avail.mistral){ mM.disabled=true; mM.title='Non configuré'; }
+      if(avail.claude) setModel('claude'); else if(avail.mistral) setModel('mistral');
+      if(!avail.claude&&!avail.mistral){
+        stTxt.textContent='Non configuré'; stDot.style.background='var(--terra)';
+        inp.disabled=true; inp.placeholder='Assistant non configuré — écrivez-nous via la page Contact.';
+        bubble('err','L’assistant IA n’est pas encore activé sur ce site. En attendant, <a href="/contact">écrivez-nous</a> ou lancez l’<a href="/audit-conformite">audit de conformité</a>.','Assistant');
+      }
+    }).catch(function(){});
+  })();
+  </script>
+  <script src="/nav.js" defer></script>
+</body>
+</html>

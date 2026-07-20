@@ -44,6 +44,7 @@ from urllib.parse import urlparse
 import requests
 from flask import Flask, Response, jsonify, request, send_file, send_from_directory
 
+import assistant
 from auth import admin_required, client_ip, guard, init_app as init_auth
 from cockpit_state import make_store
 
@@ -291,6 +292,7 @@ PAGES = {
     "/glossaire-62443": "glossaire-62443.html",
     "/metriques-62443": "metriques-62443.html",
     "/demo": "demo.html",
+    "/assistant": "assistant.html",
     "/audit-conformite": "audit-conformite.html",
     "/tendances": "tendances.html",
     "/connecter": "connecter.html",
@@ -390,6 +392,48 @@ def metriques_62443():
 @app.route("/demo")
 def demo():
     return _page(PAGES["/demo"])
+
+
+@app.route("/assistant")
+def assistant_page():
+    """Assistant IA conversationnel (Claude / Mistral) — cybersécurité industrielle & conformité."""
+    return _page(PAGES["/assistant"])
+
+
+@app.route("/api/assistant/config")
+def api_assistant_config():
+    """Indique quels modèles sont configurés (pour activer/désactiver l'UI)."""
+    return jsonify(models=assistant.available())
+
+
+@app.route("/api/chat", methods=["POST"])
+def api_chat():
+    """Point d'entrée du chat sécurisé. Sans état : aucune conversation n'est stockée.
+
+    Protégé par le contrôle d'origine (before_request) + limitation de débit par IP.
+    """
+    ckey = "chat:%s" % client_ip()
+    if guard.blocked(ckey, limit=20, window=600):
+        return jsonify(ok=False, error="rate_limited",
+                       message="Trop de messages en peu de temps. Merci de patienter quelques minutes."), 429
+    guard.fail(ckey)
+
+    data = request.get_json(silent=True) or {}
+    model = "mistral" if data.get("model") == "mistral" else "claude"
+    try:
+        reply, used_model = assistant.answer(model, data.get("messages"))
+    except assistant.AssistantError as exc:
+        messages = {
+            "not_configured": "Ce modèle n'est pas encore activé. Essayez l'autre modèle, ou "
+                              "écrivez-nous via la page Contact.",
+            "empty": "Votre message est vide.",
+            "busy": "L'assistant est très sollicité pour le moment. Réessayez dans un instant.",
+            "network": "Service d'IA momentanément injoignable. Réessayez dans un instant.",
+            "upstream": "L'assistant a rencontré une erreur. Réessayez, ou contactez-nous.",
+        }
+        return jsonify(ok=False, error=exc.code,
+                       message=messages.get(exc.code, "Assistant indisponible pour le moment.")), exc.status
+    return jsonify(ok=True, reply=reply, model=model)
 
 
 @app.route("/audit-conformite")

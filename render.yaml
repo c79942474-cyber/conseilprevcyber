@@ -49,3 +49,16 @@ services:
       # URL publique (liens des emails de confirmation / réinitialisation).
       - key: PUBLIC_BASE_URL
         sync: false
+      # Assistant IA conversationnel (/assistant). Chaque clé active son modèle ;
+      # sans clé, le modèle est signalé « non configuré » (l'app fonctionne quand même).
+      # Claude (Anthropic) — https://console.anthropic.com/
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # Mistral (fournisseur européen) — https://console.mistral.ai/
+      - key: MISTRAL_API_KEY
+        sync: false
+      # (Optionnel) surcharge des modèles utilisés.
+      - key: ANTHROPIC_MODEL
+        sync: false
+      - key: MISTRAL_MODEL
+        sync: false
