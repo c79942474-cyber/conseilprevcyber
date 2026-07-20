@@ -402,8 +402,11 @@ def assistant_page():
 
 @app.route("/api/assistant/config")
 def api_assistant_config():
-    """Indique quels modèles sont configurés (pour activer/désactiver l'UI)."""
-    return jsonify(models=assistant.available())
+    """Modèles configurés + modèle par défaut de l'UI (surcharge via ASSISTANT_DEFAULT_MODEL)."""
+    default = (os.environ.get("ASSISTANT_DEFAULT_MODEL") or "mistral").strip().lower()
+    if default not in ("claude", "mistral"):
+        default = "mistral"
+    return jsonify(models=assistant.available(), default=default)
 
 
 @app.route("/api/assistant/selftest")

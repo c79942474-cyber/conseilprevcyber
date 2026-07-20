@@ -249,7 +249,8 @@
       avail=(j&&j.models)||avail;
       if(!avail.claude){ mC.disabled=true; mC.title='Non configuré'; }
       if(!avail.mistral){ mM.disabled=true; mM.title='Non configuré'; }
-      if(avail.claude) setModel('claude'); else if(avail.mistral) setModel('mistral');
+      var def=(j&&j.default)==='claude'?'claude':'mistral';
+      if(avail[def]) setModel(def); else if(avail.mistral) setModel('mistral'); else if(avail.claude) setModel('claude');
       if(!avail.claude&&!avail.mistral){
         stTxt.textContent='Non configuré'; stDot.style.background='var(--terra)';
         inp.disabled=true; inp.placeholder='Assistant non configuré — écrivez-nous via la page Contact.';
