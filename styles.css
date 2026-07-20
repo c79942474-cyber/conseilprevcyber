@@ -319,7 +319,7 @@ h3{font-size:19px;letter-spacing:-.01em;font-weight:700}
 .prose ul{margin:10px 0 10px 22px}
 .prose li{margin:5px 0}
 .prose strong{color:var(--ink)}
-.prose a{color:var(--cyan)}
+.prose a:not(.btn){color:var(--cyan)} /* n'affecte pas les boutons (sinon texte cyan sur fond cyan → illisible) */
 .prose .muted{color:var(--muted2);font-size:14px}
 .divider{height:1px;background:var(--line);margin:40px 0}
 
