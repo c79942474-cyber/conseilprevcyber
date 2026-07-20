@@ -59,16 +59,23 @@
   .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--cyan);border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px;margin-right:8px}
   @keyframes sp{to{transform:rotate(360deg)}}
 
+  .letterhead,.printfoot{display:none}
   @media print{
     body *{visibility:hidden}
     #printable,#printable *{visibility:visible}
     #printable{position:absolute;left:0;top:0;width:100%;border:none;background:#fff}
-    .rbar,.sources{display:none}
+    .rbar{display:none}
     .doc{max-width:none;color:#111;padding:0}
     .doc h1,.doc h2,.doc h3,.doc strong{color:#111}
     .doc p,.doc li,.doc td{color:#222}
     .doc th{background:#eee;color:#111}
     .doc th,.doc td{border-color:#999}
+    .letterhead{display:flex !important;align-items:center;gap:12px;padding-bottom:10px;margin-bottom:16px;border-bottom:1.5px solid #0E6D7C;color:#0A2230}
+    .letterhead img{height:42px;width:42px}
+    .letterhead b{color:#0A2230;font-size:16px}
+    .letterhead .cy{color:#0E6D7C;font-weight:700}
+    .letterhead .lh{font-size:11px;color:#333;font-weight:400}
+    .printfoot{display:block !important;margin-top:22px;padding-top:10px;border-top:1px solid #999;font-size:9pt;color:#555}
   }
 </style>
 </head>
@@ -126,15 +133,18 @@
 
       <div class="result" id="result">
         <div id="printable">
+          <div class="letterhead"><img src="/emblem.svg" alt=""><div><b>CONSEILPREV</b> <span class="cy">Cyber</span><div class="lh">Cybersécurité industrielle IT / OT / IIoT</div></div></div>
           <div class="rbar">
             <div class="meta" id="rmeta"></div>
             <div class="racts">
+              <button id="docxBtn">📄 Word (.docx)</button>
+              <button id="printBtn">🖨 Imprimer / PDF</button>
               <button id="copyBtn">Copier</button>
-              <button id="dlBtn">Télécharger (.md)</button>
-              <button id="printBtn">Imprimer / PDF</button>
+              <button id="dlBtn">.md</button>
             </div>
           </div>
           <div class="doc" id="doc"></div>
+          <div class="printfoot">CONSEILPREV · christophe.cerf@outlook.com · +33 6 60 69 21 45 · conseilprevcyber.onrender.com — Brouillon assisté par IA, à relire et valider.</div>
         </div>
         <div class="sources" id="sources" style="display:none"><div class="lbl">Sources utilisées (base de connaissance)</div><div id="srclist"></div></div>
       </div>
@@ -233,6 +243,16 @@
     }
     genBtn.addEventListener('click',generate);
 
+    document.getElementById('docxBtn').addEventListener('click',function(){
+      if(!lastMd)return; var btn=this, lbl=btn.textContent; btn.disabled=true; btn.textContent='…';
+      fetch('/api/admin/livrables/export',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({markdown:lastMd,type:typeSel.value,client:document.getElementById('client').value.trim()})})
+        .then(function(r){if(!r.ok)throw new Error();return r.blob();})
+        .then(function(blob){var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+          a.download=(typeSel.value||'livrable')+'.docx';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href);})
+        .catch(function(){note('Export Word impossible.','err');})
+        .then(function(){btn.disabled=false;btn.textContent=lbl;});
+    });
     document.getElementById('copyBtn').addEventListener('click',function(){
       navigator.clipboard.writeText(lastMd).then(function(){note('Copié dans le presse-papier.','info');setTimeout(function(){note('','');},2000);});
     });

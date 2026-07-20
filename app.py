@@ -54,6 +54,7 @@ from flask import Flask, Response, jsonify, request, send_file, send_from_direct
 
 import assistant
 import livrables
+import livrables_export
 from auth import admin_required, client_ip, guard, init_app as init_auth
 from cockpit_state import make_store
 from rag_store import RagError, THEMES, build_context, make_rag_store
@@ -785,6 +786,28 @@ def api_livrables_generate():
     sources = [{"title": h.get("title"), "theme": h.get("theme"),
                 "visibility": h.get("visibility")} for h in hits]
     return jsonify(ok=True, document=text, model=model, sources=sources)
+
+
+@app.route("/api/admin/livrables/export", methods=["POST"])
+@admin_required
+def api_livrables_export():
+    """Exporte un livrable (Markdown) en document Word (.docx) mis en page CONSEILPREV."""
+    data = request.get_json(silent=True) or {}
+    md = (data.get("markdown") or "").strip()
+    if not md:
+        return jsonify(ok=False, error="vide", message="Aucun contenu à exporter."), 400
+    try:
+        blob = livrables_export.build_docx(md, {"type": data.get("type"),
+                                                "client": data.get("client")})
+    except Exception:
+        return jsonify(ok=False, error="export_echec",
+                       message="La mise en page a échoué."), 500
+    type_id = (data.get("type") or "livrable")
+    if not type_id or not all(c.isalnum() or c in "-_" for c in type_id):
+        type_id = "livrable"
+    return send_file(
+        io.BytesIO(blob), download_name=type_id + ".docx", as_attachment=True,
+        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 @app.route("/offre-conseilprev-cyber.pdf")
