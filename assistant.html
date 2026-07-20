@@ -151,7 +151,20 @@
 
     function esc(s){return (''+(s==null?'':s)).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
     function fmt(s){
-      s=esc(s).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+      s=esc(s);
+      // Déséchappe les échappements Markdown éventuels du modèle (\*, \#, \', …)
+      s=s.replace(/\\([\\`*_#\[\]().!'+\-])/g,'$1');
+      // Code en ligne `…` → texte simple (sans backticks)
+      s=s.replace(/`([^`\n]+?)`/g,'<code>$1</code>');
+      // Titres Markdown (#, ##, …) en début de ligne → gras, sans le #
+      s=s.replace(/^[ \t]*#{1,6}[ \t]+(.+?)[ \t]*$/gm,'<strong>$1</strong>');
+      // Puces (-, *, +, •) en début de ligne → •
+      s=s.replace(/^[ \t]*[-*+•][ \t]+/gm,'• ');
+      // Gras **…**, puis italique *…*
+      s=s.replace(/\*\*([^*\n]+?)\*\*/g,'<strong>$1</strong>');
+      s=s.replace(/(^|[^*])\*(?!\s)([^*\n]+?)\*(?!\*)/g,'$1<em>$2</em>');
+      // Retire les * et # résiduels (bruit Markdown)
+      s=s.replace(/[#*]/g,'');
       // URLs complètes → nouvel onglet
       s=s.replace(/(https?:\/\/[^\s<]+?)(?=[\s.,;)]|$)/g,function(u){return '<a href="'+u+'" target="_blank" rel="noopener">'+u+'</a>';});
       // Chemins internes (précédés d'un espace/début/parenthèse, en minuscules) → même onglet

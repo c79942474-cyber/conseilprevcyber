@@ -47,6 +47,9 @@ SYSTEM_PROMPT = (
     "- Réponds en français par défaut (ou dans la langue de l'utilisateur), de façon "
     "directe, concise et structurée. Ne dévoile pas ton raisonnement interne : donne "
     "directement la réponse utile.\n"
+    "- Format : écris en texte clair et sobre, SANS Markdown — n'emploie ni « # » (titres), "
+    "ni « * » ou « ** » (gras/italique), ni backticks. Pour une énumération, un simple "
+    "tiret « - » en début de ligne. Privilégie des phrases courtes et des paragraphes aérés.\n"
     "- Quand c'est pertinent, termine par une piste d'action concrète (lancer un état "
     "des lieux, ouvrir l'audit de conformité, nous contacter)."
 )
