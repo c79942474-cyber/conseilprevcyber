@@ -80,8 +80,10 @@ a{color:var(--cyan);text-decoration:none}
 header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
   background:rgba(110,42,24,.78);border-bottom:1px solid var(--line)}
 .nav{display:flex;align-items:center;gap:18px;height:64px}
-.brand{display:flex;align-items:baseline;gap:8px;font-weight:700;letter-spacing:-.02em;font-size:18px;color:var(--ink)}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:-.02em;font-size:18px;color:var(--ink)}
 .brand a{color:var(--ink)}
+.brand .brand-link{display:inline-flex;align-items:center;gap:9px}
+.brand .brand-mark{height:30px;width:30px;display:block;flex:0 0 auto;filter:drop-shadow(0 2px 5px rgba(0,0,0,.32))}
 .brand .tag{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
   color:#04121A;background:linear-gradient(135deg,var(--cyan),var(--teal));padding:3px 7px;border-radius:4px}
 .nav .spacer{flex:1}

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="CONSEILPREV">
+  <title>CONSEILPREV</title>
+  <!-- Badge hexagonal facetté (low-poly « réseau ») -->
+  <g stroke="#04121a" stroke-width="0.6" stroke-linejoin="round">
+    <polygon points="60,6 106.8,33 60,60"  fill="#22B8C6"/><!-- haut-droit -->
+    <polygon points="106.8,33 106.8,87 60,60" fill="#0E6D7C"/><!-- droite -->
+    <polygon points="106.8,87 60,114 60,60"  fill="#0B3D4B"/><!-- bas-droit -->
+    <polygon points="60,114 13.2,87 60,60"   fill="#115E68"/><!-- bas-gauche -->
+    <polygon points="13.2,87 13.2,33 60,60"  fill="#1AA6A0"/><!-- gauche -->
+    <polygon points="13.2,33 60,6 60,60"     fill="#2DD4BF"/><!-- haut-gauche -->
+  </g>
+  <!-- Liseré du badge -->
+  <polygon points="60,6 106.8,33 106.8,87 60,114 13.2,87 13.2,33"
+           fill="none" stroke="#8FF0E6" stroke-width="1.4" stroke-opacity="0.55" stroke-linejoin="round"/>
+  <!-- Bouclier plein (navy) au centre-avant -->
+  <path d="M40 35 L80 35 L80 62 L60 87 L40 62 Z"
+        fill="#0A2230" stroke="#8FF0E6" stroke-width="1.6" stroke-opacity="0.7" stroke-linejoin="round"/>
+  <!-- Coche « conformité » -->
+  <path d="M50.5 57 L58 65.5 L71.5 47.5" fill="none"
+        stroke="#34E7D6" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

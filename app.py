@@ -547,6 +547,12 @@ def nav_js():
     return send_from_directory(HERE, "nav.js", mimetype="text/javascript")
 
 
+@app.route("/emblem.svg")
+def emblem_svg():
+    """Emblème CONSEILPREV (bouclier géométrique) — logo vectoriel de l'en-tête."""
+    return send_from_directory(HERE, "emblem.svg", mimetype="image/svg+xml")
+
+
 @app.route("/offre-conseilprev-cyber.pdf")
 def offre_pdf():
     """Plaquette PDF de l'offre cybersécurité industrielle (téléchargement direct)."""
