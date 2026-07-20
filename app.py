@@ -591,6 +591,62 @@ def og_cover():
     return send_from_directory(HERE, "og-cover.png", mimetype="image/png")
 
 
+@app.route("/emblem.png")
+def emblem_png():
+    """Emblème CONSEILPREV en PNG (logo pour données structurées / partage)."""
+    return send_from_directory(HERE, "emblem.png", mimetype="image/png")
+
+
+# --- Référencement (robots.txt + sitemap.xml) ---------------------------------
+# Pages publiques uniquement : on exclut les pages nécessitant un compte.
+_SITEMAP_EXCLUDE = {"/tendances", "/connecter", "/guide-integration"}
+_SITEMAP_TOP = {"/", "/services", "/vos-projets", "/contact", "/etudes-de-cas", "/about"}
+
+
+def _base_url():
+    b = (os.environ.get("PUBLIC_BASE_URL") or "").strip().rstrip("/")
+    return b or "https://conseilprevcyber.onrender.com"
+
+
+@app.route("/robots.txt")
+def robots_txt():
+    """Directives d'exploration : pages publiques ouvertes, zones privées fermées."""
+    base = _base_url()
+    body = "\n".join([
+        "User-agent: *",
+        "Allow: /",
+        "Disallow: /admin/",
+        "Disallow: /api/",
+        "Disallow: /connexion",
+        "Disallow: /inscription",
+        "Disallow: /mot-de-passe-oublie",
+        "Disallow: /reinitialiser",
+        "Disallow: /verifier-email",
+        "Disallow: /telecharger/",
+        "",
+        "Sitemap: %s/sitemap.xml" % base,
+        "",
+    ])
+    return Response(body, mimetype="text/plain")
+
+
+@app.route("/sitemap.xml")
+def sitemap_xml():
+    """Plan du site (pages publiques indexables)."""
+    base = _base_url()
+    parts = ['<?xml version="1.0" encoding="UTF-8"?>',
+             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    for path in PAGES:
+        if path in _SITEMAP_EXCLUDE:
+            continue
+        loc = base + ("/" if path == "/" else path)
+        priority = "1.0" if path == "/" else ("0.8" if path in _SITEMAP_TOP else "0.6")
+        parts.append("  <url><loc>%s</loc><changefreq>monthly</changefreq>"
+                     "<priority>%s</priority></url>" % (loc, priority))
+    parts.append("</urlset>")
+    return Response("\n".join(parts), mimetype="application/xml")
+
+
 # ============================================================================
 #  Base de connaissance RAG — administration (réservée à l'administrateur)
 # ============================================================================
