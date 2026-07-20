@@ -8,9 +8,9 @@
 <link rel="stylesheet" href="/styles.css">
 <style>
   .modcard{display:block;text-decoration:none;background:linear-gradient(180deg,var(--panel),var(--bg2));
-    border:1px solid var(--line);border-radius:14px;padding:22px;position:relative;transition:transform .18s,border-color .18s}
+    border:1px solid var(--line);border-radius:14px;padding:22px;position:relative;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
   .modcard::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;border-radius:14px 14px 0 0;background:var(--c,linear-gradient(90deg,var(--cyan),var(--teal)))}
-  .modcard:hover{transform:translateY(-4px);border-color:#41493F}
+  .modcard:hover{transform:scale(1.035) translateY(-4px);border-color:var(--cyan);box-shadow:0 20px 44px rgba(0,0,0,.40),0 0 0 1px rgba(34,211,238,.28);z-index:3}
   .modcard .part{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--cyan);border:1px solid var(--line);border-radius:6px;padding:3px 9px;display:inline-block;margin-bottom:12px}
   .modcard h3{font-size:18px;color:var(--ink);margin-bottom:6px;letter-spacing:-.01em}
   .modcard p{font-size:13px;color:var(--muted)}
