@@ -399,6 +399,7 @@ PAGES = {
     "/politique-confidentialite": "politique-confidentialite.html",
     "/nis2": "nis2.html",
     "/diagnostic": "diagnostic.html",
+    "/veille": "veille.html",
 }
 
 
@@ -657,6 +658,11 @@ def nis2():
 @app.route("/diagnostic")
 def diagnostic():
     return _page(PAGES["/diagnostic"])
+
+
+@app.route("/veille")
+def veille():
+    return _page(PAGES["/veille"])
 
 
 @app.route("/styles.css")

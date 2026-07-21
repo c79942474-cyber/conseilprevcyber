@@ -162,7 +162,11 @@
             <label id="m-claude"><input type="radio" name="model" value="claude"><span>Claude</span></label>
           </div>
         </div>
-        <div><button class="btn btn-p" id="genBtn">Générer le livrable</button></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-p" id="genBtn">Générer le livrable</button>
+          <button class="btn btn-s" id="packBtn" type="button" title="Génère en arrière-plan les 8 livrables du programme AMOA intégration IA & Cyber (avec les informations client saisies ci-dessus) — suivez l'avancement ici, retrouvez le tout dans l'historique.">⚡ Pack mission (8 livrables)</button>
+        </div>
+        <div id="packMsg" style="margin-top:8px;font-size:12.5px;color:var(--muted2)"></div>
         <div id="notice"></div>
       </div>
 
@@ -298,6 +302,33 @@
         }).catch(function(){note('Erreur réseau.','err');});
       }
     });
+    // ---- Pack mission : 8 livrables en arrière-plan ----
+    var packBtn=document.getElementById('packBtn'), packMsg=document.getElementById('packMsg'), packTimer=null;
+    function packPoll(){
+      fetch('/api/admin/livrables/pack-mission').then(function(r){return r.json();}).then(function(st){
+        if(!st.ok)return;
+        if(st.running){packMsg.textContent='⚡ Pack mission : '+st.done+'/'+st.total+(st.current?(' — '+st.current):'')+'…';}
+        else if(packTimer){clearInterval(packTimer);packTimer=null;packBtn.disabled=false;
+          packMsg.textContent='✓ Pack mission terminé : '+((st.ids||[]).length)+'/'+st.total+' livrables générés'
+            +((st.errors&&st.errors.length)?(' — '+st.errors.length+' erreur(s)'):'')+'. Retrouvez-les dans l\'historique.';
+          loadHistory();}
+      }).catch(function(){});
+    }
+    packBtn.addEventListener('click',function(){
+      if(!confirm('Générer les 8 livrables du programme AMOA intégration IA & Cyber avec les informations client saisies ?\n\n8 générations successives ancrées sur la base de connaissance — comptez quelques minutes.'))return;
+      packBtn.disabled=true;packMsg.textContent='Lancement…';
+      fetch('/api/admin/livrables/pack-mission',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({client:document.getElementById('client').value.trim(),
+          secteur:document.getElementById('secteur').value.trim(),
+          perimetre:document.getElementById('perimetre').value.trim(),
+          model:(document.querySelector('input[name=model]:checked')||{}).value||'mistral'})})
+      .then(function(r){return r.json().then(function(j){return {s:r.status,j:j};});})
+      .then(function(o){
+        if(o.j.ok){packTimer=setInterval(packPoll,2500);packPoll();}
+        else{packBtn.disabled=false;packMsg.textContent=o.j.message||('Lancement impossible ('+(o.j.error||o.s)+').');}
+      }).catch(function(){packBtn.disabled=false;packMsg.textContent='Erreur réseau.';});
+    });
+
     document.getElementById('histRefresh').addEventListener('click',loadHistory);
 
     function selectedDocIds(){return Array.prototype.slice.call(document.querySelectorAll('#docpick input:checked')).map(function(c){return c.value;});}

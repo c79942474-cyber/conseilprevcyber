@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Veille cyber — alertes et avis CERT-FR résumés — CONSEILPREV Cyber</title>
+<meta name="description" content="Veille cybersécurité automatisée : les dernières alertes et avis du CERT-FR, résumés et actualisés en continu — orientée systèmes industriels (IT/OT/IIoT).">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CONSEILPREV Cyber">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Veille cyber — alertes et avis CERT-FR résumés">
+<meta property="og:description" content="Les dernières alertes et avis du CERT-FR, résumés automatiquement et actualisés en continu.">
+<meta property="og:url" content="https://conseilprevcyber.onrender.com/veille">
+<meta property="og:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="CONSEILPREV Cyber — cybersécurité industrielle IT / OT / IIoT">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Veille cyber — alertes et avis CERT-FR résumés">
+<meta name="twitter:description" content="Alertes et avis CERT-FR résumés automatiquement, actualisés en continu.">
+<meta name="twitter:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<link rel="canonical" href="https://conseilprevcyber.onrender.com/veille">
+
+<link rel="icon" href="/emblem.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .vitem{border:1px solid var(--line);border-radius:13px;padding:16px 18px;margin-bottom:12px;
+    background:linear-gradient(180deg,var(--panel),var(--bg2));transition:border-color .15s}
+  .vitem:hover{border-color:var(--cyan)}
+  .vitem .vtop{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+  .vitem h3{font-size:15.5px;margin:0;flex:1;min-width:220px}
+  .vitem h3 a{color:var(--ink)}
+  .vitem h3 a:hover{color:var(--cyan)}
+  .vpill{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;
+    border-radius:999px;padding:3px 10px;border:1px solid var(--line);white-space:nowrap}
+  .vpill.alerte{color:var(--danger);border-color:rgba(247,158,125,.45);background:rgba(247,158,125,.09)}
+  .vpill.avis{color:var(--teal);border-color:rgba(45,212,191,.4);background:rgba(45,212,191,.08)}
+  .vdate{font-family:var(--mono);font-size:11px;color:var(--muted2);white-space:nowrap}
+  .vitem p{font-size:13.5px;color:var(--muted);margin:0;line-height:1.6}
+  .vitem .vlink{display:inline-block;margin-top:8px;font-family:var(--mono);font-size:11.5px;color:var(--cyan)}
+  .vempty{color:var(--muted2);text-align:center;padding:44px;border:1px dashed var(--line);border-radius:13px}
+  .vnote{display:flex;gap:9px;align-items:flex-start;border:1px solid rgba(34,211,238,.3);
+    background:rgba(34,211,238,.06);border-radius:11px;padding:12px 15px;font-size:12.5px;color:var(--muted);margin:0 0 20px}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="30" height="30" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+      <div class="spacer"></div>
+      <nav class="links">
+        <a href="/">Accueil</a>
+        <a href="/services">Services</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/nis2">NIS2</a>
+        <a href="/veille" class="active">Veille</a>
+        <a href="/contact" class="hide">Contact</a>
+        <a href="/connexion">Espace client</a>
+        <a href="/vos-projets" class="cta-alt">Vos projets</a>
+        <a href="/contact" class="cta">Nous contacter</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head" style="padding-bottom:0">
+      <span class="eyebrow"><span class="dot"></span>Veille automatisée · CERT-FR</span>
+      <h1>Veille <span class="grad">cyber</span> en continu.</h1>
+      <p class="lead" style="margin-top:14px">Les dernières <strong>alertes</strong> et <strong>avis</strong> publiés par
+      le CERT-FR (ANSSI), collectés automatiquement et résumés pour aller à l'essentiel — la même veille qui alimente
+      notre <a href="/assistant">assistant IA</a> en temps réel.</p>
+    </section>
+
+    <section class="section" style="padding-top:22px;max-width:900px">
+      <div class="vnote"><span aria-hidden="true">🤖</span><span><b style="color:var(--ink)">Transparence (AI Act art. 50)</b> —
+      les résumés sont <b>générés automatiquement par IA</b> à partir des bulletins officiels, sans relecture systématique :
+      référez-vous toujours au bulletin source (lien sous chaque élément). Collecte périodique automatique.</span></div>
+      <div id="vlist"><div class="vempty">Chargement de la veille…</div></div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Cybersécurité industrielle IT / OT / IIoT</div>
+      <div class="fnav">
+        <a href="/about">À propos</a>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/nis2">NIS2</a>
+        <a href="/diagnostic">Diagnostic express</a>
+        <a href="/veille">Veille</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/demo">Démo</a>
+        <a href="/contact">Contact</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/politique-confidentialite">Confidentialité</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+  (function(){
+    function esc(s){return (''+(s==null?'':s)).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+    function fmt(ts){if(!ts)return '';var d=new Date(ts);return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});}
+    fetch('/api/veille').then(function(r){return r.ok?r.json():null;}).then(function(j){
+      var el=document.getElementById('vlist');
+      var items=(j&&j.items)||[];
+      if(!items.length){
+        el.innerHTML='<div class="vempty">La collecte automatique démarre — les premiers bulletins CERT-FR apparaîtront ici sous quelques heures.<br>'
+          +'En attendant : <a href="https://www.cert.ssi.gouv.fr" target="_blank" rel="noopener" style="color:var(--cyan)">cert.ssi.gouv.fr</a></div>';
+        return;
+      }
+      el.innerHTML=items.map(function(it){
+        var kind=it.source==='alerte'?'<span class="vpill alerte">Alerte</span>':'<span class="vpill avis">Avis</span>';
+        return '<article class="vitem"><div class="vtop">'+kind
+          +'<h3><a href="'+esc(it.link)+'" target="_blank" rel="noopener">'+esc(it.title)+'</a></h3>'
+          +'<span class="vdate">'+fmt(it.published)+'</span></div>'
+          +'<p>'+esc(it.resume)+'</p>'
+          +'<a class="vlink" href="'+esc(it.link)+'" target="_blank" rel="noopener">Bulletin officiel CERT-FR →</a></article>';
+      }).join('');
+    }).catch(function(){
+      document.getElementById('vlist').innerHTML='<div class="vempty">Veille momentanément indisponible.</div>';
+    });
+  })();
+  </script>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+  <script src="/nav.js" defer></script>
+</body>
+</html>
