@@ -130,6 +130,15 @@ def _security_headers(resp):
             "Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     return resp
 
+
+@app.errorhandler(413)
+def _too_large(_err):
+    """Corps de requête au-dessus de MAX_CONTENT_LENGTH : réponse JSON propre
+    (sinon Flask renvoie une page HTML qui casse le `response.json()` du client,
+    p. ex. l'upload par morceaux de la base de connaissance)."""
+    return jsonify(ok=False, error="requete_trop_grande",
+                   message="Contenu trop volumineux pour une seule requête."), 413
+
 # --- Configuration email (expéditeur vérifié Brevo) ---------------------------
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 SENDER = {"name": "CONSEILPREV", "email": "christophe.cerf@i-aes.com"}

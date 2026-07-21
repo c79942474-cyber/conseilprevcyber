@@ -271,7 +271,7 @@
           var jr=await r.json(); if(!jr.ok) throw new Error(jr.error||'chunk');
           setProg((i+1)/total*0.4,'Envoi… '+Math.round((i+1)/total*100)+'%');
         }
-        setProg(0.42,'Extraction &amp; découpage…');
+        setProg(0.42,'Extraction & découpage…');
         var fin=await jpost('/api/admin/rag/upload/finish',{upload_id:uid,
           title:document.getElementById('title').value.trim(),
           theme:document.getElementById('theme').value.trim(),
@@ -290,9 +290,13 @@
         setTimeout(function(){prog.classList.remove('on');bar.style.width='0';upmsg.textContent='';},2500);
         load();
       }catch(err){
-        var m={type_non_supporte:'Type de fichier non pris en charge.',fichier_trop_lourd:'Fichier trop lourd.',
+        var m={type_non_supporte:'Type de fichier non pris en charge.',fichier_trop_lourd:'Fichier trop lourd (30 Mo maximum).',
           fichier_vide:'Fichier vide.',aucun_texte:'Aucun texte exploitable n\'a pu être extrait.',
-          pdf_illisible:'PDF illisible.',docx_illisible:'DOCX illisible.'}[err.message]||('Échec du chargement ('+err.message+').');
+          pdf_illisible:'PDF illisible.',docx_illisible:'DOCX illisible.',
+          requete_trop_grande:'Fichier trop lourd pour une seule requête.',morceau_trop_grand:'Morceau de fichier trop volumineux.',
+          upload_inconnu:'Session de chargement expirée. Relancez le chargement.',upload_invalide:'Session de chargement invalide.',
+          pdf_support_absent:'Lecture des PDF indisponible sur le serveur.',docx_support_absent:'Lecture des DOCX indisponible sur le serveur.'
+          }[err.message]||('Échec du chargement ('+err.message+').');
         note(m,'err'); setProg(0,''); prog.classList.remove('on');
       }finally{ upBtn.disabled=!chosen; }
     }

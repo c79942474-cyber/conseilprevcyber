@@ -85,7 +85,7 @@ def extract_text(ext, data):
     if ext == "pdf":
         try:
             from pypdf import PdfReader
-        except ImportError:
+        except Exception:  # absent OU binding cassé : message propre, pas de 500 brut
             raise RagError("pdf_support_absent", 500)
         try:
             reader = PdfReader(io.BytesIO(data))
@@ -95,7 +95,7 @@ def extract_text(ext, data):
     if ext == "docx":
         try:
             import docx
-        except ImportError:
+        except Exception:  # absent OU binding cassé : message propre, pas de 500 brut
             raise RagError("docx_support_absent", 500)
         try:
             document = docx.Document(io.BytesIO(data))
