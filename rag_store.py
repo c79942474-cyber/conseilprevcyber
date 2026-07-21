@@ -496,24 +496,32 @@ class PostgresRagStore:
         mode = "vectoriel" if emb_on else "texte_integral"
         indexed = 0 if emb_on else len(chunks)
         now = _now_ms()
-        with conn.transaction():
-            conn.execute(
-                "INSERT INTO rag_documents(id,title,filename,ext,theme,visibility,bytes,"
-                "sha256,nb_chunks,chunks_indexed,status,mode,created_at,updated_at) "
-                "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                (doc_id, (title or filename).strip()[:300], filename, ext,
-                 (theme or "Général").strip()[:80], _clean_visibility(visibility),
-                 len(data), hashlib.sha256(data).hexdigest(), len(chunks), indexed,
-                 status, mode, now, now))
-            conn.execute("INSERT INTO rag_blobs(doc_id,data) VALUES(%s,%s)", (doc_id, data))
-            # Insertion groupée des fragments (executemany, mode pipeline psycopg) :
-            # un seul aller-retour groupé au lieu d'un par fragment — bien plus rapide
-            # pour les gros PDF/DOCX (évite d'approcher le délai d'expiration du worker).
-            with conn.cursor() as cur:
-                cur.executemany(
-                    "INSERT INTO rag_chunks(doc_id,ordinal,content,tsv) "
-                    "VALUES(%s,%s,%s,to_tsvector('french',%s))",
-                    [(doc_id, i, c, c) for i, c in enumerate(chunks)])
+        # Filet de sécurité : toute erreur d'écriture (contenu inattendu d'un PDF/DOCX,
+        # aléa base de données…) est journalisée et renvoyée comme une erreur PROPRE,
+        # jamais comme un 500 opaque. Le contenu texte est déjà nettoyé (NUL, contrôles).
+        try:
+            with conn.transaction():
+                conn.execute(
+                    "INSERT INTO rag_documents(id,title,filename,ext,theme,visibility,bytes,"
+                    "sha256,nb_chunks,chunks_indexed,status,mode,created_at,updated_at) "
+                    "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    (doc_id, (title or filename).strip()[:300], filename, ext,
+                     (theme or "Général").strip()[:80], _clean_visibility(visibility),
+                     len(data), hashlib.sha256(data).hexdigest(), len(chunks), indexed,
+                     status, mode, now, now))
+                conn.execute("INSERT INTO rag_blobs(doc_id,data) VALUES(%s,%s)", (doc_id, data))
+                # Insertion groupée des fragments (executemany, mode pipeline psycopg) :
+                # un seul aller-retour groupé au lieu d'un par fragment — bien plus rapide
+                # pour les gros PDF/DOCX (évite d'approcher le délai d'expiration du worker).
+                with conn.cursor() as cur:
+                    cur.executemany(
+                        "INSERT INTO rag_chunks(doc_id,ordinal,content,tsv) "
+                        "VALUES(%s,%s,%s,to_tsvector('french',%s))",
+                        [(doc_id, i, c, c) for i, c in enumerate(chunks)])
+        except Exception:
+            _log.exception("RAG : échec d'enregistrement (%s, %d fragments, %d octets)",
+                           filename, len(chunks), len(data))
+            raise RagError("traitement_echec", 500)
         return self._doc_row(conn, doc_id)
 
     def index_next(self, doc_id, batch=EMBED_BATCH):

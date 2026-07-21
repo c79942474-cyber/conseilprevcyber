@@ -281,12 +281,20 @@
         var init=await jpost('/api/admin/rag/upload/init',{filename:chosen.name,total_bytes:chosen.size});
         if(!init.ok) throw new Error(init.error||'init');
         var uid=init.upload_id, total=Math.max(1,Math.ceil(chosen.size/CHUNK));
-        for(var i=0;i<total;i++){
-          var blob=chosen.slice(i*CHUNK,(i+1)*CHUNK);
-          var r=await fetch('/api/admin/rag/upload/chunk?upload_id='+encodeURIComponent(uid)+'&idx='+i,{method:'POST',body:blob});
-          var jr=await readJson(r); if(!jr.ok) throw new Error(jr.error||'chunk');
-          setProg((i+1)/total*0.4,'Envoi… '+Math.round((i+1)/total*100)+'%');
+        // Envoi des morceaux EN PARALLÈLE (pool de 4) : bien plus rapide que le
+        // séquentiel pour les fichiers lourds. Chaque morceau porte son index ;
+        // l'ordre de réception n'a pas d'importance (réassemblé par index côté serveur).
+        var sent=0, nextIdx=0, CONC=4;
+        async function sendWorker(){
+          while(true){
+            var i=nextIdx++; if(i>=total) return;
+            var blob=chosen.slice(i*CHUNK,(i+1)*CHUNK);
+            var r=await fetch('/api/admin/rag/upload/chunk?upload_id='+encodeURIComponent(uid)+'&idx='+i,{method:'POST',body:blob});
+            var jr=await readJson(r); if(!jr.ok) throw new Error(jr.error||'chunk');
+            sent++; setProg(sent/total*0.4,'Envoi… '+Math.round(sent/total*100)+'%');
+          }
         }
+        await Promise.all(Array.from({length:Math.min(CONC,total)},sendWorker));
         setProg(0.42,'Extraction & découpage…');
         var fin=await jpost('/api/admin/rag/upload/finish',{upload_id:uid,
           title:document.getElementById('title').value.trim(),
@@ -312,6 +320,7 @@
           requete_trop_grande:'Fichier trop lourd pour une seule requête.',morceau_trop_grand:'Morceau de fichier trop volumineux.',
           upload_inconnu:'Session de chargement expirée. Relancez le chargement.',upload_invalide:'Session de chargement invalide.',
           pdf_support_absent:'Lecture des PDF indisponible sur le serveur.',docx_support_absent:'Lecture des DOCX indisponible sur le serveur.',
+          traitement_echec:'Ce document n\'a pas pu être traité (contenu illisible ou non pris en charge). Essayez un autre export/format.',
           erreur_serveur:'Erreur serveur pendant le traitement. Réessayez dans un instant.',
           http_500:'Erreur serveur (500). Réessayez ; si cela persiste, vérifiez les logs.',
           http_502:'Serveur momentanément indisponible (502). Réessayez.',http_503:'Serveur momentanément indisponible (503). Réessayez.',
