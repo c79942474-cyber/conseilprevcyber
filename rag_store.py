@@ -502,10 +502,14 @@ class PostgresRagStore:
                  len(data), hashlib.sha256(data).hexdigest(), len(chunks), indexed,
                  status, mode, now, now))
             conn.execute("INSERT INTO rag_blobs(doc_id,data) VALUES(%s,%s)", (doc_id, data))
-            for i, c in enumerate(chunks):
-                conn.execute(
+            # Insertion groupée des fragments (executemany, mode pipeline psycopg) :
+            # un seul aller-retour groupé au lieu d'un par fragment — bien plus rapide
+            # pour les gros PDF/DOCX (évite d'approcher le délai d'expiration du worker).
+            with conn.cursor() as cur:
+                cur.executemany(
                     "INSERT INTO rag_chunks(doc_id,ordinal,content,tsv) "
-                    "VALUES(%s,%s,%s,to_tsvector('french',%s))", (doc_id, i, c, c))
+                    "VALUES(%s,%s,%s,to_tsvector('french',%s))",
+                    [(doc_id, i, c, c) for i, c in enumerate(chunks)])
         return self._doc_row(conn, doc_id)
 
     def index_next(self, doc_id, batch=EMBED_BATCH):

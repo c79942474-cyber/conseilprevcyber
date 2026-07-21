@@ -139,6 +139,22 @@ def _too_large(_err):
     return jsonify(ok=False, error="requete_trop_grande",
                    message="Contenu trop volumineux pour une seule requête."), 413
 
+
+@app.errorhandler(500)
+@app.errorhandler(502)
+@app.errorhandler(503)
+@app.errorhandler(504)
+def _api_error_json(err):
+    """Sur les routes /api/, renvoie une erreur JSON propre plutôt qu'une page HTML
+    (sinon un client qui attend du JSON échoue avec « Unexpected token '<' »).
+    L'exception réelle reste journalisée par Flask — visible dans les logs Render."""
+    code = getattr(err, "code", 500) or 500
+    if request.path.startswith("/api/"):
+        app.logger.warning("Erreur %s renvoyée sur %s", code, request.path)
+        return jsonify(ok=False, error="erreur_serveur",
+                       message="Le serveur a rencontré une erreur. Réessayez dans un instant."), code
+    return err
+
 # --- Configuration email (expéditeur vérifié Brevo) ---------------------------
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 SENDER = {"name": "CONSEILPREV", "email": "christophe.cerf@i-aes.com"}

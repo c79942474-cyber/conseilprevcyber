@@ -255,13 +255,16 @@
     drop.addEventListener('drop',function(e){if(e.dataTransfer.files[0])pick(e.dataTransfer.files[0]);});
 
     function setProg(p,msg){prog.classList.add('on');bar.style.width=Math.round(p*100)+'%';if(msg!=null)upmsg.textContent=msg;}
-    async function jpost(url,body){var r=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});return r.json();}
+    // Lecture JSON tolérante : si le serveur renvoie une page HTML (erreur 500/502…),
+    // on ne casse pas sur « Unexpected token '<' » — on renvoie un code exploitable.
+    async function readJson(r){ try{ return await r.json(); }catch(e){ return {ok:false, error:'http_'+(r&&r.status||0)}; } }
+    async function jpost(url,body){var r=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});return readJson(r);}
 
     async function runIndex(docId,onProg){
       var g=0;
       while(g++<10000){
         var r=await fetch('/api/admin/rag/documents/'+docId+'/index-next',{method:'POST'});
-        var ix=await r.json();
+        var ix=await readJson(r);
         if(!ix.ok) throw new Error(ix.error||'index');
         if(onProg) onProg(ix.total? ix.indexed/ix.total : 1);
         if(ix.degraded){ onProg&&onProg(1); return 'degraded'; }
@@ -281,7 +284,7 @@
         for(var i=0;i<total;i++){
           var blob=chosen.slice(i*CHUNK,(i+1)*CHUNK);
           var r=await fetch('/api/admin/rag/upload/chunk?upload_id='+encodeURIComponent(uid)+'&idx='+i,{method:'POST',body:blob});
-          var jr=await r.json(); if(!jr.ok) throw new Error(jr.error||'chunk');
+          var jr=await readJson(r); if(!jr.ok) throw new Error(jr.error||'chunk');
           setProg((i+1)/total*0.4,'Envoi… '+Math.round((i+1)/total*100)+'%');
         }
         setProg(0.42,'Extraction & découpage…');
@@ -308,7 +311,11 @@
           pdf_illisible:'PDF illisible.',docx_illisible:'DOCX illisible.',
           requete_trop_grande:'Fichier trop lourd pour une seule requête.',morceau_trop_grand:'Morceau de fichier trop volumineux.',
           upload_inconnu:'Session de chargement expirée. Relancez le chargement.',upload_invalide:'Session de chargement invalide.',
-          pdf_support_absent:'Lecture des PDF indisponible sur le serveur.',docx_support_absent:'Lecture des DOCX indisponible sur le serveur.'
+          pdf_support_absent:'Lecture des PDF indisponible sur le serveur.',docx_support_absent:'Lecture des DOCX indisponible sur le serveur.',
+          erreur_serveur:'Erreur serveur pendant le traitement. Réessayez dans un instant.',
+          http_500:'Erreur serveur (500). Réessayez ; si cela persiste, vérifiez les logs.',
+          http_502:'Serveur momentanément indisponible (502). Réessayez.',http_503:'Serveur momentanément indisponible (503). Réessayez.',
+          http_504:'Le traitement a expiré (504). Réessayez ; le fichier est peut-être trop volumineux.'
           }[err.message]||('Échec du chargement ('+err.message+').');
         note(m,'err'); setProg(0,''); prog.classList.remove('on');
       }finally{ upBtn.disabled=!chosen; }
@@ -321,7 +328,7 @@
       var a=b.getAttribute('data-a'), id=b.getAttribute('data-id');
       if(a==='delete'){
         if(!confirm('Supprimer définitivement « '+b.getAttribute('data-t')+' » de la base ?'))return;
-        var r=await fetch('/api/admin/rag/documents/'+id,{method:'DELETE'}); var j=await r.json();
+        var r=await fetch('/api/admin/rag/documents/'+id,{method:'DELETE'}); var j=await readJson(r);
         if(j.ok){note('Document supprimé.','ok');load();}else{note('Suppression impossible.','err');}
       } else if(a==='download'){
         window.location.href='/api/admin/rag/documents/'+id+'/download';
@@ -333,7 +340,7 @@
         b.disabled=true;b.textContent='…';
         try{
           var rr=await fetch('/api/admin/rag/documents/'+id+'/reindex',{method:'POST'});
-          var jj=await rr.json(); if(!jj.ok) throw new Error(jj.error||'reindex');
+          var jj=await readJson(rr); if(!jj.ok) throw new Error(jj.error||'reindex');
           await runIndex(id); note('Document vectorisé (recherche sémantique active).','ok');
         }catch(_){ note('Vectorisation impossible.','err'); }
         load();
