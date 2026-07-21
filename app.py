@@ -55,7 +55,9 @@ from flask import Flask, Response, jsonify, request, send_file, send_from_direct
 import assistant
 import livrables
 import livrables_export
-from auth import admin_required, client_ip, guard, init_app as init_auth
+import rgpd
+from auth import admin_required, client_ip, current_user, guard, init_app as init_auth
+from clients_store import BASES_LEGALES, STATUTS, make_clients_store
 from cockpit_state import make_store
 from livrables_store import make_livrables_store
 from rag_store import RagError, THEMES, build_context, make_rag_store
@@ -280,6 +282,10 @@ rag = make_rag_store()
 
 # Historique des livrables générés (persistant si DATABASE_URL). Voir livrables_store.py.
 livrables_hist = make_livrables_store()
+
+# Gestion des clients & prospects — conforme RGPD (persistante si DATABASE_URL).
+# Voir clients_store.py (journal d'audit, conservation, export, effacement).
+clients_db = make_clients_store()
 
 # --- Rétention de l'historique ------------------------------------------------
 # Purge périodique des événements au-delà d'un âge (EVENT_RETENTION_DAYS) et/ou
@@ -992,6 +998,102 @@ def api_livrables_export():
     return send_file(
         io.BytesIO(blob), download_name=type_id + ".docx", as_attachment=True,
         mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+# ============================================================================
+#  Gestion des clients & prospects — conforme RGPD + AI Act art. 50 (admin)
+# ============================================================================
+# Inspirée du module « Gestion des clients » de Sentinel : fiches minimales
+# (art. 5.1.c), base légale et consentement documentés (art. 6-7), rectification
+# (art. 16), effacement avec journal anonymisé (art. 17), export/portabilité
+# (art. 20), conservation limitée et purge (art. 5.1.e), journal d'audit
+# (art. 5.2). Le registre des traitements (art. 30) et les mesures de
+# transparence IA (AI Act art. 50) sont servis depuis rgpd.py.
+
+def _actor():
+    return (current_user() or {}).get("email") or "admin"
+
+
+@app.route("/admin/clients")
+@admin_required
+def admin_clients_page():
+    """Console de gestion des clients (réservée à l'administrateur)."""
+    return send_from_directory(HERE, "admin-clients.html")
+
+
+@app.route("/api/admin/clients", methods=["GET"])
+@admin_required
+def api_clients_list():
+    return jsonify(ok=True, clients=clients_db.list(), stats=clients_db.stats(),
+                   options={"statuts": list(STATUTS), "bases": list(BASES_LEGALES)})
+
+
+@app.route("/api/admin/clients", methods=["POST"])
+@admin_required
+def api_clients_create():
+    data = request.get_json(silent=True) or {}
+    client = clients_db.create(data, actor=_actor())
+    if not client:
+        return jsonify(ok=False, error="entreprise_requise",
+                       message="Le nom de l'entreprise est requis."), 400
+    return jsonify(ok=True, client=client)
+
+
+@app.route("/api/admin/clients/<cid>", methods=["PATCH"])
+@admin_required
+def api_clients_update(cid):
+    if not _rag_hex(cid):
+        return jsonify(ok=False, error="id_invalide"), 400
+    client = clients_db.update(cid, request.get_json(silent=True) or {}, actor=_actor())
+    if not client:
+        return jsonify(ok=False, error="introuvable"), 404
+    return jsonify(ok=True, client=client)
+
+
+@app.route("/api/admin/clients/<cid>", methods=["DELETE"])
+@admin_required
+def api_clients_delete(cid):
+    """Droit à l'effacement (art. 17) : suppression définitive, journal anonymisé."""
+    if not _rag_hex(cid):
+        return jsonify(ok=False, error="id_invalide"), 400
+    if not clients_db.delete(cid, actor=_actor()):
+        return jsonify(ok=False, error="introuvable"), 404
+    return jsonify(ok=True)
+
+
+@app.route("/api/admin/clients/<cid>/export", methods=["GET"])
+@admin_required
+def api_clients_export(cid):
+    """Droit d'accès / portabilité (art. 15 / 20) : export JSON complet de la fiche."""
+    if not _rag_hex(cid):
+        return jsonify(ok=False, error="id_invalide"), 400
+    data = clients_db.export(cid, actor=_actor())
+    if not data:
+        return jsonify(ok=False, error="introuvable"), 404
+    blob = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
+    return send_file(io.BytesIO(blob), download_name="client-%s-export-rgpd.json" % cid[:8],
+                     as_attachment=True, mimetype="application/json")
+
+
+@app.route("/api/admin/clients/journal", methods=["GET"])
+@admin_required
+def api_clients_journal():
+    """Journal des opérations sur les données clients (accountability, art. 5.2)."""
+    return jsonify(ok=True, events=clients_db.events(limit=80))
+
+
+@app.route("/api/admin/clients/purge-expired", methods=["POST"])
+@admin_required
+def api_clients_purge():
+    """Limitation de conservation (art. 5.1.e) : purge des fiches expirées."""
+    return jsonify(ok=True, purged=clients_db.purge_expired(actor=_actor()))
+
+
+@app.route("/api/admin/rgpd/registre", methods=["GET"])
+@admin_required
+def api_rgpd_registre():
+    """Registre des activités de traitement (art. 30) + mesures AI Act art. 50."""
+    return jsonify(ok=True, version=rgpd.VERSION, registre=rgpd.REGISTRE, art50=rgpd.ART50)
 
 
 @app.route("/offre-conseilprev-cyber.pdf")
