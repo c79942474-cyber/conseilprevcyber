@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NIS2 — êtes-vous concerné, quelles obligations, comment s'y conformer — CONSEILPREV Cyber</title>
+<meta name="description" content="Directive NIS2 expliquée : entités essentielles et importantes, obligations de gestion des risques, notification d'incidents 24 h / 72 h, sanctions — et la correspondance avec l'IEC 62443 pour la mise en conformité des environnements industriels.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CONSEILPREV Cyber">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="NIS2 — êtes-vous concerné, quelles obligations, comment s'y conformer">
+<meta property="og:description" content="Entités essentielles et importantes, obligations, notification d'incidents 24 h / 72 h, sanctions — et la correspondance NIS2 ↔ IEC 62443 côté industriel.">
+<meta property="og:url" content="https://conseilprevcyber.onrender.com/nis2">
+<meta property="og:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="CONSEILPREV Cyber — cybersécurité industrielle IT / OT / IIoT">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="NIS2 — êtes-vous concerné, quelles obligations, comment s'y conformer">
+<meta name="twitter:description" content="Entités essentielles et importantes, obligations, notification 24 h / 72 h, sanctions — correspondance NIS2 ↔ IEC 62443.">
+<meta name="twitter:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<link rel="canonical" href="https://conseilprevcyber.onrender.com/nis2">
+
+<link rel="icon" href="/emblem.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .tblwrap{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:14px;padding:6px;overflow-x:auto;margin:18px 0 8px}
+  .ntbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:820px}
+  .ntbl th{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2);
+    text-align:left;padding:12px 14px;border-bottom:1px solid var(--line)}
+  .ntbl td{padding:12px 14px;border-bottom:1px solid rgba(30,42,58,.55);color:var(--muted);vertical-align:top;line-height:1.55}
+  .ntbl tr:last-child td{border-bottom:none}
+  .ntbl td b{color:var(--ink)}
+  .ntbl a{color:var(--cyan)}
+  .chip{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;
+    border-radius:999px;padding:3px 10px;border:1px solid var(--line);white-space:nowrap;margin:2px 4px 2px 0;color:var(--muted)}
+  .chip.hot{color:var(--amber);border-color:rgba(240,180,41,.4);background:rgba(240,180,41,.08)}
+  .deadline{display:flex;gap:14px;flex-wrap:wrap;margin:16px 0 8px}
+  .dl{flex:1 1 200px;border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:linear-gradient(180deg,var(--panel),var(--bg2));position:relative}
+  .dl::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;border-radius:12px 12px 0 0;background:linear-gradient(90deg,var(--amber),var(--terra))}
+  .dl b{font-size:22px;color:var(--ink);display:block;margin-bottom:4px}
+  .dl span{font-size:12.5px;color:var(--muted)}
+  .note{border:1px solid rgba(34,211,238,.3);background:rgba(34,211,238,.06);border-radius:11px;
+    padding:12px 15px;font-size:13px;color:var(--ink);margin:14px 0}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="30" height="30" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+      <div class="spacer"></div>
+      <nav class="links">
+        <a href="/">Accueil</a>
+        <a href="/services">Services</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/nis2" class="active">NIS2</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/demo">Démo temps réel</a>
+        <a href="/contact" class="hide">Contact</a>
+        <a href="/connexion">Espace client</a>
+        <a href="/vos-projets" class="cta-alt">Vos projets</a>
+        <a href="/contact" class="cta">Nous contacter</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow"><span class="dot"></span>Conformité réglementaire</span>
+      <h1>NIS2 : êtes-vous concerné, et <span class="grad">comment s'y conformer</span>.</h1>
+      <p class="lead" style="margin-top:18px">La directive (UE) 2022/2555 — « NIS2 » — élargit massivement le champ de la
+      cybersécurité réglementée en Europe : plus de secteurs, des obligations de gestion des risques précises, une
+      notification d'incidents en 24 h, et la responsabilité personnelle des dirigeants. Voici l'essentiel — et le pont
+      avec l'IEC&nbsp;62443 pour vos environnements industriels.</p>
+    </section>
+
+    <section class="section" style="padding-top:10px">
+      <h2 class="sec-title">// Êtes-vous concerné ?</h2>
+      <p style="max-width:860px;color:var(--muted)">NIS2 s'applique aux organisations des secteurs listés par la directive,
+      dès lors qu'elles atteignent la taille d'une <strong>moyenne entreprise</strong>. Deux régimes existent, avec des
+      contrôles et des sanctions différenciés :</p>
+      <div class="tblwrap">
+        <table class="ntbl">
+          <thead><tr><th>Régime</th><th>Qui (critères simplifiés)</th><th>Secteurs typiques</th><th>Supervision</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><b>Entités essentielles (EE)</b></td>
+              <td>Grandes entreprises (≥ 250 salariés ou &gt; 50 M€ CA) des secteurs « hautement critiques ».</td>
+              <td>Énergie, transports, banques &amp; infrastructures de marché, santé, eau potable &amp; eaux usées,
+              infrastructure numérique, gestion des services TIC, administrations, spatial.</td>
+              <td>Contrôles <b>a priori et a posteriori</b>.</td>
+            </tr>
+            <tr>
+              <td><b>Entités importantes (EI)</b></td>
+              <td>Moyennes entreprises (≥ 50 salariés ou &gt; 10 M€ CA) des secteurs hautement critiques, et
+              moyennes/grandes des « autres secteurs critiques ».</td>
+              <td>Postes, déchets, <b>chimie</b>, <b>agroalimentaire</b>, <b>fabrication</b> (équipements, machines,
+              véhicules, dispositifs médicaux…), fournisseurs numériques, recherche.</td>
+              <td>Contrôles <b>a posteriori</b>.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted" style="font-size:12.5px;max-width:860px">Critères simplifiés : certains acteurs sont désignés
+      indépendamment de leur taille (registres de noms de domaine, opérateurs télécoms, administrations…), et les
+      chaînes de sous-traitance peuvent être entraînées par leurs donneurs d'ordre. En France, l'<strong>ANSSI</strong>
+      pilote le dispositif : le portail <strong>MonEspaceNIS2</strong> permet de vérifier votre assujettissement et de
+      vous enregistrer. La transposition française précise progressivement modalités et calendrier — les obligations de
+      fond, elles, sont connues : <strong>anticiper coûte moins cher que rattraper</strong>.</p>
+      <div style="margin-top:8px">
+        <span class="chip hot">Industrie = très concernée</span>
+        <span class="chip">Énergie</span><span class="chip">Eau</span><span class="chip">Chimie</span>
+        <span class="chip">Agroalimentaire</span><span class="chip">Fabrication</span><span class="chip">Transports</span>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="sec-title">// Les obligations, en clair</h2>
+      <div class="grid grid-3">
+        <div class="card a1">
+          <div class="ico">🧑‍⚖️</div>
+          <h3>Gouvernance &amp; responsabilité</h3>
+          <p>Les <strong>organes de direction</strong> approuvent les mesures de gestion des risques, en supervisent la mise
+          en œuvre et <strong>engagent leur responsabilité</strong> en cas de manquement. Formation obligatoire des
+          dirigeants — et encouragée pour l'ensemble du personnel.</p>
+        </div>
+        <div class="card a2">
+          <div class="ico">🛡️</div>
+          <h3>Mesures de gestion des risques</h3>
+          <p>Un socle « tous risques » proportionné, couvrant notamment : analyse de risques, <strong>gestion des
+          incidents</strong>, continuité d'activité et gestion de crise, <strong>sécurité de la chaîne
+          d'approvisionnement</strong>, sécurité du développement et de la maintenance, évaluation d'efficacité,
+          hygiène informatique et formation, <strong>cryptographie</strong>, contrôle d'accès et gestion des actifs,
+          authentification <strong>multifacteur</strong>.</p>
+        </div>
+        <div class="card a3">
+          <div class="ico">⏱️</div>
+          <h3>Notification d'incidents</h3>
+          <p>Tout <strong>incident important</strong> doit être signalé à l'autorité compétente selon un calendrier
+          serré — voir ci-dessous. Les clients concernés doivent aussi être informés lorsqu'ils sont affectés.</p>
+        </div>
+      </div>
+
+      <div class="deadline">
+        <div class="dl"><b>≤ 24 h</b><span><strong>Alerte précoce</strong> après connaissance de l'incident important — indiquer si une origine malveillante ou un impact transfrontalier est suspecté.</span></div>
+        <div class="dl"><b>≤ 72 h</b><span><strong>Notification d'incident</strong> — évaluation initiale : gravité, impacts, indicateurs de compromission.</span></div>
+        <div class="dl"><b>≤ 1 mois</b><span><strong>Rapport final</strong> — description détaillée, cause probable, mesures d'atténuation appliquées.</span></div>
+      </div>
+
+      <div class="note">💶 <strong>Sanctions</strong> — jusqu'à <strong>10 M€ ou 2 %</strong> du chiffre d'affaires annuel
+      mondial (le plus élevé) pour les entités essentielles ; jusqu'à <strong>7 M€ ou 1,4 %</strong> pour les entités
+      importantes. S'y ajoutent injonctions, astreintes et, pour les EE, la possibilité de suspendre des dirigeants de
+      leurs fonctions.</div>
+    </section>
+
+    <section class="section">
+      <h2 class="sec-title">// NIS2 ↔ IEC 62443 : l'obligation, et le moyen d'y répondre côté OT</h2>
+      <p style="max-width:860px;color:var(--muted)">NIS2 dit <strong>quoi</strong> faire ; pour les environnements
+      industriels (OT/IACS), l'IEC&nbsp;62443 dit <strong>comment</strong>. Correspondance entre les familles d'exigences
+      NIS2 et notre outillage&nbsp;:</p>
+      <div class="tblwrap">
+        <table class="ntbl">
+          <thead><tr><th>Exigence NIS2 (famille)</th><th>Réponse technique IEC 62443</th><th>Notre service</th></tr></thead>
+          <tbody>
+            <tr><td><b>Analyse de risques</b> &amp; politiques de sécurité</td>
+                <td>Analyse de risques par <b>zones &amp; conduits</b>, niveaux de sécurité cibles (SL-T)</td>
+                <td><a href="/analyse-de-risque">Analyse de risque OT</a> · <a href="/referentiel">Référentiel 62443</a></td></tr>
+            <tr><td><b>Gestion des incidents</b> &amp; notification 24 h / 72 h</td>
+                <td>Détection OT, journalisation, procédures de réponse (SR/IEC 62443-3-3)</td>
+                <td><a href="/demo">Supervision temps réel</a> · <a href="/programme-securite">Programme de sécurité</a></td></tr>
+            <tr><td><b>Continuité d'activité</b>, sauvegardes &amp; gestion de crise</td>
+                <td>Maintien en condition de sécurité, plans de reprise adaptés à la production</td>
+                <td><a href="/programme-securite">Programme de sécurité</a></td></tr>
+            <tr><td><b>Chaîne d'approvisionnement</b> &amp; prestataires</td>
+                <td>Exigences fournisseurs (IEC 62443-2-4) et composants certifiables (IEC 62443-4-2)</td>
+                <td><a href="/exigences-prestataires">Exigences prestataires</a> · <a href="/exigences-composants">Exigences composants</a></td></tr>
+            <tr><td><b>Sécurité du développement</b> &amp; de la maintenance</td>
+                <td>Cycle de développement sécurisé (IEC 62443-4-1), gestion des correctifs OT</td>
+                <td><a href="/developpement-securise">Développement sécurisé</a> · <a href="/gestion-correctifs">Gestion des correctifs</a></td></tr>
+            <tr><td><b>Évaluation d'efficacité</b> des mesures</td>
+                <td>Audit des niveaux atteints (SL-A vs SL-T), métriques et tableaux de bord</td>
+                <td><a href="/audit-conformite">Audit de conformité</a> · <a href="/metriques-62443">Métriques 62443</a></td></tr>
+            <tr><td><b>Cryptographie</b>, contrôle d'accès, gestion des actifs, MFA</td>
+                <td>Technologies adaptées aux contraintes OT (segmentation, IAM industriel, inventaire)</td>
+                <td><a href="/technologies-securite">Technologies de sécurité</a></td></tr>
+            <tr><td><b>Hygiène informatique</b> &amp; formation</td>
+                <td>Sensibilisation des équipes production / maintenance / IT</td>
+                <td><a href="/services">Sensibilisation &amp; formation</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="sec-title">// Par où commencer</h2>
+      <div class="grid grid-3">
+        <div class="card a1">
+          <div class="ico">1️⃣</div>
+          <h3>Vérifier l'assujettissement</h3>
+          <p>Secteur, taille, cas particuliers, entraînement par les donneurs d'ordre — puis enregistrement auprès de
+          l'ANSSI (MonEspaceNIS2).</p>
+        </div>
+        <div class="card a2">
+          <div class="ico">2️⃣</div>
+          <h3>Analyse d'écarts</h3>
+          <p>État des lieux face aux familles d'exigences (gouvernance, mesures, notification, chaîne
+          d'approvisionnement) — IT <strong>et</strong> OT, sites et filiales compris.</p>
+        </div>
+        <div class="card a3">
+          <div class="ico">3️⃣</div>
+          <h3>Feuille de route priorisée</h3>
+          <p>Mise en conformité par l'exposition réelle et la criticité métier, adossée à l'IEC&nbsp;62443 côté
+          industriel — avec jalons, responsables et indicateurs.</p>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div style="text-align:center">
+        <h2>Où en êtes-vous face à NIS2&nbsp;?</h2>
+        <p class="lead" style="margin:10px auto 0;max-width:640px">Analyse d'écarts IT/OT, feuille de route et accompagnement
+        jusqu'à la conformité — sans arrêter la production.</p>
+        <div class="actions" style="justify-content:center">
+          <a href="/contact" class="btn btn-p">Parler de votre situation</a>
+          <a href="/audit-conformite" class="btn btn-s">Voir l'audit de conformité</a>
+          <a href="/assistant" class="btn btn-s">Poser la question à l'assistant IA</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Cybersécurité industrielle IT / OT / IIoT</div>
+      <div class="fnav">
+        <a href="/about">À propos</a>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/nis2">NIS2</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/demo">Démo</a>
+        <a href="/contact">Contact</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/politique-confidentialite">Confidentialité</a>
+      </div>
+    </div>
+  </footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+  <script src="/nav.js" defer></script>
+</body>
+</html>

@@ -58,6 +58,24 @@ TYPES = [
         ],
     },
     {
+        "id": "analyse-ecarts-nis2",
+        "label": "Analyse d'écarts NIS2",
+        "desc": "Assujettissement, écarts par famille d'exigences (gouvernance, mesures de gestion "
+                "des risques, notification 24 h/72 h, chaîne d'approvisionnement) et plan de mise "
+                "en conformité priorisé — IT et OT.",
+        "sections": [
+            "Contexte & assujettissement (entité essentielle / importante)",
+            "Périmètre analysé (SI, sites, filiales, OT)",
+            "Gouvernance & responsabilité de la direction",
+            "Écarts par famille de mesures de gestion des risques",
+            "Notification d'incidents (24 h / 72 h / rapport final)",
+            "Chaîne d'approvisionnement & prestataires",
+            "Correspondance avec l'IEC 62443 (périmètre industriel)",
+            "Plan de mise en conformité priorisé",
+            "Indicateurs de suivi & jalons",
+        ],
+    },
+    {
         "id": "plan-remediation",
         "label": "Plan de remédiation",
         "desc": "Risques priorisés, mesures d'atténuation, échéancier, responsabilités et indicateurs de suivi.",
