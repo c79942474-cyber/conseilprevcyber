@@ -56,6 +56,27 @@
   .reslist a:hover{border-color:var(--cyan);color:var(--ink)}
   .reslist .pn{font-family:var(--mono);font-size:10px;color:var(--cyan);flex:0 0 auto}
   .resume{font-size:12.5px;color:var(--muted2);border:1px dashed var(--line);border-radius:10px;padding:10px 14px;margin:14px 0}
+  .howto{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:0 0 20px}
+  .howto .h{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:11px;padding:11px 13px;background:var(--bg2)}
+  .howto .h b{color:var(--ink);display:block;font-size:13px;margin-bottom:2px}
+  .howto .h span{font-size:12px;color:var(--muted2);line-height:1.5}
+  .howto .n{font-family:var(--mono);font-size:11px;color:var(--cyan);border:1px solid rgba(34,211,238,.35);border-radius:50%;
+    width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:1px}
+  .howread{border:1px solid var(--line);border-radius:11px;background:var(--bg2);margin:16px 0 4px}
+  .howread summary{cursor:pointer;padding:12px 15px;font-size:13.5px;color:var(--ink);font-weight:600;list-style:none}
+  .howread summary::-webkit-details-marker{display:none}
+  .howread summary::before{content:"▸ ";color:var(--cyan)}
+  .howread[open] summary::before{content:"▾ "}
+  .howread ul{margin:0;padding:0 16px 14px 30px;font-size:12.5px;color:var(--muted);line-height:1.6}
+  .howread li{margin-bottom:6px}
+  @media print{
+    :root{--bg:#fff;--bg2:#fff;--panel:#fff;--panel2:#fff;--ink:#111;--muted:#333;--muted2:#555;--line:#bbb}
+    header,footer,.pagenav,.chat-launch,.guide-bar,.readbar,.nav-search,.steps,.actions,.privacy,.skip{display:none!important}
+    body{background:#fff!important;color:#111}
+    .qpanel,.card{background:#fff!important;box-shadow:none}
+    .res .card{break-inside:avoid}
+    a{color:#111;text-decoration:none}
+  }
 </style>
 </head>
 <body>
@@ -87,12 +108,18 @@
     </section>
 
     <section class="section" style="padding-top:22px;max-width:860px">
+      <div class="howto" aria-label="Comment fonctionne le diagnostic">
+        <div class="h"><span class="n">1</span><span><b>Répondez à 4 questions</b><span>Secteur, taille, situation, priorité — environ 2 minutes, sans inscription.</span></span></div>
+        <div class="h"><span class="n">2</span><span><b>Recevez votre parcours</b><span>Cadre réglementaire probable, lectures utiles et démarche recommandée.</span></span></div>
+        <div class="h"><span class="n">3</span><span><b>Gardez la main</b><span>Imprimez votre parcours ou contactez-nous — message pré-rempli, modifiable.</span></span></div>
+      </div>
+
       <div class="steps" aria-hidden="true"><span id="stepLbl">Étape 1/4</span><div class="sbar"><i id="stepBar"></i></div></div>
 
       <form id="diag" class="qpanel" novalidate>
         <!-- Q1 -->
         <fieldset class="stepblock on" data-step="1">
-          <legend><h2>Votre secteur d'activité ?</h2></legend>
+          <legend><h2>Votre secteur d'activité ? <button type="button" class="tipi" data-tip="Décisif pour le cadre applicable : les secteurs « hautement critiques » et « autres secteurs critiques » de NIS2 n'ont pas le même régime, et la finance relève d'abord de DORA." aria-label="Pourquoi cette question : le secteur détermine le cadre réglementaire">i</button></h2></legend>
           <div class="hint">Il détermine votre exposition réglementaire (NIS2, DORA) et nos points de comparaison.</div>
           <div class="opts">
             <label class="opt"><input type="radio" name="secteur" value="energie"><span><b>⚡ Énergie &amp; utilities</b><span>Production, réseaux, gaz, télécontrôle.</span></span></label>
@@ -108,7 +135,7 @@
 
         <!-- Q2 -->
         <fieldset class="stepblock" data-step="2">
-          <legend><h2>La taille de votre organisation ?</h2></legend>
+          <legend><h2>La taille de votre organisation ? <button type="button" class="tipi" data-tip="Avec le secteur, c'est LE critère NIS2 : entité essentielle (grande entreprise d'un secteur hautement critique) ou importante (dès 50 salariés ou 10 M€). Certains acteurs sont désignés quelle que soit leur taille." aria-label="Pourquoi cette question : la taille détermine le régime NIS2 probable">i</button></h2></legend>
           <div class="hint">Avec le secteur, elle détermine votre régime NIS2 probable (critères simplifiés).</div>
           <div class="opts">
             <label class="opt"><input type="radio" name="taille" value="petite"><span><b>Moins de 50 personnes</b><span>et ≤ 10 M€ de chiffre d'affaires.</span></span></label>
@@ -119,7 +146,7 @@
 
         <!-- Q3 -->
         <fieldset class="stepblock" data-step="3">
-          <legend><h2>Où en êtes-vous aujourd'hui ?</h2></legend>
+          <legend><h2>Où en êtes-vous aujourd'hui ? <button type="button" class="tipi" data-tip="Pas de bonne ou mauvaise réponse : cette question fixe la PREMIÈRE marche utile. Sans inventaire fiable, tout commence par l'état des lieux — on ne protège pas ce qu'on ne connaît pas." aria-label="Pourquoi cette question : la situation détermine la première étape">i</button></h2></legend>
           <div class="hint">Soyez honnête — c'est le point de départ qui détermine la première marche utile.</div>
           <div class="opts">
             <label class="opt"><input type="radio" name="situation" value="debut"><span><b>Aucune démarche structurée</b><span>Pas d'inventaire fiable, pas de politique OT formalisée.</span></span></label>
@@ -131,7 +158,7 @@
 
         <!-- Q4 -->
         <fieldset class="stepblock" data-step="4">
-          <legend><h2>Votre priorité des 12 prochains mois ?</h2></legend>
+          <legend><h2>Votre priorité des 12 prochains mois ? <button type="button" class="tipi" data-tip="Un seul point d'entrée : nous recommandons la démarche qui débloque le plus vite votre priorité. Les autres chantiers ne sont pas abandonnés — ils suivent dans la feuille de route." aria-label="Pourquoi cette question : la priorité choisit le point d'entrée">i</button></h2></legend>
           <div class="hint">Nous recommandons un point d'entrée — les autres chantiers suivront dans la feuille de route.</div>
           <div class="opts">
             <label class="opt"><input type="radio" name="priorite" value="conformite"><span><b>⚖️ Conformité réglementaire</b><span>NIS2, DORA, exigences clients ou assureurs.</span></span></label>
@@ -154,7 +181,7 @@
       <div class="res" id="res" aria-live="polite">
         <div class="qpanel" style="margin-bottom:16px">
           <span class="eyebrow" style="margin-bottom:8px"><span class="dot"></span>Votre parcours recommandé</span>
-          <h2 style="font-size:24px;margin:6px 0 10px">Cadre applicable</h2>
+          <h2 style="font-size:24px;margin:6px 0 10px">Cadre applicable <button type="button" class="tipi" data-tip="Qualification PROBABLE, donnée à titre d'orientation : seule une analyse juridique — et la vérification MonEspaceNIS2 (ANSSI) — la confirme. Ce diagnostic ne constitue pas un avis juridique." aria-label="Important : qualification probable, à confirmer juridiquement">i</button></h2>
           <div id="resCadres"></div>
           <p id="resCadreTxt" style="color:var(--muted);font-size:14px;margin-top:10px;max-width:720px"></p>
           <div class="resume" id="resResume"></div>
@@ -167,15 +194,26 @@
             <ul class="reslist" id="resReads"></ul>
           </div>
           <div class="card a2">
-            <h3>🎯 La démarche recommandée</h3>
+            <h3>🎯 La démarche recommandée <button type="button" class="tipi" data-tip="L'ordre proposé maximise l'effet : impossible de prioriser ou de se conformer sans inventaire fiable — d'où l'état des lieux en premier le cas échéant. Chaque étape produit un livrable réutilisable pour la suivante." aria-label="Pourquoi cet ordre de démarche">i</button></h3>
             <p id="resServiceTxt" style="font-size:13.5px;color:var(--muted)"></p>
             <ul class="reslist" id="resService"></ul>
           </div>
         </div>
 
+        <details class="howread">
+          <summary>📖 Comment lire ce résultat ?</summary>
+          <ul>
+            <li><b style="color:var(--ink)">« Probable » n'est pas « certain »</b> — le cadre affiché est une orientation d'après vos réponses ; la qualification définitive relève d'une vérification juridique (MonEspaceNIS2 pour NIS2).</li>
+            <li><b style="color:var(--ink)">Les lectures sont classées</b> — 20 minutes dans l'ordre proposé suffisent pour une vision claire avant tout échange.</li>
+            <li><b style="color:var(--ink)">La démarche est un point d'entrée</b> — pas un devis : le périmètre exact, la durée et le budget se précisent lors d'un échange (réponse sous 48 h ouvrées).</li>
+            <li><b style="color:var(--ink)">Gardez une trace</b> — imprimez votre parcours pour le partager en interne (direction, DSI, RSSI).</li>
+          </ul>
+        </details>
+
         <div class="actions" style="justify-content:center;margin-top:26px">
           <a class="btn btn-p" id="resContact" href="/contact">Nous contacter — message pré-rempli</a>
           <a class="btn btn-s" href="/assistant">💬 Poser une question à l'assistant IA</a>
+          <button class="btn btn-s" type="button" id="printBtn">🖨 Imprimer mon parcours</button>
           <button class="btn btn-s" type="button" id="restart">↺ Refaire le diagnostic</button>
         </div>
         <p style="text-align:center;color:var(--muted2);font-size:12.5px;margin-top:12px">Le contact ouvre notre formulaire
@@ -250,6 +288,7 @@
       if(step<TOTAL){step++;show();window.scrollTo({top:0,behavior:'smooth'});}
       else finish();
     });
+    document.getElementById('printBtn').addEventListener('click',function(){window.print();});
     document.getElementById('restart').addEventListener('click',function(){
       form.reset();step=1;show();res.classList.remove('on');form.style.display='';
       document.querySelector('.steps').style.display='';window.scrollTo({top:0,behavior:'smooth'});

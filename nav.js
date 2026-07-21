@@ -194,7 +194,7 @@
       s: ["Choisissez le type de projet le plus proche.", "Décrivez le contexte en quelques lignes."], k: [],
       l: [["Nos services", "/services"], ["Contact", "/contact"]] },
     "/diagnostic": { t: "Diagnostic express", p: "4 questions pour situer votre organisation : cadre réglementaire applicable, lectures utiles et démarche recommandée — puis un contact déjà contextualisé.",
-      s: ["Répondez aux 4 questions (secteur, taille, situation, priorité).", "Lisez votre parcours recommandé.", "Le bouton contact pré-remplit le sujet et votre contexte — modifiables avant envoi."],
+      s: ["Répondez aux 4 questions (secteur, taille, situation, priorité) — les « i » expliquent l'enjeu de chacune.", "Lisez votre parcours recommandé (et « Comment lire ce résultat »).", "Imprimez votre parcours (🖨) pour le partager en interne.", "Le bouton contact pré-remplit le sujet et votre contexte — modifiables avant envoi."],
       k: [["Aucune donnée enregistrée", "Vos réponses restent dans votre navigateur tant que vous n'envoyez pas le formulaire de contact."]],
       l: [["NIS2", "/nis2"], ["Audit 62443", "/audit-conformite"], ["Contact", "/contact"]] },
     "/connexion": { t: "Connexion", p: "Accès à l'espace client : cockpit, tendances, connexion de plateforme et étude 62443.",
