@@ -57,7 +57,8 @@ import livrables
 import livrables_export
 import rgpd
 from auth import admin_required, client_ip, current_user, guard, init_app as init_auth
-from clients_store import BASES_LEGALES, STATUTS, make_clients_store
+from clients_store import (BASES_LEGALES, CATEGORIES_PIECES, STATUTS,
+                           ClientsError, make_clients_store)
 from cockpit_state import make_store
 from livrables_store import make_livrables_store
 from rag_store import RagError, THEMES, build_context, make_rag_store
@@ -1031,7 +1032,8 @@ def admin_clients_page():
 @admin_required
 def api_clients_list():
     return jsonify(ok=True, clients=clients_db.list(), stats=clients_db.stats(),
-                   options={"statuts": list(STATUTS), "bases": list(BASES_LEGALES)})
+                   options={"statuts": list(STATUTS), "bases": list(BASES_LEGALES),
+                            "categories_pieces": list(CATEGORIES_PIECES)})
 
 
 @app.route("/api/admin/clients", methods=["POST"])
@@ -1070,15 +1072,129 @@ def api_clients_delete(cid):
 @app.route("/api/admin/clients/<cid>/export", methods=["GET"])
 @admin_required
 def api_clients_export(cid):
-    """Droit d'accès / portabilité (art. 15 / 20) : export JSON complet de la fiche."""
+    """Droit d'accès / portabilité (art. 15 / 20) : export complet de la fiche.
+    JSON seul s'il n'y a pas de pièce jointe ; sinon ZIP = export.json + pièces."""
     if not _rag_hex(cid):
         return jsonify(ok=False, error="id_invalide"), 400
     data = clients_db.export(cid, actor=_actor())
     if not data:
         return jsonify(ok=False, error="introuvable"), 404
     blob = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
-    return send_file(io.BytesIO(blob), download_name="client-%s-export-rgpd.json" % cid[:8],
-                     as_attachment=True, mimetype="application/json")
+    docs = data.get("documents") or []
+    if not docs:
+        return send_file(io.BytesIO(blob), download_name="client-%s-export-rgpd.json" % cid[:8],
+                         as_attachment=True, mimetype="application/json")
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("export.json", blob)
+        for d in docs:
+            try:
+                fname, fdata = clients_db.doc_get(cid, d["id"], actor=_actor())
+                z.writestr("pieces/%s-%s" % (d["id"][:8], fname), fdata)
+            except ClientsError:
+                continue
+    buf.seek(0)
+    return send_file(buf, download_name="client-%s-export-rgpd.zip" % cid[:8],
+                     as_attachment=True, mimetype="application/zip")
+
+
+@app.route("/api/admin/clients/<cid>/docs/init", methods=["POST"])
+@admin_required
+def api_clients_doc_init(cid):
+    """Ouvre le chargement par morceaux d'une pièce jointe (PDF, Word…)."""
+    if not _rag_hex(cid):
+        return jsonify(ok=False, error="id_invalide"), 400
+    data = request.get_json(silent=True) or {}
+    filename = (data.get("filename") or "").strip()
+    if not filename:
+        return jsonify(ok=False, error="filename_manquant"), 400
+    try:
+        upload_id = clients_db.doc_upload_create(cid, filename, int(data.get("total_bytes") or 0))
+    except ClientsError as exc:
+        return jsonify(ok=False, error=exc.code), exc.status
+    except (TypeError, ValueError):
+        return jsonify(ok=False, error="taille_invalide"), 400
+    return jsonify(ok=True, upload_id=upload_id)
+
+
+@app.route("/api/admin/clients/<cid>/docs/chunk", methods=["POST"])
+@admin_required
+def api_clients_doc_chunk(cid):
+    """Reçoit un morceau brut de la pièce (< plafond global de requête)."""
+    if not _rag_hex(cid):
+        return jsonify(ok=False, error="id_invalide"), 400
+    upload_id = (request.args.get("upload_id") or "").strip()
+    if not _rag_valid_upload_id(upload_id):
+        return jsonify(ok=False, error="upload_invalide"), 400
+    try:
+        idx = int(request.args.get("idx"))
+    except (TypeError, ValueError):
+        return jsonify(ok=False, error="idx_invalide"), 400
+    data = request.get_data(cache=False)
+    if not data:
+        return jsonify(ok=False, error="morceau_vide"), 400
+    try:
+        if clients_db.persistent:
+            clients_db.doc_upload_chunk(upload_id, idx, data, cid=cid)
+        else:
+            clients_db.doc_upload_chunk(upload_id, idx, data)
+    except ClientsError as exc:
+        return jsonify(ok=False, error=exc.code), exc.status
+    return jsonify(ok=True)
+
+
+@app.route("/api/admin/clients/<cid>/docs/finish", methods=["POST"])
+@admin_required
+def api_clients_doc_finish(cid):
+    """Assemble la pièce, l'enregistre et journalise l'ajout (art. 5.2)."""
+    if not _rag_hex(cid):
+        return jsonify(ok=False, error="id_invalide"), 400
+    data = request.get_json(silent=True) or {}
+    upload_id = (data.get("upload_id") or "").strip()
+    if not _rag_valid_upload_id(upload_id):
+        return jsonify(ok=False, error="upload_invalide"), 400
+    try:
+        doc = clients_db.doc_upload_finish(cid, upload_id, (data.get("categorie") or "").strip(),
+                                           actor=_actor(),
+                                           filename=(data.get("filename") or "").strip())
+    except ClientsError as exc:
+        return jsonify(ok=False, error=exc.code), exc.status
+    return jsonify(ok=True, doc=doc)
+
+
+@app.route("/api/admin/clients/<cid>/docs", methods=["GET"])
+@admin_required
+def api_clients_docs_list(cid):
+    if not _rag_hex(cid):
+        return jsonify(ok=False, error="id_invalide"), 400
+    return jsonify(ok=True, docs=clients_db.docs_list(cid),
+                   categories=list(CATEGORIES_PIECES))
+
+
+@app.route("/api/admin/clients/<cid>/docs/<did>/download", methods=["GET"])
+@admin_required
+def api_clients_doc_download(cid, did):
+    """Télécharge une pièce (opération journalisée — art. 5.2)."""
+    if not (_rag_hex(cid) and _rag_hex(did)):
+        return jsonify(ok=False, error="id_invalide"), 400
+    try:
+        filename, data = clients_db.doc_get(cid, did, actor=_actor())
+    except ClientsError as exc:
+        return jsonify(ok=False, error=exc.code), exc.status
+    return send_file(io.BytesIO(data), download_name=filename, as_attachment=True)
+
+
+@app.route("/api/admin/clients/<cid>/docs/<did>", methods=["DELETE"])
+@admin_required
+def api_clients_doc_delete(cid, did):
+    """Supprime une pièce jointe (journalisé)."""
+    if not (_rag_hex(cid) and _rag_hex(did)):
+        return jsonify(ok=False, error="id_invalide"), 400
+    try:
+        clients_db.doc_delete(cid, did, actor=_actor())
+    except ClientsError as exc:
+        return jsonify(ok=False, error=exc.code), exc.status
+    return jsonify(ok=True)
 
 
 @app.route("/api/admin/clients/journal", methods=["GET"])

@@ -139,6 +139,36 @@
         </div>
       </div>
 
+      <!-- Pièces jointes du client sélectionné -->
+      <div class="panel" id="docsPanel" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+          <div>
+            <h3 id="docsTitle">Pièces jointes</h3>
+            <div class="hint" style="margin-bottom:10px">Preuves de consentement, contrats, historiques d'échanges…
+              PDF, Word (docx/doc/odt), TXT/MD, EML, images — 15 Mo max par pièce.</div>
+          </div>
+          <button class="btn btn-s" id="docsClose" type="button">✕ Fermer</button>
+        </div>
+        <div class="warn" style="margin-bottom:14px"><span>🔒</span><div>Ces pièces sont des <b>données personnelles</b> :
+          elles sont incluses dans l'export de la fiche (art. 15/20 — ZIP), supprimées avec elle (art. 17),
+          et chaque ajout, téléchargement ou suppression est journalisé (art. 5.2).</div></div>
+        <div class="frow" style="align-items:flex-end">
+          <div class="field" style="flex:2 1 260px"><label for="docFile">Fichier</label>
+            <input type="file" id="docFile" accept=".pdf,.docx,.doc,.odt,.txt,.md,.eml,.png,.jpg,.jpeg"
+              style="width:100%;background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:9px 13px;color:var(--ink);font-size:13px"></div>
+          <div class="field"><label for="docCat">Catégorie</label><select id="docCat"></select></div>
+          <div class="field" style="flex:0 0 auto"><button class="btn btn-p" id="docUpBtn" disabled>Charger la pièce</button></div>
+        </div>
+        <div class="prog" id="docProg" style="height:8px;border-radius:99px;background:var(--bg2);border:1px solid var(--line);overflow:hidden;display:none"><i style="display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--teal));transition:width .2s"></i></div>
+        <div id="docMsg" style="font-size:13px;margin-top:8px;color:var(--muted);min-height:18px"></div>
+        <div class="tblwrap" style="margin-top:12px;margin-bottom:0">
+          <table style="min-width:640px">
+            <thead><tr><th>Pièce</th><th>Catégorie</th><th>Taille</th><th>Ajoutée le</th><th>Actions</th></tr></thead>
+            <tbody id="docRows"><tr><td colspan="5" class="empty">Chargement…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="topbar">
         <h2 class="sec-title" style="margin:0">Fiches clients</h2>
         <div class="filterbar">
@@ -196,7 +226,9 @@
     var STATUT_LBL={prospect:'Prospect',actif:'Actif',termine:'Terminé',archive:'Archivé'};
     var STATUT_CLS={prospect:'wait',actif:'ok',termine:'',archive:'off'};
     var BASE_LBL={interet_legitime:'Intérêt légitime',contrat:'Contrat',mesures_precontractuelles:'Mesures précontractuelles',consentement:'Consentement',obligation_legale:'Obligation légale'};
-    var ACTION_LBL={creation:'Création',modification:'Modification',consentement:'Consentement',export:'Export (art. 20)',effacement:'Effacement (art. 17)',purge_conservation:'Purge conservation (art. 5.1.e)'};
+    var ACTION_LBL={creation:'Création',modification:'Modification',consentement:'Consentement',export:'Export (art. 20)',effacement:'Effacement (art. 17)',purge_conservation:'Purge conservation (art. 5.1.e)',
+      piece_ajout:'Pièce ajoutée',piece_suppression:'Pièce supprimée',piece_telechargement:'Pièce téléchargée'};
+    var CAT_LBL={consentement:'Consentement',contrat:'Contrat',correspondance:'Correspondance',historique:'Historique',autre:'Autre'};
 
     function esc(s){return (''+(s==null?'':s)).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
     function note(t,cls){notice.textContent=t;notice.className=cls;notice.style.display='block';if(cls==='ok')setTimeout(function(){notice.className='';notice.style.display='none';},4500);}
@@ -228,8 +260,9 @@
           +'<td>'+conserv+'</td>'
           +'<td><div class="act">'
             +'<button data-a="edit" data-id="'+c.id+'">Modifier</button>'
-            +'<button data-a="export" data-id="'+c.id+'" title="Export JSON complet de la fiche et de son journal (art. 15 / 20)">⤓ Exporter</button>'
-            +'<button class="danger" data-a="delete" data-id="'+c.id+'" data-t="'+esc(c.entreprise)+'" title="Suppression définitive — seule une référence pseudonymisée est conservée au journal (art. 17)">Effacer</button>'
+            +'<button data-a="docs" data-id="'+c.id+'" title="Pièces jointes : preuves de consentement, contrats, historiques (PDF, Word…)">📎 Pièces'+(c.docs?(' ('+c.docs+')'):'')+'</button>'
+            +'<button data-a="export" data-id="'+c.id+'" title="Export complet de la fiche : JSON, ou ZIP (fiche + pièces) si des pièces sont jointes (art. 15 / 20)">⤓ Exporter</button>'
+            +'<button class="danger" data-a="delete" data-id="'+c.id+'" data-t="'+esc(c.entreprise)+'" title="Suppression définitive, pièces jointes comprises — seule une référence pseudonymisée est conservée au journal (art. 17)">Effacer</button>'
           +'</div></td></tr>';
       }).join('');
     }
@@ -332,17 +365,123 @@
     });
     document.getElementById('cancelBtn').addEventListener('click',function(){setEdit(null);});
 
+    // ---- pièces jointes ----
+    var docsCid=null, docChosen=null;
+    var docProg=document.getElementById('docProg'), docBar=docProg.firstElementChild;
+    var docMsg=document.getElementById('docMsg'), docUpBtn=document.getElementById('docUpBtn');
+    var DOC_CHUNK=400*1024, DOC_MAX=15*1024*1024;
+    var DOC_ERR={type_non_supporte:'Type de fichier non pris en charge.',fichier_trop_lourd:'Fichier trop lourd (15 Mo max).',
+      fichier_vide:'Fichier vide.',trop_de_pieces:'Nombre maximum de pièces atteint pour cette fiche.',
+      client_inconnu:'Fiche introuvable.',upload_inconnu:'Session de chargement expirée. Recommencez.',
+      upload_invalide:'Session de chargement invalide.',morceau_trop_grand:'Morceau trop volumineux.',
+      requete_trop_grande:'Fichier trop lourd pour une seule requête.',erreur_serveur:'Erreur serveur. Réessayez.'};
+    function docSetProg(p,msg){docProg.style.display='block';docBar.style.width=Math.round(p*100)+'%';if(msg!=null)docMsg.textContent=msg;}
+    function fmtBytes(b){if(!b)return '—';var u=['o','Ko','Mo'];var i=0;while(b>=1024&&i<2){b/=1024;i++;}return b.toFixed(b<10&&i>0?1:0)+' '+u[i];}
+
+    function renderDocs(docs){
+      var el=document.getElementById('docRows');
+      if(!docs.length){el.innerHTML='<tr><td colspan="5" class="empty">Aucune pièce pour cette fiche.</td></tr>';return;}
+      el.innerHTML=docs.map(function(d){
+        return '<tr><td><div class="who">'+esc(d.filename)+'</div></td>'
+          +'<td><span class="pill">'+esc(CAT_LBL[d.categorie]||d.categorie)+'</span></td>'
+          +'<td class="sub">'+fmtBytes(d.bytes)+'</td>'
+          +'<td class="sub">'+fmtH(d.created_at)+'</td>'
+          +'<td><div class="act">'
+            +'<button data-da="dl" data-did="'+d.id+'">⤓ Télécharger</button>'
+            +'<button class="danger" data-da="del" data-did="'+d.id+'" data-t="'+esc(d.filename)+'">Supprimer</button>'
+          +'</div></td></tr>';
+      }).join('');
+    }
+    function loadDocs(){
+      if(!docsCid)return;
+      fetch('/api/admin/clients/'+docsCid+'/docs').then(function(r){return r.ok?r.json():null;})
+        .then(function(j){
+          if(!j||!j.ok)return;
+          renderDocs(j.docs||[]);
+          var sel=document.getElementById('docCat');
+          if(!sel.options.length) sel.innerHTML=(j.categories||[]).map(function(v){return '<option value="'+v+'">'+(CAT_LBL[v]||v)+'</option>';}).join('');
+        }).catch(function(){});
+    }
+    function openDocs(c){
+      docsCid=c.id;
+      document.getElementById('docsTitle').textContent='Pièces jointes — '+c.entreprise;
+      document.getElementById('docsPanel').style.display='';
+      docChosen=null;document.getElementById('docFile').value='';docUpBtn.disabled=true;
+      docMsg.textContent='';docProg.style.display='none';docBar.style.width='0';
+      loadDocs();
+      document.getElementById('docsPanel').scrollIntoView({behavior:'smooth',block:'start'});
+    }
+    document.getElementById('docsClose').addEventListener('click',function(){
+      document.getElementById('docsPanel').style.display='none';docsCid=null;});
+    document.getElementById('docFile').addEventListener('change',function(){
+      var f=this.files[0];
+      if(!f){docChosen=null;docUpBtn.disabled=true;return;}
+      if(f.size>DOC_MAX){note('Fichier trop lourd (15 Mo maximum).','err');this.value='';docChosen=null;docUpBtn.disabled=true;return;}
+      if(f.size===0){note('Fichier vide.','err');this.value='';docChosen=null;docUpBtn.disabled=true;return;}
+      docChosen=f;docUpBtn.disabled=false;
+    });
+    docUpBtn.addEventListener('click',async function(){
+      if(!docChosen||!docsCid)return;
+      docUpBtn.disabled=true;
+      var cid=docsCid;
+      try{
+        docSetProg(0.03,'Préparation…');
+        var ini=await jsend('/api/admin/clients/'+cid+'/docs/init','POST',{filename:docChosen.name,total_bytes:docChosen.size});
+        if(!ini.ok) throw new Error(ini.error||'init');
+        var uid=ini.upload_id, total=Math.max(1,Math.ceil(docChosen.size/DOC_CHUNK));
+        var sent=0,nextIdx=0;
+        async function worker(){
+          while(true){
+            var i=nextIdx++; if(i>=total)return;
+            var blob=docChosen.slice(i*DOC_CHUNK,(i+1)*DOC_CHUNK);
+            var r=await fetch('/api/admin/clients/'+cid+'/docs/chunk?upload_id='+encodeURIComponent(uid)+'&idx='+i,{method:'POST',body:blob});
+            var jr=await readJson(r); if(!jr.ok) throw new Error(jr.error||'chunk');
+            sent++;docSetProg(sent/total*0.85,'Envoi… '+Math.round(sent/total*100)+'%');
+          }
+        }
+        await Promise.all(Array.from({length:Math.min(4,total)},worker));
+        docSetProg(0.9,'Enregistrement…');
+        var fin=await jsend('/api/admin/clients/'+cid+'/docs/finish','POST',
+          {upload_id:uid,categorie:document.getElementById('docCat').value,filename:docChosen.name});
+        if(!fin.ok) throw new Error(fin.error||'finish');
+        docSetProg(1,'✓ Pièce ajoutée.');
+        note('Pièce « '+fin.doc.filename+' » ajoutée.','ok');
+        docChosen=null;document.getElementById('docFile').value='';
+        setTimeout(function(){docProg.style.display='none';docBar.style.width='0';docMsg.textContent='';},2200);
+        loadDocs();load();
+      }catch(err){
+        note(DOC_ERR[err.message]||('Échec du chargement ('+err.message+').'),'err');
+        docProg.style.display='none';docBar.style.width='0';docMsg.textContent='';
+      }finally{ docUpBtn.disabled=!docChosen; }
+    });
+    document.getElementById('docRows').addEventListener('click',async function(e){
+      var b=e.target.closest('button'); if(!b||!docsCid)return;
+      var da=b.getAttribute('data-da'), did=b.getAttribute('data-did');
+      if(da==='dl'){
+        window.location.href='/api/admin/clients/'+docsCid+'/docs/'+did+'/download';
+        setTimeout(load,800);
+      } else if(da==='del'){
+        if(!confirm('Supprimer la pièce « '+b.getAttribute('data-t')+' » ? (opération journalisée)'))return;
+        var j=await jsend('/api/admin/clients/'+docsCid+'/docs/'+did,'DELETE');
+        if(j.ok){note('Pièce supprimée.','ok');loadDocs();load();}
+        else{note(DOC_ERR[j.error]||'Suppression impossible.','err');}
+      }
+    });
+
     rows.addEventListener('click',async function(e){
       var b=e.target.closest('button'); if(!b)return;
       var a=b.getAttribute('data-a'), id=b.getAttribute('data-id');
       if(a==='edit'){
         var c=allClients.find(function(x){return x.id===id;}); if(c)setEdit(c);
+      } else if(a==='docs'){
+        var c2=allClients.find(function(x){return x.id===id;}); if(c2)openDocs(c2);
       } else if(a==='export'){
         window.location.href='/api/admin/clients/'+id+'/export';
       } else if(a==='delete'){
         if(!confirm('Effacer définitivement « '+b.getAttribute('data-t')+' » ?\n\nDroit à l\'effacement (art. 17) : la fiche et ses données personnelles sont supprimées ; seule une référence pseudonymisée reste au journal pour prouver l\'effacement.'))return;
         var j=await jsend('/api/admin/clients/'+id,'DELETE');
-        if(j.ok){note('Fiche effacée (art. 17).','ok');if(editId===id)setEdit(null);load();}
+        if(j.ok){note('Fiche effacée (art. 17).','ok');if(editId===id)setEdit(null);
+          if(docsCid===id){document.getElementById('docsPanel').style.display='none';docsCid=null;}load();}
         else{note('Effacement impossible.','err');}
       }
     });
