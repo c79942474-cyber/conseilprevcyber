@@ -769,6 +769,19 @@ def api_rag_index_next(doc_id):
         return jsonify(ok=False, error=exc.code), exc.status
 
 
+@app.route("/api/admin/rag/documents/<doc_id>/reindex", methods=["POST"])
+@admin_required
+def api_rag_reindex(doc_id):
+    """Régénère les embeddings d'un document (ex. après activation de MISTRAL_API_KEY) :
+    le repasse en 'indexing' ; le client relance ensuite index-next pour l'indexer."""
+    if not _rag_valid_doc_id(doc_id):
+        return jsonify(ok=False, error="document_invalide"), 400
+    try:
+        return jsonify(ok=True, **rag.reindex(doc_id))
+    except RagError as exc:
+        return jsonify(ok=False, error=exc.code), exc.status
+
+
 @app.route("/api/admin/rag/documents/<doc_id>", methods=["DELETE"])
 @admin_required
 def api_rag_delete(doc_id):

@@ -171,7 +171,7 @@
     var fileInput=document.getElementById('file'), drop=document.getElementById('drop');
     var upBtn=document.getElementById('upBtn'), prog=document.getElementById('prog'), bar=prog.firstElementChild;
     var upmsg=document.getElementById('upmsg'), fileName=document.getElementById('fileName');
-    var allDocs=[], chosen=null;
+    var allDocs=[], caps={}, chosen=null;
 
     function esc(s){return (''+(s==null?'':s)).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
     function note(t,cls){notice.textContent=t;notice.className=cls;notice.style.display='block';if(cls==='ok')setTimeout(function(){notice.className='';notice.style.display='none';},4500);}
@@ -194,6 +194,7 @@
       rows.innerHTML=docs.map(function(d){
         var acts='';
         if(d.status==='indexing') acts+='<button data-a="index" data-id="'+d.id+'">▶ Indexer</button>';
+        if(d.status==='ready'&&d.mode==='texte_integral'&&caps.embeddings) acts+='<button data-a="reindex" data-id="'+d.id+'" title="Générer la recherche sémantique (embeddings)">⟳ Vectoriser</button>';
         acts+='<button data-a="download" data-id="'+d.id+'">Télécharger</button>';
         acts+='<button class="danger" data-a="delete" data-id="'+d.id+'" data-t="'+esc(d.title)+'">Supprimer</button>';
         return '<tr><td><div class="who">'+esc(d.title)+'</div><div class="sub">'+esc(d.filename)+' · '+(d.nb_chunks||0)+' fragments</div></td>'
@@ -223,7 +224,7 @@
         document.getElementById('kDocs').textContent=j.stats.documents;
         document.getElementById('kChunks').textContent=j.stats.chunks;
         document.getElementById('kThemes').textContent=Object.keys(j.stats.themes||{}).length;
-        var caps=j.capabilities||{};
+        caps=j.capabilities||{};
         var modeLabel=caps.mode==='vectoriel'?'vectoriel':(caps.mode==='texte_integral'?'texte intégral':'lexical');
         document.getElementById('kMode').innerHTML=modeLabel+(caps.persistent?'':' <small>(mémoire)</small>');
         var mw=document.getElementById('memWarn');if(mw)mw.style.display=(caps.persistent===false)?'flex':'none';
@@ -322,6 +323,14 @@
       } else if(a==='index'){
         b.disabled=true;b.textContent='…';
         try{ await runIndex(id); note('Indexation terminée.','ok'); }catch(_){ note('Indexation interrompue.','err'); }
+        load();
+      } else if(a==='reindex'){
+        b.disabled=true;b.textContent='…';
+        try{
+          var rr=await fetch('/api/admin/rag/documents/'+id+'/reindex',{method:'POST'});
+          var jj=await rr.json(); if(!jj.ok) throw new Error(jj.error||'reindex');
+          await runIndex(id); note('Document vectorisé (recherche sémantique active).','ok');
+        }catch(_){ note('Vectorisation impossible.','err'); }
         load();
       }
     });

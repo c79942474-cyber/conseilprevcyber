@@ -275,6 +275,13 @@ class MemoryRagStore:
             raise RagError("document_inconnu", 404)
         return {"done": True, "indexed": meta["nb_chunks"], "total": meta["nb_chunks"]}
 
+    def reindex(self, doc_id):
+        # Store en mémoire (lexical) : aucune recherche vectorielle possible.
+        with self._lock:
+            if doc_id not in self._docs:
+                raise RagError("document_inconnu", 404)
+        raise RagError("embeddings_non_configures", 409)
+
     def list_documents(self):
         with self._lock:
             return [dict(m) for m in sorted(self._docs.values(),
@@ -536,6 +543,24 @@ class PostgresRagStore:
                 if done >= nb:
                     conn.execute("UPDATE rag_documents SET status='ready' WHERE id=%s", (doc_id,))
             return {"done": done >= nb, "indexed": done, "total": nb}
+
+    def reindex(self, doc_id):
+        """Régénère la recherche vectorielle d'un document : efface ses embeddings et
+        le repasse en 'indexing' pour qu'index_next les recalcule (ex. après avoir
+        activé MISTRAL_API_KEY sur des documents déjà chargés en plein-texte)."""
+        with self._pool.connection() as conn:
+            row = conn.execute("SELECT nb_chunks FROM rag_documents WHERE id=%s",
+                               (doc_id,)).fetchone()
+            if not row:
+                raise RagError("document_inconnu", 404)
+            if not (self.vector_mode and embeddings_available()):
+                raise RagError("embeddings_non_configures", 409)
+            with conn.transaction():
+                conn.execute("UPDATE rag_chunks SET embedding=NULL WHERE doc_id=%s", (doc_id,))
+                conn.execute("UPDATE rag_documents SET status='indexing',mode='vectoriel',"
+                             "chunks_indexed=0,error=NULL,updated_at=%s WHERE id=%s",
+                             (_now_ms(), doc_id))
+        return {"done": False, "indexed": 0, "total": row[0]}
 
     _COLS = ("id,title,filename,ext,theme,visibility,bytes,sha256,nb_chunks,"
              "chunks_indexed,status,mode,error,created_at,updated_at")
