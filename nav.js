@@ -347,7 +347,31 @@
     document.body.appendChild(a);
   }
 
+  /* ── 6. Accessibilité : lien d'évitement + repères de navigation ─────────── */
+  function initA11y() {
+    var main = document.querySelector("main");
+    if (main) {
+      if (!main.id) main.id = "contenu";
+      if (!main.hasAttribute("tabindex")) main.setAttribute("tabindex", "-1");
+      if (!document.querySelector(".skip")) {
+        var skip = document.createElement("a");
+        skip.className = "skip";
+        skip.href = "#" + main.id;
+        skip.textContent = "Aller au contenu";
+        document.body.insertBefore(skip, document.body.firstChild);
+      }
+    }
+    var top = document.querySelector("header .nav .links");
+    if (top && !top.hasAttribute("aria-label")) top.setAttribute("aria-label", "Navigation principale");
+    var foot = document.querySelector("footer .fnav");
+    if (foot && !foot.hasAttribute("aria-label")) {
+      foot.setAttribute("role", "navigation");
+      foot.setAttribute("aria-label", "Liens de pied de page");
+    }
+  }
+
   function init() {
+    initA11y();
     initBurger();
     initPageNav();
     initGuide();

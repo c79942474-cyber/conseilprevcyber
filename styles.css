@@ -80,6 +80,18 @@ a{color:var(--cyan);text-decoration:none}
 header{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
   background:rgba(110,42,24,.78);border-bottom:1px solid var(--line)}
 .nav{display:flex;align-items:center;gap:18px;height:64px}
+/* Accessibilité : lien d'évitement + indicateur de focus clavier cohérent.
+   Le lien « Aller au contenu » reste caché jusqu'au focus clavier ; l'anneau
+   de focus (via :focus-visible) n'affecte que la navigation au clavier. */
+.skip{position:fixed;left:12px;top:-64px;z-index:120;background:var(--cyan);color:#04121A;
+  font-weight:700;font-size:14px;padding:10px 16px;border-radius:8px;text-decoration:none;
+  transition:top .16s ease;box-shadow:0 6px 20px rgba(0,0,0,.4)}
+.skip:focus{top:12px;outline:2px solid #04121A;outline-offset:2px}
+a:focus-visible,button:focus-visible,.btn:focus-visible,summary:focus-visible,
+select:focus-visible,[role="button"]:focus-visible{
+  outline:2px solid var(--cyan);outline-offset:3px;border-radius:5px}
+main:focus{outline:none} /* cible du lien d'évitement : pas de halo pleine largeur */
+
 .brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:-.02em;font-size:18px;color:var(--ink)}
 .brand a{color:var(--ink)}
 .brand .brand-link{display:inline-flex;align-items:center;gap:9px}
