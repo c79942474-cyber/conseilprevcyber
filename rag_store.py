@@ -111,6 +111,10 @@ def extract_text(ext, data):
 
 def _normalize(text):
     text = text.replace("\r\n", "\n").replace("\r", "\n")
+    # Retire l'octet NUL (0x00) et les autres caractères de contrôle qu'un PDF/DOCX
+    # peut contenir dans son texte extrait : PostgreSQL les refuse dans une colonne
+    # texte / un tsvector (sinon DataError « cannot contain NUL » → échec du chargement).
+    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text)
     text = re.sub(r"[ \t\f\v]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
