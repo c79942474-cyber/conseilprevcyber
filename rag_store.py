@@ -201,7 +201,10 @@ def _tokens(text):
 class MemoryRagStore:
     persistent = False
 
-    def __init__(self):
+    def __init__(self, reason="memory"):
+        # reason : pourquoi le repli mémoire est actif — « no_database_url »
+        # (variable absente) ou « db_connection_failed » (définie mais injoignable).
+        self._reason = reason
         self._lock = threading.RLock()
         self._docs = {}      # id -> dict(meta)
         self._chunks = {}    # id -> list[dict(ordinal, content, tokens)]
@@ -210,7 +213,7 @@ class MemoryRagStore:
 
     def capabilities(self):
         return {"persistent": False, "mode": "lexical",
-                "embeddings": False, "vector": False}
+                "embeddings": False, "vector": False, "reason": self._reason}
 
     # -- upload par morceaux --
     def create_upload(self, filename, total_bytes):
@@ -658,7 +661,7 @@ def make_rag_store():
     dsn = os.environ.get("DATABASE_URL")
     if not dsn:
         _log.info("RAG : pas de DATABASE_URL — base de connaissance en mémoire (non persistante).")
-        return MemoryRagStore()
+        return MemoryRagStore(reason="no_database_url")
     if dsn.startswith("postgres://"):
         dsn = "postgresql://" + dsn[len("postgres://"):]
     try:
@@ -666,8 +669,11 @@ def make_rag_store():
         _log.info("RAG : PostgreSQL (%s).", store.capabilities()["mode"])
         return store
     except Exception as exc:
+        # DATABASE_URL est défini mais la connexion échoue (URL externe au lieu
+        # d'interne, mauvaise région, base non démarrée, identifiants…). On journalise
+        # la cause réelle et on signale ce repli distinctement dans l'interface.
         _log.warning("RAG : PostgreSQL injoignable (%s) — repli en mémoire.", exc)
-        return MemoryRagStore()
+        return MemoryRagStore(reason="db_connection_failed")
 
 
 # --- Contexte pour le LLM -----------------------------------------------------
