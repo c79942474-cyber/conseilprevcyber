@@ -321,7 +321,12 @@
       }).then(function(j){
         if(!j||!j.ok)return;
         TYPES=j.types||[];
-        typeSel.innerHTML=TYPES.map(function(t){return '<option value="'+esc(t.id)+'">'+esc(t.label)+'</option>';}).join('');
+        var grp={}, order=[];
+        TYPES.forEach(function(t){var g=t.groupe||'Autres';if(!grp[g]){grp[g]=[];order.push(g);}grp[g].push(t);});
+        typeSel.innerHTML=order.map(function(g){
+          return '<optgroup label="'+esc(g)+'">'+grp[g].map(function(t){
+            return '<option value="'+esc(t.id)+'">'+esc(t.label)+'</option>';}).join('')+'</optgroup>';
+        }).join('');
         showDesc();
         var m=j.models||{};
         if(!m.mistral){document.getElementById('m-mistral').classList.add('off');}

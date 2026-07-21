@@ -16,6 +16,7 @@ Garde-fous (repris dans le prompt système) :
 TYPES = [
     {
         "id": "synthese-62443",
+        "groupe": "Conformité & risques",
         "label": "Synthèse de conformité IEC 62443",
         "desc": "État de conformité (zones & conduits, niveaux SL), écarts et recommandations priorisées.",
         "sections": [
@@ -29,6 +30,7 @@ TYPES = [
     },
     {
         "id": "cadrage-amoa",
+        "groupe": "Cadrage & stratégie",
         "label": "Note de cadrage — AMOA SI Industriel",
         "desc": "Contexte, objectifs, périmètre, gouvernance, démarche et livrables attendus d'un projet SI industriel.",
         "sections": [
@@ -43,6 +45,7 @@ TYPES = [
     },
     {
         "id": "cadrage-amoa-ia-cyber",
+        "groupe": "Cadrage & stratégie",
         "label": "Note de cadrage — AMOA intégration IA & Cyber SI",
         "desc": "Cadrage d'un programme de cyberdéfense augmentée par l'IA : exposition du SI, "
                 "remédiation à l'échelle, SOC, gouvernance de crise et stratégie d'anticipation.",
@@ -59,6 +62,7 @@ TYPES = [
     },
     {
         "id": "analyse-ecarts-nis2",
+        "groupe": "Conformité & risques",
         "label": "Analyse d'écarts NIS2",
         "desc": "Assujettissement, écarts par famille d'exigences (gouvernance, mesures de gestion "
                 "des risques, notification 24 h/72 h, chaîne d'approvisionnement) et plan de mise "
@@ -77,6 +81,7 @@ TYPES = [
     },
     {
         "id": "plan-remediation",
+        "groupe": "Conformité & risques",
         "label": "Plan de remédiation",
         "desc": "Risques priorisés, mesures d'atténuation, échéancier, responsabilités et indicateurs de suivi.",
         "sections": [
@@ -89,6 +94,7 @@ TYPES = [
     },
     {
         "id": "pssi-ot",
+        "groupe": "Politiques & organisation",
         "label": "Politique de sécurité SI industriel (PSSI OT) — trame",
         "desc": "Trame de politique de sécurité des systèmes industriels : principes, gouvernance et mesures par domaine.",
         "sections": [
@@ -105,6 +111,7 @@ TYPES = [
     },
     {
         "id": "analyse-risque",
+        "groupe": "Conformité & risques",
         "label": "Synthèse d'analyse de risque (OT)",
         "desc": "Actifs essentiels, sources de risque, scénarios redoutés, évaluation et mesures de traitement.",
         "sections": [
@@ -118,6 +125,7 @@ TYPES = [
     },
     {
         "id": "sensibilisation",
+        "groupe": "Politiques & organisation",
         "label": "Support de sensibilisation cyber OT",
         "desc": "Messages clés et bonnes pratiques pour les équipes terrain (exploitation, maintenance, automatismes).",
         "sections": [
@@ -126,6 +134,139 @@ TYPES = [
             "Bonnes pratiques au quotidien",
             "Réflexes en cas d'incident",
             "À retenir",
+        ],
+    },
+    {
+        "id": "carto-exposition",
+        "groupe": "Programme IA & SOC",
+        "label": "Cartographie des expositions SI",
+        "desc": "Recensement des actifs exposés (internet, tiers), qualification et matrice de "
+                "priorisation des remédiations par exposition réelle.",
+        "sections": [
+            "Périmètre & méthode de recensement",
+            "Inventaire des actifs exposés (internet / tiers)",
+            "Qualification (criticité métier, données, surface d'attaque)",
+            "Analyse des expositions critiques",
+            "Matrice de priorisation des remédiations",
+            "Synthèse direction & prochaines étapes",
+        ],
+    },
+    {
+        "id": "cible-soc-augmente",
+        "groupe": "Programme IA & SOC",
+        "label": "Modèle cible SOC augmenté (IA, SOAR, CTI)",
+        "desc": "Cible d'un SOC augmenté par l'IA : architecture (détection, SOAR, CTI), cas "
+                "d'usage, organisation, gouvernance des usages IA et trajectoire.",
+        "sections": [
+            "Contexte & limites du dispositif actuel",
+            "Ambition & principes du SOC augmenté",
+            "Architecture cible (détection, SOAR, CTI, IA)",
+            "Cas d'usage IA prioritaires (tri, corrélation, réponse assistée)",
+            "Organisation & compétences (rôles, supervision humaine)",
+            "Gouvernance des usages IA (AI Act, journalisation, limites)",
+            "Trajectoire de mise en œuvre",
+            "Indicateurs (TTD, MTTR, taux d'automatisation)",
+        ],
+    },
+    {
+        "id": "roadmap-cyber",
+        "groupe": "Cadrage & stratégie",
+        "label": "Roadmap de transformation cyber",
+        "desc": "Feuille de route de transformation : axes, trajectoire par horizon, jalons, "
+                "dépendances, gouvernance et indicateurs d'avancement.",
+        "sections": [
+            "Vision & objectifs de transformation",
+            "État de départ (synthèse des diagnostics)",
+            "Axes de transformation",
+            "Trajectoire par horizon (6 / 12 / 24 mois)",
+            "Jalons, dépendances & prérequis",
+            "Charge, budget & ressources",
+            "Gouvernance de la roadmap",
+            "Indicateurs d'avancement",
+        ],
+    },
+    {
+        "id": "strategie-ia-cyber",
+        "groupe": "Cadrage & stratégie",
+        "label": "Stratégie IA cyber groupe",
+        "desc": "Doctrine d'emploi de l'IA en cyberdéfense au niveau groupe : principes, domaines "
+                "d'application, gouvernance (AI Act, RGPD), articulation filiales et trajectoire.",
+        "sections": [
+            "Enjeux : l'IA côté attaque et côté défense",
+            "Principes directeurs & doctrine d'emploi de l'IA",
+            "Domaines d'application (détection, vulnérabilités, réponse, anticipation)",
+            "Gouvernance & conformité (AI Act, RGPD, supervision humaine)",
+            "Articulation groupe / filiales",
+            "Trajectoire & investissements",
+            "Risques & garde-fous",
+            "Indicateurs de valeur",
+        ],
+    },
+    {
+        "id": "gouvernance-crise",
+        "groupe": "Politiques & organisation",
+        "label": "Plan de gouvernance & gestion de crise",
+        "desc": "Gouvernance cyber et dispositif de crise : instances, seuils de déclenchement, "
+                "cellule de crise, décision/communication, notification réglementaire, exercices.",
+        "sections": [
+            "Objectifs & périmètre",
+            "Gouvernance cyber (instances, rôles, délégations)",
+            "Seuils de déclenchement & niveaux de crise",
+            "Organisation de crise (cellule, rôles, suppléances)",
+            "Décision & communication (interne, externe, autorités)",
+            "Articulation avec la notification réglementaire (NIS2 / DORA)",
+            "Programme d'exercices & amélioration continue",
+            "Fiches réflexes (trame)",
+        ],
+    },
+    {
+        "id": "plan-automatisation-patching",
+        "groupe": "Programme IA & SOC",
+        "label": "Plan d'automatisation du patching",
+        "desc": "Industrialisation des chaînes de correctifs : goulots mesurés (MTTP), cible "
+                "d'automatisation par étape, scénario « vague critique », outillage et jalons.",
+        "sections": [
+            "État des lieux des chaînes de patching",
+            "Goulots d'étranglement & délais mesurés (MTTP)",
+            "Cible d'automatisation par étape (veille → vérification)",
+            "Priorisation par exposition & criticité",
+            "Scénario « vague de vulnérabilités critiques » & mode dégradé",
+            "Outillage & intégrations",
+            "Jalons de mise en œuvre",
+            "Indicateurs (MTTP, taux d'automatisation, couverture)",
+        ],
+    },
+    {
+        "id": "catalogue-cas-usage",
+        "groupe": "Programme IA & SOC",
+        "label": "Catalogue de cas d'usage (détection / réponse automatisée)",
+        "desc": "Cas d'usage de détection et de réponse automatisée : fiche type, priorisation "
+                "valeur × faisabilité, prérequis, supervision humaine et industrialisation.",
+        "sections": [
+            "Méthode de qualification des cas d'usage",
+            "Modèle de fiche (déclencheur, données, action, supervision)",
+            "Cas d'usage détection (tri, corrélation, chasse)",
+            "Cas d'usage réponse automatisée (confinement, enrichissement, playbooks)",
+            "Priorisation (valeur × faisabilité)",
+            "Prérequis techniques & données",
+            "Gouvernance & supervision humaine",
+            "Feuille de route d'industrialisation",
+        ],
+    },
+    {
+        "id": "reporting-programme",
+        "groupe": "Programme IA & SOC",
+        "label": "Reporting programme & indicateurs",
+        "desc": "Dispositif de pilotage : architecture des indicateurs (TTD, MTTR, MTTP, "
+                "automatisation), tableaux de bord par audience, rituels et trame de rapport.",
+        "sections": [
+            "Objectifs du reporting & destinataires",
+            "Architecture des indicateurs (stratégiques / opérationnels)",
+            "Définitions & sources (TTD, MTTR, MTTP, automatisation, couverture)",
+            "Tableaux de bord types (direction, programme, opérations)",
+            "Rituels & comitologie",
+            "Seuils d'alerte & escalade",
+            "Trame de rapport mensuel",
         ],
     },
 ]
@@ -140,6 +281,7 @@ def get_type(type_id):
 def public_types():
     """Liste allégée pour l'UI (sans détail interne)."""
     return [{"id": t["id"], "label": t["label"], "desc": t["desc"],
+             "groupe": t.get("groupe", "Autres"),
              "sections": t["sections"]} for t in TYPES]
 
 
