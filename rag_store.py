@@ -54,7 +54,7 @@ VISIBILITIES = ("public", "internal")
 THEMES = [
     "IEC 62443", "NIS2", "DORA", "RGPD", "AI Act",
     "Architecture & segmentation", "Analyse de risques", "Supervision & détection",
-    "Réponse à incident", "AMOA SI Industriel", "Études de cas", "Général",
+    "Réponse à incident", "AMOA SI Industriel", "Études de cas", "Veille", "Général",
 ]
 
 
@@ -247,6 +247,11 @@ class MemoryRagStore:
             raise RagError("upload_inconnu", 404)
         data = b"".join(up["parts"][i] for i in sorted(up["parts"]))
         return self._ingest(up["filename"], up["ext"], data, title, theme, visibility)
+
+    def ingest_bytes(self, filename, data, title="", theme="", visibility="public"):
+        """Ingestion directe (API / automatisations) : mêmes validations que l'upload."""
+        ext = validate_ext(filename)
+        return self._ingest(filename, ext, data, title, theme, visibility)
 
     def _ingest(self, filename, ext, data, title, theme, visibility):
         if not data:
@@ -488,6 +493,12 @@ class PostgresRagStore:
                 except Exception:
                     _log.warning("RAG : nettoyage de l'upload %s reporté (purge auto).", upload_id)
         return meta
+
+    def ingest_bytes(self, filename, data, title="", theme="", visibility="public"):
+        """Ingestion directe (API / automatisations) : mêmes validations que l'upload."""
+        ext = validate_ext(filename)
+        with self._pool.connection() as conn:
+            return self._ingest(conn, filename, ext, data, title, theme, visibility)
 
     def _ingest(self, conn, filename, ext, data, title, theme, visibility):
         if not data:

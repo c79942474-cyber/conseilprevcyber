@@ -38,6 +38,8 @@ Variables d'environnement :
                          sémantique). Absent : repli sur la recherche plein-texte.
   RAG_MAX_FILE_MB      — (optionnel) taille max d'un document chargé (défaut : 30 Mo).
 """
+import base64
+import binascii
 import html as html_lib
 import json
 import os
@@ -53,13 +55,14 @@ import requests
 from flask import Flask, Response, jsonify, request, send_file, send_from_directory
 
 import assistant
+import automation
 import livrables
 import livrables_export
 import rgpd
 from auth import admin_required, client_ip, current_user, guard, init_app as init_auth
 from clients_store import (BASES_LEGALES, CATEGORIES_PIECES, STATUTS,
                            ClientsError, make_clients_store)
-from cockpit_state import make_store
+from cockpit_state import make_store, tag_for
 from livrables_store import make_livrables_store
 from rag_store import RagError, THEMES, build_context, make_rag_store
 
@@ -73,7 +76,7 @@ app.config["MAX_CONTENT_LENGTH"] = 512 * 1024
 # Points protégés par jeton (server-to-server) : exemptés du contrôle d'origine
 # CSRF, car authentifiés par un secret d'en-tête (X-Ingest-Token) et non par un
 # cookie de session — donc non vulnérables au CSRF (qui exploite le cookie ambiant).
-_CSRF_EXEMPT = {"/api/ingest", "/api/reset", "/api/maintenance/purge"}
+_CSRF_EXEMPT = {"/api/ingest", "/api/reset", "/api/maintenance/purge", "/api/rag/ingest"}
 
 # En-têtes de sécurité appliqués à toutes les réponses. La CSP autorise le style
 # et le script « inline » (site statique : nombreux <style>/<script> intégrés),
@@ -287,6 +290,44 @@ livrables_hist = make_livrables_store()
 # Gestion des clients & prospects — conforme RGPD (persistante si DATABASE_URL).
 # Voir clients_store.py (journal d'audit, conservation, export, effacement).
 clients_db = make_clients_store()
+
+
+# --- Automatisation temps réel (planificateur de fond) — voir automation.py ----
+def _veille_summarize(titre, description):
+    """Résumé LLM d'un bulletin CERT-FR (best-effort ; None si indisponible)."""
+    try:
+        text, _m = assistant.generate(
+            "mistral",
+            "Tu résumes des bulletins CERT-FR pour des responsables industriels. "
+            "Réponds en 2 à 3 phrases factuelles en français : nature de la menace, "
+            "produits concernés, action recommandée. Pas de titre, pas de liste.",
+            "Titre : %s\n\nContenu : %s" % (titre, (description or "")[:1500]),
+            max_tokens=220)
+        return (text or "").strip() or None
+    except Exception:
+        return None
+
+
+def _report_generate(data):
+    """Rapport hebdomadaire rédigé par LLM (best-effort ; None si indisponible)."""
+    try:
+        text, _m = assistant.generate(
+            "mistral",
+            "Tu rédiges un rapport hebdomadaire interne (Markdown) pour CONSEILPREV. "
+            "Structure : ## Synthèse, ## Chiffres clés (tableau Markdown), "
+            "## Points d'attention. Factuel et concis : uniquement les données fournies, "
+            "aucune invention.",
+            "Données de la semaine (JSON) :\n" + json.dumps(data, ensure_ascii=False, indent=2),
+            max_tokens=900)
+        return text
+    except Exception:
+        return None
+
+
+automation.init(sender=SENDER, notify_to=NOTIFY_TO, rag=rag, clients=clients_db,
+                livrables=livrables_hist, cockpit=state,
+                summarize=_veille_summarize, generate_report=_report_generate,
+                dsn=os.environ.get("DATABASE_URL"))
 
 # --- Rétention de l'historique ------------------------------------------------
 # Purge périodique des événements au-delà d'un âge (EVENT_RETENTION_DAYS) et/ou
@@ -1020,6 +1061,130 @@ def api_livrables_export():
 
 
 # ============================================================================
+#  Automatisations exposées : veille CERT-FR, ingestion documentaire, pack mission
+# ============================================================================
+
+@app.route("/api/veille")
+def api_veille():
+    """Veille CERT-FR (publique) : derniers bulletins, résumés automatiquement."""
+    return jsonify(ok=True, items=automation.veille_list(limit=60))
+
+
+@app.route("/api/admin/veille/refresh", methods=["POST"])
+@admin_required
+def api_veille_refresh():
+    """Relance manuelle de la collecte (sinon : automatique, périodique)."""
+    try:
+        return jsonify(ok=True, nouveaux=automation.veille_refresh())
+    except Exception:
+        return jsonify(ok=False, error="veille_echec"), 502
+
+
+@app.route("/api/rag/ingest", methods=["POST"])
+def api_rag_ingest_token():
+    """Ingestion documentaire par API (automatisations externes, server-to-server).
+
+    Protégée par jeton (X-Ingest-Token = RAG_INGEST_TOKEN, défaut : INGEST_TOKEN).
+    Corps JSON : {filename, title?, theme?, visibility?, content_base64}.
+    Limité par le plafond global de requête (~350 Ko de fichier par appel) —
+    au-delà, passer par la console d'administration (chargement par morceaux).
+    """
+    token = os.environ.get("RAG_INGEST_TOKEN") or INGEST_TOKEN
+    if not token:
+        return jsonify(ok=False, error="not_configured"), 503
+    if request.headers.get("X-Ingest-Token") != token:
+        return jsonify(ok=False, error="unauthorized"), 401
+    data = request.get_json(silent=True) or {}
+    filename = (data.get("filename") or "").strip()
+    b64 = data.get("content_base64") or ""
+    if not filename or not b64:
+        return jsonify(ok=False, error="parametres_manquants"), 400
+    try:
+        blob = base64.b64decode(b64, validate=True)
+    except (ValueError, binascii.Error):
+        return jsonify(ok=False, error="base64_invalide"), 400
+    try:
+        doc = rag.ingest_bytes(filename, blob, title=(data.get("title") or "").strip(),
+                               theme=(data.get("theme") or "").strip(),
+                               visibility=(data.get("visibility") or "public").strip())
+    except RagError as exc:
+        return jsonify(ok=False, error=exc.code), exc.status
+    return jsonify(ok=True, document=doc)
+
+
+# --- Pack mission : génération en chaîne des 8 livrables du programme --------
+_PACK_TYPES = ["carto-exposition", "cible-soc-augmente", "roadmap-cyber",
+               "strategie-ia-cyber", "gouvernance-crise", "plan-automatisation-patching",
+               "catalogue-cas-usage", "reporting-programme"]
+_pack_lock = threading.Lock()
+_pack_status = {"running": False, "done": 0, "total": len(_PACK_TYPES),
+                "current": "", "errors": [], "ids": []}
+
+
+def _pack_worker(data, model):
+    """Génère les 8 livrables en arrière-plan (jamais dans le cycle requête)."""
+    for tid in _PACK_TYPES:
+        t = livrables.get_type(tid)
+        with _pack_lock:
+            _pack_status["current"] = t["label"] if t else tid
+        try:
+            system, user = livrables.build_prompts(tid, data)
+            try:
+                hits = rag.search(livrables.retrieval_query(tid, data), k=6, public_only=False)
+            except Exception:
+                hits = []
+            text, used = assistant.generate(model, system, user,
+                                            context=build_context(hits, max_chars=6000))
+            sources = [{"title": h.get("title"), "theme": h.get("theme"),
+                        "visibility": h.get("visibility")} for h in hits]
+            lid = livrables_hist.save({"type": tid, "label": t["label"] if t else tid,
+                                       "client": data.get("client"),
+                                       "secteur": data.get("secteur"),
+                                       "perimetre": data.get("perimetre"), "model": used,
+                                       "markdown": text, "sources": sources})
+            with _pack_lock:
+                _pack_status["ids"].append(lid)
+        except Exception as exc:
+            with _pack_lock:
+                _pack_status["errors"].append({"type": tid,
+                                               "erreur": str(getattr(exc, "code", "erreur"))})
+        with _pack_lock:
+            _pack_status["done"] += 1
+    with _pack_lock:
+        _pack_status["running"] = False
+        _pack_status["current"] = ""
+
+
+@app.route("/api/admin/livrables/pack-mission", methods=["POST"])
+@admin_required
+def api_pack_mission():
+    """Lance la génération en chaîne des 8 livrables du programme AMOA IA/Cyber."""
+    global _pack_status
+    data = request.get_json(silent=True) or {}
+    model = "mistral" if data.get("model") == "mistral" else "claude"
+    if not assistant.available().get(model):
+        return jsonify(ok=False, error="not_configured",
+                       message=_ASSISTANT_MSG["not_configured"]), 503
+    with _pack_lock:
+        if _pack_status["running"]:
+            return jsonify(ok=False, error="deja_en_cours",
+                           message="Un pack est déjà en cours de génération."), 409
+        _pack_status = {"running": True, "done": 0, "total": len(_PACK_TYPES),
+                        "current": "", "errors": [], "ids": []}
+    threading.Thread(target=_pack_worker, args=(dict(data), model), daemon=True).start()
+    return jsonify(ok=True, total=len(_PACK_TYPES))
+
+
+@app.route("/api/admin/livrables/pack-mission", methods=["GET"])
+@admin_required
+def api_pack_mission_status():
+    """Avancement de la génération du pack (sondé par la console)."""
+    with _pack_lock:
+        return jsonify(ok=True, **{k: (list(v) if isinstance(v, list) else v)
+                                   for k, v in _pack_status.items()})
+
+
+# ============================================================================
 #  Gestion des clients & prospects — conforme RGPD + AI Act art. 50 (admin)
 # ============================================================================
 # Inspirée du module « Gestion des clients » de Sentinel : fiches minimales
@@ -1394,6 +1559,8 @@ def api_ingest():
     }
     enriched, snap = state.apply(evt)
     broker.publish({"event": enriched, "state": snap})
+    if tag_for(evt) == "crit":                      # alerte email agrégée (anti-rafale)
+        automation.record_critical(evt)
     return jsonify(ok=True)
 
 
