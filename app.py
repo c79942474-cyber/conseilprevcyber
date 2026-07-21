@@ -669,6 +669,14 @@ def _rag_valid_upload_id(s):
     return _rag_hex(base) and (ext == "" or (1 <= len(ext) <= 8 and ext.isalnum()))
 
 
+@app.route("/admin")
+@app.route("/admin/")
+@admin_required
+def admin_home():
+    """Tableau de bord d'administration : liens vers toutes les zones admin."""
+    return send_from_directory(HERE, "admin.html")
+
+
 @app.route("/admin/base-connaissance")
 @admin_required
 def admin_rag_page():
