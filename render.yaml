@@ -79,9 +79,9 @@ databases:
     databaseName: conseilprevcyber
     user: conseilprevcyber
     region: frankfurt          # MÊME région que le service web (connexion interne)
-    # Plan « free » pour démarrer sans frais. ⚠️ La base gratuite Render EXPIRE au bout
-    # de 30 jours ; pour la production, remplacez par un plan payant (ex. basic-256mb).
-    plan: free
+    # Plan payant « basic-256mb » (~6 $/mois) : base persistante, sans expiration,
+    # adaptée à la production. Ajustable ensuite (basic-1gb, basic-4gb…) selon le volume.
+    plan: basic-256mb
     # PostgreSQL 16 : compatible pgvector (recherche sémantique) si MISTRAL_API_KEY est défini.
     postgresMajorVersion: "16"
     # Sécurité : aucune connexion externe autorisée — le site s'y connecte en interne.
