@@ -111,6 +111,12 @@
 
       <div id="notice"></div>
 
+      <div class="warn" id="memWarn" style="display:none;border-color:rgba(247,158,125,.55);background:rgba(247,158,125,.12)">
+        <span>⛔</span><div><b style="color:var(--danger)">Mode mémoire — les documents ne sont pas conservés.</b>
+        Aucune base PostgreSQL n'est connectée : les documents chargés <b>disparaissent au moindre redémarrage</b> du
+        serveur (et ne sont pas partagés entre instances). Pour une base durable, définissez la variable
+        <b>DATABASE_URL</b> dans Render (URL interne d'une base PostgreSQL), puis redéployez.</div></div>
+
       <div class="warn"><span>⚠️</span><div>Les documents marqués <b>Public</b> peuvent être restitués par l'assistant à n'importe quel visiteur.
         N'y placez que des informations diffusables. Réservez les contenus sensibles à la visibilité <b>Interne</b>
         (utilisée pour les livrables, jamais exposée à l'assistant public).</div></div>
@@ -220,6 +226,7 @@
         var caps=j.capabilities||{};
         var modeLabel=caps.mode==='vectoriel'?'vectoriel':(caps.mode==='texte_integral'?'texte intégral':'lexical');
         document.getElementById('kMode').innerHTML=modeLabel+(caps.persistent?'':' <small>(mémoire)</small>');
+        var mw=document.getElementById('memWarn');if(mw)mw.style.display=(caps.persistent===false)?'flex':'none';
         var dl=document.getElementById('themes');
         dl.innerHTML=(j.themes||[]).map(function(t){return '<option value="'+esc(t)+'">';}).join('');
         fillFilters(j.stats.themes);
