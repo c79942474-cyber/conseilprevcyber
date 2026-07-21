@@ -354,6 +354,7 @@ PAGES = {
     "/vos-projets": "vos-projets.html",
     "/contact": "contact.html",
     "/mentions-legales": "mentions-legales.html",
+    "/politique-confidentialite": "politique-confidentialite.html",
 }
 
 
@@ -597,6 +598,11 @@ def contact():
 @app.route("/mentions-legales")
 def mentions_legales():
     return _page(PAGES["/mentions-legales"])
+
+
+@app.route("/politique-confidentialite")
+def politique_confidentialite():
+    return _page(PAGES["/politique-confidentialite"])
 
 
 @app.route("/styles.css")
