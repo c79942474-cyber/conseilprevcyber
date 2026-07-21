@@ -340,7 +340,19 @@
         var r=await fetch('/api/admin/rag/documents/'+id,{method:'DELETE'}); var j=await readJson(r);
         if(j.ok){note('Document supprimé.','ok');load();}else{note('Suppression impossible.','err');}
       } else if(a==='download'){
-        window.location.href='/api/admin/rag/documents/'+id+'/download';
+        var rd=await fetch('/api/admin/rag/documents/'+id+'/download');
+        if(!rd.ok){
+          var jd=await readJson(rd);
+          note(jd.error==='original_indisponible'
+            ? 'Fichier d\'origine non conservé pour ce document (il reste indexé et cherchable).'
+            : 'Téléchargement impossible.','err');
+        } else {
+          var bl=await rd.blob(); var cd=rd.headers.get('Content-Disposition')||'';
+          var fn=(cd.match(/filename\*?=(?:UTF-8'')?"?([^\";]+)/i)||[])[1]||'document';
+          var u=URL.createObjectURL(bl); var aa=document.createElement('a');
+          aa.href=u; aa.download=decodeURIComponent(fn); document.body.appendChild(aa); aa.click();
+          setTimeout(function(){URL.revokeObjectURL(u); aa.remove();},1500);
+        }
       } else if(a==='index'){
         b.disabled=true;b.textContent='…';
         try{ await runIndex(id); note('Indexation terminée.','ok'); }catch(_){ note('Indexation interrompue.','err'); }

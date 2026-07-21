@@ -496,9 +496,9 @@ class PostgresRagStore:
         mode = "vectoriel" if emb_on else "texte_integral"
         indexed = 0 if emb_on else len(chunks)
         now = _now_ms()
-        # Filet de sécurité : toute erreur d'écriture (contenu inattendu d'un PDF/DOCX,
-        # aléa base de données…) est journalisée et renvoyée comme une erreur PROPRE,
-        # jamais comme un 500 opaque. Le contenu texte est déjà nettoyé (NUL, contrôles).
+        # ESSENTIEL (métadonnées + fragments cherchables) : dans une transaction.
+        # Toute erreur est journalisée et renvoyée PROPREMENT (jamais de 500 opaque).
+        # Le contenu texte est déjà nettoyé (NUL, caractères de contrôle).
         try:
             with conn.transaction():
                 conn.execute(
@@ -509,7 +509,6 @@ class PostgresRagStore:
                      (theme or "Général").strip()[:80], _clean_visibility(visibility),
                      len(data), hashlib.sha256(data).hexdigest(), len(chunks), indexed,
                      status, mode, now, now))
-                conn.execute("INSERT INTO rag_blobs(doc_id,data) VALUES(%s,%s)", (doc_id, data))
                 # Insertion groupée des fragments (executemany, mode pipeline psycopg) :
                 # un seul aller-retour groupé au lieu d'un par fragment — bien plus rapide
                 # pour les gros PDF/DOCX (évite d'approcher le délai d'expiration du worker).
@@ -522,6 +521,15 @@ class PostgresRagStore:
             _log.exception("RAG : échec d'enregistrement (%s, %d fragments, %d octets)",
                            filename, len(chunks), len(data))
             raise RagError("traitement_echec", 500)
+        # BEST-EFFORT : le fichier d'origine ne sert QU'AU téléchargement, pas à la
+        # recherche. S'il ne peut être stocké (taille, quota disque de la base…), le
+        # document reste pleinement indexé et cherchable — on renonce juste à pouvoir
+        # re-télécharger l'original. Cela évite qu'un gros blob fasse échouer tout l'upload.
+        try:
+            conn.execute("INSERT INTO rag_blobs(doc_id,data) VALUES(%s,%s)", (doc_id, data))
+        except Exception:
+            _log.warning("RAG : fichier d'origine non conservé pour %s (%d octets) — "
+                         "document indexé et cherchable malgré tout.", doc_id, len(data))
         return self._doc_row(conn, doc_id)
 
     def index_next(self, doc_id, batch=EMBED_BATCH):
@@ -604,8 +612,12 @@ class PostgresRagStore:
             r = conn.execute("SELECT d.filename,b.data FROM rag_blobs b "
                              "JOIN rag_documents d ON d.id=b.doc_id WHERE b.doc_id=%s",
                              (doc_id,)).fetchone()
-        if not r:
-            raise RagError("document_inconnu", 404)
+            if not r:
+                # Document présent mais original non conservé (stockage best-effort) ?
+                if conn.execute("SELECT 1 FROM rag_documents WHERE id=%s",
+                                (doc_id,)).fetchone():
+                    raise RagError("original_indisponible", 410)
+                raise RagError("document_inconnu", 404)
         return r[0], bytes(r[1])
 
     def delete_document(self, doc_id):
