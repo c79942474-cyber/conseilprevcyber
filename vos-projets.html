@@ -48,7 +48,7 @@
   .consent{display:flex;gap:11px;align-items:flex-start;margin-top:8px;font-size:13px;color:var(--muted);line-height:1.5}
   .consent input{accent-color:var(--cyan);width:17px;height:17px;margin-top:2px;flex:0 0 auto}
   .consent a{color:var(--cyan)}
-  .req{color:var(--terra)}
+  .req{color:var(--danger)}
 </style>
 </head>
 <body>
@@ -319,7 +319,7 @@
     function setStatus(msg,kind){
       var s=document.getElementById('formStatus');
       s.style.display='block'; s.innerHTML=msg;
-      s.style.color = kind==='ok' ? 'var(--green)' : (kind==='err' ? 'var(--terra)' : 'var(--muted)');
+      s.style.color = kind==='ok' ? 'var(--green)' : (kind==='err' ? 'var(--danger)' : 'var(--muted)');
     }
 
     function sendProjet(e){

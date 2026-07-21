@@ -148,7 +148,7 @@
     function setStatus(msg,kind){
       var s=document.getElementById('formStatus');
       s.style.display='block'; s.innerHTML=msg;
-      s.style.color = kind==='ok' ? 'var(--green)' : (kind==='err' ? 'var(--terra)' : 'var(--muted)');
+      s.style.color = kind==='ok' ? 'var(--green)' : (kind==='err' ? 'var(--danger)' : 'var(--muted)');
     }
     function sendMail(e){
       e.preventDefault();

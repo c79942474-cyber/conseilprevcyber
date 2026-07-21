@@ -5,9 +5,12 @@
 :root{
   /* Fond « Latérite brique » : base rouge brique saturée, halos orange clair intenses. */
   --bg:#6E2A18; --bg2:#762E1A; --panel:#8A6350; --panel2:#6E4836; --line:#9A6650;
-  --ink:#F6F0E8; --muted:#E6D5C6; --muted2:#C2A695;
+  --ink:#F6F0E8; --muted:#E6D5C6; --muted2:#D6BFB0;
   --cyan:#22D3EE; --teal:#2DD4BF; --green:#34D399;
   --terra:#D9603A; --violet:#8B7CF6; --amber:#F0B429;
+  /* Rouge lisible pour le TEXTE d'erreur/statut (contraste AA ; --terra reste
+     réservé aux accents décoratifs : bordures, dégradés, fonds). */
+  --danger:#F79E7D;
   /* Blobs flottants — brique rouge & orange clair. */
   --blob-ocre:rgba(255,185,120,.30); --blob-turquoise:rgba(255,140,80,.24); --blob-rouge:rgba(214,64,40,.28);
   --mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
