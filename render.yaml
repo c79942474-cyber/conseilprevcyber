@@ -19,11 +19,13 @@ services:
       # Sans lui, l'ingestion est fermée et le cockpit reste en mode démo.
       - key: INGEST_TOKEN
         sync: false
-      # Persistance (optionnel). Si défini, l'inventaire et l'historique sont
-      # conservés dans PostgreSQL ; sinon l'état est en mémoire. Créer une base
-      # Render Postgres et coller son URL interne ici.
+      # Persistance (cockpit, base de connaissance RAG, historique des livrables,
+      # comptes). L'URL interne est injectée AUTOMATIQUEMENT depuis la base
+      # PostgreSQL déclarée plus bas (section « databases ») : rien à coller à la main.
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: conseilprevcyber-db
+          property: connectionString
       # Haute disponibilité multi-instance (optionnel). Si défini, les événements
       # sont diffusés via Redis pub/sub à toutes les instances (fan-out SSE partagé).
       # Requiert aussi DATABASE_URL (état partagé). Sinon : une seule instance.
@@ -67,3 +69,20 @@ services:
       # peut toujours basculer manuellement vers l'autre modèle dans l'interface.
       - key: ASSISTANT_DEFAULT_MODEL
         sync: false
+
+# Base PostgreSQL managée — persistance de tout l'état applicatif : inventaire et
+# historique du cockpit, base de connaissance RAG (documents + fragments indexés),
+# historique des livrables et comptes. Provisionnée automatiquement par le blueprint ;
+# son URL interne alimente DATABASE_URL (voir le service ci-dessus).
+databases:
+  - name: conseilprevcyber-db
+    databaseName: conseilprevcyber
+    user: conseilprevcyber
+    region: frankfurt          # MÊME région que le service web (connexion interne)
+    # Plan « free » pour démarrer sans frais. ⚠️ La base gratuite Render EXPIRE au bout
+    # de 30 jours ; pour la production, remplacez par un plan payant (ex. basic-256mb).
+    plan: free
+    # PostgreSQL 16 : compatible pgvector (recherche sémantique) si MISTRAL_API_KEY est défini.
+    postgresMajorVersion: "16"
+    # Sécurité : aucune connexion externe autorisée — le site s'y connecte en interne.
+    ipAllowList: []
