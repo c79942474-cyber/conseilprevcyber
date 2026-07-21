@@ -42,6 +42,22 @@ TYPES = [
         ],
     },
     {
+        "id": "cadrage-amoa-ia-cyber",
+        "label": "Note de cadrage — AMOA intégration IA & Cyber SI",
+        "desc": "Cadrage d'un programme de cyberdéfense augmentée par l'IA : exposition du SI, "
+                "remédiation à l'échelle, SOC, gouvernance de crise et stratégie d'anticipation.",
+        "sections": [
+            "Contexte & enjeux (accélération des menaces par l'IA)",
+            "Cartographie de l'exposition du SI & priorisation",
+            "Chaînes de patching & capacité de remédiation",
+            "SOC & cyberdéfense augmentée par l'IA",
+            "Gouvernance & gestion de crise",
+            "Stratégie d'anticipation (posture proactive)",
+            "Gouvernance projet, jalons & comitologie",
+            "Indicateurs de pilotage (TTD, MTTR, MTTP, taux d'automatisation)",
+        ],
+    },
+    {
         "id": "plan-remediation",
         "label": "Plan de remédiation",
         "desc": "Risques priorisés, mesures d'atténuation, échéancier, responsabilités et indicateurs de suivi.",
