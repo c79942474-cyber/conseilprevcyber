@@ -181,7 +181,18 @@
       s: ["Choisissez le sujet le plus proche (démo, conformité, audit…).", "Décrivez votre contexte : nous répondons sous 48 h ouvrées."],
       k: [["Formulaire sécurisé", "Transmission chiffrée, anti-spam et limitation de débit — vos données ne servent qu'à vous répondre."]],
       l: [["Démo temps réel", "/demo"], ["Services", "/services"]] },
-    "/mentions-legales": { t: "Mentions légales", p: "Les informations légales de l'éditeur du site et de l'hébergement.", s: [], k: [], l: [["Accueil", "/"]] },
+    "/mentions-legales": { t: "Mentions légales", p: "Les informations légales de l'éditeur du site et de l'hébergement.", s: [], k: [], l: [["Accueil", "/"], ["Politique de confidentialité", "/politique-confidentialite"]] },
+    "/politique-confidentialite": { t: "Politique de confidentialité", p: "Comment vos données sont traitées : finalités, bases légales, durées, droits RGPD et transparence de l'assistant IA.",
+      s: ["Le tableau reprend notre registre des traitements (art. 30).", "Vos droits s'exercent par email — réponse sous un mois."],
+      k: [["Portabilité", "Recevoir vos données dans un format lisible par machine (art. 20)."], ["Cookie de session", "Le seul cookie du site : strictement nécessaire à l'espace client."]],
+      l: [["Mentions légales", "/mentions-legales"], ["Contact", "/contact"]] },
+    "/nis2": { t: "NIS2", p: "La directive européenne expliquée : qui est concerné, les obligations, la notification d'incidents et la correspondance avec l'IEC 62443.",
+      s: ["Vérifiez votre régime : entité essentielle ou importante.", "Parcourez les obligations et les échéances 24 h / 72 h.", "Suivez la table NIS2 ↔ IEC 62443 pour le volet industriel."],
+      k: [["EE / EI", "Entités essentielles (contrôles renforcés) / importantes (contrôles a posteriori)."], ["24 h / 72 h", "Alerte précoce puis notification d'incident aux autorités."], ["MonEspaceNIS2", "Le portail ANSSI pour vérifier son assujettissement et s'enregistrer."]],
+      l: [["Audit 62443", "/audit-conformite"], ["Référentiel", "/referentiel"], ["Contact", "/contact"]] },
+    "/vos-projets": { t: "Vos projets", p: "Décrivez votre besoin (état des lieux, segmentation, supervision, conformité NIS2/DORA) : nous répondons sous 48 h ouvrées.",
+      s: ["Choisissez le type de projet le plus proche.", "Décrivez le contexte en quelques lignes."], k: [],
+      l: [["Nos services", "/services"], ["Contact", "/contact"]] },
     "/connexion": { t: "Connexion", p: "Accès à l'espace client : cockpit, tendances, connexion de plateforme et étude 62443.",
       s: ["Saisissez l'email et le mot de passe de votre compte.", "Pas de compte ? Créez une demande d'accès.", "Mot de passe oublié ? Utilisez le lien dédié."],
       k: [["Validation admin", "Après confirmation de votre email, un administrateur approuve l'accès — vous êtes prévenu par email."]],
@@ -316,7 +327,17 @@
     "architecture": "La structure d'ensemble : zones, conduits, équipements et flux.",
     "oil & gas": "Secteur pétrole et gaz : exploration, production, transport, raffinage.",
     "biométhane": "Filière gaz renouvelable — ici, sécurisation du SI industriel des sites d'injection.",
-    "grand paris express": "Le nouveau métro du Grand Paris (lignes 15, 16, 17…)."
+    "grand paris express": "Le nouveau métro du Grand Paris (lignes 15, 16, 17…).",
+    "nis2": "Directive européenne (2022/2555) imposant gestion des risques et notification d'incidents aux entités essentielles et importantes.",
+    "dora": "Règlement européen de résilience opérationnelle numérique du secteur financier (banques, assurances).",
+    "amoa · ia": "Assistance à maîtrise d'ouvrage d'un programme d'intégration de l'IA dans la cyberdéfense.",
+    "soc augmenté ia": "Centre opérationnel de sécurité dont la détection et la réponse sont assistées par l'IA, sous supervision humaine.",
+    "gestion de crise": "Dispositif d'organisation, de décision et de communication face à un incident majeur.",
+    "ttd · mttr · mttp": "Délais moyens de détection (TTD), de réponse/remédiation (MTTR) et de déploiement des correctifs (MTTP).",
+    "cartographie d'exposition": "Recensement des applications et services exposés sur internet, pour prioriser les remédiations.",
+    "remédiation à l'échelle": "Capacité à traiter une vague de vulnérabilités critiques sur tout le périmètre, filiales comprises.",
+    "multi-filiales": "Coordination d'un programme sur plusieurs entités juridiques et leurs SI respectifs.",
+    "résilience": "Capacité à maintenir ou rétablir le service malgré un incident — au cœur de DORA et NIS2."
   };
 
   function initJargon() {
@@ -370,6 +391,278 @@
     }
   }
 
+  /* ── 7. Barre de progression de lecture ─────────────────────────────────── */
+  function initReadBar() {
+    if (document.querySelector(".readbar")) return;
+    var bar = document.createElement("div");
+    bar.className = "readbar";
+    bar.setAttribute("aria-hidden", "true");
+    document.body.appendChild(bar);
+    var ticking = false;
+    function update() {
+      ticking = false;
+      var doc = document.documentElement;
+      var max = doc.scrollHeight - window.innerHeight;
+      bar.style.width = max > 40 ? (Math.min(1, (window.scrollY || 0) / max) * 100) + "%" : "0";
+    }
+    window.addEventListener("scroll", function () {
+      if (!ticking) { ticking = true; requestAnimationFrame(update); }
+    }, { passive: true });
+    update();
+  }
+
+  /* ── 8. Lien actif dans l'en-tête (aria-current automatique) ────────────── */
+  function initActiveLink() {
+    var path = location.pathname.replace(/\/+$/, "") || "/";
+    document.querySelectorAll("header .links a[href]").forEach(function (a) {
+      var href = a.getAttribute("href");
+      if (href === path) { a.classList.add("active"); a.setAttribute("aria-current", "page"); }
+    });
+  }
+
+  /* ── 9. Sous-menu « Référentiel 62443 » dans l'en-tête ──────────────────── */
+  var REF_MENU = [
+    ["/methodologie", "1-1", "Concepts & méthodologie"],
+    ["/glossaire-62443", "1-2", "Glossaire"],
+    ["/metriques-62443", "1-3", "Métriques"],
+    ["/programme-securite", "2-1", "Programme de sécurité (CSMS)"],
+    ["/gestion-correctifs", "2-3", "Gestion des correctifs"],
+    ["/exigences-prestataires", "2-4", "Exigences prestataires"],
+    ["/technologies-securite", "3-1", "Technologies de sécurité"],
+    ["/analyse-de-risque", "3-2", "Analyse de risque"],
+    ["/exigences-systeme", "3-3", "Exigences système"],
+    ["/developpement-securise", "4-1", "Développement sécurisé"],
+    ["/exigences-composants", "4-2", "Exigences composants"],
+    null,
+    ["/audit-conformite", "▶", "Lancer l'audit 62443"],
+    ["/nis2", "NIS2", "Correspondance NIS2 ↔ 62443"],
+  ];
+
+  function initRefMenu() {
+    var link = document.querySelector('header .links a[href="/referentiel"]');
+    if (!link || link.closest(".subnav-wrap")) return;
+    var wrap = document.createElement("span");
+    wrap.className = "subnav-wrap";
+    link.parentNode.insertBefore(wrap, link);
+    wrap.appendChild(link);
+
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "subnav-toggle";
+    btn.setAttribute("aria-label", "Ouvrir le sommaire du référentiel 62443");
+    btn.setAttribute("aria-expanded", "false");
+    btn.setAttribute("aria-haspopup", "true");
+    btn.textContent = "▼";
+    wrap.appendChild(btn);
+
+    var menu = document.createElement("div");
+    menu.className = "subnav";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", "Pages du référentiel IEC 62443");
+    REF_MENU.forEach(function (it) {
+      if (!it) {
+        var sep = document.createElement("div");
+        sep.className = "subnav-sep";
+        menu.appendChild(sep);
+        return;
+      }
+      var a = document.createElement("a");
+      a.href = it[0];
+      a.setAttribute("role", "menuitem");
+      var pn = document.createElement("span"); pn.className = "pn"; pn.textContent = it[1];
+      a.appendChild(pn);
+      a.appendChild(document.createTextNode(it[2]));
+      menu.appendChild(a);
+    });
+    wrap.appendChild(menu);
+
+    function setOpen(open) {
+      wrap.classList.toggle("open", open);
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      setOpen(!wrap.classList.contains("open"));
+    });
+    document.addEventListener("click", function (e) {
+      if (wrap.classList.contains("open") && !wrap.contains(e.target)) setOpen(false);
+    });
+    document.addEventListener("keydown", function (e) {
+      if ((e.key === "Escape" || e.key === "Esc") && wrap.classList.contains("open")) { setOpen(false); btn.focus(); }
+    });
+  }
+
+  /* ── 10. Recherche instantanée (Ctrl+K / bouton 🔍) ─────────────────────── */
+  var SEARCH = [
+    ["/", "Accueil", "Vue d'ensemble de CONSEILPREV Cyber.", "Découvrir", "home index"],
+    ["/services", "Services", "Nos offres : état des lieux, segmentation, supervision, AMOA, sensibilisation.", "Découvrir", "offres prestations amoa ia"],
+    ["/etudes-de-cas", "Études de cas", "Nos références : énergie, automobile, ferroviaire, oil & gas, assurance.", "Découvrir", "références missions clients"],
+    ["/secteurs", "Secteurs", "Énergie, eau, manufacturing, agro, chimie, transport, assurance.", "Découvrir", "industries marchés"],
+    ["/about", "À propos", "Qui nous sommes : parcours, expertises, convictions.", "Découvrir", "equipe société"],
+    ["/vos-projets", "Vos projets", "Décrivez votre besoin — réponse sous 48 h ouvrées.", "Découvrir", "devis demande brief"],
+    ["/referentiel", "Référentiel IEC 62443", "La carte de la série 62443, partie par partie.", "Référentiel 62443", "norme standard"],
+    ["/methodologie", "Concepts & méthodologie (1-1)", "FR, SL, zones & conduits, défense en profondeur.", "Référentiel 62443", "fondations principes"],
+    ["/glossaire-62443", "Glossaire (1-2)", "Le vocabulaire de la série, reformulé.", "Référentiel 62443", "définitions termes lexique"],
+    ["/metriques-62443", "Métriques (1-3)", "Indicateurs mesurables : écart SL, tendances, tableau de bord.", "Référentiel 62443", "kpi indicateurs mesure"],
+    ["/programme-securite", "Programme de sécurité (2-1)", "Le CSMS : rôles, processus, amélioration continue.", "Référentiel 62443", "csms organisation management"],
+    ["/gestion-correctifs", "Gestion des correctifs (2-3)", "Patch management OT et mesures compensatoires.", "Référentiel 62443", "patch mise à jour vulnérabilités"],
+    ["/exigences-prestataires", "Exigences prestataires (2-4)", "La sécurité attendue des intégrateurs et mainteneurs.", "Référentiel 62443", "fournisseurs sous-traitants"],
+    ["/technologies-securite", "Technologies de sécurité (3-1)", "Le panorama des technologies applicables en OT.", "Référentiel 62443", "outils solutions ids pare-feu"],
+    ["/analyse-de-risque", "Analyse de risque (3-2)", "Zones & conduits, SL-T, spécification des exigences.", "Référentiel 62443", "ebios zcr crs"],
+    ["/exigences-systeme", "Exigences système (3-3)", "Les 7 FR déclinées en exigences système SL 1-4.", "Référentiel 62443", "sr niveaux"],
+    ["/developpement-securise", "Développement sécurisé (4-1)", "Le cycle de développement sécurisé des produits.", "Référentiel 62443", "sdl threat modelling"],
+    ["/exigences-composants", "Exigences composants (4-2)", "Applications, embarqués, hôtes, équipements réseau.", "Référentiel 62443", "cr produits certification"],
+    ["/audit-conformite", "Étude & audit 62443", "L'étude guidée en 6 étapes, exportable en PDF.", "Référentiel 62443", "conformité évaluation sl-a sl-t"],
+    ["/nis2", "NIS2 — êtes-vous concerné ?", "Entités essentielles/importantes, obligations, notification 24 h/72 h, sanctions, pont IEC 62443.", "Conformité", "directive 2022/2555 dora anssi monespacenis2"],
+    ["/demo", "Cockpit de supervision", "Démo temps réel : actifs, zones, alertes, score de risque.", "Outils temps réel", "dashboard scada surveillance"],
+    ["/tendances", "Tendances", "Historique agrégé des événements du cockpit.", "Outils temps réel", "historique graphiques statistiques"],
+    ["/connecter", "Connecter une plateforme", "Brancher Nozomi, Claroty, Tenable… au cockpit.", "Outils temps réel", "intégration jeton ingestion"],
+    ["/guide-integration", "Guide d'intégration", "Le pas-à-pas complet du branchement de vos données.", "Outils temps réel", "documentation connecteur"],
+    ["/assistant", "Assistant IA", "Le chat sécurisé (Claude & Mistral) — transparent, sans conservation.", "Outils temps réel", "chatbot question ia"],
+    ["/faq", "FAQ", "Les réponses aux questions fréquentes.", "Aide & contact", "questions réponses"],
+    ["/ressources", "Ressources", "Les sources officielles : ANSSI, CERT-FR, ENISA, IEC, NIST…", "Aide & contact", "liens officiels veille"],
+    ["/contact", "Contact", "Le formulaire sécurisé — réponse sous 48 h ouvrées.", "Aide & contact", "email téléphone rendez-vous"],
+    ["/connexion", "Espace client — connexion", "Accéder au cockpit et aux outils réservés.", "Compte", "login se connecter"],
+    ["/inscription", "Créer un compte", "Demander un accès à l'espace client.", "Compte", "register s'inscrire"],
+    ["/mentions-legales", "Mentions légales", "Éditeur, hébergement, propriété intellectuelle.", "Légal", "kbis société"],
+    ["/politique-confidentialite", "Politique de confidentialité", "Traitements, droits RGPD, transparence IA, cookies.", "Légal", "rgpd données personnelles vie privée"],
+  ];
+
+  function initSearch() {
+    var nav = document.querySelector("header .nav");
+    var links = nav && nav.querySelector(".links");
+    if (!nav || !links || nav.querySelector(".nav-search")) return;
+
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "nav-search";
+    btn.setAttribute("aria-label", "Rechercher dans le site (Ctrl+K)");
+    btn.setAttribute("aria-haspopup", "dialog");
+    btn.innerHTML = '<span aria-hidden="true">🔍</span><span class="t">Rechercher</span><span class="k">Ctrl K</span>';
+    nav.insertBefore(btn, links);
+
+    var ov = document.createElement("div");
+    ov.className = "cmdk";
+    ov.innerHTML =
+      '<div class="cmdk-panel" role="dialog" aria-modal="true" aria-label="Recherche dans le site">'
+      + '<div class="cmdk-in"><span aria-hidden="true">🔍</span>'
+      + '<input type="text" placeholder="Rechercher une page, un sujet… (NIS2, audit, SOC, RGPD…)" aria-label="Rechercher dans le site">'
+      + '<span class="k">Échap</span></div>'
+      + '<div class="cmdk-list" role="listbox" aria-label="Résultats"></div>'
+      + '<div class="cmdk-foot"><span>↑↓ naviguer</span><span>Entrée ouvrir</span><span>Échap fermer</span></div></div>';
+    document.body.appendChild(ov);
+    var input = ov.querySelector("input");
+    var list = ov.querySelector(".cmdk-list");
+    var lastFocus = null;
+    var sel = 0, shown = [];
+
+    function norm(s) {
+      return (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    }
+    function esc(s) { return ("" + s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+    function render(q) {
+      var nq = norm(q).trim();
+      var toks = nq.split(/\s+/).filter(Boolean);
+      var out = [];
+      SEARCH.forEach(function (e) {
+        var hayT = norm(e[1]), hayD = norm(e[2]), hayK = norm(e[3] + " " + e[4]);
+        if (!toks.length) { out.push([1, e]); return; }
+        var score = 0;
+        for (var i = 0; i < toks.length; i++) {
+          var t = toks[i];
+          if (hayT.indexOf(t) !== -1) score += hayT.indexOf(t) === 0 ? 5 : 3;
+          else if (hayK.indexOf(t) !== -1) score += 2;
+          else if (hayD.indexOf(t) !== -1) score += 1;
+          else { score = 0; break; }
+        }
+        if (score > 0) out.push([score, e]);
+      });
+      out.sort(function (a, b) { return b[0] - a[0]; });
+      if (toks.length) out = out.slice(0, 10);
+      shown = out.map(function (x) { return x[1]; });
+      sel = 0;
+      if (!shown.length) {
+        list.innerHTML = '<div class="cmdk-empty">Aucune page ne correspond. Essayez « audit », « NIS2 », « supervision »…<br>' +
+          'Ou posez la question à l\'<a href="/assistant" style="color:var(--cyan)">assistant IA</a>.</div>';
+        return;
+      }
+      var html = "", lastG = null;
+      shown.forEach(function (e, i) {
+        if (!toks.length && e[3] !== lastG) { html += '<div class="cmdk-g">' + esc(e[3]) + "</div>"; lastG = e[3]; }
+        html += '<a class="cmdk-item' + (i === sel ? " sel" : "") + '" data-i="' + i + '" href="' + esc(e[0]) + '" role="option" aria-selected="' + (i === sel) + '">'
+          + "<b>" + esc(e[1]) + "</b><span>" + esc(e[2]) + "</span></a>";
+      });
+      list.innerHTML = html;
+    }
+    function markSel() {
+      list.querySelectorAll(".cmdk-item").forEach(function (el, idx) {
+        var on = parseInt(el.getAttribute("data-i"), 10) === sel;
+        el.classList.toggle("sel", on);
+        el.setAttribute("aria-selected", on ? "true" : "false");
+        if (on) el.scrollIntoView({ block: "nearest" });
+      });
+    }
+    function setOpen(open) {
+      ov.classList.toggle("open", open);
+      if (open) {
+        lastFocus = document.activeElement;
+        input.value = "";
+        render("");
+        setTimeout(function () { input.focus(); }, 0);
+      } else if (lastFocus && lastFocus.focus) { lastFocus.focus(); }
+    }
+    btn.addEventListener("click", function () { setOpen(true); });
+    ov.addEventListener("click", function (e) { if (e.target === ov) setOpen(false); });
+    input.addEventListener("input", function () { render(input.value); });
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowDown") { e.preventDefault(); if (shown.length) { sel = (sel + 1) % shown.length; markSel(); } }
+      else if (e.key === "ArrowUp") { e.preventDefault(); if (shown.length) { sel = (sel - 1 + shown.length) % shown.length; markSel(); } }
+      else if (e.key === "Enter") { e.preventDefault(); if (shown[sel]) location.href = shown[sel][0]; }
+    });
+    document.addEventListener("keydown", function (e) {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault(); setOpen(!ov.classList.contains("open")); return;
+      }
+      if (e.key === "Escape" && ov.classList.contains("open")) { setOpen(false); return; }
+      if (e.key === "/" && !e.ctrlKey && !e.metaKey && !e.altKey && !ov.classList.contains("open")) {
+        var t = e.target;
+        var typing = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
+        if (!typing) { e.preventDefault(); setOpen(true); }
+      }
+    });
+  }
+
+  /* ── 11. Apparition douce des cartes au défilement ──────────────────────── */
+  function initReveal() {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!("IntersectionObserver" in window)) return;
+    var els = document.querySelectorAll("main .card, main .case, main .stat, main .dl, main .right");
+    if (!els.length) return;
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (!en.isIntersecting) return;
+        var el = en.target;
+        io.unobserve(el);
+        el.classList.add("rv-in");
+        el.addEventListener("transitionend", function done() {
+          el.classList.remove("rv", "rv-in");
+          el.removeEventListener("transitionend", done);
+        });
+        setTimeout(function () { el.classList.remove("rv", "rv-in"); }, 700);
+      });
+    }, { threshold: 0.01, rootMargin: "100000px 0px -30px 0px" });
+    // Marge haute très large : un élément DÉPASSÉ (au-dessus de la fenêtre après un
+    // saut en bas de page) compte comme visible et se révèle — jamais de carte bloquée.
+    els.forEach(function (el) {
+      var r = el.getBoundingClientRect();
+      if (r.top > window.innerHeight * 0.9) {   // seulement sous la ligne de flottaison
+        el.classList.add("rv");
+        io.observe(el);
+      }
+    });
+  }
+
   function init() {
     initA11y();
     initBurger();
@@ -377,6 +670,11 @@
     initGuide();
     initJargon();
     initChatLauncher();
+    initReadBar();
+    initActiveLink();
+    initRefMenu();
+    initSearch();
+    initReveal();
   }
 
   if (document.readyState === "loading")
