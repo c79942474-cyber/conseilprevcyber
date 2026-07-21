@@ -317,7 +317,9 @@ class MemoryRagStore:
                 themes[d["theme"]] = themes.get(d["theme"], 0) + 1
             return {"documents": len(docs),
                     "chunks": sum(len(c) for c in self._chunks.values()),
-                    "themes": themes, "mode": "lexical"}
+                    "themes": themes, "mode": "lexical",
+                    "storage": {"db_bytes": None,
+                                "rag_bytes": sum(len(b) for b in self._blobs.values())}}
 
     def search(self, query, k=5, public_only=True, theme=None, doc_ids=None):
         qtok = _tokens(query)
@@ -478,7 +480,13 @@ class PostgresRagStore:
             try:
                 meta = self._ingest(conn, filename, ext, data, title, theme, visibility)
             finally:
-                conn.execute("DELETE FROM rag_uploads WHERE upload_id=%s", (upload_id,))
+                # Nettoyage best-effort : si la connexion vient d'être perdue (grosse
+                # écriture), ne pas transformer un succès en erreur — la purge auto
+                # (> 1 h) de create_upload rattrapera ces restes.
+                try:
+                    conn.execute("DELETE FROM rag_uploads WHERE upload_id=%s", (upload_id,))
+                except Exception:
+                    _log.warning("RAG : nettoyage de l'upload %s reporté (purge auto).", upload_id)
         return meta
 
     def _ingest(self, conn, filename, ext, data, title, theme, visibility):
@@ -496,6 +504,7 @@ class PostgresRagStore:
         mode = "vectoriel" if emb_on else "texte_integral"
         indexed = 0 if emb_on else len(chunks)
         now = _now_ms()
+        digest = hashlib.sha256(data).hexdigest()
         # ESSENTIEL (métadonnées + fragments cherchables) : dans une transaction.
         # Toute erreur est journalisée et renvoyée PROPREMENT (jamais de 500 opaque).
         # Le contenu texte est déjà nettoyé (NUL, caractères de contrôle).
@@ -507,7 +516,7 @@ class PostgresRagStore:
                     "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                     (doc_id, (title or filename).strip()[:300], filename, ext,
                      (theme or "Général").strip()[:80], _clean_visibility(visibility),
-                     len(data), hashlib.sha256(data).hexdigest(), len(chunks), indexed,
+                     len(data), digest, len(chunks), indexed,
                      status, mode, now, now))
                 # Insertion groupée des fragments (executemany, mode pipeline psycopg) :
                 # un seul aller-retour groupé au lieu d'un par fragment — bien plus rapide
@@ -530,7 +539,16 @@ class PostgresRagStore:
         except Exception:
             _log.warning("RAG : fichier d'origine non conservé pour %s (%d octets) — "
                          "document indexé et cherchable malgré tout.", doc_id, len(data))
-        return self._doc_row(conn, doc_id)
+        # Métadonnées construites localement (aucune requête supplémentaire) : la
+        # réponse reste correcte même si la connexion a été perdue après le commit.
+        return {
+            "id": doc_id, "title": (title or filename).strip()[:300],
+            "filename": filename, "ext": ext, "theme": (theme or "Général").strip()[:80],
+            "visibility": _clean_visibility(visibility), "bytes": len(data),
+            "sha256": digest, "nb_chunks": len(chunks), "chunks_indexed": indexed,
+            "status": status, "mode": mode, "error": None,
+            "created_at": now, "updated_at": now,
+        }
 
     def index_next(self, doc_id, batch=EMBED_BATCH):
         """Embarque le prochain lot de chunks (piloté par le client). En mode
@@ -636,8 +654,22 @@ class PostgresRagStore:
                     "SELECT theme,count(*) FROM rag_documents GROUP BY theme "
                     "ORDER BY 2 DESC").fetchall():
                 themes[theme or "Général"] = c
+            # Occupation disque (surveillance de la limite de stockage de la base) :
+            # taille totale de la base + part des tables RAG (fragments, originaux…).
+            storage = None
+            try:
+                db_b = conn.execute(
+                    "SELECT pg_database_size(current_database())").fetchone()[0]
+                rag_b = conn.execute(
+                    "SELECT COALESCE(SUM(pg_total_relation_size(c.oid)),0) "
+                    "FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
+                    "WHERE n.nspname='public' AND c.relkind='r' "
+                    "AND c.relname LIKE 'rag\\_%'").fetchone()[0]
+                storage = {"db_bytes": int(db_b), "rag_bytes": int(rag_b)}
+            except Exception:
+                pass
         return {"documents": docs, "chunks": chunks, "themes": themes,
-                "mode": self.capabilities()["mode"]}
+                "mode": self.capabilities()["mode"], "storage": storage}
 
     def search(self, query, k=5, public_only=True, theme=None, doc_ids=None):
         query = (query or "").strip()

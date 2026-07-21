@@ -106,7 +106,7 @@
         <div class="stat" style="--sc:linear-gradient(90deg,var(--cyan),var(--teal))"><div class="lbl">Documents</div><div class="val" id="kDocs">—</div></div>
         <div class="stat" style="--sc:linear-gradient(90deg,var(--teal),var(--green))"><div class="lbl">Fragments indexés</div><div class="val" id="kChunks">—</div></div>
         <div class="stat" style="--sc:linear-gradient(90deg,var(--violet),var(--cyan))"><div class="lbl">Thèmes</div><div class="val" id="kThemes">—</div></div>
-        <div class="stat" style="--sc:linear-gradient(90deg,var(--amber),var(--terra))"><div class="lbl">Moteur <button type="button" class="tipi" data-tip="« vectoriel » : recherche sémantique (embeddings Mistral + pgvector). « texte intégral » : recherche plein-texte PostgreSQL (repli). « lexical » : sans base de données (non persistant)." aria-label="Aide : moteur de recherche">i</button></div><div class="val" id="kMode" style="font-size:16px">—</div></div>
+        <div class="stat" style="--sc:linear-gradient(90deg,var(--amber),var(--terra))"><div class="lbl">Moteur <button type="button" class="tipi" data-tip="« vectoriel » : recherche sémantique (embeddings Mistral + pgvector). « texte intégral » : recherche plein-texte PostgreSQL (repli). « lexical » : sans base de données (non persistant)." aria-label="Aide : moteur de recherche">i</button></div><div class="val" id="kMode" style="font-size:16px">—</div><div id="kStore" style="font-size:11px;color:var(--muted2);margin-top:4px"></div></div>
       </div>
 
       <div id="notice"></div>
@@ -224,6 +224,8 @@
         caps=j.capabilities||{};
         var modeLabel=caps.mode==='vectoriel'?'vectoriel':(caps.mode==='texte_integral'?'texte intégral':'lexical');
         document.getElementById('kMode').innerHTML=modeLabel+(caps.persistent?'':' <small>(mémoire)</small>');
+        var st=j.stats.storage, ks=document.getElementById('kStore');
+        if(ks) ks.textContent = st ? (st.db_bytes!=null ? ('base : '+fmtBytes(st.db_bytes)+' · RAG : '+fmtBytes(st.rag_bytes)) : ('RAG : '+fmtBytes(st.rag_bytes))) : '';
         var mw=document.getElementById('memWarn');
         if(mw){
           if(caps.persistent===false){
