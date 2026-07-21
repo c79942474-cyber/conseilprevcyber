@@ -133,6 +133,7 @@
         <a href="/etudes-de-cas">Études de cas</a>
         <a href="/referentiel">Référentiel 62443</a>
         <a href="/nis2">NIS2</a>
+        <a href="/diagnostic">Diagnostic express</a>
         <a href="/ressources">Ressources</a>
         <a href="/faq">FAQ</a>
         <a href="/demo">Démo</a>
@@ -185,6 +186,23 @@
        .then(function(){ btn.disabled=false; btn.textContent=label; });
       return false;
     }
+  </script>
+  <script>
+  /* Contact contextuel : le diagnostic express et les pages de service pré-remplissent
+     le sujet et le contexte via l'URL (?sujet=&ctx=) — librement modifiables avant envoi. */
+  (function(){
+    try{
+      var p=new URLSearchParams(location.search);
+      var s=p.get('sujet'), c=p.get('ctx');
+      if(s){var sel=document.getElementById('sujet');
+        if(sel){for(var i=0;i<sel.options.length;i++){
+          if(sel.options[i].text.replace(/\s+/g,' ').trim()===s.replace(/\s+/g,' ').trim()){sel.selectedIndex=i;break;}}}}
+      if(c){var m=document.getElementById('msg');
+        if(m&&!m.value){m.value=c+"\n\nPrécisions sur votre contexte : ";
+          m.dispatchEvent(new Event('input',{bubbles:true}));}}
+      if((s||c)&&history.replaceState) history.replaceState(null,'',location.pathname);
+    }catch(e){}
+  })();
   </script>
   <script src="/nav.js" defer></script>
 </body>

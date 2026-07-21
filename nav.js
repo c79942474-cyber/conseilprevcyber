@@ -193,6 +193,10 @@
     "/vos-projets": { t: "Vos projets", p: "Décrivez votre besoin (état des lieux, segmentation, supervision, conformité NIS2/DORA) : nous répondons sous 48 h ouvrées.",
       s: ["Choisissez le type de projet le plus proche.", "Décrivez le contexte en quelques lignes."], k: [],
       l: [["Nos services", "/services"], ["Contact", "/contact"]] },
+    "/diagnostic": { t: "Diagnostic express", p: "4 questions pour situer votre organisation : cadre réglementaire applicable, lectures utiles et démarche recommandée — puis un contact déjà contextualisé.",
+      s: ["Répondez aux 4 questions (secteur, taille, situation, priorité).", "Lisez votre parcours recommandé.", "Le bouton contact pré-remplit le sujet et votre contexte — modifiables avant envoi."],
+      k: [["Aucune donnée enregistrée", "Vos réponses restent dans votre navigateur tant que vous n'envoyez pas le formulaire de contact."]],
+      l: [["NIS2", "/nis2"], ["Audit 62443", "/audit-conformite"], ["Contact", "/contact"]] },
     "/connexion": { t: "Connexion", p: "Accès à l'espace client : cockpit, tendances, connexion de plateforme et étude 62443.",
       s: ["Saisissez l'email et le mot de passe de votre compte.", "Pas de compte ? Créez une demande d'accès.", "Mot de passe oublié ? Utilisez le lien dédié."],
       k: [["Validation admin", "Après confirmation de votre email, un administrateur approuve l'accès — vous êtes prévenu par email."]],
@@ -500,6 +504,7 @@
     ["/secteurs", "Secteurs", "Énergie, eau, manufacturing, agro, chimie, transport, assurance.", "Découvrir", "industries marchés"],
     ["/about", "À propos", "Qui nous sommes : parcours, expertises, convictions.", "Découvrir", "equipe société"],
     ["/vos-projets", "Vos projets", "Décrivez votre besoin — réponse sous 48 h ouvrées.", "Découvrir", "devis demande brief"],
+    ["/diagnostic", "Diagnostic express (2 min)", "4 questions : cadre réglementaire, lectures utiles et démarche recommandée.", "Découvrir", "par où commencer parcours orientation nis2 evaluation"],
     ["/referentiel", "Référentiel IEC 62443", "La carte de la série 62443, partie par partie.", "Référentiel 62443", "norme standard"],
     ["/methodologie", "Concepts & méthodologie (1-1)", "FR, SL, zones & conduits, défense en profondeur.", "Référentiel 62443", "fondations principes"],
     ["/glossaire-62443", "Glossaire (1-2)", "Le vocabulaire de la série, reformulé.", "Référentiel 62443", "définitions termes lexique"],
@@ -556,6 +561,24 @@
     var lastFocus = null;
     var sel = 0, shown = [];
 
+    // Recherche approfondie : les termes du glossaire intégré (définition affichée)
+    // et les questions fréquentes participent aussi à la recherche — uniquement
+    // lorsqu'une saisie existe (la liste vide reste le plan du site).
+    var EXTRA = [];
+    Object.keys(JARGON).forEach(function (k) {
+      EXTRA.push(["/glossaire-62443", k.charAt(0).toUpperCase() + k.slice(1), JARGON[k], "Terme", k]);
+    });
+    [
+      ["Qui est concerné par la directive NIS2 ?", "nis2 directive entités essentielles importantes"],
+      ["Qu'est-ce que la cybersécurité OT/IACS ?", "ot iacs différence it industriel"],
+      ["Qu'est-ce que la série IEC 62443, en bref ?", "norme 62443 résumé"],
+      ["Par où commencer sans inventaire de son réseau industriel ?", "commencer inventaire cartographie début"],
+      ["Peut-on auditer sans arrêter la production ?", "audit production arrêt passif"],
+      ["Que sont les zones et les conduits ?", "zones conduits segmentation découpage"],
+    ].forEach(function (q) {
+      EXTRA.push(["/faq", q[0], "Réponse détaillée dans la FAQ.", "Question", q[1]]);
+    });
+
     function norm(s) {
       return (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
     }
@@ -565,7 +588,7 @@
       var nq = norm(q).trim();
       var toks = nq.split(/\s+/).filter(Boolean);
       var out = [];
-      SEARCH.forEach(function (e) {
+      (toks.length ? SEARCH.concat(EXTRA) : SEARCH).forEach(function (e) {
         var hayT = norm(e[1]), hayD = norm(e[2]), hayK = norm(e[3] + " " + e[4]);
         if (!toks.length) { out.push([1, e]); return; }
         var score = 0;
@@ -663,6 +686,42 @@
     });
   }
 
+  /* ── 12. Parcours de lecture IEC 62443 (précédent / suivant) ────────────── */
+  var REF_TRAIL = [
+    ["/referentiel", "Vue d'ensemble de la série"],
+    ["/methodologie", "1-1 · Concepts & méthodologie"],
+    ["/glossaire-62443", "1-2 · Glossaire"],
+    ["/metriques-62443", "1-3 · Métriques"],
+    ["/programme-securite", "2-1 · Programme de sécurité (CSMS)"],
+    ["/gestion-correctifs", "2-3 · Gestion des correctifs"],
+    ["/exigences-prestataires", "2-4 · Exigences prestataires"],
+    ["/technologies-securite", "3-1 · Technologies de sécurité"],
+    ["/analyse-de-risque", "3-2 · Analyse de risque"],
+    ["/exigences-systeme", "3-3 · Exigences système"],
+    ["/developpement-securise", "4-1 · Développement sécurisé"],
+    ["/exigences-composants", "4-2 · Exigences composants"],
+    ["/audit-conformite", "Passer à la pratique : l'audit"],
+  ];
+
+  function initRefTrail() {
+    var path = location.pathname.replace(/\/+$/, "") || "/";
+    var idx = -1;
+    for (var i = 0; i < REF_TRAIL.length; i++) if (REF_TRAIL[i][0] === path) { idx = i; break; }
+    if (idx === -1) return;
+    var main = document.querySelector("main");
+    if (!main || main.querySelector(".refnav")) return;
+    var prev = idx > 0 ? REF_TRAIL[idx - 1] : null;
+    var next = idx < REF_TRAIL.length - 1 ? REF_TRAIL[idx + 1] : null;
+    var el = document.createElement("nav");
+    el.className = "refnav";
+    el.setAttribute("aria-label", "Parcours de lecture IEC 62443");
+    el.innerHTML =
+      (prev ? '<a class="rn-prev" href="' + prev[0] + '"><span class="rn-k">← Précédent</span><span class="rn-t">' + prev[1] + "</span></a>" : "<span></span>")
+      + '<span class="rn-pos">Parcours IEC&nbsp;62443 · ' + (idx + 1) + "/" + REF_TRAIL.length + "</span>"
+      + (next ? '<a class="rn-next" href="' + next[0] + '"><span class="rn-k">Suivant →</span><span class="rn-t">' + next[1] + "</span></a>" : "<span></span>");
+    main.appendChild(el);
+  }
+
   function init() {
     initA11y();
     initBurger();
@@ -675,6 +734,7 @@
     initRefMenu();
     initSearch();
     initReveal();
+    initRefTrail();
   }
 
   if (document.readyState === "loading")

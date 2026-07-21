@@ -430,3 +430,15 @@ footer a:hover{color:var(--cyan)}
 .rv{opacity:0;transform:translateY(14px)}
 .rv-in{opacity:1;transform:none;transition:opacity .5s ease,transform .5s ease}
 @media (prefers-reduced-motion: reduce){.rv{opacity:1;transform:none}.rv-in{transition:none}}
+
+/* Parcours de lecture IEC 62443 (précédent / suivant) — injecté par nav.js */
+.refnav{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;
+  border-top:1px solid var(--line);margin:34px 0 26px;padding-top:22px}
+.refnav a{display:flex;flex-direction:column;gap:3px;border:1px solid var(--line);border-radius:11px;
+  padding:12px 16px;color:var(--muted);max-width:44%;transition:border-color .15s,color .15s}
+.refnav a:hover{border-color:var(--cyan);color:var(--ink)}
+.refnav .rn-k{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan)}
+.refnav .rn-t{font-size:13px}
+.refnav .rn-next{text-align:right;margin-left:auto}
+.refnav .rn-pos{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted2)}
+@media(max-width:640px){.refnav a{max-width:100%}.refnav .rn-pos{order:-1;flex-basis:100%;text-align:center}}

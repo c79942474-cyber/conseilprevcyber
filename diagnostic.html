@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diagnostic express — votre parcours cybersécurité en 2 minutes — CONSEILPREV Cyber</title>
+<meta name="description" content="4 questions, 2 minutes : votre cadre réglementaire (NIS2, DORA, IEC 62443), les lectures recommandées et le service adapté à votre situation. Sans inscription, aucune donnée enregistrée.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CONSEILPREV Cyber">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Diagnostic express — votre parcours cybersécurité en 2 minutes">
+<meta property="og:description" content="4 questions : cadre réglementaire applicable, lectures recommandées et service adapté. Aucune donnée enregistrée.">
+<meta property="og:url" content="https://conseilprevcyber.onrender.com/diagnostic">
+<meta property="og:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="CONSEILPREV Cyber — cybersécurité industrielle IT / OT / IIoT">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Diagnostic express — votre parcours cybersécurité en 2 minutes">
+<meta name="twitter:description" content="4 questions : cadre réglementaire, lectures recommandées, service adapté. Aucune donnée enregistrée.">
+<meta name="twitter:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<link rel="canonical" href="https://conseilprevcyber.onrender.com/diagnostic">
+
+<link rel="icon" href="/emblem.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .steps{display:flex;gap:8px;align-items:center;margin:8px 0 26px;font-family:var(--mono);font-size:11px;color:var(--muted2)}
+  .steps .sbar{flex:1;height:6px;border-radius:99px;background:var(--bg2);border:1px solid var(--line);overflow:hidden}
+  .steps .sbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--teal));transition:width .25s}
+  .qpanel{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:16px;padding:26px 28px}
+  .qpanel h2{font-size:21px;margin-bottom:6px}
+  .qpanel .hint{color:var(--muted2);font-size:13.5px;margin-bottom:18px}
+  .opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+  .opt{display:flex;gap:11px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:14px 15px;
+    cursor:pointer;background:var(--bg2);transition:border-color .15s,background .15s,transform .15s}
+  .opt:hover{border-color:var(--cyan);transform:translateY(-1px)}
+  .opt:has(input:checked){border-color:var(--cyan);background:rgba(34,211,238,.08)}
+  .opt:has(input:focus-visible){outline:2px solid var(--cyan);outline-offset:2px}
+  .opt input{accent-color:var(--cyan);margin-top:3px;flex:0 0 auto}
+  .opt b{color:var(--ink);display:block;font-size:14.5px;margin-bottom:2px}
+  .opt span{font-size:12.5px;color:var(--muted2);line-height:1.5}
+  .qnav{display:flex;justify-content:space-between;gap:12px;margin-top:22px;flex-wrap:wrap}
+  .privacy{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:var(--muted2);margin-top:16px}
+
+  .res{display:none}
+  .res.on{display:block}
+  .stepblock{display:none}
+  .stepblock.on{display:block}
+  .badge-cadre{display:inline-block;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    border-radius:999px;padding:5px 13px;border:1px solid rgba(240,180,41,.45);color:var(--amber);background:rgba(240,180,41,.08);margin:2px 6px 2px 0}
+  .res .card{margin-bottom:14px}
+  .res .card h3{margin-bottom:6px}
+  .reslist{list-style:none;display:flex;flex-direction:column;gap:10px;margin-top:10px}
+  .reslist a{display:flex;gap:10px;align-items:baseline;border:1px solid var(--line);border-radius:10px;padding:11px 14px;
+    color:var(--muted);transition:border-color .15s,color .15s}
+  .reslist a:hover{border-color:var(--cyan);color:var(--ink)}
+  .reslist .pn{font-family:var(--mono);font-size:10px;color:var(--cyan);flex:0 0 auto}
+  .resume{font-size:12.5px;color:var(--muted2);border:1px dashed var(--line);border-radius:10px;padding:10px 14px;margin:14px 0}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="30" height="30" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+      <div class="spacer"></div>
+      <nav class="links">
+        <a href="/">Accueil</a>
+        <a href="/services">Services</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/nis2">NIS2</a>
+        <a href="/demo">Démo temps réel</a>
+        <a href="/contact" class="hide">Contact</a>
+        <a href="/connexion">Espace client</a>
+        <a href="/vos-projets" class="cta-alt">Vos projets</a>
+        <a href="/contact" class="cta">Nous contacter</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head" style="padding-bottom:0">
+      <span class="eyebrow"><span class="dot"></span>Accompagnement · 2 minutes</span>
+      <h1>Diagnostic <span class="grad">express</span>.</h1>
+      <p class="lead" style="margin-top:14px">Quatre questions pour situer votre organisation : le cadre réglementaire qui
+      s'applique à vous, les lectures utiles et la démarche recommandée — puis un contact déjà contextualisé si vous
+      souhaitez aller plus loin.</p>
+    </section>
+
+    <section class="section" style="padding-top:22px;max-width:860px">
+      <div class="steps" aria-hidden="true"><span id="stepLbl">Étape 1/4</span><div class="sbar"><i id="stepBar"></i></div></div>
+
+      <form id="diag" class="qpanel" novalidate>
+        <!-- Q1 -->
+        <fieldset class="stepblock on" data-step="1">
+          <legend><h2>Votre secteur d'activité ?</h2></legend>
+          <div class="hint">Il détermine votre exposition réglementaire (NIS2, DORA) et nos points de comparaison.</div>
+          <div class="opts">
+            <label class="opt"><input type="radio" name="secteur" value="energie"><span><b>⚡ Énergie &amp; utilities</b><span>Production, réseaux, gaz, télécontrôle.</span></span></label>
+            <label class="opt"><input type="radio" name="secteur" value="eau"><span><b>💧 Eau &amp; assainissement</b><span>Télégestion, SCADA, capteurs répartis.</span></span></label>
+            <label class="opt"><input type="radio" name="secteur" value="manufacturing"><span><b>🏭 Manufacturing</b><span>Usine connectée, lignes de production.</span></span></label>
+            <label class="opt"><input type="radio" name="secteur" value="agro"><span><b>🌾 Agroalimentaire</b><span>Process, chaîne du froid, traçabilité.</span></span></label>
+            <label class="opt"><input type="radio" name="secteur" value="chimie"><span><b>⚗️ Chimie &amp; pharma</b><span>Procédés continus, sûreté, GxP.</span></span></label>
+            <label class="opt"><input type="radio" name="secteur" value="transport"><span><b>🚆 Transport &amp; logistique</b><span>Automatismes, tri, télémaintenance.</span></span></label>
+            <label class="opt"><input type="radio" name="secteur" value="finance"><span><b>🏦 Assurance &amp; banque</b><span>SI critiques, résilience opérationnelle.</span></span></label>
+            <label class="opt"><input type="radio" name="secteur" value="autre"><span><b>🧩 Autre secteur</b><span>Services, collectivité, autre industrie.</span></span></label>
+          </div>
+        </fieldset>
+
+        <!-- Q2 -->
+        <fieldset class="stepblock" data-step="2">
+          <legend><h2>La taille de votre organisation ?</h2></legend>
+          <div class="hint">Avec le secteur, elle détermine votre régime NIS2 probable (critères simplifiés).</div>
+          <div class="opts">
+            <label class="opt"><input type="radio" name="taille" value="petite"><span><b>Moins de 50 personnes</b><span>et ≤ 10 M€ de chiffre d'affaires.</span></span></label>
+            <label class="opt"><input type="radio" name="taille" value="moyenne"><span><b>50 à 249 personnes</b><span>ou plus de 10 M€ de chiffre d'affaires.</span></span></label>
+            <label class="opt"><input type="radio" name="taille" value="grande"><span><b>250 personnes et plus</b><span>ou plus de 50 M€ de chiffre d'affaires.</span></span></label>
+          </div>
+        </fieldset>
+
+        <!-- Q3 -->
+        <fieldset class="stepblock" data-step="3">
+          <legend><h2>Où en êtes-vous aujourd'hui ?</h2></legend>
+          <div class="hint">Soyez honnête — c'est le point de départ qui détermine la première marche utile.</div>
+          <div class="opts">
+            <label class="opt"><input type="radio" name="situation" value="debut"><span><b>Aucune démarche structurée</b><span>Pas d'inventaire fiable, pas de politique OT formalisée.</span></span></label>
+            <label class="opt"><input type="radio" name="situation" value="partiel"><span><b>Inventaire / cartographie partiels</b><span>Des éléments existent, sans vision consolidée.</span></span></label>
+            <label class="opt"><input type="radio" name="situation" value="encours"><span><b>Démarche engagée</b><span>Audit, segmentation ou politique en cours de déploiement.</span></span></label>
+            <label class="opt"><input type="radio" name="situation" value="mature"><span><b>Programme établi</b><span>Dispositif en place, à outiller, mesurer ou étendre.</span></span></label>
+          </div>
+        </fieldset>
+
+        <!-- Q4 -->
+        <fieldset class="stepblock" data-step="4">
+          <legend><h2>Votre priorité des 12 prochains mois ?</h2></legend>
+          <div class="hint">Nous recommandons un point d'entrée — les autres chantiers suivront dans la feuille de route.</div>
+          <div class="opts">
+            <label class="opt"><input type="radio" name="priorite" value="conformite"><span><b>⚖️ Conformité réglementaire</b><span>NIS2, DORA, exigences clients ou assureurs.</span></span></label>
+            <label class="opt"><input type="radio" name="priorite" value="visibilite"><span><b>👁️ Visibilité &amp; détection</b><span>Savoir ce qui est connecté et détecter les anomalies.</span></span></label>
+            <label class="opt"><input type="radio" name="priorite" value="architecture"><span><b>🧱 Architecture &amp; segmentation</b><span>Cloisonner le réseau, maîtriser les accès distants.</span></span></label>
+            <label class="opt"><input type="radio" name="priorite" value="gouvernance"><span><b>📋 Gouvernance &amp; organisation</b><span>Politique OT, rôles, correctifs, prestataires.</span></span></label>
+            <label class="opt"><input type="radio" name="priorite" value="ia"><span><b>🤖 IA &amp; cyberdéfense</b><span>Absorber l'accélération des menaces grâce à l'IA.</span></span></label>
+          </div>
+        </fieldset>
+
+        <div class="qnav">
+          <button type="button" class="btn btn-s" id="prevBtn" style="visibility:hidden">← Précédent</button>
+          <button type="button" class="btn btn-p" id="nextBtn" disabled>Suivant →</button>
+        </div>
+        <div class="privacy"><span aria-hidden="true">🔒</span><span><b style="color:var(--ink)">Aucune donnée enregistrée.</b>
+        Vos réponses restent dans votre navigateur : rien n'est transmis ni conservé tant que vous ne nous contactez pas vous-même.</span></div>
+      </form>
+
+      <!-- Résultat -->
+      <div class="res" id="res" aria-live="polite">
+        <div class="qpanel" style="margin-bottom:16px">
+          <span class="eyebrow" style="margin-bottom:8px"><span class="dot"></span>Votre parcours recommandé</span>
+          <h2 style="font-size:24px;margin:6px 0 10px">Cadre applicable</h2>
+          <div id="resCadres"></div>
+          <p id="resCadreTxt" style="color:var(--muted);font-size:14px;margin-top:10px;max-width:720px"></p>
+          <div class="resume" id="resResume"></div>
+        </div>
+
+        <div class="grid grid-2" style="gap:14px">
+          <div class="card a1">
+            <h3>📚 Vos trois lectures utiles</h3>
+            <p style="font-size:13px;color:var(--muted2);margin-bottom:4px">Dans l'ordre — 20 minutes pour une vision claire.</p>
+            <ul class="reslist" id="resReads"></ul>
+          </div>
+          <div class="card a2">
+            <h3>🎯 La démarche recommandée</h3>
+            <p id="resServiceTxt" style="font-size:13.5px;color:var(--muted)"></p>
+            <ul class="reslist" id="resService"></ul>
+          </div>
+        </div>
+
+        <div class="actions" style="justify-content:center;margin-top:26px">
+          <a class="btn btn-p" id="resContact" href="/contact">Nous contacter — message pré-rempli</a>
+          <a class="btn btn-s" href="/assistant">💬 Poser une question à l'assistant IA</a>
+          <button class="btn btn-s" type="button" id="restart">↺ Refaire le diagnostic</button>
+        </div>
+        <p style="text-align:center;color:var(--muted2);font-size:12.5px;margin-top:12px">Le contact ouvre notre formulaire
+        avec le sujet et votre contexte déjà renseignés — modifiables librement avant envoi.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Cybersécurité industrielle IT / OT / IIoT</div>
+      <div class="fnav">
+        <a href="/about">À propos</a>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/nis2">NIS2</a>
+        <a href="/diagnostic">Diagnostic express</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/demo">Démo</a>
+        <a href="/contact">Contact</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/politique-confidentialite">Confidentialité</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+  (function(){
+    var LBL={
+      secteur:{energie:"Énergie & utilities",eau:"Eau & assainissement",manufacturing:"Manufacturing",agro:"Agroalimentaire",
+               chimie:"Chimie & pharma",transport:"Transport & logistique",finance:"Assurance & banque",autre:"Autre secteur"},
+      taille:{petite:"moins de 50 personnes",moyenne:"50–249 personnes",grande:"250 personnes et plus"},
+      situation:{debut:"aucune démarche structurée",partiel:"inventaire partiel",encours:"démarche engagée",mature:"programme établi"},
+      priorite:{conformite:"conformité réglementaire",visibilite:"visibilité & détection",architecture:"architecture & segmentation",
+                gouvernance:"gouvernance & organisation",ia:"IA & cyberdéfense"}
+    };
+    var ANNEXE1={energie:1,eau:1,transport:1,finance:1};      // secteurs « hautement critiques » (simplifié)
+    var READS={
+      conformite:[["/nis2","NIS2","Êtes-vous concerné, obligations, notification 24 h/72 h"],["/audit-conformite","Audit","L'étude de conformité IEC 62443 guidée"],["/referentiel","62443","La carte du référentiel, partie par partie"]],
+      visibilite:[["/demo","Démo","Le cockpit de supervision temps réel"],["/technologies-securite","3-1","Les technologies de détection adaptées à l'OT"],["/metriques-62443","1-3","Mesurer : écart SL, tendances, tableaux de bord"]],
+      architecture:[["/analyse-de-risque","3-2","Zones & conduits : découper et cibler les SL"],["/methodologie","1-1","Les concepts : FR, SL, défense en profondeur"],["/exigences-systeme","3-3","Les exigences système par niveau"]],
+      gouvernance:[["/programme-securite","2-1","Le CSMS : rôles, processus, amélioration continue"],["/gestion-correctifs","2-3","Le patch management en environnement OT"],["/exigences-prestataires","2-4","Ce qu'il faut exiger de vos prestataires"]],
+      ia:[["/services","AMOA","L'offre AMOA intégration IA & Cyber SI"],["/etudes-de-cas","Cas","Référence : programme IA & cyberdéfense (assurance)"],["/nis2","NIS2","Le cadre réglementaire qui pousse à industrialiser"]]
+    };
+    var SERVICE={
+      conformite:{t:"Audit de conformité IEC 62443",d:"Mesurer l'écart entre votre niveau atteint et le niveau cible, exigence par exigence, et en tirer un plan priorisé — c'est aussi le socle du dossier NIS2.",u:"/audit-conformite",s:"Audit de conformité IEC 62443"},
+      visibilite:{t:"Supervision & détection OT",d:"Inventorier ce qui est réellement connecté, superviser les événements et détecter les anomalies — sans perturber la production.",u:"/demo",s:"Supervision & détection (SOC OT, IDS/IPS, EDR)"},
+      architecture:{t:"Architecture & segmentation",d:"Découper l'installation en zones et conduits maîtrisés (IEC 62443), sécuriser les accès distants et limiter la propagation.",u:"/analyse-de-risque",s:"Architecture & segmentation (zones & conduits IEC 62443)"},
+      gouvernance:{t:"Mise en conformité & mise en sécurité",d:"Structurer la gouvernance OT : politique, rôles, gestion des correctifs et des prestataires — le volet organisationnel qui fait tenir le reste.",u:"/programme-securite",s:"Mise en conformité & mise en sécurité (actifs / process OT)"},
+      ia:{t:"AMOA intégration IA & Cyber SI",d:"Piloter un programme de cyberdéfense augmentée par l'IA : exposition, remédiation à l'échelle, SOC augmenté, gestion de crise — coordination multi-équipes.",u:"/services",s:"AMOA SI Industriel / conduite de projet"}
+    };
+    var ETAT_LIEUX={t:"État des lieux & cartographie OT",d:"La première marche indispensable : inventorier les actifs et les flux pour décider sur du réel. Tout le reste s'appuie dessus.",u:"/services",s:"État des lieux & cartographie réseau OT (inventaire d'actifs)"};
+
+    var step=1, TOTAL=4;
+    var form=document.getElementById('diag'), res=document.getElementById('res');
+    function val(n){var el=form.querySelector('input[name='+n+']:checked');return el?el.value:null;}
+    function show(){
+      form.querySelectorAll('.stepblock').forEach(function(f){f.classList.toggle('on',+f.getAttribute('data-step')===step);});
+      document.getElementById('stepLbl').textContent='Étape '+step+'/'+TOTAL;
+      document.getElementById('stepBar').style.width=((step-1)/TOTAL*100)+'%';
+      document.getElementById('prevBtn').style.visibility=step>1?'visible':'hidden';
+      var name=['secteur','taille','situation','priorite'][step-1];
+      document.getElementById('nextBtn').disabled=!val(name);
+      document.getElementById('nextBtn').textContent=step===TOTAL?'Voir mon parcours →':'Suivant →';
+    }
+    form.addEventListener('change',show);
+    document.getElementById('prevBtn').addEventListener('click',function(){if(step>1){step--;show();}});
+    document.getElementById('nextBtn').addEventListener('click',function(){
+      if(step<TOTAL){step++;show();window.scrollTo({top:0,behavior:'smooth'});}
+      else finish();
+    });
+    document.getElementById('restart').addEventListener('click',function(){
+      form.reset();step=1;show();res.classList.remove('on');form.style.display='';
+      document.querySelector('.steps').style.display='';window.scrollTo({top:0,behavior:'smooth'});
+    });
+
+    function esc(s){return (''+s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+    function cadre(sect,taille){
+      if(sect==='finance')
+        return {b:["DORA","NIS2 — selon activité","IEC 62443 (sites techniques)"],
+                t:"Secteur financier : le règlement DORA (résilience opérationnelle numérique) s'applique en priorité — tests, gestion des incidents TIC, tiers critiques. Certaines activités relèvent aussi de NIS2. Vérifiez votre périmètre exact avec votre conformité."};
+      var a1=!!ANNEXE1[sect];
+      if(sect==='autre')
+        return {b:["NIS2 — à vérifier","IEC 62443 (volet OT)"],
+                t:"Votre assujettissement NIS2 dépend du secteur précis et de la taille : vérifiez-le sur MonEspaceNIS2 (ANSSI). Dans tous les cas, l'IEC 62443 reste la bonne pratique pour vos systèmes industriels."};
+      if(taille==='grande')
+        return {b:[a1?"NIS2 — probablement entité ESSENTIELLE":"NIS2 — probablement entité IMPORTANTE","IEC 62443 (moyen de conformité OT)"],
+                t:a1?"Grande entreprise d'un secteur hautement critique : vous relevez probablement du régime le plus exigeant (contrôles a priori et a posteriori, sanctions renforcées). La notification d'incidents 24 h/72 h et la responsabilité des dirigeants s'appliquent."
+                    :"Grande entreprise d'un autre secteur critique : vous relevez probablement du régime « entité importante » (contrôles a posteriori). Obligations de gestion des risques et notification 24 h/72 h applicables."};
+      if(taille==='moyenne')
+        return {b:["NIS2 — probablement entité IMPORTANTE","IEC 62443 (moyen de conformité OT)"],
+                t:"Moyenne entreprise d'un secteur couvert : vous relevez probablement du régime « entité importante ». Les obligations de fond (gouvernance, mesures, notification 24 h/72 h) s'appliquent — vérifiez votre enregistrement sur MonEspaceNIS2."};
+      return {b:["Hors seuils NIS2 (à confirmer)","IEC 62443 — bonne pratique"],
+              t:"Sous les seuils, NIS2 ne s'applique probablement pas directement — mais vos donneurs d'ordre peuvent l'exiger par contrat (chaîne d'approvisionnement), et l'IEC 62443 reste la référence pour sécuriser vos systèmes industriels."};
+    }
+
+    function finish(){
+      var s=val('secteur'),t=val('taille'),si=val('situation'),p=val('priorite');
+      var c=cadre(s,t);
+      document.getElementById('resCadres').innerHTML=c.b.map(function(x){return '<span class="badge-cadre">'+esc(x)+'</span>';}).join('');
+      document.getElementById('resCadreTxt').textContent=c.t;
+      document.getElementById('resResume').innerHTML='<b style="color:var(--ink)">Votre profil :</b> '+esc(LBL.secteur[s])+' · '+esc(LBL.taille[t])+' · '+esc(LBL.situation[si])+' · priorité : '+esc(LBL.priorite[p])+'.';
+      document.getElementById('resReads').innerHTML=READS[p].map(function(r){
+        return '<li><a href="'+r[0]+'"><span class="pn">'+esc(r[1])+'</span><span>'+esc(r[2])+'</span></a></li>';}).join('');
+      var first=(si==='debut')?ETAT_LIEUX:SERVICE[p], second=(si==='debut')?SERVICE[p]:null;
+      document.getElementById('resServiceTxt').textContent=first.d;
+      var items='<li><a href="'+first.u+'"><span class="pn">①</span><span><b style="color:var(--ink)">'+esc(first.t)+'</b></span></a></li>';
+      if(second) items+='<li><a href="'+second.u+'"><span class="pn">②</span><span>Puis : '+esc(second.t)+'</span></a></li>';
+      document.getElementById('resService').innerHTML=items;
+      var ctx='Diagnostic express — secteur : '+LBL.secteur[s]+' ; effectif : '+LBL.taille[t]+' ; situation : '+LBL.situation[si]+' ; priorité : '+LBL.priorite[p]+'.';
+      document.getElementById('resContact').href='/contact?sujet='+encodeURIComponent(first.s)+'&ctx='+encodeURIComponent(ctx);
+      form.style.display='none';
+      document.querySelector('.steps').style.display='none';
+      res.classList.add('on');
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
+    show();
+  })();
+  </script>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+  <script src="/nav.js" defer></script>
+</body>
+</html>
