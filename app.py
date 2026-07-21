@@ -1443,6 +1443,53 @@ def _send_ack(api_key, email, nom, sujet, msg):
         pass
 
 
+def _classify_contact(sujet, msg):
+    """Qualification LLM de la demande (best-effort ; None si indisponible)."""
+    try:
+        text, _m = assistant.generate(
+            "mistral",
+            "Tu qualifies une demande entrante pour un cabinet de cybersécurité "
+            "industrielle. Réponds UNIQUEMENT un objet JSON compact : "
+            '{"secteur":"...","urgence":"faible|moyenne|haute","resume":"une phrase factuelle"} '
+            "sans aucun autre texte.",
+            "Sujet choisi : %s\nMessage :\n%s" % (sujet, msg[:1200]), max_tokens=160)
+        import re as _re
+        m = _re.search(r"\{.*\}", text or "", _re.S)
+        return json.loads(m.group(0)) if m else None
+    except Exception:
+        return None
+
+
+def _contact_to_prospect(nom, email, org, sujet, msg):
+    """Crée / actualise automatiquement la fiche prospect (module clients RGPD).
+
+    Base légale : mesures précontractuelles (art. 6.1.b) — la personne nous a
+    contactés d'elle-même. Dédoublonnage par email : une fiche existante est
+    mise à jour (note ajoutée, dernière activité), jamais dupliquée. L'opération
+    est journalisée (acteur « automate ») et intégralement best-effort : aucun
+    échec ici n'affecte le traitement du message de contact.
+    """
+    try:
+        quali = _classify_contact(sujet, msg) or {}
+        note = "[Contact site] %s — %s" % (sujet, (quali.get("resume") or msg[:300]).strip())
+        if quali.get("urgence"):
+            note += " (urgence : %s)" % quali["urgence"]
+        existing = next((c for c in clients_db.list()
+                         if (c.get("email") or "").lower() == email.lower()), None)
+        if existing:
+            merged = (note + "\n" + (existing.get("notes") or "").strip())[:4000]
+            clients_db.update(existing["id"], {"notes": merged}, actor="automate")
+        else:
+            clients_db.create({
+                "entreprise": (org or "(à qualifier)")[:200], "contact": nom,
+                "email": email, "secteur": (quali.get("secteur") or "")[:120],
+                "statut": "prospect", "base_legale": "mesures_precontractuelles",
+                "notes": note[:4000],
+            }, actor="automate")
+    except Exception:
+        app.logger.exception("prospect auto : échec (sans impact sur le contact)")
+
+
 @app.route("/api/contact", methods=["POST"])
 def api_contact():
     """Traite le formulaire de contact et envoie un email via Brevo."""
@@ -1502,6 +1549,8 @@ def api_contact():
 
     if resp.status_code in (200, 201):
         _send_ack(api_key, email, nom, sujet, msg)  # accusé de réception (best-effort)
+        threading.Thread(target=_contact_to_prospect,        # fiche prospect automatique
+                         args=(nom, email, org, sujet, msg), daemon=True).start()
         return jsonify(ok=True)
     return jsonify(ok=False, error="send_failed", status=resp.status_code), 502
 
