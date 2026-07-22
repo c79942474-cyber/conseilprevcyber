@@ -42,6 +42,11 @@
   .seg button:disabled{opacity:.4;cursor:not-allowed}
   .chat-top .st{font-family:var(--mono);font-size:11px;color:var(--muted2);display:flex;align-items:center;gap:6px}
   .chat-top .st .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+  .chat-top .right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .rstbtn{background:var(--panel2);border:1px solid var(--line);color:var(--muted);font-family:var(--mono);
+    font-size:11.5px;border-radius:8px;padding:6px 11px;cursor:pointer;transition:color .15s,border-color .15s}
+  .rstbtn:hover{color:var(--ink);border-color:var(--terra)}
+  .rstbtn:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 
   .msgs{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:12px}
   .msg{max-width:88%;padding:11px 14px;border-radius:14px;font-size:14px;line-height:1.55}
@@ -119,7 +124,10 @@
             </div>
             <button type="button" class="tipi" data-tip="Claude (Anthropic) et Mistral (fournisseur européen) sont deux modèles d'IA distincts. Les deux sont utilisés sans entraînement sur vos échanges. Choisissez, comparez — la conversation repart du même contexte." aria-label="Aide : choix du modèle">i</button>
           </div>
-          <div class="st"><span class="dot" id="stDot"></span><span id="stTxt">En ligne</span></div>
+          <div class="right">
+            <button id="reset" class="rstbtn" type="button" title="Effacer la conversation et repartir de zéro (poser d'autres questions, changer de thème)" aria-label="Nouvelle conversation">↺ Nouvelle conversation</button>
+            <div class="st"><span class="dot" id="stDot"></span><span id="stTxt">En ligne</span></div>
+          </div>
         </div>
 
         <div class="msgs" id="msgs" aria-live="polite"></div>
@@ -166,7 +174,7 @@
   <script>
   (function(){
     document.getElementById('y').textContent=new Date().getFullYear();
-    var msgs=[], model='claude', sending=false, avail={claude:true,mistral:true};
+    var msgs=[], model='claude', sending=false, gen=0, avail={claude:true,mistral:true};
     var elMsgs=document.getElementById('msgs'), inp=document.getElementById('inp'),
         sendBtn=document.getElementById('send'), stTxt=document.getElementById('stTxt'),
         stDot=document.getElementById('stDot'), cc=document.getElementById('cc'),
@@ -205,9 +213,12 @@
     function whoFor(){return model==='mistral'?'Assistant · Mistral':'Assistant · Claude';}
 
     // Message d'accueil (non compté dans le contexte envoyé)
-    bubble('bot',fmt("Bonjour 👋 Je suis l'assistant IA de CONSEILPREV Cyber. Posez-moi vos questions sur la "
-      +"**cybersécurité industrielle** (IT/OT/IIoT) et la **conformité** (IEC 62443, NIS2, DORA, RGPD). "
-      +"Je peux aussi vous orienter vers l'**audit de conformité** ou le **cockpit de supervision**."),'Assistant');
+    function showWelcome(){
+      bubble('bot',fmt("Bonjour 👋 Je suis l'assistant IA de CONSEILPREV Cyber. Posez-moi vos questions sur la "
+        +"**cybersécurité industrielle** (IT/OT/IIoT) et la **conformité** (IEC 62443, NIS2, DORA, RGPD). "
+        +"Je peux aussi vous orienter vers l'**audit de conformité** ou le **cockpit de supervision**."),'Assistant');
+    }
+    showWelcome();
 
     var typingNode=null;
     function showTyping(){ hideTyping();
@@ -232,10 +243,12 @@
       msgs.push({role:'user',content:text});
       inp.value=''; cc.textContent='0'; autosize();
       setSending(true); showTyping();
+      var myGen=gen;
       fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({model:model,messages:msgs})})
         .then(function(r){return r.json().then(function(j){return {s:r.status,j:j};});})
         .then(function(o){
+          if(myGen!==gen) return;   // conversation réinitialisée entre-temps : on ignore la réponse
           hideTyping();
           if(o.j&&o.j.ok){
             bubble('bot',fmt(o.j.reply),whoFor());
@@ -244,8 +257,8 @@
             bubble('err',fmt((o.j&&o.j.message)||'Assistant indisponible pour le moment.'),'Assistant');
           }
         })
-        .catch(function(){ hideTyping(); bubble('err','Erreur réseau. Vérifiez votre connexion et réessayez.','Assistant'); })
-        .then(function(){ setSending(false); inp.focus(); });
+        .catch(function(){ if(myGen!==gen) return; hideTyping(); bubble('err','Erreur réseau. Vérifiez votre connexion et réessayez.','Assistant'); })
+        .then(function(){ if(myGen!==gen) return; setSending(false); inp.focus(); });
     }
 
     function setModel(m){
@@ -265,6 +278,19 @@
     document.getElementById('chips').addEventListener('click',function(e){
       var b=e.target.closest('.chip'); if(b) send(b.textContent.replace(/ /g,' ').trim());
     });
+
+    // Remise à zéro : efface l'historique, ré-affiche les suggestions et repart d'un contexte vierge.
+    function resetChat(){
+      gen++;                       // invalide toute requête en cours
+      msgs=[]; elMsgs.innerHTML=''; hideTyping();
+      var chips=document.getElementById('chips'); if(chips) chips.style.display='flex';
+      showWelcome();
+      inp.value=''; cc.textContent='0'; autosize();
+      if(avail.claude||avail.mistral){ setSending(false); inp.focus(); }
+    }
+    var resetBtn=document.getElementById('reset');
+    if(resetBtn) resetBtn.addEventListener('click',resetChat);
+
     sendBtn.disabled=true;
 
     // Disponibilité des modèles (active/désactive l'UI proprement)
@@ -277,6 +303,7 @@
       if(!avail.claude&&!avail.mistral){
         stTxt.textContent='Non configuré'; stDot.style.background='var(--terra)';
         inp.disabled=true; inp.placeholder='Assistant non configuré — écrivez-nous via la page Contact.';
+        if(resetBtn) resetBtn.style.display='none';
         bubble('err','L’assistant IA n’est pas encore activé sur ce site. En attendant, <a href="/contact">écrivez-nous</a> ou lancez l’<a href="/audit-conformite">audit de conformité</a>.','Assistant');
       }
     }).catch(function(){});
