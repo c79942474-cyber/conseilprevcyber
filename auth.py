@@ -20,13 +20,18 @@ import time
 from datetime import datetime, timezone
 
 import requests
-from flask import (Blueprint, jsonify, redirect, request, send_from_directory, session)
+from flask import (Blueprint, Response, jsonify, redirect, request, send_from_directory, session)
 from werkzeug.security import check_password_hash, generate_password_hash
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 auth_bp = Blueprint("auth", __name__)
 
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "christophe.cerf@outlook.com")
+# Portail d'accès (1re couche) : mot de passe unique protégeant l'entrée de la
+# zone /admin, EN PLUS de la connexion par compte administrateur (2e couche).
+# Défini sur Render ; s'il est vide, le portail est inactif (seule la connexion
+# par compte protège alors — aucun risque de se verrouiller avant configuration).
+ADMIN_GATE_PASSWORD = os.environ.get("ADMIN_GATE_PASSWORD", "").strip()
 SENDER = {"name": "CONSEILPREV Cyber", "email": "christophe.cerf@i-aes.com"}
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 VERIFY_VALIDITY_H = 48
@@ -350,6 +355,13 @@ def login_required(f):
 def admin_required(f):
     @functools.wraps(f)
     def wrap(*a, **k):
+        # Couche 1 — portail mot de passe (actif seulement si ADMIN_GATE_PASSWORD
+        # est défini). Précède la connexion par compte : double sécurité.
+        if ADMIN_GATE_PASSWORD and not session.get("admin_gate_ok"):
+            if request.path.startswith("/api/"):
+                return jsonify(error="Portail administrateur verrouillé."), 401
+            return redirect("/admin/acces?next=" + request.path)
+        # Couche 2 — compte administrateur (e-mail + mot de passe, rôle admin).
         u = current_user()
         if not u:
             if request.path.startswith("/api/"):
@@ -383,6 +395,83 @@ def page_login():
     if current_user():
         return redirect(request.args.get("next") or "/demo")
     return send_from_directory(HERE, "connexion.html")
+
+
+def _safe_admin_next(value):
+    """N'autorise qu'un chemin interne de la zone admin (anti open-redirect)."""
+    nxt = value or "/admin"
+    if not nxt.startswith("/admin") or nxt.startswith("/admin/acces"):
+        return "/admin"
+    return nxt
+
+
+_ADMIN_GATE_TEMPLATE = (
+    "<!doctype html><html lang=\"fr\"><head><meta charset=\"utf-8\">"
+    "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+    "<title>Accès administrateur — CONSEILPREV Cyber</title>"
+    "<meta name=\"robots\" content=\"noindex,nofollow\">"
+    "<link rel=\"icon\" href=\"/emblem.svg\" type=\"image/svg+xml\">"
+    "<link rel=\"stylesheet\" href=\"/styles.css\">"
+    "<style>"
+    "body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}"
+    ".gate{width:100%;max-width:384px;background:linear-gradient(180deg,var(--panel),var(--bg2));"
+    "border:1px solid var(--line);border-radius:16px;padding:30px 28px}"
+    ".gate .em{display:flex;align-items:center;gap:9px;margin-bottom:20px;font-weight:700;color:var(--ink)}"
+    ".gate h1{font-size:19px;margin:0 0 5px}"
+    ".gate .sub{font-size:13px;color:var(--muted2);margin:0 0 20px}"
+    ".gate label{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.08em;"
+    "text-transform:uppercase;color:var(--muted2);margin-bottom:7px}"
+    ".gate input{width:100%;padding:12px 13px;border-radius:10px;border:1px solid var(--line);"
+    "background:rgba(0,0,0,.18);color:var(--ink);font-size:15px;box-sizing:border-box}"
+    ".gate input:focus{outline:2px solid var(--cyan);outline-offset:1px;border-color:var(--cyan)}"
+    ".gate button{width:100%;margin-top:16px;padding:12px;border:none;border-radius:10px;cursor:pointer;"
+    "font-weight:700;font-size:14px;color:#04121A;background:linear-gradient(135deg,var(--cyan),var(--teal))}"
+    ".gate .err{color:var(--danger);font-size:12.5px;margin-top:13px}"
+    ".gate .nb{font-size:11.5px;color:var(--muted2);margin-top:18px;border-top:1px solid var(--line);padding-top:13px}"
+    "</style></head><body>"
+    "<form class=\"gate\" method=\"post\" action=\"/admin/acces\" autocomplete=\"off\">"
+    "<div class=\"em\"><img src=\"/emblem.svg\" width=\"26\" height=\"26\" alt=\"\">CONSEILPREV"
+    " <span style=\"opacity:.6\">Cyber</span></div>"
+    "<h1>Accès administrateur</h1>"
+    "<p class=\"sub\">Zone réservée. Saisissez le mot de passe d'accès.</p>"
+    "<label for=\"pw\">Mot de passe d'accès</label>"
+    "<input id=\"pw\" name=\"password\" type=\"password\" autofocus required autocomplete=\"current-password\">"
+    "<input type=\"hidden\" name=\"next\" value=\"__NEXT__\">"
+    "<button type=\"submit\">Continuer →</button>"
+    "__ERR__"
+    "<div class=\"nb\">Une connexion par compte administrateur sera ensuite demandée.</div>"
+    "</form></body></html>"
+)
+
+
+def _admin_gate_html(nxt, error):
+    esc = (nxt or "/admin").replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;")
+    err = ('<div class="err">' + error + '</div>') if error else ""
+    return _ADMIN_GATE_TEMPLATE.replace("__NEXT__", esc).replace("__ERR__", err)
+
+
+@auth_bp.route("/admin/acces", methods=["GET", "POST"])
+def admin_gate():
+    """Portail mot de passe (1re couche) devant la zone /admin."""
+    nxt = _safe_admin_next(request.values.get("next"))
+    # Portail non configuré : ne pas ajouter de couche (le compte protège déjà).
+    if not ADMIN_GATE_PASSWORD:
+        return redirect(nxt)
+    if session.get("admin_gate_ok"):
+        return redirect(nxt)
+    error = ""
+    if request.method == "POST":
+        key = "admingate:%s" % _client_ip()
+        if guard.blocked(key):
+            error = "Trop de tentatives. Réessayez dans quelques minutes."
+        elif secrets.compare_digest(request.form.get("password") or "", ADMIN_GATE_PASSWORD):
+            guard.clear(key)
+            session["admin_gate_ok"] = True
+            return redirect(nxt)
+        else:
+            guard.fail(key)
+            error = "Mot de passe incorrect."
+    return Response(_admin_gate_html(nxt, error), mimetype="text/html")
 
 
 @auth_bp.route("/inscription")
