@@ -150,6 +150,7 @@
         <div class="sec-title" style="margin:0">Documents</div>
         <div class="filterbar">
           <select id="filterTheme"><option value="">Tous les thèmes</option></select>
+          <button class="btn btn-s" id="dedupe" type="button" title="Supprimer les documents en double (contenu identique), en conservant un exemplaire de chacun">🧹 Doublons</button>
           <button class="btn btn-s" id="refresh" type="button">↻ Actualiser</button>
         </div>
       </div>
@@ -374,6 +375,26 @@
       }
     });
     document.getElementById('filterTheme').addEventListener('change',render);
+    document.getElementById('dedupe').addEventListener('click',function(){
+      var b=this; b.disabled=true; var old=b.textContent; b.textContent='Analyse…';
+      fetch('/api/admin/rag/duplicates').then(function(r){return r.json();}).then(function(j){
+        b.disabled=false; b.textContent=old;
+        if(!j||!j.ok){note('Analyse des doublons impossible.','err');return;}
+        if(!j.removable){note('Aucun doublon trouvé — la base est déjà propre.','ok');return;}
+        var noms=[];
+        (j.groups||[]).forEach(function(g){(g.remove||[]).forEach(function(d){if(noms.length<8)noms.push('• '+(d.title||d.filename||d.id));});});
+        var msg=j.removable+' document(s) en double vont être supprimés '
+          +'(un exemplaire de chaque contenu est conservé).\n\nSeront retirés :\n'+noms.join('\n')
+          +(j.removable>noms.length?('\n… (+'+(j.removable-noms.length)+' autres)'):'')+'\n\nContinuer ?';
+        if(!confirm(msg))return;
+        b.disabled=true; b.textContent='Suppression…';
+        fetch('/api/admin/rag/dedupe',{method:'POST'}).then(function(r){return r.json();}).then(function(res){
+          b.disabled=false; b.textContent=old;
+          if(res&&res.ok){note(res.removed+' doublon(s) supprimé(s).'+(res.errors?(' '+res.errors+' échec(s).'):''),'ok');load();}
+          else{note('Suppression des doublons impossible.','err');}
+        }).catch(function(){b.disabled=false;b.textContent=old;note('Suppression des doublons impossible.','err');});
+      }).catch(function(){b.disabled=false;b.textContent=old;note('Analyse des doublons impossible.','err');});
+    });
     document.getElementById('refresh').addEventListener('click',load);
     document.getElementById('memReconnect').addEventListener('click',function(){
       var b=this; b.disabled=true; var old=b.textContent; b.textContent='Reconnexion…';

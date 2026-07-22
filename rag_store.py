@@ -832,6 +832,56 @@ def make_rag_store():
     return ResilientRagStore(dsn)
 
 
+# --- Déduplication des documents ----------------------------------------------
+# Un doublon = deux documents au contenu identique (même empreinte SHA-256).
+# À défaut d'empreinte (cas rare), on retombe sur (nom de fichier + taille).
+def _dup_key(d):
+    sha = (d.get("sha256") or "").strip()
+    if sha:
+        return "h:" + sha
+    return "fb:%s:%d" % ((d.get("filename") or "").lower(), int(d.get("bytes") or 0))
+
+
+def duplicate_groups(store):
+    """Renvoie les groupes de documents en doublon (contenu identique).
+
+    Pour chaque groupe on désigne le document à CONSERVER — le mieux indexé,
+    puis le plus ancien (l'original) — et les autres, supprimables. Ne renvoie
+    que les groupes d'au moins deux documents. Aucune suppression ici."""
+    by_key = {}
+    for d in store.list_documents():
+        by_key.setdefault(_dup_key(d), []).append(d)
+    groups = []
+    for items in by_key.values():
+        if len(items) < 2:
+            continue
+        ordered = sorted(items, key=lambda d: (
+            -(d.get("chunks_indexed") or 0),               # le mieux indexé d'abord
+            0 if d.get("status") == "ready" else 1,        # puis « prêt »
+            d.get("created_at") or 0))                     # puis le plus ancien
+        groups.append({"keep": ordered[0], "remove": ordered[1:]})
+    groups.sort(key=lambda g: -len(g["remove"]))
+    return groups
+
+
+def dedupe(store, dry_run=False):
+    """Détecte les doublons et (si dry_run=False) supprime les copies en trop,
+    en conservant un exemplaire par contenu. Renvoie un compte-rendu."""
+    groups = duplicate_groups(store)
+    removable = sum(len(g["remove"]) for g in groups)
+    removed = errors = 0
+    if not dry_run:
+        for g in groups:
+            for d in g["remove"]:
+                try:
+                    store.delete_document(d["id"])
+                    removed += 1
+                except RagError:
+                    errors += 1
+    return {"groups": len(groups), "removable": removable,
+            "removed": removed, "errors": errors}
+
+
 # --- Contexte pour le LLM -----------------------------------------------------
 def build_context(hits, max_chars=3500):
     """Assemble les extraits récupérés en un bloc de contexte sourcé pour le LLM."""

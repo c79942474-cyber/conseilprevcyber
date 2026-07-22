@@ -66,7 +66,8 @@ from clients_store import (BASES_LEGALES, CATEGORIES_PIECES, STATUTS,
                            ClientsError, make_clients_store)
 from cockpit_state import make_store, tag_for
 from livrables_store import make_livrables_store
-from rag_store import RagError, THEMES, build_context, make_rag_store
+from rag_store import (RagError, THEMES, build_context, dedupe as rag_dedupe,
+                       duplicate_groups, make_rag_store)
 
 app = Flask(__name__)
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -869,6 +870,32 @@ def api_rag_list():
     """Liste des documents + statistiques + capacités (mode de recherche actif)."""
     return jsonify(ok=True, documents=rag.list_documents(), stats=rag.stats(),
                    capabilities=rag.capabilities(), themes=THEMES)
+
+
+def _dup_doc_summary(d):
+    """Résumé d'un document pour l'aperçu des doublons (champs utiles à l'admin)."""
+    return {k: d.get(k) for k in ("id", "title", "filename", "theme",
+                                  "visibility", "bytes", "nb_chunks", "created_at")}
+
+
+@app.route("/api/admin/rag/duplicates", methods=["GET"])
+@admin_required
+def api_rag_duplicates():
+    """Aperçu des doublons (contenu identique) SANS rien supprimer : pour chaque
+    groupe, le document conservé et ceux qui seraient retirés."""
+    groups = duplicate_groups(rag)
+    out = [{"keep": _dup_doc_summary(g["keep"]),
+            "remove": [_dup_doc_summary(d) for d in g["remove"]]} for g in groups]
+    removable = sum(len(g["remove"]) for g in groups)
+    return jsonify(ok=True, groups=out, removable=removable)
+
+
+@app.route("/api/admin/rag/dedupe", methods=["POST"])
+@admin_required
+def api_rag_dedupe():
+    """Supprime les doublons en conservant un exemplaire par contenu."""
+    report = rag_dedupe(rag)
+    return jsonify(ok=True, **report)
 
 
 @app.route("/api/admin/rag/reconnect", methods=["POST"])
