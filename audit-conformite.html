@@ -144,6 +144,32 @@
   svg.arch .lblOT{fill:var(--teal);font-family:var(--mono);font-weight:700;font-size:13px}
   .archnote{border:1px solid rgba(45,212,191,.32);background:rgba(45,212,191,.07);border-radius:11px;padding:11px 14px;font-size:12.5px;color:var(--muted);margin-top:12px}
   .archnote b{color:var(--teal)}
+
+  /* ── Survol/focus : normes applicables par couche · SL · conduit ── */
+  svg.arch .hot{fill:transparent;stroke:transparent;stroke-width:2;pointer-events:all;cursor:help;
+    transition:fill .12s ease,stroke .12s ease}
+  svg.arch .hot:hover,svg.arch .hot:focus{fill:rgba(34,211,238,.09);stroke:var(--cyan)}
+  svg.arch .hot:focus{outline:none}
+  .archhint{font-size:11.5px;color:var(--muted2);margin:8px 2px 0;display:flex;align-items:center;gap:7px}
+  .archhint svg{width:14px;height:14px;fill:none;stroke:var(--cyan);stroke-width:1.8;flex:0 0 auto}
+  .layer.hot,.conduitv.hot{cursor:help}
+  .layer.hot:hover,.layer.hot:focus-visible{border-color:var(--cyan)}
+  .conduitv.hot:hover,.conduitv.hot:focus-visible{color:var(--cyan)}
+  .layer.hot:focus-visible,.conduitv.hot:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+
+  .normtip{position:fixed;left:-9999px;top:0;z-index:120;max-width:340px;pointer-events:none;
+    opacity:0;transform:translateY(4px);transition:opacity .12s ease,transform .12s ease;
+    background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--cyan);
+    border-radius:12px;padding:12px 14px;box-shadow:0 18px 44px rgba(0,0,0,.5)}
+  .normtip.on{opacity:1;transform:translateY(0)}
+  .normtip h4{margin:0;font-size:13.5px;color:var(--ink);line-height:1.3}
+  .normtip .nsc{font-size:11.5px;color:var(--muted2);margin:3px 0 9px;line-height:1.42}
+  .normtip ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+  .normtip li{font-size:12px;color:var(--muted);line-height:1.42}
+  .normtip li b{display:inline-block;font-family:var(--mono);font-size:10.5px;color:var(--cyan);
+    border:1px solid rgba(34,211,238,.42);border-radius:6px;padding:1px 6px;margin:0 6px 3px 0;white-space:nowrap}
+  .normtip .nftr{margin-top:9px;font-size:10.5px;color:var(--muted2);border-top:1px solid var(--line);padding-top:7px;line-height:1.4}
+  @media (prefers-reduced-motion: reduce){.normtip,.normtip.on{transform:none;transition:opacity .1s ease}}
 </style>
 </head>
 <body>
@@ -290,8 +316,27 @@
             <text x="118" y="455" class="zttl">Terrain / Procédé</text>
             <text x="118" y="472" class="zsub">capteurs · actionneurs · RTU · caméra IIoT</text>
             <rect x="752" y="432" width="64" height="26" rx="7" class="sl"/><text x="784" y="449" class="slt" text-anchor="middle">SL 2</text>
+
+            <!-- Zones interactives : survol/focus → normes applicables -->
+            <g class="hotspots">
+              <rect class="hot" data-nk="entreprise" x="100" y="18"  width="630" height="70" rx="12" tabindex="0" role="button" aria-label="Couche Entreprise IT, niveaux 4-5 — voir les normes applicables"/>
+              <rect class="hot" data-nk="dmz"        x="100" y="116" width="630" height="70" rx="12" tabindex="0" role="button" aria-label="DMZ industrielle, niveau 3.5 — voir les normes applicables"/>
+              <rect class="hot" data-nk="scada"      x="100" y="214" width="630" height="70" rx="12" tabindex="0" role="button" aria-label="Supervision SCADA, niveau 3 — voir les normes applicables"/>
+              <rect class="hot" data-nk="cellule"    x="100" y="312" width="630" height="70" rx="12" tabindex="0" role="button" aria-label="Cellule Contrôle, niveau 2 — voir les normes applicables"/>
+              <rect class="hot" data-nk="terrain"    x="100" y="410" width="630" height="70" rx="12" tabindex="0" role="button" aria-label="Terrain Procédé, niveaux 0-1 — voir les normes applicables"/>
+              <rect class="hot" data-nk="conduit" x="399" y="89"  width="32" height="26" rx="6" tabindex="0" role="button" aria-label="Conduit entre couches — voir les normes applicables"/>
+              <rect class="hot" data-nk="conduit" x="399" y="187" width="32" height="26" rx="6" tabindex="0" role="button" aria-label="Conduit entre couches — voir les normes applicables"/>
+              <rect class="hot" data-nk="conduit" x="399" y="285" width="32" height="26" rx="6" tabindex="0" role="button" aria-label="Conduit entre couches — voir les normes applicables"/>
+              <rect class="hot" data-nk="conduit" x="399" y="383" width="32" height="26" rx="6" tabindex="0" role="button" aria-label="Conduit entre couches — voir les normes applicables"/>
+              <rect class="hot" data-nk="sl" data-lvl="1" x="749" y="37"  width="70" height="32" rx="8" tabindex="0" role="button" aria-label="Niveau de sécurité SL 1 — voir les normes"/>
+              <rect class="hot" data-nk="sl" data-lvl="2" x="749" y="135" width="70" height="32" rx="8" tabindex="0" role="button" aria-label="Niveau de sécurité SL 2 — voir les normes"/>
+              <rect class="hot" data-nk="sl" data-lvl="3" x="749" y="233" width="70" height="32" rx="8" tabindex="0" role="button" aria-label="Niveau de sécurité SL 3 — voir les normes"/>
+              <rect class="hot" data-nk="sl" data-lvl="3" x="749" y="331" width="70" height="32" rx="8" tabindex="0" role="button" aria-label="Niveau de sécurité SL 3 — voir les normes"/>
+              <rect class="hot" data-nk="sl" data-lvl="2" x="749" y="429" width="70" height="32" rx="8" tabindex="0" role="button" aria-label="Niveau de sécurité SL 2 — voir les normes"/>
+            </g>
           </svg>
         </div>
+        <p class="archhint"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16h.01"></path></svg>Survolez (ou tabulez sur) une couche, un niveau <b style="color:var(--cyan);font-weight:600">SL</b> ou un conduit pour afficher les normes applicables.</p>
       </div>
 
       <!-- Schéma 2 : zones & conduits (cartographie de segmentation) -->
@@ -376,8 +421,35 @@
             <text x="192" y="594" class="cap">point de contrôle — conduit : flux filtré &amp; journalisé</text>
             <line class="cond" x1="560" y1="590" x2="600" y2="590"/>
             <text x="610" y="594" class="cap">liaison maîtrisée entre zones</text>
+
+            <!-- Zones interactives : survol/focus → normes applicables (zones d'abord, badges SL au-dessus) -->
+            <g class="hotspots">
+              <rect class="hot" data-nk="entreprise" x="300" y="18"  width="360" height="58" rx="12" tabindex="0" role="button" aria-label="Zone Entreprise IT — voir les normes applicables"/>
+              <rect class="hot" data-nk="dmz"        x="300" y="116" width="360" height="54" rx="12" tabindex="0" role="button" aria-label="DMZ industrielle — voir les normes applicables"/>
+              <rect class="hot" data-nk="scada"      x="300" y="208" width="360" height="54" rx="12" tabindex="0" role="button" aria-label="Zone Supervision SCADA — voir les normes applicables"/>
+              <rect class="hot" data-nk="cellule"    x="145" y="330" width="210" height="110" rx="11" tabindex="0" role="button" aria-label="Cellule Ligne A — voir les normes applicables"/>
+              <rect class="hot" data-nk="cellule"    x="375" y="330" width="210" height="110" rx="11" tabindex="0" role="button" aria-label="Cellule Ligne B — voir les normes applicables"/>
+              <rect class="hot" data-nk="cellule"    x="605" y="330" width="210" height="110" rx="11" tabindex="0" role="button" aria-label="Cellule Utilités — voir les normes applicables"/>
+              <rect class="hot" data-nk="terrain"    x="150" y="500" width="660" height="58" rx="12" tabindex="0" role="button" aria-label="Zone Terrain Procédé — voir les normes applicables"/>
+              <rect class="hot" data-nk="conduit" x="464" y="84"  width="32" height="24" rx="6" tabindex="0" role="button" aria-label="Conduit IT vers OT — voir les normes applicables"/>
+              <rect class="hot" data-nk="conduit" x="464" y="177" width="32" height="24" rx="6" tabindex="0" role="button" aria-label="Conduit vers la supervision — voir les normes applicables"/>
+              <rect class="hot" data-nk="conduit" x="234" y="301" width="32" height="24" rx="6" tabindex="0" role="button" aria-label="Conduit vers la cellule Ligne A — voir les normes applicables"/>
+              <rect class="hot" data-nk="conduit" x="464" y="301" width="32" height="24" rx="6" tabindex="0" role="button" aria-label="Conduit vers la cellule Ligne B — voir les normes applicables"/>
+              <rect class="hot" data-nk="conduit" x="694" y="301" width="32" height="24" rx="6" tabindex="0" role="button" aria-label="Conduit vers la cellule Utilités — voir les normes applicables"/>
+              <rect class="hot" data-nk="conduit" x="234" y="458" width="32" height="24" rx="6" tabindex="0" role="button" aria-label="Conduit vers le terrain (Ligne A) — voir les normes applicables"/>
+              <rect class="hot" data-nk="conduit" x="464" y="458" width="32" height="24" rx="6" tabindex="0" role="button" aria-label="Conduit vers le terrain (Ligne B) — voir les normes applicables"/>
+              <rect class="hot" data-nk="conduit" x="694" y="458" width="32" height="24" rx="6" tabindex="0" role="button" aria-label="Conduit vers le terrain (Utilités) — voir les normes applicables"/>
+              <rect class="hot" data-nk="sl" data-lvl="1" x="687" y="17"  width="70" height="30" rx="8" tabindex="0" role="button" aria-label="Niveau de sécurité SL 1 — voir les normes"/>
+              <rect class="hot" data-nk="sl" data-lvl="2" x="687" y="117" width="70" height="30" rx="8" tabindex="0" role="button" aria-label="Niveau de sécurité SL 2 — voir les normes"/>
+              <rect class="hot" data-nk="sl" data-lvl="3" x="687" y="209" width="70" height="30" rx="8" tabindex="0" role="button" aria-label="Niveau de sécurité SL 3 — voir les normes"/>
+              <rect class="hot" data-nk="sl" data-lvl="3" x="287" y="337" width="58" height="26" rx="7" tabindex="0" role="button" aria-label="Niveau de sécurité SL 3 (Ligne A) — voir les normes"/>
+              <rect class="hot" data-nk="sl" data-lvl="3" x="517" y="337" width="58" height="26" rx="7" tabindex="0" role="button" aria-label="Niveau de sécurité SL 3 (Ligne B) — voir les normes"/>
+              <rect class="hot" data-nk="sl" data-lvl="3" x="747" y="337" width="58" height="26" rx="7" tabindex="0" role="button" aria-label="Niveau de sécurité SL 3 (Utilités) — voir les normes"/>
+              <rect class="hot" data-nk="sl" data-lvl="2" x="823" y="507" width="70" height="30" rx="8" tabindex="0" role="button" aria-label="Niveau de sécurité SL 2 (Terrain) — voir les normes"/>
+            </g>
           </svg>
         </div>
+        <p class="archhint"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16h.01"></path></svg>Survolez (ou tabulez sur) une zone, une cellule, un niveau <b style="color:var(--cyan);font-weight:600">SL</b> ou un conduit pour afficher les normes applicables.</p>
         <div class="archnote"><b>Lecture.</b> Une compromission dans une cellule (ex. Ligne&nbsp;A) reste <b>confinée</b> par les conduits : elle n'atteint ni les autres lignes, ni la supervision, ni l'IT sans franchir un point de contrôle filtré. C'est l'objectif du découpage <b>zones&nbsp;&amp;&nbsp;conduits</b> de l'IEC&nbsp;62443‑3‑2.</div>
       </div>
 
@@ -391,6 +463,7 @@
           <i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#F08A3C"></i> élevé&nbsp;
           <i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#E4573F"></i> critique</span></div>
         <div class="layers" id="layers"></div>
+        <p class="archhint"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16h.01"></path></svg>Survolez (ou tabulez sur) une couche ou un conduit pour afficher les normes applicables.</p>
       </div>
 
       <!-- ÉTAPE 3 — Risques & vulnérabilités -->
@@ -510,6 +583,7 @@
       {id:'ter',nm:'Terrain (capteurs)',niv:'Niv. 0-1',de:'Capteurs, actionneurs, RTU, IIoT',expo:1,slt:2}
     ];
     var LBYID={}; LAYERS.forEach(function(l){LBYID[l.id]=l;});
+    var NKBYID={ent:'entreprise',dmz:'dmz',sup:'scada',cel:'cellule',ter:'terrain'};
     var ZONE2LAYER={'Entreprise (IT)':'ent','DMZ industrielle':'dmz','Supervision (SCADA)':'sup','Cellule / Contrôle':'cel','Terrain (capteurs)':'ter'};
 
     var FRS=[
@@ -639,13 +713,14 @@
         if(!inL.length&&zoneCounts&&zoneCounts[l.id]) chips='<span class="chip">'+zoneCounts[l.id]+' actif(s) — détail via le connecteur</span>';
         if(!inL.length&&!chips) chips='<span class="chip">aucun actif recensé</span>';
         var slrow=R.sl[l.id];
-        var band='<div class="layer '+(st==='alert'?'alert':st==='watch'?'watch':'')+'">'
+        var nk=NKBYID[l.id]||'';
+        var band='<div class="layer hot'+(st==='alert'?' alert':st==='watch'?' watch':'')+'" data-nk="'+nk+'" tabindex="0">'
           +'<div class="lz"><div class="niv">'+esc(l.niv)+'</div><div class="nm">'+esc(l.nm)+'</div>'
           +'<div class="de">'+esc(l.de)+'</div>'
           +'<div class="slb"><span class="sl">SL‑T '+slrow.slt+'</span> · <span class="gap g'+Math.min(2,slrow.gap)+'">'
           +(slrow.gap===0?'conforme':'écart −'+slrow.gap)+'</span></div></div>'
           +'<div class="chips">'+chips+extra+'</div></div>';
-        var conduit=i<LAYERS.length-1?'<div class="conduitv'+(st!=='ok'?' bad':'')+'"><i></i>conduit — flux filtré &amp; journalisé</div>':'';
+        var conduit=i<LAYERS.length-1?'<div class="conduitv hot'+(st!=='ok'?' bad':'')+'" data-nk="conduit" tabindex="0" aria-label="Conduit entre couches — voir les normes applicables"><i></i>conduit — flux filtré &amp; journalisé</div>':'';
         return band+conduit;
       }).join('');
 
@@ -806,6 +881,116 @@
     });
 
     setMode(false);
+  })();
+  </script>
+
+  <!-- Normes applicables par couche / SL / conduit — infobulle au survol & au focus clavier -->
+  <script>
+  (function(){
+    var NORMES={
+      entreprise:{t:'Couche Entreprise — IT (niveaux 4-5)',s:'ERP · Active Directory · messagerie · bureautique',n:[
+        ['ISO/IEC 27001·27002','SMSI et mesures de sécurité — socle du système d’information de gestion.'],
+        ['NIST CSF 2.0','Cadre de gouvernance cyber (gouverner, identifier, protéger, détecter…).'],
+        ['NIS2 (UE 2022/2555)','Obligations entité essentielle/importante : gouvernance, notification d’incident.'],
+        ['RGPD','Données personnelles présentes dans l’ERP, l’AD et la messagerie.'],
+        ['IEC 62443-2-1','CSMS — programme de sécurité qui relie l’IT et l’OT côté organisation.']
+      ]},
+      dmz:{t:'DMZ industrielle (niveau 3.5 · frontière IT ⇄ OT)',s:'rebond · miroir historian · télémaintenance',n:[
+        ['IEC 62443-3-2','Analyse de risque et définition des conduits IT↔OT.'],
+        ['IEC 62443-3-3','SR 5.1 / 5.2 — segmentation réseau et protection des frontières de zone.'],
+        ['IEC 62443-2-4','Exigences de sécurité pour les prestataires (télémaintenance).'],
+        ['IEC 62443-3-1','Technologies : pare-feu, inspection (DPI), diode de données, bastion.'],
+        ['Guide ANSSI','Architecture de DMZ industrielle et télémaintenance maîtrisée.']
+      ]},
+      scada:{t:'Supervision — SCADA (niveau 3)',s:'SCADA · historian · station d’ingénierie · alarmes',n:[
+        ['IEC 62443-3-3','Exigences système (FR1 à FR7) pour atteindre le SL cible.'],
+        ['IEC 62443-2-1','CSMS — comptes, rôles, gestion des accès et des sauvegardes.'],
+        ['IEC 62443-2-3','Gestion des correctifs (patch management) des serveurs OT.'],
+        ['IEC 62443-4-2','Exigences des composants (serveurs SCADA, station d’ingénierie).'],
+        ['NIST SP 800-82','Guide de sécurité des systèmes OT / ICS.']
+      ]},
+      cellule:{t:'Cellule / Contrôle (niveau 2)',s:'DCS · automates (PLC) · IHM locales · variateurs',n:[
+        ['IEC 62443-4-2','Exigences techniques par composant (PLC/DCS/IHM) : SDR, EDR, NDR, HDR.'],
+        ['IEC 62443-3-3','Exigences système et micro-segmentation par ligne (SL 3).'],
+        ['IEC 62443-4-1','Développement sécurisé — privilégier des produits certifiés.'],
+        ['IEC 61511 / 61508','Interface avec les systèmes instrumentés de sécurité (SIS).'],
+        ['Guide ANSSI','Mesures de durcissement des automates industriels.']
+      ]},
+      terrain:{t:'Terrain / Procédé (niveaux 0-1)',s:'capteurs · actionneurs · RTU · caméra IIoT',n:[
+        ['IEC 62443-4-2','Composants embarqués (capteurs, actionneurs, RTU) : EDR / NDR.'],
+        ['IEC 62443-3-3','Intégrité des entrées/sorties du procédé (SL 2).'],
+        ['IEC 61511 / 61508','Sûreté fonctionnelle — séparation du SIS et de la conduite.'],
+        ['IEC 62351','Sécurité des communications de procédé (contexte énergie).'],
+        ['NIST SP 800-82','Recommandations niveaux 0/1 (field devices).']
+      ]},
+      conduit:{t:'Conduit — liaison maîtrisée entre zones',s:'flux filtré · journalisé · point de contrôle unique',n:[
+        ['IEC 62443-3-2','Identification des conduits et exigences issues de l’analyse de risque.'],
+        ['IEC 62443-3-3','SR 5.1 segmentation · SR 5.2 frontières de zone · SR 7 flux réseau.'],
+        ['IEC 62443-3-1','Pare-feu, inspection applicative (DPI), diodes de données.'],
+        ['Guide ANSSI','Matrice de flux : filtrage et journalisation des échanges.'],
+        ['NIST SP 800-82','Boundary protection entre zones.']
+      ]},
+      sl:{t:'Niveau de sécurité (SL)',s:'objectif de robustesse d’une zone / d’un conduit',n:[
+        ['IEC 62443-3-3','SL au niveau système (SL-C / SL-T / SL-A) via les exigences FR1 à FR7.'],
+        ['IEC 62443-4-2','SL au niveau de chaque composant.'],
+        ['IEC 62443-3-2','Détermination du SL cible (SL-T) par l’analyse de risque.'],
+        ['IEC 62443-1-1','Définition et échelle des niveaux SL 0 à 4.']
+      ],lvl:{
+        '1':'SL 1 — protège contre une violation fortuite ou accidentelle.',
+        '2':'SL 2 — protège contre une attaque intentionnelle simple (moyens faibles, compétences génériques).',
+        '3':'SL 3 — protège contre une attaque sophistiquée (moyens modérés, compétences spécifiques IACS).',
+        '4':'SL 4 — protège contre une attaque sophistiquée à ressources étendues (type étatique).'
+      }}
+    };
+    function esc(s){return (''+(s==null?'':s)).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+    var tip=document.createElement('div');
+    tip.className='normtip'; tip.id='normtip'; tip.setAttribute('role','tooltip'); tip.setAttribute('aria-hidden','true');
+    document.body.appendChild(tip);
+    var cur=null;
+
+    function build(nk,lvl){
+      var d=NORMES[nk]; if(!d) return '';
+      var title=d.t, scope=d.s;
+      if(nk==='sl'){ title='Niveau de sécurité — SL '+(lvl||''); scope=(d.lvl&&d.lvl[lvl])||d.s; }
+      var lis=d.n.map(function(x){return '<li><b>'+esc(x[0])+'</b>'+esc(x[1])+'</li>';}).join('');
+      return '<h4>'+esc(title)+'</h4><div class="nsc">'+esc(scope)+'</div><ul>'+lis+'</ul>'
+        +'<div class="nftr">Repères normatifs indicatifs — l’applicabilité exacte dépend de votre analyse de risque IEC 62443-3-2.</div>';
+    }
+    function place(el){
+      var r=el.getBoundingClientRect(), tr=tip.getBoundingClientRect();
+      var vw=document.documentElement.clientWidth, vh=document.documentElement.clientHeight, m=10;
+      var left=r.left+r.width/2-tr.width/2;
+      left=Math.max(m,Math.min(left,vw-tr.width-m));
+      var top=r.top-tr.height-10;                 // au-dessus de la cible
+      if(top<m) top=r.bottom+10;                   // sinon en dessous
+      top=Math.max(m,Math.min(top,vh-tr.height-m));
+      tip.style.left=Math.round(left)+'px'; tip.style.top=Math.round(top)+'px';
+    }
+    function show(el){
+      var nk=el.getAttribute('data-nk'); if(!nk||!NORMES[nk]) return;
+      var html=build(nk,el.getAttribute('data-lvl')); if(!html) return;
+      tip.innerHTML=html; place(el); tip.classList.add('on'); tip.setAttribute('aria-hidden','false');
+      el.setAttribute('aria-describedby','normtip'); cur=el;
+    }
+    function hide(){
+      if(!cur) return;
+      tip.classList.remove('on'); tip.setAttribute('aria-hidden','true');
+      if(cur.getAttribute('aria-describedby')==='normtip') cur.removeAttribute('aria-describedby');
+      cur=null; tip.style.left='-9999px';
+    }
+    function target(node){ return (node&&node.closest)?node.closest('[data-nk]'):null; }
+
+    document.addEventListener('mouseover',function(e){ var el=target(e.target); if(el&&el!==cur) show(el); });
+    document.addEventListener('mouseout',function(e){
+      var el=target(e.target); if(!el||el!==cur) return;
+      var to=target(e.relatedTarget); if(to!==el) hide();
+    });
+    document.addEventListener('focusin',function(e){ var el=target(e.target); if(el) show(el); else hide(); });
+    document.addEventListener('focusout',function(e){ if(target(e.target)===cur) hide(); });
+    document.addEventListener('keydown',function(e){ if(e.key==='Escape') hide(); });
+    function reposition(){ if(cur) place(cur); }
+    window.addEventListener('scroll',reposition,true);
+    window.addEventListener('resize',reposition);
   })();
   </script>
   <script src="/nav.js" defer></script>
