@@ -727,6 +727,24 @@
     main.appendChild(el);
   }
 
+  /* ── Lien « Admin » discret dans le pied de page ────────────────────────── */
+  /* Ajouté sur toutes les pages (pied de page partagé) pour accéder vite à la
+     console d'administration. Discret et volontairement non indexé : la route
+     /admin est de toute façon protégée (redirection vers /connexion si non
+     authentifié, 403 si le compte n'a pas le rôle admin). */
+  function initAdminLink() {
+    var fnav = document.querySelector("footer .fnav");
+    if (!fnav || fnav.querySelector(".fnav-admin")) return;
+    var a = document.createElement("a");
+    a.href = "/admin";
+    a.textContent = "Admin";
+    a.className = "fnav-admin";
+    a.title = "Accès administrateur";
+    a.rel = "nofollow";
+    a.style.opacity = "0.5";
+    fnav.appendChild(a);
+  }
+
   function init() {
     initA11y();
     initBurger();
@@ -740,6 +758,7 @@
     initSearch();
     initReveal();
     initRefTrail();
+    initAdminLink();
   }
 
   if (document.readyState === "loading")
