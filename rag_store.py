@@ -727,24 +727,109 @@ class PostgresRagStore:
                 "visibility": r[4], "score": round(float(r[5]), 4)}
 
 
+# Délai minimal entre deux essais de reconnexion automatiques (secondes).
+_RECONNECT_MIN_INTERVAL = float(os.environ.get("RAG_RECONNECT_INTERVAL", "20"))
+
+
+class ResilientRagStore:
+    """Enveloppe résiliente autour de PostgreSQL — corrige le blocage « mode
+    mémoire jusqu'au prochain redéploiement ».
+
+    Problème résolu : auparavant, le choix du moteur était fait une seule fois
+    au démarrage. Si la base était momentanément injoignable à cet instant (base
+    froide sur Render, blip réseau, base qui se réveille), l'application restait
+    bloquée en mémoire (non persistante) pour toute la durée du process — la
+    seule issue était un redéploiement manuel.
+
+    Ici, si la connexion échoue, on sert temporairement en mémoire MAIS on
+    retente la connexion à chaque consultation de la base (chargement de la page
+    admin) et sur demande explicite (bouton « Reconnecter »). La persistance se
+    rétablit donc automatiquement, sans redéploiement, dès que la base redevient
+    joignable. Aucune reconnexion n'est tentée au milieu d'une séquence d'upload
+    (on ne change pas de moteur en cours de route)."""
+
+    def __init__(self, dsn):
+        self._dsn = dsn
+        self._pg = None
+        # Repli mémoire : DATABASE_URL est défini mais la connexion a échoué.
+        self._mem = MemoryRagStore(reason="db_connection_failed")
+        self._last_try = 0.0
+        self._lock = threading.Lock()
+        # Un seul essai au démarrage : ne pas rallonger le boot si la base est
+        # froide (chaque essai peut bloquer ~5-8 s). Le rétablissement se fait
+        # ensuite tout seul au 1er chargement de la page admin (self-healing).
+        self._try_connect(attempts=1)
+
+    def _try_connect(self, attempts=1):
+        for i in range(attempts):
+            try:
+                pg = PostgresRagStore(self._dsn)
+                self._pg = pg
+                _log.info("RAG : PostgreSQL connecté (%s).", pg.capabilities()["mode"])
+                return True
+            except Exception as exc:
+                self._pg = None
+                _log.warning("RAG : PostgreSQL injoignable (essai %d/%d : %s).",
+                             i + 1, attempts, exc)
+                if i + 1 < attempts:
+                    time.sleep(1.5)
+        return False
+
+    def _maybe_reconnect(self):
+        if self._pg is not None:
+            return
+        if time.time() - self._last_try < _RECONNECT_MIN_INTERVAL:
+            return
+        with self._lock:
+            if self._pg is None and time.time() - self._last_try >= _RECONNECT_MIN_INTERVAL:
+                self._last_try = time.time()
+                self._try_connect(attempts=1)
+
+    def _store(self):
+        return self._pg if self._pg is not None else self._mem
+
+    def reconnect(self):
+        """Essai de reconnexion immédiat (bouton admin). Renvoie True si connecté."""
+        with self._lock:
+            self._last_try = time.time()
+            self._try_connect(attempts=1)
+        return self._pg is not None
+
+    # Opérations de consultation : occasion de retenter la connexion.
+    def capabilities(self):
+        self._maybe_reconnect()
+        return self._store().capabilities()
+
+    def list_documents(self):
+        self._maybe_reconnect()
+        return self._store().list_documents()
+
+    def stats(self):
+        self._maybe_reconnect()
+        return self._store().stats()
+
+    def __getattr__(self, name):
+        # Toutes les autres méthodes (upload, recherche, suppression…) : délègue
+        # au moteur actif SANS tenter de reconnexion (pas de changement de moteur
+        # au milieu d'une séquence d'upload). Les attributs internes (préfixe _)
+        # ne sont jamais délégués (évite toute récursion).
+        if name.startswith("_"):
+            raise AttributeError(name)
+        return getattr(self._store(), name)
+
+
 def make_rag_store():
-    """Store persistant si DATABASE_URL est défini, sinon en mémoire (non persistant)."""
+    """Store persistant si DATABASE_URL est défini, sinon en mémoire (non persistant).
+
+    Avec DATABASE_URL, on renvoie une enveloppe résiliente (ResilientRagStore)
+    qui se rétablit toute seule si la base était injoignable au démarrage."""
     dsn = os.environ.get("DATABASE_URL")
     if not dsn:
         _log.info("RAG : pas de DATABASE_URL — base de connaissance en mémoire (non persistante).")
         return MemoryRagStore(reason="no_database_url")
     if dsn.startswith("postgres://"):
         dsn = "postgresql://" + dsn[len("postgres://"):]
-    try:
-        store = PostgresRagStore(dsn)
-        _log.info("RAG : PostgreSQL (%s).", store.capabilities()["mode"])
-        return store
-    except Exception as exc:
-        # DATABASE_URL est défini mais la connexion échoue (URL externe au lieu
-        # d'interne, mauvaise région, base non démarrée, identifiants…). On journalise
-        # la cause réelle et on signale ce repli distinctement dans l'interface.
-        _log.warning("RAG : PostgreSQL injoignable (%s) — repli en mémoire.", exc)
-        return MemoryRagStore(reason="db_connection_failed")
+    return ResilientRagStore(dsn)
 
 
 # --- Contexte pour le LLM -----------------------------------------------------

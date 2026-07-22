@@ -871,6 +871,18 @@ def api_rag_list():
                    capabilities=rag.capabilities(), themes=THEMES)
 
 
+@app.route("/api/admin/rag/reconnect", methods=["POST"])
+@admin_required
+def api_rag_reconnect():
+    """Force un essai de reconnexion à PostgreSQL (repli mémoire → persistant)
+    sans redéploiement. Sans effet si le store n'est pas résilient (aucune
+    DATABASE_URL) — renvoie alors simplement l'état courant."""
+    fn = getattr(rag, "reconnect", None)
+    reconnected = bool(fn()) if callable(fn) else False
+    return jsonify(ok=True, reconnected=reconnected,
+                   capabilities=rag.capabilities(), stats=rag.stats())
+
+
 @app.route("/api/admin/rag/upload/init", methods=["POST"])
 @admin_required
 def api_rag_upload_init():
