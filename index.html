@@ -52,6 +52,13 @@
 
 <link rel="icon" href="/emblem.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/styles.css">
+<!-- Préchargement en tâche de fond des destinations les plus cliquées depuis
+     l'accueil : le premier clic sort du cache navigateur (affichage immédiat).
+     Pages légères (quelques Ko compressés), aucun impact réseau notable. -->
+<link rel="prefetch" href="/services">
+<link rel="prefetch" href="/vos-projets">
+<link rel="prefetch" href="/diagnostic">
+<link rel="prefetch" href="/contact">
 </head>
 <body>
   <header>

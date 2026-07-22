@@ -41,6 +41,8 @@ Variables d'environnement :
 import base64
 import binascii
 import html as html_lib
+import gzip
+import hashlib
 import json
 import os
 import io
@@ -403,8 +405,84 @@ PAGES = {
 }
 
 
+# --- Service rapide des fichiers statiques (< 200 ms) -------------------------
+# Les pages et les assets partagés (styles.css, nav.js, emblem.svg) sont des
+# fichiers identiques pour tous les visiteurs : aucune donnée personnelle
+# dedans (la personnalisation passe par les API). On les garde donc en mémoire,
+# pré-compressés en gzip une seule fois, avec un ETag fort. Deux gains décisifs
+# pour la navigation entre pages :
+#   1. compression gzip (Flask/Render n'en applique aucune par défaut) —
+#      styles.css 29→8 Ko, nav.js 54→16 Ko, pages ~30 % de leur taille ;
+#   2. revalidation par ETag : un clic sur une page déjà vue renvoie un 304
+#      sans corps (~quelques ms) au lieu de la re-télécharger, et les assets
+#      partagés (cache navigateur) ne repartent plus sur le réseau à chaque page.
+# Le cache se reconstruit tout seul si le fichier change (nouveau déploiement :
+# le process redémarre et la clé mtime+taille change).
+_STATIC_CACHE = {}
+_STATIC_CACHE_LOCK = threading.Lock()
+
+
+def _static_entry(filename):
+    """Entrée de cache {raw, gz, etag} du fichier, reconstruite s'il change."""
+    path = os.path.join(HERE, filename)
+    st = os.stat(path)
+    key = (st.st_mtime_ns, st.st_size)
+    ent = _STATIC_CACHE.get(filename)
+    if ent is not None and ent["key"] == key:
+        return ent
+    with _STATIC_CACHE_LOCK:
+        ent = _STATIC_CACHE.get(filename)
+        if ent is not None and ent["key"] == key:
+            return ent
+        with open(path, "rb") as fh:
+            raw = fh.read()
+        ent = {
+            "key": key,
+            "raw": raw,
+            "gz": gzip.compress(raw, 9),
+            "etag": '"cp-%s"' % hashlib.sha256(raw).hexdigest()[:24],
+        }
+        _STATIC_CACHE[filename] = ent
+        return ent
+
+
+def _serve_fast(filename, cache_control, mimetype="text/html; charset=utf-8",
+                gzippable=True):
+    """Sert un fichier depuis le cache mémoire, gzippé si le navigateur
+    l'accepte, avec ETag fort + honoré via If-None-Match (304 sans corps).
+    Repli transparent sur send_from_directory si le fichier est illisible."""
+    try:
+        ent = _static_entry(filename)
+    except OSError:
+        return send_from_directory(HERE, filename, mimetype=mimetype)
+    if ent["etag"] in (request.headers.get("If-None-Match") or ""):
+        resp = Response(status=304, mimetype=mimetype)
+    else:
+        use_gz = gzippable and "gzip" in (
+            request.headers.get("Accept-Encoding") or "").lower()
+        body = ent["gz"] if use_gz else ent["raw"]
+        resp = Response(body, mimetype=mimetype)
+        if use_gz:
+            resp.headers["Content-Encoding"] = "gzip"
+        resp.headers["Content-Length"] = str(len(body))
+    resp.headers["ETag"] = ent["etag"]
+    resp.headers["Cache-Control"] = cache_control
+    if gzippable:
+        resp.headers["Vary"] = "Accept-Encoding"
+    return resp
+
+
+# Politiques de cache : pages publiques revalidables (fraîcheur garantie par
+# l'ETag), assets partagés gardés 5 min côté navigateur pour ne pas repartir
+# sur le réseau entre deux pages.
+_CC_PAGE = "public, max-age=300, must-revalidate"
+_CC_ADMIN = "private, no-cache, must-revalidate"
+_CC_ASSET = "public, max-age=300"
+_CC_IMAGE = "public, max-age=86400"
+
+
 def _page(filename):
-    return send_from_directory(HERE, filename)
+    return _serve_fast(filename, _CC_PAGE)
 
 
 @app.route("/")
@@ -667,31 +745,35 @@ def veille():
 
 @app.route("/styles.css")
 def styles():
-    return send_from_directory(HERE, "styles.css", mimetype="text/css")
+    return _serve_fast("styles.css", _CC_ASSET, mimetype="text/css; charset=utf-8")
 
 
 @app.route("/nav.js")
 def nav_js():
     """Script partagé de l'en-tête responsive (menu « burger » sur mobile)."""
-    return send_from_directory(HERE, "nav.js", mimetype="text/javascript")
+    return _serve_fast("nav.js", _CC_ASSET,
+                       mimetype="text/javascript; charset=utf-8")
 
 
 @app.route("/emblem.svg")
 def emblem_svg():
     """Emblème CONSEILPREV (bouclier géométrique) — logo vectoriel de l'en-tête."""
-    return send_from_directory(HERE, "emblem.svg", mimetype="image/svg+xml")
+    return _serve_fast("emblem.svg", _CC_ASSET, mimetype="image/svg+xml")
 
 
 @app.route("/og-cover.png")
 def og_cover():
     """Image de partage social (Open Graph / Twitter Card) — 1200×630."""
-    return send_from_directory(HERE, "og-cover.png", mimetype="image/png")
+    # PNG déjà compressé : pas de gzip, mais cache navigateur (rarement modifié).
+    return _serve_fast("og-cover.png", _CC_IMAGE, mimetype="image/png",
+                       gzippable=False)
 
 
 @app.route("/emblem.png")
 def emblem_png():
     """Emblème CONSEILPREV en PNG (logo pour données structurées / partage)."""
-    return send_from_directory(HERE, "emblem.png", mimetype="image/png")
+    return _serve_fast("emblem.png", _CC_IMAGE, mimetype="image/png",
+                       gzippable=False)
 
 
 # --- Référencement (robots.txt + sitemap.xml) ---------------------------------
@@ -771,14 +853,14 @@ def _rag_valid_upload_id(s):
 @admin_required
 def admin_home():
     """Tableau de bord d'administration : liens vers toutes les zones admin."""
-    return send_from_directory(HERE, "admin.html")
+    return _serve_fast("admin.html", _CC_ADMIN)
 
 
 @app.route("/admin/base-connaissance")
 @admin_required
 def admin_rag_page():
     """Console d'administration de la base de connaissance RAG."""
-    return send_from_directory(HERE, "admin-base-connaissance.html")
+    return _serve_fast("admin-base-connaissance.html", _CC_ADMIN)
 
 
 @app.route("/api/admin/rag/documents", methods=["GET"])
@@ -918,7 +1000,7 @@ _ASSISTANT_MSG = {
 @admin_required
 def admin_livrables_page():
     """Console de génération de livrables (réservée à l'administrateur)."""
-    return send_from_directory(HERE, "admin-livrables.html")
+    return _serve_fast("admin-livrables.html", _CC_ADMIN)
 
 
 @app.route("/api/admin/livrables/types", methods=["GET"])
@@ -1208,7 +1290,7 @@ def _actor():
 @admin_required
 def admin_clients_page():
     """Console de gestion des clients (réservée à l'administrateur)."""
-    return send_from_directory(HERE, "admin-clients.html")
+    return _serve_fast("admin-clients.html", _CC_ADMIN)
 
 
 @app.route("/api/admin/clients", methods=["GET"])
