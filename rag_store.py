@@ -249,15 +249,26 @@ class MemoryRagStore:
         return self._ingest(up["filename"], up["ext"], data, title, theme, visibility)
 
     def ingest_bytes(self, filename, data, title="", theme="", visibility="public"):
-        """Ingestion directe (API / automatisations) : mêmes validations que l'upload."""
+        """Ingestion directe (API / automatisations) : mêmes validations que l'upload.
+        Idempotent : si le contenu est déjà présent, renvoie le document existant."""
         ext = validate_ext(filename)
-        return self._ingest(filename, ext, data, title, theme, visibility)
+        return self._ingest(filename, ext, data, title, theme, visibility, dedupe="skip")
 
-    def _ingest(self, filename, ext, data, title, theme, visibility):
+    def _ingest(self, filename, ext, data, title, theme, visibility, dedupe="reject"):
         if not data:
             raise RagError("fichier_vide", 422)
         if len(data) > MAX_FILE_BYTES:
             raise RagError("fichier_trop_lourd", 413)
+        # Anti-doublon : contenu déjà présent (même empreinte SHA-256) ? On teste
+        # AVANT l'extraction de texte (coûteuse) — inutile de la faire pour rien.
+        digest = hashlib.sha256(data).hexdigest()
+        with self._lock:
+            existing = next((m for m in self._docs.values()
+                             if m.get("sha256") == digest), None)
+        if existing is not None:
+            if dedupe == "skip":
+                return dict(existing)
+            raise RagError("doublon", 409)
         text = extract_text(ext, data)
         chunks = chunk_text(text)
         if not chunks:
@@ -267,7 +278,7 @@ class MemoryRagStore:
             "id": doc_id, "title": (title or filename).strip()[:300],
             "filename": filename, "ext": ext, "theme": (theme or "Général").strip()[:80],
             "visibility": _clean_visibility(visibility), "bytes": len(data),
-            "sha256": hashlib.sha256(data).hexdigest(), "nb_chunks": len(chunks),
+            "sha256": digest, "nb_chunks": len(chunks),
             "chunks_indexed": len(chunks), "status": "ready", "mode": "lexical",
             "error": None, "created_at": _now_ms(), "updated_at": _now_ms(),
         }
@@ -495,16 +506,28 @@ class PostgresRagStore:
         return meta
 
     def ingest_bytes(self, filename, data, title="", theme="", visibility="public"):
-        """Ingestion directe (API / automatisations) : mêmes validations que l'upload."""
+        """Ingestion directe (API / automatisations) : mêmes validations que l'upload.
+        Idempotent : si le contenu est déjà présent, renvoie le document existant."""
         ext = validate_ext(filename)
         with self._pool.connection() as conn:
-            return self._ingest(conn, filename, ext, data, title, theme, visibility)
+            return self._ingest(conn, filename, ext, data, title, theme, visibility,
+                                dedupe="skip")
 
-    def _ingest(self, conn, filename, ext, data, title, theme, visibility):
+    def _ingest(self, conn, filename, ext, data, title, theme, visibility, dedupe="reject"):
         if not data:
             raise RagError("fichier_vide", 422)
         if len(data) > MAX_FILE_BYTES:
             raise RagError("fichier_trop_lourd", 413)
+        # Anti-doublon : contenu déjà présent (même empreinte SHA-256) ? On teste
+        # AVANT l'extraction de texte (coûteuse) — inutile de la faire pour rien.
+        digest = hashlib.sha256(data).hexdigest()
+        existing = conn.execute(
+            "SELECT " + self._COLS + " FROM rag_documents WHERE sha256=%s LIMIT 1",
+            (digest,)).fetchone()
+        if existing is not None:
+            if dedupe == "skip":
+                return self._row_to_dict(existing)
+            raise RagError("doublon", 409)
         text = extract_text(ext, data)
         chunks = chunk_text(text)
         if not chunks:
@@ -515,7 +538,6 @@ class PostgresRagStore:
         mode = "vectoriel" if emb_on else "texte_integral"
         indexed = 0 if emb_on else len(chunks)
         now = _now_ms()
-        digest = hashlib.sha256(data).hexdigest()
         # ESSENTIEL (métadonnées + fragments cherchables) : dans une transaction.
         # Toute erreur est journalisée et renvoyée PROPREMENT (jamais de 500 opaque).
         # Le contenu texte est déjà nettoyé (NUL, caractères de contrôle).
