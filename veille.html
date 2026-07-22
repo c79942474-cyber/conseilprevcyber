@@ -41,6 +41,12 @@
   .vempty{color:var(--muted2);text-align:center;padding:44px;border:1px dashed var(--line);border-radius:13px}
   .vnote{display:flex;gap:9px;align-items:flex-start;border:1px solid rgba(34,211,238,.3);
     background:rgba(34,211,238,.06);border-radius:11px;padding:12px 15px;font-size:12.5px;color:var(--muted);margin:0 0 20px}
+  .vfilter{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 16px}
+  .vfilter label{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted2)}
+  .vfilter select{padding:8px 12px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);
+    color:var(--ink);font-family:var(--sans);font-size:13.5px;outline:none;transition:border-color .15s;cursor:pointer}
+  .vfilter select:focus{border-color:var(--cyan)}
+  .vcount{font-family:var(--mono);font-size:11.5px;color:var(--muted2);white-space:nowrap}
 </style>
 </head>
 <body>
@@ -75,6 +81,11 @@
       <div class="vnote"><span aria-hidden="true">🤖</span><span><b style="color:var(--ink)">Transparence (AI Act art. 50)</b> —
       les résumés sont <b>générés automatiquement par IA</b> à partir des bulletins officiels, sans relecture systématique :
       référez-vous toujours au bulletin source (lien sous chaque élément). Collecte périodique automatique.</span></div>
+      <div class="vfilter" id="vfilter" style="display:none">
+        <label for="vtheme">Thème</label>
+        <select id="vtheme" aria-label="Filtrer la veille par thème"><option value="">Tous les thèmes</option></select>
+        <span class="vcount" id="vcount"></span>
+      </div>
       <div id="vlist"><div class="vempty">Chargement de la veille…</div></div>
     </section>
   </main>
@@ -103,26 +114,70 @@
 
   <script>
   (function(){
+    var LIMIT=10;
     function esc(s){return (''+(s==null?'':s)).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
     function fmt(ts){if(!ts)return '';var d=new Date(ts);return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});}
+
+    // Classement thématique des bulletins (heuristique par mots-clés), priorité descendante.
+    var THEME_RULES=[
+      ['Systèmes industriels (OT/ICS)', /scada|automate|\bplc\b|\bics\b|industriel|siemens|schneider|moxa|modbus|\bot\b|rockwell|\bwago\b|hirschmann|codesys|opc[\s-]?ua|profinet|simatic|s7-/],
+      ['Réseau & périmètre', /\bvpn\b|pare-?feu|firewall|fortinet|fortios|fortigate|fortimanager|cisco|ivanti|citrix|palo\s*alto|routeur|\bf5\b|big-?ip|juniper|sonicwall|pfsense|passerelle|\bproxy\b/],
+      ['Microsoft & Windows', /microsoft|windows|exchange|\boffice\b|outlook|azure|sharepoint|\.net|active\s*directory|hyper-?v\b|\brdp\b/],
+      ['Virtualisation & Cloud', /vmware|vcenter|esxi|hyperviseur|kubernetes|docker|\bcloud\b|openstack|proxmox|nutanix/],
+      ['Linux & Unix', /linux|unix|debian|ubuntu|red\s?hat|centos|\bnoyau\b|kernel|\bbsd\b|\bsuse\b/],
+      ['Web & applications', /apache|nginx|\bphp\b|wordpress|drupal|joomla|navigateur|chrome|chromium|firefox|safari|\bweb\b|tomcat|struts|gitlab|jenkins/],
+      ['Bases de données', /\bsql\b|oracle|postgre|mysql|mariadb|mongodb|base\s+de\s+donn/],
+      ['Mobile', /android|\bios\b|iphone|ipad|\bmobile\b/]
+    ];
+    function themeOf(it){
+      var h=((it.title||'')+' '+(it.resume||'')).toLowerCase();
+      for(var i=0;i<THEME_RULES.length;i++){ if(THEME_RULES[i][1].test(h)) return THEME_RULES[i][0]; }
+      return 'Autres';
+    }
+
+    var ALL=[];
+    var vlist=document.getElementById('vlist'), vfilter=document.getElementById('vfilter'),
+        vsel=document.getElementById('vtheme'), vcount=document.getElementById('vcount');
+
+    function itemHTML(it){
+      var kind=it.source==='alerte'?'<span class="vpill alerte">Alerte</span>':'<span class="vpill avis">Avis</span>';
+      return '<article class="vitem"><div class="vtop">'+kind
+        +'<span class="vpill">'+esc(it._theme)+'</span>'
+        +'<h3><a href="'+esc(it.link)+'" target="_blank" rel="noopener">'+esc(it.title)+'</a></h3>'
+        +'<span class="vdate">'+fmt(it.published)+'</span></div>'
+        +'<p>'+esc(it.resume)+'</p>'
+        +'<a class="vlink" href="'+esc(it.link)+'" target="_blank" rel="noopener">Bulletin officiel CERT-FR →</a></article>';
+    }
+    function render(){
+      var t=vsel.value;
+      var items=t? ALL.filter(function(x){return x._theme===t;}) : ALL;
+      var shown=items.slice(0,LIMIT);   // les 10 plus récents (déjà triés par date décroissante)
+      vlist.innerHTML=shown.length? shown.map(itemHTML).join('')
+        : '<div class="vempty">Aucun bulletin pour ce thème.</div>';
+      vcount.textContent=items.length>LIMIT
+        ? (LIMIT+' plus récents · '+items.length+' au total')
+        : (items.length+' bulletin'+(items.length>1?'s':''));
+    }
+
     fetch('/api/veille').then(function(r){return r.ok?r.json():null;}).then(function(j){
-      var el=document.getElementById('vlist');
       var items=(j&&j.items)||[];
       if(!items.length){
-        el.innerHTML='<div class="vempty">La collecte automatique démarre — les premiers bulletins CERT-FR apparaîtront ici sous quelques heures.<br>'
+        vlist.innerHTML='<div class="vempty">La collecte automatique démarre — les premiers bulletins CERT-FR apparaîtront ici sous quelques heures.<br>'
           +'En attendant : <a href="https://www.cert.ssi.gouv.fr" target="_blank" rel="noopener" style="color:var(--cyan)">cert.ssi.gouv.fr</a></div>';
         return;
       }
-      el.innerHTML=items.map(function(it){
-        var kind=it.source==='alerte'?'<span class="vpill alerte">Alerte</span>':'<span class="vpill avis">Avis</span>';
-        return '<article class="vitem"><div class="vtop">'+kind
-          +'<h3><a href="'+esc(it.link)+'" target="_blank" rel="noopener">'+esc(it.title)+'</a></h3>'
-          +'<span class="vdate">'+fmt(it.published)+'</span></div>'
-          +'<p>'+esc(it.resume)+'</p>'
-          +'<a class="vlink" href="'+esc(it.link)+'" target="_blank" rel="noopener">Bulletin officiel CERT-FR →</a></article>';
-      }).join('');
+      ALL=items.map(function(it){ it._theme=themeOf(it); return it; });
+      var order=THEME_RULES.map(function(r){return r[0];}).concat(['Autres']);
+      var counts={}; ALL.forEach(function(x){counts[x._theme]=(counts[x._theme]||0)+1;});
+      vsel.innerHTML='<option value="">Tous les thèmes ('+ALL.length+')</option>'
+        +order.filter(function(n){return counts[n];}).map(function(n){
+          return '<option value="'+esc(n)+'">'+esc(n)+' ('+counts[n]+')</option>';
+        }).join('');
+      vfilter.style.display='flex';
+      vsel.addEventListener('change',render);
+      render();
     }).catch(function(){
-      document.getElementById('vlist').innerHTML='<div class="vempty">Veille momentanément indisponible.</div>';
+      vlist.innerHTML='<div class="vempty">Veille momentanément indisponible.</div>';
     });
   })();
   </script>
