@@ -118,6 +118,32 @@
   #liveNotice{display:none;border:1px solid rgba(34,211,238,.4);background:rgba(34,211,238,.07);
     border-radius:11px;padding:12px 15px;font-size:13px;color:var(--muted);margin-top:14px}
   .toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:18px 0 4px}
+
+  /* ── Schémas d'architecture : couches IT/OT & zones/conduits ── */
+  .archintro{font-size:12.5px;color:var(--muted2);margin:0 0 12px;line-height:1.55}
+  .archwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel2);padding:6px}
+  svg.arch{display:block;width:100%;min-width:680px;height:auto}
+  svg.arch text{font-family:var(--sans);fill:var(--muted);font-size:13px}
+  svg.arch .zttl{fill:var(--ink);font-weight:700;font-size:14px}
+  svg.arch .zsub{fill:var(--muted2);font-size:11.5px}
+  svg.arch .lvl{fill:var(--muted2);font-family:var(--mono);font-size:11px;letter-spacing:.05em}
+  svg.arch .cap{fill:var(--muted2);font-size:11px}
+  svg.arch .box{fill:var(--panel);stroke:var(--line);stroke-width:1.4}
+  svg.arch .dmz{fill:rgba(240,180,41,.13);stroke:rgba(240,180,41,.62);stroke-width:1.5}
+  svg.arch .cell{fill:rgba(0,0,0,.17);stroke:var(--line);stroke-width:1.3}
+  svg.arch .cond{stroke:var(--teal);stroke-width:2.2;fill:none}
+  svg.arch .bus{stroke:var(--line);stroke-width:2;fill:none}
+  svg.arch .fw{fill:var(--bg2);stroke:var(--teal);stroke-width:1.5}
+  svg.arch .fwx{stroke:var(--teal);stroke-width:1.2}
+  svg.arch .sl{fill:rgba(34,211,238,.15);stroke:rgba(34,211,238,.55);stroke-width:1.2}
+  svg.arch .slt{fill:var(--cyan);font-family:var(--mono);font-weight:700;font-size:12px}
+  svg.arch .brk{stroke-width:2.4;fill:none}
+  svg.arch .brkIT{stroke:var(--violet)}
+  svg.arch .brkOT{stroke:var(--teal)}
+  svg.arch .lblIT{fill:var(--violet);font-family:var(--mono);font-weight:700;font-size:13px}
+  svg.arch .lblOT{fill:var(--teal);font-family:var(--mono);font-weight:700;font-size:13px}
+  .archnote{border:1px solid rgba(45,212,191,.32);background:rgba(45,212,191,.07);border-radius:11px;padding:11px 14px;font-size:12.5px;color:var(--muted);margin-top:12px}
+  .archnote b{color:var(--teal)}
 </style>
 </head>
 <body>
@@ -203,11 +229,163 @@
         </div>
       </div>
 
-      <!-- ÉTAPE 2 — Schéma couches IT/OT -->
-      <h2 style="margin-top:34px"><span class="stepnum">2</span>Répartition des actifs par couches IT/OT</h2>
-      <p class="lead" style="font-size:14.5px;margin-top:8px">Modèle en couches (niveaux 0-1 à 4-5) aligné sur le découpage en zones &amp; conduits de l'IEC&nbsp;62443. Chaque pastille est colorée selon le risque de l'actif.</p>
+      <!-- ÉTAPE 2 — Schémas d'architecture + répartition des actifs -->
+      <h2 style="margin-top:34px"><span class="stepnum">2</span>Architecture par couches IT/OT &amp; zones/conduits</h2>
+      <p class="lead" style="font-size:14.5px;margin-top:8px">Deux schémas de référence — le <b>modèle en couches</b> IEC&nbsp;62443 (IT/OT) et la <b>cartographie en zones &amp; conduits</b> issue de l'inventaire audité —
+      puis vos actifs positionnés couche par couche, chaque pastille colorée selon son risque.</p>
+
+      <!-- Schéma 1 : modèle en couches IEC 62443 (Purdue) IT/OT -->
       <div class="panel">
-        <div class="ph"><h3>Schéma des couches &amp; conduits <button type="button" class="tipi" data-tip="Les conduits sont les liaisons maîtrisées entre zones : chaque échange inter-couches doit être filtré et journalisé." aria-label="Aide : couches et conduits">i</button></h3>
+        <div class="ph"><h3>Schéma 1 — Modèle en couches IEC&nbsp;62443 (IT / OT) <button type="button" class="tipi" data-tip="Modèle de référence type « Purdue » repris par l'IEC 62443 : les niveaux 0 à 5 séparent le procédé (OT) du système d'information (IT), la DMZ industrielle formant la frontière maîtrisée entre les deux." aria-label="Aide : modèle en couches">i</button></h3>
+          <span style="font-size:11.5px;color:var(--muted2)">réf. 62443‑3‑2 · zones = couches</span></div>
+        <p class="archintro">Chaque couche est une <b>zone de sécurité</b> avec un niveau cible (SL‑T). Les échanges entre couches ne transitent que par des <b>conduits</b> filtrés et journalisés ; la <b>DMZ industrielle</b> isole l'IT de l'OT.</p>
+        <div class="archwrap">
+          <svg class="arch" viewBox="0 0 960 500" role="img" aria-labelledby="s1t s1d">
+            <title id="s1t">Modèle en couches IEC 62443 : Entreprise IT niveaux 4-5, DMZ industrielle niveau 3.5, Supervision SCADA niveau 3, Cellule/Contrôle niveau 2, Terrain niveaux 0-1.</title>
+            <desc id="s1d">Les couches IT sont séparées des couches OT par la DMZ industrielle ; chaque couche porte un niveau de sécurité cible et communique via des conduits filtrés et journalisés.</desc>
+            <defs><g id="fw1"><rect x="-12" y="-9" width="24" height="18" rx="3" class="fw"/><line x1="-4" y1="-9" x2="-4" y2="9" class="fwx"/><line x1="4" y1="-9" x2="4" y2="9" class="fwx"/><line x1="-12" y1="0" x2="12" y2="0" class="fwx"/></g></defs>
+
+            <!-- brackets IT / OT -->
+            <path class="brk brkIT" d="M40,22 L48,22 M40,22 L40,84 M40,84 L48,84"/>
+            <text x="16" y="57" class="lblIT">IT</text>
+            <path class="brk brkOT" d="M40,218 L48,218 M40,218 L40,476 M40,476 L48,476"/>
+            <text x="14" y="352" class="lblOT">OT</text>
+            <text x="784" y="14" class="cap" text-anchor="middle">SL‑T</text>
+
+            <!-- bande 1 : Entreprise (IT) -->
+            <rect x="100" y="18" width="630" height="70" rx="12" class="box"/>
+            <text x="118" y="42" class="lvl">NIV. 4‑5</text>
+            <text x="118" y="63" class="zttl">Entreprise (IT)</text>
+            <text x="118" y="80" class="zsub">ERP · Active Directory · messagerie · postes bureautiques</text>
+            <rect x="752" y="40" width="64" height="26" rx="7" class="sl"/><text x="784" y="57" class="slt" text-anchor="middle">SL 1</text>
+            <line class="cond" x1="415" y1="88" x2="415" y2="116"/><use href="#fw1" transform="translate(415,102)"/><text x="434" y="106" class="cap">conduit</text>
+
+            <!-- bande 2 : DMZ industrielle -->
+            <rect x="100" y="116" width="630" height="70" rx="12" class="dmz"/>
+            <text x="118" y="140" class="lvl">NIV. 3.5 · FRONTIÈRE IT ⇄ OT</text>
+            <text x="118" y="161" class="zttl">DMZ industrielle</text>
+            <text x="118" y="178" class="zsub">rebond · miroir historian · télémaintenance (bastion, MFA)</text>
+            <rect x="752" y="138" width="64" height="26" rx="7" class="sl"/><text x="784" y="155" class="slt" text-anchor="middle">SL 2</text>
+            <line class="cond" x1="415" y1="186" x2="415" y2="214"/><use href="#fw1" transform="translate(415,200)"/><text x="434" y="204" class="cap">conduit</text>
+
+            <!-- bande 3 : Supervision (SCADA) -->
+            <rect x="100" y="214" width="630" height="70" rx="12" class="box"/>
+            <text x="118" y="238" class="lvl">NIV. 3</text>
+            <text x="118" y="259" class="zttl">Supervision (SCADA)</text>
+            <text x="118" y="276" class="zsub">SCADA · historian · station d'ingénierie · console d'alarmes</text>
+            <rect x="752" y="236" width="64" height="26" rx="7" class="sl"/><text x="784" y="253" class="slt" text-anchor="middle">SL 3</text>
+            <line class="cond" x1="415" y1="284" x2="415" y2="312"/><use href="#fw1" transform="translate(415,298)"/><text x="434" y="302" class="cap">conduit</text>
+
+            <!-- bande 4 : Cellule / Contrôle -->
+            <rect x="100" y="312" width="630" height="70" rx="12" class="box"/>
+            <text x="118" y="336" class="lvl">NIV. 2</text>
+            <text x="118" y="357" class="zttl">Cellule / Contrôle</text>
+            <text x="118" y="374" class="zsub">DCS · automates (PLC) · IHM locales · variateurs</text>
+            <rect x="752" y="334" width="64" height="26" rx="7" class="sl"/><text x="784" y="351" class="slt" text-anchor="middle">SL 3</text>
+            <line class="cond" x1="415" y1="382" x2="415" y2="410"/><use href="#fw1" transform="translate(415,396)"/><text x="434" y="400" class="cap">conduit</text>
+
+            <!-- bande 5 : Terrain / Procédé -->
+            <rect x="100" y="410" width="630" height="70" rx="12" class="box"/>
+            <text x="118" y="434" class="lvl">NIV. 0‑1</text>
+            <text x="118" y="455" class="zttl">Terrain / Procédé</text>
+            <text x="118" y="472" class="zsub">capteurs · actionneurs · RTU · caméra IIoT</text>
+            <rect x="752" y="432" width="64" height="26" rx="7" class="sl"/><text x="784" y="449" class="slt" text-anchor="middle">SL 2</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Schéma 2 : zones & conduits (cartographie de segmentation) -->
+      <div class="panel">
+        <div class="ph"><h3>Schéma 2 — Zones &amp; conduits (segmentation) <button type="button" class="tipi" data-tip="Vue de segmentation issue de l'inventaire audité : chaque zone regroupe des actifs de même criticité/exposition ; les conduits sont les seuls points de passage entre zones, filtrés et journalisés. La cellule de production est micro-segmentée par ligne." aria-label="Aide : zones et conduits">i</button></h3>
+          <span style="font-size:11.5px;color:var(--muted2)">réf. 62443‑3‑2 · site démo · 25 actifs</span></div>
+        <p class="archintro">Découpage de l'installation en <b>zones</b> (regroupements d'actifs homogènes en risque) reliées par des <b>conduits</b> maîtrisés. La zone de contrôle est <b>micro-segmentée</b> par ligne de production pour contenir une compromission.</p>
+        <div class="archwrap">
+          <svg class="arch" viewBox="0 0 960 620" role="img" aria-labelledby="s2t s2d">
+            <title id="s2t">Cartographie en zones et conduits : Entreprise IT, DMZ industrielle, Supervision SCADA, cellules de contrôle micro-segmentées (Ligne A, Ligne B, Utilités), Terrain.</title>
+            <desc id="s2d">Les zones sont reliées par des conduits filtrés et journalisés ; la zone de contrôle est micro-segmentée par ligne de production ; chaque zone porte un niveau de sécurité cible et un nombre d'actifs.</desc>
+            <defs><g id="fw2"><rect x="-12" y="-9" width="24" height="18" rx="3" class="fw"/><line x1="-4" y1="-9" x2="-4" y2="9" class="fwx"/><line x1="4" y1="-9" x2="4" y2="9" class="fwx"/><line x1="-12" y1="0" x2="12" y2="0" class="fwx"/></g></defs>
+
+            <!-- Zone Entreprise (IT) -->
+            <rect x="300" y="18" width="360" height="58" rx="12" class="box"/>
+            <text x="318" y="43" class="zttl">Zone Entreprise — IT</text>
+            <text x="318" y="62" class="zsub">ERP · Active Directory · postes bureautiques</text>
+            <rect x="690" y="20" width="64" height="24" rx="7" class="sl"/><text x="722" y="37" class="slt" text-anchor="middle">SL 1</text>
+            <text x="722" y="60" class="cap" text-anchor="middle">4 actifs</text>
+            <line class="cond" x1="480" y1="76" x2="480" y2="116"/><use href="#fw2" transform="translate(480,96)"/>
+            <text x="500" y="100" class="cap">conduit IT ↔ OT · pare‑feu · rebond · matrice de flux</text>
+
+            <!-- DMZ industrielle -->
+            <rect x="300" y="116" width="360" height="54" rx="12" class="dmz"/>
+            <text x="318" y="140" class="zttl">DMZ industrielle</text>
+            <text x="318" y="158" class="zsub">échanges filtrés · télémaintenance · miroir historian</text>
+            <rect x="690" y="120" width="64" height="24" rx="7" class="sl"/><text x="722" y="137" class="slt" text-anchor="middle">SL 2</text>
+            <text x="722" y="160" class="cap" text-anchor="middle">3 actifs</text>
+            <line class="cond" x1="480" y1="170" x2="480" y2="208"/><use href="#fw2" transform="translate(480,189)"/>
+
+            <!-- Zone Supervision (SCADA) -->
+            <rect x="300" y="208" width="360" height="54" rx="12" class="box"/>
+            <text x="318" y="232" class="zttl">Zone Supervision — SCADA (OT)</text>
+            <text x="318" y="250" class="zsub">SCADA · historian · station d'ingénierie</text>
+            <rect x="690" y="212" width="64" height="24" rx="7" class="sl"/><text x="722" y="229" class="slt" text-anchor="middle">SL 3</text>
+            <text x="722" y="252" class="cap" text-anchor="middle">5 actifs</text>
+            <line class="cond" x1="480" y1="262" x2="480" y2="296"/>
+
+            <!-- bus de contrôle + micro-segmentation par cellule -->
+            <text x="150" y="288" class="cap">Zone Contrôle — Niv. 2 · micro-segmentation par ligne · SL 3 · 7 actifs</text>
+            <line class="bus" x1="180" y1="296" x2="780" y2="296"/>
+            <line class="cond" x1="250" y1="296" x2="250" y2="330"/><use href="#fw2" transform="translate(250,313)"/>
+            <line class="cond" x1="480" y1="296" x2="480" y2="330"/><use href="#fw2" transform="translate(480,313)"/>
+            <line class="cond" x1="710" y1="296" x2="710" y2="330"/><use href="#fw2" transform="translate(710,313)"/>
+
+            <!-- Cellule Ligne A -->
+            <rect x="145" y="330" width="210" height="110" rx="11" class="cell"/>
+            <text x="162" y="356" class="zttl" style="font-size:13px">Cellule Ligne A</text>
+            <text x="162" y="378" class="zsub">DCS Unité 1</text>
+            <text x="162" y="396" class="zsub">PLC Ligne A</text>
+            <text x="162" y="414" class="zsub">IHM locale A</text>
+            <rect x="290" y="340" width="52" height="20" rx="6" class="sl"/><text x="316" y="354" class="slt" text-anchor="middle" style="font-size:11px">SL 3</text>
+            <!-- Cellule Ligne B -->
+            <rect x="375" y="330" width="210" height="110" rx="11" class="cell"/>
+            <text x="392" y="356" class="zttl" style="font-size:13px">Cellule Ligne B</text>
+            <text x="392" y="378" class="zsub">PLC Ligne B</text>
+            <text x="392" y="396" class="zsub">IHM locale B</text>
+            <text x="392" y="414" class="zsub">variateurs</text>
+            <rect x="520" y="340" width="52" height="20" rx="6" class="sl"/><text x="546" y="354" class="slt" text-anchor="middle" style="font-size:11px">SL 3</text>
+            <!-- Utilités -->
+            <rect x="605" y="330" width="210" height="110" rx="11" class="cell"/>
+            <text x="622" y="356" class="zttl" style="font-size:13px">Utilités</text>
+            <text x="622" y="378" class="zsub">PLC utilités</text>
+            <text x="622" y="396" class="zsub">groupe variateurs</text>
+            <text x="622" y="414" class="zsub">énergie · air · eau</text>
+            <rect x="750" y="340" width="52" height="20" rx="6" class="sl"/><text x="776" y="354" class="slt" text-anchor="middle" style="font-size:11px">SL 3</text>
+
+            <!-- conduits vers le terrain -->
+            <line class="cond" x1="250" y1="440" x2="250" y2="500"/><use href="#fw2" transform="translate(250,470)"/>
+            <line class="cond" x1="480" y1="440" x2="480" y2="500"/><use href="#fw2" transform="translate(480,470)"/>
+            <line class="cond" x1="710" y1="440" x2="710" y2="500"/><use href="#fw2" transform="translate(710,470)"/>
+
+            <!-- Zone Terrain -->
+            <rect x="150" y="500" width="660" height="58" rx="12" class="box"/>
+            <text x="168" y="525" class="zttl">Zone Terrain / Procédé — Niv. 0‑1</text>
+            <text x="168" y="544" class="zsub">capteurs · actionneurs · RTU · caméra IIoT</text>
+            <rect x="826" y="510" width="64" height="24" rx="7" class="sl"/><text x="858" y="527" class="slt" text-anchor="middle">SL 2</text>
+            <text x="858" y="550" class="cap" text-anchor="middle">6 actifs</text>
+
+            <!-- légende -->
+            <use href="#fw2" transform="translate(172,590)"/>
+            <text x="192" y="594" class="cap">point de contrôle — conduit : flux filtré &amp; journalisé</text>
+            <line class="cond" x1="560" y1="590" x2="600" y2="590"/>
+            <text x="610" y="594" class="cap">liaison maîtrisée entre zones</text>
+          </svg>
+        </div>
+        <div class="archnote"><b>Lecture.</b> Une compromission dans une cellule (ex. Ligne&nbsp;A) reste <b>confinée</b> par les conduits : elle n'atteint ni les autres lignes, ni la supervision, ni l'IT sans franchir un point de contrôle filtré. C'est l'objectif du découpage <b>zones&nbsp;&amp;&nbsp;conduits</b> de l'IEC&nbsp;62443‑3‑2.</div>
+      </div>
+
+      <!-- Vos actifs positionnés sur le modèle (dynamique) -->
+      <h3 style="margin-top:26px;font-size:15px">Vos actifs positionnés par couche</h3>
+      <p class="lead" style="font-size:13.5px;margin-top:4px;color:var(--muted2)">Inventaire de l'étude réparti sur le modèle ci-dessus — chaque pastille est colorée selon le risque de l'actif.</p>
+      <div class="panel">
+        <div class="ph"><h3>Actifs par couche &amp; conduits <button type="button" class="tipi" data-tip="Les conduits sont les liaisons maîtrisées entre zones : chaque échange inter-couches doit être filtré et journalisé." aria-label="Aide : couches et conduits">i</button></h3>
           <span style="font-size:11.5px;color:var(--muted2)">● <i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#34D399"></i> faible&nbsp;
           <i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#F0C24B"></i> modéré&nbsp;
           <i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#F08A3C"></i> élevé&nbsp;
