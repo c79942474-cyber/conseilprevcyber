@@ -111,6 +111,15 @@
           <span class="go">Ouvrir →</span>
         </a>
       </div>
+
+      <div style="margin-top:26px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,var(--panel),var(--bg2));padding:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div><h3 style="margin:0">Diagnostic Assistant IA</h3>
+          <p style="margin:4px 0 0;font-size:13px;color:var(--muted2)">Vérifie que Claude (Anthropic) et Mistral sont configurés et joignables — utile si « seul Mistral fonctionne ».</p></div>
+          <button id="diagBtn" class="btn btn-s" type="button">🩺 Tester Claude &amp; Mistral</button>
+        </div>
+        <div id="diagOut" style="margin-top:14px;display:none"></div>
+      </div>
     </section>
   </main>
 
@@ -139,6 +148,28 @@
         setVal('sWait', j.users.filter(function(u){return u.email_verified&&!u.approved;}).length);
         setVal('sActive', j.users.filter(function(u){return u.approved;}).length);
       }}).catch(function(){});
+
+    // Diagnostic Assistant IA — appelle /api/assistant/selftest (aucun secret exposé).
+    var diagBtn=document.getElementById('diagBtn'), diagOut=document.getElementById('diagOut');
+    function diagRow(name,d){
+      var ok=d&&d.ok, conf=d&&d.configured, color=ok?'var(--green)':(conf?'var(--amber)':'var(--danger)'), label, hint='';
+      if(ok){ label='✅ Opérationnel'; hint='modèle '+((d&&d.model)||'—'); }
+      else if(!conf){ label='❌ Non configuré'; hint=(d&&d.detail)||'clé API absente dans Render'; }
+      else if(d&&d.detail==='réseau injoignable'){ label='⚠️ Réseau injoignable'; hint='réessayez dans un instant'; }
+      else { label='⚠️ Erreur API'; hint='HTTP '+((d&&d.status)||'?')+(d&&d.type?(' · '+d.type):'')+' — clé invalide, accès au modèle refusé, ou crédit épuisé'; }
+      return '<div style="display:flex;gap:12px;align-items:baseline;padding:8px 0;border-bottom:1px solid rgba(154,102,80,.28)">'
+        +'<b style="min-width:78px;color:var(--ink)">'+name+'</b><span style="color:'+color+';font-weight:600;min-width:150px">'+label+'</span>'
+        +'<span style="color:var(--muted2);font-size:12.5px">'+hint+'</span></div>';
+    }
+    if(diagBtn) diagBtn.addEventListener('click',function(){
+      diagBtn.disabled=true; var old=diagBtn.textContent; diagBtn.textContent='Test en cours…';
+      fetch('/api/assistant/selftest').then(function(r){return r.json();}).then(function(j){
+        diagBtn.disabled=false; diagBtn.textContent=old; diagOut.style.display='block';
+        if(!j||!j.results){ diagOut.innerHTML='<div style="color:var(--danger)">Diagnostic indisponible'+(j&&j.message?(' — '+j.message):'')+'.</div>'; return; }
+        diagOut.innerHTML=diagRow('Claude',j.results.claude)+diagRow('Mistral',j.results.mistral)
+          +'<p style="font-size:12px;color:var(--muted2);margin-top:10px">Clés à définir dans <b>Render → Environment</b> : <b>ANTHROPIC_API_KEY</b> (Claude) et <b>MISTRAL_API_KEY</b> (Mistral), puis redéployer. Modèle Claude&nbsp;: variable <b>ANTHROPIC_MODEL</b> (Opus&nbsp;4.8 par défaut). Modèle affiché par défaut&nbsp;: <b>ASSISTANT_DEFAULT_MODEL</b>.</p>';
+      }).catch(function(){ diagBtn.disabled=false; diagBtn.textContent=old; diagOut.style.display='block'; diagOut.innerHTML='<div style="color:var(--danger)">Diagnostic impossible pour le moment.</div>'; });
+    });
   })();
   </script>
   <script src="/nav.js" defer></script>
