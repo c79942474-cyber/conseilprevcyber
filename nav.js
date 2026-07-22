@@ -53,37 +53,19 @@
     else if (mq.addListener) mq.addListener(onChange);
   }
 
-  /* ── 2. Flèches de navigation ───────────────────────────────────────────── */
+  /* ── 2. Flèches de navigation (deux blocs : haut-gauche & bas-droite) ─────── */
   function initPageNav() {
     if (document.querySelector(".pagenav")) return;
-    var box = document.createElement("div");
-    box.className = "pagenav";
-    box.setAttribute("role", "group");
-    box.setAttribute("aria-label", "Navigation de page");
     var defs = [
       ["back", "←", "Page précédente", "Précédent"],
       ["forward", "→", "Page suivante", "Suivant"],
       ["top", "↑", "Haut de la page", "Haut"],
       ["bottom", "↓", "Bas de la page", "Bas"],
     ];
-    defs.forEach(function (d) {
-      var b = document.createElement("button");
-      b.type = "button";
-      b.className = "pagenav-btn";
-      b.setAttribute("data-nav", d[0]);
-      b.setAttribute("aria-label", d[2]);
-      b.title = d[3];
-      b.textContent = d[1];
-      box.appendChild(b);
-    });
-    document.body.appendChild(box);
-
     var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     var behavior = reduce ? "auto" : "smooth";
-    box.addEventListener("click", function (e) {
-      var b = e.target.closest(".pagenav-btn");
-      if (!b) return;
-      switch (b.getAttribute("data-nav")) {
+    function act(nav) {
+      switch (nav) {
         case "back": history.back(); break;
         case "forward": history.forward(); break;
         case "top": window.scrollTo({ top: 0, behavior: behavior }); break;
@@ -91,7 +73,30 @@
           window.scrollTo({ top: document.documentElement.scrollHeight, behavior: behavior });
           break;
       }
-    });
+    }
+    function makeBox(posClass, label) {
+      var box = document.createElement("div");
+      box.className = "pagenav " + posClass;
+      box.setAttribute("role", "group");
+      box.setAttribute("aria-label", label);
+      defs.forEach(function (d) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "pagenav-btn";
+        b.setAttribute("data-nav", d[0]);
+        b.setAttribute("aria-label", d[2]);
+        b.title = d[3];
+        b.textContent = d[1];
+        box.appendChild(b);
+      });
+      box.addEventListener("click", function (e) {
+        var b = e.target.closest(".pagenav-btn");
+        if (b) act(b.getAttribute("data-nav"));
+      });
+      document.body.appendChild(box);
+    }
+    makeBox("pagenav-tl", "Navigation de page (haut)");
+    makeBox("pagenav-br", "Navigation de page (bas)");
   }
 
   /* ── 3. Guide utilisateur par page ──────────────────────────────────────── */

@@ -148,21 +148,25 @@ main:focus{outline:none} /* cible du lien d'évitement : pas de halo pleine larg
 
 /* ── Navigation de page : flèches précédent/suivant + haut/bas (injecté par nav.js) ──
    Bloc flottant discret en bas à droite ; s'éclaircit au survol/focus. */
-.pagenav{position:fixed;right:16px;bottom:16px;z-index:40;
+.pagenav{position:fixed;z-index:40;
   display:grid;grid-template-columns:repeat(2,1fr);gap:6px;padding:7px;
   border-radius:14px;border:1px solid var(--line);
-  background:rgba(48,26,18,.64);backdrop-filter:blur(8px);
-  box-shadow:0 10px 26px rgba(0,0,0,.34);
-  opacity:.5;transition:opacity .18s ease}
+  background:rgba(48,26,18,.78);backdrop-filter:blur(8px);
+  box-shadow:0 10px 26px rgba(0,0,0,.38);
+  opacity:.85;transition:opacity .18s ease}
+.pagenav-br{right:16px;bottom:16px}       /* bloc bas-droite (existant) */
+.pagenav-tl{left:16px;top:80px}           /* bloc haut-gauche (sous l'en-tête de 64px) */
 .pagenav:hover,.pagenav:focus-within{opacity:1}
 .pagenav-btn{width:38px;height:34px;display:flex;align-items:center;justify-content:center;
-  font-size:17px;line-height:1;color:var(--muted);cursor:pointer;
+  font-size:17px;line-height:1;color:var(--ink);cursor:pointer;
   background:var(--panel2);border:1px solid var(--line);border-radius:9px;
   transition:color .15s,border-color .15s,background .15s,transform .1s}
-.pagenav-btn:hover{color:var(--ink);border-color:var(--terra);background:var(--panel)}
+.pagenav-btn:hover{color:var(--ink);border-color:var(--cyan);background:var(--panel)}
 .pagenav-btn:active{transform:translateY(1px)}
 .pagenav-btn:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
-@media(max-width:520px){.pagenav{right:10px;bottom:10px;gap:5px;padding:6px}
+@media(max-width:520px){.pagenav{gap:5px;padding:6px}
+  .pagenav-br{right:10px;bottom:10px}
+  .pagenav-tl{left:10px;top:72px}
   .pagenav-btn{width:34px;height:31px;font-size:15px}}
 @media print{.pagenav{display:none}}
 
