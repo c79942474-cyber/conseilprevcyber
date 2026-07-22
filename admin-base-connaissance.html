@@ -163,6 +163,24 @@
     </section>
   </main>
 
+  <!-- Lecteur de document (aperçu du contenu indexé, en ligne) -->
+  <div id="reader" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.55);
+       align-items:center;justify-content:center;padding:24px">
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:16px;max-width:820px;
+         width:100%;max-height:86vh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+      <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)">
+        <div style="flex:1;min-width:0">
+          <div id="readerTitle" style="font-weight:700;color:var(--ink);font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Document</div>
+          <div id="readerMeta" style="font-family:var(--mono);font-size:11px;color:var(--muted2);margin-top:2px"></div>
+        </div>
+        <button id="readerClose" type="button" style="border:1px solid var(--line);background:var(--panel2);
+          color:var(--muted);border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:16px">✕</button>
+      </div>
+      <div id="readerBody" style="overflow:auto;padding:18px 22px;white-space:pre-wrap;word-break:break-word;
+           font-size:13.5px;line-height:1.65;color:var(--muted)"></div>
+    </div>
+  </div>
+
   <script>
   (function(){
     var CHUNK = 400*1024, MAX = 30*1024*1024;
@@ -195,6 +213,7 @@
         var acts='';
         if(d.status==='indexing') acts+='<button data-a="index" data-id="'+d.id+'">▶ Indexer</button>';
         if(d.status==='ready'&&d.mode==='texte_integral'&&caps.embeddings) acts+='<button data-a="reindex" data-id="'+d.id+'" title="Générer la recherche sémantique (embeddings)">⟳ Vectoriser</button>';
+        acts+='<button data-a="read" data-id="'+d.id+'">📖 Lire</button>';
         acts+='<button data-a="download" data-id="'+d.id+'">Télécharger</button>';
         acts+='<button class="danger" data-a="delete" data-id="'+d.id+'" data-t="'+esc(d.title)+'">Supprimer</button>';
         return '<tr><td><div class="who">'+esc(d.title)+'</div><div class="sub">'+esc(d.filename)+' · '+(d.nb_chunks||0)+' fragments</div></td>'
@@ -361,6 +380,8 @@
           aa.href=u; aa.download=decodeURIComponent(fn); document.body.appendChild(aa); aa.click();
           setTimeout(function(){URL.revokeObjectURL(u); aa.remove();},1500);
         }
+      } else if(a==='read'){
+        openReader(id,b);
       } else if(a==='index'){
         b.disabled=true;b.textContent='…';
         try{ await runIndex(id); note('Indexation terminée.','ok'); }catch(_){ note('Indexation interrompue.','err'); }
@@ -375,6 +396,27 @@
         load();
       }
     });
+    // ---- lecteur de document (aperçu en ligne) ----
+    var reader=document.getElementById('reader');
+    function closeReader(){reader.style.display='none';document.getElementById('readerBody').textContent='';}
+    async function openReader(id,btn){
+      var old=btn.textContent; btn.disabled=true; btn.textContent='…';
+      try{
+        var r=await fetch('/api/admin/rag/documents/'+id+'/content');
+        var j=await readJson(r);
+        btn.disabled=false; btn.textContent=old;
+        if(!j||!j.ok){note(j&&j.error==='document_inconnu'?'Document introuvable.':'Lecture impossible.','err');return;}
+        document.getElementById('readerTitle').textContent=j.title||j.filename||'Document';
+        document.getElementById('readerMeta').textContent=(j.theme?('Thème : '+j.theme+' · '):'')+(j.filename||'');
+        var body=document.getElementById('readerBody');
+        body.textContent=(j.text&&j.text.trim())?j.text:'(Aucun contenu texte enregistré pour ce document.)';
+        body.scrollTop=0; reader.style.display='flex';
+      }catch(_){btn.disabled=false;btn.textContent=old;note('Lecture impossible.','err');}
+    }
+    document.getElementById('readerClose').addEventListener('click',closeReader);
+    reader.addEventListener('click',function(e){if(e.target===reader)closeReader();});
+    document.addEventListener('keydown',function(e){if(e.key==='Escape'&&reader.style.display!=='none')closeReader();});
+
     document.getElementById('filterTheme').addEventListener('change',render);
     document.getElementById('dedupe').addEventListener('click',function(){
       var b=this; b.disabled=true; var old=b.textContent; b.textContent='Analyse…';

@@ -1017,6 +1017,20 @@ def api_rag_download(doc_id):
     return send_file(io.BytesIO(data), download_name=filename, as_attachment=True)
 
 
+@app.route("/api/admin/rag/documents/<doc_id>/content", methods=["GET"])
+@admin_required
+def api_rag_content(doc_id):
+    """Contenu texte lisible d'un document (pour la lecture en ligne dans la
+    console) — fonctionne pour tous les formats, y compris les bulletins de veille."""
+    if not _rag_valid_doc_id(doc_id):
+        return jsonify(ok=False, error="document_invalide"), 400
+    try:
+        info = rag.document_text(doc_id)
+    except RagError as exc:
+        return jsonify(ok=False, error=exc.code), exc.status
+    return jsonify(ok=True, **info)
+
+
 # ============================================================================
 #  Génération de livrables (LLM ancré sur la base de connaissance) — admin
 # ============================================================================

@@ -316,6 +316,18 @@ class MemoryRagStore:
                 raise RagError("document_inconnu", 404)
             return self._docs[doc_id]["filename"], self._blobs[doc_id]
 
+    def document_text(self, doc_id, limit=200000):
+        """Texte lisible du document (fragments indexés réassemblés) — pour la
+        lecture en ligne dans la console, tous formats confondus."""
+        with self._lock:
+            meta = self._docs.get(doc_id)
+            if not meta:
+                raise RagError("document_inconnu", 404)
+            chunks = sorted(self._chunks.get(doc_id, []), key=lambda c: c["ordinal"])
+        text = "\n\n".join(c["content"] for c in chunks)
+        return {"title": meta.get("title"), "filename": meta.get("filename"),
+                "theme": meta.get("theme"), "text": text[:limit]}
+
     def delete_document(self, doc_id):
         with self._lock:
             if doc_id not in self._docs:
@@ -670,6 +682,20 @@ class PostgresRagStore:
                     raise RagError("original_indisponible", 410)
                 raise RagError("document_inconnu", 404)
         return r[0], bytes(r[1])
+
+    def document_text(self, doc_id, limit=200000):
+        """Texte lisible du document (fragments indexés réassemblés) — pour la
+        lecture en ligne dans la console, tous formats confondus."""
+        with self._pool.connection() as conn:
+            meta = conn.execute("SELECT title,filename,theme FROM rag_documents "
+                                "WHERE id=%s", (doc_id,)).fetchone()
+            if not meta:
+                raise RagError("document_inconnu", 404)
+            rows = conn.execute("SELECT content FROM rag_chunks WHERE doc_id=%s "
+                                "ORDER BY ordinal", (doc_id,)).fetchall()
+        text = "\n\n".join(r[0] for r in rows)
+        return {"title": meta[0], "filename": meta[1], "theme": meta[2],
+                "text": text[:limit]}
 
     def delete_document(self, doc_id):
         with self._pool.connection() as conn:
