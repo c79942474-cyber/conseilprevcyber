@@ -42,6 +42,12 @@ VEILLE_FEEDS = [
     ("avis", "https://www.cert.ssi.gouv.fr/avis/feed/"),
 ]
 VEILLE_MAX_ITEMS = 200
+# Texte complet des bulletins (base de connaissance exploitable) : on récupère
+# le contenu intégral du bulletin CERT-FR (JSON officiel, sinon HTML) plutôt que
+# le seul résumé RSS. Désactivable (VEILLE_FULLTEXT=0) ; nombre max de bulletins
+# récupérés en entier par passage (borne le temps du job en arrière-plan).
+_VEILLE_FULLTEXT = os.environ.get("VEILLE_FULLTEXT", "1").strip().lower() not in ("0", "false", "no")
+_VEILLE_FULLTEXT_MAX = int(os.environ.get("VEILLE_FULLTEXT_MAX", "25"))
 ALERT_COOLDOWN_S = int(os.environ.get("ALERTES_COOLDOWN_MIN", "60")) * 60
 
 
@@ -277,22 +283,106 @@ def _parse_feed(source, xml_text):
     return items
 
 
-def _fetch_feed(url):
-    r = requests.get(url, timeout=20, headers={"User-Agent": "conseilprevcyber-veille/1.0"})
+def _fetch_url(url, timeout=12):
+    r = requests.get(url, timeout=timeout,
+                     headers={"User-Agent": "conseilprevcyber-veille/1.0"})
     r.raise_for_status()
     return r.text
+
+
+def _fetch_feed(url):
+    return _fetch_url(url, timeout=20)
+
+
+def _certfr_json_text(obj):
+    """Extrait le texte lisible d'un bulletin CERT-FR au format JSON officiel.
+    Cible le contenu intégral (champ « content ») ; à défaut, recompose à partir
+    des champs utiles (résumé, systèmes affectés, CVE)."""
+    if not isinstance(obj, dict):
+        return ""
+    content = obj.get("content")
+    if isinstance(content, str) and len(content.strip()) > 60:
+        return content.strip()
+    bits = []
+    for k in ("title", "summary", "description"):
+        v = obj.get(k)
+        if isinstance(v, str) and v.strip():
+            bits.append(v.strip())
+    for k, label in (("affected_systems", "Systèmes affectés"), ("cves", "CVE")):
+        v = obj.get(k)
+        if isinstance(v, list):
+            names = []
+            for x in v:
+                if isinstance(x, str):
+                    names.append(x)
+                elif isinstance(x, dict):
+                    names.append(x.get("name") or x.get("product")
+                                 or x.get("cve") or x.get("description") or "")
+            names = [n for n in names if n]
+            if names:
+                bits.append(label + " : " + ", ".join(names[:60]))
+    return "\n\n".join(bits).strip()
+
+
+_HTML_DROP = re.compile(r"(?is)<(script|style|nav|header|footer|aside|form|noscript)\b.*?</\1>")
+_HTML_NL = re.compile(r"(?i)</(p|div|li|h[1-6]|tr|section|article)\s*>|<br\s*/?>")
+
+
+def _html_to_text(html):
+    """Convertit une page HTML en texte lisible (best-effort, sans dépendance) :
+    retire scripts/nav/pied de page, privilégie le contenu principal, transforme
+    les balises de bloc en sauts de ligne, décode les entités."""
+    if not html:
+        return ""
+    html = _HTML_DROP.sub(" ", html)
+    m = re.search(r"(?is)<(article|main)\b[^>]*>(.*?)</\1>", html)
+    if m:
+        html = m.group(2)
+    html = _HTML_NL.sub("\n", html)
+    text = re.sub(r"<[^>]+>", " ", html)
+    text = html_lib.unescape(text)
+    text = re.sub(r"[ \t ]+", " ", text)
+    text = re.sub(r"\n[ \t]*", "\n", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def _fetch_bulletin_text(link, fetcher=None):
+    """Texte complet d'un bulletin CERT-FR : JSON officiel de préférence, sinon
+    page HTML. Best-effort — renvoie None si indisponible."""
+    if not link or not _VEILLE_FULLTEXT:
+        return None
+    fetcher = fetcher or _fetch_url
+    base = link.rstrip("/")
+    try:                                   # 1) API JSON officielle : <lien>/json/
+        txt = _certfr_json_text(json.loads(fetcher(base + "/json/")))
+        if txt and len(txt) > 80:
+            return txt[:40000]
+    except Exception:
+        pass
+    try:                                   # 2) repli : page HTML du bulletin
+        txt = _html_to_text(fetcher(link))
+        if txt and len(txt) > 120:
+            return txt[:40000]
+    except Exception:
+        pass
+    return None
 
 
 def veille_refresh(fetcher=None):
     """Lit les flux, résume les nouveautés (LLM best-effort), publie + alimente le RAG.
     Renvoie le nombre de nouveaux éléments."""
-    fetcher = fetcher or _fetch_feed
+    feed_fetcher = fetcher or _fetch_feed
+    # fetcher personnalisé (tests) réutilisé aussi pour les bulletins ; sinon le
+    # récupérateur de bulletin utilise son défaut (timeout plus court).
+    bulletin_fetcher = fetcher
     summarize = _deps.get("summarize")
     rag = _deps.get("rag")
     new_count = 0
+    fulltext_budget = _VEILLE_FULLTEXT_MAX          # borne les récupérations/passage
     for source, url in VEILLE_FEEDS:
         try:
-            xml_text = fetcher(url)
+            xml_text = feed_fetcher(url)
         except Exception as exc:
             _log.warning("veille : flux %s injoignable (%s)", source, exc)
             continue
@@ -311,8 +401,16 @@ def veille_refresh(fetcher=None):
             # Alimente la base de connaissance (thème Veille, public) — best-effort.
             if rag is not None:
                 try:
+                    # Contenu intégral du bulletin (base exploitable) ; à défaut,
+                    # le résumé. On borne le nombre de récupérations par passage.
+                    body = item["resume"]
+                    if fulltext_budget > 0:
+                        fulltext_budget -= 1
+                        full = _fetch_bulletin_text(item["link"], bulletin_fetcher)
+                        if full:
+                            body = full
                     md = ("# %s\n\nSource : CERT-FR (%s) — %s\n\n%s\n" %
-                          (item["title"], source, item["link"], item["resume"]))
+                          (item["title"], source, item["link"], body))
                     slug = hashlib.sha256(item["guid"].encode()).hexdigest()[:10]
                     rag.ingest_bytes("veille-certfr-%s.md" % slug, md.encode("utf-8"),
                                      title="[CERT-FR] " + item["title"][:260],
