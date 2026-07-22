@@ -9,48 +9,95 @@
 (function () {
   document.documentElement.classList.add("js-nav");
 
-  /* ── 1. Menu burger ─────────────────────────────────────────────────────── */
-  function initBurger() {
-    var nav = document.querySelector("header .nav");
-    if (!nav) return;
-    var links = nav.querySelector(".links");
-    if (!links || nav.querySelector(".nav-toggle")) return;
-    if (!links.id) links.id = "nav-links";
+  /* ── Arborescence unique du site (source de vérité de la navigation) ─────── */
+  var NAV_SECTIONS = [
+    { t: "Expertise", l: [
+      ["/services", "Services"], ["/secteurs", "Secteurs"],
+      ["/methodologie", "Méthodologie"], ["/etudes-de-cas", "Études de cas"] ] },
+    { t: "Référentiel IEC 62443", l: [
+      ["/referentiel", "Vue d’ensemble"],
+      ["/analyse-de-risque", "Analyse de risque · 3-2"],
+      ["/programme-securite", "Programme de sécurité · 2-1"],
+      ["/exigences-systeme", "Exigences système · 3-3"],
+      ["/exigences-composants", "Exigences composants · 4-2"],
+      ["/exigences-prestataires", "Exigences prestataires · 2-4"],
+      ["/developpement-securise", "Développement sécurisé · 4-1"],
+      ["/technologies-securite", "Technologies · TR 3-1"],
+      ["/gestion-correctifs", "Gestion des correctifs · 2-3"],
+      ["/glossaire-62443", "Glossaire · 1-2"],
+      ["/metriques-62443", "Métriques · 1-3"] ] },
+    { t: "Conformité & audit", l: [
+      ["/audit-conformite", "Audit 62443"], ["/diagnostic", "Diagnostic express"],
+      ["/nis2", "NIS2"] ] },
+    { t: "Plateforme", l: [
+      ["/demo", "Cockpit de supervision"], ["/tendances", "Tendances"],
+      ["/connecter", "Connecter une source"], ["/guide-integration", "Guide d’intégration"],
+      ["/assistant", "Assistant IA"] ] },
+    { t: "Ressources", l: [
+      ["/veille", "Veille cyber"], ["/ressources", "Ressources"], ["/faq", "FAQ"] ] },
+    { t: "Entreprise", l: [
+      ["/", "Accueil"], ["/about", "À propos"], ["/vos-projets", "Vos projets"],
+      ["/contact", "Contact"] ] }
+  ];
 
-    var btn = document.createElement("button");
-    btn.className = "nav-toggle";
-    btn.type = "button";
-    btn.setAttribute("aria-label", "Ouvrir le menu");
-    btn.setAttribute("aria-expanded", "false");
-    btn.setAttribute("aria-controls", links.id);
-    btn.innerHTML =
-      '<span class="nav-toggle-bar"></span>' +
-      '<span class="nav-toggle-bar"></span>' +
-      '<span class="nav-toggle-bar"></span>';
-    nav.appendChild(btn);
+  /* ── 1. Tiroir latéral gauche : menu complet groupé ─────────────────────── */
+  function initDrawer() {
+    var btn = document.querySelector(".menu-btn");
+    if (!btn || document.getElementById("drawer")) return;
+    var path = location.pathname.replace(/\/+$/, "") || "/";
 
-    function setOpen(open) {
-      nav.classList.toggle("open", open);
-      btn.setAttribute("aria-expanded", open ? "true" : "false");
-      btn.setAttribute("aria-label", open ? "Fermer le menu" : "Ouvrir le menu");
+    var scrim = document.createElement("div");
+    scrim.className = "drawer-scrim";
+    var drawer = document.createElement("aside");
+    drawer.className = "drawer";
+    drawer.id = "drawer";
+    drawer.setAttribute("aria-label", "Menu du site");
+    drawer.setAttribute("aria-hidden", "true");
+
+    var html = '<div class="drawer-head">'
+      + '<div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="26" height="26" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>'
+      + '<button type="button" class="drawer-close" aria-label="Fermer le menu">✕</button></div>'
+      + '<nav class="drawer-nav" aria-label="Toutes les rubriques">';
+    NAV_SECTIONS.forEach(function (s) {
+      html += '<section><h4>' + s.t + '</h4>';
+      s.l.forEach(function (it) {
+        var cur = it[0] === path;
+        html += '<a href="' + it[0] + '"' + (cur ? ' class="active" aria-current="page"' : '') + '>' + it[1] + '</a>';
+      });
+      html += '</section>';
+    });
+    html += '</nav><div class="drawer-cta">'
+      + '<a href="/connexion" class="btn btn-s">Espace client</a>'
+      + '<a href="/contact" class="btn btn-p">Contact</a></div>';
+    drawer.innerHTML = html;
+    document.body.appendChild(scrim);
+    document.body.appendChild(drawer);
+
+    var lastFocus = null;
+    function open() {
+      lastFocus = document.activeElement;
+      scrim.classList.add("open"); drawer.classList.add("open");
+      drawer.setAttribute("aria-hidden", "false");
+      btn.setAttribute("aria-expanded", "true");
+      document.documentElement.style.overflow = "hidden";
+      var f = drawer.querySelector(".drawer-close"); if (f) f.focus();
     }
-    btn.addEventListener("click", function (e) {
-      e.stopPropagation();
-      setOpen(!nav.classList.contains("open"));
-    });
-    links.addEventListener("click", function (e) {
-      if (e.target.closest("a")) setOpen(false);
-    });
-    document.addEventListener("click", function (e) {
-      if (nav.classList.contains("open") && !nav.contains(e.target)) setOpen(false);
-    });
+    function close() {
+      scrim.classList.remove("open"); drawer.classList.remove("open");
+      drawer.setAttribute("aria-hidden", "true");
+      btn.setAttribute("aria-expanded", "false");
+      document.documentElement.style.overflow = "";
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
+    }
+    btn.setAttribute("aria-expanded", "false");
+    btn.setAttribute("aria-controls", "drawer");
+    btn.addEventListener("click", function (e) { e.stopPropagation(); open(); });
+    drawer.querySelector(".drawer-close").addEventListener("click", close);
+    scrim.addEventListener("click", close);
+    drawer.addEventListener("click", function (e) { if (e.target.closest("a")) close(); });
     document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape" || e.key === "Esc") setOpen(false);
+      if ((e.key === "Escape" || e.key === "Esc") && drawer.classList.contains("open")) close();
     });
-    var mq = window.matchMedia("(min-width: 861px)");
-    var onChange = function () { if (mq.matches) setOpen(false); };
-    if (mq.addEventListener) mq.addEventListener("change", onChange);
-    else if (mq.addListener) mq.addListener(onChange);
   }
 
   /* ── 2. Flèches de navigation (deux blocs : haut-gauche & bas-droite) ─────── */
@@ -427,9 +474,19 @@
   /* ── 8. Lien actif dans l'en-tête (aria-current automatique) ────────────── */
   function initActiveLink() {
     var path = location.pathname.replace(/\/+$/, "") || "/";
+    // Chaque page est rattachée à l'entrée d'en-tête de sa rubrique.
+    var SECTION = {
+      "/services": ["/services", "/secteurs", "/methodologie", "/etudes-de-cas"],
+      "/referentiel": ["/referentiel", "/analyse-de-risque", "/programme-securite", "/exigences-systeme", "/exigences-composants", "/exigences-prestataires", "/developpement-securise", "/technologies-securite", "/gestion-correctifs", "/glossaire-62443", "/metriques-62443"],
+      "/audit-conformite": ["/audit-conformite", "/diagnostic", "/nis2"],
+      "/demo": ["/demo", "/tendances", "/connecter", "/guide-integration"],
+      "/assistant": ["/assistant"],
+      "/about": ["/about"]
+    };
     document.querySelectorAll("header .links a[href]").forEach(function (a) {
       var href = a.getAttribute("href");
-      if (href === path) { a.classList.add("active"); a.setAttribute("aria-current", "page"); }
+      var match = href === path || (SECTION[href] && SECTION[href].indexOf(path) >= 0);
+      if (match) { a.classList.add("active"); if (href === path) a.setAttribute("aria-current", "page"); }
     });
   }
 
@@ -750,16 +807,21 @@
     fnav.appendChild(a);
   }
 
+  function initYear() {
+    var y = document.getElementById("y");
+    if (y && !y.textContent) y.textContent = new Date().getFullYear();
+  }
+
   function init() {
     initA11y();
-    initBurger();
+    initYear();
+    initDrawer();
     initPageNav();
     initGuide();
     initJargon();
     initChatLauncher();
     initReadBar();
     initActiveLink();
-    initRefMenu();
     initSearch();
     initReveal();
     initRefTrail();

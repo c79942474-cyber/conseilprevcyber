@@ -46,23 +46,22 @@
 </head>
 <body>
   <header>
-    <div class="wrap nav">
-      <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="30" height="30" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
-      <div class="spacer"></div>
-      <nav class="links">
-        <a href="/">Accueil</a>
-        <a href="/services">Services</a>
-        <a href="/referentiel">Référentiel 62443</a>
-        <a href="/nis2" class="active">NIS2</a>
-        <a href="/secteurs">Secteurs</a>
-        <a href="/demo">Démo temps réel</a>
-        <a href="/contact" class="hide">Contact</a>
-        <a href="/connexion">Espace client</a>
-        <a href="/vos-projets" class="cta-alt">Vos projets</a>
-        <a href="/contact" class="cta">Nous contacter</a>
-      </nav>
+  <div class="wrap nav">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu"><span></span><span></span><span></span></button>
+    <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="30" height="30" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+    <nav class="links" aria-label="Navigation principale">
+      <a href="/services">Services</a>
+      <a href="/referentiel">Référentiel 62443</a>
+      <a href="/audit-conformite">Audit 62443</a>
+      <a href="/demo">Cockpit</a>
+      <a href="/assistant">Assistant IA</a>
+    </nav>
+    <div class="navcta">
+      <a href="/connexion" class="cta-alt">Espace client</a>
+      <a href="/contact" class="cta">Contact</a>
     </div>
-  </header>
+  </div>
+</header>
 
   <main class="wrap">
     <section class="page-head">
@@ -230,26 +229,54 @@
   </main>
 
   <footer>
-    <div class="wrap foot">
-      <div>© <span id="y"></span> CONSEILPREV Cyber — Cybersécurité industrielle IT / OT / IIoT</div>
-      <div class="fnav">
-        <a href="/about">À propos</a>
+  <div class="wrap foot">
+    <div class="foot-cols">
+      <div class="foot-brand">
+        <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="26" height="26" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+        <p>Cybersécurité industrielle IT / OT / IIoT — conformité IEC&nbsp;62443, NIS2, DORA.</p>
+      </div>
+      <nav class="foot-col" aria-label="Expertise">
+        <h4>Expertise</h4>
         <a href="/services">Services</a>
         <a href="/secteurs">Secteurs</a>
+        <a href="/methodologie">Méthodologie</a>
         <a href="/etudes-de-cas">Études de cas</a>
+      </nav>
+      <nav class="foot-col" aria-label="Norme &amp; conformité">
+        <h4>Norme &amp; conformité</h4>
         <a href="/referentiel">Référentiel 62443</a>
-        <a href="/nis2">NIS2</a>
+        <a href="/audit-conformite">Audit 62443</a>
         <a href="/diagnostic">Diagnostic express</a>
+        <a href="/nis2">NIS2</a>
+      </nav>
+      <nav class="foot-col" aria-label="Plateforme">
+        <h4>Plateforme</h4>
+        <a href="/demo">Cockpit</a>
+        <a href="/assistant">Assistant IA</a>
+        <a href="/connecter">Connecter une source</a>
+        <a href="/guide-integration">Guide d’intégration</a>
+      </nav>
+      <nav class="foot-col" aria-label="Ressources">
+        <h4>Ressources</h4>
         <a href="/veille">Veille</a>
         <a href="/ressources">Ressources</a>
         <a href="/faq">FAQ</a>
-        <a href="/demo">Démo</a>
+        <a href="/glossaire-62443">Glossaire 62443</a>
+      </nav>
+    </div>
+    <div class="foot-bar">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Tous droits réservés</div>
+      <div class="foot-legal">
+        <a href="/about">À propos</a>
         <a href="/contact">Contact</a>
+        <a href="/connexion">Espace client</a>
         <a href="/mentions-legales">Mentions légales</a>
         <a href="/politique-confidentialite">Confidentialité</a>
+        <a href="/admin" rel="nofollow" class="foot-admin">Admin</a>
       </div>
     </div>
-  </footer>
+  </div>
+</footer>
   <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
   <script src="/nav.js" defer></script>
 </body>
