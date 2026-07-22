@@ -122,7 +122,7 @@ main:focus{outline:none} /* cible du lien d'évitement : pas de halo pleine larg
 .nav .cta-alt,.navcta .cta-alt{color:var(--cyan);border:1px solid var(--cyan);background:rgba(34,211,238,.09);
   padding:7px 14px;border-radius:8px;font-weight:600;font-size:13px}
 .nav .cta-alt:hover,.navcta .cta-alt:hover{background:rgba(34,211,238,.18);border-color:var(--teal);color:var(--teal)}
-@media(max-width:1080px){ .nav .links{display:none} .navcta .cta-alt{display:none} }
+@media(max-width:1100px){ .nav .links{display:none} }
 @media(max-width:520px){ .brand .tag{display:none} }
 
 /* ── Tiroir latéral gauche : menu complet groupé (construit par /nav.js) ─────── */

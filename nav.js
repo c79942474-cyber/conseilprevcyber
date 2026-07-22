@@ -481,6 +481,7 @@
       "/audit-conformite": ["/audit-conformite", "/diagnostic", "/nis2"],
       "/demo": ["/demo", "/tendances", "/connecter", "/guide-integration"],
       "/assistant": ["/assistant"],
+      "/veille": ["/veille", "/ressources", "/faq"],
       "/about": ["/about"]
     };
     document.querySelectorAll("header .links a[href]").forEach(function (a) {
