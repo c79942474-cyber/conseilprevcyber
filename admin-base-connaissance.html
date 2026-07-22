@@ -71,6 +71,8 @@
   .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:26px 0 14px}
   .filterbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .filterbar select{width:auto;padding:7px 11px;font-size:12.5px}
+  .filterbar input[type=search]{width:min(300px,46vw);padding:7px 11px;font-size:12.5px}
+  .fcount{font-family:var(--mono);font-size:11.5px;color:var(--muted2);white-space:nowrap}
   #notice{border-radius:9px;padding:10px 14px;font-size:13px;margin-bottom:14px;display:none}
   #notice.ok{background:rgba(52,211,153,.10);border:1px solid rgba(52,211,153,.3);color:var(--green);display:block}
   #notice.err{background:rgba(217,96,58,.12);border:1px solid rgba(217,96,58,.3);color:var(--danger);display:block}
@@ -149,7 +151,9 @@
       <div class="topbar">
         <div class="sec-title" style="margin:0">Documents</div>
         <div class="filterbar">
+          <input type="search" id="filterSearch" placeholder="Rechercher un titre, un fichier, un thème…" aria-label="Rechercher un document">
           <select id="filterTheme"><option value="">Tous les thèmes</option></select>
+          <span class="fcount" id="fcount"></span>
           <button class="btn btn-s" id="dedupe" type="button" title="Supprimer les documents en double (contenu identique), en conservant un exemplaire de chacun">🧹 Doublons</button>
           <button class="btn btn-s" id="refresh" type="button">↻ Actualiser</button>
         </div>
@@ -207,8 +211,18 @@
 
     function render(){
       var f=document.getElementById('filterTheme').value;
-      var docs=f? allDocs.filter(function(d){return d.theme===f;}) : allDocs;
-      if(!docs.length){rows.innerHTML='<tr><td colspan="7" class="empty">Aucun document'+(f?' pour ce thème':'')+'.</td></tr>';return;}
+      var q=(document.getElementById('filterSearch').value||'').trim().toLowerCase();
+      var docs=allDocs.filter(function(d){
+        if(f && d.theme!==f) return false;
+        if(q){
+          var hay=((d.title||'')+' '+(d.filename||'')+' '+(d.theme||'')).toLowerCase();
+          if(hay.indexOf(q)<0) return false;
+        }
+        return true;
+      });
+      var fc=document.getElementById('fcount');
+      if(fc) fc.textContent=(q||f)? (docs.length+' / '+allDocs.length) : (allDocs.length+' doc'+(allDocs.length>1?'s':''));
+      if(!docs.length){rows.innerHTML='<tr><td colspan="7" class="empty">Aucun document'+((q||f)?' ne correspond à la recherche':'')+'.</td></tr>';return;}
       rows.innerHTML=docs.map(function(d){
         var acts='';
         if(d.status==='indexing') acts+='<button data-a="index" data-id="'+d.id+'">▶ Indexer</button>';
@@ -418,6 +432,7 @@
     document.addEventListener('keydown',function(e){if(e.key==='Escape'&&reader.style.display!=='none')closeReader();});
 
     document.getElementById('filterTheme').addEventListener('change',render);
+    document.getElementById('filterSearch').addEventListener('input',render);
     document.getElementById('dedupe').addEventListener('click',function(){
       var b=this; b.disabled=true; var old=b.textContent; b.textContent='Analyse…';
       fetch('/api/admin/rag/duplicates').then(function(r){return r.json();}).then(function(j){

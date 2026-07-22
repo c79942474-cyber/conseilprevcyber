@@ -51,10 +51,48 @@ ALLOWED_EXT = {"txt", "md", "csv", "log", "json", "pdf", "docx"}
 VISIBILITIES = ("public", "internal")
 
 # Thèmes suggérés (l'admin peut en saisir d'autres).
+# Thèmes proposés (autocomplétion à l'upload + filtre). Le champ reste en
+# texte libre : cette liste ne fait qu'aider à catégoriser de façon cohérente
+# pour retrouver les documents plus vite. Organisée par familles.
 THEMES = [
-    "IEC 62443", "NIS2", "DORA", "RGPD", "AI Act",
-    "Architecture & segmentation", "Analyse de risques", "Supervision & détection",
-    "Réponse à incident", "AMOA SI Industriel", "Études de cas", "Veille", "Général",
+    # — Normes & réglementations —
+    "IEC 62443",
+    "ISO 27001 / 27002",
+    "NIST CSF / SP 800-82",
+    "Guides ANSSI",
+    "NIS2",
+    "DORA",
+    "RGPD",
+    "AI Act",
+    "Cyber Resilience Act",
+    "Sûreté fonctionnelle (IEC 61508/61511)",
+    # — Architecture & technique OT/IT —
+    "Architecture & segmentation",
+    "Inventaire & cartographie",
+    "Analyse de risques",
+    "Durcissement & configuration",
+    "Gestion des correctifs",
+    "Gestion des accès & identités",
+    "Accès distant & télémaintenance",
+    "Sécurité réseau & pare-feu",
+    "Automates, SCADA & DCS",
+    "IIoT & objets connectés",
+    "Cryptographie & PKI",
+    "Supervision & détection",
+    "Réponse à incident",
+    "Continuité & résilience (PRA/PCA)",
+    # — Gouvernance & organisation —
+    "Gouvernance & CSMS",
+    "Sensibilisation & formation",
+    "Gestion des prestataires",
+    "Conformité & audit",
+    # — Métier & livrables —
+    "AMOA SI Industriel",
+    "Cahier des charges & CCTP",
+    "Plan de remédiation",
+    "Études de cas",
+    "Veille",
+    "Général",
 ]
 
 
