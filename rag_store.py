@@ -25,8 +25,10 @@ Sécurité :
   - drapeau de visibilité par document : « public » (assistant + livrables) ou
     « interne » (livrables uniquement, jamais exposé à l'assistant public).
 """
+import base64
 import io
 import hashlib
+import json
 import logging
 import os
 import re
@@ -252,10 +254,56 @@ class MemoryRagStore:
         self._chunks = {}    # id -> list[dict(ordinal, content, tokens)]
         self._blobs = {}     # id -> bytes
         self._uploads = {}   # upload_id -> {idx: bytes, meta}
+        # Persistance disque optionnelle (sans PostgreSQL) : si RAG_DISK_PATH est
+        # défini ET pointe vers un emplacement DURABLE (disque Render monté,
+        # volume auto-hébergé…), la base survit aux redémarrages / redéploiements.
+        self._disk = (os.environ.get("RAG_DISK_PATH") or "").strip() or None
+        self.persistent = bool(self._disk)
+        if self._disk:
+            self._load()
 
     def capabilities(self):
+        if self._disk:
+            return {"persistent": True, "mode": "lexical",
+                    "embeddings": False, "vector": False, "reason": "disk"}
         return {"persistent": False, "mode": "lexical",
                 "embeddings": False, "vector": False, "reason": self._reason}
+
+    # -- persistance disque optionnelle (repli durable sans PostgreSQL) --
+    def _load(self):
+        try:
+            if not os.path.isfile(self._disk):
+                return
+            with open(self._disk, "r", encoding="utf-8") as f:
+                payload = json.load(f)
+            self._docs = payload.get("docs") or {}
+            self._chunks = payload.get("chunks") or {}
+            self._blobs = {k: base64.b64decode(v)
+                           for k, v in (payload.get("blobs") or {}).items()}
+            _log.info("RAG : %d document(s) rechargé(s) depuis %s",
+                      len(self._docs), self._disk)
+        except Exception:
+            _log.warning("RAG : snapshot disque illisible (%s) — démarrage à vide",
+                         self._disk, exc_info=True)
+            self._docs, self._chunks, self._blobs = {}, {}, {}
+
+    def _save(self):
+        if not self._disk:
+            return
+        try:
+            payload = {"v": 1, "docs": self._docs, "chunks": self._chunks,
+                       "blobs": {k: base64.b64encode(v).decode("ascii")
+                                 for k, v in self._blobs.items()}}
+            d = os.path.dirname(self._disk)
+            if d and not os.path.isdir(d):
+                os.makedirs(d, exist_ok=True)
+            tmp = self._disk + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(payload, f)
+            os.replace(tmp, self._disk)
+        except Exception:
+            _log.warning("RAG : échec d'écriture du snapshot disque (%s)",
+                         self._disk, exc_info=True)
 
     # -- upload par morceaux --
     def create_upload(self, filename, total_bytes):
@@ -326,6 +374,7 @@ class MemoryRagStore:
                 {"ordinal": i, "content": c, "tokens": _tokens(c)}
                 for i, c in enumerate(chunks)]
             self._blobs[doc_id] = data
+            self._save()
         return dict(meta)
 
     def index_next(self, doc_id, batch=EMBED_BATCH):
@@ -373,6 +422,7 @@ class MemoryRagStore:
             self._docs.pop(doc_id, None)
             self._chunks.pop(doc_id, None)
             self._blobs.pop(doc_id, None)
+            self._save()
         return True
 
     def stats(self):

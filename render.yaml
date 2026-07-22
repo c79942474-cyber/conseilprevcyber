@@ -8,6 +8,14 @@ services:
     # qui maintient des connexions longues.
     startCommand: gunicorn -k gthread --threads 8 --timeout 120 app:app
     healthCheckPath: /health
+    # (Optionnel) Disque persistant — persistance de la base de connaissance RAG
+    # sans PostgreSQL. Décommentez, ajustez la taille, puis définissez la variable
+    # RAG_DISK_PATH = /var/data/rag.json (voir plus bas). Alternative économique à
+    # PostgreSQL pour une instance unique.
+    # disk:
+    #   name: rag-data
+    #   mountPath: /var/data
+    #   sizeGB: 1
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
@@ -26,6 +34,14 @@ services:
         fromDatabase:
           name: conseilprevcyber-db
           property: connectionString
+      # (Optionnel) Persistance de la base de connaissance RAG SANS PostgreSQL :
+      # pointer RAG_DISK_PATH vers un emplacement DURABLE (disque Render monté —
+      # voir la section « disk » commentée plus bas — ou volume auto-hébergé).
+      # La base y est sauvegardée et rechargée au démarrage. ATTENTION : sans
+      # disque monté, le chemin est ÉPHÉMÈRE (effacé à chaque redéploiement) ;
+      # pour une vraie persistance, préférez DATABASE_URL (PostgreSQL) ci-dessus.
+      - key: RAG_DISK_PATH
+        sync: false
       # Haute disponibilité multi-instance (optionnel). Si défini, les événements
       # sont diffusés via Redis pub/sub à toutes les instances (fan-out SSE partagé).
       # Requiert aussi DATABASE_URL (état partagé). Sinon : une seule instance.

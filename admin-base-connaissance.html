@@ -259,7 +259,7 @@
         document.getElementById('kThemes').textContent=Object.keys(j.stats.themes||{}).length;
         caps=j.capabilities||{};
         var modeLabel=caps.mode==='vectoriel'?'vectoriel':(caps.mode==='texte_integral'?'texte intégral':'lexical');
-        document.getElementById('kMode').innerHTML=modeLabel+(caps.persistent?'':' <small>(mémoire)</small>');
+        document.getElementById('kMode').innerHTML=modeLabel+(caps.persistent?(caps.reason==='disk'?' <small>(disque)</small>':''):' <small>(mémoire)</small>');
         var st=j.stats.storage, ks=document.getElementById('kStore');
         if(ks) ks.textContent = st ? (st.db_bytes!=null ? ('base : '+fmtBytes(st.db_bytes)+' · RAG : '+fmtBytes(st.rag_bytes)) : ('RAG : '+fmtBytes(st.rag_bytes))) : '';
         var mw=document.getElementById('memWarn');
