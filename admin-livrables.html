@@ -177,7 +177,8 @@
             <div class="meta" id="rmeta"></div>
             <div class="racts">
               <button id="docxBtn">📄 Word (.docx)</button>
-              <button id="printBtn">🖨 Imprimer / PDF</button>
+              <button id="pdfBtn">📕 PDF (.pdf)</button>
+              <button id="printBtn">🖨 Imprimer</button>
               <button id="copyBtn">Copier</button>
               <button id="dlBtn">.md</button>
             </div>
@@ -358,6 +359,9 @@
           return '<optgroup label="'+esc(g)+'">'+grp[g].map(function(t){
             return '<option value="'+esc(t.id)+'">'+esc(t.label)+'</option>';}).join('')+'</optgroup>';
         }).join('');
+        // Pré-sélection éventuelle via ?type=... (lien profond depuis les pages conseil)
+        try{var pt=new URLSearchParams(location.search).get('type');
+          if(pt&&TYPES.some(function(t){return t.id===pt;}))typeSel.value=pt;}catch(e){}
         showDesc();
         var m=j.models||{};
         if(!m.mistral){document.getElementById('m-mistral').classList.add('off');}
@@ -391,16 +395,18 @@
     }
     genBtn.addEventListener('click',generate);
 
-    document.getElementById('docxBtn').addEventListener('click',function(){
-      if(!lastMd)return; var btn=this, lbl=btn.textContent; btn.disabled=true; btn.textContent='…';
+    function exportDoc(btn, fmt){
+      if(!lastMd)return; var lbl=btn.textContent; btn.disabled=true; btn.textContent='…';
       fetch('/api/admin/livrables/export',{method:'POST',headers:{'content-type':'application/json'},
-        body:JSON.stringify({markdown:lastMd,type:typeSel.value,client:document.getElementById('client').value.trim()})})
+        body:JSON.stringify({markdown:lastMd,type:typeSel.value,client:document.getElementById('client').value.trim(),format:fmt})})
         .then(function(r){if(!r.ok)throw new Error();return r.blob();})
         .then(function(blob){var a=document.createElement('a');a.href=URL.createObjectURL(blob);
-          a.download=(typeSel.value||'livrable')+'.docx';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href);})
-        .catch(function(){note('Export Word impossible.','err');})
+          a.download=(typeSel.value||'livrable')+'.'+fmt;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href);})
+        .catch(function(){note('Export '+(fmt==='pdf'?'PDF':'Word')+' impossible.','err');})
         .then(function(){btn.disabled=false;btn.textContent=lbl;});
-    });
+    }
+    document.getElementById('docxBtn').addEventListener('click',function(){exportDoc(this,'docx');});
+    document.getElementById('pdfBtn').addEventListener('click',function(){exportDoc(this,'pdf');});
     document.getElementById('copyBtn').addEventListener('click',function(){
       navigator.clipboard.writeText(lastMd).then(function(){note('Copié dans le presse-papier.','info');setTimeout(function(){note('','');},2000);});
     });

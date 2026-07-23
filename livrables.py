@@ -269,6 +269,285 @@ TYPES = [
             "Trame de rapport mensuel",
         ],
     },
+
+    # ======================================================================
+    #  Conseil & transformation — livrables des offres stratégiques
+    #  (pages /feuille-de-route, /operating-model, /maturite-ot)
+    # ======================================================================
+
+    # --- Thème : Feuille de route & trajectoire -----------------------------
+    {
+        "id": "fdr-pluriannuelle",
+        "groupe": "Conseil — Feuille de route",
+        "label": "Feuille de route pluriannuelle jalonnée (horizons & streams)",
+        "desc": "Trajectoire de transformation OT cyber par horizons (0–6 / 6–18 / 18–36 mois) "
+                "et par streams : jalons, dépendances, charge, budget et indicateurs d'avancement.",
+        "sections": [
+            "Vision & objectifs de transformation",
+            "État de départ (synthèse des diagnostics)",
+            "Horizon 1 — quick wins & fondations (0–6 mois)",
+            "Horizon 2 — structuration (6–18 mois)",
+            "Horizon 3 — cible & optimisation (18–36 mois)",
+            "Streams & initiatives associées",
+            "Jalons, dépendances & prérequis",
+            "Charge, budget & ressources",
+            "Gouvernance & pilotage de la trajectoire",
+            "Indicateurs d'avancement",
+        ],
+    },
+    {
+        "id": "fdr-business-case",
+        "groupe": "Conseil — Feuille de route",
+        "label": "Business case / dossier de décision",
+        "desc": "Dossier de décision pour l'instance dirigeante : options, analyse coûts/bénéfices, "
+                "risques d'inaction, trajectoire d'investissement et recommandation.",
+        "sections": [
+            "Résumé décisionnel (executive summary)",
+            "Contexte & enjeux",
+            "Options envisagées",
+            "Analyse coûts / bénéfices",
+            "Risques d'inaction",
+            "Investissement & trajectoire budgétaire",
+            "Recommandation & décision demandée",
+            "Prochaines étapes",
+        ],
+    },
+    {
+        "id": "fdr-plan-charge-budget",
+        "groupe": "Conseil — Feuille de route",
+        "label": "Plan de charge & budget pluriannuel",
+        "desc": "Décomposition des charges (internes/externes) et du budget (CAPEX/OPEX) par stream "
+                "et par horizon, plan de financement et scénarios.",
+        "sections": [
+            "Périmètre & hypothèses",
+            "Décomposition par stream / chantier",
+            "Charges internes / externes",
+            "Budget par horizon (CAPEX / OPEX)",
+            "Plan de financement",
+            "Dépendances & prérequis",
+            "Scénarios (ambition vs contrainte)",
+            "Suivi budgétaire",
+        ],
+    },
+    {
+        "id": "fdr-trajectoire-conformite",
+        "groupe": "Conseil — Feuille de route",
+        "label": "Trajectoire de conformité NIS2 / IEC 62443",
+        "desc": "Trajectoire de mise en conformité jalonnée : assujettissement, écarts prioritaires, "
+                "jalons par horizon, mesures, preuves et indicateurs de conformité.",
+        "sections": [
+            "Cadre réglementaire & assujettissement",
+            "État de conformité actuel",
+            "Écarts prioritaires (NIS2 & IEC 62443)",
+            "Jalons de conformité par horizon",
+            "Mesures & responsabilités",
+            "Preuves & documentation attendues",
+            "Indicateurs de conformité",
+            "Points de contrôle & audits",
+        ],
+    },
+    {
+        "id": "fdr-tableau-bord",
+        "groupe": "Conseil — Feuille de route",
+        "label": "Tableau de bord de pilotage (jalons, avancement, risques)",
+        "desc": "Dispositif de pilotage de la trajectoire : indicateurs d'avancement, suivi des "
+                "risques et du budget, points d'arbitrage et trame de reporting.",
+        "sections": [
+            "Objet & destinataires",
+            "Indicateurs d'avancement (jalons, % de réalisation)",
+            "Suivi des risques & alertes",
+            "Suivi budgétaire",
+            "Points de décision & arbitrages",
+            "Rituels & comitologie",
+            "Trame de reporting mensuel",
+        ],
+    },
+
+    # --- Thème : Operating Model & gouvernance ------------------------------
+    {
+        "id": "om-charte-gouvernance",
+        "groupe": "Conseil — Operating Model",
+        "label": "Charte de gouvernance OT cyber (mandat, principes, instances)",
+        "desc": "Charte fondatrice de la gouvernance de cybersécurité industrielle : mandat, "
+                "principes directeurs, instances, rôles et processus de décision.",
+        "sections": [
+            "Objet & périmètre",
+            "Mandat & rattachement",
+            "Principes directeurs",
+            "Instances & comitologie",
+            "Rôles & responsabilités (synthèse)",
+            "Processus de décision & escalade",
+            "Articulation IT / OT / sûreté",
+            "Révision & amélioration continue",
+        ],
+    },
+    {
+        "id": "om-raci-roles",
+        "groupe": "Conseil — Operating Model",
+        "label": "Matrice RACI & fiches de rôle (fonction OT Security)",
+        "desc": "Matrice RACI des activités de sécurité OT et fiches de rôle de la fonction "
+                "(OT Security Officer, référents de site, relais engineering), interfaces et dimensionnement.",
+        "sections": [
+            "Périmètre & activités couvertes",
+            "Matrice RACI (activités × rôles)",
+            "Rôle : OT Security Officer",
+            "Rôles : référents cyber de site",
+            "Rôles : relais engineering / opérations",
+            "Interfaces & suppléances",
+            "Dimensionnement (ETP indicatifs)",
+        ],
+    },
+    {
+        "id": "om-cartographie-processus",
+        "groupe": "Conseil — Operating Model",
+        "label": "Cartographie des processus & interfaces IT/OT/engineering/sûreté",
+        "desc": "Recensement et description des processus de sécurité OT et de leurs interfaces "
+                "avec l'IT, l'engineering, les opérations et la sûreté ; points de contrôle et risques d'interface.",
+        "sections": [
+            "Objet & méthode",
+            "Inventaire des processus cyber OT",
+            "Description des processus clés",
+            "Interfaces IT ↔ OT",
+            "Interfaces engineering & opérations",
+            "Interfaces sûreté",
+            "Points de contrôle & risques d'interface",
+            "Plan d'amélioration",
+        ],
+    },
+    {
+        "id": "om-operating-model",
+        "groupe": "Conseil — Operating Model",
+        "label": "Document d'operating model (organisation cible & mécanismes d'exécution)",
+        "desc": "Modèle opérationnel cible complet : organisation, rôles, processus, interfaces, "
+                "pilotage, compétences et mécanismes d'exécution (build → run), avec trajectoire de mise en place.",
+        "sections": [
+            "Constat & ambition",
+            "Dimensions du modèle cible",
+            "Organisation cible & rôles",
+            "Processus & rituels",
+            "Interfaces & gouvernance",
+            "Pilotage & indicateurs",
+            "Compétences & culture",
+            "Mécanismes d'exécution (build → run)",
+            "Trajectoire de mise en place",
+        ],
+    },
+    {
+        "id": "om-comitologie-reporting",
+        "groupe": "Conseil — Operating Model",
+        "label": "Plan de comitologie & modèle de reporting (instances de direction)",
+        "desc": "Cartographie des instances (de l'opérationnel au COMEX), mandats, ordres du jour "
+                "types, modèle de reporting par audience et circuit de décision.",
+        "sections": [
+            "Objectifs & destinataires",
+            "Cartographie des instances (opérationnel → COMEX)",
+            "Fréquence, participants & mandats",
+            "Ordre du jour type par instance",
+            "Modèle de reporting par audience",
+            "Indicateurs remontés",
+            "Circuit de décision & escalade",
+        ],
+    },
+    {
+        "id": "om-plan-transition",
+        "groupe": "Conseil — Operating Model",
+        "label": "Plan de transition & de montée en compétence",
+        "desc": "Passage de l'existant à l'organisation cible : étapes de transition, montée en "
+                "charge, plan de formation, transfert de compétences et conduite du changement.",
+        "sections": [
+            "État de départ & cible",
+            "Étapes de transition",
+            "Plan de montée en charge",
+            "Plan de formation & montée en compétence",
+            "Transfert de compétences & autonomisation",
+            "Conduite du changement",
+            "Jalons & indicateurs",
+            "Risques de transition",
+        ],
+    },
+
+    # --- Thème : Maturité & assessment --------------------------------------
+    {
+        "id": "mat-radar",
+        "groupe": "Conseil — Maturité",
+        "label": "Radar de maturité par domaine (niveau atteint / cible)",
+        "desc": "Évaluation de maturité par domaine sur une échelle 0–5, niveaux atteints et cibles, "
+                "radar de synthèse et écarts — appuyée sur IEC 62443 ML / NIST CSF / C2M2.",
+        "sections": [
+            "Méthode & échelle de maturité (0–5)",
+            "Domaines évalués",
+            "Niveaux atteints par domaine",
+            "Niveaux cibles & justification",
+            "Radar de maturité (synthèse)",
+            "Écarts par domaine",
+            "Priorités de progression",
+        ],
+    },
+    {
+        "id": "mat-carto-ecarts",
+        "groupe": "Conseil — Maturité",
+        "label": "Cartographie des écarts prioritaires & impacts",
+        "desc": "Analyse des écarts de maturité par domaine, impacts (métier, conformité, risque), "
+                "priorisation gravité × effort et distinction quick wins / chantiers structurants.",
+        "sections": [
+            "Rappel de la méthode",
+            "Écarts par domaine",
+            "Analyse d'impact (métier, conformité, risque)",
+            "Priorisation (gravité × effort)",
+            "Quick wins vs chantiers structurants",
+            "Recommandations",
+            "Synthèse direction",
+        ],
+    },
+    {
+        "id": "mat-benchmark",
+        "groupe": "Conseil — Maturité",
+        "label": "Benchmark sectoriel",
+        "desc": "Positionnement de la maturité OT cyber au regard du secteur : référentiel de "
+                "comparaison, écarts vs bonnes pratiques, forces et points de vigilance.",
+        "sections": [
+            "Objet & méthode du benchmark",
+            "Référentiel de comparaison (secteur)",
+            "Positionnement par domaine",
+            "Écarts vs médiane / bonnes pratiques",
+            "Forces & points de vigilance",
+            "Enseignements",
+            "Recommandations de positionnement",
+        ],
+    },
+    {
+        "id": "mat-plan-montee",
+        "groupe": "Conseil — Maturité",
+        "label": "Plan de montée en maturité (actions séquencées, gains)",
+        "desc": "Plan d'actions par domaine pour atteindre la maturité cible : séquencement, gains "
+                "attendus, charge, responsabilités et indicateurs de progression.",
+        "sections": [
+            "Cible de maturité & ambition",
+            "Actions par domaine",
+            "Séquencement (court / moyen / long terme)",
+            "Gains attendus par action",
+            "Charge & prérequis",
+            "Responsabilités",
+            "Indicateurs de progression",
+            "Jalons de réévaluation",
+        ],
+    },
+    {
+        "id": "mat-restitution-comex",
+        "groupe": "Conseil — Maturité",
+        "label": "Support de restitution COMEX / CODIR",
+        "desc": "Support de restitution des résultats de l'assessment aux décideurs : messages clés, "
+                "maturité globale, risques majeurs, comparaison sectorielle et décisions demandées.",
+        "sections": [
+            "Messages clés (executive summary)",
+            "Où en êtes-vous (maturité globale)",
+            "Points forts & risques majeurs",
+            "Comparaison sectorielle",
+            "Priorités & recommandations",
+            "Trajectoire & investissements",
+            "Décisions demandées",
+        ],
+    },
 ]
 
 _BY_ID = {t["id"]: t for t in TYPES}

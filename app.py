@@ -1231,14 +1231,25 @@ def api_livrables_history_delete(lid):
 @app.route("/api/admin/livrables/export", methods=["POST"])
 @admin_required
 def api_livrables_export():
-    """Exporte un livrable (Markdown) en document Word (.docx) mis en page CONSEILPREV."""
+    """Exporte un livrable (Markdown) en Word (.docx) ou PDF mis en page CONSEILPREV.
+
+    Corps JSON : {markdown, type, client, format?} — format « docx » (défaut) ou « pdf »."""
     data = request.get_json(silent=True) or {}
     md = (data.get("markdown") or "").strip()
     if not md:
         return jsonify(ok=False, error="vide", message="Aucun contenu à exporter."), 400
+    fmt = (data.get("format") or "docx").strip().lower()
+    if fmt not in ("docx", "pdf"):
+        fmt = "docx"
+    meta = {"type": data.get("type"), "client": data.get("client")}
     try:
-        blob = livrables_export.build_docx(md, {"type": data.get("type"),
-                                                "client": data.get("client")})
+        if fmt == "pdf":
+            blob = livrables_export.build_pdf(md, meta)
+            mimetype = "application/pdf"
+        else:
+            blob = livrables_export.build_docx(md, meta)
+            mimetype = ("application/vnd.openxmlformats-officedocument"
+                        ".wordprocessingml.document")
     except Exception:
         return jsonify(ok=False, error="export_echec",
                        message="La mise en page a échoué."), 500
@@ -1246,8 +1257,8 @@ def api_livrables_export():
     if not type_id or not all(c.isalnum() or c in "-_" for c in type_id):
         type_id = "livrable"
     return send_file(
-        io.BytesIO(blob), download_name=type_id + ".docx", as_attachment=True,
-        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        io.BytesIO(blob), download_name=type_id + "." + fmt, as_attachment=True,
+        mimetype=mimetype)
 
 
 # ============================================================================

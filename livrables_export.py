@@ -183,3 +183,125 @@ def build_docx(md, meta=None):
     buf = io.BytesIO()
     doc.save(buf)
     return buf.getvalue()
+
+
+# --- Export PDF (fpdf2, sans dépendance système) -----------------------------
+# fpdf2 est une bibliothèque Python pure (aucun moteur externe, compatible Render).
+# Les polices de base sont encodées en Latin-1 : on translittère les quelques
+# caractères hors jeu (tirets longs, flèches, guillemets courbes, emoji…) pour un
+# rendu fiable, tout en conservant les accents français.
+_PDF_MAP = {
+    "—": " - ", "–": "-", "−": "-", "→": "->", "←": "<-",
+    "⇒": "=>", "≤": "<=", "≥": ">=", "…": "...", "•": "·",
+    "▪": "·", "‘": "'", "’": "'", "“": '"', "”": '"',
+    " ": " ", " ": " ", "‹": "<", "›": ">", "✓": "v",
+    "œ": "oe", "Œ": "OE", "€": "EUR",
+}
+_INLINE_STRIP = re.compile(r"\*\*([^*]+)\*\*|`([^`]+)`|\*([^*\n]+)\*")
+
+
+def _pdf_txt(s):
+    """Retire les marqueurs Markdown en ligne et translittère en Latin-1 sûr."""
+    s = _INLINE_STRIP.sub(lambda m: m.group(1) or m.group(2) or m.group(3) or "", s or "")
+    for k, v in _PDF_MAP.items():
+        s = s.replace(k, v)
+    return s.encode("latin-1", "ignore").decode("latin-1")
+
+
+def build_pdf(md, meta=None):
+    """Construit le document PDF (bytes) à partir du Markdown du livrable."""
+    from fpdf import FPDF
+    meta = meta or {}
+    NAVY, TEAL, GREY = (10, 34, 48), (14, 109, 124), (85, 102, 102)
+
+    pdf = FPDF(format="A4", unit="mm")
+    pdf.set_auto_page_break(True, margin=18)
+    pdf.set_margins(16, 14, 16)
+    pdf.add_page()
+
+    # En-tête (lettre à en-tête) : emblème + nom + baseline.
+    if os.path.exists(EMBLEM):
+        try:
+            pdf.image(EMBLEM, x=16, y=12, w=9)
+            pdf.set_x(28)
+        except Exception:
+            pass
+    pdf.set_font("Helvetica", "B", 15)
+    pdf.set_text_color(*NAVY)
+    pdf.cell(pdf.get_string_width("CONSEILPREV "), 8, "CONSEILPREV ", new_x="RIGHT", new_y="TOP")
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(*TEAL)
+    pdf.cell(0, 8, "Cyber", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "I", 8.5)
+    pdf.set_text_color(*GREY)
+    pdf.cell(0, 5, _pdf_txt("Cybersécurité industrielle IT / OT / IIoT"),
+             new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(1)
+    pdf.set_draw_color(203, 213, 219)
+    y = pdf.get_y()
+    pdf.line(pdf.l_margin, y, pdf.w - pdf.r_margin, y)
+    pdf.ln(3)
+
+    def rule():
+        pdf.ln(1)
+        pdf.set_draw_color(203, 213, 219)
+        yy = pdf.get_y()
+        pdf.line(pdf.l_margin, yy, pdf.w - pdf.r_margin, yy)
+        pdf.ln(2)
+
+    def _cell(text, h, width_off=0.0):
+        """multi_cell robuste : x réinitialisé, largeur explicite (jamais nulle)."""
+        pdf.set_x(pdf.l_margin + width_off)
+        pdf.multi_cell(pdf.epw - width_off, h, text)
+
+    for kind, payload in _blocks(md):
+        if kind in ("h1", "h2", "h3"):
+            size, lh = {"h1": (16, 8), "h2": (13, 7), "h3": (11, 6)}[kind]
+            pdf.ln(1)
+            pdf.set_font("Helvetica", "B", size)
+            pdf.set_text_color(*NAVY)
+            _cell(_pdf_txt(payload), lh)
+            pdf.set_text_color(0, 0, 0)
+        elif kind == "p":
+            pdf.set_font("Helvetica", "", 10.5)
+            _cell(_pdf_txt(payload), 5)
+            pdf.ln(1)
+        elif kind in ("ul", "ol"):
+            pdf.set_font("Helvetica", "", 10.5)
+            for idx, it in enumerate(payload, 1):
+                marker = "  ·  " if kind == "ul" else "  %d.  " % idx
+                _cell(_pdf_txt(marker + it), 5, width_off=3)
+            pdf.ln(1)
+        elif kind == "table":
+            head, rows = payload
+            cols = max(1, len(head))
+            pdf.set_font("Helvetica", "", 9)
+            try:
+                with pdf.table(first_row_as_headings=True, line_height=5) as table:
+                    hr = table.row()
+                    for j in range(cols):
+                        hr.cell(_pdf_txt(head[j]) if j < len(head) else "")
+                    for row in rows:
+                        tr = table.row()
+                        for j in range(cols):
+                            tr.cell(_pdf_txt(row[j]) if j < len(row) else "")
+            except Exception:
+                for row in [head] + rows:
+                    pdf.multi_cell(0, 5, _pdf_txt(" | ".join(row)))
+            pdf.ln(1)
+        elif kind == "hr":
+            rule()
+
+    rule()
+    pdf.set_font("Helvetica", "I", 8.5)
+    pdf.set_text_color(*GREY)
+    _cell(_pdf_txt(
+        "Brouillon généré avec l'aide de l'IA à partir de la base de connaissance "
+        "CONSEILPREV — à relire, compléter et valider par un consultant."), 4.5)
+    pdf.set_font("Helvetica", "", 8.5)
+    _cell(_pdf_txt(
+        "CONSEILPREV - christophe.cerf@outlook.com - +33 6 60 69 21 45 - "
+        "conseilprevcyber.onrender.com"), 4.5)
+
+    out = pdf.output()
+    return bytes(out)
