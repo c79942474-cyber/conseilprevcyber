@@ -14,6 +14,10 @@
     { t: "Expertise", l: [
       ["/services", "Services"], ["/secteurs", "Secteurs"],
       ["/methodologie", "Méthodologie"], ["/etudes-de-cas", "Études de cas"] ] },
+    { t: "Conseil & transformation", l: [
+      ["/operating-model", "Operating Model & gouvernance"],
+      ["/maturite-ot", "Assessment de maturité"],
+      ["/feuille-de-route", "Feuille de route"] ] },
     { t: "Référentiel IEC 62443", l: [
       ["/referentiel", "Vue d’ensemble"],
       ["/analyse-de-risque", "Analyse de risque · 3-2"],
@@ -476,7 +480,7 @@
     var path = location.pathname.replace(/\/+$/, "") || "/";
     // Chaque page est rattachée à l'entrée d'en-tête de sa rubrique.
     var SECTION = {
-      "/services": ["/services", "/secteurs", "/methodologie", "/etudes-de-cas"],
+      "/services": ["/services", "/secteurs", "/methodologie", "/etudes-de-cas", "/operating-model", "/maturite-ot", "/feuille-de-route"],
       "/referentiel": ["/referentiel", "/analyse-de-risque", "/programme-securite", "/exigences-systeme", "/exigences-composants", "/exigences-prestataires", "/developpement-securise", "/technologies-securite", "/gestion-correctifs", "/glossaire-62443", "/metriques-62443"],
       "/audit-conformite": ["/audit-conformite", "/diagnostic", "/nis2"],
       "/demo": ["/demo", "/tendances", "/connecter", "/guide-integration"],

@@ -373,6 +373,9 @@ login_required = init_auth(app)
 PAGES = {
     "/": "index.html",
     "/services": "services.html",
+    "/operating-model": "operating-model.html",
+    "/maturite-ot": "maturite-ot.html",
+    "/feuille-de-route": "feuille-de-route.html",
     "/etudes-de-cas": "etudes-de-cas.html",
     "/referentiel": "referentiel.html",
     "/analyse-de-risque": "analyse-de-risque.html",
@@ -494,6 +497,22 @@ def index():
 @app.route("/services")
 def services():
     return _page(PAGES["/services"])
+
+
+# Offres conseil & transformation — pages vitrine publiques (comme /services).
+@app.route("/operating-model")
+def operating_model():
+    return _page(PAGES["/operating-model"])
+
+
+@app.route("/maturite-ot")
+def maturite_ot():
+    return _page(PAGES["/maturite-ot"])
+
+
+@app.route("/feuille-de-route")
+def feuille_de_route():
+    return _page(PAGES["/feuille-de-route"])
 
 
 @app.route("/etudes-de-cas")
