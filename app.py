@@ -43,6 +43,7 @@ import binascii
 import html as html_lib
 import gzip
 import hashlib
+import hmac
 import json
 import os
 import io
@@ -105,6 +106,13 @@ def _request_is_https():
     return request.is_secure or request.headers.get("X-Forwarded-Proto", "") == "https"
 
 
+def _token_ok(provided, expected):
+    """Comparaison en temps constant du jeton d'ingestion (hmac.compare_digest) :
+    un attaquant ne peut pas reconstituer le jeton octet par octet en mesurant
+    les délais de réponse."""
+    return bool(expected) and hmac.compare_digest(provided or "", expected)
+
+
 def _same_origin_request():
     """Vrai si la requête provient de notre propre origine (défense anti-CSRF)."""
     src = request.headers.get("Origin") or request.headers.get("Referer") or ""
@@ -134,9 +142,49 @@ def _csrf_guard():
 def _security_headers(resp):
     for key, value in _SECURITY_HEADERS.items():
         resp.headers.setdefault(key, value)
+    # Les API d'administration et d'authentification renvoient des données
+    # sensibles : jamais de mise en cache (navigateur ou proxy) par défaut.
+    p = request.path
+    if p.startswith("/api/admin/") or p.startswith("/api/auth/"):
+        resp.headers.setdefault("Cache-Control", "private, no-store")
     if _request_is_https():
         resp.headers.setdefault(
             "Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    return resp
+
+
+# Compression des réponses dynamiques JSON / texte / XML (listes de documents,
+# historiques de livrables, contenus, sitemap…) : 70-90 % de réduction, donc
+# des téléchargements et affichages nettement plus rapides. Les flux (SSE),
+# les réponses déjà encodées (pages statiques pré-gzippées) et les binaires
+# (docx/pdf/zip, déjà compressés) ne sont pas touchés.
+_GZIP_MIN = 1400  # en dessous d'un paquet réseau, la compression ne gagne rien
+
+
+@app.after_request
+def _compress_text(resp):
+    try:
+        if (resp.status_code != 200 or resp.direct_passthrough or resp.is_streamed
+                or resp.headers.get("Content-Encoding")):
+            return resp
+        mt = resp.mimetype or ""
+        if not (mt.endswith("json") or mt.endswith("xml")
+                or (mt.startswith("text/") and mt != "text/event-stream")):
+            return resp
+        if "gzip" not in (request.headers.get("Accept-Encoding") or "").lower():
+            return resp
+        data = resp.get_data()
+        if len(data) < _GZIP_MIN:
+            return resp
+        gz = gzip.compress(data, 5)
+        if len(gz) >= len(data):
+            return resp
+        resp.set_data(gz)
+        resp.headers["Content-Encoding"] = "gzip"
+        resp.headers["Content-Length"] = str(len(gz))
+        resp.vary.add("Accept-Encoding")
+    except Exception:
+        pass
     return resp
 
 
@@ -700,22 +748,42 @@ def guide_integration():
     return _page(PAGES["/guide-integration"])
 
 
+_CONNECTOR_ZIP = {}  # cache mémoire : {"key": signature fichiers, "data": bytes}
+
+
 @app.route("/telecharger/connecteur.zip")
 @login_required
 def download_connector():
-    """Archive zip du connecteur (Python standard, sans dépendance) + guide de déploiement."""
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-        base = os.path.join(HERE, "connectors")
-        for root, _dirs, files in os.walk(base):
-            for name in sorted(files):
-                if name.endswith((".pyc", ".pyo")) or "__pycache__" in root:
-                    continue
-                full = os.path.join(root, name)
-                z.write(full, os.path.relpath(full, HERE))
-    buf.seek(0)
-    return send_file(buf, mimetype="application/zip", as_attachment=True,
-                     download_name="conseilprev-connecteur.zip")
+    """Archive zip du connecteur (Python standard, sans dépendance) + guide de
+    déploiement. L'archive est construite une seule fois puis servie depuis la
+    mémoire (reconstruite si un fichier source change), avec ETag + 304."""
+    base = os.path.join(HERE, "connectors")
+    sig = []
+    for root, _dirs, files in os.walk(base):
+        for name in sorted(files):
+            if name.endswith((".pyc", ".pyo")) or "__pycache__" in root:
+                continue
+            full = os.path.join(root, name)
+            st = os.stat(full)
+            sig.append((os.path.relpath(full, HERE), st.st_mtime_ns, st.st_size))
+    key = hashlib.sha256(repr(sorted(sig)).encode()).hexdigest()[:24]
+    ent = _CONNECTOR_ZIP.get("zip")
+    if ent is None or ent["key"] != key:
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+            for rel, _mt, _sz in sig:
+                z.write(os.path.join(HERE, rel), rel)
+        ent = {"key": key, "data": buf.getvalue()}
+        _CONNECTOR_ZIP["zip"] = ent
+    etag = '"z-%s"' % key
+    cache = {"ETag": etag, "Cache-Control": "private, max-age=0, must-revalidate"}
+    if etag in (request.headers.get("If-None-Match") or ""):
+        return Response(status=304, headers=cache)
+    resp = send_file(io.BytesIO(ent["data"]), mimetype="application/zip",
+                     as_attachment=True, download_name="conseilprev-connecteur.zip")
+    for k, v in cache.items():
+        resp.headers[k] = v
+    return resp
 
 
 @app.route("/api/admin/ingest-token")
@@ -1064,6 +1132,32 @@ def api_rag_delete(doc_id):
     return jsonify(ok=True)
 
 
+def _safe_download_name(name, fallback="document"):
+    """Nom de fichier sûr pour l'en-tête Content-Disposition : pas de chemin
+    (anti-traversée côté poste client), pas de caractère de contrôle ni de
+    guillemet (anti-injection d'en-tête), longueur bornée."""
+    name = (name or "").replace("\\", "/").rsplit("/", 1)[-1]
+    name = "".join(c for c in name if c.isprintable() and c not in '"<>|')
+    name = name.strip().lstrip(".")
+    return name[:120] or fallback
+
+
+def _blob_response(filename, data):
+    """Réponse de téléchargement d'un blob : nom assaini, type neutre
+    (application/octet-stream : jamais interprété par le navigateur, le poste
+    choisit l'application par l'extension), ETag fort + 304 (un re-clic sur un
+    document déjà téléchargé ne refait pas transiter le fichier)."""
+    etag = '"b-%s"' % hashlib.sha256(data).hexdigest()[:24]
+    cache = {"ETag": etag, "Cache-Control": "private, max-age=0, must-revalidate"}
+    if etag in (request.headers.get("If-None-Match") or ""):
+        return Response(status=304, headers=cache)
+    resp = send_file(io.BytesIO(data), download_name=_safe_download_name(filename),
+                     as_attachment=True, mimetype="application/octet-stream")
+    for key, value in cache.items():
+        resp.headers[key] = value
+    return resp
+
+
 @app.route("/api/admin/rag/documents/<doc_id>/download", methods=["GET"])
 @admin_required
 def api_rag_download(doc_id):
@@ -1074,7 +1168,7 @@ def api_rag_download(doc_id):
         filename, data = rag.get_blob(doc_id)
     except RagError as exc:
         return jsonify(ok=False, error=exc.code), exc.status
-    return send_file(io.BytesIO(data), download_name=filename, as_attachment=True)
+    return _blob_response(filename, data)
 
 
 @app.route("/api/admin/rag/documents/<doc_id>/content", methods=["GET"])
@@ -1304,7 +1398,7 @@ def api_rag_ingest_token():
     token = os.environ.get("RAG_INGEST_TOKEN") or INGEST_TOKEN
     if not token:
         return jsonify(ok=False, error="not_configured"), 503
-    if request.headers.get("X-Ingest-Token") != token:
+    if not _token_ok(request.headers.get("X-Ingest-Token"), token):
         return jsonify(ok=False, error="unauthorized"), 401
     data = request.get_json(silent=True) or {}
     filename = (data.get("filename") or "").strip()
@@ -1487,6 +1581,17 @@ def api_clients_export(cid):
                      as_attachment=True, mimetype="application/zip")
 
 
+# Formats de pièces jointes clients acceptés (documents contractuels) : tout le
+# reste est refusé dès l'ouverture de l'upload — pas d'exécutable ni de page
+# web dans les dossiers clients.
+_PIECES_EXT = {"pdf", "doc", "docx", "odt", "rtf", "txt", "md", "csv",
+               "xls", "xlsx", "png", "jpg", "jpeg"}
+
+
+def _piece_ext_ok(filename):
+    return "." in filename and filename.rsplit(".", 1)[-1].lower() in _PIECES_EXT
+
+
 @app.route("/api/admin/clients/<cid>/docs/init", methods=["POST"])
 @admin_required
 def api_clients_doc_init(cid):
@@ -1497,6 +1602,10 @@ def api_clients_doc_init(cid):
     filename = (data.get("filename") or "").strip()
     if not filename:
         return jsonify(ok=False, error="filename_manquant"), 400
+    if not _piece_ext_ok(filename):
+        return jsonify(ok=False, error="format_non_autorise",
+                       message="Formats acceptés : PDF, Word (doc/docx), ODT, RTF, "
+                               "texte (txt/md), CSV, Excel (xls/xlsx), PNG/JPG."), 400
     try:
         upload_id = clients_db.doc_upload_create(cid, filename, int(data.get("total_bytes") or 0))
     except ClientsError as exc:
@@ -1542,10 +1651,13 @@ def api_clients_doc_finish(cid):
     upload_id = (data.get("upload_id") or "").strip()
     if not _rag_valid_upload_id(upload_id):
         return jsonify(ok=False, error="upload_invalide"), 400
+    filename = (data.get("filename") or "").strip()
+    if filename and not _piece_ext_ok(filename):
+        return jsonify(ok=False, error="format_non_autorise",
+                       message="Format de fichier non autorisé."), 400
     try:
         doc = clients_db.doc_upload_finish(cid, upload_id, (data.get("categorie") or "").strip(),
-                                           actor=_actor(),
-                                           filename=(data.get("filename") or "").strip())
+                                           actor=_actor(), filename=filename)
     except ClientsError as exc:
         return jsonify(ok=False, error=exc.code), exc.status
     return jsonify(ok=True, doc=doc)
@@ -1570,7 +1682,7 @@ def api_clients_doc_download(cid, did):
         filename, data = clients_db.doc_get(cid, did, actor=_actor())
     except ClientsError as exc:
         return jsonify(ok=False, error=exc.code), exc.status
-    return send_file(io.BytesIO(data), download_name=filename, as_attachment=True)
+    return _blob_response(filename, data)
 
 
 @app.route("/api/admin/clients/<cid>/docs/<did>", methods=["DELETE"])
@@ -1609,9 +1721,10 @@ def api_rgpd_registre():
 
 @app.route("/offre-conseilprev-cyber.pdf")
 def offre_pdf():
-    """Plaquette PDF de l'offre cybersécurité industrielle (téléchargement direct)."""
-    return send_from_directory(HERE, "offre-conseilprev-cyber.pdf",
-                               mimetype="application/pdf")
+    """Plaquette PDF de l'offre (publique) — servie depuis le cache mémoire avec
+    ETag/304 et cache navigateur 24 h (un PDF est déjà compressé : pas de gzip)."""
+    return _serve_fast("offre-conseilprev-cyber.pdf", _CC_IMAGE,
+                       mimetype="application/pdf", gzippable=False)
 
 
 def _send_ack(api_key, email, nom, sujet, msg):
@@ -1806,7 +1919,7 @@ def api_ingest():
     """
     if not INGEST_TOKEN:
         return jsonify(ok=False, error="not_configured"), 503
-    if request.headers.get("X-Ingest-Token") != INGEST_TOKEN:
+    if not _token_ok(request.headers.get("X-Ingest-Token"), INGEST_TOKEN):
         return jsonify(ok=False, error="unauthorized"), 401
 
     data = request.get_json(silent=True) or {}
@@ -1853,7 +1966,7 @@ def api_reset():
     """Réinitialise l'état du cockpit (protégé par INGEST_TOKEN)."""
     if not INGEST_TOKEN:
         return jsonify(ok=False, error="not_configured"), 503
-    if request.headers.get("X-Ingest-Token") != INGEST_TOKEN:
+    if not _token_ok(request.headers.get("X-Ingest-Token"), INGEST_TOKEN):
         return jsonify(ok=False, error="unauthorized"), 401
     state.reset()
     broker.publish({"reset": True, "state": state.snapshot()})
@@ -1869,7 +1982,7 @@ def api_purge():
     """
     if not INGEST_TOKEN:
         return jsonify(ok=False, error="not_configured"), 503
-    if request.headers.get("X-Ingest-Token") != INGEST_TOKEN:
+    if not _token_ok(request.headers.get("X-Ingest-Token"), INGEST_TOKEN):
         return jsonify(ok=False, error="unauthorized"), 401
     days = request.args.get("retention_days", type=float) or _RETENTION_DAYS
     max_rows = request.args.get("max_rows", type=int) or _MAX_ROWS
