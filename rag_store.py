@@ -1012,15 +1012,23 @@ class ResilientRagStore:
     def __init__(self, dsn):
         self._dsn = dsn
         self._pg = None
-        # Repli mémoire : DATABASE_URL est défini mais la connexion a échoué.
+        # Repli mémoire (durable si RAG_DISK_PATH est défini) : DATABASE_URL est
+        # défini mais la connexion a échoué.
         self._mem = MemoryRagStore(reason="db_connection_failed")
         self._last_try = 0.0
         self._last_error = ""
         self._lock = threading.Lock()
-        # Un seul essai au démarrage : ne pas rallonger le boot si la base est
-        # froide (chaque essai peut bloquer ~5-8 s). Le rétablissement se fait
-        # ensuite tout seul au 1er chargement de la page admin (self-healing).
-        self._try_connect(attempts=1)
+        self._reconnecting = False
+        # Connexion tentée EN TÂCHE DE FOND : le worker démarre instantanément et
+        # sert depuis le repli ; il bascule sur PostgreSQL dès qu'il est joignable.
+        # Aucune requête n'est jamais bloquée par une base froide/injoignable
+        # (chaque essai peut bloquer ~10-20 s). self-healing sans redéploiement.
+        # Si le repli est déjà durable (disque), inutile de courir après la base :
+        # on n'y bascule que sur demande explicite (bouton « Reconnecter »).
+        if not getattr(self._mem, "persistent", False):
+            self._last_try = time.time()
+            self._reconnecting = True
+            threading.Thread(target=self._bg_connect, daemon=True).start()
 
     @staticmethod
     def _sanitize_error(exc):
@@ -1061,7 +1069,7 @@ class ResilientRagStore:
         except Exception as exc:
             return self._sanitize_error(exc)
 
-    def _try_connect(self, attempts=1):
+    def _try_connect(self, attempts=1, probe=True):
         for i in range(attempts):
             try:
                 pg = PostgresRagStore(self._dsn)
@@ -1071,31 +1079,64 @@ class ResilientRagStore:
                 return True
             except Exception as exc:
                 self._pg = None
-                self._last_error = self._probe_error() or self._sanitize_error(exc)
+                # `probe` (sonde libpq directe) précise la cause pour la bannière,
+                # mais double le temps : réservé au fond (jamais dans la requête).
+                self._last_error = ((self._probe_error() if probe else "")
+                                    or self._sanitize_error(exc))
                 _log.warning("RAG : PostgreSQL injoignable (essai %d/%d : %s).",
                              i + 1, attempts, self._last_error)
                 if i + 1 < attempts:
                     time.sleep(1.5)
         return False
 
+    def _bg_connect(self):
+        try:
+            self._try_connect(attempts=1, probe=True)
+        finally:
+            self._reconnecting = False
+
+    def _mem_has_docs(self):
+        try:
+            return bool(self._mem.list_documents())
+        except Exception:
+            return False
+
     def _maybe_reconnect(self):
-        if self._pg is not None:
+        """Déclenche une reconnexion EN TÂCHE DE FOND (jamais bloquante). La
+        requête courante est toujours servie immédiatement depuis le repli."""
+        if self._pg is not None or self._reconnecting:
+            return
+        # Repli durable (disque) ou contenant déjà des documents : on NE bascule
+        # pas tout seul vers PostgreSQL, cela masquerait ces documents. L'admin
+        # peut forcer la bascule via « Reconnecter ».
+        if getattr(self._mem, "persistent", False) or self._mem_has_docs():
             return
         if time.time() - self._last_try < _RECONNECT_MIN_INTERVAL:
             return
         with self._lock:
-            if self._pg is None and time.time() - self._last_try >= _RECONNECT_MIN_INTERVAL:
-                self._last_try = time.time()
-                self._try_connect(attempts=1)
+            if (self._pg is not None or self._reconnecting
+                    or time.time() - self._last_try < _RECONNECT_MIN_INTERVAL):
+                return
+            self._last_try = time.time()
+            self._reconnecting = True
+            threading.Thread(target=self._bg_connect, daemon=True).start()
 
     def _store(self):
         return self._pg if self._pg is not None else self._mem
 
     def reconnect(self):
-        """Essai de reconnexion immédiat (bouton admin). Renvoie True si connecté."""
+        """Essai de reconnexion immédiat et SYNCHRONE (bouton admin : l'utilisateur
+        accepte d'attendre). Sonde désactivée pour borner le délai (~12 s max).
+        Renvoie True si connecté."""
         with self._lock:
+            if self._reconnecting:
+                return self._pg is not None
+            self._reconnecting = True
+        try:
             self._last_try = time.time()
-            self._try_connect(attempts=1)
+            self._try_connect(attempts=1, probe=False)
+        finally:
+            self._reconnecting = False
         return self._pg is not None
 
     # Opérations de consultation : occasion de retenter la connexion.

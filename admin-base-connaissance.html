@@ -293,6 +293,7 @@
             } else if(caps.reason==='db_connection_failed'){
               dbMsg+='<div style="margin-top:9px">Vérifiez que la base est au statut <b>Available</b> (même région Frankfurt).</div>';
             }
+            dbMsg+='<div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--line)">💾 <b>Conserver les documents sans attendre la base</b> : ajoutez un <b>disque Render</b> (Environment → Disks, ex. monté sur <code>/var/data</code>) puis la variable <b>RAG_DISK_PATH=/var/data/rag.json</b>. La base de connaissance devient alors persistante sur disque, indépendamment de PostgreSQL. Le chargement fonctionne dès à présent (les documents sont en mémoire tant que ni la base ni le disque ne sont configurés).</div>';
             document.getElementById('memWarnBody').innerHTML=(caps.reason==='db_connection_failed')
               ? dbMsg
               : '<b style="color:var(--danger)">Mode mémoire — les documents ne sont pas conservés.</b> Aucune base PostgreSQL n\'est connectée : définissez la variable <b>DATABASE_URL</b> dans Render (URL interne d\'une base PostgreSQL), puis redéployez.';
