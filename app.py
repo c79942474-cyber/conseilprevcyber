@@ -694,6 +694,7 @@ def api_admin_ingest_token():
 
 
 @app.route("/ressources")
+@login_required
 def ressources():
     return _page(PAGES["/ressources"])
 
@@ -709,6 +710,7 @@ def about():
 
 
 @app.route("/vos-projets")
+@login_required
 def vos_projets():
     """Formulaire détaillé de soumission de projet cyber industriel (IT/OT/IIoT)."""
     return _page(PAGES["/vos-projets"])

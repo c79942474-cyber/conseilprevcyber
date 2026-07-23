@@ -813,9 +813,49 @@
     if (y && !y.textContent) y.textContent = new Date().getFullYear();
   }
 
+  /* ── État de compte : lien compact dans l'en-tête + déconnexion dans le tiroir ── */
+  function _logout() {
+    fetch("/api/auth/logout", { method: "POST", headers: { "Content-Type": "application/json" } })
+      .then(function () { location.href = "/"; }).catch(function () { location.href = "/"; });
+  }
+  function initAccount() {
+    var cta = document.querySelector("header .navcta");
+    if (!cta || cta.querySelector(".nav-account")) return;
+    fetch("/api/auth/me", { headers: { "Accept": "application/json" } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j) return;
+        var slot = document.createElement("span");
+        slot.className = "nav-account";
+        var a = document.createElement("a");
+        a.className = "acc-link";
+        if (j.authenticated) {
+          var first = ((j.name || j.email || "compte").split(/\s+/)[0]) || "compte";
+          a.href = "/vos-projets"; a.title = j.email || ""; a.textContent = "● " + first;
+          // Déconnexion : dans le tiroir (l'en-tête reste compact).
+          var dcta = document.querySelector(".drawer-cta");
+          if (dcta) {
+            var first_btn = dcta.querySelector("a");
+            if (first_btn) {
+              first_btn.textContent = "Déconnexion";
+              first_btn.removeAttribute("href");
+              first_btn.setAttribute("role", "button");
+              first_btn.style.cursor = "pointer";
+              first_btn.addEventListener("click", function (e) { e.preventDefault(); _logout(); });
+            }
+          }
+        } else {
+          a.href = "/connexion"; a.textContent = "Connexion";
+        }
+        slot.appendChild(a);
+        cta.insertBefore(slot, cta.firstChild);
+      }).catch(function () {});
+  }
+
   function init() {
     initA11y();
     initYear();
+    initAccount();
     initDrawer();
     initPageNav();
     initGuide();

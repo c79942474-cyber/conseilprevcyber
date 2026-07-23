@@ -287,8 +287,9 @@ def _btn(url, label):
             '<p style="color:#8a9ab0;font-size:12px;word-break:break-all">Ou copiez ce lien : %s</p>' % (url, label, url))
 
 
-def _send_verify(user):
-    url = "%s/verifier-email/%s" % (_base_url(), user["verify_token"])
+def _send_verify(user, base=None):
+    base = base or _base_url()
+    url = "%s/verifier-email/%s" % (base, user["verify_token"])
     send_email(user["email"], user["name"], "Confirmez votre adresse email — CONSEILPREV Cyber",
                _shell("Confirmez votre email",
                       "<p>Bonjour %s,</p><p>Pour finaliser votre demande d'accès au cockpit CONSEILPREV Cyber, "
@@ -297,8 +298,9 @@ def _send_verify(user):
                       % (user["name"] or "", _btn(url, "Confirmer mon email"), VERIFY_VALIDITY_H)))
 
 
-def _notify_admin(user):
-    url = "%s/admin/approuver/%s" % (_base_url(), user["approve_token"])
+def _notify_admin(user, base=None):
+    base = base or _base_url()
+    url = "%s/admin/approuver/%s" % (base, user["approve_token"])
     send_email(ADMIN_EMAIL, "Admin",
                "Nouvelle demande d'accès cockpit — %s" % user["email"],
                _shell("Nouvelle demande d'accès",
@@ -309,11 +311,12 @@ def _notify_admin(user):
                       "<p style=\"color:#8a9ab0;font-size:12px\">Gérer tous les comptes : "
                       "<a href=\"%s/admin/comptes\">%s/admin/comptes</a></p>"
                       % (user["name"] or "—", user["org"] or "—", user["email"],
-                         _btn(url, "Approuver cet accès"), _base_url(), _base_url())))
+                         _btn(url, "Approuver cet accès"), base, base)))
 
 
-def _send_approved(user):
-    url = "%s/connexion" % _base_url()
+def _send_approved(user, base=None):
+    base = base or _base_url()
+    url = "%s/connexion" % base
     send_email(user["email"], user["name"], "Votre accès cockpit est activé — CONSEILPREV Cyber",
                _shell("Accès activé",
                       "<p>Bonjour %s,</p><p>Votre accès au cockpit de supervision CONSEILPREV Cyber a été "
@@ -321,8 +324,9 @@ def _send_approved(user):
                       % (user["name"] or "", _btn(url, "Se connecter"))))
 
 
-def _send_reset(user):
-    url = "%s/reinitialiser/%s" % (_base_url(), user["reset_token"])
+def _send_reset(user, base=None):
+    base = base or _base_url()
+    url = "%s/reinitialiser/%s" % (base, user["reset_token"])
     send_email(user["email"], user["name"], "Réinitialisation de votre mot de passe — CONSEILPREV Cyber",
                _shell("Réinitialiser le mot de passe",
                       "<p>Vous avez demandé à réinitialiser votre mot de passe. Ce lien est valable %d heures :</p>"
@@ -526,8 +530,8 @@ def api_register():
     }
     if not store.create(user):
         return generic
-    threading.Thread(target=_send_verify, args=(user,), daemon=True).start()
-    threading.Thread(target=_notify_admin, args=(user,), daemon=True).start()
+    threading.Thread(target=_send_verify, args=(user, _base_url()), daemon=True).start()
+    threading.Thread(target=_notify_admin, args=(user, _base_url()), daemon=True).start()
     return generic
 
 
@@ -547,7 +551,7 @@ def admin_approve(token):
         return send_from_directory(HERE, "lien-expire.html")
     store.update(u["email"], approved=True, approve_token=None)
     u["approved"] = True
-    threading.Thread(target=_send_approved, args=(u,), daemon=True).start()
+    threading.Thread(target=_send_approved, args=(u, _base_url()), daemon=True).start()
     return ("<meta charset='utf-8'><div style=\"font-family:Arial;max-width:520px;margin:60px auto;"
             "text-align:center;color:#1c2530\"><h1>✅ Accès approuvé</h1>"
             "<p>Le compte <b>%s</b> est activé. L'utilisateur a été prévenu par email.</p></div>" % u["email"])
@@ -608,7 +612,7 @@ def api_forgot():
         store.update(email, reset_token=secrets.token_urlsafe(32),
                      reset_expire=_now_ms() + RESET_VALIDITY_H * 3600 * _MS)
         u = store.get(email)
-        threading.Thread(target=_send_reset, args=(u,), daemon=True).start()
+        threading.Thread(target=_send_reset, args=(u, _base_url()), daemon=True).start()
     return generic
 
 
@@ -683,7 +687,7 @@ def api_admin_user_update(email):
     if action == "approve":
         store.update(email, approved=True, approve_token=None)
         u = store.get(email)
-        threading.Thread(target=_send_approved, args=(u,), daemon=True).start()
+        threading.Thread(target=_send_approved, args=(u, _base_url()), daemon=True).start()
     elif action == "suspend":
         store.update(email, approved=False)
     elif action == "make_admin":
