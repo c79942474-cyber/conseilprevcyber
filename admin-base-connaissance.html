@@ -265,8 +265,28 @@
         var mw=document.getElementById('memWarn');
         if(mw){
           if(caps.persistent===false){
+            var dbMsg='<b style="color:var(--danger)">Base PostgreSQL injoignable — mode mémoire.</b> La variable <b>DATABASE_URL</b> est bien définie, mais la connexion échoue. La connexion est retentée automatiquement — vous pouvez aussi forcer un essai ci-dessous, <b>sans redéployer</b>. Les documents ne sont pas conservés tant que la base n\'est pas rétablie.';
+            if(caps.reason==='db_connection_failed'&&caps.detail){
+              var d=caps.detail, hint='';
+              if(/could not translate host name|Name or service not known|could not resolve/i.test(d))
+                hint='Hôte introuvable : l\'<b>Internal Database URL</b> ne fonctionne que si la base est dans la <b>même région</b> que ce service (Frankfurt) — base dans une autre région ou supprimée. Recréez-la en Frankfurt, ou utilisez l\'<b>External Database URL</b>.';
+              else if(/password authentication failed|authentication/i.test(d))
+                hint='Identifiants refusés : recopiez l\'<b>Internal Database URL</b> exacte depuis la page de la base (le mot de passe change si la base a été recréée), sans espace ni guillemets.';
+              else if(/timeout|timed out/i.test(d))
+                hint='Délai dépassé : base <b>suspendue / non Available</b> (base gratuite expirée ?) ou accès réseau bloqué. Vérifiez son statut dans le tableau de bord Render.';
+              else if(/Connection refused/i.test(d))
+                hint='Connexion refusée : la base n\'écoute pas — vérifiez qu\'elle est au statut <b>Available</b>.';
+              else if(/SSL|TLS/i.test(d))
+                hint='Négociation SSL en échec : utilisez l\'URL fournie par Render telle quelle (le SSL y est déjà correctement configuré).';
+              else
+                hint='Vérifiez le statut <b>Available</b> de la base et la valeur exacte de <b>DATABASE_URL</b>.';
+              dbMsg+='<div style="margin-top:9px">'+hint+'</div>'
+                +'<div style="margin-top:9px;font-family:var(--mono);font-size:11.5px;color:var(--muted2)">Détail technique : <code>'+esc(d)+'</code></div>';
+            } else if(caps.reason==='db_connection_failed'){
+              dbMsg+='<div style="margin-top:9px">Vérifiez que la base est au statut <b>Available</b> (même région Frankfurt).</div>';
+            }
             document.getElementById('memWarnBody').innerHTML=(caps.reason==='db_connection_failed')
-              ? '<b style="color:var(--danger)">Base PostgreSQL injoignable — mode mémoire.</b> La variable <b>DATABASE_URL</b> est bien définie, mais la connexion échoue. Vérifiez que la base est au statut <b>Available</b> (même région Frankfurt). La connexion est retentée automatiquement — vous pouvez aussi forcer un essai ci-dessous, <b>sans redéployer</b>. Les documents ne sont pas conservés tant que la base n\'est pas rétablie.'
+              ? dbMsg
               : '<b style="color:var(--danger)">Mode mémoire — les documents ne sont pas conservés.</b> Aucune base PostgreSQL n\'est connectée : définissez la variable <b>DATABASE_URL</b> dans Render (URL interne d\'une base PostgreSQL), puis redéployez.';
             // Le bouton n'a de sens que si DATABASE_URL est défini (repli connexion).
             document.getElementById('memReconnect').style.display=(caps.reason==='db_connection_failed')?'inline-block':'none';
@@ -460,8 +480,9 @@
         if(j&&j.ok&&j.capabilities&&j.capabilities.persistent){
           note('Base reconnectée — persistance rétablie.','ok'); load();
         } else {
-          note('Base toujours injoignable. Vérifiez son statut (Available) puis réessayez.','err');
-          b.disabled=false; b.textContent=old;
+          var det=(j&&j.capabilities&&j.capabilities.detail)?(' Cause : '+j.capabilities.detail):'';
+          note('Base toujours injoignable.'+det+' Vérifiez son statut (Available) puis réessayez.','err');
+          load(); b.disabled=false; b.textContent=old;
         }
       }).catch(function(){note('Reconnexion impossible pour le moment.','err');b.disabled=false;b.textContent=old;});
     });

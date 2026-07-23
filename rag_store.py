@@ -890,23 +890,49 @@ class ResilientRagStore:
         # Repli mémoire : DATABASE_URL est défini mais la connexion a échoué.
         self._mem = MemoryRagStore(reason="db_connection_failed")
         self._last_try = 0.0
+        self._last_error = ""
         self._lock = threading.Lock()
         # Un seul essai au démarrage : ne pas rallonger le boot si la base est
         # froide (chaque essai peut bloquer ~5-8 s). Le rétablissement se fait
         # ensuite tout seul au 1er chargement de la page admin (self-healing).
         self._try_connect(attempts=1)
 
+    @staticmethod
+    def _sanitize_error(exc):
+        """Message d'erreur affichable dans l'admin : jamais de secret.
+        On retire toute URL de connexion et tout fragment password=… que le
+        driver pourrait inclure, et on borne la longueur."""
+        msg = " ".join(str(exc).split())
+        msg = re.sub(r"postgres(?:ql)?://\S+", "postgresql://…", msg)
+        msg = re.sub(r"password=\S+", "password=…", msg)
+        return msg[:300]
+
+    def _probe_error(self):
+        """Erreur libpq précise via une connexion directe : le pool n'expose
+        qu'un délai générique (« couldn't get a connection after N sec ») qui
+        ne dit pas si l'hôte est introuvable, l'authentification refusée ou la
+        base suspendue. Renvoie "" si la connexion directe passe."""
+        try:
+            import psycopg
+            conn = psycopg.connect(self._dsn, connect_timeout=5)
+            conn.close()
+            return ""
+        except Exception as exc:
+            return self._sanitize_error(exc)
+
     def _try_connect(self, attempts=1):
         for i in range(attempts):
             try:
                 pg = PostgresRagStore(self._dsn)
                 self._pg = pg
+                self._last_error = ""
                 _log.info("RAG : PostgreSQL connecté (%s).", pg.capabilities()["mode"])
                 return True
             except Exception as exc:
                 self._pg = None
+                self._last_error = self._probe_error() or self._sanitize_error(exc)
                 _log.warning("RAG : PostgreSQL injoignable (essai %d/%d : %s).",
-                             i + 1, attempts, exc)
+                             i + 1, attempts, self._last_error)
                 if i + 1 < attempts:
                     time.sleep(1.5)
         return False
@@ -934,7 +960,13 @@ class ResilientRagStore:
     # Opérations de consultation : occasion de retenter la connexion.
     def capabilities(self):
         self._maybe_reconnect()
-        return self._store().capabilities()
+        caps = self._store().capabilities()
+        # En repli mémoire : joindre la cause exacte du dernier échec de
+        # connexion (assainie) pour un diagnostic immédiat dans l'admin.
+        if self._pg is None and self._last_error:
+            caps = dict(caps)
+            caps["detail"] = self._last_error
+        return caps
 
     def list_documents(self):
         self._maybe_reconnect()
