@@ -502,11 +502,13 @@ def etudes_de_cas():
 
 
 @app.route("/referentiel")
+@login_required
 def referentiel():
     return _page(PAGES["/referentiel"])
 
 
 @app.route("/analyse-de-risque")
+@login_required
 def analyse_de_risque():
     return _page(PAGES["/analyse-de-risque"])
 
@@ -517,51 +519,61 @@ def secteurs():
 
 
 @app.route("/methodologie")
+@login_required
 def methodologie():
     return _page(PAGES["/methodologie"])
 
 
 @app.route("/exigences-systeme")
+@login_required
 def exigences_systeme():
     return _page(PAGES["/exigences-systeme"])
 
 
 @app.route("/exigences-composants")
+@login_required
 def exigences_composants():
     return _page(PAGES["/exigences-composants"])
 
 
 @app.route("/exigences-prestataires")
+@login_required
 def exigences_prestataires():
     return _page(PAGES["/exigences-prestataires"])
 
 
 @app.route("/developpement-securise")
+@login_required
 def developpement_securise():
     return _page(PAGES["/developpement-securise"])
 
 
 @app.route("/technologies-securite")
+@login_required
 def technologies_securite():
     return _page(PAGES["/technologies-securite"])
 
 
 @app.route("/programme-securite")
+@login_required
 def programme_securite():
     return _page(PAGES["/programme-securite"])
 
 
 @app.route("/gestion-correctifs")
+@login_required
 def gestion_correctifs():
     return _page(PAGES["/gestion-correctifs"])
 
 
 @app.route("/glossaire-62443")
+@login_required
 def glossaire_62443():
     return _page(PAGES["/glossaire-62443"])
 
 
 @app.route("/metriques-62443")
+@login_required
 def metriques_62443():
     return _page(PAGES["/metriques-62443"])
 
@@ -643,6 +655,7 @@ def api_chat():
 
 
 @app.route("/audit-conformite")
+@login_required
 def audit_conformite():
     """Étude & audit de conformité IEC 62443 (mode démo public ; temps réel via compte)."""
     return _page(PAGES["/audit-conformite"])
@@ -780,9 +793,23 @@ def emblem_png():
 
 
 # --- Référencement (robots.txt + sitemap.xml) ---------------------------------
-# Pages publiques uniquement : on exclut les pages nécessitant un compte.
-_SITEMAP_EXCLUDE = {"/tendances", "/connecter", "/guide-integration"}
-_SITEMAP_TOP = {"/", "/services", "/vos-projets", "/contact", "/etudes-de-cas", "/about"}
+# Pages publiques uniquement : on exclut celles qui nécessitent un compte. Les
+# pages protégées sont détectées automatiquement (décorateur @login_required /
+# @admin_required, repère `auth_gated`) : aucune liste à tenir à jour à la main
+# quand on protège une nouvelle page. `_SITEMAP_EXCLUDE` reste pour d'éventuelles
+# exclusions manuelles (pages publiques mais non indexables).
+_SITEMAP_EXCLUDE = set()
+_SITEMAP_TOP = {"/", "/services", "/contact", "/etudes-de-cas", "/about"}
+
+
+def _auth_gated_paths():
+    """Chemins des pages protégées par connexion (exclus du sitemap public)."""
+    gated = set()
+    for rule in app.url_map.iter_rules():
+        view = app.view_functions.get(rule.endpoint)
+        if view is not None and getattr(view, "auth_gated", False):
+            gated.add(str(rule.rule))
+    return gated
 
 
 def _base_url():
@@ -816,10 +843,11 @@ def robots_txt():
 def sitemap_xml():
     """Plan du site (pages publiques indexables)."""
     base = _base_url()
+    exclude = _SITEMAP_EXCLUDE | _auth_gated_paths()
     parts = ['<?xml version="1.0" encoding="UTF-8"?>',
              '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
     for path in PAGES:
-        if path in _SITEMAP_EXCLUDE:
+        if path in exclude:
             continue
         loc = base + ("/" if path == "/" else path)
         priority = "1.0" if path == "/" else ("0.8" if path in _SITEMAP_TOP else "0.6")

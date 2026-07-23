@@ -353,6 +353,7 @@ def login_required(f):
                 return jsonify(error="Authentification requise."), 401
             return redirect("/connexion?next=" + request.path)
         return f(*a, **k)
+    wrap.auth_gated = True  # repère : page protégée (exclue du sitemap public)
     return wrap
 
 
@@ -376,6 +377,7 @@ def admin_required(f):
                 return jsonify(error="Accès réservé à l'administrateur."), 403
             return "<meta charset='utf-8'><p style='font-family:Arial;margin:60px auto;max-width:480px;text-align:center'>Accès réservé à l'administrateur.</p>", 403
         return f(*a, **k)
+    wrap.auth_gated = True  # repère : page protégée (exclue du sitemap public)
     return wrap
 
 
