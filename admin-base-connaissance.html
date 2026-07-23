@@ -116,7 +116,9 @@
 
       <div class="warn" id="memWarn" style="display:none;border-color:rgba(247,158,125,.55);background:rgba(247,158,125,.12)">
         <span>⛔</span><div style="flex:1"><div id="memWarnBody"></div>
-          <button type="button" id="memReconnect" style="display:none;margin-top:11px;font-family:var(--mono);font-size:12px;padding:8px 15px;border-radius:8px;border:1px solid var(--cyan);background:rgba(34,211,238,.12);color:var(--cyan);cursor:pointer">↻ Reconnecter la base</button></div></div>
+          <button type="button" id="memReconnect" style="display:none;margin-top:11px;font-family:var(--mono);font-size:12px;padding:8px 15px;border-radius:8px;border:1px solid var(--cyan);background:rgba(34,211,238,.12);color:var(--cyan);cursor:pointer">↻ Reconnecter la base</button>
+          <button type="button" id="memDiag" style="display:none;margin-top:11px;margin-left:8px;font-family:var(--mono);font-size:12px;padding:8px 15px;border-radius:8px;border:1px solid var(--teal);background:rgba(20,184,166,.10);color:var(--teal);cursor:pointer">🩺 Diagnostiquer la connexion</button>
+          <div id="diagOut" style="display:none;margin-top:12px;font-family:var(--mono);font-size:11.5px;line-height:1.8"></div></div></div>
 
       <div class="warn"><span>⚠️</span><div>Les documents marqués <b>Public</b> peuvent être restitués par l'assistant à n'importe quel visiteur.
         N'y placez que des informations diffusables. Réservez les contenus sensibles à la visibilité <b>Interne</b>
@@ -294,8 +296,9 @@
             document.getElementById('memWarnBody').innerHTML=(caps.reason==='db_connection_failed')
               ? dbMsg
               : '<b style="color:var(--danger)">Mode mémoire — les documents ne sont pas conservés.</b> Aucune base PostgreSQL n\'est connectée : définissez la variable <b>DATABASE_URL</b> dans Render (URL interne d\'une base PostgreSQL), puis redéployez.';
-            // Le bouton n'a de sens que si DATABASE_URL est défini (repli connexion).
+            // Les boutons n'ont de sens que si DATABASE_URL est défini (repli connexion).
             document.getElementById('memReconnect').style.display=(caps.reason==='db_connection_failed')?'inline-block':'none';
+            document.getElementById('memDiag').style.display=(caps.reason==='db_connection_failed')?'inline-block':'none';
             mw.style.display='flex';
           } else { mw.style.display='none'; }
         }
@@ -491,6 +494,20 @@
           load(); b.disabled=false; b.textContent=old;
         }
       }).catch(function(){note('Reconnexion impossible pour le moment.','err');b.disabled=false;b.textContent=old;});
+    });
+    document.getElementById('memDiag').addEventListener('click',function(){
+      var b=this, out=document.getElementById('diagOut');
+      b.disabled=true; var old=b.textContent; b.textContent='Diagnostic…';
+      out.style.display='block'; out.innerHTML='Analyse en cours (jusqu\'à ~15 s)…';
+      fetch('/api/admin/rag/diagnose',{method:'POST'}).then(function(r){return r.json();}).then(function(j){
+        if(!j||!j.ok){out.innerHTML='Diagnostic indisponible.';return;}
+        out.innerHTML=(j.steps||[]).map(function(s){
+          return '<div style="color:'+(s.ok?'var(--green)':'var(--danger)')+'">'
+            +(s.ok?'✓':'✗')+' '+esc(s.etape)+' — <span style="color:var(--muted)">'+esc(s.info)+'</span></div>';
+        }).join('')
+        +(j.conclusion?('<div style="margin-top:9px;color:var(--ink);font-family:inherit;font-size:12.5px"><b>Conclusion :</b> '+esc(j.conclusion)+'</div>'):'');
+      }).catch(function(){out.innerHTML='Diagnostic impossible pour le moment.';})
+        .then(function(){b.disabled=false;b.textContent=old;});
     });
     document.getElementById('logout').addEventListener('click',function(e){e.preventDefault();
       fetch('/api/auth/logout',{method:'POST'}).then(function(){location.href='/connexion?deconnecte=1';});});

@@ -67,7 +67,7 @@ from clients_store import (BASES_LEGALES, CATEGORIES_PIECES, STATUTS,
 from cockpit_state import make_store, tag_for
 from livrables_store import make_livrables_store
 from rag_store import (RagError, THEMES, build_context, dedupe as rag_dedupe,
-                       duplicate_groups, make_rag_store)
+                       diagnose as rag_diagnose, duplicate_groups, make_rag_store)
 
 app = Flask(__name__)
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -957,6 +957,17 @@ def api_rag_reconnect():
     reconnected = bool(fn()) if callable(fn) else False
     return jsonify(ok=True, reconnected=reconnected,
                    capabilities=rag.capabilities(), stats=rag.stats())
+
+
+@app.route("/api/admin/rag/diagnose", methods=["POST"])
+@admin_required
+def api_rag_diagnose():
+    """Diagnostic pas-à-pas de la connexion PostgreSQL (variable → format →
+    URL → DNS → TCP → session → écriture). Aucun secret exposé."""
+    try:
+        return jsonify(ok=True, **rag_diagnose())
+    except Exception:
+        return jsonify(ok=False, error="diagnostic_echec"), 500
 
 
 @app.route("/api/admin/rag/upload/init", methods=["POST"])

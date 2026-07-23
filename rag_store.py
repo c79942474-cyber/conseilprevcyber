@@ -517,9 +517,9 @@ class PostgresRagStore:
         sep = "&" if "?" in dsn else "?"
         # client_encoding=UTF8 : les libellés accentués (thèmes, contenu) sont
         # toujours transmis en UTF-8, quel que soit l'encodage du serveur.
-        dsn = dsn + sep + "connect_timeout=5&client_encoding=UTF8"
+        dsn = dsn + sep + "connect_timeout=8&client_encoding=UTF8"
         self._pool = ConnectionPool(dsn, min_size=1, max_size=4,
-                                    kwargs={"autocommit": True}, timeout=8, open=True)
+                                    kwargs={"autocommit": True}, timeout=12, open=True)
         self.vector_mode = False
         try:
             self._init_schema()
@@ -867,6 +867,131 @@ class PostgresRagStore:
 _RECONNECT_MIN_INTERVAL = float(os.environ.get("RAG_RECONNECT_INTERVAL", "20"))
 
 
+def _sanitize_pg_error(exc):
+    """Message d'erreur affichable : URLs et password=… masqués, longueur bornée."""
+    msg = " ".join(str(exc).split())
+    msg = re.sub(r"postgres(?:ql)?://\S+", "postgresql://…", msg)
+    msg = re.sub(r"password=\S+", "password=…", msg)
+    return msg[:300]
+
+
+def diagnose(dsn=None):
+    """Diagnostic pas-à-pas de la connexion PostgreSQL (admin uniquement).
+
+    Chaque étape isole une cause distincte — variable absente, caractère
+    parasite, URL invalide, DNS (mauvaise région / base supprimée), TCP
+    (base suspendue / Access Control), session PostgreSQL (mot de passe,
+    SSL, base inexistante), écriture. Aucun secret n'est exposé : seuls
+    l'hôte, le port et des messages assainis sortent d'ici."""
+    import socket
+    from urllib.parse import urlparse
+    steps = []
+
+    def step(name, ok, info=""):
+        steps.append({"etape": name, "ok": bool(ok), "info": (info or "")[:220]})
+
+    raw = os.environ.get("DATABASE_URL") if dsn is None else dsn
+    if not raw:
+        step("variable", False, "DATABASE_URL absente de l'environnement")
+        return {"steps": steps, "conclusion":
+                "Définissez DATABASE_URL (champ « Internal Database URL » de la base) "
+                "dans l'onglet Environment du service, puis laissez Render redéployer."}
+    step("variable", True, "définie (%d caractères)" % len(raw))
+
+    clean = raw.strip()
+    if clean != raw or any(c in raw for c in ("\n", "\r", '"', "'")) or " " in clean:
+        step("format", False, "espace, guillemet ou retour à la ligne détecté dans la valeur")
+    else:
+        step("format", True, "aucun caractère parasite")
+    if clean.startswith("postgres://"):
+        clean = "postgresql://" + clean[len("postgres://"):]
+
+    try:
+        u = urlparse(clean)
+        host, port = u.hostname or "", u.port or 5432
+    except Exception as exc:
+        step("url", False, _sanitize_pg_error(exc))
+        return {"steps": steps, "conclusion":
+                "La valeur n'est pas une URL PostgreSQL lisible — recopiez le champ "
+                "« Internal Database URL » tel quel."}
+    if not host:
+        step("url", False, "aucun hôte dans l'URL")
+        return {"steps": steps, "conclusion":
+                "L'URL ne contient pas d'hôte (forme attendue : postgresql://user:mot@hôte/base) "
+                "— recopiez le champ « Internal Database URL » tel quel."}
+    kind = ("external" if ".render.com" in host
+            else "internal" if host.startswith("dpg-") else "other")
+    step("url", True, "%s:%s (%s)" % (host, port,
+         {"external": "URL externe — soumise à l'Access Control",
+          "internal": "URL interne — même région obligatoire",
+          "other": "hôte personnalisé"}[kind]))
+
+    t0 = time.time()
+    try:
+        infos = socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
+        ips = sorted({i[4][0] for i in infos})
+        step("dns", True, "%s (%d ms)" % (", ".join(ips[:4]), (time.time() - t0) * 1000))
+    except Exception as exc:
+        step("dns", False, _sanitize_pg_error(exc))
+        return {"steps": steps, "conclusion":
+                "Le nom d'hôte ne se résout pas : URL interne d'une base située dans une AUTRE "
+                "région, ou base supprimée. Ouvrez la page de la base voulue (statut Available, "
+                "même région que le service) et recopiez SON « Internal Database URL »."}
+
+    t0 = time.time()
+    try:
+        sock = socket.create_connection((host, port), timeout=6)
+        sock.close()
+        step("tcp", True, "port ouvert (%d ms)" % ((time.time() - t0) * 1000))
+    except Exception as exc:
+        step("tcp", False, _sanitize_pg_error(exc))
+        if kind == "external":
+            concl = ("Le serveur ne répond pas sur l'URL externe : l'Access Control de la base "
+                     "bloque ce service. Remplacez DATABASE_URL par l'« Internal Database URL » "
+                     "(base dans la même région), ou ajoutez 0.0.0.0/0 dans Access Control.")
+        else:
+            concl = ("Le serveur ne répond pas : cette base précise est suspendue / non "
+                     "Available, ou l'hôte appartient à une ancienne base. Vérifiez dans Render "
+                     "le statut de CETTE base et recopiez son URL actuelle.")
+        return {"steps": steps, "conclusion": concl}
+
+    try:
+        import psycopg
+        t0 = time.time()
+        conn = psycopg.connect(clean, connect_timeout=8)
+        try:
+            ver = (conn.execute("SELECT version()").fetchone() or [""])[0]
+            conn.execute("CREATE TEMP TABLE _cp_diag(t int)")
+            conn.execute("DROP TABLE _cp_diag")
+        finally:
+            conn.close()
+        step("session", True, "%s (%d ms)" % (str(ver).split(" on ")[0][:60],
+                                              (time.time() - t0) * 1000))
+        step("ecriture", True, "table temporaire créée puis supprimée")
+    except Exception as exc:
+        msg = _sanitize_pg_error(exc)
+        step("session", False, msg)
+        low = msg.lower()
+        if "password" in low or "authentification" in low or "authentication" in low:
+            concl = ("Le serveur répond mais refuse les identifiants : l'URL mélange "
+                     "probablement deux bases (mot de passe d'une autre base). Recopiez "
+                     "l'« Internal Database URL » complète de la base visée, d'un seul bloc.")
+        elif "ssl" in low or "tls" in low:
+            concl = "Négociation SSL en échec — utilisez l'URL fournie par Render telle quelle."
+        elif "does not exist" in low:
+            concl = ("Connexion OK mais la base nommée dans l'URL n'existe pas sur ce serveur — "
+                     "l'URL mélange deux bases. Recopiez l'URL complète d'une seule base.")
+        else:
+            concl = "Le port répond mais la session PostgreSQL échoue : " + msg
+        return {"steps": steps, "conclusion": concl}
+
+    return {"steps": steps, "conclusion":
+            "Connexion PostgreSQL opérationnelle. Cliquez « ↻ Reconnecter la base » pour "
+            "rétablir la persistance de la base de connaissance sans redéployer, puis faites "
+            "un Manual Deploy (Deploy latest commit) pour rebrancher aussi comptes, cockpit, "
+            "historique livrables et clients."}
+
+
 class ResilientRagStore:
     """Enveloppe résiliente autour de PostgreSQL — corrige le blocage « mode
     mémoire jusqu'au prochain redéploiement ».
@@ -899,13 +1024,8 @@ class ResilientRagStore:
 
     @staticmethod
     def _sanitize_error(exc):
-        """Message d'erreur affichable dans l'admin : jamais de secret.
-        On retire toute URL de connexion et tout fragment password=… que le
-        driver pourrait inclure, et on borne la longueur."""
-        msg = " ".join(str(exc).split())
-        msg = re.sub(r"postgres(?:ql)?://\S+", "postgresql://…", msg)
-        msg = re.sub(r"password=\S+", "password=…", msg)
-        return msg[:300]
+        """Message d'erreur affichable dans l'admin : jamais de secret."""
+        return _sanitize_pg_error(exc)
 
     def _target_info(self):
         """Hôte:port visé (jamais les identifiants) + nature de l'URL.
@@ -935,7 +1055,7 @@ class ResilientRagStore:
         base suspendue. Renvoie "" si la connexion directe passe."""
         try:
             import psycopg
-            conn = psycopg.connect(self._dsn, connect_timeout=5)
+            conn = psycopg.connect(self._dsn, connect_timeout=8)
             conn.close()
             return ""
         except Exception as exc:
