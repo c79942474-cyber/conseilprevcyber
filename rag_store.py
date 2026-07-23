@@ -907,6 +907,27 @@ class ResilientRagStore:
         msg = re.sub(r"password=\S+", "password=…", msg)
         return msg[:300]
 
+    def _target_info(self):
+        """Hôte:port visé (jamais les identifiants) + nature de l'URL.
+        Décisif pour un timeout : une URL interne (dpg-…-a) exige base et
+        service dans la même région ; une URL externe (….render.com) passe
+        par l'Access Control de la base (liste d'IP autorisées)."""
+        try:
+            from urllib.parse import urlparse
+            u = urlparse(self._dsn)
+            host, port = u.hostname or "", u.port or 5432
+            if not host:
+                return "", ""
+            if ".render.com" in host:
+                kind = "external"
+            elif host.startswith("dpg-"):
+                kind = "internal"
+            else:
+                kind = "other"
+            return "%s:%s" % (host, port), kind
+        except Exception:
+            return "", ""
+
     def _probe_error(self):
         """Erreur libpq précise via une connexion directe : le pool n'expose
         qu'un délai générique (« couldn't get a connection after N sec ») qui
@@ -962,10 +983,15 @@ class ResilientRagStore:
         self._maybe_reconnect()
         caps = self._store().capabilities()
         # En repli mémoire : joindre la cause exacte du dernier échec de
-        # connexion (assainie) pour un diagnostic immédiat dans l'admin.
+        # connexion (assainie) et l'hôte visé pour un diagnostic immédiat
+        # dans l'admin — jamais d'identifiant.
         if self._pg is None and self._last_error:
             caps = dict(caps)
             caps["detail"] = self._last_error
+            target, kind = self._target_info()
+            if target:
+                caps["target"] = target
+                caps["target_kind"] = kind
         return caps
 
     def list_documents(self):
