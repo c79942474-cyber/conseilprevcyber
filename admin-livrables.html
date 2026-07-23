@@ -338,7 +338,19 @@
         var box=document.getElementById('docpick');
         if(!j||!j.ok){box.innerHTML='<div class="dphint">—</div>';return;}
         var docs=(j.documents||[]).filter(function(d){return d.status==='ready';});
-        if(!docs.length){box.innerHTML='<div class="dphint">Aucun document exploitable dans la base — la génération s\'appuiera sur vos saisies. <a href="/admin/base-connaissance">Charger des documents →</a></div>';return;}
+        var caps=j.capabilities||{};
+        if(!docs.length){
+          if(caps.persistent===false&&caps.reason==='db_connection_failed'){
+            box.innerHTML='<div class="dphint">⛔ <b style="color:var(--danger)">Base PostgreSQL non connectée (mode mémoire)</b> — la liste est vide car les documents ne survivent pas aux redéploiements.'
+              +(caps.target?(' Hôte ciblé : <code>'+esc(caps.target)+'</code>.'):'')
+              +' Corrigez <b>DATABASE_URL</b> puis rechargez vos documents. <a href="/admin/base-connaissance">Diagnostic complet →</a></div>';
+          } else if(caps.persistent===false){
+            box.innerHTML='<div class="dphint">⚠️ Base non persistante (mode mémoire) — les documents chargés disparaissent à chaque redéploiement. <a href="/admin/base-connaissance">Charger des documents →</a></div>';
+          } else {
+            box.innerHTML='<div class="dphint">Aucun document exploitable dans la base — la génération s\'appuiera sur vos saisies. <a href="/admin/base-connaissance">Charger des documents →</a></div>';
+          }
+          return;
+        }
         box.innerHTML=docs.map(function(d){
           return '<label><input type="checkbox" value="'+d.id+'"><span>'+esc(d.title)+'<span class="th">'+esc(d.theme||'')+'</span>'+(d.visibility==='internal'?' <span class="iv th">interne</span>':'')+'</span></label>';
         }).join('');
