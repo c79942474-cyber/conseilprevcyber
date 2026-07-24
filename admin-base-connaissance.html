@@ -280,10 +280,15 @@
         return r.json();
       }).then(function(j){
         if(!j||!j.ok) return;
-        allDocs=j.documents||[];
-        document.getElementById('kDocs').textContent=j.stats.documents;
+        // Les bulletins CERT-FR (thème « Veille ») ne figurent PAS dans le tableau
+        // des documents : ils sont présentés à part dans le panneau « Veille CERT-FR »
+        // ci-dessous. Ils restent en base pour la recherche RAG et l'assistant.
+        function isVeille(d){return (d.theme||'')==='Veille' || (d.title||'').indexOf('[CERT-FR]')===0;}
+        allDocs=(j.documents||[]).filter(function(d){return !isVeille(d);});
+        var themesHors={}; Object.keys(j.stats.themes||{}).forEach(function(t){ if(t!=='Veille') themesHors[t]=j.stats.themes[t]; });
+        document.getElementById('kDocs').textContent=allDocs.length;
         document.getElementById('kChunks').textContent=j.stats.chunks;
-        document.getElementById('kThemes').textContent=Object.keys(j.stats.themes||{}).length;
+        document.getElementById('kThemes').textContent=Object.keys(themesHors).length;
         caps=j.capabilities||{};
         var modeLabel=caps.mode==='vectoriel'?'vectoriel':(caps.mode==='texte_integral'?'texte intégral':'lexical');
         document.getElementById('kMode').innerHTML=modeLabel+(caps.persistent?(caps.reason==='disk'?' <small>(disque)</small>':''):' <small>(mémoire)</small>');
@@ -330,7 +335,7 @@
         }
         var dl=document.getElementById('themes');
         dl.innerHTML=(j.themes||[]).map(function(t){return '<option value="'+esc(t)+'">';}).join('');
-        fillFilters(j.stats.themes);
+        fillFilters(themesHors);
         render();
       }).catch(function(){note('Erreur de chargement.','err');});
     }
