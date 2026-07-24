@@ -41,6 +41,7 @@ Variables d'environnement :
 import base64
 import binascii
 import html as html_lib
+import concurrent.futures as _futures
 import gzip
 import hashlib
 import hmac
@@ -326,21 +327,25 @@ class EventBus:
 
 broker = EventBus()
 
-# État du cockpit : persistant (PostgreSQL) si DATABASE_URL est défini, sinon en
-# mémoire. Voir cockpit_state.py.
-state = make_store()
+# Construction des stores persistants (PostgreSQL si DATABASE_URL, sinon mémoire).
+# Base injoignable : chaque store attend l'échec de connexion (~quelques secondes)
+# avant de basculer en mémoire. On lance les trois constructions BLOQUANTES en
+# parallèle (la base RAG, elle, est déjà non bloquante) : le worker démarre en un
+# seul délai au lieu de leur somme. Décisif pour les réveils « cold start » de
+# l'hébergeur — sinon la première requête paraît « en chargement » tout le boot.
+_boot_pool = _futures.ThreadPoolExecutor(max_workers=3)
+_f_state = _boot_pool.submit(make_store)          # cockpit — voir cockpit_state.py
+_f_liv = _boot_pool.submit(make_livrables_store)  # historique des livrables générés
+_f_cli = _boot_pool.submit(make_clients_store)    # clients & prospects (RGPD)
 
-# Base de connaissance RAG : persistante (PostgreSQL + pgvector si disponible) si
-# DATABASE_URL est défini, sinon en mémoire. Alimente l'assistant et les livrables.
-# Voir rag_store.py. Gérée uniquement par l'administrateur (routes @admin_required).
+# Base de connaissance RAG : repli mémoire + reconnexion de fond (jamais bloquant).
+# Alimente l'assistant et les livrables ; gérée par l'administrateur (@admin_required).
 rag = make_rag_store()
 
-# Historique des livrables générés (persistant si DATABASE_URL). Voir livrables_store.py.
-livrables_hist = make_livrables_store()
-
-# Gestion des clients & prospects — conforme RGPD (persistante si DATABASE_URL).
-# Voir clients_store.py (journal d'audit, conservation, export, effacement).
-clients_db = make_clients_store()
+state = _f_state.result()
+livrables_hist = _f_liv.result()
+clients_db = _f_cli.result()
+_boot_pool.shutdown(wait=False)
 
 
 # --- Automatisation temps réel (planificateur de fond) — voir automation.py ----
@@ -375,10 +380,18 @@ def _report_generate(data):
         return None
 
 
-automation.init(sender=SENDER, notify_to=NOTIFY_TO, rag=rag, clients=clients_db,
-                livrables=livrables_hist, cockpit=state,
-                summarize=_veille_summarize, generate_report=_report_generate,
-                dsn=os.environ.get("DATABASE_URL"))
+# automation.init ouvre son propre pool (bloquant ~quelques secondes si la base
+# est coupée) puis démarre le planificateur de fond. On l'initialise EN TÂCHE DE
+# FOND pour ne pas retarder le boot : la veille renvoie une liste vide le temps
+# de l'initialisation (quelques secondes), puis se peuple normalement.
+def _init_automation():
+    automation.init(sender=SENDER, notify_to=NOTIFY_TO, rag=rag, clients=clients_db,
+                    livrables=livrables_hist, cockpit=state,
+                    summarize=_veille_summarize, generate_report=_report_generate,
+                    dsn=os.environ.get("DATABASE_URL"))
+
+
+threading.Thread(target=_init_automation, daemon=True).start()
 
 # --- Rétention de l'historique ------------------------------------------------
 # Purge périodique des événements au-delà d'un âge (EVENT_RETENTION_DAYS) et/ou
