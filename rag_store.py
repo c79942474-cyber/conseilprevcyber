@@ -517,9 +517,19 @@ class PostgresRagStore:
         sep = "&" if "?" in dsn else "?"
         # client_encoding=UTF8 : les libellés accentués (thèmes, contenu) sont
         # toujours transmis en UTF-8, quel que soit l'encodage du serveur.
-        dsn = dsn + sep + "connect_timeout=8&client_encoding=UTF8"
+        # connect_timeout=10 : tolère le réveil à froid d'une base « serverless »
+        # (Neon gratuit se met en veille après ~5 min d'inactivité et prend 1-3 s
+        # à se réveiller) sans trop attendre si l'hôte est réellement injoignable.
+        # keepalives : empêche un pare-feu / NAT de couper une connexion inactive.
+        dsn = (dsn + sep + "connect_timeout=10&client_encoding=UTF8"
+               "&keepalives=1&keepalives_idle=30&keepalives_interval=10&keepalives_count=3")
+        # check=check_connection : une base serverless en veille rend la connexion
+        # gardée en cache « morte ». Le pool la VALIDE (SELECT 1) avant de la prêter
+        # et la remplace au besoin — supprime le « ça marche, puis ça échoue après
+        # une pause » caractéristique de Neon/serverless.
         self._pool = ConnectionPool(dsn, min_size=1, max_size=4,
-                                    kwargs={"autocommit": True}, timeout=12, open=True)
+                                    kwargs={"autocommit": True}, timeout=12, open=True,
+                                    check=ConnectionPool.check_connection)
         self.vector_mode = False
         try:
             self._init_schema()
