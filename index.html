@@ -55,6 +55,26 @@
 
 <link rel="icon" href="/emblem.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/styles.css">
+<style>
+  /* Accueil — fond « ciel embrasé » inspiré d'une fin de journée sur la côte :
+     ciel ambré lumineux en haut, nuée de fumée sombre qui balaie depuis la
+     gauche, sable et mer dorés en bas. Reprend la famille chaude de la marque
+     en accentuant les nuances de la scène. Le cœur, derrière le titre, reste
+     volontairement assombri → le texte crème garde un contraste élevé (AA). */
+  body{
+    background-image:
+      radial-gradient(720px 400px at 82% -6%, rgba(250,214,120,.62), transparent 62%),    /* soleil vif — haut droite */
+      radial-gradient(1600px 520px at 58% -20%, rgba(242,168,74,.46), transparent 60%),    /* large voile de ciel ambré */
+      radial-gradient(900px 520px at 10% -8%, rgba(236,140,58,.36), transparent 60%),      /* ciel embrasé — haut gauche */
+      radial-gradient(1250px 820px at 2% 46%, rgba(20,15,12,.60), transparent 66%),         /* nuée de fumée — gauche */
+      radial-gradient(1320px 640px at 52% 20%, rgba(22,16,13,.46), transparent 60%),        /* voile sombre derrière le héros */
+      radial-gradient(1240px 560px at 50% 118%, rgba(238,176,88,.46), transparent 66%),     /* horizon doré — sable & mer */
+      linear-gradient(178deg,#A85220 0%,#883E1C 22%,#6E2A18 52%,#79391F 80%,#985B2C 100%),
+      linear-gradient(rgba(168,104,68,.18) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(168,104,68,.18) 1px, transparent 1px);
+    background-size:auto,auto,auto,auto,auto,auto,auto,44px 44px,44px 44px;
+  }
+</style>
 <!-- Préchargement en tâche de fond des destinations les plus cliquées depuis
      l'accueil : le premier clic sort du cache navigateur (affichage immédiat).
      Pages légères (quelques Ko compressés), aucun impact réseau notable. -->
