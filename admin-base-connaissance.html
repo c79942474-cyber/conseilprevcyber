@@ -301,13 +301,51 @@
       sel.innerHTML='<option value="">Tous les thèmes</option>'+names.map(function(t){return '<option'+(t===cur?' selected':'')+'>'+esc(t)+'</option>';}).join('');
     }
 
+    // Récupération JSON robuste : délai d'attente PAR tentative (AbortController)
+    // + réessais automatiques avec temporisation croissante. Couvre le réveil à
+    // froid du service (Render met en veille : 1re requête lente / 502-503), les
+    // coupures réseau et les réponses non-JSON (page d'erreur HTML). Ne laisse
+    // JAMAIS un « Chargement… » tourner indéfiniment. Renvoie {__status:401|403}
+    // pour laisser l'appelant gérer l'authentification.
+    function fetchJson(url,opts,cfg){
+      opts=opts||{}; cfg=cfg||{};
+      var timeout=cfg.timeout||12000, tries=(cfg.retries!=null?cfg.retries:2), onRetry=cfg.onRetry;
+      function attempt(n){
+        var ctl=('AbortController' in window)?new AbortController():null;
+        if(ctl) opts.signal=ctl.signal;
+        var timer=ctl?setTimeout(function(){ctl.abort();},timeout):null;
+        return fetch(url,opts).then(function(r){
+          if(timer)clearTimeout(timer);
+          if(r.status===401||r.status===403) return {__status:r.status};
+          if(r.status>=500||r.status===429) throw new Error('http_'+r.status);
+          return r.json().catch(function(){throw new Error('json');});
+        }).catch(function(err){
+          if(timer)clearTimeout(timer);
+          if(n<tries){ if(onRetry)onRetry(n+1,tries+1);
+            return new Promise(function(res){setTimeout(res,Math.min(1000*Math.pow(2,n),5000));})
+              .then(function(){return attempt(n+1);}); }
+          throw err;
+        });
+      }
+      return attempt(0);
+    }
+    // État d'échec du tableau des documents : message clair + bouton « Réessayer »
+    // (au lieu d'un « Chargement… » figé ou d'une simple notification fugace).
+    function loadFailed(msg){
+      rows.removeAttribute('aria-busy');
+      rows.innerHTML='<tr><td colspan="7" class="empty">'+esc(msg)
+        +' <button type="button" class="btn btn-s" id="rowsRetry" style="margin-left:6px">↻ Réessayer</button></td></tr>';
+      var rb=document.getElementById('rowsRetry'); if(rb) rb.addEventListener('click',load);
+    }
     function load(){
-      fetch('/api/admin/rag/documents').then(function(r){
-        if(r.status===401){location.href='/connexion?next=/admin/base-connaissance';return null;}
-        if(r.status===403){rows.innerHTML='<tr><td colspan="7" class="empty">Accès réservé à l\'administrateur.</td></tr>';return null;}
-        return r.json();
-      }).then(function(j){
-        if(!j||!j.ok) return;
+      rows.setAttribute('aria-busy','true');
+      fetchJson('/api/admin/rag/documents',{},{onRetry:function(n,max){
+        rows.innerHTML='<tr><td colspan="7" class="empty">Connexion au service… (tentative '+n+'/'+max+')</td></tr>';
+      }}).then(function(j){
+        rows.removeAttribute('aria-busy');
+        if(j&&j.__status===401){location.href='/connexion?next=/admin/base-connaissance';return;}
+        if(j&&j.__status===403){rows.innerHTML='<tr><td colspan="7" class="empty">Accès réservé à l\'administrateur.</td></tr>';return;}
+        if(!j||!j.ok){loadFailed('Le service a répondu de façon inattendue.');return;}
         // Les bulletins CERT-FR (thème « Veille ») ne figurent PAS dans le tableau
         // des documents : ils sont présentés à part dans le panneau « Veille CERT-FR »
         // ci-dessous. Ils restent en base pour la recherche RAG et l'assistant.
@@ -365,7 +403,7 @@
         dl.innerHTML=(j.themes||[]).map(function(t){return '<option value="'+esc(t)+'">';}).join('');
         fillFilters(themesHors);
         render();
-      }).catch(function(){note('Erreur de chargement.','err');});
+      }).catch(function(){ loadFailed('Service momentanément indisponible.'); });
     }
 
     // ---- sélection de fichier ----
@@ -618,7 +656,10 @@
     }
     function loadVeille(){
       var box=document.getElementById('vlist'), sel=document.getElementById('vtheme');
-      fetch('/api/veille').then(function(r){return r.ok?r.json():null;}).then(function(j){
+      fetchJson('/api/veille',{},{onRetry:function(n,max){
+        box.innerHTML='<div class="empty">Collecte de la veille… (tentative '+n+'/'+max+')</div>';
+      }}).then(function(j){
+        if(j&&j.__status){box.innerHTML='<div class="empty">Veille réservée à l\'administrateur.</div>';return;}
         var items=(j&&j.items)||[];
         if(!items.length){box.innerHTML='<div class="empty">Aucun bulletin collecté pour l\'instant — la collecte démarre sous quelques heures, ou cliquez « Actualiser la veille ».</div>';
           document.getElementById('vcount').textContent='';sel.innerHTML='<option value="">Tous les thèmes</option>';return;}
@@ -629,7 +670,11 @@
           +order.filter(function(n){return counts[n];}).map(function(n){
             return '<option value="'+esc(n)+'">'+esc(n)+' ('+counts[n]+')</option>';}).join('');
         renderVeille();
-      }).catch(function(){box.innerHTML='<div class="empty">Veille momentanément indisponible.</div>';});
+      }).catch(function(){
+        box.innerHTML='<div class="empty">Veille momentanément indisponible. '
+          +'<button type="button" class="btn btn-s" id="vRetry" style="margin-left:6px">↻ Réessayer</button></div>';
+        var vb=document.getElementById('vRetry'); if(vb) vb.addEventListener('click',loadVeille);
+      });
     }
     document.getElementById('vtheme').addEventListener('change',renderVeille);
     document.getElementById('veilleRefresh').addEventListener('click',function(){
