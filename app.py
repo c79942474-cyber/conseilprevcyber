@@ -1002,6 +1002,25 @@ def api_rag_list():
                    capabilities=rag.capabilities(), themes=THEMES)
 
 
+@app.route("/api/admin/rag/search", methods=["POST"])
+@admin_required
+def api_rag_search():
+    """Explorer / tester la base de connaissance : renvoie les extraits les plus
+    pertinents pour une question — exactement ce que l'assistant et les livrables
+    reçoivent comme contexte. Admin : documents publics ET internes."""
+    data = request.get_json(silent=True) or {}
+    q = (data.get("query") or "").strip()
+    if not q:
+        return jsonify(ok=False, error="query_vide",
+                       message="Saisissez une question."), 400
+    try:
+        hits = rag.search(q[:500], k=6, public_only=False)
+    except Exception:
+        return jsonify(ok=False, error="recherche_echec",
+                       message="Recherche indisponible."), 500
+    return jsonify(ok=True, hits=hits)
+
+
 def _dup_doc_summary(d):
     """Résumé d'un document pour l'aperçu des doublons (champs utiles à l'admin)."""
     return {k: d.get(k) for k in ("id", "title", "filename", "theme",

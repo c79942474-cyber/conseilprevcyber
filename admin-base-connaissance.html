@@ -86,6 +86,12 @@
   .vrow a.vt{color:var(--ink);font-size:13.5px;font-weight:600;flex:1;min-width:220px;text-decoration:none}
   .vrow a.vt:hover{color:var(--cyan)}
   .vrow .vd{font-family:var(--mono);font-size:11px;color:var(--muted2);white-space:nowrap}
+  .xr{border:1px solid var(--line);border-left:3px solid var(--cyan);border-radius:10px;background:var(--bg2);padding:11px 14px;margin-bottom:8px}
+  .xr .xt{font-size:13.5px;color:var(--ink);line-height:1.55}
+  .xr .xs{font-family:var(--mono);font-size:10.5px;color:var(--muted2);margin-top:8px;display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+  .xr .xtag{border:1px solid var(--line);border-radius:999px;padding:2px 8px}
+  .xr .xtag.iv{color:var(--violet)}
+  .xr .xtag.hi{color:var(--ink);border-color:var(--cyan)}
 </style>
 </head>
 <body>
@@ -175,6 +181,17 @@
           <thead><tr><th>Document</th><th>Thème</th><th>Visibilité</th><th>Statut</th><th>Taille</th><th>Ajouté</th><th>Actions</th></tr></thead>
           <tbody id="rows"><tr><td colspan="7" class="empty">Chargement…</td></tr></tbody>
         </table>
+      </div>
+
+      <!-- Explorer / tester la base de connaissance -->
+      <div class="panel" id="explorePanel" style="margin-top:22px">
+        <div class="sec-title" style="margin:0 0 4px">Explorer la base de connaissance</div>
+        <div class="hint">Posez une question : les extraits les plus pertinents de vos documents sont retrouvés et cités — exactement ce que l'assistant et les livrables reçoivent comme contexte. Idéal pour vérifier qu'un document chargé est bien exploitable (documents publics <em>et</em> internes).</div>
+        <div class="filterbar" style="margin-bottom:12px">
+          <input type="search" id="exploreQ" placeholder="Ex. : segmentation en zones et conduits, gestion des correctifs IACS…" style="flex:1;min-width:260px" aria-label="Question à poser à la base de connaissance">
+          <button class="btn btn-p" id="exploreBtn" type="button">Explorer</button>
+        </div>
+        <div id="exploreOut"></div>
       </div>
 
       <!-- Veille CERT-FR classée par thème -->
@@ -603,6 +620,30 @@
       }).catch(function(){note('Actualisation impossible.','err');})
         .then(function(){b.disabled=false;b.textContent=old;});
     });
+    /* ---- Explorer / tester la base de connaissance ---- */
+    function exploreRun(){
+      var q=(document.getElementById('exploreQ').value||'').trim(), out=document.getElementById('exploreOut');
+      if(!q){out.innerHTML='';return;}
+      var btn=document.getElementById('exploreBtn'), old=btn.textContent; btn.disabled=true; btn.textContent='…';
+      out.innerHTML='<div class="empty">Recherche…</div>';
+      fetch('/api/admin/rag/search',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({query:q})})
+        .then(function(r){return r.json();}).then(function(j){
+          if(!j||!j.ok){out.innerHTML='<div class="empty">'+esc((j&&j.message)||'Recherche indisponible.')+'</div>';return;}
+          var hits=j.hits||[];
+          if(!hits.length){out.innerHTML='<div class="empty">Aucun extrait pertinent — chargez des documents ou reformulez la question.</div>';return;}
+          out.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--muted2);margin-bottom:10px">'+hits.length+' extrait(s) le(s) plus pertinent(s) :</div>'
+            +hits.map(function(h){
+              var txt=(h.content||''); if(txt.length>420) txt=txt.slice(0,420)+'…';
+              var vis=h.visibility==='internal'?'<span class="xtag iv">interne</span>':'<span class="xtag">public</span>';
+              return '<div class="xr"><div class="xt">'+esc(txt)+'</div><div class="xs">📄 <span class="xtag hi">'+esc(h.title||'document')+'</span>'
+                +(h.theme?'<span class="xtag">'+esc(h.theme)+'</span>':'')+vis+'</div></div>';
+            }).join('');
+        }).catch(function(){out.innerHTML='<div class="empty">Recherche impossible pour le moment.</div>';})
+        .then(function(){btn.disabled=false;btn.textContent=old;});
+    }
+    document.getElementById('exploreBtn').addEventListener('click',exploreRun);
+    document.getElementById('exploreQ').addEventListener('keydown',function(e){if(e.key==='Enter')exploreRun();});
+
     loadVeille();
     load();
   })();
