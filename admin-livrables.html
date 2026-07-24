@@ -334,10 +334,20 @@
 
     function selectedDocIds(){return Array.prototype.slice.call(document.querySelectorAll('#docpick input:checked')).map(function(c){return c.value;});}
     function loadDocs(){
+      var box=document.getElementById('docpick');
+      box.innerHTML='<div class="dphint">Chargement…</div>';
+      function fail(msg){
+        box.innerHTML='<div class="dphint">'+msg+' <a href="#" class="docretry">Réessayer</a> · <a href="/admin/base-connaissance">Base de connaissance →</a></div>';
+        var a=box.querySelector('.docretry'); if(a) a.addEventListener('click',function(e){e.preventDefault();loadDocs();});
+      }
       fetch('/api/admin/rag/documents').then(function(r){return r.ok?r.json():null;}).then(function(j){
-        var box=document.getElementById('docpick');
-        if(!j||!j.ok){box.innerHTML='<div class="dphint">—</div>';return;}
-        var docs=(j.documents||[]).filter(function(d){return d.status==='ready';});
+        if(!j||!j.ok){fail('Documents momentanément indisponibles.');return;}
+        // Les bulletins CERT-FR (thème « Veille ») sont exclus : ce sélecteur ne
+        // propose que vos documents de référence (ils restent utilisables via
+        // la recherche RAG, mais n'encombrent pas la liste).
+        var docs=(j.documents||[]).filter(function(d){
+          return d.status==='ready' && (d.theme||'')!=='Veille' && (d.title||'').indexOf('[CERT-FR]')!==0;
+        });
         var caps=j.capabilities||{};
         if(!docs.length){
           if(caps.persistent===false&&caps.reason==='db_connection_failed'){
@@ -347,14 +357,14 @@
           } else if(caps.persistent===false){
             box.innerHTML='<div class="dphint">⚠️ Base non persistante (mode mémoire) — les documents chargés disparaissent à chaque redéploiement. <a href="/admin/base-connaissance">Charger des documents →</a></div>';
           } else {
-            box.innerHTML='<div class="dphint">Aucun document exploitable dans la base — la génération s\'appuiera sur vos saisies. <a href="/admin/base-connaissance">Charger des documents →</a></div>';
+            box.innerHTML='<div class="dphint">Aucun document de référence dans la base — la génération s\'appuiera sur vos saisies. <a href="/admin/base-connaissance">Charger des documents →</a></div>';
           }
           return;
         }
         box.innerHTML=docs.map(function(d){
           return '<label><input type="checkbox" value="'+d.id+'"><span>'+esc(d.title)+'<span class="th">'+esc(d.theme||'')+'</span>'+(d.visibility==='internal'?' <span class="iv th">interne</span>':'')+'</span></label>';
         }).join('');
-      }).catch(function(){});
+      }).catch(function(){fail('Chargement impossible pour le moment.');});
     }
 
     function loadTypes(){
