@@ -76,6 +76,16 @@
   #notice{border-radius:9px;padding:10px 14px;font-size:13px;margin-bottom:14px;display:none}
   #notice.ok{background:rgba(52,211,153,.10);border:1px solid rgba(52,211,153,.3);color:var(--green);display:block}
   #notice.err{background:rgba(217,96,58,.12);border:1px solid rgba(217,96,58,.3);color:var(--danger);display:block}
+  .vlist{display:flex;flex-direction:column;gap:8px;max-height:520px;overflow-y:auto}
+  .vgrp{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--violet);margin:10px 2px 2px}
+  .vgrp:first-child{margin-top:0}
+  .vrow{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:9px 13px;background:var(--bg2)}
+  .vrow .vk{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.04em;border-radius:999px;padding:2px 8px;border:1px solid var(--line);flex:0 0 auto}
+  .vrow .vk.al{color:var(--danger);border-color:rgba(217,96,58,.45)}
+  .vrow .vk.av{color:var(--cyan);border-color:rgba(34,211,238,.35)}
+  .vrow a.vt{color:var(--ink);font-size:13.5px;font-weight:600;flex:1;min-width:220px;text-decoration:none}
+  .vrow a.vt:hover{color:var(--cyan)}
+  .vrow .vd{font-family:var(--mono);font-size:11px;color:var(--muted2);white-space:nowrap}
 </style>
 </head>
 <body>
@@ -165,6 +175,21 @@
           <thead><tr><th>Document</th><th>Thème</th><th>Visibilité</th><th>Statut</th><th>Taille</th><th>Ajouté</th><th>Actions</th></tr></thead>
           <tbody id="rows"><tr><td colspan="7" class="empty">Chargement…</td></tr></tbody>
         </table>
+      </div>
+
+      <!-- Veille CERT-FR classée par thème -->
+      <div class="panel" id="veillePanel" style="margin-top:22px">
+        <div class="topbar" style="margin:0 0 6px">
+          <div class="sec-title" style="margin:0">Veille CERT-FR <span style="font-family:var(--sans);font-weight:400;font-size:13px;color:var(--muted2)">— alertes &amp; avis par thème</span></div>
+          <div class="filterbar">
+            <label for="vtheme" style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted2)">Thème</label>
+            <select id="vtheme" aria-label="Filtrer la veille par thème"><option value="">Tous les thèmes</option></select>
+            <span class="fcount" id="vcount"></span>
+            <button class="btn btn-s" id="veilleRefresh" type="button" title="Relancer la collecte des bulletins officiels CERT-FR">↻ Actualiser la veille</button>
+          </div>
+        </div>
+        <div class="hint">Bulletins officiels CERT-FR (alertes &amp; avis) regroupés automatiquement par thème — systèmes industriels (OT/ICS), réseau, Microsoft, virtualisation, Linux, web… Ingérés dans la base sous le thème « Veille » (visibilité publique).</div>
+        <div id="vlist" class="vlist"><div class="empty">Chargement…</div></div>
       </div>
     </section>
   </main>
@@ -512,6 +537,68 @@
     });
     document.getElementById('logout').addEventListener('click',function(e){e.preventDefault();
       fetch('/api/auth/logout',{method:'POST'}).then(function(){location.href='/connexion?deconnecte=1';});});
+
+    /* ---- Veille CERT-FR : classement automatique par thème ---- */
+    var V_RULES=[
+      ['Systèmes industriels (OT/ICS)', /scada|automate|\bplc\b|\bics\b|industriel|siemens|schneider|moxa|modbus|\bot\b|rockwell|\bwago\b|hirschmann|codesys|opc[\s-]?ua|profinet|simatic|s7-/],
+      ['Réseau & périmètre', /\bvpn\b|pare-?feu|firewall|fortinet|fortios|fortigate|fortimanager|cisco|ivanti|citrix|palo\s*alto|routeur|\bf5\b|big-?ip|juniper|sonicwall|pfsense|passerelle|\bproxy\b/],
+      ['Microsoft & Windows', /microsoft|windows|exchange|\boffice\b|outlook|azure|sharepoint|\.net|active\s*directory|hyper-?v\b|\brdp\b/],
+      ['Virtualisation & Cloud', /vmware|vcenter|esxi|hyperviseur|kubernetes|docker|\bcloud\b|openstack|proxmox|nutanix/],
+      ['Linux & Unix', /linux|unix|debian|ubuntu|red\s?hat|centos|\bnoyau\b|kernel|\bbsd\b|\bsuse\b/],
+      ['Web & applications', /apache|nginx|\bphp\b|wordpress|drupal|joomla|navigateur|chrome|chromium|firefox|safari|\bweb\b|tomcat|struts|gitlab|jenkins/],
+      ['Bases de données', /\bsql\b|oracle|postgre|mysql|mariadb|mongodb|base\s+de\s+donn/],
+      ['Mobile', /android|\bios\b|iphone|ipad|\bmobile\b/]
+    ];
+    function vThemeOf(it){
+      var h=((it.title||'')+' '+(it.resume||'')).toLowerCase();
+      for(var i=0;i<V_RULES.length;i++){ if(V_RULES[i][1].test(h)) return V_RULES[i][0]; }
+      return 'Autres';
+    }
+    function vfmt(ts){if(!ts)return '';var d=new Date(ts);return isNaN(d.getTime())?'':d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});}
+    var V_ALL=[];
+    function vRow(it){
+      var k=it.source==='alerte'?'<span class="vk al">Alerte</span>':'<span class="vk av">Avis</span>';
+      return '<div class="vrow">'+k
+        +'<a class="vt" href="'+esc(it.link)+'" target="_blank" rel="noopener">'+esc(it.title)+'</a>'
+        +'<span class="vd">'+vfmt(it.published)+'</span></div>';
+    }
+    function renderVeille(){
+      var box=document.getElementById('vlist'), t=document.getElementById('vtheme').value;
+      var items=t? V_ALL.filter(function(x){return x._theme===t;}) : V_ALL;
+      document.getElementById('vcount').textContent=items.length?(items.length+' bulletin'+(items.length>1?'s':'')):'';
+      if(!items.length){box.innerHTML='<div class="empty">Aucun bulletin pour ce thème.</div>';return;}
+      if(t){box.innerHTML=items.map(vRow).join('');return;}
+      var order=V_RULES.map(function(r){return r[0];}).concat(['Autres']);
+      var by={}; items.forEach(function(x){(by[x._theme]=by[x._theme]||[]).push(x);});
+      box.innerHTML=order.filter(function(n){return by[n];}).map(function(n){
+        return '<div class="vgrp">'+esc(n)+' ('+by[n].length+')</div>'+by[n].map(vRow).join('');
+      }).join('');
+    }
+    function loadVeille(){
+      var box=document.getElementById('vlist'), sel=document.getElementById('vtheme');
+      fetch('/api/veille').then(function(r){return r.ok?r.json():null;}).then(function(j){
+        var items=(j&&j.items)||[];
+        if(!items.length){box.innerHTML='<div class="empty">Aucun bulletin collecté pour l\'instant — la collecte démarre sous quelques heures, ou cliquez « Actualiser la veille ».</div>';
+          document.getElementById('vcount').textContent='';sel.innerHTML='<option value="">Tous les thèmes</option>';return;}
+        V_ALL=items.map(function(it){it._theme=vThemeOf(it);return it;});
+        var counts={}; V_ALL.forEach(function(x){counts[x._theme]=(counts[x._theme]||0)+1;});
+        var order=V_RULES.map(function(r){return r[0];}).concat(['Autres']);
+        sel.innerHTML='<option value="">Tous les thèmes ('+V_ALL.length+')</option>'
+          +order.filter(function(n){return counts[n];}).map(function(n){
+            return '<option value="'+esc(n)+'">'+esc(n)+' ('+counts[n]+')</option>';}).join('');
+        renderVeille();
+      }).catch(function(){box.innerHTML='<div class="empty">Veille momentanément indisponible.</div>';});
+    }
+    document.getElementById('vtheme').addEventListener('change',renderVeille);
+    document.getElementById('veilleRefresh').addEventListener('click',function(){
+      var b=this,old=b.textContent;b.disabled=true;b.textContent='Collecte…';
+      fetch('/api/admin/veille/refresh',{method:'POST'}).then(function(r){return r.json();}).then(function(j){
+        note(j&&j.ok?((j.nouveaux||0)+' nouveau(x) bulletin(s).'):'Actualisation impossible.', j&&j.ok?'ok':'err');
+        loadVeille();
+      }).catch(function(){note('Actualisation impossible.','err');})
+        .then(function(){b.disabled=false;b.textContent=old;});
+    });
+    loadVeille();
     load();
   })();
   </script>
