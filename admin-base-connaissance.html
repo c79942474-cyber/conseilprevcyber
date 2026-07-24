@@ -417,7 +417,7 @@
         xhr.onload=function(){
           var j; try{ j=JSON.parse(xhr.responseText); }catch(_){ j={ok:false,error:'http_'+xhr.status}; }
           if(xhr.status>=200&&xhr.status<300&&j&&j.ok) resolve(j.document);
-          else reject(new Error((j&&j.error)||('http_'+xhr.status)));
+          else { var e=new Error((j&&j.error)||('http_'+xhr.status)); e.detail=(j&&j.detail)||''; reject(e); }
         };
         xhr.onerror=function(){ reject(new Error('reseau')); };
         xhr.ontimeout=function(){ reject(new Error('http_504')); };
@@ -461,6 +461,9 @@
           http_502:'Serveur momentanément indisponible (502). Réessayez.',http_503:'Serveur momentanément indisponible (503). Réessayez.',
           http_504:'Le traitement a expiré (504). Réessayez ; le fichier est peut-être trop volumineux.'
           }[err.message]||('Échec du chargement ('+err.message+').');
+        // Cause technique précise renvoyée par le serveur (ex. erreur PostgreSQL
+        // assainie) : la montrer aide à diagnostiquer sans consulter les logs.
+        if(err.detail) m += ' — '+err.detail;
         note(m,'err'); setProg(0,''); prog.classList.remove('on');
       }finally{ upBtn.disabled=!chosen; }
     }

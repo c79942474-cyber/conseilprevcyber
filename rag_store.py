@@ -99,12 +99,17 @@ THEMES = [
 
 
 class RagError(Exception):
-    """Erreur RAG portant un code interne + un statut HTTP."""
+    """Erreur RAG portant un code interne + un statut HTTP (+ détail sûr éventuel).
 
-    def __init__(self, code, status=400):
+    `detail` est un message court, déjà assaini (ni URL ni mot de passe), destiné
+    à être montré à l'administrateur pour comprendre une panne — p. ex. la vraie
+    cause d'un échec d'enregistrement PostgreSQL."""
+
+    def __init__(self, code, status=400, detail=""):
         super().__init__(code)
         self.code = code
         self.status = status
+        self.detail = detail or ""
 
 
 # --- Extraction de texte ------------------------------------------------------
@@ -527,8 +532,15 @@ class PostgresRagStore:
         # gardée en cache « morte ». Le pool la VALIDE (SELECT 1) avant de la prêter
         # et la remplace au besoin — supprime le « ça marche, puis ça échoue après
         # une pause » caractéristique de Neon/serverless.
+        # prepare_threshold=None : désactive les requêtes préparées côté serveur.
+        # C'est LA condition de compatibilité avec un pooler en mode transaction
+        # (endpoint « -pooler » de Neon, PgBouncer) : sans cela, une requête
+        # préparée sur une connexion puis rejouée sur une autre échoue (« prepared
+        # statement does not exist ») et fait échouer l'enregistrement. Sans effet
+        # notable sur une connexion directe.
         self._pool = ConnectionPool(dsn, min_size=1, max_size=4,
-                                    kwargs={"autocommit": True}, timeout=12, open=True,
+                                    kwargs={"autocommit": True, "prepare_threshold": None},
+                                    timeout=12, open=True,
                                     check=ConnectionPool.check_connection)
         self.vector_mode = False
         try:
@@ -669,10 +681,14 @@ class PostgresRagStore:
                         "INSERT INTO rag_chunks(doc_id,ordinal,content,tsv) "
                         "VALUES(%s,%s,%s,to_tsvector('french',%s))",
                         [(doc_id, i, c, c) for i, c in enumerate(chunks)])
-        except Exception:
+        except Exception as exc:
             _log.exception("RAG : échec d'enregistrement (%s, %d fragments, %d octets)",
                            filename, len(chunks), len(data))
-            raise RagError("traitement_echec", 500)
+            # Détail assaini (ni URL ni mot de passe) : l'administrateur voit la
+            # vraie cause (ex. « prepared statement… » d'un pooler PgBouncer,
+            # « permission denied », « SSL connection closed ») au lieu d'un
+            # message opaque — indispensable pour diagnostiquer sans les logs.
+            raise RagError("traitement_echec", 500, detail=_sanitize_pg_error(exc))
         # BEST-EFFORT : le fichier d'origine ne sert QU'AU téléchargement, pas à la
         # recherche. S'il ne peut être stocké (taille, quota disque de la base…), le
         # document reste pleinement indexé et cherchable — on renonce juste à pouvoir

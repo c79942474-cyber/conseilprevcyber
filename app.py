@@ -1116,10 +1116,10 @@ def api_rag_upload_file():
             theme=(request.form.get("theme") or "").strip(),
             visibility=(request.form.get("visibility") or "public").strip())
     except RagError as exc:
-        return jsonify(ok=False, error=exc.code), exc.status
+        return jsonify(ok=False, error=exc.code,
+                       detail=getattr(exc, "detail", "")), exc.status
     except Exception:
-        return jsonify(ok=False, error="traitement_echec",
-                       message="Le document n'a pas pu être traité."), 500
+        return jsonify(ok=False, error="traitement_echec"), 500
     return jsonify(ok=True, document=doc)
 
 
