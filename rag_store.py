@@ -30,6 +30,7 @@ import io
 import hashlib
 import json
 import logging
+import math
 import os
 import re
 import threading
@@ -239,9 +240,30 @@ def _clean_visibility(v):
 
 _TOKEN_RE = re.compile(r"[0-9a-zàâäéèêëîïôöùûüç]+", re.I)
 
+# Mots-outils français (≥ 3 lettres ; les mots de 1-2 lettres sont déjà écartés
+# par _tokens). Retirés des requêtes ET du score lexical : ils sont fréquents et
+# non discriminants, donc ils diluent la pertinence s'ils comptent comme des
+# correspondances. On n'y met AUCUN terme métier (risque, audit, réseau, système…).
+_STOPWORDS = frozenset("""
+les des une aux dans pour avec sur par plus ces ses son qui que quoi
+dont mais donc car pas est sont ete etre avoir fait faire leur leurs nos
+vos notre votre cette cet ceux celle celles comme entre sous vers chez sans
+alors ainsi aussi tres peu tout tous toute toutes autre autres meme encore deja
+lors selon afin doit peut cela ceci elle elles ils lui eux nous vous ont avait
+avaient sera seront quand puis été être très même déjà où
+""".split())
+
 
 def _tokens(text):
     return [t for t in _TOKEN_RE.findall((text or "").lower()) if len(t) > 2]
+
+
+def _query_terms(query):
+    """Termes significatifs d'une requête : tokens sans mots-outils. Repli sur
+    tous les tokens si la requête n'est faite que de mots-outils (ex. « où ? »)."""
+    toks = _tokens(query)
+    kept = [t for t in toks if t not in _STOPWORDS]
+    return kept or toks
 
 
 # ============================================================================
@@ -443,12 +465,23 @@ class MemoryRagStore:
                                 "rag_bytes": sum(len(b) for b in self._blobs.values())}}
 
     def search(self, query, k=5, public_only=True, theme=None, doc_ids=None):
-        qtok = _tokens(query)
-        if not qtok:
+        """Recherche lexicale pondérée (repli sans base). Score = TF-IDF sur les
+        termes de la requête (les termes rares pèsent davantage) + bonus de
+        couverture (part des termes distincts trouvés) + bonus de phrase exacte,
+        normalisé par la longueur du chunk. Bien plus pertinent qu'un simple
+        recouvrement d'ensembles — sans réindexation (calcul à la volée)."""
+        qterms = _query_terms(query)
+        if not qterms:
             return []
-        qset = set(qtok)
+        qset = set(qterms)
+        phrase = " ".join(qterms)
+        multi = len(qset) > 1
         doc_ids = set(doc_ids) if doc_ids else None
-        results = []
+        # Passe unique : collecte des chunks candidats + fréquence documentaire
+        # (df) de chaque terme sur l'ensemble parcouru → IDF.
+        cand = []            # (meta, content, {term: tf}, taille)
+        df = {t: 0 for t in qset}
+        n_chunks = 0
         with self._lock:
             for doc_id, chunks in self._chunks.items():
                 meta = self._docs[doc_id]
@@ -462,15 +495,40 @@ class MemoryRagStore:
                     ctok = ch["tokens"]
                     if not ctok:
                         continue
-                    inter = qset.intersection(ctok)
-                    if not inter:
+                    n_chunks += 1
+                    tf = {}
+                    for t in ctok:
+                        if t in qset:
+                            tf[t] = tf.get(t, 0) + 1
+                    if not tf:
                         continue
-                    score = len(inter) / (len(qset) ** 0.5 * len(set(ctok)) ** 0.5)
-                    results.append((score, meta, ch["content"]))
+                    for t in tf:
+                        df[t] += 1
+                    cand.append((meta, ch["content"], tf, len(set(ctok))))
+        if not cand:
+            return []
+        n_chunks = max(1, n_chunks)
+
+        def idf(t):
+            # IDF lissé : un terme présent partout ≈ 0 ; un terme rare ≈ élevé.
+            return math.log(1.0 + n_chunks / (1.0 + df.get(t, 0)))
+
+        results = []
+        for meta, content, tf, uniq in cand:
+            s = 0.0
+            for t, c in tf.items():
+                s += idf(t) * (1.0 + math.log(c))          # TF-IDF (TF sub-linéaire)
+            s *= (len(tf) / len(qset)) ** 0.5              # bonus de couverture
+            s /= (uniq ** 0.5)                             # normalisation longueur
+            if multi and phrase in content.lower():        # bonus de phrase exacte
+                s *= 1.6
+            results.append((s, meta, content))
         results.sort(key=lambda r: r[0], reverse=True)
+        top = results[:k]
+        norm = top[0][0] or 1.0                            # score 0-1 lisible
         return [{"doc_id": m["id"], "title": m["title"], "theme": m["theme"],
-                 "visibility": m["visibility"], "content": c, "score": round(s, 4)}
-                for s, m, c in results[:k]]
+                 "visibility": m["visibility"], "content": c, "score": round(s / norm, 4)}
+                for s, m, c in top]
 
 
 # ============================================================================
@@ -874,13 +932,35 @@ class PostgresRagStore:
                         return [self._hit(r) for r in rows]
                 except RagError:
                     pass  # repli plein-texte ci-dessous
-            # Recherche plein-texte (français).
+            # Recherche plein-texte (français), précision d'abord : correspondance
+            # stricte (tous les termes), classée par densité de couverture
+            # (ts_rank_cd tient compte du nombre de termes ET de leur proximité —
+            # meilleur que ts_rank pour départager les extraits).
             sql = ("SELECT c.content,d.id,d.title,d.theme,d.visibility,"
-                   "ts_rank(c.tsv, plainto_tsquery('french',%s)) AS score "
+                   "ts_rank_cd(c.tsv, plainto_tsquery('french',%s)) AS score "
                    "FROM rag_chunks c JOIN rag_documents d ON d.id=c.doc_id "
                    "WHERE c.tsv @@ plainto_tsquery('french',%s) AND " + clause +
                    " ORDER BY score DESC LIMIT %s")
             rows = conn.execute(sql, [query, query] + params + [k]).fetchall()
+            # Rappel : si la correspondance stricte donne trop peu de résultats,
+            # compléter avec une requête OR (au moins UN terme) — un document
+            # pertinent qui n'emploie pas TOUS les mots n'est plus manqué.
+            if len(rows) < k:
+                terms = _query_terms(query)
+                if terms:
+                    or_q = " | ".join(terms)   # termes alphanumériques : sûrs pour to_tsquery
+                    sql2 = ("SELECT c.content,d.id,d.title,d.theme,d.visibility,"
+                            "ts_rank_cd(c.tsv, to_tsquery('french',%s)) AS score "
+                            "FROM rag_chunks c JOIN rag_documents d ON d.id=c.doc_id "
+                            "WHERE c.tsv @@ to_tsquery('french',%s) AND " + clause +
+                            " ORDER BY score DESC LIMIT %s")
+                    seen = set(r[0] for r in rows)
+                    for r in conn.execute(sql2, [or_q, or_q] + params + [k * 3]).fetchall():
+                        if r[0] not in seen:
+                            rows.append(r)
+                            seen.add(r[0])
+                        if len(rows) >= k:
+                            break
         return [self._hit(r) for r in rows]
 
     @staticmethod
@@ -1265,13 +1345,34 @@ def dedupe(store, dry_run=False):
 
 # --- Contexte pour le LLM -----------------------------------------------------
 def build_context(hits, max_chars=3500):
-    """Assemble les extraits récupérés en un bloc de contexte sourcé pour le LLM."""
+    """Assemble les extraits récupérés en un bloc de contexte sourcé pour le LLM.
+
+    - déduplication des extraits quasi identiques (recouvrement des chunks) pour
+      ne pas gaspiller le budget de contexte ;
+    - étiquette de source enrichie « [Titre — Thème] » afin que le modèle puisse
+      citer précisément et pondérer selon le domaine."""
     if not hits:
         return ""
-    out, total = [], 0
+    out, total, seen = [], 0, set()
     for h in hits:
-        block = "[%s] %s" % (h.get("title") or "Document", (h.get("content") or "").strip())
+        content = (h.get("content") or "").strip()
+        if not content:
+            continue
+        key = re.sub(r"\s+", " ", content[:160].lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        label = h.get("title") or "Document"
+        theme = h.get("theme")
+        if theme and theme not in ("Général", "Veille"):
+            label += " — " + theme
+        block = "[%s] %s" % (label, content)
         if total + len(block) > max_chars:
+            remain = max_chars - total
+            if remain > 300:                       # remplir le budget restant proprement
+                cut = block[:remain]
+                cut = cut[:cut.rfind(" ")] if " " in cut else cut
+                out.append(cut)
             break
         out.append(block)
         total += len(block)
