@@ -92,6 +92,10 @@
   .xr .xtag{border:1px solid var(--line);border-radius:999px;padding:2px 8px}
   .xr .xtag.iv{color:var(--violet)}
   .xr .xtag.hi{color:var(--ink);border-color:var(--cyan)}
+  .tchips{display:flex;flex-wrap:wrap;gap:7px}
+  .tchip{font-size:12px;font-family:inherit;border:1px solid var(--line);background:var(--bg2);color:var(--muted);border-radius:999px;padding:5px 12px;cursor:pointer;transition:border-color .15s,color .15s,background .15s}
+  .tchip:hover{border-color:var(--cyan);color:var(--ink)}
+  .tchip.on{border-color:var(--cyan);background:rgba(34,211,238,.10);color:var(--ink);font-weight:600}
 </style>
 </head>
 <body>
@@ -153,6 +157,10 @@
         <div class="frow" style="margin-top:16px">
           <div class="field"><label for="title">Titre (facultatif)</label><input type="text" id="title" placeholder="Repris du nom de fichier si vide"></div>
           <div class="field"><label for="theme">Thème</label><input list="themes" id="theme" placeholder="IEC 62443, NIS2…" value="Général"><datalist id="themes"></datalist></div>
+        </div>
+        <div class="field" style="margin-top:-2px">
+          <label>Domaine à enrichir — sélection rapide</label>
+          <div class="tchips" id="tchips"></div>
         </div>
         <div class="field">
           <label>Visibilité</label>
@@ -643,6 +651,21 @@
     }
     document.getElementById('exploreBtn').addEventListener('click',exploreRun);
     document.getElementById('exploreQ').addEventListener('keydown',function(e){if(e.key==='Enter')exploreRun();});
+
+    /* ---- Domaine à enrichir : puces de sélection rapide du thème ---- */
+    (function(){
+      var QUICK=['Général','IEC 62443','NIS2','Analyse de risques','Architecture & segmentation',
+                 'Supervision & détection','Gestion des correctifs','Gouvernance & CSMS',
+                 'Conformité & audit','Continuité & résilience (PRA/PCA)'];
+      var box=document.getElementById('tchips'), ti=document.getElementById('theme');
+      if(!box||!ti) return;
+      function sync(){ var v=(ti.value||'').trim();
+        Array.prototype.forEach.call(box.children,function(c){c.classList.toggle('on',c.getAttribute('data-t')===v);}); }
+      box.innerHTML=QUICK.map(function(t){return '<button type="button" class="tchip" data-t="'+esc(t)+'">'+esc(t)+'</button>';}).join('');
+      box.addEventListener('click',function(e){var b=e.target.closest('.tchip'); if(!b) return; ti.value=b.getAttribute('data-t'); sync();});
+      ti.addEventListener('input',sync);
+      sync();
+    })();
 
     loadVeille();
     load();
