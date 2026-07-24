@@ -1035,12 +1035,27 @@ def api_rag_search():
     if not q:
         return jsonify(ok=False, error="query_vide",
                        message="Saisissez une question."), 400
+    # Périmètre de recherche (comme la console Sentinel) : documents et/ou veille
+    # CERT-FR. Par défaut, les deux. On récupère un peu large puis on filtre selon
+    # le périmètre, afin de renvoyer les 6 meilleurs extraits DU périmètre demandé.
+    src = data.get("sources") or {}
+    want_docs = src.get("docs", True)
+    want_veille = src.get("veille", True)
+    if not want_docs and not want_veille:
+        return jsonify(ok=True, hits=[])
     try:
-        hits = rag.search(q[:500], k=6, public_only=False)
+        hits = rag.search(q[:500], k=18, public_only=False)
     except Exception:
         return jsonify(ok=False, error="recherche_echec",
                        message="Recherche indisponible."), 500
-    return jsonify(ok=True, hits=hits)
+
+    def _is_veille(h):
+        return (h.get("theme") == "Veille"
+                or str(h.get("title") or "").startswith("[CERT-FR]"))
+    if not (want_docs and want_veille):
+        hits = [h for h in hits
+                if (_is_veille(h) if want_veille else not _is_veille(h))]
+    return jsonify(ok=True, hits=hits[:6])
 
 
 def _dup_doc_summary(d):

@@ -124,6 +124,19 @@
       <h1>Base de <span class="grad">connaissance</span> RAG.</h1>
       <p class="lead" style="margin-top:12px">Chargez vos documents (PDF, DOCX, TXT, MD, CSV) par thème.
         Ils alimentent en temps réel l'assistant conversationnel et la génération de livrables.</p>
+      <details class="guide" style="margin:14px 0 0;border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden">
+        <summary style="cursor:pointer;padding:13px 18px;font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--cyan)">❔ Guide d'utilisation</summary>
+        <div style="padding:2px 20px 18px;color:var(--muted);font-size:13.5px;line-height:1.72">
+          <p style="margin:.2em 0 .8em">Vos documents de référence (politiques, procédures, référentiels, rapports) sont découpés, indexés puis <b>retrouvés par pertinence</b> pour enrichir en temps réel l'<b>assistant</b> et les <b>générateurs de livrables</b> — avec citation de la source.</p>
+          <ul style="margin:0;padding-left:1.15em">
+            <li><b>Formats</b> : PDF, DOCX, TXT, MD, CSV — 30 Mo maximum, en un seul envoi.</li>
+            <li><b>Thème</b> : classe le document et affine le ciblage des recherches (puces de sélection rapide sous le champ).</li>
+            <li><b>Visibilité</b> : <b>Public</b> → alimente l'assistant <i>et</i> les livrables ; <b>Interne</b> → livrables uniquement, jamais exposé à l'assistant public.</li>
+            <li><b>Persistance</b> : l'indicateur « Moteur » affiche <i>texte intégral</i>/<i>vectoriel</i> (base connectée — documents conservés) ou <i>lexical (mémoire)</i> (non conservés — connectez PostgreSQL).</li>
+            <li><b>Explorer</b> (plus bas) : posez une question pour voir <i>exactement</i> les extraits que l'assistant et les livrables recevront.</li>
+          </ul>
+        </div>
+      </details>
     </section>
 
     <section style="padding:22px 0 56px">
@@ -201,6 +214,11 @@
           <input type="search" id="exploreQ" placeholder="Ex. : segmentation en zones et conduits, gestion des correctifs IACS…" style="flex:1;min-width:260px" aria-label="Question à poser à la base de connaissance">
           <button class="btn btn-p" id="exploreBtn" type="button">Explorer</button>
           <button class="btn btn-s" id="exploreClear" type="button" style="display:none">Effacer</button>
+        </div>
+        <div class="escope" style="display:flex;gap:18px;flex-wrap:wrap;margin:-2px 0 12px;font-size:12.5px;color:var(--muted)">
+          <span style="font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted2)">Périmètre</span>
+          <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="src-docs" checked> Base documentaire</label>
+          <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="src-veille" checked> Veille CERT-FR</label>
         </div>
         <div id="exploreOut"></div>
       </div>
@@ -692,8 +710,11 @@
       if(!q){out.innerHTML='';exploreClear.style.display='none';return;}
       exploreClear.style.display='inline-block';
       var btn=document.getElementById('exploreBtn'), old=btn.textContent; btn.disabled=true; btn.textContent='…';
+      var srcDocs=document.getElementById('src-docs').checked, srcVeille=document.getElementById('src-veille').checked;
+      if(!srcDocs&&!srcVeille){out.innerHTML='<div class="empty">Cochez au moins un périmètre (Base documentaire ou Veille CERT-FR).</div>';btn.disabled=false;btn.textContent=old;return;}
       out.innerHTML='<div class="empty">Recherche…</div>';
-      fetch('/api/admin/rag/search',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({query:q})})
+      fetch('/api/admin/rag/search',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({query:q, sources:{docs:srcDocs, veille:srcVeille}})})
         .then(function(r){return r.json();}).then(function(j){
           if(!j||!j.ok){out.innerHTML='<div class="empty">'+esc((j&&j.message)||'Recherche indisponible.')+'</div>';return;}
           var hits=j.hits||[];
