@@ -76,7 +76,15 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 # --- Sécurité applicative (en-têtes, anti-CSRF, taille de requête) -------------
 # Plafond de taille du corps d'une requête (anti-abus mémoire / DoS).
-app.config["MAX_CONTENT_LENGTH"] = 512 * 1024
+# Le chargement d'un document dans la base de connaissance (admin) envoie le
+# fichier ENTIER en une seule requête : le plafond global doit donc l'accepter.
+# Toutes les AUTRES routes restent bornées à un petit plafond (voir
+# _limit_body_size plus bas) — la surface d'abus n'augmente pas pour le public.
+RAG_UPLOAD_MAX = 32 * 1024 * 1024   # fichier (~30 Mo) + surcoût multipart
+SMALL_BODY_MAX = 512 * 1024
+app.config["MAX_CONTENT_LENGTH"] = RAG_UPLOAD_MAX
+# Routes autorisées à recevoir un gros corps (upload d'un fichier entier).
+_LARGE_BODY_PATHS = {"/api/admin/rag/upload-file"}
 
 # Points protégés par jeton (server-to-server) : exemptés du contrôle d'origine
 # CSRF, car authentifiés par un secret d'en-tête (X-Ingest-Token) et non par un
@@ -137,6 +145,20 @@ def _csrf_guard():
     if not _same_origin_request():
         return jsonify(ok=False, error="csrf",
                        message="Origine de la requête non autorisée."), 403
+
+
+@app.before_request
+def _limit_body_size():
+    """Plafond serré (512 Ko) sur TOUTES les routes sauf l'upload de fichier
+    (admin), qui reçoit un document entier en une requête. Contrôle par
+    l'en-tête Content-Length : rejet immédiat sans lire le corps."""
+    cl = request.content_length
+    if cl is None:
+        return
+    cap = RAG_UPLOAD_MAX if request.path in _LARGE_BODY_PATHS else SMALL_BODY_MAX
+    if cl > cap:
+        return jsonify(ok=False, error="requete_trop_grande",
+                       message="Contenu trop volumineux."), 413
 
 
 @app.after_request
@@ -1070,10 +1092,41 @@ def api_rag_diagnose():
         return jsonify(ok=False, error="diagnostic_echec"), 500
 
 
+@app.route("/api/admin/rag/upload-file", methods=["POST"])
+@admin_required
+def api_rag_upload_file():
+    """Chargement d'un document en UNE seule requête (multipart) — fiable et
+    rapide : extraction, découpage et enregistrement se font côté serveur en un
+    seul appel (aucun aller-retour init → morceaux → finish). C'est la voie
+    normale de chargement ; le flux par morceaux ci-dessous reste un repli pour
+    des cas particuliers. L'indexation vectorielle éventuelle (PostgreSQL +
+    embeddings) reste pilotée par le client via index-next, comme avant.
+
+    Idempotent : recharger un contenu déjà présent renvoie le document existant
+    (aucun doublon) au lieu d'échouer — comportement volontairement robuste."""
+    f = request.files.get("file")
+    if f is None or not (f.filename or "").strip():
+        return jsonify(ok=False, error="fichier_manquant",
+                       message="Aucun fichier fourni."), 400
+    data = f.read()
+    try:
+        doc = rag.ingest_bytes(
+            f.filename, data,
+            title=(request.form.get("title") or "").strip(),
+            theme=(request.form.get("theme") or "").strip(),
+            visibility=(request.form.get("visibility") or "public").strip())
+    except RagError as exc:
+        return jsonify(ok=False, error=exc.code), exc.status
+    except Exception:
+        return jsonify(ok=False, error="traitement_echec",
+                       message="Le document n'a pas pu être traité."), 500
+    return jsonify(ok=True, document=doc)
+
+
 @app.route("/api/admin/rag/upload/init", methods=["POST"])
 @admin_required
 def api_rag_upload_init():
-    """Ouvre une session d'upload par morceaux (fichiers lourds)."""
+    """Ouvre une session d'upload par morceaux (repli ; fichiers hors requête unique)."""
     data = request.get_json(silent=True) or {}
     filename = (data.get("filename") or "").strip()
     if not filename:

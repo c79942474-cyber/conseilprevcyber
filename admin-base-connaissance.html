@@ -242,7 +242,7 @@
 
   <script>
   (function(){
-    var CHUNK = 400*1024, MAX = 30*1024*1024;
+    var MAX = 30*1024*1024;
     var ALLOWED = ['pdf','docx','txt','md','csv','log','json'];
     var rows=document.getElementById('rows'), notice=document.getElementById('notice');
     var fileInput=document.getElementById('file'), drop=document.getElementById('drop');
@@ -386,7 +386,6 @@
     // Lecture JSON tolérante : si le serveur renvoie une page HTML (erreur 500/502…),
     // on ne casse pas sur « Unexpected token '<' » — on renvoie un code exploitable.
     async function readJson(r){ try{ return await r.json(); }catch(e){ return {ok:false, error:'http_'+(r&&r.status||0)}; } }
-    async function jpost(url,body){var r=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});return readJson(r);}
 
     async function runIndex(docId,onProg){
       var g=0;
@@ -401,38 +400,45 @@
       return 'done';
     }
 
+    // Envoi en UNE seule requête (multipart) avec barre de progression réelle.
+    // Bien plus fiable que le découpage en morceaux (un seul aller-retour, aucun
+    // état de session à réassembler) et plus rapide au démarrage à froid.
+    function postFile(file, meta, onSend){
+      return new Promise(function(resolve,reject){
+        var fd=new FormData();
+        fd.append('file',file,file.name);
+        fd.append('title',meta.title||'');
+        fd.append('theme',meta.theme||'');
+        fd.append('visibility',meta.visibility||'public');
+        var xhr=new XMLHttpRequest();
+        xhr.open('POST','/api/admin/rag/upload-file');
+        xhr.timeout=180000;
+        if(xhr.upload) xhr.upload.onprogress=function(e){ if(e.lengthComputable&&onSend) onSend(e.loaded/e.total); };
+        xhr.onload=function(){
+          var j; try{ j=JSON.parse(xhr.responseText); }catch(_){ j={ok:false,error:'http_'+xhr.status}; }
+          if(xhr.status>=200&&xhr.status<300&&j&&j.ok) resolve(j.document);
+          else reject(new Error((j&&j.error)||('http_'+xhr.status)));
+        };
+        xhr.onerror=function(){ reject(new Error('reseau')); };
+        xhr.ontimeout=function(){ reject(new Error('http_504')); };
+        xhr.send(fd);
+      });
+    }
+
     async function upload(){
       if(!chosen) return;
       upBtn.disabled=true;
       try{
-        setProg(0.02,'Préparation…');
-        var init=await jpost('/api/admin/rag/upload/init',{filename:chosen.name,total_bytes:chosen.size});
-        if(!init.ok) throw new Error(init.error||'init');
-        var uid=init.upload_id, total=Math.max(1,Math.ceil(chosen.size/CHUNK));
-        // Envoi des morceaux EN PARALLÈLE (pool de 4) : bien plus rapide que le
-        // séquentiel pour les fichiers lourds. Chaque morceau porte son index ;
-        // l'ordre de réception n'a pas d'importance (réassemblé par index côté serveur).
-        var sent=0, nextIdx=0, CONC=4;
-        async function sendWorker(){
-          while(true){
-            var i=nextIdx++; if(i>=total) return;
-            var blob=chosen.slice(i*CHUNK,(i+1)*CHUNK);
-            var r=await fetch('/api/admin/rag/upload/chunk?upload_id='+encodeURIComponent(uid)+'&idx='+i,{method:'POST',body:blob});
-            var jr=await readJson(r); if(!jr.ok) throw new Error(jr.error||'chunk');
-            sent++; setProg(sent/total*0.4,'Envoi… '+Math.round(sent/total*100)+'%');
-          }
-        }
-        await Promise.all(Array.from({length:Math.min(CONC,total)},sendWorker));
-        setProg(0.42,'Extraction & découpage…');
-        var fin=await jpost('/api/admin/rag/upload/finish',{upload_id:uid,
+        setProg(0.03,'Envoi…');
+        var doc=await postFile(chosen,{
           title:document.getElementById('title').value.trim(),
           theme:document.getElementById('theme').value.trim(),
-          visibility:(document.querySelector('input[name=vis]:checked')||{}).value||'public'});
-        if(!fin.ok) throw new Error(fin.error||'finish');
-        var doc=fin.document;
+          visibility:(document.querySelector('input[name=vis]:checked')||{}).value||'public'
+        },function(f){ setProg(0.03+f*0.57,'Envoi… '+Math.round(f*100)+'%'); });
+        setProg(0.62,'Extraction & découpage…');
         load();
         if(doc.status==='indexing'){
-          var res=await runIndex(doc.id,function(f){setProg(0.42+f*0.58,'Indexation… '+Math.round(f*100)+'%');});
+          var res=await runIndex(doc.id,function(f){setProg(0.62+f*0.38,'Indexation… '+Math.round(f*100)+'%');});
           setProg(1, res==='degraded'?'Indexé en mode texte intégral (embeddings indisponibles).':'✓ Document indexé et actif.');
         } else {
           setProg(1,'✓ Document ajouté et actif ('+(doc.mode==='texte_integral'?'texte intégral':'lexical')+').');
@@ -444,10 +450,10 @@
       }catch(err){
         var m={type_non_supporte:'Type de fichier non pris en charge.',fichier_trop_lourd:'Fichier trop lourd (30 Mo maximum).',
           doublon:'Ce document est déjà présent dans la base (contenu identique) — chargement ignoré.',
+          fichier_manquant:'Aucun fichier sélectionné.',reseau:'Connexion interrompue pendant l\'envoi. Réessayez.',
           fichier_vide:'Fichier vide.',aucun_texte:'Aucun texte exploitable n\'a pu être extrait.',
           pdf_illisible:'PDF illisible.',docx_illisible:'DOCX illisible.',
-          requete_trop_grande:'Fichier trop lourd pour une seule requête.',morceau_trop_grand:'Morceau de fichier trop volumineux.',
-          upload_inconnu:'Session de chargement expirée. Relancez le chargement.',upload_invalide:'Session de chargement invalide.',
+          requete_trop_grande:'Fichier trop lourd pour une seule requête (30 Mo maximum).',
           pdf_support_absent:'Lecture des PDF indisponible sur le serveur.',docx_support_absent:'Lecture des DOCX indisponible sur le serveur.',
           traitement_echec:'Ce document n\'a pas pu être traité (contenu illisible ou non pris en charge). Essayez un autre export/format.',
           erreur_serveur:'Erreur serveur pendant le traitement. Réessayez dans un instant.',
