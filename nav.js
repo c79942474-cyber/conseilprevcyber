@@ -44,6 +44,48 @@
       ["/contact", "Contact"] ] }
   ];
 
+  /* Infobulles du tiroir : courte description par onglet (survol + focus). */
+  var NAV_TIP = {
+    "/": "Accueil — cybersécurité industrielle IT / OT / IIoT",
+    "/services": "Nos prestations : état des lieux, segmentation, supervision, AMOA",
+    "/secteurs": "Énergie, eau, nucléaire, aérospatial-défense, industrie…",
+    "/methodologie": "Notre démarche, alignée sur la norme IEC 62443",
+    "/etudes-de-cas": "Références et retours d'expérience anonymisés",
+    "/operating-model": "Modèle opérationnel cible : gouvernance, RACI, fonction OT Security",
+    "/maturite-ot": "Assessment de maturité OT cyber (IEC 62443 ML, NIST CSF, C2M2)",
+    "/feuille-de-route": "Trajectoire de transformation : horizons, streams, budget",
+    "/referentiel": "Vue d'ensemble de la norme IEC 62443",
+    "/analyse-de-risque": "Analyse de risque des systèmes industriels (partie 3-2)",
+    "/programme-securite": "Programme de sécurité / CSMS (partie 2-1)",
+    "/exigences-systeme": "Exigences de sécurité au niveau système (partie 3-3)",
+    "/exigences-composants": "Exigences de sécurité des composants (partie 4-2)",
+    "/exigences-prestataires": "Exigences pour les prestataires de service (partie 2-4)",
+    "/developpement-securise": "Cycle de développement sécurisé (partie 4-1)",
+    "/technologies-securite": "Technologies de sécurité industrielle (TR 3-1)",
+    "/gestion-correctifs": "Gestion des correctifs des systèmes IACS (partie 2-3)",
+    "/glossaire-62443": "Termes et définitions de la norme (partie 1-2)",
+    "/metriques-62443": "Indicateurs et métriques de conformité (partie 1-3)",
+    "/audit-conformite": "Auto-évaluation de conformité IEC 62443",
+    "/diagnostic": "Diagnostic express de votre situation en 2 minutes",
+    "/nis2": "Directive NIS2 et correspondance avec l'IEC 62443",
+    "/demo": "Cockpit de supervision OT en temps réel (démonstration)",
+    "/tendances": "Tendances et signaux de la menace industrielle",
+    "/connecter": "Connecter une source de données au cockpit",
+    "/guide-integration": "Guide d'intégration du connecteur",
+    "/assistant": "Assistant IA spécialisé en cybersécurité industrielle",
+    "/veille": "Veille réglementaire et bulletins CERT-FR",
+    "/ressources": "Documents et ressources à télécharger",
+    "/faq": "Questions fréquentes",
+    "/about": "Qui sommes-nous",
+    "/vos-projets": "Votre espace projets client",
+    "/contact": "Nous contacter"
+  };
+
+  function _escAttr(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
   /* ── 1. Tiroir latéral gauche : menu complet groupé ─────────────────────── */
   function initDrawer() {
     var btn = document.querySelector(".menu-btn");
@@ -66,7 +108,8 @@
       html += '<section><h4>' + s.t + '</h4>';
       s.l.forEach(function (it) {
         var cur = it[0] === path;
-        html += '<a href="' + it[0] + '"' + (cur ? ' class="active" aria-current="page"' : '') + '>' + it[1] + '</a>';
+        var tip = NAV_TIP[it[0]] ? ' data-tip="' + _escAttr(NAV_TIP[it[0]]) + '"' : '';
+        html += '<a href="' + it[0] + '"' + (cur ? ' class="active" aria-current="page"' : '') + tip + '>' + it[1] + '</a>';
       });
       html += '</section>';
     });
@@ -76,6 +119,41 @@
     drawer.innerHTML = html;
     document.body.appendChild(scrim);
     document.body.appendChild(drawer);
+
+    // Infobulles flottantes : ajoutées au <body> (jamais rognées par le tiroir
+    // qui défile), positionnées à droite de l'onglet — repli sous l'onglet si
+    // la place manque. Affichées au survol ET au focus clavier.
+    var tip = document.createElement("div");
+    tip.className = "nav-tip";
+    tip.id = "nav-tip";
+    tip.setAttribute("role", "tooltip");
+    document.body.appendChild(tip);
+    function hideTip() { tip.classList.remove("show"); }
+    function showTip(a) {
+      var txt = a.getAttribute("data-tip");
+      if (!txt) return;
+      tip.textContent = txt;
+      tip.classList.add("show");
+      var r = a.getBoundingClientRect();
+      var tw = tip.offsetWidth, th = tip.offsetHeight, m = 8;
+      var x = r.right + 12, y = r.top + (r.height - th) / 2;
+      if (x + tw > window.innerWidth - m) {          // pas de place à droite
+        y = r.bottom + 8;                            // → sous l'onglet
+        x = Math.min(r.left, window.innerWidth - tw - m);
+      }
+      x = Math.max(m, Math.min(x, window.innerWidth - tw - m));
+      y = Math.max(m, Math.min(y, window.innerHeight - th - m));
+      tip.style.left = x + "px";
+      tip.style.top = y + "px";
+    }
+    drawer.querySelectorAll(".drawer-nav a[data-tip]").forEach(function (a) {
+      a.addEventListener("mouseenter", function () { showTip(a); });
+      a.addEventListener("focus", function () { showTip(a); });
+      a.addEventListener("mouseleave", hideTip);
+      a.addEventListener("blur", hideTip);
+    });
+    var dnav = drawer.querySelector(".drawer-nav");
+    if (dnav) dnav.addEventListener("scroll", hideTip, { passive: true });
 
     var lastFocus = null;
     function open() {
@@ -87,6 +165,7 @@
       var f = drawer.querySelector(".drawer-close"); if (f) f.focus();
     }
     function close() {
+      hideTip();
       scrim.classList.remove("open"); drawer.classList.remove("open");
       drawer.setAttribute("aria-hidden", "true");
       btn.setAttribute("aria-expanded", "false");
