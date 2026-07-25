@@ -233,6 +233,23 @@ def _vec_literal(vec):
     return "[" + ",".join(repr(float(x)) for x in vec) + "]"
 
 
+def _insert_chunks(conn, doc_id, chunks, batch=200):
+    """Insère les fragments par lots via un INSERT multi-lignes (une requête par
+    lot). Contrairement à executemany (qui, en psycopg 3, passe en mode PIPELINE),
+    ceci n'utilise NI requête préparée NI pipeline — condition de compatibilité
+    avec un pooler PgBouncer en mode transaction (endpoint « -pooler » de Neon),
+    où pipeline/préparé font échouer l'écriture. Reste rapide : ~200 fragments par
+    requête, donc très peu d'allers-retours même pour un gros PDF."""
+    n = len(chunks)
+    for start in range(0, n, batch):
+        part = chunks[start:start + batch]
+        values = ",".join(["(%s,%s,%s,to_tsvector('french',%s))"] * len(part))
+        params = []
+        for j, c in enumerate(part):
+            params.extend((doc_id, start + j, c, c))
+        conn.execute("INSERT INTO rag_chunks(doc_id,ordinal,content,tsv) VALUES " + values, params)
+
+
 # --- Aides communes -----------------------------------------------------------
 def _now_ms():
     return int(time.time() * 1000)
@@ -775,14 +792,10 @@ class PostgresRagStore:
                      (theme or "Général").strip()[:80], _clean_visibility(visibility),
                      len(data), digest, len(chunks), indexed,
                      status, mode, now, now))
-                # Insertion groupée des fragments (executemany, mode pipeline psycopg) :
-                # un seul aller-retour groupé au lieu d'un par fragment — bien plus rapide
-                # pour les gros PDF/DOCX (évite d'approcher le délai d'expiration du worker).
-                with conn.cursor() as cur:
-                    cur.executemany(
-                        "INSERT INTO rag_chunks(doc_id,ordinal,content,tsv) "
-                        "VALUES(%s,%s,%s,to_tsvector('french',%s))",
-                        [(doc_id, i, c, c) for i, c in enumerate(chunks)])
+                # Insertion des fragments par lots via un INSERT multi-lignes —
+                # sans pipeline ni requête préparée, donc compatible avec le pooler
+                # PgBouncer de Neon (voir _insert_chunks).
+                _insert_chunks(conn, doc_id, chunks)
         except Exception as exc:
             _log.exception("RAG : échec d'enregistrement (%s, %d fragments, %d octets)",
                            filename, len(chunks), len(data))
