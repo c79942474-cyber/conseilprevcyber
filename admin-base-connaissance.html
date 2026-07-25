@@ -190,6 +190,38 @@
         <div id="upmsg"></div>
       </div>
 
+      <!-- Chargement dédié ENGINEERING (bloc indépendant) -->
+      <div class="panel" style="margin-top:22px;border-color:rgba(34,211,238,.40)">
+        <h3>Charger un document — <span class="grad">Engineering</span></h3>
+        <div class="hint">Bloc dédié aux documents d'ingénierie : choisissez le sous-dossier, le thème correspondant est appliqué automatiquement. Par défaut en visibilité <b>Interne</b> (documents propriétaires).</div>
+        <div class="drop" id="dropEng">
+          <div>Glissez un fichier ici ou <b>parcourir</b></div>
+          <div class="sub" style="font-size:12px;color:var(--muted2);margin-top:4px">PDF · DOCX · XLSX · PPTX · TXT · MD · CSV — 30 Mo max</div>
+          <div class="file" id="fileNameEng"></div>
+          <input type="file" id="fileEng" accept=".pdf,.docx,.xlsx,.xlsm,.pptx,.pptm,.txt,.md,.csv,.log,.json" style="display:none">
+        </div>
+        <div class="frow" style="margin-top:16px">
+          <div class="field"><label for="titleEng">Titre (facultatif)</label><input type="text" id="titleEng" placeholder="Repris du nom de fichier si vide"></div>
+          <div class="field"><label for="themeEng">Sous-dossier Engineering</label>
+            <select id="themeEng">
+              <option value="Engineering">Engineering (racine)</option>
+              <option value="Engineering / Projet OWFarm">Projet OWFarm</option>
+              <option value="Engineering / Oil &amp; Gas">Oil &amp; Gas</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Visibilité</label>
+          <div class="vis">
+            <label><input type="radio" name="visEng" value="internal" checked><span><b>Interne</b>Livrables uniquement — jamais exposé à l'assistant public.</span></label>
+            <label><input type="radio" name="visEng" value="public"><span><b>Public</b>Alimente aussi l'assistant conversationnel.</span></label>
+          </div>
+        </div>
+        <div style="margin-top:8px"><button class="btn btn-p" id="upBtnEng" disabled>Charger &amp; indexer</button></div>
+        <div class="prog" id="progEng"><i></i></div>
+        <div id="upmsgEng"></div>
+      </div>
+
       <div class="topbar">
         <div class="sec-title" style="margin:0">Documents</div>
         <div class="filterbar">
@@ -435,6 +467,20 @@
         }
         var dl=document.getElementById('themes');
         dl.innerHTML=(j.themes||[]).map(function(t){return '<option value="'+esc(t)+'">';}).join('');
+        // Bloc Engineering : garder le sélecteur de sous-dossiers en phase avec le
+        // vocabulaire (tout thème « Engineering » ou « Engineering / … » y figure).
+        var engSel=document.getElementById('themeEng');
+        if(engSel){
+          var engT=(j.themes||[]).filter(function(t){return t==='Engineering'||t.indexOf('Engineering / ')===0;});
+          if(engT.length){
+            var cur=engSel.value;
+            engSel.innerHTML=engT.map(function(t){
+              var lbl=t==='Engineering'?'Engineering (racine)':t.split(' / ').slice(1).join(' / ');
+              return '<option value="'+esc(t)+'">'+esc(lbl)+'</option>';
+            }).join('');
+            if(cur&&engT.indexOf(cur)>-1) engSel.value=cur;
+          }
+        }
         fillFilters(themesHors);
         render();
       }).catch(function(){ loadFailed('Service momentanément indisponible.'); });
@@ -548,6 +594,58 @@
       }finally{ upBtn.disabled=!chosen; }
     }
     upBtn.addEventListener('click',upload);
+
+    // ---- Bloc de chargement dédié ENGINEERING (indépendant, réutilise postFile/runIndex/note/load) ----
+    (function(){
+      var fEng=document.getElementById('fileEng'), dropEng=document.getElementById('dropEng');
+      var btnEng=document.getElementById('upBtnEng'), progEng=document.getElementById('progEng');
+      if(!fEng||!btnEng||!progEng) return;
+      var barEng=progEng.firstElementChild, msgEng=document.getElementById('upmsgEng'), nameEng=document.getElementById('fileNameEng');
+      var chosenEng=null;
+      function setP(p,m){progEng.classList.add('on');barEng.style.width=Math.round(p*100)+'%';if(m!=null)msgEng.textContent=m;}
+      function pickEng(f){
+        if(!f) return;
+        if(ALLOWED.indexOf(ext(f.name))<0){note('Type de fichier non pris en charge.','err');return;}
+        if(f.size>MAX){note('Fichier trop lourd (30 Mo maximum).','err');return;}
+        chosenEng=f; nameEng.textContent=f.name+' · '+fmtBytes(f.size); btnEng.disabled=false;
+      }
+      dropEng.addEventListener('click',function(){fEng.click();});
+      fEng.addEventListener('change',function(){pickEng(this.files&&this.files[0]);});
+      dropEng.addEventListener('dragover',function(e){e.preventDefault();dropEng.classList.add('drag');});
+      dropEng.addEventListener('dragleave',function(){dropEng.classList.remove('drag');});
+      dropEng.addEventListener('drop',function(e){e.preventDefault();dropEng.classList.remove('drag');pickEng(e.dataTransfer.files&&e.dataTransfer.files[0]);});
+      btnEng.addEventListener('click',async function(){
+        if(!chosenEng) return; btnEng.disabled=true;
+        try{
+          setP(0.03,'Envoi…');
+          var doc=await postFile(chosenEng,{
+            title:document.getElementById('titleEng').value.trim(),
+            theme:document.getElementById('themeEng').value,
+            visibility:(document.querySelector('input[name=visEng]:checked')||{}).value||'internal'
+          },function(f){setP(0.03+f*0.57,'Envoi… '+Math.round(f*100)+'%');});
+          setP(0.62,'Extraction & découpage…'); load();
+          if(doc.status==='indexing'){
+            var res=await runIndex(doc.id,function(f){setP(0.62+f*0.38,'Indexation… '+Math.round(f*100)+'%');});
+            setP(1, res==='degraded'?'Indexé en mode texte intégral (embeddings indisponibles).':'✓ Document indexé et actif.');
+          } else { setP(1,'✓ Document Engineering ajouté et actif.'); }
+          if(doc.deduped){
+            note(doc.updated?('Ce document existait déjà — thème mis à jour : « '+(doc.theme||'—')+' ».'):'Ce document est déjà présent (contenu identique).','ok');
+          } else { note('Document Engineering « '+doc.title+' » ajouté.','ok'); }
+          chosenEng=null; fEng.value=''; nameEng.textContent=''; document.getElementById('titleEng').value='';
+          setTimeout(function(){progEng.classList.remove('on');barEng.style.width='0';msgEng.textContent='';},2500);
+          load();
+        }catch(err){
+          var m={type_non_supporte:'Type de fichier non pris en charge.',fichier_trop_lourd:'Fichier trop lourd (30 Mo maximum).',
+            doublon:'Déjà présent (contenu identique).',fichier_manquant:'Aucun fichier sélectionné.',reseau:'Connexion interrompue. Réessayez.',
+            fichier_vide:'Fichier vide.',aucun_texte:'Aucun texte exploitable n\'a pu être extrait.',
+            xlsx_illisible:'Classeur Excel illisible.',pptx_illisible:'Présentation PowerPoint illisible.',
+            traitement_echec:'Ce document n\'a pas pu être traité (format ou contenu).',requete_trop_grande:'Fichier trop lourd (30 Mo maximum).'
+            }[err.message]||('Échec du chargement ('+err.message+').');
+          if(err.detail) m+=' — '+err.detail;
+          note(m,'err'); setP(0,''); progEng.classList.remove('on');
+        }finally{ btnEng.disabled=!chosenEng; }
+      });
+    })();
 
     // ---- actions liste ----
     rows.addEventListener('click',async function(e){
