@@ -11,8 +11,10 @@ Dégradation propre : si une clé d'API n'est pas configurée (ANTHROPIC_API_KEY
 MISTRAL_API_KEY), le modèle correspondant est signalé « non configuré » sans
 faire planter l'application.
 """
+import json
 import logging
 import os
+import re
 
 # Journalisation : uniquement des métadonnées techniques (codes HTTP, types
 # d'erreur). Jamais de clé d'API ni de contenu de conversation (minimisation RGPD).
@@ -231,6 +233,44 @@ _GEN_GROUNDING = (
     "à valider par un consultant.\n"
     "- N'invente ni chiffre, ni référence normative, ni citation."
 )
+
+
+def rerank(model, query, hits, top_k):
+    """Re-classement des extraits par pertinence via un LLM-juge (précision
+    accrue avant génération). Renvoie AU PLUS top_k extraits, du plus au moins
+    pertinent. Repli sûr : sans clé API, sur peu d'extraits, ou en cas d'échec,
+    renvoie les hits d'origine tronqués — la recherche reste toujours fonctionnelle."""
+    hits = list(hits or [])
+    if len(hits) <= top_k or not (os.environ.get("MISTRAL_API_KEY")
+                                  or os.environ.get("ANTHROPIC_API_KEY")):
+        return hits[:top_k] if top_k else hits
+    cand = hits[:24]                                    # borne le coût du juge
+    listing = "\n".join("[%d] %s" % (i, (h.get("content") or "").replace("\n", " ")[:350])
+                        for i, h in enumerate(cand))
+    system = ("Tu es un moteur de re-classement d'extraits documentaires. On te donne "
+              "une question et des extraits numérotés. Réponds UNIQUEMENT par un tableau "
+              "JSON des numéros des extraits vraiment utiles pour répondre, du plus au "
+              "moins pertinent, au maximum %d éléments. Aucun autre texte. Ex. : [3,0,7]." % top_k)
+    user = "Question : %s\n\nExtraits :\n%s" % ((query or "")[:600], listing)
+    try:
+        out = (_mistral_call if model == "mistral" else _claude_call)(
+            system, [{"role": "user", "content": user}], 120)
+        m = re.search(r"\[[\d,\s]*\]", out or "")
+        order = json.loads(m.group(0)) if m else []
+    except Exception:
+        return hits[:top_k]
+    picked, used = [], set()
+    for i in order:
+        if isinstance(i, int) and 0 <= i < len(cand) and i not in used:
+            picked.append(cand[i]); used.add(i)
+        if len(picked) >= top_k:
+            break
+    for i, h in enumerate(cand):                        # complète si le juge en renvoie peu
+        if len(picked) >= top_k:
+            break
+        if i not in used:
+            picked.append(h); used.add(i)
+    return picked[:top_k]
 
 
 def generate(model, system, user, context=None, max_tokens=GEN_MAX_TOKENS):

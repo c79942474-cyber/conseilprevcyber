@@ -226,6 +226,18 @@
         <div id="exploreOut"></div>
       </div>
 
+      <!-- Évaluation de la pertinence (retrieval) -->
+      <div class="panel" id="evalPanel" style="margin-top:22px">
+        <div class="sec-title" style="margin:0 0 4px">Évaluer la pertinence <span style="font-family:var(--sans);font-weight:400;font-size:13px;color:var(--muted2)">— mesure objective du RAG</span></div>
+        <div class="hint">Une ligne par cas : <b>question | mot ou titre attendu</b>. On vérifie qu'un extrait contenant l'attendu remonte dans le top-k, et à quel rang. <b>hit@k</b> = part des cas trouvés ; <b>MRR</b> = rang réciproque moyen (1,0 = toujours en 1<sup>er</sup>). Idéal pour comparer objectivement avant/après un réglage.</div>
+        <textarea id="evalCases" rows="4" spellcheck="false" placeholder="segmentation en zones et conduits | IEC 62443&#10;gestion des correctifs OT | correctifs" style="width:100%;margin:4px 0 10px;padding:11px 13px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-family:var(--mono);font-size:12.5px;line-height:1.6;resize:vertical"></textarea>
+        <div class="filterbar" style="margin-bottom:12px">
+          <button class="btn btn-p" id="evalBtn" type="button">Évaluer</button>
+          <span class="fcount" id="evalScore"></span>
+        </div>
+        <div id="evalOut"></div>
+      </div>
+
       <!-- Veille CERT-FR classée par thème -->
       <div class="panel" id="veillePanel" style="margin-top:22px">
         <div class="topbar" style="margin:0 0 6px">
@@ -771,6 +783,29 @@
     // Clic sur un extrait → ouverture du document (lecteur en ligne).
     document.getElementById('exploreOut').addEventListener('click',function(e){
       var b=e.target.closest('[data-view]'); if(!b) return; openReader(b.getAttribute('data-view'),null);
+    });
+    // ---- Évaluation de la pertinence (retrieval) ----
+    document.getElementById('evalBtn').addEventListener('click',function(){
+      var out=document.getElementById('evalOut'), score=document.getElementById('evalScore');
+      var cases=[];
+      (document.getElementById('evalCases').value||'').split('\n').forEach(function(l){
+        var p=l.split('|'); if(p.length>=2 && p[0].trim() && p[1].trim()) cases.push({query:p[0].trim(),expect:p[1].trim()});
+      });
+      if(!cases.length){out.innerHTML='<div class="empty">Saisissez au moins un cas « question | attendu ».</div>';return;}
+      var b=this,old=b.textContent;b.disabled=true;b.textContent='…';score.textContent='';
+      out.innerHTML='<div class="empty">Évaluation…</div>';
+      fetch('/api/admin/rag/eval',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({cases:cases,k:8})})
+        .then(function(r){return readJson(r);}).then(function(j){
+          if(!j||!j.ok){out.innerHTML='<div class="empty">Évaluation indisponible.</div>';return;}
+          score.textContent='hit@'+j.k+' : '+Math.round(j.hit_rate*100)+'%  ·  MRR : '+j.mrr;
+          out.innerHTML=j.results.map(function(x){
+            var ok=x.rank>0;
+            return '<div class="xr"><div class="xt">'+esc(x.query)+' <span style="color:var(--muted2)">→ attendu : '+esc(x.expect)+'</span></div>'
+              +'<div class="xs"><span class="xtag'+(ok?' hi':'')+'">'+(ok?('trouvé au rang '+x.rank):'non trouvé')+'</span>'
+              +(x.top?'<span class="xtag">1er&nbsp;: '+esc(x.top)+'</span>':'')+'</div></div>';
+          }).join('');
+        }).catch(function(){out.innerHTML='<div class="empty">Évaluation impossible pour le moment.</div>';})
+        .then(function(){b.disabled=false;b.textContent=old;});
     });
     // Effacer la recherche (nouvelle question).
     exploreClear.addEventListener('click',function(){

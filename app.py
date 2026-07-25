@@ -1142,6 +1142,48 @@ def api_rag_search():
     return jsonify(ok=True, hits=hits[:6])
 
 
+@app.route("/api/admin/rag/eval", methods=["POST"])
+@admin_required
+def api_rag_eval():
+    """Mini-harnais d'évaluation du retrieval : pour chaque cas {query, expect},
+    mesure si un extrait contenant « expect » remonte dans le top-k et à quel
+    rang. Renvoie hit@k (part des cas trouvés) et MRR (rang réciproque moyen) —
+    pour objectiver chaque réglage du RAG (avant/après)."""
+    data = request.get_json(silent=True) or {}
+    cases = data.get("cases") or []
+    try:
+        k = min(max(int(data.get("k") or 8), 1), 20)
+    except (TypeError, ValueError):
+        k = 8
+    results, hit, rr_sum = [], 0, 0.0
+    for c in cases[:50]:
+        q = (c.get("query") or "").strip()
+        expect = (c.get("expect") or "").strip().lower()
+        if not q or not expect:
+            continue
+        try:
+            hits = rag.search(q[:500], k=k, public_only=False)
+        except Exception:
+            hits = []
+        rank = 0
+        for i, h in enumerate(hits):
+            hay = ((h.get("content") or "") + " " + (h.get("title") or "")
+                   + " " + (h.get("theme") or "")).lower()
+            if expect in hay:
+                rank = i + 1
+                break
+        results.append({"query": q, "expect": c.get("expect"), "rank": rank,
+                        "top": (hits[0].get("title") if hits else None)})
+        if rank:
+            hit += 1
+            rr_sum += 1.0 / rank
+    n = len(results)
+    return jsonify(ok=True, k=k, n=n,
+                   hit_rate=round(hit / n, 3) if n else 0,
+                   mrr=round(rr_sum / n, 3) if n else 0,
+                   results=results)
+
+
 def _dup_doc_summary(d):
     """Résumé d'un document pour l'aperçu des doublons (champs utiles à l'admin)."""
     return {k: d.get(k) for k in ("id", "title", "filename", "theme",
@@ -1497,8 +1539,16 @@ def _livrables_run(type_id, data, system, user, extra_query=""):
     parent_id = parent_id if _rag_valid_doc_id(parent_id) else None
     hits = []
     try:
-        hits = rag.search(query, k=8 if doc_ids else 6, public_only=False,
-                          doc_ids=doc_ids or None)
+        if doc_ids:
+            # Documents choisis manuellement : on respecte la sélection (pas de
+            # re-classement qui écarterait des extraits voulus).
+            hits = rag.search(query, k=8, public_only=False, doc_ids=doc_ids)
+        else:
+            # Récupération LARGE puis re-classement par LLM-juge → les 8 extraits
+            # les plus pertinents avant génération (précision accrue). Repli sûr
+            # (sans clé API ou en cas d'échec : simple troncature).
+            hits = assistant.rerank(model, query,
+                                    rag.search(query, k=24, public_only=False), 8)
     except Exception:
         hits = []
     context = build_context(hits, max_chars=6000)

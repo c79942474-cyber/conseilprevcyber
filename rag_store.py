@@ -294,6 +294,22 @@ def _query_terms(query):
     return kept or toks
 
 
+def _rrf(lists, k_rrf=60):
+    """Reciprocal Rank Fusion : fusionne plusieurs listes classées (ex. lexicale
+    + vectorielle) en UN classement robuste, indépendant de l'échelle des scores
+    de chaque moteur. score(d) = Σ 1/(k_rrf + rang_d). Méthode éprouvée (TREC,
+    moteurs hybrides) : capte à la fois les correspondances de mots et de sens.
+    Clé de fusion = contenu du fragment ; conserve la 1re occurrence rencontrée
+    (les listes sont passées par ordre de priorité)."""
+    scores, keep = {}, {}
+    for lst in lists:
+        for rank, r in enumerate(lst):
+            key = r[0]
+            scores[key] = scores.get(key, 0.0) + 1.0 / (k_rrf + rank + 1)
+            keep.setdefault(key, r)
+    return [keep[key] for key in sorted(scores, key=lambda x: scores[x], reverse=True)]
+
+
 # ============================================================================
 #  Implémentation en mémoire (repli sans base — recherche lexicale)
 # ============================================================================
@@ -1001,50 +1017,58 @@ class PostgresRagStore:
             params.append(list(doc_ids))
         clause = " AND ".join(where)
         with self._pool.connection() as conn:
-            # Recherche vectorielle si des embeddings existent et que la requête s'embarque.
+            lex = self._fulltext(conn, query, clause, params, k * 4)
+            # Recherche HYBRIDE : quand les embeddings sont disponibles, fusionner
+            # le plein-texte (lexical, mots) ET le vectoriel (sémantique, sens) par
+            # Reciprocal Rank Fusion — combinaison éprouvée, robuste, qui capte les
+            # deux signaux. Repli plein-texte seul si les embeddings échouent.
             if self.vector_mode and embeddings_available():
                 try:
-                    qvec = _vec_literal(embed_texts([query])[0])
-                    sql = ("SELECT c.content,d.id,d.title,d.theme,d.visibility,"
-                           "1-(c.embedding <=> %s::vector) AS score "
-                           "FROM rag_chunks c JOIN rag_documents d ON d.id=c.doc_id "
-                           "WHERE c.embedding IS NOT NULL AND " + clause +
-                           " ORDER BY c.embedding <=> %s::vector LIMIT %s")
-                    rows = conn.execute(sql, [qvec] + params + [qvec, k]).fetchall()
-                    if rows:
-                        return [self._hit(r) for r in rows]
+                    vec = self._vector(conn, query, clause, params, k * 4)
+                    fused = _rrf([vec, lex])
+                    if fused:
+                        return [self._hit(r) for r in fused[:k]]
                 except RagError:
-                    pass  # repli plein-texte ci-dessous
-            # Recherche plein-texte (français), précision d'abord : correspondance
-            # stricte (tous les termes), classée par densité de couverture
-            # (ts_rank_cd tient compte du nombre de termes ET de leur proximité —
-            # meilleur que ts_rank pour départager les extraits).
-            sql = ("SELECT c.content,d.id,d.title,d.theme,d.visibility,"
-                   "ts_rank_cd(c.tsv, plainto_tsquery('french',%s)) AS score "
-                   "FROM rag_chunks c JOIN rag_documents d ON d.id=c.doc_id "
-                   "WHERE c.tsv @@ plainto_tsquery('french',%s) AND " + clause +
-                   " ORDER BY score DESC LIMIT %s")
-            rows = conn.execute(sql, [query, query] + params + [k]).fetchall()
-            # Rappel : si la correspondance stricte donne trop peu de résultats,
-            # compléter avec une requête OR (au moins UN terme) — un document
-            # pertinent qui n'emploie pas TOUS les mots n'est plus manqué.
-            if len(rows) < k:
-                terms = _query_terms(query)
-                if terms:
-                    or_q = " | ".join(terms)   # termes alphanumériques : sûrs pour to_tsquery
-                    sql2 = ("SELECT c.content,d.id,d.title,d.theme,d.visibility,"
-                            "ts_rank_cd(c.tsv, to_tsquery('french',%s)) AS score "
-                            "FROM rag_chunks c JOIN rag_documents d ON d.id=c.doc_id "
-                            "WHERE c.tsv @@ to_tsquery('french',%s) AND " + clause +
-                            " ORDER BY score DESC LIMIT %s")
-                    seen = set(r[0] for r in rows)
-                    for r in conn.execute(sql2, [or_q, or_q] + params + [k * 3]).fetchall():
-                        if r[0] not in seen:
-                            rows.append(r)
-                            seen.add(r[0])
-                        if len(rows) >= k:
-                            break
-        return [self._hit(r) for r in rows]
+                    pass
+        return [self._hit(r) for r in lex[:k]]
+
+    def _vector(self, conn, query, clause, params, limit):
+        """Liste classée par similarité sémantique (cosinus, index HNSW)."""
+        qvec = _vec_literal(embed_texts([query])[0])
+        sql = ("SELECT c.content,d.id,d.title,d.theme,d.visibility,"
+               "1-(c.embedding <=> %s::vector) AS score "
+               "FROM rag_chunks c JOIN rag_documents d ON d.id=c.doc_id "
+               "WHERE c.embedding IS NOT NULL AND " + clause +
+               " ORDER BY c.embedding <=> %s::vector LIMIT %s")
+        return list(conn.execute(sql, [qvec] + params + [qvec, limit]).fetchall())
+
+    def _fulltext(self, conn, query, clause, params, limit):
+        """Liste classée par pertinence plein-texte français. Précision d'abord
+        (tous les termes, ts_rank_cd) ; complétée par un rappel OR (au moins un
+        terme) si trop peu de résultats stricts."""
+        sql = ("SELECT c.content,d.id,d.title,d.theme,d.visibility,"
+               "ts_rank_cd(c.tsv, plainto_tsquery('french',%s)) AS score "
+               "FROM rag_chunks c JOIN rag_documents d ON d.id=c.doc_id "
+               "WHERE c.tsv @@ plainto_tsquery('french',%s) AND " + clause +
+               " ORDER BY score DESC LIMIT %s")
+        rows = list(conn.execute(sql, [query, query] + params + [limit]).fetchall())
+        if len(rows) < limit:
+            terms = _query_terms(query)
+            if terms:
+                or_q = " | ".join(terms)   # termes alphanumériques : sûrs pour to_tsquery
+                sql2 = ("SELECT c.content,d.id,d.title,d.theme,d.visibility,"
+                        "ts_rank_cd(c.tsv, to_tsquery('french',%s)) AS score "
+                        "FROM rag_chunks c JOIN rag_documents d ON d.id=c.doc_id "
+                        "WHERE c.tsv @@ to_tsquery('french',%s) AND " + clause +
+                        " ORDER BY score DESC LIMIT %s")
+                seen = set(r[0] for r in rows)
+                for r in conn.execute(sql2, [or_q, or_q] + params + [limit * 2]).fetchall():
+                    if r[0] not in seen:
+                        rows.append(r)
+                        seen.add(r[0])
+                    if len(rows) >= limit:
+                        break
+        return rows
 
     @staticmethod
     def _hit(r):
