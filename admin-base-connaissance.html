@@ -196,6 +196,9 @@
           <select id="filterTheme"><option value="">Tous les thèmes</option></select>
           <span class="fcount" id="fcount"></span>
           <button class="btn btn-s" id="dedupe" type="button" title="Supprimer les documents en double (contenu identique), en conservant un exemplaire de chacun">🧹 Doublons</button>
+          <button class="btn btn-s" id="backup" type="button" title="Télécharger une sauvegarde complète de la base de connaissance (à conserver hors ligne)">💾 Sauvegarder</button>
+          <button class="btn btn-s" id="restore" type="button" title="Restaurer des documents depuis un fichier de sauvegarde (sans doublon)">⤴ Restaurer</button>
+          <input type="file" id="restoreFile" accept=".json,application/json" style="display:none">
           <button class="btn btn-s" id="refresh" type="button">↻ Actualiser</button>
         </div>
       </div>
@@ -613,6 +616,33 @@
       }).catch(function(){b.disabled=false;b.textContent=old;note('Analyse des doublons impossible.','err');});
     });
     document.getElementById('refresh').addEventListener('click',load);
+
+    // ---- Sauvegarde / restauration (anti-crash) ----
+    document.getElementById('backup').addEventListener('click',function(){
+      var b=this,old=b.textContent;b.disabled=true;b.textContent='Sauvegarde…';
+      fetch('/api/admin/rag/backup').then(function(r){ if(!r.ok) throw new Error('http_'+r.status); return r.blob(); })
+        .then(function(bl){
+          var u=URL.createObjectURL(bl),a=document.createElement('a');
+          a.href=u;a.download='conseilprevcyber-rag-'+new Date().toISOString().slice(0,10)+'.json';
+          document.body.appendChild(a);a.click();
+          setTimeout(function(){URL.revokeObjectURL(u);a.remove();},1500);
+          note('Sauvegarde téléchargée — conservez-la hors ligne.','ok');
+        }).catch(function(){note('Sauvegarde impossible pour le moment.','err');})
+        .then(function(){b.disabled=false;b.textContent=old;});
+    });
+    document.getElementById('restore').addEventListener('click',function(){document.getElementById('restoreFile').click();});
+    document.getElementById('restoreFile').addEventListener('change',function(){
+      var inp=this, f=inp.files&&inp.files[0]; if(!f){return;}
+      if(!confirm('Restaurer les documents depuis « '+f.name+' » ?\nLes documents déjà présents seront ignorés (aucun doublon).')){inp.value='';return;}
+      var fd=new FormData(); fd.append('file',f,f.name);
+      note('Restauration en cours…','ok');
+      fetch('/api/admin/rag/restore',{method:'POST',body:fd}).then(function(r){return readJson(r);}).then(function(j){
+        if(!j||!j.ok){note((j&&j.error==='backup_illisible')?'Fichier de sauvegarde invalide.':'Restauration impossible.','err');return;}
+        note('Restauration : '+j.restored+' restauré(s), '+j.skipped+' déjà présent(s)'+(j.failed?', '+j.failed+' échec(s)':'')+'.','ok');
+        load();
+      }).catch(function(){note('Restauration impossible pour le moment.','err');})
+        .then(function(){inp.value='';});
+    });
     document.getElementById('memReconnect').addEventListener('click',function(){
       var b=this; b.disabled=true; var old=b.textContent; b.textContent='Reconnexion…';
       fetch('/api/admin/rag/reconnect',{method:'POST'}).then(function(r){return r.json();}).then(function(j){

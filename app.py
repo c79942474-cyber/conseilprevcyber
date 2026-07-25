@@ -83,8 +83,47 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 RAG_UPLOAD_MAX = 32 * 1024 * 1024   # fichier (~30 Mo) + surcoût multipart
 SMALL_BODY_MAX = 512 * 1024
 app.config["MAX_CONTENT_LENGTH"] = RAG_UPLOAD_MAX
-# Routes autorisées à recevoir un gros corps (upload d'un fichier entier).
-_LARGE_BODY_PATHS = {"/api/admin/rag/upload-file"}
+# Routes autorisées à recevoir un gros corps (upload d'un fichier entier,
+# restauration d'une sauvegarde de la base de connaissance).
+_LARGE_BODY_PATHS = {"/api/admin/rag/upload-file", "/api/admin/rag/restore"}
+
+
+class _IPRateLimiter:
+    """Limiteur de débit par IP (fenêtre glissante, en mémoire). Distinct du
+    « guard » d'échecs (anti-force brute) : ici on limite le VOLUME de requêtes
+    — défense anti-DoS. Un attaquant qui martèle la connexion, l'upload ou
+    l'admin est plafonné puis renvoyé en 429."""
+
+    def __init__(self):
+        self._hits = {}
+        self._lock = threading.Lock()
+
+    def over(self, key, limit, window):
+        now = time.time()
+        with self._lock:
+            arr = [t for t in self._hits.get(key, []) if t > now - window]
+            arr.append(now)
+            self._hits[key] = arr
+            if len(self._hits) > 8192:          # borne mémoire : purge des clés éteintes
+                for k in [k for k, v in self._hits.items() if not v or v[-1] < now - 3600]:
+                    self._hits.pop(k, None)
+            return len(arr) > limit
+
+
+_ip_rate = _IPRateLimiter()
+
+# Plafonds par IP. Stricts sur les points sensibles (force brute / upload),
+# généreux en famille pour ne pas gêner l'usage admin légitime.
+_RATE_EXACT = {
+    "/api/auth/login":            (12, 300),
+    "/api/auth/register":         (6, 3600),
+    "/api/auth/forgot":           (6, 3600),
+    "/api/auth/reset":            (12, 3600),
+    "/api/admin/rag/upload-file": (40, 60),
+    "/api/admin/rag/restore":     (6, 300),
+    "/api/admin/rag/backup":      (20, 300),
+}
+_RATE_FAMILY = (("/api/auth/", 80, 60), ("/api/admin/", 600, 60))
 
 # Points protégés par jeton (server-to-server) : exemptés du contrôle d'origine
 # CSRF, car authentifiés par un secret d'en-tête (X-Ingest-Token) et non par un
@@ -159,6 +198,37 @@ def _limit_body_size():
     if cl > cap:
         return jsonify(ok=False, error="requete_trop_grande",
                        message="Contenu trop volumineux."), 413
+
+
+def _rate_limited(retry_after):
+    resp = jsonify(ok=False, error="rate_limited",
+                   message="Trop de requêtes. Réessayez dans un instant.")
+    resp.status_code = 429
+    resp.headers["Retry-After"] = str(int(retry_after))
+    return resp
+
+
+@app.before_request
+def _rate_limit():
+    """Limitation de débit par IP (anti-DoS + défense en profondeur anti-force
+    brute) sur les surfaces sensibles : authentification et administration. Les
+    pages publiques et les fichiers statiques ne sont pas concernés. L'indexation
+    vectorielle (index-next), pilotée par le client en boucle serrée mais bornée
+    et réservée à l'admin, est exemptée pour ne pas casser un gros chargement."""
+    p = request.path
+    if not (p.startswith("/api/auth/") or p.startswith("/api/admin/")):
+        return
+    ip = client_ip()
+    rule = _RATE_EXACT.get(p)
+    if rule and _ip_rate.over("x:%s:%s" % (p, ip), rule[0], rule[1]):
+        return _rate_limited(rule[1])
+    if p.endswith("/index-next"):
+        return
+    for prefix, lim, win in _RATE_FAMILY:
+        if p.startswith(prefix):
+            if _ip_rate.over("f:%s:%s" % (prefix, ip), lim, win):
+                return _rate_limited(win)
+            break
 
 
 @app.after_request
@@ -1297,6 +1367,89 @@ def api_rag_content(doc_id):
     except RagError as exc:
         return jsonify(ok=False, error=exc.code), exc.status
     return jsonify(ok=True, **info)
+
+
+# ---------------------------------------------------------------------------
+#  Sauvegarde / restauration de la base de connaissance (anti-crash) — admin
+# ---------------------------------------------------------------------------
+# La base gratuite (PostgreSQL ou repli mémoire) peut être perdue lors d'un
+# incident : un export téléchargeable (documents + contenu) permet de tout
+# restaurer par un simple import, sans dépendre de la base. Bulletins de veille
+# CERT-FR exclus (re-collectables automatiquement).
+def _rag_is_veille(d):
+    return (d.get("theme") == "Veille"
+            or str(d.get("title") or "").startswith("[CERT-FR]"))
+
+
+def _rag_export():
+    """Construit la sauvegarde : pour chaque document, ses métadonnées + le
+    fichier d'origine (ou, à défaut, le texte réassemblé) encodé en base64."""
+    out = []
+    for d in rag.list_documents():
+        if _rag_is_veille(d):
+            continue
+        did = d.get("id")
+        filename = d.get("filename") or ((d.get("title") or "document") + ".txt")
+        try:
+            filename, data = rag.get_blob(did)
+        except Exception:
+            try:
+                data = (rag.document_text(did).get("text") or "").encode("utf-8")
+            except Exception:
+                continue
+            if not filename.lower().endswith(".txt"):
+                filename += ".txt"
+        if not data:
+            continue
+        out.append({"title": d.get("title"), "filename": filename,
+                    "theme": d.get("theme"), "visibility": d.get("visibility"),
+                    "content_b64": base64.b64encode(data).decode("ascii")})
+    return {"version": 1, "app": "conseilprevcyber-rag",
+            "created_at": int(time.time() * 1000), "count": len(out), "documents": out}
+
+
+@app.route("/api/admin/rag/backup", methods=["GET"])
+@admin_required
+def api_rag_backup():
+    """Télécharge une sauvegarde complète (JSON) de la base de connaissance."""
+    payload = json.dumps(_rag_export(), ensure_ascii=False).encode("utf-8")
+    return _blob_response("conseilprevcyber-rag-backup.json", payload)
+
+
+@app.route("/api/admin/rag/restore", methods=["POST"])
+@admin_required
+def api_rag_restore():
+    """Restaure les documents d'une sauvegarde (idempotent : un document déjà
+    présent est ignoré, jamais dupliqué). Ré-ingestion complète (ré-extraction,
+    re-découpage) — robuste quel que soit le moteur de recherche actif."""
+    f = request.files.get("file")
+    raw = f.read() if f is not None else request.get_data(cache=False)
+    try:
+        payload = json.loads((raw or b"").decode("utf-8"))
+        items = payload.get("documents")
+        assert isinstance(items, list)
+    except Exception:
+        return jsonify(ok=False, error="backup_illisible",
+                       message="Fichier de sauvegarde invalide ou illisible."), 400
+    restored = skipped = failed = 0
+    for it in items:
+        try:
+            data = base64.b64decode((it.get("content_b64") or "").encode("ascii"))
+            if not data:
+                skipped += 1
+                continue
+            doc = rag.ingest_bytes(it.get("filename") or "document.txt", data,
+                                   title=(it.get("title") or "").strip(),
+                                   theme=(it.get("theme") or "").strip(),
+                                   visibility=(it.get("visibility") or "public").strip())
+            if doc.get("deduped"):
+                skipped += 1
+            else:
+                restored += 1
+        except Exception:
+            failed += 1
+    return jsonify(ok=True, restored=restored, skipped=skipped, failed=failed,
+                   total=len(items))
 
 
 # ============================================================================
