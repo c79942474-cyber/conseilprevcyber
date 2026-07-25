@@ -50,7 +50,8 @@ CHUNK_CHARS = 900              # taille cible d'un chunk (caractères)
 CHUNK_OVERLAP = 150            # recouvrement entre chunks
 MAX_FILE_BYTES = int(os.environ.get("RAG_MAX_FILE_MB", "30")) * 1024 * 1024
 MAX_CHUNK_UPLOAD = 480 * 1024  # taille max d'un morceau reçu (< MAX_CONTENT_LENGTH)
-ALLOWED_EXT = {"txt", "md", "csv", "log", "json", "pdf", "docx", "xlsx", "xlsm"}
+ALLOWED_EXT = {"txt", "md", "csv", "log", "json", "pdf", "docx", "xlsx", "xlsm",
+               "pptx", "pptm"}
 VISIBILITIES = ("public", "internal")
 
 # Thèmes suggérés (l'admin peut en saisir d'autres).
@@ -192,6 +193,35 @@ def extract_text(ext, data):
                 wb.close()
             except Exception:
                 pass
+        return "\n".join(parts)
+    if ext in ("pptx", "pptm"):
+        try:
+            from pptx import Presentation
+        except Exception:  # absent OU binding cassé : message propre, pas de 500 brut
+            raise RagError("pptx_support_absent", 500)
+        try:
+            prs = Presentation(io.BytesIO(data))
+        except Exception:
+            raise RagError("pptx_illisible", 422)
+        # Texte de chaque diapositive (formes, tableaux) + notes du présentateur :
+        # la présentation devient cherchable (plein-texte ET vectorielle).
+        parts = []
+        for i, slide in enumerate(prs.slides, 1):
+            parts.append("## Diapositive %d" % i)
+            for shape in slide.shapes:
+                if shape.has_text_frame:
+                    t = shape.text_frame.text.strip()
+                    if t:
+                        parts.append(t)
+                if shape.has_table:
+                    for row in shape.table.rows:
+                        cells = [c.text.strip() for c in row.cells if c.text.strip()]
+                        if cells:
+                            parts.append(" | ".join(cells))
+            if slide.has_notes_slide and slide.notes_slide.notes_text_frame:
+                notes = slide.notes_slide.notes_text_frame.text.strip()
+                if notes:
+                    parts.append("Notes : " + notes)
         return "\n".join(parts)
     raise RagError("type_non_supporte", 415)
 
