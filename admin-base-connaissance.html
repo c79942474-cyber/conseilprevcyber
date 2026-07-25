@@ -222,6 +222,25 @@
         <div id="upmsgEng"></div>
       </div>
 
+      <!-- Documents ENGINEERING — liste autonome (séparée des autres documents) -->
+      <div class="panel" id="engDocsPanel" style="margin-top:16px;border-color:rgba(34,211,238,.30)">
+        <div class="topbar" style="margin:0 0 12px">
+          <div class="sec-title" style="margin:0">Documents <span class="grad">Engineering</span></div>
+          <div class="filterbar">
+            <input type="search" id="filterEngSearch" placeholder="Rechercher…" aria-label="Rechercher un document Engineering">
+            <select id="filterEng" aria-label="Filtrer par sous-dossier Engineering"><option value="">Tous les sous-dossiers</option></select>
+            <span class="fcount" id="fcountEng"></span>
+            <button class="btn btn-s" id="refreshEng" type="button">↻ Actualiser</button>
+          </div>
+        </div>
+        <div class="tblwrap">
+          <table>
+            <thead><tr><th>Document</th><th>Sous-dossier</th><th>Visibilité</th><th>Statut</th><th>Taille</th><th>Ajouté</th><th>Actions</th></tr></thead>
+            <tbody id="rowsEng"><tr><td colspan="7" class="empty">Chargement…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="topbar">
         <div class="sec-title" style="margin:0">Documents</div>
         <div class="filterbar">
@@ -330,10 +349,32 @@
     }
     function visPill(v){return v==='internal'?'<span class="pill int">interne</span>':'<span class="pill pub">public</span>';}
 
+    // Un document « Engineering » = thème « Engineering » ou « Engineering / … ».
+    function isEng(d){ var t=d.theme||''; return t==='Engineering'||t.indexOf('Engineering / ')===0; }
+    function docActs(d){
+      var acts='';
+      if(d.status==='indexing') acts+='<button data-a="index" data-id="'+d.id+'">▶ Indexer</button>';
+      if(d.status==='ready'&&d.mode==='texte_integral'&&caps.embeddings) acts+='<button data-a="reindex" data-id="'+d.id+'" title="Générer la recherche sémantique (embeddings)">⟳ Vectoriser</button>';
+      acts+='<button data-a="read" data-id="'+d.id+'">📖 Lire</button>';
+      acts+='<button data-a="download" data-id="'+d.id+'">Télécharger</button>';
+      acts+='<button class="danger" data-a="delete" data-id="'+d.id+'" data-t="'+esc(d.title)+'">Supprimer</button>';
+      return acts;
+    }
+    function docRow(d){
+      return '<tr><td><div class="who">'+esc(d.title)+'</div><div class="sub">'+esc(d.filename)+' · '+(d.nb_chunks||0)+' fragments</div></td>'
+        +'<td><span class="pill">'+esc(d.theme||'—')+'</span></td>'
+        +'<td>'+visPill(d.visibility)+'</td>'
+        +'<td>'+statusPill(d)+'</td>'
+        +'<td class="sub">'+fmtBytes(d.bytes)+'</td>'
+        +'<td class="sub">'+fmt(d.created_at)+'</td>'
+        +'<td><div class="act">'+docActs(d)+'</div></td></tr>';
+    }
     function render(){
+      // Table principale : TOUT SAUF Engineering (qui a sa liste autonome).
       var f=document.getElementById('filterTheme').value;
       var q=(document.getElementById('filterSearch').value||'').trim().toLowerCase();
-      var docs=allDocs.filter(function(d){
+      var base=allDocs.filter(function(d){return !isEng(d);});
+      var docs=base.filter(function(d){
         if(f && d.theme!==f) return false;
         if(q){
           var hay=((d.title||'')+' '+(d.filename||'')+' '+(d.theme||'')).toLowerCase();
@@ -342,29 +383,42 @@
         return true;
       });
       var fc=document.getElementById('fcount');
-      if(fc) fc.textContent=(q||f)? (docs.length+' / '+allDocs.length) : (allDocs.length+' doc'+(allDocs.length>1?'s':''));
-      if(!docs.length){rows.innerHTML='<tr><td colspan="7" class="empty">Aucun document'+((q||f)?' ne correspond à la recherche':'')+'.</td></tr>';return;}
-      rows.innerHTML=docs.map(function(d){
-        var acts='';
-        if(d.status==='indexing') acts+='<button data-a="index" data-id="'+d.id+'">▶ Indexer</button>';
-        if(d.status==='ready'&&d.mode==='texte_integral'&&caps.embeddings) acts+='<button data-a="reindex" data-id="'+d.id+'" title="Générer la recherche sémantique (embeddings)">⟳ Vectoriser</button>';
-        acts+='<button data-a="read" data-id="'+d.id+'">📖 Lire</button>';
-        acts+='<button data-a="download" data-id="'+d.id+'">Télécharger</button>';
-        acts+='<button class="danger" data-a="delete" data-id="'+d.id+'" data-t="'+esc(d.title)+'">Supprimer</button>';
-        return '<tr><td><div class="who">'+esc(d.title)+'</div><div class="sub">'+esc(d.filename)+' · '+(d.nb_chunks||0)+' fragments</div></td>'
-          +'<td><span class="pill">'+esc(d.theme||'—')+'</span></td>'
-          +'<td>'+visPill(d.visibility)+'</td>'
-          +'<td>'+statusPill(d)+'</td>'
-          +'<td class="sub">'+fmtBytes(d.bytes)+'</td>'
-          +'<td class="sub">'+fmt(d.created_at)+'</td>'
-          +'<td><div class="act">'+acts+'</div></td></tr>';
-      }).join('');
+      if(fc) fc.textContent=(q||f)? (docs.length+' / '+base.length) : (base.length+' doc'+(base.length>1?'s':''));
+      rows.innerHTML=docs.length?docs.map(docRow).join('')
+        :'<tr><td colspan="7" class="empty">Aucun document'+((q||f)?' ne correspond à la recherche':'')+'.</td></tr>';
+      renderEng();
+    }
+    function renderEng(){
+      var body=document.getElementById('rowsEng'); if(!body) return;
+      var sf=document.getElementById('filterEng'); var fv=sf?sf.value:'';
+      var q=(document.getElementById('filterEngSearch')||{}).value||''; q=q.trim().toLowerCase();
+      var docs=allDocs.filter(isEng).filter(function(d){
+        if(fv && d.theme!==fv) return false;
+        if(q){ var hay=((d.title||'')+' '+(d.filename||'')+' '+(d.theme||'')).toLowerCase(); if(hay.indexOf(q)<0) return false; }
+        return true;
+      });
+      var fc=document.getElementById('fcountEng');
+      if(fc) fc.textContent=docs.length?(docs.length+' doc'+(docs.length>1?'s':'')):'';
+      body.innerHTML=docs.length?docs.map(docRow).join('')
+        :'<tr><td colspan="7" class="empty">Aucun document Engineering'+((fv||q)?' ne correspond':'')+'.</td></tr>';
     }
 
     function fillFilters(themes){
+      var all=Object.keys(themes||{}).sort();
+      // Filtre principal : thèmes hors Engineering (rangé à part).
       var sel=document.getElementById('filterTheme'), cur=sel.value;
-      var names=Object.keys(themes||{}).sort();
+      var names=all.filter(function(t){return t!=='Engineering'&&t.indexOf('Engineering / ')!==0;});
       sel.innerHTML='<option value="">Tous les thèmes</option>'+names.map(function(t){return '<option'+(t===cur?' selected':'')+'>'+esc(t)+'</option>';}).join('');
+      // Filtre autonome des sous-dossiers Engineering (seuls ceux qui ont des docs).
+      var esel=document.getElementById('filterEng');
+      if(esel){
+        var ecur=esel.value;
+        var eng=all.filter(function(t){return t==='Engineering'||t.indexOf('Engineering / ')===0;});
+        esel.innerHTML='<option value="">Tous les sous-dossiers</option>'+eng.map(function(t){
+          var lbl=t==='Engineering'?'Engineering (racine)':t.split(' / ').slice(1).join(' / ');
+          return '<option value="'+esc(t)+'"'+(t===ecur?' selected':'')+'>'+esc(lbl)+'</option>';
+        }).join('');
+      }
     }
 
     // Récupération JSON robuste : délai d'attente PAR tentative (AbortController)
@@ -402,6 +456,8 @@
       rows.innerHTML='<tr><td colspan="7" class="empty">'+esc(msg)
         +' <button type="button" class="btn btn-s" id="rowsRetry" style="margin-left:6px">↻ Réessayer</button></td></tr>';
       var rb=document.getElementById('rowsRetry'); if(rb) rb.addEventListener('click',load);
+      var re=document.getElementById('rowsEng');
+      if(re) re.innerHTML='<tr><td colspan="7" class="empty">'+esc(msg)+'</td></tr>';
     }
     function load(){
       rows.setAttribute('aria-busy','true');
@@ -649,7 +705,7 @@
     })();
 
     // ---- actions liste ----
-    rows.addEventListener('click',async function(e){
+    async function onDocClick(e){
       var b=e.target.closest('button'); if(!b)return;
       var a=b.getAttribute('data-a'), id=b.getAttribute('data-id');
       if(a==='delete'){
@@ -685,7 +741,10 @@
         }catch(_){ note('Vectorisation impossible.','err'); }
         load();
       }
-    });
+    }
+    // Un seul gestionnaire d'actions, partagé par le tableau général ET la liste Engineering.
+    rows.addEventListener('click',onDocClick);
+    (function(){var re=document.getElementById('rowsEng'); if(re) re.addEventListener('click',onDocClick);})();
     // ---- lecteur de document (aperçu en ligne) ----
     var reader=document.getElementById('reader');
     function closeReader(){reader.style.display='none';document.getElementById('readerBody').textContent='';}
@@ -709,6 +768,12 @@
 
     document.getElementById('filterTheme').addEventListener('change',render);
     document.getElementById('filterSearch').addEventListener('input',render);
+    // Liste Engineering autonome : filtre par sous-dossier + recherche + actualiser.
+    (function(){
+      var fe=document.getElementById('filterEng'); if(fe) fe.addEventListener('change',renderEng);
+      var fs=document.getElementById('filterEngSearch'); if(fs) fs.addEventListener('input',renderEng);
+      var re=document.getElementById('refreshEng'); if(re) re.addEventListener('click',load);
+    })();
     document.getElementById('dedupe').addEventListener('click',function(){
       var b=this; b.disabled=true; var old=b.textContent; b.textContent='Analyse…';
       fetch('/api/admin/rag/duplicates').then(function(r){return r.json();}).then(function(j){
