@@ -499,7 +499,13 @@
         } else {
           setProg(1,'✓ Document ajouté et actif ('+(doc.mode==='texte_integral'?'texte intégral':'lexical')+').');
         }
-        note('Document « '+doc.title+' » ajouté.','ok');
+        if(doc.deduped){
+          note(doc.updated
+            ? 'Ce document existait déjà (contenu identique) — thème mis à jour : « '+(doc.theme||'—')+' ».'
+            : 'Ce document est déjà présent (contenu identique) — chargement ignoré.','ok');
+        } else {
+          note('Document « '+doc.title+' » ajouté.','ok');
+        }
         chosen=null; fileInput.value=''; fileName.textContent=''; document.getElementById('title').value='';
         setTimeout(function(){prog.classList.remove('on');bar.style.width='0';upmsg.textContent='';},2500);
         load();

@@ -383,7 +383,24 @@ class MemoryRagStore:
                              if m.get("sha256") == digest), None)
         if existing is not None:
             if dedupe == "skip":
-                return dict(existing)
+                # Contenu déjà présent : on NE crée pas de doublon, mais on met à
+                # jour le thème / le titre s'ils ont changé — sinon recharger le
+                # même fichier pour lui attribuer un AUTRE thème serait ignoré en
+                # silence (le nouveau thème « ne marcherait pas »).
+                changed = False
+                with self._lock:
+                    m = self._docs.get(existing["id"], existing)
+                    nt = (theme or "").strip()[:80]
+                    if nt and nt != m.get("theme"):
+                        m["theme"] = nt; changed = True
+                    ntl = (title or "").strip()[:300]
+                    if ntl and ntl != m.get("title"):
+                        m["title"] = ntl; changed = True
+                    if changed:
+                        m["updated_at"] = _now_ms(); self._save()
+                    out = dict(m)
+                out["deduped"] = True; out["updated"] = changed
+                return out
             raise RagError("doublon", 409)
         text = extract_text(ext, data)
         chunks = chunk_text(text)
@@ -708,8 +725,24 @@ class PostgresRagStore:
             "SELECT " + self._COLS + " FROM rag_documents WHERE sha256=%s LIMIT 1",
             (digest,)).fetchone()
         if existing is not None:
+            existing = self._row_to_dict(existing)
             if dedupe == "skip":
-                return self._row_to_dict(existing)
+                # Idem que le repli mémoire : recharger un contenu identique met à
+                # jour le thème / le titre au lieu de les ignorer silencieusement.
+                nt = (theme or "").strip()[:80]
+                ntl = (title or "").strip()[:300]
+                sets, params = [], []
+                if nt and nt != existing.get("theme"):
+                    sets.append("theme=%s"); params.append(nt); existing["theme"] = nt
+                if ntl and ntl != existing.get("title"):
+                    sets.append("title=%s"); params.append(ntl); existing["title"] = ntl
+                changed = bool(sets)
+                if changed:
+                    params += [_now_ms(), existing["id"]]
+                    conn.execute("UPDATE rag_documents SET " + ",".join(sets) +
+                                 ",updated_at=%s WHERE id=%s", params)
+                existing["deduped"] = True; existing["updated"] = changed
+                return existing
             raise RagError("doublon", 409)
         text = extract_text(ext, data)
         chunks = chunk_text(text)
