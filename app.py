@@ -1233,6 +1233,19 @@ def api_rag_diagnose():
         return jsonify(ok=False, error="diagnostic_echec"), 500
 
 
+def _exc_detail(exc, limit=180):
+    """Résumé COURT et ASSAINI d'une exception, sûr à renvoyer à l'admin :
+    type + message tronqué, sans URL de connexion ni mot de passe. Rend un échec
+    de traitement AUTO-DIAGNOSTIQUANT (la vraie cause s'affiche dans l'admin) sans
+    avoir à ouvrir les logs Render, et sans exposer de secret."""
+    import re as _re
+    msg = "%s: %s" % (type(exc).__name__, exc)
+    msg = _re.sub(r"postgres(?:ql)?://\S+", "«dsn»", msg, flags=_re.I)
+    msg = _re.sub(r"(?i)(password|pwd|token|api[_-]?key)\s*=\s*\S+", r"\1=«…»", msg)
+    msg = " ".join(msg.split())
+    return (msg[:limit] + "…") if len(msg) > limit else msg
+
+
 @app.route("/api/admin/rag/upload-file", methods=["POST"])
 @admin_required
 def api_rag_upload_file():
@@ -1259,8 +1272,13 @@ def api_rag_upload_file():
     except RagError as exc:
         return jsonify(ok=False, error=exc.code,
                        detail=getattr(exc, "detail", "")), exc.status
-    except Exception:
-        return jsonify(ok=False, error="traitement_echec"), 500
+    except Exception as exc:
+        # Trace complète côté serveur (logs Render) + cause réelle ASSAINIE
+        # renvoyée à l'admin : un « traitement_echec » opaque devient
+        # auto-diagnostiquant (ex. cause PostgreSQL réelle vs simple transitoire).
+        app.logger.exception("upload-file : échec du traitement de %r", f.filename)
+        return jsonify(ok=False, error="traitement_echec",
+                       detail=_exc_detail(exc)), 500
     return jsonify(ok=True, document=doc)
 
 
