@@ -110,6 +110,10 @@
   .eng-block .btn-p{background:linear-gradient(135deg,var(--violet),#7C6BF0);color:#0B0620}
   .eng-block .btn-p:hover{filter:brightness(1.08)}
   .eng-block .prog i{background:linear-gradient(90deg,var(--violet),#B9A8FF)}
+  /* Blocs de chargement côte à côte : Général | Engineering (empilés < 900px). */
+  .upgrid{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start;margin-top:8px}
+  .upgrid>.panel{margin-top:0}
+  @media (max-width:900px){.upgrid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -171,6 +175,8 @@
         N'y placez que des informations diffusables. Réservez les contenus sensibles à la visibilité <b>Interne</b>
         (utilisée pour les livrables, jamais exposée à l'assistant public).</div></div>
 
+      <!-- Blocs de chargement : Général | Engineering (2 colonnes) -->
+      <div class="upgrid">
       <!-- Chargement -->
       <div class="panel">
         <h3>Charger un document</h3>
@@ -202,7 +208,7 @@
       </div>
 
       <!-- Chargement dédié ENGINEERING (bloc indépendant) -->
-      <div class="panel eng-block" style="margin-top:22px">
+      <div class="panel eng-block">
         <h3>Charger un document — <span class="grad">Engineering</span></h3>
         <div class="hint">Bloc dédié aux documents d'ingénierie : choisissez le sous-dossier, le thème correspondant est appliqué automatiquement. Par défaut en visibilité <b>Interne</b> (documents propriétaires).</div>
         <div class="drop" id="dropEng">
@@ -232,6 +238,7 @@
         <div class="prog" id="progEng"><i></i></div>
         <div id="upmsgEng"></div>
       </div>
+      </div><!-- /upgrid -->
 
       <!-- Documents ENGINEERING — liste autonome (séparée des autres documents) -->
       <div class="panel eng-block" id="engDocsPanel" style="margin-top:16px">
