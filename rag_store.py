@@ -50,7 +50,7 @@ CHUNK_CHARS = 900              # taille cible d'un chunk (caractères)
 CHUNK_OVERLAP = 150            # recouvrement entre chunks
 MAX_FILE_BYTES = int(os.environ.get("RAG_MAX_FILE_MB", "30")) * 1024 * 1024
 MAX_CHUNK_UPLOAD = 480 * 1024  # taille max d'un morceau reçu (< MAX_CONTENT_LENGTH)
-ALLOWED_EXT = {"txt", "md", "csv", "log", "json", "pdf", "docx"}
+ALLOWED_EXT = {"txt", "md", "csv", "log", "json", "pdf", "docx", "xlsx", "xlsm"}
 VISIBILITIES = ("public", "internal")
 
 # Thèmes suggérés (l'admin peut en saisir d'autres).
@@ -163,6 +163,31 @@ def extract_text(ext, data):
             return "\n".join(parts)
         except Exception:
             raise RagError("docx_illisible", 422)
+    if ext in ("xlsx", "xlsm"):
+        try:
+            import openpyxl
+        except Exception:  # absent OU binding cassé : message propre, pas de 500 brut
+            raise RagError("xlsx_support_absent", 500)
+        try:
+            wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+        except Exception:
+            raise RagError("xlsx_illisible", 422)
+        # Chaque feuille est aplatie en lignes « cellule | cellule | … » : le
+        # tableur devient un texte cherchable (recherche plein-texte ET vectorielle).
+        parts = []
+        try:
+            for ws in wb.worksheets:
+                parts.append("## " + (ws.title or "Feuille"))
+                for row in ws.iter_rows(values_only=True):
+                    cells = [str(c) for c in row if c is not None and str(c).strip() != ""]
+                    if cells:
+                        parts.append(" | ".join(cells))
+        finally:
+            try:
+                wb.close()
+            except Exception:
+                pass
+        return "\n".join(parts)
     raise RagError("type_non_supporte", 415)
 
 

@@ -122,14 +122,14 @@
     <section class="page-head" style="padding-bottom:0">
       <span class="eyebrow"><span class="dot"></span>Administration · Base de connaissance</span>
       <h1>Base de <span class="grad">connaissance</span> RAG.</h1>
-      <p class="lead" style="margin-top:12px">Chargez vos documents (PDF, DOCX, TXT, MD, CSV) par thème.
+      <p class="lead" style="margin-top:12px">Chargez vos documents (PDF, DOCX, XLSX, TXT, MD, CSV) par thème.
         Ils alimentent en temps réel l'assistant conversationnel et la génération de livrables.</p>
       <details class="guide" style="margin:14px 0 0;border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden">
         <summary style="cursor:pointer;padding:13px 18px;font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--cyan)">❔ Guide d'utilisation</summary>
         <div style="padding:2px 20px 18px;color:var(--muted);font-size:13.5px;line-height:1.72">
           <p style="margin:.2em 0 .8em">Vos documents de référence (politiques, procédures, référentiels, rapports) sont découpés, indexés puis <b>retrouvés par pertinence</b> pour enrichir en temps réel l'<b>assistant</b> et les <b>générateurs de livrables</b> — avec citation de la source.</p>
           <ul style="margin:0;padding-left:1.15em">
-            <li><b>Formats</b> : PDF, DOCX, TXT, MD, CSV — 30 Mo maximum, en un seul envoi.</li>
+            <li><b>Formats</b> : PDF, DOCX, XLSX/XLSM, TXT, MD, CSV — 30 Mo maximum, en un seul envoi.</li>
             <li><b>Thème</b> : classe le document et affine le ciblage des recherches (puces de sélection rapide sous le champ).</li>
             <li><b>Visibilité</b> : <b>Public</b> → alimente l'assistant <i>et</i> les livrables ; <b>Interne</b> → livrables uniquement, jamais exposé à l'assistant public.</li>
             <li><b>Persistance</b> : l'indicateur « Moteur » affiche <i>texte intégral</i>/<i>vectoriel</i> (base connectée — documents conservés) ou <i>lexical (mémoire)</i> (non conservés — connectez PostgreSQL).</li>
@@ -165,9 +165,9 @@
         <div class="hint">Chargement par morceaux (fichiers lourds jusqu'à 30 Mo) puis indexation automatique.</div>
         <div class="drop" id="drop">
           <div>Glissez un fichier ici ou <b>parcourir</b></div>
-          <div class="sub" style="font-size:12px;color:var(--muted2);margin-top:4px">PDF · DOCX · TXT · MD · CSV — 30 Mo max</div>
+          <div class="sub" style="font-size:12px;color:var(--muted2);margin-top:4px">PDF · DOCX · XLSX · TXT · MD · CSV — 30 Mo max</div>
           <div class="file" id="fileName"></div>
-          <input type="file" id="file" accept=".pdf,.docx,.txt,.md,.csv,.log,.json" style="display:none">
+          <input type="file" id="file" accept=".pdf,.docx,.xlsx,.xlsm,.txt,.md,.csv,.log,.json" style="display:none">
         </div>
         <div class="frow" style="margin-top:16px">
           <div class="field"><label for="title">Titre (facultatif)</label><input type="text" id="title" placeholder="Repris du nom de fichier si vide"></div>
@@ -276,7 +276,7 @@
   <script>
   (function(){
     var MAX = 30*1024*1024;
-    var ALLOWED = ['pdf','docx','txt','md','csv','log','json'];
+    var ALLOWED = ['pdf','docx','xlsx','xlsm','txt','md','csv','log','json'];
     var rows=document.getElementById('rows'), notice=document.getElementById('notice');
     var fileInput=document.getElementById('file'), drop=document.getElementById('drop');
     var upBtn=document.getElementById('upBtn'), prog=document.getElementById('prog'), bar=prog.firstElementChild;
@@ -530,6 +530,7 @@
           fichier_manquant:'Aucun fichier sélectionné.',reseau:'Connexion interrompue pendant l\'envoi. Réessayez.',
           fichier_vide:'Fichier vide.',aucun_texte:'Aucun texte exploitable n\'a pu être extrait.',
           pdf_illisible:'PDF illisible.',docx_illisible:'DOCX illisible.',
+          xlsx_illisible:'Classeur Excel illisible ou protégé.',xlsx_support_absent:'Lecture des fichiers Excel indisponible sur le serveur.',
           requete_trop_grande:'Fichier trop lourd pour une seule requête (30 Mo maximum).',
           pdf_support_absent:'Lecture des PDF indisponible sur le serveur.',docx_support_absent:'Lecture des DOCX indisponible sur le serveur.',
           traitement_echec:'Ce document n\'a pas pu être traité (contenu illisible ou non pris en charge). Essayez un autre export/format.',
