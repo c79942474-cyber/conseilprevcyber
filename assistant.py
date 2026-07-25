@@ -101,10 +101,23 @@ def _clean_history(messages):
 _FALLBACK = "Désolé, je n'ai pas pu formuler de réponse. Pouvez-vous reformuler votre question ?"
 
 
+_GROUNDING = (
+    "\n\nAncrage sur la base de connaissance (IMPORTANT) :\n"
+    "- Fonde ta réponse en PRIORITÉ sur les extraits ci-dessus. Lorsque tu utilises "
+    "un extrait, cite sa source entre crochets, par exemple [Titre — Thème].\n"
+    "- Si les extraits ne couvrent pas la question, dis-le clairement (« La base de "
+    "connaissance ne contient pas d'élément précis sur ce point ») et distingue "
+    "nettement ce qui provient de la base de ce qui relève de connaissances générales "
+    "à faire valider.\n"
+    "- N'invente jamais de source, de chiffre ni de citation normative."
+)
+
+
 def _system(context):
-    """Prompt système, augmenté du contexte issu de la base de connaissance."""
+    """Prompt système, augmenté du contexte RAG + des règles d'ancrage/citation
+    (fiabilité : citer les sources, signaler les lacunes plutôt qu'inventer)."""
     if context:
-        return SYSTEM_PROMPT + "\n\n" + context
+        return SYSTEM_PROMPT + "\n\n" + context + _GROUNDING
     return SYSTEM_PROMPT
 
 
@@ -209,12 +222,22 @@ def last_user_message(messages):
 
 GEN_MAX_TOKENS = 3000
 
+_GEN_GROUNDING = (
+    "\n\nAncrage & sourcing du livrable (IMPORTANT) :\n"
+    "- Appuie-toi en priorité sur les extraits de la base de connaissance ci-dessus ; "
+    "cite la source entre crochets [Titre — Thème] là où tu t'en sers.\n"
+    "- Signale explicitement les points NON couverts par la base sous la forme "
+    "« À compléter : … » plutôt que de les inventer — ce livrable est un brouillon "
+    "à valider par un consultant.\n"
+    "- N'invente ni chiffre, ni référence normative, ni citation."
+)
+
 
 def generate(model, system, user, context=None, max_tokens=GEN_MAX_TOKENS):
     """Génère un document (livrable) en un seul tour, ancré sur `context` (RAG).
 
     Renvoie (texte_markdown, id_modèle). `model` : « claude » ou « mistral »."""
-    full_system = system + ("\n\n" + context if context else "")
+    full_system = system + (("\n\n" + context + _GEN_GROUNDING) if context else "")
     messages = [{"role": "user", "content": user}]
     if model == "mistral":
         return (_mistral_call(full_system, messages, max_tokens) or _FALLBACK), MISTRAL_MODEL

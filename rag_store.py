@@ -667,12 +667,38 @@ class PostgresRagStore:
                     conn.execute("ALTER TABLE rag_chunks ADD COLUMN IF NOT EXISTS "
                                  "embedding vector(%d)" % EMBED_DIM)
                     self.vector_mode = True
+                    # Index vectoriel : recherche en millisecondes à l'échelle de
+                    # milliers de documents (sans lui, pgvector fait un balayage
+                    # séquentiel). HNSW d'abord (meilleur rappel, aucun entraînement) ;
+                    # repli IVFFlat ; sinon balayage. Opérateur cosinus (<=>) →
+                    # classe d'opérateurs vector_cosine_ops. Best-effort : un échec
+                    # d'index ne casse jamais l'ingestion ni la recherche.
+                    self._ensure_vector_index(conn)
                 except Exception as exc:
                     self.vector_mode = False
                     _log.info("pgvector indisponible (%s) — recherche plein-texte.",
                               type(exc).__name__)
             finally:
                 conn.execute("SELECT pg_advisory_unlock(%s)", (self._SCHEMA_LOCK,))
+
+    @staticmethod
+    def _ensure_vector_index(conn):
+        """Crée l'index de recherche vectorielle s'il n'existe pas (idempotent).
+        HNSW (pgvector ≥ 0.5) de préférence, repli IVFFlat, sinon aucun (balayage).
+        Chaque tentative est isolée : un échec est journalisé, jamais propagé."""
+        try:
+            conn.execute("CREATE INDEX IF NOT EXISTS rag_chunks_embedding_hnsw "
+                         "ON rag_chunks USING hnsw (embedding vector_cosine_ops)")
+            return
+        except Exception as exc:
+            _log.info("Index HNSW indisponible (%s) — tentative IVFFlat.", type(exc).__name__)
+        try:
+            conn.execute("CREATE INDEX IF NOT EXISTS rag_chunks_embedding_ivf "
+                         "ON rag_chunks USING ivfflat (embedding vector_cosine_ops) "
+                         "WITH (lists=100)")
+        except Exception as exc:
+            _log.info("Aucun index vectoriel (%s) — recherche vectorielle par balayage.",
+                      type(exc).__name__)
 
     def capabilities(self):
         emb = self.vector_mode and embeddings_available()
