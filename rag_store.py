@@ -1466,6 +1466,50 @@ class ResilientRagStore:
         # les livrables, ni l'explorateur — repli mémoire silencieux.
         return self._read("search", *args, **kwargs)
 
+    def ingest_bytes(self, *args, **kwargs):
+        """Chargement d'un document TOLÉRANT aux pannes EN COURS DE VIE.
+
+        Le chemin de LECTURE (_read) sait déjà basculer en repli mémoire ;
+        l'ÉCRITURE, elle, passait par __getattr__ SANS filet. Résultat : une panne
+        PostgreSQL transitoire — connexion coupée par le pooler (Neon « -pooler »),
+        base « serverless » réveillée à froid, suspension après inactivité —
+        pendant l'INSERT faisait échouer le chargement par un « traitement_echec »
+        500 opaque, alors même que la page (lectures) s'affichait normalement.
+
+        Ici : si le moteur PostgreSQL échoue pendant l'ingestion, on tente UNE
+        reconnexion synchrone puis on réessaie. L'ingestion est idempotente
+        (dédoublonnage par empreinte SHA-256) : rejouer est sûr, aucun doublon.
+        Une reconnexion relance en général la base « serverless » réveillée à
+        froid → le document est alors enregistré DURABLEMENT. Si la base reste
+        injoignable, on lève une erreur CLAIRE et ré-essayable (base_indisponible)
+        plutôt que d'écrire silencieusement en mémoire (ce qui perdrait le document
+        au prochain redémarrage). Les RagError métier (fichier illisible…) passent
+        telles quelles."""
+        store = self._store()
+        try:
+            return store.ingest_bytes(*args, **kwargs)
+        except RagError:
+            raise
+        except Exception as exc:
+            if store is not self._pg:
+                # Le repli mémoire lui-même a échoué : rien à récupérer.
+                raise
+            self._last_error = _sanitize_pg_error(exc)
+            _log.warning("RAG : ingestion PostgreSQL échouée — reconnexion + réessai (%s).",
+                         self._last_error)
+            self._pg = None
+            if self.reconnect() and self._pg is not None:
+                try:
+                    return self._pg.ingest_bytes(*args, **kwargs)
+                except RagError:
+                    raise
+                except Exception as exc2:
+                    self._last_error = _sanitize_pg_error(exc2)
+                    _log.warning("RAG : réessai d'ingestion PostgreSQL échoué (%s).",
+                                 self._last_error)
+                    self._pg = None
+            raise RagError("base_indisponible", 503, self._last_error)
+
     def __getattr__(self, name):
         # Toutes les autres méthodes (upload, recherche, suppression…) : délègue
         # au moteur actif SANS tenter de reconnexion (pas de changement de moteur

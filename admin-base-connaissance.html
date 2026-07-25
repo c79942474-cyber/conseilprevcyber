@@ -666,6 +666,7 @@
           pdf_support_absent:'Lecture des PDF indisponible sur le serveur.',docx_support_absent:'Lecture des DOCX indisponible sur le serveur.',
           traitement_echec:'Ce document n\'a pas pu être traité (contenu illisible ou non pris en charge). Essayez un autre export/format.',
           erreur_serveur:'Erreur serveur pendant le traitement. Réessayez dans un instant.',
+          base_indisponible:'Base de connaissance momentanément injoignable (réveil à froid de la base). Réessayez dans quelques secondes — le document sera alors enregistré durablement.',
           http_500:'Erreur serveur (500). Réessayez ; si cela persiste, vérifiez les logs.',
           http_502:'Serveur momentanément indisponible (502). Réessayez.',http_503:'Serveur momentanément indisponible (503). Réessayez.',
           http_504:'Le traitement a expiré (504). Réessayez ; le fichier est peut-être trop volumineux.'
@@ -723,7 +724,8 @@
             fichier_vide:'Fichier vide.',aucun_texte:'Aucun texte exploitable — PDF scanné (image) ? Il n\'a pas de couche texte : ré-exportez-le avec OCR, ou fournissez la version Word / texte.',
             pdf_illisible:'PDF illisible ou protégé (chiffré ?).',pdf_support_absent:'Lecture des PDF indisponible sur le serveur.',docx_illisible:'DOCX illisible.',
             xlsx_illisible:'Classeur Excel illisible.',pptx_illisible:'Présentation PowerPoint illisible.',
-            traitement_echec:'Ce document n\'a pas pu être traité (format ou contenu).',requete_trop_grande:'Fichier trop lourd (30 Mo maximum).'
+            traitement_echec:'Ce document n\'a pas pu être traité (format ou contenu).',requete_trop_grande:'Fichier trop lourd (30 Mo maximum).',
+            base_indisponible:'Base momentanément injoignable (réveil à froid). Réessayez dans quelques secondes — le document sera alors enregistré durablement.'
             }[err.message]||('Échec du chargement ('+err.message+').');
           if(err.detail) m+=' — '+err.detail;
           note(m,'err'); setP(0,''); progEng.classList.remove('on');
