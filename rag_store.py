@@ -98,6 +98,10 @@ THEMES = [
     "Cahier des charges & CCTP",
     "Plan de remédiation",
     "Études de cas",
+    # — Engineering (sous-dossiers via « / ») —
+    "Engineering",
+    "Engineering / Projet OWFarm",
+    "Engineering / Oil & Gas",
     # — Clients & références —
     "Alstom",
     "Renault",

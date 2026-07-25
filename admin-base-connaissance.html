@@ -98,6 +98,7 @@
   .tchip{font-size:12px;font-family:inherit;border:1px solid var(--line);background:var(--bg2);color:var(--muted);border-radius:999px;padding:5px 12px;cursor:pointer;transition:border-color .15s,color .15s,background .15s}
   .tchip:hover{border-color:var(--cyan);color:var(--ink)}
   .tchip.on{border-color:var(--cyan);background:rgba(34,211,238,.10);color:var(--ink);font-weight:600}
+  .tchip.tsub{font-size:11.5px;color:var(--muted2);border-style:dashed;padding-left:10px}
 </style>
 </head>
 <body>
@@ -820,12 +821,18 @@
                  'Analyse de risques','Architecture & segmentation','SCADA',
                  'Supervision & détection','Gestion des correctifs','Gouvernance & CSMS',
                  'Conformité & audit','Continuité & résilience (PRA/PCA)',
+                 'Engineering','Engineering / Projet OWFarm','Engineering / Oil & Gas',
                  'Alstom','Renault','GRDF','Technip','EDF','Atos','SGP'];
       var box=document.getElementById('tchips'), ti=document.getElementById('theme');
       if(!box||!ti) return;
       function sync(){ var v=(ti.value||'').trim();
         Array.prototype.forEach.call(box.children,function(c){c.classList.toggle('on',c.getAttribute('data-t')===v);}); }
-      box.innerHTML=QUICK.map(function(t){return '<button type="button" class="tchip" data-t="'+esc(t)+'">'+esc(t)+'</button>';}).join('');
+      // Un thème contenant « / » est un SOUS-DOSSIER : le bouton affiche « ↳ enfant »
+      // (indenté, en pointillés) mais enregistre le chemin complet comme thème.
+      box.innerHTML=QUICK.map(function(t){
+        var sub=t.indexOf(' / ')>-1, label=sub?('↳ '+t.split(' / ').slice(1).join(' / ')):t;
+        return '<button type="button" class="tchip'+(sub?' tsub':'')+'" data-t="'+esc(t)+'">'+esc(label)+'</button>';
+      }).join('');
       box.addEventListener('click',function(e){var b=e.target.closest('.tchip'); if(!b) return; ti.value=b.getAttribute('data-t'); sync();});
       ti.addEventListener('input',sync);
       sync();
