@@ -1019,9 +1019,23 @@ def admin_rag_page():
 @app.route("/api/admin/rag/documents", methods=["GET"])
 @admin_required
 def api_rag_list():
-    """Liste des documents + statistiques + capacités (mode de recherche actif)."""
-    return jsonify(ok=True, documents=rag.list_documents(), stats=rag.stats(),
-                   capabilities=rag.capabilities(), themes=THEMES)
+    """Liste des documents + statistiques + capacités (mode de recherche actif).
+
+    Tolérant aux pannes : si la base a un souci passager, on renvoie une réponse
+    EXPLOITABLE (liste vide + capacités dégradées portant la cause) pour que la
+    console affiche le bandeau de diagnostic — jamais un 500 opaque « Service
+    indisponible »."""
+    try:
+        return jsonify(ok=True, documents=rag.list_documents(), stats=rag.stats(),
+                       capabilities=rag.capabilities(), themes=THEMES)
+    except Exception:
+        try:
+            caps = rag.capabilities()
+        except Exception:
+            caps = {"persistent": False, "mode": "lexical", "reason": "db_connection_failed"}
+        return jsonify(ok=True, documents=[],
+                       stats={"documents": 0, "chunks": 0, "themes": {}, "storage": None},
+                       capabilities=caps, themes=THEMES)
 
 
 @app.route("/api/admin/rag/search", methods=["POST"])

@@ -1230,6 +1230,27 @@ class ResilientRagStore:
     def _store(self):
         return self._pg if self._pg is not None else self._mem
 
+    def _read(self, method, *args, **kwargs):
+        """Opération de LECTURE tolérante aux pannes. Si le moteur PostgreSQL
+        échoue EN COURS DE VIE (connexion perdue, pooler qui coupe, base
+        suspendue…), on assainit l'erreur pour le diagnostic, on repasse en
+        repli mémoire (ce qui déclenche une reconnexion en tâche de fond) et on
+        renvoie le résultat mémoire — jamais de 500 opaque. Les RagError
+        (erreurs métier) sont laissées telles quelles."""
+        store = self._store()
+        try:
+            return getattr(store, method)(*args, **kwargs)
+        except RagError:
+            raise
+        except Exception as exc:
+            if store is self._pg:
+                self._last_error = _sanitize_pg_error(exc)
+                _log.warning("RAG : requête PostgreSQL « %s » échouée — repli mémoire (%s).",
+                             method, self._last_error)
+                self._pg = None
+                return getattr(self._mem, method)(*args, **kwargs)
+            raise
+
     def reconnect(self):
         """Essai de reconnexion immédiat et SYNCHRONE (bouton admin : l'utilisateur
         accepte d'attendre). Sonde désactivée pour borner le délai (~12 s max).
@@ -1263,11 +1284,16 @@ class ResilientRagStore:
 
     def list_documents(self):
         self._maybe_reconnect()
-        return self._store().list_documents()
+        return self._read("list_documents")
 
     def stats(self):
         self._maybe_reconnect()
-        return self._store().stats()
+        return self._read("stats")
+
+    def search(self, *args, **kwargs):
+        # Lecture tolérante : une panne de la base ne casse ni l'assistant, ni
+        # les livrables, ni l'explorateur — repli mémoire silencieux.
+        return self._read("search", *args, **kwargs)
 
     def __getattr__(self, name):
         # Toutes les autres méthodes (upload, recherche, suppression…) : délègue
