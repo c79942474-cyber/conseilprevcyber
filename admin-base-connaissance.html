@@ -575,8 +575,8 @@
         var m={type_non_supporte:'Type de fichier non pris en charge.',fichier_trop_lourd:'Fichier trop lourd (30 Mo maximum).',
           doublon:'Ce document est déjà présent dans la base (contenu identique) — chargement ignoré.',
           fichier_manquant:'Aucun fichier sélectionné.',reseau:'Connexion interrompue pendant l\'envoi. Réessayez.',
-          fichier_vide:'Fichier vide.',aucun_texte:'Aucun texte exploitable n\'a pu être extrait.',
-          pdf_illisible:'PDF illisible.',docx_illisible:'DOCX illisible.',
+          fichier_vide:'Fichier vide.',aucun_texte:'Aucun texte exploitable — s\'il s\'agit d\'un PDF scanné (image), il n\'a pas de couche texte : ré-exportez-le avec OCR (texte reconnu), ou fournissez la version Word / texte.',
+          pdf_illisible:'PDF illisible ou protégé (chiffré ?). Réessayez avec un PDF non protégé.',docx_illisible:'DOCX illisible.',
           xlsx_illisible:'Classeur Excel illisible ou protégé.',xlsx_support_absent:'Lecture des fichiers Excel indisponible sur le serveur.',
           pptx_illisible:'Présentation PowerPoint illisible ou protégée.',pptx_support_absent:'Lecture des fichiers PowerPoint indisponible sur le serveur.',
           requete_trop_grande:'Fichier trop lourd pour une seule requête (30 Mo maximum).',
@@ -637,7 +637,8 @@
         }catch(err){
           var m={type_non_supporte:'Type de fichier non pris en charge.',fichier_trop_lourd:'Fichier trop lourd (30 Mo maximum).',
             doublon:'Déjà présent (contenu identique).',fichier_manquant:'Aucun fichier sélectionné.',reseau:'Connexion interrompue. Réessayez.',
-            fichier_vide:'Fichier vide.',aucun_texte:'Aucun texte exploitable n\'a pu être extrait.',
+            fichier_vide:'Fichier vide.',aucun_texte:'Aucun texte exploitable — PDF scanné (image) ? Il n\'a pas de couche texte : ré-exportez-le avec OCR, ou fournissez la version Word / texte.',
+            pdf_illisible:'PDF illisible ou protégé (chiffré ?).',pdf_support_absent:'Lecture des PDF indisponible sur le serveur.',docx_illisible:'DOCX illisible.',
             xlsx_illisible:'Classeur Excel illisible.',pptx_illisible:'Présentation PowerPoint illisible.',
             traitement_echec:'Ce document n\'a pas pu être traité (format ou contenu).',requete_trop_grande:'Fichier trop lourd (30 Mo maximum).'
             }[err.message]||('Échec du chargement ('+err.message+').');
