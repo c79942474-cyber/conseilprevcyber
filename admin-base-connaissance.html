@@ -98,7 +98,18 @@
   .tchip{font-size:12px;font-family:inherit;border:1px solid var(--line);background:var(--bg2);color:var(--muted);border-radius:999px;padding:5px 12px;cursor:pointer;transition:border-color .15s,color .15s,background .15s}
   .tchip:hover{border-color:var(--cyan);color:var(--ink)}
   .tchip.on{border-color:var(--cyan);background:rgba(34,211,238,.10);color:var(--ink);font-weight:600}
-  .tchip.tsub{font-size:11.5px;color:var(--muted2);border-style:dashed;padding-left:10px}
+  .tchip.tsub{font-size:11.5px;color:#C9BEFB;border-style:dashed;border-color:rgba(139,124,246,.5);padding-left:10px}
+  .tchip.tsub:hover,.tchip.tsub.on{border-color:var(--violet);color:var(--ink);background:rgba(139,124,246,.14)}
+  /* Partie ENGINEERING — accent violet/indigo pour se distinguer nettement des
+     blocs généraux (chauds). Barre latérale + fond teinté + titres colorés. */
+  .eng-block{border-color:rgba(139,124,246,.55) !important;
+    background:linear-gradient(180deg,rgba(139,124,246,.09),rgba(139,124,246,.02) 55%,transparent),var(--panel);
+    box-shadow:inset 4px 0 0 var(--violet),0 0 0 1px rgba(139,124,246,.10)}
+  .eng-block h3,.eng-block .sec-title{color:#CDC2FC}
+  .eng-block .grad{background:linear-gradient(135deg,var(--violet),#B9A8FF);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .eng-block .btn-p{background:linear-gradient(135deg,var(--violet),#7C6BF0);color:#0B0620}
+  .eng-block .btn-p:hover{filter:brightness(1.08)}
+  .eng-block .prog i{background:linear-gradient(90deg,var(--violet),#B9A8FF)}
 </style>
 </head>
 <body>
@@ -191,7 +202,7 @@
       </div>
 
       <!-- Chargement dédié ENGINEERING (bloc indépendant) -->
-      <div class="panel" style="margin-top:22px;border-color:rgba(34,211,238,.40)">
+      <div class="panel eng-block" style="margin-top:22px">
         <h3>Charger un document — <span class="grad">Engineering</span></h3>
         <div class="hint">Bloc dédié aux documents d'ingénierie : choisissez le sous-dossier, le thème correspondant est appliqué automatiquement. Par défaut en visibilité <b>Interne</b> (documents propriétaires).</div>
         <div class="drop" id="dropEng">
@@ -223,7 +234,7 @@
       </div>
 
       <!-- Documents ENGINEERING — liste autonome (séparée des autres documents) -->
-      <div class="panel" id="engDocsPanel" style="margin-top:16px;border-color:rgba(34,211,238,.30)">
+      <div class="panel eng-block" id="engDocsPanel" style="margin-top:16px">
         <div class="topbar" style="margin:0 0 12px">
           <div class="sec-title" style="margin:0">Documents <span class="grad">Engineering</span></div>
           <div class="filterbar">
