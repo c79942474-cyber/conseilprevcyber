@@ -97,6 +97,14 @@ THEMES = [
     "Cahier des charges & CCTP",
     "Plan de remédiation",
     "Études de cas",
+    # — Clients & références —
+    "Alstom",
+    "Renault",
+    "GRDF",
+    "Technip",
+    "EDF",
+    "Atos",
+    "SGP",
     "Veille",
     "Général",
 ]
