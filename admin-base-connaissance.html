@@ -588,15 +588,25 @@
     // on ne casse pas sur « Unexpected token '<' » — on renvoie un code exploitable.
     async function readJson(r){ try{ return await r.json(); }catch(e){ return {ok:false, error:'http_'+(r&&r.status||0)}; } }
 
+    // Indexation vectorielle = POST-TRAITEMENT : à ce stade le document est DÉJÀ
+    // enregistré et cherchable en plein-texte. Un échec ici (base coupée pendant
+    // les dizaines d'allers-retours d'un gros document, embeddings indisponibles…)
+    // ne doit JAMAIS être présenté comme un échec de chargement : on renvoie
+    // 'degraded' et le document reste utilisable (« ⟳ Vectoriser » le complètera).
     async function runIndex(docId,onProg){
-      var g=0;
+      var g=0,last=-1,stuck=0;
       while(g++<10000){
-        var r=await fetch('/api/admin/rag/documents/'+docId+'/index-next',{method:'POST'});
-        var ix=await readJson(r);
-        if(!ix.ok) throw new Error(ix.error||'index');
+        var ix;
+        try{
+          var r=await fetch('/api/admin/rag/documents/'+docId+'/index-next',{method:'POST'});
+          ix=await readJson(r);
+        }catch(_){ return 'degraded'; }
+        if(!ix||!ix.ok) return 'degraded';
         if(onProg) onProg(ix.total? ix.indexed/ix.total : 1);
         if(ix.degraded){ onProg&&onProg(1); return 'degraded'; }
         if(ix.done) return 'done';
+        // Garde anti-boucle : sans progression, on s'arrête proprement.
+        if(ix.indexed===last){ if(++stuck>=3) return 'degraded'; } else { stuck=0; last=ix.indexed; }
       }
       return 'done';
     }
@@ -640,7 +650,9 @@
         load();
         if(doc.status==='indexing'){
           var res=await runIndex(doc.id,function(f){setProg(0.62+f*0.38,'Indexation… '+Math.round(f*100)+'%');});
-          setProg(1, res==='degraded'?'Indexé en mode texte intégral (embeddings indisponibles).':'✓ Document indexé et actif.');
+          setProg(1, res==='degraded'
+            ? '✓ Document ajouté et cherchable (texte intégral) — vectorisation à compléter via « ⟳ Vectoriser ».'
+            : '✓ Document indexé et actif.');
         } else {
           setProg(1,'✓ Document ajouté et actif ('+(doc.mode==='texte_integral'?'texte intégral':'lexical')+').');
         }
@@ -710,7 +722,9 @@
           setP(0.62,'Extraction & découpage…'); load();
           if(doc.status==='indexing'){
             var res=await runIndex(doc.id,function(f){setP(0.62+f*0.38,'Indexation… '+Math.round(f*100)+'%');});
-            setP(1, res==='degraded'?'Indexé en mode texte intégral (embeddings indisponibles).':'✓ Document indexé et actif.');
+            setP(1, res==='degraded'
+              ? '✓ Document ajouté et cherchable (texte intégral) — vectorisation à compléter via « ⟳ Vectoriser ».'
+              : '✓ Document indexé et actif.');
           } else { setP(1,'✓ Document Engineering ajouté et actif.'); }
           if(doc.deduped){
             note(doc.updated?('Ce document existait déjà — thème mis à jour : « '+(doc.theme||'—')+' ».'):'Ce document est déjà présent (contenu identique).','ok');

@@ -1347,7 +1347,17 @@ def api_rag_index_next(doc_id):
     try:
         return jsonify(ok=True, **rag.index_next(doc_id))
     except RagError as exc:
-        return jsonify(ok=False, error=exc.code), exc.status
+        return jsonify(ok=False, error=exc.code,
+                       detail=getattr(exc, "detail", "")), exc.status
+    except Exception as exc:
+        # L'indexation vectorielle est un POST-TRAITEMENT : le document est déjà
+        # enregistré et cherchable en plein-texte. Une panne ici (base coupée en
+        # cours d'indexation…) ne doit JAMAIS faire passer le chargement pour un
+        # échec — on le signale comme « dégradé » et le client propose de
+        # vectoriser plus tard (bouton « ⟳ Vectoriser »).
+        app.logger.exception("index-next : échec pour le document %r", doc_id)
+        return jsonify(ok=True, done=True, degraded="indexation_indisponible",
+                       detail=_exc_detail(exc))
 
 
 @app.route("/api/admin/rag/documents/<doc_id>/reindex", methods=["POST"])

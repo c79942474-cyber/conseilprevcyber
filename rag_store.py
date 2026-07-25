@@ -957,6 +957,17 @@ class PostgresRagStore:
                              "mode='texte_integral',error=%s,updated_at=%s WHERE id=%s",
                              (exc.code, _now_ms(), doc_id))
                 return {"done": True, "indexed": done, "total": nb, "degraded": exc.code}
+            except Exception:
+                # Panne INATTENDUE du service d'embeddings (réponse illisible,
+                # coupure réseau…) : même repli gracieux que ci-dessus, plutôt
+                # qu'un 500 qui ferait passer un document DÉJÀ ENREGISTRÉ pour
+                # un chargement en échec.
+                _log.exception("RAG : embeddings indisponibles (document %s)", doc_id)
+                conn.execute("UPDATE rag_documents SET status='ready',"
+                             "mode='texte_integral',error=%s,updated_at=%s WHERE id=%s",
+                             ("embeddings_indisponibles", _now_ms(), doc_id))
+                return {"done": True, "indexed": done, "total": nb,
+                        "degraded": "embeddings_indisponibles"}
             with conn.transaction():
                 for (cid, _), vec in zip(rows, vecs):
                     conn.execute("UPDATE rag_chunks SET embedding=%s::vector WHERE id=%s",
@@ -1466,28 +1477,29 @@ class ResilientRagStore:
         # les livrables, ni l'explorateur — repli mémoire silencieux.
         return self._read("search", *args, **kwargs)
 
-    def ingest_bytes(self, *args, **kwargs):
-        """Chargement d'un document TOLÉRANT aux pannes EN COURS DE VIE.
+    def _write(self, method, *args, **kwargs):
+        """Opération d'ÉCRITURE TOLÉRANTE aux pannes EN COURS DE VIE.
 
         Le chemin de LECTURE (_read) sait déjà basculer en repli mémoire ;
-        l'ÉCRITURE, elle, passait par __getattr__ SANS filet. Résultat : une panne
-        PostgreSQL transitoire — connexion coupée par le pooler (Neon « -pooler »),
-        base « serverless » réveillée à froid, suspension après inactivité —
-        pendant l'INSERT faisait échouer le chargement par un « traitement_echec »
-        500 opaque, alors même que la page (lectures) s'affichait normalement.
+        les ÉCRITURES, elles, passaient par __getattr__ SANS filet. Résultat :
+        une panne PostgreSQL transitoire — connexion coupée par le pooler
+        (Neon « -pooler »), base « serverless » réveillée à froid, suspension
+        après inactivité — faisait échouer l'opération par un 500 opaque, alors
+        même que la page (lectures) s'affichait normalement.
 
-        Ici : si le moteur PostgreSQL échoue pendant l'ingestion, on tente UNE
-        reconnexion synchrone puis on réessaie. L'ingestion est idempotente
-        (dédoublonnage par empreinte SHA-256) : rejouer est sûr, aucun doublon.
-        Une reconnexion relance en général la base « serverless » réveillée à
-        froid → le document est alors enregistré DURABLEMENT. Si la base reste
-        injoignable, on lève une erreur CLAIRE et ré-essayable (base_indisponible)
-        plutôt que d'écrire silencieusement en mémoire (ce qui perdrait le document
-        au prochain redémarrage). Les RagError métier (fichier illisible…) passent
-        telles quelles."""
+        Ici : si le moteur PostgreSQL échoue, on tente UNE reconnexion synchrone
+        puis on réessaie. Les écritures concernées sont rejouables sans dégât :
+        l'ingestion est idempotente (dédoublonnage par empreinte SHA-256) et
+        l'indexation reprend au premier fragment non encore vectorisé. Une
+        reconnexion réveille en général la base « serverless » → l'opération
+        aboutit DURABLEMENT. Si la base reste injoignable, on lève une erreur
+        CLAIRE et ré-essayable (base_indisponible) plutôt que d'écrire
+        silencieusement en mémoire (ce qui perdrait le document au prochain
+        redémarrage). Les RagError métier (fichier illisible…) passent telles
+        quelles."""
         store = self._store()
         try:
-            return store.ingest_bytes(*args, **kwargs)
+            return getattr(store, method)(*args, **kwargs)
         except RagError:
             raise
         except Exception as exc:
@@ -1495,20 +1507,34 @@ class ResilientRagStore:
                 # Le repli mémoire lui-même a échoué : rien à récupérer.
                 raise
             self._last_error = _sanitize_pg_error(exc)
-            _log.warning("RAG : ingestion PostgreSQL échouée — reconnexion + réessai (%s).",
-                         self._last_error)
+            _log.warning("RAG : écriture PostgreSQL « %s » échouée — reconnexion "
+                         "+ réessai (%s).", method, self._last_error)
             self._pg = None
             if self.reconnect() and self._pg is not None:
                 try:
-                    return self._pg.ingest_bytes(*args, **kwargs)
+                    return getattr(self._pg, method)(*args, **kwargs)
                 except RagError:
                     raise
                 except Exception as exc2:
                     self._last_error = _sanitize_pg_error(exc2)
-                    _log.warning("RAG : réessai d'ingestion PostgreSQL échoué (%s).",
-                                 self._last_error)
+                    _log.warning("RAG : réessai « %s » échoué (%s).",
+                                 method, self._last_error)
                     self._pg = None
             raise RagError("base_indisponible", 503, self._last_error)
+
+    def ingest_bytes(self, *args, **kwargs):
+        """Chargement d'un document, tolérant aux pannes (voir _write)."""
+        return self._write("ingest_bytes", *args, **kwargs)
+
+    def index_next(self, *args, **kwargs):
+        """Indexation vectorielle d'un lot, tolérante aux pannes (voir _write).
+
+        Chemin particulièrement exposé : un document volumineux demande des
+        DIZAINES d'appels successifs (EMBED_BATCH fragments par appel), soit
+        plusieurs dizaines de secondes pendant lesquelles la base « serverless »
+        peut couper. Sans filet, cette coupure faisait apparaître un chargement
+        en ÉCHEC alors que le document était déjà enregistré."""
+        return self._write("index_next", *args, **kwargs)
 
     def __getattr__(self, name):
         # Toutes les autres méthodes (upload, recherche, suppression…) : délègue
