@@ -191,10 +191,15 @@ class PostgresStore:
     def __init__(self, dsn):
         from psycopg_pool import ConnectionPool
         # connect_timeout borne l'attente si la base est injoignable (échoue vite).
+        # prepare_threshold=None : compatibilité avec un pooler PgBouncer en mode
+        # transaction (endpoint « -pooler » de Neon). check : valide la connexion
+        # avant usage (réveil à froid d'une base serverless).
         sep = "&" if "?" in dsn else "?"
-        dsn = dsn + sep + "connect_timeout=5"
+        dsn = dsn + sep + "connect_timeout=10"
         self._pool = ConnectionPool(dsn, min_size=1, max_size=4,
-                                    kwargs={"autocommit": True}, timeout=8, open=True)
+                                    kwargs={"autocommit": True, "prepare_threshold": None},
+                                    timeout=8, open=True,
+                                    check=ConnectionPool.check_connection)
         try:
             self._init_schema()
         except Exception:

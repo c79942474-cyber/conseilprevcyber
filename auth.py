@@ -169,9 +169,15 @@ class _PgStore:
         import psycopg.rows
         from psycopg_pool import ConnectionPool
         sep = "&" if "?" in dsn else "?"
-        self._pool = ConnectionPool(dsn + sep + "connect_timeout=5", min_size=1, max_size=3,
-                                    kwargs={"autocommit": True, "row_factory": psycopg.rows.dict_row},
-                                    timeout=8, open=True)
+        # prepare_threshold=None : compatibilité avec un pooler PgBouncer en mode
+        # transaction (endpoint « -pooler » de Neon) — sans quoi les requêtes
+        # préparées échouent (« prepared statement does not exist »). check :
+        # valide la connexion avant usage (réveil à froid d'une base serverless).
+        self._pool = ConnectionPool(dsn + sep + "connect_timeout=10", min_size=1, max_size=3,
+                                    kwargs={"autocommit": True, "row_factory": psycopg.rows.dict_row,
+                                            "prepare_threshold": None},
+                                    timeout=8, open=True,
+                                    check=ConnectionPool.check_connection)
         try:
             self._init()
         except Exception:
