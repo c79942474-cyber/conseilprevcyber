@@ -81,6 +81,7 @@ THEMES = [
     "Accès distant & télémaintenance",
     "Sécurité réseau & pare-feu",
     "Automates, SCADA & DCS",
+    "SCADA",
     "IIoT & objets connectés",
     "Automotive",
     "Cryptographie & PKI",
