@@ -61,6 +61,8 @@ THEMES = [
     # — Normes & réglementations —
     "IEC 62443",
     "ISO 27001 / 27002",
+    "ISO Standards",
+    "Normes",
     "NIST CSF / SP 800-82",
     "Guides ANSSI",
     "NIS2",
@@ -80,6 +82,7 @@ THEMES = [
     "Sécurité réseau & pare-feu",
     "Automates, SCADA & DCS",
     "IIoT & objets connectés",
+    "Automotive",
     "Cryptographie & PKI",
     "Supervision & détection",
     "Réponse à incident",
