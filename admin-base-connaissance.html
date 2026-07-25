@@ -110,10 +110,13 @@
   .eng-block .btn-p{background:linear-gradient(135deg,var(--violet),#7C6BF0);color:#0B0620}
   .eng-block .btn-p:hover{filter:brightness(1.08)}
   .eng-block .prog i{background:linear-gradient(90deg,var(--violet),#B9A8FF)}
-  /* Blocs de chargement côte à côte : Général | Engineering (empilés < 900px). */
-  .upgrid{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start;margin-top:8px}
-  .upgrid>.panel{margin-top:0}
-  @media (max-width:900px){.upgrid{grid-template-columns:1fr}}
+  /* Blocs Général | Engineering côte à côte : chargement (.upgrid) ET listes de
+     documents (.docgrid). Empilés sous 900px. */
+  .upgrid,.docgrid{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start;margin-top:8px}
+  /* min-width:0 : indispensable pour que les colonnes restent à parts égales et
+     que les tableaux larges défilent DANS leur colonne (au lieu de la faire déborder). */
+  .upgrid>.panel,.docgrid>.panel{margin-top:0;min-width:0}
+  @media (max-width:900px){.upgrid,.docgrid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -240,8 +243,33 @@
       </div>
       </div><!-- /upgrid -->
 
+      <!-- Listes de documents : Général | Engineering (2 colonnes) -->
+      <div class="docgrid">
+      <!-- Documents GÉNÉRAL (tout sauf Engineering) -->
+      <div class="panel">
+        <div class="topbar" style="margin:0 0 12px">
+          <div class="sec-title" style="margin:0">Documents</div>
+          <div class="filterbar">
+            <input type="search" id="filterSearch" placeholder="Rechercher un titre, un fichier, un thème…" aria-label="Rechercher un document">
+            <select id="filterTheme"><option value="">Tous les thèmes</option></select>
+            <span class="fcount" id="fcount"></span>
+            <button class="btn btn-s" id="dedupe" type="button" title="Supprimer les documents en double (contenu identique), en conservant un exemplaire de chacun">🧹 Doublons</button>
+            <button class="btn btn-s" id="backup" type="button" title="Télécharger une sauvegarde complète de la base de connaissance (à conserver hors ligne)">💾 Sauvegarder</button>
+            <button class="btn btn-s" id="restore" type="button" title="Restaurer des documents depuis un fichier de sauvegarde (sans doublon)">⤴ Restaurer</button>
+            <input type="file" id="restoreFile" accept=".json,application/json" style="display:none">
+            <button class="btn btn-s" id="refresh" type="button">↻ Actualiser</button>
+          </div>
+        </div>
+        <div class="tblwrap">
+          <table>
+            <thead><tr><th>Document</th><th>Thème</th><th>Visibilité</th><th>Statut</th><th>Taille</th><th>Ajouté</th><th>Actions</th></tr></thead>
+            <tbody id="rows"><tr><td colspan="7" class="empty">Chargement…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Documents ENGINEERING — liste autonome (séparée des autres documents) -->
-      <div class="panel eng-block" id="engDocsPanel" style="margin-top:16px">
+      <div class="panel eng-block" id="engDocsPanel">
         <div class="topbar" style="margin:0 0 12px">
           <div class="sec-title" style="margin:0">Documents <span class="grad">Engineering</span></div>
           <div class="filterbar">
@@ -258,26 +286,7 @@
           </table>
         </div>
       </div>
-
-      <div class="topbar">
-        <div class="sec-title" style="margin:0">Documents</div>
-        <div class="filterbar">
-          <input type="search" id="filterSearch" placeholder="Rechercher un titre, un fichier, un thème…" aria-label="Rechercher un document">
-          <select id="filterTheme"><option value="">Tous les thèmes</option></select>
-          <span class="fcount" id="fcount"></span>
-          <button class="btn btn-s" id="dedupe" type="button" title="Supprimer les documents en double (contenu identique), en conservant un exemplaire de chacun">🧹 Doublons</button>
-          <button class="btn btn-s" id="backup" type="button" title="Télécharger une sauvegarde complète de la base de connaissance (à conserver hors ligne)">💾 Sauvegarder</button>
-          <button class="btn btn-s" id="restore" type="button" title="Restaurer des documents depuis un fichier de sauvegarde (sans doublon)">⤴ Restaurer</button>
-          <input type="file" id="restoreFile" accept=".json,application/json" style="display:none">
-          <button class="btn btn-s" id="refresh" type="button">↻ Actualiser</button>
-        </div>
-      </div>
-      <div class="tblwrap">
-        <table>
-          <thead><tr><th>Document</th><th>Thème</th><th>Visibilité</th><th>Statut</th><th>Taille</th><th>Ajouté</th><th>Actions</th></tr></thead>
-          <tbody id="rows"><tr><td colspan="7" class="empty">Chargement…</td></tr></tbody>
-        </table>
-      </div>
+      </div><!-- /docgrid -->
 
       <!-- Explorer / tester la base de connaissance -->
       <div class="panel" id="explorePanel" style="margin-top:22px">
