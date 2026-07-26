@@ -19,7 +19,7 @@ Deux méthodes. **La question à vous poser : qu'avez-vous besoin de récupérer
 | Comment | 3 boutons dans l'admin | Ligne de commande (`pg_dump`) |
 | Compétence requise | Aucune | Savoir ouvrir un terminal |
 | Durée | ~10 min | ~30 min |
-| À installer | Rien | Outils PostgreSQL 16 |
+| À installer | Rien | Outils PostgreSQL (même version majeure que la base) |
 
 ### 👉 Notre recommandation
 
@@ -108,12 +108,21 @@ base ; seule cette méthode les déplace tous.
 
 ### Prérequis
 
-Les outils client PostgreSQL **version 16** (`pg_dump --version` doit afficher
-`16.x`) :
+Les outils client PostgreSQL, dans une version **au moins égale à celle de la
+base la plus récente** des deux. `pg_dump` refuse de lire une base plus récente
+que lui ; en revanche, restaurer vers une base plus récente ne pose aucun
+problème.
 
-- **macOS** : `brew install postgresql@16`
-- **Windows** : installeur PostgreSQL 16 (cocher « Command Line Tools »)
-- **Linux (Debian/Ubuntu)** : `sudo apt install postgresql-client-16`
+La version de chaque base est indiquée par « 🩺 Tester le chargement » (étape
+« session ») ou sur sa page Render. La base Render en service tourne
+actuellement en **PostgreSQL 18** : prévoyez donc les outils **18**.
+
+- **macOS** : `brew install postgresql@18`
+- **Windows** : installeur PostgreSQL 18 (cocher « Command Line Tools »)
+- **Linux (Debian/Ubuntu)** : `sudo apt install postgresql-client-18`
+  (dépôt officiel PGDG si le paquet est absent des dépôts de la distribution)
+
+Contrôle : `pg_dump --version`.
 
 ### 1. Créer la base Render
 

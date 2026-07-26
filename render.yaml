@@ -104,7 +104,7 @@ services:
 #
 #     nom       conseilprevcyberDB       région    Frankfurt (EU Central)
 #     plan      Basic-1gb                stockage  15 Go
-#     version   PostgreSQL 16 (pgvector) accès     réseau privé
+#     version   PostgreSQL 18 (pgvector) accès     réseau privé
 #
 # La redéclarer sous un autre nom ferait provisionner une SECONDE base par le
 # blueprint, et DATABASE_URL pointerait vers elle — c'est précisément l'incident
