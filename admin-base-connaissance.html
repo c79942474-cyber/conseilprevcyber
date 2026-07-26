@@ -180,6 +180,17 @@
         N'y placez que des informations diffusables. Réservez les contenus sensibles à la visibilité <b>Interne</b>
         (utilisée pour les livrables, jamais exposée à l'assistant public).</div></div>
 
+      <!-- Auto-test : rejoue le pipeline de chargement SUR LE SERVEUR et désigne
+           l'étape exacte qui échoue (au lieu d'un diagnostic à l'aveugle). -->
+      <div class="panel" id="selftestPanel" style="padding:14px 18px">
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-s" id="selftest" type="button" title="Charge des documents jetables sur le serveur pour vérifier chaque étape, puis les supprime">🩺 Tester le chargement</button>
+          <span class="hint" style="margin:0;flex:1;min-width:220px">Un chargement échoue sans explication ? Ce test rejoue toute la chaîne côté serveur (lecture du format, découpage, écriture, relecture) et indique l'étape fautive.</span>
+          <span class="sub" id="appver"></span>
+        </div>
+        <div id="selftestOut" style="display:none;margin-top:12px;font-family:var(--mono);font-size:11.5px;line-height:1.8"></div>
+      </div>
+
       <!-- Blocs de chargement : Général | Engineering (2 colonnes) -->
       <div class="upgrid">
       <!-- Chargement -->
@@ -641,6 +652,7 @@
       pptx_support_absent:'Lecture des présentations PowerPoint indisponible sur le serveur (bibliothèque absente) — le fichier n\'est pas en cause. Redéployez le service, ou exportez la présentation en PDF en attendant.',
       traitement_echec:'Ce document n\'a pas pu être traité (contenu illisible ou non pris en charge). Essayez un autre export/format.',
       erreur_serveur:'Erreur serveur pendant le traitement. Réessayez dans un instant.',
+      rate_limited:'Trop de tentatives rapprochées : la protection anti-abus a bloqué la requête. Patientez une minute, puis réessayez.',
       base_indisponible:'Base de connaissance momentanément injoignable (réveil à froid de la base). Réessayez dans quelques secondes — le document sera alors enregistré durablement.',
       http_500:'Erreur serveur (500). Réessayez ; si cela persiste, vérifiez les logs.',
       http_502:'Serveur momentanément indisponible (502). Réessayez.',
@@ -932,6 +944,35 @@
       }).catch(function(){out.innerHTML='Diagnostic impossible pour le moment.';})
         .then(function(){b.disabled=false;b.textContent=old;});
     });
+    // Auto-test du chargement : exécuté SUR LE SERVEUR, il désigne l'étape qui
+    // échoue réellement (format illisible, écriture en base…) au lieu de laisser
+    // deviner depuis le navigateur. Affiche aussi la version en ligne, ce qui
+    // permet de vérifier qu'un déploiement a bien abouti.
+    (function(){
+      var btn=document.getElementById('selftest'); if(!btn) return;
+      btn.addEventListener('click',function(){
+        var out=document.getElementById('selftestOut'), old=btn.textContent;
+        btn.disabled=true; btn.textContent='Test en cours…';
+        out.style.display='block'; out.innerHTML='Chargement de documents de test sur le serveur…';
+        fetch('/api/admin/rag/selftest',{method:'POST'}).then(readJson).then(function(j){
+          if(!j||!j.ok){ out.innerHTML='Auto-test indisponible ('+esc((j&&j.error)||'erreur')+').'; return; }
+          var av=document.getElementById('appver');
+          if(av&&j.version) av.textContent='version en ligne : '+j.version;
+          out.innerHTML=(j.etapes||[]).map(function(s){
+            // Étape informative en échec (bloquant===false) : marqueur NEUTRE, pour
+            // ne pas alarmer sur un point sans effet sur le chargement réel.
+            var neutre=(!s.ok&&s.bloquant===false);
+            var col=s.ok?'var(--green)':(neutre?'var(--muted2)':'var(--danger)');
+            return '<div style="color:'+col+'">'+(s.ok?'✓':(neutre?'•':'✗'))+' '
+              +esc(s.etape)+' — <span style="color:var(--muted)">'+esc(s.info)+'</span></div>';
+          }).join('')
+          +'<div style="margin-top:9px;color:var(--ink);font-family:inherit;font-size:12.5px"><b>'
+          +(j.reussi?'✅ ':'⛔ ')+'Conclusion :</b> '+esc(j.conclusion||'')+'</div>';
+        }).catch(function(){ out.innerHTML='Auto-test impossible pour le moment (serveur injoignable ?).'; })
+          .then(function(){ btn.disabled=false; btn.textContent=old; });
+      });
+    })();
+
     document.getElementById('logout').addEventListener('click',function(e){e.preventDefault();
       fetch('/api/auth/logout',{method:'POST'}).then(function(){location.href='/connexion?deconnecte=1';});});
 

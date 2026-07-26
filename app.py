@@ -75,6 +75,13 @@ from rag_store import (RagError, THEMES, build_context, dedupe as rag_dedupe,
 app = Flask(__name__)
 HERE = os.path.dirname(os.path.abspath(__file__))
 
+# Version applicative affichée dans l'admin (auto-test de la base de connaissance).
+# Sert à vérifier d'un coup d'œil QUELLE version tourne réellement en production :
+# si le numéro affiché est plus ancien que la version attendue, le déploiement n'a
+# pas abouti — et aucun correctif récent n'est en ligne. À incrémenter à chaque
+# correctif dont on veut pouvoir confirmer la mise en ligne.
+APP_VERSION = "2026.07.26-1"
+
 # --- Sécurité applicative (en-têtes, anti-CSRF, taille de requête) -------------
 # Plafond de taille du corps d'une requête (anti-abus mémoire / DoS).
 # Le chargement d'un document dans la base de connaissance (admin) envoie le
@@ -1223,6 +1230,125 @@ def api_rag_reconnect():
     reconnected = bool(fn()) if callable(fn) else False
     return jsonify(ok=True, reconnected=reconnected,
                    capabilities=rag.capabilities(), stats=rag.stats())
+
+
+@app.route("/api/admin/rag/selftest", methods=["POST"])
+@admin_required
+def api_rag_selftest():
+    """AUTO-TEST du chargement, exécuté SUR LE SERVEUR (production comprise).
+
+    Un échec de chargement peut venir de n'importe quelle étape : lecture du
+    format (bibliothèque absente), découpage, écriture en base, relecture. Vu
+    du navigateur, tout se ressemble — d'où des diagnostics à l'aveugle. Ici, on
+    rejoue le pipeline COMPLET sur des documents minuscules générés à la volée
+    (texte, puis PDF et Word si les bibliothèques sont là) et on renvoie le
+    résultat étape par étape. Les documents de test sont supprimés derrière.
+
+    Aucun secret n'est exposé : les causes techniques passent par _exc_detail."""
+    etapes = []
+
+    def etape(nom, ok, info="", bloquant=True):
+        """`bloquant=False` : étape purement informative, qui ne pèse pas sur le
+        verdict (p. ex. impossible de FABRIQUER un PDF de test — cela ne dit rien
+        de la capacité à LIRE les PDF de l'utilisateur, qui relève de pypdf)."""
+        etapes.append({"etape": nom, "ok": bool(ok), "info": (info or "")[:200],
+                       "bloquant": bool(bloquant)})
+
+    # 1. État du moteur (persistance, mode de recherche) et formats lisibles.
+    try:
+        caps = rag.capabilities()
+        etape("moteur", True, "%s%s" % (caps.get("mode", "?"),
+              "" if caps.get("persistent") else " — NON persistant (repli mémoire)"))
+    except Exception as exc:
+        caps = {}
+        etape("moteur", False, _exc_detail(exc))
+    fmts = formats_available()
+    manquants = [k for k in ("pdf", "docx", "xlsx", "pptx") if not fmts.get(k)]
+    etape("formats lisibles", not manquants,
+          "tous disponibles" if not manquants
+          else "bibliothèque absente pour : " + ", ".join(manquants))
+
+    # 2. Pipeline complet sur des documents jetables, un par format disponible.
+    corpus = [("txt", "autotest.txt",
+               b"Auto-test de la base de connaissance. "
+               b"Ce document jetable verifie l extraction, le decoupage et l ecriture.")]
+    if fmts.get("pdf"):
+        try:
+            from fpdf import FPDF
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("helvetica", size=12)
+            pdf.multi_cell(0, 8, "Auto-test PDF de la base de connaissance. "
+                                 "Verification de la lecture du format PDF.")
+            corpus.append(("pdf", "autotest.pdf", bytes(pdf.output())))
+        except Exception as exc:
+            etape("génération d'un PDF de test", False,
+                  "ignoré — le générateur fpdf2 est indisponible ici ; sans effet sur la "
+                  "LECTURE de vos PDF (assurée par pypdf, testée ci-dessus). " + _exc_detail(exc),
+                  bloquant=False)
+    if fmts.get("docx"):
+        try:
+            import docx as _docx
+            doc = _docx.Document()
+            doc.add_paragraph("Auto-test Word de la base de connaissance. "
+                              "Verification de la lecture du format .docx.")
+            buf = io.BytesIO()
+            doc.save(buf)
+            corpus.append(("docx", "autotest.docx", buf.getvalue()))
+        except Exception as exc:
+            etape("génération d'un document Word de test", False,
+                  "ignoré — générateur indisponible ; sans effet sur la LECTURE de vos "
+                  "documents Word. " + _exc_detail(exc), bloquant=False)
+
+    crees = []
+    for ext, nom, data in corpus:
+        try:
+            d = rag.ingest_bytes(nom, data, title="[auto-test] %s" % ext,
+                                 theme="Général", visibility="internal")
+            nb = int(d.get("nb_chunks") or 0)
+            if nb <= 0:
+                etape("chargement %s" % ext, False, "aucun fragment produit")
+            else:
+                crees.append(d.get("id"))
+                etape("chargement %s" % ext, True, "%d fragment(s)" % nb)
+        except RagError as exc:
+            etape("chargement %s" % ext, False,
+                  "%s %s" % (exc.code, getattr(exc, "detail", "") or ""))
+        except Exception as exc:
+            etape("chargement %s" % ext, False, _exc_detail(exc))
+
+    # 3. Relecture : le document chargé est-il bien visible dans la liste ?
+    try:
+        ids = {d.get("id") for d in rag.list_documents()}
+        manque = [i for i in crees if i not in ids]
+        etape("relecture", not manque,
+              "documents de test retrouvés" if not manque else "document écrit mais absent de la liste")
+    except Exception as exc:
+        etape("relecture", False, _exc_detail(exc))
+
+    # 4. Ménage : les documents de test ne doivent pas rester dans la base.
+    restes = 0
+    for doc_id in crees:
+        try:
+            rag.delete_document(doc_id)
+        except Exception:
+            restes += 1
+    etape("nettoyage", restes == 0,
+          "documents de test supprimés" if not restes
+          else "%d document(s) de test non supprimé(s)" % restes)
+
+    ok = all(e["ok"] for e in etapes if e["bloquant"])
+    if ok:
+        concl = ("Le chargement fonctionne de bout en bout sur le serveur. Si l'interface "
+                 "échoue malgré tout, videz le cache du navigateur (Ctrl+Maj+R) et réessayez.")
+    elif manquants:
+        concl = ("Le serveur ne sait pas lire : " + ", ".join(manquants) + ". La bibliothèque "
+                 "correspondante manque au service — relancez un déploiement (Manual Deploy → "
+                 "Clear build cache & deploy). Vos fichiers ne sont pas en cause.")
+    else:
+        premier = next((e for e in etapes if not e["ok"] and e["bloquant"]), None)
+        concl = ("Échec à l'étape « %s » : %s" % (premier["etape"], premier["info"])) if premier else "Échec."
+    return jsonify(ok=True, version=APP_VERSION, reussi=ok, etapes=etapes, conclusion=concl)
 
 
 @app.route("/api/admin/rag/diagnose", methods=["POST"])
