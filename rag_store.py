@@ -1069,6 +1069,94 @@ class PostgresRagStore:
             raise RagError("document_inconnu", 404)
         return True
 
+    # --- Occupation disque -----------------------------------------------------
+    # Une base hébergée a un plafond (512 Mo sur l'offre gratuite Neon). Une fois
+    # atteint, PostgreSQL refuse TOUTE écriture : les pages s'affichent encore
+    # (lectures) mais plus aucun document ne se charge. Sans visibilité sur
+    # l'occupation, la panne est indéchiffrable — d'où cet inventaire, puis la
+    # purge ciblée ci-dessous.
+    _TABLES = ("rag_blobs", "rag_chunks", "rag_documents", "rag_uploads")
+
+    def storage_report(self):
+        """Occupation par table + postes récupérables (fichiers d'origine,
+        résidus de chargements interrompus, bulletins de veille)."""
+        out = {"tables": [], "total_bytes": 0}
+        with self._pool.connection() as conn:
+            try:
+                out["db_bytes"] = conn.execute(
+                    "SELECT pg_database_size(current_database())").fetchone()[0]
+            except Exception:
+                out["db_bytes"] = None
+            for t in self._TABLES:
+                try:
+                    n = conn.execute("SELECT count(*) FROM %s" % t).fetchone()[0]
+                    b = conn.execute("SELECT pg_total_relation_size(%s)", (t,)).fetchone()[0]
+                except Exception:
+                    continue
+                out["tables"].append({"table": t, "lignes": n, "octets": int(b or 0)})
+                out["total_bytes"] += int(b or 0)
+            def _scalar(sql, params=()):
+                try:
+                    return conn.execute(sql, params).fetchone()[0] or 0
+                except Exception:
+                    return 0
+            out["recuperable"] = {
+                # Fichiers d'origine : utiles seulement au bouton « télécharger ».
+                # Les supprimer ne retire NI le texte NI l'indexation.
+                "fichiers_origine": int(_scalar(
+                    "SELECT COALESCE(sum(octet_length(data)),0) FROM rag_blobs")),
+                # Morceaux de chargements jamais terminés (voie de repli).
+                "chargements_interrompus": int(_scalar(
+                    "SELECT COALESCE(sum(octet_length(data)),0) FROM rag_uploads")),
+                # Bulletins CERT-FR : re-téléchargeables à volonté.
+                "veille": int(_scalar(
+                    "SELECT COALESCE(sum(octet_length(c.content)),0) FROM rag_chunks c "
+                    "JOIN rag_documents d ON d.id=c.doc_id WHERE d.theme='Veille'")),
+                "veille_documents": int(_scalar(
+                    "SELECT count(*) FROM rag_documents WHERE theme='Veille'")),
+            }
+        return out
+
+    def purge_storage(self, scopes):
+        """Libère de la place. `scopes` : sous-ensemble de {'uploads', 'veille',
+        'blobs'}. Rien n'est supprimé qui ne soit reconstituable :
+          - uploads : résidus de chargements interrompus (aucune valeur) ;
+          - veille  : bulletins CERT-FR (re-téléchargeables) ;
+          - blobs   : fichiers d'origine — les documents restent cherchables et
+                      exploitables, seul le téléchargement de l'original est perdu.
+        Un VACUUM suit pour rendre l'espace réutilisable (VACUUM FULL est écarté :
+        il réécrit la table, donc réclame de la place… précisément ce qui manque)."""
+        scopes = {s for s in (scopes or []) if s in ("uploads", "veille", "blobs")}
+        if not scopes:
+            raise RagError("rien_a_purger", 400)
+        avant = self.storage_report()
+        detail = {}
+        with self._pool.connection() as conn:
+            if "uploads" in scopes:
+                detail["chargements_interrompus"] = conn.execute(
+                    "DELETE FROM rag_uploads").rowcount
+            if "veille" in scopes:
+                detail["veille_documents"] = conn.execute(
+                    "DELETE FROM rag_documents WHERE theme='Veille'").rowcount
+            if "blobs" in scopes:
+                detail["fichiers_origine"] = conn.execute(
+                    "DELETE FROM rag_blobs").rowcount
+        # VACUUM exige l'autocommit (hors transaction).
+        vacuum_ok = True
+        try:
+            with self._pool.connection() as conn:
+                conn.autocommit = True
+                for t in self._TABLES:
+                    conn.execute("VACUUM (ANALYZE) %s" % t)
+        except Exception as exc:
+            vacuum_ok = False
+            _log.warning("RAG : VACUUM après purge impossible (%s)", _sanitize_pg_error(exc))
+        apres = self.storage_report()
+        return {"avant": avant, "apres": apres, "supprime": detail,
+                "vacuum": vacuum_ok,
+                "libere_octets": max(0, (avant.get("total_bytes") or 0)
+                                     - (apres.get("total_bytes") or 0))}
+
     def stats(self):
         with self._pool.connection() as conn:
             docs = conn.execute("SELECT count(*) FROM rag_documents").fetchone()[0]

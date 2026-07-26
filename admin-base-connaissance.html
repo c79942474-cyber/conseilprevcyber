@@ -189,6 +189,20 @@
           <span class="sub" id="appver"></span>
         </div>
         <div id="selftestOut" style="display:none;margin-top:12px;font-family:var(--mono);font-size:11.5px;line-height:1.8"></div>
+        <!-- Occupation disque : une base pleine refuse TOUTE écriture (plus aucun
+             chargement) tout en laissant les pages s'afficher. -->
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
+          <button class="btn btn-s" id="storageBtn" type="button" title="Afficher l'occupation de la base et ce qui peut être libéré">📊 Espace disque</button>
+          <span class="hint" style="margin:0;flex:1;min-width:220px">Une base saturée bloque tous les chargements. Vérifiez l'occupation et libérez le superflu.</span>
+        </div>
+        <div id="storageOut" style="display:none;margin-top:12px;font-family:var(--mono);font-size:11.5px;line-height:1.8"></div>
+        <div id="purgeBox" style="display:none;margin-top:10px">
+          <label style="display:block;margin-bottom:6px;font-size:12.5px;color:var(--muted)">À libérer (rien d'irremplaçable : les documents et leur indexation restent intacts)</label>
+          <label style="display:inline-flex;gap:6px;align-items:center;margin-right:14px;font-size:12.5px"><input type="checkbox" id="pgUploads" checked> Résidus de chargements interrompus</label>
+          <label style="display:inline-flex;gap:6px;align-items:center;margin-right:14px;font-size:12.5px"><input type="checkbox" id="pgVeille"> Bulletins de veille CERT-FR <span class="sub">(re-téléchargeables)</span></label>
+          <label style="display:inline-flex;gap:6px;align-items:center;margin-right:14px;font-size:12.5px"><input type="checkbox" id="pgBlobs"> Fichiers d'origine <span class="sub">(documents conservés et cherchables ; seul le téléchargement de l'original est perdu)</span></label>
+          <div style="margin-top:10px"><button class="btn btn-s" id="purgeBtn" type="button">🧹 Libérer l'espace</button></div>
+        </div>
       </div>
 
       <!-- Blocs de chargement : Général | Engineering (2 colonnes) -->
@@ -1032,6 +1046,53 @@
           +(j.reussi?'✅ ':'⛔ ')+'Conclusion :</b> '+esc(j.conclusion||'')+'</div>';
         }).catch(function(){ out.innerHTML='Auto-test impossible pour le moment (serveur injoignable ?).'; })
           .then(function(){ btn.disabled=false; btn.textContent=old; });
+      });
+    })();
+
+    // Occupation disque + libération. Une base saturée refuse toute écriture :
+    // plus aucun chargement ne passe alors que les pages s'affichent encore.
+    (function(){
+      var sb=document.getElementById('storageBtn'); if(!sb) return;
+      var out=document.getElementById('storageOut'), box=document.getElementById('purgeBox');
+      function ligne(l,v,cls){ return '<div>'+esc(l)+' — <span style="color:'+(cls||'var(--muted)')+'">'+esc(v)+'</span></div>'; }
+      function afficher(j){
+        var r=j.recuperable||{}, t=(j.tables||[]);
+        out.innerHTML=
+          '<div style="color:var(--ink)"><b>Base : '+fmtBytes(j.db_bytes||j.total_bytes||0)+'</b>'
+          +' <span style="color:var(--muted)">(plafond de l\'offre gratuite Neon : 512 Mo)</span></div>'
+          +t.map(function(x){ return ligne('  '+x.table, fmtBytes(x.octets)+' · '+x.lignes+' lignes'); }).join('')
+          +'<div style="margin-top:8px;color:var(--ink)"><b>Récupérable :</b></div>'
+          +ligne('  fichiers d\'origine', fmtBytes(r.fichiers_origine||0))
+          +ligne('  chargements interrompus', fmtBytes(r.chargements_interrompus||0))
+          +ligne('  veille CERT-FR', fmtBytes(r.veille||0)+' · '+(r.veille_documents||0)+' document(s)');
+        out.style.display='block'; box.style.display='block';
+      }
+      sb.addEventListener('click',function(){
+        var old=sb.textContent; sb.disabled=true; sb.textContent='Mesure…';
+        out.style.display='block'; out.innerHTML='Mesure de l\'occupation…';
+        apiFetch('/api/admin/rag/storage',{method:'POST'}).then(readJson).then(function(j){
+          if(!j||!j.ok){ out.innerHTML='Occupation indisponible ('+esc((j&&j.error)||'erreur')+').'; return; }
+          afficher(j);
+        }).catch(function(){ out.innerHTML='Mesure impossible pour le moment.'; })
+          .then(function(){ sb.disabled=false; sb.textContent=old; });
+      });
+      document.getElementById('purgeBtn').addEventListener('click',function(){
+        var sc=[];
+        if(document.getElementById('pgUploads').checked) sc.push('uploads');
+        if(document.getElementById('pgVeille').checked) sc.push('veille');
+        if(document.getElementById('pgBlobs').checked) sc.push('blobs');
+        if(!sc.length){ note('Cochez au moins un élément à libérer.','err'); return; }
+        if(sc.indexOf('blobs')>-1 && !confirm('Supprimer les fichiers d\'origine ?\n\nLes documents restent en base, cherchables et exploitables : seul le téléchargement du fichier d\'origine sera perdu.')) return;
+        if(sc.indexOf('veille')>-1 && !confirm('Supprimer les bulletins de veille CERT-FR ?\n\nIls seront re-téléchargés lors de la prochaine actualisation de la veille.')) return;
+        var b=this, old=b.textContent; b.disabled=true; b.textContent='Libération…';
+        apiFetch('/api/admin/rag/purge',{method:'POST',headers:{'content-type':'application/json'},
+          body:JSON.stringify({scopes:sc})}).then(readJson).then(function(j){
+          if(!j||!j.ok){ note('Libération impossible ('+esc((j&&j.error)||'erreur')+((j&&j.detail)?(' — '+j.detail):'')+').','err'); return; }
+          note('Espace libéré : '+fmtBytes(j.libere_octets||0)
+               +(j.vacuum?'':' (compactage différé — relancez plus tard)')+'.','ok');
+          afficher(j.apres||{}); load();
+        }).catch(function(){ note('Libération impossible pour le moment.','err'); })
+          .then(function(){ b.disabled=false; b.textContent=old; });
       });
     })();
 

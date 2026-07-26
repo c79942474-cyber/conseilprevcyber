@@ -81,7 +81,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # si le numéro affiché est plus ancien que la version attendue, le déploiement n'a
 # pas abouti — et aucun correctif récent n'est en ligne. À incrémenter à chaque
 # correctif dont on veut pouvoir confirmer la mise en ligne.
-APP_VERSION = "2026.07.26-2"
+APP_VERSION = "2026.07.26-3"
 
 # --- Sécurité applicative (en-têtes, anti-CSRF, taille de requête) -------------
 # Plafond de taille du corps d'une requête (anti-abus mémoire / DoS).
@@ -1281,6 +1281,50 @@ def api_rag_reconnect():
     reconnected = bool(fn()) if callable(fn) else False
     return jsonify(ok=True, reconnected=reconnected,
                    capabilities=rag.capabilities(), stats=rag.stats())
+
+
+@app.route("/api/admin/rag/storage", methods=["POST"])
+@admin_required
+def api_rag_storage():
+    """Occupation disque de la base de connaissance + postes récupérables.
+
+    Une base hébergée a un plafond (512 Mo sur l'offre gratuite Neon). Atteint,
+    il fait échouer TOUTE écriture : la page s'affiche encore mais plus aucun
+    document ne se charge. Rendre l'occupation visible évite que cette panne se
+    reproduise sans qu'on comprenne pourquoi."""
+    fn = getattr(rag, "storage_report", None)
+    if not callable(fn):
+        return jsonify(ok=False, error="indisponible",
+                       message="Occupation disponible uniquement avec PostgreSQL."), 409
+    try:
+        return jsonify(ok=True, **fn())
+    except Exception as exc:
+        return jsonify(ok=False, error="storage_echec", detail=_exc_detail(exc)), 500
+
+
+@app.route("/api/admin/rag/purge", methods=["POST"])
+@admin_required
+def api_rag_purge():
+    """Libère de la place en supprimant UNIQUEMENT du reconstituable :
+    résidus de chargements interrompus, bulletins de veille, fichiers d'origine
+    (les documents restent cherchables ; seul le téléchargement de l'original
+    est perdu). Les documents et leur indexation ne sont jamais touchés."""
+    fn = getattr(rag, "purge_storage", None)
+    if not callable(fn):
+        return jsonify(ok=False, error="indisponible",
+                       message="Purge disponible uniquement avec PostgreSQL."), 409
+    data = request.get_json(silent=True) or {}
+    scopes = data.get("scopes") or []
+    if not isinstance(scopes, list):
+        return jsonify(ok=False, error="scopes_invalides"), 400
+    try:
+        return jsonify(ok=True, **fn(scopes))
+    except RagError as exc:
+        return jsonify(ok=False, error=exc.code,
+                       detail=getattr(exc, "detail", "")), exc.status
+    except Exception as exc:
+        app.logger.exception("purge : échec")
+        return jsonify(ok=False, error="purge_echec", detail=_exc_detail(exc)), 500
 
 
 @app.route("/api/admin/rag/selftest", methods=["POST"])
