@@ -56,7 +56,8 @@ import zipfile
 from urllib.parse import urlparse
 
 import requests
-from flask import Flask, Response, jsonify, request, send_file, send_from_directory
+from flask import (Flask, Response, jsonify, redirect, request, send_file,
+                   send_from_directory)
 
 import assistant
 import automation
@@ -80,7 +81,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # si le numéro affiché est plus ancien que la version attendue, le déploiement n'a
 # pas abouti — et aucun correctif récent n'est en ligne. À incrémenter à chaque
 # correctif dont on veut pouvoir confirmer la mise en ligne.
-APP_VERSION = "2026.07.26-1"
+APP_VERSION = "2026.07.26-2"
 
 # --- Sécurité applicative (en-têtes, anti-CSRF, taille de requête) -------------
 # Plafond de taille du corps d'une requête (anti-abus mémoire / DoS).
@@ -1112,8 +1113,36 @@ def admin_home():
 @app.route("/admin/base-connaissance")
 @admin_required
 def admin_rag_page():
-    """Console d'administration de la base de connaissance RAG."""
-    return _serve_fast("admin-base-connaissance.html", _CC_ADMIN)
+    """Console d'administration de la base de connaissance RAG.
+
+    Retour d'un chargement par formulaire classique (paramètre « up ») : le
+    résultat est inséré DANS LA PAGE côté serveur. Indispensable pour que la
+    confirmation reste visible quand le JavaScript est indisponible — c'est
+    précisément le cas où ce mode de chargement sert de secours."""
+    code = (request.args.get("up") or "").strip()
+    if not code:
+        return _serve_fast("admin-base-connaissance.html", _CC_ADMIN)
+    titre = (request.args.get("t") or "")[:120]
+    detail = (request.args.get("d") or "")[:160]
+    if code == "ok":
+        banner = ("<div class=\"warn\" style=\"border-color:rgba(52,211,153,.55);"
+                  "background:rgba(52,211,153,.12)\"><span>✅</span><div>Document "
+                  "<b>%s</b> chargé et enregistré.</div></div>" % html_lib.escape(titre))
+    else:
+        banner = ("<div class=\"warn\" style=\"border-color:rgba(248,113,113,.55);"
+                  "background:rgba(248,113,113,.12)\"><span>⛔</span><div>Échec du "
+                  "chargement : <b>%s</b>%s</div></div>"
+                  % (html_lib.escape(code),
+                     (" — " + html_lib.escape(detail)) if detail else ""))
+    try:
+        raw = _static_entry("admin-base-connaissance.html")["raw"].decode("utf-8")
+    except Exception:
+        return _serve_fast("admin-base-connaissance.html", _CC_ADMIN)
+    marqueur = '<div id="notice"></div>'
+    html = raw.replace(marqueur, marqueur + banner, 1) if marqueur in raw else raw
+    resp = Response(html, mimetype="text/html; charset=utf-8")
+    resp.headers["Cache-Control"] = "private, no-store"   # page personnalisée
+    return resp
 
 
 @app.route("/api/admin/rag/documents", methods=["GET"])
@@ -1409,10 +1438,27 @@ def api_rag_upload_file():
 
     Idempotent : recharger un contenu déjà présent renvoie le document existant
     (aucun doublon) au lieu d'échouer — comportement volontairement robuste."""
+    # Envoi par formulaire HTML classique (sans JavaScript) : on conclut par une
+    # REDIRECTION vers la page, message en paramètre — motif « Post/Redirect/Get ».
+    # C'est ce qui rend le chargement possible même si le script de la page est
+    # indisponible ou en erreur : le navigateur seul suffit.
+    form_post = bool(request.form.get("_redirect"))
+
+    def _fin(code, detail="", titre=""):
+        if not form_post:
+            return None
+        from urllib.parse import urlencode
+        q = {"up": code}
+        if titre:
+            q["t"] = titre[:120]
+        if detail:
+            q["d"] = detail[:160]
+        return redirect("/admin/base-connaissance?" + urlencode(q), code=303)
+
     f = request.files.get("file")
     if f is None or not (f.filename or "").strip():
-        return jsonify(ok=False, error="fichier_manquant",
-                       message="Aucun fichier fourni."), 400
+        return _fin("fichier_manquant") or (jsonify(
+            ok=False, error="fichier_manquant", message="Aucun fichier fourni."), 400)
     data = f.read()
     try:
         doc = rag.ingest_bytes(
@@ -1421,16 +1467,16 @@ def api_rag_upload_file():
             theme=(request.form.get("theme") or "").strip(),
             visibility=(request.form.get("visibility") or "public").strip())
     except RagError as exc:
-        return jsonify(ok=False, error=exc.code,
-                       detail=getattr(exc, "detail", "")), exc.status
+        return _fin(exc.code, getattr(exc, "detail", "")) or (jsonify(
+            ok=False, error=exc.code, detail=getattr(exc, "detail", "")), exc.status)
     except Exception as exc:
         # Trace complète côté serveur (logs Render) + cause réelle ASSAINIE
         # renvoyée à l'admin : un « traitement_echec » opaque devient
         # auto-diagnostiquant (ex. cause PostgreSQL réelle vs simple transitoire).
         app.logger.exception("upload-file : échec du traitement de %r", f.filename)
-        return jsonify(ok=False, error="traitement_echec",
-                       detail=_exc_detail(exc)), 500
-    return jsonify(ok=True, document=doc)
+        return _fin("traitement_echec", _exc_detail(exc)) or (jsonify(
+            ok=False, error="traitement_echec", detail=_exc_detail(exc)), 500)
+    return _fin("ok", "", doc.get("title") or f.filename) or jsonify(ok=True, document=doc)
 
 
 @app.route("/api/admin/rag/upload/init", methods=["POST"])

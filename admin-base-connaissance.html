@@ -196,16 +196,22 @@
       <!-- Chargement -->
       <div class="panel">
         <h3>Charger un document</h3>
-        <div class="hint">Chargement par morceaux (fichiers lourds jusqu'à 30 Mo) puis indexation automatique.</div>
+        <div class="hint">Chargement en une seule requête (jusqu'à 30 Mo) puis indexation automatique.</div>
+        <!-- VRAI formulaire HTML : le chargement fonctionne même si le JavaScript
+             est indisponible ou en erreur (le script se contente d'ajouter le
+             glisser-déposer et la barre de progression). _redirect signale au
+             serveur un envoi classique, à conclure par une redirection. -->
+        <form id="formGen" method="post" action="/api/admin/rag/upload-file" enctype="multipart/form-data">
+        <input type="hidden" name="_redirect" value="1">
         <div class="drop" id="drop">
           <div>Glissez un fichier ici ou <b>parcourir</b></div>
           <div class="sub" style="font-size:12px;color:var(--muted2);margin-top:4px">PDF · DOCX · XLSX · PPTX · TXT · MD · CSV — 30 Mo max</div>
           <div class="file" id="fileName"></div>
-          <input type="file" id="file" accept=".pdf,.docx,.xlsx,.xlsm,.pptx,.pptm,.txt,.md,.csv,.log,.json" style="display:none">
+          <input type="file" id="file" name="file" required accept=".pdf,.docx,.xlsx,.xlsm,.pptx,.pptm,.txt,.md,.csv,.log,.json" style="margin-top:10px">
         </div>
         <div class="frow" style="margin-top:16px">
-          <div class="field"><label for="title">Titre (facultatif)</label><input type="text" id="title" placeholder="Repris du nom de fichier si vide"></div>
-          <div class="field"><label for="theme">Thème</label><input list="themes" id="theme" placeholder="IEC 62443, NIS2…" value="Général"><datalist id="themes"></datalist></div>
+          <div class="field"><label for="title">Titre (facultatif)</label><input type="text" id="title" name="title" placeholder="Repris du nom de fichier si vide"></div>
+          <div class="field"><label for="theme">Thème</label><input list="themes" id="theme" name="theme" placeholder="IEC 62443, NIS2…" value="Général"><datalist id="themes"></datalist></div>
         </div>
         <div class="field" style="margin-top:-2px">
           <label>Domaine à enrichir — sélection rapide</label>
@@ -214,11 +220,12 @@
         <div class="field">
           <label>Visibilité</label>
           <div class="vis">
-            <label><input type="radio" name="vis" value="public" checked><span><b>Public</b>Alimente l'assistant conversationnel et les livrables.</span></label>
-            <label><input type="radio" name="vis" value="internal"><span><b>Interne</b>Livrables uniquement — jamais exposé à l'assistant public.</span></label>
+            <label><input type="radio" name="visibility" value="public" checked><span><b>Public</b>Alimente l'assistant conversationnel et les livrables.</span></label>
+            <label><input type="radio" name="visibility" value="internal"><span><b>Interne</b>Livrables uniquement — jamais exposé à l'assistant public.</span></label>
           </div>
         </div>
-        <div style="margin-top:8px"><button class="btn btn-p" id="upBtn" disabled>Charger &amp; indexer</button></div>
+        <div style="margin-top:8px"><button class="btn btn-p" id="upBtn" type="submit">Charger &amp; indexer</button></div>
+        </form>
         <div class="prog" id="prog"><i></i></div>
         <div id="upmsg"></div>
       </div>
@@ -227,16 +234,19 @@
       <div class="panel eng-block">
         <h3>Charger un document — <span class="grad">Engineering</span></h3>
         <div class="hint">Bloc dédié aux documents d'ingénierie : choisissez le sous-dossier, le thème correspondant est appliqué automatiquement. Par défaut en visibilité <b>Interne</b> (documents propriétaires).</div>
+        <!-- Même principe que le bloc général : vrai formulaire, fonctionnel sans JS. -->
+        <form id="formEng" method="post" action="/api/admin/rag/upload-file" enctype="multipart/form-data">
+        <input type="hidden" name="_redirect" value="1">
         <div class="drop" id="dropEng">
           <div>Glissez un fichier ici ou <b>parcourir</b></div>
           <div class="sub" style="font-size:12px;color:var(--muted2);margin-top:4px">PDF · DOCX · XLSX · PPTX · TXT · MD · CSV — 30 Mo max</div>
           <div class="file" id="fileNameEng"></div>
-          <input type="file" id="fileEng" accept=".pdf,.docx,.xlsx,.xlsm,.pptx,.pptm,.txt,.md,.csv,.log,.json" style="display:none">
+          <input type="file" id="fileEng" name="file" required accept=".pdf,.docx,.xlsx,.xlsm,.pptx,.pptm,.txt,.md,.csv,.log,.json" style="margin-top:10px">
         </div>
         <div class="frow" style="margin-top:16px">
-          <div class="field"><label for="titleEng">Titre (facultatif)</label><input type="text" id="titleEng" placeholder="Repris du nom de fichier si vide"></div>
+          <div class="field"><label for="titleEng">Titre (facultatif)</label><input type="text" id="titleEng" name="title" placeholder="Repris du nom de fichier si vide"></div>
           <div class="field"><label for="themeEng">Sous-dossier Engineering</label>
-            <select id="themeEng">
+            <select id="themeEng" name="theme">
               <option value="Engineering">Engineering (racine)</option>
               <option value="Engineering / Projet OWFarm">Projet OWFarm</option>
               <option value="Engineering / Oil &amp; Gas">Oil &amp; Gas</option>
@@ -246,11 +256,12 @@
         <div class="field">
           <label>Visibilité</label>
           <div class="vis">
-            <label><input type="radio" name="visEng" value="internal" checked><span><b>Interne</b>Livrables uniquement — jamais exposé à l'assistant public.</span></label>
-            <label><input type="radio" name="visEng" value="public"><span><b>Public</b>Alimente aussi l'assistant conversationnel.</span></label>
+            <label><input type="radio" name="visibility" value="internal" checked><span><b>Interne</b>Livrables uniquement — jamais exposé à l'assistant public.</span></label>
+            <label><input type="radio" name="visibility" value="public"><span><b>Public</b>Alimente aussi l'assistant conversationnel.</span></label>
           </div>
         </div>
-        <div style="margin-top:8px"><button class="btn btn-p" id="upBtnEng" disabled>Charger &amp; indexer</button></div>
+        <div style="margin-top:8px"><button class="btn btn-p" id="upBtnEng" type="submit">Charger &amp; indexer</button></div>
+        </form>
         <div class="prog" id="progEng"><i></i></div>
         <div id="upmsgEng"></div>
       </div>
@@ -611,6 +622,17 @@
     // on ne casse pas sur « Unexpected token '<' » — on renvoie un code exploitable.
     async function readJson(r){ try{ return await r.json(); }catch(e){ return {ok:false, error:'http_'+(r&&r.status||0)}; } }
 
+    // Retour d'un envoi par formulaire classique (sans JavaScript) : le serveur a
+    // redirigé ici avec le résultat en paramètre. On l'affiche puis on nettoie
+    // l'URL, pour qu'un rafraîchissement ne réaffiche pas un vieux message.
+    // Le message lui-même est inséré PAR LE SERVEUR (il doit rester visible même
+    // sans JavaScript). Ici, on se contente de nettoyer l'URL pour qu'un
+    // rafraîchissement ne réaffiche pas un résultat périmé.
+    (function(){
+      if(!/[?&]up=/.test(location.search)) return;
+      if(window.history&&history.replaceState) history.replaceState(null,'',location.pathname);
+    })();
+
     // Toutes les requêtes d'ÉCRITURE de cette page passent par ici : on y ajoute
     // l'en-tête maison qui prouve la même origine au garde anti-CSRF. Utile quand
     // le navigateur (durci, ou avec une extension de confidentialité) n'envoie ni
@@ -750,7 +772,7 @@
         var doc=await postFile(chosen,{
           title:document.getElementById('title').value.trim(),
           theme:document.getElementById('theme').value.trim(),
-          visibility:(document.querySelector('input[name=vis]:checked')||{}).value||'public'
+          visibility:((document.getElementById('formGen')||document).querySelector('input[name=visibility]:checked')||{}).value||'public'
         },function(f){ setProg(0.03+f*0.57,'Envoi… '+Math.round(f*100)+'%'); });
         setProg(0.62,'Extraction & découpage…');
         load();
@@ -777,7 +799,15 @@
         note(m,'err'); setProg(0,''); prog.classList.remove('on');
       }finally{ upBtn.disabled=!chosen; }
     }
-    upBtn.addEventListener('click',upload);
+    // Le script PREND LE RELAIS du formulaire : il intercepte l'envoi pour offrir
+    // la barre de progression. S'il n'est pas exécuté (erreur JS, script bloqué),
+    // le formulaire part normalement et le chargement fonctionne quand même.
+    (function(){
+      var fg=document.getElementById('formGen');
+      if(fg){ fg.addEventListener('submit',function(e){ e.preventDefault(); upload(); });
+              fileInput.style.display='none'; upBtn.disabled=true; }
+      else { upBtn.addEventListener('click',upload); }
+    })();
 
     // ---- Bloc de chargement dédié ENGINEERING (indépendant, réutilise postFile/runIndex/note/load) ----
     (function(){
@@ -798,14 +828,14 @@
       dropEng.addEventListener('dragover',function(e){e.preventDefault();dropEng.classList.add('drag');});
       dropEng.addEventListener('dragleave',function(){dropEng.classList.remove('drag');});
       dropEng.addEventListener('drop',function(e){e.preventDefault();dropEng.classList.remove('drag');pickEng(e.dataTransfer.files&&e.dataTransfer.files[0]);});
-      btnEng.addEventListener('click',async function(){
+      async function uploadEng(){
         if(!chosenEng) return; btnEng.disabled=true;
         try{
           setP(0.03,'Envoi…');
           var doc=await postFile(chosenEng,{
             title:document.getElementById('titleEng').value.trim(),
             theme:document.getElementById('themeEng').value,
-            visibility:(document.querySelector('input[name=visEng]:checked')||{}).value||'internal'
+            visibility:((document.getElementById('formEng')||document).querySelector('input[name=visibility]:checked')||{}).value||'internal'
           },function(f){setP(0.03+f*0.57,'Envoi… '+Math.round(f*100)+'%');});
           setP(0.62,'Extraction & découpage…'); load();
           if(doc.status==='indexing'){
@@ -824,7 +854,12 @@
           var m=uploadErrorMessage(err);   // même source que le bloc général
           note(m,'err'); setP(0,''); progEng.classList.remove('on');
         }finally{ btnEng.disabled=!chosenEng; }
-      });
+      }
+      // Relais du formulaire (voir bloc général) : sans JS, l'envoi natif suffit.
+      var fe=document.getElementById('formEng');
+      if(fe){ fe.addEventListener('submit',function(e){ e.preventDefault(); uploadEng(); });
+              fEng.style.display='none'; btnEng.disabled=true; }
+      else { btnEng.addEventListener('click',uploadEng); }
     })();
 
     // ---- actions liste ----
