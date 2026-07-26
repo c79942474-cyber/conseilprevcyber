@@ -1266,9 +1266,15 @@ def api_rag_duplicates():
 @app.route("/api/admin/rag/dedupe", methods=["POST"])
 @admin_required
 def api_rag_dedupe():
-    """Supprime les doublons en conservant un exemplaire par contenu."""
-    report = rag_dedupe(rag)
-    return jsonify(ok=True, **report)
+    """Supprime les doublons en conservant un exemplaire par contenu.
+
+    Un périmètre peut être demandé (« engineering ») : le dédoublonnage ne
+    touche alors qu'à ce corpus, jamais au reste de la base."""
+    data = request.get_json(silent=True) or {}
+    scope = (data.get("scope") or "").strip().lower()
+    docs = _rag_scope_docs(scope) if scope else None
+    report = rag_dedupe(rag, docs=docs)
+    return jsonify(ok=True, scope=scope or "tout", **report)
 
 
 @app.route("/api/admin/rag/reconnect", methods=["POST"])
@@ -1692,12 +1698,34 @@ def _rag_is_veille(d):
             or str(d.get("title") or "").startswith("[CERT-FR]"))
 
 
-def _rag_export():
+def _rag_is_engineering(d):
+    """Document d'ingénierie : thème « Engineering » ou l'un de ses sous-dossiers.
+    Même règle que la liste autonome de l'admin, afin que sauvegarde et
+    dédoublonnage portent EXACTEMENT sur ce que l'utilisateur voit."""
+    t = d.get("theme") or ""
+    return t == "Engineering" or t.startswith("Engineering / ")
+
+
+def _rag_scope_docs(scope):
+    """Documents du périmètre demandé (« engineering » ou tout, hors veille)."""
+    docs = [d for d in rag.list_documents() if not _rag_is_veille(d)]
+    if (scope or "").strip().lower() == "engineering":
+        return [d for d in docs if _rag_is_engineering(d)]
+    return docs
+
+
+def _rag_export(scope=None):
     """Construit la sauvegarde : pour chaque document, ses métadonnées + le
-    fichier d'origine (ou, à défaut, le texte réassemblé) encodé en base64."""
+    fichier d'origine (ou, à défaut, le texte réassemblé) encodé en base64.
+
+    `scope="engineering"` n'exporte que le corpus d'ingénierie — une sauvegarde
+    ciblée, bien plus légère à conserver et à restaurer qu'un export complet."""
+    eng_only = (scope or "").strip().lower() == "engineering"
     out = []
     for d in rag.list_documents():
         if _rag_is_veille(d):
+            continue
+        if eng_only and not _rag_is_engineering(d):
             continue
         did = d.get("id")
         filename = d.get("filename") or ((d.get("title") or "document") + ".txt")
@@ -1723,8 +1751,11 @@ def _rag_export():
 @admin_required
 def api_rag_backup():
     """Télécharge une sauvegarde complète (JSON) de la base de connaissance."""
-    payload = json.dumps(_rag_export(), ensure_ascii=False).encode("utf-8")
-    return _blob_response("conseilprevcyber-rag-backup.json", payload)
+    scope = (request.args.get("scope") or "").strip().lower()
+    payload = json.dumps(_rag_export(scope), ensure_ascii=False).encode("utf-8")
+    nom = ("conseilprevcyber-rag-engineering-backup.json"
+           if scope == "engineering" else "conseilprevcyber-rag-backup.json")
+    return _blob_response(nom, payload)
 
 
 @app.route("/api/admin/rag/restore", methods=["POST"])

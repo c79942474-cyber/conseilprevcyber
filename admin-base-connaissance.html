@@ -325,6 +325,13 @@
             <input type="search" id="filterEngSearch" placeholder="Rechercher…" aria-label="Rechercher un document Engineering">
             <select id="filterEng" aria-label="Filtrer par sous-dossier Engineering"><option value="">Tous les sous-dossiers</option></select>
             <span class="fcount" id="fcountEng"></span>
+            <!-- Mêmes outils que la liste générale, mais CANTONNÉS à l'ingénierie :
+                 le dédoublonnage et la sauvegarde ne portent que sur ce corpus. -->
+            <button class="btn btn-s" id="dedupeEng" type="button" title="Supprimer les doublons PARMI LES DOCUMENTS ENGINEERING (contenu identique), en conservant un exemplaire de chacun">🧹 Doublons</button>
+            <button class="btn btn-s" id="backupEng" type="button" title="Télécharger une sauvegarde des SEULS documents Engineering (à conserver hors ligne)">💾 Sauvegarder</button>
+            <button class="btn btn-s" id="restoreEng" type="button" title="Restaurer des documents depuis un fichier de sauvegarde (sans doublon)">⤴ Restaurer</button>
+            <input type="file" id="restoreEngFile" accept=".json,application/json" style="display:none">
+            <button class="btn btn-s" id="indexAllEng" type="button" style="display:none" title="Indexer les documents Engineering en attente : sans indexation, un document reste invisible pour la recherche, l'assistant et les livrables">▶ Indexer en attente</button>
             <button class="btn btn-s" id="refreshEng" type="button">↻ Actualiser</button>
           </div>
         </div>
@@ -467,6 +474,10 @@
       if(ia){ var att=allDocs.filter(function(d){return d.status==='indexing';}).length;
               ia.style.display=att?'inline-block':'none';
               ia.textContent='▶ Indexer '+att+' en attente'; }
+      var iae=document.getElementById('indexAllEng');
+      if(iae){ var attE=allDocs.filter(function(d){return d.status==='indexing'&&isEng(d);}).length;
+               iae.style.display=attE?'inline-block':'none';
+               iae.textContent='▶ Indexer '+attE+' en attente'; }
       rows.innerHTML=docs.length?docs.map(docRow).join('')
         :'<tr><td colspan="7" class="empty">Aucun document'+((q||f)?' ne correspond à la recherche':'')+'.</td></tr>';
       renderEng();
@@ -787,12 +798,13 @@
     // non indexé est absent de la recherche, de l'assistant et des livrables.
     // Se termine proprement si les embeddings sont indisponibles (repli plein-texte).
     var _indexEnCours=false;
-    async function indexerEnAttente(){
+    async function indexerEnAttente(scope){
       if(_indexEnCours) return;
       _indexEnCours=true;
       try{
         var j=await fetchJson('/api/admin/rag/documents',{},{retries:1});
         var att=(j&&j.documents||[]).filter(function(d){return d.status==='indexing';});
+        if(scope==='engineering') att=att.filter(isEng);
         if(!att.length) return;
         for(var i=0;i<att.length;i++){
           note('Indexation des documents restaurés… '+(i+1)+'/'+att.length+' — « '+att[i].title+' »','ok');
@@ -1004,50 +1016,68 @@
       var fs=document.getElementById('filterEngSearch'); if(fs) fs.addEventListener('input',renderEng);
       var re=document.getElementById('refreshEng'); if(re) re.addEventListener('click',load);
     })();
-    document.getElementById('dedupe').addEventListener('click',function(){
-      var b=this; b.disabled=true; var old=b.textContent; b.textContent='Analyse…';
-      fetch('/api/admin/rag/duplicates').then(function(r){return r.json();}).then(function(j){
+    // ---- Outils de liste (doublons, sauvegarde, restauration, indexation) ----
+    // UNE seule implémentation, paramétrée par PÉRIMÈTRE, câblée sur les deux
+    // barres : la liste générale et la liste Engineering. Dupliquer ces
+    // gestionnaires les ferait diverger avec le temps — c'est exactement ce qui
+    // avait produit des messages d'erreur incohérents entre les deux blocs.
+    // scope==='engineering' : les opérations ne portent QUE sur ce corpus.
+    function libScope(scope){ return scope==='engineering' ? ' Engineering' : ''; }
+
+    function outilDoublons(btn, scope){
+      var b=btn, old=b.textContent; b.disabled=true; b.textContent='Analyse…';
+      var q=scope?('?scope='+encodeURIComponent(scope)):'';
+      fetch('/api/admin/rag/duplicates'+q).then(readJson).then(function(j){
         b.disabled=false; b.textContent=old;
         if(!j||!j.ok){note('Analyse des doublons impossible.','err');return;}
-        if(!j.removable){note('Aucun doublon trouvé — la base est déjà propre.','ok');return;}
+        // Filtrage du périmètre côté client : la route d'ANALYSE reste globale,
+        // seule la suppression est cantonnée. On n'annonce donc que ce qui sera
+        // réellement supprimé, pour ne rien promettre d'inexact.
+        var groups=(j.groups||[]);
+        if(scope==='engineering'){
+          groups=groups.map(function(g){
+            return {keep:g.keep, remove:(g.remove||[]).filter(isEng)};
+          }).filter(function(g){return g.remove.length;});
+        }
+        var removable=groups.reduce(function(n,g){return n+g.remove.length;},0);
+        if(!removable){note('Aucun doublon'+libScope(scope)+' trouvé — rien à nettoyer.','ok');return;}
         var noms=[];
-        (j.groups||[]).forEach(function(g){(g.remove||[]).forEach(function(d){if(noms.length<8)noms.push('• '+(d.title||d.filename||d.id));});});
-        var msg=j.removable+' document(s) en double vont être supprimés '
+        groups.forEach(function(g){g.remove.forEach(function(d){if(noms.length<8)noms.push('• '+(d.title||d.filename||d.id));});});
+        var msg=removable+' document(s)'+libScope(scope)+' en double vont être supprimés '
           +'(un exemplaire de chaque contenu est conservé).\n\nSeront retirés :\n'+noms.join('\n')
-          +(j.removable>noms.length?('\n… (+'+(j.removable-noms.length)+' autres)'):'')+'\n\nContinuer ?';
+          +(removable>noms.length?('\n… (+'+(removable-noms.length)+' autres)'):'')+'\n\nContinuer ?';
         if(!confirm(msg))return;
         b.disabled=true; b.textContent='Suppression…';
-        apiFetch('/api/admin/rag/dedupe',{method:'POST'}).then(function(r){return r.json();}).then(function(res){
+        apiFetch('/api/admin/rag/dedupe',{method:'POST',headers:{'content-type':'application/json'},
+          body:JSON.stringify({scope:scope||''})}).then(readJson).then(function(res){
           b.disabled=false; b.textContent=old;
           if(res&&res.ok){note(res.removed+' doublon(s) supprimé(s).'+(res.errors?(' '+res.errors+' échec(s).'):''),'ok');load();}
           else{note('Suppression des doublons impossible.','err');}
         }).catch(function(){b.disabled=false;b.textContent=old;note('Suppression des doublons impossible.','err');});
       }).catch(function(){b.disabled=false;b.textContent=old;note('Analyse des doublons impossible.','err');});
-    });
-    document.getElementById('refresh').addEventListener('click',load);
-    (function(){ var ia=document.getElementById('indexAll');
-      if(ia) ia.addEventListener('click',function(){ indexerEnAttente(); }); })();
+    }
 
-    // ---- Sauvegarde / restauration (anti-crash) ----
-    document.getElementById('backup').addEventListener('click',function(){
-      var b=this,old=b.textContent;b.disabled=true;b.textContent='Sauvegarde…';
-      fetch('/api/admin/rag/backup').then(function(r){ if(!r.ok) throw new Error('http_'+r.status); return r.blob(); })
+    function outilSauvegarde(btn, scope){
+      var b=btn,old=b.textContent;b.disabled=true;b.textContent='Sauvegarde…';
+      var q=scope?('?scope='+encodeURIComponent(scope)):'';
+      fetch('/api/admin/rag/backup'+q).then(function(r){ if(!r.ok) throw new Error('http_'+r.status); return r.blob(); })
         .then(function(bl){
           var u=URL.createObjectURL(bl),a=document.createElement('a');
-          a.href=u;a.download='conseilprevcyber-rag-'+new Date().toISOString().slice(0,10)+'.json';
+          a.href=u;a.download='conseilprevcyber-rag'+(scope==='engineering'?'-engineering':'')
+                  +'-'+new Date().toISOString().slice(0,10)+'.json';
           document.body.appendChild(a);a.click();
           setTimeout(function(){URL.revokeObjectURL(u);a.remove();},1500);
-          note('Sauvegarde téléchargée — conservez-la hors ligne.','ok');
+          note('Sauvegarde'+libScope(scope)+' téléchargée — conservez-la hors ligne.','ok');
         }).catch(function(){note('Sauvegarde impossible pour le moment.','err');})
         .then(function(){b.disabled=false;b.textContent=old;});
-    });
-    document.getElementById('restore').addEventListener('click',function(){document.getElementById('restoreFile').click();});
-    document.getElementById('restoreFile').addEventListener('change',function(){
-      var inp=this, f=inp.files&&inp.files[0]; if(!f){return;}
-      if(!confirm('Restaurer les documents depuis « '+f.name+' » ?\nLes documents déjà présents seront ignorés (aucun doublon).')){inp.value='';return;}
+    }
+
+    function outilRestauration(inp, scope){
+      var f=inp.files&&inp.files[0]; if(!f){return;}
+      if(!confirm('Restaurer les documents depuis « '+f.name+' » ?\nLes documents déjà présents seront ignorés (aucun doublon).\n\nChaque document retrouve le thème enregistré dans la sauvegarde.')){inp.value='';return;}
       var fd=new FormData(); fd.append('file',f,f.name);
       note('Restauration en cours…','ok');
-      apiFetch('/api/admin/rag/restore',{method:'POST',body:fd}).then(function(r){return readJson(r);}).then(function(j){
+      apiFetch('/api/admin/rag/restore',{method:'POST',body:fd}).then(readJson).then(function(j){
         if(!j||!j.ok){note((j&&j.error==='backup_illisible')?'Fichier de sauvegarde invalide.':'Restauration impossible.','err');return;}
         note('Restauration : '+j.restored+' restauré(s), '+j.skipped+' déjà présent(s)'+(j.failed?', '+j.failed+' échec(s)':'')+'.','ok');
         load();
@@ -1059,7 +1089,28 @@
         indexerEnAttente();
       }).catch(function(){note('Restauration impossible pour le moment.','err');})
         .then(function(){inp.value='';});
+    }
+
+    // Câblage des deux barres sur ces mêmes fonctions.
+    [['dedupe',''],['dedupeEng','engineering']].forEach(function(x){
+      var b=document.getElementById(x[0]);
+      if(b) b.addEventListener('click',function(){ outilDoublons(this,x[1]); });
     });
+    [['backup',''],['backupEng','engineering']].forEach(function(x){
+      var b=document.getElementById(x[0]);
+      if(b) b.addEventListener('click',function(){ outilSauvegarde(this,x[1]); });
+    });
+    [['restore','restoreFile',''],['restoreEng','restoreEngFile','engineering']].forEach(function(x){
+      var b=document.getElementById(x[0]), inp=document.getElementById(x[1]);
+      if(!b||!inp) return;
+      b.addEventListener('click',function(){ inp.click(); });
+      inp.addEventListener('change',function(){ outilRestauration(this,x[2]); });
+    });
+    [['indexAll',''],['indexAllEng','engineering']].forEach(function(x){
+      var b=document.getElementById(x[0]);
+      if(b) b.addEventListener('click',function(){ indexerEnAttente(x[1]); });
+    });
+    document.getElementById('refresh').addEventListener('click',load);
     document.getElementById('memReconnect').addEventListener('click',function(){
       var b=this; b.disabled=true; var old=b.textContent; b.textContent='Reconnexion…';
       apiFetch('/api/admin/rag/reconnect',{method:'POST'}).then(function(r){return r.json();}).then(function(j){

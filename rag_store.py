@@ -1739,14 +1739,18 @@ def _dup_key(d):
     return "fb:%s:%d" % ((d.get("filename") or "").lower(), int(d.get("bytes") or 0))
 
 
-def duplicate_groups(store):
+def duplicate_groups(store, docs=None):
     """Renvoie les groupes de documents en doublon (contenu identique).
 
     Pour chaque groupe on désigne le document à CONSERVER — le mieux indexé,
     puis le plus ancien (l'original) — et les autres, supprimables. Ne renvoie
-    que les groupes d'au moins deux documents. Aucune suppression ici."""
+    que les groupes d'au moins deux documents. Aucune suppression ici.
+
+    `docs` restreint l'analyse à un sous-ensemble déjà filtré (p. ex. les seuls
+    documents Engineering) : le dédoublonnage reste alors cantonné à ce
+    périmètre et ne peut pas toucher au reste de la base."""
     by_key = {}
-    for d in store.list_documents():
+    for d in (store.list_documents() if docs is None else docs):
         by_key.setdefault(_dup_key(d), []).append(d)
     groups = []
     for items in by_key.values():
@@ -1761,10 +1765,12 @@ def duplicate_groups(store):
     return groups
 
 
-def dedupe(store, dry_run=False):
+def dedupe(store, dry_run=False, docs=None):
     """Détecte les doublons et (si dry_run=False) supprime les copies en trop,
-    en conservant un exemplaire par contenu. Renvoie un compte-rendu."""
-    groups = duplicate_groups(store)
+    en conservant un exemplaire par contenu. Renvoie un compte-rendu.
+
+    `docs` limite l'opération à un périmètre donné (voir duplicate_groups)."""
+    groups = duplicate_groups(store, docs=docs)
     removable = sum(len(g["remove"]) for g in groups)
     removed = errors = 0
     if not dry_run:
