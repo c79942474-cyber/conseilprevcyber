@@ -12,6 +12,7 @@ Stockage : PostgreSQL si DATABASE_URL est défini (persistant), sinon fichier JS
 """
 import functools
 import json
+import logging
 import os
 import re
 import secrets
@@ -341,11 +342,35 @@ def _send_reset(user, base=None):
 
 
 # ------------------------------------------------------------------- sessions ---
+# Dernier profil lu avec succès, par email. Sert UNIQUEMENT de filet quand la
+# base devient injoignable en cours de vie : sans lui, la moindre coupure faisait
+# lever current_user(), et TOUTE page authentifiée répondait 500 — le site
+# entier paraissait planté alors que seule la base hoquetait.
+# La validité est volontairement courte : pendant une panne, un compte
+# fraîchement révoqué reste accepté au plus quelques minutes. C'est le prix,
+# assumé et borné, pour ne pas transformer un incident de base en panne totale.
+_USER_CACHE = {}
+_USER_CACHE_TTL = float(os.environ.get("AUTH_CACHE_TTL", "300"))
+
+
 def current_user():
     email = session.get("user_email")
     if not email:
         return None
-    u = store.get(email)
+    try:
+        u = store.get(email)
+        if u:
+            _USER_CACHE[email] = (time.time(), dict(u))
+        else:
+            _USER_CACHE.pop(email, None)
+    except Exception:
+        # Base injoignable : on repart du dernier profil connu, s'il est récent.
+        logging.getLogger("auth").warning(
+            "comptes : base injoignable — profil en cache pour la session en cours.")
+        cached = _USER_CACHE.get(email)
+        if not cached or (time.time() - cached[0]) > _USER_CACHE_TTL:
+            return None
+        u = cached[1]
     if not u or not (u.get("email_verified") and u.get("approved")):
         return None
     return u
