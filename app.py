@@ -138,6 +138,13 @@ _RATE_FAMILY = (("/api/auth/", 80, 60), ("/api/admin/", 600, 60))
 # cookie de session — donc non vulnérables au CSRF (qui exploite le cookie ambiant).
 _CSRF_EXEMPT = {"/api/ingest", "/api/reset", "/api/maintenance/purge", "/api/rag/ingest"}
 
+# En-tête maison posé par nos propres appels d'écriture (voir _same_origin_request).
+# Un site tiers ne peut pas le poser sans pré-vérification CORS — que ce service
+# n'accorde jamais : il constitue donc une preuve de même origine, utile quand le
+# navigateur n'envoie ni « Origin » ni « Referer ».
+_CSRF_HEADER = "X-CP-Same-Origin"
+_CSRF_HEADER_VALUE = "1"
+
 # En-têtes de sécurité appliqués à toutes les réponses. La CSP autorise le style
 # et le script « inline » (site statique : nombreux <style>/<script> intégrés),
 # mais verrouille le reste : pas de ressource tierce, pas d'iframe (anti-clickjacking),
@@ -170,10 +177,25 @@ def _token_ok(provided, expected):
 
 
 def _same_origin_request():
-    """Vrai si la requête provient de notre propre origine (défense anti-CSRF)."""
+    """Vrai si la requête provient de notre propre origine (défense anti-CSRF).
+
+    1. Si « Origin » ou « Referer » est présent, il DOIT désigner notre hôte —
+       contrôle strict, inchangé.
+    2. Si les DEUX sont absents, on accepte à la seule condition que la requête
+       porte notre en-tête maison (_CSRF_HEADER). Ce cas n'est pas un laxisme :
+       un navigateur envoie TOUJOURS « Origin » sur un POST inter-origines, y
+       compris depuis un formulaire — leur absence conjointe caractérise donc une
+       requête de MÊME origine émise par un navigateur durci (ou une extension de
+       confidentialité qui supprime le référent), jamais une attaque CSRF. Et un
+       en-tête personnalisé est justement ce qu'un site tiers ne peut PAS poser
+       sans pré-vérification CORS, que ce service n'accorde à personne.
+
+    Sans ce rattrapage, un tel navigateur voyait TOUTES ses requêtes d'écriture
+    rejetées en 403 — pages consultables (GET) mais plus aucun chargement
+    possible, sur tous les blocs à la fois."""
     src = request.headers.get("Origin") or request.headers.get("Referer") or ""
     if not src:
-        return False
+        return request.headers.get(_CSRF_HEADER) == _CSRF_HEADER_VALUE
     return urlparse(src).netloc == request.host
 
 

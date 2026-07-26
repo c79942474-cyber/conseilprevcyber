@@ -611,6 +611,20 @@
     // on ne casse pas sur « Unexpected token '<' » — on renvoie un code exploitable.
     async function readJson(r){ try{ return await r.json(); }catch(e){ return {ok:false, error:'http_'+(r&&r.status||0)}; } }
 
+    // Toutes les requêtes d'ÉCRITURE de cette page passent par ici : on y ajoute
+    // l'en-tête maison qui prouve la même origine au garde anti-CSRF. Utile quand
+    // le navigateur (durci, ou avec une extension de confidentialité) n'envoie ni
+    // « Origin » ni « Referer » : sans lui, le serveur rejetait TOUT en 403 et
+    // plus aucun chargement ne fonctionnait, sur tous les blocs.
+    function postOpts(opts){
+      opts=opts||{};
+      var h=opts.headers||{};
+      h['X-CP-Same-Origin']='1';
+      opts.headers=h;
+      return opts;
+    }
+    function apiFetch(url,opts){ return fetch(url,postOpts(opts)); }
+
     // Alerte « format illisible sur le serveur » : n'apparaît QUE si une
     // bibliothèque de lecture manque. Sinon, aucun bruit dans l'interface.
     function showFormats(f){
@@ -653,6 +667,11 @@
       traitement_echec:'Ce document n\'a pas pu être traité (contenu illisible ou non pris en charge). Essayez un autre export/format.',
       erreur_serveur:'Erreur serveur pendant le traitement. Réessayez dans un instant.',
       rate_limited:'Trop de tentatives rapprochées : la protection anti-abus a bloqué la requête. Patientez une minute, puis réessayez.',
+      // Refus d'accès : causes fréquentes d'un « plus rien ne se charge » alors que
+      // la page, elle, reste affichée (elle a été chargée avant l'expiration).
+      non_authentifie:'Session expirée : reconnectez-vous, puis rechargez cette page (la page reste affichée alors que la session a expiré).',
+      acces_refuse:'Accès refusé par le serveur. Reconnectez-vous, puis rechargez la page (Ctrl+Maj+R).',
+      csrf:'Requête refusée par la protection anti-CSRF (origine non transmise par le navigateur). Rechargez la page (Ctrl+Maj+R) ; si le blocage persiste, désactivez l\'extension de confidentialité qui supprime le référent, ou essayez un autre navigateur.',
       base_indisponible:'Base de connaissance momentanément injoignable (réveil à froid de la base). Réessayez dans quelques secondes — le document sera alors enregistré durablement.',
       http_500:'Erreur serveur (500). Réessayez ; si cela persiste, vérifiez les logs.',
       http_502:'Serveur momentanément indisponible (502). Réessayez.',
@@ -677,7 +696,7 @@
       while(g++<10000){
         var ix;
         try{
-          var r=await fetch('/api/admin/rag/documents/'+docId+'/index-next',{method:'POST'});
+          var r=await apiFetch('/api/admin/rag/documents/'+docId+'/index-next',{method:'POST'});
           ix=await readJson(r);
         }catch(_){ return 'degraded'; }
         if(!ix||!ix.ok) return 'degraded';
@@ -702,12 +721,20 @@
         fd.append('visibility',meta.visibility||'public');
         var xhr=new XMLHttpRequest();
         xhr.open('POST','/api/admin/rag/upload-file');
+        xhr.setRequestHeader('X-CP-Same-Origin','1');   // preuve de même origine (anti-CSRF)
         xhr.timeout=180000;
         if(xhr.upload) xhr.upload.onprogress=function(e){ if(e.lengthComputable&&onSend) onSend(e.loaded/e.total); };
         xhr.onload=function(){
           var j; try{ j=JSON.parse(xhr.responseText); }catch(_){ j={ok:false,error:'http_'+xhr.status}; }
-          if(xhr.status>=200&&xhr.status<300&&j&&j.ok) resolve(j.document);
-          else { var e=new Error((j&&j.error)||('http_'+xhr.status)); e.detail=(j&&j.detail)||''; reject(e); }
+          if(xhr.status>=200&&xhr.status<300&&j&&j.ok) return resolve(j.document);
+          // Le REFUS a priorité sur le libellé renvoyé : un 401/403/429 doit donner
+          // un message d'action clair (se reconnecter, patienter…) et non le texte
+          // brut du serveur, qui laissait l'utilisateur sans piste.
+          var code=(xhr.status===401)?'non_authentifie'
+                  :(xhr.status===403)?((j&&j.error==='csrf')?'csrf':'acces_refuse')
+                  :(xhr.status===429)?'rate_limited'
+                  :((j&&j.error)||('http_'+xhr.status));
+          var e=new Error(code); e.detail=(j&&j.detail)||''; reject(e);
         };
         xhr.onerror=function(){ reject(new Error('reseau')); };
         xhr.ontimeout=function(){ reject(new Error('http_504')); };
@@ -806,7 +833,7 @@
       var a=b.getAttribute('data-a'), id=b.getAttribute('data-id');
       if(a==='delete'){
         if(!confirm('Supprimer définitivement « '+b.getAttribute('data-t')+' » de la base ?'))return;
-        var r=await fetch('/api/admin/rag/documents/'+id,{method:'DELETE'}); var j=await readJson(r);
+        var r=await apiFetch('/api/admin/rag/documents/'+id,{method:'DELETE'}); var j=await readJson(r);
         if(j.ok){note('Document supprimé.','ok');load();}else{note('Suppression impossible.','err');}
       } else if(a==='download'){
         var rd=await fetch('/api/admin/rag/documents/'+id+'/download');
@@ -831,7 +858,7 @@
       } else if(a==='reindex'){
         b.disabled=true;b.textContent='…';
         try{
-          var rr=await fetch('/api/admin/rag/documents/'+id+'/reindex',{method:'POST'});
+          var rr=await apiFetch('/api/admin/rag/documents/'+id+'/reindex',{method:'POST'});
           var jj=await readJson(rr); if(!jj.ok) throw new Error(jj.error||'reindex');
           await runIndex(id); note('Document vectorisé (recherche sémantique active).','ok');
         }catch(_){ note('Vectorisation impossible.','err'); }
@@ -883,7 +910,7 @@
           +(j.removable>noms.length?('\n… (+'+(j.removable-noms.length)+' autres)'):'')+'\n\nContinuer ?';
         if(!confirm(msg))return;
         b.disabled=true; b.textContent='Suppression…';
-        fetch('/api/admin/rag/dedupe',{method:'POST'}).then(function(r){return r.json();}).then(function(res){
+        apiFetch('/api/admin/rag/dedupe',{method:'POST'}).then(function(r){return r.json();}).then(function(res){
           b.disabled=false; b.textContent=old;
           if(res&&res.ok){note(res.removed+' doublon(s) supprimé(s).'+(res.errors?(' '+res.errors+' échec(s).'):''),'ok');load();}
           else{note('Suppression des doublons impossible.','err');}
@@ -911,7 +938,7 @@
       if(!confirm('Restaurer les documents depuis « '+f.name+' » ?\nLes documents déjà présents seront ignorés (aucun doublon).')){inp.value='';return;}
       var fd=new FormData(); fd.append('file',f,f.name);
       note('Restauration en cours…','ok');
-      fetch('/api/admin/rag/restore',{method:'POST',body:fd}).then(function(r){return readJson(r);}).then(function(j){
+      apiFetch('/api/admin/rag/restore',{method:'POST',body:fd}).then(function(r){return readJson(r);}).then(function(j){
         if(!j||!j.ok){note((j&&j.error==='backup_illisible')?'Fichier de sauvegarde invalide.':'Restauration impossible.','err');return;}
         note('Restauration : '+j.restored+' restauré(s), '+j.skipped+' déjà présent(s)'+(j.failed?', '+j.failed+' échec(s)':'')+'.','ok');
         load();
@@ -920,7 +947,7 @@
     });
     document.getElementById('memReconnect').addEventListener('click',function(){
       var b=this; b.disabled=true; var old=b.textContent; b.textContent='Reconnexion…';
-      fetch('/api/admin/rag/reconnect',{method:'POST'}).then(function(r){return r.json();}).then(function(j){
+      apiFetch('/api/admin/rag/reconnect',{method:'POST'}).then(function(r){return r.json();}).then(function(j){
         if(j&&j.ok&&j.capabilities&&j.capabilities.persistent){
           note('Base reconnectée — persistance rétablie.','ok'); load();
         } else {
@@ -934,7 +961,7 @@
       var b=this, out=document.getElementById('diagOut');
       b.disabled=true; var old=b.textContent; b.textContent='Diagnostic…';
       out.style.display='block'; out.innerHTML='Analyse en cours (jusqu\'à ~15 s)…';
-      fetch('/api/admin/rag/diagnose',{method:'POST'}).then(function(r){return r.json();}).then(function(j){
+      apiFetch('/api/admin/rag/diagnose',{method:'POST'}).then(function(r){return r.json();}).then(function(j){
         if(!j||!j.ok){out.innerHTML='Diagnostic indisponible.';return;}
         out.innerHTML=(j.steps||[]).map(function(s){
           return '<div style="color:'+(s.ok?'var(--green)':'var(--danger)')+'">'
@@ -954,7 +981,7 @@
         var out=document.getElementById('selftestOut'), old=btn.textContent;
         btn.disabled=true; btn.textContent='Test en cours…';
         out.style.display='block'; out.innerHTML='Chargement de documents de test sur le serveur…';
-        fetch('/api/admin/rag/selftest',{method:'POST'}).then(readJson).then(function(j){
+        apiFetch('/api/admin/rag/selftest',{method:'POST'}).then(readJson).then(function(j){
           if(!j||!j.ok){ out.innerHTML='Auto-test indisponible ('+esc((j&&j.error)||'erreur')+').'; return; }
           var av=document.getElementById('appver');
           if(av&&j.version) av.textContent='version en ligne : '+j.version;
@@ -974,7 +1001,7 @@
     })();
 
     document.getElementById('logout').addEventListener('click',function(e){e.preventDefault();
-      fetch('/api/auth/logout',{method:'POST'}).then(function(){location.href='/connexion?deconnecte=1';});});
+      apiFetch('/api/auth/logout',{method:'POST'}).then(function(){location.href='/connexion?deconnecte=1';});});
 
     /* ---- Veille CERT-FR : classement automatique par thème ---- */
     var V_RULES=[
@@ -1037,7 +1064,7 @@
     document.getElementById('vtheme').addEventListener('change',renderVeille);
     document.getElementById('veilleRefresh').addEventListener('click',function(){
       var b=this,old=b.textContent;b.disabled=true;b.textContent='Collecte…';
-      fetch('/api/admin/veille/refresh',{method:'POST'}).then(function(r){return r.json();}).then(function(j){
+      apiFetch('/api/admin/veille/refresh',{method:'POST'}).then(function(r){return r.json();}).then(function(j){
         note(j&&j.ok?((j.nouveaux||0)+' nouveau(x) bulletin(s).'):'Actualisation impossible.', j&&j.ok?'ok':'err');
         loadVeille();
       }).catch(function(){note('Actualisation impossible.','err');})
@@ -1053,7 +1080,7 @@
       var srcDocs=document.getElementById('src-docs').checked, srcVeille=document.getElementById('src-veille').checked;
       if(!srcDocs&&!srcVeille){out.innerHTML='<div class="empty">Cochez au moins un périmètre (Base documentaire ou Veille CERT-FR).</div>';btn.disabled=false;btn.textContent=old;return;}
       out.innerHTML='<div class="empty">Recherche…</div>';
-      fetch('/api/admin/rag/search',{method:'POST',headers:{'content-type':'application/json'},
+      apiFetch('/api/admin/rag/search',{method:'POST',headers:{'content-type':'application/json'},
         body:JSON.stringify({query:q, sources:{docs:srcDocs, veille:srcVeille}})})
         .then(function(r){return r.json();}).then(function(j){
           if(!j||!j.ok){out.innerHTML='<div class="empty">'+esc((j&&j.message)||'Recherche indisponible.')+'</div>';return;}
@@ -1086,7 +1113,7 @@
       if(!cases.length){out.innerHTML='<div class="empty">Saisissez au moins un cas « question | attendu ».</div>';return;}
       var b=this,old=b.textContent;b.disabled=true;b.textContent='…';score.textContent='';
       out.innerHTML='<div class="empty">Évaluation…</div>';
-      fetch('/api/admin/rag/eval',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({cases:cases,k:8})})
+      apiFetch('/api/admin/rag/eval',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({cases:cases,k:8})})
         .then(function(r){return readJson(r);}).then(function(j){
           if(!j||!j.ok){out.innerHTML='<div class="empty">Évaluation indisponible.</div>';return;}
           score.textContent='hit@'+j.k+' : '+Math.round(j.hit_rate*100)+'%  ·  MRR : '+j.mrr;
