@@ -1,100 +1,150 @@
-# Migration de la base : Neon → PostgreSQL Render
+# Changer de base de données — mode d'emploi
 
-Procédure de bascule de la base applicative vers la base PostgreSQL déclarée
-dans `render.yaml` (`conseilprevcyber-db`, région Frankfurt, PostgreSQL 16).
+## Le problème en une phrase
 
-**Pourquoi.** La base Neon de l'offre gratuite plafonne à 512 Mo. Une fois ce
-plafond atteint, PostgreSQL refuse **toute écriture** : les pages continuent de
-s'afficher (lectures) mais plus aucun document ne se charge — sur tous les blocs
-et quel que soit le format. Message caractéristique, visible via
-« 🩺 Tester le chargement » :
-
-```
-could not extend file because project size limit (512 MB) has been exceeded
-HINT: ... internally by neon.max_cluster_size
-```
-
-**Ce que la migration déplace.** Sept modules partagent `DATABASE_URL` : base de
-connaissance (documents, fragments, fichiers d'origine), comptes, clients RGPD
-et leurs pièces jointes, historique des livrables, cockpit, veille, automation.
-La bascule doit donc emporter **toute** la base, pas seulement les documents.
-
-Procédure entièrement vérifiée en local sur PostgreSQL 16 + pgvector, avec des
-documents réels : restauration sans erreur, 735 fragments et 3 documents
-retrouvés à l'identique, connexion admin, recherche, téléchargement des fichiers
-d'origine et **nouveau chargement** tous fonctionnels sur la base d'arrivée.
+La base actuelle (Neon, offre gratuite) a atteint son plafond de **512 Mo**.
+PostgreSQL refuse alors **toute écriture** : les pages s'affichent encore, mais
+plus aucun document ne peut être chargé. Il faut donc passer sur la base
+PostgreSQL Render (~6 $/mois), déjà prévue dans `render.yaml`.
 
 ---
 
-## 0. Avant de commencer
+## Quelle méthode choisir ?
 
-- **Ne supprimez pas la base Neon** tant que la nouvelle n'est pas validée.
-  L'export ci-dessous est en lecture seule : il fonctionne même si la base est
-  saturée (les écritures sont bloquées, pas les lectures).
-- Prévoyez `pg_dump` / `pg_restore` **version 16** (même version majeure que les
-  bases). `pg_dump --version` doit afficher `16.x`.
-- Notez que le plan Render `basic-256mb` désigne la **mémoire vive**, pas le
-  disque : vérifiez la taille de stockage allouée dans le tableau de bord de la
-  base et augmentez-la si nécessaire (elle est ajustable après coup).
+Deux méthodes. **La question à vous poser : qu'avez-vous besoin de récupérer ?**
 
-Ordre de grandeur utile pour dimensionner : chaque fragment coûte ~4 Ko
-d'embedding ; un document comme `DNV-OS-D301` (333 fragments) pèse donc ~1,3 Mo
-d'index, auxquels s'ajoute le fichier d'origine s'il est conservé en base.
+| | **Méthode A — en clics** | **Méthode B — complète** |
+|---|---|---|
+| Ce qui est repris | Les **documents** de la base de connaissance (avec leurs fichiers d'origine, thèmes et visibilité) | **Tout** : documents + comptes utilisateurs + clients RGPD + historique des livrables + cockpit |
+| Comment | 3 boutons dans l'admin | Ligne de commande (`pg_dump`) |
+| Compétence requise | Aucune | Savoir ouvrir un terminal |
+| Durée | ~10 min | ~30 min |
+| À installer | Rien | Outils PostgreSQL 16 |
+
+### 👉 Notre recommandation
+
+- **Si vos fiches clients et l'historique des livrables sont vides ou sans
+  importance → Méthode A.** C'est le cas le plus courant, et de loin le plus
+  simple. Vos documents sont repris à l'identique ; le compte administrateur
+  est recréé automatiquement.
+- **Si vous avez des fiches clients (RGPD) ou un historique de livrables à
+  conserver → Méthode B.** C'est la seule qui reprend ces données.
+
+> **Comment savoir ?** Ouvrez `/admin/clients` et `/admin/livrables` sur le site
+> actuel. Si les listes sont vides ou ne contiennent que des essais : Méthode A.
+
+Dans les deux cas, **rien n'est perdu** : on ne supprime la base Neon qu'à la
+toute fin, une fois la nouvelle validée.
 
 ---
 
-## 1. Créer la base PostgreSQL Render
+# MÉTHODE A — en clics (recommandée)
 
-La base est **déjà déclarée** dans `render.yaml` :
+### Étape 1 — Sauvegarder les documents (site actuel)
 
-```yaml
-databases:
-  - name: conseilprevcyber-db
-    databaseName: conseilprevcyber
-    user: conseilprevcyber
-    region: frankfurt          # MÊME région que le service web
-    plan: basic-256mb
-    postgresMajorVersion: "16"
-    ipAllowList: []            # aucune connexion externe
-```
+1. Ouvrez **`/admin/base-connaissance`**.
+2. Cliquez **💾 Sauvegarder**.
+3. Un fichier `conseilprevcyber-rag-backup.json` se télécharge. **Gardez-le** :
+   il contient tous vos documents avec leurs fichiers d'origine.
 
-Dans le tableau de bord Render : **Blueprints → Sync** (ou créez la base à la
-main avec ces mêmes réglages). Attendez le statut **Available**.
+> Cela fonctionne même si la base est saturée : sauvegarder ne fait que *lire*.
 
-> `ipAllowList: []` interdit toute connexion externe. Pour l'import depuis votre
-> poste (étape 3), ajoutez **temporairement** votre adresse IP dans
-> *Access Control*, puis **retirez-la** aussitôt l'import terminé.
+### Étape 2 — Créer la nouvelle base (tableau de bord Render)
 
-## 2. Exporter l'ancienne base (Neon)
+1. Render → **Blueprints** → **Sync** : la base `conseilprevcyber-db` est déjà
+   décrite dans `render.yaml`, elle se crée toute seule.
+   *(Ou : New + → PostgreSQL, région **Frankfurt**, version **16**, plan
+   **basic-256mb**.)*
+2. Attendez que son statut passe à **Available**.
 
-Récupérez l'URL de connexion Neon (tableau de bord Neon → *Connection string*),
-puis :
+> ⚠️ Le nom du plan, « 256mb », désigne la **mémoire**, pas l'espace disque.
+> Vérifiez la taille de stockage sur la page de la base et augmentez-la si
+> besoin — c'est modifiable après coup.
+
+### Étape 3 — Brancher le site sur la nouvelle base
+
+1. Render → votre service web **conseilprevcyber** → onglet **Environment**.
+2. Cherchez la variable **`DATABASE_URL`** :
+   - **si elle existe** (elle contient une adresse Neon) → **supprimez-la**.
+     Le fichier `render.yaml` rebranchera automatiquement le site sur la base
+     Render ;
+   - *si elle n'existe pas*, il n'y a rien à faire.
+3. Cliquez **Manual Deploy → Deploy latest commit** et attendez la fin du
+   déploiement (~3 min).
+
+### Étape 4 — Restaurer vos documents
+
+1. Rechargez **`/admin/base-connaissance`** (**Ctrl+Maj+R**).
+   La liste est **vide** : c'est normal, la base est neuve.
+2. Connectez-vous si besoin : le compte administrateur est recréé
+   automatiquement à partir de `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
+3. Cliquez **⤴ Restaurer**, choisissez le fichier de l'étape 1, confirmez.
+4. **Laissez la page ouverte.** Après la restauration, l'indexation démarre
+   toute seule et vous voyez défiler
+   « Indexation des documents restaurés… 3/12 ». Attendez le message
+   **« Indexation terminée »**.
+
+> ⚠️ Ne fermez pas l'onglet pendant l'indexation : un document non indexé reste
+> invisible pour la recherche, l'assistant et les livrables. Si vous fermez trop
+> tôt, ce n'est pas grave : un bouton **▶ Indexer N en attente** apparaît en haut
+> de la liste des documents pour reprendre.
+
+### Étape 5 — Vérifier
+
+1. **🩺 Tester le chargement** → tout doit être au vert.
+2. Chargez un document : il doit s'enregistrer.
+3. **📊 Espace disque** → l'occupation repart bas.
+4. Vérifiez que vos documents sont là, avec leurs thèmes.
+
+**C'est fini.** Supprimez la base Neon seulement après quelques jours de recul.
+
+---
+
+# MÉTHODE B — complète (comptes, clients, livrables)
+
+Nécessaire uniquement si vous devez conserver les comptes utilisateurs, les
+fiches clients RGPD ou l'historique des livrables. Sept modules partagent la
+base ; seule cette méthode les déplace tous.
+
+### Prérequis
+
+Les outils client PostgreSQL **version 16** (`pg_dump --version` doit afficher
+`16.x`) :
+
+- **macOS** : `brew install postgresql@16`
+- **Windows** : installeur PostgreSQL 16 (cocher « Command Line Tools »)
+- **Linux (Debian/Ubuntu)** : `sudo apt install postgresql-client-16`
+
+### 1. Créer la base Render
+
+Identique à l'**étape 2** de la méthode A.
+
+Puis, sur la page de la base, section **Access Control**, ajoutez
+**temporairement** votre adresse IP (sans quoi vous ne pourrez pas y écrire
+depuis votre poste). Vous la retirerez à la fin.
+
+### 2. Exporter l'ancienne base
+
+Récupérez l'URL de connexion Neon (tableau de bord Neon → *Connection string*) :
 
 ```bash
 pg_dump "postgresql://…VOTRE_URL_NEON…?sslmode=require" \
   --no-owner --no-privileges -Fc -f migration.dump
 ```
 
-Vérifiez que le fichier n'est pas vide :
+Vérifiez que le fichier existe et n'est pas vide : `ls -lh migration.dump`.
 
-```bash
-ls -lh migration.dump
-pg_restore -l migration.dump | head
-```
+### 3. Importer dans la base Render
 
-Le dump contient l'extension `vector` : rien à préparer sur la base d'arrivée.
-
-## 3. Importer dans la base Render
-
-Récupérez l'**External Database URL** de la base Render (nécessaire depuis votre
-poste ; l'URL *interne* n'est joignable que depuis Render).
+Récupérez l'**External Database URL** de la base Render (l'URL *interne* n'est
+joignable que depuis Render) :
 
 ```bash
 pg_restore --no-owner --no-privileges \
   -d "postgresql://…URL_EXTERNE_RENDER…" migration.dump
 ```
 
-`pg_restore` doit se terminer **sans erreur**. Contrôlez immédiatement :
+La commande doit se terminer **sans erreur**. Contrôlez :
 
 ```bash
 psql "postgresql://…URL_EXTERNE_RENDER…" -c "
@@ -105,65 +155,43 @@ psql "postgresql://…URL_EXTERNE_RENDER…" -c "
   UNION ALL SELECT 'comptes',   count(*) FROM users;"
 ```
 
-Les compteurs doivent être **identiques** à ceux de l'ancienne base (même
-requête sur l'URL Neon).
+Les chiffres doivent être **identiques** à ceux de l'ancienne base (même
+commande sur l'URL Neon).
 
-## 4. Basculer le service sur la nouvelle base
+### 4. Brancher le site
 
-Le blueprint alimente déjà `DATABASE_URL` depuis la base Render :
+Identique à l'**étape 3** de la méthode A.
 
-```yaml
-      - key: DATABASE_URL
-        fromDatabase:
-          name: conseilprevcyber-db
-          property: connectionString
-```
+### 5. Vérifier, puis nettoyer
 
-Si le service pointe aujourd'hui vers Neon, c'est qu'une valeur `DATABASE_URL`
-a été saisie **à la main** dans *Environment* : elle prend le pas sur le
-blueprint. Dans le tableau de bord du service web :
+Identique à l'**étape 5** de la méthode A. Ensuite :
 
-1. *Environment* → **supprimez** la variable `DATABASE_URL` saisie manuellement
-   (ou remplacez sa valeur par l'**Internal Database URL** de la base Render) ;
-2. **Manual Deploy → Deploy latest commit**.
+- **retirez votre IP** de l'*Access Control* de la base Render ;
+- conservez `migration.dump` hors ligne quelques jours ;
+- ne supprimez la base Neon qu'une fois tout validé.
 
-> Utilisez l'URL **interne** pour le service (même région, connexion privée,
-> plus rapide et non exposée). L'URL **externe** ne sert qu'à l'import.
-
-## 5. Vérifier
-
-Sur `/admin/base-connaissance` :
-
-1. **🩺 Tester le chargement** → toutes les étapes doivent être au vert, et la
-   version affichée doit correspondre au dernier déploiement.
-2. **📊 Espace disque** → l'occupation doit repartir d'un niveau confortable.
-3. Chargez un document : il doit s'enregistrer normalement.
-4. Vérifiez que vos documents, clients et comptes sont bien présents.
-
-## 6. Après validation
-
-- Retirez votre IP de l'*Access Control* de la base Render (étape 1).
-- Conservez `migration.dump` hors ligne quelques jours (sauvegarde de repli).
-- Ne supprimez la base Neon qu'une fois tout validé.
+> Avec cette méthode, l'indexation est déjà faite : les documents arrivent en
+> statut « prêt », rien à relancer.
 
 ---
 
-## En cas de problème
+## Si quelque chose bloque
 
-| Symptôme | Cause probable | Correctif |
+| Ce que vous voyez | Cause | Que faire |
 |---|---|---|
-| `pg_dump: server version mismatch` | `pg_dump` plus ancien que la base | Installer les outils client PostgreSQL 16 |
-| Connexion refusée à l'import | `ipAllowList` vide | Ajouter temporairement votre IP dans *Access Control* |
-| `type "vector" does not exist` | Extension absente sur la cible | `CREATE EXTENSION IF NOT EXISTS vector;` puis relancer l'import |
-| L'app démarre mais la base paraît vide | Le service pointe encore sur Neon | Vérifier `DATABASE_URL` dans *Environment*, puis redéployer |
-| Le chargement échoue encore | Le nouveau déploiement n'est pas en ligne | Comparer la version affichée par « 🩺 Tester le chargement » |
+| La liste des documents est vide après la bascule | Normal en méthode A avant la restauration | Faites l'étape 4 |
+| Le chargement échoue encore | Le nouveau déploiement n'est pas en ligne | « 🩺 Tester le chargement » affiche la version en ligne : comparez-la au dernier déploiement |
+| « Session expirée » | Cookie de l'ancienne session | Déconnectez-vous, reconnectez-vous, **Ctrl+Maj+R** |
+| Des documents restent en « indexation » | Onglet fermé trop tôt | Bouton **▶ Indexer N en attente** |
+| `pg_dump: server version mismatch` | Outils trop anciens | Installer les outils PostgreSQL **16** |
+| Connexion refusée à l'import | `ipAllowList` vide | Ajouter votre IP dans *Access Control* |
+| L'app démarre mais la base semble vide | Le site pointe encore sur Neon | Vérifier `DATABASE_URL` dans *Environment*, redéployer |
 
-## Prévenir une nouvelle saturation
+## Pour ne plus jamais saturer
 
-- **📊 Espace disque** dans l'admin : surveiller l'occupation et libérer le
-  superflu (résidus de chargements interrompus, bulletins de veille, fichiers
-  d'origine — les documents restent cherchables).
-- **💾 Sauvegarder** : exporter régulièrement la base de connaissance hors ligne.
-- Les fichiers d'origine sont le poste le plus lourd et ne servent qu'au bouton
-  « télécharger l'original » : les purger libère beaucoup sans rien perdre
-  d'exploitable.
+- **📊 Espace disque** dans l'admin : surveiller et libérer le superflu
+  (résidus de chargements interrompus, bulletins de veille, fichiers d'origine —
+  les documents restent cherchables).
+- **💾 Sauvegarder** régulièrement, et conserver le fichier hors ligne.
+- Ordre de grandeur : ~4 Ko par fragment, soit ~1,3 Mo pour un document de
+  333 fragments, plus le fichier d'origine s'il est conservé en base.

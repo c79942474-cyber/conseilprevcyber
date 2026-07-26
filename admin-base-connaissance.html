@@ -295,6 +295,7 @@
             <button class="btn btn-s" id="backup" type="button" title="Télécharger une sauvegarde complète de la base de connaissance (à conserver hors ligne)">💾 Sauvegarder</button>
             <button class="btn btn-s" id="restore" type="button" title="Restaurer des documents depuis un fichier de sauvegarde (sans doublon)">⤴ Restaurer</button>
             <input type="file" id="restoreFile" accept=".json,application/json" style="display:none">
+            <button class="btn btn-s" id="indexAll" type="button" style="display:none" title="Indexer tous les documents en attente : sans indexation, un document reste invisible pour la recherche, l'assistant et les livrables">▶ Indexer en attente</button>
             <button class="btn btn-s" id="refresh" type="button">↻ Actualiser</button>
           </div>
         </div>
@@ -449,6 +450,13 @@
       });
       var fc=document.getElementById('fcount');
       if(fc) fc.textContent=(q||f)? (docs.length+' / '+base.length) : (base.length+' doc'+(base.length>1?'s':''));
+      // Bouton d'indexation en masse : visible seulement s'il reste des documents en
+      // attente (cas typique après une restauration ou une migration). Un document
+      // non indexé est absent de la recherche, de l'assistant et des livrables.
+      var ia=document.getElementById('indexAll');
+      if(ia){ var att=allDocs.filter(function(d){return d.status==='indexing';}).length;
+              ia.style.display=att?'inline-block':'none';
+              ia.textContent='▶ Indexer '+att+' en attente'; }
       rows.innerHTML=docs.length?docs.map(docRow).join('')
         :'<tr><td colspan="7" class="empty">Aucun document'+((q||f)?' ne correspond à la recherche':'')+'.</td></tr>';
       renderEng();
@@ -745,6 +753,27 @@
       return 'done';
     }
 
+    // Indexe TOUS les documents restés en attente (statut « indexing »), l'un après
+    // l'autre. Indispensable après une restauration ou une migration : un document
+    // non indexé est absent de la recherche, de l'assistant et des livrables.
+    // Se termine proprement si les embeddings sont indisponibles (repli plein-texte).
+    var _indexEnCours=false;
+    async function indexerEnAttente(){
+      if(_indexEnCours) return;
+      _indexEnCours=true;
+      try{
+        var j=await fetchJson('/api/admin/rag/documents',{},{retries:1});
+        var att=(j&&j.documents||[]).filter(function(d){return d.status==='indexing';});
+        if(!att.length) return;
+        for(var i=0;i<att.length;i++){
+          note('Indexation des documents restaurés… '+(i+1)+'/'+att.length+' — « '+att[i].title+' »','ok');
+          try{ await runIndex(att[i].id); }catch(_){ /* runIndex ne lève pas : sécurité */ }
+        }
+        note('Indexation terminée : '+att.length+' document(s) désormais exploitables.','ok');
+        load();
+      } finally { _indexEnCours=false; }
+    }
+
     // Envoi en UNE seule requête (multipart) avec barre de progression réelle.
     // Bien plus fiable que le découpage en morceaux (un seul aller-retour, aucun
     // état de session à réassembler) et plus rapide au démarrage à froid.
@@ -967,6 +996,8 @@
       }).catch(function(){b.disabled=false;b.textContent=old;note('Analyse des doublons impossible.','err');});
     });
     document.getElementById('refresh').addEventListener('click',load);
+    (function(){ var ia=document.getElementById('indexAll');
+      if(ia) ia.addEventListener('click',function(){ indexerEnAttente(); }); })();
 
     // ---- Sauvegarde / restauration (anti-crash) ----
     document.getElementById('backup').addEventListener('click',function(){
@@ -991,6 +1022,12 @@
         if(!j||!j.ok){note((j&&j.error==='backup_illisible')?'Fichier de sauvegarde invalide.':'Restauration impossible.','err');return;}
         note('Restauration : '+j.restored+' restauré(s), '+j.skipped+' déjà présent(s)'+(j.failed?', '+j.failed+' échec(s)':'')+'.','ok');
         load();
+        // Un document restauré arrive en statut « indexing » : tant qu'il n'est pas
+        // indexé, il reste INVISIBLE pour la recherche, l'assistant et les livrables
+        // (la recherche ne retient que les documents « prêts »). On enchaîne donc
+        // l'indexation automatiquement — sans quoi il faudrait cliquer « ▶ Indexer »
+        // document par document, ce qui est intenable après une migration.
+        indexerEnAttente();
       }).catch(function(){note('Restauration impossible pour le moment.','err');})
         .then(function(){inp.value='';});
     });
