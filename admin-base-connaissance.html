@@ -548,8 +548,13 @@
             mw.style.display='flex';
           } else { mw.style.display='none'; }
         }
+        // Autocomplétion du champ « Thème » du bloc GÉNÉRAL : les domaines
+        // Engineering en sont exclus (comme les puces de sélection rapide et le
+        // filtre de la liste générale) — ils relèvent du bloc dédié Engineering.
         var dl=document.getElementById('themes');
-        dl.innerHTML=(j.themes||[]).map(function(t){return '<option value="'+esc(t)+'">';}).join('');
+        dl.innerHTML=(j.themes||[]).filter(function(t){
+          return t!=='Engineering'&&t.indexOf('Engineering / ')!==0;
+        }).map(function(t){return '<option value="'+esc(t)+'">';}).join('');
         // Bloc Engineering : garder le sélecteur de sous-dossiers en phase avec le
         // vocabulaire (tout thème « Engineering » ou « Engineering / … » y figure).
         var engSel=document.getElementById('themeEng');
@@ -1029,10 +1034,9 @@
                  'Analyse de risques','Architecture & segmentation','SCADA',
                  'Supervision & détection','Gestion des correctifs','Gouvernance & CSMS',
                  'Conformité & audit','Continuité & résilience (PRA/PCA)',
-                 'Engineering','Engineering / Projet OWFarm',
-                 'Engineering / Projet OWFarm / BSH2 Package','Engineering / Projet OWFarm / Safety',
-                 'Engineering / Projet OWFarm / Fire fighting','Engineering / Projet OWFarm / Rules',
-                 'Engineering / Oil & Gas',
+                 // Les domaines Engineering (dont Projet OWFarm et ses sous-dossiers)
+                 // ne figurent PAS ici : ils relèvent du bloc de chargement dédié
+                 // « Charger un document — Engineering », qui a son propre sélecteur.
                  'Alstom','Renault','GRDF','Technip','EDF','Atos','SGP'];
       var box=document.getElementById('tchips'), ti=document.getElementById('theme');
       if(!box||!ti) return;
