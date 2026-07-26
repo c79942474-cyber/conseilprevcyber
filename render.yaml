@@ -28,12 +28,22 @@ services:
       - key: INGEST_TOKEN
         sync: false
       # Persistance (cockpit, base de connaissance RAG, historique des livrables,
-      # comptes). L'URL interne est injectée AUTOMATIQUEMENT depuis la base
-      # PostgreSQL déclarée plus bas (section « databases ») : rien à coller à la main.
+      # comptes, clients).
+      #
+      # À COLLER À LA MAIN : « Internal Database URL » de la base PostgreSQL, prise
+      # sur SA page dans le tableau de bord Render.
+      #
+      # Pourquoi pas « fromDatabase » ? Ce raccourci désigne la base par son NOM.
+      # Si ce nom ne correspond à AUCUNE base existante, Render injecte malgré tout
+      # une URL — qui pointe vers une base fantôme. La panne obtenue est
+      # particulièrement trompeuse : le nom se résout (le DNS répond) mais rien
+      # n'accepte la connexion (délai TCP), pendant que la vraie base, elle, est
+      # « Available » et inutilisée. C'est exactement ce qui s'est produit ici, le
+      # blueprint déclarant « conseilprevcyber-db » alors que la base réelle
+      # s'appelle « conseilprevcyberDB ». En saisissant la valeur à la main, elle
+      # ne peut plus être réécrite silencieusement par une synchronisation.
       - key: DATABASE_URL
-        fromDatabase:
-          name: conseilprevcyber-db
-          property: connectionString
+        sync: false
       # (Optionnel) Persistance de la base de connaissance RAG SANS PostgreSQL :
       # pointer RAG_DISK_PATH vers un emplacement DURABLE (disque Render monté —
       # voir la section « disk » commentée plus bas — ou volume auto-hébergé).
@@ -86,25 +96,28 @@ services:
       - key: ASSISTANT_DEFAULT_MODEL
         sync: false
 
-# Base PostgreSQL managée — persistance de tout l'état applicatif : inventaire et
-# historique du cockpit, base de connaissance RAG (documents + fragments indexés),
-# historique des livrables et comptes. Provisionnée automatiquement par le blueprint ;
-# son URL interne alimente DATABASE_URL (voir le service ci-dessus).
-databases:
-  - name: conseilprevcyber-db
-    databaseName: conseilprevcyber
-    user: conseilprevcyber
-    region: frankfurt          # MÊME région que le service web (connexion interne)
-    # Plan payant « basic-256mb » (~6 $/mois) : base persistante, sans expiration,
-    # adaptée à la production. Ajustable ensuite (basic-1gb, basic-4gb…) selon le volume.
-    # ATTENTION : « 256mb » désigne la MÉMOIRE VIVE, pas le disque. Le stockage est
-    # une dimension distincte, à vérifier (et augmenter au besoin) dans le tableau de
-    # bord de la base ; il reste ajustable après coup. Repère de dimensionnement :
-    # ~4 Ko d'embedding par fragment (~1,3 Mo pour un document de 333 fragments),
-    # plus le fichier d'origine s'il est conservé en base.
-    # Migration depuis une base existante (Neon…) : voir MIGRATION-BASE.md.
-    plan: basic-256mb
-    # PostgreSQL 16 : compatible pgvector (recherche sémantique) si MISTRAL_API_KEY est défini.
-    postgresMajorVersion: "16"
-    # Sécurité : aucune connexion externe autorisée — le site s'y connecte en interne.
-    ipAllowList: []
+# Base PostgreSQL — persistance de TOUT l'état applicatif : cockpit, base de
+# connaissance (documents + fragments indexés), livrables, comptes, clients.
+#
+# ELLE N'EST VOLONTAIREMENT PAS DÉCLARÉE ICI. La base en service a été créée
+# directement dans le tableau de bord Render :
+#
+#     nom       conseilprevcyberDB       région    Frankfurt (EU Central)
+#     plan      Basic-1gb                stockage  15 Go
+#     version   PostgreSQL 16 (pgvector) accès     réseau privé
+#
+# La redéclarer sous un autre nom ferait provisionner une SECONDE base par le
+# blueprint, et DATABASE_URL pointerait vers elle — c'est précisément l'incident
+# survenu : le blueprint déclarait « conseilprevcyber-db » quand la base réelle
+# s'appelle « conseilprevcyberDB ». Résultat, une URL vers une base fantôme, dont
+# le nom se résolvait sans que rien n'accepte la connexion, tandis que la vraie
+# base restait « Available » et inutilisée. Diagnostic correspondant, visible via
+# « 🩺 Tester le chargement » : dns ✓ puis « tcp — timed out ».
+#
+# DATABASE_URL est donc saisi à la main (voir le service, sync: false) et reste
+# la seule source de vérité. Pour repartir d'une base neuve ou en changer :
+# voir MIGRATION-BASE.md.
+#
+# Dimensionnement : ~4 Ko d'embedding par fragment (~1,3 Mo pour un document de
+# 333 fragments), plus le fichier d'origine s'il est conservé en base. Le panneau
+# « 📊 Espace disque » de l'admin suit l'occupation et libère le superflu.
