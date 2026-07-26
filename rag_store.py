@@ -1543,18 +1543,39 @@ class ResilientRagStore:
                 _log.warning("RAG : PostgreSQL injoignable (essai %d/%d : %s).",
                              i + 1, attempts, self._last_error)
                 if i + 1 < attempts:
-                    time.sleep(1.5)
+                    # Attente progressive (1,5 s → 20 s max) : couvre la fenêtre de
+                    # démarrage d'une base qui n'accepte pas encore les connexions,
+                    # sans la marteler si elle est durablement injoignable.
+                    time.sleep(min(1.5 * (2 ** i), 20))
         return False
 
-    def _bg_connect(self):
+    def _bg_connect(self, attempts=6):
+        """Connexion en tâche de fond, avec PLUSIEURS essais espacés.
+
+        Un seul essai ne suffit pas au démarrage : après un déploiement, le
+        service web et la base redémarrent de concert et la base n'accepte pas
+        encore les connexions pendant quelques dizaines de secondes. L'unique
+        tentative échouait alors, et l'application restait en repli mémoire alors
+        que la base devenait joignable l'instant d'après."""
         try:
-            self._try_connect(attempts=1, probe=True)
+            self._try_connect(attempts=attempts, probe=True)
         finally:
             self._reconnecting = False
 
     def _mem_has_docs(self):
+        """Le repli mémoire contient-il des documents qu'une bascule masquerait ?
+
+        Les bulletins de veille en sont EXCLUS : ingérés automatiquement au
+        démarrage, ils remplissaient le repli en quelques secondes et bloquaient
+        alors DÉFINITIVEMENT la reconnexion automatique — au pire moment, juste
+        après un démarrage manqué. Ils sont de toute façon re-téléchargeables ;
+        seuls les documents déposés par l'utilisateur justifient de ne pas
+        basculer sans son accord."""
         try:
-            return bool(self._mem.list_documents())
+            return any(
+                (d.get("theme") != "Veille"
+                 and not str(d.get("title") or "").startswith("[CERT-FR]"))
+                for d in self._mem.list_documents())
         except Exception:
             return False
 
