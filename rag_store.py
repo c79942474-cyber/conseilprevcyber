@@ -617,6 +617,17 @@ class MemoryRagStore:
         return {"title": meta.get("title"), "filename": meta.get("filename"),
                 "theme": meta.get("theme"), "text": text[:limit]}
 
+    def set_theme(self, doc_id, theme):
+        """Reclasse un document (change son thème / sous-dossier)."""
+        with self._lock:
+            d = self._docs.get(doc_id)
+            if not d:
+                raise RagError("document_inconnu", 404)
+            d["theme"] = theme
+            d["updated_at"] = _now_ms()
+            self._save()
+        return True
+
     def delete_document(self, doc_id):
         with self._lock:
             if doc_id not in self._docs:
@@ -1097,6 +1108,16 @@ class PostgresRagStore:
         text = "\n\n".join(r[0] for r in rows)
         return {"title": meta[0], "filename": meta[1], "theme": meta[2],
                 "text": text[:limit]}
+
+    def set_theme(self, doc_id, theme):
+        """Reclasse un document. Seul le classement change : le texte, les
+        fragments et les embeddings sont conservés — aucune réindexation."""
+        with self._pool.connection() as conn:
+            n = conn.execute("UPDATE rag_documents SET theme=%s,updated_at=%s "
+                             "WHERE id=%s", (theme, _now_ms(), doc_id)).rowcount
+        if not n:
+            raise RagError("document_inconnu", 404)
+        return True
 
     def delete_document(self, doc_id):
         with self._pool.connection() as conn:
@@ -1717,6 +1738,10 @@ class ResilientRagStore:
     def ingest_bytes(self, *args, **kwargs):
         """Chargement d'un document, tolérant aux pannes (voir _write)."""
         return self._write("ingest_bytes", *args, **kwargs)
+
+    def set_theme(self, *args, **kwargs):
+        """Reclassement d'un document, tolérant aux pannes (voir _write)."""
+        return self._write("set_theme", *args, **kwargs)
 
     def index_next(self, *args, **kwargs):
         """Indexation vectorielle d'un lot, tolérante aux pannes (voir _write).

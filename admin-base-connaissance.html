@@ -327,6 +327,7 @@
             <span class="fcount" id="fcountEng"></span>
             <!-- Mêmes outils que la liste générale, mais CANTONNÉS à l'ingénierie :
                  le dédoublonnage et la sauvegarde ne portent que sur ce corpus. -->
+            <button class="btn btn-s" id="moveEng" type="button" title="Ranger les documents ACTUELLEMENT AFFICHÉS dans un autre sous-dossier (seul le classement change : aucune réindexation)">↦ Déplacer</button>
             <button class="btn btn-s" id="dedupeEng" type="button" title="Supprimer les doublons PARMI LES DOCUMENTS ENGINEERING (contenu identique), en conservant un exemplaire de chacun">🧹 Doublons</button>
             <button class="btn btn-s" id="backupEng" type="button" title="Télécharger une sauvegarde des SEULS documents Engineering (à conserver hors ligne)">💾 Sauvegarder</button>
             <button class="btn btn-s" id="restoreEng" type="button" title="Restaurer des documents depuis un fichier de sauvegarde (sans doublon)">⤴ Restaurer</button>
@@ -334,6 +335,15 @@
             <button class="btn btn-s" id="indexAllEng" type="button" style="display:none" title="Indexer les documents Engineering en attente : sans indexation, un document reste invisible pour la recherche, l'assistant et les livrables">▶ Indexer en attente</button>
             <button class="btn btn-s" id="refreshEng" type="button">↻ Actualiser</button>
           </div>
+        </div>
+        <!-- Barre de déplacement : agit sur les documents ACTUELLEMENT AFFICHÉS,
+             donc sur ce que l'utilisateur voit et peut vérifier avant d'agir. -->
+        <div id="moveBar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 14px;border:1px solid var(--violet);border-radius:10px;background:rgba(139,124,246,.10)">
+          <span id="moveCount" style="font-size:12.5px"></span>
+          <label for="moveTarget" style="font-size:12.5px;color:var(--muted)">vers</label>
+          <select id="moveTarget" style="width:auto;padding:7px 11px;font-size:12.5px"></select>
+          <button class="btn btn-s" id="moveGo" type="button">↦ Déplacer</button>
+          <button class="btn btn-s" id="moveCancel" type="button">Annuler</button>
         </div>
         <div class="tblwrap">
           <table>
@@ -417,6 +427,10 @@
     var upBtn=document.getElementById('upBtn'), prog=document.getElementById('prog'), bar=prog.firstElementChild;
     var upmsg=document.getElementById('upmsg'), fileName=document.getElementById('fileName');
     var allDocs=[], caps={}, chosen=null;
+    // Vocabulaire complet des thèmes (renvoyé par l'API) : permet de proposer les
+    // sous-dossiers ENCORE VIDES, donc de voir et d'alimenter toute l'arborescence.
+    var vocabThemes=[];
+    var engVisibles=[];   // documents Engineering actuellement affichés
 
     function esc(s){return (''+(s==null?'':s)).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
     function note(t,cls){notice.textContent=t;notice.className=cls;notice.style.display='block';if(cls==='ok')setTimeout(function(){notice.className='';notice.style.display='none';},4500);}
@@ -491,10 +505,13 @@
         if(q){ var hay=((d.title||'')+' '+(d.filename||'')+' '+(d.theme||'')).toLowerCase(); if(hay.indexOf(q)<0) return false; }
         return true;
       });
+      engVisibles=docs;   // cible du déplacement en masse : ce qui est affiché
       var fc=document.getElementById('fcountEng');
       if(fc) fc.textContent=docs.length?(docs.length+' doc'+(docs.length>1?'s':'')):'';
       body.innerHTML=docs.length?docs.map(docRow).join('')
         :'<tr><td colspan="7" class="empty">Aucun document Engineering'+((fv||q)?' ne correspond':'')+'.</td></tr>';
+      var mc=document.getElementById('moveCount');
+      if(mc) mc.textContent='Déplacer les '+docs.length+' document'+(docs.length>1?'s':'')+' affiché'+(docs.length>1?'s':'');
     }
 
     function fillFilters(themes){
@@ -503,14 +520,23 @@
       var sel=document.getElementById('filterTheme'), cur=sel.value;
       var names=all.filter(function(t){return t!=='Engineering'&&t.indexOf('Engineering / ')!==0;});
       sel.innerHTML='<option value="">Tous les thèmes</option>'+names.map(function(t){return '<option'+(t===cur?' selected':'')+'>'+esc(t)+'</option>';}).join('');
-      // Filtre autonome des sous-dossiers Engineering (seuls ceux qui ont des docs).
+      // Filtre des sous-dossiers Engineering : TOUS les sous-dossiers du
+      // vocabulaire, y compris ceux encore vides — c'est ainsi qu'on voit
+      // l'arborescence complète et qu'on peut y ranger des documents. Le nombre
+      // de documents est indiqué entre parenthèses.
       var esel=document.getElementById('filterEng');
       if(esel){
         var ecur=esel.value;
-        var eng=all.filter(function(t){return t==='Engineering'||t.indexOf('Engineering / ')===0;});
+        var eng=(vocabThemes||[]).filter(function(t){return t==='Engineering'||t.indexOf('Engineering / ')===0;});
+        // Un thème présent en base mais absent du vocabulaire reste proposé :
+        // sans quoi ses documents deviendraient infiltrables.
+        Object.keys(themes||{}).forEach(function(t){
+          if((t==='Engineering'||t.indexOf('Engineering / ')===0)&&eng.indexOf(t)<0) eng.push(t);
+        });
         esel.innerHTML='<option value="">Tous les sous-dossiers</option>'+eng.map(function(t){
           var lbl=t==='Engineering'?'Engineering (racine)':t.split(' / ').slice(1).join(' / ');
-          return '<option value="'+esc(t)+'"'+(t===ecur?' selected':'')+'>'+esc(lbl)+'</option>';
+          var n=(themes||{})[t]||0;
+          return '<option value="'+esc(t)+'"'+(t===ecur?' selected':'')+'>'+esc(lbl)+' ('+n+')</option>';
         }).join('');
       }
     }
@@ -660,6 +686,7 @@
             if(cur&&engT.indexOf(cur)>-1) engSel.value=cur;
           }
         }
+        vocabThemes=j.themes||[];
         fillFilters(themesHors);
         render();
       }).catch(function(){ loadFailed('Service momentanément indisponible.'); });
@@ -1090,6 +1117,41 @@
       }).catch(function(){note('Restauration impossible pour le moment.','err');})
         .then(function(){inp.value='';});
     }
+
+    // Déplacement en masse : agit sur les documents AFFICHÉS (filtre + recherche),
+    // donc sur ce que l'utilisateur voit et a pu vérifier. Ranger 18 documents
+    // devient immédiat, là où les recharger un à un serait interminable — et seul
+    // le classement change : texte, fragments et embeddings sont conservés.
+    (function(){
+      var btn=document.getElementById('moveEng'), bar=document.getElementById('moveBar');
+      if(!btn||!bar) return;
+      var cible=document.getElementById('moveTarget');
+      btn.addEventListener('click',function(){
+        if(bar.style.display!=='none'){ bar.style.display='none'; return; }
+        if(!engVisibles.length){ note('Aucun document affiché à déplacer.','err'); return; }
+        // Destinations : tous les sous-dossiers Engineering du vocabulaire.
+        var eng=(vocabThemes||[]).filter(function(t){return t==='Engineering'||t.indexOf('Engineering / ')===0;});
+        cible.innerHTML=eng.map(function(t){
+          var lbl=t==='Engineering'?'Engineering (racine)':t.split(' / ').slice(1).join(' / ');
+          return '<option value="'+esc(t)+'">'+esc(lbl)+'</option>';
+        }).join('');
+        bar.style.display='flex';
+      });
+      document.getElementById('moveCancel').addEventListener('click',function(){ bar.style.display='none'; });
+      document.getElementById('moveGo').addEventListener('click',function(){
+        var t=cible.value, ids=engVisibles.map(function(d){return d.id;});
+        if(!t||!ids.length){ note('Rien à déplacer.','err'); return; }
+        if(!confirm('Déplacer '+ids.length+' document(s) vers « '+t+' » ?\n\nSeul le classement change : le contenu et l\'indexation sont conservés.')) return;
+        var b=this, old=b.textContent; b.disabled=true; b.textContent='Déplacement…';
+        apiFetch('/api/admin/rag/retheme',{method:'POST',headers:{'content-type':'application/json'},
+          body:JSON.stringify({ids:ids,theme:t})}).then(readJson).then(function(j){
+          if(!j||!j.ok){ note('Déplacement impossible ('+esc((j&&j.error)||'erreur')+').','err'); return; }
+          note(j.deplaces+' document(s) rangé(s) dans « '+t+' »'+(j.echecs?(' — '+j.echecs+' échec(s)'):'')+'.','ok');
+          bar.style.display='none'; load();
+        }).catch(function(){ note('Déplacement impossible pour le moment.','err'); })
+          .then(function(){ b.disabled=false; b.textContent=old; });
+      });
+    })();
 
     // Câblage des deux barres sur ces mêmes fonctions.
     [['dedupe',''],['dedupeEng','engineering']].forEach(function(x){

@@ -1277,6 +1277,43 @@ def api_rag_dedupe():
     return jsonify(ok=True, scope=scope or "tout", **report)
 
 
+@app.route("/api/admin/rag/retheme", methods=["POST"])
+@admin_required
+def api_rag_retheme():
+    """Reclasse des documents dans un autre thème / sous-dossier.
+
+    Seul le classement change : texte, fragments et embeddings sont conservés,
+    donc AUCUNE réindexation n'est nécessaire — ranger 18 documents est immédiat
+    et sans risque, là où les recharger un à un coûterait un temps considérable.
+
+    Le thème visé est validé contre le vocabulaire THEMES : impossible d'inventer
+    un dossier au passage, la nomenclature reste maîtrisée."""
+    data = request.get_json(silent=True) or {}
+    theme = (data.get("theme") or "").strip()
+    ids = data.get("ids")
+    if theme not in THEMES:
+        return jsonify(ok=False, error="theme_inconnu",
+                       message="Thème inconnu — choisissez-en un dans la liste."), 400
+    if not isinstance(ids, list) or not ids:
+        return jsonify(ok=False, error="aucun_document",
+                       message="Aucun document à reclasser."), 400
+    deplaces = inchanges = echecs = 0
+    for doc_id in ids[:2000]:
+        if not _rag_valid_doc_id(str(doc_id)):
+            echecs += 1
+            continue
+        try:
+            rag.set_theme(str(doc_id), theme)
+            deplaces += 1
+        except RagError:
+            echecs += 1
+        except Exception:
+            app.logger.exception("retheme : échec pour %r", doc_id)
+            echecs += 1
+    return jsonify(ok=True, theme=theme, deplaces=deplaces,
+                   inchanges=inchanges, echecs=echecs)
+
+
 @app.route("/api/admin/rag/reconnect", methods=["POST"])
 @admin_required
 def api_rag_reconnect():
