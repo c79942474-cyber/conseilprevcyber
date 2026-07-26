@@ -571,8 +571,15 @@
           if(caps.persistent===false || !caps.host){ bn.style.display='none'; return; }
           document.getElementById('dbProvider').textContent=caps.provider||'PostgreSQL';
           document.getElementById('dbHost').textContent=caps.host;
-          var n=(j.documents||[]).length;
-          document.getElementById('dbDocs').textContent='· '+n+' document'+(n>1?'s':'');
+          // Compter EXACTEMENT comme le tableau : les bulletins de veille CERT-FR
+          // n'y figurent pas (ils ont leur propre panneau). Les inclure ici
+          // afficherait un total sans rapport avec ce qui est visible — piège
+          // constaté en situation : « 97 » au bandeau contre 7 dans le tableau.
+          // Ils sont donc comptés à part, ce qui explique aussi l'occupation disque.
+          var tot=(j.documents||[]).length, n=allDocs.length, veille=tot-n;
+          document.getElementById('dbDocs').textContent=
+            '· '+n+' document'+(n>1?'s':'')
+            +(veille>0 ? ('  ·  '+veille+' bulletin'+(veille>1?'s':'')+' de veille') : '');
           bn.style.display='flex';
         })();
         var st=j.stats.storage, ks=document.getElementById('kStore');
