@@ -1123,9 +1123,21 @@
       function ligne(l,v,cls){ return '<div>'+esc(l)+' — <span style="color:'+(cls||'var(--muted)')+'">'+esc(v)+'</span></div>'; }
       function afficher(j){
         var r=j.recuperable||{}, t=(j.tables||[]);
+        // Occupation rapportée à la CAPACITÉ du plan (variable DB_DISK_GB) : un
+        // chiffre nu ne dit pas si l'on approche du mur. Alerte dès 75 %, rouge
+        // à 90 % — la saturation bloque TOUTE écriture, donc tout chargement.
+        var used=j.db_bytes||j.total_bytes||0, cap=j.capacity_bytes||0, jauge='';
+        if(cap>0){
+          var pct=Math.min(100,Math.round(used/cap*1000)/10);
+          var col=pct>=90?'var(--danger)':(pct>=75?'var(--amber)':'var(--green)');
+          jauge=' <span style="color:'+col+'">sur '+fmtBytes(cap)+' — '+pct+' %'
+               +(pct>=75?' ⚠️ libérez de l\'espace':'')+'</span>';
+        } else {
+          jauge=' <span style="color:var(--muted)">(capacité inconnue : définissez '
+               +'DB_DISK_GB — ex. 15 — pour suivre le pourcentage)</span>';
+        }
         out.innerHTML=
-          '<div style="color:var(--ink)"><b>Base : '+fmtBytes(j.db_bytes||j.total_bytes||0)+'</b>'
-          +' <span style="color:var(--muted)">(plafond de l\'offre gratuite Neon : 512 Mo)</span></div>'
+          '<div style="color:var(--ink)"><b>Base : '+fmtBytes(used)+'</b>'+jauge+'</div>'
           +t.map(function(x){ return ligne('  '+x.table, fmtBytes(x.octets)+' · '+x.lignes+' lignes'); }).join('')
           +'<div style="margin-top:8px;color:var(--ink)"><b>Récupérable :</b></div>'
           +ligne('  fichiers d\'origine', fmtBytes(r.fichiers_origine||0))

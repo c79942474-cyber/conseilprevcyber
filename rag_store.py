@@ -1113,8 +1113,21 @@ class PostgresRagStore:
 
     def storage_report(self):
         """Occupation par table + postes récupérables (fichiers d'origine,
-        résidus de chargements interrompus, bulletins de veille)."""
+        résidus de chargements interrompus, bulletins de veille).
+
+        La CAPACITÉ totale, elle, échappe à PostgreSQL : le quota est imposé par
+        l'hébergeur, le moteur ne le connaît pas. Sans point de comparaison,
+        l'occupation reste un chiffre nu et la saturation n'arrive jamais que par
+        surprise — sous la forme d'un refus d'écriture. La variable
+        DB_DISK_GB permet donc de déclarer l'espace du plan (15 pour un plan
+        Render Basic, page de la base → « Storage »), et le panneau affiche alors
+        un pourcentage, avec alerte avant le mur."""
         out = {"tables": [], "total_bytes": 0}
+        try:
+            gb = float((os.environ.get("DB_DISK_GB") or "").strip() or 0)
+            out["capacity_bytes"] = int(gb * 1024 ** 3) if gb > 0 else None
+        except Exception:
+            out["capacity_bytes"] = None
         with self._pool.connection() as conn:
             try:
                 out["db_bytes"] = conn.execute(
