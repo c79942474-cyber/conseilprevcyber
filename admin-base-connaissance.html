@@ -174,6 +174,8 @@
           <button type="button" id="memDiag" style="display:none;margin-top:11px;margin-left:8px;font-family:var(--mono);font-size:12px;padding:8px 15px;border-radius:8px;border:1px solid var(--teal);background:rgba(20,184,166,.10);color:var(--teal);cursor:pointer">🩺 Diagnostiquer la connexion</button>
           <div id="diagOut" style="display:none;margin-top:12px;font-family:var(--mono);font-size:11.5px;line-height:1.8"></div></div></div>
 
+      <div class="warn" id="fmtWarn" style="display:none;border-color:rgba(247,158,125,.55);background:rgba(247,158,125,.12)"></div>
+
       <div class="warn"><span>⚠️</span><div>Les documents marqués <b>Public</b> peuvent être restitués par l'assistant à n'importe quel visiteur.
         N'y placez que des informations diffusables. Réservez les contenus sensibles à la visibilité <b>Interne</b>
         (utilisée pour les livrables, jamais exposée à l'assistant public).</div></div>
@@ -548,6 +550,11 @@
             mw.style.display='flex';
           } else { mw.style.display='none'; }
         }
+        // Formats réellement lisibles par le serveur : si une bibliothèque de
+        // lecture manque (python-docx, openpyxl…), le chargement de ce format
+        // échouerait par un « …_support_absent » alors que le fichier est
+        // valide. On le signale AVANT l'essai, plutôt qu'après un échec.
+        showFormats(j.formats);
         // Autocomplétion du champ « Thème » du bloc GÉNÉRAL : les domaines
         // Engineering en sont exclus (comme les puces de sélection rapide et le
         // filtre de la liste générale) — ils relèvent du bloc dédié Engineering.
@@ -592,6 +599,61 @@
     // Lecture JSON tolérante : si le serveur renvoie une page HTML (erreur 500/502…),
     // on ne casse pas sur « Unexpected token '<' » — on renvoie un code exploitable.
     async function readJson(r){ try{ return await r.json(); }catch(e){ return {ok:false, error:'http_'+(r&&r.status||0)}; } }
+
+    // Alerte « format illisible sur le serveur » : n'apparaît QUE si une
+    // bibliothèque de lecture manque. Sinon, aucun bruit dans l'interface.
+    function showFormats(f){
+      var box=document.getElementById('fmtWarn'); if(!box) return;
+      if(!f){ box.style.display='none'; return; }
+      var noms={pdf:'PDF',docx:'Word (.docx)',xlsx:'Excel (.xlsx)',pptx:'PowerPoint (.pptx)'};
+      var ko=Object.keys(noms).filter(function(k){ return f[k]===false; });
+      if(!ko.length){ box.style.display='none'; return; }
+      box.innerHTML='<span>⚠️</span><div><b>Format'+(ko.length>1?'s':'')+' non lisible'
+        +(ko.length>1?'s':'')+' sur le serveur : '+ko.map(function(k){return noms[k];}).join(', ')
+        +'.</b><br>La bibliothèque de lecture correspondante est absente du service — '
+        +'vos fichiers ne sont pas en cause. Redéployez le service (Manual Deploy) pour la réinstaller ; '
+        +'en attendant, convertissez le document dans un format lisible (PDF, texte, CSV).</div>';
+      box.style.display='flex';
+    }
+
+    // Messages d'échec de chargement — SOURCE UNIQUE, partagée par le bloc général
+    // ET le bloc Engineering. (Auparavant chaque bloc avait sa propre carte : la
+    // version Engineering, incomplète, affichait le code technique brut — p. ex.
+    // « Échec du chargement (docx_support_absent) » — au lieu d'un message utile.)
+    var UPLOAD_ERRORS={
+      type_non_supporte:'Type de fichier non pris en charge.',
+      fichier_trop_lourd:'Fichier trop lourd (30 Mo maximum).',
+      requete_trop_grande:'Fichier trop lourd pour une seule requête (30 Mo maximum).',
+      doublon:'Ce document est déjà présent dans la base (contenu identique) — chargement ignoré.',
+      fichier_manquant:'Aucun fichier sélectionné.',
+      fichier_vide:'Fichier vide.',
+      reseau:'Connexion interrompue pendant l\'envoi. Réessayez.',
+      aucun_texte:'Aucun texte exploitable — s\'il s\'agit d\'un PDF scanné (image), il n\'a pas de couche texte : ré-exportez-le avec OCR (texte reconnu), ou fournissez la version Word / texte.',
+      pdf_illisible:'PDF illisible ou protégé (chiffré ?). Réessayez avec un PDF non protégé.',
+      docx_illisible:'Document Word illisible ou protégé.',
+      xlsx_illisible:'Classeur Excel illisible ou protégé.',
+      pptx_illisible:'Présentation PowerPoint illisible ou protégée.',
+      // « support absent » = la bibliothèque de lecture manque SUR LE SERVEUR
+      // (le fichier, lui, est valide) : on l'explique et on donne la parade.
+      pdf_support_absent:'Lecture des PDF indisponible sur le serveur (bibliothèque absente) — le fichier n\'est pas en cause. Redéployez le service, ou convertissez le document en Word/texte en attendant.',
+      docx_support_absent:'Lecture des documents Word indisponible sur le serveur (bibliothèque absente) — le fichier n\'est pas en cause. Redéployez le service, ou enregistrez le document en PDF/texte en attendant.',
+      xlsx_support_absent:'Lecture des classeurs Excel indisponible sur le serveur (bibliothèque absente) — le fichier n\'est pas en cause. Redéployez le service, ou exportez la feuille en CSV en attendant.',
+      pptx_support_absent:'Lecture des présentations PowerPoint indisponible sur le serveur (bibliothèque absente) — le fichier n\'est pas en cause. Redéployez le service, ou exportez la présentation en PDF en attendant.',
+      traitement_echec:'Ce document n\'a pas pu être traité (contenu illisible ou non pris en charge). Essayez un autre export/format.',
+      erreur_serveur:'Erreur serveur pendant le traitement. Réessayez dans un instant.',
+      base_indisponible:'Base de connaissance momentanément injoignable (réveil à froid de la base). Réessayez dans quelques secondes — le document sera alors enregistré durablement.',
+      http_500:'Erreur serveur (500). Réessayez ; si cela persiste, vérifiez les logs.',
+      http_502:'Serveur momentanément indisponible (502). Réessayez.',
+      http_503:'Serveur momentanément indisponible (503). Réessayez.',
+      http_504:'Le traitement a expiré (504). Réessayez ; le fichier est peut-être trop volumineux.'
+    };
+    function uploadErrorMessage(err){
+      var m=UPLOAD_ERRORS[err&&err.message]||('Échec du chargement ('+(err&&err.message)+').');
+      // Cause technique précise renvoyée par le serveur (assainie) : la montrer
+      // aide à diagnostiquer sans consulter les logs.
+      if(err&&err.detail) m+=' — '+err.detail;
+      return m;
+    }
 
     // Indexation vectorielle = POST-TRAITEMENT : à ce stade le document est DÉJÀ
     // enregistré et cherchable en plein-texte. Un échec ici (base coupée pendant
@@ -672,25 +734,7 @@
         setTimeout(function(){prog.classList.remove('on');bar.style.width='0';upmsg.textContent='';},2500);
         load();
       }catch(err){
-        var m={type_non_supporte:'Type de fichier non pris en charge.',fichier_trop_lourd:'Fichier trop lourd (30 Mo maximum).',
-          doublon:'Ce document est déjà présent dans la base (contenu identique) — chargement ignoré.',
-          fichier_manquant:'Aucun fichier sélectionné.',reseau:'Connexion interrompue pendant l\'envoi. Réessayez.',
-          fichier_vide:'Fichier vide.',aucun_texte:'Aucun texte exploitable — s\'il s\'agit d\'un PDF scanné (image), il n\'a pas de couche texte : ré-exportez-le avec OCR (texte reconnu), ou fournissez la version Word / texte.',
-          pdf_illisible:'PDF illisible ou protégé (chiffré ?). Réessayez avec un PDF non protégé.',docx_illisible:'DOCX illisible.',
-          xlsx_illisible:'Classeur Excel illisible ou protégé.',xlsx_support_absent:'Lecture des fichiers Excel indisponible sur le serveur.',
-          pptx_illisible:'Présentation PowerPoint illisible ou protégée.',pptx_support_absent:'Lecture des fichiers PowerPoint indisponible sur le serveur.',
-          requete_trop_grande:'Fichier trop lourd pour une seule requête (30 Mo maximum).',
-          pdf_support_absent:'Lecture des PDF indisponible sur le serveur.',docx_support_absent:'Lecture des DOCX indisponible sur le serveur.',
-          traitement_echec:'Ce document n\'a pas pu être traité (contenu illisible ou non pris en charge). Essayez un autre export/format.',
-          erreur_serveur:'Erreur serveur pendant le traitement. Réessayez dans un instant.',
-          base_indisponible:'Base de connaissance momentanément injoignable (réveil à froid de la base). Réessayez dans quelques secondes — le document sera alors enregistré durablement.',
-          http_500:'Erreur serveur (500). Réessayez ; si cela persiste, vérifiez les logs.',
-          http_502:'Serveur momentanément indisponible (502). Réessayez.',http_503:'Serveur momentanément indisponible (503). Réessayez.',
-          http_504:'Le traitement a expiré (504). Réessayez ; le fichier est peut-être trop volumineux.'
-          }[err.message]||('Échec du chargement ('+err.message+').');
-        // Cause technique précise renvoyée par le serveur (ex. erreur PostgreSQL
-        // assainie) : la montrer aide à diagnostiquer sans consulter les logs.
-        if(err.detail) m += ' — '+err.detail;
+        var m=uploadErrorMessage(err);
         note(m,'err'); setProg(0,''); prog.classList.remove('on');
       }finally{ upBtn.disabled=!chosen; }
     }
@@ -738,15 +782,7 @@
           setTimeout(function(){progEng.classList.remove('on');barEng.style.width='0';msgEng.textContent='';},2500);
           load();
         }catch(err){
-          var m={type_non_supporte:'Type de fichier non pris en charge.',fichier_trop_lourd:'Fichier trop lourd (30 Mo maximum).',
-            doublon:'Déjà présent (contenu identique).',fichier_manquant:'Aucun fichier sélectionné.',reseau:'Connexion interrompue. Réessayez.',
-            fichier_vide:'Fichier vide.',aucun_texte:'Aucun texte exploitable — PDF scanné (image) ? Il n\'a pas de couche texte : ré-exportez-le avec OCR, ou fournissez la version Word / texte.',
-            pdf_illisible:'PDF illisible ou protégé (chiffré ?).',pdf_support_absent:'Lecture des PDF indisponible sur le serveur.',docx_illisible:'DOCX illisible.',
-            xlsx_illisible:'Classeur Excel illisible.',pptx_illisible:'Présentation PowerPoint illisible.',
-            traitement_echec:'Ce document n\'a pas pu être traité (format ou contenu).',requete_trop_grande:'Fichier trop lourd (30 Mo maximum).',
-            base_indisponible:'Base momentanément injoignable (réveil à froid). Réessayez dans quelques secondes — le document sera alors enregistré durablement.'
-            }[err.message]||('Échec du chargement ('+err.message+').');
-          if(err.detail) m+=' — '+err.detail;
+          var m=uploadErrorMessage(err);   // même source que le bloc général
           note(m,'err'); setP(0,''); progEng.classList.remove('on');
         }finally{ btnEng.disabled=!chosenEng; }
       });

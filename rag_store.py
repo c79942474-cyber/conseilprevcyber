@@ -230,6 +230,25 @@ def extract_text(ext, data):
     raise RagError("type_non_supporte", 415)
 
 
+def formats_available():
+    """Formats réellement lisibles par CE serveur.
+
+    Chaque format bureautique dépend d'une bibliothèque optionnelle (pypdf,
+    python-docx, openpyxl, python-pptx). Si l'une manque ou que son binding est
+    cassé, le chargement échoue par un « …_support_absent » — alors que le
+    fichier, lui, est parfaitement valide. Exposer l'information permet de le
+    CONSTATER dans l'admin avant même d'essayer, au lieu de le déduire d'un
+    échec. Les formats texte (txt, md, csv, log, json) sont toujours lisibles."""
+    def ok(module):
+        try:
+            __import__(module)
+            return True
+        except Exception:
+            return False
+    return {"texte": True, "pdf": ok("pypdf"), "docx": ok("docx"),
+            "xlsx": ok("openpyxl"), "pptx": ok("pptx")}
+
+
 def _normalize(text):
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     # Retire l'octet NUL (0x00) et les autres caractères de contrôle qu'un PDF/DOCX

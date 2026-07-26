@@ -69,7 +69,8 @@ from clients_store import (BASES_LEGALES, CATEGORIES_PIECES, STATUTS,
 from cockpit_state import make_store, tag_for
 from livrables_store import make_livrables_store
 from rag_store import (RagError, THEMES, build_context, dedupe as rag_dedupe,
-                       diagnose as rag_diagnose, duplicate_groups, make_rag_store)
+                       diagnose as rag_diagnose, duplicate_groups,
+                       formats_available, make_rag_store)
 
 app = Flask(__name__)
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -1097,7 +1098,8 @@ def api_rag_list():
     indisponible »."""
     try:
         return jsonify(ok=True, documents=rag.list_documents(), stats=rag.stats(),
-                       capabilities=rag.capabilities(), themes=THEMES)
+                       capabilities=rag.capabilities(), themes=THEMES,
+                       formats=formats_available())
     except Exception:
         try:
             caps = rag.capabilities()
@@ -1105,7 +1107,8 @@ def api_rag_list():
             caps = {"persistent": False, "mode": "lexical", "reason": "db_connection_failed"}
         return jsonify(ok=True, documents=[],
                        stats={"documents": 0, "chunks": 0, "themes": {}, "storage": None},
-                       capabilities=caps, themes=THEMES)
+                       capabilities=caps, themes=THEMES,
+                       formats=formats_available())
 
 
 @app.route("/api/admin/rag/search", methods=["POST"])
