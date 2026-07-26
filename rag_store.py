@@ -230,6 +230,35 @@ def extract_text(ext, data):
     raise RagError("type_non_supporte", 415)
 
 
+def db_identity(dsn):
+    """Identité LISIBLE de la base visée : hôte + hébergeur reconnu. Jamais
+    d'identifiant (ni utilisateur, ni mot de passe).
+
+    Sert à savoir d'un coup d'œil SUR QUELLE BASE on travaille. Changer
+    DATABASE_URL ne déplace aucune donnée : après une bascule, la nouvelle base
+    est logiquement vide, ce qui donne l'impression que les documents ont
+    disparu. Afficher l'hébergeur et l'hôte lève l'ambiguïté immédiatement."""
+    try:
+        from urllib.parse import urlparse
+        host = (urlparse(dsn).hostname or "").strip()
+    except Exception:
+        host = ""
+    if not host:
+        return {"host": "", "provider": ""}
+    h = host.lower()
+    if "neon.tech" in h or ".neon." in h:
+        provider = "Neon"
+    elif h.startswith("dpg-"):
+        provider = "Render (réseau privé)"
+    elif ".render.com" in h:
+        provider = "Render (accès externe)"
+    elif h in ("localhost", "127.0.0.1", "::1"):
+        provider = "locale"
+    else:
+        provider = "hébergeur non reconnu"
+    return {"host": host, "provider": provider}
+
+
 def formats_available():
     """Formats réellement lisibles par CE serveur.
 
@@ -721,6 +750,9 @@ class PostgresRagStore:
 
     def __init__(self, dsn):
         from psycopg_pool import ConnectionPool
+        # DSN d'ORIGINE conservé (avant ajout des paramètres) : sert à afficher
+        # dans l'admin SUR QUELLE BASE on travaille (hôte seul, jamais d'identifiant).
+        self._identity = db_identity(dsn)
         sep = "&" if "?" in dsn else "?"
         # client_encoding=UTF8 : les libellés accentués (thèmes, contenu) sont
         # toujours transmis en UTF-8, quel que soit l'encodage du serveur.
@@ -801,9 +833,11 @@ class PostgresRagStore:
 
     def capabilities(self):
         emb = self.vector_mode and embeddings_available()
+        ident = getattr(self, "_identity", None) or {}
         return {"persistent": True,
                 "mode": "vectoriel" if emb else "texte_integral",
-                "embeddings": emb, "vector": self.vector_mode}
+                "embeddings": emb, "vector": self.vector_mode,
+                "host": ident.get("host", ""), "provider": ident.get("provider", "")}
 
     # -- upload par morceaux (assemblé en base : robuste multi-instance) --
     def create_upload(self, filename, total_bytes):
