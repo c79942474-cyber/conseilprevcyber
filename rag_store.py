@@ -1345,9 +1345,24 @@ def diagnose(dsn=None):
                      "bloque ce service. Remplacez DATABASE_URL par l'« Internal Database URL » "
                      "(base dans la même région), ou ajoutez 0.0.0.0/0 dans Access Control.")
         else:
-            concl = ("Le serveur ne répond pas : cette base précise est suspendue / non "
-                     "Available, ou l'hôte appartient à une ancienne base. Vérifiez dans Render "
-                     "le statut de CETTE base et recopiez son URL actuelle.")
+            # Le nom a été résolu juste avant : l'hôte EXISTE. Un délai d'attente à
+            # l'ouverture TCP ne signifie donc pas « adresse inconnue » mais « rien
+            # n'accepte la connexion ». Sur une URL interne Render, trois causes,
+            # par ordre de fréquence — la première est la plus souvent oubliée.
+            concl = ("Le nom est bien résolu (l'hôte existe) mais aucune connexion n'est "
+                     "acceptée. Sur une URL interne, vérifiez dans cet ordre : "
+                     "1) la RÉGION — le réseau privé Render est cloisonné par région : "
+                     "la base et le service web doivent être dans la MÊME (le nom se "
+                     "résout quand même d'une région à l'autre, mais la connexion "
+                     "n'aboutit jamais) ; comparez la région affichée sur la page de la "
+                     "base et sur celle du service ; "
+                     "2) le STATUT de la base — elle doit être « Available » (une base "
+                     "en cours de création ou suspendue résout déjà mais n'accepte pas "
+                     "encore) ; "
+                     "3) l'URL — recopiez l'« Internal Database URL » de CETTE base. "
+                     "Dépannage immédiat si les régions diffèrent : utilisez l'« External "
+                     "Database URL » (elle fonctionne entre régions), en autorisant "
+                     "l'accès dans Access Control.")
         return {"steps": steps, "conclusion": concl}
 
     try:
