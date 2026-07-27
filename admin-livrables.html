@@ -23,15 +23,39 @@
   .models label:has(input:checked){border-color:var(--cyan);background:rgba(34,211,238,.08);color:var(--ink)}
   .models input{accent-color:var(--cyan)}
   .models label.off{opacity:.5;pointer-events:none}
-  .docpick{border:1px solid var(--line);border-radius:10px;background:var(--bg2);padding:10px;max-height:184px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:8px}
+  .docpick{border:1px solid var(--line);border-radius:10px;background:var(--bg2);padding:10px;max-height:184px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start}
   .docpick .dphint{color:var(--muted2);font-size:13px;padding:6px 4px}
   .docpick .dphint a{color:var(--cyan)}
-  .docpick label{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-size:12.5px;color:var(--muted);cursor:pointer;transition:border-color .15s,background .15s,color .15s}
+  /* text-transform / letter-spacing / margin-bottom : neutralisent le style
+     générique « .field label » (libellés de formulaire en capitales espacées),
+     qui s'appliquait aussi à ces pastilles et les rendait illisibles. */
+  .docpick label{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-size:12.5px;color:var(--muted);cursor:pointer;transition:border-color .15s,background .15s,color .15s;
+    text-transform:none;letter-spacing:normal;margin-bottom:0;max-width:100%}
+  .docpick label>span{display:inline-block;min-width:0}
   .docpick label:hover{border-color:var(--teal);color:var(--ink)}
   .docpick label:has(input:checked){border-color:var(--cyan);background:rgba(34,211,238,.09);color:var(--ink)}
-  .docpick input{accent-color:var(--cyan)}
+  /* « .field input » (styles.css) impose width:100% + padding aux champs de
+     formulaire — les cases à cocher du sélecteur mesuraient 180 px de large et
+     disloquaient chaque pastille. On leur rend leur taille naturelle. */
+  .docpick input{accent-color:var(--cyan);width:auto;flex:none;padding:0;margin:0}
   .docpick .th{font-family:var(--mono);font-size:9px;text-transform:uppercase;color:var(--muted2);margin-left:4px}
   .docpick .iv{color:var(--violet)}
+  /* Filtres du sélecteur : retrouver un document parmi cent. Le filtrage masque
+     les étiquettes sans les reconstruire — les cases cochées survivent donc à
+     tout changement de filtre, y compris si elles sortent du champ affiché. */
+  .dpbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .dpbar input[type=search]{flex:1 1 200px;min-width:160px}
+  .dpbar select{flex:0 1 220px}
+  .dpbar .dpcount{font-size:12px;color:var(--muted2);margin-left:auto}
+  .dpbar .dpclear{font-size:12px;color:var(--cyan);background:none;border:none;cursor:pointer;padding:2px 4px}
+  .docpick label.hid{display:none}
+  /* Aperçu de la sélection automatique : ce que le type retiendrait sans
+     sélection manuelle. */
+  .dpprev{margin-top:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg2);padding:10px 12px;font-size:12.5px;color:var(--muted)}
+  .dpprev ol{margin:8px 0 0;padding-left:22px}
+  .dpprev li{padding:3px 0}
+  .dpprev li b{color:var(--ink)}
+  .dpprev .q{font-family:var(--mono);font-size:11px;color:var(--muted2);word-break:break-word}
   .warn{border:1px solid rgba(240,180,41,.35);background:rgba(240,180,41,.08);border-radius:11px;
     padding:11px 15px;font-size:13px;color:var(--ink);margin-bottom:18px;display:flex;gap:10px;align-items:flex-start}
   .warn b{color:var(--amber)}
@@ -153,7 +177,17 @@
         <div class="field"><label for="consignes">Consignes particulières (facultatif)</label><textarea id="consignes" placeholder="Points à mettre en avant, contraintes, échéances…"></textarea></div>
         <div class="field">
           <label>Documents de référence <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted2)">— facultatif ; sinon sélection automatique dans toute la base</span></label>
+          <div class="dpbar" id="dpbar" style="display:none">
+            <input type="search" id="dpq" placeholder="Filtrer par titre…" aria-label="Filtrer les documents par titre">
+            <select id="dpTheme" aria-label="Filtrer par sous-dossier"><option value="">Tous les sous-dossiers</option></select>
+            <button type="button" class="dpclear" id="dpClear">Tout décocher</button>
+            <span class="dpcount" id="dpCount"></span>
+          </div>
           <div class="docpick" id="docpick"><div class="dphint">Chargement…</div></div>
+          <div style="margin-top:8px">
+            <button type="button" class="btn btn-s" id="prevBtn" title="Affiche les documents que la sélection automatique retiendrait pour le type de livrable choisi — sans rien générer">👁 Aperçu de la sélection automatique</button>
+          </div>
+          <div class="dpprev" id="dpprev" style="display:none"></div>
         </div>
         <div class="field">
           <label>Modèle d'IA</label>
@@ -362,10 +396,86 @@
           return;
         }
         box.innerHTML=docs.map(function(d){
-          return '<label><input type="checkbox" value="'+d.id+'"><span>'+esc(d.title)+'<span class="th">'+esc(d.theme||'')+'</span>'+(d.visibility==='internal'?' <span class="iv th">interne</span>':'')+'</span></label>';
+          return '<label data-t="'+esc((d.title||'').toLowerCase())+'" data-th="'+esc(d.theme||'')+'">'
+            +'<input type="checkbox" value="'+d.id+'"><span>'+esc(d.title)+'<span class="th">'+esc(d.theme||'')+'</span>'
+            +(d.visibility==='internal'?' <span class="iv th">interne</span>':'')+'</span></label>';
         }).join('');
+        // Sous-dossiers réellement présents, dans l'ordre alphabétique.
+        var ths=[]; docs.forEach(function(d){var t=d.theme||''; if(t&&ths.indexOf(t)<0)ths.push(t);});
+        ths.sort();
+        dpTheme.innerHTML='<option value="">Tous les sous-dossiers</option>'
+          +ths.map(function(t){return '<option value="'+esc(t)+'">'+esc(t)+'</option>';}).join('');
+        dpbar.style.display='flex';
+        filtrerDocs();
       }).catch(function(){fail('Chargement impossible pour le moment.');});
     }
+
+    /* ---- Filtres du sélecteur ------------------------------------------------
+       On MASQUE les étiquettes au lieu de reconstruire la liste : une case cochée
+       reste cochée même si le filtre la fait sortir de l'écran — et le compteur
+       rappelle combien de documents sont retenus hors du champ visible. */
+    var dpbar=document.getElementById('dpbar'), dpq=document.getElementById('dpq'),
+        dpTheme=document.getElementById('dpTheme'), dpCount=document.getElementById('dpCount');
+    function filtrerDocs(){
+      var q=(dpq.value||'').trim().toLowerCase(), th=dpTheme.value||'',
+          labels=document.querySelectorAll('#docpick label'), vus=0, coches=0, caches=0;
+      Array.prototype.forEach.call(labels,function(l){
+        var ok=(!q||l.getAttribute('data-t').indexOf(q)>-1)
+             &&(!th||l.getAttribute('data-th')===th);
+        l.classList.toggle('hid',!ok);
+        if(ok)vus++;
+        if(l.querySelector('input').checked){coches++; if(!ok)caches++;}
+      });
+      dpCount.textContent=vus+' / '+labels.length+' affiché(s)'
+        +(coches?(' · '+coches+' sélectionné(s)'+(caches?(', dont '+caches+' masqué(s) par le filtre'):'')):'');
+    }
+    dpq.addEventListener('input',filtrerDocs);
+    dpTheme.addEventListener('change',filtrerDocs);
+    document.getElementById('docpick').addEventListener('change',filtrerDocs);
+    document.getElementById('dpClear').addEventListener('click',function(){
+      Array.prototype.forEach.call(document.querySelectorAll('#docpick input:checked'),
+        function(c){c.checked=false;});
+      filtrerDocs();
+    });
+
+    /* ---- Aperçu de la sélection automatique ---------------------------------
+       Rejoue côté serveur les mêmes étapes que la génération (même requête, même
+       nombre d'extraits, même re-classement) : l'aperçu montre donc ce qui sera
+       réellement mobilisé, et rend visible l'effet du type de livrable. */
+    var dpprev=document.getElementById('dpprev');
+    document.getElementById('prevBtn').addEventListener('click',function(){
+      var b=this, old=b.textContent;
+      if(selectedDocIds().length){
+        dpprev.style.display='block';
+        dpprev.innerHTML='Vous avez coché des documents : la sélection automatique est alors '
+          +'désactivée et <b>seuls vos documents cochés</b> seront utilisés. Décochez tout pour voir l\'aperçu.';
+        return;
+      }
+      b.disabled=true; b.textContent='Analyse…';
+      dpprev.style.display='block'; dpprev.innerHTML='<span class="spin"></span>Recherche des documents les plus pertinents…';
+      fetch('/api/admin/livrables/preview-docs',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({type:typeSel.value,secteur:document.getElementById('secteur').value.trim(),
+          perimetre:document.getElementById('perimetre').value.trim(),
+          consignes:document.getElementById('consignes').value.trim(),
+          model:(document.querySelector('input[name=model]:checked')||{}).value||'mistral'})})
+        .then(function(r){return r.json();}).then(function(j){
+          if(!j||!j.ok){dpprev.innerHTML='Aperçu indisponible ('+esc((j&&j.error)||'erreur')+').';return;}
+          if(!(j.documents||[]).length){
+            dpprev.innerHTML='Aucun document ne ressort pour ce type — la génération s\'appuiera sur vos seules saisies. '
+              +'<a href="/admin/base-connaissance" style="color:var(--cyan)">Enrichir la base →</a>';
+            return;
+          }
+          dpprev.innerHTML='<b>'+j.documents.length+' document(s)</b> seraient mobilisés ('+j.extraits+' extraits), '
+            +'du plus au moins pertinent :<ol>'
+            +j.documents.map(function(d){
+              return '<li><b>'+esc(d.title||'(sans titre)')+'</b> <span class="th">'+esc(d.theme||'')+'</span>'
+                +(d.visibility==='internal'?' <span class="iv th">interne</span>':'')
+                +' <span style="color:var(--muted2)">— '+d.extraits+' extrait(s)</span></li>';
+            }).join('')+'</ol>'
+            +'<div style="margin-top:8px" class="q">Requête utilisée : '+esc(j.query||'')+'</div>';
+        }).catch(function(){dpprev.innerHTML='Aperçu impossible pour le moment.';})
+        .then(function(){b.disabled=false;b.textContent=old;});
+    });
 
     function loadTypes(){
       fetch('/api/admin/livrables/types').then(function(r){
@@ -393,7 +503,14 @@
       }).catch(function(){note('Erreur de chargement.','err');});
     }
     function showDesc(){ var t=TYPES.filter(function(x){return x.id===typeSel.value;})[0]; typedesc.textContent=t?t.desc:''; }
-    typeSel.addEventListener('change',showDesc);
+    typeSel.addEventListener('change',function(){
+      showDesc();
+      // Le type change ce que la sélection automatique retiendra : un aperçu
+      // affiché devient caduc. On le signale plutôt que de le laisser mentir.
+      if(dpprev.style.display!=='none')
+        dpprev.innerHTML='Type de livrable modifié — <b>relancez l\'aperçu</b> pour voir '
+          +'les documents que ce type mobiliserait.';
+    });
 
     function generate(){
       var body={type:typeSel.value,client:document.getElementById('client').value.trim(),

@@ -2016,6 +2016,47 @@ def api_livrables_generate():
     return _livrables_run(type_id, data, system, user)
 
 
+@app.route("/api/admin/livrables/preview-docs", methods=["POST"])
+@admin_required
+def api_livrables_preview_docs():
+    """Documents que la sélection AUTOMATIQUE retiendrait pour le type courant.
+
+    Le sélecteur « Documents de référence » liste toute la base et ne bouge pas
+    quand on change de type — ce qui laisse croire que le type n'influence rien.
+    Il l'influence en réalité côté serveur, au moment de la génération. Cette
+    route rend ce mécanisme visible en rejouant EXACTEMENT les mêmes étapes que
+    _livrables_run (même requête, même k, même re-classement), de sorte que
+    l'aperçu ne puisse pas mentir sur ce qui sera réellement mobilisé."""
+    ckey = "prev:%s" % client_ip()
+    if guard.blocked(ckey, limit=30, window=600):
+        return jsonify(ok=False, error="rate_limited",
+                       message="Trop d'aperçus en peu de temps. Patientez un instant."), 429
+    guard.fail(ckey)
+    data = request.get_json(silent=True) or {}
+    type_id = (data.get("type") or "").strip()
+    if not livrables.get_type(type_id):
+        return jsonify(ok=False, error="type_inconnu", message="Type de livrable inconnu."), 400
+    model = "mistral" if data.get("model") == "mistral" else "claude"
+    query = livrables.retrieval_query(type_id, data)
+    try:
+        hits = assistant.rerank(model, query,
+                                rag.search(query, k=24, public_only=False), 8)
+    except Exception as exc:
+        return jsonify(ok=False, error="apercu_echec", detail=_exc_detail(exc)), 500
+    # Un document peut fournir plusieurs extraits : on regroupe par document en
+    # conservant l'ordre de pertinence et en comptant les extraits retenus.
+    docs, rang = [], {}
+    for h in hits:
+        did = h.get("doc_id")
+        if did in rang:
+            docs[rang[did]]["extraits"] += 1
+            continue
+        rang[did] = len(docs)
+        docs.append({"id": did, "title": h.get("title"), "theme": h.get("theme"),
+                     "visibility": h.get("visibility"), "extraits": 1})
+    return jsonify(ok=True, query=query, documents=docs, extraits=len(hits))
+
+
 @app.route("/api/admin/livrables/refine", methods=["POST"])
 @admin_required
 def api_livrables_refine():
