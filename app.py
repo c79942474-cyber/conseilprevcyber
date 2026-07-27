@@ -81,7 +81,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # si le numéro affiché est plus ancien que la version attendue, le déploiement n'a
 # pas abouti — et aucun correctif récent n'est en ligne. À incrémenter à chaque
 # correctif dont on veut pouvoir confirmer la mise en ligne.
-APP_VERSION = "2026.07.27-1"
+APP_VERSION = "2026.07.27-2"
 
 # --- Sécurité applicative (en-têtes, anti-CSRF, taille de requête) -------------
 # Plafond de taille du corps d'une requête (anti-abus mémoire / DoS).
@@ -1389,6 +1389,44 @@ def api_rag_storage():
         return jsonify(ok=True, **fn())
     except Exception as exc:
         return jsonify(ok=False, error="storage_echec", detail=_exc_detail(exc)), 500
+
+
+@app.route("/api/admin/rag/storage/capacity", methods=["POST"])
+@admin_required
+def api_rag_capacity():
+    """Déclare la capacité du plan d'hébergement, en Go (0 pour l'oublier).
+
+    PostgreSQL ignore son propre quota : il est imposé au-dessus de lui. Sans
+    cette valeur, l'occupation reste un chiffre nu — on ne sait pas si l'on est
+    à 5 % ou à 95 %, et la saturation n'arrive que par surprise, sous la forme
+    d'un refus d'écriture. La saisir ici plutôt que par une variable
+    d'environnement évite un aller-retour par le tableau de bord de l'hébergeur
+    suivi d'un redéploiement ; la valeur est mémorisée en base, donc partagée
+    par tous les workers et conservée d'un déploiement à l'autre."""
+    if not callable(getattr(rag, "storage_report", None)):
+        return jsonify(ok=False, error="indisponible",
+                       message="Réglage disponible uniquement avec PostgreSQL."), 409
+    data = request.get_json(silent=True) or {}
+    try:
+        gb = float(str(data.get("gb", "")).replace(",", ".").strip() or 0)
+    except (TypeError, ValueError):
+        return jsonify(ok=False, error="valeur_invalide"), 400
+    # Borne haute volontairement large (100 To) : elle n'existe que pour écarter
+    # une saisie aberrante, pas pour présumer du plan de l'hébergeur.
+    if gb < 0 or gb > 100000:
+        return jsonify(ok=False, error="valeur_invalide"), 400
+    try:
+        rag.set_setting("capacity_gb", None if gb == 0 else ("%g" % gb))
+    except RagError as exc:
+        return jsonify(ok=False, error=exc.code,
+                       detail=getattr(exc, "detail", "")), exc.status
+    except Exception as exc:
+        app.logger.exception("capacity : échec d'enregistrement")
+        return jsonify(ok=False, error="capacite_echec", detail=_exc_detail(exc)), 500
+    try:
+        return jsonify(ok=True, **rag.storage_report())
+    except Exception:
+        return jsonify(ok=True)
 
 
 @app.route("/api/admin/rag/purge", methods=["POST"])

@@ -217,6 +217,19 @@
           <span class="hint" style="margin:0;flex:1;min-width:220px">Une base saturée bloque tous les chargements. Vérifiez l'occupation et libérez le superflu.</span>
         </div>
         <div id="storageOut" style="display:none;margin-top:12px;font-family:var(--mono);font-size:11.5px;line-height:1.8"></div>
+        <!-- Capacité du plan : PostgreSQL ignore son propre quota (il est imposé
+             au-dessus de lui). Sans cette valeur, l'occupation est un chiffre nu :
+             impossible de savoir si l'on est à 5 % ou à 95 %. Saisie ici — donc
+             sans variable d'environnement ni redéploiement — et mémorisée en base. -->
+        <div id="capBox" style="display:none;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)">
+          <label for="capGb" style="font-size:12.5px;color:var(--muted)">Capacité de votre plan d'hébergement</label>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px">
+            <input type="number" id="capGb" min="0" max="100000" step="0.5" placeholder="15" style="width:110px">
+            <span style="font-size:12.5px;color:var(--muted)">Go</span>
+            <button class="btn btn-s" id="capSave" type="button">Enregistrer</button>
+            <span class="hint" style="margin:0;flex:1;min-width:220px">Indiquée sur la page de votre base chez l'hébergeur, rubrique « Storage ». Retenue d'un déploiement à l'autre ; 0 pour l'oublier.</span>
+          </div>
+        </div>
         <div id="purgeBox" style="display:none;margin-top:10px">
           <label style="display:block;margin-bottom:6px;font-size:12.5px;color:var(--muted)">À libérer (rien d'irremplaçable : les documents et leur indexation restent intacts)</label>
           <label style="display:inline-flex;gap:6px;align-items:center;margin-right:14px;font-size:12.5px"><input type="checkbox" id="pgUploads" checked> Résidus de chargements interrompus</label>
@@ -1256,31 +1269,51 @@
     (function(){
       var sb=document.getElementById('storageBtn'); if(!sb) return;
       var out=document.getElementById('storageOut'), box=document.getElementById('purgeBox');
+      var capBox=document.getElementById('capBox'), capGb=document.getElementById('capGb');
       function ligne(l,v,cls){ return '<div>'+esc(l)+' — <span style="color:'+(cls||'var(--muted)')+'">'+esc(v)+'</span></div>'; }
+      // Dans un inventaire de tailles, 0 est une information ; le tiret de
+      // fmtBytes s'y lit à tort comme « inconnu ».
+      function taille(b){ return b ? fmtBytes(b) : '0 o'; }
       function afficher(j){
         var r=j.recuperable||{}, t=(j.tables||[]);
-        // Occupation rapportée à la CAPACITÉ du plan (variable DB_DISK_GB) : un
-        // chiffre nu ne dit pas si l'on approche du mur. Alerte dès 75 %, rouge
-        // à 90 % — la saturation bloque TOUTE écriture, donc tout chargement.
-        var used=j.db_bytes||j.total_bytes||0, cap=j.capacity_bytes||0, jauge='';
+        // Occupation rapportée à la CAPACITÉ du plan : un chiffre nu ne dit pas
+        // si l'on approche du mur. Alerte dès 75 %, rouge à 90 % — la saturation
+        // bloque TOUTE écriture, donc tout chargement.
+        var used=j.db_bytes||j.total_bytes||0, cap=j.capacity_bytes||0, jauge='', barre='';
         if(cap>0){
           var pct=Math.min(100,Math.round(used/cap*1000)/10);
           var col=pct>=90?'var(--danger)':(pct>=75?'var(--amber)':'var(--green)');
           jauge=' <span style="color:'+col+'">sur '+fmtBytes(cap)+' — '+pct+' %'
                +(pct>=75?' ⚠️ libérez de l\'espace':'')+'</span>';
+          barre='<div style="margin:6px 0 2px;height:7px;border-radius:4px;background:var(--bg2);'
+               +'border:1px solid var(--line);overflow:hidden;max-width:420px">'
+               +'<div style="height:100%;width:'+Math.max(pct,0.6)+'%;background:'+col+'"></div></div>';
+          capGb.value=Math.round(cap/1073741824*100)/100;
         } else {
-          jauge=' <span style="color:var(--muted)">(capacité inconnue : définissez '
-               +'DB_DISK_GB — ex. 15 — pour suivre le pourcentage)</span>';
+          jauge=' <span style="color:var(--muted)">(capacité inconnue — indiquez-la ci-dessous '
+               +'pour suivre le pourcentage)</span>';
         }
         out.innerHTML=
-          '<div style="color:var(--ink)"><b>Base : '+fmtBytes(used)+'</b>'+jauge+'</div>'
-          +t.map(function(x){ return ligne('  '+x.table, fmtBytes(x.octets)+' · '+x.lignes+' lignes'); }).join('')
+          '<div style="color:var(--ink)"><b>Base : '+taille(used)+'</b>'+jauge+'</div>'+barre
+          +t.map(function(x){ return ligne('  '+x.table, taille(x.octets)+' · '+x.lignes+' lignes'); }).join('')
           +'<div style="margin-top:8px;color:var(--ink)"><b>Récupérable :</b></div>'
-          +ligne('  fichiers d\'origine', fmtBytes(r.fichiers_origine||0))
-          +ligne('  chargements interrompus', fmtBytes(r.chargements_interrompus||0))
-          +ligne('  veille CERT-FR', fmtBytes(r.veille||0)+' · '+(r.veille_documents||0)+' document(s)');
-        out.style.display='block'; box.style.display='block';
+          +ligne('  fichiers d\'origine', taille(r.fichiers_origine))
+          +ligne('  chargements interrompus', taille(r.chargements_interrompus))
+          +ligne('  veille CERT-FR', taille(r.veille)+' · '+(r.veille_documents||0)+' document(s)');
+        out.style.display='block'; box.style.display='block'; capBox.style.display='block';
       }
+      document.getElementById('capSave').addEventListener('click',function(){
+        var b=this, old=b.textContent; b.disabled=true; b.textContent='…';
+        apiFetch('/api/admin/rag/storage/capacity',{method:'POST',
+          headers:{'content-type':'application/json'},
+          body:JSON.stringify({gb:capGb.value})}).then(readJson).then(function(j){
+          if(!j||!j.ok){ note('Capacité non enregistrée ('+esc((j&&j.error)||'erreur')+').','err'); return; }
+          note(Number(capGb.value)>0?'Capacité enregistrée — le pourcentage d\'occupation est maintenant suivi.'
+                                    :'Capacité oubliée.','ok');
+          if(j.tables) afficher(j);
+        }).catch(function(){ note('Capacité non enregistrée pour le moment.','err'); })
+          .then(function(){ b.disabled=false; b.textContent=old; });
+      });
       sb.addEventListener('click',function(){
         var old=sb.textContent; sb.disabled=true; sb.textContent='Mesure…';
         out.style.display='block'; out.innerHTML='Mesure de l\'occupation…';

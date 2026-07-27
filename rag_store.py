@@ -766,6 +766,15 @@ _BASE_SCHEMA = [
         data BYTEA NOT NULL,
         created_at BIGINT,
         PRIMARY KEY (upload_id, idx))""",
+    # Réglages de la base, saisis depuis l'admin. Sert aujourd'hui à mémoriser la
+    # CAPACITÉ du plan d'hébergement : PostgreSQL ne la connaît pas (le quota est
+    # imposé au-dessus de lui), et la faire dépendre d'une variable
+    # d'environnement obligeait à passer par le tableau de bord de l'hébergeur
+    # puis à redéployer. Ici, l'information est saisie une fois dans l'interface
+    # et survit aux redéploiements.
+    """CREATE TABLE IF NOT EXISTS rag_settings (
+        k TEXT PRIMARY KEY,
+        v TEXT)""",
 ]
 
 
@@ -1157,6 +1166,46 @@ class PostgresRagStore:
     # purge ciblée ci-dessous.
     _TABLES = ("rag_blobs", "rag_chunks", "rag_documents", "rag_uploads")
 
+    def get_setting(self, key, default=None):
+        """Lecture d'un réglage. Best-effort : un réglage absent (ou une table
+        pas encore créée sur une base antérieure) ne doit jamais faire échouer
+        l'appelant."""
+        try:
+            with self._pool.connection() as conn:
+                row = conn.execute("SELECT v FROM rag_settings WHERE k=%s",
+                                   (key,)).fetchone()
+            return row[0] if row else default
+        except Exception:
+            return default
+
+    def set_setting(self, key, value):
+        """Écriture d'un réglage. `value` à None efface l'entrée."""
+        with self._pool.connection() as conn:
+            if value is None:
+                conn.execute("DELETE FROM rag_settings WHERE k=%s", (key,))
+            else:
+                conn.execute("INSERT INTO rag_settings (k,v) VALUES (%s,%s) "
+                             "ON CONFLICT (k) DO UPDATE SET v=EXCLUDED.v",
+                             (key, str(value)))
+        return True
+
+    def capacity_bytes(self):
+        """Capacité déclarée du plan, en octets, ou None si inconnue.
+
+        Deux sources, dans cet ordre : le réglage saisi dans l'admin (mémorisé en
+        base, donc valable pour tous les workers et conservé au redéploiement),
+        puis la variable d'environnement DB_DISK_GB (conservée pour ne rien
+        casser là où elle est déjà définie)."""
+        for source, brut in (("reglage", self.get_setting("capacity_gb")),
+                             ("variable", os.environ.get("DB_DISK_GB"))):
+            try:
+                gb = float((brut or "").strip() or 0)
+            except Exception:
+                continue
+            if gb > 0:
+                return int(gb * 1024 ** 3), source
+        return None, None
+
     def storage_report(self):
         """Occupation par table + postes récupérables (fichiers d'origine,
         résidus de chargements interrompus, bulletins de veille).
@@ -1164,16 +1213,15 @@ class PostgresRagStore:
         La CAPACITÉ totale, elle, échappe à PostgreSQL : le quota est imposé par
         l'hébergeur, le moteur ne le connaît pas. Sans point de comparaison,
         l'occupation reste un chiffre nu et la saturation n'arrive jamais que par
-        surprise — sous la forme d'un refus d'écriture. La variable
-        DB_DISK_GB permet donc de déclarer l'espace du plan (15 pour un plan
-        Render Basic, page de la base → « Storage »), et le panneau affiche alors
-        un pourcentage, avec alerte avant le mur."""
+        surprise — sous la forme d'un refus d'écriture. Elle se déclare donc
+        depuis le panneau d'administration (page de la base chez l'hébergeur →
+        « Storage »), et le panneau affiche alors un pourcentage, avec alerte
+        avant le mur."""
         out = {"tables": [], "total_bytes": 0}
         try:
-            gb = float((os.environ.get("DB_DISK_GB") or "").strip() or 0)
-            out["capacity_bytes"] = int(gb * 1024 ** 3) if gb > 0 else None
+            out["capacity_bytes"], out["capacity_source"] = self.capacity_bytes()
         except Exception:
-            out["capacity_bytes"] = None
+            out["capacity_bytes"], out["capacity_source"] = None, None
         with self._pool.connection() as conn:
             try:
                 out["db_bytes"] = conn.execute(
@@ -1769,6 +1817,10 @@ class ResilientRagStore:
     def set_visibility(self, *args, **kwargs):
         """Bascule de visibilité, tolérante aux pannes (voir _write)."""
         return self._write("set_visibility", *args, **kwargs)
+
+    def set_setting(self, *args, **kwargs):
+        """Enregistrement d'un réglage, tolérant aux pannes (voir _write)."""
+        return self._write("set_setting", *args, **kwargs)
 
     def index_next(self, *args, **kwargs):
         """Indexation vectorielle d'un lot, tolérante aux pannes (voir _write).
