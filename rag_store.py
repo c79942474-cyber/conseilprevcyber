@@ -133,14 +133,16 @@ THEME_FAMILLES = [
         "Engineering / Projet OWFarm / Rules / NFPA",
         "Engineering / Oil & Gas",
     ]),
+    # Ordre alphabétique : sans critère de tri évident (ni chronologie ni
+    # importance), c'est le seul qui permette de trouver un nom sans le chercher.
     ("Entreprises & références", [
         "Alstom",
-        "Renault",
-        "GRDF",
-        "Technip",
-        "EDF",
         "Atos",
+        "EDF",
+        "GRDF",
+        "Renault",
         "SGP",
+        "Technip",
     ]),
     ("Divers", [
         "Veille",

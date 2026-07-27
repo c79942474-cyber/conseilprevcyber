@@ -340,7 +340,11 @@
           <div class="sec-title" style="margin:0">Documents</div>
           <div class="filterbar">
             <input type="search" id="filterSearch" placeholder="Rechercher un titre, un fichier, un thème…" aria-label="Rechercher un document">
-            <select id="filterTheme"><option value="">Tous les thèmes</option></select>
+            <!-- Mêmes deux listes qu'au chargement : on filtre par domaine OU par
+                 entreprise, jamais dans une liste unique où « EDF » se perdrait
+                 entre deux normes. -->
+            <select id="filterTheme" aria-label="Filtrer par domaine thématique"><option value="">Tous les domaines</option></select>
+            <select id="filterEnt" aria-label="Filtrer par entreprise ou référence"><option value="">Toutes les entreprises</option></select>
             <span class="fcount" id="fcount"></span>
             <button class="btn btn-s" id="dedupe" type="button" title="Supprimer les documents en double (contenu identique), en conservant un exemplaire de chacun">🧹 Doublons</button>
             <button class="btn btn-s" id="backup" type="button" title="Télécharger une sauvegarde complète de la base de connaissance (à conserver hors ligne)">💾 Sauvegarder</button>
@@ -513,7 +517,10 @@
     }
     function render(){
       // Table principale : TOUT SAUF Engineering (qui a sa liste autonome).
-      var f=document.getElementById('filterTheme').value;
+      // Les deux listes désignent un seul et même thème : celle qui vient d'être
+      // utilisée l'emporte, l'autre est remise à vide (voir les écouteurs).
+      var f=document.getElementById('filterTheme').value
+            ||((document.getElementById('filterEnt')||{}).value||'');
       var q=(document.getElementById('filterSearch').value||'').trim().toLowerCase();
       var base=allDocs.filter(function(d){return !isEng(d);});
       var docs=base.filter(function(d){
@@ -560,11 +567,44 @@
     }
 
     function fillFilters(themes){
-      var all=Object.keys(themes||{}).sort();
-      // Filtre principal : thèmes hors Engineering (rangé à part).
+      themes=themes||{};
+      var all=Object.keys(themes).sort();
+      var estEng=function(t){return t==='Engineering'||t.indexOf('Engineering / ')===0;};
+      // Filtres principaux : mêmes deux listes qu'au chargement — domaines
+      // groupés par famille d'un côté, entreprises de l'autre. Seuls les thèmes
+      // PORTANT des documents sont proposés (avec leur nombre) : un filtre qui
+      // ne renverrait jamais rien n'aide personne. Engineering est rangé à part.
       var sel=document.getElementById('filterTheme'), cur=sel.value;
-      var names=all.filter(function(t){return t!=='Engineering'&&t.indexOf('Engineering / ')!==0;});
-      sel.innerHTML='<option value="">Tous les thèmes</option>'+names.map(function(t){return '<option'+(t===cur?' selected':'')+'>'+esc(t)+'</option>';}).join('');
+      var esel2=document.getElementById('filterEnt'), curE=esel2?esel2.value:'';
+      var fam=(vocabFamilles&&vocabFamilles.groupes)?vocabFamilles.groupes:null;
+      var nomEnt=(vocabFamilles&&vocabFamilles.entreprises)||'Entreprises & références';
+      var opt=function(t,c){ return '<option value="'+esc(t)+'"'+(t===c?' selected':'')+'>'
+                                    +esc(t)+' ('+(themes[t]||0)+')</option>'; };
+      var entreprises=[], dom='';
+      if(fam){
+        var vus={};
+        fam.forEach(function(g){
+          if(g.nom===nomEnt){ entreprises=g.themes.filter(function(t){return themes[t];});
+                              g.themes.forEach(function(t){vus[t]=1;}); return; }
+          if(g.nom===((vocabFamilles&&vocabFamilles.engineering)||'Engineering')){
+            g.themes.forEach(function(t){vus[t]=1;}); return; }
+          var pres=g.themes.filter(function(t){return themes[t];});
+          g.themes.forEach(function(t){vus[t]=1;});
+          if(pres.length) dom+='<optgroup label="'+esc(g.nom)+'">'
+                              +pres.map(function(t){return opt(t,cur);}).join('')+'</optgroup>';
+        });
+        // Thèmes présents en base mais hors vocabulaire (saisie libre) : sans eux,
+        // leurs documents deviendraient introuvables par le filtre.
+        var libres=all.filter(function(t){return !vus[t]&&!estEng(t);});
+        if(libres.length) dom+='<optgroup label="Autres (saisis librement)">'
+                             +libres.map(function(t){return opt(t,cur);}).join('')+'</optgroup>';
+      } else {
+        dom=all.filter(function(t){return !estEng(t);})
+               .map(function(t){return opt(t,cur);}).join('');
+      }
+      sel.innerHTML='<option value="">Tous les domaines</option>'+dom;
+      if(esel2) esel2.innerHTML='<option value="">Toutes les entreprises</option>'
+                               +entreprises.map(function(t){return opt(t,curE);}).join('');
       // Filtre des sous-dossiers Engineering : TOUS les sous-dossiers du
       // vocabulaire, y compris ceux encore vides — c'est ainsi qu'on voit
       // l'arborescence complète et qu'on peut y ranger des documents. Le nombre
@@ -1090,7 +1130,14 @@
     reader.addEventListener('click',function(e){if(e.target===reader)closeReader();});
     document.addEventListener('keydown',function(e){if(e.key==='Escape'&&reader.style.display!=='none')closeReader();});
 
-    document.getElementById('filterTheme').addEventListener('change',render);
+    // Les deux filtres portent sur le même champ (le thème d'un document) : les
+    // combiner ne renverrait jamais rien. Choisir dans l'un remet donc l'autre à
+    // « tous », plutôt que d'afficher deux filtres actifs et une liste vide.
+    (function(){
+      var fd=document.getElementById('filterTheme'), fe=document.getElementById('filterEnt');
+      fd.addEventListener('change',function(){ if(fe&&this.value) fe.value=''; render(); });
+      if(fe) fe.addEventListener('change',function(){ if(this.value) fd.value=''; render(); });
+    })();
     document.getElementById('filterSearch').addEventListener('input',render);
     // Liste Engineering autonome : filtre par sous-dossier + recherche + actualiser.
     (function(){
