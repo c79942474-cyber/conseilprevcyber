@@ -571,9 +571,15 @@
       var all=Object.keys(themes).sort();
       var estEng=function(t){return t==='Engineering'||t.indexOf('Engineering / ')===0;};
       // Filtres principaux : mêmes deux listes qu'au chargement — domaines
-      // groupés par famille d'un côté, entreprises de l'autre. Seuls les thèmes
-      // PORTANT des documents sont proposés (avec leur nombre) : un filtre qui
-      // ne renverrait jamais rien n'aide personne. Engineering est rangé à part.
+      // groupés par famille d'un côté, entreprises de l'autre.
+      //
+      // TOUT le vocabulaire est proposé, avec le nombre de documents entre
+      // parenthèses, y compris les entrées à (0). Ne lister que ce qui porte des
+      // documents paraissait plus utile, mais donnait une liste d'entreprises
+      // VIDE tant qu'aucun document n'y était rattaché : il ne restait qu'un
+      // sélecteur inerte, sans indice de la cause. Le décompte montre déjà ce
+      // qui est peuplé, et la liste sert de carte du classement — même règle que
+      // le filtre des sous-dossiers Engineering, juste en dessous.
       var sel=document.getElementById('filterTheme'), cur=sel.value;
       var esel2=document.getElementById('filterEnt'), curE=esel2?esel2.value:'';
       var fam=(vocabFamilles&&vocabFamilles.groupes)?vocabFamilles.groupes:null;
@@ -584,14 +590,12 @@
       if(fam){
         var vus={};
         fam.forEach(function(g){
-          if(g.nom===nomEnt){ entreprises=g.themes.filter(function(t){return themes[t];});
-                              g.themes.forEach(function(t){vus[t]=1;}); return; }
-          if(g.nom===((vocabFamilles&&vocabFamilles.engineering)||'Engineering')){
-            g.themes.forEach(function(t){vus[t]=1;}); return; }
-          var pres=g.themes.filter(function(t){return themes[t];});
           g.themes.forEach(function(t){vus[t]=1;});
-          if(pres.length) dom+='<optgroup label="'+esc(g.nom)+'">'
-                              +pres.map(function(t){return opt(t,cur);}).join('')+'</optgroup>';
+          if(g.nom===nomEnt){ entreprises=g.themes.slice(); return; }
+          // Engineering : écarté, il a sa propre liste juste en dessous.
+          if(g.nom===((vocabFamilles&&vocabFamilles.engineering)||'Engineering')) return;
+          dom+='<optgroup label="'+esc(g.nom)+'">'
+              +g.themes.map(function(t){return opt(t,cur);}).join('')+'</optgroup>';
         });
         // Thèmes présents en base mais hors vocabulaire (saisie libre) : sans eux,
         // leurs documents deviendraient introuvables par le filtre.
@@ -599,8 +603,13 @@
         if(libres.length) dom+='<optgroup label="Autres (saisis librement)">'
                              +libres.map(function(t){return opt(t,cur);}).join('')+'</optgroup>';
       } else {
-        dom=all.filter(function(t){return !estEng(t);})
-               .map(function(t){return opt(t,cur);}).join('');
+        // Familles indisponibles : on retombe sur le vocabulaire à plat, complété
+        // des thèmes présents en base, plutôt que sur la seule liste des thèmes
+        // peuplés — sinon le filtre se viderait ici aussi.
+        var plat=(vocabThemes||[]).slice();
+        all.forEach(function(t){ if(plat.indexOf(t)<0) plat.push(t); });
+        dom=plat.filter(function(t){return !estEng(t);})
+                .map(function(t){return opt(t,cur);}).join('');
       }
       sel.innerHTML='<option value="">Tous les domaines</option>'+dom;
       if(esel2) esel2.innerHTML='<option value="">Toutes les entreprises</option>'
