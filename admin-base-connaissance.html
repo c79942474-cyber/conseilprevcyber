@@ -261,9 +261,26 @@
           <div class="field"><label for="title">Titre (facultatif)</label><input type="text" id="title" name="title" placeholder="Repris du nom de fichier si vide"></div>
           <div class="field"><label for="theme">Thème</label><input list="themes" id="theme" name="theme" placeholder="IEC 62443, NIS2…" value="Général"><datalist id="themes"></datalist></div>
         </div>
+        <!-- Deux listes plutôt qu'une rangée d'étiquettes : le vocabulaire a
+             dépassé la cinquantaine d'entrées, et classer un document PAR CLIENT
+             relève d'une autre intention que le classer PAR SUJET — les mélanger
+             obligeait à chercher « EDF » au milieu des normes. -->
         <div class="field" style="margin-top:-2px">
           <label>Domaine à enrichir — sélection rapide</label>
-          <div class="tchips" id="tchips"></div>
+          <div class="frow" style="gap:12px">
+            <div class="field" style="margin-bottom:0;flex:1 1 260px">
+              <select id="domSel" aria-label="Domaine thématique">
+                <option value="">— Domaine thématique —</option>
+              </select>
+              <div class="hint" style="margin:5px 0 0">Normes, ANSSI, technique, gouvernance, livrables.</div>
+            </div>
+            <div class="field" style="margin-bottom:0;flex:1 1 220px">
+              <select id="entSel" aria-label="Entreprise ou référence client">
+                <option value="">— Entreprise / référence —</option>
+              </select>
+              <div class="hint" style="margin:5px 0 0">Documents rattachés à un client ou une référence.</div>
+            </div>
+          </div>
         </div>
         <div class="field">
           <label>Visibilité</label>
@@ -453,7 +470,7 @@
     var allDocs=[], caps={}, chosen=null;
     // Vocabulaire complet des thèmes (renvoyé par l'API) : permet de proposer les
     // sous-dossiers ENCORE VIDES, donc de voir et d'alimenter toute l'arborescence.
-    var vocabThemes=[];
+    var vocabThemes=[], vocabFamilles=null;
     var engVisibles=[];   // documents Engineering actuellement affichés
 
     function esc(s){return (''+(s==null?'':s)).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
@@ -715,6 +732,8 @@
           }
         }
         vocabThemes=j.themes||[];
+        vocabFamilles=j.familles||null;
+        if(window.__majDomaines) window.__majDomaines();
         fillFilters(themesHors);
         render();
       }).catch(function(){ loadFailed('Service momentanément indisponible.'); });
@@ -1477,27 +1496,55 @@
 
     /* ---- Domaine à enrichir : puces de sélection rapide du thème ---- */
     (function(){
-      var QUICK=['Général','IEC 62443','NIS2','AI Act','ISO Standards','Normes','Automotive',
-                 'Analyse de risques','Architecture & segmentation','SCADA',
-                 'Supervision & détection','Gestion des correctifs','Gouvernance & CSMS',
-                 'Conformité & audit','Continuité & résilience (PRA/PCA)',
-                 // Les domaines Engineering (dont Projet OWFarm et ses sous-dossiers)
-                 // ne figurent PAS ici : ils relèvent du bloc de chargement dédié
-                 // « Charger un document — Engineering », qui a son propre sélecteur.
-                 'Alstom','Renault','GRDF','Technip','EDF','Atos','SGP'];
-      var box=document.getElementById('tchips'), ti=document.getElementById('theme');
-      if(!box||!ti) return;
-      function sync(){ var v=(ti.value||'').trim();
-        Array.prototype.forEach.call(box.children,function(c){c.classList.toggle('on',c.getAttribute('data-t')===v);}); }
-      // Un thème contenant « / » est un SOUS-DOSSIER : le bouton affiche « ↳ enfant »
-      // (indenté, en pointillés) mais enregistre le chemin complet comme thème.
-      box.innerHTML=QUICK.map(function(t){
-        var sub=t.indexOf(' / ')>-1, label=sub?('↳ '+t.split(' / ').slice(1).join(' / ')):t;
-        return '<button type="button" class="tchip'+(sub?' tsub':'')+'" data-t="'+esc(t)+'">'+esc(label)+'</button>';
-      }).join('');
-      box.addEventListener('click',function(e){var b=e.target.closest('.tchip'); if(!b) return; ti.value=b.getAttribute('data-t'); sync();});
+      var domSel=document.getElementById('domSel'), entSel=document.getElementById('entSel'),
+          ti=document.getElementById('theme');
+      if(!domSel||!entSel||!ti) return;
+      // Repli si le vocabulaire du serveur n'est pas encore arrivé (ou si la base
+      // est injoignable) : le sélecteur ne doit jamais rester vide.
+      var REPLI={groupes:[{nom:'Domaines',themes:['Général','IEC 62443','NIS2','AI Act','ANSSI',
+                 'Normes','Analyse de risques','Gouvernance & CSMS','Conformité & audit']},
+                 {nom:'Entreprises & références',themes:['Alstom','Renault','GRDF','Technip','EDF','Atos','SGP']}],
+                 entreprises:'Entreprises & références',engineering:'Engineering'};
+
+      function opts(themes){
+        // Un thème contenant « / » est un SOUS-DOSSIER : on l'indente sans
+        // perdre le chemin complet, qui reste la valeur enregistrée.
+        return themes.map(function(t){
+          var p=t.split(' / '), lbl=p.length>1?('  '.repeat(p.length-1)+'↳ '+p[p.length-1]):t;
+          return '<option value="'+esc(t)+'">'+esc(lbl)+'</option>';
+        }).join('');
+      }
+      function majDomaines(){
+        var f=(vocabFamilles&&vocabFamilles.groupes&&vocabFamilles.groupes.length)?vocabFamilles:REPLI;
+        var nomEnt=f.entreprises||'Entreprises & références', nomEng=f.engineering||'Engineering';
+        var dom='', ent='';
+        f.groupes.forEach(function(g){
+          if(g.nom===nomEnt){ ent+=opts(g.themes); return; }
+          // Engineering est écarté : il a son propre bloc de chargement, avec son
+          // propre sélecteur de sous-dossier.
+          if(g.nom===nomEng) return;
+          dom+='<optgroup label="'+esc(g.nom)+'">'+opts(g.themes)+'</optgroup>';
+        });
+        domSel.innerHTML='<option value="">— Domaine thématique —</option>'+dom;
+        entSel.innerHTML='<option value="">— Entreprise / référence —</option>'+ent;
+        sync();
+      }
+      // Le champ « Thème » reste la seule vérité : les listes ne font que le
+      // remplir, et se recalent sur lui (y compris sur une saisie libre, où elles
+      // reviennent toutes deux à vide plutôt que d'afficher un choix faux).
+      function pose(v){ ti.value=v; sync(); }
+      function sync(){
+        var v=(ti.value||'').trim();
+        var dansDom=Array.prototype.some.call(domSel.options,function(o){return o.value===v;});
+        var dansEnt=Array.prototype.some.call(entSel.options,function(o){return o.value===v;});
+        domSel.value=dansDom?v:'';
+        entSel.value=dansEnt?v:'';
+      }
+      domSel.addEventListener('change',function(){ if(this.value) pose(this.value); });
+      entSel.addEventListener('change',function(){ if(this.value) pose(this.value); });
       ti.addEventListener('input',sync);
-      sync();
+      majDomaines();
+      window.__majDomaines=majDomaines;   // rappelé quand le vocabulaire arrive
     })();
 
     loadVeille();

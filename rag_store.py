@@ -54,72 +54,107 @@ ALLOWED_EXT = {"txt", "md", "csv", "log", "json", "pdf", "docx", "xlsx", "xlsm",
                "pptx", "pptm"}
 VISIBILITIES = ("public", "internal")
 
-# Thèmes suggérés (l'admin peut en saisir d'autres).
-# Thèmes proposés (autocomplétion à l'upload + filtre). Le champ reste en
-# texte libre : cette liste ne fait qu'aider à catégoriser de façon cohérente
-# pour retrouver les documents plus vite. Organisée par familles.
-THEMES = [
-    # — Normes & réglementations —
-    "IEC 62443",
-    "ISO 27001 / 27002",
-    "ISO Standards",
-    "Normes",
-    "NIST CSF / SP 800-82",
-    "Guides ANSSI",
-    "NIS2",
-    "DORA",
-    "RGPD",
-    "AI Act",
-    "Cyber Resilience Act",
-    "Sûreté fonctionnelle (IEC 61508/61511)",
-    # — Architecture & technique OT/IT —
-    "Architecture & segmentation",
-    "Inventaire & cartographie",
-    "Analyse de risques",
-    "Durcissement & configuration",
-    "Gestion des correctifs",
-    "Gestion des accès & identités",
-    "Accès distant & télémaintenance",
-    "Sécurité réseau & pare-feu",
-    "Automates, SCADA & DCS",
-    "SCADA",
-    "IIoT & objets connectés",
-    "Automotive",
-    "Cryptographie & PKI",
-    "Supervision & détection",
-    "Réponse à incident",
-    "Continuité & résilience (PRA/PCA)",
-    # — Gouvernance & organisation —
-    "Gouvernance & CSMS",
-    "Sensibilisation & formation",
-    "Gestion des prestataires",
-    "Conformité & audit",
-    # — Métier & livrables —
-    "AMOA SI Industriel",
-    "Cahier des charges & CCTP",
-    "Plan de remédiation",
-    "Études de cas",
-    # — Engineering (sous-dossiers via « / », imbrication multi-niveaux) —
-    "Engineering",
-    "Engineering / Projet OWFarm",
-    "Engineering / Projet OWFarm / BSH2 Package",
-    "Engineering / Projet OWFarm / Safety",
-    "Engineering / Projet OWFarm / Fire fighting",
-    "Engineering / Projet OWFarm / Rules",
-    "Engineering / Projet OWFarm / Rules / DNV",
-    "Engineering / Projet OWFarm / Rules / NFPA",
-    "Engineering / Oil & Gas",
-    # — Clients & références —
-    "Alstom",
-    "Renault",
-    "GRDF",
-    "Technip",
-    "EDF",
-    "Atos",
-    "SGP",
-    "Veille",
-    "Général",
+# Thèmes proposés (autocomplétion à l'upload + filtre). Le champ reste en texte
+# libre : cette liste ne fait qu'aider à catégoriser de façon cohérente pour
+# retrouver les documents plus vite.
+#
+# Familles de thèmes — SOURCE UNIQUE du vocabulaire.
+#
+# THEMES en est dérivé par simple aplatissement : impossible qu'un thème existe
+# dans une liste et pas dans l'autre. Les familles servent à l'interface, qui
+# propose les domaines par groupes plutôt qu'en une seule rangée d'étiquettes
+# devenue illisible — et qui sépare les ENTREPRISES du reste, car classer un
+# document par client relève d'une autre intention que le classer par sujet.
+THEME_FAMILLES = [
+    ("Normes & réglementations", [
+        "IEC 62443",
+        "ISO 27001 / 27002",
+        "ISO Standards",
+        "Normes",
+        "NIST CSF / SP 800-82",
+        "NIS2",
+        "DORA",
+        "RGPD",
+        "AI Act",
+        "Cyber Resilience Act",
+        "Sûreté fonctionnelle (IEC 61508/61511)",
+    ]),
+    # ANSSI : famille à part entière (guides, référentiels de qualification,
+    # méthodes). « Guides ANSSI » est conservé tel quel — des documents y sont
+    # déjà classés et le retirer les rendrait orphelins.
+    ("ANSSI", [
+        "ANSSI",
+        "ANSSI / Guides & recommandations",
+        "ANSSI / Référentiels & qualification",
+        "ANSSI / Méthodes (EBIOS RM)",
+        "Guides ANSSI",
+    ]),
+    ("Architecture & technique OT/IT", [
+        "Architecture & segmentation",
+        "Inventaire & cartographie",
+        "Analyse de risques",
+        "Durcissement & configuration",
+        "Gestion des correctifs",
+        "Gestion des accès & identités",
+        "Accès distant & télémaintenance",
+        "Sécurité réseau & pare-feu",
+        "Automates, SCADA & DCS",
+        "SCADA",
+        "IIoT & objets connectés",
+        "Automotive",
+        "Cryptographie & PKI",
+        "Supervision & détection",
+        "Réponse à incident",
+        "Continuité & résilience (PRA/PCA)",
+    ]),
+    ("Gouvernance & organisation", [
+        "Gouvernance & CSMS",
+        "Sensibilisation & formation",
+        "Gestion des prestataires",
+        "Conformité & audit",
+    ]),
+    ("Métier & livrables", [
+        "AMOA SI Industriel",
+        "Cahier des charges & CCTP",
+        "Plan de remédiation",
+        "Études de cas",
+    ]),
+    # Sous-dossiers via « / », imbrication multi-niveaux. Cette famille a son
+    # propre bloc de chargement dans l'admin : elle n'est pas proposée dans le
+    # sélecteur général.
+    ("Engineering", [
+        "Engineering",
+        "Engineering / Projet OWFarm",
+        "Engineering / Projet OWFarm / BSH2 Package",
+        "Engineering / Projet OWFarm / Safety",
+        "Engineering / Projet OWFarm / Fire fighting",
+        "Engineering / Projet OWFarm / Rules",
+        "Engineering / Projet OWFarm / Rules / DNV",
+        "Engineering / Projet OWFarm / Rules / NFPA",
+        "Engineering / Oil & Gas",
+    ]),
+    ("Entreprises & références", [
+        "Alstom",
+        "Renault",
+        "GRDF",
+        "Technip",
+        "EDF",
+        "Atos",
+        "SGP",
+    ]),
+    ("Divers", [
+        "Veille",
+        "Général",
+    ]),
 ]
+
+# Vocabulaire à plat (validation des reclassements, autocomplétion).
+THEMES = [t for _, ts in THEME_FAMILLES for t in ts]
+
+# La famille dédiée aux entreprises est nommée ici plutôt que devinée côté
+# interface : un nom recopié dans deux fichiers finit toujours par diverger.
+FAMILLE_ENTREPRISES = "Entreprises & références"
+FAMILLE_ENGINEERING = "Engineering"
 
 
 class RagError(Exception):

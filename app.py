@@ -69,7 +69,8 @@ from clients_store import (BASES_LEGALES, CATEGORIES_PIECES, STATUTS,
                            ClientsError, make_clients_store)
 from cockpit_state import make_store, tag_for
 from livrables_store import make_livrables_store
-from rag_store import (RagError, THEMES, build_context, dedupe as rag_dedupe,
+from rag_store import (RagError, THEMES, THEME_FAMILLES, FAMILLE_ENTREPRISES,
+                       FAMILLE_ENGINEERING, build_context, dedupe as rag_dedupe,
                        diagnose as rag_diagnose, duplicate_groups,
                        formats_available, make_rag_store)
 
@@ -81,7 +82,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # si le numéro affiché est plus ancien que la version attendue, le déploiement n'a
 # pas abouti — et aucun correctif récent n'est en ligne. À incrémenter à chaque
 # correctif dont on veut pouvoir confirmer la mise en ligne.
-APP_VERSION = "2026.07.27-4"
+APP_VERSION = "2026.07.27-5"
 
 # --- Sécurité applicative (en-têtes, anti-CSRF, taille de requête) -------------
 # Plafond de taille du corps d'une requête (anti-abus mémoire / DoS).
@@ -1166,6 +1167,19 @@ def admin_rag_page():
     return resp
 
 
+def _familles_payload():
+    """Vocabulaire groupé par famille, tel que l'interface le proposera.
+
+    Transmis en plus de `themes` (liste à plat, qui reste la référence pour la
+    validation) : sans lui, le navigateur devrait redéclarer quels thèmes sont
+    des entreprises et lesquels sont des domaines — une classification recopiée
+    dans deux fichiers finit toujours par diverger de l'originale."""
+    return {"groupes": [{"nom": nom, "themes": list(themes)}
+                        for nom, themes in THEME_FAMILLES],
+            "entreprises": FAMILLE_ENTREPRISES,
+            "engineering": FAMILLE_ENGINEERING}
+
+
 @app.route("/api/admin/rag/documents", methods=["GET"])
 @admin_required
 def api_rag_list():
@@ -1178,7 +1192,7 @@ def api_rag_list():
     try:
         return jsonify(ok=True, documents=rag.list_documents(), stats=rag.stats(),
                        capabilities=rag.capabilities(), themes=THEMES,
-                       formats=formats_available())
+                       familles=_familles_payload(), formats=formats_available())
     except Exception:
         try:
             caps = rag.capabilities()
@@ -1187,7 +1201,7 @@ def api_rag_list():
         return jsonify(ok=True, documents=[],
                        stats={"documents": 0, "chunks": 0, "themes": {}, "storage": None},
                        capabilities=caps, themes=THEMES,
-                       formats=formats_available())
+                       familles=_familles_payload(), formats=formats_available())
 
 
 @app.route("/api/admin/rag/search", methods=["POST"])
