@@ -1300,6 +1300,37 @@ class PostgresRagStore:
             }
         return out
 
+    def verify_integrity(self, limit=5000):
+        """Recalcule l'empreinte des fichiers d'origine et la compare à celle
+        enregistrée au chargement.
+
+        Une corruption silencieuse du stockage ne se voit pas autrement : le
+        document continue de s'afficher et d'alimenter l'assistant. On lit les
+        blobs un par un plutôt qu'en bloc — un contrôle d'intégrité qui saturerait
+        la mémoire du service serait un remède pire que le mal."""
+        alteres, verifies, sans_blob = [], 0, 0
+        with self._pool.connection() as conn:
+            ids = [r[0] for r in conn.execute(
+                "SELECT id FROM rag_documents ORDER BY created_at DESC LIMIT %s",
+                (int(limit),)).fetchall()]
+            for did in ids:
+                row = conn.execute(
+                    "SELECT d.title, d.sha256, b.data FROM rag_documents d "
+                    "LEFT JOIN rag_blobs b ON b.doc_id=d.id WHERE d.id=%s",
+                    (did,)).fetchone()
+                if not row:
+                    continue
+                titre, attendu, data = row[0], row[1], row[2]
+                if data is None or not attendu:
+                    # Fichier d'origine purgé volontairement : rien à comparer,
+                    # ce n'est pas une anomalie.
+                    sans_blob += 1
+                    continue
+                verifies += 1
+                if hashlib.sha256(bytes(data)).hexdigest() != attendu:
+                    alteres.append({"id": did, "title": titre})
+        return {"verifies": verifies, "sans_fichier": sans_blob, "alteres": alteres}
+
     def purge_storage(self, scopes):
         """Libère de la place. `scopes` : sous-ensemble de {'uploads', 'veille',
         'blobs'}. Rien n'est supprimé qui ne soit reconstituable :

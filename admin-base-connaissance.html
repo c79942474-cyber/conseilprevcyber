@@ -217,6 +217,20 @@
           <span class="hint" style="margin:0;flex:1;min-width:220px">Une base saturée bloque tous les chargements. Vérifiez l'occupation et libérez le superflu.</span>
         </div>
         <div id="storageOut" style="display:none;margin-top:12px;font-family:var(--mono);font-size:11.5px;line-height:1.8"></div>
+        <!-- Intégrité & traçabilité : deux contrôles que rien ne remplaçait —
+             une corruption de stockage passe inaperçue (le document s'affiche
+             toujours), et sans journal on ne peut pas répondre à « qui a fait
+             ça ? » après coup. -->
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
+          <button class="btn btn-s" id="verifyBtn" type="button" title="Recalcule l'empreinte SHA-256 des fichiers d'origine et la compare à celle enregistrée au chargement">🔎 Vérifier l'intégrité</button>
+          <span class="hint" style="margin:0;flex:1;min-width:220px">Une corruption silencieuse du stockage ne se voit pas : le document continue de s'afficher et d'alimenter l'assistant.</span>
+        </div>
+        <div id="verifyOut" style="display:none;margin-top:12px;font-family:var(--mono);font-size:11.5px;line-height:1.8"></div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
+          <button class="btn btn-s" id="auditBtn" type="button" title="Qui s'est connecté, qui a chargé, publié ou supprimé un document — en lecture seule">🔐 Journal d'audit</button>
+          <span class="hint" style="margin:0;flex:1;min-width:220px">Connexions et actions d'administration, horodatées. Lecture seule : aucune entrée ne peut être modifiée ni effacée.</span>
+        </div>
+        <div id="auditOut" style="display:none;margin-top:12px;font-family:var(--mono);font-size:11.5px;line-height:1.7;max-height:320px;overflow:auto"></div>
         <!-- Capacité du plan : PostgreSQL ignore son propre quota (il est imposé
              au-dessus de lui). Sans cette valeur, l'occupation est un chiffre nu :
              impossible de savoir si l'on est à 5 % ou à 95 %. Saisie ici — donc
@@ -1377,6 +1391,51 @@
           +ligne('  veille CERT-FR', taille(r.veille)+' · '+(r.veille_documents||0)+' document(s)');
         out.style.display='block'; box.style.display='block'; capBox.style.display='block';
       }
+      /* ---- Contrôle d'intégrité ---- */
+      var vOut=document.getElementById('verifyOut');
+      document.getElementById('verifyBtn').addEventListener('click',function(){
+        var b=this, old=b.textContent; b.disabled=true; b.textContent='Contrôle…';
+        vOut.style.display='block'; vOut.innerHTML='<span class="spin"></span>Recalcul des empreintes…';
+        apiFetch('/api/admin/rag/verify',{method:'POST'}).then(readJson).then(function(j){
+          if(!j||!j.ok){ vOut.innerHTML='Contrôle indisponible ('+esc((j&&j.error)||'erreur')+').'; return; }
+          var alt=j.alteres||[];
+          vOut.innerHTML=(alt.length
+            ? '<div style="color:var(--danger)"><b>⚠️ '+alt.length+' document(s) ALTÉRÉ(S)</b> — '
+              +'l\'empreinte ne correspond plus à celle enregistrée au chargement.</div>'
+              +alt.map(function(a){return '<div>  · '+esc(a.title||a.id)+'</div>';}).join('')
+              +'<div style="margin-top:6px">Rechargez ces documents depuis leur source, ou restaurez une sauvegarde.</div>'
+            : '<div style="color:var(--green)"><b>✓ Aucune altération détectée.</b></div>')
+            +'<div style="color:var(--muted)">'+j.verifies+' fichier(s) d\'origine vérifié(s)'
+            +(j.sans_fichier?(' · '+j.sans_fichier+' sans fichier conservé (purgé volontairement — rien à comparer)'):'')+'</div>';
+        }).catch(function(){ vOut.innerHTML='Contrôle impossible pour le moment.'; })
+          .then(function(){ b.disabled=false; b.textContent=old; });
+      });
+
+      /* ---- Journal d'audit (lecture seule) ---- */
+      var aOut=document.getElementById('auditOut');
+      document.getElementById('auditBtn').addEventListener('click',function(){
+        var b=this, old=b.textContent; b.disabled=true; b.textContent='Lecture…';
+        aOut.style.display='block'; aOut.innerHTML='<span class="spin"></span>Lecture du journal…';
+        apiFetch('/api/admin/audit?limit=100').then(readJson).then(function(j){
+          if(!j||!j.ok){ aOut.innerHTML='Journal indisponible ('+esc((j&&j.error)||'erreur')+').'; return; }
+          var e=j.entrees||[], st=j.etat||{};
+          if(!e.length){ aOut.innerHTML='Aucune entrée pour le moment.'; return; }
+          aOut.innerHTML='<div style="color:var(--muted2);margin-bottom:6px">'
+            +e.length+' dernière(s) action(s) · '+(st.entrees!=null?st.entrees:'?')+' au total'
+            +(st.persistant?'':' · <span style="color:var(--amber)">non persistant (base injoignable)</span>')+'</div>'
+            +e.map(function(x){
+              var d=new Date(x.ts), col=x.ok?'var(--muted)':'var(--danger)';
+              return '<div style="color:'+col+'">'+esc(d.toLocaleDateString('fr-FR'))+' '
+                +esc(d.toLocaleTimeString('fr-FR'))+' · <b>'+esc(x.action)+'</b>'
+                +(x.ok?'':' <b>(échec)</b>')+' · '+esc(x.acteur||'-')
+                +(x.cible?(' · '+esc(String(x.cible).slice(0,60))):'')
+                +(x.detail?(' · '+esc(x.detail)):'')
+                +' <span style="color:var(--muted2)">['+esc(x.ip||'-')+']</span></div>';
+            }).join('');
+        }).catch(function(){ aOut.innerHTML='Lecture impossible pour le moment.'; })
+          .then(function(){ b.disabled=false; b.textContent=old; });
+      });
+
       document.getElementById('capSave').addEventListener('click',function(){
         var b=this, old=b.textContent; b.disabled=true; b.textContent='…';
         apiFetch('/api/admin/rag/storage/capacity',{method:'POST',

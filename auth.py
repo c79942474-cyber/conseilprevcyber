@@ -590,6 +590,19 @@ def admin_approve(token):
             "<p>Le compte <b>%s</b> est activé. L'utilisateur a été prévenu par email.</p></div>" % u["email"])
 
 
+def _tracer(action, email, detail="", ok=True, role="-"):
+    """Trace une tentative de connexion dans le journal d'audit.
+
+    Import différé et enveloppé : la traçabilité ne doit jamais empêcher
+    quelqu'un de se connecter, ni créer de dépendance circulaire avec app.py."""
+    try:
+        import audit
+        audit.journaliser(action, cible=email, detail=detail, ok=ok,
+                          acteur=email or "anonyme", role=role)
+    except Exception:
+        pass
+
+
 @auth_bp.route("/api/auth/login", methods=["POST"])
 def api_login():
     d = request.get_json(silent=True) or {}
@@ -627,10 +640,13 @@ def api_login():
         depuis_cache = True
     if not u or not u.get("password_hash") or not check_password_hash(u["password_hash"], pw):
         guard.fail(key)
+        _tracer("connexion.echec", email, "identifiants incorrects", ok=False)
         return jsonify(error="Identifiants incorrects."), 401
     if not u.get("email_verified"):
+        _tracer("connexion.refus", email, "email non confirmé", ok=False)
         return jsonify(error="Confirmez d'abord votre email (lien reçu à l'inscription)."), 403
     if not u.get("approved"):
+        _tracer("connexion.refus", email, "compte non validé", ok=False)
         return jsonify(error="Votre accès est en attente de validation par notre équipe."), 403
     guard.clear(key)
     session.clear()
@@ -644,6 +660,9 @@ def api_login():
     except Exception:
         logging.getLogger("auth").warning(
             "connexion : dernière connexion non enregistrée (base indisponible).")
+    _tracer("connexion.reussie", email,
+            "profil en cache (base injoignable)" if depuis_cache else "",
+            role=u.get("role") or "user")
     return jsonify(ok=True, name=u.get("name") or "", degrade=depuis_cache)
 
 
@@ -800,7 +819,16 @@ def init_app(app):
         SESSION_COOKIE_NAME="cpc_session",
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
-        SESSION_COOKIE_SECURE=bool(os.environ.get("PUBLIC_BASE_URL", "").startswith("https")),
+        # Cookie de session RÉSERVÉ À HTTPS PAR DÉFAUT.
+        #
+        # Auparavant l'attribut dépendait de PUBLIC_BASE_URL, une variable
+        # facultative : non renseignée en production — c'est le cas ici, elle est
+        # déclarée « sync: false » dans render.yaml — le cookie repartait sans
+        # l'attribut Secure et pouvait donc voyager en clair. Un réglage de
+        # confidentialité ne doit pas dépendre du fait qu'on ait pensé à définir
+        # une variable : on inverse la charge, c'est sûr par défaut et il faut
+        # une demande EXPLICITE pour l'assouplir (développement local en http).
+        SESSION_COOKIE_SECURE=os.environ.get("COOKIE_NON_SECURISE", "") != "1",
         PERMANENT_SESSION_LIFETIME=7 * 24 * 3600,
     )
     app.register_blueprint(auth_bp)

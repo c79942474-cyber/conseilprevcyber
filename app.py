@@ -60,6 +60,7 @@ from flask import (Flask, Response, jsonify, redirect, request, send_file,
                    send_from_directory)
 
 import assistant
+import audit
 import automation
 import livrables
 import livrables_export
@@ -82,7 +83,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # si le numéro affiché est plus ancien que la version attendue, le déploiement n'a
 # pas abouti — et aucun correctif récent n'est en ligne. À incrémenter à chaque
 # correctif dont on veut pouvoir confirmer la mise en ligne.
-APP_VERSION = "2026.07.27-9"
+APP_VERSION = "2026.07.27-10"
 
 # --- Sécurité applicative (en-têtes, anti-CSRF, taille de requête) -------------
 # Plafond de taille du corps d'une requête (anti-abus mémoire / DoS).
@@ -1372,6 +1373,7 @@ def api_rag_visibility(doc_id):
     except Exception as exc:
         app.logger.exception("visibility : échec pour %r", doc_id)
         return jsonify(ok=False, error="visibilite_echec", detail=_exc_detail(exc)), 500
+    audit.journaliser("document.visibilite", cible=doc_id, detail=v)
     return jsonify(ok=True, visibility=v)
 
 
@@ -1444,6 +1446,48 @@ def api_rag_capacity():
         return jsonify(ok=True)
 
 
+@app.route("/api/admin/audit", methods=["GET"])
+@admin_required
+def api_audit():
+    """Journal d'audit : qui a fait quoi, quand, depuis quel réseau.
+
+    Lecture seule — aucune route ne permet de modifier ni d'effacer une entrée.
+    Un journal réinscriptible ne prouverait rien."""
+    try:
+        limit = int(request.args.get("limit", 200))
+    except (TypeError, ValueError):
+        limit = 200
+    action = (request.args.get("action") or "").strip()[:80] or None
+    return jsonify(ok=True, entrees=audit.lire(limit=limit, action=action),
+                   etat=audit.etat())
+
+
+@app.route("/api/admin/rag/verify", methods=["POST"])
+@admin_required
+def api_rag_verify():
+    """Contrôle d'INTÉGRITÉ : recalcule l'empreinte SHA-256 des fichiers d'origine
+    conservés et la compare à celle enregistrée au chargement.
+
+    Une empreinte qui ne correspond plus signale une altération du stockage — une
+    corruption silencieuse ne se voit pas autrement : le document continue de
+    s'afficher et d'alimenter l'assistant comme si de rien n'était."""
+    fn = getattr(rag, "verify_integrity", None)
+    if not callable(fn):
+        return jsonify(ok=False, error="indisponible",
+                       message="Vérification disponible uniquement avec PostgreSQL."), 409
+    try:
+        res = fn()
+    except Exception as exc:
+        app.logger.exception("verify : échec")
+        audit.journaliser("base.verification", detail="echec", ok=False)
+        return jsonify(ok=False, error="verif_echec", detail=_exc_detail(exc)), 500
+    audit.journaliser("base.verification",
+                      detail="%s vérifiés, %s altérés" % (res.get("verifies", 0),
+                                                          len(res.get("alteres", []))),
+                      ok=not res.get("alteres"))
+    return jsonify(ok=True, **res)
+
+
 @app.route("/api/admin/rag/purge", methods=["POST"])
 @admin_required
 def api_rag_purge():
@@ -1460,13 +1504,20 @@ def api_rag_purge():
     if not isinstance(scopes, list):
         return jsonify(ok=False, error="scopes_invalides"), 400
     try:
-        return jsonify(ok=True, **fn(scopes))
+        res = fn(scopes)
     except RagError as exc:
+        audit.journaliser("base.purge", cible=",".join(map(str, scopes)),
+                          detail=exc.code, ok=False)
         return jsonify(ok=False, error=exc.code,
                        detail=getattr(exc, "detail", "")), exc.status
     except Exception as exc:
         app.logger.exception("purge : échec")
+        audit.journaliser("base.purge", cible=",".join(map(str, scopes)),
+                          detail="purge_echec", ok=False)
         return jsonify(ok=False, error="purge_echec", detail=_exc_detail(exc)), 500
+    audit.journaliser("base.purge", cible=",".join(map(str, scopes)),
+                      detail="%s octets libérés" % res.get("libere_octets", 0))
+    return jsonify(ok=True, **res)
 
 
 @app.route("/api/admin/rag/selftest", methods=["POST"])
@@ -1765,7 +1816,9 @@ def api_rag_delete(doc_id):
     try:
         rag.delete_document(doc_id)
     except RagError as exc:
+        audit.journaliser("document.suppression", cible=doc_id, detail=exc.code, ok=False)
         return jsonify(ok=False, error=exc.code), exc.status
+    audit.journaliser("document.suppression", cible=doc_id)
     return jsonify(ok=True)
 
 
@@ -2811,8 +2864,29 @@ def api_purge():
 
 @app.route("/health")
 def health():
-    """Point de santé (utilisé par Render pour vérifier le service)."""
-    return jsonify(status="ok", service="conseilprevcyber"), 200
+    """Point de santé (utilisé par Render pour vérifier le service).
+
+    Renvoie l'état RÉEL des dépendances, et non un « ok » inconditionnel qui
+    n'apprenait rien : on voit désormais si la base répond, si la recherche est
+    vectorielle ou plein-texte, et quelle version est en ligne.
+
+    Le code reste 200 tant que le site SERT ses pages, même base injoignable :
+    l'application sait fonctionner en mode dégradé, et répondre 503 ferait
+    redémarrer l'instance en boucle sur un simple hoquet de la base — on
+    remplacerait une gêne par une coupure. L'état dégradé est dans le corps, à
+    la disposition de la supervision."""
+    etat = {"status": "ok", "service": "conseilprevcyber", "version": APP_VERSION}
+    try:
+        caps = rag.capabilities()
+        etat["base"] = "connectee" if caps.get("persistent") else "degradee"
+        etat["recherche"] = caps.get("mode")
+        if not caps.get("persistent"):
+            etat["status"] = "degraded"
+            etat["cause"] = caps.get("reason") or "base_indisponible"
+    except Exception:
+        etat["status"] = "degraded"
+        etat["base"] = "inconnue"
+    return jsonify(**etat), 200
 
 
 if __name__ == "__main__":
