@@ -81,7 +81,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # si le numéro affiché est plus ancien que la version attendue, le déploiement n'a
 # pas abouti — et aucun correctif récent n'est en ligne. À incrémenter à chaque
 # correctif dont on veut pouvoir confirmer la mise en ligne.
-APP_VERSION = "2026.07.27-2"
+APP_VERSION = "2026.07.27-3"
 
 # --- Sécurité applicative (en-têtes, anti-CSRF, taille de requête) -------------
 # Plafond de taille du corps d'une requête (anti-abus mémoire / DoS).
@@ -870,6 +870,7 @@ def api_chat():
             "empty": "Votre message est vide.",
             "busy": "L'assistant est très sollicité pour le moment. Réessayez dans un instant.",
             "network": "Service d'IA momentanément injoignable. Réessayez dans un instant.",
+            "timeout": "Le modèle a mis trop de temps à répondre. Réessayez, ou essayez l'autre modèle.",
             "upstream": "L'assistant a rencontré une erreur. Réessayez, ou contactez-nous.",
         }
         return jsonify(ok=False, error=exc.code,
@@ -1928,6 +1929,9 @@ _ASSISTANT_MSG = {
     "auth": "Le service d'IA a refusé la clé configurée. Vérifiez-la, puis réessayez.",
     "busy": "Le service d'IA est très sollicité. Réessayez dans un instant.",
     "network": "Service d'IA momentanément injoignable. Réessayez dans un instant.",
+    "timeout": "Le modèle a mis trop de temps à rédiger ce livrable (le service reste "
+               "joignable). Réessayez, ou choisissez l'autre modèle — les vitesses "
+               "diffèrent d'un fournisseur à l'autre.",
     "upstream": "La génération a échoué. Réessayez, ou changez de modèle.",
     "empty": "Requête vide.",
 }

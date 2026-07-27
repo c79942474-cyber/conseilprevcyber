@@ -63,7 +63,23 @@ MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
 MAX_MSG_CHARS = 2000       # longueur maximale d'un message utilisateur
 MAX_HISTORY = 12           # nombre de messages de contexte conservés
 MAX_OUTPUT_TOKENS = 900    # réponse concise (bien en deçà des délais/coûts)
-REQUEST_TIMEOUT = 30
+
+# Délais d'attente, dimensionnés par USAGE plutôt qu'une valeur unique pour tout.
+# Un délai de 30 s convenait au chat (900 jetons) mais coupait la génération d'un
+# livrable (3000 jetons, plusieurs dizaines de secondes) : le fournisseur était
+# pourtant parfaitement joignable — l'application raccrochait avant la fin de la
+# rédaction, en affichant « service momentanément injoignable », message qui
+# désignait la mauvaise cause. Claude y échappait par accident : son SDK applique
+# 600 s par défaut, là où requests n'applique aucun délai sans consigne explicite.
+#
+# Le budget total doit tenir sous le --timeout 120 de gunicorn (voir Procfile),
+# faute de quoi c'est le worker entier qui est tué : recherche RAG (quelques
+# secondes) + re-classement + génération ≈ 110 s au pire.
+CONNECT_TIMEOUT = 10       # établissement de la connexion : un hôte réellement
+                           # injoignable doit échouer vite
+REQUEST_TIMEOUT = 30       # chat : réponse courte
+RERANK_TIMEOUT = 20        # LLM-juge : sortie minuscule (une liste de numéros)
+GEN_TIMEOUT = 85           # génération d'un livrable : document long
 
 
 class AssistantError(Exception):
@@ -123,8 +139,12 @@ def _system(context):
     return SYSTEM_PROMPT
 
 
-def _claude_call(system, messages, max_tokens):
-    """Appel bas niveau à Claude (Anthropic). Renvoie le texte (peut être vide)."""
+def _claude_call(system, messages, max_tokens, timeout=REQUEST_TIMEOUT):
+    """Appel bas niveau à Claude (Anthropic). Renvoie le texte (peut être vide).
+
+    `timeout` explicite : sans lui le SDK applique 600 s, bien au-delà du
+    --timeout 120 de gunicorn — le worker serait tué avant que le client n'ait
+    la moindre réponse."""
     if not os.environ.get("ANTHROPIC_API_KEY"):
         raise AssistantError("not_configured", 503)
     try:
@@ -134,7 +154,12 @@ def _claude_call(system, messages, max_tokens):
     client = anthropic.Anthropic()  # lit ANTHROPIC_API_KEY dans l'environnement
     try:
         resp = client.messages.create(
-            model=CLAUDE_MODEL, max_tokens=max_tokens, system=system, messages=messages)
+            model=CLAUDE_MODEL, max_tokens=max_tokens, system=system,
+            messages=messages, timeout=timeout)
+    except anthropic.APITimeoutError:
+        # À placer AVANT APIConnectionError, dont il hérite.
+        _log.warning("Claude : délai dépassé (%s s, %s jetons demandés)", timeout, max_tokens)
+        raise AssistantError("timeout", 504)
     except anthropic.APIConnectionError as exc:
         _log.warning("Claude : connexion impossible (%s)", type(exc).__name__)
         raise AssistantError("network", 502)
@@ -155,8 +180,11 @@ def _claude_call(system, messages, max_tokens):
     ).strip()
 
 
-def _mistral_call(system, messages, max_tokens):
-    """Appel bas niveau à Mistral. Renvoie le texte (peut être vide)."""
+def _mistral_call(system, messages, max_tokens, timeout=REQUEST_TIMEOUT):
+    """Appel bas niveau à Mistral. Renvoie le texte (peut être vide).
+
+    `timeout` : délai de LECTURE, à dimensionner selon la longueur attendue de
+    la réponse (voir REQUEST_TIMEOUT / RERANK_TIMEOUT / GEN_TIMEOUT)."""
     key = os.environ.get("MISTRAL_API_KEY")
     if not key:
         raise AssistantError("not_configured", 503)
@@ -169,9 +197,15 @@ def _mistral_call(system, messages, max_tokens):
     }
     try:
         r = requests.post(
-            MISTRAL_API_URL, timeout=REQUEST_TIMEOUT,
+            MISTRAL_API_URL, timeout=(CONNECT_TIMEOUT, timeout),
             headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"},
             json=payload)
+    except requests.Timeout:
+        # Distinct de « injoignable » : le service répond, il est simplement plus
+        # lent que le délai accordé. Confondre les deux envoie chercher la panne
+        # du mauvais côté (réseau, pare-feu) au lieu du bon (délai, longueur).
+        _log.warning("Mistral : délai dépassé (%s s, %s jetons demandés)", timeout, max_tokens)
+        raise AssistantError("timeout", 504)
     except requests.RequestException as exc:
         _log.warning("Mistral : connexion impossible (%s)", type(exc).__name__)
         raise AssistantError("network", 502)
@@ -254,7 +288,7 @@ def rerank(model, query, hits, top_k):
     user = "Question : %s\n\nExtraits :\n%s" % ((query or "")[:600], listing)
     try:
         out = (_mistral_call if model == "mistral" else _claude_call)(
-            system, [{"role": "user", "content": user}], 120)
+            system, [{"role": "user", "content": user}], 120, timeout=RERANK_TIMEOUT)
         m = re.search(r"\[[\d,\s]*\]", out or "")
         order = json.loads(m.group(0)) if m else []
     except Exception:
@@ -280,8 +314,10 @@ def generate(model, system, user, context=None, max_tokens=GEN_MAX_TOKENS):
     full_system = system + (("\n\n" + context + _GEN_GROUNDING) if context else "")
     messages = [{"role": "user", "content": user}]
     if model == "mistral":
-        return (_mistral_call(full_system, messages, max_tokens) or _FALLBACK), MISTRAL_MODEL
-    return (_claude_call(full_system, messages, max_tokens) or _FALLBACK), CLAUDE_MODEL
+        return (_mistral_call(full_system, messages, max_tokens,
+                              timeout=GEN_TIMEOUT) or _FALLBACK), MISTRAL_MODEL
+    return (_claude_call(full_system, messages, max_tokens,
+                         timeout=GEN_TIMEOUT) or _FALLBACK), CLAUDE_MODEL
 
 
 # --- Diagnostic (self-test) ---------------------------------------------------
@@ -316,10 +352,13 @@ def _selftest_mistral():
     import requests
     try:
         r = requests.post(
-            MISTRAL_API_URL, timeout=REQUEST_TIMEOUT,
+            MISTRAL_API_URL, timeout=(CONNECT_TIMEOUT, REQUEST_TIMEOUT),
             headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"},
             json={"model": MISTRAL_MODEL, "max_tokens": 4,
                   "messages": [{"role": "user", "content": "ping"}]})
+    except requests.Timeout:
+        return {"configured": True, "ok": False, "model": MISTRAL_MODEL,
+                "detail": "délai dépassé sur un appel minimal (4 jetons)"}
     except requests.RequestException:
         return {"configured": True, "ok": False, "model": MISTRAL_MODEL, "detail": "réseau injoignable"}
     return {"configured": True, "ok": r.status_code == 200, "model": MISTRAL_MODEL,
