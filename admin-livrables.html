@@ -171,9 +171,98 @@
         </div>
         <div class="frow">
           <div class="field"><label for="client">Client / organisation</label><input type="text" id="client" placeholder="Ex. Société ACME"></div>
-          <div class="field"><label for="secteur">Secteur d'activité</label><input type="text" id="secteur" placeholder="Ex. Eau &amp; assainissement"></div>
+          <div class="field"><label for="secteur">Secteur d'activité</label>
+            <input type="text" id="secteur" list="nace" autocomplete="off" placeholder="Choisissez dans la liste NACE, ou saisissez librement">
+            <div class="typedesc">Nomenclature <b>NACE rév. 2</b> — sections (A à U) puis divisions utiles aux environnements industriels. La saisie libre reste possible.</div>
+          </div>
         </div>
-        <div class="field"><label for="perimetre">Périmètre</label><input type="text" id="perimetre" placeholder="Ex. 2 sites de production, réseau OT SCADA + automates"></div>
+        <div class="field"><label for="perimetre">Périmètre</label>
+          <input type="text" id="perimetre" list="perimetres" autocomplete="off" placeholder="Choisissez un périmètre type, ou saisissez librement">
+          <div class="typedesc">Périmètres tirés de nos <a href="/etudes-de-cas" style="color:var(--cyan)">retours d'expérience</a> — à adapter au cas traité.</div>
+        </div>
+
+        <!-- Propositions offertes par des <datalist> : l'utilisateur choisit dans
+             la liste OU saisit ce qu'il veut. Un <select> aurait enfermé la saisie,
+             or ni la NACE (des centaines de classes) ni un périmètre d'étude, par
+             nature sur mesure, ne se laissent enfermer dans une liste close.
+             Aucun JavaScript n'est nécessaire : la page reste utilisable sans. -->
+        <datalist id="nace">
+          <option value="A — Agriculture, sylviculture et pêche"></option>
+          <option value="B — Industries extractives"></option>
+          <option value="C — Industrie manufacturière"></option>
+          <option value="D — Production et distribution d'électricité, de gaz, de vapeur et d'air conditionné"></option>
+          <option value="E — Production et distribution d'eau ; assainissement, gestion des déchets et dépollution"></option>
+          <option value="F — Construction"></option>
+          <option value="G — Commerce ; réparation d'automobiles et de motocycles"></option>
+          <option value="H — Transports et entreposage"></option>
+          <option value="I — Hébergement et restauration"></option>
+          <option value="J — Information et communication"></option>
+          <option value="K — Activités financières et d'assurance"></option>
+          <option value="L — Activités immobilières"></option>
+          <option value="M — Activités spécialisées, scientifiques et techniques"></option>
+          <option value="N — Activités de services administratifs et de soutien"></option>
+          <option value="O — Administration publique"></option>
+          <option value="P — Enseignement"></option>
+          <option value="Q — Santé humaine et action sociale"></option>
+          <option value="R — Arts, spectacles et activités récréatives"></option>
+          <option value="S — Autres activités de services"></option>
+          <option value="T — Activités des ménages en tant qu'employeurs"></option>
+          <option value="U — Activités extra-territoriales"></option>
+          <option value="05 — Extraction de houille et de lignite"></option>
+          <option value="06 — Extraction d'hydrocarbures"></option>
+          <option value="09 — Services de soutien aux industries extractives"></option>
+          <option value="10 — Industries alimentaires"></option>
+          <option value="17 — Industrie du papier et du carton"></option>
+          <option value="19 — Cokéfaction et raffinage"></option>
+          <option value="20 — Industrie chimique"></option>
+          <option value="21 — Industrie pharmaceutique"></option>
+          <option value="23 — Fabrication d'autres produits minéraux non métalliques"></option>
+          <option value="24 — Métallurgie"></option>
+          <option value="25 — Fabrication de produits métalliques"></option>
+          <option value="26 — Fabrication de produits informatiques, électroniques et optiques"></option>
+          <option value="27 — Fabrication d'équipements électriques"></option>
+          <option value="28 — Fabrication de machines et équipements n.c.a."></option>
+          <option value="29 — Industrie automobile"></option>
+          <option value="30 — Fabrication d'autres matériels de transport (naval, ferroviaire, aéronautique)"></option>
+          <option value="33 — Réparation et installation de machines et d'équipements"></option>
+          <option value="35 — Production et distribution d'électricité, de gaz, de vapeur et d'air conditionné"></option>
+          <option value="36 — Captage, traitement et distribution d'eau"></option>
+          <option value="37 — Collecte et traitement des eaux usées"></option>
+          <option value="38 — Collecte, traitement et élimination des déchets ; récupération"></option>
+          <option value="42 — Génie civil"></option>
+          <option value="49 — Transports terrestres et transport par conduites"></option>
+          <option value="50 — Transports par eau"></option>
+          <option value="51 — Transports aériens"></option>
+          <option value="52 — Entreposage et services auxiliaires des transports"></option>
+          <option value="61 — Télécommunications"></option>
+          <option value="62 — Programmation, conseil et autres activités informatiques"></option>
+          <option value="63 — Services d'information"></option>
+          <option value="64 — Activités des services financiers, hors assurance et caisses de retraite"></option>
+          <option value="65 — Assurance"></option>
+          <option value="66 — Activités auxiliaires de services financiers et d'assurance"></option>
+          <option value="84 — Administration publique et défense ; sécurité sociale obligatoire"></option>
+          <option value="86 — Activités pour la santé humaine"></option>
+        </datalist>
+        <datalist id="perimetres">
+          <option value="Réseau OT SCADA et automates — 2 sites de production"></option>
+          <option value="Systèmes de contrôle industriel (PLC, HMI, SCADA, DCS) d'une unité de production"></option>
+          <option value="SI industriel d'un site classé — cartographie et maintien en condition de sécurité"></option>
+          <option value="Sous-station électrique offshore — systèmes sous schéma de sécurité OT (IEC 62443)"></option>
+          <option value="Poste électrique HT/BT et systèmes de protection"></option>
+          <option value="Station de traitement d'eau — télégestion et postes locaux"></option>
+          <option value="Réseau de distribution de gaz — télé-exploitation et postes de détente"></option>
+          <option value="Réseau multi-services et systèmes de surveillance des espaces d'une ligne de métro"></option>
+          <option value="Système de signalisation ferroviaire et centre de contrôle"></option>
+          <option value="Véhicule connecté — périmètre CSMS / SUMS (UNECE R155/R156)"></option>
+          <option value="Datacenters et réseaux du système d'information"></option>
+          <option value="Applications exposées sur internet — surface d'exposition du groupe"></option>
+          <option value="SOC et chaîne de détection / réponse à incident"></option>
+          <option value="Chaîne de patching et de remédiation des vulnérabilités"></option>
+          <option value="Environnement cloud et interconnexions avec le SI industriel"></option>
+          <option value="EPCI et interfaces fournisseurs d'un projet d'infrastructure"></option>
+          <option value="Chaîne de sous-traitance — exigences cascadées aux fournisseurs"></option>
+          <option value="Périmètre groupe multi-filiales — SI et SI industriels"></option>
+        </datalist>
         <div class="field"><label for="consignes">Consignes particulières (facultatif)</label><textarea id="consignes" placeholder="Points à mettre en avant, contraintes, échéances…"></textarea></div>
         <div class="field">
           <label>Documents de référence <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted2)">— facultatif ; sinon sélection automatique dans toute la base</span></label>
