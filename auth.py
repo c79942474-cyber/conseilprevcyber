@@ -598,7 +598,33 @@ def api_login():
     key = "login:%s:%s" % (_client_ip(), email)
     if guard.blocked(key):
         return jsonify(error="Trop de tentatives. Réessayez dans quelques minutes."), 429
-    u = store.get(email)
+    # Lecture du compte TOLÉRANTE AUX PANNES. Auparavant, une base injoignable
+    # faisait remonter l'exception telle quelle : le visiteur attendait le délai
+    # du pool puis recevait un « erreur_serveur » opaque, qui laissait croire à
+    # un problème d'identifiants ou à un site cassé. current_user() se protégeait
+    # déjà ainsi ; la connexion, elle, était restée sans filet.
+    depuis_cache = False
+    try:
+        u = store.get(email)
+        if u:
+            _USER_CACHE[email] = (time.time(), dict(u))
+        else:
+            _USER_CACHE.pop(email, None)
+    except Exception:
+        logging.getLogger("auth").warning(
+            "connexion : base de comptes injoignable — repli sur le cache.")
+        cached = _USER_CACHE.get(email)
+        if not cached or (time.time() - cached[0]) > _USER_CACHE_TTL:
+            # Rien de récent en mémoire : on le DIT, plutôt que de renvoyer
+            # « identifiants incorrects » (faux, et qui ferait changer un mot de
+            # passe pourtant valide) ou une erreur serveur (illisible).
+            return jsonify(error="Base de comptes momentanément injoignable. "
+                                 "Réessayez dans un instant."), 503
+        # Le profil en cache porte les mêmes champs que la base — empreinte du
+        # mot de passe comprise : la vérification reste entière, seule la
+        # fraîcheur de la lecture est dégradée, et bornée par AUTH_CACHE_TTL.
+        u = cached[1]
+        depuis_cache = True
     if not u or not u.get("password_hash") or not check_password_hash(u["password_hash"], pw):
         guard.fail(key)
         return jsonify(error="Identifiants incorrects."), 401
@@ -610,8 +636,15 @@ def api_login():
     session.clear()
     session["user_email"] = email
     session.permanent = True
-    store.update(email, last_login=_now_ms())
-    return jsonify(ok=True, name=u.get("name") or "")
+    # Horodatage de dernière connexion : confort de suivi, jamais un motif
+    # d'échec. Une écriture impossible ne doit pas annuler une authentification
+    # déjà acquise.
+    try:
+        store.update(email, last_login=_now_ms())
+    except Exception:
+        logging.getLogger("auth").warning(
+            "connexion : dernière connexion non enregistrée (base indisponible).")
+    return jsonify(ok=True, name=u.get("name") or "", degrade=depuis_cache)
 
 
 @auth_bp.route("/api/auth/logout", methods=["POST"])

@@ -64,7 +64,11 @@
       fetch('/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},
         body:JSON.stringify({email:document.getElementById('email').value.trim(),password:document.getElementById('password').value})})
         .then(function(r){return r.json().then(function(j){return {s:r.status,j:j};});})
-        .then(function(o){ if(o.j.ok){ location.href=nextUrl; } else { show(o.j.error||'Échec de la connexion.','err'); } })
+        // « message » d'abord : sur une erreur générique du serveur, « error » ne
+        // contient qu'un CODE (« erreur_serveur ») — illisible pour qui se
+        // connecte, et qui laisse croire à un identifiant refusé.
+        .then(function(o){ if(o.j.ok){ location.href=nextUrl; }
+                           else { show(o.j.message||o.j.error||'Échec de la connexion.','err'); } })
         .catch(function(){show('Erreur réseau, réessayez.','err');});
     });
   })();
