@@ -240,7 +240,7 @@
       s: ["Survolez les puces techniques : chaque terme est expliqué.", "Consultez les objectifs de mission et les livrables.", "Passez à l'action : état des lieux ou démo."],
       k: [["NAC", "Contrôle d'accès réseau : n'admettre que les équipements autorisés."], ["EDR", "Détection et réponse sur les postes et serveurs."], ["MCO / MCS", "Maintien en condition opérationnelle / de sécurité dans la durée."]],
       l: [["Études de cas", "/etudes-de-cas"], ["Méthodologie", "/methodologie"], ["Contact", "/contact"]] },
-    "/etudes-de-cas": { t: "Études de cas", p: "Nos références : missions menées pour de grands comptes de l'énergie, de la mobilité et de l'oil & gas.",
+    "/etudes-de-cas": { t: "Études de cas", p: "Nos références : missions menées pour de grands comptes de l'énergie, de la mobilité, de l'oil & gas et de l'éolien offshore.",
       s: ["Chaque carte résume le contexte, le rôle tenu et les résultats.", "Survolez les étiquettes techniques pour leur définition.", "Un enjeu similaire ? Contactez-nous."],
       k: [["EBIOS RM", "La méthode française d'analyse de risque (ANSSI)."], ["SIEM", "Plateforme qui centralise et corrèle les journaux de sécurité."], ["CSMS", "Système de management de la cybersécurité (volet organisationnel)."]],
       l: [["Nos services", "/services"], ["Contact", "/contact"]] },
@@ -650,7 +650,7 @@
   var SEARCH = [
     ["/", "Accueil", "Vue d'ensemble de CONSEILPREV Cyber.", "Découvrir", "home index"],
     ["/services", "Services", "Nos offres : état des lieux, segmentation, supervision, AMOA, sensibilisation.", "Découvrir", "offres prestations amoa ia"],
-    ["/etudes-de-cas", "Études de cas", "Nos références : énergie, automobile, ferroviaire, oil & gas, assurance.", "Découvrir", "références missions clients"],
+    ["/etudes-de-cas", "Études de cas", "Nos références : énergie, automobile, ferroviaire, oil & gas, assurance, éolien offshore.", "Découvrir", "références missions clients"],
     ["/secteurs", "Secteurs", "Énergie, eau, manufacturing, agro, chimie, transport, assurance.", "Découvrir", "industries marchés"],
     ["/about", "À propos", "Qui nous sommes : parcours, expertises, convictions.", "Découvrir", "equipe société"],
     ["/vos-projets", "Vos projets", "Décrivez votre besoin — réponse sous 48 h ouvrées.", "Découvrir", "devis demande brief"],
