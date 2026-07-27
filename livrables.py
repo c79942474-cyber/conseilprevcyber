@@ -581,8 +581,69 @@ SYSTEM_PROMPT = (
     "et tableaux Markdown lorsque c'est pertinent (ex. écarts, mesures, planning).\n"
     "- Respecte exactement la structure de sections demandée, dans l'ordre.\n"
     "- Le document est un BROUILLON de travail destiné à être relu, complété et validé "
-    "par un consultant : ne prétends pas qu'il est définitif."
+    "par un consultant : ne prétends pas qu'il est définitif.\n"
+    "- Mise en forme : phrases complètes en paragraphes suivis (le rendu final est "
+    "justifié), listes à puces pour les énumérations, et TABLEAU Markdown dès qu'une "
+    "information est comparative ou multi-critères (écarts, mesures, responsabilités, "
+    "jalons). Un tableau a toujours une ligne d'en-tête explicite et des cellules "
+    "courtes : ne place jamais un paragraphe entier dans une cellule."
 )
+
+
+def dossier_documentaire(sources, choix_manuel=False):
+    """Bloc de prompt décrivant les documents RÉELLEMENT retrouvés pour ce livrable.
+
+    Sans lui, le modèle ne reçoit que des extraits anonymes : il ignore combien de
+    documents distincts l'alimentent, lesquels le consultant a lui-même désignés,
+    et sous quel intitulé exact les citer. Les citations dérivent alors vers des
+    titres approximatifs, et rien ne distingue « la base ne dit rien sur ce point »
+    de « je n'ai pas cherché ».
+
+    `sources` : liste de dicts {title, theme, visibility, extraits}.
+    `choix_manuel` : le consultant a-t-il désigné lui-même les documents ?
+    """
+    docs = [s for s in (sources or []) if (s.get("title") or "").strip()]
+    if not docs:
+        return (
+            "\n\nDossier documentaire : AUCUN document de la base de connaissance ne "
+            "correspond à cette demande. Rédige à partir des seules informations client "
+            "ci-dessus et de tes connaissances générales du domaine, en signalant "
+            "explicitement, dès l'introduction, que le contenu n'est adossé à aucune "
+            "source interne et appelle une validation renforcée. N'invente aucune "
+            "citation de document."
+        )
+    lignes = "\n".join(
+        "%d. « %s » — thème : %s — visibilité : %s — %d extrait(s) fourni(s)"
+        % (i, (s.get("title") or "").strip(),
+           (s.get("theme") or "non classé").strip(),
+           "interne" if s.get("visibility") == "internal" else "publique",
+           int(s.get("extraits") or 1))
+        for i, s in enumerate(docs, 1))
+    origine = (
+        "Ces documents ont été DÉSIGNÉS PAR LE CONSULTANT : ils font autorité pour ce "
+        "livrable. Exploite-les en priorité et couvre-les tous ; si l'un d'eux ne "
+        "concerne pas le sujet, dis-le plutôt que de l'ignorer silencieusement."
+        if choix_manuel else
+        "Ces documents ont été retenus AUTOMATIQUEMENT par pertinence dans la base. "
+        "Rien ne garantit qu'ils couvrent tout le sujet : signale les angles morts."
+    )
+    return (
+        "\n\nDossier documentaire mobilisé (%d document(s)) :\n%s\n\n%s\n\n"
+        "Exigences de sourçage (elles priment sur le style) :\n"
+        "- Cite la source entre crochets avec son intitulé EXACT tel qu'écrit ci-dessus, "
+        "par exemple [%s], à l'endroit précis où tu t'appuies dessus — pas seulement en "
+        "fin de section.\n"
+        "- N'attribue jamais à un document une affirmation absente des extraits fournis ; "
+        "en cas de doute, écris « À compléter : … ».\n"
+        "- Ne cite aucun document absent de cette liste, même connu par ailleurs.\n"
+        "- Termine le livrable par une section « ## Sources mobilisées » présentant, sous "
+        "forme de tableau (Document | Thème | Apport dans ce livrable), les seuls "
+        "documents que tu as effectivement utilisés.\n"
+        "- Si une section de la trame n'est couverte par aucun extrait, écris-le "
+        "franchement (« Aucun élément dans la base sur ce point — à compléter ») plutôt "
+        "que de la meubler."
+        % (len(docs), lignes, origine, (docs[0].get("title") or "").strip())
+    )
 
 
 def build_prompts(type_id, inputs, context=None):

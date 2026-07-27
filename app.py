@@ -81,7 +81,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # si le numéro affiché est plus ancien que la version attendue, le déploiement n'a
 # pas abouti — et aucun correctif récent n'est en ligne. À incrémenter à chaque
 # correctif dont on veut pouvoir confirmer la mise en ligne.
-APP_VERSION = "2026.07.27-3"
+APP_VERSION = "2026.07.27-4"
 
 # --- Sécurité applicative (en-têtes, anti-CSRF, taille de requête) -------------
 # Plafond de taille du corps d'une requête (anti-abus mémoire / DoS).
@@ -1978,14 +1978,25 @@ def _livrables_run(type_id, data, system, user, extra_query=""):
         hits = []
     context = build_context(hits, max_chars=6000)
 
+    # Regroupement des extraits par DOCUMENT : le modèle reçoit ainsi la liste
+    # nominative de ce qui l'alimente (et non des extraits anonymes), et la même
+    # liste sert à sourcer le document exporté. Une seule source de vérité.
+    sources, rang = [], {}
+    for h in hits:
+        did = h.get("doc_id")
+        if did in rang:
+            sources[rang[did]]["extraits"] += 1
+            continue
+        rang[did] = len(sources)
+        sources.append({"title": h.get("title"), "theme": h.get("theme"),
+                        "visibility": h.get("visibility"), "extraits": 1})
+    user = user + livrables.dossier_documentaire(sources, choix_manuel=bool(doc_ids))
+
     try:
         text, used_model = assistant.generate(model, system, user, context=context)
     except assistant.AssistantError as exc:
         return jsonify(ok=False, error=exc.code,
                        message=_ASSISTANT_MSG.get(exc.code, "Génération indisponible.")), exc.status
-
-    sources = [{"title": h.get("title"), "theme": h.get("theme"),
-                "visibility": h.get("visibility")} for h in hits]
 
     # Enregistrement dans l'historique (best-effort : n'interrompt jamais la réponse).
     saved_id = None
@@ -2129,7 +2140,17 @@ def api_livrables_export():
     fmt = (data.get("format") or "docx").strip().lower()
     if fmt not in ("docx", "pdf"):
         fmt = "docx"
-    meta = {"type": data.get("type"), "client": data.get("client")}
+    # Ces informations existaient côté application mais n'atteignaient pas le
+    # document : `meta` était transmis puis ignoré par les deux constructeurs.
+    # Elles alimentent désormais le bloc de garde et l'annexe des sources.
+    t = livrables.get_type((data.get("type") or "").strip())
+    srcs = [s for s in (data.get("sources") or []) if isinstance(s, dict)][:40]
+    meta = {"type": data.get("type"),
+            "label": t["label"] if t else (data.get("type") or "Livrable"),
+            "client": data.get("client"), "secteur": data.get("secteur"),
+            "perimetre": data.get("perimetre"), "model": data.get("model"),
+            "date": time.strftime("%d/%m/%Y"),
+            "sources": srcs}
     try:
         if fmt == "pdf":
             blob = livrables_export.build_pdf(md, meta)

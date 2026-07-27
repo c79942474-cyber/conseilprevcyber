@@ -75,15 +75,22 @@
   .doc h1{font-size:26px;margin:22px 0 6px;color:var(--ink)}
   .doc h2{font-size:19px;margin:26px 0 8px;color:var(--ink);border-bottom:1px solid var(--line);padding-bottom:6px}
   .doc h3{font-size:15.5px;margin:18px 0 6px;color:var(--ink)}
-  .doc p{margin:9px 0;color:var(--muted);font-size:14.5px;line-height:1.65}
+  /* Texte justifié : le rendu à l'écran doit annoncer celui du Word et du PDF,
+     sinon l'aperçu ne vaut rien comme aperçu. */
+  .doc p{margin:9px 0;color:var(--muted);font-size:14.5px;line-height:1.65;text-align:justify;hyphens:auto}
   .doc ul,.doc ol{margin:9px 0 9px 22px;color:var(--muted);font-size:14.5px}
   .doc li{margin:4px 0;line-height:1.6}
   .doc strong{color:var(--ink)}
   .doc code{font-family:var(--mono);font-size:12.5px;background:var(--bg2);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
-  .doc table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+  /* Tableaux : en-tête plein, zébrure, débordement contenu — mêmes règles que
+     les exports, à la couleur de fond près (thème sombre à l'écran). */
+  .doc .tblx{overflow-x:auto;margin:14px 0}
+  .doc table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:min(100%,460px)}
   .doc th,.doc td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
-  .doc th{background:var(--bg2);color:var(--ink);font-weight:600}
+  .doc th{background:var(--bg2);color:var(--ink);font-weight:600;font-size:12.5px;
+    letter-spacing:.02em;border-bottom:2px solid var(--cyan)}
   .doc td{color:var(--muted)}
+  .doc tbody tr:nth-child(even) td{background:rgba(148,163,184,.06)}
   .doc hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   .sources{padding:14px 22px 22px;border-top:1px solid var(--line)}
   .sources .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted2);margin-bottom:8px}
@@ -116,13 +123,31 @@
   @media print{
     body *{visibility:hidden}
     #printable,#printable *{visibility:visible}
-    #printable{position:absolute;left:0;top:0;width:100%;border:none;background:#fff}
+    /* Fond blanc forcé : l'impression des arrière-plans doit être ACTIVÉE pour
+       obtenir les en-têtes de tableau en couleur — sans cette règle, le fond
+       sombre du site partirait à l'encre en même temps. */
+    html,body{background:#fff !important}
+    /* right:0 plutôt que width:100% : la largeur de référence est la zone
+       imprimable, sinon le texte justifié déborde dans la marge de droite. */
+    #printable{position:absolute;left:0;right:0;top:0;width:auto;max-width:100%;
+      border:none;background:#fff}
     .rbar{display:none}
     .doc{max-width:none;color:#111;padding:0}
-    .doc h1,.doc h2,.doc h3,.doc strong{color:#111}
+    /* Impression alignée sur le Word et le PDF : mêmes couleurs de charte,
+       en-tête de tableau plein, zébrure, titres de section soulignés, et
+       coupures de page qui n'orphelinent ni un titre ni une ligne de tableau. */
+    .doc h1,.doc h2,.doc h3{color:#0A2230;break-after:avoid;page-break-after:avoid}
+    .doc h2{border-bottom:1px solid #CBD5DB;padding-bottom:4px}
+    .doc strong{color:#0A2230}
     .doc p,.doc li,.doc td{color:#222}
-    .doc th{background:#eee;color:#111}
-    .doc th,.doc td{border-color:#999}
+    .doc .tblx{overflow:visible}
+    .doc table{break-inside:auto}
+    .doc tr{break-inside:avoid;page-break-inside:avoid}
+    .doc th{background:#0A2230 !important;color:#fff !important;border-color:#0A2230;
+      -webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .doc tbody tr:nth-child(even) td{background:#F7FAFB !important;
+      -webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .doc th,.doc td{border:1px solid #CBD5DB}
     .letterhead{display:flex !important;align-items:center;gap:12px;padding-bottom:10px;margin-bottom:16px;border-bottom:1.5px solid #0E6D7C;color:#0A2230}
     .letterhead img{height:42px;width:42px}
     .letterhead b{color:#0A2230;font-size:16px}
@@ -336,7 +361,7 @@
   (function(){
     var notice=document.getElementById('notice'), typeSel=document.getElementById('type'), typedesc=document.getElementById('typedesc');
     var result=document.getElementById('result'), docEl=document.getElementById('doc'), genBtn=document.getElementById('genBtn');
-    var TYPES=[], lastMd='', lastId=null;
+    var TYPES=[], lastMd='', lastId=null, lastSources=[], lastModel='';
     function esc(s){return (''+(s==null?'':s)).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
     function note(t,cls){notice.innerHTML=t;notice.className=cls;notice.style.display=t?'block':'none';}
 
@@ -361,9 +386,10 @@
           var head=ln.trim().replace(/^\||\|$/g,'').split('|').map(function(c){return c.trim();});
           i+=2; var rows=[];
           while(i<lines.length && /^\s*\|.*\|\s*$/.test(lines[i])){ rows.push(lines[i].trim().replace(/^\||\|$/g,'').split('|').map(function(c){return c.trim();})); i++; }
-          var t='<table><thead><tr>'+head.map(function(c){return '<th>'+inline(c)+'</th>';}).join('')+'</tr></thead><tbody>';
+          // Enveloppe défilante : un tableau large ne doit pas élargir la page.
+          var t='<div class="tblx"><table><thead><tr>'+head.map(function(c){return '<th>'+inline(c)+'</th>';}).join('')+'</tr></thead><tbody>';
           t+=rows.map(function(r){return '<tr>'+r.map(function(c){return '<td>'+inline(c)+'</td>';}).join('')+'</tr>';}).join('');
-          out.push(t+'</tbody></table>'); continue;
+          out.push(t+'</tbody></table></div>'); continue;
         }
         if(/^\s*[-*]\s+/.test(ln)){ var items=[]; while(i<lines.length && /^\s*[-*]\s+/.test(lines[i])){ items.push(lines[i].replace(/^\s*[-*]\s+/,'')); i++; } flushList('ul',items); continue; }
         if(/^\s*\d+[.)]\s+/.test(ln)){ var it2=[]; while(i<lines.length && /^\s*\d+[.)]\s+/.test(lines[i])){ it2.push(lines[i].replace(/^\s*\d+[.)]\s+/,'')); i++; } flushList('ol',it2); continue; }
@@ -378,6 +404,10 @@
     function fmtTs(ts){if(!ts)return '—';var d=new Date(ts);return d.toLocaleDateString('fr-FR')+' '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}
     function showResult(md,metaText,sources){
       lastMd=md||'';
+      // Mémorisées pour l'export : le Word et le PDF portent l'annexe des sources.
+      lastSources=sources||[];
+      lastModel=(metaText.match(/Modèle\s*:\s*([^·]+)/)||[])[1];
+      if(lastModel) lastModel=lastModel.trim();
       docEl.innerHTML=mdToHtml(lastMd);
       document.getElementById('rmeta').textContent=metaText;
       var src=document.getElementById('sources'), list=document.getElementById('srclist');
@@ -626,7 +656,11 @@
     function exportDoc(btn, fmt){
       if(!lastMd)return; var lbl=btn.textContent; btn.disabled=true; btn.textContent='…';
       fetch('/api/admin/livrables/export',{method:'POST',headers:{'content-type':'application/json'},
-        body:JSON.stringify({markdown:lastMd,type:typeSel.value,client:document.getElementById('client').value.trim(),format:fmt})})
+        body:JSON.stringify({markdown:lastMd,type:typeSel.value,format:fmt,
+          client:document.getElementById('client').value.trim(),
+          secteur:document.getElementById('secteur').value.trim(),
+          perimetre:document.getElementById('perimetre').value.trim(),
+          model:lastModel,sources:lastSources})})
         .then(function(r){if(!r.ok)throw new Error();return r.blob();})
         .then(function(blob){var a=document.createElement('a');a.href=URL.createObjectURL(blob);
           a.download=(typeSel.value||'livrable')+'.'+fmt;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href);})
