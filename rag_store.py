@@ -617,6 +617,18 @@ class MemoryRagStore:
         return {"title": meta.get("title"), "filename": meta.get("filename"),
                 "theme": meta.get("theme"), "text": text[:limit]}
 
+    def set_visibility(self, doc_id, visibility):
+        """Bascule public <-> interne. « public » expose le document à
+        l'assistant de TOUS les visiteurs : à n'utiliser qu'en connaissance."""
+        with self._lock:
+            d = self._docs.get(doc_id)
+            if not d:
+                raise RagError("document_inconnu", 404)
+            d["visibility"] = "public" if visibility == "public" else "internal"
+            d["updated_at"] = _now_ms()
+            self._save()
+        return True
+
     def set_theme(self, doc_id, theme):
         """Reclasse un document (change son thème / sous-dossier)."""
         with self._lock:
@@ -1108,6 +1120,17 @@ class PostgresRagStore:
         text = "\n\n".join(r[0] for r in rows)
         return {"title": meta[0], "filename": meta[1], "theme": meta[2],
                 "text": text[:limit]}
+
+    def set_visibility(self, doc_id, visibility):
+        """Bascule public <-> interne, prise en compte IMMÉDIATEMENT : la
+        visibilité est lue à chaque recherche, aucun cache ni réindexation."""
+        v = "public" if visibility == "public" else "internal"
+        with self._pool.connection() as conn:
+            n = conn.execute("UPDATE rag_documents SET visibility=%s,updated_at=%s "
+                             "WHERE id=%s", (v, _now_ms(), doc_id)).rowcount
+        if not n:
+            raise RagError("document_inconnu", 404)
+        return True
 
     def set_theme(self, doc_id, theme):
         """Reclasse un document. Seul le classement change : le texte, les
@@ -1742,6 +1765,10 @@ class ResilientRagStore:
     def set_theme(self, *args, **kwargs):
         """Reclassement d'un document, tolérant aux pannes (voir _write)."""
         return self._write("set_theme", *args, **kwargs)
+
+    def set_visibility(self, *args, **kwargs):
+        """Bascule de visibilité, tolérante aux pannes (voir _write)."""
+        return self._write("set_visibility", *args, **kwargs)
 
     def index_next(self, *args, **kwargs):
         """Indexation vectorielle d'un lot, tolérante aux pannes (voir _write).

@@ -81,7 +81,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # si le numéro affiché est plus ancien que la version attendue, le déploiement n'a
 # pas abouti — et aucun correctif récent n'est en ligne. À incrémenter à chaque
 # correctif dont on veut pouvoir confirmer la mise en ligne.
-APP_VERSION = "2026.07.26-3"
+APP_VERSION = "2026.07.27-1"
 
 # --- Sécurité applicative (en-têtes, anti-CSRF, taille de requête) -------------
 # Plafond de taille du corps d'une requête (anti-abus mémoire / DoS).
@@ -813,6 +813,17 @@ def api_assistant_selftest():
     return jsonify(results=assistant.selftest())
 
 
+def _is_admin_request():
+    """L'appelant est-il un administrateur connecté ? Même règle que
+    admin_required (compte connecté + rôle « admin »), mais SANS bloquer : sert à
+    élargir le périmètre documentaire, jamais à autoriser une action."""
+    try:
+        u = current_user()
+        return bool(u) and (u.get("role") or "user") == "admin"
+    except Exception:
+        return False
+
+
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
     """Point d'entrée du chat sécurisé. Sans état : aucune conversation n'est stockée.
@@ -829,13 +840,22 @@ def api_chat():
     model = "mistral" if data.get("model") == "mistral" else "claude"
     messages = data.get("messages")
 
-    # Récupération RAG : on ancre la réponse sur la base de connaissance (documents
-    # PUBLICS uniquement). Best-effort : une erreur de récupération ne casse jamais le chat.
+    # Récupération RAG, dont le PÉRIMÈTRE DÉPEND DE QUI INTERROGE :
+    #   - visiteur anonyme  -> documents publics uniquement (inchangé) ;
+    #   - administrateur connecté -> publics ET internes.
+    # C'est la bonne réponse au besoin « des réponses plus précises à partir de mes
+    # livrables » : elle l'obtient SANS jamais rendre un document propriétaire
+    # accessible au public. Basculer la visibilité des documents pour enrichir ses
+    # propres réponses reviendrait à les exposer à tous les visiteurs — et le vrai
+    # danger n'est pas la bascule, c'est l'oubli de la rebasculer.
+    # Best-effort : une erreur de récupération ne casse jamais le chat.
     context = None
+    interne_autorise = _is_admin_request()
     try:
         query = assistant.last_user_message(messages)
         if query:
-            context = build_context(rag.search(query, k=5, public_only=True))
+            context = build_context(rag.search(query, k=5,
+                                               public_only=not interne_autorise))
     except Exception:
         context = None
 
@@ -1312,6 +1332,32 @@ def api_rag_retheme():
             echecs += 1
     return jsonify(ok=True, theme=theme, deplaces=deplaces,
                    inchanges=inchanges, echecs=echecs)
+
+
+@app.route("/api/admin/rag/documents/<doc_id>/visibility", methods=["POST"])
+@admin_required
+def api_rag_visibility(doc_id):
+    """Bascule un document entre « interne » et « public ».
+
+    Effet IMMÉDIAT : la visibilité est relue à chaque recherche, sans cache ni
+    réindexation. Rendre un document « public », c'est autoriser l'assistant à
+    le citer à n'importe quel visiteur — l'appel est donc réservé à l'admin, et
+    l'interface demande confirmation dans ce sens."""
+    if not _rag_valid_doc_id(doc_id):
+        return jsonify(ok=False, error="document_invalide"), 400
+    data = request.get_json(silent=True) or {}
+    v = (data.get("visibility") or "").strip().lower()
+    if v not in ("public", "internal"):
+        return jsonify(ok=False, error="visibilite_invalide"), 400
+    try:
+        rag.set_visibility(doc_id, v)
+    except RagError as exc:
+        return jsonify(ok=False, error=exc.code,
+                       detail=getattr(exc, "detail", "")), exc.status
+    except Exception as exc:
+        app.logger.exception("visibility : échec pour %r", doc_id)
+        return jsonify(ok=False, error="visibilite_echec", detail=_exc_detail(exc)), 500
+    return jsonify(ok=True, visibility=v)
 
 
 @app.route("/api/admin/rag/reconnect", methods=["POST"])

@@ -190,6 +190,17 @@
         N'y placez que des informations diffusables. Réservez les contenus sensibles à la visibilité <b>Interne</b>
         (utilisée pour les livrables, jamais exposée à l'assistant public).</div></div>
 
+      <!-- Réponse au besoin « des réponses d'assistant plus précises à partir de mes
+           livrables » : l'élargissement se fait sur l'IDENTITÉ, pas en dégradant la
+           visibilité des documents. Aucune bascule à faire, donc aucune à oublier. -->
+      <div class="warn" style="border-color:rgba(125,211,247,.55);background:rgba(125,211,247,.12)"><span>💡</span><div>
+        <b>Vos documents internes alimentent déjà votre propre assistant.</b> Tant que vous êtes connecté
+        en administrateur, l'assistant du site cherche dans les documents <b>publics <em>et</em> internes</b> :
+        vous obtenez des réponses appuyées sur vos livrables <em>sans</em> les rendre publics. Les visiteurs, eux,
+        ne voient que les documents publics. Inutile donc de basculer un document pour vous-même —
+        et rien à se rappeler de rebasculer. Les boutons <b>🌐 Rendre public</b> / <b>🔒 Rendre interne</b> de la liste
+        ci-dessous ne servent qu'à la <em>diffusion</em> ; leur effet est immédiat, sans réindexation.</div></div>
+
       <!-- Auto-test : rejoue le pipeline de chargement SUR LE SERVEUR et désigne
            l'étape exacte qui échoue (au lieu d'un diagnostic à l'aveugle). -->
       <div class="panel" id="selftestPanel" style="padding:14px 18px">
@@ -244,8 +255,8 @@
         <div class="field">
           <label>Visibilité</label>
           <div class="vis">
-            <label><input type="radio" name="visibility" value="public" checked><span><b>Public</b>Alimente l'assistant conversationnel et les livrables.</span></label>
-            <label><input type="radio" name="visibility" value="internal"><span><b>Interne</b>Livrables uniquement — jamais exposé à l'assistant public.</span></label>
+            <label><input type="radio" name="visibility" value="public" checked><span><b>Public</b>Cité par l'assistant pour tous les visiteurs du site.</span></label>
+            <label><input type="radio" name="visibility" value="internal"><span><b>Interne</b>Livrables, plus votre propre assistant quand vous êtes connecté — jamais les visiteurs.</span></label>
           </div>
         </div>
         <div style="margin-top:8px"><button class="btn btn-p" id="upBtn" type="submit">Charger &amp; indexer</button></div>
@@ -280,8 +291,8 @@
         <div class="field">
           <label>Visibilité</label>
           <div class="vis">
-            <label><input type="radio" name="visibility" value="internal" checked><span><b>Interne</b>Livrables uniquement — jamais exposé à l'assistant public.</span></label>
-            <label><input type="radio" name="visibility" value="public"><span><b>Public</b>Alimente aussi l'assistant conversationnel.</span></label>
+            <label><input type="radio" name="visibility" value="internal" checked><span><b>Interne</b>Livrables, plus votre propre assistant quand vous êtes connecté — jamais les visiteurs.</span></label>
+            <label><input type="radio" name="visibility" value="public"><span><b>Public</b>Cité par l'assistant pour tous les visiteurs du site.</span></label>
           </div>
         </div>
         <div style="margin-top:8px"><button class="btn btn-p" id="upBtnEng" type="submit">Charger &amp; indexer</button></div>
@@ -452,6 +463,10 @@
       var acts='';
       if(d.status==='indexing') acts+='<button data-a="index" data-id="'+d.id+'">▶ Indexer</button>';
       if(d.status==='ready'&&d.mode==='texte_integral'&&caps.embeddings) acts+='<button data-a="reindex" data-id="'+d.id+'" title="Générer la recherche sémantique (embeddings)">⟳ Vectoriser</button>';
+      // Bascule interne <-> public, effet immédiat sur ce que l'assistant peut citer.
+      acts+=(d.visibility==='public')
+        ? '<button data-a="vis" data-id="'+d.id+'" data-v="internal" title="Repasser ce document en INTERNE : l\'assistant public cessera aussitôt de pouvoir le citer">🔒 Rendre interne</button>'
+        : '<button data-a="vis" data-id="'+d.id+'" data-v="public" title="Rendre ce document PUBLIC : l\'assistant pourra le citer à n\'importe quel visiteur">🌐 Rendre public</button>';
       acts+='<button data-a="read" data-id="'+d.id+'">📖 Lire</button>';
       acts+='<button data-a="download" data-id="'+d.id+'">Télécharger</button>';
       acts+='<button class="danger" data-a="delete" data-id="'+d.id+'" data-t="'+esc(d.title)+'">Supprimer</button>';
@@ -977,7 +992,15 @@
     async function onDocClick(e){
       var b=e.target.closest('button'); if(!b)return;
       var a=b.getAttribute('data-a'), id=b.getAttribute('data-id');
-      if(a==='delete'){
+      if(a==='vis'){
+        var v=b.getAttribute('data-v');
+        if(v==='public'&&!confirm('Rendre ce document PUBLIC ?\n\nL\'assistant conversationnel pourra le citer à N\'IMPORTE QUEL VISITEUR du site.\nÀ réserver aux contenus diffusables.')) return;
+        var rv=await apiFetch('/api/admin/rag/documents/'+id+'/visibility',{method:'POST',
+          headers:{'content-type':'application/json'},body:JSON.stringify({visibility:v})});
+        var jv=await readJson(rv);
+        if(jv&&jv.ok){ note(v==='public'?'Document rendu PUBLIC — l\'assistant peut désormais le citer.':'Document repassé en interne — retiré de l\'assistant public.','ok'); load(); }
+        else { note('Changement de visibilité impossible.','err'); }
+      } else if(a==='delete'){
         if(!confirm('Supprimer définitivement « '+b.getAttribute('data-t')+' » de la base ?'))return;
         var r=await apiFetch('/api/admin/rag/documents/'+id,{method:'DELETE'}); var j=await readJson(r);
         if(j.ok){note('Document supprimé.','ok');load();}else{note('Suppression impossible.','err');}
