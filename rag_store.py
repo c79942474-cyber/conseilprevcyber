@@ -67,6 +67,11 @@ VISIBILITIES = ("public", "internal")
 # document par client relève d'une autre intention que le classer par sujet.
 THEME_FAMILLES = [
     ("Normes & réglementations", [
+        # « Normes IEC » regroupe les normes CEI hors 62443 (61850, 62351,
+        # 60870…). « IEC 62443 » et « Sûreté fonctionnelle (IEC 61508/61511) »
+        # restent des entrées distinctes : des documents y sont déjà classés,
+        # les fondre ici les rendrait introuvables.
+        "Normes IEC",
         "IEC 62443",
         "ISO 27001 / 27002",
         "ISO Standards",
