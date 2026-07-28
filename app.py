@@ -83,7 +83,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # si le numéro affiché est plus ancien que la version attendue, le déploiement n'a
 # pas abouti — et aucun correctif récent n'est en ligne. À incrémenter à chaque
 # correctif dont on veut pouvoir confirmer la mise en ligne.
-APP_VERSION = "2026.07.28-1"
+APP_VERSION = "2026.07.28-2"
+
+# Horodatage de démarrage du processus (voir /health : « demarre_depuis_s »).
+_DEMARRAGE = time.time()
 
 # --- Sécurité applicative (en-têtes, anti-CSRF, taille de requête) -------------
 # Plafond de taille du corps d'une requête (anti-abus mémoire / DoS).
@@ -1444,6 +1447,25 @@ def api_rag_capacity():
         return jsonify(ok=True, **rag.storage_report())
     except Exception:
         return jsonify(ok=True)
+
+
+@app.route("/api/admin/comptes/reconnecter", methods=["POST"])
+@admin_required
+def api_comptes_reconnecter():
+    """Rebranche immédiatement le magasin de comptes sur PostgreSQL.
+
+    Le rebranchement est déjà automatique (nouvelle tentative toutes les 20 s) ;
+    ce bouton évite d'attendre quand on sait que la base vient de revenir."""
+    import auth as _auth
+    fn = getattr(_auth.store, "reconnecter", None)
+    if not callable(fn):
+        return jsonify(ok=False, error="indisponible"), 409
+    try:
+        ok = bool(fn())
+    except Exception as exc:
+        return jsonify(ok=False, error="reconnexion_echec", detail=_exc_detail(exc)), 500
+    audit.journaliser("comptes.reconnexion", detail=getattr(_auth.store, "mode", ""), ok=ok)
+    return jsonify(ok=ok, mode=getattr(_auth.store, "mode", ""))
 
 
 @app.route("/api/admin/audit", methods=["GET"])
@@ -2875,7 +2897,12 @@ def health():
     redémarrer l'instance en boucle sur un simple hoquet de la base — on
     remplacerait une gêne par une coupure. L'état dégradé est dans le corps, à
     la disposition de la supervision."""
-    etat = {"status": "ok", "service": "conseilprevcyber", "version": APP_VERSION}
+    # Ancienneté du processus : c'est le moyen le plus simple de CONSTATER des
+    # redémarrages à répétition depuis l'extérieur. Si ce compteur repart de zéro
+    # à chaque consultation, l'instance redémarre — et tout ce qui vit en mémoire
+    # (caches, session de secours) est perdu à chaque fois.
+    etat = {"status": "ok", "service": "conseilprevcyber", "version": APP_VERSION,
+            "demarre_depuis_s": int(time.time() - _DEMARRAGE)}
     try:
         caps = rag.capabilities()
         etat["base"] = "connectee" if caps.get("persistent") else "degradee"
@@ -2889,7 +2916,9 @@ def health():
     # Magasin de comptes : simple lecture d'un attribut en mémoire, aucune requête.
     try:
         import auth as _auth
-        etat["comptes"] = type(_auth.store).__name__.lstrip("_").lower()
+        etat["comptes"] = getattr(_auth.store, "mode", "inconnu")
+        if etat["comptes"] != "postgres":
+            etat["status"] = "degraded"
     except Exception:
         etat["comptes"] = "inconnu"
     if request.args.get("detail") == "1":
@@ -2920,6 +2949,16 @@ def _sonde_detaillee():
     now = time.time()
     if now - _SONDE["ts"] < _SONDE_TTL and _SONDE["res"]:
         return dict(_SONDE["res"], mesure="en cache (< 30 s)")
+    def _cause(exc):
+        """Cause EXPLOITABLE mais muette sur l'infrastructure.
+
+        _exc_detail suffit sur les routes d'administration, mais pas ici : les
+        messages de psycopg citent l'hôte et le port en clair (« connection to
+        server at "dpg-…", port 5432 »), et cette sonde est PUBLIQUE. On ne
+        publie donc que le TYPE de l'erreur — assez pour distinguer un délai
+        d'attente d'un refus, jamais assez pour cartographier le service."""
+        return type(exc).__name__
+
     res = {}
     try:
         import auth as _auth
@@ -2929,7 +2968,7 @@ def _sonde_detaillee():
         _auth.store.get("sonde-disponibilite@invalide.local")
         res["comptes_lecture"] = "ok (%d ms)" % ((time.time() - t0) * 1000)
     except Exception as exc:
-        res["comptes_lecture"] = "echec : %s" % _exc_detail(exc, 120)
+        res["comptes_lecture"] = "echec : %s" % _cause(exc)
     dsn = os.environ.get("DATABASE_URL")
     if not dsn:
         res["connexions"] = "DATABASE_URL absente de l'environnement"
@@ -2945,7 +2984,7 @@ def _sonde_detaillee():
                 res["alerte"] = ("plafond de connexions proche : c'est ce qui fait "
                                  "échouer les nouvelles connexions")
         except Exception as exc:
-            res["connexions"] = "non mesurable : %s" % _exc_detail(exc, 120)
+            res["connexions"] = "non mesurable : %s" % _cause(exc)
     _SONDE["ts"], _SONDE["res"] = now, res
     return dict(res, mesure="à l'instant")
 

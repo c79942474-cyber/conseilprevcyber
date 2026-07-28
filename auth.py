@@ -242,17 +242,141 @@ class _PgStore:
             return c.execute("SELECT * FROM users ORDER BY created_at DESC NULLS LAST").fetchall()
 
 
-def _make_store():
-    dsn = os.environ.get("DATABASE_URL")
-    if dsn:
-        if dsn.startswith("postgres://"):
-            dsn = "postgresql://" + dsn[len("postgres://"):]
+class ComptesIndisponibles(RuntimeError):
+    """La base de comptes est configurée mais ne répond pas.
+
+    Distincte d'une erreur technique quelconque : les appelants savent qu'il
+    s'agit d'une indisponibilité passagère, à annoncer comme telle plutôt que de
+    laisser croire à des identifiants erronés."""
+
+
+class _ResilientUserStore:
+    """Magasin de comptes qui se REBRANCHE tout seul sur PostgreSQL.
+
+    Défaut corrigé ici, et il était grave : le choix du magasin se faisait UNE
+    SEULE FOIS au démarrage. Si la base n'était pas joignable à cet instant —
+    redémarrage du service pendant un hoquet, base encore en train de se
+    réveiller — l'application basculait définitivement sur un fichier JSON. Or ce
+    fichier est ÉPHÉMÈRE sur l'hébergement : il repart vide à chaque déploiement.
+    Résultat, plus personne ne pouvait se connecter, y compris l'administrateur,
+    y compris une fois la base revenue — et la seule issue était un redéploiement
+    manuel. Chaque redémarrage rejouait ce tirage.
+
+    Ici : la connexion est tentée EN TÂCHE DE FOND (le service démarre donc
+    instantanément, jamais bloqué par une base lente — un démarrage qui traîne
+    fait échouer la sonde de l'hébergeur, qui redémarre, ce qui relance le cycle),
+    puis retentée périodiquement tant qu'elle échoue. Dès que la base répond,
+    l'application y revient d'elle-même, sans redéploiement.
+    """
+    RETRY_MIN = 20.0        # délai minimal entre deux tentatives de rebranchement
+
+    def __init__(self, dsn, chemin_json):
+        self._dsn = dsn
+        self._pg = None
+        self._json = _JsonStore(chemin_json)
+        self._lock = threading.Lock()
+        self._last_try = 0.0
+        self._connecting = False
+        if dsn:
+            self._connecter_en_fond()
+
+    # -- connexion ---------------------------------------------------------
+    def _connecter_en_fond(self):
+        with self._lock:
+            if self._connecting or self._pg is not None:
+                return
+            self._connecting = True
+            self._last_try = time.time()
+        threading.Thread(target=self._essayer, daemon=True).start()
+
+    def _essayer(self):
         try:
-            return _PgStore(dsn)
+            pg = _PgStore(self._dsn)
+        except Exception as exc:
+            logging.getLogger("auth").warning(
+                "comptes : PostgreSQL injoignable (%s) — repli fichier, "
+                "nouvelle tentative dans %ds.", type(exc).__name__, int(self.RETRY_MIN))
+            pg = None
+        with self._lock:
+            self._connecting = False
+            if pg is not None:
+                self._pg = pg
+                logging.getLogger("auth").info("comptes : PostgreSQL connecté.")
+
+    def _actif(self):
+        """Magasin à utiliser maintenant, en relançant une tentative si l'heure
+        est venue. La tentative est asynchrone : elle ne retarde jamais la
+        requête en cours.
+
+        Quand un DATABASE_URL est configuré et que la base ne répond pas, on
+        LÈVE plutôt que de servir le fichier de repli. Ce fichier est une copie
+        d'ombre que personne ne tient à jour : y authentifier reviendrait à
+        accepter un compte peut-être révoqué depuis, et — le fichier étant vide
+        sur l'hébergement — à répondre « identifiants incorrects » à quelqu'un
+        dont le mot de passe est parfaitement valide. Mieux vaut dire la vérité :
+        la base est injoignable. Le fichier ne sert donc qu'en l'ABSENCE totale
+        de base configurée (poste de développement)."""
+        if self._pg is not None:
+            return self._pg
+        if self._dsn:
+            if (time.time() - self._last_try) > self.RETRY_MIN:
+                self._connecter_en_fond()
+            raise ComptesIndisponibles(
+                "base de comptes injoignable (rebranchement automatique en cours)")
+        return self._json
+
+    @property
+    def mode(self):
+        return "postgres" if self._pg is not None else ("repli_fichier" if self._dsn
+                                                        else "fichier")
+
+    def reconnecter(self):
+        """Tentative immédiate et SYNCHRONE (bouton d'administration)."""
+        with self._lock:
+            self._pg = None
+            self._last_try = time.time()
+        self._essayer()
+        return self._pg is not None
+
+    # -- délégation --------------------------------------------------------
+    def _appel(self, methode, *args, **kwargs):
+        """Exécute sur le magasin actif ; si PostgreSQL échoue en cours de route,
+        on le lâche (une nouvelle connexion sera tentée) et on relaie l'erreur —
+        l'appelant sait déjà la traiter (repli sur le cache, message clair)."""
+        cible = self._actif()          # peut lever ComptesIndisponibles
+        try:
+            return getattr(cible, methode)(*args, **kwargs)
         except Exception:
-            import logging
-            logging.getLogger("auth").warning("users: PostgreSQL injoignable — repli fichier JSON.")
-    return _JsonStore(os.path.join(HERE, "users_db.json"))
+            if cible is self._pg:
+                with self._lock:
+                    self._pg = None
+                    self._last_try = 0.0        # rebranchement au prochain accès
+            raise
+
+    def get(self, email):
+        return self._appel("get", email)
+
+    def get_by(self, field, value):
+        return self._appel("get_by", field, value)
+
+    def create(self, user):
+        return self._appel("create", user)
+
+    def update(self, email, **fields):
+        return self._appel("update", email, **fields)
+
+    def delete(self, email):
+        return self._appel("delete", email)
+
+    def list_all(self):
+        return self._appel("list_all")
+
+
+def _make_store():
+    dsn = (os.environ.get("DATABASE_URL") or "").strip()
+    if dsn.startswith("postgres://"):
+        dsn = "postgresql://" + dsn[len("postgres://"):]
+    return _ResilientUserStore(dsn, os.path.join(HERE, "users_db.json"))
 
 
 store = _make_store()
@@ -832,9 +956,26 @@ def init_app(app):
         PERMANENT_SESSION_LIFETIME=7 * 24 * 3600,
     )
     app.register_blueprint(auth_bp)
-    try:
-        _bootstrap_admin()
-    except Exception:
-        import logging
-        logging.getLogger("auth").exception("bootstrap admin impossible")
+    # Amorçage du compte admin EN TÂCHE DE FOND, et seulement une fois la base
+    # réellement connectée. Deux raisons : le démarrage ne doit jamais attendre
+    # la base (un service lent à démarrer fait échouer la sonde de l'hébergeur,
+    # qui redémarre — et le cycle recommence) ; et créer l'admin dans le fichier
+    # de repli, éphémère, donnerait un compte qui disparaît au déploiement
+    # suivant tout en masquant le vrai problème.
+    threading.Thread(target=_bootstrap_admin_differe, daemon=True).start()
     return login_required
+
+
+def _bootstrap_admin_differe(essais=30, pause=4.0):
+    """Attend que le magasin de comptes soit sur PostgreSQL (2 min au plus),
+    puis amorce le compte administrateur. Sans base, on renonce en le disant."""
+    for _ in range(essais):
+        if getattr(store, "mode", "") == "postgres":
+            try:
+                _bootstrap_admin()
+            except Exception:
+                logging.getLogger("auth").exception("amorçage du compte admin impossible")
+            return
+        time.sleep(pause)
+    logging.getLogger("auth").warning(
+        "amorçage du compte admin abandonné : base de comptes toujours injoignable.")
