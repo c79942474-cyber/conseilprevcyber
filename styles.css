@@ -132,6 +132,66 @@ main:focus{outline:none} /* cible du lien d'évitement : pas de halo pleine larg
 @media(max-width:1220px){ .nav .links{display:none} }
 @media(max-width:520px){ .brand .tag{display:none} }
 
+/* ── L'en-tête ne doit JAMAIS déborder ───────────────────────────────────────
+   Il tenait 426 px de large quelle que soit la fenêtre : sous 414 px, le bouton
+   « Contact » sortait de l'écran et TOUTES les pages du site prenaient un
+   défilement horizontal parasite — le contenu glissait sous le doigt au moindre
+   balayage vertical.
+
+   La cause n'était pas une valeur trop grande en particulier : c'était qu'AUCUN
+   élément de la barre ne pouvait céder. Bouton menu, marque, recherche et appel
+   à l'action étaient tous incompressibles (`flex:0 0 auto`, `white-space:nowrap`,
+   image en taille fixe), et la somme dépassait simplement la place disponible.
+
+   Deux corrections, dans cet ordre :
+
+   1. UN ÉLÉMENT ÉLASTIQUE. La marque devient le seul poste compressible de la
+      barre. En cas de manque de place, c'est le mot « CONSEILPREV » qui se
+      tronque — jamais le bouton Contact qui disparaît. Cette règle vaut à
+      toutes les largeurs : elle garantit l'absence de débordement par
+      construction, même si un libellé s'allonge un jour.
+   2. UNE BARRE PROPORTIONNÉE. Trois paliers réduisent marges, espacements et
+      tailles pour que, dans les faits, la troncature ne se déclenche jamais :
+      la marque reste entière jusqu'à 320 px. Le repli du point 1 est un filet,
+      pas le fonctionnement normal.
+
+   La marge gauche fixe de `.navcta` devient `auto` : elle pousse l'appel à
+   l'action à droite quand il y a de la place, et se réduit à zéro quand il n'y
+   en a plus — au lieu d'ajouter 18 px précisément là où ils manquent. */
+.nav{min-width:0}
+.nav>*{flex:0 0 auto}
+.brand{flex:0 1 auto;min-width:0;overflow:hidden}
+.brand .brand-link{min-width:0;overflow:hidden;white-space:nowrap}
+.navcta{margin-left:auto;flex:0 0 auto}
+
+@media(max-width:900px){
+  header .wrap{padding:0 16px}
+  .nav{gap:10px}
+  .nav .cta,.navcta .cta{padding:7px 13px}
+}
+@media(max-width:480px){
+  header .wrap{padding:0 12px}
+  .nav{gap:8px}
+  .menu-btn{width:36px;height:34px;padding:0 8px}
+  .menu-btn span{width:18px}
+  .nav-search{padding:6px 9px;font-size:12px}
+  .brand{font-size:15px;gap:7px}
+  .brand .brand-link{gap:7px}
+  .brand .brand-mark{height:26px;width:26px}
+  .nav .cta,.navcta .cta{padding:7px 12px;font-size:12.5px}
+}
+@media(max-width:400px){
+  header .wrap{padding:0 10px}
+  .nav{gap:7px}
+  .brand{font-size:13.5px;gap:6px;letter-spacing:-.03em}
+  .brand .brand-link{gap:6px}
+  .brand .brand-mark{height:23px;width:23px}
+  .menu-btn{width:34px;height:32px;padding:0 7px}
+  .menu-btn span{width:17px}
+  .nav-search{padding:5px 8px;font-size:11.5px}
+  .nav .cta,.navcta .cta{padding:6px 9px;font-size:11.5px}
+}
+
 /* ── Tiroir latéral gauche : menu complet groupé (construit par /nav.js) ─────── */
 .drawer-scrim{position:fixed;inset:0;z-index:110;background:rgba(20,8,4,.55);
   opacity:0;visibility:hidden;transition:opacity .2s ease,visibility .2s ease}
@@ -398,8 +458,13 @@ h3{font-size:19px;letter-spacing:-.01em;font-weight:700}
 @media(max-width:560px){.form .row{grid-template-columns:1fr}}
 .info-list{list-style:none;display:flex;flex-direction:column;gap:14px}
 .info-list li{display:flex;gap:12px;align-items:flex-start}
-.info-list .k{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2);min-width:92px;padding-top:2px}
-.info-list .v{color:var(--ink)}
+.info-list .k{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted2);min-width:92px;flex:0 0 auto;padding-top:2px}
+/* Une adresse e-mail est un mot insécable de 27 caractères : sur un écran de
+   320 px, elle élargissait toute la page à elle seule. `anywhere` autorise la
+   césure — et, contrairement à `break-word`, réduit aussi la taille min-content,
+   ce qui empêche l'élément flexible qui la contient de s'élargir. */
+.info-list .v{color:var(--ink);min-width:0;overflow-wrap:anywhere}
 
 /* Footer */
 footer{border-top:1px solid var(--line);margin-top:48px;padding:40px 0 26px;color:var(--muted2);font-size:13px}
