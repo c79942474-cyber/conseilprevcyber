@@ -119,6 +119,23 @@ THEME_FAMILLES = [
         "Gestion des prestataires",
         "Conformité & audit",
     ]),
+    # Corpus juridique : alimente le conseil juridique assisté (voir juridique.py).
+    # Les textes officiels n'ont pas vocation à être chargés ici — le référentiel
+    # les identifie et renvoie aux sources officielles, toujours à jour. Ce qui a
+    # de la valeur dans la base, ce sont les pièces PROPRES au cabinet et à ses
+    # clients : contrats types, notes, positions d'autorité annotées, décisions.
+    ("Juridique & contrats", [
+        "Juridique / Textes & réglementation",
+        "Juridique / Doctrine & lignes directrices",
+        "Juridique / Contrats & clausiers",
+        "Juridique / Contrats fournisseurs",
+        "Juridique / Notes & consultations",
+        "Juridique / Jurisprudence & sanctions",
+        "Juridique / IA Act",
+        "Juridique / NIS 2 & DORA",
+        "Juridique / RGPD & données",
+        "Juridique / Marchés & appels d'offres",
+    ]),
     ("Métier & livrables", [
         "AMOA SI Industriel",
         "Cahier des charges & CCTP",

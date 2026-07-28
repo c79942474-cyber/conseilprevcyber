@@ -32,7 +32,7 @@
       ["/metriques-62443", "Métriques · 1-3"] ] },
     { t: "Conformité & audit", l: [
       ["/audit-conformite", "Audit 62443"], ["/diagnostic", "Diagnostic express"],
-      ["/nis2", "NIS2"] ] },
+      ["/nis2", "NIS2"], ["/juridique", "Conseil juridique"] ] },
     { t: "Plateforme", l: [
       ["/demo", "Cockpit de supervision"], ["/tendances", "Tendances"],
       ["/connecter", "Connecter une source"], ["/guide-integration", "Guide d’intégration"],
@@ -68,6 +68,7 @@
     "/audit-conformite": "Auto-évaluation de conformité IEC 62443",
     "/diagnostic": "Diagnostic express de votre situation en 2 minutes",
     "/nis2": "Directive NIS2 et correspondance avec l'IEC 62443",
+    "/juridique": "Conseil juridique assisté : qualification, lectures des textes, clausier",
     "/demo": "Cockpit de supervision OT en temps réel (démonstration)",
     "/tendances": "Tendances et signaux de la menace industrielle",
     "/connecter": "Connecter une source de données au cockpit",
@@ -561,7 +562,7 @@
     var SECTION = {
       "/services": ["/services", "/secteurs", "/methodologie", "/etudes-de-cas", "/operating-model", "/maturite-ot", "/feuille-de-route"],
       "/referentiel": ["/referentiel", "/analyse-de-risque", "/programme-securite", "/exigences-systeme", "/exigences-composants", "/exigences-prestataires", "/developpement-securise", "/technologies-securite", "/gestion-correctifs", "/glossaire-62443", "/metriques-62443"],
-      "/audit-conformite": ["/audit-conformite", "/diagnostic", "/nis2"],
+      "/audit-conformite": ["/audit-conformite", "/diagnostic", "/nis2", "/juridique"],
       "/demo": ["/demo", "/tendances", "/connecter", "/guide-integration"],
       "/assistant": ["/assistant"],
       "/veille": ["/veille", "/ressources", "/faq"],

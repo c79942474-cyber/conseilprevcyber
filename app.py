@@ -62,6 +62,7 @@ from flask import (Flask, Response, jsonify, redirect, request, send_file,
 import assistant
 import audit
 import automation
+import juridique
 import livrables
 import livrables_export
 import rgpd
@@ -73,6 +74,7 @@ from livrables_store import make_livrables_store
 from rag_store import (RagError, THEMES, THEME_FAMILLES, FAMILLE_ENTREPRISES,
                        FAMILLE_ENGINEERING, build_context, dedupe as rag_dedupe,
                        diagnose as rag_diagnose, duplicate_groups,
+                       extract_text as rag_extract_text,
                        formats_available, make_rag_store)
 
 app = Flask(__name__)
@@ -83,7 +85,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # si le numéro affiché est plus ancien que la version attendue, le déploiement n'a
 # pas abouti — et aucun correctif récent n'est en ligne. À incrémenter à chaque
 # correctif dont on veut pouvoir confirmer la mise en ligne.
-APP_VERSION = "2026.07.28-7"
+APP_VERSION = "2026.07.28-8"
 
 # Horodatage de démarrage du processus (voir /health : « demarre_depuis_s »).
 _DEMARRAGE = time.time()
@@ -595,6 +597,7 @@ PAGES = {
     "/nis2": "nis2.html",
     "/diagnostic": "diagnostic.html",
     "/veille": "veille.html",
+    "/juridique": "juridique.html",
 }
 
 
@@ -881,6 +884,247 @@ def api_chat():
         return jsonify(ok=False, error=exc.code,
                        message=messages.get(exc.code, "Assistant indisponible pour le moment.")), exc.status
     return jsonify(ok=True, reply=reply, model=model)
+
+
+# ============================================================================
+#  Conseil juridique assisté — services numériques, cyber IT/OT/ICS, IA
+# ============================================================================
+# Trois niveaux, volontairement séparés (voir juridique.py) :
+#   1. la QUALIFICATION est déterministe — aucun modèle n'intervient, le
+#      résultat est reproductible et chaque rattachement porte sa motivation ;
+#   2. le CLAUSIER et les POINTS D'INTERPRÉTATION sont des données figées ;
+#   3. seule l'ANALYSE fait appel à un modèle, cadrée par un référentiel fermé
+#      et vérifiée a posteriori (détection des références inventées).
+# L'accès est réservé aux comptes connectés : c'est une prestation de conseil,
+# pas un contenu de vitrine.
+
+@app.route("/juridique")
+@login_required
+def juridique_page():
+    """Conseil juridique assisté (clients connectés et administrateur)."""
+    return _page(PAGES["/juridique"])
+
+
+@app.route("/api/juridique/config")
+@login_required
+def api_juridique_config():
+    """Tout ce dont l'interface a besoin pour se construire : questionnaire,
+    référentiel, clausier, amorces. Une seule définition côté serveur — une liste
+    d'options recopiée dans le HTML finit toujours par diverger du moteur."""
+    return jsonify(ok=True,
+                   version_referentiel=juridique.VERSION_REFERENTIEL,
+                   champs=juridique.PROFIL_CHAMPS,
+                   referentiel=juridique.referentiel(),
+                   domaines_clausier=juridique.DOMAINES_CLAUSIER,
+                   suggestions=juridique.SUGGESTIONS,
+                   avertissement=juridique.AVERTISSEMENT,
+                   mention_ia=juridique.MENTION_IA,
+                   models=assistant.available())
+
+
+@app.route("/api/juridique/qualification", methods=["POST"])
+@login_required
+def api_juridique_qualification():
+    """Qualification réglementaire d'un profil. Aucun appel de modèle : la
+    réponse est identique à chaque exécution et opposable telle quelle."""
+    data = request.get_json(silent=True) or {}
+    profil = data.get("profil") if isinstance(data.get("profil"), dict) else data
+    try:
+        res = juridique.qualifier(profil)
+    except Exception:
+        app.logger.exception("qualification juridique")
+        return jsonify(ok=False, error="qualification_echec",
+                       message="La qualification a échoué."), 500
+    audit.journaliser("juridique.qualification",
+                      cible=str((profil or {}).get("secteur") or "-"),
+                      detail="%d texte(s) applicable(s), %d à confirmer"
+                             % (len(res["applicables"]), len(res["a_verifier"])))
+    return jsonify(ok=True, **res)
+
+
+@app.route("/api/juridique/clausier")
+@login_required
+def api_juridique_clausier():
+    """Clausier fournisseurs, filtrable par domaine et par criticité."""
+    return jsonify(ok=True,
+                   domaines=juridique.DOMAINES_CLAUSIER,
+                   clauses=juridique.clausier(
+                       domaine=(request.args.get("domaine") or "").strip() or None,
+                       criticite=(request.args.get("criticite") or "").strip() or None),
+                   avertissement=juridique.AVERTISSEMENT)
+
+
+@app.route("/api/juridique/controverses")
+@login_required
+def api_juridique_controverses():
+    """Points d'interprétation ouverts — plusieurs lectures, jamais une seule."""
+    ids = [x for x in (request.args.get("textes") or "").split(",") if x.strip()]
+    return jsonify(ok=True, points=juridique.controverses(ids or None))
+
+
+def _juridique_extraits(question, profil):
+    """Extraits de la base documentaire pertinents pour la question.
+
+    Le périmètre suit l'identité de l'appelant (documents internes réservés à
+    l'administrateur), comme partout ailleurs. Best-effort : une base
+    momentanément indisponible dégrade la précision, elle ne bloque pas
+    l'analyse — le référentiel des textes suffit à produire une réponse utile.
+    """
+    try:
+        requete = " ".join(x for x in [
+            question,
+            (profil or {}).get("secteur") or "",
+        ] if x)[:500]
+        hits = rag.search(requete, k=6, public_only=not _is_admin_request())
+        if not hits:
+            return "", []
+        blocs, sources = [], []
+        for i, h in enumerate(hits, start=1):
+            blocs.append("[%d] %s\n%s" % (i, str(h.get("title") or "")[:120],
+                                          str(h.get("text") or "")[:900]))
+            sources.append({"n": i, "titre": str(h.get("title") or "")[:140],
+                            "theme": h.get("theme"), "doc_id": h.get("doc_id")})
+        return "\n\n".join(blocs), sources
+    except Exception:
+        return "", []
+
+
+_JURIDIQUE_ERREURS = {
+    "not_configured": "Ce modèle n'est pas activé. Essayez l'autre modèle.",
+    "auth": "Le service d'IA a refusé la clé configurée.",
+    "empty": "La question est vide.",
+    "busy": "Service très sollicité. Réessayez dans un instant.",
+    "network": "Service d'IA momentanément injoignable. Réessayez dans un instant.",
+    "timeout": "L'analyse a dépassé le délai. Réessayez, ou réduisez le contrat soumis.",
+    "upstream": "L'analyse a échoué. Réessayez, ou contactez-nous.",
+}
+
+
+@app.route("/api/juridique/analyse", methods=["POST"])
+@login_required
+def api_juridique_analyse():
+    """Analyse juridique argumentée : qualification, textes, LECTURES POSSIBLES,
+    risque, recommandation, réserves.
+
+    La qualification déterministe est calculée d'abord et transmise au modèle :
+    il ne décide pas de ce qui s'applique, il l'explique et l'interprète.
+    """
+    ckey = "jur:%s" % client_ip()
+    if guard.blocked(ckey, limit=12, window=600):
+        return jsonify(ok=False, error="rate_limited",
+                       message="Trop d'analyses en peu de temps. Patientez quelques minutes."), 429
+    guard.fail(ckey)
+
+    data = request.get_json(silent=True) or {}
+    question = (data.get("question") or "").strip()
+    if not question:
+        return jsonify(ok=False, error="question_vide",
+                       message="Posez une question."), 400
+    if len(question) > 4000:
+        question = question[:4000]
+    profil = data.get("profil") if isinstance(data.get("profil"), dict) else None
+    model = "mistral" if data.get("model") == "mistral" else "claude"
+
+    qual = juridique.qualifier(profil) if profil else None
+    textes_ids = None
+    if qual:
+        textes_ids = [x["id"] for x in qual["applicables"]] + \
+                     [x["id"] for x in qual["a_verifier"]]
+    extraits, sources = _juridique_extraits(question, profil)
+    user = juridique.prompt_analyse(question, profil=profil, extraits=extraits,
+                                    textes_ids=textes_ids)
+    try:
+        texte, used = assistant.generate(model, juridique.SYSTEM_JURIDIQUE, user,
+                                         max_tokens=3200)
+    except assistant.AssistantError as exc:
+        return jsonify(ok=False, error=exc.code,
+                       message=_JURIDIQUE_ERREURS.get(
+                           exc.code, "Analyse indisponible pour le moment.")), exc.status
+
+    res = juridique.post_traiter(texte, textes_ids)
+    audit.journaliser("juridique.analyse", cible=used,
+                      detail="%d extrait(s) cité(s), %d référence(s) suspecte(s)"
+                             % (len(sources), len(res["citations"]["suspectes"])),
+                      ok=not res["citations"]["suspectes"])
+    return jsonify(ok=True, model=used, sources=sources,
+                   qualification=qual, **res)
+
+
+@app.route("/api/juridique/contrat", methods=["POST"])
+@login_required
+def api_juridique_contrat():
+    """Revue d'un contrat de services fournisseur, clause par clause.
+
+    Le contrat est analysé EN MÉMOIRE et n'est jamais conservé : un contrat
+    fournisseur est une pièce sensible, et rien n'oblige à le stocker pour le
+    relire. Deux entrées possibles : texte collé, ou fichier PDF/DOCX/TXT.
+    """
+    ckey = "jurc:%s" % client_ip()
+    if guard.blocked(ckey, limit=6, window=600):
+        return jsonify(ok=False, error="rate_limited",
+                       message="Trop d'analyses de contrat. Patientez quelques minutes."), 429
+    guard.fail(ckey)
+
+    texte_contrat, profil, domaines, model = "", None, None, "claude"
+    fichier = request.files.get("fichier")
+    if fichier is not None:
+        nom = (fichier.filename or "").lower()
+        ext = nom.rsplit(".", 1)[-1] if "." in nom else ""
+        if ext not in ("pdf", "docx", "txt", "md"):
+            return jsonify(ok=False, error="format_refuse",
+                           message="Formats acceptés : PDF, DOCX, TXT, MD."), 400
+        blob = fichier.read(6 * 1024 * 1024 + 1)
+        if len(blob) > 6 * 1024 * 1024:
+            return jsonify(ok=False, error="trop_gros",
+                           message="Fichier trop volumineux (6 Mo maximum)."), 400
+        try:
+            texte_contrat = rag_extract_text(ext, blob) or ""
+        except Exception:
+            texte_contrat = ""
+        if not texte_contrat.strip():
+            return jsonify(ok=False, error="illisible",
+                           message="Aucun texte n'a pu être extrait de ce fichier "
+                                   "(document scanné ?). Collez le texte à la place."), 400
+        profil = _json_champ(request.form.get("profil"))
+        domaines = _json_champ(request.form.get("domaines"))
+        model = "mistral" if request.form.get("model") == "mistral" else "claude"
+    else:
+        data = request.get_json(silent=True) or {}
+        texte_contrat = (data.get("texte") or "").strip()
+        profil = data.get("profil") if isinstance(data.get("profil"), dict) else None
+        domaines = data.get("domaines") if isinstance(data.get("domaines"), list) else None
+        model = "mistral" if data.get("model") == "mistral" else "claude"
+
+    if len(texte_contrat.strip()) < 200:
+        return jsonify(ok=False, error="contrat_vide",
+                       message="Fournissez le texte du contrat (200 caractères minimum)."), 400
+
+    user = juridique.prompt_contrat(texte_contrat, profil=profil, domaines=domaines)
+    try:
+        texte, used = assistant.generate(model, juridique.SYSTEM_JURIDIQUE, user,
+                                         max_tokens=4000)
+    except assistant.AssistantError as exc:
+        return jsonify(ok=False, error=exc.code,
+                       message=_JURIDIQUE_ERREURS.get(
+                           exc.code, "Analyse indisponible pour le moment.")), exc.status
+
+    res = juridique.post_traiter(texte)
+    audit.journaliser("juridique.contrat", cible=used,
+                      detail="%d caractères analysés, %d référence(s) suspecte(s)"
+                             % (len(texte_contrat), len(res["citations"]["suspectes"])),
+                      ok=not res["citations"]["suspectes"])
+    return jsonify(ok=True, model=used, caracteres=len(texte_contrat), **res)
+
+
+def _json_champ(valeur):
+    """Champ JSON transmis dans un formulaire multipart, ou None."""
+    if not valeur:
+        return None
+    try:
+        v = json.loads(valeur)
+        return v if isinstance(v, (dict, list)) else None
+    except Exception:
+        return None
 
 
 @app.route("/audit-conformite")

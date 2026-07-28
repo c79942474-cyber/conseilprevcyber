@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conseil juridique assisté — CONSEILPREV Cyber</title>
+<meta name="description" content="Analyse juridique des services numériques, de la cybersécurité IT/OT/ICS et de l'intelligence artificielle : qualification réglementaire, lectures possibles des textes, clausier fournisseurs et revue de contrat.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/emblem.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .jw{display:grid;grid-template-columns:1fr;gap:18px}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}
+  .tab{font-family:var(--mono);font-size:12px;letter-spacing:.04em;text-transform:uppercase;
+       background:var(--panel2);border:1px solid var(--line);color:var(--muted);
+       border-radius:999px;padding:9px 16px;cursor:pointer;transition:.15s}
+  .tab:hover{color:var(--ink);border-color:var(--cyan)}
+  .tab.on{background:var(--cyan);border-color:var(--cyan);color:#04141a;font-weight:600}
+  .pan{display:none}.pan.on{display:block}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:18px}
+  .card+.card{margin-top:14px}
+  .frow{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+  .fld label{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.05em;
+             text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  .fld select,.fld input[type=text],.fld textarea{width:100%;background:var(--panel);
+             border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:10px 12px;
+             font-size:13.5px;font-family:inherit}
+  .fld textarea{min-height:110px;resize:vertical;line-height:1.55}
+  .aide{font-size:11.5px;color:var(--muted2);margin-top:5px;line-height:1.5}
+  .chk{display:flex;flex-wrap:wrap;gap:8px}
+  .chk label{display:inline-flex;align-items:center;gap:7px;background:var(--panel);
+             border:1px solid var(--line);border-radius:999px;padding:7px 13px;font-size:12.5px;
+             color:var(--ink);cursor:pointer;text-transform:none;letter-spacing:normal;margin:0}
+  .chk label:hover{border-color:var(--cyan)}
+  .chk input{width:auto;flex:none;margin:0;padding:0}
+  .sw{display:flex;flex-wrap:wrap;gap:8px}
+  .sw label{display:inline-flex;align-items:center;gap:7px;background:var(--panel);
+            border:1px solid var(--line);border-radius:9px;padding:8px 13px;font-size:12.5px;cursor:pointer}
+  .sw input{width:auto;margin:0}
+  .res{margin-top:18px}
+  .txt{border:1px solid var(--line);border-left:3px solid var(--cyan);border-radius:11px;
+       background:var(--panel);padding:16px 18px;font-size:12.8px;line-height:1.55}
+  .txt .m{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-bottom:4px}
+  .txt .t{font-weight:600;color:var(--ink);font-size:13.5px}
+  .txt .o{font-size:12px;color:var(--muted);margin:4px 0 8px}
+  .txt.warn{border-left-color:var(--amber)}
+  .pill{display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;
+        text-transform:uppercase;border-radius:999px;padding:3px 9px;border:1px solid var(--line);
+        color:var(--muted);background:var(--panel2)}
+  .pill.ok{border-color:var(--green);color:var(--green)}
+  .pill.wr{border-color:var(--amber);color:var(--amber)}
+  .pill.hi{border-color:var(--terra);color:var(--terra)}
+  .jal{font-size:11.5px;color:var(--muted2);margin-top:7px;line-height:1.6}
+  .jal b{color:var(--muted);font-weight:600}
+  .mot{font-size:12.5px;color:var(--ink);margin:6px 0}
+  .pts{margin:8px 0 0;padding-left:18px;font-size:12.3px;color:var(--muted);line-height:1.6}
+  .doc{font-size:14px;line-height:1.72}
+  .doc h1,.doc h2,.doc h3{font-family:var(--mono);letter-spacing:.02em;margin:22px 0 8px;color:var(--ink)}
+  .doc h1{font-size:19px}.doc h2{font-size:16px}.doc h3{font-size:14px;color:var(--cyan)}
+  .doc p{margin:0 0 12px}.doc ul,.doc ol{margin:0 0 12px;padding-left:22px}.doc li{margin-bottom:5px}
+  .doc table{border-collapse:collapse;width:100%;font-size:12.5px;margin:0 0 14px}
+  .doc th,.doc td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  .doc th{background:var(--panel2);font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  .doc tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
+  .tblx{overflow-x:auto}
+  .doc code{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12px}
+  .avert{background:rgba(230,168,80,.08);border:1px solid var(--amber);border-radius:11px;
+         padding:14px 16px;font-size:12.2px;line-height:1.65;color:var(--muted)}
+  .avert b{color:var(--amber)}
+  .cit{border-radius:10px;padding:11px 14px;font-size:12.3px;line-height:1.6;margin-bottom:14px}
+  .cit.ok{background:rgba(90,190,140,.08);border:1px solid var(--green);color:var(--muted)}
+  .cit.ko{background:rgba(210,110,80,.10);border:1px solid var(--terra);color:var(--ink)}
+  .srcs{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+  .srcs .s{font-size:11.5px;background:var(--panel2);border:1px solid var(--line);
+           border-radius:999px;padding:5px 11px;color:var(--muted)}
+  .sug{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+  .sug button{font-size:12px;background:var(--panel);border:1px solid var(--line);color:var(--muted);
+              border-radius:999px;padding:6px 12px;cursor:pointer;text-align:left;max-width:100%}
+  .sug button:hover{color:var(--ink);border-color:var(--cyan)}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}
+  .msg{margin-top:12px;font-size:12.5px;padding:10px 13px;border-radius:9px;display:none}
+  .msg.err{display:block;background:rgba(210,110,80,.10);border:1px solid var(--terra);color:var(--ink)}
+  .msg.ok{display:block;background:rgba(90,190,140,.08);border:1px solid var(--green);color:var(--muted)}
+  .msg.wait{display:block;background:var(--panel2);border:1px solid var(--line);color:var(--muted)}
+  .cl{border:1px solid var(--line);border-radius:11px;padding:15px 17px;background:var(--panel)}
+  .cl+.cl{margin-top:11px}
+  .cl h4{margin:0 0 4px;font-size:14px;color:var(--ink)}
+  .cl .fo{font-family:var(--mono);font-size:11px;color:var(--cyan);margin-bottom:8px;line-height:1.6}
+  .cl .ob{font-size:12.5px;color:var(--muted);margin-bottom:9px}
+  .cl .mo{background:var(--panel2);border-left:2px solid var(--cyan);border-radius:0 8px 8px 0;
+          padding:11px 13px;font-size:12.3px;line-height:1.65;color:var(--ink);white-space:pre-wrap}
+  .cl .ri{font-size:12px;color:var(--amber);margin-top:9px;line-height:1.6}
+  .cnt{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+  .lect{border:1px solid var(--line);border-radius:10px;padding:13px 15px;background:var(--panel);margin-top:9px}
+  .lect .n{font-family:var(--mono);font-size:11.5px;color:var(--cyan);text-transform:uppercase;letter-spacing:.05em}
+  .lect .t2{font-size:12.8px;color:var(--ink);margin:5px 0}
+  .lect .c{font-size:12.3px;color:var(--muted)}
+  @media(max-width:720px){.tab{font-size:11px;padding:8px 12px}}
+</style>
+</head>
+<body>
+  <header>
+  <div class="wrap nav">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu"><span></span><span></span><span></span></button>
+    <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="30" height="30" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+    <nav class="links" aria-label="Navigation principale">
+      <a href="/services">Services</a>
+      <a href="/referentiel">Référentiel 62443</a>
+      <a href="/audit-conformite">Audit 62443</a>
+      <a href="/demo">Cockpit</a>
+      <a href="/assistant">Assistant IA</a>
+      <a href="/juridique">Juridique</a>
+      <a href="/veille">Veille</a>
+    </nav>
+    <div class="navcta">
+      <a href="/contact" class="cta">Contact</a>
+    </div>
+  </div>
+</header>
+
+  <main class="wrap" id="main">
+    <section class="page-head">
+      <span class="eyebrow"><span class="dot"></span>Conseil · Droit du numérique, cyber &amp; IA</span>
+      <h1>Conseil juridique <span class="grad">assisté</span>.</h1>
+      <p class="lead" style="margin-top:18px">Services numériques, cybersécurité IT&nbsp;/&nbsp;OT&nbsp;/&nbsp;ICS,
+        intelligence artificielle et contrats fournisseurs. Trois briques distinctes : une
+        <strong>qualification réglementaire déterministe</strong> — calculée par des règles explicites, sans IA,
+        donc reproductible et opposable ; une <strong>analyse argumentée</strong> qui expose les
+        <em>lectures possibles</em> d'un texte plutôt qu'une réponse unique ; un <strong>clausier</strong> et une
+        <strong>revue de contrat</strong> fondés article par article.</p>
+    </section>
+
+    <section class="section" style="padding-top:6px">
+      <div class="avert" id="avert" style="margin-bottom:20px"></div>
+
+      <div class="tabs" role="tablist">
+        <button class="tab on" id="t-qual" data-p="p-qual" role="tab" aria-selected="true">1 · Qualification</button>
+        <button class="tab" id="t-ana" data-p="p-ana" role="tab" aria-selected="false">2 · Analyse d'une question</button>
+        <button class="tab" id="t-cla" data-p="p-cla" role="tab" aria-selected="false">3 · Clausier fournisseurs</button>
+        <button class="tab" id="t-con" data-p="p-con" role="tab" aria-selected="false">4 · Revue de contrat</button>
+        <button class="tab" id="t-ref" data-p="p-ref" role="tab" aria-selected="false">Référentiel</button>
+      </div>
+
+      <!-- ── 1. QUALIFICATION ─────────────────────────────────────────── -->
+      <div class="pan on" id="p-qual" role="tabpanel">
+        <div class="card">
+          <h3 style="margin:0 0 6px">Quels textes s'appliquent à vous&nbsp;?</h3>
+          <p style="font-size:13px;color:var(--muted);margin:0 0 16px;line-height:1.65">
+            Le rattachement est calculé par des <strong>règles explicites</strong>, sans intelligence artificielle :
+            deux exécutions sur le même profil donnent le même résultat, et chaque texte retenu affiche
+            <em>pourquoi</em> il l'est. Ce qui ne peut pas être tranché par le questionnaire seul est signalé
+            « à confirmer » plutôt que deviné.</p>
+          <div class="frow" id="qform"></div>
+          <div class="bar">
+            <button class="cta" id="qualBtn" type="button">Qualifier</button>
+            <button class="cta ghost" id="qualReset" type="button">Réinitialiser</button>
+          </div>
+          <div class="msg" id="qmsg"></div>
+        </div>
+        <div class="res" id="qres"></div>
+      </div>
+
+      <!-- ── 2. ANALYSE ───────────────────────────────────────────────── -->
+      <div class="pan" id="p-ana" role="tabpanel">
+        <div class="card">
+          <h3 style="margin:0 0 6px">Poser une question juridique</h3>
+          <p style="font-size:13px;color:var(--muted);margin:0 0 14px;line-height:1.65">
+            La réponse suit une trame imposée : qualification, textes applicables,
+            <strong>lectures possibles</strong> avec leurs conséquences, risque, recommandation assumée, actions,
+            puis réserves. Le profil renseigné à l'étape 1 est repris automatiquement et restreint le
+            périmètre des textes — l'analyse est nettement plus précise avec.</p>
+          <div class="fld">
+            <label for="q">Votre question</label>
+            <textarea id="q" placeholder="Exemple : notre prestataire d'infogérance refuse le droit d'audit sur place et propose son rapport de certification — est-ce suffisant au regard de nos obligations ?"></textarea>
+          </div>
+          <div class="sug" id="sug"></div>
+          <div class="bar">
+            <div class="fld" style="width:auto"><label for="model">Modèle</label>
+              <select id="model" style="width:auto"><option value="claude">Claude</option><option value="mistral">Mistral</option></select></div>
+            <button class="cta" id="anaBtn" type="button" style="align-self:flex-end">Analyser</button>
+          </div>
+          <div class="msg" id="amsg"></div>
+        </div>
+        <div class="res" id="ares"></div>
+      </div>
+
+      <!-- ── 3. CLAUSIER ──────────────────────────────────────────────── -->
+      <div class="pan" id="p-cla" role="tabpanel">
+        <div class="card">
+          <h3 style="margin:0 0 6px">Clausier fournisseurs</h3>
+          <p style="font-size:13px;color:var(--muted);margin:0 0 14px;line-height:1.65">
+            Chaque exigence porte son <strong>fondement</strong> : c'est ce qui permet de la défendre en
+            négociation — et de l'abandonner en connaissance de cause quand elle n'en a pas. Le modèle de
+            rédaction est prêt à insérer ; les crochets marquent les valeurs à arbitrer.</p>
+          <div class="bar" style="margin-top:0">
+            <div class="fld" style="width:auto"><label for="claDom">Domaine</label>
+              <select id="claDom" style="width:auto"><option value="">Tous</option></select></div>
+            <div class="fld" style="width:auto"><label for="claCri">Criticité</label>
+              <select id="claCri" style="width:auto"><option value="">Toutes</option><option value="haute">Haute</option><option value="moyenne">Moyenne</option></select></div>
+            <span class="cnt" id="claCnt" style="align-self:flex-end;padding-bottom:10px"></span>
+          </div>
+        </div>
+        <div class="res" id="clares"></div>
+      </div>
+
+      <!-- ── 4. REVUE DE CONTRAT ──────────────────────────────────────── -->
+      <div class="pan" id="p-con" role="tabpanel">
+        <div class="card">
+          <h3 style="margin:0 0 6px">Revue d'un contrat de services fournisseur</h3>
+          <p style="font-size:13px;color:var(--muted);margin:0 0 14px;line-height:1.65">
+            Le contrat est confronté à la <strong>grille fermée</strong> du clausier, point par point :
+            présent, partiel ou absent, avec la citation exacte de la clause concernée et une formulation de
+            remplacement quand elle manque. Le document est analysé <strong>en mémoire et n'est pas
+            conservé</strong> — ni stocké, ni indexé.</p>
+          <div class="fld">
+            <label for="ctexte">Texte du contrat (collez-le ici)</label>
+            <textarea id="ctexte" style="min-height:180px" placeholder="Collez les articles à examiner — ou chargez le fichier ci-dessous."></textarea>
+          </div>
+          <div class="frow" style="margin-top:12px">
+            <div class="fld"><label for="cfile">…ou charger un fichier (PDF, DOCX, TXT — 6 Mo max)</label>
+              <input type="file" id="cfile" accept=".pdf,.docx,.txt,.md"></div>
+            <div class="fld"><label for="cdom">Restreindre à certains domaines (facultatif)</label>
+              <div class="chk" id="cdom"></div></div>
+          </div>
+          <div class="bar">
+            <button class="cta" id="conBtn" type="button">Analyser le contrat</button>
+          </div>
+          <div class="msg" id="cmsg"></div>
+        </div>
+        <div class="res" id="cres"></div>
+      </div>
+
+      <!-- ── RÉFÉRENTIEL ──────────────────────────────────────────────── -->
+      <div class="pan" id="p-ref" role="tabpanel">
+        <div class="card">
+          <h3 style="margin:0 0 6px">Référentiel des textes</h3>
+          <p style="font-size:13px;color:var(--muted);margin:0 0 14px;line-height:1.65">
+            Base figée du dispositif : ces références ne sont jamais générées. Chaque entrée renvoie à sa
+            <strong>source officielle</strong> — EUR-Lex pour les textes européens, Légifrance pour les textes
+            français — parce qu'une analyse ne vaut que si l'on peut remonter au texte.</p>
+          <div class="bar" style="margin-top:0">
+            <div class="fld" style="width:auto"><label for="refDom">Domaine</label>
+              <select id="refDom" style="width:auto">
+                <option value="">Tous</option><option value="cyber">Cybersécurité</option>
+                <option value="ia">Intelligence artificielle</option><option value="donnees">Données</option>
+                <option value="ot">OT / industriel</option><option value="numerique">Services numériques</option>
+                <option value="contrats">Contrats</option></select></div>
+            <span class="cnt" id="refCnt" style="align-self:flex-end;padding-bottom:10px"></span>
+          </div>
+        </div>
+        <div class="res" id="refres"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+  <div class="wrap foot">
+    <div class="foot-cols">
+      <div class="foot-brand">
+        <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="26" height="26" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+        <p>Cybersécurité industrielle IT / OT / IIoT — conformité IEC&nbsp;62443, NIS2, DORA.</p>
+      </div>
+      <nav class="foot-col" aria-label="Expertise">
+        <h4>Expertise</h4>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/methodologie">Méthodologie</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+      </nav>
+      <nav class="foot-col" aria-label="Norme &amp; conformité">
+        <h4>Norme &amp; conformité</h4>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/audit-conformite">Audit 62443</a>
+        <a href="/juridique">Conseil juridique</a>
+        <a href="/nis2">NIS2</a>
+      </nav>
+      <nav class="foot-col" aria-label="Plateforme">
+        <h4>Plateforme</h4>
+        <a href="/demo">Cockpit</a>
+        <a href="/assistant">Assistant IA</a>
+        <a href="/connecter">Connecter une source</a>
+      </nav>
+      <nav class="foot-col" aria-label="Ressources">
+        <h4>Ressources</h4>
+        <a href="/veille">Veille</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+      </nav>
+    </div>
+    <div class="foot-bar">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Tous droits réservés</div>
+      <div class="foot-legal">
+        <a href="/about">À propos</a>
+        <a href="/contact">Contact</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/politique-confidentialite">Confidentialité</a>
+      </div>
+    </div>
+  </div>
+</footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+  <script src="/nav.js" defer></script>
+  <script>
+  (function(){
+    var CFG=null, PROFIL={};
+    function $(id){return document.getElementById(id);}
+    function esc(s){return (''+(s==null?'':s)).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+    function msg(el,t,cls){var e=$(el);e.textContent=t||'';e.className='msg'+(t?(' '+cls):'');}
+
+    // Rendu Markdown léger — même moteur que le générateur de livrables : les
+    // analyses arrivent en Markdown, les tableaux comparant deux lectures d'un
+    // texte doivent s'afficher comme des tableaux.
+    function inline(s){
+      return esc(s).replace(/`([^`]+)`/g,'<code>$1</code>')
+        .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
+        .replace(/(^|[^*])\*([^*\n]+)\*/g,'$1<em>$2</em>')
+        .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+    }
+    function mdToHtml(md){
+      var lines=(md||'').replace(/\r/g,'').split('\n'), out=[], i=0;
+      function flush(tag,items){ if(items.length) out.push('<'+tag+'>'+items.map(function(x){return '<li>'+inline(x)+'</li>';}).join('')+'</'+tag+'>'); }
+      while(i<lines.length){
+        var ln=lines[i];
+        if(/^\s*$/.test(ln)){ i++; continue; }
+        var h=ln.match(/^(#{1,6})\s+(.*)$/);
+        if(h){ var lvl=Math.min(h[1].length,3); out.push('<h'+lvl+'>'+inline(h[2])+'</h'+lvl+'>'); i++; continue; }
+        if(/^\s*([-*_])\1{2,}\s*$/.test(ln)){ out.push('<hr>'); i++; continue; }
+        if(/^\s*\|.*\|\s*$/.test(ln) && i+1<lines.length && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[i+1]) && lines[i+1].indexOf('-')>=0){
+          var head=ln.trim().replace(/^\||\|$/g,'').split('|').map(function(c){return c.trim();});
+          i+=2; var rows=[];
+          while(i<lines.length && /^\s*\|.*\|\s*$/.test(lines[i])){ rows.push(lines[i].trim().replace(/^\||\|$/g,'').split('|').map(function(c){return c.trim();})); i++; }
+          var t='<div class="tblx"><table><thead><tr>'+head.map(function(c){return '<th>'+inline(c)+'</th>';}).join('')+'</tr></thead><tbody>';
+          t+=rows.map(function(r){return '<tr>'+r.map(function(c){return '<td>'+inline(c)+'</td>';}).join('')+'</tr>';}).join('');
+          out.push(t+'</tbody></table></div>'); continue;
+        }
+        if(/^\s*[-*]\s+/.test(ln)){ var it=[]; while(i<lines.length && /^\s*[-*]\s+/.test(lines[i])){ it.push(lines[i].replace(/^\s*[-*]\s+/,'')); i++; } flush('ul',it); continue; }
+        if(/^\s*\d+[.)]\s+/.test(ln)){ var it2=[]; while(i<lines.length && /^\s*\d+[.)]\s+/.test(lines[i])){ it2.push(lines[i].replace(/^\s*\d+[.)]\s+/,'')); i++; } flush('ol',it2); continue; }
+        var para=[ln]; i++;
+        while(i<lines.length && !/^\s*$/.test(lines[i]) && !/^(#{1,6}\s|\s*[-*]\s|\s*\d+[.)]\s|\s*\|)/.test(lines[i])){ para.push(lines[i]); i++; }
+        out.push('<p>'+inline(para.join(' '))+'</p>');
+      }
+      return out.join('\n');
+    }
+
+    // Appel JSON avec délai maximal : une analyse peut être longue (le modèle
+    // rédige plusieurs milliers de caractères), mais un « Analyse en cours »
+    // qui tourne indéfiniment est pire qu'une erreur franche.
+    function api(url,opts,timeout){
+      opts=opts||{}; opts.headers=opts.headers||{};
+      opts.headers['X-CP-Same-Origin']='1';
+      var ctl=('AbortController' in window)?new AbortController():null;
+      if(ctl) opts.signal=ctl.signal;
+      var timer=ctl?setTimeout(function(){ctl.abort();},timeout||120000):null;
+      return fetch(url,opts).then(function(r){
+        if(timer)clearTimeout(timer);
+        if(r.status===401||r.status===403){ location.href='/connexion?next=/juridique'; throw new Error('auth'); }
+        return r.json().catch(function(){ throw new Error('reponse illisible'); });
+      }).catch(function(e){ if(timer)clearTimeout(timer); throw e; });
+    }
+
+    // ── Onglets ────────────────────────────────────────────────────────
+    [].forEach.call(document.querySelectorAll('.tab'),function(b){
+      b.addEventListener('click',function(){
+        [].forEach.call(document.querySelectorAll('.tab'),function(x){x.classList.remove('on');x.setAttribute('aria-selected','false');});
+        [].forEach.call(document.querySelectorAll('.pan'),function(x){x.classList.remove('on');});
+        b.classList.add('on'); b.setAttribute('aria-selected','true');
+        var p=$(b.dataset.p); if(p) p.classList.add('on');
+        if(b.dataset.p==='p-cla') chargerClausier();
+        if(b.dataset.p==='p-ref') rendreReferentiel();
+      });
+    });
+
+    // ── Questionnaire, construit depuis le serveur ─────────────────────
+    // Les options ne sont PAS recopiées ici : une liste dupliquée dans le HTML
+    // finit toujours par diverger du moteur qui, lui, décide.
+    function construireForm(){
+      var h='';
+      CFG.champs.forEach(function(c){
+        h+='<div class="fld" data-c="'+esc(c.id)+'"><label for="f-'+esc(c.id)+'">'+esc(c.label)+'</label>';
+        if(c.type==='choix'){
+          h+='<select id="f-'+esc(c.id)+'"><option value="">—</option>'
+            +c.options.map(function(o){return '<option value="'+esc(o.v)+'">'+esc(o.l)+'</option>';}).join('')+'</select>';
+        } else if(c.type==='multi'){
+          h+='<div class="chk">'+c.options.map(function(o){
+              return '<label><input type="checkbox" data-m="'+esc(c.id)+'" value="'+esc(o.v)+'">'+esc(o.l)+'</label>';
+            }).join('')+'</div>';
+        } else {
+          h+='<div class="sw"><label><input type="checkbox" id="f-'+esc(c.id)+'"> Oui</label></div>';
+        }
+        if(c.aide) h+='<div class="aide">'+esc(c.aide)+'</div>';
+        h+='</div>';
+      });
+      $('qform').innerHTML=h;
+      // Le champ « rôles » est le plus structurant : on lui donne toute la largeur.
+      var m=document.querySelector('[data-c="roles"]'); if(m) m.style.gridColumn='1 / -1';
+    }
+    function lireProfil(){
+      var p={};
+      CFG.champs.forEach(function(c){
+        if(c.type==='multi'){
+          p[c.id]=[].map.call(document.querySelectorAll('[data-m="'+c.id+'"]:checked'),function(x){return x.value;});
+        } else {
+          var el=$('f-'+c.id); if(!el) return;
+          p[c.id]=(c.type==='bool')?el.checked:el.value;
+        }
+      });
+      PROFIL=p; return p;
+    }
+
+    function blocTexte(x,warn){
+      var jal=(x.jalons||[]).length?'<div class="jal"><b>Jalons :</b> '+x.jalons.map(esc).join(' · ')+'</div>':'';
+      var pts=(x.points||[]).length?'<ul class="pts">'+x.points.map(function(p){return '<li>'+esc(p)+'</li>';}).join('')+'</ul>':'';
+      var mot=(x.motifs||[]).map(function(m){return '<div class="mot">'+esc(m)+'</div>';}).join('');
+      var lien=x.url?' · <a href="'+esc(x.url)+'" target="_blank" rel="noopener">source officielle</a>':'';
+      return '<div class="txt'+(warn?' warn':'')+'">'
+        +'<div class="m">'+esc(x.nature||'')+(x.autorite?(' · '+esc(x.autorite)):'')+lien+'</div>'
+        +'<div class="t">'+esc(x.titre)+' <span class="pill '+(warn?'wr':'ok')+'">'+(warn?'à confirmer':'applicable')+'</span></div>'
+        +'<div class="o">'+esc(x.officiel||'')+'</div>'+mot+pts+jal+'</div>';
+    }
+
+    $('qualBtn').addEventListener('click',function(){
+      var p=lireProfil();
+      msg('qmsg','Qualification…','wait');
+      api('/api/juridique/qualification',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({profil:p})},20000).then(function(j){
+        if(!j||!j.ok){ msg('qmsg',(j&&j.message)||'Qualification impossible.','err'); return; }
+        msg('qmsg','','');
+        var h='<div class="card"><h3 style="margin:0 0 8px">Résultat</h3>'
+              +'<p style="font-size:13px;color:var(--muted);margin:0 0 4px;line-height:1.65">'+esc(j.synthese)+'</p>'
+              +'<div class="cnt">Référentiel version '+esc(j.version_referentiel)+' · calcul déterministe, sans IA</div></div>';
+        if(j.applicables.length){
+          h+='<div class="card"><h3 style="margin:0 0 12px">Textes applicables</h3>'
+            +j.applicables.map(function(x){return blocTexte(x,false);}).join('')+'</div>';
+        }
+        if(j.a_verifier.length){
+          h+='<div class="card"><h3 style="margin:0 0 6px">À confirmer</h3>'
+            +'<p style="font-size:12.5px;color:var(--muted);margin:0 0 12px;line-height:1.6">'
+            +'Ces rattachements dépendent d\'un élément que le questionnaire ne tranche pas seul '
+            +'(bilan comptable, exception sectorielle, état d\'une transposition). Ils doivent être '
+            +'arbitrés au vu des pièces — c\'est précisément ce qu\'un moteur honnête ne devine pas.</p>'
+            +j.a_verifier.map(function(x){return blocTexte(x,true);}).join('')+'</div>';
+        }
+        h+='<div class="card"><div class="avert">'+esc(j.avertissement)+'</div></div>';
+        $('qres').innerHTML=h;
+        $('qres').scrollIntoView({behavior:'smooth',block:'start'});
+      }).catch(function(e){ if(e.message!=='auth') msg('qmsg','Service indisponible pour le moment.','err'); });
+    });
+    $('qualReset').addEventListener('click',function(){
+      construireForm(); PROFIL={}; $('qres').innerHTML=''; msg('qmsg','','');
+    });
+
+    // ── Analyse ────────────────────────────────────────────────────────
+    function rendreCitations(c){
+      if(!c) return '';
+      if(c.ok){
+        return '<div class="cit ok">✓ Contrôle des références : les '+(c.connues||[]).length
+          +' référence(s) citée(s) correspondent à des textes du référentiel. '
+          +'Ce contrôle vérifie l\'EXISTENCE des textes cités, pas la pertinence de leur application — '
+          +'la lecture reste à valider.</div>';
+      }
+      return '<div class="cit ko"><b>⚠ Références non reconnues</b> — '
+        +c.suspectes.map(function(s){return esc(s.brut);}).join(', ')
+        +'. Ces références ne figurent pas au référentiel : traitez-les comme non fiables et '
+        +'vérifiez-les sur la source officielle avant tout usage. Le reste de l\'analyse demeure exploitable.</div>';
+    }
+    function rendreAnalyse(cible,j,titre){
+      var h='<div class="card">';
+      h+='<div class="cnt" style="margin-bottom:10px">'+esc(titre)+' · modèle '+esc(j.model||'')
+        +' · référentiel '+esc(j.version_referentiel||'')+'</div>';
+      h+=rendreCitations(j.citations);
+      h+='<div class="doc">'+mdToHtml(j.texte)+'</div>';
+      if(j.sources&&j.sources.length){
+        h+='<div class="srcs">'+j.sources.map(function(s){
+             return '<span class="s">['+s.n+'] '+esc(s.titre||'Document')+'</span>';}).join('')+'</div>';
+      }
+      h+='</div><div class="card"><div class="avert">'+esc(j.avertissement)
+        +'<br><br><b>'+esc(j.mention_ia)+'</b></div></div>';
+      $(cible).innerHTML=h;
+      $(cible).scrollIntoView({behavior:'smooth',block:'start'});
+    }
+
+    $('anaBtn').addEventListener('click',function(){
+      var q=($('q').value||'').trim();
+      if(!q){ msg('amsg','Posez une question.','err'); return; }
+      var b=this; b.disabled=true;
+      msg('amsg','Analyse en cours — la rédaction complète prend généralement 20 à 60 secondes.','wait');
+      api('/api/juridique/analyse',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({question:q, profil:PROFIL, model:$('model').value})},150000)
+        .then(function(j){
+          if(!j||!j.ok){ msg('amsg',(j&&j.message)||'Analyse impossible.','err'); return; }
+          msg('amsg','','');
+          rendreAnalyse('ares',j,'Analyse juridique');
+        }).catch(function(e){
+          if(e.message!=='auth') msg('amsg','Analyse interrompue (délai dépassé ou service indisponible). Réessayez.','err');
+        }).then(function(){ b.disabled=false; });
+    });
+
+    // ── Clausier ───────────────────────────────────────────────────────
+    var clausierCharge=false;
+    function chargerClausier(){
+      var d=$('claDom').value, c=$('claCri').value;
+      api('/api/juridique/clausier?domaine='+encodeURIComponent(d)+'&criticite='+encodeURIComponent(c),{},20000)
+        .then(function(j){
+          if(!j||!j.ok) return;
+          if(!clausierCharge){
+            $('claDom').innerHTML='<option value="">Tous</option>'
+              +j.domaines.map(function(x){return '<option value="'+esc(x)+'">'+esc(x)+'</option>';}).join('');
+            $('cdom').innerHTML=j.domaines.map(function(x){
+              return '<label><input type="checkbox" data-cd value="'+esc(x)+'">'+esc(x)+'</label>';}).join('');
+            clausierCharge=true;
+          }
+          $('claCnt').textContent=j.clauses.length+' clause'+(j.clauses.length>1?'s':'');
+          $('clares').innerHTML='<div class="card">'+j.clauses.map(function(x){
+            return '<div class="cl"><h4>'+esc(x.titre)+' <span class="pill '+(x.criticite==='haute'?'hi':'')+'">'
+              +esc(x.criticite)+'</span> <span class="pill">'+esc(x.domaine)+'</span></h4>'
+              +'<div class="fo">Fondement : '+x.fondement.map(esc).join(' · ')+'</div>'
+              +'<div class="ob">'+esc(x.objectif)+'</div>'
+              +'<div class="mo">'+esc(x.modele)+'</div>'
+              +'<div class="ri"><b>Si la clause manque :</b> '+esc(x.risque)+'</div></div>';
+          }).join('')+'</div><div class="card"><div class="avert">'+esc(j.avertissement)+'</div></div>';
+        }).catch(function(){});
+    }
+    $('claDom').addEventListener('change',chargerClausier);
+    $('claCri').addEventListener('change',chargerClausier);
+
+    // ── Revue de contrat ───────────────────────────────────────────────
+    $('conBtn').addEventListener('click',function(){
+      var f=$('cfile').files&&$('cfile').files[0];
+      var t=($('ctexte').value||'').trim();
+      if(!f && t.length<200){ msg('cmsg','Collez le texte du contrat (200 caractères minimum) ou chargez un fichier.','err'); return; }
+      var doms=[].map.call(document.querySelectorAll('[data-cd]:checked'),function(x){return x.value;});
+      var b=this; b.disabled=true;
+      msg('cmsg','Revue en cours — la grille complète demande généralement 30 à 90 secondes.','wait');
+      var opts;
+      if(f){
+        var fd=new FormData();
+        fd.append('fichier',f,f.name);
+        fd.append('profil',JSON.stringify(PROFIL));
+        fd.append('domaines',JSON.stringify(doms));
+        opts={method:'POST',body:fd};
+      } else {
+        opts={method:'POST',headers:{'content-type':'application/json'},
+              body:JSON.stringify({texte:t,profil:PROFIL,domaines:doms})};
+      }
+      api('/api/juridique/contrat',opts,180000).then(function(j){
+        if(!j||!j.ok){ msg('cmsg',(j&&j.message)||'Revue impossible.','err'); return; }
+        msg('cmsg','','');
+        rendreAnalyse('cres',j,'Revue de contrat — '+j.caracteres+' caractères analysés');
+      }).catch(function(e){
+        if(e.message!=='auth') msg('cmsg','Revue interrompue (délai dépassé ou service indisponible). Réessayez.','err');
+      }).then(function(){ b.disabled=false; });
+    });
+
+    // ── Référentiel ────────────────────────────────────────────────────
+    function rendreReferentiel(){
+      if(!CFG) return;
+      var d=$('refDom').value;
+      var l=CFG.referentiel.filter(function(t){return !d || (t.domaines||[]).indexOf(d)>=0;});
+      $('refCnt').textContent=l.length+' texte'+(l.length>1?'s':'');
+      $('refres').innerHTML='<div class="card">'+l.map(function(t){
+        var lien=t.url?'<a href="'+esc(t.url)+'" target="_blank" rel="noopener">source officielle</a>':'—';
+        return '<div class="txt"><div class="m">'+esc(t.nature)+' · '+lien+'</div>'
+          +'<div class="t">'+esc(t.titre)+(t.a_verifier?' <span class="pill wr">à vérifier</span>':'')+'</div>'
+          +'<div class="o">'+esc(t.officiel)+'</div>'
+          +'<div class="mot">'+esc(t.portee||'')+'</div>'
+          +((t.jalons||[]).length?'<div class="jal"><b>Jalons :</b> '+t.jalons.map(esc).join(' · ')+'</div>':'')
+          +'<div class="jal"><b>Autorité :</b> '+esc(t.autorite||'—')+'</div></div>';
+      }).join('')+'</div>';
+    }
+    $('refDom').addEventListener('change',rendreReferentiel);
+
+    // ── Démarrage ──────────────────────────────────────────────────────
+    api('/api/juridique/config',{},20000).then(function(j){
+      if(!j||!j.ok) throw new Error('config');
+      CFG=j;
+      $('avert').innerHTML='<b>Portée de ce service.</b> '+esc(j.avertissement);
+      construireForm();
+      $('sug').innerHTML=j.suggestions.map(function(s){
+        return '<button type="button" data-q="'+esc(s.q)+'">'+esc(s.groupe)+' — '+esc(s.q)+'</button>';}).join('');
+      [].forEach.call($('sug').querySelectorAll('button'),function(b){
+        b.addEventListener('click',function(){ $('q').value=b.dataset.q; $('q').focus(); });
+      });
+      var ms=j.models||{};
+      var sel=$('model');
+      [].forEach.call(sel.options,function(o){ if(ms[o.value]===false) o.disabled=true; });
+    }).catch(function(e){
+      if(e.message!=='auth') $('avert').innerHTML='<b>Service momentanément indisponible.</b> '
+        +'Rechargez la page dans un instant.';
+    });
+  })();
+  </script>
+</body>
+</html>
