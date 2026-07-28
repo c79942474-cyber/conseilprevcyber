@@ -133,6 +133,7 @@ THEME_FAMILLES = [
         "Engineering / Projet OWFarm / BSH2 Package",
         "Engineering / Projet OWFarm / Safety",
         "Engineering / Projet OWFarm / Fire fighting",
+        "Engineering / Projet OWFarm / Fire fighting / Watermist",
         "Engineering / Projet OWFarm / Rules",
         "Engineering / Projet OWFarm / Rules / DNV",
         "Engineering / Projet OWFarm / Rules / NFPA",
