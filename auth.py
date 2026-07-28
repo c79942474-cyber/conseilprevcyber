@@ -165,6 +165,10 @@ class _PgStore:
     """Stockage PostgreSQL (persistant). Table `users`."""
 
     _LOCK_KEY = 907245
+    # Attente maximale pour obtenir une connexion du pool avant de passer en
+    # direct, et durée pendant laquelle on cesse ensuite de le solliciter.
+    POOL_ACQUIS_S = 1.5
+    POOL_GRACE_S = 60.0
 
     def __init__(self, dsn):
         import psycopg
@@ -173,6 +177,7 @@ class _PgStore:
         sep = "&" if "?" in dsn else "?"
         self._dsn = dsn + sep + "connect_timeout=10"
         self.replis_directs = 0        # nombre de fois où le pool n'a pas répondu
+        self._pool_ko_jusqu = 0.0      # fin de la période de grâce (voir _conn)
         # prepare_threshold=None : compatibilité avec un pooler PgBouncer en mode
         # transaction (endpoint « -pooler » de Neon) — sans quoi les requêtes
         # préparées échouent (« prepared statement does not exist »). check :
@@ -209,14 +214,23 @@ class _PgStore:
         rend pas la main, on ouvre une connexion le temps de la requête. Plus
         lent de quelques dizaines de millisecondes, mais jamais bloqué.
 
+        L'attente d'acquisition est COURTE et suivie d'une période de grâce : un
+        pool en bonne santé répond en millisecondes, et sans cette précaution
+        chaque opération repayait l'attente tant que le pool boudait — une page
+        composée de plusieurs requêtes dépassait alors le délai du navigateur et
+        l'utilisateur voyait « Service momentanément indisponible ».
+
         L'échec d'ACQUISITION est seul traité ici : une erreur survenant DANS la
         requête remonte normalement à l'appelant."""
         import psycopg
         import psycopg.rows
         try:
-            conn = self._pool.getconn(timeout=8)
+            if time.time() < self._pool_ko_jusqu:
+                raise RuntimeError("pool en période de grâce")
+            conn = self._pool.getconn(timeout=self.POOL_ACQUIS_S)
         except Exception as exc:
             self.replis_directs += 1
+            self._pool_ko_jusqu = time.time() + self.POOL_GRACE_S
             logging.getLogger("auth").warning(
                 "comptes : pool indisponible (%s) — connexion directe pour cette "
                 "requête (%d au total).", type(exc).__name__, self.replis_directs)

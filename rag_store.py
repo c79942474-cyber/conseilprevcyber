@@ -825,6 +825,10 @@ _BASE_SCHEMA = [
 class PostgresRagStore:
     persistent = True
     _SCHEMA_LOCK = 907245
+    # Attente maximale pour obtenir une connexion du pool avant de passer en
+    # direct, et durée pendant laquelle on cesse ensuite de le solliciter.
+    POOL_ACQUIS_S = 1.5
+    POOL_GRACE_S = 60.0
 
     def __init__(self, dsn):
         from psycopg_pool import ConnectionPool
@@ -852,6 +856,7 @@ class PostgresRagStore:
         # notable sur une connexion directe.
         self._dsn = dsn
         self.replis_directs = 0
+        self._pool_ko_jusqu = 0.0        # fin de la période de grâce (voir _conn)
         self._pool = ConnectionPool(dsn, min_size=1, max_size=4,
                                     kwargs={"autocommit": True, "prepare_threshold": None},
                                     timeout=12, open=True,
@@ -883,13 +888,28 @@ class PostgresRagStore:
         conservés — alors que la base était joignable. Le repli direct supprime
         cette condamnation.
 
+        Deux réglages tirés d'un défaut de la première version de ce repli :
+        l'attente d'acquisition était de 12 s, si bien qu'une page composée de
+        plusieurs opérations payait 12 s CHACUNE avant de basculer en direct —
+        la requête dépassait alors le délai du navigateur et l'utilisateur voyait
+        « Service momentanément indisponible ». Le repli fonctionnait, mais trop
+        tard pour servir à quelque chose. D'où :
+          - une attente COURTE (un pool en bonne santé répond en millisecondes ;
+            au-delà d'une seconde et demie, il n'est pas en état) ;
+          - une PÉRIODE DE GRÂCE après un échec, pendant laquelle on va
+            directement au but sans même solliciter le pool. Sans elle, chaque
+            opération repaie l'attente tant que le pool boude.
+
         Seul l'échec d'ACQUISITION est traité : une erreur survenant DANS la
         requête remonte normalement à l'appelant."""
         import psycopg
         try:
-            conn = self._pool.getconn(timeout=12)
+            if time.time() < self._pool_ko_jusqu:
+                raise RuntimeError("pool en période de grâce")
+            conn = self._pool.getconn(timeout=self.POOL_ACQUIS_S)
         except Exception as exc:
             self.replis_directs += 1
+            self._pool_ko_jusqu = time.time() + self.POOL_GRACE_S
             _log.warning("RAG : pool indisponible (%s) — connexion directe pour "
                          "cette opération (%d au total).",
                          type(exc).__name__, self.replis_directs)
