@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dossier de conformité RGPD &amp; IA Act — CONSEILPREV Cyber</title>
+<meta name="description" content="Registre des traitements (art. 30 RGPD), qualification au titre du règlement (UE) 2024/1689, mesures de transparence de l'art. 50, sécurité et exercice des droits.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CONSEILPREV Cyber">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Dossier de conformité RGPD &amp; IA Act — CONSEILPREV Cyber">
+<meta property="og:description" content="Registre des traitements, qualification IA Act motivée, mesures en place et exercice des droits.">
+<meta property="og:url" content="https://conseilprevcyber.onrender.com/conformite">
+<meta property="og:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="CONSEILPREV Cyber — cybersécurité industrielle IT / OT / IIoT">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Dossier de conformité RGPD &amp; IA Act — CONSEILPREV Cyber">
+<meta name="twitter:description" content="Registre des traitements, qualification IA Act motivée, mesures en place et exercice des droits.">
+<meta name="twitter:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<link rel="canonical" href="https://conseilprevcyber.onrender.com/conformite">
+
+<link rel="icon" href="/emblem.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .tblwrap{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:14px;padding:6px;overflow-x:auto;margin:18px 0 26px}
+  .ttbl{width:100%;border-collapse:collapse;font-size:13px;min-width:1040px}
+  .ttbl th{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2);
+    text-align:left;padding:12px 14px;border-bottom:1px solid var(--line)}
+  .ttbl td{padding:12px 14px;border-bottom:1px solid rgba(30,42,58,.55);color:var(--muted);vertical-align:top;line-height:1.55}
+  .ttbl tr:last-child td{border-bottom:none}
+  .ttbl td b{color:var(--ink)}
+  .cf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:14px;margin:16px 0 8px}
+  .cf-card{border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:var(--bg2);min-width:0}
+  .cf-card b{color:var(--ink);display:block;margin-bottom:6px;font-size:14px}
+  .cf-card p{font-size:13px;color:var(--muted);margin:0 0 8px;line-height:1.6;overflow-wrap:anywhere}
+  .cf-card p:last-child{margin-bottom:0}
+  .cf-list{display:grid;gap:12px;margin:16px 0 8px}
+  .cf-list .cf-card{max-width:none}
+  .cf-ref{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;
+    border-radius:999px;padding:3px 10px;border:1px solid rgba(45,212,191,.4);color:var(--teal);
+    background:rgba(45,212,191,.08);white-space:nowrap;margin-bottom:8px}
+  .cf-ref.warn{border-color:rgba(245,158,11,.45);color:#f59e0b;background:rgba(245,158,11,.08)}
+  .cf-ref.off{border-color:var(--line);color:var(--muted2);background:transparent}
+  .cf-lim{font-size:12px;color:var(--muted2);border-left:2px solid var(--line);padding-left:10px;margin-top:8px}
+  .cf-note{border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:var(--bg2);margin:18px 0}
+  .cf-note b{color:var(--ink);display:block;margin-bottom:8px}
+  .cf-note ul{margin:0;padding-left:20px;color:var(--muted);font-size:13px;line-height:1.7}
+  .cf-note dl{margin:0;font-size:13px;color:var(--muted);line-height:1.6}
+  .cf-note dt{color:var(--ink);font-weight:600;margin-top:10px}
+  .cf-note dt:first-child{margin-top:0}
+  .cf-note dd{margin:2px 0 0}
+  .cf-err{border:1px solid rgba(245,158,11,.45);background:rgba(245,158,11,.08);color:var(--ink);
+    border-radius:12px;padding:14px 16px;margin:18px 0;font-size:13.5px}
+  .rights{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:12px;margin:16px 0 8px}
+  .right{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--bg2);min-width:0}
+  .right b{color:var(--ink);display:block;margin-bottom:4px;font-size:14px}
+  .right p{font-size:12.5px;color:var(--muted);margin:0;line-height:1.55;overflow-wrap:anywhere}
+  .right .ref{font-family:var(--mono);font-size:10px;color:var(--muted2)}
+</style>
+</head>
+<body>
+  <header>
+  <div class="wrap nav">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu"><span></span><span></span><span></span></button>
+    <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="30" height="30" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+    <nav class="links" aria-label="Navigation principale">
+      <a href="/services">Services</a>
+      <a href="/referentiel">Référentiel 62443</a>
+      <a href="/audit-conformite">Audit 62443</a>
+      <a href="/demo">Cockpit</a>
+      <a href="/assistant">Assistant IA</a>
+      <a href="/veille">Veille</a>
+      <a href="/about">À propos</a>
+    </nav>
+    <div class="navcta">
+      <a href="/contact" class="cta">Contact</a>
+    </div>
+  </div>
+</header>
+
+    <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow">RGPD &amp; règlement (UE) 2024/1689</span>
+      <h1>Dossier de <span class="grad">conformité</span></h1>
+      <p class="lead" style="margin-top:16px">Registre des traitements, qualification IA Act motivée, mesures
+      effectivement en place et procédure d'exercice des droits. Cette page est <strong>générée depuis le
+      référentiel interne du site</strong> : elle ne peut pas diverger de ce que la console d'administration
+      affiche, ni vieillir sans que le code vieillisse avec elle.</p>
+      <p class="muted" style="margin-top:10px;font-size:13px">Version du référentiel :
+      <b id="cfVersion">…</b> &nbsp;·&nbsp; Responsable : <b id="cfResp">…</b> &nbsp;·&nbsp;
+      Contact : <a id="cfMail" href="#">…</a></p>
+    </section>
+
+    <div id="cfErr" class="cf-err" hidden>Référentiel momentanément indisponible. La
+    <a href="/politique-confidentialite">politique de confidentialité</a> reste consultable.</div>
+
+    <section class="section" style="padding-top:8px">
+      <div class="prose"><h2>Qualification au titre du règlement sur l'intelligence artificielle</h2>
+      <p class="muted">Un contrôle ne demande pas « avez-vous de l'IA ? » mais « comment l'avez-vous
+      qualifiée, et sur quel fondement ? ». Une classification non documentée équivaut à une absence
+      de classification.</p></div>
+      <div id="cfSystemes" class="cf-grid"></div>
+      <div id="cfVerdicts" class="cf-grid"></div>
+      <div class="cf-note"><b>Calendrier d'application</b><ul id="cfJalons"></ul></div>
+    </section>
+
+    <section class="section">
+      <div class="prose"><h2>Transparence de l'IA — article 50</h2></div>
+      <div id="cfArt50" class="cf-list"></div>
+    </section>
+
+    <section class="section">
+      <div class="prose"><h2>Registre des activités de traitement</h2>
+      <p class="muted">Article 30 du RGPD. Le tableau défile horizontalement sur petit écran.</p></div>
+      <div class="tblwrap">
+        <table class="ttbl">
+          <thead><tr><th>Traitement</th><th>Finalité</th><th>Base légale</th><th>Données</th>
+          <th>Conservation</th><th>Destinataires</th><th>Transferts</th></tr></thead>
+          <tbody id="cfRegistre"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="prose"><h2>Destinataires et transferts</h2>
+      <p class="muted">Articles 28 et chapitre V. Un destinataire dont le régime de transfert reste à
+      documenter est signalé comme tel plutôt que passé sous silence.</p></div>
+      <div id="cfSousTraitants" class="cf-grid"></div>
+    </section>
+
+    <section class="section">
+      <div class="prose"><h2>Mesures de sécurité</h2><p class="muted">Article 32.</p></div>
+      <div id="cfMesures" class="cf-grid"></div>
+    </section>
+
+    <section class="section">
+      <div class="prose"><h2>Vos droits</h2></div>
+      <div id="cfDroits" class="rights"></div>
+      <div class="cf-note"><b>Comment les exercer</b><dl id="cfProcedure"></dl></div>
+    </section>
+
+    <section class="section">
+      <div class="prose"><h2>Analyse d'impact relative à la protection des données</h2>
+      <p class="muted">Article 35.</p></div>
+      <div id="cfAipd" class="cf-list"></div>
+    </section>
+  </main>
+
+<footer>
+  <div class="wrap foot">
+    <div class="foot-cols">
+      <div class="foot-brand">
+        <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="26" height="26" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+        <p>Cybersécurité industrielle IT / OT / IIoT — conformité IEC&nbsp;62443, NIS2, DORA.</p>
+      </div>
+      <nav class="foot-col" aria-label="Expertise">
+        <h4>Expertise</h4>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/methodologie">Méthodologie</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/operating-model">Operating Model</a>
+        <a href="/maturite-ot">Maturité OT</a>
+        <a href="/feuille-de-route">Feuille de route</a>
+      </nav>
+      <nav class="foot-col" aria-label="Norme &amp; conformité">
+        <h4>Norme &amp; conformité</h4>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/audit-conformite">Audit 62443</a>
+        <a href="/diagnostic">Diagnostic express</a>
+        <a href="/nis2">NIS2</a>
+      </nav>
+      <nav class="foot-col" aria-label="Plateforme">
+        <h4>Plateforme</h4>
+        <a href="/demo">Cockpit</a>
+        <a href="/assistant">Assistant IA</a>
+        <a href="/connecter">Connecter une source</a>
+        <a href="/guide-integration">Guide d’intégration</a>
+      </nav>
+      <nav class="foot-col" aria-label="Ressources">
+        <h4>Ressources</h4>
+        <a href="/veille">Veille</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/glossaire-62443">Glossaire 62443</a>
+      </nav>
+    </div>
+    <div class="foot-bar">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Tous droits réservés</div>
+      <div class="foot-legal">
+        <a href="/about">À propos</a>
+        <a href="/contact">Contact</a>
+        <a href="/connexion">Espace client</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/politique-confidentialite">Confidentialité</a>
+        <a href="/conformite">Conformité IA &amp; RGPD</a>
+        <a href="/admin" rel="nofollow" class="foot-admin">Admin</a>
+      </div>
+    </div>
+  </div>
+</footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+  <script src="/nav.js" defer></script>
+  <script>
+  /* La page est RENDUE DEPUIS LE RÉFÉRENTIEL, pas recopiée à la main. Un
+     document de conformité écrit deux fois finit par diverger, et c'est
+     précisément la divergence qu'un contrôle cherche : ici, la page ne peut
+     mentir qu'en même temps que le code. */
+  (function(){
+    var E=function(s){return String(s==null?'':s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');};
+    var $=function(id){return document.getElementById(id);};
+
+    function carte(titre, corps, ref, refClasse){
+      return '<div class="cf-card">'
+        + (ref?'<span class="cf-ref '+(refClasse||'')+'">'+E(ref)+'</span>':'')
+        + '<b>'+E(titre)+'</b>'+corps+'</div>';
+    }
+    function para(t){ return t ? '<p>'+E(t)+'</p>' : ''; }
+
+    function rendre(d){
+      $('cfVersion').textContent = d.version || '—';
+      $('cfResp').textContent    = d.responsable || '—';
+      var m=$('cfMail'); m.textContent=d.contact||''; m.href='mailto:'+(d.contact||'');
+
+      var c = d.classification || {};
+      $('cfSystemes').innerHTML = (c.systemes||[]).map(function(s){
+        return carte(s.nom, para(s.description)+para(s.role), 'Système');
+      }).join('');
+
+      var v = [];
+      [['pratiques_interdites','Pratiques interdites'],
+       ['haut_risque','Haut risque'],
+       ['gpai','Modèles à usage général']].forEach(function(p){
+        var o = c[p[0]]; if(!o) return;
+        var corps = para(o.verdict==null?'':o.verdict)
+          + para(o.motif) + para(o.art_6_1) + para(o.annexe_iii)
+          + para(o.consequence) + para(o.revision);
+        var interdit = (p[0]==='pratiques_interdites');
+        v.push(carte(p[1]+' — '+(o.verdict||''), corps, o.ref||'', interdit?'':'off'));
+      });
+      $('cfVerdicts').innerHTML = v.join('');
+      $('cfJalons').innerHTML = (c.jalons||[]).map(function(j){
+        return '<li>'+E(j)+'</li>';}).join('');
+
+      $('cfArt50').innerHTML = (d.art50||[]).map(function(a){
+        var cl = a.statut==='en place' ? '' : 'off';
+        return carte(a.mesure + ' — ' + (a.statut||''),
+          para(a.detail) + (a.limite ? '<p class="cf-lim">'+E(a.limite)+'</p>' : ''),
+          a.ref, cl);
+      }).join('');
+
+      $('cfRegistre').innerHTML = (d.registre||[]).map(function(r){
+        return '<tr><td><b>'+E(r.traitement)+'</b></td><td>'+E(r.finalite)+'</td>'
+          + '<td>'+E(r.base_legale)+'</td><td>'+E(r.donnees)+'</td>'
+          + '<td>'+E(r.duree)+'</td><td>'+E(r.destinataires)+'</td>'
+          + '<td>'+E(r.transferts)+'</td></tr>';
+      }).join('');
+
+      $('cfSousTraitants').innerHTML = (d.sous_traitants||[]).map(function(s){
+        return carte(s.nom, para(s.role)+para(s.localisation)+para(s.donnees)+para(s.transfert),
+          s.a_verifier ? 'À documenter' : 'Union européenne',
+          s.a_verifier ? 'warn' : '');
+      }).join('');
+
+      $('cfMesures').innerHTML = (d.mesures||[]).map(function(x){
+        return carte(x.mesure, para(x.detail));
+      }).join('');
+
+      $('cfDroits').innerHTML = (d.droits||[]).map(function(x){
+        return '<div class="right"><b>'+E(x.droit)+'</b>'
+          + '<p>'+E(x.modalite)+'</p>'
+          + '<p class="ref">'+E(x.ref)+'</p></div>';
+      }).join('');
+
+      var p = d.procedure_droits||{}, dl='';
+      [['canal','Où écrire'],['delai','Délai de réponse'],
+       ['identite','Vérification d\'identité'],['gratuite','Coût'],
+       ['recours','Recours']].forEach(function(k){
+        if(p[k[0]]) dl += '<dt>'+E(k[1])+'</dt><dd>'+E(p[k[0]])+'</dd>';
+      });
+      $('cfProcedure').innerHTML = dl;
+
+      var a = d.aipd||{};
+      $('cfAipd').innerHTML = carte(a.verdict||'—',
+        para(a.motif) + (a.reserve ? '<p class="cf-lim">'+E(a.reserve)+'</p>' : ''),
+        'art. 35');
+    }
+
+    fetch('/api/conformite', {headers:{'Accept':'application/json'}})
+      .then(function(r){ return r.json(); })
+      .then(function(d){ if(!d || d.ok===false) throw 0; rendre(d); })
+      .catch(function(){ $('cfErr').hidden = false; });
+  })();
+  </script>
+</body>
+</html>

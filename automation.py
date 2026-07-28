@@ -204,14 +204,32 @@ def job_surveillance():
 
 
 def job_purge_rgpd():
-    """Purge quotidienne des fiches clients expirées (art. 5.1.e) + préavis 30 j."""
-    clients = _deps.get("clients")
-    if clients is None:
-        return
+    """Purge quotidienne des données arrivées au terme de leur conservation.
+
+    Deux traitements y passent : les fiches clients expirées et le journal
+    d'audit au-delà de sa durée de conservation. Le journal s'élaguait jusqu'ici
+    à l'écriture seule, ce qui borne le VOLUME mais pas la DURÉE : sans activité
+    d'administration, des traces nominatives seraient restées en base
+    indéfiniment. Une durée de conservation n'existe que si quelque chose la
+    fait respecter sans qu'on y pense (art. 5.1.e).
+    """
     today = time.strftime("%Y-%m-%d")
     if _state.get("rgpd.last_purge") == today:
         return
     _state.set("rgpd.last_purge", today)
+
+    try:
+        import audit
+        efface = audit.purger()
+        if efface:
+            _log.info("purge RGPD : %d entrée(s) de journal au-delà de %d jours.",
+                      efface, audit.RETENTION_JOURS)
+    except Exception:
+        _log.warning("purge RGPD : journal d'audit non purgé (base injoignable ?).")
+
+    clients = _deps.get("clients")
+    if clients is None:
+        return
     n = clients.purge_expired(actor="automate")
     soon = [c for c in clients.list()
             if 0 < c.get("expire_at", 0) - _now_ms() < 30 * 24 * 3600 * 1000]

@@ -82,6 +82,13 @@
   .msg.err{display:block;background:rgba(210,110,80,.10);border:1px solid var(--terra);color:var(--ink)}
   .msg.ok{display:block;background:rgba(90,190,140,.08);border:1px solid var(--green);color:var(--muted)}
   .msg.wait{display:block;background:var(--panel2);border:1px solid var(--line);color:var(--muted)}
+  .msg.mz{display:block;background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.45);color:var(--ink);line-height:1.6}
+  .msg.mz .mz-d{font-size:12px;color:var(--muted);margin:6px 0 10px}
+  .msg.mz .mz-b{display:flex;flex-wrap:wrap;gap:8px}
+  .msg.mz button{font:inherit;font-size:12.5px;padding:7px 12px;border-radius:9px;cursor:pointer;
+    border:1px solid var(--line);background:var(--panel2);color:var(--ink)}
+  .msg.mz button.pri{border-color:var(--cyan);background:rgba(64,160,190,.12);color:var(--cyan)}
+  .msg.mz button:hover{filter:brightness(1.12)}
   .cl{border:1px solid var(--line);border-radius:11px;padding:15px 17px;background:var(--panel)}
   .cl+.cl{margin-top:11px}
   .cl h4{margin:0 0 4px;font-size:14px;color:var(--ink)}
@@ -360,6 +367,7 @@
         <a href="/contact">Contact</a>
         <a href="/mentions-legales">Mentions légales</a>
         <a href="/politique-confidentialite">Confidentialité</a>
+        <a href="/conformite">Conformité IA &amp; RGPD</a>
       </div>
     </div>
   </div>
@@ -372,6 +380,32 @@
     function $(id){return document.getElementById(id);}
     function esc(s){return (''+(s==null?'':s)).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
     function msg(el,t,cls){var e=$(el);e.textContent=t||'';e.className='msg'+(t?(' '+cls):'');}
+
+    // Minimisation (RGPD art. 5.1.c) — le serveur refuse un premier envoi qui
+    // contient des données personnelles et dit ce qu'il a trouvé. Trois issues,
+    // toutes tenues par l'utilisateur : corriger, caviarder, ou maintenir. Le
+    // contrôle vit côté serveur ; ceci n'en est que la présentation.
+    function minimAvert(zone,j,relancer){
+      var m=(j&&j.minimisation)||{}, det=m.detections||[];
+      var d=det.map(function(x){
+        return esc(x.libelle)+' × '+x.occurrences
+          +(x.exemples&&x.exemples.length?' <span style="opacity:.75">('+esc(x.exemples.join(', '))+')</span>':'');
+      }).join(' · ');
+      var e=$(zone); e.className='msg mz';
+      e.innerHTML='<b>'+esc(j.message||'Ce texte contient des données personnelles.')+'</b>'
+        +'<div class="mz-d">'+d+'</div>'
+        +'<div class="mz-b">'
+        +'<button type="button" class="pri" data-mz="corriger">Corriger la saisie</button>'
+        +'<button type="button" data-mz="masquer">Retirer et envoyer</button>'
+        +'<button type="button" data-mz="accepter">Envoyer quand même</button>'
+        +'</div>';
+      e.onclick=function(ev){
+        var t=ev.target.getAttribute&&ev.target.getAttribute('data-mz'); if(!t) return;
+        e.onclick=null;
+        if(t==='corriger'){ msg(zone,'',''); return; }
+        relancer(t);
+      };
+    }
 
     // Rendu Markdown léger — même moteur que le générateur de livrables : les
     // analyses arrivent en Markdown, les tableaux comparant deux lectures d'un
@@ -593,17 +627,23 @@
     $('anaBtn').addEventListener('click',function(){
       var q=($('q').value||'').trim();
       if(!q){ msg('amsg','Posez une question.','err'); return; }
-      var b=this; b.disabled=true;
+      var b=this;
+      function envoyer(mode){
+      b.disabled=true;
       msg('amsg','Analyse en cours — la rédaction complète prend généralement 20 à 60 secondes.','wait');
       api('/api/juridique/analyse',{method:'POST',headers:{'content-type':'application/json'},
-        body:JSON.stringify({question:q, profil:PROFIL, model:$('model').value})},150000)
+        body:JSON.stringify({question:q, profil:PROFIL, model:$('model').value,
+                             minimisation:mode||''})},150000)
         .then(function(j){
+          if(j&&j.error==='donnees_personnelles'){ minimAvert('amsg',j,envoyer); return; }
           if(!j||!j.ok){ msg('amsg',(j&&j.message)||'Analyse impossible.','err'); return; }
           msg('amsg','','');
           rendreAnalyse('ares',j,'Analyse juridique');
         }).catch(function(e){
           if(e.message!=='auth') msg('amsg','Analyse interrompue (délai dépassé ou service indisponible). Réessayez.','err');
         }).then(function(){ b.disabled=false; });
+      }
+      envoyer('');
     });
 
     // ── Clausier ───────────────────────────────────────────────────────
@@ -640,7 +680,9 @@
       var t=($('ctexte').value||'').trim();
       if(!f && t.length<200){ msg('cmsg','Collez le texte du contrat (200 caractères minimum) ou chargez un fichier.','err'); return; }
       var doms=[].map.call(document.querySelectorAll('[data-cd]:checked'),function(x){return x.value;});
-      var b=this; b.disabled=true;
+      var b=this;
+      function envoyer(mode){
+      b.disabled=true;
       msg('cmsg','Revue en cours — la grille complète demande généralement 30 à 90 secondes.','wait');
       var opts;
       if(f){
@@ -648,18 +690,22 @@
         fd.append('fichier',f,f.name);
         fd.append('profil',JSON.stringify(PROFIL));
         fd.append('domaines',JSON.stringify(doms));
+        fd.append('minimisation',mode||'');
         opts={method:'POST',body:fd};
       } else {
         opts={method:'POST',headers:{'content-type':'application/json'},
-              body:JSON.stringify({texte:t,profil:PROFIL,domaines:doms})};
+              body:JSON.stringify({texte:t,profil:PROFIL,domaines:doms,minimisation:mode||''})};
       }
       api('/api/juridique/contrat',opts,180000).then(function(j){
+        if(j&&j.error==='donnees_personnelles'){ minimAvert('cmsg',j,envoyer); return; }
         if(!j||!j.ok){ msg('cmsg',(j&&j.message)||'Revue impossible.','err'); return; }
         msg('cmsg','','');
         rendreAnalyse('cres',j,'Revue de contrat — '+j.caracteres+' caractères analysés');
       }).catch(function(e){
         if(e.message!=='auth') msg('cmsg','Revue interrompue (délai dépassé ou service indisponible). Réessayez.','err');
       }).then(function(){ b.disabled=false; });
+      }
+      envoyer('');
     });
 
     // ── Note d'arbitrage ───────────────────────────────────────────────
@@ -758,14 +804,18 @@
       var objet=($('arbObjet').value||'').trim();
       if(!objet){ msg('arbMsg','Indiquez la décision à préparer.','err'); return; }
       var nat=[].map.call(document.querySelectorAll('[data-nat]:checked'),function(x){return x.value;});
-      var b=this; b.disabled=true;
+      var b=this;
+      function envoyer(mode){
+      b.disabled=true;
       msg('arbMsg','Préparation de la note — comptez 30 à 90 secondes selon le volume du dossier.','wait');
       api('/api/juridique/arbitrage',{method:'POST',headers:{'content-type':'application/json'},
         body:JSON.stringify({objet:objet, contexte:$('arbContexte').value,
                              texte:$('arbTexte').value, doc_ids:arbCoches(),
                              profil:PROFIL, model:$('arbModel').value,
+                             minimisation:mode||'',
                              dossier:{natures:nat, enjeu:$('arbEnjeu').value}})},180000)
         .then(function(j){
+          if(j&&j.error==='donnees_personnelles'){ minimAvert('arbMsg',j,envoyer); return; }
           if(!j||!j.ok){ msg('arbMsg',(j&&j.message)||'Note impossible.','err'); return; }
           msg('arbMsg','','');
           var h=arbRendreRoutage(j.routage);
@@ -788,6 +838,8 @@
         }).catch(function(e){
           if(e.message!=='auth') msg('arbMsg','Préparation interrompue (délai dépassé ou service indisponible). Réessayez.','err');
         }).then(function(){ b.disabled=false; });
+      }
+      envoyer('');
     });
 
     // ── Référentiel ────────────────────────────────────────────────────

@@ -29,6 +29,22 @@ _log = logging.getLogger("audit")
 # retirées au-delà.
 MAX_ENTREES = int(os.environ.get("AUDIT_MAX_ROWS", "20000"))
 
+# DURÉE DE CONSERVATION — art. 5.1.e du RGPD. Le plafond de volume ci-dessus est
+# une limite technique, pas une durée : sur un site peu sollicité, 20 000 entrées
+# représentent plusieurs années, et une trace nominative conservée « jusqu'à ce
+# que la place manque » n'a aucune durée de conservation au sens du règlement.
+# Douze mois correspondent au repère retenu par la CNIL pour les journaux
+# d'accès et de traçabilité : assez long pour instruire un incident découvert
+# tardivement, assez court pour ne pas constituer un historique permanent des
+# faits et gestes des utilisateurs. Les deux règles se cumulent : on efface ce
+# qui est trop ANCIEN, et on plafonne ce qui est trop VOLUMINEUX.
+RETENTION_JOURS = max(1, int(os.environ.get("AUDIT_RETENTION_JOURS", "365")))
+
+
+def _limite_anciennete():
+    """Horodatage (ms) avant lequel une entrée doit avoir disparu."""
+    return int((time.time() - RETENTION_JOURS * 86400) * 1000)
+
 _SCHEMA = [
     """CREATE TABLE IF NOT EXISTS audit_journal (
         id BIGSERIAL PRIMARY KEY,
@@ -67,12 +83,21 @@ class _Memoire:
         self._rows = []
 
     def ajouter(self, rec):
+        limite = _limite_anciennete()
         with self._lock:
             rec = dict(rec, id=len(self._rows) + 1)
             self._rows.append(rec)
+            self._rows = [r for r in self._rows if r.get("ts", 0) >= limite]
             if len(self._rows) > MAX_ENTREES:
                 del self._rows[:len(self._rows) - MAX_ENTREES]
         return True
+
+    def purger(self):
+        limite = _limite_anciennete()
+        with self._lock:
+            avant = len(self._rows)
+            self._rows = [r for r in self._rows if r.get("ts", 0) >= limite]
+            return avant - len(self._rows)
 
     def lire(self, limit=200, action=None, acteur=None):
         with self._lock:
@@ -129,11 +154,20 @@ class _Postgres:
                       "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
                       (rec["ts"], rec["acteur"], rec["role"], rec["action"],
                        rec["cible"], rec["detail"], rec["ip"], rec["ok"]))
+            # Durée de conservation d'abord (art. 5.1.e), plafond de volume
+            # ensuite : l'un est une obligation, l'autre une précaution.
+            c.execute("DELETE FROM audit_journal WHERE ts < %s", (_limite_anciennete(),))
             # Élagage : on ne conserve que les MAX_ENTREES plus récentes.
             c.execute("DELETE FROM audit_journal WHERE id < "
                       "(SELECT COALESCE(MIN(id),0) FROM (SELECT id FROM audit_journal "
                       " ORDER BY id DESC LIMIT %s) t)", (MAX_ENTREES,))
         return True
+
+    def purger(self):
+        with self._p().connection() as c:
+            cur = c.execute("DELETE FROM audit_journal WHERE ts < %s",
+                            (_limite_anciennete(),))
+            return cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
 
     def lire(self, limit=200, action=None, acteur=None):
         clauses, params = [], []
@@ -214,11 +248,24 @@ def lire(limit=200, action=None, acteur=None):
         return []
 
 
+def purger():
+    """Efface les entrées au-delà de la durée de conservation. Ne lève jamais.
+
+    Appelée par la tâche quotidienne d'automatisation. Retourne le nombre
+    d'entrées effacées, ou 0 si la purge n'a pas pu s'exécuter.
+    """
+    try:
+        return int(store.purger() or 0)
+    except Exception:
+        _log.warning("journal d'audit : purge impossible.")
+        return 0
+
+
 def etat():
     """Nombre d'entrées + persistance, pour l'affichage d'administration."""
+    base = {"persistant": getattr(store, "persistent", False),
+            "plafond": MAX_ENTREES, "retention_jours": RETENTION_JOURS}
     try:
-        return {"entrees": store.compter(), "persistant": getattr(store, "persistent", False),
-                "plafond": MAX_ENTREES}
+        return dict(base, entrees=store.compter())
     except Exception:
-        return {"entrees": None, "persistant": getattr(store, "persistent", False),
-                "plafond": MAX_ENTREES}
+        return dict(base, entrees=None)

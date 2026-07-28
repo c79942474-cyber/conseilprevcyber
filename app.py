@@ -65,6 +65,7 @@ import automation
 import juridique
 import livrables
 import livrables_export
+import minimisation
 import rgpd
 from auth import admin_required, client_ip, current_user, guard, init_app as init_auth
 from clients_store import (BASES_LEGALES, CATEGORIES_PIECES, STATUTS,
@@ -85,7 +86,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # si le numéro affiché est plus ancien que la version attendue, le déploiement n'a
 # pas abouti — et aucun correctif récent n'est en ligne. À incrémenter à chaque
 # correctif dont on veut pouvoir confirmer la mise en ligne.
-APP_VERSION = "2026.07.28-11"
+APP_VERSION = "2026.07.28-12"
 
 # Horodatage de démarrage du processus (voir /health : « demarre_depuis_s »).
 _DEMARRAGE = time.time()
@@ -594,6 +595,7 @@ PAGES = {
     "/contact": "contact.html",
     "/mentions-legales": "mentions-legales.html",
     "/politique-confidentialite": "politique-confidentialite.html",
+    "/conformite": "conformite.html",
     "/nis2": "nis2.html",
     "/diagnostic": "diagnostic.html",
     "/veille": "veille.html",
@@ -832,6 +834,40 @@ def _is_admin_request():
         return False
 
 
+def _minimiser(textes, mode):
+    """Contrôle de minimisation avant tout envoi à un modèle (RGPD art. 5.1.c).
+
+    `textes` est la liste des saisies de l'utilisateur — et elles seules : les
+    documents de la base de connaissance sont choisis par CONSEILPREV, pas
+    tapés dans un formulaire, et avertir à leur sujet serait un bruit que
+    l'utilisateur ne peut pas corriger.
+
+    `mode` vient du navigateur et vaut :
+      ""         → premier envoi : on contrôle et, si besoin, on refuse en
+                   décrivant ce qui a été trouvé ;
+      "masquer"  → l'utilisateur demande le caviardage automatique ;
+      "accepter" → l'utilisateur a lu l'avertissement et maintient l'envoi.
+
+    Retourne (textes_a_utiliser, refus_ou_None, resume_pour_le_journal).
+    Le contrôle est fait ICI et non dans le navigateur : un avertissement
+    contournable en changeant d'onglet n'est pas une mesure de minimisation.
+    """
+    mode = (mode or "").strip().lower()
+    joint = "\n".join(t for t in textes if t)
+    res = minimisation.analyser(joint)
+    resume = minimisation.resume_journal(res)
+    if not res["total"]:
+        return textes, None, resume
+    if mode == "masquer":
+        return ([minimisation.masquer(t) for t in textes], None,
+                resume + " (caviardées)")
+    if mode == "accepter":
+        return textes, None, resume + " (maintenues par l'utilisateur)"
+    refus = (jsonify(ok=False, error="donnees_personnelles",
+                     minimisation=res, message=res["message"]), 200)
+    return textes, refus, resume + " (envoi suspendu)"
+
+
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
     """Point d'entrée du chat sécurisé. Sans état : aucune conversation n'est stockée.
@@ -847,6 +883,25 @@ def api_chat():
     data = request.get_json(silent=True) or {}
     model = "mistral" if data.get("model") == "mistral" else "claude"
     messages = data.get("messages")
+
+    # Minimisation avant transmission : le dernier message de l'utilisateur est
+    # contrôlé, et lui seul — les tours précédents ont déjà été validés, les
+    # redemander à chaque envoi rendrait la conversation impraticable.
+    mode_min = (data.get("minimisation") or "").strip().lower()
+    dernier = ""
+    try:
+        dernier = assistant.last_user_message(messages) or ""
+    except Exception:
+        dernier = ""
+    (dernier,), refus, _resume = _minimiser([dernier], mode_min)
+    if refus:
+        return refus
+    if dernier and isinstance(messages, list):
+        # Le caviardage doit porter sur ce qui part réellement au modèle.
+        for m in reversed(messages):
+            if isinstance(m, dict) and m.get("role") == "user":
+                m["content"] = dernier
+                break
 
     # Récupération RAG, dont le PÉRIMÈTRE DÉPEND DE QUI INTERROGE :
     #   - visiteur anonyme  -> documents publics uniquement (inchangé) ;
@@ -883,7 +938,11 @@ def api_chat():
         }
         return jsonify(ok=False, error=exc.code,
                        message=messages.get(exc.code, "Assistant indisponible pour le moment.")), exc.status
-    return jsonify(ok=True, reply=reply, model=model)
+    # Après caviardage, on renvoie le texte RÉELLEMENT transmis : l'utilisateur
+    # doit voir ce qui est parti, et la suite de la conversation doit repartir
+    # de cette version — sinon le tour suivant renverrait l'original en clair.
+    return jsonify(ok=True, reply=reply, model=model,
+                   envoye=dernier if mode_min == "masquer" else None)
 
 
 # ============================================================================
@@ -1025,6 +1084,10 @@ def api_juridique_analyse():
     profil = data.get("profil") if isinstance(data.get("profil"), dict) else None
     model = "mistral" if data.get("model") == "mistral" else "claude"
 
+    (question,), refus, resume_min = _minimiser([question], data.get("minimisation"))
+    if refus:
+        return refus
+
     qual = juridique.qualifier(profil) if profil else None
     textes_ids = None
     if qual:
@@ -1043,8 +1106,10 @@ def api_juridique_analyse():
 
     res = juridique.post_traiter(texte, textes_ids)
     audit.journaliser("juridique.analyse", cible=used,
-                      detail="%d extrait(s) cité(s), %d référence(s) suspecte(s)"
-                             % (len(sources), len(res["citations"]["suspectes"])),
+                      detail="%d extrait(s) cité(s), %d référence(s) suspecte(s) ; "
+                             "minimisation : %s"
+                             % (len(sources), len(res["citations"]["suspectes"]),
+                                resume_min),
                       ok=not res["citations"]["suspectes"])
     return jsonify(ok=True, model=used, sources=sources,
                    qualification=qual, **res)
@@ -1065,7 +1130,7 @@ def api_juridique_contrat():
                        message="Trop d'analyses de contrat. Patientez quelques minutes."), 429
     guard.fail(ckey)
 
-    texte_contrat, profil, domaines, model = "", None, None, "claude"
+    texte_contrat, profil, domaines, model, mode_min = "", None, None, "claude", ""
     fichier = request.files.get("fichier")
     if fichier is not None:
         nom = (fichier.filename or "").lower()
@@ -1088,16 +1153,27 @@ def api_juridique_contrat():
         profil = _json_champ(request.form.get("profil"))
         domaines = _json_champ(request.form.get("domaines"))
         model = "mistral" if request.form.get("model") == "mistral" else "claude"
+        mode_min = request.form.get("minimisation") or ""
     else:
         data = request.get_json(silent=True) or {}
         texte_contrat = (data.get("texte") or "").strip()
         profil = data.get("profil") if isinstance(data.get("profil"), dict) else None
         domaines = data.get("domaines") if isinstance(data.get("domaines"), list) else None
         model = "mistral" if data.get("model") == "mistral" else "claude"
+        mode_min = data.get("minimisation") or ""
 
     if len(texte_contrat.strip()) < 200:
         return jsonify(ok=False, error="contrat_vide",
                        message="Fournissez le texte du contrat (200 caractères minimum)."), 400
+
+    # C'est ici que la minimisation compte le plus : un contrat porte des
+    # signataires, des adresses et parfois un RIB, dont AUCUN n'est utile à
+    # l'analyse des clauses. Sur un PDF, l'utilisateur ne peut pas corriger sa
+    # saisie — le caviardage automatique est la seule option praticable, et il
+    # est proposé plutôt qu'imposé.
+    (texte_contrat,), refus, resume_min = _minimiser([texte_contrat], mode_min)
+    if refus:
+        return refus
 
     user = juridique.prompt_contrat(texte_contrat, profil=profil, domaines=domaines)
     try:
@@ -1110,8 +1186,10 @@ def api_juridique_contrat():
 
     res = juridique.post_traiter(texte)
     audit.journaliser("juridique.contrat", cible=used,
-                      detail="%d caractères analysés, %d référence(s) suspecte(s)"
-                             % (len(texte_contrat), len(res["citations"]["suspectes"])),
+                      detail="%d caractères analysés, %d référence(s) suspecte(s) ; "
+                             "minimisation : %s"
+                             % (len(texte_contrat), len(res["citations"]["suspectes"]),
+                                resume_min),
                       ok=not res["citations"]["suspectes"])
     return jsonify(ok=True, model=used, caracteres=len(texte_contrat), **res)
 
@@ -1152,9 +1230,18 @@ def api_juridique_arbitrage():
     objet = objet[:2000]
     profil = data.get("profil") if isinstance(data.get("profil"), dict) else None
     dossier = data.get("dossier") if isinstance(data.get("dossier"), dict) else {}
-    dossier["objet"] = objet
     contexte = (data.get("contexte") or "").strip()[:6000]
     colle = (data.get("texte") or "").strip()
+
+    # Les trois saisies du demandeur sont contrôlées ensemble ; les documents
+    # DÉSIGNÉS dans la base ne le sont pas — ils sont choisis par CONSEILPREV
+    # et l'utilisateur n'a aucun moyen de les corriger.
+    (objet, contexte, colle), refus, resume_min = _minimiser(
+        [objet, contexte, colle], data.get("minimisation"))
+    if refus:
+        return refus
+    dossier["objet"] = objet
+
     doc_ids = [str(d) for d in (data.get("doc_ids") or [])
                if _rag_valid_doc_id(str(d))][:12]
     model = "mistral" if data.get("model") == "mistral" else "claude"
@@ -1229,10 +1316,10 @@ def api_juridique_arbitrage():
     res = juridique.post_traiter(texte, textes_ids)
     audit.journaliser("juridique.arbitrage", cible=used,
                       detail="%d pièce(s), %d décideur(s), %d échéance(s), "
-                             "%d référence(s) suspecte(s)"
+                             "%d référence(s) suspecte(s) ; minimisation : %s"
                              % (len(pieces), len(routage["decisions"]),
                                 len(routage["echeances"]),
-                                len(res["citations"]["suspectes"])),
+                                len(res["citations"]["suspectes"]), resume_min),
                       ok=not res["citations"]["suspectes"])
     return jsonify(ok=True, model=used, pieces=pieces, routage=routage, **res)
 
@@ -1461,6 +1548,12 @@ def mentions_legales():
 @app.route("/politique-confidentialite")
 def politique_confidentialite():
     return _page(PAGES["/politique-confidentialite"])
+
+
+@app.route("/conformite")
+def conformite():
+    """Dossier de conformité RGPD & IA Act, rendu depuis rgpd.py via /api/conformite."""
+    return _page(PAGES["/conformite"])
 
 
 @app.route("/nis2")
@@ -3078,8 +3171,30 @@ def api_clients_purge():
 @app.route("/api/admin/rgpd/registre", methods=["GET"])
 @admin_required
 def api_rgpd_registre():
-    """Registre des activités de traitement (art. 30) + mesures AI Act art. 50."""
-    return jsonify(ok=True, version=rgpd.VERSION, registre=rgpd.REGISTRE, art50=rgpd.ART50)
+    """Dossier de conformité complet : registre, classification IA Act, mesures,
+    droits, analyse d'impact et actions ouvertes.
+
+    Réservé à l'administration parce qu'il porte les ACTIONS ouvertes — la part
+    du dossier qui dit ce qui reste à faire. La version publique (/api/conformite)
+    présente les mêmes faits sans cette feuille de route interne.
+    """
+    etat = rgpd.etat()
+    etat["journal"] = audit.etat()          # durée de conservation réellement appliquée
+    return jsonify(ok=True, **etat)
+
+
+@app.route("/api/conformite", methods=["GET"])
+def api_conformite():
+    """Dossier de conformité, version publique — même source, sans les actions.
+
+    Publier le registre est un choix : l'art. 30 n'oblige pas à le rendre public.
+    Mais un client à qui l'on vend de la conformité est fondé à vérifier celle du
+    prestataire, et un registre qu'on accepte de publier est un registre qu'on
+    tient à jour.
+    """
+    etat = rgpd.etat()
+    etat.pop("actions", None)
+    return jsonify(ok=True, **etat)
 
 
 @app.route("/offre-conseilprev-cyber.pdf")

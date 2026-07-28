@@ -196,6 +196,31 @@ def _page_field(paragraph):
     _champ(paragraph, "NUMPAGES")
 
 
+# ── Marquage IA lisible par une machine (AI Act, art. 50.2) ────────────────
+# La mention imprimée en bas de page renseigne un lecteur humain ; elle ne
+# survit ni à un copier-coller, ni à un traitement automatisé. Le règlement
+# demande un marquage EXPLOITABLE PAR UNE MACHINE : on le place donc dans les
+# propriétés du fichier, qui voyagent avec lui et se lisent sans l'ouvrir.
+MARQUE_IA = "AI-generated"
+MARQUE_REF = "Reglement (UE) 2024/1689, art. 50"
+
+
+def _marque_ia(meta):
+    """Valeurs de marquage, dérivées des métadonnées du document."""
+    meta = meta or {}
+    modele = str(meta.get("model") or "").strip()
+    return {
+        "marque": MARQUE_IA,
+        "producteur": "CONSEILPREV — assistance par intelligence artificielle"
+                      + (" (" + modele + ")" if modele else ""),
+        "mots_cles": "%s; AI-assisted; %s; brouillon-a-valider"
+                     % (MARQUE_IA, MARQUE_REF),
+        "note": "Contenu produit avec l'assistance d'un systeme d'intelligence "
+                "artificielle et signale comme tel au titre du %s. "
+                "Brouillon soumis a relecture et validation humaine." % MARQUE_REF,
+    }
+
+
 def build_docx(md, meta=None):
     """Construit le document Word (bytes) à partir du Markdown du livrable."""
     from docx import Document
@@ -207,6 +232,22 @@ def build_docx(md, meta=None):
     NAVY, TEAL, GREY = RGBColor(*C_NAVY), RGBColor(*C_TEAL), RGBColor(*C_GREY)
 
     doc = Document()
+    # Marquage IA dans les propriétés du fichier : il survit à la copie et se
+    # lit sans ouvrir le document (Explorateur, indexation, outillage).
+    try:
+        m = _marque_ia(meta)
+        cp = doc.core_properties
+        cp.title = str(meta.get("label") or "Document")
+        cp.subject = m["marque"]
+        cp.category = m["marque"]
+        cp.keywords = m["mots_cles"]
+        cp.comments = m["note"]
+        cp.author = m["producteur"]
+        cp.last_modified_by = m["producteur"]
+    except Exception:
+        # Un marquage qui échoue ne doit pas empêcher la production du document :
+        # la mention visible, elle, est toujours présente.
+        pass
     normal = doc.styles["Normal"]
     normal.font.name = "Calibri"
     normal.font.size = Pt(10.5)
@@ -420,6 +461,17 @@ def build_pdf(md, meta=None):
     """Construit le document PDF (bytes) à partir du Markdown du livrable."""
     meta = meta or {}
     pdf = _pdf_class()(format="A4", unit="mm")
+    # Même marquage que pour le Word : les métadonnées PDF sont lisibles par
+    # une machine sans rendu de la page.
+    try:
+        m = _marque_ia(meta)
+        pdf.set_title(str(meta.get("label") or "Document"))
+        pdf.set_author(m["producteur"])
+        pdf.set_subject(m["marque"])
+        pdf.set_keywords(m["mots_cles"])
+        pdf.set_creator(m["producteur"])
+    except Exception:
+        pass
     pdf.titre_courant = (meta.get("label") or "Livrable") + (
         " — " + meta["client"] if meta.get("client") else "")
     pdf.set_auto_page_break(True, margin=20)

@@ -54,6 +54,14 @@
   .msg.user{align-self:flex-end;background:linear-gradient(135deg,rgba(34,211,238,.16),rgba(45,212,191,.12));border:1px solid var(--line);color:var(--ink);border-bottom-right-radius:5px}
   .msg.bot{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-bottom-left-radius:5px}
   .msg.err{align-self:flex-start;background:rgba(217,96,58,.12);border:1px solid rgba(217,96,58,.35);color:var(--danger);border-bottom-left-radius:5px}
+  .msg.warn{align-self:flex-start;background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.42);color:var(--ink);border-bottom-left-radius:5px;max-width:92%}
+  .msg.warn .mz-t{display:block;font-size:13px;line-height:1.6;margin-bottom:4px}
+  .msg.warn .mz-d{display:block;font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:10px}
+  .msg.warn .mz-b{display:flex;flex-wrap:wrap;gap:8px}
+  .msg.warn button{font:inherit;font-size:12.5px;padding:7px 12px;border-radius:9px;cursor:pointer;
+    border:1px solid var(--line);background:var(--panel2);color:var(--ink)}
+  .msg.warn button.pri{border-color:rgba(45,212,191,.5);background:rgba(45,212,191,.12);color:var(--teal)}
+  .msg.warn button:hover{filter:brightness(1.15)}
   .msg strong{color:var(--ink)}
   .msg a{color:var(--cyan)}
   .typing{align-self:flex-start;display:inline-flex;gap:4px;padding:13px 15px;background:var(--panel2);border:1px solid var(--line);border-radius:14px;border-bottom-left-radius:5px}
@@ -201,6 +209,7 @@
         <a href="/connexion">Espace client</a>
         <a href="/mentions-legales">Mentions légales</a>
         <a href="/politique-confidentialite">Confidentialité</a>
+        <a href="/conformite">Conformité IA &amp; RGPD</a>
         <a href="/admin" rel="nofollow" class="foot-admin">Admin</a>
       </div>
     </div>
@@ -248,6 +257,34 @@
     }
     function whoFor(){return model==='mistral'?'Assistant · Mistral':'Assistant · Claude';}
 
+    function avertirMinimisation(j){
+      var m=(j&&j.minimisation)||{}, det=m.detections||[];
+      var d=det.map(function(x){
+        return esc(x.libelle)+' × '+x.occurrences
+             + (x.exemples&&x.exemples.length ? ' <span style="opacity:.75">('+esc(x.exemples.join(', '))+')</span>' : '');
+      }).join(' · ');
+      var b=bubble('warn',
+        '<span class="mz-t">'+esc(j.message||'Ce texte contient des données personnelles.')+'</span>'
+        +'<span class="mz-d">'+d+'</span>'
+        +'<span class="mz-b">'
+        +'<button type="button" data-mz="corriger" class="pri">Corriger ma question</button>'
+        +'<button type="button" data-mz="masquer">Retirer et envoyer</button>'
+        +'<button type="button" data-mz="accepter">Envoyer quand même</button>'
+        +'</span>','Minimisation des données');
+      b.addEventListener('click',function(e){
+        var t=e.target.getAttribute&&e.target.getAttribute('data-mz'); if(!t) return;
+        b.remove();
+        if(t==='corriger'){
+          for(var k=msgs.length-1;k>=0;k--){ if(msgs[k].role==='user'){ msgs.splice(k,1); break; } }
+          if(derniereBulle){ derniereBulle.remove(); derniereBulle=null; }
+          inp.value=derniereSaisie; cc.textContent=String(derniereSaisie.length);
+          autosize(); sendBtn.disabled=!inp.value.trim(); inp.focus();
+          return;
+        }
+        send(null,t);
+      });
+    }
+
     // Message d'accueil (non compté dans le contexte envoyé)
     function showWelcome(){
       bubble('bot',fmt("Bonjour 👋 Je suis l'assistant IA de CONSEILPREV Cyber. Posez-moi vos questions sur la "
@@ -270,25 +307,43 @@
       stTxt.textContent=v?'Réflexion…':'En ligne'; stDot.style.background=v?'var(--amber)':'var(--green)';
     }
 
-    function send(text){
-      text=(text||inp.value).trim();
-      if(!text||sending) return;
-      if(!avail[model]){ bubble('err','Ce modèle n’est pas activé. Choisissez l’autre modèle, ou <a href="/contact">contactez-nous</a>.','Assistant'); return; }
-      var chips=document.getElementById('chips'); if(chips) chips.style.display='none';
-      bubble('user',fmt(text),'Vous');
-      msgs.push({role:'user',content:text});
-      inp.value=''; cc.textContent='0'; autosize();
+    // Minimisation (RGPD art. 5.1.c) : le serveur refuse un premier envoi qui
+    // contient des données personnelles et décrit ce qu'il a trouvé. L'utilisateur
+    // choisit alors : corriger, caviarder, ou maintenir. On ne bloque jamais —
+    // un avertissement qui empêche de travailler finit par être contourné.
+    var derniereBulle=null, derniereSaisie='';
+
+    function send(text,mode){
+      if(sending) return;
+      if(!mode){
+        text=(text||inp.value).trim();
+        if(!text) return;
+        if(!avail[model]){ bubble('err','Ce modèle n’est pas activé. Choisissez l’autre modèle, ou <a href="/contact">contactez-nous</a>.','Assistant'); return; }
+        var chips=document.getElementById('chips'); if(chips) chips.style.display='none';
+        derniereBulle=bubble('user',fmt(text),'Vous');
+        derniereSaisie=text;
+        msgs.push({role:'user',content:text});
+        inp.value=''; cc.textContent='0'; autosize();
+      }
       setSending(true); showTyping();
       var myGen=gen;
+      var corps={model:model,messages:msgs};
+      if(mode) corps.minimisation=mode;
       fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({model:model,messages:msgs})})
+        body:JSON.stringify(corps)})
         .then(function(r){return r.json().then(function(j){return {s:r.status,j:j};});})
         .then(function(o){
           if(myGen!==gen) return;   // conversation réinitialisée entre-temps : on ignore la réponse
           hideTyping();
           if(o.j&&o.j.ok){
+            if(o.j.envoye){        // caviardé : la conversation repart du texte réellement transmis
+              for(var k=msgs.length-1;k>=0;k--){ if(msgs[k].role==='user'){ msgs[k].content=o.j.envoye; break; } }
+              if(derniereBulle) derniereBulle.innerHTML='<span class="who">Vous</span>'+fmt(o.j.envoye);
+            }
             bubble('bot',fmt(o.j.reply),whoFor());
             msgs.push({role:'assistant',content:o.j.reply});
+          } else if(o.j&&o.j.error==='donnees_personnelles'){
+            avertirMinimisation(o.j);
           } else {
             bubble('err',fmt((o.j&&o.j.message)||'Assistant indisponible pour le moment.'),'Assistant');
           }
