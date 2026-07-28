@@ -2287,3 +2287,172 @@ SUGGESTIONS_ARBITRAGE = [
     {"groupe": "Contrôle", "q": "L'autorité nous demande des éléments sous quinze "
                                 "jours : que produisons-nous, et que gardons-nous ?"},
 ]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 9. DOCUMENT REMIS — ce qui part en réunion
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# À l'écran, le routage déterministe et la note rédigée sont deux blocs
+# distincts : c'est voulu, on voit ce qui est déduit d'un texte et ce qui est
+# rédigé par un modèle. Dans le document remis au comité, ils doivent au
+# contraire tenir ENSEMBLE — sans le tableau « qui tranche, avant quand », la
+# note perd exactement ce qui la rendait actionnable.
+#
+# Le document est donc recomposé ici, à partir des données reconstruites côté
+# serveur. Rien de ce que le navigateur renvoie n'est repris tel quel pour les
+# parties déterministes : la qualification et le routage sont RECALCULÉS. Un
+# document qui sort de l'entreprise et porte une répartition des rôles ne doit
+# pas dépendre de ce qu'un formulaire a bien voulu renvoyer.
+
+TYPES_DOCUMENT = {
+    "arbitrage": {"titre": "Note d'arbitrage",
+                  "sous_titre": "Document préparatoire à la décision"},
+    "analyse": {"titre": "Analyse juridique",
+                "sous_titre": "Qualification, lectures possibles et recommandation"},
+    "contrat": {"titre": "Revue de contrat",
+                "sous_titre": "Analyse clause par clause au regard de la grille d'exigences"},
+    "qualification": {"titre": "Qualification réglementaire",
+                      "sous_titre": "Textes applicables et motivation du rattachement"},
+}
+
+
+def _tab(entetes, lignes):
+    """Tableau Markdown. Les cellules vides sont remplies par un tiret : une
+    colonne qui saute décale toute la ligne à la conversion."""
+    if not lignes:
+        return ""
+    def cell(x):
+        x = str(x if x is not None else "").replace("|", "/").replace("\n", " ").strip()
+        return x or "—"
+    out = ["| " + " | ".join(cell(e) for e in entetes) + " |",
+           "| " + " | ".join("---" for _ in entetes) + " |"]
+    for l in lignes:
+        out.append("| " + " | ".join(cell(c) for c in l) + " |")
+    return "\n".join(out)
+
+
+def _bloc_qualification_md(qual):
+    if not qual:
+        return ""
+    lignes = []
+    for x in qual.get("applicables", []):
+        lignes.append([x["titre"], " ".join(x["motifs"]), "Applicable"])
+    for x in qual.get("a_verifier", []):
+        lignes.append([x["titre"], " ".join(x["motifs"]), "À confirmer"])
+    if not lignes:
+        return ""
+    return ("## Textes applicables\n\n"
+            "*Qualification calculée par règles explicites, sans intelligence "
+            "artificielle : le même profil donne toujours le même résultat.*\n\n"
+            + _tab(["Texte", "Pourquoi il s'applique", "Statut"], lignes) + "\n")
+
+
+def _bloc_routage_md(rt):
+    if not rt or not rt.get("decisions"):
+        return ""
+    out = ["## Qui tranche, et avant quand", "",
+           "*" + rt.get("synthese_routage", "") + "*", ""]
+    if rt.get("echeances"):
+        out += ["### Échéances réglementaires", "",
+                "Elles commandent le calendrier de la réunion : elles ne se "
+                "négocient pas avec l'agenda des participants.", "",
+                _tab(["Délai", "Ce qui est dû", "À compter de", "Fondement", "Autorité"],
+                     [[e["duree"] + (" (à confirmer)" if e.get("a_verifier") else ""),
+                       e["quoi"], e["depart"], e["fondement"], e.get("autorite")]
+                      for e in rt["echeances"]]), ""]
+    out += ["### Répartition des décisions", "",
+            _tab(["Instance", "Fondement", "Consultés", "Informés", "Quand"],
+                 [[d["decideur_libelle"], " ; ".join(d["fondements"]),
+                   ", ".join(c["libelle"] for c in d["consultes"]),
+                   ", ".join(i["libelle"] for i in d["informes"]),
+                   " ".join(d["quand"])]
+                  for d in rt["decisions"]]), ""]
+    for d in rt["decisions"]:
+        out.append("**%s** — %s" % (d["decideur_libelle"], d["role"]))
+        for m in d["motifs"]:
+            out.append("")
+            out.append(m)
+        out.append("")
+    return "\n".join(out)
+
+
+def _bloc_pieces_md(pieces):
+    if not pieces:
+        return ("## Pièces du dossier\n\n"
+                "**Aucune pièce n'a été versée au dossier.** La note repose sur le "
+                "seul cadre réglementaire : la section « Ce qui manque pour décider » "
+                "doit être lue en premier.\n")
+    return ("## Pièces du dossier\n\n"
+            + _tab(["#", "Pièce", "Origine"],
+                   [[p.get("n"), p.get("titre"), p.get("origine")] for p in pieces])
+            + "\n\n*Une pièce désignée a été lue intégralement ; un extrait "
+              "retrouvé automatiquement n'a pas le même poids.*\n")
+
+
+def _bloc_citations_md(ctrl):
+    if not ctrl:
+        return ""
+    if ctrl.get("ok"):
+        return ("## Contrôle des références\n\n"
+                "Les %d référence(s) normative(s) citées correspondent à des textes "
+                "du référentiel. Ce contrôle vérifie l'EXISTENCE des textes cités, "
+                "non la pertinence de leur application : la lecture reste à valider.\n"
+                % len(ctrl.get("connues") or []))
+    return ("## Contrôle des références — ATTENTION\n\n"
+            "Les références suivantes ne figurent PAS au référentiel et doivent être "
+            "tenues pour non fiables tant qu'elles n'ont pas été vérifiées sur la "
+            "source officielle : %s.\n\nLe reste du document demeure exploitable.\n"
+            % ", ".join(s["brut"] for s in ctrl["suspectes"]))
+
+
+def document_markdown(type_doc, texte, objet=None, routage=None, qualification=None,
+                      pieces=None, citations=None, modele=None, date=None):
+    """Document complet, prêt pour l'export Word ou PDF.
+
+    L'ordre suit celui d'une lecture en réunion : ce qui engage (échéances,
+    répartition des décisions) AVANT la rédaction, et les annexes de contrôle
+    après. Un dirigeant qui n'ouvre que la première page doit y trouver
+    l'échéance et le nom de l'instance qui doit trancher.
+    """
+    t = TYPES_DOCUMENT.get(type_doc) or TYPES_DOCUMENT["analyse"]
+    out = ["# " + t["titre"], "", "*" + t["sous_titre"] + "*", ""]
+    if objet:
+        out += ["**Objet : " + str(objet).strip() + "**", ""]
+    meta = []
+    if date:
+        meta.append("Date : " + str(date))
+    meta.append("Référentiel : version " + VERSION_REFERENTIEL)
+    if modele:
+        meta.append("Rédaction assistée par : " + str(modele))
+    out += [" · ".join(meta), "", "---", ""]
+
+    bq = _bloc_qualification_md(qualification)
+    if bq:
+        out += [bq, ""]
+    br = _bloc_routage_md(routage)
+    if br:
+        out += [br, ""]
+    if bq or br:
+        out += ["---", ""]
+
+    out += [str(texte or "").strip(), "", "---", ""]
+    out += [_bloc_pieces_md(pieces), ""]
+    bc = _bloc_citations_md(citations)
+    if bc:
+        out += [bc, ""]
+    out += ["## Portée de ce document", "", AVERTISSEMENT, "", MENTION_IA, ""]
+    return "\n".join(out)
+
+
+def nom_fichier(type_doc, objet=None):
+    """Nom de fichier lisible et sans surprise : accents retirés, ponctuation
+    remplacée, longueur bornée. Un nom qui casse au téléchargement fait perdre
+    plus de temps qu'il n'en fait gagner."""
+    t = TYPES_DOCUMENT.get(type_doc) or TYPES_DOCUMENT["analyse"]
+    base = t["titre"]
+    if objet:
+        base += " - " + str(objet)
+    base = _normaliser(base)
+    base = re.sub(r"[^a-z0-9]+", "-", base).strip("-")
+    return (base[:70] or "document-juridique")

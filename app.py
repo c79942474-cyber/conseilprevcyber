@@ -85,7 +85,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # si le numéro affiché est plus ancien que la version attendue, le déploiement n'a
 # pas abouti — et aucun correctif récent n'est en ligne. À incrémenter à chaque
 # correctif dont on veut pouvoir confirmer la mise en ligne.
-APP_VERSION = "2026.07.28-10"
+APP_VERSION = "2026.07.28-11"
 
 # Horodatage de démarrage du processus (voir /health : « demarre_depuis_s »).
 _DEMARRAGE = time.time()
@@ -1235,6 +1235,77 @@ def api_juridique_arbitrage():
                                 len(res["citations"]["suspectes"])),
                       ok=not res["citations"]["suspectes"])
     return jsonify(ok=True, model=used, pieces=pieces, routage=routage, **res)
+
+
+@app.route("/api/juridique/export", methods=["POST"])
+@login_required
+def api_juridique_export():
+    """Exporte une production juridique en Word ou PDF, prête à diffuser.
+
+    Le document remis au comité doit porter le routage et les échéances : à
+    l'écran on les affiche à part pour distinguer ce qui est déduit d'un texte
+    de ce qui est rédigé par un modèle, mais dans un document qui circule, une
+    note privée du tableau « qui tranche, avant quand » perd exactement ce qui
+    la rendait actionnable.
+
+    Les parties déterministes sont RECALCULÉES ici, jamais reprises de ce que le
+    navigateur renvoie : un document qui sort de l'entreprise et porte une
+    répartition des rôles ne doit pas dépendre de ce qu'un formulaire a bien
+    voulu transmettre.
+    """
+    data = request.get_json(silent=True) or {}
+    texte = (data.get("texte") or "").strip()
+    if not texte:
+        return jsonify(ok=False, error="vide",
+                       message="Aucun contenu à exporter."), 400
+    type_doc = (data.get("type") or "analyse").strip()
+    if type_doc not in juridique.TYPES_DOCUMENT:
+        type_doc = "analyse"
+    fmt = (data.get("format") or "docx").strip().lower()
+    if fmt not in ("docx", "pdf"):
+        fmt = "docx"
+    objet = (data.get("objet") or "").strip()[:300]
+    profil = data.get("profil") if isinstance(data.get("profil"), dict) else None
+    dossier = data.get("dossier") if isinstance(data.get("dossier"), dict) else {}
+    if objet:
+        dossier.setdefault("objet", objet)
+    pieces = [p for p in (data.get("pieces") or []) if isinstance(p, dict)][:40]
+
+    routage = qual = None
+    if type_doc == "arbitrage":
+        routage = juridique.router(profil, dossier)
+        qual = routage["qualification"]
+    elif profil:
+        qual = juridique.qualifier(profil)
+
+    md = juridique.document_markdown(
+        type_doc, texte, objet=objet, routage=routage, qualification=qual,
+        pieces=pieces, citations=juridique.verifier_citations(texte),
+        modele=str(data.get("model") or "")[:40], date=time.strftime("%d/%m/%Y"))
+    meta = {"label": juridique.TYPES_DOCUMENT[type_doc]["titre"],
+            "client": str(data.get("client") or "")[:120],
+            "perimetre": objet, "model": str(data.get("model") or "")[:40],
+            "date": time.strftime("%d/%m/%Y"),
+            "sources": [{"title": p.get("titre"), "theme": p.get("origine")}
+                        for p in pieces]}
+    try:
+        if fmt == "pdf":
+            blob = livrables_export.build_pdf(md, meta)
+            mimetype = "application/pdf"
+        else:
+            blob = livrables_export.build_docx(md, meta)
+            mimetype = ("application/vnd.openxmlformats-officedocument"
+                        ".wordprocessingml.document")
+    except Exception:
+        app.logger.exception("export juridique")
+        return jsonify(ok=False, error="export_echec",
+                       message="La mise en page a échoué."), 500
+    audit.journaliser("juridique.export", cible=type_doc,
+                      detail="%s · %d caractères · %d pièce(s)"
+                             % (fmt, len(texte), len(pieces)))
+    return send_file(io.BytesIO(blob),
+                     download_name=juridique.nom_fichier(type_doc, objet) + "." + fmt,
+                     as_attachment=True, mimetype=mimetype)
 
 
 @app.route("/api/juridique/dossier-documents")

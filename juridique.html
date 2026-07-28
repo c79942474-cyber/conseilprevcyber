@@ -531,6 +531,44 @@
         +'. Ces références ne figurent pas au référentiel : traitez-les comme non fiables et '
         +'vérifiez-les sur la source officielle avant tout usage. Le reste de l\'analyse demeure exploitable.</div>';
     }
+    // ── Export Word / PDF ──────────────────────────────────────────────
+    // Le serveur RECOMPOSE le document (routage, échéances, qualification) :
+    // le navigateur ne renvoie que le texte rédigé et le contexte de la demande.
+    var DERNIER={};
+    function barreExport(type,objet,pieces,model){
+      DERNIER[type]={objet:objet||'',pieces:pieces||[],model:model||''};
+      return '<div class="bar" style="margin-top:16px">'
+        +'<button class="cta" data-exp="'+type+'" data-fmt="docx" type="button">⬇ Word</button>'
+        +'<button class="cta ghost" data-exp="'+type+'" data-fmt="pdf" type="button">⬇ PDF</button>'
+        +'<span class="cnt" style="align-self:center">Le document exporté porte le routage, '
+        +'les échéances et la qualification — pas seulement le texte rédigé.</span></div>';
+    }
+    document.addEventListener('click',function(e){
+      var b=e.target&&e.target.closest?e.target.closest('[data-exp]'):null;
+      if(!b) return;
+      var type=b.getAttribute('data-exp'), fmt=b.getAttribute('data-fmt');
+      var d=DERNIER[type]||{}, md=(TEXTES[type]||'');
+      if(!md){ return; }
+      var old=b.textContent; b.disabled=true; b.textContent='Préparation…';
+      var nat=[].map.call(document.querySelectorAll('[data-nat]:checked'),function(x){return x.value;});
+      fetch('/api/juridique/export',{method:'POST',
+        headers:{'content-type':'application/json','X-CP-Same-Origin':'1'},
+        body:JSON.stringify({type:type, format:fmt, texte:md, objet:d.objet,
+                             pieces:d.pieces, model:d.model, profil:PROFIL,
+                             dossier:{natures:nat, enjeu:($('arbEnjeu')||{}).value||'moyen'}})})
+        .then(function(r){
+          if(!r.ok) throw new Error('export');
+          var nom=(r.headers.get('content-disposition')||'').match(/filename="?([^";]+)/);
+          return r.blob().then(function(bl){return {bl:bl,nom:nom?nom[1]:('document.'+fmt)};});
+        }).then(function(x){
+          var u=URL.createObjectURL(x.bl), a=document.createElement('a');
+          a.href=u; a.download=x.nom; document.body.appendChild(a); a.click();
+          document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(u);},2000);
+        }).catch(function(){ alert("L'export a échoué. Réessayez dans un instant."); })
+        .then(function(){ b.disabled=false; b.textContent=old; });
+    });
+    var TEXTES={};
+
     function rendreAnalyse(cible,j,titre){
       var h='<div class="card">';
       h+='<div class="cnt" style="margin-bottom:10px">'+esc(titre)+' · modèle '+esc(j.model||'')
@@ -541,6 +579,11 @@
         h+='<div class="srcs">'+j.sources.map(function(s){
              return '<span class="s">['+s.n+'] '+esc(s.titre||'Document')+'</span>';}).join('')+'</div>';
       }
+      var kind=(cible==='cres')?'contrat':'analyse';
+      TEXTES[kind]=j.texte||'';
+      h+=barreExport(kind, (kind==='analyse'?($('q').value||''):'Revue de contrat'),
+                     (j.sources||[]).map(function(s){return {n:s.n,titre:s.titre,origine:'base de connaissance'};}),
+                     j.model);
       h+='</div><div class="card"><div class="avert">'+esc(j.avertissement)
         +'<br><br><b>'+esc(j.mention_ia)+'</b></div></div>';
       $(cible).innerHTML=h;
@@ -736,6 +779,8 @@
             h+='<div class="cit ko" style="margin-top:14px">Aucune pièce n\'a pu être versée au dossier : '
               +'la note repose sur le seul cadre réglementaire. Vérifiez la section « Ce qui manque pour décider ».</div>';
           }
+          TEXTES['arbitrage']=j.texte||'';
+          h+=barreExport('arbitrage', objet, j.pieces||[], j.model);
           h+='</div><div class="card"><div class="avert">'+esc(j.avertissement)
             +'<br><br><b>'+esc(j.mention_ia)+'</b></div></div>';
           $('arbRes').innerHTML=h;
