@@ -83,7 +83,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # si le numéro affiché est plus ancien que la version attendue, le déploiement n'a
 # pas abouti — et aucun correctif récent n'est en ligne. À incrémenter à chaque
 # correctif dont on veut pouvoir confirmer la mise en ligne.
-APP_VERSION = "2026.07.27-11"
+APP_VERSION = "2026.07.28-1"
 
 # --- Sécurité applicative (en-têtes, anti-CSRF, taille de requête) -------------
 # Plafond de taille du corps d'une requête (anti-abus mémoire / DoS).
@@ -2886,7 +2886,68 @@ def health():
     except Exception:
         etat["status"] = "degraded"
         etat["base"] = "inconnue"
+    # Magasin de comptes : simple lecture d'un attribut en mémoire, aucune requête.
+    try:
+        import auth as _auth
+        etat["comptes"] = type(_auth.store).__name__.lstrip("_").lower()
+    except Exception:
+        etat["comptes"] = "inconnu"
+    if request.args.get("detail") == "1":
+        etat.update(_sonde_detaillee())
+        if etat.get("comptes_lecture", "").startswith("echec"):
+            etat["status"] = "degraded"
     return jsonify(**etat), 200
+
+
+_SONDE = {"ts": 0.0, "res": {}}
+_SONDE_TTL = 30.0
+
+
+def _sonde_detaillee():
+    """Sonde approfondie de /health?detail=1 : tente réellement une lecture de la
+    base de comptes et compte les connexions ouvertes.
+
+    Elle existe pour une situation précise et pénible : quand la base de comptes
+    ne répond plus, PERSONNE ne peut se connecter — donc personne ne peut ouvrir
+    le diagnostic d'administration, qui se trouve justement derrière la
+    connexion. Sans sonde publique, on reste dehors sans savoir pourquoi.
+
+    Deux précautions. Le résultat est mis en cache 30 s : sans cela, rafraîchir
+    la page suffirait à faire marteler la base — on offrirait un levier de
+    nuisance sur la ressource déjà en peine. Et il ne sort d'ici QUE des états et
+    des nombres : jamais un hôte, une URL, un identifiant, ni la moindre donnée
+    de compte."""
+    now = time.time()
+    if now - _SONDE["ts"] < _SONDE_TTL and _SONDE["res"]:
+        return dict(_SONDE["res"], mesure="en cache (< 30 s)")
+    res = {}
+    try:
+        import auth as _auth
+        t0 = time.time()
+        # Adresse volontairement inexistante : on teste le CHEMIN d'accès, pas un
+        # compte réel — aucune information sur les comptes ne peut fuir.
+        _auth.store.get("sonde-disponibilite@invalide.local")
+        res["comptes_lecture"] = "ok (%d ms)" % ((time.time() - t0) * 1000)
+    except Exception as exc:
+        res["comptes_lecture"] = "echec : %s" % _exc_detail(exc, 120)
+    dsn = os.environ.get("DATABASE_URL")
+    if not dsn:
+        res["connexions"] = "DATABASE_URL absente de l'environnement"
+    else:
+        try:
+            import psycopg
+            with psycopg.connect(dsn, connect_timeout=6, autocommit=True) as c:
+                used = c.execute("SELECT count(*) FROM pg_stat_activity "
+                                 "WHERE datname=current_database()").fetchone()[0]
+                cap = int(c.execute("SHOW max_connections").fetchone()[0])
+            res["connexions"] = "%d/%d" % (used, cap)
+            if cap and used * 100 // cap >= 85:
+                res["alerte"] = ("plafond de connexions proche : c'est ce qui fait "
+                                 "échouer les nouvelles connexions")
+        except Exception as exc:
+            res["connexions"] = "non mesurable : %s" % _exc_detail(exc, 120)
+    _SONDE["ts"], _SONDE["res"] = now, res
+    return dict(res, mesure="à l'instant")
 
 
 if __name__ == "__main__":
