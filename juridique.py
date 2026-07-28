@@ -1761,3 +1761,529 @@ SUGGESTIONS = [
     {"groupe": "DORA", "q": "Nous sommes prestataire d'un établissement financier : "
                             "quelles clauses DORA vont nous être imposées ?"},
 ]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 8. NOTE D'ARBITRAGE — préparer une décision, pas seulement l'éclairer
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Une analyse juridique répond à « qu'est-ce que dit le droit ? ». Ce n'est pas
+# la question d'un comité de direction : la sienne est « que décide-t-on, qui
+# décide, et avant quand ? ». Entre les deux, il y a les heures passées à
+# éplucher un dossier, à en extraire ce qui compte et à le mettre en forme.
+#
+# Trois choses sont produites ici, et une seule vient du modèle :
+#
+#   1. LE ROUTAGE — qui tranche, qui doit être consulté, qui est informé. Cela
+#      ne s'invente pas : quand le texte réserve une décision à un organe
+#      précis, s'en écarter est un manquement, pas un choix d'organisation.
+#      L'article 20 de NIS 2 impose que l'organe de direction APPROUVE les
+#      mesures de gestion des risques ; l'article 38.1 du RGPD impose que le
+#      délégué soit associé « en temps utile » ; l'article 28.8 de DORA réserve
+#      l'approbation des stratégies de sortie. Un modèle de langage qui
+#      distribuerait ces rôles au jugé produirait une note crédible et fausse.
+#      C'est donc un moteur de règles, comme la qualification.
+#
+#   2. LES ÉCHÉANCES — 24 h, 72 h, un mois. Une échéance réglementaire ne se
+#      négocie pas avec l'agenda des participants : elle commande la réunion.
+#      Elle est donc calculée, datée quand un point de départ est fourni, et
+#      placée en tête de la note.
+#
+#   3. LA SYNTHÈSE, LES OPTIONS, LA RECOMMANDATION — là seulement intervient le
+#      modèle, sur le dossier réellement fourni, avec obligation de citer ses
+#      sources et d'assumer une position.
+
+# --- Instances : qui peut trancher quoi -----------------------------------
+INSTANCES = {
+    "organe-direction": {
+        "libelle": "Organe de direction (conseil, comité exécutif)",
+        "role": "Approuve ce que le texte lui réserve expressément et assume le "
+                "risque résiduel accepté. Sa responsabilité peut être engagée "
+                "personnellement.",
+    },
+    "direction-generale": {
+        "libelle": "Direction générale",
+        "role": "Arbitre l'équilibre risque / coût / délai et engage "
+                "l'organisation vis-à-vis des tiers.",
+    },
+    "direction-juridique": {
+        "libelle": "Direction juridique",
+        "role": "Qualifie la situation, fixe la position contractuelle et la "
+                "stratégie face à une autorité ou à un contradicteur.",
+    },
+    "dpo": {
+        "libelle": "Délégué à la protection des données",
+        "role": "Doit être associé en temps utile à toute question touchant aux "
+                "données personnelles (art. 38.1 du RGPD). Consulté — il ne "
+                "décide pas, et son avis divergent doit être tracé.",
+    },
+    "rssi": {
+        "libelle": "RSSI / responsable de la sécurité",
+        "role": "Apprécie le risque technique, propose les mesures et instruit "
+                "l'acceptation d'un écart.",
+    },
+    "dsi": {
+        "libelle": "DSI",
+        "role": "Se prononce sur la faisabilité, le calendrier et les ressources.",
+    },
+    "surete": {
+        "libelle": "Responsable sûreté de fonctionnement",
+        "role": "Se prononce dès qu'une mesure touche une fonction instrumentée "
+                "de sécurité. En cas de conflit, la sûreté prévaut.",
+    },
+    "metier": {
+        "libelle": "Direction métier concernée",
+        "role": "Porte l'impact opérationnel et la priorisation.",
+    },
+    "achats": {
+        "libelle": "Direction des achats",
+        "role": "Conduit la négociation fournisseur et la sortie de contrat.",
+    },
+    "avocat": {
+        "libelle": "Avocat / conseil externe",
+        "role": "Nécessaire pour un acte juridique, un contentieux ou une "
+                "position à fort enjeu (loi n° 71-1130 du 31 décembre 1971).",
+    },
+    "autorite": {
+        "libelle": "Autorité compétente",
+        "role": "Destinataire d'une notification ou d'une consultation "
+                "préalable. Ce n'est pas un arbitrage interne : c'est une "
+                "échéance qui s'impose au calendrier.",
+    },
+}
+
+# --- Nature du dossier : ce sur quoi porte l'arbitrage ---------------------
+NATURES_DOSSIER = [
+    ("incident-securite", "Incident de sécurité en cours ou récent"),
+    ("violation-donnees", "Violation de données à caractère personnel"),
+    ("mesure-securite", "Mesure de sécurité à décider, ou écart à accepter"),
+    ("contrat-fournisseur", "Contrat fournisseur : signature, renouvellement, avenant"),
+    ("sortie-reversibilite", "Sortie de contrat, réversibilité, changement de prestataire"),
+    ("projet-ia", "Mise en service d'un système d'intelligence artificielle"),
+    ("modification-ia", "Modification d'un système d'IA existant"),
+    ("nouveau-traitement", "Nouveau traitement de données personnelles"),
+    ("transfert-donnees", "Transfert de données hors Union européenne"),
+    ("produit-numerique", "Produit comportant des éléments numériques mis sur le marché"),
+    ("audit-controle", "Contrôle d'une autorité, audit client ou certification"),
+    ("contentieux", "Litige, mise en demeure, contentieux"),
+    ("appel-offres", "Appel d'offres, cahier des charges, réponse à consultation"),
+]
+
+# --- Échéances réglementaires ---------------------------------------------
+# Une échéance ne se négocie pas avec l'agenda des participants : elle commande
+# la réunion. Celles dont la durée exacte dépend de normes techniques encore
+# mouvantes portent `a_verifier` — mieux vaut une échéance signalée à confirmer
+# qu'un chiffre faux affiché avec aplomb.
+DELAIS = [
+    {"id": "rgpd-33", "declencheur": "violation-donnees", "duree": "72 heures",
+     "quoi": "Notification de la violation à l'autorité de contrôle",
+     "fondement": "RGPD, art. 33.1", "depart": "prise de connaissance de la violation",
+     "autorite": "CNIL"},
+    {"id": "rgpd-34", "declencheur": "violation-donnees", "duree": "dans les meilleurs délais",
+     "quoi": "Communication aux personnes concernées si risque élevé pour leurs droits",
+     "fondement": "RGPD, art. 34", "depart": "constat du risque élevé",
+     "autorite": "—"},
+    {"id": "nis2-23-alerte", "declencheur": "incident-securite", "duree": "24 heures",
+     "quoi": "Alerte précoce au CSIRT / à l'autorité compétente",
+     "fondement": "Directive (UE) 2022/2555, art. 23",
+     "depart": "prise de connaissance de l'incident important", "autorite": "ANSSI"},
+    {"id": "nis2-23-notif", "declencheur": "incident-securite", "duree": "72 heures",
+     "quoi": "Notification d'incident (appréciation initiale, gravité, impact)",
+     "fondement": "Directive (UE) 2022/2555, art. 23",
+     "depart": "prise de connaissance de l'incident important", "autorite": "ANSSI"},
+    {"id": "nis2-23-final", "declencheur": "incident-securite", "duree": "1 mois",
+     "quoi": "Rapport final",
+     "fondement": "Directive (UE) 2022/2555, art. 23",
+     "depart": "notification d'incident", "autorite": "ANSSI"},
+    {"id": "dora-19", "declencheur": "incident-securite", "duree": "délais fixés par les normes techniques",
+     "quoi": "Notification d'un incident majeur lié aux TIC",
+     "fondement": "Règlement (UE) 2022/2554, art. 19",
+     "depart": "classification de l'incident comme majeur", "autorite": "ACPR / AMF",
+     "a_verifier": True},
+    {"id": "cra-14", "declencheur": "produit-numerique",
+     "duree": "alerte précoce puis notification puis rapport final",
+     "quoi": "Signalement d'une vulnérabilité activement exploitée ou d'un incident grave",
+     "fondement": "Règlement (UE) 2024/2847, art. 14 — applicable au 11 septembre 2026",
+     "depart": "prise de connaissance", "autorite": "ENISA / autorité de surveillance",
+     "a_verifier": True},
+    {"id": "ai-act-73", "declencheur": "projet-ia", "duree": "sans retard indu",
+     "quoi": "Signalement d'un incident grave par le fournisseur d'un système à haut risque",
+     "fondement": "Règlement (UE) 2024/1689, art. 73",
+     "depart": "établissement du lien de causalité", "autorite": "Autorité de surveillance du marché",
+     "a_verifier": True},
+    {"id": "rgpd-36", "declencheur": "nouveau-traitement", "duree": "avant la mise en œuvre",
+     "quoi": "Consultation préalable de l'autorité si le risque résiduel reste élevé",
+     "fondement": "RGPD, art. 36", "depart": "achèvement de l'analyse d'impact",
+     "autorite": "CNIL"},
+    {"id": "ai-act-6-3", "declencheur": "projet-ia", "duree": "avant la mise sur le marché",
+     "quoi": "Documenter l'évaluation invoquant la dérogation, puis enregistrer le système",
+     "fondement": "Règlement (UE) 2024/1689, art. 6(3) et 49.2",
+     "depart": "décision de mise sur le marché", "autorite": "—"},
+]
+
+
+def _n(dossier):
+    n = (dossier or {}).get("natures") or []
+    if isinstance(n, str):
+        n = [x.strip() for x in n.split(",") if x.strip()]
+    return set(n)
+
+
+def router(profil=None, dossier=None):
+    """Qui tranche, qui est consulté, qui est informé — et avant quand.
+
+    Aucun appel de modèle. Chaque ligne porte son fondement : c'est ce qui
+    permet de dire « ce n'est pas notre organisation qui l'exige, c'est
+    l'article 20 de NIS 2 » — et de le tenir en réunion.
+    """
+    profil, dossier = profil or {}, dossier or {}
+    natures = _n(dossier)
+    qual = qualifier(profil)
+    textes = {x["id"] for x in qual["applicables"]}
+    reserve = {x["id"] for x in qual["a_verifier"]}
+    roles = _roles(profil)
+    enjeu = (dossier.get("enjeu") or "moyen").lower()
+    lignes = []
+
+    def arbitrer(decideur, motif, fondement, consultes=(), informes=(), quand=""):
+        lignes.append({"decideur": decideur,
+                       "decideur_libelle": INSTANCES[decideur]["libelle"],
+                       "role": INSTANCES[decideur]["role"],
+                       "motif": motif, "fondement": fondement,
+                       "consultes": [{"id": c, "libelle": INSTANCES[c]["libelle"]}
+                                     for c in consultes if c in INSTANCES],
+                       "informes": [{"id": i, "libelle": INSTANCES[i]["libelle"]}
+                                    for i in informes if i in INSTANCES],
+                       "quand": quand})
+
+    # ── Ce que le texte réserve expressément ────────────────────────────
+    if "nis2" in textes and natures & {"mesure-securite", "incident-securite"}:
+        arbitrer("organe-direction",
+                 "Les mesures de gestion des risques relèvent de l'approbation de "
+                 "l'organe de direction, qui en supervise la mise en œuvre. "
+                 "Accepter un écart sur ces mesures, c'est une décision qui lui "
+                 "revient — et dont il répond personnellement.",
+                 "Directive (UE) 2022/2555, art. 20",
+                 consultes=("rssi", "direction-juridique"),
+                 informes=("dsi", "metier"),
+                 quand="Avant toute mise en œuvre, et par délibération tracée : "
+                       "ce qui protège n'est pas l'approbation, c'est la trace de "
+                       "l'instruction — risques présentés, options écartées, moyens alloués.")
+    if "dora" in textes and "sortie-reversibilite" in natures:
+        arbitrer("organe-direction",
+                 "La stratégie de sortie applicable aux prestataires tiers de "
+                 "services TIC relève de l'organe de direction.",
+                 "Règlement (UE) 2022/2554, art. 28.8",
+                 consultes=("direction-juridique", "rssi", "achats"),
+                 informes=("dsi",))
+    if "rgpd" in textes and natures & {"nouveau-traitement", "transfert-donnees",
+                                       "violation-donnees", "projet-ia"}:
+        arbitrer("direction-juridique",
+                 "Le délégué à la protection des données doit être associé en "
+                 "temps utile — non pas informé après coup. Il est CONSULTÉ, il "
+                 "ne décide pas : un avis divergent doit être tracé et motivé.",
+                 "RGPD, art. 38.1",
+                 consultes=("dpo",), informes=("direction-generale",))
+
+    # ── Situations d'urgence ────────────────────────────────────────────
+    if "violation-donnees" in natures:
+        arbitrer("direction-generale",
+                 "Une violation de données enclenche une horloge de 72 heures qui "
+                 "prime sur le calendrier interne. La décision de notifier — ou de "
+                 "motiver l'absence de notification — ne peut pas attendre le "
+                 "prochain comité.",
+                 "RGPD, art. 33 et 34",
+                 consultes=("dpo", "direction-juridique", "rssi"),
+                 informes=("metier", "autorite"),
+                 quand="Sous 72 heures à compter de la prise de connaissance.")
+    if "incident-securite" in natures and ("nis2" in textes or "nis2" in reserve):
+        arbitrer("direction-generale",
+                 "L'alerte précoce est due sous 24 heures. Le point à trancher "
+                 "n'est pas « faut-il notifier » mais « qui signe et sur quels "
+                 "éléments », l'appréciation pouvant être complétée ensuite.",
+                 "Directive (UE) 2022/2555, art. 23",
+                 consultes=("rssi", "direction-juridique"),
+                 informes=("dsi", "autorite"),
+                 quand="Sous 24 heures — l'arbitrage doit être organisé en amont, "
+                       "pas improvisé le jour de l'incident.")
+
+    # ── Intelligence artificielle ───────────────────────────────────────
+    if "projet-ia" in natures and "ai-act" in textes:
+        arbitrer("direction-generale",
+                 "Mise en service d'un système d'IA : la classification commande "
+                 "tout le reste. Si l'annexe III est en cause, la dérogation de "
+                 "l'art. 6(3) doit être documentée AVANT mise sur le marché — "
+                 "après, elle n'est plus invocable.",
+                 "Règlement (UE) 2024/1689, art. 6, 26 et 49",
+                 consultes=("direction-juridique", "dpo", "rssi", "metier"),
+                 informes=("dsi",),
+                 quand="Avant mise en service. Une dérogation invoquée sans "
+                       "évaluation préalable écrite est indéfendable.")
+    if "modification-ia" in natures:
+        arbitrer("direction-juridique",
+                 "Modifier un système d'IA, y apposer sa marque ou en changer la "
+                 "destination fait basculer le déployeur dans le statut de "
+                 "fournisseur, avec l'ensemble des obligations correspondantes. "
+                 "L'arbitrage porte sur ce basculement, pas sur la modification.",
+                 "Règlement (UE) 2024/1689, art. 25",
+                 consultes=("dsi", "rssi"), informes=("direction-generale",))
+
+    # ── Contrats et chaîne d'approvisionnement ──────────────────────────
+    if natures & {"contrat-fournisseur", "sortie-reversibilite", "appel-offres"}:
+        cons = ["direction-juridique", "rssi"]
+        if "rgpd" in textes:
+            cons.append("dpo")
+        arbitrer("achats",
+                 "Négociation fournisseur : les exigences de sécurité, d'audit et "
+                 "de réversibilité se gagnent AVANT signature. Après, elles se "
+                 "rachètent — et au prix du fournisseur.",
+                 "NIS 2, art. 21.2.d ; RGPD, art. 28 ; DORA, art. 30",
+                 consultes=cons, informes=("direction-generale", "metier"))
+    if "produit-numerique" in natures and "cra" in textes:
+        arbitrer("direction-generale",
+                 "Produit comportant des éléments numériques : les obligations de "
+                 "signalement et de support conditionnent la mise sur le marché "
+                 "et engagent la responsabilité du fabricant.",
+                 "Règlement (UE) 2024/2847",
+                 consultes=("direction-juridique", "rssi", "dsi"),
+                 informes=("metier",))
+
+    # ── Environnement industriel ────────────────────────────────────────
+    if _vrai(profil, "systeme_ot") and natures & {"mesure-securite", "incident-securite",
+                                                  "contrat-fournisseur"}:
+        arbitrer("rssi",
+                 "Une mesure de cybersécurité qui touche une fonction "
+                 "instrumentée de sécurité ne se tranche pas entre spécialistes "
+                 "de la sécurité seulement. La règle d'arbitrage est écrite : en "
+                 "cas de conflit, la fonction de sûreté prévaut et une mesure "
+                 "compensatoire est recherchée.",
+                 "IEC 61511 ; IEC 62443-3-2",
+                 consultes=("surete", "metier"), informes=("direction-generale",))
+
+    # ── Contentieux et contrôles ────────────────────────────────────────
+    if natures & {"contentieux", "audit-controle"} or enjeu == "eleve":
+        arbitrer("avocat",
+                 "Acte juridique, contentieux ou position à fort enjeu : "
+                 "l'intervention d'un avocat n'est pas une précaution de style, "
+                 "c'est le régime applicable à la consultation juridique.",
+                 "Loi n° 71-1130 du 31 décembre 1971",
+                 consultes=("direction-juridique",),
+                 informes=("direction-generale",))
+
+    # ── Défaut ──────────────────────────────────────────────────────────
+    if not lignes:
+        arbitrer("direction-juridique",
+                 "Aucune règle ne réserve cette décision à un organe particulier : "
+                 "elle relève de la direction juridique, la direction générale "
+                 "étant informée.",
+                 "Répartition interne des compétences",
+                 informes=("direction-generale",))
+
+    # Un même décideur peut être désigné par plusieurs règles : on fusionne les
+    # motifs plutôt que de faire figurer trois fois « Direction générale ».
+    fusion = {}
+    for l in lignes:
+        d = l["decideur"]
+        if d in fusion:
+            f = fusion[d]
+            f["motifs"].append(l["motif"])
+            for k in ("fondement",):
+                if l[k] not in f["fondements"]:
+                    f["fondements"].append(l[k])
+            for c in l["consultes"]:
+                if c not in f["consultes"]:
+                    f["consultes"].append(c)
+            for i in l["informes"]:
+                if i not in f["informes"]:
+                    f["informes"].append(i)
+            if l["quand"] and l["quand"] not in f["quand"]:
+                f["quand"].append(l["quand"])
+        else:
+            fusion[d] = {"decideur": d, "decideur_libelle": l["decideur_libelle"],
+                         "role": l["role"], "motifs": [l["motif"]],
+                         "fondements": [l["fondement"]],
+                         "consultes": list(l["consultes"]),
+                         "informes": list(l["informes"]),
+                         "quand": [l["quand"]] if l["quand"] else []}
+    # Ordre de présentation : du plus contraint au moins contraint.
+    ordre = ["organe-direction", "direction-generale", "avocat", "achats",
+             "direction-juridique", "rssi", "dsi", "metier", "surete"]
+    decisions = sorted(fusion.values(),
+                       key=lambda x: ordre.index(x["decideur"])
+                       if x["decideur"] in ordre else 99)
+
+    echeances = [dict(d) for d in DELAIS if d["declencheur"] in natures]
+
+    return {
+        "version_referentiel": VERSION_REFERENTIEL,
+        "objet": (dossier.get("objet") or "").strip(),
+        "natures": sorted(natures),
+        "decisions": decisions,
+        "echeances": echeances,
+        "qualification": qual,
+        "synthese_routage": _synthese_routage(decisions, echeances),
+        "avertissement": AVERTISSEMENT,
+    }
+
+
+def _synthese_routage(decisions, echeances):
+    if not decisions:
+        return "Aucun arbitrage identifié."
+    qui = decisions[0]["decideur_libelle"]
+    p = "L'arbitrage revient en premier lieu à : %s." % qui
+    if len(decisions) > 1:
+        p += " %d autre(s) instance(s) doivent se prononcer ou être consultées." % (len(decisions) - 1)
+    dures = [e for e in echeances if not e.get("a_verifier")]
+    if dures:
+        p += (" ATTENTION : %d échéance(s) réglementaire(s) s'imposent au calendrier, "
+              "dont « %s » sous %s." % (len(dures), dures[0]["quoi"], dures[0]["duree"]))
+    return p
+
+
+SYSTEM_ARBITRAGE = """Tu prépares une NOTE D'ARBITRAGE destinée à un comité de direction, un comité juridique ou une réunion de négociation. Ton lecteur dispose de dix minutes et doit ressortir avec une décision prise.
+
+Ce n'est PAS une consultation juridique développée : c'est un document de décision. Tu synthétises un dossier, tu fais ressortir ce qui peut faire perdre, tu poses les options avec leurs conséquences, et tu recommandes.
+
+STRUCTURE IMPOSÉE, dans cet ordre exact :
+
+## Décision à prendre
+Une seule phrase, à l'infinitif ou à l'impératif. Ce que le comité doit trancher, pas le contexte.
+
+## L'essentiel
+Cinq lignes maximum. Ce que le lecteur retient s'il ne lit rien d'autre : la situation, l'enjeu chiffré ou qualifié, l'échéance, le sens de ta recommandation.
+
+## Le dossier
+Synthèse factuelle des pièces fournies. Cite tes sources entre crochets [1], [2]. Distingue ce qui est ÉTABLI par les pièces de ce qui est DÉCLARÉ sans preuve au dossier, et de ce qui MANQUE. Ne développe pas le droit ici.
+
+## Points critiques
+Classés du plus grave au moins grave. Pour chacun : le fait, la conséquence concrète, et le texte qui la fonde. Un point critique est ce qui peut faire perdre — pas ce qui est inhabituel. Trois à six points ; si tu en as davantage, c'est que tu n'as pas trié.
+
+## Options
+Deux à quatre options réellement praticables, en tableau : Option | Ce qu'on fait | Conséquence juridique | Risque résiduel | Coût / délai | Réversibilité. Ne présente pas une fausse option pour faire nombre. L'inaction est une option si elle est défendable : dis-le alors franchement.
+
+## Recommandation
+Celle que tu retiendrais, et pourquoi. Assume : une note qui renvoie le comité à son propre arbitrage sans l'éclairer n'a servi à rien. Précise les conditions auxquelles elle tient, et ce qui la ferait changer.
+
+## Ce qui manque pour décider
+Tableau : Pièce ou information manquante | Qui la détient | Pour quand. S'il ne manque rien, écris-le.
+
+## Points de négociation
+Uniquement si le dossier s'y prête. Trois colonnes : ce qui doit être obtenu, ce qui est négociable, ce qui peut être concédé sans risque. Sinon, omets entièrement cette section.
+
+## Réserves
+Ce que tu ne peux pas trancher en l'état, et ce qui y répondrait.
+
+RÈGLES ABSOLUES :
+- Le ROUTAGE DES DÉCISIONS et les ÉCHÉANCES te sont fournis, calculés par l'application. Reprends-les tels quels, n'en invente aucun autre, ne redistribue pas les rôles. Si tu estimes qu'un autre acteur devrait se prononcer, dis-le en Réserves.
+- N'invente JAMAIS une référence : pas de numéro d'article, de considérant ou de date absent du référentiel autorisé ou des extraits fournis.
+- N'invente JAMAIS un fait du dossier. Si une information usuelle est absente, elle va dans « Ce qui manque pour décider ». Une note d'arbitrage bâtie sur des faits supposés fait prendre une décision fausse — c'est pire que pas de note.
+- Chiffre ce qui est chiffrable (délais, plafonds, durées) ; écris « non chiffrable en l'état » sinon, jamais un ordre de grandeur inventé.
+- Écris dense. Pas de formule de politesse, pas d'introduction sur ce que tu vas faire, pas de conclusion qui répète.
+- Français, phrases courtes, ton de professionnel qui engage sa signature.
+
+Tu termines par la section Réserves, puis rien d'autre : l'avertissement légal est ajouté par l'application."""
+
+
+def _bloc_routage(rt):
+    """Routage et échéances transmis au modèle — pour qu'il les reprenne, pas
+    pour qu'il les recalcule."""
+    out = ["ROUTAGE DES DÉCISIONS — calculé par l'application selon des règles "
+           "explicites. À REPRENDRE TEL QUEL dans la note, sans redistribution :"]
+    for d in rt["decisions"]:
+        out.append("• DÉCIDE : %s" % d["decideur_libelle"])
+        out.append("   fondement : %s" % " ; ".join(d["fondements"]))
+        for m in d["motifs"]:
+            out.append("   motif : %s" % m)
+        if d["consultes"]:
+            out.append("   consultés : %s" % ", ".join(c["libelle"] for c in d["consultes"]))
+        if d["informes"]:
+            out.append("   informés : %s" % ", ".join(i["libelle"] for i in d["informes"]))
+        for q in d["quand"]:
+            out.append("   quand : %s" % q)
+    if rt["echeances"]:
+        out.append("")
+        out.append("ÉCHÉANCES RÉGLEMENTAIRES applicables — elles commandent le "
+                   "calendrier de la réunion, place-les en tête de la note :")
+        for e in rt["echeances"]:
+            out.append("• %s — %s (à compter de : %s) — %s%s"
+                       % (e["quoi"], e["duree"], e["depart"], e["fondement"],
+                          " [DURÉE À CONFIRMER]" if e.get("a_verifier") else ""))
+    return "\n".join(out)
+
+
+def prompt_arbitrage(objet, contexte=None, extraits=None, profil=None,
+                     dossier=None, textes_ids=None):
+    """Construit le message utilisateur d'une note d'arbitrage.
+
+    `extraits` : passages des pièces du dossier, déjà numérotés [1], [2]…
+    `contexte` : éléments saisis par l'utilisateur et absents des pièces.
+    """
+    dossier = dict(dossier or {})
+    if objet:
+        dossier.setdefault("objet", objet)
+    rt = router(profil, dossier)
+    if not textes_ids:
+        textes_ids = ([x["id"] for x in rt["qualification"]["applicables"]]
+                      + [x["id"] for x in rt["qualification"]["a_verifier"]])
+    textes_ids = textes_ids or [t["id"] for t in REFERENTIEL]
+
+    p = ["DÉCISION À PRÉPARER :", str(objet or "").strip()[:2000], ""]
+
+    p.append("QUALIFICATION RÉGLEMENTAIRE déjà établie par l'application "
+             "(règles explicites, sans IA) — reprends-la, ne la refais pas :")
+    for x in rt["qualification"]["applicables"]:
+        p.append("- [applicable] %s : %s" % (x["titre"], " ".join(x["motifs"])))
+    for x in rt["qualification"]["a_verifier"]:
+        p.append("- [à confirmer] %s : %s" % (x["titre"], " ".join(x["motifs"])))
+    p.append("")
+
+    p.append(_bloc_routage(rt))
+    p.append("")
+
+    p.append("RÉFÉRENTIEL AUTORISÉ — seules ces références peuvent être citées :")
+    p.append(_bloc_referentiel(textes_ids))
+    p.append("")
+
+    bc = _bloc_controverses(textes_ids)
+    if bc:
+        p.append(bc)
+        p.append("")
+
+    if contexte and str(contexte).strip():
+        p.append("ÉLÉMENTS FOURNIS PAR LE DEMANDEUR (hors pièces du dossier) — "
+                 "à traiter comme DÉCLARÉS et non établis, sauf corroboration "
+                 "par une pièce :")
+        p.append(str(contexte).strip()[:6000])
+        p.append("")
+
+    if extraits and str(extraits).strip():
+        p.append("PIÈCES DU DOSSIER — c'est la matière de ta synthèse. Cite-les "
+                 "entre crochets [1], [2]. Ce qui n'y figure pas n'est PAS un fait "
+                 "établi :")
+        p.append(extraits if isinstance(extraits, str) else "\n\n".join(extraits))
+    else:
+        p.append("PIÈCES DU DOSSIER : AUCUNE pièce n'a été fournie. Signale-le dès "
+                 "« L'essentiel », construis la note sur le seul cadre "
+                 "réglementaire, et fais figurer en tête de « Ce qui manque pour "
+                 "décider » les pièces indispensables à un arbitrage éclairé.")
+    return "\n".join(p)
+
+
+# Amorces propres à l'arbitrage : ce qu'un dirigeant demande réellement.
+SUGGESTIONS_ARBITRAGE = [
+    {"groupe": "Incident", "q": "Notre prestataire nous signale une intrusion sur "
+                                "son infrastructure : que devons-nous décider, dans "
+                                "quel ordre et avant quand ?"},
+    {"groupe": "Fournisseur", "q": "Faut-il signer en l'état le contrat "
+                                   "d'infogérance, ou bloquer la signature sur les "
+                                   "clauses d'audit et de réversibilité ?"},
+    {"groupe": "IA", "q": "Pouvons-nous mettre en service notre outil de scoring "
+                          "avant le 2 août 2026, et à quelles conditions ?"},
+    {"groupe": "Sortie", "q": "Sortir du contrat maintenant en payant l'indemnité, "
+                              "ou aller au terme en sécurisant la réversibilité ?"},
+    {"groupe": "Écart", "q": "Pouvons-nous accepter de reporter d'un an la "
+                             "segmentation du réseau industriel, et qui doit en "
+                             "porter la décision ?"},
+    {"groupe": "Contrôle", "q": "L'autorité nous demande des éléments sous quinze "
+                                "jours : que produisons-nous, et que gardons-nous ?"},
+]

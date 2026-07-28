@@ -138,6 +138,7 @@
         <button class="tab" id="t-ana" data-p="p-ana" role="tab" aria-selected="false">2 · Analyse d'une question</button>
         <button class="tab" id="t-cla" data-p="p-cla" role="tab" aria-selected="false">3 · Clausier fournisseurs</button>
         <button class="tab" id="t-con" data-p="p-con" role="tab" aria-selected="false">4 · Revue de contrat</button>
+        <button class="tab" id="t-arb" data-p="p-arb" role="tab" aria-selected="false">5 · Note d'arbitrage</button>
         <button class="tab" id="t-ref" data-p="p-ref" role="tab" aria-selected="false">Référentiel</button>
       </div>
 
@@ -228,6 +229,71 @@
           <div class="msg" id="cmsg"></div>
         </div>
         <div class="res" id="cres"></div>
+      </div>
+
+      <!-- ── 5. NOTE D'ARBITRAGE ──────────────────────────────────────── -->
+      <div class="pan" id="p-arb" role="tabpanel">
+        <div class="card">
+          <h3 style="margin:0 0 6px">Préparer une décision</h3>
+          <p style="font-size:13px;color:var(--muted);margin:0 0 16px;line-height:1.65">
+            Pour une réunion de direction ou une négociation. Trois choses sont produites, et
+            <strong>une seule vient du modèle</strong> : le <strong>routage</strong> — qui tranche, qui est
+            consulté — est calculé par règles, parce que lorsqu'un texte réserve une décision à un organe,
+            s'en écarter est un manquement et non un choix d'organisation ; les <strong>échéances</strong>
+            réglementaires commandent le calendrier ; la <em>synthèse, les options et la recommandation</em>
+            sont rédigées sur les seules pièces fournies.</p>
+          <div id="arbProfil" class="cit ko" style="display:none">
+            <b>Profil non renseigné.</b> Le routage des décisions se déduit de votre secteur, de votre
+            taille et de vos rôles : sans eux, le moteur ne peut pas savoir qu'une décision doit remonter
+            à l'organe de direction plutôt qu'à la direction juridique. Renseignez l'onglet
+            <b>1 · Qualification</b> — la note reste produite sans, mais son routage sera générique.
+          </div>
+          <div class="fld">
+            <label for="arbObjet">Décision à préparer</label>
+            <input type="text" id="arbObjet" placeholder="Exemple : accepter le report d'un an de la segmentation du réseau industriel ?">
+          </div>
+          <div class="sug" id="arbSug"></div>
+          <div class="fld" style="margin-top:14px">
+            <label>Nature du dossier</label>
+            <div class="chk" id="arbNat"></div>
+            <div class="aide">Détermine les échéances applicables et l'instance qui doit trancher.</div>
+          </div>
+          <div class="frow" style="margin-top:14px">
+            <div class="fld"><label for="arbEnjeu">Niveau d'enjeu</label>
+              <select id="arbEnjeu"><option value="moyen">Moyen</option><option value="eleve">Élevé</option><option value="faible">Faible</option></select>
+              <div class="aide">Un enjeu élevé appelle systématiquement un conseil externe.</div></div>
+            <div class="fld"><label for="arbModel">Modèle</label>
+              <select id="arbModel"><option value="claude">Claude</option><option value="mistral">Mistral</option></select></div>
+          </div>
+          <div class="fld" style="margin-top:14px">
+            <label for="arbContexte">Contexte (éléments non présents dans les pièces)</label>
+            <textarea id="arbContexte" style="min-height:80px" placeholder="Ce que vous savez et qui ne figure pas au dossier. Traité comme déclaré, non comme établi."></textarea>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin:0 0 6px">Pièces du dossier</h3>
+          <p style="font-size:13px;color:var(--muted);margin:0 0 14px;line-height:1.65">
+            Désignez les documents à verser au dossier : ils sont lus <strong>intégralement</strong>, pas
+            recherchés par similarité — quand on soumet un contrat à un comité, on veut la pièce, pas les
+            trois passages les plus ressemblants. Sans désignation, les extraits les plus pertinents de la
+            base sont retrouvés automatiquement, et leur origine est indiquée dans la note.</p>
+          <div class="bar" style="margin-top:0">
+            <div class="fld" style="flex:1;min-width:220px"><label for="arbQ">Filtrer les documents</label>
+              <input type="text" id="arbQ" placeholder="Titre, thème…"></div>
+            <span class="cnt" id="arbCount" style="align-self:flex-end;padding-bottom:10px"></span>
+          </div>
+          <div id="arbDocs" style="max-height:260px;overflow-y:auto;border:1px solid var(--line);border-radius:9px;padding:10px"></div>
+          <div class="fld" style="margin-top:14px">
+            <label for="arbTexte">…ou coller une pièce</label>
+            <textarea id="arbTexte" style="min-height:100px" placeholder="Clause, courrier, compte rendu…"></textarea>
+          </div>
+          <div class="bar">
+            <button class="cta" id="arbBtn" type="button">Préparer la note</button>
+          </div>
+          <div class="msg" id="arbMsg"></div>
+        </div>
+        <div class="res" id="arbRes"></div>
       </div>
 
       <!-- ── RÉFÉRENTIEL ──────────────────────────────────────────────── -->
@@ -366,6 +432,7 @@
         b.classList.add('on'); b.setAttribute('aria-selected','true');
         var p=$(b.dataset.p); if(p) p.classList.add('on');
         if(b.dataset.p==='p-cla') chargerClausier();
+        if(b.dataset.p==='p-arb') arbCharger();
         if(b.dataset.p==='p-ref') rendreReferentiel();
       });
     });
@@ -425,6 +492,7 @@
         body:JSON.stringify({profil:p})},20000).then(function(j){
         if(!j||!j.ok){ msg('qmsg',(j&&j.message)||'Qualification impossible.','err'); return; }
         msg('qmsg','','');
+        var av=$('arbProfil'); if(av) av.style.display='none';
         var h='<div class="card"><h3 style="margin:0 0 8px">Résultat</h3>'
               +'<p style="font-size:13px;color:var(--muted);margin:0 0 4px;line-height:1.65">'+esc(j.synthese)+'</p>'
               +'<div class="cnt">Référentiel version '+esc(j.version_referentiel)+' · calcul déterministe, sans IA</div></div>';
@@ -549,6 +617,132 @@
       }).catch(function(e){
         if(e.message!=='auth') msg('cmsg','Revue interrompue (délai dépassé ou service indisponible). Réessayez.','err');
       }).then(function(){ b.disabled=false; });
+    });
+
+    // ── Note d'arbitrage ───────────────────────────────────────────────
+    // Le routage et les échéances viennent du serveur, calculés par règles :
+    // ils sont affichés SÉPARÉMENT de la note rédigée, pour qu'on voie d'un
+    // coup d'œil ce qui est déduit d'un texte et ce qui est rédigé par le modèle.
+    var ARB={docs:[],charge:false};
+    function arbProfilRenseigne(){
+      // « Renseigné » veut dire : de quoi faire tourner les règles. Un secteur
+      // ou un rôle suffit ; un formulaire ouvert mais vide ne compte pas.
+      var p=PROFIL||{};
+      return !!(p.secteur || (p.roles&&p.roles.length) || p.donnees_personnelles
+                || p.systeme_ot || p.secteur_financier || (p.ia_usage&&p.ia_usage!=='aucun'));
+    }
+    function arbCharger(){
+      var av=$('arbProfil');
+      if(av) av.style.display=arbProfilRenseigne()?'none':'block';
+      if(ARB.charge) return; ARB.charge=true;
+      api('/api/juridique/instances',{},20000).then(function(j){
+        if(!j||!j.ok) return;
+        $('arbNat').innerHTML=j.natures.map(function(n){
+          return '<label><input type="checkbox" data-nat value="'+esc(n.v)+'">'+esc(n.l)+'</label>';}).join('');
+        $('arbSug').innerHTML=j.suggestions.map(function(x){
+          return '<button type="button" data-q="'+esc(x.q)+'">'+esc(x.groupe)+' — '+esc(x.q)+'</button>';}).join('');
+        [].forEach.call($('arbSug').querySelectorAll('button'),function(b){
+          b.addEventListener('click',function(){ $('arbObjet').value=b.dataset.q; $('arbObjet').focus(); });
+        });
+      }).catch(function(){});
+      // Les documents versables au dossier : ceux que l'appelant a le droit de voir.
+      api('/api/juridique/dossier-documents',{},20000).then(function(j){
+        if(!j||!j.ok){ $('arbDocs').innerHTML='<div class="cnt">Base de connaissance indisponible — vous pouvez coller une pièce ci-dessous.</div>'; return; }
+        ARB.docs=j.documents||[];
+        arbRendreDocs();
+      }).catch(function(){
+        $('arbDocs').innerHTML='<div class="cnt">Base de connaissance indisponible — vous pouvez coller une pièce ci-dessous.</div>';
+      });
+    }
+    function arbRendreDocs(){
+      var q=($('arbQ').value||'').trim().toLowerCase();
+      var l=ARB.docs.filter(function(d){
+        if(!q) return true;
+        return ((d.title||'')+' '+(d.theme||'')).toLowerCase().indexOf(q)>=0;
+      });
+      var coches=arbCoches();
+      $('arbCount').textContent=l.length+' / '+ARB.docs.length+' document'+(ARB.docs.length>1?'s':'')
+        +(coches.length?(' · '+coches.length+' au dossier'):'');
+      $('arbDocs').innerHTML=l.length?l.map(function(d){
+        var c=coches.indexOf(d.id)>=0?' checked':'';
+        return '<label style="display:flex;gap:8px;align-items:flex-start;padding:6px 4px;font-size:12.5px;cursor:pointer;text-transform:none;letter-spacing:normal;margin:0">'
+          +'<input type="checkbox" data-doc value="'+esc(d.id)+'"'+c+' style="width:auto;margin:3px 0 0">'
+          +'<span><b style="color:var(--ink)">'+esc(d.title||'Document')+'</b>'
+          +'<span class="cnt" style="display:block">'+esc(d.theme||'non classé')
+          +(d.visibility==='internal'?' · interne':'')+'</span></span></label>';
+      }).join(''):'<div class="cnt">Aucun document ne correspond.</div>';
+    }
+    function arbCoches(){
+      return ARB.coches||[];
+    }
+    $('arbQ').addEventListener('input',function(){ arbRendreDocs(); });
+    // Les cases cochées doivent survivre au filtrage : on mémorise la sélection.
+    $('arbDocs').addEventListener('change',function(e){
+      if(!e.target||!e.target.hasAttribute('data-doc')) return;
+      ARB.coches=ARB.coches||[];
+      var v=e.target.value, i=ARB.coches.indexOf(v);
+      if(e.target.checked){ if(i<0) ARB.coches.push(v); } else if(i>=0){ ARB.coches.splice(i,1); }
+      var n=ARB.coches.length;
+      $('arbCount').textContent=$('arbCount').textContent.replace(/( · \d+ au dossier)?$/, n?(' · '+n+' au dossier'):'');
+    });
+
+    function arbRendreRoutage(rt){
+      var h='<div class="card"><h3 style="margin:0 0 8px">Qui tranche, et avant quand</h3>'
+        +'<p style="font-size:12.5px;color:var(--muted);margin:0 0 6px;line-height:1.65">'+esc(rt.synthese_routage)+'</p>'
+        +'<div class="cnt" style="margin-bottom:14px">Calcul déterministe, sans IA — chaque ligne porte son fondement.</div>';
+      if(rt.echeances&&rt.echeances.length){
+        h+='<div class="cit ko" style="margin-bottom:14px"><b>⏱ Échéances réglementaires</b><br>'
+          +rt.echeances.map(function(e){
+            return '<b>'+esc(e.duree)+'</b> — '+esc(e.quoi)+' <span class="cnt">('+esc(e.fondement)
+              +' · à compter de : '+esc(e.depart)+(e.autorite&&e.autorite!=='—'?(' · '+esc(e.autorite)):'')+')</span>'
+              +(e.a_verifier?' <span class="pill wr">durée à confirmer</span>':'');
+          }).join('<br>')+'</div>';
+      }
+      h+=rt.decisions.map(function(d){
+        return '<div class="txt"><div class="m">'+esc(d.fondements.join(' · '))+'</div>'
+          +'<div class="t">'+esc(d.decideur_libelle)+' <span class="pill hi">décide</span></div>'
+          +'<div class="o">'+esc(d.role)+'</div>'
+          +d.motifs.map(function(m){return '<div class="mot">'+esc(m)+'</div>';}).join('')
+          +(d.consultes.length?'<div class="jal"><b>Consultés :</b> '+d.consultes.map(function(c){return esc(c.libelle);}).join(' · ')+'</div>':'')
+          +(d.informes.length?'<div class="jal"><b>Informés :</b> '+d.informes.map(function(i){return esc(i.libelle);}).join(' · ')+'</div>':'')
+          +(d.quand.length?'<div class="jal"><b>Quand :</b> '+d.quand.map(esc).join(' ')+'</div>':'')
+          +'</div>';
+      }).join('');
+      return h+'</div>';
+    }
+
+    $('arbBtn').addEventListener('click',function(){
+      var objet=($('arbObjet').value||'').trim();
+      if(!objet){ msg('arbMsg','Indiquez la décision à préparer.','err'); return; }
+      var nat=[].map.call(document.querySelectorAll('[data-nat]:checked'),function(x){return x.value;});
+      var b=this; b.disabled=true;
+      msg('arbMsg','Préparation de la note — comptez 30 à 90 secondes selon le volume du dossier.','wait');
+      api('/api/juridique/arbitrage',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({objet:objet, contexte:$('arbContexte').value,
+                             texte:$('arbTexte').value, doc_ids:arbCoches(),
+                             profil:PROFIL, model:$('arbModel').value,
+                             dossier:{natures:nat, enjeu:$('arbEnjeu').value}})},180000)
+        .then(function(j){
+          if(!j||!j.ok){ msg('arbMsg',(j&&j.message)||'Note impossible.','err'); return; }
+          msg('arbMsg','','');
+          var h=arbRendreRoutage(j.routage);
+          h+='<div class="card"><div class="cnt" style="margin-bottom:10px">Note d\'arbitrage · modèle '
+            +esc(j.model||'')+' · référentiel '+esc(j.version_referentiel||'')+'</div>'
+            +rendreCitations(j.citations)+'<div class="doc">'+mdToHtml(j.texte)+'</div>';
+          if(j.pieces&&j.pieces.length){
+            h+='<div class="srcs">'+j.pieces.map(function(p){
+              return '<span class="s">['+p.n+'] '+esc(p.titre)+' — '+esc(p.origine)+'</span>';}).join('')+'</div>';
+          } else {
+            h+='<div class="cit ko" style="margin-top:14px">Aucune pièce n\'a pu être versée au dossier : '
+              +'la note repose sur le seul cadre réglementaire. Vérifiez la section « Ce qui manque pour décider ».</div>';
+          }
+          h+='</div><div class="card"><div class="avert">'+esc(j.avertissement)
+            +'<br><br><b>'+esc(j.mention_ia)+'</b></div></div>';
+          $('arbRes').innerHTML=h;
+          $('arbRes').scrollIntoView({behavior:'smooth',block:'start'});
+        }).catch(function(e){
+          if(e.message!=='auth') msg('arbMsg','Préparation interrompue (délai dépassé ou service indisponible). Réessayez.','err');
+        }).then(function(){ b.disabled=false; });
     });
 
     // ── Référentiel ────────────────────────────────────────────────────

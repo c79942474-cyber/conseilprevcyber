@@ -85,7 +85,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # si le numéro affiché est plus ancien que la version attendue, le déploiement n'a
 # pas abouti — et aucun correctif récent n'est en ligne. À incrémenter à chaque
 # correctif dont on veut pouvoir confirmer la mise en ligne.
-APP_VERSION = "2026.07.28-9"
+APP_VERSION = "2026.07.28-10"
 
 # Horodatage de démarrage du processus (voir /health : « demarre_depuis_s »).
 _DEMARRAGE = time.time()
@@ -1114,6 +1114,161 @@ def api_juridique_contrat():
                              % (len(texte_contrat), len(res["citations"]["suspectes"])),
                       ok=not res["citations"]["suspectes"])
     return jsonify(ok=True, model=used, caracteres=len(texte_contrat), **res)
+
+
+@app.route("/api/juridique/arbitrage", methods=["POST"])
+@login_required
+def api_juridique_arbitrage():
+    """Note d'arbitrage : synthétiser un dossier et préparer la décision.
+
+    Ce qu'attend un comité de direction n'est pas « que dit le droit » mais
+    « que décide-t-on, qui décide, avant quand ». Trois choses sont donc
+    produites, et une seule vient du modèle :
+      - le ROUTAGE (qui tranche, qui est consulté) — moteur de règles, car
+        lorsqu'un texte réserve une décision à un organe, s'en écarter est un
+        manquement et non un choix d'organisation ;
+      - les ÉCHÉANCES réglementaires — elles commandent le calendrier ;
+      - la SYNTHÈSE, les OPTIONS et la RECOMMANDATION — le modèle, sur les
+        seules pièces réellement fournies.
+
+    Le dossier se compose de sources cumulables : des documents DÉSIGNÉS dans la
+    base de connaissance, un texte collé, et le contexte saisi. Les documents
+    désignés sont lus INTÉGRALEMENT et non recherchés par similarité : quand on
+    soumet un contrat à un comité, on ne veut pas les trois passages les plus
+    ressemblants, on veut la pièce.
+    """
+    ckey = "jura:%s" % client_ip()
+    if guard.blocked(ckey, limit=8, window=600):
+        return jsonify(ok=False, error="rate_limited",
+                       message="Trop de notes d'arbitrage en peu de temps. "
+                               "Patientez quelques minutes."), 429
+    guard.fail(ckey)
+
+    data = request.get_json(silent=True) or {}
+    objet = (data.get("objet") or "").strip()
+    if not objet:
+        return jsonify(ok=False, error="objet_vide",
+                       message="Indiquez la décision à préparer."), 400
+    objet = objet[:2000]
+    profil = data.get("profil") if isinstance(data.get("profil"), dict) else None
+    dossier = data.get("dossier") if isinstance(data.get("dossier"), dict) else {}
+    dossier["objet"] = objet
+    contexte = (data.get("contexte") or "").strip()[:6000]
+    colle = (data.get("texte") or "").strip()
+    doc_ids = [str(d) for d in (data.get("doc_ids") or [])
+               if _rag_valid_doc_id(str(d))][:12]
+    model = "mistral" if data.get("model") == "mistral" else "claude"
+
+    # ── Constitution du dossier ─────────────────────────────────────────
+    extraits, pieces, n = [], [], 0
+    interne = _is_admin_request()
+    try:
+        catalogue = {d["id"]: d for d in rag.list_documents()}
+    except Exception:
+        catalogue = {}
+    for doc_id in doc_ids:
+        meta = catalogue.get(doc_id)
+        if not meta:
+            continue
+        # Un document interne ne devient pas lisible parce qu'on l'a désigné :
+        # le périmètre suit l'identité de l'appelant, ici comme ailleurs.
+        if meta.get("visibility") == "internal" and not interne:
+            continue
+        try:
+            # document_text renvoie {title, filename, theme, text} : c'est le
+            # texte réassemblé des fragments indexés qui nous intéresse.
+            texte = (rag.document_text(doc_id, limit=24000) or {}).get("text") or ""
+        except Exception:
+            app.logger.exception("arbitrage : pièce %r illisible", doc_id)
+            continue
+        if not texte.strip():
+            continue
+        n += 1
+        extraits.append("[%d] %s (%s)\n%s"
+                        % (n, str(meta.get("title") or "Document")[:140],
+                           meta.get("theme") or "non classé", texte[:24000]))
+        pieces.append({"n": n, "titre": str(meta.get("title") or "Document")[:140],
+                       "theme": meta.get("theme"), "doc_id": doc_id,
+                       "origine": "document désigné"})
+    if colle:
+        n += 1
+        extraits.append("[%d] Pièce collée par le demandeur\n%s" % (n, colle[:24000]))
+        pieces.append({"n": n, "titre": "Pièce collée", "origine": "saisie"})
+
+    # Aucune pièce désignée : on complète par une recherche sur l'objet plutôt
+    # que de laisser la note sans matière. L'origine est renvoyée à l'interface —
+    # une pièce choisie n'a pas le même poids qu'un extrait retrouvé.
+    if not extraits:
+        try:
+            for h in rag.search(objet, k=6, public_only=not interne):
+                n += 1
+                extraits.append("[%d] %s (extrait retrouvé automatiquement)\n%s"
+                                % (n, str(h.get("title") or "")[:140],
+                                   str(h.get("text") or "")[:1200]))
+                pieces.append({"n": n, "titre": str(h.get("title") or "")[:140],
+                               "theme": h.get("theme"), "doc_id": h.get("doc_id"),
+                               "origine": "recherche automatique"})
+        except Exception:
+            pass
+
+    routage = juridique.router(profil, dossier)
+    textes_ids = ([x["id"] for x in routage["qualification"]["applicables"]]
+                  + [x["id"] for x in routage["qualification"]["a_verifier"]])
+    user = juridique.prompt_arbitrage(
+        objet, contexte=contexte,
+        extraits="\n\n".join(extraits) if extraits else None,
+        profil=profil, dossier=dossier, textes_ids=textes_ids)
+    try:
+        texte, used = assistant.generate(model, juridique.SYSTEM_ARBITRAGE, user,
+                                         max_tokens=4000)
+    except assistant.AssistantError as exc:
+        return jsonify(ok=False, error=exc.code,
+                       message=_JURIDIQUE_ERREURS.get(
+                           exc.code, "Note indisponible pour le moment.")), exc.status
+
+    res = juridique.post_traiter(texte, textes_ids)
+    audit.journaliser("juridique.arbitrage", cible=used,
+                      detail="%d pièce(s), %d décideur(s), %d échéance(s), "
+                             "%d référence(s) suspecte(s)"
+                             % (len(pieces), len(routage["decisions"]),
+                                len(routage["echeances"]),
+                                len(res["citations"]["suspectes"])),
+                      ok=not res["citations"]["suspectes"])
+    return jsonify(ok=True, model=used, pieces=pieces, routage=routage, **res)
+
+
+@app.route("/api/juridique/dossier-documents")
+@login_required
+def api_juridique_dossier_documents():
+    """Documents versables à un dossier d'arbitrage.
+
+    Périmètre lié à l'identité, comme partout : un client connecté ne voit que
+    les documents publics, l'administrateur voit aussi les documents internes.
+    On ne renvoie que ce qui sert à choisir — jamais le contenu.
+    """
+    interne = _is_admin_request()
+    try:
+        docs = rag.list_documents()
+    except Exception:
+        return jsonify(ok=False, error="base_indisponible",
+                       message="Base de connaissance momentanément indisponible."), 503
+    out = [{"id": d["id"], "title": d.get("title"), "theme": d.get("theme"),
+            "visibility": d.get("visibility"), "bytes": d.get("bytes"),
+            "status": d.get("status")}
+           for d in docs
+           if d.get("status") == "ready"
+           and (interne or d.get("visibility") != "internal")]
+    return jsonify(ok=True, documents=out, interne=interne)
+
+
+@app.route("/api/juridique/instances")
+@login_required
+def api_juridique_instances():
+    """Catalogue des instances et des natures de dossier, pour l'interface."""
+    return jsonify(ok=True, instances=juridique.INSTANCES,
+                   natures=[{"v": v, "l": l} for v, l in juridique.NATURES_DOSSIER],
+                   delais=juridique.DELAIS,
+                   suggestions=juridique.SUGGESTIONS_ARBITRAGE)
 
 
 def _json_champ(valeur):
