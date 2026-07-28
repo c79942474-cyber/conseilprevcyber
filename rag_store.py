@@ -34,6 +34,7 @@ import math
 import os
 import re
 import threading
+from contextlib import contextmanager
 import time
 import uuid
 
@@ -849,6 +850,8 @@ class PostgresRagStore:
         # préparée sur une connexion puis rejouée sur une autre échoue (« prepared
         # statement does not exist ») et fait échouer l'enregistrement. Sans effet
         # notable sur une connexion directe.
+        self._dsn = dsn
+        self.replis_directs = 0
         self._pool = ConnectionPool(dsn, min_size=1, max_size=4,
                                     kwargs={"autocommit": True, "prepare_threshold": None},
                                     timeout=12, open=True,
@@ -863,8 +866,52 @@ class PostgresRagStore:
                 pass
             raise
 
+    @contextmanager
+    def _conn(self):
+        """Connexion pour une opération, avec REPLI SUR UNE CONNEXION DIRECTE.
+
+        Même remède que pour le magasin de comptes, et pour la même raison,
+        observée en production : la base répondait parfaitement (une connexion
+        directe s'établissait dans la seconde) pendant que toute opération
+        échouait en « PoolTimeout ». Après un incident, psycopg_pool se met en
+        retrait et refuse d'ouvrir de nouvelles connexions pendant plusieurs
+        minutes ; les demandes attendent leur délai puis échouent.
+
+        Ici l'enjeu est plus lourd que pour les comptes : c'est la CONSTRUCTION
+        du magasin qui passait par le pool. Un seul PoolTimeout à cet instant
+        condamnait toute la base de connaissance au mode mémoire — documents non
+        conservés — alors que la base était joignable. Le repli direct supprime
+        cette condamnation.
+
+        Seul l'échec d'ACQUISITION est traité : une erreur survenant DANS la
+        requête remonte normalement à l'appelant."""
+        import psycopg
+        try:
+            conn = self._pool.getconn(timeout=12)
+        except Exception as exc:
+            self.replis_directs += 1
+            _log.warning("RAG : pool indisponible (%s) — connexion directe pour "
+                         "cette opération (%d au total).",
+                         type(exc).__name__, self.replis_directs)
+            direct = psycopg.connect(self._dsn, autocommit=True, prepare_threshold=None)
+            try:
+                yield direct
+            finally:
+                try:
+                    direct.close()
+                except Exception:
+                    pass
+            return
+        try:
+            yield conn
+        finally:
+            try:
+                self._pool.putconn(conn)
+            except Exception:
+                pass
+
     def _init_schema(self):
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             conn.execute("SELECT pg_advisory_lock(%s)", (self._SCHEMA_LOCK,))
             try:
                 for stmt in _BASE_SCHEMA:
@@ -924,7 +971,7 @@ class PostgresRagStore:
         uid = uuid.uuid4().hex
         # purge opportuniste des uploads inachevés (> 1 h)
         try:
-            with self._pool.connection() as conn:
+            with self._conn() as conn:
                 conn.execute("DELETE FROM rag_uploads WHERE created_at < %s",
                              (_now_ms() - 3600_000,))
         except Exception:
@@ -934,7 +981,7 @@ class PostgresRagStore:
     def add_chunk(self, upload_id, idx, data):
         if len(data) > MAX_CHUNK_UPLOAD + 4096:
             raise RagError("morceau_trop_grand", 413)
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             total = conn.execute("SELECT COALESCE(SUM(octet_length(data)),0) "
                                  "FROM rag_uploads WHERE upload_id=%s",
                                  (upload_id,)).fetchone()[0]
@@ -947,7 +994,7 @@ class PostgresRagStore:
 
     def finish_upload(self, upload_id, title, theme, visibility):
         ext = (upload_id.rsplit(".", 1)[-1] if "." in upload_id else "").lower()
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             rows = conn.execute("SELECT data FROM rag_uploads WHERE upload_id=%s "
                                 "ORDER BY idx", (upload_id,)).fetchall()
             if not rows:
@@ -970,7 +1017,7 @@ class PostgresRagStore:
         """Ingestion directe (API / automatisations) : mêmes validations que l'upload.
         Idempotent : si le contenu est déjà présent, renvoie le document existant."""
         ext = validate_ext(filename)
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             return self._ingest(conn, filename, ext, data, title, theme, visibility,
                                 dedupe="skip")
 
@@ -1063,7 +1110,7 @@ class PostgresRagStore:
     def index_next(self, doc_id, batch=EMBED_BATCH):
         """Embarque le prochain lot de chunks (piloté par le client). En mode
         plein-texte, rien à faire. En cas d'échec d'embedding, repli plein-texte."""
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             row = conn.execute("SELECT status,nb_chunks,chunks_indexed FROM rag_documents "
                                "WHERE id=%s", (doc_id,)).fetchone()
             if not row:
@@ -1114,7 +1161,7 @@ class PostgresRagStore:
         """Régénère la recherche vectorielle d'un document : efface ses embeddings et
         le repasse en 'indexing' pour qu'index_next les recalcule (ex. après avoir
         activé MISTRAL_API_KEY sur des documents déjà chargés en plein-texte)."""
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             row = conn.execute("SELECT nb_chunks FROM rag_documents WHERE id=%s",
                                (doc_id,)).fetchone()
             if not row:
@@ -1141,13 +1188,13 @@ class PostgresRagStore:
         return dict(zip(keys, r))
 
     def list_documents(self):
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             rows = conn.execute("SELECT %s FROM rag_documents ORDER BY created_at DESC "
                                 "LIMIT 500" % self._COLS).fetchall()
         return [self._row_to_dict(r) for r in rows]
 
     def get_blob(self, doc_id):
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             r = conn.execute("SELECT d.filename,b.data FROM rag_blobs b "
                              "JOIN rag_documents d ON d.id=b.doc_id WHERE b.doc_id=%s",
                              (doc_id,)).fetchone()
@@ -1162,7 +1209,7 @@ class PostgresRagStore:
     def document_text(self, doc_id, limit=200000):
         """Texte lisible du document (fragments indexés réassemblés) — pour la
         lecture en ligne dans la console, tous formats confondus."""
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             meta = conn.execute("SELECT title,filename,theme FROM rag_documents "
                                 "WHERE id=%s", (doc_id,)).fetchone()
             if not meta:
@@ -1177,7 +1224,7 @@ class PostgresRagStore:
         """Bascule public <-> interne, prise en compte IMMÉDIATEMENT : la
         visibilité est lue à chaque recherche, aucun cache ni réindexation."""
         v = "public" if visibility == "public" else "internal"
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             n = conn.execute("UPDATE rag_documents SET visibility=%s,updated_at=%s "
                              "WHERE id=%s", (v, _now_ms(), doc_id)).rowcount
         if not n:
@@ -1187,7 +1234,7 @@ class PostgresRagStore:
     def set_theme(self, doc_id, theme):
         """Reclasse un document. Seul le classement change : le texte, les
         fragments et les embeddings sont conservés — aucune réindexation."""
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             n = conn.execute("UPDATE rag_documents SET theme=%s,updated_at=%s "
                              "WHERE id=%s", (theme, _now_ms(), doc_id)).rowcount
         if not n:
@@ -1195,7 +1242,7 @@ class PostgresRagStore:
         return True
 
     def delete_document(self, doc_id):
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             n = conn.execute("DELETE FROM rag_documents WHERE id=%s", (doc_id,)).rowcount
         if not n:
             raise RagError("document_inconnu", 404)
@@ -1214,7 +1261,7 @@ class PostgresRagStore:
         pas encore créée sur une base antérieure) ne doit jamais faire échouer
         l'appelant."""
         try:
-            with self._pool.connection() as conn:
+            with self._conn() as conn:
                 row = conn.execute("SELECT v FROM rag_settings WHERE k=%s",
                                    (key,)).fetchone()
             return row[0] if row else default
@@ -1223,7 +1270,7 @@ class PostgresRagStore:
 
     def set_setting(self, key, value):
         """Écriture d'un réglage. `value` à None efface l'entrée."""
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             if value is None:
                 conn.execute("DELETE FROM rag_settings WHERE k=%s", (key,))
             else:
@@ -1265,7 +1312,7 @@ class PostgresRagStore:
             out["capacity_bytes"], out["capacity_source"] = self.capacity_bytes()
         except Exception:
             out["capacity_bytes"], out["capacity_source"] = None, None
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             try:
                 out["db_bytes"] = conn.execute(
                     "SELECT pg_database_size(current_database())").fetchone()[0]
@@ -1310,7 +1357,7 @@ class PostgresRagStore:
         blobs un par un plutôt qu'en bloc — un contrôle d'intégrité qui saturerait
         la mémoire du service serait un remède pire que le mal."""
         alteres, verifies, sans_blob = [], 0, 0
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             ids = [r[0] for r in conn.execute(
                 "SELECT id FROM rag_documents ORDER BY created_at DESC LIMIT %s",
                 (int(limit),)).fetchall()]
@@ -1346,7 +1393,7 @@ class PostgresRagStore:
             raise RagError("rien_a_purger", 400)
         avant = self.storage_report()
         detail = {}
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             if "uploads" in scopes:
                 detail["chargements_interrompus"] = conn.execute(
                     "DELETE FROM rag_uploads").rowcount
@@ -1359,7 +1406,7 @@ class PostgresRagStore:
         # VACUUM exige l'autocommit (hors transaction).
         vacuum_ok = True
         try:
-            with self._pool.connection() as conn:
+            with self._conn() as conn:
                 conn.autocommit = True
                 for t in self._TABLES:
                     conn.execute("VACUUM (ANALYZE) %s" % t)
@@ -1373,7 +1420,7 @@ class PostgresRagStore:
                                      - (apres.get("total_bytes") or 0))}
 
     def stats(self):
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             docs = conn.execute("SELECT count(*) FROM rag_documents").fetchone()[0]
             chunks = conn.execute("SELECT count(*) FROM rag_chunks").fetchone()[0]
             themes = {}
@@ -1413,7 +1460,7 @@ class PostgresRagStore:
             where.append("d.id = ANY(%s)")
             params.append(list(doc_ids))
         clause = " AND ".join(where)
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             lex = self._fulltext(conn, query, clause, params, k * 4)
             # Recherche HYBRIDE : quand les embeddings sont disponibles, fusionner
             # le plein-texte (lexical, mots) ET le vectoriel (sémantique, sens) par
