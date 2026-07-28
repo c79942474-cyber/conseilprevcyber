@@ -360,6 +360,7 @@
             <select id="filterTheme" aria-label="Filtrer par domaine thématique"><option value="">Tous les domaines</option></select>
             <select id="filterEnt" aria-label="Filtrer par entreprise ou référence"><option value="">Toutes les entreprises</option></select>
             <span class="fcount" id="fcount"></span>
+            <button class="btn btn-s" id="moveGen" type="button" title="Ranger les documents ACTUELLEMENT AFFICHÉS sous un autre thème (seul le classement change : aucune réindexation)">↦ Déplacer</button>
             <button class="btn btn-s" id="dedupe" type="button" title="Supprimer les documents en double (contenu identique), en conservant un exemplaire de chacun">🧹 Doublons</button>
             <button class="btn btn-s" id="backup" type="button" title="Télécharger une sauvegarde complète de la base de connaissance (à conserver hors ligne)">💾 Sauvegarder</button>
             <button class="btn btn-s" id="restore" type="button" title="Restaurer des documents depuis un fichier de sauvegarde (sans doublon)">⤴ Restaurer</button>
@@ -367,6 +368,19 @@
             <button class="btn btn-s" id="indexAll" type="button" style="display:none" title="Indexer tous les documents en attente : sans indexation, un document reste invisible pour la recherche, l'assistant et les livrables">▶ Indexer en attente</button>
             <button class="btn btn-s" id="refresh" type="button">↻ Actualiser</button>
           </div>
+        </div>
+        <!-- Barre de déplacement : agit sur les documents ACTUELLEMENT AFFICHÉS,
+             donc sur ce que l'utilisateur voit et peut vérifier avant d'agir.
+             Deux listes comme partout dans ce bloc — domaines d'un côté,
+             entreprises de l'autre — pour qu'« EDF » ne se perde pas au milieu
+             des normes. La destination est celle qui vient d'être choisie. -->
+        <div id="moveBarGen" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 14px;border:1px solid var(--violet);border-radius:10px;background:rgba(139,124,246,.10)">
+          <span id="moveCountGen" style="font-size:12.5px"></span>
+          <label for="moveTargetGen" style="font-size:12.5px;color:var(--muted)">vers</label>
+          <select id="moveTargetGen" aria-label="Domaine de destination" style="width:auto;padding:7px 11px;font-size:12.5px"></select>
+          <select id="moveTargetEntGen" aria-label="Entreprise de destination" style="width:auto;padding:7px 11px;font-size:12.5px"></select>
+          <button class="btn btn-s" id="moveGoGen" type="button">↦ Déplacer</button>
+          <button class="btn btn-s" id="moveCancelGen" type="button">Annuler</button>
         </div>
         <div class="tblwrap">
           <table>
@@ -489,7 +503,9 @@
     // Vocabulaire complet des thèmes (renvoyé par l'API) : permet de proposer les
     // sous-dossiers ENCORE VIDES, donc de voir et d'alimenter toute l'arborescence.
     var vocabThemes=[], vocabFamilles=null;
-    var engVisibles=[];   // documents Engineering actuellement affichés
+    // Documents actuellement AFFICHÉS dans chaque liste : cible du déplacement
+    // en masse, donc exactement ce que l'utilisateur voit et a pu vérifier.
+    var engVisibles=[], genVisibles=[];
 
     function esc(s){return (''+(s==null?'':s)).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
     function note(t,cls){notice.textContent=t;notice.className=cls;notice.style.display='block';if(cls==='ok')setTimeout(function(){notice.className='';notice.style.display='none';},4500);}
@@ -560,6 +576,9 @@
                iae.textContent='▶ Indexer '+attE+' en attente'; }
       rows.innerHTML=docs.length?docs.map(docRow).join('')
         :'<tr><td colspan="7" class="empty">Aucun document'+((q||f)?' ne correspond à la recherche':'')+'.</td></tr>';
+      genVisibles=docs;   // cible du déplacement en masse : ce qui est affiché
+      var mcg=document.getElementById('moveCountGen');
+      if(mcg) mcg.textContent='Déplacer les '+docs.length+' document'+(docs.length>1?'s':'')+' affiché'+(docs.length>1?'s':'');
       renderEng();
     }
     function renderEng(){
@@ -1247,25 +1266,36 @@
     // donc sur ce que l'utilisateur voit et a pu vérifier. Ranger 18 documents
     // devient immédiat, là où les recharger un à un serait interminable — et seul
     // le classement change : texte, fragments et embeddings sont conservés.
-    (function(){
-      var btn=document.getElementById('moveEng'), bar=document.getElementById('moveBar');
+    //
+    // Un seul mécanisme pour les deux listes : ne diffèrent que les documents
+    // concernés et les destinations proposées (sous-dossiers Engineering d'un
+    // côté, domaines et entreprises de l'autre).
+    function installerDeplacement(cfg){
+      var btn=document.getElementById(cfg.btn), bar=document.getElementById(cfg.bar);
       if(!btn||!bar) return;
-      var cible=document.getElementById('moveTarget');
+      var cible=document.getElementById(cfg.cible);
+      var cibleEnt=cfg.cibleEnt?document.getElementById(cfg.cibleEnt):null;
+      if(!cible) return;
+      // Deux listes pour une seule destination : celle qui vient d'être utilisée
+      // l'emporte, l'autre est remise à vide — même règle que les filtres, sinon
+      // deux thèmes contradictoires seraient sélectionnés en même temps.
+      if(cibleEnt){
+        cible.addEventListener('change',function(){ if(this.value) cibleEnt.value=''; });
+        cibleEnt.addEventListener('change',function(){ if(this.value) cible.value=''; });
+      }
       btn.addEventListener('click',function(){
         if(bar.style.display!=='none'){ bar.style.display='none'; return; }
-        if(!engVisibles.length){ note('Aucun document affiché à déplacer.','err'); return; }
-        // Destinations : tous les sous-dossiers Engineering du vocabulaire.
-        var eng=(vocabThemes||[]).filter(function(t){return t==='Engineering'||t.indexOf('Engineering / ')===0;});
-        cible.innerHTML=eng.map(function(t){
-          var lbl=t==='Engineering'?'Engineering (racine)':t.split(' / ').slice(1).join(' / ');
-          return '<option value="'+esc(t)+'">'+esc(lbl)+'</option>';
-        }).join('');
+        if(!cfg.docs().length){ note('Aucun document affiché à déplacer.','err'); return; }
+        cfg.remplir(cible,cibleEnt);
         bar.style.display='flex';
       });
-      document.getElementById('moveCancel').addEventListener('click',function(){ bar.style.display='none'; });
-      document.getElementById('moveGo').addEventListener('click',function(){
-        var t=cible.value, ids=engVisibles.map(function(d){return d.id;});
-        if(!t||!ids.length){ note('Rien à déplacer.','err'); return; }
+      var annul=document.getElementById(cfg.annuler);
+      if(annul) annul.addEventListener('click',function(){ bar.style.display='none'; });
+      document.getElementById(cfg.go).addEventListener('click',function(){
+        var t=cible.value||(cibleEnt?cibleEnt.value:'');
+        var ids=cfg.docs().map(function(d){return d.id;});
+        if(!t){ note('Choisissez d\'abord une destination.','err'); return; }
+        if(!ids.length){ note('Rien à déplacer.','err'); return; }
         if(!confirm('Déplacer '+ids.length+' document(s) vers « '+t+' » ?\n\nSeul le classement change : le contenu et l\'indexation sont conservés.')) return;
         var b=this, old=b.textContent; b.disabled=true; b.textContent='Déplacement…';
         apiFetch('/api/admin/rag/retheme',{method:'POST',headers:{'content-type':'application/json'},
@@ -1276,7 +1306,55 @@
         }).catch(function(){ note('Déplacement impossible pour le moment.','err'); })
           .then(function(){ b.disabled=false; b.textContent=old; });
       });
-    })();
+    }
+
+    // Destinations de la liste Engineering : tous les sous-dossiers du vocabulaire.
+    function ciblesEngineering(cible){
+      var eng=(vocabThemes||[]).filter(function(t){return t==='Engineering'||t.indexOf('Engineering / ')===0;});
+      cible.innerHTML=eng.map(function(t){
+        var lbl=t==='Engineering'?'Engineering (racine)':t.split(' / ').slice(1).join(' / ');
+        return '<option value="'+esc(t)+'">'+esc(lbl)+'</option>';
+      }).join('');
+    }
+    // Destinations de la liste générale : tout le vocabulaire, groupé par famille,
+    // entreprises à part. Les sous-dossiers Engineering restent proposés en fin de
+    // liste : un document mal rangé ici doit pouvoir rejoindre l'ingénierie, où il
+    // apparaîtra alors dans l'autre tableau.
+    function ciblesGenerales(cible,cibleEnt){
+      var estEng=function(t){return t==='Engineering'||t.indexOf('Engineering / ')===0;};
+      var fam=(vocabFamilles&&vocabFamilles.groupes)?vocabFamilles.groupes:null;
+      var nomEnt=(vocabFamilles&&vocabFamilles.entreprises)||'Entreprises & références';
+      var nomEng=(vocabFamilles&&vocabFamilles.engineering)||'Engineering';
+      var opt=function(t,lbl){ return '<option value="'+esc(t)+'">'+esc(lbl||t)+'</option>'; };
+      var dom='', ent=[], eng=[];
+      if(fam){
+        fam.forEach(function(g){
+          if(g.nom===nomEnt){ ent=g.themes.slice(); return; }
+          if(g.nom===nomEng){ eng=g.themes.slice(); return; }
+          dom+='<optgroup label="'+esc(g.nom)+'">'
+              +g.themes.map(function(t){return opt(t);}).join('')+'</optgroup>';
+        });
+      } else {
+        // Familles indisponibles : vocabulaire à plat, sans quoi la barre serait vide.
+        dom=(vocabThemes||[]).filter(function(t){return !estEng(t);})
+                             .map(function(t){return opt(t);}).join('');
+        eng=(vocabThemes||[]).filter(estEng);
+      }
+      if(eng.length) dom+='<optgroup label="'+esc(nomEng)+' (liste dédiée)">'
+                        +eng.map(function(t){
+                            return opt(t,t==='Engineering'?'Engineering (racine)':t.split(' / ').slice(1).join(' / '));
+                          }).join('')+'</optgroup>';
+      cible.innerHTML='<option value="">Choisir un domaine…</option>'+dom;
+      if(cibleEnt) cibleEnt.innerHTML='<option value="">ou une entreprise…</option>'
+                                     +ent.map(function(t){return opt(t);}).join('');
+    }
+
+    installerDeplacement({btn:'moveEng',bar:'moveBar',cible:'moveTarget',
+      go:'moveGo',annuler:'moveCancel',
+      docs:function(){return engVisibles;},remplir:ciblesEngineering});
+    installerDeplacement({btn:'moveGen',bar:'moveBarGen',cible:'moveTargetGen',
+      cibleEnt:'moveTargetEntGen',go:'moveGoGen',annuler:'moveCancelGen',
+      docs:function(){return genVisibles;},remplir:ciblesGenerales});
 
     // Câblage des deux barres sur ces mêmes fonctions.
     [['dedupe',''],['dedupeEng','engineering']].forEach(function(x){
