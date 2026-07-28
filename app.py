@@ -83,7 +83,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # si le numéro affiché est plus ancien que la version attendue, le déploiement n'a
 # pas abouti — et aucun correctif récent n'est en ligne. À incrémenter à chaque
 # correctif dont on veut pouvoir confirmer la mise en ligne.
-APP_VERSION = "2026.07.28-2"
+APP_VERSION = "2026.07.28-3"
 
 # Horodatage de démarrage du processus (voir /health : « demarre_depuis_s »).
 _DEMARRAGE = time.time()
@@ -2969,6 +2969,15 @@ def _sonde_detaillee():
         res["comptes_lecture"] = "ok (%d ms)" % ((time.time() - t0) * 1000)
     except Exception as exc:
         res["comptes_lecture"] = "echec : %s" % _cause(exc)
+    # Nombre de fois où le pool n'a pas rendu la main et où l'on est passé par
+    # une connexion directe. Un compteur qui grimpe désigne le pool, et non la
+    # base : c'est la distinction que la sonde précédente ne permettait pas.
+    try:
+        n = getattr(getattr(_auth.store, "_pg", None), "replis_directs", None)
+        if n is not None:
+            res["replis_directs"] = n
+    except Exception:
+        pass
     dsn = os.environ.get("DATABASE_URL")
     if not dsn:
         res["connexions"] = "DATABASE_URL absente de l'environnement"

@@ -18,6 +18,7 @@ import re
 import secrets
 import threading
 import time
+from contextlib import contextmanager
 from datetime import datetime, timezone
 
 import requests
@@ -170,11 +171,13 @@ class _PgStore:
         import psycopg.rows
         from psycopg_pool import ConnectionPool
         sep = "&" if "?" in dsn else "?"
+        self._dsn = dsn + sep + "connect_timeout=10"
+        self.replis_directs = 0        # nombre de fois où le pool n'a pas répondu
         # prepare_threshold=None : compatibilité avec un pooler PgBouncer en mode
         # transaction (endpoint « -pooler » de Neon) — sans quoi les requêtes
         # préparées échouent (« prepared statement does not exist »). check :
         # valide la connexion avant usage (réveil à froid d'une base serverless).
-        self._pool = ConnectionPool(dsn + sep + "connect_timeout=10", min_size=1, max_size=3,
+        self._pool = ConnectionPool(self._dsn, min_size=1, max_size=3,
                                     kwargs={"autocommit": True, "row_factory": psycopg.rows.dict_row,
                                             "prepare_threshold": None},
                                     timeout=8, open=True,
@@ -188,8 +191,56 @@ class _PgStore:
                 pass
             raise
 
+    @contextmanager
+    def _conn(self):
+        """Connexion pour une opération, avec REPLI SUR UNE CONNEXION DIRECTE.
+
+        Constat de production qui a motivé ce repli : la base répondait
+        parfaitement — 6 connexions ouvertes sur 103 autorisées, une connexion
+        directe établie dans la seconde — et pourtant toute lecture de compte
+        échouait en « PoolTimeout ». Ce n'était donc ni le réseau, ni la base, ni
+        un plafond : c'était le POOL. Après un incident de connexion, psycopg_pool
+        se met en retrait et refuse d'en ouvrir de nouvelles pendant plusieurs
+        minutes ; les demandes attendent alors leur délai puis échouent, alors
+        qu'une simple connexion directe aboutirait immédiatement.
+
+        Faire dépendre l'accès au site du bon vouloir d'un pool est un pari
+        inutile : les requêtes de comptes sont minuscules et rares. Si le pool ne
+        rend pas la main, on ouvre une connexion le temps de la requête. Plus
+        lent de quelques dizaines de millisecondes, mais jamais bloqué.
+
+        L'échec d'ACQUISITION est seul traité ici : une erreur survenant DANS la
+        requête remonte normalement à l'appelant."""
+        import psycopg
+        import psycopg.rows
+        try:
+            conn = self._pool.getconn(timeout=8)
+        except Exception as exc:
+            self.replis_directs += 1
+            logging.getLogger("auth").warning(
+                "comptes : pool indisponible (%s) — connexion directe pour cette "
+                "requête (%d au total).", type(exc).__name__, self.replis_directs)
+            direct = psycopg.connect(self._dsn, autocommit=True,
+                                     row_factory=psycopg.rows.dict_row,
+                                     prepare_threshold=None)
+            try:
+                yield direct
+            finally:
+                try:
+                    direct.close()
+                except Exception:
+                    pass
+            return
+        try:
+            yield conn
+        finally:
+            try:
+                self._pool.putconn(conn)
+            except Exception:
+                pass
+
     def _init(self):
-        with self._pool.connection() as c:
+        with self._conn() as c:
             c.execute("SELECT pg_advisory_lock(%s)", (self._LOCK_KEY,))
             try:
                 c.execute("""CREATE TABLE IF NOT EXISTS users (
@@ -207,17 +258,17 @@ class _PgStore:
                 c.execute("SELECT pg_advisory_unlock(%s)", (self._LOCK_KEY,))
 
     def get(self, email):
-        with self._pool.connection() as c:
+        with self._conn() as c:
             return c.execute("SELECT * FROM users WHERE email=%s", ((email or "").lower(),)).fetchone()
 
     def get_by(self, field, value):
-        with self._pool.connection() as c:
+        with self._conn() as c:
             return c.execute("SELECT * FROM users WHERE %s=%%s" % field, (value,)).fetchone()
 
     def create(self, user):
         cols = [k for k in _FIELDS if k in user]
         ph = ", ".join(["%s"] * len(cols))
-        with self._pool.connection() as c:
+        with self._conn() as c:
             try:
                 c.execute("INSERT INTO users (%s) VALUES (%s)" % (", ".join(cols), ph),
                           tuple(user[k] for k in cols))
@@ -227,18 +278,18 @@ class _PgStore:
 
     def update(self, email, **fields):
         sets = ", ".join("%s=%%s" % k for k in fields)
-        with self._pool.connection() as c:
+        with self._conn() as c:
             c.execute("UPDATE users SET %s WHERE email=%%s" % sets,
                       tuple(fields.values()) + (email,))
             return True
 
     def delete(self, email):
-        with self._pool.connection() as c:
+        with self._conn() as c:
             c.execute("DELETE FROM users WHERE email=%s", (email,))
             return True
 
     def list_all(self):
-        with self._pool.connection() as c:
+        with self._conn() as c:
             return c.execute("SELECT * FROM users ORDER BY created_at DESC NULLS LAST").fetchall()
 
 
