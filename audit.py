@@ -89,22 +89,42 @@ class _Memoire:
 
 
 class _Postgres:
+    """Accès PostgreSQL au journal, à empreinte de connexions NULLE au repos.
+
+    Chaque module de l'application ouvre son propre pool (documents, comptes,
+    clients, livrables, cockpit, automatisation) : autant de connexions retenues
+    en permanence, et les offres d'hébergement plafonnent ce nombre. Le journal
+    n'écrit qu'à l'occasion d'une action d'administration — quelques fois par
+    jour : lui réserver une connexion permanente serait payer cher un usage rare.
+    D'où min_size=0 (rien tant qu'on ne s'en sert pas), max_size=1 (jamais plus
+    d'une), fermeture après 60 s d'inactivité, et création DIFFÉRÉE au premier
+    besoin (importer le module ne coûte donc aucune connexion)."""
     persistent = True
 
     def __init__(self, dsn):
-        from psycopg_pool import ConnectionPool
         sep = "&" if "?" in dsn else "?"
-        dsn = dsn + sep + "connect_timeout=10&client_encoding=UTF8"
-        self._pool = ConnectionPool(dsn, min_size=1, max_size=2,
-                                    kwargs={"autocommit": True, "prepare_threshold": None},
-                                    timeout=8, open=True,
-                                    check=ConnectionPool.check_connection)
-        with self._pool.connection() as c:
-            for stmt in _SCHEMA:
-                c.execute(stmt)
+        self._dsn = dsn + sep + "connect_timeout=10&client_encoding=UTF8"
+        self._pool = None
+        self._schema_ok = False
+        self._lock = threading.Lock()
+
+    def _p(self):
+        with self._lock:
+            if self._pool is None:
+                from psycopg_pool import ConnectionPool
+                self._pool = ConnectionPool(
+                    self._dsn, min_size=0, max_size=1, max_idle=60,
+                    kwargs={"autocommit": True, "prepare_threshold": None},
+                    timeout=8, open=True, check=ConnectionPool.check_connection)
+            if not self._schema_ok:
+                with self._pool.connection() as c:
+                    for stmt in _SCHEMA:
+                        c.execute(stmt)
+                self._schema_ok = True
+        return self._pool
 
     def ajouter(self, rec):
-        with self._pool.connection() as c:
+        with self._p().connection() as c:
             c.execute("INSERT INTO audit_journal (ts,acteur,role,action,cible,detail,ip,ok) "
                       "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
                       (rec["ts"], rec["acteur"], rec["role"], rec["action"],
@@ -125,7 +145,7 @@ class _Postgres:
             params.append(acteur)
         where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         params.append(max(1, min(int(limit or 200), 1000)))
-        with self._pool.connection() as c:
+        with self._p().connection() as c:
             rows = c.execute(
                 "SELECT id,ts,acteur,role,action,cible,detail,ip,ok FROM audit_journal"
                 + where + " ORDER BY id DESC LIMIT %s", tuple(params)).fetchall()
@@ -133,7 +153,7 @@ class _Postgres:
         return [dict(zip(cols, r)) for r in rows]
 
     def compter(self):
-        with self._pool.connection() as c:
+        with self._p().connection() as c:
             return c.execute("SELECT count(*) FROM audit_journal").fetchone()[0]
 
 

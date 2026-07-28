@@ -1592,6 +1592,29 @@ def diagnose(dsn=None):
         step("session", True, "%s (%d ms)" % (str(ver).split(" on ")[0][:60],
                                               (time.time() - t0) * 1000))
         step("ecriture", True, "table temporaire créée puis supprimée")
+        # Connexions consommées / plafond du serveur. C'est LA cause qu'aucune
+        # autre étape ne révèle : quand le plafond est atteint, la base est
+        # parfaitement saine — DNS, TCP et session passent — mais toute nouvelle
+        # connexion est refusée, et l'application se croit « injoignable ».
+        # L'application ouvre un pool par module (documents, comptes, clients,
+        # livrables, cockpit, automatisation, audit), multiplié par le nombre de
+        # workers : le compte monte vite.
+        try:
+            conn = psycopg.connect(clean, connect_timeout=8)
+            try:
+                used = conn.execute("SELECT count(*) FROM pg_stat_activity "
+                                    "WHERE datname = current_database()").fetchone()[0]
+                cap = int(conn.execute("SHOW max_connections").fetchone()[0])
+            finally:
+                conn.close()
+            pct = (used * 100 // cap) if cap else 0
+            step("connexions", pct < 85,
+                 "%d connexions ouvertes sur %d autorisées (%d %%)%s"
+                 % (used, cap, pct,
+                    " — plafond proche : c'est ce qui fait échouer les nouvelles "
+                    "connexions" if pct >= 85 else ""))
+        except Exception as exc:
+            step("connexions", True, "non mesurable (%s)" % _sanitize_pg_error(exc)[:80])
     except Exception as exc:
         msg = _sanitize_pg_error(exc)
         step("session", False, msg)
