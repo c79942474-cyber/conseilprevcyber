@@ -157,6 +157,7 @@ THEME_FAMILLES = [
         "Engineering / Projet OWFarm / Rules / NFPA",
         "Engineering / Oil & Gas",
         "Engineering / Oil & Gas / GNL",
+        "Engineering / Oil & Gas / GNL / LNG Guidance Projects",
         "Engineering / Oil & Gas / Safety",
         "Engineering / Oil & Gas / Rules",
     ]),
