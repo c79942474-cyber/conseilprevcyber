@@ -158,6 +158,7 @@ THEME_FAMILLES = [
         "Engineering / Oil & Gas",
         "Engineering / Oil & Gas / GNL",
         "Engineering / Oil & Gas / GNL / LNG Guidance Projects",
+        "Engineering / Oil & Gas / GNL / Rules",
         "Engineering / Oil & Gas / Safety",
         "Engineering / Oil & Gas / Rules",
     ]),
