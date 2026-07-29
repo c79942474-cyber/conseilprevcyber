@@ -1809,7 +1809,24 @@ class ResilientRagStore:
         for i in range(attempts):
             try:
                 pg = PostgresRagStore(self._dsn)
+                # ORDRE IMPORTANT : la base est branchée AVANT la reprise du
+                # repli (la migration écrit à travers `self._pg`), mais la
+                # bascule n'est ACQUISE qu'une fois la reprise réussie. Un
+                # échec partiel nous ramène au repli, sans avoir rien perdu :
+                # les documents non repris y sont toujours.
                 self._pg = pg
+                _, echecs = self._migrer_repli()
+                if echecs:
+                    self._pg = None
+                    self._last_error = (
+                        "base jointe, mais %d document(s) du repli n'ont pas pu y "
+                        "être versés — on reste en mémoire pour ne rien perdre" % echecs)
+                    _log.warning("RAG : bascule annulée — %s.", self._last_error)
+                    return False
+                # Le repli n'est PAS vidé : il n'est plus consulté (`_store`
+                # renvoie désormais PostgreSQL) et le garder coûte quelques
+                # mégaoctets pour le temps du process. En échange, si la base
+                # retombe dans la minute, les documents sont encore là.
                 self._last_error = ""
                 _log.info("RAG : PostgreSQL connecté (%s).", pg.capabilities()["mode"])
                 return True
@@ -1841,32 +1858,69 @@ class ResilientRagStore:
         finally:
             self._reconnecting = False
 
-    def _mem_has_docs(self):
-        """Le repli mémoire contient-il des documents qu'une bascule masquerait ?
+    def _migrer_repli(self):
+        """Verse dans PostgreSQL les documents déposés pendant la panne.
 
-        Les bulletins de veille en sont EXCLUS : ingérés automatiquement au
-        démarrage, ils remplissaient le repli en quelques secondes et bloquaient
-        alors DÉFINITIVEMENT la reconnexion automatique — au pire moment, juste
-        après un démarrage manqué. Ils sont de toute façon re-téléchargeables ;
-        seuls les documents déposés par l'utilisateur justifient de ne pas
-        basculer sans son accord."""
+        C'EST LA SORTIE D'UNE IMPASSE, et non un raffinement. La version
+        précédente devait choisir entre deux maux dès qu'un document avait été
+        chargé en mode dégradé : basculer sur la base et MASQUER ce document, ou
+        rester en mémoire et ne jamais guérir. Elle choisissait le second — donc
+        la reconnexion automatique s'arrêtait définitivement au premier
+        chargement, exactement quand l'administrateur en avait le plus besoin.
+        Le message « la connexion est retentée automatiquement » devenait faux
+        sans que rien ne le signale.
+
+        Il n'y a pas à choisir : on RECOPIE. L'ingestion est idempotente
+        (empreinte SHA-256, `dedupe="skip"`), un document déjà présent en base
+        n'est donc pas dupliqué, et l'opération est rejouable sans dommage.
+
+        Un document qui ne passe pas est CONSERVÉ en mémoire et l'échec est
+        journalisé : mieux vaut une bascule partielle et signalée qu'une bascule
+        propre qui perd une pièce en silence. La bascule n'a lieu que si TOUT ce
+        qui devait passer est passé — sinon on reste en repli, avec la raison.
+
+        Retourne (migres, echecs)."""
+        migres = echecs = 0
         try:
-            return any(
-                (d.get("theme") != "Veille"
-                 and not str(d.get("title") or "").startswith("[CERT-FR]"))
-                for d in self._mem.list_documents())
+            docs = list(self._mem.list_documents())
         except Exception:
-            return False
+            return 0, 0
+        for d in docs:
+            doc_id = d.get("id")
+            if not doc_id:
+                continue
+            try:
+                nom, data = self._mem.get_blob(doc_id)
+            except Exception:
+                # Sans contenu d'origine, rien à recopier : le document a été
+                # ingéré autrement (veille) ou le repli est incomplet.
+                continue
+            try:
+                self._pg.ingest_bytes(nom, data,
+                                      title=d.get("title") or "",
+                                      theme=d.get("theme") or "",
+                                      visibility=d.get("visibility") or "internal")
+                migres += 1
+            except Exception as exc:
+                echecs += 1
+                _log.warning("RAG : document %r non repris en base (%s).",
+                             (d.get("title") or nom)[:80], type(exc).__name__)
+        if migres or echecs:
+            _log.info("RAG : reprise du repli — %d document(s) versé(s) en base, "
+                      "%d échec(s).", migres, echecs)
+        return migres, echecs
 
     def _maybe_reconnect(self):
         """Déclenche une reconnexion EN TÂCHE DE FOND (jamais bloquante). La
-        requête courante est toujours servie immédiatement depuis le repli."""
+        requête courante est toujours servie immédiatement depuis le repli.
+
+        Le repli DURABLE (disque) reste volontairement hors du rattrapage
+        automatique : il n'y a rien d'urgent à quitter un stockage qui ne perd
+        rien, et la bascule mérite alors une décision. Le repli VOLATILE, lui,
+        perd tout au prochain redémarrage : on va toujours le chercher."""
         if self._pg is not None or self._reconnecting:
             return
-        # Repli durable (disque) ou contenant déjà des documents : on NE bascule
-        # pas tout seul vers PostgreSQL, cela masquerait ces documents. L'admin
-        # peut forcer la bascule via « Reconnecter ».
-        if getattr(self._mem, "persistent", False) or self._mem_has_docs():
+        if getattr(self._mem, "persistent", False):
             return
         if time.time() - self._last_try < _RECONNECT_MIN_INTERVAL:
             return

@@ -694,15 +694,40 @@ class PostgresClientsStore:
                 "expires": sum(1 for c in clients if c["expired"])}
 
 
+def _repli_vide(mem):
+    """Le repli contient-il des fiches qu'une bascule masquerait ?
+
+    POURQUOI PAS DE MIGRATION AUTOMATIQUE ICI, contrairement à l'historique des
+    livrables et à la base documentaire. Une fiche client n'est pas un objet
+    isolé : elle porte des PIÈCES JOINTES (consentements, contrats) et un
+    JOURNAL d'événements, tous rattachés à son identifiant. `create()` en
+    attribue un nouveau ; recopier les fiches sans leurs pièces, ou avec des
+    identifiants changés, produirait un dossier client incomplet — sur des
+    données personnelles, et sans que personne ne s'en aperçoive.
+
+    Une reprise partielle serait donc pire que pas de reprise. Tant que le
+    repli est vide, la bascule est automatique et immédiate ; s'il contient
+    quelque chose, l'enveloppe le SIGNALE et laisse la décision à
+    l'administrateur au lieu de trancher à sa place.
+    """
+    try:
+        return not mem.list()
+    except Exception:
+        return False
+
+
 def make_clients_store():
-    """Store persistant si DATABASE_URL est défini, sinon en mémoire."""
+    """Store persistant si DATABASE_URL est défini, sinon en mémoire.
+
+    ENVELOPPÉ : sans cela, une base absente au démarrage condamnait les fiches
+    clients à la mémoire pour toute la vie du processus — donc à disparaître au
+    redéploiement suivant. Sur des données personnelles, c'est une perte au
+    sens de l'art. 32 du RGPD, pas un simple désagrément."""
     dsn = os.environ.get("DATABASE_URL")
     if not dsn:
         return MemoryClientsStore()
     if dsn.startswith("postgres://"):
         dsn = "postgresql://" + dsn[len("postgres://"):]
-    try:
-        return PostgresClientsStore(dsn)
-    except Exception as exc:
-        _log.warning("Clients : PostgreSQL injoignable (%s) — repli mémoire.", exc)
-        return MemoryClientsStore()
+    from resilience import MagasinResilient
+    return MagasinResilient("Clients", lambda: PostgresClientsStore(dsn),
+                            MemoryClientsStore(), vide=_repli_vide)

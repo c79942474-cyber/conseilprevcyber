@@ -181,26 +181,111 @@ def notify_admin(subject, html_body):
 #  Travaux périodiques
 # ============================================================================
 def job_surveillance():
-    """Alerte si un magasin est en mode mémoire (dégradé) — et au retour à la normale."""
-    parts = []
+    """Alerte si un magasin est en mode dégradé — et au retour à la normale.
+
+    DEUX DÉFAUTS CORRIGÉS ICI, tous deux du même genre : l'alerte existait mais
+    n'aidait pas.
+
+    Elle ne se déclenchait qu'au CHANGEMENT d'état. Une base tombée le vendredi
+    soir produisait un courriel, puis plus rien : le lundi, rien ne distinguait
+    « c'est réparé » de « personne n'a regardé ». On rappelle donc l'état
+    dégradé une fois par jour tant qu'il dure — assez pour ne pas être oublié,
+    assez peu pour ne pas être filtré comme du bruit.
+
+    Elle ne disait pas POURQUOI. « Vérifiez DATABASE_URL » quand la variable est
+    correctement définie envoie chercher au mauvais endroit ; c'est exactement
+    ce qu'a vécu l'administrateur. Le message porte maintenant la cause réelle
+    remontée par le magasin, assainie de tout identifiant, plus le nombre
+    d'échecs et la date du prochain essai.
+    """
+    parts, details = [], []
     for name in ("rag", "clients", "livrables"):
         store = _deps.get(name)
-        if store is not None and not getattr(store, "persistent", True):
-            parts.append(name)
+        if store is None or getattr(store, "persistent", True):
+            continue
+        parts.append(name)
+        cause = ""
+        try:
+            etat = store.etat() if hasattr(store, "etat") else {}
+            cause = etat.get("cause") or ""
+            if etat.get("echecs_consecutifs"):
+                cause += " (%d échec(s) consécutif(s))" % etat["echecs_consecutifs"]
+        except Exception:
+            cause = ""
+        if not cause:
+            cause = str(getattr(store, "_last_error", "") or "cause non remontée")
+        details.append("<li><b>%s</b> — %s</li>" % (html_lib.escape(name),
+                                                    html_lib.escape(cause[:300])))
+
     mode = ",".join(parts) or "ok"
     previous = _state.get("sante.mode", "ok")
-    if mode == previous:
+    today = time.strftime("%Y-%m-%d")
+    rappel_fait = _state.get("sante.rappel") == today
+
+    if mode == previous and (mode == "ok" or rappel_fait):
         return
     _state.set("sante.mode", mode)
+
     if mode != "ok":
+        _state.set("sante.rappel", today)
         notify_admin(
             "⚠️ Site en mode dégradé — base de données injoignable",
-            "<p>Les magasins suivants fonctionnent <b>en mémoire</b> (données non "
-            "persistées) : <b>%s</b>.</p><p>Vérifiez DATABASE_URL et l'état de la base "
-            "PostgreSQL dans Render, puis redéployez si besoin.</p>" % html_lib.escape(mode))
+            "<p>Les magasins suivants fonctionnent <b>en repli</b> : <b>%s</b>.</p>"
+            "<p><b>Cause remontée par le site :</b></p><ul>%s</ul>"
+            "<p>La reconnexion est retentée automatiquement toutes les 3 minutes, "
+            "avec un espacement croissant. Aucun redéploiement n'est nécessaire : "
+            "dès que la base répond, le site s'y rebranche seul et reverse ce qui "
+            "a été écrit entre-temps.</p>"
+            "<p>Si l'état persiste, la cause ci-dessus indique où chercher — "
+            "nombre de connexions, base suspendue, ou URL pointant vers une base "
+            "qui n'existe plus.</p>" % (html_lib.escape(mode), "".join(details)))
     elif previous != "ok":
-        notify_admin("✅ Site rétabli — persistance PostgreSQL active",
-                     "<p>Tous les magasins sont repassés en mode persistant.</p>")
+        _state.set("sante.rappel", "")
+        notify_admin("✅ Site rétabli — persistance active",
+                     "<p>Tous les magasins sont repassés en mode persistant, et "
+                     "ce qui avait été écrit pendant la panne a été versé en base.</p>")
+
+
+def job_rebranchement():
+    """Rattrapage périodique des magasins tombés en mode dégradé.
+
+    POURQUOI CETTE TÂCHE EXISTE. La console d'administration affiche « la
+    connexion est retentée automatiquement ». C'était vrai à moitié : la
+    reconnexion n'était tentée qu'À L'OCCASION d'une lecture, donc seulement si
+    quelqu'un consultait la page — et sur la base documentaire, elle s'arrêtait
+    définitivement dès qu'un document avait été chargé en mode dégradé. Aucune
+    des six tâches planifiées ne s'en occupait. Un site qui n'est consulté par
+    personne pendant la nuit restait dégradé au matin, base revenue ou non.
+
+    Le rattrapage est ici INCONDITIONNEL et périodique : c'est ce qui rend la
+    phrase affichée vraie. Il ne coûte rien quand tout va bien (un test
+    d'attribut en mémoire, aucune requête) et ne martèle pas une base
+    durablement absente, l'ordonnanceur l'espaçant déjà de plusieurs minutes.
+    """
+    for nom in ("rag", "clients", "livrables", "cockpit"):
+        store = _deps.get(nom)
+        if store is None or getattr(store, "persistent", True):
+            continue
+        try:
+            # Chaque magasin expose sa propre reconnexion : on ne présume pas
+            # de son mécanisme, on le déclenche.
+            for methode in ("_maybe_reconnect", "reconnect", "reconnecter"):
+                fn = getattr(store, methode, None)
+                if callable(fn):
+                    fn()
+                    _log.info("rebranchement : essai déclenché sur « %s ».", nom)
+                    break
+        except Exception:
+            _log.warning("rebranchement : échec de l'essai sur « %s ».", nom)
+
+    # Les comptes ont leur propre magasin résilient, hors du registre ci-dessus.
+    try:
+        import auth as _auth
+        if getattr(_auth.store, "mode", "") == "repli_fichier":
+            _auth.store.reconnecter()
+            _log.info("rebranchement : essai déclenché sur les comptes.")
+    except Exception:
+        pass
 
 
 def job_purge_rgpd():
@@ -553,6 +638,11 @@ _JOBS = []
 def _register_jobs():
     veille_hours = float(os.environ.get("VEILLE_INTERVAL_HOURS") or 6)
     _JOBS[:] = [
+        # Toutes les 3 minutes : assez court pour qu'une base revenue soit
+        # reprise sans que personne n'attende, assez espacé pour ne pas
+        # marteler une base durablement absente. Premier essai à 45 s, après
+        # que les magasins aient eu le temps de se construire.
+        {"name": "rebranchement", "every": 180, "fn": job_rebranchement, "first": 45},
         {"name": "surveillance", "every": 3600, "fn": job_surveillance, "first": 90},
         {"name": "purge_rgpd", "every": 6 * 3600, "fn": job_purge_rgpd, "first": 300},
         {"name": "index_rag", "every": 120, "fn": job_index_rag, "first": 60},

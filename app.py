@@ -86,7 +86,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # si le numéro affiché est plus ancien que la version attendue, le déploiement n'a
 # pas abouti — et aucun correctif récent n'est en ligne. À incrémenter à chaque
 # correctif dont on veut pouvoir confirmer la mise en ligne.
-APP_VERSION = "2026.07.29-04"
+APP_VERSION = "2026.07.29-05"
 
 # Horodatage de démarrage du processus (voir /health : « demarre_depuis_s »).
 _DEMARRAGE = time.time()
@@ -3513,6 +3513,26 @@ def health():
             etat["status"] = "degraded"
     except Exception:
         etat["comptes"] = "inconnu"
+    # État par magasin, AVEC LA CAUSE. Sans lui, un mode dégradé se constatait
+    # mais ne se diagnostiquait pas : « la connexion échoue » envoyait vérifier
+    # DATABASE_URL alors qu'elle était correcte. Ces champs disent quoi
+    # regarder — plafond de connexions, base suspendue, URL périmée — et à
+    # quand le prochain essai automatique.
+    magasins = {}
+    for nom, mag in (("documents", rag), ("clients", clients_db),
+                     ("livrables", livrables_hist)):
+        try:
+            if hasattr(mag, "etat"):
+                magasins[nom] = mag.etat()
+            else:
+                magasins[nom] = {"persistant": bool(getattr(mag, "persistent", False)),
+                                 "cause": str(getattr(mag, "_last_error", "") or "")[:200]}
+            if not magasins[nom].get("persistant", True):
+                etat["status"] = "degraded"
+        except Exception:
+            magasins[nom] = {"persistant": None, "cause": "état non lisible"}
+    etat["magasins"] = magasins
+
     if request.args.get("detail") == "1":
         etat.update(_sonde_detaillee())
         if etat.get("comptes_lecture", "").startswith("echec"):

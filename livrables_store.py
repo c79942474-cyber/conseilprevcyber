@@ -204,15 +204,57 @@ class PostgresLivrablesStore:
             return {"count": conn.execute("SELECT count(*) FROM livrables").fetchone()[0]}
 
 
+def _migrer(mem, pg):
+    """Verse l'historique écrit pendant la panne dans la base retrouvée.
+
+    DEUX PIÈGES, tous deux découverts en éprouvant la reprise sur une vraie
+    base plutôt qu'en la relisant :
+
+    `list()` ne renvoie que des MÉTADONNÉES — le markdown en est absent. Migrer
+    depuis cette liste aurait recopié des enregistrements vides, que `save()`
+    rejette en silence (il retourne None sans lever). On serait passé en base
+    avec un historique intact en apparence et vide en fait. On repasse donc par
+    `get()` pour chaque entrée.
+
+    `save()` RÉATTRIBUE un identifiant. Les identifiants changent donc à la
+    reprise. C'est acceptable ici — rien ne pointe vers un livrable par son
+    identifiant hors de la console, et la filiation `parent_id` est recopiée
+    telle quelle — mais il fallait le constater plutôt que le supposer.
+
+    Un `save()` qui retourne None est compté comme un ÉCHEC : sans cela, la
+    perte serait silencieuse, ce qui est exactement le défaut qu'on corrige."""
+    repris = echecs = 0
+    for meta in list(mem.list()):
+        lid = meta.get("id")
+        rec = mem.get(lid) if lid else None
+        if not rec:
+            echecs += 1
+            continue
+        try:
+            if pg.save(dict(rec)):
+                repris += 1
+            else:
+                echecs += 1
+                _log.warning("Historique livrables : entrée %r refusée par la base.",
+                             str(lid)[:40])
+        except Exception:
+            echecs += 1
+            _log.warning("Historique livrables : entrée %r non reprise.", str(lid)[:40])
+    return repris, echecs
+
+
 def make_livrables_store():
-    """Store persistant si DATABASE_URL est défini, sinon en mémoire."""
+    """Store persistant si DATABASE_URL est défini, sinon en mémoire.
+
+    ENVELOPPÉ : sans cela, une base momentanément absente au démarrage
+    condamnait l'historique à la mémoire pour toute la vie du processus — donc
+    à disparaître au redéploiement suivant, sans que rien ne le signale."""
     dsn = os.environ.get("DATABASE_URL")
     if not dsn:
         return MemoryLivrablesStore()
     if dsn.startswith("postgres://"):
         dsn = "postgresql://" + dsn[len("postgres://"):]
-    try:
-        return PostgresLivrablesStore(dsn)
-    except Exception as exc:
-        _log.warning("Historique livrables : PostgreSQL injoignable (%s) — repli mémoire.", exc)
-        return MemoryLivrablesStore()
+    from resilience import MagasinResilient
+    return MagasinResilient("Historique livrables",
+                            lambda: PostgresLivrablesStore(dsn),
+                            MemoryLivrablesStore(), migrer=_migrer)
