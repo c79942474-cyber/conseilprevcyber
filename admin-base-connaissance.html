@@ -734,7 +734,7 @@
         document.getElementById('kThemes').textContent=Object.keys(themesHors).length;
         caps=j.capabilities||{};
         var modeLabel=caps.mode==='vectoriel'?'vectoriel':(caps.mode==='texte_integral'?'texte intégral':'lexical');
-        document.getElementById('kMode').innerHTML=modeLabel+(caps.persistent?(caps.reason==='disk'?' <small>(disque)</small>':''):' <small>(mémoire)</small>');
+        document.getElementById('kMode').innerHTML=modeLabel+(caps.persistent?(caps.durable==='disque'?' <small>(disque)</small>':''):' <small>(mémoire)</small>');
         // Quelle base est connectée ? Affiché en permanence : après un changement
         // de DATABASE_URL, la nouvelle base est vide — sans ce repère, on croit
         // ses documents perdus alors qu'ils sont restés dans l'ancienne.
@@ -758,8 +758,17 @@
         if(ks) ks.textContent = st ? (st.db_bytes!=null ? ('base : '+fmtBytes(st.db_bytes)+' · RAG : '+fmtBytes(st.rag_bytes)) : ('RAG : '+fmtBytes(st.rag_bytes))) : '';
         var mw=document.getElementById('memWarn');
         if(mw){
-          if(caps.persistent===false){
-            var dbMsg='<b style="color:var(--danger)">Base PostgreSQL injoignable — mode mémoire.</b> La variable <b>DATABASE_URL</b> est bien définie, mais la connexion échoue. La connexion est retentée automatiquement — vous pouvez aussi forcer un essai ci-dessous, <b>sans redéployer</b>. Les documents ne sont pas conservés tant que la base n\'est pas rétablie.';
+          // Un repli sur DISQUE ne perd rien, mais il reste un repli : recherche
+          // lexicale au lieu de vectorielle, pas de partage entre instances, pas
+          // de sauvegarde gérée. Ne se fier qu'à persistent===false revenait à
+          // faire DISPARAÎTRE ce bandeau dès qu'on appliquait le remède qu'il
+          // recommande lui-même (RAG_DISK_PATH) : la panne devenait invisible.
+          var durable = (caps.persistent!==false);
+          var degrade = (caps.persistent===false) || (caps.reason==='db_connection_failed');
+          if(degrade){
+            var dbMsg = durable
+              ? '<b style="color:var(--warn,#f79e7d)">Base PostgreSQL injoignable — repli sur disque.</b> La variable <b>DATABASE_URL</b> est définie, mais la connexion échoue. <b>Vos documents sont conservés</b> (disque), rien n\'est perdu — en revanche la recherche reste <b>lexicale</b> (pas de recherche vectorielle) et le repli n\'est pas partagé entre instances ni sauvegardé comme la base. La connexion est retentée automatiquement ; vous pouvez aussi forcer un essai ci-dessous, <b>sans redéployer</b>.'
+              : '<b style="color:var(--danger)">Base PostgreSQL injoignable — mode mémoire.</b> La variable <b>DATABASE_URL</b> est bien définie, mais la connexion échoue. La connexion est retentée automatiquement — vous pouvez aussi forcer un essai ci-dessous, <b>sans redéployer</b>. Les documents ne sont pas conservés tant que la base n\'est pas rétablie.';
             if(caps.reason==='db_connection_failed'&&caps.detail){
               var d=caps.detail, hint='';
               if(/could not translate host name|Name or service not known|could not resolve/i.test(d))
@@ -785,7 +794,7 @@
             } else if(caps.reason==='db_connection_failed'){
               dbMsg+='<div style="margin-top:9px">Vérifiez que la base est au statut <b>Available</b> (même région Frankfurt).</div>';
             }
-            dbMsg+='<div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--line)">💾 <b>Conserver les documents sans attendre la base</b> : ajoutez un <b>disque Render</b> (Environment → Disks, ex. monté sur <code>/var/data</code>) puis la variable <b>RAG_DISK_PATH=/var/data/rag.json</b>. La base de connaissance devient alors persistante sur disque, indépendamment de PostgreSQL. Le chargement fonctionne dès à présent (les documents sont en mémoire tant que ni la base ni le disque ne sont configurés).</div>';
+            if(!durable) dbMsg+='<div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--line)">💾 <b>Conserver les documents sans attendre la base</b> : ajoutez un <b>disque Render</b> (Environment → Disks, ex. monté sur <code>/var/data</code>) puis la variable <b>RAG_DISK_PATH=/var/data/rag.json</b>. La base de connaissance devient alors persistante sur disque, indépendamment de PostgreSQL. Le chargement fonctionne dès à présent (les documents sont en mémoire tant que ni la base ni le disque ne sont configurés).</div>';
             document.getElementById('memWarnBody').innerHTML=(caps.reason==='db_connection_failed')
               ? dbMsg
               : '<b style="color:var(--danger)">Mode mémoire — les documents ne sont pas conservés.</b> Aucune base PostgreSQL n\'est connectée : définissez la variable <b>DATABASE_URL</b> dans Render (URL interne d\'une base PostgreSQL), puis redéployez.';

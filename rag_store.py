@@ -514,8 +514,12 @@ class MemoryRagStore:
 
     def capabilities(self):
         if self._disk:
-            return {"persistent": True, "mode": "lexical",
-                    "embeddings": False, "vector": False, "reason": "disk"}
+            # « reason » garde la cause RÉELLE du repli : un repli sur disque
+            # après un échec de connexion RESTE un repli, même s'il est durable
+            # (recherche lexicale, pas vectorielle). L'écraser par « disk »
+            # masquait la panne dans la console.
+            return {"persistent": True, "mode": "lexical", "durable": "disque",
+                    "embeddings": False, "vector": False, "reason": self._reason}
         return {"persistent": False, "mode": "lexical",
                 "embeddings": False, "vector": False, "reason": self._reason}
 
@@ -878,6 +882,11 @@ class PostgresRagStore:
         self._dsn = dsn
         self.replis_directs = 0
         self._pool_ko_jusqu = 0.0        # fin de la période de grâce (voir _conn)
+        # timeout : plafond d'acquisition PAR DÉFAUT du pool. Les opérations de
+        # service l'outrepassent via _conn() (POOL_ACQUIS_S = 1,5 s), mais
+        # _init_schema() ouvre sa connexion SANS timeout explicite et hérite
+        # donc de cette valeur. Sur une base « serverless » réveillée à froid,
+        # la construction a besoin de cette marge — on la conserve.
         self._pool = ConnectionPool(dsn, min_size=1, max_size=4,
                                     kwargs={"autocommit": True, "prepare_threshold": None},
                                     timeout=12, open=True,
@@ -1745,9 +1754,15 @@ class ResilientRagStore:
     joignable. Aucune reconnexion n'est tentée au milieu d'une séquence d'upload
     (on ne change pas de moteur en cours de route)."""
 
+    # Attente maximale du bouton « forcer un essai » quand un cycle de fond est
+    # déjà en vol : au-delà, on rend la main plutôt que de faire patienter le
+    # navigateur jusqu'à son propre délai.
+    ATTENTE_BOUTON_S = 25.0
+
     def __init__(self, dsn):
         self._dsn = dsn
         self._pg = None
+        self.recherches_a_vide = 0
         # Repli mémoire (durable si RAG_DISK_PATH est défini) : DATABASE_URL est
         # défini mais la connexion a échoué.
         self._mem = MemoryRagStore(reason="db_connection_failed")
@@ -1759,12 +1774,19 @@ class ResilientRagStore:
         # sert depuis le repli ; il bascule sur PostgreSQL dès qu'il est joignable.
         # Aucune requête n'est jamais bloquée par une base froide/injoignable
         # (chaque essai peut bloquer ~10-20 s). self-healing sans redéploiement.
-        # Si le repli est déjà durable (disque), inutile de courir après la base :
-        # on n'y bascule que sur demande explicite (bouton « Reconnecter »).
-        if not getattr(self._mem, "persistent", False):
-            self._last_try = time.time()
-            self._reconnecting = True
-            threading.Thread(target=self._bg_connect, daemon=True).start()
+        #
+        # Le rattrapage est tenté MÊME si le repli est durable (RAG_DISK_PATH).
+        # La version précédente s'en dispensait, avec un raisonnement qui ne
+        # tient pas : un repli sur disque ne perd rien, mais il ne fait que de
+        # la recherche LEXICALE, il ne se partage pas entre instances, et il ne
+        # se sauvegarde pas comme la base. Surtout, il déclarait persistent=True
+        # — donc le bandeau d'alerte de la console disparaissait. Régler
+        # RAG_DISK_PATH, qui est précisément le remède que ce bandeau
+        # recommande, désactivait à la fois la reconnexion et l'alerte : la
+        # dégradation devenait définitive ET silencieuse.
+        self._last_try = time.time()
+        self._reconnecting = True
+        threading.Thread(target=self._bg_connect, daemon=True).start()
 
     @staticmethod
     def _sanitize_error(exc):
@@ -1910,23 +1932,27 @@ class ResilientRagStore:
                       "%d échec(s).", migres, echecs)
         return migres, echecs
 
+    def _intervalle(self):
+        """Délai minimal entre deux essais de rattrapage.
+
+        Le repli DURABLE (disque) ne perd rien : on peut y patienter plus
+        longtemps entre deux essais, sans pour autant renoncer à rattraper la
+        base — c'est la différence entre « moins pressé » et « jamais », et
+        c'est cette confusion qui rendait la dégradation définitive."""
+        if getattr(self._mem, "persistent", False):
+            return _RECONNECT_MIN_INTERVAL * 6
+        return _RECONNECT_MIN_INTERVAL
+
     def _maybe_reconnect(self):
         """Déclenche une reconnexion EN TÂCHE DE FOND (jamais bloquante). La
-        requête courante est toujours servie immédiatement depuis le repli.
-
-        Le repli DURABLE (disque) reste volontairement hors du rattrapage
-        automatique : il n'y a rien d'urgent à quitter un stockage qui ne perd
-        rien, et la bascule mérite alors une décision. Le repli VOLATILE, lui,
-        perd tout au prochain redémarrage : on va toujours le chercher."""
+        requête courante est toujours servie immédiatement depuis le repli."""
         if self._pg is not None or self._reconnecting:
             return
-        if getattr(self._mem, "persistent", False):
-            return
-        if time.time() - self._last_try < _RECONNECT_MIN_INTERVAL:
+        if time.time() - self._last_try < self._intervalle():
             return
         with self._lock:
             if (self._pg is not None or self._reconnecting
-                    or time.time() - self._last_try < _RECONNECT_MIN_INTERVAL):
+                    or time.time() - self._last_try < self._intervalle()):
                 return
             self._last_try = time.time()
             self._reconnecting = True
@@ -1948,22 +1974,52 @@ class ResilientRagStore:
         except RagError:
             raise
         except Exception as exc:
-            if store is self._pg:
-                self._last_error = _sanitize_pg_error(exc)
-                _log.warning("RAG : requête PostgreSQL « %s » échouée — repli mémoire (%s).",
-                             method, self._last_error)
-                self._pg = None
-                return getattr(self._mem, method)(*args, **kwargs)
-            raise
+            if store is not self._pg:
+                raise
+            # UN SEUL ÉCHEC NE SUFFIT PLUS À DÉCROCHER. La version précédente
+            # abandonnait la base au premier incident : une coupure de
+            # connexion par le pooler, un réveil à froid, une microcoupure
+            # réseau, et la console affichait « 0 document » sous un bandeau
+            # alarmant alors que la base était intacte et que le repli, lui,
+            # était vide. On rejoue donc l'opération une fois — le pool renvoie
+            # alors une connexion neuve, ce qui suffit dans l'immense majorité
+            # des cas — et on ne déclasse que si l'échec se confirme.
+            premiere = _sanitize_pg_error(exc)
+            try:
+                res = getattr(store, method)(*args, **kwargs)
+                _log.info("RAG : « %s » a échoué (%s) puis abouti au second essai — "
+                          "incident passager, la base est conservée.", method, premiere)
+                return res
+            except RagError:
+                raise
+            except Exception as exc2:
+                self._last_error = _sanitize_pg_error(exc2)
+            _log.warning("RAG : requête PostgreSQL « %s » échouée deux fois — "
+                         "repli mémoire (%s).", method, self._last_error)
+            self._pg = None
+            self.recherches_a_vide = 0
+            return getattr(self._mem, method)(*args, **kwargs)
 
     def reconnect(self):
         """Essai de reconnexion immédiat et SYNCHRONE (bouton admin : l'utilisateur
         accepte d'attendre). Sonde désactivée pour borner le délai (~12 s max).
-        Renvoie True si connecté."""
-        with self._lock:
-            if self._reconnecting:
+        Renvoie True si connecté.
+
+        SI UN ESSAI DE FOND EST DÉJÀ EN COURS, on l'ATTEND au lieu de rendre la
+        main aussitôt. La version précédente répondait « toujours en mémoire »
+        en 0,000 s dès qu'un cycle tournait — or un cycle dure de 50 s à près de
+        3 minutes, si bien qu'un administrateur qui appuyait sur le bouton
+        pendant ce temps recevait un échec instantané et concluait que la
+        reconnexion ne marchait pas, alors qu'elle était en train de réussir."""
+        fin = time.time() + self.ATTENTE_BOUTON_S
+        while True:
+            with self._lock:
+                if not self._reconnecting:
+                    self._reconnecting = True
+                    break
+            if self._pg is not None or time.time() >= fin:
                 return self._pg is not None
-            self._reconnecting = True
+            time.sleep(0.25)
         try:
             self._last_try = time.time()
             self._try_connect(attempts=1, probe=False)
@@ -1997,8 +2053,26 @@ class ResilientRagStore:
 
     def search(self, *args, **kwargs):
         # Lecture tolérante : une panne de la base ne casse ni l'assistant, ni
-        # les livrables, ni l'explorateur — repli mémoire silencieux.
-        return self._read("search", *args, **kwargs)
+        # les livrables, ni l'explorateur — on sert depuis le repli.
+        #
+        # La recherche EST le chemin le plus fréquenté du magasin — bien plus
+        # que la console d'administration. L'omettre du rattrapage revenait à
+        # ne retenter la connexion que lorsqu'un administrateur ouvrait une
+        # page : sur un site consulté sans administrateur connecté, la base
+        # pouvait rester perdue des heures après son rétablissement.
+        self._maybe_reconnect()
+        res = self._read("search", *args, **kwargs)
+        # Un repli qui ne renvoie RIEN alors que la base contenait des documents
+        # se traduit, en bout de chaîne, par une réponse d'assistant sans
+        # sources. Ce n'est pas une recherche infructueuse, c'est une panne :
+        # elle doit laisser une trace.
+        if self._pg is None and not res:
+            self.recherches_a_vide += 1
+            if self.recherches_a_vide in (1, 10, 100) or self.recherches_a_vide % 500 == 0:
+                _log.warning("RAG : recherche sans résultat en mode repli "
+                             "(%d depuis la bascule) — réponses sans sources.",
+                             self.recherches_a_vide)
+        return res
 
     def _write(self, method, *args, **kwargs):
         """Opération d'ÉCRITURE TOLÉRANTE aux pannes EN COURS DE VIE.
