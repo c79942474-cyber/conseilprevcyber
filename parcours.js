@@ -46,6 +46,178 @@
   function reserve(url) { return RESERVE[url] === 1; }
 
   /* ═══════════════════════════════════════════════════════════════════════
+     LE MOTEUR DE PERTINENCE — le croisement rôle × secteur, calculé
+
+     POURQUOI UN ALGORITHME ET NON UNE IA À L'EXÉCUTION. Croiser un rôle et un
+     secteur pour dire « ici, insistez sur ceci » est une DÉDUCTION, pas une
+     interprétation : la bonne réponse est stable, vérifiable, et ne doit pas
+     changer d'un visiteur à l'autre. Sur un contenu réglementaire et de
+     sécurité, un modèle de langage appelé à chaud apporterait trois défauts et
+     aucun avantage : une latence de plusieurs secondes à chaque ouverture, un
+     coût par visiteur, et surtout le risque d'inventer une priorité fausse que
+     personne ne pourrait auditer. Le site tient déjà cette ligne partout
+     ailleurs (le juridique qualifie en Python, l'IA n'interprète que sur
+     référentiel fermé). On reste dans cette ligne : ce moteur est déterministe,
+     instantané, hors-ligne, et se relit.
+
+     COMMENT. Chaque page porte un ou plusieurs AXES (gouvernance, analyse,
+     technique…). Chaque secteur porte un PROFIL DE POIDS sur ces mêmes axes,
+     tiré de son enjeu et de son piège réels. Le score d'une étape pour un
+     croisement est la somme des poids du secteur sur les axes de l'étape. Trois
+     sorties en découlent :
+       - les PRIORITÉS : les étapes de l'itinéraire du rôle qui pèsent le plus
+         pour CE secteur (l'ordre pédagogique du rôle est conservé — on met en
+         relief, on ne ré-ordonne pas une séquence éprouvée) ;
+       - l'AXE DOMINANT du croisement : là où l'itinéraire du rôle et les
+         priorités du secteur se renforcent le plus (poids × présence) ;
+       - le DÉTOUR : une étape propre au parcours du secteur, absente de
+         l'itinéraire type du rôle, mais décisive ici — la vraie valeur ajoutée
+         du croisement, celle qu'un simple placage de notes ne produit pas.
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  /* Axes portés par chaque page. Un tableau VIDE est un choix explicite (page
+     utilitaire, neutre pour le croisement), pas un oubli — la recette vérifie
+     que toute URL de parcours a une entrée ici, vide ou non. */
+  var AXES_URL = {
+    "/diagnostic": ["analyse"],
+    "/maturite-ot": ["analyse", "gouvernance"],
+    "/analyse-de-risque": ["analyse", "technique"],
+    "/programme-securite": ["gouvernance"],
+    "/operating-model": ["gouvernance"],
+    "/feuille-de-route": ["gouvernance", "continuite"],
+    "/metriques-62443": ["preuve"],
+    "/referentiel": ["gouvernance"],
+    "/glossaire-62443": [],
+    "/secteurs": ["analyse"],
+    "/methodologie": ["exigences", "gouvernance"],
+    "/exigences-systeme": ["exigences"],
+    "/exigences-composants": ["exigences", "technique"],
+    "/developpement-securise": ["exigences", "technique"],
+    "/exigences-prestataires": ["tiers", "exigences"],
+    "/technologies-securite": ["technique"],
+    "/gestion-correctifs": ["technique", "continuite"],
+    "/demo": ["technique", "continuite"],
+    "/veille": ["preuve"],
+    "/audit-conformite": ["preuve", "juridique"],
+    "/conformite": ["juridique", "preuve"],
+    "/juridique": ["juridique", "tiers"],
+    "/nis2": ["juridique"],
+    "/etudes-de-cas": ["analyse"],
+    "/contact": []
+  };
+
+  /* Profil de poids de chaque secteur sur les axes (0 à 3). Tiré de l'enjeu et
+     du piège DÉCLARÉS plus bas pour ce secteur — pas d'une intuition. Un poids
+     de 3 désigne ce qui, dans ce secteur, fait tomber les installations. */
+  var POIDS = {
+    /* télémaintenance jamais refermée + disponibilité réseau */
+    energie:       { gouvernance:1, analyse:2, technique:2, exigences:1, tiers:3, juridique:2, continuite:3, preuve:1 },
+    /* inventaire d'un parc dispersé + continuité du service public */
+    eau:           { gouvernance:2, analyse:3, technique:2, exigences:1, tiers:1, juridique:1, continuite:2, preuve:2 },
+    /* segmenter sans arrêter les lignes + IIoT hors circuit */
+    manufacturing: { gouvernance:1, analyse:3, technique:3, exigences:2, tiers:1, juridique:1, continuite:2, preuve:2 },
+    /* procédés continus + équipements hors support */
+    agro:          { gouvernance:1, analyse:2, technique:3, exigences:1, tiers:1, juridique:1, continuite:3, preuve:1 },
+    /* sûreté du procédé (SIS) + qualification à ne pas invalider */
+    chimie:        { gouvernance:1, analyse:2, technique:2, exigences:3, tiers:1, juridique:2, continuite:3, preuve:2 },
+    /* accès prestataires nombreux et permanents + flux M2M */
+    transport:     { gouvernance:1, analyse:2, technique:2, exigences:1, tiers:3, juridique:2, continuite:2, preuve:1 },
+    /* DORA + registre des prestataires TIC */
+    finance:       { gouvernance:2, analyse:1, technique:1, exigences:1, tiers:3, juridique:3, continuite:2, preuve:2 },
+    /* sûreté classée + qualification rigoureuse des accès */
+    nucleaire:     { gouvernance:2, analyse:2, technique:2, exigences:3, tiers:1, juridique:2, continuite:3, preuve:2 },
+    /* cascade des donneurs d'ordre + souveraineté / secret défense */
+    aero:          { gouvernance:2, analyse:1, technique:1, exigences:3, tiers:3, juridique:2, continuite:1, preuve:2 }
+  };
+
+  var AXE_LABEL = {
+    gouvernance: "la gouvernance du programme",
+    analyse: "l’analyse de risque et la cartographie",
+    technique: "les moyens techniques et l’architecture",
+    exigences: "les exigences opposables",
+    tiers: "la maîtrise des tiers et des accès distants",
+    juridique: "le cadre réglementaire",
+    continuite: "la continuité et la sûreté du procédé",
+    preuve: "la preuve et la mesure"
+  };
+  var AXE_COURT = {
+    gouvernance: "Gouvernance", analyse: "Analyse de risque",
+    technique: "Technique & architecture", exigences: "Exigences",
+    tiers: "Tiers & accès", juridique: "Réglementaire",
+    continuite: "Continuité & sûreté", preuve: "Preuve & mesure"
+  };
+
+  /* Cœur du moteur. Prend l'itinéraire du rôle, l'identifiant du secteur et le
+     parcours court du secteur ; rend un objet exploitable tel quel par le rendu.
+     N'ouvre rien, ne dépend d'aucun DOM : pur, donc éprouvable en recette. */
+  function personnaliser(etapes, secId, secteurEtapes) {
+    var poids = POIDS[secId];
+    if (!poids || !etapes || !etapes.length) return null;
+
+    var scored = etapes.map(function (e, i) {
+      var axes = AXES_URL[e.url] || [];
+      var score = 0, axeCle = null, wmax = -1;
+      for (var k = 0; k < axes.length; k++) {
+        var w = poids[axes[k]] || 0;
+        score += w;
+        if (w > wmax) { wmax = w; axeCle = axes[k]; }
+      }
+      return { i: i, url: e.url, label: e.label, score: score, axe: axeCle, axes: axes };
+    });
+
+    var total = 0, max = 0;
+    scored.forEach(function (x) { total += x.score; if (x.score > max) max = x.score; });
+    var moy = total / scored.length;
+
+    /* Priorités : au plus deux étapes, nettement au-dessus de la moyenne de CET
+       itinéraire. Le seuil dépend du croisement, jamais d'une constante — un
+       itinéraire homogène ne désigne rien de force, un itinéraire contrasté
+       fait ressortir ses points forts. */
+    var seuil = Math.max(moy + 1, max * 0.7);
+    var ranked = scored.slice().sort(function (a, b) { return b.score - a.score || a.i - b.i; });
+    var prio = ranked.filter(function (x) { return x.score > 0 && x.score >= seuil; }).slice(0, 2);
+    if (!prio.length && max > 0) {
+      prio = ranked.filter(function (x) { return x.score === max; }).slice(0, 1);
+    }
+
+    /* Axe dominant du CROISEMENT : poids du secteur × nombre d'étapes du rôle
+       qui le portent. Élevé seulement quand le secteur y tient ET que le chemin
+       du rôle y passe — c'est précisément le « réglage fin » recherché. */
+    var domAxe = null, domVal = -1;
+    for (var a in poids) {
+      if (!poids.hasOwnProperty(a)) continue;
+      var occ = 0;
+      scored.forEach(function (x) { if (x.axes.indexOf(a) >= 0) occ++; });
+      var v = poids[a] * occ;
+      if (v > domVal) { domVal = v; domAxe = a; }
+    }
+
+    /* Détour : une étape du parcours SECTEUR absente de l'itinéraire du rôle et
+       qui pèse fort ici. C'est l'apport que le placage de notes ne donnait pas :
+       le croisement peut AJOUTER une étape, pas seulement annoter les siennes. */
+    var detour = null;
+    if (secteurEtapes && secteurEtapes.length) {
+      var presentes = {};
+      etapes.forEach(function (e) { presentes[e.url] = 1; });
+      var cand = secteurEtapes.map(function (e) {
+        var axes = AXES_URL[e.url] || [], s = 0, ax = null, wm = -1;
+        for (var k = 0; k < axes.length; k++) {
+          var w = poids[axes[k]] || 0; s += w;
+          if (w > wm) { wm = w; ax = axes[k]; }
+        }
+        return { url: e.url, label: e.label, score: s, axe: ax };
+      }).filter(function (x) { return !presentes[x.url] && x.score > 0; })
+        .sort(function (a, b) { return b.score - a.score; });
+      if (cand.length) detour = cand[0];
+    }
+
+    var prioIdx = {};
+    prio.forEach(function (x) { prioIdx[x.i] = x.axe; });
+    return { scored: scored, prio: prio, prioIdx: prioIdx,
+             domAxe: domAxe, detour: detour, moy: moy, max: max };
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
      LES PARCOURS
      Chaque étape porte trois choses, et les trois comptent :
        action — ce qu'on fait sur la page (sinon on la survole) ;
@@ -723,6 +895,26 @@
     }
   ];
 
+  /* Le moteur et ses données sont désormais définis. Sous Node (recette), on
+     les expose et on s'arrête AVANT tout code de page : rien ci-dessous ne
+     tourne sans navigateur, et le moteur s'éprouve avec les VRAIES données,
+     sans les recopier — donc sans risque de divergence entre test et site. */
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = {
+      AXES_URL: AXES_URL, POIDS: POIDS, AXE_LABEL: AXE_LABEL, AXE_COURT: AXE_COURT,
+      personnaliser: personnaliser, PARCOURS: PARCOURS, SECTEURS: SECTEURS
+    };
+  }
+  /* Le moteur est aussi offert au navigateur pour un éventuel usage tiers ;
+     le rendu ci-dessous l'appelle directement, il n'en dépend pas. */
+  if (typeof window !== "undefined") {
+    window.PCMoteur = {
+      personnaliser: personnaliser, AXES_URL: AXES_URL, POIDS: POIDS,
+      AXE_LABEL: AXE_LABEL, AXE_COURT: AXE_COURT
+    };
+  }
+  if (typeof document === "undefined") return;
+
   function trouverSecteur(id) {
     for (var k = 0; k < SECTEURS.length; k++) if (SECTEURS[k].id === id) return SECTEURS[k];
     return null;
@@ -828,8 +1020,26 @@
     ".pc-fiche-pitch{font-size:12.5px;color:var(--muted);line-height:1.6;margin-top:4px}",
     ".pc-cas{font-size:11.5px;color:var(--muted2);border-left:2px solid var(--teal);padding-left:10px;",
     "margin:12px 0 16px;line-height:1.55}",
+    /* Bloc « Priorités calculées » : la sortie du moteur de pertinence. Teinté
+       ambre pour se distinguer du bloc sectoriel (teal) : l'un dit « ce que le
+       secteur change », l'autre « par où commencer pour CE croisement ». */
+    ".pc-prio{border:1px solid var(--amber);border-left:3px solid var(--amber);border-radius:0 10px 10px 0;",
+    "background:rgba(245,158,11,.07);padding:12px 15px;margin:12px 0 16px;min-width:0}",
+    ".pc-prio-t{font-size:13.5px;font-weight:700;color:var(--ink);margin-bottom:7px}",
+    ".pc-prio-syn{font-size:12.5px;color:var(--muted);line-height:1.6;margin-bottom:8px;overflow-wrap:anywhere}",
+    ".pc-prio-syn b{color:var(--ink)}",
+    ".pc-prio-l{margin:0;padding-left:20px}",
+    ".pc-prio-l li{font-size:12.3px;color:var(--muted);line-height:1.6;margin-bottom:5px;overflow-wrap:anywhere}",
+    ".pc-prio-l li b{color:var(--ink)}",
+    ".pc-prio-det{font-size:12.3px;color:var(--muted);line-height:1.6;margin-top:8px;padding-top:8px;",
+    "border-top:1px dashed var(--line);overflow-wrap:anywhere}",
+    ".pc-prio-det b{color:var(--amber)}",
+    ".pc-prio-badge{flex-shrink:0;font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;",
+    "text-transform:uppercase;color:#0d2b28;background:var(--amber);border-radius:999px;",
+    "padding:3px 8px;white-space:nowrap;font-weight:700}",
     ".pc-etape{border:1px solid var(--line);border-radius:10px;padding:13px 15px;background:var(--bg2);min-width:0}",
     ".pc-etape.pc-ici{border-color:var(--teal);background:rgba(45,212,191,.07)}",
+    ".pc-etape.pc-prio-etape{border-left:3px solid var(--amber)}",
     ".pc-e-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}",
     ".pc-num{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:var(--panel2);color:var(--ink);",
     "font-family:var(--mono);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}",
@@ -948,12 +1158,14 @@
 
   /* Une étape, rendue avec la note du secteur s'il y en a une pour cette page.
      `sec` peut être null : le rendu est alors celui d'avant, à l'identique. */
-  function etapeHtml(idParcours, e, i, ici, sec) {
+  function etapeHtml(idParcours, e, i, ici, sec, perso) {
     var courante = e.url === ici;
     var note = sec && sec.notes ? sec.notes[e.url] : null;
-    return '<div class="pc-etape' + (courante ? " pc-ici" : "") + '">'
+    var prioAxe = perso && perso.prioIdx.hasOwnProperty(i) ? perso.prioIdx[i] : null;
+    return '<div class="pc-etape' + (courante ? " pc-ici" : "") + (prioAxe ? " pc-prio-etape" : "") + '">'
       + '<div class="pc-e-top"><span class="pc-num">' + (i + 1) + "</span>"
       + '<span class="pc-e-label">' + esc(e.label) + (courante ? " · vous y êtes" : "") + "</span>"
+      + (prioAxe ? '<span class="pc-prio-badge" title="Étape à fort enjeu pour ce secteur">★ Prioritaire</span>' : "")
       + (reserve(e.url) ? '<span class="pc-cle" title="Cette page demande un compte">🔒 Compte requis</span>' : "")
       + '<a class="pc-go" href="' + esc(e.url) + '" data-pc-go="' + esc(idParcours) + "|" + i + '">'
       + (courante ? "Rester ici" : "Aller à cette page") + " →</a></div>"
@@ -963,6 +1175,39 @@
       + (note ? '<div class="pc-e-sec"><b>' + esc(sec.icone + " " + sec.nom) + " — </b>"
                 + esc(note) + "</div>" : "")
       + "</div>";
+  }
+
+  /* Nom court du rôle (avant le « · ») pour les titres croisés. */
+  function courtRole(role) {
+    var s = String(role || "");
+    var j = s.indexOf(" · ");
+    return j > 0 ? s.slice(0, j) : s;
+  }
+
+  /* Le bloc « Priorités calculées » : la sortie visible du moteur de pertinence,
+     affiché seulement quand un rôle ET un secteur sont choisis — c'est là que le
+     croisement a un sens à régler finement. */
+  function blocPrio(p, sec, perso) {
+    if (!perso || (!perso.prio.length && !perso.detour)) return "";
+    var syn = "Pour <b>" + esc(courtRole(p.role)) + "</b> en <b>" + esc(sec.nom)
+      + "</b>, l’itinéraire de votre fonction et les priorités du secteur convergent surtout sur <b>"
+      + esc(AXE_LABEL[perso.domAxe] || perso.domAxe) + "</b>.";
+    var items = perso.prio.map(function (x) {
+      return '<li><b>Étape ' + (x.i + 1) + " · " + esc(x.label) + "</b> — "
+        + "porte " + esc(AXE_LABEL[x.axe] || x.axe) + " pour ce secteur.</li>";
+    }).join("");
+    var liste = items ? '<ol class="pc-prio-l">' + items + "</ol>" : "";
+    var det = perso.detour
+      ? '<div class="pc-prio-det">↳ <b>Détour conseillé :</b> ' + esc(perso.detour.label)
+        + " — étape propre à ce secteur, hors de l’itinéraire type de votre rôle, mais décisive ici ("
+        + esc(AXE_COURT[perso.detour.axe] || perso.detour.axe) + ")."
+        + '</div>'
+      : "";
+    return '<div class="pc-prio">'
+      + '<div class="pc-prio-t">🎯 Priorités calculées · ' + esc(courtRole(p.role))
+      + ' <span class="pc-croix">×</span> ' + esc(sec.nom) + "</div>"
+      + '<div class="pc-prio-syn">' + syn + "</div>"
+      + liste + det + "</div>";
   }
 
   /* Le bloc sectoriel : ce que le secteur change, indépendamment du rôle. */
@@ -988,8 +1233,12 @@
        lecture sans issue. */
     var source = p || sec;
     var idParcours = p ? p.id : "sec:" + sec.id;
+    /* Le moteur ne s'applique qu'au croisement d'un rôle ET d'un secteur : c'est
+       le seul cas où « régler finement » veut dire quelque chose. Un rôle seul
+       garde sa séquence éprouvée ; un secteur seul mène son parcours court. */
+    var perso = (p && sec) ? personnaliser(p.etapes, sec.id, sec.etapes) : null;
     var etapes = source.etapes.map(function (e, i) {
-      return etapeHtml(idParcours, e, i, ici, sec);
+      return etapeHtml(idParcours, e, i, ici, sec, perso);
     }).join('<div class="pc-fleche">↓</div>');
 
     var tete;
@@ -1000,7 +1249,8 @@
         + "</div>"
         + '<div class="pc-fiche-pitch">' + esc(p.pitch) + "</div></div></div>"
         + '<div class="pc-cas">' + esc(p.cas) + "</div>"
-        + (sec ? blocSecteur(sec, false) : "");
+        + (sec ? blocSecteur(sec, false) : "")
+        + (perso ? blocPrio(p, sec, perso) : "");
     } else {
       tete = '<div class="pc-fiche-head"><span class="pc-fiche-ic">' + esc(sec.icone) + "</span>"
         + '<div><div class="pc-fiche-role">' + esc(sec.nom) + "</div>"
