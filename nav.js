@@ -104,6 +104,15 @@
     var html = '<div class="drawer-head">'
       + '<div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="26" height="26" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>'
       + '<button type="button" class="drawer-close" aria-label="Fermer le menu">✕</button></div>'
+      // Entrée des PARCOURS GUIDÉS, en tête du tiroir. L'arborescence répond
+      // « où est telle page ? » ; elle ne répond pas « par où je commence ».
+      // Posé MASQUÉ : c'est parcours.js qui l'affiche une fois prêt. L'ordre
+      // de chargement des deux scripts n'a donc pas à être garanti, et un
+      // bouton mort ne peut pas apparaître si le script manque.
+      + '<button type="button" class="pc-open" id="pc-open-drawer" hidden>'
+      + '<span aria-hidden="true">🧭</span><span>Parcours guidés'
+      + '<span class="pc-sub">Choisissez votre rôle — l’ordre de lecture suit une mission réelle</span>'
+      + '</span></button>'
       + '<nav class="drawer-nav" aria-label="Toutes les rubriques">';
     NAV_SECTIONS.forEach(function (s) {
       html += '<section><h4>' + s.t + '</h4>';
@@ -120,6 +129,19 @@
     drawer.innerHTML = html;
     document.body.appendChild(scrim);
     document.body.appendChild(drawer);
+
+    // Câblage du bouton « Parcours guidés ». Il reste masqué tant que
+    // parcours.js ne l'a pas révélé : mieux vaut pas de bouton du tout qu'un
+    // bouton qui ne fait rien.
+    var pcBtn = drawer.querySelector("#pc-open-drawer");
+    if (pcBtn) {
+      pcBtn.addEventListener("click", function () {
+        if (typeof window.parcoursOuvrir !== "function") return;
+        close();                        // déclaration hissée : définie plus bas
+        window.parcoursOuvrir();
+      });
+      if (typeof window.parcoursPret === "function") window.parcoursPret();
+    }
 
     // Infobulles flottantes : ajoutées au <body> (jamais rognées par le tiroir
     // qui défile), positionnées à droite de l'onglet — repli sous l'onglet si
