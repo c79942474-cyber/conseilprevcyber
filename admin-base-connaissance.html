@@ -325,10 +325,17 @@
         <div class="frow" style="margin-top:16px">
           <div class="field"><label for="titleEng">Titre (facultatif)</label><input type="text" id="titleEng" name="title" placeholder="Repris du nom de fichier si vide"></div>
           <div class="field"><label for="themeEng">Sous-dossier Engineering</label>
+            <!-- Liste de REPLI, servie telle quelle si JavaScript ne s'exécute
+                 pas (le formulaire reste fonctionnel). Au chargement de la page,
+                 elle est remplacée par le vocabulaire réel du serveur, sous-
+                 dossiers compris : la source de vérité est THEME_FAMILLES. -->
             <select id="themeEng" name="theme">
               <option value="Engineering">Engineering (racine)</option>
               <option value="Engineering / Projet OWFarm">Projet OWFarm</option>
               <option value="Engineering / Oil &amp; Gas">Oil &amp; Gas</option>
+              <option value="Engineering / Oil &amp; Gas / GNL">Oil &amp; Gas / GNL</option>
+              <option value="Engineering / Oil &amp; Gas / Safety">Oil &amp; Gas / Safety</option>
+              <option value="Engineering / Oil &amp; Gas / Rules">Oil &amp; Gas / Rules</option>
             </select>
           </div>
         </div>

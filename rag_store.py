@@ -156,6 +156,9 @@ THEME_FAMILLES = [
         "Engineering / Projet OWFarm / Rules / DNV",
         "Engineering / Projet OWFarm / Rules / NFPA",
         "Engineering / Oil & Gas",
+        "Engineering / Oil & Gas / GNL",
+        "Engineering / Oil & Gas / Safety",
+        "Engineering / Oil & Gas / Rules",
     ]),
     # Ordre alphabétique : sans critère de tri évident (ni chronologie ni
     # importance), c'est le seul qui permette de trouver un nom sans le chercher.
