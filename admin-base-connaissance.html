@@ -1249,15 +1249,28 @@
     function outilSauvegarde(btn, scope){
       var b=btn,old=b.textContent;b.disabled=true;b.textContent='Sauvegarde…';
       var q=scope?('?scope='+encodeURIComponent(scope)):'';
-      fetch('/api/admin/rag/backup'+q).then(function(r){ if(!r.ok) throw new Error('http_'+r.status); return r.blob(); })
-        .then(function(bl){
-          var u=URL.createObjectURL(bl),a=document.createElement('a');
-          a.href=u;a.download='conseilprevcyber-rag'+(scope==='engineering'?'-engineering':'')
-                  +'-'+new Date().toISOString().slice(0,10)+'.json';
+      // On SONDE la session d'abord, puis on confie le telechargement au
+      // NAVIGATEUR par un simple lien, au lieu de fetch().then(blob).
+      // Deux raisons. La premiere : un blob tient tout entier dans la memoire
+      // de l'onglet — une base de plusieurs centaines de megaoctets y passait
+      // deux fois (le blob, puis la copie ecrite sur le disque), sans barre de
+      // progression, et la moindre coupure ne laissait rien du tout. En lien,
+      // le fichier s'ecrit sur le disque au fur et a mesure. La seconde : sans
+      // la sonde, une session expiree renverrait une reponse d'erreur que le
+      // navigateur enregistrerait sous le nom du fichier attendu.
+      fetch('/api/admin/rag/backup'+(q?q+'&':'?')+'probe=1',{headers:{'accept':'application/json'}})
+        .then(function(r){ if(!r.ok) throw new Error('http_'+r.status); return r.json(); })
+        .then(function(j){
+          var a=document.createElement('a');
+          a.href='/api/admin/rag/backup'+q; a.style.display='none';
           document.body.appendChild(a);a.click();
-          setTimeout(function(){URL.revokeObjectURL(u);a.remove();},1500);
-          note('Sauvegarde'+libScope(scope)+' téléchargée — conservez-la hors ligne.','ok');
-        }).catch(function(){note('Sauvegarde impossible pour le moment.','err');})
+          setTimeout(function(){a.remove();},2000);
+          note('Sauvegarde'+libScope(scope)+' lancée'
+               +(j&&j.documents>0?(' — '+j.documents+' document(s)'):'')
+               +'. Suivez la progression dans la barre de téléchargement du navigateur, '
+               +'et attendez qu’elle soit terminée avant d’utiliser le fichier.','ok');
+        }).catch(function(){note('Sauvegarde impossible : session expirée ou service '
+               +'indisponible. Rechargez la page, reconnectez-vous, puis réessayez.','err');})
         .then(function(){b.disabled=false;b.textContent=old;});
     }
 

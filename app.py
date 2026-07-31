@@ -2570,10 +2570,23 @@ def api_rag_backup():
     Réponse en FLUX : le fichier part au fur et à mesure qu'il se fabrique.
     Pas d'ETag ici — le calculer supposerait d'avoir tout le contenu sous la
     main, ce qui est précisément ce qu'on refuse de faire. Une sauvegarde ne se
-    re-télécharge de toute façon pas assez souvent pour qu'un cache serve."""
+    re-télécharge de toute façon pas assez souvent pour qu'un cache serve.
+
+    `?probe=1` ne télécharge rien : il confirme que la session est encore
+    ouverte. La console s'en sert AVANT de lancer le téléchargement, sinon une
+    session expirée ferait enregistrer la réponse d'erreur sous le nom du
+    fichier attendu — et l'utilisateur croirait tenir une sauvegarde là où il
+    n'a que quarante octets disant « Authentification requise »."""
     scope = (request.args.get("scope") or "").strip().lower()
-    nom = ("conseilprevcyber-rag-engineering-backup.json"
-           if scope == "engineering" else "conseilprevcyber-rag-backup.json")
+    if request.args.get("probe"):
+        try:
+            n = int((rag.stats() or {}).get("documents") or 0)
+        except Exception:                                  # noqa: BLE001
+            n = -1
+        return jsonify(ok=True, documents=n)
+    jour = time.strftime("%Y-%m-%d", time.gmtime())
+    nom = ("conseilprevcyber-rag-engineering-backup-%s.json" % jour
+           if scope == "engineering" else "conseilprevcyber-rag-backup-%s.json" % jour)
     resp = Response(stream_with_context(_rag_export_flux(scope)),
                     mimetype="application/octet-stream")
     resp.headers["Content-Disposition"] = ('attachment; filename="%s"'
