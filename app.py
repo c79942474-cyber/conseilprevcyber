@@ -57,7 +57,7 @@ from urllib.parse import urlparse
 
 import requests
 from flask import (Flask, Response, jsonify, redirect, request, send_file,
-                   send_from_directory)
+                   send_from_directory, stream_with_context)
 
 import assistant
 import audit
@@ -2495,35 +2495,69 @@ def _rag_scope_docs(scope):
     return docs
 
 
-def _rag_export(scope=None):
-    """Construit la sauvegarde : pour chaque document, ses métadonnées + le
-    fichier d'origine (ou, à défaut, le texte réassemblé) encodé en base64.
-
-    `scope="engineering"` n'exporte que le corpus d'ingénierie — une sauvegarde
-    ciblée, bien plus légère à conserver et à restaurer qu'un export complet."""
-    eng_only = (scope or "").strip().lower() == "engineering"
-    out = []
-    for d in rag.list_documents():
-        if _rag_is_veille(d):
-            continue
-        if eng_only and not _rag_is_engineering(d):
-            continue
-        did = d.get("id")
-        filename = d.get("filename") or ((d.get("title") or "document") + ".txt")
+def _rag_doc_export(d, eng_only):
+    """Une entrée de sauvegarde, ou None si le document n'est pas exportable."""
+    if _rag_is_veille(d):
+        return None
+    if eng_only and not _rag_is_engineering(d):
+        return None
+    did = d.get("id")
+    filename = d.get("filename") or ((d.get("title") or "document") + ".txt")
+    try:
+        filename, data = rag.get_blob(did)
+    except Exception:
         try:
-            filename, data = rag.get_blob(did)
+            data = (rag.document_text(did).get("text") or "").encode("utf-8")
         except Exception:
-            try:
-                data = (rag.document_text(did).get("text") or "").encode("utf-8")
-            except Exception:
-                continue
-            if not filename.lower().endswith(".txt"):
-                filename += ".txt"
-        if not data:
+            return None
+        if not filename.lower().endswith(".txt"):
+            filename += ".txt"
+    if not data:
+        return None
+    return {"title": d.get("title"), "filename": filename,
+            "theme": d.get("theme"), "visibility": d.get("visibility"),
+            "content_b64": base64.b64encode(data).decode("ascii")}
+
+
+def _rag_export_flux(scope=None):
+    """Sauvegarde ÉCRITE AU FIL DE L'EAU, document par document.
+
+    POURQUOI CE N'EST PLUS CONSTRUIT EN MÉMOIRE
+    La version précédente accumulait tout avant d'envoyer quoi que ce soit :
+    les octets bruts de chaque fichier, puis leur base64, puis la chaîne JSON
+    complète, puis son encodage UTF-8, puis une copie dans un BytesIO pour le
+    téléchargement. Soit environ CINQ FOIS le poids du corpus en mémoire vive
+    au même instant. Sur une instance à 512 Mo, une base de cent mégaoctets
+    suffisait à déclencher le redémarrage automatique — et l'utilisateur voyait
+    « exceeded its memory limit » au lieu de son fichier.
+
+    Ici, chaque document est encodé, envoyé, puis oublié : la mémoire occupée
+    ne dépasse jamais le plus gros document. La sauvegarde d'un corpus d'un
+    gigaoctet passe sur la même instance.
+
+    `count` est écrit à la FIN, et non au début : on ne connaît le nombre de
+    documents réellement exportés qu'une fois le dernier lu — certains sont
+    écartés en chemin (blob illisible). C'est du JSON valide, et le seul
+    lecteur qui s'en sert ne le lit qu'à titre indicatif."""
+    eng_only = (scope or "").strip().lower() == "engineering"
+    yield ('{"version":1,"app":"conseilprevcyber-rag","created_at":%d,"documents":['
+           % int(time.time() * 1000))
+    n = 0
+    for d in rag.list_documents():
+        entree = _rag_doc_export(d, eng_only)
+        if not entree:
             continue
-        out.append({"title": d.get("title"), "filename": filename,
-                    "theme": d.get("theme"), "visibility": d.get("visibility"),
-                    "content_b64": base64.b64encode(data).decode("ascii")})
+        yield ("," if n else "") + json.dumps(entree, ensure_ascii=False)
+        n += 1
+        del entree                      # rendre la place avant le suivant
+    yield '],"count":%d}' % n
+
+
+def _rag_export(scope=None):
+    """Sauvegarde complète en mémoire. Conservée pour un appel programmatique
+    sur un petit périmètre ; le téléchargement, lui, passe par le flux."""
+    eng_only = (scope or "").strip().lower() == "engineering"
+    out = [e for e in (_rag_doc_export(d, eng_only) for d in rag.list_documents()) if e]
     return {"version": 1, "app": "conseilprevcyber-rag",
             "created_at": int(time.time() * 1000), "count": len(out), "documents": out}
 
@@ -2531,12 +2565,24 @@ def _rag_export(scope=None):
 @app.route("/api/admin/rag/backup", methods=["GET"])
 @admin_required
 def api_rag_backup():
-    """Télécharge une sauvegarde complète (JSON) de la base de connaissance."""
+    """Télécharge une sauvegarde complète (JSON) de la base de connaissance.
+
+    Réponse en FLUX : le fichier part au fur et à mesure qu'il se fabrique.
+    Pas d'ETag ici — le calculer supposerait d'avoir tout le contenu sous la
+    main, ce qui est précisément ce qu'on refuse de faire. Une sauvegarde ne se
+    re-télécharge de toute façon pas assez souvent pour qu'un cache serve."""
     scope = (request.args.get("scope") or "").strip().lower()
-    payload = json.dumps(_rag_export(scope), ensure_ascii=False).encode("utf-8")
     nom = ("conseilprevcyber-rag-engineering-backup.json"
            if scope == "engineering" else "conseilprevcyber-rag-backup.json")
-    return _blob_response(nom, payload)
+    resp = Response(stream_with_context(_rag_export_flux(scope)),
+                    mimetype="application/octet-stream")
+    resp.headers["Content-Disposition"] = ('attachment; filename="%s"'
+                                           % _safe_download_name(nom))
+    resp.headers["Cache-Control"] = "no-store"
+    # Certains relais tamponnent une reponse sans longueur connue, ce qui
+    # annulerait le benefice du flux : on leur demande explicitement de ne pas.
+    resp.headers["X-Accel-Buffering"] = "no"
+    return resp
 
 
 @app.route("/api/admin/rag/restore", methods=["POST"])
