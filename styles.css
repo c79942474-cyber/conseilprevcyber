@@ -550,3 +550,23 @@ footer a:hover{color:var(--cyan)}
 .refnav .rn-next{text-align:right;margin-left:auto}
 .refnav .rn-pos{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted2)}
 @media(max-width:640px){.refnav a{max-width:100%}.refnav .rn-pos{order:-1;flex-basis:100%;text-align:center}}
+
+/* Bloc « Livrables » des pages Conseil & transformation — genere par
+   outils/generer_blocs_livrables.py depuis le catalogue livrables.py.
+   Chaque livrable porte son propre lien de generation : la liste en prose
+   d'avant annoncait des documents qu'aucun lien ne rendait atteignables. */
+/* L'en-tete est collant : sans cette marge, cibler #livrables amene le titre
+   dessous, ou il est illisible. */
+#livrables{scroll-margin-top:92px}
+.liv-promesse{font-size:13.5px;color:var(--muted);line-height:1.65;margin-bottom:18px}
+.liv-promesse strong{color:var(--ink)}
+.liv-list{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.liv-i{border:1px solid var(--line);border-radius:12px;padding:14px 17px;background:rgba(0,0,0,.10);
+  transition:border-color .15s}
+.liv-i:hover{border-color:var(--cyan)}
+.liv-t{font-size:14.5px;font-weight:600;color:var(--ink);line-height:1.4}
+.liv-d{font-size:13px;color:var(--muted);line-height:1.6;margin-top:5px}
+.liv-g{display:inline-block;margin-top:9px;font-family:var(--mono);font-size:11px;letter-spacing:.04em;
+  color:var(--cyan);border-bottom:1px solid transparent;transition:border-color .15s}
+.liv-g:hover{border-bottom-color:var(--cyan)}
+@media(max-width:640px){.liv-i{padding:12px 14px}.liv-t{font-size:13.5px}}

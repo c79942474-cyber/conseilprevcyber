@@ -129,20 +129,48 @@
 
     <section class="section" style="padding-top:8px">
       <div class="prose">
-        <h2>📦 Livrables</h2>
-        <ul>
-          <li><strong>Feuille de route pluriannuelle</strong> jalonnée, par horizons et par streams.</li>
-          <li><strong>Business case / dossier de décision</strong> pour l'instance dirigeante.</li>
-          <li><strong>Plan de charge &amp; budget</strong> pluriannuel.</li>
-          <li><strong>Trajectoire de conformité</strong> NIS2 / IEC&nbsp;62443.</li>
-          <li><strong>Tableau de bord de pilotage</strong> — jalons, avancement, risques.</li>
-        </ul>
-        <p class="muted" style="font-size:13px;margin-top:8px">🔒 Ces livrables sont rédigeables par l'IA (Mistral&nbsp;/&nbsp;Claude) à partir de la base de connaissance et exportables en Word ou PDF — <a href="/admin/livrables?type=fdr-pluriannuelle">générer dans l'espace administrateur →</a></p>
       </div>
 
       <div class="band" style="margin-top:8px">
         <div class="status"><span class="dot"></span>Une bonne feuille de route part d'un état des lieux honnête : commencez par l'<a href="/maturite-ot">assessment de maturité</a>, puis ancrez la cible avec un <a href="/operating-model">operating model</a>.</div>
       </div>
+
+      <!-- LIVRABLES:DEBUT (genere par outils/generer_blocs_livrables.py) -->
+    <section class="section" id="livrables" style="padding-top:8px">
+      <div class="prose" style="max-width:none">
+        <h2>📦 Livrables — Feuille de route</h2>
+        <p class="liv-promesse">Chaque livrable ci-dessous est <strong>rédigeable par l'IA</strong> (Mistral&nbsp;/&nbsp;Claude) <strong>à partir de la base de connaissance</strong> du cabinet, et <strong>exportable en Word ou PDF</strong>. Ce que l'IA produit est un <strong>brouillon structuré</strong>&nbsp;: il est relu, corrigé et validé par un consultant avant d'être remis.</p>
+        <ul class="liv-list">
+          <li class="liv-i">
+            <div class="liv-t">Feuille de route pluriannuelle jalonnée (horizons &amp; streams)</div>
+            <div class="liv-d">Trajectoire de transformation OT cyber par horizons (0–6 / 6–18 / 18–36 mois) et par streams : jalons, dépendances, charge, budget et indicateurs d'avancement.</div>
+            <a class="liv-g" href="/admin/livrables?type=fdr-pluriannuelle" rel="nofollow">Générer dans l'espace administrateur →</a>
+          </li>
+          <li class="liv-i">
+            <div class="liv-t">Business case / dossier de décision</div>
+            <div class="liv-d">Dossier de décision pour l'instance dirigeante : options, analyse coûts/bénéfices, risques d'inaction, trajectoire d'investissement et recommandation.</div>
+            <a class="liv-g" href="/admin/livrables?type=fdr-business-case" rel="nofollow">Générer dans l'espace administrateur →</a>
+          </li>
+          <li class="liv-i">
+            <div class="liv-t">Plan de charge &amp; budget pluriannuel</div>
+            <div class="liv-d">Décomposition des charges (internes/externes) et du budget (CAPEX/OPEX) par stream et par horizon, plan de financement et scénarios.</div>
+            <a class="liv-g" href="/admin/livrables?type=fdr-plan-charge-budget" rel="nofollow">Générer dans l'espace administrateur →</a>
+          </li>
+          <li class="liv-i">
+            <div class="liv-t">Trajectoire de conformité NIS2 / IEC 62443</div>
+            <div class="liv-d">Trajectoire de mise en conformité jalonnée : assujettissement, écarts prioritaires, jalons par horizon, mesures, preuves et indicateurs de conformité.</div>
+            <a class="liv-g" href="/admin/livrables?type=fdr-trajectoire-conformite" rel="nofollow">Générer dans l'espace administrateur →</a>
+          </li>
+          <li class="liv-i">
+            <div class="liv-t">Tableau de bord de pilotage (jalons, avancement, risques)</div>
+            <div class="liv-d">Dispositif de pilotage de la trajectoire : indicateurs d'avancement, suivi des risques et du budget, points d'arbitrage et trame de reporting.</div>
+            <a class="liv-g" href="/admin/livrables?type=fdr-tableau-bord" rel="nofollow">Générer dans l'espace administrateur →</a>
+          </li>
+        </ul>
+        <p class="muted" style="font-size:12.5px;margin-top:14px">L'accès à la génération est réservé à l'administrateur du cabinet. <a href="/services">Voir l'ensemble des prestations →</a></p>
+      </div>
+    </section>
+    <!-- LIVRABLES:FIN -->
 
       <div class="divider"></div>
       <div style="text-align:center">

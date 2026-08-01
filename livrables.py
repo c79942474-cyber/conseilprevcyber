@@ -601,7 +601,7 @@ TYPES = [
     },
     {
         "id": "procedure-moc",
-        "groupe": "Conseil — Continuité & crise OT",
+        "groupe": "Conseil — Gestion des changements (MOC)",
         "label": "Procédure de gestion des changements (MOC) sécurité OT",
         "desc": "Circuit MOC en six étapes : demande & classement, grille d'impact cyber-sûreté, "
                 "approbateurs par type et par zone, fenêtres, retour arrière, clôture documentaire — IEC 62443-2-1.",
@@ -671,7 +671,7 @@ TYPES = [
     },
     {
         "id": "plan-montee-competence",
-        "groupe": "Conseil — Architecture & détection",
+        "groupe": "Conseil — Formation & compétences",
         "label": "Plan de montée en compétence — exploitation & maintenance",
         "desc": "Cartographie des compétences, parcours par population (opérateurs, maintenance, "
                 "automaticiens, direction), calendrier et évaluation — exigence CSMS IEC 62443-2-1.",
@@ -683,6 +683,92 @@ TYPES = [
             "Modalités : sur site, en salle, exercices",
             "Évaluation avant / après & critères de réussite",
             "Indicateurs de suivi dans le CSMS",
+        ],
+    },
+    # ── Gestion des changements (MOC) ──────────────────────────────────────
+    # La procédure dit ce qu'il faut faire ; ces deux-là sont ce que les équipes
+    # remplissent et ce qui prouve que la procédure tourne vraiment. Une
+    # procédure sans formulaire ne s'applique pas, et sans registre elle ne
+    # se démontre pas devant un auditeur.
+    {
+        "id": "moc-formulaire-impact",
+        "groupe": "Conseil — Gestion des changements (MOC)",
+        "label": "Formulaire de demande de changement & analyse d'impact",
+        "desc": "Le document que remplit le demandeur : description du changement, actifs et zones "
+                "touchés, analyse d'impact cyber et sûreté, plan de retour arrière, approbations. "
+                "Utilisable tel quel en papier ou dans un outil de tickets.",
+        "sections": [
+            "Identification : demandeur, date, urgence, zone & conduits concernés",
+            "Description du changement & justification métier",
+            "Actifs touches : automates, IHM, reseaux, comptes, flux",
+            "Analyse d'impact cyber : exposition, comptes, flux, journalisation",
+            "Analyse d'impact sûreté : SIS, interlocks, arrêts d'urgence, procédé",
+            "Préparation : sauvegarde préalable, fenêtre, personnels requis",
+            "Plan de retour arrière & critères de déclenchement",
+            "Tests de vérification après application & critères de succès",
+            "Approbations : signataires par type de changement et par zone",
+            "Clôture : référentiels mis à jour (inventaire, schémas, configuration de référence)",
+        ],
+    },
+    {
+        "id": "moc-registre-revue",
+        "groupe": "Conseil — Gestion des changements (MOC)",
+        "label": "Registre des changements & revue post-implémentation",
+        "desc": "La trace qui prouve que le circuit tourne : registre des changements tracés, revue "
+                "périodique des urgences et des retours arrière, écarts constatés et actions. "
+                "C'est cette pièce que demande l'auditeur, pas la procédure seule.",
+        "sections": [
+            "Structure du registre : champs obligatoires & durée de conservation",
+            "Rattachement à l'inventaire des actifs & aux zones",
+            "Revue périodique : fréquence, participants, ordre du jour type",
+            "Analyse des changements en urgence : étaient-ils justifiés ?",
+            "Analyse des retours arrière : causes racines & enseignements",
+            "Changements appliqués hors circuit : détection & traitement",
+            "Indicateurs : part de changements tracés, délai moyen d'approbation, taux d'urgence",
+            "Actions correctives datées & suivi jusqu'à clôture",
+        ],
+    },
+    # ── Formation & competences ────────────────────────────────────────────
+    # Le plan dit qui doit monter en compétence ; le programme dit ce qu'on
+    # enseigne, et le dispositif d'évaluation dit ce qui a été acquis. Sans le
+    # troisième, la formation est une dépense sans preuve.
+    {
+        "id": "form-programme-profils",
+        "groupe": "Conseil — Formation & compétences",
+        "label": "Programme de formation par profil & supports pédagogiques",
+        "desc": "Le contenu réellement enseigné, décliné par profil (opérateurs, maintenance, "
+                "automaticiens, IT, direction) : objectifs pédagogiques, durée, déroulé, cas "
+                "pratiques issus du site, supports et pré-requis.",
+        "sections": [
+            "Profils visés & objectifs pédagogiques par profil",
+            "Socle commun : ce que tout le monde doit savoir",
+            "Module opérateurs & conduite : gestes quotidiens, alertes, remontée",
+            "Module maintenance & automaticiens : consoles, supports amovibles, accès distants",
+            "Module IT & réseaux : spécificités OT, zones et conduits, ce qui ne se fait pas",
+            "Module direction & encadrement : arbitrages, crise, obligations réglementaires",
+            "Cas pratiques basés sur le site : incidents plausibles, exercices",
+            "Durée, format et rythme par module",
+            "Supports remis & conditions de réutilisation interne",
+            "Pré-requis, prolongements et parcours de certification",
+        ],
+    },
+    {
+        "id": "form-evaluation-habilitations",
+        "groupe": "Conseil — Formation & compétences",
+        "label": "Dispositif d'évaluation des acquis & suivi des habilitations",
+        "desc": "Ce qui transforme une formation en compétence démontrable : évaluation avant/après, "
+                "critères de réussite, matrice des habilitations par poste, périodicité de "
+                "recyclage et pilotage des écarts.",
+        "sections": [
+            "Principe : ce qu'on évalue, et ce qu'on n'évalue pas",
+            "Évaluation initiale : état des lieux avant formation",
+            "Modalités d'évaluation par profil : QCM, mise en situation, observation terrain",
+            "Critères de réussite & seuil de validation",
+            "Matrice des habilitations : quelle compétence pour quel poste et quelle zone",
+            "Périodicité de recyclage & événements déclencheurs (nouvel équipement, incident)",
+            "Suivi des écarts : personnes non habilitées sur postes sensibles",
+            "Traçabilité : conservation des preuves & articulation avec le CSMS (IEC 62443-2-1)",
+            "Indicateurs : taux de couverture, taux de réussite, habilitations échues",
         ],
     },
     # ── Governance by Design IA ────────────────────────────────────────────
@@ -849,6 +935,69 @@ TYPES = [
 ]
 
 _BY_ID = {t["id"]: t for t in TYPES}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# RATTACHEMENT PAGE ↔ LIVRABLES — source de vérité unique
+#
+# Chaque page du menu « Conseil & transformation » expose SES livrables, et
+# chacun porte son propre lien vers l'espace administrateur. Sans cette table,
+# la page et le catalogue divergent en silence : on a vu une page annoncer six
+# livrables en prose alors qu'un seul était réellement atteignable.
+#
+# La table dit quel groupe appartient à quelle page ; le générateur de bloc
+# HTML et le test de cohérence lisent tous les deux ici. Ajouter un livrable au
+# bon groupe suffit à le faire apparaître sur sa page — il n'y a rien d'autre
+# à penser.
+# ═══════════════════════════════════════════════════════════════════════════
+
+PAGES_CONSEIL = [
+    {"url": "/operating-model", "titre": "Operating Model & gouvernance",
+     "groupe": "Conseil — Operating Model"},
+    {"url": "/maturite-ot", "titre": "Assessment de maturité",
+     "groupe": "Conseil — Maturité"},
+    {"url": "/feuille-de-route", "titre": "Feuille de route",
+     "groupe": "Conseil — Feuille de route"},
+    {"url": "/continuite-ot", "titre": "Continuité & crise OT",
+     "groupe": "Conseil — Continuité & crise OT"},
+    {"url": "/gestion-des-changements", "titre": "Gestion des changements (MOC)",
+     "groupe": "Conseil — Gestion des changements (MOC)"},
+    {"url": "/architecture-cible", "titre": "Architecture cible OT",
+     "groupe": "Conseil — Architecture & détection"},
+    {"url": "/formation", "titre": "Formation & compétences",
+     "groupe": "Conseil — Formation & compétences"},
+    {"url": "/gouvernance-ia", "titre": "Governance by Design IA",
+     "groupe": "Conseil — Gouvernance IA"},
+]
+
+
+def livrables_de_page(url):
+    """Les livrables d'une page du menu Conseil & transformation, dans l'ordre
+    du catalogue. Rend une liste vide si l'URL n'est pas une page conseil."""
+    grp = next((p["groupe"] for p in PAGES_CONSEIL if p["url"] == url), None)
+    if not grp:
+        return []
+    return [t for t in TYPES if t.get("groupe") == grp]
+
+
+def sante_pages():
+    """Aucune page conseil ne doit se retrouver sans livrable, et aucun groupe
+    « Conseil — » ne doit exister sans page pour l'exposer : un livrable que
+    personne ne peut atteindre depuis le site n'existe pas pour le client."""
+    pb = []
+    groupes_pages = {p["groupe"] for p in PAGES_CONSEIL}
+    for p in PAGES_CONSEIL:
+        n = len(livrables_de_page(p["url"]))
+        if not n:
+            pb.append("page %s : aucun livrable dans le groupe « %s »" % (p["url"], p["groupe"]))
+    for t in TYPES:
+        g = t.get("groupe", "")
+        if g.startswith("Conseil — ") and g not in groupes_pages:
+            pb.append("livrable %s : groupe « %s » sans page qui l'expose" % (t["id"], g))
+    return {"ok": not pb, "problemes": pb,
+            "pages": len(PAGES_CONSEIL), "livrables": len(TYPES),
+            "livrables_conseil": sum(len(livrables_de_page(p["url"])) for p in PAGES_CONSEIL)}
+
 
 
 def get_type(type_id):
