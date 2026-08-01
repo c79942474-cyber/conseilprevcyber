@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture cible OT — zonage, DMZ industrielle, bastions, diodes — CONSEILPREV Cyber</title>
+<meta name="description" content="Conception d'architectures OT sécurisées : zones et conduits IEC 62443, DMZ industrielle, serveurs rebonds et bastions, diodes de données, accès distant, durcissement des PLC, IHM et stations d'ingénierie.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CONSEILPREV Cyber">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Architecture cible OT — zonage, DMZ industrielle, bastions, diodes — CONSEILPREV Cyber">
+<meta property="og:description" content="Zones et conduits, DMZ industrielle, serveurs rebonds, bastions, diodes de données, accès distant et durcissement — les architectures SCADA, DCS et PLC que nous concevons.">
+<meta property="og:url" content="https://conseilprevcyber.onrender.com/architecture-cible">
+<meta property="og:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="CONSEILPREV Cyber — cybersécurité industrielle IT / OT / IIoT">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Architecture cible OT — CONSEILPREV Cyber">
+<meta name="twitter:description" content="Zones et conduits, DMZ industrielle, bastions, diodes de données, accès distant et durcissement des PLC, IHM et stations d'ingénierie.">
+<meta name="twitter:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<link rel="canonical" href="https://conseilprevcyber.onrender.com/architecture-cible">
+
+<link rel="icon" href="/emblem.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .niv{display:grid;gap:8px;margin-top:8px}
+  .lvl{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:baseline;
+    border:1px solid var(--line);border-radius:10px;padding:12px 16px;
+    background:linear-gradient(180deg,var(--panel),var(--bg2))}
+  .lvl .n{font-family:var(--mono);font-size:11px;letter-spacing:.05em;padding:3px 9px;
+    border-radius:6px;white-space:nowrap;background:rgba(34,211,238,.12);color:var(--cyan)}
+  .lvl .n.ot{background:rgba(45,212,191,.12);color:var(--teal)}
+  .lvl .d{font-size:13px;color:var(--muted);line-height:1.6}
+  .lvl .d b{color:var(--ink)}
+  .briques{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin-top:8px}
+  .bq{border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .bq h3{font-size:14px;margin:0 0 6px}
+  .bq p{font-size:13px;color:var(--muted);line-height:1.6;margin:0}
+  .bq .q{font-family:var(--mono);font-size:10px;color:var(--muted2);margin-top:8px;display:block}
+</style>
+</head>
+<body>
+  <header>
+  <div class="wrap nav">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu"><span></span><span></span><span></span></button>
+    <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="30" height="30" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+    <nav class="links" aria-label="Navigation principale">
+      <a href="/services">Services</a>
+      <a href="/referentiel">Référentiel 62443</a>
+      <a href="/audit-conformite">Audit 62443</a>
+      <a href="/demo">Cockpit</a>
+      <a href="/assistant">Assistant IA</a>
+      <a href="/veille">Veille</a>
+      <a href="/about">À propos</a>
+    </nav>
+    <div class="navcta">
+      <a href="/contact" class="cta">Contact</a>
+    </div>
+  </div>
+</header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow"><span class="dot"></span>Conseil · Architecture &amp; segmentation</span>
+      <h1>Une architecture qui tient <span class="grad">quand une zone tombe</span>.</h1>
+      <p class="lead" style="margin-top:18px">Segmenter un réseau industriel ne consiste pas à poser un pare-feu entre
+        l'IT et l'OT. Il faut découper le procédé en <strong>zones</strong>, qualifier chaque <strong>conduit</strong> qui les
+        traverse, et choisir la brique juste — DMZ industrielle, serveur rebond, bastion, diode — pour que la compromission
+        d'un poste bureautique ne descende jamais jusqu'à l'automate.</p>
+    </section>
+
+    <section class="section" style="padding-top:24px">
+      <div class="prose" style="max-width:none">
+        <h2>Zones et conduits : le vocabulaire qui décide</h2>
+        <p>L'IEC&nbsp;62443‑3‑2 impose une méthode : regrouper les actifs qui partagent les mêmes exigences de sécurité en
+        <strong>zones</strong>, identifier les <strong>conduits</strong> qui les relient, puis assigner à chacune un
+        <strong>niveau de sécurité cible (SL‑T)</strong> issu de l'analyse de risque. L'architecture n'est pas un choix
+        d'équipements&nbsp;: c'est la conséquence de ce découpage. Un conduit mal qualifié rend inutile le meilleur des
+        pare-feux — et un zonage juste rend visibles les rares flux qui méritent une brique coûteuse.</p>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <h2 class="sec-title">// Le modèle en couches, et ce qui traverse</h2>
+      <div class="niv">
+        <div class="lvl"><span class="n">Niveau 4-5</span><span class="d"><b>SI d'entreprise</b> — ERP, bureautique, Internet. Aucun flux ne descend directement vers le procédé&nbsp;: tout transite par la DMZ.</span></div>
+        <div class="lvl"><span class="n">DMZ industrielle</span><span class="d"><b>La zone tampon</b> — miroir d'historian, serveur de mise à jour, relais de télémaintenance, bastion. Rien n'y séjourne qui ne puisse être reconstruit&nbsp;; aucun protocole industriel n'en sort vers l'IT.</span></div>
+        <div class="lvl"><span class="n ot">Niveau 3</span><span class="d"><b>Supervision de site</b> — SCADA, historian, stations d'ingénierie, serveurs d'application. La couche la plus convoitée&nbsp;: c'est d'ici qu'on reprogramme un automate.</span></div>
+        <div class="lvl"><span class="n ot">Niveau 2</span><span class="d"><b>Contrôle de zone</b> — IHM, postes opérateur, serveurs de conduite par atelier ou par ligne.</span></div>
+        <div class="lvl"><span class="n ot">Niveau 1</span><span class="d"><b>Contrôle du procédé</b> — automates (PLC), DCS, variateurs, régulateurs.</span></div>
+        <div class="lvl"><span class="n ot">Niveau 0</span><span class="d"><b>Procédé</b> — capteurs, actionneurs. Et à côté, jamais dedans&nbsp;: le <b>SIS</b>, système instrumenté de sécurité, qui relève de la sûreté et se traite à part.</span></div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <h2 class="sec-title">// Les briques, et quand chacune se justifie</h2>
+      <div class="briques">
+        <div class="bq"><h3>DMZ industrielle</h3><p>Zone tampon entre IT et OT où se posent les services partagés. Aucune session ne traverse de bout en bout&nbsp;: elle se termine dans la DMZ et une seconde repart.</p><span class="q">Quand : dès qu'un flux IT a besoin d'une donnée OT.</span></div>
+        <div class="bq"><h3>Serveur rebond (jump server)</h3><p>Point de passage unique pour l'administration d'une zone. L'opérateur s'y connecte, puis atteint les équipements&nbsp;; son poste ne parle jamais directement au procédé.</p><span class="q">Quand : administration interne d'une zone sensible.</span></div>
+        <div class="bq"><h3>Bastion d'accès</h3><p>Le rebond, plus l'authentification forte, la gestion des comptes à privilèges, l'enregistrement de session et la levée d'accès nominative et limitée dans le temps.</p><span class="q">Quand : télémaintenance, intégrateurs, prestataires.</span></div>
+        <div class="bq"><h3>Diode de données</h3><p>Unidirectionnalité <em>physique</em>&nbsp;: les données sortent, rien ne rentre — pas même une réponse. Contrainte forte, garantie forte.</p><span class="q">Quand : export d'historian depuis une zone à SL élevé, sites nucléaires ou sensibles.</span></div>
+        <div class="bq"><h3>Pare-feu de conduit</h3><p>Filtrage par conduit avec inspection des protocoles industriels (Modbus, S7, EtherNet/IP, OPC UA)&nbsp;: on autorise des fonctions, pas seulement des ports.</p><span class="q">Quand : tout conduit entre deux zones de SL différents.</span></div>
+        <div class="bq"><h3>Durcissement des équipements</h3><p>PLC, IHM et stations d'ingénierie ramenés à une configuration de référence&nbsp;: services inutiles coupés, comptes par défaut retirés, ports physiques condamnés, supports amovibles maîtrisés.</p><span class="q">Quand : toujours — c'est la couche que l'architecture ne remplace pas.</span></div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:8px">
+      <div class="prose" style="max-width:none">
+        <h2>La console d'ingénierie, angle mort classique</h2>
+        <p>C'est le poste qui détient les programmes automates, les logiciels de configuration et, très souvent, des accès
+        permanents à plusieurs zones. Compromis, il donne davantage qu'un accès&nbsp;: il donne la <strong>capacité de
+        reprogrammer le procédé</strong>. Il mérite donc son propre traitement — poste dédié, non bureautique, durci,
+        sauvegardé (voir <a href="/continuite-ot">continuité OT</a>), accessible par bastion, et inclus au périmètre du
+        <a href="/gestion-des-changements">MOC</a> comme n'importe quel équipement de procédé.</p>
+
+        <h2>Ce que dit le référentiel</h2>
+        <ul>
+          <li><strong>IEC 62443‑3‑2</strong> — découpage en zones et conduits, évaluation du risque par zone, assignation des SL‑T.</li>
+          <li><strong>IEC 62443‑3‑3</strong> — exigences système par SL, dont FR&nbsp;5 (flux restreints) qui commande la segmentation.</li>
+          <li><strong>IEC TR 62443‑3‑1</strong> — technologies disponibles&nbsp;: pare-feu, inspection en profondeur, diodes, bastions, et leurs limites respectives.</li>
+        </ul>
+
+        <div class="band" style="margin-top:22px">
+          <div class="status" style="color:var(--muted)">📚 <strong style="color:var(--ink)">Références</strong> — IEC 62443‑3‑2, IEC 62443‑3‑3 (FR 5), IEC TR 62443‑3‑1. Contenu paraphrasé à titre pédagogique.</div>
+        </div>
+
+        <div class="divider"></div>
+        <div style="text-align:center">
+          <h2>Concevoir votre architecture cible&nbsp;?</h2>
+          <p class="lead" style="margin:10px auto 0">Zonage, conduits, briques justifiées une par une, dossier d'architecture opposable à vos intégrateurs.</p>
+          <div class="actions" style="justify-content:center">
+            <a href="/contact" class="btn btn-p">Nous contacter</a>
+            <a href="/exigences-systeme" class="btn btn-s">Exigences système · 3-3</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+  <div class="wrap foot">
+    <div class="foot-cols">
+      <div class="foot-brand">
+        <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="26" height="26" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+        <p>Cybersécurité industrielle IT / OT / IIoT — conformité IEC&nbsp;62443, NIS2, DORA.</p>
+      </div>
+      <nav class="foot-col" aria-label="Expertise">
+        <h4>Expertise</h4>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/methodologie">Méthodologie</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/operating-model">Operating Model</a>
+        <a href="/maturite-ot">Maturité OT</a>
+        <a href="/feuille-de-route">Feuille de route</a>
+        <a href="/continuite-ot">Continuité &amp; crise OT</a>
+        <a href="/gestion-des-changements">Gestion des changements</a>
+      </nav>
+      <nav class="foot-col" aria-label="Norme &amp; conformité">
+        <h4>Norme &amp; conformité</h4>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/audit-conformite">Audit 62443</a>
+        <a href="/diagnostic">Diagnostic express</a>
+        <a href="/nis2">NIS2</a>
+      </nav>
+      <nav class="foot-col" aria-label="Plateforme">
+        <h4>Plateforme</h4>
+        <a href="/demo">Cockpit</a>
+        <a href="/assistant">Assistant IA</a>
+        <a href="/connecter">Connecter une source</a>
+        <a href="/guide-integration">Guide d’intégration</a>
+      </nav>
+      <nav class="foot-col" aria-label="Ressources">
+        <h4>Ressources</h4>
+        <a href="/veille">Veille</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/glossaire-62443">Glossaire 62443</a>
+      </nav>
+    </div>
+    <div class="foot-bar">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Tous droits réservés</div>
+      <div class="foot-legal">
+        <a href="/about">À propos</a>
+        <a href="/contact">Contact</a>
+        <a href="/connexion">Espace client</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/politique-confidentialite">Confidentialité</a>
+        <a href="/conformite">Conformité IA &amp; RGPD</a>
+        <a href="/admin" rel="nofollow" class="foot-admin">Admin</a>
+      </div>
+    </div>
+  </div>
+</footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+  <script src="/nav.js" defer></script>
+  <script src="/parcours.js" defer></script>
+</body>
+</html>

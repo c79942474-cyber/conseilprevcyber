@@ -98,6 +98,8 @@
     "/gestion-correctifs": ["technique", "continuite"],
     "/continuite-ot": ["continuite", "gouvernance"],
     "/gestion-des-changements": ["technique", "continuite", "gouvernance"],
+    "/architecture-cible": ["technique", "tiers"],
+    "/formation": ["gouvernance"],
     "/demo": ["technique", "continuite"],
     "/veille": ["preuve"],
     "/audit-conformite": ["preuve", "juridique"],

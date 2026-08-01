@@ -582,6 +582,8 @@ PAGES = {
     "/gestion-correctifs": "gestion-correctifs.html",
     "/continuite-ot": "continuite-ot.html",
     "/gestion-des-changements": "gestion-des-changements.html",
+    "/architecture-cible": "architecture-cible.html",
+    "/formation": "formation.html",
     "/glossaire-62443": "glossaire-62443.html",
     "/metriques-62443": "metriques-62443.html",
     "/demo": "demo.html",
@@ -719,6 +721,16 @@ def continuite_ot():
 @app.route("/gestion-des-changements")
 def gestion_des_changements():
     return _page(PAGES["/gestion-des-changements"])
+
+
+@app.route("/architecture-cible")
+def architecture_cible():
+    return _page(PAGES["/architecture-cible"])
+
+
+@app.route("/formation")
+def formation():
+    return _page(PAGES["/formation"])
 
 
 @app.route("/etudes-de-cas")

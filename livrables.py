@@ -616,6 +616,75 @@ TYPES = [
             "Indicateurs : changements tracés, urgences, retours arrière",
         ],
     },
+    {
+        "id": "dossier-architecture-ot",
+        "groupe": "Conseil — Architecture & détection",
+        "label": "Dossier d'architecture technique OT (DAT)",
+        "desc": "Architecture cible : zones et conduits, SL-T par zone, briques retenues "
+                "(DMZ industrielle, rebonds, bastions, diodes) et justification de chacune — IEC 62443-3-2/3-3.",
+        "sections": [
+            "Contexte, périmètre & contraintes d'exploitation",
+            "Architecture existante & écarts constatés",
+            "Découpage en zones & conduits (IEC 62443-3-2)",
+            "Niveaux de sécurité cibles (SL-T) par zone",
+            "Architecture cible : schéma & flux autorisés par conduit",
+            "Briques retenues & justification (DMZ, rebond, bastion, diode, filtrage)",
+            "Accès distant & télémaintenance",
+            "Durcissement des équipements (PLC, IHM, station d'ingénierie)",
+            "Trajectoire de mise en œuvre & prérequis",
+        ],
+    },
+    {
+        "id": "deploiement-sonde-ot",
+        "groupe": "Conseil — Architecture & détection",
+        "label": "Plan de déploiement d'une sonde de détection OT",
+        "desc": "Points de capture, dimensionnement, réglage des règles, cas d'usage de détection "
+                "et intégration au SOC/CSIRT — pour Nozomi, Claroty, Dragos ou équivalent.",
+        "sections": [
+            "Objectifs de détection & périmètre couvert",
+            "Points de capture : TAP, port miroir, contraintes par zone",
+            "Architecture de collecte & dimensionnement",
+            "Phase d'apprentissage & construction de la ligne de base",
+            "Réglage : réduction des faux positifs, seuils, exclusions justifiées",
+            "Cas d'usage de détection prioritaires",
+            "Intégration SOC / CSIRT : remontée de logs, formats, astreinte",
+            "Procédures d'escalade & articulation avec la réponse à incident",
+            "Indicateurs & revue périodique",
+        ],
+    },
+    {
+        "id": "referentiel-durcissement",
+        "groupe": "Conseil — Architecture & détection",
+        "label": "Référentiel de durcissement par type d'actif",
+        "desc": "Configuration de référence et mesures de durcissement pour automates (PLC), "
+                "IHM, stations d'ingénierie et postes de supervision, avec les écarts assumés.",
+        "sections": [
+            "Périmètre & typologie des actifs couverts",
+            "Automates (PLC) : services, ports, protection du programme, mode RUN/PROG",
+            "IHM & postes opérateur",
+            "Stations d'ingénierie : poste dédié, supports amovibles, comptes",
+            "Postes de supervision & serveurs SCADA",
+            "Comptes, mots de passe par défaut & accès à privilèges",
+            "Écarts assumés & mesures compensatoires",
+            "Vérification : contrôle de conformité et périodicité",
+        ],
+    },
+    {
+        "id": "plan-montee-competence",
+        "groupe": "Conseil — Architecture & détection",
+        "label": "Plan de montée en compétence — exploitation & maintenance",
+        "desc": "Cartographie des compétences, parcours par population (opérateurs, maintenance, "
+                "automaticiens, direction), calendrier et évaluation — exigence CSMS IEC 62443-2-1.",
+        "sections": [
+            "Populations concernées & compétences attendues",
+            "État des lieux : évaluation initiale",
+            "Parcours par population & modules retenus",
+            "Calendrier & charge",
+            "Modalités : sur site, en salle, exercices",
+            "Évaluation avant / après & critères de réussite",
+            "Indicateurs de suivi dans le CSMS",
+        ],
+    },
 ]
 
 _BY_ID = {t["id"]: t for t in TYPES}
