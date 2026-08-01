@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Governance by Design IA — gouvernance, conformité et pilotage — CONSEILPREV Cyber</title>
+<meta name="description" content="Offre intégrable aux projets IA existants : diagnostic de maturité, architecture de gouvernance (RACI IA, comité), compliance by design (AI Act, RGPD, cybersécurité) et cadre opérationnel de pilotage.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CONSEILPREV Cyber">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Governance by Design IA — CONSEILPREV Cyber">
+<meta property="og:description" content="Diagnostic de maturité IA, architecture de gouvernance (RACI, comité), compliance by design AI Act / RGPD / cyber, et cadre opérationnel de pilotage — intégrable à un projet IA en cours.">
+<meta property="og:url" content="https://conseilprevcyber.onrender.com/gouvernance-ia">
+<meta property="og:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="CONSEILPREV Cyber — gouvernance et conformité des systèmes d'IA">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Governance by Design IA — CONSEILPREV Cyber">
+<meta name="twitter:description" content="La dimension gouvernance côté client, intégrable aux projets IA existants : maturité, RACI, compliance by design, pilotage.">
+<meta name="twitter:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<link rel="canonical" href="https://conseilprevcyber.onrender.com/gouvernance-ia">
+
+<link rel="icon" href="/emblem.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .blocs{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:16px;margin-top:8px}
+  .bl{border:1px solid var(--line);border-radius:14px;overflow:hidden;
+    background:linear-gradient(180deg,var(--panel),var(--bg2));display:flex;flex-direction:column}
+  .bl .hd{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  .bl .num{font-family:var(--mono);font-size:12px;font-weight:700;width:24px;height:24px;flex:0 0 auto;
+    display:inline-flex;align-items:center;justify-content:center;border-radius:50%;
+    background:rgba(34,211,238,.14);color:var(--cyan)}
+  .bl .hd h3{font-size:14.5px;margin:0;line-height:1.35}
+  .bl .bd{padding:14px 18px;font-size:13px;color:var(--muted);line-height:1.65}
+  .bl .obj{color:var(--ink);font-weight:600;display:block;margin-bottom:8px}
+  .bl ul{margin:6px 0 0;padding-left:18px}
+  .bl li{margin:4px 0}
+  .bl .lab{font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;
+    color:var(--muted2);display:block;margin:12px 0 4px}
+  .raci{width:100%;border-collapse:collapse;margin-top:8px;font-size:12.5px}
+  .raci th,.raci td{border:1px solid var(--line);padding:7px 10px;text-align:left}
+  .raci th{background:rgba(34,211,238,.08);color:var(--ink);font-weight:600}
+  .raci td:first-child{font-weight:600;color:var(--ink);white-space:nowrap}
+  .duo{display:grid;grid-template-columns:1fr auto 1fr;gap:20px;align-items:center;margin-top:8px}
+  @media(max-width:820px){.duo{grid-template-columns:1fr}}
+  .duo .col{border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+  .duo .col h3{font-size:14px;margin:0 0 8px}
+  .duo .col ul{margin:0;padding-left:18px;font-size:13px;color:var(--muted);line-height:1.7}
+  .duo .plus{font-size:26px;color:var(--cyan);text-align:center}
+  @media(max-width:820px){.duo .plus{display:none}}
+</style>
+</head>
+<body>
+  <header>
+  <div class="wrap nav">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu"><span></span><span></span><span></span></button>
+    <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="30" height="30" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+    <nav class="links" aria-label="Navigation principale">
+      <a href="/services">Services</a>
+      <a href="/referentiel">Référentiel 62443</a>
+      <a href="/audit-conformite">Audit 62443</a>
+      <a href="/demo">Cockpit</a>
+      <a href="/assistant">Assistant IA</a>
+      <a href="/veille">Veille</a>
+      <a href="/about">À propos</a>
+    </nav>
+    <div class="navcta">
+      <a href="/contact" class="cta">Contact</a>
+    </div>
+  </div>
+</header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow"><span class="dot"></span>Conseil · Governance by Design IA</span>
+      <h1>La technologie est livrée. <span class="grad">La gouvernance, rarement.</span></h1>
+      <p class="lead" style="margin-top:18px">Une offre <strong>intégrable aux projets IA existants</strong> pour apporter
+        la dimension gouvernance côté client. Elle ne remplace ni votre intégrateur ni votre éditeur&nbsp;: elle installe
+        ce qui manque presque toujours quand le modèle passe en production — <strong>qui décide, qui contrôle, qui
+        opère</strong>, et selon quelles règles.</p>
+    </section>
+
+    <section class="section" style="padding-top:24px">
+      <div class="prose" style="max-width:none">
+        <h2>Le problème que cette offre traite</h2>
+        <p>Un projet IA se juge d'abord sur sa valeur d'usage&nbsp;: il est piloté par les métiers et l'IT, livré par un
+        intégrateur, et il fonctionne. Puis viennent les questions que personne n'a portées&nbsp;: qui a validé cet usage&nbsp;?
+        qui répond si le modèle dérive&nbsp;? qui tient le registre exigé par l'AI Act&nbsp;? sur quelles données ce système
+        a-t-il été entraîné&nbsp;? <strong>La remise en conformité après déploiement coûte plusieurs fois ce qu'aurait coûté
+        la gouvernance dès la conception</strong> — et elle arrive au pire moment, quand l'usage est déjà installé dans les
+        habitudes.</p>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <h2 class="sec-title">// Les quatre volets</h2>
+      <div class="blocs">
+        <div class="bl">
+          <div class="hd"><span class="num">1</span><h3>Diagnostic de maturité IA de l'organisation</h3></div>
+          <div class="bd">
+            <span class="obj">Objectif : comprendre où se situe l'entreprise avant le déploiement.</span>
+            <span class="lab">Livrables</span>
+            <ul>
+              <li>cartographie des usages IA existants — <strong>déclarés et non déclarés</strong> ;</li>
+              <li>analyse des parties prenantes ;</li>
+              <li>identification des risques organisationnels ;</li>
+              <li>évaluation du niveau de préparation réglementaire <strong>et opérationnelle</strong>.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="bl">
+          <div class="hd"><span class="num">2</span><h3>Architecture de gouvernance IA</h3></div>
+          <div class="bd">
+            <span class="obj">Objectif : définir qui décide, qui contrôle et qui opère.</span>
+            <span class="lab">Mise en place de</span>
+            <ul>
+              <li>modèle de responsabilités (RACI IA) ;</li>
+              <li>comité de gouvernance IA ;</li>
+              <li>rôles métiers, IT, conformité, juridique, sécurité ;</li>
+              <li>processus de validation des nouveaux usages.</li>
+            </ul>
+            <span class="lab">Exemple</span>
+            <table class="raci">
+              <thead><tr><th>Fonction</th><th>Responsabilité</th></tr></thead>
+              <tbody>
+                <tr><td>Direction</td><td>Orientation stratégique IA</td></tr>
+                <tr><td>Métiers</td><td>Validation de la valeur d'usage</td></tr>
+                <tr><td>IT</td><td>Architecture et sécurité</td></tr>
+                <tr><td>Conformité / Risque</td><td>Contrôle réglementaire et éthique</td></tr>
+                <tr><td>Utilisateurs</td><td>Respect des règles d'usage</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="bl">
+          <div class="hd"><span class="num">3</span><h3>Intégration réglementaire « Compliance by Design »</h3></div>
+          <div class="bd">
+            <span class="obj">Prise en compte dès la conception des exigences liées notamment à :</span>
+            <ul>
+              <li>le règlement européen sur l'intelligence artificielle (<strong>AI Act</strong>) ;</li>
+              <li>la protection des données personnelles ;</li>
+              <li>la cybersécurité ;</li>
+              <li>les exigences sectorielles spécifiques.</li>
+            </ul>
+            <div class="band" style="margin-top:14px">
+              <div class="status" style="color:var(--muted)">🎯 L'objectif n'est pas d'ajouter une couche administrative
+                après le projet. <strong style="color:var(--ink)">L'objectif est d'éviter une remise en conformité coûteuse
+                après déploiement.</strong></div>
+            </div>
+          </div>
+        </div>
+        <div class="bl">
+          <div class="hd"><span class="num">4</span><h3>Cadre opérationnel de pilotage</h3></div>
+          <div class="bd">
+            <span class="obj">Mise en place des outils permettant à l'entreprise de vivre avec son IA :</span>
+            <ul>
+              <li>politique interne d'usage de l'IA ;</li>
+              <li>règles d'utilisation des IA génératives ;</li>
+              <li>processus de suivi des performances ;</li>
+              <li>gestion des évolutions du modèle ;</li>
+              <li>indicateurs de gouvernance ;</li>
+              <li>sensibilisation des collaborateurs.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:8px">
+      <h2 class="sec-title">// Modèle de partenariat pour les acteurs IA</h2>
+      <p class="lead" style="margin:0 0 16px;max-width:820px">Aux intégrateurs, éditeurs et fournisseurs de solutions
+        IA&nbsp;: nous n'intervenons pas sur votre périmètre technique. Nous complétons votre offre par ce que vos clients
+        vous demandent de plus en plus, et qui n'est pas votre métier.</p>
+      <div class="duo">
+        <div class="col">
+          <h3>Vous apportez</h3>
+          <ul><li>la technologie ;</li><li>l'expertise technique ;</li><li>le déploiement.</li></ul>
+        </div>
+        <div class="plus">+</div>
+        <div class="col">
+          <h3>Nous apportons</h3>
+          <ul><li>la gouvernance client ;</li><li>la conformité ;</li><li>la maîtrise des risques ;</li><li>l'ancrage organisationnel.</li></ul>
+        </div>
+      </div>
+      <div class="band" style="margin-top:16px">
+        <div class="status" style="color:var(--muted)">🏆 Une approche commune permettant de proposer une offre complète :
+          <strong style="color:var(--ink)">Technologie + Transformation + Gouvernance</strong>.</div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:8px">
+      <div class="prose" style="max-width:none">
+        <h2>Les livrables, rédigés avec l'IA et ancrés sur votre documentation</h2>
+        <p>Chaque volet produit des livrables normés. Ils sont <strong>rédigés avec l'assistance de l'IA</strong>
+        (Mistral ou Claude), <strong>ancrés sur la base de connaissance</strong> du cabinet et sur les documents que vous
+        nous confiez — pas sur des généralités —, puis <strong>exportables en Word ou en PDF</strong> à l'en-tête du
+        cabinet. Tout livrable produit ainsi est un <strong>brouillon</strong>&nbsp;: il est relu et validé par un
+        consultant avant remise. C'est écrit sur le document.</p>
+        <ul>
+          <li><strong>Volet 1</strong> — diagnostic de maturité IA ; cartographie des usages IA (dont usages non déclarés).</li>
+          <li><strong>Volet 2</strong> — charte de gouvernance IA &amp; comité ; matrice RACI IA ; processus de validation des nouveaux usages.</li>
+          <li><strong>Volet 3</strong> — dossier de conformité by design (AI Act, RGPD, cybersécurité, exigences sectorielles).</li>
+          <li><strong>Volet 4</strong> — politique interne d'usage de l'IA ; règles d'utilisation des IA génératives ; suivi des performances et gestion des évolutions du modèle ; tableau de bord des indicateurs de gouvernance.</li>
+          <li><strong>Partenariat</strong> — cadre de collaboration intégrateur &amp; répartition des responsabilités.</li>
+        </ul>
+
+        <div class="band" style="margin-top:22px">
+          <div class="status" style="color:var(--muted)">📚 <strong style="color:var(--ink)">Cadre</strong> — règlement (UE)
+            2024/1689 (AI Act), RGPD, directive (UE) 2022/2555 (NIS2), ISO/IEC 42001 (systèmes de management de l'IA).
+            Contenu paraphrasé à titre pédagogique&nbsp;; les livrables générés sont des brouillons à valider.</div>
+        </div>
+
+        <div class="divider"></div>
+        <div style="text-align:center">
+          <h2>Un projet IA en cours, sans gouvernance&nbsp;?</h2>
+          <p class="lead" style="margin:10px auto 0">Le diagnostic de maturité se cadre en quelques jours, et il dit
+            précisément ce qui manque avant la mise en production.</p>
+          <div class="actions" style="justify-content:center">
+            <a href="/contact" class="btn btn-p">Nous contacter</a>
+            <a href="/operating-model" class="btn btn-s">Operating Model &amp; gouvernance</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+  <div class="wrap foot">
+    <div class="foot-cols">
+      <div class="foot-brand">
+        <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="26" height="26" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+        <p>Cybersécurité industrielle IT / OT / IIoT — conformité IEC&nbsp;62443, NIS2, DORA.</p>
+      </div>
+      <nav class="foot-col" aria-label="Expertise">
+        <h4>Expertise</h4>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/methodologie">Méthodologie</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/operating-model">Operating Model</a>
+        <a href="/maturite-ot">Maturité OT</a>
+        <a href="/feuille-de-route">Feuille de route</a>
+        <a href="/continuite-ot">Continuité &amp; crise OT</a>
+        <a href="/gestion-des-changements">Gestion des changements</a>
+        <a href="/architecture-cible">Architecture cible</a>
+        <a href="/formation">Formation</a>
+      </nav>
+      <nav class="foot-col" aria-label="Norme &amp; conformité">
+        <h4>Norme &amp; conformité</h4>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/audit-conformite">Audit 62443</a>
+        <a href="/diagnostic">Diagnostic express</a>
+        <a href="/nis2">NIS2</a>
+      </nav>
+      <nav class="foot-col" aria-label="Plateforme">
+        <h4>Plateforme</h4>
+        <a href="/demo">Cockpit</a>
+        <a href="/assistant">Assistant IA</a>
+        <a href="/connecter">Connecter une source</a>
+        <a href="/guide-integration">Guide d’intégration</a>
+      </nav>
+      <nav class="foot-col" aria-label="Ressources">
+        <h4>Ressources</h4>
+        <a href="/veille">Veille</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/glossaire-62443">Glossaire 62443</a>
+      </nav>
+    </div>
+    <div class="foot-bar">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Tous droits réservés</div>
+      <div class="foot-legal">
+        <a href="/about">À propos</a>
+        <a href="/contact">Contact</a>
+        <a href="/connexion">Espace client</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/politique-confidentialite">Confidentialité</a>
+        <a href="/conformite">Conformité IA &amp; RGPD</a>
+        <a href="/admin" rel="nofollow" class="foot-admin">Admin</a>
+      </div>
+    </div>
+  </div>
+</footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+  <script src="/nav.js" defer></script>
+  <script src="/parcours.js" defer></script>
+</body>
+</html>

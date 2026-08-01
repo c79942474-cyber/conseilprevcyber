@@ -100,6 +100,7 @@
     "/gestion-des-changements": ["technique", "continuite", "gouvernance"],
     "/architecture-cible": ["technique", "tiers"],
     "/formation": ["gouvernance"],
+    "/gouvernance-ia": ["gouvernance", "juridique"],
     "/demo": ["technique", "continuite"],
     "/veille": ["preuve"],
     "/audit-conformite": ["preuve", "juridique"],

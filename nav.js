@@ -21,7 +21,8 @@
       ["/continuite-ot", "Continuité & crise OT"],
       ["/gestion-des-changements", "Gestion des changements (MOC)"],
       ["/architecture-cible", "Architecture cible OT"],
-      ["/formation", "Formation & compétences"] ] },
+      ["/formation", "Formation & compétences"],
+      ["/gouvernance-ia", "Governance by Design IA"] ] },
     { t: "Référentiel IEC 62443", l: [
       ["/referentiel", "Vue d’ensemble"],
       ["/analyse-de-risque", "Analyse de risque · 3-2"],
@@ -61,6 +62,7 @@
     "/gestion-des-changements": "Management of Change : impact cyber, approbation, fenêtres, retour arrière",
     "/architecture-cible": "Zones et conduits, DMZ industrielle, bastions, diodes de données, durcissement",
     "/formation": "Sensibilisation exploitation et maintenance, essentiels 62443, exercices de crise, mentorat",
+    "/gouvernance-ia": "Gouvernance IA côté client : maturité, RACI, compliance by design, pilotage",
     "/feuille-de-route": "Trajectoire de transformation : horizons, streams, budget",
     "/referentiel": "Vue d'ensemble de la norme IEC 62443",
     "/analyse-de-risque": "Analyse de risque des systèmes industriels (partie 3-2)",
@@ -590,7 +592,7 @@
     var path = location.pathname.replace(/\/+$/, "") || "/";
     // Chaque page est rattachée à l'entrée d'en-tête de sa rubrique.
     var SECTION = {
-      "/services": ["/services", "/secteurs", "/methodologie", "/etudes-de-cas", "/operating-model", "/maturite-ot", "/feuille-de-route", "/continuite-ot", "/gestion-des-changements", "/architecture-cible", "/formation"],
+      "/services": ["/services", "/secteurs", "/methodologie", "/etudes-de-cas", "/operating-model", "/maturite-ot", "/feuille-de-route", "/continuite-ot", "/gestion-des-changements", "/architecture-cible", "/formation", "/gouvernance-ia"],
       "/referentiel": ["/referentiel", "/analyse-de-risque", "/programme-securite", "/exigences-systeme", "/exigences-composants", "/exigences-prestataires", "/developpement-securise", "/technologies-securite", "/gestion-correctifs", "/glossaire-62443", "/metriques-62443"],
       "/audit-conformite": ["/audit-conformite", "/diagnostic", "/nis2", "/juridique"],
       "/demo": ["/demo", "/tendances", "/connecter", "/guide-integration"],

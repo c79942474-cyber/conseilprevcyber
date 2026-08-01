@@ -584,6 +584,7 @@ PAGES = {
     "/gestion-des-changements": "gestion-des-changements.html",
     "/architecture-cible": "architecture-cible.html",
     "/formation": "formation.html",
+    "/gouvernance-ia": "gouvernance-ia.html",
     "/glossaire-62443": "glossaire-62443.html",
     "/metriques-62443": "metriques-62443.html",
     "/demo": "demo.html",
@@ -731,6 +732,11 @@ def architecture_cible():
 @app.route("/formation")
 def formation():
     return _page(PAGES["/formation"])
+
+
+@app.route("/gouvernance-ia")
+def gouvernance_ia():
+    return _page(PAGES["/gouvernance-ia"])
 
 
 @app.route("/etudes-de-cas")

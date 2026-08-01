@@ -685,6 +685,167 @@ TYPES = [
             "Indicateurs de suivi dans le CSMS",
         ],
     },
+    # ── Governance by Design IA ────────────────────────────────────────────
+    # Les quatre volets de l'offre, plus le cadre de partenariat. Comme tous
+    # les autres types, ils heritent SANS RIEN AJOUTER de la chaine complete :
+    # build_prompts + retrieval_query (ancrage sur la base de connaissance)
+    # -> assistant.generate (Mistral ou Claude) -> export DOCX / PDF depuis
+    # l'espace administrateur. Ajouter un livrable, c'est ajouter une entree ici.
+    {
+        "id": "diagnostic-maturite-ia",
+        "groupe": "Conseil — Gouvernance IA",
+        "label": "Diagnostic de maturité IA de l'organisation",
+        "desc": "Où se situe l'entreprise avant le déploiement : usages existants (déclarés et "
+                "non déclarés), parties prenantes, risques organisationnels, préparation "
+                "réglementaire ET opérationnelle.",
+        "sections": [
+            "Contexte, périmètre & méthode du diagnostic",
+            "Cartographie des usages IA existants (déclarés)",
+            "Usages non déclarés & IA génératives grand public (shadow AI)",
+            "Analyse des parties prenantes",
+            "Risques organisationnels identifiés",
+            "Niveau de préparation réglementaire (AI Act, RGPD, sectoriel)",
+            "Niveau de préparation opérationnelle (compétences, processus, outillage)",
+            "Synthèse : niveau de maturité & écarts prioritaires",
+            "Recommandations séquencées avant mise en production",
+        ],
+    },
+    {
+        "id": "charte-gouvernance-ia",
+        "groupe": "Conseil — Gouvernance IA",
+        "label": "Charte de gouvernance IA & comité",
+        "desc": "Qui décide, qui contrôle, qui opère : mandat du comité de gouvernance IA, "
+                "composition, fréquence, décisions qui lui reviennent et articulation avec les "
+                "instances existantes.",
+        "sections": [
+            "Objet, périmètre & principes directeurs",
+            "Comité de gouvernance IA : mandat & décisions réservées",
+            "Composition, fréquence & quorum",
+            "Articulation avec les instances existantes (COMEX, comité sécurité, DPO)",
+            "Rôles : direction, métiers, IT, conformité/risque, juridique, sécurité, utilisateurs",
+            "Escalade & arbitrage en cas de désaccord",
+            "Revue annuelle de la charte",
+        ],
+    },
+    {
+        "id": "raci-ia",
+        "groupe": "Conseil — Gouvernance IA",
+        "label": "Matrice RACI IA & processus de validation des nouveaux usages",
+        "desc": "Modèle de responsabilités par activité du cycle de vie d'un système d'IA, et "
+                "circuit de validation d'un nouvel usage — de l'idée à la mise en production.",
+        "sections": [
+            "Périmètre : activités du cycle de vie couvertes",
+            "Matrice RACI par activité (qualification, données, entraînement, validation, mise en production, suivi, retrait)",
+            "Fiches de rôle & compétences attendues",
+            "Processus de validation d'un nouvel usage : étapes & points de contrôle",
+            "Critères de qualification du risque (AI Act) au point d'entrée",
+            "Cas particuliers : IA générative, achat de solution, usage par un tiers",
+            "Traçabilité des décisions & registre",
+        ],
+    },
+    {
+        "id": "compliance-by-design-ia",
+        "groupe": "Conseil — Gouvernance IA",
+        "label": "Dossier de conformité by design (AI Act, RGPD, cyber, sectoriel)",
+        "desc": "Les exigences réglementaires prises en compte DÈS LA CONCEPTION plutôt que "
+                "constatées après déploiement : classification AI Act, base légale et minimisation, "
+                "sécurité, exigences sectorielles.",
+        "sections": [
+            "Description du système & finalité",
+            "Classification AI Act & obligations applicables",
+            "Protection des données : base légale, minimisation, durées, droits",
+            "Analyse d'impact (AIPD / FRIA) : nécessité & périmètre",
+            "Exigences de cybersécurité applicables au système et à ses données",
+            "Exigences sectorielles spécifiques",
+            "Exigences intégrées à la conception : ce qui est tranché AVANT le développement",
+            "Points de contrôle par jalon projet",
+            "Écarts résiduels & plan de traitement",
+        ],
+    },
+    {
+        "id": "politique-usage-ia",
+        "groupe": "Conseil — Gouvernance IA",
+        "label": "Politique interne d'usage de l'IA",
+        "desc": "Le document opposable aux collaborateurs : usages autorisés, encadrés, interdits, "
+                "données admissibles, supervision humaine, et conséquences du non-respect.",
+        "sections": [
+            "Objet, périmètre & personnes concernées",
+            "Principes : supervision humaine, transparence, proportionnalité",
+            "Usages autorisés, encadrés & interdits",
+            "Données admissibles & données proscrites",
+            "Obligation de déclaration d'un nouvel usage",
+            "Responsabilité de l'utilisateur & vérification des productions",
+            "Traitement des manquements",
+            "Entrée en vigueur, diffusion & révision",
+        ],
+    },
+    {
+        "id": "regles-ia-generative",
+        "groupe": "Conseil — Gouvernance IA",
+        "label": "Règles d'utilisation des IA génératives",
+        "desc": "Le cas le plus répandu et le moins encadré : outils autorisés, données que l'on "
+                "n'y met jamais, vérification des productions, propriété intellectuelle et "
+                "marquage des contenus (AI Act art. 50).",
+        "sections": [
+            "Outils autorisés & outils proscrits",
+            "Données que l'on ne soumet jamais à un outil génératif",
+            "Vérification obligatoire des productions & responsabilité de l'utilisateur",
+            "Propriété intellectuelle : entrées et sorties",
+            "Transparence & marquage des contenus générés (AI Act art. 50)",
+            "Cas d'usage métier : ce qui est encouragé",
+            "Signalement d'un incident ou d'une production problématique",
+        ],
+    },
+    {
+        "id": "suivi-performance-ia",
+        "groupe": "Conseil — Gouvernance IA",
+        "label": "Suivi des performances & gestion des évolutions du modèle",
+        "desc": "Vivre avec le système une fois déployé : indicateurs de performance et d'équité, "
+                "détection de dérive, seuils d'alerte, procédure de réentraînement et de retrait.",
+        "sections": [
+            "Indicateurs de performance retenus & seuils",
+            "Indicateurs d'équité & de biais",
+            "Détection de dérive (données et performance) : méthode & fréquence",
+            "Seuils d'alerte & conduite à tenir",
+            "Procédure d'évolution du modèle : réentraînement, validation, mise en production",
+            "Procédure de suspension & de retrait",
+            "Journalisation & conservation des preuves",
+            "Revue périodique & compte rendu au comité de gouvernance",
+        ],
+    },
+    {
+        "id": "indicateurs-gouvernance-ia",
+        "groupe": "Conseil — Gouvernance IA",
+        "label": "Tableau de bord des indicateurs de gouvernance IA",
+        "desc": "Ce que le comité regarde : couverture du registre, usages validés vs constatés, "
+                "incidents, conformité documentaire, sensibilisation — avec cible et fréquence.",
+        "sections": [
+            "Destinataires & fréquence de publication",
+            "Indicateurs de couverture (registre, systèmes qualifiés, usages déclarés)",
+            "Indicateurs de conformité documentaire (AIPD/FRIA, notices, marquage)",
+            "Indicateurs d'exploitation (performance, dérive, incidents)",
+            "Indicateurs humains (sensibilisation, formations, déclarations spontanées)",
+            "Cibles, seuils d'alerte & sens de lecture de chaque indicateur",
+            "Sources de données & mode de collecte",
+        ],
+    },
+    {
+        "id": "partenariat-integrateur-ia",
+        "groupe": "Conseil — Gouvernance IA",
+        "label": "Cadre de partenariat intégrateur IA — répartition des responsabilités",
+        "desc": "Pour les intégrateurs, éditeurs et fournisseurs IA : périmètres respectifs, "
+                "interfaces, engagements réciproques et offre conjointe technologie + "
+                "transformation + gouvernance.",
+        "sections": [
+            "Objet du partenariat & positionnement respectif",
+            "Périmètre du partenaire : technologie, expertise technique, déploiement",
+            "Périmètre du cabinet : gouvernance, conformité, maîtrise des risques, ancrage organisationnel",
+            "Matrice de responsabilités à l'interface (qui répond de quoi devant le client)",
+            "Modalités d'intervention conjointe & jalons partagés",
+            "Engagements réciproques : confidentialité, non-sollicitation, propriété des livrables",
+            "Offre conjointe : positionnement commercial & argumentaire client",
+        ],
+    },
 ]
 
 _BY_ID = {t["id"]: t for t in TYPES}
