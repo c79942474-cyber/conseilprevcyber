@@ -315,6 +315,33 @@ class ComptesIndisponibles(RuntimeError):
     laisser croire à des identifiants erronés."""
 
 
+def _classer_erreur_base(exc):
+    """Traduit l'échec de connexion en une cause actionnable, SANS divulguer
+    l'hôte ni le port — ce diagnostic est lu depuis une page publique.
+
+    Dire « OperationalError » n'aide personne. Dire « base injoignable ou
+    endormie » contre « identifiants refusés » contre « base inexistante »
+    envoie vers trois gestes différents, et c'est tout l'intérêt."""
+    m = " ".join(str(exc).split()).lower()
+    if "too many" in m or "connection limit" in m or "pooltimeout" in m:
+        return ("plafond de connexions atteint — des connexions sont ouvertes "
+                "ailleurs, ou le plan de la base est saturé")
+    if "password" in m or "authentication" in m or "role" in m and "does not exist" in m:
+        return ("identifiants de base refusés — DATABASE_URL a probablement été "
+                "régénérée ; recopiez l'URL interne depuis l'hébergeur")
+    if "database" in m and ("does not exist" in m or "n'existe pas" in m):
+        return ("base inexistante — supprimée, expirée ou renommée ; recréez-la "
+                "et remettez DATABASE_URL à jour")
+    if ("timeout" in m or "timed out" in m or "refused" in m
+            or "could not translate" in m or "name or service not known" in m):
+        return ("base injoignable ou endormie — si elle vient d'être réveillée, "
+                "la reconnexion est automatique ; sinon vérifiez qu'elle existe "
+                "toujours et que DATABASE_URL est à jour")
+    if "ssl" in m:
+        return "connexion SSL refusée — vérifiez le paramètre sslmode de DATABASE_URL"
+    return "connexion refusée (%s) — voir les journaux du service" % type(exc).__name__
+
+
 class _ResilientUserStore:
     """Magasin de comptes qui se REBRANCHE tout seul sur PostgreSQL.
 
@@ -342,6 +369,14 @@ class _ResilientUserStore:
         self._lock = threading.Lock()
         self._last_try = 0.0
         self._connecting = False
+        # Cause du dernier échec de connexion. Elle n'était nulle part : quand
+        # la connexion se refusait, /health annonçait « repli_fichier » sans
+        # dire POURQUOI, et il fallait aller lire les journaux de l'hébergeur
+        # pour distinguer une base endormie d'une URL périmée. Un diagnostic
+        # qu'on ne peut pas consulter depuis dehors ne sert qu'à celui qui a
+        # déjà les journaux sous les yeux.
+        self._derniere_erreur = ""
+        self._derniere_erreur_le = 0.0
         if dsn:
             self._connecter_en_fond()
 
@@ -355,18 +390,28 @@ class _ResilientUserStore:
         threading.Thread(target=self._essayer, daemon=True).start()
 
     def _essayer(self):
+        erreur = ""
         try:
             pg = _PgStore(self._dsn)
         except Exception as exc:
             logging.getLogger("auth").warning(
                 "comptes : PostgreSQL injoignable (%s) — repli fichier, "
                 "nouvelle tentative dans %ds.", type(exc).__name__, int(self.RETRY_MIN))
+            # /health est PUBLIC : on n'y recopie pas le message brut, qui
+            # contient l'hôte et le port de la base. On le CLASSE en une cause
+            # actionnable — ce qui est de toute façon plus utile qu'une trace,
+            # puisque ce qu'on veut savoir est quoi faire ensuite.
+            erreur = _classer_erreur_base(exc)
             pg = None
         with self._lock:
             self._connecting = False
             if pg is not None:
                 self._pg = pg
+                self._derniere_erreur = ""
                 logging.getLogger("auth").info("comptes : PostgreSQL connecté.")
+            else:
+                self._derniere_erreur = erreur
+                self._derniere_erreur_le = time.time()
 
     def _actif(self):
         """Magasin à utiliser maintenant, en relançant une tentative si l'heure
@@ -394,6 +439,24 @@ class _ResilientUserStore:
     def mode(self):
         return "postgres" if self._pg is not None else ("repli_fichier" if self._dsn
                                                         else "fichier")
+
+    def etat(self):
+        """État lisible depuis /health, CAUSE COMPRISE.
+
+        Quand plus personne ne peut se connecter — administrateur inclus — le
+        diagnostic ne doit pas être derrière la connexion. Ces champs disent
+        s'il faut attendre (la base se réveille), vérifier DATABASE_URL (URL
+        périmée ou base supprimée), ou libérer des connexions."""
+        pg = self._pg is not None
+        return {
+            "mode": self.mode,
+            "persistant": pg or not self._dsn,
+            "base_configuree": bool(self._dsn),
+            "cause": "" if pg else (self._derniere_erreur or
+                                    ("connexion en cours" if self._connecting else "")),
+            "prochain_essai_s": (0 if pg or not self._dsn else
+                                 max(0, int(self.RETRY_MIN - (time.time() - self._last_try)))),
+        }
 
     def reconnecter(self):
         """Tentative immédiate et SYNCHRONE (bouton d'administration)."""

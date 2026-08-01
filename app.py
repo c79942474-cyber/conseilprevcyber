@@ -3565,6 +3565,21 @@ def api_purge():
     return jsonify(ok=True, deleted=deleted)
 
 
+def _cause_publique(txt):
+    """Cause d'indisponibilité montrable sur une page publique : on retire ce
+    qui DÉSIGNE la base (hôte, adresse IP, port, URL, mot de passe) et on garde
+    ce qui l'EXPLIQUE (refusée, délai dépassé, plafond atteint)."""
+    import re as _re                     # `re` n'est pas importé au niveau module
+    t = " ".join(str(txt or "").split())
+    t = _re.sub(r"postgres(?:ql)?://\S+", "la base", t)
+    t = _re.sub(r"password=\S+", "password=…", t)
+    t = _re.sub(r'\bat\s+"[^"]+"\s*(\([^)]*\))?', "at …", t)   # at "hote" (10.0.0.5)
+    t = _re.sub(r"\bport\s+\d+", "port …", t)
+    t = _re.sub(r"\b\d{1,3}(?:\.\d{1,3}){3}\b", "…", t)        # adresses IPv4 restantes
+    t = _re.sub(r"\b[\w-]+\.(?:com|net|org|io|dev|internal)\b", "…", t)
+    return " ".join(t.split())[:220]
+
+
 @app.route("/health")
 def health():
     """Point de santé (utilisé par Render pour vérifier le service).
@@ -3608,6 +3623,18 @@ def health():
     # regarder — plafond de connexions, base suspendue, URL périmée — et à
     # quand le prochain essai automatique.
     magasins = {}
+    # Le magasin de COMPTES figure ici comme les autres. Il en était absent, et
+    # c'était le plus gênant : c'est le seul dont la panne empêche de se
+    # connecter pour aller consulter le diagnostic. Sa cause doit donc être
+    # lisible sans compte, depuis cette page publique.
+    try:
+        import auth as _auth_etat
+        if hasattr(_auth_etat.store, "etat"):
+            magasins["comptes"] = _auth_etat.store.etat()
+            if not magasins["comptes"].get("persistant", True):
+                etat["status"] = "degraded"
+    except Exception:
+        magasins["comptes"] = {"persistant": None, "cause": "état non lisible"}
     for nom, mag in (("documents", rag), ("clients", clients_db),
                      ("livrables", livrables_hist)):
         try:
@@ -3620,6 +3647,15 @@ def health():
                 etat["status"] = "degraded"
         except Exception:
             magasins[nom] = {"persistant": None, "cause": "état non lisible"}
+    # /health est PUBLIC. Les causes remontées telles quelles par les pilotes
+    # PostgreSQL nomment l'hôte et le port de la base — « connection to server
+    # at "dpg-….render.com" (10.0.0.5), port 5432 failed ». Cela désigne à
+    # n'importe qui la cible à attaquer, sans rien apprendre à l'exploitant que
+    # « connexion refusée » ne dise déjà. On assainit ici, à la publication :
+    # une seule place, valable aussi pour les magasins ajoutés plus tard.
+    for m in magasins.values():
+        if isinstance(m, dict) and m.get("cause"):
+            m["cause"] = _cause_publique(m["cause"])
     etat["magasins"] = magasins
 
     if request.args.get("detail") == "1":
