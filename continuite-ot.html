@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Continuité d'activité & gestion de crise OT — CONSEILPREV Cyber</title>
+<meta name="description" content="PCA / PRA industriels, sauvegarde et restauration des configurations d'automates (IEC 62443 SR 7.3-7.4), exercices de crise sur table et coordination exploitation / HSE / juridique.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CONSEILPREV Cyber">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Continuité d'activité & gestion de crise OT — CONSEILPREV Cyber">
+<meta property="og:description" content="PCA / PRA industriels, sauvegarde et restauration des configurations d'automates (IEC 62443 SR 7.3-7.4), exercices de crise sur table et coordination exploitation / HSE / juridique.">
+<meta property="og:url" content="https://conseilprevcyber.onrender.com/continuite-ot">
+<meta property="og:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="CONSEILPREV Cyber — cybersécurité industrielle IT / OT / IIoT">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Continuité d'activité & gestion de crise OT — CONSEILPREV Cyber">
+<meta name="twitter:description" content="PCA / PRA industriels, sauvegarde et restauration des configurations d'automates, exercices de crise sur table.">
+<meta name="twitter:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<link rel="canonical" href="https://conseilprevcyber.onrender.com/continuite-ot">
+
+<link rel="icon" href="/emblem.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .phases{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:8px}
+  .ph{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:14px;padding:20px}
+  .ph .n{font-family:var(--mono);font-size:11px;color:var(--muted2);letter-spacing:.06em}
+  .ph h3{font-size:15px;margin:6px 0 8px}
+  .ph p{font-size:13px;color:var(--muted);line-height:1.6}
+  .rto{display:grid;grid-template-columns:auto 1fr;gap:12px 16px;align-items:baseline;margin-top:10px}
+  .rto .k{font-family:var(--mono);font-size:11px;letter-spacing:.04em;padding:3px 9px;border-radius:6px;
+    background:rgba(34,211,238,.12);color:var(--cyan);white-space:nowrap}
+  .rto .v{font-size:13px;color:var(--muted)}
+  .rto .v b{color:var(--ink)}
+</style>
+</head>
+<body>
+  <header>
+  <div class="wrap nav">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu"><span></span><span></span><span></span></button>
+    <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="30" height="30" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+    <nav class="links" aria-label="Navigation principale">
+      <a href="/services">Services</a>
+      <a href="/referentiel">Référentiel 62443</a>
+      <a href="/audit-conformite">Audit 62443</a>
+      <a href="/demo">Cockpit</a>
+      <a href="/assistant">Assistant IA</a>
+      <a href="/veille">Veille</a>
+      <a href="/about">À propos</a>
+    </nav>
+    <div class="navcta">
+      <a href="/contact" class="cta">Contact</a>
+    </div>
+  </div>
+</header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow"><span class="dot"></span>Conseil · Continuité & crise OT</span>
+      <h1>Quand l'usine s'arrête, chaque heure <span class="grad">se compte en production</span>.</h1>
+      <p class="lead" style="margin-top:18px">Un plan de continuité IT restaure des données&nbsp;; un plan de continuité
+        <strong>OT</strong> redémarre un procédé — avec ses automates, ses configurations, ses séquences de redémarrage et
+        ses exigences de sûreté. Nous concevons les <strong>PCA / PRA industriels</strong>, la <strong>sauvegarde des
+        configurations d'automates</strong> et les <strong>exercices de crise</strong> qui font tenir l'ensemble.</p>
+    </section>
+
+    <section class="section" style="padding-top:24px">
+      <div class="prose" style="max-width:none">
+        <h2>Pourquoi le PCA informatique ne suffit pas</h2>
+        <p>La continuité OT ne se joue pas dans la salle serveurs. Ce qui doit revenir, c'est le <strong>procédé</strong>&nbsp;:
+        programmes automates (PLC), recettes, paramètres de régulation, configurations de variateurs et d'IHM, bases
+        historian. Ces éléments vivent souvent <em>hors</em> du périmètre de sauvegarde IT — sur la console d'ingénierie,
+        dans l'armoire électrique, chez l'intégrateur. Le jour d'un rançongiciel ou d'une défaillance, l'usine ne repart
+        pas parce que « les serveurs sont restaurés »&nbsp;: elle repart quand <strong>chaque automate a retrouvé son
+        programme, dans la bonne version, dans le bon ordre</strong> — et que la sûreté (HSE) a validé le redémarrage.</p>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <h2 class="sec-title">// Ce que nous mettons en place</h2>
+      <div class="grid grid-3">
+        <div class="card a1"><div class="ico">💾</div><h3>Sauvegarde des configurations</h3><p>Inventaire des éléments à sauvegarder (programmes PLC, recettes, IHM, réseau), <strong>configuration de référence</strong> versionnée par équipement, sauvegardes testées — exigences SR&nbsp;7.3 / SR&nbsp;7.4 de l'IEC&nbsp;62443‑3‑3.</p></div>
+        <div class="card a2"><div class="ico">🏭</div><h3>PCA / PRA industriels</h3><p>Analyse d'impact par ligne et par procédé (BIA), objectifs de reprise réalistes, <strong>séquences de redémarrage</strong> écrites avec l'exploitation, modes dégradés et marche manuelle documentés.</p></div>
+        <div class="card a3"><div class="ico">🎯</div><h3>Exercices & gestion de crise</h3><p>Exercices <strong>sur table</strong> puis instrumentés, scénarios réalistes (rançongiciel atteignant la supervision, perte de la console d'ingénierie), coordination <strong>exploitation / HSE / juridique</strong> et obligations de notification.</p></div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <div class="prose" style="max-width:none">
+        <h2>Les objectifs de reprise, en langage d'exploitant</h2>
+        <div class="rto">
+          <span class="k">RTO</span><span class="v"><b>Durée d'arrêt tolérable</b> — combien de temps la ligne peut rester à l'arrêt avant un dommage inacceptable (contrats, procédé, sûreté).</span>
+          <span class="k">RPO</span><span class="v"><b>Perte de données tolérable</b> — jusqu'où l'on accepte de revenir en arrière&nbsp;: dernière configuration de référence, dernier lot, dernière recette.</span>
+          <span class="k">SL</span><span class="v"><b>Niveau de sûreté</b> — un redémarrage n'est jamais qu'informatique&nbsp;: les fonctions instrumentées de sécurité (SIS) et la validation HSE commandent la reprise.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <h2 class="sec-title">// La démarche, en quatre temps</h2>
+      <div class="phases">
+        <div class="ph"><div class="n">01 · COMPRENDRE</div><h3>Analyse d'impact (BIA) par procédé</h3><p>Lignes, dépendances, goulots, éléments non remplaçables (équipements à long délai), coûts d'arrêt — chiffrés avec l'exploitation et la direction financière.</p></div>
+        <div class="ph"><div class="n">02 · PROTÉGER</div><h3>Sauvegardes & configurations de référence</h3><p>Quoi, où, à quelle fréquence, par qui&nbsp;; stockage hors ligne d'au moins une génération&nbsp;; test de restauration RÉEL sur banc — une sauvegarde jamais restaurée n'existe pas.</p></div>
+        <div class="ph"><div class="n">03 · PLANIFIER</div><h3>PCA / PRA & séquences de redémarrage</h3><p>Ordre de reprise par zone et conduit, modes dégradés, rôles nominatifs, seuils d'escalade, articulation avec le plan d'urgence HSE et les obligations NIS2 (notification 24 h / 72 h).</p></div>
+        <div class="ph"><div class="n">04 · ÉPROUVER</div><h3>Exercices, du papier au réel</h3><p>Sur table d'abord (direction, exploitation, HSE, juridique, communication), puis exercice technique de restauration&nbsp;; chaque exercice produit un compte rendu et des actions correctives datées.</p></div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:8px">
+      <div class="prose" style="max-width:none">
+        <h2>Ce que dit le référentiel</h2>
+        <ul>
+          <li><strong>IEC 62443‑3‑3, SR 7.3 / SR 7.4</strong> — sauvegarde du système de contrôle sans perturber le procédé, et restauration/reconstitution vers un <em>état connu et sûr</em>.</li>
+          <li><strong>IEC 62443‑2‑1</strong> — le CSMS exige des procédures de continuité, testées et maintenues, cohérentes avec le plan d'urgence du site.</li>
+          <li><strong>NIS2, art. 21</strong> — la continuité d'activité (sauvegardes, reprise, gestion de crise) figure parmi les mesures minimales exigées des entités essentielles et importantes.</li>
+        </ul>
+
+        <div class="band" style="margin-top:22px">
+          <div class="status" style="color:var(--muted)">📚 <strong style="color:var(--ink)">Références</strong> — IEC 62443‑3‑3 (SR 7.3, SR 7.4), IEC 62443‑2‑1, directive (UE) 2022/2555 (NIS2), art. 21. Contenu paraphrasé à titre pédagogique.</div>
+        </div>
+
+        <div class="divider"></div>
+        <div style="text-align:center">
+          <h2>Votre usine redémarrerait-elle demain&nbsp;?</h2>
+          <p class="lead" style="margin:10px auto 0">BIA, sauvegardes d'automates, PCA/PRA, exercice sur table — nous livrons un dispositif éprouvé, pas un classeur.</p>
+          <div class="actions" style="justify-content:center">
+            <a href="/contact" class="btn btn-p">Nous contacter</a>
+            <a href="/gestion-des-changements" class="btn btn-s">Gestion des changements (MOC)</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+  <div class="wrap foot">
+    <div class="foot-cols">
+      <div class="foot-brand">
+        <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="26" height="26" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+        <p>Cybersécurité industrielle IT / OT / IIoT — conformité IEC&nbsp;62443, NIS2, DORA.</p>
+      </div>
+      <nav class="foot-col" aria-label="Expertise">
+        <h4>Expertise</h4>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/methodologie">Méthodologie</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/operating-model">Operating Model</a>
+        <a href="/maturite-ot">Maturité OT</a>
+        <a href="/feuille-de-route">Feuille de route</a>
+        <a href="/continuite-ot">Continuité &amp; crise OT</a>
+        <a href="/gestion-des-changements">Gestion des changements</a>
+      </nav>
+      <nav class="foot-col" aria-label="Norme &amp; conformité">
+        <h4>Norme &amp; conformité</h4>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/audit-conformite">Audit 62443</a>
+        <a href="/diagnostic">Diagnostic express</a>
+        <a href="/nis2">NIS2</a>
+      </nav>
+      <nav class="foot-col" aria-label="Plateforme">
+        <h4>Plateforme</h4>
+        <a href="/demo">Cockpit</a>
+        <a href="/assistant">Assistant IA</a>
+        <a href="/connecter">Connecter une source</a>
+        <a href="/guide-integration">Guide d’intégration</a>
+      </nav>
+      <nav class="foot-col" aria-label="Ressources">
+        <h4>Ressources</h4>
+        <a href="/veille">Veille</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/glossaire-62443">Glossaire 62443</a>
+      </nav>
+    </div>
+    <div class="foot-bar">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Tous droits réservés</div>
+      <div class="foot-legal">
+        <a href="/about">À propos</a>
+        <a href="/contact">Contact</a>
+        <a href="/connexion">Espace client</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/politique-confidentialite">Confidentialité</a>
+        <a href="/conformite">Conformité IA &amp; RGPD</a>
+        <a href="/admin" rel="nofollow" class="foot-admin">Admin</a>
+      </div>
+    </div>
+  </div>
+</footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+  <script src="/nav.js" defer></script>
+  <script src="/parcours.js" defer></script>
+</body>
+</html>

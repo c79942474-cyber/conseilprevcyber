@@ -548,6 +548,74 @@ TYPES = [
             "Décisions demandées",
         ],
     },
+    {
+        "id": "pca-pra-ot",
+        "groupe": "Conseil — Continuité & crise OT",
+        "label": "Plan de continuité / reprise OT (PCA-PRA)",
+        "desc": "Analyse d'impact par procédé, objectifs de reprise (RTO/RPO), séquences de "
+                "redémarrage par zone, modes dégradés et articulation HSE — IEC 62443 & NIS2 art. 21.",
+        "sections": [
+            "Contexte, périmètre & lignes critiques",
+            "Analyse d'impact (BIA) par procédé",
+            "Objectifs de reprise (RTO / RPO) par ligne",
+            "Scénarios retenus (rançongiciel, perte supervision, perte console d'ingénierie)",
+            "Séquences de redémarrage par zone & conduit",
+            "Modes dégradés & marche manuelle",
+            "Rôles, astreintes & seuils d'escalade (exploitation / HSE / juridique)",
+            "Obligations de notification (NIS2 24 h / 72 h)",
+            "Maintien en condition & calendrier d'exercices",
+        ],
+    },
+    {
+        "id": "politique-sauvegarde-configs",
+        "groupe": "Conseil — Continuité & crise OT",
+        "label": "Politique de sauvegarde des configurations d'automates",
+        "desc": "Inventaire des éléments à sauvegarder (PLC, IHM, recettes, réseau), configuration "
+                "de référence versionnée, fréquences, stockage hors ligne et tests de restauration — SR 7.3 / 7.4.",
+        "sections": [
+            "Périmètre : équipements & éléments de configuration couverts",
+            "Configuration de référence (golden config) & versionnement",
+            "Fréquences, déclencheurs (avant/après changement) & responsabilités",
+            "Stockage : emplacements, génération hors ligne, chiffrement",
+            "Tests de restauration : banc, critères, périodicité",
+            "Registre des sauvegardes & preuves d'exécution",
+            "Écarts connus & plan de mise à niveau",
+        ],
+    },
+    {
+        "id": "exercice-crise-ot",
+        "groupe": "Conseil — Continuité & crise OT",
+        "label": "Exercice de crise OT — scénario & compte rendu",
+        "desc": "Scénario d'exercice sur table (rançongiciel atteignant la supervision), déroulé "
+                "minuté, rôles, injections, grille d'observation et compte rendu avec actions correctives.",
+        "sections": [
+            "Objectifs de l'exercice & périmètre",
+            "Scénario & chronologie des injections",
+            "Participants & rôles (direction, exploitation, cyber, HSE, juridique, communication)",
+            "Grille d'observation & critères d'évaluation",
+            "Déroulé constaté (à compléter pendant l'exercice)",
+            "Constats : ce qui a tenu, ce qui a manqué",
+            "Actions correctives datées & porteurs",
+            "Prochain exercice recommandé",
+        ],
+    },
+    {
+        "id": "procedure-moc",
+        "groupe": "Conseil — Continuité & crise OT",
+        "label": "Procédure de gestion des changements (MOC) sécurité OT",
+        "desc": "Circuit MOC en six étapes : demande & classement, grille d'impact cyber-sûreté, "
+                "approbateurs par type et par zone, fenêtres, retour arrière, clôture documentaire — IEC 62443-2-1.",
+        "sections": [
+            "Objet, périmètre & articulation avec le MOC sûreté (HSE)",
+            "Typologie des changements & classement (standard / normal / urgence)",
+            "Grille d'analyse d'impact cyber & sûreté (zones, conduits, SL, SIS)",
+            "Circuit d'approbation : approbateurs par type et par zone",
+            "Fenêtres de maintenance & préparation (sauvegarde préalable, plan de retour arrière)",
+            "Exécution, vérification & critères de succès",
+            "Clôture : mise à jour des référentiels (inventaire, schémas, configuration de référence)",
+            "Indicateurs : changements tracés, urgences, retours arrière",
+        ],
+    },
 ]
 
 _BY_ID = {t["id"]: t for t in TYPES}

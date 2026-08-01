@@ -580,6 +580,8 @@ PAGES = {
     "/technologies-securite": "technologies-securite.html",
     "/programme-securite": "programme-securite.html",
     "/gestion-correctifs": "gestion-correctifs.html",
+    "/continuite-ot": "continuite-ot.html",
+    "/gestion-des-changements": "gestion-des-changements.html",
     "/glossaire-62443": "glossaire-62443.html",
     "/metriques-62443": "metriques-62443.html",
     "/demo": "demo.html",
@@ -707,6 +709,16 @@ def maturite_ot():
 @app.route("/feuille-de-route")
 def feuille_de_route():
     return _page(PAGES["/feuille-de-route"])
+
+
+@app.route("/continuite-ot")
+def continuite_ot():
+    return _page(PAGES["/continuite-ot"])
+
+
+@app.route("/gestion-des-changements")
+def gestion_des_changements():
+    return _page(PAGES["/gestion-des-changements"])
 
 
 @app.route("/etudes-de-cas")

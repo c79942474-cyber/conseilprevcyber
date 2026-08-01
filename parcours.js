@@ -96,6 +96,8 @@
     "/exigences-prestataires": ["tiers", "exigences"],
     "/technologies-securite": ["technique"],
     "/gestion-correctifs": ["technique", "continuite"],
+    "/continuite-ot": ["continuite", "gouvernance"],
+    "/gestion-des-changements": ["technique", "continuite", "gouvernance"],
     "/demo": ["technique", "continuite"],
     "/veille": ["preuve"],
     "/audit-conformite": ["preuve", "juridique"],

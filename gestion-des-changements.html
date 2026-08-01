@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestion des changements (MOC) en environnement OT — CONSEILPREV Cyber</title>
+<meta name="description" content="Management of Change (MOC) appliqué à la cybersécurité industrielle : analyse d'impact cyber d'un changement, circuit d'approbation, fenêtres de maintenance, retour arrière et traçabilité.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CONSEILPREV Cyber">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Gestion des changements (MOC) en environnement OT — CONSEILPREV Cyber">
+<meta property="og:description" content="Management of Change (MOC) appliqué à la cybersécurité industrielle : analyse d'impact cyber, circuit d'approbation, fenêtres, retour arrière, traçabilité.">
+<meta property="og:url" content="https://conseilprevcyber.onrender.com/gestion-des-changements">
+<meta property="og:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="CONSEILPREV Cyber — cybersécurité industrielle IT / OT / IIoT">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Gestion des changements (MOC) en environnement OT — CONSEILPREV Cyber">
+<meta name="twitter:description" content="Management of Change appliqué à la cybersécurité OT : impact cyber, approbation, fenêtres, retour arrière.">
+<meta name="twitter:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<link rel="canonical" href="https://conseilprevcyber.onrender.com/gestion-des-changements">
+
+<link rel="icon" href="/emblem.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .flow{display:grid;gap:10px;margin-top:8px}
+  .step{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start;
+    background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);
+    border-radius:12px;padding:14px 18px}
+  .step .n{font-family:var(--mono);font-size:12px;color:var(--cyan);letter-spacing:.05em;
+    border:1px solid rgba(34,211,238,.35);border-radius:8px;padding:4px 9px;white-space:nowrap}
+  .step h3{font-size:14px;margin:2px 0 4px}
+  .step p{font-size:13px;color:var(--muted);line-height:1.6;margin:0}
+  .step p b{color:var(--ink)}
+  .quand{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:8px}
+  .q{border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--muted)}
+  .q b{color:var(--ink);display:block;margin-bottom:3px}
+</style>
+</head>
+<body>
+  <header>
+  <div class="wrap nav">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu"><span></span><span></span><span></span></button>
+    <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="30" height="30" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+    <nav class="links" aria-label="Navigation principale">
+      <a href="/services">Services</a>
+      <a href="/referentiel">Référentiel 62443</a>
+      <a href="/audit-conformite">Audit 62443</a>
+      <a href="/demo">Cockpit</a>
+      <a href="/assistant">Assistant IA</a>
+      <a href="/veille">Veille</a>
+      <a href="/about">À propos</a>
+    </nav>
+    <div class="navcta">
+      <a href="/contact" class="cta">Contact</a>
+    </div>
+  </div>
+</header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow"><span class="dot"></span>Conseil · Management of Change</span>
+      <h1>Aucun changement n'est anodin <span class="grad">sur un procédé qui tourne</span>.</h1>
+      <p class="lead" style="margin-top:18px">Un firmware mis à jour, une règle de pare-feu « temporaire », un variateur
+        remplacé, un prestataire qui branche sa clé — la plupart des incidents OT commencent par un changement
+        <strong>non évalué</strong>. Le <strong>MOC</strong> (Management&nbsp;of&nbsp;Change) donne à chaque modification un
+        circuit&nbsp;: analyse d'impact <strong>cyber ET sûreté</strong>, approbation, fenêtre, retour arrière, trace.</p>
+    </section>
+
+    <section class="section" style="padding-top:24px">
+      <div class="prose" style="max-width:none">
+        <h2>Pourquoi l'OT a son propre MOC</h2>
+        <p>L'industrie de procédé pratique le MOC depuis longtemps — côté <strong>sûreté</strong> (HSE)&nbsp;: on n'y modifie
+        pas une soupape sans analyse. La cybersécurité doit entrer dans <em>ce</em> circuit-là, pas en créer un troisième&nbsp;:
+        un changement qui traverse le MOC sûreté sans question cyber peut ouvrir un conduit entre zones, désactiver un
+        durcissement, périmer une qualification. Et l'inverse est vrai&nbsp;: un « simple patch » approuvé côté IT peut
+        arrêter une ligne. <strong>Un seul circuit, deux regards — sûreté et cyber — et une décision tracée.</strong></p>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <h2 class="sec-title">// Ce qui déclenche un MOC</h2>
+      <div class="quand">
+        <div class="q"><b>Logiciel & firmware</b>Patch OS ou applicatif, firmware d'automate, montée de version SCADA/IHM — voir la <a href="/gestion-correctifs">gestion des correctifs</a>, qui s'exécute DANS le MOC.</div>
+        <div class="q"><b>Réseau & segmentation</b>Règle de pare-feu, nouveau conduit entre zones, accès de télémaintenance, équipement ajouté au réseau de procédé.</div>
+        <div class="q"><b>Matériel & procédé</b>Remplacement d'un PLC ou d'un variateur, modification d'une boucle de régulation, nouvel équipement connecté (IIoT).</div>
+        <div class="q"><b>Organisation & tiers</b>Nouveau prestataire, transfert d'exploitation, changement de responsabilité sur une zone — le changement n'est pas toujours technique.</div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <h2 class="sec-title">// Le circuit, en six étapes</h2>
+      <div class="flow">
+        <div class="step"><span class="n">01</span><div><h3>Demande & classement</h3><p>Toute modification entre par une demande unique. Un <b>classement d'urgence</b> distingue le changement standard (pré-approuvé), le changement normal et le changement d'urgence — qui suit le circuit APRÈS coup, jamais à sa place.</p></div></div>
+        <div class="step"><span class="n">02</span><div><h3>Analyse d'impact — cyber et sûreté ensemble</h3><p>Zones et conduits touchés, niveau de sécurité (SL) maintenu ou dégradé, effet sur les fonctions instrumentées (SIS), qualification à refaire, exposition nouvelle (accès, flux). <b>Une grille courte, remplie à deux regards.</b></p></div></div>
+        <div class="step"><span class="n">03</span><div><h3>Approbation</h3><p>Approbateurs nommés par type et par zone — exploitation, cyber, HSE quand la sûreté est touchée. <b>Qui approuve quoi est écrit d'avance</b> : le jour venu, on applique, on ne négocie pas.</p></div></div>
+        <div class="step"><span class="n">04</span><div><h3>Fenêtre & préparation</h3><p>Planification dans une <b>fenêtre de maintenance</b> négociée avec la production, sauvegarde préalable de la configuration (voir <a href="/continuite-ot">continuité OT</a>), plan de <b>retour arrière</b> écrit AVANT d'agir — pas improvisé pendant l'incident.</p></div></div>
+        <div class="step"><span class="n">05</span><div><h3>Exécution & vérification</h3><p>Exécution tracée, tests de bon fonctionnement du procédé ET des mesures de sécurité (la règle de pare-feu tient-elle toujours&nbsp;? le durcissement a-t-il survécu&nbsp;?), critères de succès définis à l'étape 04.</p></div></div>
+        <div class="step"><span class="n">06</span><div><h3>Clôture & mise à jour des référentiels</h3><p>Inventaire, schémas de zones et conduits, configuration de référence, analyse de risque : <b>un changement clos est un changement documenté</b>. C'est cette étape qui meurt en premier sans MOC — et qui rend les audits interminables.</p></div></div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:8px">
+      <div class="prose" style="max-width:none">
+        <h2>Ce que dit le référentiel</h2>
+        <ul>
+          <li><strong>IEC 62443‑2‑1</strong> — le CSMS exige un processus de gestion des changements couvrant les systèmes IACS, avec analyse de risque préalable et traçabilité.</li>
+          <li><strong>IEC TR 62443‑2‑3</strong> — la gestion des correctifs est un cas particulier du MOC&nbsp;: qualification, fenêtre, retour arrière.</li>
+          <li><strong>IEC 61511 / pratiques HSE</strong> — le MOC sûreté existe déjà dans l'industrie de procédé&nbsp;; la cybersécurité s'y adosse au lieu de le dupliquer.</li>
+        </ul>
+
+        <div class="band" style="margin-top:22px">
+          <div class="status" style="color:var(--muted)">📚 <strong style="color:var(--ink)">Références</strong> — IEC 62443‑2‑1, IEC TR 62443‑2‑3, IEC 61511 (MOC sûreté). Contenu paraphrasé à titre pédagogique.</div>
+        </div>
+
+        <div class="divider"></div>
+        <div style="text-align:center">
+          <h2>Combien de changements le mois dernier — et combien de tracés&nbsp;?</h2>
+          <p class="lead" style="margin:10px auto 0">Nous écrivons la procédure MOC avec vos équipes, grille d'impact comprise, et nous la faisons vivre sur vos premiers changements réels.</p>
+          <div class="actions" style="justify-content:center">
+            <a href="/contact" class="btn btn-p">Nous contacter</a>
+            <a href="/continuite-ot" class="btn btn-s">Continuité & crise OT</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+  <div class="wrap foot">
+    <div class="foot-cols">
+      <div class="foot-brand">
+        <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="26" height="26" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+        <p>Cybersécurité industrielle IT / OT / IIoT — conformité IEC&nbsp;62443, NIS2, DORA.</p>
+      </div>
+      <nav class="foot-col" aria-label="Expertise">
+        <h4>Expertise</h4>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/methodologie">Méthodologie</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/operating-model">Operating Model</a>
+        <a href="/maturite-ot">Maturité OT</a>
+        <a href="/feuille-de-route">Feuille de route</a>
+        <a href="/continuite-ot">Continuité &amp; crise OT</a>
+        <a href="/gestion-des-changements">Gestion des changements</a>
+      </nav>
+      <nav class="foot-col" aria-label="Norme &amp; conformité">
+        <h4>Norme &amp; conformité</h4>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/audit-conformite">Audit 62443</a>
+        <a href="/diagnostic">Diagnostic express</a>
+        <a href="/nis2">NIS2</a>
+      </nav>
+      <nav class="foot-col" aria-label="Plateforme">
+        <h4>Plateforme</h4>
+        <a href="/demo">Cockpit</a>
+        <a href="/assistant">Assistant IA</a>
+        <a href="/connecter">Connecter une source</a>
+        <a href="/guide-integration">Guide d’intégration</a>
+      </nav>
+      <nav class="foot-col" aria-label="Ressources">
+        <h4>Ressources</h4>
+        <a href="/veille">Veille</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/glossaire-62443">Glossaire 62443</a>
+      </nav>
+    </div>
+    <div class="foot-bar">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Tous droits réservés</div>
+      <div class="foot-legal">
+        <a href="/about">À propos</a>
+        <a href="/contact">Contact</a>
+        <a href="/connexion">Espace client</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/politique-confidentialite">Confidentialité</a>
+        <a href="/conformite">Conformité IA &amp; RGPD</a>
+        <a href="/admin" rel="nofollow" class="foot-admin">Admin</a>
+      </div>
+    </div>
+  </div>
+</footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+  <script src="/nav.js" defer></script>
+  <script src="/parcours.js" defer></script>
+</body>
+</html>
