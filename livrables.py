@@ -932,6 +932,154 @@ TYPES = [
             "Offre conjointe : positionnement commercial & argumentaire client",
         ],
     },
+
+    # ═══════════════════════════════════════════════════════════════════════
+    #  CENTRES DE DONNÉES BAS CARBONE
+    #
+    #  Ces livrables s'appuient sur datacenter.py, dont les résultats sont
+    #  DÉTERMINISTES. La consigne au modèle est explicite là-dessus : il rédige
+    #  autour des chiffres, il ne les produit pas et ne les corrige pas. Un
+    #  dossier de centre de données se fait vérifier ligne à ligne par un bureau
+    #  de contrôle ; un chiffre inventé s'y voit immédiatement, et discrédite
+    #  tout le reste du document — y compris ce qui était juste.
+    # ═══════════════════════════════════════════════════════════════════════
+    {
+        "id": "dc-note-calcul",
+        "groupe": "Centres de données",
+        "label": "Note de calcul — énergie, eau et carbone",
+        "desc": "Note d'ingénierie traçable : PUE, WUE de site et de source, CUE, ERE, "
+                "carbone d'exploitation et incorporé. Chaque résultat porte sa formule, "
+                "ses entrées, sa source normative et son incertitude.",
+        "sections": [
+            "Objet, périmètre et hypothèses de calcul",
+            "Données d'entrée et leur provenance",
+            "Bilan énergétique — PUE et décomposition des pertes",
+            "Bilan eau — évaporation, purge, WUE de site et WUE de source",
+            "Bilan carbone — exploitation localisée et marché, carbone incorporé",
+            "Chaleur fatale — ERF, ERE et conditions de valorisation",
+            "Incertitudes et sensibilité des résultats",
+            "Limites de l'étude et travaux complémentaires nécessaires",
+        ],
+    },
+    {
+        "id": "dc-etude-conception",
+        "groupe": "Centres de données",
+        "label": "Étude de conception bas carbone",
+        "desc": "Comparaison chiffrée des familles de refroidissement pour un site donné, "
+                "arbitrage eau / énergie / carbone explicite, et conception retenue avec "
+                "ses contreparties assumées.",
+        "sections": [
+            "Contexte, contraintes de site et exigences du maître d'ouvrage",
+            "Climat, ressource en eau et mix électrique du site",
+            "Familles de refroidissement examinées et critères d'exclusion",
+            "Arbitrage eau / énergie / carbone — le compromis chiffré",
+            "Conception retenue et justification",
+            "Contreparties assumées et risques résiduels",
+            "Trajectoire de performance sur la durée d'exploitation",
+        ],
+    },
+    {
+        "id": "dc-reponse-ao",
+        "groupe": "Centres de données",
+        "label": "Réponse à appel d'offres — volet environnemental",
+        "desc": "Mémoire technique environnemental : engagements chiffrés sur PUE, WUE, "
+                "carbone et chaleur fatale, méthode de mesure, et conformité au cadre "
+                "européen (directive efficacité énergétique, EN 50600, ISO/IEC 30134).",
+        "sections": [
+            "Compréhension du besoin et des critères d'évaluation",
+            "Engagements chiffrés et leur méthode de vérification",
+            "Conception technique proposée",
+            "Performance énergétique — PUE engagé et conditions de mesure",
+            "Sobriété en eau — WUE engagé, saisonnalité, plan en tension hydrique",
+            "Trajectoire carbone — exploitation et incorporé",
+            "Valorisation de la chaleur fatale et preneur identifié",
+            "Conformité réglementaire et normative",
+            "Instrumentation, mesure et reporting annuel",
+            "Ce sur quoi nous ne nous engageons pas, et pourquoi",
+        ],
+    },
+    {
+        "id": "dc-cctp",
+        "groupe": "Centres de données",
+        "label": "CCTP — clauses de performance environnementale",
+        "desc": "Clauses techniques opposables : indicateurs, conditions de mesure, "
+                "périodes de référence, pénalités et modalités de vérification. "
+                "Un indicateur sans protocole de mesure n'est pas opposable.",
+        "sections": [
+            "Objet et documents de référence normatifs",
+            "Indicateurs contractuels et leurs définitions exactes",
+            "Protocole de mesure — points, périodicité, instruments, incertitude admise",
+            "Périodes de référence et conditions d'exclusion",
+            "Seuils, tolérances et pénalités",
+            "Vérification, contre-mesure et arbitrage en cas de litige",
+            "Obligations de reporting au titre de la directive efficacité énergétique",
+        ],
+    },
+    {
+        "id": "dc-etude-eau",
+        "groupe": "Centres de données",
+        "label": "Étude de sobriété hydrique",
+        "desc": "Bilan d'eau complet — site et amont électrique —, saisonnalité des "
+                "prélèvements, confrontation à la ressource locale et plan de réduction.",
+        "sections": [
+            "Ressource locale et contexte de stress hydrique",
+            "Bilan d'eau du site — évaporation, purge, appoint",
+            "Eau consommée en amont par la production électrique",
+            "Saisonnalité — le prélèvement au pas mensuel, pas l'annuel",
+            "Scénarios de réduction et arbitrage avec la consommation d'énergie",
+            "Plan de fonctionnement dégradé en période de restriction",
+            "Suivi, mesure et engagement auprès des autorités",
+        ],
+    },
+    {
+        "id": "dc-chaleur-fatale",
+        "groupe": "Centres de données",
+        "label": "Étude de valorisation de la chaleur fatale",
+        "desc": "Gisement, niveaux de température, schémas de raccordement, économie du "
+                "projet et conditions contractuelles avec le preneur de chaleur.",
+        "sections": [
+            "Gisement thermique et niveaux de température disponibles",
+            "Preneurs potentiels et distance de raccordement",
+            "Schémas techniques envisagés et relevage éventuel",
+            "Bilan carbone du projet — chez le site et chez le preneur",
+            "Économie du projet et partage de la valeur",
+            "Conditions contractuelles et durée d'engagement",
+            "Points bloquants et conditions de réussite",
+        ],
+    },
+    {
+        "id": "dc-conformite-eed",
+        "groupe": "Centres de données",
+        "label": "Dossier de conformité — reporting européen",
+        "desc": "Assujettissement au titre de l'article 12 de la directive efficacité "
+                "énergétique, grandeurs à déclarer, instrumentation nécessaire et "
+                "calendrier de mise en conformité.",
+        "sections": [
+            "Assujettissement et périmètre de déclaration",
+            "Grandeurs exigées et définitions normatives applicables",
+            "État de l'instrumentation existante et écarts",
+            "Plan d'instrumentation et coût associé",
+            "Processus de collecte, de contrôle et de validation annuelle",
+            "Calendrier de mise en conformité",
+        ],
+    },
+    {
+        "id": "dc-etat-art",
+        "groupe": "Centres de données",
+        "label": "État de l'art — technologies bas carbone",
+        "desc": "Panorama des voies techniques : refroidissement liquide et immersion, "
+                "rejet sec, pilotage bas carbone, réemploi. Maturité, conditions "
+                "d'emploi et limites de chacune.",
+        "sections": [
+            "Cadre de l'étude et critères de maturité retenus",
+            "Refroidissement liquide direct et immersion",
+            "Rejet sec et stratégies sans eau",
+            "Pilotage de charge sur signal carbone",
+            "Allongement de durée de vie et réemploi",
+            "Ce qui reste au stade de la recherche, et ce qui est déployable",
+            "Recommandations d'emploi selon le contexte de site",
+        ],
+    },
 ]
 
 _BY_ID = {t["id"]: t for t in TYPES}
@@ -1093,6 +1241,91 @@ def dossier_documentaire(sources, choix_manuel=False):
     )
 
 
+# Les livrables de centre de données reposent sur une note de calcul produite
+# par datacenter.py. Le modèle reçoit ces résultats comme des FAITS.
+CONSIGNE_CALCUL = (
+    "\n\nNOTE DE CALCUL — RÉSULTATS DÉTERMINISTES\n"
+    "Les valeurs ci-dessous ont été calculées par le moteur d'ingénierie de "
+    "CONSEILPREV, hors de toute intervention d'un modèle de langage. Elles sont "
+    "des FAITS pour ce document.\n"
+    "INTERDICTIONS ABSOLUES : ne recalcule aucune de ces valeurs ; ne les arrondis "
+    "pas différemment ; ne les contredis pas ; n'en invente aucune autre du même "
+    "type. Si un chiffre te paraît surprenant, écris pourquoi — ne le corrige pas. "
+    "Ta tâche est d'EXPLIQUER et de METTRE EN PERSPECTIVE ces résultats, pas de les "
+    "produire.\n"
+    "Reprends chaque valeur avec son unité exacte, et cite sa source normative "
+    "quand elle est donnée. Reproduis les avertissements dans la section consacrée "
+    "aux limites : ce sont eux qui rendent le document défendable en comité "
+    "technique.\n\n"
+)
+
+
+def _bloc_calcul(etude):
+    """Met la note de calcul en forme pour le modèle, valeur par valeur.
+
+    On donne la formule et la source AVEC le chiffre. Un modèle à qui l'on
+    transmet « PUE 1,175 » brode ; un modèle à qui l'on transmet « PUE 1,175,
+    formule E_total/E_IT, ISO/IEC 30134-2, incertitude ±4 % » reformule ce qu'on
+    lui a dit. La différence est exactement celle qui se voit en relecture.
+    """
+    if not isinstance(etude, dict):
+        return ""
+    lignes = []
+
+    def bloc(titre, section, cles):
+        d = etude.get(section) or {}
+        dispo = [(k, d[k]) for k in cles if isinstance(d.get(k), dict) and "valeur" in d[k]]
+        if not dispo:
+            return
+        lignes.append("### " + titre)
+        for _, v in dispo:
+            ligne = "- **%s** : %s %s" % (v["nom"], v["valeur"], v["unite"])
+            if v.get("formule"):
+                ligne += "  \n  Formule : %s" % v["formule"]
+            if v.get("source"):
+                ligne += "  \n  Source : %s" % v["source"]
+            if v.get("incertitude"):
+                ligne += "  \n  Incertitude : %s" % v["incertitude"]
+            lignes.append(ligne)
+
+    bloc("Énergie", "energie", ["pue", "energie_it_MWh", "energie_totale_MWh",
+                                "energie_non_it_MWh", "dcie"])
+    bloc("Eau", "eau", ["evaporation_m3", "purge_m3", "appoint_m3",
+                        "wue_site", "wue_source", "eau_amont_m3"])
+    bloc("Carbone", "carbone", ["cue", "co2_exploitation_localise_t",
+                                "co2_exploitation_marche_t", "ref",
+                                "incorpore_serveurs_t", "incorpore_batiment_t",
+                                "incorpore_technique_t", "empreinte_totale_t",
+                                "part_incorpore_pct"])
+    bloc("Chaleur fatale", "chaleur", ["erf", "ere", "energie_reutilisee_MWh"])
+
+    lev = etude.get("leviers") or []
+    if lev:
+        lignes.append("### Leviers calculés, classés par gain carbone")
+        for l in lev:
+            lignes.append(
+                "- **%s** — %s tCO2e/an, %s m³ d'eau/an, %s MWh/an, %s €/an  \n"
+                "  Contrepartie : %s  \n  Condition : %s"
+                % (l["titre"], l["gain_co2_t"], l["gain_eau_m3"],
+                   l["gain_energie_MWh"], l["gain_euros"],
+                   l["contrepartie"], l["condition"]))
+
+    conf = etude.get("conformite") or []
+    if conf:
+        lignes.append("### Conformité")
+        for c in conf:
+            lignes.append("- %s — **%s** : %s (%s)"
+                          % (c["sujet"], c["statut"], c["detail"], c.get("reference", "")))
+
+    av = etude.get("avertissements") or []
+    if av:
+        lignes.append("### Avertissements à reproduire dans le document")
+        for a in av:
+            lignes.append("- " + a)
+
+    return "\n".join(lignes)
+
+
 def build_prompts(type_id, inputs, context=None):
     """Construit (system, user) pour la génération. `inputs` : dict client/secteur/…"""
     t = get_type(type_id)
@@ -1113,6 +1346,11 @@ def build_prompts(type_id, inputs, context=None):
     )
     if consignes:
         user += "Consignes particulières : " + consignes + "\n"
+    # La note de calcul, quand elle existe, est posée AVANT la structure : le
+    # modèle doit avoir les faits en tête au moment où il découvre le plan.
+    bloc = _bloc_calcul(inputs.get("etude"))
+    if bloc:
+        user += CONSIGNE_CALCUL + bloc + "\n"
     user += (
         "\nStructure attendue (une section « ## » par point, dans cet ordre) :\n"
         + sections + "\n\n"

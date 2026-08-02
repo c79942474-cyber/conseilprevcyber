@@ -136,6 +136,32 @@ THEME_FAMILLES = [
         "Juridique / RGPD & données",
         "Juridique / Marchés & appels d'offres",
     ]),
+    # Centres de données. Famille à part entière, et non sous-dossier
+    # d'« Engineering » : un dossier de centre de données croise thermique,
+    # électricité, eau, carbone, normes et marchés publics — le ranger sous un
+    # projet le rendrait introuvable depuis les cinq autres angles par lesquels
+    # on le cherche. Le découpage suit les CHAPITRES d'une réponse à appel
+    # d'offres, parce que c'est dans cet ordre qu'on cherche les pièces, et
+    # généralement sous contrainte de délai.
+    ("Centres de données", [
+        "Data center",
+        "Data center / Conception & architecture",
+        "Data center / Thermique & refroidissement",
+        "Data center / Refroidissement liquide & immersion",
+        "Data center / Eau & stress hydrique",
+        "Data center / Énergie & électricité",
+        "Data center / Chaleur fatale & réseaux de chaleur",
+        "Data center / Carbone & analyse de cycle de vie",
+        "Data center / Efficacité & indicateurs (PUE, WUE, CUE, ERE)",
+        "Data center / Normes (EN 50600, ISO/IEC 30134, ASHRAE)",
+        "Data center / Réglementation UE (EED, taxonomie, CSRD)",
+        "Data center / Appels d'offres & CCTP",
+        "Data center / Études de site & implantation",
+        "Data center / Recherche & état de l'art",
+        "Data center / Retours d'exploitation & mesures",
+        "Data center / Fournisseurs & fiches techniques",
+    ]),
+
     ("Métier & livrables", [
         "AMOA SI Industriel",
         "Cahier des charges & CCTP",

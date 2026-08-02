@@ -607,6 +607,7 @@ PAGES = {
     "/veille": "veille.html",
     "/juridique": "juridique.html",
     "/relecture-contrat": "relecture-contrat.html",
+    "/datacenter": "datacenter.html",
 }
 
 
@@ -1793,6 +1794,270 @@ def api_playbook_export():
                      as_attachment=True, mimetype=mimetype)
 
 
+# ══════════════════════════════════════════════════════════════════════════
+#  CENTRES DE DONNÉES BAS CARBONE — moteur d'ingénierie
+#
+#  Même partage des rôles que la relecture contractuelle : le MOTEUR calcule,
+#  le modèle rédige autour. Ici l'enjeu est plus dur encore — une note de calcul
+#  se fait vérifier ligne à ligne par un bureau de contrôle, et un chiffre
+#  inventé y est repéré immédiatement. datacenter.py ne contient aucun appel à
+#  un modèle de langage : l'étude complète fonctionne sans aucune clé d'API.
+# ══════════════════════════════════════════════════════════════════════════
+
+import datacenter  # noqa: E402
+
+
+@app.route("/datacenter")
+@login_required
+def datacenter_page():
+    """Études d'ingénierie de centres de données (comptes connectés)."""
+    return _page(PAGES["/datacenter"])
+
+
+@app.route("/api/datacenter/referentiel")
+@login_required
+def api_datacenter_referentiel():
+    """Vocabulaire, constantes et cadre réglementaire.
+
+    Une seule définition côté serveur : une liste d'options recopiée dans le
+    HTML finit toujours par diverger du moteur qui, lui, calcule."""
+    return jsonify(ok=True, referentiel=datacenter.referentiel(),
+                   champs=datacenter.CHAMPS)
+
+
+def _profil_datacenter(data):
+    """Nettoie les entrées. Les nombres reçus en texte sont convertis ici, une
+    fois pour toutes : plus bas, une chaîne dans un calcul lève, et l'étude
+    entière échouerait sur une virgule décimale."""
+    profil = {}
+    for champ in datacenter.CHAMPS:
+        cid = champ["id"]
+        if cid not in data or data[cid] in ("", None):
+            continue
+        brut = data[cid]
+        if champ["type"] == "nombre":
+            try:
+                profil[cid] = float(str(brut).replace(",", ".").strip())
+            except (TypeError, ValueError):
+                continue
+        else:
+            profil[cid] = str(brut).strip()[:40]
+    return profil
+
+
+@app.route("/api/datacenter/etude", methods=["POST"])
+@login_required
+def api_datacenter_etude():
+    """L'étude complète. Déterministe : deux appels identiques, même résultat."""
+    data = request.get_json(silent=True) or {}
+    profil = _profil_datacenter(data)
+    if not profil.get("puissance_it_kw"):
+        return jsonify(ok=False, error="puissance_absente",
+                       message="La puissance informatique installée est nécessaire : "
+                               "toutes les grandeurs en dépendent."), 400
+    if profil["puissance_it_kw"] <= 0 or profil["puissance_it_kw"] > 5_000_000:
+        return jsonify(ok=False, error="puissance_invraisemblable",
+                       message="Puissance hors du domaine du calculable."), 400
+    try:
+        res = datacenter.etude(profil)
+    except Exception:
+        app.logger.exception("étude datacenter")
+        return jsonify(ok=False, error="calcul_echec",
+                       message="Le calcul a échoué."), 500
+    audit.journaliser("datacenter.etude",
+                      cible=str(profil.get("refroidissement") or "?"),
+                      detail="%s kW · PUE %s · WUE site %s"
+                             % (profil["puissance_it_kw"],
+                                res["energie"]["pue"]["valeur"],
+                                res["eau"]["wue_site"]["valeur"]))
+    return jsonify(ok=True, etude=res)
+
+
+@app.route("/api/datacenter/comparer", methods=["POST"])
+@login_required
+def api_datacenter_comparer():
+    """La même installation, toutes familles de refroidissement confondues.
+
+    C'est ce tableau qui rend l'arbitrage lisible : on y voit d'un coup que le
+    gain de PUE d'un évaporatif se paie en mètres cubes, et que le rejet sec
+    fait l'inverse. Séparés, les deux chiffres laissent conclure à côté.
+    """
+    data = request.get_json(silent=True) or {}
+    profil = _profil_datacenter(data)
+    if not profil.get("puissance_it_kw"):
+        return jsonify(ok=False, error="puissance_absente",
+                       message="La puissance informatique installée est nécessaire."), 400
+    lignes = []
+    for famille in datacenter.REFROIDISSEMENT:
+        p = dict(profil)
+        p["refroidissement"] = famille
+        p.pop("pue_cible", None)          # sinon toutes les familles se valent
+        p.pop("part_evaporative", None)   # on veut la valeur propre à chacune
+        r = datacenter.etude(p)
+        lignes.append({
+            "famille": famille,
+            "nom": datacenter.REFROIDISSEMENT[famille]["nom"],
+            "pue": r["energie"]["pue"]["valeur"],
+            "energie_totale_MWh": r["energie"]["energie_totale_MWh"]["valeur"],
+            "eau_site_m3": r["eau"]["appoint_m3"]["valeur"],
+            "wue_site": r["eau"]["wue_site"]["valeur"],
+            "wue_source": r["eau"]["wue_source"]["valeur"],
+            "co2_exploitation_t": r["carbone"]["co2_exploitation_localise_t"]["valeur"],
+            "empreinte_totale_t": r["carbone"]["empreinte_totale_t"]["valeur"],
+            "temperature_rejet_c": r["chaleur"]["temperature_rejet_c"],
+            "note": datacenter.REFROIDISSEMENT[famille]["note"],
+        })
+    lignes.sort(key=lambda x: x["empreinte_totale_t"])
+    return jsonify(ok=True, lignes=lignes,
+                   lecture="Classement par empreinte totale, carbone incorporé compris. "
+                           "Le WUE de SOURCE, et non le WUE de site, est la colonne à "
+                           "regarder pour arbitrer entre évaporatif et rejet sec.")
+
+
+@app.route("/api/datacenter/export", methods=["POST"])
+@login_required
+def api_datacenter_export():
+    """La note de calcul en Word ou PDF, recalculée côté serveur.
+
+    Comme pour la relecture contractuelle : un document qui sort du cabinet et
+    porte des engagements chiffrés ne doit pas dépendre de ce qu'un formulaire a
+    bien voulu transmettre.
+    """
+    data = request.get_json(silent=True) or {}
+    profil = _profil_datacenter(data)
+    if not profil.get("puissance_it_kw"):
+        return jsonify(ok=False, error="puissance_absente",
+                       message="La puissance informatique installée est nécessaire."), 400
+    fmt = (data.get("format") or "docx").strip().lower()
+    if fmt not in ("docx", "pdf"):
+        fmt = "docx"
+    res = datacenter.etude(profil)
+    md = _note_calcul_markdown(res, str(data.get("client") or "").strip()[:120])
+    meta = {"label": "Note de calcul — centre de données",
+            "client": str(data.get("client") or "")[:120],
+            "perimetre": "%s kW informatiques · %s" % (
+                round(profil["puissance_it_kw"]),
+                datacenter.REFROIDISSEMENT.get(
+                    profil.get("refroidissement") or "eau_glacee", {}).get("nom", "")),
+            "date": time.strftime("%d/%m/%Y"),
+            "sources": [{"title": "Moteur d'ingénierie CONSEILPREV v" + datacenter.VERSION,
+                         "theme": "calcul déterministe"}]}
+    try:
+        if fmt == "pdf":
+            blob = livrables_export.build_pdf(md, meta)
+            mimetype = "application/pdf"
+        else:
+            blob = livrables_export.build_docx(md, meta)
+            mimetype = ("application/vnd.openxmlformats-officedocument"
+                        ".wordprocessingml.document")
+    except Exception:
+        app.logger.exception("export note de calcul")
+        return jsonify(ok=False, error="export_echec",
+                       message="La mise en page a échoué."), 500
+    audit.journaliser("datacenter.export", cible=fmt,
+                      detail="%s kW" % round(profil["puissance_it_kw"]))
+    return send_file(io.BytesIO(blob), download_name="note-calcul-datacenter." + fmt,
+                     as_attachment=True, mimetype=mimetype)
+
+
+def _note_calcul_markdown(res, client=""):
+    """La note de calcul en Markdown, chaque valeur avec sa formule.
+
+    Écrite ici et non par un modèle : c'est le document opposable. Le modèle
+    intervient sur les livrables rédigés, qui l'entourent — jamais sur elle.
+    """
+    L = ["# Note de calcul — centre de données",
+         "", "*Document produit par le moteur d'ingénierie CONSEILPREV "
+         "v%s. Aucun modèle de langage n'intervient dans ces calculs : deux "
+         "exécutions avec les mêmes entrées donnent le même résultat.*" % datacenter.VERSION, ""]
+    if client:
+        L += ["**Client :** " + client, ""]
+
+    L += ["## Données d'entrée", ""]
+    for champ in datacenter.CHAMPS:
+        v = res["profil"].get(champ["id"])
+        if v not in (None, ""):
+            L.append("- %s : **%s** %s" % (champ["label"], datacenter.fr(v)
+                      if champ["type"] == "nombre" else v, champ.get("unite", "")))
+    L.append("")
+
+    for titre, section, cles in [
+        ("Bilan énergétique", "energie",
+         ["pue", "energie_it_MWh", "energie_totale_MWh", "energie_non_it_MWh", "dcie"]),
+        ("Bilan eau", "eau",
+         ["evaporation_m3", "purge_m3", "appoint_m3", "wue_site", "wue_source", "eau_amont_m3"]),
+        ("Bilan carbone", "carbone",
+         ["cue", "co2_exploitation_localise_t", "co2_exploitation_marche_t", "ref",
+          "incorpore_serveurs_t", "incorpore_batiment_t", "incorpore_technique_t",
+          "empreinte_totale_t", "part_incorpore_pct"]),
+        ("Chaleur fatale", "chaleur", ["erf", "ere", "energie_reutilisee_MWh"]),
+    ]:
+        L += ["## " + titre, ""]
+        d = res.get(section) or {}
+        for cle in cles:
+            v = d.get(cle)
+            if not isinstance(v, dict) or "valeur" not in v:
+                continue
+            L.append("### %s" % v["nom"])
+            L.append("")
+            L.append("**%s %s**" % (datacenter.fr(v["valeur"]), v["unite"]))
+            L.append("")
+            if v.get("formule"):
+                L.append("- Formule : %s" % v["formule"])
+            if v.get("entrees"):
+                L.append("- Entrées : " + " · ".join(
+                    "%s = %s" % (k, datacenter.fr(x) if isinstance(x, (int, float))
+                                 else x)
+                    for k, x in v["entrees"].items()))
+            if v.get("source"):
+                L.append("- Source : %s" % v["source"])
+            if v.get("incertitude"):
+                L.append("- Incertitude : %s" % v["incertitude"])
+            if v.get("note"):
+                L.append("- %s" % v["note"])
+            L.append("")
+
+    lev = res.get("leviers") or []
+    if lev:
+        L += ["## Leviers, classés par gain carbone", "",
+              "| Levier | tCO2e/an | m³ eau/an | MWh/an | €/an | Difficulté |",
+              "|---|---:|---:|---:|---:|---|"]
+        for x in lev:
+            L.append("| %s | %s | %s | %s | %s | %s |" % (
+                x["titre"], datacenter.fr(x["gain_co2_t"]), datacenter.fr(x["gain_eau_m3"]),
+                datacenter.fr(x["gain_energie_MWh"]), datacenter.fr(x["gain_euros"], 0),
+                x["difficulte"]))
+        L.append("")
+        L.append("Chaque levier porte une contrepartie ; elles sont détaillées "
+                 "ci-dessous, parce qu'un levier présenté sans la sienne est un "
+                 "argument commercial, pas une recommandation d'ingénierie.")
+        L.append("")
+        for x in lev:
+            L += ["### " + x["titre"], "",
+                  "- Contrepartie : %s" % x["contrepartie"],
+                  "- Condition : %s" % x["condition"],
+                  "- Fondement : %s" % x["fondement"], ""]
+
+    conf = res.get("conformite") or []
+    if conf:
+        L += ["## Conformité et repères de marché", "",
+              "| Sujet | Statut | Détail |", "|---|---|---|"]
+        for c in conf:
+            L.append("| %s | %s | %s |" % (c["sujet"], c["statut"], c["detail"]))
+        L.append("")
+
+    av = res.get("avertissements") or []
+    if av:
+        L += ["## Limites de cette note", "",
+              "Ce que le calcul ne dit pas est aussi important que ce qu'il dit. "
+              "Ces réserves font partie de la note ; les retirer la rendrait "
+              "indéfendable en comité technique.", ""]
+        for a in av:
+            L.append("- " + a)
+        L.append("")
+    return "\n".join(L)
+
+
 @app.route("/audit-conformite")
 @login_required
 def audit_conformite():
@@ -1940,6 +2205,22 @@ def nav_js():
 def parcours_js():
     """Parcours guidés par rôle — données et interface, partagés par toutes les pages."""
     return _serve_fast("parcours.js", _CC_ASSET,
+                       mimetype="text/javascript; charset=utf-8")
+
+
+@app.route("/datacenter.js")
+def datacenter_js():
+    """Interface de l'étude de centre de données.
+
+    Fichier séparé et non script inline : il fait 300 lignes, et la page qui l'a
+    servi de modèle portait déjà 27 000 caractères de script inline — au point
+    qu'en la recopiant, on a d'abord embarqué le moteur d'une AUTRE page. Un
+    fichier nommé se voit ; un bloc inline se recopie par accident.
+
+    Route publique : le script ne contient aucune donnée, seulement l'affichage.
+    Ce sont les API qu'il appelle qui exigent une session.
+    """
+    return _serve_fast("datacenter.js", _CC_ASSET,
                        mimetype="text/javascript; charset=utf-8")
 
 

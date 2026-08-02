@@ -23,7 +23,8 @@
       ["/architecture-cible", "Architecture cible OT"],
       ["/formation", "Formation & compétences"],
       ["/gouvernance-ia", "Governance by Design IA"],
-      ["/relecture-contrat", "Relecture de contrats assistée"] ] },
+      ["/relecture-contrat", "Relecture de contrats assistée"],
+      ["/datacenter", "Centres de données bas carbone"] ] },
     { t: "Référentiel IEC 62443", l: [
       ["/referentiel", "Vue d’ensemble"],
       ["/analyse-de-risque", "Analyse de risque · 3-2"],
@@ -81,6 +82,7 @@
     "/nis2": "Directive NIS2 et correspondance avec l'IEC 62443",
     "/juridique": "Conseil juridique assisté : qualification, lectures des textes, clausier",
     "/relecture-contrat": "Relecture assistée : playbook, écarts, validations, version par version",
+    "/datacenter": "Énergie, eau et carbone calculés ensemble : PUE, WUE de site et de source, carbone incorporé, réponses à appels d’offres",
     "/demo": "Cockpit de supervision OT en temps réel (démonstration)",
     "/tendances": "Tendances et signaux de la menace industrielle",
     "/connecter": "Connecter une source de données au cockpit",
