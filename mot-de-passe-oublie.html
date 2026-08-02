@@ -39,10 +39,16 @@
   document.getElementById('f').addEventListener('submit',function(e){
     e.preventDefault();var msg=document.getElementById('msg');
     msg.textContent='Envoi…';msg.className='msg ok';
+    /* Le code HTTP décide de la couleur, pas seulement du texte. Le message du
+       serveur s'affichait jusqu'ici toujours en « ok » : un refus pour base
+       injoignable apparaissait donc en vert, comme une confirmation d'envoi —
+       et l'utilisateur attendait un email qui n'arriverait jamais. */
     fetch('/api/auth/forgot',{method:'POST',headers:{'content-type':'application/json'},
       body:JSON.stringify({email:document.getElementById('email').value.trim()})})
-      .then(function(r){return r.json();})
-      .then(function(j){msg.textContent=j.message||'Si un compte existe, un email a été envoyé.';msg.className='msg ok';})
+      .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+      .then(function(res){
+        msg.textContent=res.j.message||'Si un compte existe, un email a été envoyé.';
+        msg.className='msg '+((res.ok&&res.j.ok!==false)?'ok':'err');})
       .catch(function(){msg.textContent='Erreur réseau, réessayez.';msg.className='msg err';});
   });
   </script>

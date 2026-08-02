@@ -22,7 +22,8 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 
 import requests
-from flask import (Blueprint, Response, jsonify, redirect, request, send_from_directory, session)
+from flask import (Blueprint, Response, jsonify, make_response, redirect, request,
+                   send_from_directory, session)
 from werkzeug.security import check_password_hash, generate_password_hash
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -469,16 +470,40 @@ class _ResilientUserStore:
     # -- délégation --------------------------------------------------------
     def _appel(self, methode, *args, **kwargs):
         """Exécute sur le magasin actif ; si PostgreSQL échoue en cours de route,
-        on le lâche (une nouvelle connexion sera tentée) et on relaie l'erreur —
-        l'appelant sait déjà la traiter (repli sur le cache, message clair)."""
+        on le lâche (une nouvelle connexion sera tentée) et on relaie l'erreur.
+
+        La NATURE de l'erreur relayée compte. Une connexion coupée et une
+        requête fautive n'appellent pas la même réponse : la première est une
+        indisponibilité passagère, à annoncer comme telle et à réessayer ; la
+        seconde est un défaut du code, qui doit rester visible en 500 et dans
+        les journaux. Confondre les deux, c'est soit habiller un bug en
+        « réessayez dans un instant » — et il ne sera jamais corrigé —, soit
+        faire passer une base endormie pour une panne du site.
+
+        Seules les erreurs de CONNEXION sont donc traduites en
+        ComptesIndisponibles. Tout le reste remonte intact."""
         cible = self._actif()          # peut lever ComptesIndisponibles
         try:
             return getattr(cible, methode)(*args, **kwargs)
-        except Exception:
+        except Exception as exc:
+            connexion_perdue = False
             if cible is self._pg:
                 with self._lock:
                     self._pg = None
                     self._last_try = 0.0        # rebranchement au prochain accès
+                try:
+                    import psycopg
+                    connexion_perdue = isinstance(
+                        exc, (psycopg.OperationalError, psycopg.InterfaceError))
+                except Exception:               # noqa: BLE001
+                    connexion_perdue = False
+            if connexion_perdue:
+                logging.getLogger("auth").warning(
+                    "comptes : connexion perdue pendant « %s » — %s", methode,
+                    _classer_erreur_base(exc))
+                raise ComptesIndisponibles(
+                    "base de comptes injoignable (connexion perdue en cours de requête)"
+                ) from exc
             raise
 
     def get(self, email):
@@ -626,6 +651,40 @@ def current_user():
     if not u or not (u.get("email_verified") and u.get("approved")):
         return None
     return u
+
+
+def comptes_requis(f):
+    """Traduit une base de comptes injoignable en refus LISIBLE, pas en 500.
+
+    Le constat qui a motivé ce décorateur : sur les neuf routes du système de
+    comptes, une seule — la connexion — savait quoi dire quand la base ne
+    répondait pas. Les huit autres laissaient l'exception remonter, et
+    l'utilisateur lisait « Le serveur a rencontré une erreur ». C'est faux sur
+    le fond : le serveur va très bien, c'est la base qui dort. Et c'est nuisible
+    en pratique — « erreur serveur » invite à signaler une panne, « base
+    momentanément injoignable, réessayez » invite à réessayer, ce qui suffit
+    presque toujours.
+
+    Un 503 est ici plus qu'une convention : il porte Retry-After, que les
+    navigateurs et les sondes savent lire, là où un 500 dit « n'insistez pas ».
+    """
+    @functools.wraps(f)
+    def wrap(*a, **k):
+        try:
+            return f(*a, **k)
+        except ComptesIndisponibles as exc:
+            logging.getLogger("auth").warning(
+                "comptes injoignables sur %s : %s", request.path, exc)
+            if request.path.startswith("/api/"):
+                rep = jsonify(ok=False, error="comptes_indisponibles",
+                              message="Base de comptes momentanément injoignable. "
+                                      "Réessayez dans un instant.")
+            else:
+                rep = make_response(send_from_directory(HERE, "base-injoignable.html"))
+            rep.status_code = 503
+            rep.headers["Retry-After"] = "30"
+            return rep
+    return wrap
 
 
 def login_required(f):
@@ -779,6 +838,7 @@ def api_captcha():
 
 
 @auth_bp.route("/api/auth/register", methods=["POST"])
+@comptes_requis
 def api_register():
     d = request.get_json(silent=True) or {}
     # Anti-abus : limite les demandes d'inscription par IP (anti-flood d'emails).
@@ -821,6 +881,7 @@ def api_register():
 
 
 @auth_bp.route("/verifier-email/<token>")
+@comptes_requis
 def verify_email(token):
     u = store.get_by("verify_token", token)
     if not u or (u.get("verify_expire") or 0) < _now_ms():
@@ -830,6 +891,7 @@ def verify_email(token):
 
 
 @auth_bp.route("/admin/approuver/<token>")
+@comptes_requis
 def admin_approve(token):
     u = store.get_by("approve_token", token)
     if not u:
@@ -933,6 +995,7 @@ def api_me():
 
 
 @auth_bp.route("/api/auth/forgot", methods=["POST"])
+@comptes_requis
 def api_forgot():
     d = request.get_json(silent=True) or {}
     email = (d.get("email") or "").strip().lower()[:200]
@@ -954,6 +1017,7 @@ def api_forgot():
 
 
 @auth_bp.route("/reinitialiser/<token>")
+@comptes_requis
 def page_reset(token):
     u = store.get_by("reset_token", token)
     if not u or (u.get("reset_expire") or 0) < _now_ms():
@@ -962,6 +1026,7 @@ def page_reset(token):
 
 
 @auth_bp.route("/api/auth/reset", methods=["POST"])
+@comptes_requis
 def api_reset():
     d = request.get_json(silent=True) or {}
     # Anti-abus : limite les tentatives de réinitialisation par IP (anti-bruteforce de jeton).
@@ -999,12 +1064,14 @@ def page_admin_users():
 
 @auth_bp.route("/api/admin/users")
 @admin_required
+@comptes_requis
 def api_admin_users():
     return jsonify(users=[_public_user(u) for u in store.list_all()])
 
 
 @auth_bp.route("/api/admin/users/<path:email>", methods=["PATCH", "DELETE"])
 @admin_required
+@comptes_requis
 def api_admin_user_update(email):
     email = (email or "").strip().lower()
     me = current_user()
