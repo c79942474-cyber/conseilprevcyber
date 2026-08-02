@@ -2058,6 +2058,158 @@ def _note_calcul_markdown(res, client=""):
     return "\n".join(L)
 
 
+# ══════════════════════════════════════════════════════════════════════════
+#  AGENT DATA CENTER — livrables rédigés depuis le corpus documentaire
+#
+#  Deuxième brique, complémentaire du moteur de calcul ci-dessus et non
+#  redondante avec lui. Le moteur CALCULE des grandeurs physiques ; l'agent
+#  RÉDIGE des livrables à partir des documents chargés dans la base de
+#  connaissance, en citant ses sources passage par passage et en refusant de
+#  produire quand le corpus ne couvre pas la demande.
+#
+#  Ce refus est la propriété qui compte. Un générateur qui répond toujours
+#  produit, sur un corpus vide, un document plausible et faux — c'est-à-dire
+#  exactement ce qu'on ne peut pas remettre à un client.
+# ══════════════════════════════════════════════════════════════════════════
+
+import agent_datacenter  # noqa: E402
+
+_AGENT_DC_INDEX_PATH = os.path.join(HERE, "corpus_datacenter.json")
+_AGENT_DC = None
+_AGENT_DC_LOCK = threading.Lock()
+
+
+def _agent_dc_embed(textes):
+    """Vectorisation, branchée sur le magasin existant.
+
+    On réutilise rag_store plutôt que de rouvrir une connexion à Mistral : la
+    clé, le modèle, la dimension et le délai d'attente y sont déjà décidés, et
+    deux endroits qui appellent le même service finissent par diverger sur l'un
+    de ces quatre paramètres — le jour où l'un change.
+    """
+    try:
+        return rag_store.embed_texts(list(textes))
+    except Exception as exc:  # noqa: BLE001
+        raise agent_datacenter.EmbeddingIndisponible(str(exc)) from exc
+
+
+def _agent_dc_complete(system, user, temperature=0.2):
+    """Complétion, branchée sur l'assistant existant.
+
+    assistant.generate() choisit le fournisseur et gère le repli. La
+    température demandée par l'agent n'y est pas exposée : on la documente au
+    lieu de la taire, parce qu'un agent qui croit piloter un paramètre qu'il ne
+    pilote pas produit des résultats qu'on n'explique plus.
+    """
+    dispo = assistant.available()
+    modele = "claude" if dispo.get("claude") else ("mistral" if dispo.get("mistral") else None)
+    if not modele:
+        raise RuntimeError("Aucun fournisseur de modèle configuré.")
+    texte, _ = assistant.generate(modele, system, user)
+    return texte or ""
+
+
+def _agent_dc():
+    """L'agent, construit une seule fois et à la demande.
+
+    Construction paresseuse : l'index se charge depuis le disque, et sur un
+    corpus volumineux cette lecture ne doit pas retarder le démarrage du site.
+    """
+    global _AGENT_DC
+    if _AGENT_DC is None:
+        with _AGENT_DC_LOCK:
+            if _AGENT_DC is None:
+                index = agent_datacenter.CorpusIndex(_AGENT_DC_INDEX_PATH)
+                _AGENT_DC = agent_datacenter.DataCenterAgent(
+                    index, _agent_dc_embed, _agent_dc_complete,
+                    journal_path=os.path.join(HERE, "journal_agent_datacenter.jsonl"))
+    return _AGENT_DC
+
+
+@app.route("/api/datacenter/agent/indexer", methods=["POST"])
+@admin_required
+def api_agent_dc_indexer():
+    """Alimente le corpus de l'agent depuis la base de connaissance.
+
+    Réservé à l'administrateur : indexer, c'est décider de ce que l'agent aura
+    le droit de citer. Ce n'est pas une action de lecture.
+    """
+    data = request.get_json(silent=True) or {}
+    themes = data.get("themes")
+    if not isinstance(themes, list) or not themes:
+        # Par défaut, toute la famille « Centres de données » de la base.
+        themes = [t for t in rag_store.THEMES if t.startswith("Data center")]
+    agent = _agent_dc()
+    total, docs, erreurs = 0, 0, []
+    for theme in themes[:40]:
+        try:
+            hits = rag_store.store.search("data center énergie eau carbone",
+                                          k=60, public_only=False, theme=theme)
+        except Exception as exc:  # noqa: BLE001
+            erreurs.append("%s : %s" % (theme, exc))
+            continue
+        for h in hits:
+            texte = (h.get("text") or h.get("contenu") or "").strip()
+            if len(texte) < 200:
+                continue
+            try:
+                n = agent.index.add_document(
+                    texte, h.get("title") or h.get("source") or theme,
+                    str(h.get("created_at") or "")[:10], _agent_dc_embed)
+            except agent_datacenter.EmbeddingIndisponible as exc:
+                return jsonify(ok=False, error="vectorisation_indisponible",
+                               message=str(exc)), 503
+            total += n
+            docs += 1
+    try:
+        agent.index.save()
+    except Exception:
+        app.logger.exception("sauvegarde du corpus agent")
+        return jsonify(ok=False, error="corpus_non_sauvegarde",
+                       message="Les passages sont en mémoire mais n'ont pas pu "
+                               "être écrits : ils seront perdus au redémarrage."), 500
+    audit.journaliser("agent_datacenter.indexation", cible=str(len(themes)) + " thème(s)",
+                      detail="%d passage(s) retenus sur %d extrait(s)" % (total, docs))
+    return jsonify(ok=True, passages_ajoutes=total, extraits_lus=docs,
+                   passages_total=len(agent.index.passages), erreurs=erreurs)
+
+
+@app.route("/api/datacenter/agent/etat", methods=["GET"])
+@login_required
+def api_agent_dc_etat():
+    """Ce que l'agent peut faire AUJOURD'HUI, et ce qui lui manque.
+
+    Publié plutôt que deviné : un corpus vide et un service de vectorisation
+    absent produisent le même refus côté utilisateur, et appellent deux gestes
+    opposés — charger des documents, ou configurer une clé.
+    """
+    agent = _agent_dc()
+    par_theme = {}
+    for p in agent.index.passages:
+        par_theme[p.theme] = par_theme.get(p.theme, 0) + 1
+    dispo = assistant.available()
+    return jsonify(ok=True,
+                   passages=len(agent.index.passages),
+                   par_theme=par_theme,
+                   corpus_version=agent_datacenter.CORPUS_VERSION,
+                   vectorisation=rag_store.embeddings_available(),
+                   redaction=bool(dispo.get("claude") or dispo.get("mistral")),
+                   seuil=agent.threshold,
+                   passages_minimum=agent.min_passages)
+
+
+# Le blueprint de l'agent, derrière le même verrou que le reste du conseil.
+# Le module reste agnostique : c'est ici, et seulement ici, que le système de
+# comptes du site entre en jeu.
+#
+# On passe la FONCTION _agent_dc et non un agent déjà construit : le blueprint
+# s'enregistre à l'import, alors que l'agent charge son corpus depuis le disque.
+# Construire l'un pour enregistrer l'autre ferait payer cette lecture à chaque
+# démarrage du site, y compris quand personne n'ouvrira la page.
+app.register_blueprint(
+    agent_datacenter.build_blueprint(_agent_dc, garde=login_required))
+
+
 @app.route("/audit-conformite")
 @login_required
 def audit_conformite():

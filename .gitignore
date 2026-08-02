@@ -6,3 +6,9 @@ venv/
 *.log
 .DS_Store
 users_db.json
+
+# Données produites à l'exécution par l'agent data center. Le corpus indexé
+# contient des extraits de documents CLIENTS, et le journal porte les empreintes
+# de chaque génération : ni l'un ni l'autre n'a sa place dans un dépôt.
+corpus_datacenter.json
+journal_agent_datacenter.jsonl
