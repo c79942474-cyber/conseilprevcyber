@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relecture de contrats assistée — playbook, écarts, validations — CONSEILPREV Cyber</title>
+<meta name="description" content="Relire et négocier un contrat cyber, IA ou ingénierie sans allonger le cycle : chaque version est confrontée au playbook contractuel, les écarts sont détectés et cités, adressés à l'instance qui valide, et un assistant conversationnel rédige les contre-propositions.">
+<meta name="robots" content="noindex, follow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CONSEILPREV Cyber">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Relecture de contrats assistée — CONSEILPREV Cyber">
+<meta property="og:description" content="Playbook contractuel, détection d'écarts déterministe, comparaison de versions, circuit de validation et assistant conversationnel de relecture.">
+<meta property="og:url" content="https://conseilprevcyber.onrender.com/relecture-contrat">
+<meta property="og:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="CONSEILPREV Cyber — relecture contractuelle assistée">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Relecture de contrats assistée — CONSEILPREV Cyber">
+<meta name="twitter:description" content="Le verdict vient d'un moteur de règles, pas de l'IA. L'IA explique et rédige.">
+<meta name="twitter:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<link rel="canonical" href="https://conseilprevcyber.onrender.com/relecture-contrat">
+
+<link rel="icon" href="/emblem.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .kick{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--muted2)}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+    clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+  /* Le socle de confiance : trois phrases, en tête, parce que ce sont les trois
+     questions que pose un juriste avant de coller un contrat dans un outil. */
+  .rc-socle{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;
+    margin:20px 0 4px}
+  .rc-socle div{border:1px solid var(--line);border-left:3px solid var(--teal);border-radius:10px;
+    padding:12px 14px;background:rgba(0,0,0,.10);font-size:13px;color:var(--muted);line-height:1.6}
+  .rc-socle b{color:var(--ink)}
+
+  .rc-sec{padding:26px 0}
+  .rc-etape{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+  .rc-etape .n{font-family:var(--mono);font-size:13px;font-weight:700;width:27px;height:27px;
+    flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;
+    background:rgba(34,211,238,.16);color:var(--cyan)}
+  .rc-etape h2{font-size:19px;margin:0}
+
+  .rc-panneau{border:1px solid var(--line);border-radius:14px;padding:16px 18px;
+    background:linear-gradient(180deg,var(--panel),var(--bg2))}
+  .rc-champs{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px;
+    margin-bottom:12px}
+  .rc-lab{display:flex;flex-direction:column;gap:4px;font-family:var(--mono);font-size:10px;
+    letter-spacing:.09em;text-transform:uppercase;color:var(--muted2)}
+  .rc-lab input,.rc-lab select,textarea,#rc-model{font-family:var(--sans);font-size:13.5px;
+    color:var(--ink);background:rgba(0,0,0,.20);border:1px solid var(--line);border-radius:8px;
+    padding:9px 11px;text-transform:none;letter-spacing:0;width:100%}
+  textarea{font-size:13px;line-height:1.6;resize:vertical}
+  .rc-lab input:focus,.rc-lab select:focus,textarea:focus,#rc-model:focus{outline:2px solid var(--cyan);
+    outline-offset:1px;border-color:var(--cyan)}
+  .rc-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:11px}
+  .rc-actions .btn{padding:10px 18px;font-size:13.5px}
+  .rc-fichier{position:relative;overflow:hidden;display:inline-flex;align-items:center;
+    border:1px dashed var(--line);border-radius:8px;padding:9px 14px;cursor:pointer;
+    font-size:12.5px;color:var(--muted)}
+  .rc-fichier:hover{border-color:var(--cyan);color:var(--ink)}
+  .rc-fichier input{position:absolute;inset:0;opacity:0;cursor:pointer}
+  .rc-nomfic{font-family:var(--mono);font-size:11px;color:var(--teal)}
+  .rc-note{font-size:12.5px;color:var(--muted2);line-height:1.6;margin-top:8px}
+  .rc-note.err{color:var(--danger)}
+
+  /* Compteurs : la lecture d'ensemble en une ligne. Un compteur à zéro reste
+     affiché — « 0 ligne rouge » est une information, l'absence de la case ne
+     l'est pas. */
+  .rc-compteurs{display:grid;grid-template-columns:repeat(auto-fit,minmax(126px,1fr));gap:10px;
+    margin-bottom:12px}
+  .rc-cpt{border:1px solid var(--line);border-radius:11px;padding:11px 13px;
+    background:rgba(0,0,0,.12);border-left:3px solid var(--line)}
+  .rc-cpt .v{font-family:var(--mono);font-size:22px;font-weight:700;line-height:1.1;display:block}
+  .rc-cpt .l{font-size:11px;color:var(--muted2);line-height:1.35;display:block;margin-top:3px}
+  .rc-cpt.t-mauvais{border-left-color:var(--danger)} .rc-cpt.t-mauvais .v{color:var(--danger)}
+  .rc-cpt.t-moyen{border-left-color:var(--amber)}   .rc-cpt.t-moyen .v{color:var(--amber)}
+  .rc-cpt.t-bon{border-left-color:var(--green)}     .rc-cpt.t-bon .v{color:var(--green)}
+  .rc-cpt.t-neutre{border-left-color:var(--muted2)} .rc-cpt.t-neutre .v{color:var(--muted2)}
+  .rc-synthese{font-size:14.5px;color:var(--ink);border:1px solid var(--line);border-radius:11px;
+    padding:12px 15px;background:rgba(0,0,0,.10);margin-bottom:16px;line-height:1.6}
+
+  .rc-onglets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .rc-onglets button{all:unset;cursor:pointer;font-size:13px;font-weight:600;padding:8px 14px;
+    border-radius:8px;border:1px solid var(--line);color:var(--muted)}
+  .rc-onglets button:hover{border-color:var(--cyan);color:var(--ink)}
+  .rc-onglets button.on{background:rgba(34,211,238,.14);color:var(--ink);border-color:var(--cyan)}
+  .rc-onglets button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+
+  /* Deux colonnes : la relecture à gauche, le chat à droite — et le chat COLLE,
+     parce qu'il accompagne la lecture au lieu de l'interrompre. */
+  .rc-colonnes{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:18px;align-items:start}
+  .rc-filtres{display:flex;justify-content:space-between;align-items:center;gap:12px;
+    flex-wrap:wrap;margin-bottom:10px}
+  .rc-check{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);
+    cursor:pointer}
+  .rc-compte{font-family:var(--mono);font-size:11.5px;color:var(--muted2)}
+
+  .rc-t{border:1px solid var(--line);border-left:3px solid var(--line);border-radius:11px;
+    margin-bottom:9px;background:rgba(0,0,0,.10);overflow:hidden}
+  .rc-t.n-mauvais{border-left-color:var(--danger)}
+  .rc-t.n-moyen{border-left-color:var(--amber)}
+  .rc-t.n-bon{border-left-color:var(--green)}
+  .rc-t.n-neutre{border-left-color:var(--muted2)}
+  .rc-t summary{cursor:pointer;padding:11px 14px;display:flex;align-items:flex-start;gap:10px;
+    flex-wrap:wrap;list-style:none}
+  .rc-t summary::-webkit-details-marker{display:none}
+  .rc-t summary:hover{background:rgba(255,255,255,.04)}
+  .rc-t summary:focus-visible{outline:2px solid var(--cyan);outline-offset:-2px}
+  .rc-t .ti{font-size:13.5px;font-weight:600;flex:1 1 240px;min-width:0;line-height:1.4}
+  .rc-niv{font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;
+    padding:3px 9px;border-radius:20px;white-space:nowrap;flex:0 0 auto}
+  .rc-niv.n-mauvais{background:rgba(247,158,125,.18);color:var(--danger)}
+  .rc-niv.n-moyen{background:rgba(240,180,41,.16);color:var(--amber)}
+  .rc-niv.n-bon{background:rgba(52,211,153,.15);color:var(--green)}
+  .rc-niv.n-neutre{background:rgba(214,191,176,.14);color:var(--muted2)}
+  .rc-meta{font-family:var(--mono);font-size:10px;color:var(--muted2);flex:1 1 100%;
+    letter-spacing:.03em}
+  .rc-corps{padding:0 14px 13px;font-size:13px;color:var(--muted);line-height:1.65}
+  .rc-corps h4{font-size:11px;font-family:var(--mono);letter-spacing:.09em;text-transform:uppercase;
+    color:var(--muted2);margin:12px 0 5px;font-weight:400}
+  .rc-cit{border-left:2px solid var(--line);padding:6px 0 6px 11px;margin:5px 0;font-size:12.5px;
+    color:var(--ink);font-style:italic;background:rgba(0,0,0,.12);border-radius:0 6px 6px 0}
+  .rc-cit .art{display:block;font-style:normal;font-family:var(--mono);font-size:9.5px;
+    color:var(--muted2);margin-bottom:3px;letter-spacing:.04em}
+  .rc-pourquoi{color:var(--ink)}
+  .rc-chiffre{border:1px solid var(--amber);border-radius:8px;padding:9px 11px;margin:7px 0;
+    background:rgba(240,180,41,.08);font-size:12.5px}
+  .rc-chiffre b{color:var(--amber)}
+  .rc-pos{background:rgba(0,0,0,.16);border-radius:8px;padding:10px 12px;font-size:12.5px;
+    color:var(--ink);line-height:1.6}
+  .rc-repli{font-size:12.5px;margin:4px 0;padding-left:15px;position:relative}
+  .rc-repli:before{content:"›";position:absolute;left:2px;color:var(--teal)}
+  .rc-rouge{border-left:2px solid var(--danger);padding-left:11px;font-size:12.5px;
+    color:var(--danger)}
+  .rc-tbtn{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}
+  .rc-tbtn button{all:unset;cursor:pointer;font-size:12px;font-weight:600;padding:7px 12px;
+    border-radius:7px;border:1px solid var(--line);color:var(--muted)}
+  .rc-tbtn button:hover{border-color:var(--cyan);color:var(--ink)}
+  .rc-tbtn button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+
+  .rc-inst{border:1px solid var(--line);border-radius:11px;padding:12px 15px;margin-bottom:10px;
+    background:rgba(0,0,0,.10)}
+  .rc-inst.bloq{border-color:var(--danger)}
+  .rc-inst h3{font-size:14px;margin:0 0 3px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .rc-inst .role{font-size:12px;color:var(--muted2);line-height:1.55;margin-bottom:8px}
+  .rc-inst ul{margin:0;padding-left:17px;font-size:12.5px;color:var(--muted);line-height:1.6}
+  .rc-inst li{margin:5px 0}
+  .rc-inst li b{color:var(--ink)}
+
+  .rc-mvt{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:10px;
+    padding:10px 13px;margin-bottom:7px;font-size:13px;flex-wrap:wrap;background:rgba(0,0,0,.10)}
+  .rc-mvt.recul{border-left:3px solid var(--danger)}
+  .rc-mvt.progres{border-left:3px solid var(--green)}
+  .rc-mvt .ti{flex:1 1 200px;font-weight:600}
+  .rc-fleche{font-family:var(--mono);font-size:11px;color:var(--muted2);white-space:nowrap}
+
+  .rc-export{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;
+    border:1px solid var(--line);border-radius:12px;padding:13px 16px;margin-top:16px;
+    background:rgba(0,0,0,.12)}
+  .rc-expbtn{display:flex;gap:8px}
+  .rc-expbtn .btn{padding:9px 16px;font-size:13px}
+
+  /* Le chat */
+  .rc-chat{position:sticky;top:76px;border:1px solid var(--line);border-radius:14px;
+    background:linear-gradient(180deg,var(--panel),var(--bg2));display:flex;flex-direction:column;
+    max-height:calc(100vh - 96px);overflow:hidden}
+  .rc-chat-tete{display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:12px 14px;border-bottom:1px solid var(--line)}
+  .rc-chat-tete b{font-size:13.5px}
+  .rc-chat-tete select{width:auto;max-width:148px;font-size:11.5px;padding:5px 8px;flex:0 0 auto}
+  .rc-chat-tete>div{min-width:0}
+  .rc-ancre{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;
+    text-transform:uppercase;color:var(--muted2);margin-top:2px}
+  .rc-ancre.on{color:var(--green)}
+  .rc-focus{padding:8px 14px;border-bottom:1px solid var(--line);font-size:11.5px;
+    color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .rc-focus b{color:var(--ink)}
+  .rc-focus button{all:unset;cursor:pointer;font-size:11px;color:var(--cyan);text-decoration:underline}
+  .rc-fil{flex:1 1 auto;overflow-y:auto;padding:13px 14px;display:flex;flex-direction:column;
+    gap:10px;min-height:210px}
+  .rc-msg{font-size:13px;line-height:1.65;border-radius:10px;padding:9px 12px;max-width:96%}
+  .rc-msg.moi{align-self:flex-end;background:rgba(34,211,238,.13);color:var(--ink)}
+  .rc-msg.lui{align-self:flex-start;background:rgba(0,0,0,.20);color:var(--muted);
+    border:1px solid var(--line)}
+  .rc-msg.lui b,.rc-msg.lui strong{color:var(--ink)}
+  .rc-msg.err{align-self:stretch;background:rgba(247,158,125,.10);border-color:var(--danger);
+    color:var(--danger)}
+  .rc-msg pre{white-space:pre-wrap;font-family:var(--mono);font-size:11.5px;
+    background:rgba(0,0,0,.24);border-radius:7px;padding:9px 11px;margin:7px 0;overflow-x:auto}
+  .rc-msg code{font-family:var(--mono);font-size:11.5px;background:rgba(0,0,0,.24);
+    border-radius:4px;padding:1px 5px}
+  .rc-msg ul{margin:5px 0 0;padding-left:17px}
+  .rc-vide{color:var(--muted2);font-size:12.5px;line-height:1.65}
+  .rc-sugg{display:flex;gap:6px;flex-wrap:wrap;padding:0 14px 10px}
+  .rc-sugg button{all:unset;cursor:pointer;font-size:11.5px;color:var(--muted);
+    border:1px solid var(--line);border-radius:20px;padding:5px 11px;line-height:1.4}
+  .rc-sugg button:hover{border-color:var(--cyan);color:var(--ink)}
+  .rc-sugg button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  .rc-saisie{display:flex;gap:8px;align-items:flex-end;padding:11px 14px;
+    border-top:1px solid var(--line)}
+  .rc-saisie textarea{flex:1 1 auto}
+  .rc-saisie .btn{padding:10px 15px;font-size:13px;white-space:nowrap}
+  .rc-chat .rc-note{padding:0 14px 11px;margin-top:0}
+
+  .rc-pb{border:1px solid var(--line);border-radius:11px;margin-bottom:8px;
+    background:rgba(0,0,0,.10);overflow:hidden}
+  .rc-pb summary{cursor:pointer;padding:11px 14px;font-size:13.5px;font-weight:600;
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;list-style:none}
+  .rc-pb summary::-webkit-details-marker{display:none}
+  .rc-pb summary:hover{background:rgba(255,255,255,.04)}
+  .rc-pb summary:focus-visible{outline:2px solid var(--cyan);outline-offset:-2px}
+  .rc-pb .dom{font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;
+    color:var(--muted2);border:1px solid var(--line);border-radius:20px;padding:2px 8px}
+
+  @media(max-width:980px){
+    .rc-colonnes{grid-template-columns:1fr}
+    .rc-chat{position:static;max-height:none}
+    .rc-fil{max-height:340px}
+  }
+  @media print{
+    .rc-chat,.rc-onglets,.rc-actions,.rc-export,.rc-filtres,header,footer{display:none !important}
+    .rc-t[open] .rc-corps{display:block}
+  }
+</style>
+</head>
+<body>
+  <header>
+  <div class="wrap nav">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu"><span></span><span></span><span></span></button>
+    <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="30" height="30" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+    <nav class="links" aria-label="Navigation principale">
+      <a href="/services">Services</a>
+      <a href="/referentiel">Référentiel 62443</a>
+      <a href="/audit-conformite">Audit 62443</a>
+      <a href="/demo">Cockpit</a>
+      <a href="/assistant">Assistant IA</a>
+      <a href="/veille">Veille</a>
+      <a href="/about">À propos</a>
+    </nav>
+    <div class="navcta">
+      <a href="/contact" class="cta">Contact</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="wrap" style="padding:44px 0 10px">
+  <p class="kick">Conseil &amp; transformation · relecture contractuelle</p>
+  <h1 style="font-size:clamp(26px,4vw,38px);line-height:1.2;margin:6px 0 12px">
+    Relire et négocier un contrat sans allonger le cycle</h1>
+  <p style="color:var(--muted);font-size:15.5px;max-width:70ch">
+    Chaque version soumise est confrontée au <b>playbook contractuel</b> de l'entreprise :
+    ce qu'on demande, jusqu'où on peut céder, ce qu'on ne signe pas. Les écarts sont
+    détectés, cités, chiffrés, et adressés à l'instance qui doit trancher. Un assistant
+    conversationnel accompagne la relecture, explique chaque écart et rédige la
+    contre-proposition — sans quitter cette page.</p>
+
+  <div class="rc-socle">
+    <div><b>Le verdict ne vient pas de l'IA.</b> Il est rendu par un moteur de règles écrites :
+      le même contrat donne le même verdict, aujourd'hui et dans six mois. L'assistant explique
+      et rédige à partir de ce verdict ; il lui est interdit de le contredire.</div>
+    <div><b>Rien n'est conservé.</b> Le contrat est analysé en mémoire et repart avec la
+      réponse. Aucune version, aucun extrait, aucune pièce jointe n'est stockée.</div>
+    <div><b>L'analyse fonctionne sans IA.</b> Écarts, seuils, comparaison de versions et
+      circuit de validation ne dépendent d'aucun service externe. Seul le chat en a besoin.</div>
+  </div>
+</section>
+
+<!-- ══ 1. LA VERSION À RELIRE ══ -->
+<section class="wrap rc-sec" id="depot">
+  <div class="rc-etape"><span class="n">1</span><h2>La version à relire</h2></div>
+  <div class="rc-panneau">
+    <div class="rc-champs">
+      <label class="rc-lab">Objet du contrat
+        <input id="rc-objet" type="text" maxlength="140"
+               placeholder="ex. Contrat cadre supervision OT — Fournisseur X — v4"></label>
+      <label class="rc-lab">Thèmes contrôlés
+        <select id="rc-domaine"><option value="">Tous les domaines du playbook</option></select></label>
+      <label class="rc-lab">Minimisation
+        <select id="rc-min">
+          <option value="">Avertir si des données personnelles sont détectées</option>
+          <option value="masquer">Caviarder automatiquement avant envoi</option>
+          <option value="ignorer">Ne pas contrôler</option>
+        </select></label>
+    </div>
+    <textarea id="rc-texte" rows="9" placeholder="Collez ici le texte de la version à relire — ou déposez le fichier ci-dessous."></textarea>
+    <div class="rc-actions">
+      <label class="rc-fichier">
+        <input id="rc-fichier" type="file" accept=".pdf,.docx,.txt,.md">
+        <span>Déposer un fichier (PDF, DOCX, TXT, MD — 6 Mo)</span></label>
+      <span class="rc-nomfic" id="rc-nomfic"></span>
+      <button class="btn btn-p" id="rc-analyser" type="button">Analyser cette version</button>
+      <button class="btn btn-s" id="rc-exemple" type="button">Charger un contrat d'exemple</button>
+    </div>
+    <p class="rc-note" id="rc-etat" role="status" aria-live="polite"></p>
+  </div>
+</section>
+
+<!-- ══ 2. LE RÉSULTAT ══ -->
+<section class="wrap rc-sec" id="resultat" hidden>
+  <div class="rc-etape"><span class="n">2</span><h2>Ce que dit le playbook</h2></div>
+
+  <div class="rc-compteurs" id="rc-compteurs"></div>
+  <p class="rc-synthese" id="rc-synthese"></p>
+
+  <div class="rc-onglets" role="tablist" aria-label="Vues du résultat">
+    <button role="tab" class="on" data-vue="ecarts" aria-selected="true">Écarts</button>
+    <button role="tab" data-vue="circuit" aria-selected="false">Circuit de validation</button>
+    <button role="tab" data-vue="versions" aria-selected="false">Comparer deux versions</button>
+  </div>
+
+  <div class="rc-colonnes">
+    <div class="rc-gauche">
+      <div id="v-ecarts" class="rc-vue">
+        <div class="rc-filtres">
+          <label class="rc-check"><input type="checkbox" id="rc-seulement" checked>
+            N'afficher que ce qui demande une action</label>
+          <span class="rc-compte" id="rc-compte-liste"></span>
+        </div>
+        <div id="rc-liste"></div>
+      </div>
+
+      <div id="v-circuit" class="rc-vue" hidden>
+        <p class="rc-note">Une sollicitation par validateur, pas une par clause : c'est ce
+          regroupement qui raccourcit le cycle. Chaque point porte le motif à faire trancher.</p>
+        <div id="rc-circuit"></div>
+      </div>
+
+      <div id="v-versions" class="rc-vue" hidden>
+        <p class="rc-note">Collez la version <b>précédente</b>. La version analysée à l'étape 1
+          sert de version courante. On ne montre que ce qui a changé de niveau.</p>
+        <textarea id="rc-avant" rows="7" placeholder="Texte de la version précédente…"></textarea>
+        <div class="rc-actions">
+          <label class="rc-fichier"><input id="rc-fichier-avant" type="file" accept=".pdf,.docx,.txt,.md">
+            <span>Déposer la version précédente</span></label>
+          <span class="rc-nomfic" id="rc-nomfic-avant"></span>
+          <button class="btn btn-p" id="rc-comparer" type="button">Comparer</button>
+        </div>
+        <p class="rc-note" id="rc-etat-cmp" role="status" aria-live="polite"></p>
+        <div id="rc-mouvements"></div>
+      </div>
+
+      <div class="rc-export" id="rc-export" hidden>
+        <div>
+          <b>Note de relecture</b>
+          <p class="rc-note" style="margin:2px 0 0">Verdicts, citations du contrat, positions à
+            proposer et circuit de validation — recalculés côté serveur au moment de l'export.
+            L'échange avec l'assistant y est joint.</p>
+        </div>
+        <div class="rc-expbtn">
+          <button class="btn btn-s" data-fmt="docx" type="button">⬇ Word</button>
+          <button class="btn btn-s" data-fmt="pdf" type="button">⬇ PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ LE CHAT — il reste visible pendant toute la relecture ══ -->
+    <aside class="rc-chat" aria-label="Assistant de relecture">
+      <div class="rc-chat-tete">
+        <div>
+          <b>Assistant de relecture</b>
+          <span class="rc-ancre" id="rc-ancre">en attente d'une version</span>
+        </div>
+        <select id="rc-model" aria-label="Modèle"></select>
+      </div>
+      <div class="rc-focus" id="rc-focus" hidden></div>
+      <div class="rc-fil" id="rc-fil" aria-live="polite"></div>
+      <div class="rc-sugg" id="rc-sugg"></div>
+      <form class="rc-saisie" id="rc-form">
+        <label for="rc-q" class="sr-only">Votre question</label>
+        <textarea id="rc-q" rows="2" maxlength="2000"
+          placeholder="Posez votre question sur cette version…"></textarea>
+        <button class="btn btn-p" id="rc-envoyer" type="submit">Envoyer</button>
+      </form>
+      <p class="rc-note" id="rc-chat-etat"></p>
+    </aside>
+  </div>
+</section>
+
+<!-- ══ 3. LE PLAYBOOK ══ -->
+<section class="wrap rc-sec" id="playbook">
+  <div class="rc-etape"><span class="n">3</span><h2>Le playbook contractuel</h2></div>
+  <p class="rc-note" style="max-width:74ch">Ce que l'entreprise demande, ce qu'elle accepte
+    d'avance, ce qu'elle ne signe pas — et qui tranche à chaque niveau. C'est ce référentiel
+    qui produit les verdicts ci-dessus : il est lisible, donc discutable.</p>
+  <div id="rc-playbook"></div>
+</section>
+
+<section class="wrap rc-sec">
+  <p class="rc-note" id="rc-avert" style="max-width:80ch"></p>
+</section>
+
+</main>
+
+  <footer>
+  <div class="wrap foot">
+    <div class="foot-cols">
+      <div class="foot-brand">
+        <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="26" height="26" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+        <p>Cybersécurité industrielle IT / OT / IIoT — conformité IEC&nbsp;62443, NIS2, DORA.</p>
+      </div>
+      <nav class="foot-col" aria-label="Expertise">
+        <h4>Expertise</h4>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/methodologie">Méthodologie</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/operating-model">Operating Model</a>
+        <a href="/maturite-ot">Maturité OT</a>
+        <a href="/feuille-de-route">Feuille de route</a>
+        <a href="/continuite-ot">Continuité &amp; crise OT</a>
+        <a href="/gestion-des-changements">Gestion des changements</a>
+        <a href="/architecture-cible">Architecture cible</a>
+        <a href="/formation">Formation</a>
+      </nav>
+      <nav class="foot-col" aria-label="Norme &amp; conformité">
+        <h4>Norme &amp; conformité</h4>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/audit-conformite">Audit 62443</a>
+        <a href="/diagnostic">Diagnostic express</a>
+        <a href="/nis2">NIS2</a>
+      </nav>
+      <nav class="foot-col" aria-label="Plateforme">
+        <h4>Plateforme</h4>
+        <a href="/demo">Cockpit</a>
+        <a href="/assistant">Assistant IA</a>
+        <a href="/connecter">Connecter une source</a>
+        <a href="/guide-integration">Guide d’intégration</a>
+      </nav>
+      <nav class="foot-col" aria-label="Ressources">
+        <h4>Ressources</h4>
+        <a href="/veille">Veille</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/glossaire-62443">Glossaire 62443</a>
+      </nav>
+    </div>
+    <div class="foot-bar">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Tous droits réservés</div>
+      <div class="foot-legal">
+        <a href="/about">À propos</a>
+        <a href="/contact">Contact</a>
+        <a href="/connexion">Espace client</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/politique-confidentialite">Confidentialité</a>
+        <a href="/conformite">Conformité IA &amp; RGPD</a>
+        <a href="/admin" rel="nofollow" class="foot-admin">Admin</a>
+      </div>
+    </div>
+  </div>
+</footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+  <script>
+/* ══════════════════════════════════════════════════════════════════════════
+   RELECTURE CONTRACTUELLE — pilotage de l'interface
+
+   Un seul principe traverse ce fichier : LE VERDICT VIENT DU SERVEUR. Rien ici
+   ne calcule, ne devine ni ne corrige un niveau. La page affiche ce que le
+   moteur a décidé, elle le rend cliquable, et elle transmet la question au chat
+   avec le thème visé. Le jour où le playbook change, cette page n'a pas à
+   bouger — c'est le but.
+
+   Le texte de la version reste dans une variable de page. Il n'est écrit nulle
+   part, ni en stockage local ni en session : un contrat en négociation ne doit
+   pas survivre à la fermeture de l'onglet.
+   ══════════════════════════════════════════════════════════════════════════ */
+(function(){
+"use strict";
+
+var CFG = null;              /* playbook, niveaux, instances, modèles */
+var TEXTE = "";              /* la version courante, en mémoire de page */
+var ANALYSE = null;
+var CIRCUIT = null;
+var FOCUS = null;            /* thème sur lequel porte la conversation */
+var FIL = [];                /* historique du chat, pour l'export */
+var OCCUPE = false;
+
+var $ = function(id){ return document.getElementById(id); };
+function esc(s){
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+  });
+}
+function ton(niv){
+  var n = (CFG && CFG.niveaux || []).filter(function(x){ return x.id === niv; })[0];
+  return n ? n.ton : "neutre";
+}
+function libelle(niv){
+  var n = (CFG && CFG.niveaux || []).filter(function(x){ return x.id === niv; })[0];
+  return n ? n.libelle : niv;
+}
+function etat(el, msg, err){
+  var e = $(el); if(!e) return;
+  e.textContent = msg || "";
+  e.className = "rc-note" + (err ? " err" : "");
+}
+
+/* ── Démarrage ─────────────────────────────────────────────────────────── */
+fetch("/api/playbook/config", { headers: { "Accept": "application/json" } })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if(!d || !d.ok) throw new Error("config");
+    CFG = d;
+    var dom = $("rc-domaine");
+    (d.domaines || []).forEach(function(x){
+      var o = document.createElement("option"); o.value = x; o.textContent = x;
+      dom.appendChild(o);
+    });
+    /* `models` est un dictionnaire {claude: bool, mistral: bool}, pas une
+       liste : un `forEach` dessus lève, et la construction de toute la page
+       s'arrêtait là — playbook vide, suggestions absentes, avertissement muet,
+       sans que rien ne l'explique à l'écran. */
+    var ms = $("rc-model"), dispo = d.models || {};
+    ["claude", "mistral"].forEach(function(m){
+      var o = document.createElement("option");
+      o.value = m;
+      o.title = dispo[m] ? "" : "Aucune clé d'API pour ce modèle";
+      o.textContent = (m === "mistral" ? "Mistral" : "Claude")
+        + (dispo[m] ? "" : " — inactif");     /* « non configuré » débordait de la liste */
+      o.disabled = !dispo[m];
+      ms.appendChild(o);
+    });
+    /* Toujours une option sélectionnée : sans cela la liste s'affiche VIDE
+       quand aucun modèle n'est configuré, et le lecteur voit un champ muet au
+       lieu de lire « Claude — non configuré ». */
+    ms.value = dispo.claude ? "claude" : (dispo.mistral ? "mistral" : "claude");
+    /* Dire franchement quand le chat n'est pas configuré : l'analyse, elle,
+       fonctionne. Griser sans explication ferait conclure à une panne. */
+    if(!d.chat_disponible){
+      ms.disabled = true;
+      $("rc-q").disabled = true; $("rc-envoyer").disabled = true;
+      etat("rc-chat-etat", "Aucun modèle d'IA n'est configuré sur cette instance. "
+        + "L'analyse, la comparaison de versions et le circuit de validation "
+        + "fonctionnent sans lui.", true);
+    }
+    $("rc-avert").textContent = (d.avertissement || "") + " " + (d.mention_ia || "");
+    rendrePlaybook(d.themes || []);
+    rendreSuggestions(d.suggestions || []);
+    filVide();
+  })
+  .catch(function(e){
+    /* Un échec ici laisse la page inutilisable : il doit se voir, et se voir
+       AU BON ENDROIT — en haut, là où l'utilisateur va cliquer. */
+    etat("rc-etat", "Le playbook n'a pas pu être chargé (" + (e && e.message || "erreur")
+      + "). Rechargez la page ; si cela persiste, vérifiez /health.", true);
+    var pb = $("rc-playbook");
+    if(pb) pb.innerHTML = '<p class="rc-note err">Référentiel indisponible.</p>';
+  });
+
+/* ── Le playbook, en référence ─────────────────────────────────────────── */
+function rendrePlaybook(themes){
+  $("rc-playbook").innerHTML = themes.map(function(t){
+    return '<details class="rc-pb" id="pb-' + esc(t.id) + '">'
+      + "<summary><span>" + esc(t.titre) + '</span>'
+      + '<span class="dom">' + esc(t.domaine) + "</span>"
+      + '<span class="dom">criticité ' + esc(t.criticite) + "</span>"
+      + (t.outille ? "" : '<span class="dom">non outillé</span>')
+      + "</summary>"
+      + '<div class="rc-corps">'
+      + "<h4>Position standard</h4><div class=\"rc-pos\">" + esc(t.position) + "</div>"
+      + (t.replis.length ? "<h4>Positions de repli</h4>"
+          + t.replis.map(function(r){
+              return '<div class="rc-repli"><b>' + esc(libelle(r.niveau)) + "</b> — "
+                + esc(r.texte) + "</div>"; }).join("") : "")
+      + (t.ligne_rouge ? '<h4>Ligne rouge</h4><div class="rc-rouge">'
+          + esc(t.ligne_rouge) + "</div>" : "")
+      + (t.seuil ? '<h4>Seuil contrôlé</h4><div class="rc-chiffre"><b>'
+          + esc(t.seuil.libelle) + "</b> — " + (t.seuil.sens === "max" ? "au plus " : "au moins ")
+          + esc(t.seuil.standard) + " " + esc(t.seuil.unite)
+          + " ; toléré jusqu'à " + esc(t.seuil.tolere) + ". " + esc(t.seuil.pourquoi)
+          + "</div>" : "")
+      + "<h4>Qui valide un écart</h4><div>"
+      + esc(((CFG.instances || {})[t.valide.ecart] || {}).libelle || t.valide.ecart || "—")
+      + "</div>"
+      + "<h4>Fondements</h4><div>" + esc(t.fondement.join(" · ")) + "</div>"
+      + "<h4>Ce qu'on risque sans cette clause</h4><div>" + esc(t.risque) + "</div>"
+      + "</div></details>";
+  }).join("");
+}
+
+/* ── Étape 1 : analyser une version ────────────────────────────────────── */
+$("rc-fichier").addEventListener("change", function(){
+  var f = this.files && this.files[0];
+  $("rc-nomfic").textContent = f ? f.name : "";
+});
+$("rc-fichier-avant").addEventListener("change", function(){
+  var f = this.files && this.files[0];
+  $("rc-nomfic-avant").textContent = f ? f.name : "";
+});
+
+$("rc-exemple").addEventListener("click", function(){
+  $("rc-texte").value = EXEMPLE;
+  $("rc-objet").value = "Contrat de services — exemple de démonstration";
+  etat("rc-etat", "Contrat d'exemple chargé. Il porte volontairement plusieurs "
+    + "rédactions défavorables : lancez l'analyse pour voir ce que le playbook en dit.");
+});
+
+$("rc-analyser").addEventListener("click", function(){
+  var fic = $("rc-fichier").files && $("rc-fichier").files[0];
+  var txt = $("rc-texte").value.trim();
+  if(!fic && txt.length < 200){
+    etat("rc-etat", "Collez le texte de la version (200 caractères minimum), "
+      + "ou déposez un fichier.", true);
+    return;
+  }
+  this.disabled = true;
+  etat("rc-etat", "Analyse en cours…");
+  var dom = $("rc-domaine").value;
+  var envoi;
+  if(fic){
+    var fd = new FormData();
+    fd.append("fichier", fic);
+    fd.append("minimisation", $("rc-min").value);
+    if(dom) fd.append("domaines", JSON.stringify([dom]));
+    envoi = fetch("/api/playbook/analyse", { method: "POST", body: fd });
+  } else {
+    envoi = fetch("/api/playbook/analyse", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texte: txt, minimisation: $("rc-min").value,
+                             domaines: dom ? [dom] : null }) });
+  }
+  var bouton = this;
+  envoi.then(function(r){ return r.json().then(function(d){ return { s: r.status, d: d }; }); })
+    .then(function(x){
+      bouton.disabled = false;
+      if(!x.d || !x.d.ok){
+        etat("rc-etat", (x.d && x.d.message) || "L'analyse a échoué.", true);
+        return;
+      }
+      /* Ce qui repart ensuite au chat et à l'export est le texte RÉELLEMENT
+         analysé : caviardé si la minimisation a masqué, extrait par le serveur
+         si la version venait d'un fichier. Repartir du texte collé alors que
+         l'analyse a porté sur une autre matière donnerait un chat qui commente
+         un contrat que personne n'a lu. */
+      TEXTE = x.d.texte_retenu || txt || "";
+      ANALYSE = x.d.analyse; CIRCUIT = x.d.circuit;
+      afficher();
+      etat("rc-etat", ANALYSE.articles_detectes + " article(s) détecté(s) · "
+        + ANALYSE.caracteres + " caractères · playbook v" + ANALYSE.version_playbook
+        + " · référentiel " + ANALYSE.version_referentiel
+        + " — rien n'a été conservé côté serveur.");
+    })
+    .catch(function(){
+      bouton.disabled = false;
+      etat("rc-etat", "Le service est momentanément injoignable. Réessayez.", true);
+    });
+});
+
+/* ── Affichage du résultat ─────────────────────────────────────────────── */
+function afficher(){
+  $("resultat").hidden = false;
+  $("rc-export").hidden = false;
+  rendreCompteurs();
+  $("rc-synthese").textContent = ANALYSE.synthese;
+  rendreListe();
+  rendreCircuit();
+  majAncre();
+  $("resultat").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function rendreCompteurs(){
+  var c = ANALYSE.compte;
+  /* Tous les niveaux sont affichés, y compris à zéro : « 0 ligne rouge » se lit,
+     une case absente ne se lit pas. */
+  $("rc-compteurs").innerHTML = CFG.niveaux.map(function(n){
+    return '<div class="rc-cpt t-' + n.ton + '" title="' + esc(n.sens) + '">'
+      + '<span class="v">' + (c[n.id] || 0) + "</span>"
+      + '<span class="l">' + esc(n.libelle) + "</span></div>";
+  }).join("");
+}
+
+function rendreListe(){
+  var seulement = $("rc-seulement").checked;
+  var tout = ANALYSE.themes;
+  var vus = seulement
+    ? tout.filter(function(t){ return t.niveau !== "conforme"; })
+    : tout;
+  $("rc-compte-liste").textContent = vus.length === tout.length
+    ? tout.length + " thème(s)"
+    : vus.length + " sur " + tout.length + " affiché(s)";
+  if(!vus.length){
+    $("rc-liste").innerHTML = '<p class="rc-note">Aucun thème ne demande d\'action sur '
+      + 'cette version. Décochez la case ci-dessus pour voir les ' + tout.length
+      + ' thèmes contrôlés.</p>';
+    return;
+  }
+  $("rc-liste").innerHTML = vus.map(bloc).join("");
+  $("rc-liste").querySelectorAll("[data-demander]").forEach(function(b){
+    b.addEventListener("click", function(){
+      demander(this.getAttribute("data-theme"), this.getAttribute("data-demander"));
+    });
+  });
+}
+
+function bloc(t){
+  var tn = ton(t.niveau);
+  return '<details class="rc-t n-' + tn + '" id="t-' + esc(t.id) + '"'
+    + (t.niveau === "ligne-rouge" ? " open" : "") + ">"
+    + "<summary>"
+    + '<span class="ti">' + esc(t.titre) + "</span>"
+    + '<span class="rc-niv n-' + tn + '">' + esc(libelle(t.niveau)) + "</span>"
+    + '<span class="rc-meta">' + esc(t.domaine) + " · criticité " + esc(t.criticite)
+    + (t.articles && t.articles.length
+        ? " · article " + t.articles.map(function(a){ return esc(a.ref || a.titre); })
+            .slice(0, 3).join(", ") : "")
+    + (t.valideur ? " · validation : "
+        + esc(((CFG.instances || {})[t.valideur] || {}).libelle || t.valideur) : "")
+    + "</span></summary>"
+    + '<div class="rc-corps">'
+    + (t.constats || []).map(function(c){
+        return '<p class="rc-pourquoi">' + esc(c.pourquoi) + "</p>"
+          + '<div class="rc-cit"><span class="art">article ' + esc(c.article || "n. c.")
+          + "</span>" + esc(c.citation) + "</div>";
+      }).join("")
+    + (t.seuil ? '<div class="rc-chiffre"><b>' + esc(t.seuil.libelle) + "</b> — le contrat "
+        + "prévoit " + esc(t.seuil.trouve) + " " + esc(t.seuil.unite_trouvee)
+        + ", la position interne demande " + (t.seuil.sens === "max" ? "au plus " : "au moins ")
+        + esc(t.seuil.attendu) + " " + esc(t.seuil.unite) + ". " + esc(t.seuil.pourquoi)
+        + '</div><div class="rc-cit"><span class="art">article '
+        + esc(t.seuil.article || "n. c.") + "</span>" + esc(t.seuil.citation) + "</div>" : "")
+    + (t.niveau === "absent"
+        ? '<p class="rc-pourquoi">Aucun article du contrat ne traite ce sujet. '
+          + esc(t.risque) + "</p>" : "")
+    + (t.niveau === "non-outille"
+        ? '<p class="rc-pourquoi">Ce thème n\'a pas de règle de détection automatique : '
+          + "il n'est ni validé ni invalidé, et doit être relu à la main.</p>" : "")
+    + "<h4>Rédaction à proposer</h4><div class=\"rc-pos\">" + esc(t.position) + "</div>"
+    + ((t.replis || []).length ? "<h4>Jusqu'où on peut céder</h4>"
+        + t.replis.map(function(r){
+            return '<div class="rc-repli"><b>' + esc(libelle(r.niveau)) + "</b> — "
+              + esc(r.texte) + "</div>"; }).join("") : "")
+    + (t.ligne_rouge ? '<h4>Ligne rouge</h4><div class="rc-rouge">' + esc(t.ligne_rouge)
+        + "</div>" : "")
+    + '<div class="rc-tbtn">'
+    + '<button type="button" data-theme="' + esc(t.id) + '" data-demander="expliquer">'
+    + "Expliquer cet écart</button>"
+    + '<button type="button" data-theme="' + esc(t.id) + '" data-demander="rediger">'
+    + "Rédiger la contre-proposition</button>"
+    + '<button type="button" data-theme="' + esc(t.id) + '" data-demander="objection">'
+    + "Que va objecter le fournisseur ?</button>"
+    + "</div></div></details>";
+}
+
+$("rc-seulement").addEventListener("change", rendreListe);
+
+function rendreCircuit(){
+  if(!CIRCUIT || !CIRCUIT.validations.length){
+    $("rc-circuit").innerHTML = '<p class="rc-note">Aucune validation à demander : '
+      + "cette version tient dans les positions du playbook.</p>";
+    return;
+  }
+  $("rc-circuit").innerHTML = CIRCUIT.validations.map(function(v){
+    return '<div class="rc-inst' + (v.bloquant ? " bloq" : "") + '">'
+      + "<h3>" + esc(v.libelle)
+      + '<span class="rc-niv n-' + (v.bloquant ? "mauvais" : "moyen") + '">'
+      + v.n + " point(s)" + (v.bloquant ? " · bloquant" : "") + "</span></h3>"
+      + '<p class="role">' + esc(v.role) + "</p><ul>"
+      + v.points.map(function(p){
+          return "<li><b>" + esc(p.titre) + "</b> — " + esc(p.niveau_libelle) + " : "
+            + esc(p.motif) + "</li>";
+        }).join("") + "</ul></div>";
+  }).join("")
+  + (CIRCUIT.relecture_humaine.length
+      ? '<div class="rc-inst"><h3>À relire à la main</h3>'
+        + '<p class="role">Ces thèmes n\'ont pas de règle de détection automatique. '
+        + "Ils ne sont ni validés ni invalidés par cette analyse.</p><ul>"
+        + CIRCUIT.relecture_humaine.map(function(x){ return "<li>" + esc(x.titre) + "</li>"; })
+            .join("") + "</ul></div>"
+      : "");
+}
+
+/* ── Onglets ───────────────────────────────────────────────────────────── */
+document.querySelectorAll(".rc-onglets button").forEach(function(b){
+  b.addEventListener("click", function(){
+    document.querySelectorAll(".rc-onglets button").forEach(function(x){
+      x.classList.toggle("on", x === b);
+      x.setAttribute("aria-selected", x === b ? "true" : "false");
+    });
+    ["ecarts", "circuit", "versions"].forEach(function(v){
+      $("v-" + v).hidden = v !== b.getAttribute("data-vue");
+    });
+  });
+});
+
+/* ── Comparaison de versions ───────────────────────────────────────────── */
+$("rc-comparer").addEventListener("click", function(){
+  var ficA = $("rc-fichier-avant").files && $("rc-fichier-avant").files[0];
+  var av = $("rc-avant").value.trim();
+  if(!ficA && av.length < 200){
+    etat("rc-etat-cmp", "Fournissez la version précédente (200 caractères minimum).", true);
+    return;
+  }
+  if(!TEXTE && !$("rc-texte").value.trim()){
+    etat("rc-etat-cmp", "Analysez d'abord une version à l'étape 1 : elle sert de "
+      + "version courante.", true);
+    return;
+  }
+  this.disabled = true;
+  etat("rc-etat-cmp", "Comparaison en cours…");
+  var dom = $("rc-domaine").value;
+  var apres = TEXTE || $("rc-texte").value.trim();
+  var envoi;
+  if(ficA){
+    var fd = new FormData();
+    fd.append("fichier_avant", ficA);
+    fd.append("apres", apres);
+    fd.append("minimisation", $("rc-min").value);
+    if(dom) fd.append("domaines", JSON.stringify([dom]));
+    envoi = fetch("/api/playbook/comparer", { method: "POST", body: fd });
+  } else {
+    envoi = fetch("/api/playbook/comparer", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ avant: av, apres: apres, minimisation: $("rc-min").value,
+                             domaines: dom ? [dom] : null }) });
+  }
+  var bouton = this;
+  envoi.then(function(r){ return r.json(); })
+    .then(function(d){
+      bouton.disabled = false;
+      if(!d || !d.ok){
+        etat("rc-etat-cmp", (d && d.message) || "La comparaison a échoué.", true);
+        return;
+      }
+      var c = d.comparaison;
+      etat("rc-etat-cmp", c.synthese);
+      var bouges = c.mouvements.filter(function(m){ return m.sens !== "inchange"; });
+      if(!bouges.length){
+        $("rc-mouvements").innerHTML = '<p class="rc-note">Aucun thème n\'a changé de '
+          + "niveau entre ces deux versions. Les modifications, s'il y en a, portent sur "
+          + "la forme — le playbook n'y voit aucun mouvement.</p>";
+        return;
+      }
+      $("rc-mouvements").innerHTML = bouges.map(function(m){
+        return '<div class="rc-mvt ' + esc(m.sens) + '">'
+          + '<span class="rc-niv n-' + (m.sens === "recul" ? "mauvais" : "bon") + '">'
+          + (m.sens === "recul" ? "recul" : "amélioration") + "</span>"
+          + '<span class="ti">' + esc(m.titre) + "</span>"
+          + '<span class="rc-fleche">' + esc(m.avant_libelle) + " → " + esc(m.apres_libelle)
+          + (m.seuil_avant != null && m.seuil_apres != null && m.seuil_avant !== m.seuil_apres
+              ? "  (" + esc(m.seuil_avant) + " → " + esc(m.seuil_apres) + " "
+                + esc(m.unite || "") + ")" : "")
+          + "</span></div>";
+      }).join("");
+    })
+    .catch(function(){
+      bouton.disabled = false;
+      etat("rc-etat-cmp", "Le service est momentanément injoignable. Réessayez.", true);
+    });
+});
+
+/* ── Le chat ───────────────────────────────────────────────────────────── */
+function majAncre(){
+  var a = $("rc-ancre");
+  if(ANALYSE){
+    a.textContent = "ancré · " + ANALYSE.themes.length + " thèmes";
+    a.className = "rc-ancre on";
+  } else {
+    a.textContent = "en attente d'une version";
+    a.className = "rc-ancre";
+  }
+}
+
+function filVide(){
+  $("rc-fil").innerHTML = '<p class="rc-vide">Analysez une version, puis posez vos '
+    + "questions ici. L'assistant travaille à partir des verdicts du playbook : il "
+    + "explique un écart, rédige la clause de remplacement, prépare l'argument de "
+    + "négociation. Il ne réévalue jamais un verdict — c'est l'instance nommée qui "
+    + "peut lever un écart.</p>";
+}
+
+function rendreSuggestions(sugg){
+  $("rc-sugg").innerHTML = sugg.map(function(s){
+    return '<button type="button">' + esc(s) + "</button>";
+  }).join("");
+  $("rc-sugg").querySelectorAll("button").forEach(function(b){
+    b.addEventListener("click", function(){
+      $("rc-q").value = this.textContent;
+      $("rc-form").dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+    });
+  });
+}
+
+function demander(id, quoi){
+  var t = (ANALYSE.themes || []).filter(function(x){ return x.id === id; })[0];
+  if(!t) return;
+  FOCUS = id;
+  var f = $("rc-focus");
+  f.hidden = false;
+  f.innerHTML = "Question portant sur <b>" + esc(t.titre) + "</b>"
+    + ' <button type="button" id="rc-defocus">tout le contrat</button>';
+  $("rc-defocus").addEventListener("click", function(){
+    FOCUS = null; f.hidden = true;
+  });
+  var q = {
+    expliquer: "Explique l'écart sur « " + t.titre + " » : ce que dit le contrat, ce que "
+      + "demande la politique interne, et ce qui se passe si on signe en l'état.",
+    rediger: "Rédige la clause de remplacement pour « " + t.titre + " », prête à coller "
+      + "dans le contrat, en partant de la position standard.",
+    objection: "Sur « " + t.titre + " » : qu'est-ce que le fournisseur va objecter, et "
+      + "que lui répondre ?"
+  }[quoi] || "";
+  $("rc-q").value = q;
+  $("rc-form").dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+  document.querySelector(".rc-chat").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+/* Rendu minimal du markdown que renvoie le modèle : gras, listes, blocs de
+   code. On n'injecte jamais de HTML brut — tout passe par esc() d'abord. */
+function md(s){
+  var t = esc(s);
+  t = t.replace(/```([\s\S]*?)```/g, function(_, c){ return "<pre>" + c.trim() + "</pre>"; });
+  t = t.replace(/`([^`\n]+)`/g, "<code>$1</code>");
+  t = t.replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>");
+  var lignes = t.split("\n"), out = [], liste = false;
+  lignes.forEach(function(l){
+    if(/^\s*[-•]\s+/.test(l)){
+      if(!liste){ out.push("<ul>"); liste = true; }
+      out.push("<li>" + l.replace(/^\s*[-•]\s+/, "") + "</li>");
+    } else {
+      if(liste){ out.push("</ul>"); liste = false; }
+      out.push(l);
+    }
+  });
+  if(liste) out.push("</ul>");
+  return out.join("\n").replace(/\n{2,}/g, "<br><br>").replace(/\n/g, "<br>");
+}
+
+function ajouter(role, texte, err){
+  if($("rc-fil").querySelector(".rc-vide")) $("rc-fil").innerHTML = "";
+  var d = document.createElement("div");
+  d.className = "rc-msg " + (err ? "err" : (role === "user" ? "moi" : "lui"));
+  if(role === "user" || err) d.textContent = texte; else d.innerHTML = md(texte);
+  $("rc-fil").appendChild(d);
+  $("rc-fil").scrollTop = $("rc-fil").scrollHeight;
+  return d;
+}
+
+$("rc-form").addEventListener("submit", function(ev){
+  ev.preventDefault();
+  if(OCCUPE) return;
+  var q = $("rc-q").value.trim();
+  if(!q) return;
+  if(!TEXTE && $("rc-texte").value.trim().length >= 200) TEXTE = $("rc-texte").value.trim();
+  OCCUPE = true;
+  $("rc-envoyer").disabled = true;
+  $("rc-q").value = "";
+  ajouter("user", q);
+  FIL.push({ role: "user", content: q });
+  var attente = ajouter("assistant", "…");
+  fetch("/api/playbook/chat", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages: FIL.slice(-12), texte: TEXTE, theme: FOCUS,
+                           model: $("rc-model").value,
+                           minimisation: $("rc-min").value,
+                           domaines: $("rc-domaine").value ? [$("rc-domaine").value] : null })
+  })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      OCCUPE = false; $("rc-envoyer").disabled = false;
+      attente.remove();
+      if(!d || !d.ok){
+        ajouter("assistant", (d && d.message) || "L'assistant est indisponible.", true);
+        FIL.pop();
+        return;
+      }
+      ajouter("assistant", d.reply);
+      FIL.push({ role: "assistant", content: d.reply });
+      var sus = d.citations && d.citations.suspectes;
+      etat("rc-chat-etat", (d.ancre ? "" : "Aucune version analysée : la réponse n'est pas "
+        + "ancrée sur un contrat. ")
+        + (sus && sus.length
+            ? "Attention : " + sus.length + " référence(s) citée(s) ne figurent pas au "
+              + "référentiel (" + sus.slice(0, 3).join(", ") + "). Vérifiez-les avant usage."
+            : ""), !!(sus && sus.length));
+    })
+    .catch(function(){
+      OCCUPE = false; $("rc-envoyer").disabled = false;
+      attente.remove();
+      ajouter("assistant", "Le service est momentanément injoignable. Réessayez.", true);
+      FIL.pop();
+    });
+});
+
+$("rc-q").addEventListener("keydown", function(ev){
+  if(ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)){
+    ev.preventDefault();
+    $("rc-form").dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+  }
+});
+
+/* ── Export ────────────────────────────────────────────────────────────── */
+$("rc-export").querySelectorAll("[data-fmt]").forEach(function(b){
+  b.addEventListener("click", function(){
+    var texte = TEXTE || $("rc-texte").value.trim();
+    if(texte.length < 200){
+      etat("rc-etat", "Analysez d'abord une version collée : l'export recalcule les "
+        + "verdicts depuis le texte, il lui faut donc le texte.", true);
+      return;
+    }
+    var bouton = this, fmt = this.getAttribute("data-fmt");
+    bouton.disabled = true;
+    fetch("/api/playbook/export", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texte: texte, format: fmt, objet: $("rc-objet").value.trim(),
+                             precedent: $("rc-avant").value.trim(), echange: FIL,
+                             model: $("rc-model").value,
+                             domaines: $("rc-domaine").value ? [$("rc-domaine").value] : null })
+    })
+      .then(function(r){
+        if(!r.ok) return r.json().then(function(d){ throw new Error(d.message || "échec"); });
+        return r.blob();
+      })
+      .then(function(blob){
+        bouton.disabled = false;
+        var u = URL.createObjectURL(blob), a = document.createElement("a");
+        a.href = u; a.download = "note-relecture." + fmt; a.click();
+        setTimeout(function(){ URL.revokeObjectURL(u); }, 4000);
+        etat("rc-etat", "Note de relecture téléchargée.");
+      })
+      .catch(function(e){
+        bouton.disabled = false;
+        etat("rc-etat", e.message || "L'export a échoué.", true);
+      });
+  });
+});
+
+/* ── Un contrat d'exemple, pour essayer sans risquer une pièce réelle ──── */
+var EXEMPLE = [
+"CONDITIONS GÉNÉRALES DE SERVICES — exemple de démonstration",
+"",
+"Article 1 - Périmètre",
+"Le périmètre des prestations couvertes est défini par la documentation du",
+"prestataire en vigueur, susceptible d'évoluer à tout moment.",
+"",
+"Article 2 - Mesures de sécurité",
+"Le Prestataire met en œuvre les mesures de sécurité conformes à l'état de l'art.",
+"",
+"Article 3 - Incident de sécurité",
+"Le Prestataire informe le Client de tout incident de sécurité au plus tard dans",
+"les 72 heures suivant la qualification de l'incident par le prestataire.",
+"",
+"Article 5 - Audit",
+"Le droit d'audit du Client se limite à la remise du rapport de certification",
+"annuel du Prestataire.",
+"",
+"Article 6 - Sous-traitance",
+"Le Prestataire peut librement sous-traiter tout ou partie des prestations.",
+"",
+"Article 7 - Hébergement",
+"Les données sont hébergées aux États-Unis. Le prestataire se réserve le droit de",
+"modifier la localisation des traitements.",
+"",
+"Article 8 - Accès distant",
+"Le Prestataire dispose d'un accès distant permanent aux systèmes industriels du",
+"Client pour les besoins de la télémaintenance.",
+"",
+"Article 11 - Intelligence artificielle",
+"Les contenus et données traités peuvent être utilisés pour l'entraînement et",
+"l'amélioration des modèles d'intelligence artificielle du Prestataire.",
+"",
+"Article 13 - Réversibilité",
+"La restitution des données intervient sur devis, au tarif en vigueur du",
+"prestataire, dans un format propriétaire.",
+"",
+"Article 15 - Responsabilité",
+"Le Prestataire décline toute responsabilité au titre d'une violation de données",
+"personnelles. Sa responsabilité est en tout état de cause plafonnée à 0.25 fois",
+"les sommes versées sur les douze derniers mois.",
+"",
+"Article 22 - Cession",
+"Le Prestataire peut librement céder le présent contrat à toute entité de son choix."
+].join("\n");
+
+})();
+  </script>
+  <script src="/nav.js" defer></script>
+  <script src="/parcours.js" defer></script>
+</body>
+</html>

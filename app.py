@@ -65,6 +65,7 @@ import automation
 import juridique
 import livrables
 import livrables_export
+import playbook
 import minimisation
 import rgpd
 from auth import admin_required, client_ip, current_user, guard, init_app as init_auth
@@ -605,6 +606,7 @@ PAGES = {
     "/diagnostic": "diagnostic.html",
     "/veille": "veille.html",
     "/juridique": "juridique.html",
+    "/relecture-contrat": "relecture-contrat.html",
 }
 
 
@@ -1468,6 +1470,327 @@ def _json_champ(valeur):
         return v if isinstance(v, (dict, list)) else None
     except Exception:
         return None
+
+
+# ============================================================================
+#  Relecture contractuelle assistée — playbook, écarts, validations
+# ============================================================================
+# La différence avec /api/juridique/contrat, qui reste en place : là-bas un
+# modèle LIT le contrat et rend un avis ; ici un moteur de règles rend le
+# VERDICT, et le modèle n'intervient qu'ensuite, pour expliquer et rédiger.
+#
+# Cette séparation n'est pas une préférence d'architecture, c'est ce qui rend
+# l'outil utilisable en négociation : le juriste qui relit la version 5 doit
+# obtenir exactement le même verdict que sur la version 4 pour les clauses qui
+# n'ont pas bougé. Un modèle ne garantit pas cela ; une règle écrite, si.
+#
+# Conséquence utile : l'analyse, la comparaison de versions et le circuit de
+# validation fonctionnent SANS clé d'API. Seul le chat en a besoin.
+#
+# Le contrat n'est jamais conservé. Il est analysé en mémoire et repart avec la
+# réponse ; le chat le renvoie à chaque tour, ce qui coûte quelques millisecondes
+# de recalcul et évite à la fois de le stocker et de croire un verdict fabriqué
+# côté navigateur.
+
+_PLAYBOOK_ERREURS = dict(_JURIDIQUE_ERREURS)
+_PLAYBOOK_ERREURS["timeout"] = ("Le modèle a dépassé le délai. Reposez la question "
+                                "sur un thème précis : la réponse sera plus rapide.")
+
+
+def _texte_soumis(champ_fichier, champ_texte, mini=200):
+    """Le texte d'une version : collé, ou extrait d'un fichier déposé.
+
+    Renvoie (texte, refus, depuis_fichier). `depuis_fichier` compte : quand le
+    texte vient d'un PDF, le navigateur ne l'a PAS — il faut le lui rendre, sinon
+    le chat n'a plus de contrat à commenter et l'export n'a plus rien à
+    recalculer.
+    """
+    f = request.files.get(champ_fichier)
+    depuis_fichier = f is not None
+    if f is not None:
+        nom = (f.filename or "").lower()
+        ext = nom.rsplit(".", 1)[-1] if "." in nom else ""
+        if ext not in ("pdf", "docx", "txt", "md"):
+            return None, (jsonify(ok=False, error="format_refuse",
+                                  message="Formats acceptés : PDF, DOCX, TXT, MD."), 400), False
+        blob = f.read(6 * 1024 * 1024 + 1)
+        if len(blob) > 6 * 1024 * 1024:
+            return None, (jsonify(ok=False, error="trop_gros",
+                                  message="Fichier trop volumineux (6 Mo maximum)."), 400), False
+        try:
+            texte = rag_extract_text(ext, blob) or ""
+        except Exception:
+            texte = ""
+        if not texte.strip():
+            return None, (jsonify(ok=False, error="illisible",
+                                  message="Aucun texte n'a pu être extrait de ce fichier "
+                                          "(document scanné ?). Collez le texte à la place."),
+                          400), False
+    else:
+        # `_corps()` et non `request.get_json` : une comparaison peut arriver en
+        # multipart (fichier pour la version d'avant, texte collé pour celle
+        # d'après). Lire le JSON d'une requête multipart renvoie None, et la
+        # version collée disparaissait en silence.
+        texte = str(_corps().get(champ_texte) or "")
+    if len(texte.strip()) < mini:
+        return None, (jsonify(ok=False, error="version_vide",
+                              message="Fournissez le texte de la version "
+                                      "(%d caractères minimum)." % mini), 400), depuis_fichier
+    return texte, None, depuis_fichier
+
+
+def _corps():
+    """Champs du corps, que la requête soit en JSON ou en multipart."""
+    if request.files:
+        return {k: v for k, v in request.form.items()}
+    return request.get_json(silent=True) or {}
+
+
+def _domaines_demandes(corps):
+    d = corps.get("domaines")
+    if isinstance(d, str):
+        d = _json_champ(d)
+    if not isinstance(d, list):
+        return None
+    valides = [x for x in d if x in juridique.DOMAINES_CLAUSIER]
+    return valides or None
+
+
+@app.route("/relecture-contrat")
+@login_required
+def relecture_contrat_page():
+    """Relecture assistée d'un contrat, version par version."""
+    return _page(PAGES["/relecture-contrat"])
+
+
+@app.route("/api/playbook/config")
+@login_required
+def api_playbook_config():
+    """Le playbook lui-même : ce que l'entreprise accepte, jusqu'où, et qui tranche."""
+    dispo = assistant.available()
+    return jsonify(ok=True,
+                   version=playbook.VERSION_PLAYBOOK,
+                   version_referentiel=juridique.VERSION_REFERENTIEL,
+                   themes=playbook.themes(),
+                   niveaux=playbook.niveaux(),
+                   domaines=playbook.domaines(),
+                   instances=juridique.INSTANCES,
+                   suggestions=playbook.SUGGESTIONS,
+                   models=dispo,
+                   # `any(...)` et non `bool(dispo)` : available() renvoie un
+                   # dictionnaire {claude: False, mistral: False}, et un
+                   # dictionnaire non vide est vrai. L'interface aurait donc
+                   # annoncé un chat disponible sur une instance sans aucune clé,
+                   # et l'utilisateur aurait découvert la panne en posant sa
+                   # première question.
+                   chat_disponible=any(dispo.values()),
+                   avertissement=juridique.AVERTISSEMENT,
+                   mention_ia=juridique.MENTION_IA,
+                   sante=playbook.sante())
+
+
+@app.route("/api/playbook/analyse", methods=["POST"])
+@login_required
+def api_playbook_analyse():
+    """Verdict déterministe d'une version. Aucun modèle n'est appelé ici."""
+    ckey = "pbana:%s" % client_ip()
+    if guard.blocked(ckey, limit=40, window=600):
+        return jsonify(ok=False, error="rate_limited",
+                       message="Trop d'analyses en peu de temps. Patientez un instant."), 429
+    guard.fail(ckey)
+
+    texte, refus, depuis_fichier = _texte_soumis("fichier", "texte")
+    if refus:
+        return refus
+    corps = _corps()
+    (texte,), refus_min, resume_min = _minimiser([texte], corps.get("minimisation") or "")
+    if refus_min:
+        return refus_min
+
+    res = playbook.analyser(texte, domaines_retenus=_domaines_demandes(corps))
+    ci = playbook.circuit(res)
+    audit.journaliser("playbook.analyse", cible=playbook.VERSION_PLAYBOOK,
+                      detail="%d caractères, %d thèmes, %d ligne(s) rouge(s), "
+                             "%d point(s) à valider ; minimisation : %s"
+                             % (len(texte), len(res["themes"]),
+                                res["compte"]["ligne-rouge"], ci["n_points"], resume_min),
+                      ok=not res["bloquants"])
+    # Le texte RÉELLEMENT analysé revient au navigateur dans deux cas : quand le
+    # caviardage l'a modifié (le tour suivant renverrait sinon l'original en
+    # clair), et quand il vient d'un fichier (le navigateur ne l'a jamais eu, et
+    # sans lui le chat n'aurait aucun contrat à commenter). C'est le texte de
+    # l'utilisateur qui lui revient : il n'a jamais été stocké nulle part.
+    rendre = depuis_fichier or (corps.get("minimisation") or "") == "masquer"
+    return jsonify(ok=True, analyse=res, circuit=ci,
+                   texte_retenu=texte if rendre else None)
+
+
+@app.route("/api/playbook/comparer", methods=["POST"])
+@login_required
+def api_playbook_comparer():
+    """Ce qui a bougé entre deux versions — la question de la négociation."""
+    ckey = "pbcmp:%s" % client_ip()
+    if guard.blocked(ckey, limit=30, window=600):
+        return jsonify(ok=False, error="rate_limited",
+                       message="Trop de comparaisons en peu de temps. Patientez un instant."), 429
+    guard.fail(ckey)
+
+    avant, refus, _f1 = _texte_soumis("fichier_avant", "avant")
+    if refus:
+        return refus
+    apres, refus, _f2 = _texte_soumis("fichier_apres", "apres")
+    if refus:
+        return refus
+    corps = _corps()
+    (avant, apres), refus_min, resume_min = _minimiser(
+        [avant, apres], corps.get("minimisation") or "")
+    if refus_min:
+        return refus_min
+
+    cmp_ = playbook.comparer(avant, apres, domaines_retenus=_domaines_demandes(corps))
+    ci = playbook.circuit(cmp_["apres"])
+    audit.journaliser("playbook.comparer", cible=playbook.VERSION_PLAYBOOK,
+                      detail="%d recul(s), %d progrès, %d inchangé(s) ; minimisation : %s"
+                             % (cmp_["n_recul"], cmp_["n_progres"],
+                                cmp_["n_inchange"], resume_min),
+                      ok=cmp_["n_recul"] == 0)
+    return jsonify(ok=True, comparaison=cmp_, circuit=ci)
+
+
+@app.route("/api/playbook/chat", methods=["POST"])
+@login_required
+def api_playbook_chat():
+    """L'assistant de relecture. Il reçoit les verdicts comme des faits.
+
+    L'analyse est REFAITE ici à partir du texte transmis : c'est ce qui garantit
+    que le contexte remis au modèle correspond à un vrai passage du moteur, et
+    non à un objet JSON qu'un navigateur aurait pu forger. Cela coûte quelques
+    millisecondes et retire une confiance mal placée.
+    """
+    ckey = "pbchat:%s" % client_ip()
+    if guard.blocked(ckey, limit=25, window=600):
+        return jsonify(ok=False, error="rate_limited",
+                       message="Trop de messages en peu de temps. Patientez un instant."), 429
+    guard.fail(ckey)
+
+    data = request.get_json(silent=True) or {}
+    model = "mistral" if data.get("model") == "mistral" else "claude"
+    messages = data.get("messages")
+    texte = str(data.get("texte") or "")
+    focus = str(data.get("theme") or "").strip() or None
+    if focus not in {c["id"] for c in juridique.CLAUSIER}:
+        focus = None
+
+    dernier = ""
+    try:
+        dernier = assistant.last_user_message(messages) or ""
+    except Exception:
+        dernier = ""
+    if not dernier.strip():
+        return jsonify(ok=False, error="empty", message="Votre message est vide."), 400
+    (dernier,), refus, _r = _minimiser([dernier], data.get("minimisation") or "")
+    if refus:
+        return refus
+    if isinstance(messages, list):
+        for m in reversed(messages):
+            if isinstance(m, dict) and m.get("role") == "user":
+                m["content"] = dernier
+                break
+
+    analyse = playbook.analyser(texte, domaines_retenus=_domaines_demandes(data)) \
+        if len(texte.strip()) >= 200 else None
+
+    # La base de connaissance interne complète le playbook : positions déjà
+    # négociées, notes de doctrine, décisions du comité. Best-effort — une
+    # récupération en échec ne doit pas priver le relecteur de sa réponse.
+    extraits = None
+    try:
+        extraits = build_context(rag.search(dernier, k=4,
+                                            public_only=not _is_admin_request()))
+    except Exception:
+        extraits = None
+
+    contexte = playbook.contexte_chat(analyse, focus=focus, extraits=extraits)
+    try:
+        reply, used = assistant.answer(model, messages, context=contexte)
+    except assistant.AssistantError as exc:
+        return jsonify(ok=False, error=exc.code,
+                       message=_PLAYBOOK_ERREURS.get(
+                           exc.code, "Assistant indisponible pour le moment.")), exc.status
+
+    # Même garde-fou que sur l'analyse juridique : un modèle qui cite un texte
+    # inexistant produit une réponse crédible et fausse. Le contrôle est
+    # déterministe et ne coûte rien.
+    ctrl = juridique.verifier_citations(reply)
+    audit.journaliser("playbook.chat", cible=used,
+                      detail="thème %s · %d thème(s) en contexte · %d référence(s) suspecte(s)"
+                             % (focus or "—", len(analyse["themes"]) if analyse else 0,
+                                len(ctrl["suspectes"])),
+                      ok=not ctrl["suspectes"])
+    return jsonify(ok=True, reply=reply, model=used, citations=ctrl,
+                   ancre=bool(analyse),
+                   envoye=dernier if (data.get("minimisation") or "") == "masquer" else None)
+
+
+@app.route("/api/playbook/export", methods=["POST"])
+@login_required
+def api_playbook_export():
+    """La note de relecture, en Word ou en PDF.
+
+    Les verdicts sont RECALCULÉS depuis le texte, jamais repris du navigateur :
+    une note qui circule en interne et fonde une décision d'engagement ne doit
+    pas dépendre de ce qu'un formulaire a bien voulu transmettre.
+    """
+    data = request.get_json(silent=True) or {}
+    texte = str(data.get("texte") or "")
+    if len(texte.strip()) < 200:
+        return jsonify(ok=False, error="version_vide",
+                       message="Aucune version à documenter."), 400
+    fmt = (data.get("format") or "docx").strip().lower()
+    if fmt not in ("docx", "pdf"):
+        fmt = "docx"
+    objet = str(data.get("objet") or "").strip()[:300]
+    domaines = _domaines_demandes(data)
+
+    analyse = playbook.analyser(texte, domaines_retenus=domaines)
+    ci = playbook.circuit(analyse)
+    comparaison = None
+    precedent = str(data.get("precedent") or "")
+    if len(precedent.strip()) >= 200:
+        comparaison = playbook.comparer(precedent, texte, domaines_retenus=domaines)
+    echange = [m for m in (data.get("echange") or []) if isinstance(m, dict)][:24]
+
+    md = playbook.note_markdown(analyse, objet=objet, circuit_=ci,
+                                comparaison=comparaison, echange=echange)
+    meta = {"label": "Note de relecture contractuelle",
+            "client": str(data.get("client") or "")[:120],
+            "perimetre": objet or "contrat de services numériques",
+            "model": str(data.get("model") or "")[:40],
+            "date": time.strftime("%d/%m/%Y"),
+            "sources": [{"title": "Playbook contractuel v" + playbook.VERSION_PLAYBOOK,
+                         "theme": "référentiel interne"}]}
+    try:
+        if fmt == "pdf":
+            blob = livrables_export.build_pdf(md, meta)
+            mimetype = "application/pdf"
+        else:
+            blob = livrables_export.build_docx(md, meta)
+            mimetype = ("application/vnd.openxmlformats-officedocument"
+                        ".wordprocessingml.document")
+    except Exception:
+        app.logger.exception("export relecture")
+        return jsonify(ok=False, error="export_echec",
+                       message="La mise en page a échoué."), 500
+
+    import re as _re
+    base = _re.sub(r"[^A-Za-z0-9]+", "-", (objet or "relecture")).strip("-").lower()[:60]
+    audit.journaliser("playbook.export", cible=fmt,
+                      detail="%d thèmes · %d ligne(s) rouge(s) · %d point(s) à valider"
+                             % (len(analyse["themes"]), analyse["compte"]["ligne-rouge"],
+                                ci["n_points"]))
+    return send_file(io.BytesIO(blob),
+                     download_name="note-relecture-%s.%s" % (base or "contrat", fmt),
+                     as_attachment=True, mimetype=mimetype)
 
 
 @app.route("/audit-conformite")
@@ -3657,6 +3980,22 @@ def health():
         if isinstance(m, dict) and m.get("cause"):
             m["cause"] = _cause_publique(m["cause"])
     etat["magasins"] = magasins
+
+    # Le playbook contractuel se contrôle lui-même : un motif cassé ou un thème
+    # du clausier sans règle ferait taire une détection EN SILENCE, et un
+    # contrat passerait pour propre parce qu'on ne l'a pas regardé. C'est
+    # exactement le genre de panne qui ne se voit pas à l'usage.
+    try:
+        sp = playbook.sante()
+        etat["playbook"] = {"version": sp["version"], "ok": sp["ok"],
+                            "themes": "%d/%d" % (sp["themes_outilles"], sp["themes_clausier"]),
+                            "motifs": sp["motifs"]}
+        if not sp["ok"]:
+            etat["status"] = "degraded"
+            etat["playbook"]["cause"] = (sp["motifs_casses"] or sp["sans_regle"]
+                                         or sp["instances_inconnues"])[:3]
+    except Exception:
+        etat["playbook"] = {"ok": None, "cause": "état non lisible"}
 
     if request.args.get("detail") == "1":
         etat.update(_sonde_detaillee())

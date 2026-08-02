@@ -22,7 +22,8 @@
       ["/gestion-des-changements", "Gestion des changements (MOC)"],
       ["/architecture-cible", "Architecture cible OT"],
       ["/formation", "Formation & compétences"],
-      ["/gouvernance-ia", "Governance by Design IA"] ] },
+      ["/gouvernance-ia", "Governance by Design IA"],
+      ["/relecture-contrat", "Relecture de contrats assistée"] ] },
     { t: "Référentiel IEC 62443", l: [
       ["/referentiel", "Vue d’ensemble"],
       ["/analyse-de-risque", "Analyse de risque · 3-2"],
@@ -79,6 +80,7 @@
     "/diagnostic": "Diagnostic express de votre situation en 2 minutes",
     "/nis2": "Directive NIS2 et correspondance avec l'IEC 62443",
     "/juridique": "Conseil juridique assisté : qualification, lectures des textes, clausier",
+    "/relecture-contrat": "Relecture assistée : playbook, écarts, validations, version par version",
     "/demo": "Cockpit de supervision OT en temps réel (démonstration)",
     "/tendances": "Tendances et signaux de la menace industrielle",
     "/connecter": "Connecter une source de données au cockpit",
