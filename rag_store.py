@@ -160,6 +160,21 @@ THEME_FAMILLES = [
         "Data center / Recherche & état de l'art",
         "Data center / Retours d'exploitation & mesures",
         "Data center / Fournisseurs & fiches techniques",
+
+        # Deux sous-dossiers de MANAGEMENT, distincts des seize precedents qui
+        # sont techniques. Un plan de gestion environnementale et un plan de
+        # sécurité ne se cherchent pas au meme moment que la note thermique :
+        # les melanger obligeait a parcourir seize entrees techniques pour
+        # atteindre une piece organisationnelle.
+        "Data center / Green Management",
+        "Data center / Green Management / Politique & objectifs",
+        "Data center / Green Management / Indicateurs & reporting",
+        "Data center / Green Management / Certifications & labels",
+        "Data center / Safety Management",
+        "Data center / Safety Management / Analyse de risques & HAZOP",
+        "Data center / Safety Management / Incendie & détection",
+        "Data center / Safety Management / Consignation & travaux",
+        "Data center / Safety Management / Plans d'urgence & exercices",
     ]),
 
     ("Métier & livrables", [
