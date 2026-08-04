@@ -400,7 +400,11 @@ PHASES = [
         # plutôt que de laisser croire que la faisabilité se boucle ici.
         "renvoi": {
             "titre": "Étude de faisabilité chiffrée et avis d'investissement",
-            "url": "https://conseilprev.onrender.com/panorama",
+            # Lien PROFOND : l'ancre ouvre directement le parcours guidé de
+            # faisabilité. Sans elle, le lecteur atterrissait en haut d'une page
+            # longue et devait retrouver seul la section qui le concerne — un
+            # renvoi qu'il faut chercher est un renvoi qu'on abandonne.
+            "url": "https://conseilprev.onrender.com/panorama#parcours=faisabilite",
             "quoi": "Enveloppe et décomposition par lot, exploitation, coût "
                     "complet, calendrier de raccordement, et l'avis motivé qui "
                     "en découle — avec, pour chaque constat, son fondement et "
