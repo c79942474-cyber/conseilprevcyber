@@ -202,8 +202,187 @@
     $("#dc-sec-res").hidden = false;
   }
 
+  /* ── Graphiques ────────────────────────────────────────────────────────
+     SVG écrit à la main, sans bibliothèque : la page pèse déjà ce qu'elle
+     pèse, et trois barres horizontales ne justifient pas trois cents kilo-
+     octets de dépendance.
+
+     Toutes les valeurs viennent de la réponse du serveur. Aucune n'est
+     recalculée ici : un graphique qui refait le calcul du tableau qu'il
+     surplombe finit par en diverger, et c'est le graphique qu'on croit. */
+  var COUL = { site: "#22D3EE", source: "#F0B429",
+               expl: "#D9603A", inc: "#8B7CF6", retenue: "#F6F0E8" };
+
+  function barres(lignes, sers, opts) {
+    opts = opts || {};
+    var max = 0;
+    lignes.forEach(function (l) {
+      sers.forEach(function (s2) { max = Math.max(max, s2.val(l) || 0); });
+    });
+    if (opts.empile) {
+      max = 0;
+      lignes.forEach(function (l) {
+        var t = 0; sers.forEach(function (s2) { t += s2.val(l) || 0; });
+        max = Math.max(max, t);
+      });
+    }
+    if (!max) return "";
+    var hL = opts.empile ? 30 : 34, ecart = 12, gauche = 210, droite = 96;
+    var larg = 860, H = lignes.length * (hL + ecart) + 8;
+    var util = larg - gauche - droite;
+    /* Le conteneur défilant : sur un écran étroit, mieux vaut faire glisser le
+       graphique que comprimer sept barres jusqu'à ce qu'elles ne comparent
+       plus rien. Sans ce wrapper, la règle `overflow-x` de la feuille de style
+       ne s'applique à rien. */
+    var h = '<div class="dc-g-wrap"><svg class="dc-g" viewBox="0 0 ' + larg + " " + H + '" role="img" '
+      + 'preserveAspectRatio="xMinYMin meet" aria-label="' + esc(opts.alt || "") + '">';
+    lignes.forEach(function (l, i) {
+      var y = i * (hL + ecart) + 4;
+      var courante = l.famille === (PROFIL.refroidissement || "");
+      h += '<text x="0" y="' + (y + hL / 2 + 4) + '" class="dc-g-l'
+        + (courante ? " on" : "") + '">' + esc(abrege(l.nom))
+        + (courante ? " ◄" : "") + "</text>";
+      if (opts.empile) {
+        var x = gauche, tot = 0;
+        sers.forEach(function (s2) {
+          var v = s2.val(l) || 0, w = util * v / max;
+          if (w > 0.4) h += '<rect x="' + x.toFixed(1) + '" y="' + y + '" width="'
+            + w.toFixed(1) + '" height="' + hL + '" fill="' + s2.c + '"><title>'
+            + esc(s2.nom + " : " + fr(v) + " " + (opts.unite || "")) + "</title></rect>";
+          x += w; tot += v;
+        });
+        h += '<text x="' + (gauche + util * tot / max + 8).toFixed(1) + '" y="'
+          + (y + hL / 2 + 4) + '" class="dc-g-v">' + fr(tot)
+          + (opts.suffixe ? " " + esc(opts.suffixe) : "") + "</text>";
+      } else {
+        var hb = (hL - 4) / sers.length;
+        sers.forEach(function (s2, j) {
+          var v = s2.val(l) || 0, w = util * v / max;
+          var yy = y + j * (hb + 2);
+          h += '<rect x="' + gauche + '" y="' + yy + '" width="' + Math.max(1, w).toFixed(1)
+            + '" height="' + hb.toFixed(1) + '" fill="' + s2.c + '"><title>'
+            + esc(s2.nom + " : " + fr(v) + " " + (opts.unite || "")) + "</title></rect>";
+          h += '<text x="' + (gauche + w + 8).toFixed(1) + '" y="' + (yy + hb / 2 + 3.5)
+            + '" class="dc-g-v">' + fr(v) + "</text>";
+        });
+      }
+    });
+    return h + "</svg></div>"
+      + '<div class="dc-g-lg">' + sers.map(function (s2) {
+          return '<span><i style="background:' + s2.c + '"></i>' + esc(s2.nom) + "</span>";
+        }).join("") + (opts.legende ? "<span>" + opts.legende + "</span>" : "") + "</div>";
+  }
+
+  /* Les noms de famille sont longs ; à gauche d'un graphique, ils poussent les
+     barres hors du cadre. On coupe au premier segment parlant plutôt que
+     d'imposer une police minuscule. */
+  function abrege(n) {
+    n = String(n || "");
+    if (n.length <= 30) return n;
+    var c = n.indexOf(" (");
+    if (c > 6 && c <= 32) return n.slice(0, c);
+    return n.slice(0, 29) + "…";
+  }
+
+  /* L'inversion : quelles familles changent de rang entre l'eau du site et
+     l'eau de la source. C'est la thèse de la page ; la laisser deviner dans un
+     tableau de huit colonnes revenait à ne pas la démontrer. */
+  function inversions(lignes) {
+    var parSite = lignes.slice().sort(function (a, b) { return a.wue_site - b.wue_site; });
+    var parSrc = lignes.slice().sort(function (a, b) { return a.wue_source - b.wue_source; });
+    var out = [];
+    parSite.forEach(function (l, i) {
+      var j = parSrc.findIndex(function (x) { return x.famille === l.famille; });
+      if (j !== i) out.push({ nom: l.nom, site: i + 1, source: j + 1 });
+    });
+    return out;
+  }
+
+  function graphiques(d) {
+    var L = d.lignes || [];
+    if (!L.length) return "";
+    var inv = inversions(L);
+    var meilleurSite = L.slice().sort(function (a, b) { return a.wue_site - b.wue_site; })[0];
+    var meilleurSrc = L.slice().sort(function (a, b) { return a.wue_source - b.wue_source; })[0];
+
+    var h = '<section class="dc-bloc"><h3>Le compromis eau, ramené au kilowattheure informatique</h3>'
+      + '<p class="dc-sous">Les volumes annuels ne se comparent pas d’une famille à '
+      + 'l’autre : ils dépendent de la consommation, qui dépend elle-même du PUE. '
+      + 'Rapportées au kilowattheure informatique, les deux eaux se comparent '
+      + 'directement — et l’écart entre elles est ce qui décide.</p>'
+      + barres(L, [
+          { nom: "Eau du site (WUE site)", c: COUL.site, val: function (l) { return l.wue_site; } },
+          { nom: "Eau de la source (WUE source)", c: COUL.source, val: function (l) { return l.wue_source; } },
+        ], { unite: "L/kWh_IT", alt: "Eau du site et eau de la source, par famille de "
+             + "refroidissement, en litres par kilowattheure informatique",
+             legende: "◄ famille retenue" });
+
+    /* Quand la même famille gagne les deux lectures, le dire une fois. Répéter
+       « au bilan de site X, au bilan complet X » se lit comme un bégaiement et
+       fait manquer l'information réelle, qui est justement l'accord des deux. */
+    h += '<div class="dc-lecture"><b>Ce que le graphique montre.</b> ';
+    if (meilleurSite.famille === meilleurSrc.famille) {
+      h += 'La famille la moins consommatrice est <b>' + esc(abrege(meilleurSite.nom))
+        + '</b> dans LES DEUX lectures — ' + fr(meilleurSite.wue_site)
+        + ' L/kWh_IT sur le site, ' + fr(meilleurSrc.wue_source)
+        + ' au bilan complet. Le classement de tête ne bouge donc pas ; '
+        + 'ce qui bouge est en dessous. ';
+    } else {
+      h += 'Au bilan de SITE, la famille la moins consommatrice est <b>'
+        + esc(abrege(meilleurSite.nom)) + '</b> (' + fr(meilleurSite.wue_site)
+        + ' L/kWh_IT). Au bilan COMPLET, c’est <b>' + esc(abrege(meilleurSrc.nom))
+        + '</b> (' + fr(meilleurSrc.wue_source) + ' L/kWh_IT). ';
+    }
+    if (inv.length) {
+      h += '<b>' + inv.length + ' famille' + (inv.length > 1 ? "s changent" : " change")
+        + ' de rang</b> entre les deux lectures : '
+        + inv.slice(0, 4).map(function (x) {
+            return esc(abrege(x.nom)) + " (" + x.site + "ᵉ → " + x.source + "ᵉ)";
+          }).join(" · ")
+        + '. Un dossier qui n’aurait regardé que le WUE de site aurait classé '
+        + 'ces familles à l’envers.';
+    } else {
+      h += 'Aucune famille ne change de rang entre les deux lectures : sur ce mix, '
+        + 'l’arbitrage de site et l’arbitrage complet concordent. Ce n’est pas '
+        + 'toujours le cas — l’écart se creuse à mesure que le mix se charge en '
+        + 'production thermique.';
+    }
+    h += "</div></section>";
+
+    /* Carbone : exploitation contre incorporé. La page l'affirme, le graphique
+       le montre — et sur un mix décarboné le second l'emporte. */
+    var incMax = 0;
+    L.forEach(function (l) {
+      var inc = (l.empreinte_totale_t || 0) - (l.co2_exploitation_t || 0);
+      if (l.empreinte_totale_t) incMax = Math.max(incMax, 100 * inc / l.empreinte_totale_t);
+    });
+    h += '<section class="dc-bloc"><h3>Carbone : ce que l’exploitation pèse, et ce que la construction pèse</h3>'
+      + '<p class="dc-sous">L’incorporé — fabrication des serveurs, gros œuvre, '
+      + 'équipements techniques — est amorti sur la durée de vie. Sur un mix décarboné '
+      + 'il devient majoritaire, et optimiser l’exploitation revient alors à travailler '
+      + 'sur la plus petite des deux parts.</p>'
+      + barres(L, [
+          { nom: "Exploitation (électricité consommée)", c: COUL.expl,
+            val: function (l) { return l.co2_exploitation_t; } },
+          { nom: "Incorporé, amorti (fabrication et construction)", c: COUL.inc,
+            val: function (l) { return Math.max(0, (l.empreinte_totale_t || 0)
+                                  - (l.co2_exploitation_t || 0)); } },
+        ], { empile: true, unite: "tCO2e/an", suffixe: "t",
+             alt: "Empreinte annuelle par famille, part d’exploitation et part incorporée",
+             legende: "total en tCO2e/an" })
+      + '<div class="dc-lecture"><b>Ce que le graphique montre.</b> La part incorporée '
+      + 'atteint <b>' + fr(Math.round(incMax)) + ' %</b> du total sur la famille où elle '
+      + 'pèse le plus. Ces facteurs sont des ordres de grandeur sectoriels à ±50 % : dès '
+      + 'que les équipements sont choisis, leurs déclarations environnementales produit '
+      + 'doivent les remplacer, et l’écart peut atteindre un facteur deux.</div></section>';
+    return h;
+  }
+
   function afficherComparaison(d) {
-    var h = '<p class="dc-sous">' + esc(d.lecture || "") + "</p>"
+    /* Les graphiques d'abord, le tableau ensuite : on montre le compromis,
+       puis on donne les chiffres à recopier. L'inverse obligeait à lire huit
+       colonnes avant de comprendre ce qu'on cherchait. */
+    var h = '<p class="dc-sous">' + esc(d.lecture || "") + "</p>" + graphiques(d)
       + '<div class="dc-tab-wrap"><table class="dc-tab"><thead><tr>'
       + "<th>Famille</th><th>PUE</th><th>MWh/an</th><th>Eau site m³/an</th>"
       + "<th>WUE site</th><th>WUE source</th><th>Empreinte tCO2e/an</th>"
@@ -294,6 +473,125 @@
     }).catch(function () { etat("Réseau indisponible. Réessayez.", true); });
   }
 
+  /* ── Le référentiel, publié ────────────────────────────────────────────
+     Il vit dans le moteur et n'était affiché nulle part. Or c'est lui qui dit
+     que les facteurs eau sont des ordres de grandeur à ±40 %, et qu'il faut
+     les remplacer par la valeur du fournisseur. Une page qui calcule sans
+     montrer d'où viennent ses constantes demande qu'on la croie.
+
+     Tout est rendu depuis `/api/datacenter/referentiel` : recopier ces
+     libellés dans la page les aurait figés au jour de l'écriture. */
+  function afficherReferentiel() {
+    var el = $("#dc-referentiel");
+    if (!el || !REF || !REF.referentiel) return;
+    var R = REF.referentiel, h = "";
+
+    function carteRef(nom, nature, quoi, valeurs, source, remplacer) {
+      return '<div class="dc-ref-c"><span class="n">' + esc(nature) + "</span>"
+        + "<h4>" + esc(nom) + "</h4>"
+        + (quoi ? "<p>" + esc(quoi) + "</p>" : "")
+        + (valeurs ? '<div class="v">' + valeurs + "</div>" : "")
+        + (source ? "<p style='margin-top:7px'>" + esc(source) + "</p>" : "")
+        + (remplacer ? '<span class="rmp">▸ ' + esc(remplacer) + "</span>" : "")
+        + "</div>";
+    }
+
+    /* Eau de la production électrique : le facteur le plus incertain du lot,
+       et celui qui décide de l'arbitrage. Il passe en premier. */
+    if (R.ewif) {
+      var pays = Object.keys(R.ewif).map(function (k) {
+        return esc(k) + " " + fr(R.ewif[k].valeur);
+      }).join(" · ");
+      h += carteRef("Eau de la production électrique (EWIF)", "ordre de grandeur · ±40 %",
+        "Eau CONSOMMÉE — évaporée, non restituée — pour produire un kilowattheure. "
+        + "À ne pas confondre avec l’eau prélevée : l’écart atteint un facteur dix "
+        + "sur un parc nucléaire en circuit ouvert.",
+        pays + " L/kWh", R.ewif_source,
+        "la valeur du fournisseur ou du gestionnaire de réseau, dès qu’elle existe");
+    }
+    if (R.intensite_reseau) {
+      var ir = Object.keys(R.intensite_reseau).map(function (k) {
+        return esc(k) + " " + fr(R.intensite_reseau[k]);
+      }).join(" · ");
+      h += carteRef("Intensité carbone du réseau", "moyenne annuelle",
+        "Grammes de CO2e par kilowattheure consommé. Une moyenne annuelle ne "
+        + "convient PAS pour arbitrer un pilotage horaire de la charge.",
+        ir + " g/kWh", R.intensite_source,
+        "la donnée du gestionnaire de réseau de l’année de référence, ou le "
+        + "facteur contractuel du fournisseur (GHG Protocol, Scope 2 market-based)");
+    }
+    if (R.incorpore) {
+      var ic = Object.keys(R.incorpore).map(function (k) {
+        var v = R.incorpore[k];
+        return esc(k.replace(/_/g, " ")) + " : " + fr(v.valeur)
+          + (v.duree_vie_ans ? " sur " + v.duree_vie_ans + " ans" : "");
+      }).join("<br>");
+      h += carteRef("Carbone incorporé", "ordre de grandeur sectoriel · ±50 %",
+        "Fabrication et construction, amorties sur la durée de vie — sans quoi "
+        + "la comparaison avec l’exploitation n’a aucun sens.",
+        ic, R.incorpore_source,
+        "les déclarations environnementales produit (FDES / EPD) des équipements "
+        + "retenus : l’écart peut atteindre un facteur deux");
+    }
+    if (R.constantes) {
+      var cst = Object.keys(R.constantes).map(function (k) {
+        var v = R.constantes[k];
+        return esc(v.unite ? k.replace(/_/g, " ") : k) + " : " + fr(v.valeur)
+          + " " + esc(v.unite || "");
+      }).join("<br>");
+      h += carteRef("Constantes physiques", "physique — non négociable",
+        "La chaleur latente de vaporisation de l’eau ne dépend d’aucune "
+        + "technologie. Un fournisseur qui annonce moins d’eau évaporée par "
+        + "kilowattheure thermique décrit un rejet partiellement sec, ou se trompe.",
+        cst, (R.constantes[Object.keys(R.constantes)[0]] || {}).source, "");
+    }
+    if (R.classes_ashrae) {
+      var as = Object.keys(R.classes_ashrae).map(function (k) {
+        var v = R.classes_ashrae[k];
+        return esc(k) + " : " + v.plage_c[0] + " à " + v.plage_c[1] + " °C";
+      }).join(" · ");
+      h += carteRef("Classes ASHRAE", "norme professionnelle",
+        "Température d’air admise à l’entrée des équipements. Élargir la plage "
+        + "est le levier le moins cher qui existe — il ne coûte aucun matériel — "
+        + "mais il engage la garantie constructeur.",
+        as, R.ashrae_source,
+        "l’accord écrit du constructeur avant d’élargir la plage");
+    }
+    if (R.cadre_ue) {
+      var C = R.cadre_ue, cu = "";
+      if (C.eed_reporting) {
+        cu += "<b>" + esc(C.eed_reporting.titre) + "</b><br>"
+          + esc(C.eed_reporting.portee) + "<br>"
+          + (C.eed_reporting.exige || []).length + " grandeurs à déclarer : "
+          + (C.eed_reporting.exige || []).map(esc).join(" · ");
+      }
+      if (C.cndcp && C.cndcp.cibles) {
+        cu += "<br><br><b>" + esc(C.cndcp.titre) + "</b><br>"
+          + Object.keys(C.cndcp.cibles).map(function (k) {
+              return esc(k.replace(/_/g, " ")) + " : " + esc(String(C.cndcp.cibles[k]));
+            }).join(" · ");
+      }
+      if (C.iso30134 && C.iso30134.parties) {
+        cu += "<br><br><b>" + esc(C.iso30134.titre) + "</b><br>"
+          + Object.keys(C.iso30134.parties).map(function (k) {
+              return esc(k) + " " + esc(C.iso30134.parties[k]);
+            }).join(" · ");
+      }
+      if (C.en50600) cu += "<br><br><b>" + esc(C.en50600.titre) + "</b><br>"
+        + esc(C.en50600.note);
+      h += '<div class="dc-ref-c" style="grid-column:1/-1"><span class="n">'
+        + 'cadre réglementaire et normatif</span><h4>Ce qui rend ces grandeurs '
+        + 'opposables</h4><div class="v">' + cu + "</div>"
+        + (C.eed_reporting && C.eed_reporting.note
+            ? '<span class="rmp">▸ ' + esc(C.eed_reporting.note) + "</span>" : "")
+        + "</div>";
+    }
+    el.innerHTML = '<div class="dc-ref">' + h + "</div>"
+      + '<p class="rc-note">Référentiel <b>' + esc(REF.referentiel.version || REF.version || "")
+      + '</b> — rendu depuis le moteur, pas recopié : ce que vous lisez ici est ce '
+      + 'que le calcul emploie.</p>';
+  }
+
   function démarrer() {
     fetch("/api/datacenter/referentiel", { credentials: "same-origin" })
       .then(function (r) {
@@ -304,6 +602,10 @@
         if (!j.ok) throw new Error("ref");
         REF = j;
         bâtirFormulaire();
+        /* Le référentiel arrive avec le formulaire : il n'attend pas qu'une
+           étude soit lancée. Un lecteur doit pouvoir juger les constantes AVANT
+           de décider s'il fait confiance au calcul. */
+        afficherReferentiel();
         etat("");
       })
       .catch(function (e) {

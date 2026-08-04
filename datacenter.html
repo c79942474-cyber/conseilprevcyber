@@ -65,6 +65,39 @@
   .rc-fichier:hover{border-color:var(--cyan);color:var(--ink)}
   .rc-fichier input{position:absolute;inset:0;opacity:0;cursor:pointer}
   .rc-nomfic{font-family:var(--mono);font-size:11px;color:var(--teal)}
+  /* ── Graphiques ─────────────────────────────────────────────────────────
+     Le SVG s'étire à la largeur disponible et garde ses proportions. Sur un
+     écran étroit il défile horizontalement plutôt que de se comprimer : des
+     barres écrasées à trois pixels ne comparent plus rien. */
+  .dc-g-wrap{overflow-x:auto}
+  .dc-g{width:100%;min-width:620px;height:auto;display:block;margin:6px 0 4px}
+  .dc-g-l{font-size:12px;fill:var(--muted);font-family:inherit}
+  .dc-g-l.on{fill:var(--ink);font-weight:700}
+  .dc-g-v{font-size:11.5px;fill:var(--muted2);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .dc-g-lg{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px;color:var(--muted2);
+    margin:2px 0 0;align-items:center}
+  .dc-g-lg i{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:6px;
+    vertical-align:-1px}
+  /* La lecture du graphique, écrite. Un graphique qu'on laisse interpréter
+     seul se fait interpréter de travers — surtout quand sa conclusion est
+     contre-intuitive, ce qui est précisément le cas ici. */
+  .dc-lecture{font-size:13px;color:var(--muted);line-height:1.65;margin-top:10px;
+    padding:11px 14px;border-left:3px solid var(--cyan);background:rgba(0,0,0,.16);
+    border-radius:0 8px 8px 0}
+  .dc-lecture b{color:var(--ink)}
+  /* ── Référentiel et sources ─────────────────────────────────────────── */
+  .dc-ref{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(330px,100%),1fr));
+    gap:12px;margin-top:14px}
+  .dc-ref-c{border:1px solid var(--line);border-radius:10px;padding:13px 15px;
+    background:rgba(0,0,0,.14)}
+  .dc-ref-c h4{font-size:13.5px;margin:0 0 4px;color:var(--ink)}
+  .dc-ref-c .n{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--amber);display:block;margin-bottom:5px}
+  .dc-ref-c p{font-size:12.5px;color:var(--muted2);line-height:1.6;margin:0 0 6px}
+  .dc-ref-c .v{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;
+    color:var(--muted);line-height:1.7}
+  .dc-ref-c .rmp{font-size:12px;color:var(--danger);line-height:1.6;margin-top:7px;
+    display:block}
   .rc-note{font-size:12.5px;color:var(--muted2);line-height:1.6;margin-top:8px}
   .rc-note.err{color:var(--danger)}
 
@@ -377,8 +410,22 @@
     </div>
   </section>
 
+  <!-- Les sources AVANT les limites : on montre sur quoi le calcul repose,
+       puis jusqu'où il porte. L'ordre inverse ferait lire les limites d'un
+       référentiel qu'on n'a pas encore vu. -->
   <section class="wrap rc-sec">
-    <div class="rc-etape"><span class="n">5</span><h2>Ce que ce moteur ne fait pas</h2></div>
+    <div class="rc-etape"><span class="n">5</span><h2>Le référentiel et ses sources</h2></div>
+    <p class="lead" style="max-width:72ch;margin-top:0">
+      Chaque valeur calculée porte déjà sa source dans le résultat. Voici celles du
+      RÉFÉRENTIEL lui-même : les constantes d'où tout part, leur provenance, leur
+      incertitude, et — quand il y a lieu — <b>par quoi les remplacer</b> dès que la
+      donnée réelle existe. Un ordre de grandeur qu'on garde après avoir reçu la
+      déclaration du fournisseur n'est plus une approximation, c'est une négligence.</p>
+    <div id="dc-referentiel"><p class="note">Chargement du référentiel…</p></div>
+  </section>
+
+  <section class="wrap rc-sec">
+    <div class="rc-etape"><span class="n">6</span><h2>Ce que ce moteur ne fait pas</h2></div>
     <p class="lead" style="max-width:72ch;margin-top:0">
       Le dire ici plutôt qu'en note de bas de page : ces limites décident du moment où il
       faut passer à une étude de site, et les ignorer coûte plus cher que de les lire.</p>
