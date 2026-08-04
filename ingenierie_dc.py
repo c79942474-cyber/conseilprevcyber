@@ -393,6 +393,22 @@ PHASES = [
         "apport_moteur": "complet",
         "precision": {"valeur": "−50 % à +100 % (fourchette typique)",
                       "nature": "referentiel_externe", "aace": "Classe 5"},
+        # Le CHIFFRAGE de cette phase n'est pas ici : ce moteur calcule
+        # l'énergie, l'eau et le carbone, pas l'enveloppe d'investissement.
+        # Celle-ci — décomposition par lot, exploitation, coût complet,
+        # calendrier et avis motivé — est produite par conseilprev. Le dire
+        # plutôt que de laisser croire que la faisabilité se boucle ici.
+        "renvoi": {
+            "titre": "Étude de faisabilité chiffrée et avis d'investissement",
+            "url": "https://conseilprev.onrender.com/panorama",
+            "quoi": "Enveloppe et décomposition par lot, exploitation, coût "
+                    "complet, calendrier de raccordement, et l'avis motivé qui "
+                    "en découle — avec, pour chaque constat, son fondement et "
+                    "ce qui le renverserait.",
+            "pourquoi": "Ce moteur-ci chiffre l'énergie, l'eau et le carbone. Il "
+                        "ne chiffre pas l'investissement. Une faisabilité qui "
+                        "ne porte pas d'enveloppe n'en est pas une.",
+        },
         "livrable": [
             "Définition du besoin et de la capacité visée",
             "Options techniques envisagées et critères d'élimination",
@@ -1472,6 +1488,7 @@ def parcours(profil, filiere):
             "code": p["code"], "nom": p["nom"], "rang": p["rang"],
             "objet": p["objet"], "decide": p["decide"], "verrouille": p["verrouille"],
             "precision": p["precision"], "note": p.get("note", ""),
+            "renvoi": p.get("renvoi"),
             "livrable": p["livrable"],
             "apport_moteur": p["apport_moteur"],
             "franchissable": a["franchissable"],
@@ -1546,6 +1563,9 @@ def dossier(profil, code):
         "filiere": ph["filiere"], "filiere_nom": FILIERES[ph["filiere"]]["nom"],
         "objet": ph["objet"], "decide": ph["decide"], "verrouille": ph["verrouille"],
         "precision": ph["precision"], "note": ph.get("note", ""),
+        # Ce que cette phase attend d'AILLEURS. Une phase qui ne dirait pas où
+        # se trouve son chiffrage laisserait croire qu'elle se boucle ici.
+        "renvoi": ph.get("renvoi"),
         "sections": ph["livrable"],
         # Le plan dit ce qu'on écrit ; le registre dit ce qu'on REMET. Les
         # confondre fait livrer un rapport là où le marché attend des pièces

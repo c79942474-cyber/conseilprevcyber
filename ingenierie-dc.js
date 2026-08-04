@@ -166,6 +166,18 @@
       + "</div>";
     if (d.note) h += '<p class="ig-corr"><b>Précision de vocabulaire.</b> ' + esc(d.note) + "</p>";
 
+    /* Ce que la phase attend d'ailleurs. La faisabilité a besoin d'une
+       enveloppe d'investissement, et ce moteur-ci n'en produit pas : il chiffre
+       l'énergie, l'eau et le carbone. Le taire laisserait croire qu'une
+       faisabilité se boucle ici. */
+    if (d.renvoi) {
+      h += '<div class="ig-renvoi"><b>' + esc(d.renvoi.titre) + "</b>"
+        + "<p>" + esc(d.renvoi.pourquoi) + "</p>"
+        + "<p>" + esc(d.renvoi.quoi) + "</p>"
+        + '<a href="' + esc(d.renvoi.url) + '" target="_blank" rel="noopener">'
+        + "Ouvrir l'étude de faisabilité chiffrée</a></div>";
+    }
+
     h += '<p class="sous" style="margin-top:14px">' + esc(d.apport_texte) + "</p>";
     h += '<div class="ig-g">';
     (d.grandeurs || []).forEach(function (g) {

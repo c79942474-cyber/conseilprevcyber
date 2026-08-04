@@ -128,6 +128,13 @@
   .ig-plan ol{margin:6px 0 0 18px;padding:0;columns:2;column-gap:26px}
   @media(max-width:760px){ .ig-plan ol{columns:1} }
   .ig-corr{font-size:12.5px;color:var(--muted2);line-height:1.6;margin-top:10px}
+  /* Le renvoi vers ce que la phase attend d'un autre moteur. Assez visible pour
+     ne pas être manqué : une faisabilité sans enveloppe n'en est pas une. */
+  .ig-renvoi{margin-top:14px;border:1px solid var(--line);border-left:3px solid var(--amber,#F0B429);
+    border-radius:0 11px 11px 0;padding:12px 15px;background:rgba(240,180,41,.08)}
+  .ig-renvoi b{color:var(--ink);font-size:13.5px}
+  .ig-renvoi p{margin:6px 0 0;font-size:12.5px;color:var(--muted);line-height:1.6}
+  .ig-renvoi a{display:inline-block;margin-top:9px;font-size:12.5px;color:var(--cyan)}
 
   /* ── Le registre des pièces ─────────────────────────────────────────────
      Groupé par TYPE et non par numéro : on cherche « les tableaux à fournir »
