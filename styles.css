@@ -97,6 +97,49 @@ select:focus-visible,[role="button"]:focus-visible{
   outline:2px solid var(--cyan);outline-offset:3px;border-radius:5px}
 main:focus{outline:none} /* cible du lien d'évitement : pas de halo pleine largeur */
 
+/* ── Listes déroulantes ouvertes ─────────────────────────────────────────
+   Le <select> FERMÉ est stylé partout : texte clair sur fond sombre, lisible.
+   La liste OUVERTE, elle, est peinte par le navigateur, et les <option>
+   n'héritaient d'aucun fond — background-color: transparent. Le navigateur
+   peignait donc la liste avec SA couleur (blanche sous Chrome et Firefox) en
+   gardant le texte clair du thème : mesuré à 1,13:1 contre les 4,5:1 exigés
+   au niveau AA. Autrement dit, invisible.
+
+   La règle est ici, dans la feuille PARTAGÉE, et non sur la page qui a fait
+   remonter le défaut : trente et une listes sur sept pages étaient touchées,
+   dont celles que le JavaScript construit à l'exécution — une correction page
+   par page en aurait manqué la moitié.
+
+   Fond --panel : couleur de la palette, 7,96:1 avec --ink, au-delà du seuil
+   AAA. Certains navigateurs (Safari sur macOS) ignorent ces propriétés et
+   rendent la liste avec les couleurs du système ; elles sont alors déjà
+   contrastées, et la règle ne fait rien de mal. */
+select option,
+select optgroup{background-color:var(--panel);color:var(--ink)}
+/* Un intitulé de groupe doit se distinguer de ses options sans les
+   concurrencer. 5,13:1 avec --muted2 : au-dessus du seuil AA. */
+select optgroup{color:var(--muted2);font-style:normal;font-weight:700}
+select optgroup option{color:var(--ink);font-weight:400}
+/* L'option retenue : texte SOMBRE sur le cyan d'accent — 10,89:1. Garder le
+   texte clair du thème donnerait 1,60:1, c'est-à-dire le défaut qu'on corrige,
+   simplement déplacé sur la ligne sélectionnée. */
+select option:checked{background-color:var(--cyan);color:#0B0B0B}
+
+/* UN FOND ET SON TEXTE VOYAGENT ENSEMBLE. La première version de ce bloc
+   donnait le fond dans une règle (:checked, cyan) et la couleur dans une autre
+   (:disabled, atténuée) — or les deux états SE CUMULENT : quand un <select>
+   entier est désactivé, chacune de ses options est à la fois retenue et
+   désactivée. L'option sélectionnée sortait alors en beige sur cyan, mesuré
+   à 1,03:1. C'était exactement le défaut corrigé plus haut, réintroduit deux
+   lignes plus bas par une règle qui ne possédait que la moitié du couple.
+   Chaque état déclare donc SES DEUX couleurs, combinaisons comprises. */
+select option:disabled,
+select:disabled option{background-color:var(--panel);color:var(--muted2);
+  font-style:italic}                                   /* 5,13:1 */
+select option:checked:disabled,
+select:disabled option:checked{background-color:var(--panel2);color:var(--ink);
+  font-style:italic}                                   /* 7,02:1 */
+
 .brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:-.02em;font-size:18px;color:var(--ink)}
 .brand a{color:var(--ink)}
 .brand .brand-link{display:inline-flex;align-items:center;gap:9px}
