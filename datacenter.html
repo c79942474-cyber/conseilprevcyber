@@ -415,6 +415,19 @@
         établie, les indicateurs sont normalisés. Ce qui est rare, c'est de les coupler
         et d'assumer les contreparties.</div>
     </div>
+
+    <!-- Le renvoi vers le cadre de phases est placé ICI, avant le formulaire :
+         savoir à quel stade on se situe change ce qu'on attend du calcul, et
+         l'apprendre après avoir lu les résultats ne sert plus à rien. -->
+    <p class="lead" style="max-width:76ch;margin-top:18px;padding:12px 15px;
+       border-left:3px solid var(--cyan);background:rgba(34,211,238,.08);
+       border-radius:0 9px 9px 0;font-size:13.5px">
+      <b>Ce calcul n'est pas recevable à toutes les phases d'un projet.</b> Le facteur eau
+      amont porte ±40&nbsp;% et le carbone incorporé ±50&nbsp;% : ces valeurs conviennent à
+      un avant-projet, pas à une pièce contractuelle. Pour savoir ce que le moteur peut
+      verser à chaque étape — ESQ, APS, APD, PRO, DCE d'un côté, faisabilité, BASIC, FEED,
+      EPCI de l'autre — et ce qu'il faut avoir remplacé,
+      voir <a href="/ingenierie-datacenter">l'ingénierie de projet</a>.</p>
   </section>
 
   <section class="wrap rc-sec">
@@ -462,9 +475,16 @@
       <div><b>Base de connaissance.</b> Seize thèmes, du refroidissement liquide aux
         appels d'offres, en passant par l'eau, le carbone incorporé et l'état de l'art.
         <a href="/admin/base-connaissance">Charger des documents</a>.</div>
-      <div><b>Huit livrables.</b> Note de calcul, étude de conception, réponse à appel
-        d'offres, CCTP, sobriété hydrique, chaleur fatale, conformité européenne, état de
-        l'art. <a href="/admin/livrables?groupe=Centres%20de%20donn%C3%A9es">Générer</a>.</div>
+      <!-- Deux axes, et le dire évite qu'on cherche un document là où il n'est
+           pas : les livrables THÉMATIQUES traversent le projet, les études par
+           PHASE le découpent. Le compte n'est plus écrit ici — il changeait à
+           chaque ajout sans que personne ne pense à le corriger. -->
+      <div><b>Deux familles de livrables.</b> Par thème — note de calcul, conception,
+        réponse à appel d'offres, CCTP, sobriété hydrique, chaleur fatale, conformité
+        européenne, état de l'art. Et par phase de projet — APS, APD, DCE, BASIC, FEED,
+        EPCI, dont le plan est produit par
+        <a href="/ingenierie-datacenter">le cadre d'ingénierie</a>.
+        <a href="/admin/livrables?groupe=Centres%20de%20donn%C3%A9es">Générer</a>.</div>
       <div><b>Le partage des rôles.</b> Le moteur calcule et la note de calcul est écrite
         par lui. Le modèle rédige autour, avec interdiction explicite de recalculer,
         d'arrondir autrement ou de contredire.</div>

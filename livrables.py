@@ -1080,6 +1080,135 @@ TYPES = [
             "Recommandations d'emploi selon le contexte de site",
         ],
     },
+
+    # ═══════════════════════════════════════════════════════════════════════
+    #  ÉTUDES PAR PHASE DE PROJET
+    #  Les huit livrables ci-dessus coupent par THÈME — eau, chaleur, carbone,
+    #  conformité. Ceux-ci coupent par PHASE, et les deux axes se croisent : une
+    #  étude d'APD parle d'eau ET de carbone ET de chaleur, mais au niveau de
+    #  définition d'un avant-projet définitif, pas à celui d'un DCE.
+    #
+    #  Le plan de chaque étude, les grandeurs recevables et les facteurs à
+    #  remplacer sont produits par ingenierie_dc.py et servis par
+    #  /api/datacenter/ingenierie/export. Ces types-là servent à RÉDIGER autour
+    #  de ce squelette : le modèle développe les sections, il ne décide pas de
+    #  ce qui est acquis — cette frontière-là se calcule.
+    # ═══════════════════════════════════════════════════════════════════════
+    {
+        "id": "dc-etude-aps",
+        "groupe": "Centres de données",
+        "label": "APS — Avant-projet sommaire",
+        "desc": "Composition générale, volumes et dispositions techniques, avec "
+                "l'arbitrage entre familles de refroidissement et une estimation "
+                "provisoire. Les ordres de grandeur du référentiel sont recevables "
+                "à ce stade ; le document dit lesquels devront être remplacés, et quand.",
+        "sections": [
+            "Programme arrêté et puissance informatique retenue",
+            "Composition générale, volumes et emprise",
+            "Familles de refroidissement comparées — arbitrage eau / énergie / carbone",
+            "Bilan énergie, eau et carbone de la solution retenue",
+            "Contraintes de raccordement électrique et de ressource en eau",
+            "Estimation provisoire du coût des travaux et calendrier prévisionnel",
+            "Aléas identifiés et points à lever en avant-projet définitif",
+            "Facteurs encore en ordre de grandeur et calendrier de leur remplacement",
+        ],
+    },
+    {
+        "id": "dc-etude-apd",
+        "groupe": "Centres de données",
+        "label": "APD — Avant-projet définitif",
+        "desc": "Dimensions, matériaux et installations techniques arrêtés, coût "
+                "prévisionnel fixé par corps d'état, pièces du permis de construire. "
+                "C'est la phase où le maître d'œuvre s'engage : le facteur carbone "
+                "du réseau doit y être celui du gestionnaire, pas une moyenne de "
+                "référentiel.",
+        "sections": [
+            "Dimensionnement arrêté de la production de froid et des utilités",
+            "Bilan de puissance électrique et architecture de secours",
+            "Bilan d'eau annuel et mensuel — appoint, purge, rejets",
+            "Bilan carbone — exploitation et incorporé, avec la source de chaque facteur",
+            "Performances engagées : PUE, WUE, ERF et leurs conditions de mesure",
+            "Coût prévisionnel arrêté par corps d'état et tolérance contractuelle",
+            "Pièces du permis de construire — volet énergie et environnement",
+            "Ce qui reste à confirmer par les données fournisseurs, et son incidence",
+        ],
+    },
+    {
+        "id": "dc-etude-dce",
+        "groupe": "Centres de données",
+        "label": "DCE — Dossier de consultation des entreprises",
+        "desc": "Les pièces qui deviennent opposables : CCTP de performance, "
+                "protocole de mesure, seuils et pénalités. Aucun ordre de grandeur "
+                "n'y a sa place — un indicateur mal défini au DCE ne se rattrape "
+                "pas en cours de chantier.",
+        "sections": [
+            "Objet, documents de référence normatifs et ordre de préséance",
+            "Indicateurs contractuels et leurs définitions exactes (ISO/IEC 30134, EN 50600)",
+            "Protocole de mesure — points, périodicité, instruments, incertitude admise",
+            "Périodes de référence, conditions d'exclusion et cas de force majeure",
+            "Seuils, tolérances et pénalités",
+            "Vérification, contre-mesure et arbitrage en cas de litige",
+            "Cadre de décomposition du prix global et forfaitaire",
+            "Obligations de déclaration au titre de la directive efficacité énergétique",
+        ],
+    },
+    {
+        "id": "dc-etude-basic",
+        "groupe": "Centres de données",
+        "label": "BASIC — Basic Engineering / Pre-FEED",
+        "desc": "Bases de conception, schéma de procédé et bilans matière et "
+                "énergie, dimensionnement des équipements principaux. La "
+                "configuration de référence sur laquelle le FEED travaillera.",
+        "sections": [
+            "Bases de conception (Design Basis) et hypothèses retenues",
+            "Schéma de procédé et bilans matière et énergie",
+            "Bilan thermique et dimensionnement de la production de froid",
+            "Bilan d'eau — appoint, purge, cycles de concentration",
+            "Bilan carbone d'exploitation et incorporé, en ordre de grandeur assumé",
+            "Liste des équipements principaux et niveaux de performance visés",
+            "Estimation de classe 4 et plan de réduction des incertitudes",
+            "Options écartées et motifs d'élimination",
+        ],
+    },
+    {
+        "id": "dc-etude-feed",
+        "groupe": "Centres de données",
+        "label": "FEED — Front-End Engineering Design",
+        "desc": "La définition portée au niveau d'une consultation EPC ferme : "
+                "spécifications d'équipements, interfaces, estimation engageante. "
+                "C'est sur ce dossier que se prend la décision finale "
+                "d'investissement, et ce qui n'y figure pas devient un avenant.",
+        "sections": [
+            "Rappel des bases de conception et écarts par rapport au BASIC",
+            "Spécifications techniques des équipements majeurs",
+            "Plans d'implantation, schémas électriques et hydrauliques",
+            "Bilans détaillés — énergie, eau, carbone, chaleur fatale",
+            "Analyse des interfaces et matrice de responsabilité",
+            "Étude de dangers et analyses de risques du procédé",
+            "Stratégie de mesure et d'instrumentation des indicateurs contractuels",
+            "Estimation de classe 3 et dossier de décision d'investissement",
+            "Facteurs encore en ordre de grandeur et consignes de remplacement",
+        ],
+    },
+    {
+        "id": "dc-etude-epci",
+        "groupe": "Centres de données",
+        "label": "EPCI — Engineering, Procurement, Construction, Installation",
+        "desc": "L'exécution : ingénierie de détail, approvisionnement, "
+                "construction, installation. Les bilans y sont recalés sur les "
+                "données constructeur réelles — c'est là que les déclarations "
+                "environnementales produit remplacent les ordres de grandeur.",
+        "sections": [
+            "Périmètre contractuel et interfaces avec les autres lots",
+            "Ingénierie de détail et notes de calcul d'exécution",
+            "Spécifications d'achat et évaluation technique des fournisseurs",
+            "Contrôle des déclarations environnementales produit reçues",
+            "Recalage des bilans énergie, eau et carbone sur les données réelles",
+            "Plans de contrôle, essais et réception d'équipements",
+            "Suivi des non-conformités et de leur incidence sur les garanties",
+            "Préparation de la mise en service et des essais de performance",
+        ],
+    },
 ]
 
 _BY_ID = {t["id"]: t for t in TYPES}

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ingénierie de projet — APS, APD, DCE, BASIC, FEED, EPCI — CONSEILPREV Cyber</title>
+<meta name="description" content="Le bilan énergie, eau et carbone d'un centre de données replacé dans la séquence projet : maîtrise d'œuvre loi MOP (ESQ, APS, APD, PRO, DCE, ACT, EXE, DET, AOR) et ingénierie industrielle (faisabilité, BASIC, FEED, EPCI, mise en service). Ce que le moteur fournit à chaque phase, et ce qu'il faut avoir remplacé.">
+<meta name="robots" content="noindex, follow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CONSEILPREV Cyber">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Ingénierie de projet centre de données — CONSEILPREV Cyber">
+<meta property="og:description" content="APS, APD, DCE d'un côté ; BASIC, FEED, EPCI de l'autre. Chaque phase dit ce que le calcul peut fournir, et ce qui doit venir d'ailleurs.">
+<meta property="og:url" content="https://conseilprevcyber.onrender.com/ingenierie-datacenter">
+<meta property="og:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="CONSEILPREV Cyber — ingénierie de projet centre de données">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Ingénierie de projet centre de données — CONSEILPREV Cyber">
+<meta name="twitter:description" content="Un ordre de grandeur qui passe en avant-projet ne passe plus en consultation. Le cadre le dit phase par phase.">
+<meta name="twitter:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<link rel="canonical" href="https://conseilprevcyber.onrender.com/ingenierie-datacenter">
+
+<link rel="icon" href="/emblem.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .kick{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--muted2)}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+    clip:rect(0 0 0 0);white-space:nowrap;border:0}
+  .rc-socle{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;
+    margin:20px 0 4px}
+  .rc-socle div{border:1px solid var(--line);border-left:3px solid var(--teal);border-radius:10px;
+    padding:12px 14px;background:rgba(0,0,0,.10);font-size:13px;color:var(--muted);line-height:1.6}
+  .rc-socle b{color:var(--ink)}
+  .rc-sec{padding:26px 0}
+  .rc-etape{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+  .rc-etape .n{font-family:var(--mono);font-size:13px;font-weight:700;width:27px;height:27px;
+    flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;
+    background:rgba(34,211,238,.16);color:var(--cyan)}
+  .rc-etape h2{font-size:19px;margin:0}
+  .rc-card{border:1px solid var(--line);border-radius:14px;padding:16px 18px;
+    background:linear-gradient(180deg,var(--panel),var(--bg2))}
+
+  /* ── Le formulaire de profil, repris tel quel de /datacenter ───────────── */
+  .dc-grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+  .dc-champ{display:flex;flex-direction:column;gap:5px}
+  .dc-lab{font-size:12.5px;color:var(--ink);font-weight:600}
+  .dc-unite{font-family:var(--mono);font-size:11px;color:var(--muted2);font-weight:400}
+  .dc-req{color:var(--cyan)}
+  .dc-champ input,.dc-champ select{background:rgba(0,0,0,.22);border:1px solid var(--line);
+    border-radius:8px;padding:9px 11px;color:var(--ink);font-size:13.5px;font-family:inherit;width:100%}
+  .dc-champ input:focus,.dc-champ select:focus{outline:2px solid var(--cyan);outline-offset:1px}
+  .dc-aide{font-size:11.5px;color:var(--muted2);line-height:1.5}
+
+  /* ── Le ruban des phases ────────────────────────────────────────────────
+     Une frise plutôt qu'une liste : c'est une SÉQUENCE, et une liste verticale
+     de neuf éléments ne se lit pas comme une séquence. Le premier blocage est
+     le seul repère qui commande une action ; tout le reste du ruban est là
+     pour voir venir. */
+  .ig-fil{display:flex;gap:0;overflow-x:auto;padding:4px 0 10px;-webkit-overflow-scrolling:touch}
+  .ig-p{flex:0 0 auto;min-width:132px;border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;margin-right:8px;background:rgba(0,0,0,.14);cursor:pointer;
+    text-align:left;font-family:inherit;color:var(--muted);position:relative}
+  .ig-p:hover{border-color:var(--cyan);color:var(--ink)}
+  .ig-p:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  .ig-p .c{font-family:var(--mono);font-size:12.5px;font-weight:700;color:var(--ink);
+    letter-spacing:.04em;display:block}
+  .ig-p .n{font-size:11px;line-height:1.35;display:block;margin-top:3px;color:var(--muted2)}
+  .ig-p .e{font-family:var(--mono);font-size:10px;margin-top:7px;display:block}
+  .ig-p.ok{border-left:3px solid var(--teal,#22D3EE)}
+  .ig-p.ok .e{color:var(--teal,#22D3EE)}
+  .ig-p.ko{border-left:3px solid #F0B429}
+  .ig-p.ko .e{color:#F0B429}
+  /* Le point de bascule : c'est LA information de la frise. Un liseré ne
+     suffit pas à le distinguer des phases bloquées qui le suivent. */
+  .ig-p.stop{background:rgba(240,180,41,.13);border-color:#F0B429}
+  .ig-p.on{outline:2px solid var(--cyan);outline-offset:-2px}
+  .ig-res{font-size:13px;color:var(--muted);line-height:1.65;margin:2px 0 14px;
+    padding:11px 14px;border-left:3px solid #F0B429;background:rgba(0,0,0,.16);
+    border-radius:0 8px 8px 0}
+  .ig-res b{color:var(--ink)}
+  .ig-onglets{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .ig-onglets button{all:unset;cursor:pointer;font-size:12.5px;padding:7px 13px;
+    border-radius:8px;border:1px solid var(--line);color:var(--muted)}
+  .ig-onglets button:hover{border-color:var(--cyan);color:var(--ink)}
+  .ig-onglets button.on{background:rgba(34,211,238,.14);color:var(--ink);border-color:var(--cyan)}
+
+  /* ── Le dossier d'une phase ─────────────────────────────────────────────── */
+  .ig-d{margin-top:16px}
+  .ig-d h3{font-size:17px;margin:0 0 4px}
+  .ig-d .sous{font-size:13px;color:var(--muted);line-height:1.65;margin:0 0 12px;max-width:76ch}
+  .ig-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;
+    margin:12px 0}
+  .ig-meta div{border:1px solid var(--line);border-radius:10px;padding:11px 13px;
+    background:rgba(0,0,0,.12);font-size:12.5px;color:var(--muted);line-height:1.6}
+  .ig-meta b{color:var(--ink);display:block;margin-bottom:3px;font-size:11px;
+    letter-spacing:.05em;text-transform:uppercase;color:var(--muted2)}
+  .ig-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:11px;margin:10px 0}
+  .ig-g .v{border:1px solid var(--line);border-left:3px solid var(--teal);border-radius:10px;
+    padding:12px 14px;background:rgba(0,0,0,.10)}
+  /* Une grandeur non recevable ne se distingue pas par une nuance : elle porte
+     une autre couleur et le mot. Un dossier où l'on doit deviner ce qui est
+     provisoire se remet tel quel, avec ses provisoires dedans. */
+  .ig-g .v.rmp{border-left-color:#F0B429;background:rgba(240,180,41,.07)}
+  .ig-g .n{font-size:11.5px;color:var(--muted);line-height:1.4;margin-bottom:6px}
+  .ig-g .q{font-size:21px;font-weight:700;color:var(--ink);line-height:1.1}
+  .ig-g .u{font-family:var(--mono);font-size:11.5px;font-weight:400;color:var(--muted2)}
+  .ig-g .i{font-family:var(--mono);font-size:10.5px;color:var(--muted2);margin-top:5px}
+  .ig-g .st{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;
+    margin-top:7px;display:block}
+  .ig-g .v.rmp .st{color:#F0B429}
+  .ig-g .v .st{color:var(--muted2)}
+  .ig-man{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:12px;
+    background:rgba(0,0,0,.14)}
+  .ig-man h4{font-size:13.5px;margin:0 0 8px;color:var(--ink)}
+  .ig-man ul{margin:0;padding-left:18px;font-size:12.5px;color:var(--muted);line-height:1.7}
+  .ig-man li b{color:var(--ink)}
+  .ig-sub{border:1px solid var(--line);border-left:3px solid #F0B429;border-radius:0 10px 10px 0;
+    padding:11px 14px;margin-top:9px;background:rgba(0,0,0,.12);font-size:12.5px;
+    color:var(--muted);line-height:1.62}
+  .ig-sub .t{color:var(--ink);font-weight:600}
+  .ig-sub .k{font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;
+    color:var(--muted2);margin-left:6px}
+  .ig-sub p{margin:5px 0 0}
+  .ig-plan{margin-top:12px;font-size:13px;color:var(--muted);line-height:1.7}
+  .ig-plan ol{margin:6px 0 0 18px;padding:0;columns:2;column-gap:26px}
+  @media(max-width:760px){ .ig-plan ol{columns:1} }
+  .ig-corr{font-size:12.5px;color:var(--muted2);line-height:1.6;margin-top:10px}
+  /* Le tableau des correspondances : deux traditions côte à côte, et surtout
+     leurs ÉCARTS — c'est là que les équipes se croient couvertes et ne le
+     sont pas. */
+  .ig-tab-wrap{overflow-x:auto;margin-top:12px}
+  .ig-tab{width:100%;border-collapse:collapse;font-size:12.5px;min-width:640px}
+  .ig-tab th,.ig-tab td{border:1px solid var(--line);padding:9px 11px;text-align:left;
+    vertical-align:top;color:var(--muted);line-height:1.55}
+  .ig-tab th{color:var(--ink);font-weight:600;background:rgba(0,0,0,.18)}
+  .ig-tab td code{font-family:var(--mono);font-size:11.5px;color:var(--ink)}
+  .ig-acc{font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;
+    border-radius:20px;padding:2px 8px;border:1px solid var(--line);white-space:nowrap}
+  .ig-acc.a-franc{color:#22D3EE;border-color:#22D3EE}
+  .ig-acc.a-proche{color:#8B7CF6;border-color:#8B7CF6}
+  .ig-acc.a-partiel{color:#F0B429;border-color:#F0B429}
+  .ig-acc.a-faible{color:#D9603A;border-color:#D9603A}
+</style>
+</head>
+<body>
+  <header>
+  <div class="wrap nav">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu"><span></span><span></span><span></span></button>
+    <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="30" height="30" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+    <nav class="links" aria-label="Navigation principale">
+      <a href="/services">Services</a>
+      <a href="/referentiel">Référentiel 62443</a>
+      <a href="/audit-conformite">Audit 62443</a>
+      <a href="/demo">Cockpit</a>
+      <a href="/assistant">Assistant IA</a>
+      <a href="/veille">Veille</a>
+      <a href="/about">À propos</a>
+    </nav>
+    <div class="navcta">
+      <a href="/contact" class="cta">Contact</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+  <section class="wrap" style="padding:44px 0 8px">
+    <p class="kick">Ingénierie de projet — centres de données</p>
+    <h1 style="margin:8px 0 12px;max-width:24ch">Où le calcul s'insère dans le projet</h1>
+    <p class="lead" style="max-width:76ch">
+      Le moteur d'<a href="/datacenter">énergie, eau et carbone</a> calcule juste. Il ne dit
+      pas à quel moment ses chiffres sont recevables — et c'est là que se perdent les
+      dossiers. Un PUE tiré d'une plage de conception convient parfaitement à un
+      avant-projet sommaire&nbsp;; le même chiffre reporté dans un CCTP devient une clause
+      de pénalité assise sur un ordre de grandeur, et le premier bureau de contrôle le voit.</p>
+    <div class="rc-socle">
+      <div><b>Deux filières, pas une.</b> Un centre de données est un bâtiment ET une
+        installation de procédé. La maîtrise d'œuvre suit la loi MOP&nbsp;; l'ingénierie suit
+        BASIC, FEED, EPCI. Les équipes mélangent les deux vocabulaires, et croient couvert
+        ce qui ne l'est pas.</div>
+      <div><b>Chaque phase a son niveau de définition.</b> Le facteur eau amont porte
+        ±40&nbsp;%, le carbone incorporé ±50&nbsp;%. Ces valeurs passent en avant-projet.
+        Elles ne passent plus en consultation, où elles deviennent opposables.</div>
+      <div><b>Le cadre refuse de conclure à votre place.</b> Une phase n'est déclarée
+        franchissable que si les entrées sont réellement saisies et les substitutions
+        faites. Une valeur laissée par défaut compte comme manquante.</div>
+    </div>
+  </section>
+
+  <section class="wrap rc-sec">
+    <div class="rc-etape"><span class="n">1</span><h2>Le profil de l'installation</h2></div>
+    <p class="lead" style="max-width:74ch;margin-top:0">
+      Le même profil que sur la page de calcul&nbsp;: seule la puissance informatique est
+      indispensable. Ce que vous renseignez ici décide des phases que vous pouvez
+      franchir — c'est précisément ce que montre la frise ci-dessous.</p>
+    <div class="rc-card" id="ig-form"><p class="note">Chargement du référentiel…</p></div>
+    <p class="note" id="ig-etat" role="status" aria-live="polite" style="margin-top:12px"></p>
+  </section>
+
+  <section class="wrap rc-sec">
+    <div class="rc-etape"><span class="n">2</span><h2>Où vous en êtes dans la séquence</h2></div>
+    <p class="lead" style="max-width:74ch;margin-top:0">
+      Chaque phase est éprouvée contre votre profil. Le premier point d'arrêt est le seul
+      qui commande une action&nbsp;; les phases suivantes sont là pour voir venir, pas pour
+      travailler en parallèle.</p>
+    <div class="ig-onglets" id="ig-filieres" role="tablist"></div>
+    <div id="ig-parcours" aria-live="polite"><p class="note">Renseignez la puissance informatique pour éprouver les phases.</p></div>
+  </section>
+
+  <section class="wrap rc-sec">
+    <div class="rc-etape"><span class="n">3</span><h2>L'étude de la phase retenue</h2></div>
+    <p class="lead" style="max-width:74ch;margin-top:0">
+      Le plan du dossier, avec les grandeurs que le moteur y verse légitimement et la
+      mention explicite de celles qui restent à produire. Sans cette distinction, un
+      chiffre provisoire traverse tout le projet sans que personne ne le remplace.</p>
+    <div id="ig-dossier"><p class="note">Choisissez une phase dans la frise ci-dessus.</p></div>
+    <div class="actions" style="margin-top:16px;gap:10px;flex-wrap:wrap">
+      <button type="button" class="btn btn-s" id="ig-docx" disabled>Étude de phase (Word)</button>
+      <button type="button" class="btn btn-s" id="ig-pdf" disabled>Étude de phase (PDF)</button>
+    </div>
+  </section>
+
+  <section class="wrap rc-sec">
+    <div class="rc-etape"><span class="n">4</span><h2>Les deux filières face à face</h2></div>
+    <p class="lead" style="max-width:76ch;margin-top:0">
+      Les correspondances ne sont pas des équivalences. Un FEED va plus loin qu'un APD sur
+      le procédé et l'ignore sur le bâtiment&nbsp;; le DCE et l'EPCI ne placent pas la
+      responsabilité de conception au même endroit. C'est l'ÉCART qui compte, pas
+      l'alignement.</p>
+    <div id="ig-correspondances"><p class="note">Chargement…</p></div>
+  </section>
+
+  <section class="wrap rc-sec">
+    <div class="rc-etape"><span class="n">5</span><h2>Ce que ce cadre ne fait pas</h2></div>
+    <p class="lead" style="max-width:74ch;margin-top:0">
+      Le dire ici plutôt qu'en note de bas de page&nbsp;: ces limites décident du moment où
+      il faut un ingénieur, et les ignorer coûte plus cher que de les lire.</p>
+    <ul class="lead" style="max-width:76ch">
+      <li>Il <b>ne remplace aucune mission</b>. Il dit ce que le calcul énergie / eau /
+        carbone peut verser à chaque phase&nbsp;; le reste du dossier — structure, incendie,
+        électricité, sûreté, acoustique — n'est pas de son ressort.</li>
+      <li>Les <b>tolérances de la maîtrise d'œuvre relèvent de l'usage</b>, pas du texte.
+        Le décret impose au maître d'œuvre de s'engager sur un coût prévisionnel&nbsp;; il
+        ne fixe pas le pourcentage, qui est arrêté au contrat.</li>
+      <li>Les <b>fourchettes de l'AACE sont données comme typiques</b> et varient selon
+        l'industrie et la complexité. Elles cadrent un ordre de grandeur&nbsp;; elles ne
+        remplacent pas une précision établie projet par projet.</li>
+      <li>Une phase déclarée franchissable <b>ne l'est qu'au regard de ce moteur</b>.
+        Aucun jalon de projet ne se franchit sur un seul critère.</li>
+    </ul>
+  </section>
+
+</main>
+
+
+  <footer>
+  <div class="wrap foot">
+    <div class="foot-cols">
+      <div class="foot-brand">
+        <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="26" height="26" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+        <p>Cybersécurité industrielle IT / OT / IIoT — conformité IEC&nbsp;62443, NIS2, DORA.</p>
+      </div>
+      <nav class="foot-col" aria-label="Expertise">
+        <h4>Expertise</h4>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/methodologie">Méthodologie</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/operating-model">Operating Model</a>
+        <a href="/maturite-ot">Maturité OT</a>
+        <a href="/feuille-de-route">Feuille de route</a>
+        <a href="/continuite-ot">Continuité &amp; crise OT</a>
+        <a href="/gestion-des-changements">Gestion des changements</a>
+        <a href="/architecture-cible">Architecture cible</a>
+        <a href="/formation">Formation</a>
+      </nav>
+      <nav class="foot-col" aria-label="Norme &amp; conformité">
+        <h4>Norme &amp; conformité</h4>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/audit-conformite">Audit 62443</a>
+        <a href="/diagnostic">Diagnostic express</a>
+        <a href="/nis2">NIS2</a>
+      </nav>
+      <nav class="foot-col" aria-label="Plateforme">
+        <h4>Plateforme</h4>
+        <a href="/demo">Cockpit</a>
+        <a href="/assistant">Assistant IA</a>
+        <a href="/connecter">Connecter une source</a>
+        <a href="/guide-integration">Guide d’intégration</a>
+      </nav>
+      <nav class="foot-col" aria-label="Ressources">
+        <h4>Ressources</h4>
+        <a href="/veille">Veille</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/glossaire-62443">Glossaire 62443</a>
+      </nav>
+    </div>
+    <div class="foot-bar">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Tous droits réservés</div>
+      <div class="foot-legal">
+        <a href="/about">À propos</a>
+        <a href="/contact">Contact</a>
+        <a href="/connexion">Espace client</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/politique-confidentialite">Confidentialité</a>
+        <a href="/conformite">Conformité IA &amp; RGPD</a>
+        <a href="/admin" rel="nofollow" class="foot-admin">Admin</a>
+      </div>
+    </div>
+  </div>
+</footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+  
+  <script src="/nav.js" defer></script>
+  <script src="/parcours.js" defer></script>
+  <script src="/ingenierie-dc.js" defer></script>
+</body>
+</html>

@@ -608,6 +608,7 @@ PAGES = {
     "/juridique": "juridique.html",
     "/relecture-contrat": "relecture-contrat.html",
     "/datacenter": "datacenter.html",
+    "/ingenierie-datacenter": "ingenierie-datacenter.html",
 }
 
 
@@ -1804,8 +1805,9 @@ def api_playbook_export():
 #  un modèle de langage : l'étude complète fonctionne sans aucune clé d'API.
 # ══════════════════════════════════════════════════════════════════════════
 
-import datacenter  # noqa: E402
-import profil_dc   # noqa: E402  — analyse le moteur ci-dessus, ne le double pas
+import datacenter    # noqa: E402
+import profil_dc     # noqa: E402  — analyse le moteur ci-dessus, ne le double pas
+import ingenierie_dc  # noqa: E402  — situe ses résultats dans la séquence projet
 
 
 @app.route("/datacenter")
@@ -1813,6 +1815,13 @@ import profil_dc   # noqa: E402  — analyse le moteur ci-dessus, ne le double p
 def datacenter_page():
     """Études d'ingénierie de centres de données (comptes connectés)."""
     return _page(PAGES["/datacenter"])
+
+
+@app.route("/ingenierie-datacenter")
+@login_required
+def ingenierie_datacenter_page():
+    """Le même calcul, replacé dans la séquence projet — MOE et ingénierie."""
+    return _page(PAGES["/ingenierie-datacenter"])
 
 
 @app.route("/api/datacenter/referentiel")
@@ -1937,6 +1946,223 @@ def api_datacenter_comparer():
                    lecture="Classement par empreinte totale, carbone incorporé compris. "
                            "Le WUE de SOURCE, et non le WUE de site, est la colonne à "
                            "regarder pour arbitrer entre évaporatif et rejet sec.")
+
+
+@app.route("/api/datacenter/ingenierie")
+@login_required
+def api_datacenter_ingenierie():
+    """Le cadre de phases : deux filières, leurs correspondances, et les postes
+    du référentiel dont l'ordre de grandeur cesse de suffire en cours de projet."""
+    return jsonify(ok=True, referentiel=ingenierie_dc.referentiel())
+
+
+@app.route("/api/datacenter/ingenierie/parcours", methods=["POST"])
+@login_required
+def api_datacenter_ingenierie_parcours():
+    """Où l'on passe et où l'on bute, sur toute une filière.
+
+    Le premier point de blocage est la seule information qui commande une
+    action : les phases suivantes servent à voir venir, pas à travailler en
+    parallèle.
+    """
+    data = request.get_json(silent=True) or {}
+    profil = _profil_datacenter(data)
+    if not profil.get("puissance_it_kw"):
+        return jsonify(ok=False, error="puissance_absente",
+                       message="La puissance informatique installée est nécessaire."), 400
+    fil = (data.get("filiere") or "").strip()
+    filieres = [fil] if fil in ingenierie_dc.FILIERES else list(ingenierie_dc.FILIERES)
+    try:
+        return jsonify(ok=True,
+                       parcours={f: ingenierie_dc.parcours(profil, f) for f in filieres},
+                       correspondances=ingenierie_dc.CORRESPONDANCES)
+    except Exception:
+        app.logger.exception("parcours ingénierie datacenter")
+        return jsonify(ok=False, error="calcul",
+                       message="Le parcours n'a pas pu être établi."), 500
+
+
+@app.route("/api/datacenter/ingenierie/dossier", methods=["POST"])
+@login_required
+def api_datacenter_ingenierie_dossier():
+    """Le plan de l'étude pour une phase, avec ce que le moteur y verse
+    légitimement et ce qui reste à produire ailleurs."""
+    data = request.get_json(silent=True) or {}
+    profil = _profil_datacenter(data)
+    code = str(data.get("phase") or "").strip().upper()[:12]
+    try:
+        d = ingenierie_dc.dossier(profil, code)
+    except Exception:
+        app.logger.exception("dossier ingénierie datacenter")
+        return jsonify(ok=False, error="calcul",
+                       message="Le dossier n'a pas pu être établi."), 500
+    if not d.get("connu"):
+        return jsonify(ok=False, error="phase_inconnue",
+                       message=d.get("motif", "Phase inconnue.")), 404
+    return jsonify(ok=True, dossier=d)
+
+
+@app.route("/api/datacenter/ingenierie/export", methods=["POST"])
+@login_required
+def api_datacenter_ingenierie_export():
+    """L'étude de phase en Word ou PDF.
+
+    Le document porte les valeurs du moteur là où la phase les admet, et la
+    mention « À PRODUIRE » là où elle ne les admet plus. C'est cette distinction
+    qui fait la différence entre un sommaire et un plan de travail : sans elle,
+    un chiffre provisoire traverse tout le projet sans que personne ne le
+    remplace.
+    """
+    data = request.get_json(silent=True) or {}
+    profil = _profil_datacenter(data)
+    code = str(data.get("phase") or "").strip().upper()[:12]
+    if not profil.get("puissance_it_kw"):
+        return jsonify(ok=False, error="puissance_absente",
+                       message="La puissance informatique installée est nécessaire."), 400
+    d = ingenierie_dc.dossier(profil, code)
+    if not d.get("connu"):
+        return jsonify(ok=False, error="phase_inconnue",
+                       message=d.get("motif", "Phase inconnue.")), 404
+    fmt = (data.get("format") or "docx").strip().lower()
+    if fmt not in ("docx", "pdf"):
+        fmt = "docx"
+    md = _etude_phase_markdown(d, str(data.get("client") or "").strip()[:120])
+    meta = {"label": "%s — %s" % (d["code"], d["nom"]),
+            "client": str(data.get("client") or "")[:120],
+            "perimetre": "%s kW informatiques · %s" % (
+                round(profil["puissance_it_kw"]), d["filiere_nom"]),
+            "date": time.strftime("%d/%m/%Y"),
+            "sources": [{"title": "Moteur d'ingénierie CONSEILPREV v" + datacenter.VERSION,
+                         "theme": "calcul déterministe"},
+                        {"title": "Cadre de phases v" + ingenierie_dc.VERSION,
+                         "theme": ingenierie_dc.FILIERES[d["filiere"]]["cadre"]}]}
+    try:
+        if fmt == "pdf":
+            blob = livrables_export.build_pdf(md, meta)
+            mimetype = "application/pdf"
+        else:
+            blob = livrables_export.build_docx(md, meta)
+            mimetype = ("application/vnd.openxmlformats-officedocument"
+                        ".wordprocessingml.document")
+    except Exception:
+        app.logger.exception("export étude de phase")
+        return jsonify(ok=False, error="export_echec",
+                       message="La mise en page a échoué."), 500
+    audit.journaliser("datacenter.ingenierie.export", cible=d["code"],
+                      detail="%s · %s" % (fmt, d["filiere"]))
+    return send_file(io.BytesIO(blob),
+                     download_name="etude-%s.%s" % (d["code"].lower(), fmt),
+                     as_attachment=True, mimetype=mimetype)
+
+
+def _etude_phase_markdown(d, client=""):
+    """L'étude de phase en Markdown.
+
+    Écrite ici plutôt que par le modèle : ce document dit ce qui est acquis et
+    ce qui ne l'est pas, et cette frontière-là ne se rédige pas, elle se
+    calcule. Le modèle pourra développer chaque section ensuite — il reçoit
+    alors ce plan comme un ensemble de faits qu'il n'a pas le droit de
+    contredire.
+    """
+    L = []
+    A = L.append
+    A("# Étude %s — %s" % (d["code"], d["nom"]))
+    A("")
+    A("*%s*" % d["filiere_nom"])
+    if client:
+        A("")
+        A("**Client** — %s" % client)
+    A("")
+    A("## 1. Objet et position dans la séquence")
+    A("")
+    A(d["objet"])
+    A("")
+    A("- **Ce que cette phase décide** — %s" % d["decide"])
+    A("- **Ce qu'elle verrouille** — %s" % d["verrouille"])
+    A("- **Précision attendue** — %s (%s ; %s)" % (
+        d["precision"]["valeur"], d["precision"]["nature"], d["precision"]["aace"]))
+    if d.get("note"):
+        A("- **Précision de vocabulaire** — %s" % d["note"])
+    for c in d.get("correspondance") or []:
+        autre = c["indus"] if d["filiere"] == "moe" else c["moe"]
+        A("- **Correspondance dans l'autre filière** — %s (accord %s). %s"
+          % (autre, c["accord"], c["ecart"]))
+    A("")
+
+    A("## 2. Ce que le moteur verse à ce dossier")
+    A("")
+    A(d["apport_texte"])
+    A("")
+    recevables = [g for g in d["grandeurs"] if g["statut"] == "recevable"]
+    a_remp = [g for g in d["grandeurs"] if g["statut"] != "recevable"]
+    if recevables:
+        A("### Grandeurs recevables à ce stade")
+        A("")
+        for g in recevables:
+            A("- **%s** — %s %s%s" % (g["nom"], datacenter.fr(g["valeur"]), g["unite"],
+                                      (" (%s)" % g["incertitude"]) if g["incertitude"] else ""))
+        A("")
+    if a_remp:
+        A("### Grandeurs NON recevables en l'état — à produire")
+        A("")
+        for g in a_remp:
+            A("- **%s** — valeur indicative %s %s. Bloquée par : %s."
+              % (g["nom"], datacenter.fr(g["valeur"]), g["unite"],
+                 ", ".join(g["postes_bloquants"])))
+        A("")
+
+    ap = d["aptitude"]
+    A("## 3. Ce qui manque pour franchir la phase")
+    A("")
+    A(ap["verdict"])
+    A("")
+    if ap["entrees_manquantes"]:
+        A("### Entrées à renseigner")
+        A("")
+        for m in ap["entrees_manquantes"]:
+            A("- **%s**%s — %s%s" % (
+                m["label"], (" (%s)" % m["unite"]) if m["unite"] else "",
+                m["pourquoi"],
+                "" if m["origine"] == "propre" else " ; dette d'une phase antérieure"))
+        A("")
+    if ap["substitutions_a_faire"]:
+        A("### Facteurs à remplacer par une donnée réelle")
+        A("")
+        for s in ap["substitutions_a_faire"]:
+            A("**%s** — %s%s" % (s["nom"], s["nature"],
+                                 (", %s" % s["incertitude"]) if s["incertitude"] else ""))
+            A("")
+            if s.get("devient_insuffisant"):
+                A("  Pourquoi à ce stade : %s" % s["devient_insuffisant"])
+            A("  À remplacer par : %s" % s["remplacer_par"])
+            if s.get("incertitude_absente"):
+                A("  Réserve : ce poste ne porte aucune incertitude déclarée au "
+                  "référentiel. Une incertitude absente n'est pas une incertitude "
+                  "nulle.")
+            if s.get("source"):
+                A("  Source actuelle : %s" % s["source"])
+            A("")
+    if not ap["entrees_manquantes"] and not ap["substitutions_a_faire"]:
+        A("Rien ne manque du côté du moteur. Les autres disciplines du dossier "
+          "restent à produire.")
+        A("")
+
+    A("## 4. Plan de l'étude")
+    A("")
+    for i, s in enumerate(d["sections"], 1):
+        A("%d. %s" % (i, s))
+    A("")
+    A("## 5. Traçabilité")
+    A("")
+    A("- Moteur de calcul : datacenter v%s" % d["version_moteur"])
+    A("- Cadre de phases : ingenierie_dc v%s" % ingenierie_dc.VERSION)
+    A("- Cadre de référence de la filière : %s"
+      % ingenierie_dc.FILIERES[d["filiere"]]["cadre"])
+    A("")
+    A("Aucun modèle de langage n'intervient dans les valeurs ci-dessus : elles "
+      "sont produites par un calcul déterministe. Deux exécutions avec les mêmes "
+      "entrées donnent le même résultat, au chiffre près.")
+    return "\n".join(L)
 
 
 @app.route("/api/datacenter/export", methods=["POST"])
@@ -2398,6 +2624,15 @@ def datacenter_js():
     Ce sont les API qu'il appelle qui exigent une session.
     """
     return _serve_fast("datacenter.js", _CC_ASSET,
+                       mimetype="text/javascript; charset=utf-8")
+
+
+@app.route("/ingenierie-dc.js")
+def ingenierie_dc_js():
+    """Interface du cadre de phases. Même règle que ci-dessus : route publique,
+    aucune donnée dans le fichier — ce sont les API qu'il appelle qui exigent
+    une session."""
+    return _serve_fast("ingenierie-dc.js", _CC_ASSET,
                        mimetype="text/javascript; charset=utf-8")
 
 

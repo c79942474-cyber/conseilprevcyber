@@ -24,7 +24,8 @@
       ["/formation", "Formation & compétences"],
       ["/gouvernance-ia", "Governance by Design IA"],
       ["/relecture-contrat", "Relecture de contrats assistée"],
-      ["/datacenter", "Centres de données bas carbone"] ] },
+      ["/datacenter", "Centres de données bas carbone"],
+      ["/ingenierie-datacenter", "Ingénierie de projet : APS, APD, DCE, FEED, EPCI"] ] },
     { t: "Référentiel IEC 62443", l: [
       ["/referentiel", "Vue d’ensemble"],
       ["/analyse-de-risque", "Analyse de risque · 3-2"],
@@ -83,6 +84,7 @@
     "/juridique": "Conseil juridique assisté : qualification, lectures des textes, clausier",
     "/relecture-contrat": "Relecture assistée : playbook, écarts, validations, version par version",
     "/datacenter": "Énergie, eau et carbone calculés ensemble : PUE, WUE de site et de source, carbone incorporé, réponses à appels d’offres",
+    "/ingenierie-datacenter": "Le calcul replacé dans la séquence projet : ESQ, APS, APD, PRO, DCE, ACT, EXE, DET, AOR — et faisabilité, BASIC, FEED, EPCI, mise en service",
     "/demo": "Cockpit de supervision OT en temps réel (démonstration)",
     "/tendances": "Tendances et signaux de la menace industrielle",
     "/connecter": "Connecter une source de données au cockpit",
