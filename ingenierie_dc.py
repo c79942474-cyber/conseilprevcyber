@@ -958,12 +958,288 @@ _PIECES = {
 }
 
 
+# ── L'axe DISCIPLINE ───────────────────────────────────────────────────────
+# Les pièces ci-dessus appartiennent à une phase et à une seule. Les
+# spécifications techniques, elles, traversent le projet : une spécification CVC
+# s'émet à l'avant-projet définitif, se met à jour au projet et se gèle à la
+# consultation. Les recopier dans chaque phase en ferait trois documents
+# distincts qui divergeraient — c'est un document unique, à des indices
+# différents.
+#
+# Chaque spécification déclare donc les phases où elle est produite ET le NIVEAU
+# attendu à chacune. Le niveau n'est pas cosmétique : il dit à l'ingénieur — et
+# au modèle qui rédige — jusqu'où descendre. Une spécification de consultation
+# qui resterait au niveau de l'avant-projet laisse des exigences non mesurables,
+# et une exigence non mesurable n'est pas opposable.
+
+NIVEAUX = {
+    "principes": {"nom": "Principes", "aide": "Parti retenu et exigences de niveau, "
+                                              "sans dimensionnement."},
+    "emission": {"nom": "Première émission", "aide": "Exigences dimensionnées, "
+                                                     "performances visées, interfaces."},
+    "maj": {"nom": "Mise à jour", "aide": "Descente au niveau de l'ouvrage : "
+                                          "matériels, tracés, essais."},
+    "gel": {"nom": "Gel contractuel", "aide": "Devient opposable : chaque exigence "
+                                              "mesurable et assortie de sa méthode de contrôle."},
+    "recalage": {"nom": "Recalage", "aide": "Repris sur les données réelles des "
+                                            "équipements retenus."},
+    "as_built": {"nom": "Tel que construit", "aide": "Conforme à l'exécution, "
+                                                     "versé au dossier d'exploitation."},
+}
+
+DISCIPLINES = {
+    "projet": "Conduite de projet",
+    "safety": "Safety — sécurité des personnes et des procédés",
+    "structure": "Structure et génie civil",
+    "hvac": "CVC, traitement d'air et froid",
+    "elec_cfo": "Électricité courants forts",
+    "elec_cfa": "Électricité courants faibles",
+    "telecom": "Téléphonie et réseaux de communication",
+    "incendie": "Prévention et sécurité incendie",
+    "extinction": "Extinction automatique",
+    "surete": "Sûreté et contrôle d'accès",
+    "itot": "Équipements IT / OT / systèmes de contrôle industriel",
+    "environnement": "Environnement, énergie et RSE",
+}
+
+# (code, titre, discipline, type, émetteur, moteur, {phase: niveau}, [contenu])
+_PIECES_DISCIPLINE = [
+    # ── Conduite de projet ────────────────────────────────────────────────
+    ("SPC-MDL", "Liste des livrables du projet (registre documentaire)", "projet",
+     "registre", "moe", False,
+     {"ESQ": "principes", "APS": "emission", "APD": "maj", "PRO": "maj",
+      "DCE": "gel", "EXE-VISA": "maj", "AOR": "as_built",
+      "FAISA": "principes", "BASIC": "emission", "FEED": "maj",
+      "EPCI": "maj", "CSU": "as_built"},
+     ["Une ligne par pièce : code, intitulé, discipline, émetteur, phase",
+      "Indice en cours, date d'émission et statut de visa",
+      "Destinataires et circuit d'approbation de chaque pièce",
+      "Pièces conditionnelles et l'événement qui les déclenche"]),
+    ("SPC-PHILO", "Philosophie générale de conception (Design Philosophy)", "projet",
+     "note", "moe", True,
+     {"ESQ": "principes", "APS": "emission", "APD": "maj", "PRO": "gel",
+      "FAISA": "principes", "BASIC": "emission", "FEED": "gel"},
+     ["Intentions de conception et hiérarchie des objectifs",
+      "Niveau de disponibilité visé et principe de redondance retenu",
+      "Arbitrages structurants assumés — eau contre énergie, capex contre opex",
+      "Règles de conception communes à toutes les disciplines",
+      "Hypothèses climatiques et de charge, et leur origine"]),
+
+    # ── Safety ────────────────────────────────────────────────────────────
+    ("SPC-SAFETY", "Safety concept et spécification safety", "safety",
+     "contractuel", "moe", False,
+     {"APS": "principes", "APD": "emission", "PRO": "maj", "DCE": "gel",
+      "BASIC": "principes", "FEED": "emission", "EPCI": "maj"},
+     ["Périmètre safety et interfaces avec la sûreté et l'incendie",
+      "Analyse des risques pour les personnes et les équipements",
+      "Fonctions instrumentées de sécurité et niveaux d'intégrité visés",
+      "Arrêts d'urgence, consignations et modes dégradés",
+      "Essais périodiques et preuves à conserver"]),
+
+    # ── Structure ─────────────────────────────────────────────────────────
+    ("SPC-STRUCT", "Spécification technique — structure et génie civil", "structure",
+     "contractuel", "moe", False,
+     {"APD": "emission", "PRO": "maj", "DCE": "gel", "EXE-VISA": "maj",
+      "FEED": "emission", "EPCI": "maj"},
+     ["Charges d'exploitation par zone et surcharges d'équipements",
+      "Résistance au feu exigée et compartimentage structurel",
+      "Contraintes sismiques et de vent applicables au site",
+      "Réservations, trémies et reprises en sous-œuvre",
+      "Tolérances dimensionnelles et de planéité des dalles techniques"]),
+
+    # ── CVC ───────────────────────────────────────────────────────────────
+    ("SPC-HVAC", "Spécification technique — CVC, traitement d'air et froid", "hvac",
+     "contractuel", "moe", True,
+     {"APS": "principes", "APD": "emission", "PRO": "maj", "DCE": "gel",
+      "EXE-VISA": "recalage", "BASIC": "principes", "FEED": "emission",
+      "EPCI": "recalage"},
+     ["Charge thermique à évacuer et profil de charge retenu",
+      "Régimes de température, débits et pressions par boucle",
+      "Classe ASHRAE admise en salle et conséquence sur le free cooling",
+      "Redondance, secours et comportement en défaut",
+      "Performances exigées : PUE de conception, WUE, conditions de mesure",
+      "Traitement d'eau, cycles de concentration et rejets"]),
+
+    # ── Électricité ───────────────────────────────────────────────────────
+    ("SPC-CFO", "Spécification technique — électricité courants forts", "elec_cfo",
+     "contractuel", "moe", True,
+     {"APS": "principes", "APD": "emission", "PRO": "maj", "DCE": "gel",
+      "EXE-VISA": "recalage", "BASIC": "principes", "FEED": "emission",
+      "EPCI": "recalage"},
+     ["Bilan de puissance par tableau et par usage",
+      "Architecture de distribution et niveau de redondance",
+      "Alimentation sans coupure, autonomie et gestion des batteries",
+      "Groupes électrogènes, réserve de combustible et essais en charge",
+      "Régime de neutre, sélectivité et courants de court-circuit",
+      "Comptage divisionnaire aux points de mesure du PUE"]),
+    ("SPC-CFA", "Spécification technique — électricité courants faibles", "elec_cfa",
+     "contractuel", "moe", False,
+     {"APD": "emission", "PRO": "maj", "DCE": "gel", "EXE-VISA": "maj",
+      "FEED": "emission", "EPCI": "maj"},
+     ["Gestion technique du bâtiment et supervision d'infrastructure",
+      "Métrologie : points de mesure, précision, acquisition et archivage",
+      "Détection incendie et report d'alarmes",
+      "Câblage structuré des locaux techniques et repérage",
+      "Interfaces avec les systèmes de sûreté et d'exploitation"]),
+    ("SPC-TEL", "Spécification technique — téléphonie et réseaux de communication",
+     "telecom", "contractuel", "moe", False,
+     {"APD": "emission", "PRO": "maj", "DCE": "gel", "FEED": "emission", "EPCI": "maj"},
+     ["Arrivées opérateurs, cheminements séparés et redondance",
+      "Téléphonie d'exploitation et postes de sécurité",
+      "Couverture radio des équipes d'intervention et des secours",
+      "Interphonie des sas et liaisons de sûreté",
+      "Séparation stricte des réseaux d'exploitation et des réseaux clients"]),
+
+    # ── Incendie ──────────────────────────────────────────────────────────
+    ("SPC-SSI", "Spécification technique — prévention et sécurité incendie",
+     "incendie", "contractuel", "moe", False,
+     {"APS": "principes", "APD": "emission", "PRO": "maj", "DCE": "gel",
+      "EXE-VISA": "maj", "BASIC": "principes", "FEED": "emission", "EPCI": "maj"},
+     ["Classement de l'établissement et textes applicables",
+      "Compartimentage, degrés coupe-feu et traversées",
+      "Détection — technologie, sensibilité, zones de détection",
+      "Désenfumage et mise en sécurité",
+      "Accès et moyens des services de secours",
+      "Scénarios de mise en sécurité et matrice cause-effet"]),
+    ("SPC-EXT", "Spécification technique — systèmes d'extinction", "extinction",
+     "contractuel", "moe", False,
+     {"APD": "emission", "PRO": "maj", "DCE": "gel", "EXE-VISA": "maj",
+      "FEED": "emission", "EPCI": "maj"},
+     ["Agent retenu par local et justification du choix",
+      "Concentration d'extinction, temps d'imprégnation et de maintien",
+      "Étanchéité des volumes protégés et essai d'intégrité",
+      "Commandes, temporisations et sécurité des personnes",
+      "Réarmement, réapprovisionnement et essais périodiques"]),
+    ("SPC-EAUINC", "Note de calcul des besoins en eau d'extinction", "incendie",
+     "note", "moe", False,
+     {"APD": "emission", "PRO": "maj", "DCE": "gel", "FEED": "emission"},
+     ["Risque retenu et référentiel de calcul applicable",
+      "Débit et durée exigés par le référentiel, aire de calcul",
+      "Volume de la réserve et conditions de réalimentation",
+      "Poteaux et bouches, pression et débit disponibles au réseau public",
+      "Rétention des eaux d'extinction et convention de rejet",
+      "Écart entre besoin calculé et ressource disponible sur site"]),
+
+    # ── Sûreté ────────────────────────────────────────────────────────────
+    ("SPC-SUR", "Spécification technique — sûreté et contrôle d'accès", "surete",
+     "contractuel", "moe", False,
+     {"APD": "emission", "PRO": "maj", "DCE": "gel", "EXE-VISA": "maj",
+      "FEED": "emission", "EPCI": "maj"},
+     ["Zonage de sûreté et niveaux d'habilitation",
+      "Périmétrie, détection d'intrusion et délais de réaction",
+      "Contrôle d'accès, sas et gestion des visiteurs",
+      "Vidéoprotection : couverture, durée de conservation, base légale",
+      "Poste de sûreté, main courante et procédures d'escalade",
+      "Durcissement des locaux techniques sensibles"]),
+    ("SPC-EVAC", "Plan d'évacuation et notice d'exploitation en sécurité",
+     "incendie", "plan", "moe", False,
+     {"PRO": "emission", "DCE": "maj", "AOR": "gel", "EPCI": "emission",
+      "CSU": "gel"},
+     ["Cheminements d'évacuation et points de rassemblement",
+      "Signalétique, éclairage de sécurité et balisage",
+      "Consignes par local et effectifs à évacuer",
+      "Organisation des exercices et périodicité",
+      "Particularité des salles sous extinction automatique"]),
+
+    # ── IT / OT ───────────────────────────────────────────────────────────
+    ("SPC-ITOT", "Liste et spécification des équipements IT / OT / SCI", "itot",
+     "tableau", "moe", False,
+     {"APD": "emission", "PRO": "maj", "DCE": "gel", "EXE-VISA": "recalage",
+      "FEED": "emission", "EPCI": "recalage", "CSU": "as_built"},
+     ["Inventaire par système : repère, fonction, criticité",
+      "Séparation des domaines IT, OT et systèmes de contrôle industriel",
+      "Interfaces et protocoles entre domaines, sens des flux autorisés",
+      "Exigences de cybersécurité applicables par zone et conduit",
+      "Cycle de vie, obsolescence et politique de mise à jour",
+      "Ce qui est fourni par le maître d'ouvrage et ce qui est au marché"]),
+
+    # ── Environnement et énergie ──────────────────────────────────────────
+    ("SPC-CONSO", "Étude de consommation — énergie par consommateur, eau par poste",
+     "environnement", "note", "moe", True,
+     {"APD": "emission", "PRO": "maj", "DCE": "gel", "AOR": "recalage",
+      "FEED": "emission", "EPCI": "maj", "CSU": "recalage"},
+     ["Consommation électrique annuelle décomposée par consommateur",
+      "Part informatique et part des auxiliaires, et leur évolution avec la charge",
+      "Consommation d'eau totale et par poste : évaporation, purge, appoint, sanitaire",
+      "Eau consommée en amont par la production électrique",
+      "Profil saisonnier et pointe de prélèvement",
+      "Points de comptage permettant de vérifier chaque poste après mise en service"]),
+    ("SPC-CHALEUR", "Étude de chaleur fatale récupérable", "environnement",
+     "note", "moe", True,
+     {"APS": "principes", "APD": "emission", "PRO": "maj", "DCE": "gel",
+      "BASIC": "principes", "FEED": "emission"},
+     ["Gisement thermique et niveaux de température disponibles",
+      "Preneurs potentiels, distance et saisonnalité de leur besoin",
+      "Schémas de raccordement et relevage éventuel",
+      "ERF atteignable et incidence sur le PUE",
+      "Économie du projet et partage de la valeur",
+      "Conditions contractuelles et durée d'engagement du preneur"]),
+    ("SPC-RSE", "Étude RSE et développement durable", "environnement",
+     "note", "moe", True,
+     {"APS": "principes", "APD": "emission", "PRO": "maj", "DCE": "gel",
+      "AOR": "recalage", "FEED": "emission", "CSU": "recalage"},
+     ["Enjeux retenus et parties prenantes concernées",
+      "Trajectoire énergie, eau et carbone avec ses jalons",
+      "Insertion locale : emploi, nuisances, concertation",
+      "Obligations de déclaration applicables et calendrier",
+      "Indicateurs suivis, méthode de mesure et périodicité",
+      "Ce qui est engagé et ce qui reste une intention"]),
+    ("SPC-BASCARB", "Étude bâtiment bas carbone et matériaux", "environnement",
+     "note", "moe", True,
+     {"APD": "emission", "PRO": "maj", "DCE": "gel", "EPCI": "recalage",
+      "FEED": "emission"},
+     ["Carbone incorporé par lot et par matériau, amorti sur la durée de vie",
+      "Comparaison des variantes constructives examinées",
+      "Réemploi, matériaux biosourcés et contenu recyclé",
+      "Déclarations environnementales produit exigées des fournisseurs",
+      "Fin de vie, démontabilité et réversibilité du bâtiment",
+      "Écart entre l'ordre de grandeur de conception et les données réelles"]),
+    ("SPC-FORFAIT", "Étude globale forfaitaire et décomposition par poste",
+     "projet", "tableau", "moe", True,
+     {"APS": "principes", "APD": "emission", "PRO": "maj", "DCE": "gel",
+      "FAISA": "principes", "BASIC": "emission", "FEED": "maj", "EPCI": "recalage"},
+     ["Enveloppe globale et décomposition lot par lot",
+      "Part de chaque lot et fourchette assumée",
+      "Postes à renseigner localement — foncier, raccordement, instruction",
+      "Coût d'exploitation annuel et coût complet sur la durée retenue",
+      "Sensibilité de l'enveloppe aux hypothèses de conception",
+      "IMPORTANT : la structure des lots et leurs parts sont publiées par le "
+      "moteur d'enveloppe de conseilprev (module finance_dc). S'y référer et "
+      "les citer — ne pas les retaper ici : deux tables qui divergent valent "
+      "moins qu'une seule qu'on cite."]),
+]
+
+
+def _piece_discipline(entree, phase):
+    """Une spécification vue depuis une phase donnée, avec le niveau attendu."""
+    c, titre, disc, typ, emet, moteur, phases, contenu = entree
+    niv = phases.get(phase)
+    if not niv:
+        return None
+    t = TYPES_PIECE.get(typ) or {}
+    n = NIVEAUX.get(niv) or {}
+    return {
+        "code": c, "titre": titre,
+        "type": typ, "type_nom": t.get("nom", typ), "type_aide": t.get("aide", ""),
+        "emetteur": emet, "emetteur_nom": EMETTEURS.get(emet, emet),
+        "moteur": bool(moteur),
+        "contenu": list(contenu),
+        "discipline": disc, "discipline_nom": DISCIPLINES.get(disc, disc),
+        "niveau": niv, "niveau_nom": n.get("nom", niv), "niveau_aide": n.get("aide", ""),
+        # Où la même pièce apparaît ailleurs : sans cela, on croit avoir affaire
+        # à un document neuf à chaque phase, et on en produit trois.
+        "autres_phases": sorted(k for k in phases if k != phase),
+    }
+
+
 def pieces(code):
     """Le registre des pièces d'une phase, enrichi de ses libellés.
 
-    On ne renvoie pas les tuples bruts : le type et l'émetteur y sont des clés,
-    et une interface qui afficherait « moe » ou « contractuel » obligerait le
-    lecteur à traduire ce que le module sait déjà dire.
+    Deux origines réunies ici : les pièces PROPRES à la phase et les
+    spécifications de DISCIPLINE dues à cette phase, chacune avec le niveau
+    attendu. On ne renvoie pas les tuples bruts : le type et l'émetteur y sont
+    des clés, et une interface qui afficherait « moe » ou « contractuel »
+    obligerait le lecteur à traduire ce que le module sait déjà dire.
     """
     out = []
     for c, titre, typ, emet, moteur, contenu in _PIECES.get(code, []):
@@ -974,22 +1250,35 @@ def pieces(code):
             "emetteur": emet, "emetteur_nom": EMETTEURS.get(emet, emet),
             "moteur": bool(moteur),
             "contenu": list(contenu),
+            "discipline": None, "discipline_nom": "",
+            "niveau": None, "niveau_nom": "", "niveau_aide": "",
+            "autres_phases": [],
         })
+    for e in _PIECES_DISCIPLINE:
+        p = _piece_discipline(e, code)
+        if p:
+            out.append(p)
     return out
 
 
 def _resume_pieces(liste):
-    """Le compte par type et par émetteur. Dérivé, jamais écrit à la main : un
-    registre s'allonge et les comptes figés se démentent au premier ajout."""
-    par_type, par_emetteur = {}, {}
+    """Le compte par type, émetteur et discipline. Dérivé, jamais écrit à la
+    main : un registre s'allonge et les comptes figés se démentent au premier
+    ajout."""
+    par_type, par_emetteur, par_discipline = {}, {}, {}
     for p in liste:
         par_type[p["type_nom"]] = par_type.get(p["type_nom"], 0) + 1
         par_emetteur[p["emetteur_nom"]] = par_emetteur.get(p["emetteur_nom"], 0) + 1
+        if p.get("discipline_nom"):
+            par_discipline[p["discipline_nom"]] = par_discipline.get(p["discipline_nom"], 0) + 1
     return {
         "total": len(liste),
         "alimentees_par_le_moteur": sum(1 for p in liste if p["moteur"]),
+        "propres_a_la_phase": sum(1 for p in liste if not p.get("discipline")),
+        "specifications_de_discipline": sum(1 for p in liste if p.get("discipline")),
         "par_type": par_type,
         "par_emetteur": par_emetteur,
+        "par_discipline": par_discipline,
     }
 
 
@@ -1384,6 +1673,31 @@ def prompts_piece(profil, code_phase, code_piece, inputs=None):
     A("PIÈCE — %s : %s" % (pc["code"], pc["titre"]))
     A("Type de pièce : %s (%s)" % (pc["type_nom"], pc["type_aide"]))
     A("Émetteur de la pièce : %s" % pc["emetteur_nom"])
+    if pc.get("discipline_nom"):
+        A("Discipline : %s" % pc["discipline_nom"])
+    if pc.get("niveau_nom"):
+        # Le NIVEAU commande la profondeur. Sans lui, le modèle écrit la même
+        # chose à l'esquisse et à la consultation : trop détaillé d'un côté,
+        # pas opposable de l'autre.
+        A("Niveau attendu à CETTE phase : %s — %s"
+          % (pc["niveau_nom"], pc["niveau_aide"]))
+        if pc["niveau"] == "gel":
+            A("Cette pièce devient OPPOSABLE à cette phase. Chaque exigence doit "
+              "être mesurable, assortie de sa méthode de contrôle et de son "
+              "critère d'acceptation. Une exigence qualitative (« de bonne "
+              "qualité », « performant ») n'a pas sa place ici.")
+        elif pc["niveau"] == "principes":
+            A("À ce stade, on n'attend QUE le parti retenu et les exigences de "
+              "niveau. Ne descends pas au dimensionnement : un détail donné trop "
+              "tôt se fige et coûte une reprise.")
+        elif pc["niveau"] in ("recalage", "as_built"):
+            A("Cette version se recale sur les données RÉELLES des équipements "
+              "retenus. Là où tu ne disposes que de valeurs de conception, dis-le "
+              "explicitement et signale ce qui reste à recaler.")
+    if pc.get("autres_phases"):
+        A("Document unique, repris à d'autres phases (%s) : c'est un INDICE de "
+          "la même pièce, pas un document neuf. Rappelle en tête l'indice et la "
+          "phase d'émission." % ", ".join(pc["autres_phases"]))
     if pc["emetteur"] not in ("moe", "mo"):
         # Une pièce que la maîtrise d'œuvre ne produit pas mais reçoit : la
         # rédiger comme si on l'avait produite déplacerait une responsabilité.
@@ -1509,12 +1823,32 @@ def sante():
     # uniques d'un bout à l'autre — un code réutilisé casse la traçabilité au
     # moment même où elle sert — et les types et émetteurs doivent exister.
     tous = [x for p_ in PHASES for x in pieces(p_["code"])]
-    codes_pieces = [x["code"] for x in tous]
-    doublons = sorted({c for c in codes_pieces if codes_pieces.count(c) > 1})
+    # Un code identifie UNE pièce. Une spécification de discipline revient à
+    # plusieurs phases sous le même code — c'est voulu, c'est le même document
+    # à un autre indice. On vérifie donc l'unicité PAR PHASE, et la cohérence
+    # d'intitulé d'une phase à l'autre : deux titres différents sous un même
+    # code feraient croire à deux documents.
+    doublons, titres = [], {}
+    for p_ in PHASES:
+        vus = [x["code"] for x in pieces(p_["code"])]
+        doublons += sorted({p_["code"] + "/" + c for c in vus if vus.count(c) > 1})
+    for x in tous:
+        titres.setdefault(x["code"], set()).add(x["titre"])
+    titres_incoherents = sorted(c for c, t in titres.items() if len(t) > 1)
+
     sans_registre = [p_["code"] for p_ in PHASES if not pieces(p_["code"])]
     types_inconnus = sorted({x["type"] for x in tous if x["type"] not in TYPES_PIECE})
     emet_inconnus = sorted({x["emetteur"] for x in tous if x["emetteur"] not in EMETTEURS})
     sans_contenu = [x["code"] for x in tous if not x["contenu"]]
+    disc_inconnues = sorted({x["discipline"] for x in tous
+                             if x.get("discipline") and x["discipline"] not in DISCIPLINES})
+    niv_inconnus = sorted({x["niveau"] for x in tous
+                           if x.get("niveau") and x["niveau"] not in NIVEAUX})
+    # Une spécification déclarée sur une phase qui n'existe pas ne s'afficherait
+    # jamais : la faute est silencieuse, donc elle se contrôle.
+    connues = {p_["code"] for p_ in PHASES}
+    phases_fantomes = sorted({ph for e in _PIECES_DISCIPLINE for ph in e[6]
+                              if ph not in connues})
 
     p = {"puissance_it_kw": 2000}
     return {
@@ -1525,13 +1859,19 @@ def sante():
         "champs_exiges_inconnus": inconnus,
         "postes_inconnus": postes_inconnus,
         "regressions_d_exigence": regressions,
-        "pieces_total": len(tous),
+        "pieces_occurrences": len(tous),
+        "pieces_distinctes": len(titres),
+        "specifications_de_discipline": len(_PIECES_DISCIPLINE),
         "pieces_alimentees_moteur": sum(1 for x in tous if x["moteur"]),
         "pieces_codes_doublons": doublons,
+        "pieces_titres_incoherents": titres_incoherents,
         "phases_sans_registre": sans_registre,
         "pieces_types_inconnus": types_inconnus,
         "pieces_emetteurs_inconnus": emet_inconnus,
         "pieces_sans_contenu": sans_contenu,
+        "disciplines_inconnues": disc_inconnues,
+        "niveaux_inconnus": niv_inconnus,
+        "specifications_sur_phase_inexistante": phases_fantomes,
         "franchissables_profil_minimal": [
             e["code"] for e in parcours(p, "moe")["etapes"] if e["franchissable"]
         ] + [

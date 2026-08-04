@@ -245,7 +245,10 @@
     var R = d.resume_pieces || {};
     var h = '<div class="ig-reg"><div class="ig-reg-t"><b>' + R.total
       + "</b> pièce" + (R.total > 1 ? "s" : "") + " à fournir · <b>"
-      + R.alimentees_par_le_moteur + "</b> alimentée"
+      + R.propres_a_la_phase + "</b> propre" + (R.propres_a_la_phase > 1 ? "s" : "")
+      + " à la phase · <b>" + R.specifications_de_discipline
+      + "</b> spécification" + (R.specifications_de_discipline > 1 ? "s" : "")
+      + " de discipline · <b>" + R.alimentees_par_le_moteur + "</b> alimentée"
       + (R.alimentees_par_le_moteur > 1 ? "s" : "") + " par le calcul"
       + "<span class='ig-reg-c'>"
       + Object.keys(R.par_type || {}).sort().map(function (k) {
@@ -260,12 +263,26 @@
       h += '<div class="ig-reg-g"><h5>' + esc(g[0].type_nom)
         + " <span>" + esc(g[0].type_aide) + "</span></h5>";
       g.forEach(function (p) {
-        h += '<div class="ig-pc' + (p.moteur ? " mot" : "") + '">'
+        h += '<div class="ig-pc' + (p.moteur ? " mot" : "")
+          + (p.discipline ? " dis" : "") + '">'
           + '<div class="ig-pc-h"><code>' + esc(p.code) + "</code> "
           + '<span class="ti">' + esc(p.titre) + "</span>"
           + '<span class="em">' + esc(p.emetteur_nom) + "</span>"
           + (p.moteur ? '<span class="mo">alimentée par le calcul</span>' : "")
           + "</div>"
+          /* Le NIVEAU commande la profondeur attendue. Sans lui, une même
+             spécification se lit à l'identique de l'esquisse à la consultation,
+             alors qu'elle n'y engage pas du tout la même chose. */
+          + (p.niveau_nom
+              ? '<div class="ig-pc-nv"><span class="nv nv-' + esc(p.niveau) + '">'
+                + esc(p.niveau_nom) + "</span> " + esc(p.niveau_aide)
+                + (p.discipline_nom ? ' <span class="di">' + esc(p.discipline_nom)
+                    + "</span>" : "")
+                + (p.autres_phases && p.autres_phases.length
+                    ? '<span class="ap">document unique, repris en '
+                      + esc(p.autres_phases.join(", ")) + "</span>" : "")
+                + "</div>"
+              : "")
           + '<ul>' + p.contenu.map(function (c) { return "<li>" + esc(c) + "</li>"; }).join("")
           + "</ul>"
           + '<div class="ig-pc-a"><button type="button" class="ig-gen" '

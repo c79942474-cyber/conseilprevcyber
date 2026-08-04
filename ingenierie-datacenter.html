@@ -147,6 +147,25 @@
   /* Une pièce alimentée par le calcul se distingue : elle hérite des grandeurs
      ET de leurs réserves de phase, les autres non. */
   .ig-pc.mot{border-left:3px solid var(--cyan)}
+  /* Une spécification de discipline n'est pas propre à la phase : c'est le même
+     document à un autre indice. Le fond la distingue des pièces qui, elles,
+     n'existent qu'ici. */
+  .ig-pc.dis{background:rgba(139,124,246,.07)}
+  .ig-pc-nv{font-size:11.5px;color:var(--muted2);line-height:1.55;margin:0 0 7px;
+    display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .ig-pc-nv .nv{font-family:var(--mono);font-size:10px;letter-spacing:.05em;
+    text-transform:uppercase;border-radius:20px;padding:2px 8px;border:1px solid var(--line);
+    white-space:nowrap}
+  /* Le gel contractuel se voit : c'est la phase où l'exigence devient
+     opposable, et où une formulation qualitative devient un défaut. */
+  .ig-pc-nv .nv-gel{color:#F0B429;border-color:#F0B429}
+  .ig-pc-nv .nv-principes{color:var(--muted2)}
+  .ig-pc-nv .nv-emission{color:#8B7CF6;border-color:#8B7CF6}
+  .ig-pc-nv .nv-maj{color:var(--cyan);border-color:var(--cyan)}
+  .ig-pc-nv .nv-recalage,.ig-pc-nv .nv-as_built{color:#D9603A;border-color:#D9603A}
+  .ig-pc-nv .di{font-family:var(--mono);font-size:10px;color:var(--muted2);
+    border-left:1px solid var(--line);padding-left:8px}
+  .ig-pc-nv .ap{font-size:10.5px;color:var(--muted2);flex:1 1 100%;font-style:italic}
   .ig-pc-h{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:6px}
   .ig-pc-h code{font-family:var(--mono);font-size:11px;color:var(--cyan);
     border:1px solid var(--line);border-radius:5px;padding:1px 6px}

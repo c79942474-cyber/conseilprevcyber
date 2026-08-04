@@ -2161,22 +2161,35 @@ def _etude_phase_markdown(d, client=""):
         r = d.get("resume_pieces") or {}
         A("## 5. Registre des pièces à fournir")
         A("")
-        A("%d pièces, dont %d alimentées par le calcul énergie / eau / carbone. "
-          "Les autres relèvent d'autres disciplines et figurent pour mémoire."
-          % (r.get("total", len(pcs)), r.get("alimentees_par_le_moteur", 0)))
+        A("%d pièces — %d propres à la phase et %d spécifications de discipline. "
+          "%d sont alimentées par le calcul énergie / eau / carbone ; les autres "
+          "relèvent d'autres disciplines et figurent pour mémoire."
+          % (r.get("total", len(pcs)), r.get("propres_a_la_phase", 0),
+             r.get("specifications_de_discipline", 0),
+             r.get("alimentees_par_le_moteur", 0)))
         A("")
-        A("| Code | Pièce | Type | Émetteur | Calcul |")
-        A("| --- | --- | --- | --- | --- |")
+        A("| Code | Pièce | Type | Émetteur | Niveau attendu | Calcul |")
+        A("| --- | --- | --- | --- | --- | --- |")
         for p in pcs:
-            A("| %s | %s | %s | %s | %s |"
+            A("| %s | %s | %s | %s | %s | %s |"
               % (p["code"], p["titre"], p["type_nom"], p["emetteur_nom"],
-                 "oui" if p["moteur"] else "—"))
+                 p.get("niveau_nom") or "—", "oui" if p["moteur"] else "—"))
         A("")
         A("### Contenu exigé de chaque pièce")
         A("")
         for p in pcs:
             A("**%s — %s** (%s ; %s)"
               % (p["code"], p["titre"], p["type_nom"], p["emetteur_nom"]))
+            if p.get("niveau_nom"):
+                # Le niveau attendu, écrit à côté du contenu : c'est lui qui dit
+                # jusqu'où descendre, et une même spécification n'engage pas la
+                # même chose à l'avant-projet et à la consultation.
+                A("")
+                A("*%s — %s*" % (p["niveau_nom"], p["niveau_aide"]))
+                if p.get("autres_phases"):
+                    A("")
+                    A("*Document unique, repris en %s : c'est un indice de la même "
+                      "pièce, pas un document neuf.*" % ", ".join(p["autres_phases"]))
             A("")
             for c in p["contenu"]:
                 A("- %s" % c)
