@@ -565,6 +565,238 @@ EMETTEURS = {
     "epc": "Contractant EPC",
 }
 
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  3 ter. L'IDENTIFICATION DU PROJET
+# ═══════════════════════════════════════════════════════════════════════════
+# Ces trois listes n'entrent dans AUCUN calcul : elles cadrent la RÉDACTION.
+# Elles vivent ici et non dans la page, pour la raison habituelle — une option
+# recopiée dans le HTML finit par proposer un choix que le module ne sait plus
+# interpréter.
+#
+# Chaque option porte ce qu'elle IMPLIQUE, et c'est la seule chose qui justifie
+# une liste plutôt qu'un champ libre. « Colocation » tapé à la main n'est qu'un
+# mot de plus dans le prompt ; l'option, elle, porte avec elle le fait que les
+# indicateurs deviennent opposables aux clients hébergés et qu'il faut un
+# sous-comptage par cage. C'est cela qui change le document produit.
+#
+# Le NOM du client reste en saisie libre : une liste de noms de clients n'a
+# aucun sens et obligerait à choisir « Autre » à chaque projet.
+
+MAITRISE_OUVRAGE = {
+    "colocation": {
+        "nom": "Opérateur de colocation",
+        "implique": "Les indicateurs de performance deviennent opposables aux "
+                    "clients hébergés, et pas seulement au maître d'ouvrage : les "
+                    "pièces doivent prévoir le sous-comptage par cage ou par salle, "
+                    "et le partage de responsabilité sur le PUE — l'exploitant ne "
+                    "maîtrise pas la charge informatique de ses clients.",
+    },
+    "hyperscale": {
+        "nom": "Opérateur hyperscale ou fournisseur de cloud",
+        "implique": "Des standards internes de conception existent et priment "
+                    "généralement sur les usages locaux : les spécifications s'y "
+                    "réfèrent au lieu de les réécrire. La conception est répétable "
+                    "d'un site à l'autre, et le délai de mise en service pèse plus "
+                    "lourd que le coût unitaire.",
+    },
+    "entreprise": {
+        "nom": "Entreprise pour son usage propre",
+        "implique": "Le centre sert une seule activité : l'arbitrage entre "
+                    "investissement et exploitation est interne, sans revente de "
+                    "capacité. Les niveaux de disponibilité se justifient par "
+                    "l'impact métier — à documenter — et non par une offre "
+                    "commerciale.",
+    },
+    "fonds": {
+        "nom": "Fonds d'infrastructure ou investisseur",
+        "implique": "L'attente porte sur le coût complet et la valeur de sortie, "
+                    "pas sur la technique pour elle-même. Les exigences "
+                    "extra-financières des souscripteurs pèsent sur les pièces "
+                    "environnementales, qui doivent être auditables par un tiers.",
+    },
+    "telecom": {
+        "nom": "Opérateur de télécommunications",
+        "implique": "La latence et les points de présence commandent l'implantation "
+                    "avant le coût. Les pièces traitent l'interconnexion, les "
+                    "chemins optiques redondants et la cohabitation avec des "
+                    "équipements de transmission.",
+    },
+    "public": {
+        "nom": "Maîtrise d'ouvrage publique",
+        # La conséquence la plus lourde de la liste, et elle est juridique : elle
+        # fait passer toute la séquence MOE de l'usage à l'obligation.
+        "implique": "La loi MOP et le code de la commande publique s'appliquent : "
+                    "les éléments de mission — ESQ, APS, APD, PRO, ACT, VISA, DET, "
+                    "AOR — ne relèvent plus de l'usage mais de l'OBLIGATION, et "
+                    "leur contenu est fixé par décret. Les seuils et procédures de "
+                    "publicité conditionnent le calendrier de consultation.",
+        "mop_obligatoire": True,
+    },
+    "souverain": {
+        "nom": "Projet souverain ou de défense",
+        "implique": "Des exigences de classification et d'homologation se "
+                    "superposent à tout le reste et peuvent interdire certaines "
+                    "fournitures. Les pièces prévoient le cloisonnement des "
+                    "informations et une chaîne d'approvisionnement maîtrisée.",
+    },
+}
+
+SECTEURS = {
+    "colo_gros": {
+        "nom": "Colocation de gros (wholesale)",
+        "implique": "Des salles entières louées à un petit nombre de preneurs : la "
+                    "conception se cale sur leurs exigences, souvent "
+                    "contractualisées avant la construction.",
+    },
+    "colo_detail": {
+        "nom": "Colocation de détail (retail)",
+        "implique": "Beaucoup de clients, densités hétérogènes et remplissage "
+                    "progressif : la pénalité de charge partielle est le premier "
+                    "poste de perte des premières années.",
+    },
+    "hyperscale": {
+        "nom": "Hyperscale et cloud public",
+        "implique": "Densité élevée, conception répétable, exigences de délai "
+                    "fortes. Le refroidissement liquide direct est souvent le point "
+                    "de départ, pas une variante.",
+    },
+    "ia_hpc": {
+        "nom": "Calcul intensif et intelligence artificielle",
+        "implique": "Densité par baie très supérieure aux usages classiques : le "
+                    "refroidissement liquide devient contraint et non choisi, et le "
+                    "profil de charge est plus stable qu'en cloud généraliste.",
+    },
+    "entreprise": {
+        "nom": "Salle informatique d'entreprise",
+        "implique": "Puissance modeste, souvent en site occupé : les contraintes "
+                    "d'intervention sans arrêt d'exploitation dominent la "
+                    "conception.",
+    },
+    "edge": {
+        "nom": "Edge et sites de proximité",
+        "implique": "Faible puissance, nombreux sites, exploitation sans personnel "
+                    "sur place : la télésurveillance et la standardisation priment "
+                    "sur l'optimisation unitaire.",
+    },
+    "souverain": {
+        "nom": "Cloud souverain ou hébergement qualifié",
+        "implique": "Des exigences de qualification et de localisation des données "
+                    "s'ajoutent : elles se traduisent en clauses, pas seulement en "
+                    "choix techniques.",
+    },
+    "sante": {
+        "nom": "Hébergement de données de santé",
+        "implique": "L'hébergement de données de santé est soumis à certification : "
+                    "traçabilité et disponibilité doivent figurer dans les pièces "
+                    "contractuelles dès la consultation.",
+    },
+}
+
+PERIMETRES = {
+    "salle": {
+        "nom": "Une salle informatique",
+        "implique": "Le périmètre s'arrête aux limites de la salle : les pièces "
+                    "définissent précisément les interfaces avec les utilités du "
+                    "bâtiment, qui ne sont pas au marché.",
+    },
+    "batiment": {
+        "nom": "Un bâtiment complet",
+        "implique": "Le périmètre couvre le clos, le couvert et toutes les "
+                    "utilités : l'ensemble des lots techniques est au marché, et "
+                    "les interfaces entre lots deviennent le point dur.",
+    },
+    "campus": {
+        "nom": "Un campus de plusieurs bâtiments",
+        "implique": "Un plan-masse directeur et une stratégie de phasage sont "
+                    "nécessaires : les utilités mutualisées — poste source, "
+                    "production de froid centralisée — se dimensionnent sur la "
+                    "cible et non sur la première tranche.",
+    },
+    "extension": {
+        "nom": "Extension d'un site en exploitation",
+        "implique": "Le site fonctionne pendant les travaux : les pièces traitent "
+                    "les phases de basculement, les coupures programmées et le "
+                    "maintien de la disponibilité contractuelle.",
+    },
+    "retrofit": {
+        "nom": "Reprise ou rénovation d'un existant",
+        "implique": "Un diagnostic de l'existant conditionne tout le reste : "
+                    "capacité structurelle, état des réseaux, repérage des "
+                    "matériaux dangereux le cas échéant. Les hypothèses de "
+                    "conception ne valent qu'après relevés.",
+    },
+    "modulaire": {
+        "nom": "Modules préfabriqués ou conteneurisés",
+        "implique": "Une part de la conception est transférée au fournisseur des "
+                    "modules : les pièces spécifient des interfaces et des "
+                    "performances garanties plutôt que des ouvrages, et des lots "
+                    "entiers disparaissent du marché de travaux.",
+    },
+    "multi": {
+        "nom": "Plusieurs sites d'un même programme",
+        "implique": "Les pièces sont mutualisées puis déclinées par site : il faut "
+                    "distinguer ce qui relève du programme de ce qui relève de "
+                    "chaque implantation, sous peine de tout renégocier à chaque "
+                    "site.",
+    },
+}
+
+IDENTIFICATION = [
+    {"id": "maitrise_ouvrage", "label": "Type de maîtrise d'ouvrage",
+     "aide": "Qui porte le projet — cela change à qui les indicateurs sont "
+             "opposables, et parfois le régime juridique de la mission.",
+     "options": MAITRISE_OUVRAGE},
+    {"id": "secteur", "label": "Segment de marché du centre",
+     "aide": "Ce que le centre héberge — cela commande la densité, le profil de "
+             "charge et le mode de refroidissement de départ.",
+     "options": SECTEURS},
+    {"id": "perimetre", "label": "Périmètre de l'opération",
+     "aide": "Ce qui est au marché — cela décide quels lots existent et où passent "
+             "les interfaces.",
+     "options": PERIMETRES},
+]
+
+IDENTIFICATION_NOTE = (
+    "Ces choix n'entrent dans AUCUN calcul : ils cadrent la rédaction des pièces. "
+    "Chacun porte ce qu'il implique pour le dossier, et cette implication est "
+    "transmise au rédacteur — c'est ce qui distingue une liste d'un champ libre. "
+    "Le nom du client, lui, reste en saisie libre : une liste de noms n'aurait "
+    "aucun sens.")
+
+
+def _option(table, cle):
+    """L'option choisie, ou None. On ne devine pas : une clé inconnue ne doit
+    surtout pas retomber sur une valeur par défaut qui ferait rédiger la pièce
+    sous une hypothèse que personne n'a choisie."""
+    o = (table or {}).get(str(cle or "").strip())
+    return o if isinstance(o, dict) else None
+
+
+def contexte_projet(inputs):
+    """Ce que les choix d'identification impliquent, prêt à être transmis.
+
+    Renvoie les options reconnues et, séparément, les valeurs non reconnues :
+    une clé inventée doit se voir, pas se perdre en silence.
+    """
+    inputs = dict(inputs or {})
+    retenus, inconnus = [], []
+    for champ in IDENTIFICATION:
+        v = inputs.get(champ["id"])
+        if not v:
+            continue
+        o = _option(champ["options"], v)
+        if not o:
+            inconnus.append({"champ": champ["id"], "valeur": str(v)[:40]})
+            continue
+        retenus.append({"champ": champ["id"], "label": champ["label"],
+                        "cle": str(v), "nom": o["nom"], "implique": o["implique"],
+                        "mop_obligatoire": bool(o.get("mop_obligatoire"))})
+    return {"retenus": retenus, "inconnus": inconnus,
+            "mop_obligatoire": any(r["mop_obligatoire"] for r in retenus),
+            "note": IDENTIFICATION_NOTE}
+
+
 # (code, titre, type, émetteur, alimentée par le moteur, [ce qu'elle doit contenir])
 _PIECES = {
     "ESQ": [
@@ -1683,9 +1915,14 @@ def prompts_piece(profil, code_phase, code_piece, inputs=None):
         return None
 
     client = (inputs.get("client") or "").strip() or "[client à préciser]"
-    secteur = (inputs.get("secteur") or "").strip() or "[secteur à préciser]"
-    perimetre = (inputs.get("perimetre") or "").strip() or "[périmètre à préciser]"
     consignes = (inputs.get("consignes") or "").strip()
+    # Les choix d'identification et surtout ce qu'ils IMPLIQUENT. Transmettre la
+    # seule étiquette — « colocation » — reviendrait à n'avoir rien gagné sur un
+    # champ libre : c'est l'implication qui change le document.
+    ctx = contexte_projet(inputs)
+    ctx_par_champ = {r["champ"]: r for r in ctx["retenus"]}
+    secteur = (ctx_par_champ.get("secteur") or {}).get("nom") or "[segment à préciser]"
+    perimetre = (ctx_par_champ.get("perimetre") or {}).get("nom") or "[périmètre à préciser]"
 
     u = []
     A = u.append
@@ -1734,9 +1971,30 @@ def prompts_piece(profil, code_phase, code_piece, inputs=None):
     A("Niveau de précision attendu : %s (%s ; %s)"
       % (d["precision"]["valeur"], d["precision"]["nature"], d["precision"]["aace"]))
     A("")
-    A("PROJET — client : %s · secteur : %s · périmètre : %s"
+    A("PROJET — client : %s · segment : %s · périmètre : %s"
       % (client, secteur, perimetre))
+    if ctx["retenus"]:
+        A("")
+        A("CE QUE LE CONTEXTE DU PROJET IMPOSE — à prendre en compte dans la "
+          "rédaction, chaque point vient d'un choix explicite du lecteur :")
+        for r in ctx["retenus"]:
+            A("- %s (%s) — %s" % (r["label"], r["nom"], r["implique"]))
+    if ctx["mop_obligatoire"] and d["filiere"] == "moe":
+        # La conséquence la plus lourde, répétée ici : en commande publique la
+        # séquence n'est plus un usage, et une pièce rédigée comme en privé
+        # expose le maître d'ouvrage.
+        A("")
+        A("RAPPEL IMPÉRATIF — la maîtrise d'ouvrage est publique : le contenu de "
+          "cet élément de mission est fixé par décret et n'est pas négociable. "
+          "Ne présente aucune de ses composantes comme optionnelle ou comme "
+          "relevant d'un usage.")
+    if ctx["inconnus"]:
+        A("")
+        A("Valeurs d'identification non reconnues, à ignorer plutôt qu'à "
+          "interpréter : %s"
+          % ", ".join("%s = %s" % (x["champ"], x["valeur"]) for x in ctx["inconnus"]))
     if consignes:
+        A("")
         A("Consignes particulières : %s" % consignes)
     A("")
 
@@ -1787,8 +2045,8 @@ def prompts_piece(profil, code_phase, code_piece, inputs=None):
       "partir d'un calcul déterministe, à relire et valider par un ingénieur."
       % (pc["code"], pc["titre"]))
 
-    requete = " ".join([pc["titre"], d["nom"], d["filiere_nom"],
-                        "centre de données", secteur, perimetre, consignes]).strip()
+    requete = " ".join([pc["titre"], d["nom"], d["filiere_nom"], "centre de données",
+                        secteur, perimetre, consignes]).strip()
     return SYSTEM_PIECE, "\n".join(u), requete
 
 
@@ -1806,6 +2064,15 @@ def referentiel():
         # documentaire, qui est justement ce qu'on regarde en début de projet.
         "types_piece": TYPES_PIECE,
         "emetteurs": EMETTEURS,
+        # Les listes d'identification, servies au lieu d'être écrites dans la
+        # page : une option recopiée dans le HTML finit par proposer un choix
+        # que le module ne sait plus interpréter.
+        "identification": [
+            {"id": c["id"], "label": c["label"], "aide": c["aide"],
+             "options": [{"cle": k, "nom": v["nom"], "implique": v["implique"]}
+                         for k, v in c["options"].items()]}
+            for c in IDENTIFICATION],
+        "identification_note": IDENTIFICATION_NOTE,
         "formes_attendues": FORME_ATTENDUE,
         "pieces": {p["code"]: pieces(p["code"]) for p in PHASES},
         "note_registre": NOTE_REGISTRE,

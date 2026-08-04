@@ -128,6 +128,13 @@
   .ig-plan ol{margin:6px 0 0 18px;padding:0;columns:2;column-gap:26px}
   @media(max-width:760px){ .ig-plan ol{columns:1} }
   .ig-corr{font-size:12.5px;color:var(--muted2);line-height:1.6;margin-top:10px}
+  /* Ce qu'un choix IMPLIQUE, affiché dès qu'il est fait. Sans cela le lecteur
+     choisit une étiquette sans savoir ce qu'elle engage, et la liste ne vaut
+     pas mieux que le champ libre qu'elle remplace. */
+  .ig-impl{font-size:11.5px;color:var(--ink);line-height:1.55;margin-top:3px;
+    padding:8px 11px;border-left:2px solid var(--cyan);background:rgba(34,211,238,.08);
+    border-radius:0 7px 7px 0}
+  .ig-impl[hidden]{display:none}
   /* Le renvoi vers ce que la phase attend d'un autre moteur. Assez visible pour
      ne pas être manqué : une faisabilité sans enveloppe n'en est pas une. */
   .ig-renvoi{margin-top:14px;border:1px solid var(--line);border-left:3px solid var(--amber,#F0B429);
@@ -276,17 +283,21 @@
     <!-- Ces trois champs n'entrent dans AUCUN calcul : ils servent uniquement à
          la rédaction des pièces, qui doit nommer le projet. Les mêler au profil
          technique laisserait croire qu'ils pèsent sur les bilans. -->
+    <!-- Les listes ne sont PAS écrites ici : elles sont construites depuis le
+         référentiel du serveur, comme le formulaire technique. Une option
+         recopiée dans le HTML finit par proposer un choix que le module ne sait
+         plus interpréter. Seul le nom du client reste un champ libre — une
+         liste de noms de clients n'aurait aucun sens. -->
     <div class="rc-card" style="margin-top:14px">
       <p class="dc-lab" style="margin:0 0 10px">Identification du projet
         <span class="dc-unite">(sert à la rédaction des pièces, pas aux calculs)</span></p>
-      <div class="dc-grille">
-        <label class="dc-champ" for="ig-client"><span class="dc-lab">Client ou organisation</span>
-          <input id="ig-client" type="text" placeholder="— à préciser —"></label>
-        <label class="dc-champ" for="ig-secteur"><span class="dc-lab">Secteur d'activité</span>
-          <input id="ig-secteur" type="text" placeholder="colocation, hyperscale, entreprise…"></label>
-        <label class="dc-champ" for="ig-perimetre"><span class="dc-lab">Périmètre</span>
-          <input id="ig-perimetre" type="text" placeholder="salle, bâtiment, campus…"></label>
+      <div class="dc-grille" id="ig-ident">
+        <label class="dc-champ" for="ig-client"><span class="dc-lab">Nom du client ou de l'organisation</span>
+          <input id="ig-client" type="text" placeholder="— à préciser —">
+          <span class="dc-aide">Saisie libre : ce champ nomme le projet dans les
+            pièces, il n'a pas de liste.</span></label>
       </div>
+      <p class="note" id="ig-ident-n" style="margin:11px 0 0"></p>
     </div>
     <p class="note" id="ig-etat" role="status" aria-live="polite" style="margin-top:12px"></p>
   </section>

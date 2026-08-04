@@ -82,6 +82,57 @@
     return p;
   }
 
+  /* ── L'identification du projet ────────────────────────────────────────
+     Trois listes construites depuis le référentiel. Chaque option porte ce
+     qu'elle IMPLIQUE, et cette implication est affichée dès la sélection : sans
+     elle, le lecteur choisit une étiquette sans savoir ce qu'elle engage, et la
+     liste ne vaut pas mieux qu'un champ libre. */
+  function bâtirIdentification() {
+    var champs = (CADRE.identification || []);
+    if (!champs.length) return;
+    var z = $("#ig-ident");
+    var h = "";
+    champs.forEach(function (c) {
+      var id = "ig-" + c.id;
+      h += '<label class="dc-champ" for="' + id + '">'
+        + '<span class="dc-lab">' + esc(c.label) + "</span>"
+        + '<select id="' + id + '" data-ident="' + esc(c.id) + '">'
+        + '<option value="">— non précisé —</option>'
+        + (c.options || []).map(function (o) {
+            return '<option value="' + esc(o.cle) + '">' + esc(o.nom) + "</option>";
+          }).join("")
+        + "</select>"
+        + '<span class="dc-aide">' + esc(c.aide) + "</span>"
+        + '<span class="ig-impl" id="' + id + '-i" hidden></span>'
+        + "</label>";
+    });
+    z.insertAdjacentHTML("beforeend", h);
+    z.querySelectorAll("[data-ident]").forEach(function (s) {
+      s.addEventListener("change", function () { montrerImplication(s); });
+    });
+    var n = $("#ig-ident-n");
+    if (n) n.textContent = CADRE.identification_note || "";
+  }
+
+  function montrerImplication(sel) {
+    var cid = sel.getAttribute("data-ident");
+    var champ = (CADRE.identification || []).filter(function (c) { return c.id === cid; })[0];
+    var box = $("#" + sel.id + "-i");
+    if (!champ || !box) return;
+    var o = (champ.options || []).filter(function (x) { return x.cle === sel.value; })[0];
+    if (!o) { box.hidden = true; box.textContent = ""; return; }
+    box.hidden = false;
+    box.textContent = o.implique;
+  }
+
+  function lireIdentification() {
+    var o = {};
+    document.querySelectorAll("#ig-ident [data-ident]").forEach(function (s) {
+      if (s.value) o[s.getAttribute("data-ident")] = s.value;
+    });
+    return o;
+  }
+
   /* ── Les onglets de filière ──────────────────────────────────────────── */
   function bâtirOnglets() {
     var f = (CADRE.filieres || {});
@@ -326,8 +377,11 @@
     p.phase = PHASE;
     p.piece = code;
     p.client = (($("#ig-client") || {}).value || "").trim();
-    p.secteur = (($("#ig-secteur") || {}).value || "").trim();
-    p.perimetre = (($("#ig-perimetre") || {}).value || "").trim();
+    /* Les clés d'identification, pas des libellés : c'est le serveur qui sait
+       ce que chacune implique, et lui envoyer le texte affiché l'obligerait à
+       le réinterpréter. */
+    var ident = lireIdentification();
+    Object.keys(ident).forEach(function (k) { p[k] = ident[k]; });
     bouton.disabled = true;
     var ancien = bouton.textContent;
     bouton.textContent = "Rédaction…";
@@ -495,6 +549,7 @@
         REF = rs[0];
         CADRE = rs[1].referentiel;
         bâtirFormulaire();
+        bâtirIdentification();
         bâtirOnglets();
         rendreCorrespondances();
         rafraichir();
