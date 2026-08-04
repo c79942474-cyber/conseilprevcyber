@@ -76,6 +76,14 @@
     });
     h += "</div>";
     $("#dc-form").innerHTML = h;
+
+    /* L'aperçu suit la saisie. Un seul écouteur posé sur le conteneur plutôt
+       que treize sur les champs : le formulaire est reconstruit depuis le
+       référentiel, et des écouteurs par champ seraient à reposer à chaque
+       reconstruction — celui-ci survit. */
+    $("#dc-form").addEventListener("input", function () { apercuProfil(); });
+    $("#dc-form").addEventListener("change", function () { apercuProfil(); });
+    apercuProfil(true);
   }
 
   function lireProfil() {
@@ -271,6 +279,276 @@
       + '<div class="dc-g-lg">' + sers.map(function (s2) {
           return '<span><i style="background:' + s2.c + '"></i>' + esc(s2.nom) + "</span>";
         }).join("") + (opts.legende ? "<span>" + opts.legende + "</span>" : "") + "</div>";
+  }
+
+  /* ── L'aperçu du profil : ce qui reste ouvert avant de calculer ─────────
+     L'étape 1 affirme que « renseigner davantage resserre les incertitudes ».
+     Cette affirmation était invérifiable — il fallait la croire. Le serveur la
+     chiffre maintenant (profil_dc.py) en rejouant l'étude sur le domaine de
+     chaque champ vide ; ici, on la dessine. Aucun de ces nombres n'est calculé
+     dans le navigateur. */
+
+  /* La couleur dit d'où le balayage tire son autorité. C'est la seule
+     information qu'un lecteur ne peut pas deviner en regardant une barre, et
+     c'est celle qui décide s'il peut s'en servir dans un dossier. */
+  var COUL_NATURE = { referentiel: "#22D3EE", definition: "#8B7CF6", hypothese: "#F0B429" };
+  var NOM_NATURE = {
+    referentiel: "énuméré au référentiel",
+    definition: "borné par définition",
+    hypothese: "balayage déclaré",
+  };
+
+  /* La courbe de charge partielle. Le coude vient du serveur, qui l'a DÉTECTÉ
+     sur les points calculés ; l'écrire ici en dur aurait fabriqué une seconde
+     définition du seuil, qui aurait survécu à un changement du moteur. */
+  function courbeCharge(c) {
+    if (!c || !c.disponible || !(c.points || []).length) return "";
+    var P = c.points;
+    var L = 880, H = 300, mg = 58, md = 22, mh = 18, mb = 44;
+    var x0 = mg, x1 = L - md, y0 = mh, y1 = H - mb;
+    var tMin = P[0].taux, tMax = P[P.length - 1].taux;
+    var lo = Infinity, hi = -Infinity;
+    P.forEach(function (p) {
+      lo = Math.min(lo, p.pue_min); hi = Math.max(hi, p.pue_max);
+    });
+    if (hi - lo < 0.02) { lo -= 0.05; hi += 0.05; }   /* PUE imposé : bande nulle */
+    var pad = (hi - lo) * 0.12; lo -= pad; hi += pad;
+    var X = function (t) { return x0 + (t - tMin) / (tMax - tMin) * (x1 - x0); };
+    var Y = function (v) { return y1 - (v - lo) / (hi - lo) * (y1 - y0); };
+    /* Sur un axe, le nombre de décimales doit être CONSTANT. fr() supprime les
+       zéros de fin, ce qui donnait « 1,676 » au-dessus de « 1,44 » : l'œil
+       compare alors des chiffres qui n'ont pas le même rang. */
+    var pas = (hi - lo) / 4;
+    var dec = pas >= 1 ? 0 : pas >= 0.1 ? 2 : 3;
+    var axe = function (v) { return v.toFixed(dec).replace(".", ","); };
+
+    var h = '<div class="dc-g-wrap"><svg class="dc-g dc-c" viewBox="0 0 ' + L + " " + H + '" '
+      + 'role="img" preserveAspectRatio="xMinYMin meet" aria-label="'
+      + esc("Courbe du PUE en fonction du taux de charge, de "
+            + fr(tMin) + " à " + fr(tMax) + ". PUE de "
+            + fr(P[P.length - 1].pue) + " à pleine charge, "
+            + fr(P[0].pue) + " au taux le plus bas."
+            + (c.coude ? " Coude détecté à " + fr(c.coude.taux) + "." : "")) + '">';
+
+    /* Grille horizontale : quatre lignes suffisent à situer une valeur ; au
+       delà elles concurrencent la courbe. */
+    var i, v;
+    for (i = 0; i <= 4; i++) {
+      v = lo + (hi - lo) * i / 4;
+      h += '<line class="dc-c-gr" x1="' + x0 + '" y1="' + Y(v).toFixed(1)
+        + '" x2="' + x1 + '" y2="' + Y(v).toFixed(1) + '"/>'
+        + '<text class="dc-c-ax" x="' + (x0 - 8) + '" y="' + (Y(v) + 4).toFixed(1)
+        + '" text-anchor="end">' + axe(v) + "</text>";
+    }
+    P.forEach(function (p, j) {
+      if (j % 4) return;
+      h += '<text class="dc-c-ax" x="' + X(p.taux).toFixed(1) + '" y="' + (y1 + 20)
+        + '" text-anchor="middle">' + fr(p.taux) + "</text>";
+    });
+    h += '<text class="dc-c-ti" x="' + ((x0 + x1) / 2).toFixed(0) + '" y="' + (H - 8)
+      + '" text-anchor="middle">Taux de charge moyen</text>'
+      + '<text class="dc-c-ti" transform="translate(14,' + ((y0 + y1) / 2).toFixed(0)
+      + ') rotate(-90)" text-anchor="middle">PUE</text>';
+
+    /* La bande de conception, en aire : c'est elle l'incertitude. Tracer la
+       seule ligne médiane donnerait un PUE qui a l'air connu au millième. */
+    var haut = P.map(function (p) { return X(p.taux).toFixed(1) + "," + Y(p.pue_max).toFixed(1); });
+    var bas = P.slice().reverse().map(function (p) {
+      return X(p.taux).toFixed(1) + "," + Y(p.pue_min).toFixed(1);
+    });
+    h += '<polygon class="dc-c-bd" points="' + haut.concat(bas).join(" ") + '"/>';
+    h += '<polyline class="dc-c-li" points="'
+      + P.map(function (p) { return X(p.taux).toFixed(1) + "," + Y(p.pue).toFixed(1); }).join(" ")
+      + '"/>';
+
+    if (c.coude) {
+      h += '<line class="dc-c-cd" x1="' + X(c.coude.taux).toFixed(1) + '" y1="' + y0
+        + '" x2="' + X(c.coude.taux).toFixed(1) + '" y2="' + y1 + '"/>'
+        + '<text class="dc-c-cl" x="' + (X(c.coude.taux) + 6).toFixed(1) + '" y="' + (y0 + 12)
+        + '">coude ' + fr(c.coude.taux) + "</text>";
+    }
+    /* Chaque point porte son infobulle : la valeur exacte s'y lit sans encombrer
+       le tracé, et l'énergie annuelle avec elle — c'est elle qu'on paie. */
+    P.forEach(function (p) {
+      h += '<circle class="dc-c-pt" cx="' + X(p.taux).toFixed(1) + '" cy="' + Y(p.pue).toFixed(1)
+        + '" r="7"><title>' + esc("Taux " + fr(p.taux) + " · PUE " + fr(p.pue)
+          + " (bande " + fr(p.pue_min) + "–" + fr(p.pue_max) + ") · "
+          + fr(p.energie_totale_MWh) + " MWh/an") + "</title></circle>";
+    });
+    var k = c.courant;
+    if (k) {
+      h += '<circle class="dc-c-ic" cx="' + X(k.taux).toFixed(1) + '" cy="' + Y(k.pue).toFixed(1)
+        + '" r="5.5"/>'
+        + '<text class="dc-c-cl on" x="' + X(k.taux).toFixed(1) + '" y="' + (Y(k.pue) - 12).toFixed(1)
+        + '" text-anchor="middle">'
+        + esc((c.taux_renseigne ? "votre taux " : "défaut ") + fr(k.taux)) + "</text>";
+    }
+    h += "</svg></div>";
+
+    /* La pastille de légende reprend EXACTEMENT le remplissage de la bande —
+       .dc-c-bd — sinon la légende désigne une couleur qui n'est pas à l'écran. */
+    h += '<div class="dc-g-lg"><span><i style="background:#22D3EE"></i>PUE calculé</span>'
+      + '<span><i style="background:rgba(34,211,238,.34);'
+      + 'outline:1px solid rgba(34,211,238,.55)"></i>plage de conception — '
+      + esc(c.famille) + "</span>"
+      + (c.coude ? '<span><i style="background:#F0B429"></i>coude détecté sur les points calculés</span>' : "")
+      + "</div>";
+    h += '<p class="dc-lecture">' + esc(c.note)
+      + (c.coude ? " <b>Au-dessous de " + esc(fr(c.coude.taux)) + "</b>, chaque point de "
+          + "charge perdu dégrade le PUE ; au-dessus, il n'entre plus dans ce modèle." : "")
+      + "</p>";
+    return h;
+  }
+
+  /* Ce que chaque champ vide laisse encore ouvert. Les barres sont classées par
+     portée décroissante : la première est le champ à renseigner en priorité,
+     et c'est la seule question que se pose un lecteur devant ce graphique. */
+  function tornade(s) {
+    if (!s || !s.disponible) return "";
+    var F = s.facteurs || [];
+    if (!F.length) {
+      return '<p class="dc-lecture">Tous les champs à domaine borné sont renseignés. '
+        + "Il ne reste que les incertitudes du référentiel lui-même, publiées à l'étape 5.</p>";
+    }
+    var hL = 26, ec = 10, gauche = 250, droite = 62;
+    var larg = 880, H = F.length * (hL + ec) + 8, util = larg - gauche - droite;
+    var h = '<div class="dc-g-wrap"><svg class="dc-g" viewBox="0 0 ' + larg + " " + H + '" '
+      + 'role="img" preserveAspectRatio="xMinYMin meet" aria-label="'
+      + esc("Part de chaque grandeur encore indéterminée, par champ non renseigné. "
+            + F.map(function (f) { return f.label + " " + fr(f.portee_max_pct) + " %"; })
+                .join(" ; ")) + '">';
+    F.forEach(function (f, i) {
+      var y = i * (hL + ec) + 4;
+      var w = util * Math.max(0, Math.min(100, f.portee_max_pct)) / 100;
+      var c = COUL_NATURE[f.nature] || "#F6F0E8";
+      var det = (s.indicateurs || []).map(function (ind) {
+        var e = (f.etendues || {})[ind.cle];
+        if (!e) return "";
+        return ind.nom + " : " + fr(e.min) + " – " + fr(e.max)
+          + (ind.unite ? " " + ind.unite : "");
+      }).filter(Boolean).join("\n");
+      h += '<text x="0" y="' + (y + hL / 2 + 4) + '" class="dc-g-l">'
+        + esc(abrege(f.label)) + "</text>"
+        + '<rect x="' + gauche + '" y="' + y + '" width="' + util + '" height="' + hL
+        + '" class="dc-t-fd"/>'
+        + '<rect x="' + gauche + '" y="' + y + '" width="' + Math.max(1, w).toFixed(1)
+        + '" height="' + hL + '" fill="' + c + '"><title>'
+        + esc(f.label + " — " + NOM_NATURE[f.nature] + " (" + f.n_valeurs + " valeurs balayées)\n"
+              + det) + "</title></rect>"
+        + '<text x="' + (gauche + util + 8) + '" y="' + (y + hL / 2 + 4) + '" class="dc-g-v">'
+        + fr(f.portee_max_pct) + " %</text>";
+    });
+    h += "</svg></div>";
+
+    h += '<div class="dc-g-lg">'
+      + Object.keys(NOM_NATURE).map(function (n) {
+          return '<span><i style="background:' + COUL_NATURE[n] + '"></i>' + esc(NOM_NATURE[n]) + "</span>";
+        }).join("") + "</div>";
+
+    h += '<p class="dc-lecture"><b>' + esc(s.portee_definition) + "</b> "
+      + esc(s.note_addition) + " " + esc(s.balayage_note) + "</p>";
+
+    if ((s.leviers_seuls || []).length) {
+      h += '<p class="dc-lecture">' + esc(s.leviers_seuls.join(", "))
+        + (s.leviers_seuls.length > 1 ? " ne changent " : " ne change ")
+        + "aucune des grandeurs suivies, mais " + (s.leviers_seuls.length > 1 ? "modifient" : "modifie")
+        + " les leviers que le moteur propose. Une barre à zéro ne veut pas dire "
+        + "que le champ est inutile — seulement qu'il agit ailleurs.</p>";
+    }
+    if ((s.exclus || []).length) {
+      h += '<details class="dc-det"><summary>Les champs volontairement non balayés ('
+        + s.exclus.length + ")</summary><div class='dc-det-c'>"
+        + s.exclus.map(function (x) {
+            return "<div><b>" + esc(x.label) + "</b> — " + esc(x.motif) + "</div>";
+          }).join("") + "</div></details>";
+    }
+    return h;
+  }
+
+  /* Le relevé des valeurs par défaut. La page promet qu'elles sont « signalées
+     comme telles dans la note » ; autant les signaler AVANT le calcul, quand
+     il est encore temps de les remplacer. */
+  function releveDefauts(d) {
+    if (!d) return "";
+    /* Trois états, pas deux. Un champ pré-rempli par le formulaire n'est pas
+       « renseigné » : la première version les comptait ensemble et annonçait
+       sept saisies là où il n'y en avait qu'une. */
+    var h = '<div class="dc-rel"><div class="dc-rel-t"><b>' + d.n_renseignes + "</b> champ"
+      + (d.n_renseignes > 1 ? "s" : "") + " renseigné" + (d.n_renseignes > 1 ? "s" : "")
+      + " sur " + d.n_total + " · <b>" + d.n_valeur_defaut + "</b> laissé"
+      + (d.n_valeur_defaut > 1 ? "s" : "") + " sur la valeur par défaut · <b>"
+      + d.n_absents + "</b> non précisé" + (d.n_absents > 1 ? "s" : "")
+      + "</div><div class='dc-rel-l'>";
+    (d.champs || []).forEach(function (c) {
+      var t = c.etat === "saisi" ? "renseigné : " + c.valeur
+        : c.etat === "defaut" ? "laissé sur la valeur par défaut : " + c.valeur
+        : "non précisé — le moteur applique sa valeur de repli";
+      h += '<span class="dc-rel-p e-' + esc(c.etat) + '" title="' + esc(t) + '">'
+        + esc(abrege(c.label)) + "</span>";
+    });
+    h += "</div>";
+    if (d.note) h += '<p class="dc-rel-n">' + esc(d.note) + "</p>";
+    return h + "</div>";
+  }
+
+  /* L'appel : différé, et le précédent annulé. Sans annulation, deux frappes
+     rapprochées font revenir les réponses dans l'ordre du réseau et non dans
+     celui de la saisie — le graphique affiche alors l'avant-dernier profil. */
+  var _minuteur = null, _vol = null;
+
+  function apercuProfil(immediat) {
+    var zone = $("#dc-apercu");
+    if (!zone) return;
+    if (_minuteur) clearTimeout(_minuteur);
+    _minuteur = setTimeout(function () {
+      var p = lireProfil();
+      if (!p.puissance_it_kw) {
+        zone.innerHTML = '<p class="note dc-ap-vide">Renseignez la puissance informatique '
+          + "installée : c'est la seule entrée indispensable, et elle suffit à ouvrir "
+          + "l'analyse ci-dessous.</p>";
+        return;
+      }
+      if (_vol) { try { _vol.abort(); } catch (e) {} }
+      _vol = (typeof AbortController !== "undefined") ? new AbortController() : null;
+      zone.classList.add("occupe");
+      fetch("/api/datacenter/profil", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(p),
+        signal: _vol ? _vol.signal : undefined,
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          zone.classList.remove("occupe");
+          if (!j.ok) throw new Error(j.message || "aperçu");
+          rendreApercu(j.apercu);
+        })
+        .catch(function (e) {
+          if (e && e.name === "AbortError") return;   /* remplacé par une saisie plus récente */
+          zone.classList.remove("occupe");
+          zone.innerHTML = '<p class="note">Aperçu indisponible pour le moment. '
+            + "Le calcul complet, lui, reste accessible par « Calculer l'étude ».</p>";
+        });
+    }, immediat ? 0 : 280);
+  }
+
+  function rendreApercu(a) {
+    var zone = $("#dc-apercu");
+    if (!zone || !a) return;
+    var h = "";
+    if (a.entete) h += '<p class="dc-ap-tete">' + esc(a.entete) + "</p>";
+    h += releveDefauts(a.defauts);
+    h += '<div class="dc-ap-b"><h3>Où se situe votre taux de charge</h3>'
+      + '<p class="dc-sous">Le PUE ne dépend pas seulement de la technologie : sous un '
+      + "certain taux de charge, les auxiliaires ne suivent plus proportionnellement. "
+      + "La courbe est calculée par le moteur, point par point.</p>"
+      + courbeCharge(a.courbe_charge) + "</div>";
+    h += '<div class="dc-ap-b"><h3>Ce que chaque champ vide laisse encore ouvert</h3>'
+      + '<p class="dc-sous">Pour chaque champ non renseigné, l\'étude est rejouée sur '
+      + "tout le domaine de ce champ. La barre mesure ce qui reste indéterminé — "
+      + "renseigner le champ la fait disparaître.</p>"
+      + tornade(a.sensibilite) + "</div>";
+    zone.innerHTML = h;
   }
 
   /* Les noms de famille sont longs ; à gauche d'un graphique, ils poussent les

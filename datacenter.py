@@ -267,13 +267,20 @@ def _plage(a, b):
     return {"min": round(a, 4), "max": round(b, 4)}
 
 
-def _tracer(nom, valeur, unite, formule, entrees, source="", incertitude="", note=""):
+def _tracer(nom, valeur, unite, formule, entrees, source="", incertitude="",
+            note="", bande=None):
     """Un résultat qui se défend tout seul.
 
     Le format est imposé : dans une note de calcul annexée à une offre, un
     chiffre nu appelle la question « d'où sort-il ? », et ne pas pouvoir y
-    répondre en séance coûte le marché."""
-    return {
+    répondre en séance coûte le marché.
+
+    `bande` porte l'encadrement EN DONNÉE quand il en existe un. L'incertitude
+    reste une phrase, faite pour être lue ; un graphique qui doit la tracer
+    devrait sinon la réanalyser au caractère près, et une virgule déplacée dans
+    la rédaction casserait le tracé.
+    """
+    out = {
         "nom": nom,
         "valeur": round(valeur, 4) if isinstance(valeur, float) else valeur,
         "unite": unite,
@@ -283,6 +290,9 @@ def _tracer(nom, valeur, unite, formule, entrees, source="", incertitude="", not
         "incertitude": incertitude,
         "note": note,
     }
+    if bande is not None:
+        out["bande"] = bande
+    return out
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -338,7 +348,7 @@ def energie(profil):
              "taux de charge": taux, "origine": origine},
             "ISO/IEC 30134-2 ; EN 50600-4-2",
             "plage de conception " + fr(bande["min"]) + " – " + fr(bande["max"]),
-            ref["note"]),
+            ref["note"], bande=bande),
         "energie_it_MWh": _tracer(
             "Énergie informatique annuelle", e_it, "MWh/an",
             "E_IT = P_IT × taux de charge × heures / 1000",

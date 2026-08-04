@@ -85,6 +85,60 @@
     padding:11px 14px;border-left:3px solid var(--cyan);background:rgba(0,0,0,.16);
     border-radius:0 8px 8px 0}
   .dc-lecture b{color:var(--ink)}
+  /* ── L'aperçu du profil ─────────────────────────────────────────────────
+     Il s'intercale entre le formulaire et les boutons de calcul : c'est là
+     qu'il sert, quand il est encore temps de renseigner un champ. Placé après
+     les résultats, il n'aurait plus rien à faire changer. */
+  .dc-apercu{margin-top:18px}
+  .dc-apercu.occupe{opacity:.55;transition:opacity .18s}
+  .dc-ap-vide{margin:0;padding:12px 14px;border-left:3px solid var(--muted2);
+    background:rgba(0,0,0,.14);border-radius:0 8px 8px 0}
+  .dc-ap-tete{font-size:14px;color:var(--ink);line-height:1.6;margin:0 0 12px;
+    padding:11px 14px;border-left:3px solid var(--amber,#F0B429);
+    background:rgba(240,180,41,.10);border-radius:0 8px 8px 0}
+  .dc-ap-b{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+  .dc-ap-b h3{font-size:14.5px;margin:0 0 4px;color:var(--ink)}
+  .dc-ap-b .dc-sous{font-size:12.5px;color:var(--muted2);line-height:1.6;margin:0 0 10px;
+    max-width:78ch}
+  /* Le relevé des défauts : des pastilles plutôt qu'un tableau. Treize lignes
+     pour dire « renseigné / pas renseigné » occuperaient tout l'écran pour une
+     information binaire. */
+  .dc-rel{border:1px solid var(--line);border-radius:10px;padding:11px 13px;
+    background:rgba(0,0,0,.14)}
+  .dc-rel-t{font-size:12.5px;color:var(--muted);margin-bottom:8px}
+  .dc-rel-t b{color:var(--ink)}
+  .dc-rel-l{display:flex;flex-wrap:wrap;gap:5px}
+  .dc-rel-p{font-size:11px;padding:2px 8px;border-radius:20px;border:1px solid var(--line);
+    color:var(--muted2);cursor:help}
+  /* Trois états distincts : saisi, laissé sur le pré-remplissage, absent. Les
+     confondre revenait à annoncer comme « renseignées » des valeurs que
+     personne n'avait choisies. */
+  .dc-rel-p.e-saisi{border-color:var(--cyan);color:var(--ink);background:rgba(34,211,238,.12)}
+  .dc-rel-p.e-defaut{border-style:dashed;color:var(--muted)}
+  .dc-rel-n{font-size:11.5px;color:var(--muted2);line-height:1.55;margin:9px 0 0}
+  /* La courbe. Plus haute que les barres : une pente se lit mal dans un cadre
+     écrasé, et c'est la pente qui porte l'information ici. */
+  .dc-c{min-width:560px}
+  .dc-c-gr{stroke:var(--line);stroke-width:1;opacity:.5}
+  .dc-c-ax{font-size:11px;fill:var(--muted2);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .dc-c-ti{font-size:11.5px;fill:var(--muted2);font-family:inherit;letter-spacing:.04em}
+  /* Sur ce fond terre de Sienne, un cyan à 20 % vire au gris : la bande ne se
+     rattachait plus visuellement à la courbe qu'elle encadre. Remontée à 34 %
+     et bordée, elle redevient la même couleur que le tracé. */
+  .dc-c-bd{fill:rgba(34,211,238,.34);stroke:rgba(34,211,238,.55);stroke-width:1}
+  .dc-c-li{fill:none;stroke:#22D3EE;stroke-width:2.2;stroke-linejoin:round}
+  .dc-c-cd{stroke:#F0B429;stroke-width:1.4;stroke-dasharray:4 4}
+  .dc-c-cl{font-size:11px;fill:#F0B429;font-family:inherit}
+  .dc-c-cl.on{fill:var(--ink);font-weight:600}
+  .dc-c-ic{fill:var(--ink);stroke:#0b0b0b;stroke-width:1.5}
+  /* Cibles de survol : invisibles mais larges. Un point de 2 px ne s'attrape
+     pas à la souris, et l'infobulle ne s'ouvrirait jamais. */
+  .dc-c-pt{fill:transparent}
+  .dc-c-pt:hover{fill:rgba(34,211,238,.35)}
+  /* Le fond de barre montre l'échelle : sans lui, une barre courte peut se lire
+     comme une barre longue sur un graphique tronqué. */
+  .dc-t-fd{fill:rgba(255,255,255,.05)}
+  @media(max-width:700px){ .dc-ap-b{margin-top:14px} }
   /* ── Référentiel et sources ─────────────────────────────────────────── */
   .dc-ref{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(330px,100%),1fr));
     gap:12px;margin-top:14px}
@@ -370,6 +424,13 @@
       défaut, signalée comme telle dans la note. Renseigner davantage resserre les
       incertitudes — ce sont elles que l'évaluateur regarde.</p>
     <div class="rc-card" id="dc-form"><p class="note">Chargement du référentiel…</p></div>
+
+    <!-- L'aperçu répond à la promesse faite juste au-dessus (« renseigner
+         davantage resserre les incertitudes ») en la chiffrant, au lieu de
+         demander qu'on la croie. Il se met à jour à la saisie, avant même
+         qu'une étude soit lancée. -->
+    <div id="dc-apercu" class="dc-apercu" aria-live="polite"></div>
+
     <div class="actions" style="margin-top:16px;gap:10px;flex-wrap:wrap">
       <button type="button" class="btn btn-p" id="dc-lancer">Calculer l'étude</button>
       <button type="button" class="btn btn-s" id="dc-comparer">Comparer toutes les familles</button>

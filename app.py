@@ -1805,6 +1805,7 @@ def api_playbook_export():
 # ══════════════════════════════════════════════════════════════════════════
 
 import datacenter  # noqa: E402
+import profil_dc   # noqa: E402  — analyse le moteur ci-dessus, ne le double pas
 
 
 @app.route("/datacenter")
@@ -1871,6 +1872,30 @@ def api_datacenter_etude():
                                 res["energie"]["pue"]["valeur"],
                                 res["eau"]["wue_site"]["valeur"]))
     return jsonify(ok=True, etude=res)
+
+
+@app.route("/api/datacenter/profil", methods=["POST"])
+@login_required
+def api_datacenter_profil():
+    """Ce que le profil laisse encore ouvert, AVANT de lancer l'étude.
+
+    L'étape 1 promet que « renseigner davantage resserre les incertitudes ».
+    Cette route la vérifie plutôt que de la faire croire : elle rejoue l'étude
+    en balayant le domaine de chaque champ vide et mesure ce qui reste
+    indéterminé. Le coût est celui d'une centaine d'appels au moteur, soit
+    quelques millisecondes — il n'y a pas d'entrée/sortie derrière.
+    """
+    data = request.get_json(silent=True) or {}
+    profil = _profil_datacenter(data)
+    if not profil.get("puissance_it_kw"):
+        return jsonify(ok=False, error="puissance_absente",
+                       message="La puissance informatique installée est nécessaire."), 400
+    try:
+        return jsonify(ok=True, apercu=profil_dc.apercu(profil))
+    except Exception:
+        app.logger.exception("aperçu profil datacenter")
+        return jsonify(ok=False, error="calcul",
+                       message="L'aperçu du profil n'a pas pu être établi."), 500
 
 
 @app.route("/api/datacenter/comparer", methods=["POST"])
