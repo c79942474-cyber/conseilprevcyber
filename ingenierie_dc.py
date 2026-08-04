@@ -505,6 +505,504 @@ PHASES = [
 _PAR_CODE = {p["code"]: p for p in PHASES}
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  3 bis. LE REGISTRE DES PIÈCES
+# ═══════════════════════════════════════════════════════════════════════════
+# Le plan de l'étude dit CE QU'ON ÉCRIT. Le registre dit CE QU'ON REMET : notes,
+# plans à leur échelle, tableaux, pièces contractuelles, procédures. Ce sont deux
+# choses différentes, et confondre les deux fait livrer un rapport là où le
+# marché attend seize pièces numérotées.
+#
+# Chaque pièce porte :
+#   · son ÉMETTEUR — la maîtrise d'œuvre ne produit pas les plans d'exécution,
+#     elle les vise. Attribuer une pièce au mauvais émetteur déplace une
+#     responsabilité, et cela se paie au premier litige ;
+#   · son TYPE — un plan au 1/50 et une note de calcul ne se relisent pas de la
+#     même façon, ne se visent pas de la même façon, et ne s'archivent pas de la
+#     même façon ;
+#   · le fait qu'elle soit ALIMENTÉE PAR LE MOTEUR ou non. Celles qui le sont
+#     héritent des grandeurs calculées et de leurs réserves de phase ; les autres
+#     relèvent d'autres disciplines et sont listées pour mémoire, sans quoi le
+#     registre laisserait croire que le moteur couvre tout le dossier.
+#
+# Ce registre relève de l'USAGE PROFESSIONNEL, pas d'un texte : la loi MOP fixe
+# le contenu des éléments de mission, pas la nomenclature des pièces. Il se cale
+# au marché de maîtrise d'œuvre, projet par projet.
+
+TYPES_PIECE = {
+    "note": {"nom": "Note", "aide": "Document de calcul ou de justification, rédigé."},
+    "plan": {"nom": "Plan", "aide": "Pièce graphique cotée, à une échelle donnée."},
+    "schema": {"nom": "Schéma", "aide": "Représentation de principe, non cotée."},
+    "tableau": {"nom": "Tableau", "aide": "Données comparatives ou quantitatives structurées."},
+    "contractuel": {"nom": "Pièce contractuelle",
+                    "aide": "Pièce du marché, opposable une fois signée."},
+    "procedure": {"nom": "Procédure", "aide": "Mode opératoire, essai ou contrôle."},
+    "registre": {"nom": "Registre", "aide": "Suivi tenu dans la durée, daté et tracé."},
+}
+
+EMETTEURS = {
+    "moe": "Maîtrise d'œuvre",
+    "bet": "Bureau d'études spécialisé",
+    "mo": "Maîtrise d'ouvrage",
+    "entreprise": "Entreprise de travaux",
+    "fournisseur": "Fournisseur ou constructeur",
+    "epc": "Contractant EPC",
+}
+
+# (code, titre, type, émetteur, alimentée par le moteur, [ce qu'elle doit contenir])
+_PIECES = {
+    "ESQ": [
+        ("ESQ-01", "Notice d'intention architecturale et technique", "note", "moe", False,
+         ["Parti d'implantation retenu", "Principes constructifs envisagés",
+          "Contraintes de site relevées"]),
+        ("ESQ-02", "Plan de masse d'implantation (1/500)", "plan", "moe", False,
+         ["Emprise et accès", "Poste de livraison et servitudes",
+          "Réserves foncières pour extension"]),
+        ("ESQ-03", "Schéma de principe de la production de froid", "schema", "moe", True,
+         ["Famille de refroidissement envisagée", "Circuit de rejet de chaleur",
+          "Principe d'appoint et de secours"]),
+        ("ESQ-04", "Tableau des surfaces et des puissances", "tableau", "moe", True,
+         ["Puissance informatique installée par salle", "Densité au mètre carré",
+          "Surfaces techniques et de servitude"]),
+        ("ESQ-05", "Estimation sommaire au ratio", "tableau", "moe", False,
+         ["Ratio retenu en euros par kW informatique", "Provision pour aléas",
+          "Bornes haute et basse assumées"]),
+    ],
+    "APS": [
+        ("APS-01", "Notice descriptive sommaire par lot", "note", "moe", False,
+         ["Dispositions techniques par lot", "Niveaux de performance visés",
+          "Interfaces identifiées entre lots"]),
+        ("APS-02", "Plans de niveau (1/200)", "plan", "moe", False,
+         ["Distribution des salles et locaux techniques",
+          "Cheminements principaux de fluides et de câbles", "Zones de maintenance"]),
+        ("APS-03", "Plan de masse avec réseaux et accès (1/500)", "plan", "moe", False,
+         ["Raccordements électrique et hydraulique", "Accès pompiers et livraisons",
+          "Implantation des groupes froid et des groupes électrogènes"]),
+        ("APS-04", "Schémas de principe CVC, électricité et secours", "schema", "moe", True,
+         ["Architecture de production et de distribution de froid",
+          "Architecture électrique et niveau de redondance",
+          "Principe de secours et d'autonomie"]),
+        ("APS-05", "Tableau comparatif des familles de refroidissement", "tableau", "moe", True,
+         ["PUE, WUE de site et WUE de source par famille",
+          "Carbone d'exploitation et incorporé", "Contreparties assumées de chaque famille"]),
+        ("APS-06", "Bilan de puissance prévisionnel", "note", "moe", True,
+         ["Puissance informatique et auxiliaires", "Foisonnement retenu",
+          "Puissance à souscrire au raccordement"]),
+        ("APS-07", "Estimation provisoire par lot", "tableau", "moe", False,
+         ["Montant par lot technique", "Aléas et provisions",
+          "Écarts par rapport à l'enveloppe du programme"]),
+        ("APS-08", "Planning prévisionnel — jalons", "tableau", "moe", False,
+         ["Jalons d'études et d'autorisations", "Délais de raccordement concessionnaires",
+          "Chemin critique identifié"]),
+    ],
+    "APD": [
+        ("APD-01", "Notice descriptive détaillée par lot", "note", "moe", False,
+         ["Nature et qualité des matériaux et équipements",
+          "Performances unitaires exigées", "Limites de prestation par lot"]),
+        ("APD-02", "Plans de niveau, coupes et façades (1/100)", "plan", "moe", False,
+         ["Implantation cotée des équipements techniques",
+          "Coupes sur locaux techniques et gaines", "Traitement acoustique et bardages"]),
+        ("APD-03", "Plans de réservations et de charges", "plan", "moe", False,
+         ["Réservations en dalle et en voile", "Charges d'exploitation par zone",
+          "Points de levage et accès de maintenance"]),
+        ("APD-04", "Note de calcul thermique et dimensionnement du froid", "note", "moe", True,
+         ["Charge thermique à évacuer", "Dimensionnement de la production et du rejet",
+          "PUE de conception et pénalité de charge partielle"]),
+        ("APD-05", "Bilan de puissance électrique définitif", "note", "moe", True,
+         ["Bilan par tableau et par usage", "Régime de neutre et sélectivité",
+          "Dimensionnement du secours et autonomie"]),
+        ("APD-06", "Bilan d'eau annuel et mensuel", "note", "moe", True,
+         ["Évaporation, purge et appoint", "Cycles de concentration retenus",
+          "Saisonnalité du prélèvement et pointe estivale"]),
+        ("APD-07", "Bilan carbone — exploitation et incorporé", "note", "moe", True,
+         ["Carbone d'exploitation localisé et marché",
+          "Carbone incorporé amorti par poste", "Source et incertitude de chaque facteur"]),
+        ("APD-08", "Tableau des performances engagées", "tableau", "moe", True,
+         ["PUE, WUE de site, WUE de source, ERF",
+          "Conditions de mesure de chaque indicateur",
+          "Tolérance proposée et période de référence"]),
+        ("APD-09", "Coût prévisionnel arrêté par corps d'état", "tableau", "moe", False,
+         ["Montant par corps d'état", "Tolérance contractuelle de l'engagement",
+          "Options et variantes chiffrées"]),
+        ("APD-10", "Pièces graphiques et notice du permis de construire", "contractuel", "moe", False,
+         ["Insertion paysagère et volumétrie", "Notice énergie et environnement",
+          "Étude d'impact ou examen au cas par cas, si requis"]),
+    ],
+    "PRO": [
+        ("PRO-01", "CCTP par lot", "contractuel", "moe", False,
+         ["Spécifications techniques par équipement",
+          "Exigences de mise en œuvre et d'essais", "Documents à fournir par l'entreprise"]),
+        ("PRO-02", "Plans d'ensemble (1/50) et détails (1/20)", "plan", "moe", False,
+         ["Implantation définitive et cotée", "Détails de raccordement et de traversée",
+          "Calepinage des locaux techniques"]),
+        ("PRO-03", "Schémas hydrauliques et aérauliques cotés", "schema", "moe", True,
+         ["Débits, températures et pressions à chaque tronçon",
+          "Organes de réglage et de comptage", "Points de mesure des indicateurs"]),
+        ("PRO-04", "Schémas unifilaires électriques", "schema", "moe", False,
+         ["Distribution depuis la livraison jusqu'aux baies",
+          "Comptage divisionnaire et points de mesure du PUE",
+          "Sélectivité et régime de neutre"]),
+        ("PRO-05", "Note de calcul complète — énergie, eau, carbone, chaleur", "note", "moe", True,
+         ["Chaque grandeur avec sa formule et ses entrées",
+          "Sources normatives et incertitudes",
+          "Facteurs restant en ordre de grandeur"]),
+        ("PRO-06", "Protocole de mesure des indicateurs", "procedure", "moe", True,
+         ["Points de mesure, instruments et classes de précision",
+          "Périodicité et méthode d'intégration",
+          "Incertitude admise et conditions d'exclusion"]),
+        ("PRO-07", "Cadre de décomposition du prix (DPGF)", "contractuel", "moe", False,
+         ["Décomposition par lot et par ouvrage élémentaire",
+          "Quantités et unités", "Postes en prix unitaires"]),
+        ("PRO-08", "Tableau des interfaces entre lots", "tableau", "moe", False,
+         ["Limite de prestation de chaque interface",
+          "Lot responsable de la fourniture et de la pose",
+          "Ordre d'intervention"]),
+        ("PRO-09", "Planning d'exécution détaillé", "tableau", "moe", False,
+         ["Tâches par lot et durées", "Contraintes d'enclenchement",
+          "Jalons de mise en service"]),
+    ],
+    "DCE": [
+        ("DCE-01", "Règlement de la consultation", "contractuel", "mo", False,
+         ["Critères de jugement et leur pondération",
+          "Pièces à remettre et forme des offres", "Calendrier de la consultation"]),
+        ("DCE-02", "Acte d'engagement", "contractuel", "mo", False,
+         ["Identification des parties et du marché",
+          "Prix et forme du prix", "Délais et pénalités de retard"]),
+        ("DCE-03", "CCAP", "contractuel", "mo", False,
+         ["Ordre de préséance des pièces", "Modalités de règlement et de révision",
+          "Garanties, réception et pénalités"]),
+        ("DCE-04", "CCTP par lot — clauses de performance", "contractuel", "moe", True,
+         ["Définitions normatives exactes des indicateurs",
+          "Protocole de mesure opposable",
+          "Seuils, tolérances et pénalités de performance"]),
+        ("DCE-05", "DPGF, DQE et bordereau de prix unitaires", "contractuel", "moe", False,
+         ["Décomposition exhaustive du prix global et forfaitaire",
+          "Quantitatif estimatif pour comparaison des offres",
+          "Prix unitaires pour les travaux modificatifs"]),
+        ("DCE-06", "Plans du dossier de consultation", "plan", "moe", False,
+         ["Jeu de plans complet et indicé",
+          "Nomenclature et cartouche normalisé", "Liste des plans avec leurs indices"]),
+        ("DCE-07", "Planning contractuel", "contractuel", "moe", False,
+         ["Délai global et délais partiels",
+          "Jalons contractuels assortis de pénalités", "Périodes de préparation"]),
+        ("DCE-08", "Cadre de mémoire technique environnemental", "contractuel", "moe", True,
+         ["Trame imposée aux candidats pour comparer à méthode constante",
+          "Engagements chiffrés attendus et leur justification",
+          "Pièces justificatives exigées (EPD, courbes constructeur)"]),
+        ("DCE-09", "Tableau des indicateurs contractuels et pénalités", "tableau", "moe", True,
+         ["Indicateur, valeur engagée, tolérance",
+          "Période de référence et conditions d'exclusion",
+          "Barème de pénalité et plafond"]),
+    ],
+    "ACT": [
+        ("ACT-01", "Tableau d'ouverture des plis", "tableau", "mo", False,
+         ["Candidats et complétude des offres",
+          "Pièces manquantes et régularisations", "Recevabilité"]),
+        ("ACT-02", "Grille d'analyse multicritères", "tableau", "moe", False,
+         ["Critères et sous-critères pondérés",
+          "Notation par candidat et justification", "Classement obtenu"]),
+        ("ACT-03", "Tableau comparatif des performances annoncées", "tableau", "moe", True,
+         ["PUE, WUE et carbone annoncés par chaque candidat",
+          "Contrôle de cohérence contre les bornes physiques",
+          "Écarts inexpliqués à faire lever"]),
+        ("ACT-04", "PV de mise au point technique", "note", "moe", False,
+         ["Points éclaircis avec le candidat pressenti",
+          "Adaptations acceptées et leur incidence",
+          "Engagements confirmés par écrit"]),
+        ("ACT-05", "Rapport d'analyse des offres et proposition d'attribution", "note", "moe", False,
+         ["Analyse technique et financière", "Motif du choix",
+          "Réserves à lever avant notification"]),
+    ],
+    "EXE-VISA": [
+        ("EXE-01", "Registre des documents d'exécution et de leurs visas", "registre", "moe", False,
+         ["Document, indice, date de remise et de visa",
+          "Statut du visa et observations", "Délais de visa contractuels"]),
+        ("EXE-02", "Plans d'exécution", "plan", "entreprise", False,
+         ["Plans d'atelier et de montage cotés",
+          "Carnets de réservations définitifs", "Plans de cheminement et de repérage"]),
+        ("EXE-03", "Notes de calcul d'exécution", "note", "entreprise", False,
+         ["Dimensionnement définitif sur équipements retenus",
+          "Équilibrage hydraulique et aéraulique",
+          "Vérification des hypothèses de conception"]),
+        ("EXE-04", "Fiches techniques et courbes constructeur", "note", "fournisseur", True,
+         ["Courbes de rendement à charge partielle",
+          "Consommations d'eau et conditions de fonctionnement",
+          "Déclarations environnementales produit"]),
+        ("EXE-05", "Tableau de contrôle — performances constructeur contre marché",
+         "tableau", "moe", True,
+         ["Valeur engagée au marché et valeur constructeur",
+          "Écart et incidence sur les indicateurs",
+          "Décision : accepté, réservé, refusé"]),
+        ("EXE-06", "Registre des observations et réserves de visa", "registre", "moe", False,
+         ["Observation émise et pièce concernée",
+          "Réponse de l'entreprise", "Date de levée"]),
+    ],
+    "DET": [
+        ("DET-01", "Comptes rendus de chantier", "registre", "moe", False,
+         ["Avancement par lot et écarts au planning",
+          "Décisions prises et diffusées", "Points bloquants et responsables"]),
+        ("DET-02", "Registre des ordres de service", "registre", "moe", False,
+         ["Objet, date et incidence de chaque ordre",
+          "Incidence financière et de délai", "Notification et accusé de réception"]),
+        ("DET-03", "États d'avancement et situations de travaux", "tableau", "moe", False,
+         ["Avancement physique par poste de la décomposition",
+          "Montant proposé au paiement", "Retenues appliquées"]),
+        ("DET-04", "Registre des non-conformités", "registre", "moe", False,
+         ["Non-conformité relevée et pièce concernée",
+          "Traitement retenu et acceptation éventuelle", "Date de levée"]),
+        ("DET-05", "Tableau de suivi des incidences sur les performances", "tableau", "moe", True,
+         ["Adaptation de chantier et grandeur touchée",
+          "Incidence chiffrée sur l'indicateur engagé",
+          "Décision et accord du maître d'ouvrage"]),
+    ],
+    "AOR": [
+        ("AOR-01", "Protocole des essais de performance", "procedure", "moe", True,
+         ["Grandeurs mesurées et méthode",
+          "Conditions de validité et cas d'exclusion",
+          "Durée de la période de référence"]),
+        ("AOR-02", "PV des opérations préalables à la réception", "contractuel", "moe", False,
+         ["Constats par lot", "Réserves relevées et cotées",
+          "Ouvrages non achevés"]),
+        ("AOR-03", "Liste des réserves et plan de levée", "tableau", "moe", False,
+         ["Réserve, lot, délai de levée", "Responsable désigné",
+          "État de levée à date"]),
+        ("AOR-04", "Rapport de mesure des indicateurs", "note", "moe", True,
+         ["PUE et WUE mesurés sur la période de référence",
+          "Comparaison aux valeurs engagées",
+          "Incertitude de mesure et conclusion"]),
+        ("AOR-05", "PV de réception", "contractuel", "mo", False,
+         ["Décision de réception, avec ou sans réserves",
+          "Date d'effet et point de départ des garanties",
+          "Réserves annexées"]),
+        ("AOR-06", "Dossier des ouvrages exécutés", "registre", "entreprise", True,
+         ["Plans conformes à l'exécution",
+          "Notices d'exploitation et de maintenance",
+          "Note de calcul recalée sur les équipements installés"]),
+        ("AOR-07", "Dossier d'intervention ultérieure sur l'ouvrage", "registre", "moe", False,
+         ["Accès et moyens de maintenance prévus",
+          "Risques résiduels signalés", "Dispositifs de sécurité en place"]),
+        ("AOR-08", "Première déclaration au titre de la directive efficacité énergétique",
+         "contractuel", "mo", True,
+         ["Les grandeurs exigées par le règlement",
+          "Méthode de collecte et de contrôle",
+          "Périmètre déclaré et exclusions"]),
+    ],
+    "FAISA": [
+        ("FAI-01", "Expression du besoin (Statement of Requirements)", "note", "mo", False,
+         ["Capacité informatique visée et trajectoire",
+          "Niveau de disponibilité attendu", "Contraintes de calendrier"]),
+        ("FAI-02", "Note de concept et options examinées", "note", "moe", False,
+         ["Options techniques envisagées",
+          "Critères d'élimination appliqués", "Option de référence retenue"]),
+        ("FAI-03", "Tableau comparatif des options", "tableau", "moe", True,
+         ["Énergie, eau et carbone par option",
+          "Ordres de grandeur assumés et incertitudes",
+          "Contreparties de chaque option"]),
+        ("FAI-04", "Note de contraintes de site", "note", "moe", True,
+         ["Capacité de raccordement électrique",
+          "Ressource en eau et contexte de tension hydrique",
+          "Contraintes foncières et réglementaires"]),
+        ("FAI-05", "Estimation de classe 5", "tableau", "moe", False,
+         ["Montant et fourchette assumée",
+          "Base et méthode d'estimation", "Aléas principaux"]),
+        ("FAI-06", "Recommandation d'engagement ou d'arrêt", "note", "moe", False,
+         ["Conclusion motivée", "Conditions de poursuite",
+          "Travaux à engager en phase suivante"]),
+    ],
+    "BASIC": [
+        ("BAS-01", "Bases de conception (Design Basis)", "note", "moe", True,
+         ["Hypothèses de site, de climat et de charge",
+          "Codes et normes applicables",
+          "Niveaux de performance et de disponibilité visés"]),
+        ("BAS-02", "Schéma de procédé (PFD)", "schema", "moe", True,
+         ["Boucles de production et de distribution de froid",
+          "Circuits de rejet et d'appoint d'eau",
+          "Flux d'énergie principaux"]),
+        ("BAS-03", "Bilans matière et énergie", "note", "moe", True,
+         ["Bilan thermique global",
+          "Bilan d'eau — évaporation, purge, appoint",
+          "Bilan électrique et PUE de conception"]),
+        ("BAS-04", "Liste préliminaire des équipements", "tableau", "moe", False,
+         ["Repère, service et capacité de chaque équipement",
+          "Nombre et redondance", "Encombrement estimé"]),
+        ("BAS-05", "Plot plan préliminaire", "plan", "moe", False,
+         ["Implantation des blocs fonctionnels",
+          "Distances de sécurité et accès", "Réserves d'extension"]),
+        ("BAS-06", "Synthèse des utilités", "tableau", "moe", True,
+         ["Électricité, eau, air comprimé, secours",
+          "Débits et puissances de pointe", "Points de raccordement"]),
+        ("BAS-07", "Estimation de classe 4 et plan de réduction des incertitudes",
+         "tableau", "moe", True,
+         ["Montant et fourchette", "Postes les plus incertains",
+          "Données à acquérir avant le FEED"]),
+    ],
+    "FEED": [
+        ("FEE-01", "Bases de conception mises à jour", "note", "moe", True,
+         ["Écarts par rapport au BASIC et leur motif",
+          "Hypothèses confirmées ou levées",
+          "Facteurs encore en ordre de grandeur"]),
+        ("FEE-02", "Schémas de tuyauterie et d'instrumentation (P&ID)", "schema", "moe", True,
+         ["Équipements, lignes et instruments repérés",
+          "Organes de sécurité et de régulation",
+          "Points de mesure des indicateurs contractuels"]),
+        ("FEE-03", "Schéma unifilaire général", "schema", "moe", False,
+         ["Architecture depuis la livraison jusqu'aux charges",
+          "Redondance et sources de secours", "Comptage et supervision"]),
+        ("FEE-04", "Fiches techniques des équipements majeurs", "tableau", "moe", True,
+         ["Conditions de service et performances exigées",
+          "Consommations d'eau et d'énergie garanties",
+          "Documents fournisseur à remettre"]),
+        ("FEE-05", "Plot plan et plans d'implantation", "plan", "moe", False,
+         ["Implantation définitive des équipements",
+          "Cheminements principaux et zones de maintenance",
+          "Contraintes de levage et de remplacement"]),
+        ("FEE-06", "Avant-métré (Material Take-Off)", "tableau", "moe", False,
+         ["Quantités par discipline",
+          "Base de l'avant-métré et taux de croissance retenu",
+          "Postes non métrés et provisions"]),
+        ("FEE-07", "Matrice cause-effet et arrêts d'urgence", "tableau", "moe", False,
+         ["Causes détectées et actions déclenchées",
+          "Niveaux d'arrêt et acquittement",
+          "Essais de vérification prévus"]),
+        ("FEE-08", "Rapport d'analyse de risques (HAZOP)", "note", "bet", False,
+         ["Nœuds étudiés et déviations examinées",
+          "Actions retenues et responsables",
+          "Risques résiduels acceptés"]),
+        ("FEE-09", "Matrice de responsabilité et interfaces", "tableau", "moe", False,
+         ["Limite de fourniture par interface",
+          "Responsable de la conception et de la mise en œuvre",
+          "Documents échangés à chaque interface"]),
+        ("FEE-10", "Stratégie d'instrumentation et de mesure", "procedure", "moe", True,
+         ["Points de mesure nécessaires aux indicateurs",
+          "Classes de précision et incertitude résultante",
+          "Acquisition, archivage et intégrité de la donnée"]),
+        ("FEE-11", "Bilans détaillés — énergie, eau, carbone, chaleur fatale", "note", "moe", True,
+         ["Chaque bilan avec ses entrées et ses sources",
+          "Sensibilité aux hypothèses restantes",
+          "Consignes de remplacement des facteurs"]),
+        ("FEE-12", "Estimation de classe 3 et dossier de décision d'investissement",
+         "tableau", "moe", True,
+         ["Coût d'investissement et d'exploitation",
+          "Fourchette et aléas", "Éléments de décision et sensibilités"]),
+        ("FEE-13", "Dossier de consultation EPC (ITB)", "contractuel", "moe", True,
+         ["Périmètre confié et limites de prestation",
+          "Garanties de performance exigées et méthode de vérification",
+          "Trame de réponse imposée aux soumissionnaires"]),
+    ],
+    "EPCI": [
+        ("EPC-01", "Ingénierie de détail", "plan", "epc", False,
+         ["Isométriques de tuyauterie et notes de flexibilité",
+          "Cheminements et bordereaux de câbles",
+          "Plans de génie civil et de charpente"]),
+        ("EPC-02", "Spécifications d'achat", "contractuel", "epc", True,
+         ["Exigences techniques et de performance par équipement",
+          "Documents et essais exigés du fournisseur",
+          "Déclarations environnementales produit à remettre"]),
+        ("EPC-03", "Registre des documents fournisseurs", "registre", "epc", False,
+         ["Document attendu, reçu, commenté, approuvé",
+          "Délais et retards", "Impact des retards sur le montage"]),
+        ("EPC-04", "Contrôle des déclarations environnementales reçues", "tableau", "moe", True,
+         ["Facteur de référentiel remplacé par la donnée réelle",
+          "Écart constaté et incidence sur le bilan",
+          "Pièce justificative et sa date"]),
+        ("EPC-05", "Recalage des bilans sur les données constructeur", "note", "moe", True,
+         ["Bilans recalculés avec les valeurs réelles",
+          "Écart aux valeurs contractuelles",
+          "Conséquence sur les garanties"]),
+        ("EPC-06", "Plans de contrôle et d'essais (ITP)", "procedure", "epc", False,
+         ["Points d'arrêt et points d'inspection",
+          "Critères d'acceptation et documents de preuve",
+          "Intervenants et notification"]),
+        ("EPC-07", "Dossier de construction", "registre", "epc", False,
+         ["Procédures de montage et de soudage",
+          "Qualifications des intervenants", "Traçabilité des matériaux"]),
+        ("EPC-08", "Registre des non-conformités et dérogations", "registre", "epc", False,
+         ["Non-conformité, cause et traitement",
+          "Dérogation demandée et décision", "Incidence sur la garantie"]),
+        ("EPC-09", "Liste des réserves de fin de montage (punch list)", "tableau", "epc", False,
+         ["Réserve, catégorie et criticité",
+          "Bloquante ou non pour la mise en service", "Délai de levée"]),
+    ],
+    "CSU": [
+        ("CSU-01", "Procédures de mise en service", "procedure", "epc", False,
+         ["Séquence de mise en service par système",
+          "Prérequis et consignations", "Critères de passage à l'étape suivante"]),
+        ("CSU-02", "Check-lists de pré-mise en service", "procedure", "epc", False,
+         ["Contrôles mécaniques, électriques et instrumentation",
+          "Essais à vide et rinçages", "Constats et signatures"]),
+        ("CSU-03", "Procédure d'essai de performance", "procedure", "moe", True,
+         ["Grandeurs mesurées et instruments utilisés",
+          "Conditions de validité, durée et charge d'essai",
+          "Méthode de calcul et incertitude"]),
+        ("CSU-04", "Rapport d'essais et écart aux garanties", "note", "moe", True,
+         ["Résultats mesurés indicateur par indicateur",
+          "Écart aux garanties contractuelles",
+          "Conclusion : accepté, réserve, pénalité"]),
+        ("CSU-05", "Certificats d'acceptation mécanique et de prise en charge",
+         "contractuel", "mo", False,
+         ["Systèmes acceptés et date d'effet",
+          "Réserves annexées", "Transfert de responsabilité et de risque"]),
+        ("CSU-06", "Dossier tel que construit (as-built)", "registre", "epc", True,
+         ["Plans et schémas conformes à l'exécution",
+          "Fiches équipements et paramètres de réglage",
+          "Bilans recalés sur l'installation réelle"]),
+        ("CSU-07", "Dossier de transfert à l'exploitation", "registre", "epc", False,
+         ["Manuels d'exploitation et de maintenance",
+          "Plan de maintenance préventive et pièces de rechange",
+          "Formation des équipes d'exploitation"]),
+        ("CSU-08", "Mise en place du reporting réglementaire annuel", "procedure", "mo", True,
+         ["Grandeurs à déclarer et leur source de mesure",
+          "Processus de collecte, contrôle et validation",
+          "Calendrier et responsable désigné"]),
+    ],
+}
+
+
+def pieces(code):
+    """Le registre des pièces d'une phase, enrichi de ses libellés.
+
+    On ne renvoie pas les tuples bruts : le type et l'émetteur y sont des clés,
+    et une interface qui afficherait « moe » ou « contractuel » obligerait le
+    lecteur à traduire ce que le module sait déjà dire.
+    """
+    out = []
+    for c, titre, typ, emet, moteur, contenu in _PIECES.get(code, []):
+        t = TYPES_PIECE.get(typ) or {}
+        out.append({
+            "code": c, "titre": titre,
+            "type": typ, "type_nom": t.get("nom", typ), "type_aide": t.get("aide", ""),
+            "emetteur": emet, "emetteur_nom": EMETTEURS.get(emet, emet),
+            "moteur": bool(moteur),
+            "contenu": list(contenu),
+        })
+    return out
+
+
+def _resume_pieces(liste):
+    """Le compte par type et par émetteur. Dérivé, jamais écrit à la main : un
+    registre s'allonge et les comptes figés se démentent au premier ajout."""
+    par_type, par_emetteur = {}, {}
+    for p in liste:
+        par_type[p["type_nom"]] = par_type.get(p["type_nom"], 0) + 1
+        par_emetteur[p["emetteur_nom"]] = par_emetteur.get(p["emetteur_nom"], 0) + 1
+    return {
+        "total": len(liste),
+        "alimentees_par_le_moteur": sum(1 for p in liste if p["moteur"]),
+        "par_type": par_type,
+        "par_emetteur": par_emetteur,
+    }
+
+
+NOTE_REGISTRE = (
+    "Ce registre relève de l'usage professionnel, pas d'un texte : la loi MOP fixe "
+    "le contenu des éléments de mission, pas la nomenclature des pièces. Il se cale "
+    "au marché de maîtrise d'œuvre, projet par projet. Les pièces marquées comme "
+    "alimentées par le moteur héritent des grandeurs calculées ET des réserves de "
+    "leur phase ; les autres relèvent d'autres disciplines et sont listées pour "
+    "mémoire — sans elles, le registre laisserait croire que ce moteur couvre tout "
+    "le dossier.")
+
+
 # ── Les exigences se CUMULENT le long d'une filière ────────────────────────
 # Écrites phase par phase, elles régressaient : l'ACT réclamait moins que le
 # DCE qui le précède, la CSU moins que l'EPCI. Un projet pouvait donc échouer à
@@ -729,6 +1227,7 @@ def dossier(profil, code):
     a = aptitude(profil, code)
     etude = D.etude(profil)
     apport = ph["apport_moteur"]
+    pcs = pieces(code)
 
     # Les grandeurs que le moteur peut verser au dossier, avec leur statut à ce
     # stade. « recevable » ne veut pas dire « juste » : cela veut dire que le
@@ -759,6 +1258,12 @@ def dossier(profil, code):
         "objet": ph["objet"], "decide": ph["decide"], "verrouille": ph["verrouille"],
         "precision": ph["precision"], "note": ph.get("note", ""),
         "sections": ph["livrable"],
+        # Le plan dit ce qu'on écrit ; le registre dit ce qu'on REMET. Les
+        # confondre fait livrer un rapport là où le marché attend des pièces
+        # numérotées, chacune avec son émetteur.
+        "pieces": pcs,
+        "resume_pieces": _resume_pieces(pcs),
+        "note_registre": NOTE_REGISTRE,
         "apport_moteur": apport, "apport_texte": APPORT[apport],
         "grandeurs": grandeurs,
         "aptitude": a,
@@ -782,6 +1287,177 @@ def _postes_engages(cle_grandeur):
     }.get(cle_grandeur, set())
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  6. LA RÉDACTION D'UNE PIÈCE
+# ═══════════════════════════════════════════════════════════════════════════
+# Les prompts sont construits ICI et non dans la page : ils portent la frontière
+# entre ce qui est acquis et ce qui ne l'est pas, et cette frontière est calculée
+# par ce module. La construire ailleurs reviendrait à demander au modèle de
+# décider ce qu'il a le droit d'affirmer.
+
+# Ce qu'un modèle peut produire, selon le type de pièce. Le dire évite la
+# promesse la plus tentante et la plus fausse : NON, une IA ne dessine pas un
+# plan d'exécution. Ce qu'elle rédige, c'est la SPÉCIFICATION de la pièce
+# graphique — ce qu'elle doit montrer, à quelle échelle, avec quelles
+# conventions —, que le projeteur exécute ensuite.
+FORME_ATTENDUE = {
+    "note": "une note rédigée, en paragraphes suivis, avec ses calculs et ses sources",
+    "tableau": "un TABLEAU Markdown avec une ligne d'en-tête explicite et des "
+               "cellules courtes, précédé d'une phrase qui dit ce qu'il compare",
+    "plan": "la SPÉCIFICATION de la pièce graphique — ce qu'elle doit montrer, à "
+            "quelle échelle, avec quelles conventions de représentation et quel "
+            "cartouche. N'affirme jamais produire le plan lui-même : il est "
+            "dessiné par un projeteur à partir de cette spécification",
+    "schema": "la SPÉCIFICATION du schéma — organes à représenter, grandeurs à "
+              "porter, conventions et repérage. N'affirme jamais produire le "
+              "schéma lui-même",
+    "contractuel": "une pièce contractuelle, en articles numérotés, rédigée pour "
+                   "être opposable : chaque exigence mesurable, vérifiable et "
+                   "assortie de sa méthode de contrôle",
+    "procedure": "un mode opératoire en étapes numérotées, avec ses prérequis, "
+                 "ses critères d'acceptation et ses points d'arrêt",
+    "registre": "la TRAME du registre — colonnes, règles de tenue, périodicité "
+                "et responsable —, sous forme de tableau Markdown, et non un "
+                "registre pré-rempli de données inventées",
+}
+
+SYSTEM_PIECE = (
+    "Tu es un ingénieur de maîtrise d'œuvre et d'ingénierie de projet chez CONSEILPREV, "
+    "spécialisé dans les centres de données. Tu rédiges une PIÈCE de dossier de projet "
+    "en français, destinée à être versée à un dossier qui sera relu par un bureau de "
+    "contrôle, un maître d'ouvrage ou un contractant.\n\n"
+    "Règles absolues :\n"
+    "- Les grandeurs chiffrées te sont FOURNIES par un moteur de calcul déterministe. "
+    "Tu ne les recalcules pas, tu ne les arrondis pas autrement, tu ne les contredis "
+    "pas. Reprends-les telles quelles, avec leur unité et leur incertitude.\n"
+    "- Une grandeur signalée « À PRODUIRE » n'est PAS acquise. Ne la présente jamais "
+    "comme un résultat : cite-la comme valeur indicative, rappelle ce qui la bloque, "
+    "et indique par quoi elle doit être remplacée. C'est la règle la plus importante "
+    "de ce document — un chiffre provisoire présenté comme acquis traverse tout le "
+    "projet sans que personne ne le remplace.\n"
+    "- N'invente AUCUN fait, chiffre, nom, référence de plan ni constat propre au "
+    "projet. Quand une information manque, écris « [à compléter] ».\n"
+    "- Appuie-toi sur les extraits de la base de connaissance CONSEILPREV fournis en "
+    "contexte, et cite les documents dont tu tires une affirmation.\n"
+    "- Ne reproduis aucun texte normatif mot pour mot : reformule et cite la référence.\n"
+    "- Respecte le niveau de définition de la phase. Une pièce d'avant-projet ne "
+    "descend pas au détail d'exécution, et une pièce de consultation ne laisse "
+    "aucune exigence non mesurable.\n"
+    "- Le document est un BROUILLON de travail, à relire et valider par un ingénieur. "
+    "Ne prétends pas qu'il est définitif.\n"
+    "- Écris en Markdown : « ## » pour les sections, « ### » pour les sous-sections, "
+    "listes à puces, et tableaux Markdown dès qu'une information est comparative ou "
+    "multi-critères."
+)
+
+
+def piece(code_phase, code_piece):
+    for p in pieces(code_phase):
+        if p["code"] == code_piece:
+            return p
+    return None
+
+
+def prompts_piece(profil, code_phase, code_piece, inputs=None):
+    """(system, user, requête_de_recherche) pour rédiger une pièce.
+
+    Renvoie None si la phase ou la pièce est inconnue — on refuse de deviner :
+    un code de pièce mal orthographié doit échouer bruyamment, pas produire un
+    document plausible sous un mauvais intitulé.
+    """
+    inputs = dict(inputs or {})
+    d = dossier(profil, code_phase)
+    if not d.get("connu") or not d.get("disponible"):
+        return None
+    pc = piece(code_phase, code_piece)
+    if not pc:
+        return None
+
+    client = (inputs.get("client") or "").strip() or "[client à préciser]"
+    secteur = (inputs.get("secteur") or "").strip() or "[secteur à préciser]"
+    perimetre = (inputs.get("perimetre") or "").strip() or "[périmètre à préciser]"
+    consignes = (inputs.get("consignes") or "").strip()
+
+    u = []
+    A = u.append
+    A("Rédige la pièce suivante, en français, au format Markdown.\n")
+    A("PIÈCE — %s : %s" % (pc["code"], pc["titre"]))
+    A("Type de pièce : %s (%s)" % (pc["type_nom"], pc["type_aide"]))
+    A("Émetteur de la pièce : %s" % pc["emetteur_nom"])
+    if pc["emetteur"] not in ("moe", "mo"):
+        # Une pièce que la maîtrise d'œuvre ne produit pas mais reçoit : la
+        # rédiger comme si on l'avait produite déplacerait une responsabilité.
+        A("ATTENTION — cette pièce n'est pas produite par la maîtrise d'œuvre mais "
+          "par %s. Rédige donc la SPÉCIFICATION de ce qui est attendu de cet "
+          "émetteur : contenu exigé, format, critères d'acceptation et délai. "
+          "N'écris pas le document à sa place." % pc["emetteur_nom"])
+    A("Forme attendue : %s." % FORME_ATTENDUE.get(pc["type"], "une note rédigée"))
+    A("")
+    A("PHASE — %s (%s), filière %s" % (d["code"], d["nom"], d["filiere_nom"]))
+    A("Objet de la phase : %s" % d["objet"])
+    A("Ce que la phase décide : %s" % d["decide"])
+    A("Ce qu'elle verrouille : %s" % d["verrouille"])
+    A("Niveau de précision attendu : %s (%s ; %s)"
+      % (d["precision"]["valeur"], d["precision"]["nature"], d["precision"]["aace"]))
+    A("")
+    A("PROJET — client : %s · secteur : %s · périmètre : %s"
+      % (client, secteur, perimetre))
+    if consignes:
+        A("Consignes particulières : %s" % consignes)
+    A("")
+
+    if pc["moteur"]:
+        A("GRANDEURS CALCULÉES — elles viennent du moteur déterministe. Reprends-les "
+          "telles quelles.")
+        A("")
+        for g in d["grandeurs"]:
+            marque = "RECEVABLE À CE STADE" if g["statut"] == "recevable" else "À PRODUIRE"
+            ligne = "- %s : %s %s [%s]" % (g["nom"], D.fr(g["valeur"]), g["unite"], marque)
+            if g.get("incertitude"):
+                ligne += " — incertitude : %s" % g["incertitude"]
+            if g["statut"] != "recevable":
+                ligne += " — BLOQUÉE PAR : %s" % ", ".join(g["postes_bloquants"])
+            A(ligne)
+        A("")
+        subs = d["aptitude"]["substitutions_a_faire"]
+        if subs:
+            A("FACTEURS À REMPLACER avant de franchir cette phase — à mentionner "
+              "explicitement dans la pièce, avec leur consigne de remplacement :")
+            A("")
+            for s in subs:
+                A("- %s (%s%s). Pourquoi à ce stade : %s À remplacer par : %s"
+                  % (s["nom"], s["nature"],
+                     ", " + s["incertitude"] if s["incertitude"] else "",
+                     s["devient_insuffisant"], s["remplacer_par"]))
+            A("")
+        manques = d["aptitude"]["entrees_manquantes"]
+        if manques:
+            A("DONNÉES DE PROJET NON RENSEIGNÉES — écris « [à compléter] » là où "
+              "elles seraient nécessaires, et ne les invente pas : %s"
+              % ", ".join(m["label"] for m in manques))
+            A("")
+    else:
+        A("Cette pièce n'est PAS alimentée par le moteur de calcul énergie / eau / "
+          "carbone : elle relève d'une autre discipline. N'y reporte aucune grandeur "
+          "chiffrée de performance environnementale sans l'avoir reçue explicitement ; "
+          "renvoie plutôt aux pièces qui les portent.")
+        A("")
+
+    A("CONTENU EXIGÉ — développe chacun de ces points, dans cet ordre :")
+    for c in pc["contenu"]:
+        A("- %s" % c)
+    A("")
+    A("Commence par un titre « # %s — %s » suivi d'une ligne de métadonnées "
+      "(phase, émetteur, client, mention « Brouillon — à valider »). Termine par une "
+      "note rappelant que la pièce est un brouillon produit avec l'aide de l'IA à "
+      "partir d'un calcul déterministe, à relire et valider par un ingénieur."
+      % (pc["code"], pc["titre"]))
+
+    requete = " ".join([pc["titre"], d["nom"], d["filiere_nom"],
+                        "centre de données", secteur, perimetre, consignes]).strip()
+    return SYSTEM_PIECE, "\n".join(u), requete
+
+
 def referentiel():
     """Le cadre complet, pour l'interface et la documentation."""
     return {
@@ -791,6 +1467,14 @@ def referentiel():
         "correspondances": CORRESPONDANCES,
         "postes": POSTES,
         "apport": APPORT,
+        # Le registre complet, toutes phases : une interface qui ne verrait que
+        # la phase affichée ne permettrait pas de préparer un plan de production
+        # documentaire, qui est justement ce qu'on regarde en début de projet.
+        "types_piece": TYPES_PIECE,
+        "emetteurs": EMETTEURS,
+        "formes_attendues": FORME_ATTENDUE,
+        "pieces": {p["code"]: pieces(p["code"]) for p in PHASES},
+        "note_registre": NOTE_REGISTRE,
         "moteur": D.VERSION,
     }
 
@@ -821,6 +1505,17 @@ def sante():
                 regressions.append({"de": seq[i - 1]["code"], "a": seq[i]["code"],
                                     "entrees_perdues": sorted(av - ap),
                                     "substitutions_perdues": sorted(sv - sp)})
+    # Le registre : chaque phase doit en avoir un, les codes doivent être
+    # uniques d'un bout à l'autre — un code réutilisé casse la traçabilité au
+    # moment même où elle sert — et les types et émetteurs doivent exister.
+    tous = [x for p_ in PHASES for x in pieces(p_["code"])]
+    codes_pieces = [x["code"] for x in tous]
+    doublons = sorted({c for c in codes_pieces if codes_pieces.count(c) > 1})
+    sans_registre = [p_["code"] for p_ in PHASES if not pieces(p_["code"])]
+    types_inconnus = sorted({x["type"] for x in tous if x["type"] not in TYPES_PIECE})
+    emet_inconnus = sorted({x["emetteur"] for x in tous if x["emetteur"] not in EMETTEURS})
+    sans_contenu = [x["code"] for x in tous if not x["contenu"]]
+
     p = {"puissance_it_kw": 2000}
     return {
         "version": VERSION,
@@ -830,6 +1525,13 @@ def sante():
         "champs_exiges_inconnus": inconnus,
         "postes_inconnus": postes_inconnus,
         "regressions_d_exigence": regressions,
+        "pieces_total": len(tous),
+        "pieces_alimentees_moteur": sum(1 for x in tous if x["moteur"]),
+        "pieces_codes_doublons": doublons,
+        "phases_sans_registre": sans_registre,
+        "pieces_types_inconnus": types_inconnus,
+        "pieces_emetteurs_inconnus": emet_inconnus,
+        "pieces_sans_contenu": sans_contenu,
         "franchissables_profil_minimal": [
             e["code"] for e in parcours(p, "moe")["etapes"] if e["franchissable"]
         ] + [

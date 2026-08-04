@@ -128,6 +128,55 @@
   .ig-plan ol{margin:6px 0 0 18px;padding:0;columns:2;column-gap:26px}
   @media(max-width:760px){ .ig-plan ol{columns:1} }
   .ig-corr{font-size:12.5px;color:var(--muted2);line-height:1.6;margin-top:10px}
+
+  /* ── Le registre des pièces ─────────────────────────────────────────────
+     Groupé par TYPE et non par numéro : on cherche « les tableaux à fournir »
+     ou « les plans », pas « la pièce numéro sept ». */
+  .ig-reg{margin-top:20px;border-top:1px solid var(--line);padding-top:16px}
+  .ig-reg-t{font-size:13px;color:var(--muted);margin-bottom:12px}
+  .ig-reg-t b{color:var(--ink)}
+  .ig-reg-c{display:block;font-family:var(--mono);font-size:11px;color:var(--muted2);
+    margin-top:4px}
+  .ig-reg-g{margin-top:14px}
+  .ig-reg-g h5{font-size:12px;margin:0 0 8px;color:var(--ink);letter-spacing:.05em;
+    text-transform:uppercase}
+  .ig-reg-g h5 span{font-family:inherit;font-size:11.5px;color:var(--muted2);
+    letter-spacing:0;text-transform:none;font-weight:400;margin-left:8px}
+  .ig-pc{border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:8px;
+    background:rgba(0,0,0,.12)}
+  /* Une pièce alimentée par le calcul se distingue : elle hérite des grandeurs
+     ET de leurs réserves de phase, les autres non. */
+  .ig-pc.mot{border-left:3px solid var(--cyan)}
+  .ig-pc-h{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:6px}
+  .ig-pc-h code{font-family:var(--mono);font-size:11px;color:var(--cyan);
+    border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+  .ig-pc-h .ti{font-size:13px;color:var(--ink);font-weight:600;flex:1 1 auto;min-width:200px}
+  .ig-pc-h .em{font-family:var(--mono);font-size:10px;letter-spacing:.05em;
+    text-transform:uppercase;color:var(--muted2);border:1px solid var(--line);
+    border-radius:20px;padding:2px 8px;white-space:nowrap}
+  .ig-pc-h .mo{font-family:var(--mono);font-size:10px;letter-spacing:.05em;
+    text-transform:uppercase;color:#0b0b0b;background:var(--cyan);border-radius:20px;
+    padding:2px 8px;white-space:nowrap}
+  .ig-pc ul{margin:0;padding-left:17px;font-size:12px;color:var(--muted);line-height:1.65}
+  .ig-pc-a{margin-top:9px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .ig-gen{all:unset;cursor:pointer;font-size:11.5px;padding:5px 11px;border-radius:7px;
+    border:1px solid var(--line);color:var(--muted)}
+  .ig-gen:hover{border-color:var(--cyan);color:var(--ink)}
+  .ig-gen:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  .ig-gen[disabled]{opacity:.55;cursor:default}
+  .ig-pc-n{font-size:11px;color:var(--muted2);line-height:1.5;flex:1 1 260px}
+  .ig-reg-n{font-size:11.5px;color:var(--muted2);line-height:1.6;margin-top:14px;
+    padding:10px 13px;border-left:3px solid var(--line);background:rgba(0,0,0,.12);
+    border-radius:0 8px 8px 0}
+  .ig-doc{margin-top:14px;border:1px solid var(--line);border-radius:11px;overflow:hidden}
+  .ig-doc-h{font-size:12px;color:var(--muted2);padding:9px 13px;background:rgba(0,0,0,.22);
+    border-bottom:1px solid var(--line)}
+  .ig-doc-h b{color:var(--ink)}
+  /* Le brouillon est rendu en texte brut : c'est du Markdown destiné à être
+     copié dans un document, pas à être lu mis en forme ici. */
+  .ig-doc-c{margin:0;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:11.5px;line-height:1.7;color:var(--muted);white-space:pre-wrap;
+    max-height:520px;overflow:auto}
   /* Le tableau des correspondances : deux traditions côte à côte, et surtout
      leurs ÉCARTS — c'est là que les équipes se croient couvertes et ne le
      sont pas. */
@@ -197,6 +246,22 @@
       indispensable. Ce que vous renseignez ici décide des phases que vous pouvez
       franchir — c'est précisément ce que montre la frise ci-dessous.</p>
     <div class="rc-card" id="ig-form"><p class="note">Chargement du référentiel…</p></div>
+
+    <!-- Ces trois champs n'entrent dans AUCUN calcul : ils servent uniquement à
+         la rédaction des pièces, qui doit nommer le projet. Les mêler au profil
+         technique laisserait croire qu'ils pèsent sur les bilans. -->
+    <div class="rc-card" style="margin-top:14px">
+      <p class="dc-lab" style="margin:0 0 10px">Identification du projet
+        <span class="dc-unite">(sert à la rédaction des pièces, pas aux calculs)</span></p>
+      <div class="dc-grille">
+        <label class="dc-champ" for="ig-client"><span class="dc-lab">Client ou organisation</span>
+          <input id="ig-client" type="text" placeholder="— à préciser —"></label>
+        <label class="dc-champ" for="ig-secteur"><span class="dc-lab">Secteur d'activité</span>
+          <input id="ig-secteur" type="text" placeholder="colocation, hyperscale, entreprise…"></label>
+        <label class="dc-champ" for="ig-perimetre"><span class="dc-lab">Périmètre</span>
+          <input id="ig-perimetre" type="text" placeholder="salle, bâtiment, campus…"></label>
+      </div>
+    </div>
     <p class="note" id="ig-etat" role="status" aria-live="polite" style="margin-top:12px"></p>
   </section>
 

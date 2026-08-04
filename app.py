@@ -2152,7 +2152,39 @@ def _etude_phase_markdown(d, client=""):
     for i, s in enumerate(d["sections"], 1):
         A("%d. %s" % (i, s))
     A("")
-    A("## 5. Traçabilité")
+
+    # Le plan dit ce qu'on écrit ; le registre dit ce qu'on REMET. Une étude de
+    # phase qui ne porterait que le plan laisserait le lecteur composer lui-même
+    # la liste des pièces — c'est-à-dire en oublier.
+    pcs = d.get("pieces") or []
+    if pcs:
+        r = d.get("resume_pieces") or {}
+        A("## 5. Registre des pièces à fournir")
+        A("")
+        A("%d pièces, dont %d alimentées par le calcul énergie / eau / carbone. "
+          "Les autres relèvent d'autres disciplines et figurent pour mémoire."
+          % (r.get("total", len(pcs)), r.get("alimentees_par_le_moteur", 0)))
+        A("")
+        A("| Code | Pièce | Type | Émetteur | Calcul |")
+        A("| --- | --- | --- | --- | --- |")
+        for p in pcs:
+            A("| %s | %s | %s | %s | %s |"
+              % (p["code"], p["titre"], p["type_nom"], p["emetteur_nom"],
+                 "oui" if p["moteur"] else "—"))
+        A("")
+        A("### Contenu exigé de chaque pièce")
+        A("")
+        for p in pcs:
+            A("**%s — %s** (%s ; %s)"
+              % (p["code"], p["titre"], p["type_nom"], p["emetteur_nom"]))
+            A("")
+            for c in p["contenu"]:
+                A("- %s" % c)
+            A("")
+        A("*%s*" % d.get("note_registre", ""))
+        A("")
+
+    A("## 6. Traçabilité")
     A("")
     A("- Moteur de calcul : datacenter v%s" % d["version_moteur"])
     A("- Cadre de phases : ingenierie_dc v%s" % ingenierie_dc.VERSION)
@@ -3715,10 +3747,16 @@ def api_livrables_types():
     return jsonify(ok=True, types=livrables.public_types(), models=assistant.available())
 
 
-def _livrables_run(type_id, data, system, user, extra_query=""):
+def _livrables_run(type_id, data, system, user, extra_query="", label=None):
     """Ancre le prompt sur la base de connaissance (documents publics + internes),
     génère le livrable, l'enregistre dans l'historique et renvoie la réponse JSON.
-    Partagé par la génération et l'affinage."""
+    Partagé par la génération, l'affinage et les pièces de dossier de projet.
+
+    `label` sert aux documents qui ne figurent pas dans livrables.TYPES — les
+    pièces de phase sont au nombre de cent-huit, et les verser au menu déroulant
+    de la console le rendrait inutilisable. Sans ce paramètre, l'historique les
+    enregistrait sous leur identifiant technique.
+    """
     model = "mistral" if data.get("model") == "mistral" else "claude"
     query = (livrables.retrieval_query(type_id, data) + " " + extra_query).strip()
     # Documents de référence choisis manuellement (facultatif) ; sinon récupération auto.
@@ -3767,7 +3805,7 @@ def _livrables_run(type_id, data, system, user, extra_query=""):
     try:
         t = livrables.get_type(type_id)
         saved_id = livrables_hist.save({
-            "type": type_id, "label": t["label"] if t else type_id,
+            "type": type_id, "label": (t["label"] if t else None) or label or type_id,
             "client": data.get("client"), "secteur": data.get("secteur"),
             "perimetre": data.get("perimetre"), "model": used_model,
             "markdown": text, "sources": sources, "parent_id": parent_id})
@@ -3793,6 +3831,50 @@ def api_livrables_generate():
         return jsonify(ok=False, error="type_inconnu", message="Type de livrable inconnu."), 400
     system, user = prompts
     return _livrables_run(type_id, data, system, user)
+
+
+@app.route("/api/admin/datacenter/piece", methods=["POST"])
+@admin_required
+def api_datacenter_piece():
+    """Rédige une pièce du registre de phase, ancrée sur la base de connaissance.
+
+    Même verrou que la génération de livrables : la rédaction consomme des jetons
+    d'API et écrit dans l'historique. Le REGISTRE, lui, reste consultable par tout
+    compte connecté — c'est la référence, et la garder derrière le verrou
+    d'administration la rendrait inutile à qui monte un dossier.
+
+    Les prompts sont construits par ingenierie_dc : ils portent la frontière entre
+    grandeurs acquises et grandeurs à produire, et cette frontière est calculée,
+    pas rédigée.
+    """
+    ckey = "gen:%s" % client_ip()
+    if guard.blocked(ckey, limit=12, window=600):
+        return jsonify(ok=False, error="rate_limited",
+                       message="Trop de générations en peu de temps. Patientez quelques minutes."), 429
+    guard.fail(ckey)
+    data = request.get_json(silent=True) or {}
+    profil = _profil_datacenter(data)
+    phase = str(data.get("phase") or "").strip().upper()[:12]
+    code = str(data.get("piece") or "").strip().upper()[:16]
+    if not profil.get("puissance_it_kw"):
+        return jsonify(ok=False, error="puissance_absente",
+                       message="La puissance informatique installée est nécessaire."), 400
+    try:
+        prompts = ingenierie_dc.prompts_piece(profil, phase, code, data)
+    except Exception:
+        app.logger.exception("prompts pièce datacenter")
+        return jsonify(ok=False, error="calcul",
+                       message="La pièce n'a pas pu être préparée."), 500
+    if not prompts:
+        return jsonify(ok=False, error="piece_inconnue",
+                       message="Phase ou pièce inconnue."), 404
+    system, user, requete = prompts
+    pc = ingenierie_dc.piece(phase, code)
+    audit.journaliser("datacenter.piece", cible="%s/%s" % (phase, code),
+                      detail=pc["titre"][:120])
+    return _livrables_run("dc-piece-%s-%s" % (phase.lower(), code.lower()),
+                          data, system, user, extra_query=requete,
+                          label="%s %s — %s" % (phase, pc["code"], pc["titre"]))
 
 
 @app.route("/api/admin/livrables/preview-docs", methods=["POST"])

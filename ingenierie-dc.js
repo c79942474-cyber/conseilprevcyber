@@ -216,6 +216,8 @@
       + (d.sections || []).map(function (s) { return "<li>" + esc(s) + "</li>"; }).join("")
       + "</ol></div>";
 
+    h += registrePieces(d);
+
     (d.correspondance || []).forEach(function (c) {
       var autre = d.filiere === "moe" ? c.indus : c.moe;
       h += '<p class="ig-corr"><b>Correspondance — ' + esc(autre) + "</b> (accord "
@@ -223,7 +225,119 @@
     });
 
     $("#ig-dossier").innerHTML = h + "</div>";
+    brancherPieces();
     boutons(true);
+  }
+
+  /* ── Le registre des pièces ──────────────────────────────────────────────
+     Le plan dit ce qu'on écrit ; le registre dit ce qu'on REMET. Deux choses
+     distinctes : confondre les deux fait livrer un rapport là où le marché
+     attend des pièces numérotées, chacune avec son émetteur.
+
+     Les pièces sont groupées par TYPE et non par ordre de code : on cherche
+     « les tableaux à fournir » ou « les plans », pas « la pièce numéro sept ». */
+  var ORDRE_TYPE = ["note", "tableau", "plan", "schema", "contractuel",
+                    "procedure", "registre"];
+
+  function registrePieces(d) {
+    var P = d.pieces || [];
+    if (!P.length) return "";
+    var R = d.resume_pieces || {};
+    var h = '<div class="ig-reg"><div class="ig-reg-t"><b>' + R.total
+      + "</b> pièce" + (R.total > 1 ? "s" : "") + " à fournir · <b>"
+      + R.alimentees_par_le_moteur + "</b> alimentée"
+      + (R.alimentees_par_le_moteur > 1 ? "s" : "") + " par le calcul"
+      + "<span class='ig-reg-c'>"
+      + Object.keys(R.par_type || {}).sort().map(function (k) {
+          return esc(k) + " " + R.par_type[k];
+        }).join(" · ") + "</span></div>";
+
+    var groupes = {};
+    P.forEach(function (p) { (groupes[p.type] = groupes[p.type] || []).push(p); });
+    ORDRE_TYPE.forEach(function (t) {
+      var g = groupes[t];
+      if (!g || !g.length) return;
+      h += '<div class="ig-reg-g"><h5>' + esc(g[0].type_nom)
+        + " <span>" + esc(g[0].type_aide) + "</span></h5>";
+      g.forEach(function (p) {
+        h += '<div class="ig-pc' + (p.moteur ? " mot" : "") + '">'
+          + '<div class="ig-pc-h"><code>' + esc(p.code) + "</code> "
+          + '<span class="ti">' + esc(p.titre) + "</span>"
+          + '<span class="em">' + esc(p.emetteur_nom) + "</span>"
+          + (p.moteur ? '<span class="mo">alimentée par le calcul</span>' : "")
+          + "</div>"
+          + '<ul>' + p.contenu.map(function (c) { return "<li>" + esc(c) + "</li>"; }).join("")
+          + "</ul>"
+          + '<div class="ig-pc-a"><button type="button" class="ig-gen" '
+          + 'data-piece="' + esc(p.code) + '">Rédiger cette pièce</button>'
+          /* Dire la vérité sur ce qu'une IA produit pour une pièce graphique :
+             elle n'en dessine pas une, elle en écrit la spécification. */
+          + (p.type === "plan" || p.type === "schema"
+              ? '<span class="ig-pc-n">La rédaction produit la SPÉCIFICATION de '
+                + 'la pièce graphique — contenu, échelle, conventions — non le '
+                + 'dessin lui-même.</span>' : "")
+          + "</div></div>";
+      });
+      h += "</div>";
+    });
+    h += '<p class="ig-reg-n">' + esc(d.note_registre) + "</p>";
+    return h + '<div id="ig-piece" aria-live="polite"></div></div>';
+  }
+
+  function brancherPieces() {
+    document.querySelectorAll("#ig-dossier .ig-gen").forEach(function (b) {
+      b.addEventListener("click", function () { redigerPiece(b.getAttribute("data-piece"), b); });
+    });
+  }
+
+  function redigerPiece(code, bouton) {
+    var z = $("#ig-piece");
+    if (!z || !PHASE) return;
+    var p = lireProfil();
+    p.phase = PHASE;
+    p.piece = code;
+    p.client = (($("#ig-client") || {}).value || "").trim();
+    p.secteur = (($("#ig-secteur") || {}).value || "").trim();
+    p.perimetre = (($("#ig-perimetre") || {}).value || "").trim();
+    bouton.disabled = true;
+    var ancien = bouton.textContent;
+    bouton.textContent = "Rédaction…";
+    z.innerHTML = '<p class="note">Rédaction de ' + esc(code)
+      + " en cours, à partir du calcul et de la base de connaissance…</p>";
+    z.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    fetch("/api/admin/datacenter/piece", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(p),
+    })
+      .then(function (r) { return r.json().then(function (j) { return { s: r.status, j: j }; }); })
+      .then(function (o) {
+        bouton.disabled = false;
+        bouton.textContent = ancien;
+        if (!o.j.ok) {
+          /* Un 403 n'est pas une panne : c'est le verrou d'administration. Le
+             dire évite de faire chercher une erreur qui n'existe pas. */
+          z.innerHTML = '<p class="note">' + esc(o.s === 403
+            ? "La rédaction assistée est réservée à l'administrateur du site. "
+              + "Le registre ci-dessus, lui, reste consultable et exportable."
+            : (o.j.message || "Rédaction indisponible.")) + "</p>";
+          return;
+        }
+        z.innerHTML = '<div class="ig-doc"><div class="ig-doc-h">'
+          + "<b>" + esc(code) + "</b> — brouillon rédigé"
+          + (o.j.model ? " · " + esc(o.j.model) : "")
+          + ((o.j.sources || []).length
+              ? " · " + o.j.sources.length + " document"
+                + (o.j.sources.length > 1 ? "s" : "") + " de la base cité"
+                + (o.j.sources.length > 1 ? "s" : "")
+              : " · aucun document de la base n'a été retrouvé")
+          + '</div><pre class="ig-doc-c">' + esc(o.j.document) + "</pre></div>";
+      })
+      .catch(function () {
+        bouton.disabled = false;
+        bouton.textContent = ancien;
+        z.innerHTML = '<p class="note">Rédaction indisponible pour le moment.</p>';
+      });
   }
 
   /* ── Les correspondances entre filières ──────────────────────────────── */
