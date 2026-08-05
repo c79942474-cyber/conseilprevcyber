@@ -479,6 +479,11 @@
     $("#ig-dossier").innerHTML = h + "</div>";
     brancherPieces();
     boutons(true);
+    /* Le registre vient d'apparaître. Ses boutons battent une seule fois, à la
+       PREMIÈRE phase ouverte : les rallumer à chaque changement de phase
+       ferait clignoter trente boutons chaque fois qu'on parcourt la frise, et
+       trente boutons qui clignotent ensemble ne désignent plus rien. */
+    battre("#ig-dossier .ig-gen, #ig-dossier .ig-voir", "ig-bat", "registre");
   }
 
   /* ── Le registre des pièces ──────────────────────────────────────────────
@@ -785,6 +790,10 @@
       var b = $(s);
       if (b) b.disabled = !actif;
     });
+    /* Les exports viennent de devenir possibles : c'est l'instant où le
+       battement a quelque chose à dire. Avant, il aurait désigné des boutons
+       inactifs — une promesse que le clic n'aurait pas tenue. */
+    if (actif) battre("#ig-docx, #ig-pdf", "ig-bat-doc", "export");
   }
 
   function exporter(fmt) {
@@ -899,7 +908,15 @@
       });
     });
     var g = $("#ig-g-go");
-    if (g) g.addEventListener("click", guideCharger);
+    if (g) {
+      g.addEventListener("click", guideCharger);
+      /* Le bouton n'existe qu'une fois les deux choix faits : son apparition
+         EST l'information, et le battement la souligne. Le groupe est
+         réarmé à chaque fois qu'on revient au choix — c'est un nouveau
+         départ, pas une répétition. */
+      delete BATTUS["guide"];
+      battre("#ig-g-go", "ig-bat", "guide");
+    }
   }
 
   function guideCharger() {
@@ -1027,6 +1044,55 @@
   }
 
   /* ═════════════════════════════════════════════════════════════════════
+     LE BATTEMENT DES BOUTONS
+
+     Ce que le battement dit : « ceci vient de devenir possible ». Il est donc
+     posé au moment où un bouton devient actionnable, et pas avant — un bouton
+     d'export qui clignote alors qu'aucune phase n'est choisie promet une
+     action qui échouera.
+
+     Trois règles, et la deuxième est celle qui fait la différence entre un
+     repère et une gêne :
+
+       · UNE FOIS PAR GROUPE. La page se redessine à chaque frappe dans le
+         formulaire. Reposer la classe à chaque rendu ferait battre les boutons
+         en permanence, ce qui est exactement ce qu'on veut éviter.
+
+       · L'INTERACTION L'ARRÊTE. Un bouton qui continue de clignoter après
+         qu'on s'en est servi n'est plus un repère, c'est du bruit. Survol,
+         clic ou focus clavier suffisent : le lecteur l'a vu.
+
+       · L'ANIMATION S'ARRÊTE SEULE. Cinq cycles, neuf secondes. Aucun bouton
+         « arrêter » à chercher. */
+  var BATTUS = {};
+
+  function battre(selecteur, classe, groupe) {
+    if (BATTUS[groupe]) return;
+    var els = document.querySelectorAll(selecteur);
+    if (!els.length) return;
+    BATTUS[groupe] = true;
+    els.forEach(function (el) {
+      if (el.disabled) return;
+      el.classList.add(classe);
+      var stop = function () {
+        el.classList.remove(classe);
+        el.removeEventListener("mouseenter", stop);
+        el.removeEventListener("focus", stop);
+        el.removeEventListener("click", stop);
+      };
+      el.addEventListener("mouseenter", stop);
+      el.addEventListener("focus", stop);
+      el.addEventListener("click", stop);
+      /* Filet : si l'animation n'émet pas son événement de fin — onglet en
+         arrière-plan, moteur qui l'a coupée — la classe resterait posée et le
+         bouton garderait un halo figé. */
+      el.addEventListener("animationend", function () {
+        el.classList.remove(classe);
+      });
+    });
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
      LE PROFIL REPRIS DE LA PAGE DE CALCUL
 
      Le formulaire de cette page est le MÊME que celui de /datacenter — même
@@ -1099,6 +1165,13 @@
         PIECE_VISEE = appliquerURL();
         reprendreProfil();
         rafraichir();
+        /* Le lanceur du parcours guidé bat à l'ouverture : c'est le seul
+           geste utile quand on ne connaît pas encore la page. Différé d'une
+           seconde — un battement qui commence pendant que la page se dessine
+           passe inaperçu, et le lecteur n'a encore rien lu. */
+        setTimeout(function () {
+          battre("#ig-lanceur-b", "ig-bat", "lanceur");
+        }, 1000);
       })
       .catch(function (e) {
         $("#ig-form").innerHTML = '<p class="note">'

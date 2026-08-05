@@ -317,6 +317,40 @@
   .ig-vise::before{content:"";position:absolute;left:-14px;top:0;bottom:0;
     width:3px;border-radius:2px;background:var(--cyan)}
   @media (max-width:820px){.ig-vise::before{left:-8px}}
+  /* ── Le battement des boutons ────────────────────────────────────────
+     Un halo qui s'écarte et s'efface. Il ne touche ni la taille du bouton ni
+     la mise en page : rien ne bouge autour de lui, et le texte reste lisible
+     pendant toute l'animation.
+
+     1,8 s par cycle, soit 0,55 éclat par seconde — très en dessous des trois
+     par seconde au-delà desquels un clignotement devient un risque
+     photosensible (WCAG 2.3.1). Cinq cycles puis `forwards` fige l'état
+     final : l'animation s'arrête d'elle-même en neuf secondes, ce qui vaut
+     mieux qu'un bouton « arrêter » que personne ne cherche (WCAG 2.2.2).
+
+     Deux teintes, parce que deux familles de boutons : le cyan pour ce qui
+     ouvre une action, l'ambre pour ce qui produit un document. Un halo unique
+     ferait clignoter trente boutons de la même façon, et trente boutons qui
+     clignotent ensemble ne désignent plus rien. */
+  @keyframes ig-battement{
+    0%   {box-shadow:0 0 0 0 rgba(34,211,238,.55)}
+    55%  {box-shadow:0 0 0 12px rgba(34,211,238,0)}
+    100% {box-shadow:0 0 0 0 rgba(34,211,238,0)}
+  }
+  @keyframes ig-battement-doc{
+    0%   {box-shadow:0 0 0 0 rgba(217,150,58,.55)}
+    55%  {box-shadow:0 0 0 12px rgba(217,150,58,0)}
+    100% {box-shadow:0 0 0 0 rgba(217,150,58,0)}
+  }
+  .ig-bat{animation:ig-battement 1.8s ease-out 5 forwards}
+  .ig-bat-doc{animation:ig-battement-doc 1.8s ease-out 5 forwards}
+  /* Le mouvement est un RAPPEL, pas le message : coupé, la couleur, la
+     bordure et la position du bouton portent seules la visibilité, et rien
+     n'est perdu. */
+  @media (prefers-reduced-motion: reduce){
+    .ig-bat,.ig-bat-doc{animation:none}
+  }
+
   /* Le profil repris de la page de calcul. Vert d'accord plutôt que cyan
      d'action : c'est un constat, pas quelque chose à faire. */
   #ig-repris{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
