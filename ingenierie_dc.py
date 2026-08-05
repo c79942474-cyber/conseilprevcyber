@@ -2537,6 +2537,448 @@ def glossaire():
     }
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  8. LE PARCOURS GUIDÉ — par rôle et par thème
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# POURQUOI. La page tient un cadre de quatorze phases et un registre de cent
+# vingt-sept pièces. C'est juste, et c'est illisible en arrivant : un
+# investisseur, un ingénieur CVC et un acheteur n'y cherchent pas la même
+# chose et ne devraient pas la parcourir dans le même ordre. Une table des
+# matières répond « où est quoi » ; elle ne répond pas « par où je commence ».
+#
+# CE QUI EST ÉCRIT ET CE QUI EST CALCULÉ. Cinq rôles portent chacun une
+# SÉQUENCE — quelles sections, dans quel ordre, quoi y faire. Six thèmes
+# portent chacun un PÉRIMÈTRE — quelles disciplines, quels postes du
+# référentiel. Le croisement des deux n'est pas rédigé : il est CALCULÉ sur le
+# registre réel. Trente textes écrits à la main diraient bientôt autre chose
+# que le registre qu'ils prétendent décrire ; un calcul suit le registre.
+
+ROLES_GUIDE = [
+    {
+        "id": "investisseur",
+        "icone": "◆",
+        "nom": "Maître d'ouvrage · investisseur",
+        "question": "Ce projet tient-il, et à partir de quand puis-je m'engager ?",
+        "cherche": "Le moment où le chiffre cesse d'être indicatif — et ce qu'il "
+                   "faut avoir produit pour y arriver.",
+        "phases_cles": ["FAISA", "ESQ", "APS"],
+        "filiere": "indus",
+        "fin": "Vous savez ce que la phase suivante exige, et ce qu'elle "
+               "verrouille. C'est de cela que se décide un engagement, pas d'un "
+               "montant isolé.",
+    },
+    {
+        "id": "moe",
+        "icone": "▤",
+        "nom": "Maîtrise d'œuvre",
+        "question": "Que dois-je produire, à quelle phase, et à quel niveau ?",
+        "cherche": "Le plan de production documentaire, avec les niveaux "
+                   "d'émission attendus phase par phase.",
+        "phases_cles": ["APS", "APD", "PRO", "DCE"],
+        "filiere": "moe",
+        "fin": "Vous tenez la liste des pièces de la phase, leur niveau attendu "
+               "et celles que le calcul alimente. C'est un plan de charge, pas "
+               "une intention.",
+    },
+    {
+        "id": "discipline",
+        "icone": "⌁",
+        "nom": "Ingénieur de discipline",
+        "question": "Que dois-je écrire pour ma discipline, et avec quelles données ?",
+        "cherche": "Sa spécification, le niveau attendu à la phase courante, et "
+                   "les grandeurs que le moteur lui fournit déjà.",
+        "phases_cles": ["APS", "APD", "PRO"],
+        "filiere": "moe",
+        "fin": "Vous savez ce que votre spécification doit contenir, ce que le "
+               "calcul vous donne, et ce qu'il vous faudra chercher ailleurs.",
+    },
+    {
+        "id": "acheteur",
+        "icone": "§",
+        "nom": "Acheteur · contractant",
+        "question": "Sur quoi puis-je engager quelqu'un, et avec quelle tolérance ?",
+        "cherche": "La classe de précision de la phase et ce qui devient "
+                   "opposable au moment du gel contractuel.",
+        "phases_cles": ["DCE", "ACT", "EPCI"],
+        "filiere": "moe",
+        "fin": "Vous savez quelle tolérance la phase autorise et ce qui, dans le "
+               "dossier, est assez arrêté pour porter une pénalité.",
+    },
+    {
+        "id": "exploitant",
+        "icone": "◈",
+        "nom": "Exploitant · futur exploitant",
+        "question": "Qu'est-ce que je récupère, et saurai-je le vérifier ?",
+        "cherche": "Les pièces remises à la réception, et les points de comptage "
+                   "sans lesquels aucune consommation ne se contrôle.",
+        "phases_cles": ["AOR", "CSU", "DET"],
+        "filiere": "moe",
+        "fin": "Vous savez ce que le dossier d'exploitation doit contenir pour "
+               "que les engagements pris soient vérifiables après la mise en "
+               "service — et non seulement déclarés.",
+    },
+]
+
+THEMES_GUIDE = [
+    {
+        "id": "energie",
+        "icone": "⚡",
+        "nom": "Énergie et rendement",
+        "question": "Combien l'installation consommera-t-elle, et de quoi cela dépend-il ?",
+        # PAS toute la discipline environnement : la RSE et le bâtiment bas
+        # carbone en relèvent et ne parlent pas d'énergie. On nomme les pièces,
+        # dont la charge informatique — elle EST la source de la consommation,
+        # et la laisser dehors au motif qu'elle relève d'une autre discipline
+        # serait suivre le classement plutôt que le sujet.
+        "disciplines": ["hvac", "elec_cfo"],
+        "pieces_sup": ["SPC-ITOT", "SPC-CONSO", "SPC-CHALEUR"],
+        "postes": ["pue", "intensite"],
+        "piege": "Le PUE est une plage de conception avant d'être une mesure. "
+                 "L'écrire au contrat avant d'avoir les courbes constructeur, "
+                 "c'est s'engager sur une famille d'installations, pas sur la "
+                 "sienne.",
+    },
+    {
+        "id": "eau",
+        "icone": "≈",
+        "nom": "Eau",
+        "question": "Quelle eau, prélevée où, et qu'est-ce que le WUE ne dit pas ?",
+        # L'eau d'extinction relève de la discipline incendie, dont le reste
+        # (compartimentage, désenfumage) n'est pas un sujet d'eau ; la chaleur
+        # fatale y entre parce que récupérer la chaleur change le mode
+        # d'évacuation, donc l'eau. On nomme donc les pièces plutôt que
+        # d'élargir le thème à des disciplines entières.
+        "disciplines": ["hvac", "extinction"],
+        "pieces_sup": ["SPC-EAUINC", "SPC-CONSO", "SPC-CHALEUR"],
+        "postes": ["ewif", "evaporation"],
+        "piege": "Le WUE ne compte que l'eau du site. L'eau consommée en amont "
+                 "par la production électrique peut l'emporter, et la réserve "
+                 "d'extinction ne figure ni dans l'un ni dans l'autre.",
+    },
+    {
+        "id": "carbone",
+        "icone": "◐",
+        "nom": "Carbone et RSE",
+        "question": "Quelle empreinte, et lequel des leviers pèse vraiment ?",
+        # La structure porte l'essentiel du carbone incorporé ; le reste est
+        # nommé pièce par pièce, pour la même raison qu'ailleurs — l'extinction
+        # et la CVC relèvent de l'environnement sans être des sujets carbone.
+        "disciplines": ["structure"],
+        "pieces_sup": ["SPC-BASCARB", "SPC-RSE", "SPC-CONSO", "SPC-CHALEUR"],
+        "postes": ["incorpore", "intensite"],
+        "piege": "Le carbone incorporé est annoncé à ±50 %, soit un facteur "
+                 "trois entre les bornes. Il suffit à comparer des familles ; "
+                 "il ne suffit plus à classer des leviers de décarbonation.",
+    },
+    {
+        "id": "securite",
+        "icone": "▲",
+        "nom": "Sécurité et incendie",
+        "question": "Quels scénarios, quelle extinction, et combien d'eau pour l'éteindre ?",
+        "disciplines": ["safety", "incendie", "extinction", "surete"],
+        "postes": [],
+        "piege": "La safety traite les accidents, la sûreté les actes "
+                 "malveillants : deux analyses, deux dossiers. Les confondre "
+                 "laisse un des deux sans titulaire.",
+    },
+    {
+        "id": "disponibilite",
+        "icone": "⏻",
+        "nom": "Disponibilité électrique",
+        "question": "Quelle redondance, quel raccordement, et quelle densité par baie ?",
+        "disciplines": ["elec_cfo", "elec_cfa", "itot", "telecom"],
+        # Le niveau de redondance — N+1, 2N — se décide dans la philosophie
+        # générale, pièce de conduite de projet, avant toute étude électrique.
+        "pieces_sup": ["SPC-PHILO"],
+        "postes": ["pue"],
+        "piege": "Deux arrivées qui empruntent le même fourreau ne font qu'un "
+                 "seul chemin. La redondance se vérifie sur le tracé, pas sur "
+                 "le contrat.",
+    },
+    {
+        "id": "cout",
+        "icone": "€",
+        "nom": "Coût et enveloppe",
+        "question": "Que vaut l'enveloppe, et quelle part n'est pas encore chiffrée ?",
+        # PAS toute la discipline environnement : la RSE et le bâtiment bas
+        # carbone en relèvent aussi et ne sont pas des sujets de coût. On nomme
+        # l'étude de consommation, qui porte l'OPEX, et rien de plus.
+        "disciplines": ["projet"],
+        "pieces_sup": ["SPC-CONSO"],
+        "postes": ["incorpore"],
+        "piege": "Au-delà d'un quart d'enveloppe non chiffrée, le total n'est "
+                 "plus une estimation : c'est une addition de ce qu'on sait "
+                 "déjà, présentée comme un montant.",
+    },
+]
+
+# Les cinq étapes de la page, dans son ordre. Le rôle ne change pas cet ordre —
+# une section 3 lue avant la section 1 ne calcule rien — il change ce qu'on y
+# fait et pourquoi. Le libellé et l'ancre sont écrits ici une fois : la page les
+# reçoit, elle ne les redevine pas.
+_ETAPES_PAGE = [
+    {"ancre": "ig-form", "section": 1, "titre": "Le profil de l'installation"},
+    {"ancre": "ig-parcours", "section": 2, "titre": "Où vous en êtes dans la séquence"},
+    {"ancre": "ig-dossier", "section": 3, "titre": "L'étude de la phase retenue"},
+    {"ancre": "ig-correspondances", "section": 4, "titre": "Les deux filières face à face"},
+    {"ancre": "ig-limites", "section": 5, "titre": "Ce que ce cadre ne fait pas"},
+]
+
+# Ce qu'on fait à chaque section, selon le rôle. Cinq rôles × cinq sections :
+# vingt-cinq consignes, écrites — c'est la part qui ne se déduit pas. Ce qui se
+# déduit, ce sont les CHIFFRES, calculés plus bas sur le registre réel.
+_CONSIGNES = {
+    "investisseur": [
+        ("Ne renseignez que la puissance informatique. Tout le reste a une "
+         "valeur par défaut, signalée comme telle.",
+         "Un premier ordre de grandeur en une saisie — et l'aveu, en clair, de "
+         "ce qui n'est encore qu'une hypothèse."),
+        ("Basculez sur la filière ingénierie et lisez la faisabilité. C'est la "
+         "seule phase qui ne suppose aucune étude préalable.",
+         "Vous voyez d'un coup ce que le calcul peut porter maintenant, et à "
+         "partir de quelle phase il ne suffira plus."),
+        ("Ouvrez la phase de faisabilité et lisez la précision attendue avant "
+         "les chiffres eux-mêmes.",
+         "Une classe d'estimation dit ce que le montant vaut. Sans elle, un "
+         "chiffre à ±50 % se lit comme un devis."),
+        ("Comparez les deux filières : votre projet suivra l'une ou l'autre "
+         "selon qu'il est passé en marché public ou en contrat industriel.",
+         "Les jalons de décision ne tombent pas aux mêmes moments — savoir "
+         "lequel s'applique évite de croire une décision encore ouverte."),
+        ("Lisez ce que le cadre refuse de faire.",
+         "Un outil qui annonce ses limites vous dit où chercher l'expertise "
+         "qu'il ne remplace pas."),
+    ],
+    "moe": [
+        ("Renseignez la puissance, puis autant de champs que vous en tenez : "
+         "chaque champ rempli resserre les incertitudes.",
+         "Les fourchettes se referment à mesure que le projet se précise — "
+         "c'est ce resserrement que le maître d'ouvrage regarde."),
+        ("Parcourez la frise de maîtrise d'œuvre et repérez la première phase "
+         "non franchissable.",
+         "Elle vous dit exactement ce qui manque, sans avoir à l'inventorier "
+         "à la main."),
+        ("Ouvrez la phase courante et lisez le registre : les pièces sont "
+         "groupées par type, chacune avec son émetteur et son contenu exigé.",
+         "Un plan de production documentaire daté, et non une liste de bonnes "
+         "intentions."),
+        ("Regardez les correspondances : un projet mené en EPCI n'attend pas "
+         "les mêmes pièces au même moment.",
+         "Les accords faibles sont signalés — ce sont eux qui font les "
+         "malentendus d'interface."),
+        ("Lisez les limites avant de contractualiser sur ce cadre.",
+         "Le registre relève de l'usage professionnel, pas d'un texte "
+         "opposable : la nuance se dit avant, pas après."),
+    ],
+    "discipline": [
+        ("Renseignez la puissance et, si vous les connaissez, les paramètres "
+         "de votre discipline — ils remplacent les valeurs par défaut.",
+         "Le calcul travaille alors sur vos hypothèses, pas sur des moyennes."),
+        ("Choisissez la phase où vous êtes attendu. Le niveau d'émission de "
+         "votre spécification en dépend.",
+         "« Première émission » et « gel contractuel » n'engagent pas la même "
+         "chose sous le même intitulé."),
+        ("Dans le registre, repérez votre spécification : elle porte son "
+         "niveau, son contenu exigé et les autres phases où elle revient.",
+         "Vous produisez UN document indicé, pas trois documents distincts."),
+        ("Vérifiez à quelle phase de l'autre filière votre spécification "
+         "tombe : les interfaces se jouent là.",
+         "Une discipline qui livre au bon moment dans la mauvaise filière "
+         "livre en retard."),
+        ("Lisez ce que le moteur ne calcule pas dans votre discipline.",
+         "Ce qui n'est pas alimenté par le calcul devra venir de vous — "
+         "autant le savoir avant."),
+    ],
+    "acheteur": [
+        ("Renseignez le profil aussi complètement que possible : une "
+         "consultation se prépare sur des hypothèses tenues.",
+         "Les incertitudes affichées deviennent les tolérances que vous "
+         "négocierez."),
+        ("Allez jusqu'à la phase de consultation. Les exigences y sont "
+         "cumulées depuis le début de la séquence.",
+         "Rien de ce qui a été arrêté plus tôt ne redevient ouvert — c'est "
+         "précisément ce qui rend un dossier consultable."),
+        ("Lisez la précision attendue et sa classe d'estimation avant "
+         "d'ouvrir le registre.",
+         "Elle vous dit quelle tolérance est défendable, et à partir de quand "
+         "une pénalité repose sur autre chose qu'un ordre de grandeur."),
+        ("Regardez la colonne EPCI : en contrat industriel, la responsabilité "
+         "de la conception de détail change de côté.",
+         "Ce déplacement de frontière est ce qui distingue les deux montages, "
+         "bien plus que le vocabulaire."),
+        ("Lisez les limites : le pourcentage de tolérance de MOE n'est pas "
+         "fixé par la loi.",
+         "Ce qui relève de l'usage se négocie ; le présenter comme "
+         "réglementaire ferme une discussion qui devait rester ouverte."),
+    ],
+    "exploitant": [
+        ("Renseignez le profil tel qu'il sera exploité, pas tel qu'il a été "
+         "vendu — charge réelle comprise.",
+         "L'écart entre les deux est la première source de dérive après mise "
+         "en service."),
+        ("Allez jusqu'à la réception, ou à la mise en service en filière "
+         "industrielle.",
+         "C'est là que le dossier vous est remis, et là qu'il est trop tard "
+         "pour demander ce qui n'a pas été prévu."),
+        ("Dans le registre, cherchez les pièces au niveau « tel que "
+         "construit » et les points de comptage.",
+         "Sans comptage installé, aucune consommation par poste ne se "
+         "vérifie : elle reste une hypothèse de conception."),
+        ("Comparez avec la mise en service industrielle : les essais de "
+         "performance n'y portent pas sur les mêmes objets.",
+         "Vous saurez quoi réclamer selon le montage choisi."),
+        ("Lisez les limites : le moteur donne des ordres de grandeur, pas des "
+         "garanties de performance.",
+         "Une garantie se mesure sur site ; elle ne se déduit pas d'un "
+         "référentiel."),
+    ],
+}
+
+
+def _pluriel(n, singulier, pluriel):
+    """« 1 pièce », « 3 pièces » — et jamais « 1 pièces ».
+
+    Le défaut paraît vétilleux ; il ne l'est pas. Un compte mal accordé dans un
+    document remis à un client est la première chose qu'on remarque, et elle
+    jette le doute sur tout le reste.
+    """
+    return "%d %s" % (n, pluriel if n > 1 else singulier)
+
+
+def _role_guide(rid):
+    for r in ROLES_GUIDE:
+        if r["id"] == rid:
+            return r
+    return None
+
+
+def _theme_guide(tid):
+    for t in THEMES_GUIDE:
+        if t["id"] == tid:
+            return t
+    return None
+
+
+def guide(role_id, theme_id, profil=None, code_phase=None):
+    """Le parcours d'un rôle sur un thème, avec ce que le registre en dit.
+
+    Renvoie None si le rôle ou le thème est inconnu : une combinaison mal
+    orthographiée doit échouer, pas produire un parcours plausible qui ne
+    correspond à rien.
+
+    Les CHIFFRES sont recalculés sur le registre à chaque appel. C'est le point
+    de la conception : trente croisements rédigés à la main diraient bientôt
+    autre chose que le registre qu'ils décrivent, et personne ne s'en
+    apercevrait — un texte ne se dément pas tout seul.
+    """
+    r = _role_guide(role_id)
+    t = _theme_guide(theme_id)
+    if not r or not t:
+        return None
+    profil = dict(profil or {})
+    fil = r["filiere"]
+    # La phase de travail : celle que l'utilisateur regarde si elle appartient
+    # à la filière du rôle, sinon la première phase clé du rôle qui existe.
+    connues = {p["code"]: p for p in PHASES}
+    ph = code_phase if code_phase in connues else None
+    if not ph or connues[ph]["filiere"] != fil:
+        ph = next((c for c in r["phases_cles"] if c in connues), None)
+    if not ph:
+        ph = next(p["code"] for p in PHASES if p["filiere"] == fil)
+
+    # ── Le croisement, calculé ────────────────────────────────────────────
+    # Les pièces de la phase qui relèvent des disciplines du thème, et la part
+    # que le calcul alimente. Rien de tout cela n'est écrit : si une pièce est
+    # ajoutée demain à la discipline « extinction », le thème « eau » la
+    # comptera sans qu'on y touche.
+    sup = set(t.get("pieces_sup") or [])
+
+    def _du_theme(p):
+        return p.get("discipline") in t["disciplines"] or p["code"] in sup
+
+    du_theme = [p for p in pieces(ph) if _du_theme(p)]
+    alimentees = [p for p in du_theme if p.get("moteur")]
+    # Ce que le thème représente sur l'ENSEMBLE du projet. On compte les
+    # occurrences et les phases, pas les documents distincts : ce dernier
+    # chiffre valait le même que celui de la phase courante et se lisait comme
+    # une contradiction — « 6 ici, 6 en tout » ne dit rien de plus.
+    occurrences, phases_concernees = 0, set()
+    for q in PHASES:
+        n = sum(1 for p in pieces(q["code"]) if _du_theme(p))
+        occurrences += n
+        if n:
+            phases_concernees.add(q["code"])
+    d = dossier(profil, ph) if profil.get("puissance_it_kw") else {}
+    # Les postes du thème et leur état à cette phase : recevable, ou remplacé.
+    postes_etat = []
+    for cle in t["postes"]:
+        v = POSTES.get(cle)
+        if not v:
+            continue
+        substitue = cle in (exigences(ph).get("substitutions") or [])
+        postes_etat.append({
+            "cle": cle, "nom": v["nom"],
+            "incertitude": v.get("incertitude") or "",
+            "incertitude_absente": bool(v.get("incertitude_absente")),
+            "substitue": substitue,
+            "remplacer_par": v.get("remplacer_par") or "",
+        })
+    grandeurs_bloquees = [g["nom"] for g in (d.get("grandeurs") or [])
+                          if g.get("statut") != "recevable"]
+
+    etapes = []
+    for i, e in enumerate(_ETAPES_PAGE):
+        faire, gain = _CONSIGNES[r["id"]][i]
+        chiffres = []
+        if e["ancre"] == "ig-parcours":
+            chiffres.append("Filière %s · phase de travail %s"
+                            % (FILIERES[fil]["nom"], ph))
+        if e["ancre"] == "ig-dossier":
+            chiffres.append(_pluriel(len(du_theme),
+                                     "pièce de ce thème à cette phase",
+                                     "pièces de ce thème à cette phase"))
+            if du_theme:
+                chiffres.append("%d alimentée%s par le calcul"
+                                % (len(alimentees),
+                                   "s" if len(alimentees) > 1 else ""))
+            chiffres.append("%d au long du projet, sur %s"
+                            % (occurrences,
+                               _pluriel(len(phases_concernees), "phase", "phases")))
+            if grandeurs_bloquees:
+                chiffres.append(_pluriel(len(grandeurs_bloquees),
+                                         "grandeur à produire ailleurs",
+                                         "grandeurs à produire ailleurs"))
+        if e["ancre"] == "ig-correspondances":
+            autre = "indus" if fil == "moe" else "moe"
+            chiffres.append("À rapprocher de la filière %s"
+                            % FILIERES[autre]["nom"])
+        etapes.append({
+            "n": i + 1, "ancre": e["ancre"], "section": e["section"],
+            "titre": e["titre"], "faire": faire, "gain": gain,
+            "chiffres": chiffres,
+        })
+
+    return {
+        "role": {k: r[k] for k in ("id", "icone", "nom", "question", "cherche", "fin")},
+        "theme": {k: t[k] for k in ("id", "icone", "nom", "question", "piege")},
+        "filiere": fil, "filiere_nom": FILIERES[fil]["nom"],
+        "phase": ph, "phase_nom": connues[ph]["nom"],
+        "etapes": etapes,
+        "disciplines": [{"cle": c, "nom": _nom_discipline(c)}
+                        for c in t["disciplines"]],
+        "postes": postes_etat,
+        "pieces_du_theme": [{"code": p["code"], "titre": p["titre"],
+                             "discipline_nom": p["discipline_nom"],
+                             "niveau_nom": p.get("niveau_nom") or "",
+                             "moteur": bool(p.get("moteur"))}
+                            for p in du_theme],
+        "occurrences_projet": occurrences,
+        "phases_concernees": sorted(phases_concernees),
+        "profil_renseigne": bool(profil.get("puissance_it_kw")),
+    }
+
+
 def referentiel():
     """Le cadre complet, pour l'interface et la documentation."""
     return {
@@ -2560,6 +3002,13 @@ def referentiel():
                          for k, v in c["options"].items()]}
             for c in IDENTIFICATION],
         "identification_note": IDENTIFICATION_NOTE,
+        # Le parcours guidé : les rôles et les thèmes sont servis, la page ne
+        # les réécrit pas. Le CROISEMENT, lui, se demande — il se calcule sur
+        # le profil et la phase courants et n'aurait aucun sens figé ici.
+        "guide_roles": [{k: r[k] for k in ("id", "icone", "nom", "question", "cherche")}
+                        for r in ROLES_GUIDE],
+        "guide_themes": [{k: t[k] for k in ("id", "icone", "nom", "question")}
+                         for t in THEMES_GUIDE],
         "formes_attendues": FORME_ATTENDUE,
         "pieces": {p["code"]: pieces(p["code"]) for p in PHASES},
         "note_registre": NOTE_REGISTRE,
@@ -2650,6 +3099,33 @@ def sante():
         c for c, v in _RECHERCHE_PIECE.items() if len(v.split()) < 6)
     disciplines_sans_repli = sorted(set(DISCIPLINES) - set(_RECHERCHE_DISCIPLINE))
 
+    # Le parcours guidé. Trois façons de le casser en silence : nommer une
+    # pièce qui n'existe pas, nommer une discipline inconnue, ou définir un
+    # thème dont le périmètre ne ramène rien — l'utilisateur choisirait alors
+    # un thème vide sans qu'aucune erreur ne se produise.
+    codes_connus = {x["code"] for q in PHASES for x in pieces(q["code"])}
+    guide_pieces_inconnues, guide_disciplines_inconnues, guide_themes_vides = [], [], []
+    for t_ in THEMES_GUIDE:
+        guide_pieces_inconnues += sorted(
+            "%s:%s" % (t_["id"], c) for c in (t_.get("pieces_sup") or [])
+            if c not in codes_connus)
+        guide_disciplines_inconnues += sorted(
+            "%s:%s" % (t_["id"], c) for c in t_["disciplines"]
+            if c not in DISCIPLINES)
+        sup_ = set(t_.get("pieces_sup") or [])
+        n_ = sum(1 for q in PHASES for x in pieces(q["code"])
+                 if x.get("discipline") in t_["disciplines"] or x["code"] in sup_)
+        if not n_:
+            guide_themes_vides.append(t_["id"])
+    # Chaque rôle doit porter une consigne par section de la page, sinon le
+    # parcours lèverait une IndexError au premier affichage.
+    guide_roles_incomplets = sorted(
+        r_["id"] for r_ in ROLES_GUIDE
+        if len(_CONSIGNES.get(r_["id"], [])) != len(_ETAPES_PAGE))
+    guide_postes_inconnus = sorted(
+        "%s:%s" % (t_["id"], c) for t_ in THEMES_GUIDE
+        for c in t_["postes"] if c not in POSTES)
+
     p = {"puissance_it_kw": 2000}
     return {
         "version": VERSION,
@@ -2672,6 +3148,13 @@ def sante():
         "disciplines_inconnues": disc_inconnues,
         "niveaux_inconnus": niv_inconnus,
         "specifications_sur_phase_inexistante": phases_fantomes,
+        "guide_roles": len(ROLES_GUIDE),
+        "guide_themes": len(THEMES_GUIDE),
+        "guide_pieces_inconnues": guide_pieces_inconnues,
+        "guide_disciplines_inconnues": guide_disciplines_inconnues,
+        "guide_themes_vides": guide_themes_vides,
+        "guide_roles_incomplets": guide_roles_incomplets,
+        "guide_postes_inconnus": guide_postes_inconnus,
         "specifications_sans_vocabulaire": specs_sans_vocabulaire,
         "vocabulaires_de_recherche_creux": vocabulaires_creux,
         "disciplines_sans_vocabulaire_de_repli": disciplines_sans_repli,

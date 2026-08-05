@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ingénierie de projet — APS, APD, DCE, BASIC, FEED, EPCI — CONSEILPREV Cyber</title>
+<title>Ingénierie de projet — centres de données — APS, APD, DCE, BASIC, FEED, EPCI — CONSEILPREV Cyber</title>
 <meta name="description" content="Le bilan énergie, eau et carbone d'un centre de données replacé dans la séquence projet : maîtrise d'œuvre loi MOP (ESQ, APS, APD, PRO, DCE, ACT, EXE, DET, AOR) et ingénierie industrielle (faisabilité, BASIC, FEED, EPCI, mise en service). Ce que le moteur fournit à chaque phase, et ce qu'il faut avoir remplacé.">
 <meta name="robots" content="noindex, follow">
 <meta property="og:type" content="website">
@@ -246,6 +246,77 @@
   .ig-pc-dl{margin:0;padding-left:17px;font-size:11.5px;color:var(--muted);line-height:1.7}
   .ig-pc-dl .vi,.ig-pc-dl .ex{font-family:var(--mono);font-size:10px;
     color:var(--muted2);margin-left:6px}
+  /* ── Le parcours guidé ─────────────────────────────────────────────── */
+  .ig-lanceur{display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+    margin:18px 0 4px;padding:15px 18px;border-radius:12px;
+    border:1px solid var(--cyan);background:rgba(34,211,238,.07)}
+  .ig-lanceur-t{flex:1 1 380px}
+  .ig-lanceur-t b{display:block;font-size:14px;color:var(--ink);margin-bottom:4px}
+  .ig-lanceur-t span{font-size:12.5px;color:var(--muted);line-height:1.6}
+  .ig-lanceur-b{all:unset;cursor:pointer;font-size:13px;font-weight:600;
+    padding:10px 20px;border-radius:9px;background:var(--cyan);color:#0B0B0B;
+    white-space:nowrap}
+  .ig-lanceur-b:hover{filter:brightness(1.08)}
+  .ig-lanceur-b:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+  #ig-guide{margin:14px 0 6px}
+  .ig-g-choix,.ig-g-p{border:1px solid var(--line);border-radius:13px;
+    padding:18px 20px;background:var(--panel)}
+  .ig-g-q{margin:0 0 10px;font-size:13px;font-weight:600;color:var(--ink)}
+  .ig-g-liste{display:grid;gap:9px;margin-bottom:18px;
+    grid-template-columns:repeat(auto-fit,minmax(228px,1fr))}
+  .ig-g-liste.th{grid-template-columns:repeat(auto-fit,minmax(196px,1fr))}
+  .ig-g-c{all:unset;cursor:pointer;display:grid;gap:3px;padding:11px 13px;
+    border-radius:10px;border:1px solid var(--line);background:var(--panel2)}
+  .ig-g-c:hover{border-color:var(--cyan)}
+  .ig-g-c:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  .ig-g-c.on{border-color:var(--cyan);background:rgba(34,211,238,.12)}
+  .ig-g-c .ic{font-size:15px;color:var(--cyan);line-height:1}
+  .ig-g-c .nm{font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.35}
+  .ig-g-c .qs{font-size:11px;color:var(--muted2);line-height:1.5}
+  .ig-g-go{margin-top:2px}
+  .ig-g-b{all:unset;cursor:pointer;font-size:12.5px;font-weight:600;
+    padding:9px 17px;border-radius:8px;background:var(--cyan);color:#0B0B0B}
+  .ig-g-b.s{background:transparent;color:var(--muted);border:1px solid var(--line);
+    font-weight:400}
+  .ig-g-b:hover{filter:brightness(1.08)}
+  .ig-g-b.s:hover{border-color:var(--cyan);color:var(--ink);filter:none}
+  .ig-g-b:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+  .ig-g-b.s:focus-visible{outline-color:var(--cyan)}
+  .ig-g-b[disabled]{opacity:.4;cursor:default;filter:none}
+  .ig-g-lien{all:unset;cursor:pointer;font-size:11.5px;color:var(--cyan);
+    text-decoration:underline;text-underline-offset:3px}
+  .ig-g-lien:hover{color:var(--ink)}
+  .ig-g-lien:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  .ig-g-h{display:flex;align-items:center;gap:13px;flex-wrap:wrap;
+    padding-bottom:11px;margin-bottom:12px;border-bottom:1px solid var(--line)}
+  .ig-g-rt{flex:1 1 260px;font-size:12px;color:var(--muted);font-family:var(--mono)}
+  .ig-g-jauge{display:flex;gap:5px;margin-bottom:11px}
+  .ig-g-jauge span{flex:1;height:4px;border-radius:2px;background:var(--line)}
+  .ig-g-jauge span.fa{background:var(--muted2)}
+  .ig-g-jauge span.ic{background:var(--cyan)}
+  .ig-g-n{margin:0 0 5px;font-family:var(--mono);font-size:10.5px;
+    letter-spacing:.05em;text-transform:uppercase;color:var(--cyan)}
+  .ig-g-p h3{margin:0 0 9px;font-size:16px;color:var(--ink);line-height:1.3}
+  .ig-g-f{margin:0 0 9px;font-size:13px;color:var(--ink);line-height:1.65}
+  .ig-g-ga{margin:0 0 11px;font-size:12.5px;color:var(--muted);line-height:1.6}
+  .ig-g-ga b{color:var(--ink)}
+  .ig-g-ch{margin:0 0 5px;padding-left:17px;font-size:12.5px;color:var(--muted);
+    line-height:1.75}
+  .ig-g-src{margin:0 0 12px;font-size:10.5px;color:var(--muted2);font-style:italic}
+  .ig-g-fin{margin-bottom:10px;padding:11px 14px;border-radius:0 9px 9px 0;
+    border-left:3px solid var(--muted2);background:rgba(0,0,0,.16);
+    font-size:12.5px;color:var(--muted);line-height:1.6}
+  .ig-g-fin b{color:var(--ink)}
+  .ig-g-fin.ok{border-left-color:var(--cyan)}
+  .ig-g-nav{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-top:14px}
+  .ig-g-att{margin:0;font-size:12px;color:var(--muted2);line-height:1.6}
+  .ig-g-att.err{color:#F0A88C}
+  /* La section visée par l'étape courante. En relief, pas déplacée : une page
+     qui se réorganise sous le lecteur lui fait perdre ce qu'il lisait. */
+  .ig-vise{position:relative}
+  .ig-vise::before{content:"";position:absolute;left:-14px;top:0;bottom:0;
+    width:3px;border-radius:2px;background:var(--cyan)}
+  @media (max-width:820px){.ig-vise::before{left:-8px}}
   .ig-pc-n{font-size:11px;color:var(--muted2);line-height:1.5;flex:1 1 260px}
   .ig-reg-n{font-size:11.5px;color:var(--muted2);line-height:1.6;margin-top:14px;
     padding:10px 13px;border-left:3px solid var(--line);background:rgba(0,0,0,.12);
@@ -299,14 +370,32 @@
 <main id="main">
 
   <section class="wrap" style="padding:44px 0 8px">
-    <p class="kick">Ingénierie de projet — centres de données</p>
-    <h1 style="margin:8px 0 12px;max-width:24ch">Où le calcul s'insère dans le projet</h1>
+    <!-- Le surtitre portait déjà le libellé devenu titre : les deux lignes se
+         répétaient mot pour mot. Il nomme désormais les deux filières, qui sont
+         la thèse de la page, et le titre nomme le sujet. -->
+    <p class="kick">Maîtrise d'œuvre &amp; ingénierie industrielle</p>
+    <h1 style="margin:8px 0 12px;max-width:26ch">Ingénierie de projet — centres de données</h1>
     <p class="lead" style="max-width:76ch">
       Le moteur d'<a href="/datacenter">énergie, eau et carbone</a> calcule juste. Il ne dit
       pas à quel moment ses chiffres sont recevables — et c'est là que se perdent les
       dossiers. Un PUE tiré d'une plage de conception convient parfaitement à un
       avant-projet sommaire&nbsp;; le même chiffre reporté dans un CCTP devient une clause
       de pénalité assise sur un ordre de grandeur, et le premier bureau de contrôle le voit.</p>
+    <!-- Le parcours guidé, posé AVANT le socle : quatorze phases et cent
+         vingt-sept pièces sont justes et illisibles en arrivant. Le lecteur qui
+         sait par où commencer n'en a pas besoin ; il passe devant sans le voir. -->
+    <div class="ig-lanceur" id="ig-lanceur">
+      <div class="ig-lanceur-t">
+        <b>Vous ne savez pas par où commencer&nbsp;?</b>
+        <span>Cette page tient un cadre de quatorze phases et un registre de
+          plus de cent pièces. Dites qui vous êtes et ce qui vous amène&nbsp;:
+          le parcours ne montre que ce qui vous concerne, dans l'ordre où cela
+          se décide.</span>
+      </div>
+      <button type="button" class="ig-lanceur-b" id="ig-lanceur-b"
+        aria-expanded="false" aria-controls="ig-guide">Ouvrir le parcours guidé</button>
+    </div>
+    <div id="ig-guide" hidden></div>
     <div class="rc-socle">
       <div><b>Deux filières, pas une.</b> Un centre de données est un bâtiment ET une
         installation de procédé. La maîtrise d'œuvre suit la loi MOP&nbsp;; l'ingénierie suit
@@ -384,7 +473,7 @@
     <div id="ig-correspondances"><p class="note">Chargement…</p></div>
   </section>
 
-  <section class="wrap rc-sec">
+  <section class="wrap rc-sec" id="ig-limites">
     <div class="rc-etape"><span class="n">5</span><h2>Ce que ce cadre ne fait pas</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Le dire ici plutôt qu'en note de bas de page&nbsp;: ces limites décident du moment où

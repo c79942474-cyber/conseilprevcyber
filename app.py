@@ -3931,6 +3931,33 @@ def api_livrables_preview_docs():
     return jsonify(ok=True, query=query, documents=docs, extraits=len(hits))
 
 
+@app.route("/api/datacenter/ingenierie/guide", methods=["POST"])
+@login_required
+def api_datacenter_guide():
+    """Le parcours d'un rôle sur un thème, avec ce que le registre en dit.
+
+    Calculé à chaque appel plutôt que servi figé : les chiffres qu'il porte —
+    pièces du thème à cette phase, part alimentée par le calcul, grandeurs
+    encore à produire — dépendent du profil saisi et de la phase regardée. Les
+    figer reviendrait à afficher les chiffres d'un autre projet.
+    """
+    data = request.get_json(silent=True) or {}
+    role = str(data.get("role") or "").strip()[:32]
+    theme = str(data.get("theme") or "").strip()[:32]
+    phase = str(data.get("phase") or "").strip().upper()[:12] or None
+    profil = _profil_datacenter(data)
+    try:
+        g = ingenierie_dc.guide(role, theme, profil, phase)
+    except Exception:
+        app.logger.exception("guide ingénierie datacenter")
+        return jsonify(ok=False, error="calcul",
+                       message="Le parcours n'a pas pu être établi."), 500
+    if not g:
+        return jsonify(ok=False, error="inconnu",
+                       message="Rôle ou thème inconnu."), 404
+    return jsonify(ok=True, guide=g)
+
+
 @app.route("/api/datacenter/ingenierie/apercu", methods=["POST"])
 @login_required
 def api_datacenter_piece_apercu():

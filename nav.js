@@ -25,7 +25,7 @@
       ["/gouvernance-ia", "Governance by Design IA"],
       ["/relecture-contrat", "Relecture de contrats assistée"],
       ["/datacenter", "Centres de données bas carbone"],
-      ["/ingenierie-datacenter", "Ingénierie de projet : APS, APD, DCE, FEED, EPCI"] ] },
+      ["/ingenierie-datacenter", "Ingénierie de projet — centres de données"] ] },
     { t: "Référentiel IEC 62443", l: [
       ["/referentiel", "Vue d’ensemble"],
       ["/analyse-de-risque", "Analyse de risque · 3-2"],

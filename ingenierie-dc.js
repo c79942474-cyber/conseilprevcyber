@@ -740,6 +740,217 @@
       .catch(function () { etat("La mise en page a échoué.", true); });
   }
 
+  /* ═════════════════════════════════════════════════════════════════════
+     LE PARCOURS GUIDÉ — par rôle et par thème
+
+     Trois états, et un seul visible à la fois : le CHOIX (qui êtes-vous, ce
+     qui vous amène), puis les ÉTAPES, une par section de la page. On ne
+     déroule pas les cinq étapes d'un coup : une étape à l'écran, celle de la
+     section où l'on se trouve, sinon le parcours redevient la table des
+     matières qu'il est censé remplacer.
+
+     Le parcours ne DÉPLACE rien et ne masque rien de la page : il fait
+     défiler vers la section concernée et la met en relief. Une page qui se
+     réorganise sous le lecteur lui fait perdre ce qu'il venait de lire. */
+  var GUIDE = null, GUIDE_ETAPE = 0, GUIDE_ROLE = null, GUIDE_THEME = null;
+
+  function guideZone() { return $("#ig-guide"); }
+
+  function guideOuvrir(ouvert) {
+    var z = guideZone(), b = $("#ig-lanceur-b");
+    if (!z || !b) return;
+    z.hidden = !ouvert;
+    b.setAttribute("aria-expanded", ouvert ? "true" : "false");
+    b.textContent = ouvert ? "Fermer le parcours" : "Ouvrir le parcours guidé";
+    if (!ouvert) { guideSurligner(null); GUIDE = null; GUIDE_ETAPE = 0; }
+  }
+
+  /* Mettre en relief la section visée. Une seule à la fois, et on retire la
+     précédente : deux sections en relief ne désignent plus rien. */
+  function guideSurligner(ancre) {
+    document.querySelectorAll(".ig-vise").forEach(function (e) {
+      e.classList.remove("ig-vise");
+    });
+    if (!ancre) return;
+    var el = document.getElementById(ancre);
+    if (!el) return;
+    var sec = el.closest("section") || el;
+    sec.classList.add("ig-vise");
+  }
+
+  function guideChoix() {
+    var roles = (CADRE && CADRE.guide_roles) || [];
+    var themes = (CADRE && CADRE.guide_themes) || [];
+    var h = '<div class="ig-g-choix"><p class="ig-g-q">Qui êtes-vous sur ce projet&nbsp;?</p>'
+      + '<div class="ig-g-liste" role="group" aria-label="Rôle">'
+      + roles.map(function (r) {
+          return '<button type="button" class="ig-g-c'
+            + (GUIDE_ROLE === r.id ? " on" : "") + '" data-role="' + esc(r.id) + '">'
+            + '<span class="ic" aria-hidden="true">' + esc(r.icone) + "</span>"
+            + '<span class="nm">' + esc(r.nom) + "</span>"
+            + '<span class="qs">' + esc(r.question) + "</span></button>";
+        }).join("")
+      + '</div><p class="ig-g-q">Et qu\'est-ce qui vous amène&nbsp;?</p>'
+      + '<div class="ig-g-liste th" role="group" aria-label="Thème">'
+      + themes.map(function (t) {
+          return '<button type="button" class="ig-g-c'
+            + (GUIDE_THEME === t.id ? " on" : "") + '" data-theme="' + esc(t.id) + '">'
+            + '<span class="ic" aria-hidden="true">' + esc(t.icone) + "</span>"
+            + '<span class="nm">' + esc(t.nom) + "</span>"
+            + '<span class="qs">' + esc(t.question) + "</span></button>";
+        }).join("")
+      + "</div>";
+    /* Le bouton n'apparaît QUE lorsque les deux choix sont faits : un bouton
+       présent mais inopérant se lit comme une panne. */
+    h += GUIDE_ROLE && GUIDE_THEME
+      ? '<div class="ig-g-go"><button type="button" class="ig-g-b" id="ig-g-go">'
+        + "Commencer le parcours →</button></div>"
+      : '<p class="ig-g-att">Choisissez un rôle et un thème pour commencer.</p>';
+    return h + "</div>";
+  }
+
+  function guideRendreChoix() {
+    var z = guideZone();
+    if (!z) return;
+    z.innerHTML = guideChoix();
+    z.querySelectorAll("[data-role]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        GUIDE_ROLE = b.getAttribute("data-role"); guideRendreChoix();
+      });
+    });
+    z.querySelectorAll("[data-theme]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        GUIDE_THEME = b.getAttribute("data-theme"); guideRendreChoix();
+      });
+    });
+    var g = $("#ig-g-go");
+    if (g) g.addEventListener("click", guideCharger);
+  }
+
+  function guideCharger() {
+    var z = guideZone();
+    if (!z || !GUIDE_ROLE || !GUIDE_THEME) return;
+    var p = lireProfil();
+    p.role = GUIDE_ROLE; p.theme = GUIDE_THEME;
+    if (PHASE) p.phase = PHASE;
+    z.innerHTML = '<p class="ig-g-att">Établissement du parcours…</p>';
+    fetch("/api/datacenter/ingenierie/guide", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      credentials: "same-origin", body: JSON.stringify(p),
+    }).then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) {
+          z.innerHTML = '<p class="ig-g-att err">'
+            + esc((j && j.message) || "Le parcours n'a pas pu être établi.")
+            + ' <button type="button" class="ig-g-lien" id="ig-g-retour">Revenir au choix</button></p>';
+          var rb = $("#ig-g-retour");
+          if (rb) rb.addEventListener("click", guideRendreChoix);
+          return;
+        }
+        GUIDE = j.guide; GUIDE_ETAPE = 0;
+        guideRendreEtape();
+      }).catch(function () {
+        z.innerHTML = '<p class="ig-g-att err">Le parcours n\'a pas répondu.</p>';
+      });
+  }
+
+  function guideRendreEtape() {
+    var z = guideZone();
+    if (!z || !GUIDE) return;
+    var e = GUIDE.etapes[GUIDE_ETAPE];
+    var n = GUIDE.etapes.length;
+    var h = '<div class="ig-g-p">'
+      + '<div class="ig-g-h"><span class="ig-g-rt">'
+      + '<span aria-hidden="true">' + esc(GUIDE.role.icone) + "</span> "
+      + esc(GUIDE.role.nom) + " · " + esc(GUIDE.theme.icone) + " "
+      + esc(GUIDE.theme.nom) + "</span>"
+      + '<button type="button" class="ig-g-lien" id="ig-g-changer">Changer</button>'
+      + '<button type="button" class="ig-g-lien" id="ig-g-fermer">Fermer</button></div>'
+      /* La barre d'avancement : savoir combien il reste change la disposition
+         à continuer. */
+      + '<div class="ig-g-jauge" role="progressbar" aria-valuemin="1" aria-valuemax="'
+      + n + '" aria-valuenow="' + (GUIDE_ETAPE + 1) + '" aria-label="Avancement">'
+      + GUIDE.etapes.map(function (x, i) {
+          return '<span class="' + (i < GUIDE_ETAPE ? "fa" : (i === GUIDE_ETAPE ? "ic" : ""))
+            + '"></span>';
+        }).join("") + "</div>"
+      + '<p class="ig-g-n">Étape ' + (GUIDE_ETAPE + 1) + " sur " + n
+      + " · section " + e.section + "</p>"
+      + "<h3>" + esc(e.titre) + "</h3>"
+      + '<p class="ig-g-f">' + esc(e.faire) + "</p>"
+      + '<p class="ig-g-ga"><b>Ce que vous y gagnez.</b> ' + esc(e.gain) + "</p>";
+    if (e.chiffres && e.chiffres.length) {
+      /* Les chiffres viennent du registre réel, recalculés pour ce croisement.
+         Ils portent la mention de leur origine : sans elle, ils passeraient
+         pour une illustration. */
+      h += '<ul class="ig-g-ch">'
+        + e.chiffres.map(function (c) { return "<li>" + esc(c) + "</li>"; }).join("")
+        + '</ul><p class="ig-g-src">Calculé sur le registre pour ce rôle et ce '
+        + "thème, à la phase " + esc(GUIDE.phase) + ".</p>";
+    }
+    if (GUIDE_ETAPE === n - 1) {
+      h += '<div class="ig-g-fin"><b>Le piège de ce thème.</b> '
+        + esc(GUIDE.theme.piege) + "</div>"
+        + '<div class="ig-g-fin ok"><b>Au terme du parcours.</b> '
+        + esc(GUIDE.role.fin) + "</div>";
+    }
+    if (!GUIDE.profil_renseigne) {
+      h += '<p class="ig-g-att">La puissance informatique n\'est pas encore '
+        + "renseignée : les chiffres de dossier restent vides tant qu'elle "
+        + "manque.</p>";
+    }
+    h += '<div class="ig-g-nav">'
+      + '<button type="button" class="ig-g-b s" id="ig-g-prec"'
+      + (GUIDE_ETAPE === 0 ? " disabled" : "") + ">← Précédent</button>"
+      + '<button type="button" class="ig-g-b" id="ig-g-suiv"'
+      + (GUIDE_ETAPE === n - 1 ? " disabled" : "") + ">Suivant →</button>"
+      + '<button type="button" class="ig-g-lien" id="ig-g-aller">Aller à la section</button>'
+      + "</div></div>";
+    z.innerHTML = h;
+
+    var b;
+    if ((b = $("#ig-g-prec"))) b.addEventListener("click", function () {
+      if (GUIDE_ETAPE > 0) { GUIDE_ETAPE--; guideRendreEtape(); }
+    });
+    if ((b = $("#ig-g-suiv"))) b.addEventListener("click", function () {
+      if (GUIDE_ETAPE < GUIDE.etapes.length - 1) { GUIDE_ETAPE++; guideRendreEtape(); }
+    });
+    if ((b = $("#ig-g-aller"))) b.addEventListener("click", function () { guideAller(e.ancre); });
+    if ((b = $("#ig-g-changer"))) b.addEventListener("click", function () {
+      guideSurligner(null); GUIDE = null; guideRendreChoix();
+    });
+    if ((b = $("#ig-g-fermer"))) b.addEventListener("click", function () { guideOuvrir(false); });
+    guideSurligner(e.ancre);
+  }
+
+  function guideAller(ancre) {
+    var el = document.getElementById(ancre);
+    if (!el) return;
+    var sec = el.closest("section") || el;
+    /* prefers-reduced-motion respecté : un défilement animé déclenche des
+       troubles vestibulaires chez une part réelle des lecteurs. */
+    var doux = !window.matchMedia
+      || !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    sec.scrollIntoView({ behavior: doux ? "smooth" : "auto", block: "start" });
+  }
+
+  function brancherGuide() {
+    var b = $("#ig-lanceur-b");
+    if (!b) return;
+    b.addEventListener("click", function () {
+      var z = guideZone();
+      var ouvrir = z.hidden;
+      guideOuvrir(ouvrir);
+      if (ouvrir && !GUIDE) guideRendreChoix();
+    });
+    /* Échap ferme le parcours, comme l'infobulle : deux couches superposées
+       qui ne se ferment pas de la même façon désorientent. */
+    document.addEventListener("keydown", function (ev) {
+      var z = guideZone();
+      if (ev.key === "Escape" && z && !z.hidden) guideOuvrir(false);
+    });
+  }
+
   function démarrer() {
     Promise.all([
       fetch("/api/datacenter/referentiel", { credentials: "same-origin" })
@@ -756,6 +967,7 @@
         bâtirIdentification();
         bâtirOnglets();
         rendreCorrespondances();
+        brancherGuide();
         rafraichir();
       })
       .catch(function (e) {
