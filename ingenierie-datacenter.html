@@ -369,6 +369,24 @@
   .ig-bloc.calc > .rc-card{border-left:3px solid var(--cyan)}
   .ig-bloc.redac > .rc-card{border-left:3px solid var(--line)}
 
+  /* Le dépôt de documents. L'état de l'analyse est affiché AVANT le
+     formulaire : ce n'est pas une mention légale, c'est ce que le lecteur doit
+     lire pour décider s'il confie un document. */
+  .ig-dep-etat{margin-bottom:14px;padding:13px 16px;border-radius:10px;
+    border:1px solid var(--line);border-left:3px solid #E8B44A;
+    background:rgba(0,0,0,.16)}
+  .ig-dep-etat.fort{border-left-color:#7FD4A8}
+  .ig-dep-etat .t{margin:0 0 8px;font-size:12.5px;color:var(--muted);line-height:1.6}
+  .ig-dep-etat .t b{color:var(--ink)}
+  .ig-dep-etat .l{margin:0;padding-left:17px;font-size:11.5px;color:var(--muted2);
+    line-height:1.7}
+  .ig-dep-ok,.ig-dep-ko{margin:10px 0 0;padding:11px 14px;border-radius:0 9px 9px 0;
+    font-size:12.5px;line-height:1.6}
+  .ig-dep-ok{border-left:3px solid #7FD4A8;background:rgba(0,0,0,.16);color:var(--muted)}
+  .ig-dep-ko{border-left:3px solid #F39F7D;background:rgba(0,0,0,.16);color:var(--muted)}
+  .ig-dep-ok b,.ig-dep-ko b{color:var(--ink)}
+  .ig-dep-n{margin:6px 0 0;font-size:11px;color:var(--muted2);line-height:1.6}
+
   /* ── Le battement des boutons ────────────────────────────────────────
      Un halo qui s'écarte et s'efface. Il ne touche ni la taille du bouton ni
      la mise en page : rien ne bouge autour de lui, et le texte reste lisible
@@ -594,6 +612,22 @@
       responsabilité de conception au même endroit. C'est l'ÉCART qui compte, pas
       l'alignement.</p>
     <div id="ig-correspondances"><p class="note">Chargement…</p></div>
+  </section>
+
+  <!-- Le dépôt de documents client. Placé APRÈS le registre : on sait alors
+       quelles pièces manquent, donc quoi apporter. Le présenter avant
+       reviendrait à demander des documents sans dire lesquels. -->
+  <section class="wrap rc-sec">
+    <div class="rc-etape"><span class="n">6</span><h2>Apporter vos documents</h2></div>
+    <p class="lead" style="max-width:74ch;margin-top:0">
+      Vos pièces existantes — notes de calcul, relevés, plans, spécifications
+      d'un projet antérieur — complètent l'étude là où le moteur s'arrête. Elles
+      sont analysées avant d'être enregistrées, et versées en visibilité
+      interne.</p>
+    <div id="ig-depot-etat" class="ig-dep-etat">
+      <p class="note">Vérification de la chaîne d'analyse…</p></div>
+    <div class="rc-card" id="ig-depot"></div>
+    <div id="ig-depot-liste"></div>
   </section>
 
   <section class="wrap rc-sec" id="ig-limites">

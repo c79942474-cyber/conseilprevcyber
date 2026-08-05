@@ -4212,6 +4212,74 @@ def api_livrables_preview_docs():
     return jsonify(ok=True, query=query, documents=docs, extraits=len(hits))
 
 
+@app.route("/api/datacenter/depot/etat", methods=["GET"])
+@login_required
+def api_depot_etat():
+    """Ce que vaut la chaîne d'analyse en ce moment.
+
+    Affiché AVANT le dépôt : celui qui confie un document a le droit de savoir
+    ce qui lui sera réellement appliqué. Écrire « analyse antivirus » sur un
+    serveur qui n'en a pas serait la pire des assurances — celle qui ne se
+    vérifie jamais.
+    """
+    import antivirus
+    return jsonify(ok=True, etat=antivirus.etat())
+
+
+@app.route("/api/datacenter/depot", methods=["POST"])
+@admin_required
+def api_depot_verser():
+    """Dépose un document client, après analyse.
+
+    Verrou d'administration, et non simple session : un document déposé
+    alimente les études et peut être versé à la base de connaissance. Ouvrir ce
+    geste à tout compte connecté reviendrait à laisser n'importe qui écrire
+    dans ce qui nourrit les livrables.
+
+    Le document est enregistré en visibilité INTERNE : il ne devient pas
+    public du seul fait d'avoir été déposé.
+    """
+    import antivirus
+    ckey = "depot:%s" % client_ip()
+    if guard.blocked(ckey, limit=30, window=600):
+        return jsonify(ok=False, error="rate_limited",
+                       message="Trop de dépôts en peu de temps. Patientez un instant."), 429
+    guard.fail(ckey)
+    data = request.get_json(silent=True) or {}
+    nom = (data.get("filename") or "").strip()[:200]
+    b64 = data.get("contenu") or ""
+    if not nom or not b64:
+        return jsonify(ok=False, error="incomplet",
+                       message="Nom de fichier et contenu sont nécessaires."), 400
+    try:
+        import base64
+        octets = base64.b64decode(b64, validate=True)
+    except Exception:
+        return jsonify(ok=False, error="contenu_illisible",
+                       message="Le contenu transmis n'est pas décodable."), 400
+    verdict = antivirus.analyser(nom, octets)
+    audit.journaliser("depot.analyse", cible=nom[:120],
+                      detail="%s · portes=%s"
+                             % ("accepté" if verdict["accepte"] else
+                                "REFUSÉ:" + verdict.get("code", "?"),
+                                ",".join(verdict.get("portes") or [])))
+    if not verdict["accepte"]:
+        return jsonify(ok=False, error="analyse_refus", analyse=verdict,
+                       message=verdict["motif"]), 422
+    try:
+        doc = rag.ingest_bytes(nom, octets,
+                               title=(data.get("titre") or nom).strip()[:200],
+                               theme=(data.get("theme") or "datacenter").strip()[:60],
+                               visibility="internal")
+    except RagError as exc:
+        return jsonify(ok=False, error=exc.code,
+                       message=getattr(exc, "detail", "")
+                       or "Le document n'a pas pu être enregistré."), exc.status
+    audit.journaliser("depot.verse", cible=str(doc.get("id"))[:80],
+                      detail=nom[:120])
+    return jsonify(ok=True, document=doc, analyse=verdict)
+
+
 @app.route("/api/datacenter/ingenierie/guide", methods=["POST"])
 @login_required
 def api_datacenter_guide():

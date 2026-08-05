@@ -1169,6 +1169,119 @@
     });
   }
 
+  /* ═════════════════════════════════════════════════════════════════════
+     LE DÉPÔT DE DOCUMENTS CLIENT
+
+     Deux règles, et la première n'est pas négociable :
+
+       · ON DIT CE QUI SERA APPLIQUÉ, AVANT. La page interroge l'état de la
+         chaîne d'analyse et l'affiche tel quel. Si aucun antivirus à
+         signatures n'est configuré sur le serveur, elle l'écrit — annoncer
+         « analyse antivirus » sans en avoir un serait la pire des assurances,
+         celle qui ne se vérifie jamais.
+
+       · LE REFUS EXPLIQUE. Un « fichier rejeté » sec fait recommencer à
+         l'identique. Le motif dit ce qui a été trouvé et ce qu'il faut faire —
+         réenregistrer sans macros, exporter en PDF simple. */
+  function depotEtat() {
+    var z = $("#ig-depot-etat");
+    if (!z) return;
+    fetch("/api/datacenter/depot/etat", { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) { z.innerHTML = ""; return; }
+        var e = j.etat;
+        var fort = e.antivirus_configure && e.antivirus_joignable;
+        z.className = "ig-dep-etat" + (fort ? " fort" : "");
+        z.innerHTML =
+          '<p class="t"><b>Ce qui est appliqué à chaque dépôt.</b> '
+          + esc(e.resume) + "</p>"
+          + '<ul class="l"><li>Formats acceptés — ' + e.extensions_admises.join(", ")
+          + "</li><li>Refusés d'office — " + e.formats_macros_refuses.join(", ")
+          + " : ces formats portent des macros par construction.</li>"
+          + "<li>Taille maximale — " + e.taille_max_mo + " Mo par fichier.</li>"
+          + "<li>Vérifications — le contenu doit correspondre à l'extension ; "
+          + "les macros, objets incorporés, JavaScript de PDF, liens externes "
+          + "et archives disproportionnées sont refusés.</li></ul>";
+      }).catch(function () { z.innerHTML = ""; });
+  }
+
+  function depotFormulaire() {
+    var z = $("#ig-depot");
+    if (!z) return;
+    z.innerHTML =
+      '<label class="dc-champ" for="ig-dep-f"><span class="dc-lab">Document à '
+      + 'apporter</span><input id="ig-dep-f" type="file" '
+      + 'accept=".pdf,.docx,.xlsx,.pptx,.txt,.md,.csv,.json,.png,.jpg,.jpeg,.dwg">'
+      + '<span class="dc-aide">Le fichier est analysé avant tout '
+      + "enregistrement.</span></label>"
+      + '<label class="dc-champ" for="ig-dep-t"><span class="dc-lab">Intitulé '
+      + '(facultatif)</span><input id="ig-dep-t" type="text" '
+      + 'placeholder="— le nom du fichier par défaut —"></label>'
+      + '<div class="ig-pc-a"><button type="button" class="ig-gen" '
+      + 'id="ig-dep-go">Analyser et déposer</button></div>'
+      + '<div id="ig-dep-r" aria-live="polite"></div>';
+    var b = $("#ig-dep-go");
+    if (b) b.addEventListener("click", depotEnvoyer);
+  }
+
+  function depotEnvoyer() {
+    var f = $("#ig-dep-f"), r = $("#ig-dep-r"), b = $("#ig-dep-go");
+    if (!f || !f.files || !f.files.length) {
+      r.innerHTML = '<p class="ig-dep-ko">Choisissez un fichier.</p>';
+      return;
+    }
+    var fichier = f.files[0];
+    b.disabled = true;
+    r.innerHTML = '<p class="note">Analyse de « ' + esc(fichier.name) + " »…</p>";
+    var lect = new FileReader();
+    lect.onerror = function () {
+      b.disabled = false;
+      r.innerHTML = '<p class="ig-dep-ko">Le fichier n\'a pas pu être lu.</p>';
+    };
+    lect.onload = function () {
+      var b64 = String(lect.result).split(",")[1] || "";
+      fetch("/api/datacenter/depot", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: fichier.name, contenu: b64,
+                               titre: ($("#ig-dep-t") || {}).value || "" }),
+      }).then(function (x) { return x.json().then(function (j) { return [x.status, j]; }); })
+        .then(function (xj) {
+          var st = xj[0], j = xj[1];
+          b.disabled = false;
+          if (st === 401 || st === 403) {
+            r.innerHTML = '<p class="ig-dep-ko">Le dépôt est réservé aux '
+              + "comptes d'administration : un document déposé alimente les "
+              + "études et la base de connaissance.</p>";
+            return;
+          }
+          if (!j || !j.ok) {
+            /* Le motif du refus vient du serveur et dit quoi faire. On
+               l'affiche tel quel plutôt que de le résumer : c'est lui qui
+               évite au client de recommencer à l'identique. */
+            r.innerHTML = '<p class="ig-dep-ko"><b>Document refusé.</b> '
+              + esc((j && j.message) || "Analyse en échec.") + "</p>"
+              + ((j && j.analyse && j.analyse.portes)
+                  ? '<p class="ig-dep-n">Portes appliquées : '
+                    + esc(j.analyse.portes.join(", ")) + ".</p>" : "");
+            return;
+          }
+          r.innerHTML = '<p class="ig-dep-ok"><b>Document accepté et '
+            + 'enregistré.</b> ' + esc(j.document.title || fichier.name)
+            + "</p><p class=\"ig-dep-n\">Portes appliquées : "
+            + esc((j.analyse.portes || []).join(", ")) + " · visibilité interne."
+            + ((j.analyse.alertes && j.analyse.alertes.length)
+                ? " " + esc(j.analyse.alertes[0]) : "") + "</p>";
+          f.value = "";
+        }).catch(function () {
+          b.disabled = false;
+          r.innerHTML = '<p class="ig-dep-ko">Le dépôt n\'a pas répondu.</p>';
+        });
+    };
+    lect.readAsDataURL(fichier);
+  }
+
   function démarrer() {
     Promise.all([
       fetch("/api/datacenter/referentiel", { credentials: "same-origin" })
@@ -1191,6 +1304,8 @@
            puis sauterait — le lecteur verrait la page se contredire. */
         PIECE_VISEE = appliquerURL();
         reprendreProfil();
+        depotEtat();
+        depotFormulaire();
         rafraichir();
         /* Le lanceur du parcours guidé bat à l'ouverture : c'est le seul
            geste utile quand on ne connaît pas encore la page. Différé d'une

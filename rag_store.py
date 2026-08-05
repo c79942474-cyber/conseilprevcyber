@@ -483,6 +483,35 @@ def validate_ext(filename):
     return ext
 
 
+def _porte_analyse(filename, data):
+    """L'analyse du contenu, AVANT toute ingestion.
+
+    Posée ici et non dans les routes : les deux chemins de chargement — direct
+    et par morceaux — convergent sur _ingest, et c'est le seul endroit où le
+    contenu complet existe. Une validation posée dans une route laisserait
+    l'autre grande ouverte.
+
+    Jusqu'ici seule l'EXTENSION était vérifiée. Un exécutable renommé
+    « rapport.pdf » entrait dans la base de connaissance, et un classeur porteur
+    de macros aussi, puisque « xlsm » figure parmi les extensions admises. Le
+    module d'analyse, lui, regarde le contenu.
+
+    Import local, et REFUS si le module manque : une porte absente qui laisse
+    passer est pire que pas de porte du tout, parce que personne ne s'en
+    aperçoit.
+    """
+    try:
+        import antivirus
+    except Exception:
+        raise RagError("analyse_indisponible", 503)
+    v = antivirus.analyser(filename, data)
+    if not v.get("accepte"):
+        e = RagError("analyse_refus", 422,
+                     v.get("motif") or "Fichier refuse par l'analyse.")
+        e.code_analyse = v.get("code")
+        raise e
+
+
 def _clean_visibility(v):
     return v if v in VISIBILITIES else "public"
 
@@ -641,6 +670,7 @@ class MemoryRagStore:
             raise RagError("fichier_vide", 422)
         if len(data) > MAX_FILE_BYTES:
             raise RagError("fichier_trop_lourd", 413)
+        _porte_analyse(filename, data)
         # Anti-doublon : contenu déjà présent (même empreinte SHA-256) ? On teste
         # AVANT l'extraction de texte (coûteuse) — inutile de la faire pour rien.
         digest = hashlib.sha256(data).hexdigest()
@@ -1118,6 +1148,7 @@ class PostgresRagStore:
             raise RagError("fichier_vide", 422)
         if len(data) > MAX_FILE_BYTES:
             raise RagError("fichier_trop_lourd", 413)
+        _porte_analyse(filename, data)
         # Anti-doublon : contenu déjà présent (même empreinte SHA-256) ? On teste
         # AVANT l'extraction de texte (coûteuse) — inutile de la faire pour rien.
         digest = hashlib.sha256(data).hexdigest()
