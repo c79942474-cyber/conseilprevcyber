@@ -485,29 +485,59 @@
 
   <section class="wrap rc-sec">
     <div class="rc-etape"><span class="n">4</span><h2>Documents et livrables</h2></div>
-    <p class="lead" style="max-width:72ch;margin-top:0">
+    <p class="lead" style="max-width:74ch;margin-top:0">
       Les documents propres au projet — relevés d'exploitation, fiches techniques
       fournisseurs, pièces d'appel d'offres, déclarations environnementales produit — se
-      chargent dans la base de connaissance, sous les seize thèmes de la famille
+      versent à la base de connaissance, sous les thèmes de la famille
       <b>Centres de données</b>. Les livrables rédigés s'y adossent, et reçoivent la note
       de calcul comme un ensemble de faits qu'ils ne peuvent pas contredire.</p>
+
+    <!-- QUI PEUT FAIRE QUOI. Ce guide envoyait tout lecteur vers deux pages
+         réservées à l'administrateur : un client connecté qui suivait le
+         chemin indiqué se heurtait à un refus, sans comprendre s'il lui
+         manquait un droit ou si le site était en panne. Les deux voies sont
+         désormais nommées séparément, et celle du client vient EN PREMIER —
+         c'est la plus fréquentée. -->
     <div class="rc-socle" style="margin-top:18px">
-      <div><b>Base de connaissance.</b> Seize thèmes, du refroidissement liquide aux
-        appels d'offres, en passant par l'eau, le carbone incorporé et l'état de l'art.
-        <a href="/admin/base-connaissance">Charger des documents</a>.</div>
-      <!-- Deux axes, et le dire évite qu'on cherche un document là où il n'est
-           pas : les livrables THÉMATIQUES traversent le projet, les études par
-           PHASE le découpent. Le compte n'est plus écrit ici — il changeait à
-           chaque ajout sans que personne ne pense à le corriger. -->
-      <div><b>Deux familles de livrables.</b> Par thème — note de calcul, conception,
+      <div><b>Vous êtes client du projet.</b> Tout se passe sur
+        <a href="/ingenierie-datacenter">la page d'ingénierie</a>&nbsp;: ouvrir un
+        projet, déposer vos documents (jusqu'à 20&nbsp;Mo, analysés avant
+        enregistrement), suivre le registre des pièces phase par phase, viser ou
+        rejeter ce qui est produit, et emporter le dossier complet en archive.
+        Aucun droit d'administration n'est nécessaire.</div>
+      <div><b>Vous administrez le site.</b> Deux pages vous sont réservées, et
+        elles refuseront l'accès aux autres comptes&nbsp;:
+        <a href="/admin/base-connaissance">charger des documents</a> dans la base,
+        et <a href="/admin/livrables?groupe=Centres%20de%20donn%C3%A9es">rédiger
+        les livrables</a>. La rédaction assistée passe par là.</div>
+      <div><b>Le partage des rôles.</b> Le moteur calcule, et la note de calcul est
+        écrite par lui. Le modèle rédige autour, avec interdiction explicite de
+        recalculer, d'arrondir autrement ou de contredire. <b>Sans clé d'API
+        configurée sur le serveur, la rédaction est impossible</b> — la page
+        d'ingénierie l'annonce avant de vous laisser la demander, plutôt que de
+        vous faire attendre pour rien.</div>
+    </div>
+
+    <!-- Le compte des thèmes est SERVI, plus écrit ici. Il l'était :
+         « seize thèmes », vrai le jour où on l'a tapé, faux depuis que la
+         famille en porte davantage — un lecteur cherchant un HAZOP en
+         concluait qu'il n'était pas couvert. -->
+    <p class="note" id="dc-base" style="margin-top:16px"></p>
+
+    <div class="rc-socle" style="margin-top:14px">
+      <div><b>Deux familles de livrables.</b> Par THÈME — note de calcul, conception,
         réponse à appel d'offres, CCTP, sobriété hydrique, chaleur fatale, conformité
-        européenne, état de l'art. Et par phase de projet — APS, APD, DCE, BASIC, FEED,
-        EPCI, dont le plan est produit par
-        <a href="/ingenierie-datacenter">le cadre d'ingénierie</a>.
-        <a href="/admin/livrables?groupe=Centres%20de%20donn%C3%A9es">Générer</a>.</div>
-      <div><b>Le partage des rôles.</b> Le moteur calcule et la note de calcul est écrite
-        par lui. Le modèle rédige autour, avec interdiction explicite de recalculer,
-        d'arrondir autrement ou de contredire.</div>
+        européenne, état de l'art. Et par PHASE de projet — ESQ, APS, APD, PRO, DCE
+        d'un côté, faisabilité, BASIC, FEED, EPCI de l'autre.</div>
+      <div><b>Le registre des pièces est consultable sans droit particulier.</b>
+        Ce qu'il faut remettre à chaque phase, classé par ce que ça pèse —
+        obligatoire, indispensable, utile — et ce que le calcul peut y verser
+        légitimement&nbsp;: voir <a href="/ingenierie-datacenter">le cadre
+        d'ingénierie</a>.</div>
+      <div><b>Ce que le dépôt fait de vos documents.</b> Chaque fichier est analysé
+        avant enregistrement — format contrôlé contre son extension, macros et
+        scripts refusés — et versé en visibilité interne. L'état réel de cette
+        chaîne est affiché avant le dépôt, jamais promis en général.</div>
     </div>
   </section>
 

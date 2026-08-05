@@ -1845,8 +1845,34 @@ def api_datacenter_referentiel():
 
     Une seule définition côté serveur : une liste d'options recopiée dans le
     HTML finit toujours par diverger du moteur qui, lui, calcule."""
+    # Le compte des thèmes de la base est DÉRIVÉ, pas écrit dans la page. Il y
+    # était : « seize thèmes », vrai le jour où on l'a tapé, faux depuis que la
+    # famille en porte vingt-cinq — neuf de management ajoutés sans que
+    # personne ne pense à corriger la phrase. Un lecteur cherchant un HAZOP en
+    # concluait qu'il n'était pas couvert.
     return jsonify(ok=True, referentiel=datacenter.referentiel(),
-                   champs=datacenter.CHAMPS)
+                   champs=datacenter.CHAMPS,
+                   base=_themes_datacenter())
+
+
+def _themes_datacenter():
+    """Ce que la base de connaissance couvre pour les centres de données."""
+    try:
+        # Import local : le module n'est pas lié au niveau global (seules
+        # `make_store` et `RagError` le sont), et l'y ajouter pour un compte
+        # ferait charger la base au démarrage sans nécessité.
+        import rag_store as _rs
+        familles = dict(_rs.THEME_FAMILLES)
+    except Exception:
+        return None
+    liste = familles.get("Centres de données") or []
+    techniques = [x for x in liste if "Management" not in x]
+    return {
+        "famille": "Centres de données",
+        "themes": len(liste),
+        "techniques": len(techniques),
+        "management": len(liste) - len(techniques),
+    }
 
 
 def _profil_datacenter(data):
@@ -4052,18 +4078,60 @@ def api_rag_restore():
 # s'appuie sur la base de connaissance RAG : documents PUBLICS ET INTERNES
 # (usage interne, contrairement à l'assistant public). Réservé à l'administrateur.
 
+# Ce que le lecteur DOIT comprendre quand la rédaction échoue.
+#
+# « La génération a échoué. Réessayez, ou changez de modèle » était le message
+# le plus fréquent, et le moins utile : il ne dit pas ce qui a échoué, et il
+# conseille de changer de modèle même lorsqu'aucun n'est configuré — auquel cas
+# l'autre échouera pareil. Chaque cause porte désormais son CONSTAT, sa CAUSE
+# probable et le GESTE qui la lève ; le conseil de bascule est ajouté par
+# `_conseil_modele()`, et seulement quand un autre modèle est réellement prêt.
 _ASSISTANT_MSG = {
-    "not_configured": "Aucun modèle d'IA n'est activé (clé API manquante). Configurez "
-                      "MISTRAL_API_KEY ou ANTHROPIC_API_KEY, puis réessayez.",
-    "auth": "Le service d'IA a refusé la clé configurée. Vérifiez-la, puis réessayez.",
-    "busy": "Le service d'IA est très sollicité. Réessayez dans un instant.",
-    "network": "Service d'IA momentanément injoignable. Réessayez dans un instant.",
-    "timeout": "Le modèle a mis trop de temps à rédiger ce livrable (le service reste "
-               "joignable). Réessayez, ou choisissez l'autre modèle — les vitesses "
-               "diffèrent d'un fournisseur à l'autre.",
-    "upstream": "La génération a échoué. Réessayez, ou changez de modèle.",
-    "empty": "Requête vide.",
+    "not_configured": "Aucun modèle d'IA n'est activé sur ce serveur : la clé "
+                      "d'API est absente. La rédaction est donc impossible, "
+                      "quel que soit le modèle choisi. Le registre, les "
+                      "calculs et les exports restent utilisables. Pour "
+                      "l'activer : renseigner ANTHROPIC_API_KEY ou "
+                      "MISTRAL_API_KEY dans la configuration du service.",
+    "auth": "Le service d'IA a refusé la clé configurée : elle est erronée, "
+            "expirée, ou sans autorisation sur ce modèle. Réessayer n'y "
+            "changera rien tant qu'elle n'est pas corrigée.",
+    "busy": "Le service d'IA est saturé et a refusé la demande (quota ou "
+            "limite de débit). Ce n'est pas une panne : réessayez dans une "
+            "minute.",
+    "network": "Le service d'IA est injoignable depuis ce serveur — réseau, "
+               "proxy ou coupure côté fournisseur. Le document n'a pas été "
+               "commencé ; rien n'est perdu.",
+    "timeout": "Le modèle a dépassé le délai accordé pour ce document. Le "
+               "service répond, il est simplement plus lent que le délai : "
+               "une pièce longue peut demander un second essai.",
+    "upstream": "Le service d'IA a répondu par une erreur. Le document n'a pas "
+                "été enregistré.",
+    "empty": "La demande était vide : rien n'a été envoyé au modèle.",
 }
+
+# Ce qui reste possible malgré l'échec. Écrit à part parce que c'est la seule
+# partie qui rassure : un échec de rédaction n'empêche ni de calculer, ni de
+# consulter le registre, ni d'exporter l'étude de phase.
+_ASSISTANT_REPLI = ("Le calcul, le registre des pièces et les exports Word/PDF "
+                    "de l'étude de phase restent disponibles.")
+
+
+def _conseil_modele(modele_tente):
+    """Le conseil de bascule, et seulement s'il a un sens.
+
+    « Changez de modèle » sur un serveur où aucun modèle n'est configuré envoie
+    le lecteur refaire exactement la même chose et échouer pareil. On ne le
+    propose donc que si l'AUTRE fournisseur est réellement prêt.
+    """
+    dispo = assistant.available()
+    autre = "mistral" if modele_tente == "claude" else "claude"
+    if dispo.get(autre):
+        return (" L'autre modèle (%s) est configuré et disponible : vous pouvez "
+                "le choisir." % autre)
+    if not any(dispo.values()):
+        return " Aucun autre modèle n'est configuré : changer de modèle ne changerait rien."
+    return ""
 
 
 @app.route("/admin/livrables")
@@ -4091,6 +4159,31 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None):
     enregistrait sous leur identifiant technique.
     """
     model = "mistral" if data.get("model") == "mistral" else "claude"
+    # ── Refuser TÔT plutôt qu'à la fin ────────────────────────────────────
+    # Sans clé d'API, l'échec était certain dès la première ligne : on
+    # construisait quand même les prompts, on interrogeait la base
+    # documentaire, on attendait, et on annonçait « la génération a échoué »
+    # après coup. Un échec connu d'avance doit se dire d'avance — l'attente
+    # n'apporte rien, et la faire subir laisse croire à une panne passagère.
+    dispo = assistant.available()
+    if not dispo.get(model):
+        autre = "mistral" if model == "claude" else "claude"
+        if dispo.get(autre):
+            # Une bascule automatique masquerait le fait que le modèle demandé
+            # n'est pas celui qui a écrit. On refuse, en nommant celui qui
+            # marche : c'est au lecteur de choisir, pas au serveur.
+            return jsonify(
+                ok=False, error="modele_indisponible", modele=model,
+                modeles_disponibles=dispo,
+                message=("Le modèle « %s » n'est pas configuré sur ce serveur. "
+                         "Le modèle « %s » l'est : choisissez-le pour rédiger "
+                         "cette pièce." % (model, autre)),
+                repli=_ASSISTANT_REPLI), 503
+        return jsonify(
+            ok=False, error="not_configured", modele=model,
+            modeles_disponibles=dispo,
+            message=_ASSISTANT_MSG["not_configured"],
+            repli=_ASSISTANT_REPLI), 503
     query = (livrables.retrieval_query(type_id, data) + " " + extra_query).strip()
     # Documents de référence choisis manuellement (facultatif) ; sinon récupération auto.
     doc_ids = [d for d in (data.get("doc_ids") or []) if _rag_valid_doc_id(d)]
@@ -4130,8 +4223,15 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None):
     try:
         text, used_model = assistant.generate(model, system, user, context=context)
     except assistant.AssistantError as exc:
-        return jsonify(ok=False, error=exc.code,
-                       message=_ASSISTANT_MSG.get(exc.code, "Génération indisponible.")), exc.status
+        # La cause, le repli, et le conseil de bascule seulement s'il a un sens.
+        return jsonify(
+            ok=False, error=exc.code, modele=model,
+            modeles_disponibles=assistant.available(),
+            message=(_ASSISTANT_MSG.get(exc.code, "La rédaction a échoué pour "
+                                        "une raison que le serveur n'a pas su "
+                                        "qualifier.")
+                     + _conseil_modele(model)),
+            repli=_ASSISTANT_REPLI), exc.status
 
     # Le projet de rattachement vient du CLIENT : on ne le croit pas sur parole.
     # Un identifiant est un identifiant, pas une autorisation — recopié depuis
@@ -4935,6 +5035,60 @@ def api_projet_livrable(pid, lid, fmt):
     resp.headers["X-Content-Type-Options"] = "nosniff"
     resp.headers["Cache-Control"] = "private, no-store"
     return resp
+
+
+@app.route("/api/datacenter/redaction/etat", methods=["GET"])
+@login_required
+def api_redaction_etat():
+    """Ce que vaut la chaîne de RÉDACTION en ce moment.
+
+    Le même principe que pour le dépôt de documents, appliqué à ce qui écrit :
+    celui qui va lancer une rédaction a le droit de savoir, AVANT de cliquer,
+    si elle peut aboutir. L'inverse — laisser cliquer, faire attendre, puis
+    annoncer « la génération a échoué » — transforme une configuration absente
+    en panne apparente, et fait réessayer indéfiniment quelque chose qui ne
+    peut pas marcher.
+
+    Trois choses distinctes, et il faut les trois : quel modèle peut écrire,
+    ce que la base de connaissance peut lui fournir, et ce qui reste possible
+    quand la rédaction ne l'est pas.
+    """
+    dispo = assistant.available()
+    prets = [k for k, v in dispo.items() if v]
+    try:
+        docs = rag.stats().get("documents", 0)
+    except Exception:
+        docs = None
+    if prets:
+        resume = ("La rédaction est disponible : %s. Chaque pièce est écrite à "
+                  "partir du calcul et de la base de connaissance, puis "
+                  "enregistrée dans le dossier du projet."
+                  % " et ".join(prets))
+    else:
+        resume = ("La rédaction est INDISPONIBLE : aucun modèle n'est configuré "
+                  "sur ce serveur. Inutile de lancer une pièce, elle échouera "
+                  "immédiatement — et le serveur le dira sans vous faire "
+                  "attendre.")
+    return jsonify(ok=True, etat={
+        "modeles": dispo,
+        "modeles_prets": prets,
+        "disponible": bool(prets),
+        "documents_base": docs,
+        # Une base vide ne bloque pas la rédaction : le modèle écrit à partir
+        # du calcul seul. Mais le document ne citera aucune source, et le dire
+        # AVANT évite de découvrir un livrable sans références après coup.
+        "base_vide": docs == 0,
+        "resume": resume,
+        "repli": _ASSISTANT_REPLI,
+        "consignes": [
+            "Le modèle n'invente aucun chiffre : les grandeurs viennent du "
+            "moteur déterministe et lui sont interdites de recalcul.",
+            "Sans document dans la base de connaissance, la pièce reste "
+            "rédigeable mais ne citera aucune source.",
+            "Une rédaction qui échoue n'enregistre rien : le dossier du projet "
+            "reste dans l'état où il était.",
+        ],
+    })
 
 
 @app.route("/api/datacenter/depot/etat", methods=["GET"])

@@ -1073,6 +1073,74 @@
     }
   }
 
+  /* Les intitulés d'échec, courts et distincts. Le message long vient du
+     serveur — il connaît la configuration réelle ; le titre sert à distinguer
+     d'un coup d'œil une panne passagère d'une configuration absente, parce que
+     les deux n'appellent pas le même geste. */
+  var ECHECS = {
+    not_configured: "Rédaction non configurée sur ce serveur",
+    modele_indisponible: "Ce modèle-ci n'est pas configuré",
+    auth: "Clé d'API refusée par le service",
+    busy: "Service saturé — ce n'est pas une panne",
+    network: "Service injoignable depuis ce serveur",
+    timeout: "Délai dépassé pour ce document",
+    upstream: "Le service d'IA a répondu par une erreur",
+    empty: "Demande vide",
+    rate_limited: "Trop de rédactions en peu de temps",
+    puissance_absente: "Puissance informatique non renseignée",
+    piece_inconnue: "Phase ou pièce inconnue",
+  };
+
+  var REDACTION = null;
+
+  /* L'état de la chaîne de rédaction, affiché AVANT le registre — exactement
+     comme celui de l'analyse antivirus avant le dépôt. Celui qui va lancer une
+     rédaction a le droit de savoir si elle peut aboutir : laisser cliquer,
+     faire attendre, puis annoncer l'échec transforme une configuration absente
+     en panne apparente, et fait réessayer indéfiniment. */
+  function redactionEtat() {
+    var z = $("#ig-red-etat");
+    if (!z) return;
+    fetch("/api/datacenter/redaction/etat", { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) { z.innerHTML = ""; return; }
+        REDACTION = j.etat;
+        var e = j.etat;
+        z.className = "ig-dep-etat" + (e.disponible ? " fort" : " ko");
+        z.innerHTML = '<p class="t"><b>Ce qui écrira ces pièces.</b> '
+          + esc(e.resume) + "</p>"
+          + '<ul class="l">'
+          + "<li>Modèles configurés — "
+          + (e.modeles_prets.length ? esc(e.modeles_prets.join(", "))
+                                    : "<b>aucun</b>") + "</li>"
+          + (e.documents_base === null
+              ? "<li>Base de connaissance — état indisponible</li>"
+              : "<li>Base de connaissance — " + e.documents_base
+                + " document" + (e.documents_base > 1 ? "s" : "")
+                + (e.base_vide
+                    ? " : les pièces resteront rédigeables, mais ne citeront "
+                      + "aucune source." : ".") + "</li>")
+          + e.consignes.map(function (c) { return "<li>" + esc(c) + "</li>"; }).join("")
+          + "</ul>"
+          + (e.disponible ? "" : '<p class="ig-dep-n"><b>Ce qui reste possible — </b>'
+              + esc(e.repli) + "</p>");
+        /* Les boutons de rédaction portent la mention : le lecteur voit sur le
+           bouton même que le geste ne peut pas aboutir, sans avoir à remonter
+           lire le bandeau. */
+        document.querySelectorAll("#ig-dossier .ig-gen").forEach(function (b) {
+          if (e.disponible) {
+            b.removeAttribute("title");
+            b.classList.remove("ko");
+          } else {
+            b.classList.add("ko");
+            b.setAttribute("title", e.resume);
+          }
+        });
+      })
+      .catch(function () { z.innerHTML = ""; });
+  }
+
   function brancherPieces() {
     var b;
     if ((b = $("#ig-inviter"))) b.addEventListener("click", inviterCollegue);
@@ -1088,6 +1156,7 @@
       });
     });
     railSuite();
+    redactionEtat();
     majGuidage();
     document.querySelectorAll("#ig-dossier .ig-gen").forEach(function (b) {
       b.addEventListener("click", function () { redigerPiece(b.getAttribute("data-piece"), b); });
@@ -1201,12 +1270,26 @@
         bouton.disabled = false;
         bouton.textContent = ancien;
         if (!o.j.ok) {
-          /* Un 403 n'est pas une panne : c'est le verrou d'administration. Le
-             dire évite de faire chercher une erreur qui n'existe pas. */
-          z.innerHTML = '<p class="note">' + esc(o.s === 403
-            ? "La rédaction assistée est réservée à l'administrateur du site. "
-              + "Le registre ci-dessus, lui, reste consultable et exportable."
-            : (o.j.message || "Rédaction indisponible.")) + "</p>";
+          /* L'échec est affiché SUR LA PIÈCE, avec sa cause, ce qui reste
+             possible et — seulement s'il en existe un — le modèle de repli.
+             Un « la génération a échoué » sec fait réessayer à l'identique :
+             c'est le pire des retours, celui qui coûte deux fois. */
+          var admin = o.s === 403;
+          var titre = admin ? "Rédaction réservée à l'administrateur"
+                            : (ECHECS[o.j.error] || "La rédaction n'a pas abouti");
+          z.innerHTML = '<div class="ig-ech"><div class="ig-ech-t">'
+            + '<span class="fx">✕</span><b>' + esc(titre) + "</b>"
+            + (o.j.error ? '<code>' + esc(o.j.error) + "</code>" : "") + "</div>"
+            + "<p>" + esc(admin
+                ? "Le registre ci-dessus reste consultable, et l'étude de phase "
+                  + "s'exporte en Word et en PDF sans passer par la rédaction."
+                : (o.j.message || "Cause non qualifiée par le serveur.")) + "</p>"
+            + (o.j.repli ? '<p class="rp">' + esc(o.j.repli) + "</p>" : "")
+            + "</div>";
+          /* L'état affiché en tête du registre est rafraîchi : si la cause est
+             une configuration absente, le bandeau doit cesser d'annoncer une
+             rédaction disponible. */
+          redactionEtat();
           return;
         }
         z.innerHTML = '<div class="ig-doc"><div class="ig-doc-h">'

@@ -643,6 +643,9 @@
   /* ── Le rail de continuité ─────────────────────────────────────────────
      Collé en haut de la fenêtre pendant qu'on parcourt le registre : la
      question « et après ? » se pose au bas de la liste, pas en haut. */
+  /* `min-width:0` sur la colonne : sans lui, une grille imbriquée refuse de
+     rétrécir sous la largeur de son contenu et déborde. */
+  .ig-avec-rail > .ig-col{min-width:0}
   .ig-avec-rail{display:grid;grid-template-columns:minmax(0,1fr) 218px;gap:18px;
     align-items:start;
     /* Élargi au-delà du gabarit de la page, jusqu'à la place disponible : le
@@ -727,6 +730,29 @@
   /* Deux mouvements superposés fatiguent plus qu'ils ne guident : coupée,
      la flèche reste posée au bon endroit et ne perd que son souffle. */
   @media (prefers-reduced-motion: reduce){.ig-fleche{animation:none}}
+
+  /* L'échec de rédaction, dit là où il se produit. Ambre plutôt que rouge :
+     la plupart de ces causes ne sont pas des pannes — un service saturé, un
+     délai dépassé, une clé absente. Les peindre en rouge ferait chercher une
+     avarie là où il n'y a qu'une configuration. */
+  .ig-ech{margin-top:10px;border:1px solid var(--line);
+    border-left:3px solid #E8B44A;border-radius:0 10px 10px 0;
+    padding:12px 15px;background:rgba(0,0,0,.2)}
+  .ig-ech-t{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:7px}
+  .ig-ech-t .fx{color:#E8B44A;font-size:13px}
+  .ig-ech-t b{color:var(--ink);font-size:13.5px}
+  .ig-ech-t code{font-family:var(--mono);font-size:10px;color:var(--muted2);
+    border:1px solid var(--line);border-radius:99px;padding:1px 7px}
+  .ig-ech p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.65}
+  .ig-ech .rp{margin-top:7px;font-size:11.5px;color:var(--muted2);
+    border-left:2px solid rgba(45,212,191,.5);padding-left:9px}
+  /* L'état de la chaîne quand elle ne peut pas écrire. */
+  .ig-dep-etat.ko{border-left-color:#E8B44A}
+  .ig-dep-etat:empty{display:none}
+  /* Un bouton dont on sait déjà qu'il ne peut pas aboutir. Il reste
+     CLIQUABLE : le serveur répond alors immédiatement avec la cause, ce qui
+     vaut mieux qu'un bouton mort dont personne ne sait pourquoi il l'est. */
+  #ig-dossier .ig-gen.ko{border-color:#E8B44A;color:#E8B44A}
 </style>
 </head>
 <body>
@@ -904,7 +930,20 @@
          vient après, et c'est là que le dossier s'arrête — non par désaccord,
          mais parce que personne ne sait quel est le geste suivant. -->
     <div class="ig-avec-rail">
-      <div id="ig-dossier"><p class="note">Choisissez une phase dans la frise ci-dessus.</p></div>
+      <!-- La colonne principale est un SEUL enfant de la grille. Le bandeau
+           d'état y a d'abord été posé à côté du registre : la grille n'ayant
+           que deux colonnes, le registre a basculé dans celle du rail — 218 px
+           de large, soit des cartes de 46 px. Un défaut invisible à la lecture
+           du code, et flagrant à la mesure. -->
+      <div class="ig-col">
+        <!-- Ce qui écrira les pièces, annoncé AVANT de pouvoir les demander.
+             Même principe que l'état de l'analyse antivirus avant le dépôt :
+             celui qui va lancer une rédaction a le droit de savoir si elle
+             peut aboutir. Laisser cliquer, faire attendre, puis annoncer
+             l'échec transforme une configuration absente en panne apparente. -->
+        <div id="ig-red-etat" class="ig-dep-etat"></div>
+        <div id="ig-dossier"><p class="note">Choisissez une phase dans la frise ci-dessus.</p></div>
+      </div>
       <aside id="ig-rail" class="ig-rail" aria-label="Suite du projet" hidden></aside>
     </div>
     <div class="actions" style="margin-top:16px;gap:10px;flex-wrap:wrap">

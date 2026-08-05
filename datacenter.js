@@ -788,8 +788,27 @@
 
      Tout est rendu depuis `/api/datacenter/referentiel` : recopier ces
      libellés dans la page les aurait figés au jour de l'écriture. */
+  /* Ce que la base de connaissance couvre, COMPTÉ par le serveur.
+     La page annonçait « seize thèmes » — vrai le jour où la phrase a été
+     écrite, faux depuis que la famille en porte davantage. Un lecteur
+     cherchant une analyse de risques en concluait qu'elle n'était pas
+     couverte. Un compte figé finit toujours par mentir ; celui-ci est
+     demandé. */
+  function afficherBase() {
+    var el = $("#dc-base");
+    if (!el || !REF || !REF.base) return;
+    var b = REF.base;
+    el.innerHTML = "La famille <b>" + esc(b.famille) + "</b> compte <b>"
+      + b.themes + "</b> thèmes — " + b.techniques
+      + " techniques, du refroidissement liquide aux appels d'offres, et "
+      + b.management + " de management (politique environnementale, analyse de "
+      + "risques, incendie, plans de sécurité). Un document mal classé se "
+      + "retrouve difficilement&nbsp;: le thème compte autant que le fichier.";
+  }
+
   function afficherReferentiel() {
     var el = $("#dc-referentiel");
+    afficherBase();
     if (!el || !REF || !REF.referentiel) return;
     var R = REF.referentiel, h = "";
 
