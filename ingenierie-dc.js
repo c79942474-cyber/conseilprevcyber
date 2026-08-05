@@ -275,6 +275,10 @@
 
   /* ── La frise ────────────────────────────────────────────────────────── */
   function rendreParcours() {
+    /* Le guidage est remis à jour APRÈS chaque rendu de la frise, jamais
+       avant : appelé trop tôt, il désigne une cible qui n'existe pas encore et
+       la flèche disparaît — ce qui se lit comme un guidage cassé. */
+    setTimeout(majGuidage, 0);
     var z = $("#ig-parcours");
     if (!DERNIER || !DERNIER[FILIERE]) {
       z.innerHTML = '<p class="note">Renseignez la puissance informatique pour éprouver les phases.</p>';
@@ -480,11 +484,12 @@
     $("#ig-dossier").innerHTML = h + "</div>";
     brancherPieces();
     boutons(true);
-    /* Le registre vient d'apparaître. Ses boutons battent une seule fois, à la
-       PREMIÈRE phase ouverte : les rallumer à chaque changement de phase
-       ferait clignoter trente boutons chaque fois qu'on parcourt la frise, et
-       trente boutons qui clignotent ensemble ne désignent plus rien. */
-    battre("#ig-dossier .ig-gen, #ig-dossier .ig-voir", "ig-bat", "registre");
+    /* Le registre vient d'apparaître. Il ne fait plus battre ses boutons en
+       masse : le sélecteur en désignait quatre-vingt-trois d'un coup, ce qui
+       est exactement le défaut contre lequel le battement avait été écrit —
+       « trente boutons qui clignotent ensemble ne désignent plus rien ». Le
+       fil des gestes désigne désormais LE bouton du moment, un seul, et c'est
+       à lui de battre. */
   }
 
   /* ── Le registre des pièces ──────────────────────────────────────────────
@@ -882,6 +887,192 @@
       .catch(function () { /* le registre reste tel qu'il est */ });
   }
 
+  /* ═════════════════════════════════════════════════════════════════════
+     LE GUIDAGE : APRÈS CHAQUE CHOIX, DIRE CE QUI SUIT
+
+     Trois partis pris, et le troisième est celui qui évite que le guidage
+     devienne du bruit :
+
+       · LA SÉQUENCE VIENT DU SERVEUR. Le module publie le fil des gestes ;
+         la page n'applique qu'une règle générique — le premier geste non fait
+         dont les préalables sont remplis. Une séquence réécrite ici se
+         contredirait au premier écran ajouté.
+
+       · CHAQUE ÉTAPE DIT CE QU'ELLE DÉCLENCHE. « Choisissez une phase » fait
+         cliquer ; « le registre s'affiche alors, classé par importance » fait
+         comprendre. C'est la moitié du message, et c'est celle qu'on oublie.
+
+       · LE BATTEMENT NE SE RÉPÈTE PAS. Chaque geste bat UNE fois, à son tour :
+         un halo qui revient à chaque rafraîchissement cesse d'être un repère
+         et devient une gêne — et l'écran entier finit par clignoter. */
+  var GESTE = null;
+
+  function etatGuidage() {
+    /* Ce que la page VOIT. Chaque clé est un constat, jamais une supposition :
+       une clé absente vaut « pas fait », et un guide qui supposerait l'étape
+       accomplie ferait sauter la seule qui manquait. */
+    var A = PLAN && PLAN.avancement;
+    return {
+      projet: !!PROJET,
+      profil: !!(lireProfil() || {}).puissance_it_kw,
+      phase: !!PHASE,
+      disponibilite: !!(($("#ig-tier") || {}).value),
+      piece: !!(A && A.faits > 0),
+      visa: !!(A && (A.valides_client > 0 || A.rejetes > 0)),
+      obligatoires_faites: !!(A && A.total > 0 && A.obligatoires_restants === 0),
+      fin: !!(PLAN && PLAN.suite && PLAN.suite.fin),
+    };
+  }
+
+  function majGuidage() {
+    var z = $("#ig-guidage");
+    if (!z || !CADRE || !CADRE.gestes) return;
+    var etat = etatGuidage();
+    var fil = CADRE.gestes;
+    var g = null;
+    for (var i = 0; i < fil.gestes.length; i++) {
+      var c = fil.gestes[i];
+      if (etat[c.fait_si]) continue;
+      var pret = true;
+      for (var j = 0; j < c.exige.length; j++) {
+        if (!etat[c.exige[j]]) { pret = false; break; }
+      }
+      if (pret) { g = c; break; }
+    }
+    GESTE = g;
+    var faits = fil.gestes.filter(function (x) { return etat[x.fait_si]; });
+    var n = fil.gestes.length;
+
+    if (!g) {
+      z.className = "ig-guid fin";
+      z.innerHTML = '<div class="g-t"><span class="g-p">Parcours terminé</span>'
+        + "<b>" + esc(fil.fin.titre) + "</b></div>"
+        + '<p class="g-x">' + esc(fil.fin.texte) + "</p>"
+        + '<p class="g-a"><span class="fx">✓</span>' + esc(fil.fin.apres) + "</p>";
+      fleche(null);
+      return;
+    }
+
+    /* Ce que le lecteur VIENT de faire, nommé avec ses propres valeurs. Le
+       référentiel ne le porte pas : il ne connaît ni le nom du projet ni le
+       code de la phase, et y mettre des gabarits à trous ferait diverger le
+       texte des données qu'il décrit. */
+    var dernier = dernierChoix(etat);
+    z.className = "ig-guid";
+    z.innerHTML =
+      (dernier ? '<p class="g-f"><span class="fx">✓</span>' + esc(dernier)
+                 + "</p>" : "")
+      + '<div class="g-t"><span class="g-p">Étape ' + (faits.length + 1)
+      + " sur " + n + "</span><b>" + esc(g.titre) + "</b></div>"
+      + '<p class="g-x">' + esc(g.texte) + "</p>"
+      + '<p class="g-a"><span class="fx">➜</span><b>Ce que cela déclenche — </b>'
+      + esc(g.apres) + "</p>"
+      + '<div class="g-b"><button type="button" class="btn btn-s" id="ig-guid-go">'
+      + "M'y conduire <span class=\"fx\">➜</span></button>"
+      + '<span class="g-o">' + esc(g.fleche) + "</span>"
+      + '<span class="g-r">' + faits.length + " / " + n
+      + " étapes franchies</span></div>"
+      + '<div class="g-jauge"><i style="width:'
+      + Math.round(faits.length * 100 / n) + '%"></i></div>';
+
+    var b = $("#ig-guid-go");
+    if (b) b.addEventListener("click", function () { allerAuGeste(g); });
+    designer(g);
+  }
+
+  /* Désigne UNE cible, et une seule.
+     Le sélecteur d'un geste peut matcher des dizaines d'éléments — « le bouton
+     Rédiger de chaque pièce non faite », c'est quatre-vingts boutons à la
+     phase DCE. Les faire battre ensemble ne désigne plus rien : c'est
+     exactement le défaut contre lequel le battement avait été écrit. On marque
+     donc le PREMIER élément, et lui seul bat.
+
+     La cible peut aussi ne pas encore exister : la frise et le registre
+     arrivent après leur requête. Plutôt que de renoncer en silence — une
+     flèche absente se lit comme un guidage cassé — on réessaie brièvement. */
+  var designeMinuteur = null, DESIGNE = null;
+
+  function designer(g, essai) {
+    clearTimeout(designeMinuteur);
+    /* On n'éteint QUE lors d'un changement de geste. Éteindre à chaque appel
+       couperait le halo du geste courant sans pouvoir le rallumer — `battre`
+       ne se réarme pas sur un même groupe, et c'est voulu : un halo qui revient
+       à chaque rafraîchissement devient une gêne. */
+    if (DESIGNE !== g.id) {
+      document.querySelectorAll("[data-geste-cible]").forEach(function (e) {
+        e.removeAttribute("data-geste-cible");
+      });
+      /* Le halo dure neuf secondes ; un lecteur rapide enchaîne deux choix
+         dans cet intervalle et se retrouverait avec deux boutons désignés en
+         même temps — soit aucun. Une désignation à la fois, sinon ce n'est
+         plus une désignation. */
+      document.querySelectorAll(".ig-bat, .ig-bat-doc").forEach(function (e) {
+        e.classList.remove("ig-bat", "ig-bat-doc");
+      });
+      DESIGNE = g.id;
+    }
+    var c = $(g.cible);
+    if (!c) {
+      fleche(null);
+      if ((essai || 0) < 12) {
+        designeMinuteur = setTimeout(function () {
+          if (GESTE && GESTE.id === g.id) designer(g, (essai || 0) + 1);
+        }, 400);
+      }
+      return;
+    }
+    c.setAttribute("data-geste-cible", g.id);
+    fleche(c);
+    /* Une seule fois par geste : la clé de groupe porte l'identifiant, donc un
+       rafraîchissement qui ne change rien ne rebat pas. */
+    battre("[data-geste-cible]", g.classe || "ig-bat", "geste:" + g.id);
+  }
+
+  function dernierChoix(etat) {
+    /* Le dernier choix constaté, dit avec ses valeurs réelles. On le prend au
+       plus avancé, pas au premier trouvé : annoncer « projet ouvert » alors
+       qu'on vient de choisir une phase donnerait l'impression d'un guide qui
+       n'a pas suivi. */
+    if (etat.visa) return "Visa enregistré sur une pièce du dossier.";
+    if (etat.piece && PLAN) {
+      return "Pièce rédigée et rattachée au projet — "
+        + PLAN.avancement.faits + " au dossier de cette phase.";
+    }
+    if (etat.disponibilite && DISPO && DISPO.redondance) {
+      return "Niveau de disponibilité arrêté — "
+        + DISPO.redondance.installees + " unités installées.";
+    }
+    if (etat.phase && DOSSIER) {
+      return "Phase " + DOSSIER.code + " retenue — " + DOSSIER.nom + ".";
+    }
+    if (etat.profil) return "Profil renseigné : le cadre peut éprouver les phases.";
+    if (etat.projet && PROJET) return "Projet « " + PROJET.nom + " » ouvert.";
+    return "";
+  }
+
+  /* La flèche. Un élément RÉEL inséré devant la cible plutôt qu'un pseudo-
+     élément : elle se retire proprement, elle ne dépend pas du dépassement du
+     conteneur, et elle est masquée aux lecteurs d'écran — le texte du bandeau
+     dit déjà où aller, la répéter en ferait un doublon à l'oreille. */
+  function fleche(cible) {
+    document.querySelectorAll(".ig-fleche").forEach(function (e) { e.remove(); });
+    if (!cible || !cible.parentNode) return;
+    var f = document.createElement("span");
+    f.className = "ig-fleche";
+    f.setAttribute("aria-hidden", "true");
+    f.textContent = "➜";
+    cible.parentNode.insertBefore(f, cible);
+  }
+
+  function allerAuGeste(g) {
+    var a = $(g.ancre) || $(g.cible);
+    if (a) a.scrollIntoView({ behavior: "smooth", block: "center" });
+    var c = $(g.cible);
+    if (c && c.focus) {
+      try { c.focus({ preventScroll: true }); } catch (e) { c.focus(); }
+    }
+  }
+
   function brancherPieces() {
     var b;
     if ((b = $("#ig-inviter"))) b.addEventListener("click", inviterCollegue);
@@ -897,6 +1088,7 @@
       });
     });
     railSuite();
+    majGuidage();
     document.querySelectorAll("#ig-dossier .ig-gen").forEach(function (b) {
       b.addEventListener("click", function () { redigerPiece(b.getAttribute("data-piece"), b); });
     });
@@ -1721,6 +1913,7 @@
           if (!j.ok) return;
           DISPO = j.disponibilite;
           rendreDisponibilite(DISPO);
+          majGuidage();
         })
         .catch(function () { /* le reste de la page continue de fonctionner */ });
     }, 320);
@@ -1908,6 +2101,7 @@
     pjSouvenir(PROJET ? PROJET.id : "");
     pjBoutons(neuf);
     pjOuvert();
+    majGuidage();
     if (PROJET) pjHistorique(PROJET.id);
     else { var h = $("#ig-pj-hist"); if (h) h.innerHTML = ""; }
   }

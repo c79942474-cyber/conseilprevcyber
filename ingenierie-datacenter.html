@@ -677,6 +677,56 @@
     border-left:3px solid #7FD4A8;padding-left:9px}
   .ig-fl-fin{font-size:11.5px;color:var(--muted);line-height:1.55;
     border-left:3px solid var(--line);padding-left:9px}
+
+  /* ── Le fil des gestes ─────────────────────────────────────────────────
+     Un bandeau qui suit le lecteur : ce qu'il vient de faire, ce qu'il fait
+     maintenant, et surtout CE QUE CELA DÉCLENCHE — la moitié du message qu'on
+     oublie partout, et celle qui décide si le lecteur ose cliquer. */
+  .ig-guid{margin:16px 0 4px;padding:14px 17px;border-radius:0 12px 12px 0;
+    border:1px solid var(--line);border-left:3px solid var(--cyan);
+    background:linear-gradient(180deg,rgba(34,211,238,.09),rgba(0,0,0,.16))}
+  .ig-guid:empty{display:none}
+  .ig-guid.fin{border-left-color:var(--teal);
+    background:linear-gradient(180deg,rgba(45,212,191,.10),rgba(0,0,0,.16))}
+  .ig-guid .g-f{margin:0 0 9px;font-size:12px;color:#7FD4A8;line-height:1.55}
+  .ig-guid .g-t{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .ig-guid .g-p{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;
+    text-transform:uppercase;padding:2px 8px;border-radius:99px;
+    color:#04121A;background:linear-gradient(135deg,var(--cyan),var(--teal))}
+  .ig-guid .g-t b{font-size:15.5px;color:var(--ink)}
+  .ig-guid .g-x{margin:7px 0 0;font-size:12.5px;color:var(--muted);line-height:1.65;
+    max-width:82ch}
+  .ig-guid .g-a{margin:9px 0 0;font-size:12.5px;color:var(--muted);line-height:1.65;
+    max-width:82ch;border-left:2px solid rgba(45,212,191,.5);padding-left:10px}
+  .ig-guid .g-a b{color:var(--ink)}
+  .ig-guid .fx{display:inline-block;margin-right:7px;color:var(--cyan);
+    font-size:14px;line-height:1}
+  .ig-guid.fin .fx{color:var(--teal)}
+  .ig-guid .g-b{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px}
+  .ig-guid .g-b .fx{margin:0 0 0 4px}
+  .ig-guid .g-o{font-family:var(--mono);font-size:10.5px;color:var(--muted2);
+    letter-spacing:.05em;text-transform:uppercase}
+  .ig-guid .g-r{font-size:11.5px;color:var(--muted2);margin-left:auto}
+  .ig-guid .g-jauge{margin-top:11px;height:4px;border-radius:99px;
+    background:rgba(0,0,0,.28);overflow:hidden}
+  .ig-guid .g-jauge i{display:block;height:100%;border-radius:99px;
+    background:linear-gradient(90deg,var(--cyan),var(--teal));
+    transition:width .45s ease}
+
+  /* La flèche posée devant la cible du geste courant. Un élément réel, masqué
+     aux lecteurs d'écran : le bandeau dit déjà où aller, et la répéter en
+     ferait un doublon à l'oreille. Elle respire lentement — une flèche fixe se
+     confond avec la mise en page, une flèche rapide fatigue. */
+  @keyframes ig-fleche-souffle{
+    0%,100% {transform:translateX(0);opacity:.85}
+    50%     {transform:translateX(4px);opacity:1}
+  }
+  .ig-fleche{display:inline-block;margin-right:6px;color:var(--cyan);
+    font-size:15px;line-height:1;vertical-align:middle;
+    animation:ig-fleche-souffle 2.4s ease-in-out infinite}
+  /* Deux mouvements superposés fatiguent plus qu'ils ne guident : coupée,
+     la flèche reste posée au bon endroit et ne perd que son souffle. */
+  @media (prefers-reduced-motion: reduce){.ig-fleche{animation:none}}
 </style>
 </head>
 <body>
@@ -728,6 +778,11 @@
         aria-expanded="false" aria-controls="ig-guide">Ouvrir le parcours guidé</button>
     </div>
     <div id="ig-guide" hidden></div>
+    <!-- Le fil des gestes. Il ne remplace pas le parcours guidé par rôle : le
+         parcours dit CE QU'ON VIENT CHERCHER, celui-ci dit CE QU'ON FAIT
+         MAINTENANT. Le premier se choisit une fois, le second suit chaque
+         décision jusqu'à la fin du projet. -->
+    <div id="ig-guidage" class="ig-guid" role="status" aria-live="polite"></div>
     <div class="rc-socle">
       <div><b>Deux filières, pas une.</b> Un centre de données est un bâtiment ET une
         installation de procédé. La maîtrise d'œuvre suit la loi MOP&nbsp;; l'ingénierie suit

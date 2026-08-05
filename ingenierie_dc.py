@@ -2434,6 +2434,189 @@ def classer_pieces(liste, public=False):
     return out
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE FIL DES GESTES : QUOI FAIRE, ET CE QUE ÇA DÉCLENCHE
+# ═══════════════════════════════════════════════════════════════════════════
+# POURQUOI ICI ET PAS DANS LA PAGE. Le parcours est une SÉQUENCE de décisions,
+# et une séquence écrite dans du JavaScript se relit mal, ne se contrôle pas et
+# se contredit dès qu'un écran change. Elle est donc déclarée en données : la
+# page ne connaît que la règle générique « le premier geste non fait dont les
+# préalables sont remplis ». Ajouter une étape demain, c'est ajouter une ligne
+# ici — pas modifier un enchaînement de conditions.
+#
+# CHAQUE GESTE DIT TROIS CHOSES, et la troisième est celle qui manque partout :
+# ce qu'il faut FAIRE, où le faire, et CE QUE CELA DÉCLENCHE. Un guide qui
+# annonce l'étape sans dire ce qu'elle produit fait cliquer sans comprendre, et
+# le lecteur s'arrête à la première décision qui l'engage.
+#
+# `fait_si` nomme l'état qui rend le geste accompli, `exige` ceux qu'il faut
+# avoir avant. Les deux sont des CLÉS, pas du code : la page les calcule sur ce
+# qu'elle voit, le module décide de l'ordre.
+
+GESTES = [
+    {
+        "id": "projet",
+        "fait_si": "projet",
+        "exige": [],
+        "titre": "Ouvrez un projet",
+        "texte": "Un projet donne un destinataire à tout ce que vous allez "
+                 "produire : les pièces s'y rattachent avec leur phase, leur "
+                 "date et leur état.",
+        "apres": "Vous retrouverez ensuite le dossier groupé par phase, vous "
+                 "pourrez l'emporter en archive et y inviter un collègue.",
+        "cible": "#ig-pj-sel",
+        "ancre": "#ig-sec-projet",
+        "fleche": "Section 1",
+        "classe": "ig-bat",
+    },
+    {
+        "id": "profil",
+        "fait_si": "profil",
+        "exige": [],
+        "titre": "Renseignez la puissance informatique installée",
+        "texte": "C'est la seule grandeur dont le calcul ne peut pas se "
+                 "passer. Tout le reste a un défaut ; celle-là, non.",
+        "apres": "La frise éprouve alors chaque phase contre votre profil et "
+                 "montre le premier point d'arrêt — la seule information qui "
+                 "commande une action.",
+        "cible": "#ig-form [data-champ=\"puissance_it_kw\"]",
+        "ancre": "#ig-form",
+        "fleche": "Section 2",
+        "classe": "ig-bat",
+    },
+    {
+        "id": "phase",
+        "fait_si": "phase",
+        "exige": ["profil"],
+        "titre": "Choisissez une phase dans la frise",
+        "texte": "Le premier point d'arrêt est le seul qui commande une "
+                 "action ; les phases suivantes sont là pour voir venir, pas "
+                 "pour travailler en parallèle.",
+        "apres": "Le registre des pièces de cette phase s'affiche, classé par "
+                 "importance : ce qui bloque d'abord, ce qui enrichit ensuite.",
+        "cible": "#ig-parcours .ig-p.stop, #ig-parcours .ig-p",
+        "ancre": "#ig-parcours",
+        "fleche": "Section 3",
+        "classe": "ig-bat",
+    },
+    {
+        "id": "disponibilite",
+        "fait_si": "disponibilite",
+        "exige": ["phase"],
+        "titre": "Arrêtez le niveau de disponibilité visé",
+        "texte": "Il commande le nombre de groupes froid, de chaînes onduleur "
+                 "et de départs — donc la moitié du coût des lots techniques. "
+                 "Le décider après avoir écrit les spécifications oblige à les "
+                 "reprendre.",
+        "apres": "Le nombre d'unités réellement installées est calculé, et le "
+                 "niveau part avec TOUTES les pièces rédigées ensuite.",
+        "cible": "#ig-tier",
+        "ancre": "#ig-dispo",
+        "fleche": "Section 2",
+        "classe": "ig-bat",
+    },
+    {
+        "id": "piece",
+        "fait_si": "piece",
+        "exige": ["phase"],
+        "titre": "Rédigez la pièce la plus importante qui reste",
+        "texte": "Le registre est classé : la première carte est celle qui "
+                 "pèse le plus à cette phase. Commencer par la plus facile "
+                 "laisse les obligatoires pour la fin.",
+        "apres": "La pièce rejoint le dossier du projet, datée et rattachée à "
+                 "sa phase ; vous pourrez la reprendre en Word ou en PDF.",
+        "cible": "#ig-dossier .ig-grille .ig-pc:not(.fait) .ig-gen",
+        "ancre": "#ig-dossier",
+        "fleche": "Section 4",
+        "classe": "ig-bat",
+    },
+    {
+        "id": "visa",
+        "fait_si": "visa",
+        "exige": ["piece", "projet"],
+        "titre": "Faites viser la pièce rédigée",
+        "texte": "Rédigée ne veut pas dire acceptée. Le visa dit ce que le "
+                 "client ou un collègue en a fait — et un rejet porte son "
+                 "motif, sans quoi la pièce est reprise à l'identique.",
+        "apres": "L'état de validation apparaît sur la carte et dans "
+                 "l'archive ; un refus non levé empêche la remise.",
+        "cible": "#ig-dossier .ig-visa",
+        "ancre": "#ig-dossier",
+        "fleche": "Section 4",
+        "classe": "ig-bat",
+    },
+    {
+        "id": "obligatoires",
+        "fait_si": "obligatoires_faites",
+        "exige": ["phase"],
+        "titre": "Traitez les pièces obligatoires qui restent",
+        "texte": "Une pièce obligatoire manquante n'est pas un retard : elle "
+                 "empêche de franchir la phase ou expose le maître d'ouvrage. "
+                 "Le compte est affiché dans le rail, à droite du registre.",
+        "apres": "Quand il n'en reste aucune, la phase peut être remise et la "
+                 "flèche de phase suivante s'ouvre.",
+        "cible": "#ig-dossier .ig-c-obligatoire:not(.fait) .ig-gen",
+        "ancre": "#ig-dossier",
+        "fleche": "Section 4",
+        "classe": "ig-bat",
+    },
+    {
+        "id": "phase_suivante",
+        "fait_si": "fin",
+        "exige": ["obligatoires_faites"],
+        "titre": "Passez à la phase suivante",
+        "texte": "Les pièces obligatoires de cette phase sont rédigées. La "
+                 "suivante de la même filière vous attend — pas la suivante "
+                 "par ordre alphabétique.",
+        "apres": "Le registre se recalcule sur la nouvelle phase, avec son "
+                 "propre niveau d'exigence : une même spécification n'engage "
+                 "pas la même chose d'une phase à l'autre.",
+        "cible": "#ig-fl-phase",
+        "ancre": "#ig-rail",
+        "fleche": "À droite",
+        "classe": "ig-bat",
+    },
+]
+
+GESTE_FIN = {
+    "titre": "Vous êtes au bout de la séquence",
+    "texte": "La dernière phase de la filière est atteinte et ses pièces "
+             "obligatoires sont rédigées.",
+    "apres": "Il reste à emporter le dossier complet en archive, et à faire "
+             "viser ce qui ne l'est pas encore. Un dossier n'est clos que "
+             "lorsque ses pièces le sont.",
+}
+
+
+def prochain_geste(etat):
+    """Le premier geste non accompli dont les préalables sont remplis.
+
+    Une règle générique, appliquée à des données — et non huit conditions
+    écrites à la main. La différence se voit au neuvième écran : ici on ajoute
+    une ligne, là on relit un enchaînement pour deviner où l'insérer.
+
+    `etat` est un dictionnaire de booléens produit par la page à partir de ce
+    qu'elle voit. Une clé absente vaut « pas fait » : un guide qui supposerait
+    l'étape accomplie ferait sauter la seule qui manquait.
+    """
+    etat = {k: bool(v) for k, v in (etat or {}).items()}
+    for g in GESTES:
+        if etat.get(g["fait_si"]):
+            continue
+        if all(etat.get(k) for k in g["exige"]):
+            return dict(g, reste=[x["id"] for x in GESTES
+                                  if not etat.get(x["fait_si"])
+                                  and x["id"] != g["id"]])
+    return None
+
+
+def gestes_referentiel():
+    """Le fil complet, servi à la page : elle rend, elle ne réécrit pas."""
+    return {"gestes": GESTES, "fin": GESTE_FIN,
+            "etats": sorted({g["fait_si"] for g in GESTES}
+                            | {k for g in GESTES for k in g["exige"]})}
+
+
 def _resume_pieces(liste):
     """Le compte par type, émetteur et discipline. Dérivé, jamais écrit à la
     main : un registre s'allonge et les comptes figés se démentent au premier
@@ -4085,6 +4268,10 @@ def referentiel():
                          for k, v in c["options"].items()]}
             for c in IDENTIFICATION],
         "identification_note": IDENTIFICATION_NOTE,
+        # Le fil des gestes : la page rend la séquence, elle ne la réécrit pas.
+        # Une séquence dupliquée dans du JavaScript se contredit au premier
+        # écran ajouté, et c'est celle de l'écran que le lecteur suivrait.
+        "gestes": gestes_referentiel(),
         # Le référentiel de disponibilité : les niveaux, les schémas et leur
         # ordre. Le CALCUL du nombre d'unités n'y figure pas — il dépend du
         # besoin saisi et se demande à `disponibilite()`, qui distingue ce que
@@ -4202,6 +4389,43 @@ def sante():
         c for c, v in _RECHERCHE_PIECE.items() if len(v.split()) < 6)
     disciplines_sans_repli = sorted(set(DISCIPLINES) - set(_RECHERCHE_DISCIPLINE))
 
+    # Le fil des gestes. Quatre façons de le casser en silence : un geste sans
+    # cible pointerait dans le vide ; un geste qui n'annonce pas ce qu'il
+    # DÉCLENCHE ferait cliquer sans comprendre ; deux gestes sur le même état
+    # rendraient le second inatteignable ; un préalable qu'aucun geste ne
+    # produit bloquerait le fil pour toujours.
+    gestes_sans_cible = sorted(g["id"] for g in GESTES
+                               if not (g.get("cible") or "").strip()
+                               or not (g.get("ancre") or "").strip())
+    gestes_muets = sorted(g["id"] for g in GESTES
+                          if len((g.get("texte") or "").strip()) < 40
+                          or len((g.get("apres") or "").strip()) < 40
+                          or not (g.get("titre") or "").strip())
+    vus_ = {}
+    for g in GESTES:
+        vus_.setdefault(g["fait_si"], []).append(g["id"])
+    gestes_etat_partage = sorted("%s:%s" % (k, ",".join(v))
+                                 for k, v in vus_.items() if len(v) > 1)
+    produits_ = {g["fait_si"] for g in GESTES}
+    gestes_prealable_orphelin = sorted(
+        "%s:%s" % (g["id"], k) for g in GESTES for k in g["exige"]
+        if k not in produits_)
+    # Et le fil doit ABOUTIR : parcouru en accomplissant chaque geste, il doit
+    # se terminer. Un fil qui boucle laisserait le lecteur tourner sans fin.
+    _e, _vus, gestes_boucle = {}, [], []
+    for _ in range(len(GESTES) + 2):
+        _g = prochain_geste(_e)
+        if not _g:
+            break
+        if _g["id"] in _vus:
+            gestes_boucle = [_g["id"]]
+            break
+        _vus.append(_g["id"])
+        _e[_g["fait_si"]] = True
+    else:
+        gestes_boucle = ["fil non terminé"]
+    gestes_inatteignables = sorted({g["id"] for g in GESTES} - set(_vus))
+
     # Le parcours guidé. Trois façons de le casser en silence : nommer une
     # pièce qui n'existe pas, nommer une discipline inconnue, ou définir un
     # thème dont le périmètre ne ramène rien — l'utilisateur choisirait alors
@@ -4286,6 +4510,13 @@ def sante():
         "disciplines_sans_vocabulaire_de_repli": disciplines_sans_repli,
         "glossaire_familles": len(g_),
         "glossaire_definitions": sum(len(v) for v in g_.values()),
+        "gestes_sans_cible": gestes_sans_cible,
+        "gestes_sans_consequence": gestes_muets,
+        "gestes_etat_partage": gestes_etat_partage,
+        "gestes_prealable_orphelin": gestes_prealable_orphelin,
+        "gestes_boucle": gestes_boucle,
+        "gestes_inatteignables": gestes_inatteignables,
+        "gestes": len(GESTES),
         "glossaire_sans_explication": glossaire_muet,
         "franchissables_profil_minimal": [
             e["code"] for e in parcours(p, "moe")["etapes"] if e["franchissable"]
