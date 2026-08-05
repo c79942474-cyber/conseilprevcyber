@@ -39,7 +39,19 @@ VERSION = "2026-08-a"
 
 # Taille au-delà de laquelle on refuse sans lire : un fichier plus gros que ce
 # que le stockage accepte n'a aucune raison d'être inspecté.
-MAX_OCTETS = int(os.environ.get("DEPOT_MAX_MB", "30")) * 1024 * 1024
+#
+# 20 Mo. Le fichier voyage encodé en base64 dans une requête JSON, ce qui le
+# gonfle d'un tiers : 20 Mo de document deviennent environ 26,7 Mo de corps de
+# requête, à comparer au plafond serveur de 32 Mo. La marge est voulue — un
+# plafond de dépôt calé AU RAS du plafond de transport ferait échouer les
+# fichiers les plus gros au transport, avec un message qui parlerait de la
+# requête et non du document.
+MAX_OCTETS = int(os.environ.get("DEPOT_MAX_MB", "20")) * 1024 * 1024
+
+# Ce que le transport accepte réellement, une fois l'encodage pris en compte.
+# Publié pour que le contrôle de santé puisse vérifier que les deux plafonds
+# restent cohérents : ils sont réglés à deux endroits, donc ils divergeront.
+SURCOUT_BASE64 = 4.0 / 3.0
 
 # Les extensions admises au dépôt. Volontairement PLUS ÉTROITE que celle de la
 # base de connaissance : les formats à macros (xlsm, pptm, docm) en sont exclus.
@@ -106,13 +118,32 @@ _EICAR = (b"X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-"
 _PDF_ACTIF = [
     (rb"/JavaScript", "JavaScript embarqué"),
     (rb"/JS\b", "JavaScript embarqué"),
-    (rb"/OpenAction", "action automatique à l'ouverture"),
     (rb"/AA\b", "action automatique sur événement"),
     (rb"/Launch", "lancement d'un programme externe"),
     (rb"/EmbeddedFile", "fichier embarqué"),
     (rb"/RichMedia", "contenu multimédia actif"),
     (rb"/XFA\b", "formulaire XFA (moteur de script)"),
 ]
+
+# /OpenAction demande une lecture, pas une recherche de mot.
+#
+# Il vaut deux choses très différentes selon ce qui le suit :
+#
+#   /OpenAction [3 0 R /FitH null]   → un POINT DE VUE : « ouvre à la page 3,
+#                                      ajustée en largeur ». Parfaitement
+#                                      anodin, et présent dans une grande part
+#                                      des PDF — y compris ceux que ce site
+#                                      exporte lui-même.
+#
+#   /OpenAction <</S/JavaScript ...>> → une ACTION exécutée à l'ouverture.
+#                                      C'est celle-là qu'on refuse.
+#
+# La première version de ce contrôle cherchait le mot seul : elle refusait les
+# livrables produits par le site. Une règle qui crie sur du contenu juste est
+# désactivée dans le mois, et c'est ainsi qu'on perd une protection.
+_OPENACTION = re.compile(rb"/OpenAction\s*(.{0,80})", re.S)
+_ACTION_DANGEREUSE = re.compile(
+    rb"/S\s*/(JavaScript|Launch|ImportData|SubmitForm|GoToR|Movie|Sound)", re.I)
 
 # Un ZIP dont le contenu décompressé dépasse ces bornes est refusé sans être
 # ouvert davantage : c'est la parade aux archives en bombe.
@@ -231,6 +262,15 @@ def _verifier_pdf(data):
     for motif, quoi in _PDF_ACTIF:
         if re.search(motif, data):
             trouve.append(quoi)
+    # /OpenAction : on regarde CE QU'IL DÉCLENCHE. Une destination entre
+    # crochets est un point de vue ; un dictionnaire d'action peut lancer
+    # n'importe quoi. Voir le commentaire de _OPENACTION.
+    for m in _OPENACTION.finditer(data):
+        suite = m.group(1).lstrip()
+        if suite.startswith(b"[") or suite.startswith(b"/Fit"):
+            continue                       # simple point de vue à l'ouverture
+        if _ACTION_DANGEREUSE.search(suite):
+            trouve.append("action exécutée à l'ouverture du document")
     if trouve:
         raise Refus("pdf_actif",
                     "Ce PDF contient du contenu actif (%s). Un document destiné "
@@ -403,6 +443,10 @@ def etat():
         "extensions_admises": sorted(EXTENSIONS),
         "formats_macros_refuses": sorted(EXTENSIONS_MACROS),
         "taille_max_mo": MAX_OCTETS // (1024 * 1024),
+        # Ce que le corps de requête pèsera réellement pour un fichier au
+        # plafond : c'est ce chiffre-là que le serveur doit accepter.
+        "corps_requete_max_mo": round(MAX_OCTETS * SURCOUT_BASE64
+                                      / (1024 * 1024), 1),
         "resume": ("Antivirus à signatures + inspection structurelle."
                    if conf and joignable else
                    ("Antivirus configuré mais INJOIGNABLE — seule l'inspection "

@@ -103,7 +103,15 @@ SMALL_BODY_MAX = 512 * 1024
 app.config["MAX_CONTENT_LENGTH"] = RAG_UPLOAD_MAX
 # Routes autorisées à recevoir un gros corps (upload d'un fichier entier,
 # restauration d'une sauvegarde de la base de connaissance).
-_LARGE_BODY_PATHS = {"/api/admin/rag/upload-file", "/api/admin/rag/restore"}
+#
+# Le dépôt de documents client y figure : il reçoit le fichier entier encodé en
+# base64 dans une seule requête JSON. Sans cette déclaration, il retombait sur
+# le plafond commun de 512 Ko — soit, l'inflation du base64 déduite, un fichier
+# réel d'environ 380 Ko. Le plafond annoncé était de 30 Mo : l'écart entre ce
+# qui est affiché et ce qui passe est exactement le genre de défaut qu'on
+# découvre au premier document un peu lourd.
+_LARGE_BODY_PATHS = {"/api/admin/rag/upload-file", "/api/admin/rag/restore",
+                     "/api/datacenter/depot"}
 
 
 class _IPRateLimiter:
@@ -4223,7 +4231,19 @@ def api_depot_etat():
     vérifie jamais.
     """
     import antivirus
-    return jsonify(ok=True, etat=antivirus.etat())
+    e = antivirus.etat()
+    # Deux plafonds réglés à deux endroits : celui du document (antivirus) et
+    # celui du corps de requête (ici). Ils divergeront un jour — autant que la
+    # page le sache et le dise, plutôt que de laisser un dépôt échouer au
+    # transport avec un message parlant de la requête et non du document.
+    e["transport_suffisant"] = (
+        antivirus.MAX_OCTETS * antivirus.SURCOUT_BASE64 <= RAG_UPLOAD_MAX)
+    if not e["transport_suffisant"]:
+        e["resume"] += (" ATTENTION : le plafond de dépôt (%d Mo) dépasse ce que "
+                        "le serveur accepte en une requête ; les fichiers les "
+                        "plus gros échoueront au transport."
+                        % (antivirus.MAX_OCTETS // (1024 * 1024)))
+    return jsonify(ok=True, etat=e)
 
 
 @app.route("/api/datacenter/depot", methods=["POST"])
@@ -4272,9 +4292,29 @@ def api_depot_verser():
                                theme=(data.get("theme") or "datacenter").strip()[:60],
                                visibility="internal")
     except RagError as exc:
+        # Le motif RÉEL, pas un message passe-partout. « Le document n'a pas pu
+        # être enregistré » fait recommencer à l'identique ; « ce PDF ne contient
+        # aucun texte extractible » dit quoi faire. Le cas le plus fréquent est
+        # le plan ou le document scanné : il est légitime, et le dépôt le refuse
+        # aujourd'hui parce qu'il passe par l'indexation de la base de
+        # connaissance, qui a besoin de texte.
+        _MOTIFS = {
+            "pdf_illisible": "Ce PDF ne contient aucun texte extractible — c'est "
+                             "le cas des plans et des documents scannés. Le dépôt "
+                             "passe par l'indexation documentaire, qui a besoin de "
+                             "texte : fournissez une version avec couche texte "
+                             "(OCR) ou le fichier source.",
+            "fichier_vide": "Le fichier est vide.",
+            "fichier_trop_lourd": "Le fichier dépasse le plafond de dépôt.",
+            "type_non_supporte": "Ce format n'est pas indexable par la base de "
+                                 "connaissance.",
+            "doublon": "Ce document est déjà présent, à l'identique.",
+        }
         return jsonify(ok=False, error=exc.code,
-                       message=getattr(exc, "detail", "")
-                       or "Le document n'a pas pu être enregistré."), exc.status
+                       message=_MOTIFS.get(exc.code)
+                       or getattr(exc, "detail", "")
+                       or "Le document n'a pas pu être enregistré (%s)." % exc.code
+                       ), exc.status
     audit.journaliser("depot.verse", cible=str(doc.get("id"))[:80],
                       detail=nom[:120])
     return jsonify(ok=True, document=doc, analyse=verdict)
