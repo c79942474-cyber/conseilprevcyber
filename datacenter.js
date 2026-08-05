@@ -14,6 +14,9 @@
   "use strict";
 
   var REF = null, PROFIL = {}, ETUDE = null;
+  /* Un seul passage automatique par session de calcul : revenir en
+     arrière depuis l'ingénierie ne doit pas relancer la bascule. */
+  var SUITE_FAITE = false;
 
   function $(s, r) { return (r || document).querySelector(s); }
   function esc(s) {
@@ -735,11 +738,73 @@
       + "de pénalité assise sur un ordre de grandeur. La page d’ingénierie "
       + "de projet dit à quelle phase chacune de ces valeurs devient opposable, "
       + "et ce qu’il faut avoir produit pour y arriver.</span></div>"
-      + '<a class="dc-suite-b" href="/ingenierie-datacenter">'
+      + '<a class="dc-suite-b" id="dc-suite-go" href="/ingenierie-datacenter">'
       + "Placer ce calcul dans un projet →</a>"
       + '<p class="dc-suite-n">Votre profil y sera repris tel quel — vous '
-      + "n’avez rien à ressaisir. Il ne quitte pas ce navigateur et "
-      + "disparaît à la fermeture de l’onglet.</p>";
+      + "n’avez rien à ressaisir, et la page s’ouvrira directement sur la "
+      + "première phase qui bloque. Il ne quitte pas ce navigateur et "
+      + "disparaît à la fermeture de l’onglet.</p>"
+      + '<p class="dc-suite-c" id="dc-suite-c" role="status" aria-live="polite"></p>';
+    compteRebours();
+  }
+
+  /* ── Le passage automatique ────────────────────────────────────────────
+     Le calcul fait, la suite du chemin s'ouvre d'elle-même. Trois précautions,
+     et chacune répare un défaut que ce genre de bascule produit :
+
+       · ELLE NE VOLE PAS LES RÉSULTATS. Le lecteur vient de demander un
+         calcul ; l'emmener ailleurs avant qu'il l'ait vu répondrait à côté de
+         sa question. Le délai lui laisse le temps de regarder, et la moindre
+         interaction — molette, clic, touche — l'annule : quelqu'un qui commence
+         à lire a déjà répondu.
+
+       · ELLE S'ANNULE D'UN GESTE VISIBLE. Un compte à rebours sans bouton
+         d'arrêt est un piège (WCAG 2.2.1) ; celui-ci en porte un, et il est
+         annoncé aux lecteurs d'écran.
+
+       · ELLE NE SE REJOUE PAS. Revenir en arrière depuis la page d'ingénierie
+         relancerait la bascule et enfermerait le lecteur dans une boucle. Un
+         seul passage par calcul. */
+  var DELAI_SUITE = 12;
+
+  function compteRebours() {
+    var z = $("#dc-suite-c");
+    if (!z || SUITE_FAITE) return;
+    var reste = DELAI_SUITE, minuteur = null, fini = false;
+
+    function arreter(pourquoi) {
+      if (fini) return;
+      fini = true;
+      clearInterval(minuteur);
+      ["wheel", "touchstart", "keydown", "pointerdown"].forEach(function (e) {
+        window.removeEventListener(e, surInteraction, true);
+      });
+      z.innerHTML = pourquoi === "annule"
+        ? "Passage automatique annulé. Le bouton ci-dessus y conduit quand vous "
+          + "le voudrez ; votre profil reste prêt."
+        : "";
+    }
+    function surInteraction() { arreter("annule"); }
+
+    ["wheel", "touchstart", "keydown", "pointerdown"].forEach(function (e) {
+      window.addEventListener(e, surInteraction, true);
+    });
+    z.innerHTML = "Passage à l’ingénierie de projet dans <b>" + reste
+      + "</b> s — <button type=\"button\" id=\"dc-suite-x\">rester sur cette page</button>";
+    var b = $("#dc-suite-x");
+    if (b) b.addEventListener("click", function () { arreter("annule"); });
+    minuteur = setInterval(function () {
+      reste -= 1;
+      if (fini) return;
+      if (reste <= 0) {
+        arreter("part");
+        SUITE_FAITE = true;
+        window.location.href = "/ingenierie-datacenter";
+        return;
+      }
+      var n = z.querySelector("b");
+      if (n) n.textContent = reste;
+    }, 1000);
   }
 
   function comparer() {

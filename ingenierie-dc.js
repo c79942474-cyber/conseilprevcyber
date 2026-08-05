@@ -279,6 +279,7 @@
        avant : appelé trop tôt, il désigne une cible qui n'existe pas encore et
        la flèche disparaît — ce qui se lit comme un guidage cassé. */
     setTimeout(majGuidage, 0);
+    setTimeout(atterrir, 0);
     var z = $("#ig-parcours");
     if (!DERNIER || !DERNIER[FILIERE]) {
       z.innerHTML = '<p class="note">Renseignez la puissance informatique pour éprouver les phases.</p>';
@@ -1431,6 +1432,32 @@
       .then(fini);
   }
 
+  /* Où atterrit un lecteur venu de la page de calcul.
+
+     Sur la PREMIÈRE PHASE QUI BLOQUE, et sur elle seule. C'est la seule
+     information que le cadre produise et qui commande une action : les phases
+     antérieures sont franchies, les suivantes ne se travaillent pas encore. Y
+     conduire d'emblée épargne le clic que tout le monde fait de toute façon.
+
+     Trois conditions, et la troisième compte : la reprise a eu lieu, aucune
+     phase n'est déjà choisie, et l'URL n'en imposait pas. Un lien profond
+     « #phase=DCE » exprime une intention plus précise que la nôtre — la
+     recouvrir ferait atterrir le lecteur ailleurs qu'où il a demandé. */
+  var ATTERRI = false;
+
+  function atterrir() {
+    if (ATTERRI || !REPRIS || PHASE) return;
+    if (/[#&]phase=/.test(window.location.hash || "")) { ATTERRI = true; return; }
+    var d = DERNIER && DERNIER[FILIERE];
+    if (!d) return;
+    var cible = d.premier_blocage
+      || (d.phases && d.phases.length ? d.phases[0].code : null);
+    if (!cible) return;
+    ATTERRI = true;
+    PHASE = cible;
+    rafraichir();
+  }
+
   function boutons(actif) {
     ["#ig-docx", "#ig-pdf"].forEach(function (s) {
       var b = $(s);
@@ -1782,12 +1809,19 @@
          inquiète plus qu'il n'aide, et le lecteur ne sait plus ce qu'il a
          choisi lui-même. Le bandeau nomme l'origine et offre de repartir à
          vide. */
+  var REPRIS = false;
+
   function reprendreProfil() {
     if (!window.ProfilDC) return;
     var p = window.ProfilDC.lire();
     if (!p) return;
     var poses = window.ProfilDC.appliquer("#ig-form", p.champs);
     if (!poses.length) return;
+    /* Le fait de la reprise est retenu : c'est lui qui décide si la page doit
+       s'ouvrir directement sur la phase qui compte. Un lecteur qui arrive avec
+       un calcul déjà fait n'a pas à recliquer pour retrouver l'endroit où son
+       chiffre devient — ou ne devient pas — recevable. */
+    REPRIS = true;
     var z = $("#ig-repris");
     if (!z) return;
     z.hidden = false;
@@ -1809,6 +1843,8 @@
          formulaire est PRÉ-REMPLI par conception, et le vider produirait un
          état que la page ne sait pas décrire. */
       bâtirFormulaire();
+      REPRIS = false;
+      PHASE = null;
       z.hidden = true;
       z.innerHTML = "";
       rafraichir();
