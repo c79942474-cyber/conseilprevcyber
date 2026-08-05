@@ -439,14 +439,20 @@
 
     var a = d.aptitude || {};
     if ((a.entrees_manquantes || []).length) {
-      h += '<div class="ig-man"><h4>Entrées à renseigner</h4><ul>';
+      h += '<div class="ig-man manq"><h4>Entrées à renseigner — '
+        + a.entrees_manquantes.length + " pour franchir cette phase</h4><ul>";
       a.entrees_manquantes.forEach(function (m) {
-        h += "<li><b>" + esc(m.label) + "</b>" + (m.unite ? " (" + esc(m.unite) + ")" : "")
+        h += '<li data-manque="' + esc(m.id) + '"><b>' + esc(m.label) + "</b>"
+          + (m.unite ? " (" + esc(m.unite) + ")" : "")
           + " — " + esc(m.pourquoi)
           + (m.origine === "propre" ? "" : " <i>; dette d'une phase antérieure</i>")
           + "</li>";
       });
-      h += "</ul></div>";
+      /* Les nommer ne suffit pas : le lecteur doit ensuite les retrouver parmi
+         treize champs, en remontant la page. Le bouton l'y conduit et les
+         désigne — c'est le geste qu'il ferait, en moins long. */
+      h += '</ul><button type="button" class="ig-man-b" id="ig-man-go">'
+        + "Me montrer ces champs dans le formulaire ➜</button></div>";
     }
     if ((a.substitutions_a_faire || []).length) {
       h += '<div class="ig-man"><h4>Facteurs à remplacer par une donnée réelle</h4>';
@@ -644,21 +650,31 @@
                 "Classées par importance décroissante : ce qui bloque la phase "
                 + "d'abord, ce qui enrichit le dossier ensuite.");
     if (PLAN) {
+      /* Le groupe des pièces faites porte une classe propre : il est signalé
+         quand son contenu change — une pièce vient d'être écrite — et jamais à
+         chaque redessin. Le signal porte sur le GROUPE, pas sur chaque carte :
+         quarante halos simultanés ne désigneraient plus rien. */
       h += groupe("Rédigées et prêtes", faits,
-                  "Produites pour ce projet. Le visa dit ce que le client et "
-                  + "les collègues en ont fait.");
+                  "Produites pour ce projet, regroupées ici automatiquement. "
+                  + "Le visa dit ce que le client et les collègues en ont fait.",
+                  "faits");
     }
     h += "</div>";
     h += '<p class="ig-reg-n">' + esc(d.note_registre) + "</p>";
     return h + '<div id="ig-piece" aria-live="polite"></div></div>';
 
-    function groupe(titre, liste, sous) {
+    function groupe(titre, liste, sous, marque) {
       if (!liste.length) {
+        /* Le groupe vide garde sa marque : sans elle, il change d'identité
+           entre « vide » et « rempli », et la page ne peut plus le désigner —
+           ni le signaler quand la première pièce y arrive. */
         return PLAN
-          ? '<section class="ig-reg-g"><h5>' + esc(titre)
-            + ' <span>aucune</span></h5></section>' : "";
+          ? '<section class="ig-reg-g' + (marque ? " g-" + marque : "")
+            + '"><h5>' + esc(titre)
+            + " <span>aucune pour l'instant</span></h5></section>" : "";
       }
-      return '<section class="ig-reg-g"><h5>' + esc(titre) + " <span>"
+      return '<section class="ig-reg-g' + (marque ? " g-" + marque : "")
+        + '"><h5>' + esc(titre) + " <span>"
         + liste.length + " · " + esc(sous) + "</span></h5>"
         + '<div class="ig-grille">'
         + liste.map(carteP).join("") + "</div></section>";
@@ -1142,6 +1158,88 @@
       .catch(function () { z.innerHTML = ""; });
   }
 
+  /* ── Ce qui manque pour franchir la phase, DÉSIGNÉ dans le formulaire ───
+     Le dossier les nomme déjà. Les nommer ne suffit pas : il faut ensuite les
+     retrouver parmi treize champs, en remontant la page — et c'est là qu'on
+     renonce. Chaque entrée manquante est donc marquée sur le champ lui-même.
+
+     DEUX SIGNAUX, ET ILS NE DISENT PAS LA MÊME CHOSE :
+
+       · Le MARQUAGE est permanent — un liseré ambre et une mention. Il reste
+         tant que le champ n'est pas rempli, et il survit à l'arrêt de toute
+         animation. C'est lui qui porte l'information.
+
+       · Le BATTEMENT est un rappel, une fois par phase. Il attire l'œil au
+         moment où la phase change ; il ne se rejoue pas à chaque frappe, sans
+         quoi le formulaire clignoterait pendant toute la saisie.
+
+     La teinte est l'ambre, pas le cyan : le cyan désigne LE geste suivant, un
+     seul à la fois. Deux signaux de même couleur pour deux natures d'
+     information se confondraient. */
+  /* Le groupe des pièces déjà rédigées se signale QUAND IL CHANGE.
+     La clé porte le nombre : une pièce de plus rebat une fois, un simple
+     redessin ne rebat pas. Le halo est posé sur le titre du groupe et non sur
+     chaque carte — quarante halos simultanés ne désigneraient plus rien, et
+     c'est le défaut contre lequel tout ce battement a été écrit. */
+  function signalerFaits() {
+    if (!PLAN || !PLAN.avancement || !PLAN.avancement.faits) return;
+    battre("#ig-dossier .g-faits h5", "ig-bat-fait",
+           "faits:" + PHASE + ":" + PLAN.avancement.faits);
+  }
+
+  function marquerManquants() {
+    var form = $("#ig-form");
+    if (!form) return;
+    form.querySelectorAll(".ig-manque").forEach(function (e) {
+      e.classList.remove("ig-manque");
+      var m = e.querySelector(".ig-manque-n");
+      if (m) m.remove();
+    });
+    var a = (DOSSIER && DOSSIER.aptitude) || {};
+    var liste = a.entrees_manquantes || [];
+    var champs = [];
+    liste.forEach(function (m) {
+      var el = form.querySelector('[data-champ="' + m.id + '"]');
+      if (!el) return;
+      var lab = el.closest(".dc-champ") || el.parentNode;
+      lab.classList.add("ig-manque");
+      if (!lab.querySelector(".ig-manque-n")) {
+        var n = document.createElement("span");
+        n.className = "ig-manque-n";
+        /* Le motif du serveur, pas une formule maison : c'est lui qui sait si
+           le champ est absent ou resté sur sa valeur par défaut, et les deux
+           ne se corrigent pas de la même façon. */
+        n.textContent = "Exigé à la phase " + (DOSSIER.code || "") + " — "
+          + (m.pourquoi || "non renseigné");
+        lab.appendChild(n);
+      }
+      champs.push(el);
+    });
+    var b = $("#ig-man-go");
+    if (b) {
+      b.addEventListener("click", function () {
+        var c = champs[0];
+        if (!c) return;
+        (c.closest(".ig-bloc") || c).scrollIntoView({ behavior: "smooth",
+                                                      block: "center" });
+        /* On rejoue le battement à la demande : c'est un geste explicite du
+           lecteur, pas une animation qui revient toute seule. */
+        delete BATTUS["manque:" + DOSSIER.code];
+        setTimeout(function () {
+          battre("#ig-form .ig-manque [data-champ]", "ig-bat-man",
+                 "manque:" + DOSSIER.code);
+          try { c.focus({ preventScroll: true }); } catch (e) { c.focus(); }
+        }, 420);
+      });
+    }
+    if (champs.length) {
+      /* Une fois par phase. La clé porte le code : changer de phase re-signale,
+         retaper dans un champ ne re-signale pas. */
+      battre("#ig-form .ig-manque [data-champ]", "ig-bat-man",
+             "manque:" + DOSSIER.code);
+    }
+  }
+
   function brancherPieces() {
     var b;
     if ((b = $("#ig-inviter"))) b.addEventListener("click", inviterCollegue);
@@ -1158,6 +1256,8 @@
     });
     railSuite();
     redactionEtat();
+    marquerManquants();
+    signalerFaits();
     majGuidage();
     document.querySelectorAll("#ig-dossier .ig-gen").forEach(function (b) {
       b.addEventListener("click", function () { redigerPiece(b.getAttribute("data-piece"), b); });

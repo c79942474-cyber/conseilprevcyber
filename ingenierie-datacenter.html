@@ -753,6 +753,50 @@
      CLIQUABLE : le serveur répond alors immédiatement avec la cause, ce qui
      vaut mieux qu'un bouton mort dont personne ne sait pourquoi il l'est. */
   #ig-dossier .ig-gen.ko{border-color:#E8B44A;color:#E8B44A}
+
+  /* ── Ce qui manque pour franchir la phase ──────────────────────────────
+     DEUX SIGNAUX, et ils ne disent pas la même chose. Le MARQUAGE est
+     permanent : liseré ambre et mention sous le champ, il reste tant que le
+     champ n'est pas rempli et survit à l'arrêt de toute animation — c'est lui
+     qui porte l'information. Le BATTEMENT n'est qu'un rappel, une fois par
+     phase.
+
+     L'ambre et non le cyan : le cyan désigne LE geste suivant, un seul à la
+     fois. Deux signaux de même couleur pour deux natures d'information se
+     confondraient. */
+  .dc-champ.ig-manque input,.dc-champ.ig-manque select{border-color:#E8B44A;
+    background:rgba(232,180,74,.07)}
+  .dc-champ.ig-manque .dc-lab{color:#E8B44A}
+  .ig-manque-n{display:block;font-family:var(--mono);font-size:10px;
+    letter-spacing:.04em;color:#E8B44A;line-height:1.5;margin-top:2px}
+  @keyframes ig-battement-man{
+    0%   {box-shadow:0 0 0 0 rgba(232,180,74,.6)}
+    55%  {box-shadow:0 0 0 11px rgba(232,180,74,0)}
+    100% {box-shadow:0 0 0 0 rgba(232,180,74,0)}
+  }
+  .ig-bat-man{animation:ig-battement-man 1.8s ease-out 5 forwards;border-radius:8px}
+  /* Le halo du groupe des pièces faites : vert d'accord, parce que c'est un
+     constat — « voici ce qui est fait » — et non une action à mener. */
+  @keyframes ig-battement-fait{
+    0%   {box-shadow:0 0 0 0 rgba(127,212,168,.5)}
+    55%  {box-shadow:0 0 0 10px rgba(127,212,168,0)}
+    100% {box-shadow:0 0 0 0 rgba(127,212,168,0)}
+  }
+  .ig-bat-fait{animation:ig-battement-fait 1.8s ease-out 5 forwards;
+    border-radius:8px}
+  /* Coupé, le liseré, la mention et le titre du groupe portent seuls
+     l'information : rien n'est perdu. */
+  @media (prefers-reduced-motion: reduce){
+    .ig-bat-man,.ig-bat-fait{animation:none}
+  }
+  .ig-man.manq{border-left:3px solid #E8B44A}
+  .ig-man-b{all:unset;cursor:pointer;display:inline-block;margin-top:10px;
+    font-size:12.5px;color:#E8B44A;border:1px solid #E8B44A;border-radius:8px;
+    padding:6px 12px}
+  .ig-man-b:hover{background:rgba(232,180,74,.12)}
+  .ig-man-b:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  /* Le groupe des pièces faites, distinct de celui qui reste à faire. */
+  .ig-reg-g.g-faits h5{border-left-color:#7FD4A8}
 </style>
 </head>
 <body>
