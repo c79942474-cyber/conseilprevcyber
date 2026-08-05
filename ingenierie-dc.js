@@ -472,15 +472,27 @@
               : "")
           + '<ul>' + p.contenu.map(function (c) { return "<li>" + esc(c) + "</li>"; }).join("")
           + "</ul>"
+          /* CE QU'ON DEMANDE À LA BASE. « Adossé à la base de connaissance »
+             est une affirmation ; l'afficher la rend vérifiable — et montre
+             qu'on cherche le SUJET de la pièce, pas son titre. */
+          + (p.recherche_origine === "titre"
+              ? '<div class="ig-pc-rq tit"><span class="lb"'
+                + info("recherche:titre") + ">recherche</span> "
+                + "<i>son intitulé, faute de vocabulaire déclaré</i></div>"
+              : '<div class="ig-pc-rq"><span class="lb"'
+                + info("recherche:" + p.recherche_origine) + ">recherche</span> "
+                + esc(p.recherche) + "</div>")
           + '<div class="ig-pc-a"><button type="button" class="ig-gen" '
           + 'data-piece="' + esc(p.code) + '">Rédiger cette pièce</button>'
+          + '<button type="button" class="ig-voir" '
+          + 'data-piece="' + esc(p.code) + '">Ce que la base apporte</button>'
           /* Dire la vérité sur ce qu'une IA produit pour une pièce graphique :
              elle n'en dessine pas une, elle en écrit la spécification. */
           + (p.type === "plan" || p.type === "schema"
               ? '<span class="ig-pc-n">La rédaction produit la SPÉCIFICATION de '
                 + 'la pièce graphique — contenu, échelle, conventions — non le '
                 + 'dessin lui-même.</span>' : "")
-          + "</div></div>";
+          + '</div><div class="ig-pc-doc" data-doc="' + esc(p.code) + '"></div></div>';
       });
       h += "</div>";
     });
@@ -492,6 +504,72 @@
     document.querySelectorAll("#ig-dossier .ig-gen").forEach(function (b) {
       b.addEventListener("click", function () { redigerPiece(b.getAttribute("data-piece"), b); });
     });
+    document.querySelectorAll("#ig-dossier .ig-voir").forEach(function (b) {
+      b.addEventListener("click", function () { voirBase(b.getAttribute("data-piece"), b); });
+    });
+  }
+
+  /* Ce que la base rendrait pour cette pièce, AVANT de rédiger. Consulter ne
+     consomme rien ; c'est écrire qui coûte. La distinction vaut d'être offerte :
+     elle permet de constater que la base est vide, plutôt que de le découvrir
+     dans un document qui n'en dit rien. */
+  function voirBase(code, bouton) {
+    var z = document.querySelector('#ig-dossier .ig-pc-doc[data-doc="' + code + '"]');
+    if (!z || !PHASE) return;
+    if (z.getAttribute("data-ouvert") === "1") {
+      z.innerHTML = ""; z.removeAttribute("data-ouvert");
+      bouton.textContent = "Ce que la base apporte"; return;
+    }
+    var p = lireProfil();
+    p.phase = PHASE; p.piece = code;
+    bouton.disabled = true;
+    z.innerHTML = '<p class="ig-pc-att">Interrogation de la base…</p>';
+    fetch("/api/datacenter/ingenierie/apercu", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(p),
+    }).then(function (r) { return r.json().then(function (j) { return [r.status, j]; }); })
+      .then(function (rj) {
+        var st = rj[0], j = rj[1];
+        bouton.disabled = false;
+        z.setAttribute("data-ouvert", "1");
+        bouton.textContent = "Masquer";
+        if (st === 401 || st === 403) {
+          z.innerHTML = '<p class="ig-pc-att">Connectez-vous pour consulter '
+            + "la base documentaire.</p>"; return;
+        }
+        if (!j || !j.ok) {
+          /* Une interrogation EN ÉCHEC et une base VIDE se ressemblent à
+             l'écran et n'appellent pas la même réaction. On les distingue. */
+          z.innerHTML = '<p class="ig-pc-att err">'
+            + esc((j && j.message) || "La base n'a pas pu être interrogée.")
+            + " — ce n'est pas la même chose qu'une base sans document sur le "
+            + "sujet.</p>"; return;
+        }
+        var h = '<p class="ig-pc-rqv"><b>Demandé à la base :</b> '
+          + esc(j.query || "") + "</p>";
+        if (!j.documents || !j.documents.length) {
+          h += '<p class="ig-pc-att">Aucun document de la base ne traite ce '
+            + "sujet. La pièce sera rédigée sans source interne — le document "
+            + "produit le dira, et appellera une relecture renforcée.</p>";
+        } else {
+          h += '<p class="ig-pc-rqv">' + j.documents.length + " document"
+            + (j.documents.length > 1 ? "s" : "") + " · " + j.extraits
+            + " extrait" + (j.extraits > 1 ? "s" : "") + "</p><ul class=\"ig-pc-dl\">"
+            + j.documents.map(function (d) {
+                return "<li>" + esc(d.title || "sans titre")
+                  + ' <span class="vi">'
+                  + (d.visibility === "internal" ? "interne" : "publique")
+                  + "</span> <span class=\"ex\">" + d.extraits + " extrait"
+                  + (d.extraits > 1 ? "s" : "") + "</span></li>";
+              }).join("") + "</ul>";
+        }
+        z.innerHTML = h;
+      }).catch(function () {
+        bouton.disabled = false;
+        z.setAttribute("data-ouvert", "1");
+        bouton.textContent = "Masquer";
+        z.innerHTML = '<p class="ig-pc-att err">La base n\'a pas répondu.</p>';
+      });
   }
 
   function redigerPiece(code, bouton) {

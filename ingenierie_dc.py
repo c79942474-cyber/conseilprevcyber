@@ -1381,6 +1381,109 @@ def _nom_discipline(cle):
     return (d or {}).get("nom", cle) if isinstance(d, dict) else (d or cle)
 
 
+# ── Ce qu'on demande À LA BASE DE CONNAISSANCE ─────────────────────────────
+#
+# La recherche du magasin documentaire est lexicale : score TF-IDF sur les
+# termes de la requête, plus un bonus de COUVERTURE — la part des termes
+# distincts de la requête retrouvés dans l'extrait. Deux conséquences que
+# l'intuition ne donne pas :
+#
+#   — un terme fréquent (« spécification », « technique », « projet ») ne
+#     rapporte presque rien, son IDF étant faible ;
+#   — pire, il FAIT BAISSER la couverture des extraits vraiment pertinents :
+#     une note sur le free cooling qui ne contient pas le mot « avant-projet »
+#     perd des points face à un extrait quelconque qui, lui, le contient.
+#
+# Chercher le TITRE du document à écrire est donc l'erreur exacte à éviter :
+# on demande à la base des documents « de spécification » alors qu'on veut des
+# documents sur le refroidissement. Chaque pièce déclare ici le vocabulaire de
+# son SUJET — des termes rares, ceux qui distinguent un document utile d'un
+# document quelconque.
+_RECHERCHE_PIECE = {
+    "SPC-MDL": "registre documentaire codification indexation des documents plan de "
+               "production documentaire cycle de vie visa approbation diffusion "
+               "transmittal indice de révision",
+    "SPC-PHILO": "philosophie de conception design philosophy principes directeurs "
+                 "niveau de redondance N+1 2N disponibilité concurrent maintainability "
+                 "fault tolerant hypothèses de dimensionnement taux de disponibilité",
+    "SPC-SAFETY": "analyse de risque HAZOP HAZID scénario redouté barrière de sécurité "
+                  "LOPA mise en sécurité ATEX hydrogène local batteries arrêt d'urgence "
+                  "sécurité des personnes gravité probabilité criticité",
+    "SPC-STRUCT": "structure génie civil fondation plancher charge d'exploitation "
+                  "surcharge sismique massif béton armé descente de charges dallage "
+                  "portance faux plancher technique",
+    "SPC-HVAC": "refroidissement free cooling groupe froid eau glacée confinement "
+                "allée chaude allée froide température de soufflage delta T ASHRAE "
+                "humidité relative détente directe adiabatique tour aéroréfrigérante "
+                "PUE efficacité de refroidissement",
+    "SPC-CFO": "haute tension poste de livraison transformateur onduleur ASI groupe "
+               "électrogène TGBT sélectivité court-circuit régime de neutre jeu de "
+               "barres rendement de chaîne puissance souscrite raccordement au réseau",
+    "SPC-CFA": "courants faibles GTB GTC supervision technique câblage structuré "
+               "chemin de câbles comptage divisionnaire compteur d'énergie sous-comptage "
+               "fibre optique baie de brassage",
+    "SPC-TEL": "opérateur télécom arrivée fibre adduction fourreau chemin redondant "
+               "point de présence téléphonie liaison spécialisée diversité de parcours "
+               "génie civil de télécommunication",
+    "SPC-SSI": "sécurité incendie compartimentage désenfumage résistance au feu degré "
+               "coupe-feu détection incendie alarme ICPE code du travail système de "
+               "sécurité incendie mise en sécurité incendie",
+    "SPC-EXT": "extinction automatique gaz inerte azote argon brouillard d'eau "
+               "sprinkleur agent extincteur concentration d'extinction temps de décharge "
+               "NFPA 2001 EN 15004 étanchéité du volume protégé surpression",
+    "SPC-EAUINC": "besoin en eau d'extinction débit réserve incendie poteau incendie "
+                  "bâche à eau hydrant D9 D9A surface de référence durée d'extinction "
+                  "rétention des eaux d'extinction bassin de confinement",
+    "SPC-SUR": "sûreté malveillance contrôle d'accès intrusion vidéoprotection "
+               "périmètre clôture anti-intrusion badge sas gestion des visiteurs "
+               "levée de doute",
+    "SPC-EVAC": "évacuation dégagement issue de secours unité de passage balisage "
+                "éclairage de sécurité point de rassemblement consigne de sécurité "
+                "exercice d'évacuation plan d'intervention",
+    "SPC-ITOT": "baie rack densité par baie kilowatt par baie serveur GPU réseau OT "
+                "système de contrôle industriel SCADA automate segmentation IEC 62443 "
+                "zone et conduit inventaire des équipements",
+    "SPC-CONSO": "consommation électrique annuelle par consommateur auxiliaires PUE "
+                 "WUE consommation d'eau évaporation purge appoint comptage "
+                 "sous-comptage profil de charge pointe de prélèvement",
+    "SPC-CHALEUR": "chaleur fatale récupération de chaleur réseau de chaleur "
+                   "température de reprise pompe à chaleur échangeur taux de "
+                   "récupération ERF preneur de chaleur puits de chaleur",
+    "SPC-RSE": "responsabilité sociétale développement durable CSRD taxonomie "
+               "européenne double matérialité parties prenantes empreinte "
+               "environnementale reporting extra-financier",
+    "SPC-BASCARB": "bâtiment bas carbone carbone incorporé analyse de cycle de vie "
+                   "ACV FDES EPD RE2020 béton bas carbone matériau biosourcé réemploi "
+                   "émissions évitées",
+    "SPC-FORFAIT": "enveloppe d'investissement CAPEX OPEX décomposition par lot DPGF "
+                   "ratio euro par mégawatt coût complet TCO analyse de sensibilité "
+                   "aléas provision pour risque raccordement foncier",
+}
+
+# Filet de sécurité : une spécification ajoutée demain sans vocabulaire propre
+# retombe sur celui de sa discipline plutôt que sur son titre. sante() la
+# signale quand même — le filet évite la régression, il ne la dispense pas.
+_RECHERCHE_DISCIPLINE = {
+    "projet": "conduite de projet planning jalon interface entre lots maîtrise des "
+              "modifications",
+    "safety": "analyse de risque sécurité des personnes scénario redouté barrière de "
+              "sécurité",
+    "structure": "structure génie civil charge plancher fondation béton",
+    "hvac": "refroidissement free cooling groupe froid eau glacée confinement "
+            "température",
+    "elec_cfo": "haute tension transformateur onduleur groupe électrogène TGBT "
+                "puissance",
+    "elec_cfa": "courants faibles GTB supervision câblage comptage",
+    "telecom": "opérateur fibre adduction chemin redondant téléphonie",
+    "incendie": "sécurité incendie compartimentage désenfumage détection ICPE",
+    "extinction": "extinction automatique gaz brouillard d'eau sprinkleur agent "
+                  "extincteur",
+    "surete": "sûreté contrôle d'accès intrusion vidéoprotection malveillance",
+    "itot": "baie densité serveur réseau OT système de contrôle industriel IEC 62443",
+    "environnement": "énergie eau carbone PUE WUE empreinte environnementale ICPE",
+}
+
+
 # (code, titre, discipline, type, émetteur, moteur, {phase: niveau}, [contenu])
 _PIECES_DISCIPLINE = [
     # ── Conduite de projet ────────────────────────────────────────────────
@@ -1583,9 +1686,11 @@ _PIECES_DISCIPLINE = [
       "Coût d'exploitation annuel et coût complet sur la durée retenue",
       "Sensibilité de l'enveloppe aux hypothèses de conception",
       "IMPORTANT : la structure des lots et leurs parts sont publiées par le "
-      "moteur d'enveloppe de conseilprev (module finance_dc). S'y référer et "
-      "les citer — ne pas les retaper ici : deux tables qui divergent valent "
-      "moins qu'une seule qu'on cite."]),
+      "moteur d'enveloppe de conseilprev (module finance_dc), consultable sur "
+      "https://conseilprev.onrender.com/panorama#s-finance — décomposition par "
+      "lot, part de chacun, échéancier et écart entre pays. S'y référer et les "
+      "citer avec cette adresse ; ne pas les retaper ici : deux tables qui "
+      "divergent valent moins qu'une seule qu'on cite."]),
 ]
 
 
@@ -1597,6 +1702,7 @@ def _piece_discipline(entree, phase):
         return None
     t = TYPES_PIECE.get(typ) or {}
     n = NIVEAUX.get(niv) or {}
+    rech, rech_orig = recherche_piece(c, disc)
     return {
         "code": c, "titre": titre,
         "type": typ, "type_nom": t.get("nom", typ), "type_aide": t.get("aide", ""),
@@ -1605,6 +1711,10 @@ def _piece_discipline(entree, phase):
         "contenu": list(contenu),
         "discipline": disc, "discipline_nom": _nom_discipline(disc),
         "niveau": niv, "niveau_nom": n.get("nom", niv), "niveau_aide": n.get("aide", ""),
+        # Ce qui sera demandé À LA BASE pour rédiger cette pièce. Affiché : une
+        # recherche qu'on ne voit pas ne se juge pas, et « adossé à la base de
+        # connaissance » est une affirmation vérifiable ou creuse.
+        "recherche": rech, "recherche_origine": rech_orig,
         # Où la même pièce apparaît ailleurs : sans cela, on croit avoir affaire
         # à un document neuf à chaque phase, et on en produit trois.
         "autres_phases": sorted(k for k in phases if k != phase),
@@ -1631,6 +1741,11 @@ def pieces(code):
             "contenu": list(contenu),
             "discipline": None, "discipline_nom": "",
             "niveau": None, "niveau_nom": "", "niveau_aide": "",
+            # Une pièce de phase n'a pas de vocabulaire déclaré : elle se
+            # rabat sur son titre, déjà spécifique (« Bilan de puissance
+            # électrique »). L'origine le dit, plutôt que de le laisser croire.
+            "recherche": recherche_piece(c, None)[0],
+            "recherche_origine": recherche_piece(c, None)[1],
             "autres_phases": [],
         })
     for e in _PIECES_DISCIPLINE:
@@ -2030,6 +2145,58 @@ def piece(code_phase, code_piece):
     return None
 
 
+def recherche_piece(code_piece, discipline=None):
+    """Le vocabulaire de recherche d'une pièce, et d'où il vient.
+
+    Renvoie (termes, origine) — l'origine sert à l'afficher : un lecteur qui
+    voit ce qui a été demandé à la base peut juger si la réponse valait quelque
+    chose. Une recherche muette laisse croire que la base a été interrogée.
+    """
+    v = _RECHERCHE_PIECE.get(code_piece)
+    if v:
+        return v, "piece"
+    v = _RECHERCHE_DISCIPLINE.get(discipline or "")
+    if v:
+        return v, "discipline"
+    return "", "titre"
+
+
+def requete_piece(code_phase, code_piece, inputs=None):
+    """Ce qu'on demande À LA BASE — distinct de ce qu'on demande au modèle.
+
+    Ne porte QUE des termes qui peuvent retrouver un document utile :
+
+    — pas le nom de la phase ni celui de la filière. « Avant-projet sommaire »,
+      « Maîtrise d'œuvre de chantier » ne figurent dans aucun document technique
+      sur le refroidissement, et leur présence dans la requête abaisse la
+      couverture des extraits qui, eux, traitent du sujet ;
+    — pas les libellés de remplissage. Sans identification saisie, la requête
+      partait chercher « segment », « périmètre » et « préciser », qui sont les
+      mots de « [segment à préciser] » — quatre termes parasites, toujours.
+
+    Le titre ne sert qu'en dernier recours, pour les pièces de phase qui ne
+    déclarent pas de vocabulaire propre : il est alors le seul signal
+    disponible, et il est déjà spécifique (« Bilan de puissance électrique »).
+    """
+    inputs = dict(inputs or {})
+    pc = piece(code_phase, code_piece)
+    if not pc:
+        return ""
+    termes, origine = recherche_piece(pc["code"], pc.get("discipline"))
+    bouts = [termes] if origine != "titre" else [pc["titre"]]
+    bouts.append("centre de données")
+    # Le contexte projet, mais SEULEMENT s'il a été choisi : contexte_projet ne
+    # rend que les champs réellement renseignés, ce qui écarte de lui-même les
+    # libellés de remplissage.
+    for r in contexte_projet(inputs).get("retenus", []):
+        if r.get("champ") in ("secteur", "perimetre") and r.get("nom"):
+            bouts.append(r["nom"])
+    c = (inputs.get("consignes") or "").strip()
+    if c:
+        bouts.append(c)
+    return " ".join(b for b in bouts if b).strip()
+
+
 def prompts_piece(profil, code_phase, code_piece, inputs=None):
     """(system, user, requête_de_recherche) pour rédiger une pièce.
 
@@ -2176,9 +2343,7 @@ def prompts_piece(profil, code_phase, code_piece, inputs=None):
       "partir d'un calcul déterministe, à relire et valider par un ingénieur."
       % (pc["code"], pc["titre"]))
 
-    requete = " ".join([pc["titre"], d["nom"], d["filiere_nom"], "centre de données",
-                        secteur, perimetre, consignes]).strip()
-    return SYSTEM_PIECE, "\n".join(u), requete
+    return SYSTEM_PIECE, "\n".join(u), requete_piece(code_phase, code_piece, inputs)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -2269,6 +2434,37 @@ MOTEUR_BADGE = {
 }
 
 
+ORIGINES_RECHERCHE = {
+    "piece": {
+        "nom": "vocabulaire propre à la pièce",
+        "aide": "Les termes techniques dont les documents doivent informer cette "
+                "pièce — déclarés au référentiel, un par pièce.\n\nLa recherche "
+                "documentaire est lexicale : un terme fréquent ne rapporte rien et "
+                "fait même BAISSER le score des extraits pertinents, qui doivent "
+                "alors contenir des mots inutiles pour garder leur couverture. "
+                "Chercher « spécification technique » ramenait des documents sur "
+                "les spécifications ; on cherche donc le sujet.",
+    },
+    "discipline": {
+        "nom": "vocabulaire de la discipline",
+        "aide": "Cette pièce ne déclare pas de vocabulaire propre : elle utilise "
+                "celui de sa discipline.\n\nCela fonctionne, mais ne distingue pas "
+                "deux pièces d'une même discipline — la chaleur fatale et le "
+                "bâtiment bas carbone relèvent toutes deux de l'environnement et "
+                "n'appellent pas les mêmes documents. Le contrôle de santé le "
+                "signale.",
+    },
+    "titre": {
+        "nom": "à défaut, son intitulé",
+        "aide": "Aucun vocabulaire n'est déclaré : la recherche se rabat sur "
+                "l'intitulé de la pièce.\n\nAcceptable pour les pièces de phase, "
+                "dont le titre est déjà spécifique — « Bilan de puissance "
+                "électrique » désigne son sujet. Ce serait insuffisant pour une "
+                "spécification de discipline, dont le titre commence par les mots "
+                "les plus communs du métier.",
+    },
+}
+
 _NATURE_POSTE = {
     "ordre_grandeur": "Ordre de grandeur : la valeur situe, elle ne mesure pas.",
     "moyenne_annuelle": "Moyenne annuelle : elle lisse le profil horaire.",
@@ -2331,6 +2527,7 @@ def glossaire():
         "apport": {k: {"nom": k.replace("_", " "), "aide": v}
                    for k, v in APPORT.items()},
         "accord": ACCORDS,
+        "recherche": ORIGINES_RECHERCHE,
         "statut": STATUTS_GRANDEUR,
         "aace": CLASSES_AACE,
         "nature": NATURES_PRECISION,
@@ -2441,6 +2638,18 @@ def sante():
         for cle, e in entrees.items()
         if not (e or {}).get("aide", "").strip() or not (e or {}).get("nom", "").strip())
 
+    # Le vocabulaire de recherche. Une spécification de discipline ajoutée sans
+    # le sien retomberait sur celui de sa discipline — ce qui MARCHE, mais ne
+    # distingue plus la chaleur fatale du bâtiment bas carbone, tous deux
+    # « environnement ». Le filet évite la panne, il ne dispense pas d'écrire.
+    specs_sans_vocabulaire = sorted(
+        e[0] for e in _PIECES_DISCIPLINE if e[0] not in _RECHERCHE_PIECE)
+    # Et le vocabulaire déclaré doit être CHERCHABLE : une recherche vidée par
+    # les mots-outils ne ramènerait rien.
+    vocabulaires_creux = sorted(
+        c for c, v in _RECHERCHE_PIECE.items() if len(v.split()) < 6)
+    disciplines_sans_repli = sorted(set(DISCIPLINES) - set(_RECHERCHE_DISCIPLINE))
+
     p = {"puissance_it_kw": 2000}
     return {
         "version": VERSION,
@@ -2463,6 +2672,9 @@ def sante():
         "disciplines_inconnues": disc_inconnues,
         "niveaux_inconnus": niv_inconnus,
         "specifications_sur_phase_inexistante": phases_fantomes,
+        "specifications_sans_vocabulaire": specs_sans_vocabulaire,
+        "vocabulaires_de_recherche_creux": vocabulaires_creux,
+        "disciplines_sans_vocabulaire_de_repli": disciplines_sans_repli,
         "glossaire_familles": len(g_),
         "glossaire_definitions": sum(len(v) for v in g_.values()),
         "glossaire_sans_explication": glossaire_muet,

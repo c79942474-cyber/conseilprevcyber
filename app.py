@@ -3931,6 +3931,58 @@ def api_livrables_preview_docs():
     return jsonify(ok=True, query=query, documents=docs, extraits=len(hits))
 
 
+@app.route("/api/datacenter/ingenierie/apercu", methods=["POST"])
+@login_required
+def api_datacenter_piece_apercu():
+    """Ce que la base de connaissance apporterait à cette pièce — avant de rédiger.
+
+    « Adossé à la base de connaissance » est une affirmation ; celle-ci la rend
+    vérifiable. On rejoue EXACTEMENT les étapes de _livrables_run — même requête,
+    même k, même re-classement — de sorte que l'aperçu ne puisse pas mentir sur ce
+    qui sera réellement mobilisé.
+
+    Ouvert à tout compte connecté, contrairement à la rédaction : consulter ce
+    que la base contient ne consomme pas de jetons d'API et ne produit rien. Ce
+    qui coûte, c'est d'écrire — et c'est cela qui reste derrière le verrou
+    d'administration.
+    """
+    ckey = "apercupc:%s" % client_ip()
+    if guard.blocked(ckey, limit=40, window=600):
+        return jsonify(ok=False, error="rate_limited",
+                       message="Trop d'aperçus en peu de temps. Patientez un instant."), 429
+    guard.fail(ckey)
+    data = request.get_json(silent=True) or {}
+    phase = str(data.get("phase") or "").strip().upper()[:12]
+    code = str(data.get("piece") or "").strip().upper()[:16]
+    pc = ingenierie_dc.piece(phase, code)
+    if not pc:
+        return jsonify(ok=False, error="piece_inconnue",
+                       message="Phase ou pièce inconnue."), 404
+    query = ingenierie_dc.requete_piece(phase, code, data)
+    model = "mistral" if data.get("model") == "mistral" else "claude"
+    try:
+        hits = assistant.rerank(model, query,
+                                rag.search(query, k=24, public_only=False), 8)
+    except Exception:
+        # Un aperçu qui échoue ne doit pas passer pour une base vide : les deux
+        # se ressemblent à l'écran et n'appellent pas la même réaction.
+        app.logger.exception("aperçu pièce datacenter")
+        return jsonify(ok=False, error="apercu_echec",
+                       message="La base n'a pas pu être interrogée."), 500
+    docs, rang = [], {}
+    for h in hits:
+        did = h.get("doc_id")
+        if did in rang:
+            docs[rang[did]]["extraits"] += 1
+            continue
+        rang[did] = len(docs)
+        docs.append({"title": h.get("title"), "theme": h.get("theme"),
+                     "visibility": h.get("visibility"), "extraits": 1})
+    return jsonify(ok=True, query=query, documents=docs, extraits=len(hits),
+                   origine=pc.get("recherche_origine"),
+                   piece="%s — %s" % (pc["code"], pc["titre"]))
+
+
 @app.route("/api/admin/livrables/refine", methods=["POST"])
 @admin_required
 def api_livrables_refine():

@@ -223,6 +223,29 @@
   .ig-gen:hover{border-color:var(--cyan);color:var(--ink)}
   .ig-gen:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
   .ig-gen[disabled]{opacity:.55;cursor:default}
+  .ig-gen:hover,.ig-voir:hover{border-color:var(--cyan);color:var(--ink)}
+  .ig-voir{all:unset;cursor:pointer;font-size:11.5px;padding:5px 11px;border-radius:7px;
+    border:1px solid var(--line);color:var(--muted)}
+  .ig-voir:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  .ig-voir[disabled]{opacity:.55;cursor:default}
+  /* Ce qu'on demande à la base : lisible sans être criard — c'est une donnée de
+     contrôle, pas le contenu de la pièce. */
+  .ig-pc-rq{margin-top:8px;font-size:11px;line-height:1.55;color:var(--muted2);
+    font-family:var(--mono)}
+  .ig-pc-rq .lb{font-size:10px;letter-spacing:.05em;text-transform:uppercase;
+    color:var(--cyan);margin-right:7px}
+  .ig-pc-rq.tit .lb{color:var(--muted2)}
+  .ig-pc-rq.tit i{font-style:italic}
+  .ig-pc-doc:empty{display:none}
+  .ig-pc-doc{margin-top:9px;padding:9px 12px;border-radius:8px;
+    background:rgba(0,0,0,.16);border-left:3px solid var(--line)}
+  .ig-pc-rqv{margin:0 0 6px;font-size:11.5px;color:var(--muted);line-height:1.55}
+  .ig-pc-rqv b{color:var(--ink)}
+  .ig-pc-att{margin:0;font-size:11.5px;color:var(--muted2);line-height:1.6}
+  .ig-pc-att.err{color:#F0A88C}
+  .ig-pc-dl{margin:0;padding-left:17px;font-size:11.5px;color:var(--muted);line-height:1.7}
+  .ig-pc-dl .vi,.ig-pc-dl .ex{font-family:var(--mono);font-size:10px;
+    color:var(--muted2);margin-left:6px}
   .ig-pc-n{font-size:11px;color:var(--muted2);line-height:1.5;flex:1 1 260px}
   .ig-reg-n{font-size:11.5px;color:var(--muted2);line-height:1.6;margin-top:14px;
     padding:10px 13px;border-left:3px solid var(--line);background:rgba(0,0,0,.12);
