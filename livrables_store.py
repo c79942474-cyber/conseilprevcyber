@@ -50,6 +50,18 @@ def _clean(rec):
         "markdown": md,
         "sources": sources,
         "parent_id": pid if _valid_id(pid) else None,
+        # ── Le rattachement au projet ──────────────────────────────────────
+        # Sans ces quatre champs, l'historique était une liste plate : pour
+        # retrouver « ce qui a été produit pour le projet Amsterdam en phase
+        # APD », il fallait lire les intitulés un par un et espérer que la même
+        # orthographe ait été employée à chaque fois.
+        "projet_id": (rec.get("projet_id") or "")[:32],
+        "phase": (rec.get("phase") or "")[:12].upper(),
+        "filiere": (rec.get("filiere") or "")[:8],
+        # L'état du LIVRABLE, distinct du statut du projet : un projet en cours
+        # porte des brouillons et des pièces visées, et les confondre ferait
+        # croire un dossier prêt parce que le projet avance.
+        "etat": (rec.get("etat") or "brouillon")[:16],
     }
 
 
@@ -87,14 +99,33 @@ class MemoryLivrablesStore:
         with self._lock:
             return self._items.pop(lid, None) is not None
 
+    def changer_etat(self, lid, etat):
+        """Fait passer un livrable de brouillon à relu, visé ou obsolète.
+
+        Nommée `changer_etat` et non `etat` : l'enveloppe de résilience porte
+        déjà une méthode `etat()` — sa propre santé — et elle a priorité sur le
+        magasin. Un magasin nommé pareil aurait été appelé en production sans
+        rien changer, sans erreur, et sans que l'écran s'en aperçoive.
+
+        Sans ce geste, la colonne « état » ne serait qu'une décoration : tout
+        resterait éternellement brouillon, et un dossier entièrement visé se
+        lirait comme un dossier entièrement à relire."""
+        with self._lock:
+            r = self._items.get(lid)
+            if not r:
+                return False
+            r["etat"] = etat
+            return True
+
     def stats(self):
         with self._lock:
             return {"count": len(self._items)}
 
     @staticmethod
     def _meta(r):
-        m = {k: r[k] for k in ("id", "type", "label", "client", "secteur",
-                               "model", "created_at", "parent_id")}
+        m = {k: r.get(k) for k in ("id", "type", "label", "client", "secteur",
+                                   "model", "created_at", "parent_id",
+                                   "projet_id", "phase", "filiere", "etat")}
         m["chars"] = len(r.get("markdown") or "")
         return m
 
@@ -117,6 +148,14 @@ _SCHEMA = [
     "CREATE INDEX IF NOT EXISTS livrables_created_idx ON livrables (created_at DESC)",
     # Ajout du chaînage de versions (compatible bases existantes).
     "ALTER TABLE livrables ADD COLUMN IF NOT EXISTS parent_id TEXT",
+    # Rattachement au projet, à la phase et à la filière (ajouts compatibles :
+    # les enregistrements antérieurs restent lisibles, sans projet).
+    "ALTER TABLE livrables ADD COLUMN IF NOT EXISTS projet_id TEXT",
+    "ALTER TABLE livrables ADD COLUMN IF NOT EXISTS phase TEXT",
+    "ALTER TABLE livrables ADD COLUMN IF NOT EXISTS filiere TEXT",
+    "ALTER TABLE livrables ADD COLUMN IF NOT EXISTS etat TEXT",
+    "CREATE INDEX IF NOT EXISTS livrables_projet_idx "
+    "ON livrables (projet_id, phase, created_at DESC)",
 ]
 
 
@@ -161,33 +200,44 @@ class PostgresLivrablesStore:
         with self._pool.connection() as conn:
             conn.execute(
                 "INSERT INTO livrables(id,type,label,client,secteur,perimetre,model,"
-                "markdown,sources,created_at,parent_id) "
-                "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                "markdown,sources,created_at,parent_id,projet_id,phase,filiere,etat) "
+                "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (lid, rec["type"], rec["label"], rec["client"], rec["secteur"],
                  rec["perimetre"], rec["model"], rec["markdown"],
                  json.dumps(rec["sources"], ensure_ascii=False), _now_ms(),
-                 rec["parent_id"]))
+                 rec["parent_id"], rec["projet_id"], rec["phase"],
+                 rec["filiere"], rec["etat"]))
         return lid
 
     def list(self):
         with self._pool.connection() as conn:
             rows = conn.execute(
                 "SELECT id,type,label,client,secteur,model,created_at,parent_id,"
+                "projet_id,phase,filiere,etat,"
                 "char_length(markdown) FROM livrables ORDER BY created_at DESC "
                 "LIMIT %s", (LIST_LIMIT,)).fetchall()
         keys = ("id", "type", "label", "client", "secteur", "model", "created_at",
-                "parent_id", "chars")
+                "parent_id", "projet_id", "phase", "filiere", "etat", "chars")
         return [dict(zip(keys, r)) for r in rows]
 
     def get(self, lid):
+        # Le rattachement fait partie de l'enregistrement, pas seulement de sa
+        # fiche : c'est sur `projet_id` que se vérifie le droit de reprendre un
+        # document. L'omettre ici le laissait à None sur une base réelle, alors
+        # que le magasin mémoire, lui, rendait le dictionnaire complet — le
+        # contrôle passait donc au poste de travail et refusait tout en
+        # production. Une colonne absente d'un SELECT ne se voit pas ; son
+        # effet, si.
         with self._pool.connection() as conn:
             r = conn.execute(
                 "SELECT id,type,label,client,secteur,perimetre,model,markdown,sources,"
-                "created_at,parent_id FROM livrables WHERE id=%s", (lid,)).fetchone()
+                "created_at,parent_id,projet_id,phase,filiere,etat "
+                "FROM livrables WHERE id=%s", (lid,)).fetchone()
         if not r:
             return None
         keys = ("id", "type", "label", "client", "secteur", "perimetre", "model",
-                "markdown", "sources", "created_at", "parent_id")
+                "markdown", "sources", "created_at", "parent_id",
+                "projet_id", "phase", "filiere", "etat")
         rec = dict(zip(keys, r))
         try:
             rec["sources"] = json.loads(rec["sources"]) if rec["sources"] else []
@@ -198,6 +248,11 @@ class PostgresLivrablesStore:
     def delete(self, lid):
         with self._pool.connection() as conn:
             return conn.execute("DELETE FROM livrables WHERE id=%s", (lid,)).rowcount > 0
+
+    def changer_etat(self, lid, etat):
+        with self._pool.connection() as conn:
+            return conn.execute("UPDATE livrables SET etat=%s WHERE id=%s",
+                                (etat, lid)).rowcount > 0
 
     def stats(self):
         with self._pool.connection() as conn:

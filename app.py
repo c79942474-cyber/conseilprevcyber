@@ -485,6 +485,12 @@ rag = make_rag_store()
 state = _f_state.result()
 livrables_hist = _f_liv.result()
 clients_db = _f_cli.result()
+# Les projets d'ingénierie du client. Construit après les autres magasins et
+# non dans le pool de démarrage : il n'est sollicité qu'à la première visite de
+# la page d'ingénierie, et le faire attendre au démarrage retarderait tout le
+# site pour une table de treize colonnes.
+import projets_dc  # noqa: E402
+projets_db = projets_dc.make_projets_store()
 _boot_pool.shutdown(wait=False)
 
 
@@ -4102,6 +4108,14 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None):
         return jsonify(ok=False, error=exc.code,
                        message=_ASSISTANT_MSG.get(exc.code, "Génération indisponible.")), exc.status
 
+    # Le projet de rattachement vient du CLIENT : on ne le croit pas sur parole.
+    # Un identifiant est un identifiant, pas une autorisation — recopié depuis
+    # une autre session, il verserait ce document dans l'historique d'un tiers,
+    # qui le lirait et le sauvegarderait avec les siens. On le fait donc valider
+    # par le magasin, qui filtre sur le propriétaire ; s'il ne le reconnaît pas,
+    # le livrable est produit quand même, mais SANS rattachement.
+    projet_id = _projet_du_compte(data.get("projet_id"))
+
     # Enregistrement dans l'historique (best-effort : n'interrompt jamais la réponse).
     saved_id = None
     try:
@@ -4110,7 +4124,21 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None):
             "type": type_id, "label": (t["label"] if t else None) or label or type_id,
             "client": data.get("client"), "secteur": data.get("secteur"),
             "perimetre": data.get("perimetre"), "model": used_model,
-            "markdown": text, "sources": sources, "parent_id": parent_id})
+            "markdown": text, "sources": sources, "parent_id": parent_id,
+            # Le rattachement au projet, à la phase et à la filière. Sans lui,
+            # le livrable rejoint une liste plate et n'est plus retrouvable
+            # autrement qu'en lisant les intitulés un par un.
+            "projet_id": projet_id,
+            "phase": (data.get("phase") or ""),
+            "filiere": (data.get("filiere") or ""),
+            "etat": "brouillon"})
+        # La date de dernière activité du projet suit ce qui y est produit :
+        # c'est elle qui trie utilement une liste de projets.
+        if projet_id:
+            try:
+                projets_db.toucher(projet_id)
+            except Exception:
+                pass
     except Exception:
         saved_id = None
 
@@ -4218,6 +4246,270 @@ def api_livrables_preview_docs():
         docs.append({"id": did, "title": h.get("title"), "theme": h.get("theme"),
                      "visibility": h.get("visibility"), "extraits": 1})
     return jsonify(ok=True, query=query, documents=docs, extraits=len(hits))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LES PROJETS D'INGÉNIERIE, ET LEUR HISTORIQUE
+# ═══════════════════════════════════════════════════════════════════════════
+# Le propriétaire d'un projet est le compte connecté, et c'est le MAGASIN qui
+# filtre dessus — pas la route. Une vérification posée dans l'appelant s'oublie
+# au deuxième appelant, et c'est ce jour-là qu'un client voit le dossier d'un
+# autre.
+
+def _proprietaire():
+    u = current_user() or {}
+    return (u.get("email") or "").strip().lower()
+
+
+def _projet_du_compte(pid):
+    """Rend l'identifiant de projet s'il appartient au compte connecté, sinon "".
+
+    Le rattachement d'un livrable arrive dans le corps de la requête, donc du
+    navigateur, donc de n'importe qui sait écrire une requête. Le passer tel
+    quel au magasin classerait un document dans le dossier d'un tiers — et une
+    fois classé, il se lit dans son historique et part dans sa sauvegarde. On
+    ne renvoie pas d'erreur pour autant : le document vient d'être payé en
+    jetons d'API, le perdre pour un identifiant douteux serait pire que de le
+    rendre non rattaché.
+    """
+    pid = (pid or "").strip()
+    if not projets_dc._valid_id(pid):
+        return ""
+    prop = _proprietaire()
+    if not prop:
+        return ""
+    try:
+        return pid if projets_db.obtenir(prop, pid) else ""
+    except Exception:
+        return ""
+
+
+@app.route("/api/datacenter/projets", methods=["GET", "POST"])
+@login_required
+def api_projets():
+    """Liste les projets du compte, ou en crée un."""
+    prop = _proprietaire()
+    if not prop:
+        return jsonify(ok=False, error="non_identifie"), 401
+    if request.method == "GET":
+        arch = request.args.get("archives") == "1"
+        return jsonify(ok=True, projets=projets_db.lister(prop, arch),
+                       referentiel=projets_dc.referentiel())
+    data = request.get_json(silent=True) or {}
+    try:
+        p = projets_db.creer(prop, data)
+    except projets_dc.ProjetError as exc:
+        return jsonify(ok=False, error=exc.code, message=exc.detail), exc.status
+    audit.journaliser("projet.creation", cible=p["id"][:32], detail=p["nom"][:120])
+    return jsonify(ok=True, projet=p)
+
+
+@app.route("/api/datacenter/projets/<pid>", methods=["GET", "PATCH", "DELETE"])
+@login_required
+def api_projet(pid):
+    """Un projet et son historique — ou sa mise à jour, ou sa suppression."""
+    prop = _proprietaire()
+    if not prop or not projets_dc._valid_id(pid):
+        return jsonify(ok=False, error="projet_invalide"), 400
+    if request.method == "DELETE":
+        # Le projet part ; ses livrables RESTENT. Supprimer un dossier de
+        # projet effacerait des documents que le client a peut-être remis à un
+        # tiers — on ne détruit pas ce qu'on a produit pour quelqu'un.
+        if not projets_db.supprimer(prop, pid):
+            return jsonify(ok=False, error="introuvable"), 404
+        audit.journaliser("projet.suppression", cible=pid[:32])
+        return jsonify(ok=True, livrables_conserves=True)
+    if request.method == "PATCH":
+        data = request.get_json(silent=True) or {}
+        try:
+            p = projets_db.modifier(prop, pid, data)
+        except projets_dc.ProjetError as exc:
+            return jsonify(ok=False, error=exc.code, message=exc.detail), exc.status
+        if not p:
+            return jsonify(ok=False, error="introuvable"), 404
+        return jsonify(ok=True, projet=p)
+    p = projets_db.obtenir(prop, pid)
+    if not p:
+        return jsonify(ok=False, error="introuvable"), 404
+    return jsonify(ok=True, projet=p, historique=_historique_projet(pid))
+
+
+def _horodatage():
+    """L'instant, en ISO 8601 UTC. Écrit ici plutôt qu'importé de datetime dans
+    la route : ce module ne l'importe pas, et une route qui plante au premier
+    appel sur un import manquant est un défaut qu'aucun test de syntaxe ne
+    voit."""
+    import datetime as _dt
+    return _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
+
+
+def _nom_fichier(nom):
+    """Un nom de fichier sûr, tiré du nom du projet."""
+    import re as _re
+    return _re.sub(r"[^A-Za-z0-9_-]+", "-", nom or "")[:40].strip("-") or "sans-nom"
+
+
+def _historique_projet(pid):
+    """Les livrables du projet, GROUPÉS PAR PHASE et datés.
+
+    Groupés ici et non dans la page : le regroupement est la seule chose qui
+    rend cet historique lisible — une liste plate de quarante documents ne dit
+    pas où en est le dossier. Et il se calcule à partir du même registre de
+    phases que la frise, donc l'ordre est celui du projet, pas l'ordre
+    alphabétique.
+    """
+    tous = [x for x in livrables_hist.list() if x.get("projet_id") == pid]
+    rang = {p["code"]: p["rang"] for p in ingenierie_dc.PHASES}
+    noms = {p["code"]: p["nom"] for p in ingenierie_dc.PHASES}
+    par_phase = {}
+    for x in tous:
+        par_phase.setdefault(x.get("phase") or "—", []).append(x)
+    groupes = []
+    for code in sorted(par_phase, key=lambda c: (rang.get(c, 999), c)):
+        items = sorted(par_phase[code], key=lambda r: -(r.get("created_at") or 0))
+        groupes.append({
+            "phase": code, "phase_nom": noms.get(code, "Hors phase"),
+            "n": len(items),
+            "dernier": items[0].get("created_at") if items else None,
+            "livrables": items,
+        })
+    # L'ordre du vocabulaire est servi À PART du vocabulaire : une fois
+    # sérialisé, un dictionnaire est trié par clé, et « obsolète » se
+    # retrouverait entre « brouillon » et « relu ».
+    return {"total": len(tous), "phases": groupes,
+            "etats": projets_dc.ETATS_LIVRABLE,
+            "etats_ordre": projets_dc._ordre(projets_dc.ETATS_LIVRABLE)}
+
+
+@app.route("/api/datacenter/projets/<pid>/sauvegarde", methods=["GET"])
+@login_required
+def api_projet_sauvegarde(pid):
+    """La sauvegarde d'un projet : le dossier ET tous ses livrables, en un fichier.
+
+    Le contenu COMPLET des livrables, pas seulement leurs intitulés : une
+    sauvegarde qui ne garderait que la liste ne permettrait pas de reconstituer
+    le dossier, ce qui est précisément ce qu'on attend d'elle. Servie en
+    téléchargement, jamais affichée — un dossier de projet n'a pas à transiter
+    par le presse-papier.
+    """
+    prop = _proprietaire()
+    if not prop or not projets_dc._valid_id(pid):
+        return jsonify(ok=False, error="projet_invalide"), 400
+    p = projets_db.obtenir(prop, pid)
+    if not p:
+        return jsonify(ok=False, error="introuvable"), 404
+    complets = []
+    for m in livrables_hist.list():
+        if m.get("projet_id") != pid:
+            continue
+        d = livrables_hist.get(m["id"])
+        if d:
+            complets.append(d)
+    charge = {
+        "format": "conseilprev.projet-dc.v1",
+        "exporte_le": _horodatage(),
+        "moteur": {"ingenierie_dc": ingenierie_dc.VERSION,
+                   "datacenter": datacenter.VERSION},
+        "projet": p,
+        "livrables": complets,
+    }
+    audit.journaliser("projet.sauvegarde", cible=pid[:32],
+                      detail="%d livrable(s)" % len(complets))
+    corps = json.dumps(charge, ensure_ascii=False, indent=1).encode("utf-8")
+    nom = "projet-%s-%s.json" % (_nom_fichier(p["nom"]), _horodatage()[:10])
+    resp = Response(corps, mimetype="application/json; charset=utf-8")
+    resp.headers["Content-Disposition"] = 'attachment; filename="%s"' % nom
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["Cache-Control"] = "private, no-store"
+    return resp
+
+
+@app.route("/api/datacenter/projets/<pid>/livrable/<lid>", methods=["PATCH"])
+@login_required
+def api_projet_livrable_etat(pid, lid):
+    """Fait passer un livrable de brouillon à relu, visé ou obsolète.
+
+    Sans ce geste, l'état affiché dans l'historique serait une décoration : tout
+    resterait éternellement « brouillon », et un dossier entièrement visé se
+    lirait comme un dossier entièrement à relire. Le vocabulaire est fermé —
+    un état libre rendrait tout regroupement inutile dès la deuxième saisie.
+    """
+    prop = _proprietaire()
+    if not prop or not projets_dc._valid_id(pid) or not _rag_hex(lid):
+        return jsonify(ok=False, error="reference_invalide"), 400
+    etat = (request.get_json(silent=True) or {}).get("etat") or ""
+    if etat not in projets_dc.ETATS_LIVRABLE:
+        return jsonify(ok=False, error="etat_inconnu",
+                       message="État de livrable inconnu."), 400
+    if not projets_db.obtenir(prop, pid):
+        return jsonify(ok=False, error="introuvable"), 404
+    rec = livrables_hist.get(lid)
+    if not rec or rec.get("projet_id") != pid:
+        return jsonify(ok=False, error="introuvable"), 404
+    if not livrables_hist.changer_etat(lid, etat):
+        return jsonify(ok=False, error="introuvable"), 404
+    projets_db.toucher(pid)
+    audit.journaliser("projet.livrable.etat", cible="%s/%s" % (pid[:8], lid[:8]),
+                      detail=etat)
+    return jsonify(ok=True, etat=etat, historique=_historique_projet(pid))
+
+
+@app.route("/api/datacenter/projets/<pid>/livrable/<lid>.<fmt>", methods=["GET"])
+@login_required
+def api_projet_livrable(pid, lid, fmt):
+    """Un livrable du projet, remis en Word ou en PDF à son PROPRIÉTAIRE.
+
+    La reprise d'un document de l'historique existait déjà, mais derrière le
+    verrou d'administration : celui qui a commandé le dossier ne pouvait pas
+    récupérer ses propres pièces autrement qu'en réclamant l'export complet.
+    Ici l'autorisation ne vient pas du rôle mais du RATTACHEMENT — le projet
+    appartient au compte, et le livrable appartient au projet. Les deux liens
+    sont vérifiés, dans cet ordre ; l'identifiant du livrable seul n'ouvre
+    rien.
+    """
+    prop = _proprietaire()
+    if not prop or not projets_dc._valid_id(pid) or not _rag_hex(lid):
+        return jsonify(ok=False, error="reference_invalide"), 400
+    if fmt not in ("docx", "pdf", "md"):
+        return jsonify(ok=False, error="format_inconnu"), 400
+    if not projets_db.obtenir(prop, pid):
+        return jsonify(ok=False, error="introuvable"), 404
+    rec = livrables_hist.get(lid)
+    # Le second lien : un livrable d'un AUTRE projet répond 404, pas 403 — on
+    # ne confirme pas l'existence d'un document qu'on n'a pas à connaître.
+    if not rec or rec.get("projet_id") != pid:
+        return jsonify(ok=False, error="introuvable"), 404
+    md = (rec.get("markdown") or "").strip()
+    if not md:
+        return jsonify(ok=False, error="vide"), 404
+    base = _nom_fichier(rec.get("label") or rec.get("type") or "livrable")
+    if fmt == "md":
+        resp = Response(md.encode("utf-8"), mimetype="text/markdown; charset=utf-8")
+    else:
+        meta = {"type": rec.get("type"), "label": rec.get("label") or rec.get("type"),
+                "client": rec.get("client"), "secteur": rec.get("secteur"),
+                "perimetre": rec.get("perimetre"), "model": rec.get("model"),
+                "date": time.strftime("%d/%m/%Y"),
+                "sources": [s for s in (rec.get("sources") or [])
+                            if isinstance(s, dict)][:40]}
+        try:
+            if fmt == "pdf":
+                blob, mt = livrables_export.build_pdf(md, meta), "application/pdf"
+            else:
+                blob = livrables_export.build_docx(md, meta)
+                mt = ("application/vnd.openxmlformats-officedocument"
+                      ".wordprocessingml.document")
+        except Exception:
+            return jsonify(ok=False, error="export_echec",
+                           message="La mise en page a échoué."), 500
+        resp = Response(blob, mimetype=mt)
+    audit.journaliser("projet.livrable", cible="%s/%s" % (pid[:8], lid[:8]),
+                      detail=fmt)
+    resp.headers["Content-Disposition"] = ('attachment; filename="%s.%s"'
+                                           % (base, fmt))
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["Cache-Control"] = "private, no-store"
+    return resp
 
 
 @app.route("/api/datacenter/depot/etat", methods=["GET"])

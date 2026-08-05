@@ -653,6 +653,13 @@
     p.phase = PHASE;
     p.piece = code;
     p.client = (($("#ig-client") || {}).value || "").trim();
+    /* Le rattachement au dossier. Envoyé au moment de la rédaction et non
+       recollé après coup : un document produit sans projet devrait sinon être
+       reclassé à la main, et personne ne le fait. Le serveur vérifie que ce
+       projet est bien celui du compte — l'identifiant n'est pas une
+       autorisation. */
+    p.projet_id = PROJET ? PROJET.id : "";
+    p.filiere = FILIERE;
     /* Les clés d'identification, pas des libellés : c'est le serveur qui sait
        ce que chacune implique, et lui envoyer le texte affiché l'obligerait à
        le réinterpréter. */
@@ -690,7 +697,13 @@
                 + (o.j.sources.length > 1 ? "s" : "") + " de la base cité"
                 + (o.j.sources.length > 1 ? "s" : "")
               : " · aucun document de la base n'a été retrouvé")
+          /* Dire où le document a ATTERRI, et le dire aussi quand il n'a
+             atterri nulle part : c'est la seule occasion où le lecteur peut
+             encore ouvrir un projet et recommencer. */
+          + (PROJET ? " · rattaché au projet " + esc(PROJET.nom)
+                    : " · non rattaché — aucun projet n'est ouvert")
           + '</div><pre class="ig-doc-c">' + esc(o.j.document) + "</pre></div>";
+        if (PROJET) pjHistorique(PROJET.id);
       })
       .catch(function () {
         bouton.disabled = false;
@@ -1282,6 +1295,366 @@
     lect.readAsDataURL(fichier);
   }
 
+  /* ═════════════════════════════════════════════════════════════════════
+     LE PROJET ET SON HISTORIQUE
+
+     Ce qui manquait n'était pas le stockage — les livrables étaient déjà
+     conservés — mais le DESTINATAIRE. Un historique à plat, où chaque document
+     ne portait qu'un nom de client en texte libre, obligeait à lire les
+     intitulés un par un pour retrouver « ce qui a été produit pour Amsterdam,
+     en phase APD ». Un projet donne un identifiant à ce regroupement.
+
+     Trois partis pris :
+
+       · L'ORDRE VIENT DU SERVEUR. Les phases sont groupées et triées par
+         ingenierie_dc, dans la séquence du projet. Trier ici reviendrait à
+         trier par ordre alphabétique — APD avant ESQ — ce qui se lit comme un
+         dossier qui commence par sa fin.
+
+       · LE PROJET OUVERT EST VISIBLE EN PERMANENCE. Tout ce que la page
+         produit plus bas s'y rattache ; ne pas le montrer ferait écrire des
+         pièces dans un dossier qu'on croit être un autre.
+
+       · ON NE STOCKE QU'UN IDENTIFIANT au fil des visites, jamais le contenu
+         du dossier. Le navigateur retrouve le projet ; c'est le serveur qui
+         dit s'il a le droit de le lire. */
+  var PROJETS = [], PROJET = null, PJREF = null;
+  var CLE_PROJET = "cp_projet_dc";
+
+  function pjSouvenir(id) {
+    try {
+      if (id) window.sessionStorage.setItem(CLE_PROJET, id);
+      else window.sessionStorage.removeItem(CLE_PROJET);
+    } catch (e) { /* navigation privée : on continue sans mémoire */ }
+  }
+  function pjRappel() {
+    try { return window.sessionStorage.getItem(CLE_PROJET) || ""; }
+    catch (e) { return ""; }
+  }
+
+  function pjDate(ms) {
+    if (!ms) return "—";
+    var d = new Date(Number(ms));
+    if (isNaN(d.getTime())) return "—";
+    var z = function (n) { return (n < 10 ? "0" : "") + n; };
+    return z(d.getDate()) + "/" + z(d.getMonth() + 1) + "/" + d.getFullYear()
+      + " à " + z(d.getHours()) + "h" + z(d.getMinutes());
+  }
+
+  function pjMsg(texte, sorte) {
+    var z = $("#ig-pj-msg");
+    if (!z) return;
+    z.innerHTML = texte
+      ? '<p class="' + (sorte === "ko" ? "ig-dep-ko" : "ig-dep-ok") + '">'
+        + esc(texte) + "</p>"
+      : "";
+  }
+
+  function pjFormulaire() {
+    var z = $("#ig-pj-form");
+    if (!z) return;
+    var sts = (PJREF && PJREF.statuts) || {};
+    var h = '<div class="ch lg"><label for="ig-pj-sel">Projet ouvert</label>'
+      + '<select id="ig-pj-sel"><option value="">— aucun projet ouvert —</option>';
+    PROJETS.forEach(function (p) {
+      h += '<option value="' + esc(p.id) + '"'
+        + (PROJET && PROJET.id === p.id ? " selected" : "") + ">"
+        + esc(p.nom) + (p.client ? " — " + esc(p.client) : "") + "</option>";
+    });
+    h += '<option value="+">＋ Ouvrir un nouveau projet…</option></select></div>'
+      + '<div class="ch lg" id="ig-pj-nouveau" hidden>'
+      + '<label for="ig-pj-nom">Nom du nouveau projet</label>'
+      + '<input id="ig-pj-nom" type="text" maxlength="160" '
+      + 'placeholder="ex. Amsterdam DC1 — extension salle 2"></div>'
+      + '<div class="ch"><label for="ig-pj-statut">Statut</label>'
+      + '<select id="ig-pj-statut">';
+    /* L'ordre et le défaut viennent du SERVEUR, jamais de la position dans le
+       dictionnaire : celui-ci est trié par clé à la sérialisation, si bien que
+       « Archivé » arrivait en tête. Le premier choix étant celui que le
+       navigateur retient quand rien n'est sélectionné, les projets naissaient
+       archivés — donc absents de leur propre liste, sans erreur nulle part. */
+    var ordre = (PJREF && PJREF.statuts_ordre) || Object.keys(sts);
+    var defaut = (PROJET && PROJET.statut)
+      || (PJREF && PJREF.statut_defaut) || ordre[0];
+    ordre.forEach(function (k) {
+      if (!sts[k]) return;
+      h += '<option value="' + esc(k) + '"' + (k === defaut ? " selected" : "")
+        + ' title="' + esc(sts[k].aide || "") + '">'
+        + esc(sts[k].nom) + "</option>";
+    });
+    h += "</select></div>";
+    z.innerHTML = h;
+    z.querySelector("#ig-pj-sel").addEventListener("change", pjChoix);
+    var st = z.querySelector("#ig-pj-statut");
+    /* Le statut s'enregistre au changement, sans bouton : un « Enregistrer »
+       qu'on oublie de cliquer laisse à l'écran un statut que le serveur ignore,
+       et c'est celui de l'écran qu'on recopie dans son compte rendu. */
+    st.addEventListener("change", function () {
+      if (PROJET) pjModifier({ statut: st.value });
+    });
+    pjChoix();
+  }
+
+  function pjChoix() {
+    var sel = $("#ig-pj-sel"), nv = $("#ig-pj-nouveau");
+    if (!sel) return;
+    var neuf = sel.value === "+";
+    if (nv) nv.hidden = !neuf;
+    if (neuf) {
+      PROJET = null;
+    } else if (sel.value) {
+      PROJET = PROJETS.filter(function (p) { return p.id === sel.value; })[0] || null;
+    } else {
+      PROJET = null;
+    }
+    pjSouvenir(PROJET ? PROJET.id : "");
+    pjBoutons(neuf);
+    pjOuvert();
+    if (PROJET) pjHistorique(PROJET.id);
+    else { var h = $("#ig-pj-hist"); if (h) h.innerHTML = ""; }
+  }
+
+  function pjBoutons(neuf) {
+    var z = $("#ig-pj-actions");
+    if (!z) return;
+    var h = "";
+    if (neuf) {
+      h = '<button type="button" class="btn btn-s" id="ig-pj-creer">'
+        + "Ouvrir le projet</button>";
+    } else if (PROJET) {
+      h = '<button type="button" class="btn btn-s" id="ig-pj-sauve">'
+        + "Télécharger la sauvegarde complète</button>"
+        + '<button type="button" class="btn btn-s" id="ig-pj-fermer">'
+        + "Fermer ce projet</button>"
+        + '<button type="button" class="btn btn-s" id="ig-pj-suppr">'
+        + "Supprimer le projet</button>";
+    }
+    z.innerHTML = h;
+    var b;
+    if ((b = $("#ig-pj-creer"))) b.addEventListener("click", pjCreer);
+    if ((b = $("#ig-pj-sauve"))) {
+      b.addEventListener("click", function () {
+        if (PROJET) {
+          window.location.href = "/api/datacenter/projets/" + PROJET.id + "/sauvegarde";
+        }
+      });
+    }
+    if ((b = $("#ig-pj-fermer"))) {
+      b.addEventListener("click", function () {
+        PROJET = null;
+        pjSouvenir("");
+        pjFormulaire();
+        pjMsg("");
+      });
+    }
+    if ((b = $("#ig-pj-suppr"))) b.addEventListener("click", pjSupprimer);
+  }
+
+  function pjOuvert() {
+    var z = $("#ig-pj-ouvert");
+    if (!z) return;
+    if (!PROJET) {
+      z.innerHTML = '<div class="ig-pj-vide"><b>Aucun projet ouvert.</b> '
+        + "Les pièces rédigées plus bas seront produites, mais ne seront "
+        + "rattachées à aucun dossier — vous ne les retrouverez pas ici, ni "
+        + "dans une sauvegarde. Ouvrez un projet avant de rédiger.</div>";
+      return;
+    }
+    var sts = (PJREF && PJREF.statuts) || {};
+    var nomStatut = (sts[PROJET.statut] || {}).nom || PROJET.statut || "—";
+    z.innerHTML = '<div class="ig-pj-o"><div class="nm">' + esc(PROJET.nom)
+      + '<span class="ig-st ' + esc(PROJET.statut || "") + '">'
+      + esc(nomStatut) + "</span></div>"
+      + '<p class="sb">'
+      + (PROJET.client ? esc(PROJET.client) + " · " : "")
+      + "ouvert le " + pjDate(PROJET.cree_le)
+      + " · dernière activité " + pjDate(PROJET.maj_le)
+      + "</p></div>";
+  }
+
+  function pjCharger(viser) {
+    return fetch("/api/datacenter/projets", { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) throw new Error("liste");
+        PROJETS = j.projets || [];
+        PJREF = j.referentiel || null;
+        var cible = viser || (PROJET && PROJET.id) || pjRappel();
+        PROJET = PROJETS.filter(function (p) { return p.id === cible; })[0] || null;
+        pjFormulaire();
+      })
+      .catch(function () {
+        var z = $("#ig-pj-form");
+        if (z) {
+          z.innerHTML = '<p class="note">Vos projets n\'ont pas pu être '
+            + "chargés. Le reste de la page fonctionne&nbsp;; les pièces "
+            + "rédigées ne seront simplement rattachées à aucun dossier.</p>";
+        }
+      });
+  }
+
+  function pjCreer() {
+    var nom = (($("#ig-pj-nom") || {}).value || "").trim();
+    if (!nom) {
+      pjMsg("Donnez un nom au projet : c'est lui qui vous permettra de le "
+        + "retrouver.", "ko");
+      var c = $("#ig-pj-nom");
+      if (c) c.focus();
+      return;
+    }
+    var b = $("#ig-pj-creer");
+    if (b) { b.disabled = true; b.textContent = "Ouverture…"; }
+    /* Le nom du client et la filière courante sont repris du formulaire :
+       les redemander ici ferait saisir deux fois la même chose, et les deux
+       saisies finiraient par diverger. */
+    fetch("/api/datacenter/projets", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nom: nom,
+        client: (($("#ig-client") || {}).value || "").trim(),
+        filiere: FILIERE,
+        phase: PHASE || "",
+        statut: (($("#ig-pj-statut") || {}).value || ""),
+      }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (b) { b.disabled = false; b.textContent = "Ouvrir le projet"; }
+        if (!j.ok) { pjMsg(j.message || "Le projet n'a pas pu être ouvert.", "ko"); return; }
+        pjSouvenir(j.projet.id);
+        pjMsg("Projet « " + j.projet.nom + " » ouvert. Les pièces rédigées "
+          + "plus bas s'y rattacheront automatiquement.");
+        pjCharger(j.projet.id);
+      })
+      .catch(function () {
+        if (b) { b.disabled = false; b.textContent = "Ouvrir le projet"; }
+        pjMsg("Le projet n'a pas pu être ouvert.", "ko");
+      });
+  }
+
+  function pjModifier(champs) {
+    if (!PROJET) return;
+    fetch("/api/datacenter/projets/" + PROJET.id, {
+      method: "PATCH", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(champs),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j.ok) { pjMsg(j.message || "Modification refusée.", "ko"); return; }
+        PROJET = j.projet;
+        PROJETS = PROJETS.map(function (p) {
+          return p.id === j.projet.id ? j.projet : p;
+        });
+        pjOuvert();
+        pjMsg("Statut enregistré.");
+      })
+      .catch(function () { pjMsg("Modification impossible.", "ko"); });
+  }
+
+  function pjSupprimer() {
+    if (!PROJET) return;
+    /* Le libellé de la confirmation dit ce qui DISPARAÎT et ce qui RESTE.
+       « Êtes-vous sûr ? » ne renseigne sur rien, et fait cliquer au hasard. */
+    if (!window.confirm("Supprimer le projet « " + PROJET.nom + " » ?\n\n"
+        + "Les livrables déjà produits sont CONSERVÉS : ils cessent seulement "
+        + "d'être regroupés sous ce projet. Téléchargez la sauvegarde avant si "
+        + "vous voulez en garder le dossier complet.")) {
+      return;
+    }
+    fetch("/api/datacenter/projets/" + PROJET.id, {
+      method: "DELETE", credentials: "same-origin",
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j.ok) { pjMsg(j.message || "Suppression refusée.", "ko"); return; }
+        pjSouvenir("");
+        PROJET = null;
+        pjMsg("Projet supprimé. Les livrables produits restent enregistrés.");
+        pjCharger("");
+      })
+      .catch(function () { pjMsg("Suppression impossible.", "ko"); });
+  }
+
+  function pjHistorique(pid) {
+    var z = $("#ig-pj-hist");
+    if (!z) return;
+    z.innerHTML = '<p class="note">Chargement de l\'historique…</p>';
+    fetch("/api/datacenter/projets/" + pid, { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j.ok) { z.innerHTML = ""; return; }
+        pjRendreHistorique(j.historique, pid);
+      })
+      .catch(function () { z.innerHTML = ""; });
+  }
+
+  function pjRendreHistorique(h, pid) {
+    var z = $("#ig-pj-hist");
+    if (!z || !h) return;
+    if (!h.total) {
+      z.innerHTML = '<p class="note">Aucun livrable rattaché à ce projet pour '
+        + "l'instant. Rédigez une pièce depuis le registre de phase&nbsp;: elle "
+        + "apparaîtra ici, datée et classée dans sa phase.</p>";
+      return;
+    }
+    var etats = h.etats || {};
+    var html = '<p class="note" style="margin:0 0 12px"><b>'
+      + h.total + " livrable" + (h.total > 1 ? "s" : "")
+      + "</b> rattaché" + (h.total > 1 ? "s" : "") + " à ce projet, groupé"
+      + (h.total > 1 ? "s" : "") + " par phase dans l'ordre de la séquence.</p>";
+    (h.phases || []).forEach(function (g) {
+      html += '<div class="ig-hi-g"><h4>' + esc(g.phase) + " — "
+        + esc(g.phase_nom) + '<span>' + g.n + " document" + (g.n > 1 ? "s" : "")
+        + " · dernier le " + pjDate(g.dernier) + "</span></h4>";
+      (g.livrables || []).forEach(function (l) {
+        var e = l.etat || "brouillon";
+        html += '<div class="ig-hi-l"><span class="ti">' + esc(l.label || l.type)
+          + '</span><span class="dt">' + pjDate(l.created_at) + "</span>"
+          + '<select class="et" data-etat="' + esc(l.id) + '" '
+          + 'aria-label="État du livrable ' + esc(l.label || l.type) + '">';
+        // Même règle que pour les statuts : l'ordre vient du serveur, sans
+        // quoi « Obsolète » se glisserait entre « Brouillon » et « Relu ».
+        ((h.etats_ordre) || Object.keys(etats)).forEach(function (k) {
+          if (!etats[k]) return;
+          html += '<option value="' + esc(k) + '"' + (k === e ? " selected" : "")
+            + ">" + esc(etats[k].nom) + "</option>";
+        });
+        html += "</select>"
+          + '<a href="/api/datacenter/projets/' + esc(pid) + "/livrable/"
+          + esc(l.id) + '.docx">Word</a>'
+          + '<a href="/api/datacenter/projets/' + esc(pid) + "/livrable/"
+          + esc(l.id) + '.pdf">PDF</a></div>';
+      });
+      html += "</div>";
+    });
+    z.innerHTML = html;
+    z.querySelectorAll("[data-etat]").forEach(function (s) {
+      s.addEventListener("change", function () {
+        pjEtatLivrable(pid, s.getAttribute("data-etat"), s.value);
+      });
+    });
+  }
+
+  function pjEtatLivrable(pid, lid, etat) {
+    fetch("/api/datacenter/projets/" + pid + "/livrable/" + lid, {
+      method: "PATCH", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ etat: etat }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j.ok) { pjMsg(j.message || "État non enregistré.", "ko"); return; }
+        pjMsg("État enregistré.");
+        /* On redessine à partir de la réponse du SERVEUR, pas de ce qu'on
+           vient d'envoyer : c'est lui qui a le dernier mot sur ce qui a été
+           réellement retenu. */
+        pjRendreHistorique(j.historique, pid);
+      })
+      .catch(function () { pjMsg("État non enregistré.", "ko"); });
+  }
+
   function démarrer() {
     Promise.all([
       fetch("/api/datacenter/referentiel", { credentials: "same-origin" })
@@ -1304,6 +1677,7 @@
            puis sauterait — le lecteur verrait la page se contredire. */
         PIECE_VISEE = appliquerURL();
         reprendreProfil();
+        pjCharger();
         depotEtat();
         depotFormulaire();
         rafraichir();

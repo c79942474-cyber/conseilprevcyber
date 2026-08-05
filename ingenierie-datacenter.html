@@ -399,6 +399,57 @@
   .ig-dep-ok b,.ig-dep-ko b{color:var(--ink)}
   .ig-dep-n{margin:6px 0 0;font-size:11px;color:var(--muted2);line-height:1.6}
 
+  /* ── Le projet et son historique ──────────────────────────────────────
+     Un dossier de projet se lit d'abord comme une LISTE DE DATES : on cherche
+     « où en est-on » avant de chercher un document précis. La mise en forme
+     suit cette lecture — la phase groupe, la date situe, l'état qualifie. */
+  .ig-pj{display:flex;flex-wrap:wrap;gap:9px;align-items:flex-end}
+  .ig-pj .ch{display:flex;flex-direction:column;gap:5px;min-width:180px;flex:1 1 200px}
+  .ig-pj .ch.lg{flex:2 1 300px}
+  .ig-pj label{font-size:12.5px;color:var(--ink);font-weight:600}
+  .ig-pj select,.ig-pj input{background:var(--bg2);border:1px solid var(--line);
+    border-radius:9px;padding:9px 11px;color:var(--ink);font:inherit;font-size:13px;width:100%}
+  .ig-pj select:focus,.ig-pj input:focus{outline:2px solid var(--cyan);outline-offset:1px}
+  .ig-pj-b{display:flex;gap:9px;flex-wrap:wrap;margin-top:13px}
+  /* La carte du projet ouvert. Bleu franc : c'est le contexte dans lequel tout
+     le reste de la page s'inscrit, et on doit voir d'un coup d'œil s'il est
+     posé ou non. */
+  .ig-pj-o{margin-top:14px;border:1px solid var(--line);border-left:3px solid var(--cyan);
+    border-radius:0 11px 11px 0;padding:13px 16px;background:rgba(34,211,238,.07)}
+  .ig-pj-o .nm{font-size:15px;color:var(--ink);font-weight:700}
+  .ig-pj-o .sb{font-size:11.5px;color:var(--muted2);line-height:1.65;margin:4px 0 0;
+    font-family:var(--mono)}
+  .ig-pj-vide{margin-top:14px;border:1px solid var(--line);border-left:3px solid #E8B44A;
+    border-radius:0 11px 11px 0;padding:12px 15px;background:rgba(0,0,0,.16);
+    font-size:12.5px;color:var(--muted);line-height:1.65}
+  .ig-pj-vide b{color:var(--ink)}
+  .ig-st{display:inline-block;font-family:var(--mono);font-size:9.5px;letter-spacing:.07em;
+    text-transform:uppercase;padding:2px 7px;border-radius:99px;border:1px solid var(--line);
+    color:var(--muted2);vertical-align:2px;margin-left:8px}
+  .ig-st.en_cours{color:var(--cyan);border-color:rgba(34,211,238,.6)}
+  .ig-st.livre{color:var(--teal);border-color:rgba(45,212,191,.6)}
+  .ig-st.suspendu,.ig-st.archive{color:#E8B44A;border-color:rgba(232,180,74,.6)}
+  /* L'historique. Chaque phase est un groupe daté ; l'ordre est celui de la
+     séquence projet, pas l'alphabet — c'est le serveur qui le décide. */
+  .ig-hi{margin-top:18px}
+  .ig-hi-g{margin-bottom:14px}
+  .ig-hi-g h4{font-size:12px;margin:0 0 8px;color:var(--ink);letter-spacing:.05em;
+    text-transform:uppercase;border-left:3px solid rgba(34,211,238,.55);padding-left:9px}
+  .ig-hi-g h4 span{font-family:var(--mono);font-size:11px;color:var(--muted2);
+    letter-spacing:0;text-transform:none;font-weight:400;margin-left:7px}
+  .ig-hi-l{display:flex;gap:11px;align-items:baseline;flex-wrap:wrap;
+    border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:7px;
+    background:rgba(0,0,0,.14);font-size:12.5px;color:var(--muted);line-height:1.55}
+  .ig-hi-l .ti{color:var(--ink);flex:1 1 260px}
+  .ig-hi-l .dt{font-family:var(--mono);font-size:11px;color:var(--muted2);flex:0 0 auto}
+  .ig-hi-l .et{font-family:var(--mono);font-size:9.5px;letter-spacing:.07em;
+    text-transform:uppercase;padding:2px 7px;border-radius:99px;border:1px solid var(--line);
+    color:var(--muted2);flex:0 0 auto}
+  .ig-hi-l .et.vise{color:var(--teal);border-color:rgba(45,212,191,.6)}
+  .ig-hi-l .et.relu{color:var(--cyan);border-color:rgba(34,211,238,.6)}
+  .ig-hi-l .et.obsolete{color:#E8B44A;border-color:rgba(232,180,74,.6)}
+  .ig-hi-l a{color:var(--cyan);font-size:11.5px;flex:0 0 auto}
+
   /* ── Le battement des boutons ────────────────────────────────────────
      Un halo qui s'écarte et s'efface. Il ne touche ni la taille du bouton ni
      la mise en page : rien ne bouge autour de lui, et le texte reste lisible
@@ -545,8 +596,27 @@
     </div>
   </section>
 
+  <!-- Le projet, posé AVANT tout le reste : c'est lui qui donne un destinataire
+       à ce qui sera produit plus bas. Placé après, il aurait fallu rattacher
+       après coup des documents déjà écrits — et personne ne le fait. -->
+  <section class="wrap rc-sec" id="ig-sec-projet">
+    <div class="rc-etape"><span class="n">1</span><h2>Votre projet et son historique</h2></div>
+    <p class="lead" style="max-width:76ch;margin-top:0">
+      Ouvrez un projet&nbsp;: les pièces rédigées plus bas s'y rattachent
+      automatiquement, avec leur phase, leur date et leur état. Vous retrouvez
+      ensuite l'ensemble groupé par phase, dans l'ordre de la séquence — et vous
+      pouvez en emporter une sauvegarde complète, contenu des livrables compris.</p>
+    <div class="rc-card">
+      <div class="ig-pj" id="ig-pj-form"><p class="note">Chargement de vos projets…</p></div>
+      <div class="ig-pj-b" id="ig-pj-actions"></div>
+      <div id="ig-pj-msg" role="status" aria-live="polite"></div>
+    </div>
+    <div id="ig-pj-ouvert"></div>
+    <div id="ig-pj-hist" class="ig-hi"></div>
+  </section>
+
   <section class="wrap rc-sec">
-    <div class="rc-etape"><span class="n">1</span><h2>Le profil de l'installation</h2></div>
+    <div class="rc-etape"><span class="n">2</span><h2>Le profil de l'installation</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Le même profil que sur la page de calcul&nbsp;: seule la puissance informatique est
       indispensable. Ce que vous renseignez ici décide des phases que vous pouvez
@@ -594,7 +664,7 @@
   </section>
 
   <section class="wrap rc-sec">
-    <div class="rc-etape"><span class="n">2</span><h2>Où vous en êtes dans la séquence</h2></div>
+    <div class="rc-etape"><span class="n">3</span><h2>Où vous en êtes dans la séquence</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Chaque phase est éprouvée contre votre profil. Le premier point d'arrêt est le seul
       qui commande une action&nbsp;; les phases suivantes sont là pour voir venir, pas pour
@@ -604,7 +674,7 @@
   </section>
 
   <section class="wrap rc-sec">
-    <div class="rc-etape"><span class="n">3</span><h2>L'étude de la phase retenue</h2></div>
+    <div class="rc-etape"><span class="n">4</span><h2>L'étude de la phase retenue</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Le plan du dossier, avec les grandeurs que le moteur y verse légitimement et la
       mention explicite de celles qui restent à produire. Sans cette distinction, un
@@ -617,7 +687,7 @@
   </section>
 
   <section class="wrap rc-sec">
-    <div class="rc-etape"><span class="n">4</span><h2>Les deux filières face à face</h2></div>
+    <div class="rc-etape"><span class="n">5</span><h2>Les deux filières face à face</h2></div>
     <p class="lead" style="max-width:76ch;margin-top:0">
       Les correspondances ne sont pas des équivalences. Un FEED va plus loin qu'un APD sur
       le procédé et l'ignore sur le bâtiment&nbsp;; le DCE et l'EPCI ne placent pas la
@@ -643,7 +713,7 @@
   </section>
 
   <section class="wrap rc-sec" id="ig-limites">
-    <div class="rc-etape"><span class="n">5</span><h2>Ce que ce cadre ne fait pas</h2></div>
+    <div class="rc-etape"><span class="n">7</span><h2>Ce que ce cadre ne fait pas</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Le dire ici plutôt qu'en note de bas de page&nbsp;: ces limites décident du moment où
       il faut un ingénieur, et les ignorer coûte plus cher que de les lire.</p>
