@@ -82,6 +82,122 @@
     return p;
   }
 
+  /* ── Les infobulles ─────────────────────────────────────────────────────
+     Cette page aligne des sigles exacts et opaques : ESQ, APD, DCE, FEED,
+     EPCI, gel contractuel, accord partiel, classe 3. Sans explication, elle ne
+     s'adresse qu'à ceux qui n'en avaient pas besoin.
+
+     Pas d'attribut `title` natif : il n'apparaît qu'après une seconde
+     d'immobilité, ne se met pas en forme, ne passe pas à la ligne, et reste
+     hors d'atteinte au clavier. On construit donc une infobulle unique,
+     déplacée d'une cible à l'autre.
+
+     Un seul attribut à poser dans le rendu — data-info="famille:clé" — et une
+     seule recherche dans le glossaire servi par le serveur. C'est ce qui permet
+     d'en couvrir douze sortes sans douze mécanismes. */
+  var TIP = null, TIP_CIBLE = null;
+
+  function tipEl() {
+    if (TIP) return TIP;
+    TIP = document.createElement("div");
+    TIP.className = "ig-tip";
+    TIP.setAttribute("role", "tooltip");
+    TIP.id = "ig-tip";
+    TIP.hidden = true;
+    document.body.appendChild(TIP);
+    return TIP;
+  }
+
+  function tipTexte(ref) {
+    var G = (CADRE && CADRE.glossaire) || {};
+    var bout = String(ref || "").split(":");
+    var fam = G[bout[0]];
+    if (!fam) return null;
+    var e = fam[bout.slice(1).join(":")];
+    return e && (e.nom || e.aide) ? e : null;
+  }
+
+  function tipMontrer(cible) {
+    var e = tipTexte(cible.getAttribute("data-info"));
+    if (!e) return;
+    var t = tipEl();
+    t.innerHTML = '<b>' + esc(e.nom) + "</b>"
+      /* Les définitions viennent du serveur et contiennent des sauts de ligne
+         signifiants (« ce qu'elle décide », « ce qu'elle verrouille ») : on les
+         rend, sans jamais interpréter le reste comme du HTML. */
+      + (e.aide ? "<p>" + esc(e.aide).replace(/\n/g, "<br>") + "</p>" : "");
+    t.hidden = false;
+    TIP_CIBLE = cible;
+    cible.setAttribute("aria-describedby", "ig-tip");
+    tipPlacer(cible);
+  }
+
+  function tipCacher() {
+    if (!TIP) return;
+    TIP.hidden = true;
+    if (TIP_CIBLE) TIP_CIBLE.removeAttribute("aria-describedby");
+    TIP_CIBLE = null;
+  }
+
+  function tipPlacer(cible) {
+    var t = tipEl(), r = cible.getBoundingClientRect();
+    /* Mesurée AVANT d'être positionnée : sans cela on placerait une boîte dont
+       on ignore la taille, et elle sortirait du cadre une fois sur deux. */
+    t.style.left = "0px"; t.style.top = "0px";
+    var b = t.getBoundingClientRect();
+    var marge = 10;
+    var x = r.left + r.width / 2 - b.width / 2;
+    x = Math.max(marge, Math.min(window.innerWidth - b.width - marge, x));
+    /* Au-dessus par défaut ; en dessous s'il n'y a pas la place en haut. Une
+       infobulle qui déborde du haut de la fenêtre est illisible et ne se
+       rattrape pas au défilement. */
+    var y = r.top - b.height - 8;
+    if (y < marge) y = r.bottom + 8;
+    t.style.left = Math.round(x + window.pageXOffset) + "px";
+    t.style.top = Math.round(y + window.pageYOffset) + "px";
+  }
+
+  /* Un seul écouteur, posé une fois sur le document, plutôt qu'un par cible :
+     la page se redessine à chaque saisie et à chaque changement de phase, et
+     des écouteurs par élément seraient à reposer à chaque fois — ou à oublier. */
+  function tipBrancher() {
+    if (document.__igTip) return;
+    document.__igTip = true;
+    var dans = function (ev) {
+      var c = ev.target && ev.target.closest && ev.target.closest("[data-info]");
+      /* On rouvre AUSSI quand la boîte est masquée alors que la cible n'a pas
+         changé. Ne comparer que la cible suffisait tant que tipCacher() était
+         le seul chemin de fermeture — mais une boîte masquée par ailleurs
+         restait alors définitivement close sur cette cible, sans rien pour le
+         signaler. Un état interne et l'écran doivent pouvoir se rattraper. */
+      if (c && (c !== TIP_CIBLE || (TIP && TIP.hidden))) tipMontrer(c);
+    };
+    document.addEventListener("mouseover", dans);
+    document.addEventListener("mouseout", function (ev) {
+      var c = ev.target && ev.target.closest && ev.target.closest("[data-info]");
+      if (c && c === TIP_CIBLE) tipCacher();
+    });
+    /* Le clavier au même titre que la souris : une explication accessible
+       seulement au survol n'existe pas pour qui navigue au clavier. */
+    document.addEventListener("focusin", dans);
+    document.addEventListener("focusout", function (ev) {
+      if (ev.target === TIP_CIBLE) tipCacher();
+    });
+    document.addEventListener("keydown", function (ev) {
+      if (ev.key === "Escape") tipCacher();
+    });
+    /* Au défilement, la cible bouge et l'infobulle resterait en arrière. */
+    window.addEventListener("scroll", function () {
+      if (TIP_CIBLE) tipPlacer(TIP_CIBLE);
+    }, { passive: true });
+  }
+
+  /* Le marquage d'une cible. `tabindex` la rend atteignable au clavier ; sans
+     lui l'explication serait réservée à la souris. */
+  function info(ref) {
+    return ' data-info="' + esc(ref) + '" tabindex="0"';
+  }
+
   /* ── L'identification du projet ────────────────────────────────────────
      Trois listes construites depuis le référentiel. Chaque option porte ce
      qu'elle IMPLIQUE, et cette implication est affichée dès la sélection : sans
@@ -140,7 +256,7 @@
     Object.keys(f).forEach(function (k) {
       h += '<button type="button" role="tab" data-fil="' + esc(k) + '" aria-selected="'
         + (k === FILIERE ? "true" : "false") + '" class="' + (k === FILIERE ? "on" : "")
-        + '">' + esc(f[k].nom) + "</button>";
+        + '"' + info("filiere:" + k) + ">" + esc(f[k].nom) + "</button>";
     });
     var z = $("#ig-filieres");
     z.innerHTML = h;
@@ -184,7 +300,7 @@
         + (e.code === stop ? " stop" : "") + (e.code === PHASE ? " on" : "");
       h += '<button type="button" class="' + cl + '" data-phase="' + esc(e.code) + '" '
         + 'aria-selected="' + (e.code === PHASE ? "true" : "false") + '" role="tab">'
-        + '<span class="c">' + esc(e.code) + "</span>"
+        + '<span class="c"' + info("phase:" + e.code) + ">" + esc(e.code) + "</span>"
         + '<span class="n">' + esc(e.nom) + "</span>"
         + '<span class="e">' + (e.franchissable ? "franchissable"
             : (e.n_manques + e.n_substitutions) + " point"
@@ -212,8 +328,9 @@
       + "<div><b>Ce qu'elle décide</b>" + esc(d.decide) + "</div>"
       + "<div><b>Ce qu'elle verrouille</b>" + esc(d.verrouille) + "</div>"
       + "<div><b>Précision attendue</b>" + esc(d.precision.valeur)
-      + ' <span class="dc-unite">(' + esc(d.precision.nature) + " · "
-      + esc(d.precision.aace) + ")</span></div>"
+      + ' <span class="dc-unite"><span' + info("nature:" + d.precision.nature) + ">"
+      + esc(d.precision.nature) + '</span> · <span' + info("aace:" + d.precision.aace)
+      + ">" + esc(d.precision.aace) + "</span></span></div>"
       + "</div>";
     if (d.note) h += '<p class="ig-corr"><b>Précision de vocabulaire.</b> ' + esc(d.note) + "</p>";
 
@@ -229,7 +346,8 @@
         + "Ouvrir l'étude de faisabilité chiffrée</a></div>";
     }
 
-    h += '<p class="sous" style="margin-top:14px">' + esc(d.apport_texte) + "</p>";
+    h += '<p class="sous" style="margin-top:14px"><span'
+      + info("apport:" + d.apport_moteur) + ">" + esc(d.apport_texte) + "</span></p>";
     h += '<div class="ig-g">';
     (d.grandeurs || []).forEach(function (g) {
       var rmp = g.statut !== "recevable";
@@ -237,7 +355,8 @@
         + '<div class="n">' + esc(g.nom) + "</div>"
         + '<div class="q">' + fr(g.valeur) + ' <span class="u">' + esc(g.unite) + "</span></div>"
         + (g.incertitude ? '<div class="i">' + esc(g.incertitude) + "</div>" : "")
-        + '<span class="st">' + (rmp
+        + '<span class="st"' + info("statut:" + (rmp ? "a_remplacer" : "recevable")) + ">"
+        + (rmp
             ? "à produire — bloquée par " + esc((g.postes_bloquants || []).join(", "))
             : "recevable à ce stade") + "</span></div>";
     });
@@ -257,7 +376,8 @@
     if ((a.substitutions_a_faire || []).length) {
       h += '<div class="ig-man"><h4>Facteurs à remplacer par une donnée réelle</h4>';
       a.substitutions_a_faire.forEach(function (s) {
-        h += '<div class="ig-sub"><span class="t">' + esc(s.nom) + "</span>"
+        h += '<div class="ig-sub"><span class="t"' + info("poste:" + s.cle) + ">"
+          + esc(s.nom) + "</span>"
           + '<span class="k">' + esc(s.nature)
           + (s.incertitude ? " · " + esc(s.incertitude) : "") + "</span>";
         if (s.devient_insuffisant) {
@@ -323,24 +443,28 @@
     ORDRE_TYPE.forEach(function (t) {
       var g = groupes[t];
       if (!g || !g.length) return;
-      h += '<div class="ig-reg-g"><h5>' + esc(g[0].type_nom)
-        + " <span>" + esc(g[0].type_aide) + "</span></h5>";
+      h += '<div class="ig-reg-g"><h5><span' + info("type_piece:" + t) + ">"
+        + esc(g[0].type_nom) + "</span> <span>" + esc(g[0].type_aide) + "</span></h5>";
       g.forEach(function (p) {
         h += '<div class="ig-pc' + (p.moteur ? " mot" : "")
           + (p.discipline ? " dis" : "") + '">'
           + '<div class="ig-pc-h"><code>' + esc(p.code) + "</code> "
           + '<span class="ti">' + esc(p.titre) + "</span>"
-          + '<span class="em">' + esc(p.emetteur_nom) + "</span>"
-          + (p.moteur ? '<span class="mo">alimentée par le calcul</span>' : "")
+          + '<span class="em"' + info("emetteur:" + p.emetteur) + ">"
+          + esc(p.emetteur_nom) + "</span>"
+          + (p.moteur ? '<span class="mo"' + info("moteur:oui")
+              + ">alimentée par le calcul</span>" : "")
           + "</div>"
           /* Le NIVEAU commande la profondeur attendue. Sans lui, une même
              spécification se lit à l'identique de l'esquisse à la consultation,
              alors qu'elle n'y engage pas du tout la même chose. */
           + (p.niveau_nom
-              ? '<div class="ig-pc-nv"><span class="nv nv-' + esc(p.niveau) + '">'
+              ? '<div class="ig-pc-nv"><span class="nv nv-' + esc(p.niveau) + '"'
+                + info("niveau:" + p.niveau) + ">"
                 + esc(p.niveau_nom) + "</span> " + esc(p.niveau_aide)
-                + (p.discipline_nom ? ' <span class="di">' + esc(p.discipline_nom)
-                    + "</span>" : "")
+                + (p.discipline_nom
+                    ? ' <span class="di"' + info("discipline:" + p.discipline) + ">"
+                      + esc(p.discipline_nom) + "</span>" : "")
                 + (p.autres_phases && p.autres_phases.length
                     ? '<span class="ap">document unique, repris en '
                       + esc(p.autres_phases.join(", ")) + "</span>" : "")
@@ -431,7 +555,8 @@
       + "<th>Ce qui les sépare</th></tr></thead><tbody>";
     C.forEach(function (c) {
       h += "<tr><td><code>" + esc(c.moe) + "</code></td><td><code>" + esc(c.indus)
-        + "</code></td><td><span class='ig-acc a-" + esc(c.accord) + "'>" + esc(c.accord)
+        + "</code></td><td><span class='ig-acc a-" + esc(c.accord) + "'"
+        + info("accord:" + c.accord) + ">" + esc(c.accord)
         + "</span></td><td>" + esc(c.ecart) + "</td></tr>";
     });
     $("#ig-correspondances").innerHTML = h + "</tbody></table></div>";
@@ -548,6 +673,7 @@
         if (!rs[0].ok || !rs[1].ok) throw new Error("ref");
         REF = rs[0];
         CADRE = rs[1].referentiel;
+        tipBrancher();
         bâtirFormulaire();
         bâtirIdentification();
         bâtirOnglets();

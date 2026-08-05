@@ -128,6 +128,32 @@
   .ig-plan ol{margin:6px 0 0 18px;padding:0;columns:2;column-gap:26px}
   @media(max-width:760px){ .ig-plan ol{columns:1} }
   .ig-corr{font-size:12.5px;color:var(--muted2);line-height:1.6;margin-top:10px}
+
+  /* ── L'infobulle ────────────────────────────────────────────────────────
+     Une seule boîte, déplacée d'une cible à l'autre. `position:absolute` et non
+     `fixed` : la page défile, et une boîte fixe resterait plantée pendant que
+     sa cible s'en va. `pointer-events:none` pour qu'elle n'intercepte jamais le
+     survol de ce qu'elle explique — sans quoi elle clignoterait dès qu'on
+     s'approche. */
+  .ig-tip{position:absolute;z-index:200;max-width:min(380px,86vw);
+    background:var(--panel);color:var(--muted);border:1px solid var(--line);
+    border-left:3px solid var(--cyan);border-radius:0 10px 10px 0;
+    padding:10px 13px;font-size:12.5px;line-height:1.6;pointer-events:none;
+    box-shadow:0 10px 30px rgba(0,0,0,.45)}
+  .ig-tip[hidden]{display:none}
+  .ig-tip b{display:block;color:var(--ink);font-size:13px;margin-bottom:4px}
+  .ig-tip p{margin:0}
+  /* La cible se signale : sans repère visuel, personne ne devine qu'il y a
+     quelque chose à survoler. Un pointillé discret, pas un lien. */
+  [data-info]{cursor:help;text-decoration:underline dotted var(--muted2);
+    text-underline-offset:3px;text-decoration-thickness:1px}
+  [data-info]:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;
+    border-radius:4px}
+  /* Sur les pastilles déjà encadrées, le pointillé ferait doublon avec la
+     bordure : on le retire et on garde le curseur d'aide. */
+  .ig-p .c[data-info],.ig-pc-h .em[data-info],.ig-pc-h .mo[data-info],
+  .ig-pc-nv .nv[data-info],.ig-acc[data-info],
+  #ig-filieres button[data-info]{text-decoration:none}
   /* Ce qu'un choix IMPLIQUE, affiché dès qu'il est fait. Sans cela le lecteur
      choisit une étiquette sans savoir ce qu'elle engage, et la liste ne vaut
      pas mieux que le champ libre qu'elle remplace. */

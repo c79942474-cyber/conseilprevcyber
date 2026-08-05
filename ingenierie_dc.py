@@ -560,14 +560,42 @@ TYPES_PIECE = {
     "registre": {"nom": "Registre", "aide": "Suivi tenu dans la durée, daté et tracé."},
 }
 
+# Les émetteurs portent leur NOM et ce que le rôle engage. Le nom seul ne dit
+# rien à qui découvre le vocabulaire — et se tromper d'émetteur déplace une
+# responsabilité, ce qui se paie au premier litige.
 EMETTEURS = {
-    "moe": "Maîtrise d'œuvre",
-    "bet": "Bureau d'études spécialisé",
-    "mo": "Maîtrise d'ouvrage",
-    "entreprise": "Entreprise de travaux",
-    "fournisseur": "Fournisseur ou constructeur",
-    "epc": "Contractant EPC",
+    "moe": {"nom": "Maîtrise d'œuvre",
+            "aide": "Conçoit, prescrit et contrôle. Elle produit les pièces de "
+                    "conception et VISE celles de l'entreprise — elle ne les "
+                    "rédige pas à sa place."},
+    "bet": {"nom": "Bureau d'études spécialisé",
+            "aide": "Intervient sur un domaine que la maîtrise d'œuvre ne couvre "
+                    "pas seule — analyse de risques, acoustique, structure "
+                    "complexe. Ses conclusions engagent sa propre responsabilité."},
+    "mo": {"nom": "Maîtrise d'ouvrage",
+           "aide": "Le donneur d'ordre. Il porte le programme, arrête le budget, "
+                   "signe les marchés et prononce la réception. Certaines pièces "
+                   "ne peuvent venir que de lui."},
+    "entreprise": {"nom": "Entreprise de travaux",
+                   "aide": "Exécute. Elle produit les études d'exécution et les "
+                           "plans d'atelier, soumis au visa de la maîtrise "
+                           "d'œuvre avant mise en fabrication."},
+    "fournisseur": {"nom": "Fournisseur ou constructeur",
+                    "aide": "Fournit un matériel et les données qui l'accompagnent : "
+                            "courbes de performance, déclarations "
+                            "environnementales, notices. Ces données remplacent "
+                            "les ordres de grandeur du référentiel."},
+    "epc": {"nom": "Contractant EPC",
+            "aide": "Prend en charge ingénierie, achats et construction sous une "
+                    "responsabilité unique. La conception de détail lui est "
+                    "confiée — ce qui déplace la frontière des responsabilités "
+                    "par rapport à une maîtrise d'œuvre classique."},
 }
+
+
+def _nom_emetteur(cle):
+    e = EMETTEURS.get(cle)
+    return (e or {}).get("nom", cle) if isinstance(e, dict) else (e or cle)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1239,20 +1267,119 @@ NIVEAUX = {
                                                      "versé au dossier d'exploitation."},
 }
 
+# Chaque discipline porte son explication ICI, à la source. Le glossaire la
+# reprend au lieu de la réécrire : une définition recopiée à côté de la table
+# qu'elle décrit finit par ne plus décrire la même chose.
+# La seconde phrase de chaque aide dit le rapport de la discipline AU CALCUL
+# énergie / eau / carbone — c'est la question que pose cette page, et une
+# discipline qui n'y touche pas le dit aussi clairement.
 DISCIPLINES = {
-    "projet": "Conduite de projet",
-    "safety": "Safety — sécurité des personnes et des procédés",
-    "structure": "Structure et génie civil",
-    "hvac": "CVC, traitement d'air et froid",
-    "elec_cfo": "Électricité courants forts",
-    "elec_cfa": "Électricité courants faibles",
-    "telecom": "Téléphonie et réseaux de communication",
-    "incendie": "Prévention et sécurité incendie",
-    "extinction": "Extinction automatique",
-    "surete": "Sûreté et contrôle d'accès",
-    "itot": "Équipements IT / OT / systèmes de contrôle industriel",
-    "environnement": "Environnement, énergie et RSE",
+    "projet": {
+        "nom": "Conduite de projet",
+        "aide": "Planning, interfaces entre lots, maîtrise des modifications et "
+                "registre documentaire — ce qui tient l'opération, pas ce qui la "
+                "conçoit.\nElle ne produit aucune grandeur physique, mais c'est "
+                "elle qui date le gel : le calcul n'a de valeur contractuelle "
+                "qu'une fois la version figée et tracée.",
+    },
+    "safety": {
+        "nom": "Safety — sécurité des personnes et des procédés",
+        "aide": "Analyse de risque, philosophie générale de sécurité, scénarios "
+                "redoutés, mise en sécurité — les accidents, par opposition aux "
+                "actes malveillants qui relèvent de la sûreté.\nElle contraint le "
+                "calcul plus qu'elle ne s'en nourrit : un local batteries ventilé "
+                "pour l'hydrogène, un groupe froid à l'arrêt en scénario de mise "
+                "en sécurité, ce sont des consommations que la moyenne ignore.",
+    },
+    "structure": {
+        "nom": "Structure et génie civil",
+        "aide": "Fondations, planchers, charges d'exploitation, sismique, massifs "
+                "de groupes électrogènes, cheminements enterrés.\nElle porte "
+                "l'essentiel du carbone incorporé du bâtiment — le poste que le "
+                "moteur annonce à ±50 %, et celui que les FDES des matériaux "
+                "réellement retenus viendront resserrer.",
+    },
+    "hvac": {
+        "nom": "CVC, traitement d'air et froid",
+        "aide": "Production et distribution de froid, traitement d'air, "
+                "confinement des allées, régulation, heures de free cooling.\n"
+                "C'est la discipline qui fabrique le PUE et le WUE de site : la "
+                "plage de conception retenue ici décide la consommation non "
+                "informatique et le mode d'évacuation de la chaleur.",
+    },
+    "elec_cfo": {
+        "nom": "Électricité courants forts",
+        "aide": "Raccordement au réseau, postes de livraison, transformateurs, "
+                "onduleurs, groupes électrogènes, distribution jusqu'aux baies, "
+                "sélectivité et courts-circuits.\nElle fixe la puissance "
+                "souscrite — la seule grandeur d'entrée dont le calcul ne peut "
+                "pas se passer — et les rendements de chaîne qui pèsent sur le "
+                "PUE au même titre que le froid.",
+    },
+    "elec_cfa": {
+        "nom": "Électricité courants faibles",
+        "aide": "Détection, GTB, supervision technique, câblage structuré, "
+                "comptage divisionnaire, vidéo et contrôle d'accès côté câblage."
+                "\nSans comptage par poste installé par cette discipline, la "
+                "consommation par consommateur reste une hypothèse de calcul et "
+                "ne devient jamais une mesure.",
+    },
+    "telecom": {
+        "nom": "Téléphonie et réseaux de communication",
+        "aide": "Arrivées opérateurs, chemins de fibre redondants et physiquement "
+                "distincts, téléphonie, liaisons de sécurité et d'astreinte.\n"
+                "Sans effet sur le bilan énergétique, mais déterminante pour "
+                "l'implantation : deux arrivées empruntant le même fourreau ne "
+                "font qu'un seul chemin, quel que soit le contrat.",
+    },
+    "incendie": {
+        "nom": "Prévention et sécurité incendie",
+        "aide": "Compartimentage, désenfumage, évacuation, résistance au feu, "
+                "conformité au code du travail et au régime ICPE applicable.\n"
+                "Elle impose des volumes et des débits d'air que le calcul ne "
+                "prévoit pas de lui-même : un désenfumage dimensionné après coup "
+                "rouvre la conception aéraulique.",
+    },
+    "extinction": {
+        "nom": "Extinction automatique",
+        "aide": "Choix du principe — gaz, brouillard d'eau, sprinkleur —, "
+                "dimensionnement, et besoins en eau d'extinction associés.\n"
+                "C'est le poste d'eau que le WUE ne voit pas : une réserve "
+                "d'extinction ne se consomme pas en exploitation, mais elle se "
+                "négocie avec la même autorité de l'eau que le refroidissement.",
+    },
+    "surete": {
+        "nom": "Sûreté et contrôle d'accès",
+        "aide": "Intrusion, périmètre, contrôle d'accès, vidéoprotection, "
+                "gestion des visiteurs — les actes malveillants, par opposition "
+                "aux accidents traités par la safety.\nElle ne pèse pas sur le "
+                "bilan, mais elle conditionne l'accès aux locaux techniques où "
+                "se relèvent les compteurs qui, eux, l'alimentent.",
+    },
+    "itot": {
+        "nom": "Équipements IT / OT / systèmes de contrôle industriel",
+        "aide": "Charge informatique elle-même, baies, densité, et systèmes de "
+                "contrôle industriel de l'installation — avec la séparation "
+                "entre réseaux de gestion technique et réseaux de production.\n"
+                "C'est la source de la puissance informatique : tout le calcul "
+                "part d'elle, et sa densité par baie décide de ce que le froid "
+                "devra évacuer.",
+    },
+    "environnement": {
+        "nom": "Environnement, énergie et RSE",
+        "aide": "Bilan énergie, eau et carbone, dossier ICPE, chaleur fatale "
+                "récupérable, bâtiment bas carbone, rapportage extra-financier."
+                "\nC'est la discipline qui porte le calcul lui-même : elle "
+                "consolide ce que les autres produisent et répond des chiffres "
+                "déclarés à l'extérieur.",
+    },
 }
+
+
+def _nom_discipline(cle):
+    d = DISCIPLINES.get(cle)
+    return (d or {}).get("nom", cle) if isinstance(d, dict) else (d or cle)
+
 
 # (code, titre, discipline, type, émetteur, moteur, {phase: niveau}, [contenu])
 _PIECES_DISCIPLINE = [
@@ -1473,10 +1600,10 @@ def _piece_discipline(entree, phase):
     return {
         "code": c, "titre": titre,
         "type": typ, "type_nom": t.get("nom", typ), "type_aide": t.get("aide", ""),
-        "emetteur": emet, "emetteur_nom": EMETTEURS.get(emet, emet),
+        "emetteur": emet, "emetteur_nom": _nom_emetteur(emet),
         "moteur": bool(moteur),
         "contenu": list(contenu),
-        "discipline": disc, "discipline_nom": DISCIPLINES.get(disc, disc),
+        "discipline": disc, "discipline_nom": _nom_discipline(disc),
         "niveau": niv, "niveau_nom": n.get("nom", niv), "niveau_aide": n.get("aide", ""),
         # Où la même pièce apparaît ailleurs : sans cela, on croit avoir affaire
         # à un document neuf à chaque phase, et on en produit trois.
@@ -1499,7 +1626,7 @@ def pieces(code):
         out.append({
             "code": c, "titre": titre,
             "type": typ, "type_nom": t.get("nom", typ), "type_aide": t.get("aide", ""),
-            "emetteur": emet, "emetteur_nom": EMETTEURS.get(emet, emet),
+            "emetteur": emet, "emetteur_nom": _nom_emetteur(emet),
             "moteur": bool(moteur),
             "contenu": list(contenu),
             "discipline": None, "discipline_nom": "",
@@ -2054,6 +2181,165 @@ def prompts_piece(profil, code_phase, code_piece, inputs=None):
     return SYSTEM_PIECE, "\n".join(u), requete
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  7. LE GLOSSAIRE
+# ═══════════════════════════════════════════════════════════════════════════
+# Cette page est dense en vocabulaire de métier : ESQ, APD, DCE, FEED, EPCI,
+# gel contractuel, classe 3, accord partiel. Chacun de ces mots est exact, et
+# aucun n'est explicite pour qui ne l'a pas déjà pratiqué. Une page qui les
+# aligne sans les expliquer ne s'adresse qu'à ceux qui n'en avaient pas besoin.
+#
+# Le glossaire est SERVI, pas écrit dans la page : les mêmes définitions
+# alimentent l'infobulle et, le jour venu, une aide en ligne ou un export.
+# Recopier une définition dans le HTML en ferait une seconde, qui divergerait.
+#
+# Une famille par type d'étiquette, une clé par valeur — la page n'a qu'un
+# attribut à poser (data-info="famille:clé") et une seule fonction de recherche.
+# C'est ce qui permet d'en couvrir douze sortes sans douze mécanismes.
+
+ACCORDS = {
+    "franc": {"nom": "Accord franc",
+              "aide": "Les deux phases tranchent la même question, au même moment "
+                      "du projet."},
+    "proche": {"nom": "Accord proche",
+               "aide": "Même objet, périmètres voisins. Les livrables se recouvrent "
+                       "largement, mais pas les régimes juridiques."},
+    "partiel": {"nom": "Accord partiel",
+                "aide": "Les phases se recouvrent sur une partie du contenu "
+                        "seulement. Franchir l'une laisse ouvert ce que l'autre "
+                        "traite en propre : c'est là que les dossiers se croient "
+                        "complets sans l'être."},
+    "faible": {"nom": "Accord faible",
+               "aide": "Même position dans la séquence, logiques différentes. La "
+                       "responsabilité de conception n'est pas au même endroit, et "
+                       "confondre les deux se paie en avenants."},
+}
+
+STATUTS_GRANDEUR = {
+    "recevable": {"nom": "Recevable à ce stade",
+                  "aide": "Le niveau de définition de cette valeur correspond à ce "
+                          "que la phase attend. Cela ne dit pas qu'elle est juste : "
+                          "cela dit qu'elle est admissible ici."},
+    "a_remplacer": {"nom": "À produire",
+                    "aide": "La valeur affichée est indicative. Un poste du "
+                            "référentiel qu'elle utilise n'a plus le niveau de "
+                            "définition exigé par cette phase : il faut une donnée "
+                            "réelle avant de la porter au dossier."},
+}
+
+CLASSES_AACE = {
+    "Classe 5": {"nom": "Classe 5", "aide": "Estimation de cadrage : 0 à 2 % du "
+                 "projet défini. Fourchette typique de −50 % à +100 %."},
+    "Classe 4": {"nom": "Classe 4", "aide": "Faisabilité aboutie : 1 à 15 % défini. "
+                 "Fourchette typique de −30 % à +50 %."},
+    "Classe 3": {"nom": "Classe 3", "aide": "Base d'une décision d'investissement : "
+                 "10 à 40 % défini. Fourchette typique de −20 % à +30 %."},
+    "Classe 2": {"nom": "Classe 2", "aide": "Base d'une offre ferme : 30 à 70 % "
+                 "défini. Fourchette typique de −15 % à +20 %."},
+    "Classe 1": {"nom": "Classe 1", "aide": "Estimation de contrôle : 50 à 100 % "
+                 "défini. Fourchette typique de −10 % à +15 %."},
+}
+
+NATURES_PRECISION = {
+    "usage": {"nom": "Usage professionnel",
+              "aide": "Pratique de place, pas règle de droit. Le décret impose au "
+                      "maître d'œuvre de s'engager sur un coût prévisionnel ; il "
+                      "n'en fixe pas le pourcentage, arrêté au contrat."},
+    "referentiel_externe": {"nom": "Référentiel externe",
+                            "aide": "Fourchette publiée par une organisation tierce "
+                                    "— ici l'AACE — donnée comme TYPIQUE et variable "
+                                    "selon l'industrie. Elle cadre un ordre de "
+                                    "grandeur ; elle ne remplace pas une précision "
+                                    "établie projet par projet."},
+    "analyse": {"nom": "Analyse",
+                "aide": "Position d'ingénieur, tenue par le raisonnement exposé à "
+                        "côté. Elle se discute — et c'est pour cela qu'elle est "
+                        "signalée comme telle plutôt que présentée en norme."},
+}
+
+MOTEUR_BADGE = {
+    "oui": {"nom": "Alimentée par le calcul",
+            "aide": "Cette pièce reçoit les grandeurs du moteur énergie / eau / "
+                    "carbone ET les réserves de sa phase : ce qui est acquis, ce qui "
+                    "reste à produire, et par quoi le remplacer."},
+    "non": {"nom": "Hors calcul",
+            "aide": "Cette pièce relève d'une autre discipline. Elle figure au "
+                    "registre pour mémoire — sans elle, le registre laisserait "
+                    "croire que ce moteur couvre tout le dossier."},
+}
+
+
+_NATURE_POSTE = {
+    "ordre_grandeur": "Ordre de grandeur : la valeur situe, elle ne mesure pas.",
+    "moyenne_annuelle": "Moyenne annuelle : elle lisse le profil horaire.",
+    "physique": "Constante physique : elle ne dépend d'aucun choix de projet.",
+    "plage_de_conception": "Plage de conception : elle décrit une famille "
+                           "d'installations, pas une machine.",
+}
+
+
+def _aide_poste(v):
+    """L'explication d'un poste du référentiel.
+
+    Elle commence par ce que le poste EST — sa nature, son incertitude —, car
+    tous les postes en ont une, puis ajoute quand il cesse de suffire et par
+    quoi le remplacer, pour ceux à qui cela s'applique. Une constante physique
+    ne se remplace pas et ne devient pas insuffisante : elle le dit, au lieu
+    de rendre une infobulle vide qui n'apprend rien de plus que l'étiquette
+    déjà lisible à l'écran.
+    """
+    bouts = []
+    nat = _NATURE_POSTE.get(v.get("nature"))
+    inc = v.get("incertitude")
+    tete = nat or ""
+    if inc:
+        tete = (tete + " Incertitude déclarée : %s." % inc).strip()
+    elif v.get("incertitude_absente"):
+        tete = (tete + " Aucune incertitude n'est déclarée au référentiel — "
+                       "absente ne veut pas dire nulle.").strip()
+    if tete:
+        bouts.append(tete)
+    if v.get("devient_insuffisant"):
+        bouts.append("Quand il ne suffit plus : " + v["devient_insuffisant"])
+    if v.get("remplacer_par"):
+        bouts.append("À remplacer par : " + v["remplacer_par"])
+    elif not v.get("devient_insuffisant"):
+        bouts.append("Rien ne vient la remplacer en cours de projet : elle "
+                     "borne le résultat quelle que soit la phase.")
+    return "\n\n".join(bouts)
+
+
+def glossaire():
+    """Toutes les familles d'étiquettes de la page, avec leur explication.
+
+    Les familles qui existaient déjà — types de pièce, niveaux, apport du
+    moteur, postes du référentiel — sont REPRISES ici et non recopiées : une
+    définition dupliquée est une définition qui divergera.
+    """
+    return {
+        "phase": {p["code"]: {
+            "nom": "%s — %s" % (p["code"], p["nom"]),
+            "aide": "%s\n\nCe qu'elle décide : %s\nCe qu'elle verrouille : %s"
+                    % (p["objet"], p["decide"], p["verrouille"]),
+        } for p in PHASES},
+        "filiere": {k: {"nom": v["nom"], "aide": v["portee"] + " " + v["note"]}
+                    for k, v in FILIERES.items()},
+        "emetteur": EMETTEURS,
+        "type_piece": TYPES_PIECE,
+        "niveau": NIVEAUX,
+        "discipline": DISCIPLINES,
+        "apport": {k: {"nom": k.replace("_", " "), "aide": v}
+                   for k, v in APPORT.items()},
+        "accord": ACCORDS,
+        "statut": STATUTS_GRANDEUR,
+        "aace": CLASSES_AACE,
+        "nature": NATURES_PRECISION,
+        "moteur": MOTEUR_BADGE,
+        "poste": {k: {"nom": v["nom"], "aide": _aide_poste(v)}
+                  for k, v in POSTES.items()},
+    }
+
+
 def referentiel():
     """Le cadre complet, pour l'interface et la documentation."""
     return {
@@ -2080,6 +2366,9 @@ def referentiel():
         "formes_attendues": FORME_ATTENDUE,
         "pieces": {p["code"]: pieces(p["code"]) for p in PHASES},
         "note_registre": NOTE_REGISTRE,
+        # Le glossaire, servi avec le cadre : une page dense en sigles qui ne
+        # les explique pas ne s'adresse qu'à ceux qui n'en avaient pas besoin.
+        "glossaire": glossaire(),
         "moteur": D.VERSION,
     }
 
@@ -2141,6 +2430,17 @@ def sante():
     phases_fantomes = sorted({ph for e in _PIECES_DISCIPLINE for ph in e[6]
                               if ph not in connues})
 
+    # Le glossaire : une entrée sans explication produit une infobulle qui
+    # répète l'étiquette déjà lisible à l'écran — un survol pour rien. Le cas
+    # s'est produit sur douze disciplines et sur un poste dont, à juste titre,
+    # rien ne devient insuffisant. Contrôlé ici pour ne pas revenir.
+    g_ = glossaire()
+    glossaire_muet = sorted(
+        "%s:%s" % (fam, cle)
+        for fam, entrees in g_.items()
+        for cle, e in entrees.items()
+        if not (e or {}).get("aide", "").strip() or not (e or {}).get("nom", "").strip())
+
     p = {"puissance_it_kw": 2000}
     return {
         "version": VERSION,
@@ -2163,6 +2463,9 @@ def sante():
         "disciplines_inconnues": disc_inconnues,
         "niveaux_inconnus": niv_inconnus,
         "specifications_sur_phase_inexistante": phases_fantomes,
+        "glossaire_familles": len(g_),
+        "glossaire_definitions": sum(len(v) for v in g_.values()),
+        "glossaire_sans_explication": glossaire_muet,
         "franchissables_profil_minimal": [
             e["code"] for e in parcours(p, "moe")["etapes"] if e["franchissable"]
         ] + [
