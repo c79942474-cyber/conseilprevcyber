@@ -707,10 +707,39 @@
     poster("/api/datacenter/etude", PROFIL).then(function (res) {
       if (!res.ok || !res.j.ok) { etat(messageErreur(res), true); return; }
       ETUDE = res.j.etude;
+      /* Le profil est retenu pour la page d'ingénierie : elle pose le même
+         formulaire, et c'est la ressaisie des treize champs qui décourage, pas
+         le calcul. Enregistré APRÈS un calcul réussi seulement — un profil qui
+         n'a rien produit ici n'a pas de raison d'être proposé ailleurs. */
+      if (window.ProfilDC) window.ProfilDC.enregistrer(PROFIL, "datacenter");
       afficherResultats();
+      montrerSuite();
       etat("Étude calculée. Chaque valeur porte sa méthode : dépliez « méthode et source ».");
       $("#dc-sec-res").scrollIntoView({ behavior: "smooth", block: "start" });
     }).catch(function () { etat("Réseau indisponible. Réessayez.", true); });
+  }
+
+  /* La suite du chemin, proposée une fois le calcul fait et pas avant : ce que
+     la page d'ingénierie apporte — à quelle phase ce chiffre devient recevable
+     — n'a aucun sens tant qu'il n'y a pas de chiffre. */
+  function montrerSuite() {
+    var z = $("#dc-suite");
+    if (!z || z.getAttribute("data-pose") === "1") return;
+    z.setAttribute("data-pose", "1");
+    z.hidden = false;
+    z.innerHTML =
+      '<div class="dc-suite-i">'
+      + "<b>Ce calcul est juste. Il ne dit pas encore s’il est recevable.</b>"
+      + "<span>Un PUE tiré d’une plage de conception convient à un "
+      + "avant-projet ; le même chiffre reporté dans un CCTP devient une clause "
+      + "de pénalité assise sur un ordre de grandeur. La page d’ingénierie "
+      + "de projet dit à quelle phase chacune de ces valeurs devient opposable, "
+      + "et ce qu’il faut avoir produit pour y arriver.</span></div>"
+      + '<a class="dc-suite-b" href="/ingenierie-datacenter">'
+      + "Placer ce calcul dans un projet →</a>"
+      + '<p class="dc-suite-n">Votre profil y sera repris tel quel — vous '
+      + "n’avez rien à ressaisir. Il ne quitte pas ce navigateur et "
+      + "disparaît à la fermeture de l’onglet.</p>";
   }
 
   function comparer() {

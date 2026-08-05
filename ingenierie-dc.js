@@ -1026,6 +1026,56 @@
     });
   }
 
+  /* ═════════════════════════════════════════════════════════════════════
+     LE PROFIL REPRIS DE LA PAGE DE CALCUL
+
+     Le formulaire de cette page est le MÊME que celui de /datacenter — même
+     référentiel, mêmes champs. Le ressaisir est du travail perdu.
+
+     Deux règles de conduite, et la seconde compte plus que la première :
+
+       · on ne reprend que des VALEURS. Le serveur décide ensuite, champ par
+         champ, si la valeur s'écarte de son défaut — donc si elle est SAISIE.
+         Reprendre un drapeau « rempli » ferait franchir des phases sur des
+         valeurs que personne n'a choisies ;
+
+       · on le DIT. Un formulaire qui se remplit tout seul sans explication
+         inquiète plus qu'il n'aide, et le lecteur ne sait plus ce qu'il a
+         choisi lui-même. Le bandeau nomme l'origine et offre de repartir à
+         vide. */
+  function reprendreProfil() {
+    if (!window.ProfilDC) return;
+    var p = window.ProfilDC.lire();
+    if (!p) return;
+    var poses = window.ProfilDC.appliquer("#ig-form", p.champs);
+    if (!poses.length) return;
+    var z = $("#ig-repris");
+    if (!z) return;
+    z.hidden = false;
+    z.innerHTML =
+      '<div class="ig-rep-t"><b>Profil repris de la page ' +
+      '<a href="/datacenter">Énergie, eau et carbone</a>.</b> '
+      + poses.length + " champ" + (poses.length > 1 ? "s" : "")
+      + " recopié" + (poses.length > 1 ? "s" : "")
+      + " — rien n’a été ressaisi.<br>"
+      + "<span>Les valeurs restées sur leur pré-remplissage là-bas le restent "
+      + "ici : elles comptent comme non renseignées, et c’est ce qui décide du "
+      + "franchissement des phases.</span></div>"
+      + '<button type="button" class="ig-rep-b" id="ig-rep-x">'
+      + "Repartir d’un formulaire vierge</button>";
+    var b = $("#ig-rep-x");
+    if (b) b.addEventListener("click", function () {
+      window.ProfilDC.oublier();
+      /* Remise aux valeurs déclarées du référentiel — et non à vide : le
+         formulaire est PRÉ-REMPLI par conception, et le vider produirait un
+         état que la page ne sait pas décrire. */
+      bâtirFormulaire();
+      z.hidden = true;
+      z.innerHTML = "";
+      rafraichir();
+    });
+  }
+
   function démarrer() {
     Promise.all([
       fetch("/api/datacenter/referentiel", { credentials: "same-origin" })
@@ -1047,6 +1097,7 @@
            après, la frise se dessinerait d'abord sur la filière par défaut,
            puis sauterait — le lecteur verrait la page se contredire. */
         PIECE_VISEE = appliquerURL();
+        reprendreProfil();
         rafraichir();
       })
       .catch(function (e) {

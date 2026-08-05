@@ -2937,6 +2937,22 @@ def datacenter_js():
                        mimetype="text/javascript; charset=utf-8")
 
 
+@app.route("/dc-profil.js")
+def dc_profil_js():
+    """Le profil d'installation porté d'une page à l'autre.
+
+    Fichier partagé par /datacenter et /ingenierie-datacenter, et non recopié
+    dans chacune : les deux pages construisent le même formulaire depuis le
+    même référentiel, et deux copies de la logique de transport divergeraient
+    au premier champ ajouté.
+
+    Route publique : rien d'autre que de l'affichage et un magasin de session
+    côté navigateur. Aucune donnée du site n'y figure.
+    """
+    return _serve_fast("dc-profil.js", _CC_ASSET,
+                       mimetype="text/javascript; charset=utf-8")
+
+
 @app.route("/ingenierie-dc.js")
 def ingenierie_dc_js():
     """Interface du cadre de phases. Même règle que ci-dessus : route publique,
