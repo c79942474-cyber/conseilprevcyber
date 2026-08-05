@@ -36,12 +36,23 @@
   .rc-socle b{color:var(--ink)}
   .rc-sec{padding:26px 0}
   .rc-etape{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+  /* Le numéro de section porte le dégradé cyan → teal du site — celui de la
+     marque, du menu et des appels à l'action. La page en manquait : elle
+     n'employait le bleu qu'en aplat, jamais dans la forme qui identifie le
+     site ailleurs. */
   .rc-etape .n{font-family:var(--mono);font-size:13px;font-weight:700;width:27px;height:27px;
     flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;
-    background:rgba(34,211,238,.16);color:var(--cyan)}
+    background:linear-gradient(135deg,var(--cyan),var(--teal));color:#04121A}
   .rc-etape h2{font-size:19px;margin:0}
+  /* Un filet bleu sous le titre de section : il rythme la page sans ajouter
+     de bloc, et reprend la même diagonale que le numéro. */
+  .rc-etape::after{content:"";flex:1 1 auto;height:2px;border-radius:2px;
+    background:linear-gradient(90deg,rgba(34,211,238,.42),rgba(45,212,191,.10) 62%,transparent)}
   .rc-card{border:1px solid var(--line);border-radius:14px;padding:16px 18px;
-    background:linear-gradient(180deg,var(--panel),var(--bg2))}
+    background:linear-gradient(180deg,var(--panel),var(--bg2));
+    /* Une arête bleue en haut de chaque carte : c'est le geste qui manquait
+       le plus — les cartes étaient bordées de gris sur les quatre côtés. */
+    border-top:2px solid rgba(34,211,238,.34)}
 
   /* ── Le formulaire de profil, repris tel quel de /datacenter ───────────── */
   .dc-grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
@@ -93,7 +104,8 @@
   .ig-d .sous{font-size:13px;color:var(--muted);line-height:1.65;margin:0 0 12px;max-width:76ch}
   .ig-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;
     margin:12px 0}
-  .ig-meta div{border:1px solid var(--line);border-radius:10px;padding:11px 13px;
+  .ig-meta div{border:1px solid var(--line);border-left:3px solid rgba(34,211,238,.55);
+    border-radius:10px;padding:11px 13px;
     background:rgba(0,0,0,.12);font-size:12.5px;color:var(--muted);line-height:1.6}
   .ig-meta b{color:var(--ink);display:block;margin-bottom:3px;font-size:11px;
     letter-spacing:.05em;text-transform:uppercase;color:var(--muted2)}
@@ -163,7 +175,7 @@
   .ig-impl[hidden]{display:none}
   /* Le renvoi vers ce que la phase attend d'un autre moteur. Assez visible pour
      ne pas être manqué : une faisabilité sans enveloppe n'en est pas une. */
-  .ig-renvoi{margin-top:14px;border:1px solid var(--line);border-left:3px solid var(--amber,#F0B429);
+  .ig-renvoi{margin-top:14px;border:1px solid var(--line);border-left:3px solid var(--cyan);
     border-radius:0 11px 11px 0;padding:12px 15px;background:rgba(240,180,41,.08)}
   .ig-renvoi b{color:var(--ink);font-size:13.5px}
   .ig-renvoi p{margin:6px 0 0;font-size:12.5px;color:var(--muted);line-height:1.6}
@@ -178,7 +190,7 @@
   .ig-reg-c{display:block;font-family:var(--mono);font-size:11px;color:var(--muted2);
     margin-top:4px}
   .ig-reg-g{margin-top:14px}
-  .ig-reg-g h5{font-size:12px;margin:0 0 8px;color:var(--ink);letter-spacing:.05em;
+  .ig-reg-g h5{border-left:3px solid rgba(34,211,238,.5);padding-left:9px;font-size:12px;margin:0 0 8px;color:var(--ink);letter-spacing:.05em;
     text-transform:uppercase}
   .ig-reg-g h5 span{font-family:inherit;font-size:11.5px;color:var(--muted2);
     letter-spacing:0;text-transform:none;font-weight:400;margin-left:8px}
@@ -362,12 +374,12 @@
     letter-spacing:.07em;text-transform:uppercase;padding:2px 8px;
     border-radius:20px;margin-bottom:6px}
   .ig-bloc.calc .ig-bloc-t .p{color:#0B0B0B;background:var(--cyan)}
-  .ig-bloc.redac .ig-bloc-t .p{color:var(--muted2);border:1px solid var(--line)}
+  .ig-bloc.redac .ig-bloc-t .p{color:var(--teal);border:1px solid var(--teal)}
   .ig-bloc-t b{display:block;font-size:15px;color:var(--ink);margin-bottom:3px}
   .ig-bloc-t .s{display:block;font-size:12px;color:var(--muted2);line-height:1.6;
     max-width:70ch}
   .ig-bloc.calc > .rc-card{border-left:3px solid var(--cyan)}
-  .ig-bloc.redac > .rc-card{border-left:3px solid var(--line)}
+  .ig-bloc.redac > .rc-card{border-left:3px solid rgba(45,212,191,.45)}
 
   /* Le dépôt de documents. L'état de l'analyse est affiché AVANT le
      formulaire : ce n'est pas une mention légale, c'est ce que le lecteur doit
@@ -375,7 +387,7 @@
   .ig-dep-etat{margin-bottom:14px;padding:13px 16px;border-radius:10px;
     border:1px solid var(--line);border-left:3px solid #E8B44A;
     background:rgba(0,0,0,.16)}
-  .ig-dep-etat.fort{border-left-color:#7FD4A8}
+  .ig-dep-etat.fort{border-left-color:var(--cyan)}
   .ig-dep-etat .t{margin:0 0 8px;font-size:12.5px;color:var(--muted);line-height:1.6}
   .ig-dep-etat .t b{color:var(--ink)}
   .ig-dep-etat .l{margin:0;padding-left:17px;font-size:11.5px;color:var(--muted2);
