@@ -554,16 +554,32 @@
   .ig-acc.a-partiel{color:#F0B429;border-color:#F0B429}
   .ig-acc.a-faible{color:#D9603A;border-color:#D9603A}
 
-  /* ── Le registre en trois colonnes, classé par importance ──────────────
+  /* ── Le registre en colonnes, classé par importance ────────────────────
      À une carte par ligne, vingt-trois pièces font quatre écrans et la
-     dernière n'est jamais lue. Trois colonnes tiennent la phase entière sous
-     les yeux — et l'ordre devient alors une information, pas une fatalité. */
+     dernière n'est jamais lue. Quatre colonnes tiennent la phase entière sous
+     les yeux — et l'ordre devient alors une information, pas une fatalité.
+
+     La classe ne porte PAS le nombre de colonnes. Elle s'appelait
+     « ig-grille3 » ; passer à quatre aurait laissé partout un nom qui ment, et
+     un nom qui ment se recopie. Le nombre vit dans la règle, seul endroit où
+     il est vrai.
+
+     Le registre déborde volontairement du gabarit de la page : quatre colonnes
+     dans 1080 px donnent des cartes de 190 px, où le titre d'une pièce se casse
+     en cinq lignes. La section s'élargit donc pour lui, et pour lui seul. */
   .ig-reg-cols{margin-top:6px}
-  .ig-grille3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;
+  .ig-grille{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;
     align-items:start}
-  @media (max-width:1100px){.ig-grille3{grid-template-columns:repeat(2,minmax(0,1fr))}}
-  @media (max-width:720px){.ig-grille3{grid-template-columns:minmax(0,1fr)}}
-  .ig-grille3 .ig-pc{margin-bottom:0;display:flex;flex-direction:column;height:100%}
+  @media (max-width:1320px){.ig-grille{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  @media (max-width:1040px){.ig-grille{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media (max-width:700px){.ig-grille{grid-template-columns:minmax(0,1fr)}}
+  .ig-grille .ig-pc{margin-bottom:0;display:flex;flex-direction:column;height:100%;
+    padding:10px 12px}
+  /* Le titre et le contenu se resserrent un peu : quatre colonnes laissent
+     moins de largeur, et un texte non ajusté déborderait ou tronquerait. */
+  .ig-grille .ig-pc-h .ti{font-size:13px;line-height:1.4}
+  .ig-grille .ig-pc ul li{font-size:11.5px;line-height:1.5}
+  .ig-grille .ig-pc code{font-size:11px}
   .ig-pc-top{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:7px}
   /* Le caractère porte une couleur, et la carte un liseré assorti : c'est ce
      qu'on lit AVANT le titre quand on cherche par quoi commencer. */
@@ -590,15 +606,15 @@
     border:1px solid var(--line);color:var(--muted2)}
   /* Le niveau et ses renvois, dans la carte : la mise en grille ne doit rien
      retirer de ce qui se lisait avant. */
-  .ig-grille3 .ig-pc-nv{margin:7px 0 0}
-  .ig-grille3 .ig-pc ul{margin:8px 0 0;padding-left:16px}
+  .ig-grille .ig-pc-nv{margin:7px 0 0}
+  .ig-grille .ig-pc ul{margin:8px 0 0;padding-left:16px}
   .ig-car-m{font-size:11.5px;color:var(--muted);line-height:1.55;margin:8px 0 0;
     border-left:2px solid var(--line);padding-left:9px}
   .ig-pc-l{margin-top:8px;font-size:11.5px;color:var(--muted);line-height:1.55;
     border-left:3px solid rgba(45,212,191,.5);padding:6px 0 6px 9px}
   .ig-pc-l b{color:var(--ink)}
   .ig-pc-l .mtf{display:block;margin-top:4px;color:#F39F7D}
-  .ig-grille3 .ig-pc-a{margin-top:auto;padding-top:9px}
+  .ig-grille .ig-pc-a{margin-top:auto;padding-top:9px}
   .ig-dl{font-size:11.5px;color:var(--cyan);align-self:center}
   .ig-reg-g h5 span{display:block;margin-top:3px}
 
@@ -628,7 +644,13 @@
      Collé en haut de la fenêtre pendant qu'on parcourt le registre : la
      question « et après ? » se pose au bas de la liste, pas en haut. */
   .ig-avec-rail{display:grid;grid-template-columns:minmax(0,1fr) 218px;gap:18px;
-    align-items:start}
+    align-items:start;
+    /* Élargi au-delà du gabarit de la page, jusqu'à la place disponible : le
+       registre est la seule section qui en a besoin, et l'imposer à la page
+       entière ferait des lignes de texte trop longues pour être lues. */
+    width:min(1420px,calc(100vw - 48px));
+    margin-left:calc((min(1080px,100vw - 48px) - min(1420px,100vw - 48px)) / 2)}
+  @media (max-width:1120px){.ig-avec-rail{width:auto;margin-left:0}}
   @media (max-width:980px){.ig-avec-rail{grid-template-columns:minmax(0,1fr)}
     .ig-rail{position:static !important}}
   .ig-rail{position:sticky;top:16px;border:1px solid var(--line);border-radius:12px;

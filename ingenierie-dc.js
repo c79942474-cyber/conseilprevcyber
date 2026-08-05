@@ -511,9 +511,11 @@
        · CE QUI EST FAIT EST SÉPARÉ DE CE QUI RESTE. Un registre qui mélange
          les deux oblige à relire tout le dossier pour savoir où on en est.
 
-       · LES TROIS COLONNES ne sont pas une préférence de mise en page : à une
-         carte par ligne, vingt-trois pièces font quatre écrans et la dernière
-         n'est jamais lue. */
+       · LES COLONNES ne sont pas une préférence de mise en page : à une carte
+         par ligne, vingt-trois pièces font quatre écrans et la dernière n'est
+         jamais lue. Le nombre de colonnes est décidé par la feuille de style,
+         qui l'adapte à la largeur réelle — l'écrire ici en ferait une seconde
+         vérité, et c'est celle du navigateur qui gagnerait. */
   var PLAN = null;
 
   function carteP(p) {
@@ -652,7 +654,7 @@
       }
       return '<section class="ig-reg-g"><h5>' + esc(titre) + " <span>"
         + liste.length + " · " + esc(sous) + "</span></h5>"
-        + '<div class="ig-grille3">'
+        + '<div class="ig-grille">'
         + liste.map(carteP).join("") + "</div></section>";
     }
   }
