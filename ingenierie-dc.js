@@ -868,8 +868,12 @@
     var h = '<div class="ig-g-choix"><p class="ig-g-q">Qui êtes-vous sur ce projet&nbsp;?</p>'
       + '<div class="ig-g-liste" role="group" aria-label="Rôle">'
       + roles.map(function (r) {
+          /* La couleur est portée par une variable CSS locale : le style dit
+             comment s'en servir (filet, pastille, fond), la donnée dit
+             laquelle. Écrire ici « border-color: … » figerait l'usage. */
           return '<button type="button" class="ig-g-c'
-            + (GUIDE_ROLE === r.id ? " on" : "") + '" data-role="' + esc(r.id) + '">'
+            + (GUIDE_ROLE === r.id ? " on" : "") + '" data-role="' + esc(r.id)
+            + '" style="--c:' + esc(r.couleur || "var(--cyan)") + '">'
             + '<span class="ic" aria-hidden="true">' + esc(r.icone) + "</span>"
             + '<span class="nm">' + esc(r.nom) + "</span>"
             + '<span class="qs">' + esc(r.question) + "</span></button>";
@@ -878,7 +882,8 @@
       + '<div class="ig-g-liste th" role="group" aria-label="Thème">'
       + themes.map(function (t) {
           return '<button type="button" class="ig-g-c'
-            + (GUIDE_THEME === t.id ? " on" : "") + '" data-theme="' + esc(t.id) + '">'
+            + (GUIDE_THEME === t.id ? " on" : "") + '" data-theme="' + esc(t.id)
+            + '" style="--c:' + esc(t.couleur || "var(--cyan)") + '">'
             + '<span class="ic" aria-hidden="true">' + esc(t.icone) + "</span>"
             + '<span class="nm">' + esc(t.nom) + "</span>"
             + '<span class="qs">' + esc(t.question) + "</span></button>";
@@ -906,6 +911,15 @@
       b.addEventListener("click", function () {
         GUIDE_THEME = b.getAttribute("data-theme"); guideRendreChoix();
       });
+    });
+    /* La carte retenue bat un instant, dans SA couleur. C'est la confirmation
+       du choix — sans elle, cliquer une carte parmi onze ne produit qu'un
+       changement de bordure, qu'on manque quand le regard est ailleurs. Deux
+       cycles seulement : une confirmation n'a pas à durer neuf secondes. */
+    z.querySelectorAll(".ig-g-c.on").forEach(function (b) {
+      b.classList.remove("ig-g-choisi");
+      void b.offsetWidth;               // force le redémarrage de l'animation
+      b.classList.add("ig-g-choisi");
     });
     var g = $("#ig-g-go");
     if (g) {
@@ -951,7 +965,12 @@
     if (!z || !GUIDE) return;
     var e = GUIDE.etapes[GUIDE_ETAPE];
     var n = GUIDE.etapes.length;
-    var h = '<div class="ig-g-p">'
+    /* Le panneau porte les DEUX couleurs du parcours choisi : celle du rôle en
+       filet de gauche, celle du thème sur la jauge. Le lecteur reconnaît son
+       parcours d'un coup d'œil, sans relire l'en-tête. */
+    var cr = (GUIDE.role && GUIDE.role.couleur) || "var(--cyan)";
+    var ct = (GUIDE.theme && GUIDE.theme.couleur) || "var(--cyan)";
+    var h = '<div class="ig-g-p" style="--cr:' + esc(cr) + ";--ct:" + esc(ct) + '">'
       + '<div class="ig-g-h"><span class="ig-g-rt">'
       + '<span aria-hidden="true">' + esc(GUIDE.role.icone) + "</span> "
       + esc(GUIDE.role.nom) + " · " + esc(GUIDE.theme.icone) + " "
@@ -979,6 +998,14 @@
         + e.chiffres.map(function (c) { return "<li>" + esc(c) + "</li>"; }).join("")
         + '</ul><p class="ig-g-src">Calculé sur le registre pour ce rôle et ce '
         + "thème, à la phase " + esc(GUIDE.phase) + ".</p>";
+    }
+    /* Le conseil de terrain de la phase, à l'étape où l'on ouvre son dossier :
+       c'est le moment où il sert, et pas avant. Le poser sur chaque étape en
+       ferait un bandeau qu'on cesse de lire. */
+    if (GUIDE.conseil && e.ancre === "ig-dossier") {
+      h += '<div class="ig-g-cons"><b>' + esc(GUIDE.conseil.titre)
+        + "</b><span>" + esc(GUIDE.conseil.texte).replace(/\n\n/g, "<br><br>")
+        + "</span></div>";
     }
     if (GUIDE_ETAPE === n - 1) {
       h += '<div class="ig-g-fin"><b>Le piège de ce thème.</b> '

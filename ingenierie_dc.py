@@ -1841,6 +1841,156 @@ CORRESPONDANCES = [
 ]
 
 
+# ── Le conseil de phase ────────────────────────────────────────────────────
+#
+# Ce que le référentiel dit déjà : ce que la phase DÉCIDE et ce qu'elle
+# VERROUILLE. Ce sont des faits de cadre. Ce qu'il ne disait pas : ce qui se
+# passe mal à cette phase-là, en pratique, et le geste qui l'évite.
+#
+# Table à part plutôt que clé de plus dans PHASES : les entrées de phase sont
+# déjà longues, et un conseil n'est pas de même nature qu'une exigence — il
+# n'entre dans aucun calcul, il ne conditionne aucun franchissement. Les mêler
+# laisserait croire que le module refuse une phase parce qu'un conseil n'a pas
+# été suivi.
+#
+# Chaque conseil dit UNE chose et nomme le geste. « Approfondir l'étude » n'est
+# pas un conseil ; « geler la densité par baie avant de dimensionner le froid »
+# en est un.
+CONSEILS_PHASE = {
+    # ── Maîtrise d'œuvre ──────────────────────────────────────────────────
+    "ESQ": {
+        "titre": "Choisissez le terrain en dernier, pas en premier",
+        "texte": "L'esquisse ne verrouille presque rien — sauf le terrain, et "
+                 "c'est lui qui commande le raccordement électrique, l'accès à "
+                 "l'eau et le régime ICPE.\n\nLe geste : demandez au "
+                 "gestionnaire de réseau la file d'attente de raccordement AVANT "
+                 "de signer une promesse de vente. Un délai de raccordement se "
+                 "découvre en général trop tard, et il ne se rattrape pas.",
+    },
+    "APS": {
+        "titre": "Arrêtez la densité par baie avant de dimensionner le froid",
+        "texte": "Toute l'aéraulique découle de la densité admise en salle, et "
+                 "l'écart entre 8 et 30 kW par baie change la famille de "
+                 "refroidissement, pas seulement sa taille.\n\nLe geste : faites "
+                 "écrire la densité cible et la densité maximale dans la "
+                 "philosophie générale, à cette phase. Un projet qui reporte ce "
+                 "choix redessine sa distribution de froid en avant-projet "
+                 "définitif.",
+    },
+    "APD": {
+        "titre": "C'est ici que le permis se joue, pas plus tard",
+        "texte": "L'avant-projet définitif porte le dossier de permis de "
+                 "construire. Les groupes électrogènes, les tours "
+                 "aéroréfrigérantes et les cuves de combustible y entrent — et "
+                 "ce sont eux qui attirent l'instruction.\n\nLe geste : faites "
+                 "vérifier l'implantation des équipements bruyants et le régime "
+                 "ICPE applicable avant le dépôt. Un équipement ajouté après "
+                 "coup se paie en permis modificatif, donc en mois.",
+    },
+    "PRO": {
+        "titre": "Descendez au tracé, pas seulement au principe",
+        "texte": "Le projet est la dernière phase où les tracés se corrigent sans "
+                 "conséquence contractuelle. Deux arrivées opérateurs déclarées "
+                 "redondantes mais passant dans le même fourreau ne font qu'un "
+                 "seul chemin.\n\nLe geste : exigez les tracés réels — "
+                 "électricité, fluides, télécoms — et vérifiez la séparation "
+                 "physique sur plan, pas sur la note d'intention.",
+    },
+    "DCE": {
+        "titre": "Toute exigence doit porter sa méthode de contrôle",
+        "texte": "Le dossier de consultation rend les exigences opposables. Une "
+                 "exigence sans méthode de vérification ne se fait pas "
+                 "respecter : elle se discute.\n\nLe geste : relisez chaque "
+                 "performance exigée en vous demandant « qui mesure, avec quel "
+                 "appareil, dans quelles conditions, et à quelle date ». Un PUE "
+                 "garanti sans conditions de mesure n'engage personne.",
+    },
+    "ACT": {
+        "titre": "Comparez les écarts, pas seulement les prix",
+        "texte": "Les offres se distinguent moins par leur montant que par ce "
+                 "qu'elles excluent. Un écart de dix pour cent cache souvent une "
+                 "prestation renvoyée en option.\n\nLe geste : reconstituez "
+                 "chaque offre au même périmètre avant de comparer, en listant "
+                 "les exclusions. C'est le seul travail d'analyse qui change une "
+                 "décision d'attribution.",
+    },
+    "EXE-VISA": {
+        "titre": "Un visa n'est pas une approbation de conception",
+        "texte": "Viser une étude d'exécution, c'est vérifier sa conformité au "
+                 "marché — pas reprendre la conception à son compte. La nuance "
+                 "décide de qui répond d'un défaut.\n\nLe geste : formulez les "
+                 "visas par référence explicite à la pièce contractuelle "
+                 "concernée. Un visa sans référence transfère la responsabilité "
+                 "sans que personne ne l'ait voulu.",
+    },
+    "DET": {
+        "titre": "Consignez les écarts au fil de l'eau",
+        "texte": "Ce qui n'est pas relevé pendant les travaux ne se retrouve pas "
+                 "à la réception : les ouvrages sont fermés, et la preuve avec "
+                 "eux.\n\nLe geste : imposez la photographie des réseaux avant "
+                 "fermeture, avec repérage. C'est la pièce qui manque toujours "
+                 "au dossier d'exploitation, et personne ne peut la reconstituer "
+                 "après.",
+    },
+    "AOR": {
+        "titre": "La réception se prépare six mois avant, pas le jour même",
+        "texte": "Un essai de performance suppose une charge, un protocole et un "
+                 "appareillage. Aucun des trois ne s'improvise, et la charge "
+                 "informatique réelle n'est presque jamais disponible au moment "
+                 "voulu.\n\nLe geste : faites écrire le protocole d'essai et le "
+                 "moyen de charge dans le marché, à la consultation. À la "
+                 "réception, il est trop tard pour en discuter.",
+    },
+    # ── Ingénierie industrielle ───────────────────────────────────────────
+    "FAISA": {
+        "titre": "Un chiffre de faisabilité n'est pas un budget",
+        "texte": "La faisabilité travaille à ±30 ou ±50 %. Reporter ce montant "
+                 "dans un plan de financement sans sa fourchette produit un "
+                 "engagement que rien ne soutient.\n\nLe geste : présentez "
+                 "toujours l'enveloppe avec sa classe d'estimation et la part "
+                 "non chiffrée. Au-delà d'un quart d'enveloppe non chiffrée, ce "
+                 "n'est plus une estimation.",
+    },
+    "BASIC": {
+        "titre": "Figez les bases de conception avant les équipements",
+        "texte": "Les bases de conception — climat, charge, redondance, régimes "
+                 "de température — commandent tout le reste. Les laisser "
+                 "ouvertes pendant qu'on choisit des machines produit un "
+                 "dimensionnement qui ne se justifie plus.\n\nLe geste : émettez "
+                 "un document de bases de conception daté et visé, et traitez "
+                 "toute évolution ultérieure comme une modification.",
+    },
+    "FEED": {
+        "titre": "Ce qui n'est pas au FEED devient un avenant",
+        "texte": "Le FEED fixe le périmètre contractuel de l'EPC. Chaque "
+                 "interface non décrite deviendra une réclamation, au prix du "
+                 "contractant et non du marché.\n\nLe geste : passez la matrice "
+                 "de responsabilité interface par interface, et faites nommer "
+                 "pour chacune qui conçoit, qui fournit, qui installe et qui "
+                 "essaie. Quatre colonnes, jamais trois.",
+    },
+    "EPCI": {
+        "titre": "Les garanties de performance se mesurent ou n'existent pas",
+        "texte": "Un contrat EPCI porte des garanties — PUE, disponibilité, "
+                 "délai. Sans protocole de mesure annexé, elles ne sont pas "
+                 "exécutables.\n\nLe geste : annexez le protocole d'essai au "
+                 "contrat, avec les conditions de charge, la période de mesure "
+                 "et le traitement des conditions climatiques exceptionnelles. "
+                 "Une garantie contestable est une garantie perdue.",
+    },
+    "CSU": {
+        "titre": "Ne réceptionnez pas sans les données d'exploitation",
+        "texte": "La mise en service livre l'installation ; elle doit aussi "
+                 "livrer de quoi la tenir. Un site remis sans comptage "
+                 "divisionnaire ni consignes ne se pilote pas.\n\nLe geste : "
+                 "conditionnez la réception à la remise du dossier "
+                 "d'exploitation, des courbes d'essai et des accès aux systèmes "
+                 "de supervision. Ce qui n'est pas obtenu à ce moment ne "
+                 "s'obtient plus.",
+    },
+}
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 #  4. L'APTITUDE : cette phase est-elle franchissable avec ce qu'on a ?
 # ═══════════════════════════════════════════════════════════════════════════
@@ -2673,8 +2823,15 @@ def glossaire():
     return {
         "phase": {p["code"]: {
             "nom": "%s — %s" % (p["code"], p["nom"]),
-            "aide": "%s\n\nCe qu'elle décide : %s\nCe qu'elle verrouille : %s"
-                    % (p["objet"], p["decide"], p["verrouille"]),
+            # Le conseil de terrain vient EN TÊTE : c'est ce qu'un lecteur
+            # cherche en survolant un sigle qu'il connaît déjà. L'objet et les
+            # verrous suivent, pour celui qui ne le connaît pas.
+            "aide": ((("Conseil — %s\n%s\n\n"
+                       % (CONSEILS_PHASE[p["code"]]["titre"],
+                          CONSEILS_PHASE[p["code"]]["texte"]))
+                      if p["code"] in CONSEILS_PHASE else "")
+                     + "%s\n\nCe qu'elle décide : %s\nCe qu'elle verrouille : %s"
+                     % (p["objet"], p["decide"], p["verrouille"])),
         } for p in PHASES},
         "filiere": {k: {"nom": v["nom"], "aide": v["portee"] + " " + v["note"]}
                     for k, v in FILIERES.items()},
@@ -2715,6 +2872,7 @@ def glossaire():
 ROLES_GUIDE = [
     {
         "id": "investisseur",
+        "couleur": "#E8B44A",
         "icone": "◆",
         "nom": "Maître d'ouvrage · investisseur",
         "question": "Ce projet tient-il, et à partir de quand puis-je m'engager ?",
@@ -2728,6 +2886,7 @@ ROLES_GUIDE = [
     },
     {
         "id": "moe",
+        "couleur": "#22D3EE",
         "icone": "▤",
         "nom": "Maîtrise d'œuvre",
         "question": "Que dois-je produire, à quelle phase, et à quel niveau ?",
@@ -2741,6 +2900,7 @@ ROLES_GUIDE = [
     },
     {
         "id": "discipline",
+        "couleur": "#7FD4A8",
         "icone": "⌁",
         "nom": "Ingénieur de discipline",
         "question": "Que dois-je écrire pour ma discipline, et avec quelles données ?",
@@ -2753,6 +2913,7 @@ ROLES_GUIDE = [
     },
     {
         "id": "acheteur",
+        "couleur": "#E69FC2",
         "icone": "§",
         "nom": "Acheteur · contractant",
         "question": "Sur quoi puis-je engager quelqu'un, et avec quelle tolérance ?",
@@ -2765,6 +2926,7 @@ ROLES_GUIDE = [
     },
     {
         "id": "exploitant",
+        "couleur": "#9FB4F2",
         "icone": "◈",
         "nom": "Exploitant · futur exploitant",
         "question": "Qu'est-ce que je récupère, et saurai-je le vérifier ?",
@@ -2781,6 +2943,7 @@ ROLES_GUIDE = [
 THEMES_GUIDE = [
     {
         "id": "energie",
+        "couleur": "#F2A65A",
         "icone": "⚡",
         "nom": "Énergie et rendement",
         "question": "Combien l'installation consommera-t-elle, et de quoi cela dépend-il ?",
@@ -2799,6 +2962,7 @@ THEMES_GUIDE = [
     },
     {
         "id": "eau",
+        "couleur": "#5BC8E8",
         "icone": "≈",
         "nom": "Eau",
         "question": "Quelle eau, prélevée où, et qu'est-ce que le WUE ne dit pas ?",
@@ -2816,6 +2980,7 @@ THEMES_GUIDE = [
     },
     {
         "id": "carbone",
+        "couleur": "#8FD48F",
         "icone": "◐",
         "nom": "Carbone et RSE",
         "question": "Quelle empreinte, et lequel des leviers pèse vraiment ?",
@@ -2831,6 +2996,7 @@ THEMES_GUIDE = [
     },
     {
         "id": "securite",
+        "couleur": "#F39F7D",
         "icone": "▲",
         "nom": "Sécurité et incendie",
         "question": "Quels scénarios, quelle extinction, et combien d'eau pour l'éteindre ?",
@@ -2842,6 +3008,7 @@ THEMES_GUIDE = [
     },
     {
         "id": "disponibilite",
+        "couleur": "#C1A8EB",
         "icone": "⏻",
         "nom": "Disponibilité électrique",
         "question": "Quelle redondance, quel raccordement, et quelle densité par baie ?",
@@ -2856,6 +3023,7 @@ THEMES_GUIDE = [
     },
     {
         "id": "cout",
+        "couleur": "#E8C86A",
         "icone": "€",
         "nom": "Coût et enveloppe",
         "question": "Que vaut l'enveloppe, et quelle part n'est pas encore chiffrée ?",
@@ -3118,8 +3286,13 @@ def guide(role_id, theme_id, profil=None, code_phase=None):
         })
 
     return {
-        "role": {k: r[k] for k in ("id", "icone", "nom", "question", "cherche", "fin")},
-        "theme": {k: t[k] for k in ("id", "icone", "nom", "question", "piege")},
+        "role": {k: r[k] for k in ("id", "couleur", "icone", "nom", "question",
+                                   "cherche", "fin")},
+        "theme": {k: t[k] for k in ("id", "couleur", "icone", "nom", "question",
+                                    "piege")},
+        # Le conseil de la phase de travail, remonté au parcours : c'est
+        # l'accompagnement demandé — un mot au moment où l'on y est.
+        "conseil": CONSEILS_PHASE.get(ph),
         "filiere": fil, "filiere_nom": FILIERES[fil]["nom"],
         "phase": ph, "phase_nom": connues[ph]["nom"],
         "etapes": etapes,
@@ -3163,10 +3336,16 @@ def referentiel():
         # Le parcours guidé : les rôles et les thèmes sont servis, la page ne
         # les réécrit pas. Le CROISEMENT, lui, se demande — il se calcule sur
         # le profil et la phase courants et n'aurait aucun sens figé ici.
-        "guide_roles": [{k: r[k] for k in ("id", "icone", "nom", "question", "cherche")}
+        "guide_roles": [{k: r[k] for k in ("id", "couleur", "icone", "nom",
+                                           "question", "cherche")}
                         for r in ROLES_GUIDE],
-        "guide_themes": [{k: t[k] for k in ("id", "icone", "nom", "question")}
+        "guide_themes": [{k: t[k] for k in ("id", "couleur", "icone", "nom",
+                                            "question")}
                          for t in THEMES_GUIDE],
+        # Le conseil de phase, servi avec le cadre : la frise l'affiche au
+        # survol. Écrit au référentiel et non dans la page — un conseil recopié
+        # dans le HTML cesse de suivre la phase qu'il commente.
+        "conseils_phase": CONSEILS_PHASE,
         "formes_attendues": FORME_ATTENDUE,
         "pieces": {p["code"]: pieces(p["code"]) for p in PHASES},
         "note_registre": NOTE_REGISTRE,
@@ -3283,6 +3462,24 @@ def sante():
     guide_postes_inconnus = sorted(
         "%s:%s" % (t_["id"], c) for t_ in THEMES_GUIDE
         for c in t_["postes"] if c not in POSTES)
+    # Le conseil de phase et la couleur d'identité : deux ajouts qui se
+    # dégradent en silence. Une phase sans conseil rend une infobulle plus
+    # pauvre que les autres sans que rien ne le signale ; deux rôles de même
+    # couleur ne s'identifient plus, et c'est toute la raison d'être de la
+    # couleur.
+    phases_sans_conseil = sorted(p_["code"] for p_ in PHASES
+                                 if p_["code"] not in CONSEILS_PHASE)
+    conseils_orphelins = sorted(c for c in CONSEILS_PHASE
+                                if c not in {p_["code"] for p_ in PHASES})
+    conseils_creux = sorted(
+        c for c, v in CONSEILS_PHASE.items()
+        if len((v.get("texte") or "")) < 120 or not (v.get("titre") or "").strip())
+    _coul = [r_["id"] for r_ in ROLES_GUIDE if not r_.get("couleur")] + \
+            [t_["id"] for t_ in THEMES_GUIDE if not t_.get("couleur")]
+    _vues = {}
+    for x_ in list(ROLES_GUIDE) + list(THEMES_GUIDE):
+        _vues.setdefault(x_.get("couleur"), []).append(x_["id"])
+    couleurs_partagees = sorted(", ".join(v) for v in _vues.values() if len(v) > 1)
 
     p = {"puissance_it_kw": 2000}
     return {
@@ -3313,6 +3510,11 @@ def sante():
         "guide_themes_vides": guide_themes_vides,
         "guide_roles_incomplets": guide_roles_incomplets,
         "guide_postes_inconnus": guide_postes_inconnus,
+        "phases_sans_conseil": phases_sans_conseil,
+        "conseils_sur_phase_inexistante": conseils_orphelins,
+        "conseils_trop_courts": conseils_creux,
+        "guide_sans_couleur": sorted(_coul),
+        "guide_couleurs_partagees": couleurs_partagees,
         "specifications_sans_vocabulaire": specs_sans_vocabulaire,
         "vocabulaires_de_recherche_creux": vocabulaires_creux,
         "disciplines_sans_vocabulaire_de_repli": disciplines_sans_repli,
