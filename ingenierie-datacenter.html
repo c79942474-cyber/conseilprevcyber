@@ -380,6 +380,28 @@
     max-width:70ch}
   .ig-bloc.calc > .rc-card{border-left:3px solid var(--cyan)}
   .ig-bloc.redac > .rc-card{border-left:3px solid rgba(45,212,191,.45)}
+  /* Le troisième bloc : ni calcul de bilan, ni simple rédaction. Sa propre
+     teinte, parce qu'un bloc qui reprendrait l'une des deux étiquettes
+     mentirait sur ce qu'il fait. */
+  .ig-bloc.dispo .ig-bloc-t .p{color:#C1A8EB;border:1px solid #C1A8EB}
+  .ig-bloc.dispo > .rc-card{border-left:3px solid #C1A8EB}
+  /* Le résultat du compte d'unités. Chiffre gros, parce que c'est LE nombre
+     qu'on vient chercher, et la marge à côté parce qu'elle est le prix. */
+  .ig-dr{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+    gap:11px;margin-top:14px}
+  .ig-dr .b{border:1px solid var(--line);border-left:3px solid #C1A8EB;
+    border-radius:10px;padding:11px 13px;background:rgba(0,0,0,.14)}
+  .ig-dr .n{font-size:11.5px;color:var(--muted);line-height:1.4;margin-bottom:6px}
+  .ig-dr .q{font-size:22px;font-weight:700;color:var(--ink);line-height:1.1}
+  .ig-dr .u{font-family:var(--mono);font-size:11.5px;font-weight:400;color:var(--muted2)}
+  .ig-dr .i{font-family:var(--mono);font-size:10.5px;color:var(--muted2);margin-top:5px}
+  .ig-dx{margin-top:12px;border:1px solid var(--line);border-left:3px solid #E8B44A;
+    border-radius:0 10px 10px 0;padding:11px 14px;background:rgba(0,0,0,.16);
+    font-size:12px;color:var(--muted);line-height:1.65}
+  .ig-dx b{color:var(--ink);display:block;margin-bottom:5px}
+  .ig-dx ul{margin:0;padding-left:17px}
+  .ig-dx li{margin-bottom:5px}
+  .ig-dsrc{margin:10px 0 0;font-size:11px;color:var(--muted2);line-height:1.6}
 
   /* Le dépôt de documents. L'état de l'analyse est affiché AVANT le
      formulaire : ce n'est pas une mention légale, c'est ce que le lecteur doit
@@ -659,6 +681,25 @@
       </div>
       <p class="note" id="ig-ident-n" style="margin:11px 0 0"></p>
     </div>
+    </div>
+
+    <!-- Le niveau de disponibilité. Troisième bloc, et troisième étiquette :
+         il n'entre pas dans les bilans énergie / eau / carbone, mais il n'est
+         pas non plus de la simple rédaction — il COMMANDE le nombre de groupes
+         froid, de chaînes onduleur et de départs, donc la moitié du coût des
+         lots techniques. Le moteur d'enveloppe de conseilprev le désigne comme
+         le premier multiplicateur de prix et laisse la question ouverte ; elle
+         se répond ici. -->
+    <div class="ig-bloc dispo">
+      <div class="ig-bloc-t"><span class="p">Commande la redondance</span>
+        <b>Niveau de disponibilité visé</b>
+        <span class="s">Ce choix ne change aucun bilan énergie, eau ou carbone.
+          Il décide du nombre d'unités réellement installées, et il est repris
+          dans toutes les pièces rédigées plus bas.</span></div>
+      <div class="rc-card">
+        <div class="dc-grille" id="ig-dispo"></div>
+        <div id="ig-dispo-r"></div>
+      </div>
     </div>
     <p class="note" id="ig-etat" role="status" aria-live="polite" style="margin-top:12px"></p>
   </section>

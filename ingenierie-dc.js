@@ -660,6 +660,12 @@
        autorisation. */
     p.projet_id = PROJET ? PROJET.id : "";
     p.filiere = FILIERE;
+    /* Le niveau de disponibilité visé part avec TOUTES les pièces, pas
+       seulement avec le dossier de disponibilité : une spécification CVC
+       rédigée sans savoir qu'on vise deux chaînes complètes décrit une
+       installation qui n'existera pas. */
+    var dsp = lireDisponibilite();
+    Object.keys(dsp).forEach(function (k) { if (dsp[k]) p[k] = dsp[k]; });
     /* Les clés d'identification, pas des libellés : c'est le serveur qui sait
        ce que chacune implique, et lui envoyer le texte affiché l'obligerait à
        le réinterpréter. */
@@ -1296,6 +1302,146 @@
   }
 
   /* ═════════════════════════════════════════════════════════════════════
+     LE NIVEAU DE DISPONIBILITÉ, ET LE NOMBRE D'UNITÉS QU'IL INSTALLE
+
+     Ce bloc ne calcule rien lui-même — le compte vient du serveur, comme tout
+     le reste de la page. Ce qu'il fait, c'est RENDRE VISIBLE une conséquence
+     qu'on découvre d'habitude au chiffrage : pour six groupes froid
+     nécessaires, viser un niveau tolérant à la panne en installe douze, ou
+     quatorze en 2(N+1). C'est le genre de compte qu'on croit évident et qu'on
+     rate en réunion.
+
+     Le bloc affiche aussi, systématiquement, ce que le niveau NE garantit
+     PAS. C'est la partie qui se perd, et c'est celle qui coûte cher : un
+     dossier annoncé tolérant à la panne dont les deux arrivées partent du même
+     poste source n'est pas tolérant à la panne. */
+  var DISPO = null;
+
+  function bâtirDisponibilite() {
+    var z = $("#ig-dispo");
+    if (!z || !CADRE || !CADRE.disponibilite) return;
+    var d = CADRE.disponibilite;
+    var h = '<label class="dc-champ" for="ig-tier">'
+      + '<span class="dc-lab">Niveau de disponibilité visé</span>'
+      + '<select id="ig-tier"><option value="">— non arrêté —</option>';
+    (d.niveaux_ordre || []).forEach(function (k) {
+      h += '<option value="' + esc(k) + '">' + esc(d.niveaux[k].nom) + "</option>";
+    });
+    h += '</select><span class="dc-aide">Le niveau qualifie une TOPOLOGIE. '
+      + "Ce cadre dit ce qu'il exige et compte ce qu'il installe&nbsp;; il ne "
+      + "décerne aucune certification.</span></label>";
+    h += '<label class="dc-champ" for="ig-schema">'
+      + '<span class="dc-lab">Schéma de redondance</span>'
+      + '<select id="ig-schema"><option value="">— déduit du niveau —</option>';
+    (d.schemas_ordre || []).forEach(function (k) {
+      h += '<option value="' + esc(k) + '">' + esc(d.schemas[k].nom) + "</option>";
+    });
+    h += '</select><span class="dc-aide">Laissez « déduit » pour prendre le '
+      + "schéma que le niveau appelle, ou imposez le vôtre.</span></label>";
+    h += '<label class="dc-champ" for="ig-nunites">'
+      + '<span class="dc-lab">Unités nécessaires par chaîne '
+      + '<span class="dc-unite">(hors réserve)</span></span>'
+      + '<input id="ig-nunites" type="text" inputmode="numeric" placeholder="ex. 6">'
+      + '<span class="dc-aide">Le nombre de groupes froid, de chaînes onduleur '
+      + "ou de groupes électrogènes que la charge exige, réserve exclue.</span></label>";
+    z.innerHTML = h;
+    ["#ig-tier", "#ig-schema", "#ig-nunites"].forEach(function (s) {
+      var e = $(s);
+      if (e) e.addEventListener(s === "#ig-nunites" ? "input" : "change", dispoDemander);
+    });
+  }
+
+  var dispoMinuteur = null;
+  function dispoDemander() {
+    clearTimeout(dispoMinuteur);
+    dispoMinuteur = setTimeout(function () {
+      var tier = (($("#ig-tier") || {}).value || "");
+      var sch = (($("#ig-schema") || {}).value || "");
+      var n = (($("#ig-nunites") || {}).value || "").replace(",", ".");
+      if (!tier && !sch) { DISPO = null; rendreDisponibilite(null); return; }
+      fetch("/api/datacenter/ingenierie/disponibilite", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tier: tier, schema: sch, n_unites: n }),
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (!j.ok) return;
+          DISPO = j.disponibilite;
+          rendreDisponibilite(DISPO);
+        })
+        .catch(function () { /* le reste de la page continue de fonctionner */ });
+    }, 320);
+  }
+
+  function rendreDisponibilite(d) {
+    var z = $("#ig-dispo-r");
+    if (!z) return;
+    if (!d) { z.innerHTML = ""; return; }
+    var h = "";
+    if (d.tier) {
+      h += '<p class="ig-dsrc"><b'
+        + info("tier:" + d.tier.code) + ">" + esc(d.tier.nom)
+        + "</b> — survolez pour ce que le niveau exige, phase par phase.</p>"
+        + '<div class="ig-dr">'
+        + bloc("Chemins de distribution", d.tier.chemins)
+        + bloc("Entretien", d.tier.maintenance)
+        + bloc("Comportement au défaut", d.tier.defaut)
+        + "</div>"
+        + '<p class="ig-dsrc"><b>Ce que le niveau exige — </b>'
+        + esc(d.tier.consequence) + "</p>";
+    }
+    var r = d.redondance;
+    if (r) {
+      /* Le compte, en gros. C'est le chiffre qu'on vient chercher, et celui
+         qui surprend : la marge est le PRIX du niveau, pas un excédent. */
+      h += '<div class="ig-dr">'
+        + '<div class="b"><div class="n">Unités installées'
+        + (r.origine_schema === "deduit_du_niveau"
+            ? " — schéma déduit du niveau" : "") + '</div>'
+        + '<div class="q">' + r.installees
+        + ' <span class="u">unités</span></div>'
+        + '<div class="i">' + r.chaines + " chaîne" + (r.chaines > 1 ? "s" : "")
+        + " de " + r.par_chaine + " · besoin " + r.besoin + " · calculé</div></div>"
+        + '<div class="b"><div class="n">Marge de capacité installée</div>'
+        + '<div class="q">' + (r.marge_pct > 0 ? "+" : "") + fr(r.marge_pct)
+        + ' <span class="u">%</span></div>'
+        + '<div class="i"' + info("redondance:" + r.schema) + ">"
+        + esc(r.nom) + "</div></div>"
+        + '<div class="b"><div class="n">Pertes absorbées sans coupure</div>'
+        + '<div class="q">' + r.perte_admissible
+        + ' <span class="u">unité' + (r.perte_admissible > 1 ? "s" : "")
+        + '</span></div>'
+        + '<div class="i">à la température de dimensionnement</div></div>'
+        + "</div>"
+        + '<p class="ig-dsrc">' + esc(r.note) + "</p>";
+    }
+    /* Toujours affiché, même quand tout va bien : ces quatre points sont ce
+       qu'un niveau ne couvre pas, et les taire ferait passer une topologie
+       pour une garantie de service. */
+    h += '<div class="ig-dx"><b>Ce que ce niveau ne garantit pas</b><ul>'
+      + (d.ne_garantit_pas || []).map(function (x) {
+          return "<li>" + esc(x) + "</li>";
+        }).join("") + "</ul></div>"
+      + '<p class="ig-dsrc">' + esc(d.tier_source) + "</p>";
+    z.innerHTML = h;
+
+    function bloc(t, v) {
+      return '<div class="b"><div class="n">' + esc(t) + "</div>"
+        + '<div class="i" style="font-family:inherit;font-size:12px;color:var(--muted)">'
+        + esc(v) + "</div></div>";
+    }
+  }
+
+  function lireDisponibilite() {
+    return {
+      tier: (($("#ig-tier") || {}).value || ""),
+      schema_redondance: (($("#ig-schema") || {}).value || ""),
+      n_unites: (($("#ig-nunites") || {}).value || "").replace(",", "."),
+    };
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
      LE PROJET ET SON HISTORIQUE
 
      Ce qui manquait n'était pas le stockage — les livrables étaient déjà
@@ -1669,6 +1815,7 @@
         tipBrancher();
         bâtirFormulaire();
         bâtirIdentification();
+        bâtirDisponibilite();
         bâtirOnglets();
         rendreCorrespondances();
         brancherGuide();

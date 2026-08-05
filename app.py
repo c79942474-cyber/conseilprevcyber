@@ -1970,6 +1970,31 @@ def api_datacenter_ingenierie():
     return jsonify(ok=True, referentiel=ingenierie_dc.referentiel())
 
 
+@app.route("/api/datacenter/ingenierie/disponibilite", methods=["POST"])
+@login_required
+def api_datacenter_disponibilite():
+    """Ce qu'un niveau de disponibilité EXIGE, et ce que la redondance INSTALLE.
+
+    Les deux sont rendus séparément, et c'est tout l'objet de la route : le
+    référentiel externe dit ce qu'il faut atteindre, l'arithmétique dit combien
+    d'unités cela représente. Les confondre fait annoncer « Tier IV » sur un
+    dossier qui a compté N+1 groupes froid — l'erreur se voit au chiffrage, six
+    mois plus tard.
+
+    Aucun niveau n'est décerné ici : une certification se constate sur dossier
+    complet par l'organisme, jamais par un formulaire.
+    """
+    data = request.get_json(silent=True) or {}
+    try:
+        d = ingenierie_dc.disponibilite(data.get("tier"),
+                                        data.get("n_unites"),
+                                        data.get("schema"))
+    except Exception:
+        app.logger.exception("disponibilité datacenter")
+        return jsonify(ok=False, error="calcul"), 500
+    return jsonify(ok=True, disponibilite=d)
+
+
 @app.route("/api/datacenter/ingenierie/parcours", methods=["POST"])
 @login_required
 def api_datacenter_ingenierie_parcours():

@@ -1373,12 +1373,245 @@ DISCIPLINES = {
                 "consolide ce que les autres produisent et répond des chiffres "
                 "déclarés à l'extérieur.",
     },
+    # ── Deux disciplines qui manquaient au registre ────────────────────────
+    # Elles étaient traitées en passant — la supervision au titre du câblage
+    # courants faibles, les réseaux de fluides au titre du froid. Aucune des
+    # deux n'y tient : la première produit les MESURES sur lesquelles reposent
+    # les indicateurs contractuels, la seconde porte des ouvrages enterrés
+    # qu'on ne reprend pas après coulage.
+    "supervision": {
+        "nom": "Supervision technique, GTB/GTC et DCIM",
+        "aide": "Gestion technique du bâtiment, supervision des installations, "
+                "DCIM, comptage et sous-comptage, métrologie, alarmes et "
+                "conduite.\nC'est elle qui FABRIQUE LA PREUVE : un PUE ou un "
+                "WUE engagé au marché n'est démontrable que par les compteurs "
+                "posés, leur classe de précision et leur emplacement. Une "
+                "performance contractuelle sans plan de comptage est une "
+                "clause invérifiable — donc inopposable.",
+    },
+    "fluides": {
+        "nom": "Réseaux techniques et fluides",
+        "aide": "Eau glacée, eau d'appoint et de purge, eau d'extinction, eau "
+                "potable, eaux usées et pluviales, air comprimé, fioul, "
+                "fourreaux et cheminements enterrés.\nElle porte les ouvrages "
+                "qu'on ne reprend pas : un réseau enterré mal calé, une vanne "
+                "d'isolement manquante ou un maillage absent transforment une "
+                "redondance de production en point unique de défaillance, en "
+                "aval de tout ce que les autres disciplines ont doublé.",
+    },
 }
 
 
 def _nom_discipline(cle):
     d = DISCIPLINES.get(cle)
     return (d or {}).get("nom", cle) if isinstance(d, dict) else (d or cle)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE NIVEAU DE DISPONIBILITÉ, ET CE QU'IL COÛTE EN MATÉRIEL
+# ═══════════════════════════════════════════════════════════════════════════
+# POURQUOI ICI. Le moteur d'enveloppe de conseilprev (finance_dc) désigne la
+# redondance comme le PREMIER multiplicateur de coût des lots électricité et
+# froid — « passer de N+1 à 2N double des chaînes entières » — et laisse la
+# question ouverte, à juste titre : il chiffre, il ne conçoit pas. C'est ici
+# qu'elle se répond, parce que c'est une décision d'ingénierie.
+#
+# TROIS VOCABULAIRES QUE L'USAGE CONFOND, et qui ne disent pas la même chose :
+#
+#   · Le Tier de l'Uptime Institute qualifie une TOPOLOGIE d'installation. Il
+#     ne certifie ni l'exploitation ni le résultat : un Tier IV mal exploité
+#     tombe, et l'organisme distingue lui-même la certification de la
+#     conception de celle de l'installation construite.
+#
+#   · La classe de disponibilité de l'EN 50600-1 est une norme européenne,
+#     d'esprit voisin mais d'échelle propre. Les deux ne se traduisent pas
+#     l'une dans l'autre — écrire « Tier III = classe 3 » est une facilité de
+#     rédaction qui ne résiste pas à une revue.
+#
+#   · N, N+1, 2N décrivent un SCHÉMA DE REDONDANCE d'équipements. C'est une
+#     définition arithmétique, pas un référentiel : elle se calcule.
+#
+# Ce que le module fait : il CALCULE le nombre d'unités installées et la marge
+# qui en résulte. Ce qu'il ne fait pas : décerner un Tier. Un niveau se
+# constate sur un dossier complet, par un tiers, jamais par un formulaire.
+
+NIVEAUX_TIER = {
+    "I": {
+        "nom": "Tier I — capacité de base",
+        "nature": "referentiel_externe",
+        "chemins": "Un seul chemin de distribution, sans redondance.",
+        "maintenance": "Toute intervention sur le chemin arrête l'informatique.",
+        "defaut": "Toute panne d'un composant du chemin arrête l'informatique.",
+        "consequence": "Aucune redondance exigée sur les chaînes de puissance "
+                       "et de froid.",
+        "schema_type": "N",
+    },
+    "II": {
+        "nom": "Tier II — composants de capacité redondants",
+        "nature": "referentiel_externe",
+        "chemins": "Un seul chemin de distribution, composants redondants.",
+        "maintenance": "L'arrêt du chemin reste nécessaire pour l'entretenir.",
+        "defaut": "La panne d'un composant redondé est absorbée ; celle du "
+                  "chemin ne l'est pas.",
+        "consequence": "Redondance N+1 sur les composants, chemin unique.",
+        "schema_type": "N+1",
+    },
+    "III": {
+        "nom": "Tier III — maintenable sans interruption",
+        "nature": "referentiel_externe",
+        "chemins": "Plusieurs chemins de distribution, un seul actif.",
+        "maintenance": "Tout composant et tout chemin s'entretient sans arrêter "
+                       "l'informatique — c'est la définition même du niveau.",
+        "defaut": "Un défaut non planifié peut encore provoquer une "
+                  "interruption : maintenable n'est pas tolérant à la panne.",
+        "consequence": "Redondance N+1 au minimum ET double chemin dont un "
+                       "actif. Les deux, pas l'un des deux.",
+        "schema_type": "N+1",
+    },
+    "IV": {
+        "nom": "Tier IV — tolérant à la panne",
+        "nature": "referentiel_externe",
+        "chemins": "Plusieurs chemins de distribution actifs simultanément.",
+        "maintenance": "Entretien sans interruption, comme le Tier III.",
+        "defaut": "Un défaut unique, quel qu'il soit, est absorbé sans "
+                  "interruption ; le compartimentage isole les chaînes.",
+        "consequence": "Redondance 2N ou 2(N+1) et séparation physique des "
+                       "chaînes — deux locaux, deux cheminements, deux sources.",
+        "schema_type": "2N",
+    },
+}
+# Le sous-titre du référentiel est nommé entre guillemets plutôt que
+# introduit par deux-points : la ponctuation anglaise du titre original
+# jurerait dans une phrase française, et le citer ainsi évite d'avoir à
+# choisir entre une faute de typographie et une citation altérée.
+TIER_SOURCE = ("Uptime Institute, référentiel Tier Standard « Topology » — les quatre niveaux "
+               "qualifient la TOPOLOGIE de l'installation. Le niveau réel se "
+               "constate sur dossier par l'organisme, jamais par un calcul : ce "
+               "module dit ce qu'un niveau EXIGE, il ne le décerne pas.")
+
+CLASSES_EN50600 = {
+    "1": {"nom": "Classe 1 — sans redondance",
+          "aide": "Aucune exigence de continuité ; l'interruption est admise."},
+    "2": {"nom": "Classe 2 — redondance simple",
+          "aide": "Composants redondants, chemin de distribution unique."},
+    "3": {"nom": "Classe 3 — maintenable sans interruption",
+          "aide": "L'entretien programmé ne coupe pas le service."},
+    "4": {"nom": "Classe 4 — tolérant aux défauts",
+          "aide": "Un défaut unique ne coupe pas le service."},
+}
+EN50600_SOURCE = ("EN 50600-1, classes de disponibilité 1 à 4. Norme européenne "
+                  "d'esprit voisin du Tier, d'échelle PROPRE : les deux ne se "
+                  "traduisent pas l'une dans l'autre, et « Tier III = classe 3 » "
+                  "est une facilité qui ne résiste pas à une revue.")
+
+# Le schéma de redondance : une DÉFINITION arithmétique, donc calculable.
+# `sup` est le nombre d'unités ajoutées au besoin, `chaines` le nombre de
+# chaînes complètes installées.
+REDONDANCES = {
+    "N": {"nom": "N — sans réserve", "sup": 0, "chaines": 1, "rang": 1,
+          "aide": "Le strict besoin. La perte d'une unité réduit la capacité."},
+    "N+1": {"nom": "N+1 — une unité de réserve", "sup": 1, "chaines": 1, "rang": 2,
+            "aide": "Une unité de secours pour l'ensemble. Absorbe une panne "
+                    "OU un entretien, pas les deux à la fois."},
+    "N+2": {"nom": "N+2 — deux unités de réserve", "sup": 2, "chaines": 1, "rang": 3,
+            "aide": "Absorbe un entretien programmé ET une panne simultanée."},
+    "2N": {"nom": "2N — deux chaînes complètes", "sup": 0, "chaines": 2, "rang": 4,
+           "aide": "Deux ensembles indépendants dimensionnés chacun pour la "
+                   "totalité du besoin."},
+    "2(N+1)": {"nom": "2(N+1) — deux chaînes, chacune avec réserve",
+               "sup": 1, "chaines": 2, "rang": 5,
+               "aide": "Deux chaînes complètes portant chacune une unité de "
+                       "réserve. Le niveau le plus élevé couramment posé."},
+}
+
+
+def redondance(schema, n_besoin):
+    """Combien d'unités installer, et quelle marge en résulte.
+
+    Une arithmétique délibérément explicite : c'est le genre de compte qu'on
+    croit évident et qu'on rate en réunion. Pour six groupes froid nécessaires,
+    2(N+1) en installe QUATORZE — deux chaînes de sept — ni douze, ni sept. Le
+    surdimensionnement qui en découle n'est pas un défaut, c'est le prix du
+    niveau ; l'afficher évite qu'il soit découvert au chiffrage.
+
+    `n_besoin` est le nombre d'unités que la charge exige, réserve exclue.
+    """
+    r = REDONDANCES.get(schema)
+    try:
+        n = int(n_besoin)
+    except (TypeError, ValueError):
+        n = 0
+    if not r or n < 1:
+        return None
+    par_chaine = n + r["sup"]
+    installees = par_chaine * r["chaines"]
+    return {
+        "schema": schema, "nom": r["nom"], "aide": r["aide"],
+        "besoin": n,
+        "par_chaine": par_chaine,
+        "chaines": r["chaines"],
+        "installees": installees,
+        # La marge est la capacité installée rapportée au besoin, moins un.
+        # Exprimée en pourcentage, elle se compare d'un schéma à l'autre.
+        "marge_pct": round((installees / float(n) - 1.0) * 100.0, 1),
+        "nature": "calcule",
+        # Combien d'unités peuvent tomber sans perdre la charge.
+        "perte_admissible": (r["sup"] + par_chaine) if r["chaines"] > 1 else r["sup"],
+        "note": ("Le compte porte sur les UNITÉS, pas sur la puissance : deux "
+                 "groupes de 1 MW ne remplacent pas un groupe de 2 MW dès que "
+                 "la charge minimale de fonctionnement entre en jeu."),
+    }
+
+
+def disponibilite(tier=None, n_besoin=None, schema=None):
+    """Le dossier de disponibilité : ce qu'un niveau exige, et ce qu'il installe.
+
+    Rend TROIS choses distinctes, et les tient séparées à dessein — les
+    confondre est l'erreur la plus fréquente sur ce sujet : ce que le
+    référentiel externe EXIGE (nature `referentiel_externe`), ce que
+    l'arithmétique de redondance INSTALLE (nature `calcule`), et ce que ni
+    l'un ni l'autre ne garantit.
+    """
+    code = str(tier or "").upper().strip()
+    t = NIVEAUX_TIER.get(code)
+    # Sans schéma explicite, on prend celui que le niveau appelle — en le
+    # DISANT, pour qu'il ne passe pas pour un choix du projet.
+    sch, origine = schema, "saisi"
+    if not sch and t:
+        sch, origine = t["schema_type"], "deduit_du_niveau"
+    calc = redondance(sch, n_besoin) if sch else None
+    if calc:
+        calc["origine_schema"] = origine
+    return {
+        "tier": dict(t, code=code) if t else None,
+        "tier_source": TIER_SOURCE,
+        "en50600_source": EN50600_SOURCE,
+        "classes_en50600": CLASSES_EN50600,
+        "schemas": REDONDANCES,
+        "schemas_ordre": sorted(REDONDANCES, key=lambda k: REDONDANCES[k]["rang"]),
+        "niveaux": NIVEAUX_TIER,
+        "niveaux_ordre": ["I", "II", "III", "IV"],
+        "redondance": calc,
+        # Ce que le niveau NE dit pas. Écrit ici plutôt qu'en note de bas de
+        # page : c'est la partie qui se perd en réunion, et c'est celle qui
+        # coûte cher.
+        "ne_garantit_pas": [
+            "L'EXPLOITATION. Un niveau qualifie une topologie, pas des "
+            "consignes, ni des astreintes, ni des essais périodiques. Une "
+            "installation tolérante à la panne exploitée sans procédure de "
+            "bascule tombe comme une autre.",
+            "LE RACCORDEMENT. Deux arrivées issues du même poste source ne "
+            "font pas deux sources. La question se pose au gestionnaire de "
+            "réseau, et sa réponse est écrite, pas supposée.",
+            "LES SERVITUDES COMMUNES. Un chemin de câbles unique, un local "
+            "unique, une vanne d'isolement unique annulent la redondance en "
+            "amont d'eux — c'est le point unique de défaillance que l'analyse "
+            "de risques a pour objet de trouver.",
+            "LA CAPACITÉ EN DÉFAUT. La chaîne restante doit tenir la charge à "
+            "la température extérieure de dimensionnement, pas à la moyenne "
+            "annuelle.",
+        ],
+    }
 
 
 # ── Ce qu'on demande À LA BASE DE CONNAISSANCE ─────────────────────────────
@@ -1458,6 +1691,53 @@ _RECHERCHE_PIECE = {
     "SPC-FORFAIT": "enveloppe d'investissement CAPEX OPEX décomposition par lot DPGF "
                    "ratio euro par mégawatt coût complet TCO analyse de sensibilité "
                    "aléas provision pour risque raccordement foncier",
+    # ── Les quatorze spécifications ajoutées ──────────────────────────────
+    # Même règle que ci-dessus : des termes RARES, ceux du sujet, jamais ceux
+    # du titre du document à écrire.
+    "SPC-TIER": "niveau de disponibilité Tier Uptime Institute EN 50600 classe "
+                "redondance N+1 2N tolérance à la panne maintenabilité concurrente "
+                "double chemin de distribution topologie",
+    "SPC-HTA": "poste de livraison haute tension HTA cellule disjoncteur "
+               "transformateur régime de neutre sélectivité courant de court-circuit "
+               "boucle ouverte comptage tarifaire raccordement",
+    "SPC-SECOURS": "onduleur UPS batterie autonomie groupe électrogène cuve fioul "
+                   "démarrage black start banc de charge inverseur de source "
+                   "essai en charge rétention",
+    "SPC-SUPERV": "gestion technique du bâtiment GTB GTC DCIM supervision compteur "
+                  "classe de précision sous-comptage point de mesure alarme "
+                  "protocole BACnet Modbus historisation",
+    "SPC-RESO": "réseau hydraulique vanne d'isolement maillage bouclage canalisation "
+                "enterrée fourreau désenfumage pente regard purgeur expansion "
+                "pression statique",
+    "SPC-HD": "haute densité kilowatt par baie refroidissement liquide direct DLC "
+              "plaque froide immersion porte arrière active CDU distribution "
+              "collecteur GPU accélérateur calcul intensif",
+    "SPC-RISQ": "analyse de risques point unique de défaillance SPOF AMDEC mode de "
+                "défaillance criticité arbre de défaillance scénario de perte "
+                "servitude commune maintenabilité",
+    "SPC-50001": "ISO 50001 revue énergétique usage énergétique significatif "
+                 "situation énergétique de référence indicateur de performance "
+                 "énergétique EnPI périmètre de comptage audit énergétique "
+                 "sobriété plan d'actions",
+    "SPC-TCO": "valeur actuelle nette taux d'actualisation durée d'amortissement "
+               "coût évité surcoût seuil d'inversion scénario comparé "
+               "sensibilité aux hypothèses prix de l'énergie coût de possession",
+    "SPC-AO": "réponse à appel d'offres mémoire technique soutenance critère "
+              "d'attribution pondération variante exigence du cahier des charges "
+              "engagement de performance",
+    "SPC-INVEST": "décision d'engagement rentabilité échéancier de décaissement "
+                  "hypothèse de commercialisation taux de remplissage montée en "
+                  "charge provision pour risque comité d'engagement délai de "
+                  "raccordement",
+    "SPC-STD": "brique type catalogue d'équipements admis variante autorisée "
+               "dérogation paramétrable réplication multi-sites adaptation "
+               "locale industrialisation règle de mise à jour",
+    "SPC-REX": "retour d'expérience incident constat de mise en service écart "
+               "constaté leçon tirée amélioration continue base de connaissance "
+               "capitalisation",
+    "SPC-REVUE": "revue de conception jalon d'approbation registre des observations "
+                 "levée de réserve arbitrage acté relevé de décision participant "
+                 "ordre du jour",
 }
 
 # Filet de sécurité : une spécification ajoutée demain sans vocabulaire propre
@@ -1481,6 +1761,10 @@ _RECHERCHE_DISCIPLINE = {
     "surete": "sûreté contrôle d'accès intrusion vidéoprotection malveillance",
     "itot": "baie densité serveur réseau OT système de contrôle industriel IEC 62443",
     "environnement": "énergie eau carbone PUE WUE empreinte environnementale ICPE",
+    "supervision": "supervision GTB GTC DCIM comptage métrologie alarme conduite "
+                   "point de mesure",
+    "fluides": "réseau hydraulique vanne d'isolement maillage canalisation enterrée "
+               "pompe appoint purge",
 }
 
 
@@ -1691,6 +1975,248 @@ _PIECES_DISCIPLINE = [
       "lot, part de chacun, échéancier et écart entre pays. S'y référer et les "
       "citer avec cette adresse ; ne pas les retaper ici : deux tables qui "
       "divergent valent moins qu'une seule qu'on cite."]),
+
+    # ═══════════════════════════════════════════════════════════════════════
+    #  QUATORZE SPÉCIFICATIONS AJOUTÉES
+    # ═══════════════════════════════════════════════════════════════════════
+    # Le registre couvrait les disciplines de conception, pas les expertises
+    # qui les commandent en amont ni celles qui les valorisent en aval. Il
+    # manquait le niveau de disponibilité — qui décide de la moitié du coût des
+    # lots techniques —, l'amont haute tension, l'énergie de secours, la
+    # supervision qui fabrique la preuve des performances engagées, les réseaux
+    # de fluides, la haute densité, l'analyse des points uniques de
+    # défaillance, le management de l'énergie, l'arbitrage technico-économique,
+    # et tout le versant offre : appel d'offres, dossier d'investissement,
+    # standard réplicable, retour d'expérience, revue de conception.
+
+    # ── Disponibilité : la décision qui commande les autres ───────────────
+    ("SPC-TIER", "Dossier de niveau de disponibilité et de redondance",
+     "projet", "note", "moe", True,
+     {"ESQ": "principes", "APS": "emission", "APD": "maj", "PRO": "gel",
+      "DCE": "gel", "AOR": "as_built",
+      "FAISA": "principes", "BASIC": "emission", "FEED": "gel", "CSU": "as_built"},
+     ["Niveau visé et référentiel invoqué — Tier de l'Uptime Institute OU "
+      "classe EN 50600, en disant lequel : les deux échelles ne se traduisent "
+      "pas l'une dans l'autre",
+      "Schéma de redondance retenu par chaîne — N, N+1, N+2, 2N, 2(N+1) — et "
+      "nombre d'unités RÉELLEMENT installées qui en découle",
+      "Ce que le niveau exige : chemins de distribution, maintenabilité sans "
+      "interruption, tolérance au défaut unique",
+      "Capacité de la chaîne restante à la température extérieure de "
+      "dimensionnement, et non à la moyenne annuelle",
+      "Servitudes communes qui annulent la redondance en amont d'elles — "
+      "local unique, cheminement unique, vanne unique, poste source unique",
+      "Ce que le niveau NE garantit PAS : l'exploitation, les procédures de "
+      "bascule et les essais périodiques, qui relèvent du contrat de service",
+      "IMPORTANT : ce cadre dit ce qu'un niveau EXIGE et calcule ce qu'il "
+      "installe ; il ne décerne aucun niveau. Une certification se constate "
+      "sur dossier complet par l'organisme, jamais par un formulaire."]),
+
+    # ── Électricité : l'amont et le secours, traités à part ───────────────
+    ("SPC-HTA", "Spécification technique — poste de livraison et distribution HTA",
+     "elec_cfo", "contractuel", "moe", True,
+     {"APD": "emission", "PRO": "maj", "DCE": "gel", "EXE-VISA": "maj",
+      "FEED": "emission", "EPCI": "maj"},
+     ["Puissance souscrite, tension de raccordement et régime d'exploitation "
+      "convenus avec le gestionnaire de réseau",
+      "Architecture du poste : nombre d'arrivées, cellules, transformateurs, "
+      "et INDÉPENDANCE RÉELLE des sources — deux arrivées depuis le même "
+      "poste source ne font pas deux sources",
+      "Régime de neutre retenu et sa conséquence sur la continuité de service",
+      "Courants de court-circuit, sélectivité et plan de protection",
+      "Comptage tarifaire, point de livraison et limite de prestation",
+      "Délai de raccordement opposable et jalon projet qu'il commande"]),
+    ("SPC-SECOURS", "Spécification technique — énergie de secours, onduleurs et "
+     "groupes électrogènes", "elec_cfo", "contractuel", "moe", True,
+     {"APD": "emission", "PRO": "maj", "DCE": "gel", "EXE-VISA": "maj",
+      "AOR": "as_built", "FEED": "emission", "EPCI": "maj", "CSU": "as_built"},
+     ["Autonomie exigée des onduleurs et charge de référence qui la définit",
+      "Technologie de stockage, local, ventilation et conséquence safety — "
+      "un local batteries se ventile pour l'hydrogène",
+      "Puissance, nombre et schéma de redondance des groupes électrogènes",
+      "Autonomie en fioul, capacité de la cuve, rétention et rubrique ICPE "
+      "applicable ; contrat de réapprovisionnement et délai garanti",
+      "Séquence de basculement, temps de reprise et comportement en défaut "
+      "de démarrage",
+      "Essais en charge : banc de charge, périodicité, charge d'essai et "
+      "consommation associée — elle pèse au bilan et s'oublie au calcul"]),
+
+    # ── Supervision : la discipline qui fabrique la preuve ────────────────
+    ("SPC-SUPERV", "Spécification technique — supervision, GTB/GTC et DCIM",
+     "supervision", "contractuel", "moe", True,
+     {"APS": "principes", "APD": "emission", "PRO": "maj", "DCE": "gel",
+      "EXE-VISA": "maj", "AOR": "as_built",
+      "BASIC": "principes", "FEED": "emission", "EPCI": "maj", "CSU": "as_built"},
+     ["Architecture de supervision, protocoles et interfaces entre lots",
+      "PLAN DE COMPTAGE : quel compteur, à quel point exact, de quelle classe "
+      "de précision, pour quel indicateur — une performance engagée sans plan "
+      "de comptage est une clause invérifiable, donc inopposable",
+      "Périmètre de mesure du PUE et du WUE, et conformité au protocole retenu",
+      "Historisation, pas de temps, durée de conservation et export des données",
+      "Alarmes : hiérarchie, seuils, conduite à tenir et anti-avalanche",
+      "Cybersécurité de la chaîne de supervision et segmentation vis-à-vis "
+      "de l'informatique de production"]),
+
+    # ── Fluides : les ouvrages qu'on ne reprend pas ───────────────────────
+    ("SPC-RESO", "Spécification technique — réseaux techniques et fluides",
+     "fluides", "contractuel", "moe", True,
+     {"APD": "emission", "PRO": "maj", "DCE": "gel", "EXE-VISA": "maj",
+      "FEED": "emission", "EPCI": "maj"},
+     ["Inventaire des réseaux : eau glacée, appoint, purge, eau d'extinction, "
+      "eau potable, eaux usées et pluviales, air comprimé, fioul",
+      "Bouclage et maillage : où le réseau est en antenne, et ce qu'une "
+      "antenne coûte à la redondance de production placée en amont",
+      "Vannes d'isolement et sectionnement — leur absence transforme un "
+      "entretien en interruption générale",
+      "Traitement d'eau, filtration, appoint, purge et rejets",
+      "Cheminements enterrés, fourreaux, regards et pentes : ouvrages non "
+      "reprenables après coulage",
+      "Calorifuge, expansion, pression statique et points hauts"]),
+
+    # ── Haute densité, refroidissement liquide, charges IA ────────────────
+    ("SPC-HD", "Étude de haute densité, refroidissement liquide et charges IA/HPC",
+     "hvac", "note", "moe", True,
+     {"ESQ": "principes", "APS": "emission", "APD": "maj", "PRO": "gel",
+      "FAISA": "principes", "BASIC": "emission", "FEED": "maj"},
+     ["Densité par baie visée, aujourd'hui et à l'horizon du projet, et part "
+      "de la charge concernée",
+      "Famille de refroidissement retenue par zone : air, porte arrière "
+      "active, refroidissement liquide direct, immersion — et pourquoi le "
+      "mélange plutôt que l'uniformité",
+      "Boucle liquide : régimes de température, débits, CDU, collecteurs, "
+      "qualité d'eau et compatibilité des matériaux",
+      "Conséquence sur le PUE, sur la chaleur fatale récupérable et sur sa "
+      "température — une boucle liquide en relève la valeur d'usage",
+      "Charge au sol, encombrement et réservations propres aux baies denses",
+      "Réversibilité : ce qui reste possible si la densité réelle s'écarte de "
+      "l'hypothèse, dans un sens comme dans l'autre"]),
+
+    # ── Risques de disponibilité, distincts du safety ─────────────────────
+    ("SPC-RISQ", "Analyse des risques de disponibilité et des points uniques de "
+     "défaillance", "projet", "note", "moe", True,
+     {"APS": "principes", "APD": "emission", "PRO": "maj", "DCE": "gel",
+      "AOR": "as_built", "BASIC": "principes", "FEED": "emission",
+      "EPCI": "maj", "CSU": "as_built"},
+     ["Périmètre : la DISPONIBILITÉ du service, distincte du safety qui traite "
+      "des personnes et des procédés — les deux analyses ne se remplacent pas",
+      "Recensement systématique des points uniques de défaillance, y compris "
+      "les servitudes communes en aval des chaînes redondées",
+      "Modes de défaillance, effets et criticité, avec la cotation retenue et "
+      "son échelle",
+      "Scénarios de perte : source, froid, réseau, eau, accès — et le "
+      "comportement attendu de l'installation dans chacun",
+      "Mesures de réduction retenues, écartées, et le motif de l'écart",
+      "Risques résiduels assumés, et par qui ils le sont"]),
+
+    # ── Management de l'énergie ───────────────────────────────────────────
+    ("SPC-50001", "Système de management de l'énergie — cadrage ISO 50001",
+     "environnement", "note", "moe", True,
+     {"APD": "principes", "PRO": "emission", "AOR": "maj",
+      "FEED": "principes", "EPCI": "emission", "CSU": "maj"},
+     ["Périmètre et domaine d'application du système de management",
+      "Revue énergétique : usages énergétiques significatifs et facteurs qui "
+      "les influencent",
+      "Situation énergétique de référence, et la période sur laquelle elle est "
+      "établie",
+      "Indicateurs de performance énergétique retenus, leur méthode de calcul "
+      "et les compteurs qui les alimentent — renvoi au plan de comptage",
+      "Objectifs, cibles et plan d'actions, avec le gain attendu par action",
+      "Ce que la conception doit PRÉVOIR pour que le système soit tenable en "
+      "exploitation : comptage, points de mesure, accès aux données",
+      "IMPORTANT : ce document cadre la démarche. Il ne vaut pas certification, "
+      "qui suppose un audit par un organisme accrédité."]),
+
+    # ── Arbitrage technico-économique ─────────────────────────────────────
+    ("SPC-TCO", "Arbitrage technico-économique et coût complet de possession",
+     "projet", "note", "moe", True,
+     {"ESQ": "principes", "APS": "emission", "APD": "maj", "PRO": "gel",
+      "FAISA": "principes", "BASIC": "emission", "FEED": "maj"},
+     ["Options réellement comparées, et le critère qui les départage",
+      "Investissement et exploitation de chaque option sur la durée retenue",
+      "Hypothèses financières explicites : durée, taux d'actualisation, "
+      "prix de l'énergie et de l'eau, et leur origine",
+      "Sensibilité du classement aux hypothèses — l'information utile n'est "
+      "pas le coût, c'est le SEUIL à partir duquel le classement s'inverse",
+      "Coûts non monétaires assumés : emprise, eau, carbone, délai",
+      "Recommandation, et ce qui la ferait changer",
+      "IMPORTANT : les ratios d'enveloppe, la décomposition par lot, les "
+      "hypothèses d'exploitation et le calcul de coût complet sont publiés par "
+      "le moteur de conseilprev (module finance_dc), consultable sur "
+      "https://conseilprev.onrender.com/panorama#s-finance. S'y référer et le "
+      "citer ; ne pas retaper ses valeurs ici."]),
+
+    # ── Le versant offre ──────────────────────────────────────────────────
+    ("SPC-AO", "Mémoire technique de réponse à appel d'offres",
+     "projet", "note", "moe", True,
+     {"ESQ": "principes", "APS": "emission", "APD": "maj",
+      "FAISA": "principes", "BASIC": "emission", "FEED": "maj"},
+     ["Lecture des critères d'attribution et de leur pondération — c'est elle "
+      "qui commande le plan du mémoire, pas l'habitude de l'entreprise",
+      "Réponse point par point aux exigences du cahier des charges, avec le "
+      "renvoi à la pièce technique qui la porte",
+      "Solution proposée et ce qui la distingue, en termes vérifiables",
+      "Engagements de performance offerts, et les conditions de leur mesure",
+      "Variantes proposées, leur recevabilité au regard du règlement, et le "
+      "gain qu'elles apportent",
+      "Points sur lesquels l'offre s'écarte du cahier des charges, dits "
+      "explicitement — une réserve tue moins qu'une réserve découverte",
+      "IMPORTANT : ce document est produit du côté du CANDIDAT. Il ne se "
+      "confond pas avec les pièces DCE et ACT du registre, qui sont produites "
+      "du côté du maître d'ouvrage et de sa maîtrise d'œuvre."]),
+    ("SPC-INVEST", "Dossier d'investissement et décision d'engagement",
+     "projet", "note", "moe", True,
+     {"ESQ": "principes", "APS": "emission", "APD": "maj",
+      "FAISA": "principes", "BASIC": "emission", "FEED": "maj"},
+     ["Objet de la décision demandée, et son montant",
+      "Hypothèses de commercialisation ou d'usage, et leur origine",
+      "Échéancier de décaissement rapporté aux jalons du projet",
+      "Sensibilité de la décision au délai de raccordement et à la vitesse de "
+      "remplissage — les deux variables qui déplacent le plus le résultat",
+      "Risques projet, leur provision, et ce qui les lèverait",
+      "Alternatives examinées, y compris ne pas faire",
+      "IMPORTANT : les ratios, l'échéancier et l'écart entre pays sont publiés "
+      "par le moteur d'enveloppe de conseilprev (module finance_dc), "
+      "https://conseilprev.onrender.com/panorama#s-finance — les citer plutôt "
+      "que les retaper."]),
+
+    # ── Industrialisation et boucle de retour ─────────────────────────────
+    ("SPC-STD", "Standard de conception réplicable et règles de déploiement",
+     "projet", "registre", "moe", False,
+     {"APD": "principes", "PRO": "emission", "DCE": "maj", "AOR": "maj",
+      "FEED": "principes", "EPCI": "emission", "CSU": "maj"},
+     ["Briques types retenues et leur domaine d'emploi",
+      "Ce qui est FIGÉ d'un site à l'autre, ce qui est paramétrable, et ce qui "
+      "est libre — un standard qui ne distingue pas les trois n'est pas "
+      "applicable",
+      "Catalogue d'équipements admis et critères d'admission",
+      "Procédure de dérogation : qui l'accorde, sur quel motif, et où elle "
+      "est tracée",
+      "Adaptations imposées par le site : climat, réseau, sol, réglementation "
+      "locale",
+      "Règle de mise à jour du standard, et ce qui la déclenche"]),
+    ("SPC-REX", "Retour d'expérience et amélioration continue",
+     "projet", "registre", "moe", False,
+     {"DET": "principes", "AOR": "emission", "EPCI": "principes", "CSU": "emission"},
+     ["Écarts constatés entre le dossier de conception et l'ouvrage réalisé",
+      "Écarts entre performances calculées et performances MESURÉES à la "
+      "réception, et l'explication de chacun",
+      "Incidents de chantier et de mise en service, avec leur cause première",
+      "Décisions de conception qui se sont révélées coûteuses en exploitation",
+      "Leçons versées au standard de conception, et lesquelles ne l'ont pas "
+      "été — avec le motif",
+      "Ce qui doit remonter à la base de connaissance pour servir au projet "
+      "suivant"]),
+    ("SPC-REVUE", "Dossier de revue de conception",
+     "projet", "registre", "moe", False,
+     {"APS": "emission", "APD": "maj", "PRO": "maj", "DCE": "gel",
+      "EXE-VISA": "maj", "BASIC": "emission", "FEED": "maj", "EPCI": "maj"},
+     ["Objet et jalon de la revue, et ce qu'elle autorise à engager",
+      "Documents soumis, leur indice, et les participants par discipline",
+      "Observations formulées, leur criticité et leur destinataire",
+      "Arbitrages actés, avec la personne qui les a pris",
+      "Réserves émises, leur condition de levée et leur échéance",
+      "Décision : conception approuvée, approuvée sous réserve, ou refusée — "
+      "une revue qui ne conclut pas ne sert à rien"]),
 ]
 
 
@@ -2599,6 +3125,41 @@ def prompts_piece(profil, code_phase, code_piece, inputs=None):
         A("Valeurs d'identification non reconnues, à ignorer plutôt qu'à "
           "interpréter : %s"
           % ", ".join("%s = %s" % (x["champ"], x["valeur"]) for x in ctx["inconnus"]))
+    # ── Le niveau de disponibilité visé ───────────────────────────────────
+    # Transmis à TOUTES les pièces, pas seulement au dossier de disponibilité :
+    # c'est la décision qui commande le nombre de groupes froid, de chaînes
+    # onduleur, de départs et de vannes. Une spécification CVC rédigée sans
+    # savoir qu'on vise 2(N+1) décrit une installation qui n'existera pas.
+    dispo = disponibilite(inputs.get("tier"),
+                          inputs.get("n_unites"),
+                          inputs.get("schema_redondance"))
+    if dispo["tier"] or dispo["redondance"]:
+        A("")
+        A("NIVEAU DE DISPONIBILITÉ VISÉ — décision de projet, à respecter dans "
+          "toute la pièce :")
+        if dispo["tier"]:
+            t_ = dispo["tier"]
+            A("- Niveau visé : %s" % t_["nom"])
+            A("- Chemins de distribution : %s" % t_["chemins"])
+            A("- Entretien : %s" % t_["maintenance"])
+            A("- Comportement au défaut : %s" % t_["defaut"])
+            A("- Ce que le niveau exige : %s" % t_["consequence"])
+        r_ = dispo["redondance"]
+        if r_:
+            A("- Schéma de redondance : %s%s"
+              % (r_["nom"],
+                 " (déduit du niveau visé, non saisi)"
+                 if r_.get("origine_schema") == "deduit_du_niveau" else ""))
+            A("- Pour %d unité(s) nécessaire(s), ce schéma en installe %d "
+              "(%d chaîne(s) de %d) — marge de capacité installée %+.1f %%, "
+              "%d unité(s) peuvent tomber sans perte de charge. [CALCULÉ]"
+              % (r_["besoin"], r_["installees"], r_["chaines"],
+                 r_["par_chaine"], r_["marge_pct"], r_["perte_admissible"]))
+            A("- %s" % r_["note"])
+        A("- Ce que ce niveau NE garantit PAS, à ne jamais présenter comme "
+          "acquis : %s" % " ".join(dispo["ne_garantit_pas"]))
+        A("- Le niveau visé est une EXIGENCE de projet. Ce cadre ne décerne "
+          "aucune certification : %s" % dispo["tier_source"])
     if consignes:
         A("")
         A("Consignes particulières : %s" % consignes)
@@ -2849,6 +3410,27 @@ def glossaire():
         "moteur": MOTEUR_BADGE,
         "poste": {k: {"nom": v["nom"], "aide": _aide_poste(v)}
                   for k, v in POSTES.items()},
+        # Le vocabulaire de la disponibilité, DÉRIVÉ du référentiel et non
+        # réécrit : « Tier III » se lit sur trois pages du dossier, et trois
+        # définitions différentes du même sigle valent moins qu'une seule.
+        "tier": {k: {
+            "nom": v["nom"],
+            "aide": ("Chemins — %s\nEntretien — %s\nDéfaut — %s\n\nCe que le "
+                     "niveau exige : %s\n\n%s"
+                     % (v["chemins"], v["maintenance"], v["defaut"],
+                        v["consequence"], TIER_SOURCE)),
+        } for k, v in NIVEAUX_TIER.items()},
+        "redondance": {k: {
+            "nom": v["nom"],
+            "aide": ("%s\n\nPour N unités nécessaires, ce schéma en installe "
+                     "%s%s. Le compte porte sur les UNITÉS, pas sur la "
+                     "puissance."
+                     % (v["aide"],
+                        ("N" if not v["sup"] else "N+%d" % v["sup"]),
+                        ("" if v["chaines"] == 1
+                         else " par chaîne, sur %d chaînes complètes"
+                              % v["chaines"]))),
+        } for k, v in REDONDANCES.items()},
     }
 
 
@@ -2952,8 +3534,9 @@ THEMES_GUIDE = [
         # dont la charge informatique — elle EST la source de la consommation,
         # et la laisser dehors au motif qu'elle relève d'une autre discipline
         # serait suivre le classement plutôt que le sujet.
-        "disciplines": ["hvac", "elec_cfo"],
-        "pieces_sup": ["SPC-ITOT", "SPC-CONSO", "SPC-CHALEUR"],
+        "disciplines": ["hvac", "elec_cfo", "supervision"],
+        "pieces_sup": ["SPC-ITOT", "SPC-CONSO", "SPC-CHALEUR", "SPC-HD",
+                       "SPC-50001"],
         "postes": ["pue", "intensite"],
         "piege": "Le PUE est une plage de conception avant d'être une mesure. "
                  "L'écrire au contrat avant d'avoir les courbes constructeur, "
@@ -2971,7 +3554,7 @@ THEMES_GUIDE = [
         # fatale y entre parce que récupérer la chaleur change le mode
         # d'évacuation, donc l'eau. On nomme donc les pièces plutôt que
         # d'élargir le thème à des disciplines entières.
-        "disciplines": ["hvac", "extinction"],
+        "disciplines": ["hvac", "extinction", "fluides"],
         "pieces_sup": ["SPC-EAUINC", "SPC-CONSO", "SPC-CHALEUR"],
         "postes": ["ewif", "evaporation"],
         "piege": "Le WUE ne compte que l'eau du site. L'eau consommée en amont "
@@ -3010,12 +3593,18 @@ THEMES_GUIDE = [
         "id": "disponibilite",
         "couleur": "#C1A8EB",
         "icone": "⏻",
-        "nom": "Disponibilité électrique",
-        "question": "Quelle redondance, quel raccordement, et quelle densité par baie ?",
-        "disciplines": ["elec_cfo", "elec_cfa", "itot", "telecom"],
-        # Le niveau de redondance — N+1, 2N — se décide dans la philosophie
-        # générale, pièce de conduite de projet, avant toute étude électrique.
-        "pieces_sup": ["SPC-PHILO"],
+        # Le thème ne s'appelle plus « électrique » : la redondance du froid
+        # tombe aussi vite que celle de la puissance, et une vanne d'isolement
+        # manquante annule l'une comme l'autre.
+        "nom": "Disponibilité et redondance",
+        "question": "Quel niveau visé, quelle redondance, et qu'est-ce qui "
+                    "l'annule en aval ?",
+        "disciplines": ["elec_cfo", "elec_cfa", "itot", "telecom", "fluides"],
+        # Le niveau se décide dans la philosophie générale, avant toute étude
+        # de discipline ; le dossier de disponibilité l'arrête et en tire le
+        # nombre d'unités ; l'analyse de risques cherche ce qui le contredit.
+        "pieces_sup": ["SPC-PHILO", "SPC-TIER", "SPC-HTA", "SPC-SECOURS",
+                       "SPC-RISQ", "SPC-SUPERV"],
         "postes": ["pue"],
         "piege": "Deux arrivées qui empruntent le même fourreau ne font qu'un "
                  "seul chemin. La redondance se vérifie sur le tracé, pas sur "
@@ -3031,7 +3620,8 @@ THEMES_GUIDE = [
         # carbone en relèvent aussi et ne sont pas des sujets de coût. On nomme
         # l'étude de consommation, qui porte l'OPEX, et rien de plus.
         "disciplines": ["projet"],
-        "pieces_sup": ["SPC-CONSO"],
+        "pieces_sup": ["SPC-CONSO", "SPC-FORFAIT", "SPC-TCO", "SPC-INVEST",
+                       "SPC-AO"],
         "postes": ["incorpore"],
         "piege": "Au-delà d'un quart d'enveloppe non chiffrée, le total n'est "
                  "plus une estimation : c'est une addition de ce qu'on sait "
@@ -3333,6 +3923,20 @@ def referentiel():
                          for k, v in c["options"].items()]}
             for c in IDENTIFICATION],
         "identification_note": IDENTIFICATION_NOTE,
+        # Le référentiel de disponibilité : les niveaux, les schémas et leur
+        # ordre. Le CALCUL du nombre d'unités n'y figure pas — il dépend du
+        # besoin saisi et se demande à `disponibilite()`, qui distingue ce que
+        # le référentiel exige de ce que l'arithmétique installe.
+        "disponibilite": {
+            "niveaux": NIVEAUX_TIER,
+            "niveaux_ordre": ["I", "II", "III", "IV"],
+            "tier_source": TIER_SOURCE,
+            "classes_en50600": CLASSES_EN50600,
+            "en50600_source": EN50600_SOURCE,
+            "schemas": REDONDANCES,
+            "schemas_ordre": sorted(REDONDANCES,
+                                    key=lambda k: REDONDANCES[k]["rang"]),
+        },
         # Le parcours guidé : les rôles et les thèmes sont servis, la page ne
         # les réécrit pas. Le CROISEMENT, lui, se demande — il se calcule sur
         # le profil et la phase courants et n'aurait aucun sens figé ici.
