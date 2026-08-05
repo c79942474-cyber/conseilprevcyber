@@ -62,7 +62,33 @@ def _clean(rec):
         # porte des brouillons et des pièces visées, et les confondre ferait
         # croire un dossier prêt parce que le projet avance.
         "etat": (rec.get("etat") or "brouillon")[:16],
+        # Le CODE de la pièce du registre. Il était jusqu'ici noyé dans
+        # l'intitulé (« APD SPC-HVAC — spécification CVC ») : retrouver « la
+        # pièce SPC-HVAC de ce projet » supposait de découper une chaîne, ce
+        # qui marche jusqu'au jour où l'intitulé change.
+        "piece": (rec.get("piece") or "")[:24].upper(),
+        # Les visas : qui a validé ou rejeté, à quel titre, quand et pourquoi.
+        # Une liste, pas un état unique — un document rejeté par un collègue
+        # puis validé par le client a DEUX avis, et n'en garder qu'un ferait
+        # disparaître celui qui gêne.
+        "visas": [v for v in (rec.get("visas") or []) if isinstance(v, dict)][:60],
     }
+
+
+def _visas_lus(rec):
+    """Relit la colonne `visas` sérialisée. Un JSON illisible rend une liste
+    vide plutôt qu'une exception : un avis perdu se voit et se refait ; une
+    fiche qui ne s'ouvre plus bloque tout le dossier."""
+    v = rec.get("visas")
+    if isinstance(v, list):
+        return rec
+    try:
+        rec["visas"] = json.loads(v) if v else []
+    except (ValueError, TypeError):
+        rec["visas"] = []
+    if not isinstance(rec["visas"], list):
+        rec["visas"] = []
+    return rec
 
 
 # ============================================================================
@@ -117,6 +143,14 @@ class MemoryLivrablesStore:
             r["etat"] = etat
             return True
 
+    def viser(self, lid, visa):
+        with self._lock:
+            r = self._items.get(lid)
+            if not r:
+                return None
+            r["visas"] = ((r.get("visas") or []) + [visa])[-60:]
+            return list(r["visas"])
+
     def stats(self):
         with self._lock:
             return {"count": len(self._items)}
@@ -125,7 +159,8 @@ class MemoryLivrablesStore:
     def _meta(r):
         m = {k: r.get(k) for k in ("id", "type", "label", "client", "secteur",
                                    "model", "created_at", "parent_id",
-                                   "projet_id", "phase", "filiere", "etat")}
+                                   "projet_id", "phase", "filiere", "etat",
+                                   "piece", "visas")}
         m["chars"] = len(r.get("markdown") or "")
         return m
 
@@ -156,6 +191,9 @@ _SCHEMA = [
     "ALTER TABLE livrables ADD COLUMN IF NOT EXISTS etat TEXT",
     "CREATE INDEX IF NOT EXISTS livrables_projet_idx "
     "ON livrables (projet_id, phase, created_at DESC)",
+    # Le code de pièce et les visas (ajouts compatibles).
+    "ALTER TABLE livrables ADD COLUMN IF NOT EXISTS piece TEXT",
+    "ALTER TABLE livrables ADD COLUMN IF NOT EXISTS visas TEXT",
 ]
 
 
@@ -200,25 +238,28 @@ class PostgresLivrablesStore:
         with self._pool.connection() as conn:
             conn.execute(
                 "INSERT INTO livrables(id,type,label,client,secteur,perimetre,model,"
-                "markdown,sources,created_at,parent_id,projet_id,phase,filiere,etat) "
-                "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                "markdown,sources,created_at,parent_id,projet_id,phase,filiere,etat,"
+                "piece,visas) "
+                "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (lid, rec["type"], rec["label"], rec["client"], rec["secteur"],
                  rec["perimetre"], rec["model"], rec["markdown"],
                  json.dumps(rec["sources"], ensure_ascii=False), _now_ms(),
                  rec["parent_id"], rec["projet_id"], rec["phase"],
-                 rec["filiere"], rec["etat"]))
+                 rec["filiere"], rec["etat"], rec["piece"],
+                 json.dumps(rec["visas"], ensure_ascii=False)))
         return lid
 
     def list(self):
         with self._pool.connection() as conn:
             rows = conn.execute(
                 "SELECT id,type,label,client,secteur,model,created_at,parent_id,"
-                "projet_id,phase,filiere,etat,"
+                "projet_id,phase,filiere,etat,piece,visas,"
                 "char_length(markdown) FROM livrables ORDER BY created_at DESC "
                 "LIMIT %s", (LIST_LIMIT,)).fetchall()
         keys = ("id", "type", "label", "client", "secteur", "model", "created_at",
-                "parent_id", "projet_id", "phase", "filiere", "etat", "chars")
-        return [dict(zip(keys, r)) for r in rows]
+                "parent_id", "projet_id", "phase", "filiere", "etat", "piece",
+                "visas", "chars")
+        return [_visas_lus(dict(zip(keys, r))) for r in rows]
 
     def get(self, lid):
         # Le rattachement fait partie de l'enregistrement, pas seulement de sa
@@ -231,14 +272,14 @@ class PostgresLivrablesStore:
         with self._pool.connection() as conn:
             r = conn.execute(
                 "SELECT id,type,label,client,secteur,perimetre,model,markdown,sources,"
-                "created_at,parent_id,projet_id,phase,filiere,etat "
+                "created_at,parent_id,projet_id,phase,filiere,etat,piece,visas "
                 "FROM livrables WHERE id=%s", (lid,)).fetchone()
         if not r:
             return None
         keys = ("id", "type", "label", "client", "secteur", "perimetre", "model",
                 "markdown", "sources", "created_at", "parent_id",
-                "projet_id", "phase", "filiere", "etat")
-        rec = dict(zip(keys, r))
+                "projet_id", "phase", "filiere", "etat", "piece", "visas")
+        rec = _visas_lus(dict(zip(keys, r)))
         try:
             rec["sources"] = json.loads(rec["sources"]) if rec["sources"] else []
         except (ValueError, TypeError):
@@ -248,6 +289,18 @@ class PostgresLivrablesStore:
     def delete(self, lid):
         with self._pool.connection() as conn:
             return conn.execute("DELETE FROM livrables WHERE id=%s", (lid,)).rowcount > 0
+
+    def viser(self, lid, visa):
+        """Ajoute un avis au livrable, sans écraser les précédents."""
+        rec = self.get(lid)
+        if not rec:
+            return None
+        visas = (rec.get("visas") or []) + [visa]
+        visas = visas[-60:]
+        with self._pool.connection() as conn:
+            conn.execute("UPDATE livrables SET visas=%s WHERE id=%s",
+                         (json.dumps(visas, ensure_ascii=False), lid))
+        return visas
 
     def changer_etat(self, lid, etat):
         with self._pool.connection() as conn:

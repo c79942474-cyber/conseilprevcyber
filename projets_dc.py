@@ -27,6 +27,7 @@ _log = logging.getLogger("projets_dc")
 
 LIST_LIMIT = 400
 MAX_PROJETS_PAR_COMPTE = 200
+MAX_COLLABORATEURS = 25
 
 # Le statut d'un projet. Vocabulaire fermé : « en cours », « en_cours »,
 # « EN COURS » écrits au fil de l'eau rendraient tout filtre inutile.
@@ -57,6 +58,105 @@ ETATS_LIVRABLE = {
                  "aide": "Remplacé par une version postérieure."},
 }
 ETAT_DEFAUT = "brouillon"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LES VISAS : QUI A VALIDÉ, QUI A REJETÉ, ET CE QUI EN RÉSULTE
+# ═══════════════════════════════════════════════════════════════════════════
+# L'état d'un livrable — brouillon, relu, visé — dit où EN EST la rédaction.
+# Il ne dit pas ce que le client en pense. Un document parfaitement rédigé et
+# rejeté par le client n'est pas un document prêt, et l'afficher « visé » ferait
+# passer un point de blocage pour un point d'avancement.
+#
+# Un livrable porte donc une LISTE d'avis, pas un état unique : un document
+# rejeté par un collègue puis validé par le client a deux avis, et n'en garder
+# qu'un ferait disparaître celui qui gêne.
+
+ROLES_VISA = {
+    "client": {"nom": "Client", "rang": 1,
+               "aide": "Le maître d'ouvrage ou son représentant. Son refus "
+                       "bloque la remise."},
+    "collegue": {"nom": "Collègue du projet", "rang": 2,
+                 "aide": "Un membre de l'équipe invité sur le projet. Son refus "
+                         "bloque la transmission au client."},
+    "moe": {"nom": "Maîtrise d'œuvre", "rang": 3,
+            "aide": "Relecture interne avant transmission."},
+}
+
+DECISIONS_VISA = {
+    "valide": {"nom": "Validé", "rang": 1},
+    "rejete": {"nom": "Rejeté", "rang": 2},
+}
+
+# Les états de validation affichés, du plus bloquant au plus avancé. L'ordre
+# n'est pas cosmétique : c'est lui qui décide ce qu'on montre quand plusieurs
+# avis coexistent.
+ETATS_VISA = {
+    "rejete_client": {"nom": "Rejeté par le client", "rang": 1,
+                      "couleur": "#F39F7D",
+                      "aide": "Le client a refusé la pièce. Rien ne se remet "
+                              "tant que le motif n'est pas levé."},
+    "rejete_collegue": {"nom": "Rejeté en interne", "rang": 2,
+                        "couleur": "#E8B44A",
+                        "aide": "Un membre de l'équipe a refusé la pièce. Elle "
+                                "ne part pas au client en l'état."},
+    "en_attente": {"nom": "En attente de visa", "rang": 3,
+                   "couleur": "#9FB3C8",
+                   "aide": "Produite, soumise à personne pour l'instant."},
+    "valide_interne": {"nom": "Validé en interne", "rang": 4,
+                       "couleur": "#5BC8E8",
+                       "aide": "Relue et acceptée par l'équipe ; le client ne "
+                               "s'est pas encore prononcé."},
+    "valide_client": {"nom": "Validé par le client", "rang": 5,
+                      "couleur": "#7FD4A8",
+                      "aide": "Le client a accepté la pièce."},
+}
+
+
+def synthese_visas(visas):
+    """L'état de validation d'un livrable, dérivé de ses avis.
+
+    DEUX RÈGLES, et la seconde est celle qu'on oublie :
+
+      · Pour un même acteur, seul le DERNIER avis compte. Un client qui rejette
+        puis valide après correction a validé ; garder son refus figerait le
+        dossier sur un grief levé.
+
+      · Un refus non levé l'emporte sur toute validation, quel que soit son
+        auteur. Un document rejeté par le client puis validé par un collègue
+        reste bloqué : la validation interne ne lève pas le refus du client, et
+        afficher « validé » ferait remettre une pièce refusée.
+    """
+    derniers = {}
+    for v in (visas or []):
+        if not isinstance(v, dict):
+            continue
+        role = v.get("role")
+        if role not in ROLES_VISA or v.get("decision") not in DECISIONS_VISA:
+            continue
+        cle = (role, (v.get("par") or "").strip().lower())
+        prec = derniers.get(cle)
+        if not prec or (v.get("le") or 0) >= (prec.get("le") or 0):
+            derniers[cle] = v
+    avis = list(derniers.values())
+    if not avis:
+        return {"etat": "en_attente", "nom": ETATS_VISA["en_attente"]["nom"],
+                "couleur": ETATS_VISA["en_attente"]["couleur"],
+                "avis": [], "bloquants": []}
+    bloquants = [v for v in avis if v.get("decision") == "rejete"]
+    if any(v.get("role") == "client" for v in bloquants):
+        etat = "rejete_client"
+    elif bloquants:
+        etat = "rejete_collegue"
+    elif any(v.get("role") == "client" and v.get("decision") == "valide"
+             for v in avis):
+        etat = "valide_client"
+    else:
+        etat = "valide_interne"
+    return {"etat": etat, "nom": ETATS_VISA[etat]["nom"],
+            "couleur": ETATS_VISA[etat]["couleur"],
+            "avis": sorted(avis, key=lambda v: -(v.get("le") or 0)),
+            "bloquants": bloquants}
 
 
 def _ordre(vocabulaire):
@@ -104,6 +204,32 @@ def _clean(rec, partiel=False):
         out["statut"] = s if s in STATUTS else STATUT_DEFAUT
     if not partiel or "phase" in rec:
         out["phase"] = (rec.get("phase") or "").strip()[:12].upper()
+    if "collaborateurs" in rec:
+        out["collaborateurs"] = _emails(rec.get("collaborateurs"))
+    elif not partiel:
+        out["collaborateurs"] = []
+    return out
+
+
+def _emails(v):
+    """Normalise une liste d'adresses. Minuscules et dédoublonnées : « Jean@X »
+    et « jean@x » désignent le même collègue, et les garder toutes deux ferait
+    apparaître deux invités là où il n'y en a qu'un — puis un accès resterait
+    après le retrait de l'autre."""
+    if isinstance(v, str):
+        v = [v]
+    vus, out = set(), []
+    for x in (v or []):
+        e = str(x or "").strip().lower()[:200]
+        # Contrôle minimal : une arobase entourée de quelque chose. On ne
+        # valide pas plus loin — une adresse mal formée ne donne aucun accès,
+        # puisque l'accès se prouve par une session, jamais par cette liste.
+        if "@" not in e or e.startswith("@") or e.endswith("@") or e in vus:
+            continue
+        vus.add(e)
+        out.append(e)
+        if len(out) >= MAX_COLLABORATEURS:
+            break
     return out
 
 
@@ -118,6 +244,18 @@ class ProjetError(Exception):
 # ============================================================================
 #  Mémoire (repli non persistant)
 # ============================================================================
+
+def _accede(r, compte):
+    """Qui voit un projet : son propriétaire, et les collègues invités.
+
+    Écrite une fois et appelée partout. Recopiée à chaque requête, elle finit
+    par diverger d'un endroit à l'autre — et c'est l'endroit oublié qui laisse
+    passer."""
+    if not r or not compte:
+        return False
+    return (r.get("proprietaire") == compte
+            or compte in (r.get("collaborateurs") or []))
+
 
 class MemoryProjetsStore:
     def __init__(self):
@@ -141,24 +279,29 @@ class MemoryProjetsStore:
     def lister(self, proprietaire, inclure_archives=False):
         with self._lock:
             out = [dict(x) for x in self._p.values()
-                   if x["proprietaire"] == proprietaire
+                   if _accede(x, proprietaire)
                    and (inclure_archives or x["statut"] != "archive")]
         return sorted(out, key=lambda x: -x["maj_le"])[:LIST_LIMIT]
 
     def obtenir(self, proprietaire, pid):
         with self._lock:
             r = self._p.get(pid)
-            # Le contrôle de propriété est fait ICI et non dans la route :
-            # une vérification posée dans l'appelant s'oublie au deuxième
-            # appelant, et c'est ce jour-là qu'un client voit le dossier d'un
-            # autre.
-            return dict(r) if r and r["proprietaire"] == proprietaire else None
+            # Le contrôle d'accès est fait ICI et non dans la route : une
+            # vérification posée dans l'appelant s'oublie au deuxième appelant,
+            # et c'est ce jour-là qu'un client voit le dossier d'un autre.
+            return dict(r) if r and _accede(r, proprietaire) else None
 
     def modifier(self, proprietaire, pid, rec):
         with self._lock:
             r = self._p.get(pid)
-            if not r or r["proprietaire"] != proprietaire:
+            # Modifier est ouvert aux invités — ils travaillent sur le dossier.
+            if not r or not _accede(r, proprietaire):
                 return None
+            # Sauf la liste des invités elle-même : un collègue qui pourrait
+            # s'ajouter des collègues ferait du partage une porte qui s'élargit
+            # toute seule. Seul le propriétaire invite.
+            if "collaborateurs" in rec and r["proprietaire"] != proprietaire:
+                rec = {k: v for k, v in rec.items() if k != "collaborateurs"}
             r.update(_clean(rec, partiel=True))
             r["maj_le"] = _now_ms()
             return dict(r)
@@ -166,6 +309,9 @@ class MemoryProjetsStore:
     def supprimer(self, proprietaire, pid):
         with self._lock:
             r = self._p.get(pid)
+            # Supprimer reste au SEUL propriétaire, même quand des invités
+            # peuvent écrire : partager un dossier ne donne pas le droit de le
+            # faire disparaître pour tout le monde.
             if not r or r["proprietaire"] != proprietaire:
                 return False
             del self._p[pid]
@@ -213,19 +359,41 @@ _SCHEMA = [
         note TEXT,
         cree_le BIGINT,
         maj_le BIGINT)""",
+    # Les collègues invités sur le projet (ajout compatible : les projets
+    # antérieurs restent lisibles, sans invité).
+    "ALTER TABLE projets_dc ADD COLUMN IF NOT EXISTS collaborateurs TEXT",
     "CREATE INDEX IF NOT EXISTS projets_dc_prop_idx "
     "ON projets_dc (proprietaire, maj_le DESC)",
 ]
 
 _COLS = ("id,proprietaire,nom,client,secteur,perimetre,maitrise_ouvrage,"
-         "filiere,phase,statut,note,cree_le,maj_le")
+         "filiere,phase,statut,note,cree_le,maj_le,collaborateurs")
 
 
 def _row(r):
     if not r:
         return None
-    k = _COLS.split(",")
-    return dict(zip(k, r))
+    d = dict(zip(_COLS.split(","), r))
+    # La liste des invités est stockée sérialisée ; illisible, elle rend une
+    # liste vide plutôt qu'une exception — un partage perdu se refait, un
+    # projet qui ne s'ouvre plus bloque le dossier.
+    v = d.get("collaborateurs")
+    if not isinstance(v, list):
+        try:
+            d["collaborateurs"] = json.loads(v) if v else []
+        except (ValueError, TypeError):
+            d["collaborateurs"] = []
+    if not isinstance(d["collaborateurs"], list):
+        d["collaborateurs"] = []
+    return d
+
+
+def _pour_pg(r):
+    """Sérialise les champs composés avant écriture."""
+    out = dict(r)
+    if isinstance(out.get("collaborateurs"), list):
+        out["collaborateurs"] = json.dumps(out["collaborateurs"], ensure_ascii=False)
+    return out
 
 
 class PostgresProjetsStore:
@@ -253,35 +421,56 @@ class PostgresProjetsStore:
             t = _now_ms()
             c.execute(
                 "INSERT INTO projets_dc (" + _COLS + ") VALUES "
-                "(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                "(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (pid, proprietaire, r["nom"], r["client"], r["secteur"],
                  r["perimetre"], r["maitrise_ouvrage"], r["filiere"],
-                 r["phase"], r["statut"], r["note"], t, t))
+                 r["phase"], r["statut"], r["note"], t, t,
+                 json.dumps(r.get("collaborateurs") or [], ensure_ascii=False)))
             return _row(c.execute("SELECT " + _COLS + " FROM projets_dc WHERE id=%s",
                                   (pid,)).fetchone())
 
     def lister(self, proprietaire, inclure_archives=False):
-        q = ("SELECT " + _COLS + " FROM projets_dc WHERE proprietaire=%s"
+        # Le propriétaire OU un invité. Le filtre reste dans la requête : le
+        # ramener côté Python chargerait tous les projets de la base pour en
+        # écarter la plupart, et un oubli de filtre ne se verrait pas.
+        q = ("SELECT " + _COLS + " FROM projets_dc "
+             "WHERE (proprietaire=%s OR collaborateurs LIKE %s)"
              + ("" if inclure_archives else " AND statut<>'archive'")
              + " ORDER BY maj_le DESC LIMIT %s")
+        motif = '%%"' + (proprietaire or "") + '"%%'
         with self._conn() as c:
-            return [_row(x) for x in c.execute(q, (proprietaire, LIST_LIMIT)).fetchall()]
+            lignes = [_row(x) for x in
+                      c.execute(q, (proprietaire, motif, LIST_LIMIT)).fetchall()]
+        # Le LIKE est un PRÉ-FILTRE, pas la décision : « a@b.fr » figure aussi
+        # dans « xa@b.fr ». La règle d'accès tranche ensuite, la même qu'en
+        # mémoire, pour que les deux magasins ne divergent pas.
+        return [x for x in lignes if _accede(x, proprietaire)]
 
     def obtenir(self, proprietaire, pid):
         with self._conn() as c:
-            return _row(c.execute(
-                "SELECT " + _COLS + " FROM projets_dc WHERE id=%s AND proprietaire=%s",
-                (pid, proprietaire)).fetchone())
+            r = _row(c.execute("SELECT " + _COLS + " FROM projets_dc WHERE id=%s",
+                               (pid,)).fetchone())
+        return r if _accede(r, proprietaire) else None
 
     def modifier(self, proprietaire, pid, rec):
+        # L'accès est vérifié AVANT d'écrire : un UPDATE filtré sur le seul
+        # propriétaire aurait interdit toute modification aux invités, et un
+        # UPDATE sans filtre les aurait laissés modifier n'importe quel projet.
+        actuel = self.obtenir(proprietaire, pid)
+        if not actuel:
+            return None
+        # Seul le propriétaire invite : un collègue qui pourrait s'ajouter des
+        # collègues ferait du partage une porte qui s'élargit toute seule.
+        if "collaborateurs" in rec and actuel["proprietaire"] != proprietaire:
+            rec = {k: v for k, v in rec.items() if k != "collaborateurs"}
         r = _clean(rec, partiel=True)
         if not r:
-            return self.obtenir(proprietaire, pid)
+            return actuel
+        r = _pour_pg(r)
         sets = ", ".join("%s=%%s" % k for k in r) + ", maj_le=%s"
-        vals = list(r.values()) + [_now_ms(), pid, proprietaire]
+        vals = list(r.values()) + [_now_ms(), pid]
         with self._conn() as c:
-            c.execute("UPDATE projets_dc SET " + sets
-                      + " WHERE id=%s AND proprietaire=%s", vals)
+            c.execute("UPDATE projets_dc SET " + sets + " WHERE id=%s", vals)
         return self.obtenir(proprietaire, pid)
 
     def supprimer(self, proprietaire, pid):
@@ -310,7 +499,7 @@ class PostgresProjetsStore:
                     "ON CONFLICT (id) DO UPDATE SET nom=EXCLUDED.nom,"
                     "statut=EXCLUDED.statut,phase=EXCLUDED.phase,"
                     "note=EXCLUDED.note,maj_le=EXCLUDED.maj_le",
-                    tuple(r.get(k) for k in _COLS.split(",")))
+                    tuple(_pour_pg(r).get(k) for k in _COLS.split(",")))
                 n += 1
         return n
 
@@ -342,6 +531,10 @@ def make_projets_store():
 def referentiel():
     """Les vocabulaires fermés, servis à la page plutôt que recopiés dedans."""
     return {"statuts": STATUTS, "statut_defaut": STATUT_DEFAUT,
+            "max_collaborateurs": MAX_COLLABORATEURS,
+            "roles_visa": ROLES_VISA, "decisions_visa": DECISIONS_VISA,
+            "etats_visa": ETATS_VISA,
+            "etats_visa_ordre": _ordre(ETATS_VISA),
             "statuts_ordre": _ordre(STATUTS),
             "etats_livrable": ETATS_LIVRABLE, "etat_defaut": ETAT_DEFAUT,
             "etats_ordre": _ordre(ETATS_LIVRABLE),

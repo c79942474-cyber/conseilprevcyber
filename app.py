@@ -2030,7 +2030,7 @@ def api_datacenter_ingenierie_dossier():
     profil = _profil_datacenter(data)
     code = str(data.get("phase") or "").strip().upper()[:12]
     try:
-        d = ingenierie_dc.dossier(profil, code)
+        d = ingenierie_dc.dossier(profil, code, data)
     except Exception:
         app.logger.exception("dossier ingénierie datacenter")
         return jsonify(ok=False, error="calcul",
@@ -2058,7 +2058,7 @@ def api_datacenter_ingenierie_export():
     if not profil.get("puissance_it_kw"):
         return jsonify(ok=False, error="puissance_absente",
                        message="La puissance informatique installée est nécessaire."), 400
-    d = ingenierie_dc.dossier(profil, code)
+    d = ingenierie_dc.dossier(profil, code, data)
     if not d.get("connu"):
         return jsonify(ok=False, error="phase_inconnue",
                        message=d.get("motif", "Phase inconnue.")), 404
@@ -4156,6 +4156,7 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None):
             "projet_id": projet_id,
             "phase": (data.get("phase") or ""),
             "filiere": (data.get("filiere") or ""),
+            "piece": (data.get("piece") or ""),
             "etat": "brouillon"})
         # La date de dernière activité du projet suit ce qui y est produit :
         # c'est elle qui trie utilement une liste de projets.
@@ -4447,6 +4448,405 @@ def api_projet_sauvegarde(pid):
     resp.headers["X-Content-Type-Options"] = "nosniff"
     resp.headers["Cache-Control"] = "private, no-store"
     return resp
+
+
+@app.route("/api/datacenter/projets/<pid>/plan", methods=["POST"])
+@login_required
+def api_projet_plan(pid):
+    """Le registre d'une phase CONFRONTÉ à ce que le projet a déjà produit.
+
+    Le registre seul dit ce qu'il FAUT remettre ; l'historique dit ce qui a été
+    ÉCRIT. Les lire côte à côte, sur deux écrans, c'est le travail que personne
+    ne fait — et c'est pourquoi un dossier part avec une pièce obligatoire
+    manquante que tout le monde croyait faite.
+
+    Rend donc, pièce par pièce : son caractère, si elle est rédigée, dans quel
+    état, et ce que le client ou les collègues en ont dit. Puis la SUITE : la
+    prochaine pièce à traiter et la prochaine phase, pour que le dossier
+    avance sans qu'on ait à chercher par où continuer.
+    """
+    prop = _proprietaire()
+    if not prop or not projets_dc._valid_id(pid):
+        return jsonify(ok=False, error="projet_invalide"), 400
+    projet = projets_db.obtenir(prop, pid)
+    if not projet:
+        return jsonify(ok=False, error="introuvable"), 404
+    data = request.get_json(silent=True) or {}
+    phase = str(data.get("phase") or "").strip().upper()[:12]
+    profil = _profil_datacenter(data)
+    try:
+        d = ingenierie_dc.dossier(profil, phase, data)
+    except Exception:
+        app.logger.exception("plan de phase")
+        return jsonify(ok=False, error="calcul"), 500
+    if not d.get("connu"):
+        return jsonify(ok=False, error="phase_inconnue"), 404
+    if not d.get("disponible"):
+        return jsonify(ok=True, disponible=False, motif=d.get("motif"))
+
+    # Ce qui existe déjà, indexé par code de pièce. On garde le PLUS RÉCENT :
+    # une pièce reprise à un nouvel indice ne doit pas afficher l'état de son
+    # brouillon d'origine.
+    produits = {}
+    for m in livrables_hist.list():
+        if m.get("projet_id") != pid or not m.get("piece"):
+            continue
+        c = m["piece"]
+        if c not in produits or (m.get("created_at") or 0) > (produits[c].get("created_at") or 0):
+            produits[c] = m
+
+    pieces, faits, restants = [], [], []
+    for pc in d["pieces"]:
+        q = dict(pc)
+        m = produits.get(pc["code"])
+        if m:
+            v = projets_dc.synthese_visas(m.get("visas"))
+            q["livrable"] = {
+                "id": m["id"], "created_at": m.get("created_at"),
+                "etat": m.get("etat") or "brouillon", "label": m.get("label"),
+                "visa": v,
+            }
+            q["fait"] = True
+            faits.append(q)
+        else:
+            q["livrable"] = None
+            q["fait"] = False
+            restants.append(q)
+        pieces.append(q)
+
+    # La suite du parcours. Calculée, pas devinée : la prochaine pièce est la
+    # plus importante qui reste, et la prochaine phase celle qui suit dans la
+    # séquence de la MÊME filière — pas la suivante par ordre alphabétique.
+    suite = {"piece": None, "phase": None, "fin": False, "bloquantes": []}
+    bloquantes = [x for x in restants if x["caractere"] == "obligatoire"]
+    suite["bloquantes"] = [x["code"] for x in bloquantes]
+    if restants:
+        p0 = restants[0]
+        suite["piece"] = {"code": p0["code"], "titre": p0["titre"],
+                          "caractere": p0["caractere"],
+                          "caractere_nom": p0["caractere_nom"]}
+    seq = [x for x in ingenierie_dc.PHASES if x["filiere"] == d["filiere"]]
+    seq.sort(key=lambda x: x["rang"])
+    rangs = [x["code"] for x in seq]
+    if phase in rangs:
+        i = rangs.index(phase)
+        if i + 1 < len(rangs):
+            nxt = seq[i + 1]
+            suite["phase"] = {"code": nxt["code"], "nom": nxt["nom"],
+                              "objet": nxt["objet"]}
+        else:
+            # Dernière phase de la filière : le dire, plutôt que de laisser une
+            # flèche pointer dans le vide.
+            suite["fin"] = True
+            suite["fin_texte"] = ("Dernière phase de la filière %s. Le dossier "
+                                  "est complet quand ses pièces le sont."
+                                  % d["filiere_nom"])
+    return jsonify(ok=True, disponible=True, phase=phase,
+                   phase_nom=d["nom"], filiere=d["filiere"],
+                   pieces=pieces, suite=suite,
+                   avancement={
+                       "total": len(pieces), "faits": len(faits),
+                       "restants": len(restants),
+                       "obligatoires": sum(1 for x in pieces
+                                           if x["caractere"] == "obligatoire"),
+                       "obligatoires_restants": len(bloquantes),
+                       "valides_client": sum(
+                           1 for x in faits
+                           if (x["livrable"]["visa"] or {}).get("etat") == "valide_client"),
+                       "rejetes": sum(
+                           1 for x in faits
+                           if str((x["livrable"]["visa"] or {}).get("etat", "")).startswith("rejete")),
+                   },
+                   caracteres=ingenierie_dc.CARACTERES,
+                   etats_visa=projets_dc.ETATS_VISA,
+                   etats=projets_dc.ETATS_LIVRABLE,
+                   etats_ordre=projets_dc._ordre(projets_dc.ETATS_LIVRABLE))
+
+
+@app.route("/api/datacenter/projets/<pid>/livrable/<lid>/visa", methods=["POST"])
+@login_required
+def api_projet_visa(pid, lid):
+    """Enregistre un avis : validé ou rejeté, par le client ou par un collègue.
+
+    L'avis s'AJOUTE, il ne remplace pas. Un document rejeté puis corrigé garde
+    la trace du refus et du motif ; l'écraser ferait disparaître la raison pour
+    laquelle la pièce a été reprise, qui est précisément ce qu'on cherche six
+    mois plus tard.
+
+    Un rejet SANS MOTIF est refusé. « Rejeté » seul fait recommencer à
+    l'identique — c'est le pire des retours, celui qui coûte deux fois.
+    """
+    prop = _proprietaire()
+    if not prop or not projets_dc._valid_id(pid) or not _rag_hex(lid):
+        return jsonify(ok=False, error="reference_invalide"), 400
+    if not projets_db.obtenir(prop, pid):
+        return jsonify(ok=False, error="introuvable"), 404
+    rec = livrables_hist.get(lid)
+    if not rec or rec.get("projet_id") != pid:
+        return jsonify(ok=False, error="introuvable"), 404
+    data = request.get_json(silent=True) or {}
+    role = (data.get("role") or "").strip()
+    decision = (data.get("decision") or "").strip()
+    motif = (data.get("motif") or "").strip()[:800]
+    if role not in projets_dc.ROLES_VISA:
+        return jsonify(ok=False, error="role_inconnu",
+                       message="Rôle inconnu."), 400
+    if decision not in projets_dc.DECISIONS_VISA:
+        return jsonify(ok=False, error="decision_inconnue",
+                       message="Décision inconnue."), 400
+    if decision == "rejete" and len(motif) < 5:
+        return jsonify(ok=False, error="motif_manquant",
+                       message="Un rejet doit porter son motif : sans lui, la "
+                               "pièce est reprise à l'identique."), 400
+    visa = {"par": prop, "role": role, "decision": decision, "motif": motif,
+            "le": int(time.time() * 1000)}
+    visas = livrables_hist.viser(lid, visa)
+    if visas is None:
+        return jsonify(ok=False, error="introuvable"), 404
+    projets_db.toucher(pid)
+    audit.journaliser("projet.visa", cible="%s/%s" % (pid[:8], lid[:8]),
+                      detail="%s %s" % (role, decision))
+    return jsonify(ok=True, visa=visa,
+                   synthese=projets_dc.synthese_visas(visas))
+
+
+@app.route("/api/datacenter/projets/<pid>/collaborateurs",
+           methods=["GET", "POST", "DELETE"])
+@login_required
+def api_projet_collaborateurs(pid):
+    """Inviter un collègue sur le projet, ou l'en retirer.
+
+    SEUL LE PROPRIÉTAIRE INVITE, et le magasin le fait respecter — un collègue
+    qui pourrait s'ajouter des collègues ferait du partage une porte qui
+    s'élargit toute seule.
+
+    L'invitation ne crée aucun compte et n'accorde rien par elle-même : l'accès
+    se prouve par une session ouverte avec cette adresse. Une adresse inscrite
+    ici sans compte correspondant ne donne donc rien, ce qui est le
+    comportement voulu.
+    """
+    prop = _proprietaire()
+    if not prop or not projets_dc._valid_id(pid):
+        return jsonify(ok=False, error="projet_invalide"), 400
+    projet = projets_db.obtenir(prop, pid)
+    if not projet:
+        return jsonify(ok=False, error="introuvable"), 404
+    if request.method == "GET":
+        return jsonify(ok=True, collaborateurs=projet.get("collaborateurs") or [],
+                       proprietaire=projet.get("proprietaire"),
+                       je_suis_proprietaire=projet.get("proprietaire") == prop,
+                       max=projets_dc.MAX_COLLABORATEURS)
+    if projet.get("proprietaire") != prop:
+        return jsonify(ok=False, error="non_proprietaire",
+                       message="Seul le propriétaire du projet invite ou "
+                               "retire un collègue."), 403
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip().lower()[:200]
+    liste = list(projet.get("collaborateurs") or [])
+    if request.method == "DELETE":
+        liste = [x for x in liste if x != email]
+    else:
+        if "@" not in email or email.startswith("@") or email.endswith("@"):
+            return jsonify(ok=False, error="email_invalide",
+                           message="Adresse électronique invalide."), 400
+        if email == prop:
+            return jsonify(ok=False, error="deja_proprietaire",
+                           message="Vous êtes déjà propriétaire de ce projet."), 400
+        if email in liste:
+            return jsonify(ok=False, error="deja_invite",
+                           message="Ce collègue est déjà invité."), 400
+        if len(liste) >= projets_dc.MAX_COLLABORATEURS:
+            return jsonify(ok=False, error="trop_de_collaborateurs",
+                           message="Ce projet a atteint %d collègues."
+                                   % projets_dc.MAX_COLLABORATEURS), 409
+        liste.append(email)
+    p = projets_db.modifier(prop, pid, {"collaborateurs": liste})
+    if not p:
+        return jsonify(ok=False, error="introuvable"), 404
+    lien = request.url_root.rstrip("/") + "/ingenierie-datacenter"
+    envoye = False
+    if request.method == "POST":
+        envoye = _mail_projet(
+            email, "Invitation sur le projet « %s »" % p["nom"],
+            "<p><b>%s</b> vous invite sur le projet <b>%s</b>.</p>"
+            "<p>Connectez-vous avec cette adresse pour retrouver le dossier, "
+            "son historique par phase et les pièces à produire.</p>"
+            "<p><a href=\"%s\">Ouvrir le projet</a></p>"
+            % (_echappe(prop), _echappe(p["nom"]), lien))
+    audit.journaliser("projet.collaborateur", cible=pid[:32],
+                      detail="%s %s" % (request.method.lower(), email[:60]))
+    return jsonify(ok=True, collaborateurs=p.get("collaborateurs") or [],
+                   lien=lien, courriel_envoye=envoye,
+                   courriel_configure=bool(os.environ.get("BREVO_API_KEY")))
+
+
+@app.route("/api/datacenter/projets/<pid>/envoyer", methods=["POST"])
+@login_required
+def api_projet_envoyer(pid):
+    """Signale une pièce, ou tout un dossier de phase, à un collègue du projet.
+
+    L'envoi ne transporte AUCUN document : il pointe le projet. Une pièce
+    d'ingénierie part en pièce jointe et se retrouve six mois plus tard dans
+    une boîte, à un indice périmé, pendant que le dossier a bougé. Le lien
+    ramène à la version courante — c'est la seule qui vaille.
+
+    Le destinataire doit être invité sur le projet. Prévenir quelqu'un qui ne
+    peut pas ouvrir le dossier serait une politesse inutile.
+    """
+    prop = _proprietaire()
+    if not prop or not projets_dc._valid_id(pid):
+        return jsonify(ok=False, error="projet_invalide"), 400
+    projet = projets_db.obtenir(prop, pid)
+    if not projet:
+        return jsonify(ok=False, error="introuvable"), 404
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip().lower()[:200]
+    autorises = set(projet.get("collaborateurs") or []) | {projet.get("proprietaire")}
+    if email not in autorises:
+        return jsonify(ok=False, error="non_invite",
+                       message="Ce collègue n'est pas invité sur le projet. "
+                               "Invitez-le d'abord : sans accès, il recevrait "
+                               "un lien qu'il ne peut pas ouvrir."), 400
+    phase = str(data.get("phase") or "").strip().upper()[:12]
+    piece = str(data.get("piece") or "").strip().upper()[:24]
+    mot = (data.get("message") or "").strip()[:800]
+    lien = request.url_root.rstrip("/") + "/ingenierie-datacenter"
+    if phase:
+        lien += "#phase=" + phase + ("&piece=" + piece if piece else "")
+    quoi = ("la pièce <b>%s</b> de la phase <b>%s</b>" % (_echappe(piece), _echappe(phase))
+            if piece else
+            ("le dossier de la phase <b>%s</b>" % _echappe(phase) if phase
+             else "le dossier"))
+    envoye = _mail_projet(
+        email, "Projet « %s » — à relire" % projet["nom"],
+        "<p><b>%s</b> vous signale %s du projet <b>%s</b>.</p>"
+        "%s<p><a href=\"%s\">Ouvrir</a></p>"
+        % (_echappe(prop), quoi, _echappe(projet["nom"]),
+           ("<p>%s</p>" % _echappe(mot)) if mot else "", lien))
+    audit.journaliser("projet.envoi", cible=pid[:32], detail=email[:60])
+    return jsonify(ok=True, courriel_envoye=envoye, lien=lien,
+                   courriel_configure=bool(os.environ.get("BREVO_API_KEY")))
+
+
+@app.route("/api/datacenter/projets/<pid>/dossier.zip", methods=["GET"])
+@login_required
+def api_projet_zip(pid):
+    """Tout le dossier en une archive : un fichier Word par livrable.
+
+    Le format Word plutôt que le Markdown de la sauvegarde : celle-ci sert à
+    RECHARGER le projet, l'archive sert à le LIRE et à le transmettre. Deux
+    besoins, deux formats — servir du Markdown à qui veut relire un CCTP le
+    ferait convertir à la main.
+
+    Le paramètre `phase` restreint à une phase. Sans lui, tout le projet.
+    """
+    prop = _proprietaire()
+    if not prop or not projets_dc._valid_id(pid):
+        return jsonify(ok=False, error="projet_invalide"), 400
+    projet = projets_db.obtenir(prop, pid)
+    if not projet:
+        return jsonify(ok=False, error="introuvable"), 404
+    phase = (request.args.get("phase") or "").strip().upper()[:12]
+    metas = [m for m in livrables_hist.list()
+             if m.get("projet_id") == pid and (not phase or m.get("phase") == phase)]
+    if not metas:
+        return jsonify(ok=False, error="vide",
+                       message="Aucun livrable à archiver pour ce périmètre."), 404
+    tampon = io.BytesIO()
+    noms = set()
+    ajoutes, echecs = 0, []
+    with zipfile.ZipFile(tampon, "w", zipfile.ZIP_DEFLATED) as z:
+        for m in metas:
+            rec = livrables_hist.get(m["id"])
+            if not rec or not (rec.get("markdown") or "").strip():
+                continue
+            base = "%s/%s-%s" % (rec.get("phase") or "hors-phase",
+                                 rec.get("piece") or "piece",
+                                 _nom_fichier(rec.get("label") or "livrable"))
+            # Deux pièces peuvent porter le même intitulé à des indices
+            # différents ; sans ce suffixe l'une écraserait l'autre dans
+            # l'archive, silencieusement.
+            nom = base
+            n = 2
+            while nom + ".docx" in noms:
+                nom = "%s-%d" % (base, n)
+                n += 1
+            noms.add(nom + ".docx")
+            meta = {"type": rec.get("type"), "label": rec.get("label"),
+                    "client": rec.get("client"), "secteur": rec.get("secteur"),
+                    "perimetre": rec.get("perimetre"), "model": rec.get("model"),
+                    "date": time.strftime("%d/%m/%Y"),
+                    "sources": [x for x in (rec.get("sources") or [])
+                                if isinstance(x, dict)][:40]}
+            try:
+                z.writestr(nom + ".docx",
+                           livrables_export.build_docx(rec["markdown"], meta))
+                ajoutes += 1
+            except Exception:
+                # Une mise en page qui échoue ne doit pas emporter l'archive
+                # entière : on verse le texte source et on le DIT dans le
+                # bordereau, plutôt que de rendre un ZIP amputé sans un mot.
+                z.writestr(nom + ".md", rec["markdown"].encode("utf-8"))
+                echecs.append(rec.get("label") or rec["id"])
+        z.writestr("BORDEREAU.txt", _bordereau(projet, metas, phase, echecs)
+                   .encode("utf-8"))
+    if not ajoutes and not echecs:
+        return jsonify(ok=False, error="vide"), 404
+    corps = tampon.getvalue()
+    nom_zip = "projet-%s%s-%s.zip" % (_nom_fichier(projet["nom"]),
+                                      ("-" + phase) if phase else "",
+                                      _horodatage()[:10])
+    audit.journaliser("projet.archive", cible=pid[:32],
+                      detail="%d livrable(s)%s" % (ajoutes,
+                                                   " · " + phase if phase else ""))
+    resp = Response(corps, mimetype="application/zip")
+    resp.headers["Content-Disposition"] = 'attachment; filename="%s"' % nom_zip
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["Cache-Control"] = "private, no-store"
+    return resp
+
+
+def _bordereau(projet, metas, phase, echecs):
+    """Le bordereau de l'archive : ce qu'elle contient, et ce qui a résisté.
+
+    Une archive sans bordereau oblige à ouvrir chaque fichier pour savoir ce
+    qu'on a reçu — et surtout ne dit pas ce qui MANQUE."""
+    lignes = ["DOSSIER DE PROJET — %s" % projet["nom"],
+              "Exporté le %s" % _horodatage(),
+              "Périmètre : %s" % (phase or "toutes phases"),
+              "%d livrable(s)" % len(metas), ""]
+    for m in sorted(metas, key=lambda x: (x.get("phase") or "", -(x.get("created_at") or 0))):
+        v = projets_dc.synthese_visas(m.get("visas"))
+        lignes.append("- [%s] %s — %s · %s"
+                      % (m.get("phase") or "—", m.get("piece") or "—",
+                         m.get("label") or "", v["nom"]))
+    if echecs:
+        lignes += ["", "MISE EN PAGE ÉCHOUÉE — versés en texte source (.md) :"]
+        lignes += ["  - %s" % x for x in echecs]
+    return "\n".join(lignes) + "\n"
+
+
+def _echappe(v):
+    """Échappement HTML pour le corps des courriels. Un nom de projet contenant
+    une balise ne doit pas se retrouver interprété chez le destinataire."""
+    return (str(v or "").replace("&", "&amp;").replace("<", "&lt;")
+            .replace(">", "&gt;").replace('"', "&quot;"))
+
+
+def _mail_projet(email, sujet, html):
+    """Envoie un courriel de projet, et dit honnêtement s'il est parti.
+
+    Sans clé d'API configurée, rien n'est envoyé et la réponse le dit : la page
+    affiche alors le lien à transmettre soi-même. Annoncer « invitation
+    envoyée » sur un serveur qui n'a pas de quoi l'envoyer serait la pire des
+    confirmations — celle qu'on ne vérifie jamais.
+    """
+    try:
+        import auth as _auth
+        return bool(_auth.send_email(email, email, sujet, _auth._shell(sujet, html)))
+    except Exception:
+        app.logger.warning("courriel de projet non envoyé : %s", email[:60])
+        return False
 
 
 @app.route("/api/datacenter/projets/<pid>/livrable/<lid>", methods=["PATCH"])

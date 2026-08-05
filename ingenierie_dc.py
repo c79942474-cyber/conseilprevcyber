@@ -2281,6 +2281,159 @@ def pieces(code):
     return out
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  CE QU'UNE PIÈCE PÈSE : OBLIGATOIRE, INDISPENSABLE, UTILE
+# ═══════════════════════════════════════════════════════════════════════════
+# Un registre de vingt-trois pièces présentées à plat se lit comme vingt-trois
+# tâches équivalentes. Elles ne le sont pas : certaines sont imposées par un
+# texte, d'autres conditionnent la décision de la phase, d'autres enrichissent
+# le dossier quand le projet le mérite. Sans cette hiérarchie, le lecteur
+# commence par la plus facile.
+#
+# LE CARACTÈRE EST DÉRIVÉ, JAMAIS SAISI. Cent quarante et une pièces annotées à
+# la main diraient bientôt autre chose que le registre qu'elles décrivent. Il se
+# calcule sur ce que la pièce porte déjà — son type, son niveau à CETTE phase,
+# son émetteur — et sur le contexte du projet, car l'obligation en dépend : le
+# contenu d'un élément de mission est fixé par décret en commande publique, et
+# relève du contrat en privé. Une même pièce n'a donc pas le même caractère
+# selon le maître d'ouvrage, et le prétendre serait faux.
+
+CARACTERES = {
+    "obligatoire": {
+        "nom": "Obligatoire", "rang": 3, "couleur": "#F2A65A",
+        "aide": "Un texte ou le marché l'impose. Son absence n'est pas un "
+                "retard : elle empêche de franchir la phase ou expose le "
+                "maître d'ouvrage.",
+    },
+    "indispensable": {
+        "nom": "Indispensable", "rang": 2, "couleur": "#5BC8E8",
+        "aide": "Aucun texte ne l'impose, mais la décision de la phase ne peut "
+                "pas être prise sans elle. La sauter revient à décider sans "
+                "l'élément qui fonde la décision.",
+    },
+    "utile": {
+        "nom": "Utile", "rang": 1, "couleur": "#9FB3C8",
+        "aide": "Elle enrichit le dossier et se justifie selon la complexité "
+                "du projet. Son absence se rattrape.",
+    },
+}
+
+# Les pièces que la RÉGLEMENTATION impose, indépendamment du contrat et du
+# caractère public ou privé du maître d'ouvrage. Nommées une par une : c'est
+# une liste courte et vérifiable, et la déduire d'un mot-clé du titre ferait
+# entrer ou sortir des pièces au gré des reformulations.
+_PIECES_REGLEMENTAIRES = {
+    "APD-10": "Dossier de permis de construire — code de l'urbanisme.",
+    "AOR-07": "Dossier d'intervention ultérieure sur l'ouvrage — code du "
+              "travail, obligatoire à la réception.",
+    "AOR-08": "Déclaration au titre de la directive européenne sur "
+              "l'efficacité énergétique.",
+    "SPC-SAFETY": "Analyse des risques pour les personnes — obligation "
+                  "générale de sécurité de l'employeur et du maître d'ouvrage.",
+    "SPC-EVAC": "Plan d'évacuation et consignes — code du travail.",
+}
+
+
+def caractere_piece(pc, public=False):
+    """Le poids d'une pièce à la phase où elle est demandée, et son fondement.
+
+    Rend le caractère ET le motif : un badge « Obligatoire » sans fondement se
+    discute en réunion et ne se tranche pas. Avec le motif, il se vérifie.
+
+    `public` — maîtrise d'ouvrage publique. L'obligation en dépend réellement :
+    en commande publique le contenu de l'élément de mission est fixé par
+    décret ; en privé, la même pièce relève du contrat de maîtrise d'œuvre.
+    """
+    code = pc.get("code") or ""
+    # 1. La réglementation, qui ne dépend ni du contrat ni du client.
+    if code in _PIECES_REGLEMENTAIRES:
+        return "obligatoire", _PIECES_REGLEMENTAIRES[code], "texte"
+    # 2. Le marché. Une pièce contractuelle GELÉE devient opposable à cette
+    #    phase : consulter ou signer sans elle expose immédiatement.
+    if pc.get("type") == "contractuel" and pc.get("niveau") == "gel":
+        return ("obligatoire",
+                "Pièce du marché, gelée à cette phase : elle devient opposable "
+                "et ne peut plus être complétée après signature.", "marche")
+    # 3. La commande publique. Le décret fixe le contenu de l'élément de
+    #    mission ; aucune de ses composantes n'est optionnelle.
+    if public and not pc.get("discipline"):
+        return ("obligatoire",
+                "Maîtrise d'ouvrage publique : le contenu de l'élément de "
+                "mission est fixé par décret et n'est pas négociable.", "decret")
+    # 4. Sans elle, la phase ne décide pas. Deux cas : la pièce porte une
+    #    grandeur du moteur — donc le chiffre sur lequel la décision s'appuie —
+    #    ou c'est une pièce du marché en cours d'établissement.
+    if pc.get("moteur"):
+        return ("indispensable",
+                "Elle porte les grandeurs calculées sur lesquelles la décision "
+                "de phase s'appuie. Décider sans elle, c'est décider sans le "
+                "chiffre.", "decision")
+    if pc.get("type") == "contractuel":
+        return ("indispensable",
+                "Pièce du marché en cours d'établissement : ce qui n'y est pas "
+                "écrit à la consultation ne se rattrape pas en chantier.",
+                "decision")
+    # 5. Le reste enrichit le dossier et s'ajuste à la complexité du projet.
+    return ("utile",
+            "Elle complète le dossier et se justifie selon la complexité du "
+            "projet ; son absence se rattrape.", "usage")
+
+
+# Le poids des signaux dans le classement. Écrits ici plutôt que dispersés dans
+# le tri : c'est la seule façon de discuter l'ordre sans relire du code.
+_POIDS_ORDRE = {
+    "caractere": 100,      # multiplié par le rang du caractère (3, 2, 1)
+    "gel": 24,             # elle devient opposable maintenant
+    "contractuel": 16,     # pièce du marché
+    "moteur": 10,          # elle porte une grandeur calculée
+    "emission": 8,         # première émission : elle n'existe pas encore
+    "nous": 4,             # la maîtrise d'œuvre la produit elle-même
+}
+
+
+def _importance(pc):
+    """Le rang d'importance d'une pièce. Calculé, pour que l'ordre suive le
+    registre plutôt qu'une liste tenue à part."""
+    n = _POIDS_ORDRE["caractere"] * CARACTERES[pc["caractere"]]["rang"]
+    if pc.get("niveau") == "gel":
+        n += _POIDS_ORDRE["gel"]
+    if pc.get("type") == "contractuel":
+        n += _POIDS_ORDRE["contractuel"]
+    if pc.get("moteur"):
+        n += _POIDS_ORDRE["moteur"]
+    if pc.get("niveau") == "emission":
+        n += _POIDS_ORDRE["emission"]
+    if pc.get("emetteur") == "moe":
+        n += _POIDS_ORDRE["nous"]
+    return n
+
+
+def classer_pieces(liste, public=False):
+    """Annote chaque pièce de son caractère et la classe par importance.
+
+    L'ordre est DÉCROISSANT : ce qui bloque d'abord, ce qui enrichit ensuite.
+    À importance égale, l'ordre du registre est conservé — un tri instable
+    ferait bouger les cartes d'un affichage à l'autre sans que rien n'ait
+    changé, et le lecteur croirait à une mise à jour.
+    """
+    out = []
+    for i, p in enumerate(liste):
+        q = dict(p)
+        car, motif, fondement = caractere_piece(p, public)
+        q["caractere"] = car
+        q["caractere_nom"] = CARACTERES[car]["nom"]
+        q["caractere_motif"] = motif
+        q["caractere_fondement"] = fondement
+        q["_rang_registre"] = i
+        q["importance"] = _importance(q)
+        out.append(q)
+    out.sort(key=lambda x: (-x["importance"], x["_rang_registre"]))
+    for i, q in enumerate(out):
+        q["ordre"] = i + 1
+        del q["_rang_registre"]
+    return out
+
+
 def _resume_pieces(liste):
     """Le compte par type, émetteur et discipline. Dérivé, jamais écrit à la
     main : un registre s'allonge et les comptes figés se démentent au premier
@@ -2666,7 +2819,7 @@ def parcours(profil, filiere):
 #  5. LE DOSSIER D'UNE PHASE
 # ═══════════════════════════════════════════════════════════════════════════
 
-def dossier(profil, code):
+def dossier(profil, code, inputs=None):
     """La structure de l'étude pour cette phase, avec les valeurs du moteur là
     où elles sont recevables — et la mention explicite « à produire » là où elles
     ne le sont pas.
@@ -2687,7 +2840,12 @@ def dossier(profil, code):
     a = aptitude(profil, code)
     etude = D.etude(profil)
     apport = ph["apport_moteur"]
-    pcs = pieces(code)
+    # Le registre est CLASSÉ par importance décroissante et annoté de ce que
+    # chaque pièce pèse. Présenté à plat, il se lit comme une liste de tâches
+    # équivalentes, et le lecteur commence par la plus facile.
+    pcs = classer_pieces(pieces(code),
+                         public=bool(contexte_projet(inputs or {})
+                                     .get("mop_obligatoire")))
 
     # Les grandeurs que le moteur peut verser au dossier, avec leur statut à ce
     # stade. « recevable » ne veut pas dire « juste » : cela veut dire que le
@@ -3410,6 +3568,10 @@ def glossaire():
         "moteur": MOTEUR_BADGE,
         "poste": {k: {"nom": v["nom"], "aide": _aide_poste(v)}
                   for k, v in POSTES.items()},
+        # Le poids d'une pièce, et surtout ce qui le FONDE. Un badge
+        # « Obligatoire » sans motif se discute en réunion et ne se tranche pas.
+        "caractere": {k: {"nom": v["nom"], "aide": v["aide"]}
+                      for k, v in CARACTERES.items()},
         # Le vocabulaire de la disponibilité, DÉRIVÉ du référentiel et non
         # réécrit : « Tier III » se lit sur trois pages du dossier, et trois
         # définitions différentes du même sigle valent moins qu'une seule.

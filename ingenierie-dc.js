@@ -12,6 +12,7 @@
   "use strict";
 
   var REF = null, CADRE = null, FILIERE = "moe", PHASE = null, DERNIER = null;
+  var DOSSIER = null;
 
   function $(s, r) { return (r || document).querySelector(s); }
   function esc(s) {
@@ -496,85 +497,404 @@
   var ORDRE_TYPE = ["note", "tableau", "plan", "schema", "contractuel",
                     "procedure", "registre"];
 
+  /* Le registre : ce qu'on REMET, classé par ce que ça pèse.
+
+     Trois partis pris, et le premier est celui qui change tout :
+
+       · L'ORDRE EST CELUI DE L'IMPORTANCE, pas celui du registre. Vingt-trois
+         pièces présentées à plat se lisent comme vingt-trois tâches
+         équivalentes ; le lecteur commence alors par la plus facile. Chaque
+         carte porte son caractère — obligatoire, indispensable, utile — ET son
+         fondement, parce qu'un badge sans motif se discute en réunion et ne se
+         tranche pas.
+
+       · CE QUI EST FAIT EST SÉPARÉ DE CE QUI RESTE. Un registre qui mélange
+         les deux oblige à relire tout le dossier pour savoir où on en est.
+
+       · LES TROIS COLONNES ne sont pas une préférence de mise en page : à une
+         carte par ligne, vingt-trois pièces font quatre écrans et la dernière
+         n'est jamais lue. */
+  var PLAN = null;
+
+  function carteP(p) {
+    var L = p.livrable;
+    var v = L && L.visa;
+    return '<article class="ig-pc ig-c-' + esc(p.caractere)
+      + (p.moteur ? " mot" : "") + (p.discipline ? " dis" : "")
+      + (p.fait ? " fait" : "") + '" data-code="' + esc(p.code) + '">'
+      + '<div class="ig-pc-top">'
+      + '<span class="ig-car" ' + info("caractere:" + p.caractere) + ">"
+      + esc(p.caractere_nom) + "</span>"
+      + '<span class="ig-ord">n° ' + p.ordre + "</span>"
+      + (v ? '<span class="ig-vis ig-v-' + esc(v.etat) + '"'
+             + info("visa:" + v.etat) + ">" + esc(v.nom) + "</span>"
+           : (p.fait ? '<span class="ig-vis ig-v-en_attente"'
+                       + info("visa:en_attente") + ">En attente de visa</span>" : ""))
+      + "</div>"
+      + '<div class="ig-pc-h"><code>' + esc(p.code) + "</code> "
+      + '<span class="ti">' + esc(p.titre) + "</span></div>"
+      + '<div class="ig-pc-meta"><span class="em"' + info("emetteur:" + p.emetteur)
+      + ">" + esc(p.emetteur_nom) + "</span>"
+      /* Le TYPE de pièce reste porté par la carte. Il servait de titre de
+         groupe ; le regroupement est passé à l'avancement, mais un lecteur qui
+         ne sait pas ce qu'est une « pièce contractuelle » doit toujours
+         pouvoir l'apprendre — sinon la refonte a coûté une information. */
+      + '<span class="tp"' + info("type_piece:" + p.type) + ">"
+      + esc(p.type_nom) + "</span>"
+      + (p.moteur ? '<span class="mo"' + info("moteur:oui")
+          + ">alimentée par le calcul</span>" : "")
+      + "</div>"
+      /* Le NIVEAU commande la profondeur attendue, et son AIDE dit pourquoi.
+         Sans elle, une même spécification se lit à l'identique de l'esquisse à
+         la consultation, alors qu'elle n'y engage pas du tout la même chose. */
+      + (p.niveau_nom
+          ? '<div class="ig-pc-nv"><span class="nv nv-' + esc(p.niveau) + '"'
+            + info("niveau:" + p.niveau) + ">" + esc(p.niveau_nom) + "</span> "
+            + esc(p.niveau_aide)
+            + (p.discipline_nom
+                ? ' <span class="di"' + info("discipline:" + p.discipline) + ">"
+                  + esc(p.discipline_nom) + "</span>" : "")
+            + (p.autres_phases && p.autres_phases.length
+                ? '<span class="ap">document unique, repris en '
+                  + esc(p.autres_phases.join(", ")) + "</span>" : "")
+            + "</div>"
+          : "")
+      /* Le MOTIF du caractère. Sans lui, « Obligatoire » est une affirmation ;
+         avec lui, elle se vérifie. */
+      + '<p class="ig-car-m">' + esc(p.caractere_motif) + "</p>"
+      + (L ? '<div class="ig-pc-l"><b>Rédigée</b> le ' + pjDate(L.created_at)
+             + " · " + esc(L.etat)
+             + (v && v.bloquants && v.bloquants.length
+                 ? '<span class="mtf">Motif — '
+                   + esc(v.bloquants[0].motif || "non précisé") + "</span>" : "")
+             + "</div>" : "")
+      + '<ul>' + (p.contenu || []).map(function (c) {
+          return "<li>" + esc(c) + "</li>"; }).join("") + "</ul>"
+      + (p.recherche_origine === "titre"
+          ? '<div class="ig-pc-rq tit"><span class="lb"' + info("recherche:titre")
+            + ">recherche</span> <i>son intitulé, faute de vocabulaire déclaré</i></div>"
+          : '<div class="ig-pc-rq"><span class="lb"'
+            + info("recherche:" + p.recherche_origine) + ">recherche</span> "
+            + esc(p.recherche) + "</div>")
+      + '<div class="ig-pc-a"><button type="button" class="ig-gen" data-piece="'
+      + esc(p.code) + '">' + (p.fait ? "Reprendre" : "Rédiger") + "</button>"
+      + '<button type="button" class="ig-voir" data-piece="' + esc(p.code)
+      + '">Ce que la base apporte</button>'
+      + (L ? '<button type="button" class="ig-visa" data-l="' + esc(L.id)
+             + '" data-piece="' + esc(p.code) + '">Viser</button>'
+             + '<a class="ig-dl" href="/api/datacenter/projets/'
+             + esc(PROJET ? PROJET.id : "") + "/livrable/" + esc(L.id)
+             + '.docx">Word</a>'
+             + '<button type="button" class="ig-env" data-piece="' + esc(p.code)
+             + '">Signaler</button>' : "")
+      + (p.type === "plan" || p.type === "schema"
+          ? '<span class="ig-pc-n">La rédaction produit la SPÉCIFICATION de la '
+            + "pièce graphique — contenu, échelle, conventions — non le dessin.</span>"
+          : "")
+      + '</div><div class="ig-pc-doc" data-doc="' + esc(p.code) + '"></div></article>';
+  }
+
   function registrePieces(d) {
-    var P = d.pieces || [];
+    var P = (PLAN && PLAN.pieces) || d.pieces || [];
     if (!P.length) return "";
     var R = d.resume_pieces || {};
+    var A = PLAN && PLAN.avancement;
     var h = '<div class="ig-reg"><div class="ig-reg-t"><b>' + R.total
       + "</b> pièce" + (R.total > 1 ? "s" : "") + " à fournir · <b>"
       + R.propres_a_la_phase + "</b> propre" + (R.propres_a_la_phase > 1 ? "s" : "")
       + " à la phase · <b>" + R.specifications_de_discipline
       + "</b> spécification" + (R.specifications_de_discipline > 1 ? "s" : "")
       + " de discipline · <b>" + R.alimentees_par_le_moteur + "</b> alimentée"
-      + (R.alimentees_par_le_moteur > 1 ? "s" : "") + " par le calcul"
-      + "<span class='ig-reg-c'>"
+      + (R.alimentees_par_le_moteur > 1 ? "s" : "") + " par le calcul";
+    if (A) {
+      /* L'avancement RÉEL du dossier, et surtout les obligatoires qui
+         manquent : c'est le seul chiffre qui décide si la phase peut être
+         remise. */
+      h += "<br><b>" + A.faits + "</b> rédigée" + (A.faits > 1 ? "s" : "")
+        + " · <b>" + A.obligatoires_restants + "</b> obligatoire"
+        + (A.obligatoires_restants > 1 ? "s" : "") + " restant"
+        + (A.obligatoires_restants > 1 ? "es" : "e")
+        + (A.valides_client ? " · <b>" + A.valides_client + "</b> validée"
+            + (A.valides_client > 1 ? "s" : "") + " par le client" : "")
+        + (A.rejetes ? ' · <b class="ko">' + A.rejetes + "</b> rejetée"
+            + (A.rejetes > 1 ? "s" : "") : "");
+    }
+    h += "<span class='ig-reg-c'>"
       + Object.keys(R.par_type || {}).sort().map(function (k) {
           return esc(k) + " " + R.par_type[k];
         }).join(" · ") + "</span></div>";
 
-    var groupes = {};
-    P.forEach(function (p) { (groupes[p.type] = groupes[p.type] || []).push(p); });
-    ORDRE_TYPE.forEach(function (t) {
-      var g = groupes[t];
-      if (!g || !g.length) return;
-      h += '<div class="ig-reg-g"><h5><span' + info("type_piece:" + t) + ">"
-        + esc(g[0].type_nom) + "</span> <span>" + esc(g[0].type_aide) + "</span></h5>";
-      g.forEach(function (p) {
-        h += '<div class="ig-pc' + (p.moteur ? " mot" : "")
-          + (p.discipline ? " dis" : "") + '">'
-          + '<div class="ig-pc-h"><code>' + esc(p.code) + "</code> "
-          + '<span class="ti">' + esc(p.titre) + "</span>"
-          + '<span class="em"' + info("emetteur:" + p.emetteur) + ">"
-          + esc(p.emetteur_nom) + "</span>"
-          + (p.moteur ? '<span class="mo"' + info("moteur:oui")
-              + ">alimentée par le calcul</span>" : "")
-          + "</div>"
-          /* Le NIVEAU commande la profondeur attendue. Sans lui, une même
-             spécification se lit à l'identique de l'esquisse à la consultation,
-             alors qu'elle n'y engage pas du tout la même chose. */
-          + (p.niveau_nom
-              ? '<div class="ig-pc-nv"><span class="nv nv-' + esc(p.niveau) + '"'
-                + info("niveau:" + p.niveau) + ">"
-                + esc(p.niveau_nom) + "</span> " + esc(p.niveau_aide)
-                + (p.discipline_nom
-                    ? ' <span class="di"' + info("discipline:" + p.discipline) + ">"
-                      + esc(p.discipline_nom) + "</span>" : "")
-                + (p.autres_phases && p.autres_phases.length
-                    ? '<span class="ap">document unique, repris en '
-                      + esc(p.autres_phases.join(", ")) + "</span>" : "")
-                + "</div>"
-              : "")
-          + '<ul>' + p.contenu.map(function (c) { return "<li>" + esc(c) + "</li>"; }).join("")
-          + "</ul>"
-          /* CE QU'ON DEMANDE À LA BASE. « Adossé à la base de connaissance »
-             est une affirmation ; l'afficher la rend vérifiable — et montre
-             qu'on cherche le SUJET de la pièce, pas son titre. */
-          + (p.recherche_origine === "titre"
-              ? '<div class="ig-pc-rq tit"><span class="lb"'
-                + info("recherche:titre") + ">recherche</span> "
-                + "<i>son intitulé, faute de vocabulaire déclaré</i></div>"
-              : '<div class="ig-pc-rq"><span class="lb"'
-                + info("recherche:" + p.recherche_origine) + ">recherche</span> "
-                + esc(p.recherche) + "</div>")
-          + '<div class="ig-pc-a"><button type="button" class="ig-gen" '
-          + 'data-piece="' + esc(p.code) + '">Rédiger cette pièce</button>'
-          + '<button type="button" class="ig-voir" '
-          + 'data-piece="' + esc(p.code) + '">Ce que la base apporte</button>'
-          /* Dire la vérité sur ce qu'une IA produit pour une pièce graphique :
-             elle n'en dessine pas une, elle en écrit la spécification. */
-          + (p.type === "plan" || p.type === "schema"
-              ? '<span class="ig-pc-n">La rédaction produit la SPÉCIFICATION de '
-                + 'la pièce graphique — contenu, échelle, conventions — non le '
-                + 'dessin lui-même.</span>' : "")
-          + '</div><div class="ig-pc-doc" data-doc="' + esc(p.code) + '"></div></div>';
-      });
-      h += "</div>";
-    });
+    h += barreProjet(d);
+
+    /* Deux groupes seulement : ce qui reste, ce qui est fait. Le type de pièce
+       reste lisible sur chaque carte — en faire un niveau de regroupement
+       éparpillerait les obligatoires dans sept sections. */
+    var reste = P.filter(function (x) { return !x.fait; });
+    var faits = P.filter(function (x) { return x.fait; });
+    h += '<div class="ig-reg-cols">';
+    h += groupe("À rédiger", reste,
+                "Classées par importance décroissante : ce qui bloque la phase "
+                + "d'abord, ce qui enrichit le dossier ensuite.");
+    if (PLAN) {
+      h += groupe("Rédigées et prêtes", faits,
+                  "Produites pour ce projet. Le visa dit ce que le client et "
+                  + "les collègues en ont fait.");
+    }
+    h += "</div>";
     h += '<p class="ig-reg-n">' + esc(d.note_registre) + "</p>";
     return h + '<div id="ig-piece" aria-live="polite"></div></div>';
+
+    function groupe(titre, liste, sous) {
+      if (!liste.length) {
+        return PLAN
+          ? '<section class="ig-reg-g"><h5>' + esc(titre)
+            + ' <span>aucune</span></h5></section>' : "";
+      }
+      return '<section class="ig-reg-g"><h5>' + esc(titre) + " <span>"
+        + liste.length + " · " + esc(sous) + "</span></h5>"
+        + '<div class="ig-grille3">'
+        + liste.map(carteP).join("") + "</div></section>";
+    }
+  }
+
+  /* La barre de projet : tout emporter, prévenir, inviter. Elle n'apparaît que
+     si un projet est ouvert — proposer « tout télécharger » quand rien n'est
+     rattaché offrirait une archive vide. */
+  function barreProjet(d) {
+    if (!PROJET) {
+      return '<div class="ig-bar vide">Aucun projet ouvert : les pièces '
+        + "rédigées ne seront rattachées à aucun dossier, et ni l'archive ni "
+        + "les visas ne seront disponibles. Ouvrez un projet en section 1.</div>";
+    }
+    var ph = d.code;
+    return '<div class="ig-bar">'
+      + '<span class="pj">Projet <b>' + esc(PROJET.nom) + "</b></span>"
+      + '<a class="btn btn-s" href="/api/datacenter/projets/' + esc(PROJET.id)
+      + '/dossier.zip?phase=' + esc(ph) + '">Télécharger la phase (ZIP)</a>'
+      + '<a class="btn btn-s" href="/api/datacenter/projets/' + esc(PROJET.id)
+      + '/dossier.zip">Tout le projet (ZIP)</a>'
+      + '<button type="button" class="btn btn-s" id="ig-inviter">'
+      + "Inviter un collègue</button>"
+      + '<button type="button" class="btn btn-s" id="ig-envoyer-phase">'
+      + "Signaler cette phase</button>"
+      + '<div id="ig-bar-r" role="status" aria-live="polite"></div></div>';
+  }
+
+  /* ── La continuité : où aller ensuite ────────────────────────────────────
+     Un registre dit ce qu'il faut produire. Il ne dit pas par quoi commencer
+     ni ce qui vient après, et c'est là que le dossier s'arrête — non par
+     désaccord, mais parce que personne ne sait quel est le geste suivant. */
+  function railSuite() {
+    var z = $("#ig-rail");
+    if (!z) return;
+    if (!PLAN || !PLAN.suite) { z.innerHTML = ""; z.hidden = true; return; }
+    var s = PLAN.suite, h = '<div class="ig-rail-t">La suite</div>';
+    if (s.piece) {
+      h += '<button type="button" class="ig-fl" id="ig-fl-piece">'
+        + '<span class="fx">↓</span><span class="fl-t">Pièce suivante</span>'
+        + '<span class="fl-c">' + esc(s.piece.code) + "</span>"
+        + '<span class="fl-n">' + esc(s.piece.caractere_nom) + "</span></button>";
+    }
+    if (s.bloquantes && s.bloquantes.length) {
+      h += '<div class="ig-fl-w"><b>' + s.bloquantes.length
+        + " obligatoire" + (s.bloquantes.length > 1 ? "s" : "")
+        + "</b> restant" + (s.bloquantes.length > 1 ? "es" : "e")
+        + " avant de pouvoir remettre cette phase.</div>";
+    } else if (PLAN.avancement && PLAN.avancement.total) {
+      h += '<div class="ig-fl-ok">Toutes les pièces obligatoires de la phase '
+        + "sont rédigées.</div>";
+    }
+    if (s.phase) {
+      h += '<button type="button" class="ig-fl suiv" id="ig-fl-phase">'
+        + '<span class="fx">→</span><span class="fl-t">Phase suivante</span>'
+        + '<span class="fl-c">' + esc(s.phase.code) + "</span>"
+        + '<span class="fl-n">' + esc(s.phase.nom) + "</span></button>";
+    } else if (s.fin) {
+      h += '<div class="ig-fl-fin">' + esc(s.fin_texte || "Fin de la séquence.")
+        + "</div>";
+    }
+    z.innerHTML = h;
+    z.hidden = false;
+    var b;
+    if ((b = $("#ig-fl-piece"))) {
+      b.addEventListener("click", function () { viserPiece(PLAN.suite.piece.code); });
+    }
+    if ((b = $("#ig-fl-phase"))) {
+      b.addEventListener("click", function () {
+        PHASE = PLAN.suite.phase.code;
+        rafraichir();
+        var t = $("#ig-dossier");
+        if (t) t.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  }
+
+  /* ── Viser une pièce : valider ou rejeter, et dire pourquoi ─────────────
+     Un rejet sans motif fait recommencer à l'identique. C'est le pire des
+     retours : il coûte deux fois et n'apprend rien. Le serveur le refuse, et
+     la page le dit avant d'envoyer plutôt qu'après. */
+  function ouvrirVisa(lid, code, bouton) {
+    var z = bouton.closest(".ig-pc").querySelector(".ig-pc-doc");
+    if (z.querySelector(".ig-visa-f")) { z.innerHTML = ""; return; }
+    var R = (PLAN && PLAN.etats_visa) || {};
+    z.innerHTML = '<form class="ig-visa-f">'
+      + '<label>Vous visez en tant que'
+      + '<select class="rl"><option value="client">Client</option>'
+      + '<option value="collegue">Collègue du projet</option>'
+      + '<option value="moe">Maîtrise d\'œuvre</option></select></label>'
+      + '<label>Décision<select class="dc">'
+      + '<option value="valide">Validé</option>'
+      + '<option value="rejete">Rejeté</option></select></label>'
+      + '<label class="mt">Motif <span>obligatoire en cas de rejet</span>'
+      + '<input type="text" class="mo" maxlength="800" '
+      + 'placeholder="ce qui doit être repris, précisément"></label>'
+      + '<div class="ac"><button type="submit" class="btn btn-s">Enregistrer</button>'
+      + '<span class="rp"></span></div></form>';
+    var f = z.querySelector(".ig-visa-f");
+    f.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var rep = f.querySelector(".rp");
+      var dec = f.querySelector(".dc").value;
+      var mot = f.querySelector(".mo").value.trim();
+      if (dec === "rejete" && mot.length < 5) {
+        rep.className = "rp ko";
+        rep.textContent = "Un rejet doit porter son motif : sans lui, la pièce "
+          + "est reprise à l'identique.";
+        return;
+      }
+      rep.className = "rp";
+      rep.textContent = "Enregistrement…";
+      fetch("/api/datacenter/projets/" + PROJET.id + "/livrable/" + lid + "/visa", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: f.querySelector(".rl").value,
+                               decision: dec, motif: mot }),
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (!j.ok) {
+            rep.className = "rp ko";
+            rep.textContent = j.message || "Visa refusé.";
+            return;
+          }
+          rep.textContent = "";
+          chargerPlan();
+        })
+        .catch(function () {
+          rep.className = "rp ko";
+          rep.textContent = "Le visa n'a pas pu être enregistré.";
+        });
+    });
+  }
+
+  function barreMsg(texte, ko) {
+    var z = $("#ig-bar-r");
+    if (z) {
+      z.innerHTML = '<p class="' + (ko ? "ig-dep-ko" : "ig-dep-ok") + '">'
+        + esc(texte) + "</p>";
+    }
+  }
+
+  function inviterCollegue() {
+    if (!PROJET) return;
+    var email = window.prompt("Adresse électronique du collègue à inviter sur "
+      + "le projet « " + PROJET.nom + " ».\n\nIl verra le dossier, son "
+      + "historique et les pièces. Il ne pourra ni supprimer le projet ni "
+      + "inviter d'autres personnes.");
+    if (!email) return;
+    fetch("/api/datacenter/projets/" + PROJET.id + "/collaborateurs", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j.ok) { barreMsg(j.message || "Invitation refusée.", true); return; }
+        /* On dit si le courriel est PARTI, et sinon on donne le lien à
+           transmettre. Annoncer « invitation envoyée » sur un serveur qui n'a
+           pas de quoi l'envoyer serait la pire des confirmations. */
+        barreMsg(j.courriel_envoye
+          ? "Invitation envoyée. " + j.collaborateurs.length
+            + " collègue(s) sur le projet."
+          : "Collègue ajouté (" + j.collaborateurs.length + " au total). "
+            + "L'envoi de courriel n'est pas configuré sur ce serveur : "
+            + "transmettez-lui ce lien — " + j.lien);
+      })
+      .catch(function () { barreMsg("Invitation impossible.", true); });
+  }
+
+  function signaler(code) {
+    if (!PROJET) return;
+    var email = window.prompt("À quel collègue signaler "
+      + (code ? "la pièce " + code : "cette phase") + " ?\n\n"
+      + "Il doit déjà être invité sur le projet : sans accès, il recevrait un "
+      + "lien qu'il ne peut pas ouvrir.");
+    if (!email) return;
+    var mot = window.prompt("Un mot pour l'accompagner (facultatif) :") || "";
+    fetch("/api/datacenter/projets/" + PROJET.id + "/envoyer", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email, phase: PHASE, piece: code,
+                             message: mot }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j.ok) { barreMsg(j.message || "Envoi refusé.", true); return; }
+        barreMsg(j.courriel_envoye
+          ? "Signalé à " + email + "."
+          : "L'envoi de courriel n'est pas configuré sur ce serveur : "
+            + "transmettez ce lien — " + j.lien);
+      })
+      .catch(function () { barreMsg("Envoi impossible.", true); });
+  }
+
+  /* Le plan : le registre confronté à ce que le projet a produit. Demandé
+     seulement quand un projet est ouvert — sans projet, il n'y a rien à
+     confronter, et l'appeler quand même afficherait « 0 rédigée » comme un
+     retard alors qu'aucun dossier n'existe. */
+  /* Recharge le plan et redessine le registre SANS refaire tout le dossier :
+     après un visa, seule l'annotation change, et rejouer le calcul de phase
+     ferait sauter la page pour rien. Le vocabulaire des visas appartient au
+     module des projets et arrive avec le plan — on le verse dans le glossaire
+     plutôt que d'en tenir une seconde copie côté serveur. */
+  function chargerPlan() {
+    if (!PROJET || !PHASE || !DOSSIER) return;
+    var p = lireProfil();
+    p.phase = PHASE;
+    var ident = lireIdentification();
+    Object.keys(ident).forEach(function (k) { p[k] = ident[k]; });
+    fetch("/api/datacenter/projets/" + PROJET.id + "/plan", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(p),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        PLAN = (j.ok && j.disponible) ? j : null;
+        if (PLAN && PLAN.etats_visa && CADRE) {
+          CADRE.glossaire = CADRE.glossaire || {};
+          CADRE.glossaire.visa = PLAN.etats_visa;
+        }
+        rendreDossier(DOSSIER);
+      })
+      .catch(function () { /* le registre reste tel qu'il est */ });
   }
 
   function brancherPieces() {
+    var b;
+    if ((b = $("#ig-inviter"))) b.addEventListener("click", inviterCollegue);
+    if ((b = $("#ig-envoyer-phase"))) {
+      b.addEventListener("click", function () { signaler(""); });
+    }
+    document.querySelectorAll("#ig-dossier .ig-env").forEach(function (e) {
+      e.addEventListener("click", function () { signaler(e.getAttribute("data-piece")); });
+    });
+    document.querySelectorAll("#ig-dossier .ig-visa").forEach(function (e) {
+      e.addEventListener("click", function () {
+        ouvrirVisa(e.getAttribute("data-l"), e.getAttribute("data-piece"), e);
+      });
+    });
+    railSuite();
     document.querySelectorAll("#ig-dossier .ig-gen").forEach(function (b) {
       b.addEventListener("click", function () { redigerPiece(b.getAttribute("data-piece"), b); });
     });
@@ -795,13 +1115,43 @@
           boutons(false);
           return;
         }
-        rendreDossier(j.dossier);
-        if (PIECE_VISEE) { viserPiece(PIECE_VISEE); PIECE_VISEE = null; }
+        DOSSIER = j.dossier;
+        /* Le plan d'abord, le rendu ensuite : dessiner le registre nu puis le
+           redessiner annoté le ferait clignoter, et un lecteur qui voit une
+           liste changer sous ses yeux se demande laquelle est la bonne. */
+        planPuisRendre(j.dossier);
       })
       .catch(function () {
         $("#ig-dossier").innerHTML = '<p class="note">Dossier indisponible pour le moment.</p>';
         boutons(false);
       });
+  }
+
+  function planPuisRendre(d) {
+    var fini = function () {
+      rendreDossier(d);
+      if (PIECE_VISEE) { viserPiece(PIECE_VISEE); PIECE_VISEE = null; }
+    };
+    if (!PROJET || !PHASE) { PLAN = null; fini(); return; }
+    var p = lireProfil();
+    p.phase = PHASE;
+    var ident = lireIdentification();
+    Object.keys(ident).forEach(function (k) { p[k] = ident[k]; });
+    fetch("/api/datacenter/projets/" + PROJET.id + "/plan", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(p),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        PLAN = (j.ok && j.disponible) ? j : null;
+        if (PLAN && PLAN.etats_visa && CADRE) {
+          CADRE.glossaire = CADRE.glossaire || {};
+          CADRE.glossaire.visa = PLAN.etats_visa;
+        }
+      })
+      .catch(function () { PLAN = null; })
+      .then(fini);
   }
 
   function boutons(actif) {

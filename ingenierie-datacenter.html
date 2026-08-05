@@ -553,6 +553,108 @@
   .ig-acc.a-proche{color:#8B7CF6;border-color:#8B7CF6}
   .ig-acc.a-partiel{color:#F0B429;border-color:#F0B429}
   .ig-acc.a-faible{color:#D9603A;border-color:#D9603A}
+
+  /* ── Le registre en trois colonnes, classé par importance ──────────────
+     À une carte par ligne, vingt-trois pièces font quatre écrans et la
+     dernière n'est jamais lue. Trois colonnes tiennent la phase entière sous
+     les yeux — et l'ordre devient alors une information, pas une fatalité. */
+  .ig-reg-cols{margin-top:6px}
+  .ig-grille3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;
+    align-items:start}
+  @media (max-width:1100px){.ig-grille3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media (max-width:720px){.ig-grille3{grid-template-columns:minmax(0,1fr)}}
+  .ig-grille3 .ig-pc{margin-bottom:0;display:flex;flex-direction:column;height:100%}
+  .ig-pc-top{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:7px}
+  /* Le caractère porte une couleur, et la carte un liseré assorti : c'est ce
+     qu'on lit AVANT le titre quand on cherche par quoi commencer. */
+  .ig-car{font-family:var(--mono);font-size:9.5px;letter-spacing:.07em;
+    text-transform:uppercase;padding:2px 8px;border-radius:99px;font-weight:700}
+  .ig-c-obligatoire{border-left:3px solid #F2A65A}
+  .ig-c-obligatoire .ig-car{color:#0B0B0B;background:#F2A65A}
+  .ig-c-indispensable{border-left:3px solid #5BC8E8}
+  .ig-c-indispensable .ig-car{color:#0B0B0B;background:#5BC8E8}
+  .ig-c-utile{border-left:3px solid #9FB3C8}
+  .ig-c-utile .ig-car{color:var(--muted2);border:1px solid #9FB3C8}
+  .ig-ord{font-family:var(--mono);font-size:10px;color:var(--muted2)}
+  .ig-vis{font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;
+    text-transform:uppercase;padding:2px 8px;border-radius:99px;
+    border:1px solid var(--line);color:var(--muted2);margin-left:auto}
+  .ig-v-valide_client{color:#7FD4A8;border-color:#7FD4A8}
+  .ig-v-valide_interne{color:#5BC8E8;border-color:#5BC8E8}
+  .ig-v-rejete_client{color:#F39F7D;border-color:#F39F7D;
+    background:rgba(243,159,125,.12)}
+  .ig-v-rejete_collegue{color:#E8B44A;border-color:#E8B44A}
+  .ig-pc-meta{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 0}
+  .ig-pc-meta span{font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;
+    text-transform:uppercase;padding:2px 7px;border-radius:99px;
+    border:1px solid var(--line);color:var(--muted2)}
+  /* Le niveau et ses renvois, dans la carte : la mise en grille ne doit rien
+     retirer de ce qui se lisait avant. */
+  .ig-grille3 .ig-pc-nv{margin:7px 0 0}
+  .ig-grille3 .ig-pc ul{margin:8px 0 0;padding-left:16px}
+  .ig-car-m{font-size:11.5px;color:var(--muted);line-height:1.55;margin:8px 0 0;
+    border-left:2px solid var(--line);padding-left:9px}
+  .ig-pc-l{margin-top:8px;font-size:11.5px;color:var(--muted);line-height:1.55;
+    border-left:3px solid rgba(45,212,191,.5);padding:6px 0 6px 9px}
+  .ig-pc-l b{color:var(--ink)}
+  .ig-pc-l .mtf{display:block;margin-top:4px;color:#F39F7D}
+  .ig-grille3 .ig-pc-a{margin-top:auto;padding-top:9px}
+  .ig-dl{font-size:11.5px;color:var(--cyan);align-self:center}
+  .ig-reg-g h5 span{display:block;margin-top:3px}
+
+  /* Le formulaire de visa, ouvert sous la carte. */
+  .ig-visa-f{margin-top:10px;border:1px solid var(--line);border-radius:10px;
+    padding:11px 13px;background:rgba(0,0,0,.2);display:grid;gap:9px}
+  .ig-visa-f label{font-size:11.5px;color:var(--ink);display:grid;gap:4px}
+  .ig-visa-f label span{font-size:10.5px;color:var(--muted2);font-weight:400}
+  .ig-visa-f select,.ig-visa-f input{background:var(--bg2);border:1px solid var(--line);
+    border-radius:8px;padding:7px 9px;color:var(--ink);font:inherit;font-size:12.5px}
+  .ig-visa-f .ac{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+  .ig-visa-f .rp{font-size:11.5px;color:var(--muted2);line-height:1.5}
+  .ig-visa-f .rp.ko{color:#F39F7D}
+
+  /* La barre de projet : emporter, prévenir, inviter. */
+  .ig-bar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:0 0 16px;
+    padding:11px 14px;border:1px solid var(--line);border-left:3px solid var(--cyan);
+    border-radius:0 11px 11px 0;background:rgba(34,211,238,.07)}
+  .ig-bar.vide{border-left-color:#E8B44A;background:rgba(0,0,0,.16);
+    font-size:12.5px;color:var(--muted);line-height:1.6;display:block}
+  .ig-bar .pj{font-size:12.5px;color:var(--muted)}
+  .ig-bar .pj b{color:var(--ink)}
+  .ig-bar #ig-bar-r{flex:1 1 100%}
+  .ig-reg-t b.ko{color:#F39F7D}
+
+  /* ── Le rail de continuité ─────────────────────────────────────────────
+     Collé en haut de la fenêtre pendant qu'on parcourt le registre : la
+     question « et après ? » se pose au bas de la liste, pas en haut. */
+  .ig-avec-rail{display:grid;grid-template-columns:minmax(0,1fr) 218px;gap:18px;
+    align-items:start}
+  @media (max-width:980px){.ig-avec-rail{grid-template-columns:minmax(0,1fr)}
+    .ig-rail{position:static !important}}
+  .ig-rail{position:sticky;top:16px;border:1px solid var(--line);border-radius:12px;
+    padding:13px;background:linear-gradient(180deg,var(--panel),var(--bg2));
+    border-top:2px solid rgba(34,211,238,.34)}
+  .ig-rail[hidden]{display:none}
+  .ig-rail-t{font-family:var(--mono);font-size:10px;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--muted2);margin-bottom:10px}
+  .ig-fl{all:unset;cursor:pointer;display:grid;gap:2px;width:100%;box-sizing:border-box;
+    border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+    background:rgba(0,0,0,.16);margin-bottom:9px}
+  .ig-fl:hover{border-color:var(--cyan)}
+  .ig-fl:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  .ig-fl .fx{font-size:19px;line-height:1;color:var(--cyan)}
+  .ig-fl .fl-t{font-size:10.5px;color:var(--muted2);letter-spacing:.05em;
+    text-transform:uppercase;font-family:var(--mono)}
+  .ig-fl .fl-c{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--ink)}
+  .ig-fl .fl-n{font-size:11.5px;color:var(--muted);line-height:1.45}
+  .ig-fl.suiv{border-left:3px solid var(--teal)}
+  .ig-fl-w{font-size:11.5px;color:#E8B44A;line-height:1.55;margin:0 0 9px;
+    border-left:3px solid #E8B44A;padding-left:9px}
+  .ig-fl-w b{color:var(--ink)}
+  .ig-fl-ok{font-size:11.5px;color:#7FD4A8;line-height:1.55;margin:0 0 9px;
+    border-left:3px solid #7FD4A8;padding-left:9px}
+  .ig-fl-fin{font-size:11.5px;color:var(--muted);line-height:1.55;
+    border-left:3px solid var(--line);padding-left:9px}
 </style>
 </head>
 <body>
@@ -720,7 +822,14 @@
       Le plan du dossier, avec les grandeurs que le moteur y verse légitimement et la
       mention explicite de celles qui restent à produire. Sans cette distinction, un
       chiffre provisoire traverse tout le projet sans que personne ne le remplace.</p>
-    <div id="ig-dossier"><p class="note">Choisissez une phase dans la frise ci-dessus.</p></div>
+    <!-- Le dossier et, sur le côté, la continuité du projet. Un registre dit
+         ce qu'il faut produire ; il ne dit ni par quoi commencer ni ce qui
+         vient après, et c'est là que le dossier s'arrête — non par désaccord,
+         mais parce que personne ne sait quel est le geste suivant. -->
+    <div class="ig-avec-rail">
+      <div id="ig-dossier"><p class="note">Choisissez une phase dans la frise ci-dessus.</p></div>
+      <aside id="ig-rail" class="ig-rail" aria-label="Suite du projet" hidden></aside>
+    </div>
     <div class="actions" style="margin-top:16px;gap:10px;flex-wrap:wrap">
       <button type="button" class="btn btn-s" id="ig-docx" disabled>Étude de phase (Word)</button>
       <button type="button" class="btn btn-s" id="ig-pdf" disabled>Étude de phase (PDF)</button>
