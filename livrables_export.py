@@ -35,12 +35,59 @@ def _hex(rgb):
     return "%02X%02X%02X" % rgb
 
 
+# --- Typographie française ---------------------------------------------------
+# Appliquée AU RENDU et non dans les sources : les modules écrivent des chaînes
+# Python, où l'apostrophe droite est la plus sûre, et une règle posée ici couvre
+# tout ce qui sort — y compris le texte produit par le modèle, qu'on ne relit
+# pas ligne à ligne. Corriger les 493 apostrophes du référentiel à la main
+# aurait laissé passer la 494e, écrite demain.
+_LIEN_MD = re.compile(r"\[[^\]\n]*\]\([^)\s]*\)|https?://\S+")
+_APOS = re.compile(r"(?<=\w)'(?=\w)")
+# L'espace fine insécable devant la ponctuation haute. U+202F : présente dans
+# Liberation Sans, et c'est la raison pour laquelle cette police est embarquée
+# plutôt qu'une autre.
+_FINE = " "
+_PONCT = re.compile(r"[  ]?([;:!?%])(?=\s|$)")
+
+
+def typographie(s):
+    """Applique les usages français au texte d'un livrable.
+
+    Les adresses et les liens Markdown sont mis à l'abri d'abord : « http:// »
+    ne prend pas d'espace avant ses deux-points, et une apostrophe dans une URL
+    n'est pas une apostrophe de texte.
+    """
+    if not s:
+        return s
+    abris, out, pos = [], [], 0
+    for m in _LIEN_MD.finditer(s):
+        out.append(s[pos:m.start()])
+        out.append("\x00%d\x00" % len(abris))
+        abris.append(m.group(0))
+        pos = m.end()
+    out.append(s[pos:])
+    t = "".join(out)
+    t = _APOS.sub("’", t)
+    # Le pourcentage ne prend la fine que s'il suit un nombre : « 100 % » oui,
+    # « %s » non — ce dernier n'est pas un pourcentage mais un format.
+    t = re.sub(r"(?<=\d)[  ]?%", _FINE + "%", t)
+    t = _PONCT.sub(lambda m: (_FINE + m.group(1)) if m.group(1) != "%"
+                   else m.group(0), t)
+    for i, v in enumerate(abris):
+        t = t.replace("\x00%d\x00" % i, v)
+    return t
+
+
 # --- Analyse Markdown en blocs -----------------------------------------------
 _INLINE = re.compile(r"(\*\*[^*]+\*\*|`[^`]+`|\*[^*\n]+\*)")
 
 
 def _blocks(md):
-    lines = (md or "").replace("\r", "").split("\n")
+    # La typographie est appliquée ICI, en amont du découpage : c'est le seul
+    # point par lequel passent les deux formats. La poser dans chacun d'eux
+    # aurait produit un Word et un PDF composés différemment — exactement ce
+    # que ce module existe pour éviter.
+    lines = typographie(md or "").replace("\r", "").split("\n")
     out, i, n = [], 0, len(lines)
     while i < n:
         ln = lines[i]
@@ -125,10 +172,62 @@ def _sources(meta):
 #  Word (.docx)
 # =============================================================================
 
+def _lien_docx(paragraph, texte, url, color=None):
+    """Un vrai lien hypertexte Word, pas un texte bleu souligné.
+
+    python-docx n'expose pas les liens : il faut déclarer la relation dans la
+    partie du document et poser un w:hyperlink. Sans cela, les renvois entre
+    livrables ne seraient cliquables qu'en PDF — le Word afficherait la syntaxe
+    Markdown brute, ce qui est pire que pas de lien du tout.
+    """
+    from docx.oxml.shared import OxmlElement
+    from docx.oxml.ns import qn
+    from docx.shared import Pt, RGBColor
+    part = paragraph.part
+    r_id = part.relate_to(
+        url,
+        "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink",
+        is_external=True)
+    lien = OxmlElement("w:hyperlink")
+    lien.set(qn("r:id"), r_id)
+    r = OxmlElement("w:r")
+    rPr = OxmlElement("w:rPr")
+    c = OxmlElement("w:color")
+    c.set(qn("w:val"), _hex(C_TEAL))
+    u = OxmlElement("w:u")
+    u.set(qn("w:val"), "single")
+    rPr.append(c)
+    rPr.append(u)
+    r.append(rPr)
+    t = OxmlElement("w:t")
+    t.text = texte
+    r.append(t)
+    lien.append(r)
+    paragraph._p.append(lien)
+    return lien
+
+
+# Le lien Markdown, reconnu AVANT le gras et l'italique : son libellé peut en
+# contenir, et découper d'abord sur les astérisques casserait l'adresse.
+_LIEN = re.compile(r"\[([^\]\n]+)\]\((https?://[^\s)]+)\)")
+
+
 def _add_runs(paragraph, text, color=None):
-    """Ajoute le texte au paragraphe en interprétant **gras**, *italique*, `code`."""
+    """Ajoute le texte au paragraphe en interprétant les liens, **gras**,
+    *italique* et `code`."""
     from docx.shared import Pt
-    for part in _INLINE.split(text or ""):
+    texte = text or ""
+    if _LIEN.search(texte):
+        pos = 0
+        for m in _LIEN.finditer(texte):
+            if m.start() > pos:
+                _add_runs(paragraph, texte[pos:m.start()], color=color)
+            _lien_docx(paragraph, m.group(1), m.group(2))
+            pos = m.end()
+        if pos < len(texte):
+            _add_runs(paragraph, texte[pos:], color=color)
+        return
+    for part in _INLINE.split(texte):
         if not part:
             continue
         if part.startswith("**") and part.endswith("**"):
@@ -382,11 +481,11 @@ def build_docx(md, meta=None):
         run.font.color.rgb = GREY
 
     _rule(doc)
-    note = doc.add_paragraph().add_run(MENTION)
+    note = doc.add_paragraph().add_run(typographie(MENTION))
     note.italic = True
     note.font.size = Pt(8.5)
     note.font.color.rgb = GREY
-    contact = doc.add_paragraph().add_run(CONTACT)
+    contact = doc.add_paragraph().add_run(typographie(CONTACT))
     contact.font.size = Pt(8.5)
     contact.font.color.rgb = GREY
 
@@ -410,10 +509,76 @@ _PDF_MAP = {
 }
 _INLINE_STRIP = re.compile(r"\*\*([^*]+)\*\*|`([^`]+)`|\*([^*\n]+)\*")
 
+# --- Police embarquée --------------------------------------------------------
+# Les polices de base du PDF sont limitées au Latin-1 : elles REFUSENT la
+# ligature œ. Le contournement — l'écrire « oe » — produisait « Maîtrise
+# d'oeuvre » dans un document remis à un client, c'est-à-dire une faute
+# d'orthographe. Une police Unicode est donc embarquée, et livrée avec le dépôt
+# plutôt que cherchée sur la machine : un export qui dépend des polices
+# installées ne rend pas le même document ici et sur le serveur.
+_FONTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
+POLICE = "LiberationSans"
+_POLICE_FICHIERS = {
+    "": os.path.join(_FONTS, "LiberationSans-Regular.ttf"),
+    "B": os.path.join(_FONTS, "LiberationSans-Bold.ttf"),
+    "I": os.path.join(_FONTS, "LiberationSans-Italic.ttf"),
+}
 
-def _pdf_txt(s):
-    """Retire les marqueurs Markdown en ligne et translittère en Latin-1 sûr."""
-    s = _INLINE_STRIP.sub(lambda m: m.group(1) or m.group(2) or m.group(3) or "", s or "")
+
+def police_unicode_disponible():
+    """Les trois graisses sont-elles présentes ? Exposé pour le contrôle de santé.
+
+    Il en faut TROIS : sans l'italique, fpdf retomberait silencieusement sur le
+    romain et le document perdrait une distinction qu'il utilise (les mentions
+    de niveau et les notes sont en italique).
+    """
+    return all(os.path.exists(p) for p in _POLICE_FICHIERS.values())
+
+
+def _enregistrer_police(pdf):
+    """Enregistre la police Unicode. Renvoie la famille à utiliser.
+
+    Si les fichiers manquent, on retombe sur Helvetica ET sur la
+    translittération — le document reste produit, avec « oe » pour « œ », ce
+    qui est un défaut connu et non une panne. Le contrôle de santé signale le
+    cas ; il ne doit pas se découvrir sur un livrable client.
+    """
+    if not police_unicode_disponible():
+        return "Helvetica", False
+    try:
+        for style, chemin in _POLICE_FICHIERS.items():
+            pdf.add_font(POLICE, style, chemin)
+        return POLICE, True
+    except Exception:
+        return "Helvetica", False
+
+
+def _pdf_txt(s, unicode_ok=True):
+    """Prépare un texte pour le PDF.
+
+    Avec la police Unicode, on ne translittère plus rien : le texte part tel
+    qu'il a été écrit. Sans elle, on retombe sur l'ancien comportement.
+
+    Les marqueurs Markdown ne sont PAS retirés ici : fpdf2 sait les rendre
+    (`markdown=True`), et les retirer revenait à produire un PDF sans gras là
+    où le Word en avait — le même livrable, deux documents différents.
+    """
+    s = s or ""
+    if unicode_ok:
+        # fpdf2 note l'italique __ainsi__ ; notre Markdown l'écrit *ainsi*. Sans
+        # conversion, les astérisques s'imprimeraient tels quels. Le gras
+        # (**…**) et les liens ([…](…)) ont la même notation des deux côtés.
+        # Le gras est mis à l'abri d'abord : sinon la règle de l'italique
+        # découperait ses deux astérisques.
+        garde = "\x00\x00"
+        s = s.replace("**", garde)
+        s = re.sub(r"\*([^*\n]+)\*", r"__\1__", s)
+        s = s.replace(garde, "**")
+        # Le code en ligne : fpdf ne sait pas le rendre, et laisser les accents
+        # graves ferait croire à une coquille. On retire les marqueurs.
+        s = re.sub(r"`([^`]+)`", r"\1", s)
+        return s
+    s = _INLINE_STRIP.sub(lambda m: m.group(1) or m.group(2) or m.group(3) or "", s)
     for k, v in _PDF_MAP.items():
         s = s.replace(k, v)
     # Les substitutions encadrées d'espaces (« — » -> « - ») en produisent en
@@ -431,14 +596,18 @@ def _pdf_class():
 
     class _Livrable(FPDF):
         titre_courant = ""
+        # Résolues par build_pdf. En attributs de classe pour que l'en-tête et
+        # le pied de page, appelés par fpdf sans argument, y aient accès.
+        police = "Helvetica"
+        uni = False
 
         def header(self):
             # Page 1 : c'est la lettre à en-tête qui tient ce rôle.
             if self.page_no() == 1:
                 return
-            self.set_font("Helvetica", "", 8)
+            self.set_font(self.police, "", 8)
             self.set_text_color(*C_GREY)
-            self.cell(0, 5, _pdf_txt(self.titre_courant)[:110],
+            self.cell(0, 5, _pdf_txt(self.titre_courant, self.uni)[:110],
                       new_x="LMARGIN", new_y="NEXT")
             self.set_draw_color(*C_LINE)
             y = self.get_y()
@@ -448,9 +617,9 @@ def _pdf_class():
 
         def footer(self):
             self.set_y(-13)
-            self.set_font("Helvetica", "", 8)
+            self.set_font(self.police, "", 8)
             self.set_text_color(*C_GREY)
-            self.cell(self.epw / 2, 5, _pdf_txt("CONSEILPREV Cyber · Brouillon à valider"),
+            self.cell(self.epw / 2, 5, _pdf_txt("CONSEILPREV Cyber · Brouillon à valider", self.uni),
                       align="L")
             self.cell(self.epw / 2, 5, "page %d / {nb}" % self.page_no(), align="R")
 
@@ -476,6 +645,10 @@ def build_pdf(md, meta=None):
         " — " + meta["client"] if meta.get("client") else "")
     pdf.set_auto_page_break(True, margin=20)
     pdf.set_margins(16, 14, 16)
+    # La police AVANT la première page : l'en-tête courant s'en sert dès la
+    # page 2, et fpdf l'appelle sans passer par notre code.
+    FAM, UNI = _enregistrer_police(pdf)
+    pdf.police, pdf.uni = FAM, UNI
     pdf.add_page()
 
     # --- En-tête (lettre à en-tête) ---
@@ -485,16 +658,16 @@ def build_pdf(md, meta=None):
             pdf.set_x(28)
         except Exception:
             pass
-    pdf.set_font("Helvetica", "B", 15)
+    pdf.set_font(FAM, "B", 15)
     pdf.set_text_color(*C_NAVY)
     pdf.cell(pdf.get_string_width("CONSEILPREV "), 8, "CONSEILPREV ",
              new_x="RIGHT", new_y="TOP")
-    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_font(FAM, "B", 11)
     pdf.set_text_color(*C_TEAL)
     pdf.cell(0, 8, "Cyber", new_x="LMARGIN", new_y="NEXT")
-    pdf.set_font("Helvetica", "I", 8.5)
+    pdf.set_font(FAM, "I", 8.5)
     pdf.set_text_color(*C_GREY)
-    pdf.cell(0, 5, _pdf_txt("Cybersécurité industrielle IT / OT / IIoT"),
+    pdf.cell(0, 5, _pdf_txt("Cybersécurité industrielle IT / OT / IIoT", UNI),
              new_x="LMARGIN", new_y="NEXT")
     pdf.ln(1)
     pdf.set_draw_color(*C_LINE)
@@ -509,10 +682,18 @@ def build_pdf(md, meta=None):
         pdf.line(pdf.l_margin, yy, pdf.w - pdf.r_margin, yy)
         pdf.ln(2)
 
-    def _cell(text, h, width_off=0.0, align="L"):
-        """multi_cell robuste : x réinitialisé, largeur explicite (jamais nulle)."""
+    def _cell(text, h, width_off=0.0, align="L", md_on=None):
+        """multi_cell robuste : x réinitialisé, largeur explicite (jamais nulle).
+
+        `markdown=True` fait rendre à fpdf le **gras**, l'__italique__ et les
+        liens [texte](url) — cliquables dans le PDF. Sans lui, le PDF perdait
+        le gras que le Word rendait : le même livrable donnait deux documents.
+        Réservé au mode Unicode : avec la police de base, les marqueurs sont
+        retirés en amont et il n'y a plus rien à interpréter.
+        """
         pdf.set_x(pdf.l_margin + width_off)
-        pdf.multi_cell(pdf.epw - width_off, h, text, align=align)
+        pdf.multi_cell(pdf.epw - width_off, h, text, align=align,
+                       markdown=UNI if md_on is None else md_on)
 
     # --- Bloc de garde ---
     fiche = _fiche(meta)
@@ -521,15 +702,15 @@ def build_pdf(md, meta=None):
         for k, v in fiche:
             y0 = pdf.get_y()
             pdf.set_fill_color(*C_BAND)
-            pdf.set_font("Helvetica", "B", 8.5)
+            pdf.set_font(FAM, "B", 8.5)
             pdf.set_text_color(*C_NAVY)
             pdf.set_x(pdf.l_margin)
-            pdf.multi_cell(lab_w, 5.5, _pdf_txt(k), fill=True, border=0,
+            pdf.multi_cell(lab_w, 5.5, _pdf_txt(k, UNI), fill=True, border=0,
                            new_x="RIGHT", new_y="TOP", max_line_height=5.5)
-            pdf.set_font("Helvetica", "", 8.5)
+            pdf.set_font(FAM, "", 8.5)
             pdf.set_text_color(0, 0, 0)
             pdf.set_xy(pdf.l_margin + lab_w + 2, y0)
-            pdf.multi_cell(val_w - 2, 5.5, _pdf_txt(v), border=0)
+            pdf.multi_cell(val_w - 2, 5.5, _pdf_txt(v, UNI), border=0)
             pdf.set_y(max(pdf.get_y(), y0 + 5.5))
         pdf.ln(2)
 
@@ -538,9 +719,9 @@ def build_pdf(md, meta=None):
         if kind in ("h1", "h2", "h3"):
             size, lh = {"h1": (16, 8), "h2": (13, 7), "h3": (11, 6)}[kind]
             pdf.ln(2 if kind == "h1" else 1)
-            pdf.set_font("Helvetica", "B", size)
+            pdf.set_font(FAM, "B", size)
             pdf.set_text_color(*C_NAVY)
-            _cell(_pdf_txt(payload), lh)
+            _cell(_pdf_txt(payload, UNI), lh)
             if kind == "h2":                      # filet sous les titres de section
                 pdf.set_draw_color(*C_LINE)
                 yy = pdf.get_y()
@@ -548,19 +729,19 @@ def build_pdf(md, meta=None):
                 pdf.ln(2)
             pdf.set_text_color(0, 0, 0)
         elif kind == "p":
-            pdf.set_font("Helvetica", "", 10.5)
-            _cell(_pdf_txt(payload), 5, align="J")   # justifié, comme en Word
+            pdf.set_font(FAM, "", 10.5)
+            _cell(_pdf_txt(payload, UNI), 5, align="J")   # justifié, comme en Word
             pdf.ln(1)
         elif kind in ("ul", "ol"):
-            pdf.set_font("Helvetica", "", 10.5)
+            pdf.set_font(FAM, "", 10.5)
             for idx, it in enumerate(payload, 1):
                 marker = "  ·  " if kind == "ul" else "  %d.  " % idx
-                _cell(_pdf_txt(marker + it), 5, width_off=3)
+                _cell(_pdf_txt(marker + it, UNI), 5, width_off=3)
             pdf.ln(1)
         elif kind == "table":
             head, rows = payload
             cols = max(1, len(head))
-            pdf.set_font("Helvetica", "", 9)
+            pdf.set_font(FAM, "", 9)
             try:
                 from fpdf.fonts import FontFace
                 entete = FontFace(emphasis="BOLD", color=(255, 255, 255),
@@ -568,18 +749,22 @@ def build_pdf(md, meta=None):
                 with pdf.table(first_row_as_headings=True, line_height=5,
                                headings_style=entete, cell_fill_color=C_ZEBRA,
                                cell_fill_mode="ROWS", borders_layout="ALL",
-                               text_align="LEFT", padding=1.4) as table:
+                               text_align="LEFT", padding=1.4,
+                               # Les codes de pièce du registre sont des liens :
+                               # sans cela, la colonne afficherait la syntaxe
+                               # Markdown brute au lieu du code.
+                               markdown=UNI) as table:
                     hr = table.row()
                     for j in range(cols):
-                        hr.cell(_pdf_txt(head[j]) if j < len(head) else "")
+                        hr.cell(_pdf_txt(head[j], UNI) if j < len(head) else "")
                     for row in rows:
                         tr = table.row()
                         for j in range(cols):
-                            tr.cell(_pdf_txt(row[j]) if j < len(row) else "")
+                            tr.cell(_pdf_txt(row[j], UNI) if j < len(row) else "")
             except Exception:
                 # Repli : jamais d'export perdu pour un tableau récalcitrant.
                 for row in [head] + rows:
-                    pdf.multi_cell(0, 5, _pdf_txt(" | ".join(row)))
+                    pdf.multi_cell(0, 5, _pdf_txt(" | ".join(row), UNI))
             pdf.ln(2)
         elif kind == "hr":
             rule()
@@ -588,36 +773,36 @@ def build_pdf(md, meta=None):
     srcs = _sources(meta)
     if srcs:
         pdf.ln(3)
-        pdf.set_font("Helvetica", "B", 13)
+        pdf.set_font(FAM, "B", 13)
         pdf.set_text_color(*C_NAVY)
-        _cell(_pdf_txt("Sources mobilisées"), 7)
+        _cell(_pdf_txt("Sources mobilisées", UNI), 7)
         pdf.set_draw_color(*C_LINE)
         yy = pdf.get_y()
         pdf.line(pdf.l_margin, yy, pdf.w - pdf.r_margin, yy)
         pdf.ln(2)
-        pdf.set_font("Helvetica", "I", 9)
+        pdf.set_font(FAM, "I", 9)
         pdf.set_text_color(*C_GREY)
         _cell(_pdf_txt("Extraits de la base de connaissance CONSEILPREV ayant servi "
-                       "à la rédaction de ce brouillon."), 4.5)
+                       "à la rédaction de ce brouillon.", UNI), 4.5)
         pdf.ln(1)
         pdf.set_text_color(0, 0, 0)
         for titre, theme, vis in srcs:
-            pdf.set_font("Helvetica", "B", 9.5)
+            pdf.set_font(FAM, "B", 9.5)
             pdf.set_x(pdf.l_margin + 3)
-            pdf.multi_cell(pdf.epw - 3, 5, _pdf_txt("  ·  " + titre))
-            pdf.set_font("Helvetica", "", 8.5)
+            pdf.multi_cell(pdf.epw - 3, 5, _pdf_txt("  ·  " + titre, UNI))
+            pdf.set_font(FAM, "", 8.5)
             pdf.set_text_color(*C_GREY)
             pdf.set_x(pdf.l_margin + 9)
             pdf.multi_cell(pdf.epw - 9, 4.5,
-                           _pdf_txt("%s · %s" % (theme or "sans thème", vis)))
+                           _pdf_txt("%s · %s" % (theme or "sans thème", vis), UNI))
             pdf.set_text_color(0, 0, 0)
 
     rule()
-    pdf.set_font("Helvetica", "I", 8.5)
+    pdf.set_font(FAM, "I", 8.5)
     pdf.set_text_color(*C_GREY)
-    _cell(_pdf_txt(MENTION), 4.5)
-    pdf.set_font("Helvetica", "", 8.5)
-    _cell(_pdf_txt(CONTACT.replace("·", "-")), 4.5)
+    _cell(_pdf_txt(typographie(MENTION), UNI), 4.5)
+    pdf.set_font(FAM, "", 8.5)
+    _cell(_pdf_txt(typographie(CONTACT).replace("·", "-"), UNI), 4.5)
 
     out = pdf.output()
     return bytes(out)

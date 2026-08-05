@@ -2055,6 +2055,73 @@ def api_datacenter_ingenierie_export():
                      as_attachment=True, mimetype=mimetype)
 
 
+# Le registre en ligne, adressable phase par phase et pièce par pièce. Un
+# livrable qui écrit « repris en APD » sans dire où le lire oblige le lecteur à
+# retrouver la filière, la phase et la ligne : autant ne pas l'écrire.
+BASE_INGENIERIE = "https://conseilprevcyber.onrender.com/ingenierie-datacenter"
+
+
+def _lien_piece(code_phase, code_piece=None):
+    u = "%s#phase=%s" % (BASE_INGENIERIE, code_phase)
+    return u + ("&piece=%s" % code_piece if code_piece else "")
+
+
+def _ameliorations(d):
+    """Ce qui améliorerait CE livrable, déduit de ce qui lui manque.
+
+    Calculé, pas rédigé : une liste de conseils écrite une fois pour toutes
+    dirait la même chose d'une esquisse et d'un dossier de consultation, alors
+    que ce qui manque n'y est pas du tout de même nature. Chaque proposition
+    nomme le geste, ce qu'il apporte, et se range par effet décroissant.
+    """
+    props = []
+    # 1. Les entrées ouvertes, par effet mesuré sur les grandeurs.
+    pires = {}
+    for g in d.get("grandeurs") or []:
+        o = g.get("entrees_ouvertes") or {}
+        for c in o.get("champs", []):
+            pct = c.get("etendue_pct") or 0
+            if pct > (pires.get(c["id"], (0, None, None))[0]):
+                pires[c["id"]] = (pct, c["label"], g["nom"])
+    for pct, label, sur in sorted(pires.values(), reverse=True):
+        props.append({
+            "poids": pct,
+            "geste": "Renseigner « %s »" % label,
+            "gain": "Resserre « %s », dont %s %% d'étendue subsistent du seul "
+                    "fait de ce champ." % (sur, datacenter.fr(pct)),
+        })
+    # 2. Les substitutions dues à cette phase : elles ne resserrent pas une
+    #    fourchette, elles débloquent une grandeur — effet différent, et qu'on
+    #    ne peut donc pas comparer en pourcentage. Rang fixe au-dessus du reste.
+    for s in d["aptitude"].get("substitutions_a_faire") or []:
+        props.append({
+            "poids": 1000,
+            "geste": "Remplacer « %s » par une donnée réelle" % s["nom"],
+            "gain": "Débloque les grandeurs qui en dépendent. %s"
+                    % (s.get("remplacer_par") or ""),
+        })
+    props.sort(key=lambda p: -p["poids"])
+    # 3. Les entrées dont l'effet n'est PAS chiffré ici — un pays, une famille
+    #    de refroidissement ne se balaient pas sur un intervalle. Elles font
+    #    groupe à part au lieu de finir en bas d'un classement par effet : le
+    #    pays commande l'intensité carbone et le facteur eau, et le ranger
+    #    dernier le ferait passer pour négligeable. Un classement qui mélange
+    #    le mesuré et le non mesuré ment sur le non mesuré.
+    deja = {p["geste"] for p in props}
+    non_chiffres = []
+    for m in d["aptitude"].get("entrees_manquantes") or []:
+        g = "Renseigner « %s »" % m["label"]
+        if g in deja:
+            continue
+        non_chiffres.append({
+            "geste": g,
+            "gain": "Exigée pour franchir la phase ; état actuel : %s. Son effet "
+                    "n'est pas chiffrable par balayage — c'est un choix, pas un "
+                    "réglage." % (m.get("pourquoi") or "non renseignée"),
+        })
+    return props, non_chiffres
+
+
 def _etude_phase_markdown(d, client=""):
     """L'étude de phase en Markdown.
 
@@ -2073,6 +2140,48 @@ def _etude_phase_markdown(d, client=""):
         A("")
         A("**Client** — %s" % client)
     A("")
+
+    # ── Sommaire ────────────────────────────────────────────────────────
+    # Dérivé du contenu réel, pas écrit à la main : un sommaire recopié
+    # survit à la suppression du chapitre qu'il annonce, et le lecteur
+    # cherche une page qui n'existe plus. Les chapitres conditionnels
+    # (registre, améliorations) n'y figurent que s'ils sont produits.
+    pcs_ = d.get("pieces") or []
+    ap_ = d["aptitude"]
+    recevables_ = [g for g in d["grandeurs"] if g["statut"] == "recevable"]
+    a_remp_ = [g for g in d["grandeurs"] if g["statut"] != "recevable"]
+    plan = [("1. Objet et position dans la séquence", [])]
+    sc2 = []
+    if recevables_:
+        sc2.append("Grandeurs recevables à ce stade")
+    if a_remp_:
+        sc2.append("Grandeurs NON recevables en l'état — à produire")
+    sc2.append("Ce qui reste ouvert par les entrées non renseignées")
+    plan.append(("2. Ce que le moteur verse à ce dossier", sc2))
+    sc3 = []
+    if ap_["entrees_manquantes"]:
+        sc3.append("Entrées à renseigner")
+    if ap_["substitutions_a_faire"]:
+        sc3.append("Facteurs à remplacer par une donnée réelle")
+    plan.append(("3. Ce qui manque pour franchir la phase", sc3))
+    plan.append(("4. Plan de l'étude", []))
+    if pcs_:
+        plan.append(("5. Registre des pièces à fournir",
+                     ["Tableau récapitulatif", "Contenu exigé de chaque pièce"]))
+    n_ = 6 if pcs_ else 5
+    plan.append(("%d. Améliorer et optimiser ce livrable" % n_,
+                 ["Ce qui resserrerait le plus les fourchettes",
+                  "Ce qui reste à développer et à corriger"]))
+    plan.append(("%d. Traçabilité" % (n_ + 1), []))
+    A("## Sommaire")
+    A("")
+    for titre, sous in plan:
+        A("- **%s**" % titre)
+        for s in sous:
+            A("    - %s" % s)
+    A("")
+    A("---")
+    A("")
     A("## 1. Objet et position dans la séquence")
     A("")
     A(d["objet"])
@@ -2088,30 +2197,100 @@ def _etude_phase_markdown(d, client=""):
         A("- **Correspondance dans l'autre filière** — %s (accord %s). %s"
           % (autre, c["accord"], c["ecart"]))
     A("")
+    A("---")
+    A("")
 
     A("## 2. Ce que le moteur verse à ce dossier")
     A("")
     A(d["apport_texte"])
     A("")
-    recevables = [g for g in d["grandeurs"] if g["statut"] == "recevable"]
-    a_remp = [g for g in d["grandeurs"] if g["statut"] != "recevable"]
+    recevables = recevables_
+    a_remp = a_remp_
+
+    def _ligne_grandeur(g, indicative=False):
+        """Une grandeur, son incertitude de moteur ET son étendue résiduelle.
+
+        Les deux ensemble, jamais l'une sans l'autre : l'incertitude publiée
+        par le moteur ne couvre que la dispersion de ses propres facteurs. Ne
+        montrer qu'elle laissait lire « énergie annuelle, ±7,4 % » sur un
+        chiffre que le seul taux de charge, non renseigné, déplace de 58 %.
+        """
+        base = "- **%s** — %s%s %s" % (
+            g["nom"], "valeur indicative " if indicative else "",
+            datacenter.fr(g["valeur"]), g["unite"])
+        if g["incertitude"]:
+            base += " (%s)" % g["incertitude"]
+        return base
+
     if recevables:
         A("### Grandeurs recevables à ce stade")
         A("")
+        A("« Recevable » signifie que le niveau de définition correspond à "
+          "celui attendu par la phase — **non que la valeur soit arrêtée**.")
+        A("")
         for g in recevables:
-            A("- **%s** — %s %s%s" % (g["nom"], datacenter.fr(g["valeur"]), g["unite"],
-                                      (" (%s)" % g["incertitude"]) if g["incertitude"] else ""))
+            A(_ligne_grandeur(g))
         A("")
     if a_remp:
         A("### Grandeurs NON recevables en l'état — à produire")
         A("")
         for g in a_remp:
-            A("- **%s** — valeur indicative %s %s. Bloquée par : %s."
-              % (g["nom"], datacenter.fr(g["valeur"]), g["unite"],
-                 ", ".join(g["postes_bloquants"])))
+            A(_ligne_grandeur(g, indicative=True)
+              + ". Bloquée par : %s." % ", ".join(g["postes_bloquants"]))
         A("")
 
-    ap = d["aptitude"]
+    # ── L'étendue que les entrées non renseignées laissent ouverte ───────
+    # Le chapitre le plus important du document, et celui qui manquait. Sans
+    # lui, l'étude affichait une incertitude quatre fois trop étroite sur un
+    # chiffre présenté comme acquis, et listait deux pages plus loin l'entrée
+    # qui en décidait.
+    ouverts = [(g, g.get("entrees_ouvertes") or {}) for g in d["grandeurs"]]
+    ouverts = [(g, o) for g, o in ouverts if o.get("mesuree")]
+    zeros = [g for g in d["grandeurs"] if g.get("zero_sans_incertitude")]
+    A("### Ce qui reste ouvert par les entrées non renseignées")
+    A("")
+    if ouverts:
+        A("**À lire avant les chiffres ci-dessus.** L'incertitude affichée par "
+          "le moteur ne couvre que la dispersion de ses propres facteurs. Les "
+          "champs laissés sur leur valeur par défaut en ajoutent une autre, "
+          "souvent plus large. Chaque champ est balayé **seul** sur sa plage "
+          "plausible, les autres restant en l'état : **les étendues ne "
+          "s'additionnent pas**, et le champ le plus lourd est celui à "
+          "renseigner en premier.")
+        A("")
+        A("| Grandeur | Champ non renseigné | Plage balayée | Étendue |")
+        A("| --- | --- | --- | --- |")
+        for g, o in ouverts:
+            for c in o["champs"]:
+                etendue = ("**%s %%**" % datacenter.fr(c["etendue_pct"])
+                           if c["etendue_pct"] is not None
+                           else "**de %s**" % c["etendue_absolue"])
+                A("| %s | %s | %s | %s |"
+                  % (g["nom"], c["label"], c["plage"], etendue))
+        A("")
+        pire = max(ouverts, key=lambda x: (x[1].get("dominant_pct") or 0))
+        if (pire[1].get("dominant_pct") or 0) > 0:
+            A("**Point à corriger en priorité** — renseigner « %s » resserre "
+              "« %s », dont l'étendue résiduelle atteint %s %%. C'est le seul "
+              "geste qui change l'ordre de grandeur du dossier."
+              % (pire[1]["dominant"], pire[0]["nom"],
+                 datacenter.fr(pire[1]["dominant_pct"])))
+            A("")
+    else:
+        A("Aucune entrée du moteur n'est restée sur sa valeur par défaut : les "
+          "incertitudes affichées ci-dessus sont les seules qui subsistent de "
+          "son côté.")
+        A("")
+    if zeros:
+        A("**Grandeurs affichées à zéro, sans incertitude déclarée** — un zéro "
+          "nu se lit comme une certitude. Il vient ici du mode retenu, où le "
+          "poste ne joue pas ; **à confirmer** avant toute reprise dans une "
+          "pièce contractuelle : %s." % ", ".join(g["nom"] for g in zeros))
+        A("")
+
+    ap = ap_
+    A("---")
+    A("")
     A("## 3. Ce qui manque pour franchir la phase")
     A("")
     A(ap["verdict"])
@@ -2147,10 +2326,20 @@ def _etude_phase_markdown(d, client=""):
           "restent à produire.")
         A("")
 
+    A("---")
+    A("")
     A("## 4. Plan de l'étude")
     A("")
     for i, s in enumerate(d["sections"], 1):
         A("%d. %s" % (i, s))
+    A("")
+    if d.get("renvoi"):
+        rv = d["renvoi"]
+        A("**Ce que cette phase attend d'ailleurs** — %s : [%s](%s)."
+          % (rv.get("pourquoi", "").rstrip("."), rv.get("quoi", "voir le module"),
+             rv.get("url", "")))
+        A("")
+    A("---")
     A("")
 
     # Le plan dit ce qu'on écrit ; le registre dit ce qu'on REMET. Une étude de
@@ -2168,18 +2357,25 @@ def _etude_phase_markdown(d, client=""):
              r.get("specifications_de_discipline", 0),
              r.get("alimentees_par_le_moteur", 0)))
         A("")
+        A("Chaque code renvoie à sa fiche dans le registre en ligne. Les pièces "
+          "reprises d'une phase à l'autre portent, sous leur contenu, le lien "
+          "vers **le même document à son indice suivant** — c'est ainsi qu'on "
+          "évite d'en produire trois.")
+        A("")
         A("| Code | Pièce | Type | Émetteur | Niveau attendu | Calcul |")
         A("| --- | --- | --- | --- | --- | --- |")
         for p in pcs:
-            A("| %s | %s | %s | %s | %s | %s |"
-              % (p["code"], p["titre"], p["type_nom"], p["emetteur_nom"],
+            A("| [%s](%s) | %s | %s | %s | %s | %s |"
+              % (p["code"], _lien_piece(d["code"], p["code"]), p["titre"],
+                 p["type_nom"], p["emetteur_nom"],
                  p.get("niveau_nom") or "—", "oui" if p["moteur"] else "—"))
         A("")
         A("### Contenu exigé de chaque pièce")
         A("")
         for p in pcs:
-            A("**%s — %s** (%s ; %s)"
-              % (p["code"], p["titre"], p["type_nom"], p["emetteur_nom"]))
+            A("**[%s](%s) — %s** (%s ; %s)"
+              % (p["code"], _lien_piece(d["code"], p["code"]), p["titre"],
+                 p["type_nom"], p["emetteur_nom"]))
             if p.get("niveau_nom"):
                 # Le niveau attendu, écrit à côté du contenu : c'est lui qui dit
                 # jusqu'où descendre, et une même spécification n'engage pas la
@@ -2187,9 +2383,15 @@ def _etude_phase_markdown(d, client=""):
                 A("")
                 A("*%s — %s*" % (p["niveau_nom"], p["niveau_aide"]))
                 if p.get("autres_phases"):
+                    # LE lien entre livrables. Chaque phase où la pièce revient
+                    # est cliquable et ouvre le registre sur cette phase, la
+                    # pièce mise en évidence — sans cela le lecteur devait
+                    # retrouver la filière, la phase et la ligne à la main.
                     A("")
-                    A("*Document unique, repris en %s : c'est un indice de la même "
-                      "pièce, pas un document neuf.*" % ", ".join(p["autres_phases"]))
+                    A("*Document unique, repris en %s : c'est un indice de la "
+                      "même pièce, pas un document neuf.*"
+                      % ", ".join("[%s](%s)" % (q, _lien_piece(q, p["code"]))
+                                  for q in p["autres_phases"]))
             A("")
             for c in p["contenu"]:
                 A("- %s" % c)
@@ -2197,8 +2399,71 @@ def _etude_phase_markdown(d, client=""):
         A("*%s*" % d.get("note_registre", ""))
         A("")
 
-    A("## 6. Traçabilité")
+    # ── Améliorer et optimiser ce livrable ──────────────────────────────
+    A("---")
     A("")
+    A("## %d. Améliorer et optimiser ce livrable" % n_)
+    A("")
+    props, non_chiffres = _ameliorations(d)
+    A("### Ce qui resserrerait le plus les fourchettes")
+    A("")
+    if props:
+        A("Classé par effet décroissant sur ce dossier-ci. Les gestes sans "
+          "pourcentage débloquent une grandeur au lieu de resserrer une "
+          "fourchette : les deux effets ne se comparent pas.")
+        A("")
+        for i, p in enumerate(props, 1):
+            A("%d. **%s** — %s" % (i, p["geste"], p["gain"].strip()))
+        A("")
+    else:
+        A("Rien ne manque du côté du moteur pour cette phase. L'amélioration "
+          "porte désormais sur les disciplines que le calcul n'alimente pas.")
+        A("")
+    if non_chiffres:
+        # Groupe séparé, et dit comme tel : les ranger avec les précédents
+        # les ferait paraître moins lourds parce qu'ils sont moins mesurables.
+        A("**Également requis, sans effet chiffrable par balayage.** Ce sont "
+          "des choix de projet et non des réglages : leur poids peut dépasser "
+          "celui des champs ci-dessus, il ne s'exprime simplement pas en "
+          "pourcentage.")
+        A("")
+        for p in non_chiffres:
+            A("- **%s** — %s" % (p["geste"], p["gain"]))
+        A("")
+
+    A("### Ce qui reste à développer et à corriger")
+    A("")
+    r_ = d.get("resume_pieces") or {}
+    non_alim = max(0, r_.get("total", len(pcs)) - r_.get("alimentees_par_le_moteur", 0))
+    A("- **À développer** — %d pièce%s du registre ne %s alimentée%s par le "
+      "calcul : leur contenu relève d'autres disciplines et **reste entièrement "
+      "à écrire**."
+      % (non_alim, "s" if non_alim > 1 else "", "sont pas" if non_alim > 1
+         else "est pas", "s" if non_alim > 1 else ""))
+    if a_remp:
+        A("- **À corriger avant diffusion** — %s %s présentée%s avec une valeur "
+          "indicative. **Aucune ne doit être reprise dans une pièce "
+          "contractuelle en l'état.**"
+          % (len(a_remp), "grandeurs sont" if len(a_remp) > 1
+             else "grandeur est", "s" if len(a_remp) > 1 else ""))
+    if zeros:
+        A("- **À confirmer** — %s affichée%s à zéro sans incertitude déclarée."
+          % (", ".join(g["nom"] for g in zeros), "s" if len(zeros) > 1 else ""))
+    A("- **À relire** — ce document est un **brouillon** produit par un calcul "
+      "déterministe. Les chiffres ne sont pas à réécrire ; les commentaires qui "
+      "les accompagnent sont à adapter au projet.")
+    A("")
+    A("**Optimisation propre à cette phase** — %s Le geste qui y prépare est "
+      "décrit ci-dessus, dans l'ordre où il produit le plus d'effet."
+      % d["verrouille"])
+    A("")
+    A("---")
+    A("")
+
+    A("## %d. Traçabilité" % (n_ + 1))
+    A("")
+    A("- Registre en ligne de cette phase : [%s](%s)"
+      % (d["code"], _lien_piece(d["code"])))
     A("- Moteur de calcul : datacenter v%s" % d["version_moteur"])
     A("- Cadre de phases : ingenierie_dc v%s" % ingenierie_dc.VERSION)
     A("- Cadre de référence de la filière : %s"

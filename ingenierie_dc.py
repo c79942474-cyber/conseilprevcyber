@@ -2028,11 +2028,26 @@ def dossier(profil, code):
             continue
         touche = _postes_engages(cle)
         bloquants = [s for s in a["substitutions_a_faire"] if s["cle"] in touche]
+        ouvert = _etendue_entrees_ouvertes(profil, a, sec, champ, v.get("valeur"))
         grandeurs.append({
             "nom": v["nom"], "valeur": v["valeur"], "unite": v["unite"],
             "incertitude": v.get("incertitude", ""),
             "statut": "a_remplacer" if bloquants else "recevable",
             "postes_bloquants": [s["nom"] for s in bloquants],
+            # Ce que les entrées ENCORE PAR DÉFAUT font à cette grandeur. Sans
+            # cela, l'étude annonçait « énergie annuelle recevable, ±7,4 % » et
+            # déclarait deux paragraphes plus bas que le taux de charge n'était
+            # pas renseigné — alors que ce seul paramètre la déplace de ±31 %.
+            # Une incertitude quatre fois trop étroite sur un chiffre présenté
+            # comme acquis est pire qu'une incertitude absente.
+            "entrees_ouvertes": ouvert,
+            # Une grandeur nulle sans incertitude se lit comme une certitude.
+            # Elle vient presque toujours d'un mode où le poste ne joue pas —
+            # il faut le dire, pas laisser un zéro nu.
+            "zero_sans_incertitude": (
+                not v.get("incertitude") and not ouvert.get("mesuree")
+                and isinstance(v.get("valeur"), (int, float))
+                and float(v.get("valeur")) == 0.0),
         })
 
     return {
@@ -2058,6 +2073,115 @@ def dossier(profil, code):
                            if c.get(ph["filiere"]) == ph["code"]],
         "version_moteur": D.VERSION,
     }
+
+
+# Les valeurs à balayer pour un champ resté sur son pré-remplissage. On ne
+# balaie PAS toute la plage admissible du formulaire : on prend l'intervalle
+# dans lequel une installation réelle se situe. Un taux de charge de 0,05 est
+# saisissable, il n'est pas plausible, et l'inclure produirait une fourchette si
+# large que personne ne la lirait.
+_PLAGES_PLAUSIBLES = {
+    "taux_charge": (0.45, 0.85),
+    "part_evaporation": (0.55, 0.95),
+    "cycles_concentration": (3.0, 8.0),
+    "part_chaleur_reutilisee": (0.0, 0.30),
+    "pue_cible": (1.15, 1.55),
+}
+# Combien de points par champ. Trois suffisent pour des réponses monotones, et
+# datacenter.etude() coûte 0,06 ms : le balayage complet reste sous la
+# milliseconde, donc il n'y a aucune raison de le faire moins bien.
+_N_BALAYAGE = 5
+
+
+def _etendue_entrees_ouvertes(profil, apt, sec, champ, valeur_actuelle):
+    """De combien cette grandeur bouge encore, du seul fait des entrées non saisies.
+
+    C'est la réponse à la question qu'un lecteur se pose devant un chiffre
+    « recevable » : de quoi dépend-il encore ? L'incertitude publiée par le
+    moteur ne couvre que la dispersion de ses propres facteurs — la plage de
+    conception du PUE, la dispersion des facteurs eau. Elle ne dit rien des
+    champs que personne n'a remplis, qui pèsent souvent davantage.
+
+    Chaque champ est balayé SEUL, les autres restant à leur valeur courante :
+    les étendues ne s'additionnent donc pas, et le champ le plus lourd est celui
+    qu'il faut renseigner en premier. C'est la seule information actionnable.
+    """
+    vide = {"mesuree": False, "champs": []}
+    if not isinstance(valeur_actuelle, (int, float)) or not profil.get("puissance_it_kw"):
+        return vide
+    ouverts = [m for m in (apt.get("entrees_manquantes") or [])
+               if m.get("id") in _PLAGES_PLAUSIBLES]
+    if not ouverts:
+        return vide
+    champs, gmin, gmax = [], float(valeur_actuelle), float(valeur_actuelle)
+    for m in ouverts:
+        bas, haut = _PLAGES_PLAUSIBLES[m["id"]]
+        vals, cmin, cmax = [], None, None
+        for i in range(_N_BALAYAGE):
+            x = bas + (haut - bas) * i / float(_N_BALAYAGE - 1)
+            p2 = dict(profil)
+            p2[m["id"]] = x
+            try:
+                w = (D.etude(p2).get(sec) or {}).get(champ)
+            except Exception:
+                continue
+            if not w or not isinstance(w.get("valeur"), (int, float)):
+                continue
+            y = float(w["valeur"])
+            vals.append(y)
+            if cmin is None or y < cmin:
+                cmin, bas_pour = y, x
+            if cmax is None or y > cmax:
+                cmax, haut_pour = y, x
+        if not vals or cmin is None:
+            continue
+        # Un champ qui ne déplace pas la grandeur n'a rien à faire dans la
+        # liste : « Cycles de concentration : 0 % » sous l'énergie annuelle
+        # occupe une ligne pour dire qu'il n'y a rien à dire, et noie le champ
+        # qui, lui, compte.
+        if abs(cmax - cmin) <= 1e-9:
+            continue
+        gmin, gmax = min(gmin, cmin), max(gmax, cmax)
+        ref = abs(float(valeur_actuelle))
+        # Le pourcentage n'a de sens que rapporté à une valeur non nulle. Sur
+        # une grandeur affichée à 0 qui peut monter, on donne l'étendue en
+        # clair — « de 0 à 30 % » — au lieu d'un pourcentage de zéro.
+        pct = round(100.0 * (cmax - cmin) / ref, 1) if ref > 1e-9 else None
+        champs.append({
+            "id": m["id"], "label": m["label"],
+            "min": round(cmin, 4), "max": round(cmax, 4),
+            "min_pour": round(bas_pour, 3), "max_pour": round(haut_pour, 3),
+            "plage": "%s – %s" % (_fr_nombre(bas), _fr_nombre(haut)),
+            "etendue_pct": pct,
+            # Toujours renseignée, elle : c'est elle qu'on affiche quand le
+            # pourcentage n'existe pas.
+            "etendue_absolue": "%s – %s" % (_fr_nombre(cmin), _fr_nombre(cmax)),
+        })
+    if not champs:
+        return vide
+    # Tri par poids décroissant. Les champs sans pourcentage (grandeur affichée
+    # à zéro) passent en tête : « de 0 à 30 % » est un écart total, pas un
+    # écart nul, et le classer au fond serait exactement l'erreur inverse.
+    champs.sort(key=lambda c: (0, 0) if c["etendue_pct"] is None
+                else (1, -c["etendue_pct"]))
+    dominant = champs[0]
+    return {
+        "mesuree": True,
+        "champs": champs,
+        "min": round(gmin, 4), "max": round(gmax, 4),
+        "dominant": dominant["label"],
+        "dominant_pct": dominant["etendue_pct"],
+        "dominant_etendue": dominant["etendue_absolue"],
+        "note": "Étendue due aux seules entrées non renseignées, chacune balayée "
+                "seule sur sa plage plausible. Elles ne s'additionnent pas : le "
+                "champ le plus lourd est celui à renseigner en premier.",
+    }
+
+
+def _fr_nombre(x):
+    """Un nombre à la française, sans zéros inutiles. 0.45 -> « 0,45 »."""
+    s = ("%.3f" % float(x)).rstrip("0").rstrip(".")
+    return s.replace(".", ",") or "0"
 
 
 def _postes_engages(cle_grandeur):
@@ -2134,7 +2258,41 @@ SYSTEM_PIECE = (
     "Ne prétends pas qu'il est définitif.\n"
     "- Écris en Markdown : « ## » pour les sections, « ### » pour les sous-sections, "
     "listes à puces, et tableaux Markdown dès qu'une information est comparative ou "
-    "multi-critères."
+    "multi-critères.\n\n"
+    # ── Forme du document ────────────────────────────────────────────────
+    # Ces règles ne sont pas cosmétiques : une pièce de dossier sans sommaire
+    # ni hiérarchie se relit mal en comité, et un lecteur qui ne voit pas ce
+    # qui reste à développer croit le document fini.
+    "Forme imposée du document :\n"
+    "1. Commence par le titre « # CODE — Intitulé », puis une ligne de "
+    "métadonnées (phase, émetteur, client, mention « Brouillon — à valider »).\n"
+    "2. Fais suivre d'un chapitre « ## Sommaire » listant TES chapitres et "
+    "sous-chapitres, en reprenant leurs intitulés EXACTS. Un sommaire qui "
+    "annonce un chapitre absent est une faute.\n"
+    "3. Sépare les chapitres par une ligne « --- » : le document est lu "
+    "imprimé, et un chapitre qui commence au milieu d'un paragraphe se manque.\n"
+    "4. Numérote les chapitres (« ## 1. … ») et les sous-chapitres.\n"
+    "5. Mets en **gras** — et seulement en gras — trois choses : les valeurs "
+    "et exigences dimensionnantes, les points **à développer** par le "
+    "consultant, les points **à corriger ou à confirmer** avant diffusion. "
+    "Un document tout en gras ne signale plus rien.\n"
+    "6. Termine par un chapitre « ## Améliorer et optimiser ce livrable » "
+    "qui dit, pour CETTE pièce : ce qui manque pour la clore, ce qui la "
+    "rendrait opposable, et une optimisation possible au regard de la demande "
+    "du projet. Sois précis : « préciser le régime de température » et non "
+    "« approfondir l'étude ».\n"
+    "7. Quand tu cites une autre pièce du dossier, écris son code entre "
+    "crochets suivi de son adresse, sous la forme "
+    "[SPC-HVAC](https://conseilprevcyber.onrender.com/ingenierie-datacenter"
+    "#phase=PHASE&piece=SPC-HVAC), en remplaçant PHASE par le code de la "
+    "phase où elle est due. Un renvoi sans adresse oblige le lecteur à "
+    "chercher.\n\n"
+    "Langue : français soigné. Relis-toi avant de rendre — orthographe, "
+    "accords, ligatures (œ dans « œuvre », « nœud »), apostrophes typographiques, "
+    "espace insécable avant « : », « ; », « ! », « ? » et « % ». Vérifie que "
+    "chaque nombre que tu écris est cohérent avec ceux qui te sont fournis : "
+    "tu n'as pas le droit d'en produire de nouveaux, donc tout écart est une "
+    "erreur de recopie."
 )
 
 

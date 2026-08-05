@@ -313,10 +313,79 @@
     z.querySelectorAll("[data-phase]").forEach(function (b) {
       b.addEventListener("click", function () {
         PHASE = b.getAttribute("data-phase");
+        marquerURL();
         rendreParcours();
         chargerDossier();
       });
     });
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
+     LA PAGE EST ADRESSABLE
+
+     Sans cela, un livrable qui écrit « SPC-HVAC, repris en APD » ne peut y
+     renvoyer que par un lien vers le haut de la page, à charge pour le lecteur
+     de retrouver la filière, la phase et la pièce. Un lien qui oblige à
+     chercher n'est pas un lien.
+
+     La forme retenue — #phase=APD&piece=SPC-HVAC — se lit à l'œil dans un
+     document imprimé, ce qu'un identifiant opaque ne permettrait pas. */
+  function lireURL() {
+    var h = (window.location.hash || "").replace(/^#/, "");
+    if (!h) return null;
+    var o = {};
+    h.split("&").forEach(function (p) {
+      var kv = p.split("=");
+      if (kv.length === 2) o[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1]);
+    });
+    return o;
+  }
+
+  function marquerURL() {
+    if (!PHASE) return;
+    /* replaceState et non pushState : parcourir les phases n'est pas une
+       navigation, et empiler quinze entrées d'historique rendrait le bouton
+       « précédent » du navigateur inutilisable. */
+    try {
+      history.replaceState(null, "", "#phase=" + encodeURIComponent(PHASE));
+    } catch (e) { /* navigation locale ou file:// — sans conséquence */ }
+  }
+
+  /* Applique ce que l'URL demande, une fois le cadre chargé. Renvoie le code
+     de pièce à mettre en évidence, s'il y en a un. */
+  function appliquerURL() {
+    var o = lireURL();
+    if (!o || !o.phase) return null;
+    var ph = String(o.phase).toUpperCase();
+    var q = (CADRE.phases || []).filter(function (x) { return x.code === ph; })[0];
+    if (!q) return null;          // phase inconnue : on ne devine pas
+    FILIERE = q.filiere;
+    PHASE = ph;
+    var t = document.querySelector('#ig-filieres [data-fil="' + FILIERE + '"]');
+    if (t) {
+      document.querySelectorAll("#ig-filieres [data-fil]").forEach(function (b) {
+        b.classList.toggle("on", b === t);
+        b.setAttribute("aria-selected", b === t ? "true" : "false");
+      });
+    }
+    return o.piece ? String(o.piece).toUpperCase() : null;
+  }
+
+  /* Met en évidence la pièce visée par le lien et l'amène à l'écran. Un
+     registre de trente pièces sans repère laisse le lecteur la chercher —
+     c'est-à-dire abandonner. */
+  function viserPiece(code) {
+    if (!code) return;
+    var el = document.querySelector('#ig-dossier .ig-pc [data-piece="' + code + '"]');
+    var bloc = el && el.closest(".ig-pc");
+    if (!bloc) return;
+    document.querySelectorAll(".ig-pc.ig-vise-pc").forEach(function (e) {
+      e.classList.remove("ig-vise-pc");
+    });
+    bloc.classList.add("ig-vise-pc");
+    var doux = !window.matchMedia
+      || !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    bloc.scrollIntoView({ behavior: doux ? "smooth" : "auto", block: "center" });
   }
 
   /* ── Le dossier de la phase ──────────────────────────────────────────── */
@@ -680,6 +749,11 @@
     }, 280);
   }
 
+  /* Pièce demandée par l'URL, mise en évidence une fois le registre rendu —
+     et une seule fois : au clic suivant sur une autre phase, le lecteur ne
+     cherche plus cette pièce-là. */
+  var PIECE_VISEE = null;
+
   function chargerDossier() {
     if (!PHASE) return;
     var p = lireProfil();
@@ -698,6 +772,7 @@
           return;
         }
         rendreDossier(j.dossier);
+        if (PIECE_VISEE) { viserPiece(PIECE_VISEE); PIECE_VISEE = null; }
       })
       .catch(function () {
         $("#ig-dossier").innerHTML = '<p class="note">Dossier indisponible pour le moment.</p>';
@@ -968,6 +1043,10 @@
         bâtirOnglets();
         rendreCorrespondances();
         brancherGuide();
+        /* L'URL est appliquée AVANT le premier rafraîchissement : appliquée
+           après, la frise se dessinerait d'abord sur la filière par défaut,
+           puis sauterait — le lecteur verrait la page se contredire. */
+        PIECE_VISEE = appliquerURL();
         rafraichir();
       })
       .catch(function (e) {
