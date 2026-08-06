@@ -5454,10 +5454,18 @@ def api_datacenter_piece_apercu():
     même k, même re-classement — de sorte que l'aperçu ne puisse pas mentir sur ce
     qui sera réellement mobilisé.
 
-    Ouvert à tout compte connecté, contrairement à la rédaction : consulter ce
-    que la base contient ne consomme pas de jetons d'API et ne produit rien. Ce
-    qui coûte, c'est d'écrire — et c'est cela qui reste derrière le verrou
-    d'administration.
+    Ouvert à tout compte connecté : consulter ce que la base contient ne
+    consomme pas de jetons d'API et ne produit rien.
+
+    SUR LE MÊME CORPUS QUE LA RÉDACTION, et c'est la moitié de l'affaire. Cet
+    aperçu cherchait sur la base ENTIÈRE pendant que la rédaction d'un compte
+    ordinaire se borne aux documents publics. Deux conséquences, chacune
+    suffisante :
+
+      · il nommait à un client des documents INTERNES — un intitulé dit déjà
+        beaucoup (« Audit X — écarts majeurs », « Contrat Y — remise 14 % ») ;
+      · il annonçait des sources que la pièce ne citerait jamais, alors que sa
+        raison d'être est de ne pas pouvoir mentir sur ce qui sera mobilisé.
     """
     ckey = "apercupc:%s" % client_ip()
     if guard.blocked(ckey, limit=40, window=600):
@@ -5473,9 +5481,11 @@ def api_datacenter_piece_apercu():
                        message="Phase ou pièce inconnue."), 404
     query = ingenierie_dc.requete_piece(phase, code, data)
     model = "mistral" if data.get("model") == "mistral" else "claude"
+    public_only = not _is_admin_request()
     try:
         hits = assistant.rerank(model, query,
-                                rag.search(query, k=24, public_only=False), 8)
+                                rag.search(query, k=24,
+                                           public_only=public_only), 8)
     except Exception:
         # Un aperçu qui échoue ne doit pas passer pour une base vide : les deux
         # se ressemblent à l'écran et n'appellent pas la même réaction.
@@ -5493,6 +5503,7 @@ def api_datacenter_piece_apercu():
                      "visibility": h.get("visibility"), "extraits": 1})
     return jsonify(ok=True, query=query, documents=docs, extraits=len(hits),
                    origine=pc.get("recherche_origine"),
+                   corpus="public" if public_only else "complet",
                    piece="%s — %s" % (pc["code"], pc["titre"]))
 
 
