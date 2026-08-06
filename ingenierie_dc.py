@@ -3409,17 +3409,19 @@ MODES_REDACTION = {
                 "référence documentaire.",
     },
     "base_sans_modele": {
-        "nom": "Trame assemblée, extraits de la base en annexe",
-        "aide": "Aucun modèle de langage n'était disponible. Le plan, les "
-                "grandeurs calculées et les extraits retrouvés sont assemblés "
-                "tels quels : le document est exact et complet, il n'est pas "
-                "rédigé.",
+        "nom": "Composé par le moteur, ancré sur la base",
+        "aide": "Aucun modèle de langage n'était disponible. Le moteur compose "
+                "le document lui-même : objet et portée contractuelle de la "
+                "pièce, trajectoire d'une phase à l'autre, interfaces, et les "
+                "extraits retrouvés rattachés au point qu'ils documentent. Les "
+                "points restés sans matière sont nommés un par un.",
     },
     "moteur_seul": {
-        "nom": "Trame assemblée sur le seul moteur",
-        "aide": "Ni modèle de langage, ni document dans la base. Le plan et "
-                "les grandeurs calculées sont assemblés : c'est un point de "
-                "départ de travail, pas un livrable.",
+        "nom": "Composé par le moteur seul",
+        "aide": "Ni modèle de langage, ni document dans la base pour ce sujet. "
+                "Le moteur compose ce qu'il sait de la pièce — portée, "
+                "trajectoire, interfaces, manques — et nomme ce qui reste à "
+                "rédiger. Tout y est vérifiable ; rien n'y est prose.",
     },
 }
 
@@ -3435,6 +3437,112 @@ def _fr_val(g):
     v = D.fr(g.get("valeur"))
     u = g.get("unite") or ""
     return ("%s %s" % (v, u)).strip()
+
+
+# ── Rattacher la matière au point qu'elle documente ─────────────────────────
+# Une pièce arrivait en deux blocs : le plan d'un côté, tous les extraits de
+# l'autre, en annexe. Le lecteur devait faire lui-même l'appariement — et un
+# document qui laisse ce travail-là n'est pas assemblé, il est empilé. Les
+# rapprochements ci-dessous sont MÉCANIQUES et vérifiables : ils reposent sur
+# les mots des textes du registre, jamais sur une table écrite à côté qui
+# divergerait du registre au premier ajout de pièce.
+
+def _sans_accents(s):
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFD", s or "")
+                   if unicodedata.category(c) != "Mn").lower()
+
+
+_MOTS_VIDES = {
+    "avec", "dans", "pour", "leur", "leurs", "elle", "elles", "cette", "entre",
+    "chaque", "toute", "toutes", "selon", "autre", "autres", "niveau",
+    "niveaux", "point", "points", "ainsi", "celle", "celles", "celui",
+}
+
+
+def _mots_cles(txt):
+    """Les mots porteurs d'un texte court, sans accents ni mots outils.
+
+    Le pluriel est ramené au singulier : « régime » et « régimes » désignent la
+    même chose, et sans cela un extrait sur le régime d'eau glacée ne
+    rejoignait jamais le point « Régimes de température » qu'il documente.
+    """
+    bruts = _sans_accents(txt).replace("'", " ").replace("-", " ").split()
+    mots = set()
+    for m in bruts:
+        m = m.strip(".,;:()«»\"")
+        if len(m) < 5 or m in _MOTS_VIDES:
+            continue
+        if len(m) >= 6 and m[-1] in "sx":
+            m = m[:-1]
+        mots.add(m)
+    return mots
+
+
+def _interfaces_piece(pc, liste):
+    """Les pièces que celle-ci NOMME, retrouvées dans la phase courante.
+
+    Le contenu exigé cite des disciplines en toutes lettres — « interfaces avec
+    la sûreté et l'incendie ». Ces disciplines existent au registre, et les
+    pièces qui les portent sont dans la même phase : l'interface se retrouve
+    donc par le texte, sans table d'adjacence à tenir à jour.
+    """
+    mots = set()
+    for c in pc.get("contenu") or []:
+        mots |= _mots_cles(c)
+    vises = {cle for cle, nom in DISCIPLINES.items()
+             if cle != pc.get("discipline")
+             and (_mots_cles(nom if isinstance(nom, str) else nom.get("nom", ""))
+                  & mots)}
+    return [p for p in liste
+            if p.get("discipline") in vises and p["code"] != pc["code"]]
+
+
+def _ranger_extraits(contenu, extraits):
+    """Chaque extrait sous le point qu'il documente ; le reste en annexe.
+
+    Ce qui compte n'est pas le NOMBRE de mots communs mais leur pouvoir de
+    séparation. Un mot présent dans un seul point le désigne ; le même mot
+    présent dans quatre points ne désigne rien. On pèse donc double le mot
+    discriminant, et on exige un score de 2 : soit un mot propre à un point,
+    soit deux mots partagés. Compter les mots à égalité laissait « régime
+    d'eau glacée » en annexe faute d'un second mot, et aurait rapproché
+    n'importe quel document parlant d'« essais » du point sur les essais.
+    """
+    par_point = {i: [] for i in range(len(contenu))}
+    reste = []
+    cles = [_mots_cles(c) for c in contenu]
+    # Combien de points chaque mot touche : c'est ce qui fait sa valeur.
+    portee = {}
+    for k in cles:
+        for m in k:
+            portee[m] = portee.get(m, 0) + 1
+    for h in extraits:
+        txt = (h.get("content") or h.get("text") or h.get("extrait") or "")
+        if not txt.strip():
+            continue
+        mots = _mots_cles(txt[:1200])
+        scores = [(sum(2 if portee.get(m) == 1 else 1 for m in (k & mots)), i)
+                  for i, k in enumerate(cles)]
+        n, i = max(scores) if scores else (0, 0)
+        if n >= 2:
+            par_point[i].append(h)
+        else:
+            reste.append(h)
+    return par_point, reste
+
+
+def _bloc_extraits(A, hits):
+    """Les extraits d'un point, reproduits tels quels et attribués."""
+    for h in hits:
+        txt = (h.get("content") or h.get("text") or h.get("extrait") or "").strip()
+        if not txt:
+            continue
+        A("")
+        A("> " + txt.replace("\n", "\n> ")[:1800])
+        A("")
+        A("*— %s%s*" % (h.get("title") or "Document sans titre",
+                        (", thème « %s »" % h["theme"]) if h.get("theme") else ""))
 
 
 def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
@@ -3461,12 +3569,43 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
     mode = "base_sans_modele" if extraits else "moteur_seul"
     m = MODES_REDACTION[mode]
 
+    contenu = pc.get("contenu") or []
+    par_point, hors = _ranger_extraits(contenu, extraits)
+    docu = [i for i in range(len(contenu)) if par_point.get(i)]
+    interfaces = _interfaces_piece(pc, d.get("pieces") or [])
+    caractere, motif, _fondement = caractere_piece(pc)
+    a = d.get("aptitude") or {}
+    # La trajectoire de la pièce : où elle naît, où elle est reprise, où elle
+    # devient opposable. Relue au registre phase par phase plutôt que recopiée.
+    #
+    # SÉPARÉE PAR FILIÈRE, et c'est tout l'enjeu : les deux séquences sont
+    # parallèles, pas successives. Mélangées, elles faisaient lire « gelée au
+    # DCE » sur un projet industriel — où le DCE n'existe pas. Une pièce
+    # annoncée opposable à une phase que le projet ne traversera jamais.
+    fil = {p["code"]: p["filiere"] for p in PHASES}
+    rang = {p["code"]: p["rang"] for p in PHASES}
+    etapes, ailleurs = [], []
+    for ph in [code_phase] + list(pc.get("autres_phases") or []):
+        q = piece(ph, code_piece)
+        if not q:
+            continue
+        (etapes if fil.get(ph) == d["filiere"] else ailleurs).append(
+            (ph, q.get("niveau"), q.get("niveau_nom") or "—"))
+    etapes = sorted({e[0]: e for e in etapes}.values(),
+                    key=lambda e: rang.get(e[0], 99))
+    ailleurs = sorted({e[0]: e for e in ailleurs}.values(),
+                      key=lambda e: rang.get(e[0], 99))
+    gel = next((e for e in etapes if e[1] == "gel"), None)
+    gel_ailleurs = next((e for e in ailleurs if e[1] == "gel"), None)
+
     L = []
     A = L.append
     A("# %s — %s" % (pc["code"], pc["titre"]))
     A("")
     A("**Projet :** %s  " % client)
-    A("**Phase :** %s — %s (%s)" % (d["code"], d["nom"], d["filiere_nom"]))
+    A("**Phase :** %s — %s (%s)  " % (d["code"], d["nom"], d["filiere_nom"]))
+    A("**Discipline :** %s  " % (pc.get("discipline_nom") or "—"))
+    A("**Émetteur :** %s" % (pc.get("emetteur_nom") or "—"))
     A("")
     # L'avertissement en TÊTE, pas en annexe : c'est la première chose à
     # savoir, et la seule qui empêche de remettre ceci comme un livrable fini.
@@ -3479,101 +3618,261 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
     if note:
         A("> %s" % note)
         A(">")
-    A("> Ce document est **exact et complet quant aux faits** — plan, chiffres, "
-      "sources, manques — mais **il n'est pas rédigé**. Il se relit et se "
-      "complète ; il ne se remet pas en l'état.")
+    # L'état point par point, CALCULÉ. « Ce document n'est pas rédigé » était
+    # vrai mais grossier : il mettait au même rang le point que la base
+    # documente et celui sur lequel il n'existe rien. Le lecteur ne savait pas
+    # par où commencer, alors que le document, lui, le sait.
+    if contenu:
+        reste = len(contenu) - len(docu)
+        A("> **État de la pièce** — %s documenté%s par la base sur les %d "
+          "exigés ; %s. Le détail est porté sous chaque point : ce qui est "
+          "écrit ici est vérifiable, ce qui manque est nommé."
+          % (_pluriel(len(docu), "point", "points"),
+             "s" if len(docu) > 1 else "", len(contenu),
+             ("%s à rédiger" % _pluriel(reste, "point reste", "points restent"))
+             if reste else "aucun ne reste à rédiger"))
+        A(">")
+    # Le statut, en toutes lettres et au même endroit que dans l'étude de
+    # phase. Un document composé par le moteur se relit et se complète ; le
+    # remettre en l'état reste la seule vraie faute possible ici.
+    A("> **Statut — brouillon d'ingénierie, à relire et à compléter.** Les "
+      "faits portés ici sont vérifiables un par un : ils viennent du registre "
+      "des pièces, du moteur de calcul et de la base documentaire. Ce n'est "
+      "pas pour autant une rédaction : ce document ne se remet pas tel quel.")
     A("")
 
+    # ── Sommaire, DÉRIVÉ du contenu réellement produit ──────────────────────
+    plan = [("1. Objet de la pièce et ce qu'elle engage", [])]
+    plan.append(("2. Contenu exigé, point par point",
+                 ["%d.%d %s" % (2, i + 1, c) for i, c in enumerate(contenu)]))
+    n = 3
+    if interfaces:
+        plan.append(("%d. Interfaces avec les autres pièces de la phase" % n, []))
+        n += 1
+    plan.append(("%d. Ce que le moteur apporte à cette pièce" % n, []))
+    n += 1
+    sous = []
+    if a.get("entrees_manquantes"):
+        sous.append("Entrées à renseigner")
+    if a.get("substitutions_a_faire"):
+        sous.append("Facteurs à remplacer par une donnée réelle")
+    if sous:
+        plan.append(("%d. Ce qui manque pour franchir la phase" % n, sous))
+        n += 1
+    if hors:
+        plan.append(("%d. Extraits non rattachés à un point" % n, []))
+        n += 1
+    plan.append(("%d. Traçabilité" % n, []))
     A("## Sommaire")
     A("")
-    A("1. Ce que la pièce doit contenir")
-    A("2. Grandeurs calculées disponibles")
-    if (d.get("aptitude") or {}).get("entrees_manquantes"):
-        A("3. Entrées à renseigner avant de franchir la phase")
-    if (d.get("aptitude") or {}).get("substitutions_a_faire"):
-        A("4. Facteurs à remplacer par une donnée réelle")
-    if extraits:
-        A("5. Extraits de la base de connaissance")
+    for titre, ss in plan:
+        A("- **%s**" % titre)
+        for s in ss:
+            A("    - %s" % s)
     A("")
-
-    A("## 1. Ce que la pièce doit contenir")
-    A("")
-    A("Niveau attendu à cette phase : **%s** — %s"
-      % (pc.get("niveau_nom") or "à préciser", pc.get("niveau_aide") or ""))
-    A("")
-    for c in pc["contenu"]:
-        A("- [ ] %s" % c)
-    A("")
-
-    A("## 2. Grandeurs calculées disponibles")
-    A("")
-    A("Ces valeurs viennent du moteur déterministe. Elles ne se recalculent "
-      "pas et ne s'arrondissent pas autrement.")
-    A("")
-    A("| Grandeur | Valeur | Incertitude | Statut à cette phase |")
-    A("| --- | --- | --- | --- |")
-    for g in d.get("grandeurs") or []:
-        A("| %s | %s | %s | %s |"
-          % (g["nom"], _fr_val(g), g.get("incertitude") or "—",
-             "recevable" if g.get("statut") == "recevable" else "À PRODUIRE"))
-    A("")
-
-    a = d.get("aptitude") or {}
-    if a.get("entrees_manquantes"):
-        A("## 3. Entrées à renseigner avant de franchir la phase")
-        A("")
-        for x in a["entrees_manquantes"]:
-            A("- **%s**%s — %s%s"
-              % (x["label"], (" (%s)" % x["unite"]) if x.get("unite") else "",
-                 x.get("pourquoi") or "non renseigné",
-                 "" if x.get("origine") == "propre"
-                 else " ; dette d'une phase antérieure"))
-        A("")
-    if a.get("substitutions_a_faire"):
-        A("## 4. Facteurs à remplacer par une donnée réelle")
-        A("")
-        for x in a["substitutions_a_faire"]:
-            A("- **%s** (%s%s) — %s"
-              % (x["nom"], x.get("nature") or "",
-                 (", " + x["incertitude"]) if x.get("incertitude") else "",
-                 x.get("remplacer_par") or "à remplacer par la donnée réelle"))
-        A("")
-
-    if extraits:
-        A("## 5. Extraits de la base de connaissance")
-        A("")
-        A("Retrouvés pour le sujet de cette pièce. Ils sont reproduits **tels "
-          "quels**, sans reformulation : aucun modèle n'est intervenu.")
-        A("")
-        par_doc = {}
-        for h in extraits:
-            par_doc.setdefault(h.get("title") or "Document sans titre", []).append(h)
-        for titre, hits in par_doc.items():
-            A("### %s" % titre)
-            th = hits[0].get("theme")
-            if th:
-                A("")
-                A("*Thème : %s*" % th)
-            for h in hits:
-                # « content » d'abord : c'est la clé que rend RÉELLEMENT la
-                # recherche documentaire. Les deux autres ne l'ont jamais été
-                # — elles venaient d'une donnée d'essai écrite à la main, et
-                # tant qu'on ne lisait que celle-là, ce chapitre paraissait
-                # fonctionner. Contre la vraie base il ne produisait que des
-                # titres, sans une ligne de texte : une pièce annonçant des
-                # extraits « reproduits tels quels » et n'en portant aucun.
-                txt = (h.get("content") or h.get("text")
-                       or h.get("extrait") or "").strip()
-                if not txt:
-                    continue
-                A("")
-                A("> " + txt.replace("\n", "\n> ")[:1800])
-            A("")
-
     A("---")
     A("")
-    A("*Assemblé le %s par le moteur %s. %s*"
-      % (time.strftime("%d/%m/%Y"), VERSION, m["nom"]))
+
+    # ── 1. Objet ───────────────────────────────────────────────────────────
+    A("## 1. Objet de la pièce et ce qu'elle engage")
+    A("")
+    A("- **Nature** — %s. %s"
+      % (pc.get("type_nom") or "—", pc.get("type_aide") or ""))
+    A("- **Qui la produit** — %s" % (pc.get("emetteur_nom") or "—"))
+    A("- **Caractère à cette phase** — %s. %s"
+      % (CARACTERES[caractere]["nom"] if caractere in CARACTERES else caractere,
+         motif))
+    A("- **Niveau attendu ici** — %s. %s"
+      % (pc.get("niveau_nom") or "à préciser", pc.get("niveau_aide") or ""))
+    if pc.get("moteur"):
+        A("- **Alimentée par le calcul** — oui : elle porte des grandeurs du "
+          "moteur, reprises au chapitre « Ce que le moteur apporte à cette "
+          "pièce ».")
+    else:
+        A("- **Alimentée par le calcul** — non : son contenu relève de la "
+          "discipline, pas des bilans énergie / eau / carbone.")
+    A("")
+    if etapes:
+        A("Cette pièce ne naît pas à cette phase et ne s'y termine pas. Sa "
+          "trajectoire dans la filière **%s** :" % d["filiere_nom"])
+        A("")
+        A("| Phase | Ce qui est attendu |")
+        A("| --- | --- |")
+        for code, _niv, niv_nom in etapes:
+            marque = " ← **phase en cours**" if code == code_phase else ""
+            A("| %s | %s%s |" % (code, niv_nom, marque))
+        A("")
+        if gel and gel[0] != code_phase:
+            A("**À retenir** — elle est gelée à la phase %s : ce qui n'y figure "
+              "pas devient un avenant. Ce qui s'écrit ici engage donc au-delà "
+              "de la phase en cours." % gel[0])
+            A("")
+        elif gel:
+            A("**À retenir** — elle est gelée à cette phase même : elle devient "
+              "opposable en l'état, et ne se complète plus après signature.")
+            A("")
+        else:
+            A("**À retenir** — aucune phase de cette filière ne la gèle : son "
+              "caractère opposable vient du contrat, et non de la séquence. "
+              "C'est au marché de dire à quel indice elle engage%s."
+              % (" — dans l'autre filière, elle est gelée au %s"
+                 % gel_ailleurs[0] if gel_ailleurs else ""))
+            A("")
+        if ailleurs:
+            A("*Dans l'autre filière, la même pièce suit : %s.*"
+              % " → ".join("%s (%s)" % (c, nom.lower())
+                           for c, _n, nom in ailleurs))
+            A("")
+
+    # ── 2. Le contenu, point par point ─────────────────────────────────────
+    A("---")
+    A("")
+    A("## 2. Contenu exigé, point par point")
+    A("")
+    if not contenu:
+        A("Le registre ne détaille pas le contenu de cette pièce.")
+        A("")
+    for i, c in enumerate(contenu):
+        A("### 2.%d %s" % (i + 1, c))
+        A("")
+        hits = par_point.get(i) or []
+        liens = [p for p in interfaces if _mots_cles(c) & _mots_cles(
+            _nom_discipline(p.get("discipline")))]
+        if liens:
+            A("*Ce point ouvre une interface — voir %s.*"
+              % ", ".join("**%s** (%s)" % (p["code"], p["titre"]) for p in liens[:4]))
+            A("")
+        if hits:
+            A("La base de connaissance documente ce point. Extraits reproduits "
+              "**tels quels**, sans reformulation :")
+            _bloc_extraits(A, hits)
+            A("")
+            A("- [ ] Reprendre ces éléments au niveau « %s » attendu ici."
+              % (pc.get("niveau_nom") or "—"))
+        else:
+            A("- [ ] **À rédiger** — aucun document de la base ne répond à ce "
+              "point pour la requête utilisée (voir Traçabilité).")
+        A("")
+
+    # ── 3. Interfaces ──────────────────────────────────────────────────────
+    k = 3
+    if interfaces:
+        A("---")
+        A("")
+        A("## %d. Interfaces avec les autres pièces de la phase" % k)
+        A("")
+        A("Retrouvées par les disciplines que le contenu exigé nomme "
+          "lui-même : ces pièces existent à la même phase et traitent le même "
+          "objet par l'autre bout. Une exigence écrite ici et absente de "
+          "là-bas est un trou d'interface.")
+        A("")
+        A("| Code | Pièce | Discipline | Niveau à cette phase |")
+        A("| --- | --- | --- | --- |")
+        for p in interfaces:
+            A("| %s | %s | %s | %s |"
+              % (p["code"], p["titre"], p.get("discipline_nom") or "—",
+                 p.get("niveau_nom") or "—"))
+        A("")
+        k += 1
+
+    # ── 4. Le moteur ───────────────────────────────────────────────────────
+    A("---")
+    A("")
+    A("## %d. Ce que le moteur apporte à cette pièce" % k)
+    A("")
+    if pc.get("moteur"):
+        A("Cette pièce porte des grandeurs calculées. Elles viennent du moteur "
+          "déterministe : elles ne se recalculent pas et ne s'arrondissent pas "
+          "autrement.")
+        A("")
+        A("| Grandeur | Valeur | Incertitude | Statut à cette phase |")
+        A("| --- | --- | --- | --- |")
+        for g in d.get("grandeurs") or []:
+            A("| %s | %s | %s | %s |"
+              % (g["nom"], _fr_val(g), g.get("incertitude") or "—",
+                 "recevable" if g.get("statut") == "recevable" else "À PRODUIRE"))
+        A("")
+    else:
+        # Recopier ici les six grandeurs du dossier serait un remplissage :
+        # aucune ne se rapporte à cette pièce, et les afficher laisserait
+        # croire qu'elle en répond.
+        porteuses = [p["code"] for p in (d.get("pieces") or []) if p.get("moteur")]
+        A("Aucune. Le registre classe cette pièce hors calcul : son contenu se "
+          "démontre par l'analyse de la discipline, pas par les bilans énergie "
+          "/ eau / carbone. Les chiffres du moteur ne sont donc pas repris ici "
+          "— ils appartiennent aux %d pièce%s de la phase qui les portent%s."
+          % (len(porteuses), "s" if len(porteuses) > 1 else "",
+             (" (" + ", ".join(porteuses[:6])
+              + (", …" if len(porteuses) > 6 else "") + ")") if porteuses else ""))
+        A("")
+        A("L'étude de phase, elle, les rassemble toutes : c'est là qu'il faut "
+          "les lire, et non ici.")
+        A("")
+    k += 1
+
+    # ── 5. Ce qui manque ───────────────────────────────────────────────────
+    if a.get("entrees_manquantes") or a.get("substitutions_a_faire"):
+        A("---")
+        A("")
+        A("## %d. Ce qui manque pour franchir la phase" % k)
+        A("")
+        if a.get("entrees_manquantes"):
+            A("### Entrées à renseigner")
+            A("")
+            for x in a["entrees_manquantes"]:
+                A("- **%s**%s — %s%s"
+                  % (x["label"], (" (%s)" % x["unite"]) if x.get("unite") else "",
+                     x.get("pourquoi") or "non renseigné",
+                     "" if x.get("origine") == "propre"
+                     else " ; dette d'une phase antérieure"))
+            A("")
+        if a.get("substitutions_a_faire"):
+            A("### Facteurs à remplacer par une donnée réelle")
+            A("")
+            for x in a["substitutions_a_faire"]:
+                A("- **%s** (%s%s) — %s"
+                  % (x["nom"], x.get("nature") or "",
+                     (", " + x["incertitude"]) if x.get("incertitude") else "",
+                     x.get("remplacer_par") or "à remplacer par la donnée réelle"))
+            A("")
+        k += 1
+
+    # ── 6. Ce que la base a rendu sans rattachement ────────────────────────
+    if hors:
+        A("---")
+        A("")
+        A("## %d. Extraits non rattachés à un point" % k)
+        A("")
+        A("Retrouvés pour le sujet de la pièce, sans recoupement assez net "
+          "avec l'un des points ci-dessus. Reproduits **tels quels**, sans "
+          "reformulation : à verser au bon chapitre à la relecture.")
+        for h in hors:
+            _bloc_extraits(A, [h])
+        A("")
+        k += 1
+
+    # ── 7. Traçabilité ─────────────────────────────────────────────────────
+    A("---")
+    A("")
+    A("## %d. Traçabilité" % k)
+    A("")
+    termes, origine = recherche_piece(pc["code"], pc.get("discipline"))
+    A("- **Assemblé le** %s par le moteur %s" % (time.strftime("%d/%m/%Y"), VERSION))
+    A("- **Mode de rédaction** — %s. %s" % (m["nom"], m["aide"]))
+    A("- **Demandé à la base** — %s"
+      % (("« %s »" % (termes or pc["titre"]))
+         + {"piece": " (vocabulaire propre à la pièce)",
+            "discipline": " (vocabulaire de la discipline)",
+            "titre": " (titre de la pièce, faute de vocabulaire déclaré)"
+            }.get(origine, "")))
+    A("- **Retrouvé** — %d extrait%s, %d rattaché%s à un point, %d en annexe"
+      % (len(extraits), "s" if len(extraits) > 1 else "",
+         len(extraits) - len(hors), "s" if len(extraits) - len(hors) > 1 else "",
+         len(hors)))
+    A("- **Reste à rédiger** — %d point%s sur %d"
+      % (len(contenu) - len(docu), "s" if len(contenu) - len(docu) > 1 else "",
+         len(contenu)))
+    A("")
     return "\n".join(L)
 
 

@@ -522,17 +522,27 @@ _POLICE_FICHIERS = {
     "": os.path.join(_FONTS, "LiberationSans-Regular.ttf"),
     "B": os.path.join(_FONTS, "LiberationSans-Bold.ttf"),
     "I": os.path.join(_FONTS, "LiberationSans-Italic.ttf"),
+    # QUATRIÈME GRAISSE. fpdf la réclame dès qu'un texte porte du gras DANS de
+    # l'italique — « *voir **SPC-SSI**, à la même phase* ». Sans elle, l'export
+    # ne dégradait pas : il levait « Undefined font: liberationsansBI » et ne
+    # rendait AUCUN PDF. Un livrable entier perdu pour une combinaison de
+    # style que tout rédacteur, humain ou modèle, finit par écrire.
+    "BI": os.path.join(_FONTS, "LiberationSans-BoldItalic.ttf"),
 }
+# Les graisses sans lesquelles le document perdrait une distinction qu'il
+# utilise. Le gras-italique n'en fait pas partie : il se remplace par le gras
+# sans que le lecteur perde une information.
+_POLICE_REQUISES = ("", "B", "I")
 
 
 def police_unicode_disponible():
-    """Les trois graisses sont-elles présentes ? Exposé pour le contrôle de santé.
+    """Les graisses nécessaires sont-elles présentes ? Pour le contrôle de santé.
 
     Il en faut TROIS : sans l'italique, fpdf retomberait silencieusement sur le
     romain et le document perdrait une distinction qu'il utilise (les mentions
     de niveau et les notes sont en italique).
     """
-    return all(os.path.exists(p) for p in _POLICE_FICHIERS.values())
+    return all(os.path.exists(_POLICE_FICHIERS[s]) for s in _POLICE_REQUISES)
 
 
 def _enregistrer_police(pdf):
@@ -542,11 +552,17 @@ def _enregistrer_police(pdf):
     translittération — le document reste produit, avec « oe » pour « œ », ce
     qui est un défaut connu et non une panne. Le contrôle de santé signale le
     cas ; il ne doit pas se découvrir sur un livrable client.
+
+    Le gras-italique absent, lui, ne coûte rien au lecteur : on l'écrit avec le
+    fichier gras. Refuser l'export pour cette seule graisse coûterait le
+    document entier.
     """
     if not police_unicode_disponible():
         return "Helvetica", False
     try:
         for style, chemin in _POLICE_FICHIERS.items():
+            if not os.path.exists(chemin):
+                chemin = _POLICE_FICHIERS["B" if "B" in style else ""]
             pdf.add_font(POLICE, style, chemin)
         return POLICE, True
     except Exception:
