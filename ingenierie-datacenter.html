@@ -797,6 +797,31 @@
   .ig-man-b:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
   /* Le groupe des pièces faites, distinct de celui qui reste à faire. */
   .ig-reg-g.g-faits h5{border-left-color:#7FD4A8}
+
+  /* ── Les valeurs proposées sous un champ ────────────────────────────────
+     Une puce porte SON NOMBRE et CE QU'IL EST. Un nombre nu se recopie sans
+     réfléchir ; « 0,55 — seuil de pénalité de charge partielle » se choisit.
+
+     Discrètes par construction : elles accompagnent la saisie, elles ne la
+     dominent pas. Le champ reste libre — ces grandeurs sont continues, et
+     imposer un choix parmi cinq interdirait la valeur réelle du projet. */
+  .ig-sug{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+  .ig-sug .s-b{all:unset;cursor:pointer;display:inline-flex;align-items:baseline;
+    gap:5px;font-size:11px;line-height:1.35;padding:3px 8px;border-radius:99px;
+    border:1px solid var(--line);color:var(--muted2);max-width:100%}
+  .ig-sug .s-b i{font-style:normal;font-size:10px;color:var(--muted2);opacity:.85;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:20ch}
+  .ig-sug .s-b:hover{border-color:var(--cyan);color:var(--ink)}
+  .ig-sug .s-b:hover i{color:var(--muted)}
+  .ig-sug .s-b:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  /* Une indication sans valeur : elle oriente, elle ne se clique pas. */
+  .ig-sug .s-n{font-size:10.5px;color:var(--muted2);line-height:1.45;
+    border-left:2px solid var(--line);padding-left:7px}
+  /* Hors de ce qui s'observe : signalé, jamais refusé. Le calcul reste juste,
+     et c'est au projet de savoir s'il est hors norme — mais le taire laisse
+     saisir cinq cents mégawatts sans un mot. */
+  .ig-hors{display:block;font-size:11px;line-height:1.55;color:#E8B44A;
+    margin-top:5px;border-left:2px solid #E8B44A;padding-left:8px}
 </style>
 </head>
 <body>

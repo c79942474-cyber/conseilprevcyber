@@ -76,10 +76,23 @@
           + ' placeholder="' + (c.defaut !== undefined ? esc(c.defaut) : "—") + '">';
       }
       if (c.aide) h += '<span class="dc-aide">' + esc(c.aide) + "</span>";
+      /* Les valeurs proposées, sous le champ : c'est là qu'on hésite. */
+      h += rendreSuggestions(c, "#dc-form");
       h += "</label>";
     });
     h += "</div>";
     $("#dc-form").innerHTML = h;
+    brancherSuggestions("#dc-form");
+    controlerPlages("#dc-form");
+    $("#dc-form").addEventListener("input", function () { controlerPlages("#dc-form"); });
+    /* Les propositions contextuelles suivent les autres champs : la plage de
+       PUE suit la famille de refroidissement, l'intensité carbone suit le
+       pays. Sans cela, la page conseillerait sur un choix qui n'est plus le
+       sien. */
+    $("#dc-form").addEventListener("change", function () {
+      majSuggestionsContexte("#dc-form");
+      controlerPlages("#dc-form");
+    });
 
     /* L'aperçu suit la saisie. Un seul écouteur posé sur le conteneur plutôt
        que treize sur les champs : le formulaire est reconstruit depuis le
@@ -88,6 +101,153 @@
     $("#dc-form").addEventListener("input", function () { apercuProfil(); });
     $("#dc-form").addEventListener("change", function () { apercuProfil(); });
     apercuProfil(true);
+  }
+
+
+  /* ── Les valeurs proposées sous un champ ────────────────────────────────
+     Neuf champs sur treize sont des nombres libres. Devant « Cycles de
+     concentration de la tour », qui ne sait pas déjà répond au hasard ou n'y
+     touche pas — et un champ laissé sur son pré-remplissage compte comme non
+     renseigné, donc bloque la phase sans que personne ne sache pourquoi.
+
+     Chaque puce porte CE QU'ELLE EST, pas seulement un nombre : « 0,55 » se
+     recopie sans réfléchir, « 0,55 — seuil sous lequel la charge partielle
+     devient le premier poste de perte » se choisit.
+
+     Deux origines, et la seconde vaut mieux que la première :
+
+       · les propositions DÉCLARÉES au référentiel, servies avec le champ ;
+
+       · les propositions CONTEXTUELLES, tirées de ce que le lecteur vient de
+         choisir — la plage de PUE de SA famille de refroidissement,
+         l'intensité carbone de SON pays. Ce sont des lectures du référentiel,
+         jamais des nombres calculés ici : la page propose ce que le moteur
+         sait déjà, elle n'invente rien.
+
+     Ce ne sont pas des listes fermées : ces grandeurs sont continues, et
+     imposer un choix parmi cinq interdirait la valeur réelle du projet — celle
+     qu'on cherche précisément à obtenir. */
+  function suggestionsContextuelles(idChamp, prefixe) {
+    var R = (REF && REF.referentiel) || {};
+    var lire = function (c) {
+      var e = document.querySelector(prefixe + ' [data-champ="' + c + '"]');
+      return e ? e.value : "";
+    };
+    if (idChamp === "pue_cible") {
+      var f = (R.refroidissement || {})[lire("refroidissement")];
+      if (f && f.pue_partiel) {
+        return [
+          { valeur: f.pue_partiel[0], nature: "plage_de_conception",
+            nom: "bas de la plage de « " + f.nom + " »" },
+          { valeur: f.pue_partiel[1], nature: "plage_de_conception",
+            nom: "haut de la plage de « " + f.nom + " »" },
+        ];
+      }
+    }
+    if (idChamp === "intensite_reseau_g") {
+      var pays = lire("pays");
+      var v = (R.intensite_reseau || {})[pays];
+      var nom = ((R.ewif || {})[pays] || {}).nom || pays;
+      if (v !== undefined && v !== null) {
+        return [{ valeur: v, nature: "moyenne_annuelle",
+                  nom: "moyenne du mix " + nom + " — à remplacer par le "
+                       + "facteur du contrat" }];
+      }
+    }
+    if (idChamp === "part_evaporative") {
+      var g = (R.refroidissement || {})[lire("refroidissement")];
+      if (g && g.eau_site) {
+        return [{ valeur: null, nature: "usage",
+                  nom: "eau de site de cette famille : " + g.eau_site }];
+      }
+    }
+    return [];
+  }
+
+  /* Les champs dont les propositions dépendent d'un autre champ. Leur zone est
+     posée MÊME VIDE : sans conteneur, rien ne peut s'y insérer quand le
+     lecteur choisit enfin sa famille de refroidissement ou son pays — et la
+     proposition la plus utile de la page n'apparaîtrait jamais. */
+  var CHAMPS_CONTEXTUELS = ["pue_cible", "intensite_reseau_g", "part_evaporative"];
+
+  function rendreSuggestions(c, prefixe) {
+    var props = (c.suggestions || []).concat(
+      suggestionsContextuelles(c.id, prefixe));
+    if (!props.length && CHAMPS_CONTEXTUELS.indexOf(c.id) < 0) return "";
+    var h = '<span class="ig-sug" data-sug="' + esc(c.id) + '">';
+    props.forEach(function (s) {
+      if (s.valeur === null || s.valeur === undefined) {
+        /* Une indication sans valeur reste utile — « eau de site : modérée,
+           saisonnière » oriente — mais elle ne se clique pas : rien à poser. */
+        h += '<span class="s-n" title="' + esc(s.nom) + '">' + esc(s.nom) + "</span>";
+        return;
+      }
+      h += '<button type="button" class="s-b" data-champ-cible="' + esc(c.id)
+        + '" data-val="' + esc(s.valeur) + '" title="' + esc(s.nom)
+        + ' — ' + esc(s.nature.replace(/_/g, " ")) + '">'
+        + esc(fr(s.valeur)) + '<i>' + esc(s.nom) + "</i></button>";
+    });
+    return h + "</span>";
+  }
+
+  function brancherSuggestions(prefixe) {
+    document.querySelectorAll(prefixe + " .ig-sug .s-b").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var e = document.querySelector(prefixe + ' [data-champ="'
+          + b.getAttribute("data-champ-cible") + '"]');
+        if (!e) return;
+        e.value = b.getAttribute("data-val");
+        /* Les deux événements : « input » pour les champs texte, « change »
+           pour que tout ce qui écoute l'un ou l'autre réagisse. Un seul des
+           deux laisserait la moitié de la page en arrière. */
+        e.dispatchEvent(new Event("input", { bubbles: true }));
+        e.dispatchEvent(new Event("change", { bubbles: true }));
+        try { e.focus({ preventScroll: true }); } catch (x) { e.focus(); }
+      });
+    });
+  }
+
+  /* Ce qui sort de ce qu'on OBSERVE. Jamais un refus : le calcul reste juste,
+     et c'est au projet de savoir s'il est hors norme. Mais le taire laisse
+     saisir cinq cents mégawatts sans un mot, et ne le découvrir qu'au
+     chiffrage. */
+  function controlerPlages(prefixe) {
+    (((REF || {}).champs) || []).forEach(function (c) {
+      if (!c.plage_observee) return;
+      var e = document.querySelector(prefixe + ' [data-champ="' + c.id + '"]');
+      if (!e) return;
+      var lab = e.closest(".dc-champ") || e.parentNode;
+      var vieux = lab.querySelector(".ig-hors");
+      if (vieux) vieux.remove();
+      var v = parseFloat(String(e.value).replace(",", "."));
+      if (!isFinite(v) || e.value === "") return;
+      var p = c.plage_observee, msg = null;
+      if (v > p.haut) msg = p.note;
+      else if (v < p.bas) msg = p.note_bas || p.note;
+      if (!msg) return;
+      var n = document.createElement("span");
+      n.className = "ig-hors";
+      n.textContent = "Hors de ce qui s'observe (" + fr(p.bas) + " à "
+        + fr(p.haut) + ") — " + msg;
+      lab.appendChild(n);
+    });
+  }
+
+  function majSuggestionsContexte(prefixe) {
+    ["pue_cible", "intensite_reseau_g", "part_evaporative"].forEach(function (id) {
+      var zone = document.querySelector(prefixe + ' [data-sug="' + id + '"]');
+      if (!zone) return;
+      var c = (((REF || {}).champs) || []).filter(function (x) {
+        return x.id === id;
+      })[0];
+      if (!c) return;
+      var neuf = rendreSuggestions(c, prefixe);
+      if (!neuf) { zone.innerHTML = ""; return; }
+      var tmp = document.createElement("div");
+      tmp.innerHTML = neuf;
+      zone.replaceWith(tmp.firstChild);
+      brancherSuggestions(prefixe);
+    });
   }
 
   function lireProfil() {

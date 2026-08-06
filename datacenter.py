@@ -981,6 +981,120 @@ CHAMPS = [
 ]
 
 
+# ── Des VALEURS PROPOSÉES, pour ne pas laisser le lecteur seul ─────────────
+# Neuf champs sur treize sont des nombres libres. Devant « Cycles de
+# concentration de la tour », qui ne sait pas déjà répond au hasard ou n'y
+# touche pas — et un champ laissé sur son pré-remplissage compte comme non
+# renseigné, donc bloque la phase sans que personne ne sache pourquoi.
+#
+# CHAQUE PROPOSITION PORTE CE QU'ELLE EST. Un nombre nu se recopie sans
+# réfléchir ; « 0,55 — seuil sous lequel la pénalité de charge partielle
+# devient le premier poste de perte » se choisit. La nature suit la même
+# convention que partout ailleurs : un seuil réglementaire n'est pas un ordre
+# de grandeur, et un ordre de grandeur n'est pas une mesure.
+#
+# CE NE SONT PAS DES LISTES FERMÉES. Ces grandeurs sont continues : imposer un
+# choix parmi cinq valeurs interdirait la valeur réelle du projet, qui est
+# précisément celle qu'on cherche à obtenir. Les propositions guident, elles ne
+# contraignent pas.
+SUGGESTIONS = {
+    "puissance_it_kw": [
+        {"valeur": 100, "nom": "salle serveurs d'entreprise",
+         "nature": "ordre_grandeur"},
+        {"valeur": 500, "nom": "seuil de déclaration européenne (EED art. 12)",
+         "nature": "referentiel_externe"},
+        {"valeur": 2000, "nom": "site de colocation courant",
+         "nature": "ordre_grandeur"},
+        {"valeur": 10000, "nom": "grand site",
+         "nature": "ordre_grandeur"},
+        {"valeur": 40000, "nom": "campus hyperscale",
+         "nature": "ordre_grandeur"},
+    ],
+    "taux_charge": [
+        {"valeur": 0.55, "nom": "seuil sous lequel la charge partielle devient "
+                                "le premier poste de perte",
+         "nature": "seuil"},
+        {"valeur": 0.65, "nom": "valeur par défaut du formulaire",
+         "nature": "hypothese"},
+        {"valeur": 0.80, "nom": "site mature, bien rempli",
+         "nature": "ordre_grandeur"},
+    ],
+    "part_evaporative": [
+        {"valeur": 0.0, "nom": "aucune évaporation — refroidissement sec",
+         "nature": "definition"},
+        {"valeur": 0.5, "nom": "assistance adiabatique saisonnière",
+         "nature": "ordre_grandeur"},
+        {"valeur": 1.0, "nom": "tour évaporative en fonctionnement continu",
+         "nature": "definition"},
+    ],
+    "cycles_concentration": [
+        {"valeur": 3, "nom": "eau dure ou traitement limité — purge fréquente",
+         "nature": "ordre_grandeur"},
+        {"valeur": 4, "nom": "valeur par défaut du formulaire",
+         "nature": "hypothese"},
+        {"valeur": 6, "nom": "traitement d'eau poussé — purge réduite",
+         "nature": "ordre_grandeur"},
+    ],
+    "part_renouvelable": [
+        {"valeur": 0.0, "nom": "aucun contrat sans carbone", "nature": "definition"},
+        {"valeur": 0.5, "nom": "moitié de la consommation contractualisée",
+         "nature": "ordre_grandeur"},
+        {"valeur": 1.0, "nom": "totalité contractualisée — à justifier par le contrat",
+         "nature": "definition"},
+    ],
+    "part_chaleur_reutilisee": [
+        {"valeur": 0.0, "nom": "aucun preneur de chaleur", "nature": "definition"},
+        {"valeur": 0.1, "nom": "réseau de chaleur en projet, taux prudent",
+         "nature": "ordre_grandeur"},
+        {"valeur": 0.3, "nom": "preneur engagé et proche — haut de ce qui s'observe",
+         "nature": "ordre_grandeur"},
+    ],
+    "prix_electricite_eur_mwh": [
+        {"valeur": 80, "nom": "contrat long terme favorable",
+         "nature": "ordre_grandeur"},
+        {"valeur": 110, "nom": "valeur par défaut du formulaire",
+         "nature": "hypothese"},
+        {"valeur": 180, "nom": "marché tendu ou petit volume",
+         "nature": "ordre_grandeur"},
+    ],
+}
+
+# Ce qu'on OBSERVE réellement, par opposition à ce qui est saisissable. Une
+# valeur hors de cette plage n'est pas refusée — le calcul reste juste, et
+# c'est au projet de savoir s'il est hors norme — mais elle est SIGNALÉE.
+# Sans ce garde-fou, une puissance de 500 000 kW passe sans un mot, et le
+# lecteur ne saura qu'au chiffrage qu'il a saisi cinq cents mégawatts.
+PLAGES_OBSERVEES = {
+    "puissance_it_kw": {
+        "bas": 20, "haut": 200000,
+        "note": "Au-delà de 200 MW informatiques, on décrit un campus de "
+                "plusieurs bâtiments : le calcul reste juste, mais un bilan "
+                "unique perd son sens — chaque tranche a son raccordement, son "
+                "refroidissement et son échéancier.",
+        "note_bas": "Sous 20 kW, il s'agit d'un local technique plutôt que "
+                    "d'un centre de données : les ratios du référentiel ne "
+                    "sont pas établis à cette échelle.",
+    },
+    "taux_charge": {"bas": 0.30, "haut": 1.0,
+                    "note": "Un taux de charge supérieur à 1 n'a pas de sens : "
+                            "c'est une charge rapportée à la puissance installée.",
+                    "note_bas": "Sous 0,30, l'installation est très largement "
+                                "surdimensionnée — vérifiez qu'il s'agit bien "
+                                "d'une moyenne annuelle."},
+    "cycles_concentration": {"bas": 2, "haut": 10,
+                             "note": "Au-delà de 10 cycles, l'entartrage et la "
+                                     "corrosion deviennent le sujet principal.",
+                             "note_bas": "Sous 2 cycles, la purge dépasse "
+                                         "l'évaporation : le poste eau est "
+                                         "dominé par le rejet."},
+    "pue_cible": {"bas": 1.02, "haut": 2.5,
+                  "note": "Un PUE au-delà de 2,5 décrit une installation "
+                          "ancienne ou très dégradée.",
+                  "note_bas": "Sous 1,02, le PUE ne laisse plus de place aux "
+                              "auxiliaires : vérifiez le périmètre de mesure."},
+}
+
+
 # ── Le LIBELLÉ des options, servi avec le champ ────────────────────────────
 # Les pages construisaient le nom elles-mêmes, avec un cas particulier écrit
 # deux fois : « si le champ est le refroidissement, aller chercher le nom dans
@@ -1002,6 +1116,12 @@ _LIBELLES_OPTIONS = {
 }
 
 for _c in CHAMPS:
+    # Les propositions et la plage observée voyagent AVEC le champ, comme les
+    # libellés d'options : la page n'a pas à savoir dans quelle table chercher.
+    if _c["id"] in SUGGESTIONS:
+        _c["suggestions"] = SUGGESTIONS[_c["id"]]
+    if _c["id"] in PLAGES_OBSERVEES:
+        _c["plage_observee"] = PLAGES_OBSERVEES[_c["id"]]
     _f = _LIBELLES_OPTIONS.get(_c["id"])
     if _f and _c.get("options"):
         # Le code reste la CLÉ envoyée au moteur ; seul l'affichage change. Un
