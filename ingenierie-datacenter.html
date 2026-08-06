@@ -234,6 +234,42 @@
     text-transform:uppercase;color:#0b0b0b;background:var(--cyan);border-radius:20px;
     padding:2px 8px;white-space:nowrap}
   .ig-pc ul{margin:0;padding-left:17px;font-size:12px;color:var(--muted);line-height:1.65}
+  /* LA FICHE À LA DEMANDE. Le résumé sert à choisir la pièce ; la fiche sert à
+     la rédiger. Les afficher ensemble faisait huit écrans pour vingt-trois
+     pièces — et la dernière n'était jamais lue. */
+  .ig-pc-f{margin-top:8px;border-top:1px dashed var(--line);padding-top:7px}
+  .ig-pc-f>summary{cursor:pointer;list-style:none;font-size:11px;
+    font-family:var(--mono);letter-spacing:.05em;text-transform:uppercase;
+    color:var(--muted2);display:flex;align-items:center;gap:7px;
+    padding:2px 0;border-radius:6px}
+  .ig-pc-f>summary::-webkit-details-marker{display:none}
+  /* Le chevron dit le sens du geste : vers le bas, il reste à ouvrir. */
+  .ig-pc-f>summary::before{content:"▸";font-size:11px;color:var(--cyan);
+    transition:transform .16s ease;display:inline-block}
+  .ig-pc-f[open]>summary::before{transform:rotate(90deg)}
+  .ig-pc-f>summary:hover{color:var(--ink)}
+  .ig-pc-f>summary:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+  .ig-pc-f>summary .n{font-family:var(--sans,inherit);text-transform:none;
+    letter-spacing:0;font-size:11px;color:var(--muted2);opacity:.85}
+  .ig-pc-fc{padding-top:8px}
+  .ig-pc-nva{font-size:11.5px;color:var(--muted2);line-height:1.55;margin:0 0 7px}
+  .ig-pc-fc .ap{display:block;font-size:10.5px;color:var(--muted2);
+    font-style:italic;margin:0 0 7px}
+  @media (prefers-reduced-motion:reduce){
+    .ig-pc-f>summary::before{transition:none}
+  }
+  /* À l'impression, une fiche repliée serait une page blanche : on déplie
+     tout. Un dossier imprimé n'a pas de bouton. */
+  @media print{
+    .ig-pc-f>summary{display:none}
+    .ig-pc-fc{display:block !important}
+    #ig-fiches-tout{display:none !important}
+  }
+  .ig-reg-b{all:unset;cursor:pointer;font-size:11.5px;padding:4px 11px;
+    margin-top:8px;border-radius:7px;border:1px solid var(--line);
+    color:var(--muted);display:inline-block}
+  .ig-reg-b:hover{border-color:var(--cyan);color:var(--ink)}
+  .ig-reg-b:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
   .ig-pc-a{margin-top:9px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .ig-gen{all:unset;cursor:pointer;font-size:11.5px;padding:5px 11px;border-radius:7px;
     border:1px solid var(--line);color:var(--muted)}

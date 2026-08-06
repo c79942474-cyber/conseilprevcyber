@@ -595,17 +595,22 @@
      registre de trente pièces sans repère laisse le lecteur la chercher —
      c'est-à-dire abandonner. */
   function viserPiece(code) {
-    if (!code) return;
+    if (!code) return false;
     var el = document.querySelector('#ig-dossier .ig-pc [data-piece="' + code + '"]');
     var bloc = el && el.closest(".ig-pc");
-    if (!bloc) return;
+    if (!bloc) return false;
     document.querySelectorAll(".ig-pc.ig-vise-pc").forEach(function (e) {
       e.classList.remove("ig-vise-pc");
     });
     bloc.classList.add("ig-vise-pc");
+    /* Un lien qui désigne une pièce promet sa fiche : arriver sur une carte
+       repliée demanderait un second geste pour voir ce qu'on venait lire. */
+    var f = bloc.querySelector(".ig-pc-f");
+    if (f && !f.open) { f.open = true; FICHES[code] = true; majToutesFiches(); }
     var doux = !window.matchMedia
       || !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     bloc.scrollIntoView({ behavior: doux ? "smooth" : "auto", block: "center" });
+    return true;
   }
 
   /* ── Le dossier de la phase ──────────────────────────────────────────── */
@@ -744,6 +749,12 @@
          vérité, et c'est celle du navigateur qui gagnerait. */
   var PLAN = null;
 
+  /* Les fiches ouvertes, par code de pièce. Le registre se redessine à chaque
+     rafraîchissement — changement de phase, rédaction terminée, visa posé — et
+     sans cette mémoire, la fiche qu'on vient d'ouvrir se refermait sous les
+     yeux du lecteur, qui la rouvrait, et ainsi de suite. */
+  var FICHES = {};
+
   function carteP(p) {
     var L = p.livrable;
     var v = L && L.visa;
@@ -772,30 +783,49 @@
       + (p.moteur ? '<span class="mo"' + info("moteur:oui")
           + ">alimentée par le calcul</span>" : "")
       + "</div>"
-      /* Le NIVEAU commande la profondeur attendue, et son AIDE dit pourquoi.
-         Sans elle, une même spécification se lit à l'identique de l'esquisse à
-         la consultation, alors qu'elle n'y engage pas du tout la même chose. */
+      /* Le NIVEAU attendu reste au résumé : c'est lui qui dit à quelle
+         profondeur écrire, et il tient en deux mots. Son AIDE, plus longue,
+         part avec le reste de la fiche. */
       + (p.niveau_nom
           ? '<div class="ig-pc-nv"><span class="nv nv-' + esc(p.niveau) + '"'
-            + info("niveau:" + p.niveau) + ">" + esc(p.niveau_nom) + "</span> "
-            + esc(p.niveau_aide)
+            + info("niveau:" + p.niveau) + ">" + esc(p.niveau_nom) + "</span>"
             + (p.discipline_nom
                 ? ' <span class="di"' + info("discipline:" + p.discipline) + ">"
                   + esc(p.discipline_nom) + "</span>" : "")
-            + (p.autres_phases && p.autres_phases.length
-                ? '<span class="ap">document unique, repris en '
-                  + esc(p.autres_phases.join(", ")) + "</span>" : "")
             + "</div>"
           : "")
-      /* Le MOTIF du caractère. Sans lui, « Obligatoire » est une affirmation ;
-         avec lui, elle se vérifie. */
-      + '<p class="ig-car-m">' + esc(p.caractere_motif) + "</p>"
       + (L ? '<div class="ig-pc-l"><b>Rédigée</b> le ' + pjDate(L.created_at)
              + " · " + esc(L.etat)
              + (v && v.bloquants && v.bloquants.length
                  ? '<span class="mtf">Motif — '
                    + esc(v.bloquants[0].motif || "non précisé") + "</span>" : "")
              + "</div>" : "")
+      /* LA FICHE, À LA DEMANDE. Vingt-trois cartes déployées font huit écrans,
+         et la dernière n'est jamais lue : le registre devient illisible par
+         excès de rigueur. Ce qui reste au résumé est ce qui sert à CHOISIR —
+         caractère, code, intitulé, émetteur, type, niveau, état. Ce qui sert à
+         RÉDIGER — le motif de l'obligation, le contenu exigé point par point,
+         le vocabulaire de recherche, la reprise d'une phase à l'autre —
+         s'ouvre d'un geste, et rien n'est perdu.
+
+         <details> plutôt qu'un dépliant fait main : le clavier, la lecture
+         d'écran et l'impression le connaissent déjà, et il fonctionne même si
+         le script de la page ne s'exécute pas. */
+      + '<details class="ig-pc-f"' + (FICHES[p.code] ? " open" : "") + ">"
+      + "<summary>Fiche complète"
+      + ((p.contenu || []).length
+          ? ' <span class="n">' + (p.contenu || []).length
+            + " point" + ((p.contenu || []).length > 1 ? "s" : "")
+            + " exigé" + ((p.contenu || []).length > 1 ? "s" : "") + "</span>"
+          : "")
+      + "</summary><div class=\"ig-pc-fc\">"
+      + (p.niveau_aide ? '<p class="ig-pc-nva">' + esc(p.niveau_aide) + "</p>" : "")
+      + (p.autres_phases && p.autres_phases.length
+          ? '<p class="ap">document unique, repris en '
+            + esc(p.autres_phases.join(", ")) + "</p>" : "")
+      /* Le MOTIF du caractère. Sans lui, « Obligatoire » est une affirmation ;
+         avec lui, elle se vérifie. */
+      + '<p class="ig-car-m">' + esc(p.caractere_motif) + "</p>"
       + '<ul>' + (p.contenu || []).map(function (c) {
           return "<li>" + esc(c) + "</li>"; }).join("") + "</ul>"
       + (p.recherche_origine === "titre"
@@ -804,6 +834,7 @@
           : '<div class="ig-pc-rq"><span class="lb"'
             + info("recherche:" + p.recherche_origine) + ">recherche</span> "
             + esc(p.recherche) + "</div>")
+      + "</div></details>"
       + '<div class="ig-pc-a"><button type="button" class="ig-gen" data-piece="'
       + esc(p.code) + '">' + (p.fait ? "Reprendre" : "Rédiger") + "</button>"
       + '<button type="button" class="ig-voir" data-piece="' + esc(p.code)
@@ -850,7 +881,12 @@
     h += "<span class='ig-reg-c'>"
       + Object.keys(R.par_type || {}).sort().map(function (k) {
           return esc(k) + " " + R.par_type[k];
-        }).join(" · ") + "</span></div>";
+        }).join(" · ") + "</span>"
+      /* Ouvrir vingt-trois fiches une par une n'est pas une lecture : c'est
+         une corvée. La commande d'ensemble est ici, au-dessus du registre —
+         là où le lecteur décide comment il veut le lire. */
+      + '<button type="button" id="ig-fiches-tout" class="ig-reg-b">'
+      + "Déplier les fiches</button></div>";
 
     h += barreProjet(d);
 
@@ -1533,6 +1569,54 @@
     document.querySelectorAll("#ig-dossier .ig-voir").forEach(function (b) {
       b.addEventListener("click", function () { voirBase(b.getAttribute("data-piece"), b); });
     });
+    /* On retient ce que le lecteur a ouvert, pièce par pièce : le prochain
+       redessin le lui rendra tel quel. */
+    document.querySelectorAll("#ig-dossier .ig-pc-f").forEach(function (f) {
+      f.addEventListener("toggle", function () {
+        var c = f.closest(".ig-pc");
+        var code = c && c.getAttribute("data-code");
+        if (!code) return;
+        if (f.open) FICHES[code] = true; else delete FICHES[code];
+        majToutesFiches();
+      });
+    });
+    majToutesFiches();
+    var t = $("#ig-fiches-tout");
+    if (t) {
+      t.addEventListener("click", function () {
+        /* Un seul bouton, qui fait l'inverse de l'état courant : deux boutons
+           « tout ouvrir » et « tout fermer » auraient laissé l'un des deux
+           sans effet la moitié du temps. */
+        var fs = document.querySelectorAll("#ig-dossier .ig-pc-f");
+        var ouvrir = t.getAttribute("data-etat") !== "ouvert";
+        fs.forEach(function (f) {
+          f.open = ouvrir;
+          var c = f.closest(".ig-pc");
+          var code = c && c.getAttribute("data-code");
+          if (!code) return;
+          if (ouvrir) FICHES[code] = true; else delete FICHES[code];
+        });
+        majToutesFiches();
+      });
+    }
+  }
+
+  /* Le bouton dit ce qu'il VA faire, pas ce qui est. « Tout replier » sur un
+     registre déjà replié est un clic sans effet, et le lecteur en conclut que
+     la commande est cassée. */
+  function majToutesFiches() {
+    var t = $("#ig-fiches-tout");
+    if (!t) return;
+    var fs = document.querySelectorAll("#ig-dossier .ig-pc-f");
+    if (!fs.length) { t.style.display = "none"; return; }
+    t.style.display = "";
+    var ouvertes = 0;
+    fs.forEach(function (f) { if (f.open) ouvertes++; });
+    var tout = ouvertes === fs.length;
+    t.setAttribute("data-etat", tout ? "ouvert" : "ferme");
+    t.textContent = tout ? "Replier les fiches" : "Déplier les fiches";
+    t.setAttribute("aria-label", (tout ? "Replier" : "Déplier")
+      + " la fiche complète des " + fs.length + " pièces du registre");
   }
 
   /* Ce que la base rendrait pour cette pièce, AVANT de rédiger. Consulter ne
@@ -1927,7 +2011,12 @@
   function planPuisRendre(d) {
     var fini = function () {
       rendreDossier(d);
-      if (PIECE_VISEE) { viserPiece(PIECE_VISEE); PIECE_VISEE = null; }
+      /* La cible n'est oubliée QUE si elle a été trouvée. Le premier dessin du
+         registre peut arriver avant que le profil soit complet — il est alors
+         vide, et effacer la cible à ce moment perdait le lien : le lecteur
+         arrivait sur la page qu'il avait demandée, sans la pièce qu'il venait
+         y lire. */
+      if (PIECE_VISEE && viserPiece(PIECE_VISEE)) PIECE_VISEE = null;
     };
     if (!PROJET || !PHASE) { PLAN = null; fini(); return; }
     var p = lireProfil();
