@@ -4223,6 +4223,72 @@ def api_livrables_types():
     return jsonify(ok=True, types=livrables.public_types(), models=assistant.available())
 
 
+def _famille_prioritaire(type_id):
+    """La famille de la base à interroger EN PREMIER pour ce livrable.
+
+    Un livrable de centre de données doit puiser d'abord dans les documents de
+    centres de données : sur une base de plusieurs centaines de pièces, une
+    note d'architecture réseau bien tournée peut sortir devant une fiche
+    technique de groupe froid alors que c'est la seconde qui compte pour un
+    CCTP de production frigorifique. Le classement par pertinence seule ne
+    connaît pas le SUJET du dossier ; la famille, si.
+
+    Déduite du livrable, jamais imposée à tous : prioriser les centres de
+    données dans une synthèse IEC 62443 la desservirait exactement autant.
+
+      · pièces du registre d'ingénierie (« dc-piece-… ») → centres de données ;
+      · types de la console dont le groupe porte le même nom → idem ;
+      · tout le reste → aucune priorité, classement par pertinence seule.
+
+    Rend (nom de famille, liste de thèmes) ou (None, []).
+    """
+    import rag_store as _rs
+    if str(type_id or "").startswith("dc-piece-"):
+        return _rs.FAMILLE_DATACENTER, _rs.themes_famille(_rs.FAMILLE_DATACENTER)
+    t = livrables.get_type(type_id) or {}
+    # Les deux vocabulaires portent le même intitulé de famille — c'est ce qui
+    # rend la correspondance vérifiable plutôt que devinée. S'ils divergent un
+    # jour, `themes_famille` rend une liste vide et la priorité disparaît
+    # simplement : aucun document n'est perdu, le classement redevient celui de
+    # la pertinence seule.
+    if t.get("groupe") == _rs.FAMILLE_DATACENTER:
+        return _rs.FAMILLE_DATACENTER, _rs.themes_famille(_rs.FAMILLE_DATACENTER)
+    return None, []
+
+
+def _hits_priorises(query, k, public_only, themes, elargir=None):
+    """Les extraits, famille prioritaire d'abord, le reste ensuite.
+
+    `elargir` est la recherche générale (déjà faite, ou None pour la faire
+    ici) : on garde ses résultats pour COMPLÉTER, jamais pour remplacer. Une
+    famille qui ne répond pas ne doit pas priver le livrable du reste de la
+    base — la priorité est un ordre, pas un filtre.
+    """
+    prio = []
+    if themes:
+        try:
+            prio = rag.search(query, k=k, public_only=public_only, theme=themes)
+        except Exception:
+            prio = []
+    reste = elargir
+    if reste is None:
+        try:
+            reste = rag.search(query, k=k, public_only=public_only)
+        except Exception:
+            reste = []
+    # Dédoublonnage sur le contenu du fragment, pas sur le document : un même
+    # document peut légitimement fournir deux extraits différents, et les
+    # confondre en écarterait un.
+    vus = {(h.get("doc_id"), (h.get("content") or "")[:120]) for h in prio}
+    for h in reste:
+        cle = (h.get("doc_id"), (h.get("content") or "")[:120])
+        if cle in vus:
+            continue
+        vus.add(cle)
+        prio.append(h)
+    return prio[:k]
+
+
 def _extraits_pour(query, doc_ids=None, public_only=False):
     """Les extraits de la base, sans re-classement par modèle.
 
@@ -4254,7 +4320,15 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo,
     profil = _profil_datacenter(data)
     query = (livrables.retrieval_query(type_id, data) + " " + extra_query).strip()
     doc_ids = [d for d in (data.get("doc_ids") or []) if _rag_valid_doc_id(d)]
-    hits = _extraits_pour(query, doc_ids, public_only)
+    if doc_ids:
+        # Sélection manuelle : elle EST la priorité, et rien ne doit la
+        # réordonner par-dessus.
+        hits = _extraits_pour(query, doc_ids, public_only)
+        famille = None
+    else:
+        famille, themes = _famille_prioritaire(type_id)
+        hits = _hits_priorises(query, 8, public_only, themes,
+                               elargir=_extraits_pour(query, None, public_only))
     mode = ingenierie_dc.mode_redaction(False, hits)
     m = ingenierie_dc.MODES_REDACTION[mode]
     texte = None
@@ -4328,6 +4402,7 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo,
                    mode_aide=ingenierie_dc.MODES_REDACTION[mode]["aide"],
                    sans_modele=True, sources=sources, id=saved_id,
                    corpus="public" if public_only else "complet",
+                   famille_prioritaire=famille,
                    modeles_disponibles=dispo)
 
 
@@ -4379,6 +4454,7 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None,
     parent_id = data.get("parent_id")
     parent_id = parent_id if _rag_valid_doc_id(parent_id) else None
     hits = []
+    famille = None
     try:
         if doc_ids:
             # Documents choisis manuellement : on respecte la sélection (pas de
@@ -4391,9 +4467,15 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None,
             # Récupération LARGE puis re-classement par LLM-juge → les 8 extraits
             # les plus pertinents avant génération (précision accrue). Repli sûr
             # (sans clé API ou en cas d'échec : simple troncature).
-            hits = assistant.rerank(model, query,
-                                    rag.search(query, k=24,
-                                               public_only=public_only), 8)
+            large = assistant.rerank(model, query,
+                                     rag.search(query, k=24,
+                                                public_only=public_only), 8)
+            # LA FAMILLE PASSE DEVANT, et APRÈS le re-classement : le juge
+            # ordonne par pertinence, la famille par sujet. Le faire avant
+            # laisserait le juge défaire l'ordre qu'on vient de poser — c'est
+            # précisément son travail que de réordonner.
+            famille, themes = _famille_prioritaire(type_id)
+            hits = _hits_priorises(query, 8, public_only, themes, elargir=large)
     except Exception:
         hits = []
     context = build_context(hits, max_chars=6000)
@@ -4466,6 +4548,7 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None,
                    mode_nom=ingenierie_dc.MODES_REDACTION[mode]["nom"],
                    mode_aide=ingenierie_dc.MODES_REDACTION[mode]["aide"],
                    corpus="public" if public_only else "complet",
+                   famille_prioritaire=famille,
                    sans_modele=False)
 
 
@@ -5553,10 +5636,17 @@ def api_datacenter_piece_apercu():
     query = ingenierie_dc.requete_piece(phase, code, data)
     model = "mistral" if data.get("model") == "mistral" else "claude"
     public_only = not _is_admin_request()
+    # Même ordre que la rédaction, famille prioritaire comprise. Un aperçu qui
+    # classerait autrement annoncerait des sources dans un ordre que le
+    # document ne suivrait pas — et son seul intérêt est d'être fidèle.
+    famille, themes = _famille_prioritaire(
+        "dc-piece-%s-%s" % (phase.lower(), code.lower()))
     try:
-        hits = assistant.rerank(model, query,
-                                rag.search(query, k=24,
-                                           public_only=public_only), 8)
+        hits = _hits_priorises(
+            query, 8, public_only, themes,
+            elargir=assistant.rerank(model, query,
+                                     rag.search(query, k=24,
+                                                public_only=public_only), 8))
     except Exception:
         # Un aperçu qui échoue ne doit pas passer pour une base vide : les deux
         # se ressemblent à l'écran et n'appellent pas la même réaction.
@@ -5575,6 +5665,7 @@ def api_datacenter_piece_apercu():
     return jsonify(ok=True, query=query, documents=docs, extraits=len(hits),
                    origine=pc.get("recherche_origine"),
                    corpus="public" if public_only else "complet",
+                   famille_prioritaire=famille,
                    piece="%s — %s" % (pc["code"], pc["titre"]))
 
 

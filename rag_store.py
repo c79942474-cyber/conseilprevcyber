@@ -227,6 +227,19 @@ THEMES = [t for _, ts in THEME_FAMILLES for t in ts]
 # interface : un nom recopié dans deux fichiers finit toujours par diverger.
 FAMILLE_ENTREPRISES = "Entreprises & références"
 FAMILLE_ENGINEERING = "Engineering"
+# La famille interrogée EN PREMIER pour les livrables de centres de données.
+# Nommée ici, où vit le vocabulaire, et pas recopiée dans app.py : un nom écrit
+# à deux endroits finit toujours par diverger, et la divergence serait muette —
+# une famille introuvable ne remonterait simplement aucun document prioritaire.
+FAMILLE_DATACENTER = "Centres de données"
+
+
+def themes_famille(nom):
+    """Les thèmes d'une famille, ou une liste vide si elle est inconnue."""
+    for f, ts in THEME_FAMILLES:
+        if f == nom:
+            return list(ts)
+    return []
 
 
 class RagError(Exception):
@@ -847,6 +860,11 @@ class MemoryRagStore:
         qterms = _query_terms(query)
         if not qterms:
             return []
+        # `theme` accepte un thème OU une liste — une famille en compte
+        # vingt-cinq, et les interroger un par un ferait vingt-cinq
+        # recherches là où une suffit.
+        themes = ({theme} if isinstance(theme, str)
+                  else set(theme) if theme else None)
         qset = set(qterms)
         phrase = " ".join(qterms)
         multi = len(qset) > 1
@@ -863,7 +881,7 @@ class MemoryRagStore:
                     continue
                 if public_only and meta["visibility"] != "public":
                     continue
-                if theme and meta["theme"] != theme:
+                if themes and meta["theme"] not in themes:
                     continue
                 for ch in chunks:
                     ctok = ch["tokens"]
@@ -1646,8 +1664,16 @@ class PostgresRagStore:
         if public_only:
             where.append("d.visibility='public'")
         if theme:
-            where.append("d.theme=%s")
-            params.append(theme)
+            # Un thème OU une liste : une famille en compte vingt-cinq, et les
+            # interroger un par un ferait vingt-cinq recherches là où une
+            # suffit — sur une base de plusieurs centaines de documents, la
+            # différence se voit.
+            if isinstance(theme, str):
+                where.append("d.theme=%s")
+                params.append(theme)
+            else:
+                where.append("d.theme = ANY(%s)")
+                params.append(list(theme))
         if doc_ids:
             where.append("d.id = ANY(%s)")
             params.append(list(doc_ids))

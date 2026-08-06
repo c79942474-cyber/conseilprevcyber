@@ -1521,7 +1521,16 @@
             + "sujet.</p>"; return;
         }
         var h = '<p class="ig-pc-rqv"><b>Demandé à la base :</b> '
-          + esc(j.query || "") + "</p>";
+          + esc(j.query || "") + "</p>"
+          /* L'ORDRE n'est pas celui de la seule pertinence : la famille du
+             sujet passe devant. Sans le dire, un lecteur qui voit un document
+             mieux tourné arriver en second croirait à un défaut de
+             classement. */
+          + (j.famille_prioritaire
+              ? '<p class="ig-pc-rqv"><b>Cherché d’abord dans :</b> '
+                + esc(j.famille_prioritaire)
+                + " — le reste de la base complète ensuite, rien n’est écarté.</p>"
+              : "");
         if (!j.documents || !j.documents.length) {
           h += '<p class="ig-pc-att">Aucun document de la base ne traite ce '
             + "sujet. La pièce sera rédigée sans source interne — le document "
@@ -1625,6 +1634,11 @@
               ? " · " + o.j.sources.length + " document"
                 + (o.j.sources.length > 1 ? "s" : "") + " de la base cité"
                 + (o.j.sources.length > 1 ? "s" : "")
+                /* D'où l'on a puisé EN PREMIER. Le document liste ses sources
+                   dans cet ordre-là, et non dans celui de la seule
+                   pertinence : le dire évite de le prendre pour un défaut. */
+                + (o.j.famille_prioritaire
+                    ? " · « " + esc(o.j.famille_prioritaire) + " » d'abord" : "")
               : " · aucun document de la base n'a été retrouvé")
           /* Dire où le document a ATTERRI, et le dire aussi quand il n'a
              atterri nulle part : c'est la seule occasion où le lecteur peut
