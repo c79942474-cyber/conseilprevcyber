@@ -24,6 +24,51 @@
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
+
+  /* ── AUCUNE REQUÊTE SANS DÉLAI ──────────────────────────────────────────
+     LE défaut qui fait dire « la page est bloquée ». Un `fetch` sans délai
+     attend INDÉFINIMENT : si le serveur tarde — saturé, en train de se
+     réveiller, coupure réseau — la page reste sur « Chargement du
+     référentiel… » ou « Calcul en cours… » sans un mot, parfois plusieurs
+     minutes, jusqu'à ce que le navigateur abandonne de lui-même. Le
+     formulaire ne s'affiche jamais : on ne peut RIEN saisir, et rien ne dit
+     pourquoi.
+
+     Une requête bornée ne répare pas la lenteur du serveur — elle la rend
+     LISIBLE, et rend la main. C'est la différence entre une page en panne et
+     une page qui explique.
+
+     Deux budgets, parce que les gestes n'ont pas la même durée légitime : ce
+     qui conditionne l'affichage doit échouer vite ; un calcul complet a le
+     droit de prendre du temps. */
+  var DELAI_COURT = 12000;    // référentiel, aperçu : conditionnent l'affichage
+  var DELAI_LONG = 45000;     // étude, export : travail réel côté serveur
+
+  function demander(url, options, delai) {
+    options = options || {};
+    var ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+    var fini = false;
+    var minuteur = setTimeout(function () {
+      if (!fini && ctrl) { try { ctrl.abort(); } catch (e) {} }
+    }, delai || DELAI_COURT);
+    if (ctrl && !options.signal) options.signal = ctrl.signal;
+    return fetch(url, options).then(function (r) {
+      fini = true; clearTimeout(minuteur); return r;
+    }, function (e) {
+      fini = true; clearTimeout(minuteur);
+      /* On distingue le délai dépassé du reste : « le serveur n'a pas répondu
+         en douze secondes » et « vous êtes hors ligne » n'appellent pas le
+         même geste, et les confondre envoie chercher la panne du mauvais
+         côté. */
+      if (e && e.name === "AbortError" && !options.__annule) {
+        var t = new Error("delai");
+        t.name = "DelaiDepasse";
+        t.delai = delai || DELAI_COURT;
+        throw t;
+      }
+      throw e;
+    });
+  }
   /* Séparateur décimal français. Un « 1.47 » dans une note de calcul remise en
      France signale un document non relu — et ce détail-là, les évaluateurs le
      remarquent avant le contenu. */
@@ -675,12 +720,15 @@
       if (_vol) { try { _vol.abort(); } catch (e) {} }
       _vol = (typeof AbortController !== "undefined") ? new AbortController() : null;
       zone.classList.add("occupe");
-      fetch("/api/datacenter/profil", {
+      demander("/api/datacenter/profil", {
         method: "POST", credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(p),
         signal: _vol ? _vol.signal : undefined,
-      })
+        // L'aperçu s'annule VOLONTAIREMENT à chaque nouvelle frappe : sans ce
+        // drapeau, chaque caractère tapé afficherait « délai dépassé ».
+        __annule: true,
+      }, DELAI_COURT)
         .then(function (r) { return r.json(); })
         .then(function (j) {
           zone.classList.remove("occupe");
@@ -847,14 +895,26 @@
     $("#dc-sec-comp").hidden = false;
   }
 
-  function poster(url, corps) {
-    return fetch(url, {
+  function poster(url, corps, delai) {
+    return demander(url, {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(corps)
-    }).then(function (r) {
+    }, delai || DELAI_LONG).then(function (r) {
       return r.json().then(function (j) { return { ok: r.ok, statut: r.status, j: j }; });
     });
+  }
+
+  /* Le délai dépassé n'est pas une panne : le serveur n'a simplement pas
+     répondu dans le temps accordé. Le dire ainsi, avec la durée, évite de
+     chercher une erreur de saisie là où il n'y a qu'une attente. */
+  function messageDelai(e, defaut) {
+    if (e && e.name === "DelaiDepasse") {
+      return "Le serveur n'a pas répondu en " + Math.round(e.delai / 1000)
+        + " secondes. Il est peut-être très sollicité : relancez dans un "
+        + "instant. Vos saisies sont conservées.";
+    }
+    return defaut;
   }
 
   /* Un refus d'accès et une panne appellent deux gestes différents. Les
@@ -868,7 +928,13 @@
   function lancer() {
     PROFIL = lireProfil();
     etat("Calcul en cours…");
-    poster("/api/datacenter/etude", PROFIL).then(function (res) {
+    poster("/api/datacenter/etude", PROFIL).catch(function (e) {
+      // Une promesse rejetée sans .catch laissait « Calcul en cours… » à
+      // l'écran pour toujours : le bouton restait inerte et rien n'expliquait.
+      etat(messageDelai(e, "Le calcul n'a pas abouti."), true);
+      return null;
+    }).then(function (res) {
+      if (!res) return;
       if (!res.ok || !res.j.ok) { etat(messageErreur(res), true); return; }
       ETUDE = res.j.etude;
       /* Le profil est retenu pour la page d'ingénierie : elle pose le même
@@ -880,7 +946,12 @@
       montrerSuite();
       etat("Étude calculée. Chaque valeur porte sa méthode : dépliez « méthode et source ».");
       $("#dc-sec-res").scrollIntoView({ behavior: "smooth", block: "start" });
-    }).catch(function () { etat("Réseau indisponible. Réessayez.", true); });
+    }).catch(function (e) {
+      // « Réseau indisponible » sur un délai dépassé désigne la mauvaise
+      // cause : le réseau marche, le serveur est lent. On ne fait pas chercher
+      // la panne du mauvais côté.
+      etat(messageDelai(e, "Réseau indisponible. Réessayez."), true);
+    });
   }
 
   /* La suite du chemin, proposée une fois le calcul fait et pas avant : ce que
@@ -971,22 +1042,31 @@
   function comparer() {
     PROFIL = lireProfil();
     etat("Comparaison des familles…");
-    poster("/api/datacenter/comparer", PROFIL).then(function (res) {
+    poster("/api/datacenter/comparer", PROFIL).catch(function (e) {
+      etat(messageDelai(e, "La comparaison n'a pas abouti."), true);
+      return null;
+    }).then(function (res) {
+      if (!res) return;
       if (!res.ok || !res.j.ok) { etat(messageErreur(res), true); return; }
       afficherComparaison(res.j);
       etat("Comparaison établie.");
       $("#dc-sec-comp").scrollIntoView({ behavior: "smooth", block: "start" });
-    }).catch(function () { etat("Réseau indisponible. Réessayez.", true); });
+    }).catch(function (e) {
+      // « Réseau indisponible » sur un délai dépassé désigne la mauvaise
+      // cause : le réseau marche, le serveur est lent. On ne fait pas chercher
+      // la panne du mauvais côté.
+      etat(messageDelai(e, "Réseau indisponible. Réessayez."), true);
+    });
   }
 
   function exporter(fmt) {
     PROFIL = lireProfil();
     etat("Préparation du document…");
-    fetch("/api/datacenter/export", {
+    demander("/api/datacenter/export", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(Object.assign({}, PROFIL, { format: fmt }))
-    }).then(function (r) {
+    }, DELAI_LONG).then(function (r) {
       /* Le serveur répond soit un fichier, soit du JSON d'erreur. Traiter la
          réponse comme un fichier dans tous les cas téléchargerait un document
          de zéro octet, et l'utilisateur croirait à un export réussi. */
@@ -1003,7 +1083,12 @@
         setTimeout(function () { URL.revokeObjectURL(u); }, 4000);
         etat("Document téléchargé.");
       });
-    }).catch(function () { etat("Réseau indisponible. Réessayez.", true); });
+    }).catch(function (e) {
+      // « Réseau indisponible » sur un délai dépassé désigne la mauvaise
+      // cause : le réseau marche, le serveur est lent. On ne fait pas chercher
+      // la panne du mauvais côté.
+      etat(messageDelai(e, "Réseau indisponible. Réessayez."), true);
+    });
   }
 
   /* ── Le référentiel, publié ────────────────────────────────────────────
@@ -1144,8 +1229,14 @@
       + 'que le calcul emploie.</p>';
   }
 
-  function démarrer() {
-    fetch("/api/datacenter/referentiel", { credentials: "same-origin" })
+  /* Le référentiel conditionne TOUT : sans lui, pas de formulaire, donc pas de
+     saisie possible. C'est le seul appel dont l'échec laisse la page inerte —
+     il doit donc échouer vite, se dire, et se reprendre d'un clic sans
+     recharger la page. */
+  function chargerReferentiel() {
+    $("#dc-form").innerHTML = '<p class="note">Chargement du référentiel…</p>';
+    demander("/api/datacenter/referentiel", { credentials: "same-origin" },
+             DELAI_COURT)
       .then(function (r) {
         if (r.status === 401) throw new Error("auth");
         return r.json();
@@ -1161,12 +1252,29 @@
         etat("");
       })
       .catch(function (e) {
+        var auth = String(e.message) === "auth";
+        var lent = e && e.name === "DelaiDepasse";
         $("#dc-form").innerHTML = '<p class="note">'
-          + (String(e.message) === "auth"
-            ? "Connectez-vous pour accéder au moteur d'ingénierie."
-            : "Référentiel indisponible. Réessayez dans un instant.")
-          + "</p>";
+          + (auth
+              ? "Connectez-vous pour accéder au moteur d'ingénierie."
+              : lent
+                ? "Le serveur n'a pas répondu en " + Math.round(e.delai / 1000)
+                  + " secondes. Il est peut-être en train de se réveiller ou "
+                  + "très sollicité — la page ne reste pas bloquée pour autant."
+                : "Référentiel indisponible pour le moment.")
+          + "</p>"
+          + (auth ? "" : '<button type="button" class="btn btn-s" id="dc-ref-retry" '
+              + 'style="margin-top:10px">↻ Réessayer</button>');
+        var b = $("#dc-ref-retry");
+        // Sans ce bouton, la seule issue est de recharger la page — et rien ne
+        // le dit. Un rechargement refait tout ; ici on refait le seul appel
+        // qui a manqué.
+        if (b) b.addEventListener("click", chargerReferentiel);
       });
+  }
+
+  function démarrer() {
+    chargerReferentiel();
 
     var b;
     if ((b = $("#dc-lancer"))) b.addEventListener("click", lancer);

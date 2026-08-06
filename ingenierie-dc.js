@@ -20,6 +20,53 @@
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
+  /* ── AUCUNE REQUÊTE SANS DÉLAI ──────────────────────────────────────────
+     Le même défaut que sur la page de calcul, et vingt-trois fois : un `fetch`
+     sans délai attend INDÉFINIMENT. Serveur saturé, en train de se réveiller,
+     coupure réseau — la page reste sur « Chargement… » sans un mot, parfois
+     plusieurs minutes, jusqu'à ce que le navigateur abandonne seul.
+
+     Borner ne répare pas la lenteur : cela la rend LISIBLE, et rend la main.
+     Trois budgets, parce que trois natures de travail : afficher, calculer,
+     rédiger. Le dernier tient compte du budget du modèle côté serveur — le
+     dépasser côté navigateur ferait perdre un document déjà écrit.
+
+     `_LENT` distingue le délai dépassé d'une vraie coupure : le geste n'est pas
+     le même, et les confondre envoie chercher la panne du mauvais côté. */
+  var DELAI_COURT = 12000;     // référentiels, états, aperçus
+  var DELAI_MOYEN = 45000;     // dossiers, plans, exports
+  var DELAI_LONG = 130000;     // rédaction : au-delà du budget serveur (120 s)
+
+  function demander(url, options, delai) {
+    options = options || {};
+    var ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+    var fini = false;
+    var m = setTimeout(function () {
+      if (!fini && ctrl) { try { ctrl.abort(); } catch (e) {} }
+    }, delai || DELAI_COURT);
+    if (ctrl && !options.signal) options.signal = ctrl.signal;
+    return fetch(url, options).then(function (r) {
+      fini = true; clearTimeout(m); return r;
+    }, function (e) {
+      fini = true; clearTimeout(m);
+      if (e && e.name === "AbortError" && !options.__annule) {
+        var t = new Error("delai"); t.name = "DelaiDepasse";
+        t.delai = delai || DELAI_COURT;
+        throw t;
+      }
+      throw e;
+    });
+  }
+
+  function messageDelai(e, defaut) {
+    if (e && e.name === "DelaiDepasse") {
+      return "Le serveur n'a pas répondu en " + Math.round(e.delai / 1000)
+        + " secondes. Il est peut-être très sollicité : relancez dans un "
+        + "instant. Vos saisies sont conservées.";
+    }
+    return defaut;
+  }
+
   function fr(n) {
     if (n === null || n === undefined || n === "") return "—";
     var x = Number(n);
@@ -955,7 +1002,7 @@
       }
       rep.className = "rp";
       rep.textContent = "Enregistrement…";
-      fetch("/api/datacenter/projets/" + PROJET.id + "/livrable/" + lid + "/visa", {
+      demander("/api/datacenter/projets/" + PROJET.id + "/livrable/" + lid + "/visa", {
         method: "POST", credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role: f.querySelector(".rl").value,
@@ -993,7 +1040,7 @@
       + "historique et les pièces. Il ne pourra ni supprimer le projet ni "
       + "inviter d'autres personnes.");
     if (!email) return;
-    fetch("/api/datacenter/projets/" + PROJET.id + "/collaborateurs", {
+    demander("/api/datacenter/projets/" + PROJET.id + "/collaborateurs", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: email }),
@@ -1022,7 +1069,7 @@
       + "lien qu'il ne peut pas ouvrir.");
     if (!email) return;
     var mot = window.prompt("Un mot pour l'accompagner (facultatif) :") || "";
-    fetch("/api/datacenter/projets/" + PROJET.id + "/envoyer", {
+    demander("/api/datacenter/projets/" + PROJET.id + "/envoyer", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: email, phase: PHASE, piece: code,
@@ -1054,7 +1101,7 @@
     p.phase = PHASE;
     var ident = lireIdentification();
     Object.keys(ident).forEach(function (k) { p[k] = ident[k]; });
-    fetch("/api/datacenter/projets/" + PROJET.id + "/plan", {
+    demander("/api/datacenter/projets/" + PROJET.id + "/plan", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(p),
@@ -1294,7 +1341,7 @@
   function redactionEtat() {
     var z = $("#ig-red-etat");
     if (!z) return;
-    fetch("/api/datacenter/redaction/etat", { credentials: "same-origin" })
+    demander("/api/datacenter/redaction/etat", { credentials: "same-origin" })
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (!j || !j.ok) { z.innerHTML = ""; return; }
@@ -1503,10 +1550,10 @@
     p.phase = PHASE; p.piece = code;
     bouton.disabled = true;
     z.innerHTML = '<p class="ig-pc-att">Interrogation de la base…</p>';
-    fetch("/api/datacenter/ingenierie/apercu", {
+    demander("/api/datacenter/ingenierie/apercu", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(p),
-    }).then(function (r) { return r.json().then(function (j) { return [r.status, j]; }); })
+    }, DELAI_MOYEN).then(function (r) { return r.json().then(function (j) { return [r.status, j]; }); })
       .then(function (rj) {
         var st = rj[0], j = rj[1];
         bouton.disabled = false;
@@ -1595,11 +1642,11 @@
        battement, les flèches, le fil des gestes — conduisait un lecteur
        ordinaire vers un refus. La rédaction lui est ouverte ; ce qui reste
        réservé est le corpus interne de la base, pas le geste. */
-    fetch("/api/datacenter/piece", {
+    demander("/api/datacenter/piece", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(p),
-    })
+    }, DELAI_LONG)
       .then(function (r) { return r.json().then(function (j) { return { s: r.status, j: j }; }); })
       .then(function (o) {
         bouton.disabled = false;
@@ -1721,12 +1768,15 @@
       if (_vol) { try { _vol.abort(); } catch (e) {} }
       _vol = (typeof AbortController !== "undefined") ? new AbortController() : null;
       etat("");
-      fetch("/api/datacenter/ingenierie/parcours", {
+      demander("/api/datacenter/ingenierie/parcours", {
         method: "POST", credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(p),
         signal: _vol ? _vol.signal : undefined,
-      })
+        // Annulé VOLONTAIREMENT par la frappe suivante : sans ce drapeau,
+        // chaque caractère tapé afficherait « délai dépassé ».
+        __annule: true,
+      }, DELAI_MOYEN)
         .then(function (r) { return r.json(); })
         .then(function (j) {
           if (!j.ok) throw new Error(j.message || "parcours");
@@ -1750,11 +1800,11 @@
     if (!PHASE) return;
     var p = lireProfil();
     p.phase = PHASE;
-    fetch("/api/datacenter/ingenierie/dossier", {
+    demander("/api/datacenter/ingenierie/dossier", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(p),
-    })
+    }, DELAI_MOYEN)
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (!j.ok) throw new Error(j.message || "dossier");
@@ -1785,7 +1835,7 @@
     p.phase = PHASE;
     var ident = lireIdentification();
     Object.keys(ident).forEach(function (k) { p[k] = ident[k]; });
-    fetch("/api/datacenter/projets/" + PROJET.id + "/plan", {
+    demander("/api/datacenter/projets/" + PROJET.id + "/plan", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(p),
@@ -1845,11 +1895,11 @@
     p.phase = PHASE;
     p.format = fmt;
     etat("Mise en page de l'étude " + PHASE + "…");
-    fetch("/api/datacenter/ingenierie/export", {
+    demander("/api/datacenter/ingenierie/export", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(p),
-    })
+    }, DELAI_MOYEN)
       .then(function (r) {
         if (!r.ok) throw new Error("export");
         return r.blob();
@@ -1983,7 +2033,7 @@
     p.role = GUIDE_ROLE; p.theme = GUIDE_THEME;
     if (PHASE) p.phase = PHASE;
     z.innerHTML = '<p class="ig-g-att">Établissement du parcours…</p>';
-    fetch("/api/datacenter/ingenierie/guide", {
+    demander("/api/datacenter/ingenierie/guide", {
       method: "POST", headers: { "Content-Type": "application/json" },
       credentials: "same-origin", body: JSON.stringify(p),
     }).then(function (r) { return r.json(); })
@@ -2358,7 +2408,7 @@
   function depotEtat() {
     var z = $("#ig-depot-etat");
     if (!z) return;
-    fetch("/api/datacenter/depot/etat", { credentials: "same-origin" })
+    demander("/api/datacenter/depot/etat", { credentials: "same-origin" })
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (!j || !j.ok) { z.innerHTML = ""; return; }
@@ -2413,7 +2463,7 @@
     };
     lect.onload = function () {
       var b64 = String(lect.result).split(",")[1] || "";
-      fetch("/api/datacenter/depot", {
+      demander("/api/datacenter/depot", {
         method: "POST", credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filename: fichier.name, contenu: b64,
@@ -2512,7 +2562,7 @@
       var sch = (($("#ig-schema") || {}).value || "");
       var n = (($("#ig-nunites") || {}).value || "").replace(",", ".");
       if (!tier && !sch) { DISPO = null; rendreDisponibilite(null); return; }
-      fetch("/api/datacenter/ingenierie/disponibilite", {
+      demander("/api/datacenter/ingenierie/disponibilite", {
         method: "POST", credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tier: tier, schema: sch, n_unites: n }),
@@ -2775,7 +2825,7 @@
   }
 
   function pjCharger(viser) {
-    return fetch("/api/datacenter/projets", { credentials: "same-origin" })
+    return demander("/api/datacenter/projets", { credentials: "same-origin" })
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (!j || !j.ok) throw new Error("liste");
@@ -2809,7 +2859,7 @@
     /* Le nom du client et la filière courante sont repris du formulaire :
        les redemander ici ferait saisir deux fois la même chose, et les deux
        saisies finiraient par diverger. */
-    fetch("/api/datacenter/projets", {
+    demander("/api/datacenter/projets", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -2837,7 +2887,7 @@
 
   function pjModifier(champs) {
     if (!PROJET) return;
-    fetch("/api/datacenter/projets/" + PROJET.id, {
+    demander("/api/datacenter/projets/" + PROJET.id, {
       method: "PATCH", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(champs),
@@ -2865,7 +2915,7 @@
         + "vous voulez en garder le dossier complet.")) {
       return;
     }
-    fetch("/api/datacenter/projets/" + PROJET.id, {
+    demander("/api/datacenter/projets/" + PROJET.id, {
       method: "DELETE", credentials: "same-origin",
     })
       .then(function (r) { return r.json(); })
@@ -2883,7 +2933,7 @@
     var z = $("#ig-pj-hist");
     if (!z) return;
     z.innerHTML = '<p class="note">Chargement de l\'historique…</p>';
-    fetch("/api/datacenter/projets/" + pid, { credentials: "same-origin" })
+    demander("/api/datacenter/projets/" + pid, { credentials: "same-origin" })
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (!j.ok) { z.innerHTML = ""; return; }
@@ -2940,7 +2990,7 @@
   }
 
   function pjEtatLivrable(pid, lid, etat) {
-    fetch("/api/datacenter/projets/" + pid + "/livrable/" + lid, {
+    demander("/api/datacenter/projets/" + pid + "/livrable/" + lid, {
       method: "PATCH", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ etat: etat }),
@@ -2959,9 +3009,9 @@
 
   function démarrer() {
     Promise.all([
-      fetch("/api/datacenter/referentiel", { credentials: "same-origin" })
+      demander("/api/datacenter/referentiel", { credentials: "same-origin" })
         .then(function (r) { if (r.status === 401) throw new Error("auth"); return r.json(); }),
-      fetch("/api/datacenter/ingenierie", { credentials: "same-origin" })
+      demander("/api/datacenter/ingenierie", { credentials: "same-origin" })
         .then(function (r) { if (r.status === 401) throw new Error("auth"); return r.json(); }),
     ])
       .then(function (rs) {
