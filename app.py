@@ -4148,21 +4148,26 @@ def api_livrables_types():
     return jsonify(ok=True, types=livrables.public_types(), models=assistant.available())
 
 
-def _extraits_pour(query, doc_ids=None):
+def _extraits_pour(query, doc_ids=None, public_only=False):
     """Les extraits de la base, sans re-classement par modèle.
 
     Le re-classement demande un modèle de langage ; ici il n'y en a pas. On
     prend donc les meilleurs résultats de la recherche lexicale, ce qui est
-    précisément ce que le magasin sait faire seul."""
+    précisément ce que le magasin sait faire seul.
+
+    `public_only` n'est pas un réglage de confort : la trame reproduit les
+    extraits MOT POUR MOT. Un document interne retrouvé pour un compte
+    ordinaire se retrouverait recopié dans un livrable qui sort du site."""
     try:
         if doc_ids:
-            return rag.search(query, k=8, public_only=False, doc_ids=doc_ids)
-        return rag.search(query, k=8, public_only=False)
+            return rag.search(query, k=8, public_only=public_only, doc_ids=doc_ids)
+        return rag.search(query, k=8, public_only=public_only)
     except Exception:
         return []
 
 
-def _trame_sans_modele(type_id, data, extra_query, label, dispo):
+def _trame_sans_modele(type_id, data, extra_query, label, dispo,
+                       public_only=False):
     """La pièce assemblée quand aucun modèle n'est disponible.
 
     Le document reste EXACT — plan du registre, chiffres du moteur, manques
@@ -4174,7 +4179,7 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo):
     profil = _profil_datacenter(data)
     query = (livrables.retrieval_query(type_id, data) + " " + extra_query).strip()
     doc_ids = [d for d in (data.get("doc_ids") or []) if _rag_valid_doc_id(d)]
-    hits = _extraits_pour(query, doc_ids)
+    hits = _extraits_pour(query, doc_ids, public_only)
     try:
         texte = ingenierie_dc.trame_piece(profil, phase, code, hits, data)
     except Exception:
@@ -4226,10 +4231,12 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo):
                    mode=mode, mode_nom=ingenierie_dc.MODES_REDACTION[mode]["nom"],
                    mode_aide=ingenierie_dc.MODES_REDACTION[mode]["aide"],
                    sans_modele=True, sources=sources, id=saved_id,
+                   corpus="public" if public_only else "complet",
                    modeles_disponibles=dispo)
 
 
-def _livrables_run(type_id, data, system, user, extra_query="", label=None):
+def _livrables_run(type_id, data, system, user, extra_query="", label=None,
+                   public_only=False):
     """Ancre le prompt sur la base de connaissance (documents publics + internes),
     génère le livrable, l'enregistre dans l'historique et renvoie la réponse JSON.
     Partagé par la génération, l'affinage et les pièces de dossier de projet.
@@ -4267,7 +4274,8 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None):
         # On assemble donc la trame, et on dit très clairement qu'elle n'est
         # pas rédigée : présenter une trame comme un livrable fini serait la
         # seule vraie faute ici.
-        return _trame_sans_modele(type_id, data, extra_query, label, dispo)
+        return _trame_sans_modele(type_id, data, extra_query, label, dispo,
+                                  public_only)
     query = (livrables.retrieval_query(type_id, data) + " " + extra_query).strip()
     # Documents de référence choisis manuellement (facultatif) ; sinon récupération auto.
     doc_ids = [d for d in (data.get("doc_ids") or []) if _rag_valid_doc_id(d)]
@@ -4278,14 +4286,18 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None):
     try:
         if doc_ids:
             # Documents choisis manuellement : on respecte la sélection (pas de
-            # re-classement qui écarterait des extraits voulus).
-            hits = rag.search(query, k=8, public_only=False, doc_ids=doc_ids)
+            # re-classement qui écarterait des extraits voulus) — mais le
+            # périmètre de visibilité, lui, ne se choisit pas depuis le
+            # navigateur : désigner un identifiant de document n'est pas une
+            # autorisation de le lire.
+            hits = rag.search(query, k=8, public_only=public_only, doc_ids=doc_ids)
         else:
             # Récupération LARGE puis re-classement par LLM-juge → les 8 extraits
             # les plus pertinents avant génération (précision accrue). Repli sûr
             # (sans clé API ou en cas d'échec : simple troncature).
             hits = assistant.rerank(model, query,
-                                    rag.search(query, k=24, public_only=False), 8)
+                                    rag.search(query, k=24,
+                                               public_only=public_only), 8)
     except Exception:
         hits = []
     context = build_context(hits, max_chars=6000)
@@ -4357,6 +4369,7 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None):
                    id=saved_id, mode=mode,
                    mode_nom=ingenierie_dc.MODES_REDACTION[mode]["nom"],
                    mode_aide=ingenierie_dc.MODES_REDACTION[mode]["aide"],
+                   corpus="public" if public_only else "complet",
                    sans_modele=False)
 
 
@@ -4378,25 +4391,41 @@ def api_livrables_generate():
     return _livrables_run(type_id, data, system, user)
 
 
-@app.route("/api/admin/datacenter/piece", methods=["POST"])
-@admin_required
-def api_datacenter_piece():
+def _rediger_piece():
     """Rédige une pièce du registre de phase, ancrée sur la base de connaissance.
 
-    Même verrou que la génération de livrables : la rédaction consomme des jetons
-    d'API et écrit dans l'historique. Le REGISTRE, lui, reste consultable par tout
-    compte connecté — c'est la référence, et la garder derrière le verrou
-    d'administration la rendrait inutile à qui monte un dossier.
+    Deux portes mènent ici, et elles ne donnent pas accès au même corpus :
 
-    Les prompts sont construits par ingenierie_dc : ils portent la frontière entre
-    grandeurs acquises et grandeurs à produire, et cette frontière est calculée,
-    pas rédigée.
+      · /api/datacenter/piece — tout compte connecté. C'est la porte du CLIENT,
+        celui qui monte son dossier. Sa recherche est bornée aux documents
+        PUBLICS de la base. Ce n'est pas un réglage de confort : la trame
+        reproduit les extraits mot pour mot, et un document interne retrouvé
+        pour un compte ordinaire se retrouverait recopié dans un livrable qui
+        sort du site. « Interne » veut dire exactement cela.
+
+      · /api/admin/datacenter/piece — administrateur. Base entière, publics et
+        internes, comme la console de rédaction.
+
+    Le REGISTRE, lui, reste consultable par tout compte connecté — c'est la
+    référence, et la garder derrière un verrou la rendrait inutile.
+
+    Les prompts sont construits par ingenierie_dc : ils portent la frontière
+    entre grandeurs acquises et grandeurs à produire, et cette frontière est
+    calculée, pas rédigée.
     """
-    ckey = "gen:%s" % client_ip()
-    if guard.blocked(ckey, limit=12, window=600):
-        return jsonify(ok=False, error="rate_limited",
-                       message="Trop de générations en peu de temps. Patientez quelques minutes."), 429
-    guard.fail(ckey)
+    admin = _is_admin_request()
+    # Deux compteurs distincts. Une rédaction par modèle coûte des jetons ;
+    # borner l'adresse seule laisserait un bureau entier derrière un même
+    # routeur se partager douze rédactions, et un compte seul en consommer
+    # autant qu'il veut en changeant de réseau. Le compte est ce qu'on cherche
+    # à limiter, l'adresse ce qui reste quand il n'y a pas mieux.
+    for ckey, lim in (("gen:%s" % client_ip(), 12 if admin else 20),
+                      ("genc:%s" % (_proprietaire() or "-"), 12 if admin else 20)):
+        if guard.blocked(ckey, limit=lim, window=600):
+            return jsonify(ok=False, error="rate_limited",
+                           message="Trop de rédactions en peu de temps. "
+                                   "Patientez quelques minutes."), 429
+        guard.fail(ckey)
     data = request.get_json(silent=True) or {}
     profil = _profil_datacenter(data)
     phase = str(data.get("phase") or "").strip().upper()[:12]
@@ -4416,10 +4445,38 @@ def api_datacenter_piece():
     system, user, requete = prompts
     pc = ingenierie_dc.piece(phase, code)
     audit.journaliser("datacenter.piece", cible="%s/%s" % (phase, code),
-                      detail=pc["titre"][:120])
+                      detail="%s · corpus %s"
+                             % (pc["titre"][:100],
+                                "complet" if admin else "public"))
     return _livrables_run("dc-piece-%s-%s" % (phase.lower(), code.lower()),
                           data, system, user, extra_query=requete,
-                          label="%s %s — %s" % (phase, pc["code"], pc["titre"]))
+                          label="%s %s — %s" % (phase, pc["code"], pc["titre"]),
+                          public_only=not admin)
+
+
+@app.route("/api/datacenter/piece", methods=["POST"])
+@login_required
+def api_datacenter_piece_client():
+    """La porte du client : rédiger les pièces de SON dossier.
+
+    Le registre, le calcul et le dossier lui étaient déjà ouverts ; seule
+    l'écriture restait réservée, au motif qu'elle consomme des jetons d'API.
+    L'argument ne tient plus dans les deux cas où il n'y en a pas : sans
+    modèle, la pièce est assemblée à partir du moteur et de la base, et ne
+    coûte rien. Il reste vrai quand un modèle écrit — d'où le compteur par
+    compte, et non par adresse.
+
+    Ce qui reste réservé : le corpus interne (cf. _rediger_piece), le dépôt de
+    documents dans la base, et la console d'administration.
+    """
+    return _rediger_piece()
+
+
+@app.route("/api/admin/datacenter/piece", methods=["POST"])
+@admin_required
+def api_datacenter_piece():
+    """La même rédaction, sur la base ENTIÈRE — publics et internes."""
+    return _rediger_piece()
 
 
 @app.route("/api/admin/livrables/preview-docs", methods=["POST"])
@@ -5152,8 +5209,16 @@ def api_redaction_etat():
     """
     dispo = assistant.available()
     prets = [k for k, v in dispo.items() if v]
+    admin = _is_admin_request()
+    total = None
     try:
-        docs = rag.stats().get("documents", 0)
+        s = rag.stats()
+        total = s.get("documents", 0)
+        # CE QUE CE LECTEUR-LÀ peut atteindre, et non ce que contient la base.
+        # Annoncer quatre cent cinquante-neuf documents à qui n'en verra que
+        # les publics promet des sources qui ne viendront pas, et fait
+        # découvrir un livrable sans références une fois écrit.
+        docs = total if admin else s.get("publics", 0)
     except Exception:
         docs = None
     # `docs is None` — la base est injoignable : on la compte pour absente, et
@@ -5186,6 +5251,13 @@ def api_redaction_etat():
         "mode_nom": m["nom"],
         "mode_aide": m["aide"],
         "documents_base": docs,
+        # Le total, à côté de l'accessible : sans lui, un client verrait « 45
+        # documents » sans savoir qu'il en existe quatre cents autres, et ne
+        # penserait pas à demander qu'on lui en ouvre.
+        "documents_total": total,
+        "corpus": "complet" if admin else "public",
+        "corpus_nom": ("Base entière — documents publics et internes" if admin
+                       else "Documents publics de la base"),
         # Une base vide ne bloque pas la rédaction : le modèle écrit à partir
         # du calcul seul. Mais le document ne citera aucune source, et le dire
         # AVANT évite de découvrir un livrable sans références après coup.

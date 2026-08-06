@@ -1306,10 +1306,18 @@
           + "<li>Modèles configurés — "
           + (e.modeles_prets.length ? esc(e.modeles_prets.join(", "))
                                     : "<b>aucun</b>") + "</li>"
+          /* Ce que CE lecteur-là peut atteindre, et le total à côté. Annoncer
+             la taille de la base à qui n'en verra que la part publique promet
+             des sources qui ne viendront pas ; ne rien dire du total lui
+             cacherait qu'il peut en demander l'ouverture. */
           + (e.documents_base === null
               ? "<li>Base de connaissance — état indisponible</li>"
               : "<li>Base de connaissance — " + e.documents_base
                 + " document" + (e.documents_base > 1 ? "s" : "")
+                + " accessible" + (e.documents_base > 1 ? "s" : "")
+                + (e.documents_total && e.documents_total !== e.documents_base
+                    ? " sur " + e.documents_total : "")
+                + " (" + esc(e.corpus_nom || "") + ")"
                 + (e.base_vide
                     ? " : les pièces resteront rédigeables, mais ne citeront "
                       + "aucune source." : ".") + "</li>")
@@ -1570,7 +1578,11 @@
     z.innerHTML = '<p class="note">Rédaction de ' + esc(code)
       + " en cours, à partir du calcul et de la base de connaissance…</p>";
     z.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    fetch("/api/admin/datacenter/piece", {
+    /* La porte du CLIENT. Elle était administrateur, et tout le registre — le
+       battement, les flèches, le fil des gestes — conduisait un lecteur
+       ordinaire vers un refus. La rédaction lui est ouverte ; ce qui reste
+       réservé est le corpus interne de la base, pas le geste. */
+    fetch("/api/datacenter/piece", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(p),

@@ -798,6 +798,13 @@ class MemoryRagStore:
             for d in docs:
                 themes[d["theme"]] = themes.get(d["theme"], 0) + 1
             return {"documents": len(docs),
+                    # Ce que voit un lecteur SANS droit d'administration : sa
+                    # recherche est bornée aux documents publics. Annoncer le
+                    # total lui promettrait des sources qu'il n'obtiendra
+                    # jamais, et le laisserait découvrir un livrable sans
+                    # références après coup.
+                    "publics": sum(1 for d in docs
+                                   if d.get("visibility") == "public"),
                     "chunks": sum(len(c) for c in self._chunks.values()),
                     "themes": themes, "mode": "lexical",
                     "storage": {"db_bytes": None,
@@ -1545,6 +1552,10 @@ class PostgresRagStore:
     def stats(self):
         with self._conn() as conn:
             docs = conn.execute("SELECT count(*) FROM rag_documents").fetchone()[0]
+            # Ce que voit un lecteur SANS droit d'administration : sa recherche
+            # est bornée aux documents publics (cf. `search`, public_only).
+            publics = conn.execute("SELECT count(*) FROM rag_documents "
+                                   "WHERE visibility='public'").fetchone()[0]
             chunks = conn.execute("SELECT count(*) FROM rag_chunks").fetchone()[0]
             themes = {}
             for theme, c in conn.execute(
@@ -1565,7 +1576,8 @@ class PostgresRagStore:
                 storage = {"db_bytes": int(db_b), "rag_bytes": int(rag_b)}
             except Exception:
                 pass
-        return {"documents": docs, "chunks": chunks, "themes": themes,
+        return {"documents": docs, "publics": publics, "chunks": chunks,
+                "themes": themes,
                 "mode": self.capabilities()["mode"], "storage": storage}
 
     def search(self, query, k=5, public_only=True, theme=None, doc_ids=None):

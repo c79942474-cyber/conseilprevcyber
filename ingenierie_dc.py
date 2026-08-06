@@ -3547,7 +3547,15 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None):
                 A("")
                 A("*Thème : %s*" % th)
             for h in hits:
-                txt = (h.get("text") or h.get("extrait") or "").strip()
+                # « content » d'abord : c'est la clé que rend RÉELLEMENT la
+                # recherche documentaire. Les deux autres ne l'ont jamais été
+                # — elles venaient d'une donnée d'essai écrite à la main, et
+                # tant qu'on ne lisait que celle-là, ce chapitre paraissait
+                # fonctionner. Contre la vraie base il ne produisait que des
+                # titres, sans une ligne de texte : une pièce annonçant des
+                # extraits « reproduits tels quels » et n'en portant aucun.
+                txt = (h.get("content") or h.get("text")
+                       or h.get("extrait") or "").strip()
                 if not txt:
                     continue
                 A("")
