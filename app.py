@@ -4180,19 +4180,31 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo,
     query = (livrables.retrieval_query(type_id, data) + " " + extra_query).strip()
     doc_ids = [d for d in (data.get("doc_ids") or []) if _rag_valid_doc_id(d)]
     hits = _extraits_pour(query, doc_ids, public_only)
+    mode = ingenierie_dc.mode_redaction(False, hits)
+    m = ingenierie_dc.MODES_REDACTION[mode]
+    texte = None
     try:
+        # D'abord la pièce de phase — plan du registre, grandeurs, manques
+        # calculés. Elle n'existe que si la demande en porte une.
         texte = ingenierie_dc.trame_piece(profil, phase, code, hits, data)
     except Exception:
-        app.logger.exception("trame sans modèle")
-        texte = None
+        app.logger.exception("trame sans modèle : pièce")
     if not texte:
-        # La trame elle-même n'a pas pu être bâtie : là, on refuse vraiment,
-        # avec la cause. Rendre un document vide serait pire que rien.
+        # Puis le livrable de la console : soixante-sept types, chacun avec son
+        # plan. Sans ce second essai, la console refusait purement et
+        # simplement dès qu'aucune clé n'était configurée — alors que le plan
+        # existait, que la base répondait et que la note de calcul était là.
+        try:
+            texte = livrables.trame(type_id, data, hits, m["nom"], m["aide"])
+        except Exception:
+            app.logger.exception("trame sans modèle : livrable")
+    if not texte:
+        # Ni pièce connue, ni type connu : là, on refuse vraiment, avec la
+        # cause. Deviner un plan serait pire que de refuser.
         return jsonify(ok=False, error="not_configured", modele=None,
                        modeles_disponibles=dispo,
                        message=_ASSISTANT_MSG["not_configured"],
                        repli=_ASSISTANT_REPLI), 503
-    mode = ingenierie_dc.mode_redaction(False, hits)
     sources, rang = [], {}
     for h in hits:
         did = h.get("doc_id")
@@ -4203,12 +4215,21 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo,
         sources.append({"title": h.get("title"), "theme": h.get("theme"),
                         "visibility": h.get("visibility"), "extraits": 1})
     projet_id = _projet_du_compte(data.get("projet_id"))
+    # L'intitulé, et il ne peut PAS rester vide : c'est lui qu'on lit dans la
+    # liste de l'historique. « APD SPC-HVAC » vaut pour une pièce de phase ;
+    # un livrable de console n'a ni l'une ni l'autre, et se retrouvait
+    # enregistré sous un espace — introuvable autrement qu'en ouvrant chaque
+    # ligne une par une.
+    intitule = (label or ("%s %s" % (phase, code)).strip()).strip()
+    if not intitule:
+        t = livrables.get_type(type_id)
+        intitule = (t["label"] if t else "") or type_id
     saved_id = None
     try:
         pc = ingenierie_dc.piece(phase, code) or {}
         saved_id = livrables_hist.save({
             "type": type_id,
-            "label": label or ("%s %s" % (phase, code)),
+            "label": intitule,
             "client": data.get("client"), "secteur": data.get("secteur"),
             "perimetre": data.get("perimetre"),
             # Le « modèle » enregistré nomme le mode : relu six mois plus tard,

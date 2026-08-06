@@ -1455,6 +1455,117 @@ def _bloc_calcul(etude):
     return "\n".join(lignes)
 
 
+def trame(type_id, inputs, extraits=None, mode_nom="", mode_aide=""):
+    """Le livrable ASSEMBLÉ, quand aucun modèle de langage n'est disponible.
+
+    Le pendant, pour les soixante-sept livrables de la console, de ce que
+    `ingenierie_dc.trame_piece` fait pour les pièces de phase. Sans lui, la
+    console refusait purement et simplement dès qu'aucune clé d'API n'était
+    configurée : le plan existait, la base de connaissance répondait, la note
+    de calcul était là — et on ne rendait rien.
+
+    Ce qui est ici est vrai et vérifiable : le plan vient du référentiel des
+    types, les chiffres de la note de calcul du moteur déterministe, les
+    extraits de la base reproduits mot pour mot avec leur source. Rien n'est
+    inventé — c'est précisément ce qu'un modèle absent ne peut pas garantir et
+    ce que l'assemblage garantit par construction.
+
+    Renvoie None si le type est inconnu : on refuse de deviner un plan.
+    """
+    t = get_type(type_id)
+    if not t:
+        return None
+    inputs = dict(inputs or {})
+    client = (inputs.get("client") or "").strip() or "[client à préciser]"
+    secteur = (inputs.get("secteur") or "").strip() or "[secteur à préciser]"
+    perimetre = (inputs.get("perimetre") or "").strip() or "[périmètre à préciser]"
+    consignes = (inputs.get("consignes") or "").strip()
+    extraits = extraits or []
+
+    L = []
+    A = L.append
+    A("# %s — %s" % (t["label"], client))
+    A("")
+    A("**Secteur :** %s  " % secteur)
+    A("**Périmètre :** %s" % perimetre)
+    A("")
+    # L'avertissement en TÊTE, pas en annexe : c'est la première chose à
+    # savoir, et la seule qui empêche de remettre ceci comme un livrable fini.
+    if mode_nom:
+        A("> **%s.** %s" % (mode_nom, mode_aide))
+        A(">")
+    A("> Ce document est **exact et complet quant aux faits** — plan, chiffres, "
+      "sources — mais **il n'est pas rédigé**. Il se relit et se complète ; il "
+      "ne se remet pas en l'état.")
+    A("")
+
+    A("## Sommaire")
+    A("")
+    for i, s in enumerate(t["sections"], 1):
+        A("%d. %s" % (i, s))
+    if extraits:
+        A("%d. Extraits de la base de connaissance" % (len(t["sections"]) + 1))
+    A("")
+    if t.get("desc"):
+        A("*%s*" % t["desc"])
+        A("")
+    if consignes:
+        A("**Consignes particulières transmises :** %s" % consignes)
+        A("")
+
+    for i, s in enumerate(t["sections"], 1):
+        A("## %d. %s" % (i, s))
+        A("")
+        A("- [ ] à rédiger")
+        A("")
+
+    # La note de calcul, quand elle existe : les grandeurs viennent du moteur
+    # déterministe et se recopient telles quelles. C'est le même bloc que celui
+    # transmis au modèle — une seule source, pas deux mises en forme qui
+    # divergeront.
+    bloc = _bloc_calcul(inputs.get("etude"))
+    if bloc:
+        A("## Grandeurs calculées")
+        A("")
+        A("Produites par le moteur déterministe. Elles **ne se recalculent "
+          "pas** : elles se recopient, avec leur formule et leur source.")
+        A("")
+        A(bloc)
+        A("")
+
+    if extraits:
+        A("## %d. Extraits de la base de connaissance"
+          % (len(t["sections"]) + 1))
+        A("")
+        A("Retrouvés pour le sujet de ce livrable. Ils sont reproduits **tels "
+          "quels**, sans reformulation : aucun modèle n'est intervenu.")
+        A("")
+        par_doc = {}
+        for h in extraits:
+            par_doc.setdefault(h.get("title") or "Document sans titre", []).append(h)
+        for titre, hits in par_doc.items():
+            A("### %s" % titre)
+            th = hits[0].get("theme")
+            if th:
+                A("")
+                A("*Thème : %s*" % th)
+            for h in hits:
+                # « content » : la clé que rend RÉELLEMENT la recherche
+                # documentaire. Les deux autres sont des tolérances.
+                txt = (h.get("content") or h.get("text")
+                       or h.get("extrait") or "").strip()
+                if not txt:
+                    continue
+                A("")
+                A("> " + txt.replace("\n", "\n> ")[:1800])
+            A("")
+
+    A("---")
+    A("")
+    A("*Assemblé sans modèle de langage. %s*" % (mode_nom or ""))
+    return "\n".join(L)
+
+
 def build_prompts(type_id, inputs, context=None):
     """Construit (system, user) pour la génération. `inputs` : dict client/secteur/…"""
     t = get_type(type_id)

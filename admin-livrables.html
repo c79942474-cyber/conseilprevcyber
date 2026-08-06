@@ -92,6 +92,14 @@
   .doc td{color:var(--muted)}
   .doc tbody tr:nth-child(even) td{background:rgba(148,163,184,.06)}
   .doc hr{border:none;border-top:1px solid var(--line);margin:18px 0}
+  /* Le mode de rédaction, au-dessus du document. Teal quand un modèle a
+     rédigé ; ambre quand la trame est assemblée — c'est alors une réserve sur
+     ce que le document EST, pas une information de plus. */
+  .lvmode{margin:0 22px 4px;padding:10px 14px;border-radius:0 10px 10px 0;
+    border:1px solid var(--line);border-left:3px solid var(--teal);
+    background:rgba(45,212,191,.08);font-size:12px;color:var(--muted);line-height:1.6}
+  .lvmode b{color:var(--ink);display:block;margin-bottom:3px}
+  .lvmode.brut{border-left-color:#E8B44A;background:rgba(232,180,74,.09)}
   .sources{padding:14px 22px 22px;border-top:1px solid var(--line)}
   .sources .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted2);margin-bottom:8px}
   .srcpill{display:inline-block;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 11px;margin:0 6px 6px 0}
@@ -331,6 +339,11 @@
               <button id="dlBtn">.md</button>
             </div>
           </div>
+          <!-- Le MODE de rédaction, en tête du document et non en note. Une
+               trame assemblée présentée comme un livrable rédigé se remettrait
+               au client telle quelle — c'est la seule vraie faute possible
+               ici, et elle se joue à la remise, pas à la production. -->
+          <div class="lvmode" id="rmode" style="display:none"></div>
           <div class="doc" id="doc"></div>
           <div class="printfoot">CONSEILPREV · christophe.cerf@outlook.com · +33 6 60 69 21 45 · conseilprevcyber.onrender.com — Brouillon assisté par IA, à relire et valider.</div>
         </div>
@@ -402,7 +415,7 @@
     }
 
     function fmtTs(ts){if(!ts)return '—';var d=new Date(ts);return d.toLocaleDateString('fr-FR')+' '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}
-    function showResult(md,metaText,sources){
+    function showResult(md,metaText,sources,mode){
       lastMd=md||'';
       // Mémorisées pour l'export : le Word et le PDF portent l'annexe des sources.
       lastSources=sources||[];
@@ -410,6 +423,15 @@
       if(lastModel) lastModel=lastModel.trim();
       docEl.innerHTML=mdToHtml(lastMd);
       document.getElementById('rmeta').textContent=metaText;
+      // Quatre modes possibles, et aucun ne rend la main vide : le modèle
+      // rédige ancré sur la base, ou sans source, ou la trame s'assemble avec
+      // les extraits, ou sur le seul moteur. Le DIRE, et le dire en tête.
+      var rm=document.getElementById('rmode');
+      if(mode&&mode.nom){
+        rm.className='lvmode'+(mode.brut?' brut':'');
+        rm.innerHTML='<b>'+esc(mode.nom)+'</b> '+esc(mode.aide||'');
+        rm.style.display='block';
+      } else { rm.style.display='none'; }
       var src=document.getElementById('sources'), list=document.getElementById('srclist');
       if(sources&&sources.length){
         list.innerHTML=sources.map(function(s){return '<span class="srcpill">'+esc(s.title||'Document')+'<span class="v">'+(s.visibility==='internal'?'interne':'public')+'</span></span>';}).join('');
@@ -643,7 +665,13 @@
           var j=o.j||{};
           if(j.ok){
             lastId=j.id||null;
-            showResult(j.document||'','Modèle : '+(j.model||'')+' · généré le '+new Date().toLocaleString('fr-FR'),j.sources);
+            /* « Généré » est faux d'une trame assemblée, et c'est cette
+               ligne-là qu'on recopie en tête de dossier. Le mot suit ce que le
+               document est. */
+            showResult(j.document||'',
+              'Modèle : '+(j.model||'')+' · '+(j.sans_modele?'assemblé':'généré')
+              +' le '+new Date().toLocaleString('fr-FR'),j.sources,
+              {nom:j.mode_nom,aide:j.mode_aide,brut:!!j.sans_modele});
             note('',''); loadHistory();
           } else {
             note(esc(j.message||'Génération indisponible.'),'err');
