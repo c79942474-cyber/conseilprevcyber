@@ -407,6 +407,13 @@
           <button class="btn btn-s" id="visPublic" type="button" title="Les documents de ce thème deviennent citables par tout compte connecté, y compris les clients">👁 Rendre publics</button>
           <button class="btn btn-s" id="visInterne" type="button" title="Les documents de ce thème ne seront plus atteints que par un administrateur">🔒 Rendre internes</button>
           <button class="btn btn-s" id="visCancel" type="button">Annuler</button>
+          <!-- LA RÉPONSE S'AFFICHE ICI, sous les boutons qu'on vient de cliquer.
+               Elle ne se donnait qu'en haut de page, à plusieurs écrans de
+               distance : sur une base de quatre cent cinquante-neuf documents,
+               on agit depuis la liste, on ne voit rien bouger, et on conclut
+               que ça ne marche pas. Un retour hors du champ de vision ne
+               revient pas à un retour discret : il revient à aucun retour. -->
+          <div id="visDit" style="display:none;flex-basis:100%;font-size:12.5px;line-height:1.6;padding-top:4px;border-top:1px solid rgba(34,211,238,.28);margin-top:2px"></div>
         </div>
         <div class="tblwrap">
           <table>
@@ -1506,11 +1513,25 @@
         +'filtre de recherche masque.';
     }
 
+    /* Le retour DANS la barre, là où le geste a lieu. `note()` reste appelé en
+       plus : les deux disent la même chose, l'un pour qui regarde le haut de
+       la page, l'autre pour qui regarde ses mains. */
+    function visDire(html, err){
+      var z=document.getElementById('visDit');
+      if(!z) return;
+      z.innerHTML=html;
+      z.style.color=err?'#E8B44A':'var(--muted)';
+      z.style.display='block';
+    }
+
     function basculerVisibilite(btn, v){
       var t=themeChoisi();
-      if(!t){ note('Choisissez d’abord un domaine ou une entreprise : la bascule '
-                   +'agit sur un thème entier, jamais sur toute la base.','err');
-              return; }
+      if(!t){
+        var m='Choisissez d’abord un domaine ou une entreprise : la bascule '
+             +'agit sur un thème entier, jamais sur toute la base.';
+        visDire('<b>Aucun thème choisi.</b> '+m, true); note(m,'err');
+        return;
+      }
       var old=btn.textContent; btn.disabled=true; btn.textContent='Décompte…';
       // L'arbre entier, pas la seule racine : c'est ce que la liste affiche et
       // ce que le compte du sélecteur annonce. Basculer moins que ce qu'on
@@ -1518,39 +1539,55 @@
       // fait, et la moitié ne le serait pas.
       var lot=sousArbre(t);
       var corps=function(essai){return JSON.stringify({themes:lot,visibility:v,essai:essai});};
+      var fini=function(){ btn.disabled=false; btn.textContent=old; };
+      visDire('Décompte en cours…');
       apiFetch('/api/admin/rag/visibility-lot',{method:'POST',
         headers:{'content-type':'application/json'},body:corps(true)})
         .then(readJson).then(function(j){
-          btn.disabled=false; btn.textContent=old;
-          if(!j||!j.ok){note((j&&j.message)||'Décompte impossible.','err');return;}
+          fini();
+          if(!j||!j.ok){ var e=(j&&j.message)||'Décompte impossible.';
+                         visDire(esc(e),true); note(e,'err'); return; }
           if(!j.modifies){
-            note('Rien à changer : les documents du thème « '+t+' » sont déjà '
-                 +(v==='public'?'publics':'internes')+'.','ok');
-            return;
+            var r='Rien à changer : les documents du thème « '+t+' » sont déjà '
+                 +(v==='public'?'publics':'internes')+'.';
+            visDire('<b>'+esc(r)+'</b>'); note(r,'ok'); return;
           }
-          var msg=j.modifies+' document(s) du thème « '+t+' » vont devenir '
-            +(v==='public'?'PUBLICS':'INTERNES')+'.\n\n'
+          /* CONFIRMATION EN PLACE, plus de fenêtre du navigateur. Après
+             plusieurs dialogues d'affilée, certains navigateurs proposent d'en
+             bloquer la suite : confirm() rend alors « false » sans rien
+             afficher, et le geste échoue en silence — impossible à distinguer
+             d'une panne. Ici la question reste à l'écran, sous les boutons. */
+          visDire('<b>'+j.modifies+' document(s) du thème « '+esc(t)+' » vont '
+            +'devenir '+(v==='public'?'PUBLICS':'INTERNES')+'.</b><br>'
             +(v==='public'
               ? 'Public signifie : tout compte connecté — vos clients compris — '
                 +'pourra les faire citer, extraits reproduits mot pour mot, dans '
                 +'un livrable qui sort du site (Word, PDF, archive de projet).'
               : 'Interne signifie : seul un administrateur les atteindra. Les '
                 +'livrables de vos clients cesseront de les citer.')
-            +'\n\nConfirmer ?';
-          if(!confirm(msg))return;
-          btn.disabled=true; btn.textContent='Bascule…';
-          apiFetch('/api/admin/rag/visibility-lot',{method:'POST',
-            headers:{'content-type':'application/json'},body:corps(false)})
-            .then(readJson).then(function(k){
-              btn.disabled=false; btn.textContent=old;
-              if(!k||!k.ok){note((k&&k.message)||'Bascule impossible.','err');return;}
-              note(k.modifies+' document(s) du thème « '+t+' » sont désormais '
-                   +(v==='public'?'publics':'internes')+'.','ok');
-              load();
-            }).catch(function(){btn.disabled=false;btn.textContent=old;
-                                note('Bascule impossible.','err');});
-        }).catch(function(){btn.disabled=false;btn.textContent=old;
-                            note('Décompte impossible.','err');});
+            +'<br><button class="btn btn-s" id="visGo" type="button" '
+            +'style="margin-top:8px">Confirmer — '+j.modifies+' document(s)</button> '
+            +'<button class="btn btn-s" id="visNon" type="button" '
+            +'style="margin-top:8px">Annuler</button>');
+          document.getElementById('visNon').addEventListener('click',function(){
+            visDire('Bascule annulée — rien n’a été modifié.');
+          });
+          document.getElementById('visGo').addEventListener('click',function(){
+            var g=this; g.disabled=true; g.textContent='Bascule…';
+            apiFetch('/api/admin/rag/visibility-lot',{method:'POST',
+              headers:{'content-type':'application/json'},body:corps(false)})
+              .then(readJson).then(function(k){
+                if(!k||!k.ok){ var e2=(k&&k.message)||'Bascule impossible.';
+                               visDire(esc(e2),true); note(e2,'err'); return; }
+                var f=k.modifies+' document(s) du thème « '+t+' » sont désormais '
+                     +(v==='public'?'publics':'internes')+'.';
+                visDire('<b>✓ '+esc(f)+'</b>'); note(f,'ok');
+                load();
+              }).catch(function(){ visDire('Bascule impossible.',true);
+                                   note('Bascule impossible.','err'); });
+          });
+        }).catch(function(){ fini(); visDire('Décompte impossible.',true);
+                             note('Décompte impossible.','err'); });
     }
 
     (function brancherVisibilite(){
@@ -1559,7 +1596,15 @@
       b.addEventListener('click',function(){
         var ouvert=bar.style.display!=='none';
         bar.style.display=ouvert?'none':'flex';
-        if(!ouvert) visBarreMaj();
+        if(!ouvert){
+          visBarreMaj();
+          var z=document.getElementById('visDit');
+          if(z) z.style.display='none';
+          /* La barre est en haut de la liste ; ouverte depuis une page défilée,
+             elle apparaîtrait hors du champ de vision — le bouton donnerait
+             l'impression de ne rien faire. */
+          bar.scrollIntoView({behavior:'smooth',block:'center'});
+        }
       });
       document.getElementById('visCancel').addEventListener('click',function(){
         bar.style.display='none';
