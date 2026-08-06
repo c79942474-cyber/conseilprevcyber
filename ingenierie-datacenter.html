@@ -70,7 +70,12 @@
      de neuf éléments ne se lit pas comme une séquence. Le premier blocage est
      le seul repère qui commande une action ; tout le reste du ruban est là
      pour voir venir. */
-  .ig-fil{display:flex;gap:0;overflow-x:auto;padding:4px 0 10px;-webkit-overflow-scrolling:touch}
+  /* La marge haute et basse tient le HALO de la vague bleue : `overflow-x`
+     rend aussi l'axe vertical découpé, et sans cette réserve le battement des
+     boutons de phase serait rogné au ras du cadre — visible d'un côté,
+     tranché de l'autre. */
+  .ig-fil{display:flex;gap:0;overflow-x:auto;padding:11px 2px 14px;
+    -webkit-overflow-scrolling:touch}
   .ig-p{flex:0 0 auto;min-width:132px;border:1px solid var(--line);border-radius:10px;
     padding:10px 12px;margin-right:8px;background:rgba(0,0,0,.14);cursor:pointer;
     text-align:left;font-family:inherit;color:var(--muted);position:relative}
@@ -884,6 +889,33 @@
   }
   .ig-bat-red{animation:ig-battement-red 1.8s ease-out 5 forwards}
   @media (prefers-reduced-motion: reduce){.ig-bat-red{animation:none}}
+
+  /* ── La vague bleue : tous les gestes de la page, une fois ──────────────
+     Les autres battements répondent à « par quoi je continue ? » et n'en
+     désignent qu'un. Celui-ci répond à l'autre question, celle du lecteur qui
+     arrive : « qu'est-ce que je peux faire ici ? » — sept sections, une
+     soixantaine de gestes, et rien qui les distingue du texte au premier coup
+     d'œil.
+
+     Le décalage est posé bouton par bouton par le script (animation-delay),
+     dans l'ordre du document : le regard descend la page. Aucune surface large
+     ne s'allume d'un coup — c'est aussi ce qui garde la vague sous le seuil de
+     photosensibilité du WCAG 2.3.1, à 0,56 éclat par seconde et par élément.
+
+     Trois cycles au lieu de cinq : elle informe, elle n'insiste pas. Les
+     désignations précises, elles, insistent. */
+  @keyframes ig-vague-b{
+    0%   {box-shadow:0 0 0 0 rgba(34,211,238,.55)}
+    55%  {box-shadow:0 0 0 10px rgba(34,211,238,0)}
+    100% {box-shadow:0 0 0 0 rgba(34,211,238,0)}
+  }
+  .ig-bat-b{animation:ig-vague-b 1.8s ease-out 3 both}
+  /* Le halo doit déborder du bouton : sans cela, il est rogné par le cadre de
+     la carte et ne se voit qu'à moitié. */
+  .ig-bat-b{position:relative;z-index:2}
+  @media (prefers-reduced-motion: reduce){
+    .ig-bat-b{animation:none}
+  }
 </style>
 </head>
 <body>

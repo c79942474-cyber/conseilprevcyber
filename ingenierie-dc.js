@@ -446,6 +446,7 @@
        la flèche disparaît — ce qui se lit comme un guidage cassé. */
     setTimeout(majGuidage, 0);
     setTimeout(atterrir, 0);
+    planifierVague();
     var z = $("#ig-parcours");
     if (!DERNIER || !DERNIER[FILIERE]) {
       z.innerHTML = '<p class="note">Renseignez la puissance informatique pour éprouver les phases.</p>';
@@ -1466,6 +1467,7 @@
     marquerManquants();
     signalerFaits();
     majGuidage();
+    planifierVague();
     document.querySelectorAll("#ig-dossier .ig-gen").forEach(function (b) {
       b.addEventListener("click", function () { redigerPiece(b.getAttribute("data-piece"), b); });
     });
@@ -2086,16 +2088,56 @@
          « arrêter » à chercher. */
   var BATTUS = {};
 
-  function battre(selecteur, classe, groupe) {
+  /* `pas` est le décalage, en millisecondes, entre deux éléments d'un même
+     groupe. À zéro, tout part ensemble — c'est ce qu'il faut quand deux ou
+     trois boutons forment un ensemble. Au-delà d'une poignée d'éléments, un
+     départ simultané devient une pulsation de page entière : le décalage la
+     transforme en vague, qui se lit de haut en bas et donne un ORDRE plutôt
+     qu'une alarme. */
+  function battre(selecteur, classe, groupe, pas) {
     if (BATTUS[groupe]) return;
     var els = document.querySelectorAll(selecteur);
     if (!els.length) return;
     BATTUS[groupe] = true;
+    var rang = 0;
     els.forEach(function (el) {
       if (el.disabled) return;
+      /* Un bouton qui bat déjà pour une raison PLUS PRÉCISE garde la sienne.
+         Le bleu de la vague dit « voici les gestes de cette page » ; le
+         battement de « Rédiger » dit « celle-ci, maintenant ». Superposer les
+         deux ferait gagner le dernier posé, c'est-à-dire le moins précis.
+
+         Comparé à `classe` et non à la seule présence d'un battement : sans
+         cela, une vague laisserait la précédente en place sur les boutons
+         communs, et les décalages des deux se mélangeraient — l'ordre de
+         lecture, qui est tout l'intérêt du procédé, disparaîtrait.
+
+         Le suffixe est FACULTATIF dans le motif : la désignation du fil des
+         gestes et celle du lanceur portent « ig-bat » tout court. Ne
+         reconnaître que les formes suffixées laissait la vague écraser leurs
+         animations — deux règles sur la même propriété, la dernière écrite
+         l'emporte, et c'était la moins précise. */
+      if (pas && (el.className.match(/\big-bat(?:-[a-z]+)?\b/g) || [])
+                   .some(function (c) { return c !== classe; })) return;
+      /* Et dans l'autre sens : une désignation précise CHASSE la vague. Sans
+         cela, l'ordre d'arrivée déciderait — la vague part une demi-seconde
+         après le rendu, le lanceur une seconde après le chargement, et selon
+         ce qui gagne la course le geste du moment se retrouverait peint comme
+         les cent-treize autres. */
+      if (!pas && classe !== "ig-bat-b") {
+        el.classList.remove("ig-bat-b");
+        el.style.animationDelay = "";
+      }
+      if (pas) {
+        /* Plafonné : au-delà, les derniers boutons battraient si tard que le
+           lecteur aurait déjà agi, et le rappel deviendrait une interruption. */
+        el.style.animationDelay = Math.min(rang * pas, 2600) + "ms";
+        rang++;
+      }
       el.classList.add(classe);
       var stop = function () {
         el.classList.remove(classe);
+        el.style.animationDelay = "";
         el.removeEventListener("mouseenter", stop);
         el.removeEventListener("focus", stop);
         el.removeEventListener("click", stop);
@@ -2108,8 +2150,88 @@
          bouton garderait un halo figé. */
       el.addEventListener("animationend", function () {
         el.classList.remove(classe);
+        el.style.animationDelay = "";
       });
     });
+  }
+
+  /* ── LA VAGUE BLEUE : TOUS LES GESTES DE LA PAGE, UNE FOIS ──────────────
+     Les battements précédents désignent UN geste : celui qui manque, celui
+     qu'il faut poser maintenant. Ils répondent à « par quoi je continue ? ».
+
+     Il reste l'autre question, celle du lecteur qui arrive : « qu'est-ce que
+     je peux faire ici ? » Sept sections, une soixantaine de gestes, et rien
+     qui les distingue du texte au premier coup d'œil. La vague les montre
+     tous, en bleu — la couleur des actions du site — et une seule fois.
+
+     TROIS PRÉCAUTIONS, sans lesquelles elle deviendrait le bruit qu'elle veut
+     éviter :
+
+       · UNE VAGUE, PAS UN CLIGNOTEMENT D'ENSEMBLE. Chaque bouton part
+         soixante-dix millisecondes après le précédent, dans l'ordre du
+         document : le regard descend la page au lieu de la subir. Aucune
+         surface large ne s'allume d'un coup — c'est aussi ce qui la garde
+         hors du seuil de photosensibilité du WCAG 2.3.1.
+
+       · TROIS CYCLES, PAS CINQ. Elle informe, elle n'insiste pas. Ce sont les
+         désignations précises qui insistent.
+
+       · CE QUI BAT DÉJÀ GARDE SON BATTEMENT. Un bouton désigné pour lui-même
+         ne redevient pas un bouton parmi soixante.
+
+     La clé porte l'état de la page : ouvrir un projet ou changer de phase fait
+     apparaître des gestes qui n'existaient pas, et ceux-là méritent d'être
+     montrés à leur tour. Un simple redessin, lui, ne rejoue rien. */
+  /* L'inventaire est ÉNUMÉRÉ, pas deviné par un « tous les boutons de la
+     page » : celui-ci emporterait le bouton du menu latéral, les fermetures de
+     panneaux et les bascules d'infobulle — des commandes d'interface, pas des
+     gestes du projet. Un balayage a vérifié qu'il ne reste rien dehors. */
+  var GESTES_SEL = [
+    "#ig-lanceur-b", "#ig-guid-go", "#ig-rep-x",
+    "#ig-sec-projet button", "#ig-sec-projet .btn",
+    "#ig-form .s-b",
+    "#ig-filieres button",
+    "#ig-parcours [data-phase]",
+    "#ig-guidage button", "#ig-guidage .ig-g-lien",
+    "#ig-dossier button", "#ig-dossier a.btn", "#ig-dossier a.ig-dl",
+    "#ig-rail button",
+    "#ig-docx", "#ig-pdf",
+    "#ig-depot button", "#ig-depot .btn", "#ig-depot-liste button",
+  ].join(",");
+
+  function battreLaPage() {
+    var n = document.querySelectorAll(GESTES_SEL).length;
+    if (!n) return;
+    /* Le décalage se calcule sur le NOMBRE, pour que la vague dure toujours à
+       peu près deux secondes : à pas fixe, soixante boutons mettraient quatre
+       secondes à s'allumer, et les derniers battraient longtemps après que le
+       lecteur a agi. */
+    var pas = Math.max(20, Math.min(70, Math.round(2000 / n)));
+    /* La clé porte l'ÉTAT, jamais le nombre de boutons : celui-ci change à
+       chaque fragment qui arrive, et la vague se rejouerait quatre fois au
+       chargement. L'état, lui, ne change que sur un choix du lecteur. */
+    var cle = "page:" + (PROJET ? PROJET.id : "-") + ":" + (PHASE || "-")
+            + ":" + (FILIERE || "-");
+    if (BATTUS[cle]) return;
+    /* La vague précédente est EFFACÉE avant la nouvelle. Sans cela, les
+       boutons déjà marqués seraient sautés et garderaient leur ancien
+       décalage : deux vagues entrelacées, dont l'ordre de lecture — la seule
+       raison d'être du décalage — ne veut plus rien dire. */
+    document.querySelectorAll(".ig-bat-b").forEach(function (el) {
+      el.classList.remove("ig-bat-b");
+      el.style.animationDelay = "";
+    });
+    battre(GESTES_SEL, "ig-bat-b", cle, pas);
+  }
+
+  /* Les fragments de la page arrivent séparément — référentiel, projets,
+     frise, dossier. Lancer la vague au premier laisserait dehors tous les
+     suivants ; on attend donc que ça se pose. */
+  var VAGUE_T = null;
+
+  function planifierVague() {
+    if (VAGUE_T) clearTimeout(VAGUE_T);
+    VAGUE_T = setTimeout(battreLaPage, 500);
   }
 
   /* ═════════════════════════════════════════════════════════════════════
@@ -2561,6 +2683,7 @@
         + "Supprimer le projet</button>";
     }
     z.innerHTML = h;
+    planifierVague();
     var b;
     if ((b = $("#ig-pj-creer"))) b.addEventListener("click", pjCreer);
     if ((b = $("#ig-pj-sauve"))) {
