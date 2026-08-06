@@ -65,6 +65,10 @@ EXTENSIONS = {
     "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     "txt": "text/plain",
     "md": "text/plain",
+    # Un journal est un fichier texte : aussi sûr qu'un .txt et indexable comme
+    # lui. Il manquait ici alors que la base de connaissance l'admet — un
+    # dépôt de .log échouait donc sur un format annoncé comme accepté.
+    "log": "text/plain",
     "csv": "text/csv",
     "json": "application/json",
     "png": "image/png",

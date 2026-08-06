@@ -267,7 +267,7 @@
         <input type="hidden" name="_redirect" value="1">
         <div class="drop" id="drop">
           <div>Glissez un fichier ici ou <b>parcourir</b></div>
-          <div class="sub" style="font-size:12px;color:var(--muted2);margin-top:4px">PDF · DOCX · XLSX · PPTX · TXT · MD · CSV — 30 Mo max</div>
+          <div class="sub" id="fmtListe" style="font-size:12px;color:var(--muted2);margin-top:4px">PDF · DOCX · XLSX · PPTX · TXT · MD · CSV · LOG · JSON — 30 Mo max</div>
           <div class="file" id="fileName"></div>
           <input type="file" id="file" name="file" required accept=".pdf,.docx,.xlsx,.xlsm,.pptx,.pptm,.txt,.md,.csv,.log,.json" style="margin-top:10px">
         </div>
@@ -886,6 +886,7 @@
         // échouerait par un « …_support_absent » alors que le fichier est
         // valide. On le signale AVANT l'essai, plutôt qu'après un échec.
         showFormats(j.formats);
+        calerFormats(j.formats_deposables);
         // Autocomplétion du champ « Thème » du bloc GÉNÉRAL : les domaines
         // Engineering en sont exclus (comme les puces de sélection rapide et le
         // filtre de la liste générale) — ils relèvent du bloc dédié Engineering.
@@ -916,11 +917,26 @@
     }
 
     // ---- sélection de fichier ----
+    // Ce refus-ci a lieu AVANT toute requête : le serveur ne peut donc pas
+    // fournir son motif. Le message doit se suffire à lui-même, sinon c'est
+    // exactement là — au premier essai — que l'on reste sans réponse.
+    function refusFormat(nom){
+      return 'Le format « .'+ext(nom)+' » n’est pas accepté : il ne contient '
+        + 'pas de texte à indexer (image, plan DWG, ancien format Office .doc/.xls), '
+        + 'ou ses macros le font refuser à l’analyse. Formats acceptés : '
+        + ALLOWED.map(function(e){return '.'+e;}).join(', ')+'.';
+    }
+    function refusTaille(f){
+      if(f.size>MAX) return 'Fichier trop lourd ('+fmtBytes(f.size)+') : le plafond de dépôt '
+        +'est de 30 Mo. Découpez le document, ou déposez le fichier source plutôt que l’export.';
+      if(f.size===0) return 'Ce fichier est vide (0 octet) : il n’y a rien à indexer. '
+        +'Vérifiez qu’il a bien été enregistré avant de le déposer.';
+      return '';
+    }
     function pick(f){
       if(!f) return;
-      if(ALLOWED.indexOf(ext(f.name))<0){ note('Type de fichier non pris en charge.','err'); return; }
-      if(f.size>MAX){ note('Fichier trop lourd (30 Mo maximum).','err'); return; }
-      if(f.size===0){ note('Fichier vide.','err'); return; }
+      if(ALLOWED.indexOf(ext(f.name))<0){ note(refusFormat(f.name),'err'); return; }
+      var t=refusTaille(f); if(t){ note(t,'err'); return; }
       chosen=f; fileName.textContent=f.name+' · '+fmtBytes(f.size); upBtn.disabled=false;
     }
     drop.addEventListener('click',function(){fileInput.click();});
@@ -961,6 +977,28 @@
 
     // Alerte « format illisible sur le serveur » : n'apparaît QUE si une
     // bibliothèque de lecture manque. Sinon, aucun bruit dans l'interface.
+    /* Le sélecteur de fichier invitait à choisir des .xlsm et .pptm — que
+       l'analyse préalable REFUSE, pour une raison de sécurité (macros). On
+       proposait donc un format voué au refus. La liste vient désormais du
+       serveur, qui la dérive des deux portes. */
+    function calerFormats(liste){
+      if(!liste||!liste.length) return;
+      // Le contrôle fait AVANT l'envoi utilisait sa propre liste, écrite à la
+      // main : elle laissait passer des .xlsm voués au refus et pouvait bloquer
+      // un format que le serveur accepte — un refus sans requête, donc sans
+      // explication possible. On l'aligne sur la liste servie.
+      ALLOWED=liste.slice();
+      var acc=liste.map(function(e){return '.'+e;}).join(',');
+      ['file','fileEng'].forEach(function(id){
+        var e=document.getElementById(id);
+        if(e) e.setAttribute('accept',acc);
+      });
+      var z=document.getElementById('fmtListe');
+      if(z) z.textContent='Formats acceptés : '+liste.map(function(e){return '.'+e;}).join(', ')
+        +' — les formats à macros (.xlsm, .pptm) sont refusés par l’analyse, '
+        +'et les images ou plans DWG ne contiennent pas de texte à indexer.';
+    }
+
     function showFormats(f){
       var box=document.getElementById('fmtWarn'); if(!box) return;
       if(!f){ box.style.display='none'; return; }
@@ -1013,7 +1051,12 @@
       http_504:'Le traitement a expiré (504). Réessayez ; le fichier est peut-être trop volumineux.'
     };
     function uploadErrorMessage(err){
-      var m=UPLOAD_ERRORS[err&&err.message]||('Échec du chargement ('+(err&&err.message)+').');
+      // Priorité au motif servi par le serveur : c'est lui qui connaît l'état
+      // réel du dépôt. La carte ci-dessus reste indispensable pour tout ce que
+      // le serveur ne peut PAS dire — coupure réseau, session expirée, 504 —
+      // et sert de repli si un vieux serveur ne renvoie qu'un code.
+      var m=(err&&err.motif)||UPLOAD_ERRORS[err&&err.message]
+            ||('Échec du chargement ('+(err&&err.message)+').');
       // Cause technique précise renvoyée par le serveur (assainie) : la montrer
       // aide à diagnostiquer sans consulter les logs.
       if(err&&err.detail) m+=' — '+err.detail;
@@ -1090,7 +1133,13 @@
                   :(xhr.status===403)?((j&&j.error==='csrf')?'csrf':'acces_refuse')
                   :(xhr.status===429)?'rate_limited'
                   :((j&&j.error)||('http_'+xhr.status));
-          var e=new Error(code); e.detail=(j&&j.detail)||''; reject(e);
+          var e=new Error(code); e.detail=(j&&j.detail)||'';
+          // Le serveur sait des choses que la page ignore : quels formats CE
+          // déploiement accepte réellement, pourquoi l'analyse a refusé. On
+          // garde son motif — sauf pour les refus d'accès ci-dessus, où c'est
+          // la consigne d'action (se reconnecter, patienter) qui prime.
+          if(xhr.status!==401&&xhr.status!==403&&xhr.status!==429) e.motif=(j&&j.message)||'';
+          reject(e);
         };
         xhr.onerror=function(){ reject(new Error('reseau')); };
         xhr.ontimeout=function(){ reject(new Error('http_504')); };
@@ -1153,8 +1202,8 @@
       function setP(p,m){progEng.classList.add('on');barEng.style.width=Math.round(p*100)+'%';if(m!=null)msgEng.textContent=m;}
       function pickEng(f){
         if(!f) return;
-        if(ALLOWED.indexOf(ext(f.name))<0){note('Type de fichier non pris en charge.','err');return;}
-        if(f.size>MAX){note('Fichier trop lourd (30 Mo maximum).','err');return;}
+        if(ALLOWED.indexOf(ext(f.name))<0){note(refusFormat(f.name),'err');return;}
+        var t=refusTaille(f); if(t){note(t,'err');return;}
         chosenEng=f; nameEng.textContent=f.name+' · '+fmtBytes(f.size); btnEng.disabled=false;
       }
       dropEng.addEventListener('click',function(){fEng.click();});

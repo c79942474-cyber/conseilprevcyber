@@ -2405,6 +2405,11 @@
        · LE REFUS EXPLIQUE. Un « fichier rejeté » sec fait recommencer à
          l'identique. Le motif dit ce qui a été trouvé et ce qu'il faut faire —
          réenregistrer sans macros, exporter en PDF simple. */
+  // Ce que le dépôt accepte réellement, tel que le serveur l'annonce. Tant
+  // qu'il n'a pas répondu, le sélecteur s'en tient au sous-ensemble sûr —
+  // jamais à une liste plus large que ce qui sera accepté.
+  var FORMATS_DEPOT = null;
+
   function depotEtat() {
     var z = $("#ig-depot-etat");
     if (!z) return;
@@ -2421,11 +2426,28 @@
           + '<ul class="l"><li>Formats acceptés — ' + e.extensions_admises.join(", ")
           + "</li><li>Refusés d'office — " + e.formats_macros_refuses.join(", ")
           + " : ces formats portent des macros par construction.</li>"
+          + "<li>Sans texte, rien à indexer — une image, un plan DWG ou un PDF "
+          + "scanné franchit l'analyse mais n'apporte aucun contenu à la base. "
+          + "Fournissez une version avec couche texte (OCR) ou le fichier "
+          + "source.</li>"
           + "<li>Taille maximale — " + e.taille_max_mo + " Mo par fichier.</li>"
           + "<li>Vérifications — le contenu doit correspondre à l'extension ; "
           + "les macros, objets incorporés, JavaScript de PDF, liens externes "
           + "et archives disproportionnées sont refusés.</li></ul>";
+        // Le sélecteur proposait sa propre liste, écrite à la main : elle
+        // invitait à choisir des images et des plans DWG, que le dépôt refuse
+        // ensuite. On l'aligne sur ce que le serveur vient d'annoncer.
+        if (e.extensions_admises.length) {
+          FORMATS_DEPOT = e.extensions_admises.slice();
+          var f = $("#ig-dep-f");
+          if (f) f.setAttribute("accept", accepteDepot());
+        }
       }).catch(function () { z.innerHTML = ""; });
+  }
+
+  function accepteDepot() {
+    return (FORMATS_DEPOT || ["pdf", "docx", "xlsx", "pptx", "txt", "md", "csv",
+                              "json"]).map(function (x) { return "." + x; }).join(",");
   }
 
   function depotFormulaire() {
@@ -2434,7 +2456,7 @@
     z.innerHTML =
       '<label class="dc-champ" for="ig-dep-f"><span class="dc-lab">Document à '
       + 'apporter</span><input id="ig-dep-f" type="file" '
-      + 'accept=".pdf,.docx,.xlsx,.pptx,.txt,.md,.csv,.json,.png,.jpg,.jpeg,.dwg">'
+      + 'accept="' + accepteDepot() + '">'
       + '<span class="dc-aide">Le fichier est analysé avant tout '
       + "enregistrement.</span></label>"
       + '<label class="dc-champ" for="ig-dep-t"><span class="dc-lab">Intitulé '

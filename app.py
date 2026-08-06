@@ -3180,10 +3180,16 @@ def admin_rag_page():
                   "background:rgba(52,211,153,.12)\"><span>✅</span><div>Document "
                   "<b>%s</b> chargé et enregistré.</div></div>" % html_lib.escape(titre))
     else:
+        # Sans JavaScript, cette bannière est le SEUL retour possible : elle
+        # affichait le code technique nu (« type_non_supporte »), qui ne dit pas
+        # quoi faire. On sert le motif lisible, le code restant en second pour le
+        # diagnostic.
         banner = ("<div class=\"warn\" style=\"border-color:rgba(248,113,113,.55);"
                   "background:rgba(248,113,113,.12)\"><span>⛔</span><div>Échec du "
-                  "chargement : <b>%s</b>%s</div></div>"
-                  % (html_lib.escape(code),
+                  "chargement : <b>%s</b><br><span class=\"sub\">code %s%s</span>"
+                  "</div></div>"
+                  % (html_lib.escape(_motif_depot(code, detail)),
+                     html_lib.escape(code),
                      (" — " + html_lib.escape(detail)) if detail else ""))
     try:
         raw = _static_entry("admin-base-connaissance.html")["raw"].decode("utf-8")
@@ -3218,10 +3224,17 @@ def api_rag_list():
     EXPLOITABLE (liste vide + capacités dégradées portant la cause) pour que la
     console affiche le bandeau de diagnostic — jamais un 500 opaque « Service
     indisponible »."""
+    # Ce que le dépôt accepte RÉELLEMENT (indexation ∩ analyse préalable) : le
+    # sélecteur de fichier de la console s'en sert. Sans cela il proposait des
+    # formats voués au refus, et en écartait un que le serveur accepte — un
+    # refus survenu avant l'appel, donc sans explication possible.
+    import rag_store as _rs
+    depos = _rs.formats_deposables()
     try:
         return jsonify(ok=True, documents=rag.list_documents(), stats=rag.stats(),
                        capabilities=rag.capabilities(), themes=THEMES,
-                       familles=_familles_payload(), formats=formats_available())
+                       familles=_familles_payload(), formats=formats_available(),
+                       formats_deposables=depos)
     except Exception:
         try:
             caps = rag.capabilities()
@@ -3230,7 +3243,8 @@ def api_rag_list():
         return jsonify(ok=True, documents=[],
                        stats={"documents": 0, "chunks": 0, "themes": {}, "storage": None},
                        capabilities=caps, themes=THEMES,
-                       familles=_familles_payload(), formats=formats_available())
+                       familles=_familles_payload(), formats=formats_available(),
+                       formats_deposables=depos)
 
 
 @app.route("/api/admin/rag/search", methods=["POST"])
@@ -3764,7 +3778,13 @@ def api_rag_diagnose():
     """Diagnostic pas-à-pas de la connexion PostgreSQL (variable → format →
     URL → DNS → TCP → session → écriture). Aucun secret exposé."""
     try:
-        return jsonify(ok=True, **rag_diagnose())
+        d = rag_diagnose()
+        # Ce qui passe RÉELLEMENT les deux portes — indexation ET analyse
+        # préalable. Le sélecteur de fichier de la page s'en sert : sans cela
+        # il invitait à choisir des formats que l'analyse refuse ensuite.
+        import rag_store as _rs
+        d["formats_deposables"] = _rs.formats_deposables()
+        return jsonify(ok=True, **d)
     except Exception:
         return jsonify(ok=False, error="diagnostic_echec"), 500
 
@@ -3780,6 +3800,91 @@ def _exc_detail(exc, limit=180):
     msg = _re.sub(r"(?i)(password|pwd|token|api[_-]?key)\s*=\s*\S+", r"\1=«…»", msg)
     msg = " ".join(msg.split())
     return (msg[:limit] + "…") if len(msg) > limit else msg
+
+
+# ── POURQUOI UN DOCUMENT EST REFUSÉ ──────────────────────────────────────────
+# Un code technique seul — « pdf_illisible », « type_non_supporte » — ne dit pas
+# quoi faire, et c'est précisément ce qu'on cherchait à savoir. Ces motifs
+# étaient écrits pour le seul dépôt client ; la console d'administration, elle,
+# renvoyait le code nu. Un même refus se lisait donc à deux endroits, et
+# n'expliquait qu'à l'un des deux.
+#
+# Écrits ICI et partagés : deux copies auraient divergé au premier ajout.
+_MOTIFS_DEPOT = {
+    "pdf_illisible": "Ce PDF ne contient aucun texte extractible — c'est le cas "
+                     "des plans et des documents scannés. L'indexation a besoin "
+                     "de texte : fournissez une version avec couche texte (OCR) "
+                     "ou le fichier source (Word, tableur).",
+    "fichier_vide": "Le fichier est vide : il ne contient aucun octet.",
+    "fichier_trop_lourd": "Le fichier dépasse le plafond de dépôt.",
+    "requete_trop_grande": "Le fichier dépasse ce que le serveur accepte en une "
+                           "requête. Découpez-le, ou déposez la version source "
+                           "plutôt que l'export.",
+    "type_non_supporte": "Ce format ne contient pas de texte indexable — une "
+                         "image, un plan DWG ou un ancien format Office (.doc, "
+                         ".xls) ne peut pas alimenter la base. Convertissez-le "
+                         "en PDF avec couche texte, en Word ou en tableur.",
+    "doublon": "Ce document est déjà présent, à l'identique : rien n'a été "
+               "ajouté, et rien n'a été perdu.",
+    "analyse_refus": "L'analyse préalable a refusé ce fichier.",
+    "analyse_indisponible": "L'analyse préalable des fichiers est momentanément "
+                            "indisponible sur le serveur. Réessayez dans un "
+                            "instant : aucun document n'a été perdu.",
+    "traitement_echec": "Le document n'a pas pu être traité par le serveur.",
+    "fichier_manquant": "Aucun fichier n'a été joint à l'envoi.",
+    # Le fichier est LISIBLE mais vide de texte : le distinguer d'un fichier
+    # illisible évite de chercher une corruption là où il n'y en a pas.
+    "aucun_texte": "Aucun texte exploitable n'a été trouvé — s'il s'agit d'un "
+                   "PDF scanné (image), il n'a pas de couche texte : "
+                   "ré-exportez-le avec OCR (texte reconnu), ou fournissez la "
+                   "version Word / tableur.",
+    "docx_illisible": "Ce document Word est illisible ou protégé par mot de "
+                      "passe. Enregistrez-en une copie sans protection.",
+    "xlsx_illisible": "Ce classeur Excel est illisible ou protégé par mot de "
+                      "passe. Enregistrez-en une copie sans protection.",
+    "pptx_illisible": "Cette présentation PowerPoint est illisible ou protégée "
+                      "par mot de passe. Enregistrez-en une copie sans "
+                      "protection.",
+    # « support absent » : la bibliothèque de lecture manque SUR LE SERVEUR. Le
+    # fichier n'est pas en cause — le dire, sinon on cherche du côté du fichier.
+    "pdf_support_absent": "La lecture des PDF est indisponible sur le serveur "
+                          "(bibliothèque absente) : le fichier n'est pas en "
+                          "cause. Déposez une version Word ou texte en "
+                          "attendant le redéploiement.",
+    "docx_support_absent": "La lecture des documents Word est indisponible sur "
+                           "le serveur (bibliothèque absente) : le fichier "
+                           "n'est pas en cause. Déposez une version PDF ou "
+                           "texte en attendant le redéploiement.",
+    "xlsx_support_absent": "La lecture des classeurs Excel est indisponible sur "
+                           "le serveur (bibliothèque absente) : le fichier "
+                           "n'est pas en cause. Déposez un export CSV en "
+                           "attendant le redéploiement.",
+    "pptx_support_absent": "La lecture des présentations PowerPoint est "
+                           "indisponible sur le serveur (bibliothèque "
+                           "absente) : le fichier n'est pas en cause. Déposez "
+                           "un export PDF en attendant le redéploiement.",
+    "base_indisponible": "La base de connaissance est momentanément injoignable "
+                         "(réveil à froid). Réessayez dans quelques secondes : "
+                         "le document sera alors enregistré durablement.",
+    "erreur_serveur": "Erreur du serveur pendant le traitement. Réessayez dans "
+                      "un instant.",
+}
+
+
+def _motif_depot(code, detail=""):
+    """Le motif lisible d'un refus, avec repli sur le détail technique."""
+    motif = _MOTIFS_DEPOT.get(code)
+    # Refuser un format sans dire lesquels sont acceptés, c'est laisser
+    # l'utilisateur deviner. La liste est DÉRIVÉE de ce que ce déploiement
+    # accepte réellement — jamais recopiée, sinon elle ment un jour.
+    if code == "type_non_supporte":
+        import rag_store as _rs
+        formats = _rs.formats_deposables()
+        if formats:
+            motif += " Formats acceptés : %s." % ", ".join(
+                "." + e for e in formats)
+    return (motif or (detail or "").strip()
+            or "Le document n'a pas pu être enregistré (%s)." % code)
 
 
 @app.route("/api/admin/rag/upload-file", methods=["POST"])
@@ -3824,14 +3929,16 @@ def api_rag_upload_file():
             visibility=(request.form.get("visibility") or "public").strip())
     except RagError as exc:
         return _fin(exc.code, getattr(exc, "detail", "")) or (jsonify(
-            ok=False, error=exc.code, detail=getattr(exc, "detail", "")), exc.status)
+            ok=False, error=exc.code, detail=getattr(exc, "detail", ""),
+            message=_motif_depot(exc.code, getattr(exc, "detail", ""))), exc.status)
     except Exception as exc:
         # Trace complète côté serveur (logs Render) + cause réelle ASSAINIE
         # renvoyée à l'admin : un « traitement_echec » opaque devient
         # auto-diagnostiquant (ex. cause PostgreSQL réelle vs simple transitoire).
         app.logger.exception("upload-file : échec du traitement de %r", f.filename)
         return _fin("traitement_echec", _exc_detail(exc)) or (jsonify(
-            ok=False, error="traitement_echec", detail=_exc_detail(exc)), 500)
+            ok=False, error="traitement_echec", detail=_exc_detail(exc),
+            message=_motif_depot("traitement_echec", _exc_detail(exc))), 500)
     return _fin("ok", "", doc.get("title") or f.filename) or jsonify(ok=True, document=doc)
 
 
@@ -5561,6 +5668,13 @@ def api_depot_etat():
     # celui du corps de requête (ici). Ils divergeront un jour — autant que la
     # page le sache et le dise, plutôt que de laisser un dépôt échouer au
     # transport avec un message parlant de la requête et non du document.
+    # L'analyse admet des images et des plans DWG ; le dépôt, lui, INDEXE le
+    # document dans la base de connaissance, qui a besoin de texte. Annoncer la
+    # liste de l'analyse revenait à inviter au dépôt d'un fichier refusé deux
+    # étapes plus loin. On annonce ce qui franchit les DEUX portes.
+    import rag_store as _rs
+    e["extensions_admises"] = _rs.formats_deposables()
+    e["extensions_analyse"] = sorted(antivirus.EXTENSIONS)
     e["transport_suffisant"] = (
         antivirus.MAX_OCTETS * antivirus.SURCOUT_BASE64 <= RAG_UPLOAD_MAX)
     if not e["transport_suffisant"]:
@@ -5623,23 +5737,9 @@ def api_depot_verser():
         # le plan ou le document scanné : il est légitime, et le dépôt le refuse
         # aujourd'hui parce qu'il passe par l'indexation de la base de
         # connaissance, qui a besoin de texte.
-        _MOTIFS = {
-            "pdf_illisible": "Ce PDF ne contient aucun texte extractible — c'est "
-                             "le cas des plans et des documents scannés. Le dépôt "
-                             "passe par l'indexation documentaire, qui a besoin de "
-                             "texte : fournissez une version avec couche texte "
-                             "(OCR) ou le fichier source.",
-            "fichier_vide": "Le fichier est vide.",
-            "fichier_trop_lourd": "Le fichier dépasse le plafond de dépôt.",
-            "type_non_supporte": "Ce format n'est pas indexable par la base de "
-                                 "connaissance.",
-            "doublon": "Ce document est déjà présent, à l'identique.",
-        }
         return jsonify(ok=False, error=exc.code,
-                       message=_MOTIFS.get(exc.code)
-                       or getattr(exc, "detail", "")
-                       or "Le document n'a pas pu être enregistré (%s)." % exc.code
-                       ), exc.status
+                       message=_motif_depot(exc.code,
+                                            getattr(exc, "detail", ""))), exc.status
     audit.journaliser("depot.verse", cible=str(doc.get("id"))[:80],
                       detail=nom[:120])
     return jsonify(ok=True, document=doc, analyse=verdict)

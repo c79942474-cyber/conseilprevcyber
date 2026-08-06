@@ -51,8 +51,33 @@ CHUNK_CHARS = 900              # taille cible d'un chunk (caractères)
 CHUNK_OVERLAP = 150            # recouvrement entre chunks
 MAX_FILE_BYTES = int(os.environ.get("RAG_MAX_FILE_MB", "30")) * 1024 * 1024
 MAX_CHUNK_UPLOAD = 480 * 1024  # taille max d'un morceau reçu (< MAX_CONTENT_LENGTH)
+# Les formats que le magasin sait INDEXER (du texte en sort). C'est une
+# contrainte technique, distincte de celle de l'analyse préalable, qui est une
+# contrainte de SÉCURITÉ — elle écarte les formats à macros. Un fichier doit
+# satisfaire les deux, et ce qui est réellement déposable est l'INTERSECTION
+# des deux listes : voir `formats_deposables()`.
+#
+# Les garder distinctes est délibéré ; ce qui ne l'était pas, c'est qu'aucune
+# des deux ne disait ce que l'autre refusait. Un .log passait ici et échouait
+# là ; un .png passait là et échouait ici — deux refus, deux messages, pour la
+# même tentative.
 ALLOWED_EXT = {"txt", "md", "csv", "log", "json", "pdf", "docx", "xlsx", "xlsm",
                "pptx", "pptm"}
+
+
+def formats_deposables():
+    """Ce qui passe RÉELLEMENT les deux portes — sécurité ET indexation.
+
+    Dérivé, jamais recopié : ajouter un format à l'une des deux listes met
+    cette réponse à jour toute seule, et ne peut plus promettre ce que l'autre
+    refusera."""
+    try:
+        import antivirus
+        return sorted(set(ALLOWED_EXT) & set(antivirus.EXTENSIONS))
+    except Exception:
+        # L'analyse est indisponible : on annonce ce que le magasin sait faire,
+        # sans prétendre connaître l'autre porte.
+        return sorted(ALLOWED_EXT)
 VISIBILITIES = ("public", "internal")
 
 # Thèmes proposés (autocomplétion à l'upload + filtre). Le champ reste en texte
