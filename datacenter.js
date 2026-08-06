@@ -61,10 +61,11 @@
         h += '<select id="' + id + '" data-champ="' + esc(c.id) + '">';
         h += '<option value="">— non précisé —</option>';
         (c.options || []).forEach(function (o) {
-          var lib = o;
-          if (c.id === "refroidissement" && REF.referentiel.refroidissement[o]) {
-            lib = REF.referentiel.refroidissement[o].nom;
-          }
+          /* Le libellé vient du CHAMP, plus d'un cas particulier écrit ici.
+             La page ne sait pas dans quelle table du référentiel chercher le
+             nom d'une option — et n'a pas à le savoir. Faute de libellé, on
+             affiche la clé : mieux vaut un code lisible qu'un vide. */
+          var lib = (c.options_nom && c.options_nom[o]) || o;
           h += '<option value="' + esc(o) + '"'
             + (c.defaut === o ? " selected" : "") + ">" + esc(lib) + "</option>";
         });

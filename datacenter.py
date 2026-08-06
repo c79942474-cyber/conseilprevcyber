@@ -75,21 +75,44 @@ CONSTANTES = {
 # C'est l'eau CONSOMMÉE (évaporée, non restituée), pas l'eau prélevée : la
 # distinction change les résultats d'un facteur dix sur le nucléaire en circuit
 # ouvert, et la confondre est l'erreur la plus fréquente des dossiers.
+# Le NOM vit ici, avec la donnée, et non dans une seconde table. Les listes
+# déroulantes affichaient le code ISO — « DE », « DK », « PL » — que le lecteur
+# doit traduire de tête, et qui se confondent (« NO » norvégien lu comme un
+# refus, « IT » comme l'informatique). Un code identifie ; il ne se lit pas.
 EWIF_PAYS = {
-    "FR": {"valeur": 1.30, "mix": "nucléaire majoritaire, hydraulique",
+    "FR": {"nom": "France", "valeur": 1.30,
+           "mix": "nucléaire majoritaire, hydraulique",
            "note": "Forte évaporation des tours aéroréfrigérantes du parc nucléaire."},
-    "DE": {"valeur": 1.10, "mix": "renouvelables, gaz, charbon résiduel"},
-    "SE": {"valeur": 0.45, "mix": "hydraulique, nucléaire, éolien"},
-    "NO": {"valeur": 0.30, "mix": "hydraulique quasi exclusif"},
-    "FI": {"valeur": 0.55, "mix": "nucléaire, biomasse, hydraulique"},
-    "IE": {"valeur": 0.55, "mix": "éolien, gaz"},
-    "NL": {"valeur": 0.80, "mix": "gaz, éolien offshore"},
-    "ES": {"valeur": 1.00, "mix": "solaire, éolien, gaz, nucléaire"},
-    "IT": {"valeur": 1.05, "mix": "gaz, hydraulique, solaire"},
-    "PL": {"valeur": 1.60, "mix": "charbon majoritaire"},
-    "DK": {"valeur": 0.35, "mix": "éolien majoritaire"},
-    "UE": {"valeur": 1.00, "mix": "moyenne européenne, à défaut de pays renseigné"},
+    "DE": {"nom": "Allemagne", "valeur": 1.10,
+           "mix": "renouvelables, gaz, charbon résiduel"},
+    "SE": {"nom": "Suède", "valeur": 0.45,
+           "mix": "hydraulique, nucléaire, éolien"},
+    "NO": {"nom": "Norvège", "valeur": 0.30, "mix": "hydraulique quasi exclusif"},
+    "FI": {"nom": "Finlande", "valeur": 0.55,
+           "mix": "nucléaire, biomasse, hydraulique"},
+    "IE": {"nom": "Irlande", "valeur": 0.55, "mix": "éolien, gaz"},
+    "NL": {"nom": "Pays-Bas", "valeur": 0.80, "mix": "gaz, éolien offshore"},
+    "ES": {"nom": "Espagne", "valeur": 1.00,
+           "mix": "solaire, éolien, gaz, nucléaire"},
+    "IT": {"nom": "Italie", "valeur": 1.05, "mix": "gaz, hydraulique, solaire"},
+    "PL": {"nom": "Pologne", "valeur": 1.60, "mix": "charbon majoritaire"},
+    "DK": {"nom": "Danemark", "valeur": 0.35, "mix": "éolien majoritaire"},
+    # Ni un pays ni un choix par défaut anodin : une MOYENNE. Le nommer
+    # « Union européenne » tout court laisserait croire à une implantation
+    # européenne précise, alors que c'est le repli quand le pays n'est pas
+    # arrêté — et le calcul le dit ensuite dans ses avertissements.
+    "UE": {"nom": "Union européenne — moyenne, à défaut de pays arrêté",
+           "valeur": 1.00,
+           "mix": "moyenne européenne, à défaut de pays renseigné"},
 }
+def nom_pays(code):
+    """Le nom en clair d'un code pays, et le code lui-même s'il est inconnu.
+
+    Rendre le code brut vaut mieux que rendre vide : un lecteur peut encore
+    reconnaître « PL », il ne peut rien faire d'une phrase amputée."""
+    return (EWIF_PAYS.get(code) or {}).get("nom") or (code or "—")
+
+
 EWIF_SOURCE = ("Ordres de grandeur convergents de la littérature sur l'intensité "
                "en eau de la production électrique (consommation, hors prélèvement "
                "restitué). À REMPLACER par la valeur du fournisseur ou de "
@@ -499,7 +522,10 @@ def carbone(profil, res_energie):
     origine_i = "valeur fournie (contrat d'électricité ou donnée du gestionnaire)"
     if intensite is None:
         intensite = INTENSITE_RESEAU.get(pays, INTENSITE_RESEAU["UE"])
-        origine_i = f"moyenne annuelle du mix {pays}"
+        # Le NOM du pays, pas son code : cette phrase se lit dans la note de
+        # calcul et dans les livrables exportés, où « moyenne annuelle du mix
+        # PL » oblige le lecteur à traduire — et invite à se tromper.
+        origine_i = "moyenne annuelle du mix %s" % nom_pays(pays)
     intensite = float(intensite)
 
     # Part d'énergie sans carbone contractualisée (REF). Elle réduit le Scope 2
@@ -921,8 +947,16 @@ CHAMPS = [
      "type": "nombre", "defaut": 0.65,
      "aide": "Charge réelle moyenne rapportée à la puissance installée. "
              "Sous 0,55, la pénalité de charge partielle devient le premier poste de perte."},
+    # Trié sur le NOM affiché, pas sur le code : trier « Allemagne, Danemark,
+    # Espagne… » par « DE, DK, ES… » donne un ordre qui n'est alphabétique pour
+    # personne. La moyenne européenne ferme la liste — c'est un repli, pas un
+    # pays, et le placer entre deux pays le ferait choisir par erreur.
     {"id": "pays", "label": "Pays d'implantation", "type": "liste",
-     "options": sorted(EWIF_PAYS.keys())},
+     "options": sorted((k for k in EWIF_PAYS if k != "UE"),
+                       key=lambda k: EWIF_PAYS[k]["nom"]) + ["UE"],
+     "aide": "Il commande le facteur eau de la production électrique et "
+             "l'intensité carbone du réseau — deux grandeurs qui varient d'un "
+             "facteur cinq d'un pays à l'autre."},
     {"id": "refroidissement", "label": "Famille de refroidissement", "type": "liste",
      "options": list(REFROIDISSEMENT.keys())},
     {"id": "classe_ashrae", "label": "Classe ASHRAE admise", "type": "liste",
@@ -945,3 +979,33 @@ CHAMPS = [
     {"id": "prix_electricite_eur_mwh", "label": "Prix de l'électricité",
      "unite": "€/MWh", "type": "nombre", "defaut": 110},
 ]
+
+
+# ── Le LIBELLÉ des options, servi avec le champ ────────────────────────────
+# Les pages construisaient le nom elles-mêmes, avec un cas particulier écrit
+# deux fois : « si le champ est le refroidissement, aller chercher le nom dans
+# telle table ». Un troisième champ à nommer aurait fait une troisième copie,
+# et le pays affichait donc son code ISO faute d'avoir la sienne.
+#
+# Le champ porte désormais ses libellés. La page ne sait plus dans quelle table
+# regarder — elle n'a plus à le savoir.
+_LIBELLES_OPTIONS = {
+    "refroidissement": lambda k: (REFROIDISSEMENT.get(k) or {}).get("nom"),
+    "pays": lambda k: (EWIF_PAYS.get(k) or {}).get("nom"),
+    # La classe ASHRAE garde son code — c'est ainsi qu'elle se nomme dans les
+    # documents — mais gagne sa plage : « A2 » seul n'apprend rien, « A2 —
+    # 10 à 35 °C » situe immédiatement ce qu'elle autorise en free cooling.
+    "classe_ashrae": lambda k: (
+        "%s — %d à %d °C" % (k, (CLASSES_ASHRAE[k]["plage_c"][0]),
+                             (CLASSES_ASHRAE[k]["plage_c"][1]))
+        if (CLASSES_ASHRAE.get(k) or {}).get("plage_c") else None),
+}
+
+for _c in CHAMPS:
+    _f = _LIBELLES_OPTIONS.get(_c["id"])
+    if _f and _c.get("options"):
+        # Le code reste la CLÉ envoyée au moteur ; seul l'affichage change. Un
+        # libellé transmis à la place d'un code ferait échouer la recherche au
+        # référentiel, silencieusement, sur la valeur par défaut.
+        _c["options_nom"] = {k: (_f(k) or k) for k in _c["options"]}
+del _c, _f
