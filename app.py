@@ -87,7 +87,19 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # si le numéro affiché est plus ancien que la version attendue, le déploiement n'a
 # pas abouti — et aucun correctif récent n'est en ligne. À incrémenter à chaque
 # correctif dont on veut pouvoir confirmer la mise en ligne.
-APP_VERSION = "2026.07.29-08"
+APP_VERSION = "2026.08.06-01"
+
+# LE COMMIT RÉELLEMENT EN LIGNE. Un numéro de version tenu à la main répond mal
+# à la seule question qui se pose après un déploiement — « la correction est-
+# elle en ligne ? » — parce qu'on oublie de l'incrémenter, et parce qu'il ne
+# dit pas LAQUELLE des corrections est passée. L'hébergeur, lui, injecte le
+# commit déployé dans l'environnement : c'est une réponse qui ne peut pas
+# mentir. Sans elle, on devine en observant le comportement, et on confond une
+# correction absente avec une correction inopérante — deux causes qui
+# n'appellent pas du tout le même geste.
+_COMMIT = (os.environ.get("RENDER_GIT_COMMIT")
+           or os.environ.get("GIT_COMMIT") or "")[:12]
+_BRANCHE = os.environ.get("RENDER_GIT_BRANCH") or ""
 
 # Horodatage de démarrage du processus (voir /health : « demarre_depuis_s »).
 _DEMARRAGE = time.time()
@@ -6262,6 +6274,10 @@ def health():
     # à chaque consultation, l'instance redémarre — et tout ce qui vit en mémoire
     # (caches, session de secours) est perdu à chaque fois.
     etat = {"status": "ok", "service": "conseilprevcyber", "version": APP_VERSION,
+            # Le commit déployé, quand l'hébergeur le fournit. C'est ce qui
+            # permet de répondre « oui » ou « non » à « le correctif est-il en
+            # ligne ? » sans avoir à l'éprouver au comportement.
+            "commit": _COMMIT or None, "branche": _BRANCHE or None,
             "demarre_depuis_s": int(time.time() - _DEMARRAGE)}
     try:
         caps = rag.capabilities()
