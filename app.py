@@ -3438,8 +3438,17 @@ def api_rag_visibility_lot():
                        message="Indiquez au moins un thème. Aucun thème ne "
                                "signifie « aucun document », jamais « tous »."), 400
     import rag_store as _rs
-    connus = [t for t in demandes if t in _rs.THEMES]
-    inconnus = [t for t in demandes if t not in _rs.THEMES]
+    # Un thème est recevable s'il est au vocabulaire OU s'il porte réellement
+    # des documents. La saisie libre est permise au chargement : un thème créé
+    # à la main est absent du vocabulaire et parfaitement réel, et le refuser
+    # laisserait ses documents en arrière d'une bascule qui paraîtrait faite.
+    # Le contrôle sert à rattraper les fautes de frappe, pas à écarter le réel.
+    try:
+        en_base = set(rag.stats().get("themes") or {})
+    except Exception:
+        en_base = set()
+    connus = [t for t in demandes if t in _rs.THEMES or t in en_base]
+    inconnus = [t for t in demandes if not (t in _rs.THEMES or t in en_base)]
     if not connus:
         return jsonify(ok=False, error="theme_inconnu", inconnus=inconnus,
                        message="Aucun thème reconnu : %s."

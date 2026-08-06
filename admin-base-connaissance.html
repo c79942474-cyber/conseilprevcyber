@@ -571,16 +571,48 @@
         +'<td class="sub">'+fmt(d.created_at)+'</td>'
         +'<td><div class="act">'+docActs(d)+'</div></td></tr>';
     }
+    /* ── L'ARBORESCENCE DES THÈMES ───────────────────────────────────────────
+       Le vocabulaire est hiérarchique : « Data center » a vingt-quatre
+       sous-dossiers, « Data center / Thermique & refroidissement » et les
+       autres. Le compte affiché ne portait que sur le thème EXACT : « Data
+       center (3) » à côté de cent quarante documents rangés juste en dessous.
+       On croyait le dossier vide.
+
+       Deux choses vont ensemble, et l'une sans l'autre serait pire que rien :
+       le compte inclut les sous-dossiers, ET le filtre les affiche. Annoncer
+       cent quarante-deux puis n'en montrer trois serait une promesse rompue à
+       chaque clic. */
+    function sousArbre(t){
+      if(!t) return [];
+      var p=t+' / ';
+      var vus={}; vus[t]=1;
+      (vocabThemes||[]).forEach(function(x){ if(x.indexOf(p)===0) vus[x]=1; });
+      allDocs.forEach(function(d){
+        if(d.theme&&d.theme.indexOf(p)===0) vus[d.theme]=1;
+      });
+      return Object.keys(vus);
+    }
+
+    /* Le compte cumulé d'un thème : lui-même plus ses sous-dossiers. `themes`
+       est le décompte servi par le serveur — un thème absent vaut zéro. */
+    function compteArbre(t,themes){
+      return sousArbre(t).reduce(function(n,x){return n+((themes||{})[x]||0);},0);
+    }
+
     function render(){
       // Table principale : TOUT SAUF Engineering (qui a sa liste autonome).
       // Les deux listes désignent un seul et même thème : celle qui vient d'être
       // utilisée l'emporte, l'autre est remise à vide (voir les écouteurs).
       var f=document.getElementById('filterTheme').value
             ||((document.getElementById('filterEnt')||{}).value||'');
+      var arbre=f?sousArbre(f):null;
       var q=(document.getElementById('filterSearch').value||'').trim().toLowerCase();
       var base=allDocs.filter(function(d){return !isEng(d);});
       var docs=base.filter(function(d){
-        if(f && d.theme!==f) return false;
+        // Le thème choisi ET ses sous-dossiers : c'est ce que le compte du
+        // sélecteur annonce, et il ne doit pas annoncer plus que ce qu'il
+        // montre.
+        if(arbre && arbre.indexOf(d.theme)<0) return false;
         if(q){
           var hay=((d.title||'')+' '+(d.filename||'')+' '+(d.theme||'')).toLowerCase();
           if(hay.indexOf(q)<0) return false;
@@ -610,9 +642,12 @@
     function renderEng(){
       var body=document.getElementById('rowsEng'); if(!body) return;
       var sf=document.getElementById('filterEng'); var fv=sf?sf.value:'';
+      var arbreEng=fv?sousArbre(fv):null;
       var q=(document.getElementById('filterEngSearch')||{}).value||''; q=q.trim().toLowerCase();
       var docs=allDocs.filter(isEng).filter(function(d){
-        if(fv && d.theme!==fv) return false;
+        // Même règle que la liste principale : un sous-dossier choisi montre
+        // aussi ce qu'il contient plus bas.
+        if(arbreEng && arbreEng.indexOf(d.theme)<0) return false;
         if(q){ var hay=((d.title||'')+' '+(d.filename||'')+' '+(d.theme||'')).toLowerCase(); if(hay.indexOf(q)<0) return false; }
         return true;
       });
@@ -643,8 +678,17 @@
       var esel2=document.getElementById('filterEnt'), curE=esel2?esel2.value:'';
       var fam=(vocabFamilles&&vocabFamilles.groupes)?vocabFamilles.groupes:null;
       var nomEnt=(vocabFamilles&&vocabFamilles.entreprises)||'Entreprises & références';
-      var opt=function(t,c){ return '<option value="'+esc(t)+'"'+(t===c?' selected':'')+'>'
-                                    +esc(t)+' ('+(themes[t]||0)+')</option>'; };
+      /* Le compte PROPRE et le compte CUMULÉ. « Data center (3) » à côté de
+         cent quarante documents rangés dans ses sous-dossiers laissait croire
+         à un dossier vide. Les deux nombres sont montrés dès qu'ils diffèrent :
+         le premier dit ce qui est rangé à la racine, le second ce que le filtre
+         affichera. N'en montrer qu'un seul rendrait l'autre inexplicable. */
+      var opt=function(t,c){
+        var propre=themes[t]||0, tout=compteArbre(t,themes);
+        var n=(tout>propre)?(propre+' · '+tout+' avec sous-dossiers'):String(propre);
+        return '<option value="'+esc(t)+'"'+(t===c?' selected':'')+'>'
+               +esc(t)+' ('+n+')</option>';
+      };
       var entreprises=[], dom='';
       if(fam){
         var vus={};
@@ -653,7 +697,12 @@
           if(g.nom===nomEnt){ entreprises=g.themes.slice(); return; }
           // Engineering : écarté, il a sa propre liste juste en dessous.
           if(g.nom===((vocabFamilles&&vocabFamilles.engineering)||'Engineering')) return;
-          dom+='<optgroup label="'+esc(g.nom)+'">'
+          // La famille porte son total, sous-dossiers compris : c'est le
+          // premier repère qu'on cherche en ouvrant la liste — « combien la
+          // base contient-elle sur les centres de données ? ».
+          var nf=g.themes.reduce(function(n,t){return n+(themes[t]||0);},0);
+          dom+='<optgroup label="'+esc(g.nom)+' — '+nf+' document'
+              +(nf>1?'s':'')+'">'
               +g.themes.map(function(t){return opt(t,cur);}).join('')+'</optgroup>';
         });
         // Thèmes présents en base mais hors vocabulaire (saisie libre) : sans eux,
@@ -688,7 +737,10 @@
         });
         esel.innerHTML='<option value="">Tous les sous-dossiers</option>'+eng.map(function(t){
           var lbl=t==='Engineering'?'Engineering (racine)':t.split(' / ').slice(1).join(' / ');
-          var n=(themes||{})[t]||0;
+          // Même règle que les domaines : la racine porte son cumul, sans quoi
+          // « Engineering (racine) (0) » ferait croire l'arbre vide.
+          var propre=(themes||{})[t]||0, tout=compteArbre(t,themes);
+          var n=(tout>propre)?(propre+' · '+tout+' avec sous-dossiers'):String(propre);
           return '<option value="'+esc(t)+'"'+(t===ecur?' selected':'')+'>'+esc(lbl)+' ('+n+')</option>';
         }).join('');
       }
@@ -1438,11 +1490,20 @@
       var t=themeChoisi();
       var q=document.getElementById('visQuoi');
       if(!q) return;
-      q.innerHTML=t?('Thème <b>'+esc(t)+'</b> — la bascule agit sur TOUS ses '
-                     +'documents, y compris ceux que le filtre de recherche masque.')
-                  :'<b>Choisissez d’abord un domaine ou une entreprise.</b> '
+      if(!t){
+        q.innerHTML='<b>Choisissez d’abord un domaine ou une entreprise.</b> '
                    +'La bascule agit sur un thème entier ; sans thème, elle ne '
                    +'porte sur rien — jamais sur toute la base.';
+        return;
+      }
+      // Le nombre de SOUS-DOSSIERS emportés, dit avant le geste. La liste
+      // affiche déjà l'arborescence entière ; basculer la seule racine
+      // laisserait derrière tout ce que le lecteur voit à l'écran.
+      var n=sousArbre(t).length;
+      q.innerHTML='Thème <b>'+esc(t)+'</b>'
+        +(n>1?(' et ses '+(n-1)+' sous-dossiers'):'')
+        +' — la bascule agit sur TOUS ces documents, y compris ceux que le '
+        +'filtre de recherche masque.';
     }
 
     function basculerVisibilite(btn, v){
@@ -1451,7 +1512,12 @@
                    +'agit sur un thème entier, jamais sur toute la base.','err');
               return; }
       var old=btn.textContent; btn.disabled=true; btn.textContent='Décompte…';
-      var corps=function(essai){return JSON.stringify({themes:[t],visibility:v,essai:essai});};
+      // L'arbre entier, pas la seule racine : c'est ce que la liste affiche et
+      // ce que le compte du sélecteur annonce. Basculer moins que ce qu'on
+      // montre serait le défaut le plus difficile à voir — tout paraîtrait
+      // fait, et la moitié ne le serait pas.
+      var lot=sousArbre(t);
+      var corps=function(essai){return JSON.stringify({themes:lot,visibility:v,essai:essai});};
       apiFetch('/api/admin/rag/visibility-lot',{method:'POST',
         headers:{'content-type':'application/json'},body:corps(true)})
         .then(readJson).then(function(j){
