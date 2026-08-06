@@ -370,6 +370,12 @@
             <select id="filterEnt" aria-label="Filtrer par entreprise ou référence"><option value="">Toutes les entreprises</option></select>
             <span class="fcount" id="fcount"></span>
             <button class="btn btn-s" id="moveGen" type="button" title="Ranger les documents ACTUELLEMENT AFFICHÉS sous un autre thème (seul le classement change : aucune réindexation)">↦ Déplacer</button>
+            <!-- Bascule en lot. Un compte SANS droit d'administration ne cherche
+                 que dans les documents publics : une base majoritairement
+                 interne fait tomber les livrables des clients en « moteur
+                 seul » — exacts, mais sans une seule citation. Ouvrir document
+                 par document n'est pas tenable à quatre cent cinquante-neuf. -->
+            <button class="btn btn-s" id="visLot" type="button" title="Rendre publics ou internes TOUS les documents du thème sélectionné. Un compte sans droit d'administration ne cherche que dans les documents publics.">👁 Visibilité du thème</button>
             <button class="btn btn-s" id="dedupe" type="button" title="Supprimer les documents en double (contenu identique), en conservant un exemplaire de chacun">🧹 Doublons</button>
             <button class="btn btn-s" id="backup" type="button" title="Télécharger une sauvegarde complète de la base de connaissance (à conserver hors ligne)">💾 Sauvegarder</button>
             <button class="btn btn-s" id="restore" type="button" title="Restaurer des documents depuis un fichier de sauvegarde (sans doublon)">⤴ Restaurer</button>
@@ -390,6 +396,17 @@
           <select id="moveTargetEntGen" aria-label="Entreprise de destination" style="width:auto;padding:7px 11px;font-size:12.5px"></select>
           <button class="btn btn-s" id="moveGoGen" type="button">↦ Déplacer</button>
           <button class="btn btn-s" id="moveCancelGen" type="button">Annuler</button>
+        </div>
+        <!-- Barre de visibilité : elle agit sur UN THÈME ENTIER, pas sur les
+             documents affichés. La distinction est volontaire — une recherche
+             textuelle par-dessus le filtre rendrait l'action plus large que ce
+             qu'on voit, et c'est exactement ce qu'on ne veut pas d'un geste en
+             lot. Le thème est donc nommé, et le compte réel annoncé avant. -->
+        <div id="visBar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 14px;border:1px solid var(--cyan);border-radius:10px;background:rgba(34,211,238,.09)">
+          <span id="visQuoi" style="font-size:12.5px"></span>
+          <button class="btn btn-s" id="visPublic" type="button" title="Les documents de ce thème deviennent citables par tout compte connecté, y compris les clients">👁 Rendre publics</button>
+          <button class="btn btn-s" id="visInterne" type="button" title="Les documents de ce thème ne seront plus atteints que par un administrateur">🔒 Rendre internes</button>
+          <button class="btn btn-s" id="visCancel" type="button">Annuler</button>
         </div>
         <div class="tblwrap">
           <table>
@@ -1386,6 +1403,115 @@
     installerDeplacement({btn:'moveGen',bar:'moveBarGen',cible:'moveTargetGen',
       cibleEnt:'moveTargetEntGen',go:'moveGoGen',annuler:'moveCancelGen',
       docs:function(){return genVisibles;},remplir:ciblesGenerales});
+
+    /* ── VISIBILITÉ EN LOT, PAR THÈME ────────────────────────────────────────
+       Pourquoi ce bouton existe : la recherche d'un compte SANS droit
+       d'administration est bornée aux documents publics. Une base
+       majoritairement interne fait donc tomber les livrables des clients en
+       « moteur seul » — exacts, mais sans une seule citation. À quatre cent
+       cinquante-neuf documents, ouvrir un par un n'est pas une méthode.
+
+       Trois précautions, et la première est celle qui compte :
+
+         · ESSAI D'ABORD. Le serveur compte sans rien changer, et le compte
+           annoncé est celui des documents RÉELLEMENT concernés — ceux qui
+           portent déjà la visibilité demandée sont exclus. « 187 vont devenir
+           publics » se confirme ; « 459 modifiés » quand 3 l'ont été ferait
+           douter de tout le reste.
+
+         · UN THÈME NOMMÉ, JAMAIS « CE QUI EST AFFICHÉ ». Une recherche
+           textuelle par-dessus le filtre rendrait l'action plus large que ce
+           qu'on voit. Le thème vient des sélecteurs, et sans thème il n'y a
+           pas d'action — une liste vide ne veut pas dire « tous ».
+
+         · LE SENS EST DIT EN TOUTES LETTRES dans la confirmation. « Public »
+           n'est pas un réglage de rangement : c'est l'autorisation donnée à
+           tout compte connecté de faire citer ces documents dans un livrable
+           qui sortira du site. */
+    function themeChoisi(){
+      var d=document.getElementById('filterTheme');
+      var e=document.getElementById('filterEnt');
+      return (d&&d.value)||(e&&e.value)||'';
+    }
+
+    function visBarreMaj(){
+      var t=themeChoisi();
+      var q=document.getElementById('visQuoi');
+      if(!q) return;
+      q.innerHTML=t?('Thème <b>'+esc(t)+'</b> — la bascule agit sur TOUS ses '
+                     +'documents, y compris ceux que le filtre de recherche masque.')
+                  :'<b>Choisissez d’abord un domaine ou une entreprise.</b> '
+                   +'La bascule agit sur un thème entier ; sans thème, elle ne '
+                   +'porte sur rien — jamais sur toute la base.';
+    }
+
+    function basculerVisibilite(btn, v){
+      var t=themeChoisi();
+      if(!t){ note('Choisissez d’abord un domaine ou une entreprise : la bascule '
+                   +'agit sur un thème entier, jamais sur toute la base.','err');
+              return; }
+      var old=btn.textContent; btn.disabled=true; btn.textContent='Décompte…';
+      var corps=function(essai){return JSON.stringify({themes:[t],visibility:v,essai:essai});};
+      apiFetch('/api/admin/rag/visibility-lot',{method:'POST',
+        headers:{'content-type':'application/json'},body:corps(true)})
+        .then(readJson).then(function(j){
+          btn.disabled=false; btn.textContent=old;
+          if(!j||!j.ok){note((j&&j.message)||'Décompte impossible.','err');return;}
+          if(!j.modifies){
+            note('Rien à changer : les documents du thème « '+t+' » sont déjà '
+                 +(v==='public'?'publics':'internes')+'.','ok');
+            return;
+          }
+          var msg=j.modifies+' document(s) du thème « '+t+' » vont devenir '
+            +(v==='public'?'PUBLICS':'INTERNES')+'.\n\n'
+            +(v==='public'
+              ? 'Public signifie : tout compte connecté — vos clients compris — '
+                +'pourra les faire citer, extraits reproduits mot pour mot, dans '
+                +'un livrable qui sort du site (Word, PDF, archive de projet).'
+              : 'Interne signifie : seul un administrateur les atteindra. Les '
+                +'livrables de vos clients cesseront de les citer.')
+            +'\n\nConfirmer ?';
+          if(!confirm(msg))return;
+          btn.disabled=true; btn.textContent='Bascule…';
+          apiFetch('/api/admin/rag/visibility-lot',{method:'POST',
+            headers:{'content-type':'application/json'},body:corps(false)})
+            .then(readJson).then(function(k){
+              btn.disabled=false; btn.textContent=old;
+              if(!k||!k.ok){note((k&&k.message)||'Bascule impossible.','err');return;}
+              note(k.modifies+' document(s) du thème « '+t+' » sont désormais '
+                   +(v==='public'?'publics':'internes')+'.','ok');
+              load();
+            }).catch(function(){btn.disabled=false;btn.textContent=old;
+                                note('Bascule impossible.','err');});
+        }).catch(function(){btn.disabled=false;btn.textContent=old;
+                            note('Décompte impossible.','err');});
+    }
+
+    (function brancherVisibilite(){
+      var b=document.getElementById('visLot'), bar=document.getElementById('visBar');
+      if(!b||!bar) return;
+      b.addEventListener('click',function(){
+        var ouvert=bar.style.display!=='none';
+        bar.style.display=ouvert?'none':'flex';
+        if(!ouvert) visBarreMaj();
+      });
+      document.getElementById('visCancel').addEventListener('click',function(){
+        bar.style.display='none';
+      });
+      document.getElementById('visPublic').addEventListener('click',function(){
+        basculerVisibilite(this,'public');
+      });
+      document.getElementById('visInterne').addEventListener('click',function(){
+        basculerVisibilite(this,'internal');
+      });
+      /* Le thème peut changer pendant que la barre est ouverte : elle doit
+         nommer celui du moment, sinon on bascule un thème en croyant en
+         basculer un autre. */
+      ['filterTheme','filterEnt'].forEach(function(id){
+        var s=document.getElementById(id);
+        if(s) s.addEventListener('change',visBarreMaj);
+      });
+    })();
 
     // Câblage des deux barres sur ces mêmes fonctions.
     [['dedupe',''],['dedupeEng','engineering']].forEach(function(x){

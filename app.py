@@ -3399,6 +3399,69 @@ def api_rag_visibility(doc_id):
     return jsonify(ok=True, visibility=v)
 
 
+@app.route("/api/admin/rag/visibility-lot", methods=["POST"])
+@admin_required
+def api_rag_visibility_lot():
+    """Bascule la visibilité de TOUS les documents d'un ou plusieurs thèmes.
+
+    À quoi cela sert : la recherche d'un compte ordinaire est bornée aux
+    documents PUBLICS. Une base majoritairement interne fait donc tomber les
+    livrables des clients en « moteur seul » — exacts, mais sans une seule
+    citation. Ouvrir thème par thème, document par document, n'est pas tenable
+    à quatre cent cinquante-neuf.
+
+    TROIS PRÉCAUTIONS, et la première est celle qui compte :
+
+      · ESSAI D'ABORD. `essai: true` compte sans rien changer, pour que
+        l'interface annonce « 187 documents vont devenir publics » AVANT le
+        geste. Un basculement en lot dont on découvre la portée après coup ne
+        se défait pas d'un clic : il faut rouvrir chaque document.
+
+      · AUCUN THÈME IMPLICITE. Une liste vide ne veut pas dire « tous » ; elle
+        est refusée. Rendre publics quatre cent cinquante-neuf documents par
+        l'oubli d'un paramètre est exactement l'accident à empêcher.
+
+      · LES THÈMES SONT VÉRIFIÉS contre le référentiel. Un thème inventé ne
+        toucherait rien, mais la réponse dirait « 0 modifié » — indiscernable
+        d'un thème réellement vide. On nomme donc ce qui n'a pas été reconnu.
+    """
+    data = request.get_json(silent=True) or {}
+    v = (data.get("visibility") or "").strip().lower()
+    if v not in ("public", "internal"):
+        return jsonify(ok=False, error="visibilite_invalide"), 400
+    demandes = data.get("themes")
+    if isinstance(demandes, str):
+        demandes = [demandes]
+    demandes = [str(t).strip() for t in (demandes or []) if str(t).strip()][:60]
+    if not demandes:
+        return jsonify(ok=False, error="theme_absent",
+                       message="Indiquez au moins un thème. Aucun thème ne "
+                               "signifie « aucun document », jamais « tous »."), 400
+    import rag_store as _rs
+    connus = [t for t in demandes if t in _rs.THEMES]
+    inconnus = [t for t in demandes if t not in _rs.THEMES]
+    if not connus:
+        return jsonify(ok=False, error="theme_inconnu", inconnus=inconnus,
+                       message="Aucun thème reconnu : %s."
+                               % ", ".join(inconnus[:6])), 400
+    essai = bool(data.get("essai"))
+    try:
+        n = rag.visibilite_par_themes(connus, v, essai=essai)
+    except RagError as exc:
+        return jsonify(ok=False, error=exc.code,
+                       detail=getattr(exc, "detail", "")), exc.status
+    except Exception as exc:
+        app.logger.exception("visibilité en lot : échec")
+        return jsonify(ok=False, error="visibilite_echec",
+                       detail=_exc_detail(exc)), 500
+    if not essai:
+        audit.journaliser("document.visibilite.lot",
+                          cible=", ".join(connus)[:120],
+                          detail="%s · %d document(s)" % (v, n))
+    return jsonify(ok=True, visibility=v, themes=connus, inconnus=inconnus,
+                   essai=essai, modifies=n)
+
+
 @app.route("/api/admin/rag/reconnect", methods=["POST"])
 @admin_required
 def api_rag_reconnect():
@@ -5282,7 +5345,15 @@ def api_redaction_etat():
         "modele_disponible": bool(prets),
         "mode": mode,
         "mode_nom": m["nom"],
-        "mode_aide": m["aide"],
+        # Le mode annoncé ici est une PRÉVISION, faite sur ce que la base
+        # contient. Celui du document est un CONSTAT, fait sur ce que la
+        # recherche a réellement ramené pour SON sujet : une base peuplée qui
+        # ne répond pas sur une pièce donnée fait retomber ce document-là sur
+        # le moteur seul. Le dire ici évite que l'écart passe pour une panne.
+        "mode_aide": m["aide"] + (
+            " Sur une pièce dont le sujet ne trouve rien dans la base, ce "
+            "document-là retombera sur le moteur seul, et le dira."
+            if docs else ""),
         "documents_base": docs,
         # Le total, à côté de l'accessible : sans lui, un client verrait « 45
         # documents » sans savoir qu'il en existe quatre cents autres, et ne

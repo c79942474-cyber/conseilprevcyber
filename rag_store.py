@@ -770,6 +770,34 @@ class MemoryRagStore:
             self._save()
         return True
 
+    def visibilite_par_themes(self, themes, visibility, essai=False):
+        """Bascule la visibilité de TOUS les documents de ces thèmes.
+
+        `essai=True` ne modifie rien et rend seulement le compte : c'est ce qui
+        permet à l'interface d'annoncer « 187 documents vont devenir publics »
+        AVANT de le faire. Un geste en lot dont on découvre l'ampleur après
+        coup n'est pas révocable d'un clic — il faut rouvrir chaque document.
+
+        Rend le nombre de documents RÉELLEMENT concernés : ceux qui portent
+        déjà la visibilité demandée ne comptent pas. Annoncer « 459 modifiés »
+        quand 3 l'ont été ferait douter de tout le reste.
+        """
+        cible = "public" if visibility == "public" else "internal"
+        vus = set(themes or ())
+        if not vus:
+            return 0
+        with self._lock:
+            concernes = [d for d in self._docs.values()
+                         if d.get("theme") in vus and d.get("visibility") != cible]
+            if essai:
+                return len(concernes)
+            for d in concernes:
+                d["visibility"] = cible
+                d["updated_at"] = _now_ms()
+            if concernes:
+                self._save()
+        return len(concernes)
+
     def set_theme(self, doc_id, theme):
         """Reclasse un document (change son thème / sous-dossier)."""
         with self._lock:
@@ -1360,6 +1388,35 @@ class PostgresRagStore:
         if not n:
             raise RagError("document_inconnu", 404)
         return True
+
+    def visibilite_par_themes(self, themes, visibility, essai=False):
+        """Bascule la visibilité de TOUS les documents de ces thèmes.
+
+        `essai=True` compte sans rien modifier : l'interface peut annoncer
+        l'ampleur AVANT le geste. Un basculement en lot dont on découvre la
+        portée après coup ne se défait pas d'un clic.
+
+        Rend le nombre de documents RÉELLEMENT changés — ceux qui portaient
+        déjà la visibilité demandée sont exclus des deux comptes.
+        """
+        cible = "public" if visibility == "public" else "internal"
+        vus = [t for t in (themes or ()) if t]
+        if not vus:
+            return 0
+        with self._conn() as conn:
+            if essai:
+                return conn.execute(
+                    "SELECT count(*) FROM rag_documents "
+                    "WHERE theme = ANY(%s) AND visibility <> %s",
+                    (vus, cible)).fetchone()[0]
+            # Une seule requête : quatre cent cinquante-neuf allers-retours
+            # tiendraient la connexion ouverte assez longtemps pour qu'une base
+            # « serverless » la coupe au milieu, et le lot serait à moitié fait
+            # sans qu'on sache où il s'est arrêté.
+            return conn.execute(
+                "UPDATE rag_documents SET visibility=%s,updated_at=%s "
+                "WHERE theme = ANY(%s) AND visibility <> %s",
+                (cible, _now_ms(), vus, cible)).rowcount
 
     def set_theme(self, doc_id, theme):
         """Reclasse un document. Seul le classement change : le texte, les
@@ -2215,6 +2272,10 @@ class ResilientRagStore:
     def set_visibility(self, *args, **kwargs):
         """Bascule de visibilité, tolérante aux pannes (voir _write)."""
         return self._write("set_visibility", *args, **kwargs)
+
+    def visibilite_par_themes(self, *args, **kwargs):
+        """Bascule en lot, tolérante aux pannes (voir _write)."""
+        return self._write("visibilite_par_themes", *args, **kwargs)
 
     def set_setting(self, *args, **kwargs):
         """Enregistrement d'un réglage, tolérant aux pannes (voir _write)."""
