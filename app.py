@@ -4317,7 +4317,7 @@ def _extraits_pour(query, doc_ids=None, public_only=False):
 
 
 def _trame_sans_modele(type_id, data, extra_query, label, dispo,
-                       public_only=False):
+                       public_only=False, echec=None):
     """La pièce assemblée quand aucun modèle n'est disponible.
 
     Le document reste EXACT — plan du registre, chiffres du moteur, manques
@@ -4340,11 +4340,21 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo,
                                elargir=_extraits_pour(query, None, public_only))
     mode = ingenierie_dc.mode_redaction(False, hits)
     m = ingenierie_dc.MODES_REDACTION[mode]
+    # La cause, portée JUSQUE DANS le document. Une trame reçue alors qu'un
+    # modèle est configuré ressemble sinon à une panne du site : on relance, on
+    # obtient la même chose, et on ne sait toujours pas s'il faut changer de
+    # modèle ou attendre.
+    note = None
+    if echec:
+        note = ("**Le modèle « %s » n'a pas répondu** (%s). %s Le document a "
+                "donc été assemblé sans lui, à partir du moteur et de la base."
+                % (echec.get("modele") or "?", echec.get("error") or "cause "
+                   "non qualifiée", (echec.get("message") or "").strip()))
     texte = None
     try:
         # D'abord la pièce de phase — plan du registre, grandeurs, manques
         # calculés. Elle n'existe que si la demande en porte une.
-        texte = ingenierie_dc.trame_piece(profil, phase, code, hits, data)
+        texte = ingenierie_dc.trame_piece(profil, phase, code, hits, data, note)
     except Exception:
         app.logger.exception("trame sans modèle : pièce")
     if not texte:
@@ -4353,7 +4363,7 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo,
         # simplement dès qu'aucune clé n'était configurée — alors que le plan
         # existait, que la base répondait et que la note de calcul était là.
         try:
-            texte = livrables.trame(type_id, data, hits, m["nom"], m["aide"])
+            texte = livrables.trame(type_id, data, hits, m["nom"], m["aide"], note)
         except Exception:
             app.logger.exception("trame sans modèle : livrable")
     if not texte:
@@ -4392,7 +4402,11 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo,
             "perimetre": data.get("perimetre"),
             # Le « modèle » enregistré nomme le mode : relu six mois plus tard,
             # un document doit dire par quoi il a été produit.
-            "model": "trame-" + mode,
+            # Relu six mois plus tard, un document doit dire par quoi il a été
+            # produit — et, s'il y a lieu, que le modèle avait échoué.
+            "model": ("trame-%s-apres-echec-%s"
+                      % (mode, echec.get("error") or "?"))[:60]
+                     if echec else "trame-" + mode,
             "markdown": texte, "sources": sources,
             "projet_id": projet_id, "phase": phase,
             "filiere": (data.get("filiere") or ""),
@@ -4405,8 +4419,10 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo,
     except Exception:
         saved_id = None
     audit.journaliser("datacenter.trame", cible="%s/%s" % (phase, code),
-                      detail=mode)
+                      detail=mode + (" · après échec %s" % echec.get("error")
+                                     if echec else ""))
     return jsonify(ok=True, document=texte, model="trame-" + mode,
+                   echec_modele=echec,
                    mode=mode, mode_nom=ingenierie_dc.MODES_REDACTION[mode]["nom"],
                    mode_aide=ingenierie_dc.MODES_REDACTION[mode]["aide"],
                    sans_modele=True, sources=sources, id=saved_id,
@@ -4441,12 +4457,25 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None,
     if not dispo.get(model):
         autre = "mistral" if model == "claude" else "claude"
         if dispo.get(autre):
+            # ON NE BASCULE PAS D'OFFICE — une bascule silencieuse masquerait
+            # QUI a écrit, et c'est une information qu'on ne retrouve plus
+            # après coup. Mais ne pas basculer n'oblige pas à rendre la main
+            # vide : le plan, les grandeurs et les extraits ne dépendent pas du
+            # modèle. On assemble donc, en disant les deux choses — le modèle
+            # demandé n'est pas là, l'autre l'est et reste à un clic.
+            msg = ("Le modèle « %s » n'est pas configuré sur ce serveur. "
+                   "Le modèle « %s » l'est : choisissez-le pour faire rédiger "
+                   "cette pièce." % (model, autre))
+            r = _trame_sans_modele(
+                type_id, data, extra_query, label, dispo, public_only,
+                {"error": "modele_indisponible", "modele": model,
+                 "message": msg})
+            if not (isinstance(r, tuple)
+                    or (hasattr(r, "status_code") and r.status_code != 200)):
+                return r
             return jsonify(
                 ok=False, error="modele_indisponible", modele=model,
-                modeles_disponibles=dispo,
-                message=("Le modèle « %s » n'est pas configuré sur ce serveur. "
-                         "Le modèle « %s » l'est : choisissez-le pour rédiger "
-                         "cette pièce." % (model, autre)),
+                modeles_disponibles=dispo, message=msg,
                 repli=_ASSISTANT_REPLI), 503
         # Aucun modèle : on ne rend PAS la main vide. Le plan de la pièce est
         # au registre, les grandeurs viennent du moteur, les extraits de la
@@ -4506,15 +4535,35 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None,
     try:
         text, used_model = assistant.generate(model, system, user, context=context)
     except assistant.AssistantError as exc:
-        # La cause, le repli, et le conseil de bascule seulement s'il a un sens.
-        return jsonify(
-            ok=False, error=exc.code, modele=model,
-            modeles_disponibles=assistant.available(),
-            message=(_ASSISTANT_MSG.get(exc.code, "La rédaction a échoué pour "
-                                        "une raison que le serveur n'a pas su "
-                                        "qualifier.")
-                     + _conseil_modele(model)),
-            repli=_ASSISTANT_REPLI), exc.status
+        # ── LE MODÈLE A ÉCHOUÉ : ON NE REND PAS LA MAIN VIDE ─────────────────
+        # « Si l'IA ne fonctionne pas, alors seulement avec la base » — la
+        # règle valait déjà pour un modèle ABSENT ; elle vaut tout autant pour
+        # un modèle qui répond par une erreur. Le plan est au registre, les
+        # grandeurs au moteur, les extraits à la base : tout ce qui ne dépend
+        # pas du modèle est là, et le refuser ne protège de rien.
+        #
+        # La cause N'EST PAS ESCAMOTÉE pour autant : elle part dans la réponse
+        # ET s'inscrit en tête du document. Une trame rendue sans dire pourquoi,
+        # alors qu'un modèle est configuré, ferait relancer indéfiniment sans
+        # savoir s'il faut changer de modèle ou attendre.
+        message = (_ASSISTANT_MSG.get(exc.code, "La rédaction a échoué pour "
+                                      "une raison que le serveur n'a pas su "
+                                      "qualifier.")
+                   + _conseil_modele(model))
+        app.logger.warning("rédaction : modèle %s en échec (%s) — repli sur la "
+                           "trame", model, exc.code)
+        echec = {"error": exc.code, "modele": model, "message": message}
+        r = _trame_sans_modele(type_id, data, extra_query, label,
+                               assistant.available(), public_only, echec)
+        # La trame n'a pas pu être bâtie non plus (type et pièce inconnus) :
+        # là seulement, on refuse, et avec la cause du modèle.
+        if isinstance(r, tuple) or (hasattr(r, "status_code")
+                                    and r.status_code != 200):
+            return jsonify(
+                ok=False, error=exc.code, modele=model,
+                modeles_disponibles=assistant.available(),
+                message=message, repli=_ASSISTANT_REPLI), exc.status
+        return r
 
     # Le projet de rattachement vient du CLIENT : on ne le croit pas sur parole.
     # Un identifiant est un identifiant, pas une autorisation — recopié depuis

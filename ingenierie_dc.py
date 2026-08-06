@@ -3437,7 +3437,8 @@ def _fr_val(g):
     return ("%s %s" % (v, u)).strip()
 
 
-def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None):
+def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
+                note=None):
     """La pièce assemblée SANS modèle de langage.
 
     Tout ce qui est ici est vrai et vérifiable : le plan vient du registre, les
@@ -3471,6 +3472,13 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None):
     # savoir, et la seule qui empêche de remettre ceci comme un livrable fini.
     A("> **%s.** %s" % (m["nom"], m["aide"]))
     A(">")
+    # POURQUOI le modèle n'a pas écrit, quand la cause est connue. Sans elle,
+    # une trame reçue alors qu'un modèle est configuré ressemble à une panne
+    # du site : on relance, on obtient la même chose, et on ne sait toujours
+    # pas s'il faut changer de modèle ou attendre.
+    if note:
+        A("> %s" % note)
+        A(">")
     A("> Ce document est **exact et complet quant aux faits** — plan, chiffres, "
       "sources, manques — mais **il n'est pas rédigé**. Il se relit et se "
       "complète ; il ne se remet pas en l'état.")

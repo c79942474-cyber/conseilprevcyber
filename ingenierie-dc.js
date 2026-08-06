@@ -1623,7 +1623,25 @@
           redactionEtat();
           return;
         }
-        z.innerHTML = '<div class="ig-doc"><div class="ig-doc-h">'
+        z.innerHTML = ""
+          /* LE MODÈLE A ÉCHOUÉ, mais un document sort quand même. Les deux
+             faits comptent, et dans cet ordre : la cause d'abord — c'est elle
+             qui dit s'il faut changer de modèle ou attendre — puis ce qui a pu
+             être assemblé sans lui. Taire l'échec ferait prendre une trame
+             pour le résultat normal ; taire le document ferait croire qu'on
+             n'a rien. */
+          + (o.j.echec_modele
+              ? '<div class="ig-ech"><div class="ig-ech-t"><span class="fx">✕</span>'
+                + "<b>" + esc(ECHECS[o.j.echec_modele.error]
+                              || "La rédaction n'a pas abouti") + "</b>"
+                + "<code>" + esc(o.j.echec_modele.error || "") + "</code></div>"
+                + "<p>" + esc(o.j.echec_modele.message || "") + "</p>"
+                + '<p class="rp">Le document ci-dessous a été assemblé sans le '
+                + "modèle, à partir du calcul et de la base de connaissance. "
+                + "Il est enregistré au dossier ; relancez la rédaction quand "
+                + "le service répond.</p></div>"
+              : "")
+          + '<div class="ig-doc"><div class="ig-doc-h">'
           /* « Brouillon rédigé » sur une trame assemblée serait faux dès la
              première ligne, et c'est cette ligne-là qu'on recopie en tête de
              dossier. Le mot suit ce que le document est. */

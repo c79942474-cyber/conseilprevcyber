@@ -1455,7 +1455,7 @@ def _bloc_calcul(etude):
     return "\n".join(lignes)
 
 
-def trame(type_id, inputs, extraits=None, mode_nom="", mode_aide=""):
+def trame(type_id, inputs, extraits=None, mode_nom="", mode_aide="", note=None):
     """Le livrable ASSEMBLÉ, quand aucun modèle de langage n'est disponible.
 
     Le pendant, pour les soixante-sept livrables de la console, de ce que
@@ -1493,6 +1493,13 @@ def trame(type_id, inputs, extraits=None, mode_nom="", mode_aide=""):
     # savoir, et la seule qui empêche de remettre ceci comme un livrable fini.
     if mode_nom:
         A("> **%s.** %s" % (mode_nom, mode_aide))
+        A(">")
+    # POURQUOI le modèle n'a pas écrit, quand la cause est connue : sans elle,
+    # une trame reçue alors qu'un modèle EST configuré ressemble à une panne du
+    # site, on relance, on obtient la même chose, et on ne sait toujours pas
+    # s'il faut changer de modèle ou attendre.
+    if note:
+        A("> %s" % note)
         A(">")
     A("> Ce document est **exact et complet quant aux faits** — plan, chiffres, "
       "sources — mais **il n'est pas rédigé**. Il se relit et se complète ; il "
