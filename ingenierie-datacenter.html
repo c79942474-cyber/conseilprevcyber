@@ -764,15 +764,20 @@
      L'ambre et non le cyan : le cyan désigne LE geste suivant, un seul à la
      fois. Deux signaux de même couleur pour deux natures d'information se
      confondraient. */
-  .dc-champ.ig-manque input,.dc-champ.ig-manque select{border-color:#E8B44A;
-    background:rgba(232,180,74,.07)}
-  .dc-champ.ig-manque .dc-lab{color:#E8B44A}
+  /* Le bleu du site, et non l'ambre : c'est le signal le plus important du
+     profil — ce qui manque pour franchir la phase — et il doit se voir. Il
+     reste distinguable du halo cyan qui désigne LE geste suivant, parce que
+     les deux n'ont pas la même FORME : le geste porte un anneau autour d'un
+     bouton, ce qui manque porte un liseré plein et une mention. */
+  .dc-champ.ig-manque input,.dc-champ.ig-manque select{border-color:var(--cyan);
+    background:rgba(34,211,238,.09);box-shadow:inset 3px 0 0 var(--cyan)}
+  .dc-champ.ig-manque .dc-lab{color:var(--cyan)}
   .ig-manque-n{display:block;font-family:var(--mono);font-size:10px;
-    letter-spacing:.04em;color:#E8B44A;line-height:1.5;margin-top:2px}
+    letter-spacing:.04em;color:var(--cyan);line-height:1.5;margin-top:2px}
   @keyframes ig-battement-man{
-    0%   {box-shadow:0 0 0 0 rgba(232,180,74,.6)}
-    55%  {box-shadow:0 0 0 11px rgba(232,180,74,0)}
-    100% {box-shadow:0 0 0 0 rgba(232,180,74,0)}
+    0%   {box-shadow:inset 3px 0 0 var(--cyan), 0 0 0 0 rgba(34,211,238,.6)}
+    55%  {box-shadow:inset 3px 0 0 var(--cyan), 0 0 0 11px rgba(34,211,238,0)}
+    100% {box-shadow:inset 3px 0 0 var(--cyan), 0 0 0 0 rgba(34,211,238,0)}
   }
   .ig-bat-man{animation:ig-battement-man 1.8s ease-out 5 forwards;border-radius:8px}
   /* Le halo du groupe des pièces faites : vert d'accord, parce que c'est un
@@ -786,14 +791,40 @@
     border-radius:8px}
   /* Coupé, le liseré, la mention et le titre du groupe portent seuls
      l'information : rien n'est perdu. */
+  /* Coupé, le liseré, la mention et le fond bleu des lignes portent seuls
+     l'information : rien n'est perdu. */
   @media (prefers-reduced-motion: reduce){
-    .ig-bat-man,.ig-bat-fait{animation:none}
+    .ig-bat-man,.ig-bat-fait,.ig-bat-ent{animation:none}
   }
-  .ig-man.manq{border-left:3px solid #E8B44A}
+  /* Le bloc des entrées à renseigner, et ses lignes. C'est ce qu'on lit en
+     premier dans le dossier : il porte le bleu du site, pas une teinte
+     d'avertissement discrète. */
+  .ig-man.manq{border-left:3px solid var(--cyan);
+    background:linear-gradient(180deg,rgba(34,211,238,.07),rgba(0,0,0,.14))}
+  .ig-man.manq h4{color:var(--cyan);font-size:14px}
+  .ig-man.manq ul{list-style:none;padding-left:0;margin:10px 0 0}
+  .ig-man.manq li[data-manque]{border:1px solid var(--line);
+    border-left:3px solid var(--cyan);border-radius:0 9px 9px 0;
+    padding:8px 12px;margin-bottom:7px;background:rgba(34,211,238,.06);
+    font-size:12.5px;line-height:1.6;color:var(--muted)}
+  .ig-man.manq li[data-manque] b{color:var(--ink)}
+  /* Le battement des lignes : un halo bleu autour de la ligne entière, à
+     l'endroit où on la LIT. Marquer le champ sans signaler la liste laisserait
+     le lecteur qui parcourt le dossier ignorer qu'il y a quelque chose à faire
+     — et c'est le dossier qu'on lit en premier. */
+  @keyframes ig-battement-ent{
+    0%   {box-shadow:0 0 0 0 rgba(34,211,238,.55);
+          background:rgba(34,211,238,.16)}
+    55%  {box-shadow:0 0 0 10px rgba(34,211,238,0);
+          background:rgba(34,211,238,.06)}
+    100% {box-shadow:0 0 0 0 rgba(34,211,238,0);
+          background:rgba(34,211,238,.06)}
+  }
+  .ig-bat-ent{animation:ig-battement-ent 1.8s ease-out 5 forwards}
   .ig-man-b{all:unset;cursor:pointer;display:inline-block;margin-top:10px;
-    font-size:12.5px;color:#E8B44A;border:1px solid #E8B44A;border-radius:8px;
-    padding:6px 12px}
-  .ig-man-b:hover{background:rgba(232,180,74,.12)}
+    font-size:12.5px;color:var(--cyan);border:1px solid var(--cyan);
+    border-radius:8px;padding:6px 12px}
+  .ig-man-b:hover{background:rgba(34,211,238,.14)}
   .ig-man-b:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
   /* Le groupe des pièces faites, distinct de celui qui reste à faire. */
   .ig-reg-g.g-faits h5{border-left-color:#7FD4A8}

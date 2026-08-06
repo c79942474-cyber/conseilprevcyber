@@ -1391,9 +1391,12 @@
         /* On rejoue le battement à la demande : c'est un geste explicite du
            lecteur, pas une animation qui revient toute seule. */
         delete BATTUS["manque:" + DOSSIER.code];
+        delete BATTUS["entrees:" + DOSSIER.code];
         setTimeout(function () {
           battre("#ig-form .ig-manque [data-champ]", "ig-bat-man",
                  "manque:" + DOSSIER.code);
+          battre("#ig-dossier .ig-man.manq li[data-manque]", "ig-bat-ent",
+                 "entrees:" + DOSSIER.code);
           try { c.focus({ preventScroll: true }); } catch (e) { c.focus(); }
         }, 420);
       });
@@ -1403,6 +1406,12 @@
          retaper dans un champ ne re-signale pas. */
       battre("#ig-form .ig-manque [data-champ]", "ig-bat-man",
              "manque:" + DOSSIER.code);
+      /* Les entrées ANNONCÉES dans le dossier battent aussi, à l'endroit où on
+         les lit. Marquer le champ sans signaler la liste laisserait le lecteur
+         qui parcourt le dossier ignorer qu'il y a quelque chose à faire — et
+         c'est le dossier qu'on lit en premier. */
+      battre("#ig-dossier .ig-man.manq li[data-manque]", "ig-bat-ent",
+             "entrees:" + DOSSIER.code);
     }
   }
 

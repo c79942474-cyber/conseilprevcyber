@@ -97,6 +97,51 @@ EWIF_PAYS = {
     "IT": {"nom": "Italie", "valeur": 1.05, "mix": "gaz, hydraulique, solaire"},
     "PL": {"nom": "Pologne", "valeur": 1.60, "mix": "charbon majoritaire"},
     "DK": {"nom": "Danemark", "valeur": 0.35, "mix": "éolien majoritaire"},
+    # ── Les dix-sept autres États membres ──────────────────────────────────
+    # MÊME NATURE, MÊME INCERTITUDE que les douze premiers : ce sont des ordres
+    # de grandeur tirés de la littérature, à ±40 %, et EWIF_SOURCE dit déjà
+    # qu'ils doivent être remplacés par le facteur du fournisseur ou du
+    # gestionnaire de réseau. Les ajouter ne les rend pas plus sûrs — cela
+    # évite seulement qu'un projet en Tchéquie ou au Portugal soit calculé sur
+    # la moyenne européenne faute de trouver son pays dans la liste.
+    "AT": {"nom": "Autriche", "valeur": 0.45,
+           "mix": "hydraulique majoritaire, éolien"},
+    "BE": {"nom": "Belgique", "valeur": 1.15, "mix": "nucléaire, gaz, éolien"},
+    "BG": {"nom": "Bulgarie", "valeur": 1.45,
+           "mix": "charbon, nucléaire, hydraulique"},
+    "CY": {"nom": "Chypre", "valeur": 0.35,
+           "mix": "fioul lourd, solaire",
+           "note": "Centrales refroidies à l'eau de mer : la consommation "
+                   "d'eau douce du mix est faible, ce que le seul facteur ne "
+                   "montre pas."},
+    "CZ": {"nom": "Tchéquie", "valeur": 1.50,
+           "mix": "charbon, nucléaire à tours de refroidissement"},
+    "EE": {"nom": "Estonie", "valeur": 1.20,
+           "mix": "schistes bitumineux en recul, éolien"},
+    "GR": {"nom": "Grèce", "valeur": 0.85, "mix": "gaz, solaire, lignite en recul"},
+    "HR": {"nom": "Croatie", "valeur": 0.60,
+           "mix": "hydraulique, gaz, importations"},
+    "HU": {"nom": "Hongrie", "valeur": 1.25,
+           "mix": "nucléaire à tours, gaz, solaire"},
+    "LT": {"nom": "Lituanie", "valeur": 0.50,
+           "mix": "éolien, importations, hydraulique"},
+    "LU": {"nom": "Luxembourg", "valeur": 0.60,
+           "mix": "très largement importé",
+           "note": "Le mix consommé dépend surtout des pays voisins : le "
+                   "facteur national a peu de sens ici, et c'est le contrat "
+                   "de fourniture qui tranche."},
+    "LV": {"nom": "Lettonie", "valeur": 0.40,
+           "mix": "hydraulique majoritaire, gaz"},
+    "MT": {"nom": "Malte", "valeur": 0.30,
+           "mix": "gaz et interconnexion, refroidissement en eau de mer"},
+    "PT": {"nom": "Portugal", "valeur": 0.60,
+           "mix": "éolien, hydraulique, solaire, gaz"},
+    "RO": {"nom": "Roumanie", "valeur": 1.00,
+           "mix": "hydraulique, nucléaire, gaz, charbon"},
+    "SI": {"nom": "Slovénie", "valeur": 1.10,
+           "mix": "nucléaire, hydraulique, lignite"},
+    "SK": {"nom": "Slovaquie", "valeur": 1.35,
+           "mix": "nucléaire à tours de refroidissement, hydraulique"},
     # Ni un pays ni un choix par défaut anodin : une MOYENNE. Le nommer
     # « Union européenne » tout court laisserait croire à une implantation
     # européenne précise, alors que c'est le repli quand le pays n'est pas
@@ -126,7 +171,24 @@ EWIF_SOURCE = ("Ordres de grandeur convergents de la littérature sur l'intensit
 INTENSITE_RESEAU = {
     "FR": 56, "SE": 41, "NO": 30, "FI": 79, "DK": 151, "IE": 296,
     "DE": 344, "NL": 268, "ES": 158, "IT": 257, "PL": 635, "UE": 242,
+    # Les dix-sept autres États membres, même nature et même réserve que
+    # ci-dessus : moyennes annuelles approchées, à remplacer par la donnée
+    # officielle du gestionnaire de réseau pour l'année de référence.
+    "AT": 110, "BE": 130, "BG": 370, "CY": 600, "CZ": 410, "EE": 460,
+    "GR": 330, "HR": 180, "HU": 200, "LT": 160, "LU": 110, "LV": 110,
+    "MT": 400, "PT": 140, "RO": 240, "SI": 210, "SK": 110,
 }
+
+# Les deux tables sont indexées par le MÊME code : une clé présente d'un côté
+# et pas de l'autre ferait retomber silencieusement sur la moyenne européenne
+# pour l'une des deux grandeurs, sans que rien ne le signale. Contrôlé au
+# chargement du module — c'est le seul moment où l'oubli est encore gratuit.
+_ecart_pays = set(EWIF_PAYS) ^ set(INTENSITE_RESEAU)
+if _ecart_pays:
+    raise AssertionError(
+        "Référentiel pays incohérent : %s figure dans une seule des deux "
+        "tables (EWIF_PAYS / INTENSITE_RESEAU)." % ", ".join(sorted(_ecart_pays)))
+del _ecart_pays
 INTENSITE_SOURCE = ("Ordres de grandeur de l'intensité carbone moyenne des mix "
                     "électriques européens. Pour une offre, utiliser la donnée "
                     "officielle du gestionnaire de réseau de l'année de référence, "
