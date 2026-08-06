@@ -1718,18 +1718,117 @@
           /* LE MODE, en tête du document et non en note. Une trame assemblée
              présentée comme une pièce rédigée serait la seule vraie faute
              ici : elle se remettrait au client telle quelle. */
+          /* EMPORTER LE DOCUMENT. L'étude de phase s'exportait en Word et en
+             PDF ; la pièce, non — elle s'affichait, et il fallait la
+             sélectionner à l'écran pour la sortir du site, en y perdant le
+             titrage, les tableaux et l'en-tête. */
+          + '<div class="ig-doc-a"><span class="lb">Emporter&nbsp;:</span>'
+          + '<button type="button" id="ig-pc-docx">Word</button>'
+          + '<button type="button" id="ig-pc-pdf">PDF</button>'
+          + '<button type="button" id="ig-pc-md">Markdown</button>'
+          + '<span class="dit" id="ig-pc-dit" aria-live="polite"></span></div>'
           + (o.j.mode
               ? '<div class="ig-mode' + (o.j.sans_modele ? " brut" : "") + '">'
                 + '<b>' + esc(o.j.mode_nom) + "</b> "
                 + esc(o.j.mode_aide) + "</div>"
               : "")
           + '<pre class="ig-doc-c">' + esc(o.j.document) + "</pre></div>";
+        brancherEmport(p, code, o.j);
         if (PROJET) pjHistorique(PROJET.id);
       })
       .catch(function () {
         bouton.disabled = false;
         bouton.textContent = ancien;
         z.innerHTML = '<p class="note">Rédaction indisponible pour le moment.</p>';
+      });
+  }
+
+  /* ── EMPORTER LA PIÈCE ────────────────────────────────────────────────
+
+     Word et PDF passent par le serveur : c'est lui qui porte l'en-tête, la
+     police et la mise en page — les mêmes que l'étude de phase, pour que deux
+     documents du même dossier ne se ressemblent pas de loin seulement.
+
+     Markdown part du navigateur, sans aller-retour : le texte est déjà là, et
+     c'est la forme qui se recolle ailleurs sans rien perdre.
+
+     Ce qui est envoyé au serveur est le document AFFICHÉ, pas le code de la
+     pièce : celui-ci a pu être rédigé par le modèle. Le reconstruire depuis le
+     registre rendrait un autre document que celui qu'on a sous les yeux. */
+  function telecharger(blob, nom) {
+    var u = URL.createObjectURL(blob), a = document.createElement("a");
+    a.href = u;
+    a.download = nom;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(u); }, 4000);
+  }
+
+  function brancherEmport(profil, code, j) {
+    var dit = $("#ig-pc-dit");
+    var nom = (code || "piece").toLowerCase().replace(/[^a-z0-9-]+/g, "-");
+    function note(m, ko) {
+      if (dit) {
+        dit.textContent = m || "";
+        dit.style.color = ko ? "var(--danger)" : "";
+      }
+    }
+    var md = $("#ig-pc-md");
+    if (md) {
+      md.addEventListener("click", function () {
+        telecharger(new Blob([j.document || ""],
+                             { type: "text/markdown;charset=utf-8" }),
+                    nom + ".md");
+        note("Markdown enregistré.");
+      });
+    }
+    /* Le document vient d'arriver : c'est l'instant où ces boutons ont
+       quelque chose à dire. Les faire battre plus tôt aurait désigné des
+       commandes sans objet. */
+    battre(".ig-doc-a button", "ig-bat-doc", "emport");
+    [["#ig-pc-docx", "docx", "Word"], ["#ig-pc-pdf", "pdf", "PDF"]]
+      .forEach(function (t) {
+        var b = $(t[0]);
+        if (!b) return;
+        b.addEventListener("click", function () {
+          var tous = [$("#ig-pc-docx"), $("#ig-pc-pdf")];
+          tous.forEach(function (x) { if (x) x.disabled = true; });
+          note("Mise en page " + t[2] + "…");
+          var corps = {};
+          Object.keys(profil || {}).forEach(function (k) { corps[k] = profil[k]; });
+          corps.markdown = j.document || "";
+          corps.format = t[1];
+          corps.model = j.model || "";
+          corps.sources = j.sources || [];
+          demander("/api/datacenter/piece/export", {
+            method: "POST", credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(corps),
+          }, DELAI_MOYEN)
+            .then(function (r) {
+              if (!r.ok) {
+                /* La cause vient du serveur quand il la donne : « la mise en
+                   page a échoué » sans un mot de plus fait recommencer à
+                   l'identique. */
+                return r.json().catch(function () { return {}; })
+                  .then(function (e) { throw new Error(e.message || ""); });
+              }
+              return r.blob();
+            })
+            .then(function (bl) {
+              telecharger(bl, nom + "." + t[1]);
+              note(t[2] + " enregistré.");
+            })
+            .catch(function (e) {
+              note(String(e.message || "").trim()
+                   || "La mise en page a échoué. Le Markdown reste "
+                      + "téléchargeable.", true);
+            })
+            .then(function () {
+              tous.forEach(function (x) { if (x) x.disabled = false; });
+            });
+        });
       });
   }
 
@@ -2294,6 +2393,7 @@
     "#ig-dossier button", "#ig-dossier a.btn", "#ig-dossier a.ig-dl",
     "#ig-rail button",
     "#ig-docx", "#ig-pdf",
+    ".ig-doc-a button",
     "#ig-depot button", "#ig-depot .btn", "#ig-depot-liste button",
   ].join(",");
 

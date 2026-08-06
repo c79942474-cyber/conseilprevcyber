@@ -160,6 +160,12 @@ _RATE_EXACT = {
     "/api/admin/rag/upload-file": (40, 60),
     "/api/admin/rag/restore":     (6, 300),
     "/api/admin/rag/backup":      (20, 300),
+    # Mettre en page un document coûte du temps de calcul — une centaine de
+    # pages de PDF tiennent un fil pendant plusieurs secondes. Le plafond est
+    # large pour l'usage réel (on n'exporte pas trente fois par minute) et
+    # ferme pour l'abus, qui figerait le site pour tout le monde.
+    "/api/datacenter/piece/export":      (30, 60),
+    "/api/datacenter/ingenierie/export": (30, 60),
 }
 _RATE_FAMILY = (("/api/auth/", 80, 60), ("/api/admin/", 600, 60))
 
@@ -2135,6 +2141,73 @@ def api_datacenter_ingenierie_export():
                       detail="%s · %s" % (fmt, d["filiere"]))
     return send_file(io.BytesIO(blob),
                      download_name="etude-%s.%s" % (d["code"].lower(), fmt),
+                     as_attachment=True, mimetype=mimetype)
+
+
+@app.route("/api/datacenter/piece/export", methods=["POST"])
+@login_required
+def api_datacenter_piece_export():
+    """Une pièce rédigée, en Word ou en PDF, à l'en-tête CONSEILPREV.
+
+    L'étude de phase s'exportait ; la pièce, non. Elle s'affichait, et le seul
+    moyen de l'emporter était de sélectionner le texte à l'écran — c'est-à-dire
+    de perdre le titrage, les tableaux et l'en-tête. Un document qui ne sort pas
+    du site n'est pas un livrable.
+
+    Le corps porte le MARKDOWN affiché, et non le code de la pièce : le
+    document rendu peut avoir été écrit par le modèle, puis retouché. Le
+    reconstruire à partir du registre produirait un autre document que celui
+    que le lecteur a sous les yeux, et c'est celui-là qu'il veut emporter.
+    """
+    data = request.get_json(silent=True) or {}
+    md = (data.get("markdown") or "").strip()
+    if not md:
+        return jsonify(ok=False, error="vide",
+                       message="Aucun document à mettre en page."), 400
+    if len(md) > 400_000:
+        return jsonify(ok=False, error="trop_long",
+                       message="Document trop volumineux pour la mise en page."), 413
+    fmt = (data.get("format") or "docx").strip().lower()
+    if fmt not in ("docx", "pdf"):
+        fmt = "docx"
+    code_phase = str(data.get("phase") or "").strip().upper()[:12]
+    code_piece = str(data.get("piece") or "").strip().upper()[:24]
+    pc = ingenierie_dc.piece(code_phase, code_piece) or {}
+    profil = _profil_datacenter(data)
+    d = ingenierie_dc.dossier(profil, code_phase, data) if code_phase else {}
+    label = ("%s — %s" % (pc["code"], pc["titre"])) if pc else (
+        code_piece or "Pièce d'ingénierie")
+    meta = {"type": pc.get("code") or code_piece, "label": label,
+            "client": str(data.get("client") or "")[:120],
+            "perimetre": "%s%s" % (
+                ("%s kW informatiques" % round(profil["puissance_it_kw"]))
+                if profil.get("puissance_it_kw") else "",
+                (" · %s" % d["filiere_nom"]) if d.get("filiere_nom") else ""),
+            "date": time.strftime("%d/%m/%Y"),
+            "model": str(data.get("model") or "")[:60],
+            "sources": [s for s in (data.get("sources") or [])
+                        if isinstance(s, dict)][:40]
+            or [{"title": "Moteur d'ingénierie CONSEILPREV v" + datacenter.VERSION,
+                 "theme": "calcul déterministe"},
+                {"title": "Cadre de phases v" + ingenierie_dc.VERSION,
+                 "theme": "registre des pièces"}]}
+    try:
+        if fmt == "pdf":
+            blob = livrables_export.build_pdf(md, meta)
+            mimetype = "application/pdf"
+        else:
+            blob = livrables_export.build_docx(md, meta)
+            mimetype = ("application/vnd.openxmlformats-officedocument"
+                        ".wordprocessingml.document")
+    except Exception:
+        app.logger.exception("export pièce d'ingénierie")
+        return jsonify(ok=False, error="export_echec",
+                       message="La mise en page a échoué."), 500
+    audit.journaliser("datacenter.piece.export",
+                      cible="%s/%s" % (code_phase, code_piece), detail=fmt)
+    return send_file(io.BytesIO(blob),
+                     download_name="%s.%s" % (
+                         _nom_fichier(pc.get("code") or code_piece or "piece"), fmt),
                      as_attachment=True, mimetype=mimetype)
 
 

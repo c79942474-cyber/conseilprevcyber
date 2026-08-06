@@ -538,8 +538,22 @@
   .ig-doc-h{font-size:12px;color:var(--muted2);padding:9px 13px;background:rgba(0,0,0,.22);
     border-bottom:1px solid var(--line)}
   .ig-doc-h b{color:var(--ink)}
-  /* Le brouillon est rendu en texte brut : c'est du Markdown destiné à être
-     copié dans un document, pas à être lu mis en forme ici. */
+  /* Emporter le document. Sans cette barre, le seul moyen de le sortir du
+     site était de sélectionner le texte à l'écran — donc d'en perdre le
+     titrage, les tableaux et l'en-tête. */
+  .ig-doc-a{display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+    padding:9px 13px;background:rgba(0,0,0,.14);border-bottom:1px solid var(--line)}
+  .ig-doc-a .lb{font-size:11.5px;color:var(--muted2);margin-right:2px}
+  .ig-doc-a button{font:inherit;font-size:12px;padding:5px 11px;border-radius:8px;
+    border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--ink);
+    cursor:pointer}
+  .ig-doc-a button:hover{background:rgba(255,255,255,.11)}
+  .ig-doc-a button:disabled{opacity:.55;cursor:progress}
+  .ig-doc-a .dit{font-size:11.5px;color:var(--muted2)}
+  /* Le brouillon est rendu en texte brut : c'est du Markdown, la forme qui se
+     recopie sans rien perdre. La mise en page s'obtient par les boutons
+     ci-dessus — Word et PDF portent l'en-tête CONSEILPREV, comme l'étude de
+     phase. */
   .ig-doc-c{margin:0;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
     font-size:11.5px;line-height:1.7;color:var(--muted);white-space:pre-wrap;
     max-height:520px;overflow:auto}
