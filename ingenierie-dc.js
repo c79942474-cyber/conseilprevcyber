@@ -1273,6 +1273,10 @@
     rate_limited: "Trop de rédactions en peu de temps",
     puissance_absente: "Puissance informatique non renseignée",
     piece_inconnue: "Phase ou pièce inconnue",
+    /* Notre propre garde, pas une panne du fournisseur : le dire ainsi évite
+       de faire chercher la cause du mauvais côté. */
+    sature: "Trop de rédactions en cours sur le serveur",
+    modele_indisponible: "Ce modèle-ci n'est pas configuré",
   };
 
   var REDACTION = null;

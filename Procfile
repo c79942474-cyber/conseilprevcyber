@@ -1,1 +1,1 @@
-web: gunicorn -k gthread --threads 8 --timeout 120 app:app
+web: gunicorn -c gunicorn.conf.py app:app

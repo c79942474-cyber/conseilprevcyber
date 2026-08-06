@@ -11,10 +11,12 @@ Dégradation propre : si une clé d'API n'est pas configurée (ANTHROPIC_API_KEY
 MISTRAL_API_KEY), le modèle correspondant est signalé « non configuré » sans
 faire planter l'application.
 """
+import contextlib
 import json
 import logging
 import os
 import re
+import threading
 
 # Journalisation : uniquement des métadonnées techniques (codes HTTP, types
 # d'erreur). Jamais de clé d'API ni de contenu de conversation (minimisation RGPD).
@@ -91,6 +93,45 @@ class AssistantError(Exception):
         self.status = status
 
 
+# ── COMBIEN D'APPELS AU MODÈLE EN MÊME TEMPS ─────────────────────────────────
+# LA contrainte de disponibilité du site, et elle ne se voit pas dans le code
+# de l'assistant : le serveur tourne avec un nombre FINI de fils d'exécution
+# (voir Procfile), et un appel au modèle en immobilise un jusqu'à quatre-vingt-
+# cinq secondes. Huit rédactions lancées coup sur coup — ce que le registre
+# invite à faire, il porte quarante boutons — et il ne reste plus un seul fil
+# pour SERVIR LES PAGES. Le site entier se fige, pour tout le monde, à cause
+# d'un service tiers lent.
+#
+# On borne donc les appels simultanés bien en dessous du nombre de fils. Au-
+# delà, l'appel est refusé IMMÉDIATEMENT, avec le code « sature » : la
+# rédaction retombe alors sur l'assemblage — plan, grandeurs, extraits — qui ne
+# dépend d'aucun service extérieur. Personne n'attend, personne ne repart les
+# mains vides, et il reste toujours des fils pour les pages.
+#
+# Réglable sans redéploiement de code par LLM_MAX_SIMULTANE.
+try:
+    MAX_SIMULTANE = max(1, int(os.environ.get("LLM_MAX_SIMULTANE") or 3))
+except (TypeError, ValueError):
+    MAX_SIMULTANE = 3
+_PLACES = threading.BoundedSemaphore(MAX_SIMULTANE)
+
+
+@contextlib.contextmanager
+def _une_place():
+    """Réserve une place d'appel, ou refuse tout de suite.
+
+    Sans attente : faire patienter reviendrait à immobiliser le fil qu'on
+    cherche justement à libérer."""
+    if not _PLACES.acquire(blocking=False):
+        _log.warning("assistant : %d appels déjà en cours — refus immédiat "
+                     "pour garder des fils disponibles", MAX_SIMULTANE)
+        raise AssistantError("sature", 503)
+    try:
+        yield
+    finally:
+        _PLACES.release()
+
+
 def available():
     """Modèles réellement configurés (clé d'API présente)."""
     claude = bool(os.environ.get("ANTHROPIC_API_KEY"))
@@ -153,9 +194,12 @@ def _claude_call(system, messages, max_tokens, timeout=REQUEST_TIMEOUT):
         raise AssistantError("not_configured", 503)
     client = anthropic.Anthropic()  # lit ANTHROPIC_API_KEY dans l'environnement
     try:
-        resp = client.messages.create(
-            model=CLAUDE_MODEL, max_tokens=max_tokens, system=system,
-            messages=messages, timeout=timeout)
+        # La place est prise AUTOUR de l'appel réseau, et de lui seul : c'est
+        # lui qui immobilise le fil d'exécution, pas la construction du client.
+        with _une_place():
+            resp = client.messages.create(
+                model=CLAUDE_MODEL, max_tokens=max_tokens, system=system,
+                messages=messages, timeout=timeout)
     except anthropic.APITimeoutError:
         # À placer AVANT APIConnectionError, dont il hérite.
         _log.warning("Claude : délai dépassé (%s s, %s jetons demandés)", timeout, max_tokens)
@@ -196,10 +240,14 @@ def _mistral_call(system, messages, max_tokens, timeout=REQUEST_TIMEOUT):
         "temperature": 0.3,
     }
     try:
-        r = requests.post(
-            MISTRAL_API_URL, timeout=(CONNECT_TIMEOUT, timeout),
-            headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"},
-            json=payload)
+        # Même borne que pour Claude : c'est l'appel réseau qui immobilise le
+        # fil, et c'est lui qu'on compte.
+        with _une_place():
+            r = requests.post(
+                MISTRAL_API_URL, timeout=(CONNECT_TIMEOUT, timeout),
+                headers={"Authorization": "Bearer " + key,
+                         "Content-Type": "application/json"},
+                json=payload)
     except requests.Timeout:
         # Distinct de « injoignable » : le service répond, il est simplement plus
         # lent que le délai accordé. Confondre les deux envoie chercher la panne

@@ -995,6 +995,9 @@ def api_chat():
             "network": "Service d'IA momentanément injoignable. Réessayez dans un instant.",
             "timeout": "Le modèle a mis trop de temps à répondre. Réessayez, ou essayez l'autre modèle.",
             "upstream": "L'assistant a rencontré une erreur. Réessayez, ou contactez-nous.",
+            "sature": "Plusieurs demandes sont déjà en cours sur ce serveur. "
+                      "Pour qu'il continue de répondre à tout le monde, "
+                      "celle-ci n'a pas attendu : réessayez dans un instant.",
         }
         return jsonify(ok=False, error=exc.code,
                        message=messages.get(exc.code, "Assistant indisponible pour le moment.")), exc.status
@@ -1116,6 +1119,9 @@ _JURIDIQUE_ERREURS = {
     "network": "Service d'IA momentanément injoignable. Réessayez dans un instant.",
     "timeout": "L'analyse a dépassé le délai. Réessayez, ou réduisez le contrat soumis.",
     "upstream": "L'analyse a échoué. Réessayez, ou contactez-nous.",
+    "sature": "Plusieurs analyses sont déjà en cours sur ce serveur. Pour "
+              "qu'il continue de répondre à tout le monde, celle-ci n'a pas "
+              "attendu : réessayez dans un instant.",
 }
 
 
@@ -4184,14 +4190,24 @@ _ASSISTANT_MSG = {
             "limite de débit). Ce n'est pas une panne : réessayez dans une "
             "minute.",
     "network": "Le service d'IA est injoignable depuis ce serveur — réseau, "
-               "proxy ou coupure côté fournisseur. Le document n'a pas été "
-               "commencé ; rien n'est perdu.",
+               "proxy ou coupure côté fournisseur. Rien ne lui a été transmis, "
+               "et le document a été assemblé sans lui : rien n'est perdu.",
     "timeout": "Le modèle a dépassé le délai accordé pour ce document. Le "
                "service répond, il est simplement plus lent que le délai : "
                "une pièce longue peut demander un second essai.",
-    "upstream": "Le service d'IA a répondu par une erreur. Le document n'a pas "
-                "été enregistré.",
+    "upstream": "Le service d'IA a répondu par une erreur : la panne est de "
+                "son côté, pas dans la configuration. Réessayer dans un "
+                "instant suffit souvent ; l'autre modèle, s'il est configuré, "
+                "contourne la panne.",
     "empty": "La demande était vide : rien n'a été envoyé au modèle.",
+    # Notre propre garde, pas une panne du fournisseur : trop de rédactions
+    # étaient déjà en cours. Le dire ainsi évite de faire chercher la cause
+    # chez le fournisseur — et de le faire réessayer alors que la file est
+    # pleine.
+    "sature": "Plusieurs rédactions étaient déjà en cours sur ce serveur. "
+              "Pour que le site continue de répondre à tout le monde, "
+              "celle-ci n'a pas attendu son tour : relancez-la dans un "
+              "instant pour obtenir un texte rédigé.",
 }
 
 # Ce qui reste possible malgré l'échec. Écrit à part parce que c'est la seule

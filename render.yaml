@@ -4,9 +4,12 @@ services:
     region: frankfurt
     env: python
     buildCommand: pip install -r requirements.txt
-    # Worker à threads (gthread) : requis pour le flux SSE du cockpit (/api/stream),
-    # qui maintient des connexions longues.
-    startCommand: gunicorn -k gthread --threads 8 --timeout 120 app:app
+    # Le réglage vit dans gunicorn.conf.py, pas sur cette ligne : la capacité
+    # se règle alors par variables d'environnement (WEB_WORKERS, WEB_THREADS…),
+    # sans toucher au code ni redéployer une ligne de commande. Worker à
+    # threads (gthread) : requis pour le flux SSE du cockpit (/api/stream), qui
+    # maintient des connexions longues.
+    startCommand: gunicorn -c gunicorn.conf.py app:app
     healthCheckPath: /health
     # (Optionnel) Disque persistant — persistance de la base de connaissance RAG
     # sans PostgreSQL. Décommentez, ajustez la taille, puis définissez la variable
@@ -89,6 +92,19 @@ services:
       - key: ANTHROPIC_MODEL
         sync: false
       - key: MISTRAL_MODEL
+        sync: false
+      # ── Disponibilité ────────────────────────────────────────────────────
+      # Capacité du serveur. Valeurs par défaut : 2 processus × 16 fils.
+      # Ramener WEB_WORKERS à 1 si l'instance manque de mémoire.
+      - key: WEB_WORKERS
+        sync: false
+      - key: WEB_THREADS
+        sync: false
+      # Appels SIMULTANÉS au modèle, toutes pages confondues (défaut : 3).
+      # Bien en dessous du nombre de fils : c'est ce qui garantit qu'il en
+      # reste toujours pour SERVIR LES PAGES quand le service d'IA est lent.
+      # Au-delà, la rédaction se replie sur l'assemblage plutôt que d'attendre.
+      - key: LLM_MAX_SIMULTANE
         sync: false
       # Modèle affiché par défaut dans le chat : « claude » ou « mistral ».
       # Non défini => « mistral » (fournisseur UE, cohérent RGPD). L'utilisateur
