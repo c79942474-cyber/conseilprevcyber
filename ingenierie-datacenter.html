@@ -748,6 +748,9 @@
     border-left:2px solid rgba(45,212,191,.5);padding-left:9px}
   /* L'état de la chaîne quand elle ne peut pas écrire. */
   .ig-dep-etat.ko{border-left-color:#E8B44A}
+  /* Aucun modèle ne rédige : la pièce sort quand même, assemblée. Ambre —
+     c'est une réserve sur la NATURE du document, pas une panne. */
+  .ig-dep-etat.trame{border-left-color:#E8B44A}
   .ig-dep-etat:empty{display:none}
   /* Un bouton dont on sait déjà qu'il ne peut pas aboutir. Il reste
      CLIQUABLE : le serveur répond alors immédiatement avec la cause, ce qui
@@ -853,6 +856,34 @@
      saisir cinq cents mégawatts sans un mot. */
   .ig-hors{display:block;font-size:11px;line-height:1.55;color:#E8B44A;
     margin-top:5px;border-left:2px solid #E8B44A;padding-left:8px}
+
+  /* ── Le mode de rédaction, en tête du document ─────────────────────────
+     Quatre combinaisons, et aucune ne rend la main vide : le modèle rédige
+     ancré sur la base, ou sans source, ou la trame s'assemble avec les
+     extraits, ou sur le seul moteur. Le DIRE en tête et non en note : une
+     trame assemblée présentée comme une pièce rédigée se remettrait au client
+     telle quelle, et c'est la seule vraie faute possible ici. */
+  .ig-mode{margin:0 0 12px;padding:10px 14px;border-radius:0 10px 10px 0;
+    border:1px solid var(--line);border-left:3px solid var(--teal);
+    background:rgba(45,212,191,.08);font-size:12px;color:var(--muted);
+    line-height:1.6}
+  .ig-mode b{color:var(--ink);display:block;margin-bottom:3px}
+  /* Assemblée sans modèle : ambre, parce que c'est une réserve sur ce que le
+     document EST, pas une information de plus. */
+  .ig-mode.brut{border-left-color:#E8B44A;background:rgba(232,180,74,.09)}
+
+  /* ── Le bouton « Rédiger » ──────────────────────────────────────────────
+     C'est l'action principale du registre : elle porte le bleu du site en
+     permanence, et se lit comme telle même quand plus rien ne bat. */
+  #ig-dossier .ig-gen{border-color:var(--cyan);color:var(--cyan)}
+  #ig-dossier .ig-gen:hover{background:rgba(34,211,238,.14);color:var(--ink)}
+  @keyframes ig-battement-red{
+    0%   {box-shadow:0 0 0 0 rgba(34,211,238,.6)}
+    55%  {box-shadow:0 0 0 12px rgba(34,211,238,0)}
+    100% {box-shadow:0 0 0 0 rgba(34,211,238,0)}
+  }
+  .ig-bat-red{animation:ig-battement-red 1.8s ease-out 5 forwards}
+  @media (prefers-reduced-motion: reduce){.ig-bat-red{animation:none}}
 </style>
 </head>
 <body>

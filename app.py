@@ -4148,6 +4148,87 @@ def api_livrables_types():
     return jsonify(ok=True, types=livrables.public_types(), models=assistant.available())
 
 
+def _extraits_pour(query, doc_ids=None):
+    """Les extraits de la base, sans re-classement par modèle.
+
+    Le re-classement demande un modèle de langage ; ici il n'y en a pas. On
+    prend donc les meilleurs résultats de la recherche lexicale, ce qui est
+    précisément ce que le magasin sait faire seul."""
+    try:
+        if doc_ids:
+            return rag.search(query, k=8, public_only=False, doc_ids=doc_ids)
+        return rag.search(query, k=8, public_only=False)
+    except Exception:
+        return []
+
+
+def _trame_sans_modele(type_id, data, extra_query, label, dispo):
+    """La pièce assemblée quand aucun modèle n'est disponible.
+
+    Le document reste EXACT — plan du registre, chiffres du moteur, manques
+    calculés, extraits reproduits tels quels — et il porte en tête ce qu'il
+    est. C'est un document de travail complet, pas un livrable rédigé.
+    """
+    phase = str(data.get("phase") or "").strip().upper()[:12]
+    code = str(data.get("piece") or "").strip().upper()[:16]
+    profil = _profil_datacenter(data)
+    query = (livrables.retrieval_query(type_id, data) + " " + extra_query).strip()
+    doc_ids = [d for d in (data.get("doc_ids") or []) if _rag_valid_doc_id(d)]
+    hits = _extraits_pour(query, doc_ids)
+    try:
+        texte = ingenierie_dc.trame_piece(profil, phase, code, hits, data)
+    except Exception:
+        app.logger.exception("trame sans modèle")
+        texte = None
+    if not texte:
+        # La trame elle-même n'a pas pu être bâtie : là, on refuse vraiment,
+        # avec la cause. Rendre un document vide serait pire que rien.
+        return jsonify(ok=False, error="not_configured", modele=None,
+                       modeles_disponibles=dispo,
+                       message=_ASSISTANT_MSG["not_configured"],
+                       repli=_ASSISTANT_REPLI), 503
+    mode = ingenierie_dc.mode_redaction(False, hits)
+    sources, rang = [], {}
+    for h in hits:
+        did = h.get("doc_id")
+        if did in rang:
+            sources[rang[did]]["extraits"] += 1
+            continue
+        rang[did] = len(sources)
+        sources.append({"title": h.get("title"), "theme": h.get("theme"),
+                        "visibility": h.get("visibility"), "extraits": 1})
+    projet_id = _projet_du_compte(data.get("projet_id"))
+    saved_id = None
+    try:
+        pc = ingenierie_dc.piece(phase, code) or {}
+        saved_id = livrables_hist.save({
+            "type": type_id,
+            "label": label or ("%s %s" % (phase, code)),
+            "client": data.get("client"), "secteur": data.get("secteur"),
+            "perimetre": data.get("perimetre"),
+            # Le « modèle » enregistré nomme le mode : relu six mois plus tard,
+            # un document doit dire par quoi il a été produit.
+            "model": "trame-" + mode,
+            "markdown": texte, "sources": sources,
+            "projet_id": projet_id, "phase": phase,
+            "filiere": (data.get("filiere") or ""),
+            "piece": code, "etat": "brouillon"})
+        if projet_id:
+            try:
+                projets_db.toucher(projet_id)
+            except Exception:
+                pass
+    except Exception:
+        saved_id = None
+    audit.journaliser("datacenter.trame", cible="%s/%s" % (phase, code),
+                      detail=mode)
+    return jsonify(ok=True, document=texte, model="trame-" + mode,
+                   mode=mode, mode_nom=ingenierie_dc.MODES_REDACTION[mode]["nom"],
+                   mode_aide=ingenierie_dc.MODES_REDACTION[mode]["aide"],
+                   sans_modele=True, sources=sources, id=saved_id,
+                   modeles_disponibles=dispo)
+
+
 def _livrables_run(type_id, data, system, user, extra_query="", label=None):
     """Ancre le prompt sur la base de connaissance (documents publics + internes),
     génère le livrable, l'enregistre dans l'historique et renvoie la réponse JSON.
@@ -4166,12 +4247,13 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None):
     # après coup. Un échec connu d'avance doit se dire d'avance — l'attente
     # n'apporte rien, et la faire subir laisse croire à une panne passagère.
     dispo = assistant.available()
+    # ── Le modèle demandé n'est pas configuré ──────────────────────────────
+    # Si l'AUTRE l'est, on le dit sans basculer d'office : une bascule
+    # silencieuse masquerait le fait que le modèle choisi n'est pas celui qui a
+    # écrit, et c'est au lecteur de trancher.
     if not dispo.get(model):
         autre = "mistral" if model == "claude" else "claude"
         if dispo.get(autre):
-            # Une bascule automatique masquerait le fait que le modèle demandé
-            # n'est pas celui qui a écrit. On refuse, en nommant celui qui
-            # marche : c'est au lecteur de choisir, pas au serveur.
             return jsonify(
                 ok=False, error="modele_indisponible", modele=model,
                 modeles_disponibles=dispo,
@@ -4179,11 +4261,13 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None):
                          "Le modèle « %s » l'est : choisissez-le pour rédiger "
                          "cette pièce." % (model, autre)),
                 repli=_ASSISTANT_REPLI), 503
-        return jsonify(
-            ok=False, error="not_configured", modele=model,
-            modeles_disponibles=dispo,
-            message=_ASSISTANT_MSG["not_configured"],
-            repli=_ASSISTANT_REPLI), 503
+        # Aucun modèle : on ne rend PAS la main vide. Le plan de la pièce est
+        # au registre, les grandeurs viennent du moteur, les extraits de la
+        # base — le modèle rédige autour de tout cela, il ne le produit pas.
+        # On assemble donc la trame, et on dit très clairement qu'elle n'est
+        # pas rédigée : présenter une trame comme un livrable fini serait la
+        # seule vraie faute ici.
+        return _trame_sans_modele(type_id, data, extra_query, label, dispo)
     query = (livrables.retrieval_query(type_id, data) + " " + extra_query).strip()
     # Documents de référence choisis manuellement (facultatif) ; sinon récupération auto.
     doc_ids = [d for d in (data.get("doc_ids") or []) if _rag_valid_doc_id(d)]
@@ -4268,7 +4352,12 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None):
     except Exception:
         saved_id = None
 
-    return jsonify(ok=True, document=text, model=model, sources=sources, id=saved_id)
+    mode = ingenierie_dc.mode_redaction(True, hits)
+    return jsonify(ok=True, document=text, model=used_model, sources=sources,
+                   id=saved_id, mode=mode,
+                   mode_nom=ingenierie_dc.MODES_REDACTION[mode]["nom"],
+                   mode_aide=ingenierie_dc.MODES_REDACTION[mode]["aide"],
+                   sans_modele=False)
 
 
 @app.route("/api/admin/livrables/generate", methods=["POST"])
@@ -5044,14 +5133,22 @@ def api_redaction_etat():
 
     Le même principe que pour le dépôt de documents, appliqué à ce qui écrit :
     celui qui va lancer une rédaction a le droit de savoir, AVANT de cliquer,
-    si elle peut aboutir. L'inverse — laisser cliquer, faire attendre, puis
-    annoncer « la génération a échoué » — transforme une configuration absente
-    en panne apparente, et fait réessayer indéfiniment quelque chose qui ne
-    peut pas marcher.
+    CE QUI VA SORTIR. Pas seulement « ça marche » ou « ça ne marche pas » —
+    les deux sources se complètent et se remplacent, et le résultat n'est pas
+    le même selon celles qui répondent.
 
-    Trois choses distinctes, et il faut les trois : quel modèle peut écrire,
-    ce que la base de connaissance peut lui fournir, et ce qui reste possible
-    quand la rédaction ne l'est pas.
+    QUATRE MODES, et aucun ne rend la main vide :
+
+      · modèle + base   — le modèle rédige, ancré sur les documents retrouvés ;
+      · modèle seul     — il rédige à partir du calcul, sans source citée ;
+      · base seule      — la trame est assemblée, extraits reproduits tels quels ;
+      · moteur seul     — plan et grandeurs assemblés : un point de départ.
+
+    Annoncer « INDISPONIBLE » quand aucun modèle n'est configuré serait
+    désormais faux : la pièce sort quand même, et c'est ce qu'elle EST qui
+    change. Une trame assemblée présentée comme une pièce rédigée serait la
+    seule vraie faute possible ici — d'où le mode dit d'avance, et redit en
+    tête du document.
     """
     dispo = assistant.available()
     prets = [k for k, v in dispo.items() if v]
@@ -5059,20 +5156,35 @@ def api_redaction_etat():
         docs = rag.stats().get("documents", 0)
     except Exception:
         docs = None
+    # `docs is None` — la base est injoignable : on la compte pour absente, et
+    # la consigne ci-dessous le dit plutôt que de laisser croire à un choix.
+    mode = ingenierie_dc.mode_redaction(bool(prets), bool(docs))
+    m = ingenierie_dc.MODES_REDACTION[mode]
     if prets:
         resume = ("La rédaction est disponible : %s. Chaque pièce est écrite à "
                   "partir du calcul et de la base de connaissance, puis "
                   "enregistrée dans le dossier du projet."
                   % " et ".join(prets))
     else:
-        resume = ("La rédaction est INDISPONIBLE : aucun modèle n'est configuré "
-                  "sur ce serveur. Inutile de lancer une pièce, elle échouera "
-                  "immédiatement — et le serveur le dira sans vous faire "
-                  "attendre.")
+        resume = ("Aucun modèle de langage n'est configuré sur ce serveur. La "
+                  "rédaction ne s'arrête pas pour autant : la pièce est "
+                  "ASSEMBLÉE — plan du registre, grandeurs du moteur, entrées "
+                  "manquantes%s — puis enregistrée dans le dossier. Elle est "
+                  "exacte et complète quant aux faits ; elle n'est pas rédigée."
+                  % (", extraits de la base" if docs else ""))
     return jsonify(ok=True, etat={
         "modeles": dispo,
         "modeles_prets": prets,
-        "disponible": bool(prets),
+        # `disponible` répond à « puis-je cliquer et obtenir une pièce ? ».
+        # La réponse est oui dans les quatre modes ; ce qui varie est le mode.
+        # `modele_disponible` répond à « qui écrit ? » — c'est une autre
+        # question, et les confondre est ce qui faisait annoncer une panne là
+        # où il n'y avait qu'une configuration absente.
+        "disponible": True,
+        "modele_disponible": bool(prets),
+        "mode": mode,
+        "mode_nom": m["nom"],
+        "mode_aide": m["aide"],
         "documents_base": docs,
         # Une base vide ne bloque pas la rédaction : le modèle écrit à partir
         # du calcul seul. Mais le document ne citera aucune source, et le dire
@@ -5083,8 +5195,17 @@ def api_redaction_etat():
         "consignes": [
             "Le modèle n'invente aucun chiffre : les grandeurs viennent du "
             "moteur déterministe et lui sont interdites de recalcul.",
-            "Sans document dans la base de connaissance, la pièce reste "
-            "rédigeable mais ne citera aucune source.",
+            ("Base de connaissance injoignable : la pièce se rédige quand "
+             "même, sur le seul calcul, et ne citera aucune source."
+             if docs is None else
+             "Sans document dans la base de connaissance, la pièce reste "
+             "rédigeable mais ne citera aucune source."),
+            ("Sans modèle, la trame est assemblée sans reformulation : les "
+             "extraits sont reproduits mot pour mot, avec leur source."
+             if not prets else
+             "Les deux sources se complètent : si la base ne répond pas, le "
+             "modèle rédige seul ; s'il n'est pas configuré, la base sert "
+             "seule."),
             "Une rédaction qui échoue n'enregistre rien : le dossier du projet "
             "reste dans l'état où il était.",
         ],

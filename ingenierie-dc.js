@@ -1278,9 +1278,14 @@
 
   /* L'état de la chaîne de rédaction, affiché AVANT le registre — exactement
      comme celui de l'analyse antivirus avant le dépôt. Celui qui va lancer une
-     rédaction a le droit de savoir si elle peut aboutir : laisser cliquer,
-     faire attendre, puis annoncer l'échec transforme une configuration absente
-     en panne apparente, et fait réessayer indéfiniment. */
+     rédaction a le droit de savoir CE QUI VA SORTIR, et pas seulement si le
+     geste aboutit : le modèle et la base se complètent et se remplacent, et
+     selon celles qui répondent, la pièce est rédigée ou assemblée.
+
+     Le bandeau annonce donc le MODE, nommé, avant le premier clic. Le document
+     le redira en tête — une trame assemblée prise pour une pièce rédigée est
+     la seule vraie faute possible ici, et elle se joue au moment où on la
+     remet, pas au moment où on la produit. */
   function redactionEtat() {
     var z = $("#ig-red-etat");
     if (!z) return;
@@ -1290,7 +1295,10 @@
         if (!j || !j.ok) { z.innerHTML = ""; return; }
         REDACTION = j.etat;
         var e = j.etat;
-        z.className = "ig-dep-etat" + (e.disponible ? " fort" : " ko");
+        /* Ambre quand aucun modèle n'écrit — c'est une réserve sur la NATURE
+           du document, pas une panne. Le rouge d'échec ne s'applique plus :
+           il n'y a plus de cas où le registre ne rend rien. */
+        z.className = "ig-dep-etat" + (e.modele_disponible ? " fort" : " trame");
         z.innerHTML = '<p class="t"><b>Ce qui écrira ces pièces.</b> '
           + esc(e.resume) + "</p>"
           + '<ul class="l">'
@@ -1306,19 +1314,20 @@
                       + "aucune source." : ".") + "</li>")
           + e.consignes.map(function (c) { return "<li>" + esc(c) + "</li>"; }).join("")
           + "</ul>"
-          + (e.disponible ? "" : '<p class="ig-dep-n"><b>Ce qui reste possible — </b>'
-              + esc(e.repli) + "</p>");
-        /* Les boutons de rédaction portent la mention : le lecteur voit sur le
-           bouton même que le geste ne peut pas aboutir, sans avoir à remonter
-           lire le bandeau. */
+          + '<p class="ig-dep-n"><b>Mode en vigueur — </b>' + esc(e.mode_nom)
+          + ". " + esc(e.mode_aide) + "</p>"
+          + (e.modele_disponible ? ""
+              : '<p class="ig-dep-n"><b>Ce qui reste possible — </b>'
+                + esc(e.repli) + "</p>");
+        /* Les boutons portent la mention au survol. Ils gardent en revanche le
+           bleu : ils PRODUISENT une pièce dans les quatre modes, et les peindre
+           en ambre dirait le contraire. Ce que le mode change est la nature du
+           document, et cela se lit sur le bandeau puis en tête du document —
+           pas sur le bouton, qui ne dit que le geste. */
         document.querySelectorAll("#ig-dossier .ig-gen").forEach(function (b) {
-          if (e.disponible) {
-            b.removeAttribute("title");
-            b.classList.remove("ko");
-          } else {
-            b.classList.add("ko");
-            b.setAttribute("title", e.resume);
-          }
+          b.classList.remove("ko");
+          if (e.modele_disponible) b.removeAttribute("title");
+          else b.setAttribute("title", e.mode_nom + " — " + e.mode_aide);
         });
       })
       .catch(function () { z.innerHTML = ""; });
@@ -1413,6 +1422,29 @@
       battre("#ig-dossier .ig-man.manq li[data-manque]", "ig-bat-ent",
              "entrees:" + DOSSIER.code);
     }
+    signalerRediger();
+  }
+
+  /* Les boutons « Rédiger » des pièces OBLIGATOIRES battent, en bleu.
+     Pas tous : le registre en compte quarante, et quarante halos simultanés ne
+     désignent plus rien — c'est le défaut contre lequel ce battement a été
+     écrit. Les obligatoires forment un ensemble court et cohérent : ce sont
+     celles sans lesquelles la phase ne se franchit pas.
+
+     Tous les boutons portent en revanche le bleu en permanence : c'est
+     l'action principale du registre, et elle doit se lire comme telle même
+     quand plus rien ne bat. */
+  function signalerRediger() {
+    /* Aucune condition sur le PLAN : il n'existe qu'une fois un projet
+       ouvert, alors que le registre s'affiche et se rédige sans projet — le
+       document part simplement « non rattaché ». Exiger le plan ici aurait
+       éteint le battement dans le seul cas où il sert le plus : celui du
+       lecteur qui arrive et n'a encore rien ouvert. */
+    var n = document.querySelectorAll(
+      "#ig-dossier .ig-c-obligatoire:not(.fait) .ig-gen").length;
+    if (!n) return;
+    battre("#ig-dossier .ig-c-obligatoire:not(.fait) .ig-gen", "ig-bat-red",
+           "rediger:" + PHASE + ":" + n);
   }
 
   function brancherPieces() {
@@ -1569,7 +1601,11 @@
           return;
         }
         z.innerHTML = '<div class="ig-doc"><div class="ig-doc-h">'
-          + "<b>" + esc(code) + "</b> — brouillon rédigé"
+          /* « Brouillon rédigé » sur une trame assemblée serait faux dès la
+             première ligne, et c'est cette ligne-là qu'on recopie en tête de
+             dossier. Le mot suit ce que le document est. */
+          + "<b>" + esc(code) + "</b> — "
+          + (o.j.sans_modele ? "trame assemblée" : "brouillon rédigé")
           + (o.j.model ? " · " + esc(o.j.model) : "")
           + ((o.j.sources || []).length
               ? " · " + o.j.sources.length + " document"
@@ -1581,7 +1617,16 @@
              encore ouvrir un projet et recommencer. */
           + (PROJET ? " · rattaché au projet " + esc(PROJET.nom)
                     : " · non rattaché — aucun projet n'est ouvert")
-          + '</div><pre class="ig-doc-c">' + esc(o.j.document) + "</pre></div>";
+          + "</div>"
+          /* LE MODE, en tête du document et non en note. Une trame assemblée
+             présentée comme une pièce rédigée serait la seule vraie faute
+             ici : elle se remettrait au client telle quelle. */
+          + (o.j.mode
+              ? '<div class="ig-mode' + (o.j.sans_modele ? " brut" : "") + '">'
+                + '<b>' + esc(o.j.mode_nom) + "</b> "
+                + esc(o.j.mode_aide) + "</div>"
+              : "")
+          + '<pre class="ig-doc-c">' + esc(o.j.document) + "</pre></div>";
         if (PROJET) pjHistorique(PROJET.id);
       })
       .catch(function () {

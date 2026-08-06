@@ -31,6 +31,8 @@ retapée ici aurait divergé au premier ajustement du référentiel, et c'est le
 cadre de phases qu'on aurait cru.
 """
 
+import time
+
 import datacenter as D
 import profil_dc as P
 
@@ -3370,6 +3372,193 @@ def requete_piece(code_phase, code_piece, inputs=None):
     if c:
         bouts.append(c)
     return " ".join(b for b in bouts if b).strip()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  ÉCRIRE SANS MODÈLE DE LANGAGE : LA TRAME ASSEMBLÉE
+# ═══════════════════════════════════════════════════════════════════════════
+# POURQUOI. Une clé d'API absente, un service saturé, un quota épuisé — et la
+# rédaction s'arrêtait net. C'était honnête mais trop sévère : l'essentiel du
+# document ne vient pas du modèle. Le plan de la pièce est au registre, les
+# grandeurs viennent du moteur déterministe, les manques sont calculés, et les
+# extraits sortent de la base de connaissance. Le modèle RÉDIGE autour de tout
+# cela ; il ne le produit pas.
+#
+# CE QUE LA TRAME EST, ET CE QU'ELLE N'EST PAS. C'est un document de travail
+# complet et exact : plan, chiffres, sources, ce qui reste à produire. Ce n'est
+# pas une prose rédigée, et elle le DIT en tête — présenter une trame comme un
+# livrable fini serait la seule vraie faute ici, celle qui ferait remettre au
+# client un document qu'on croit écrit.
+#
+# QUATRE COMBINAISONS, et aucune ne rend la main vide :
+#   modèle + base     → le modèle rédige, ancré sur les extraits ;
+#   modèle sans base  → le modèle rédige, sans source à citer, et le dit ;
+#   base sans modèle  → cette trame, avec les extraits en annexe ;
+#   ni l'un ni l'autre→ cette trame, sur le seul moteur.
+
+MODES_REDACTION = {
+    "modele_et_base": {
+        "nom": "Rédigé par le modèle, ancré sur la base",
+        "aide": "Le modèle rédige autour des grandeurs du moteur, avec "
+                "interdiction de recalculer, et cite les documents retrouvés.",
+    },
+    "modele_sans_base": {
+        "nom": "Rédigé par le modèle, sans source citée",
+        "aide": "Aucun document de la base n'a été retrouvé pour ce sujet : le "
+                "texte s'appuie sur le calcul et sur le plan de la pièce, sans "
+                "référence documentaire.",
+    },
+    "base_sans_modele": {
+        "nom": "Trame assemblée, extraits de la base en annexe",
+        "aide": "Aucun modèle de langage n'était disponible. Le plan, les "
+                "grandeurs calculées et les extraits retrouvés sont assemblés "
+                "tels quels : le document est exact et complet, il n'est pas "
+                "rédigé.",
+    },
+    "moteur_seul": {
+        "nom": "Trame assemblée sur le seul moteur",
+        "aide": "Ni modèle de langage, ni document dans la base. Le plan et "
+                "les grandeurs calculées sont assemblés : c'est un point de "
+                "départ de travail, pas un livrable.",
+    },
+}
+
+
+def mode_redaction(modele_disponible, extraits):
+    """Lequel des quatre modes s'applique, avant même d'essayer."""
+    if modele_disponible:
+        return "modele_et_base" if extraits else "modele_sans_base"
+    return "base_sans_modele" if extraits else "moteur_seul"
+
+
+def _fr_val(g):
+    v = D.fr(g.get("valeur"))
+    u = g.get("unite") or ""
+    return ("%s %s" % (v, u)).strip()
+
+
+def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None):
+    """La pièce assemblée SANS modèle de langage.
+
+    Tout ce qui est ici est vrai et vérifiable : le plan vient du registre, les
+    chiffres du moteur déterministe, les manques du contrôle d'aptitude, les
+    extraits de la base. Rien n'est inventé — c'est précisément ce qu'un modèle
+    absent ne peut pas garantir et ce que cette trame garantit par construction.
+
+    Renvoie None si la phase ou la pièce est inconnue : on refuse de deviner,
+    comme prompts_piece.
+    """
+    d = dossier(profil, code_phase, inputs)
+    if not d.get("connu") or not d.get("disponible"):
+        return None
+    pc = piece(code_phase, code_piece)
+    if not pc:
+        return None
+    extraits = extraits or []
+    inputs = dict(inputs or {})
+    client = (inputs.get("client") or "").strip() or "[client à préciser]"
+    mode = "base_sans_modele" if extraits else "moteur_seul"
+    m = MODES_REDACTION[mode]
+
+    L = []
+    A = L.append
+    A("# %s — %s" % (pc["code"], pc["titre"]))
+    A("")
+    A("**Projet :** %s  " % client)
+    A("**Phase :** %s — %s (%s)" % (d["code"], d["nom"], d["filiere_nom"]))
+    A("")
+    # L'avertissement en TÊTE, pas en annexe : c'est la première chose à
+    # savoir, et la seule qui empêche de remettre ceci comme un livrable fini.
+    A("> **%s.** %s" % (m["nom"], m["aide"]))
+    A(">")
+    A("> Ce document est **exact et complet quant aux faits** — plan, chiffres, "
+      "sources, manques — mais **il n'est pas rédigé**. Il se relit et se "
+      "complète ; il ne se remet pas en l'état.")
+    A("")
+
+    A("## Sommaire")
+    A("")
+    A("1. Ce que la pièce doit contenir")
+    A("2. Grandeurs calculées disponibles")
+    if (d.get("aptitude") or {}).get("entrees_manquantes"):
+        A("3. Entrées à renseigner avant de franchir la phase")
+    if (d.get("aptitude") or {}).get("substitutions_a_faire"):
+        A("4. Facteurs à remplacer par une donnée réelle")
+    if extraits:
+        A("5. Extraits de la base de connaissance")
+    A("")
+
+    A("## 1. Ce que la pièce doit contenir")
+    A("")
+    A("Niveau attendu à cette phase : **%s** — %s"
+      % (pc.get("niveau_nom") or "à préciser", pc.get("niveau_aide") or ""))
+    A("")
+    for c in pc["contenu"]:
+        A("- [ ] %s" % c)
+    A("")
+
+    A("## 2. Grandeurs calculées disponibles")
+    A("")
+    A("Ces valeurs viennent du moteur déterministe. Elles ne se recalculent "
+      "pas et ne s'arrondissent pas autrement.")
+    A("")
+    A("| Grandeur | Valeur | Incertitude | Statut à cette phase |")
+    A("| --- | --- | --- | --- |")
+    for g in d.get("grandeurs") or []:
+        A("| %s | %s | %s | %s |"
+          % (g["nom"], _fr_val(g), g.get("incertitude") or "—",
+             "recevable" if g.get("statut") == "recevable" else "À PRODUIRE"))
+    A("")
+
+    a = d.get("aptitude") or {}
+    if a.get("entrees_manquantes"):
+        A("## 3. Entrées à renseigner avant de franchir la phase")
+        A("")
+        for x in a["entrees_manquantes"]:
+            A("- **%s**%s — %s%s"
+              % (x["label"], (" (%s)" % x["unite"]) if x.get("unite") else "",
+                 x.get("pourquoi") or "non renseigné",
+                 "" if x.get("origine") == "propre"
+                 else " ; dette d'une phase antérieure"))
+        A("")
+    if a.get("substitutions_a_faire"):
+        A("## 4. Facteurs à remplacer par une donnée réelle")
+        A("")
+        for x in a["substitutions_a_faire"]:
+            A("- **%s** (%s%s) — %s"
+              % (x["nom"], x.get("nature") or "",
+                 (", " + x["incertitude"]) if x.get("incertitude") else "",
+                 x.get("remplacer_par") or "à remplacer par la donnée réelle"))
+        A("")
+
+    if extraits:
+        A("## 5. Extraits de la base de connaissance")
+        A("")
+        A("Retrouvés pour le sujet de cette pièce. Ils sont reproduits **tels "
+          "quels**, sans reformulation : aucun modèle n'est intervenu.")
+        A("")
+        par_doc = {}
+        for h in extraits:
+            par_doc.setdefault(h.get("title") or "Document sans titre", []).append(h)
+        for titre, hits in par_doc.items():
+            A("### %s" % titre)
+            th = hits[0].get("theme")
+            if th:
+                A("")
+                A("*Thème : %s*" % th)
+            for h in hits:
+                txt = (h.get("text") or h.get("extrait") or "").strip()
+                if not txt:
+                    continue
+                A("")
+                A("> " + txt.replace("\n", "\n> ")[:1800])
+            A("")
+
+    A("---")
+    A("")
+    A("*Assemblé le %s par le moteur %s. %s*"
+      % (time.strftime("%d/%m/%Y"), VERSION, m["nom"]))
+    return "\n".join(L)
 
 
 def prompts_piece(profil, code_phase, code_piece, inputs=None):
