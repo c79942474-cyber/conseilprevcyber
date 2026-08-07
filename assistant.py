@@ -186,7 +186,8 @@ def defaut():
 
 
 def _clean_history(messages):
-    """Ne garde que des tours user/assistant non vides, bornés, commençant par user."""
+    """Ne garde que des tours user/assistant non vides, bornés, commençant ET
+    finissant par user."""
     out = []
     for m in messages or []:
         role = m.get("role")
@@ -196,6 +197,16 @@ def _clean_history(messages):
     out = out[-MAX_HISTORY:]
     while out and out[0]["role"] != "user":
         out.pop(0)
+    # ── ET ELLE FINIT SUR L'UTILISATEUR ───────────────────────────────────
+    # L'historique arrive du navigateur : c'est une entrée que nous ne
+    # maîtrisons pas. Terminée sur un tour d'assistant, elle ne demande plus
+    # une réponse — elle demande de CONTINUER la phrase déjà commencée. Les
+    # générations récentes de modèles la refusent d'emblée, par un HTTP 400
+    # que rien ne distingue ensuite d'une panne du fournisseur ; celles qui
+    # l'acceptent rallongent le tour précédent au lieu de répondre à la
+    # question. Aucun des deux n'est ce qu'on veut, dans aucun cas.
+    while out and out[-1]["role"] != "user":
+        out.pop()
     return out
 
 
