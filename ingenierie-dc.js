@@ -1776,7 +1776,15 @@
                 + "Il est enregistré au dossier ; relancez la rédaction quand "
                 + "le service répond.</p></div>"
               : "")
-          + '<div class="ig-doc"><div class="ig-doc-h">'
+          /* LE BLOC ENTIER SIGNALE QU'IL Y A QUELQUE CHOSE À LIRE. Il
+             apparaissait au bas d'une page longue, du même gris que le reste
+             du registre : rien ne disait que le document était sorti, et la
+             rédaction se relançait sur une pièce déjà écrite. Il bat donc en
+             bleu clair tant que personne ne l'a ouvert, et se calme dès qu'on
+             le lit ou qu'on l'emporte. */
+          + '<div class="ig-doc neuf" id="ig-pc-bloc">'
+          + bandeauEtat(o.j)
+          + '<div class="ig-doc-h">'
           /* « Brouillon rédigé » sur une trame assemblée serait faux dès la
              première ligne, et c'est cette ligne-là qu'on recopie en tête de
              dossier. Le mot suit ce que le document est. */
@@ -1848,6 +1856,40 @@
      Un document se juge d'abord à ce qu'il est : combien de pages, combien de
      chapitres, sur quelles sources, et ce qu'il reste à en faire. Le lire en
      entier vient APRÈS — et se fait dans le lecteur, ou dans le Word. */
+  /* CE QUE LE DOCUMENT EST, ET CE QU'IL ATTEND. Deux faits, en tête du bloc
+     et avant tout le reste : il est sorti, et personne ne l'a encore ouvert.
+
+     « Rédigé » sur une trame assemblée serait faux dès le premier mot — et
+     c'est ce mot-là qu'on recopie en tête de dossier. Le verbe suit donc ce
+     que le document EST ; « généré » et « en attente de lecture » valent, eux,
+     dans les deux cas. */
+  function bandeauEtat(j) {
+    return '<div class="ig-doc-e" id="ig-pc-etat" role="status">'
+      + '<span class="pt">En attente de lecture</span>'
+      + "<b>Document " + (j.sans_modele ? "composé par le moteur et généré"
+                                        : "rédigé et généré") + ".</b>"
+      + '<span class="qu">Personne ne l\'a encore ouvert. Lisez-le ici, ou '
+      + "emportez-le en Word : c'est là que les corrections se font.</span>"
+      + "</div>";
+  }
+
+  /* LE BATTEMENT S'ARRÊTE QUAND IL A FAIT SON OFFICE. Le garder après
+     l'ouverture ferait ignorer le suivant — et un clignotement qu'on ne peut
+     pas arrêter est une gêne, pas un signal. Les quatre boutons d'emport
+     l'arrêtent, chacun en disant ce qui a été fait. */
+  function marquerLu(quoi) {
+    var b = $("#ig-pc-bloc");
+    if (!b || b.classList.contains("lu")) return;
+    b.classList.remove("neuf");
+    b.classList.add("lu");
+    var e = $("#ig-pc-etat");
+    if (e) {
+      e.innerHTML = '<span class="pt">Lu</span><b>' + esc(quoi) + "</b>"
+        + '<span class="qu">Il reste à le relire, le corriger, puis le faire '
+        + "viser pour qu'il parte au dossier.</span>";
+    }
+  }
+
   function ficheLivrable(j, code) {
     var md = j.document || "";
     var m = (window.CPMarkdown && CPMarkdown.mesurer)
@@ -1937,6 +1979,7 @@
     if (lire) {
       lire.addEventListener("click", function () {
         lireDocument(j.document || "", code + " — lecture");
+        marquerLu("Ouvert dans le lecteur.");
       });
     }
     var md = $("#ig-pc-md");
@@ -1946,6 +1989,7 @@
                              { type: "text/markdown;charset=utf-8" }),
                     nom + ".md");
         note("Markdown enregistré.");
+        marquerLu("Emporté en Markdown.");
       });
     }
     /* Le document vient d'arriver : c'est l'instant où ces boutons ont
@@ -1989,6 +2033,7 @@
             .then(function (bl) {
               telecharger(bl, nom + "." + t[1]);
               note(t[2] + " enregistré.");
+              marquerLu("Emporté en " + t[2] + ".");
             })
             .catch(function (e) {
               note(String(e.message || "").trim()

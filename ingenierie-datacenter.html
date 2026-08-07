@@ -582,6 +582,53 @@
   .ig-doc-h{font-size:12px;color:var(--muted2);padding:9px 13px;background:rgba(0,0,0,.22);
     border-bottom:1px solid var(--line)}
   .ig-doc-h b{color:var(--ink)}
+  /* LE DOCUMENT EST SORTI, ET PERSONNE NE L'A ENCORE OUVERT.
+
+     Le bloc apparaissait au bas d'une page longue, du même gris que le reste
+     du registre : rien ne disait qu'il y avait désormais quelque chose à lire,
+     et la rédaction se relançait sur une pièce déjà écrite. Le bloc ENTIER bat
+     donc en bleu clair tant qu'il attend sa lecture.
+
+     Le battement est lent — un cycle de 1,6 s, soit 0,6 Hz — très en deçà des
+     3 Hz au-delà desquels un clignotement devient un risque pour les
+     personnes photosensibles (WCAG 2.3.1). Et il s'arrête : les quatre
+     boutons d'emport le stoppent, ce qui vaut le mécanisme d'arrêt exigé pour
+     tout ce qui clignote plus de cinq secondes (WCAG 2.2.2). */
+  .ig-doc.neuf{border-color:var(--cyan);
+    animation:ig-attente 1.6s ease-in-out infinite}
+  @keyframes ig-attente{
+    0%,100%{border-color:rgba(34,211,238,.34);
+      box-shadow:0 0 0 1px rgba(34,211,238,.18)}
+    50%{border-color:rgba(34,211,238,1);
+      box-shadow:0 0 0 3px rgba(34,211,238,.55),
+                 0 0 22px 3px rgba(34,211,238,.42)}
+  }
+  .ig-doc-e{display:flex;align-items:baseline;gap:5px 10px;flex-wrap:wrap;
+    padding:10px 13px;font-size:12.5px;color:var(--ink);line-height:1.6;
+    background:rgba(34,211,238,.13);border-bottom:1px solid var(--line)}
+  .ig-doc-e .pt{font-family:var(--mono);font-size:10px;letter-spacing:.05em;
+    text-transform:uppercase;color:#0b0b0b;background:var(--cyan);
+    border-radius:20px;padding:2px 9px;white-space:nowrap}
+  .ig-doc-e b{font-weight:600}
+  .ig-doc-e .qu{flex:1 1 260px;font-size:11.5px;color:var(--muted2)}
+  /* Lu : le bloc RENTRE DANS LE RANG. Bordure ordinaire, plus de halo, plus
+     de fond bleu — il ne reste qu'une marque discrète. Garder le bloc en
+     évidence une fois le document ouvert ferait ignorer le suivant, qui lui
+     attend vraiment. */
+  .ig-doc.lu{border-color:var(--line);box-shadow:none}
+  .ig-doc.lu .ig-doc-e{background:rgba(0,0,0,.16);color:var(--muted)}
+  .ig-doc.lu .ig-doc-e b{color:var(--ink);font-weight:600}
+  .ig-doc.lu .ig-doc-e .pt{background:transparent;color:var(--teal);
+    border:1px solid var(--teal);padding:1px 9px;letter-spacing:.08em}
+  /* Pour qui a demandé moins d'animation, le bleu reste — fixe. C'est lui qui
+     porte l'information, pas le mouvement. Sur une page imprimée, un halo ne
+     veut plus rien dire du tout. */
+  @media (prefers-reduced-motion:reduce){
+    .ig-doc.neuf{animation:none;box-shadow:0 0 0 2px rgba(34,211,238,.90)}
+  }
+  @media print{
+    .ig-doc.neuf{animation:none;box-shadow:none}
+  }
   /* Emporter le document. Sans cette barre, le seul moyen de le sortir du
      site était de sélectionner le texte à l'écran — donc d'en perdre le
      titrage, les tableaux et l'en-tête. */
