@@ -3552,6 +3552,91 @@ def recherche_piece(code_piece, discipline=None):
     return "", "titre"
 
 
+# ── LE BON SOUS-DOSSIER DE LA BASE, PAR DISCIPLINE ───────────────────────────
+# La base range les documents de centres de données en sous-dossiers — les
+# thèmes de la famille « Centres de données » de rag_store. Cette table dit
+# lesquels interroger EN PREMIER pour chaque discipline du registre.
+#
+# C'est une carte, pas un filtre : les sous-dossiers nommés passent devant, le
+# reste de la famille complète, puis le reste de la base — une pièce ne perd
+# jamais une source parce que la carte l'aurait mal rangée. Mais l'ordre
+# compte : sur une base de plusieurs centaines de documents, la note thermique
+# qui nourrit un CCTP de production frigorifique doit sortir devant la note
+# carbone, même mieux écrite.
+#
+# Les intitulés sont EXACTEMENT ceux de rag_store.THEME_FAMILLES. Une recette
+# les confronte au vocabulaire réel : un intitulé recopié de travers ne
+# remonterait simplement aucun document, sans erreur — la recette le voit,
+# l'exploitation non.
+SOUS_DOSSIERS_DISCIPLINE = {
+    "hvac": ("Data center / Thermique & refroidissement",
+             "Data center / Refroidissement liquide & immersion",
+             "Data center / Efficacité & indicateurs (PUE, WUE, CUE, ERE)"),
+    "fluides": ("Data center / Eau & stress hydrique",
+                "Data center / Refroidissement liquide & immersion",
+                "Data center / Thermique & refroidissement"),
+    "elec_cfo": ("Data center / Énergie & électricité",),
+    # Courants faibles, télécoms : pas de sous-dossier dédié — la conception
+    # d'ensemble est ce qui s'en approche le plus, et le reste de la famille
+    # complète.
+    "elec_cfa": ("Data center / Conception & architecture",),
+    "telecom": ("Data center / Conception & architecture",),
+    "supervision": ("Data center / Retours d'exploitation & mesures",
+                    "Data center / Efficacité & indicateurs (PUE, WUE, CUE, ERE)"),
+    "itot": ("Data center / Conception & architecture",
+             "Data center / Efficacité & indicateurs (PUE, WUE, CUE, ERE)"),
+    "safety": ("Data center / Safety Management",
+               "Data center / Safety Management / Analyse de risques & HAZOP",
+               "Data center / Safety Management / Incendie & détection",
+               "Data center / Safety Management / Consignation & travaux",
+               "Data center / Safety Management / Plans d'urgence & exercices"),
+    "surete": ("Data center / Safety Management",
+               "Data center / Conception & architecture"),
+    "incendie": ("Data center / Safety Management / Incendie & détection",
+                 "Data center / Safety Management / Analyse de risques & HAZOP"),
+    "extinction": ("Data center / Safety Management / Incendie & détection",),
+    "structure": ("Data center / Conception & architecture",
+                  "Data center / Études de site & implantation"),
+    "environnement": ("Data center / Carbone & analyse de cycle de vie",
+                      "Data center / Eau & stress hydrique",
+                      "Data center / Réglementation UE (EED, taxonomie, CSRD)",
+                      "Data center / Chaleur fatale & réseaux de chaleur",
+                      "Data center / Green Management"),
+    "projet": ("Data center / Appels d'offres & CCTP",
+               "Data center / Normes (EN 50600, ISO/IEC 30134, ASHRAE)"),
+    "design_mgmt": ("Data center / Conception & architecture",
+                    "Data center / Normes (EN 50600, ISO/IEC 30134, ASHRAE)",
+                    "Data center / Appels d'offres & CCTP"),
+}
+
+# Quelques pièces cherchent AILLEURS que leur discipline : une consultation
+# fournisseurs se nourrit de fiches techniques, pas de la note de calcul du
+# lot. Nommées pièce par pièce parce que l'exception se justifie une à une —
+# une règle générale « le type consultation va aux fournisseurs » se serait
+# appliquée à des pièces qu'on n'a pas relues.
+_SOUS_DOSSIERS_PIECE = {
+    "SPC-CONSULT": ("Data center / Fournisseurs & fiches techniques",),
+    "SPC-SELECT": ("Data center / Fournisseurs & fiches techniques",),
+    "SPC-CONFORM": ("Data center / Normes (EN 50600, ISO/IEC 30134, ASHRAE)",
+                    "Data center / Réglementation UE (EED, taxonomie, CSRD)"),
+}
+
+
+def sous_dossiers(code_piece, discipline=None):
+    """Les sous-dossiers de la base à interroger EN PREMIER pour cette pièce.
+
+    L'exception de la pièce d'abord, la carte de la discipline ensuite — dans
+    cet ordre et sans doublon. Liste vide si rien n'est cartographié :
+    l'appelant retombe alors sur la famille entière, ce qui est le comportement
+    d'avant cette carte.
+    """
+    out = list(_SOUS_DOSSIERS_PIECE.get((code_piece or "").strip().upper(), ()))
+    for t in SOUS_DOSSIERS_DISCIPLINE.get((discipline or "").strip(), ()):
+        if t not in out:
+            out.append(t)
+    return out
+
+
 def requete_piece(code_phase, code_piece, inputs=None):
     """Ce qu'on demande À LA BASE — distinct de ce qu'on demande au modèle.
 
@@ -3695,6 +3780,28 @@ MODES_REDACTION = {
                 "trajectoire, ses interfaces et ses manques, puis nomme ce "
                 "qui reste à rédiger. Tout y est vérifiable ; rien n'y est "
                 "prose.",
+    },
+    # ── Les deux modes de la rédaction DOCUMENTAIRE ──────────────────────────
+    # Mêmes documents que « base_sans_modele », mais la cause diffère du tout
+    # au tout : ici le modèle n'a pas manqué, il est DÉBRANCHÉ par choix. Dire
+    # « aucun modèle n'était disponible » sur un serveur où la clé est bonne
+    # enverrait l'exploitant vérifier une configuration qui n'a rien.
+    "documentaire": {
+        "nom": "Composé par le moteur, sur les documents de la base",
+        "aide": "La rédaction par modèle d'IA est désactivée sur cette page. "
+                "Le moteur compose le cadre exigentiel — objet, portée, "
+                "contenu exigé, interfaces, grandeurs — et le texte "
+                "documentaire vient des documents chargés dans la base, "
+                "cherchés d'abord dans les sous-dossiers du thème "
+                "correspondant à la pièce, cités mot pour mot et attribués.",
+    },
+    "documentaire_seul": {
+        "nom": "Composé par le moteur — la base n'a rien fourni sur ce sujet",
+        "aide": "La rédaction par modèle d'IA est désactivée, et aucun "
+                "document de la base ne répond au sujet de cette pièce. "
+                "Déposez les documents attendus dans les sous-dossiers du "
+                "thème correspondant (console d'administration, base de "
+                "connaissance) : la prochaine composition les citera.",
     },
 }
 
@@ -3869,13 +3976,17 @@ def _bloc_extraits(A, hits, ecartes=None):
 
 
 def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
-                note=None):
+                note=None, mode=None):
     """La pièce assemblée SANS modèle de langage.
 
     Tout ce qui est ici est vrai et vérifiable : le plan vient du registre, les
     chiffres du moteur déterministe, les manques du contrôle d'aptitude, les
     extraits de la base. Rien n'est inventé — c'est précisément ce qu'un modèle
     absent ne peut pas garantir et ce que cette trame garantit par construction.
+
+    `mode` (facultatif) : le mode de rédaction à tracer dans le document, quand
+    l'appelant le connaît mieux que nous — « documentaire » quand le modèle est
+    débranché par choix et non manquant. Sans lui, on déduit comme avant.
 
     Renvoie None si la phase ou la pièce est inconnue : on refuse de deviner,
     comme prompts_piece.
@@ -3889,7 +4000,8 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
     extraits = extraits or []
     inputs = dict(inputs or {})
     client = (inputs.get("client") or "").strip() or "[client à préciser]"
-    mode = "base_sans_modele" if extraits else "moteur_seul"
+    if mode not in MODES_REDACTION:
+        mode = "base_sans_modele" if extraits else "moteur_seul"
     m = MODES_REDACTION[mode]
 
     contenu = pc.get("contenu") or []
@@ -4300,8 +4412,30 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
          "discipline": "propre à la discipline",
          "titre": "titre de la pièce, faute de vocabulaire déclaré"
          }.get(origine, origine))
+    # OÙ la base a été interrogée d'abord. « Choisi dans le bon sous-dossier »
+    # est une affirmation vérifiable ou creuse : la ligne donne au relecteur de
+    # quoi la vérifier — et, si la pièce cite un document d'un AUTRE thème, de
+    # voir que les sous-dossiers attendus étaient vides.
+    sd = sous_dossiers(pc["code"], pc.get("discipline"))
+    if sd:
+        A("| Sous-dossiers interrogés d'abord | %s |"
+          % " · ".join(s.replace("Data center / ", "") for s in sd))
     A("| Extraits retrouvés | %d, dont %d rattachés à un point |"
       % (len(extraits), len(extraits) - len(hors)))
+    # LES DOCUMENTS, nommés avec leur sous-dossier. Les citations les attribuent
+    # déjà un à un au fil du texte ; cette ligne les rassemble, parce que c'est
+    # elle qu'on lit pour répondre à « sur quoi cette pièce s'appuie-t-elle ? »
+    # sans relire la pièce.
+    _docs_mob, _vus_mob = [], set()
+    for _h in extraits:
+        _t = _X.titre_document(_h.get("title"))
+        if not _t or _t in _vus_mob:
+            continue
+        _vus_mob.add(_t)
+        _docs_mob.append("%s%s" % (_t, (" (%s)" % _h["theme"])
+                                   if _h.get("theme") else ""))
+    if _docs_mob:
+        A("| Documents mobilisés | %s |" % " · ".join(_docs_mob))
     if voisins:
         A("| Extraits sur le sujet | %d, sans réponse précise à un point |"
           % len(voisins))

@@ -4567,8 +4567,9 @@ def _extraits_pour(query, doc_ids=None, public_only=False):
 
 
 def _trame_sans_modele(type_id, data, extra_query, label, dispo,
-                       public_only=False, echec=None):
-    """La pièce assemblée quand aucun modèle n'est disponible.
+                       public_only=False, echec=None, documentaire=False):
+    """La pièce assemblée quand aucun modèle n'est disponible — ou quand la
+    rédaction par modèle est DÉBRANCHÉE par choix (`documentaire=True`).
 
     Le document reste EXACT — plan du registre, chiffres du moteur, manques
     calculés, extraits reproduits tels quels — et il porte en tête ce qu'il
@@ -4588,7 +4589,25 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo,
         famille, themes = _famille_prioritaire(type_id)
         hits = _hits_priorises(query, 8, public_only, themes,
                                elargir=_extraits_pour(query, None, public_only))
-    mode = ingenierie_dc.mode_redaction(False, hits)
+        # LE BON SOUS-DOSSIER PASSE DEVANT LA FAMILLE. La famille dit « c'est
+        # un document de centre de données » ; le sous-dossier dit « c'est LE
+        # thème de cette pièce ». Pour un CCTP de production frigorifique, la
+        # note thermique doit sortir devant la note carbone — toutes deux sont
+        # de la famille, une seule est du sujet. Même mécanique que la
+        # famille : un ordre, jamais un filtre — appliquée par-dessus.
+        pc0 = ingenierie_dc.piece(phase, code) if (phase and code) else None
+        if pc0:
+            sous = ingenierie_dc.sous_dossiers(pc0["code"],
+                                               pc0.get("discipline"))
+            if sous:
+                hits = _hits_priorises(query, 8, public_only, sous,
+                                       elargir=hits)
+    if documentaire:
+        # Le modèle n'a pas manqué : il est débranché. Le dire avec les mots
+        # de l'indisponibilité enverrait vérifier une configuration intacte.
+        mode = "documentaire" if hits else "documentaire_seul"
+    else:
+        mode = ingenierie_dc.mode_redaction(False, hits)
     m = ingenierie_dc.MODES_REDACTION[mode]
     # La cause, portée JUSQUE DANS le document. Une trame reçue alors qu'un
     # modèle est configuré ressemble sinon à une panne du site : on relance, on
@@ -4604,7 +4623,8 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo,
     try:
         # D'abord la pièce de phase — plan du registre, grandeurs, manques
         # calculés. Elle n'existe que si la demande en porte une.
-        texte = ingenierie_dc.trame_piece(profil, phase, code, hits, data, note)
+        texte = ingenierie_dc.trame_piece(profil, phase, code, hits, data, note,
+                                          mode=mode)
     except Exception:
         app.logger.exception("trame sans modèle : pièce")
     if not texte:
@@ -5009,10 +5029,25 @@ def _rediger_piece():
                              % (pc["titre"][:100],
                                 "complet" if admin else "public",
                                 data["indice"]))
-    return _livrables_run("dc-piece-%s-%s" % (phase.lower(), code.lower()),
-                          data, system, user, extra_query=requete,
-                          label="%s %s — %s" % (phase, pc["code"], pc["titre"]),
-                          public_only=not admin)
+    type_id = "dc-piece-%s-%s" % (phase.lower(), code.lower())
+    label = "%s %s — %s" % (phase, pc["code"], pc["titre"])
+    # ── LA RÉDACTION PAR MODÈLE EST DÉBRANCHÉE SUR CETTE PAGE, par choix ──
+    # Le moteur compose le cadre exigentiel — ce qu'une pièce doit contenir —
+    # et le texte documentaire vient des documents chargés dans la base,
+    # cherchés d'abord dans les sous-dossiers du thème de la pièce. Aucun
+    # jeton d'API n'est consommé, aucune prose n'est générée : tout ce qui est
+    # dans la pièce se vérifie à sa source.
+    #
+    # INGENIERIE_REDACTION=modele rebranche le modèle sans redéploiement de
+    # code — le jour où la rédaction assistée redevient voulue ici. La
+    # console d'administration et le chat, eux, ne changent pas de régime.
+    if (os.environ.get("INGENIERIE_REDACTION") or "documentaire") \
+            .strip().lower() != "modele":
+        return _trame_sans_modele(type_id, data, requete, label,
+                                  assistant.available(),
+                                  public_only=not admin, documentaire=True)
+    return _livrables_run(type_id, data, system, user, extra_query=requete,
+                          label=label, public_only=not admin)
 
 
 @app.route("/api/datacenter/piece", methods=["POST"])

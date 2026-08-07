@@ -112,6 +112,15 @@ services:
         sync: false
       - key: WEB_THREADS
         sync: false
+      # Rédaction des pièces d'ingénierie datacenter (page
+      # /ingenierie-datacenter). Non défini => « documentaire » : AUCUN modèle
+      # d'IA n'est appelé — le moteur compose le cadre exigentiel, et le texte
+      # vient des documents chargés dans la base de connaissance, cherchés
+      # d'abord dans les sous-dossiers du thème correspondant à la pièce.
+      # « modele » rebranche la rédaction assistée par IA sur cette page.
+      # La console d'administration et le chat ne dépendent pas de ce réglage.
+      - key: INGENIERIE_REDACTION
+        sync: false
       # Appels SIMULTANÉS au modèle, toutes pages confondues (défaut : 3).
       # Bien en dessous du nombre de fils : c'est ce qui garantit qu'il en
       # reste toujours pour SERVIR LES PAGES quand le service d'IA est lent.
