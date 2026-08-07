@@ -1846,6 +1846,10 @@ def api_playbook_export():
 import datacenter    # noqa: E402
 import profil_dc     # noqa: E402  — analyse le moteur ci-dessus, ne le double pas
 import ingenierie_dc  # noqa: E402  — situe ses résultats dans la séquence projet
+# Le nettoyage des extraits et des titres de sources. Nommé « extraits_mod » :
+# « extraits » désigne déjà, dans une douzaine de fonctions de ce fichier, la
+# liste des passages retrouvés — les confondre aurait écrasé l'un par l'autre.
+import extraits as extraits_mod  # noqa: E402
 
 
 @app.route("/datacenter")
@@ -4608,7 +4612,13 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo,
             sources[rang[did]]["extraits"] += 1
             continue
         rang[did] = len(sources)
-        sources.append({"title": h.get("title"), "theme": h.get("theme"),
+        # LE TITRE EST NETTOYÉ ICI, une fois pour toutes. Nettoyé au seul
+        # moment de composer le document, l'écran continuait d'afficher le nom
+        # de fichier brut pendant que le livrable citait la référence — deux
+        # vérités pour la même source, et celle qu'on lit à l'écran est celle
+        # qu'on recopie dans un courriel.
+        sources.append({"title": extraits_mod.titre_document(h.get("title")),
+                        "theme": h.get("theme"),
                         "visibility": h.get("visibility"), "extraits": 1})
     projet_id = _projet_du_compte(data.get("projet_id"))
     # L'intitulé, et il ne peut PAS rester vide : c'est lui qu'on lit dans la
@@ -4638,7 +4648,10 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo,
             "markdown": texte, "sources": sources,
             "projet_id": projet_id, "phase": phase,
             "filiere": (data.get("filiere") or ""),
-            "piece": code, "etat": "brouillon"})
+            "piece": code,
+            "numero": (data.get("numero") or ""),
+            "indice": (data.get("indice") or ""),
+            "etat": "brouillon"})
         if projet_id:
             try:
                 projets_db.toucher(projet_id)
@@ -4760,7 +4773,13 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None,
             sources[rang[did]]["extraits"] += 1
             continue
         rang[did] = len(sources)
-        sources.append({"title": h.get("title"), "theme": h.get("theme"),
+        # LE TITRE EST NETTOYÉ ICI, une fois pour toutes. Nettoyé au seul
+        # moment de composer le document, l'écran continuait d'afficher le nom
+        # de fichier brut pendant que le livrable citait la référence — deux
+        # vérités pour la même source, et celle qu'on lit à l'écran est celle
+        # qu'on recopie dans un courriel.
+        sources.append({"title": extraits_mod.titre_document(h.get("title")),
+                        "theme": h.get("theme"),
                         "visibility": h.get("visibility"), "extraits": 1})
     user = user + livrables.dossier_documentaire(sources, choix_manuel=bool(doc_ids))
 
@@ -4821,6 +4840,12 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None,
             "phase": (data.get("phase") or ""),
             "filiere": (data.get("filiere") or ""),
             "piece": (data.get("piece") or ""),
+            # Le numéro et l'indice étaient calculés, rendus à l'écran, portés
+            # au cartouche du Word — et perdus à l'enregistrement. La liste des
+            # documents du projet les redemande, et c'est exactement la colonne
+            # qu'on cherche dans un registre.
+            "numero": (data.get("numero") or ""),
+            "indice": (data.get("indice") or ""),
             "etat": "brouillon"})
         # La date de dernière activité du projet suit ce qui y est produit :
         # c'est elle qui trie utilement une liste de projets.
@@ -5694,6 +5719,74 @@ def api_projet_livrable(pid, lid, fmt):
         resp = Response(blob, mimetype=mt)
     audit.journaliser("projet.livrable", cible="%s/%s" % (pid[:8], lid[:8]),
                       detail=fmt)
+    resp.headers["Content-Disposition"] = ('attachment; filename="%s.%s"'
+                                           % (base, fmt))
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["Cache-Control"] = "private, no-store"
+    return resp
+
+
+@app.route("/api/datacenter/projets/<pid>/documents.<fmt>", methods=["GET"])
+@login_required
+def api_projet_documents(pid, fmt):
+    """La liste des documents du projet : le registre de ce qui est VISÉ.
+
+    Elle ne se confond pas avec le dossier. Le dossier porte tout ce qui a été
+    produit, brouillons compris — c'est un plan de travail. La liste ne porte
+    que ce qui a été visé : elle engage. Y verser un brouillon ferait figurer
+    au registre contractuel un document que personne n'a relu, et c'est la
+    faute qui coûte le plus cher, parce qu'on ne la découvre qu'au moment où
+    quelqu'un s'en prévaut.
+
+    404 tant qu'aucun document n'est visé : une liste vide n'est pas un
+    registre, c'est un document qui ferait croire qu'il n'y a rien à attendre.
+    """
+    prop = _proprietaire()
+    if not prop or not projets_dc._valid_id(pid):
+        return jsonify(ok=False, error="reference_invalide"), 400
+    if fmt not in ("docx", "pdf", "md", "json"):
+        return jsonify(ok=False, error="format_inconnu"), 400
+    projet = projets_db.obtenir(prop, pid)
+    if not projet:
+        return jsonify(ok=False, error="introuvable"), 404
+    liv = [x for x in livrables_hist.list() if x.get("projet_id") == pid]
+    md = ingenierie_dc.liste_documents(projet, liv, projets_dc.ETATS_LIVRABLE)
+    if not md:
+        return jsonify(ok=False, error="aucun_vise",
+                       message="Aucun document de ce projet n'est visé. La "
+                               "liste s'ouvre au premier visa."), 404
+    vises = len([x for x in liv
+                 if (x.get("etat") or "") in ingenierie_dc.ETATS_ENGAGEANTS])
+    if fmt == "json":
+        return jsonify(ok=True, document=md, vises=vises, total=len(liv),
+                       projet=projet.get("nom") or "")
+    base = _nom_fichier("liste-documents-%s" % (projet.get("nom") or pid[:8]))
+    if fmt == "md":
+        resp = Response(md.encode("utf-8"),
+                        mimetype="text/markdown; charset=utf-8")
+    else:
+        meta = {"type": "LDD", "label": "Liste des documents du projet",
+                "numero": "LDD-%s" % (projet.get("nom") or "")[:24],
+                "client": projet.get("client") or "",
+                "perimetre": projet.get("nom") or "",
+                "date": time.strftime("%d/%m/%Y"),
+                "model": "Moteur d'ingénierie CONSEILPREV %s"
+                         % ingenierie_dc.VERSION,
+                "statut": "Registre des documents visés",
+                "sources": []}
+        try:
+            if fmt == "pdf":
+                blob, mt = livrables_export.build_pdf(md, meta), "application/pdf"
+            else:
+                blob = livrables_export.build_docx(md, meta)
+                mt = ("application/vnd.openxmlformats-officedocument"
+                      ".wordprocessingml.document")
+        except Exception:
+            return jsonify(ok=False, error="export_echec",
+                           message="La mise en page a échoué."), 500
+        resp = Response(blob, mimetype=mt)
+    audit.journaliser("projet.documents", cible=pid[:8],
+                      detail="%s · %d visé(s)" % (fmt, vises))
     resp.headers["Content-Disposition"] = ('attachment; filename="%s.%s"'
                                            % (base, fmt))
     resp.headers["X-Content-Type-Options"] = "nosniff"

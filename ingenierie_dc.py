@@ -3371,10 +3371,68 @@ def requete_piece(code_phase, code_piece, inputs=None):
     for r in contexte_projet(inputs).get("retenus", []):
         if r.get("champ") in ("secteur", "perimetre") and r.get("nom"):
             bouts.append(r["nom"])
+    bouts.extend(termes_ingenierie(pc, inputs))
     c = (inputs.get("consignes") or "").strip()
     if c:
         bouts.append(c)
     return " ".join(b for b in bouts if b).strip()
+
+
+# Ce que chaque choix d'ingénierie apporte à la recherche, et pour QUELLES
+# pièces. Un terme n'aide que là où il discrimine : « free cooling » sur une
+# spécification de refroidissement ramène le bon document ; sur la notice de
+# sécurité incendie, il déplace la recherche vers un sujet qui n'est pas le
+# sien et fait remonter du hors-sujet à la place de la matière utile.
+#
+# La correspondance se fait sur la DISCIPLINE de la pièce, déjà portée par le
+# registre : lister les cent-huit codes un par un aurait divergé au premier
+# ajout de pièce.
+_INGENIERIE_UTILE = {
+    "refroidissement": ("hvac", "fluides", "environnement", "elec_cfo",
+                        "structure", "projet"),
+    "classe_ashrae": ("hvac", "itot"),
+    "pays": ("environnement", "elec_cfo", "fluides", "projet"),
+}
+
+
+def termes_ingenierie(pc, inputs):
+    """Les choix d'ingénierie du client, traduits en mots de la base.
+
+    Une recherche qui ne porte que le sujet de la pièce ramène la littérature
+    générale du centre de données : elle est vraie, et sans intérêt, parce
+    qu'elle ne sait rien de CE projet. Le client a pourtant déjà arrêté ce qui
+    discrimine — la famille de refroidissement, la classe ASHRAE admise, le
+    pays d'implantation — et ces choix décident quels documents de la base
+    parlent réellement de son installation. Une spécification thermique sur un
+    site en free cooling indirect n'a pas à être documentée par la littérature
+    des tours évaporatives.
+
+    On transmet le NOM du référentiel, jamais la clé : la base contient
+    « free cooling indirect à assistance adiabatique », et nulle part
+    « adiabatique » au sens de notre identifiant interne.
+    """
+    disc = pc.get("discipline") or ""
+    out = []
+    fam = str(inputs.get("refroidissement") or "").strip()
+    if fam and disc in _INGENIERIE_UTILE["refroidissement"]:
+        out.append((D.REFROIDISSEMENT.get(fam) or {}).get("nom"))
+    cl = str(inputs.get("classe_ashrae") or "").strip().upper()
+    if cl and disc in _INGENIERIE_UTILE["classe_ashrae"]:
+        out.append("classe ASHRAE %s" % cl)
+    pays = str(inputs.get("pays") or "").strip().upper()
+    if pays and disc in _INGENIERIE_UTILE["pays"]:
+        out.append(_nom_pays(pays))
+    return [t for t in out if t]
+
+
+def _nom_pays(code):
+    """Le nom du pays, lu au référentiel du moteur — jamais retapé ici.
+
+    Le retaper aurait fait deux listes de vingt-neuf pays à tenir à jour, et
+    la seconde aurait divergé au premier ajout.
+    """
+    v = (getattr(D, "EWIF_PAYS", None) or {}).get(code) or {}
+    return v.get("nom") or code
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -3574,7 +3632,7 @@ def _bloc_extraits(A, hits, ecartes=None):
         if not paras:
             motif = _X.motif_rejet(_X.phrases_entieres(_X.reparer(brut)) or brut)
             if ecartes is not None and motif:
-                ecartes.append((h.get("title") or "document sans titre", motif))
+                ecartes.append((_X.titre_document(h.get("title")), motif))
             continue
         txt = " ".join(paras)
         # DÉDOUBLONNAGE. Les fragments de la base se chevauchent : deux hits
@@ -3595,7 +3653,7 @@ def _bloc_extraits(A, hits, ecartes=None):
             A("> " + p.replace("\n", "\n> "))
         A(">")
         A("> *Source : %s%s.*"
-          % (h.get("title") or "document sans titre",
+          % (_X.titre_document(h.get("title")),
              (" (thème %s)" % h["theme"]) if h.get("theme") else ""))
 
 
@@ -5194,3 +5252,142 @@ def sante():
         ],
         "moteur": D.VERSION,
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LA LISTE DES DOCUMENTS DU PROJET
+# ═══════════════════════════════════════════════════════════════════════════
+# CE QUE C'EST. Sur un projet d'ingénierie, la liste des documents — la LDD —
+# est elle-même une pièce contractuelle. Elle dit ce qui existe, à quel indice,
+# émis par qui, pour quelle phase, et à quel titre chacun engage. C'est le
+# document qu'ouvre en premier un bureau de contrôle, un repreneur d'affaire ou
+# un exploitant six mois après la livraison.
+#
+# POURQUOI ELLE NE SE CONFOND PAS AVEC LE DOSSIER. Le dossier du projet porte
+# TOUT ce qui a été produit, brouillons compris — c'est un plan de travail. La
+# liste, elle, ne porte que ce qui a été VISÉ : elle engage. Y verser un
+# brouillon ferait figurer au registre contractuel un document que personne n'a
+# relu, et c'est la faute qui coûte le plus cher, parce qu'on ne la découvre
+# qu'au moment où quelqu'un s'en prévaut.
+#
+# CE QUI RESTE DEHORS EST DIT. La liste annonce le nombre de documents encore
+# au brouillon et à la relecture : un registre qui tairait leur existence
+# laisserait croire le dossier complet.
+
+ETATS_ENGAGEANTS = ("vise",)
+
+
+def liste_documents(projet, livrables, etats=None):
+    """Le registre contractuel des documents visés d'un projet, en Markdown.
+
+    `livrables` : les enregistrements du magasin d'historique, tels quels.
+    `etats` : le vocabulaire des états, pour les nommer — lu au référentiel des
+    projets et non recopié ici, sans quoi les deux auraient divergé.
+
+    Renvoie None si aucun document n'est visé : une liste vide n'est pas un
+    registre, c'est un document qui ferait croire qu'il n'y a rien à attendre.
+    """
+    etats = etats or {}
+    tous = list(livrables or [])
+    vises = [x for x in tous if (x.get("etat") or "") in ETATS_ENGAGEANTS]
+    if not vises:
+        return None
+
+    nom_projet = (projet or {}).get("nom") or "projet sans nom"
+    client = (projet or {}).get("client") or ""
+    rang = {p["code"]: p["rang"] for p in PHASES}
+    noms_phase = {p["code"]: p["nom"] for p in PHASES}
+
+    L = []
+    A = L.append
+    A("# Liste des documents — %s" % nom_projet)
+    A("")
+    A("Registre des documents visés du projet%s, arrêté le %s."
+      % ((", pour %s" % client) if client else "", time.strftime("%d/%m/%Y")))
+    A("")
+    A("> **Ce registre ne porte que les documents visés.** Un document au "
+      "brouillon ou en relecture n'engage personne et n'a pas sa place ici ; "
+      "le dossier du projet, lui, les porte tous.")
+    A("")
+
+    A("## 1. Ce que porte ce registre")
+    A("")
+    A("| Rubrique | Valeur |")
+    A("| --- | --- |")
+    A("| Projet | **%s** |" % nom_projet)
+    if client:
+        A("| Client | **%s** |" % client)
+    A("| Documents visés | **%d** |" % len(vises))
+    for cle in ("relu", "brouillon"):
+        n = len([x for x in tous if (x.get("etat") or "brouillon") == cle])
+        if n:
+            A("| Non encore visés, à l'état « %s » | %d |"
+              % ((etats.get(cle) or {}).get("nom", cle).lower(), n))
+    A("| Phases représentées | %d |"
+      % len({(x.get("phase") or "—") for x in vises}))
+    A("| Arrêté le | %s |" % time.strftime("%d/%m/%Y"))
+    A("| Établi par | Moteur d'ingénierie CONSEILPREV %s |" % VERSION)
+    A("")
+
+    # PAR PHASE, dans l'ordre de la séquence — et non par date. Un registre se
+    # lit en suivant l'avancement du projet ; trié par date de production, il
+    # mélangerait une note d'esquisse reprise tardivement avec les pièces du
+    # dossier de consultation.
+    par_phase = {}
+    for x in vises:
+        par_phase.setdefault(x.get("phase") or "—", []).append(x)
+    n = 2
+    for code in sorted(par_phase, key=lambda c: (rang.get(c, 999), c)):
+        items = par_phase[code]
+        A("## %d. Phase %s — %s"
+          % (n, code, noms_phase.get(code, "hors phase")))
+        A("")
+        A("| Numéro | Indice | Intitulé | Discipline | Émetteur | Visé le |")
+        A("| --- | --- | --- | --- | --- | --- |")
+        for x in sorted(items, key=lambda r: (r.get("numero") or "",
+                                              r.get("label") or "")):
+            pc = piece(x.get("phase") or "", x.get("piece") or "") or {}
+            A("| %s | %s | %s | %s | %s | %s |"
+              % (x.get("numero") or x.get("piece") or "—",
+                 x.get("indice") or "01",
+                 x.get("label") or x.get("type") or "document",
+                 pc.get("discipline_nom") or _nom_discipline(pc.get("discipline"))
+                 or "—",
+                 pc.get("emetteur_nom") or "—",
+                 _jour(x.get("vise_at") or x.get("created_at"))))
+        A("")
+        # CE QUE CETTE PHASE GÈLE. Un registre qui ne dirait pas quelles pièces
+        # deviennent opposables à la phase où elles sont visées laisserait
+        # croire que tout reste modifiable.
+        geles = [x for x in items
+                 if (piece(x.get("phase") or "", x.get("piece") or "") or {})
+                 .get("gel")]
+        if geles:
+            A("Gelées à cette phase, donc opposables en l'état : %s."
+              % ", ".join(sorted({x.get("numero") or x.get("piece") or "?"
+                                  for x in geles})))
+            A("")
+        n += 1
+
+    A("## %d. Ce que ce registre n'atteste pas" % n)
+    A("")
+    A("Le visa porte sur le contenu du document à la date où il a été donné. "
+      "Il ne vaut pas réception des ouvrages, ni conformité d'exécution, ni "
+      "quitus sur les phases suivantes.")
+    A("")
+    manquants = len(tous) - len(vises)
+    if manquants:
+        A("**%d document%s du dossier ne figure%s pas ici**, faute de visa. "
+          "Le dossier du projet les porte, à leur état."
+          % (manquants, "s" if manquants > 1 else "",
+             "nt" if manquants > 1 else ""))
+        A("")
+    return "\n".join(L)
+
+
+def _jour(ts):
+    """Une date lisible depuis un horodatage, ou un tiret."""
+    try:
+        return time.strftime("%d/%m/%Y", time.localtime(float(ts)))
+    except (TypeError, ValueError):
+        return "—"

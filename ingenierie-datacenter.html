@@ -594,6 +594,55 @@
      personnes photosensibles (WCAG 2.3.1). Et il s'arrête : les quatre
      boutons d'emport le stoppent, ce qui vaut le mécanisme d'arrêt exigé pour
      tout ce qui clignote plus de cinq secondes (WCAG 2.2.2). */
+  /* LA LISTE DES DOCUMENTS DU PROJET — le registre de ce qui engage. Il ne se
+     confond pas avec le dossier, qui porte tout ce qui a été produit : la
+     liste ne porte que les documents VISÉS. Elle se présente donc à part, en
+     tête du dossier, et non comme une ligne de plus. */
+  .ig-ldd{margin:0 0 14px;border:1px solid var(--line);border-radius:11px;
+    border-left:3px solid var(--teal);background:rgba(0,0,0,.14);
+    padding:11px 14px}
+  .ig-ldd.vide{border-left-color:var(--line);font-size:12px;
+    color:var(--muted2);line-height:1.6}
+  .ig-ldd.vide b{color:var(--muted);font-weight:600;margin-right:6px}
+  .ig-ldd-t{display:flex;align-items:baseline;gap:5px 10px;flex-wrap:wrap;
+    font-size:12.5px;color:var(--ink);line-height:1.6}
+  .ig-ldd-t .pt{font-family:var(--mono);font-size:10px;letter-spacing:.05em;
+    text-transform:uppercase;color:#04121A;background:var(--teal);
+    border-radius:20px;padding:2px 9px;white-space:nowrap}
+  .ig-ldd-t b{font-weight:600}
+  .ig-ldd-t .qu{flex:1 1 240px;font-size:11.5px;color:var(--muted2)}
+  .ig-ldd-a{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .ig-ldd-a button,.ig-ldd-a a{font:inherit;font-size:12px;padding:5px 11px;
+    border-radius:8px;border:1px solid var(--line);
+    background:rgba(255,255,255,.05);color:var(--ink);cursor:pointer;
+    text-decoration:none;display:inline-block}
+  .ig-ldd-a button:hover,.ig-ldd-a a:hover{background:rgba(255,255,255,.11);
+    border-color:var(--teal)}
+  .ig-ldd-a button:focus-visible,.ig-ldd-a a:focus-visible{
+    outline:2px solid var(--cyan);outline-offset:2px}
+  /* LA RÉDACTION EN COURS SE VOIT, ET SUR LES DEUX BLOCS. Elle prend plusieurs
+     dizaines de secondes : un bouton grisé au milieu d'un registre de trente
+     pièces ne dit pas laquelle travaille, et on relance ailleurs en croyant
+     que rien ne s'est passé. La fiche de la pièce bat, et le bloc de résultat
+     aussi — c'est là que le document arrivera. Même battement que l'attente de
+     lecture : c'est la même famille de signal, et deux rythmes différents dans
+     la même page se liraient comme deux états sans rapport. */
+  .ig-pc.ig-redac{border-color:var(--cyan);
+    animation:ig-attente 1.6s ease-in-out infinite}
+  .ig-encours{display:flex;align-items:baseline;gap:5px 10px;flex-wrap:wrap;
+    margin-top:14px;padding:12px 14px;border-radius:11px;font-size:12.5px;
+    color:var(--ink);line-height:1.6;border:1px solid var(--cyan);
+    background:rgba(34,211,238,.13);
+    animation:ig-attente 1.6s ease-in-out infinite}
+  .ig-encours .pt{font-family:var(--mono);font-size:10px;letter-spacing:.05em;
+    text-transform:uppercase;color:#0b0b0b;background:var(--cyan);
+    border-radius:20px;padding:2px 9px;white-space:nowrap}
+  .ig-encours b{font-weight:600}
+  .ig-encours .qu{flex:1 1 260px;font-size:11.5px;color:var(--muted2)}
+  @media (prefers-reduced-motion:reduce){
+    .ig-pc.ig-redac,.ig-encours{animation:none;
+      box-shadow:0 0 0 2px rgba(34,211,238,.90)}
+  }
   .ig-doc.neuf{border-color:var(--cyan);
     animation:ig-attente 1.6s ease-in-out infinite}
   @keyframes ig-attente{

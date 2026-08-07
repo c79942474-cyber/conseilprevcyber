@@ -1722,8 +1722,19 @@
     bouton.disabled = true;
     var ancien = bouton.textContent;
     bouton.textContent = "Rédaction…";
-    z.innerHTML = '<p class="note">Rédaction de ' + esc(code)
-      + " en cours, à partir du calcul et de la base de connaissance…</p>";
+    /* LA RÉDACTION EN COURS SE VOIT, ET SUR LES DEUX BLOCS. Elle prend
+       plusieurs dizaines de secondes : un bouton grisé au milieu d'un registre
+       de trente pièces ne dit pas lequel travaille, et on relance ailleurs en
+       croyant que rien ne s'est passé. La fiche de la pièce bat donc en bleu,
+       et le bloc de résultat aussi — c'est là que le document arrivera. */
+    var carte = bouton.closest ? bouton.closest(".ig-pc") : null;
+    if (carte) carte.classList.add("ig-redac");
+    z.innerHTML = '<div class="ig-encours" role="status">'
+      + '<span class="pt">Rédaction en cours</span>'
+      + "<b>" + esc(code) + "</b>"
+      + '<span class="qu">Le moteur assemble le document à partir du calcul '
+      + "et de la base de connaissance. Quelques dizaines de secondes.</span>"
+      + "</div>";
     z.scrollIntoView({ behavior: "smooth", block: "nearest" });
     /* La porte du CLIENT. Elle était administrateur, et tout le registre — le
        battement, les flèches, le fil des gestes — conduisait un lecteur
@@ -1738,6 +1749,10 @@
       .then(function (o) {
         bouton.disabled = false;
         bouton.textContent = ancien;
+        /* Le battement s'arrête dès que la rédaction rend la main, QUELLE QUE
+           SOIT l'issue. Laissé sur un refus, il annoncerait indéfiniment un
+           travail qui ne viendra pas. */
+        if (carte) carte.classList.remove("ig-redac");
         if (!o.j.ok) {
           /* L'échec est affiché SUR LA PIÈCE, avec sa cause, ce qui reste
              possible et — seulement s'il en existe un — le modèle de repli.
@@ -1830,6 +1845,7 @@
       .catch(function () {
         bouton.disabled = false;
         bouton.textContent = ancien;
+        if (carte) carte.classList.remove("ig-redac");
         z.innerHTML = '<p class="note">Rédaction indisponible pour le moment.</p>';
       });
   }
@@ -3279,6 +3295,58 @@
       .catch(function () { z.innerHTML = ""; });
   }
 
+  /* LA LISTE DES DOCUMENTS DU PROJET — la LDD.
+
+     Sur un projet d'ingénierie, elle est elle-même une pièce contractuelle :
+     elle dit ce qui existe, à quel indice, émis par qui, pour quelle phase.
+     C'est le document qu'ouvre en premier un bureau de contrôle, un repreneur
+     d'affaire ou un exploitant six mois après la livraison.
+
+     Elle s'ouvre au premier visa, et pas avant : un registre vide n'est pas un
+     registre, et un registre qui porterait des brouillons ferait figurer au
+     contractuel des documents que personne n'a relus. */
+  function blocListeDocuments(pid, vises, total) {
+    if (!vises) {
+      return '<div class="ig-ldd vide"><b>Liste des documents</b> '
+        + "<span>Elle s'ouvrira au premier visa. Un registre qui porterait des "
+        + "brouillons ferait figurer au contractuel des documents que personne "
+        + "n'a relus.</span></div>";
+    }
+    var reste = Math.max(0, total - vises);
+    return '<div class="ig-ldd">'
+      + '<div class="ig-ldd-t"><span class="pt">Liste des documents</span>'
+      + "<b>" + vises + " document" + (vises > 1 ? "s" : "") + " visé"
+      + (vises > 1 ? "s" : "") + "</b>"
+      + '<span class="qu">Le registre de ce qui engage'
+      + (reste ? ". " + reste + " autre" + (reste > 1 ? "s" : "")
+                 + " reste" + (reste > 1 ? "nt" : "") + " au dossier, non visé"
+                 + (reste > 1 ? "s" : "") : "")
+      + ".</span></div>"
+      + '<div class="ig-ldd-a"><button type="button" id="ig-ldd-lire">Lire</button>'
+      + '<a href="/api/datacenter/projets/' + esc(pid) + '/documents.docx">Word</a>'
+      + '<a href="/api/datacenter/projets/' + esc(pid) + '/documents.pdf">PDF</a>'
+      + "</div></div>";
+  }
+
+  function brancherListeDocuments(pid) {
+    var b = $("#ig-ldd-lire");
+    if (!b) return;
+    b.addEventListener("click", function () {
+      var ancien = b.textContent;
+      b.disabled = true;
+      b.textContent = "…";
+      demander("/api/datacenter/projets/" + pid + "/documents.md",
+               { credentials: "same-origin" }, DELAI_MOYEN)
+        .then(function (r) {
+          if (!r.ok) throw new Error("liste");
+          return r.text();
+        })
+        .then(function (md) { lireDocument(md, "Liste des documents du projet"); })
+        .catch(function () { pjMsg("Liste indisponible pour le moment.", "ko"); })
+        .then(function () { b.disabled = false; b.textContent = ancien; });
+    });
+  }
+
   function pjRendreHistorique(h, pid) {
     var z = $("#ig-pj-hist");
     if (!z || !h) return;
@@ -3289,10 +3357,21 @@
       return;
     }
     var etats = h.etats || {};
+    /* LA LISTE DES DOCUMENTS s'ouvre au PREMIER VISA. Elle ne se confond pas
+       avec le dossier : le dossier porte tout ce qui a été produit, brouillons
+       compris — c'est un plan de travail. La liste ne porte que ce qui est
+       visé, et elle engage. */
+    var vises = 0;
+    (h.phases || []).forEach(function (g) {
+      (g.livrables || []).forEach(function (l) {
+        if ((l.etat || "") === "vise") vises++;
+      });
+    });
     var html = '<p class="note" style="margin:0 0 12px"><b>'
       + h.total + " livrable" + (h.total > 1 ? "s" : "")
       + "</b> rattaché" + (h.total > 1 ? "s" : "") + " à ce projet, groupé"
-      + (h.total > 1 ? "s" : "") + " par phase dans l'ordre de la séquence.</p>";
+      + (h.total > 1 ? "s" : "") + " par phase dans l'ordre de la séquence.</p>"
+      + blocListeDocuments(pid, vises, h.total);
     (h.phases || []).forEach(function (g) {
       html += '<div class="ig-hi-g"><h4>' + esc(g.phase) + " — "
         + esc(g.phase_nom) + '<span>' + g.n + " document" + (g.n > 1 ? "s" : "")
@@ -3328,6 +3407,7 @@
       html += "</div>";
     });
     z.innerHTML = html;
+    brancherListeDocuments(pid);
     z.querySelectorAll("[data-etat]").forEach(function (s) {
       s.addEventListener("change", function () {
         /* La couleur suit l'état IMMÉDIATEMENT, sans attendre le serveur : la

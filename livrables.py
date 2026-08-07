@@ -1344,7 +1344,7 @@ def dossier_documentaire(sources, choix_manuel=False):
         )
     lignes = "\n".join(
         "%d. « %s » — thème : %s — visibilité : %s — %d extrait(s) fourni(s)"
-        % (i, (s.get("title") or "").strip(),
+        % (i, X.titre_document(s.get("title")),
            (s.get("theme") or "non classé").strip(),
            "interne" if s.get("visibility") == "internal" else "publique",
            int(s.get("extraits") or 1))
@@ -1372,7 +1372,7 @@ def dossier_documentaire(sources, choix_manuel=False):
         "- Si une section de la trame n'est couverte par aucun extrait, écris-le "
         "franchement (« Aucun élément dans la base sur ce point — à compléter ») plutôt "
         "que de la meubler."
-        % (len(docs), lignes, origine, (docs[0].get("title") or "").strip())
+        % (len(docs), lignes, origine, X.titre_document(docs[0].get("title")))
     )
 
 
@@ -1562,7 +1562,7 @@ def trame(type_id, inputs, extraits=None, mode_nom="", mode_aide="", note=None):
         A("")
         par_doc = {}
         for h in extraits:
-            par_doc.setdefault(h.get("title") or "Document sans titre", []).append(h)
+            par_doc.setdefault(X.titre_document(h.get("title")), []).append(h)
         for titre, hits in par_doc.items():
             A("### %s" % titre)
             th = hits[0].get("theme")

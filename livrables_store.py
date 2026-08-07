@@ -67,6 +67,13 @@ def _clean(rec):
         # pièce SPC-HVAC de ce projet » supposait de découper une chaîne, ce
         # qui marche jusqu'au jour où l'intitulé change.
         "piece": (rec.get("piece") or "")[:24].upper(),
+        # LE NUMÉRO ET L'INDICE DU DOCUMENT. Ils étaient calculés à la
+        # rédaction, rendus à l'écran, portés au cartouche du Word — et perdus
+        # ICI, parce que ce dictionnaire est le schéma : ce qui n'y figure pas
+        # n'est pas enregistré. La liste des documents du projet les redemande,
+        # et l'indice est précisément la colonne qu'on cherche dans un registre.
+        "numero": (rec.get("numero") or "")[:60],
+        "indice": (rec.get("indice") or "")[:8],
         # Les visas : qui a validé ou rejeté, à quel titre, quand et pourquoi.
         # Une liste, pas un état unique — un document rejeté par un collègue
         # puis validé par le client a DEUX avis, et n'en garder qu'un ferait
@@ -194,6 +201,11 @@ _SCHEMA = [
     # Le code de pièce et les visas (ajouts compatibles).
     "ALTER TABLE livrables ADD COLUMN IF NOT EXISTS piece TEXT",
     "ALTER TABLE livrables ADD COLUMN IF NOT EXISTS visas TEXT",
+    # Le numéro et l'indice du document, que réclame la liste des documents du
+    # projet (ajouts compatibles : les enregistrements antérieurs restent
+    # lisibles, à l'indice par défaut).
+    "ALTER TABLE livrables ADD COLUMN IF NOT EXISTS numero TEXT",
+    "ALTER TABLE livrables ADD COLUMN IF NOT EXISTS indice TEXT",
 ]
 
 
@@ -239,26 +251,27 @@ class PostgresLivrablesStore:
             conn.execute(
                 "INSERT INTO livrables(id,type,label,client,secteur,perimetre,model,"
                 "markdown,sources,created_at,parent_id,projet_id,phase,filiere,etat,"
-                "piece,visas) "
-                "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                "piece,visas,numero,indice) "
+                "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (lid, rec["type"], rec["label"], rec["client"], rec["secteur"],
                  rec["perimetre"], rec["model"], rec["markdown"],
                  json.dumps(rec["sources"], ensure_ascii=False), _now_ms(),
                  rec["parent_id"], rec["projet_id"], rec["phase"],
                  rec["filiere"], rec["etat"], rec["piece"],
-                 json.dumps(rec["visas"], ensure_ascii=False)))
+                 json.dumps(rec["visas"], ensure_ascii=False),
+                 rec["numero"], rec["indice"]))
         return lid
 
     def list(self):
         with self._pool.connection() as conn:
             rows = conn.execute(
                 "SELECT id,type,label,client,secteur,model,created_at,parent_id,"
-                "projet_id,phase,filiere,etat,piece,visas,"
+                "projet_id,phase,filiere,etat,piece,visas,numero,indice,"
                 "char_length(markdown) FROM livrables ORDER BY created_at DESC "
                 "LIMIT %s", (LIST_LIMIT,)).fetchall()
         keys = ("id", "type", "label", "client", "secteur", "model", "created_at",
                 "parent_id", "projet_id", "phase", "filiere", "etat", "piece",
-                "visas", "chars")
+                "visas", "numero", "indice", "chars")
         return [_visas_lus(dict(zip(keys, r))) for r in rows]
 
     def get(self, lid):
@@ -272,13 +285,14 @@ class PostgresLivrablesStore:
         with self._pool.connection() as conn:
             r = conn.execute(
                 "SELECT id,type,label,client,secteur,perimetre,model,markdown,sources,"
-                "created_at,parent_id,projet_id,phase,filiere,etat,piece,visas "
-                "FROM livrables WHERE id=%s", (lid,)).fetchone()
+                "created_at,parent_id,projet_id,phase,filiere,etat,piece,visas,"
+                "numero,indice FROM livrables WHERE id=%s", (lid,)).fetchone()
         if not r:
             return None
         keys = ("id", "type", "label", "client", "secteur", "perimetre", "model",
                 "markdown", "sources", "created_at", "parent_id",
-                "projet_id", "phase", "filiere", "etat", "piece", "visas")
+                "projet_id", "phase", "filiere", "etat", "piece", "visas",
+                "numero", "indice")
         rec = _visas_lus(dict(zip(keys, r)))
         try:
             rec["sources"] = json.loads(rec["sources"]) if rec["sources"] else []

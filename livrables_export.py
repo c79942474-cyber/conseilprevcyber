@@ -12,6 +12,11 @@ import io
 import os
 import re
 
+# Le nettoyage des titres de documents : un dépôt sert des noms de
+# fichiers, un livrable cite des références. Une seule règle, partagée
+# avec les composeurs de documents.
+import extraits as _X
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 EMBLEM = os.path.join(HERE, "emblem.png")
 
@@ -203,10 +208,18 @@ def _fiche(meta):
 
 
 def _sources(meta):
-    """Documents de la base effectivement mobilisés, dédoublonnés."""
+    """Documents de la base effectivement mobilisés, dédoublonnés.
+
+    Le titre est celui d'une RÉFÉRENCE, pas un chemin de disque : un dépôt
+    sert des noms de fichiers, et « Numeum___Contribution___Consultation_
+    Arcep_… .pdf » se lit de loin comme un pointillé au bas d'un livrable
+    remis. Le nettoyage est celui du module partagé — une seule règle pour
+    l'annexe des sources, les attributions sous les citations et la liste
+    rendue à l'écran.
+    """
     out, vus = [], set()
     for s in ((meta or {}).get("sources") or []):
-        titre = (s.get("title") or "").strip()
+        titre = _X.titre_document((s.get("title") or "").strip())
         if not titre or titre in vus:
             continue
         vus.add(titre)

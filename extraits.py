@@ -101,6 +101,59 @@ def reparer(txt):
     return " ".join(t.split())
 
 
+# Ce qu'on met dans un nom de fichier et qui n'appartient pas au titre.
+_RALLONGES = re.compile(
+    r"\.(pdf|docx?|xlsx?|pptx?|txt|csv|md|odt|ods|rtf|htm|html)$", re.I)
+_FILIGRANE = re.compile(
+    r"[ _-]+(final|finale|vf|vdef|def|v\d+(\.\d+)*|new|copie|copy|"
+    r"bis|ter|maj|ok|clean|compressed|\(\d+\))$", re.I)
+
+
+def titre_document(nom):
+    """Le nom d'un fichier rendu lisible en titre de source.
+
+    Un dépôt sert des noms de fichiers, pas des titres. Recopié tel quel sous
+    une citation, cela donne :
+
+        Source : Numeum___Contribution___Consultation_Arcep_Collecte_annuelle_
+        de_donnees_environnementales.pdf
+
+    Les traits de soulignement se lisent de loin comme un pointillé, la
+    rallonge de fichier n'apprend rien, et « .xlsx.xlsx » avoue seulement
+    qu'on a enregistré deux fois. Sur un livrable remis, l'attribution doit se
+    lire comme une référence, pas comme un chemin de disque.
+
+    On ne touche PAS aux lettres. Rétablir les accents que le système de
+    fichiers a mangés demanderait de deviner « données » derrière « donnees »
+    — c'est-à-dire de retaper le titre d'un document qu'on cite. On se borne
+    aux séparateurs, à la rallonge et à la casse initiale, qui sont
+    mécaniques.
+    """
+    t = (nom or "").strip()
+    if not t:
+        return "document sans titre"
+    # Deux passes : « .xlsx.xlsx » est un enregistrement de trop, pas un titre.
+    for _ in range(3):
+        neuf = _RALLONGES.sub("", t)
+        if neuf == t:
+            break
+        t = neuf
+    for _ in range(2):
+        neuf = _FILIGRANE.sub("", t)
+        if neuf == t:
+            break
+        t = neuf
+    # Le trait de soulignement ne sert jamais de ponctuation : c'est toujours
+    # une espace qu'un système de fichiers n'acceptait pas. Le tiret, lui, peut
+    # être un vrai trait d'union — on ne le remplace que par groupes.
+    t = re.sub(r"_+", " ", t)
+    t = re.sub(r"\s*-{2,}\s*", " — ", t)
+    t = re.sub(r"\s+", " ", t).strip(" -—_.")
+    if not t:
+        return "document sans titre"
+    return t[0].upper() + t[1:] if t[0].islower() else t
+
+
 def morceler(txt):
     """Rend leur ligne aux items d'une liste recousue en un seul bloc.
 
@@ -217,10 +270,14 @@ def motif_rejet(txt):
     # fait sur la PIRE fenêtre et non sur l'ensemble — une matrice précédée
     # de deux phrases d'introduction ressort à 27 % globalement, ce qui la
     # ferait passer, alors que sa queue de cellules est à 3 %.
-    part, ou = _pire_fenetre(t)
+    part, _ou = _pire_fenetre(t)
     if part < _SEUIL_OUTILS:
-        return ("cellules de tableau mises bout à bout, sans phrase pour les "
-                "relier (« %s… »)" % ou[:44])
+        # SANS CITER LE FRAGMENT. Une première version en montrait le début
+        # entre guillemets — ce qui réintroduisait dans le livrable exactement
+        # le charabia qu'on venait d'en sortir, guillemets et points de
+        # suspension en prime. Le motif dit ce que c'était ; le lecteur qui
+        # veut le voir a le nom du document.
+        return "cellules de tableau mises bout à bout, sans phrase pour les relier"
     # UN RENVOI PENDANT. Court ET suspendu à une figure absente : il ne reste
     # rien à en tirer. Long, la phrase porte au moins son propre contenu.
     if len(t) < 260 and (_RENVOI.search(t) or _LEGENDE.match(t)):
