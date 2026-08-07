@@ -35,6 +35,7 @@ import re
 import time
 
 import datacenter as D
+import extraits as _X
 import profil_dc as P
 
 VERSION = "2026-08-a"
@@ -3544,46 +3545,23 @@ def _ranger_extraits(contenu, extraits):
     return par_point, reste
 
 
-def _phrases_entieres(txt, maxi=1400):
-    """Un extrait qui commence et finit sur une phrase.
-
-    La base est découpée en fragments de taille fixe : un fragment commence au
-    milieu d'un mot (« luer l'état actuel… ») et s'arrête de même. Reproduit
-    tel quel dans un livrable, cela se lit comme une faute de frappe — et un
-    lecteur qui bute sur la première ligne d'une citation ne lit pas la suite.
-
-    On coupe donc aux frontières de phrase : on jette l'amorce jusqu'à la
-    première majuscule qui suit un point, et la fin après le dernier point. Si
-    aucune phrase entière ne se dégage, on ne cite rien : mieux vaut un point
-    sans extrait qu'un extrait illisible.
-    """
-    t = " ".join((txt or "").split())
-    if not t:
-        return ""
-    # Début : la première phrase complète. Un fragment qui commence déjà par
-    # une majuscule est intact, on n'y touche pas.
-    if not (t[:1].isupper() or t[:1].isdigit()):
-        m = re.search(r"(?<=[.!?])\s+(?=[A-ZÀÂÉÈÊËÎÏÔÙÛÜÇ0-9])", t)
-        if not m:
-            return ""
-        t = t[m.end():]
-    coupe = len(t) > maxi
-    if coupe:
-        t = t[:maxi]
-    # Fin : après le dernier point. Un extrait qui se termine DÉJÀ sur une
-    # phrase est gardé tel quel, si court soit-il — exiger une longueur
-    # minimale écartait « Le régime d'eau glacée retenu est 18/24 °C. », qui
-    # est pourtant une phrase entière et la seule qui documente son point.
-    if not coupe and t.endswith((".", "!", "?")):
-        return t
-    fin = max(t.rfind("."), t.rfind("!"), t.rfind("?"))
-    if fin < 40:
-        return ""
-    return t[:fin + 1].strip()
+# UNE SEULE COPIE DU NETTOYAGE. Ce découpage vivait ici et nulle part
+# ailleurs : la console des livrables, elle, recopiait le contenu brut de la
+# base, tronqué à 1800 signes. Deux chaînes de livrables, deux qualités de
+# citation, et le défaut ne se voyait que dans l'une des deux. Le module
+# extraits.py porte désormais la règle, et les deux la lisent.
+_phrases_entieres = _X.phrases_entieres
 
 
-def _bloc_extraits(A, hits):
-    """Les extraits d'un point, reproduits tels quels et attribués.
+def _bloc_extraits(A, hits, ecartes=None):
+    """Les extraits d'un point, remis en état, reproduits et attribués.
+
+    Remis en état : les lettres détachées de leur mot par l'extraction du PDF
+    retrouvent leur place, les items d'une liste retrouvent leur ligne, et ce
+    qui ne se répare pas — un tableau aplati, une série à la précision du
+    tableur — ne part pas au livrable. `ecartes` recueille les motifs, que le
+    chapitre de traçabilité rend au relecteur : un écart tu ne se distingue
+    pas d'une perte.
 
     L'attribution est portée DANS la citation, à sa dernière ligne : posée en
     dehors, elle revenait au ras de la marge tandis que le texte cité restait
@@ -3591,10 +3569,14 @@ def _bloc_extraits(A, hits):
     """
     vus = []
     for h in hits:
-        txt = _phrases_entieres(h.get("content") or h.get("text")
-                                or h.get("extrait") or "")
-        if not txt:
+        brut = (h.get("content") or h.get("text") or h.get("extrait") or "")
+        paras = _X.paragraphes(brut)
+        if not paras:
+            motif = _X.motif_rejet(_X.phrases_entieres(_X.reparer(brut)) or brut)
+            if ecartes is not None and motif:
+                ecartes.append((h.get("title") or "document sans titre", motif))
             continue
+        txt = " ".join(paras)
         # DÉDOUBLONNAGE. Les fragments de la base se chevauchent : deux hits
         # voisins d'un même document reprennent le même passage à quelques mots
         # près, et le livrable citait deux fois la même chose.
@@ -3604,7 +3586,13 @@ def _bloc_extraits(A, hits):
             continue
         vus.append(empreinte)
         A("")
-        A("> " + txt.replace("\n", "\n> "))
+        # Chaque paragraphe dans sa propre ligne de citation, séparés par un
+        # « > » seul : recollés, les items d'une liste se retrouveraient en un
+        # seul bloc à l'affichage après avoir été séparés ici.
+        for i, p in enumerate(paras):
+            if i:
+                A(">")
+            A("> " + p.replace("\n", "\n> "))
         A(">")
         A("> *Source : %s%s.*"
           % (h.get("title") or "document sans titre",
@@ -3645,6 +3633,11 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
                if _mots_cles((h.get("content") or h.get("text")
                               or h.get("extrait") or "")[:1200]) & _vocab]
     ecartes = len(hors) - len(voisins)
+    # Ceux que l'extraction a rendus illisibles — tableau aplati, série à la
+    # précision du tableur, renvoi à une figure absente. Recueillis au fil de
+    # l'écriture des chapitres et rendus au relecteur en traçabilité : un
+    # écart tu ne se distingue pas d'une perte.
+    illisibles = []
     docu = [i for i in range(len(contenu)) if par_point.get(i)]
     interfaces = _interfaces_piece(pc, d.get("pieces") or [])
     caractere, motif, _fondement = caractere_piece(pc)
@@ -3851,7 +3844,7 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
         if hits:
             A("La base de connaissance documente ce point. Les extraits "
               "ci-dessous sont reproduits mot pour mot, sans reformulation.")
-            _bloc_extraits(A, hits)
+            _bloc_extraits(A, hits, illisibles)
             A("")
             A("**À faire :** reprendre ces éléments au niveau de la **%s** "
               "attendue ici." % (pc.get("niveau_nom") or "définition").lower())
@@ -3963,7 +3956,7 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
           "des points exigés. Ils sont reproduits mot pour mot et restent à "
           "verser au bon chapitre lors de la relecture.")
         for h in voisins:
-            _bloc_extraits(A, [h])
+            _bloc_extraits(A, [h], illisibles)
         A("")
         k += 1
 
@@ -4017,9 +4010,30 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
           % len(voisins))
     if ecartes:
         A("| Extraits écartés | %d, hors du sujet de la pièce |" % ecartes)
+    if illisibles:
+        A("| Extraits illisibles | %d, écartés — voir ci-dessous |"
+          % len(illisibles))
     A("| Reste à rédiger | %d point sur %d |"
       % (len(contenu) - len(docu), len(contenu)))
     A("")
+    # CE QUI A ÉTÉ ÉCARTÉ, ET POURQUOI. Un tableau aplati par l'extraction d'un
+    # PDF ne se reconstruit pas : ses lignes et ses colonnes ont disparu, et
+    # les réinventer serait fabriquer une donnée. Le fragment sort donc du
+    # livrable — mais le relecteur doit savoir qu'il existe, dans quel
+    # document, et qu'il vaut peut-être la peine d'aller le lire à la source.
+    if illisibles:
+        A("Extraits retrouvés mais illisibles une fois sortis de leur PDF. Ils "
+          "ne figurent pas dans ce document ; la source les porte encore.")
+        A("")
+        A("| Document | Ce qui a empêché de le citer |")
+        A("| --- | --- |")
+        vus_ill = set()
+        for titre, motif in illisibles:
+            if (titre, motif[:40]) in vus_ill:
+                continue
+            vus_ill.add((titre, motif[:40]))
+            A("| %s | %s |" % (titre, motif))
+        A("")
     # La ligne « Mode de rédaction » du tableau suffit à tracer la production.
     # Le paragraphe d'aide qui la suivait parlait de nos modèles de langage et
     # de leur disponibilité : une nouvelle de notre outillage, qui n'a rien à

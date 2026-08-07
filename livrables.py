@@ -12,6 +12,12 @@ Garde-fous (repris dans le prompt système) :
   - le document produit est un BROUILLON, à relire et valider par un consultant.
 """
 
+# Le nettoyage des extraits sortis de la base — réparation de ce que
+# l'extraction d'un PDF a cassé, rejet de ce qui ne se répare pas. Écrit une
+# seule fois : la règle vivait dans la pièce de phase et pas ici, et le défaut
+# ne se voyait que dans l'un des deux livrables.
+import extraits as X
+
 # Types de livrables : id -> métadonnées + trame de sections.
 TYPES = [
     {
@@ -1481,6 +1487,10 @@ def trame(type_id, inputs, extraits=None, mode_nom="", mode_aide="", note=None):
     perimetre = (inputs.get("perimetre") or "").strip() or "[périmètre à préciser]"
     consignes = (inputs.get("consignes") or "").strip()
     extraits = extraits or []
+    # Ce que l'extraction du PDF a rendu illisible : recueilli au fil de
+    # l'écriture, rendu au relecteur à la fin. Un écart tu ne se distingue pas
+    # d'une perte.
+    illisibles = []
 
     L = []
     A = L.append
@@ -1562,13 +1572,47 @@ def trame(type_id, inputs, extraits=None, mode_nom="", mode_aide="", note=None):
             for h in hits:
                 # « content » : la clé que rend RÉELLEMENT la recherche
                 # documentaire. Les deux autres sont des tolérances.
-                txt = (h.get("content") or h.get("text")
-                       or h.get("extrait") or "").strip()
-                if not txt:
+                brut = (h.get("content") or h.get("text")
+                        or h.get("extrait") or "")
+                # LE MÊME NETTOYAGE QUE LA PIÈCE DE PHASE. Le contenu partait
+                # ici brut, tronqué à 1800 signes : les matrices de criticité
+                # aplaties par l'extraction, les séries de graphique à dix-sept
+                # décimales et les mots dont l'initiale s'était détachée
+                # arrivaient tels quels dans un livrable remis. Deux chaînes de
+                # livrables lisent désormais la même règle.
+                paras = X.paragraphes(brut, 1800)
+                if not paras:
+                    motif = X.motif_rejet(brut)
+                    if motif:
+                        illisibles.append((titre, motif))
                     continue
                 A("")
-                A("> " + txt.replace("\n", "\n> ")[:1800])
+                for i, p in enumerate(paras):
+                    if i:
+                        A(">")
+                    A("> " + p.replace("\n", "\n> "))
             A("")
+
+    # CE QUI A ÉTÉ ÉCARTÉ, ET POURQUOI. Un tableau aplati par l'extraction d'un
+    # PDF ne se reconstruit pas : ses lignes et ses colonnes ont disparu, et
+    # les réinventer serait fabriquer une donnée. Le fragment sort donc du
+    # livrable — mais le relecteur doit savoir qu'il existe, dans quel
+    # document, et qu'il vaut peut-être la peine d'aller le lire à la source.
+    if illisibles:
+        A("## Extraits écartés")
+        A("")
+        A("Retrouvés pour ce sujet, mais illisibles une fois sortis de leur "
+          "PDF. Ils ne figurent pas ci-dessus ; la source les porte encore.")
+        A("")
+        A("| Document | Ce qui a empêché de le citer |")
+        A("| --- | --- |")
+        vus = set()
+        for titre, motif in illisibles:
+            if (titre, motif[:40]) in vus:
+                continue
+            vus.add((titre, motif[:40]))
+            A("| %s | %s |" % (titre, motif))
+        A("")
 
     A("---")
     A("")
