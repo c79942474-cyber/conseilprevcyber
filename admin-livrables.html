@@ -314,8 +314,8 @@
         <div class="field">
           <label>Modèle d'IA</label>
           <div class="models" id="models">
-            <label id="m-mistral"><input type="radio" name="model" value="mistral" checked><span>Mistral</span></label>
-            <label id="m-claude"><input type="radio" name="model" value="claude"><span>Claude</span></label>
+            <label id="m-claude"><input type="radio" name="model" value="claude" checked><span>Claude</span></label>
+            <label id="m-mistral"><input type="radio" name="model" value="mistral"><span>Mistral</span></label>
           </div>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
@@ -485,7 +485,7 @@
         body:JSON.stringify({client:document.getElementById('client').value.trim(),
           secteur:document.getElementById('secteur').value.trim(),
           perimetre:document.getElementById('perimetre').value.trim(),
-          model:(document.querySelector('input[name=model]:checked')||{}).value||'mistral'})})
+          model:(document.querySelector('input[name=model]:checked')||{}).value||'claude'})})
       .then(function(r){return r.json().then(function(j){return {s:r.status,j:j};});})
       .then(function(o){
         if(o.j.ok){packTimer=setInterval(packPoll,2500);packPoll();}
@@ -586,7 +586,7 @@
         body:JSON.stringify({type:typeSel.value,secteur:document.getElementById('secteur').value.trim(),
           perimetre:document.getElementById('perimetre').value.trim(),
           consignes:document.getElementById('consignes').value.trim(),
-          model:(document.querySelector('input[name=model]:checked')||{}).value||'mistral'})})
+          model:(document.querySelector('input[name=model]:checked')||{}).value||'claude'})})
         .then(function(r){return r.json();}).then(function(j){
           if(!j||!j.ok){dpprev.innerHTML='Aperçu indisponible ('+esc((j&&j.error)||'erreur')+').';return;}
           if(!(j.documents||[]).length){
@@ -627,8 +627,10 @@
         var m=j.models||{};
         if(!m.mistral){document.getElementById('m-mistral').classList.add('off');}
         if(!m.claude){document.getElementById('m-claude').classList.add('off');}
-        // défaut : mistral si dispo, sinon claude
-        if(!m.mistral && m.claude){document.querySelector('input[value=claude]').checked=true;}
+        // défaut : claude (coché dans le formulaire) ; on ne bascule que s'il
+        // n'a pas de clé sur ce serveur — un formulaire ouvert sur un modèle
+        // non configuré ne produit qu'un aller-retour et un refus.
+        if(!m.claude && m.mistral){document.querySelector('input[value=mistral]').checked=true;}
       }).catch(function(){note('Erreur de chargement.','err');});
     }
     function showDesc(){ var t=TYPES.filter(function(x){return x.id===typeSel.value;})[0]; typedesc.textContent=t?t.desc:''; }
@@ -645,7 +647,7 @@
       var body={type:typeSel.value,client:document.getElementById('client').value.trim(),
         secteur:document.getElementById('secteur').value.trim(),perimetre:document.getElementById('perimetre').value.trim(),
         consignes:document.getElementById('consignes').value.trim(),doc_ids:selectedDocIds(),
-        model:(document.querySelector('input[name=model]:checked')||{}).value||'mistral'};
+        model:(document.querySelector('input[name=model]:checked')||{}).value||'claude'};
       genBtn.disabled=true; note('<span class="spin"></span>Génération en cours… (cela peut prendre 10–30 s)','info');
       fetch('/api/admin/livrables/generate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)})
         .then(function(r){return r.json().then(function(j){return {s:r.status,j:j};});})
@@ -703,7 +705,7 @@
       fetch('/api/admin/livrables/refine',{method:'POST',headers:{'content-type':'application/json'},
         body:JSON.stringify({type:typeSel.value,client:document.getElementById('client').value.trim(),
           secteur:document.getElementById('secteur').value.trim(),perimetre:document.getElementById('perimetre').value.trim(),
-          model:(document.querySelector('input[name=model]:checked')||{}).value||'mistral',
+          model:(document.querySelector('input[name=model]:checked')||{}).value||'claude',
           doc_ids:selectedDocIds(),previous:lastMd,instructions:instr,parent_id:lastId})})
         .then(function(r){return r.json();})
         .then(function(j){

@@ -49,8 +49,13 @@ SYSTEM_PROMPT = (
     "(ne reproduis pas le texte normatif mot pour mot). En cas d'incertitude, dis-le "
     "et propose de contacter l'équipe.\n"
     "- Réponds en français par défaut (ou dans la langue de l'utilisateur), de façon "
-    "directe, concise et structurée. Ne dévoile pas ton raisonnement interne : donne "
-    "directement la réponse utile.\n"
+    "directe, concise et structurée : donne directement la réponse utile.\n"
+    # Cette ligne remplace un « ne dévoile pas ton raisonnement interne ». Une
+    # consigne de cette forme-là — défendre au modèle de réfléchir, ou de le
+    # montrer — fait FUIR le balisage interne dans la réponse au lieu de l'y
+    # retenir. La consigne efficace est générique : on nomme ce qu'on ne veut
+    # pas voir (des balises), pas ce qu'on interdit de faire (penser).
+    "- N'inclus dans ta réponse aucune balise XML interne ou système.\n"
     "- Format : écris en texte clair et sobre, SANS Markdown — n'emploie ni « # » (titres), "
     "ni « * » ou « ** » (gras/italique), ni backticks. Pour une énumération, un simple "
     "tiret « - » en début de ligne. Privilégie des phrases courtes et des paragraphes aérés.\n"
@@ -61,6 +66,15 @@ SYSTEM_PROMPT = (
 CLAUDE_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-8")
 MISTRAL_MODEL = os.environ.get("MISTRAL_MODEL", "mistral-large-latest")
 MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
+
+# ── QUEL FOURNISSEUR QUAND PERSONNE N'EN CHOISIT UN ──────────────────────────
+# Claude d'abord. C'est le réglage du site, et il se lit ici plutôt que de se
+# deviner à quatre endroits : jusqu'ici la veille, le rapport hebdomadaire et
+# la qualification des demandes entrantes portaient « mistral » ÉCRIT EN DUR,
+# et se taisaient donc sur un serveur où seul l'autre fournisseur a une clé.
+# Un travail de fond qui renonce sans rien dire ne se remarque pas ; on ne
+# voit que le résultat manquant, des semaines plus tard.
+MODELES = ("claude", "mistral")
 
 MAX_MSG_CHARS = 2000       # longueur maximale d'un message utilisateur
 MAX_HISTORY = 12           # nombre de messages de contexte conservés
@@ -143,6 +157,34 @@ def available():
     return {"claude": claude, "mistral": bool(os.environ.get("MISTRAL_API_KEY"))}
 
 
+def preference():
+    """Le fournisseur mis en avant dans les interfaces.
+
+    Une PRÉFÉRENCE, pas une disponibilité : elle dit lequel présenter d'abord,
+    et l'interface se charge d'annoncer « non configuré » le cas échéant.
+    Surcharge par ASSISTANT_DEFAULT_MODEL, sans redéploiement.
+    """
+    v = (os.environ.get("ASSISTANT_DEFAULT_MODEL") or MODELES[0]).strip().lower()
+    return v if v in MODELES else MODELES[0]
+
+
+def defaut():
+    """Le fournisseur employé quand l'appelant n'en choisit aucun. None si aucun
+    n'est configuré.
+
+    La préférence d'abord, la disponibilité ensuite — et pas l'inverse. Un
+    appel de fond n'a personne devant lui pour corriger le tir : si on lui
+    imposait la préférence même sans clé, il échouerait à chaque fois, en
+    silence, alors qu'un fournisseur configuré attendait juste à côté.
+    """
+    dispo = available()
+    prefere = preference()
+    for m in (prefere,) + tuple(x for x in MODELES if x != prefere):
+        if dispo.get(m):
+            return m
+    return None
+
+
 def _clean_history(messages):
     """Ne garde que des tours user/assistant non vides, bornés, commençant par user."""
     out = []
@@ -180,6 +222,40 @@ def _system(context):
     return SYSTEM_PROMPT
 
 
+# ── UNE RÉPONSE DIRECTE, DEMANDÉE À CHAQUE APPEL ────────────────────────────
+# max_tokens ne plafonne pas la réponse : il plafonne le RAISONNEMENT PRÉALABLE
+# PLUS la réponse. Nos budgets sont taillés au plus juste sur le texte attendu
+# — neuf cents jetons pour une réponse de chat, trois mille pour un livrable —
+# et sur le --timeout 120 de gunicorn, qui ne laisse pas de marge.
+#
+# Or le raisonnement étendu s'active de lui-même, sans qu'on le demande, sur
+# les générations récentes de modèles ; il n'était pas actif sur les
+# précédentes. Un budget dimensionné pour du texte se retrouve alors mangé par
+# le raisonnement, et ce qui revient est un texte COUPÉ EN PLEIN MILIEU : pas
+# d'erreur, pas de trace, rien qui le distingue d'une réponse simplement
+# courte. Un livrable amputé de sa moitié part au dossier comme les autres.
+#
+# On ne s'en remet donc pas au défaut du modèle — il a déjà changé une fois, il
+# rechangera. On demande une réponse directe à chaque appel. C'est aussi ce qui
+# rend ANTHROPIC_MODEL sûr à changer sans relire ce fichier.
+_REPONSE_DIRECTE = {"type": "disabled"}
+
+# Le revers de la consigne précédente : privé de sa phase de raisonnement, le
+# modèle écrit parfois son brouillon dans la réponse, entre des balises
+# internes. Le prompt système le lui déconseille (voir SYSTEM_PROMPT) ; ceci
+# rattrape le cas où il le fait quand même, plutôt que de le laisser arriver
+# jusqu'au lecteur. On retire le bloc ENTIER, pas seulement les balises :
+# n'ôter que le marquage laisserait le brouillon lisible en tête de réponse.
+_BLOC_INTERNE = re.compile(
+    r"<\s*(antml:thinking|thinking)\b[^>]*>.*?<\s*/\s*\1\s*>", re.S | re.I)
+_BALISE_INTERNE = re.compile(r"<\s*/?\s*(?:antml:thinking|thinking)\b[^>]*>", re.I)
+
+
+def _sans_balise_interne(txt):
+    """Retire un éventuel brouillon balisé. Sans effet sur un texte normal."""
+    return _BALISE_INTERNE.sub("", _BLOC_INTERNE.sub("", txt or "")).strip()
+
+
 def _claude_call(system, messages, max_tokens, timeout=REQUEST_TIMEOUT):
     """Appel bas niveau à Claude (Anthropic). Renvoie le texte (peut être vide).
 
@@ -199,7 +275,8 @@ def _claude_call(system, messages, max_tokens, timeout=REQUEST_TIMEOUT):
         with _une_place():
             resp = client.messages.create(
                 model=CLAUDE_MODEL, max_tokens=max_tokens, system=system,
-                messages=messages, timeout=timeout)
+                messages=messages, timeout=timeout,
+                thinking=_REPONSE_DIRECTE)
     except anthropic.APITimeoutError:
         # À placer AVANT APIConnectionError, dont il hérite.
         _log.warning("Claude : délai dépassé (%s s, %s jetons demandés)", timeout, max_tokens)
@@ -219,9 +296,28 @@ def _claude_call(system, messages, max_tokens, timeout=REQUEST_TIMEOUT):
         _log.error("Claude : réponse en erreur (HTTP %s, type=%s)",
                    getattr(exc, "status_code", "?"), getattr(exc, "type", None))
         raise AssistantError("upstream", 502)
-    return "".join(
+    # ── CE QUE DIT LA FIN DE LA RÉPONSE ───────────────────────────────────
+    # Un refus du modèle n'est pas une erreur HTTP : la requête réussit, et le
+    # contenu revient vide. Sans ce contrôle, cette réponse-là traversait tout
+    # l'appel sans jamais être distinguée d'un silence, et la pièce partait
+    # VIDE au dossier — enregistrée, numérotée, exportable. Traitée comme un
+    # échec amont, elle bascule au contraire sur l'assemblage, qui rend un
+    # document réel : plan, grandeurs, extraits.
+    fin = getattr(resp, "stop_reason", None)
+    if fin == "refusal":
+        _log.error("Claude : demande déclinée par le modèle (stop_reason=refusal)")
+        raise AssistantError("upstream", 502)
+    texte = _sans_balise_interne("".join(
         getattr(b, "text", "") for b in resp.content if getattr(b, "type", "") == "text"
-    ).strip()
+    ))
+    if fin == "max_tokens":
+        # Le texte est utilisable mais TRONQUÉ. On le rend quand même — le
+        # perdre serait pire — et on laisse la trace qui permet de retrouver
+        # la cause : c'est le budget, pas le fournisseur.
+        _log.warning("Claude : réponse coupée au plafond de %s jetons — texte "
+                     "tronqué. Relever le budget de cet appel si cela se répète.",
+                     max_tokens)
+    return texte
 
 
 def _mistral_call(system, messages, max_tokens, timeout=REQUEST_TIMEOUT):
@@ -274,7 +370,6 @@ def _mistral_call(system, messages, max_tokens, timeout=REQUEST_TIMEOUT):
 
 
 def _ask_claude(history, context=None):
-    # Opus 4.8 : sans phase de « thinking » explicite, réponse directe (latence réduite).
     return _claude_call(_system(context), history, MAX_OUTPUT_TOKENS) or _FALLBACK
 
 
@@ -381,8 +476,11 @@ def _selftest_claude():
     except ImportError:
         return {"configured": False, "ok": False, "detail": "paquet anthropic non installé"}
     try:
+        # Mêmes options que les appels réels : un diagnostic qui interroge
+        # autrement que l'application peut réussir là où elle échoue, et
+        # inversement — il désignerait alors la mauvaise cause.
         anthropic.Anthropic().messages.create(
-            model=CLAUDE_MODEL, max_tokens=4,
+            model=CLAUDE_MODEL, max_tokens=4, thinking=_REPONSE_DIRECTE,
             messages=[{"role": "user", "content": "ping"}])
     except anthropic.APIConnectionError:
         return {"configured": True, "ok": False, "model": CLAUDE_MODEL, "detail": "réseau injoignable"}

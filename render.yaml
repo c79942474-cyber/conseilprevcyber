@@ -82,13 +82,25 @@ services:
         sync: false
       # Assistant IA conversationnel (/assistant). Chaque clé active son modèle ;
       # sans clé, le modèle est signalé « non configuré » (l'app fonctionne quand même).
+      #
+      # ATTENTION : ANTHROPIC_API_KEY commande BEAUCOUP PLUS que le chat. C'est
+      # le fournisseur retenu par défaut partout où le code n'en choisit pas —
+      # rédaction des pièces de dossier, résumés de veille, rapport
+      # hebdomadaire, qualification des demandes entrantes. Sans elle, chacun de
+      # ces travaux retombe sur son repli (assemblage, ou rien) SANS ERREUR
+      # VISIBLE : le site fonctionne, il rend simplement moins.
       # Claude (Anthropic) — https://console.anthropic.com/
       - key: ANTHROPIC_API_KEY
         sync: false
       # Mistral (fournisseur européen) — https://console.mistral.ai/
       - key: MISTRAL_API_KEY
         sync: false
-      # (Optionnel) surcharge des modèles utilisés.
+      # (Optionnel) surcharge des modèles utilisés. C'est ICI qu'on change de
+      # génération de modèle, sans toucher au code : la valeur par défaut est
+      # figée dans assistant.py et vieillit, cette variable non. Les appels
+      # demandent explicitement une réponse directe, sans raisonnement
+      # préalable, de sorte que les budgets de jetons tiennent quel que soit le
+      # modèle retenu — c'est ce qui rend ce changement sûr à faire seul.
       - key: ANTHROPIC_MODEL
         sync: false
       - key: MISTRAL_MODEL
@@ -106,9 +118,16 @@ services:
       # Au-delà, la rédaction se replie sur l'assemblage plutôt que d'attendre.
       - key: LLM_MAX_SIMULTANE
         sync: false
-      # Modèle affiché par défaut dans le chat : « claude » ou « mistral ».
-      # Non défini => « mistral » (fournisseur UE, cohérent RGPD). L'utilisateur
-      # peut toujours basculer manuellement vers l'autre modèle dans l'interface.
+      # Fournisseur mis en avant : « claude » ou « mistral ».
+      # Non défini => « claude ». L'utilisateur peut toujours basculer
+      # manuellement vers l'autre modèle dans l'interface, et les travaux de
+      # fond prennent celui qui a une clé si le préféré n'en a pas.
+      #
+      # Ce réglage a une portée RGPD : Mistral est un fournisseur européen,
+      # Anthropic ne l'est pas. Ce qui borne l'exposition ici, c'est que RIEN
+      # n'est conservé côté serveur — aucune conversation n'est stockée, et
+      # aucune entrée n'alimente d'entraînement (voir assistant.py). Basculer
+      # ce réglage sur « mistral » ramène le traitement dans l'UE.
       - key: ASSISTANT_DEFAULT_MODEL
         sync: false
 

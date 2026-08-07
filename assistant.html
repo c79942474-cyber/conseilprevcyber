@@ -394,8 +394,11 @@
       avail=(j&&j.models)||avail;
       if(!avail.claude){ mC.disabled=true; mC.title='Non configuré'; }
       if(!avail.mistral){ mM.disabled=true; mM.title='Non configuré'; }
-      var def=(j&&j.default)==='claude'?'claude':'mistral';
-      if(avail[def]) setModel(def); else if(avail.mistral) setModel('mistral'); else if(avail.claude) setModel('claude');
+      /* Le serveur dit lequel mettre en avant ; Claude à défaut. Et si celui-là
+         n'a pas de clé sur ce serveur, on ouvre sur l'autre plutôt que sur un
+         bouton grisé — la préférence ne doit pas coûter une conversation. */
+      var def=(j&&j.default)==='mistral'?'mistral':'claude';
+      if(avail[def]) setModel(def); else if(avail.claude) setModel('claude'); else if(avail.mistral) setModel('mistral');
       if(!avail.claude&&!avail.mistral){
         stTxt.textContent='Non configuré'; stDot.style.background='var(--terra)';
         inp.disabled=true; inp.placeholder='Assistant non configuré — écrivez-nous via la page Contact.';

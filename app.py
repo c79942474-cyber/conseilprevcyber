@@ -513,11 +513,20 @@ _boot_pool.shutdown(wait=False)
 
 
 # --- Automatisation temps réel (planificateur de fond) — voir automation.py ----
+#
+# LE FOURNISSEUR N'EST PLUS ÉCRIT EN DUR ICI. Ces trois travaux tournent seuls,
+# sans personne devant l'écran : nommer un fournisseur en dur, c'était les
+# éteindre en silence le jour où c'est L'AUTRE qui a une clé. Le résumé de
+# veille, le rapport hebdomadaire et la qualification des demandes entrantes
+# retombaient alors sur leur repli — pas de résumé, pas de rapport, pas de
+# qualification — sans qu'aucune alerte ne le signale : on ne s'en aperçoit
+# qu'à ce qui manque, des semaines plus tard. assistant.defaut() suit la
+# configuration réelle du serveur.
 def _veille_summarize(titre, description):
     """Résumé LLM d'un bulletin CERT-FR (best-effort ; None si indisponible)."""
     try:
         text, _m = assistant.generate(
-            "mistral",
+            assistant.defaut(),
             "Tu résumes des bulletins CERT-FR pour des responsables industriels. "
             "Réponds en 2 à 3 phrases factuelles en français : nature de la menace, "
             "produits concernés, action recommandée. Pas de titre, pas de liste.",
@@ -532,7 +541,7 @@ def _report_generate(data):
     """Rapport hebdomadaire rédigé par LLM (best-effort ; None si indisponible)."""
     try:
         text, _m = assistant.generate(
-            "mistral",
+            assistant.defaut(),
             "Tu rédiges un rapport hebdomadaire interne (Markdown) pour CONSEILPREV. "
             "Structure : ## Synthèse, ## Chiffres clés (tableau Markdown), "
             "## Points d'attention. Factuel et concis : uniquement les données fournies, "
@@ -871,10 +880,7 @@ def assistant_page():
 @app.route("/api/assistant/config")
 def api_assistant_config():
     """Modèles configurés + modèle par défaut de l'UI (surcharge via ASSISTANT_DEFAULT_MODEL)."""
-    default = (os.environ.get("ASSISTANT_DEFAULT_MODEL") or "mistral").strip().lower()
-    if default not in ("claude", "mistral"):
-        default = "mistral"
-    return jsonify(models=assistant.available(), default=default)
+    return jsonify(models=assistant.available(), default=assistant.preference())
 
 
 @app.route("/api/assistant/selftest")
@@ -2840,8 +2846,7 @@ def _agent_dc_complete(system, user, temperature=0.2):
     lieu de la taire, parce qu'un agent qui croit piloter un paramètre qu'il ne
     pilote pas produit des résultats qu'on n'explique plus.
     """
-    dispo = assistant.available()
-    modele = "claude" if dispo.get("claude") else ("mistral" if dispo.get("mistral") else None)
+    modele = assistant.defaut()
     if not modele:
         raise RuntimeError("Aucun fournisseur de modèle configuré.")
     texte, _ = assistant.generate(modele, system, user)
@@ -6614,7 +6619,7 @@ def _classify_contact(sujet, msg):
     """Qualification LLM de la demande (best-effort ; None si indisponible)."""
     try:
         text, _m = assistant.generate(
-            "mistral",
+            assistant.defaut(),
             "Tu qualifies une demande entrante pour un cabinet de cybersécurité "
             "industrielle. Réponds UNIQUEMENT un objet JSON compact : "
             '{"secteur":"...","urgence":"faible|moyenne|haute","resume":"une phrase factuelle"} '
