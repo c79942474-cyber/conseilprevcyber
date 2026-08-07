@@ -3721,7 +3721,7 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
     # Les sous-paragraphes y figurent numérotés, comme dans le corps : un
     # sommaire qui n'annonce que les chapitres oblige à parcourir le document
     # pour trouver le point qu'on cherche — c'est-à-dire à ne pas s'en servir.
-    sous1 = ["1.1 Nature et responsabilité", "1.2 Caractère à cette phase"]
+    sous1 = ["1.1 Nature et responsabilité", "1.2 Ce que cela implique"]
     if etapes:
         sous1.append("1.3 Trajectoire dans la filière %s" % d["filiere_nom"])
     plan = [("1. Objet de la pièce et ce qu'elle engage", sous1)]
@@ -3767,34 +3767,35 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
     A("")
     A("### 1.1 Nature et responsabilité")
     A("")
-    # « LABEL : VALEUR », et non une phrase qui met le libellé du référentiel
-    # au milieu d'une proposition. Écrire « est %s » sur « Pièce contractuelle »
-    # donnait « est pièce contractuelle » ; poser l'article demandait de
-    # connaître le genre de chaque valeur, c'est-à-dire de recopier le
-    # référentiel dans la grammaire.
-    A("Nature : %s. %s" % (pc.get("type_nom") or "pièce du dossier",
-                           pc.get("type_aide") or ""))
-    A("")
-    A("Émetteur : %s." % (pc.get("emetteur_nom") or "désigné au marché"))
-    A("")
-    A("### 1.2 Caractère à cette phase")
-    A("")
-    A("Caractère à la phase %s : %s. %s"
-      % (code_phase,
-         (CARACTERES[caractere]["nom"] if caractere in CARACTERES
-          else caractere).lower(), motif))
-    A("")
+    # LES DONNÉES S'ALIGNENT. Ces six faits sortaient en phrases « Libellé :
+    # valeur. » les unes sous les autres : pour comparer deux pièces il fallait
+    # relire deux paragraphes au lieu de parcourir deux colonnes. Un tableau
+    # les met au même fer, et la valeur décisive y est mise en évidence.
+    A("| Rubrique | Valeur |")
+    A("| --- | --- |")
+    A("| Nature | **%s** |" % (pc.get("type_nom") or "pièce du dossier"))
+    A("| Ce qu'elle engage | %s |" % (pc.get("type_aide") or "selon le marché"))
+    A("| Émetteur | **%s** |" % (pc.get("emetteur_nom") or "désigné au marché"))
+    A("| Caractère à la phase %s | **%s** |"
+      % (code_phase, (CARACTERES[caractere]["nom"] if caractere in CARACTERES
+                      else caractere).lower()))
+    A("| Fondement de ce caractère | %s |" % motif)
     if pc.get("niveau_nom"):
-        A("Niveau attendu : %s. %s"
-          % (pc["niveau_nom"].lower(), pc.get("niveau_aide") or ""))
-        A("")
+        A("| Niveau attendu | **%s** |" % pc["niveau_nom"].lower())
+        A("| Ce que ce niveau demande | %s |" % (pc.get("niveau_aide") or ""))
+    A("| Alimentée par le calcul | **%s** |"
+      % ("oui" if pc.get("moteur") else "non"))
+    A("")
+    A("### 1.2 Ce que cela implique")
+    A("")
     if pc.get("moteur"):
         A("Elle porte des grandeurs du moteur de calcul, reprises au "
-          "chapitre 4.")
+          "chapitre 4. Les chiffres qui y figurent engagent la décision de "
+          "phase.")
     else:
-        A("Elle n'est pas alimentée par le calcul : son contenu se démontre "
-          "par l'analyse de la discipline, et non par les bilans énergie, eau "
-          "et carbone.")
+        A("Son contenu se démontre par **l'analyse de la discipline**, et non "
+          "par les bilans énergie, eau et carbone : aucun chiffre du moteur "
+          "n'y est repris.")
     A("")
     if etapes:
         A("### 1.3 Trajectoire dans la filière %s" % d["filiere_nom"])
@@ -3808,13 +3809,13 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
               % (code, niv_nom, "oui" if code == code_phase else ""))
         A("")
         if gel and gel[0] != code_phase:
-            A("Elle est gelée à la phase %s. Ce qui n'y figure pas devient un "
+            A("Elle est **gelée à la phase %s**. Ce qui n'y figure pas devient un "
               "avenant, si bien que ce qui s'écrit ici engage au-delà de la "
               "phase en cours." % gel[0])
             A("")
         elif gel:
-            A("Elle est gelée à cette phase même. Elle devient opposable en "
-              "l'état et ne se complète plus après signature.")
+            A("Elle est **gelée à cette phase même**. Elle devient opposable "
+              "en l'état et ne se complète plus après signature.")
             A("")
         else:
             A("Aucune phase de cette filière ne la gèle. Son caractère "
@@ -3852,10 +3853,10 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
               "ci-dessous sont reproduits mot pour mot, sans reformulation.")
             _bloc_extraits(A, hits)
             A("")
-            A("À faire : reprendre ces éléments au niveau de la %s attendue ici."
-              % (pc.get("niveau_nom") or "définition").lower())
+            A("**À faire :** reprendre ces éléments au niveau de la **%s** "
+              "attendue ici." % (pc.get("niveau_nom") or "définition").lower())
         else:
-            A("À rédiger. Aucun document de la base ne répond à ce point "
+            A("**À rédiger.** Aucun document de la base ne répond à ce point "
               "pour la requête utilisée, reprise au chapitre Traçabilité.")
         A("")
 

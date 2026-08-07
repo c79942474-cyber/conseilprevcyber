@@ -262,7 +262,7 @@ _LIEN = re.compile(r"\[([^\]\n]+)\]\((https?://[^\s)]+)\)")
 def _add_runs(paragraph, text, color=None):
     """Ajoute le texte au paragraphe en interprétant les liens, **gras**,
     *italique* et `code`."""
-    from docx.shared import Pt
+    from docx.shared import Pt, RGBColor
     texte = text or ""
     if _LIEN.search(texte):
         pos = 0
@@ -278,8 +278,15 @@ def _add_runs(paragraph, text, color=None):
         if not part:
             continue
         if part.startswith("**") and part.endswith("**"):
+            # LE MOT QUI DÉCIDE SE VOIT. Le gras seul, dans une page de gris,
+            # se remarque à peine : on l'appuie de la couleur de marque et d'un
+            # fond clair, comme un surlignage sobre. C'est ce que le lecteur
+            # cherche quand il parcourt sans lire.
             run = paragraph.add_run(part[2:-2])
             run.bold = True
+            run.font.color.rgb = RGBColor(*C_NAVY)
+            shd = _el("w:shd", val="clear", fill=_hex(C_BAND))
+            run._r.get_or_add_rPr().append(shd)
         elif part.startswith("`") and part.endswith("`"):
             run = paragraph.add_run(part[1:-1])
             run.font.name = "Consolas"
@@ -460,7 +467,12 @@ def build_docx(md, meta=None):
                 heading._p.get_or_add_pPr().append(pbdr)
         elif kind == "p":
             p = doc.add_paragraph()
-            p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY   # bloc justifié : rendu de rapport
+            # ALIGNÉ À GAUCHE. Justifié, le texte étirait les lignes portant un
+            # code de pièce — « SPC-SSI (Spécification technique — prévention
+            # et sécurité incendie) » ne se coupe pas — et ouvrait des rivières
+            # blanches au milieu du paragraphe.
+            p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            p.paragraph_format.space_after = Pt(7)
             _add_runs(p, payload)
         elif kind == "quote":
             # Retrait ET filet à gauche : le lecteur doit voir sans lire que ce
@@ -814,8 +826,12 @@ def build_pdf(md, meta=None):
             pdf.set_text_color(0, 0, 0)
         elif kind == "p":
             pdf.set_font(FAM, "", 10.5)
-            _cell(_pdf_txt(payload, UNI), 5, align="J")   # justifié, comme en Word
-            pdf.ln(1)
+            # ALIGNÉ À GAUCHE, plus justifié. La justification étirait les
+            # lignes portant un code de pièce — « SPC-SSI (Spécification
+            # technique — prévention et sécurité incendie) » ne se coupe pas —
+            # et ouvrait des rivières blanches au milieu du paragraphe.
+            _cell(_pdf_txt(payload, UNI), 5.2, align="L")
+            pdf.ln(1.6)
         elif kind == "quote":
             # Filet vertical + retrait, comme en Word : le même document doit
             # se lire pareil dans les deux formats.
@@ -848,11 +864,25 @@ def build_pdf(md, meta=None):
                 decal = 3.0 + 6.0 * niveau
                 gouttiere = decal + 4.0
                 marque = "·" if kind == "ul" else "%d." % idx
+                txt = _pdf_txt(it, UNI)
+                # LA PUCE NE PART PAS SANS SON TEXTE. Écrite la première, elle
+                # déclenchait seule le saut de page ; le texte, replacé au Y
+                # d'avant — devenu le bas de la page suivante — sautait à son
+                # tour. Restait entre les deux une page dont tout le contenu
+                # était un point d'énumération. On mesure donc l'élément avant
+                # de l'écrire, et on tourne la page d'abord s'il n'y tient pas.
+                haut = pdf.multi_cell(pdf.epw - gouttiere, 5, txt, align="L",
+                                      markdown=UNI, dry_run=True,
+                                      output="HEIGHT")
+                # Un élément plus haut qu'une page pleine ne tiendra nulle part :
+                # le faire sauter n'ouvrirait qu'une page blanche de plus.
+                if haut <= pdf.h - pdf.t_margin - 20 and pdf.will_page_break(haut):
+                    pdf.add_page()
                 y0 = pdf.get_y()
                 pdf.set_x(pdf.l_margin + decal)
                 pdf.cell(4.0, 5, _pdf_txt(marque, UNI), align="L")
                 pdf.set_xy(pdf.l_margin + gouttiere, y0)
-                pdf.multi_cell(pdf.epw - gouttiere, 5, _pdf_txt(it, UNI),
+                pdf.multi_cell(pdf.epw - gouttiere, 5, txt,
                                align="L", markdown=UNI)
             pdf.ln(1)
         elif kind == "table":
