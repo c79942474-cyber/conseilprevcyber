@@ -140,16 +140,23 @@ def _blocks(md):
                 out.append(("quote", paras))
             continue
         if re.match(r"^\s*[-*]\s+", ln):
+            # LE NIVEAU DE LA PUCE est retenu. Sans lui, un sommaire à deux
+            # étages ressortait à plat : « 1. Objet » et « 1.1 Nature » au même
+            # rang, ce qui défait précisément ce qu'un sommaire sert à montrer.
             items = []
             while i < n and re.match(r"^\s*[-*]\s+", lines[i]):
-                items.append(re.sub(r"^\s*[-*]\s+", "", lines[i]))
+                creux = len(lines[i]) - len(lines[i].lstrip(" "))
+                items.append((min(creux // 2, 2),
+                              re.sub(r"^\s*[-*]\s+", "", lines[i])))
                 i += 1
             out.append(("ul", items))
             continue
         if re.match(r"^\s*\d+[.)]\s+", ln):
             items = []
             while i < n and re.match(r"^\s*\d+[.)]\s+", lines[i]):
-                items.append(re.sub(r"^\s*\d+[.)]\s+", "", lines[i]))
+                creux = len(lines[i]) - len(lines[i].lstrip(" "))
+                items.append((min(creux // 2, 2),
+                              re.sub(r"^\s*\d+[.)]\s+", "", lines[i])))
                 i += 1
             out.append(("ol", items))
             continue
@@ -470,12 +477,18 @@ def build_docx(md, meta=None):
                                 color=_hex(C_TEAL)))
                 p._p.get_or_add_pPr().append(pbdr)
                 _add_runs(p, bout, color=GREY)
-        elif kind == "ul":
-            for it in payload:
-                _add_runs(doc.add_paragraph(style="List Bullet"), it)
-        elif kind == "ol":
-            for it in payload:
-                _add_runs(doc.add_paragraph(style="List Number"), it)
+        elif kind in ("ul", "ol"):
+            base = "List Bullet" if kind == "ul" else "List Number"
+            for niveau, it in payload:
+                # Word nomme ses niveaux « List Bullet 2 », « List Bullet 3 ».
+                # Un style absent du modèle lèverait : on retombe alors sur le
+                # niveau 1 plutôt que de perdre la liste.
+                style = base if not niveau else "%s %d" % (base, niveau + 1)
+                try:
+                    p = doc.add_paragraph(style=style)
+                except KeyError:
+                    p = doc.add_paragraph(style=base)
+                _add_runs(p, it)
         elif kind == "table":
             head, rows = payload
             cols = max(1, len(head))
@@ -825,10 +838,22 @@ def build_pdf(md, meta=None):
             pdf.set_font(FAM, "", 10.5)
             pdf.ln(1.5)
         elif kind in ("ul", "ol"):
+            # RETRAIT PENDANT. La puce et son texte partaient dans la même
+            # cellule : la deuxième ligne d'une puce revenait sous la puce, et
+            # une liste de trois lignes ne se distinguait plus d'un paragraphe.
+            # La puce s'écrit donc à part, et le texte dans une colonne qui
+            # garde sa marge à toutes ses lignes.
             pdf.set_font(FAM, "", 10.5)
-            for idx, it in enumerate(payload, 1):
-                marker = "  ·  " if kind == "ul" else "  %d.  " % idx
-                _cell(_pdf_txt(marker + it, UNI), 5, width_off=3)
+            for idx, (niveau, it) in enumerate(payload, 1):
+                decal = 3.0 + 6.0 * niveau
+                gouttiere = decal + 4.0
+                marque = "·" if kind == "ul" else "%d." % idx
+                y0 = pdf.get_y()
+                pdf.set_x(pdf.l_margin + decal)
+                pdf.cell(4.0, 5, _pdf_txt(marque, UNI), align="L")
+                pdf.set_xy(pdf.l_margin + gouttiere, y0)
+                pdf.multi_cell(pdf.epw - gouttiere, 5, _pdf_txt(it, UNI),
+                               align="L", markdown=UNI)
             pdf.ln(1)
         elif kind == "table":
             head, rows = payload

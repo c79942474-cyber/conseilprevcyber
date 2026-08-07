@@ -31,6 +31,7 @@ retapée ici aurait divergé au premier ajustement du référentiel, et c'est le
 cadre de phases qu'on aurait cru.
 """
 
+import re
 import time
 
 import datacenter as D
@@ -3527,26 +3528,85 @@ def _ranger_extraits(contenu, extraits):
         scores = [(sum(2 if portee.get(m) == 1 else 1 for m in (k & mots)), i)
                   for i, k in enumerate(cles)]
         n, i = max(scores) if scores else (0, 0)
-        if n >= 2:
+        partage = len(cles[i] & mots) if cles else 0
+        # DEUX MOTS, OU UN MOT QUI PÈSE. Le score seul suffisait à rattacher une
+        # page entière sur l'empreinte carbone de la filière au point
+        # « Périmètre safety », pour le seul mot « périmètre » : un mot
+        # discriminant vaut double, et le seuil de deux était atteint. Ce qui
+        # manquait, c'est la PART que ce mot représente dans l'extrait. Un mot
+        # sur trois dit de quoi parle la phrase ; un mot sur vingt-cinq ne dit
+        # rien du paragraphe.
+        assez = partage >= 2 or (partage and partage / float(len(mots)) >= 0.15)
+        if n >= 2 and assez:
             par_point[i].append(h)
         else:
             reste.append(h)
     return par_point, reste
 
 
+def _phrases_entieres(txt, maxi=1400):
+    """Un extrait qui commence et finit sur une phrase.
+
+    La base est découpée en fragments de taille fixe : un fragment commence au
+    milieu d'un mot (« luer l'état actuel… ») et s'arrête de même. Reproduit
+    tel quel dans un livrable, cela se lit comme une faute de frappe — et un
+    lecteur qui bute sur la première ligne d'une citation ne lit pas la suite.
+
+    On coupe donc aux frontières de phrase : on jette l'amorce jusqu'à la
+    première majuscule qui suit un point, et la fin après le dernier point. Si
+    aucune phrase entière ne se dégage, on ne cite rien : mieux vaut un point
+    sans extrait qu'un extrait illisible.
+    """
+    t = " ".join((txt or "").split())
+    if not t:
+        return ""
+    # Début : la première phrase complète. Un fragment qui commence déjà par
+    # une majuscule est intact, on n'y touche pas.
+    if not (t[:1].isupper() or t[:1].isdigit()):
+        m = re.search(r"(?<=[.!?])\s+(?=[A-ZÀÂÉÈÊËÎÏÔÙÛÜÇ0-9])", t)
+        if not m:
+            return ""
+        t = t[m.end():]
+    coupe = len(t) > maxi
+    if coupe:
+        t = t[:maxi]
+    # Fin : après le dernier point. Un extrait qui se termine DÉJÀ sur une
+    # phrase est gardé tel quel, si court soit-il — exiger une longueur
+    # minimale écartait « Le régime d'eau glacée retenu est 18/24 °C. », qui
+    # est pourtant une phrase entière et la seule qui documente son point.
+    if not coupe and t.endswith((".", "!", "?")):
+        return t
+    fin = max(t.rfind("."), t.rfind("!"), t.rfind("?"))
+    if fin < 40:
+        return ""
+    return t[:fin + 1].strip()
+
+
 def _bloc_extraits(A, hits):
-    """Les extraits d'un point, reproduits tels quels et attribués."""
+    """Les extraits d'un point, reproduits tels quels et attribués.
+
+    L'attribution est portée DANS la citation, à sa dernière ligne : posée en
+    dehors, elle revenait au ras de la marge tandis que le texte cité restait
+    en retrait, et rien ne disait plus lequel des deux extraits elle désignait.
+    """
+    vus = []
     for h in hits:
-        txt = (h.get("content") or h.get("text") or h.get("extrait") or "").strip()
+        txt = _phrases_entieres(h.get("content") or h.get("text")
+                                or h.get("extrait") or "")
         if not txt:
             continue
+        # DÉDOUBLONNAGE. Les fragments de la base se chevauchent : deux hits
+        # voisins d'un même document reprennent le même passage à quelques mots
+        # près, et le livrable citait deux fois la même chose.
+        empreinte = _mots_cles(txt[:400])
+        if any(len(empreinte & v) >= max(4, int(0.6 * len(empreinte)))
+               for v in vus):
+            continue
+        vus.append(empreinte)
         A("")
-        A("> " + txt.replace("\n", "\n> ")[:1800])
-        A("")
-        # « Source : » plutôt qu'un tiret cadratin : le tiret servait de
-        # marqueur d'attribution, ce qui n'est pas son emploi et le laissait
-        # se confondre avec les tirets des intitulés de pièces.
-        A("*Source : %s%s.*"
+        A("> " + txt.replace("\n", "\n> "))
+        A(">")
+        A("> *Source : %s%s.*"
           % (h.get("title") or "document sans titre",
              (" (thème %s)" % h["theme"]) if h.get("theme") else ""))
 
@@ -3577,6 +3637,14 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
 
     contenu = pc.get("contenu") or []
     par_point, hors = _ranger_extraits(contenu, extraits)
+    # Parmi les non rattachés, ceux qui parlent quand même du sujet : on les
+    # reconnaît au vocabulaire avec lequel la pièce a interrogé la base.
+    _termes, _orig = recherche_piece(pc["code"], pc.get("discipline"))
+    _vocab = _mots_cles(_termes or pc["titre"]) | _mots_cles(pc["titre"])
+    voisins = [h for h in hors
+               if _mots_cles((h.get("content") or h.get("text")
+                              or h.get("extrait") or "")[:1200]) & _vocab]
+    ecartes = len(hors) - len(voisins)
     docu = [i for i in range(len(contenu)) if par_point.get(i)]
     interfaces = _interfaces_piece(pc, d.get("pieces") or [])
     caractere, motif, _fondement = caractere_piece(pc)
@@ -3617,17 +3685,15 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
       % (pc["code"], str(inputs.get("indice") or "01"), d["code"], client,
          time.strftime("%d/%m/%Y")))
     A("")
-    # L'avertissement en TÊTE, pas en annexe : c'est la première chose à
-    # savoir, et la seule qui empêche de remettre ceci comme un livrable fini.
-    A("> **%s.** %s" % (m["nom"], m["aide"]))
-    A(">")
-    # POURQUOI le modèle n'a pas écrit, quand la cause est connue. Sans elle,
-    # une trame reçue alors qu'un modèle est configuré ressemble à une panne
-    # du site : on relance, on obtient la même chose, et on ne sait toujours
-    # pas s'il faut changer de modèle ou attendre.
-    if note:
-        A("> %s" % note)
-        A(">")
+    # CE QUI N'A PAS SA PLACE DANS LE DOCUMENT. « Aucun modèle de langage
+    # n'était disponible », « le modèle claude n'a pas répondu (upstream),
+    # l'autre modèle est configuré, vous pouvez le choisir » : ce sont des
+    # nouvelles de NOTRE outillage. Elles servent à celui qui relance la
+    # rédaction, et elles sont dites à l'écran, où elles arrivent. Sur un
+    # document remis à un client, elles ne disent rien de la pièce et
+    # discréditent tout ce qui suit. Le mode de production reste tracé au
+    # chapitre Traçabilité, où on va le chercher quand on en a besoin.
+    #
     # L'état point par point, CALCULÉ. « Ce document n'est pas rédigé » était
     # vrai mais grossier : il mettait au même rang le point que la base
     # documente et celui sur lequel il n'existe rien. Le lecteur ne savait pas
@@ -3676,8 +3742,8 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
     if sous:
         plan.append(("%d. Ce qui manque pour franchir la phase" % n, sous))
         n += 1
-    if hors:
-        plan.append(("%d. Extraits non rattachés à un point" % n, []))
+    if voisins:
+        plan.append(("%d. Autres extraits sur le sujet de la pièce" % n, []))
         n += 1
     plan.append(("%d. Indices du document" % n, []))
     n += 1
@@ -3877,17 +3943,25 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
             A("")
         k += 1
 
-    # ── 6. Ce que la base a rendu sans rattachement ────────────────────────
-    if hors:
+    # ── 6. Ce qui concerne la pièce sans répondre à un point ───────────────
+    # L'ANNEXE EXISTE, MAIS ELLE TRIE. Elle versait tout ce que la recherche
+    # avait rendu : sur une pièce safety, deux pages sur l'empreinte carbone de
+    # la filière, citant une étude tierce sans le moindre rapport. Ce n'était
+    # pas de la matière, c'était le bruit de la recherche — et le remettre à un
+    # client discrédite les extraits qui, eux, documentent vraiment.
+    #
+    # Le tri se fait sur le VOCABULAIRE DE LA PIÈCE, celui-là même qui a servi
+    # à interroger la base : un extrait qui n'en partage pas un mot ne parle
+    # pas du sujet, quoi qu'ait rendu la recherche.
+    if voisins:
         A("---")
         A("")
-        A("## %d. Extraits non rattachés à un point" % k)
+        A("## %d. Autres extraits sur le sujet de la pièce" % k)
         A("")
-        A("Ces extraits ont été retrouvés pour le sujet de la pièce, sans "
-          "recoupement assez net avec l'un des points ci-dessus. Ils sont "
-          "reproduits mot pour mot et restent à verser au bon chapitre lors "
-          "de la relecture.")
-        for h in hors:
+        A("Ces extraits concernent le sujet sans répondre précisément à l'un "
+          "des points exigés. Ils sont reproduits mot pour mot et restent à "
+          "verser au bon chapitre lors de la relecture.")
+        for h in voisins:
             _bloc_extraits(A, [h])
         A("")
         k += 1
@@ -3935,13 +4009,20 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
          "discipline": "propre à la discipline",
          "titre": "titre de la pièce, faute de vocabulaire déclaré"
          }.get(origine, origine))
-    A("| Extraits retrouvés | %d, dont %d rattachés à un point et %d en annexe |"
-      % (len(extraits), len(extraits) - len(hors), len(hors)))
+    A("| Extraits retrouvés | %d, dont %d rattachés à un point |"
+      % (len(extraits), len(extraits) - len(hors)))
+    if voisins:
+        A("| Extraits sur le sujet | %d, sans réponse précise à un point |"
+          % len(voisins))
+    if ecartes:
+        A("| Extraits écartés | %d, hors du sujet de la pièce |" % ecartes)
     A("| Reste à rédiger | %d point sur %d |"
       % (len(contenu) - len(docu), len(contenu)))
     A("")
-    A(m["aide"])
-    A("")
+    # La ligne « Mode de rédaction » du tableau suffit à tracer la production.
+    # Le paragraphe d'aide qui la suivait parlait de nos modèles de langage et
+    # de leur disponibilité : une nouvelle de notre outillage, qui n'a rien à
+    # faire dans un document remis.
     return "\n".join(L)
 
 
