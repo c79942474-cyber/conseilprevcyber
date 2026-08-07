@@ -4414,12 +4414,39 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
          }.get(origine, origine))
     # OÙ la base a été interrogée d'abord. « Choisi dans le bon sous-dossier »
     # est une affirmation vérifiable ou creuse : la ligne donne au relecteur de
-    # quoi la vérifier — et, si la pièce cite un document d'un AUTRE thème, de
-    # voir que les sous-dossiers attendus étaient vides.
+    # quoi la vérifier.
     sd = sous_dossiers(pc["code"], pc.get("discipline"))
     if sd:
         A("| Sous-dossiers interrogés d'abord | %s |"
           % " · ".join(s.replace("Data center / ", "") for s in sd))
+        # ET LEUR RÉPONSE, EN TOUTES LETTRES. Sans cette ligne, voir que les
+        # sous-dossiers attendus n'ont rien donné demandait de COMPARER deux
+        # lignes — celle des sous-dossiers et les thèmes des documents cités.
+        # C'est exactement la question qu'on se pose devant une pièce maigre
+        # (« la base safety a-t-elle servi ? »), et le document doit y
+        # répondre seul. Un extrait compte pour un sous-dossier s'il en vient
+        # ou vient d'un de ses enfants — la carte nomme parfois le parent.
+        dedans = [h for h in extraits
+                  if any((h.get("theme") or "") == s
+                         or (h.get("theme") or "").startswith(s + " / ")
+                         for s in sd)]
+        if dedans:
+            reps = []
+            for h in dedans:
+                t = (h.get("theme") or "").replace("Data center / ", "")
+                if t not in reps:
+                    reps.append(t)
+            A("| Réponse des sous-dossiers | %d des %d extraits en viennent "
+              "(%s) |" % (len(dedans), len(extraits), " · ".join(reps)))
+        elif extraits:
+            A("| Réponse des sous-dossiers | Les sous-dossiers attendus n'ont "
+              "rien fourni — recherche élargie à la famille, puis à toute la "
+              "base : les documents cités viennent d'ailleurs. Déposez les "
+              "documents attendus dans les sous-dossiers nommés ci-dessus : "
+              "la pièce les citera d'abord. |")
+        else:
+            A("| Réponse des sous-dossiers | rien — ni eux, ni le reste de la "
+              "base, pour la requête reprise ci-dessus |")
     A("| Extraits retrouvés | %d, dont %d rattachés à un point |"
       % (len(extraits), len(extraits) - len(hors)))
     # LES DOCUMENTS, nommés avec leur sous-dossier. Les citations les attribuent
