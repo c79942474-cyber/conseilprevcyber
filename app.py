@@ -4402,10 +4402,15 @@ _ASSISTANT_MSG = {
     "timeout": "Le modèle a dépassé le délai accordé pour ce document. Le "
                "service répond, il est simplement plus lent que le délai : "
                "une pièce longue peut demander un second essai.",
-    "upstream": "Le service d'IA a répondu par une erreur : la panne est de "
-                "son côté, pas dans la configuration. Réessayer dans un "
+    # Formulé par ce que le lecteur peut FAIRE, et non par ce qui s'est cassé
+    # chez notre fournisseur. Ce qu'il a besoin de savoir tient en deux points :
+    # ce n'est pas la configuration de ce serveur, et un second essai passe
+    # souvent. Le code d'échec et le modèle tenté partent avec la réponse et au
+    # journal, pour qui diagnostique.
+    "upstream": "La rédaction automatique n'a pas abouti, et la cause n'est "
+                "pas dans la configuration de ce serveur. Réessayer dans un "
                 "instant suffit souvent ; l'autre modèle, s'il est configuré, "
-                "contourne la panne.",
+                "y parvient en général.",
     "empty": "La demande était vide : rien n'a été envoyé au modèle.",
     # Notre propre garde, pas une panne du fournisseur : trop de rédactions
     # étaient déjà en cours. Le dire ainsi évite de faire chercher la cause

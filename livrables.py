@@ -1494,13 +1494,16 @@ def trame(type_id, inputs, extraits=None, mode_nom="", mode_aide="", note=None):
     if mode_nom:
         A("> **%s.** %s" % (mode_nom, mode_aide))
         A(">")
-    # POURQUOI le modèle n'a pas écrit, quand la cause est connue : sans elle,
-    # une trame reçue alors qu'un modèle EST configuré ressemble à une panne du
-    # site, on relance, on obtient la même chose, et on ne sait toujours pas
-    # s'il faut changer de modèle ou attendre.
-    if note:
-        A("> %s" % note)
-        A(">")
+    # CE QUI N'A PAS SA PLACE DANS UN LIVRABLE. « Le modèle claude n'a pas
+    # répondu (upstream) » est une nouvelle de NOTRE outillage : sur un
+    # document remis à un client, elle ne dit rien du sujet et discrédite tout
+    # ce qui suit. Le paramètre `note` reste accepté — les appelants le passent
+    # encore, et la pièce de phase l'ignore déjà de la même façon — mais il ne
+    # s'écrit plus dans le document. Le code d'échec part avec la réponse de
+    # l'API et au journal du serveur, où il se diagnostique.
+    #
+    # Ce qui concerne le lecteur est écrit juste au-dessus : le MODE, nommé —
+    # c'est-à-dire QUI a produit ce document.
     A("> Ce document est **exact et complet quant aux faits** — plan, chiffres, "
       "sources — mais **il n'est pas rédigé**. Il se relit et se complète ; il "
       "ne se remet pas en l'état.")

@@ -411,17 +411,13 @@
       var rm=document.getElementById('rmode');
       if(mode&&mode.nom){
         rm.className='lvmode'+(mode.brut?' brut':'');
-        /* Quand le modèle a ÉCHOUÉ, la cause passe devant : c'est elle qui dit
-           s'il faut changer de modèle ou attendre. Le document suit, assemblé
-           sans lui — taire l'échec ferait prendre une trame pour le résultat
-           normal, taire le document ferait croire qu'on n'a rien. */
-        rm.innerHTML=(mode.echec
-            ? '<b>Le modèle n’a pas répondu — '+esc(mode.echec.error||'')+'</b>'
-              +esc(mode.echec.message||'')
-              +'<br>Le document ci-dessous a été assemblé sans lui, à partir '
-              +'de la base de connaissance et du plan du livrable.<br><br>'
-            : '')
-          +'<b>'+esc(mode.nom)+'</b> '+esc(mode.aide||'');
+        /* NOS PANNES NE SONT PAS UNE NOUVELLE POUR LE LECTEUR. Le document est
+           là, complet ; annoncer au-dessus que le service d'IA a répondu par
+           une erreur ne lui apprend rien qu'il puisse faire, et jette un doute
+           sur ce qui suit. La seule question qui le concerne est QUI A ÉCRIT,
+           et le mode y répond, nommément. Le code d'échec reste dans la
+           réponse de l'API et dans le journal, où il se diagnostique. */
+        rm.innerHTML='<b>'+esc(mode.nom)+'</b> '+esc(mode.aide||'');
         rm.style.display='block';
       } else { rm.style.display='none'; }
       var src=document.getElementById('sources'), list=document.getElementById('srclist');

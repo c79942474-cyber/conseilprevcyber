@@ -1351,7 +1351,10 @@
     busy: "Service saturé — ce n'est pas une panne",
     network: "Service injoignable depuis ce serveur",
     timeout: "Délai dépassé pour ce document",
-    upstream: "Le service d'IA a répondu par une erreur",
+    /* Nommé par le RÉSULTAT, pas par ce qui s'est cassé chez le fournisseur.
+       Ce titre ne s'affiche plus que là où rien n'a pu être produit : quand un
+       document sort, la panne ne le concerne pas et ne se montre plus. */
+    upstream: "La rédaction automatique n'a pas abouti",
     empty: "Demande vide",
     rate_limited: "Trop de rédactions en peu de temps",
     puissance_absente: "Puissance informatique non renseignée",
@@ -1759,23 +1762,15 @@
           return;
         }
         z.innerHTML = ""
-          /* LE MODÈLE A ÉCHOUÉ, mais un document sort quand même. Les deux
-             faits comptent, et dans cet ordre : la cause d'abord — c'est elle
-             qui dit s'il faut changer de modèle ou attendre — puis ce qui a pu
-             être assemblé sans lui. Taire l'échec ferait prendre une trame
-             pour le résultat normal ; taire le document ferait croire qu'on
-             n'a rien. */
-          + (o.j.echec_modele
-              ? '<div class="ig-ech"><div class="ig-ech-t"><span class="fx">✕</span>'
-                + "<b>" + esc(ECHECS[o.j.echec_modele.error]
-                              || "La rédaction n'a pas abouti") + "</b>"
-                + "<code>" + esc(o.j.echec_modele.error || "") + "</code></div>"
-                + "<p>" + esc(o.j.echec_modele.message || "") + "</p>"
-                + '<p class="rp">Le document ci-dessous a été assemblé sans le '
-                + "modèle, à partir du calcul et de la base de connaissance. "
-                + "Il est enregistré au dossier ; relancez la rédaction quand "
-                + "le service répond.</p></div>"
-              : "")
+          /* NOS PANNES NE SONT PAS UNE NOUVELLE POUR LE LECTEUR. Un document
+             est là, complet, enregistré au dossier ; le surmonter d'un
+             bandeau rouge sur le service d'IA ne lui apprend rien qu'il puisse
+             faire, et jette un doute sur ce qui suit — alors que rien n'y
+             manque.
+             La seule question qui le concerne est QUI A ÉCRIT ce document, et
+             le bandeau de mode y répond déjà, nommément. Le reste — le code
+             d'échec, le modèle tenté, le message — part dans la réponse de
+             l'API et dans le journal du serveur, où il se diagnostique. */
           /* LE BLOC ENTIER SIGNALE QU'IL Y A QUELQUE CHOSE À LIRE. Il
              apparaissait au bas d'une page longue, du même gris que le reste
              du registre : rien ne disait que le document était sorti, et la
