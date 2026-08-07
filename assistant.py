@@ -266,6 +266,25 @@ _MARGE_RAISONNEMENT = 3    # de quoi loger le raisonnement EN PLUS du texte
 _PLAFOND_JETONS = 12000    # borne dure : au-delà, c'est le délai qui casse
 
 
+# TOUS LES 400 NE SE VALENT PAS, et confondre deux causes sous un même code
+# coûte cher. Le fournisseur répond « 400 » aussi bien quand la REQUÊTE est
+# fautive que quand le COMPTE n'a plus de crédit. Or les deux appellent des
+# gestes opposés : la première se corrige dans le code, la seconde chez le
+# fournisseur, et rien de ce qu'on enverra n'y changera quoi que ce soit.
+#
+# Sans cette distinction, un compte à sec passait pour un modèle qui refuse nos
+# réglages : on retirait le garde-fou pour rien, on le laissait retiré jusqu'au
+# redémarrage — donc encore après le rechargement du compte — et on écrivait au
+# journal une cause fausse.
+_SOLDE_EPUISE = re.compile(r"credit balance|plans\s*&\s*billing|"
+                           r"insufficient\s+credit", re.I)
+
+
+def _est_solde(msg):
+    """Le 400 vient-il du compte plutôt que de la requête ?"""
+    return bool(_SOLDE_EPUISE.search(msg or ""))
+
+
 def _detail_api(exc):
     """Ce que le fournisseur a RÉELLEMENT répondu : (type, message).
 
@@ -309,6 +328,11 @@ def _envoi_claude(client, system, messages, max_tokens, timeout):
         if getattr(exc, "status_code", None) != 400:
             raise
         genre, msg = _detail_api(exc)
+        # Le compte, pas la requête : le second envoi échouerait à l'identique,
+        # et retirer le garde-fou sur ce motif-là le laisserait retiré même une
+        # fois le compte rechargé.
+        if _est_solde(msg):
+            raise
         _log.error("Claude : le modèle « %s » refuse la consigne de réponse "
                    "directe (HTTP 400, type=%s) : %s — on s'en remet à ses "
                    "réglages par défaut, budget de jetons relevé en conséquence.",
@@ -368,6 +392,14 @@ def _claude_call(system, messages, max_tokens, timeout=REQUEST_TIMEOUT):
         # « type=None » à chaque fois, et la seule phrase qui désigne le champ
         # refusé partait à la poubelle.
         genre, msg = _detail_api(exc)
+        if _est_solde(msg):
+            # Une cause à part entière : rien n'est cassé, le compte est à sec.
+            # La ranger sous « erreur amont » enverrait chercher une panne
+            # là où il n'y a qu'une ligne de facturation à régler.
+            _log.error("Claude : le compte Anthropic n'a plus de crédit — "
+                       "aucun appel n'aboutira tant qu'il n'est pas rechargé "
+                       "(console Anthropic, Plans & Billing). Message : %s", msg)
+            raise AssistantError("credit", 503)
         _log.error("Claude : réponse en erreur (HTTP %s, type=%s, modèle=%s) : %s",
                    getattr(exc, "status_code", "?"), genre or "?", CLAUDE_MODEL,
                    msg or "(sans message)")
@@ -436,7 +468,16 @@ def _mistral_call(system, messages, max_tokens, timeout=REQUEST_TIMEOUT):
                    "MISTRAL_API_KEY (valeur exacte, sans espace ni guillemet).", r.status_code)
         raise AssistantError("auth", 502)
     if r.status_code != 200:
-        _log.error("Mistral : réponse en erreur (HTTP %s)", r.status_code)
+        # Le corps de la réponse, pas seulement son code : c'est là que le
+        # fournisseur dit ce qu'il refuse. Même règle que côté Claude, et même
+        # cas particulier — un compte à sec n'est pas une panne.
+        corps = (r.text or "").strip().replace("\n", " ")[:300]
+        if _est_solde(corps):
+            _log.error("Mistral : le compte n'a plus de crédit — aucun appel "
+                       "n'aboutira tant qu'il n'est pas rechargé. Message : %s", corps)
+            raise AssistantError("credit", 503)
+        _log.error("Mistral : réponse en erreur (HTTP %s, modèle=%s) : %s",
+                   r.status_code, MISTRAL_MODEL, corps or "(sans message)")
         raise AssistantError("upstream", 502)
     try:
         return (r.json()["choices"][0]["message"]["content"] or "").strip()
@@ -564,6 +605,13 @@ def _selftest_claude():
         # champ refusé, sur un 404 le modèle introuvable. Le taire obligeait à
         # deviner à partir du seul code HTTP.
         genre, msg = _detail_api(exc)
+        # Le compte à sec mérite sa phrase à lui, en français et avec le geste :
+        # le message d'origine est exact mais laisse croire à un défaut de
+        # configuration, alors que la clé et le modèle sont bons.
+        if _est_solde(msg):
+            msg = ("le compte Anthropic n'a plus de crédit — la clé et le "
+                   "modèle sont bons. Rechargez le compte (console Anthropic, "
+                   "Plans & Billing) : aucun appel n'aboutira avant.")
         return {"configured": True, "ok": False, "model": CLAUDE_MODEL,
                 "status": getattr(exc, "status_code", None),
                 "type": genre or None, "detail": msg or None}

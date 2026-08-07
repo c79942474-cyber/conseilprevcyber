@@ -1002,6 +1002,11 @@ def api_chat():
                               "écrivez-nous via la page Contact.",
             "auth": "Le service d'IA a refusé la clé d'accès configurée. Vérifiez la clé API "
                     "du modèle dans le tableau de bord (sans espace ni guillemet), puis réessayez.",
+            # Ni la clé ni le modèle : le compte du fournisseur est à sec.
+            # Réessayer n'y changera rien, et la seule chose utile à dire au
+            # visiteur est qu'il peut basculer sur l'autre modèle.
+            "credit": "Ce modèle n'est plus approvisionné chez son fournisseur. "
+                      "Essayez l'autre modèle, ou écrivez-nous via la page Contact.",
             "empty": "Votre message est vide.",
             "busy": "L'assistant est très sollicité pour le moment. Réessayez dans un instant.",
             "network": "Service d'IA momentanément injoignable. Réessayez dans un instant.",
@@ -4402,6 +4407,14 @@ _ASSISTANT_MSG = {
     "auth": "Le service d'IA a refusé la clé configurée : elle est erronée, "
             "expirée, ou sans autorisation sur ce modèle. Réessayer n'y "
             "changera rien tant qu'elle n'est pas corrigée.",
+    # À distinguer de « auth » : la clé est BONNE, et le modèle aussi. C'est le
+    # compte qui n'a plus de crédit — un geste de facturation, pas de
+    # configuration, et aucun réglage de ce serveur n'y peut quoi que ce soit.
+    "credit": "Le compte du fournisseur d'IA n'a plus de crédit : la clé et le "
+              "modèle sont pourtant valides. Aucune rédaction n'aboutira tant "
+              "que le compte n'est pas rechargé — le document ci-dessous a été "
+              "assemblé sans modèle. L'autre modèle, s'il est configuré et "
+              "approvisionné, y parvient.",
     "busy": "Le service d'IA est saturé et a refusé la demande (quota ou "
             "limite de débit). Ce n'est pas une panne : réessayez dans une "
             "minute.",
