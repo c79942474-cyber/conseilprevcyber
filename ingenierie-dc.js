@@ -1966,6 +1966,11 @@
           corps.format = t[1];
           corps.model = j.model || "";
           corps.sources = j.sources || [];
+          /* Le cartouche du Word et du PDF : numéro et indice viennent du
+             serveur au moment de la rédaction. Les recalculer ici donnerait un
+             numéro à l'écran et un autre sur le document. */
+          corps.numero = j.numero || "";
+          corps.indice = j.indice || "";
           demander("/api/datacenter/piece/export", {
             method: "POST", credentials: "same-origin",
             headers: { "Content-Type": "application/json" },

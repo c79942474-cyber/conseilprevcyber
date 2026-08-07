@@ -2116,7 +2116,10 @@ def api_datacenter_ingenierie_export():
     if fmt not in ("docx", "pdf"):
         fmt = "docx"
     md = _etude_phase_markdown(d, str(data.get("client") or "").strip()[:120])
-    meta = {"label": "%s — %s" % (d["code"], d["nom"]),
+    meta = {"label": "Étude de phase %s, %s" % (d["code"], d["nom"]),
+            "numero": "ETUDE-%s" % d["code"],
+            "phase": "%s, %s" % (d["code"], d["nom"]),
+            "indice": "01",
             "client": str(data.get("client") or "")[:120],
             "perimetre": "%s kW informatiques · %s" % (
                 round(profil["puissance_it_kw"]), d["filiere_nom"]),
@@ -2175,16 +2178,31 @@ def api_datacenter_piece_export():
     pc = ingenierie_dc.piece(code_phase, code_piece) or {}
     profil = _profil_datacenter(data)
     d = ingenierie_dc.dossier(profil, code_phase, data) if code_phase else {}
-    label = ("%s — %s" % (pc["code"], pc["titre"])) if pc else (
-        code_piece or "Pièce d'ingénierie")
+    # L'OBJET, pas le code : le numéro du document porte déjà « SPC-SAFETY »,
+    # et le répéter deux lignes plus bas donne un cartouche qui bégaie.
+    label = pc["titre"] if pc else (code_piece or "Pièce d'ingénierie")
     meta = {"type": pc.get("code") or code_piece, "label": label,
             "client": str(data.get("client") or "")[:120],
+            # LE CARTOUCHE. Numéro, phase et indice viennent de la rédaction :
+            # sans eux, deux tirages du même document sortent identiques, et
+            # c'est la date du fichier qui fait foi — elle change à chaque copie.
+            "numero": str(data.get("numero")
+                          or ("%s-%s" % (pc["code"], code_phase) if pc else ""))[:60],
+            "phase": ("%s, %s" % (code_phase, d["nom"])) if d.get("nom")
+                     else code_phase,
+            "indice": str(data.get("indice") or "")[:8],
+            "statut": str(data.get("statut") or "")[:80],
+            "discipline": pc.get("discipline_nom") or "",
+            "emetteur": pc.get("emetteur_nom") or "",
             "perimetre": "%s%s" % (
                 ("%s kW informatiques" % round(profil["puissance_it_kw"]))
                 if profil.get("puissance_it_kw") else "",
                 (" · %s" % d["filiere_nom"]) if d.get("filiere_nom") else ""),
             "date": time.strftime("%d/%m/%Y"),
-            "model": str(data.get("model") or "")[:60],
+            # « Établi par » se lit chez le client : « trame-moteur_seul » est
+            # un code interne, pas un auteur. On nomme ce qui a réellement
+            # composé le document.
+            "model": _auteur_document(data.get("model")),
             "sources": [s for s in (data.get("sources") or [])
                         if isinstance(s, dict)][:40]
             or [{"title": "Moteur d'ingénierie CONSEILPREV v" + datacenter.VERSION,
@@ -4633,6 +4651,10 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo,
                    sans_modele=True, sources=sources, id=saved_id,
                    corpus="public" if public_only else "complet",
                    famille_prioritaire=famille,
+                   # Le cartouche du Word et du PDF s'en sert : sans eux, deux
+                   # versions du même document sortent identiques.
+                   numero=data.get("numero") or "", indice=data.get("indice") or "",
+                   phase=phase,
                    modeles_disponibles=dispo)
 
 
@@ -4812,6 +4834,8 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None,
                    mode_aide=ingenierie_dc.MODES_REDACTION[mode]["aide"],
                    corpus="public" if public_only else "complet",
                    famille_prioritaire=famille,
+                   numero=data.get("numero") or "", indice=data.get("indice") or "",
+                   phase=(data.get("phase") or "").strip().upper()[:12],
                    sans_modele=False)
 
 
@@ -4831,6 +4855,46 @@ def api_livrables_generate():
         return jsonify(ok=False, error="type_inconnu", message="Type de livrable inconnu."), 400
     system, user = prompts
     return _livrables_run(type_id, data, system, user)
+
+
+def _auteur_document(model):
+    """Qui a établi le document, en clair pour le cartouche.
+
+    L'historique enregistre un code technique — « trame-moteur_seul »,
+    « claude-sonnet-4 ». Il a sa place dans la traçabilité, pas dans la ligne
+    « Établi par » d'un document remis à un client.
+    """
+    m = (model or "").strip()
+    if not m:
+        return ""
+    if m.startswith("trame-"):
+        return "Moteur d'ingénierie CONSEILPREV %s" % ingenierie_dc.VERSION
+    return "Rédaction assistée (%s), relue par un ingénieur" % m
+
+
+def _indice_piece(projet_id, phase, code):
+    """L'indice de cette émission, compté sur les versions déjà au dossier.
+
+    Deux chiffres, comme sur un plan : « 01 » pour la première émission, « 02 »
+    pour la reprise après relecture. Compté et non demandé : personne ne tient
+    à jour un numéro de version à la main, et un indice saisi finit toujours
+    par redire celui du tirage précédent.
+
+    Hors projet, l'indice reste « 01 » : le document n'entre dans aucune
+    séquence, et prétendre le contraire lui donnerait une histoire qu'il n'a
+    pas.
+    """
+    if not projet_id:
+        return "01"
+    try:
+        n = sum(1 for r in livrables_hist.list()
+                if r.get("projet_id") == projet_id
+                and (r.get("phase") or "") == phase
+                and (r.get("piece") or "") == code)
+    except Exception:
+        app.logger.exception("indice de pièce")
+        return "01"
+    return "%02d" % (n + 1)
 
 
 def _rediger_piece():
@@ -4886,10 +4950,17 @@ def _rediger_piece():
                        message="Phase ou pièce inconnue."), 404
     system, user, requete = prompts
     pc = ingenierie_dc.piece(phase, code)
+    # L'INDICE, calculé sur ce qui existe déjà. Une reprise après relecture est
+    # une nouvelle version du MÊME document, pas un document de plus : sans
+    # indice, deux tirages se ressemblent à s'y méprendre une fois imprimés, et
+    # c'est la date du fichier qui fait foi — elle change à chaque copie.
+    data["indice"] = _indice_piece(data.get("projet_id"), phase, code)
+    data["numero"] = "%s-%s" % (pc["code"], phase)
     audit.journaliser("datacenter.piece", cible="%s/%s" % (phase, code),
-                      detail="%s · corpus %s"
+                      detail="%s · corpus %s · indice %s"
                              % (pc["titre"][:100],
-                                "complet" if admin else "public"))
+                                "complet" if admin else "public",
+                                data["indice"]))
     return _livrables_run("dc-piece-%s-%s" % (phase.lower(), code.lower()),
                           data, system, user, extra_query=requete,
                           label="%s %s — %s" % (phase, pc["code"], pc["titre"]),

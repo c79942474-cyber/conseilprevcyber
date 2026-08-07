@@ -2330,8 +2330,9 @@ _PIECES_REGLEMENTAIRES = {
               "travail, obligatoire à la réception.",
     "AOR-08": "Déclaration au titre de la directive européenne sur "
               "l'efficacité énergétique.",
-    "SPC-SAFETY": "Analyse des risques pour les personnes — obligation "
-                  "générale de sécurité de l'employeur et du maître d'ouvrage.",
+    "SPC-SAFETY": "Analyse des risques pour les personnes, au titre de "
+                  "l'obligation générale de sécurité de l'employeur et du "
+                  "maître d'ouvrage.",
     "SPC-EVAC": "Plan d'évacuation et consignes — code du travail.",
 }
 
@@ -3419,9 +3420,10 @@ MODES_REDACTION = {
     "moteur_seul": {
         "nom": "Composé par le moteur seul",
         "aide": "Ni modèle de langage, ni document dans la base pour ce sujet. "
-                "Le moteur compose ce qu'il sait de la pièce — portée, "
-                "trajectoire, interfaces, manques — et nomme ce qui reste à "
-                "rédiger. Tout y est vérifiable ; rien n'y est prose.",
+                "Le moteur compose ce qu'il sait de la pièce, sa portée, sa "
+                "trajectoire, ses interfaces et ses manques, puis nomme ce "
+                "qui reste à rédiger. Tout y est vérifiable ; rien n'y est "
+                "prose.",
     },
 }
 
@@ -3541,8 +3543,12 @@ def _bloc_extraits(A, hits):
         A("")
         A("> " + txt.replace("\n", "\n> ")[:1800])
         A("")
-        A("*— %s%s*" % (h.get("title") or "Document sans titre",
-                        (", thème « %s »" % h["theme"]) if h.get("theme") else ""))
+        # « Source : » plutôt qu'un tiret cadratin : le tiret servait de
+        # marqueur d'attribution, ce qui n'est pas son emploi et le laissait
+        # se confondre avec les tirets des intitulés de pièces.
+        A("*Source : %s%s.*"
+          % (h.get("title") or "document sans titre",
+             (" (thème %s)" % h["theme"]) if h.get("theme") else ""))
 
 
 def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
@@ -3600,12 +3606,16 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
 
     L = []
     A = L.append
-    A("# %s — %s" % (pc["code"], pc["titre"]))
+    A("# %s %s" % (pc["code"], pc["titre"]))
     A("")
-    A("**Projet :** %s  " % client)
-    A("**Phase :** %s — %s (%s)  " % (d["code"], d["nom"], d["filiere_nom"]))
-    A("**Discipline :** %s  " % (pc.get("discipline_nom") or "—"))
-    A("**Émetteur :** %s" % (pc.get("emetteur_nom") or "—"))
+    # PAS DE CARTOUCHE ICI. Il est composé à l'export, où il porte en plus le
+    # client, le périmètre et le statut : l'écrire aussi dans le corps le
+    # faisait paraître deux fois sur la même page, une fois complet et une fois
+    # amputé. Ne reste que la ligne d'identification, pour le fichier Markdown
+    # et pour la lecture à l'écran, qui n'ont pas de cartouche.
+    A("%s, indice %s, phase %s, projet %s, émis le %s."
+      % (pc["code"], str(inputs.get("indice") or "01"), d["code"], client,
+         time.strftime("%d/%m/%Y")))
     A("")
     # L'avertissement en TÊTE, pas en annexe : c'est la première chose à
     # savoir, et la seule qui empêche de remettre ceci comme un livrable fini.
@@ -3624,7 +3634,7 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
     # par où commencer, alors que le document, lui, le sait.
     if contenu:
         reste = len(contenu) - len(docu)
-        A("> **État de la pièce** — %s documenté%s par la base sur les %d "
+        A("> **État de la pièce.** %s documenté%s par la base sur les %d "
           "exigés ; %s. Le détail est porté sous chaque point : ce qui est "
           "écrit ici est vérifiable, ce qui manque est nommé."
           % (_pluriel(len(docu), "point", "points"),
@@ -3635,16 +3645,22 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
     # Le statut, en toutes lettres et au même endroit que dans l'étude de
     # phase. Un document composé par le moteur se relit et se complète ; le
     # remettre en l'état reste la seule vraie faute possible ici.
-    A("> **Statut — brouillon d'ingénierie, à relire et à compléter.** Les "
+    A("> **Statut : brouillon d'ingénierie, à relire et à compléter.** Les "
       "faits portés ici sont vérifiables un par un : ils viennent du registre "
       "des pièces, du moteur de calcul et de la base documentaire. Ce n'est "
       "pas pour autant une rédaction : ce document ne se remet pas tel quel.")
     A("")
 
     # ── Sommaire, DÉRIVÉ du contenu réellement produit ──────────────────────
-    plan = [("1. Objet de la pièce et ce qu'elle engage", [])]
+    # Les sous-paragraphes y figurent numérotés, comme dans le corps : un
+    # sommaire qui n'annonce que les chapitres oblige à parcourir le document
+    # pour trouver le point qu'on cherche — c'est-à-dire à ne pas s'en servir.
+    sous1 = ["1.1 Nature et responsabilité", "1.2 Caractère à cette phase"]
+    if etapes:
+        sous1.append("1.3 Trajectoire dans la filière %s" % d["filiere_nom"])
+    plan = [("1. Objet de la pièce et ce qu'elle engage", sous1)]
     plan.append(("2. Contenu exigé, point par point",
-                 ["%d.%d %s" % (2, i + 1, c) for i, c in enumerate(contenu)]))
+                 ["2.%d %s" % (i + 1, c) for i, c in enumerate(contenu)]))
     n = 3
     if interfaces:
         plan.append(("%d. Interfaces avec les autres pièces de la phase" % n, []))
@@ -3653,20 +3669,23 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
     n += 1
     sous = []
     if a.get("entrees_manquantes"):
-        sous.append("Entrées à renseigner")
+        sous.append("%d.1 Entrées à renseigner" % n)
     if a.get("substitutions_a_faire"):
-        sous.append("Facteurs à remplacer par une donnée réelle")
+        sous.append("%d.%d Facteurs à remplacer par une donnée réelle"
+                    % (n, len(sous) + 1))
     if sous:
         plan.append(("%d. Ce qui manque pour franchir la phase" % n, sous))
         n += 1
     if hors:
         plan.append(("%d. Extraits non rattachés à un point" % n, []))
         n += 1
+    plan.append(("%d. Indices du document" % n, []))
+    n += 1
     plan.append(("%d. Traçabilité" % n, []))
     A("## Sommaire")
     A("")
     for titre, ss in plan:
-        A("- **%s**" % titre)
+        A("- %s" % titre)
         for s in ss:
             A("    - %s" % s)
     A("")
@@ -3674,54 +3693,74 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
     A("")
 
     # ── 1. Objet ───────────────────────────────────────────────────────────
+    # RÉDIGÉ, PAS PONCTUÉ. Ces cinq faits sortaient en puces « Rubrique — tiret
+    # — valeur » : à l'export, une colonne de tirets qui ne se lit pas. Ce qui
+    # se dit en une phrase est écrit en une phrase ; ce qui se compare est mis
+    # en tableau. Aucun tiret ne remplace plus un verbe.
     A("## 1. Objet de la pièce et ce qu'elle engage")
     A("")
-    A("- **Nature** — %s. %s"
-      % (pc.get("type_nom") or "—", pc.get("type_aide") or ""))
-    A("- **Qui la produit** — %s" % (pc.get("emetteur_nom") or "—"))
-    A("- **Caractère à cette phase** — %s. %s"
-      % (CARACTERES[caractere]["nom"] if caractere in CARACTERES else caractere,
-         motif))
-    A("- **Niveau attendu ici** — %s. %s"
-      % (pc.get("niveau_nom") or "à préciser", pc.get("niveau_aide") or ""))
+    A("### 1.1 Nature et responsabilité")
+    A("")
+    # « LABEL : VALEUR », et non une phrase qui met le libellé du référentiel
+    # au milieu d'une proposition. Écrire « est %s » sur « Pièce contractuelle »
+    # donnait « est pièce contractuelle » ; poser l'article demandait de
+    # connaître le genre de chaque valeur, c'est-à-dire de recopier le
+    # référentiel dans la grammaire.
+    A("Nature : %s. %s" % (pc.get("type_nom") or "pièce du dossier",
+                           pc.get("type_aide") or ""))
+    A("")
+    A("Émetteur : %s." % (pc.get("emetteur_nom") or "désigné au marché"))
+    A("")
+    A("### 1.2 Caractère à cette phase")
+    A("")
+    A("Caractère à la phase %s : %s. %s"
+      % (code_phase,
+         (CARACTERES[caractere]["nom"] if caractere in CARACTERES
+          else caractere).lower(), motif))
+    A("")
+    if pc.get("niveau_nom"):
+        A("Niveau attendu : %s. %s"
+          % (pc["niveau_nom"].lower(), pc.get("niveau_aide") or ""))
+        A("")
     if pc.get("moteur"):
-        A("- **Alimentée par le calcul** — oui : elle porte des grandeurs du "
-          "moteur, reprises au chapitre « Ce que le moteur apporte à cette "
-          "pièce ».")
+        A("Elle porte des grandeurs du moteur de calcul, reprises au "
+          "chapitre 4.")
     else:
-        A("- **Alimentée par le calcul** — non : son contenu relève de la "
-          "discipline, pas des bilans énergie / eau / carbone.")
+        A("Elle n'est pas alimentée par le calcul : son contenu se démontre "
+          "par l'analyse de la discipline, et non par les bilans énergie, eau "
+          "et carbone.")
     A("")
     if etapes:
-        A("Cette pièce ne naît pas à cette phase et ne s'y termine pas. Sa "
-          "trajectoire dans la filière **%s** :" % d["filiere_nom"])
+        A("### 1.3 Trajectoire dans la filière %s" % d["filiere_nom"])
         A("")
-        A("| Phase | Ce qui est attendu |")
-        A("| --- | --- |")
+        A("Cette pièce ne naît pas à cette phase et ne s'y termine pas.")
+        A("")
+        A("| Phase | Niveau attendu | Phase en cours |")
+        A("| --- | --- | --- |")
         for code, _niv, niv_nom in etapes:
-            marque = " ← **phase en cours**" if code == code_phase else ""
-            A("| %s | %s%s |" % (code, niv_nom, marque))
+            A("| %s | %s | %s |"
+              % (code, niv_nom, "oui" if code == code_phase else ""))
         A("")
         if gel and gel[0] != code_phase:
-            A("**À retenir** — elle est gelée à la phase %s : ce qui n'y figure "
-              "pas devient un avenant. Ce qui s'écrit ici engage donc au-delà "
-              "de la phase en cours." % gel[0])
+            A("Elle est gelée à la phase %s. Ce qui n'y figure pas devient un "
+              "avenant, si bien que ce qui s'écrit ici engage au-delà de la "
+              "phase en cours." % gel[0])
             A("")
         elif gel:
-            A("**À retenir** — elle est gelée à cette phase même : elle devient "
-              "opposable en l'état, et ne se complète plus après signature.")
+            A("Elle est gelée à cette phase même. Elle devient opposable en "
+              "l'état et ne se complète plus après signature.")
             A("")
         else:
-            A("**À retenir** — aucune phase de cette filière ne la gèle : son "
-              "caractère opposable vient du contrat, et non de la séquence. "
-              "C'est au marché de dire à quel indice elle engage%s."
-              % (" — dans l'autre filière, elle est gelée au %s"
-                 % gel_ailleurs[0] if gel_ailleurs else ""))
+            A("Aucune phase de cette filière ne la gèle. Son caractère "
+              "opposable vient du contrat et non de la séquence : c'est au "
+              "marché de dire à quel indice elle engage.")
             A("")
         if ailleurs:
-            A("*Dans l'autre filière, la même pièce suit : %s.*"
-              % " → ".join("%s (%s)" % (c, nom.lower())
-                           for c, _n, nom in ailleurs))
+            A("Dans l'autre filière, la même pièce suit la séquence %s.%s"
+              % (", puis ".join("%s en %s" % (c, nom.lower())
+                                for c, _n, nom in ailleurs),
+                 " Elle y est gelée au %s." % gel_ailleurs[0]
+                 if gel_ailleurs else ""))
             A("")
 
     # ── 2. Le contenu, point par point ─────────────────────────────────────
@@ -3739,19 +3778,19 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
         liens = [p for p in interfaces if _mots_cles(c) & _mots_cles(
             _nom_discipline(p.get("discipline")))]
         if liens:
-            A("*Ce point ouvre une interface — voir %s.*"
-              % ", ".join("**%s** (%s)" % (p["code"], p["titre"]) for p in liens[:4]))
+            A("Ce point ouvre une interface avec %s."
+              % ", ".join("%s (%s)" % (p["code"], p["titre"]) for p in liens[:4]))
             A("")
         if hits:
-            A("La base de connaissance documente ce point. Extraits reproduits "
-              "**tels quels**, sans reformulation :")
+            A("La base de connaissance documente ce point. Les extraits "
+              "ci-dessous sont reproduits mot pour mot, sans reformulation.")
             _bloc_extraits(A, hits)
             A("")
-            A("- [ ] Reprendre ces éléments au niveau « %s » attendu ici."
-              % (pc.get("niveau_nom") or "—"))
+            A("À faire : reprendre ces éléments au niveau de la %s attendue ici."
+              % (pc.get("niveau_nom") or "définition").lower())
         else:
-            A("- [ ] **À rédiger** — aucun document de la base ne répond à ce "
-              "point pour la requête utilisée (voir Traçabilité).")
+            A("À rédiger. Aucun document de la base ne répond à ce point "
+              "pour la requête utilisée, reprise au chapitre Traçabilité.")
         A("")
 
     # ── 3. Interfaces ──────────────────────────────────────────────────────
@@ -3761,17 +3800,17 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
         A("")
         A("## %d. Interfaces avec les autres pièces de la phase" % k)
         A("")
-        A("Retrouvées par les disciplines que le contenu exigé nomme "
-          "lui-même : ces pièces existent à la même phase et traitent le même "
-          "objet par l'autre bout. Une exigence écrite ici et absente de "
+        A("Ces pièces sont retrouvées par les disciplines que le contenu "
+          "exigé nomme lui-même. Elles existent à la même phase et traitent le "
+          "même objet par l'autre bout : une exigence écrite ici et absente de "
           "là-bas est un trou d'interface.")
         A("")
         A("| Code | Pièce | Discipline | Niveau à cette phase |")
         A("| --- | --- | --- | --- |")
         for p in interfaces:
             A("| %s | %s | %s | %s |"
-              % (p["code"], p["titre"], p.get("discipline_nom") or "—",
-                 p.get("niveau_nom") or "—"))
+              % (p["code"], p["titre"], p.get("discipline_nom") or "",
+                 p.get("niveau_nom") or ""))
         A("")
         k += 1
 
@@ -3781,32 +3820,32 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
     A("## %d. Ce que le moteur apporte à cette pièce" % k)
     A("")
     if pc.get("moteur"):
-        A("Cette pièce porte des grandeurs calculées. Elles viennent du moteur "
-          "déterministe : elles ne se recalculent pas et ne s'arrondissent pas "
-          "autrement.")
+        A("Cette pièce porte des grandeurs calculées. Elles viennent du "
+          "moteur déterministe : elles ne se recalculent pas et ne "
+          "s'arrondissent pas autrement.")
         A("")
         A("| Grandeur | Valeur | Incertitude | Statut à cette phase |")
         A("| --- | --- | --- | --- |")
         for g in d.get("grandeurs") or []:
             A("| %s | %s | %s | %s |"
-              % (g["nom"], _fr_val(g), g.get("incertitude") or "—",
-                 "recevable" if g.get("statut") == "recevable" else "À PRODUIRE"))
+              % (g["nom"], _fr_val(g), g.get("incertitude") or "sans objet",
+                 "recevable" if g.get("statut") == "recevable"
+                 else "à produire"))
         A("")
     else:
         # Recopier ici les six grandeurs du dossier serait un remplissage :
         # aucune ne se rapporte à cette pièce, et les afficher laisserait
         # croire qu'elle en répond.
         porteuses = [p["code"] for p in (d.get("pieces") or []) if p.get("moteur")]
-        A("Aucune. Le registre classe cette pièce hors calcul : son contenu se "
-          "démontre par l'analyse de la discipline, pas par les bilans énergie "
-          "/ eau / carbone. Les chiffres du moteur ne sont donc pas repris ici "
-          "— ils appartiennent aux %d pièce%s de la phase qui les portent%s."
-          % (len(porteuses), "s" if len(porteuses) > 1 else "",
-             (" (" + ", ".join(porteuses[:6])
-              + (", …" if len(porteuses) > 6 else "") + ")") if porteuses else ""))
+        A("Le registre classe cette pièce hors calcul. Son contenu se "
+          "démontre par l'analyse de la discipline et non par les bilans "
+          "énergie, eau et carbone : les chiffres du moteur ne sont donc pas "
+          "repris ici. Ils appartiennent aux %s de la phase qui les portent%s."
+          % (_pluriel(len(porteuses), "pièce", "pièces"),
+             (", dont " + ", ".join(porteuses[:6])) if porteuses else ""))
         A("")
-        A("L'étude de phase, elle, les rassemble toutes : c'est là qu'il faut "
-          "les lire, et non ici.")
+        A("L'étude de phase les rassemble toutes : c'est là qu'il faut les "
+          "lire.")
         A("")
     k += 1
 
@@ -3817,20 +3856,21 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
         A("## %d. Ce qui manque pour franchir la phase" % k)
         A("")
         if a.get("entrees_manquantes"):
-            A("### Entrées à renseigner")
+            A("### %d.1 Entrées à renseigner" % k)
             A("")
             for x in a["entrees_manquantes"]:
-                A("- **%s**%s — %s%s"
+                A("- %s%s : %s%s"
                   % (x["label"], (" (%s)" % x["unite"]) if x.get("unite") else "",
                      x.get("pourquoi") or "non renseigné",
                      "" if x.get("origine") == "propre"
-                     else " ; dette d'une phase antérieure"))
+                     else ", dette d'une phase antérieure"))
             A("")
         if a.get("substitutions_a_faire"):
-            A("### Facteurs à remplacer par une donnée réelle")
+            A("### %d.%d Facteurs à remplacer par une donnée réelle"
+              % (k, 2 if a.get("entrees_manquantes") else 1))
             A("")
             for x in a["substitutions_a_faire"]:
-                A("- **%s** (%s%s) — %s"
+                A("- %s (%s%s) : %s"
                   % (x["nom"], x.get("nature") or "",
                      (", " + x["incertitude"]) if x.get("incertitude") else "",
                      x.get("remplacer_par") or "à remplacer par la donnée réelle"))
@@ -3843,35 +3883,64 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
         A("")
         A("## %d. Extraits non rattachés à un point" % k)
         A("")
-        A("Retrouvés pour le sujet de la pièce, sans recoupement assez net "
-          "avec l'un des points ci-dessus. Reproduits **tels quels**, sans "
-          "reformulation : à verser au bon chapitre à la relecture.")
+        A("Ces extraits ont été retrouvés pour le sujet de la pièce, sans "
+          "recoupement assez net avec l'un des points ci-dessus. Ils sont "
+          "reproduits mot pour mot et restent à verser au bon chapitre lors "
+          "de la relecture.")
         for h in hors:
             _bloc_extraits(A, [h])
         A("")
         k += 1
 
-    # ── 7. Traçabilité ─────────────────────────────────────────────────────
+    # ── 7. Indices ─────────────────────────────────────────────────────────
+    # LE SUIVI DES VERSIONS, dans le document lui-même. Deux tirages du même
+    # livrable se ressemblent à s'y méprendre une fois imprimés : sans ce
+    # tableau, c'est la date du fichier qui fait foi — et elle change à chaque
+    # copie.
+    A("---")
+    A("")
+    A("## %d. Indices du document" % k)
+    A("")
+    A("| Indice | Date | Objet de la révision | Établi par |")
+    A("| --- | --- | --- | --- |")
+    for r in (inputs.get("revisions") or []):
+        A("| %s | %s | %s | %s |"
+          % (r.get("indice") or "", r.get("date") or "",
+             r.get("objet") or "", r.get("par") or ""))
+    A("| %s | %s | %s | %s |"
+      % (str(inputs.get("indice") or "01"), time.strftime("%d/%m/%Y"),
+         "Première émission" if str(inputs.get("indice") or "01") in ("01", "1")
+         else "Reprise après relecture",
+         "Moteur d'ingénierie %s" % VERSION))
+    A("")
+    A("Les indices antérieurs restent au dossier du projet. Un indice ne se "
+      "réécrit pas : une correction donne l'indice suivant.")
+    A("")
+    k += 1
+
+    # ── 8. Traçabilité ─────────────────────────────────────────────────────
     A("---")
     A("")
     A("## %d. Traçabilité" % k)
     A("")
     termes, origine = recherche_piece(pc["code"], pc.get("discipline"))
-    A("- **Assemblé le** %s par le moteur %s" % (time.strftime("%d/%m/%Y"), VERSION))
-    A("- **Mode de rédaction** — %s. %s" % (m["nom"], m["aide"]))
-    A("- **Demandé à la base** — %s"
-      % (("« %s »" % (termes or pc["titre"]))
-         + {"piece": " (vocabulaire propre à la pièce)",
-            "discipline": " (vocabulaire de la discipline)",
-            "titre": " (titre de la pièce, faute de vocabulaire déclaré)"
-            }.get(origine, "")))
-    A("- **Retrouvé** — %d extrait%s, %d rattaché%s à un point, %d en annexe"
-      % (len(extraits), "s" if len(extraits) > 1 else "",
-         len(extraits) - len(hors), "s" if len(extraits) - len(hors) > 1 else "",
-         len(hors)))
-    A("- **Reste à rédiger** — %d point%s sur %d"
-      % (len(contenu) - len(docu), "s" if len(contenu) - len(docu) > 1 else "",
-         len(contenu)))
+    A("| Élément | Valeur |")
+    A("| --- | --- |")
+    A("| Assemblé le | %s |" % time.strftime("%d/%m/%Y"))
+    A("| Moteur | %s |" % VERSION)
+    A("| Mode de rédaction | %s |" % m["nom"])
+    A("| Demandé à la base | %s |" % (termes or pc["titre"]))
+    A("| Origine du vocabulaire | %s |"
+      % {"piece": "propre à la pièce",
+         "discipline": "propre à la discipline",
+         "titre": "titre de la pièce, faute de vocabulaire déclaré"
+         }.get(origine, origine))
+    A("| Extraits retrouvés | %d, dont %d rattachés à un point et %d en annexe |"
+      % (len(extraits), len(extraits) - len(hors), len(hors)))
+    A("| Reste à rédiger | %d point sur %d |"
+      % (len(contenu) - len(docu), len(contenu)))
+    A("")
+    A(m["aide"])
     A("")
     return "\n".join(L)
 

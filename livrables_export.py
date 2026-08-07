@@ -114,6 +114,31 @@ def _blocks(md):
                 i += 1
             out.append(("table", (head, rows)))
             continue
+        # CITATION. Le marqueur « > » n'était pas reconnu : il sortait tel quel
+        # dans le document remis, collé au texte cité et répété à chaque ligne
+        # (« > luer l'état actuel  > de l'empreinte… »). Nos documents s'en
+        # servent pour l'avertissement de tête ET pour les extraits reproduits
+        # mot pour mot — c'est-à-dire aux deux endroits où l'on doit voir d'un
+        # coup d'œil que le texte n'est pas de nous.
+        if re.match(r"^\s*>\s?", ln):
+            cite = []
+            while i < n and re.match(r"^\s*>\s?", lines[i]):
+                cite.append(re.sub(r"^\s*>\s?", "", lines[i]))
+                i += 1
+            # Les lignes d'une même citation forment un paragraphe ; une ligne
+            # vide (« > » seul) en ouvre un nouveau.
+            paras, cur = [], []
+            for c in cite:
+                if c.strip():
+                    cur.append(c.strip())
+                elif cur:
+                    paras.append(" ".join(cur))
+                    cur = []
+            if cur:
+                paras.append(" ".join(cur))
+            if paras:
+                out.append(("quote", paras))
+            continue
         if re.match(r"^\s*[-*]\s+", ln):
             items = []
             while i < n and re.match(r"^\s*[-*]\s+", lines[i]):
@@ -131,7 +156,8 @@ def _blocks(md):
         para = [ln]
         i += 1
         while (i < n and lines[i].strip()
-               and not re.match(r"^(#{1,6}\s|\s*[-*]\s|\s*\d+[.)]\s|\s*\|)", lines[i])):
+               and not re.match(r"^(#{1,6}\s|\s*[-*]\s|\s*\d+[.)]\s|\s*\||\s*>)",
+                                lines[i])):
             para.append(lines[i])
             i += 1
         out.append(("p", " ".join(para)))
@@ -145,13 +171,27 @@ def _fiche(meta):
     des deux formats : `meta` était accepté puis ignoré. Le lecteur n'avait donc
     ni destinataire, ni périmètre, ni date sous les yeux."""
     meta = meta or {}
-    champs = [("Client / organisation", meta.get("client")),
+    # L'ORDRE EST CELUI D'UN CARTOUCHE. On identifie le document (numéro,
+    # objet), on dit à quel moment du projet il se situe (phase, indice, date),
+    # puis pour qui (client, périmètre), et enfin ce qu'il vaut (statut). Ces
+    # trois-là manquaient : sans numéro ni indice, deux versions du même
+    # document se ressemblent à s'y méprendre une fois imprimées, et sans la
+    # phase on ne sait pas de quel jalon elles répondent.
+    champs = [("Numéro du document", meta.get("numero")),
+              ("Objet", meta.get("label")),
+              ("Phase du projet", meta.get("phase")),
+              ("Indice", meta.get("indice")),
+              ("Date d'émission", meta.get("date")),
+              ("Discipline", meta.get("discipline")),
+              ("Émetteur", meta.get("emetteur")),
+              ("Client / organisation", meta.get("client")),
               ("Secteur d'activité", meta.get("secteur")),
               ("Périmètre", meta.get("perimetre")),
-              ("Type de livrable", meta.get("label")),
-              ("Date", meta.get("date")),
-              ("Modèle utilisé", meta.get("model")),
-              ("Statut", "Brouillon — à relire et valider")]
+              ("Établi par", meta.get("model")),
+              # Le statut RÉEL quand l'appelant le connaît. Écrire « brouillon »
+              # sur un document visé lui ôterait la valeur qu'il vient
+              # d'acquérir ; l'inverse serait pire.
+              ("Statut", meta.get("statut") or "Brouillon, à relire et valider")]
     return [(k, str(v).strip()) for k, v in champs if v and str(v).strip()]
 
 
@@ -415,6 +455,21 @@ def build_docx(md, meta=None):
             p = doc.add_paragraph()
             p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY   # bloc justifié : rendu de rapport
             _add_runs(p, payload)
+        elif kind == "quote":
+            # Retrait ET filet à gauche : le lecteur doit voir sans lire que ce
+            # texte n'est pas de nous. Un simple italique ne suffit pas — le
+            # document en emploie déjà pour ses propres notes.
+            for k, bout in enumerate(payload):
+                p = doc.add_paragraph()
+                pf = p.paragraph_format
+                pf.left_indent = Inches(0.32)
+                pf.space_before = Pt(6 if k == 0 else 2)
+                pf.space_after = Pt(6 if k == len(payload) - 1 else 2)
+                pbdr = _el("w:pBdr")
+                pbdr.append(_el("w:left", val="single", sz="18", space="10",
+                                color=_hex(C_TEAL)))
+                p._p.get_or_add_pPr().append(pbdr)
+                _add_runs(p, bout, color=GREY)
         elif kind == "ul":
             for it in payload:
                 _add_runs(doc.add_paragraph(style="List Bullet"), it)
@@ -748,6 +803,27 @@ def build_pdf(md, meta=None):
             pdf.set_font(FAM, "", 10.5)
             _cell(_pdf_txt(payload, UNI), 5, align="J")   # justifié, comme en Word
             pdf.ln(1)
+        elif kind == "quote":
+            # Filet vertical + retrait, comme en Word : le même document doit
+            # se lire pareil dans les deux formats.
+            pdf.set_font(FAM, "I", 10)
+            pdf.set_text_color(*C_GREY)
+            for bout in payload:
+                y0 = pdf.get_y()
+                pdf.set_x(pdf.l_margin + 5)
+                _cell(_pdf_txt(bout, UNI), 5, width_off=5)
+                y1 = pdf.get_y()
+                pdf.set_draw_color(*C_TEAL)
+                pdf.set_line_width(0.7)
+                # Un filet ne se trace que si la citation n'a pas changé de
+                # page : à cheval, il descendrait jusqu'au pied de page.
+                if y1 > y0:
+                    pdf.line(pdf.l_margin + 2, y0, pdf.l_margin + 2, y1 - 1)
+                pdf.set_line_width(0.2)
+                pdf.set_draw_color(*C_LINE)
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_font(FAM, "", 10.5)
+            pdf.ln(1.5)
         elif kind in ("ul", "ol"):
             pdf.set_font(FAM, "", 10.5)
             for idx, it in enumerate(payload, 1):
