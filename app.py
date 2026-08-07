@@ -3109,6 +3109,15 @@ def dc_profil_js():
                        mimetype="text/javascript; charset=utf-8")
 
 
+@app.route("/markdown.js")
+def markdown_js():
+    """Rendu Markdown partagé par la console des livrables et la lecture d'une
+    pièce d'ingénierie. Écrit une fois : deux moteurs de rendu recopiés
+    finiraient par afficher le même document de deux façons."""
+    return _serve_fast("markdown.js", _CC_ASSET,
+                       mimetype="text/javascript; charset=utf-8")
+
+
 @app.route("/ingenierie-dc.js")
 def ingenierie_dc_js():
     """Interface du cadre de phases. Même règle que ci-dessus : route publique,

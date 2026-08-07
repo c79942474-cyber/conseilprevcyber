@@ -1802,11 +1802,14 @@
           /* LE MODE, en tête du document et non en note. Une trame assemblée
              présentée comme une pièce rédigée serait la seule vraie faute
              ici : elle se remettrait au client telle quelle. */
-          /* EMPORTER LE DOCUMENT. L'étude de phase s'exportait en Word et en
-             PDF ; la pièce, non — elle s'affichait, et il fallait la
-             sélectionner à l'écran pour la sortir du site, en y perdant le
-             titrage, les tableaux et l'en-tête. */
+          /* LE LIVRABLE, PAS SON TEXTE. Le document s'affichait en entier,
+             brut, dans la page : dix mille signes de Markdown déroulés sous
+             le registre. On n'y lit rien et on n'en fait rien — un livrable
+             se relit dans un traitement de texte, se corrige, se vise, et
+             part au dossier. Ce qui doit être ici, c'est de quoi le PRENDRE
+             et de quoi le LIRE, pas le texte lui-même. */
           + '<div class="ig-doc-a"><span class="lb">Emporter&nbsp;:</span>'
+          + '<button type="button" id="ig-pc-lire">Lire</button>'
           + '<button type="button" id="ig-pc-docx">Word</button>'
           + '<button type="button" id="ig-pc-pdf">PDF</button>'
           + '<button type="button" id="ig-pc-md">Markdown</button>'
@@ -1816,7 +1819,8 @@
                 + '<b>' + esc(o.j.mode_nom) + "</b> "
                 + esc(o.j.mode_aide) + "</div>"
               : "")
-          + '<pre class="ig-doc-c">' + esc(o.j.document) + "</pre></div>";
+          + ficheLivrable(o.j, code)
+          + "</div>";
         brancherEmport(p, code, o.j);
         if (PROJET) pjHistorique(PROJET.id);
       })
@@ -1839,6 +1843,77 @@
      Ce qui est envoyé au serveur est le document AFFICHÉ, pas le code de la
      pièce : celui-ci a pu être rédigé par le modèle. Le reconstruire depuis le
      registre rendrait un autre document que celui qu'on a sous les yeux. */
+  /* CE QUE PÈSE LE LIVRABLE, ET CE QU'IL DEVIENT.
+
+     Un document se juge d'abord à ce qu'il est : combien de pages, combien de
+     chapitres, sur quelles sources, et ce qu'il reste à en faire. Le lire en
+     entier vient APRÈS — et se fait dans le lecteur, ou dans le Word. */
+  function ficheLivrable(j, code) {
+    var md = j.document || "";
+    var m = (window.CPMarkdown && CPMarkdown.mesurer)
+      ? CPMarkdown.mesurer(md)
+      : { pages: 1, chapitres: 0, signes: md.length };
+    var srcs = (j.sources || []).length;
+    var faits = [
+      "environ " + m.pages + " page" + (m.pages > 1 ? "s" : ""),
+      m.chapitres + " chapitre" + (m.chapitres > 1 ? "s" : ""),
+      srcs ? (srcs + " document" + (srcs > 1 ? "s" : "") + " de la base cité"
+              + (srcs > 1 ? "s" : ""))
+           : "aucun document de la base retrouvé",
+    ];
+    return '<div class="ig-liv">'
+      + '<div class="ig-liv-t"><span class="pt">Livrable prêt</span> '
+      + esc(code) + "</div>"
+      + '<div class="ig-liv-f">' + faits.map(esc).join(" · ") + "</div>"
+      /* LA SUITE, écrite ici et pas ailleurs : c'est le moment où on la
+         décide. Un livrable qui apparaît sans qu'on dise ce qu'il reste à en
+         faire finit relu par personne — et versé au dossier tel quel. */
+      + '<ol class="ig-liv-s"><li>Relire et corriger — dans le Word, c\'est '
+      + "là que les corrections se font.</li>"
+      + "<li>Faire accepter, puis viser — le visa dit qui a validé, et "
+      + "bloque la remise s'il est refusé.</li>"
+      + "<li>Une fois visé, il est versé au dossier du projet, dans sa "
+      + "phase.</li></ol>"
+      + '<div class="ig-liv-d">'
+      + (PROJET
+          ? "Rattaché au projet <b>" + esc(PROJET.nom) + "</b>"
+            + (PHASE ? ", phase <b>" + esc(PHASE) + "</b>" : "")
+            + ". Il figure au dossier ci-dessous, à l'état « brouillon » "
+            + "jusqu'à son visa."
+          : "<b>Aucun projet n'est ouvert</b> : ce document n'est rattaché à "
+            + "aucun dossier. Emportez-le maintenant, ou ouvrez un projet et "
+            + "relancez la rédaction pour qu'il y soit classé.")
+      + "</div></div>";
+  }
+
+  /* LE LECTEUR. Le document reste lisible sur le site — mais dans un espace
+     qui lui est propre, mis en forme, et qu'on ferme. Il n'encombre plus le
+     registre, qui sert à choisir la pièce suivante. */
+  function lireDocument(md, titre) {
+    var d = $("#ig-lecteur");
+    if (!d) {
+      d = document.createElement("dialog");
+      d.id = "ig-lecteur";
+      d.className = "ig-lec";
+      document.body.appendChild(d);
+    }
+    var html = (window.CPMarkdown && CPMarkdown.versHtml)
+      ? CPMarkdown.versHtml(md)
+      /* Sans le moteur de rendu — fichier non chargé — on montre le texte
+         plutôt que rien : un lecteur vide serait pire qu'un texte brut. */
+      : "<pre>" + esc(md) + "</pre>";
+    d.innerHTML = '<div class="ig-lec-h"><b>' + esc(titre || "Document")
+      + '</b><button type="button" class="x" id="ig-lec-x" '
+      + 'aria-label="Fermer le lecteur">Fermer</button></div>'
+      + '<article class="ig-lec-c">' + html + "</article>";
+    var x = $("#ig-lec-x");
+    if (x) x.addEventListener("click", function () { d.close(); });
+    if (d.showModal) d.showModal(); else d.setAttribute("open", "");
+    var c = d.querySelector(".ig-lec-c");
+    if (c) c.scrollTop = 0;
+    if (x) x.focus();
+  }
+
   function telecharger(blob, nom) {
     var u = URL.createObjectURL(blob), a = document.createElement("a");
     a.href = u;
@@ -1857,6 +1932,12 @@
         dit.textContent = m || "";
         dit.style.color = ko ? "var(--danger)" : "";
       }
+    }
+    var lire = $("#ig-pc-lire");
+    if (lire) {
+      lire.addEventListener("click", function () {
+        lireDocument(j.document || "", code + " — lecture");
+      });
     }
     var md = $("#ig-pc-md");
     if (md) {
@@ -3173,9 +3254,13 @@
         + " · dernier le " + pjDate(g.dernier) + "</span></h4>";
       (g.livrables || []).forEach(function (l) {
         var e = l.etat || "brouillon";
+        /* L'ÉTAT SE VOIT. La feuille de style distingue déjà « visé », « relu »
+           et « obsolète » par la couleur — mais la classe n'était jamais
+           posée : un document validé se présentait exactement comme un
+           brouillon, dans un dossier fait pour distinguer les deux. */
         html += '<div class="ig-hi-l"><span class="ti">' + esc(l.label || l.type)
           + '</span><span class="dt">' + pjDate(l.created_at) + "</span>"
-          + '<select class="et" data-etat="' + esc(l.id) + '" '
+          + '<select class="et ' + esc(e) + '" data-etat="' + esc(l.id) + '" '
           + 'aria-label="État du livrable ' + esc(l.label || l.type) + '">';
         // Même règle que pour les statuts : l'ordre vient du serveur, sans
         // quoi « Obsolète » se glisserait entre « Brouillon » et « Relu ».
@@ -3188,14 +3273,39 @@
           + '<a href="/api/datacenter/projets/' + esc(pid) + "/livrable/"
           + esc(l.id) + '.docx">Word</a>'
           + '<a href="/api/datacenter/projets/' + esc(pid) + "/livrable/"
-          + esc(l.id) + '.pdf">PDF</a></div>';
+          + esc(l.id) + '.pdf">PDF</a>'
+          /* Lire sans rien télécharger : c'est le geste de la revue, celui
+             qu'on répète, et il n'existait pas — il fallait ouvrir le Word
+             pour savoir ce qu'on visait. */
+          + '<button type="button" class="ig-hi-lire" data-lire="' + esc(l.id)
+          + '" data-titre="' + esc(l.label || l.type) + '">Lire</button></div>';
       });
       html += "</div>";
     });
     z.innerHTML = html;
     z.querySelectorAll("[data-etat]").forEach(function (s) {
       s.addEventListener("change", function () {
+        /* La couleur suit l'état IMMÉDIATEMENT, sans attendre le serveur : la
+           liste se redessine ensuite sur sa réponse, qui a le dernier mot. */
+        s.className = "et " + s.value;
         pjEtatLivrable(pid, s.getAttribute("data-etat"), s.value);
+      });
+    });
+    z.querySelectorAll("[data-lire]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var ancien = b.textContent;
+        b.disabled = true;
+        b.textContent = "…";
+        demander("/api/datacenter/projets/" + pid + "/livrable/"
+                 + b.getAttribute("data-lire") + ".md",
+                 { credentials: "same-origin" }, DELAI_MOYEN)
+          .then(function (r) {
+            if (!r.ok) throw new Error("lecture");
+            return r.text();
+          })
+          .then(function (md) { lireDocument(md, b.getAttribute("data-titre")); })
+          .catch(function () { pjMsg("Document illisible pour le moment.", "ko"); })
+          .then(function () { b.disabled = false; b.textContent = ancien; });
       });
     });
   }

@@ -512,6 +512,14 @@
   .ig-hi-l .et.relu{color:var(--cyan);border-color:rgba(34,211,238,.6)}
   .ig-hi-l .et.obsolete{color:#E8B44A;border-color:rgba(232,180,74,.6)}
   .ig-hi-l a{color:var(--cyan);font-size:11.5px;flex:0 0 auto}
+  /* « Lire » se présente comme ses voisins Word et PDF : c'est la même
+     famille de gestes — prendre le document — et rien ne justifie de le
+     distinguer. */
+  .ig-hi-l .ig-hi-lire{all:unset;cursor:pointer;color:var(--cyan);
+    font-size:11.5px;flex:0 0 auto}
+  .ig-hi-l .ig-hi-lire:hover{text-decoration:underline}
+  .ig-hi-l .ig-hi-lire:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  .ig-hi-l .ig-hi-lire:disabled{opacity:.5;cursor:progress}
 
   /* ── Le battement des boutons ────────────────────────────────────────
      Un halo qui s'écarte et s'efface. Il ne touche ni la taille du bouton ni
@@ -586,13 +594,58 @@
   .ig-doc-a button:hover{background:rgba(255,255,255,.11)}
   .ig-doc-a button:disabled{opacity:.55;cursor:progress}
   .ig-doc-a .dit{font-size:11.5px;color:var(--muted2)}
-  /* Le brouillon est rendu en texte brut : c'est du Markdown, la forme qui se
-     recopie sans rien perdre. La mise en page s'obtient par les boutons
-     ci-dessus — Word et PDF portent l'en-tête CONSEILPREV, comme l'étude de
-     phase. */
-  .ig-doc-c{margin:0;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-    font-size:11.5px;line-height:1.7;color:var(--muted);white-space:pre-wrap;
-    max-height:520px;overflow:auto}
+  /* LE LIVRABLE, PAS SON TEXTE. Le document entier s'affichait ici, brut :
+     dix mille signes de Markdown déroulés sous le registre, qu'on ne lit pas
+     et dont on ne fait rien. Ce bloc dit ce que le document EST et ce qu'il
+     reste à en faire ; le texte se lit dans le lecteur ou dans le Word. */
+  .ig-liv{padding:13px}
+  .ig-liv-t{font-size:13px;color:var(--ink);font-weight:600;display:flex;
+    align-items:center;gap:9px;flex-wrap:wrap}
+  .ig-liv-t .pt{font-family:var(--mono);font-size:10px;letter-spacing:.05em;
+    text-transform:uppercase;color:#0b0b0b;background:var(--cyan);
+    border-radius:20px;padding:2px 9px;font-weight:400}
+  .ig-liv-f{font-size:11.5px;color:var(--muted2);margin-top:5px;
+    font-family:var(--mono)}
+  .ig-liv-s{margin:11px 0 0;padding-left:19px;font-size:12px;color:var(--muted);
+    line-height:1.7}
+  .ig-liv-d{margin-top:11px;padding-top:9px;border-top:1px solid var(--line);
+    font-size:12px;color:var(--muted);line-height:1.6}
+  .ig-liv-d b{color:var(--ink)}
+  /* LE LECTEUR — le document reste lisible sur le site, mais dans un espace
+     qui lui est propre et qu'on ferme. */
+  .ig-lec{border:1px solid var(--line);border-radius:13px;padding:0;
+    background:var(--bg2,#111);color:var(--muted);width:min(940px,92vw);
+    max-height:88vh;overflow:hidden}
+  .ig-lec::backdrop{background:rgba(0,0,0,.62)}
+  .ig-lec-h{display:flex;align-items:center;justify-content:space-between;
+    gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);
+    background:rgba(0,0,0,.25);position:sticky;top:0}
+  .ig-lec-h b{color:var(--ink);font-size:13.5px}
+  .ig-lec-h .x{all:unset;cursor:pointer;font-size:11.5px;padding:5px 12px;
+    border-radius:7px;border:1px solid var(--line);color:var(--muted)}
+  .ig-lec-h .x:hover{border-color:var(--cyan);color:var(--ink)}
+  .ig-lec-h .x:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  .ig-lec-c{padding:18px 22px 26px;overflow:auto;max-height:calc(88vh - 58px);
+    font-size:13.5px;line-height:1.75}
+  .ig-lec-c h1{font-size:19px;color:var(--ink);margin:0 0 12px}
+  .ig-lec-c h2{font-size:15.5px;color:var(--ink);margin:22px 0 9px;
+    padding-top:13px;border-top:1px solid var(--line)}
+  .ig-lec-c h3{font-size:13.5px;color:var(--ink);margin:16px 0 7px}
+  .ig-lec-c p{margin:0 0 10px}
+  .ig-lec-c ul,.ig-lec-c ol{margin:0 0 12px;padding-left:20px}
+  .ig-lec-c li{margin-bottom:4px}
+  .ig-lec-c blockquote{margin:0 0 12px;padding:9px 13px;border-left:3px solid var(--cyan);
+    background:rgba(0,0,0,.16);border-radius:0 8px 8px 0}
+  .ig-lec-c blockquote p:last-child{margin:0}
+  .ig-lec-c code{font-family:var(--mono);font-size:12px;color:var(--cyan)}
+  .ig-lec-c hr{border:0;border-top:1px solid var(--line);margin:18px 0}
+  /* Un tableau large défile DANS son cadre : sinon c'est le document entier
+     qui part de côté, et on perd la colonne de gauche. */
+  .ig-lec-c .tblx{overflow-x:auto;margin:0 0 14px}
+  .ig-lec-c table{border-collapse:collapse;font-size:12.5px;min-width:100%}
+  .ig-lec-c th,.ig-lec-c td{border:1px solid var(--line);padding:7px 10px;
+    text-align:left;vertical-align:top}
+  .ig-lec-c th{color:var(--ink);background:rgba(0,0,0,.2)}
   /* Le tableau des correspondances : deux traditions côte à côte, et surtout
      leurs ÉCARTS — c'est là que les équipes se croient couvertes et ne le
      sont pas. */
@@ -1275,6 +1328,10 @@
   
   <script src="/nav.js" defer></script>
   <script src="/parcours.js" defer></script>
+  <!-- Rendu Markdown partagé avec la console des livrables : le même document
+       doit se lire de la même façon d'une page à l'autre. Chargé AVANT le
+       script de la page, qui s'en sert pour le lecteur. -->
+  <script src="/markdown.js" defer></script>
   <script src="/dc-profil.js" defer></script>
   <script src="/ingenierie-dc.js" defer></script>
 </body>
