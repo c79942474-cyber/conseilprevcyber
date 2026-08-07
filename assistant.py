@@ -251,6 +251,71 @@ def _system(context):
 # rend ANTHROPIC_MODEL sûr à changer sans relire ce fichier.
 _REPONSE_DIRECTE = {"type": "disabled"}
 
+# … MAIS TOUS LES MODÈLES NE L'ACCEPTENT PAS, et c'est un fait d'exécution, pas
+# de documentation : certaines gammes refusent la consigne par un HTTP 400, quel
+# que soit le reste de la requête. Un réglage qu'on croit protecteur devient
+# alors le seul motif d'échec — l'assistant ne répond plus DU TOUT, et l'écran
+# n'affiche qu'« une erreur ».
+#
+# On ne pariait donc plus : on demande, et si le modèle refuse, on s'en remet à
+# ses réglages par défaut pour la suite de la vie du processus. Le budget de
+# jetons est alors relevé, parce que sans notre consigne le raisonnement le
+# partage avec le texte — c'est exactement ce que la consigne évitait.
+_CONSIGNE_REFUSEE = False
+_MARGE_RAISONNEMENT = 3    # de quoi loger le raisonnement EN PLUS du texte
+_PLAFOND_JETONS = 12000    # borne dure : au-delà, c'est le délai qui casse
+
+
+def _detail_api(exc):
+    """Ce que le fournisseur a RÉELLEMENT répondu : (type, message).
+
+    Sans cela, la journalisation ne portait que le code HTTP — et un 400 dit
+    précisément quel champ il refuse. On jetait la seule phrase qui désigne la
+    cause. Aucun secret : ni clé, ni contenu de conversation.
+    """
+    corps, genre = getattr(exc, "body", None), ""
+    if isinstance(corps, dict) and isinstance(corps.get("error"), dict):
+        genre = corps["error"].get("type") or ""
+    msg = (getattr(exc, "message", "") or "").strip().replace("\n", " ")
+    return genre, msg[:300]
+
+
+def _envoi_claude(client, system, messages, max_tokens, timeout):
+    """Envoie la requête — et retombe sur les réglages du modèle s'il refuse les
+    nôtres. Renvoie la réponse du SDK, laisse remonter ses exceptions."""
+    global _CONSIGNE_REFUSEE
+    import anthropic
+
+    def _tenter(direct):
+        kw = {"model": CLAUDE_MODEL, "messages": messages, "timeout": timeout,
+              "max_tokens": max_tokens if direct
+              else min(max_tokens * _MARGE_RAISONNEMENT, _PLAFOND_JETONS)}
+        if system:
+            kw["system"] = system
+        if direct:
+            kw["thinking"] = _REPONSE_DIRECTE
+        # La place est prise AUTOUR de l'appel réseau, et de lui seul : c'est
+        # lui qui immobilise le fil d'exécution, pas la construction du client.
+        with _une_place():
+            return client.messages.create(**kw)
+
+    if _CONSIGNE_REFUSEE:
+        return _tenter(False)
+    try:
+        return _tenter(True)
+    except anthropic.APIStatusError as exc:
+        # 400 SEULEMENT. Une clé refusée, un quota, une panne : ce n'est pas la
+        # consigne qui est en cause, et réessayer masquerait la vraie cause.
+        if getattr(exc, "status_code", None) != 400:
+            raise
+        genre, msg = _detail_api(exc)
+        _log.error("Claude : le modèle « %s » refuse la consigne de réponse "
+                   "directe (HTTP 400, type=%s) : %s — on s'en remet à ses "
+                   "réglages par défaut, budget de jetons relevé en conséquence.",
+                   CLAUDE_MODEL, genre or "?", msg or "(sans message)")
+        _CONSIGNE_REFUSEE = True
+        return _tenter(False)
+
 # Le revers de la consigne précédente : privé de sa phase de raisonnement, le
 # modèle écrit parfois son brouillon dans la réponse, entre des balises
 # internes. Le prompt système le lui déconseille (voir SYSTEM_PROMPT) ; ceci
@@ -281,13 +346,7 @@ def _claude_call(system, messages, max_tokens, timeout=REQUEST_TIMEOUT):
         raise AssistantError("not_configured", 503)
     client = anthropic.Anthropic()  # lit ANTHROPIC_API_KEY dans l'environnement
     try:
-        # La place est prise AUTOUR de l'appel réseau, et de lui seul : c'est
-        # lui qui immobilise le fil d'exécution, pas la construction du client.
-        with _une_place():
-            resp = client.messages.create(
-                model=CLAUDE_MODEL, max_tokens=max_tokens, system=system,
-                messages=messages, timeout=timeout,
-                thinking=_REPONSE_DIRECTE)
+        resp = _envoi_claude(client, system, messages, max_tokens, timeout)
     except anthropic.APITimeoutError:
         # À placer AVANT APIConnectionError, dont il hérite.
         _log.warning("Claude : délai dépassé (%s s, %s jetons demandés)", timeout, max_tokens)
@@ -304,8 +363,14 @@ def _claude_call(system, messages, max_tokens, timeout=REQUEST_TIMEOUT):
                    getattr(exc, "status_code", "?"))
         raise AssistantError("auth", 502)
     except anthropic.APIStatusError as exc:
-        _log.error("Claude : réponse en erreur (HTTP %s, type=%s)",
-                   getattr(exc, "status_code", "?"), getattr(exc, "type", None))
+        # LE MESSAGE DU FOURNISSEUR, pas seulement son code. « type » n'existe
+        # pas sur cette exception — l'ancienne journalisation écrivait donc
+        # « type=None » à chaque fois, et la seule phrase qui désigne le champ
+        # refusé partait à la poubelle.
+        genre, msg = _detail_api(exc)
+        _log.error("Claude : réponse en erreur (HTTP %s, type=%s, modèle=%s) : %s",
+                   getattr(exc, "status_code", "?"), genre or "?", CLAUDE_MODEL,
+                   msg or "(sans message)")
         raise AssistantError("upstream", 502)
     # ── CE QUE DIT LA FIN DE LA RÉPONSE ───────────────────────────────────
     # Un refus du modèle n'est pas une erreur HTTP : la requête réussit, et le
@@ -487,19 +552,23 @@ def _selftest_claude():
     except ImportError:
         return {"configured": False, "ok": False, "detail": "paquet anthropic non installé"}
     try:
-        # Mêmes options que les appels réels : un diagnostic qui interroge
-        # autrement que l'application peut réussir là où elle échoue, et
-        # inversement — il désignerait alors la mauvaise cause.
-        anthropic.Anthropic().messages.create(
-            model=CLAUDE_MODEL, max_tokens=4, thinking=_REPONSE_DIRECTE,
-            messages=[{"role": "user", "content": "ping"}])
+        # MÊME CHEMIN que les appels réels, repli compris : un diagnostic qui
+        # interroge autrement que l'application peut réussir là où elle échoue,
+        # et inversement — il désignerait alors la mauvaise cause. C'est arrivé.
+        _envoi_claude(anthropic.Anthropic(), None,
+                      [{"role": "user", "content": "ping"}], 4, REQUEST_TIMEOUT)
     except anthropic.APIConnectionError:
         return {"configured": True, "ok": False, "model": CLAUDE_MODEL, "detail": "réseau injoignable"}
     except anthropic.APIStatusError as exc:
+        # Le message du fournisseur EST le diagnostic : sur un 400 il nomme le
+        # champ refusé, sur un 404 le modèle introuvable. Le taire obligeait à
+        # deviner à partir du seul code HTTP.
+        genre, msg = _detail_api(exc)
         return {"configured": True, "ok": False, "model": CLAUDE_MODEL,
                 "status": getattr(exc, "status_code", None),
-                "type": getattr(exc, "type", None)}
-    return {"configured": True, "ok": True, "model": CLAUDE_MODEL, "detail": "OK"}
+                "type": genre or None, "detail": msg or None}
+    return {"configured": True, "ok": True, "model": CLAUDE_MODEL,
+            "detail": "OK — réglages du modèle" if _CONSIGNE_REFUSEE else "OK"}
 
 
 def _selftest_mistral():

@@ -155,6 +155,12 @@
        trois causes — « clé invalide, accès au modèle refusé, ou crédit
        épuisé » — laissait chercher les trois alors que le code HTTP en
        désigne une. */
+    /* Le message vient du fournisseur, et il part dans innerHTML : on l'échappe.
+       Ce n'est pas notre texte, et il n'a aucune raison d'être du balisage. */
+    function diagEsc(s){
+      return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});
+    }
     function diagCause(s){
       if(s===401||s===403) return 'clé refusée : vérifier ANTHROPIC_API_KEY / MISTRAL_API_KEY (valeur exacte, sans espace ni guillemet)';
       if(s===404) return 'ce modèle est inconnu du fournisseur, ou n\'est pas ouvert à ce compte — vérifier ANTHROPIC_MODEL';
@@ -174,7 +180,11 @@
       if(ok){ label='✅ Opérationnel'; hint='modèle '+((d&&d.model)||'—'); }
       else if(!conf){ label='❌ Non configuré'; hint=(d&&d.detail)||'clé API absente dans Render'; }
       else if(d&&d.detail==='réseau injoignable'){ label='⚠️ Réseau injoignable'; hint='réessayez dans un instant'+mod; }
-      else { label='⚠️ Erreur API'; hint='HTTP '+((d&&d.status)||'?')+(d&&d.type?(' · '+d.type):'')+mod+' — '+diagCause(d&&d.status); }
+      /* LA PHRASE DU FOURNISSEUR EN PREMIER, quand il en donne une : sur un
+         400 elle nomme le champ refusé, ce qu'aucune de nos hypothèses ne
+         peut faire. Notre lecture ne vient qu'après, en repli. */
+      else { label='⚠️ Erreur API'; hint='HTTP '+((d&&d.status)||'?')+(d&&d.type?(' · '+d.type):'')+mod
+             +' — '+((d&&d.detail)?diagEsc(d.detail):diagCause(d&&d.status)); }
       return '<div style="display:flex;gap:12px;align-items:baseline;padding:8px 0;border-bottom:1px solid rgba(154,102,80,.28)">'
         +'<b style="min-width:78px;color:var(--ink)">'+name+'</b><span style="color:'+color+';font-weight:600;min-width:150px">'+label+'</span>'
         +'<span style="color:var(--muted2);font-size:12.5px">'+hint+'</span></div>';
