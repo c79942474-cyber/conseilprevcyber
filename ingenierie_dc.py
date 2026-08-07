@@ -1286,6 +1286,17 @@ DISCIPLINES = {
                 "elle qui date le gel : le calcul n'a de valeur contractuelle "
                 "qu'une fois la version figée et tracée.",
     },
+    "design_mgmt": {
+        "nom": "Management du design et synthèse technique",
+        "aide": "La coordination des études entre l'architecture, la structure "
+                "et les lots techniques : exigences du client tenues, interfaces "
+                "arbitrées, plans compatibles entre spécialités, production "
+                "graphique cadrée, offres fournisseurs analysées, coûts agrégés.\n"
+                "Elle ne produit aucune grandeur, mais c'est elle qui rend le "
+                "calcul opposable : un PUE tenu par le lot CVC et démenti par le "
+                "bilan de puissance du lot CFO n'est pas une valeur, c'est un "
+                "écart d'interface que personne n'a relevé.",
+    },
     "safety": {
         "nom": "Safety — sécurité des personnes et des procédés",
         "aide": "Analyse de risque, philosophie générale de sécurité, scénarios "
@@ -1704,6 +1715,54 @@ _RECHERCHE_PIECE = {
     "SPC-HTA": "poste de livraison haute tension HTA cellule disjoncteur "
                "transformateur régime de neutre sélectivité courant de court-circuit "
                "boucle ouverte comptage tarifaire raccordement",
+    # ── Management du design ──────────────────────────────────────────────
+    # Le vocabulaire de la coordination, pas celui des disciplines : ces pièces
+    # cherchent dans la base ce qui parle d'EXIGENCES et d'INTERFACES, non de
+    # groupes froids ni de transformateurs.
+    "SPC-BOD": "base de conception basis of design exigence client standard "
+               "preneur programme technique cahier des charges matrice de "
+               "conformité traçabilité exigence critère d'acceptation",
+    "SPC-INTERF": "interface entre lots coordination architecture structure "
+                  "réservation trémie charge d'exploitation emprise cheminement "
+                  "donnée d'entrée échéance livrable interdépendance",
+    "SPC-SYNTH": "synthèse technique superposition des plans conflit "
+                 "encombrement plafond technique faux plancher gabarit de "
+                 "maintenance altimétrie maquette numérique coordination "
+                 "spatiale détection de collision",
+    "SPC-PLANETU": "planning des études jalon revue de conception chemin "
+                   "critique délai d'émission dépendance gel contractuel "
+                   "échéance visa retour client",
+    "SPC-PRODG": "production graphique échelle niveau de détail convention de "
+                 "représentation cartouche nomenclature indice système de "
+                 "coordonnées format d'échange maquette",
+    "SPC-TQ": "question technique point ouvert demande de précision réponse "
+              "criticité blocage décision hypothèse retenue",
+    "SPC-DEROG": "dérogation écart au standard non-conformité concession "
+                 "justification effet sur la disponibilité autorité "
+                 "d'approbation",
+    "SPC-CONSULT": "consultation fournisseur analyse des offres critère de "
+                   "notation variante écart au cahier des charges comparaison "
+                   "technique appel d'offres grille d'évaluation",
+    "SPC-ATELIER": "atelier de travail réunion technique client expert décision "
+                   "arbitrage compte rendu action échéance ordre du jour",
+    "SPC-COUTAG": "estimation par lot agrégation budget ratio quantité "
+                  "provision pour aléa écart au budget optimisation coût "
+                  "d'investissement décomposition du prix",
+    "SPC-VISA": "visa des études d'exécution avis observation refus délai de "
+                "visa document d'entreprise reprise indice conformité au "
+                "dossier de conception",
+    "SPC-CONFORM": "conformité réglementaire norme applicable référentiel "
+                   "autorisation administrative preuve de conformité "
+                   "attestation contrôle technique exigence normative",
+    # ── Courants forts : le domaine HTB et la sélectivité ──────────────────
+    "SPC-HTB": "haute tension HTB poste source raccordement au réseau de "
+               "transport transformateur de puissance jeu de barres tension de "
+               "raccordement puissance souscrite convention de raccordement "
+               "comptage courbe de charge consignation habilitation",
+    "SPC-SELECT": "courant de court-circuit sélectivité plan de protection "
+                  "réglage temporisation régime de neutre impédance arc "
+                  "électrique îlotage retour au réseau note de calcul "
+                  "électrique",
     "SPC-SECOURS": "onduleur UPS batterie autonomie groupe électrogène cuve fioul "
                    "démarrage black start banc de charge inverseur de source "
                    "essai en charge rétention",
@@ -1794,6 +1853,134 @@ _PIECES_DISCIPLINE = [
       "Arbitrages structurants assumés — eau contre énergie, capex contre opex",
       "Règles de conception communes à toutes les disciplines",
       "Hypothèses climatiques et de charge, et leur origine"]),
+
+    # ── Management du design et synthèse technique ─────────────────────────
+    # LE CHAÎNON QUI MANQUAIT. Le registre décrivait ce que chaque discipline
+    # produit, et rien de ce qui les tient ensemble. Or c'est là que les
+    # dossiers se perdent : un PUE tenu par le lot CVC et démenti par le bilan
+    # de puissance du lot CFO n'est pas une valeur, c'est un écart d'interface
+    # que personne n'a relevé. Ces pièces sont celles du design manager —
+    # exigences client tenues, interfaces arbitrées, plans compatibles, offres
+    # analysées, coûts agrégés.
+    ("SPC-BOD", "Base de conception et matrice de conformité aux exigences client",
+     "design_mgmt", "contractuel", "moe", True,
+     {"ESQ": "principes", "APS": "emission", "APD": "maj", "PRO": "maj",
+      "DCE": "gel", "EXE-VISA": "maj", "AOR": "as_built",
+      "FAISA": "principes", "BASIC": "emission", "FEED": "gel",
+      "EPCI": "maj", "CSU": "as_built"},
+     ["Exigences reprises une à une du standard client, du BoD et de l'exhibit "
+      "technique, avec leur référence d'origine",
+      "État de conformité par exigence : tenue, tenue sous réserve, en écart",
+      "Lot responsable de chaque exigence et pièce qui en porte la preuve",
+      "Exigences contradictoires entre documents client, et l'arbitrage retenu",
+      "Exigences non traçables à une pièce : ce sont les trous du dossier"]),
+    ("SPC-INTERF", "Registre des interfaces entre lots architecture, structure et techniques",
+     "design_mgmt", "registre", "moe", False,
+     {"APS": "principes", "APD": "emission", "PRO": "maj", "DCE": "gel",
+      "EXE-VISA": "maj", "AOR": "as_built",
+      "BASIC": "principes", "FEED": "emission", "EPCI": "maj"},
+     ["Une ligne par interface : lot émetteur, lot récepteur, donnée échangée",
+      "Date d'échéance de la donnée et phase où elle devient bloquante",
+      "Réservations, charges et emprises demandées à la structure et au génie civil",
+      "Interfaces avec les tiers : concessionnaire, preneur, exploitant, voisinage",
+      "Interfaces ouvertes à ce jour, et ce que chacune bloque en aval"]),
+    ("SPC-SYNTH", "Synthèse technique et compatibilité des plans entre spécialités",
+     "design_mgmt", "plan", "moe", False,
+     {"APD": "principes", "PRO": "emission", "DCE": "maj",
+      "EXE-VISA": "gel", "DET": "maj", "AOR": "as_built",
+      "FEED": "principes", "EPCI": "emission", "CSU": "as_built"},
+     ["Superposition des lots par zone et par niveau, aux mêmes altimétries",
+      "Conflits relevés, classés par gravité et par lot à reprendre",
+      "Réseaux en plafond technique et en faux plancher : priorités de passage",
+      "Gabarits de maintenance, dégagements et chemins de sortie des équipements",
+      "Conflits résolus, conflits acceptés et le motif de leur acceptation"]),
+    ("SPC-PLANETU", "Planning des études et jalons de revue de conception",
+     "design_mgmt", "registre", "moe", False,
+     {"ESQ": "principes", "APS": "emission", "APD": "maj", "PRO": "maj",
+      "DCE": "maj", "EXE-VISA": "maj",
+      "FAISA": "principes", "BASIC": "emission", "FEED": "maj", "EPCI": "maj"},
+     ["Échéance d'émission de chaque pièce, par lot et par phase",
+      "Chaîne des dépendances : ce qu'une pièce attend d'une autre pour sortir",
+      "Jalons de revue, de visa client et de gel contractuel",
+      "Délais de retour attendus du client et des tiers, et l'effet de leur dépassement",
+      "Retards constatés et pièces devenues critiques pour la phase suivante"]),
+    ("SPC-PRODG", "Plan de production graphique et charte de représentation",
+     "design_mgmt", "procedure", "moe", False,
+     {"APS": "principes", "APD": "emission", "PRO": "maj", "DCE": "gel",
+      "BASIC": "principes", "FEED": "emission", "EPCI": "maj"},
+     ["Liste des documents graphiques attendus par lot, par phase et par zone",
+      "Échelles, niveaux de détail et conventions de représentation par type de plan",
+      "Règles de nommage, de cartouche et d'indice communes à tous les lots",
+      "Origine commune, système de coordonnées et altimétrie de référence",
+      "Formats d'échange et règles de partage de la maquette entre intervenants"]),
+    ("SPC-TQ", "Registre des questions techniques et des points ouverts",
+     "design_mgmt", "registre", "moe", False,
+     {"APS": "principes", "APD": "emission", "PRO": "maj", "DCE": "maj",
+      "EXE-VISA": "maj", "DET": "maj",
+      "BASIC": "principes", "FEED": "emission", "EPCI": "maj", "CSU": "maj"},
+     ["Une ligne par question : émetteur, destinataire, date, criticité",
+      "Ce que la question bloque, et à quelle date la réponse devient critique",
+      "Réponse apportée, sa source et la pièce qui l'intègre",
+      "Questions restées sans réponse au gel, et l'hypothèse retenue à défaut",
+      "Questions closes par une décision et non par une réponse technique"]),
+    ("SPC-DEROG", "Registre des dérogations au standard et des écarts assumés",
+     "design_mgmt", "registre", "moe", False,
+     {"APD": "principes", "PRO": "emission", "DCE": "gel",
+      "EXE-VISA": "maj", "AOR": "as_built",
+      "FEED": "principes", "EPCI": "emission", "CSU": "as_built"},
+     ["Exigence à laquelle il est dérogé et sa référence au standard client",
+      "Motif technique ou économique de la dérogation, chiffré",
+      "Effet sur la disponibilité, l'exploitabilité et la garantie",
+      "Autorité qui accorde la dérogation, et sa date de décision",
+      "Dérogations demandées et refusées, avec le motif du refus"]),
+    ("SPC-CONSULT", "Dossier de consultation fournisseurs et analyse technique des offres",
+     "design_mgmt", "tableau", "moe", True,
+     {"APD": "principes", "PRO": "emission", "DCE": "maj", "ACT": "gel",
+      "FEED": "principes", "EPCI": "emission"},
+     ["Périmètre consulté, lots alloués et calendrier de consultation",
+      "Grille d'analyse technique : critères, pondération et méthode de notation",
+      "Écarts de chaque offre au cahier des charges, dits un par un",
+      "Variantes proposées : ce qu'elles apportent et ce qu'elles suppriment",
+      "Comparaison à performances égales, et non à prix affiché"]),
+    ("SPC-ATELIER", "Ateliers techniques client et experts : décisions et suites",
+     "design_mgmt", "registre", "moe", False,
+     {"ESQ": "principes", "APS": "emission", "APD": "maj", "PRO": "maj",
+      "DCE": "maj",
+      "FAISA": "principes", "BASIC": "emission", "FEED": "maj", "EPCI": "maj"},
+     ["Objet de l'atelier, participants et pièces mises à l'ordre du jour",
+      "Décisions prises, leur portée et la pièce qui devra les porter",
+      "Sujets renvoyés à une prochaine séance, et pourquoi ils ne sont pas tranchés",
+      "Actions attribuées : responsable, échéance et preuve de clôture attendue",
+      "Décisions revenant sur un choix antérieur, et l'effet sur les pièces gelées"]),
+    ("SPC-COUTAG", "Agrégation financière des lots et écart au budget",
+     "design_mgmt", "tableau", "moe", True,
+     {"ESQ": "principes", "APS": "emission", "APD": "maj", "PRO": "maj",
+      "DCE": "gel", "ACT": "recalage", "AOR": "as_built",
+      "FAISA": "principes", "BASIC": "emission", "FEED": "maj", "EPCI": "recalage"},
+     ["Estimation par lot technique et par lot architecture et structure",
+      "Base de chiffrage de chaque lot : quantités, ratios et date des prix",
+      "Provisions pour aléas et pour définition non arrêtée, distinguées",
+      "Écart au budget de l'opération, par lot et par cause",
+      "Décisions d'optimisation retenues, leur gain et leur effet technique"]),
+    ("SPC-VISA", "Registre des visas d'études d'exécution",
+     "design_mgmt", "registre", "moe", False,
+     {"EXE-VISA": "emission", "DET": "maj", "AOR": "as_built",
+      "EPCI": "emission", "CSU": "as_built"},
+     ["Une ligne par document d'exécution reçu : lot, indice, date de réception",
+      "Avis rendu — visé, visé avec observations, refusé — et son délai",
+      "Observations formulées, et la pièce de conception qui les fonde",
+      "Documents visés avec observations non levées à la reprise suivante",
+      "Délais de visa dépassés, et l'effet sur le planning de l'entreprise"]),
+    ("SPC-CONFORM", "Conformité réglementaire et normative du design",
+     "design_mgmt", "note", "moe", False,
+     {"APS": "principes", "APD": "emission", "PRO": "maj", "DCE": "gel",
+      "EXE-VISA": "maj", "AOR": "as_built",
+      "BASIC": "principes", "FEED": "emission", "EPCI": "maj", "CSU": "as_built"},
+     ["Textes et référentiels applicables au projet, par domaine et par lot",
+      "Exigence retenue quand deux référentiels se contredisent, et son motif",
+      "Preuve de conformité attendue par exigence : calcul, essai ou attestation",
+      "Autorisations administratives à obtenir et leur délai d'instruction",
+      "Points où le design dépasse l'exigence, et ceux où il s'y tient au plus juste"]),
 
     # ── Safety ────────────────────────────────────────────────────────────
     ("SPC-SAFETY", "Safety concept et spécification safety", "safety",
@@ -2030,6 +2217,30 @@ _PIECES_DISCIPLINE = [
       "Courants de court-circuit, sélectivité et plan de protection",
       "Comptage tarifaire, point de livraison et limite de prestation",
       "Délai de raccordement opposable et jalon projet qu'il commande"]),
+    ("SPC-HTB", "Spécification technique — raccordement HTB et poste source client",
+     "elec_cfo", "contractuel", "moe", True,
+     {"APS": "principes", "APD": "emission", "PRO": "maj", "DCE": "gel",
+      "EXE-VISA": "maj", "AOR": "as_built",
+      "BASIC": "principes", "FEED": "emission", "EPCI": "maj", "CSU": "as_built"},
+     ["Puissance de raccordement demandée et sa justification au bilan de puissance",
+      "Tension de raccordement retenue et le motif du passage en HTB",
+      "Architecture du poste source : arrivées, jeux de barres, transformateurs HTB/HTA",
+      "Régime de neutre, courants de court-circuit et tenue des matériels",
+      "Interface avec le gestionnaire de réseau de transport : étude, convention, délais",
+      "Comptage, courbe de charge et engagements de puissance souscrite",
+      "Consignation, accès, habilitations et exploitation du poste"]),
+    ("SPC-SELECT", "Note de court-circuit, régime de neutre et sélectivité des protections",
+     "elec_cfo", "note", "moe", True,
+     {"APD": "principes", "PRO": "emission", "DCE": "maj", "EXE-VISA": "gel",
+      "AOR": "as_built",
+      "FEED": "principes", "EPCI": "emission", "CSU": "as_built"},
+     ["Courants de court-circuit calculés en chaque point du réseau",
+      "Régime de neutre par domaine de tension et sa justification",
+      "Plan de protection : fonctions retenues, réglages et temporisations",
+      "Sélectivité entre étages, du poste source jusqu'au départ terminal",
+      "Comportement en secours : source de remplacement, îlotage, retour au réseau",
+      "Énergie d'arc électrique et conséquences sur les équipements de protection",
+      "Hypothèses de calcul et données constructeur retenues, avec leur source"]),
     ("SPC-SECOURS", "Spécification technique — énergie de secours, onduleurs et "
      "groupes électrogènes", "elec_cfo", "contractuel", "moe", True,
      {"APD": "emission", "PRO": "maj", "DCE": "gel", "EXE-VISA": "maj",
@@ -3782,6 +3993,11 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
     if interfaces:
         plan.append(("%d. Interfaces avec les autres pièces de la phase" % n, []))
         n += 1
+    # Le sommaire l'annonce aussi : un chapitre absent du sommaire ne se trouve
+    # pas, et la numérotation qui suit décalerait de un.
+    if referentiels(pc.get("discipline")):
+        plan.append(("%d. Référentiels applicables à cette pièce" % n, []))
+        n += 1
     plan.append(("%d. Ce que le moteur apporte à cette pièce" % n, []))
     n += 1
     sous = []
@@ -3929,6 +4145,29 @@ def trame_piece(profil, code_phase, code_piece, extraits=None, inputs=None,
             A("| %s | %s | %s | %s |"
               % (p["code"], p["titre"], p.get("discipline_nom") or "",
                  p.get("niveau_nom") or ""))
+        A("")
+        k += 1
+
+    # ── Les référentiels applicables ───────────────────────────────────────
+    # « Conforme aux normes en vigueur » est la formule qui ne vaut rien : elle
+    # ne dit pas lesquelles, ne se vérifie pas, et se retrouve dans tous les
+    # CCTP. Un référentiel n'a de portée que nommé, avec ce qu'il régit ET ce
+    # qu'il n'atteste pas — cette seconde colonne évite les malentendus les
+    # plus coûteux du métier, à commencer par le « Tier III » qu'on s'attribue.
+    refs = referentiels(pc.get("discipline"))
+    if refs:
+        A("---")
+        A("")
+        A("## %d. Référentiels applicables à cette pièce" % k)
+        A("")
+        A("Retenus par la discipline de la pièce. La version applicable au "
+          "marché se cite au dossier de conformité réglementaire : recopiée "
+          "ici, elle deviendrait fausse sans prévenir.")
+        A("")
+        A("| Référentiel | Ce qu'il régit | Ce qu'il n'atteste pas |")
+        A("| --- | --- | --- |")
+        for r in refs:
+            A("| **%s** | %s | %s |" % (r["nom"], r["portee"], r["atteste_pas"]))
         A("")
         k += 1
 
@@ -5252,6 +5491,190 @@ def sante():
         ],
         "moteur": D.VERSION,
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LES RÉFÉRENTIELS APPLICABLES À UN CENTRE DE DONNÉES
+# ═══════════════════════════════════════════════════════════════════════════
+# POURQUOI UNE TABLE. « Conforme aux normes en vigueur » est la formule qui ne
+# vaut rien : elle ne dit pas lesquelles, ne se vérifie pas, et se retrouve
+# dans tous les CCTP. Un référentiel n'a de portée que nommé, avec ce qu'il
+# régit ET ce qu'il n'atteste pas — c'est cette seconde colonne qui évite les
+# malentendus les plus coûteux du métier.
+#
+# DEUX CONFUSIONS QUE CETTE TABLE EXISTE POUR ÉVITER :
+#
+#   · « Tier III » n'est pas un niveau qu'on s'attribue. C'est une
+#     certification délivrée par l'Uptime Institute, distincte selon qu'elle
+#     porte sur les documents de conception ou sur l'ouvrage construit. Un
+#     dossier « conçu selon les principes Tier III » n'est pas certifié, et
+#     l'écrire autrement dans une plaquette est un risque contractuel.
+#
+#   · Un référentiel de conception ne vaut pas autorisation administrative.
+#     Respecter l'EN 50600 ne dispense d'aucun arrêté préfectoral, et une
+#     rubrique ICPE se déclare quel que soit le niveau de disponibilité visé.
+#
+# LES VERSIONS NE SONT PAS FIGÉES ICI. Elles changent, et une version recopiée
+# devient fausse sans prévenir. La table nomme le référentiel et sa portée ;
+# la pièce de conformité demande, elle, de citer l'indice applicable au projet
+# à la date du marché.
+
+REFERENTIELS_DC = {
+    "uptime": {
+        "nom": "Uptime Institute — Tier Standard",
+        "autorite": "Uptime Institute (organisme privé)",
+        "portee": "Topologie de redondance des chaînes d'alimentation et de "
+                  "refroidissement, et exploitabilité. Quatre niveaux, dont la "
+                  "maintenabilité sans interruption et la tolérance à la panne "
+                  "unique.",
+        "atteste_pas": "Ni la performance énergétique, ni la sécurité incendie, "
+                       "ni la conformité réglementaire française. La "
+                       "certification porte séparément sur les documents de "
+                       "conception et sur l'ouvrage construit : l'une ne vaut "
+                       "pas l'autre.",
+        "disciplines": ("projet", "design_mgmt", "elec_cfo", "hvac"),
+    },
+    "tia942": {
+        "nom": "ANSI/TIA-942 — infrastructure de télécommunication des centres de données",
+        "autorite": "Telecommunications Industry Association",
+        "portee": "Aménagement des espaces, câblage structuré, chemins de "
+                  "câbles, redondance des liaisons, et classement du site par "
+                  "niveaux.",
+        "atteste_pas": "Les niveaux de ce texte et ceux de l'Uptime Institute "
+                       "ne sont pas les mêmes et ne s'échangent pas : les "
+                       "citer indifféremment dans un même dossier est une "
+                       "source d'écart au moment de la recette.",
+        "disciplines": ("telecom", "elec_cfa", "itot", "design_mgmt"),
+    },
+    "ashrae": {
+        "nom": "ASHRAE TC 9.9 — Thermal Guidelines for Data Processing Environments",
+        "autorite": "ASHRAE",
+        "portee": "Enveloppes de température et d'humidité admises en salle, "
+                  "par classe de matériel. C'est le texte qui fixe jusqu'où "
+                  "l'air extérieur peut refroidir sans machine frigorifique.",
+        "atteste_pas": "Ce sont des recommandations de bonne pratique, pas une "
+                       "obligation. La classe admise est un CHOIX de projet, "
+                       "qui engage le constructeur du matériel informatique "
+                       "autant que le concepteur.",
+        "disciplines": ("hvac", "itot", "environnement", "design_mgmt"),
+    },
+    "en50600": {
+        "nom": "EN 50600 / ISO-IEC 22237 — installations et infrastructures de centres de données",
+        "autorite": "CENELEC, transposée à l'international par ISO/IEC",
+        "portee": "Série complète : construction, distribution électrique, "
+                  "contrôle d'ambiance, câblage, sûreté physique, exploitation, "
+                  "et les indicateurs d'efficacité dont le PUE.",
+        "atteste_pas": "Une classe de disponibilité y est déclarée par le "
+                       "concepteur : ce n'est pas une certification par un "
+                       "tiers, contrairement à ce que la ressemblance des "
+                       "échelles laisse croire.",
+        "disciplines": ("projet", "design_mgmt", "elec_cfo", "hvac",
+                        "environnement", "surete", "telecom"),
+    },
+    "eed": {
+        "nom": "Directive européenne sur l'efficacité énergétique — déclaration des centres de données",
+        "autorite": "Union européenne, transposition nationale",
+        "portee": "Obligation de déclaration annuelle des consommations et des "
+                  "indicateurs environnementaux au-delà d'un seuil de puissance "
+                  "informatique installée, sur un modèle commun européen.",
+        "atteste_pas": "C'est une obligation de DÉCLARER, non un seuil de "
+                       "performance à tenir. Elle impose en revanche de savoir "
+                       "mesurer, ce qui se prépare au stade de la conception "
+                       "du comptage et non à la mise en service.",
+        "disciplines": ("environnement", "supervision", "projet", "design_mgmt"),
+    },
+    "nfc13100": {
+        "nom": "NF C 13-100 — postes de livraison raccordés à un réseau public de distribution",
+        "autorite": "AFNOR / UTE",
+        "portee": "Le poste de livraison HTA alimenté par le distributeur : "
+                  "conception, protection, comptage, accès et exploitation.",
+        "atteste_pas": "Ne couvre pas les installations privées en aval du "
+                       "point de livraison, ni les raccordements au réseau de "
+                       "transport.",
+        "disciplines": ("elec_cfo",),
+    },
+    "nfc13200": {
+        "nom": "NF C 13-200 — installations électriques à haute tension",
+        "autorite": "AFNOR / UTE",
+        "portee": "Les installations privées haute tension, du poste de "
+                  "livraison jusqu'aux transformateurs : dimensionnement, "
+                  "protections, mise à la terre, distances et locaux.",
+        "atteste_pas": "Ne se substitue pas aux prescriptions du gestionnaire "
+                       "de réseau, qui s'imposent au point de livraison et "
+                       "peuvent être plus contraignantes.",
+        "disciplines": ("elec_cfo",),
+    },
+    "nfc15100": {
+        "nom": "NF C 15-100 — installations électriques à basse tension",
+        "autorite": "AFNOR / UTE",
+        "portee": "Toute la distribution basse tension : sections, protections, "
+                  "régimes de neutre, sélectivité, canalisations.",
+        "atteste_pas": "Les règles d'exploitation et d'intervention sous "
+                       "tension relèvent d'un autre texte.",
+        "disciplines": ("elec_cfo", "elec_cfa"),
+    },
+    "nfc18510": {
+        "nom": "NF C 18-510 — opérations sur les ouvrages et installations électriques",
+        "autorite": "AFNOR",
+        "portee": "Habilitations, consignations, zones d'environnement et "
+                  "distances de sécurité. C'est ce texte qui définit les "
+                  "domaines de tension — dont la frontière entre HTA et HTB.",
+        "atteste_pas": "Ne dit rien de la conception : c'est un texte "
+                       "d'exploitation, qui contraint pourtant le design par "
+                       "les accès et les dégagements qu'il impose.",
+        "disciplines": ("elec_cfo", "safety", "projet"),
+    },
+    "cei60909": {
+        "nom": "CEI 60909 — calcul des courants de court-circuit",
+        "autorite": "Commission électrotechnique internationale",
+        "portee": "La méthode de calcul des courants de court-circuit sur "
+                  "laquelle s'appuient le choix des matériels et le plan de "
+                  "protection.",
+        "atteste_pas": "Une méthode de calcul, pas un niveau de performance : "
+                       "ce sont les hypothèses retenues qui font la valeur du "
+                       "résultat, et elles doivent être écrites.",
+        "disciplines": ("elec_cfo",),
+    },
+    "iso8528": {
+        "nom": "ISO 8528 — groupes électrogènes entraînés par moteur à combustion",
+        "autorite": "Organisation internationale de normalisation",
+        "portee": "Classes de performance, régimes d'utilisation et conditions "
+                  "de déclaration de puissance. C'est ce qui distingue une "
+                  "puissance de secours d'une puissance continue.",
+        "atteste_pas": "Ne traite ni du stockage du combustible, ni des rejets "
+                       "atmosphériques, ni du bruit — trois sujets qui relèvent "
+                       "de la réglementation des installations classées.",
+        "disciplines": ("elec_cfo", "environnement"),
+    },
+    "icpe": {
+        "nom": "Installations classées pour la protection de l'environnement",
+        "autorite": "Préfecture, sur nomenclature nationale",
+        "portee": "Régime applicable au site selon les rubriques atteintes — "
+                  "notamment les batteries d'accumulateurs, les moteurs de "
+                  "secours, le stockage de combustible et les fluides "
+                  "frigorigènes.",
+        "atteste_pas": "Une rubrique se déclare quel que soit le niveau de "
+                       "disponibilité visé, et le délai d'instruction ne se "
+                       "négocie pas : c'est un jalon de planning, pas une "
+                       "formalité de fin de chantier.",
+        "disciplines": ("environnement", "safety", "elec_cfo", "projet",
+                        "design_mgmt"),
+    },
+}
+
+
+def referentiels(discipline=None):
+    """Les référentiels applicables, filtrés sur une discipline s'il y a lieu.
+
+    Rendus dans l'ordre de la table, qui va du cadre de conception au cadre
+    réglementaire : c'est l'ordre dans lequel on les ouvre sur un projet.
+    """
+    out = []
+    for cle, r in REFERENTIELS_DC.items():
+        if discipline and discipline not in r["disciplines"]:
+            continue
+        out.append(dict(r, cle=cle))
+    return out
 
 
 # ═══════════════════════════════════════════════════════════════════════════
