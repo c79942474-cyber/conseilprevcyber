@@ -151,12 +151,30 @@
 
     // Diagnostic Assistant IA — appelle /api/assistant/selftest (aucun secret exposé).
     var diagBtn=document.getElementById('diagBtn'), diagOut=document.getElementById('diagOut');
+    /* Ce que dit un échec, et ce qu'il faut corriger. Une seule phrase pour
+       trois causes — « clé invalide, accès au modèle refusé, ou crédit
+       épuisé » — laissait chercher les trois alors que le code HTTP en
+       désigne une. */
+    function diagCause(s){
+      if(s===401||s===403) return 'clé refusée : vérifier ANTHROPIC_API_KEY / MISTRAL_API_KEY (valeur exacte, sans espace ni guillemet)';
+      if(s===404) return 'ce modèle est inconnu du fournisseur, ou n\'est pas ouvert à ce compte — vérifier ANTHROPIC_MODEL';
+      if(s===400) return 'ce modèle refuse un réglage envoyé par le site — en changer, ou revenir au modèle par défaut en retirant ANTHROPIC_MODEL';
+      if(s===429) return 'quota ou débit dépassé chez le fournisseur : réessayer plus tard';
+      if(s>=500) return 'panne côté fournisseur : le site continue de fonctionner sans rédaction';
+      return 'clé, accès au modèle ou crédit — voir la console du fournisseur';
+    }
     function diagRow(name,d){
       var ok=d&&d.ok, conf=d&&d.configured, color=ok?'var(--green)':(conf?'var(--amber)':'var(--danger)'), label, hint='';
+      /* LE MODÈLE RÉELLEMENT TENTÉ, y compris quand ça échoue. C'est
+         précisément là qu'on en a besoin : une faute de frappe dans
+         ANTHROPIC_MODEL donne un 404, et sans cette mention l'écran ne dit
+         pas quelle chaîne a été envoyée — on soupçonne la clé, qui est
+         bonne. */
+      var mod=(d&&d.model)?(' · modèle '+d.model):'';
       if(ok){ label='✅ Opérationnel'; hint='modèle '+((d&&d.model)||'—'); }
       else if(!conf){ label='❌ Non configuré'; hint=(d&&d.detail)||'clé API absente dans Render'; }
-      else if(d&&d.detail==='réseau injoignable'){ label='⚠️ Réseau injoignable'; hint='réessayez dans un instant'; }
-      else { label='⚠️ Erreur API'; hint='HTTP '+((d&&d.status)||'?')+(d&&d.type?(' · '+d.type):'')+' — clé invalide, accès au modèle refusé, ou crédit épuisé'; }
+      else if(d&&d.detail==='réseau injoignable'){ label='⚠️ Réseau injoignable'; hint='réessayez dans un instant'+mod; }
+      else { label='⚠️ Erreur API'; hint='HTTP '+((d&&d.status)||'?')+(d&&d.type?(' · '+d.type):'')+mod+' — '+diagCause(d&&d.status); }
       return '<div style="display:flex;gap:12px;align-items:baseline;padding:8px 0;border-bottom:1px solid rgba(154,102,80,.28)">'
         +'<b style="min-width:78px;color:var(--ink)">'+name+'</b><span style="color:'+color+';font-weight:600;min-width:150px">'+label+'</span>'
         +'<span style="color:var(--muted2);font-size:12.5px">'+hint+'</span></div>';
@@ -167,7 +185,7 @@
         diagBtn.disabled=false; diagBtn.textContent=old; diagOut.style.display='block';
         if(!j||!j.results){ diagOut.innerHTML='<div style="color:var(--danger)">Diagnostic indisponible'+(j&&j.message?(' — '+j.message):'')+'.</div>'; return; }
         diagOut.innerHTML=diagRow('Claude',j.results.claude)+diagRow('Mistral',j.results.mistral)
-          +'<p style="font-size:12px;color:var(--muted2);margin-top:10px">Clés à définir dans <b>Render → Environment</b> : <b>ANTHROPIC_API_KEY</b> (Claude) et <b>MISTRAL_API_KEY</b> (Mistral), puis redéployer. Modèle Claude&nbsp;: variable <b>ANTHROPIC_MODEL</b> (Opus&nbsp;4.8 par défaut). Modèle affiché par défaut&nbsp;: <b>ASSISTANT_DEFAULT_MODEL</b>.</p>';
+          +'<p style="font-size:12px;color:var(--muted2);margin-top:10px">Réglages dans <b>Render → Environment</b>, puis redéployer. Clés&nbsp;: <b>ANTHROPIC_API_KEY</b> (Claude), <b>MISTRAL_API_KEY</b> (Mistral). Modèles&nbsp;: <b>ANTHROPIC_MODEL</b> / <b>MISTRAL_MODEL</b> — laissés vides, ceux du code s\'appliquent&nbsp;; le modèle réellement employé est celui affiché ci-dessus, ligne par ligne. Fournisseur mis en avant&nbsp;: <b>ASSISTANT_DEFAULT_MODEL</b> (Claude par défaut).</p>';
       }).catch(function(){ diagBtn.disabled=false; diagBtn.textContent=old; diagOut.style.display='block'; diagOut.innerHTML='<div style="color:var(--danger)">Diagnostic impossible pour le moment.</div>'; });
     });
   })();
