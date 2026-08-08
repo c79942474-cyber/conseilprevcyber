@@ -3602,9 +3602,17 @@ SOUS_DOSSIERS_DISCIPLINE = {
                       "Data center / Réglementation UE (EED, taxonomie, CSRD)",
                       "Data center / Chaleur fatale & réseaux de chaleur",
                       "Data center / Green Management"),
-    "projet": ("Data center / Appels d'offres & CCTP",
+    # Les deux disciplines qui LIVRENT plutôt qu'elles ne conçoivent : leurs
+    # pièces — planning d'études, visas, dérogations, questions techniques,
+    # consultations, coût complet — se nourrissent des documents de réalisation
+    # avant ceux de conception.
+    "projet": ("Data center / Réalisation & gouvernance de projet",
+               "Data center / Appels d'offres & CCTP",
+               "Data center / Qualité & non-conformités",
                "Data center / Normes (EN 50600, ISO/IEC 30134, ASHRAE)"),
-    "design_mgmt": ("Data center / Conception & architecture",
+    "design_mgmt": ("Data center / Réalisation & gouvernance de projet",
+                    "Data center / Conception & architecture",
+                    "Data center / Qualité & non-conformités",
                     "Data center / Normes (EN 50600, ISO/IEC 30134, ASHRAE)",
                     "Data center / Appels d'offres & CCTP"),
 }
@@ -3619,6 +3627,17 @@ _SOUS_DOSSIERS_PIECE = {
     "SPC-SELECT": ("Data center / Fournisseurs & fiches techniques",),
     "SPC-CONFORM": ("Data center / Normes (EN 50600, ISO/IEC 30134, ASHRAE)",
                     "Data center / Réglementation UE (EED, taxonomie, CSRD)"),
+    # Les pièces qui se jouent au chantier, pas à la planche à dessin. Le visa
+    # d'exécution et le registre des dérogations relèvent du contrôle ; le
+    # planning des études et le coût complet, du pilotage.
+    "SPC-VISA": ("Data center / Qualité & non-conformités",
+                 "Data center / Mise en service & essais"),
+    "SPC-DEROG": ("Data center / Qualité & non-conformités",),
+    "SPC-TQ": ("Data center / Qualité & non-conformités",),
+    "SPC-PLANETU": ("Data center / Réalisation & gouvernance de projet",),
+    "SPC-COUTAG": ("Data center / Réalisation & gouvernance de projet",),
+    "SPC-TCO": ("Data center / Réalisation & gouvernance de projet",),
+    "SPC-MDL": ("Data center / Réalisation & gouvernance de projet",),
 }
 
 

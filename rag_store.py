@@ -186,6 +186,21 @@ THEME_FAMILLES = [
         "Data center / Retours d'exploitation & mesures",
         "Data center / Fournisseurs & fiches techniques",
 
+        # LA RÉALISATION, qui n'avait aucun rangement. Les seize entrées
+        # précédentes couvrent la CONCEPTION — ce qu'il faut construire. Rien
+        # ne couvrait la LIVRAISON : gouvernance de programme, contrôles de
+        # chantier, essais de mise en service, préparation de l'exploitation.
+        # Ces documents-là finissaient sous « Appels d'offres & CCTP », où on
+        # ne va pas les chercher, ou sous « Retours d'exploitation », qui
+        # désigne l'après et non l'avant.
+        #
+        # Trois entrées, parce que ce sont trois moments distincts : on pilote,
+        # puis on contrôle ce qui se fait, puis on prouve que l'ensemble
+        # fonctionne. Les fondre aurait ramené le problème qu'on corrige.
+        "Data center / Réalisation & gouvernance de projet",
+        "Data center / Qualité & non-conformités",
+        "Data center / Mise en service & essais",
+
         # Deux sous-dossiers de MANAGEMENT, distincts des seize precedents qui
         # sont techniques. Un plan de gestion environnementale et un plan de
         # sécurité ne se cherchent pas au meme moment que la note thermique :
