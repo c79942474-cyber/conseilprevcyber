@@ -207,6 +207,27 @@ def _fiche(meta):
     return [(k, str(v).strip()) for k, v in champs if v and str(v).strip()]
 
 
+def _mention_pied(meta):
+    """La mention du pied de page — elle suit le STATUT RÉEL du document.
+
+    Elle était écrite en dur : « Brouillon à valider », sur toutes les pages,
+    dans les deux formats. Un document VISÉ s'exportait donc en contredisant
+    son propre cartouche, page après page — et c'est le pied de page qu'on lit
+    en diagonale quand on feuillette un tirage, pas la page de garde. Un
+    livrable validé qui circule avec « brouillon » imprimé partout se fait
+    renvoyer ; l'inverse — un brouillon qui ne le dit plus — serait pire.
+
+    Forme courte : le pied de page n'a pas la place d'une phrase. « Référence
+    interne — à confronter aux textes en vigueur » y entre comme « Référence
+    interne », et le cartouche porte la version complète.
+    """
+    s = str((meta or {}).get("statut") or "").strip()
+    if not s:
+        s = "Brouillon à valider"
+    s = re.split(r"\s+[—–-]\s+|\s*[;(]", s)[0].strip(" .,")
+    return "CONSEILPREV Cyber · " + (s[:46].rstrip() if len(s) > 46 else s)
+
+
 def _sources(meta):
     """Documents de la base effectivement mobilisés, dédoublonnés.
 
@@ -565,7 +586,7 @@ def build_docx(md, meta=None):
     footer = doc.sections[0].footer
     fp = footer.paragraphs[0] if footer.paragraphs else footer.add_paragraph()
     fp.text = ""
-    fr = fp.add_run("CONSEILPREV Cyber · Brouillon à valider · page ")
+    fr = fp.add_run(_mention_pied(meta) + " · page ")
     fr.font.size = Pt(8)
     fr.font.color.rgb = GREY
     _page_field(fp)
@@ -709,6 +730,7 @@ def _pdf_class():
         # le pied de page, appelés par fpdf sans argument, y aient accès.
         police = "Helvetica"
         uni = False
+        mention = "CONSEILPREV Cyber · Brouillon à valider"
 
         def header(self):
             # Page 1 : c'est la lettre à en-tête qui tient ce rôle.
@@ -728,8 +750,7 @@ def _pdf_class():
             self.set_y(-13)
             self.set_font(self.police, "", 8)
             self.set_text_color(*C_GREY)
-            self.cell(self.epw / 2, 5, _pdf_txt("CONSEILPREV Cyber · Brouillon à valider", self.uni),
-                      align="L")
+            self.cell(self.epw / 2, 5, _pdf_txt(self.mention, self.uni), align="L")
             self.cell(self.epw / 2, 5, "page %d / {nb}" % self.page_no(), align="R")
 
     return _Livrable
@@ -752,6 +773,9 @@ def build_pdf(md, meta=None):
         pass
     pdf.titre_courant = (meta.get("label") or "Livrable") + (
         " — " + meta["client"] if meta.get("client") else "")
+    # Le pied de page est appelé par fpdf sans argument : la mention doit y
+    # être posée AVANT la première page.
+    pdf.mention = _mention_pied(meta)
     pdf.set_auto_page_break(True, margin=20)
     pdf.set_margins(16, 14, 16)
     # La police AVANT la première page : l'en-tête courant s'en sert dès la
