@@ -72,7 +72,78 @@ def test_le_texte_annonce_la_zone_plate():
     arrivé."""
     aide = {c["id"]: c for c in dc.CHAMPS}["taux_charge"]["aide"]
     assert "ne varie plus" in aide
-    assert "ne changera pas le résultat" in aide
+
+
+# ── LA ZONE PLATE NE CONCERNE QUE LE PUE ───────────────────────────────────
+#
+# Ce contrôle remplace celui qui exigeait la phrase « changer cette valeur ne
+# changera pas le résultat ». Cette phrase était FAUSSE, et le test la gelait :
+# il comparait le texte à lui-même au lieu de le comparer au moteur. C'est la
+# façon la plus sûre de rendre un défaut permanent — le test protégeait l'erreur
+# qu'il aurait dû trouver.
+#
+# Les contrôles ci-dessous partent donc du CALCUL, et n'acceptent le texte que
+# s'il lui correspond.
+
+PROFIL = {"puissance_it_kw": 50000, "pays": "FR",
+          "refroidissement": "tour_evaporative"}
+
+
+def test_au_dessus_du_point_de_conception_seul_le_PUE_est_plat():
+    """LE contrôle. Le PUE ne bouge pas — l'énergie, elle, bouge beaucoup."""
+    bas = dc.etude(dict(PROFIL, taux_charge=dc.CHARGE_POINT_CONCEPTION))
+    haut = dc.etude(dict(PROFIL, taux_charge=1.0))
+    assert bas["energie"]["pue"]["valeur"] == haut["energie"]["pue"]["valeur"]
+    e_bas = bas["energie"]["energie_totale_MWh"]["valeur"]
+    e_haut = haut["energie"]["energie_totale_MWh"]["valeur"]
+    assert e_haut > e_bas * 1.5, (e_bas, e_haut)
+
+
+def test_le_carbone_et_l_eau_suivent_aussi_la_charge():
+    """Si seule l'énergie bougeait, le texte pourrait se contenter de la
+    nommer. Elle entraîne les deux autres."""
+    bas = dc.etude(dict(PROFIL, taux_charge=0.65))
+    haut = dc.etude(dict(PROFIL, taux_charge=0.85))
+    assert (haut["carbone"]["empreinte_totale_t"]["valeur"]
+            > bas["carbone"]["empreinte_totale_t"]["valeur"])
+    assert (haut["eau"]["evaporation_m3"]["valeur"]
+            > bas["eau"]["evaporation_m3"]["valeur"])
+    # …tandis que les RATIOS, eux, restent bien constants : c'est ce qui rend
+    # la confusion possible, et c'est pourquoi le texte doit la lever.
+    assert (haut["eau"]["wue_site"]["valeur"]
+            == bas["eau"]["wue_site"]["valeur"])
+
+
+def test_le_texte_ne_dit_jamais_que_la_valeur_est_sans_effet():
+    """La phrase exacte qui a induit en erreur, et toutes ses cousines. Un
+    lecteur qui la croit laisse le taux par défaut pour un site à 0,85 et
+    repart avec une énergie sous-estimée d'un tiers."""
+    aide = {c["id"]: c for c in dc.CHAMPS}["taux_charge"]["aide"]
+    textes = [aide, dc.PLATEAU_PUE]
+    textes += [s["nom"] for s in dc.SUGGESTIONS["taux_charge"]]
+    for t in textes:
+        for interdite in ("ne changera pas le résultat",
+                          "sans effet sur le résultat",
+                          "n'a aucun effet"):
+            assert interdite not in t, (interdite, t)
+
+
+def test_le_texte_dit_ce_qui_reste_proportionnel_a_la_charge():
+    """Dire que le PUE est plat sans dire ce qui ne l'est pas laisse le lecteur
+    conclure de lui-même — et il conclut mal, c'est ce qui est arrivé."""
+    aide = {c["id"]: c for c in dc.CHAMPS}["taux_charge"]["aide"]
+    assert "proportionnels" in aide
+    for grandeur in ("énergie", "eau", "carbone"):
+        assert grandeur in aide, grandeur
+
+
+def test_l_explication_de_la_zone_plate_a_UNE_seule_source():
+    """Elle était écrite à la main en quatre endroits ; trois disaient vrai et
+    le quatrième disait le contraire. Les textes servis la LISENT désormais."""
+    aide = {c["id"]: c for c in dc.CHAMPS}["taux_charge"]["aide"]
+    assert dc.PLATEAU_PUE in aide
+    pue = dc.etude(dict(PROFIL, taux_charge=0.80))["energie"]["pue"]
+    assert dc.PLATEAU_PUE in pue["entrees"]["origine"]
 
 
 # ── 2. La pénalité fait ce que le texte annonce ────────────────────────────

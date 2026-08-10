@@ -382,6 +382,30 @@ CHARGE_PENTE = 0.45
 CHARGE_CONSOLIDER = 0.55
 
 
+# CE QUI EST PLAT, ET CE QUI NE L'EST PAS — ÉCRIT UNE FOIS.
+#
+# Au-dessus du point de conception, la pénalité s'annule : LE PUE cesse de
+# varier. Le reste, lui, ne cesse pas. L'énergie annuelle, les volumes d'eau et
+# le carbone d'exploitation sont PROPORTIONNELS à la charge réelle, puisque
+# c'est elle qui fixe la puissance appelée. Seuls les RATIOS — PUE, WUE, CUE —
+# restent constants, et c'est normal : ce sont des rapports.
+#
+# LA VERSION PRÉCÉDENTE DE CETTE PHRASE ÉTAIT FAUSSE, et coûteuse. Elle disait
+# « changer cette valeur ne changera pas le résultat ». Le lecteur laissait donc
+# le taux à sa valeur par défaut pour un site qui tourne à 0,85, et repartait
+# avec une énergie annuelle sous-estimée de 30 % et un carbone sous-estimé de
+# 11 %. Le défaut venait d'une sur-correction : on venait de corriger l'inverse
+# — un formulaire qui semblait bloqué parce que le PUE ne bougeait pas — et on
+# a étendu au résultat entier ce qui n'était vrai que du PUE.
+#
+# Les quatre textes servis lisent désormais cette constante. Une phrase écrite à
+# la main dans quatre fichiers finit toujours par diverger ; une seule, lue, ne
+# le peut pas.
+PLATEAU_PUE = ("le PUE ne varie plus avec la charge — mais l'énergie, l'eau "
+               "et le carbone restent proportionnels à elle, et cette valeur "
+               "compte donc toujours")
+
+
 def penalite_charge(taux):
     """La pénalité de PUE due à la charge partielle. Zéro au-dessus du point de
     conception : ce modèle ne récompense pas un site mieux rempli, faute de
@@ -467,7 +491,7 @@ def energie(profil):
                    else ("moyenne de la plage de conception de la famille "
                          "retenue — au-dessus de " + fr(CHARGE_POINT_CONCEPTION)
                          + " de charge, ce modèle n'applique aucune pénalité et "
-                         "le PUE ne varie plus avec la charge"))
+                         + PLATEAU_PUE))
         bande = _plage(pue_bas + penalite, pue_haut + penalite)
 
     p_moy = p_it * taux
@@ -1061,11 +1085,10 @@ CHAMPS = [
      # la main, ils annonçaient 0,55 quand le calcul appliquait 0,60.
      "aide": "Charge réelle moyenne rapportée à la puissance installée. "
              "Sous " + fr(CHARGE_POINT_CONCEPTION) + ", le PUE se dégrade — "
-             + fr(CHARGE_PENTE) + " point de PUE par point de charge manquant. "
-             "Au-dessus, ce modèle n'applique aucune pénalité : le PUE ne varie "
-             "plus avec la charge, et changer cette valeur ne changera pas le "
-             "résultat. Sous " + fr(CHARGE_CONSOLIDER) + ", consolider les "
-             "charges devient le premier levier proposé."},
+             + fr(CHARGE_PENTE) + " point de PUE par point de charge manquant ; "
+             "au-dessus, " + PLATEAU_PUE + ". Sous " + fr(CHARGE_CONSOLIDER)
+             + ", consolider "
+             "les charges devient le premier levier proposé."},
     # Trié sur le NOM affiché, pas sur le code : trier « Allemagne, Danemark,
     # Espagne… » par « DE, DK, ES… » donne un ordre qui n'est alphabétique pour
     # personne. La moyenne européenne ferme la liste — c'est un repli, pas un
@@ -1140,13 +1163,18 @@ SUGGESTIONS = {
          "nom": "point de conception — sous cette valeur, le PUE se dégrade ; "
                 "au-dessus, il ne bouge plus",
          "nature": "seuil"},
-        {"valeur": 0.65, "nom": "valeur par défaut du formulaire "
-                                "(sans effet sur le PUE, déjà au-dessus du "
-                                "point de conception)",
+        {"valeur": 0.65, "nom": "valeur par défaut du formulaire — déjà "
+                                "au-dessus du point de conception, donc sans "
+                                "effet sur le PUE, mais elle fixe l'énergie "
+                                "appelée",
          "nature": "hypothese"},
-        {"valeur": 0.80, "nom": "site mature, bien rempli — même PUE que 0,65 : "
-                                "ce modèle ne chiffre pas le gain d'un site "
-                                "mieux rempli",
+        # L'écart est CALCULÉ depuis les deux valeurs proposées. Écrit à la
+        # main il annonçait « un quart » là où le rapport donne 23 % — et il
+        # aurait menti davantage au premier ajustement de la valeur par défaut.
+        {"valeur": 0.80, "nom": "site mature, bien rempli — même PUE que 0,65, "
+                                "mais " + fr(round((0.80 / 0.65 - 1) * 100))
+                                + " % d'énergie annuelle en plus : c'est le "
+                                "RATIO qui est plat, pas la facture",
          "nature": "ordre_grandeur"},
     ],
     "part_evaporative": [

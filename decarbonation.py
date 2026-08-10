@@ -340,10 +340,11 @@ LEVIERS = [
      "effet": "Sous le point de conception, le PUE se dégrade : les auxiliaires "
               "consomment presque autant à charge partielle qu'à pleine charge. "
               "Consolider remonte le taux de charge sans rien construire.",
-     "ne_fait_pas": "Elle ne crée aucune capacité : consolider une salle "
-                    "au-delà de son point de conception ne donne aucun gain "
-                    "supplémentaire, et le moteur cesse d'ailleurs d'appliquer "
-                    "la pénalité au-delà.",
+     "ne_fait_pas": "Au-delà du point de conception, elle n'améliore plus le "
+                    "PUE : ce moteur cesse d'appliquer la pénalité, et le "
+                    "RATIO reste plat. Le gain réel de la consolidation est "
+                    "ailleurs — dans la puissance qu'on n'installe pas, donc "
+                    "dans le levier précédent.",
      "piege": "Consolider les serveurs sans consolider le refroidissement. Une "
               "salle vidée à moitié mais toujours climatisée en entier n'a rien "
               "gagné."},
