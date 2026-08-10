@@ -661,6 +661,7 @@ PAGES = {
     "/datacenter": "datacenter.html",
     "/ingenierie-datacenter": "ingenierie-datacenter.html",
     "/decarbonation-datacenter": "decarbonation-datacenter.html",
+    "/strategie-durable-datacenter": "strategie-durable-datacenter.html",
 }
 
 
@@ -1871,6 +1872,7 @@ import etat_art      # noqa: E402  — les faits publies, chacun avec son auteur
 import profil_dc     # noqa: E402  — analyse le moteur ci-dessus, ne le double pas
 import ingenierie_dc  # noqa: E402  — situe ses résultats dans la séquence projet
 import decarbonation  # noqa: E402  — les situe dans la hiérarchie d'atténuation
+import strategie_dd  # noqa: E402  — le livrable d'ouverture, quatre perspectives
 # Le nettoyage des extraits et des titres de sources. Nommé « extraits_mod » :
 # « extraits » désigne déjà, dans une douzaine de fonctions de ce fichier, la
 # liste des passages retrouvés — les confondre aurait écrasé l'un par l'autre.
@@ -1915,6 +1917,18 @@ def decarbonation_datacenter_page():
     restent fermees.
     """
     return _page(PAGES["/decarbonation-datacenter"])
+
+
+@app.route("/strategie-durable-datacenter")
+def strategie_durable_datacenter_page():
+    """Le questionnaire des quatre perspectives, et le livrable d'ouverture
+    d'etude qui en decoule.
+
+    OUVERT. Le questionnaire ne conserve rien : les reponses transitent vers le
+    calcul et n'y sont pas ecrites. L'EXPORT du livrable, lui, reste ferme — le
+    document porte le nom du client, son site et ses arbitrages.
+    """
+    return _page(PAGES["/strategie-durable-datacenter"])
 
 
 @app.route("/api/datacenter/referentiel")
@@ -2094,6 +2108,95 @@ def api_datacenter_decarbonation_dossier():
         return jsonify(ok=False, error="etape_inconnue",
                        message=d.get("motif", "Étape inconnue.")), 404
     return jsonify(ok=True, dossier=d)
+
+
+@app.route("/api/datacenter/strategie/questionnaire")
+def api_datacenter_strategie_questionnaire():
+    """Ce qu'on demande au client : trois perspectives sur quatre.
+
+    La quatrieme — la science — n'est pas demandee. La recueillir comme une
+    opinion rendrait indetectables les ecarts entre perception et realite, qui
+    sont l'apport central de la methode.
+    """
+    try:
+        return jsonify(ok=True, questionnaire=strategie_dd.questionnaire())
+    except Exception:
+        app.logger.exception("questionnaire strategie DD")
+        return jsonify(ok=False, error="questionnaire_indisponible",
+                       message="Le questionnaire n'a pas pu être établi."), 503
+
+
+@app.route("/api/datacenter/strategie", methods=["POST"])
+def api_datacenter_strategie():
+    """La strategie de developpement durable, calculee depuis les reponses.
+
+    OUVERT comme le reste de la page : le calcul est deterministe, sans modele
+    de langage, et les reponses ne sont pas conservees — elles transitent, elles
+    ne sont pas ecrites.
+    """
+    data = request.get_json(silent=True) or {}
+    profil = _profil_datacenter(data.get("profil") or {})
+    try:
+        s = strategie_dd.strategie(data, profil)
+    except Exception:
+        app.logger.exception("strategie DD datacenter")
+        return jsonify(ok=False, error="calcul",
+                       message="La stratégie n'a pas pu être établie."), 500
+    return jsonify(ok=True, strategie=s)
+
+
+@app.route("/api/datacenter/strategie/export", methods=["POST"])
+@login_required
+def api_datacenter_strategie_export():
+    """Le livrable d'ouverture en Word ou PDF.
+
+    FERME, comme les autres exports : le document porte le nom du client, son
+    site et ses arbitrages. C'est une piece de dossier, pas une page publique.
+    """
+    data = request.get_json(silent=True) or {}
+    profil = _profil_datacenter(data.get("profil") or {})
+    try:
+        s = strategie_dd.strategie(data, profil)
+        md = strategie_dd.markdown(s)
+    except Exception:
+        app.logger.exception("export strategie DD")
+        return jsonify(ok=False, error="calcul",
+                       message="La stratégie n'a pas pu être établie."), 500
+    fmt = (data.get("format") or "docx").strip().lower()
+    if fmt not in ("docx", "pdf"):
+        fmt = "docx"
+    projet = s["identite"]["projet"] or "Centre de données"
+    meta = {"label": "Stratégie de développement durable — %s" % projet,
+            "numero": "STRAT-DD",
+            "phase": "Ouverture d'étude",
+            "indice": "01",
+            "client": s["identite"]["organisation"],
+            "perimetre": s["identite"]["site"] or projet,
+            "date": time.strftime("%d/%m/%Y"),
+            "sources": [
+                {"title": "Méthode des quatre perspectives — strategie_dd v"
+                          + strategie_dd.VERSION,
+                 "theme": "raison d'être, parties prenantes, science, valeur"},
+                {"title": "Moteur d'ingénierie CONSEILPREV v" + datacenter.VERSION,
+                 "theme": "calcul déterministe"},
+            ]}
+    try:
+        if fmt == "pdf":
+            blob = livrables_export.build_pdf(md, meta)
+            mimetype = "application/pdf"
+        else:
+            blob = livrables_export.build_docx(md, meta)
+            mimetype = ("application/vnd.openxmlformats-officedocument"
+                        ".wordprocessingml.document")
+    except Exception:
+        app.logger.exception("export stratégie DD")
+        return jsonify(ok=False, error="export_echec",
+                       message="La mise en page a échoué."), 500
+    audit.journaliser("datacenter.strategie.export", cible="STRAT-DD",
+                      detail="%s · %d enjeu(x) retenu(s)" % (fmt, len(s["retenus"])))
+    return send_file(io.BytesIO(blob),
+                     download_name="strategie-dd.%s" % fmt,
+                     as_attachment=True, mimetype=mimetype)
 
 
 @app.route("/api/datacenter/profil", methods=["POST"])
@@ -3297,6 +3400,15 @@ def decarbonation_dc_js():
     """Interface de la plateforme de decarbonation. Aucune donnee dans le
     fichier : il derive tout du referentiel servi par les API."""
     return _serve_fast("decarbonation-dc.js", _CC_ASSET,
+                       mimetype="text/javascript; charset=utf-8")
+
+
+@app.route("/strategie-dd.js")
+def strategie_dd_js():
+    """Interface du questionnaire des quatre perspectives. Aucune donnee dans
+    le fichier : il derive tout du questionnaire servi par l'API, y compris la
+    liste des perspectives qui se notent."""
+    return _serve_fast("strategie-dd.js", _CC_ASSET,
                        mimetype="text/javascript; charset=utf-8")
 
 

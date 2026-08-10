@@ -26,7 +26,8 @@
       ["/relecture-contrat", "Relecture de contrats assistée"],
       ["/datacenter", "Centres de données bas carbone"],
       ["/ingenierie-datacenter", "Ingénierie de projet — centres de données"],
-      ["/decarbonation-datacenter", "Décarbonation — centres de données"] ] },
+      ["/decarbonation-datacenter", "Décarbonation — centres de données"],
+      ["/strategie-durable-datacenter", "Stratégie DD — centres de données"] ] },
     { t: "Référentiel IEC 62443", l: [
       ["/referentiel", "Vue d’ensemble"],
       ["/analyse-de-risque", "Analyse de risque · 3-2"],
@@ -87,6 +88,7 @@
     "/datacenter": "Énergie, eau et carbone calculés ensemble : PUE, WUE de site et de source, carbone incorporé, réponses à appels d’offres",
     "/ingenierie-datacenter": "Le calcul replacé dans la séquence projet : ESQ, APS, APD, PRO, DCE, ACT, EXE, DET, AOR — et faisabilité, BASIC, FEED, EPCI, mise en service",
     "/decarbonation-datacenter": "Compter et déclarer d’un côté — périmètre, année de référence, inventaire, indicateurs normalisés, déclaration européenne, vérification ; réduire de l’autre — éviter, réduire, substituer, puis seulement le résiduel",
+    "/strategie-durable-datacenter": "Le premier livrable d’une étude : quatre perspectives — raison d’être, parties prenantes, science et technologie, valeur commerciale — d’où découlent la matérialité du projet et son programme d’étude",
     "/demo": "Cockpit de supervision OT en temps réel (démonstration)",
     "/tendances": "Tendances et signaux de la menace industrielle",
     "/connecter": "Connecter une source de données au cockpit",

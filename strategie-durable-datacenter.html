@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stratégie de développement durable d'un centre de données — les quatre perspectives — CONSEILPREV Cyber</title>
+<meta name="description" content="Le premier livrable d'une étude de data center sustainability : un questionnaire des quatre perspectives — raison d'être, parties prenantes, science et technologie, valeur commerciale — dont découle la stratégie de développement durable du projet et son programme d'étude.">
+<meta name="robots" content="index, follow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CONSEILPREV Cyber">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Stratégie de développement durable d'un centre de données — CONSEILPREV Cyber">
+<meta property="og:description" content="Ce que le projet défend, ce que ses parties prenantes disent, ce que les données établissent, ce qui affecte ses résultats. La matérialité se lit au croisement des quatre.">
+<meta property="og:url" content="https://conseilprevcyber.onrender.com/strategie-durable-datacenter">
+<meta property="og:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="CONSEILPREV Cyber — stratégie de développement durable des centres de données">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Stratégie de développement durable d'un centre de données">
+<meta name="twitter:description" content="Trois perspectives vous sont demandées. La quatrième — la science — ne l'est pas : ce serait recueillir une opinion et l'afficher comme une mesure.">
+<meta name="twitter:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<link rel="canonical" href="https://conseilprevcyber.onrender.com/strategie-durable-datacenter">
+
+<link rel="icon" href="/emblem.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .kick{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--muted2)}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+    clip:rect(0 0 0 0);white-space:nowrap;border:0}
+  .rc-sec{padding:34px 0 6px;border-top:1px solid var(--line);margin-top:30px}
+  .rc-etape{display:flex;align-items:baseline;gap:11px;margin:0 0 10px}
+  .rc-etape .n{font-family:var(--mono);font-size:12px;color:var(--teal)}
+  .rc-etape h2{font-size:21px;margin:0}
+  .rc-card{border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+    background:rgba(0,0,0,.10)}
+
+  /* ── Les quatre perspectives, en tête ──────────────────────────────── */
+  .sd-persp{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:13px;
+    margin:18px 0 4px}
+  .sd-p{border:1px solid var(--line);border-radius:12px;padding:13px 15px;
+    background:rgba(0,0,0,.10)}
+  .sd-p.p-raison_etre{border-left:3px solid #a78bd0}
+  .sd-p.p-parties_prenantes{border-left:3px solid #4bb8d8}
+  .sd-p.p-science{border-left:3px solid #d9a441}
+  .sd-p.p-valeur{border-left:3px solid #27c39a}
+  .sd-p h3{font-size:14.5px;margin:0 0 3px}
+  .sd-p .q{font-family:var(--mono);font-size:11px;margin:0 0 8px;color:var(--muted2)}
+  .sd-p .o{font-size:12.5px;line-height:1.6;margin:0 0 9px;color:var(--muted)}
+  .sd-p ul{margin:0;padding-left:16px}
+  .sd-p li{font-size:11.5px;line-height:1.5;margin-bottom:3px;color:var(--muted2)}
+  .sd-src{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;
+    border-radius:3px;margin-left:7px;white-space:nowrap}
+  .sd-src.s-client{background:rgba(75,184,216,.16);color:#4bb8d8}
+  .sd-src.s-donnees{background:rgba(217,164,65,.18);color:#d9a441}
+  .sd-garde{font-size:11.5px;line-height:1.55;margin:9px 0 0;padding:7px 10px;
+    border-radius:7px;background:rgba(0,0,0,.20);border:1px solid var(--line);
+    color:var(--muted2)}
+
+  /* ── Le questionnaire ──────────────────────────────────────────────── */
+  .sd-grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+  .sd-ch{display:block}
+  .sd-ch .lab{display:block;font-size:11.5px;color:var(--muted2);margin-bottom:4px}
+  .sd-ch input,.sd-ch select,.sd-ch textarea{width:100%;box-sizing:border-box;
+    font-family:inherit;font-size:13px;padding:8px 10px;border-radius:8px;
+    border:1px solid var(--line);background:rgba(0,0,0,.24);color:var(--ink)}
+  .sd-ch textarea{min-height:78px;line-height:1.55;resize:vertical}
+  .sd-ch .aide{display:block;font-size:11px;color:var(--muted2);line-height:1.5;margin-top:4px}
+  .sd-ouv{margin-bottom:14px}
+
+  .sd-fam{margin:0 0 20px}
+  .sd-fam>h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--muted2);margin:0 0 9px;padding-bottom:5px;border-bottom:1px solid var(--line)}
+  .sd-e{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:9px;
+    background:rgba(0,0,0,.12)}
+  .sd-e h4{font-size:13.5px;margin:0 0 5px}
+  .sd-e .dit{font-size:12px;line-height:1.6;margin:0 0 4px;color:var(--muted)}
+  .sd-e .piege{font-size:11.5px;line-height:1.55;margin:0 0 9px;padding:6px 9px;
+    border-radius:6px;background:rgba(217,164,65,.07);
+    border:1px solid rgba(217,164,65,.22);color:var(--muted2)}
+  .sd-notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:9px}
+  .sd-note label{display:block;font-size:10.5px;color:var(--muted2);margin-bottom:3px}
+  .sd-note select{width:100%;box-sizing:border-box;font-family:inherit;font-size:12px;
+    padding:6px 8px;border-radius:7px;border:1px solid var(--line);
+    background:rgba(0,0,0,.24);color:var(--ink)}
+  .sd-note.n-raison_etre select{border-left:3px solid #a78bd0}
+  .sd-note.n-parties_prenantes select{border-left:3px solid #4bb8d8}
+  .sd-note.n-valeur select{border-left:3px solid #27c39a}
+  .sd-grp{margin-top:9px}
+  .sd-grp>span{display:block;font-size:10.5px;color:var(--muted2);margin-bottom:4px}
+  .sd-grp .b{display:flex;flex-wrap:wrap;gap:5px}
+  .sd-grp button{font-family:inherit;font-size:11px;padding:3px 9px;border-radius:20px;
+    border:1px solid var(--line);background:rgba(0,0,0,.20);color:var(--muted2);
+    cursor:pointer}
+  .sd-grp button[aria-pressed="true"]{border-color:#4bb8d8;color:#4bb8d8;
+    background:rgba(75,184,216,.12)}
+
+  /* ── Le livrable ───────────────────────────────────────────────────── */
+  .sd-al{border:1px solid var(--line);border-radius:10px;padding:11px 14px;margin-bottom:8px;
+    font-size:12.5px;line-height:1.65;color:var(--muted)}
+  .sd-al.g-haute{border-color:rgba(194,85,74,.40);background:rgba(194,85,74,.08)}
+  .sd-al.g-moyenne{border-color:rgba(217,164,65,.32);background:rgba(217,164,65,.07)}
+  .sd-al b{color:var(--ink)}
+
+  .sd-t{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;
+    background:rgba(0,0,0,.10);border-left:3px solid var(--cyan)}
+  .sd-t h3{font-size:15px;margin:0 0 5px}
+  .sd-t .d{font-size:12.5px;line-height:1.6;margin:0 0 8px;color:var(--muted2)}
+  .sd-t .l{font-size:13px;line-height:1.7;margin:0;color:var(--ink)}
+
+  .sd-v{margin:0 0 18px}
+  .sd-v>h3{font-size:14.5px;margin:0 0 3px}
+  .sd-v>.d{font-size:12.5px;line-height:1.6;margin:0 0 10px;color:var(--muted2);
+    font-style:italic}
+  .sd-l{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:8px;
+    background:rgba(0,0,0,.12)}
+  .sd-l.v-croisement{border-left:3px solid #27c39a}
+  .sd-l.v-donnees{border-left:3px solid #d9a441}
+  .sd-l.v-perception{border-left:3px solid #4bb8d8}
+  .sd-l.v-raison_etre{border-left:3px solid #a78bd0}
+  .sd-l.v-non_instruit{border-left:3px solid #c2554a}
+  .sd-l.v-ecarte{border-left:3px solid var(--muted2);opacity:.85}
+  .sd-l.v-surveiller{border-left:3px solid var(--line)}
+  .sd-l h4{font-size:13.5px;margin:0 0 5px;display:flex;gap:8px;align-items:baseline;
+    flex-wrap:wrap}
+  .sd-l p{font-size:12.5px;line-height:1.6;margin:0 0 5px;color:var(--muted)}
+  .sd-mode{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;
+    border-radius:3px;background:rgba(39,195,154,.16);color:#27c39a;white-space:nowrap}
+  .sd-mode.m-coalition{background:rgba(75,184,216,.16);color:#4bb8d8}
+  .sd-mode.m-innover{background:rgba(217,164,65,.16);color:#d9a441}
+  .sd-sc{font-family:var(--mono);font-size:10.5px;color:var(--muted2)}
+  .sd-out{font-family:var(--mono);font-size:11px;line-height:1.55;margin:6px 0 0;
+    color:var(--muted2)}
+
+  .sd-b{display:flex;gap:11px;flex-wrap:wrap;margin-top:16px}
+  .sd-liens{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
+  .sd-note-conf{font-size:12px;line-height:1.65;margin-top:14px;padding:10px 13px;
+    border-radius:9px;border:1px solid var(--line);background:rgba(0,0,0,.14);
+    color:var(--muted2)}
+</style>
+</head>
+<body>
+  <header>
+  <div class="wrap nav">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu"><span></span><span></span><span></span></button>
+    <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="30" height="30" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+    <nav class="links" aria-label="Navigation principale">
+      <a href="/services">Services</a>
+      <a href="/referentiel">Référentiel 62443</a>
+      <a href="/audit-conformite">Audit 62443</a>
+      <a href="/demo">Cockpit</a>
+      <a href="/assistant">Assistant IA</a>
+      <a href="/veille">Veille</a>
+      <a href="/about">À propos</a>
+    </nav>
+    <div class="navcta">
+      <a href="/contact" class="cta">Contact</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+  <section class="wrap" style="padding:44px 0 8px">
+    <div class="kick">Data Center Sustainability &amp; Decarbonisation — le premier livrable</div>
+    <h1 style="font-size:34px;line-height:1.18;margin:10px 0 6px;max-width:24ch">
+      La stratégie de développement durable du projet</h1>
+    <p style="font-size:19px;line-height:1.35;margin:0 0 14px;font-weight:600;
+       max-width:40ch;color:var(--cyan)">Quatre perspectives, deux tensions, et
+      un arbitrage qui s'assume</p>
+    <p class="lead" style="max-width:74ch">
+      C'est le document qu'on écrit <b>avant</b> de calculer. Il ne dit pas combien :
+      il dit ce qu'on cherche, ce qu'on écarte, et pourquoi. Sans lui, une étude
+      d'ingénierie produit des chiffres justes sur des questions que personne n'a
+      choisies — et le dossier se renégocie à chaque comité.</p>
+    <p class="lead" style="max-width:74ch">
+      La méthode croise quatre perspectives. <b>Trois vous sont demandées</b> : ce que
+      le projet défend, ce que ses parties prenantes disent, ce qui affecte ses
+      résultats. <b>La quatrième — la science — ne l'est pas.</b> La recueillir comme
+      une opinion reviendrait à afficher un avis en le présentant comme une mesure, et
+      rendrait indétectables les écarts entre perception et réalité — qui sont
+      précisément l'apport de la méthode.</p>
+
+    <div id="sd-persp" class="sd-persp"><p class="note">Chargement des perspectives…</p></div>
+
+    <div class="sd-liens">
+      <a href="/datacenter" class="btn btn-s">Le calcul énergie, eau et carbone</a>
+      <a href="/decarbonation-datacenter" class="btn btn-s">La plateforme de décarbonation</a>
+    </div>
+  </section>
+
+  <!-- ═══ 1. LE PROJET ═══════════════════════════════════════════════════ -->
+  <section class="wrap rc-sec">
+    <div class="rc-etape"><span class="n">1</span><h2>Le projet</h2></div>
+    <div class="rc-card" id="sd-identite"></div>
+  </section>
+
+  <!-- ═══ 2. LE CONTEXTE DU SITE ═════════════════════════════════════════
+       Ces réponses ne notent aucun enjeu : elles MODULENT ce que la science en
+       dit. Le même centre de données ne pose pas le même problème d'eau en
+       Scandinavie et en Espagne, et prétendre le contraire produirait un
+       document interchangeable — c'est-à-dire sans valeur. -->
+  <section class="wrap rc-sec">
+    <div class="rc-etape"><span class="n">2</span><h2>Le contexte du site</h2></div>
+    <p class="lead" style="max-width:74ch;margin-top:0">
+      Ces réponses ne notent aucun enjeu : elles règlent ce que les données en disent.
+      Un même centre de données ne pose pas le même problème d'eau en Scandinavie et en
+      Espagne — un questionnaire qui l'ignorerait produirait un document
+      interchangeable, c'est-à-dire sans valeur. Laissé vide, un contexte laisse
+      l'enjeu correspondant au niveau générique, et le livrable le signale.</p>
+    <div class="rc-card" id="sd-contexte"></div>
+  </section>
+
+  <!-- ═══ 3. CE QUE NOUS DÉFENDONS ═══════════════════════════════════════ -->
+  <section class="wrap rc-sec">
+    <div class="rc-etape"><span class="n">3</span><h2>Ce que nous défendons, et ce que nous entendons</h2></div>
+    <p class="lead" style="max-width:74ch;margin-top:0">
+      Les questions ouvertes de la raison d'être, de l'écoute des parties prenantes et
+      de la valeur commerciale. Les priorités se calculent sans elles ; mais une
+      stratégie qui ne dit pas ce que l'entreprise défend n'est qu'un tableau de
+      priorités, et elle se renégocie à chaque arbitrage.</p>
+    <div class="rc-card" id="sd-ouvertes"></div>
+  </section>
+
+  <!-- ═══ 4. LES ENJEUX ══════════════════════════════════════════════════ -->
+  <section class="wrap rc-sec">
+    <div class="rc-etape"><span class="n">4</span><h2>Les enjeux, notés sur trois perspectives</h2></div>
+    <p class="lead" style="max-width:74ch;margin-top:0">
+      Vingt enjeux propres aux centres de données. Pour chacun, ce que les données en
+      disent vous est montré <b>avant</b> que vous ne notiez — noter à l'aveugle
+      produirait des surprises à la restitution. Ce que vous laissez vide reste vide :
+      un enjeu non noté n'est pas un enjeu mineur, c'est un enjeu qu'on n'a pas
+      regardé, et le livrable le portera comme tel.</p>
+    <div id="sd-enjeux"><p class="note">Chargement du registre…</p></div>
+  </section>
+
+  <!-- ═══ 5. LE LIVRABLE ═════════════════════════════════════════════════ -->
+  <section class="wrap rc-sec">
+    <div class="rc-etape"><span class="n">5</span><h2>La stratégie qui en découle</h2></div>
+    <div class="sd-b">
+      <button type="button" class="btn btn-p" id="sd-gen">Établir la stratégie</button>
+      <button type="button" class="btn btn-s" id="sd-docx" disabled>Livrable (Word)</button>
+      <button type="button" class="btn btn-s" id="sd-pdf" disabled>Livrable (PDF)</button>
+    </div>
+    <p class="note" id="sd-etat" role="status" aria-live="polite" style="margin-top:12px"></p>
+    <p class="sd-note-conf">
+      Les réponses <b>ne sont pas conservées</b> : elles transitent vers le calcul et
+      n'y sont pas écrites. L'export du livrable, lui, demande un compte — le document
+      porte votre nom, votre site et vos arbitrages.
+    </p>
+    <div id="sd-resultat" aria-live="polite"></div>
+  </section>
+
+</main>
+
+  <footer>
+  <div class="wrap foot">
+    <div class="foot-cols">
+      <div class="foot-brand">
+        <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="26" height="26" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+        <p>Cybersécurité industrielle IT / OT / IIoT — conformité IEC&nbsp;62443, NIS2, DORA.</p>
+      </div>
+      <nav class="foot-col" aria-label="Expertise">
+        <h4>Expertise</h4>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/methodologie">Méthodologie</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/operating-model">Operating Model</a>
+        <a href="/maturite-ot">Maturité OT</a>
+        <a href="/feuille-de-route">Feuille de route</a>
+        <a href="/continuite-ot">Continuité &amp; crise OT</a>
+        <a href="/gestion-des-changements">Gestion des changements</a>
+        <a href="/architecture-cible">Architecture cible</a>
+        <a href="/formation">Formation</a>
+      </nav>
+      <nav class="foot-col" aria-label="Norme &amp; conformité">
+        <h4>Norme &amp; conformité</h4>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/audit-conformite">Audit 62443</a>
+        <a href="/diagnostic">Diagnostic express</a>
+        <a href="/nis2">NIS2</a>
+      </nav>
+      <nav class="foot-col" aria-label="Plateforme">
+        <h4>Plateforme</h4>
+        <a href="/demo">Cockpit</a>
+        <a href="/assistant">Assistant IA</a>
+        <a href="/datacenter">Data Center Sustainability</a>
+        <a href="/decarbonation-datacenter">Décarbonation — la plateforme</a>
+        <a href="/strategie-durable-datacenter">Stratégie DD — le livrable</a>
+      </nav>
+      <nav class="foot-col" aria-label="Ressources">
+        <h4>Ressources</h4>
+        <a href="/veille">Veille</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/glossaire-62443">Glossaire 62443</a>
+      </nav>
+    </div>
+    <div class="foot-bar">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Tous droits réservés</div>
+      <div class="foot-legal">
+        <a href="/about">À propos</a>
+        <a href="/contact">Contact</a>
+        <a href="/connexion">Espace client</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/politique-confidentialite">Confidentialité</a>
+        <a href="/conformite">Conformité IA &amp; RGPD</a>
+        <a href="/admin" rel="nofollow" class="foot-admin">Admin</a>
+      </div>
+    </div>
+  </div>
+</footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+
+  <script src="/nav.js" defer></script>
+  <script src="/strategie-dd.js" defer></script>
+</body>
+</html>
