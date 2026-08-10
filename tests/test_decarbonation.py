@@ -482,9 +482,17 @@ def test_aucun_lien_ne_pointe_vers_la_page_disparue():
 
 
 def test_le_menu_ne_porte_qu_une_entree_pour_les_deux():
+    """L'INTENTION, pas un compte. La première version de ce test figeait
+    `nav.count('"/datacenter"') == 2` : ajouter un guide de page qui renvoie
+    vers /datacenter l'a fait tomber, alors que le menu n'avait pas bougé. Un
+    garde qui compte des occurrences dans un fichier entier se répare
+    machinalement et cesse de protéger. On regarde donc la LISTE du tiroir."""
     with open(os.path.join(ICI, "nav.js"), encoding="utf-8") as f:
         nav = f.read()
-    assert nav.count('"/datacenter"') == 2, "entrée + description attendues"
+    entrees = re.findall(r'\[\s*"(/[a-z0-9\-]*datacenter[a-z0-9\-]*)"\s*,\s*"',
+                         nav)
+    assert entrees.count("/datacenter") == 1, entrees
+    assert "/decarbonation-datacenter" not in entrees, entrees
     assert "decarbonation-datacenter" not in nav
 
 

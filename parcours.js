@@ -108,6 +108,13 @@
     "/juridique": ["juridique", "tiers"],
     "/nis2": ["juridique"],
     "/etudes-de-cas": ["analyse"],
+    /* Les trois pages « centres de données ». Elles ne relèvent pas de la
+       cybersécurité : leur axe est l'analyse (ce qu'on mesure), la preuve (ce
+       qu'on peut opposer) et la gouvernance (ce qu'on décide). Sans ces
+       entrées, un parcours qui les traverse ne pondérait rien. */
+    "/strategie-durable-datacenter": ["analyse", "gouvernance"],
+    "/datacenter": ["analyse", "preuve"],
+    "/ingenierie-datacenter": ["exigences", "preuve"],
     "/contact": []
   };
 
@@ -423,6 +430,74 @@
           action: "Suivez les évolutions réglementaires et les avis d’autorité.",
           gain: "Les changements anticipés au lieu d’être subis en urgence de mise en conformité.",
           tip: "Une lecture hebdomadaire suffit ; le mensuel arrive systématiquement trop tard sur les avis de sécurité." }
+      ]
+    },
+    {
+      id: "dc-projet",
+      icone: "🏗️",
+      role: "Direction de projet · centre de données",
+      cas: "Le fil d'un projet de centre de données, du document d'ouverture d'étude à la séquence d'ingénierie",
+      pitch: "Vous portez un projet de centre de données et vous devez tenir trois promesses à la fois : " +
+             "un site défendable devant un territoire, des chiffres opposables devant un vérificateur, et " +
+             "un dossier qui passe les phases. Ce parcours suit l'ordre du PROJET — on choisit avant de " +
+             "calculer, on calcule avant de s'engager.",
+      etapes: [
+        { url: "/strategie-durable-datacenter", label: "La stratégie de développement durable",
+          action: "Répondez au questionnaire des quatre perspectives : ce que le projet défend, ce que " +
+                  "ses parties prenantes disent, ce qui affecte ses résultats. La quatrième — la science — " +
+                  "n'est pas demandée : elle est établie par les données.",
+          gain: "Le document d'ouverture d'étude : les enjeux retenus, ceux qu'on écarte, et le programme " +
+                "de travail qui en découle.",
+          tip: "Répondez avec ceux qui exploiteront, pas seulement avec ceux qui décident : un enjeu " +
+               "noté en comité et démenti sur site se paie à l'enquête publique." },
+        { url: "/datacenter", label: "Énergie, eau et carbone — puis la décarbonation",
+          action: "Saisissez le profil de l'installation, lancez le calcul, comparez les familles de " +
+                  "refroidissement, puis suivez les deux voies : compter et déclarer d'un côté, réduire " +
+                  "de l'autre.",
+          gain: "Les trois grandeurs calculées ENSEMBLE, avec leur incertitude — et l'ordre dans lequel " +
+                "les leviers doivent être épuisés.",
+          tip: "Le taux de charge ne change pas le PUE au-dessus de 0,6, mais il commande l'énergie " +
+               "annuelle : le laisser par défaut sur un site bien rempli sous-estime la facture d'un tiers." },
+        { url: "/ingenierie-datacenter", label: "La séquence projet — MOE et ingénierie",
+          action: "Choisissez votre filière et votre phase, et lisez ce que le moteur peut verser à ce " +
+                  "stade — et ce qu'il faut avoir remplacé par une donnée réelle.",
+          gain: "La distinction entre un chiffre recevable en avant-projet et un chiffre opposable en " +
+                "pièce contractuelle : c'est elle qui fait tenir un dossier.",
+          tip: "Le facteur eau amont porte ±40 % et le carbone incorporé ±50 % — deux valeurs qui " +
+               "passent en APS et ne passent plus en DCE. Repérez-les avant, pas après." }
+      ]
+    },
+    {
+      id: "dc-durabilite",
+      icone: "🌍",
+      role: "Direction durabilité · RSE d'un exploitant de centres de données",
+      cas: "Produire une déclaration opposable, et une trajectoire qui la suive",
+      pitch: "Vous devez publier des chiffres qu'un tiers vérifiera, et démontrer une trajectoire. " +
+             "Ce sont deux exercices distincts, et leur confusion produit les dossiers qu'un " +
+             "vérificateur renvoie. Ce parcours les sépare, puis les rejoint à leurs points de " +
+             "rendez-vous obligés.",
+      etapes: [
+        { url: "/datacenter", label: "Compter — le bilan énergie, eau et carbone",
+          action: "Établissez le bilan de l'installation, puis suivez la voie « compter et déclarer » : " +
+                  "périmètre, année de référence, inventaire, indicateurs normalisés, déclaration " +
+                  "européenne, vérification.",
+          gain: "La structure de l'exercice de déclaration, et la liste de ce qui bloque encore " +
+                "chaque étape.",
+          tip: "Une année de référence établie sur le taux de charge par défaut d'un formulaire n'est " +
+               "pas une référence : toute réduction mesurée contre elle serait fictive." },
+        { url: "/strategie-durable-datacenter", label: "Arbitrer — la matérialité au croisement",
+          action: "Notez les vingt enjeux sur les trois perspectives qui vous appartiennent, et lisez " +
+                  "les deux tensions nommées pour votre projet.",
+          gain: "Ce que vous retenez, ce que vous écartez, et surtout ce que personne n'a encore " +
+                "regardé — un enjeu non instruit n'est pas un enjeu mineur.",
+          tip: "Un enjeu que les données donnent pour structurant et que personne ne soulève est le " +
+               "cas le plus dangereux : il n'arrivera pas par une plainte, il arrivera par un fait." },
+        { url: "/ingenierie-datacenter", label: "Prouver — les pièces, phase par phase",
+          action: "Situez vos indicateurs dans la séquence projet et repérez le registre des pièces " +
+                  "à remettre.",
+          gain: "Le passage du tableau de bord au dossier : ce qu'on écrit, et ce qu'on REMET.",
+          tip: "Les points de comptage se posent à la conception. Découvrir l'obligation de déclarer " +
+               "après avoir figé le plan de comptage coûte une année de mesure." }
       ]
     },
     {

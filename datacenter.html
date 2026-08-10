@@ -92,6 +92,20 @@
   .dc-vert-a{margin-top:10px}
   .dc-sous{color:var(--cyan)}
 
+  /* LE BANDEAU DE REPRISE — un profil venu d'une autre étude. */
+  #dc-repris{border:1px solid var(--cyan);background:rgba(34,211,238,.07);
+    border-radius:10px;padding:12px 15px;margin:0 0 14px;font-size:13px;
+    line-height:1.65;color:var(--muted)}
+  #dc-repris b{color:var(--ink)}
+  #dc-repris ul{margin:7px 0 0;padding-left:18px}
+  #dc-repris li{font-size:12.5px;margin-bottom:3px}
+  #dc-repris .refus{margin:8px 0 0;padding:8px 11px;border-radius:8px;
+    background:rgba(217,164,65,.09);border:1px solid rgba(217,164,65,.30);
+    font-size:12.5px;line-height:1.6}
+  #dc-repris .refus b{color:#d9a441}
+  .dc-champ.dc-repris-champ{outline:2px solid var(--cyan);outline-offset:3px;
+    border-radius:8px}
+
   /* LE SOMMAIRE. La fusion a produit une page longue : sans repère, le lecteur
      doit la parcourir entière pour savoir ce qu'elle contient. */
   .dc-somm{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;
@@ -740,6 +754,12 @@
       Seule la puissance informatique est indispensable ; tout le reste a une valeur par
       défaut, signalée comme telle dans la note. Renseigner davantage resserre les
       incertitudes — ce sont elles que l'évaluateur regarde.</p>
+    <!-- CE QUI ARRIVE D'AILLEURS. Un profil peut être repris d'une étude
+         d'implantation menée sur Sentinel. Il est alors PRÉ-REMPLI ET DÉCLARÉ :
+         un formulaire qui se remplit tout seul sans dire d'où viennent ses
+         valeurs laisse le lecteur les prendre pour des valeurs par défaut, et
+         il ne les vérifie pas. -->
+    <div id="dc-repris" hidden></div>
     <div class="rc-card" id="dc-form"><p class="note">Chargement du référentiel…</p></div>
 
     <!-- L'aperçu répond à la promesse faite juste au-dessus (« renseigner

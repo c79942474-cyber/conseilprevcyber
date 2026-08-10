@@ -495,6 +495,115 @@
   }
 
   /* ═════════════════════════════════════════════════════════════════════
+     REPRENDRE UN PROFIL VENU D'UNE AUTRE ÉTUDE
+
+     Une étude d'implantation menée ailleurs — comparateur pondéré, enveloppe
+     d'investissement — se termine sur un pays retenu et une puissance. Plutôt
+     que de les retaper, le lien peut les porter :
+         /datacenter#voie=inventaire&pays=FR&puissance_it_kw=20000
+
+     TROIS RÈGLES, ET AUCUNE N'EST DÉCORATIVE :
+
+       1. RIEN N'EST APPLIQUÉ SANS ÊTRE DÉCLARÉ. Un formulaire qui se remplit
+          tout seul sans dire d'où viennent ses valeurs laisse le lecteur les
+          prendre pour des valeurs par défaut — et il ne les vérifie pas.
+
+       2. RIEN N'EST APPLIQUÉ SANS ÊTRE VALIDÉ. Une valeur est confrontée au
+          contrôle réel du formulaire : une option qui n'existe pas, un nombre
+          hors bornes sont REFUSÉS. Les accepter poserait dans le champ une
+          valeur que le moteur ne connaît pas.
+
+       3. UN REFUS SE DIT. Silencieux, il ferait calculer sur un profil que
+          l'expéditeur croit avoir transmis — l'écart entre les deux études ne
+          se découvrirait qu'au comité.
+
+     ET LE CALCUL N'EST PAS LANCÉ automatiquement : on montre d'abord ce qui a
+     été repris. Un résultat affiché avant que le lecteur n'ait vu ses entrées
+     est un résultat qu'il n'a pas vérifiées.
+     ═════════════════════════════════════════════════════════════════════ */
+
+  /* Les champs qu'un lien peut porter. Volontairement COURT : le profil
+     technique, et rien qui désigne une personne ou un client. */
+  var REPRISE = ["puissance_it_kw", "pays", "refroidissement", "taux_charge"];
+
+  function libelleDe(el, cid) {
+    var lab = el.closest("label");
+    var t = lab && lab.querySelector(".dc-lab");
+    if (!t) return cid;
+    var c = t.cloneNode(true);
+    c.querySelectorAll(".dc-unite, .dc-req").forEach(function (x) { x.remove(); });
+    return (c.textContent || cid).replace(/\s+/g, " ").trim();
+  }
+
+  function reprendreProfil(u) {
+    var f = document.getElementById("dc-form");
+    var z = document.getElementById("dc-repris");
+    if (!f || !z) return;
+    var pris = [], refuses = [];
+    REPRISE.forEach(function (cid) {
+      if (!(cid in u)) return;
+      var el = f.querySelector('[data-champ="' + cid + '"]');
+      if (!el) {
+        refuses.push([cid, "champ inconnu de ce formulaire"]);
+        return;
+      }
+      var v = String(u[cid]).trim();
+      var lab = libelleDe(el, cid);
+      var vu = v;
+      if (el.tagName === "SELECT") {
+        /* On confronte au contrôle RÉEL, pas à une liste recopiée : les
+           options viennent du référentiel du serveur, et c'est la seule
+           liste qui fasse foi. */
+        var opt = [].slice.call(el.options).filter(function (o) {
+          return o.value === v;
+        })[0];
+        if (!opt) { refuses.push([lab, "« " + v + " » inconnu du référentiel"]); return; }
+        /* On affiche le NOM, pas le code : « Suède » se relit, « SE » se
+           devine — et c'est justement la valeur qu'on demande de vérifier. */
+        vu = opt.textContent.trim() + " (" + v + ")";
+      } else {
+        var n = parseFloat(v.replace(",", "."));
+        if (!isFinite(n)) { refuses.push([lab, "« " + v + " » n’est pas un nombre"]); return; }
+        v = String(n);
+        vu = v;
+      }
+      el.value = v;
+      var bloc = el.closest("label");
+      if (bloc) {
+        bloc.classList.add("dc-repris-champ");
+        setTimeout(function () { bloc.classList.remove("dc-repris-champ"); }, 4000);
+      }
+      pris.push([lab, vu]);
+    });
+    if (!pris.length && !refuses.length) return;
+
+    var h = "<b>Profil repris d’une étude précédente.</b> Ces valeurs ne sont "
+      + "pas des valeurs par défaut : elles viennent du lien que vous avez "
+      + "suivi. <b>Vérifiez-les</b>, puis lancez le calcul.";
+    if (pris.length) {
+      h += "<ul>" + pris.map(function (x) {
+        return "<li>" + esc(x[0]) + " : <b>" + esc(x[1]) + "</b></li>";
+      }).join("") + "</ul>";
+    }
+    if (refuses.length) {
+      h += '<div class="refus"><b>Non appliqué</b> — ces valeurs n’ont pas été '
+        + "reconnues, et le champ correspondant est resté tel quel :<ul>"
+        + refuses.map(function (x) {
+            return "<li>" + esc(x[0]) + " — " + esc(x[1]) + "</li>";
+          }).join("")
+        + "</ul></div>";
+    }
+    z.innerHTML = h;
+    z.hidden = false;
+
+    /* Les autres scripts de la page écoutent la saisie : sans ces événements,
+       l'aperçu et le parcours resteraient sur le profil vide. */
+    ["input", "change"].forEach(function (t) {
+      f.dispatchEvent(new Event(t, { bubbles: true }));
+    });
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
      CHARGEMENT
      ═════════════════════════════════════════════════════════════════════ */
 
@@ -540,6 +649,10 @@
         rendreParcours();
         attendreFormulaire(function () {
           brancherFormulaire();
+          /* La reprise AVANT le premier calcul : sinon le parcours se
+             dessinerait sur un profil vide puis se redessinerait, et le
+             lecteur verrait la page se contredire en une seconde. */
+          reprendreProfil(u);
           charger();
         });
       })

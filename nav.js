@@ -398,6 +398,46 @@
     s: ["Utilisez le menu pour naviguer.", "Les icônes « i » expliquent les notions techniques au survol."], k: [],
     l: [["Accueil", "/"], ["Contact", "/contact"]] };
 
+  /* LES TROIS PAGES « CENTRES DE DONNÉES ». Elles tombaient sur le guide par
+     défaut — « utilisez le menu pour naviguer » — alors que ce sont les pages
+     les plus denses du site. Un guide générique sur une page complexe est pire
+     qu'aucun guide : il fait croire au lecteur qu'il a lu l'aide. */
+  GUIDES["/strategie-durable-datacenter"] = {
+    t: "Stratégie de développement durable du projet",
+    p: "Le premier livrable d'une étude : un questionnaire des quatre perspectives, dont découlent les enjeux retenus, ceux qu'on écarte, et le programme d'étude.",
+    s: ["Décrivez le projet et le CONTEXTE DU SITE : il ne note aucun enjeu, il règle ce que les données en disent.",
+        "Notez les vingt enjeux sur trois perspectives. Ce que vous laissez vide reste vide — et le livrable le portera comme un trou.",
+        "Établissez la stratégie, puis lisez les ALERTES en tête avant de vous féliciter du résultat.",
+        "L'export Word / PDF demande un compte : le document porte votre nom et vos arbitrages."],
+    k: [["Les quatre perspectives", "Raison d'être, parties prenantes, science et technologie, valeur commerciale. La matérialité se lit à leur croisement."],
+        ["Pourquoi la science ne vous est pas demandée", "La recueillir comme une opinion reviendrait à afficher un avis en le présentant comme une mesure — et les écarts entre perception et réalité, qui sont l'apport de la méthode, deviendraient indétectables."],
+        ["Non instruit", "Ni retenu ni écarté : personne n'a regardé. Ce n'est pas un enjeu mineur, c'est un enjeu sans réponse."]],
+    l: [["Le calcul énergie, eau et carbone", "/datacenter"], ["La séquence projet", "/ingenierie-datacenter"]] };
+
+  GUIDES["/datacenter"] = {
+    t: "Data Center Sustainability & Decarbonisation",
+    p: "Énergie, eau et carbone calculés ensemble, puis la décarbonation : compter et déclarer d'un côté, réduire de l'autre.",
+    s: ["Saisissez le PROFIL — seule la puissance informatique est indispensable ; le reste a une valeur par défaut, signalée comme telle.",
+        "Lancez le calcul, puis comparez les familles de refroidissement : l'arbitrage eau / énergie s'y lit chiffré.",
+        "Descendez à « Décarboner » : choisissez une voie, puis une étape. Le premier blocage est la seule information qui commande une action.",
+        "Le sommaire en tête de page vous emmène directement à la section voulue."],
+    k: [["PUE / WUE / CUE", "Des RATIOS. Ils ne varient pas avec le taux de charge au-dessus du point de conception — mais l'énergie, l'eau et le carbone, eux, lui restent proportionnels."],
+        ["Les deux voies", "Compter et déclarer produit des chiffres opposables et ne réduit rien ; réduire produit des tonnes évitées et ne prouve rien sans la première."],
+        ["Hiérarchie d'atténuation", "Éviter, réduire, substituer, puis seulement traiter le résiduel. La compensation n'est pas une réduction — et ici, elle ne porte aucun paramètre de calcul."]],
+    l: [["Le livrable d'ouverture d'étude", "/strategie-durable-datacenter"], ["La séquence projet", "/ingenierie-datacenter"]] };
+
+  GUIDES["/ingenierie-datacenter"] = {
+    t: "Ingénierie de projet — centres de données",
+    p: "Le même calcul replacé dans la séquence projet : ce que le moteur peut verser à chaque phase, et ce qu'il faut avoir remplacé avant de la franchir.",
+    s: ["Renseignez la puissance informatique : c'est le seul champ nécessaire pour dessiner la frise.",
+        "Choisissez une filière — maîtrise d'œuvre ou ingénierie industrielle — puis une phase dans la frise.",
+        "Lisez le dossier de la phase : le plan du livrable, le registre des pièces, et les points encore ouverts.",
+        "Exportez l'étude de phase en Word ou PDF."],
+    k: [["MOP / AACE", "Deux traditions coexistent sur un centre de données : la loi MOP pour le bâtiment, la filière industrielle pour le procédé. Un centre relève des DEUX."],
+        ["Substitution", "Un facteur dont l'ordre de grandeur ne suffit plus à ce stade : il faut aller chercher la donnée réelle, chez un fournisseur ou un gestionnaire de réseau."],
+        ["Recevable", "Ne veut pas dire « juste » : veut dire que le niveau de définition correspond à celui qu'attend la phase."]],
+    l: [["Le calcul énergie, eau et carbone", "/datacenter"], ["Le livrable d'ouverture", "/strategie-durable-datacenter"]] };
+
   function initGuide() {
     if (document.querySelector(".guide-btn")) return;
     var path = location.pathname.replace(/\/+$/, "") || "/";
