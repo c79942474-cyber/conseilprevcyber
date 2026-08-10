@@ -1106,16 +1106,44 @@ def api_admin_user_update(email):
 def _bootstrap_admin():
     """Crée / promeut le compte admin depuis ADMIN_EMAIL (+ ADMIN_PASSWORD au 1er lancement).
 
-    - Si le compte ADMIN_EMAIL existe : on s'assure qu'il a le rôle admin.
+    - Si le compte ADMIN_EMAIL existe : on s'assure qu'il a le rôle admin, ET
+      qu'il peut effectivement entrer.
     - Sinon, si ADMIN_PASSWORD est défini : on le crée déjà vérifié + approuvé.
+
+    LE PIÈGE QUI ENFERMAIT LE PROPRIÉTAIRE DEHORS. Cette fonction ne posait que
+    le RÔLE. Or un compte créé par le formulaire public naît `email_verified` et
+    `approved` à faux, et la connexion refuse dans les deux cas. Le propriétaire
+    du site se retrouvait donc administrateur ET bloqué à la porte, sans recours :
+
+      · il ne peut pas se valider lui-même — la page d'administration refuse
+        explicitement de modifier son propre compte, et c'est une bonne règle ;
+      · il ne peut pas atteindre cette page, puisqu'il faut être connecté ;
+      · il ne lui restait que le lien d'approbation reçu par courriel, c'est-à-
+        dire dépendre d'un envoi qui peut ne jamais arriver — SMTP non
+        configuré, message en indésirables, adresse d'expédition refusée.
+
+    Les deux verrous existent pour filtrer les VISITEURS, pas l'exploitant. Et
+    ADMIN_EMAIL est une variable d'environnement : qui la contrôle contrôle déjà
+    le déploiement. Les lever pour ce seul compte n'ouvre donc rien qui ne soit
+    déjà ouvert, et referme un piège dont on ne sort pas seul.
     """
     email = (ADMIN_EMAIL or "").strip().lower()
     if not valid_email(email):
         return
     u = store.get(email)
     if u:
+        manquants = {}
         if (u.get("role") or "user") != "admin":
-            store.update(email, role="admin")
+            manquants["role"] = "admin"
+        if not u.get("email_verified"):
+            manquants["email_verified"] = True
+        if not u.get("approved"):
+            manquants["approved"] = True
+        if manquants:
+            store.update(email, **manquants)
+            logging.getLogger("auth").info(
+                "compte proprietaire remis en etat d'entrer : %s",
+                ", ".join(sorted(manquants)))
         return
     pw = os.environ.get("ADMIN_PASSWORD")
     if not pw:

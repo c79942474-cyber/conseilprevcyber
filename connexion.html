@@ -58,18 +58,52 @@
     if(q.get('verifie'))show('Email confirmé. Votre accès sera actif après validation par notre équipe (vous recevrez un email).','ok');
     if(q.get('deconnecte'))show('Vous êtes déconnecté.','ok');
     var nextUrl=q.get('next')||'/demo';
+    var bouton=document.querySelector('#f button[type=submit]');
+    var enCours=false;
     document.getElementById('f').addEventListener('submit',function(e){
       e.preventDefault();
+      /* UN SEUL ESSAI À LA FOIS. Le bouton restait actif pendant la requête :
+         sur un serveur lent à se réveiller, un deuxième clic partait — et
+         CHAQUE tentative compte au compteur anti-bruteforce. On se retrouvait
+         bloqué pour « trop de tentatives » en croyant n'avoir essayé qu'une
+         fois, ce qui donne exactement l'impression d'une connexion cassée. */
+      if(enCours) return;
+      enCours=true;
+      bouton.disabled=true;
+      var libelle=bouton.textContent;
+      bouton.textContent='Connexion…';
       show('Connexion…','ok');
+      function fini(){ enCours=false; bouton.disabled=false; bouton.textContent=libelle; }
       fetch('/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},
         body:JSON.stringify({email:document.getElementById('email').value.trim(),password:document.getElementById('password').value})})
-        .then(function(r){return r.json().then(function(j){return {s:r.status,j:j};});})
+        /* UNE RÉPONSE QUI N'EST PAS DU JSON EST UNE RÉPONSE QUAND MÊME. `r.json()`
+           lève sur une page d'erreur HTML — celle que renvoie l'hébergeur quand
+           l'application redémarre ou dépasse son délai. L'exception tombait
+           dans le `catch` réseau, et le visiteur lisait « erreur réseau » alors
+           que sa connexion allait très bien : le serveur avait répondu, mal.
+           On distingue donc les deux, et on donne le code : « HTTP 502 » se
+           cherche et se comprend, « erreur réseau » envoie corriger le Wi-Fi. */
+        .then(function(r){
+          return r.text().then(function(t){
+            try { return {s:r.status, j:JSON.parse(t)}; }
+            catch(x){ return {s:r.status, j:null}; }
+          });
+        })
         // « message » d'abord : sur une erreur générique du serveur, « error » ne
         // contient qu'un CODE (« erreur_serveur ») — illisible pour qui se
         // connecte, et qui laisse croire à un identifiant refusé.
-        .then(function(o){ if(o.j.ok){ location.href=nextUrl; }
-                           else { show(o.j.message||o.j.error||'Échec de la connexion.','err'); } })
-        .catch(function(){show('Erreur réseau, réessayez.','err');});
+        .then(function(o){
+          if(o.j && o.j.ok){ location.href=nextUrl; return; }
+          fini();
+          if(o.j){ show(o.j.message||o.j.error||'Échec de la connexion.','err'); return; }
+          show('Le serveur a répondu une erreur (HTTP '+o.s+'), pas un refus de '
+             + 'vos identifiants. Réessayez dans un instant — le service peut '
+             + 'être en cours de redémarrage.','err');
+        })
+        .catch(function(){
+          fini();
+          show('Le serveur n’a pas répondu. Vérifiez votre connexion, puis réessayez.','err');
+        });
     });
   })();
   </script>
