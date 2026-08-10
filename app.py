@@ -660,6 +660,7 @@ PAGES = {
     "/relecture-contrat": "relecture-contrat.html",
     "/datacenter": "datacenter.html",
     "/ingenierie-datacenter": "ingenierie-datacenter.html",
+    "/decarbonation-datacenter": "decarbonation-datacenter.html",
 }
 
 
@@ -1869,6 +1870,7 @@ import durabilite    # noqa: E402  — le cadre vert, adosse aux trois sous-doss
 import etat_art      # noqa: E402  — les faits publies, chacun avec son auteur et ce qu'il vaut
 import profil_dc     # noqa: E402  — analyse le moteur ci-dessus, ne le double pas
 import ingenierie_dc  # noqa: E402  — situe ses résultats dans la séquence projet
+import decarbonation  # noqa: E402  — les situe dans la hiérarchie d'atténuation
 # Le nettoyage des extraits et des titres de sources. Nommé « extraits_mod » :
 # « extraits » désigne déjà, dans une douzaine de fonctions de ce fichier, la
 # liste des passages retrouvés — les confondre aurait écrasé l'un par l'autre.
@@ -1899,6 +1901,20 @@ def datacenter_page():
 def ingenierie_datacenter_page():
     """Le même calcul, replacé dans la séquence projet — MOE et ingénierie."""
     return _page(PAGES["/ingenierie-datacenter"])
+
+
+@app.route("/decarbonation-datacenter")
+def decarbonation_datacenter_page():
+    """Le meme calcul, replace dans la demarche de durabilite : compter et
+    declarer d'un cote, reduire de l'autre, et la hierarchie d'attenuation dans
+    son ordre.
+
+    OUVERT, comme la page Sustainability dont il est la plateforme. Le calcul
+    est deterministe, sans modele de langage, sans ecriture, et rien de ce
+    qu'il produit n'appartient a un client. Les pieces du cabinet, elles,
+    restent fermees.
+    """
+    return _page(PAGES["/decarbonation-datacenter"])
 
 
 @app.route("/api/datacenter/referentiel")
@@ -2017,6 +2033,67 @@ def api_datacenter_etat_art():
         app.logger.exception("etat de l'art datacenter")
         return jsonify(ok=False, error="etat_indisponible",
                        message="L'etat de l'art n'a pas pu etre etabli."), 503
+
+
+@app.route("/api/datacenter/decarbonation")
+def api_datacenter_decarbonation():
+    """Le cadre de decarbonation : deux voies, la hierarchie d'attenuation et
+    ses leviers, les textes cites avec leur portee.
+
+    OUVERT, comme le reste de la page dont il depend. Ce cadre ne decerne
+    aucune conformite ni aucune neutralite : ces qualifications se constatent
+    sur dossier complet par un verificateur accredite.
+    """
+    try:
+        return jsonify(ok=True, referentiel=decarbonation.referentiel())
+    except Exception:
+        app.logger.exception("referentiel decarbonation")
+        return jsonify(ok=False, error="referentiel_indisponible",
+                       message="Le cadre de decarbonation n'a pas pu etre etabli."), 503
+
+
+@app.route("/api/datacenter/decarbonation/parcours", methods=["POST"])
+def api_datacenter_decarbonation_parcours():
+    """Ou l'on passe et ou l'on bute, sur une voie ou sur les deux.
+
+    Le premier point de blocage est la seule information qui commande une
+    action ; les etapes suivantes servent a voir venir.
+    """
+    data = request.get_json(silent=True) or {}
+    profil = _profil_datacenter(data)
+    if not profil.get("puissance_it_kw"):
+        return jsonify(ok=False, error="puissance_absente",
+                       message="La puissance informatique installée est nécessaire."), 400
+    v = (data.get("voie") or "").strip()
+    voies = [v] if v in decarbonation.VOIES else list(decarbonation.VOIES)
+    try:
+        return jsonify(ok=True,
+                       parcours={x: decarbonation.parcours(profil, x) for x in voies},
+                       rendez_vous=decarbonation.RENDEZ_VOUS)
+    except Exception:
+        app.logger.exception("parcours decarbonation")
+        return jsonify(ok=False, error="calcul",
+                       message="Le parcours n'a pas pu être établi."), 500
+
+
+@app.route("/api/datacenter/decarbonation/dossier", methods=["POST"])
+def api_datacenter_decarbonation_dossier():
+    """Le plan de l'etude pour une etape, avec ce que le moteur y verse
+    legitimement et ce qui doit venir de la mesure, du contrat ou du tiers
+    verificateur."""
+    data = request.get_json(silent=True) or {}
+    profil = _profil_datacenter(data)
+    code = str(data.get("etape") or "").strip().upper()[:12]
+    try:
+        d = decarbonation.dossier(profil, code, data)
+    except Exception:
+        app.logger.exception("dossier decarbonation")
+        return jsonify(ok=False, error="calcul",
+                       message="Le dossier n'a pas pu être établi."), 500
+    if not d.get("connu"):
+        return jsonify(ok=False, error="etape_inconnue",
+                       message=d.get("motif", "Étape inconnue.")), 404
+    return jsonify(ok=True, dossier=d)
 
 
 @app.route("/api/datacenter/profil", methods=["POST"])
@@ -3212,6 +3289,14 @@ def ingenierie_dc_js():
     aucune donnée dans le fichier — ce sont les API qu'il appelle qui exigent
     une session."""
     return _serve_fast("ingenierie-dc.js", _CC_ASSET,
+                       mimetype="text/javascript; charset=utf-8")
+
+
+@app.route("/decarbonation-dc.js")
+def decarbonation_dc_js():
+    """Interface de la plateforme de decarbonation. Aucune donnee dans le
+    fichier : il derive tout du referentiel servi par les API."""
+    return _serve_fast("decarbonation-dc.js", _CC_ASSET,
                        mimetype="text/javascript; charset=utf-8")
 
 

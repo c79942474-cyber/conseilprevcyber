@@ -25,7 +25,8 @@
       ["/gouvernance-ia", "Governance by Design IA"],
       ["/relecture-contrat", "Relecture de contrats assistée"],
       ["/datacenter", "Centres de données bas carbone"],
-      ["/ingenierie-datacenter", "Ingénierie de projet — centres de données"] ] },
+      ["/ingenierie-datacenter", "Ingénierie de projet — centres de données"],
+      ["/decarbonation-datacenter", "Décarbonation — centres de données"] ] },
     { t: "Référentiel IEC 62443", l: [
       ["/referentiel", "Vue d’ensemble"],
       ["/analyse-de-risque", "Analyse de risque · 3-2"],
@@ -85,6 +86,7 @@
     "/relecture-contrat": "Relecture assistée : playbook, écarts, validations, version par version",
     "/datacenter": "Énergie, eau et carbone calculés ensemble : PUE, WUE de site et de source, carbone incorporé, réponses à appels d’offres",
     "/ingenierie-datacenter": "Le calcul replacé dans la séquence projet : ESQ, APS, APD, PRO, DCE, ACT, EXE, DET, AOR — et faisabilité, BASIC, FEED, EPCI, mise en service",
+    "/decarbonation-datacenter": "Compter et déclarer d’un côté — périmètre, année de référence, inventaire, indicateurs normalisés, déclaration européenne, vérification ; réduire de l’autre — éviter, réduire, substituer, puis seulement le résiduel",
     "/demo": "Cockpit de supervision OT en temps réel (démonstration)",
     "/tendances": "Tendances et signaux de la menace industrielle",
     "/connecter": "Connecter une source de données au cockpit",
