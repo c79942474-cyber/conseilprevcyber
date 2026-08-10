@@ -352,6 +352,47 @@ def _plage(a, b):
     return {"min": round(a, 4), "max": round(b, 4)}
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  LA CHARGE PARTIELLE — UN SEUL SEUIL, ÉCRIT UNE SEULE FOIS
+#
+#  CE QUI N'ALLAIT PAS. Ce coefficient portait DEUX seuils différents sans que
+#  rien ne le dise. Le calcul appliquait sa pénalité sous 0,60 ; le texte d'aide
+#  du champ, l'étiquette de la suggestion et la recommandation d'amélioration
+#  annonçaient tous 0,55. Un lecteur qui saisissait 0,57 lisait donc qu'il était
+#  au-dessus du seuil pendant que le moteur le pénalisait déjà.
+#
+#  ET UNE ZONE PLATE NON DÉCLARÉE. Au-dessus du point de conception, la pénalité
+#  vaut zéro : 0,65, 0,80, 0,90 et 1,00 donnent EXACTEMENT le même PUE. Le
+#  formulaire proposait pourtant « 0,80 — site mature, bien rempli » comme un
+#  choix qui compte. On cliquait, rien ne bougeait, et on concluait au blocage.
+#
+#  LES DEUX SEUILS SONT DISTINCTS ET LE RESTENT — ils ne répondent pas à la même
+#  question — mais ils sont désormais NOMMÉS, et tous les textes servis les
+#  citent par calcul. Deux nombres écrits à la main dans quatre fichiers finissent
+#  toujours par diverger ; un seul, dérivé, ne le peut pas.
+# ═══════════════════════════════════════════════════════════════════════════
+
+# En dessous, les auxiliaires ne suivent plus proportionnellement la charge et
+# le PUE se dégrade. C'est le point de conception du modèle, pas une norme.
+CHARGE_POINT_CONCEPTION = 0.60
+# Pente de la dégradation, par point de charge manquant.
+CHARGE_PENTE = 0.45
+# Autre question, autre seuil : à partir de quand consolider les charges
+# devient-il le premier levier d'amélioration à proposer.
+CHARGE_CONSOLIDER = 0.55
+
+
+def penalite_charge(taux):
+    """La pénalité de PUE due à la charge partielle. Zéro au-dessus du point de
+    conception : ce modèle ne récompense pas un site mieux rempli, faute de
+    terme pour le chiffrer — et une pénalité négative inventée vaudrait moins
+    que ce silence, qui est au moins déclaré."""
+    t = float(taux)
+    if t >= CHARGE_POINT_CONCEPTION:
+        return 0.0
+    return (CHARGE_POINT_CONCEPTION - t) * CHARGE_PENTE
+
+
 def _tracer(nom, valeur, unite, formule, entrees, source="", incertitude="",
             note="", bande=None):
     """Un résultat qui se défend tout seul.
@@ -412,12 +453,21 @@ def energie(profil):
         # proportionnellement. Ignorer cet effet est l'erreur la plus courante
         # des dossiers — et la plus visible en exploitation, où le PUE réel
         # dépasse systématiquement le PUE de conception.
-        penalite = 0.0
-        if taux < 0.60:
-            penalite = (0.60 - taux) * 0.45
+        penalite = penalite_charge(taux)
         pue = (pue_bas + pue_haut) / 2 + penalite
         origine = ("moyenne de la plage de conception de la famille retenue, "
-                   "majorée de la pénalité de charge partielle")
+                   "majorée de la pénalité de charge partielle" if penalite
+                   # AU-DESSUS DU POINT DE CONCEPTION, LE MODÈLE EST PLAT, et il
+                   # doit le DIRE. Sans cette phrase, le lecteur qui passe de
+                   # 0,65 à 0,80 voit un PUE rigoureusement identique et conclut
+                   # que le formulaire est bloqué — ce qui est exactement ce qui
+                   # a été signalé. Le modèle ne prétend pas qu'un site mieux
+                   # rempli ne gagne rien : il n'a pas de terme pour le chiffrer,
+                   # et une pénalité négative inventée serait pire que ce silence.
+                   else ("moyenne de la plage de conception de la famille "
+                         "retenue — au-dessus de " + fr(CHARGE_POINT_CONCEPTION)
+                         + " de charge, ce modèle n'applique aucune pénalité et "
+                         "le PUE ne varie plus avec la charge"))
         bande = _plage(pue_bas + penalite, pue_haut + penalite)
 
     p_moy = p_it * taux
@@ -876,7 +926,7 @@ def leviers(profil, res):
 
     # -- Taux de charge : le gisement invisible ------------------------------
     taux = float(profil.get("taux_charge") or 0.65)
-    if taux < 0.55:
+    if taux < CHARGE_CONSOLIDER:
         gain = e_it * 0.12
         ajoute("Consolider les charges pour remonter le taux d'utilisation",
                gain, gain * 0.8,
@@ -1007,8 +1057,15 @@ CHAMPS = [
      "type": "nombre", "requis": True},
     {"id": "taux_charge", "label": "Taux de charge moyen", "unite": "0–1",
      "type": "nombre", "defaut": 0.65,
+     # Les deux seuils sont CALCULÉS depuis les constantes du moteur : écrits à
+     # la main, ils annonçaient 0,55 quand le calcul appliquait 0,60.
      "aide": "Charge réelle moyenne rapportée à la puissance installée. "
-             "Sous 0,55, la pénalité de charge partielle devient le premier poste de perte."},
+             "Sous " + fr(CHARGE_POINT_CONCEPTION) + ", le PUE se dégrade — "
+             + fr(CHARGE_PENTE) + " point de PUE par point de charge manquant. "
+             "Au-dessus, ce modèle n'applique aucune pénalité : le PUE ne varie "
+             "plus avec la charge, et changer cette valeur ne changera pas le "
+             "résultat. Sous " + fr(CHARGE_CONSOLIDER) + ", consolider les "
+             "charges devient le premier levier proposé."},
     # Trié sur le NOM affiché, pas sur le code : trier « Allemagne, Danemark,
     # Espagne… » par « DE, DK, ES… » donne un ordre qui n'est alphabétique pour
     # personne. La moyenne européenne ferme la liste — c'est un repli, pas un
@@ -1072,13 +1129,24 @@ SUGGESTIONS = {
         {"valeur": 40000, "nom": "campus hyperscale",
          "nature": "ordre_grandeur"},
     ],
+    # Les étiquettes disent ce que chaque valeur FAIT au calcul. « 0,80 — site
+    # mature, bien rempli » laissait attendre un effet ; il n'y en a aucun, et
+    # le taire faisait passer un modèle plat pour un formulaire bloqué.
     "taux_charge": [
-        {"valeur": 0.55, "nom": "seuil sous lequel la charge partielle devient "
-                                "le premier poste de perte",
+        {"valeur": CHARGE_CONSOLIDER,
+         "nom": "sous ce seuil, consolider les charges est le premier levier",
          "nature": "seuil"},
-        {"valeur": 0.65, "nom": "valeur par défaut du formulaire",
+        {"valeur": CHARGE_POINT_CONCEPTION,
+         "nom": "point de conception — sous cette valeur, le PUE se dégrade ; "
+                "au-dessus, il ne bouge plus",
+         "nature": "seuil"},
+        {"valeur": 0.65, "nom": "valeur par défaut du formulaire "
+                                "(sans effet sur le PUE, déjà au-dessus du "
+                                "point de conception)",
          "nature": "hypothese"},
-        {"valeur": 0.80, "nom": "site mature, bien rempli",
+        {"valeur": 0.80, "nom": "site mature, bien rempli — même PUE que 0,65 : "
+                                "ce modèle ne chiffre pas le gain d'un site "
+                                "mieux rempli",
          "nature": "ordre_grandeur"},
     ],
     "part_evaporative": [
