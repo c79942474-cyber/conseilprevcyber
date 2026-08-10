@@ -22,6 +22,15 @@
  * POUR L'EXÉCUTER, il faut une instance locale servant /ingenierie-datacenter
  * à un utilisateur connecté :
  *     BASE=http://127.0.0.1:5403 node recette_frise_phases.js
+ *
+ * La page étant réservée, la recette sait ouvrir la session elle-même quand on
+ * lui donne un compte — sinon elle réutilise celle du navigateur. On la voulait
+ * exécutable d'une seule commande : une recette qu'il faut préparer à la main
+ * n'est jamais relancée, et c'est celle-là qui manque le jour de la régression.
+ *     RECETTE_EMAIL=… RECETTE_MDP=… BASE=… node recette_frise_phases.js
+ * Le serveur local doit alors tourner avec COOKIE_NON_SECURISE=1, sans quoi le
+ * cookie de session — Secure par défaut, et c'est très bien ainsi — ne survit
+ * pas à une origine en http.
  */
 const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const BASE = process.env.BASE || 'http://127.0.0.1:5403';
@@ -36,10 +45,33 @@ const ok = (n, c, d) => { console.log('  ' + (c ? 'OK ' : 'KO ') + '  ' + n + (d
     Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
     Object.defineProperty(navigator, 'languages', { get: () => ['fr-FR', 'fr'] });
   });
+  /* Ouverture de session, si on nous a donné un compte. On passe par l'API et
+     non par le formulaire : ce n'est pas ce qu'on teste ici, et le faire à
+     l'écran ajouterait une cause de panne étrangère au sujet. */
+  if (process.env.RECETTE_EMAIL && process.env.RECETTE_MDP) {
+    const r = await ctx.request.post(BASE + '/api/auth/login', {
+      headers: { 'Origin': BASE, 'Content-Type': 'application/json' },
+      data: { email: process.env.RECETTE_EMAIL, password: process.env.RECETTE_MDP },
+    });
+    if (r.status() !== 200) {
+      console.log('\n  Connexion refusée (HTTP ' + r.status() + ') : '
+        + (await r.text()).slice(0, 200) + '\n');
+      await nav.close(); process.exit(2);
+    }
+  }
+
   const pg = await ctx.newPage();
   const err = [];
   pg.on('pageerror', e => err.push(String(e)));
   const rep = await pg.goto(BASE + '/ingenierie-datacenter', { waitUntil: 'networkidle' });
+  /* Une redirection vers la connexion renvoie 200 : sans ce contrôle, la
+     recette partirait chercher une frise sur la page de login et échouerait
+     trente secondes plus tard sur un délai, en accusant le mauvais coupable. */
+  if (rep && /\/connexion/.test(pg.url())) {
+    console.log('\n  Session absente : la page a renvoyé vers ' + pg.url()
+      + '. Donnez RECETTE_EMAIL / RECETTE_MDP, ou ouvrez la session à la main.\n');
+    await nav.close(); process.exit(2);
+  }
   if (!rep || rep.status() !== 200) {
     console.log('\n  Page injoignable (' + (rep ? rep.status() : 'pas de réponse')
       + '). Démarrez une instance locale connectée, puis relancez.\n');

@@ -92,6 +92,37 @@
   .dc-vert-a{margin-top:10px}
   .dc-sous{color:var(--cyan)}
 
+  /* ── L'état de l'art ───────────────────────────────────────────────────
+     La NATURE de la source est portée par une couleur, et cette couleur
+     n'est pas décorative : elle dit si l'on peut s'appuyer sur la ligne. */
+  .dc-art-av{font-size:12.5px;line-height:1.7;margin:0 0 16px;padding:11px 14px;
+    border-radius:10px;border-left:3px solid #d9a441;background:rgba(217,164,65,.09)}
+  .dc-art-g{margin:0 0 18px}
+  .dc-art-g h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--muted2);margin:0 0 9px}
+  .dc-fait{border:1px solid var(--line);border-left:3px solid var(--muted2);
+    border-radius:10px;padding:11px 14px;margin:0 0 8px;background:rgba(255,255,255,.02)}
+  .dc-fait.n-analyse_editeur{border-left-color:#27c39a}
+  .dc-fait.n-livre_blanc_fournisseur{border-left-color:#d9a441}
+  .dc-fait.n-guide_fournisseur{border-left-color:#b8763a}
+  .dc-fait-e{font-size:13.5px;line-height:1.6;margin:0 0 6px;color:var(--ink)}
+  .dc-fait-r{font-size:12px;line-height:1.6;margin:0 0 6px;padding:7px 11px;
+    border-radius:7px;background:rgba(255,255,255,.05);color:var(--muted)}
+  .dc-fait-s{font-family:var(--mono);font-size:10.5px;line-height:1.6;margin:0;
+    color:var(--muted2);display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+  .dc-nat{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;
+    padding:1px 6px;border-radius:3px;white-space:nowrap}
+  .dc-nat.n-analyse_editeur{background:rgba(39,195,154,.16);color:#27c39a}
+  .dc-nat.n-livre_blanc_fournisseur{background:rgba(217,164,65,.16);color:#d9a441}
+  .dc-nat.n-guide_fournisseur{background:rgba(184,118,58,.18);color:#c98a4e}
+  .dc-touche{font-size:9.5px;padding:1px 6px;border-radius:3px;
+    background:rgba(34,211,238,.13);color:var(--cyan);white-space:nowrap}
+  .dc-art-l,.dc-art-b{font-size:12.5px;line-height:1.65;margin:16px 0 0;
+    padding:12px 15px;border-radius:10px;background:rgba(255,255,255,.04)}
+  .dc-art-l ul,.dc-art-b ul{margin:7px 0 0;padding-left:18px}
+  .dc-art-l li,.dc-art-b li{margin-bottom:7px;color:var(--muted)}
+  .dc-art-b li b{color:var(--ink)}
+
   .rc-sec{padding:26px 0}
   .rc-etape{display:flex;align-items:center;gap:11px;margin-bottom:14px}
   .rc-etape .n{font-family:var(--mono);font-size:13px;font-weight:700;width:27px;height:27px;
@@ -534,6 +565,26 @@
     <div id="dc-vert" class="dc-vert"><p class="note">Chargement du cadre…</p></div>
   </section>
 
+  <!-- ═══ CE QUE DIT L'ÉTAT DE L'ART, ET QUI LE DIT ════════════════════════
+       Un fait sans son auteur n'est pas un fait, c'est une rumeur. Chaque
+       ligne porte donc sa source, sa page et la NATURE de cette source —
+       trois des quatre documents sont publiés par des fournisseurs
+       d'infrastructure, dont les mesures sont utiles et l'intérêt n'est pas
+       neutre. Les afficher au même rang qu'une analyse indépendante
+       tromperait, et un dossier bâti là-dessus se ferait démonter. -->
+  <section class="wrap rc-sec" id="dc-sec-art" aria-labelledby="dc-art-t">
+    <div class="rc-etape"><span class="n">◆</span>
+      <h2 id="dc-art-t">L'état de l'art — et qui le dit</h2></div>
+    <p class="lead" style="max-width:74ch;margin-top:0">
+      Le moteur calcule à partir de constantes normatives. Il ne dit rien du
+      marché : ni la densité que prennent les baies d'IA, ni la part que le
+      refroidissement occupe dans une facture, ni les moratoires qui ferment des
+      territoires entiers à la construction. Ces faits décident pourtant d'un
+      projet <b>avant</b> tout calcul — et ils ne se déduisent d'aucune formule.
+      Ils se citent.</p>
+    <div id="dc-art"><p class="note">Chargement de l’état de l’art…</p></div>
+  </section>
+
   <section class="wrap rc-sec">
     <div class="rc-etape"><span class="n">1</span><h2>Le profil de l'installation</h2></div>
     <p class="lead" style="max-width:72ch;margin-top:0">
@@ -786,6 +837,64 @@
         /* Le cadre est un COMPLÉMENT : son absence ne doit pas laisser croire
            que la page est cassée, ni faire disparaître le calcul qui suit. */
         z.innerHTML = '<p class="note">Le cadre n’a pas pu être chargé. '
+          + 'Le calcul ci-dessous fonctionne indépendamment.</p>';
+      });
+  })();
+  </script>
+
+  <!-- ═══ L'ÉTAT DE L'ART ═════════════════════════════════════════════════
+       Chaque fait sort du serveur avec son auteur, sa page et la nature de
+       cette source. Recopier ces chiffres dans le HTML les aurait détachés de
+       leur provenance dès la première retouche — et un chiffre orphelin de sa
+       source est précisément ce qu'un évaluateur conteste en premier. -->
+  <script>
+  (function(){
+    var z = document.getElementById('dc-art');
+    if(!z) return;
+    function esc(t){ var d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; }
+    fetch('/api/datacenter/etat-art', { credentials: 'same-origin' })
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if(!j || !j.ok || !j.etat) throw new Error('etat');
+        var e = j.etat;
+        var h = '<p class="dc-art-av">' + esc(e.avertissement) + '</p>';
+        h += e.groupes.map(function(g){
+          return '<div class="dc-art-g"><h3>' + esc(g.nom) + '</h3>'
+            + g.faits.map(function(f){
+                var s = f.source;
+                return '<article class="dc-fait n-' + esc(s.nature) + '">'
+                  + '<p class="dc-fait-e">' + esc(f.enonce) + '</p>'
+                  /* La RÉSERVE juste sous l'énoncé, jamais en note de bas de
+                     page : une nuance qu'il faut aller chercher n'est pas lue. */
+                  + (f.reserve ? '<p class="dc-fait-r">' + esc(f.reserve) + '</p>' : '')
+                  + '<p class="dc-fait-s"><b>' + esc(s.editeur) + '</b>, '
+                  + esc(s.date) + ' · p. ' + s.page
+                  + ' <span class="dc-nat n-' + esc(s.nature) + '">'
+                  + esc(s.nature_nom) + '</span>'
+                  + (f.touche ? ' <span class="dc-touche">agit sur : '
+                      + esc(f.touche) + '</span>' : '')
+                  + '</p></article>';
+              }).join('')
+            + '</div>';
+        }).join('');
+        /* CE QUE CES SOURCES NE DISENT PAS. Une bibliographie qui ne liste que
+           ses apports laisse supposer qu'elle couvre le reste. */
+        h += '<div class="dc-art-l"><b>Ce que ces quatre sources ne disent pas.</b><ul>'
+          + e.lacunes.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('')
+          + '</ul></div>';
+        h += '<div class="dc-art-b"><b>Les quatre documents</b><ul>'
+          + Object.keys(e.sources).map(function(k){
+              var s = e.sources[k];
+              return '<li><b>' + esc(s.editeur) + '</b> — <i>' + esc(s.titre) + '</i>, '
+                + esc(s.date) + '. <span class="dc-nat n-' + esc(s.nature) + '">'
+                + esc(e.natures[s.nature].nom) + '</span> '
+                + esc(e.natures[s.nature].poids) + ' ' + esc(s.note) + '</li>';
+            }).join('')
+          + '</ul></div>';
+        z.innerHTML = h;
+      })
+      .catch(function(){
+        z.innerHTML = '<p class="note">L’état de l’art n’a pas pu être chargé. '
           + 'Le calcul ci-dessous fonctionne indépendamment.</p>';
       });
   })();

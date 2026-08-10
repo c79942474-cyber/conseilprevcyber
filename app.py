@@ -1866,6 +1866,7 @@ def api_playbook_export():
 
 import datacenter    # noqa: E402
 import durabilite    # noqa: E402  — le cadre vert, adosse aux trois sous-dossiers de la base
+import etat_art      # noqa: E402  — les faits publies, chacun avec son auteur et ce qu'il vaut
 import profil_dc     # noqa: E402  — analyse le moteur ci-dessus, ne le double pas
 import ingenierie_dc  # noqa: E402  — situe ses résultats dans la séquence projet
 # Le nettoyage des extraits et des titres de sources. Nommé « extraits_mod » :
@@ -1998,6 +1999,24 @@ def api_datacenter_durabilite():
         app.logger.exception("cadre de durabilite")
         return jsonify(ok=False, error="cadre_indisponible",
                        message="Le cadre n'a pas pu etre etabli."), 503
+
+
+@app.route("/api/datacenter/etat-art")
+def api_datacenter_etat_art():
+    """L'etat de l'art : les faits publies, groupes, chacun avec son auteur, sa
+    page et LA NATURE de cette source.
+
+    OUVERT. Trois des quatre documents sont publies par des fournisseurs
+    d'infrastructure : leurs mesures sont utiles, leur interet n'est pas neutre,
+    et chaque ligne servie le dit. Aucun de ces chiffres n'entre dans le calcul —
+    le moteur tient ses constantes de normes, pas de livres blancs.
+    """
+    try:
+        return jsonify(ok=True, etat=etat_art.etat())
+    except Exception:
+        app.logger.exception("etat de l'art datacenter")
+        return jsonify(ok=False, error="etat_indisponible",
+                       message="L'etat de l'art n'a pas pu etre etabli."), 503
 
 
 @app.route("/api/datacenter/profil", methods=["POST"])

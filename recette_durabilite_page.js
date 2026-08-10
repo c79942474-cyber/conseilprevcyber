@@ -1,0 +1,228 @@
+/* Data Center Sustainability & Decarbonisation — la page ouverte, vue par un
+ * visiteur qui n'a pas de compte.
+ *
+ * CE QUI A CHANGÉ. La page portait un moteur de calcul, un titre de méthode, et
+ * une porte fermée. Elle porte désormais le SUJET dans son titre, le cadre de
+ * développement durable adossé aux trois sous-dossiers « Green Management » de
+ * la base, l'état de l'art des quatre documents versés — et elle s'ouvre sans
+ * compte.
+ *
+ * POURQUOI UNE RECETTE NAVIGATEUR EN PLUS DES TESTS PYTHON. Les tests Python
+ * prouvent que l'API sert les bonnes données et que le gabarit contient les
+ * bonnes balises. Ils ne prouvent RIEN sur ce que voit le lecteur : entre le
+ * JSON et l'écran il y a un script de rendu, et c'est exactement là que les
+ * étiquettes de source se perdent. Un état de l'art dont les natures ne
+ * s'affichent plus présente un argumentaire commercial au même rang qu'une
+ * analyse indépendante — sans erreur, sans trace, et le JSON reste parfait.
+ *
+ * CE QU'ON PROTÈGE, DANS L'ORDRE D'IMPORTANCE :
+ *
+ *   1. LA HIÉRARCHIE DES SOURCES EST VISIBLE À L'ÉCRAN. Chaque fait montre son
+ *      éditeur, sa page et la NATURE de sa source ; les trois documents de
+ *      fournisseur sont visuellement distingués de l'analyse indépendante ; les
+ *      réserves sont affichées sous les énoncés qu'elles tempèrent.
+ *   2. LA PAGE S'OUVRE VRAIMENT SANS COMPTE — c'était la demande.
+ *   3. LES DEUX TITRES COEXISTENT : le nouveau dit le sujet, l'ancien la
+ *      méthode. Le second n'est pas décoratif, c'est ce qui distingue la page
+ *      d'une plaquette verte.
+ *   4. AUCUNE PROMESSE CREUSE : les grandeurs annoncées par le cadre sont celles
+ *      que le moteur produit, et chaque axe dit aussi ce qu'il ne calcule pas.
+ *
+ * ON MESURE AU REPOS et sur des états atteints, jamais sur un rendu en cours :
+ * on attend que les deux sections soient peuplées avant de lire quoi que ce
+ * soit.
+ *
+ * POUR L'EXÉCUTER — aucune session n'est nécessaire, et c'est le sujet :
+ *     BASE=http://127.0.0.1:5404 node recette_durabilite_page.js
+ */
+const { chromium } = require('/opt/node22/lib/node_modules/playwright');
+const BASE = process.env.BASE || 'http://127.0.0.1:5404';
+let ko = 0;
+const ok = (n, c, d) => { console.log('  ' + (c ? 'OK ' : 'KO ') + '  ' + n + (d ? ' — ' + d : '')); if (!c) ko++; };
+const titre = (t) => console.log('\n══ ' + t + ' ══\n');
+
+(async () => {
+  const nav = await chromium.launch();
+  /* Contexte NEUF et anonyme : réutiliser une session prouverait le contraire
+     de ce qu'on veut prouver. */
+  const ctx = await nav.newContext({ viewport: { width: 1400, height: 950 } });
+  await ctx.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
+    Object.defineProperty(navigator, 'languages', { get: () => ['fr-FR', 'fr'] });
+  });
+  const pg = await ctx.newPage();
+  const err = [];
+  pg.on('pageerror', e => err.push(String(e)));
+
+  titre('1. La page s’ouvre sans compte');
+
+  const rep = await pg.goto(BASE + '/datacenter', { waitUntil: 'networkidle' });
+  ok('la page répond', rep && rep.status() === 200,
+     rep ? 'HTTP ' + rep.status() : 'pas de réponse');
+  if (!rep || rep.status() !== 200) { await nav.close(); process.exit(2); }
+  ok('…et ne renvoie pas vers la connexion', !/\/connexion/.test(pg.url()), pg.url());
+
+  /* Les cookies : un contexte neuf n'en a aucun d'authentification. On le dit
+     explicitement — sans cela, la recette pourrait passer sur une instance où
+     le gardien aurait été retiré ET où une session traînerait. */
+  const ck = await ctx.cookies();
+  ok('…sans le moindre cookie de session', !ck.some(c => c.name === 'cpc_session'),
+     ck.map(c => c.name).join(', ') || 'aucun cookie');
+
+  titre('2. Les deux titres, et pourquoi les deux');
+
+  const t = await pg.evaluate(() => {
+    const h1 = document.querySelector('h1');
+    const s = document.querySelector('h1 + .dc-sous, .dc-sous');
+    return { h1: h1 ? h1.textContent.replace(/\s+/g, ' ').trim() : null,
+             sous: s ? s.textContent.replace(/\s+/g, ' ').trim() : null,
+             doc: document.title };
+  });
+  ok('le titre dit le SUJET', /Data Center Sustainability & Decarbonisation/.test(t.h1 || ''), t.h1);
+  ok('…et l’onglet aussi', /Sustainability/.test(t.doc), t.doc);
+  ok('le sous-titre garde la MÉTHODE', /Énergie, eau et carbone — calculés ensemble/.test(t.sous || ''), t.sous);
+
+  titre('3. Le cadre — Green Management');
+
+  await pg.waitForFunction(() => document.querySelectorAll('#dc-vert .dc-ax').length > 0,
+                           null, { timeout: 20000 });
+  const vert = await pg.evaluate(() => {
+    const ax = [...document.querySelectorAll('#dc-vert .dc-ax')];
+    return {
+      n: ax.length,
+      questions: ax.map(a => { const q = a.querySelector('.dc-ax-q'); return q ? q.textContent.trim() : ''; }),
+      /* « ce qui n'est pas calculé » : le bloc qui empêche le cadre d'être une
+         plaquette. On compte les axes qui le portent, pas les caractères. */
+      avecNon: ax.filter(a => a.querySelector('.dc-ax-non')).length,
+      avecSrc: ax.filter(a => a.querySelector('.dc-ax-src')).length,
+      /* Les grandeurs calculées sont listées sous un intitulé, pas sous une
+         classe propre : on retient le bloc PAR SON TITRE. Compter tous les
+         « li » d'un axe mélangerait textes applicables et grandeurs, et le
+         contrôle passerait alors même si la liste des grandeurs disparaissait. */
+      grandeurs: ax.map(a => {
+        const b = [...a.querySelectorAll('.dc-ax-b')].find(
+          x => /cette page calcule/i.test((x.querySelector('b') || {}).textContent || ''));
+        return b ? b.querySelectorAll('li').length : 0;
+      }),
+      textes: ax.map(a => {
+        const b = [...a.querySelectorAll('.dc-ax-b')].find(
+          x => /textes applicables/i.test((x.querySelector('b') || {}).textContent || ''));
+        return b ? b.querySelectorAll('li').length : 0;
+      }),
+    };
+  });
+  ok('les trois axes sont dessinés', vert.n === 3, vert.n + ' axe(s)');
+  ok('…chacun pose sa question', vert.questions.every(q => q.length > 10), vert.questions.join(' | ').slice(0, 110));
+  ok('…chacun dit ce qu’il NE calcule PAS', vert.avecNon === 3, vert.avecNon + '/3');
+  ok('…chacun cite ses textes de référence', vert.avecSrc === 3, vert.avecSrc + '/3');
+  ok('…avec au moins un texte nommé par axe', vert.textes.every(n => n > 0), vert.textes.join(' / '));
+  ok('…et chacun nomme les grandeurs qu’il fait calculer',
+     vert.grandeurs.every(n => n > 0), vert.grandeurs.join(' / ') + ' grandeur(s)');
+
+  titre('4. L’état de l’art — et le contrôle qui compte : la NATURE des sources');
+
+  await pg.waitForFunction(() => document.querySelectorAll('#dc-art .dc-fait').length > 0,
+                           null, { timeout: 20000 });
+  const art = await pg.evaluate(() => {
+    const f = [...document.querySelectorAll('#dc-art .dc-fait')];
+    const nat = [...document.querySelectorAll('#dc-art .dc-nat')];
+    return {
+      faits: f.length,
+      groupes: document.querySelectorAll('#dc-art .dc-art-g').length,
+      /* Un fait qui n'expose ni éditeur ni page n'est plus citable. */
+      sansSource: f.filter(x => {
+        const s = x.querySelector('.dc-fait-s');
+        return !s || !/p\.\s*\d/.test(s.textContent);
+      }).length,
+      sansNature: f.filter(x => !x.querySelector('.dc-nat')).length,
+      etiquettes: [...new Set(nat.map(n => n.textContent.trim()))],
+      /* La distinction VISUELLE : les faits de fournisseur ne doivent pas
+         porter la même classe que ceux de l'analyse indépendante. */
+      indep: f.filter(x => x.classList.contains('n-analyse_editeur')).length,
+      fournisseur: f.filter(x => x.classList.contains('n-livre_blanc_fournisseur')
+                              || x.classList.contains('n-guide_fournisseur')).length,
+      reserves: document.querySelectorAll('#dc-art .dc-fait-r').length,
+      touches: document.querySelectorAll('#dc-art .dc-touche').length,
+      avert: (document.querySelector('#dc-art .dc-art-av') || {}).textContent || '',
+      lacunes: document.querySelectorAll('#dc-art .dc-art-l li').length,
+      biblio: document.querySelectorAll('#dc-art .dc-art-b li').length,
+      texte: (document.getElementById('dc-art') || {}).textContent || '',
+    };
+  });
+  ok('les faits sont affichés', art.faits >= 20, art.faits + ' fait(s)');
+  ok('…groupés par famille', art.groupes >= 6, art.groupes + ' groupe(s)');
+  ok('AUCUN fait sans son éditeur et sa page', art.sansSource === 0,
+     art.sansSource + ' fait(s) sans référence');
+  ok('AUCUN fait sans l’étiquette de nature de sa source', art.sansNature === 0,
+     art.sansNature + ' fait(s) sans étiquette');
+  ok('…les trois natures sont nommées en clair', art.etiquettes.length === 3,
+     art.etiquettes.join(' · '));
+  ok('…et l’œil sépare fournisseur et analyse indépendante',
+     art.indep > 0 && art.fournisseur > 0,
+     art.indep + ' indépendant(s) / ' + art.fournisseur + ' fournisseur(s)');
+  ok('les réserves accompagnent les énoncés qu’elles tempèrent', art.reserves >= 8,
+     art.reserves + ' réserve(s)');
+  ok('les renvois vers les paramètres du moteur sont visibles', art.touches >= 12,
+     art.touches + ' renvoi(s)');
+  ok('l’avertissement précède les chiffres', /fournisseur/.test(art.avert)
+     && /n’entre dans le calcul|n'entre dans le calcul/.test(art.avert),
+     art.avert.replace(/\s+/g, ' ').trim().slice(0, 110));
+  ok('les lacunes sont listées', art.lacunes >= 4, art.lacunes + ' lacune(s)');
+  ok('la bibliographie ferme la section', art.biblio === 4, art.biblio + ' source(s)');
+
+  titre('5. La mise au point sur le faux « LCA »');
+
+  /* Deux affirmations distinctes, deux contrôles : la notice du document, et
+     la lacune de toute la bibliographie. Les fondre en un seul laisserait le
+     contrôle vert alors que l'une des deux aurait disparu. */
+  const biblio = await pg.evaluate(() =>
+    [...document.querySelectorAll('#dc-art .dc-art-b li')]
+      .map(l => l.textContent.replace(/\s+/g, ' ').trim()));
+  const honey = biblio.find(l => /Honeywell/.test(l)) || '';
+  ok('la notice du document dit qu’il n’est PAS une ACV',
+     /n['’]est PAS une analyse de cycle de vie/i.test(honey) && /ISO 14040/.test(honey),
+     honey.slice(honey.search(/MISE AU POINT|malgré/i)).slice(0, 130));
+  ok('…et il est classé « guide de sélection de prestataire »',
+     /Guide de sélection de prestataire/.test(honey));
+  const lacunes = await pg.evaluate(() =>
+    [...document.querySelectorAll('#dc-art .dc-art-l li')]
+      .map(l => l.textContent.replace(/\s+/g, ' ').trim()));
+  ok('…et l’absence d’ACV est déclarée pour les QUATRE sources',
+     lacunes.some(l => /ISO 14040/.test(l)),
+     (lacunes.find(l => /ISO 14040/.test(l)) || '').slice(0, 120));
+
+  titre('6. Ce que l’ouverture ne devait PAS ouvrir ni casser');
+
+  const ferme = await ctx.request.post(BASE + '/api/datacenter/ingenierie/dossier', {
+    headers: { 'Origin': BASE, 'Content-Type': 'application/json' }, data: {},
+  });
+  ok('les pièces du cabinet restent fermées', ferme.status() === 401, 'HTTP ' + ferme.status());
+  const kb = await ctx.request.get(BASE + '/admin/base-connaissance', { maxRedirects: 0 });
+  ok('la base documentaire reste réservée', [301, 302, 401, 403].includes(kb.status()),
+     'HTTP ' + kb.status());
+
+  /* Le moteur, lui, doit toujours calculer — ouvrir la page sans cela
+     n'ouvrirait rien d'utile. */
+  await pg.waitForFunction(() => document.querySelector('#dc-form [data-champ="puissance_it_kw"]'),
+                           null, { timeout: 20000 });
+  await pg.fill('#dc-form [data-champ="puissance_it_kw"]', '50000');
+  await pg.click('#dc-lancer');
+  await pg.waitForFunction(() => {
+    const s = document.getElementById('dc-sec-res');
+    return s && !s.hidden && s.textContent.length > 200;
+  }, null, { timeout: 30000 });
+  const res = await pg.evaluate(() => {
+    const s = document.getElementById('dc-sec-res');
+    return { visible: !!s && !s.hidden, txt: (s ? s.textContent : '').replace(/\s+/g, ' ') };
+  });
+  ok('le calcul aboutit pour un visiteur anonyme', res.visible);
+  ok('…et rend bien l’énergie, l’eau et le carbone ensemble',
+     /PUE/.test(res.txt) && /(WUE|eau)/i.test(res.txt) && /(CO2|carbone)/i.test(res.txt));
+
+  ok('aucune erreur de script sur toute la manœuvre', err.length === 0, err.join(' | ').slice(0, 200));
+
+  console.log('\n' + (ko ? ko + ' contrôle(s) en échec' : 'tout est vert') + '\n');
+  await nav.close();
+  process.exit(ko ? 1 : 0);
+})();
