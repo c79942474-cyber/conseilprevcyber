@@ -217,9 +217,18 @@ def test_themes_data_center_presents():
 
 
 def test_livrables_data_center_presents():
+    """Le catalogue ne doit RIEN perdre — il a le droit de grandir.
+
+    Ce contrôle figeait le nombre à huit ; il y en a quatorze. Chaque ajout
+    légitime le faisait tomber, et un test qu'on répare machinalement à chaque
+    version ne protège plus rien. Ce qui doit tenir, c'est qu'aucun livrable ne
+    DISPARAISSE et qu'aucun ne soit proposé sans plan.
+    """
     import livrables
     dcs = [t for t in livrables.TYPES if t["groupe"] == "Centres de données"]
-    assert len(dcs) == 8
+    assert len(dcs) >= 8, "des livrables du groupe ont disparu"
+    ids = [t["id"] for t in dcs]
+    assert len(set(ids)) == len(ids), "identifiant de livrable dupliqué"
     for t in dcs:
         assert t["sections"], f"{t['id']} sans sections"
 

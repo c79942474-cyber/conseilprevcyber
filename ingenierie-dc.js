@@ -479,12 +479,68 @@
         FILIERE = b.getAttribute("data-fil");
         PHASE = null;
         bâtirOnglets();
+        /* `rendreParcours` pose lui-même le message des deux zones : PHASE
+           vient d'être remis à null, il retombera sur le bon. L'écrire aussi
+           ici créerait une seconde source de vérité, et c'est exactement ce
+           qui a produit le défaut d'origine. */
         rendreParcours();
-        $("#ig-dossier").innerHTML = '<p class="note">Choisissez une phase dans la frise ci-dessus.</p>';
         boutons(false);
       });
     });
   }
+
+  /* ── CE QUE LA PAGE DEMANDE DOIT EXISTER À L'ÉCRAN ──────────────────────
+     LE DÉFAUT. Le bloc du dossier affichait « Choisissez une phase dans la
+     frise ci-dessus » — y compris quand la frise n'était pas là. Or elle n'y
+     est PAS tant que la puissance informatique n'est pas saisie, et c'est le
+     seul champ du formulaire à n'avoir aucune valeur par défaut : les douze
+     autres en ont une. Tout visiteur ouvrait donc la page sur une consigne qui
+     désigne un objet absent, et chaque clic sur un onglet de filière la
+     réaffirmait — d'où la lecture, exacte, que « la frise ne s'affiche plus
+     quand on sélectionne ingénierie ou MOE ».
+
+     CE QU'ON NE FAIT PAS. On ne donne pas de puissance par défaut. Une valeur
+     inventée ferait sortir un dossier d'ingénierie complet, chiffré, pour un
+     projet qui n'est pas celui du lecteur — et rien ne le lui dirait. Le champ
+     reste vide ; c'est la CONSIGNE qu'on corrige, pas la donnée.
+
+     CE QU'ON FAIT. Les deux zones lisent le même état, donc ne peuvent plus se
+     contredire ; et le champ qui manque devient atteignable d'un clic, au lieu
+     d'être à chercher parmi treize. */
+  function friseVide() {
+    return !DERNIER || !DERNIER[FILIERE];
+  }
+
+  var CHAMP_CLE = "puissance_it_kw";
+
+  function messageAttente() {
+    if (!friseVide()) return '<p class="note">Choisissez une phase dans la frise ci-dessus.</p>';
+    return '<p class="note">La frise des phases apparaîtra ici dès que la '
+      + "<b>puissance informatique installée</b> sera renseignée : c'est le seul "
+      + "champ nécessaire, les douze autres ont une valeur par défaut. "
+      + '<button type="button" class="ig-vers" data-vers-champ>Aller au champ</button></p>';
+  }
+
+  /* Amener au champ ET le désigner. Un défilement seul laisse le lecteur devant
+     treize champs de même apparence, sans lui dire lequel on visait. */
+  function versChampCle() {
+    var e = document.querySelector('#ig-form [data-champ="' + CHAMP_CLE + '"]');
+    if (!e) return;
+    var l = e.closest(".dc-champ") || e;
+    l.scrollIntoView({ behavior: "smooth", block: "center" });
+    try { e.focus({ preventScroll: true }); } catch (x) { e.focus(); }
+    l.classList.remove("ig-designe");
+    void l.offsetWidth;                 /* redémarre l'animation si on reclique */
+    l.classList.add("ig-designe");
+    setTimeout(function () { l.classList.remove("ig-designe"); }, 2400);
+  }
+
+  /* Délégation unique : les deux zones sont reconstruites à chaque rendu, et
+     rebrancher un écouteur par bouton en laisserait tôt ou tard un sans. */
+  document.addEventListener("click", function (ev) {
+    var b = ev.target && ev.target.closest ? ev.target.closest("[data-vers-champ]") : null;
+    if (b) { ev.preventDefault(); versChampCle(); }
+  });
 
   /* ── La frise ────────────────────────────────────────────────────────── */
   function rendreParcours() {
@@ -495,8 +551,15 @@
     setTimeout(atterrir, 0);
     planifierVague();
     var z = $("#ig-parcours");
-    if (!DERNIER || !DERNIER[FILIERE]) {
-      z.innerHTML = '<p class="note">Renseignez la puissance informatique pour éprouver les phases.</p>';
+    if (friseVide()) {
+      z.innerHTML = '<p class="note">Pour éprouver les phases, il manque la '
+        + "<b>puissance informatique installée</b> — le seul champ nécessaire "
+        + "de ce formulaire. "
+        + '<button type="button" class="ig-vers" data-vers-champ>Aller au champ</button></p>';
+      /* Le bloc du dessous parle de CETTE frise : il doit dire la même chose
+         qu'elle, sans quoi la page se contredit d'une ligne à l'autre. */
+      var d = $("#ig-dossier");
+      if (d) d.innerHTML = messageAttente();
       return;
     }
     var P = DERNIER[FILIERE], stop = P.premier_blocage;
@@ -530,6 +593,15 @@
     });
     h += "</div>";
     z.innerHTML = h;
+    /* Le bloc du dossier suit l'état de la frise, TOUJOURS et depuis un seul
+       endroit. Écrit ailleurs, il restait sur le message d'attente juste après
+       la saisie de la puissance : la frise venait d'apparaître, et la ligne du
+       dessous continuait d'annoncer qu'elle apparaîtrait. Quand une phase est
+       choisie, c'est `chargerDossier` qui remplit — on ne l'écrase pas. */
+    if (!PHASE) {
+      var d2 = $("#ig-dossier");
+      if (d2) d2.innerHTML = messageAttente();
+    }
     z.querySelectorAll("[data-phase]").forEach(function (b) {
       b.addEventListener("click", function () {
         PHASE = b.getAttribute("data-phase");
@@ -2082,8 +2154,11 @@
       var p = lireProfil();
       if (!p.puissance_it_kw) {
         DERNIER = null;
+        /* C'est ICI que le message était le plus faux : on venait d'effacer la
+           frise faute de puissance, et la ligne suivante invitait à y choisir
+           une phase. `rendreParcours` pose désormais lui-même le message des
+           deux zones. */
         rendreParcours();
-        $("#ig-dossier").innerHTML = '<p class="note">Choisissez une phase dans la frise ci-dessus.</p>';
         boutons(false);
         return;
       }
