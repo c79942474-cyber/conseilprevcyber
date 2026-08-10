@@ -167,7 +167,16 @@ _RATE_EXACT = {
     "/api/datacenter/piece/export":      (30, 60),
     "/api/datacenter/ingenierie/export": (30, 60),
 }
-_RATE_FAMILY = (("/api/auth/", 80, 60), ("/api/admin/", 600, 60))
+_RATE_FAMILY = (("/api/auth/", 80, 60), ("/api/admin/", 600, 60),
+                # Le calcul de durabilite est desormais OUVERT, sans compte. Il
+                # ne coute ni modele de langage ni ecriture, mais il coute du
+                # temps processeur : une etude enchaine energie, eau, carbone,
+                # chaleur, conformite et leviers. Ouvrir une surface de calcul
+                # sans plafond revient a offrir un amplificateur a qui veut
+                # saturer le service. Le plafond est large pour l'usage reel —
+                # personne ne relance une etude cent fois par minute a la main —
+                # et il ne genera qu'une boucle automatique.
+                ("/api/datacenter/", 120, 60))
 
 # Points protégés par jeton (server-to-server) : exemptés du contrôle d'origine
 # CSRF, car authentifiés par un secret d'en-tête (X-Ingest-Token) et non par un
@@ -282,7 +291,8 @@ def _rate_limit():
     vectorielle (index-next), pilotée par le client en boucle serrée mais bornée
     et réservée à l'admin, est exemptée pour ne pas casser un gros chargement."""
     p = request.path
-    if not (p.startswith("/api/auth/") or p.startswith("/api/admin/")):
+    if not (p.startswith("/api/auth/") or p.startswith("/api/admin/")
+            or p.startswith("/api/datacenter/")):
         return
     ip = client_ip()
     rule = _RATE_EXACT.get(p)
@@ -1855,6 +1865,7 @@ def api_playbook_export():
 # ══════════════════════════════════════════════════════════════════════════
 
 import datacenter    # noqa: E402
+import durabilite    # noqa: E402  — le cadre vert, adosse aux trois sous-dossiers de la base
 import profil_dc     # noqa: E402  — analyse le moteur ci-dessus, ne le double pas
 import ingenierie_dc  # noqa: E402  — situe ses résultats dans la séquence projet
 # Le nettoyage des extraits et des titres de sources. Nommé « extraits_mod » :
@@ -1864,9 +1875,21 @@ import extraits as extraits_mod  # noqa: E402
 
 
 @app.route("/datacenter")
-@login_required
 def datacenter_page():
-    """Études d'ingénierie de centres de données (comptes connectés)."""
+    """Data Center Sustainability & Decarbonisation — page OUVERTE.
+
+    CE QUI EST OUVERT, ET POURQUOI. Le cadre, la methode et le calcul. Le moteur
+    est deterministe, sans modele de langage, sans ecriture : deux executions
+    identiques donnent le meme resultat. Rien de ce qu'il produit n'appartient a
+    un client. Le garder derriere un compte revenait a demander de creer un
+    compte pour verifier une formule — et rendait invisible aux moteurs de
+    recherche le seul contenu du site que personne d'autre ne publie.
+
+    CE QUI RESTE FERME, ET POURQUOI. Les pieces : la base documentaire du
+    cabinet, les livrables rediges, le suivi de projet, les exports. Ce sont les
+    documents de travail du cabinet et de ses clients ; les publier reviendrait
+    a publier le travail des seconds.
+    """
     return _page(PAGES["/datacenter"])
 
 
@@ -1878,7 +1901,6 @@ def ingenierie_datacenter_page():
 
 
 @app.route("/api/datacenter/referentiel")
-@login_required
 def api_datacenter_referentiel():
     """Vocabulaire, constantes et cadre réglementaire.
 
@@ -1935,7 +1957,6 @@ def _profil_datacenter(data):
 
 
 @app.route("/api/datacenter/etude", methods=["POST"])
-@login_required
 def api_datacenter_etude():
     """L'étude complète. Déterministe : deux appels identiques, même résultat."""
     data = request.get_json(silent=True) or {}
@@ -1960,6 +1981,23 @@ def api_datacenter_etude():
                                 res["energie"]["pue"]["valeur"],
                                 res["eau"]["wue_site"]["valeur"]))
     return jsonify(ok=True, etude=res)
+
+
+@app.route("/api/datacenter/durabilite")
+def api_datacenter_durabilite():
+    """Le cadre de durabilite : trois axes, leurs textes, ce qu'on en calcule.
+
+    OUVERT, comme le calcul qu'il encadre. Il ne sert AUCUN document : les
+    pieces de la base documentaire restent reservees aux comptes connectes. Ce
+    qui sort ici, c'est le cadre et la methode — de quoi juger l'outil sans
+    avoir a s'inscrire pour le decouvrir.
+    """
+    try:
+        return jsonify(ok=True, cadre=durabilite.cadre())
+    except Exception:
+        app.logger.exception("cadre de durabilite")
+        return jsonify(ok=False, error="cadre_indisponible",
+                       message="Le cadre n'a pas pu etre etabli."), 503
 
 
 @app.route("/api/datacenter/profil", methods=["POST"])
@@ -1987,7 +2025,6 @@ def api_datacenter_profil():
 
 
 @app.route("/api/datacenter/comparer", methods=["POST"])
-@login_required
 def api_datacenter_comparer():
     """La même installation, toutes familles de refroidissement confondues.
 

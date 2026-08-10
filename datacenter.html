@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ingénierie de centres de données bas carbone — énergie, eau, carbone — CONSEILPREV Cyber</title>
+<title>Data Center Sustainability &amp; Decarbonisation — énergie, eau et carbone calculés ensemble — CONSEILPREV Cyber</title>
 <meta name="description" content="Études d'ingénierie de centres de données bas carbone : PUE, WUE de site et de source, CUE, ERE, carbone incorporé. Calculs déterministes et traçables, arbitrage eau/énergie/carbone explicite, réponses à appels d'offres.">
-<meta name="robots" content="noindex, follow">
+<meta name="robots" content="index, follow">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="CONSEILPREV Cyber">
 <meta property="og:locale" content="fr_FR">
-<meta property="og:title" content="Ingénierie de centres de données bas carbone — CONSEILPREV Cyber">
+<meta property="og:title" content="Data Center Sustainability &amp; Decarbonisation — CONSEILPREV Cyber">
 <meta property="og:description" content="Énergie, eau et carbone calculés ensemble. Chaque valeur porte sa formule, sa source normative et son incertitude.">
 <meta property="og:url" content="https://conseilprevcyber.onrender.com/datacenter">
 <meta property="og:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
@@ -63,6 +63,34 @@
   .dc-suite-b:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
   .dc-suite-n{flex:1 1 100%;margin:2px 0 0;font-size:11.5px;color:var(--muted2);
     line-height:1.6}
+
+  /* ── Le cadre Green Management ────────────────────────────────────────
+     Trois colonnes à égalité : les trois questions se posent ensemble, et
+     hiérarchiser « qu'est-ce qu'on vise » au-dessus de « qui l'atteste »
+     suggérerait un ordre de travail qui n'existe pas. */
+  .dc-vert-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px}
+  .dc-ax{border:1px solid var(--line);border-left:3px solid #27c39a;border-radius:12px;
+    padding:15px 17px;background:rgba(39,195,154,.045)}
+  .dc-ax h3{font-size:15.5px;margin:0 0 4px}
+  .dc-ax-q{font-family:var(--mono);font-size:11.5px;color:#27c39a;margin:0 0 9px;
+    letter-spacing:.02em}
+  .dc-ax-p{font-size:13px;line-height:1.65;margin:0 0 12px;color:var(--ink)}
+  .dc-ax-b{margin:0 0 11px}
+  .dc-ax-b>b{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted2)}
+  .dc-ax-b ul{margin:5px 0 0;padding-left:17px}
+  .dc-ax-b li{font-size:12.5px;line-height:1.55;margin-bottom:5px;color:var(--muted)}
+  .dc-ax-b li b{color:var(--ink)}
+  /* Ce qui n'est PAS calculé, à égalité typographique avec ce qui l'est. */
+  .dc-ax-non{font-size:12.5px;line-height:1.6;margin:0 0 10px;padding:9px 12px;
+    border-radius:8px;background:rgba(255,255,255,.05);color:var(--muted)}
+  .dc-ax-non b{color:var(--ink)}
+  .dc-ax-src{font-size:11px;line-height:1.5;margin:0;color:var(--muted2)}
+  .dc-ax-src code{font-family:var(--mono);font-size:10.5px;background:rgba(0,0,0,.22);
+    padding:1px 5px;border-radius:4px;color:var(--ink)}
+  .dc-vert-o{font-size:13px;line-height:1.7;margin:14px 0 0;padding:12px 15px;
+    border-radius:10px;border-left:3px solid var(--cyan);background:rgba(34,211,238,.07)}
+  .dc-vert-a{margin-top:10px}
+  .dc-sous{color:var(--cyan)}
 
   .rc-sec{padding:26px 0}
   .rc-etape{display:flex;align-items:center;gap:11px;margin-bottom:14px}
@@ -441,9 +469,15 @@
 <main id="main">
 
   <section class="wrap" style="padding:44px 0 8px">
-    <div class="kick">Ingénierie — centres de données bas carbone</div>
-    <h1 style="font-size:34px;line-height:1.18;margin:10px 0 14px;max-width:20ch">
-      Énergie, eau et carbone — calculés ensemble</h1>
+    <div class="kick">Engineering &amp; design — développement durable des centres de données</div>
+    <h1 style="font-size:34px;line-height:1.18;margin:10px 0 6px;max-width:24ch">
+      Data Center Sustainability &amp; Decarbonisation</h1>
+    <!-- L'ancien titre devient le sous-titre : c'est la promesse technique de
+         la page, et c'est ce qui la distingue. Le nouveau dit le SUJET, le
+         sous-titre dit la MÉTHODE — les perdre l'un ou l'autre ferait une page
+         soit vague, soit illisible pour qui ne connaît pas encore l'outil. -->
+    <p class="dc-sous" style="font-size:19px;line-height:1.35;margin:0 0 14px;
+       font-weight:600;max-width:34ch">Énergie, eau et carbone — calculés ensemble</p>
     <p class="lead" style="max-width:70ch">
       Les trois grandeurs qui décident aujourd'hui d'un appel d'offres sont couplées, et
       c'est là toute la difficulté. Baisser le PUE par un refroidissement évaporatif
@@ -479,6 +513,25 @@
       verser à chaque étape — ESQ, APS, APD, PRO, DCE d'un côté, faisabilité, BASIC, FEED,
       EPCI de l'autre — et ce qu'il faut avoir remplacé,
       voir <a href="/ingenierie-datacenter">l'ingénierie de projet</a>.</p>
+  </section>
+
+  <!-- ═══ LE CADRE, AVANT LE CALCUL ═══════════════════════════════════════
+       Un moteur répond à « combien ». Il ne répond jamais à « qu'est-ce qu'on
+       vise, comment le prouve-t-on, et qui l'atteste » — les trois questions
+       qui font une démarche de développement durable, et les trois
+       sous-dossiers que la base documentaire range sous Green Management. Le
+       cadre vient donc AVANT le formulaire : calculer sans savoir ce qu'on
+       vise produit un chiffre juste et sans emploi. -->
+  <section class="wrap rc-sec" id="dc-sec-vert" aria-labelledby="dc-vert-t">
+    <div class="rc-etape"><span class="n">◆</span>
+      <h2 id="dc-vert-t">Le cadre — Green Management</h2></div>
+    <p class="lead" style="max-width:74ch;margin-top:0">
+      Trois questions, dans cet ordre, et aucune n'est technique au départ.
+      <b>Ce qu'on vise</b> et à quelle date. <b>Comment on le prouve</b>, avec quels
+      indicateurs normalisés et quelle incertitude. <b>Qui l'atteste</b>, et devant
+      qui cela tient. Le calcul de cette page sert la deuxième ; les deux autres
+      décident de ce qu'on lui demande.</p>
+    <div id="dc-vert" class="dc-vert"><p class="note">Chargement du cadre…</p></div>
   </section>
 
   <section class="wrap rc-sec">
@@ -683,6 +736,60 @@
   </div>
 </footer>
   <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+
+  <!-- ═══ LE CADRE VERT ══════════════════════════════════════════════════
+       Les trois axes viennent du SERVEUR, jamais du HTML. Recopiés ici, ils
+       auraient divergé du module dès le premier ajout de texte réglementaire —
+       et une page qui cite un règlement de mémoire est pire qu'une page qui
+       n'en cite aucun. Le module, lui, vérifie au chargement que ses trois
+       thèmes existent encore dans la base documentaire.
+
+       Le renvoi vers la base est un lien CONDITIONNEL : la base est réservée
+       aux comptes connectés, et promettre un document à qui ne peut pas
+       l'ouvrir est le défaut qu'on vient de corriger deux fois ailleurs. Le
+       lecteur anonyme lit donc le cadre, et sait ce qui demande un compte. -->
+  <script>
+  (function(){
+    var z = document.getElementById('dc-vert');
+    if(!z) return;
+    function esc(t){ var d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; }
+    fetch('/api/datacenter/durabilite', { credentials: 'same-origin' })
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if(!j || !j.ok || !j.cadre) throw new Error('cadre');
+        var c = j.cadre;
+        z.innerHTML = '<div class="dc-vert-g">' + c.axes.map(function(a){
+          return '<article class="dc-ax">'
+            + '<h3>' + esc(a.titre) + '</h3>'
+            + '<p class="dc-ax-q">' + esc(a.question) + '</p>'
+            + '<p class="dc-ax-p">' + esc(a.pourquoi) + '</p>'
+            + '<div class="dc-ax-b"><b>Textes applicables</b><ul>'
+            + a.textes.map(function(t){
+                return '<li><b>' + esc(t.nom) + '</b> — ' + esc(t.porte) + '</li>'; }).join('')
+            + '</ul></div>'
+            + '<div class="dc-ax-b"><b>Ce que cette page calcule</b><ul>'
+            + a.calcule.map(function(x){
+                return '<li>' + esc(x.quoi) + '</li>'; }).join('')
+            + '</ul></div>'
+            /* CE QUI N'EST PAS CALCULÉ, à égalité typographique avec ce qui
+               l'est. Un cadre qui ne dit que ses forces est une plaquette. */
+            + '<p class="dc-ax-non"><b>Ce que cette page ne calcule pas.</b> '
+            + esc(a.non_calcule) + '</p>'
+            + '<p class="dc-ax-src">Base documentaire : <code>' + esc(a.theme)
+            + '</code> <span class="dc-ax-cpt">— accessible aux comptes connectés</span></p>'
+            + '</article>';
+        }).join('') + '</div>'
+        + '<p class="dc-vert-o">' + esc(c.ouvert) + '</p>'
+        + '<p class="note dc-vert-a">' + esc(c.avertissement) + '</p>';
+      })
+      .catch(function(){
+        /* Le cadre est un COMPLÉMENT : son absence ne doit pas laisser croire
+           que la page est cassée, ni faire disparaître le calcul qui suit. */
+        z.innerHTML = '<p class="note">Le cadre n’a pas pu être chargé. '
+          + 'Le calcul ci-dessous fonctionne indépendamment.</p>';
+      });
+  })();
+  </script>
   
   <script src="/nav.js" defer></script>
   <script src="/parcours.js" defer></script>
