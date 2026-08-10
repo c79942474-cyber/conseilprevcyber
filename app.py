@@ -660,7 +660,6 @@ PAGES = {
     "/relecture-contrat": "relecture-contrat.html",
     "/datacenter": "datacenter.html",
     "/ingenierie-datacenter": "ingenierie-datacenter.html",
-    "/decarbonation-datacenter": "decarbonation-datacenter.html",
     "/strategie-durable-datacenter": "strategie-durable-datacenter.html",
 }
 
@@ -1907,16 +1906,18 @@ def ingenierie_datacenter_page():
 
 @app.route("/decarbonation-datacenter")
 def decarbonation_datacenter_page():
-    """Le meme calcul, replace dans la demarche de durabilite : compter et
-    declarer d'un cote, reduire de l'autre, et la hierarchie d'attenuation dans
-    son ordre.
+    """FUSIONNEE dans /datacenter — redirection permanente.
 
-    OUVERT, comme la page Sustainability dont il est la plateforme. Le calcul
-    est deterministe, sans modele de langage, sans ecriture, et rien de ce
-    qu'il produit n'appartient a un client. Les pieces du cabinet, elles,
-    restent fermees.
+    La decarbonation avait sa page ; celle-ci refaisait le meme formulaire,
+    lisait le meme profil et renvoyait vers les memes voisines. Deux pages qui
+    partagent leur sujet finissent par se contredire : l'une est mise a jour,
+    l'autre non, et le lecteur ne sait plus laquelle fait foi.
+
+    L'adresse est conservee en 301 plutot que supprimee : elle a figure dans un
+    sitemap et dans des echanges, et une adresse publiee qui repond 404 fait
+    perdre le lecteur au lieu de le deplacer.
     """
-    return _page(PAGES["/decarbonation-datacenter"])
+    return redirect("/datacenter#dc-sec-deca", code=301)
 
 
 @app.route("/strategie-durable-datacenter")

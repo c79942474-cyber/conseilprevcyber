@@ -37,6 +37,7 @@ CE QUE CES TESTS PROTÈGENT, ET LE PREMIER POINT EST TOUT LE SUJET :
      ne s'ouvrent pas — on vérifie les deux sens.
 """
 import os
+import re
 import sys
 
 import pytest
@@ -378,8 +379,25 @@ def test_les_champs_exiges_existent_dans_le_moteur():
 # ── 7. La frontière ouvert / fermé ─────────────────────────────────────────
 
 def test_la_page_est_ouverte_sans_compte(client):
-    r = client.get("/decarbonation-datacenter")
+    r = client.get("/datacenter")
     assert r.status_code == 200, r.status_code
+
+
+def test_l_ancienne_adresse_redirige_au_lieu_de_disparaitre():
+    """La décarbonation avait sa page ; elle a fusionné. L'adresse a figuré
+    dans un sitemap et dans des échanges — la supprimer sèchement ferait perdre
+    le lecteur au lieu de le déplacer."""
+    r = A.app.test_client().get("/decarbonation-datacenter")
+    assert r.status_code == 301, r.status_code
+    assert r.headers["Location"].startswith("/datacenter#")
+
+
+def test_l_ancienne_adresse_ne_figure_plus_au_sitemap(client):
+    """Une redirection permanente n'a rien à faire dans un sitemap : on y
+    déclare des pages, pas des renvois."""
+    x = client.get("/sitemap.xml").get_data(as_text=True)
+    assert "/decarbonation-datacenter" not in x
+    assert "/datacenter<" in x or "/datacenter</loc>" in x
 
 
 def test_le_referentiel_est_ouvert(client):
@@ -436,27 +454,86 @@ def _lire(nom):
         return f.read()
 
 
-def test_la_page_porte_les_quatre_sections_de_la_plateforme():
-    h = _lire("decarbonation-datacenter.html")
-    for cible in ('id="dk-form"', 'id="dk-voies"', 'id="dk-parcours"',
-                  'id="dk-dossier"', 'id="dk-hierarchie"', 'id="dk-textes"'):
+def test_la_page_fusionnee_porte_les_sections_de_la_plateforme():
+    h = _lire("datacenter.html")
+    for cible in ('id="dk-voies"', 'id="dk-parcours"', 'id="dk-dossier"',
+                  'id="dk-hierarchie"', 'id="dk-textes"'):
         assert cible in h, cible
 
 
-def test_la_page_sustainability_conduit_a_la_plateforme():
-    """Une plateforme qu'on n'atteint pas depuis la page dont elle dépend
-    n'existe que pour qui connaît son adresse."""
-    assert 'href="/decarbonation-datacenter"' in _lire("datacenter.html")
+def test_un_seul_formulaire_de_profil_sur_la_page():
+    """LE contrôle de la fusion. Les deux pages construisaient chacune le même
+    formulaire depuis le même référentiel : le visiteur saisissait deux fois la
+    même puissance, et les deux copies divergeaient dès la première frappe."""
+    with open(os.path.join(ICI, "decarbonation-dc.js"), encoding="utf-8") as f:
+        js = f.read()
+    assert "dk-form" not in js, "la décarbonation rebâtit un second formulaire"
+    assert '#dc-form [data-champ]' in js
+    h = _lire("datacenter.html")
+    assert h.count('id="dc-form"') == 1
 
 
-def test_la_plateforme_est_indexable():
-    h = _lire("decarbonation-datacenter.html")
+def test_aucun_lien_ne_pointe_vers_la_page_disparue():
+    """Un lien vers une page fusionnée renvoie le lecteur à un endroit qu'il
+    vient de quitter."""
+    for nom in ("datacenter.html", "strategie-durable-datacenter.html", "nav.js"):
+        with open(os.path.join(ICI, nom), encoding="utf-8") as f:
+            assert "/decarbonation-datacenter" not in f.read(), nom
+
+
+def test_le_menu_ne_porte_qu_une_entree_pour_les_deux():
+    with open(os.path.join(ICI, "nav.js"), encoding="utf-8") as f:
+        nav = f.read()
+    assert nav.count('"/datacenter"') == 2, "entrée + description attendues"
+    assert "decarbonation-datacenter" not in nav
+
+
+def test_la_page_fusionnee_est_indexable():
+    h = _lire("datacenter.html")
     assert 'content="index, follow"' in h
     assert "noindex" not in h
+
+
+def test_le_sommaire_ne_porte_aucune_ancre_morte():
+    """La fusion a produit une page longue, d'où le sommaire. Une ancre qui ne
+    mène nulle part est pire qu'une ancre absente : elle promet un chapitre et
+    laisse le lecteur en haut de page sans rien dire."""
+    h = _lire("datacenter.html")
+    somm = h[h.index('class="dc-somm"'):h.index("</nav>", h.index('class="dc-somm"'))]
+    ancres = re.findall(r'href="#([^"]+)"', somm)
+    assert len(ancres) >= 8, ancres
+    for a in ancres:
+        assert 'id="%s"' % a in h, a
+
+
+def test_le_sommaire_ne_renvoie_pas_aux_sections_masquees():
+    """Résultats et comparaison n'existent qu'après un calcul. Les mettre au
+    sommaire donnerait deux liens qui ne font rien tant qu'on n'a rien lancé."""
+    h = _lire("datacenter.html")
+    somm = h[h.index('class="dc-somm"'):h.index("</nav>", h.index('class="dc-somm"'))]
+    for masquee in ("dc-sec-res", "dc-sec-comp"):
+        assert masquee not in somm, masquee
+    # …mais leur absence est EXPLIQUÉE : un sommaire qui saute deux numéros
+    # sans rien dire laisse chercher deux chapitres qui n'existent pas encore.
+    assert "calcul lancé" in somm
+
+
+def test_la_page_ne_repete_pas_trois_fois_qu_elle_ne_decerne_aucun_label():
+    """Trois modules portaient chacun leur avertissement ; réunis sur une page,
+    ils le disaient trois fois. Une mise en garde répétée cesse d'être lue."""
+    h = _lire("datacenter.html")
+    assert h.count("aucune conformité") <= 1, h.count("aucune conformité")
+
+
+def test_le_titre_de_la_page_est_conserve():
+    """La fusion ne devait rien coûter au titre : c'est lui qui nomme l'offre."""
+    h = _lire("datacenter.html")
+    assert "Data Center Sustainability &amp; Decarbonisation" in h
+    assert "Énergie, eau et carbone — calculés ensemble" in h
 
 
 def test_la_page_annonce_la_regle_avant_de_la_faire_appliquer():
     """La règle du module doit être lisible par un humain, pas seulement
     vérifiée par un test."""
-    h = _lire("decarbonation-datacenter.html")
+    h = _lire("datacenter.html")
     assert "compensation n'est pas une réduction" in h

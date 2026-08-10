@@ -1,4 +1,9 @@
-/* La plateforme de décarbonation, vue par un visiteur sans compte.
+/* La décarbonation, dans la page fusionnée, vue par un visiteur sans compte.
+ *
+ * LA FUSION. La décarbonation avait sa page ; celle-ci refaisait le même
+ * formulaire et lisait le même profil. Elle vit désormais dans /datacenter, et
+ * lit le formulaire de la page — saisi une seule fois. La recette éprouve donc
+ * la page fusionnée, et vérifie EN PLUS qu'il n'y a bien qu'un formulaire.
  *
  * POURQUOI UNE RECETTE NAVIGATEUR EN PLUS DES TESTS PYTHON. Les tests Python
  * prouvent que le module refuse de se charger si la compensation porte un
@@ -89,7 +94,7 @@ async function attendreAlEcran(pg, sel, ms = 6000) {
 
   titre('1. La plateforme s’ouvre sans compte');
 
-  const rep = await pg.goto(BASE + '/decarbonation-datacenter', { waitUntil: 'networkidle' });
+  const rep = await pg.goto(BASE + '/datacenter', { waitUntil: 'networkidle' });
   ok('la page répond', rep && rep.status() === 200, rep ? 'HTTP ' + rep.status() : 'pas de réponse');
   if (!rep || rep.status() !== 200) { await nav.close(); process.exit(2); }
   ok('…et ne renvoie pas vers la connexion', !/\/connexion/.test(pg.url()), pg.url());
@@ -99,10 +104,46 @@ async function attendreAlEcran(pg, sel, ms = 6000) {
 
   await pg.waitForFunction(() => document.querySelectorAll('#dk-hierarchie .dk-h').length > 0,
                            null, { timeout: 20000 });
-  await pg.waitForFunction(() => document.querySelectorAll('#dk-form [data-champ]').length > 0,
+  await pg.waitForFunction(() => document.querySelectorAll('#dc-form [data-champ]').length > 0,
                            null, { timeout: 20000 });
 
-  titre('2. LE contrôle : la hiérarchie, dans son ordre, et la compensation en dernier');
+  titre('2. La fusion : un seul formulaire, un seul profil');
+
+  const fus = await pg.evaluate(() => ({
+    formulaires: document.querySelectorAll('[id$="-form"]').length,
+    formsIds: [...document.querySelectorAll('[id$="-form"]')].map(x => x.id),
+    champs: document.querySelectorAll('#dc-form [data-champ]').length,
+    /* Le champ de puissance ne doit exister qu'une fois sur toute la page :
+       deux exemplaires, et le visiteur en remplit un pendant que l'autre reste
+       vide — les deux moitiés de la page se contredisent alors en silence. */
+    puissances: document.querySelectorAll('[data-champ="puissance_it_kw"]').length,
+    titre: (document.querySelector('h1') || {}).textContent.trim(),
+    sousTitre: ((document.querySelector('.dc-sous') || {}).textContent || '').trim(),
+    // Les sections des deux anciennes pages coexistent
+    sections: ['dc-sec-vert', 'dc-form', 'dc-sec-res', 'dc-sec-deca',
+               'dc-sec-hier', 'dc-sec-art', 'dc-sec-textes']
+      .filter(id => !!document.getElementById(id)),
+  }));
+  ok('un seul formulaire de profil sur la page', fus.puissances === 1,
+     fus.puissances + ' champ(s) de puissance · ' + fus.formsIds.join(', '));
+  ok('…et il porte bien les treize champs du référentiel', fus.champs === 13,
+     fus.champs + ' champ(s)');
+  ok('LE TITRE EST CONSERVÉ',
+     /Data Center Sustainability & Decarbonisation/.test(fus.titre), fus.titre);
+  ok('…et le sous-titre de méthode aussi',
+     /Énergie, eau et carbone — calculés ensemble/.test(fus.sousTitre), fus.sousTitre);
+  ok('les sections des deux pages coexistent', fus.sections.length === 7,
+     fus.sections.join(' · '));
+
+  const red = await ctx.request.get(BASE + '/decarbonation-datacenter',
+                                    { maxRedirects: 0 });
+  ok('l’ancienne adresse redirige au lieu de disparaître', red.status() === 301,
+     'HTTP ' + red.status());
+  ok('…vers la section fusionnée',
+     (red.headers()['location'] || '').startsWith('/datacenter#'),
+     red.headers()['location'] || 'aucun en-tête Location');
+
+  titre('3. LE contrôle : la hiérarchie, dans son ordre, et la compensation en dernier');
 
   const h = await pg.evaluate(() => {
     const rangs = [...document.querySelectorAll('#dk-hierarchie .dk-h')];
@@ -157,7 +198,7 @@ async function attendreAlEcran(pg, sel, ms = 6000) {
   ok('AUCUN levier ne tait son piège', lv.sansPiege === 0,
      lv.sansPiege + ' levier(s) sans piège');
 
-  titre('3. Les textes, et ce qu’ils pèsent');
+  titre('4. Les textes, et ce qu’ils pèsent');
 
   const tx = await pg.evaluate(() => {
     const t = [...document.querySelectorAll('#dk-textes .dk-tx')];
@@ -177,7 +218,7 @@ async function attendreAlEcran(pg, sel, ms = 6000) {
      /aucune conformité|aucune neutralité/i.test(tx.avert),
      tx.avert.replace(/\s+/g, ' ').slice(0, 110));
 
-  titre('4. Les deux zones ne se contredisent jamais');
+  titre('5. Les deux zones ne se contredisent jamais');
 
   const vide = await pg.evaluate(() => ({
     etapes: document.querySelectorAll('#dk-parcours .dk-e').length,
@@ -192,7 +233,7 @@ async function attendreAlEcran(pg, sel, ms = 6000) {
   ok('la frise le nomme aussi, plutôt que de rester muette',
      /puissance informatique installée/.test(vide.parcours));
 
-  await pg.fill('#dk-form [data-champ="puissance_it_kw"]', '50000');
+  await pg.fill('#dc-form [data-champ="puissance_it_kw"]', '50000');
   await pg.waitForFunction(() => document.querySelectorAll('#dk-parcours .dk-e').length > 0,
                            null, { timeout: 20000 });
   const plein = await pg.evaluate(() => ({
@@ -207,7 +248,7 @@ async function attendreAlEcran(pg, sel, ms = 6000) {
   ok('…le premier blocage est marqué dans la frise', !!plein.stop.trim(),
      plein.stop.replace(/\s+/g, ' ').slice(0, 60));
 
-  titre('5. Les deux voies, et le dossier d’une étape');
+  titre('6. Les deux voies, et le dossier d’une étape');
 
   const voies = await pg.evaluate(() =>
     [...document.querySelectorAll('#dk-voies [data-voie]')].map(b => b.getAttribute('data-voie')));
@@ -263,22 +304,22 @@ async function attendreAlEcran(pg, sel, ms = 6000) {
   ok('les textes applicables à l’étape aussi', dos.textes >= 3, dos.textes + ' texte(s)');
   ok('les points ouverts sont listés', dos.manques > 0, dos.manques + ' point(s)');
 
-  titre('6. Le bouton conduit vraiment au champ');
+  titre('7. Le bouton conduit vraiment au champ');
 
   const cible = await pg.evaluate(() => {
     const b = document.querySelector('#dk-dossier [data-vers-champ]');
     return b ? b.getAttribute('data-vers-champ') : null;
   });
   if (cible) {
-    const sel0 = '#dk-form [data-champ="' + cible + '"]';
+    const sel0 = '#dc-form [data-champ="' + cible + '"]';
     await pg.click('#dk-dossier [data-vers-champ="' + cible + '"]');
     /* La DÉSIGNATION est posée de façon synchrone au clic et retirée au bout
        de quelques secondes. On la relève donc tout de suite : la relever après
        le défilement ferait dépendre le contrôle du temps que met l'animation,
        et il tomberait le jour où la page s'allonge. */
     const marque = await pg.evaluate((c) => {
-      const el = document.querySelector('#dk-form [data-champ="' + c + '"]');
-      const bloc = el && el.closest('[data-champ-bloc]');
+      const el = document.querySelector('#dc-form [data-champ="' + c + '"]');
+      const bloc = el && (el.closest('label.dc-champ') || el.closest('[data-champ-bloc]'));
       return { focus: !!el && document.activeElement === el,
                designe: !!(bloc && bloc.classList.contains('dk-designe')) };
     }, cible);
@@ -294,8 +335,8 @@ async function attendreAlEcran(pg, sel, ms = 6000) {
        du décor et cesse de désigner quoi que ce soit. */
     await pg.waitForTimeout(2800);
     const apres = await pg.evaluate((c) => {
-      const el = document.querySelector('#dk-form [data-champ="' + c + '"]');
-      const bloc = el && el.closest('[data-champ-bloc]');
+      const el = document.querySelector('#dc-form [data-champ="' + c + '"]');
+      const bloc = el && (el.closest('label.dc-champ') || el.closest('[data-champ-bloc]'));
       return !!(bloc && bloc.classList.contains('dk-designe'));
     }, cible);
     ok('…puis elle s’efface', !apres);
@@ -303,7 +344,7 @@ async function attendreAlEcran(pg, sel, ms = 6000) {
     ok('un bouton conduit au champ manquant', false, 'aucun bouton trouvé');
   }
 
-  titre('7. Ce que l’ouverture ne devait PAS ouvrir');
+  titre('8. Ce que l’ouverture ne devait PAS ouvrir');
 
   for (const [chemin, nom] of [
     ['/api/datacenter/ingenierie/dossier', 'le dossier d’ingénierie'],

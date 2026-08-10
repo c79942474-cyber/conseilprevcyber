@@ -1,6 +1,13 @@
-/* La plateforme de décarbonation — deux voies, une hiérarchie, et l'ordre.
+/* La décarbonation — deux voies, une hiérarchie, et l'ordre.
  *
- * CE QUE CETTE PAGE DOIT TENIR, ET QU'UNE PAGE DE PLUS NE TIENDRAIT PAS :
+ * CE MODULE VIT DÉSORMAIS DANS LA PAGE DU CALCUL. Il avait sa propre page, et
+ * celle-ci refaisait le même formulaire, lisait le même profil et renvoyait
+ * vers les mêmes voisines. Deux pages qui partagent leur sujet finissent par se
+ * contredire : l'une est mise à jour, l'autre non, et le lecteur ne sait plus
+ * laquelle fait foi. Le formulaire est donc celui de la page — `#dc-form`,
+ * construit par datacenter.js — et il n'est saisi qu'une fois.
+ *
+ * CE QUE CE MODULE DOIT TENIR :
  *
  *   1. L'ORDRE DE LA HIÉRARCHIE EST L'INFORMATION. Aucun tri n'est proposé, et
  *      c'est délibéré : trier par gain attendu ferait remonter la compensation,
@@ -20,7 +27,6 @@
 (function () {
   "use strict";
 
-  var REF = null;        // référentiel du moteur (champs du formulaire)
   var CADRE = null;      // référentiel de décarbonation (voies, rangs, textes)
   var VOIE = null;       // voie active
   var ETAPE = null;      // étape choisie
@@ -49,7 +55,7 @@
 
   function profil() {
     var p = {};
-    document.querySelectorAll("#dk-form [data-champ]").forEach(function (el) {
+    document.querySelectorAll("#dc-form [data-champ]").forEach(function (el) {
       var v = (el.value || "").trim();
       if (v !== "") p[el.getAttribute("data-champ")] = v;
     });
@@ -77,43 +83,31 @@
   }
 
   /* ═════════════════════════════════════════════════════════════════════
-     LE FORMULAIRE — dérivé du référentiel, jamais recopié
+     LE FORMULAIRE N'EST PAS CONSTRUIT ICI — IL EST LU
+
+     `#dc-form` est bâti par datacenter.js depuis le référentiel du serveur. En
+     construire un second, comme le faisait la page dédiée, obligeait le
+     visiteur à saisir deux fois la même puissance et laissait les deux copies
+     diverger dès la première frappe.
      ═════════════════════════════════════════════════════════════════════ */
 
-  function batirFormulaire() {
-    var champs = (REF && REF.champs) || [];
-    var h = '<div class="dc-grille">';
-    champs.forEach(function (c) {
-      var id = "dk-" + c.id;
-      /* Un seul `label` par champ, et le libellé dans un `span` : imbriquer
-         deux `label` casse l'association avec le contrôle, et un lecteur
-         d'écran annonce alors le champ sans son nom. */
-      h += '<label class="dc-champ" for="' + id + '" data-champ-bloc="' + esc(c.id) + '">'
-        + '<span class="lab">' + esc(c.label)
-        + (c.unite ? " (" + esc(c.unite) + ")" : "")
-        + (c.requis ? " *" : "") + "</span>";
-      if (c.type === "liste") {
-        h += '<select id="' + id + '" data-champ="' + esc(c.id) + '">'
-          + '<option value="">— non précisé —</option>';
-        (c.options || []).forEach(function (o) {
-          var lib = (c.options_nom && c.options_nom[o]) || o;
-          h += '<option value="' + esc(o) + '"'
-            + (c.defaut === o ? " selected" : "") + ">" + esc(lib) + "</option>";
-        });
-        h += "</select>";
-      } else {
-        h += '<input id="' + id + '" data-champ="' + esc(c.id) + '" type="text" '
-          + 'inputmode="decimal"'
-          + (c.defaut !== undefined ? ' value="' + esc(c.defaut) + '"' : "")
-          + ' placeholder="' + (c.defaut !== undefined ? esc(c.defaut) : "—") + '">';
-      }
-      if (c.aide) h += '<span class="aide">' + esc(c.aide) + "</span>";
-      h += "</label>";
-    });
-    h += "</div>";
-    $("#dk-form").innerHTML = h;
-    $("#dk-form").addEventListener("input", planifierVague);
-    $("#dk-form").addEventListener("change", planifierVague);
+  function brancherFormulaire() {
+    var f = document.getElementById("dc-form");
+    if (!f) return false;
+    f.addEventListener("input", planifierVague);
+    f.addEventListener("change", planifierVague);
+    return true;
+  }
+
+  /* Le formulaire est peuplé par une requête : au moment où ce script
+     s'exécute, il peut n'être encore qu'un message de chargement. On attend
+     donc qu'il porte ses champs, plutôt que de supposer un ordre d'arrivée que
+     rien ne garantit. */
+  function attendreFormulaire(fait, essais) {
+    essais = essais === undefined ? 60 : essais;
+    if (document.querySelector('#dc-form [data-champ]')) { fait(); return; }
+    if (essais <= 0) { fait(); return; }
+    setTimeout(function () { attendreFormulaire(fait, essais - 1); }, 120);
   }
 
   /* Une saisie ne déclenche pas une requête par frappe : on attend que la main
@@ -177,8 +171,9 @@
 
   function messageAttente() {
     return '<p class="note">La frise des étapes apparaîtra ci-dessus dès que la '
-      + "<b>puissance informatique installée</b> sera renseignée : c'est le seul "
-      + "champ nécessaire, les autres ont une valeur par défaut. "
+      + "<b>puissance informatique installée</b> sera renseignée dans le "
+      + "formulaire du profil : c'est le seul champ nécessaire, les autres ont "
+      + "une valeur par défaut. "
       + '<button type="button" class="dk-vers" data-vers-champ>Aller au champ</button></p>';
   }
 
@@ -446,13 +441,15 @@
      ═════════════════════════════════════════════════════════════════════ */
 
   function versChamp(cid) {
-    var sel = cid ? '#dk-form [data-champ="' + cid + '"]' : "#dk-puissance-cible";
     var el = document.querySelector(
-      cid ? sel : '#dk-form [data-champ="puissance_it_kw"]');
+      '#dc-form [data-champ="' + (cid || "puissance_it_kw") + '"]');
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
-    var bloc = el.closest("[data-champ-bloc]") || el;
+    /* Le formulaire de la page enveloppe ses champs dans `label.dc-champ` ;
+       on désigne ce bloc, pas le seul contrôle, sans quoi la mise en évidence
+       laisse le libellé dans l'ombre et ne désigne qu'à moitié. */
+    var bloc = el.closest("label.dc-champ") || el.closest("[data-champ-bloc]") || el;
     bloc.classList.add("dk-designe");
     /* La désignation s'efface : une mise en évidence permanente devient du
        décor, et cesse de désigner quoi que ce soit. */
@@ -525,31 +522,39 @@
   }
 
   function demarrer() {
+    /* Le référentiel du moteur n'est plus demandé ici : datacenter.js l'a déjà
+       fait pour construire le formulaire. Le redemander doublait une requête
+       pour la jeter aussitôt, et le limiteur de débit, lui, la comptait. */
     var u = lireURL();
-    Promise.all([
-      fetch("/api/datacenter/referentiel").then(function (r) { return r.json(); }),
-      fetch("/api/datacenter/decarbonation").then(function (r) { return r.json(); }),
-    ]).then(function (rs) {
-      if (!rs[0].ok || !rs[1].ok) throw new Error("référentiel indisponible");
-      REF = rs[0];
-      CADRE = rs[1].referentiel;
-      VOIE = (u.voie && CADRE.voies[u.voie]) ? u.voie : Object.keys(CADRE.voies)[0];
-      ETAPE = u.etape || null;
-      batirFormulaire();
-      rendreVoies();
-      rendreCadre();
-      rendreHierarchie();
-      rendreTextes();
-      rendreParcours();
-      charger();
-    }).catch(function () {
-      var f = $("#dk-form");
-      if (f) {
-        f.innerHTML = '<p class="note">Le référentiel n’a pas pu être chargé. '
-          + 'Le <a href="/datacenter">calcul énergie, eau et carbone</a> '
-          + "fonctionne indépendamment.</p>";
-      }
-    });
+    fetch("/api/datacenter/decarbonation")
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j.ok) throw new Error("cadre indisponible");
+        CADRE = j.referentiel;
+        VOIE = (u.voie && CADRE.voies[u.voie]) ? u.voie : Object.keys(CADRE.voies)[0];
+        ETAPE = u.etape || null;
+        rendreVoies();
+        rendreCadre();
+        rendreHierarchie();
+        rendreTextes();
+        rendreParcours();
+        attendreFormulaire(function () {
+          brancherFormulaire();
+          charger();
+        });
+      })
+      .catch(function () {
+        /* L'échec le dit DANS la section concernée, et nulle part ailleurs :
+           le calcul de la page, lui, fonctionne indépendamment. */
+        var z = $("#dk-parcours");
+        if (z) {
+          z.innerHTML = '<p class="note">Le cadre de décarbonation n’a pas pu '
+            + "être chargé. Le calcul énergie, eau et carbone ci-dessus "
+            + "fonctionne indépendamment.</p>";
+        }
+        var h = $("#dk-hierarchie");
+        if (h) h.innerHTML = "";
+      });
   }
 
   if (document.readyState === "loading") {

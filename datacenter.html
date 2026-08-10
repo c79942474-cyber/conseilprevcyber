@@ -92,6 +92,155 @@
   .dc-vert-a{margin-top:10px}
   .dc-sous{color:var(--cyan)}
 
+  /* LE SOMMAIRE. La fusion a produit une page longue : sans repère, le lecteur
+     doit la parcourir entière pour savoir ce qu'elle contient. */
+  .dc-somm{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;
+    margin:22px 0 4px;padding:12px 15px;border-radius:10px;
+    border:1px solid var(--line);background:rgba(0,0,0,.14)}
+  .dc-somm>b{font-size:11px;text-transform:uppercase;letter-spacing:.07em;
+    color:var(--muted2)}
+  .dc-somm a{font-size:12.5px;color:var(--muted);text-decoration:none;
+    border-bottom:1px solid transparent}
+  .dc-somm a:hover{color:var(--cyan);border-bottom-color:var(--cyan)}
+  .dc-somm>span{flex-basis:100%;font-size:11.5px;line-height:1.5;color:var(--muted2)}
+  /* Une ancre qui dépose le titre sous l'en-tête collant le rend illisible :
+     on réserve la hauteur du bandeau au-dessus de chaque cible. */
+  main [id^="dc-sec-"]{scroll-margin-top:84px}
+
+  /* ═══ LA PLATEFORME DE DÉCARBONATION, fusionnée ici ═══════════════════
+     Ces règles viennent de la page qui portait la plateforme et qui n'existe
+     plus : elle disait la même chose que celle-ci avec un second formulaire,
+     un second profil et un second jeu de renvois. Deux pages qui partagent
+     leur sujet finissent par se contredire — l'une est mise à jour, l'autre
+     non, et le lecteur ne sait plus laquelle fait foi. */
+  /* ── Les deux voies, en onglets ────────────────────────────────────── */
+  .dk-ong{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+  .dk-ong button{font-family:inherit;font-size:13px;padding:9px 15px;border-radius:9px;
+    border:1px solid var(--line);background:rgba(0,0,0,.16);color:var(--muted);
+    cursor:pointer;line-height:1.4;text-align:left}
+  .dk-ong button:hover{border-color:var(--teal);color:var(--ink)}
+  .dk-ong button[aria-selected="true"]{border-color:var(--teal);color:var(--ink);
+    background:rgba(39,195,154,.12)}
+  .dk-ong button b{display:block;font-size:14px}
+  .dk-ong button span{font-size:11.5px;color:var(--muted2)}
+
+  .dk-res{font-size:13.5px;line-height:1.7;margin:0 0 14px;padding:11px 14px;
+    border-radius:10px;border:1px solid var(--line);border-left:3px solid var(--teal);
+    background:rgba(0,0,0,.12);color:var(--muted)}
+  .dk-res b{color:var(--ink)}
+
+  /* ── La frise des étapes ───────────────────────────────────────────── */
+  .dk-fr{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:9px;
+    margin:0 0 8px}
+  .dk-e{font-family:inherit;text-align:left;cursor:pointer;padding:11px 13px;
+    border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.16);
+    display:flex;flex-direction:column;gap:4px;line-height:1.35}
+  .dk-e:hover{border-color:var(--cyan)}
+  .dk-e .c{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted2)}
+  .dk-e .n{font-size:13px;color:var(--ink)}
+  .dk-e .e{font-size:11px;color:var(--muted2)}
+  .dk-e.ok{border-left:3px solid #27c39a}
+  .dk-e.ok .e{color:#27c39a}
+  .dk-e.ko{border-left:3px solid #d9a441}
+  .dk-e.ko .e{color:#d9a441}
+  .dk-e.stop{border-color:#d9a441;background:rgba(217,164,65,.10)}
+  .dk-e.on{border-color:var(--cyan);background:rgba(34,211,238,.12)}
+  .dk-e.on .n{color:var(--ink);font-weight:600}
+
+  /* ── Le dossier d'une étape ────────────────────────────────────────── */
+  .dk-do{border:1px solid var(--line);border-radius:12px;padding:17px 19px;
+    background:rgba(0,0,0,.10);margin-top:14px}
+  .dk-do h3{font-size:17px;margin:0 0 4px}
+  .dk-do .obj{font-size:13.5px;line-height:1.65;color:var(--muted);margin:0 0 13px}
+  .dk-b{margin:0 0 13px}
+  .dk-b>b{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted2);
+    display:block;margin-bottom:5px}
+  .dk-b p{font-size:13px;line-height:1.65;margin:0;color:var(--muted)}
+  .dk-b ul{margin:0;padding-left:17px}
+  .dk-b li{font-size:12.5px;line-height:1.55;margin-bottom:5px;color:var(--muted)}
+  .dk-b li b{color:var(--ink)}
+  .dk-verr{font-size:12.5px;line-height:1.6;padding:9px 12px;border-radius:9px;
+    background:rgba(217,164,65,.08);border:1px solid rgba(217,164,65,.28);color:var(--muted)}
+  .dk-verr b{color:#d9a441}
+  .dk-preuve{font-size:12.5px;line-height:1.6;padding:9px 12px;border-radius:9px;
+    background:rgba(39,195,154,.07);border:1px solid rgba(39,195,154,.26);color:var(--muted)}
+  .dk-preuve b{color:#27c39a}
+
+  .dk-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(212px,1fr));gap:9px}
+  .dk-gr{border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+    background:rgba(0,0,0,.16)}
+  .dk-gr .v{font-family:var(--mono);font-size:16px;color:var(--ink)}
+  .dk-gr .l{font-size:11.5px;color:var(--muted2);line-height:1.45}
+  .dk-gr .s{font-size:10.5px;margin-top:5px;display:inline-block;padding:1px 7px;
+    border-radius:3px;letter-spacing:.03em}
+  .dk-gr.recevable{border-left:3px solid #27c39a}
+  .dk-gr.recevable .s{background:rgba(39,195,154,.16);color:#27c39a}
+  .dk-gr.a_remplacer{border-left:3px solid #d9a441}
+  .dk-gr.a_remplacer .s{background:rgba(217,164,65,.16);color:#d9a441}
+  .dk-gr .bloq{font-size:11px;color:var(--muted2);margin:5px 0 0;line-height:1.45}
+
+  .dk-manque{border:1px solid rgba(217,164,65,.30);border-radius:9px;padding:10px 12px;
+    background:rgba(217,164,65,.06);margin-bottom:7px}
+  .dk-manque .t{font-size:12.5px;color:var(--ink)}
+  .dk-manque .p{font-size:11.5px;color:var(--muted2);margin-top:3px;line-height:1.5}
+  .dk-vers{font-family:inherit;font-size:11.5px;padding:4px 10px;border-radius:7px;
+    border:1px solid var(--cyan);background:transparent;color:var(--cyan);cursor:pointer;
+    margin-top:6px}
+  .dk-vers:hover{background:rgba(34,211,238,.14);color:var(--ink)}
+  .dc-champ.dk-designe{outline:2px solid var(--cyan);outline-offset:3px;border-radius:8px}
+
+  /* ── La hiérarchie d'atténuation ───────────────────────────────────── */
+  .dk-h{border:1px solid var(--line);border-radius:12px;padding:15px 17px;margin:0 0 12px;
+    background:rgba(0,0,0,.10)}
+  .dk-h.r1{border-left:3px solid #27c39a}
+  .dk-h.r2{border-left:3px solid #4bb8d8}
+  .dk-h.r3{border-left:3px solid #d9a441}
+  .dk-h.r4{border-left:3px solid #c2554a}
+  .dk-h-t{display:flex;align-items:baseline;gap:10px;margin:0 0 6px;flex-wrap:wrap}
+  .dk-h-t .o{font-family:var(--mono);font-size:11px;color:var(--muted2)}
+  .dk-h-t h3{font-size:16px;margin:0}
+  .dk-h-p{font-size:13px;line-height:1.65;color:var(--muted);margin:0 0 8px}
+  .dk-h-pr{font-family:var(--mono);font-size:11px;line-height:1.55;color:var(--muted2);
+    margin:0 0 12px}
+  .dk-lv{border:1px solid var(--line);border-radius:9px;padding:11px 13px;margin-bottom:8px;
+    background:rgba(0,0,0,.14)}
+  .dk-lv h4{font-size:13.5px;margin:0 0 5px}
+  .dk-lv p{font-size:12.5px;line-height:1.6;margin:0 0 6px;color:var(--muted)}
+  .dk-lv .non{padding:7px 10px;border-radius:7px;background:rgba(217,164,65,.07);
+    border:1px solid rgba(217,164,65,.24)}
+  .dk-lv .non b{color:#d9a441}
+  .dk-lv .pi{padding:7px 10px;border-radius:7px;background:rgba(0,0,0,.20);
+    border:1px solid var(--line);margin-bottom:0}
+  .dk-lv .pi b{color:var(--ink)}
+  .dk-ch{font-family:var(--mono);font-size:10.5px;padding:1px 7px;border-radius:3px;
+    background:rgba(34,211,238,.14);color:var(--cyan);margin-left:7px;white-space:nowrap}
+  .dk-nch{font-size:12px;line-height:1.6;padding:7px 10px;border-radius:7px;
+    background:rgba(194,85,74,.08);border:1px solid rgba(194,85,74,.26);color:var(--muted);
+    margin:0 0 6px}
+
+  /* ── Les textes cités, et ce qu'ils pèsent ─────────────────────────── */
+  .dk-tx{border:1px solid var(--line);border-radius:9px;padding:10px 13px;margin-bottom:7px;
+    background:rgba(0,0,0,.14)}
+  .dk-tx h4{font-size:13px;margin:0 0 4px;display:flex;gap:8px;align-items:baseline;
+    flex-wrap:wrap}
+  .dk-tx p{font-size:12.5px;line-height:1.6;margin:0;color:var(--muted)}
+  .dk-tx .res{font-size:11.5px;line-height:1.55;margin:6px 0 0;padding:6px 9px;
+    border-radius:6px;background:rgba(217,164,65,.07);
+    border:1px solid rgba(217,164,65,.24);color:var(--muted)}
+  .dk-po{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;
+    border-radius:3px;white-space:nowrap}
+  .dk-po.p-contraignant{background:rgba(194,85,74,.18);color:#e08a7e}
+  .dk-po.p-norme{background:rgba(75,184,216,.16);color:#4bb8d8}
+  .dk-po.p-auto_regulation{background:rgba(217,164,65,.16);color:#d9a441}
+  .dk-po.p-methode{background:rgba(39,195,154,.16);color:#27c39a}
+
+  .dk-rdv{font-size:12.5px;line-height:1.65;padding:10px 13px;border-radius:9px;
+    border:1px solid var(--cyan);background:rgba(34,211,238,.06);color:var(--muted);
+    margin-bottom:7px}
+  .dk-rdv b{color:var(--cyan);font-family:var(--mono);font-size:11px}
+
+
+
   /* ── L'état de l'art ───────────────────────────────────────────────────
      La NATURE de la source est portée par une couleur, et cette couleur
      n'est pas décorative : elle dit si l'on peut s'appuyer sur la ligne. */
@@ -508,7 +657,7 @@
          sous-titre dit la MÉTHODE — les perdre l'un ou l'autre ferait une page
          soit vague, soit illisible pour qui ne connaît pas encore l'outil. -->
     <p class="dc-sous" style="font-size:19px;line-height:1.35;margin:0 0 14px;
-       font-weight:600;max-width:34ch">Énergie, eau et carbone — calculés ensemble</p>
+       font-weight:600;max-width:46ch">Énergie, eau et carbone — calculés ensemble</p>
     <p class="lead" style="max-width:70ch">
       Les trois grandeurs qui décident aujourd'hui d'un appel d'offres sont couplées, et
       c'est là toute la difficulté. Baisser le PUE par un refroidissement évaporatif
@@ -532,52 +681,38 @@
         et d'assumer les contreparties.</div>
     </div>
 
-    <!-- Le renvoi vers le cadre de phases est placé ICI, avant le formulaire :
-         savoir à quel stade on se situe change ce qu'on attend du calcul, et
-         l'apprendre après avoir lu les résultats ne sert plus à rien. -->
+    <!-- LES DEUX AUTRES TEMPS DU PROJET, en un seul bloc. Ils étaient annoncés
+         par deux encadrés colorés successifs, plus un troisième pour la
+         plateforme de décarbonation — désormais fusionnée dans cette page.
+         Trois bandeaux empilés avant le premier champ font une page qui
+         prévient au lieu de servir. -->
     <p class="lead" style="max-width:76ch;margin-top:18px;padding:12px 15px;
        border-left:3px solid var(--cyan);background:rgba(34,211,238,.08);
        border-radius:0 9px 9px 0;font-size:13.5px">
-      <b>Ce calcul n'est pas recevable à toutes les phases d'un projet.</b> Le facteur eau
-      amont porte ±40&nbsp;% et le carbone incorporé ±50&nbsp;% : ces valeurs conviennent à
-      un avant-projet, pas à une pièce contractuelle. Pour savoir ce que le moteur peut
-      verser à chaque étape — ESQ, APS, APD, PRO, DCE d'un côté, faisabilité, BASIC, FEED,
-      EPCI de l'autre — et ce qu'il faut avoir remplacé,
-      voir <a href="/ingenierie-datacenter">l'ingénierie de projet</a>.</p>
+      <b>Avant de calculer</b>, il faut savoir sur quoi porte l'étude : le premier
+      livrable croise quatre perspectives — ce que le projet défend, ce que ses parties
+      prenantes disent, ce que les données établissent, ce qui affecte ses résultats —
+      et en tire les enjeux retenus, ceux qu'on écarte et le programme d'étude
+      (<a href="/strategie-durable-datacenter">la stratégie de développement
+      durable</a>). <b>Après avoir calculé</b>, il faut savoir à quelle phase le
+      chiffre devient recevable : le facteur eau amont porte ±40&nbsp;% et le carbone
+      incorporé ±50&nbsp;%, ce qui convient à un avant-projet et jamais à une pièce
+      contractuelle (<a href="/ingenierie-datacenter">l'ingénierie de projet</a>).</p>
 
-    <!-- LA PLATEFORME DE DÉCARBONATION, annoncée ici et pas en pied de page :
-         savoir dans quel ordre on décarbone change ce qu'on demande au calcul,
-         et l'apprendre après avoir lu les résultats ne sert plus à rien. Le
-         lien est INCONDITIONNEL — la plateforme est ouverte comme cette page,
-         et promettre une page qu'on ne peut pas ouvrir est le défaut qu'on a
-         déjà corrigé deux fois ailleurs. -->
-    <p class="lead" style="max-width:76ch;margin-top:14px;padding:12px 15px;
-       border-left:3px solid #27c39a;background:rgba(39,195,154,.08);
-       border-radius:0 9px 9px 0;font-size:13.5px">
-      <b>Calculer n'est pas décarboner.</b> Compter et déclarer d'un côté —
-      périmètre, année de référence, inventaire, indicateurs normalisés, déclaration
-      européenne, vérification ; réduire de l'autre — éviter, réduire, substituer, et
-      seulement ensuite traiter le résiduel. Ce sont deux exercices distincts, et
-      leur confusion produit les dossiers qu'un vérificateur renvoie. La plateforme
-      les tient côte à côte, avec leurs points de rendez-vous obligés :
-      <a href="/decarbonation-datacenter">l'ingénierie de la décarbonation</a>.</p>
-
-    <!-- LE PREMIER LIVRABLE, annoncé en dernier mais chronologiquement
-         premier : c'est le document qu'on écrit AVANT de calculer. Le placer
-         ici, après le calcul et la décarbonation, correspond à l'ordre dans
-         lequel le lecteur découvre l'outil — pas à l'ordre du projet, et la
-         phrase le dit plutôt que de laisser croire l'inverse. -->
-    <p class="lead" style="max-width:76ch;margin-top:14px;padding:12px 15px;
-       border-left:3px solid #a78bd0;background:rgba(167,139,208,.08);
-       border-radius:0 9px 9px 0;font-size:13.5px">
-      <b>Et avant tout cela : sur quoi porte l'étude ?</b> Un moteur répond à
-      « combien », jamais à « lequel de ces vingt sujets mérite votre attention ».
-      Le premier livrable d'une étude croise quatre perspectives — ce que le projet
-      défend, ce que ses parties prenantes disent, ce que les données établissent, ce
-      qui affecte ses résultats — et en tire les enjeux retenus, ceux qu'on écarte, et
-      le programme d'étude qui suit :
-      <a href="/strategie-durable-datacenter">la stratégie de développement durable du
-      projet</a>.</p>
+    <nav class="dc-somm" aria-label="Sommaire de la page">
+      <b>Sur cette page</b>
+      <a href="#dc-sec-vert">Le cadre</a>
+      <a href="#dc-sec-profil">1. Le profil</a>
+      <a href="#dc-sec-deca">4. Décarboner</a>
+      <a href="#dc-sec-hier">5. La hiérarchie</a>
+      <a href="#dc-sec-docs">6. Documents</a>
+      <a href="#dc-sec-art">7. L'état de l'art</a>
+      <a href="#dc-sec-textes">8. Les textes</a>
+      <a href="#dc-sec-ref">9. Le référentiel</a>
+      <a href="#dc-sec-limites">10. Les limites</a>
+      <span>Les résultats et la comparaison s'insèrent après le profil, une fois le
+        calcul lancé.</span>
+    </nav>
   </section>
 
   <!-- ═══ LE CADRE, AVANT LE CALCUL ═══════════════════════════════════════
@@ -599,27 +734,7 @@
     <div id="dc-vert" class="dc-vert"><p class="note">Chargement du cadre…</p></div>
   </section>
 
-  <!-- ═══ CE QUE DIT L'ÉTAT DE L'ART, ET QUI LE DIT ════════════════════════
-       Un fait sans son auteur n'est pas un fait, c'est une rumeur. Chaque
-       ligne porte donc sa source, sa page et la NATURE de cette source —
-       trois des quatre documents sont publiés par des fournisseurs
-       d'infrastructure, dont les mesures sont utiles et l'intérêt n'est pas
-       neutre. Les afficher au même rang qu'une analyse indépendante
-       tromperait, et un dossier bâti là-dessus se ferait démonter. -->
-  <section class="wrap rc-sec" id="dc-sec-art" aria-labelledby="dc-art-t">
-    <div class="rc-etape"><span class="n">◆</span>
-      <h2 id="dc-art-t">L'état de l'art — et qui le dit</h2></div>
-    <p class="lead" style="max-width:74ch;margin-top:0">
-      Le moteur calcule à partir de constantes normatives. Il ne dit rien du
-      marché : ni la densité que prennent les baies d'IA, ni la part que le
-      refroidissement occupe dans une facture, ni les moratoires qui ferment des
-      territoires entiers à la construction. Ces faits décident pourtant d'un
-      projet <b>avant</b> tout calcul — et ils ne se déduisent d'aucune formule.
-      Ils se citent.</p>
-    <div id="dc-art"><p class="note">Chargement de l’état de l’art…</p></div>
-  </section>
-
-  <section class="wrap rc-sec">
+  <section class="wrap rc-sec" id="dc-sec-profil">
     <div class="rc-etape"><span class="n">1</span><h2>Le profil de l'installation</h2></div>
     <p class="lead" style="max-width:72ch;margin-top:0">
       Seule la puissance informatique est indispensable ; tout le reste a une valeur par
@@ -656,8 +771,59 @@
     <div id="dc-comparaison"></div>
   </section>
 
-  <section class="wrap rc-sec">
-    <div class="rc-etape"><span class="n">4</span><h2>Documents et livrables</h2></div>
+  <!-- ═══ 4. LA DÉCARBONATION — DANS QUEL ORDRE AGIR ═══════════════════════
+       Fusionnée depuis la page qui la portait seule. Elle y refaisait le même
+       formulaire, le même profil et les mêmes renvois : deux pages qui
+       partagent leur sujet finissent par se contredire — l'une est mise à
+       jour, l'autre non, et le lecteur ne sait plus laquelle fait foi.
+
+       Elle vient APRÈS les résultats, et c'est l'ordre utile : on ne décide
+       pas de l'ordre des leviers avant de savoir où se trouve la masse. Elle
+       lit le MÊME profil, saisi une seule fois plus haut. -->
+  <section class="wrap rc-sec" id="dc-sec-deca">
+    <div class="rc-etape"><span class="n">4</span><h2>Décarboner : dans quel ordre agir</h2></div>
+    <p class="lead" style="max-width:74ch;margin-top:0">
+      Calculer n'est pas décarboner. Deux exercices distincts se mènent en parallèle,
+      avec des textes différents, des preuves différentes et des équipes souvent
+      différentes — et c'est de leur confusion que naissent les dossiers qu'un
+      vérificateur renvoie. <b>Compter et déclarer</b> produit des chiffres opposables
+      et ne réduit rien ; <b>réduire</b> produit des tonnes évitées et ne prouve rien
+      tant que le premier n'a pas posé la référence.</p>
+    <p class="lead" style="max-width:74ch">
+      Le fil qui traverse tout : <b>la compensation n'est pas une réduction</b>. La
+      hiérarchie d'atténuation — éviter, réduire, substituer, et seulement ensuite
+      traiter le résiduel — n'est pas illustrée ici, elle est codée. Aucun levier de
+      compensation ne peut porter un paramètre de calcul, et le moteur refuse de
+      démarrer si on lui en donne un : sans cela, la page afficherait un « résultat »
+      de compensation à côté d'un gain d'efficacité, et le lecteur additionnerait les
+      deux.</p>
+    <div class="dk-ong" id="dk-voies" role="tablist" aria-label="Voies"></div>
+    <p class="note" id="dk-etat" role="status" aria-live="polite" style="margin:0 0 10px"></p>
+    <div id="dk-cadre"></div>
+    <div id="dk-parcours" aria-live="polite">
+      <p class="note">Renseignez la puissance informatique ci-dessus pour éprouver les
+        étapes.</p>
+    </div>
+    <div id="dk-dossier"></div>
+  </section>
+
+  <!-- ═══ 5. LA HIÉRARCHIE D'ATTÉNUATION ═══════════════════════════════════
+       L'ordre EST l'information. La page ne propose aucun tri : trier par gain
+       attendu ferait remonter la compensation, qui est le plus rapide à
+       acheter et le seul qui ne réduise rien. -->
+  <section class="wrap rc-sec" id="dc-sec-hier">
+    <div class="rc-etape"><span class="n">5</span><h2>La hiérarchie d'atténuation, dans son ordre</h2></div>
+    <p class="lead" style="max-width:74ch;margin-top:0">
+      Quatre rangs, et l'ordre n'est pas une préférence morale : c'est une contrainte
+      de méthode. Un levier de rang inférieur n'est recevable que si les rangs
+      supérieurs ont été examinés et documentés — ISO 14068-1 en fait une condition de
+      l'allégation de neutralité, pas une recommandation. Chaque levier dit ce qu'il
+      fait, <b>ce qu'il ne fait pas</b>, et le piège qui lui est propre.</p>
+    <div id="dk-hierarchie"><p class="note">Chargement de la hiérarchie…</p></div>
+  </section>
+
+  <section class="wrap rc-sec" id="dc-sec-docs">
+    <div class="rc-etape"><span class="n">6</span><h2>Documents et livrables</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Les documents propres au projet — relevés d'exploitation, fiches techniques
       fournisseurs, pièces d'appel d'offres, déclarations environnementales produit — se
@@ -726,8 +892,43 @@
   <!-- Les sources AVANT les limites : on montre sur quoi le calcul repose,
        puis jusqu'où il porte. L'ordre inverse ferait lire les limites d'un
        référentiel qu'on n'a pas encore vu. -->
-  <section class="wrap rc-sec">
-    <div class="rc-etape"><span class="n">5</span><h2>Le référentiel et ses sources</h2></div>
+  <!-- ═══ CE QUE DIT L'ÉTAT DE L'ART, ET QUI LE DIT ════════════════════════
+       Un fait sans son auteur n'est pas un fait, c'est une rumeur. Chaque
+       ligne porte donc sa source, sa page et la NATURE de cette source —
+       trois des quatre documents sont publiés par des fournisseurs
+       d'infrastructure, dont les mesures sont utiles et l'intérêt n'est pas
+       neutre. Les afficher au même rang qu'une analyse indépendante
+       tromperait, et un dossier bâti là-dessus se ferait démonter. -->
+  <section class="wrap rc-sec" id="dc-sec-art" aria-labelledby="dc-art-t">
+    <div class="rc-etape"><span class="n">7</span>
+      <h2 id="dc-art-t">L'état de l'art — et qui le dit</h2></div>
+    <p class="lead" style="max-width:74ch;margin-top:0">
+      Le moteur calcule à partir de constantes normatives. Il ne dit rien du
+      marché : ni la densité que prennent les baies d'IA, ni la part que le
+      refroidissement occupe dans une facture, ni les moratoires qui ferment des
+      territoires entiers à la construction. Ces faits décident pourtant d'un
+      projet <b>avant</b> tout calcul — et ils ne se déduisent d'aucune formule.
+      Ils se citent.</p>
+    <div id="dc-art"><p class="note">Chargement de l’état de l’art…</p></div>
+  </section>
+
+  <!-- ═══ 8. LES TEXTES CITÉS, ET CE QU'ILS PÈSENT ══════════════════════
+       Un référentiel volontaire et un règlement européen ne s'opposent pas de
+       la même façon. Les afficher au même rang ferait promettre une obligation
+       là où il n'y a qu'un engagement de place — ou l'inverse, plus grave. -->
+  <section class="wrap rc-sec" id="dc-sec-textes">
+    <div class="rc-etape"><span class="n">8</span><h2>Les textes cités, et ce qu'ils pèsent</h2></div>
+    <p class="lead" style="max-width:74ch;margin-top:0">
+      Chaque texte porte sa portée : contraignant, norme volontaire, engagement de place
+      ou méthode. La distinction n'est pas académique — un client à qui l'on promet une
+      obligation là où il n'y a qu'un engagement de place prend une décision sur une
+      contrainte qui n'existe pas, et l'inverse lui coûte plus cher encore.</p>
+    <div id="dk-textes"><p class="note">Chargement des textes…</p></div>
+    <div id="dk-avert"></div>
+  </section>
+
+  <section class="wrap rc-sec" id="dc-sec-ref">
+    <div class="rc-etape"><span class="n">9</span><h2>Le référentiel et ses sources</h2></div>
     <p class="lead" style="max-width:72ch;margin-top:0">
       Chaque valeur calculée porte déjà sa source dans le résultat. Voici celles du
       RÉFÉRENTIEL lui-même : les constantes d'où tout part, leur provenance, leur
@@ -737,8 +938,8 @@
     <div id="dc-referentiel"><p class="note">Chargement du référentiel…</p></div>
   </section>
 
-  <section class="wrap rc-sec">
-    <div class="rc-etape"><span class="n">6</span><h2>Ce que ce moteur ne fait pas</h2></div>
+  <section class="wrap rc-sec" id="dc-sec-limites">
+    <div class="rc-etape"><span class="n">10</span><h2>Ce que ce moteur ne fait pas</h2></div>
     <p class="lead" style="max-width:72ch;margin-top:0">
       Le dire ici plutôt qu'en note de bas de page : ces limites décident du moment où il
       faut passer à une étude de site, et les ignorer coûte plus cher que de les lire.</p>
@@ -940,5 +1141,9 @@
        premier calcul, et l'ordre des balises defer est celui de l'exécution. -->
   <script src="/dc-profil.js" defer></script>
   <script src="/datacenter.js" defer></script>
+  <!-- La plateforme de décarbonation lit le formulaire construit par
+       datacenter.js. L'ordre des balises defer est celui de l'exécution :
+       inversé, elle chercherait un formulaire qui n'existe pas encore. -->
+  <script src="/decarbonation-dc.js" defer></script>
 </body>
 </html>
