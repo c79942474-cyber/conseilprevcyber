@@ -778,7 +778,108 @@ PERIMETRES = {
     },
 }
 
+# ── À QUEL TITRE NOUS RÉDIGEONS ────────────────────────────────────────────
+# LA DIMENSION QUI MANQUAIT, ET CE QU'ELLE COÛTAIT. Les trois listes ci-dessus
+# disent QUI PORTE le projet, CE QU'IL HÉBERGE et CE QUI EST AU MARCHÉ. Aucune
+# ne disait à quel titre NOUS intervenons — et faute de la poser, la réponse
+# était donnée quand même : le rédacteur écrit « en ingénieur de maîtrise
+# d'œuvre », toujours, y compris quand le cabinet est mandaté en assistance à
+# maîtrise d'ouvrage ou en revue d'une conception qui n'est pas la sienne.
+#
+# CE N'EST PAS UNE NUANCE DE VOCABULAIRE, C'EST UN ENGAGEMENT. Le registre des
+# pièces le dit déjà à sa manière : la maîtrise d'œuvre PRESCRIT et VISE, elle
+# ne rédige pas à la place de l'entreprise. Une note écrite au nom de la
+# maîtrise d'œuvre alors que la mission est une AMO prescrit donc au nom d'un
+# rôle que le contrat ne nous confie pas — et si le dossier part ainsi, c'est
+# une responsabilité de conception que personne n'a vendue ni assurée.
+#
+# La mission ne change AUCUN calcul : elle change la personne qui parle, ce
+# qu'elle peut affirmer, et ce qu'elle doit renvoyer à quelqu'un d'autre.
+MISSIONS = {
+    "moe": {
+        "nom": "Maîtrise d'œuvre — conception et suivi de réalisation",
+        "implique": "Nous concevons, prescrivons et contrôlons. La pièce est "
+                    "PRESCRIPTIVE : elle fixe des exigences opposables à "
+                    "l'entreprise et engage notre responsabilité de concepteur. "
+                    "Elle ne rédige jamais à la place de l'entreprise — les "
+                    "études d'exécution et les plans d'atelier restent les "
+                    "siens, et nous les visons.",
+    },
+    "moe_conception": {
+        "nom": "Maîtrise d'œuvre de conception seule — jusqu'au dossier de consultation",
+        "implique": "Même posture prescriptive, mais la mission s'arrête à la "
+                    "consultation : la pièce ne peut renvoyer à aucun acte de "
+                    "suivi de chantier que nous n'assurerons pas — visa, "
+                    "direction de l'exécution, réception. Ce qui relève de ces "
+                    "phases doit être désigné comme À CONFIER, et non décrit "
+                    "comme si nous devions le faire.",
+    },
+    "amo": {
+        "nom": "Assistance à maîtrise d'ouvrage",
+        "implique": "Nous sommes du côté du maître d'ouvrage et NE CONCEVONS "
+                    "PAS. La pièce est un avis, une exigence de programme ou un "
+                    "contrôle de ce qu'un tiers a produit — jamais une "
+                    "prescription technique signée de notre main. Elle formule "
+                    "ce que le maître d'ouvrage doit EXIGER, et laisse à la "
+                    "maîtrise d'œuvre le comment.",
+    },
+    "bet": {
+        "nom": "Bureau d'études spécialisé, dans la maîtrise d'œuvre d'un tiers",
+        "implique": "Nous n'intervenons que sur notre discipline, à l'intérieur "
+                    "d'une maîtrise d'œuvre que nous ne dirigeons pas. La pièce "
+                    "doit nommer ses INTERFACES et dire explicitement ce "
+                    "qu'elle NE couvre PAS : un silence sur une interface se lit "
+                    "comme une prise en charge, et se découvre au montage.",
+    },
+    "epc": {
+        "nom": "Ingénierie intégrée au contractant EPC",
+        "implique": "La conception est dans le contrat de construction : la "
+                    "pièce est INTERNE au contractant et n'est pas opposable à "
+                    "lui-même. Ce qui est opposable, c'est l'engagement de "
+                    "performance pris devant le maître d'ouvrage — la pièce doit "
+                    "distinguer les deux, sans quoi une exigence interne se "
+                    "retrouve citée comme un engagement contractuel.",
+    },
+    "audit": {
+        "nom": "Audit ou revue technique d'une conception établie par un tiers",
+        "implique": "Nous CONSTATONS, nous ne concevons pas. La pièce énonce des "
+                    "écarts, leur criticité et ce qu'ils appellent — elle ne "
+                    "réécrit pas la conception auditée et ne propose pas de "
+                    "solution chiffrée qui nous en rendrait comptables. Chaque "
+                    "constat cite la pièce examinée et son indice.",
+    },
+}
+
+# LA MISSION PAR DÉFAUT, ÉCRITE PLUTÔT QUE SUBIE. Sans choix explicite, la
+# rédaction reste celle de la maîtrise d'œuvre — c'est le cas le plus fréquent
+# et c'était déjà le comportement. La différence est qu'il est maintenant NOMMÉ
+# ici, et ANNONCÉ dans la pièce produite : une posture qu'on ne peut pas lire
+# est une posture qu'on ne peut pas contester.
+MISSION_DEFAUT = "moe"
+
+
+def mission(inputs):
+    """La mission retenue, et si elle a été CHOISIE ou seulement supposée."""
+    cle = str((inputs or {}).get("mission") or "").strip()
+    o = MISSIONS.get(cle)
+    if o:
+        return {"cle": cle, "nom": o["nom"], "implique": o["implique"],
+                "choisie": True}
+    d = MISSIONS[MISSION_DEFAUT]
+    return {"cle": MISSION_DEFAUT, "nom": d["nom"], "implique": d["implique"],
+            "choisie": False,
+            "reserve": "La mission n'a pas été précisée : la pièce est rédigée "
+                       "en maîtrise d'œuvre, posture par défaut. Si le cabinet "
+                       "intervient en assistance à maîtrise d'ouvrage, en "
+                       "cotraitance ou en revue, ce choix doit être corrigé "
+                       "avant diffusion — il commande ce que la pièce engage."}
+
+
 IDENTIFICATION = [
+    {"id": "mission", "label": "À quel titre nous intervenons",
+     "aide": "Notre rôle dans l'opération — cela ne change aucun calcul, mais "
+             "cela change ce que la pièce peut prescrire et ce qu'elle engage.",
+     "options": MISSIONS},
     {"id": "maitrise_ouvrage", "label": "Type de maîtrise d'ouvrage",
      "aide": "Qui porte le projet — cela change à qui les indicateurs sont "
              "opposables, et parfois le régime juridique de la mission.",
@@ -3466,11 +3567,22 @@ FORME_ATTENDUE = {
 }
 
 SYSTEM_PIECE = (
-    "Tu es un ingénieur de maîtrise d'œuvre et d'ingénierie de projet chez CONSEILPREV, "
-    "spécialisé dans les centres de données. Tu rédiges une PIÈCE de dossier de projet "
-    "en français, destinée à être versée à un dossier qui sera relu par un bureau de "
-    "contrôle, un maître d'ouvrage ou un contractant.\n\n"
+    # LE TITRE N'EST PLUS ÉCRIT ICI, ET C'EST VOULU. Cette consigne annonçait
+    # « un ingénieur de maîtrise d'œuvre » quelle que soit la mission réelle.
+    # Quand le cabinet intervient en assistance à maîtrise d'ouvrage ou en revue,
+    # elle CONTREDISAIT la demande — et une consigne système l'emporte sur elle.
+    # La pièce prescrivait alors au nom d'un rôle que le contrat ne confie pas.
+    "Tu es un ingénieur d'ingénierie de projet chez CONSEILPREV, spécialisé dans les "
+    "centres de données. Tu rédiges une PIÈCE de dossier de projet en français, "
+    "destinée à être versée à un dossier qui sera relu par un bureau de contrôle, un "
+    "maître d'ouvrage ou un contractant.\n\n"
     "Règles absolues :\n"
+    "- LE TITRE AUQUEL TU ÉCRIS t'est indiqué dans la demande — maîtrise d'œuvre, "
+    "assistance à maîtrise d'ouvrage, bureau d'études d'une discipline, ingénierie "
+    "d'un contractant, ou revue d'une conception établie par un tiers. Il commande ce "
+    "que la pièce peut PRESCRIRE et ce qu'elle ENGAGE, et tu ne t'en écartes jamais : "
+    "une pièce qui prescrit au nom d'un rôle qui n'est pas le nôtre crée une "
+    "responsabilité que personne n'a acceptée.\n"
     "- Les grandeurs chiffrées te sont FOURNIES par un moteur de calcul déterministe. "
     "Tu ne les recalcules pas, tu ne les arrondis pas autrement, tu ne les contredis "
     "pas. Reprends-les telles quelles, avec leur unité et leur incertitude.\n"
@@ -4592,11 +4704,33 @@ def prompts_piece(profil, code_phase, code_piece, inputs=None):
     A("")
     A("PROJET — client : %s · segment : %s · périmètre : %s"
       % (client, secteur, perimetre))
+    # ── À QUEL TITRE CETTE PIÈCE EST ÉCRITE ───────────────────────────────
+    # Placé AVANT le reste du contexte, parce que cela commande la personne qui
+    # parle : prescrire en maîtrise d'œuvre, exiger en assistance à maîtrise
+    # d'ouvrage ou constater en revue ne produisent pas le même document, et le
+    # rédacteur doit le savoir avant de lire la moindre exigence de contenu.
+    m = mission(inputs)
+    A("")
+    A("À QUEL TITRE TU ÉCRIS — %s. %s" % (m["nom"], m["implique"]))
+    if not m["choisie"]:
+        # L'HYPOTHÈSE SE DIT, DANS LE DOCUMENT. Une posture supposée qui ne se
+        # lit nulle part est une posture que le relecteur ne peut pas
+        # contester : il croit lire un choix là où il n'y a qu'un défaut.
+        A("Cette posture n'a PAS été choisie : c'est la valeur par défaut. "
+          "Porte-la explicitement dans la ligne de métadonnées du document, "
+          "sous la forme « Rédigé en maîtrise d'œuvre (posture par défaut, à "
+          "confirmer) », afin que le relecteur puisse la corriger.")
     if ctx["retenus"]:
         A("")
         A("CE QUE LE CONTEXTE DU PROJET IMPOSE — à prendre en compte dans la "
           "rédaction, chaque point vient d'un choix explicite du lecteur :")
         for r in ctx["retenus"]:
+            # La mission vient d'être énoncée en tête, avec son défaut éventuel :
+            # la redire ici la noierait au milieu des autres cadrages, alors
+            # qu'elle ne se lit pas comme eux — elle dit QUI PARLE, pas ce que le
+            # projet impose.
+            if r["champ"] == "mission":
+                continue
             A("- %s (%s) — %s" % (r["label"], r["nom"], r["implique"]))
     if ctx["mop_obligatoire"] and d["filiere"] == "moe":
         # La conséquence la plus lourde, répétée ici : en commande publique la
@@ -5409,7 +5543,14 @@ def referentiel():
         # page : une option recopiée dans le HTML finit par proposer un choix
         # que le module ne sait plus interpréter.
         "identification": [
+            # `defaut_nom` n'est servi QUE pour les champs qui s'appliquent
+            # faute de choix. La page s'en sert pour nommer l'option vide :
+            # « non précisé » sur un champ qui agit quand même ferait croire à
+            # une absence là où il y a une valeur — et c'est justement le
+            # défaut qu'on vient de corriger sur la mission.
             {"id": c["id"], "label": c["label"], "aide": c["aide"],
+             "defaut_nom": (MISSIONS[MISSION_DEFAUT]["nom"]
+                            if c["id"] == "mission" else ""),
              "options": [{"cle": k, "nom": v["nom"], "implique": v["implique"]}
                          for k, v in c["options"].items()]}
             for c in IDENTIFICATION],

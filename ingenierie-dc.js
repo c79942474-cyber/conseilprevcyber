@@ -413,10 +413,18 @@
   }
 
   /* ── L'identification du projet ────────────────────────────────────────
-     Trois listes construites depuis le référentiel. Chaque option porte ce
-     qu'elle IMPLIQUE, et cette implication est affichée dès la sélection : sans
-     elle, le lecteur choisit une étiquette sans savoir ce qu'elle engage, et la
-     liste ne vaut pas mieux qu'un champ libre. */
+     Les listes viennent du référentiel — leur NOMBRE n'est pas écrit ici : un
+     compte figé dans un commentaire se répare machinalement au premier ajout et
+     cesse alors de décrire quoi que ce soit. Chaque option porte ce qu'elle
+     IMPLIQUE, et cette implication est affichée dès la sélection : sans elle, le
+     lecteur choisit une étiquette sans savoir ce qu'elle engage, et la liste ne
+     vaut pas mieux qu'un champ libre.
+
+     NE RIEN CHOISIR N'EST PAS TOUJOURS NEUTRE. Quand un champ s'applique quand
+     même faute de choix — la mission, qui vaut maîtrise d'œuvre par défaut —,
+     l'option vide le DIT. « Non précisé » laisserait croire qu'aucune posture
+     n'est prise, alors qu'elle l'est, et qu'elle commande ce que la pièce peut
+     prescrire. Le libellé vient du serveur : c'est lui qui tient le défaut. */
   function bâtirIdentification() {
     var champs = (CADRE.identification || []);
     if (!champs.length) return;
@@ -427,7 +435,9 @@
       h += '<label class="dc-champ" for="' + id + '">'
         + '<span class="dc-lab">' + esc(c.label) + "</span>"
         + '<select id="' + id + '" data-ident="' + esc(c.id) + '">'
-        + '<option value="">— non précisé —</option>'
+        + '<option value="">'
+        + esc(c.defaut_nom ? "— non précisé : " + c.defaut_nom + " —"
+                           : "— non précisé —") + "</option>"
         + (c.options || []).map(function (o) {
             return '<option value="' + esc(o.cle) + '">' + esc(o.nom) + "</option>";
           }).join("")

@@ -1294,6 +1294,89 @@ def public_types():
              "sections": t["sections"]} for t in TYPES]
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  LES PÉRIMÈTRES TYPES
+# ═══════════════════════════════════════════════════════════════════════════
+# POURQUOI CETTE LISTE VIT ICI ET PLUS DANS LA PAGE. Elle était écrite en dur
+# dans le formulaire, sous forme d'un <datalist> de dix-huit lignes. Une liste
+# recopiée dans une page ne se compare à rien : elle ne peut ni se vérifier, ni
+# se réutiliser ailleurs, et rien ne signale qu'elle a divergé — c'est déjà
+# arrivé à la phrase qui l'accompagnait, laquelle affirmait que ces périmètres
+# étaient « tirés de nos retours d'expérience » et renvoyait à la page des
+# études de cas, où AUCUN d'entre eux ne figure. Un lecteur qui suivait le lien
+# pour vérifier ne trouvait rien, et c'est la pire façon de perdre sa confiance.
+#
+# CE QU'ILS SONT VRAIMENT, DIT SANS FARD : un vocabulaire professionnel de
+# périmètres d'étude COURANTS, groupés par nature. Ils aident à cadrer une
+# mission ; ils ne décrivent aucune mission particulière et n'en attestent
+# aucune. Le champ reste libre — un périmètre est par nature sur mesure, et une
+# liste close obligerait à choisir « Autre » un projet sur deux.
+PERIMETRES_TYPES = [
+    ("Systèmes industriels et procédés", [
+        "Réseau OT SCADA et automates — 2 sites de production",
+        "Systèmes de contrôle industriel (PLC, HMI, SCADA, DCS) d'une unité de production",
+        "SI industriel d'un site classé — cartographie et maintien en condition de sécurité",
+    ]),
+    ("Énergie et réseaux", [
+        "Sous-station électrique offshore — systèmes sous schéma de sécurité OT (IEC 62443)",
+        "Poste électrique HT/BT et systèmes de protection",
+        "Station de traitement d'eau — télégestion et postes locaux",
+        "Réseau de distribution de gaz — télé-exploitation et postes de détente",
+    ]),
+    ("Transport et mobilité", [
+        "Réseau multi-services et systèmes de surveillance des espaces d'une ligne de métro",
+        "Système de signalisation ferroviaire et centre de contrôle",
+        "Véhicule connecté — périmètre CSMS / SUMS (UNECE R155/R156)",
+    ]),
+    ("Systèmes d'information et exposition", [
+        "Datacenters et réseaux du système d'information",
+        "Applications exposées sur internet — surface d'exposition du groupe",
+        "SOC et chaîne de détection / réponse à incident",
+        "Chaîne de patching et de remédiation des vulnérabilités",
+        "Environnement cloud et interconnexions avec le SI industriel",
+    ]),
+    ("Chaîne de valeur et gouvernance", [
+        "EPCI et interfaces fournisseurs d'un projet d'infrastructure",
+        "Chaîne de sous-traitance — exigences cascadées aux fournisseurs",
+        "Périmètre groupe multi-filiales — SI et SI industriels",
+    ]),
+]
+
+PERIMETRES_NOTE = (
+    "Périmètres d'étude COURANTS, groupés par nature — un vocabulaire pour "
+    "cadrer la mission, pas la description d'une mission déjà menée. La saisie "
+    "libre reste possible : un périmètre est sur mesure par construction.")
+
+
+def perimetres():
+    """Le vocabulaire des périmètres, à plat mais groupé, prêt pour la page."""
+    return {"groupes": [{"nom": g, "valeurs": list(v)}
+                        for g, v in PERIMETRES_TYPES],
+            "note": PERIMETRES_NOTE}
+
+
+def _verifier_perimetres():
+    """Un doublon entre deux groupes proposerait deux fois la même chose au
+    lecteur, qui croirait à une nuance là où il n'y en a aucune."""
+    fautes, vus = [], {}
+    for g, vals in PERIMETRES_TYPES:
+        if not g.strip():
+            fautes.append("un groupe sans nom")
+        if not vals:
+            fautes.append("groupe vide : %s" % g)
+        for v in vals:
+            if v in vus:
+                fautes.append("périmètre en double (%s et %s) : %s" % (vus[v], g, v))
+            vus[v] = g
+    return fautes
+
+
+_FAUTES_PERIMETRES = _verifier_perimetres()
+if _FAUTES_PERIMETRES:
+    raise RuntimeError("livrables — périmètres incohérents : "
+                       + " ; ".join(_FAUTES_PERIMETRES))
+
+
 SYSTEM_PROMPT = (
     "Tu es un consultant senior en cybersécurité industrielle (IT / OT / IIoT) chez "
     "CONSEILPREV. Tu rédiges des livrables professionnels en français, clairs, "

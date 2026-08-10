@@ -211,7 +211,12 @@
         </div>
         <div class="field"><label for="perimetre">Périmètre</label>
           <input type="text" id="perimetre" list="perimetres" autocomplete="off" placeholder="Choisissez un périmètre type, ou saisissez librement">
-          <div class="typedesc">Périmètres tirés de nos <a href="/etudes-de-cas" style="color:var(--cyan)">retours d'expérience</a> — à adapter au cas traité.</div>
+          <!-- CE QUE CETTE PHRASE DISAIT, ET QUI ÉTAIT FAUX. Elle annonçait des
+               périmètres « tirés de nos retours d'expérience » et renvoyait aux
+               études de cas — où aucun des dix-huit ne figure. Qui suivait le
+               lien pour vérifier ne trouvait rien : une affirmation vérifiable
+               et démentie coûte plus cher qu'une absence d'affirmation. -->
+          <div class="typedesc" id="perimetre-note">Périmètres d'étude courants, groupés par nature — à adapter au cas traité.</div>
         </div>
 
         <!-- Propositions offertes par des <datalist> : l'utilisateur choisit dans
@@ -276,26 +281,18 @@
           <option value="84 — Administration publique et défense ; sécurité sociale obligatoire"></option>
           <option value="86 — Activités pour la santé humaine"></option>
         </datalist>
-        <datalist id="perimetres">
-          <option value="Réseau OT SCADA et automates — 2 sites de production"></option>
-          <option value="Systèmes de contrôle industriel (PLC, HMI, SCADA, DCS) d'une unité de production"></option>
-          <option value="SI industriel d'un site classé — cartographie et maintien en condition de sécurité"></option>
-          <option value="Sous-station électrique offshore — systèmes sous schéma de sécurité OT (IEC 62443)"></option>
-          <option value="Poste électrique HT/BT et systèmes de protection"></option>
-          <option value="Station de traitement d'eau — télégestion et postes locaux"></option>
-          <option value="Réseau de distribution de gaz — télé-exploitation et postes de détente"></option>
-          <option value="Réseau multi-services et systèmes de surveillance des espaces d'une ligne de métro"></option>
-          <option value="Système de signalisation ferroviaire et centre de contrôle"></option>
-          <option value="Véhicule connecté — périmètre CSMS / SUMS (UNECE R155/R156)"></option>
-          <option value="Datacenters et réseaux du système d'information"></option>
-          <option value="Applications exposées sur internet — surface d'exposition du groupe"></option>
-          <option value="SOC et chaîne de détection / réponse à incident"></option>
-          <option value="Chaîne de patching et de remédiation des vulnérabilités"></option>
-          <option value="Environnement cloud et interconnexions avec le SI industriel"></option>
-          <option value="EPCI et interfaces fournisseurs d'un projet d'infrastructure"></option>
-          <option value="Chaîne de sous-traitance — exigences cascadées aux fournisseurs"></option>
-          <option value="Périmètre groupe multi-filiales — SI et SI industriels"></option>
-        </datalist>
+        <!-- LES PÉRIMÈTRES VIENNENT DU SERVEUR, cette liste n'est plus écrite
+             ici. Recopiée dans la page, elle ne se comparait à rien : ni
+             vérifiable, ni réutilisable ailleurs, et divergeant sans que rien
+             ne le signale — c'est exactement ce qui était arrivé à la phrase
+             qui l'accompagnait. Le vocabulaire vit désormais dans livrables.py,
+             où un contrôle refuse les doublons au chargement, et arrive par
+             l'appel que la page fait déjà.
+
+             LE REPLI EST LE CHAMP LIBRE, ET C'EST SUFFISANT. Si la liste
+             n'arrive pas, l'entrée reste utilisable telle quelle : un
+             périmètre est de toute façon en saisie libre. -->
+        <datalist id="perimetres"></datalist>
         <div class="field"><label for="consignes">Consignes particulières (facultatif)</label><textarea id="consignes" placeholder="Points à mettre en avant, contraintes, échéances…"></textarea></div>
         <div class="field">
           <label>Documents de référence <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted2)">— facultatif ; sinon sélection automatique dans toute la base</span></label>
@@ -606,6 +603,25 @@
         .then(function(){b.disabled=false;b.textContent=old;});
     });
 
+    /* Les périmètres types, tels que le serveur les tient.
+
+       LE GROUPE EST PORTÉ PAR L'OPTION, pas par un <optgroup> : un <datalist>
+       n'affiche pas les groupes, et les navigateurs les ignorent en silence.
+       On met donc la nature en libellé secondaire — visible là où le
+       navigateur l'affiche, sans jamais polluer la VALEUR reprise dans le
+       champ, qui doit rester le seul texte du périmètre. */
+    function remplirPerimetres(p){
+      var dl=document.getElementById('perimetres');
+      if(!dl||!p||!p.groupes)return;          /* sans liste, le champ reste libre */
+      dl.innerHTML=p.groupes.map(function(g){
+        return (g.valeurs||[]).map(function(v){
+          return '<option value="'+esc(v)+'" label="'+esc(g.nom)+'"></option>';
+        }).join('');
+      }).join('');
+      var n=document.getElementById('perimetre-note');
+      if(n&&p.note)n.textContent=p.note;
+    }
+
     function loadTypes(){
       fetch('/api/admin/livrables/types').then(function(r){
         if(r.status===401){location.href='/connexion?next=/admin/livrables';return null;}
@@ -613,6 +629,7 @@
         return r.json();
       }).then(function(j){
         if(!j||!j.ok)return;
+        remplirPerimetres(j.perimetres);
         TYPES=j.types||[];
         var grp={}, order=[];
         TYPES.forEach(function(t){var g=t.groupe||'Autres';if(!grp[g]){grp[g]=[];order.push(g);}grp[g].push(t);});

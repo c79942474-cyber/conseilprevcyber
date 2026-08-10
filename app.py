@@ -4732,8 +4732,15 @@ def admin_livrables_page():
 @app.route("/api/admin/livrables/types", methods=["GET"])
 @admin_required
 def api_livrables_types():
-    """Types de livrables disponibles + modèles d'IA configurés."""
-    return jsonify(ok=True, types=livrables.public_types(), models=assistant.available())
+    """Types de livrables, modèles d'IA configurés, et périmètres types.
+
+    Les périmètres voyagent AVEC les types, sur l'appel que la page fait déjà :
+    une route de plus pour dix-huit chaînes ajouterait un aller-retour, une
+    gestion d'erreur et un état « la liste n'est pas encore arrivée » — pour un
+    vocabulaire qui ne bouge qu'au rythme des versions."""
+    return jsonify(ok=True, types=livrables.public_types(),
+                   models=assistant.available(),
+                   perimetres=livrables.perimetres())
 
 
 def _famille_prioritaire(type_id):
