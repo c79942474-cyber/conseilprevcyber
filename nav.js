@@ -23,10 +23,22 @@
       ["/architecture-cible", "Architecture cible OT"],
       ["/formation", "Formation & compétences"],
       ["/gouvernance-ia", "Governance by Design IA"],
-      ["/relecture-contrat", "Relecture de contrats assistée"],
+      ["/relecture-contrat", "Relecture de contrats assistée"] ] },
+    // ── UNE SECTION À ELLES SEULES ────────────────────────────────────────
+    // Les trois pages de centres de données étaient en queue de « Conseil &
+    // transformation », derrière neuf offres de cybersécurité industrielle
+    // avec lesquelles elles n'ont ni sujet ni client commun. Noyées là, elles
+    // se lisaient comme trois offres de plus ; groupées, elles se lisent pour
+    // ce qu'elles sont — les trois temps d'une même mission d'ingénierie.
+    //
+    // L'ORDRE EST CELUI DU PROJET, pas l'alphabet : on arbitre (stratégie),
+    // on compte (bilan et trajectoire), on exécute (ingénierie). Il reprend
+    // celui du parcours guidé « projet », et deux ordres contradictoires pour
+    // les mêmes trois pages enverraient le lecteur dans deux directions.
+    { t: "Ingénierie de Projet — Data Center", l: [
+      ["/strategie-durable-datacenter", "Stratégie DD — centres de données"],
       ["/datacenter", "Data Center Sustainability & Decarbonisation"],
-      ["/ingenierie-datacenter", "Ingénierie de projet — centres de données"],
-      ["/strategie-durable-datacenter", "Stratégie DD — centres de données"] ] },
+      ["/ingenierie-datacenter", "Ingénierie de projet — centres de données"] ] },
     { t: "Référentiel IEC 62443", l: [
       ["/referentiel", "Vue d’ensemble"],
       ["/analyse-de-risque", "Analyse de risque · 3-2"],

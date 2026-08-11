@@ -36,6 +36,71 @@ def _lire(nom):
         return f.read()
 
 
+# ── 0. Les trois pages tiennent leur propre rubrique du menu ───────────────
+
+# Le tiroir se lit par sections. Les trois pages vivaient en queue de
+# « Conseil & transformation », derrière neuf offres de cybersécurité
+# industrielle avec lesquelles elles n'ont ni sujet ni client commun : elles s'y
+# lisaient comme trois offres de plus, et rien ne disait qu'elles forment les
+# trois temps d'une même mission d'ingénierie.
+SECTION_DC = "Ingénierie de Projet — Data Center"
+SECTION_CONSEIL = "Conseil & transformation"
+
+
+def _section(nav, titre):
+    """Le contenu de la section du tiroir portant ce titre.
+
+    Découpé sur les bornes de la structure, jamais sur un nombre de lignes : un
+    compte figé se répare machinalement au premier ajout et cesse alors de
+    délimiter quoi que ce soit."""
+    i = nav.index('{ t: "%s"' % titre)
+    j = nav.index("] },", i)
+    return nav[i:j]
+
+
+def test_les_trois_pages_ont_leur_propre_rubrique():
+    nav = _lire("nav.js")
+    assert '{ t: "%s"' % SECTION_DC in nav, SECTION_DC
+    bloc = _section(nav, SECTION_DC)
+    for p in PAGES_DC:
+        assert '["%s"' % p in bloc, p
+
+
+def test_aucune_des_trois_ne_reste_dans_les_offres_de_conseil():
+    """Le contrôle qui compte : une page présente aux DEUX endroits
+    apparaîtrait deux fois dans le tiroir, et le lecteur croirait à deux pages
+    différentes."""
+    bloc = _section(_lire("nav.js"), SECTION_CONSEIL)
+    restes = [p for p in PAGES_DC if '["%s"' % p in bloc]
+    assert not restes, restes
+
+
+def test_la_rubrique_ne_contient_que_ces_trois_pages():
+    """Une rubrique qui accueillerait autre chose cesserait de dire ce qu'elle
+    annonce — et son titre deviendrait faux sans que rien ne le signale."""
+    bloc = _section(_lire("nav.js"), SECTION_DC)
+    liens = re.findall(r'\["(/[a-z0-9\-]*)"', bloc)
+    assert sorted(liens) == sorted(PAGES_DC), liens
+
+
+def test_l_ordre_du_menu_est_celui_du_parcours_projet():
+    """Deux ordres contradictoires pour les mêmes trois pages — l'un au menu,
+    l'autre au parcours guidé — enverraient le lecteur dans deux directions."""
+    liens = re.findall(r'\["(/[a-z0-9\-]*)"', _section(_lire("nav.js"), SECTION_DC))
+    par = _lire("parcours.js")
+    i = par.index('"dc-projet"')
+    ordre_parcours = [p for p in re.findall(r'"(/[a-z0-9\-]*)"', par[i:i + 4000])
+                      if p in PAGES_DC]
+    # Les doublons éventuels (une page citée deux fois dans une étape) ne
+    # doivent pas fausser la comparaison : on garde la première occurrence.
+    vus, ordre = set(), []
+    for p in ordre_parcours:
+        if p not in vus:
+            vus.add(p)
+            ordre.append(p)
+    assert liens == ordre, (liens, ordre)
+
+
 # ── 1. Les trois pages sont guidées ────────────────────────────────────────
 
 def test_chaque_page_datacenter_a_son_guide():
