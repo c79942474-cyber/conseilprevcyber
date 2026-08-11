@@ -46,6 +46,49 @@
   var DELAI_MOYEN = 45000;     // dossiers, plans, exports
   var DELAI_LONG = 130000;     // rédaction : au-delà du budget serveur (120 s)
 
+  /* ═════════════════════════════════════════════════════════════════════
+     LA SESSION QUI S'ÉTEINT EN COURS DE VISITE
+
+     Toutes les commandes de cette page passent par des API réservées. Quand
+     la session expire, chacune se met à répondre 401 — et chaque zone
+     l'habillait de son message générique : « le parcours n'a pas pu être
+     établi », « dossier indisponible », pendant que la frise soutenait qu'il
+     manquait la puissance QUE LE LECTEUR VENAIT DE SAISIR. À partir de la
+     section 4, plus rien ne s'affichait, et rien ne disait ni pourquoi ni
+     quoi faire — « réessayez dans un instant » était même un conseil faux,
+     se reconnecter étant le seul remède.
+
+     Le 401 est donc reconnu à l'endroit UNIQUE par où passent toutes les
+     requêtes, et il déclenche une bannière qui nomme la cause et offre la
+     reconnexion — laquelle ramène ici même. */
+  var SESSION_MORTE = false;
+
+  function sessionTexte() {
+    return "<b>Votre session n’est plus active.</b> C’est pour cela que plus "
+      + "rien ne se calcule ni ne s’affiche au-delà du formulaire. "
+      + '<a class="btn btn-s" href="/connexion?next=/ingenierie-datacenter">'
+      + "Se reconnecter</a> — vous reviendrez sur cette page.";
+  }
+
+  function sessionEteinte() {
+    if (SESSION_MORTE) return;
+    SESSION_MORTE = true;
+    var b = document.createElement("div");
+    b.id = "ig-session";
+    b.className = "ig-session-alerte";
+    b.setAttribute("role", "alert");
+    b.innerHTML = sessionTexte();
+    var m = document.getElementById("main") || document.body;
+    m.insertBefore(b, m.firstChild);
+    /* Les deux zones qui, sinon, continueraient de raconter autre chose —
+       la frise réclamant une puissance déjà saisie, le dossier l'attendant. */
+    ["ig-parcours", "ig-dossier"].forEach(function (id) {
+      var z = document.getElementById(id);
+      if (z) z.innerHTML = '<p class="ig-dep-ko">' + sessionTexte() + "</p>";
+    });
+    b.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
   function demander(url, options, delai) {
     options = options || {};
     var ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
@@ -55,7 +98,15 @@
     }, delai || DELAI_COURT);
     if (ctrl && !options.signal) options.signal = ctrl.signal;
     return fetch(url, options).then(function (r) {
-      fini = true; clearTimeout(m); return r;
+      fini = true; clearTimeout(m);
+      /* Le 401 est traité ICI, une fois pour toutes les zones : laissé aux
+         appelants, chacun le dissolvait dans son message générique. */
+      if (r.status === 401) {
+        sessionEteinte();
+        var t = new Error("auth"); t.name = "SessionEteinte";
+        throw t;
+      }
+      return r;
     }, function (e) {
       fini = true; clearTimeout(m);
       if (e && e.name === "AbortError" && !options.__annule) {
@@ -559,6 +610,8 @@
   document.addEventListener("click", function (ev) {
     var b = ev.target && ev.target.closest ? ev.target.closest("[data-vers-champ]") : null;
     if (b) { ev.preventDefault(); versChampCle(); }
+    var r = ev.target && ev.target.closest ? ev.target.closest("[data-relancer]") : null;
+    if (r) { ev.preventDefault(); rafraichir(); }
   });
 
   /* ── La frise ────────────────────────────────────────────────────────── */
@@ -2205,7 +2258,20 @@
         })
         .catch(function (e) {
           if (e && e.name === "AbortError") return;
-          etat("Le parcours n'a pas pu être établi. Réessayez dans un instant.", true);
+          if (e && e.name === "SessionEteinte") return;   /* la bannière l'a dit */
+          /* LA PANNE S'ÉCRIT LÀ OÙ LE LECTEUR REGARDE. Le message n'allait
+             qu'au pied du formulaire (section 2) ; la frise, elle, continuait
+             de réclamer une puissance déjà saisie, et le dossier (section 4)
+             d'attendre — la page semblait morte à partir de là, sans un mot. */
+          var msg = messageDelai(e,
+            "Le parcours n'a pas pu être établi. Réessayez dans un instant.");
+          etat(msg, true);
+          var zp = $("#ig-parcours");
+          if (zp) zp.innerHTML = '<p class="ig-dep-ko">' + esc(msg)
+            + ' <button type="button" class="ig-vers" data-relancer>Relancer</button></p>';
+          var zd = $("#ig-dossier");
+          if (zd) zd.innerHTML = '<p class="note">L’étude de phase suivra dès '
+            + "que le parcours ci-dessus aura pu être établi.</p>";
         });
     }, 280);
   }
@@ -2238,8 +2304,11 @@
            liste changer sous ses yeux se demande laquelle est la bonne. */
         planPuisRendre(j.dossier);
       })
-      .catch(function () {
-        $("#ig-dossier").innerHTML = '<p class="note">Dossier indisponible pour le moment.</p>';
+      .catch(function (e) {
+        if (e && e.name === "SessionEteinte") { boutons(false); return; }
+        $("#ig-dossier").innerHTML = '<p class="note">'
+          + esc(messageDelai(e, "Dossier indisponible pour le moment."))
+          + "</p>";
         boutons(false);
       });
   }
@@ -3282,13 +3351,14 @@
         PROJET = PROJETS.filter(function (p) { return p.id === cible; })[0] || null;
         pjFormulaire();
       })
-      .catch(function () {
+      .catch(function (e) {
         var z = $("#ig-pj-form");
-        if (z) {
-          z.innerHTML = '<p class="note">Vos projets n\'ont pas pu être '
+        if (!z) return;
+        z.innerHTML = (e && e.name === "SessionEteinte")
+          ? '<p class="note">Reconnectez-vous pour retrouver vos projets.</p>'
+          : '<p class="note">Vos projets n\'ont pas pu être '
             + "chargés. Le reste de la page fonctionne&nbsp;; les pièces "
             + "rédigées ne seront simplement rattachées à aucun dossier.</p>";
-        }
       });
   }
 
@@ -3549,10 +3619,12 @@
 
   function démarrer() {
     Promise.all([
+      /* Le 401 est levé par `demander` lui-même, bannière comprise : le
+         vérifier encore ici serait du code mort. */
       demander("/api/datacenter/referentiel", { credentials: "same-origin" })
-        .then(function (r) { if (r.status === 401) throw new Error("auth"); return r.json(); }),
+        .then(function (r) { return r.json(); }),
       demander("/api/datacenter/ingenierie", { credentials: "same-origin" })
-        .then(function (r) { if (r.status === 401) throw new Error("auth"); return r.json(); }),
+        .then(function (r) { return r.json(); }),
     ])
       .then(function (rs) {
         if (!rs[0].ok || !rs[1].ok) throw new Error("ref");
@@ -3755,7 +3827,18 @@
       body: JSON.stringify({ mission: mission(), travaux_meur: trav,
                              part_technique: pt === undefined ? null : pt / 100,
                              phases: PH })
-    }).then(function (r) { return r.json(); }).then(function (j) {
+    }).then(function (r) {
+      /* Session éteinte : « chiffrage indisponible » enverrait chercher la
+         panne du mauvais côté — le barème va très bien, c'est la session. */
+      if (r.status === 401) {
+        $("#ig-moe-msg").innerHTML = "Votre session n’est plus active. "
+          + '<a href="/connexion?next=/ingenierie-datacenter">Reconnectez-vous</a> '
+          + "pour chiffrer — vous reviendrez sur cette page.";
+        $("#ig-moe-out").innerHTML = "";
+        throw new Error("auth-dit");
+      }
+      return r.json();
+    }).then(function (j) {
       if (!j.ok) {
         $("#ig-moe-msg").textContent = j.message || "chiffrage indisponible";
         $("#ig-moe-out").innerHTML = "";
@@ -3763,7 +3846,8 @@
       }
       $("#ig-moe-msg").textContent = "Mission : " + (j.portee.dit || "");
       rendre(j);
-    }).catch(function () {
+    }).catch(function (e) {
+      if (e && e.message === "auth-dit") return;
       $("#ig-moe-msg").textContent = "chiffrage indisponible";
     });
   }
@@ -3773,7 +3857,14 @@
     document.getElementById("ig-moe-go").addEventListener("click", chiffrer);
     fetch("/api/datacenter/moe").then(function (r) { return r.json(); })
       .then(function (j) {
-        if (!j || !j.ok) return;
+        /* Un barème qui ne charge pas doit LE DIRE : un bloc muet, formulaire
+           vide, se lit comme une section morte — et personne ne recharge une
+           page qu'il croit cassée. */
+        if (!j || !j.ok) {
+          $("#ig-moe-msg").textContent = "Le barème n’a pas pu être chargé. "
+            + "Rechargez la page ; si cela persiste, reconnectez-vous.";
+          return;
+        }
         REF = j; champs(); phases();
         /* LA MISSION COMMANDE LES PHASES : changer l'une refait l'autre. Sans
            cela, un client passé en conception seule garderait à l'écran des

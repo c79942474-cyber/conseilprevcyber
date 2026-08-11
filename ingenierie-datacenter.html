@@ -545,6 +545,17 @@
   .ig-dep-ok b,.ig-dep-ko b{color:var(--ink)}
   .ig-dep-n{margin:6px 0 0;font-size:11px;color:var(--muted2);line-height:1.6}
 
+  /* ── La session éteinte ───────────────────────────────────────────────
+     La bannière reste sous les yeux pendant qu'on défile : la panne touche
+     TOUTES les sections d'un coup, et un message qui se laisse dépasser
+     laisse le lecteur constater dix zones mortes une à une. */
+  .ig-session-alerte{position:sticky;top:0;z-index:60;margin:0 0 14px;
+    padding:13px 16px;border-left:4px solid #F39F7D;border-radius:0 9px 9px 0;
+    background:#2A1E18;color:var(--muted);font-size:13px;line-height:1.65;
+    box-shadow:0 6px 18px rgba(0,0,0,.35)}
+  .ig-session-alerte b{color:var(--ink)}
+  .ig-session-alerte .btn{margin:0 6px;vertical-align:baseline}
+
   /* ── Le projet et son historique ──────────────────────────────────────
      Un dossier de projet se lit d'abord comme une LISTE DE DATES : on cherche
      « où en est-on » avant de chercher un document précis. La mise en forme
