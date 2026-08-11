@@ -1920,6 +1920,7 @@ import ingenierie_dc  # noqa: E402  — situe ses résultats dans la séquence p
 import decarbonation  # noqa: E402  — les situe dans la hiérarchie d'atténuation
 import strategie_dd  # noqa: E402  — le livrable d'ouverture, quatre perspectives
 import transmission  # noqa: E402  — ce qui doit voyager AVEC le document qui sort
+import lacunes      # noqa: E402  — instruire les trous, sans fabriquer de faits
 # Le nettoyage des extraits et des titres de sources. Nommé « extraits_mod » :
 # « extraits » désigne déjà, dans une douzaine de fonctions de ce fichier, la
 # liste des passages retrouvés — les confondre aurait écrasé l'un par l'autre.
@@ -2096,6 +2097,124 @@ def api_datacenter_etat_art():
         app.logger.exception("etat de l'art datacenter")
         return jsonify(ok=False, error="etat_indisponible",
                        message="L'etat de l'art n'a pas pu etre etabli."), 503
+
+
+# ══════════════════════════════════════════════════════════
+#  FAIRE PARLER LES SOURCES — combler les lacunes SANS fabriquer de faits
+# ══════════════════════════════════════════════════════════
+# L'etat de l'art nomme quatre trous et n'offrait rien pour les combler. On
+# ouvre trois registres, JAMAIS MELANGES :
+#
+#   1. ce que le cabinet DETIENT DEJA — recherche reelle dans la base, titres
+#      et themes reels, donc citable ;
+#   2. une LECTURE ASSISTEE de ces extraits — non citable, et elle le dit ;
+#   3. ou chercher AU-DEHORS — gisements nommes dans le module, jamais demandes
+#      au modele.
+#
+# LE PIEGE EST DE FOND. Une reponse de modele n'a ni auteur, ni page, ni
+# editeur. Versee au milieu des faits cites, elle emprunte leur credit sans en
+# avoir la provenance — et un chiffre plausible assorti d'une reference
+# plausible est la faute la plus couteuse qu'un cabinet mette dans un dossier.
+
+
+@app.route("/api/datacenter/lacunes")
+def api_datacenter_lacunes():
+    """Les lacunes et par quoi les instruire, SANS rien consulter.
+
+    OUVERT : ce referentiel ne contient que des questions, des thèmes de
+    recherche et des gisements nommes. Aucun extrait, aucun document.
+    """
+    try:
+        return jsonify(ok=True, referentiel=lacunes.referentiel())
+    except Exception:                                       # noqa: BLE001
+        app.logger.exception("referentiel des lacunes")
+        return jsonify(ok=False, error="lacunes_indisponibles",
+                       message="Le referentiel n'a pas pu etre etabli."), 503
+
+
+@app.route("/api/datacenter/lacune/<cle>", methods=["POST"])
+@login_required
+def api_datacenter_lacune(cle):
+    """Instruit UNE lacune : la base du cabinet, puis une lecture assistee.
+
+    FERME. La recherche porte sur des documents INTERNES du cabinet : leurs
+    titres et leurs extraits n'ont pas a etre publics.
+
+    LA LECTURE ASSISTEE EST OPTIONNELLE ET LE RESTE. Sans cle de modele
+    configuree, ou si l'appel echoue, la route rend quand meme les documents
+    trouves — ce sont eux qui completent reellement les quatre sources. Faire
+    dependre le registre citable de la disponibilite du modele serait perdre le
+    solide pour l'accessoire.
+    """
+    l = lacunes.get(cle)
+    if not l:
+        return jsonify(ok=False, error="lacune_inconnue",
+                       message="Lacune inconnue."), 404
+    data = request.get_json(silent=True) or {}
+
+    # ── 1. CE QUE LE CABINET DETIENT ──────────────────────────────────────
+    # Les themes d'abord, la recherche libre ensuite : une recherche par
+    # pertinence seule ne connait pas le SUJET du dossier, et remonte volontiers
+    # une note d'architecture reseau devant une fiche de groupe froid.
+    hits, vus = [], set()
+    try:
+        for th in (l["themes"] + [None]):
+            if len(hits) >= 8:
+                break
+            for h in (rag.search(l["requete"], k=4, public_only=False,
+                                 theme=th) or []):
+                cid = (h.get("id"), h.get("ordinal"))
+                if cid in vus:
+                    continue
+                vus.add(cid)
+                hits.append(h)
+    except Exception:                                       # noqa: BLE001
+        app.logger.exception("recherche lacune %s", cle)
+        hits = []
+
+    internes = [{
+        "titre": extraits_mod.titre_document(h.get("title")),
+        "theme": h.get("theme") or "",
+        "visibilite": h.get("visibility") or "",
+        # L'EXTRAIT, PAS LE DOCUMENT. De quoi juger sur pièce s'il faut ouvrir
+        # le document — pas de quoi s'en passer.
+        "extrait": (h.get("content") or "").strip()[:600],
+    } for h in hits]
+
+    # ── 2. LA LECTURE ASSISTEE ────────────────────────────────────────────
+    lecture, modele, motif = "", "", ""
+    if hits and data.get("lecture") is not False:
+        # Le contexte passe par build_context : c'est lui qui CLOT les extraits
+        # et qui interdit au modele de leur obeir. Un document empoisonne verse
+        # a la base sortirait sinon ici, avec ses consignes intactes.
+        contexte = rag.build_context(hits, max_chars=6000)
+        system, user = lacunes.prompt_lecture(l, contexte)
+        try:
+            lecture, modele = assistant.generate(
+                str(data.get("model") or "claude"), system, user, context=None)
+        except Exception as e:                              # noqa: BLE001
+            app.logger.warning("lecture assistee indisponible (%s) : %s", cle, e)
+            motif = ("La lecture assistée n'est pas disponible pour le moment. "
+                     "Les documents ci-dessus, eux, sont bien ceux de la base "
+                     "et se citent tels quels.")
+    elif not hits:
+        motif = ("Aucun document de la base ne répond à cette question. Rien "
+                 "n'est proposé à la lecture : il n'y a rien à lire.")
+
+    return jsonify(
+        ok=True,
+        lacune={k: l[k] for k in ("cle", "titre", "manque", "question",
+                                  "preuve", "hors_portee")},
+        interne={"documents": internes, "n": len(internes),
+                 "citable": True,
+                 "note": "Documents de la base du cabinet. Ils portent un titre "
+                         "et un thème : c'est une provenance, et ils se citent."},
+        lecture={"texte": lecture, "modele": modele, "motif": motif,
+                 "citable": False,
+                 "mention": lacunes.MENTION_NON_CITABLE},
+        gisements=l["gisements"],
+        gisements_note="Gisements de données ouvertes NON CONSULTÉS : ce sont "
+                       "des endroits où chercher, pas des réponses.")
 
 
 @app.route("/api/datacenter/decarbonation")

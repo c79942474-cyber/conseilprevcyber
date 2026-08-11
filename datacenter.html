@@ -319,6 +319,48 @@
   .dc-nat.n-guide_fournisseur{background:rgba(184,118,58,.18);color:#c98a4e}
   .dc-touche{font-size:9.5px;padding:1px 6px;border-radius:3px;
     background:rgba(34,211,238,.13);color:var(--cyan);white-space:nowrap}
+  /* ── INSTRUIRE LES LACUNES ───────────────────────────────────────────
+     LA COULEUR PORTE LE REGISTRE, et c'est le seul motif de ces trois teintes.
+     Vert : ce qui vient de la base, avec titre et thème — citable. Ambre : ce
+     que le modèle en lit — ni auteur ni page, donc non citable. Neutre : des
+     gisements qu'on n'a PAS consultés. Un lecteur qui recopie dans un dossier
+     doit voir d'un coup d'œil ce qu'il a le droit de citer. */
+  .dc-lac-l{margin:7px 0 0;padding-left:18px}
+  .dc-lac-l li{margin-bottom:12px;color:var(--muted)}
+  .dc-lac-t{color:var(--muted)}
+  .dc-lac-go{font-family:inherit;font-size:12px;padding:3px 11px;margin-left:4px;
+    border-radius:7px;border:1px solid var(--line);background:rgba(0,0,0,.24);
+    color:inherit;cursor:pointer;white-space:nowrap}
+  .dc-lac-go:hover{border-color:var(--cyan);color:var(--cyan)}
+  .dc-lac-a{font-size:12px;line-height:1.6;color:var(--muted2);margin:12px 0 0}
+  .dc-lac-box{margin:11px 0 0;padding:12px 14px;border-radius:10px;
+    border:1px solid var(--line);background:rgba(0,0,0,.20)}
+  .dc-lac-q,.dc-lac-p{font-size:12.5px;line-height:1.65;margin:0 0 8px;color:var(--ink)}
+  .dc-lac-p{color:var(--muted)}
+  .dc-reg{margin:12px 0 0;padding:10px 12px;border-radius:9px;border:1px solid var(--line)}
+  .dc-reg.citable{background:rgba(39,195,154,.07);border-color:rgba(39,195,154,.30)}
+  .dc-reg.lecture{background:rgba(217,164,65,.08);border-color:rgba(217,164,65,.32)}
+  .dc-reg.gisement{background:rgba(0,0,0,.16)}
+  .dc-reg-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+    font-size:12.5px;font-weight:600;margin-bottom:7px}
+  .dc-reg-b{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;
+    text-transform:uppercase;padding:2px 7px;border-radius:5px;font-weight:400}
+  .dc-reg-b.ok{background:rgba(39,195,154,.20);color:#7ee0c2}
+  .dc-reg-b.non{background:rgba(217,164,65,.22);color:#e8c489}
+  .dc-reg-b.att{background:rgba(255,255,255,.10);color:var(--muted2)}
+  .dc-reg-n{font-size:12px;line-height:1.6;color:var(--muted);margin:0 0 7px}
+  .dc-reg ul{margin:6px 0 0;padding-left:17px}
+  .dc-reg li{margin-bottom:9px;font-size:12.5px;line-height:1.6}
+  .dc-reg code{font-family:var(--mono);font-size:10.5px;color:var(--muted2)}
+  .dc-lac-x,.dc-lac-c,.dc-lac-res,.dc-lac-per{display:block;font-size:11.5px;
+    line-height:1.55;color:var(--muted);margin-top:4px}
+  .dc-lac-x{font-style:italic}
+  .dc-lac-res,.dc-lac-per{color:var(--muted2)}
+  .dc-lac-ia{font-size:12.5px;line-height:1.7;margin:0 0 8px;padding:9px 11px;
+    border-radius:7px;background:rgba(0,0,0,.22)}
+  .dc-lac-m{color:var(--muted2)}
+  .dc-lac-hp{font-size:12px;line-height:1.65;color:var(--muted2);margin:12px 0 0;
+    padding-top:9px;border-top:1px solid var(--line)}
   .dc-art-l,.dc-art-b{font-size:12.5px;line-height:1.65;margin:16px 0 0;
     padding:12px 15px;border-radius:10px;background:rgba(255,255,255,.04)}
   .dc-art-l ul,.dc-art-b ul{margin:7px 0 0;padding-left:18px}
@@ -1280,10 +1322,22 @@
            deux blocs qu'un lecteur pressé ne va pas chercher. */
         var FIXE = '';
         /* CE QUE CES SOURCES NE DISENT PAS. Une bibliographie qui ne liste que
-           ses apports laisse supposer qu'elle couvre le reste. */
-        FIXE += '<div class="dc-art-l"><b>Ce que ces quatre sources ne disent pas.</b><ul>'
+           ses apports laisse supposer qu'elle couvre le reste.
+
+           ET CHAQUE TROU S'INSTRUIT MAINTENANT. La liste ne se contentait plus
+           d'être honnête, elle laissait le lecteur devant quatre manques sans
+           rien à faire. Chaque lacune porte donc son bouton : il cherche dans
+           la base du cabinet, propose une lecture assistée de ce qu'il trouve,
+           et nomme les gisements de données ouvertes où aller vérifier.
+
+           TROIS REGISTRES, JAMAIS MÉLANGÉS — c'est tout l'enjeu. Ce qui sort de
+           la base porte un titre et un thème : c'est citable. Ce que le modèle
+           en lit n'a ni auteur ni page : ce ne l'est pas, et le bloc le dit.
+           Les gisements, eux, n'ont PAS été consultés. */
+        FIXE += '<div class="dc-art-l"><b>Ce que ces quatre sources ne disent pas.</b>'
+          + '<div id="dc-lac"><ul>'
           + e.lacunes.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('')
-          + '</ul></div>';
+          + '</ul></div></div>';
         FIXE += '<div class="dc-art-b"><b>Les quatre documents</b><ul>'
           + Object.keys(e.sources).map(function(k){
               var s = e.sources[k];
@@ -1299,6 +1353,147 @@
         z.innerHTML = '<p class="note">L’état de l’art n’a pas pu être chargé. '
           + 'Le calcul ci-dessous fonctionne indépendamment.</p>';
       });
+  })();
+  </script>
+
+  <!-- ═══ INSTRUIRE LES LACUNES ═══════════════════════════════════════════
+       Les quatre trous étaient nommés et rien ne permettait de les combler :
+       le lecteur restait devant une liste de manques. Chacun porte maintenant
+       son bouton.
+
+       TROIS REGISTRES, JAMAIS MÉLANGÉS — c'est tout l'enjeu, et le seul motif
+       pour lequel ce bloc est écrit ainsi plutôt qu'en une réponse unique :
+
+         · CE QUE LE CABINET DÉTIENT : documents réels de la base, avec titre
+           et thème. Une provenance, donc CITABLE ;
+         · CE QUE LE MODÈLE EN LIT : ni auteur, ni page, ni éditeur. NON
+           CITABLE, et le bloc le dit à côté du texte, pas en note de bas de
+           page ;
+         · OÙ CHERCHER AU-DEHORS : gisements NON CONSULTÉS.
+
+       Un chiffre plausible assorti d'une référence plausible est la faute la
+       plus coûteuse qu'un cabinet mette dans un dossier client : elle ne se
+       voit qu'au moment où un tiers va vérifier. -->
+  <script>
+  (function(){
+    var REF = null, OUVERTE = null;
+    function esc(t){ var d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; }
+
+    function attendre(){
+      var z = document.getElementById('dc-lac');
+      if(!z){ return setTimeout(attendre, 400); }   /* l'état de l'art n'est pas encore rendu */
+      fetch('/api/datacenter/lacunes')
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          if(!j || !j.ok) throw new Error('lacunes');
+          REF = j.referentiel;
+          poser(z);
+        })
+        .catch(function(){ /* la liste des lacunes reste lisible telle quelle */ });
+    }
+
+    function poser(z){
+      /* On REMPLACE la liste par la même liste, chaque entrée gagnant son
+         bouton. Reconstruite depuis le référentiel plutôt que retouchée dans
+         le DOM : l'énoncé du trou vient alors du serveur des deux côtés, et
+         il ne peut pas diverger de celui de l'état de l'art. */
+      z.innerHTML = '<ul class="dc-lac-l">' + REF.lacunes.map(function(l){
+        return '<li data-lac="' + esc(l.cle) + '">'
+          + '<span class="dc-lac-t">' + esc(l.manque) + '</span> '
+          + '<button type="button" class="dc-lac-go" data-lac-go="' + esc(l.cle)
+          + '">Instruire ce trou</button>'
+          + '<div class="dc-lac-r" data-lac-r="' + esc(l.cle) + '"></div></li>';
+      }).join('') + '</ul>'
+        + '<p class="dc-lac-a">Chercher dans les documents du cabinet, puis '
+        + 'nommer les gisements de données ouvertes où aller vérifier. '
+        + '<b>Ce qui sort de la base se cite ; ce que le modèle en lit, non.</b></p>';
+      z.querySelectorAll('[data-lac-go]').forEach(function(b){
+        b.addEventListener('click', function(){ instruire(b.getAttribute('data-lac-go'), b); });
+      });
+    }
+
+    function instruire(cle, bouton){
+      var zone = document.querySelector('[data-lac-r="' + cle + '"]');
+      if(!zone) return;
+      if(OUVERTE === cle){ zone.innerHTML = ''; OUVERTE = null;
+        bouton.textContent = 'Instruire ce trou'; return; }
+      OUVERTE = cle;
+      bouton.textContent = 'Replier';
+      zone.innerHTML = '<p class="note">Recherche dans la base du cabinet…</p>';
+      fetch('/api/datacenter/lacune/' + encodeURIComponent(cle), {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      }).then(function(r){
+        if(r.status === 401 || r.status === 403){
+          throw new Error('La recherche porte sur les documents INTERNES du '
+            + 'cabinet : elle demande un compte. Connectez-vous, puis relancez.');
+        }
+        return r.json();
+      }).then(function(j){
+        if(!j || !j.ok) throw new Error((j && j.message) || 'Recherche impossible.');
+        zone.innerHTML = rendre(j);
+      }).catch(function(e){
+        zone.innerHTML = '<p class="note">' + esc(e.message || 'Recherche impossible.') + '</p>';
+      });
+    }
+
+    function rendre(j){
+      var h = '<div class="dc-lac-box">';
+      h += '<p class="dc-lac-q"><b>Ce qu’il faut établir.</b> ' + esc(j.lacune.question) + '</p>';
+      h += '<p class="dc-lac-p"><b>Ce qui vaudra preuve.</b> ' + esc(j.lacune.preuve) + '</p>';
+
+      /* ── Registre 1 : citable ─────────────────────────────────────────── */
+      h += '<div class="dc-reg citable"><div class="dc-reg-h">1 · Dans les documents du cabinet'
+        + '<span class="dc-reg-b ok">citable</span></div>';
+      if(j.interne.n){
+        h += '<p class="dc-reg-n">' + esc(j.interne.note) + '</p><ul>'
+          + j.interne.documents.map(function(d){
+              return '<li><b>' + esc(d.titre) + '</b>'
+                + (d.theme ? ' <code>' + esc(d.theme) + '</code>' : '')
+                + '<span class="dc-lac-x">' + esc(d.extrait) + '…</span></li>';
+            }).join('') + '</ul>';
+      } else {
+        h += '<p class="dc-reg-n">Aucun document de la base ne répond à cette '
+          + 'question. Le trou reste entier — c’est une réponse, et elle vaut '
+          + 'mieux qu’un document rapproché de force.</p>';
+      }
+      h += '</div>';
+
+      /* ── Registre 2 : NON citable ─────────────────────────────────────── */
+      if(j.lecture.texte || j.lecture.motif){
+        h += '<div class="dc-reg lecture"><div class="dc-reg-h">2 · Lecture assistée'
+          + '<span class="dc-reg-b non">non citable</span></div>';
+        if(j.lecture.texte){
+          h += '<div class="dc-lac-ia">' + esc(j.lecture.texte).replace(/\n/g, '<br>') + '</div>'
+            + '<p class="dc-reg-n">' + esc(j.lecture.mention)
+            + (j.lecture.modele ? ' <span class="dc-lac-m">Modèle : '
+                + esc(j.lecture.modele) + '.</span>' : '') + '</p>';
+        } else {
+          h += '<p class="dc-reg-n">' + esc(j.lecture.motif) + '</p>';
+        }
+        h += '</div>';
+      }
+
+      /* ── Registre 3 : non consulté ────────────────────────────────────── */
+      h += '<div class="dc-reg gisement"><div class="dc-reg-h">3 · Où chercher hors du cabinet'
+        + '<span class="dc-reg-b att">non consulté</span></div>'
+        + '<p class="dc-reg-n">' + esc(j.gisements_note) + '</p><ul>'
+        + (j.gisements || []).map(function(g){
+            return '<li><b>' + esc(g.organisme) + '</b> — <i>' + esc(g.instrument) + '</i>'
+              + (g.perimetre ? ' <span class="dc-lac-per">' + esc(g.perimetre) + '</span>' : '')
+              + '<span class="dc-lac-c">' + esc(g.contient) + '</span>'
+              + '<span class="dc-lac-res">Réserve : ' + esc(g.reserve) + '</span></li>';
+          }).join('') + '</ul></div>';
+
+      h += '<p class="dc-lac-hp"><b>Ce qu’une réponse complète ne réglera pas.</b> '
+        + esc(j.lacune.hors_portee) + '</p>';
+      return h + '</div>';
+    }
+
+    if(document.readyState === 'loading'){
+      document.addEventListener('DOMContentLoaded', attendre);
+    } else { attendre(); }
   })();
   </script>
   
