@@ -145,58 +145,73 @@ async function attendreAlEcran(pg, sel, ms = 6000) {
 
   titre('3. LE contrôle : la hiérarchie, dans son ordre, et la compensation en dernier');
 
-  const h = await pg.evaluate(() => {
-    const rangs = [...document.querySelectorAll('#dk-hierarchie .dk-h')];
-    return {
-      n: rangs.length,
-      /* L'ordre lu à l'ÉCRAN, pas dans la réponse : c'est le rendu qu'on
-         éprouve, et c'est lui qui peut trahir la donnée. */
-      noms: rangs.map(r => ((r.querySelector('h3') || {}).textContent || '').trim()),
-      ordres: rangs.map(r => ((r.querySelector('.o') || {}).textContent || '').trim()),
-      classes: rangs.map(r => [...r.classList].filter(c => /^r\d$/.test(c))[0] || ''),
-      leviers: rangs.map(r => r.querySelectorAll('.dk-lv').length),
-      /* Le dernier rang : aucun paramètre affiché, et l'explication présente. */
-      dernierChamps: rangs.length
-        ? rangs[rangs.length - 1].querySelectorAll('.dk-ch').length : -1,
-      dernierNch: rangs.length
-        ? rangs[rangs.length - 1].querySelectorAll('.dk-nch').length : -1,
-      dernierTxt: rangs.length
-        ? (rangs[rangs.length - 1].querySelector('.dk-nch') || {}).textContent || '' : '',
-      /* Aucun autre rang ne doit être dépourvu de paramètre : sinon
-         l'absence cesse de distinguer la compensation. */
-      autresSansChamp: rangs.slice(0, -1)
-        .filter(r => r.querySelectorAll('.dk-ch').length === 0).length,
-    };
-  });
-  ok('les quatre rangs sont dessinés', h.n === 4, h.n + ' rang(s)');
-  ok('…dans l’ordre éviter → réduire → substituer → résiduel',
-     h.classes.join(',') === 'r1,r2,r3,r4', h.noms.join(' → '));
-  ok('…numérotés à l’écran dans le même ordre',
-     h.ordres.join(',') === 'Rang 1,Rang 2,Rang 3,Rang 4', h.ordres.join(' · '));
-  ok('LE RÉSIDUEL EST LE DERNIER RANG AFFICHÉ',
-     /résiduel/i.test(h.noms[h.noms.length - 1] || ''), h.noms[h.noms.length - 1]);
-  ok('…et il n’affiche AUCUN paramètre de calcul', h.dernierChamps === 0,
-     h.dernierChamps + ' paramètre(s)');
-  ok('…tout en disant pourquoi il n’en a pas', h.dernierNch === 1,
-     h.dernierTxt.replace(/\s+/g, ' ').slice(0, 110));
-  ok('…alors que les trois autres rangs en portent, eux',
-     h.autresSansChamp === 0, h.autresSansChamp + ' rang(s) sans paramètre');
-  ok('chaque rang porte au moins un levier',
-     h.leviers.every(n => n > 0), h.leviers.join(' / '));
+    /* ── LES MÊMES EXIGENCES, PARCOURUES PAR LE SÉLECTEUR ─────────────────
+     Ces contrôles éprouvaient les quatre rangs dessinés ensemble. Le rang se
+     choisit maintenant : ils sont réécrits, pas supprimés. Ce qu'ils
+     protégeaient n'a pas changé d'un mot — l'ordre, la numérotation, le fait
+     que le résiduel soit le SEUL rang sans paramètre de calcul, et qu'aucun
+     levier ne taise ce qu'il ne fait pas. Un contrôle qu'on efface parce que
+     l'écran a bougé emporte avec lui la raison pour laquelle il existait. */
+  /* LE RANG D'OUVERTURE SE LIT AVANT DE TOUCHER AU SÉLECTEUR. Contrôlé plus
+     bas, après la boucle qui parcourt les quatre rangs, il rendait la valeur
+     laissée par le dernier tour — et le contrôle disait « ouvre sur le rang 4 »
+     alors que la page ouvre bien sur le rang 1. Un état mesuré après l'avoir
+     modifié ne dit rien de l'état initial. */
+  const rangOuverture = await pg.evaluate(
+    () => document.getElementById('dk-rang').value);
 
-  const lv = await pg.evaluate(() => {
-    const t = [...document.querySelectorAll('#dk-hierarchie .dk-lv')];
-    return {
-      n: t.length,
-      sansNon: t.filter(x => !x.querySelector('.non')).length,
-      sansPiege: t.filter(x => !x.querySelector('.pi')).length,
-    };
-  });
-  ok('tous les leviers sont rendus', lv.n >= 10, lv.n + ' levier(s)');
-  ok('AUCUN levier ne tait ce qu’il ne fait pas', lv.sansNon === 0,
-     lv.sansNon + ' levier(s) muet(s)');
-  ok('AUCUN levier ne tait son piège', lv.sansPiege === 0,
-     lv.sansPiege + ' levier(s) sans piège');
+  const parRang = [];
+  for (const r of [1, 2, 3, 4]) {
+    await pg.selectOption('#dk-rang', String(r));
+    await pg.waitForFunction(
+      (a) => {
+        const o = document.querySelector('#dk-hierarchie .dk-h-t .o');
+        return o && o.textContent.indexOf('Rang ' + a + ' ') === 0;
+      }, String(r), { timeout: 8000 });
+    parRang.push(await pg.evaluate(() => {
+      const bloc = document.querySelector('#dk-hierarchie .dk-h');
+      const lv = [...bloc.querySelectorAll('.dk-lv')];
+      return {
+        nom: ((bloc.querySelector('h3') || {}).textContent || '').trim(),
+        ordre: ((bloc.querySelector('.o') || {}).textContent || '').trim(),
+        classe: [...bloc.classList].filter(c => /^r\d$/.test(c))[0] || '',
+        leviers: lv.length,
+        champs: bloc.querySelectorAll('.dk-ch').length,
+        nch: bloc.querySelectorAll('.dk-nch').length,
+        txtNch: (bloc.querySelector('.dk-nch') || {}).textContent || '',
+        sansNon: lv.filter(x => !x.querySelector('.non')).length,
+        sansPiege: lv.filter(x => !x.querySelector('.pi')).length,
+      };
+    }));
+  }
+
+  ok('les quatre rangs sont atteignables', parRang.length === 4);
+  ok('…dans l’ordre éviter → réduire → substituer → résiduel',
+     parRang.map(x => x.classe).join(',') === 'r1,r2,r3,r4',
+     parRang.map(x => x.nom).join(' → '));
+  ok('…numérotés à l’écran dans le même ordre',
+     parRang.every((x, k) => x.ordre.indexOf('Rang ' + (k + 1) + ' sur 4') === 0),
+     parRang.map(x => x.ordre).join(' · '));
+  ok('LE RÉSIDUEL EST LE DERNIER RANG DE LA SÉQUENCE',
+     /résiduel/i.test(parRang[3].nom), parRang[3].nom);
+  ok('…et il n’affiche AUCUN paramètre de calcul', parRang[3].champs === 0,
+     parRang[3].champs + ' paramètre(s)');
+  ok('…tout en disant pourquoi il n’en a pas', parRang[3].nch === 1,
+     parRang[3].txtNch.replace(/\s+/g, ' ').slice(0, 110));
+  ok('…alors que les trois autres rangs en portent, eux',
+     parRang.slice(0, 3).every(x => x.champs > 0),
+     parRang.slice(0, 3).map(x => x.champs).join(' / '));
+  ok('chaque rang porte au moins un levier',
+     parRang.every(x => x.leviers > 0), parRang.map(x => x.leviers).join(' / '));
+  ok('tous les leviers sont rendus, rangs cumulés',
+     parRang.reduce((n, x) => n + x.leviers, 0) >= 10,
+     parRang.reduce((n, x) => n + x.leviers, 0) + ' levier(s)');
+  ok('AUCUN levier ne tait ce qu’il ne fait pas',
+     parRang.every(x => x.sansNon === 0),
+     parRang.map(x => x.sansNon).join('/') + ' muet(s) par rang');
+  ok('AUCUN levier ne tait son piège',
+     parRang.every(x => x.sansPiege === 0),
+     parRang.map(x => x.sansPiege).join('/') + ' sans piège par rang');
 
   titre('4. Les textes, et ce qu’ils pèsent');
 
@@ -358,6 +373,72 @@ async function attendreAlEcran(pg, sel, ms = 6000) {
   const kb = await ctx.request.get(BASE + '/admin/base-connaissance', { maxRedirects: 0 });
   ok('la base documentaire reste réservée', [301, 302, 401, 403].includes(kb.status()),
      'HTTP ' + kb.status());
+
+  /* ══ LA HIÉRARCHIE : UNE LISTE QUI NE DOIT PAS DÉFAIRE L'ORDRE ══════════
+     Les quatre rangs se dépliaient d'un coup ; le rang se choisit maintenant.
+     Le risque n'est pas d'ergonomie mais de fond : cette section n'enseigne pas
+     quatre familles de leviers, elle enseigne un ORDRE. Ouvrir « Compenser »
+     sans avoir jamais vu qu'il existe trois rangs au-dessus ferait dire à
+     l'interface le contraire de ce que la page démontre.
+
+     CE CONTRÔLE EST ICI ET PAS DANS LES TESTS PYTHON, ET C'EST DÉLIBÉRÉ. Un
+     test qui lit le fichier source voit les chaînes ; il ne voit pas qu'elles
+     sont devenues inatteignables. J'ai désactivé la branche d'affichage — « if
+     (amont.length) » remplacé par « if (false) » — et le test Python est resté
+     vert. Seul le vrai document tranche. */
+  titre('La hiérarchie : le rang se choisit, l’ordre reste');
+
+  await pg.waitForSelector('#dk-rang', { timeout: 25000 });
+  const hier = await pg.evaluate(() => {
+    const s = document.getElementById('dk-rang');
+    return { n: s.options.length,
+             libelles: [...s.options].map(o => o.textContent),
+           };
+  });
+  ok('le rang se choisit dans une liste', hier.n === 4, hier.n + ' option(s)');
+  ok('…et la séquence se lit SANS ouvrir la liste',
+     hier.libelles.every((t, i) => t.trim().startsWith(String(i + 1) + '.')),
+     hier.libelles.join(' / '));
+  ok('…qui s’ouvre sur le premier rang', rangOuverture === '1',
+     'rang ' + rangOuverture + ' à l’arrivée sur la page');
+
+  const vu = async (r) => {
+    await pg.selectOption('#dk-rang', String(r));
+    await pg.waitForFunction(
+      (attendu) => {
+        const o = document.querySelector('#dk-hierarchie .dk-h-t .o');
+        return o && o.textContent.indexOf('Rang ' + attendu + ' ') === 0;
+      }, String(r), { timeout: 8000 });
+    return pg.evaluate(() => ({
+      position: document.querySelector('#dk-hierarchie .dk-h-t .o').textContent,
+      leviers: document.querySelectorAll('#dk-hierarchie .dk-lv').length,
+      amont: [...document.querySelectorAll('.dk-h-go')].map(b => b.textContent),
+      texteAmont: (document.querySelector('.dk-h-amont') || {}).textContent || '',
+    }));
+  };
+
+  const r1 = await vu(1);
+  ok('le premier rang n’affiche aucun amont — il n’en a pas',
+     r1.amont.length === 0, r1.amont.join(' · '));
+  ok('…et il rappelle sa position dans la séquence',
+     /Rang 1 sur 4/.test(r1.position), r1.position);
+
+  const r4 = await vu(4);
+  ok('le dernier rang NOMME les trois qui doivent être instruits avant',
+     r4.amont.length === 3, r4.amont.join(' · ') || 'AUCUN — l’ordre est devenu un menu');
+  ok('…et dit ce qu’il en coûte de s’en passer',
+     /écarter en vérification/.test(r4.texteAmont), r4.texteAmont.slice(0, 90));
+
+  await pg.click('.dk-h-go');
+  await pg.waitForFunction(() => {
+    const o = document.querySelector('#dk-hierarchie .dk-h-t .o');
+    return o && o.textContent.indexOf('Rang 1 ') === 0;
+  }, null, { timeout: 8000 });
+  const retour = await pg.evaluate(() => document.getElementById('dk-rang').value);
+  ok('…et chacun se rejoint d’un clic', retour === '1', 'rang ' + retour);
+
+  ok('un seul rang est affiché à la fois',
+     (await pg.evaluate(() => document.querySelectorAll('#dk-hierarchie .dk-h').length)) === 1);
 
   ok('aucune erreur de script sur toute la manœuvre', err.length === 0,
      err.join(' | ').slice(0, 200));

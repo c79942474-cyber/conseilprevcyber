@@ -476,20 +476,98 @@
      LA HIÉRARCHIE ET LES TEXTES — rendus une fois, dans l'ordre du serveur
      ═════════════════════════════════════════════════════════════════════ */
 
+  /* ═════════════════════════════════════════════════════════════════════
+     LA HIÉRARCHIE — UN RANG À LA FOIS, SANS PERDRE L'ORDRE
+     ═════════════════════════════════════════════════════════════════════
+
+     Les quatre rangs et leurs onze leviers se dépliaient d'un coup : un mur de
+     plusieurs écrans qu'on parcourt sans le lire. Le rang se choisit désormais
+     dans une liste.
+
+     LE PIÈGE DE CE CHANGEMENT, ET IL EST DE FOND. Cette section n'enseigne pas
+     quatre familles de leviers : elle enseigne un ORDRE. « Un levier de rang
+     inférieur n'est recevable que si les rangs supérieurs ont été examinés et
+     documentés » — ISO 14068-1 en fait une condition de l'allégation de
+     neutralité, pas une recommandation. Une liste qui permet d'ouvrir
+     « Compenser » sans avoir jamais vu qu'il existe trois rangs au-dessus
+     ferait dire à l'interface le contraire de ce que la page démontre.
+
+     Trois précautions, donc :
+       · les options portent leur numéro ET leur nombre de leviers, si bien que
+         la séquence entière se lit SANS ouvrir la liste ;
+       · un rang ouvert rappelle sa position — « rang 3 sur 4 » ;
+       · au-dessous du premier, le panneau nomme les rangs qui doivent avoir
+         été instruits avant, et conduit à chacun d'un clic. */
+
+  var RANG_VU = null;
+
   function rendreHierarchie() {
     var z = $("#dk-hierarchie");
     if (!z || !CADRE) return;
-    var h = "";
-    (CADRE.hierarchie || []).forEach(function (r) {
-      h += '<div class="dk-h r' + r.rang + '">'
-        + '<div class="dk-h-t"><span class="o">Rang ' + r.rang + "</span>"
-        + "<h3>" + esc(r.nom) + "</h3></div>"
-        + '<p class="dk-h-p">' + esc(r.principe) + "</p>"
-        + '<p class="dk-h-pr">Ce qui le prouve : ' + esc(r.preuve) + "</p>";
-      (r.leviers || []).forEach(function (lv) { h += bloclevier(lv); });
-      h += "</div>";
-    });
+    var rangs = CADRE.hierarchie || [];
+    if (!rangs.length) { z.innerHTML = ""; return; }
+    if (RANG_VU === null) RANG_VU = rangs[0].rang;   /* on commence en haut */
+
+    var h = '<label class="dk-hsel" for="dk-rang">'
+      + '<span class="dk-hsel-l">Rang de la hiérarchie</span>'
+      + '<select id="dk-rang" data-dk-rang>'
+      + rangs.map(function (r) {
+          var n = (r.leviers || []).length;
+          return '<option value="' + esc(r.rang) + '"'
+            + (r.rang === RANG_VU ? " selected" : "") + ">"
+            + esc(r.rang + ". " + r.nom) + " — " + n + " levier"
+            + (n > 1 ? "s" : "") + "</option>";
+        }).join("")
+      + "</select>"
+      + '<span class="dk-hsel-a">L’ordre n’est pas indicatif : un rang ne '
+      + 'devient recevable que si ceux qui le précèdent ont été instruits et '
+      + 'documentés.</span></label>';
+
+    var r = rangs.filter(function (x) { return x.rang === RANG_VU; })[0] || rangs[0];
+    var amont = rangs.filter(function (x) { return x.rang < r.rang; });
+
+    h += '<div class="dk-h r' + r.rang + '">'
+      + '<div class="dk-h-t"><span class="o">Rang ' + r.rang + " sur "
+      + rangs.length + "</span><h3>" + esc(r.nom) + "</h3></div>"
+      + '<p class="dk-h-p">' + esc(r.principe) + "</p>"
+      + '<p class="dk-h-pr">Ce qui le prouve : ' + esc(r.preuve) + "</p>";
+
+    if (amont.length) {
+      /* CE QU'IL FALLAIT AVOIR FAIT AVANT. Sans ce rappel, la liste
+         transformerait une contrainte de méthode en menu de self-service. */
+      h += '<p class="dk-h-amont"><b>À instruire avant ce rang</b> — '
+        + amont.map(function (a) {
+            return '<button type="button" class="dk-h-go" data-dk-rang-go="'
+              + esc(a.rang) + '">' + esc(a.rang + ". " + a.nom) + "</button>";
+          }).join(" ")
+        + " Un levier de ce rang présenté sans la trace de cet examen se fait "
+        + "écarter en vérification.</p>";
+    }
+
+    (r.leviers || []).forEach(function (lv) { h += bloclevier(lv); });
+    h += "</div>";
     z.innerHTML = h;
+
+    var sel = z.querySelector("[data-dk-rang]");
+    if (sel) {
+      sel.addEventListener("change", function () {
+        RANG_VU = parseInt(sel.value, 10);
+        rendreHierarchie();
+        /* On redonne le clavier au sélecteur : sans cela, un choix fait au
+           clavier renvoie le focus au début du document, et le lecteur
+           recommence sa navigation. */
+        var s2 = $("#dk-rang");
+        if (s2) { try { s2.focus({ preventScroll: true }); } catch (e) { s2.focus(); } }
+      });
+    }
+    z.querySelectorAll("[data-dk-rang-go]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        RANG_VU = parseInt(b.getAttribute("data-dk-rang-go"), 10);
+        rendreHierarchie();
+        var s2 = $("#dk-rang");
+        if (s2) { try { s2.focus({ preventScroll: true }); } catch (e) { s2.focus(); } }
+      });
+    });
   }
 
   function rendreTextes() {

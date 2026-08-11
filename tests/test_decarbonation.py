@@ -545,3 +545,76 @@ def test_la_page_annonce_la_regle_avant_de_la_faire_appliquer():
     vérifiée par un test."""
     h = _lire("datacenter.html")
     assert "compensation n'est pas une réduction" in h
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE CHOIX DU RANG — une liste déroulante qui ne doit pas défaire l'ordre
+# ═══════════════════════════════════════════════════════════════════════════
+# Les quatre rangs et leurs onze leviers se dépliaient d'un coup : un mur de
+# plusieurs écrans qu'on parcourt sans le lire. Le rang se choisit maintenant.
+#
+# LE RISQUE DE CE CHANGEMENT EST DE FOND, PAS D'ERGONOMIE. Cette section
+# n'enseigne pas quatre familles de leviers : elle enseigne un ORDRE. Une liste
+# qui laisse ouvrir « Compenser » sans avoir jamais vu qu'il existe trois rangs
+# au-dessus ferait dire à l'interface le contraire de ce que la page démontre —
+# et c'est précisément l'erreur que la page existe pour empêcher.
+
+def test_le_rang_se_choisit_dans_une_liste():
+    js = _lire("decarbonation-dc.js")
+    assert 'id="dk-rang"' in js
+    assert "<select" in js[js.index("function rendreHierarchie"):
+                           js.index("function rendreHierarchie") + 2600]
+
+
+def test_les_options_portent_leur_numero_donc_la_sequence_se_lit_fermee():
+    """L'ordre doit rester lisible SANS ouvrir la liste : c'est la seule chose
+    que le repliement risquait de faire perdre."""
+    js = _lire("decarbonation-dc.js")
+    i = js.index("function rendreHierarchie")
+    bloc = js[i:i + 2600]
+    assert 'r.rang + ". " + r.nom' in bloc, (
+        "l'option doit porter le numéro du rang, pas seulement son nom")
+
+
+def test_le_rang_ouvert_rappelle_sa_position():
+    js = _lire("decarbonation-dc.js")
+    i = js.index("function rendreHierarchie")
+    assert '" sur "' in js[i:i + 3000], "« rang 3 sur 4 » et non « rang 3 »"
+
+
+def test_le_rappel_des_rangs_amont_est_ecrit_et_atteignable():
+    """LE CONTRÔLE QUI COMPTE — mais VÉRIFIÉ AILLEURS, et il faut le dire.
+
+    Sans rappel des rangs amont, la liste transformerait une condition de
+    recevabilité en menu de self-service. Ce test-ci ne peut cependant
+    constater que la PRÉSENCE des chaînes dans le fichier : j'ai désactivé la
+    branche qui les affiche — « if (amont.length) » remplacé par « if (false) »
+    — et il est resté vert. Un test qui lit le source ne voit pas ce qui est
+    devenu inatteignable, et il aurait rendu le défaut permanent.
+
+    Ce qui prouve réellement l'affichage est dans recette_decarbonation.js, qui
+    choisit le rang 4 dans la vraie page et exige d'y lire les trois rangs
+    amont. Ce test ne garde donc que le matériau ; la preuve est au navigateur.
+    """
+    js = _lire("decarbonation-dc.js")
+    i = js.index("function rendreHierarchie")
+    bloc = js[i:i + 3600]
+    assert "x.rang < r.rang" in bloc, "les rangs amont doivent être calculés"
+    assert "À instruire avant ce rang" in bloc
+    assert "data-dk-rang-go" in bloc, "et chacun doit être atteignable d'un clic"
+
+
+def test_la_liste_s_ouvre_sur_le_premier_rang():
+    """Commencer ailleurs qu'en haut de la hiérarchie apprendrait le contraire
+    de la méthode dès le premier écran."""
+    js = _lire("decarbonation-dc.js")
+    i = js.index("function rendreHierarchie")
+    assert "RANG_VU = rangs[0].rang" in js[i:i + 1400]
+
+
+def test_la_page_dit_toujours_pourquoi_l_ordre_s_impose():
+    """Le texte de la section porte la justification ; la liste ne doit pas
+    l'avoir emportée avec le dépliement."""
+    h = _lire("datacenter.html")
+    assert "n'est pas une préférence morale" in h
+    assert "ISO 14068-1" in h

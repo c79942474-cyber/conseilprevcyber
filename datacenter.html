@@ -204,6 +204,27 @@
   .dc-champ.dk-designe{outline:2px solid var(--cyan);outline-offset:3px;border-radius:8px}
 
   /* ── La hiérarchie d'atténuation ───────────────────────────────────── */
+  /* Le choix du rang. L'aide sous le sélecteur n'est pas décorative : elle
+     porte la seule chose que la liste fait perdre — le fait que l'ordre est
+     une contrainte de méthode, et non un classement de préférences. */
+  .dk-hsel{display:block;margin:0 0 14px;padding:12px 14px;border-radius:11px;
+    border:1px solid var(--line);background:rgba(0,0,0,.16);max-width:760px}
+  .dk-hsel-l{display:block;font-size:11.5px;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--muted2);margin-bottom:6px}
+  .dk-hsel select{font-family:inherit;font-size:14px;padding:8px 11px;
+    border-radius:8px;border:1px solid var(--line);background:rgba(0,0,0,.28);
+    color:inherit;min-width:min(100%,380px);max-width:100%}
+  .dk-hsel-a{display:block;font-size:12.5px;line-height:1.6;color:var(--muted);
+    margin-top:9px}
+  /* Ce qu'il fallait avoir instruit avant. Présenté comme une réserve et non
+     comme une note : c'est une condition de recevabilité. */
+  .dk-h-amont{font-size:12.5px;line-height:1.75;margin:0 0 12px;padding:9px 12px;
+    border-radius:8px;background:rgba(217,164,65,.09);
+    border:1px solid rgba(217,164,65,.30)}
+  .dk-h-go{font-family:inherit;font-size:12.5px;padding:3px 10px;margin:0 2px;
+    border-radius:7px;border:1px solid var(--line);background:rgba(0,0,0,.24);
+    color:inherit;cursor:pointer}
+  .dk-h-go:hover{border-color:var(--cyan);color:var(--cyan)}
   .dk-h{border:1px solid var(--line);border-radius:12px;padding:15px 17px;margin:0 0 12px;
     background:rgba(0,0,0,.10)}
   .dk-h.r1{border-left:3px solid #27c39a}
