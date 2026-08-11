@@ -75,7 +75,8 @@ from clients_store import (BASES_LEGALES, CATEGORIES_PIECES, STATUTS,
 from cockpit_state import make_store, tag_for
 from livrables_store import make_livrables_store
 from rag_store import (RagError, THEMES, THEME_FAMILLES, FAMILLE_ENTREPRISES,
-                       FAMILLE_ENGINEERING, build_context, dedupe as rag_dedupe,
+                       FAMILLE_ENGINEERING, build_context, build_context_retenus,
+                       dedupe as rag_dedupe,
                        diagnose as rag_diagnose, duplicate_groups,
                        extract_text as rag_extract_text,
                        formats_available, make_rag_store)
@@ -5413,9 +5414,11 @@ def _famille_prioritaire(type_id):
 
       · pièces du registre d'ingénierie (« dc-piece-… ») → centres de données ;
       · types de la console dont le groupe porte le même nom → idem ;
-      · tout le reste → aucune priorité, classement par pertinence seule.
+      · tout autre groupe de la console → les thèmes que livrables.GROUPE_THEMES
+        lui désigne (validés au chargement contre la base) ;
+      · le reste → aucune priorité, classement par pertinence seule.
 
-    Rend (nom de famille, liste de thèmes) ou (None, []).
+    Rend (nom de famille ou de groupe, liste de thèmes) ou (None, []).
     """
     import rag_store as _rs
     if str(type_id or "").startswith("dc-piece-"):
@@ -5428,7 +5431,11 @@ def _famille_prioritaire(type_id):
     # la pertinence seule.
     if t.get("groupe") == _rs.FAMILLE_DATACENTER:
         return _rs.FAMILLE_DATACENTER, _rs.themes_famille(_rs.FAMILLE_DATACENTER)
-    return None, []
+    # La priorité par thème vaut désormais pour TOUS les groupes de la console,
+    # pas seulement les centres de données : un livrable NIS2 puisait sinon par
+    # pertinence seule, et une fiche technique bien tournée sortait devant le
+    # guide ANSSI du sujet. Même mécanique : un ordre, jamais un filtre.
+    return livrables.themes_du_type(type_id)
 
 
 def _hits_priorises(query, k, public_only, themes, elargir=None):
@@ -5491,6 +5498,11 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo,
     calculés, extraits reproduits tels quels — et il porte en tête ce qu'il
     est. C'est un document de travail complet, pas un livrable rédigé.
     """
+    # Même complément que le chemin avec modèle : la fiche du projet ouvert
+    # remplit les champs laissés vides (client, secteur…), et sa matière entre
+    # dans la requête documentaire. La trame est un document remis — elle n'a
+    # pas moins droit au contexte du projet que la version rédigée.
+    _completer_depuis_projet(data)
     phase = str(data.get("phase") or "").strip().upper()[:12]
     code = str(data.get("piece") or "").strip().upper()[:16]
     profil = _profil_datacenter(data)
@@ -5713,15 +5725,36 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None,
             # précisément son travail que de réordonner.
             famille, themes = _famille_prioritaire(type_id)
             hits = _hits_priorises(query, 8, public_only, themes, elargir=large)
+            # LE SOUS-DOSSIER DE LA PIÈCE PASSE DEVANT LA FAMILLE — même
+            # mécanique que sur le chemin documentaire (_trame_sans_modele),
+            # qui l'avait et que ce chemin n'avait pas : rebrancher le modèle
+            # faisait PERDRE la précision fine. Pour un CCTP de production
+            # frigorifique, la note thermique doit sortir devant la note
+            # carbone — toutes deux sont de la famille, une seule est du sujet.
+            ph0 = str(data.get("phase") or "").strip().upper()[:12]
+            pi0 = str(data.get("piece") or "").strip().upper()[:16]
+            pc0 = ingenierie_dc.piece(ph0, pi0) if (ph0 and pi0) else None
+            if pc0:
+                sous = ingenierie_dc.sous_dossiers(pc0["code"],
+                                                   pc0.get("discipline"))
+                if sous:
+                    hits = _hits_priorises(query, 8, public_only, sous,
+                                           elargir=hits)
     except Exception:
         hits = []
-    context = build_context(hits, max_chars=6000)
+    # LES SOURCES SONT BÂTIES SUR LES EXTRAITS RÉELLEMENT INCLUS. Le budget
+    # coupe, la déduplication écarte : construire la liste nominative sur les
+    # huit hits COMPLETS faisait ordonner au modèle de « couvrir » et citer des
+    # documents dont aucun extrait n'avait atteint le prompt — une invitation
+    # directe à la citation inventée. Le budget passe aussi de 6000 à 9000 :
+    # huit extraits de ~900 caractères plus leurs étiquettes y tiennent.
+    context, retenus = build_context_retenus(hits, max_chars=9000)
 
     # Regroupement des extraits par DOCUMENT : le modèle reçoit ainsi la liste
     # nominative de ce qui l'alimente (et non des extraits anonymes), et la même
     # liste sert à sourcer le document exporté. Une seule source de vérité.
     sources, rang = [], {}
-    for h in hits:
+    for h in retenus:
         did = h.get("doc_id")
         if did in rang:
             sources[rang[did]]["extraits"] += 1
@@ -5834,10 +5867,19 @@ def api_livrables_generate():
     guard.fail(ckey)
     data = request.get_json(silent=True) or {}
     type_id = (data.get("type") or "").strip()
+    # LE PROJET OUVERT ENTRE DANS LE PROMPT — avant sa construction, pas après
+    # la génération. Le magasin porte nom, client, secteur, périmètre, filière,
+    # phase, note de cadrage ; le formulaire, souvent, rien : le document
+    # sortait avec « [client à préciser] » pendant que la fiche du projet
+    # disait le client. Les champs SAISIS gardent la main — seuls les vides
+    # sont complétés — et la propriété du projet est vérifiée par le magasin.
+    bloc_projet = _completer_depuis_projet(data)
     prompts = livrables.build_prompts(type_id, data)
     if not prompts:
         return jsonify(ok=False, error="type_inconnu", message="Type de livrable inconnu."), 400
     system, user = prompts
+    if bloc_projet:
+        user += bloc_projet
     return _livrables_run(type_id, data, system, user)
 
 
@@ -6016,6 +6058,12 @@ def api_livrables_preview_docs():
     try:
         hits = assistant.rerank(model, query,
                                 rag.search(query, k=24, public_only=False), 8)
+        # La promesse de cette route — « exactement les mêmes étapes que
+        # _livrables_run » — omettait la priorité par famille : pour un type
+        # « Centres de données », l'aperçu classait autrement que la
+        # génération, précisément le mensonge que la route dit empêcher.
+        famille, themes = _famille_prioritaire(type_id)
+        hits = _hits_priorises(query, 8, False, themes, elargir=hits)
     except Exception as exc:
         return jsonify(ok=False, error="apercu_echec", detail=_exc_detail(exc)), 500
     # Un document peut fournir plusieurs extraits : on regroupe par document en
@@ -6029,7 +6077,8 @@ def api_livrables_preview_docs():
         rang[did] = len(docs)
         docs.append({"id": did, "title": h.get("title"), "theme": h.get("theme"),
                      "visibility": h.get("visibility"), "extraits": 1})
-    return jsonify(ok=True, query=query, documents=docs, extraits=len(hits))
+    return jsonify(ok=True, query=query, documents=docs, extraits=len(hits),
+                   famille_prioritaire=famille)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -6043,6 +6092,60 @@ def api_livrables_preview_docs():
 def _proprietaire():
     u = current_user() or {}
     return (u.get("email") or "").strip().lower()
+
+
+def _completer_depuis_projet(data):
+    """Complète les champs VIDES de `data` depuis la fiche du projet ouvert, et
+    rend le bloc « Contexte du projet » à joindre au prompt (ou "").
+
+    C'est l'adaptation au projet CHOISI : le magasin sait le client, le
+    secteur, la filière, la phase et la note de cadrage — les redemander au
+    formulaire faisait générer des documents à trous sur des projets
+    entièrement renseignés. Trois règles :
+
+      · le formulaire GARDE LA MAIN : une saisie explicite n'est jamais
+        écrasée, seuls les champs vides sont complétés ;
+      · la propriété est vérifiée par le MAGASIN (même règle que le
+        rattachement d'historique) : un identifiant de projet arrive du
+        navigateur, donc de n'importe qui ;
+      · l'échec est silencieux : un projet illisible rend le comportement
+        d'avant — le document se génère sur le seul formulaire.
+    """
+    pid = (data.get("projet_id") or "").strip()
+    if not pid or not projets_dc._valid_id(pid):
+        return ""
+    prop = _proprietaire()
+    if not prop:
+        return ""
+    try:
+        p = projets_db.obtenir(prop, pid)
+    except Exception:
+        return ""
+    if not p:
+        return ""
+    for cle in ("client", "secteur", "perimetre", "filiere", "phase"):
+        if not str(data.get(cle) or "").strip() and str(p.get(cle) or "").strip():
+            data[cle] = p[cle]
+    lignes = []
+    def _l(nom, v):
+        v = str(v or "").strip()
+        if v:
+            lignes.append("- %s : %s" % (nom, v[:240]))
+    _l("Nom du projet", p.get("nom"))
+    _l("Client", p.get("client"))
+    _l("Secteur", p.get("secteur"))
+    _l("Périmètre", p.get("perimetre"))
+    _l("Maîtrise d'ouvrage", p.get("maitrise_ouvrage"))
+    _l("Filière", {"moe": "maîtrise d'œuvre (vocabulaire loi MOP)",
+                   "indus": "ingénierie industrielle (FEED/EPC)"}
+       .get(p.get("filiere"), p.get("filiere")))
+    _l("Phase courante", p.get("phase"))
+    _l("Note de cadrage", p.get("note"))
+    if not lignes:
+        return ""
+    return ("\n\nContexte du projet ouvert — repris de son dossier, à refléter "
+            "dans le document sans rien inventer au-delà :\n"
+            + "\n".join(lignes) + "\n")
 
 
 def _projet_du_compte(pid):

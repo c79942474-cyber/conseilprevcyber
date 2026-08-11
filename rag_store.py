@@ -33,6 +33,7 @@ import logging
 import math
 import os
 import re
+import collections
 import threading
 from contextlib import contextmanager
 import time
@@ -480,15 +481,47 @@ def embeddings_available():
     return bool(os.environ.get("MISTRAL_API_KEY"))
 
 
-def embed_texts(texts):
-    """Renvoie la liste d'embeddings (un par texte) via Mistral, ou lève RagError."""
+# La même requête est embarquée plusieurs fois PAR GÉNÉRATION : recherche
+# large, puis priorité par thèmes, puis sous-dossiers — trois allers-retours
+# HTTPS pour un vecteur strictement identique (le modèle d'embedding est fixé
+# au démarrage). Cache borné, du plus vieux au plus récent ; la borne courte
+# (8 s) vaut pour UN texte — l'échec lève RagError, que search() rattrape déjà
+# par le repli plein-texte.
+_REQ_CACHE = collections.OrderedDict()
+_REQ_CACHE_MAX = 128
+_REQ_CACHE_LOCK = threading.Lock()
+_REQ_TIMEOUT = 8
+
+
+def _embed_requete(query):
+    with _REQ_CACHE_LOCK:
+        if query in _REQ_CACHE:
+            _REQ_CACHE.move_to_end(query)
+            return _REQ_CACHE[query]
+    vec = embed_texts([query], timeout=_REQ_TIMEOUT)[0]
+    with _REQ_CACHE_LOCK:
+        _REQ_CACHE[query] = vec
+        while len(_REQ_CACHE) > _REQ_CACHE_MAX:
+            _REQ_CACHE.popitem(last=False)
+    return vec
+
+
+def embed_texts(texts, timeout=EMBED_TIMEOUT):
+    """Renvoie la liste d'embeddings (un par texte) via Mistral, ou lève RagError.
+
+    `timeout` : 60 s par défaut — justifié pour l'INDEXATION, qui embarque des
+    lots de dix chunks. Pour la REQUÊTE d'une recherche (un seul texte), les
+    appelants passent une borne courte : une génération enchaîne jusqu'à trois
+    recherches avant l'appel du modèle, et 2 × 60 s d'attente d'embeddings
+    dépassaient à eux seuls le délai du serveur — le worker était tué pendant
+    que le repli plein-texte, lui, attendait sans être appelé."""
     key = os.environ.get("MISTRAL_API_KEY")
     if not key:
         raise RagError("embeddings_non_configures", 503)
     import requests
     try:
         r = requests.post(
-            EMBED_URL, timeout=EMBED_TIMEOUT,
+            EMBED_URL, timeout=timeout,
             headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"},
             json={"model": EMBED_MODEL, "input": texts})
     except requests.RequestException:
@@ -1736,7 +1769,7 @@ class PostgresRagStore:
 
     def _vector(self, conn, query, clause, params, limit):
         """Liste classée par similarité sémantique (cosinus, index HNSW)."""
-        qvec = _vec_literal(embed_texts([query])[0])
+        qvec = _vec_literal(_embed_requete(query))
         sql = ("SELECT c.content,d.id,d.title,d.theme,d.visibility,"
                "1-(c.embedding <=> %s::vector) AS score "
                "FROM rag_chunks c JOIN rag_documents d ON d.id=c.doc_id "
@@ -2441,13 +2474,28 @@ def dedupe(store, dry_run=False, docs=None):
 def build_context(hits, max_chars=3500):
     """Assemble les extraits récupérés en un bloc de contexte sourcé pour le LLM.
 
+    Voir build_context_retenus — ceci n'en garde que le bloc."""
+    return build_context_retenus(hits, max_chars)[0]
+
+
+def build_context_retenus(hits, max_chars=3500):
+    """Le bloc de contexte ET la liste des extraits qui y sont RÉELLEMENT.
+
+    Renvoie (bloc, hits_retenus). La distinction n'est pas un confort : le
+    budget coupe, la déduplication écarte — et le « dossier documentaire »
+    remis au modèle lui ordonnait de citer les documents des HITS COMPLETS,
+    y compris ceux dont aucun extrait n'avait atteint le prompt. C'est une
+    invitation directe à la citation inventée, exactement ce que le garde-fou
+    interdit. La liste des sources se construit sur `hits_retenus`, jamais sur
+    les hits d'entrée.
+
     - déduplication des extraits quasi identiques (recouvrement des chunks) pour
       ne pas gaspiller le budget de contexte ;
     - étiquette de source enrichie « [Titre — Thème] » afin que le modèle puisse
       citer précisément et pondérer selon le domaine."""
     if not hits:
-        return ""
-    out, total, seen = [], 0, set()
+        return "", []
+    out, retenus, total, seen = [], [], 0, set()
     for h in hits:
         content = (h.get("content") or "").strip()
         if not content:
@@ -2467,11 +2515,14 @@ def build_context(hits, max_chars=3500):
                 cut = block[:remain]
                 cut = cut[:cut.rfind(" ")] if " " in cut else cut
                 out.append(cut)
+                # Coupé mais PRÉSENT : le modèle peut le citer, il le voit.
+                retenus.append(h)
             break
         out.append(block)
+        retenus.append(h)
         total += len(block)
     if not out:
-        return ""
+        return "", []
     # ── LA CLÔTURE, ICI ET NULLE PART AILLEURS ──────────────────────────────
     # Cette fonction est le SEUL passage par lequel les extraits rejoignent un
     # prompt : quatre appelants, un entonnoir. Clore ici couvre les quatre d'un
@@ -2497,6 +2548,6 @@ def build_context(hits, max_chars=3500):
         # contexte VIDE plutôt qu'un contexte non clos : l'assistant répondra
         # sans base documentaire, ce qui se voit, au lieu d'obéir à un document,
         # ce qui ne se voit pas.
-        return ""
+        return "", []
     bloc, _signaux = garde_ia.clore(corps)
-    return bloc
+    return bloc, retenus

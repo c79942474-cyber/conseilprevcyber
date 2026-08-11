@@ -22,6 +22,7 @@ import extraits as X
 TYPES = [
     {
         "id": "synthese-62443",
+        "mots_cles": "IEC 62443 zones conduits niveaux SL CSMS exigences fondamentales FR système d'automatisation industriel",
         "groupe": "Conformité & risques",
         "label": "Synthèse de conformité IEC 62443",
         "desc": "État de conformité (zones & conduits, niveaux SL), écarts et recommandations priorisées.",
@@ -36,6 +37,7 @@ TYPES = [
     },
     {
         "id": "cadrage-amoa",
+        "mots_cles": "AMOA assistance maîtrise d'ouvrage cadrage périmètre gouvernance jalons livrables SI industriel",
         "groupe": "Cadrage & stratégie",
         "label": "Note de cadrage — AMOA SI Industriel",
         "desc": "Contexte, objectifs, périmètre, gouvernance, démarche et livrables attendus d'un projet SI industriel.",
@@ -68,6 +70,7 @@ TYPES = [
     },
     {
         "id": "analyse-ecarts-nis2",
+        "mots_cles": "NIS2 entité essentielle importante mesures gestion des risques notification incident 24h 72h chaîne d'approvisionnement gouvernance sanctions",
         "groupe": "Conformité & risques",
         "label": "Analyse d'écarts NIS2",
         "desc": "Assujettissement, écarts par famille d'exigences (gouvernance, mesures de gestion "
@@ -87,6 +90,7 @@ TYPES = [
     },
     {
         "id": "plan-remediation",
+        "mots_cles": "plan de remédiation priorisation vulnérabilités correctifs jalons quick wins risque résiduel",
         "groupe": "Conformité & risques",
         "label": "Plan de remédiation",
         "desc": "Risques priorisés, mesures d'atténuation, échéancier, responsabilités et indicateurs de suivi.",
@@ -100,6 +104,7 @@ TYPES = [
     },
     {
         "id": "pssi-ot",
+        "mots_cles": "politique sécurité systèmes industriels PSSI OT CSMS gouvernance comptes segmentation correctifs sauvegarde IEC 62443-2-1",
         "groupe": "Politiques & organisation",
         "label": "Politique de sécurité SI industriel (PSSI OT) — trame",
         "desc": "Trame de politique de sécurité des systèmes industriels : principes, gouvernance et mesures par domaine.",
@@ -117,6 +122,7 @@ TYPES = [
     },
     {
         "id": "analyse-risque",
+        "mots_cles": "analyse de risques EBIOS RM scénarios redoutés vraisemblance gravité mesures de traitement OT",
         "groupe": "Conformité & risques",
         "label": "Synthèse d'analyse de risque (OT)",
         "desc": "Actifs essentiels, sources de risque, scénarios redoutés, évaluation et mesures de traitement.",
@@ -131,6 +137,7 @@ TYPES = [
     },
     {
         "id": "sensibilisation",
+        "mots_cles": "sensibilisation cyber OT hygiène informatique phishing USB consignes atelier opérateurs",
         "groupe": "Politiques & organisation",
         "label": "Support de sensibilisation cyber OT",
         "desc": "Messages clés et bonnes pratiques pour les équipes terrain (exploitation, maintenance, automatismes).",
@@ -144,6 +151,7 @@ TYPES = [
     },
     {
         "id": "carto-exposition",
+        "mots_cles": "cartographie exposition surface d'attaque inventaire actifs OT flux segmentation accès distants",
         "groupe": "Programme IA & SOC",
         "label": "Cartographie des expositions SI",
         "desc": "Recensement des actifs exposés (internet, tiers), qualification et matrice de "
@@ -159,6 +167,7 @@ TYPES = [
     },
     {
         "id": "cible-soc-augmente",
+        "mots_cles": "SOC détection supervision SIEM sondes OT règles corrélation réponse incident",
         "groupe": "Programme IA & SOC",
         "label": "Modèle cible SOC augmenté (IA, SOAR, CTI)",
         "desc": "Cible d'un SOC augmenté par l'IA : architecture (détection, SOAR, CTI), cas "
@@ -176,6 +185,7 @@ TYPES = [
     },
     {
         "id": "roadmap-cyber",
+        "mots_cles": "feuille de route cyber priorisation chantiers maturité budget jalons trajectoire",
         "groupe": "Cadrage & stratégie",
         "label": "Roadmap de transformation cyber",
         "desc": "Feuille de route de transformation : axes, trajectoire par horizon, jalons, "
@@ -556,6 +566,7 @@ TYPES = [
     },
     {
         "id": "pca-pra-ot",
+        "mots_cles": "plan continuité reprise activité PCA PRA RTO RPO sauvegarde restauration exercice",
         "groupe": "Conseil — Continuité & crise OT",
         "label": "Plan de continuité / reprise OT (PCA-PRA)",
         "desc": "Analyse d'impact par procédé, objectifs de reprise (RTO/RPO), séquences de "
@@ -607,6 +618,7 @@ TYPES = [
     },
     {
         "id": "procedure-moc",
+        "mots_cles": "gestion des changements MOC analyse d'impact validation retour arrière traçabilité",
         "groupe": "Conseil — Gestion des changements (MOC)",
         "label": "Procédure de gestion des changements (MOC) sécurité OT",
         "desc": "Circuit MOC en six étapes : demande & classement, grille d'impact cyber-sûreté, "
@@ -624,6 +636,7 @@ TYPES = [
     },
     {
         "id": "dossier-architecture-ot",
+        "mots_cles": "dossier architecture technique DAT segmentation zones conduits DMZ pare-feu Purdue référentiel",
         "groupe": "Conseil — Architecture & détection",
         "label": "Dossier d'architecture technique OT (DAT)",
         "desc": "Architecture cible : zones et conduits, SL-T par zone, briques retenues "
@@ -642,6 +655,7 @@ TYPES = [
     },
     {
         "id": "deploiement-sonde-ot",
+        "mots_cles": "sonde détection OT déploiement TAP SPAN inventaire passif protocoles industriels supervision",
         "groupe": "Conseil — Architecture & détection",
         "label": "Plan de déploiement d'une sonde de détection OT",
         "desc": "Points de capture, dimensionnement, réglage des règles, cas d'usage de détection "
@@ -660,6 +674,7 @@ TYPES = [
     },
     {
         "id": "referentiel-durcissement",
+        "mots_cles": "durcissement configuration automates postes serveurs comptes services mots de passe journalisation",
         "groupe": "Conseil — Architecture & détection",
         "label": "Référentiel de durcissement par type d'actif",
         "desc": "Configuration de référence et mesures de durcissement pour automates (PLC), "
@@ -804,6 +819,7 @@ TYPES = [
     },
     {
         "id": "charte-gouvernance-ia",
+        "mots_cles": "charte gouvernance IA usages responsables validation humaine transparence AI Act risques",
         "groupe": "Conseil — Gouvernance IA",
         "label": "Charte de gouvernance IA & comité",
         "desc": "Qui décide, qui contrôle, qui opère : mandat du comité de gouvernance IA, "
@@ -1760,9 +1776,100 @@ def build_refine_prompts(type_id, inputs, previous, instructions):
     return SYSTEM_PROMPT, user
 
 
-def retrieval_query(type_id, inputs):
-    """Requête de récupération RAG pour ancrer le livrable."""
+# ── LA PRIORITÉ PAR THÈME, POUR TOUS LES GROUPES ──────────────────────────
+# Elle n'existait que pour les centres de données : les soixante autres types
+# étaient ancrés par pertinence lexicale seule, et un livrable NIS2 pouvait
+# être alimenté par une fiche technique de groupe froid mieux notée que le
+# guide ANSSI pertinent. Chaque groupe de la console désigne ici les thèmes de
+# la base qui portent SON vocabulaire — un ORDRE, jamais un filtre :
+# _hits_priorises fait passer ces thèmes devant, sans écarter le reste.
+# Validée au chargement contre rag_store.THEMES : un thème renommé là-bas
+# ferait échouer l'import ici, au lieu de désactiver la priorité en silence.
+GROUPE_THEMES = {
+    "Conformité & risques": [
+        "IEC 62443", "NIS2", "DORA", "ISO 27001 / 27002",
+        "NIST CSF / SP 800-82", "Analyse de risques", "Conformité & audit",
+        "Guides ANSSI", "ANSSI / Guides & recommandations",
+        "ANSSI / Méthodes (EBIOS RM)", "Plan de remédiation"],
+    "Cadrage & stratégie": [
+        "AMOA SI Industriel", "Gouvernance & CSMS", "Guides ANSSI",
+        "Cahier des charges & CCTP", "Études de cas"],
+    "Politiques & organisation": [
+        "Gouvernance & CSMS", "Sensibilisation & formation",
+        "Gestion des prestataires", "Conformité & audit"],
+    "Programme IA & SOC": [
+        "Supervision & détection", "Réponse à incident",
+        "Inventaire & cartographie", "Gestion des correctifs", "AI Act"],
+    "Conseil — Feuille de route": [
+        "Gouvernance & CSMS", "Plan de remédiation", "Conformité & audit",
+        "Analyse de risques"],
+    "Conseil — Operating Model": [
+        "Gouvernance & CSMS", "Gestion des prestataires",
+        "Sensibilisation & formation"],
+    "Conseil — Maturité": [
+        "Gouvernance & CSMS", "Conformité & audit",
+        "ANSSI / Méthodes (EBIOS RM)", "NIST CSF / SP 800-82", "IEC 62443"],
+    "Conseil — Continuité & crise OT": [
+        "Continuité & résilience (PRA/PCA)", "Réponse à incident",
+        "Durcissement & configuration"],
+    "Conseil — Gestion des changements (MOC)": [
+        "Gouvernance & CSMS", "Gestion des correctifs",
+        "Automates, SCADA & DCS"],
+    "Conseil — Architecture & détection": [
+        "Architecture & segmentation", "Supervision & détection",
+        "Durcissement & configuration", "Sécurité réseau & pare-feu",
+        "Inventaire & cartographie"],
+    "Conseil — Formation & compétences": [
+        "Sensibilisation & formation", "Gouvernance & CSMS"],
+    "Conseil — Gouvernance IA": [
+        "AI Act", "Juridique / IA Act", "RGPD",
+        "Juridique / RGPD & données", "Gouvernance & CSMS"],
+    # « Centres de données » garde son chemin dédié (famille entière),
+    # déjà en place côté serveur.
+}
+
+
+def _verifier_groupe_themes():
+    import rag_store as _rs
+    fautes = []
+    connus = set(_rs.THEMES)
+    groupes = {t.get("groupe") for t in TYPES}
+    for g, ts in GROUPE_THEMES.items():
+        if g not in groupes:
+            fautes.append("groupe inconnu de TYPES : %s" % g)
+        for th in ts:
+            if th not in connus:
+                fautes.append("thème inconnu de la base (%s) : %s" % (g, th))
+    return fautes
+
+
+_FAUTES_GROUPE_THEMES = _verifier_groupe_themes()
+if _FAUTES_GROUPE_THEMES:
+    raise RuntimeError("livrables — thèmes par groupe incohérents : "
+                       + " ; ".join(_FAUTES_GROUPE_THEMES))
+
+
+def themes_du_type(type_id):
+    """Les thèmes RAG prioritaires du type — (groupe, thèmes) ou (None, [])."""
     t = get_type(type_id)
-    parts = [t["label"] if t else "", inputs.get("secteur") or "",
+    if not t:
+        return None, []
+    g = t.get("groupe")
+    ts = GROUPE_THEMES.get(g)
+    return (g, list(ts)) if ts else (None, [])
+
+
+def retrieval_query(type_id, inputs):
+    """Requête de récupération RAG pour ancrer le livrable.
+
+    LES MOTS-CLÉS DU TYPE EN TÊTE : le label seul est générique (« Business
+    case / dossier de décision ») et secteur/périmètre sont souvent vides — la
+    requête ne portait quasiment aucun terme technique du sujet. Les valeurs
+    laissées en gabarit (« [à préciser] ») sont écartées : elles n'apportent
+    que du bruit."""
+    t = get_type(type_id)
+    parts = [(t.get("mots_cles") or "") if t else "",
+             t["label"] if t else "", inputs.get("secteur") or "",
              inputs.get("perimetre") or "", inputs.get("consignes") or ""]
-    return " ".join(p for p in parts if p).strip()
+    return " ".join(p for p in parts
+                    if p and not p.strip().startswith("[")).strip()

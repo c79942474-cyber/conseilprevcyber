@@ -207,12 +207,19 @@ def test_sans_le_garde_le_contexte_est_vide_et_non_ouvert():
     """Une porte absente qui laisse passer est pire que pas de porte. Sans le
     module, on rend un contexte VIDE — l'assistant répondra sans base, ce qui
     se voit — plutôt qu'un contexte non clos, ce qui ne se voit pas."""
-    for f in ("rag_store.py", "agent_datacenter.py"):
+    # Dans rag_store, l'entonnoir est build_context_retenus : build_context
+    # n'en garde que le bloc, et c'est LÀ que la porte doit être. Chercher
+    # depuis le premier « def build_context » trouverait le délégué, pas la
+    # porte — et un déplacement de la porte hors de l'entonnoir passerait.
+    cibles = {"rag_store.py": "def build_context_retenus",
+              "agent_datacenter.py": "def build_context"}
+    for f, marque in cibles.items():
         src = open(os.path.join(ICI, f), encoding="utf-8").read()
-        i = src.index("def build_context")
-        bloc = src[i:i + 2600]
+        i = src.index(marque)
+        bloc = src[i:i + 3400]
         assert "import garde_ia" in bloc, f
-        assert 'return ""' in bloc or 'return "", sources' in bloc, f
+        assert 'return ""' in bloc or 'return "", []' in bloc \
+            or 'return "", sources' in bloc, f
 
 
 # ── 4. Le dépôt qui échappait à l'analyse ──────────────────────────────────
