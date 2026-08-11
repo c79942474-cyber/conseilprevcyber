@@ -32,7 +32,7 @@ const titre = t => console.log('\n══ ' + t + ' ══\n');
 
 const PAGES = [
   ['/datacenter', 11],
-  ['/ingenierie-datacenter', 7],
+  ['/ingenierie-datacenter', 8],
   ['/strategie-durable-datacenter', 5],
 ];
 

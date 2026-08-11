@@ -35,6 +35,35 @@
     padding:12px 14px;background:rgba(0,0,0,.10);font-size:13px;color:var(--muted);line-height:1.6}
   .rc-socle b{color:var(--ink)}
   .rc-sec{padding:26px 0}
+  /* ── LE PRIX DE LA MAÎTRISE D'ŒUVRE ─────────────────────────────────── */
+  .moe-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+    gap:14px;margin:14px 0 12px}
+  .moe-phases{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  .moe-phases button{font-family:inherit;font-size:12px;padding:7px 13px;
+    border:1px solid var(--rule2,#d8d4cc);border-radius:20px;background:#fff;
+    color:inherit;cursor:pointer;text-align:left;line-height:1.35}
+  .moe-phases button.on{background:var(--encre,#1C1C1C);color:#fff;
+    border-color:var(--encre,#1C1C1C)}
+  /* Ce que le groupe recouvre, en vocabulaire loi MOP : le maître d'ouvrage
+     reconnaît « ESQ + APS », pas « aps-pc ». */
+  .moe-mop{display:block;font-size:9.5px;letter-spacing:.06em;opacity:.66;
+    margin-top:2px;text-transform:uppercase}
+  .dc-refus{border:1px solid rgba(190,120,40,.42);background:rgba(190,120,40,.07);
+    border-radius:9px;padding:11px 14px;font-size:13.5px;line-height:1.65;margin:0}
+  .moe-tot{font-size:22px;font-weight:600;margin:16px 0 2px}
+  .moe-tot .note{font-size:12.5px;font-weight:400}
+  .moe-tab{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}
+  .moe-tab th,.moe-tab td{padding:6px 9px;border-bottom:1px solid var(--rule,#e6e2da);
+    text-align:right;white-space:nowrap}
+  .moe-tab th{text-align:right;font-size:11px;color:var(--muted,#6b6b6b);font-weight:500}
+  .moe-tab th:first-child,.moe-tab td:first-child{text-align:left;white-space:normal}
+  .moe-tab tr.loi td:first-child::after{content:" ⚖ obligatoire";font-size:10px;
+    color:#a8761f}
+  .moe-tab tr.loi.impose td:first-child::after{content:" ⚖ imposée — comptée malgré le décochage"}
+  .moe-perdu{margin-top:14px;padding:12px 15px;border-radius:9px;
+    border:1px solid rgba(190,120,40,.38);background:rgba(190,120,40,.06);
+    font-size:13px;line-height:1.7}
+  .moe-perdu li{margin-bottom:8px}
 
   /* ── LES MODULES NUMÉROTÉS — encadrement bleu et signalement ──────────
      L'ENCADREMENT SÉPARE, LA PASTILLE INFORME, LE BATTEMENT DÉSIGNE. Trois
@@ -1407,8 +1436,32 @@
   <!-- Le dépôt de documents client. Placé APRÈS le registre : on sait alors
        quelles pièces manquent, donc quoi apporter. Le présenter avant
        reviendrait à demander des documents sans dire lesquels. -->
+  <!-- ══ LE PRIX DE LA MAÎTRISE D'ŒUVRE ═══════════════════════════════════
+       Elle vient APRÈS les deux filières, et c'est délibéré : on ne chiffre
+       pas des phases avant de les avoir nommées. Le barème est partagé à
+       l'identique avec le module d'enveloppe de Sentinel — un second
+       exemplaire divergerait, et c'est celui qu'on oublie de corriger qui
+       reste en ligne.
+
+       CETTE PAGE NE CALCULE PAS L'ENVELOPPE, elle le dit déjà ailleurs et
+       renvoie vers conseilprev pour cela. Le montant des travaux est donc une
+       ENTRÉE : le module ne le reconstitue pas, et sans lui il ne rend rien. -->
+  <section class="wrap rc-sec" id="ig-moe">
+    <div class="rc-etape"><span class="n">6</span><h2>Le prix de la maîtrise d’œuvre</h2></div>
+    <p class="lead" style="max-width:76ch;margin-top:0">
+    Selon <b>la mission choisie plus haut</b> et les <b>phases</b> que vous confiez.
+    Les honoraires portent sur le montant des <b>travaux</b> — que ce module ne calcule
+    pas&nbsp;: il chiffre l’énergie, l’eau et le carbone, pas l’investissement.
+    Reportez ici le montant issu de l’étude d’enveloppe, ou votre propre estimation.</p>
+    <div class="moe-form" id="ig-moe-form"></div>
+    <div class="moe-phases" id="ig-moe-phases"></div>
+    <button type="button" class="ig-lanceur-b" id="ig-moe-go">Chiffrer la maîtrise d’œuvre →</button>
+    <p class="note" id="ig-moe-msg" style="margin-top:10px"></p>
+    <div id="ig-moe-out"></div>
+  </section>
+
   <section class="wrap rc-sec">
-    <div class="rc-etape"><span class="n">6</span><h2>Apporter vos documents</h2></div>
+    <div class="rc-etape"><span class="n">7</span><h2>Apporter vos documents</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Vos pièces existantes — notes de calcul, relevés, plans, spécifications
       d'un projet antérieur — complètent l'étude là où le moteur s'arrête. Elles
@@ -1421,7 +1474,7 @@
   </section>
 
   <section class="wrap rc-sec" id="ig-limites">
-    <div class="rc-etape"><span class="n">7</span><h2>Ce que ce cadre ne fait pas</h2></div>
+    <div class="rc-etape"><span class="n">8</span><h2>Ce que ce cadre ne fait pas</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Le dire ici plutôt qu'en note de bas de page&nbsp;: ces limites décident du moment où
       il faut un ingénieur, et les ignorer coûte plus cher que de les lire.</p>

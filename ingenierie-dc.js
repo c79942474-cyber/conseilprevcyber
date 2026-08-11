@@ -3601,3 +3601,200 @@
     démarrer();
   }
 })();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LE PRIX DE LA MAÎTRISE D'ŒUVRE — treize missions, cinq groupes de phases
+
+   TROIS PARTIS PRIS, ET CHACUN RÉPOND À UN PIÈGE :
+
+   1. LA MISSION CHOISIE PLUS HAUT COMMANDE LES PHASES. Une conception seule
+      s'arrête à la consultation : lui proposer l'assistance aux contrats ou le
+      suivi de chantier lui ferait payer ce qu'elle n'a pas confié. Et pour une
+      AMO, un audit ou une ingénierie EPC, le barème REFUSE — un chiffre faux
+      et crédible est la pire des deux combinaisons.
+
+   2. LE BARÈME GROUPE CE QUE LA LOI MOP SÉPARE. « APS-PC » couvre l'esquisse
+      ET l'avant-projet ; « EXE » couvre le visa, la direction et la réception.
+      Le relevé ne dit pas comment le montant se divise à l'intérieur d'un
+      groupe : on affiche ce que chacun recouvre, et on ne propose pas de
+      détacher un élément — ce serait fabriquer un chiffre.
+
+   3. LE PARTAGE CLOS-COUVERT / TECHNIQUE PÈSE PLUS QUE N'IMPORTE QUEL TAUX.
+      Sur un centre de données, la technique fait le gros des travaux, et les
+      taux y sont inversés. Il est donc demandé, avec son hypothèse par défaut
+      affichée comme telle.
+   ══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  "use strict";
+  var REF = null, PH = null;
+  var $ = function (s) { return document.querySelector(s); };
+  function esc(x) { return String(x == null ? "" : x)
+    .replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function nb(x) { return (Math.round(x * 100) / 100).toLocaleString("fr-FR"); }
+  function fo(a) { return (!a || a[0] == null) ? "—" : nb(a[0]) + " – " + nb(a[1]); }
+  function saisi(id) {
+    var e = document.getElementById(id);
+    if (!e) return undefined;
+    var t = String(e.value == null ? "" : e.value).trim();
+    return t === "" ? undefined : Number(t.replace(",", "."));
+  }
+  function mission() {
+    var e = document.getElementById("ig-mission");
+    return (e && e.value) || "moe";
+  }
+
+  function champs() {
+    $("#ig-moe-form").innerHTML =
+        '<label class="dc-champ" for="ig-moe-trav"><span class="dc-lab">'
+      + 'Montant des travaux (M€)</span>'
+      + '<input type="text" id="ig-moe-trav" placeholder="ex. 600 ou 600-750">'
+      + '<span class="dc-aide">Le montant sur lequel portent les honoraires. '
+      + 'Ce module ne le calcule pas : reportez celui de l’étude d’enveloppe, '
+      + 'ou le vôtre. Une fourchette est acceptée.</span></label>'
+      + '<label class="dc-champ" for="ig-moe-pt"><span class="dc-lab">'
+      + 'Part du lot technique (%)</span>'
+      + '<input type="text" id="ig-moe-pt" placeholder="défaut '
+      + Math.round((REF.part_technique_defaut || 0.7) * 100) + '">'
+      + '<span class="dc-aide">Électricité, froid, salles. Sur un centre de '
+      + 'données, ce partage pèse plus lourd que n’importe quel taux du '
+      + 'barème : les taux y sont inversés par rapport au clos-couvert.</span></label>';
+  }
+
+  function phases() {
+    var p = (REF.portee_mission || {})[mission()];
+    var z = $("#ig-moe-phases");
+    if (!p || !p.couvre) {
+      /* LE REFUS EST UNE RÉPONSE, et il vaut mieux que n'importe quel nombre. */
+      z.innerHTML = '<p class="dc-refus">' + esc((p && p.dit)
+        || "Ce barème ne couvre pas cette mission.") + "</p>";
+      PH = [];
+      return;
+    }
+    PH = p.phases.slice();
+    z.innerHTML = '<p class="note" style="margin:0 0 8px">' + esc(p.dit) + "</p>"
+      + REF.phases.filter(function (f) { return p.phases.indexOf(f.cle) >= 0; })
+        .map(function (f) {
+          var mop = (REF.phases_mop || {})[f.cle] || {};
+          return '<button type="button" class="on" data-ph="' + esc(f.cle)
+            + '" title="' + esc(f.titre + " — " + f.produit
+                + (mop.note ? "\n\n" + mop.note : "")) + '">'
+            + esc(f.nom)
+            + '<span class="moe-mop">' + esc((mop.mop || []).join(" + ")) + "</span>"
+            + "</button>";
+        }).join("");
+    z.querySelectorAll("[data-ph]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var c = b.getAttribute("data-ph"), i = PH.indexOf(c);
+        if (i >= 0) { PH.splice(i, 1); b.classList.remove("on"); }
+        else { PH.push(c); b.classList.add("on"); }
+      });
+    });
+  }
+
+  function rendre(j) {
+    var ph = REF.phases.filter(function (f) {
+      return j.phases_retenues.indexOf(f.cle) >= 0; });
+    var h = '<p class="moe-tot">' + fo(j.total_meur) + " M€ "
+      + '<span class="note">soit ' + fo(j.taux_effectif_pct) + " % des "
+      + fo(j.travaux_meur) + " M€ de travaux</span></p>"
+      + '<p class="note">' + esc(j.assiettes.note) + "</p>"
+      + '<div style="overflow-x:auto"><table class="moe-tab"><thead><tr><th>Mission</th>'
+      + '<th title="clos-couvert / technique">Taux</th>'
+      + ph.map(function (f) {
+          var mop = (REF.phases_mop || {})[f.cle] || {};
+          return "<th>" + esc(f.nom) + '<span class="moe-mop">'
+            + esc((mop.mop || []).join(" + ")) + "</span></th>"; }).join("")
+      + "<th>Total</th></tr></thead><tbody>"
+      + j.missions.map(function (l) {
+          return "<tr" + (l.obligation ? ' class="loi' + (l.impose ? " impose" : "") + '"' : "")
+            + '><td title="' + esc(l.role) + '">' + esc(l.nom) + "</td><td>"
+            + (l.taux_sc * 100).toFixed(1).replace(".", ",") + " / "
+            + (l.taux_mep * 100).toFixed(1).replace(".", ",") + " %</td>"
+            + ph.map(function (f) {
+                return "<td>" + fo(l.phases[f.cle].montant_meur) + "</td>"; }).join("")
+            + "<td><b>" + fo(l.montant_meur) + "</b></td></tr>"; }).join("")
+      + "</tbody><tfoot><tr><td><b>Total</b></td><td></td>"
+      + ph.map(function (f) { return "<td>" + fo(j.par_phase[f.cle]) + "</td>"; }).join("")
+      + "<td><b>" + fo(j.total_meur) + "</b></td></tr></tfoot></table></div>";
+    if (j.imposees && j.imposees.length) {
+      h += '<p class="moe-perdu"><b>⚖ Deux missions ne se décochent pas.</b> '
+        + j.imposees.map(function (i) {
+            return esc(i.nom) + " — " + esc(i.obligation.texte) + " ("
+              + esc(i.obligation.reference) + ")"; }).join(" ") + "</p>";
+    }
+    if (j.consequences && j.consequences.length) {
+      h += '<div class="moe-perdu"><b>Ce que vous ne prenez pas — et ce que '
+        + "cela laisse à votre charge.</b><ul>"
+        + j.consequences.map(function (c) {
+            return "<li><b>" + esc(c.nom) + "</b> — " + esc(c.titre) + ".<br>"
+              + "<i>Produit :</i> " + esc(c.produit) + "<br>"
+              + "<i>Sans elle :</i> " + esc(c.sans) + "</li>"; }).join("")
+        + "</ul></div>";
+    }
+    h += '<p class="note" style="margin-top:10px">' + esc(j.source.origine) + " "
+      + esc(j.source.reserve) + " " + esc(j.source.anonymisation) + "</p>";
+    $("#ig-moe-out").innerHTML = h;
+  }
+
+  function chiffrer() {
+    var t = saisi("ig-moe-trav");
+    var brut = (document.getElementById("ig-moe-trav") || {}).value || "";
+    var m = /^\s*([\d.,]+)\s*[-–]\s*([\d.,]+)\s*$/.exec(brut);
+    var trav = m ? [Number(m[1].replace(",", ".")), Number(m[2].replace(",", "."))]
+                 : (t === undefined ? null : [t, t]);
+    if (!trav) {
+      $("#ig-moe-msg").textContent = "Indiquez le montant des travaux : ce "
+        + "module chiffre l’énergie, l’eau et le carbone, pas l’investissement.";
+      return;
+    }
+    var pt = saisi("ig-moe-pt");
+    $("#ig-moe-msg").textContent = "chiffrage en cours…";
+    fetch("/api/datacenter/moe", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mission: mission(), travaux_meur: trav,
+                             part_technique: pt === undefined ? null : pt / 100,
+                             phases: PH })
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      if (!j.ok) {
+        $("#ig-moe-msg").textContent = j.message || "chiffrage indisponible";
+        $("#ig-moe-out").innerHTML = "";
+        return;
+      }
+      $("#ig-moe-msg").textContent = "Mission : " + (j.portee.dit || "");
+      rendre(j);
+    }).catch(function () {
+      $("#ig-moe-msg").textContent = "chiffrage indisponible";
+    });
+  }
+
+  function demarrer() {
+    if (!document.getElementById("ig-moe-go")) return;
+    document.getElementById("ig-moe-go").addEventListener("click", chiffrer);
+    fetch("/api/datacenter/moe").then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) return;
+        REF = j; champs(); phases();
+        /* LA MISSION COMMANDE LES PHASES : changer l'une refait l'autre. Sans
+           cela, un client passé en conception seule garderait à l'écran des
+           phases qu'il ne confie plus.
+
+           PAR DÉLÉGATION, et c'est le point : le sélecteur de mission est
+           construit par la page APRÈS le chargement de son propre référentiel.
+           Mon premier jet faisait `getElementById("ig-mission")` au démarrage —
+           il obtenait `null`, n'attachait rien, et le bloc restait figé sur la
+           maîtrise d'œuvre complète quoi qu'on choisisse. Un écouteur posé sur
+           le document survit à un élément qui n'existe pas encore. */
+        document.addEventListener("change", function (ev) {
+          var t = ev.target;
+          if (!t || t.id !== "ig-mission") return;
+          phases();
+          $("#ig-moe-out").innerHTML = "";
+          $("#ig-moe-msg").textContent = "";
+        });
+      }).catch(function () {});
+  }
+  if (document.readyState === "loading")
+    document.addEventListener("DOMContentLoaded", demarrer);
+  else demarrer();
+})();

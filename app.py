@@ -2709,6 +2709,79 @@ def api_datacenter_comparer():
                            "regarder pour arbitrer entre évaporatif et rejet sec.")
 
 
+import moe_dc  # noqa: E402  — barème d'honoraires de maîtrise d'œuvre,
+              # partagé à l'identique avec conseilprev (Sentinel)
+
+
+@app.route("/api/datacenter/moe", methods=["GET", "POST"])
+@login_required
+def api_datacenter_moe():
+    """Le prix de la maîtrise d'œuvre, selon la mission et les phases confiées.
+
+    EN GET : le barème — treize missions, cinq groupes de phases traduits dans
+    le vocabulaire de la loi MOP, et ce que chaque groupe recouvre.
+
+    EN POST : le chiffrage. CETTE PAGE NE CALCULE PAS L'ENVELOPPE — elle le dit
+    déjà en toutes lettres et renvoie vers conseilprev pour cela. Le montant des
+    TRAVAUX est donc une entrée, pas un résultat : le module ne le reconstitue
+    pas, et sans lui il ne rend rien.
+
+    LE BARÈME NE CHIFFRE QUE DE LA MAÎTRISE D'ŒUVRE. Pour une assistance à
+    maîtrise d'ouvrage, un bureau d'études dans la MOE d'un tiers, une
+    ingénierie EPC ou un audit, il refuse — un nombre faux et crédible est la
+    pire des deux combinaisons."""
+    if request.method == "GET":
+        ref = moe_dc.referentiel()
+        ref["ok"] = True
+        ref["sante"] = moe_dc.sante()
+        return jsonify(ref)
+
+    d = request.get_json(silent=True) or {}
+    mission = (d.get("mission") or ingenierie_dc.MISSION_DEFAUT).strip()
+    p = moe_dc.portee(mission)
+    if not p["couvre"]:
+        return jsonify(ok=False, error="hors_portee", mission=mission,
+                       message=p["dit"]), 200
+
+    trav = d.get("travaux_meur") or []
+    try:
+        trav = [float(x) for x in trav][:2]
+    except (TypeError, ValueError):
+        trav = []
+    if len(trav) == 1:
+        trav = [trav[0], trav[0]]
+    if len(trav) != 2 or min(trav) <= 0:
+        return jsonify(ok=False, error="travaux_absents",
+                       message="Indiquez le montant des travaux : ce module "
+                               "chiffre l'énergie, l'eau et le carbone, pas "
+                               "l'investissement. L'enveloppe se calcule sur "
+                               "conseilprev, et son montant se reporte ici.",
+                       renvoi=ingenierie_dc.PHASES[0].get("renvoi")
+                       if ingenierie_dc.PHASES else None), 400
+
+    pt = d.get("part_technique")
+    try:
+        pt = None if pt in (None, "") else float(pt)
+    except (TypeError, ValueError):
+        pt = None
+    # Le client peut restreindre encore, mais jamais élargir au-delà de ce que
+    # sa mission couvre : proposer l'assistance aux contrats à qui a pris une
+    # conception seule lui ferait payer une phase qu'il n'a pas confiée.
+    demandees = d.get("phases")
+    phases = ([x for x in (demandees or []) if x in p["phases"]]
+              if demandees is not None else p["phases"])
+    r = moe_dc.honoraires_directs(trav, part_technique=pt, phases=phases,
+                                  missions=d.get("missions"),
+                                  taux_perso=d.get("taux_perso") or None)
+    if not r.get("ok"):
+        return jsonify(r), 400
+    r["mission"] = mission
+    r["portee"] = p
+    r["consequences"] = moe_dc.consequences(r["phases_retenues"])
+    r["version"] = moe_dc.VERSION
+    return jsonify(r)
+
+
 @app.route("/api/datacenter/ingenierie")
 @login_required
 def api_datacenter_ingenierie():
