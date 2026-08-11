@@ -44,7 +44,14 @@ PROFIL = {"puissance_it_kw": 50000, "pays": "FR",
 
 @pytest.fixture
 def client():
-    return A.app.test_client()
+    """CONNECTÉ — depuis que la page demande un compte, un client anonyme ne
+    mesurerait plus que la porte. La porte, elle, est éprouvée par les
+    contrôles qui prennent la fixture `anonyme`."""
+    A.app.config["TESTING"] = True
+    c = A.app.test_client()
+    with c.session_transaction() as s:
+        s["user_email"] = "recette@local.test"
+    return c
 
 
 # ── 1. Le cadre colle à la base documentaire ───────────────────────────────
@@ -122,21 +129,33 @@ def test_le_cadre_sans_etude_ne_pretend_rien_verifier():
 
 # ── 3. La frontière ouvert / fermé ─────────────────────────────────────────
 
-OUVERTS_GET = ["/datacenter", "/api/datacenter/durabilite",
-               "/api/datacenter/referentiel"]
+# CE QUI DEMANDE UN COMPTE — la liste s'appelait « OUVERTS » et disait le
+# contraire de la politique actuelle. La renommer était le minimum : un nom qui
+# ment se relit sans qu'on le voie.
+CLIENT_GET = ["/datacenter", "/api/datacenter/durabilite",
+              "/api/datacenter/referentiel"]
 FERMES_POST = ["/api/datacenter/profil",
                "/api/datacenter/ingenierie/parcours",
                "/api/datacenter/ingenierie/dossier",
                "/api/datacenter/ingenierie/export"]
 
 
-@pytest.mark.parametrize("chemin", OUVERTS_GET)
-def test_ce_qui_doit_etre_ouvert_l_est(client, chemin):
+@pytest.mark.parametrize("chemin", CLIENT_GET)
+def test_le_client_connecte_y_accede(client, chemin):
     r = client.get(chemin)
     assert r.status_code == 200, (chemin, r.status_code)
 
 
-def test_le_calcul_lui_meme_est_ouvert(client):
+@pytest.mark.parametrize("chemin", CLIENT_GET)
+def test_ET_LE_VISITEUR_ANONYME_NON(anonyme, chemin):
+    """LA MOITIÉ QUI PROTÈGE. Vérifier qu'un client connecté accède ne dit rien
+    de ce que voit celui qui n'a pas de compte : c'est le second contrôle, et
+    lui seul, qui distingue une page protégée d'une page ouverte."""
+    r = anonyme.get(chemin)
+    assert r.status_code in (302, 401), (chemin, r.status_code)
+
+
+def test_le_calcul_lui_meme_sert_le_client_connecte(client):
     r = client.post("/api/datacenter/etude",
                     headers={"Origin": "http://localhost"},
                     json={"puissance_it_kw": 50000, "pays": "FR"})
@@ -145,15 +164,20 @@ def test_le_calcul_lui_meme_est_ouvert(client):
 
 
 @pytest.mark.parametrize("chemin", FERMES_POST)
-def test_ce_qui_doit_rester_ferme_le_reste(client, chemin):
-    """La moitié du contrôle qui compte vraiment : ouvrir le calcul ne doit
-    rien ouvrir d'autre."""
-    r = client.post(chemin, headers={"Origin": "http://localhost"}, json={})
+def test_ce_qui_doit_rester_ferme_le_reste(anonyme, chemin):
+    """LA FIXTURE A CHANGÉ, ET C'EST TOUT LE CONTRÔLE. Ce test prenait
+    `client` ; depuis que `client` est connecté, il aurait mesuré ce qu'un
+    client atteint — pas ce qu'un inconnu se voit refuser, qui est la seule
+    question posée ici."""
+    r = anonyme.post(chemin, headers={"Origin": "http://localhost"}, json={})
     assert r.status_code == 401, (chemin, r.status_code)
 
 
-def test_la_base_documentaire_reste_reservee(client):
-    r = client.get("/admin/base-connaissance")
+def test_la_base_documentaire_reste_reservee(connecte):
+    """Réservée à l'administrateur : un compte client validé ne l'atteint pas.
+    Éprouvé avec un vrai compte de rôle « user » — le compte de recette porte
+    le rôle admin, et l'employer ici aurait prouvé l'inverse sans le dire."""
+    r = connecte.get("/admin/base-connaissance")
     assert r.status_code in (302, 401, 403), r.status_code
 
 

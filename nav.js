@@ -989,6 +989,86 @@
     if (y && !y.textContent) y.textContent = new Date().getFullYear();
   }
 
+  /* ── CE QUI DEMANDE UN COMPTE, SIGNALÉ AVANT LE CLIC ──────────────────────
+   *
+   * LE PROBLÈME, TEL QU'IL SE PRÉSENTE. Depuis que les pages du menu latéral
+   * sont réservées aux clients validés, la seule page d'accueil porte
+   * VINGT-SIX liens qui mènent à un formulaire de connexion, et les pieds de
+   * page des quarante autres portent les mêmes. Un visiteur qui l'apprend en
+   * cliquant croit s'être trompé de bouton — et il ne réessaie pas.
+   *
+   * POURQUOI ICI, ET PAS DANS LES PAGES. Étiqueter ces liens à la main, c'était
+   * quarante fichiers à corriger, puis un de plus à chaque page ajoutée. Et
+   * c'est le lien qu'on aurait oublié qui aurait surpris le visiteur. La liste
+   * vient du serveur — la politique elle-même —, et le marquage se fait ici,
+   * une fois, pour tout le site.
+   *
+   * POURQUOI UN CADENAS ET NON « accès client » EN TOUTES LETTRES. Dans un pied
+   * de page qui aligne vingt entrées, vingt fois « accès client » double la
+   * hauteur du bloc et cesse d'être lu. Le cadenas tient dans la ligne, et il
+   * porte son explication en infobulle et pour les lecteurs d'écran. Une
+   * légende dit une fois ce qu'il signifie — un symbole sans légende n'est
+   * qu'un caractère de plus.
+   *
+   * RIEN N'EST MARQUÉ POUR UN CLIENT CONNECTÉ : ces pages lui sont ouvertes, et
+   * les lui signaler comme réservées serait faux.
+   */
+  var ACCES_MARQUE = "data-acces-marque";
+
+  function _marquerAcces(fermees) {
+    var vus = 0;
+    [].forEach.call(document.querySelectorAll("a[href]"), function (a) {
+      if (a.hasAttribute(ACCES_MARQUE)) return;
+      var href = a.getAttribute("href") || "";
+      if (href.charAt(0) !== "/") return;              /* externe, ou ancre */
+      var chemin = href.split("#")[0].split("?")[0];
+      if (fermees.indexOf(chemin) < 0) return;
+      /* Le lien qui le dit déjà en toutes lettres n'a pas besoin du cadenas :
+         le doubler donnerait « Ingénierie de projet · accès client 🔒 ». */
+      if (/accès client/i.test(a.textContent)) {
+        a.setAttribute(ACCES_MARQUE, "dit");
+        return;
+      }
+      var c = document.createElement("span");
+      c.className = "ac-cle";
+      c.textContent = "🔒";
+      c.setAttribute("aria-label", "accès client");
+      c.setAttribute("title", "Accès client — compte validé requis");
+      a.appendChild(document.createTextNode(" "));
+      a.appendChild(c);
+      a.setAttribute(ACCES_MARQUE, "cadenas");
+      vus++;
+    });
+    return vus;
+  }
+
+  function _legendeAcces() {
+    var pied = document.querySelector("footer");
+    if (!pied || pied.querySelector(".ac-legende")) return;
+    var p = document.createElement("p");
+    p.className = "ac-legende";
+    p.innerHTML = '<span class="ac-cle">🔒</span>&nbsp;Ces pages demandent un '
+      + 'compte client validé. <a href="/inscription">Créer un accès</a> — votre '
+      + 'adresse est confirmée par courriel, puis l’accès est validé par notre '
+      + 'équipe, qui vous prévient.';
+    pied.appendChild(p);
+  }
+
+  function initAcces() {
+    fetch("/api/acces", { headers: { "Accept": "application/json" } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !j.client || !j.client.length) return null;
+        /* Connecté : ces pages lui sont ouvertes, ne rien marquer. */
+        return fetch("/api/auth/me", { headers: { "Accept": "application/json" } })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (moi) {
+            if (moi && moi.authenticated) return;
+            if (_marquerAcces(j.client)) _legendeAcces();
+          });
+      }).catch(function () { /* le site reste utilisable sans le marquage */ });
+  }
+
   /* ── État de compte : lien compact dans l'en-tête + déconnexion dans le tiroir ── */
   function _logout() {
     fetch("/api/auth/logout", { method: "POST", headers: { "Content-Type": "application/json" } })
@@ -1033,6 +1113,17 @@
     initYear();
     initAccount();
     initDrawer();
+    /* CE QUI GARANTIT QUE LE TIROIR EST MARQUÉ N'EST PAS LE RANG DE CET APPEL.
+       J'avais écrit ici que l'ordre décidait de tout — que marquer avant
+       initDrawer laisserait les trente entrées du menu sans cadenas. C'est
+       faux, et je l'ai constaté en inversant les deux appels : le compte des
+       entrées marquées n'a pas bougé. Le marquage a lieu dans la réponse d'un
+       fetch, donc après la fin de init(), quel que soit ce rang.
+       Ce qui protège réellement, c'est recette_acces.js, qui compte les
+       entrées marquées du tiroir dans le vrai document. Un commentaire qui
+       décrit une garantie inexistante est pire que pas de commentaire : il
+       dispense de chercher la vraie. */
+    initAcces();
     initPageNav();
     initGuide();
     initJargon();

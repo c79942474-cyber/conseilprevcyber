@@ -58,7 +58,14 @@ def notes(**kw):
 
 @pytest.fixture
 def client():
-    return A.app.test_client()
+    """CONNECTÉ — depuis que la page demande un compte, un client anonyme ne
+    mesurerait plus que la porte. La porte, elle, est éprouvée par les
+    contrôles qui prennent la fixture `anonyme`."""
+    A.app.config["TESTING"] = True
+    c = A.app.test_client()
+    with c.session_transaction() as s:
+        s["user_email"] = "recette@local.test"
+    return c
 
 
 # ── 1. La science n'est pas une opinion du client ──────────────────────────
@@ -344,14 +351,16 @@ def test_les_nombres_du_livrable_sont_ecrits_en_francais():
 
 # ── 8. La frontière ouvert / fermé ─────────────────────────────────────────
 
-def test_la_page_et_le_questionnaire_sont_ouverts(client):
+def test_la_page_et_le_questionnaire_demandent_un_compte(anonyme, connecte):
+    """Les deux moitiés : la porte refuse l'anonyme, et elle s'ouvre au client
+    validé. Sans la seconde, une panne totale passerait pour une protection."""
     for chemin in ("/strategie-durable-datacenter",
                    "/api/datacenter/strategie/questionnaire"):
-        r = client.get(chemin)
-        assert r.status_code == 200, (chemin, r.status_code)
+        assert anonyme.get(chemin).status_code in (302, 401), chemin
+        assert connecte.get(chemin).status_code == 200, chemin
 
 
-def test_le_calcul_est_ouvert(client):
+def test_le_calcul_sert_le_client_connecte(client):
     r = client.post("/api/datacenter/strategie",
                     headers={"Origin": "http://localhost"},
                     json=notes(pue=(3, 3, 3)))
@@ -359,19 +368,20 @@ def test_le_calcul_est_ouvert(client):
     assert r.get_json()["ok"] is True
 
 
-def test_l_export_du_livrable_reste_ferme(client):
+def test_l_export_du_livrable_reste_ferme(anonyme):
     """Le document porte le nom du client, son site et ses arbitrages : c'est
     une pièce de dossier, pas une page publique."""
-    r = client.post("/api/datacenter/strategie/export",
-                    headers={"Origin": "http://localhost"},
-                    json=dict(notes(pue=(3, 3, 3)), format="docx"))
+    r = anonyme.post("/api/datacenter/strategie/export",
+                     headers={"Origin": "http://localhost"},
+                     json=dict(notes(pue=(3, 3, 3)), format="docx"))
     assert r.status_code == 401, r.status_code
 
 
-def test_ouvrir_le_questionnaire_n_a_rien_ouvert_d_autre(client):
+def test_rien_n_est_accessible_sans_compte(anonyme):
     for chemin in ("/api/datacenter/ingenierie/dossier",
                    "/api/datacenter/export"):
-        r = client.post(chemin, headers={"Origin": "http://localhost"}, json={})
+        r = anonyme.post(chemin, headers={"Origin": "http://localhost"},
+                         json={})
         assert r.status_code == 401, chemin
 
 

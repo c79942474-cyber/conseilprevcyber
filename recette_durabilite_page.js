@@ -55,19 +55,34 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
   const err = [];
   pg.on('pageerror', e => err.push(String(e)));
 
+  /* SE CONNECTER D'ABORD — la page est passée en accès client. La recette
+     ouvrait la page en anonyme et se contentait de constater qu'elle
+     répondait ; depuis que la politique d'accès a changé, elle atterrirait sur
+     le formulaire de connexion et n'éprouverait plus rien de ce qui suit. Que
+     la porte tienne est éprouvé par recette_acces.js — ici, on éprouve le
+     contenu, et il faut donc être entré. */
+  await pg.goto(BASE + '/connexion', { waitUntil: 'domcontentloaded' });
+  await pg.evaluate(async ([e, m]) => fetch('/api/auth/login', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: e, password: m }) }),
+    [process.env.RECETTE_EMAIL || 'recette@local.test',
+     process.env.RECETTE_MDP || 'RecetteLocale!2026']);
+
   titre('1. La page s’ouvre sans compte');
 
   const rep = await pg.goto(BASE + '/datacenter', { waitUntil: 'networkidle' });
   ok('la page répond', rep && rep.status() === 200,
      rep ? 'HTTP ' + rep.status() : 'pas de réponse');
   if (!rep || rep.status() !== 200) { await nav.close(); process.exit(2); }
-  ok('…et ne renvoie pas vers la connexion', !/\/connexion/.test(pg.url()), pg.url());
+  ok('…et ne renvoie plus vers la connexion', !/\/connexion/.test(pg.url()), pg.url());
 
-  /* Les cookies : un contexte neuf n'en a aucun d'authentification. On le dit
-     explicitement — sans cela, la recette pourrait passer sur une instance où
-     le gardien aurait été retiré ET où une session traînerait. */
+  /* LE CONTRÔLE EST INVERSÉ, et c'est la politique d'accès qui l'a retourné.
+     Il exigeait AUCUN cookie de session — la page était ouverte, et une session
+     traînante aurait pu masquer un gardien retiré. La page est maintenant
+     réservée : c'est l'ABSENCE de session qui trahirait une connexion ratée, et
+     tout ce qui suit ne mesurerait plus que le formulaire de connexion. */
   const ck = await ctx.cookies();
-  ok('…sans le moindre cookie de session', !ck.some(c => c.name === 'cpc_session'),
+  ok('…et la session est bien établie', ck.some(c => c.name === 'cpc_session'),
      ck.map(c => c.name).join(', ') || 'aucun cookie');
 
   titre('2. Les deux titres, et pourquoi les deux');
@@ -257,13 +272,18 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
 
   titre('6. Ce que l’ouverture ne devait PAS ouvrir ni casser');
 
-  const ferme = await ctx.request.post(BASE + '/api/datacenter/ingenierie/dossier', {
+  /* DEPUIS UN CONTEXTE SANS SESSION : celui de la page en porte une désormais,
+     et ces contrôles y mesuraient ce qu'un client atteint plutôt que ce qu'un
+     inconnu se voit refuser. */
+  const anon = await nav.newContext();
+  const ferme = await anon.request.post(BASE + '/api/datacenter/ingenierie/dossier', {
     headers: { 'Origin': BASE, 'Content-Type': 'application/json' }, data: {},
   });
   ok('les pièces du cabinet restent fermées', ferme.status() === 401, 'HTTP ' + ferme.status());
-  const kb = await ctx.request.get(BASE + '/admin/base-connaissance', { maxRedirects: 0 });
+  const kb = await anon.request.get(BASE + '/admin/base-connaissance', { maxRedirects: 0 });
   ok('la base documentaire reste réservée', [301, 302, 401, 403].includes(kb.status()),
      'HTTP ' + kb.status());
+  await anon.close();
 
   /* Le moteur, lui, doit toujours calculer — ouvrir la page sans cela
      n'ouvrirait rien d'utile. */

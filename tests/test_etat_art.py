@@ -47,7 +47,14 @@ import app as A  # noqa: E402
 
 @pytest.fixture
 def client():
-    return A.app.test_client()
+    """CONNECTÉ — depuis que la page demande un compte, un client anonyme ne
+    mesurerait plus que la porte. La porte, elle, est éprouvée par les
+    contrôles qui prennent la fixture `anonyme`."""
+    A.app.config["TESTING"] = True
+    c = A.app.test_client()
+    with c.session_transaction() as s:
+        s["user_email"] = "recette@local.test"
+    return c
 
 
 # ── 1. Aucun fait orphelin, aucune source muette ───────────────────────────
@@ -216,7 +223,13 @@ def test_chaque_famille_porte_un_nom_lisible():
 
 # ── 6. La route est ouverte, et elle sert bien l'état de l'art ─────────────
 
-def test_la_route_est_ouverte_sans_compte(client):
+def test_la_route_demande_un_compte(anonyme):
+    """L'état de l'art suit sa page : /datacenter demande désormais un compte,
+    et le laisser lisible en /api rendrait cette fermeture décorative."""
+    assert anonyme.get("/api/datacenter/etat-art").status_code == 401
+
+
+def test_la_route_sert_le_client_connecte(client):
     r = client.get("/api/datacenter/etat-art")
     assert r.status_code == 200, r.status_code
     j = r.get_json()

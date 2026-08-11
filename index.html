@@ -133,20 +133,25 @@
         <li>Mise en sécurité — actifs &amp; processus</li>
         <li>Veille réglementaire ICS/OT</li>
       </ul>
+      <!-- LES OUTILS SONT DERRIÈRE UN COMPTE — et le dire ICI, avant les
+           boutons, plutôt que de le faire découvrir bouton par bouton.
+           La règle d'accès a changé : hors services, secteurs, études de cas,
+           veille, ressources, FAQ, à propos, vos projets et contact, les pages
+           demandent un compte validé. Quatre des cinq boutons ci-dessous
+           mènent donc à un formulaire de connexion. Un visiteur qui l'apprend
+           en cliquant croit s'être trompé ; un visiteur qui le lit d'abord
+           sait quoi faire — d'où la ligne qui suit, et l'étiquette sur chaque
+           bouton concerné. -->
+      <p class="acces-note">Les outils de calcul et le cockpit sont réservés aux
+        clients&nbsp;: <a href="/inscription">créez un accès</a> — votre adresse
+        est confirmée par courriel, puis l'accès est validé par notre équipe, qui
+        vous prévient. Le reste du site se consulte librement.</p>
       <div class="actions" style="justify-content:center">
-        <a href="/diagnostic" class="btn btn-p">🧭 Diagnostic express (2 min)</a>
-        <a href="/contact" class="btn btn-s">Demander un état des lieux</a>
-        <!-- LE BOUTON MÈNE À UNE PAGE OUVERTE, et ce n'est pas un détail. Il a
-             d'abord pointé vers /ingenierie-datacenter : la recette a cliqué
-             dessus et a atterri sur /connexion. Le bouton le plus en vue du
-             site aurait accueilli chaque nouveau visiteur par un mur de
-             connexion — exactement la promesse creuse que ce remaniement
-             prétend corriger. /datacenter porte le même métier et s'ouvre à
-             tous ; la séquence projet reste proposée dans la carte ci-dessous,
-             où son accès est écrit. -->
-        <a href="/datacenter" class="btn btn-s">Ingénierie de centres de données</a>
-        <a href="/demo" class="btn btn-s">Voir la démo temps réel</a>
-        <a href="/assistant" class="btn btn-s">💬 Assistant IA</a>
+        <a href="/contact" class="btn btn-p">Demander un état des lieux</a>
+        <a href="/inscription" class="btn btn-s">Créer un accès client</a>
+        <a href="/diagnostic" class="btn btn-s">🧭 Diagnostic express <span class="ac">accès client</span></a>
+        <a href="/datacenter" class="btn btn-s">Ingénierie de centres de données <span class="ac">accès client</span></a>
+        <a href="/demo" class="btn btn-s">Démo temps réel <span class="ac">accès client</span></a>
       </div>
     </section>
 
@@ -172,18 +177,17 @@
             page que la trajectoire de décarbonation, et la stratégie de développement durable
             ouvre l'étude. Chaque grandeur porte sa source et ce qui reste à produire.</p>
           <ul class="taglist"><li>Maîtrise d'œuvre</li><li>PUE, WUE, carbone</li><li>Décarbonation</li><li>Stratégie DD</li></ul>
-          <!-- LES TROIS MODULES, ET PAS DEUX. La stratégie de développement
-               durable est le PREMIER livrable d'une étude : la nommer dans les
-               étiquettes sans y conduire laisserait le visiteur la chercher
-               dans un menu qui ne s'ouvre qu'après connexion.
-               LES DEUX OUVERTS D'ABORD, ET LE FERMÉ ANNONCÉ. La séquence projet
-               est derrière un compte ; un lien qui ne le dit pas transforme un
-               clic curieux en formulaire de connexion, et le visiteur croit
-               s'être trompé de bouton. -->
-          <p style="margin-top:12px"><a href="/datacenter" class="btn btn-s">Durabilité &amp; décarbonation</a>
-            <a href="/strategie-durable-datacenter" class="btn btn-s">Stratégie DD</a>
-            <a href="/ingenierie-datacenter" class="btn btn-s">Ingénierie de projet
-              <span style="opacity:.72;font-weight:400">— accès client</span></a></p>
+          <!-- LES TROIS MODULES, ET TOUS ANNONCÉS. La stratégie de
+               développement durable est le PREMIER livrable d'une étude : la
+               nommer dans les étiquettes sans y conduire laisserait le visiteur
+               la chercher dans un menu qu'il ne peut pas ouvrir.
+               Les trois demandent un compte depuis que la politique d'accès a
+               changé — l'étiquette est donc sur les trois. Un lien qui ne le dit
+               pas transforme un clic curieux en formulaire de connexion, et le
+               visiteur croit s'être trompé de bouton. -->
+          <p style="margin-top:12px"><a href="/datacenter" class="btn btn-s">Durabilité &amp; décarbonation <span class="ac">accès client</span></a>
+            <a href="/strategie-durable-datacenter" class="btn btn-s">Stratégie DD <span class="ac">accès client</span></a>
+            <a href="/ingenierie-datacenter" class="btn btn-s">Ingénierie de projet <span class="ac">accès client</span></a></p>
         </div>
         <div class="card a2">
           <div class="ico">🛰️</div>

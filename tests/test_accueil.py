@@ -150,31 +150,91 @@ def pages_fermees():
     return fermees
 
 
-def test_aucun_bouton_du_bandeau_ne_mene_a_un_mur_de_connexion():
-    """LE CONTRÔLE QUI COMPTE. C'est la recette navigateur qui l'a trouvé : le
-    bouton le plus en vue de la page pointait vers /ingenierie-datacenter, et un
-    visiteur anonyme atterrissait sur /connexion. Accueillir un premier visiteur
-    par un formulaire est exactement la promesse creuse que ce remaniement
-    prétend corriger — en pire, car elle est en tête de page."""
+def bandeau():
     h = sans_commentaires(accueil())
     i = h.index('class="actions"')
-    bloc = h[i:h.index("</div>", i)]
-    liens = re.findall(r'href="(/[^"#]*)"', bloc)
-    fermes = sorted(set(liens) & pages_fermees())
-    assert not fermes, fermes
+    return h[i:h.index("</div>", i)]
 
 
-@pytest.mark.parametrize("cible", PAGES_ING)
-def test_un_lien_vers_une_page_fermee_annonce_qu_elle_l_est(cible):
-    """Ailleurs qu'en bandeau, un lien vers une page à compte reste utile — à
-    condition de le dire. Un clic curieux qui tombe sur un formulaire fait
-    croire au visiteur qu'il s'est trompé de bouton."""
-    if cible not in pages_fermees():
-        pytest.skip("%s est ouverte" % cible)
+def test_le_bandeau_offre_une_action_REELLEMENT_ouverte():
+    """LE CONTRÔLE QUI COMPTE, et il a changé de forme avec la politique.
+
+    Il interdisait d'abord tout lien fermé dans le bandeau — la règle tenait
+    tant qu'une page d'ingénierie restait ouverte. Depuis que les pages du menu
+    demandent un compte, elle exigerait de vider le bandeau de ce qu'il
+    présente. La règle utile est ailleurs : peu importe combien de boutons
+    mènent à un compte, il en faut AU MOINS UN qu'un inconnu puisse suivre.
+    Sans lui, le premier écran du site est un mur, et le visiteur repart."""
+    liens = set(re.findall(r'href="(/[^"#]*)"', bandeau()))
+    ouverts = sorted(liens - pages_fermees())
+    assert ouverts, sorted(liens)
+
+
+def test_le_bandeau_conduit_a_la_creation_d_un_acces():
+    """Dire « réservé aux clients » sans dire comment le devenir laisse le
+    visiteur devant une porte sans sonnette."""
+    assert '/inscription' in bandeau(), bandeau()[:400]
+
+
+def test_la_page_explique_le_regime_d_acces_AVANT_les_boutons():
+    """L'apprendre bouton par bouton coûte au visiteur un aller-retour par
+    clic ; le lire une fois lui coûte une phrase."""
     h = sans_commentaires(accueil())
-    for m in re.finditer(r'<a href="%s"[^>]*>(.*?)</a>' % re.escape(cible), h, re.S):
-        libelle = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", m.group(1)))
-        assert "accès client" in libelle or "connexion" in libelle.lower(), libelle
+    i = h.index('class="acces-note"')
+    note = re.sub(r"<[^>]+>", " ", h[i:h.index("</p>", i)])
+    assert "réservé" in note or "réservés" in note, note
+    assert "/inscription" in h[i:h.index("</p>", i)], note
+
+
+def test_les_liens_mis_en_avant_le_disent_EN_TOUTES_LETTRES():
+    """Là où le visiteur décide — le bandeau et les cartes de domaines —, un
+    cadenas ne suffit pas : ce sont les liens sur lesquels repose la conversion,
+    et ils portent le mot."""
+    h = sans_commentaires(accueil())
+    zones = [h[h.index('class="actions"'):h.index("</div>", h.index('class="actions"'))]]
+    i = h.index("// Nos domaines")
+    zones.append(h[i:h.index("</section>", i)])
+    fermees = pages_fermees()
+    muets = []
+    for zone in zones:
+        for m in re.finditer(r'<a href="(/[^"#?]*)"[^>]*>(.*?)</a>', zone, re.S):
+            if m.group(1) not in fermees:
+                continue
+            lib = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", m.group(2)))
+            if "accès client" not in lib:
+                muets.append((m.group(1), lib.strip()[:50]))
+    assert not muets, muets
+
+
+def test_les_AUTRES_liens_sont_marques_par_le_script_partage():
+    """LA LEÇON DE CE REMANIEMENT. Vingt-six liens de cette seule page mènent à
+    une page réservée, et les pieds de page des quarante autres portent les
+    mêmes. Les étiqueter à la main, c'était quarante fichiers à corriger puis un
+    de plus à chaque page ajoutée — et c'est le lien qu'on aurait oublié qui
+    aurait surpris le visiteur.
+
+    Le marquage vient donc de la politique elle-même, servie par /api/acces et
+    posée par nav.js sur tout le site. Ce test éprouve le MATÉRIAU ; que le
+    cadenas apparaisse réellement, et pas pour un client connecté, est éprouvé
+    dans le vrai document par recette_acces.js — un test qui lit le fichier ne
+    verrait pas une branche devenue inatteignable."""
+    with open(os.path.join(ICI, "nav.js"), encoding="utf-8") as f:
+        js = f.read()
+    assert "/api/acces" in js, "nav.js ne demande pas la politique au serveur"
+    assert "ac-cle" in js and "accès client" in js
+    assert "moi.authenticated" in js, (
+        "un client connecté ne doit pas voir « réservé » sur des pages qui lui "
+        "sont ouvertes")
+    assert "initAcces()" in js[js.index("function init()"):], (
+        "le marquage doit être appelé au démarrage de chaque page")
+    # PAS D'ASSERTION SUR L'ORDRE DES APPELS. J'en avais écrit une — initDrawer
+    # avant initAcces — en croyant qu'elle protégeait le marquage du menu. Je
+    # l'ai éprouvée en inversant les deux appels : le nombre d'entrées marquées
+    # n'a pas bougé, parce que le marquage a lieu dans la réponse d'un fetch,
+    # donc après la fin de init() dans tous les cas. Ce contrôle passait pour
+    # une raison sans rapport avec ce qu'il prétendait vérifier, et il aurait
+    # dispensé de chercher la vraie garantie — qui est dans recette_acces.js,
+    # laquelle compte les entrées marquées du tiroir dans le vrai document.
 
 
 # ── 4. Ce que le remaniement ne devait pas casser ──────────────────────────

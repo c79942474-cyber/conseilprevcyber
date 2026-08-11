@@ -47,14 +47,31 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
   const err = [];
   pg.on('pageerror', e => err.push(String(e)));
 
+  /* SE CONNECTER D'ABORD — la page est passée en accès client. La recette
+     ouvrait la page en anonyme et se contentait de constater qu'elle
+     répondait ; depuis que la politique d'accès a changé, elle atterrirait sur
+     le formulaire de connexion et n'éprouverait plus rien de ce qui suit. Que
+     la porte tienne est éprouvé par recette_acces.js — ici, on éprouve le
+     contenu, et il faut donc être entré. */
+  await pg.goto(BASE + '/connexion', { waitUntil: 'domcontentloaded' });
+  await pg.evaluate(async ([e, m]) => fetch('/api/auth/login', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: e, password: m }) }),
+    [process.env.RECETTE_EMAIL || 'recette@local.test',
+     process.env.RECETTE_MDP || 'RecetteLocale!2026']);
+
   titre('1. Le questionnaire s’ouvre sans compte');
 
   const rep = await pg.goto(BASE + '/strategie-durable-datacenter', { waitUntil: 'networkidle' });
   ok('la page répond', rep && rep.status() === 200, rep ? 'HTTP ' + rep.status() : 'pas de réponse');
   if (!rep || rep.status() !== 200) { await nav.close(); process.exit(2); }
-  ok('…et ne renvoie pas vers la connexion', !/\/connexion/.test(pg.url()), pg.url());
+  ok('…et ne renvoie plus vers la connexion', !/\/connexion/.test(pg.url()), pg.url());
+  /* CONTRÔLE INVERSÉ PAR LA POLITIQUE D'ACCÈS. Il exigeait AUCUN cookie — la
+     page était ouverte. Elle est maintenant réservée : c'est l'absence de
+     session qui trahirait une connexion ratée, et tout ce qui suit ne
+     mesurerait alors que le formulaire de connexion. */
   const ck = await ctx.cookies();
-  ok('…sans le moindre cookie de session', !ck.some(c => c.name === 'cpc_session'),
+  ok('…et la session est bien établie', ck.some(c => c.name === 'cpc_session'),
      ck.map(c => c.name).join(', ') || 'aucun cookie');
 
   await pg.waitForFunction(() => document.querySelectorAll('#sd-enjeux [data-enjeu]').length > 0,
@@ -250,36 +267,55 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
      r.ordre[0] > 0 && r.ordre[0] < r.ordre[1] && r.ordre[1] < r.ordre[2],
      r.ordre.join(' < '));
 
-  titre('6. L’export est fermé, et il le dit');
+  titre('6. L’export — refusé à l’inconnu, rendu au client');
 
-  await pg.click('#sd-docx');
-  await pg.waitForFunction(
-    () => /compte|connect/i.test((document.getElementById('sd-etat') || {}).textContent || ''),
-    null, { timeout: 15000 });
-  const msg = await pg.evaluate(() =>
-    (document.getElementById('sd-etat') || {}).textContent || '');
-  ok('le refus nomme la cause — une session manquante', /compte/i.test(msg),
-     msg.slice(0, 110));
-  ok('…et ne parle pas d’une erreur de saisie', !/vérifiez vos réponses/i.test(msg));
-
-  const api = await ctx.request.post(BASE + '/api/datacenter/strategie/export', {
+  /* CE QUE CETTE SECTION ÉPROUVAIT N'EXISTE PLUS TEL QUEL. Elle cliquait sur
+     « exporter » depuis la page ouverte et vérifiait que le refus nommait sa
+     cause. La page est maintenant réservée : personne ne peut être dessus sans
+     session, et ce scénario n'est plus atteignable par l'interface. Reste ce
+     qui compte encore, et qui compte davantage — la route elle-même, éprouvée
+     depuis un contexte SANS session, puis rendue au client connecté. */
+  const anon = await nav.newContext();
+  const api = await anon.request.post(BASE + '/api/datacenter/strategie/export', {
     headers: { 'Origin': BASE, 'Content-Type': 'application/json' },
     data: { format: 'docx' },
   });
-  ok('la route d’export refuse bien l’anonyme', api.status() === 401,
+  ok('la route d’export refuse l’inconnu', api.status() === 401,
      'HTTP ' + api.status());
+  const page_anon = await anon.request.get(BASE + '/strategie-durable-datacenter',
+                                           { maxRedirects: 0 });
+  ok('…et la page elle-même ne s’atteint plus sans compte',
+     [301, 302].includes(page_anon.status()), 'HTTP ' + page_anon.status());
+  await anon.close();
 
-  titre('7. Ce que l’ouverture ne devait PAS ouvrir');
+  /* L'AUTRE MOITIÉ : au client validé, le document sort. Sans ce contrôle, une
+     porte fermée à tout le monde passerait pour une protection réussie. */
+  await pg.click('#sd-docx');
+  await pg.waitForFunction(
+    () => !/^\s*$/.test((document.getElementById('sd-etat') || {}).textContent || ''),
+    null, { timeout: 20000 }).catch(() => {});
+  const msg = await pg.evaluate(() =>
+    (document.getElementById('sd-etat') || {}).textContent || '');
+  ok('au client connecté, l’export ne réclame plus de compte',
+     !/compte|connect/i.test(msg), msg.slice(0, 110) || '(aucun message)');
 
+  titre('7. Ce qui reste fermé — mesuré SANS session');
+
+  /* CES CONTRÔLES S'EXÉCUTAIENT DANS LE CONTEXTE DE LA PAGE, jadis anonyme.
+     Il porte maintenant une session : ils mesuraient donc ce qu'un client
+     atteint, et non ce qu'un inconnu se voit refuser — c'est-à-dire l'inverse
+     de ce que leur nom annonçait. Un contexte neuf rétablit la question. */
+  const anon2 = await nav.newContext();
   for (const [chemin, nom] of [
     ['/api/datacenter/ingenierie/dossier', 'le dossier d’ingénierie'],
     ['/api/datacenter/export', 'l’export de note de calcul'],
   ]) {
-    const x = await ctx.request.post(BASE + chemin, {
+    const x = await anon2.request.post(BASE + chemin, {
       headers: { 'Origin': BASE, 'Content-Type': 'application/json' }, data: {},
     });
-    ok(nom + ' reste fermé', x.status() === 401, 'HTTP ' + x.status());
+    ok(nom + ' reste fermé à l’inconnu', x.status() === 401, 'HTTP ' + x.status());
   }
+  await anon2.close();
 
   ok('aucune erreur de script sur toute la manœuvre', err.length === 0,
      err.join(' | ').slice(0, 200));

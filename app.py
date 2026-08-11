@@ -59,6 +59,7 @@ import requests
 from flask import (Flask, Response, jsonify, redirect, request, send_file,
                    send_from_directory, stream_with_context)
 
+import acces          # qui voit quoi — la politique d'accès, écrite une fois
 import assistant
 import audit
 import automation
@@ -776,41 +777,49 @@ def services():
 
 # Offres conseil & transformation — pages vitrine publiques (comme /services).
 @app.route("/operating-model")
+@login_required
 def operating_model():
     return _page(PAGES["/operating-model"])
 
 
 @app.route("/maturite-ot")
+@login_required
 def maturite_ot():
     return _page(PAGES["/maturite-ot"])
 
 
 @app.route("/feuille-de-route")
+@login_required
 def feuille_de_route():
     return _page(PAGES["/feuille-de-route"])
 
 
 @app.route("/continuite-ot")
+@login_required
 def continuite_ot():
     return _page(PAGES["/continuite-ot"])
 
 
 @app.route("/gestion-des-changements")
+@login_required
 def gestion_des_changements():
     return _page(PAGES["/gestion-des-changements"])
 
 
 @app.route("/architecture-cible")
+@login_required
 def architecture_cible():
     return _page(PAGES["/architecture-cible"])
 
 
 @app.route("/formation")
+@login_required
 def formation():
     return _page(PAGES["/formation"])
 
 
 @app.route("/gouvernance-ia")
+@login_required
 def gouvernance_ia():
     return _page(PAGES["/gouvernance-ia"])
 
@@ -898,23 +907,27 @@ def metriques_62443():
 
 
 @app.route("/demo")
+@login_required
 def demo():
     return _page(PAGES["/demo"])
 
 
 @app.route("/assistant")
+@login_required
 def assistant_page():
     """Assistant IA conversationnel (Claude / Mistral) — cybersécurité industrielle & conformité."""
     return _page(PAGES["/assistant"])
 
 
 @app.route("/api/assistant/config")
+@login_required
 def api_assistant_config():
     """Modèles configurés + modèle par défaut de l'UI (surcharge via ASSISTANT_DEFAULT_MODEL)."""
     return jsonify(models=assistant.available(), default=assistant.preference())
 
 
 @app.route("/api/assistant/selftest")
+@login_required
 def api_assistant_selftest():
     """Diagnostic : ping minimal de chaque modèle, renvoie le statut technique
     (code HTTP, type d'erreur). Aucun secret ni contenu. Limité par IP."""
@@ -972,6 +985,7 @@ def _minimiser(textes, mode):
 
 
 @app.route("/api/chat", methods=["POST"])
+@login_required
 def api_chat():
     """Point d'entrée du chat sécurisé. Sans état : aucune conversation n'est stockée.
 
@@ -1928,6 +1942,7 @@ import extraits as extraits_mod  # noqa: E402
 
 
 @app.route("/datacenter")
+@login_required
 def datacenter_page():
     """Data Center Sustainability & Decarbonisation — page OUVERTE.
 
@@ -1970,6 +1985,7 @@ def decarbonation_datacenter_page():
 
 
 @app.route("/strategie-durable-datacenter")
+@login_required
 def strategie_durable_datacenter_page():
     """Le questionnaire des quatre perspectives, et le livrable d'ouverture
     d'etude qui en decoule.
@@ -1982,6 +1998,7 @@ def strategie_durable_datacenter_page():
 
 
 @app.route("/api/datacenter/referentiel")
+@login_required
 def api_datacenter_referentiel():
     """Vocabulaire, constantes et cadre réglementaire.
 
@@ -2038,6 +2055,7 @@ def _profil_datacenter(data):
 
 
 @app.route("/api/datacenter/etude", methods=["POST"])
+@login_required
 def api_datacenter_etude():
     """L'étude complète. Déterministe : deux appels identiques, même résultat."""
     data = request.get_json(silent=True) or {}
@@ -2065,6 +2083,7 @@ def api_datacenter_etude():
 
 
 @app.route("/api/datacenter/durabilite")
+@login_required
 def api_datacenter_durabilite():
     """Le cadre de durabilite : trois axes, leurs textes, ce qu'on en calcule.
 
@@ -2082,6 +2101,7 @@ def api_datacenter_durabilite():
 
 
 @app.route("/api/datacenter/etat-art")
+@login_required
 def api_datacenter_etat_art():
     """L'etat de l'art : les faits publies, groupes, chacun avec son auteur, sa
     page et LA NATURE de cette source.
@@ -2118,6 +2138,7 @@ def api_datacenter_etat_art():
 
 
 @app.route("/api/datacenter/lacunes")
+@login_required
 def api_datacenter_lacunes():
     """Les lacunes et par quoi les instruire, SANS rien consulter.
 
@@ -2218,6 +2239,7 @@ def api_datacenter_lacune(cle):
 
 
 @app.route("/api/datacenter/decarbonation")
+@login_required
 def api_datacenter_decarbonation():
     """Le cadre de decarbonation : deux voies, la hierarchie d'attenuation et
     ses leviers, les textes cites avec leur portee.
@@ -2235,6 +2257,7 @@ def api_datacenter_decarbonation():
 
 
 @app.route("/api/datacenter/decarbonation/parcours", methods=["POST"])
+@login_required
 def api_datacenter_decarbonation_parcours():
     """Ou l'on passe et ou l'on bute, sur une voie ou sur les deux.
 
@@ -2271,6 +2294,7 @@ def api_datacenter_decarbonation_parcours():
 
 
 @app.route("/api/transmission")
+@login_required
 def api_transmission():
     """Le vocabulaire des fonctions destinataires, et ce que le lien ne porte pas.
 
@@ -2319,6 +2343,7 @@ def _poser_bordereau(md, meta, nature, data):
 
 
 @app.route("/api/datacenter/decarbonation/dossier", methods=["POST"])
+@login_required
 def api_datacenter_decarbonation_dossier():
     """Le plan de l'etude pour une etape, avec ce que le moteur y verse
     legitimement et ce qui doit venir de la mesure, du contrat ou du tiers
@@ -2528,6 +2553,7 @@ def api_datacenter_decarbonation_export():
 
 
 @app.route("/api/datacenter/strategie/questionnaire")
+@login_required
 def api_datacenter_strategie_questionnaire():
     """Ce qu'on demande au client : trois perspectives sur quatre.
 
@@ -2544,6 +2570,7 @@ def api_datacenter_strategie_questionnaire():
 
 
 @app.route("/api/datacenter/strategie", methods=["POST"])
+@login_required
 def api_datacenter_strategie():
     """La strategie de developpement durable, calculee depuis les reponses.
 
@@ -2642,6 +2669,7 @@ def api_datacenter_profil():
 
 
 @app.route("/api/datacenter/comparer", methods=["POST"])
+@login_required
 def api_datacenter_comparer():
     """La même installation, toutes familles de refroidissement confondues.
 
@@ -3689,7 +3717,6 @@ def api_admin_ingest_token():
 
 
 @app.route("/ressources")
-@login_required
 def ressources():
     return _page(PAGES["/ressources"])
 
@@ -3705,7 +3732,6 @@ def about():
 
 
 @app.route("/vos-projets")
-@login_required
 def vos_projets():
     """Formulaire détaillé de soumission de projet cyber industriel (IT/OT/IIoT)."""
     return _page(PAGES["/vos-projets"])
@@ -3733,11 +3759,13 @@ def conformite():
 
 
 @app.route("/nis2")
+@login_required
 def nis2():
     return _page(PAGES["/nis2"])
 
 
 @app.route("/diagnostic")
+@login_required
 def diagnostic():
     return _page(PAGES["/diagnostic"])
 
@@ -7648,6 +7676,26 @@ def health():
             etat["status"] = "degraded"
     except Exception:
         etat["comptes"] = "inconnu"
+    # ── LE COURRIEL, ET POURQUOI IL EST DEVENU CRITIQUE ────────────────────
+    # Depuis que les pages du menu demandent un compte, TOUT le parcours
+    # d'accès passe par trois courriels : la confirmation d'adresse au client,
+    # la demande de validation à l'administrateur, l'activation au client. Sans
+    # clef d'envoi, send_email() renvoie faux et journalise un avertissement —
+    # personne ne reçoit rien, le visiteur attend un lien qui ne viendra pas, et
+    # l'administrateur ignore qu'une demande dort. La panne est totale ET
+    # silencieuse : c'est la pire des deux, et c'est pourquoi elle est ici.
+    try:
+        import auth as _auth
+        pret = bool(os.environ.get("BREVO_API_KEY"))
+        etat["courriel"] = "configure" if pret else "SANS_CLEF"
+        etat["courriel_admin"] = _auth.ADMIN_EMAIL
+        if not pret:
+            etat["status"] = "degraded"
+            etat["cause_courriel"] = (
+                "BREVO_API_KEY absente : aucune inscription ne peut aboutir — "
+                "ni confirmation d'adresse, ni notification à l'administrateur")
+    except Exception:
+        etat["courriel"] = "inconnu"
     # État par magasin, AVEC LA CAUSE. Sans lui, un mode dégradé se constatait
     # mais ne se diagnostiquait pas : « la connexion échoue » envoyait vérifier
     # DATABASE_URL alors qu'elle était correcte. Ces champs disent quoi
@@ -7780,6 +7828,106 @@ def _sonde_detaillee():
             res["connexions"] = "non mesurable : %s" % _cause(exc)
     _SONDE["ts"], _SONDE["res"] = now, res
     return dict(res, mesure="à l'instant")
+
+
+@app.route("/api/acces")
+def api_acces():
+    """Les pages qui demandent un compte — pour les SIGNALER avant le clic.
+
+    POURQUOI CETTE ROUTE EXISTE. Vingt-six liens de la seule page d'accueil
+    mènent à une page réservée, et les pieds de page des quarante autres
+    portent les mêmes. Les étiqueter à la main, c'était quarante fichiers à
+    corriger, puis un de plus à chaque page ajoutée — et c'est le lien qu'on
+    oublie qui surprend le visiteur. La liste est donc servie une fois, et
+    nav.js marque les liens partout d'un seul geste.
+
+    RIEN N'EST DIVULGUÉ ICI, et c'est ce qui autorise à la laisser ouverte :
+    elle ne dit pas ce que CONTIENNENT les pages, seulement lesquelles
+    demandent un compte — ce qu'un visiteur apprendrait de toute façon en
+    cliquant. La servir lui épargne le clic."""
+    fermees = sorted(c for c, e in _acces_reels().items() if e != "direct")
+    return jsonify(ok=True, client=fermees,
+                   note="Ces pages demandent un compte client validé.")
+
+
+# ─────────────────────────── LA POLITIQUE D'ACCÈS EST-ELLE APPLIQUÉE ? ──────
+# À EXÉCUTER EN DERNIER, et ce n'est pas un détail d'ordonnancement : tant que
+# toutes les routes ne sont pas déclarées, le relevé est incomplet — et un
+# contrôle incomplet sur un sujet d'accès est pire que pas de contrôle, parce
+# qu'il rassure.
+
+def _menu_chemins():
+    """Les chemins que le menu latéral propose, lus dans nav.js.
+
+    La règle porte sur « les pages du menu latéral » : c'est donc le menu qui
+    dit ce qui doit être décidé, et le recopier ici en ferait une seconde
+    source de vérité qui divergerait au premier ajout de page."""
+    import re as _re
+    with open(os.path.join(HERE, "nav.js"), encoding="utf-8") as f:
+        js = f.read()
+    i = js.index("var NAV_SECTIONS")
+    bloc = _re.sub(r"//[^\n]*", "", js[i:js.index("];", i)])
+    chemins = {a for a, _ in _re.findall(r'\["(/[^"]*)",\s*"([^"]*)"\]', bloc)}
+    if len(chemins) < 30:
+        raise RuntimeError(
+            "politique d'accès : le menu n'a livré que %d entrées — la lecture "
+            "de nav.js a dérivé, et un menu vide validerait n'importe quoi"
+            % len(chemins))
+    return chemins
+
+
+def _acces_reels():
+    """La protection RÉELLE de chaque page, relevée sur les décorateurs posés.
+
+    On lit `auth_gated`, que login_required et admin_required apposent tous
+    deux ; le préfixe /admin distingue ensuite les seconds. Lire les
+    décorateurs plutôt qu'une liste tenue à la main est tout l'intérêt de ce
+    contrôle : c'est l'état effectif du site, celui qu'un visiteur rencontre."""
+    reels = {}
+    for rule in app.url_map.iter_rules():
+        chemin = str(rule.rule)
+        if chemin.startswith("/api/") or "<" in chemin:
+            continue
+
+        # Seules les PAGES sont soumises à la politique. Les fichiers servis —
+        # feuille de style, scripts, images — sont demandés par le navigateur
+        # sans session : les fermer casserait jusqu'aux pages ouvertes.
+        if chemin not in PAGES and not chemin.startswith("/admin"):
+            continue
+        vue = app.view_functions.get(rule.endpoint)
+        if chemin.startswith("/admin"):
+            reels[chemin] = "admin"
+        else:
+            reels[chemin] = ("client" if getattr(vue, "auth_gated", False)
+                             else "direct")
+    return reels
+
+
+def _acces_api_reels():
+    """La protection RÉELLE de chaque interface de programmation.
+
+    Les chemins à paramètre (« <pid> ») sont ramenés à leur forme déclarée : la
+    politique nomme des interfaces, pas des instances."""
+    reels = {}
+    for rule in app.url_map.iter_rules():
+        chemin = str(rule.rule)
+        if not chemin.startswith("/api/"):
+            continue
+        vue = app.view_functions.get(rule.endpoint)
+        reels[chemin] = ("client" if getattr(vue, "auth_gated", False)
+                         else "direct")
+    return reels
+
+
+def _verifier_politique_acces():
+    ecarts = (acces.verifier_application(_acces_reels(), _menu_chemins())
+              + acces.verifier_api(_acces_api_reels()))
+    if ecarts:
+        raise RuntimeError("La politique d'accès n'est pas appliquée :\n  - "
+                           + "\n  - ".join(ecarts))
+
+
+_verifier_politique_acces()
 
 
 if __name__ == "__main__":

@@ -62,7 +62,14 @@ PROFIL = {"puissance_it_kw": 50000, "pays": "FR",
 
 @pytest.fixture
 def client():
-    return A.app.test_client()
+    """CONNECTÉ — depuis que la page demande un compte, un client anonyme ne
+    mesurerait plus que la porte. La porte, elle, est éprouvée par les
+    contrôles qui prennent la fixture `anonyme`."""
+    A.app.config["TESTING"] = True
+    c = A.app.test_client()
+    with c.session_transaction() as s:
+        s["user_email"] = "recette@local.test"
+    return c
 
 
 # ── 1. La compensation ne peut pas se déguiser en réduction ────────────────
@@ -378,9 +385,20 @@ def test_les_champs_exiges_existent_dans_le_moteur():
 
 # ── 7. La frontière ouvert / fermé ─────────────────────────────────────────
 
-def test_la_page_est_ouverte_sans_compte(client):
-    r = client.get("/datacenter")
-    assert r.status_code == 200, r.status_code
+def test_la_page_demande_un_compte(anonyme, connecte):
+    """LA PAGE A CHANGÉ DE RÉGIME, et ce contrôle a changé avec elle. Elle
+    était ouverte, et l'argument tenait : le calcul est déterministe, il
+    n'appartient à personne, et l'ouvrir le rendait visible aux moteurs. La
+    décision est désormais l'inverse — les pages du menu latéral demandent un
+    compte.
+
+    ON ÉPROUVE LES DEUX MOITIÉS. Une porte qui refuse tout le monde n'est pas
+    une protection, c'est une panne — et elle passerait ce contrôle si l'on ne
+    vérifiait que le refus."""
+    r = anonyme.get("/datacenter")
+    assert r.status_code == 302, r.status_code
+    assert "/connexion" in r.headers.get("Location", "")
+    assert connecte.get("/datacenter").status_code == 200
 
 
 def test_l_ancienne_adresse_redirige_au_lieu_de_disparaitre():
@@ -397,10 +415,14 @@ def test_l_ancienne_adresse_ne_figure_plus_au_sitemap(client):
     déclare des pages, pas des renvois."""
     x = client.get("/sitemap.xml").get_data(as_text=True)
     assert "/decarbonation-datacenter" not in x
-    assert "/datacenter<" in x or "/datacenter</loc>" in x
+    # ET, DEPUIS QUE LA PAGE DEMANDE UN COMPTE, l'inverse de ce qu'on exigeait
+    # ici. Déclarer aux moteurs une adresse qui renvoie vers un formulaire de
+    # connexion leur fait indexer le formulaire, et promet au lecteur venu d'un
+    # résultat de recherche une page qu'il n'atteindra pas.
+    assert "/datacenter<" not in x and "/datacenter</loc>" not in x
 
 
-def test_le_referentiel_est_ouvert(client):
+def test_le_referentiel_sert_le_client_connecte(client):
     r = client.get("/api/datacenter/decarbonation")
     assert r.status_code == 200
     j = r.get_json()
@@ -412,19 +434,42 @@ def test_le_referentiel_est_ouvert(client):
     ("/api/datacenter/decarbonation/parcours", dict(PROFIL)),
     ("/api/datacenter/decarbonation/dossier", dict(PROFIL, etape="SUBST")),
 ])
-def test_le_parcours_et_le_dossier_sont_ouverts(client, chemin, charge):
+def test_le_parcours_et_le_dossier_servent_le_client_connecte(client, chemin,
+                                                              charge):
     r = client.post(chemin, headers={"Origin": "http://localhost"}, json=charge)
     assert r.status_code == 200, (chemin, r.status_code)
     assert r.get_json()["ok"] is True
 
 
-def test_ouvrir_la_plateforme_n_a_rien_ouvert_d_autre(client):
-    """La moitié du contrôle qui compte vraiment."""
-    for chemin in ("/api/datacenter/ingenierie/dossier",
-                   "/api/datacenter/ingenierie/export",
-                   "/api/datacenter/export"):
-        r = client.post(chemin, headers={"Origin": "http://localhost"}, json={})
-        assert r.status_code == 401, (chemin, r.status_code)
+@pytest.mark.parametrize("chemin,methode", [
+    ("/api/datacenter/decarbonation", "GET"),
+    ("/api/datacenter/decarbonation/parcours", "POST"),
+    ("/api/datacenter/decarbonation/dossier", "POST"),
+])
+def test_LES_INTERFACES_AUSSI_demandent_un_compte(anonyme, chemin, methode):
+    """CE CONTRÔLE EST LE CŒUR DE LA PROTECTION, et il manquait.
+
+    Fermer la page sans fermer l'interface qui la nourrit ne protège rien : la
+    page renvoie vers le formulaire de connexion, et le même contenu se
+    récupère en une ligne de commande sur l'adresse en /api. C'est exactement
+    l'état qu'on a trouvé — quinze interfaces servaient en clair le calcul,
+    l'état de l'art et les lacunes des pages qu'on venait de fermer."""
+    if methode == "GET":
+        r = anonyme.get(chemin)
+    else:
+        r = anonyme.post(chemin, headers={"Origin": "http://localhost"},
+                         json=dict(PROFIL, etape="SUBST"))
+    assert r.status_code == 401, (chemin, r.status_code)
+
+
+def test_un_compte_client_ne_vaut_pas_un_compte_administrateur(connecte):
+    """L'autre moitié. Le dépôt documentaire et l'indexation restent à
+    l'administrateur : ouvrir la plateforme aux clients ne leur donne pas la
+    main sur la base de connaissance du cabinet."""
+    for chemin in ("/api/datacenter/depot", "/api/datacenter/agent/indexer"):
+        r = connecte.post(chemin, headers={"Origin": "http://localhost"},
+                          json={})
+        assert r.status_code in (401, 403), (chemin, r.status_code)
 
 
 def test_le_dossier_refuse_une_etape_inconnue(client):

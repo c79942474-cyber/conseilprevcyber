@@ -410,6 +410,25 @@ h3{font-size:19px;letter-spacing:-.01em;font-weight:700}
 .page-head{padding:64px 0 8px}
 .lead{color:var(--muted);font-size:clamp(16px,2.2vw,19px);max-width:640px}
 
+/* CE QUI DEMANDE UN COMPTE, ÉCRIT AVANT LE CLIC.
+   Depuis que les pages du menu latéral sont réservées aux clients validés,
+   plusieurs boutons très en vue mènent au formulaire de connexion. Le
+   découvrir en cliquant fait croire au visiteur qu'il s'est trompé de bouton ;
+   le lire d'abord lui dit quoi faire. L'étiquette est volontairement DISCRÈTE
+   et non colorée en alerte : elle informe, elle ne dissuade pas. */
+.acces-note{color:var(--muted);font-size:14px;max-width:620px;margin:18px auto 0;
+  padding:10px 16px;border:1px solid rgba(148,163,184,.28);border-radius:8px;
+  background:rgba(148,163,184,.06)}
+.acces-note a{color:var(--cyan);font-weight:600}
+.ac{font-weight:400;font-size:.82em;opacity:.72;white-space:nowrap}
+.ac::before{content:"· "}
+/* Le cadenas posé par nav.js sur les liens qui ne le disent pas en toutes
+   lettres — discret, dans la ligne, et jamais coupé du libellé qu'il qualifie. */
+.ac-cle{font-size:.78em;opacity:.6;white-space:nowrap}
+.ac-legende{margin-top:14px;padding-top:12px;border-top:1px solid rgba(148,163,184,.18);
+  color:var(--muted);font-size:13px;line-height:1.6}
+.ac-legende a{color:var(--cyan);font-weight:600}
+
 /* Boutons */
 .btn{padding:13px 26px;border-radius:8px;font-weight:600;font-size:15px;display:inline-block;
   transition:transform .15s,filter .15s,border-color .15s;cursor:pointer;border:none}

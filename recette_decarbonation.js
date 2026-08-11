@@ -92,14 +92,32 @@ async function attendreAlEcran(pg, sel, ms = 6000) {
   const err = [];
   pg.on('pageerror', e => err.push(String(e)));
 
-  titre('1. La plateforme s’ouvre sans compte');
+  /* SE CONNECTER D'ABORD — la page est passée en accès client. La recette
+     ouvrait la page en anonyme et se contentait de constater qu'elle
+     répondait ; depuis que la politique d'accès a changé, elle atterrirait sur
+     le formulaire de connexion et n'éprouverait plus rien de ce qui suit. Que
+     la porte tienne est éprouvé par recette_acces.js — ici, on éprouve le
+     contenu, et il faut donc être entré. */
+  await pg.goto(BASE + '/connexion', { waitUntil: 'domcontentloaded' });
+  await pg.evaluate(async ([e, m]) => fetch('/api/auth/login', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: e, password: m }) }),
+    [process.env.RECETTE_EMAIL || 'recette@local.test',
+     process.env.RECETTE_MDP || 'RecetteLocale!2026']);
+
+  titre('1. La plateforme s’ouvre au client connecté');
 
   const rep = await pg.goto(BASE + '/datacenter', { waitUntil: 'networkidle' });
   ok('la page répond', rep && rep.status() === 200, rep ? 'HTTP ' + rep.status() : 'pas de réponse');
   if (!rep || rep.status() !== 200) { await nav.close(); process.exit(2); }
-  ok('…et ne renvoie pas vers la connexion', !/\/connexion/.test(pg.url()), pg.url());
+  ok('…et ne renvoie plus vers la connexion', !/\/connexion/.test(pg.url()), pg.url());
+  /* LE CONTRÔLE EST INVERSÉ, et c'est la politique d'accès qui l'a retourné.
+     Il exigeait AUCUN cookie de session — la page était ouverte, et une session
+     traînante aurait pu masquer un gardien retiré. La page est maintenant
+     réservée : c'est l'ABSENCE de session qui trahirait une connexion ratée, et
+     tout ce qui suit ne mesurerait plus que le formulaire de connexion. */
   const ck = await ctx.cookies();
-  ok('…sans le moindre cookie de session', !ck.some(c => c.name === 'cpc_session'),
+  ok('…et la session est bien établie', ck.some(c => c.name === 'cpc_session'),
      ck.map(c => c.name).join(', ') || 'aucun cookie');
 
   await pg.waitForFunction(() => document.querySelectorAll('#dk-hierarchie .dk-h').length > 0,
@@ -432,18 +450,26 @@ async function attendreAlEcran(pg, sel, ms = 6000) {
 
   titre('8. Ce que l’ouverture ne devait PAS ouvrir');
 
+  /* CE QUI RESTE FERMÉ SE MESURE DEPUIS UN CONTEXTE SANS SESSION. Ces trois
+     contrôles s'exécutaient dans le contexte de la page, jadis anonyme ; il
+     porte désormais une session, et ils mesuraient donc ce qu'un client
+     atteint — pas ce qu'un inconnu se voit refuser. La frontière ouvert/fermé
+     est éprouvée en entier, et pour les trois personnes, par recette_acces.js. */
+  const anon = await nav.newContext();
   for (const [chemin, nom] of [
     ['/api/datacenter/ingenierie/dossier', 'le dossier d’ingénierie'],
     ['/api/datacenter/export', 'l’export de note de calcul'],
+    ['/api/datacenter/decarbonation/dossier', 'le dossier de décarbonation'],
   ]) {
-    const r = await ctx.request.post(BASE + chemin, {
+    const r = await anon.request.post(BASE + chemin, {
       headers: { 'Origin': BASE, 'Content-Type': 'application/json' }, data: {},
     });
-    ok(nom + ' reste fermé', r.status() === 401, 'HTTP ' + r.status());
+    ok(nom + ' reste fermé à l’inconnu', r.status() === 401, 'HTTP ' + r.status());
   }
-  const kb = await ctx.request.get(BASE + '/admin/base-connaissance', { maxRedirects: 0 });
+  const kb = await anon.request.get(BASE + '/admin/base-connaissance', { maxRedirects: 0 });
   ok('la base documentaire reste réservée', [301, 302, 401, 403].includes(kb.status()),
      'HTTP ' + kb.status());
+  await anon.close();
 
   /* ══ LA HIÉRARCHIE : UNE LISTE QUI NE DOIT PAS DÉFAIRE L'ORDRE ══════════
      Les quatre rangs se dépliaient d'un coup ; le rang se choisit maintenant.

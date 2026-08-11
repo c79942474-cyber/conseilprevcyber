@@ -109,21 +109,28 @@ const PAGES = ['/ingenierie-datacenter', '/datacenter',
      ET C'EST CE CLIC QUI A TROUVÉ LE DÉFAUT : le bouton du bandeau menait à
      /connexion. La règle est donc celle-ci — un lien qui ANNONCE l'accès
      client a le droit d'y mener ; un lien muet, non. */
+  /* LIRE L'ÉTIQUETTE SUR LA PAGE D'ACCUEIL, PAS SUR CELLE OÙ L'ON VIENT
+     D'ATTERRIR. La lecture était faite avant l'appel, sur « la page courante » —
+     qui, dès la deuxième itération, était la destination du clic précédent,
+     c'est-à-dire /connexion. Deux liens parfaitement étiquetés étaient donc
+     déclarés muets. Elle se fait maintenant DANS la fonction, juste après le
+     chargement de l'accueil, quand la page est bien celle qu'on croit. */
   const atterrir = async (cible) => {
     await pg.goto(BASE + '/', { waitUntil: 'networkidle' });
+    const annonce = await pg.evaluate((c) => [...document.querySelectorAll(
+      'a[href="' + c + '"]')].some(
+        a => /accès client/i.test(a.textContent)), cible);
     const [n] = await Promise.all([
       pg.waitForNavigation({ waitUntil: 'domcontentloaded' }),
       pg.click('a[href="' + cible + '"]'),
     ]);
-    return { statut: n.status(), chemin: new URL(pg.url()).pathname,
+    return { statut: n.status(), chemin: new URL(pg.url()).pathname, annonce,
              titre: (await pg.title()).slice(0, 46) };
   };
 
   for (const cible of PAGES) {
-    const annonce = await pg.evaluate((c) => [...document.querySelectorAll(
-      'a[href="' + c + '"]')].some(
-        a => /accès client/i.test(a.textContent)), cible);
     const a = await atterrir(cible);
+    const annonce = a.annonce;
     const mur = a.chemin === '/connexion';
     ok('cliquer « ' + cible + ' » ne surprend pas le visiteur',
        a.statut < 400 && (a.chemin === cible || (mur && annonce)),
