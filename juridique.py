@@ -35,6 +35,7 @@ artificielle de la production est signalée conformément à l'article 50 du
 Règlement (UE) 2024/1689.
 """
 
+import functools
 import re
 import unicodedata
 
@@ -1637,8 +1638,14 @@ def _normaliser(s):
     return "".join(c for c in s if unicodedata.category(c) != "Mn").lower()
 
 
+@functools.lru_cache(maxsize=1)
 def _references_connues():
-    """Toutes les références citables, sous forme normalisée."""
+    """Toutes les références citables, sous forme normalisée.
+
+    Mémoïsée : pure, sans argument, sur un référentiel constant de module —
+    et rappelée à chaque analyse, chaque contrat, chaque export. Les trois
+    ensembles rendus ne sont jamais mutés par les appelants (tests
+    d'appartenance seulement)."""
     ue, lois, normes = set(), set(), set()
     for t in REFERENTIEL:
         blob = t.get("officiel", "") + " " + t.get("titre", "")

@@ -31,6 +31,7 @@ retapée ici aurait divergé au premier ajustement du référentiel, et c'est le
 cadre de phases qu'on aurait cru.
 """
 
+import functools
 import re
 import time
 
@@ -2563,8 +2564,15 @@ def _piece_discipline(entree, phase):
     }
 
 
+@functools.lru_cache(maxsize=32)
 def pieces(code):
     """Le registre des pièces d'une phase, enrichi de ses libellés.
+
+    MÉMOÏSÉE, ET C'EST SÛR PARCE QUE VÉRIFIÉ : pure sur des constantes de
+    module, et aucun appelant ne mute les dictionnaires rendus —
+    classer_pieces copie chaque pièce avant d'annoter. Bornée à 32 : le code
+    de phase vient parfois de la requête, et un cache sans borne grossirait
+    d'une entrée par code inconnu distinct, à la main d'un client connecté.
 
     Deux origines réunies ici : les pièces PROPRES à la phase et les
     spécifications de DISCIPLINE dues à cette phase, chacune avec le niveau
@@ -3351,6 +3359,25 @@ def dossier(profil, code, inputs=None):
     # stade. « recevable » ne veut pas dire « juste » : cela veut dire que le
     # niveau de définition correspond à celui attendu par la phase.
     grandeurs = []
+    # LE BALAYAGE DES ENTRÉES OUVERTES EST FAIT UNE FOIS, PAS SIX. Le profil
+    # balayé ne dépend que du champ ouvert et du point — jamais de la grandeur
+    # qu'on lit ensuite dans l'étude. Refait par grandeur, le même appel à
+    # D.etude() partait 91 fois là où 16 suffisent (mesuré sur DCE/AOR), à
+    # chaque clic de phase et à chaque export. Le try/except point par point
+    # est conservé : une étude qui échoue saute SON point, pas le dossier.
+    etudes_balayees = {}
+    for m in (a.get("entrees_manquantes") or []):
+        if m.get("id") not in _PLAGES_PLAUSIBLES:
+            continue
+        bas, haut = _PLAGES_PLAUSIBLES[m["id"]]
+        for i in range(_N_BALAYAGE):
+            x = bas + (haut - bas) * i / float(_N_BALAYAGE - 1)
+            p2 = dict(profil)
+            p2[m["id"]] = x
+            try:
+                etudes_balayees[(m["id"], i)] = (x, D.etude(p2))
+            except Exception:
+                continue
     for cle, sec, champ in [("pue", "energie", "pue"),
                             ("energie", "energie", "energie_totale_MWh"),
                             ("eau_site", "eau", "wue_site"),
@@ -3362,7 +3389,8 @@ def dossier(profil, code, inputs=None):
             continue
         touche = _postes_engages(cle)
         bloquants = [s for s in a["substitutions_a_faire"] if s["cle"] in touche]
-        ouvert = _etendue_entrees_ouvertes(profil, a, sec, champ, v.get("valeur"))
+        ouvert = _etendue_entrees_ouvertes(profil, a, sec, champ, v.get("valeur"),
+                                           etudes=etudes_balayees)
         grandeurs.append({
             "nom": v["nom"], "valeur": v["valeur"], "unite": v["unite"],
             "incertitude": v.get("incertitude", ""),
@@ -3427,7 +3455,8 @@ _PLAGES_PLAUSIBLES = {
 _N_BALAYAGE = 5
 
 
-def _etendue_entrees_ouvertes(profil, apt, sec, champ, valeur_actuelle):
+def _etendue_entrees_ouvertes(profil, apt, sec, champ, valeur_actuelle,
+                              etudes=None):
     """De combien cette grandeur bouge encore, du seul fait des entrées non saisies.
 
     C'est la réponse à la question qu'un lecteur se pose devant un chiffre
@@ -3452,13 +3481,25 @@ def _etendue_entrees_ouvertes(profil, apt, sec, champ, valeur_actuelle):
         bas, haut = _PLAGES_PLAUSIBLES[m["id"]]
         vals, cmin, cmax = [], None, None
         for i in range(_N_BALAYAGE):
-            x = bas + (haut - bas) * i / float(_N_BALAYAGE - 1)
-            p2 = dict(profil)
-            p2[m["id"]] = x
-            try:
-                w = (D.etude(p2).get(sec) or {}).get(champ)
-            except Exception:
-                continue
+            # Étude pré-balayée par l'appelant quand elle existe : le profil
+            # balayé ne dépend que (champ, point), et la recalculer ici pour
+            # chaque grandeur multipliait le même travail par six. Une étude
+            # absente du pré-balayage (échec point par point) est simplement
+            # sautée — même geste que le try/except historique.
+            if etudes is not None:
+                pre = etudes.get((m["id"], i))
+                if pre is None:
+                    continue
+                x, e2 = pre
+                w = (e2.get(sec) or {}).get(champ)
+            else:
+                x = bas + (haut - bas) * i / float(_N_BALAYAGE - 1)
+                p2 = dict(profil)
+                p2[m["id"]] = x
+                try:
+                    w = (D.etude(p2).get(sec) or {}).get(champ)
+                except Exception:
+                    continue
             if not w or not isinstance(w.get("valeur"), (int, float)):
                 continue
             y = float(w["valeur"])
@@ -5453,11 +5494,14 @@ def guide(role_id, theme_id, profil=None, code_phase=None):
     d = dossier(profil, ph) if profil.get("puissance_it_kw") else {}
     # Les postes du thème et leur état à cette phase : recevable, ou remplacé.
     postes_etat = []
+    # Hissé : exigences(ph) refait deux cumuls triés à chaque appel, pour un
+    # résultat invariant dans cette boucle. Ne pas muter — d'autres l'utilisent.
+    subs = set(exigences(ph).get("substitutions") or [])
     for cle in t["postes"]:
         v = POSTES.get(cle)
         if not v:
             continue
-        substitue = cle in (exigences(ph).get("substitutions") or [])
+        substitue = cle in subs
         postes_etat.append({
             "cle": cle, "nom": v["nom"],
             "incertitude": v.get("incertitude") or "",
