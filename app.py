@@ -590,10 +590,11 @@ def _report_generate(data):
 # FOND pour ne pas retarder le boot : la veille renvoie une liste vide le temps
 # de l'initialisation (quelques secondes), puis se peuple normalement.
 def _init_automation():
+    import auth as _auth_mod
     automation.init(sender=SENDER, notify_to=NOTIFY_TO, rag=rag, clients=clients_db,
                     livrables=livrables_hist, cockpit=state,
                     summarize=_veille_summarize, generate_report=_report_generate,
-                    dsn=os.environ.get("DATABASE_URL"))
+                    dsn=os.environ.get("DATABASE_URL"), auth=_auth_mod)
 
 
 threading.Thread(target=_init_automation, daemon=True).start()
@@ -4963,6 +4964,14 @@ def api_rag_upload_file():
         return _fin("traitement_echec", _exc_detail(exc)) or (jsonify(
             ok=False, error="traitement_echec", detail=_exc_detail(exc),
             message=_motif_depot("traitement_echec", _exc_detail(exc))), 500)
+    # Le registre déclare « journal des chargements, suppressions et
+    # changements de visibilité » — la suppression et la visibilité étaient
+    # tracées, le CHARGEMENT non, sur le chemin d'empoisonnement le plus court
+    # de l'assistant. Qui a chargé quoi, quand : c'est la question d'après
+    # incident, et elle n'avait pas de réponse.
+    audit.journaliser("document.chargement",
+                      cible=str(doc.get("id") or "")[:60],
+                      detail=(doc.get("title") or f.filename or "")[:120])
     return _fin("ok", "", doc.get("title") or f.filename) or jsonify(ok=True, document=doc)
 
 
@@ -5019,6 +5028,9 @@ def api_rag_upload_finish():
                                 (data.get("visibility") or "public").strip())
     except RagError as exc:
         return jsonify(ok=False, error=exc.code), exc.status
+    audit.journaliser("document.chargement",
+                      cible=str(doc.get("id") or "")[:60],
+                      detail=(doc.get("title") or doc.get("filename") or "")[:120])
     return jsonify(ok=True, document=doc)
 
 
@@ -5834,6 +5846,11 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None,
             "numero": (data.get("numero") or ""),
             "indice": (data.get("indice") or ""),
             "etat": "brouillon"})
+        # La génération elle-même est journalisée — métadonnées seules,
+        # jamais le contenu : les analyses juridiques, le playbook et l'agent
+        # tracent déjà les leurs, celle-ci partait au modèle sans trace.
+        audit.journaliser("livrable.generation", cible=(type_id or "")[:80],
+                          detail="%s, %d source(s)" % (used_model, len(sources)))
         # La date de dernière activité du projet suit ce qui y est produit :
         # c'est elle qui trie utilement une liste de projets.
         if projet_id:
@@ -7218,6 +7235,9 @@ def api_livrables_history_delete(lid):
         return jsonify(ok=False, error="id_invalide"), 400
     if not livrables_hist.delete(lid):
         return jsonify(ok=False, error="introuvable"), 404
+    # Générer puis effacer ne doit pas être un chemin sans trace : le journal
+    # garde QUE le document a existé — jamais son contenu.
+    audit.journaliser("livrable.suppression", cible=lid)
     return jsonify(ok=True)
 
 
@@ -7313,6 +7333,9 @@ def api_rag_ingest_token():
                                visibility=(data.get("visibility") or "public").strip())
     except RagError as exc:
         return jsonify(ok=False, error=exc.code), exc.status
+    audit.journaliser("document.chargement",
+                      cible=str(doc.get("id") or "")[:60],
+                      detail="ingestion par jeton — " + (doc.get("title") or filename or "")[:100])
     return jsonify(ok=True, document=doc)
 
 
@@ -7412,9 +7435,44 @@ def admin_clients_page():
 @app.route("/api/admin/clients", methods=["GET"])
 @admin_required
 def api_clients_list():
-    return jsonify(ok=True, clients=clients_db.list(), stats=clients_db.stats(),
+    # LA CONSULTATION EST TRACÉE — c'est l'accès le plus fréquent aux données
+    # personnelles, et le seul qui ne laissait rien : l'export et le
+    # téléchargement de pièce s'inscrivent, la lecture des fiches complètes
+    # (email, téléphone, notes) non. Dédupliquée par acteur et par heure pour
+    # que chaque rafraîchissement d'écran ne devienne pas une ligne de bruit.
+    clients = clients_db.list()
+    try:
+        acteur = (current_user() or {}).get("email") or "?"
+        heure = int(time.time() // 3600)
+        if _CONSULT_VUES.get(acteur) != heure:
+            _CONSULT_VUES[acteur] = heure
+            audit.journaliser("clients.consultation",
+                              detail="%d fiche(s)" % len(clients))
+    except Exception:
+        pass
+    return jsonify(ok=True, clients=clients, stats=clients_db.stats(),
                    options={"statuts": list(STATUTS), "bases": list(BASES_LEGALES),
                             "categories_pieces": list(CATEGORIES_PIECES)})
+
+
+_CONSULT_VUES = {}
+
+
+@app.route("/api/admin/clients/verify", methods=["POST"])
+@admin_required
+def api_clients_verify():
+    """Recalcule l'empreinte SHA-256 de toutes les pièces clients — le pendant
+    de la vérification de la base de connaissance, que le registre déclarait
+    « vérifiable à la demande » sans restreindre à la base. Une preuve de
+    consentement ou un contrat altéré en base doit se VOIR, pas se servir."""
+    try:
+        r = clients_db.docs_verify(actor=(current_user() or {}).get("email") or "")
+    except ClientsError as exc:
+        return jsonify(ok=False, error=exc.code), exc.status
+    audit.journaliser("clients.verification",
+                      detail="%d pièce(s), %d écart(s)" % (r["total"], len(r["ecarts"])),
+                      ok=not r["ecarts"])
+    return jsonify(ok=True, **r)
 
 
 @app.route("/api/admin/clients", methods=["POST"])
@@ -7691,7 +7749,14 @@ def _classify_contact(sujet, msg):
             "industrielle. Réponds UNIQUEMENT un objet JSON compact : "
             '{"secteur":"...","urgence":"faible|moyenne|haute","resume":"une phrase factuelle"} '
             "sans aucun autre texte.",
-            "Sujet choisi : %s\nMessage :\n%s" % (sujet, msg[:1200]), max_tokens=160)
+            # MINIMISÉ AVANT L'ENVOI. Un visiteur met souvent son téléphone ou
+            # son adresse dans le corps du message : la qualification
+            # secteur/urgence n'en a pas besoin, et le registre ne déclarait
+            # pas le fournisseur de modèle comme destinataire du texte brut.
+            # Les marqueurs « [TELEPHONE RETIRE] » restent lisibles au modèle.
+            "Sujet choisi : %s\nMessage :\n%s" % (
+                minimisation.masquer(sujet), minimisation.masquer(msg[:1200])),
+            max_tokens=160)
         import re as _re
         m = _re.search(r"\{.*\}", text or "", _re.S)
         return json.loads(m.group(0)) if m else None

@@ -36,7 +36,10 @@ REGISTRE = [
         "donnees": "Nom, email, organisation, message.",
         "personnes": "Prospects et visiteurs du site.",
         "duree": "12 mois après le dernier échange.",
-        "destinataires": "CONSEILPREV ; Brevo (routage email — UE).",
+        "destinataires": "CONSEILPREV ; Brevo (routage email — UE) ; "
+                         "fournisseur du modèle de langage pour la "
+                         "qualification automatique de la demande — données "
+                         "identifiantes masquées côté serveur avant envoi.",
         "transferts": "Aucun transfert hors UE.",
         "securite": "HTTPS, limitation de débit, contrôle d'origine, accès restreint.",
     },

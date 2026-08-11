@@ -312,6 +312,30 @@ def job_purge_rgpd():
     except Exception:
         _log.warning("purge RGPD : journal d'audit non purgé (base injoignable ?).")
 
+    # LA REVUE DES COMPTES INACTIFS — déclarée au registre comme mesure de
+    # limitation de conservation, et que rien n'exécutait : last_login était
+    # écrit à chaque connexion et jamais lu. La revue devient automatique ;
+    # la DÉCISION (suspendre, supprimer) reste humaine, depuis /admin/comptes.
+    try:
+        auth_mod = _deps.get("auth")
+        if auth_mod is not None:
+            seuil = _now_ms() - 24 * 30 * 24 * 3600 * 1000   # 24 mois
+            dormants = [u for u in auth_mod.store.list_all()
+                        if max(u.get("last_login") or 0,
+                               u.get("created_at") or 0) < seuil]
+            if dormants:
+                lignes = "".join(
+                    "<li>%s</li>" % html_lib.escape(u.get("email") or "?")
+                    for u in dormants[:20])
+                notify_admin(
+                    "🗄️ RGPD — comptes inactifs depuis plus de 2 ans",
+                    "<p><b>%d</b> compte(s) sans connexion depuis plus de "
+                    "24 mois. Suspendez ou supprimez depuis /admin/comptes — "
+                    "la revue est automatique, la décision reste humaine.</p>"
+                    "<ul>%s</ul>" % (len(dormants), lignes))
+    except Exception:
+        _log.warning("purge RGPD : revue des comptes inactifs non faite.")
+
     clients = _deps.get("clients")
     if clients is None:
         return
@@ -670,12 +694,13 @@ def _loop():
 
 
 def init(sender=None, notify_to=None, rag=None, clients=None, livrables=None,
-         cockpit=None, summarize=None, generate_report=None, dsn=None, start=True):
+         cockpit=None, summarize=None, generate_report=None, dsn=None, start=True,
+         auth=None):
     """Initialise le contexte et démarre le planificateur (sauf AUTOMATION_DISABLED=1)."""
     global _state, _started
     _deps.update(sender=sender, notify_to=notify_to, rag=rag, clients=clients,
                  livrables=livrables, cockpit=cockpit, summarize=summarize,
-                 generate_report=generate_report)
+                 generate_report=generate_report, auth=auth)
     _state = _State(dsn)
     _register_jobs()
     if _started or not start or os.environ.get("AUTOMATION_DISABLED") == "1":

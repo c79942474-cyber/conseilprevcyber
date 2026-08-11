@@ -53,6 +53,42 @@ class ClientsError(Exception):
         self.status = status
 
 
+def _controler_piece(filename, ext, data):
+    """Le contrôle du binaire d'une pièce jointe client, AVANT stockage.
+
+    C'ÉTAIT LE SEUL CHEMIN DE DÉPÔT SANS ANTIVIRUS : la base de connaissance,
+    les contrats et le dépôt d'ingénierie passent tous par antivirus.analyser —
+    les pièces clients (consentements, contrats, historiques, jusqu'à 15 Mo)
+    entraient telles quelles, et ressortaient telles quelles au
+    retéléchargement. Un exécutable renommé « contrat.pdf » traversait.
+
+    Deux régimes, parce que l'inspection structurelle ne couvre pas tout :
+
+      · extension couverte (pdf, docx, txt, md, png, jpg…) : l'analyse
+        complète, signatures + structure ;
+      · doc / odt / eml : hors inspection structurelle — au minimum, refuser
+        un exécutable ou une archive déguisés. LE .doc EST UN CONTENEUR OLE
+        PAR NATURE : cette signature-là, refusée partout ailleurs comme
+        « conteneur de macros », est admise ici et seulement ici, en le
+        disant — retirer le .doc des extensions admises priverait les clients
+        de leurs contrats anciens, ce qui est un choix d'exploitation, pas un
+        choix de code.
+    """
+    import antivirus
+    ext = (ext or "").lower()
+    if ext in antivirus.EXTENSIONS:
+        v = antivirus.analyser(filename or ("piece." + ext), data)
+        if not v.get("accepte"):
+            raise ClientsError("piece_refusee_%s" % (v.get("code") or "analyse"), 422)
+        return
+    tete = data[:16]
+    for motif, quoi in antivirus._EXECUTABLES:
+        if ext == "doc" and motif == b"\xd0\xcf\x11\xe0":
+            continue
+        if tete.startswith(motif):
+            raise ClientsError("piece_refusee_executable", 422)
+
+
 def _doc_ext(filename):
     ext = (filename.rsplit(".", 1)[-1] if "." in filename else "").lower()
     if ext not in ALLOWED_DOC_EXT:
@@ -299,6 +335,15 @@ class MemoryClientsStore:
             raise ClientsError("fichier_vide", 422)
         if len(data) > DOC_MAX_BYTES:
             raise ClientsError("fichier_trop_lourd", 413)
+        try:
+            _controler_piece(up["filename"] or filename, up["ext"], data)
+        except ClientsError as e:
+            with self._lock:
+                entreprise = self._items.get(cid, {}).get("entreprise", "")
+            self._log(actor, "piece_refus", cid, entreprise,
+                      "%s — %s" % ((up["filename"] or filename or up["ext"])[:120],
+                                   e.code))
+            raise
         did = uuid.uuid4().hex
         meta = {"id": did, "client_id": cid,
                 "filename": (up["filename"] or _safe_doc_filename(filename, up["ext"])
@@ -327,9 +372,35 @@ class MemoryClientsStore:
             if not d:
                 raise ClientsError("piece_inconnue", 404)
             entreprise = self._items[cid]["entreprise"] if cid in self._items else ""
-            filename, data = d["filename"], d["data"]
+            filename, data, empreinte = d["filename"], d["data"], d.get("sha256")
+        # L'EMPREINTE EST REVÉRIFIÉE À CHAQUE REMISE. Calculée au dépôt puis
+        # jamais recomparée, elle ne protégeait rien : une pièce altérée en
+        # base — une preuve de consentement, un contrat — serait repartie
+        # comme authentique. Servir un fichier altéré est pire que refuser.
+        if empreinte and hashlib.sha256(data).hexdigest() != empreinte:
+            self._log(actor, "piece_integrite", cid, entreprise, filename)
+            raise ClientsError("integrite_alteree", 500)
         self._log(actor, "piece_telechargement", cid, entreprise, filename)
         return filename, data
+
+    def docs_verify(self, actor=""):
+        """Recalcule l'empreinte de TOUTES les pièces ; rend la liste des écarts.
+
+        Le pendant, pour les pièces clients, de la vérification de la base de
+        connaissance : le registre déclare l'intégrité « vérifiable à la
+        demande depuis la console », et seule la base l'était."""
+        ecarts, total = [], 0
+        with self._lock:
+            paires = [(cid, dict(d)) for cid, docs in self._docs.items()
+                      for d in docs.values()]
+        for cid, d in paires:
+            total += 1
+            if d.get("sha256") and hashlib.sha256(d["data"]).hexdigest() != d["sha256"]:
+                ecarts.append({"client_id": cid, "id": d["id"],
+                               "filename": d["filename"]})
+        for e in ecarts:
+            self._log(actor, "piece_integrite", e["client_id"], "", e["filename"])
+        return {"total": total, "ecarts": ecarts}
 
     def doc_delete(self, cid, did, actor=""):
         with self._lock:
@@ -631,6 +702,12 @@ class PostgresClientsStore:
                     raise ClientsError("fichier_vide", 422)
                 if len(data) > DOC_MAX_BYTES:
                     raise ClientsError("fichier_trop_lourd", 413)
+                try:
+                    _controler_piece(filename, ext, data)
+                except ClientsError as e:
+                    self._log(conn, actor, "piece_refus", cid, entreprise,
+                              "%s — %s" % ((filename or ext)[:120], e.code))
+                    raise
                 did = uuid.uuid4().hex
                 filename = filename or "piece-%s.%s" % (did[:8], ext)
                 conn.execute(
@@ -659,13 +736,42 @@ class PostgresClientsStore:
 
     def doc_get(self, cid, did, actor=""):
         with self._pool.connection() as conn:
-            r = conn.execute("SELECT d.filename,d.data,c.entreprise FROM clients_docs d "
+            r = conn.execute("SELECT d.filename,d.data,c.entreprise,d.sha256 "
+                             "FROM clients_docs d "
                              "JOIN clients c ON c.id=d.client_id "
                              "WHERE d.id=%s AND d.client_id=%s", (did, cid)).fetchone()
             if not r:
                 raise ClientsError("piece_inconnue", 404)
+            data = bytes(r[1])
+            # Même règle que le magasin mémoire : l'empreinte du dépôt est
+            # recomparée avant toute remise — servir une pièce altérée comme
+            # authentique est le défaut qu'une empreinte existe pour empêcher.
+            if r[3] and hashlib.sha256(data).hexdigest() != r[3]:
+                self._log(conn, actor, "piece_integrite", cid, r[2], r[0])
+                raise ClientsError("integrite_alteree", 500)
             self._log(conn, actor, "piece_telechargement", cid, r[2], r[0])
-        return r[0], bytes(r[1])
+        return r[0], data
+
+    def docs_verify(self, actor=""):
+        """Recalcule l'empreinte de toutes les pièces ; rend la liste des écarts.
+        Pièce par pièce — charger d'un bloc cent pièces de quinze mégaoctets
+        mettrait la vérification en échec par la mémoire, pas par la fraude."""
+        ecarts, total = [], 0
+        with self._pool.connection() as conn:
+            ids = [r[0] for r in conn.execute(
+                "SELECT id FROM clients_docs ORDER BY created_at").fetchall()]
+            for did in ids:
+                r = conn.execute("SELECT client_id,filename,sha256,data "
+                                 "FROM clients_docs WHERE id=%s", (did,)).fetchone()
+                if not r:
+                    continue
+                total += 1
+                if r[2] and hashlib.sha256(bytes(r[3])).hexdigest() != r[2]:
+                    ecarts.append({"client_id": r[0], "id": did, "filename": r[1]})
+            for e in ecarts:
+                self._log(conn, actor, "piece_integrite", e["client_id"], "",
+                          e["filename"])
+        return {"total": total, "ecarts": ecarts}
 
     def doc_delete(self, cid, did, actor=""):
         with self._pool.connection() as conn:

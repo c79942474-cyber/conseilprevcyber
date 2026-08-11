@@ -815,9 +815,16 @@ def admin_gate():
         elif secrets.compare_digest(request.form.get("password") or "", ADMIN_GATE_PASSWORD):
             guard.clear(key)
             session["admin_gate_ok"] = True
+            # Franchi et daté. Le compteur d'échecs vit en mémoire, par
+            # processus : perdu au redémarrage, invisible d'un worker à
+            # l'autre. Le journal, lui, permet de VOIR une campagne de force
+            # brute sur la porte qui protège toute la zone d'administration —
+            # l'IP anonymisée y est ajoutée d'office.
+            _tracer("admin_gate.ok", "")
             return redirect(nxt)
         else:
             guard.fail(key)
+            _tracer("admin_gate.echec", "", ok=False)
             error = "Mot de passe incorrect."
     return Response(_admin_gate_html(nxt, error), mimetype="text/html")
 
@@ -994,6 +1001,41 @@ def api_me():
                    role=(u or {}).get("role") or "user")
 
 
+@auth_bp.route("/api/auth/export")
+@login_required
+@comptes_requis
+def api_export_compte():
+    """Les données du compte connecté, en JSON téléchargeable — droit d'accès
+    et portabilité (art. 15 et 20 RGPD).
+
+    Le registre déclarait « export structuré et lisible par machine (JSON)
+    des données d'un compte » — seule la fiche CLIENT avait une route, et
+    réservée à l'administrateur. Un utilisateur connecté n'avait aucun moyen
+    outillé d'obtenir SES données. Contenu : la vue publique du compte
+    (jamais de hash ni de jeton) et les entrées du journal d'audit qui LE
+    concernent — l'IP y est déjà anonymisée. L'exercice du droit est lui-même
+    tracé, comme l'export d'une fiche client l'est déjà."""
+    u = current_user()
+    entrees = []
+    try:
+        import audit
+        entrees = audit.lire(limit=200, acteur=u.get("email"))
+    except Exception:
+        entrees = []
+    _tracer("compte.export", u.get("email") or "")
+    corps = json.dumps({
+        "compte": _public_user(u),
+        "journal": entrees,
+        "note": ("Export établi à la demande du titulaire du compte — "
+                 "art. 15 (accès) et 20 (portabilité) du RGPD. Les adresses "
+                 "IP du journal sont anonymisées à l'écriture."),
+    }, ensure_ascii=False, indent=2)
+    rep = Response(corps, mimetype="application/json")
+    rep.headers["Content-Disposition"] = 'attachment; filename="mes-donnees.json"'
+    rep.headers["Cache-Control"] = "no-store"
+    return rep
+
+
 @auth_bp.route("/api/auth/forgot", methods=["POST"])
 @comptes_requis
 def api_forgot():
@@ -1011,6 +1053,7 @@ def api_forgot():
     if u and u.get("approved"):
         store.update(email, reset_token=secrets.token_urlsafe(32),
                      reset_expire=_now_ms() + RESET_VALIDITY_H * 3600 * _MS)
+        _tracer("motdepasse.demande", email)
         u = store.get(email)
         threading.Thread(target=_send_reset, args=(u, _base_url()), daemon=True).start()
     return generic
@@ -1044,6 +1087,10 @@ def api_reset():
         return jsonify(error="Lien invalide ou expiré."), 410
     store.update(u["email"], password_hash=generate_password_hash(pw),
                  reset_token=None, reset_expire=None)
+    # LE geste classique de prise de contrôle d'un compte : sans trace, un
+    # incident ne se date pas et ne se corrèle pas aux connexions. Le jeton,
+    # lui, n'apparaît jamais au journal.
+    _tracer("motdepasse.reinitialise", u["email"])
     return jsonify(ok=True)
 
 
