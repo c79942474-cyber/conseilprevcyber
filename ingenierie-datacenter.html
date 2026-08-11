@@ -1131,6 +1131,25 @@
   @media (prefers-reduced-motion: reduce){
     .ig-bat-b{animation:none}
   }
+
+  /* ── LE CHOIX DU DESTINATAIRE ────────────────────────────────────────
+     Posé sous les boutons d'export, jamais au-dessus : on choisit d'abord
+     QUOI produire, ensuite POUR QUI. L'inverse ferait arbitrer un
+     destinataire avant de savoir ce qu'on lui transmet. */
+  .tr-bloc{margin-top:14px;padding:12px 14px;border:1px solid var(--line,#233);
+    border-radius:10px;background:rgba(0,0,0,.14);max-width:760px}
+  .tr-lab{display:block;font-size:11.5px;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--muted2,#7b8b9a);margin-bottom:6px}
+  .tr-bloc select{font-family:inherit;font-size:13.5px;padding:8px 11px;
+    border-radius:8px;border:1px solid var(--line,#233);background:rgba(0,0,0,.26);
+    color:inherit;min-width:min(100%,360px);max-width:100%}
+  .tr-aide{font-size:12.5px;line-height:1.6;color:var(--muted,#9fb0c0);
+    margin:9px 0 0}
+  .tr-mise{font-size:12.5px;line-height:1.65;margin:10px 0 0;padding:9px 12px;
+    border-radius:8px;background:rgba(217,164,65,.09);
+    border:1px solid rgba(217,164,65,.32)}
+  .tr-mise i{color:var(--muted,#9fb0c0);font-style:normal;display:block;
+    margin-top:5px}
 </style>
 </head>
 <body>
@@ -1334,6 +1353,7 @@
       <button type="button" class="btn btn-s" id="ig-docx" disabled>Étude de phase (Word)</button>
       <button type="button" class="btn btn-s" id="ig-pdf" disabled>Étude de phase (PDF)</button>
     </div>
+    <div id="tr-ig" class="tr-zone"></div>
   </section>
 
   <section class="wrap rc-sec">
@@ -1446,6 +1466,7 @@
   
   <script src="/nav.js" defer></script>
   <script src="/parcours.js" defer></script>
+  <script src="/transmettre.js" defer></script>
   <!-- Rendu Markdown partagé avec la console des livrables : le même document
        doit se lire de la même façon d'une page à l'autre. Chargé AVANT le
        script de la page, qui s'en sert pour le lecteur. -->

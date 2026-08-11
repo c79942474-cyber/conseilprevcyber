@@ -13,6 +13,15 @@
 (function () {
   "use strict";
 
+  /* LE DESTINATAIRE, S'IL A ÉTÉ CHOISI. « transmettre.js » est un module à
+     part : s'il n'a pas chargé, l'export part sans bordereau plutôt que
+     d'échouer. Un document sans bordereau reste un document ; un export qui
+     casse, non — et le client n'aurait plus rien à transmettre du tout. */
+  function TR(o) {
+    return (window.TRANSMETTRE && window.TRANSMETTRE.corps)
+      ? window.TRANSMETTRE.corps(o) : o;
+  }
+
   var REF = null, PROFIL = {}, ETUDE = null;
   /* Un seul passage automatique par session de calcul : revenir en
      arrière depuis l'ingénierie ne doit pas relancer la bascule. */
@@ -1065,7 +1074,7 @@
     demander("/api/datacenter/export", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(Object.assign({}, PROFIL, { format: fmt }))
+      body: JSON.stringify(TR(Object.assign({}, PROFIL, { format: fmt })))
     }, DELAI_LONG).then(function (r) {
       /* Le serveur répond soit un fichier, soit du JSON d'erreur. Traiter la
          réponse comme un fichier dans tous les cas téléchargerait un document

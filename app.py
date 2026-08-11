@@ -1872,6 +1872,7 @@ import profil_dc     # noqa: E402  — analyse le moteur ci-dessus, ne le double
 import ingenierie_dc  # noqa: E402  — situe ses résultats dans la séquence projet
 import decarbonation  # noqa: E402  — les situe dans la hiérarchie d'atténuation
 import strategie_dd  # noqa: E402  — le livrable d'ouverture, quatre perspectives
+import transmission  # noqa: E402  — ce qui doit voyager AVEC le document qui sort
 # Le nettoyage des extraits et des titres de sources. Nommé « extraits_mod » :
 # « extraits » désigne déjà, dans une douzaine de fonctions de ce fichier, la
 # liste des passages retrouvés — les confondre aurait écrasé l'un par l'autre.
@@ -2091,6 +2092,66 @@ def api_datacenter_decarbonation_parcours():
                        message="Le parcours n'a pas pu être établi."), 500
 
 
+# ══════════════════════════════════════════════════════════
+#  LE BORDEREAU DE TRANSMISSION — ce qui voyage AVEC le document
+# ══════════════════════════════════════════════════════════
+# Un document se lit correctement SUR LA PAGE : elle dit la phase, la tolérance,
+# ce qui reste à produire. Le fichier, lui, part seul. Aux achats, une enveloppe
+# d'avant-projet devient un budget ; à l'exploitation, une valeur de conception
+# devient une consigne. Personne n'a menti — le contexte est resté ici.
+#
+# Le bordereau le fait voyager avec le fichier. Optionnel : sans destinataire
+# demandé, l'export ne change pas d'un octet.
+
+
+@app.route("/api/transmission")
+def api_transmission():
+    """Le vocabulaire des fonctions destinataires, et ce que le lien ne porte pas.
+
+    OUVERT : il ne décrit que des fonctions et des mises en garde, rien d'un
+    dossier. Servi par une route à lui parce que TROIS pages s'en servent — le
+    greffer sur le référentiel de l'une d'elles obligerait les deux autres à
+    charger un référentiel qui ne les concerne pas.
+    """
+    return jsonify(ok=True, destinataires=transmission.destinataires(),
+                   natures=transmission.natures(),
+                   exclus=transmission.EXCLUS,
+                   version=transmission.VERSION)
+
+
+def _poser_bordereau(md, meta, nature, data):
+    """Pose le bordereau en tête du document, si le client en demande un.
+
+    NE FAIT JAMAIS ÉCHOUER L'EXPORT. Une fonction inconnue sort du bordereau et
+    y est nommée ; le document, lui, part quand même. Un export qui échoue parce
+    qu'une clé a bougé prive le client de son document — et il recommencera sans
+    bordereau, ce qui est exactement ce qu'on cherchait à éviter.
+
+    REFUSE CE QUI RESSEMBLE À UNE PERSONNE. Le champ attend une clé de fonction.
+    Un nom accepté « pour être serviable » ferait entrer le document au registre
+    des traitements, et personne ne l'aurait décidé.
+    """
+    dest = str((data or {}).get("destinataire") or "").strip()[:40]
+    if not dest:
+        return md, None
+    if transmission.nominatif(dest):
+        return md, {"refuses": [{
+            "champ": "destinataire", "valeur": "(écarté)",
+            "motif": "la transmission désigne une FONCTION, jamais une "
+                     "personne — rien de nominatif ne circule"}],
+            "markdown": "", "destinataire": None,
+            "exclus": transmission.EXCLUS}
+    md2, b = transmission.poser(md, nature, dest, {
+        "phase": meta.get("phase"), "indice": meta.get("indice"),
+        "client": meta.get("client"), "perimetre": meta.get("perimetre"),
+        "date": meta.get("date")})
+    if b and b.get("destinataire"):
+        # Le cartouche du document le porte aussi : le bordereau est en page de
+        # garde, et une page de garde se détache d'un tirage agrafé.
+        meta["destinataire"] = b["destinataire"]
+    return md2, b
+
+
 @app.route("/api/datacenter/decarbonation/dossier", methods=["POST"])
 def api_datacenter_decarbonation_dossier():
     """Le plan de l'etude pour une etape, avec ce que le moteur y verse
@@ -2109,6 +2170,195 @@ def api_datacenter_decarbonation_dossier():
         return jsonify(ok=False, error="etape_inconnue",
                        message=d.get("motif", "Étape inconnue.")), 404
     return jsonify(ok=True, dossier=d)
+
+
+def _dossier_decarbonation_markdown(d, client=""):
+    """Le dossier d'une étape de décarbonation, en Markdown.
+
+    Écrit ici et non par un modèle, pour la même raison que l'étude de phase :
+    ce document sépare ce que le moteur peut verser de ce qui doit venir de la
+    mesure, du contrat ou du vérificateur — et cette frontière-là se calcule,
+    elle ne se rédige pas.
+
+    CE QUE L'ÉTAPE VERROUILLE VIENT AVANT CE QU'ELLE PRODUIT. Un lecteur qui
+    découvre au dernier chapitre qu'une décision de périmètre oblige à
+    recalculer toutes les années publiées a déjà pris la décision.
+    """
+    L = []
+    A = L.append
+    A("# %s — %s" % (d["code"], d["nom"]))
+    A("")
+    A("*Voie « %s » · rang %s de la séquence*"
+      % (d.get("voie_nom") or d.get("voie"), d.get("rang") or "—"))
+    if client:
+        A("")
+        A("**Client** — %s" % client)
+    A("")
+
+    A("## 1. Objet de l'étape")
+    A("")
+    A(d["objet"])
+    A("")
+    A("**Ce qui s'y décide.** %s" % d["decide"])
+    A("")
+    A("**Ce qu'elle verrouille.** %s" % d["verrouille"])
+    A("")
+    A("**La preuve attendue.** %s" % d["preuve"])
+    A("")
+
+    A("## 2. Ce que le moteur verse à ce dossier")
+    A("")
+    A(d.get("apport_texte") or "")
+    A("")
+    recevables = [g for g in d.get("grandeurs") or [] if g["statut"] == "recevable"]
+    autres = [g for g in d.get("grandeurs") or [] if g["statut"] != "recevable"]
+    if recevables:
+        A("### Grandeurs recevables à ce stade")
+        A("")
+        A("| Grandeur | Valeur | Unité | Incertitude |")
+        A("|---|---|---|---|")
+        for g in recevables:
+            A("| %s | %s | %s | %s |"
+              % (g["nom"], g.get("valeur"), g.get("unite") or "",
+                 g.get("incertitude") or "—"))
+        A("")
+    if autres:
+        # LE CHAPITRE QUI COMPTE. Une grandeur non recevable présentée comme un
+        # résultat traverse tout le projet sans que personne ne la remplace.
+        A("### Grandeurs NON recevables en l'état — à produire")
+        A("")
+        A("| Grandeur | Valeur indicative | Ce qui la bloque |")
+        A("|---|---|---|")
+        for g in autres:
+            A("| %s | %s %s | %s |"
+              % (g["nom"], g.get("valeur"), g.get("unite") or "",
+                 ", ".join(g.get("postes_bloquants") or []) or "non instruit"))
+        A("")
+
+    ap = d.get("aptitude") or {}
+    A("## 3. Ce qui manque pour franchir l'étape")
+    A("")
+    A(ap.get("verdict") or "")
+    A("")
+    for titre, cle in (("Entrées à renseigner", "entrees_manquantes"),
+                       ("Facteurs à remplacer par une donnée réelle",
+                        "substitutions_a_faire")):
+        items = ap.get(cle) or []
+        if items:
+            A("**%s.**" % titre)
+            for x in items:
+                A("- %s" % (x.get("nom") if isinstance(x, dict) else x))
+            A("")
+
+    sections = d.get("sections") or []
+    if sections:
+        A("## 4. Plan de l'étude")
+        A("")
+        for i, s in enumerate(sections, 1):
+            A("%d. %s" % (i, s if isinstance(s, str) else s.get("nom", "")))
+        A("")
+
+    textes = d.get("textes") or []
+    if textes:
+        A("## 5. Ce que les textes exigent, et jusqu'où")
+        A("")
+        for t in textes:
+            A("**%s** — %s" % (t.get("nom"), t.get("dit")))
+            A("")
+            A("*Portée : %s.* %s" % (t.get("portee_texte") or t.get("portee"),
+                                     t.get("reserve") or ""))
+            A("")
+
+    rdv = d.get("rendez_vous") or []
+    if rdv:
+        A("## 6. Ce que cette étape attend d'une autre voie")
+        A("")
+        for r in rdv:
+            A("- **%s ↔ %s** — %s"
+              % (r.get("inventaire"), r.get("trajectoire"), r.get("lien")))
+        A("")
+
+    A("---")
+    A("")
+    A("*Moteur de décarbonation CONSEILPREV v%s. Document de travail : les "
+      "grandeurs signalées « à produire » ne sont pas acquises.*"
+      % d.get("version_moteur", decarbonation.VERSION))
+    return "\n".join(L)
+
+
+@app.route("/api/datacenter/decarbonation/export", methods=["POST"])
+@login_required
+def api_datacenter_decarbonation_export():
+    """Le dossier d'étape de décarbonation, en Word ou PDF.
+
+    IL MANQUAIT. La note de calcul, l'étude de phase, la pièce et la stratégie
+    s'exportaient toutes ; la trajectoire, non. Elle s'affichait, et le seul
+    moyen de l'emporter était de sélectionner le texte à l'écran — c'est-à-dire
+    de perdre les tableaux, la distinction entre grandeur recevable et grandeur
+    à produire, et les réserves des textes. Un résultat qui ne sort pas du site
+    n'est pas un livrable.
+
+    FERMÉ comme les autres exports : le document porte le nom du client et le
+    profil de son projet.
+    """
+    data = request.get_json(silent=True) or {}
+    profil = _profil_datacenter(data)
+    code = str(data.get("etape") or "").strip().upper()[:12]
+    if not profil.get("puissance_it_kw"):
+        return jsonify(ok=False, error="puissance_absente",
+                       message="La puissance informatique installée est nécessaire."), 400
+    try:
+        d = decarbonation.dossier(profil, code, data)
+    except Exception:
+        app.logger.exception("export dossier decarbonation")
+        return jsonify(ok=False, error="calcul",
+                       message="Le dossier n'a pas pu être établi."), 500
+    if not d.get("connu"):
+        return jsonify(ok=False, error="etape_inconnue",
+                       message=d.get("motif", "Étape inconnue.")), 404
+    fmt = (data.get("format") or "docx").strip().lower()
+    if fmt not in ("docx", "pdf"):
+        fmt = "docx"
+    client = str(data.get("client") or "").strip()[:120]
+    md = _dossier_decarbonation_markdown(d, client)
+    meta = {"label": "%s — %s" % (d["code"], d["nom"]),
+            "numero": "DECARB-%s" % d["code"],
+            "phase": "Décarbonation, voie « %s »"
+                     % (d.get("voie_nom") or d.get("voie")),
+            "indice": "01",
+            "client": client,
+            "perimetre": "%s kW informatiques" % round(profil["puissance_it_kw"]),
+            "date": time.strftime("%d/%m/%Y"),
+            "statut": "Document de travail — grandeurs « à produire » non acquises",
+            "sources": [{"title": "Moteur de décarbonation CONSEILPREV v"
+                                  + decarbonation.VERSION,
+                         "theme": "hiérarchie d'atténuation"},
+                        {"title": "Moteur d'ingénierie CONSEILPREV v"
+                                  + datacenter.VERSION,
+                         "theme": "calcul déterministe"}]}
+    md, bord = _poser_bordereau(md, meta, "trajectoire", data)
+    try:
+        if fmt == "pdf":
+            blob = livrables_export.build_pdf(md, meta)
+            mimetype = "application/pdf"
+        else:
+            blob = livrables_export.build_docx(md, meta)
+            mimetype = ("application/vnd.openxmlformats-officedocument"
+                        ".wordprocessingml.document")
+    except Exception:
+        app.logger.exception("mise en page dossier decarbonation")
+        return jsonify(ok=False, error="mise_en_page",
+                       message="Le document n'a pas pu être mis en page."), 500
+    nom = _safe_download_name("decarbonation-%s.%s" % (d["code"].lower(), fmt))
+    resp = Response(blob, mimetype=mimetype)
+    resp.headers["Content-Disposition"] = 'attachment; filename="%s"' % nom
+    resp.headers["Cache-Control"] = "no-store"
+    if bord and bord.get("refuses"):
+        # LE REFUS SE DIT, ET IL ARRIVE AVEC LE FICHIER. Un bordereau tombé en
+        # silence rend le document sans ses réserves, et le client croit les
+        # avoir transmises.
+        resp.headers["X-Bordereau"] = "refus"
+    return resp
 
 
 @app.route("/api/datacenter/strategie/questionnaire")
@@ -2181,6 +2431,7 @@ def api_datacenter_strategie_export():
                 {"title": "Moteur d'ingénierie CONSEILPREV v" + datacenter.VERSION,
                  "theme": "calcul déterministe"},
             ]}
+    md, bord = _poser_bordereau(md, meta, "strategie_dd", data)
     try:
         if fmt == "pdf":
             blob = livrables_export.build_pdf(md, meta)
@@ -2380,6 +2631,7 @@ def api_datacenter_ingenierie_export():
                          "theme": "calcul déterministe"},
                         {"title": "Cadre de phases v" + ingenierie_dc.VERSION,
                          "theme": ingenierie_dc.FILIERES[d["filiere"]]["cadre"]}]}
+    md, bord = _poser_bordereau(md, meta, "etude_phase", data)
     try:
         if fmt == "pdf":
             blob = livrables_export.build_pdf(md, meta)
@@ -2461,6 +2713,7 @@ def api_datacenter_piece_export():
                  "theme": "calcul déterministe"},
                 {"title": "Cadre de phases v" + ingenierie_dc.VERSION,
                  "theme": "registre des pièces"}]}
+    md, bord = _poser_bordereau(md, meta, "piece", data)
     try:
         if fmt == "pdf":
             blob = livrables_export.build_pdf(md, meta)
@@ -2929,6 +3182,7 @@ def api_datacenter_export():
             "date": time.strftime("%d/%m/%Y"),
             "sources": [{"title": "Moteur d'ingénierie CONSEILPREV v" + datacenter.VERSION,
                          "theme": "calcul déterministe"}]}
+    md, bord = _poser_bordereau(md, meta, "note_calcul", data)
     try:
         if fmt == "pdf":
             blob = livrables_export.build_pdf(md, meta)
@@ -3343,6 +3597,15 @@ def nav_js():
 def parcours_js():
     """Parcours guidés par rôle — données et interface, partagés par toutes les pages."""
     return _serve_fast("parcours.js", _CC_ASSET,
+                       mimetype="text/javascript; charset=utf-8")
+
+
+@app.route("/transmettre.js")
+def transmettre_js():
+    """Le choix du destinataire d'un document, partagé par les trois pages
+    d'ingénierie de centres de données. Un seul module : recopié trois fois, le
+    vocabulaire aurait divergé au premier ajout."""
+    return _serve_fast("transmettre.js", _CC_ASSET,
                        mimetype="text/javascript; charset=utf-8")
 
 

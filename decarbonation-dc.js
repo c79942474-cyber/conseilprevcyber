@@ -379,8 +379,75 @@
       h += "</div>";
     }
 
+    /* ── EMPORTER LE DOSSIER ────────────────────────────────────────────
+       IL NE S'EXPORTAIT PAS. La note de calcul, l'étude de phase, la pièce et
+       la stratégie s'emportaient toutes en Word et en PDF ; la trajectoire,
+       non. Elle s'affichait, et le seul moyen de la sortir était de
+       sélectionner le texte à l'écran — c'est-à-dire de perdre les tableaux,
+       la distinction entre grandeur recevable et grandeur à produire, et les
+       réserves des textes. Un résultat qui ne sort pas du site n'est pas un
+       livrable. */
+    h += '<div class="dk-b dk-exp"><b>Emporter ce dossier</b>'
+      + '<p class="note">Le document reprend l’étape entière : ce qu’elle décide, '
+      + 'ce qu’elle verrouille, les grandeurs recevables et — surtout — celles qui '
+      + 'restent à produire.</p>'
+      + '<div class="actions" style="gap:10px;flex-wrap:wrap;margin-top:10px">'
+      + '<button type="button" class="btn btn-s" data-dk-exp="docx">Dossier d’étape (Word)</button>'
+      + '<button type="button" class="btn btn-s" data-dk-exp="pdf">Dossier d’étape (PDF)</button>'
+      + '</div><p class="note" data-dk-exp-etat role="status" aria-live="polite"></p></div>';
+
     h += "</div>";
     z.innerHTML = h;
+    z.querySelectorAll("[data-dk-exp]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        exporterDossier(b.getAttribute("data-dk-exp"), z);
+      });
+    });
+  }
+
+  /* L'export du dossier d'étape. FERMÉ côté serveur : le document porte le
+     profil du projet. L'échec le DIT et nomme sa cause — « erreur » enverrait
+     le lecteur vérifier ses saisies alors qu'il lui manque une session. */
+  function exporterDossier(fmt, z) {
+    var etat = z.querySelector("[data-dk-exp-etat]");
+    var dire = function (t) { if (etat) etat.textContent = t; };
+    dire("Mise en page du dossier…");
+    var p = profil();
+    p.etape = ETAPE;
+    p.format = fmt;
+    /* Le destinataire, s'il a été choisi plus haut dans la page. Le module est
+       à part : sans lui, le dossier part sans bordereau plutôt que d'échouer. */
+    if (window.TRANSMETTRE && window.TRANSMETTRE.corps) {
+      p = window.TRANSMETTRE.corps(p);
+    }
+    fetch("/api/datacenter/decarbonation/export", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(p)
+    }).then(function (r) {
+      if (r.status === 401 || r.status === 403) {
+        throw new Error("L’export demande un compte : le document porte le "
+          + "profil de votre projet. Connectez-vous, puis relancez.");
+      }
+      var ct = r.headers.get("Content-Type") || "";
+      if (!r.ok || ct.indexOf("json") >= 0) {
+        return r.json().catch(function () { return {}; })
+          .then(function (j) {
+            throw new Error(j.message || "La mise en page a échoué.");
+          });
+      }
+      return r.blob();
+    }).then(function (b) {
+      if (!b) return;
+      var u = URL.createObjectURL(b), a = document.createElement("a");
+      a.href = u;
+      a.download = "decarbonation-" + String(ETAPE).toLowerCase() + "." + fmt;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(u); }, 4000);
+      dire("Dossier téléchargé.");
+    }).catch(function (e) {
+      dire(e.message || "L’export a échoué.");
+    });
   }
 
   function bloclevier(lv) {

@@ -196,6 +196,11 @@ def _fiche(meta):
               ("Date d'émission", meta.get("date")),
               ("Discipline", meta.get("discipline")),
               ("Émetteur", meta.get("emetteur")),
+              # LE DESTINATAIRE AU CARTOUCHE, PAS SEULEMENT AU BORDEREAU. Le
+              # bordereau est en page de garde, et une page de garde se détache
+              # d'un tirage agrafé ou se saute au défilement. Le cartouche, lui,
+              # reste avec le corps — et il porte une FONCTION, jamais un nom.
+              ("Transmis à", meta.get("destinataire")),
               ("Client / organisation", meta.get("client")),
               ("Secteur d'activité", meta.get("secteur")),
               ("Périmètre", meta.get("perimetre")),

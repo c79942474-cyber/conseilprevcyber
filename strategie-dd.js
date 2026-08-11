@@ -21,6 +21,15 @@
 (function () {
   "use strict";
 
+  /* LE DESTINATAIRE, S'IL A ÉTÉ CHOISI. « transmettre.js » est un module à
+     part : s'il n'a pas chargé, l'export part sans bordereau plutôt que
+     d'échouer. Un document sans bordereau reste un document ; un export qui
+     casse, non — et le client n'aurait plus rien à transmettre du tout. */
+  function TR(o) {
+    return (window.TRANSMETTRE && window.TRANSMETTRE.corps)
+      ? window.TRANSMETTRE.corps(o) : o;
+  }
+
   var Q = null;         // le questionnaire servi par le serveur
   var DERNIERE = null;  // la dernière stratégie établie
 
@@ -355,7 +364,7 @@
   function exporter(fmt) {
     if (!DERNIERE) return;
     etat("Mise en page du livrable…");
-    var corps = reponses();
+    var corps = TR(reponses());
     corps.format = fmt;
     fetch("/api/datacenter/strategie/export", {
       method: "POST",
