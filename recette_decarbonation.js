@@ -215,20 +215,91 @@ async function attendreAlEcran(pg, sel, ms = 6000) {
 
   titre('4. Les textes, et ce qu’ils pèsent');
 
-  const tx = await pg.evaluate(() => {
-    const t = [...document.querySelectorAll('#dk-textes .dk-tx')];
-    return {
-      n: t.length,
-      sansPortee: t.filter(x => !x.querySelector('.dk-po')).length,
-      portees: [...new Set([...document.querySelectorAll('#dk-textes .dk-po')]
-        .map(x => x.textContent.trim()))].sort(),
-      avert: (document.querySelector('#dk-avert .dk-av') || {}).textContent || '',
-    };
-  });
-  ok('les textes sont listés', tx.n >= 15, tx.n + ' texte(s)');
-  ok('AUCUN texte sans sa portée', tx.sansPortee === 0, tx.sansPortee + ' sans portée');
-  ok('…et les quatre portées sont distinguées', tx.portees.length === 4,
-     tx.portees.join(' · '));
+  /* ── LA PORTÉE SE CHOISIT : LES CONTRÔLES LA PARCOURENT ───────────────
+     Ces contrôles éprouvaient les dix-sept textes affichés ensemble. Ils sont
+     RÉÉCRITS, pas supprimés : aucun texte sans sa portée, les quatre portées
+     distinguées, la page qui dit ce qu'elle ne fait pas.
+
+     ET LE CONTRÔLE NOUVEAU, QUI EST LE SUJET DE LA SECTION. Elle n'aligne pas
+     dix-sept références : elle enseigne qu'elles NE PÈSENT PAS PAREIL. Un
+     lecteur qui n'ouvrirait que « méthode de place » ignorerait qu'il existe
+     cinq textes qui l'obligent — et c'est l'erreur que la section prévient. */
+  const ouverture = await pg.evaluate(
+    () => document.getElementById('dk-portee').value);
+  const opts = await pg.evaluate(
+    () => [...document.getElementById('dk-portee').options].map(o => o.value));
+
+  ok('la portée se choisit dans une liste', opts.length === 4, opts.join(' · '));
+  ok('LA LISTE S’OUVRE SUR CE QUI OBLIGE', ouverture === 'contraignant',
+     'ouverture sur « ' + ouverture + ' »');
+  ok('…et l’ordre est celui du POIDS, pas l’alphabet',
+     opts.join(',') === 'contraignant,norme,auto_regulation,methode',
+     opts.join(' → '));
+  ok('…chaque entrée annonce combien de textes elle porte',
+     await pg.evaluate(() => [...document.getElementById('dk-portee').options]
+       .every(o => /\d+\s+textes?/.test(o.textContent))));
+
+  const parPortee = [];
+  for (const p of opts) {
+    await pg.selectOption('#dk-portee', p);
+    await pg.waitForFunction((a) => {
+      const s = document.getElementById('dk-portee');
+      return s && s.value === a
+        && document.querySelectorAll('#dk-textes .dk-tx').length > 0;
+    }, p, { timeout: 8000 });
+    parPortee.push(await pg.evaluate((a) => {
+      const t = [...document.querySelectorAll('#dk-textes .dk-tx')];
+      const def = document.querySelector('.dk-tx-def');
+      return {
+        cle: a,
+        n: t.length,
+        sansPortee: t.filter(x => !x.querySelector('.dk-po')).length,
+        etiquettes: [...new Set(t.map(
+          x => (x.querySelector('.dk-po') || {}).textContent || ''))],
+        def: def ? def.textContent : '',
+        rappel: (document.querySelector('.dk-tx-ob') || {}).textContent || '',
+        /* La définition de la portée, une seule fois : six répétitions la
+           font lire zéro fois. */
+        repets: (document.getElementById('dk-textes').textContent
+                 .match(/Son non-respect est sanctionnable/g) || []).length,
+      };
+    }, p));
+  }
+
+  const total = parPortee.reduce((n, x) => n + x.n, 0);
+  ok('tous les textes restent atteignables, portées cumulées', total >= 15,
+     total + ' texte(s) : ' + parPortee.map(x => x.n).join(' / '));
+  ok('AUCUN texte sans sa portée', parPortee.every(x => x.sansPortee === 0),
+     parPortee.reduce((n, x) => n + x.sansPortee, 0) + ' sans portée');
+  ok('…et les quatre portées sont distinguées',
+     new Set(parPortee.flatMap(x => x.etiquettes)).size === 4,
+     [...new Set(parPortee.flatMap(x => x.etiquettes))].join(' · '));
+  ok('chaque portée n’affiche QUE ses propres textes',
+     parPortee.every(x => x.etiquettes.length === 1),
+     parPortee.map(x => x.etiquettes.length).join('/'));
+  ok('chaque portée énonce ce qu’elle signifie',
+     parPortee.every(x => /Ce que cette portée signifie/.test(x.def)));
+  ok('…une seule fois, et non sous chaque texte',
+     parPortee[0].repets === 1, parPortee[0].repets + ' répétition(s)');
+
+  const nonObl = parPortee.filter(x => x.cle !== 'contraignant');
+  ok('AILLEURS QUE DANS LE CONTRAIGNANT, on rappelle ce qui oblige',
+     nonObl.every(x => /n’oblige pas par elle-même/.test(x.rappel)),
+     nonObl.filter(x => !x.rappel).map(x => x.cle).join(' · ') || 'toutes le font');
+  ok('…en disant COMBIEN de textes obligent',
+     nonObl.every(x => /\d+ textes? de ce cadre oblige/.test(x.rappel)),
+     nonObl[0].rappel.replace(/\s+/g, ' ').slice(0, 95));
+  ok('…et le contraignant ne se rappelle pas à lui-même',
+     !parPortee.find(x => x.cle === 'contraignant').rappel);
+
+  await pg.click('.dk-tx-go');
+  await pg.waitForFunction(
+    () => document.getElementById('dk-portee').value === 'contraignant',
+    null, { timeout: 8000 });
+  ok('…et le rappel conduit aux textes contraignants d’un clic', true);
+
+  const tx = { avert: await pg.evaluate(
+    () => (document.querySelector('#dk-avert .dk-av') || {}).textContent || '') };
   ok('la page dit ce qu’elle ne fait pas',
      /aucune conformité|aucune neutralité/i.test(tx.avert),
      tx.avert.replace(/\s+/g, ' ').slice(0, 110));

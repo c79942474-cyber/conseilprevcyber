@@ -618,3 +618,92 @@ def test_la_page_dit_toujours_pourquoi_l_ordre_s_impose():
     h = _lire("datacenter.html")
     assert "n'est pas une préférence morale" in h
     assert "ISO 14068-1" in h
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE CHOIX DE LA PORTÉE — une liste qui ne doit pas cacher ce qui oblige
+# ═══════════════════════════════════════════════════════════════════════════
+# Dix-sept textes se dépliaient d'un coup. La portée se choisit maintenant.
+#
+# LE RISQUE EST LE SUJET MÊME DE LA SECTION. Elle n'aligne pas dix-sept
+# références : elle enseigne qu'elles NE PÈSENT PAS PAREIL. Un lecteur qui
+# n'ouvrirait que « méthode de place » ignorerait qu'il existe cinq textes qui
+# l'obligent — exactement l'erreur que la page existe pour empêcher.
+
+def test_l_ordre_de_poids_est_declare_et_non_deduit():
+    """`PORTEES` est écrit dans le bon ordre, mais la sérialisation JSON TRIE
+    les clés : servi tel quel, le vocabulaire arrivait à la page par ordre
+    ALPHABÉTIQUE — « engagement de place » avant « texte contraignant »."""
+    assert dk.PORTEES_ORDRE[0] == "contraignant"
+    assert sorted(dk.PORTEES_ORDRE) == sorted(dk.PORTEES)
+
+
+def test_le_module_refuse_de_charger_si_l_ordre_n_ouvre_pas_sur_ce_qui_oblige():
+    """PROUVÉ, PAS AFFIRMÉ. Ce garde est plus fort qu'un test : le site ne
+    démarre pas avec un vocabulaire mal classé."""
+    sauve = list(dk.PORTEES_ORDRE)
+    try:
+        dk.PORTEES_ORDRE[:] = ["auto_regulation", "contraignant", "methode", "norme"]
+        f = dk._verifier()
+        assert any("commence pas par ce qui oblige" in x for x in f), f
+    finally:
+        dk.PORTEES_ORDRE[:] = sauve
+    assert dk._verifier() == []
+
+
+def test_une_portee_ajoutee_sans_etre_classee_est_refusee():
+    """Elle sortirait en fin de liste par hasard, ou pas du tout — et
+    l'interface s'ouvrirait alors sur autre chose que ce qui oblige."""
+    sauve = dict(dk.PORTEES)
+    try:
+        dk.PORTEES["recommandation"] = "Recommandation sans portée juridique."
+        f = dk._verifier()
+        assert any("ne couvre pas le" in x for x in f), f
+    finally:
+        dk.PORTEES.clear()
+        dk.PORTEES.update(sauve)
+    assert dk._verifier() == []
+
+
+def test_le_referentiel_sert_l_ordre_comme_une_liste():
+    """Une liste survit à la sérialisation ; un dictionnaire, non."""
+    r = dk.referentiel()
+    assert [x["cle"] for x in r["portees_ordre"]] == dk.PORTEES_ORDRE
+    assert all(x["texte"] for x in r["portees_ordre"])
+
+
+def test_les_textes_sortent_dans_l_ordre_de_poids():
+    r = dk.referentiel()
+    rangs = [dk.PORTEES_ORDRE.index(t["portee"]) for t in r["textes"]]
+    assert rangs == sorted(rangs), [t["portee"] for t in r["textes"]]
+
+
+def test_le_contraignant_n_est_pas_vide():
+    """Une portée « contraignant » sans texte ferait ouvrir la section sur une
+    page blanche — et laisserait croire que rien n'oblige."""
+    r = dk.referentiel()
+    assert len([t for t in r["textes"] if t["portee"] == "contraignant"]) >= 3
+
+
+def test_la_page_rappelle_ce_qui_oblige_hors_du_contraignant():
+    """Contrôle de MATÉRIAU seulement : la branche d'affichage est vérifiée par
+    recette_decarbonation.js, qui choisit une portée non contraignante dans le
+    vrai document et exige d'y lire le rappel. Un test qui lit le source ne
+    voit pas ce qui est devenu inatteignable — la leçon du rang de la
+    hiérarchie, où « if (false) » avait laissé le test vert."""
+    js = _lire("decarbonation-dc.js")
+    i = js.index("function rendreTextes")
+    bloc = js[i:i + 4200]
+    assert 'p.cle !== "contraignant"' in bloc
+    assert "n’oblige pas par elle-même" in bloc
+    assert "data-dk-portee-go" in bloc
+
+
+def test_la_definition_de_portee_n_est_pas_repetee_sous_chaque_texte():
+    """Elle est énoncée une fois en tête. L'écrire sous chacun des six textes
+    la ferait lire zéro fois. Elle reste en revanche indispensable dans le
+    dossier d'une étape, qui mêle des portées différentes."""
+    js = _lire("decarbonation-dc.js")
+    assert "function bloctexte(t, sansPortee)" in js
+    assert "bloctexte(t, true)" in js, "la section 8 la supprime"
+    assert "h += bloctexte(t);" in js, "le dossier d'étape la conserve"

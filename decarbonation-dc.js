@@ -463,11 +463,17 @@
     return h + "</div>";
   }
 
-  function bloctexte(t) {
+  /* `sansPortee` : ne pas répéter la définition de la portée sous chaque texte.
+     ELLE RESTE INDISPENSABLE AILLEURS. Le dossier d'une étape mêle des textes
+     de portées différentes : là, chacun doit dire la sienne. La section 8, elle,
+     n'affiche qu'une portée à la fois et l'énonce une fois en tête — l'écrire
+     sous chacun des six textes la ferait lire zéro fois. */
+  function bloctexte(t, sansPortee) {
     return '<div class="dk-tx"><h4>' + esc(t.nom)
       + '<span class="dk-po p-' + esc(t.portee) + '">' + esc(t.portee) + "</span>"
       + "</h4><p>" + esc(t.dit) + "</p>"
-      + '<p class="res" style="font-style:italic">' + esc(t.portee_texte) + "</p>"
+      + (sansPortee ? ""
+          : '<p class="res" style="font-style:italic">' + esc(t.portee_texte) + "</p>")
       + (t.reserve ? '<p class="res">' + esc(t.reserve) + "</p>" : "")
       + "</div>";
   }
@@ -570,10 +576,97 @@
     });
   }
 
+  /* ═════════════════════════════════════════════════════════════════════
+     LES TEXTES — UNE PORTÉE À LA FOIS, SANS PERDRE CE QUI OBLIGE
+     ═════════════════════════════════════════════════════════════════════
+
+     Dix-sept textes se dépliaient d'un coup. La portée se choisit désormais.
+
+     LE PIÈGE DE CE DÉCOUPAGE EST LE SUJET MÊME DE LA SECTION. Elle n'aligne pas
+     dix-sept références : elle enseigne qu'elles NE PÈSENT PAS PAREIL. « Un
+     client à qui l'on promet une obligation là où il n'y a qu'un engagement de
+     place prend une décision sur une contrainte qui n'existe pas, et l'inverse
+     lui coûte plus cher encore. » Un lecteur qui n'ouvrirait que « méthode de
+     place » ignorerait qu'il existe cinq textes qui l'obligent.
+
+     Trois précautions :
+       · la liste s'ouvre sur CE QUI OBLIGE — l'ordre vient du serveur, où il
+         est déclaré, et jamais de l'ordre alphabétique des clés ;
+       · chaque option porte le nombre de textes de sa portée ;
+       · au-dessous du texte contraignant, le panneau RAPPELLE combien de
+         textes obligent et y conduit d'un clic. */
+
+  var PORTEE_VUE = null;
+
   function rendreTextes() {
     var z = $("#dk-textes");
     if (!z || !CADRE) return;
-    z.innerHTML = (CADRE.textes || []).map(bloctexte).join("");
+    var ordre = CADRE.portees_ordre || [];
+    var textes = CADRE.textes || [];
+    if (!ordre.length || !textes.length) { z.innerHTML = ""; return; }
+    if (PORTEE_VUE === null) PORTEE_VUE = ordre[0].cle;   /* ce qui oblige */
+
+    var par = function (cle) {
+      return textes.filter(function (t) { return t.portee === cle; });
+    };
+
+    var h = '<label class="dk-tsel" for="dk-portee">'
+      + '<span class="dk-tsel-l">Portée du texte</span>'
+      + '<select id="dk-portee" data-dk-portee>'
+      + ordre.map(function (p) {
+          var n = par(p.cle).length;
+          return '<option value="' + esc(p.cle) + '"'
+            + (p.cle === PORTEE_VUE ? " selected" : "") + ">"
+            + esc(p.texte.split(".")[0]) + " — " + n + " texte"
+            + (n > 1 ? "s" : "") + "</option>";
+        }).join("")
+      + "</select>"
+      + '<span class="dk-tsel-a">Les quatre portées sont classées par POIDS, du '
+      + 'contraignant à la méthode. Ce n’est pas un ordre d’affichage : c’est ce '
+      + 'qui décide de ce que vous pouvez promettre à un client.</span></label>';
+
+    var p = ordre.filter(function (x) { return x.cle === PORTEE_VUE; })[0] || ordre[0];
+    var oblige = ordre.filter(function (x) { return x.cle === "contraignant"; })[0];
+    var nOblige = par("contraignant").length;
+
+    h += '<p class="dk-tx-def p-' + esc(p.cle) + '"><b>Ce que cette portée '
+      + 'signifie.</b> ' + esc(p.texte) + "</p>";
+
+    /* CE QUI OBLIGE, RAPPELÉ PARTOUT AILLEURS. Sans ce rappel, la liste
+       laisserait lire les engagements volontaires sans savoir que cinq textes
+       s'imposent, eux — et c'est l'erreur que la section existe pour empêcher. */
+    if (p.cle !== "contraignant" && oblige && nOblige) {
+      h += '<p class="dk-tx-ob">Cette portée <b>n’oblige pas par elle-même</b>. '
+        + nOblige + ' texte' + (nOblige > 1 ? "s" : "") + ' de ce cadre '
+        + (nOblige > 1 ? "obligent" : "oblige") + ', et '
+        + (nOblige > 1 ? "ils ne sont pas ici" : "il n’est pas ici") + ' : '
+        + '<button type="button" class="dk-tx-go" data-dk-portee-go="contraignant">'
+        + 'voir les textes contraignants</button></p>';
+    }
+
+    /* Sans la définition de portée sous chaque texte : le bandeau ci-dessus
+       vient de la donner, et six répétitions la font lire zéro fois. */
+    h += par(p.cle).map(function (t) { return bloctexte(t, true); }).join("");
+    z.innerHTML = h;
+
+    var sel = z.querySelector("[data-dk-portee]");
+    if (sel) {
+      sel.addEventListener("change", function () {
+        PORTEE_VUE = sel.value;
+        rendreTextes();
+        var s2 = $("#dk-portee");
+        if (s2) { try { s2.focus({ preventScroll: true }); } catch (e) { s2.focus(); } }
+      });
+    }
+    z.querySelectorAll("[data-dk-portee-go]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        PORTEE_VUE = b.getAttribute("data-dk-portee-go");
+        rendreTextes();
+        var s2 = $("#dk-portee");
+        if (s2) { try { s2.focus({ preventScroll: true }); } catch (e) { s2.focus(); } }
+      });
+    });
+
     var a = $("#dk-avert");
     if (a && CADRE.avertissement) {
       a.innerHTML = '<p class="dk-av"><b>Ce que cette page ne fait pas.</b> '

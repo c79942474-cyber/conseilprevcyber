@@ -116,6 +116,19 @@ PORTEES = {
                "les investisseurs. Sans valeur réglementaire propre.",
 }
 
+# L'ORDRE DE POIDS, DÉCLARÉ — il ne se déduit pas du dictionnaire.
+# `PORTEES` est écrit dans le bon ordre, mais la sérialisation JSON TRIE les
+# clés : servi tel quel, le vocabulaire arrivait à la page par ordre
+# ALPHABÉTIQUE — « engagement de place » avant « texte contraignant ». Une
+# interface qui s'ouvrirait dessus présenterait d'abord ce qui n'oblige à rien,
+# et c'est précisément l'erreur que cette section existe pour empêcher : un
+# client à qui l'on promet une obligation là où il n'y a qu'un engagement de
+# place prend une décision sur une contrainte qui n'existe pas.
+#
+# L'ordre est donc une DONNÉE, pas un effet de bord de l'itération, et un
+# contrôle vérifie qu'il couvre exactement le vocabulaire.
+PORTEES_ORDRE = ["contraignant", "norme", "auto_regulation", "methode"]
+
 TEXTES = {
     "ghg_corp": {
         "nom": "GHG Protocol — Corporate Accounting and Reporting Standard",
@@ -896,6 +909,17 @@ def _verifier():
     fautes = []
     champs = {c["id"] for c in D.CHAMPS}
 
+    # L'ORDRE DE POIDS COUVRE EXACTEMENT LE VOCABULAIRE. Une portee ajoutee
+    # sans etre classee sortirait en fin de liste par hasard, ou n'en sortirait
+    # pas du tout — et une interface qui s'ouvre sur la premiere entree
+    # presenterait alors autre chose que le texte qui oblige.
+    if sorted(PORTEES_ORDRE) != sorted(PORTEES):
+        fautes.append("l'ordre de poids des portees ne couvre pas le "
+                      "vocabulaire : %s vs %s"
+                      % (sorted(PORTEES_ORDRE), sorted(PORTEES)))
+    if PORTEES_ORDRE and PORTEES_ORDRE[0] != "contraignant":
+        fautes.append("l'ordre de poids ne commence pas par ce qui oblige")
+
     # LA règle du module : la compensation ne porte aucun paramètre du moteur.
     for lv in LEVIERS:
         if lv["rang"] not in _RANG_ORDRE:
@@ -1328,9 +1352,14 @@ def referentiel():
         "rangs": RANGS,
         "hierarchie": hierarchie(),
         "textes": [_texte(t) for t in sorted(
-            TEXTES, key=lambda k: (list(PORTEES).index(TEXTES[k]["portee"]),
+            TEXTES, key=lambda k: (PORTEES_ORDRE.index(TEXTES[k]["portee"]),
                                    TEXTES[k]["nom"]))],
         "portees": PORTEES,
+        # SERVI COMME UNE LISTE, et c'est le seul moyen de tenir l'ordre : la
+        # serialisation JSON trie les cles d'un dictionnaire, et le vocabulaire
+        # arrivait a la page par ordre alphabetique — « engagement de place »
+        # avant « texte contraignant ».
+        "portees_ordre": [{"cle": k, "texte": PORTEES[k]} for k in PORTEES_ORDRE],
         "rendez_vous": RENDEZ_VOUS,
         "etapes": [{"voie": e["voie"], "code": e["code"], "rang": e["rang"],
                     "nom": e["nom"], "objet": e["objet"]} for e in ETAPES],
