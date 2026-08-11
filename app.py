@@ -167,6 +167,22 @@ _RATE_EXACT = {
     "/api/datacenter/piece/export":      (30, 60),
     "/api/datacenter/ingenierie/export": (30, 60),
 }
+_RATE_EXACT.update({
+    # ── DEUX JETONS QUI SE FORÇAIENT EN AVEUGLE ─────────────────────────────
+    # Ces deux points vérifient un jeton d'en-tête, et rien d'autre. Ils
+    # tombaient hors des trois familles surveillées : un attaquant pouvait donc
+    # essayer des jetons SANS AUCUNE LIMITE, aussi vite que le réseau le
+    # permettait. Un secret qu'on peut essayer sans être compté n'est plus un
+    # secret, c'est un délai.
+    #
+    # « /api/rag/ingest » écrit DANS LA BASE DE CONNAISSANCE : le jeton forcé
+    # y verse ce qu'il veut, et ce qu'on y verse ressort dans les réponses de
+    # l'assistant et dans les livrables. C'est le chemin d'empoisonnement le
+    # plus court du site.
+    "/api/rag/ingest": (30, 300),
+    "/api/ingest":     (600, 60),   # flux d'événements OT : légitimement dense
+})
+
 _RATE_FAMILY = (("/api/auth/", 80, 60), ("/api/admin/", 600, 60),
                 # Le calcul de durabilite est desormais OUVERT, sans compte. Il
                 # ne coute ni modele de langage ni ecriture, mais il coute du
@@ -291,8 +307,12 @@ def _rate_limit():
     vectorielle (index-next), pilotée par le client en boucle serrée mais bornée
     et réservée à l'admin, est exemptée pour ne pas casser un gros chargement."""
     p = request.path
-    if not (p.startswith("/api/auth/") or p.startswith("/api/admin/")
-            or p.startswith("/api/datacenter/")):
+    # LES POINTS EXACTS SONT TESTÉS MÊME HORS DES FAMILLES SURVEILLÉES. Le
+    # filtre d'entrée ne retenait que trois préfixes, et laissait donc passer
+    # sans compteur les deux points d'ingestion protégés par un simple jeton —
+    # c'est-à-dire ceux dont le secret pouvait être essayé indéfiniment.
+    if not (p in _RATE_EXACT or p.startswith("/api/auth/")
+            or p.startswith("/api/admin/") or p.startswith("/api/datacenter/")):
         return
     ip = client_ip()
     rule = _RATE_EXACT.get(p)
@@ -1236,6 +1256,33 @@ def api_juridique_contrat():
         if len(blob) > 6 * 1024 * 1024:
             return jsonify(ok=False, error="trop_gros",
                            message="Fichier trop volumineux (6 Mo maximum)."), 400
+        # ── L'ANALYSE ANTIVIRALE, QUI MANQUAIT ICI ──────────────────────────
+        # Tous les autres dépôts du site la traversent : la base de
+        # connaissance, la restauration de sauvegarde, le versement de pièces.
+        # CELUI-CI, non. Un contrat déposé par n'importe quel compte était
+        # ouvert et son texte extrait sans le moindre contrôle — donc un PDF à
+        # action automatique, une archive piégée ou un OOXML à macro passaient
+        # par la porte que toutes les autres surveillent. C'est la porte qu'on
+        # oublie qu'on emprunte.
+        #
+        # REFUS SI LE MODULE MANQUE, comme partout ailleurs : une porte absente
+        # qui laisse passer est pire que pas de porte, parce que personne ne
+        # s'en aperçoit.
+        try:
+            import antivirus
+        except Exception:                                   # noqa: BLE001
+            app.logger.error("AV_INDISPONIBLE: relecture de contrat")
+            return jsonify(ok=False, error="analyse_indisponible",
+                           message="L'analyse des fichiers est momentanément "
+                                   "indisponible. Collez le texte à la place."), 503
+        verdict = antivirus.analyser(fichier.filename or "contrat", blob)
+        if not verdict.get("accepte"):
+            audit.journaliser("juridique.contrat.refus_av",
+                              cible=verdict.get("code") or "refus",
+                              detail=(verdict.get("motif") or "")[:200])
+            return jsonify(ok=False, error="analyse_refus",
+                           message=verdict.get("motif")
+                                   or "Fichier refusé par l'analyse."), 422
         try:
             texte_contrat = rag_extract_text(ext, blob) or ""
         except Exception:

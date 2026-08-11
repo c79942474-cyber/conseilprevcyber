@@ -438,7 +438,23 @@ def build_context(hits: Sequence[tuple[Passage, float]]) -> tuple[str, list[dict
             "theme": passage.theme, "published_on": passage.published_on,
             "similarity": round(score, 4),
         })
-    return "\n\n".join(blocks), sources
+    # LA CLOTURE. Ce module a son PROPRE entonnoir de contexte, distinct de
+    # celui de rag_store. Proteger l'un sans l'autre laisserait une porte
+    # ouverte a cote d'une porte fermee — et c'est celle qu'on oublie qu'on
+    # emprunte. Les extraits sont des DONNEES, jamais des consignes.
+    corps = "\n\n".join(blocks)
+    if not corps.strip():
+        return "", sources
+    try:
+        import garde_ia
+    except Exception:
+        # Meme regle que pour l'analyse antivirale : une porte absente qui
+        # laisse passer est pire que pas de porte. Sans le garde, pas de
+        # contexte du tout — l'agent refusera faute de corpus, ce qui se voit,
+        # au lieu d'obeir a un document, ce qui ne se voit pas.
+        return "", sources
+    bloc, _ = garde_ia.clore(corps)
+    return bloc, sources
 
 
 # ---------------------------------------------------------------------------
