@@ -24,6 +24,22 @@
 
 <link rel="icon" href="/emblem.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/styles.css">
+<!-- Scripts de page, dans le <head> pour être découverts dès les premiers
+     octets du HTML : déclarés en fin de corps, leurs téléchargements ne
+     partaient qu'une fois presque tout le flux reçu. `defer` garantit déjà
+     l'exécution après le parse, dans l'ordre des balises. -->
+<script src="/nav.js" defer></script>
+<script src="/parcours.js" defer></script>
+<script src="/modules.js" defer></script>
+<script src="/transmettre.js" defer></script>
+<!-- Chargé AVANT datacenter.js : celui-ci enregistre le profil dès le
+     premier calcul, et l'ordre des balises defer est celui de l'exécution. -->
+<script src="/dc-profil.js" defer></script>
+<script src="/datacenter.js" defer></script>
+<!-- La plateforme de décarbonation lit le formulaire construit par
+     datacenter.js. L'ordre des balises defer est celui de l'exécution :
+     inversé, elle chercherait un formulaire qui n'existe pas encore. -->
+<script src="/decarbonation-dc.js" defer></script>
 <style>
   .kick{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
     color:var(--muted2)}
@@ -1564,17 +1580,5 @@
   })();
   </script>
   
-  <script src="/nav.js" defer></script>
-  <script src="/parcours.js" defer></script>
-  <script src="/modules.js" defer></script>
-  <script src="/transmettre.js" defer></script>
-  <!-- Chargé AVANT datacenter.js : celui-ci enregistre le profil dès le
-       premier calcul, et l'ordre des balises defer est celui de l'exécution. -->
-  <script src="/dc-profil.js" defer></script>
-  <script src="/datacenter.js" defer></script>
-  <!-- La plateforme de décarbonation lit le formulaire construit par
-       datacenter.js. L'ordre des balises defer est celui de l'exécution :
-       inversé, elle chercherait un formulaire qui n'existe pas encore. -->
-  <script src="/decarbonation-dc.js" defer></script>
 </body>
 </html>

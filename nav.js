@@ -1054,18 +1054,32 @@
     pied.appendChild(p);
   }
 
+  /* UNE SEULE requête /api/auth/me par chargement de page. Deux blocs en ont
+     besoin — le marquage d'accès et le lien de compte — et chacun lançait la
+     sienne : la réponse étant no-store (c'est une donnée de session), les deux
+     partaient réellement sur le réseau, et chacune coûtait une lecture de
+     compte en base. La promesse est partagée, pas la donnée : au prochain
+     chargement de page, la question est reposée au serveur. */
+  var _moi = null;
+  function moiPromesse() {
+    if (!_moi) {
+      _moi = fetch("/api/auth/me", { headers: { "Accept": "application/json" } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .catch(function () { return null; });
+    }
+    return _moi;
+  }
+
   function initAcces() {
     fetch("/api/acces", { headers: { "Accept": "application/json" } })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (j) {
         if (!j || !j.client || !j.client.length) return null;
         /* Connecté : ces pages lui sont ouvertes, ne rien marquer. */
-        return fetch("/api/auth/me", { headers: { "Accept": "application/json" } })
-          .then(function (r) { return r.ok ? r.json() : null; })
-          .then(function (moi) {
-            if (moi && moi.authenticated) return;
-            if (_marquerAcces(j.client)) _legendeAcces();
-          });
+        return moiPromesse().then(function (moi) {
+          if (moi && moi.authenticated) return;
+          if (_marquerAcces(j.client)) _legendeAcces();
+        });
       }).catch(function () { /* le site reste utilisable sans le marquage */ });
   }
 
@@ -1077,8 +1091,7 @@
   function initAccount() {
     var cta = document.querySelector("header .navcta");
     if (!cta || cta.querySelector(".nav-account")) return;
-    fetch("/api/auth/me", { headers: { "Accept": "application/json" } })
-      .then(function (r) { return r.ok ? r.json() : null; })
+    moiPromesse()
       .then(function (j) {
         if (!j) return;
         var slot = document.createElement("span");

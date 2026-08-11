@@ -57,8 +57,13 @@ backlog = _entier("WEB_BACKLOG", 512)
 # Un processus qui a beaucoup servi est recyclé — filet contre une fuite de
 # mémoire lente, sans coupure visible. Le décalage aléatoire évite que tous les
 # processus se recyclent au même instant.
-max_requests = _entier("WEB_MAX_REQUESTS", 800)
-max_requests_jitter = _entier("WEB_MAX_REQUESTS_JITTER", 120, mini=0)
+# À 800, un processus se recyclait toutes les ~90 pages vues (~9 requêtes par
+# page) : chaque recyclage ré-importe l'application, re-vérifie la politique
+# d'accès et repart cache vide — relecture disque et gzip niveau 9 de chaque
+# asset, à capacité réduite de moitié pendant ce temps. Le filet reste, dix
+# fois plus lâche.
+max_requests = _entier("WEB_MAX_REQUESTS", 8000)
+max_requests_jitter = _entier("WEB_MAX_REQUESTS_JITTER", 1200, mini=0)
 
 # Redémarrage propre : on laisse aux requêtes en cours le temps de finir.
 graceful_timeout = _entier("WEB_GRACEFUL", 30)

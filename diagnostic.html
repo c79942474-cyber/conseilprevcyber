@@ -23,6 +23,13 @@
 
 <link rel="icon" href="/emblem.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/styles.css">
+<!-- Scripts de page, découverts dès les premiers octets du HTML :
+     déclarés en fin de corps, leurs téléchargements ne partaient qu'une
+     fois presque tout le flux reçu. `defer` garantit déjà l'exécution
+     après le parse, dans l'ordre des balises — rien d'autre ne change. -->
+<script src="/nav.js" defer></script>
+<script src="/parcours.js" defer></script>
+
 <style>
   .steps{display:flex;gap:8px;align-items:center;margin:8px 0 26px;font-family:var(--mono);font-size:11px;color:var(--muted2)}
   .steps .sbar{flex:1;height:6px;border-radius:99px;background:var(--bg2);border:1px solid var(--line);overflow:hidden}
@@ -592,7 +599,5 @@
   })();
   </script>
   <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
-  <script src="/nav.js" defer></script>
-  <script src="/parcours.js" defer></script>
 </body>
 </html>

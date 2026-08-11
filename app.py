@@ -699,7 +699,50 @@ PAGES = {
 # Le cache se reconstruit tout seul si le fichier change (nouveau déploiement :
 # le process redémarre et la clé mtime+taille change).
 _STATIC_CACHE = {}
-_STATIC_CACHE_LOCK = threading.Lock()
+# RLock, pas Lock : la construction d'une entrée HTML lit l'ETag de chaque
+# asset qu'elle référence, donc _static_entry se rappelle lui-même sous le
+# verrou. Un Lock simple s'interbloquerait à la première page servie par un
+# worker frais, quand rien n'est encore en cache.
+_STATIC_CACHE_LOCK = threading.RLock()
+
+# LES ASSETS PARTAGÉS SONT VERSIONNÉS DANS LES PAGES. Sans cela, max-age=300
+# oblige chaque navigation à revalider CHAQUE fichier passé cinq minutes :
+# /datacenter, c'est neuf allers-retours (styles.css + sept scripts + emblème)
+# pour neuf 304, à 50-150 ms l'aller-retour vers Render. Avec « ?v=<empreinte> »
+# réécrit dans le HTML au moment de la mise en cache, l'URL change quand LE
+# CONTENU change : l'asset peut alors être gardé un an (`immutable`), et la
+# fraîcheur reste garantie par la page elle-même, revalidée en ≤ 300 s, qui
+# référence les nouvelles empreintes dès qu'un fichier change.
+_ASSETS_VERSIONNES = (
+    "styles.css", "nav.js", "parcours.js", "modules.js", "transmettre.js",
+    "datacenter.js", "dc-profil.js", "markdown.js", "ingenierie-dc.js",
+    "decarbonation-dc.js", "strategie-dd.js", "emblem.svg",
+)
+_CC_IMMUABLE = "public, max-age=31536000, immutable"
+
+
+def _empreinte(etag):
+    """Le fragment court de l'ETag — ce qui voyage dans « ?v= »."""
+    return etag.strip('"').replace("cp-", "")[:16]
+
+
+def _versionner_html(raw):
+    """Réécrit src="/x.js" et href="/x.css" en « /x.js?v=<empreinte> ».
+
+    Seuls les assets de la liste sont touchés : réécrire une URL au hasard
+    versionnerait des routes qui ne savent pas l'être. Un asset illisible est
+    simplement laissé tel quel — la page doit se servir même si un fichier
+    manque, c'est le comportement d'avant."""
+    texte = raw.decode("utf-8")
+    for nom in _ASSETS_VERSIONNES:
+        if ('"/%s"' % nom) not in texte:
+            continue
+        try:
+            frag = _empreinte(_static_entry(nom)["etag"])
+        except OSError:
+            continue
+        texte = texte.replace('"/%s"' % nom, '"/%s?v=%s"' % (nom, frag))
+    return texte.encode("utf-8")
 
 
 def _static_entry(filename):
@@ -716,6 +759,8 @@ def _static_entry(filename):
             return ent
         with open(path, "rb") as fh:
             raw = fh.read()
+        if filename.endswith(".html"):
+            raw = _versionner_html(raw)
         ent = {
             "key": key,
             "raw": raw,
@@ -735,6 +780,12 @@ def _serve_fast(filename, cache_control, mimetype="text/html; charset=utf-8",
         ent = _static_entry(filename)
     except OSError:
         return send_from_directory(HERE, filename, mimetype=mimetype)
+    # L'URL versionnée du contenu COURANT est immuable : son adresse change
+    # avec son contenu. Un « ?v= » périmé (vieille page en cache quelque part)
+    # retombe sur la politique courte et sert quand même le contenu à jour —
+    # jamais une erreur, jamais un contenu figé à tort.
+    if request.args.get("v") == _empreinte(ent["etag"]):
+        cache_control = _CC_IMMUABLE
     if ent["etag"] in (request.headers.get("If-None-Match") or ""):
         resp = Response(status=304, mimetype=mimetype)
     else:
@@ -749,6 +800,50 @@ def _serve_fast(filename, cache_control, mimetype="text/html; charset=utf-8",
     resp.headers["Cache-Control"] = cache_control
     if gzippable:
         resp.headers["Vary"] = "Accept-Encoding"
+    return resp
+
+
+# ── Réponses JSON figées ──────────────────────────────────────────────────
+# Toute une famille de routes GET sert des RÉFÉRENTIELS : des constantes de
+# module, identiques d'une requête à l'autre jusqu'au prochain déploiement.
+# Chacune re-sérialisait et re-gzippait son corps à chaque appel — 18 ms CPU
+# pour le seul cadre d'ingénierie (642 Ko) — et, sans ETag, re-téléchargeait
+# tout à chaque visite. Ici : sérialisé UNE fois par processus, 304 ensuite.
+_FIGES = {}
+_FIGES_LOCK = threading.Lock()
+
+
+def _json_fige(cle, builder, cache_control="private, max-age=600, must-revalidate"):
+    """Sert le JSON de `builder()` mémoïsé, avec ETag + 304 et gzip pré-calculé.
+
+    À N'UTILISER QUE pour un corps déterministe par processus : le builder ne
+    sera plus rappelé. Une route paramétrée doit inclure ses paramètres dans
+    `cle`, sinon elle servirait la réponse d'un autre appel."""
+    ent = _FIGES.get(cle)
+    if ent is None:
+        with _FIGES_LOCK:
+            ent = _FIGES.get(cle)
+            if ent is None:
+                raw = json.dumps(builder(), ensure_ascii=False,
+                                 separators=(",", ":")).encode("utf-8")
+                ent = {
+                    "raw": raw,
+                    "gz": gzip.compress(raw, 9),
+                    "etag": '"j-%s"' % hashlib.sha256(raw).hexdigest()[:24],
+                }
+                _FIGES[cle] = ent
+    if ent["etag"] in (request.headers.get("If-None-Match") or ""):
+        resp = Response(status=304, mimetype="application/json")
+    else:
+        use_gz = "gzip" in (request.headers.get("Accept-Encoding") or "").lower()
+        body = ent["gz"] if use_gz else ent["raw"]
+        resp = Response(body, mimetype="application/json")
+        if use_gz:
+            resp.headers["Content-Encoding"] = "gzip"
+        resp.headers["Content-Length"] = str(len(body))
+    resp.headers["ETag"] = ent["etag"]
+    resp.headers["Cache-Control"] = cache_control
+    resp.headers["Vary"] = "Accept-Encoding"
     return resp
 
 
@@ -1095,15 +1190,18 @@ def api_juridique_config():
     """Tout ce dont l'interface a besoin pour se construire : questionnaire,
     référentiel, clausier, amorces. Une seule définition côté serveur — une liste
     d'options recopiée dans le HTML finit toujours par diverger du moteur."""
-    return jsonify(ok=True,
-                   version_referentiel=juridique.VERSION_REFERENTIEL,
-                   champs=juridique.PROFIL_CHAMPS,
-                   referentiel=juridique.referentiel(),
-                   domaines_clausier=juridique.DOMAINES_CLAUSIER,
-                   suggestions=juridique.SUGGESTIONS,
-                   avertissement=juridique.AVERTISSEMENT,
-                   mention_ia=juridique.MENTION_IA,
-                   models=assistant.available())
+    # Figé par processus : tout est constant de module, et assistant.available()
+    # ne lit que des variables d'environnement, stables au démarrage.
+    return _json_fige("juridique-config", lambda: dict(
+        ok=True,
+        version_referentiel=juridique.VERSION_REFERENTIEL,
+        champs=juridique.PROFIL_CHAMPS,
+        referentiel=juridique.referentiel(),
+        domaines_clausier=juridique.DOMAINES_CLAUSIER,
+        suggestions=juridique.SUGGESTIONS,
+        avertissement=juridique.AVERTISSEMENT,
+        mention_ia=juridique.MENTION_IA,
+        models=assistant.available()))
 
 
 @app.route("/api/juridique/qualification", methods=["POST"])
@@ -1578,10 +1676,11 @@ def api_juridique_dossier_documents():
 @login_required
 def api_juridique_instances():
     """Catalogue des instances et des natures de dossier, pour l'interface."""
-    return jsonify(ok=True, instances=juridique.INSTANCES,
-                   natures=[{"v": v, "l": l} for v, l in juridique.NATURES_DOSSIER],
-                   delais=juridique.DELAIS,
-                   suggestions=juridique.SUGGESTIONS_ARBITRAGE)
+    return _json_fige("juridique-instances", lambda: dict(
+        ok=True, instances=juridique.INSTANCES,
+        natures=[{"v": v, "l": l} for v, l in juridique.NATURES_DOSSIER],
+        delais=juridique.DELAIS,
+        suggestions=juridique.SUGGESTIONS_ARBITRAGE))
 
 
 def _json_champ(valeur):
@@ -2009,9 +2108,10 @@ def api_datacenter_referentiel():
     # famille en porte vingt-cinq — neuf de management ajoutés sans que
     # personne ne pense à corriger la phrase. Un lecteur cherchant un HAZOP en
     # concluait qu'il n'était pas couvert.
-    return jsonify(ok=True, referentiel=datacenter.referentiel(),
-                   champs=datacenter.CHAMPS,
-                   base=_themes_datacenter())
+    return _json_fige("dc-referentiel", lambda: dict(
+        ok=True, referentiel=datacenter.referentiel(),
+        champs=datacenter.CHAMPS,
+        base=_themes_datacenter()))
 
 
 def _themes_datacenter():
@@ -2093,7 +2193,11 @@ def api_datacenter_durabilite():
     avoir a s'inscrire pour le decouvrir.
     """
     try:
-        return jsonify(ok=True, cadre=durabilite.cadre())
+        # Figé par processus. L'horodatage « genere » date désormais
+        # l'assemblage du référentiel dans ce processus, pas la requête —
+        # ce qui est plus juste : le contenu, lui, ne change qu'au déploiement.
+        return _json_fige("dc-durabilite",
+                          lambda: dict(ok=True, cadre=durabilite.cadre()))
     except Exception:
         app.logger.exception("cadre de durabilite")
         return jsonify(ok=False, error="cadre_indisponible",
@@ -2112,7 +2216,8 @@ def api_datacenter_etat_art():
     le moteur tient ses constantes de normes, pas de livres blancs.
     """
     try:
-        return jsonify(ok=True, etat=etat_art.etat())
+        return _json_fige("dc-etat-art",
+                          lambda: dict(ok=True, etat=etat_art.etat()))
     except Exception:
         app.logger.exception("etat de l'art datacenter")
         return jsonify(ok=False, error="etat_indisponible",
@@ -2146,7 +2251,8 @@ def api_datacenter_lacunes():
     recherche et des gisements nommes. Aucun extrait, aucun document.
     """
     try:
-        return jsonify(ok=True, referentiel=lacunes.referentiel())
+        return _json_fige("dc-lacunes",
+                          lambda: dict(ok=True, referentiel=lacunes.referentiel()))
     except Exception:                                       # noqa: BLE001
         app.logger.exception("referentiel des lacunes")
         return jsonify(ok=False, error="lacunes_indisponibles",
@@ -2249,7 +2355,8 @@ def api_datacenter_decarbonation():
     sur dossier complet par un verificateur accredite.
     """
     try:
-        return jsonify(ok=True, referentiel=decarbonation.referentiel())
+        return _json_fige("dc-decarbonation",
+                          lambda: dict(ok=True, referentiel=decarbonation.referentiel()))
     except Exception:
         app.logger.exception("referentiel decarbonation")
         return jsonify(ok=False, error="referentiel_indisponible",
@@ -2303,10 +2410,11 @@ def api_transmission():
     greffer sur le référentiel de l'une d'elles obligerait les deux autres à
     charger un référentiel qui ne les concerne pas.
     """
-    return jsonify(ok=True, destinataires=transmission.destinataires(),
-                   natures=transmission.natures(),
-                   exclus=transmission.EXCLUS,
-                   version=transmission.VERSION)
+    return _json_fige("transmission", lambda: dict(
+        ok=True, destinataires=transmission.destinataires(),
+        natures=transmission.natures(),
+        exclus=transmission.EXCLUS,
+        version=transmission.VERSION))
 
 
 def _poser_bordereau(md, meta, nature, data):
@@ -2562,7 +2670,8 @@ def api_datacenter_strategie_questionnaire():
     sont l'apport central de la methode.
     """
     try:
-        return jsonify(ok=True, questionnaire=strategie_dd.questionnaire())
+        return _json_fige("dc-strategie-questionnaire",
+                          lambda: dict(ok=True, questionnaire=strategie_dd.questionnaire()))
     except Exception:
         app.logger.exception("questionnaire strategie DD")
         return jsonify(ok=False, error="questionnaire_indisponible",
@@ -2731,10 +2840,12 @@ def api_datacenter_moe():
     ingénierie EPC ou un audit, il refuse — un nombre faux et crédible est la
     pire des deux combinaisons."""
     if request.method == "GET":
-        ref = moe_dc.referentiel()
-        ref["ok"] = True
-        ref["sante"] = moe_dc.sante()
-        return jsonify(ref)
+        def _bareme():
+            ref = moe_dc.referentiel()
+            ref["ok"] = True
+            ref["sante"] = moe_dc.sante()
+            return ref
+        return _json_fige("dc-moe-bareme", _bareme)
 
     d = request.get_json(silent=True) or {}
     mission = (d.get("mission") or ingenierie_dc.MISSION_DEFAUT).strip()
@@ -2787,7 +2898,11 @@ def api_datacenter_moe():
 def api_datacenter_ingenierie():
     """Le cadre de phases : deux filières, leurs correspondances, et les postes
     du référentiel dont l'ordre de grandeur cesse de suffire en cours de projet."""
-    return jsonify(ok=True, referentiel=ingenierie_dc.referentiel())
+    # Le plus gros JSON du site (642 Ko, 125 Ko gz) : re-sérialisé et re-gzippé
+    # à chaque visite de /ingenierie-datacenter, il coûtait 18 ms de CPU sous
+    # GIL par requête. Figé par processus, revalidé par ETag : 304 sans corps.
+    return _json_fige("dc-ingenierie",
+                      lambda: dict(ok=True, referentiel=ingenierie_dc.referentiel()))
 
 
 @app.route("/api/datacenter/ingenierie/disponibilite", methods=["POST"])
@@ -7917,10 +8032,21 @@ def api_acces():
     RIEN N'EST DIVULGUÉ ICI, et c'est ce qui autorise à la laisser ouverte :
     elle ne dit pas ce que CONTIENNENT les pages, seulement lesquelles
     demandent un compte — ce qu'un visiteur apprendrait de toute façon en
-    cliquant. La servir lui épargne le clic."""
-    fermees = sorted(c for c, e in _acces_reels().items() if e != "direct")
-    return jsonify(ok=True, client=fermees,
-                   note="Ces pages demandent un compte client validé.")
+    cliquant. La servir lui épargne le clic.
+
+    CACHEABLE UNE HEURE, ET PUBLIQUEMENT : la réponse ne dépend ni de la
+    session ni du visiteur, et ne change qu'au déploiement. Elle était pourtant
+    la requête la plus fréquente du site — nav.js l'appelle à CHAQUE page, et
+    chaque appel réitérait app.url_map et re-gzippait le corps. Le marquage 🔒
+    peut rester périmé au pire une heure après un déploiement qui change la
+    politique — cosmétique : la protection réelle est côté serveur, sur chaque
+    route."""
+    def _liste():
+        fermees = sorted(c for c, e in _acces_reels().items() if e != "direct")
+        return dict(ok=True, client=fermees,
+                    note="Ces pages demandent un compte client validé.")
+    return _json_fige("acces", _liste,
+                      cache_control="public, max-age=3600")
 
 
 # ─────────────────────────── LA POLITIQUE D'ACCÈS EST-ELLE APPLIQUÉE ? ──────
