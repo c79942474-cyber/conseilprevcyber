@@ -3766,6 +3766,16 @@ def parcours_js():
                        mimetype="text/javascript; charset=utf-8")
 
 
+@app.route("/modules.js")
+def modules_js():
+    """Encadrement et signalement des modules numerotes, partages par les trois
+    pages d'ingenierie de centres de donnees. Un seul module : recopie trois
+    fois, la regle du battement aurait diverge — et c'est celle qu'on ne
+    remarque pas qui reste en clignotant."""
+    return _serve_fast("modules.js", _CC_ASSET,
+                       mimetype="text/javascript; charset=utf-8")
+
+
 @app.route("/transmettre.js")
 def transmettre_js():
     """Le choix du destinataire d'un document, partagé par les trois pages

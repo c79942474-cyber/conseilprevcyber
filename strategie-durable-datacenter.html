@@ -30,6 +30,44 @@
   .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
     clip:rect(0 0 0 0);white-space:nowrap;border:0}
   .rc-sec{padding:34px 0 6px;border-top:1px solid var(--line);margin-top:30px}
+
+  /* ── LES MODULES NUMÉROTÉS — encadrement bleu et signalement ──────────
+     L'ENCADREMENT SÉPARE, LA PASTILLE INFORME, LE BATTEMENT DÉSIGNE. Trois
+     rôles distincts, et c'est délibéré : dix modules qui clignoteraient
+     ensemble ne signaleraient plus rien, et un clignotement passé ne laisse
+     aucune trace pour qui a détourné les yeux. La pastille reste ; le
+     battement ne fait que la montrer, trois fois, à l'approche. */
+  .mod-bloc{position:relative;border:1px solid rgba(34,211,238,.22);
+    border-left:3px solid var(--cyan,#22d3ee);border-radius:14px;
+    padding:22px 24px;margin:20px 0;background:rgba(34,211,238,.025)}
+  .mod-bloc > .rc-etape{margin-top:0}
+  /* Non parcouru : le cadre s'affirme, et il le reste — pas seulement pendant
+     le battement. C'est ce qui permet de repérer d'un coup d'œil, en fin de
+     lecture, ce qui n'a pas été traité. */
+  .mod-bloc.mod-neuf{border-color:rgba(34,211,238,.55);
+    box-shadow:0 0 0 1px rgba(34,211,238,.14)}
+  .mod-chip{font-family:var(--mono,monospace);font-size:9.5px;letter-spacing:.07em;
+    text-transform:uppercase;padding:3px 9px;border-radius:6px;white-space:nowrap;
+    background:rgba(34,211,238,.16);color:var(--cyan,#22d3ee);
+    border:1px solid rgba(34,211,238,.38);margin-left:auto;align-self:center}
+  /* LE BATTEMENT EST FINI — trois pulsations, puis plus rien. Une animation
+     perpétuelle est déconseillée par les règles d'accessibilité et peut être
+     franchement nocive ; elle cesse aussi d'informer au bout de dix secondes. */
+  @keyframes mod-bat{
+    0%,100%{box-shadow:0 0 0 1px rgba(34,211,238,.14)}
+    50%{box-shadow:0 0 0 4px rgba(34,211,238,.32)}
+  }
+  .mod-bloc.mod-bat{animation:mod-bat 1.15s ease-in-out 3}
+  /* MOUVEMENT RÉDUIT : AUCUNE ANIMATION. La pastille et le cadre renforcé
+     portent alors seuls l'information — et ils la portent aussi bien. */
+  @media (prefers-reduced-motion: reduce){
+    .mod-bloc.mod-bat{animation:none}
+  }
+  @media (max-width:640px){
+    .mod-bloc{padding:16px 14px;margin:14px 0}
+    .mod-chip{margin-left:0}
+  }
+
   .rc-etape{display:flex;align-items:baseline;gap:11px;margin:0 0 10px}
   .rc-etape .n{font-family:var(--mono);font-size:12px;color:var(--teal)}
   .rc-etape h2{font-size:21px;margin:0}
@@ -337,6 +375,7 @@
   <!-- Le parcours guidé traverse les trois pages « centres de données » ;
        sans ce module, celle-ci sortait du fil au milieu du parcours. -->
   <script src="/parcours.js" defer></script>
+  <script src="/modules.js" defer></script>
   <script src="/transmettre.js" defer></script>
   <script src="/strategie-dd.js" defer></script>
 </body>
