@@ -281,6 +281,24 @@
      n'est pas décorative : elle dit si l'on peut s'appuyer sur la ligne. */
   .dc-art-av{font-size:12.5px;line-height:1.7;margin:0 0 16px;padding:11px 14px;
     border-radius:10px;border-left:3px solid #d9a441;background:rgba(217,164,65,.09)}
+  /* Le choix du thème. L'aide sous le sélecteur porte ce que le découpage
+     ferait perdre : la concentration des sources, qui ne se voit qu'en
+     regardant plusieurs thèmes à la fois. */
+  .dc-asel{display:block;margin:0 0 16px;padding:12px 14px;border-radius:11px;
+    border:1px solid var(--line);background:rgba(0,0,0,.16);max-width:760px}
+  .dc-asel-l{display:block;font-size:11.5px;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--muted2);margin-bottom:6px}
+  .dc-asel select{font-family:inherit;font-size:14px;padding:8px 11px;
+    border-radius:8px;border:1px solid var(--line);background:rgba(0,0,0,.28);
+    color:inherit;min-width:min(100%,440px);max-width:100%}
+  .dc-asel-a{display:block;font-size:12.5px;line-height:1.6;color:var(--muted);
+    margin-top:9px}
+  /* Sur quoi le thème repose. Neutre à plusieurs sources, signalé en réserve
+     quand il n'y en a qu'une — une seule maison n'est pas un recoupement. */
+  .dc-art-q{font-size:12.5px;line-height:1.75;margin:0 0 12px;padding:9px 12px;
+    border-radius:8px;background:rgba(0,0,0,.18);border:1px solid var(--line)}
+  .dc-art-q.seule{background:rgba(217,164,65,.09);
+    border-color:rgba(217,164,65,.32)}
   .dc-art-g{margin:0 0 18px}
   .dc-art-g h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;
     color:var(--muted2);margin:0 0 9px}
@@ -1153,10 +1171,75 @@
       .then(function(j){
         if(!j || !j.ok || !j.etat) throw new Error('etat');
         var e = j.etat;
-        var h = '<p class="dc-art-av">' + esc(e.avertissement) + '</p>';
-        h += e.groupes.map(function(g){
-          return '<div class="dc-art-g"><h3>' + esc(g.nom) + '</h3>'
-            + g.faits.map(function(f){
+
+        /* ── UN THÈME À LA FOIS, SANS PERDRE « QUI LE DIT » ─────────────────
+           Vingt et un faits répartis en sept thèmes se dépliaient d'un coup.
+           Le thème se choisit maintenant dans une liste.
+
+           LE PIÈGE DE CE DÉCOUPAGE EST EXACTEMENT LE SUJET DE LA SECTION.
+           Elle ne rassemble pas des faits : elle rassemble des faits ET LEURS
+           AUTEURS, parce qu'un livre blanc de fournisseur et une analyse
+           d'éditeur ne pèsent pas pareil. Or la concentration ne se voit qu'en
+           regardant PLUSIEURS thèmes à la fois : quatre des sept reposent sur
+           une SEULE source. Un lecteur qui n'en ouvre qu'un ne peut pas s'en
+           apercevoir, et lira comme un état de l'art ce qui est l'avis d'une
+           maison.
+
+           Deux précautions, donc : le nombre de sources figure dans l'option
+           elle-même — la concentration se lit SANS ouvrir la liste —, et le
+           thème affiché nomme ce sur quoi il repose, avec sa réserve quand il
+           ne repose que sur un. */
+        var VU = 0;
+
+        function pave(g){
+          var vus = [], nat = {};
+          g.faits.forEach(function(f){
+            var s = f.source;
+            if(vus.indexOf(s.editeur) < 0){ vus.push(s.editeur); nat[s.editeur] = s; }
+          });
+          return { editeurs: vus, par: nat };
+        }
+
+        function dessiner(){
+          var g = e.groupes[VU] || e.groupes[0];
+          var p = pave(g);
+
+          var h = '<p class="dc-art-av">' + esc(e.avertissement) + '</p>';
+
+          h += '<label class="dc-asel" for="dc-theme">'
+            + '<span class="dc-asel-l">Thème de l’état de l’art</span>'
+            + '<select id="dc-theme" data-dc-theme>'
+            + e.groupes.map(function(x, k){
+                var q = pave(x).editeurs.length;
+                return '<option value="' + k + '"' + (k === VU ? ' selected' : '')
+                  + '>' + esc(x.nom) + ' — ' + x.faits.length + ' fait'
+                  + (x.faits.length > 1 ? 's' : '') + ', ' + q + ' source'
+                  + (q > 1 ? 's' : '') + '</option>';
+              }).join('')
+            + '</select>'
+            + '<span class="dc-asel-a">Le nombre de sources figure dans chaque '
+            + 'entrée : un thème appuyé sur une seule maison ne se lit pas comme '
+            + 'un consensus.</span></label>';
+
+          h += '<div class="dc-art-g"><h3>' + esc(g.nom) + '</h3>';
+
+          /* SUR QUOI CE THÈME REPOSE, avant les faits eux-mêmes. Après, le
+             lecteur a déjà accordé sa confiance. */
+          h += '<p class="dc-art-q' + (p.editeurs.length === 1 ? ' seule' : '') + '">'
+            + '<b>Qui le dit ici</b> — '
+            + p.editeurs.map(function(ed){
+                var s = p.par[ed];
+                return esc(ed) + ' <span class="dc-nat n-' + esc(s.nature) + '">'
+                  + esc(s.nature_nom) + '</span>';
+              }).join(' · ')
+            + (p.editeurs.length === 1
+                ? ' <b>Une seule source pour tout ce thème</b> : ce qui suit est '
+                  + 'un point de vue, pas un recoupement. Aucun fait n’y est '
+                  + 'confirmé par un tiers.'
+                : '')
+            + '</p>';
+
+          h += g.faits.map(function(f){
                 var s = f.source;
                 return '<article class="dc-fait n-' + esc(s.nature) + '">'
                   + '<p class="dc-fait-e">' + esc(f.enonce) + '</p>'
@@ -1172,13 +1255,36 @@
                   + '</p></article>';
               }).join('')
             + '</div>';
-        }).join('');
+          return h;
+        }
+
+        function poser(){
+          z.innerHTML = dessiner() + FIXE;
+          var s = z.querySelector('[data-dc-theme]');
+          if(s){
+            s.addEventListener('change', function(){
+              VU = parseInt(s.value, 10) || 0;
+              poser();
+              /* On rend le clavier au sélecteur : sans cela, un choix fait au
+                 clavier renvoie le focus en tête de document. */
+              var s2 = document.getElementById('dc-theme');
+              if(s2){ try { s2.focus({ preventScroll: true }); } catch(err){ s2.focus(); } }
+            });
+          }
+        }
+
+        /* ── CE QUI RESTE AFFICHÉ QUEL QUE SOIT LE THÈME CHOISI ────────────
+           Les lacunes et la bibliographie ne dépendent d'aucun thème : elles
+           valent pour l'ensemble. Les faire varier avec le sélecteur les
+           ferait disparaître dès qu'on choisit — or ce sont précisément les
+           deux blocs qu'un lecteur pressé ne va pas chercher. */
+        var FIXE = '';
         /* CE QUE CES SOURCES NE DISENT PAS. Une bibliographie qui ne liste que
            ses apports laisse supposer qu'elle couvre le reste. */
-        h += '<div class="dc-art-l"><b>Ce que ces quatre sources ne disent pas.</b><ul>'
+        FIXE += '<div class="dc-art-l"><b>Ce que ces quatre sources ne disent pas.</b><ul>'
           + e.lacunes.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('')
           + '</ul></div>';
-        h += '<div class="dc-art-b"><b>Les quatre documents</b><ul>'
+        FIXE += '<div class="dc-art-b"><b>Les quatre documents</b><ul>'
           + Object.keys(e.sources).map(function(k){
               var s = e.sources[k];
               return '<li><b>' + esc(s.editeur) + '</b> — <i>' + esc(s.titre) + '</i>, '
@@ -1187,7 +1293,7 @@
                 + esc(e.natures[s.nature].poids) + ' ' + esc(s.note) + '</li>';
             }).join('')
           + '</ul></div>';
-        z.innerHTML = h;
+        poser();
       })
       .catch(function(){
         z.innerHTML = '<p class="note">L’état de l’art n’a pas pu être chargé. '

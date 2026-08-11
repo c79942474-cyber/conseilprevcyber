@@ -122,54 +122,117 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
 
   titre('4. L’état de l’art — et le contrôle qui compte : la NATURE des sources');
 
-  await pg.waitForFunction(() => document.querySelectorAll('#dc-art .dc-fait').length > 0,
-                           null, { timeout: 20000 });
-  const art = await pg.evaluate(() => {
-    const f = [...document.querySelectorAll('#dc-art .dc-fait')];
-    const nat = [...document.querySelectorAll('#dc-art .dc-nat')];
-    return {
-      faits: f.length,
-      groupes: document.querySelectorAll('#dc-art .dc-art-g').length,
-      /* Un fait qui n'expose ni éditeur ni page n'est plus citable. */
-      sansSource: f.filter(x => {
-        const s = x.querySelector('.dc-fait-s');
-        return !s || !/p\.\s*\d/.test(s.textContent);
-      }).length,
-      sansNature: f.filter(x => !x.querySelector('.dc-nat')).length,
-      etiquettes: [...new Set(nat.map(n => n.textContent.trim()))],
-      /* La distinction VISUELLE : les faits de fournisseur ne doivent pas
-         porter la même classe que ceux de l'analyse indépendante. */
-      indep: f.filter(x => x.classList.contains('n-analyse_editeur')).length,
-      fournisseur: f.filter(x => x.classList.contains('n-livre_blanc_fournisseur')
-                              || x.classList.contains('n-guide_fournisseur')).length,
-      reserves: document.querySelectorAll('#dc-art .dc-fait-r').length,
-      touches: document.querySelectorAll('#dc-art .dc-touche').length,
-      avert: (document.querySelector('#dc-art .dc-art-av') || {}).textContent || '',
-      lacunes: document.querySelectorAll('#dc-art .dc-art-l li').length,
-      biblio: document.querySelectorAll('#dc-art .dc-art-b li').length,
-      texte: (document.getElementById('dc-art') || {}).textContent || '',
-    };
-  });
-  ok('les faits sont affichés', art.faits >= 20, art.faits + ' fait(s)');
-  ok('…groupés par famille', art.groupes >= 6, art.groupes + ' groupe(s)');
-  ok('AUCUN fait sans son éditeur et sa page', art.sansSource === 0,
-     art.sansSource + ' fait(s) sans référence');
-  ok('AUCUN fait sans l’étiquette de nature de sa source', art.sansNature === 0,
-     art.sansNature + ' fait(s) sans étiquette');
-  ok('…les trois natures sont nommées en clair', art.etiquettes.length === 3,
-     art.etiquettes.join(' · '));
+  /* ── LE THÈME SE CHOISIT : LES CONTRÔLES LE PARCOURENT ────────────────
+     Ces contrôles éprouvaient les vingt et un faits affichés ensemble. Le thème
+     se choisit maintenant dans une liste : ils sont RÉÉCRITS, pas supprimés.
+     Ce qu'ils protègent n'a pas bougé — aucun fait sans éditeur ni page, aucun
+     fait sans la nature de sa source, l'œil qui sépare fournisseur et analyse
+     indépendante, les réserves, les renvois. Un contrôle qu'on efface parce
+     que l'écran a changé emporte la raison pour laquelle il existait.
+
+     ET LE CONTRÔLE NOUVEAU, QUI EST LE SUJET MÊME DE LA SECTION : le découpage
+     rend invisible la CONCENTRATION des sources. Quatre thèmes sur sept
+     reposent sur une seule maison ; qui n'en ouvre qu'un lira comme un état de
+     l'art ce qui est un point de vue. Le nombre de sources doit donc figurer
+     dans l'option, et le thème affiché doit nommer ce sur quoi il repose. */
+  await pg.waitForSelector('#dc-theme', { timeout: 20000 });
+
+  const sel = await pg.evaluate(() => ({
+    opts: [...document.getElementById('dc-theme').options].map(o => o.textContent),
+    ouverture: document.getElementById('dc-theme').value,
+    n: document.getElementById('dc-theme').options.length,
+  }));
+  ok('le thème se choisit dans une liste', sel.n >= 6, sel.n + ' thème(s)');
+  ok('…chaque entrée annonce combien de faits elle porte',
+     sel.opts.every(t => /\d+\s+faits?/.test(t)), sel.opts[0]);
+  ok('…ET SUR COMBIEN DE SOURCES elle repose — la concentration se lit sans ouvrir',
+     sel.opts.every(t => /\d+\s+sources?/.test(t)), sel.opts[1]);
+  ok('…la liste s’ouvre sur le premier thème', sel.ouverture === '0', sel.ouverture);
+
+  const parTheme = [];
+  for (let k = 0; k < sel.n; k++) {
+    await pg.selectOption('#dc-theme', String(k));
+    await pg.waitForFunction((a) => {
+      const s = document.getElementById('dc-theme');
+      return s && s.value === String(a)
+        && document.querySelectorAll('#dc-art .dc-fait').length > 0;
+    }, k, { timeout: 8000 });
+    parTheme.push(await pg.evaluate(() => {
+      const f = [...document.querySelectorAll('#dc-art .dc-fait')];
+      const q = document.querySelector('.dc-art-q');
+      return {
+        titre: (document.querySelector('#dc-art .dc-art-g h3') || {}).textContent || '',
+        groupes: document.querySelectorAll('#dc-art .dc-art-g').length,
+        faits: f.length,
+        sansSource: f.filter(x => {
+          const s = x.querySelector('.dc-fait-s');
+          return !s || !/p\.\s*\d/.test(s.textContent);
+        }).length,
+        sansNature: f.filter(x => !x.querySelector('.dc-nat')).length,
+        etiquettes: [...new Set([...document.querySelectorAll('#dc-art .dc-fait .dc-nat')]
+                      .map(n => n.textContent.trim()))],
+        indep: f.filter(x => x.classList.contains('n-analyse_editeur')).length,
+        fournisseur: f.filter(x => x.classList.contains('n-livre_blanc_fournisseur')
+                                || x.classList.contains('n-guide_fournisseur')).length,
+        reserves: document.querySelectorAll('#dc-art .dc-fait-r').length,
+        touches: document.querySelectorAll('#dc-art .dc-touche').length,
+        qui: q ? q.textContent : '',
+        seule: !!document.querySelector('.dc-art-q.seule'),
+        lacunes: document.querySelectorAll('#dc-art .dc-art-l li').length,
+        biblio: document.querySelectorAll('#dc-art .dc-art-b li').length,
+        avert: (document.querySelector('#dc-art .dc-art-av') || {}).textContent || '',
+      };
+    }));
+  }
+
+  const total = parTheme.reduce((n, x) => n + x.faits, 0);
+  ok('tous les faits restent atteignables, thèmes cumulés', total >= 20,
+     total + ' fait(s) sur ' + sel.n + ' thème(s)');
+  ok('un seul thème est affiché à la fois',
+     parTheme.every(x => x.groupes === 1), parTheme.map(x => x.groupes).join('/'));
+  ok('AUCUN fait sans son éditeur et sa page',
+     parTheme.every(x => x.sansSource === 0),
+     parTheme.reduce((n, x) => n + x.sansSource, 0) + ' sans référence');
+  ok('AUCUN fait sans l’étiquette de nature de sa source',
+     parTheme.every(x => x.sansNature === 0),
+     parTheme.reduce((n, x) => n + x.sansNature, 0) + ' sans étiquette');
+  ok('…les trois natures sont nommées en clair, tous thèmes confondus',
+     new Set(parTheme.flatMap(x => x.etiquettes)).size === 3,
+     [...new Set(parTheme.flatMap(x => x.etiquettes))].join(' · '));
   ok('…et l’œil sépare fournisseur et analyse indépendante',
-     art.indep > 0 && art.fournisseur > 0,
-     art.indep + ' indépendant(s) / ' + art.fournisseur + ' fournisseur(s)');
-  ok('les réserves accompagnent les énoncés qu’elles tempèrent', art.reserves >= 8,
-     art.reserves + ' réserve(s)');
-  ok('les renvois vers les paramètres du moteur sont visibles', art.touches >= 12,
-     art.touches + ' renvoi(s)');
-  ok('l’avertissement précède les chiffres', /fournisseur/.test(art.avert)
-     && /n’entre dans le calcul|n'entre dans le calcul/.test(art.avert),
-     art.avert.replace(/\s+/g, ' ').trim().slice(0, 110));
-  ok('les lacunes sont listées', art.lacunes >= 4, art.lacunes + ' lacune(s)');
-  ok('la bibliographie ferme la section', art.biblio === 4, art.biblio + ' source(s)');
+     parTheme.reduce((n, x) => n + x.indep, 0) > 0
+     && parTheme.reduce((n, x) => n + x.fournisseur, 0) > 0,
+     parTheme.reduce((n, x) => n + x.indep, 0) + ' indépendant(s) / '
+     + parTheme.reduce((n, x) => n + x.fournisseur, 0) + ' fournisseur(s)');
+  ok('les réserves accompagnent les énoncés qu’elles tempèrent',
+     parTheme.reduce((n, x) => n + x.reserves, 0) >= 8,
+     parTheme.reduce((n, x) => n + x.reserves, 0) + ' réserve(s)');
+  ok('les renvois vers les paramètres du moteur sont visibles',
+     parTheme.reduce((n, x) => n + x.touches, 0) >= 12,
+     parTheme.reduce((n, x) => n + x.touches, 0) + ' renvoi(s)');
+
+  ok('CHAQUE thème nomme ce sur quoi il repose',
+     parTheme.every(x => /Qui le dit ici/.test(x.qui)),
+     parTheme.filter(x => !/Qui le dit ici/.test(x.qui)).length + ' thème(s) muet(s)');
+  const solo = parTheme.filter(x => x.seule);
+  ok('…et un thème appuyé sur UNE SEULE maison le DIT',
+     solo.length > 0 && solo.every(x => /une seule source/i.test(x.qui)),
+     solo.length + ' thème(s) à source unique : ' + solo.map(x => x.titre).join(' · '));
+  ok('…en disant ce que cela vaut : un point de vue, pas un recoupement',
+     solo.every(x => /point de vue/.test(x.qui) && /confirmé par un tiers/.test(x.qui)));
+
+  ok('l’avertissement précède les chiffres, sur tous les thèmes',
+     parTheme.every(x => /fournisseur/.test(x.avert)
+       && /n’entre dans le calcul|n'entre dans le calcul/.test(x.avert)),
+     parTheme[0].avert.replace(/\s+/g, ' ').trim().slice(0, 110));
+  ok('les lacunes restent listées quel que soit le thème choisi',
+     parTheme.every(x => x.lacunes >= 4),
+     parTheme.map(x => x.lacunes).join('/'));
+  ok('la bibliographie ferme la section quel que soit le thème choisi',
+     parTheme.every(x => x.biblio === 4), parTheme.map(x => x.biblio).join('/'));
+
+  const art = { texte: await pg.evaluate(
+    () => (document.getElementById('dc-art') || {}).textContent || '') };
 
   titre('5. La mise au point sur le faux « LCA »');
 
