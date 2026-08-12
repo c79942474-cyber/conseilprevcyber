@@ -53,10 +53,18 @@
   .moe-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
     gap:14px;margin:14px 0 12px}
   .moe-phases{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  /* L'ÉTAT « DÉCOCHÉ » SE LISAIT BLANC SUR BLANC. `background:#fff` avec
+     `color:inherit` suppose une page claire ; celle-ci est sombre, le texte
+     hérité y est ivoire, et une phase qu'on retire DISPARAISSAIT — 1,13:1
+     mesuré, là où l'AA en demande 4,5. Le client ne voyait plus ce qu'il
+     venait d'écarter, donc ne pouvait plus le reprendre. Fond transparent et
+     bord de la couleur du texte : l'état « off » reste discret sans cesser
+     d'être lisible, sur fond clair comme sur fond sombre. */
   .moe-phases button{font-family:inherit;font-size:12px;padding:7px 13px;
-    border:1px solid var(--rule2,#d8d4cc);border-radius:20px;background:#fff;
-    color:inherit;cursor:pointer;text-align:left;line-height:1.35}
-  .moe-phases button.on{background:var(--encre,#1C1C1C);color:#fff;
+    border:1px solid currentColor;border-radius:20px;background:transparent;
+    color:inherit;opacity:.72;cursor:pointer;text-align:left;line-height:1.35}
+  .moe-phases button:hover{opacity:.92}
+  .moe-phases button.on{background:var(--encre,#1C1C1C);color:#fff;opacity:1;
     border-color:var(--encre,#1C1C1C)}
   /* Ce que le groupe recouvre, en vocabulaire loi MOP : le maître d'ouvrage
      reconnaît « ESQ + APS », pas « aps-pc ». */
@@ -75,11 +83,15 @@
   /* Une valeur écartée pour son âge n'est pas une valeur reprise : elle porte
      l'ambre, pas le bleu — sinon les deux bandeaux se lisent pareil. */
   .moe-recu-vieux{border-left-color:#8A5310;background:rgba(217,164,65,.10)}
+  /* MÊME FAUTE QUE CI-DESSUS, commise le même jour : j'avais posé des jetons
+     de thème clair (--white, --muted2) sur cette page sombre, et le bouton
+     sortait en beige sur blanc — 1,76:1. Il hérite désormais de la couleur du
+     bandeau, qui contraste à 9,2:1 avec la page. */
   .moe-oubli{font:inherit;font-size:11.5px;margin-left:6px;padding:3px 10px;
-    border:1px solid var(--rule2,#d8d3c8);border-radius:20px;
-    background:var(--white,#fff);color:var(--muted2,#6b6459);cursor:pointer}
-  .moe-oubli:hover{border-color:var(--encre,#1C1C1C);color:var(--ink2,#333)}
-  .moe-oubli:focus-visible{outline:2px solid var(--encre,#1C1C1C);outline-offset:2px}
+    border:1px solid currentColor;border-radius:20px;background:transparent;
+    color:inherit;opacity:.82;cursor:pointer}
+  .moe-oubli:hover{opacity:1}
+  .moe-oubli:focus-visible{outline:2px solid currentColor;outline-offset:2px}
   .moe-tab{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}
   .moe-tab th,.moe-tab td{padding:6px 9px;border-bottom:1px solid var(--rule,#e6e2da);
     text-align:right;white-space:nowrap}
