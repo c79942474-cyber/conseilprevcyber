@@ -3727,33 +3727,127 @@
      lecteur doit voir ce qui a été repris et pouvoir le corriger. Et leur
      ORIGINE est écrite — un montant pré-rempli sans provenance se lit comme
      un calcul de cette page, alors qu'il vient de l'autre site. */
-  function recu() {
-    var q = new URLSearchParams(window.location.search);
-    var t = (q.get("travaux_meur") || "").trim();
-    var p = (q.get("part_technique") || "").trim();
-    var pays = (q.get("pays") || "").trim().toUpperCase();
+  var CLE_ENV = "cp.moe.enveloppe.v1";
+  /* AU-DELA DE DEUX MOIS, ON NE PRE-REMPLIT PLUS. Une enveloppe vieillit : les
+     couts unitaires bougent, le projet change de gabarit. Un montant ancien
+     re-injecte en silence est exactement la facon dont un chiffre perime entre
+     dans un document remis — et personne ne verifie un champ deja rempli. On
+     l'ecarte donc, et ON LE DIT, plutot que de le taire ou de l'imposer. */
+  var PEREMPTION_JOURS = 60;
+
+  function _valides(t, p, pays) {
     if (!/^[\d.]+(-[\d.]+)?$/.test(t)) t = "";
     if (!/^[\d.]+$/.test(p)) p = "";
     if (!/^[A-Z]{2}$/.test(pays)) pays = "";
-    return (t || p || pays) ? { trav: t, pt: p, pays: pays } : null;
+    return { trav: t, pt: p, pays: pays };
   }
 
+  function _lireURL() {
+    var q = new URLSearchParams(window.location.search);
+    var v = _valides((q.get("travaux_meur") || "").trim(),
+                     (q.get("part_technique") || "").trim(),
+                     (q.get("pays") || "").trim().toUpperCase());
+    return (v.trav || v.pt || v.pays) ? v : null;
+  }
+
+  /* LA MEMOIRE VIT DANS LE NAVIGATEUR DU CLIENT, ET NULLE PART AILLEURS.
+     C'est un MONTANT : le conserver sur nos serveurs en ferait une donnee de
+     plus a proteger, a conserver et a effacer, pour un confort que le poste du
+     client rend deja. Le bandeau dit qu'elle existe et offre de l'oublier. */
+  function _lireMemoire() {
+    try {
+      var b = window.localStorage.getItem(CLE_ENV);
+      if (!b) return null;
+      var o = JSON.parse(b);
+      var v = _valides(o.trav || "", o.pt || "", o.pays || "");
+      if (!v.trav && !v.pt) return null;
+      v.quand = Number(o.quand) || 0;
+      v.jours = v.quand ? Math.floor((Date.now() - v.quand) / 86400000) : null;
+      v.memoire = true;
+      return v;
+    } catch (e) { return null; }
+  }
+
+  function _memoriser(v) {
+    try {
+      window.localStorage.setItem(CLE_ENV, JSON.stringify(
+        { trav: v.trav, pt: v.pt, pays: v.pays, quand: Date.now() }));
+    } catch (e) { /* navigation privee : le lien continue de fonctionner */ }
+  }
+
+  function oublierEnveloppe() {
+    try { window.localStorage.removeItem(CLE_ENV); } catch (e) {}
+  }
+
+  /* L'ADRESSE L'EMPORTE SUR LA MEMOIRE : elle vient de l'etude qu'on est en
+     train de mener, la memoire d'une precedente. */
+  function recu() {
+    var u = _lireURL();
+    if (u) { _memoriser(u); u.frais = true; return u; }
+    var m = _lireMemoire();
+    if (!m) return null;
+    if (m.jours !== null && m.jours > PEREMPTION_JOURS) {
+      m.perime = true;
+      m.trav = ""; m.pt = "";      /* on n'ecrit rien, mais on l'annonce */
+    }
+    return m;
+  }
+
+  /* TROIS PROVENANCES, ET ELLES NE SE VALENT PAS. Un montant pre-rempli sans
+     origine visible se lit comme un calcul de CETTE page ; un montant memorise
+     se lit comme le calcul du jour. Chacune est donc nommee, et la plus fragile
+     — la memoire — porte sa date. */
   function bandeauRecu(r) {
+    if (r.perime) {
+      var z0 = document.getElementById("ig-moe-form");
+      if (z0) z0.insertAdjacentHTML("beforebegin",
+        '<div class="moe-recu moe-recu-vieux"><b>Une enveloppe mémorisée a été '
+        + 'écartée : elle date de ' + r.jours + ' jours.</b> Au-delà de '
+        + PEREMPTION_JOURS + ' jours, les coûts unitaires et le programme ont '
+        + 'trop bougé pour qu’un report se fasse en silence — un chiffre périmé '
+        + 'pré-rempli finit dans un document remis sans que personne ne le '
+        + 'revérifie. <b>Relancez l’étude d’enveloppe</b> sur conseilprev, ou '
+        + 'saisissez le montant à la main. '
+        + '<button type="button" class="moe-oubli" data-moe-oubli>Oublier cette '
+        + 'valeur</button></div>');
+      return;
+    }
     var lignes = [];
     if (r.trav) lignes.push("montant des travaux <b>" + esc(r.trav.replace("-", " – "))
                             + " M€</b>");
     if (r.pt) lignes.push("part du lot technique <b>" + esc(r.pt) + " %</b>");
-    var h = '<div class="moe-recu"><b>Repris de l’étude d’enveloppe'
+    var quand = r.frais
+      ? "Repris à l’instant de l’étude d’enveloppe"
+      : ("Repris d’une étude d’enveloppe mémorisée sur cet appareil"
+         + (r.jours === 0 ? " aujourd’hui"
+            : r.jours ? " il y a " + r.jours + " jour" + (r.jours > 1 ? "s" : "")
+            : ""));
+    var h = '<div class="moe-recu"><b>' + quand
       + (r.pays ? " — " + esc(r.pays) : "") + ".</b> "
       + (lignes.length ? lignes.join(", ") + ". " : "")
       + "Ces valeurs viennent de <b>conseilprev</b>, pas de cette page : "
       + "vérifiez-les et corrigez-les si votre étude a bougé."
       + (r.pays ? " Le pays est rappelé pour mémoire — <b>le barème "
                   + "d’honoraires ne varie pas d’un pays à l’autre</b>." : "")
+      + (r.memoire ? ' <button type="button" class="moe-oubli" data-moe-oubli>'
+                     + 'Oublier cette valeur</button>' : "")
       + "</div>";
     var z = document.getElementById("ig-moe-form");
     if (z) z.insertAdjacentHTML("beforebegin", h);
   }
+
+  /* C'EST UN MONTANT : on doit pouvoir le retirer de son appareil, et le geste
+     doit se voir. Par délégation — le bandeau est écrit après coup. */
+  document.addEventListener("click", function (ev) {
+    var b = ev.target && ev.target.closest
+      ? ev.target.closest("[data-moe-oubli]") : null;
+    if (!b) return;
+    oublierEnveloppe();
+    var bloc = b.closest(".moe-recu");
+    if (bloc) bloc.innerHTML = "<b>Valeur oubliée.</b> Plus rien n’est "
+      + "mémorisé sur cet appareil ; les champs restent tels quels et vous "
+      + "pouvez les vider.";
+  });
 
   function champs() {
     $("#ig-moe-form").innerHTML =
@@ -3909,8 +4003,10 @@
            avant, et écrire dedans plus tôt ne ferait rien — en silence. */
         var r = recu();
         if (r) {
-          if (r.trav) document.getElementById("ig-moe-trav").value =
-            r.trav.replace("-", "-");
+          /* Une valeur perimee n'ecrit RIEN dans les champs — `recu()` les a
+             vides — mais elle s'annonce quand meme : un report silencieusement
+             abandonne se lit comme un lien qui n'a pas marche. */
+          if (r.trav) document.getElementById("ig-moe-trav").value = r.trav;
           if (r.pt) document.getElementById("ig-moe-pt").value = r.pt;
           bandeauRecu(r);
         }

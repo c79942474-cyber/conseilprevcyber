@@ -72,6 +72,14 @@
   .moe-recu{margin:0 0 12px;padding:10px 13px;border-left:3px solid #1C5CAB;
     background:rgba(28,92,171,.06);border-radius:0 7px 7px 0;
     font-size:12.5px;line-height:1.6}
+  /* Une valeur écartée pour son âge n'est pas une valeur reprise : elle porte
+     l'ambre, pas le bleu — sinon les deux bandeaux se lisent pareil. */
+  .moe-recu-vieux{border-left-color:#8A5310;background:rgba(217,164,65,.10)}
+  .moe-oubli{font:inherit;font-size:11.5px;margin-left:6px;padding:3px 10px;
+    border:1px solid var(--rule2,#d8d3c8);border-radius:20px;
+    background:var(--white,#fff);color:var(--muted2,#6b6459);cursor:pointer}
+  .moe-oubli:hover{border-color:var(--encre,#1C1C1C);color:var(--ink2,#333)}
+  .moe-oubli:focus-visible{outline:2px solid var(--encre,#1C1C1C);outline-offset:2px}
   .moe-tab{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}
   .moe-tab th,.moe-tab td{padding:6px 9px;border-bottom:1px solid var(--rule,#e6e2da);
     text-align:right;white-space:nowrap}
