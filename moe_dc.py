@@ -269,6 +269,17 @@ def assiettes(parts_lots, enveloppe_meur):
         "vrd_meur": [_f(bas * p_clos * PART_VRD_DANS_CLOS),
                      _f(haut * p_clos * PART_VRD_DANS_CLOS)],
         "part_clos": _f(p_clos), "part_technique": _f(p_tech),
+        # DEUX PARTS QUI NE SE VALENT PAS, ET LES CONFONDRE COÛTE CHER.
+        # `part_technique` est rapportée à l'ENVELOPPE ; celle-ci est rapportée
+        # aux TRAVAUX, c'est-à-dire à l'assiette réelle du barème. Sur une
+        # enveloppe dont 13 % sortent de l'assiette, l'écart entre les deux
+        # dépasse dix points — et comme les taux du clos-couvert et du lot
+        # technique diffèrent d'un facteur huit sur certaines missions, prendre
+        # l'une pour l'autre déplace les honoraires de plusieurs millions.
+        # C'est la part À TRANSMETTRE à un module qui ne reçoit qu'un montant
+        # de travaux, sans la décomposition par lot.
+        "part_technique_travaux": (_f(p_tech / (p_tech + p_clos))
+                                   if (p_tech + p_clos) > 0 else None),
         "part_hors_assiette": _f(p_hors),
         "hors_assiette": [{"lot": c, "pourquoi": r} for c, r in
                           sorted(LOTS_EXCLUS.items())],

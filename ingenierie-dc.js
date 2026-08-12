@@ -3716,6 +3716,45 @@
     return (e && e.value) || "moe";
   }
 
+  /* ── CE QUI ARRIVE DE SENTINEL ────────────────────────────────────────
+     L'étude d'enveloppe se mène sur conseilprev ; ce module-ci ne calcule pas
+     l'investissement et le dit. Son chiffrage de MOE attend donc deux
+     grandeurs qu'il faudrait autrement retaper — et retaper la part du lot
+     technique est le piège : laissée vide, elle retombe sur l'hypothèse à
+     70 % du barème, qui déplace les honoraires plus que n'importe quel taux.
+
+     LES VALEURS REÇUES SONT AFFICHÉES ET MODIFIABLES, jamais imposées : le
+     lecteur doit voir ce qui a été repris et pouvoir le corriger. Et leur
+     ORIGINE est écrite — un montant pré-rempli sans provenance se lit comme
+     un calcul de cette page, alors qu'il vient de l'autre site. */
+  function recu() {
+    var q = new URLSearchParams(window.location.search);
+    var t = (q.get("travaux_meur") || "").trim();
+    var p = (q.get("part_technique") || "").trim();
+    var pays = (q.get("pays") || "").trim().toUpperCase();
+    if (!/^[\d.]+(-[\d.]+)?$/.test(t)) t = "";
+    if (!/^[\d.]+$/.test(p)) p = "";
+    if (!/^[A-Z]{2}$/.test(pays)) pays = "";
+    return (t || p || pays) ? { trav: t, pt: p, pays: pays } : null;
+  }
+
+  function bandeauRecu(r) {
+    var lignes = [];
+    if (r.trav) lignes.push("montant des travaux <b>" + esc(r.trav.replace("-", " – "))
+                            + " M€</b>");
+    if (r.pt) lignes.push("part du lot technique <b>" + esc(r.pt) + " %</b>");
+    var h = '<div class="moe-recu"><b>Repris de l’étude d’enveloppe'
+      + (r.pays ? " — " + esc(r.pays) : "") + ".</b> "
+      + (lignes.length ? lignes.join(", ") + ". " : "")
+      + "Ces valeurs viennent de <b>conseilprev</b>, pas de cette page : "
+      + "vérifiez-les et corrigez-les si votre étude a bougé."
+      + (r.pays ? " Le pays est rappelé pour mémoire — <b>le barème "
+                  + "d’honoraires ne varie pas d’un pays à l’autre</b>." : "")
+      + "</div>";
+    var z = document.getElementById("ig-moe-form");
+    if (z) z.insertAdjacentHTML("beforebegin", h);
+  }
+
   function champs() {
     $("#ig-moe-form").innerHTML =
         '<label class="dc-champ" for="ig-moe-trav"><span class="dc-lab">'
@@ -3866,6 +3905,15 @@
           return;
         }
         REF = j; champs(); phases();
+        /* Le pré-remplissage vient APRÈS champs() : les champs n'existent pas
+           avant, et écrire dedans plus tôt ne ferait rien — en silence. */
+        var r = recu();
+        if (r) {
+          if (r.trav) document.getElementById("ig-moe-trav").value =
+            r.trav.replace("-", "-");
+          if (r.pt) document.getElementById("ig-moe-pt").value = r.pt;
+          bandeauRecu(r);
+        }
         /* LA MISSION COMMANDE LES PHASES : changer l'une refait l'autre. Sans
            cela, un client passé en conception seule garderait à l'écran des
            phases qu'il ne confie plus.
