@@ -30,20 +30,46 @@
 
   var CLE = "cp_parcours";
 
-  /* Pages réservées aux comptes connectés. Une bonne part de la substance du
-     site — toute la section IEC 62443, la méthodologie, l'audit — est derrière
-     l'inscription. Un parcours qui l'ignorerait enverrait le visiteur contre un
-     mur de connexion sans prévenir : on l'annonce AVANT le clic. La liste est
-     tenue à un seul endroit plutôt que recopiée sur chaque étape, sinon elle
-     divergerait au premier ajout de page. */
+  /* Pages réservées aux comptes connectés. L'essentiel de la substance du site
+     — la section IEC 62443, la méthodologie, l'audit, le conseil, les trois
+     pages « centres de données » — est derrière l'inscription. Un parcours qui
+     l'ignorerait enverrait le visiteur contre un mur de connexion sans
+     prévenir : on l'annonce AVANT le clic, et la modale le promet en toutes
+     lettres.
+
+     CETTE LISTE A MENTI, ET VOICI COMMENT. Elle était écrite à la main, et la
+     politique d'accès du site a changé sans elle : neuf pages visitées par des
+     parcours — le diagnostic, NIS 2, le cockpit, la feuille de route,
+     l'operating model, la maturité OT et les trois pages de centres de données
+     — étaient devenues réservées et continuaient de s'annoncer libres. Rien
+     n'avait planté ; la promesse « vous le savez avant de cliquer » était
+     simplement devenue fausse pour un tiers des étapes.
+
+     DEUX PROTECTIONS, PARCE QU'UNE SEULE NE SUFFIT PAS.
+       1. La liste ci-dessous est comparée à `acces.py` par la recette : elle ne
+          peut plus diverger en silence d'un déploiement à l'autre.
+       2. Elle est RAFRAÎCHIE À L'EXÉCUTION depuis /api/acces — la route écrite
+          précisément pour permettre de signaler avant le clic. La liste écrite
+          ici n'est plus la vérité : elle est la réponse immédiate, celle qui
+          tient tant que le serveur n'a pas répondu, et celle qui reste si le
+          réseau ne répond pas du tout. */
   var RESERVE = {
     "/referentiel": 1, "/analyse-de-risque": 1, "/programme-securite": 1,
     "/exigences-systeme": 1, "/exigences-composants": 1, "/exigences-prestataires": 1,
     "/developpement-securise": 1, "/technologies-securite": 1, "/gestion-correctifs": 1,
     "/glossaire-62443": 1, "/metriques-62443": 1, "/methodologie": 1,
-    "/audit-conformite": 1, "/juridique": 1
+    "/audit-conformite": 1, "/juridique": 1, "/relecture-contrat": 1,
+    "/diagnostic": 1, "/maturite-ot": 1, "/operating-model": 1,
+    "/feuille-de-route": 1, "/continuite-ot": 1, "/gestion-des-changements": 1,
+    "/architecture-cible": 1, "/formation": 1, "/gouvernance-ia": 1,
+    "/demo": 1, "/nis2": 1, "/strategie-durable-datacenter": 1,
+    "/datacenter": 1, "/ingenierie-datacenter": 1
   };
-  function reserve(url) { return RESERVE[url] === 1; }
+  /* Vrai tant qu'on ne sait pas le contraire. Un client connecté n'a aucun mur
+     devant lui : lui coller un cadenas sur presque chaque étape serait un bruit
+     qui, à force, ferait ignorer le cadenas là où il compte. */
+  var CONNECTE = false;
+  function reserve(url) { return !CONNECTE && RESERVE[url] === 1; }
 
   /* ═══════════════════════════════════════════════════════════════════════
      LE MOTEUR DE PERTINENCE — le croisement rôle × secteur, calculé
@@ -106,6 +132,7 @@
     "/audit-conformite": ["preuve", "juridique"],
     "/conformite": ["juridique", "preuve"],
     "/juridique": ["juridique", "tiers"],
+    "/relecture-contrat": ["juridique", "tiers"],
     "/nis2": ["juridique"],
     "/etudes-de-cas": ["analyse"],
     /* Les trois pages « centres de données ». Elles ne relèvent pas de la
@@ -244,7 +271,7 @@
       cas: "Inspiré de la mission GRDF — Projet Biométhane (PSSI industrielle, EBIOS, analyse d’écarts)",
       pitch: "Vous devez construire un programme de sécurité industrielle qui tienne devant un auditeur " +
              "comme devant un exploitant. Ce parcours suit l’ordre d’une mission réelle : constater, " +
-             "mesurer, analyser, structurer, planifier, prouver.",
+             "mesurer, analyser, structurer, planifier, transmettre, prouver.",
       etapes: [
         { url: "/diagnostic", label: "Diagnostic express",
           action: "Répondez aux questions de cadrage sur votre installation et vos pratiques actuelles.",
@@ -266,6 +293,13 @@
           action: "Séquencez les chantiers avec leurs jalons et leurs dépendances.",
           gain: "Une trajectoire défendable en comité, où chaque euro demandé porte une échéance.",
           tip: "Découpez en jalons trimestriels : un programme sans étape intermédiaire perd sa visibilité au bout de trois mois." },
+        { url: "/formation", label: "Formation & transfert de compétences",
+          action: "Confrontez chaque chantier de la feuille de route à la compétence qu’il suppose, " +
+                  "chez l’exploitant comme chez l’intégrateur.",
+          gain: "Le chaînon qui décide si les mesures seront appliquées ou contournées — une mesure " +
+                "qui n’est pas comprise finit toujours par être contournée.",
+          tip: "Formez les équipes d’exploitation AVANT la mise en service, pas après : une consigne " +
+               "découverte le jour du démarrage est une consigne qui sera contournée le lendemain." },
         { url: "/metriques-62443", label: "Métriques · 1-3",
           action: "Choisissez le petit nombre d’indicateurs que vous saurez tenir dans la durée.",
           gain: "De quoi démontrer une progression, et non une intention renouvelée chaque année.",
@@ -300,10 +334,24 @@
           action: "Construisez un processus de correctifs compatible avec vos fenêtres d’arrêt.",
           gain: "Une chaîne de patching réaliste plutôt qu’une politique inapplicable que personne ne suivra.",
           tip: "En OT, le calendrier de maintenance commande le calendrier de sécurité — l’inverse ne se produit jamais." },
+        { url: "/gestion-des-changements", label: "Gestion des changements (MOC)",
+          action: "Posez le circuit qui encadre toute modification sur le procédé : ce qui déclenche " +
+                  "un MOC, qui l’instruit, qui l’autorise, ce qu’on en garde.",
+          gain: "Le processus qui empêche votre architecture de dériver — un zonage juste à la mise " +
+                "en service et faux dix-huit mois plus tard n’a protégé personne.",
+          tip: "Le déclencheur le plus oublié n’est pas une modification technique : c’est un " +
+               "changement de prestataire, qui apporte ses outils, ses accès et ses habitudes." },
         { url: "/demo", label: "Cockpit de supervision",
           action: "Regardez à quoi ressemble la supervision d’un parc industriel, événements et indicateurs.",
           gain: "De quoi juger si la détection apporte quelque chose chez vous, avant d’engager un projet.",
-          tip: "Sans inventaire à jour, la supervision produit du bruit : la cartographie vient d’abord." }
+          tip: "Sans inventaire à jour, la supervision produit du bruit : la cartographie vient d’abord." },
+        { url: "/continuite-ot", label: "Continuité d’activité & crise OT",
+          action: "Fixez les objectifs de reprise en langage d’exploitant — combien de temps sans " +
+                  "produire, combien de données de procédé perdues — puis éprouvez-les par un exercice.",
+          gain: "La réponse à la question que toutes les autres étapes laissent ouverte : et si " +
+                "malgré tout ça s’arrête, redémarre-t-on, et en combien de temps ?",
+          tip: "Le PCA informatique ne couvre pas l’OT : une sauvegarde de serveurs sans sauvegarde " +
+               "des CONFIGURATIONS d’automates ne redémarre pas une ligne." }
       ]
     },
     {
@@ -323,6 +371,13 @@
           action: "Traduisez le niveau de sécurité cible en exigences vérifiables pour le CCTP.",
           gain: "Des exigences qu’un fournisseur peut chiffrer et qu’un recetteur peut contrôler.",
           tip: "Écrivez le critère de recette en même temps que l’exigence : une exigence non vérifiable n’est pas une exigence." },
+        { url: "/architecture-cible", label: "Architecture cible OT",
+          action: "Traduisez les zones et les conduits en modèle en couches : DMZ industrielle, " +
+                  "bastion, diode, et ce qui traverse réellement chaque frontière.",
+          gain: "Le plan que les lots suivants devront respecter — c’est lui qui rend les exigences " +
+                "composants chiffrables, et non l’inverse.",
+          tip: "La console d’ingénierie est l’angle mort classique : elle parle à toutes les zones " +
+               "et ne figure dans aucune. Placez-la explicitement, ou elle les reliera toutes." },
         { url: "/exigences-composants", label: "Exigences composants · 4-2",
           action: "Fixez ce que doivent porter les équipements eux-mêmes — automates, IHM, équipements réseau.",
           gain: "Un filtre de sélection au catalogue, avant que le choix ne soit figé par un lot déjà attribué.",
@@ -365,6 +420,13 @@
           action: "Passez le projet de contrat au clausier fournisseurs et à la revue clause par clause.",
           gain: "Les clauses manquantes ou déséquilibrées repérées avant signature, avec leur fondement.",
           tip: "Réservé aux comptes connectés. La revue s’effectue en mémoire : le contrat n’est jamais conservé." },
+        { url: "/relecture-contrat", label: "Relecture de contrat assistée",
+          action: "Passez la version reçue au playbook : les écarts sont relevés clause par clause, " +
+                  "avec la position de repli et la ligne rouge de chacune.",
+          gain: "Une position de négociation préparée avant la séance, et non improvisée pendant — " +
+                "avec, pour chaque écart, ce que vous pouvez concéder et ce que vous ne pouvez pas.",
+          tip: "Les écarts sont calculés par règles, pas interprétés : deux relectures du même " +
+               "contrat donnent le même résultat, ce qu’une lecture humaine ne garantit jamais." },
         { url: "/contact", label: "Prendre contact",
           action: "Faites relire votre dossier de consultation avant publication.",
           gain: "Une exigence mal écrite se corrige avant l’appel d’offres ; après, elle se paie en avenants.",
@@ -418,6 +480,13 @@
           action: "Regardez un registre de traitements et une qualification IA Act motivée, article par article.",
           gain: "Un modèle de ce qu’un contrôle attend, sur un cas réel plutôt que sur un gabarit vide.",
           tip: "Notez la forme autant que le fond : une classification IA Act non motivée équivaut à son absence." },
+        { url: "/gouvernance-ia", label: "Governance by Design IA",
+          action: "Posez les quatre volets attendus autour d’un usage d’IA : qui décide de son " +
+                  "ouverture, qui en répond, ce qu’on journalise, et comment un nouvel usage entre.",
+          gain: "Le passage de la QUALIFICATION d’un système IA à sa gouvernance — la classification " +
+                "dit ce que le texte exige, elle ne dit pas qui l’applique ni quand.",
+          tip: "Le point de contrôle qui manque presque toujours : la porte d’entrée des NOUVEAUX " +
+               "usages. Sans elle, le registre est juste le jour où on l’écrit, et faux un trimestre après." },
         { url: "/juridique", label: "Conseil juridique assisté",
           action: "Qualifiez votre entité, puis explorez les lectures possibles des textes qui vous concernent.",
           gain: "La qualification est calculée par règles, sans IA : le résultat est reproductible et chaque rattachement porte sa motivation.",
@@ -460,9 +529,11 @@
                "annuelle : le laisser par défaut sur un site bien rempli sous-estime la facture d'un tiers." },
         { url: "/ingenierie-datacenter", label: "La séquence projet — MOE et ingénierie",
           action: "Choisissez votre filière et votre phase, et lisez ce que le moteur peut verser à ce " +
-                  "stade — et ce qu'il faut avoir remplacé par une donnée réelle.",
+                  "stade — et ce qu'il faut avoir remplacé par une donnée réelle. Puis, en section 6, " +
+                  "le prix de la maîtrise d'œuvre : le montant des travaux et la part du lot technique " +
+                  "s'y pré-remplissent depuis l'étude d'enveloppe, pour le pays retenu.",
           gain: "La distinction entre un chiffre recevable en avant-projet et un chiffre opposable en " +
-                "pièce contractuelle : c'est elle qui fait tenir un dossier.",
+                "pièce contractuelle — et, en regard, ce que coûte l'ingénierie qui produira ces pièces.",
           tip: "Le facteur eau amont porte ±40 % et le carbone incorporé ±50 % — deux valeurs qui " +
                "passent en APS et ne passent plus en DCE. Repérez-les avant, pas après." }
       ]
@@ -506,8 +577,27 @@
       role: "Première visite · comprendre l’essentiel",
       cas: "Parcours d’entrée — aucune connaissance préalable de l’IEC 62443 requise",
       pitch: "Vous entendez parler d’IEC 62443, de zones, de niveaux de sécurité, et vous voulez comprendre " +
-             "de quoi il s’agit avant d’en discuter avec qui que ce soit. Cinq pages, dans l’ordre.",
+             "de quoi il s’agit avant d’en discuter avec qui que ce soit. Cinq pages, dans l’ordre : " +
+             "les deux premières sont en accès libre, les trois suivantes demandent un compte — vous " +
+             "aurez donc de quoi juger avant d’en demander un.",
+      /* L'ORDRE A CHANGÉ, ET POUR UNE RAISON QUI N'EST PAS PÉDAGOGIQUE. Ce
+         parcours commençait par le référentiel, le glossaire, puis les
+         secteurs. Depuis que la politique d'accès a fermé le référentiel
+         détaillé, ses trois premières étapes ouvraient un formulaire de
+         connexion : le parcours écrit pour celui qui n'a RIEN — pas même un
+         compte — était le seul à ne rien lui montrer. Les deux pages ouvertes
+         passent donc devant. La progression y perd un peu (on part du concret
+         plutôt que de la structure) et le premier visiteur y gagne beaucoup :
+         il voit avant de s'inscrire. */
       etapes: [
+        { url: "/secteurs", label: "Secteurs",
+          action: "Trouvez votre secteur et ses contraintes propres.",
+          gain: "Ce qui change réellement d’un secteur à l’autre — les principes, eux, ne changent pas.",
+          tip: "Commencez par ce qui vous est familier : le vocabulaire de la norme se retient beaucoup mieux posé sur une installation que vous connaissez." },
+        { url: "/etudes-de-cas", label: "Études de cas",
+          action: "Regardez à quoi ressemble une mission réelle, de son cadrage à ses livrables.",
+          gain: "Le passage du concept au concret : ce qui se produit vraiment, et en combien de temps.",
+          tip: "Repérez le livrable qui ressemble à ce dont vous avez besoin — c’est le meilleur point de départ d’une discussion." },
         { url: "/referentiel", label: "Référentiel IEC 62443",
           action: "Prenez la vue d’ensemble : à quoi sert chaque partie de la norme et à qui elle s’adresse.",
           gain: "La structure d’ensemble avant le détail — c’est ce qui manque le plus souvent au démarrage.",
@@ -516,14 +606,6 @@
           action: "Fixez le vocabulaire : zone, conduit, SL-T, SL-A, IACS, CSMS.",
           gain: "De quoi suivre une réunion technique sans perdre le fil au troisième sigle.",
           tip: "La confusion SL-T (cible) / SL-A (atteint) est la plus fréquente, et la plus lourde de conséquences." },
-        { url: "/secteurs", label: "Secteurs",
-          action: "Trouvez votre secteur et ses contraintes propres.",
-          gain: "Ce qui change réellement d’un secteur à l’autre — les principes, eux, ne changent pas.",
-          tip: "Si votre secteur relève des infrastructures critiques, lisez NIS 2 immédiatement après." },
-        { url: "/etudes-de-cas", label: "Études de cas",
-          action: "Regardez à quoi ressemble une mission réelle, de son cadrage à ses livrables.",
-          gain: "Le passage du concept au concret : ce qui se produit vraiment, et en combien de temps.",
-          tip: "Repérez le livrable qui ressemble à ce dont vous avez besoin — c’est le meilleur point de départ d’une discussion." },
         { url: "/diagnostic", label: "Diagnostic express",
           action: "Situez votre installation en quelques questions.",
           gain: "Un premier repère chiffré, sans engagement et sans mobiliser personne.",
@@ -575,6 +657,8 @@
                                   "DNP3) rarement authentifiés : la compensation passe par l’architecture.",
         "/gestion-correctifs": "Une fenêtre d’arrêt sur un poste source se négocie des mois à " +
                                "l’avance : le calendrier de correctifs suit celui du réseau, jamais l’inverse.",
+        "/continuite-ot": "Sur des postes sans personnel, la reprise commence par un déplacement : " +
+                          "comptez le temps de route dans vos objectifs, sinon ils sont faux dès l’écriture.",
         "/diagnostic": "Regardez d’abord vos accès distants de télémaintenance : c’est le point où l’écart entre le déclaré et le réel est le plus grand dans ce secteur.",
         "/etudes-de-cas": "La mission GRDF — Projet Biométhane est la plus proche de votre contexte : SI industriel réparti, EBIOS, PSSI industrielle.",
         "/feuille-de-route": "Adossez chaque chantier à un arrêt réseau déjà programmé : un arrêt supplémentaire ne se négocie pas deux fois.",
@@ -612,23 +696,29 @@
       piege: "Le parc réel dépasse toujours l’inventaire connu : postes de relevage oubliés, " +
              "modems installés par un exploitant précédent, capteurs ajoutés au fil de l’eau.",
       notes: {
-        "/nis2": "Eau potable et eaux usées relèvent de deux entrées distinctes de l’annexe I : " +
-                 "vérifiez les deux si vous exploitez les deux.",
+        /* Une seule note par page — cette clé était écrite DEUX fois ici, et la
+           seconde effaçait la première sans bruit : le lecteur ne voyait qu’une
+           moitié de ce qu’on avait à lui dire. Les deux sont réunies. */
+        "/nis2": "Eau potable et eaux usées relèvent de DEUX entrées distinctes de l’annexe I : " +
+                 "vérifiez les deux si vous exploitez les deux. Le régime est celui des entités " +
+                 "essentielles dès que les seuils de taille sont atteints.",
         "/analyse-de-risque": "Commencez par l’inventaire : une analyse de risque sur un parc " +
                               "incomplet produit une fausse assurance, pire que pas d’analyse.",
+        "/continuite-ot": "Votre objectif de reprise n’est pas un choix d’exploitant : il est fixé " +
+                          "par la continuité du service public, et se défend devant la collectivité.",
         "/technologies-securite": "Les liaisons hétérogènes — GSM, radio, fibre, ADSL — n’offrent " +
                                   "pas le même niveau de confiance : le traitement doit être différencié.",
         "/diagnostic": "Commencez par une question simple : savez-vous dire combien de postes distants vous exploitez ? Si non, c’est le premier chantier, avant toute mesure de sécurité.",
         "/etudes-de-cas": "Aucune mission publiée dans l’eau à ce jour. La plus transposable est GRDF — Biométhane : même problématique de SI industriel réparti sur un large territoire.",
         "/feuille-de-route": "Priorisez par criticité pour la continuité du service public : c’est l’argument qui porte devant une collectivité, plus que le risque cyber en soi.",
         "/referentiel": "Entrez par la 2-1 : sans programme ni inventaire, les exigences techniques n’ont rien sur quoi s’appliquer.",
-        "/audit-conformite": "Le point le plus souvent en écart : l’inventaire des actifs, incomplet sur les postes distants ajoutés au fil des années.",
-        "/nis2": "Eau potable et eaux usées figurent à l’annexe I : le régime est celui des entités essentielles dès que les seuils de taille sont atteints."
+        "/audit-conformite": "Le point le plus souvent en écart : l’inventaire des actifs, incomplet sur les postes distants ajoutés au fil des années."
       },
       etapes: [
         { url: "/secteurs", label: "Secteurs · Eau & assainissement",
           action: "Situez les contraintes de la télégestion étendue.",
-          gain: "Le cadre métier avant la technique.",
+          gain: "Le cadre métier avant la technique : ce qu’un parc dispersé sur un territoire impose, " +
+                "et qu’aucune démarche pensée pour un site unique ne prévoit.",
           tip: "La dispersion du parc est ici la difficulté première, avant la sophistication des attaques." },
         { url: "/diagnostic", label: "Diagnostic express",
           action: "Évaluez votre situation, inventaire compris.",
@@ -660,6 +750,9 @@
                               "découpage qui correspond à l’impact réel d’un arrêt.",
         "/exigences-composants": "L’IIoT arrive souvent par les achats métier, hors du circuit IT : " +
                                  "les exigences composants sont votre seul point de contrôle en amont.",
+        "/architecture-cible": "Votre piège se joue ici : une cible dessinée sans jalon d’application " +
+                               "reste un schéma. Datez chaque frontière sur un arrêt de ligne déjà " +
+                               "programmé, sinon elle ne sera jamais posée.",
         "/gestion-correctifs": "Adossez les correctifs aux arrêts de maintenance planifiés — un " +
                                "arrêt supplémentaire ne vous sera pas accordé deux fois.",
         "/technologies-securite": "La segmentation par pare-feu industriel se déploie sans arrêt si " +
@@ -674,7 +767,8 @@
       etapes: [
         { url: "/secteurs", label: "Secteurs · Manufacturing",
           action: "Repérez les contraintes de l’usine connectée : MES, IIoT, interconnexion IT/OT.",
-          gain: "Le cadre avant la méthode.",
+          gain: "Le cadre avant la méthode : d’où vient réellement l’interconnexion — rarement d’une " +
+                "décision unique, presque toujours d’une accumulation de projets métier.",
           tip: "L’interconnexion croissante est ici le moteur du risque : elle vient rarement d’une décision unique." },
         { url: "/analyse-de-risque", label: "Analyse de risque · 3-2",
           action: "Découpez par ligne de production et identifiez les conduits entre IT et OT.",
@@ -709,6 +803,9 @@
                                "distinguez ce qui doit être corrigé de ce qui doit être isolé.",
         "/analyse-de-risque": "La chaîne du froid mérite sa propre zone : son impact n’est pas " +
                               "qu’économique, il est sanitaire et donc réglementaire.",
+        "/continuite-ot": "Votre objectif de reprise se heurte à une horloge qui ne se négocie " +
+                          "pas : celle de la chaîne du froid. Au-delà, le redémarrage n’est plus " +
+                          "un enjeu de production mais un rappel produit.",
         "/diagnostic": "Recensez d’abord les équipements hors support : ils déterminent ce qui est possible, bien avant le niveau de maturité de l’organisation.",
         "/etudes-de-cas": "Aucune mission agroalimentaire publiée. GRDF — Biométhane s’en rapproche par la nature du procédé : continu, avec des automates de générations diverses.",
         "/feuille-de-route": "Les arrêts saisonniers sont vos seules vraies fenêtres d’intervention : le plan se construit autour d’eux, pas l’inverse.",
@@ -752,6 +849,9 @@
                               "système instrumenté de sécurité (SIS) est à écarter, pas à arbitrer.",
         "/gestion-correctifs": "Tout correctif sur un système qualifié entraîne une requalification : " +
                                "le coût réel d’un patch n’est pas celui du patch.",
+        "/gestion-des-changements": "Ne créez pas un MOC parallèle : le change control GxP existe " +
+                                    "déjà et fait autorité. Ajoutez-y l’instruction cyber comme un " +
+                                    "avis, plutôt qu’un second circuit qui le contredira.",
         "/programme-securite": "Articulez le CSMS avec le système qualité existant plutôt que de " +
                                "le doubler — en environnement GxP, deux systèmes de management s’annulent.",
         "/exigences-systeme": "Séparez explicitement les fonctions de sûreté des fonctions de " +
@@ -846,6 +946,11 @@
                                    "de sortie approuvées par l’organe de direction (art. 28.8).",
         "/juridique": "Le clausier couvre les clauses contractuelles obligatoires de DORA — " +
                       "leur absence est un manquement en soi, indépendamment de tout incident.",
+        "/relecture-contrat": "Passez d’abord les contrats de vos prestataires TIC CRITIQUES : " +
+                              "ce sont eux que le régulateur ouvrira, et l’article 30 y attend des " +
+                              "clauses nommées, pas un équivalent de bonne foi.",
+        "/gouvernance-ia": "L’IA qui augmente votre SOC est elle-même un système à gouverner : " +
+                           "elle décide de ce qui est remonté, donc de ce qui ne l’est pas.",
         "/demo": "Le SOC augmenté par l’IA répond ici à un enjeu de volume : la remédiation à " +
                  "l’échelle prime sur la détection unitaire.",
         "/diagnostic": "Le sujet n’est pas la sophistication mais l’échelle : mesurez votre capacité de remédiation, pas seulement votre exposition.",
@@ -893,6 +998,12 @@
                               "la seconde s’applique au périmètre non classé.",
         "/gestion-correctifs": "Toute modification sur un système classé relève d’un processus " +
                                "d’autorisation dédié : le délai n’est pas technique, il est réglementaire.",
+        "/gestion-des-changements": "Le MOC ne se substitue pas au régime d’autorisation de " +
+                                    "l’installation : il l’alimente. Le classement de sûreté décide " +
+                                    "de ce qui peut être modifié, le MOC de comment on l’instruit.",
+        "/architecture-cible": "Le zonage de sûreté PRÉCÈDE l’architecture cyber et la contraint : " +
+                               "aucun conduit ne doit traverser une frontière de classement, " +
+                               "fût-ce par une diode.",
         "/exigences-prestataires": "La gestion des intervenants est ici un sujet en soi : " +
                                    "habilitation, accompagnement, traçabilité des actes.",
         "/diagnostic": "Un diagnostic générique ne remplace pas le cadre réglementaire de l’installation : lisez-le comme un point d’entrée, jamais comme une évaluation de conformité.",
@@ -937,6 +1048,9 @@
       notes: {
         "/exigences-prestataires": "La cascade fonctionne dans les deux sens : vous la subissez de " +
                                    "vos donneurs d’ordre et la transmettez à vos fournisseurs.",
+        "/relecture-contrat": "Relisez d’abord les contrats REÇUS de vos donneurs d’ordre : c’est " +
+                              "là que s’écrivent les exigences que vous devrez ensuite répercuter, " +
+                              "souvent sans marge de négociation en aval.",
         "/programme-securite": "Construisez UN référentiel interne qui couvre le plus exigeant de " +
                                "vos clients, plutôt que d’en tenir un par contrat.",
         "/analyse-de-risque": "La propriété industrielle est ici un actif au même titre que la " +
@@ -1206,8 +1320,9 @@
       + 'Deux entrées, indépendantes : le <b>rôle</b> décide de l’itinéraire — quelles pages, dans quel '
       + 'ordre ; le <b>secteur</b> décide de ce qui change en route — le texte qui s’impose ici et pas '
       + 'ailleurs, la contrainte qui prime, le piège du métier. Choisissez l’un, l’autre, ou les deux. '
-      + 'Les étapes marquées <b>🔒 Compte requis</b> ouvrent le référentiel détaillé, réservé aux comptes : '
-      + 'vous le savez avant de cliquer.</p>'
+      + 'Les étapes marquées <b>🔒 Compte requis</b> demandent un compte client validé — '
+      + '<a href="/inscription">en créer un</a> : votre adresse est confirmée par courriel, puis '
+      + 'l’accès est validé par notre équipe, qui vous prévient. Vous le savez avant de cliquer.</p>'
       + '<div class="pc-selects">'
       + '<label class="pc-lab">Votre rôle'
       + '<select class="pc-select" id="pc-select">' + optsRole + '</select></label>'
@@ -1453,11 +1568,43 @@
     if (b) b.removeAttribute("hidden");
   };
 
+  /* Le cadenas dit-il vrai ? On le demande au serveur plutôt qu'à nous-mêmes.
+     nav.js pose déjà les deux questions — quelles pages sont fermées, et
+     sommes-nous connecté — une seule fois par page ; on partage sa réponse au
+     lieu d'en relancer une (celle de /api/auth/me est en no-store : la reposer
+     coûterait une lecture de compte de plus à chaque chargement).
+
+     Les 56 pages qui portent ce module portent aussi nav.js, et la recette le
+     vérifie ; si malgré tout la réponse manque, la liste écrite plus haut
+     reste, et le bandeau reste juste. */
+  function synchroniserAcces() {
+    if (typeof window.navAcces !== "function") return;
+    window.navAcces().then(function (a) {
+      if (!a) return;
+      var avant = JSON.stringify([CONNECTE, Object.keys(RESERVE).sort()]);
+      CONNECTE = a.connecte;
+      if (a.client && a.client.length) {
+        RESERVE = {};
+        a.client.forEach(function (u) { RESERVE[u] = 1; });
+      }
+      if (JSON.stringify([CONNECTE, Object.keys(RESERVE).sort()]) === avant) return;
+      /* Redessiner seulement ce qui est à l'écran. Le bandeau porte le cadenas
+         du « Suivant », la fiche le porte sur chaque étape. */
+      bandeau();
+      var m = document.getElementById("pc-modal");
+      if (m && m.classList.contains("on")) {
+        var r = m.querySelector("#pc-select"), s = m.querySelector("#pc-select-sec");
+        if (r || s) fiche(r ? r.value : "", s ? s.value : "");
+      }
+    }).catch(function () { /* la liste écrite reste : le parcours ne ment pas */ });
+  }
+
   function init() {
     poserStyle();
     window.parcoursPret();
     recaler();
     bandeau();
+    synchroniserAcces();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();

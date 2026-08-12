@@ -1070,17 +1070,44 @@
     return _moi;
   }
 
+  /* La réponse à « quelles pages demandent un compte, et suis-je connecté ? »,
+     posée UNE fois par chargement de page et offerte à qui en a besoin.
+
+     POURQUOI L'OFFRIR PLUTÔT QUE LA GARDER. Les parcours guidés posent
+     exactement la même question — ils annoncent « 🔒 Compte requis » avant le
+     clic — et la tenaient jusqu'ici dans une liste écrite à la main. Cette
+     liste avait dérivé : neuf pages de parcours étaient devenues réservées et
+     continuaient de s'annoncer libres. Une seconde source de vérité sur un
+     sujet d'accès finit toujours par mentir, et elle ment sans bruit. La
+     recopier ailleurs eût recommencé la même dérive ; on partage la réponse.
+
+     La refaire chercher n'aurait rien coûté sur /api/acces (cacheable une
+     heure), mais /api/auth/me est en no-store : chaque appel supplémentaire
+     est une lecture de compte en base de plus, par page. */
+  var _acces = null;
+  function accesPromesse() {
+    if (!_acces) {
+      _acces = fetch("/api/acces", { headers: { "Accept": "application/json" } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) {
+          return moiPromesse().then(function (moi) {
+            return { client: (j && j.client) || [],
+                     connecte: !!(moi && moi.authenticated) };
+          });
+        })
+        .catch(function () { return null; });
+    }
+    return _acces;
+  }
+  window.navAcces = accesPromesse;
+
   function initAcces() {
-    fetch("/api/acces", { headers: { "Accept": "application/json" } })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (j) {
-        if (!j || !j.client || !j.client.length) return null;
-        /* Connecté : ces pages lui sont ouvertes, ne rien marquer. */
-        return moiPromesse().then(function (moi) {
-          if (moi && moi.authenticated) return;
-          if (_marquerAcces(j.client)) _legendeAcces();
-        });
-      }).catch(function () { /* le site reste utilisable sans le marquage */ });
+    accesPromesse().then(function (a) {
+      if (!a || !a.client.length) return;
+      /* Connecté : ces pages lui sont ouvertes, ne rien marquer. */
+      if (a.connecte) return;
+      if (_marquerAcces(a.client)) _legendeAcces();
+    }).catch(function () { /* le site reste utilisable sans le marquage */ });
   }
 
   /* ── État de compte : lien compact dans l'en-tête + déconnexion dans le tiroir ── */
