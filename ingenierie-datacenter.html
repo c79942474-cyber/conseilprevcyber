@@ -77,6 +77,20 @@
   /* Ce qui arrive de l'étude d'enveloppe. Encadré et non posé en note : un
      montant pré-rempli sans provenance visible se lit comme un calcul de
      CETTE page, alors qu'il vient de l'autre site. */
+  /* Le renvoi vers l'étude d'enveloppe. Encadré et non posé en note : c'est la
+     réponse à la question que pose le champ juste en dessous — « où trouve-t-on
+     ce montant ? ». Couleurs héritées : cette page est sombre, et un jeton de
+     thème clair y sortirait pâle sur pâle (mesuré, corrigé, deux fois). */
+  .moe-vers{margin:0 0 14px;padding:13px 16px;border:1px dashed currentColor;
+    border-radius:10px;opacity:.96}
+  .moe-vers-t{margin:0 0 6px;font-size:14px;font-weight:600}
+  .moe-vers-d{margin:0 0 10px;font-size:12.5px;line-height:1.65;max-width:82ch}
+  .moe-vers-a{display:inline-block;font-size:13px;font-weight:600;padding:8px 15px;
+    border:1px solid currentColor;border-radius:8px;color:inherit;
+    text-decoration:none}
+  .moe-vers-a:hover{background:rgba(255,255,255,.10)}
+  .moe-vers-a:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+  .moe-vers-n{margin:9px 0 0;font-size:11px;line-height:1.55;opacity:.82}
   .moe-recu{margin:0 0 12px;padding:10px 13px;border-left:3px solid #1C5CAB;
     background:rgba(28,92,171,.06);border-radius:0 7px 7px 0;
     font-size:12.5px;line-height:1.6}
@@ -1504,6 +1518,35 @@
     Les honoraires portent sur le montant des <b>travaux</b> — que ce module ne calcule
     pas&nbsp;: il chiffre l’énergie, l’eau et le carbone, pas l’investissement.
     Reportez ici le montant issu de l’étude d’enveloppe, ou votre propre estimation.</p>
+    <!-- ══ OÙ SE CALCULE L'ENVELOPPE ════════════════════════════════════════
+         Ce bloc dit depuis toujours « reportez ici le montant issu de l'étude
+         d'enveloppe » sans jamais dire OÙ elle se mène. Un renvoi qu'il faut
+         chercher est un renvoi qu'on abandonne : le lecteur sans montant
+         restait devant un champ vide.
+
+         LIEN PROFOND SUR LE BLOC LUI-MÊME, pas sur la page : l'étude
+         d'enveloppe est longue, et atterrir en haut oblige à retrouver seul la
+         section qui concerne. L'ancre vise « #moe-bloc ».
+
+         ON DIT AUSSI CE QU'ON Y TROUVE ET CE QU'IL FAUT POUR Y ENTRER. Un lien
+         qui mène à un mur d'accès sans prévenir se lit comme une panne. -->
+    <div class="moe-vers">
+      <p class="moe-vers-t">L’enveloppe, elle, se calcule sur <b>conseilprev</b></p>
+      <p class="moe-vers-d">Le module <b>« Enveloppe d’investissement et DPGF —
+      décision GO / NO GO »</b> y produit le montant des travaux et la
+      décomposition par lot dont ce barème a besoin, pays par pays. Son bloc
+      <b>« Honoraires de maîtrise d’œuvre — par mission et par phase »</b>
+      applique <b>le même barème que celui-ci</b> : là-bas sur la DPGF calculée,
+      ici sur un montant que vous fournissez. De là, un bouton reporte
+      l’assiette et la part du lot technique dans cette page, sans rien
+      retaper.</p>
+      <a class="moe-vers-a" target="_blank" rel="noopener"
+         href="https://conseilprev.onrender.com/enveloppe#moe-bloc">Ouvrir les
+         honoraires de maîtrise d’œuvre sur conseilprev →</a>
+      <p class="moe-vers-n">Cette étude demande un accès abonné à conseilprev.
+      Sans compte, la page vous le dira en clair plutôt que de vous laisser
+      devant un écran vide.</p>
+    </div>
     <div class="moe-form" id="ig-moe-form"></div>
     <div class="moe-phases" id="ig-moe-phases"></div>
     <button type="button" class="ig-lanceur-b" id="ig-moe-go">Chiffrer la maîtrise d’œuvre →</button>
