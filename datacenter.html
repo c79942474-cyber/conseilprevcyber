@@ -454,9 +454,18 @@
      ensemble ne signaleraient plus rien, et un clignotement passé ne laisse
      aucune trace pour qui a détourné les yeux. La pastille reste ; le
      battement ne fait que la montrer, trois fois, à l'approche. */
+  /* `margin:20px auto` ET NON `20px 0`. Ce bloc est posé par modules.js sur
+     les sections `.rc-sec`, qui sont aussi les `.wrap` — celles qui portent
+     `max-width:1080px; margin:0 auto`. Écrit `20px 0`, le raccourci remettait
+     les marges horizontales à ZÉRO et emportait le centrage : la section se
+     collait à gauche avec 440 px de vide à droite sur un grand écran, alors
+     que le reste de la page restait centré. Le défaut était invisible sur
+     téléphone, où la largeur maximale ne mord pas. `auto` se résout à 0 sur un
+     bloc sans largeur contrainte : la valeur est donc juste dans les deux cas.
+     ────────────────────────────────────────────────────────────────── */
   .mod-bloc{position:relative;border:1px solid rgba(34,211,238,.22);
     border-left:3px solid var(--cyan,#22d3ee);border-radius:14px;
-    padding:22px 24px;margin:20px 0;background:rgba(34,211,238,.025)}
+    padding:22px 24px;margin:20px auto;background:rgba(34,211,238,.025)}
   .mod-bloc > .rc-etape{margin-top:0}
   /* Non parcouru : le cadre s'affirme, et il le reste — pas seulement pendant
      le battement. C'est ce qui permet de repérer d'un coup d'œil, en fin de
@@ -481,7 +490,7 @@
     .mod-bloc.mod-bat{animation:none}
   }
   @media (max-width:640px){
-    .mod-bloc{padding:16px 14px;margin:14px 0}
+    .mod-bloc{padding:16px 14px;margin:14px auto}
     .mod-chip{margin-left:0}
   }
 

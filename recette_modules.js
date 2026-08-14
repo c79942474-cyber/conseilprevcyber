@@ -54,7 +54,27 @@ const PAGES = [
     await pg.goto(BASE + url, { waitUntil: 'networkidle' });
     await pg.evaluate(() => window.MODULES && window.MODULES.reset());
     await pg.reload({ waitUntil: 'networkidle' });
-    await pg.waitForSelector('.mod-bloc', { timeout: 25000 });
+    /* NE PAS MOURIR SUR UNE ATTENTE. Sans session, la page renvoie vers
+       `/connexion`, aucun `.mod-bloc` n'existe, et ce fichier s'arrêtait sur
+       « Timeout 25000ms exceeded » avec une pile Node — qui se lit comme une
+       panne d'outil. Or la cause la plus fréquente ici n'est pas un défaut du
+       site : c'est le limiteur de débit, en mémoire dans le processus, que des
+       passages répétés finissent par déclencher. Non nommée, cette panne fait
+       attribuer à la dernière modification des échecs qui n'en viennent pas.
+       On la nomme donc, avec la piste. */
+    const vu = await pg.waitForSelector('.mod-bloc', { timeout: 25000 })
+      .then(() => true).catch(() => false);
+    if (!vu) {
+      const ou = pg.url();
+      ok('LES MODULES SONT RENDUS SUR ' + url, false,
+         /\/connexion/.test(ou)
+           ? 'la page a renvoyé vers la connexion : session non établie — '
+             + 'limiteur de débit probable, relancer sur un processus NEUF'
+           : 'aucun .mod-bloc sur ' + ou);
+      await nav.close();
+      console.log('\n' + ko + ' contrôle(s) en échec\n');
+      process.exit(1);
+    }
   };
 
   titre('1. Les blocs sont séparés, sur les trois pages');
@@ -98,7 +118,16 @@ const PAGES = [
 
   /* Le battement se déclenche à l'APPROCHE : on descend, et seuls les blocs
      visibles doivent s'être armés. */
-  await pg.evaluate(() => document.querySelectorAll('.mod-bloc')[1].scrollIntoView());
+  /* `behavior:'instant'` ET NON le défaut. La feuille de style pose
+     `html{scroll-behavior:smooth}` : `scrollIntoView()` en hérite, et le
+     défilement est donc ANIMÉ, d'une durée qui dépend de la distance et de la
+     charge. Mesurer 700 ms plus tard revenait à parier que le défilement
+     serait fini — il l'était souvent, pas toujours. Ce fichier échouait donc
+     par intermittence SUR DU CODE SAIN, sur cinq passages : 1, 1, vert, 2, 2.
+     Une recette qui crie au loup une fois sur deux finit par ne plus être
+     lue. Le défilement est désormais immédiat, et l'attente ne couvre plus
+     que ce qu'elle est censée couvrir : l'armement de l'observateur. */
+  await pg.evaluate(() => document.querySelectorAll('.mod-bloc')[1].scrollIntoView({ behavior: 'instant', block: 'center' }));
   await pg.waitForTimeout(700);
   const apres = await pg.evaluate(() => ({
     bat: document.querySelectorAll('.mod-bloc.mod-bat').length,
@@ -138,7 +167,7 @@ const PAGES = [
   await pg2.evaluate(() => window.MODULES && window.MODULES.reset());
   await pg2.reload({ waitUntil: 'networkidle' });
   await pg2.waitForSelector('.mod-bloc', { timeout: 25000 });
-  await pg2.evaluate(() => document.querySelectorAll('.mod-bloc')[1].scrollIntoView());
+  await pg2.evaluate(() => document.querySelectorAll('.mod-bloc')[1].scrollIntoView({ behavior: 'instant', block: 'center' }));
   await pg2.waitForTimeout(700);
   const red = await pg2.evaluate(() => {
     const b = document.querySelector('.mod-bloc.mod-bat') || document.querySelector('.mod-bloc');
@@ -173,7 +202,7 @@ const PAGES = [
   /* Le module purement rédactionnel s'éteint à la LECTURE — deux secondes à
      l'écran, pas un défilement qui le traverse. */
   const nAvant = await pg.evaluate(() => window.MODULES.vus().length);
-  await pg.evaluate(() => document.querySelectorAll('.mod-bloc')[1].scrollIntoView());
+  await pg.evaluate(() => document.querySelectorAll('.mod-bloc')[1].scrollIntoView({ behavior: 'instant', block: 'center' }));
   await pg.waitForTimeout(600);
   const tot = await pg.evaluate(() => window.MODULES.vus().length);
   ok('un passage rapide n’éteint rien', tot === nAvant,
