@@ -30,6 +30,7 @@
      l'exécution après le parse, dans l'ordre des balises. -->
 <script src="/nav.js" defer></script>
 <script src="/parcours.js" defer></script>
+<script src="/guide-etapes.js" defer></script>
 <script src="/modules.js" defer></script>
 <script src="/transmettre.js" defer></script>
 <!-- Chargé AVANT datacenter.js : celui-ci enregistre le profil dès le
@@ -972,9 +973,15 @@
       qui cela tient. Le calcul de cette page sert la deuxième ; les deux autres
       décident de ce qu'on lui demande.</p>
     <div id="dc-vert" class="dc-vert"><p class="note">Chargement du cadre…</p></div>
+
+    <!-- LE PARCOURS GUIDÉ DES DIX ÉTAPES. Posé après le cadre et avant le
+         formulaire : le cadre dit ce qu'on vise, le parcours dit par où on
+         commence. Le script partagé lit les étapes SUR la page — aucune liste
+         n'est recopiée ici, donc aucune ne peut diverger. -->
+    <div id="gd"></div>
   </section>
 
-  <section class="wrap rc-sec" id="dc-sec-profil">
+  <section class="wrap rc-sec" id="dc-sec-profil" data-gd="LA SEULE ÉTAPE QUI EXIGE DES CHIFFRES, et tout le reste en découle. Seule la puissance informatique est indispensable ; le reste a une valeur par défaut, signalée comme telle. Chaque valeur que vous ajoutez RESSERRE l’incertitude — et c’est elle que regarde un évaluateur, pas la moyenne.">
     <div class="rc-etape"><span class="n">1</span><h2>Le profil de l'installation</h2></div>
     <p class="lead" style="max-width:72ch;margin-top:0">
       Seule la puissance informatique est indispensable ; tout le reste a une valeur par
@@ -1004,7 +1011,7 @@
     <p class="note" id="dc-etat" role="status" aria-live="polite" style="margin-top:12px"></p>
   </section>
 
-  <section class="wrap rc-sec" id="dc-sec-res" hidden>
+  <section class="wrap rc-sec" id="dc-sec-res" data-gd="Rien à saisir : ce bloc rend ce que l’étape 1 permet de calculer, énergie, eau et carbone ensemble. Si une fourchette vous paraît large, la réponse est dans les valeurs laissées par défaut plus haut, pas ici." hidden>
     <div class="rc-etape"><span class="n">2</span><h2>Résultats</h2></div>
     <div id="dc-resultats"></div>
     <!-- La suite du chemin, posée après les résultats et jamais avant : « à
@@ -1013,7 +1020,7 @@
     <div id="dc-suite" hidden></div>
   </section>
 
-  <section class="wrap rc-sec" id="dc-sec-comp" hidden>
+  <section class="wrap rc-sec" id="dc-sec-comp" data-gd="La comparaison des familles de refroidissement se lit APRÈS le calcul, et pas avant : elle confronte votre profil aux autres familles à installation égale. Comparée sans profil, elle ne dirait que des généralités." hidden>
     <div class="rc-etape"><span class="n">3</span><h2>Comparaison des familles de refroidissement</h2></div>
     <div id="dc-comparaison"></div>
   </section>
@@ -1027,7 +1034,7 @@
        Elle vient APRÈS les résultats, et c'est l'ordre utile : on ne décide
        pas de l'ordre des leviers avant de savoir où se trouve la masse. Elle
        lit le MÊME profil, saisi une seule fois plus haut. -->
-  <section class="wrap rc-sec" id="dc-sec-deca">
+  <section class="wrap rc-sec" id="dc-sec-deca" data-gd="L’ordre des gestes de décarbonation, à lire une fois les résultats obtenus. « Par quoi commencer » n’a pas de sens tant qu’on ne sait pas ce qui pèse le plus sur VOTRE installation.">
     <div class="rc-etape"><span class="n">4</span><h2>Décarboner : dans quel ordre agir</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Calculer n'est pas décarboner. Deux exercices distincts se mènent en parallèle,
@@ -1058,7 +1065,7 @@
        L'ordre EST l'information. La page ne propose aucun tri : trier par gain
        attendu ferait remonter la compensation, qui est le plus rapide à
        acheter et le seul qui ne réduise rien. -->
-  <section class="wrap rc-sec" id="dc-sec-hier">
+  <section class="wrap rc-sec" id="dc-sec-hier" data-gd="La hiérarchie d’atténuation dans son ordre — éviter, réduire, compenser. Une liste déroulante y choisit le niveau à détailler : c’est un choix de lecture, il ne modifie aucun résultat.">
     <div class="rc-etape"><span class="n">5</span><h2>La hiérarchie d'atténuation, dans son ordre</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Quatre rangs, et l'ordre n'est pas une préférence morale : c'est une contrainte
@@ -1069,7 +1076,7 @@
     <div id="dk-hierarchie"><p class="note">Chargement de la hiérarchie…</p></div>
   </section>
 
-  <section class="wrap rc-sec" id="dc-sec-docs">
+  <section class="wrap rc-sec" id="dc-sec-docs" data-gd="Ce que l’étude produit comme documents opposables, et à quelle phase chacun devient recevable. À consulter avant d’exporter, pour ne pas envoyer un ordre de grandeur là où un engagement est attendu.">
     <div class="rc-etape"><span class="n">6</span><h2>Documents et livrables</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Les documents propres au projet — relevés d'exploitation, fiches techniques
@@ -1146,7 +1153,7 @@
        d'infrastructure, dont les mesures sont utiles et l'intérêt n'est pas
        neutre. Les afficher au même rang qu'une analyse indépendante
        tromperait, et un dossier bâti là-dessus se ferait démonter. -->
-  <section class="wrap rc-sec" id="dc-sec-art" aria-labelledby="dc-art-t">
+  <section class="wrap rc-sec" id="dc-sec-art" data-gd="L’état de l’art, un thème à la fois. La liste déroulante annonce, pour chaque thème, sur COMBIEN DE SOURCES il repose : quatre thèmes sur sept ne tiennent que sur une maison, et cela se lit sans ouvrir la liste." aria-labelledby="dc-art-t">
     <div class="rc-etape"><span class="n">7</span>
       <h2 id="dc-art-t">L'état de l'art — et qui le dit</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
@@ -1163,7 +1170,7 @@
        Un référentiel volontaire et un règlement européen ne s'opposent pas de
        la même façon. Les afficher au même rang ferait promettre une obligation
        là où il n'y a qu'un engagement de place — ou l'inverse, plus grave. -->
-  <section class="wrap rc-sec" id="dc-sec-textes">
+  <section class="wrap rc-sec" id="dc-sec-textes" data-gd="Les textes cités et ce qu’ils pèsent — obligation, référentiel volontaire, recommandation. La distinction décide de ce qui est opposable, et c’est elle que conteste un évaluateur en premier.">
     <div class="rc-etape"><span class="n">8</span><h2>Les textes cités, et ce qu'ils pèsent</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Chaque texte porte sa portée : contraignant, norme volontaire, engagement de place
@@ -1174,7 +1181,7 @@
     <div id="dk-avert"></div>
   </section>
 
-  <section class="wrap rc-sec" id="dc-sec-ref">
+  <section class="wrap rc-sec" id="dc-sec-ref" data-gd="D’où viennent les constantes du moteur, et de quand elles datent. Une constante sans millésime ne se défend pas ; celles-ci portent le leur.">
     <div class="rc-etape"><span class="n">9</span><h2>Le référentiel et ses sources</h2></div>
     <p class="lead" style="max-width:72ch;margin-top:0">
       Chaque valeur calculée porte déjà sa source dans le résultat. Voici celles du
@@ -1185,7 +1192,7 @@
     <div id="dc-referentiel"><p class="note">Chargement du référentiel…</p></div>
   </section>
 
-  <section class="wrap rc-sec" id="dc-sec-limites">
+  <section class="wrap rc-sec" id="dc-sec-limites" data-gd="À lire AVANT de citer cette étude ailleurs. Ce que le moteur ne fait pas est écrit noir sur blanc — le carbone incorporé, l’audit, l’étude thermique de site. Une étude qui ne dit que ses forces est une plaquette.">
     <div class="rc-etape"><span class="n">10</span><h2>Ce que ce moteur ne fait pas</h2></div>
     <p class="lead" style="max-width:72ch;margin-top:0">
       Le dire ici plutôt qu'en note de bas de page : ces limites décident du moment où il

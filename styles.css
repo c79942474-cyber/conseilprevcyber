@@ -632,3 +632,102 @@ footer a:hover{color:var(--cyan)}
   color:var(--cyan);border-bottom:1px solid transparent;transition:border-color .15s}
 .liv-g:hover{border-bottom-color:var(--cyan)}
 @media(max-width:640px){.liv-i{padding:12px 14px}.liv-t{font-size:13.5px}}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LE PARCOURS GUIDÉ DES ÉTAPES NUMÉROTÉES  (guide-etapes.js)
+   Partagé par toutes les pages qui font remplir quelque chose. Il reprend la
+   langue visuelle du parcours de l'ingénierie — même amorce cyan, même
+   panneau, même jauge — parce que deux parcours qui ne se ressemblent pas se
+   lisent comme deux mécanismes à apprendre séparément.
+   ══════════════════════════════════════════════════════════════════════════ */
+#gd{margin:18px 0 6px}
+.gd-lanceur{display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  padding:15px 18px;border-radius:12px;
+  border:1px solid var(--cyan);background:rgba(34,211,238,.07)}
+.gd-lanceur-t{flex:1 1 380px}
+.gd-lanceur-t b{display:block;font-size:14px;color:var(--ink);margin-bottom:4px}
+.gd-lanceur-t span{font-size:12.5px;color:var(--muted);line-height:1.6}
+.gd-lanceur-b{all:unset;cursor:pointer;font-size:13px;font-weight:600;
+  padding:10px 20px;border-radius:9px;background:var(--cyan);color:#0B0B0B;
+  white-space:nowrap}
+.gd-lanceur-b:hover{filter:brightness(1.08)}
+.gd-lanceur-b:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+
+.gd-p{margin-top:14px;border:1px solid var(--line);border-left:3px solid var(--cyan);
+  border-radius:13px;padding:18px 20px;background:var(--panel)}
+/* La jauge dit CE QUI EST REMPLI, pas où l'on en est dans le parcours : plein
+   pour une étape renseignée, cerné pour l'étape ouverte, vide sinon. */
+.gd-jauge{display:flex;gap:5px;margin-bottom:12px}
+.gd-jauge span{flex:1;height:4px;border-radius:2px;background:var(--line)}
+.gd-jauge span.fa{background:var(--teal)}
+.gd-jauge span.ic{background:var(--cyan)}
+.gd-n{margin:0 0 5px;font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--cyan)}
+.gd-p h3{margin:0 0 9px;font-size:16px;color:var(--ink);line-height:1.3}
+/* Le POURQUOI de l'étape — la seule phrase écrite à la main, et la seule qui
+   explique. Détachée du reste : ce n'est ni une consigne ni un décompte. */
+.gd-pq{margin:0 0 11px;padding:11px 14px;border-radius:0 10px 10px 0;
+  border-left:3px solid var(--teal);background:rgba(0,0,0,.18);
+  font-size:13px;line-height:1.65;color:var(--muted)}
+.gd-quoi{margin:0 0 7px;font-size:12.5px;line-height:1.6;color:var(--ink)}
+.gd-act{margin:0 0 9px;font-size:12.5px;line-height:1.6;color:var(--muted)}
+.gd-act b{color:var(--ink)}
+.gd-etat{margin:0 0 13px;font-family:var(--mono);font-size:11px;letter-spacing:.04em}
+.gd-etat.fait{color:var(--teal)}
+.gd-etat.a-faire{color:var(--amber)}
+.gd-etat.lecture{color:var(--muted2)}
+
+.gd-cmd{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.gd-b{all:unset;cursor:pointer;font-size:12.5px;font-weight:600;
+  padding:9px 17px;border-radius:8px;background:var(--cyan);color:#0B0B0B}
+.gd-b.s{background:transparent;color:var(--muted);border:1px solid var(--line);
+  font-weight:400}
+.gd-b:hover{filter:brightness(1.08)}
+.gd-b.s:hover{border-color:var(--cyan);color:var(--ink);filter:none}
+.gd-b:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.gd-b.s:focus-visible{outline-color:var(--cyan)}
+.gd-b[disabled]{opacity:.4;cursor:default;filter:none}
+.gd-lien{all:unset;cursor:pointer;font-size:11.5px;color:var(--cyan);
+  text-decoration:underline;text-underline-offset:3px}
+.gd-lien:hover{color:var(--ink)}
+.gd-lien:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+
+/* Le sommaire replié : rejoindre une étape directement, ce qu'un parcours
+   strictement linéaire interdit. */
+.gd-toutes{margin-top:13px;border-top:1px solid var(--line);padding-top:11px}
+.gd-toutes summary{cursor:pointer;font-size:11.5px;color:var(--muted2);
+  letter-spacing:.03em}
+.gd-toutes summary:hover{color:var(--ink)}
+.gd-toutes ol{margin:9px 0 0;padding-left:0;list-style:none;display:grid;gap:3px}
+.gd-saut{all:unset;cursor:pointer;display:flex;gap:9px;align-items:baseline;
+  padding:6px 9px;border-radius:7px;font-size:12.5px;color:var(--muted);
+  line-height:1.45;width:100%;box-sizing:border-box}
+.gd-saut:hover{background:rgba(0,0,0,.20);color:var(--ink)}
+.gd-saut:focus-visible{outline:2px solid var(--cyan);outline-offset:-2px}
+.gd-saut[aria-current="true"]{color:var(--ink);background:rgba(34,211,238,.10);
+  box-shadow:inset 2px 0 0 var(--cyan)}
+.gd-saut .st{font-family:var(--mono);font-size:11px;flex:0 0 auto;width:12px}
+.gd-saut .st.fait{color:var(--teal)}
+.gd-saut .st.a-faire{color:var(--amber)}
+.gd-saut .st.lecture{color:var(--muted2)}
+
+/* LA SECTION VISÉE. Un liseré et un fond, jamais un déplacement : une page
+   qui se réorganise sous le lecteur lui fait perdre ce qu'il venait de lire.
+   Le liseré double la couleur, pour qui ne la distingue pas (WCAG 1.4.1). */
+.gd-vise{position:relative}
+.gd-vise::before{content:"";position:absolute;left:-14px;top:0;bottom:0;width:3px;
+  border-radius:2px;background:var(--cyan)}
+.gd-vise > .rc-etape .n{border-color:var(--cyan);color:var(--cyan)}
+@media(max-width:900px){
+  .gd-vise::before{left:-8px}
+}
+@media(max-width:640px){
+  .gd-lanceur{padding:13px 14px}
+  .gd-p{padding:15px 15px}
+  .gd-cmd .gd-b{padding:9px 13px}
+}
+/* Une étape PAS ENCORE AFFICHÉE — les résultats, tant que le calcul n'a pas
+   tourné. Ni faite ni à faire : en attente d'autre chose que du lecteur. */
+.gd-jauge span.av{background:transparent;box-shadow:inset 0 0 0 1px var(--line)}
+.gd-etat.a-venir{color:var(--muted2)}
+.gd-saut .st.a-venir{color:var(--muted2)}

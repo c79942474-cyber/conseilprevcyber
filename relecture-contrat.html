@@ -270,10 +270,16 @@
     <div><b>L'analyse fonctionne sans IA.</b> Écarts, seuils, comparaison de versions et
       circuit de validation ne dépendent d'aucun service externe. Seul le chat en a besoin.</div>
   </div>
+
+  <!-- LE PARCOURS GUIDÉ, POSÉ AVANT LA PREMIÈRE ÉTAPE. Il ne se remplit que
+       si la page compte au moins deux sections numérotées : c'est le script
+       partagé qui les lit sur la page, et non une liste écrite ici qui aurait
+       divergé au premier renommage. -->
+  <div id="gd"></div>
 </section>
 
 <!-- ══ 1. LA VERSION À RELIRE ══ -->
-<section class="wrap rc-sec" id="depot">
+<section class="wrap rc-sec" id="depot" data-gd="C’est ici que tout se joue : le moteur ne compare pas un contrat à « un bon contrat » en général, il le compare à VOTRE playbook pour CE type d’achat. L’objet et la famille choisis décident donc des règles appliquées, et un mauvais choix ici rend tout le reste hors sujet.">
   <div class="rc-etape"><span class="n">1</span><h2>La version à relire</h2></div>
   <div class="rc-panneau">
     <div class="rc-champs">
@@ -303,7 +309,7 @@
 </section>
 
 <!-- ══ 2. LE RÉSULTAT ══ -->
-<section class="wrap rc-sec" id="resultat" hidden>
+<section class="wrap rc-sec" id="resultat" hidden data-gd="Les écarts arrivent classés par gravité, avec la clause citée et l’instance qui doit trancher. Rien n’est à saisir pour les obtenir : ce que vous renseignez ici sert à filtrer et à préparer la contre-proposition, pas à produire le verdict — lui vient de règles écrites, et ne change pas selon ce que vous répondez.">
   <div class="rc-etape"><span class="n">2</span><h2>Ce que dit le playbook</h2></div>
 
   <div class="rc-compteurs" id="rc-compteurs"></div>
@@ -384,7 +390,7 @@
 </section>
 
 <!-- ══ 3. LE PLAYBOOK ══ -->
-<section class="wrap rc-sec" id="playbook">
+<section class="wrap rc-sec" id="playbook" data-gd="À lire quand un écart vous surprend : cette section montre la règle qui l’a produit, son seuil et sa marge de négociation. C’est la référence du verdict, pas un formulaire.">
   <div class="rc-etape"><span class="n">3</span><h2>Le playbook contractuel</h2></div>
   <p class="rc-note" style="max-width:74ch">Ce que l'entreprise demande, ce qu'elle accepte
     d'avance, ce qu'elle ne signe pas — et qui tranche à chaque niveau. C'est ce référentiel
@@ -1081,5 +1087,6 @@ var EXEMPLE = [
   </script>
   <script src="/nav.js" defer></script>
   <script src="/parcours.js" defer></script>
+  <script src="/guide-etapes.js" defer></script>
 </body>
 </html>

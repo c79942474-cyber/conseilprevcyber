@@ -3984,6 +3984,22 @@ def parcours_js():
                        mimetype="text/javascript; charset=utf-8")
 
 
+@app.route("/guide-etapes.js")
+def guide_etapes_js():
+    """Parcours guide des etapes numerotees, partage par toutes les pages qui
+    font remplir quelque chose.
+
+    UN SEUL FICHIER, ET C'EST LE POINT. Une page portait deja un parcours ;
+    quatre autres en avaient besoin. Recopie cinq fois, il aurait diverge des
+    la premiere retouche — c'est exactement ce qui venait d'arriver au bloc
+    `.mod-bloc`, dont les trois copies ont fait d'une ligne fautive un defaut
+    de trois pages. Les etapes, elles, ne sont pas dans ce fichier : il les lit
+    sur la page qui le charge.
+    """
+    return _serve_fast("guide-etapes.js", _CC_ASSET,
+                       mimetype="text/javascript; charset=utf-8")
+
+
 @app.route("/modules.js")
 def modules_js():
     """Encadrement et signalement des modules numerotes, partages par les trois

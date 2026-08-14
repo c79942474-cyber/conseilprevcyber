@@ -254,10 +254,15 @@
       <a href="/datacenter" class="btn btn-s">Data Center Sustainability &amp; Decarbonisation</a>
       <a href="/ingenierie-datacenter" class="btn btn-s">L'ingénierie de projet</a>
     </div>
+
+    <!-- LE PARCOURS GUIDÉ. Cette page demande soixante-sept réponses réparties
+         en cinq sections : c'est exactement le cas où l'on abandonne faute de
+         savoir laquelle décide de quoi. -->
+    <div id="gd"></div>
   </section>
 
   <!-- ═══ 1. LE PROJET ═══════════════════════════════════════════════════ -->
-  <section class="wrap rc-sec">
+  <section class="wrap rc-sec" data-gd="Le nom et le périmètre ne servent pas qu’à titrer le document : ils fixent CE QUI EST ÉVALUÉ. Une évaluation dont on ignore les limites — un bâtiment, un campus, une flotte — ne se compare à rien et ne s’audite pas.">
     <div class="rc-etape"><span class="n">1</span><h2>Le projet</h2></div>
     <div class="rc-card" id="sd-identite"></div>
   </section>
@@ -267,7 +272,7 @@
        dit. Le même centre de données ne pose pas le même problème d'eau en
        Scandinavie et en Espagne, et prétendre le contraire produirait un
        document interchangeable — c'est-à-dire sans valeur. -->
-  <section class="wrap rc-sec">
+  <section class="wrap rc-sec" data-gd="Ces réponses ne notent aucun enjeu : elles règlent ce que les données en disent. Un même centre ne pose pas le même problème d’eau en Scandinavie et en Espagne. Laissé vide, un contexte laisse l’enjeu au niveau générique — et le livrable le signale, plutôt que de faire comme si vous aviez répondu.">
     <div class="rc-etape"><span class="n">2</span><h2>Le contexte du site</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Ces réponses ne notent aucun enjeu : elles règlent ce que les données en disent.
@@ -279,7 +284,7 @@
   </section>
 
   <!-- ═══ 3. CE QUE NOUS DÉFENDONS ═══════════════════════════════════════ -->
-  <section class="wrap rc-sec">
+  <section class="wrap rc-sec" data-gd="C’est la perspective INTERNE : ce que le projet défend, et ce que ses parties prenantes disent. Elle est recueillie séparément de la donnée scientifique, précisément pour que l’écart entre les deux reste visible — cet écart est l’apport de la méthode, pas un défaut à lisser.">
     <div class="rc-etape"><span class="n">3</span><h2>Ce que nous défendons, et ce que nous entendons</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Les questions ouvertes de la raison d'être, de l'écoute des parties prenantes et
@@ -290,7 +295,7 @@
   </section>
 
   <!-- ═══ 4. LES ENJEUX ══════════════════════════════════════════════════ -->
-  <section class="wrap rc-sec">
+  <section class="wrap rc-sec" data-gd="La section la plus longue, et la seule qui note. Chaque enjeu reçoit trois notes, une par perspective. Ne cherchez pas à tout remplir d’un coup : un enjeu non noté reste non noté, ce qui est honnête ; une note posée au hasard pour « finir » contamine le classement final.">
     <div class="rc-etape"><span class="n">4</span><h2>Les enjeux, notés sur trois perspectives</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Vingt enjeux propres aux centres de données. Pour chacun, ce que les données en
@@ -302,7 +307,7 @@
   </section>
 
   <!-- ═══ 5. LE LIVRABLE ═════════════════════════════════════════════════ -->
-  <section class="wrap rc-sec">
+  <section class="wrap rc-sec" data-gd="Rien à saisir : ce qui s’affiche découle de ce que vous venez de noter. Si le résultat vous surprend, la cause est dans la section précédente — remontez-y plutôt que de discuter le classement.">
     <div class="rc-etape"><span class="n">5</span><h2>La stratégie qui en découle</h2></div>
     <div class="sd-b">
       <button type="button" class="btn btn-p" id="sd-gen">Établir la stratégie</button>
@@ -384,6 +389,7 @@
   <!-- Le parcours guidé traverse les trois pages « centres de données » ;
        sans ce module, celle-ci sortait du fil au milieu du parcours. -->
   <script src="/parcours.js" defer></script>
+  <script src="/guide-etapes.js" defer></script>
   <script src="/modules.js" defer></script>
   <script src="/transmettre.js" defer></script>
   <script src="/strategie-dd.js" defer></script>
