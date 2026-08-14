@@ -785,3 +785,52 @@ a.pdc-c:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 /* « Rien à emporter pour l'instant » — la CONDITION du report, pas un échec.
    Troisième ton, distinct du reçu et de l'emporté : dire à quoi il tient. */
 .pdc-p.attente{border-left:3px solid var(--amber);background:rgba(240,180,41,.07)}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LE COUCHANT — fond des trois pages centres de données
+   ══════════════════════════════════════════════════════════════════════════
+   Repris d'une photographie de coucher de soleil sur la mer : le ciel haut
+   sourd et chaud, la bande qui rougit, l'orangé vif au ras de l'horizon, le
+   halo blanc-or du soleil bas à gauche, puis la mer pâle. Les trois pages
+   data centre portent `data-fond="couchant"` ; le reste du site garde le fond
+   d'origine.
+
+   LA LATÉRITE RESTE LA BASE, et ce n'est pas un compromis : `--bg`, `--panel`
+   et les filets ne bougent pas d'un ton. Ce sont les COUCHES du fond qui
+   changent — le dégradé et les halos. Les panneaux, eux, gardent exactement la
+   même couleur qu'ailleurs sur le site, ce qui garantit que le texte qui s'y
+   trouve garde AUSSI le même contraste : la mesure faite sur les autres pages
+   reste valable.
+
+   LE HALO DU SOLEIL EST BAS ET À GAUCHE, comme sur la photo, et il est tenu
+   sous 40 % d'opacité : c'est le point le plus clair de l'écran, et derrière
+   lui passe du texte. Une lumière plus franche ferait une belle image et un
+   texte illisible. */
+body[data-fond="couchant"]{
+  background-image:
+    /* le soleil : blanc-or, bas à gauche */
+    radial-gradient(560px 340px at 17% 63%, rgba(255,224,150,.30), transparent 64%),
+    /* son embrasement immédiat, plus large et plus rouge */
+    radial-gradient(1000px 560px at 20% 66%, rgba(255,122,47,.30), transparent 62%),
+    /* le ciel haut, orangé poussiéreux, comme au-dessus de la bande rouge */
+    radial-gradient(1180px 700px at 86% -14%, rgba(226,140,92,.30), transparent 62%),
+    /* les bandes horizontales de la photo, du ciel sourd au retour latérite */
+    linear-gradient(177deg,
+      #7E3520 0%,
+      #97401F 22%,
+      #B04824 40%,
+      #A03F1F 54%,
+      #82311B 72%,
+      #712B18 88%,
+      #6E2A18 100%),
+    linear-gradient(rgba(168,104,68,.24) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(168,104,68,.24) 1px, transparent 1px);
+}
+/* Les halos flottants reprennent les tons du couchant. Ils dérivent déjà
+   lentement : c'est la seule chose de cette page qui bouge, et elle vient du
+   thème d'origine — on n'en ajoute pas. */
+body[data-fond="couchant"]{
+  --blob-ocre:rgba(255,196,124,.28);
+  --blob-turquoise:rgba(255,132,68,.26);
+  --blob-rouge:rgba(206,58,34,.30);
+}
