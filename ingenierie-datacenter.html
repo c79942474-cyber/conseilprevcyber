@@ -1007,23 +1007,27 @@
   /* `min-width:0` sur la colonne : sans lui, une grille imbriquée refuse de
      rétrécir sous la largeur de son contenu et déborde. */
   .ig-avec-rail > .ig-col{min-width:0}
+  /* LE BLOC RESTE DANS SON CADRE. Il s'élargissait au-delà du gabarit de la
+     page — 1420 px avec une marge gauche négative — pour donner de l'air au
+     registre, seule section qui en demande. Le calcul de recentrage était
+     d'ailleurs faux : il reprenait le gabarit en dur (`min(1080px, …)`) et
+     ignorait tout ce que la section met entre ce gabarit et ce bloc — le
+     retrait de `.wrap`, celui de `.mod-bloc`, sa bordure —, si bien que
+     l'ensemble penchait d'environ 26 px à toutes les largeurs.
+
+     MAIS LE VRAI PROBLÈME N'ÉTAIT PAS LE CALCUL. Ce bloc vit DANS une section
+     numérotée, encadrée d'un filet cyan sur toute sa hauteur. En sortant de
+     part et d'autre, son contenu — texte compris — s'échappait d'un cadre qui
+     désigne précisément « l'étape 4 » : la prose commençait 145 px à gauche du
+     filet censé la contenir. Tant que la section elle-même était collée au
+     bord, l'écart passait ; recentrée, il saute aux yeux et se lit comme un
+     défaut d'affichage, pas comme une intention.
+
+     Le débordement est donc retiré : un encadrement qui ne contient pas ce
+     qu'il encadre ne veut plus rien dire. Le registre y perd environ 290 px —
+     il garde une colonne d'à peu près 790 px à côté du rail de 218 px. */
   .ig-avec-rail{display:grid;grid-template-columns:minmax(0,1fr) 218px;gap:18px;
-    align-items:start;
-    /* Élargi au-delà du gabarit de la page, jusqu'à la place disponible : le
-       registre est la seule section qui en a besoin, et l'imposer à la page
-       entière ferait des lignes de texte trop longues pour être lues. */
-    /* LE RECENTRAGE SE CALCULE SUR LE PARENT, PAS SUR UNE CONSTANTE. Il
-       reprenait le gabarit en dur (`min(1080px, …)`) et ignorait donc tout ce
-       que la section met entre ce gabarit et ce bloc : le retrait de `.wrap`,
-       celui de `.mod-bloc` et sa bordure. Le bloc débordait d'environ 26 px
-       trop à droite à TOUTES les largeurs — invisible tant que la section
-       elle-même était collée à gauche, et devenu un rognage de 3 px dès
-       qu'elle a été recentrée. Une marge en POURCENTAGE se résout sur la
-       largeur de contenu du parent : elle reste juste quelle que soit
-       l'épaisseur des retraits, aujourd'hui comme après un réglage. */
-    width:min(1420px,calc(100vw - 48px));
-    margin-left:calc((100% - min(1420px,calc(100vw - 48px))) / 2)}
-  @media (max-width:1120px){.ig-avec-rail{width:auto;margin-left:0}}
+    align-items:start;width:auto;margin-left:0}
   @media (max-width:980px){.ig-avec-rail{grid-template-columns:minmax(0,1fr)}
     .ig-rail{position:static !important}}
   .ig-rail{position:sticky;top:16px;border:1px solid var(--line);border-radius:12px;

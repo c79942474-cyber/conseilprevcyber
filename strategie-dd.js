@@ -139,10 +139,32 @@
     });
     z.innerHTML = h;
 
+    /* CE QUI EST COCHÉ SE VOIT SANS OUVRIR. Replier la liste des porteurs
+       gagne de la place, mais cacherait du même coup ce qui y a été choisi :
+       il faudrait rouvrir les vingt cartes pour vérifier. Le résumé porte donc
+       le compte, mis à jour à chaque clic. Un dépliant qui masque un état
+       renseigné est pire qu'une liste longue — on ne se fie plus à ce qu'on
+       lit sans dérouler. */
+    function compter(d) {
+      if (!d) return;
+      var n = d.querySelectorAll('[data-groupe][aria-pressed="true"]').length;
+      var s = d.querySelector("summary");
+      var p = s && s.querySelector(".sd-grp-n");
+      if (!s) return;
+      if (!n) { if (p) p.remove(); return; }
+      if (!p) {
+        p = document.createElement("span");
+        p.className = "sd-grp-n";
+        s.appendChild(p);
+      }
+      p.textContent = "· " + n + " retenu" + (n > 1 ? "s" : "");
+    }
+
     z.querySelectorAll("[data-groupe]").forEach(function (b) {
       b.addEventListener("click", function () {
         var on = b.getAttribute("aria-pressed") === "true";
         b.setAttribute("aria-pressed", on ? "false" : "true");
+        compter(b.closest(".sd-grp-d"));
       });
     });
   }
@@ -172,13 +194,24 @@
       h += "</select></div>";
     });
     h += "</div>";
-    h += '<div class="sd-grp"><span>Qui porte cet enjeu ? (facultatif)</span>'
-      + '<div class="b">'
+    /* LA LISTE DES PORTEURS SE REPLIE, et c'est ce qui rend les colonnes
+       utiles. Mises en trois colonnes, les cartes se resserrent à 336 px : les
+       pastilles de parties prenantes s'y empilent sur plusieurs rangées et
+       pèsent alors 237 px, soit plus du tiers de la carte — pour un champ
+       marqué « facultatif ». Passer en colonnes sans replier cela ne gagnait
+       que 10 % de hauteur.
+       Repliée, la question tient sur une ligne et reste à un clic. Les boutons
+       demeurent dans le document : `reponses()` les lit par `aria-pressed`, et
+       un dépliant fermé n'efface rien — ce qui a été coché part donc bien dans
+       le livrable, que la liste soit ouverte ou non. */
+    h += '<details class="sd-grp-d"><summary>Qui porte cet enjeu&nbsp;? '
+      + "(facultatif)</summary>"
+      + '<div class="sd-grp"><div class="b">'
       + Q.groupes_parties_prenantes.map(function (g) {
           return '<button type="button" data-groupe="' + esc(g[0]) + '" '
             + 'aria-pressed="false">' + esc(g[1]) + "</button>";
         }).join("")
-      + "</div></div>";
+      + "</div></div></details>";
     return h + "</article>";
   }
 

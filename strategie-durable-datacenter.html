@@ -116,10 +116,21 @@
   .sd-ch .aide{display:block;font-size:11px;color:var(--muted2);line-height:1.5;margin-top:4px}
   .sd-ouv{margin-bottom:14px}
 
-  .sd-fam{margin:0 0 20px}
-  .sd-fam>h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;
-    color:var(--muted2);margin:0 0 9px;padding-bottom:5px;border-bottom:1px solid var(--line)}
-  .sd-e{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:9px;
+  /* LES ENJEUX EN COLONNES. Ils se suivaient un par ligne : vingt cartes
+     empilées, et l'étape la plus longue de la page devenait un déroulé sans
+     fin où l'on perdait le compte de ce qui restait à noter. Trois colonnes
+     sur un grand écran, deux sur un portable, une sur téléphone — le nombre
+     n'est pas fixé, c'est la largeur minimale d'une carte qui le décide.
+
+     `align-items:start` ET NON l'étirement par défaut : les cartes n'ont pas
+     le même texte, et les aligner en hauteur creuserait un vide sous les plus
+     courtes sans rien apporter. Le titre de famille, lui, traverse la rangée :
+     posé dans une colonne, il aurait titré un tiers de sa propre famille. */
+  .sd-fam{margin:0 0 20px;display:grid;align-items:start;gap:10px;
+    grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
+  .sd-fam>h3{grid-column:1/-1;font-size:12px;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--muted2);margin:0;padding-bottom:5px;border-bottom:1px solid var(--line)}
+  .sd-e{border:1px solid var(--line);border-radius:10px;padding:12px 14px;
     background:rgba(0,0,0,.12)}
   .sd-e h4{font-size:13.5px;margin:0 0 5px}
   .sd-e .dit{font-size:12px;line-height:1.6;margin:0 0 4px;color:var(--muted)}
@@ -134,7 +145,17 @@
   .sd-note.n-raison_etre select{border-left:3px solid #a78bd0}
   .sd-note.n-parties_prenantes select{border-left:3px solid #4bb8d8}
   .sd-note.n-valeur select{border-left:3px solid #27c39a}
-  .sd-grp{margin-top:9px}
+  /* Le dépliant des porteurs : une ligne fermé, la liste complète ouvert.
+     La pastille qui indique un choix déjà fait doit rester visible SANS
+     ouvrir — sinon on rouvre les vingt cartes pour vérifier ce qu'on a coché.
+     C'est le rôle du compteur posé sur le résumé par `sd-grp-n`. */
+  .sd-grp-d{margin-top:9px;border-top:1px solid var(--line);padding-top:7px}
+  .sd-grp-d>summary{cursor:pointer;font-size:10.5px;color:var(--muted2);
+    list-style-position:inside}
+  .sd-grp-d>summary:hover{color:var(--ink)}
+  .sd-grp-d>summary:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  .sd-grp-n{font-family:var(--mono);font-size:10px;color:#4bb8d8;margin-left:6px}
+  .sd-grp{margin-top:7px}
   .sd-grp>span{display:block;font-size:10.5px;color:var(--muted2);margin-bottom:4px}
   .sd-grp .b{display:flex;flex-wrap:wrap;gap:5px}
   .sd-grp button{font-family:inherit;font-size:11px;padding:3px 9px;border-radius:20px;

@@ -200,7 +200,31 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
                             String(v[i]));
     }
   }
+  /* LA LISTE DES PORTEURS EST REPLIÉE : on l'ouvre avant de cocher, comme le
+     lecteur le ferait. Cliquer directement laissait Playwright attendre un
+     bouton présent mais NON VISIBLE, et ce fichier mourait sur un « Timeout »
+     — ce qui se lit comme une panne alors que rien n'est cassé. Le repli est
+     délibéré : ces pastilles pesaient plus du tiers de chaque carte, pour un
+     champ facultatif, et empêchaient la mise en colonnes de gagner la place
+     qu'elle promettait. */
+  await pg.evaluate(() => {
+    const d = document.querySelector('[data-enjeu="bruit"] .sd-grp-d');
+    if (d) d.open = true;
+  });
   await pg.click('[data-enjeu="bruit"] [data-groupe="riverains"]');
+  /* ET LE REPLI NE DOIT PAS CACHER CE QU'ON VIENT DE COCHER : le résumé porte
+     le compte, sinon il faudrait rouvrir les vingt cartes pour savoir ce qui a
+     été retenu — un dépliant qui masque un état renseigné coûte plus cher que
+     la place qu'il fait gagner. */
+  const compte = await pg.evaluate(() => {
+    const d = document.querySelector('[data-enjeu="bruit"] .sd-grp-d');
+    if (!d) return null;
+    d.open = false;
+    const n = d.querySelector('.sd-grp-n');
+    return n && n.getBoundingClientRect().height > 0 ? n.textContent.trim() : null;
+  });
+  ok('un porteur coché se lit SANS ouvrir la liste repliée', !!compte,
+     compte || 'aucun compte sur le résumé');
 
   await pg.click('#sd-gen');
   await pg.waitForFunction(
