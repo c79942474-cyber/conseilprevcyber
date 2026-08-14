@@ -392,6 +392,44 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
   ok('les lacunes restent listées quel que soit le thème choisi',
      parTheme.every(x => x.lacunes >= 4),
      parTheme.map(x => x.lacunes).join('/'));
+
+  /* ── CE QUI REND LE REPLI ACCEPTABLE ────────────────────────────────────
+     Les deux blocs de référence — lacunes et bibliographie — pesaient 621 px
+     sur les 1331 de la section, soit près de la moitié de sa hauteur pour de
+     la matière qu'on CONSULTE, pendant que les faits qu'on vient LIRE en
+     occupaient 424. Ils sont donc repliés.
+
+     MAIS LES DEUX CONTRÔLES CI-DESSUS NE LE VOIENT PLUS. Ils comptent des
+     `li` dans le document, et un `li` reste dans le document qu'il soit
+     déplié ou non : ils resteraient verts même si le repli rendait ces listes
+     introuvables. Ce qui rend le repli acceptable — et qui doit donc être
+     gardé — c'est que le RÉSUMÉ porte le compte : « 4 lacunes recensées » se
+     lit sans ouvrir. Un dépliant qui masque un état renseigné coûte plus cher
+     que la place qu'il fait gagner. */
+  const repli = await pg.evaluate(() => {
+    const q = s => document.querySelector('#dc-art ' + s);
+    const lire = s => {
+      const d = q(s);
+      if (!d) return { absent: true };
+      const n = d.querySelector('.dc-art-n');
+      return {
+        estDepliant: d.tagName === 'DETAILS',
+        ferme: !d.open,
+        compte: n ? n.textContent.trim() : '',
+        compteVisible: !!n && n.getBoundingClientRect().height > 0,
+        items: d.querySelectorAll('li').length,
+      };
+    };
+    return { lac: lire('.dc-art-l'), bib: lire('.dc-art-b') };
+  });
+  for (const [nom, r] of [['les lacunes', repli.lac], ['la bibliographie', repli.bib]]) {
+    ok(nom + ' se replie, pour rendre la hauteur aux faits',
+       !!r.estDepliant && r.ferme === true,
+       r.absent ? 'bloc absent' : 'dépliant=' + r.estDepliant + ' fermé=' + r.ferme);
+    ok('…ET SON COMPTE SE LIT SANS OUVRIR — ' + nom,
+       !!r.compteVisible && /\d/.test(r.compte || ''),
+       r.compte || 'aucun compte sur le résumé');
+  }
   ok('la bibliographie ferme la section quel que soit le thème choisi',
      parTheme.every(x => x.biblio === 4), parTheme.map(x => x.biblio).join('/'));
 

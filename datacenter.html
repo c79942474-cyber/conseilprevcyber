@@ -442,6 +442,15 @@
   .dc-lac-m{color:var(--muted2)}
   .dc-lac-hp{font-size:12px;line-height:1.65;color:var(--muted2);margin:12px 0 0;
     padding-top:9px;border-top:1px solid var(--line)}
+  .dc-art-l>summary,.dc-art-b>summary{cursor:pointer;font-size:12.5px;
+    line-height:1.6;list-style-position:inside}
+  .dc-art-l>summary:hover,.dc-art-b>summary:hover{color:var(--ink)}
+  .dc-art-l>summary:focus-visible,.dc-art-b>summary:focus-visible{
+    outline:2px solid var(--cyan);outline-offset:2px}
+  /* Le compte, sur l'intitulé : c'est lui qui fait qu'on ne perd rien à
+     replier. Assez contrasté pour se lire sans ouvrir. */
+  .dc-art-n{font-family:var(--mono);font-size:10.5px;letter-spacing:.03em;
+    color:var(--cyan)}
   .dc-art-l,.dc-art-b{font-size:12.5px;line-height:1.65;margin:16px 0 0;
     padding:12px 15px;border-radius:10px;background:rgba(255,255,255,.04)}
   .dc-art-l ul,.dc-art-b ul{margin:7px 0 0;padding-left:18px}
@@ -1552,11 +1561,30 @@
            la base porte un titre et un thème : c'est citable. Ce que le modèle
            en lit n'a ni auteur ni page : ce ne l'est pas, et le bloc le dit.
            Les gisements, eux, n'ont PAS été consultés. */
-        FIXE += '<div class="dc-art-l"><b>Ce que ces quatre sources ne disent pas.</b>'
+        /* CES DEUX BLOCS SE REPLIENT, et leur intitulé porte le compte.
+           Mesurés : 621 px sur les 1331 de la section, soit 47 % de la hauteur
+           pour de la matière de référence — pendant que les faits eux-mêmes,
+           ce qu'on vient lire, en occupaient 424. Ce n'est pas la proportion
+           d'un texte qu'on consulte contre un texte qu'on lit.
+
+           ILS RESTENT AFFICHÉS QUEL QUE SOIT LE THÈME, comme avant : ils ne
+           dépendent d'aucun d'eux et les faire varier les ferait disparaître
+           dès qu'on choisit. Ce qui change est seulement qu'ils sont FERMÉS —
+           et le résumé dit ce qu'il y a dedans ET COMBIEN. Un dépliant dont
+           l'intitulé annonce « 4 lacunes » informe davantage qu'un pavé de
+           211 px devant lequel on fait défiler. */
+        FIXE += '<details class="dc-art-l"><summary><b>Ce que ces quatre sources '
+          + 'ne disent pas.</b> <span class="dc-art-n">' + e.lacunes.length
+          + ' lacune' + (e.lacunes.length > 1 ? 's' : '') + ' recensée'
+          + (e.lacunes.length > 1 ? 's' : '') + '</span></summary>'
           + '<div id="dc-lac"><ul>'
           + e.lacunes.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('')
-          + '</ul></div></div>';
-        FIXE += '<div class="dc-art-b"><b>Les quatre documents</b><ul>'
+          + '</ul></div></details>';
+        FIXE += '<details class="dc-art-b"><summary><b>Les quatre documents</b> '
+          + '<span class="dc-art-n">' + Object.keys(e.sources).length
+          + ' source' + (Object.keys(e.sources).length > 1 ? 's' : '')
+          + ' citée' + (Object.keys(e.sources).length > 1 ? 's' : '')
+          + ', avec leur nature</span></summary><ul>'
           + Object.keys(e.sources).map(function(k){
               var s = e.sources[k];
               return '<li><b>' + esc(s.editeur) + '</b> — <i>' + esc(s.titre) + '</i>, '
@@ -1564,7 +1592,7 @@
                 + esc(e.natures[s.nature].nom) + '</span> '
                 + esc(e.natures[s.nature].poids) + ' ' + esc(s.note) + '</li>';
             }).join('')
-          + '</ul></div>';
+          + '</ul></details>';
         poser();
       })
       .catch(function(){
