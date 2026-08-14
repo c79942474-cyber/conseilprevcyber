@@ -98,42 +98,191 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
   ok('…et l’onglet aussi', /Sustainability/.test(t.doc), t.doc);
   ok('le sous-titre garde la MÉTHODE', /Énergie, eau et carbone — calculés ensemble/.test(t.sous || ''), t.sous);
 
-  titre('3. Le cadre — Green Management');
+  titre('3. Le cadre — Green Management, une question à la fois');
 
-  await pg.waitForFunction(() => document.querySelectorAll('#dc-vert .dc-ax').length > 0,
-                           null, { timeout: 20000 });
-  const vert = await pg.evaluate(() => {
-    const ax = [...document.querySelectorAll('#dc-vert .dc-ax')];
+  /* ── LA QUESTION SE CHOISIT : LES CONTRÔLES PARCOURENT LES TROIS ────────
+     Les trois axes se dépliaient côte à côte, et ce fichier lisait donc les
+     trois d'un seul regard. Depuis qu'une seule s'affiche, lire le DOM au
+     repos n'éprouve plus qu'un tiers du cadre : les deux autres pourraient
+     avoir perdu leurs textes, leurs grandeurs ou leur limite sans que rien ne
+     tombe. Chaque exigence est donc reportée sur LES TROIS, atteintes par le
+     sélecteur — c'est le prix du découpage, et il se paie ici. */
+  const armee = await pg.waitForFunction(
+    () => document.querySelectorAll('#dc-vert [data-dc-axe] option').length > 0,
+    null, { timeout: 20000 }).then(() => true).catch(() => false);
+  if (!armee) {
+    ok('LA LISTE DES QUESTIONS DU CADRE EST ARMÉE', false,
+       'aucune option dans #dc-vert après 20 s'
+       + (err.length ? ' | erreur de script : ' + err[0] : ''));
+  }
+
+  const lireAxe = () => pg.evaluate(() => {
+    const a = document.querySelector('#dc-vert .dc-ax');
+    if (!a) return null;
+    const bloc = re => [...a.querySelectorAll('.dc-ax-b')].find(
+      x => re.test((x.querySelector('b') || {}).textContent || ''));
+    const g = bloc(/cette page calcule/i), t = bloc(/textes applicables/i);
+    const q = a.querySelector('.dc-ax-q');
     return {
-      n: ax.length,
-      questions: ax.map(a => { const q = a.querySelector('.dc-ax-q'); return q ? q.textContent.trim() : ''; }),
+      titre: (a.querySelector('h3') || {}).textContent || '',
+      question: q ? q.textContent.trim() : '',
       /* « ce qui n'est pas calculé » : le bloc qui empêche le cadre d'être une
-         plaquette. On compte les axes qui le portent, pas les caractères. */
-      avecNon: ax.filter(a => a.querySelector('.dc-ax-non')).length,
-      avecSrc: ax.filter(a => a.querySelector('.dc-ax-src')).length,
-      /* Les grandeurs calculées sont listées sous un intitulé, pas sous une
-         classe propre : on retient le bloc PAR SON TITRE. Compter tous les
-         « li » d'un axe mélangerait textes applicables et grandeurs, et le
-         contrôle passerait alors même si la liste des grandeurs disparaissait. */
-      grandeurs: ax.map(a => {
-        const b = [...a.querySelectorAll('.dc-ax-b')].find(
-          x => /cette page calcule/i.test((x.querySelector('b') || {}).textContent || ''));
-        return b ? b.querySelectorAll('li').length : 0;
-      }),
-      textes: ax.map(a => {
-        const b = [...a.querySelectorAll('.dc-ax-b')].find(
-          x => /textes applicables/i.test((x.querySelector('b') || {}).textContent || ''));
-        return b ? b.querySelectorAll('li').length : 0;
-      }),
+         plaquette. On regarde s'il est porté, pas combien il pèse. */
+      non: !!a.querySelector('.dc-ax-non'),
+      src: !!a.querySelector('.dc-ax-src'),
+      /* Les grandeurs sont listées sous un intitulé, pas sous une classe
+         propre : on retient le bloc PAR SON TITRE. Compter tous les « li »
+         d'un axe mélangerait textes applicables et grandeurs, et le contrôle
+         passerait alors même si la liste des grandeurs disparaissait. */
+      grandeurs: g ? g.querySelectorAll('li').length : 0,
+      textes: t ? t.querySelectorAll('li').length : 0,
     };
   });
-  ok('les trois axes sont dessinés', vert.n === 3, vert.n + ' axe(s)');
-  ok('…chacun pose sa question', vert.questions.every(q => q.length > 10), vert.questions.join(' | ').slice(0, 110));
-  ok('…chacun dit ce qu’il NE calcule PAS', vert.avecNon === 3, vert.avecNon + '/3');
-  ok('…chacun cite ses textes de référence', vert.avecSrc === 3, vert.avecSrc + '/3');
-  ok('…avec au moins un texte nommé par axe', vert.textes.every(n => n > 0), vert.textes.join(' / '));
-  ok('…et chacun nomme les grandeurs qu’il fait calculer',
-     vert.grandeurs.every(n => n > 0), vert.grandeurs.join(' / ') + ' grandeur(s)');
+
+  const opts = armee ? await pg.evaluate(() =>
+    [...document.querySelectorAll('#dc-vert [data-dc-axe] option')]
+      .map(o => o.textContent)) : [];
+  ok('la question du cadre se choisit dans une liste', opts.length === 3,
+     opts.length + ' entrée(s)');
+  /* L'ASYMÉTRIE SE LIT SANS OUVRIR. Quatre grandeurs pour les indicateurs, une
+     pour les certifications : c'est ce chiffre qui empêche de prendre une page
+     pour une démarche. */
+  ok('…chaque entrée annonce COMBIEN de grandeurs cette page lui calcule',
+     opts.length === 3 && opts.every(t => /\d+\s+grandeur/.test(t)),
+     opts.join(' | ').slice(0, 130));
+  ok('…et la liste s’ouvre sur la première question',
+     await pg.evaluate(() => {
+       const s = document.querySelector('#dc-vert [data-dc-axe]');
+       return s ? s.value : null; }) === '0');
+
+  const vus = [];
+  for (let k = 0; k < 3; k++) {
+    if (!armee) break;
+    await pg.selectOption('#dc-vert [data-dc-axe]', String(k));
+    await pg.waitForTimeout(200);
+    const a = await lireAxe();
+    if (a) vus.push(a);
+  }
+  ok('LES TROIS QUESTIONS SONT ATTEIGNABLES', vus.length === 3,
+     vus.map(a => a.titre).join(' | '));
+  ok('…une seule est affichée à la fois',
+     await pg.evaluate(() => document.querySelectorAll('#dc-vert .dc-ax').length) === 1);
+  ok('…chacune pose sa question', vus.length === 3 && vus.every(a => a.question.length > 10),
+     vus.map(a => a.question).join(' | ').slice(0, 110));
+  ok('…chacune dit ce qu’elle NE fait PAS calculer',
+     vus.length === 3 && vus.every(a => a.non),
+     vus.filter(a => a.non).length + '/3');
+  ok('…chacune cite sa source documentaire',
+     vus.length === 3 && vus.every(a => a.src),
+     vus.filter(a => a.src).length + '/3');
+  ok('…avec au moins un texte nommé par question',
+     vus.length === 3 && vus.every(a => a.textes > 0),
+     vus.map(a => a.textes).join(' / '));
+  ok('…et chacune nomme les grandeurs qu’elle fait calculer',
+     vus.length === 3 && vus.every(a => a.grandeurs > 0),
+     vus.map(a => a.grandeurs).join(' / ') + ' grandeur(s)');
+
+  /* ── CE QUE LE DÉCOUPAGE NE DOIT PAS EMPORTER ──────────────────────────
+     La chaîne des trois, et la phrase qui dit que le calcul ne sert que la
+     deuxième. C'est la seule chose qu'un lecteur d'UNE question ne peut pas
+     deviner : elle doit rester à l'écran quel que soit son choix. */
+  const fixe = await pg.evaluate(() => ({
+    pas: document.querySelectorAll('#dc-vert .dc-vch-p').length,
+    designe: [...document.querySelectorAll('#dc-vert .dc-vch-p')]
+      .filter(b => b.getAttribute('aria-current') === 'true').length,
+    courant: (document.querySelector('#dc-vert .dc-vch-p[aria-current="true"]')
+      || {}).textContent || '',
+    limites: /propres limites/.test(
+      (document.querySelector('#dc-vert .dc-vch-f') || {}).textContent || ''),
+    ouvert: !!document.querySelector('#dc-vert .dc-vert-o'),
+    avert: !!document.querySelector('#dc-vert .dc-vert-a'),
+  }));
+  ok('LA CHAÎNE DES TROIS RESTE AFFICHÉE quel que soit le choix', fixe.pas === 3,
+     fixe.pas + ' étape(s)');
+  ok('…et la question lue y est DÉSIGNÉE', fixe.designe === 1,
+     fixe.designe + ' désignée(s)');
+  ok('…c’est bien celle qui est ouverte',
+     vus.length === 3 && fixe.courant.indexOf(vus[2].question) >= 0,
+     fixe.courant.trim().slice(0, 70));
+  ok('…et la page prévient qu’une limite lue seule n’est pas la limite du tout',
+     fixe.limites);
+  ok('l’ouverture et l’avertissement survivent au choix',
+     fixe.ouvert && fixe.avert);
+
+  /* DEUX COMMANDES, UN SEUL ÉTAT. Cliquer une étape de la chaîne doit déplacer
+     la liste aussi : sinon les deux se contrediraient à l'écran, et le lecteur
+     croirait lire ce que la liste annonce. */
+  const accord = armee ? await pg.evaluate(async () => {
+    const b = document.querySelector('#dc-vert .dc-vch-p[data-dc-ax="1"]');
+    if (!b) return null;
+    b.click();
+    await new Promise(r => setTimeout(r, 250));
+    const s = document.querySelector('#dc-vert [data-dc-axe]');
+    const a = document.querySelector('#dc-vert .dc-ax h3');
+    return { liste: s ? s.value : null, titre: a ? a.textContent : '' };
+  }) : null;
+  ok('cliquer une étape de la chaîne DÉPLACE AUSSI la liste',
+     !!accord && accord.liste === '1',
+     accord ? 'liste=' + accord.liste + ' · ' + accord.titre : 'étape absente');
+
+  /* ── LA CHAÎNE SE LIT VRAIMENT ─────────────────────────────────────────
+     Le rang de l'étape lue s'écrivait dans le vert de la désignation : 4,15:1
+     sur son propre fond teinté, sous le seuil AA d'un texte de 11 px. Une
+     mesure faite une fois et non gardée redevient fausse au premier réglage
+     de couleur — elle est donc refaite ici, à chaque passage.
+
+     ON COMPOSE LES COUCHES. `getComputedStyle` rend `rgba(0,0,0,0)` pour un
+     fond hérité : lire le fond de l'élément seul donnerait un rapport calculé
+     sur du blanc, c'est-à-dire un chiffre faux et rassurant sur une page
+     sombre. On remonte donc jusqu'au premier fond OPAQUE en appliquant les
+     opacités rencontrées. */
+  const ctr = await pg.evaluate(() => {
+    const lum = c => { const s = c.map(v => { v /= 255;
+      return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); });
+      return .2126 * s[0] + .7152 * s[1] + .0722 * s[2]; };
+    const nb = t => { const m = String(t).match(/[\d.]+/g); return m ? m.map(Number) : [0, 0, 0, 0]; };
+    function fond(el){
+      const couches = [];
+      for (let n = el; n; n = n.parentElement) {
+        const c = nb(getComputedStyle(n).backgroundColor);
+        const a = c[3] === undefined ? 1 : c[3];
+        if (a > 0) { couches.push([c[0], c[1], c[2], a]); if (a === 1) break; }
+      }
+      let out = [255, 255, 255];
+      for (let i = couches.length - 1; i >= 0; i--) {
+        const [r, g, b, a] = couches[i];
+        out = [r * a + out[0] * (1 - a), g * a + out[1] * (1 - a), b * a + out[2] * (1 - a)];
+      }
+      return out;
+    }
+    const cibles = {
+      'étape non lue': '.dc-vch-p:not([aria-current])',
+      'étape lue': '.dc-vch-p[aria-current="true"]',
+      'le rang de l’étape lue': '.dc-vch-p[aria-current="true"] .n',
+      'la phrase sous la chaîne': '.dc-vch-f',
+      'l’aide sous la liste': '.dc-asel-a',
+    };
+    const out = [];
+    for (const k in cibles) {
+      const e = document.querySelector('#dc-vert ' + cibles[k]);
+      if (!e) { out.push({ nom: k, absent: true }); continue; }
+      const s = getComputedStyle(e);
+      const l1 = lum(nb(s.color).slice(0, 3)), l2 = lum(fond(e));
+      const px = parseFloat(s.fontSize);
+      const gras = parseInt(s.fontWeight, 10) >= 700;
+      out.push({ nom: k, px: px,
+        r: Math.round(((Math.max(l1, l2) + .05) / (Math.min(l1, l2) + .05)) * 100) / 100,
+        seuil: (px >= 24 || (px >= 18.66 && gras)) ? 3 : 4.5 });
+    }
+    return out;
+  });
+  const sous = ctr.filter(x => x.absent || x.r < x.seuil);
+  ok('TOUT CE QUE LA CHAÎNE ÉCRIT PASSE LE SEUIL AA',
+     sous.length === 0,
+     sous.length
+       ? sous.map(x => x.absent ? x.nom + ' ABSENT'
+           : x.nom + ' ' + x.r + ':1 < ' + x.seuil + ' (' + x.px + 'px)').join(' · ')
+       : ctr.map(x => x.r + ':1').join(' · '));
 
   titre('4. L’état de l’art — et le contrôle qui compte : la NATURE des sources');
 

@@ -81,10 +81,44 @@
     line-height:1.6}
 
   /* ── Le cadre Green Management ────────────────────────────────────────
-     Trois colonnes à égalité : les trois questions se posent ensemble, et
-     hiérarchiser « qu'est-ce qu'on vise » au-dessus de « qui l'atteste »
-     suggérerait un ordre de travail qui n'existe pas. */
+     UNE QUESTION À LA FOIS, CHOISIE DANS UNE LISTE. Les trois axes tenaient
+     en trois colonnes de 290 px, et chacun porte sa question, son motif, ses
+     textes applicables, les grandeurs calculées et celles qui ne le sont pas :
+     l'ensemble se lisait en colonnes étroites, donc mal, et surtout se lisait
+     en diagonale. La question choisie occupe désormais toute la largeur.
+
+     CE QUE CE DÉCOUPAGE COÛTE, ET COMMENT IL EST PAYÉ. Les trois questions
+     forment une CHAÎNE — ce qu'on vise, comment on le prouve, qui l'atteste —
+     et le calcul de cette page ne sert vraiment que la deuxième. Un lecteur
+     qui n'ouvre qu'une entrée peut prendre une page pour une démarche. Deux
+     précautions, donc : la chaîne des trois reste affichée EN PERMANENCE au
+     dessus de la liste, la question lue y étant désignée ; et le nombre de
+     grandeurs calculées figure dans chaque entrée, si bien que l'asymétrie
+     (quatre pour les indicateurs, une pour les certifications) se voit SANS
+     ouvrir la liste. */
   .dc-vert-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px}
+  /* La chaîne des trois questions, toujours visible. Ce sont des BOUTONS et
+     non des puces : le même choix que la liste, atteignable d'un geste. */
+  .dc-vch{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px;margin:0 0 14px}
+  .dc-vch-p{flex:1 1 210px;display:flex;gap:9px;align-items:flex-start;text-align:left;
+    font-family:inherit;font-size:12.5px;line-height:1.5;cursor:pointer;
+    padding:9px 12px;border-radius:10px;border:1px solid var(--line);
+    background:rgba(0,0,0,.16);color:var(--muted)}
+  .dc-vch-p:hover{background:rgba(0,0,0,.26);color:var(--ink)}
+  .dc-vch-p .n{font-family:var(--mono);font-size:11px;flex:0 0 auto;
+    width:19px;height:19px;border-radius:50%;display:flex;align-items:center;
+    justify-content:center;border:1px solid var(--line);color:var(--muted)}
+  /* La question LUE, désignée par la couleur ET par le trait : la couleur
+     seule ne dirait rien à qui ne la distingue pas (WCAG 1.4.1). */
+  .dc-vch-p[aria-current="true"]{background:rgba(39,195,154,.10);color:var(--ink);
+    border-color:#27c39a;box-shadow:inset 3px 0 0 #27c39a}
+  /* LE RANG EST DU CONTENU, LE VERT EST LA DÉSIGNATION. Écrit en #27c39a, le
+     chiffre de l'étape lue tombait à 4,15:1 sur son propre fond teinté — sous
+     le seuil AA pour un texte de 11 px, mesuré et non supposé. Le vert reste
+     donc sur la bordure et sur le trait, où il ne porte aucun mot. */
+  .dc-vch-p[aria-current="true"] .n{border-color:#27c39a;color:var(--ink)}
+  .dc-vch-f{font-size:12px;line-height:1.6;color:var(--muted);margin:0 0 14px}
+  .dc-vch-f b{color:var(--ink)}
   .dc-ax{border:1px solid var(--line);border-left:3px solid #27c39a;border-radius:12px;
     padding:15px 17px;background:rgba(39,195,154,.045)}
   .dc-ax h3{font-size:15.5px;margin:0 0 4px}
@@ -1248,8 +1282,60 @@
       .then(function(j){
         if(!j || !j.ok || !j.cadre) throw new Error('cadre');
         var c = j.cadre;
-        z.innerHTML = '<div class="dc-vert-g">' + c.axes.map(function(a){
-          return '<article class="dc-ax">'
+        var VU = 0;
+
+        /* ── CE QUI RESTE À L'ÉCRAN QUELLE QUE SOIT LA QUESTION LUE ────────
+           La chaîne des trois, et le fait que le calcul de cette page ne sert
+           vraiment que la deuxième. Faire varier cela avec le sélecteur
+           reviendrait à ne le montrer qu'à qui a déjà tout parcouru. */
+        function chaine(){
+          return '<div class="dc-vch" role="group" aria-label="Les trois questions du cadre">'
+            + c.axes.map(function(a, k){
+                return '<button type="button" class="dc-vch-p" data-dc-ax="' + k + '"'
+                  + (k === VU ? ' aria-current="true"' : '') + '>'
+                  /* PAS d'`aria-hidden` sur le rang : le nom accessible du
+                     bouton devient « 1 Qu'est-ce qu'on vise… », et l'ordre des
+                     trois s'ENTEND autant qu'il se voit. Masqué, il ne servait
+                     qu'à l'œil, alors que la chaîne est là pour dire un ordre. */
+                  + '<span class="n">' + (k + 1) + '</span>'
+                  + '<span>' + esc(a.question) + '</span></button>';
+              }).join('')
+            + '</div>'
+            /* CETTE LIGNE NE REDIT PAS LE CHAPEAU. Il énonce déjà les trois
+               questions et dit laquelle le calcul sert ; le répéter ici ferait
+               deux textes à maintenir, qui finiraient par se contredire. Elle
+               porte ce que le chapeau ne dit pas : ce qu'on perd à n'en lire
+               qu'une, et comment passer à la suivante. */
+            + '<p class="dc-vch-f">Une question s’ouvre à la fois — au choix '
+            + 'ci-dessus ou dans la liste. <b>Chacune porte ses propres limites</b> : '
+            + 'celle affichée ne dit que ce que cette page ne calcule pas '
+            + '<i>pour elle</i>, et non la limite de l’ensemble.</p>';
+        }
+
+        /* LE NOMBRE DE GRANDEURS FIGURE DANS L'ENTRÉE ELLE-MÊME : l'asymétrie
+           entre les trois axes se lit sans ouvrir la liste. Il est COMPTÉ sur
+           la réponse du serveur, jamais écrit à la main — écrit, il aurait
+           cessé d'être vrai au premier ajout dans le module. */
+        function liste(){
+          return '<label class="dc-asel" for="dc-axe">'
+            + '<span class="dc-asel-l">La question du cadre</span>'
+            + '<select id="dc-axe" data-dc-axe>'
+            + c.axes.map(function(a, k){
+                var n = (a.calcule || []).length;
+                return '<option value="' + k + '"' + (k === VU ? ' selected' : '')
+                  + '>' + (k + 1) + '. ' + esc(a.titre) + ' — ' + n + ' grandeur'
+                  + (n > 1 ? 's' : '') + ' calculée' + (n > 1 ? 's' : '')
+                  + ' sur cette page</option>';
+              }).join('')
+            + '</select>'
+            + '<span class="dc-asel-a">Le nombre de grandeurs figure dans chaque '
+            + 'entrée : une question que cette page n’instruit qu’à peine ne se '
+            + 'lit pas comme une question traitée.</span></label>';
+        }
+
+        function axe(){
+          var a = c.axes[VU] || c.axes[0];
+          return '<div class="dc-vert-g"><article class="dc-ax">'
             + '<h3>' + esc(a.titre) + '</h3>'
             + '<p class="dc-ax-q">' + esc(a.question) + '</p>'
             + '<p class="dc-ax-p">' + esc(a.pourquoi) + '</p>'
@@ -1267,10 +1353,38 @@
             + esc(a.non_calcule) + '</p>'
             + '<p class="dc-ax-src">Base documentaire : <code>' + esc(a.theme)
             + '</code> <span class="dc-ax-cpt">— accessible aux comptes connectés</span></p>'
-            + '</article>';
-        }).join('') + '</div>'
-        + '<p class="dc-vert-o">' + esc(c.ouvert) + '</p>'
-        + '<p class="note dc-vert-a">' + esc(c.avertissement) + '</p>';
+            + '</article></div>';
+        }
+
+        function poser(focus){
+          z.innerHTML = chaine() + liste() + axe()
+            + '<p class="dc-vert-o">' + esc(c.ouvert) + '</p>'
+            + '<p class="note dc-vert-a">' + esc(c.avertissement) + '</p>';
+          var s = z.querySelector('[data-dc-axe]');
+          if(s){
+            s.addEventListener('change', function(){
+              VU = parseInt(s.value, 10) || 0;
+              poser('liste');
+            });
+          }
+          /* DEUX ENTRÉES, UN SEUL ÉTAT. La chaîne et la liste commandent la
+             même variable : cliquer une étape déplace aussi la liste, sinon
+             les deux commandes se contrediraient à l'écran. */
+          z.querySelectorAll('[data-dc-ax]').forEach(function(b){
+            b.addEventListener('click', function(){
+              VU = parseInt(b.getAttribute('data-dc-ax'), 10) || 0;
+              poser('chaine');
+            });
+          });
+          /* On rend le clavier à la commande qui vient de servir : sans cela,
+             un choix fait au clavier renvoie le focus en tête de document. */
+          var r = focus === 'chaine'
+            ? z.querySelector('[data-dc-ax="' + VU + '"]')
+            : (focus === 'liste' ? document.getElementById('dc-axe') : null);
+          if(r){ try { r.focus({ preventScroll: true }); } catch(err){ r.focus(); } }
+        }
+
+        poser(null);
       })
       .catch(function(){
         /* Le cadre est un COMPLÉMENT : son absence ne doit pas laisser croire
