@@ -3984,6 +3984,21 @@ def parcours_js():
                        mimetype="text/javascript; charset=utf-8")
 
 
+@app.route("/piliers-dc.js")
+def piliers_dc_js():
+    """Le bandeau des trois piliers centres de donnees, partage par les trois
+    pages qu'il relie.
+
+    Elles se citaient de loin en loin — et pas toutes : l'ingenierie ne
+    renvoyait pas une seule fois vers la strategie. Rien ne disait dans quel
+    ORDRE les prendre, ni ce que chacune attend de la precedente. Ecrit une
+    fois : trois copies auraient diverge, et c'est justement l'enchainement
+    qu'elles doivent dire d'une seule voix.
+    """
+    return _serve_fast("piliers-dc.js", _CC_ASSET,
+                       mimetype="text/javascript; charset=utf-8")
+
+
 @app.route("/guide-etapes.js")
 def guide_etapes_js():
     """Parcours guide des etapes numerotees, partage par toutes les pages qui

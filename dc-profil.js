@@ -68,6 +68,17 @@
            expirer : une session de navigateur est déjà la bonne durée. */
         quand: Date.now()
       }));
+      /* LE MAGASIN ANNONCE SES ÉCRITURES. Le profil s'enregistre au retour du
+         calcul, dans un `then` : aucun événement d'interface ne se produit à
+         cet instant. Ce qui regarde ce magasin — le bandeau des trois piliers
+         — restait donc périmé jusqu'à la frappe suivante, et affichait « rien
+         à emporter » sur une page qui venait d'en produire. Un magasin muet
+         oblige ses lecteurs à deviner quand relire. */
+      try {
+        document.dispatchEvent(new CustomEvent("profil-dc:ecrit",
+          { detail: { origine: origine || "" } }));
+      } catch (e) { /* navigateur sans CustomEvent : le bandeau se remettra
+                       à jour au prochain `change`, ce qui reste correct. */ }
       return true;
     } catch (e) { return false; }
   }

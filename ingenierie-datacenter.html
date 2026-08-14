@@ -30,6 +30,7 @@
      l'exécution après le parse, dans l'ordre des balises. -->
 <script src="/nav.js" defer></script>
 <script src="/parcours.js" defer></script>
+<script src="/piliers-dc.js" defer></script>
 <script src="/modules.js" defer></script>
 <script src="/transmettre.js" defer></script>
 <!-- Rendu Markdown partagé avec la console des livrables : le même document
@@ -1360,6 +1361,10 @@
          MAINTENANT. Le premier se choisit une fois, le second suit chaque
          décision jusqu'à la fin du projet. -->
     <div id="ig-guidage" class="ig-guid" role="status" aria-live="polite"></div>
+    <!-- LE BANDEAU DES TROIS PILIERS. Il vit dans un module partagé et se
+         dessine d'après l'adresse de la page : c'est lui qui dit l'ordre, ce
+         qui a déjà été renseigné et ce qui passe d'un pilier au suivant. -->
+    <div id="piliers"></div>
     <div class="rc-socle">
       <div><b>Deux filières, pas une.</b> Un centre de données est un bâtiment ET une
         installation de procédé. La maîtrise d'œuvre suit la loi MOP&nbsp;; l'ingénierie suit

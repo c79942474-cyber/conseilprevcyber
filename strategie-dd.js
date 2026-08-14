@@ -167,6 +167,24 @@
         compter(b.closest(".sd-grp-d"));
       });
     });
+
+    /* CE PILIER REND COMPTE AUX DEUX AUTRES. Le bandeau des trois piliers ne
+       peut pas deviner qu'une stratégie a été travaillée : les notes vivent
+       dans cette page. On lui transmet donc un COMPTE — combien d'enjeux
+       portent au moins une note —, jamais les notes elles-mêmes. Un jugement
+       reste sur la page qui l'a recueilli ; ce qui circule est le fait qu'il
+       existe, ce qui suffit à dire « déjà renseigné » sur les deux autres. */
+    z.addEventListener("change", function (ev) {
+      if (!ev.target || !ev.target.hasAttribute("data-note")) return;
+      var total = z.querySelectorAll("[data-enjeu]").length;
+      var n = 0;
+      z.querySelectorAll("[data-enjeu]").forEach(function (bloc) {
+        var une = [].slice.call(bloc.querySelectorAll("[data-note]"))
+          .some(function (s) { return (s.value || "").trim() !== ""; });
+        if (une) n++;
+      });
+      if (window.PiliersDC) window.PiliersDC.noterStrategie(n, total);
+    });
   }
 
   function blocEnjeu(e) {

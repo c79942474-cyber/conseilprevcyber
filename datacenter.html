@@ -31,6 +31,7 @@
 <script src="/nav.js" defer></script>
 <script src="/parcours.js" defer></script>
 <script src="/guide-etapes.js" defer></script>
+<script src="/piliers-dc.js" defer></script>
 <script src="/modules.js" defer></script>
 <script src="/transmettre.js" defer></script>
 <!-- Chargé AVANT datacenter.js : celui-ci enregistre le profil dès le
@@ -973,6 +974,10 @@
       qui cela tient. Le calcul de cette page sert la deuxième ; les deux autres
       décident de ce qu'on lui demande.</p>
     <div id="dc-vert" class="dc-vert"><p class="note">Chargement du cadre…</p></div>
+    <!-- LE BANDEAU DES TROIS PILIERS. Il vit dans un module partagé et se
+         dessine d'après l'adresse de la page : c'est lui qui dit l'ordre, ce
+         qui a déjà été renseigné et ce qui passe d'un pilier au suivant. -->
+    <div id="piliers"></div>
 
     <!-- LE PARCOURS GUIDÉ DES DIX ÉTAPES. Posé après le cadre et avant le
          formulaire : le cadre dit ce qu'on vise, le parcours dit par où on

@@ -275,6 +275,10 @@
       <a href="/datacenter" class="btn btn-s">Data Center Sustainability &amp; Decarbonisation</a>
       <a href="/ingenierie-datacenter" class="btn btn-s">L'ingénierie de projet</a>
     </div>
+    <!-- LE BANDEAU DES TROIS PILIERS. Il vit dans un module partagé et se
+         dessine d'après l'adresse de la page : c'est lui qui dit l'ordre, ce
+         qui a déjà été renseigné et ce qui passe d'un pilier au suivant. -->
+    <div id="piliers"></div>
 
     <!-- LE PARCOURS GUIDÉ. Cette page demande soixante-sept réponses réparties
          en cinq sections : c'est exactement le cas où l'on abandonne faute de
@@ -411,6 +415,7 @@
        sans ce module, celle-ci sortait du fil au milieu du parcours. -->
   <script src="/parcours.js" defer></script>
   <script src="/guide-etapes.js" defer></script>
+  <script src="/piliers-dc.js" defer></script>
   <script src="/modules.js" defer></script>
   <script src="/transmettre.js" defer></script>
   <script src="/strategie-dd.js" defer></script>
