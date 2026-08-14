@@ -2264,7 +2264,7 @@ _PIECES_DISCIPLINE = [
       "Sensibilité de l'enveloppe aux hypothèses de conception",
       "IMPORTANT : la structure des lots et leurs parts sont publiées par le "
       "moteur d'enveloppe de conseilprev (module finance_dc), consultable sur "
-      "https://conseilprev.onrender.com/panorama#s-finance — décomposition par "
+      "https://conseilprev.onrender.com/enveloppe#s-finance — décomposition par "
       "lot, part de chacun, échéancier et écart entre pays. S'y référer et les "
       "citer avec cette adresse ; ne pas les retaper ici : deux tables qui "
       "divergent valent moins qu'une seule qu'on cite."]),
@@ -2459,7 +2459,7 @@ _PIECES_DISCIPLINE = [
       "IMPORTANT : les ratios d'enveloppe, la décomposition par lot, les "
       "hypothèses d'exploitation et le calcul de coût complet sont publiés par "
       "le moteur de conseilprev (module finance_dc), consultable sur "
-      "https://conseilprev.onrender.com/panorama#s-finance. S'y référer et le "
+      "https://conseilprev.onrender.com/enveloppe#s-finance. S'y référer et le "
       "citer ; ne pas retaper ses valeurs ici."]),
 
     # ── Le versant offre ──────────────────────────────────────────────────
@@ -2493,7 +2493,7 @@ _PIECES_DISCIPLINE = [
       "Alternatives examinées, y compris ne pas faire",
       "IMPORTANT : les ratios, l'échéancier et l'écart entre pays sont publiés "
       "par le moteur d'enveloppe de conseilprev (module finance_dc), "
-      "https://conseilprev.onrender.com/panorama#s-finance — les citer plutôt "
+      "https://conseilprev.onrender.com/enveloppe#s-finance — les citer plutôt "
       "que les retaper."]),
 
     # ── Industrialisation et boucle de retour ─────────────────────────────
