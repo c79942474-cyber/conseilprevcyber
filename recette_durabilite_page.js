@@ -534,7 +534,10 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
       normes: cartes.map(c => c.querySelectorAll('.dc-lim-n').length),
       marches: cartes.filter(c =>
         /La marche professionnelle/.test(c.textContent)).length,
-      quiQuand: cartes.filter(c => !!c.querySelector('p:last-child b')).length,
+      /* La ligne « qui — quand » porte sa classe : la repérer par sa POSITION
+         (p:last-child) s'est cassé le jour où l'évaluateur s'est ajouté
+         derrière elle — le sélecteur mesurait la structure, pas le contenu. */
+      quiQuand: cartes.filter(c => !!c.querySelector('.dc-lim-q b')).length,
       levables: cartes.filter(c => c.classList.contains('levable')).length,
       champsLeve: cartes.map(c => {
         const l = c.querySelector('.dc-lim-lv');
@@ -557,6 +560,107 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
      lims.levables === 2 && lims.champsLeve.length === 2
        && lims.champsLeve.every(c => lims.champsForm.indexOf(c) >= 0),
      lims.champsLeve.join(', ') || 'aucun champ nommé');
+
+  /* L'ÉVALUATEUR DE CHIFFRE ANNONCÉ, sur les cartes des deux études que le
+     moteur ne fait pas. CE QU'ON PROTÈGE : le geste qui PRÉCÈDE la simulation
+     TMY et le profil horaire — juger le chiffre déjà sur la table — avec les
+     plages de l'étude, et un verdict qui DIT quelles valeurs du formulaire il
+     a employées. Trois issues, trois rendus : le suspect (ambre), le refus
+     (rouge — c'est une réponse, pas une panne), le cohérent (teal). */
+  const evs = await pg.evaluate(() => {
+    const cartes = [...document.querySelectorAll('#dc-limites .dc-lim-c')];
+    return {
+      total: document.querySelectorAll('#dc-limites .dc-ev').length,
+      pueSurLevable: cartes.some(c => c.classList.contains('levable')
+        && c.querySelector('[data-ev="pue"]')),
+      intSurLevable: cartes.some(c => c.classList.contains('levable')
+        && c.querySelector('[data-ev="intensite"]')),
+      surNonLevable: cartes.filter(c => !c.classList.contains('levable')
+        && c.querySelector('.dc-ev')).length,
+    };
+  });
+  ok('deux évaluateurs, chacun sur SA carte levable, aucun ailleurs',
+     evs.total === 2 && evs.pueSurLevable && evs.intSurLevable
+       && evs.surNonLevable === 0,
+     evs.total + ' évaluateur(s), ' + evs.surNonLevable + ' hors carte levable');
+
+  /* Le contexte du jugement vient du FORMULAIRE : on le fixe d'abord, pour
+     que le verdict attendu soit déterministe. */
+  let formPret = true;
+  try {
+    await pg.selectOption('#dc-form [data-champ="refroidissement"]', 'adiabatique');
+    await pg.selectOption('#dc-form [data-champ="pays"]', 'FR');
+  } catch (e) { formPret = false; }
+  ok('le formulaire accepte famille « adiabatique » et pays « FR »', formPret,
+     formPret ? '' : 'selects introuvables — l’évaluateur n’a plus de contexte à lire');
+
+  const verdictDans = async (sel) => {
+    try {
+      await pg.waitForFunction((s) =>
+        document.querySelector(s + ' [data-ev-r] .dc-ev-v'), sel, { timeout: 15000 });
+      return pg.evaluate((s) => {
+        const z = document.querySelector(s + ' [data-ev-r] .dc-ev-v');
+        return { classe: z.className, txt: z.textContent.replace(/\s+/g, ' ').trim() };
+      }, sel);
+    } catch (e) {
+      return { classe: 'ABSENT', txt: 'le verdict n’est jamais arrivé — '
+               + String(err[0] || e.message).slice(0, 160) };
+    }
+  };
+
+  /* 1,02 en adiabatique : SOUS la plage de conception — le PUE de plaquette
+     par excellence. Ambre, motif « suspect », et la méthode à exiger. */
+  await pg.fill('[data-ev="pue"] [data-ev-pue]', '1,02');
+  await pg.click('[data-ev="pue"] [data-ev-go]');
+  const v1 = await verdictDans('[data-ev="pue"]');
+  ok('un PUE trop beau (1,02) est marqué à l’ambre, motif « suspect »',
+     /attention/.test(v1.classe) && /suspect/i.test(v1.txt), v1.txt.slice(0, 140));
+  ok('…le verdict DIT le contexte lu du formulaire (famille, taux)',
+     /adiabatique/i.test(v1.txt) && /famille lue du formulaire/.test(v1.txt)
+       && /% de charge/.test(v1.txt),
+     v1.txt.slice(v1.txt.search(/Jugé pour/), v1.txt.search(/Jugé pour/) + 120));
+  ok('…et les exigences nomment le BE fluides et ISO/IEC 30134-2',
+     /BE fluides/.test(v1.txt) && /ISO\/IEC 30134-2/.test(v1.txt));
+
+  /* 0,8 : physiquement impossible. Le REFUS est la réponse — rendu rouge,
+     avec son motif, jamais un verdict ni une correction silencieuse. */
+  await pg.fill('[data-ev="pue"] [data-ev-pue]', '0,8');
+  await pg.click('[data-ev="pue"] [data-ev-go]');
+  const v2 = await verdictDans('[data-ev="pue"]');
+  ok('un PUE de 0,8 est REFUSÉ — c’est la réponse, en rouge',
+     /refus/.test(v2.classe) && /physiquement impossible/i.test(v2.txt)
+       && /refusé/i.test(v2.txt),
+     v2.txt.slice(0, 140));
+
+  /* 20 g en France : très en dessous de la moyenne location-based — un
+     facteur contractuel probable. La moyenne affichée doit être CELLE que
+     l'API sert, pas un chiffre écrit dans la page ou dans cette recette. */
+  const refJson = await pg.evaluate(() =>
+    fetch('/api/datacenter/referentiel').then(r => r.json()).catch(() => null));
+  const moyFR = refJson && refJson.referentiel && refJson.referentiel.intensite_reseau
+    ? refJson.referentiel.intensite_reseau.FR : null;
+  ok('la moyenne FR de comparaison est servie par l’API', moyFR != null,
+     moyFR != null ? moyFR + ' g/kWh' : 'référentiel illisible');
+  await pg.fill('[data-ev="intensite"] [data-ev-facteur]', '20');
+  await pg.fill('[data-ev="intensite"] [data-ev-basses]',
+                String(moyFR != null ? moyFR - 26 : 30));
+  await pg.click('[data-ev="intensite"] [data-ev-go]');
+  const v3 = await verdictDans('[data-ev="intensite"]');
+  ok('20 g en France est lu comme un facteur CONTRACTUEL probable (ambre)',
+     /attention/.test(v3.classe) && /market-based/i.test(v3.txt)
+       && /double reporting/i.test(v3.txt), v3.txt.slice(0, 140));
+  ok('…comparé à la moyenne SERVIE (' + moyFR + ' g), pays lu du formulaire',
+     moyFR != null && v3.txt.indexOf(String(moyFR)) >= 0
+       && /pays lu du formulaire/.test(v3.txt));
+  ok('…et le gain d’un pilotage horaire est BORNÉ en t/GWh déplacé',
+     /Pilotage horaire, borné/.test(v3.txt) && /26/.test(v3.txt)
+       && /GWh/.test(v3.txt), v3.txt.slice(v3.txt.search(/Pilotage/), v3.txt.search(/Pilotage/) + 130));
+
+  /* On repart propre : les champs d'essai vidés, pour que la suite de la
+     recette ne juge pas une page encombrée par celle-ci. */
+  await pg.fill('[data-ev="pue"] [data-ev-pue]', '');
+  await pg.fill('[data-ev="intensite"] [data-ev-facteur]', '');
+  await pg.fill('[data-ev="intensite"] [data-ev-basses]', '');
 
   titre('5. La mise au point sur le faux « LCA »');
 

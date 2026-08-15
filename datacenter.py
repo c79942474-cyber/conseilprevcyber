@@ -1002,6 +1002,200 @@ def conformite(profil, res):
     return points
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  LES ÉVALUATEURS — juger un chiffre ANNONCÉ, pas produire la donnée locale
+# ═══════════════════════════════════════════════════════════════════════════
+# Deux limites du moteur portent une réponse professionnelle : la simulation
+# de site pour le PUE, l'étude horaire pour le carbone. Le moteur ne mènera
+# jamais ces études — mais il peut faire le geste qui les PRÉCÈDE chez le BE
+# fluides et l'énergéticien : juger si un chiffre annoncé est recevable, et
+# dire quoi exiger avant de le contractualiser.
+#
+# LA RÈGLE : ces évaluateurs REJUGENT avec les mêmes fonctions que le calcul
+# — plages de famille, pénalité de charge partielle, moyennes nationales.
+# Aucune donnée nouvelle n'est inventée ; toute entrée invalide est REFUSÉE
+# avec son motif, jamais corrigée en silence.
+
+def evaluer_pue(pue_annonce, refroidissement=None, taux_charge=None):
+    """Un PUE annoncé est-il recevable pour cette famille, À CE taux de charge ?
+
+    Le geste du BE fluides devant une fiche produit ou un engagement de
+    contrat : situer le chiffre dans la plage de conception de la famille,
+    puis le confronter à la charge RÉELLE — l'erreur la plus courante des
+    dossiers est un PUE promis à pleine charge pour un site qui tournera des
+    années à 40 %.
+    """
+    try:
+        pue = float(pue_annonce)
+    except (TypeError, ValueError):
+        return {"ok": False, "motif": "PUE illisible : un nombre est attendu."}
+    if pue < 1.0:
+        return {"ok": False,
+                "motif": "Un PUE inférieur à 1 est physiquement impossible : "
+                         "l'énergie totale du site CONTIENT celle de "
+                         "l'informatique. Ce chiffre n'est pas un PUE — "
+                         "demander ce qui a été mesuré, et sur quel périmètre."}
+    fam = refroidissement or "eau_glacee"
+    ref = REFROIDISSEMENT.get(fam)
+    if not ref:
+        return {"ok": False,
+                "motif": "Famille de refroidissement inconnue : " + str(fam)
+                         + ". Connues : " + ", ".join(sorted(REFROIDISSEMENT))}
+    taux = float(taux_charge if taux_charge is not None else 0.65)
+    if not (0.05 <= taux <= 1.0):
+        return {"ok": False,
+                "motif": "Taux de charge hors bornes (5 % à 100 %)."}
+
+    bas, haut = ref["pue_partiel"]
+    pen = penalite_charge(taux)
+    att_bas, att_haut = bas + pen, haut + pen
+
+    if pue < bas:
+        verdict, lecture = "sous_plage", (
+            "SOUS la plage de conception de la famille (%s – %s à pleine "
+            "charge) : physiquement suspect pour cette technologie. Ce chiffre "
+            "sort d'un climat exceptionnel, d'un périmètre partiel, ou d'une "
+            "plaquette." % (fr(bas), fr(haut)))
+    elif pue < att_bas:
+        verdict, lecture = "plausible_pleine_charge", (
+            "Plausible à PLEINE charge — mais à %s de charge, la même "
+            "conception rend %s – %s : les auxiliaires ne suivent pas "
+            "proportionnellement. Un engagement pris sur ce chiffre sera "
+            "dépassé dès la première année d'exploitation." %
+            (fr(taux), fr(att_bas), fr(att_haut)))
+    elif pue <= att_haut:
+        verdict, lecture = "coherent", (
+            "Cohérent avec la plage de conception de la famille À CE taux de "
+            "charge (%s – %s). Reste à vérifier ce que le chiffre PROMET : "
+            "méthode, périmètre, année météo." % (fr(att_bas), fr(att_haut)))
+    else:
+        verdict, lecture = "au_dessus", (
+            "AU-DESSUS de la plage attendue (%s – %s) : marge prudente, "
+            "conception datée, ou contraintes de site réelles. En appel "
+            "d'offres, demander la décomposition poste par poste — c'est "
+            "parfois le chiffre le plus honnête de la consultation." %
+            (fr(att_bas), fr(att_haut)))
+
+    return {
+        "ok": True, "verdict": verdict, "lecture": lecture,
+        "pue_annonce": pue,
+        "famille": ref["nom"],
+        "plage_pleine_charge": [bas, haut],
+        "taux_charge": taux,
+        "penalite_charge": round(pen, 3),
+        "plage_attendue": [round(att_bas, 3), round(att_haut, 3)],
+        "exigences": [
+            "La méthode de mesure : ISO/IEC 30134-2 — catégorie, périmètre, "
+            "année complète. Un PUE sans sa catégorie ne se compare à rien.",
+            "À QUEL taux de charge le chiffre est promis, et sur quelle année "
+            "météo (fichier TMY).",
+            "Si le refroidissement est évaporatif : les heures de free-cooling "
+            "comptées sur la température HUMIDE, pas la sèche.",
+            "Des pénalités assises sur la MESURE en exploitation, pas sur la "
+            "note de conception.",
+        ],
+        "nature": "calcule",
+        "source": "plages de conception du référentiel + pénalité de charge "
+                  "partielle — le MÊME calcul que l'étude, pas un second "
+                  "barème",
+    }
+
+
+def evaluer_intensite(facteur_g, pays=None, heures_basses_g=None,
+                      part_differable_pct=None, energie_mwh_an=None):
+    """Un facteur d'émission annoncé est-il recevable pour ce réseau ?
+
+    Le geste de l'énergéticien : situer le facteur face à la moyenne
+    location-based du pays, nommer ce qu'un écart signifie (market-based,
+    périmètre), et BORNER le gain d'un pilotage horaire quand le client
+    apporte ses propres données — jamais l'inverse.
+    """
+    try:
+        f = float(facteur_g)
+    except (TypeError, ValueError):
+        return {"ok": False, "motif": "Facteur illisible : g/kWh attendu."}
+    if f < 0:
+        return {"ok": False, "motif": "Un facteur négatif n'existe pas en "
+                                      "comptabilité carbone de réseau."}
+    p = (pays or "FR").upper()
+    moyenne = INTENSITE_RESEAU.get(p)
+    if moyenne is None:
+        return {"ok": False,
+                "motif": "Pays inconnu du référentiel : " + p + ". Connus : "
+                         + ", ".join(sorted(INTENSITE_RESEAU))}
+
+    if f < 0.5 * moyenne:
+        verdict, lecture = "market_based_probable", (
+            "Très en dessous de la moyenne location-based du réseau (%s "
+            "g/kWh) : c'est presque sûrement un facteur CONTRACTUEL "
+            "(market-based, GHG Protocol Scope 2). Légitime — mais le réseau "
+            "physique, lui, reste à %s g : exiger le DOUBLE reporting, et "
+            "vérifier si les garanties d'origine sont annuelles ou horaires. "
+            "Une garantie annuelle couvre aussi les heures où le réseau est "
+            "au charbon." % (fr(moyenne), fr(moyenne)))
+    elif f <= 1.5 * moyenne:
+        verdict, lecture = "coherent_location", (
+            "Cohérent avec la moyenne location-based du pays (%s g/kWh). "
+            "Préciser l'année de référence : les mixes bougent, et un facteur "
+            "sans millésime ne se défend pas." % fr(moyenne))
+    else:
+        verdict, lecture = "au_dessus", (
+            "Supérieur à la moyenne nationale (%s g/kWh) : mix local "
+            "particulier, ou périmètre qui inclut les groupes de secours "
+            "(scope 1) dans un chiffre présenté comme du scope 2. Demander le "
+            "périmètre exact." % fr(moyenne))
+
+    res = {
+        "ok": True, "verdict": verdict, "lecture": lecture,
+        "facteur_annonce_g": f, "pays": p,
+        "moyenne_location_g": moyenne,
+        "exigences": [
+            "L'année de référence et le périmètre du facteur (scope 2 seul ?).",
+            "Le double reporting Scope 2 : market-based ET location-based "
+            "(GHG Protocol).",
+            "La granularité des garanties d'origine : annuelle ou horaire.",
+            "Le profil horaire du réseau : éCO2mix (RTE) ou ENTSO-E, pour "
+            "l'étude de pilotage.",
+        ],
+        "nature": "calcule",
+        "source": "moyennes nationales du référentiel — les mêmes que l'étude",
+    }
+
+    # LE GAIN D'UN PILOTAGE HORAIRE, BORNÉ — et seulement si le client apporte
+    # SES données. g/kWh et t/GWh sont la même unité : l'écart moyenne-creux
+    # se lit directement en tonnes par GWh déplacé.
+    if heures_basses_g is not None and str(heures_basses_g).strip() != "":
+        try:
+            hb = float(heures_basses_g)
+        except (TypeError, ValueError):
+            return {"ok": False, "motif": "Facteur des heures basses illisible."}
+        ecart = max(0.0, moyenne - hb)
+        borne = {
+            "ecart_g_kwh": round(ecart, 1),
+            "tonnes_par_gwh_deplace": round(ecart, 1),
+            "lecture": ("Chaque GWh déplacé vers les heures basses économise "
+                        "AU PLUS %s tCO2e — au plus, parce que la moyenne des "
+                        "heures restantes remonte à mesure qu'on déplace."
+                        % fr(round(ecart, 1)))
+            if ecart > 0 else
+            ("Aucun gain : le facteur d'heures basses fourni n'est pas "
+             "inférieur à la moyenne du réseau."),
+        }
+        if energie_mwh_an and part_differable_pct:
+            try:
+                e = float(energie_mwh_an)
+                part = float(part_differable_pct) / 100.0
+            except (TypeError, ValueError):
+                return {"ok": False, "motif": "Énergie ou part différable illisible."}
+            if 0 < part <= 1 and e > 0:
+                borne["tonnes_an_max"] = round(e * 1000.0 * part * ecart / 1e6, 1)
+                borne["hypotheses"] = ("%s MWh/an, %s %% différables — vos "
+                                       "valeurs, pas les nôtres"
+                                       % (fr(e), fr(part * 100)))
+        res["pilotage"] = borne
+    return res
+
+
 def avertissements(profil, res):
     """Ce que le calcul NE dit pas. Volontairement placé dans le résultat.
 

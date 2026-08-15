@@ -330,3 +330,90 @@ def test_le_garde_TOMBE_sur_un_champ_de_levee_inconnu():
     finally:
         d.LIMITES[0]["leve_par"] = sauve
     assert not d._verifier_limites()
+
+
+# ── L'évaluateur de chiffre annoncé ────────────────────────────────────────
+# Le moteur ne fait ni simulation TMY ni profil horaire — mais il JUGE un
+# chiffre annoncé avec ses propres plages. Doctrine : jamais un second
+# barème. Chaque borne testée ici est DÉRIVÉE des constantes du module ;
+# écrite en dur, elle survivrait à un changement de plage et mentirait.
+
+def test_evaluer_pue_est_le_meme_calcul_que_l_etude():
+    """Le PUE que l'étude elle-même produit doit être jugé cohérent, dans
+    EXACTEMENT la bande que l'étude publie. Si ce test tombe, l'évaluateur
+    est devenu un second barème — l'interdit central."""
+    import datacenter as d
+    e = d.etude({"puissance_it_kw": 1000, "refroidissement": "adiabatique",
+                 "taux_charge": 0.4})
+    pue = e["energie"]["pue"]["valeur"]
+    bande = e["energie"]["pue"]["bande"]
+    ev = d.evaluer_pue(pue, "adiabatique", 0.4)
+    assert ev["ok"] and ev["verdict"] == "coherent"
+    assert ev["plage_attendue"] == [round(bande["min"], 3), round(bande["max"], 3)]
+    assert ev["penalite_charge"] == round(d.penalite_charge(0.4), 3)
+
+
+def test_evaluer_pue_verdicts_aux_bornes_de_la_famille():
+    import datacenter as d
+    bas, haut = d.REFROIDISSEMENT["adiabatique"]["pue_partiel"]
+    pen = d.penalite_charge(0.30)
+    assert pen > 0, "sous le point de conception la pénalité doit exister, " \
+                    "sinon ce test ne sépare plus les verdicts"
+    assert d.evaluer_pue(bas - 0.01, "adiabatique", 0.30)["verdict"] == "sous_plage"
+    assert d.evaluer_pue(bas + pen / 2, "adiabatique", 0.30)["verdict"] \
+        == "plausible_pleine_charge"
+    assert d.evaluer_pue(bas + pen + 0.01, "adiabatique", 0.30)["verdict"] == "coherent"
+    assert d.evaluer_pue(haut + pen + 0.01, "adiabatique", 0.30)["verdict"] == "au_dessus"
+    # Au point de conception, plus de pénalité : « plausible à pleine charge »
+    # ne peut PAS exister — la plage attendue EST la plage pleine charge.
+    ev = d.evaluer_pue(bas + 0.001, "adiabatique", d.CHARGE_POINT_CONCEPTION)
+    assert ev["verdict"] == "coherent" and ev["penalite_charge"] == 0
+
+
+def test_evaluer_pue_refuse_l_impossible_avec_motif():
+    import datacenter as d
+    r = d.evaluer_pue(0.8)
+    assert r["ok"] is False and "physiquement impossible" in r["motif"]
+    r = d.evaluer_pue("n/a")
+    assert r["ok"] is False
+    r = d.evaluer_pue(1.2, "magnetique")
+    assert r["ok"] is False and "adiabatique" in r["motif"]  # liste les connues
+    r = d.evaluer_pue(1.2, "adiabatique", 0.01)
+    assert r["ok"] is False and "bornes" in r["motif"]
+
+
+def test_evaluer_intensite_verdicts_derives_de_la_moyenne():
+    import datacenter as d
+    m = d.INTENSITE_RESEAU["FR"]
+    assert d.evaluer_intensite(0.49 * m, "FR")["verdict"] == "market_based_probable"
+    assert d.evaluer_intensite(m, "FR")["verdict"] == "coherent_location"
+    assert d.evaluer_intensite(1.51 * m, "FR")["verdict"] == "au_dessus"
+    ev = d.evaluer_intensite(m, "fr")  # la casse ne décide pas d'un pays
+    assert ev["ok"] and ev["moyenne_location_g"] == m
+    r = d.evaluer_intensite(-3, "FR")
+    assert r["ok"] is False
+    r = d.evaluer_intensite(50, "ZZ")
+    assert r["ok"] is False and "FR" in r["motif"]  # liste les connus
+
+
+def test_evaluer_intensite_borne_le_pilotage_en_tonnes():
+    """g/kWh et t/GWh sont la même unité : l'écart se lit en tonnes par GWh
+    déplacé, et le passage aux tonnes/an n'emploie QUE les valeurs du client."""
+    import datacenter as d
+    m = d.INTENSITE_RESEAU["FR"]
+    ev = d.evaluer_intensite(m, "FR", heures_basses_g=m - 26)
+    p = ev["pilotage"]
+    assert p["ecart_g_kwh"] == 26.0 == p["tonnes_par_gwh_deplace"]
+    ev = d.evaluer_intensite(m, "FR", heures_basses_g=m - 26,
+                             part_differable_pct=20, energie_mwh_an=10_000)
+    # 10 000 MWh × 20 % × 26 g/kWh = 52 t/an — vérifiable à la main.
+    assert ev["pilotage"]["tonnes_an_max"] == 52.0
+    assert "vos valeurs" in ev["pilotage"]["hypotheses"]
+    # Des heures « basses » au-dessus de la moyenne : gain nul, dit tel quel,
+    # jamais un gain négatif ni une correction silencieuse.
+    ev = d.evaluer_intensite(m, "FR", heures_basses_g=m + 10)
+    assert ev["pilotage"]["tonnes_par_gwh_deplace"] == 0.0
+    assert "Aucun gain" in ev["pilotage"]["lecture"]
+    # Sans données client : pas de bloc pilotage du tout — le moteur ne
+    # fabrique pas d'étude de pilotage à partir de rien.
+    assert "pilotage" not in d.evaluer_intensite(m, "FR")

@@ -2184,6 +2184,37 @@ def api_datacenter_etude():
     return jsonify(ok=True, etude=res)
 
 
+@app.route("/api/datacenter/evaluer", methods=["POST"])
+@login_required
+def api_datacenter_evaluer():
+    """Juger un chiffre ANNONCÉ — un PUE de plaquette, un facteur d'émission
+    de contrat — avec les plages du référentiel, les mêmes que l'étude.
+
+    C'est le geste qui PRÉCÈDE les études que le moteur ne fait pas : avant de
+    payer une simulation TMY ou une étude de pilotage horaire, on vérifie que
+    le chiffre sur la table est physiquement recevable. Un refus (PUE < 1,
+    facteur négatif) est une réponse, pas une erreur : il est servi en 200
+    avec son motif, parce que c'est le verdict lui-même."""
+    data = request.get_json(silent=True) or {}
+    genre = str(data.get("type") or "").strip()
+    if genre == "pue":
+        r = datacenter.evaluer_pue(data.get("pue"),
+                                   refroidissement=data.get("refroidissement"),
+                                   taux_charge=data.get("taux_charge"))
+    elif genre == "intensite":
+        r = datacenter.evaluer_intensite(
+            data.get("facteur_g"), pays=data.get("pays"),
+            heures_basses_g=data.get("heures_basses_g"),
+            part_differable_pct=data.get("part_differable_pct"),
+            energie_mwh_an=data.get("energie_mwh_an"))
+    else:
+        return jsonify(ok=False, error="type_inconnu",
+                       message="type attendu : pue ou intensite."), 400
+    audit.journaliser("datacenter.evaluer", cible=genre,
+                      detail=str(r.get("verdict") or r.get("motif", ""))[:80])
+    return jsonify(ok=True, evaluation=r)
+
+
 @app.route("/api/datacenter/durabilite")
 @login_required
 def api_datacenter_durabilite():

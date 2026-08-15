@@ -1131,6 +1131,164 @@
      champ existait dans le formulaire : une limite écrite en dur avait déjà
      menti. Tout vient du serveur, y compris le NOM du champ qui lève la
      limite — vérifié côté module contre le profil réel. */
+
+  /* L'ÉVALUATEUR DE CHIFFRE ANNONCÉ, posé SUR la carte de la limite.
+     La simulation TMY et le profil horaire restent hors du moteur — mais le
+     geste qui les PRÉCÈDE, juger si le chiffre déjà sur la table est
+     recevable, se calcule avec les plages de l'étude elle-même. C'est ce que
+     fait le BE fluides devant une plaquette, l'énergéticien devant un
+     contrat : situer le chiffre avant de payer l'étude qui le raffinera. */
+  function evaluateurLimite(cle) {
+    if (cle === "pue_climat") {
+      return '<div class="dc-ev" data-ev="pue">'
+        + '<span class="dc-lim-t">En attendant la simulation — juger un PUE annoncé</span>'
+        + '<div class="dc-ev-l">'
+        + '<input type="text" inputmode="decimal" data-ev-pue'
+        + ' aria-label="PUE annoncé" placeholder="PUE annoncé — ex. 1,25">'
+        + '<button type="button" class="dc-ev-go" data-ev-go>Situer ce chiffre</button>'
+        + "</div>"
+        + '<div class="dc-ev-r" data-ev-r aria-live="polite"></div>'
+        + "</div>";
+    }
+    if (cle === "carbone_horaire") {
+      return '<div class="dc-ev" data-ev="intensite">'
+        + '<span class="dc-lim-t">En attendant le profil horaire — juger un facteur annoncé</span>'
+        + '<div class="dc-ev-l">'
+        + '<input type="text" inputmode="decimal" data-ev-facteur'
+        + ' aria-label="Facteur annoncé en grammes par kilowattheure"'
+        + ' placeholder="facteur annoncé, g/kWh — ex. 35">'
+        + '<input type="text" inputmode="decimal" data-ev-basses'
+        + ' aria-label="Facteur des heures basses, facultatif"'
+        + ' placeholder="heures basses, g/kWh (facultatif)">'
+        + '<button type="button" class="dc-ev-go" data-ev-go>Situer ce chiffre</button>'
+        + "</div>"
+        + '<div class="dc-ev-r" data-ev-r aria-live="polite"></div>'
+        + "</div>";
+    }
+    return "";
+  }
+
+  /* Le verdict, rendu depuis la réponse du serveur — jamais recalculé ici.
+     Un refus (PUE < 1, facteur négatif) N'EST PAS une panne : c'est le
+     verdict le plus utile de la série, et il s'affiche comme tel. */
+  function rendreVerdict(zone, ev, contexte) {
+    if (!ev || !ev.verdict && !ev.motif) {
+      zone.innerHTML = '<p class="dc-ev-v refus">Réponse illisible du serveur.</p>';
+      return;
+    }
+    if (ev.ok === false) {
+      zone.innerHTML = '<div class="dc-ev-v refus"><b>Chiffre refusé — et '
+        + "c’est la réponse.</b> " + esc(ev.motif) + "</div>";
+      return;
+    }
+    var TONS = {
+      coherent: "ok", coherent_location: "ok",
+      plausible_pleine_charge: "attention", market_based_probable: "attention",
+      sous_plage: "attention", au_dessus: "attention"
+    };
+    var NOMS = {
+      coherent: "Cohérent à ce taux de charge",
+      coherent_location: "Cohérent avec le réseau (location-based)",
+      plausible_pleine_charge: "Plausible à pleine charge — pas à la vôtre",
+      market_based_probable: "Facteur contractuel probable (market-based)",
+      sous_plage: "Sous la plage de la famille — suspect",
+      au_dessus: "Au-dessus de la plage attendue"
+    };
+    var h = '<div class="dc-ev-v ' + (TONS[ev.verdict] || "attention") + '">'
+      + '<span class="dc-ev-b">' + esc(NOMS[ev.verdict] || ev.verdict) + "</span>"
+      + "<p>" + esc(ev.lecture) + "</p>"
+      + (contexte ? '<p class="dc-ev-ctx">' + contexte + "</p>" : "");
+    if (ev.pilotage) {
+      h += '<p class="dc-ev-pil"><b>Pilotage horaire, borné&nbsp;:</b> '
+        + esc(ev.pilotage.lecture)
+        + (ev.pilotage.tonnes_an_max !== undefined
+            ? " Soit au plus <b>" + fr(ev.pilotage.tonnes_an_max)
+              + " tCO2e/an</b> (" + esc(ev.pilotage.hypotheses) + ")."
+            : "") + "</p>";
+    }
+    if (ev.exigences && ev.exigences.length) {
+      h += '<details class="dc-ev-ex"><summary>À exiger '
+        + (ev.pays ? "de l’énergéticien" : "du BE fluides")
+        + " (" + ev.exigences.length + ")</summary><ul>"
+        + ev.exigences.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("")
+        + "</ul></details>";
+    }
+    zone.innerHTML = h + "</div>";
+  }
+
+  function brancherEvaluateurs(el) {
+    /* PUE : la famille et le taux de charge ne sont PAS redemandés — ils sont
+       lus du formulaire de l'étape 2, et le verdict DIT lesquels il a
+       employés. Deux jeux de valeurs pour un même chiffre, c'est le début
+       des dossiers qui se contredisent. */
+    var evp = el.querySelector('[data-ev="pue"]');
+    if (evp) {
+      evp.querySelector("[data-ev-go]").addEventListener("click", function () {
+        var zone = evp.querySelector("[data-ev-r]");
+        var brut = (evp.querySelector("[data-ev-pue]").value || "").trim();
+        if (!brut) {
+          zone.innerHTML = '<p class="dc-ev-v attention">Un chiffre d’abord '
+            + ": le PUE annoncé par la fiche, l’offre ou le contrat.</p>";
+          return;
+        }
+        var sel = document.querySelector('#dc-form [data-champ="refroidissement"]');
+        var fam = sel && sel.value ? sel.value : null;
+        var tc = document.querySelector('#dc-form [data-champ="taux_charge"]');
+        var taux = tc && (tc.value || "").trim() ? tc.value.trim().replace(",", ".") : null;
+        zone.textContent = "Jugement en cours…";
+        poster("/api/datacenter/evaluer", {
+          type: "pue", pue: brut.replace(",", "."),
+          refroidissement: fam, taux_charge: taux
+        }).then(function (r) {
+          var ev = (r.j && r.j.evaluation) || null;
+          var ctx = ev && ev.ok !== false
+            ? "Jugé pour «&nbsp;" + esc(ev.famille) + "&nbsp;» à "
+              + fr(ev.taux_charge * 100) + "&nbsp;% de charge — "
+              + (fam ? "famille lue du formulaire de l’étape 2"
+                     : "famille par défaut du moteur, précisez-la à l’étape 2")
+              + (taux ? ", taux lu du formulaire." : ", taux par défaut.")
+            : "";
+          rendreVerdict(zone, ev, ctx);
+        }).catch(function (e) {
+          zone.innerHTML = '<p class="dc-ev-v refus">' + esc(e.message) + "</p>";
+        });
+      });
+    }
+    /* Intensité : le pays vient du formulaire, la moyenne de comparaison de
+       la réponse — le même référentiel que l'étude, et le verdict le dit. */
+    var evi = el.querySelector('[data-ev="intensite"]');
+    if (evi) {
+      evi.querySelector("[data-ev-go]").addEventListener("click", function () {
+        var zone = evi.querySelector("[data-ev-r]");
+        var brut = (evi.querySelector("[data-ev-facteur]").value || "").trim();
+        if (!brut) {
+          zone.innerHTML = '<p class="dc-ev-v attention">Un chiffre d’abord '
+            + ": le facteur annoncé par le fournisseur ou le contrat, en g/kWh.</p>";
+          return;
+        }
+        var basses = (evi.querySelector("[data-ev-basses]").value || "").trim();
+        var selP = document.querySelector('#dc-form [data-champ="pays"]');
+        var pays = selP && selP.value ? selP.value : null;
+        zone.textContent = "Jugement en cours…";
+        poster("/api/datacenter/evaluer", {
+          type: "intensite", facteur_g: brut.replace(",", "."),
+          pays: pays, heures_basses_g: basses ? basses.replace(",", ".") : null
+        }).then(function (r) {
+          var ev = (r.j && r.j.evaluation) || null;
+          var ctx = ev && ev.ok !== false
+            ? "Comparé au réseau " + esc(ev.pays) + " (moyenne location-based "
+              + fr(ev.moyenne_location_g) + "&nbsp;g/kWh, celle de l’étude) — "
+              + (pays ? "pays lu du formulaire de l’étape 2."
+                      : "pays par défaut (France), précisez-le à l’étape 2.")
+            : "";
+          rendreVerdict(zone, ev, ctx);
+        }).catch(function (e) {
+          zone.innerHTML = '<p class="dc-ev-v refus">' + esc(e.message) + "</p>";
+        });
+      });
+    }
+  }
+
   function afficherLimites() {
     var el = $("#dc-limites");
     var lims = (REF && REF.referentiel && REF.referentiel.limites) || [];
@@ -1153,10 +1311,12 @@
         + x.normes.map(function (n) {
             return '<span class="dc-lim-n">' + esc(n) + "</span>";
           }).join("") + "</p>"
-        + "<p><b>" + esc(x.qui) + "</b> — " + esc(x.quand) + "</p>"
+        + '<p class="dc-lim-q"><b>' + esc(x.qui) + "</b> — " + esc(x.quand) + "</p>"
+        + evaluateurLimite(x.cle)
         + "</article>";
       return h;
     }).join("") + "</div>";
+    brancherEvaluateurs(el);
   }
 
   function afficherReferentiel() {
