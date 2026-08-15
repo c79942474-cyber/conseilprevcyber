@@ -630,6 +630,26 @@
     text-decoration:underline;text-underline-offset:3px}
   .dc-src-l:hover{color:var(--ink)}
   .dc-src-l:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  /* Les limites : deux colonnes, une carte par limite. */
+  .dc-lim{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(430px,100%),1fr));
+    gap:12px;margin-top:14px;align-items:start}
+  .dc-lim-c{border:1px solid var(--line);border-left:3px solid var(--amber);
+    border-radius:10px;padding:13px 15px;background:rgba(0,0,0,.14)}
+  .dc-lim-c.levable{border-left-color:var(--teal)}
+  .dc-lim-c h4{font-size:13.5px;margin:0 0 7px;color:var(--ink);line-height:1.45}
+  .dc-lim-c p{font-size:12.5px;line-height:1.6;margin:0 0 7px;color:var(--muted)}
+  .dc-lim-c p b{color:var(--ink)}
+  .dc-lim-t{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;
+    letter-spacing:.06em;color:var(--muted2);display:block;margin-bottom:2px}
+  /* « Se lève ici » : la pastille qui dit que le moteur PEUT recevoir la
+     donnée réelle — teal, la couleur du constaté, jamais l'ambre du manque. */
+  .dc-lim-lv{display:inline-block;font-family:var(--mono);font-size:10px;
+    letter-spacing:.04em;padding:2px 8px;border-radius:5px;margin:0 0 8px;
+    background:rgba(45,212,191,.14);color:var(--teal);
+    border:1px solid rgba(45,212,191,.34)}
+  .dc-lim-n{display:inline-block;font-size:10.5px;font-family:var(--mono);
+    padding:2px 7px;border-radius:5px;margin:0 4px 4px 0;
+    background:rgba(0,0,0,.22);border:1px solid var(--line);color:var(--muted)}
   .dc-ref-c .n{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;
     letter-spacing:.06em;text-transform:uppercase;color:var(--amber);display:block;margin-bottom:5px}
   .dc-ref-c p{font-size:12.5px;color:var(--muted2);line-height:1.6;margin:0 0 6px}
@@ -1225,27 +1245,20 @@
     <div id="dc-referentiel"><p class="note">Chargement du référentiel…</p></div>
   </section>
 
-  <section class="wrap rc-sec" id="dc-sec-limites" data-gd="À lire AVANT de citer cette étude ailleurs. Ce que le moteur ne fait pas est écrit noir sur blanc — le carbone incorporé, l’audit, l’étude thermique de site. Une étude qui ne dit que ses forces est une plaquette.">
-    <div class="rc-etape"><span class="n">10</span><h2>Ce que ce moteur ne fait pas</h2></div>
-    <p class="lead" style="max-width:72ch;margin-top:0">
-      Le dire ici plutôt qu'en note de bas de page : ces limites décident du moment où il
-      faut passer à une étude de site, et les ignorer coûte plus cher que de les lire.</p>
-    <ul class="lead" style="max-width:72ch">
-      <li>Il ne remplace pas une <b>simulation thermo-aéraulique</b> heure par heure du
-        site réel. Le PUE calculé ici part de la famille de refroidissement et du taux de
-        charge, pas du climat local.</li>
-      <li>Il travaille sur des <b>moyennes annuelles</b>. La consommation d'eau se
-        concentre pourtant sur les heures chaudes, c'est-à-dire quand la ressource est
-        tendue : un WUE annuel conforme peut masquer un prélèvement estival inacceptable
-        localement.</li>
-      <li>Les facteurs de <b>carbone incorporé</b> sont des ordres de grandeur sectoriels
-        à ±50 %. Dès que les équipements sont choisis, leurs déclarations
-        environnementales produit doivent les remplacer — l'écart peut atteindre un
-        facteur deux et changer le classement des leviers.</li>
-      <li>Il ne connaît pas votre <b>profil horaire d'émissions</b>. Arbitrer un pilotage
-        de charge sur signal carbone demande une donnée horaire, où l'écart entre heures
-        creuses et heures de pointe dépasse souvent un facteur trois.</li>
-    </ul>
+  <section class="wrap rc-sec" id="dc-sec-limites" data-gd="À lire AVANT de citer cette étude ailleurs. Chaque limite porte désormais sa réponse — la norme, le calcul à commander, qui le mène — et, quand le moteur peut recevoir la donnée réelle, le champ exact qui la lève.">
+    <div class="rc-etape"><span class="n">10</span><h2>Ce que ce moteur ne fait pas — et comment y répondre</h2></div>
+    <p class="lead" style="max-width:74ch;margin-top:0">
+      Le dire ici plutôt qu'en note de bas de page : ces limites décident du moment où
+      il faut passer à une étude de site. Analyse faite, <b>deux des quatre se lèvent
+      déjà dans ce moteur</b> — il accepte la donnée réelle et retire la réserve du
+      résultat. Les deux autres relèvent d'études qu'aucun moteur ne fera honnêtement à
+      distance&nbsp;: chacune porte la norme qui l'encadre, le calcul à commander, et la
+      main qui le mène. <b>Aucune limite vraie n'est effacée</b> — une étude qui ne dit
+      que ses forces est une plaquette.</p>
+    <!-- Rendu depuis le serveur : la liste statique qui vivait ici a suivi le
+         sort de toutes les listes statiques — elle disait « le moteur ne
+         connaît pas votre intensité carbone » alors que le champ existait. -->
+    <div id="dc-limites"><p class="note">Chargement des limites…</p></div>
   </section>
 
 </main>

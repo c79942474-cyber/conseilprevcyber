@@ -514,6 +514,50 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
      de thème, et deux menus qui montrent doivent se comporter pareil. */
   ok('…et ce menu-là GARDE sa sélection : il montre, il n’insère pas', fiche.garde);
 
+  titre('4 quater. Les limites : chacune porte sa réponse, deux se lèvent ici');
+
+  /* La liste statique disait « le moteur ne connaît pas votre intensité
+     carbone » alors que le champ existait : une limite écrite en dur avait
+     déjà menti. Tout vient du serveur. CE QU'ON PROTÈGE : chaque limite garde
+     sa réponse — normes, calcul, qui — et les limites levables nomment un
+     champ RÉEL du formulaire, en teal (le constaté), jamais en ambre. */
+  const lims = await pg.evaluate(() => {
+    const z = document.getElementById('dc-limites');
+    const cartes = [...(z ? z.querySelectorAll('.dc-lim-c') : [])];
+    const y0 = cartes.length ? Math.round(cartes[0].getBoundingClientRect().top) : 0;
+    const champsForm = [...document.querySelectorAll('#dc-form [data-champ]')]
+      .map(c => c.getAttribute('data-champ'));
+    return {
+      n: cartes.length,
+      colonnes: cartes.filter(c =>
+        Math.abs(Math.round(c.getBoundingClientRect().top) - y0) < 4).length,
+      normes: cartes.map(c => c.querySelectorAll('.dc-lim-n').length),
+      marches: cartes.filter(c =>
+        /La marche professionnelle/.test(c.textContent)).length,
+      quiQuand: cartes.filter(c => !!c.querySelector('p:last-child b')).length,
+      levables: cartes.filter(c => c.classList.contains('levable')).length,
+      champsLeve: cartes.map(c => {
+        const l = c.querySelector('.dc-lim-lv');
+        const m = l && l.textContent.match(/« (.+) »/);
+        return m ? m[1] : null;
+      }).filter(Boolean),
+      champsForm: champsForm,
+      titreSection: (document.querySelector('#dc-sec-limites h2') || {}).textContent || '',
+    };
+  });
+  ok('les quatre limites sont rendues, sur deux colonnes',
+     lims.n === 4 && lims.colonnes === 2, lims.n + ' carte(s), ' + lims.colonnes + ' au premier rang');
+  ok('…et le titre dit qu’on y RÉPOND, pas seulement qu’on renonce',
+     /comment y répondre/i.test(lims.titreSection), lims.titreSection);
+  ok('CHAQUE LIMITE PORTE AU MOINS DEUX NORMES', lims.normes.every(n => n >= 2),
+     lims.normes.join('/'));
+  ok('…et sa marche professionnelle, avec qui la mène', lims.marches === 4
+     && lims.quiQuand === 4, lims.marches + ' marche(s), ' + lims.quiQuand + ' qui/quand');
+  ok('DEUX LIMITES SE LÈVENT ICI, par un champ RÉEL du formulaire',
+     lims.levables === 2 && lims.champsLeve.length === 2
+       && lims.champsLeve.every(c => lims.champsForm.indexOf(c) >= 0),
+     lims.champsLeve.join(', ') || 'aucun champ nommé');
+
   titre('5. La mise au point sur le faux « LCA »');
 
   /* Deux affirmations distinctes, deux contrôles : la notice du document, et

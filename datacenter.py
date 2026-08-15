@@ -1185,11 +1185,124 @@ if _F_SOURCES:
     raise AssertionError("SOURCES_CONSULTABLES : " + " | ".join(_F_SOURCES))
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# LES LIMITES DU MOTEUR — et, pour chacune, COMMENT Y RÉPONDRE
+# ═══════════════════════════════════════════════════════════════════════════
+# La page listait quatre limites en points secs : le lecteur repartait avec
+# quatre trous et rien pour les combler. Analyse faite, DEUX de ces limites
+# sont déjà levables ICI — le moteur accepte la donnée réelle (`pue_cible`,
+# `intensite_reseau_g`) et `avertissements()` retire alors la réserve du
+# résultat — et les deux autres relèvent d'études que ce moteur ne fera
+# jamais honnêtement à distance.
+#
+# ON N'EFFACE AUCUNE LIMITE VRAIE : une étude qui ne dit que ses forces est
+# une plaquette, et c'est le guide même de cette section. Ce qui change :
+# chaque limite porte désormais SA RÉPONSE — la norme qui l'encadre, le calcul
+# à commander, qui le mène, à quelle phase — et, quand une saisie la lève dans
+# ce moteur, le champ exact qui la lève.
+LIMITES = [
+    {"cle": "pue_climat",
+     "quoi": "Le PUE est estimé par famille de refroidissement et taux de "
+             "charge, pas par le climat local heure par heure.",
+     "moteur_fait": "Un PUE par famille avec sa courbe de charge partielle — "
+                    "l'ordre de grandeur d'avant-projet.",
+     "leve_par": "pue_cible",
+     "leve_note": "Renseignez le PUE issu de votre simulation dans le champ "
+                  "PUE cible : le moteur l'emploie tel quel et la réserve "
+                  "disparaît du résultat.",
+     "normes": ["ISO/IEC 30134-2 (PUE)", "EN 50600-4-2",
+                "ASHRAE Thermal Guidelines (plages d'admission)"],
+     "calcul": "Simulation thermique dynamique du site sur une année météo "
+               "type (fichier TMY), au pas horaire ; compter les heures de "
+               "free-cooling sur la température HUMIDE — pas la sèche — dès "
+               "que le refroidissement est évaporatif.",
+     "qui": "BE fluides / CVC",
+     "quand": "APD au plus tard — avant qu'une garantie de PUE entre au "
+              "contrat."},
+    {"cle": "eau_pointe",
+     "quoi": "L'eau est annualisée, alors que la consommation se concentre "
+             "sur les heures chaudes — quand la ressource est tendue.",
+     "moteur_fait": "La consommation annuelle par famille, la part "
+                    "évaporative, et la confrontation aux repères publiés.",
+     "leve_par": None,
+     "leve_note": "Aucune saisie ne la lève ici : la pointe dépend du site, "
+                  "de son autorisation de prélèvement et de l'étiage local.",
+     "normes": ["ISO/IEC 30134-9 (WUE)", "ISO 14046 (empreinte eau)",
+                "ISO 46001 (management de l'efficacité hydrique)",
+                "code de l'environnement — autorisation de prélèvement"],
+     "calcul": "Profil mensuel de consommation à partir des données météo "
+               "locales ; le confronter au débit autorisé et à l'étiage "
+               "(agence de l'eau, BRGM) ; dimensionner le stockage tampon "
+               "pour tenir les arrêtés sécheresse sans délester.",
+     "qui": "BE fluides et exploitant, avec l'agence de l'eau",
+     "quand": "Faisabilité pour l'autorisation ; PRO pour le stockage."},
+    {"cle": "carbone_incorpore",
+     "quoi": "Les facteurs de carbone incorporé sont des ordres de grandeur "
+             "sectoriels à ±50 %.",
+     "moteur_fait": "Des facteurs sectoriels amortis sur la durée de vie, "
+                    "comparables poste à poste avec l'exploitation.",
+     "leve_par": None,
+     "leve_note": "Pas d'entrée par équipement ici : la substitution se fait "
+                  "dans l'étude, déclaration par déclaration, dès que les "
+                  "produits sont choisis.",
+     "normes": ["EN 15804+A2 (EPD / FDES, base INIES)",
+                "ISO 14025 (déclarations de type III)",
+                "ISO 14040/14044 (ACV)",
+                "ITU-T L.1410 (équipements TIC)"],
+     "calcul": "Substituer chaque facteur sectoriel par la déclaration "
+               "environnementale du produit retenu (modules A1-A3 et suivants "
+               "pertinents), amortie sur SA durée de vie ; recalculer le "
+               "classement des leviers — l'écart peut l'inverser.",
+     "qui": "AMO carbone avec les acheteurs",
+     "quand": "Dès l'ACT : les déclarations s'exigent dans les marchés, pas "
+              "après signature."},
+    {"cle": "carbone_horaire",
+     "quoi": "L'intensité carbone employée est une moyenne annuelle : elle ne "
+             "permet pas d'arbitrer un pilotage horaire des charges.",
+     "moteur_fait": "La moyenne annuelle par pays, et la distinction "
+                    "market-based / location-based en piste de remplacement.",
+     "leve_par": "intensite_reseau_g",
+     "leve_note": "Renseignez le facteur de VOTRE contrat ou de votre année "
+                  "de référence : la réserve tombe du résultat. Le pilotage "
+                  "horaire, lui, reste une étude à part.",
+     "normes": ["GHG Protocol — Scope 2 Guidance",
+                "données horaires RTE éCO2mix / ENTSO-E",
+                "24/7 Carbon-Free Energy Compact"],
+     "calcul": "Croiser la courbe de charge IT horaire avec l'intensité "
+               "horaire du réseau sur une année ; chiffrer le gain d'un "
+               "décalage des charges différables ; en tirer le facteur "
+               "effectif à contractualiser (PPA, garanties horaires).",
+     "qui": "Énergéticien avec l'exploitant",
+     "quand": "Dès le PRO si un PPA se négocie ; sinon en exploitation."},
+]
+
+
+def _verifier_limites():
+    fautes = []
+    cles = [x["cle"] for x in LIMITES]
+    if len(set(cles)) != len(cles):
+        fautes.append("clé de limite dupliquée")
+    champs_profil = {c["id"] for c in CHAMPS}
+    for x in LIMITES:
+        for champ in ("quoi", "moteur_fait", "leve_note", "calcul", "qui", "quand"):
+            if not str(x.get(champ) or "").strip():
+                fautes.append("limite %s : champ %s vide" % (x["cle"], champ))
+        if not x.get("normes"):
+            fautes.append("limite %s : aucune norme" % x["cle"])
+        # UNE LIMITE « LEVABLE » DOIT L'ÊTRE PAR UN CHAMP QUI EXISTE : nommer
+        # un champ disparu enverrait le lecteur chercher une case absente.
+        if x["leve_par"] is not None and x["leve_par"] not in champs_profil:
+            fautes.append("limite %s : champ de levée inconnu %s"
+                          % (x["cle"], x["leve_par"]))
+    return fautes
+
+
 def referentiel():
     """Le vocabulaire et les constantes, pour l'interface et la documentation."""
     return {
         "version": VERSION,
         "sources_consultables": SOURCES_CONSULTABLES,
+        "limites": LIMITES,
         "refroidissement": REFROIDISSEMENT,
         "classes_ashrae": CLASSES_ASHRAE,
         "ashrae_source": ASHRAE_SOURCE,
@@ -1415,3 +1528,10 @@ for _c in CHAMPS:
         # référentiel, silencieusement, sur la valeur par défaut.
         _c["options_nom"] = {k: (_f(k) or k) for k in _c["options"]}
 del _c, _f
+
+
+# Le contrôle des limites court APRÈS la définition de CHAMPS : il vérifie
+# qu'une limite « levable » nomme un champ du profil qui existe vraiment.
+_F_LIMITES = _verifier_limites()
+if _F_LIMITES:
+    raise AssertionError("LIMITES : " + " | ".join(_F_LIMITES))

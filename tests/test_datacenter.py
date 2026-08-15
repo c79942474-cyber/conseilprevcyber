@@ -288,3 +288,45 @@ def test_le_garde_TOMBE_sur_un_lien_profond():
     finally:
         d.SOURCES_CONSULTABLES[0]["lien"] = sauve
     assert not d._verifier_sources()
+
+
+# ── Les limites du moteur, chacune avec sa réponse ─────────────────────────
+# On n'efface aucune limite vraie ; chacune porte la norme, le calcul, la
+# main. Et une limite « levable » doit l'être par un champ du profil qui
+# EXISTE : nommer un champ disparu enverrait chercher une case absente.
+
+def test_chaque_limite_porte_sa_reponse_complete():
+    import datacenter as d
+    assert len(d.LIMITES) == 4
+    for x in d.LIMITES:
+        for champ in ("quoi", "moteur_fait", "leve_note", "calcul", "qui", "quand"):
+            assert str(x[champ]).strip(), (x["cle"], champ)
+        assert x["normes"], x["cle"]
+
+
+def test_deux_limites_se_levent_par_un_champ_du_profil():
+    import datacenter as d
+    champs = {c["id"] for c in d.CHAMPS}
+    levables = [x for x in d.LIMITES if x["leve_par"]]
+    assert len(levables) == 2
+    for x in levables:
+        assert x["leve_par"] in champs, x["cle"]
+    # …et les avertissements du résultat tombent bien quand la donnée arrive.
+    sans = d.etude({"puissance_it_kw": 1000})
+    avec = d.etude({"puissance_it_kw": 1000, "pue_cible": 1.25,
+                    "intensite_reseau_g": 42})
+    txt_sans = " ".join(sans["avertissements"])
+    txt_avec = " ".join(avec["avertissements"])
+    assert "ESTIMÉ" in txt_sans and "MOYENNE ANNUELLE" in txt_sans
+    assert "ESTIMÉ" not in txt_avec and "MOYENNE ANNUELLE" not in txt_avec
+
+
+def test_le_garde_TOMBE_sur_un_champ_de_levee_inconnu():
+    import datacenter as d
+    sauve = d.LIMITES[0]["leve_par"]
+    try:
+        d.LIMITES[0]["leve_par"] = "champ_disparu"
+        assert any("champ de levée inconnu" in f for f in d._verifier_limites())
+    finally:
+        d.LIMITES[0]["leve_par"] = sauve
+    assert not d._verifier_limites()

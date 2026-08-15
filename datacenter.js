@@ -1126,6 +1126,39 @@
       + "retrouve difficilement&nbsp;: le thème compte autant que le fichier.";
   }
 
+  /* LES LIMITES, CHACUNE AVEC SA RÉPONSE. La liste statique de la page
+     disait « le moteur ne connaît pas votre intensité carbone » alors que le
+     champ existait dans le formulaire : une limite écrite en dur avait déjà
+     menti. Tout vient du serveur, y compris le NOM du champ qui lève la
+     limite — vérifié côté module contre le profil réel. */
+  function afficherLimites() {
+    var el = $("#dc-limites");
+    var lims = (REF && REF.referentiel && REF.referentiel.limites) || [];
+    if (!el || !lims.length) return;
+    el.innerHTML = '<div class="dc-lim">' + lims.map(function (x) {
+      var h = '<article class="dc-lim-c' + (x.leve_par ? " levable" : "") + '">'
+        + "<h4>" + esc(x.quoi) + "</h4>";
+      if (x.leve_par) {
+        h += '<span class="dc-lim-lv">✓ se lève ici — champ « '
+          + esc(x.leve_par) + " »</span>";
+      }
+      h += '<p><span class="dc-lim-t">Ce que le moteur fait déjà</span>'
+        + esc(x.moteur_fait) + "</p>"
+        + '<p><span class="dc-lim-t">' + (x.leve_par ? "Comment la lever ici"
+            : "Pourquoi elle ne se lève pas ici") + "</span>"
+        + esc(x.leve_note) + "</p>"
+        + '<p><span class="dc-lim-t">La marche professionnelle</span>'
+        + esc(x.calcul) + "</p>"
+        + '<p><span class="dc-lim-t">Normes et références</span>'
+        + x.normes.map(function (n) {
+            return '<span class="dc-lim-n">' + esc(n) + "</span>";
+          }).join("") + "</p>"
+        + "<p><b>" + esc(x.qui) + "</b> — " + esc(x.quand) + "</p>"
+        + "</article>";
+      return h;
+    }).join("") + "</div>";
+  }
+
   function afficherReferentiel() {
     var el = $("#dc-referentiel");
     afficherBase();
@@ -1319,6 +1352,7 @@
            étude soit lancée. Un lecteur doit pouvoir juger les constantes AVANT
            de décider s'il fait confiance au calcul. */
         afficherReferentiel();
+        afficherLimites();
         etat("");
       })
       .catch(function (e) {
