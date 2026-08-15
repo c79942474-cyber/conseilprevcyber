@@ -1225,17 +1225,78 @@
       }
       if (C.en50600) cu += "<br><br><b>" + esc(C.en50600.titre) + "</b><br>"
         + esc(C.en50600.note);
-      h += '<div class="dc-ref-c" style="grid-column:1/-1"><span class="n">'
-        + 'cadre réglementaire et normatif</span><h4>Ce qui rend ces grandeurs '
-        + 'opposables</h4><div class="v">' + cu + "</div>"
+      /* REPLIÉ, ET L'INTITULÉ PORTE LE COMPTE. Cette carte s'étalait sur
+         toute la largeur sous les six cartes : elle cassait le rythme des
+         trois colonnes et allongeait la section — pour de la matière de
+         référence qu'on CONSULTE. Le compte est DÉRIVÉ des cadres réellement
+         présents : écrit « quatre cadres », il aurait menti au premier
+         ajout. */
+      var nCadres = [C.eed_reporting, C.cndcp, C.iso30134, C.en50600]
+        .filter(Boolean).length;
+      h += '<details class="dc-ref-c dc-cadre" style="grid-column:1/-1">'
+        + '<summary><span class="n">cadre réglementaire et normatif</span> '
+        + "<b>Ce qui rend ces grandeurs opposables</b> "
+        + '<span class="dc-art-n">' + nCadres + " cadre" + (nCadres > 1 ? "s" : "")
+        + " : EED, pacte, ISO 30134, EN 50600</span></summary>"
+        + '<div class="v">' + cu + "</div>"
         + (C.eed_reporting && C.eed_reporting.note
             ? '<span class="rmp">▸ ' + esc(C.eed_reporting.note) + "</span>" : "")
-        + "</div>";
+        + "</details>";
     }
-    el.innerHTML = '<div class="dc-ref">' + h + "</div>"
+    /* LES SOURCES CONSULTABLES. Le référentiel citait ses sources en toutes
+       lettres, mais aucune n'était cliquable : vérifier demandait de retaper
+       un nom d'organisme dans un moteur de recherche. Le menu en propose dix,
+       servies par le serveur avec leur LIEN OFFICIEL — la racine du site,
+       jamais un lien profond qui pourrit — et « quoi vérifier » une fois sur
+       place. CE MENU GARDE SA SÉLECTION, contrairement à celui des pistes :
+       il MONTRE une fiche, il n'insère rien — c'est l'idiome du sélecteur de
+       thème de l'état de l'art, et deux menus qui montrent doivent se
+       comporter pareil. */
+    var srcs = (REF.referentiel && REF.referentiel.sources_consultables)
+      || REF.sources_consultables || [];
+    var menu = "";
+    if (srcs.length) {
+      menu = '<label class="dc-asel" for="dc-src">'
+        + '<span class="dc-asel-l">Consulter une source du référentiel</span>'
+        + '<select id="dc-src" data-dc-src>'
+        + '<option value="">— ' + srcs.length + " sources officielles, avec "
+        + "leur lien —</option>"
+        + srcs.map(function (x, i) {
+            return '<option value="' + i + '">' + esc(x.organisme) + " — "
+              + esc(x.nature) + "</option>";
+          }).join("")
+        + "</select>"
+        + '<span class="dc-asel-a">Chaque fiche donne le lien du site officiel '
+        + "et ce qu'il faut y vérifier. Les liens visent la racine du site — "
+        + "un lien profond finit toujours par mourir.</span></label>"
+        + '<div id="dc-src-fiche"></div>';
+    }
+
+    el.innerHTML = menu + '<div class="dc-ref">' + h + "</div>"
       + '<p class="rc-note">Référentiel <b>' + esc(REF.referentiel.version || REF.version || "")
       + '</b> — rendu depuis le moteur, pas recopié : ce que vous lisez ici est ce '
       + 'que le calcul emploie.</p>';
+
+    var sel = el.querySelector("[data-dc-src]");
+    if (sel) {
+      sel.addEventListener("change", function () {
+        var z = el.querySelector("#dc-src-fiche");
+        if (sel.value === "") { z.innerHTML = ""; return; }
+        var x = srcs[parseInt(sel.value, 10)];
+        if (!x) { z.innerHTML = ""; return; }
+        z.innerHTML = '<div class="dc-src-c">'
+          + '<span class="n">' + esc(x.nature) + "</span>"
+          + "<h4>" + esc(x.organisme) + "</h4>"
+          + "<p>" + esc(x.porte) + "</p>"
+          + '<p class="dc-src-v"><b>À vérifier sur place :</b> '
+          + esc(x.verifier) + "</p>"
+          /* `rel="noopener noreferrer"` sur tout lien externe en nouvel
+             onglet : sans lui, la page cible reçoit `window.opener`. */
+          + '<a class="dc-src-l" href="' + esc(x.lien) + '" target="_blank" '
+          + 'rel="noopener noreferrer">Ouvrir le site officiel — '
+          + esc(x.lien.replace("https://", "")) + " ↗</a></div>";
+      });
+    }
   }
 
   /* Le référentiel conditionne TOUT : sans lui, pas de formulaire, donc pas de

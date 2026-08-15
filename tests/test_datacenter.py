@@ -246,3 +246,45 @@ def test_le_modele_recoit_les_chiffres_comme_des_faits(etude):
     assert "ne recalcule aucune" in user
     assert "ISO/IEC 30134" in user
     assert "Avertissements à reproduire" in user
+
+
+# ── Les sources consultables du référentiel ─────────────────────────────────
+# Dix organismes, chacun avec son lien officiel. La règle qui rend ces liens
+# durables : https, et RIEN après le domaine — un lien profond pourrit en
+# quelques mois, la racine d'un organisme de normalisation est stable depuis
+# des décennies.
+
+def test_au_moins_huit_sources_consultables_completes():
+    import datacenter as d
+    assert len(d.SOURCES_CONSULTABLES) >= 8
+    cles = [x["cle"] for x in d.SOURCES_CONSULTABLES]
+    assert len(set(cles)) == len(cles)
+    for x in d.SOURCES_CONSULTABLES:
+        for champ in ("organisme", "nature", "porte", "lien", "verifier"):
+            assert str(x[champ]).strip(), (x["cle"], champ)
+
+
+def test_tous_les_liens_sont_https_et_a_la_racine():
+    import re
+    import datacenter as d
+    for x in d.SOURCES_CONSULTABLES:
+        assert re.match(r"^https://[^/]+/?$", x["lien"]), (x["cle"], x["lien"])
+
+
+def test_le_referentiel_sert_les_sources():
+    import datacenter as d
+    assert d.referentiel()["sources_consultables"] is d.SOURCES_CONSULTABLES
+
+
+def test_le_garde_TOMBE_sur_un_lien_profond():
+    """La règle de la racine n'existe que si sa violation est détectée. On
+    mutile une copie, on vérifie, on restaure — dans un try/finally."""
+    import datacenter as d
+    sauve = d.SOURCES_CONSULTABLES[0]["lien"]
+    try:
+        d.SOURCES_CONSULTABLES[0]["lien"] = sauve.rstrip("/") + "/page/profonde"
+        fautes = d._verifier_sources()
+        assert any("lien profond" in f for f in fautes)
+    finally:
+        d.SOURCES_CONSULTABLES[0]["lien"] = sauve
+    assert not d._verifier_sources()

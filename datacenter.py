@@ -1058,10 +1058,138 @@ def etude(profil):
     return res
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# LES SOURCES CONSULTABLES — où aller vérifier soi-même, avec le lien
+# ═══════════════════════════════════════════════════════════════════════════
+# Le référentiel cite ses sources en toutes lettres, mais aucune n'était
+# CLIQUABLE : le lecteur qui voulait vérifier retapait un nom d'organisme dans
+# un moteur de recherche. Chaque entrée porte ici le lien officiel.
+#
+# LA RÈGLE DES LIENS : la RACINE du site officiel, jamais un lien profond. Un
+# chemin vers une page précise pourrit en quelques mois — les sites de normes
+# réorganisent sans redirection — et un lien mort au milieu d'un référentiel
+# discrédite tout ce qui l'entoure. La racine, elle, est stable depuis des
+# décennies. Le champ `verifier` dit quoi chercher une fois sur place : c'est
+# lui qui remplace le lien profond, sans en partager la fragilité.
+# Cette règle est VÉRIFIÉE à l'import : une entrée avec un chemin est refusée.
+SOURCES_CONSULTABLES = [
+    {"cle": "ashrae", "organisme": "ASHRAE",
+     "nature": "norme professionnelle",
+     "porte": "Les plages thermiques d'admission des équipements (TC 9.9) — "
+              "celles que ce moteur emploie pour les classes A1 à A4.",
+     "lien": "https://www.ashrae.org",
+     "verifier": "Thermal Guidelines for Data Processing Environments, "
+                 "édition en vigueur, avant d'engager une garantie sur un "
+                 "élargissement de plage."},
+    {"cle": "iso", "organisme": "ISO",
+     "nature": "norme internationale",
+     "porte": "La série ISO/IEC 30134 : définitions normalisées du PUE, du "
+              "WUE, de l'ERF — ce qui rend ces indicateurs opposables dans "
+              "un contrat.",
+     "lien": "https://www.iso.org",
+     "verifier": "ISO/IEC 30134, la partie correspondant à l'indicateur que "
+                 "vous contractualisez (30134-2 pour le PUE)."},
+    {"cle": "cenelec", "organisme": "CEN/CENELEC",
+     "nature": "norme européenne",
+     "porte": "La série EN 50600 — conception, exploitation et indicateurs "
+              "des centres de données ; référence des certifications "
+              "européennes de site.",
+     "lien": "https://www.cencenelec.eu",
+     "verifier": "EN 50600, la partie visée par votre certificateur ; les "
+                 "granularités de disponibilité y sont définies."},
+    {"cle": "green_grid", "organisme": "The Green Grid",
+     "nature": "consortium professionnel",
+     "porte": "L'origine du PUE et du WUE : les documents fondateurs qui "
+              "fixent ce que ces ratios comptent — et ce qu'ils ne comptent "
+              "pas.",
+     "lien": "https://www.thegreengrid.org",
+     "verifier": "Les livres blancs PUE et WUE ; la définition des "
+                 "périmètres de mesure (catégories 1 à 3)."},
+    {"cle": "uptime", "organisme": "Uptime Institute",
+     "nature": "institut privé",
+     "porte": "L'enquête annuelle mondiale — PUE moyens constatés, causes "
+              "d'incidents — et la classification Tier.",
+     "lien": "https://uptimeinstitute.com",
+     "verifier": "Le Global Data Center Survey de l'année : c'est une enquête "
+                 "DÉCLARATIVE auprès d'exploitants, pas une mesure — la "
+                 "citer comme telle."},
+    {"cle": "dg_ener", "organisme": "Commission européenne — DG Énergie",
+     "nature": "réglementation",
+     "porte": "La directive efficacité énergétique (EED refonte) : "
+              "l'obligation de déclaration des centres de données au-dessus "
+              "de 500 kW, et le schéma européen de notation en préparation.",
+     "lien": "https://energy.ec.europa.eu",
+     "verifier": "Le règlement délégué 2024/1364 sur la déclaration des "
+                 "centres de données, et son portail de dépôt."},
+    {"cle": "cndcp", "organisme": "Climate Neutral Data Centre Pact",
+     "nature": "engagement sectoriel",
+     "porte": "Les cibles d'auto-régulation du secteur européen — PUE, part "
+              "renouvelable, eau, économie circulaire — reprises par ce "
+              "moteur comme repères.",
+     "lien": "https://www.climateneutraldatacentre.net",
+     "verifier": "Les cibles par échéance et la liste des signataires : un "
+                 "engagement volontaire n'engage que ceux qui y figurent."},
+    {"cle": "iea", "organisme": "Agence internationale de l'énergie (IEA)",
+     "nature": "organisation internationale",
+     "porte": "Les analyses de référence sur la consommation électrique des "
+              "centres de données et son évolution — l'échelle macro qui "
+              "manque aux fiches produit.",
+     "lien": "https://www.iea.org",
+     "verifier": "Le rapport Energy and AI et les données Data Centres and "
+                 "Data Transmission Networks."},
+    {"cle": "ademe", "organisme": "ADEME",
+     "nature": "agence publique française",
+     "porte": "Les facteurs d'émission réglementaires français — dont "
+              "l'intensité carbone à employer pour un bilan opposable en "
+              "France.",
+     "lien": "https://www.ademe.fr",
+     "verifier": "La Base Empreinte pour les facteurs d'émission, et les "
+                 "avis techniques sur le refroidissement."},
+    {"cle": "rte", "organisme": "RTE",
+     "nature": "gestionnaire de réseau",
+     "porte": "L'intensité carbone du réseau français heure par heure, et "
+              "les conditions de raccordement — le poste dont le DÉLAI "
+              "décide souvent du calendrier du projet.",
+     "lien": "https://www.rte-france.com",
+     "verifier": "éCO2mix pour l'intensité horaire constatée ; la file "
+                 "d'attente de raccordement de votre région."},
+]
+
+
+def _verifier_sources():
+    fautes = []
+    cles = [x["cle"] for x in SOURCES_CONSULTABLES]
+    if len(SOURCES_CONSULTABLES) < 8:
+        fautes.append("moins de huit sources consultables")
+    if len(set(cles)) != len(cles):
+        fautes.append("clé de source dupliquée")
+    liens = [x["lien"] for x in SOURCES_CONSULTABLES]
+    if len(set(liens)) != len(liens):
+        fautes.append("lien dupliqué")
+    for x in SOURCES_CONSULTABLES:
+        for champ in ("organisme", "nature", "porte", "lien", "verifier"):
+            if not str(x.get(champ) or "").strip():
+                fautes.append("source %s : champ %s vide" % (x["cle"], champ))
+        lien = x["lien"]
+        if not lien.startswith("https://"):
+            fautes.append("source %s : lien non https" % x["cle"])
+        # LA RÈGLE ANTI-POURRISSEMENT : racine du site, rien après le domaine.
+        reste = lien[len("https://"):]
+        if "/" in reste.rstrip("/"):
+            fautes.append("source %s : lien profond refusé (%s)" % (x["cle"], lien))
+    return fautes
+
+
+_F_SOURCES = _verifier_sources()
+if _F_SOURCES:
+    raise AssertionError("SOURCES_CONSULTABLES : " + " | ".join(_F_SOURCES))
+
+
 def referentiel():
     """Le vocabulaire et les constantes, pour l'interface et la documentation."""
     return {
         "version": VERSION,
+        "sources_consultables": SOURCES_CONSULTABLES,
         "refroidissement": REFROIDISSEMENT,
         "classes_ashrae": CLASSES_ASHRAE,
         "ashrae_source": ASHRAE_SOURCE,

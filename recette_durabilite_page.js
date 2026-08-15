@@ -436,6 +436,84 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
   const art = { texte: await pg.evaluate(
     () => (document.getElementById('dc-art') || {}).textContent || '') };
 
+  titre('4 ter. Le référentiel : trois colonnes, et dix sources qu’on peut OUVRIR');
+
+  /* Le référentiel citait ses sources en toutes lettres, mais aucune n'était
+     cliquable. Le menu en propose maintenant dix, servies par le serveur avec
+     leur lien officiel. CE QU'ON PROTÈGE : que les liens soient en https et à
+     la RACINE du site — un lien profond finit toujours par mourir, et un lien
+     mort au milieu d'un référentiel discrédite tout ce qui l'entoure — et que
+     la fiche ouverte porte bien `rel="noopener"` : sans lui, la page cible
+     reçoit `window.opener`. */
+  const refz = await pg.evaluate(() => {
+    const z = document.getElementById('dc-referentiel');
+    const cartes = [...z.querySelectorAll('.dc-ref .dc-ref-c')];
+    const y0 = cartes.length ? Math.round(cartes[0].getBoundingClientRect().top) : 0;
+    const sel = z.querySelector('[data-dc-src]');
+    const cadre = z.querySelector('.dc-cadre');
+    return {
+      cartes: cartes.length,
+      colonnes: cartes.filter(c =>
+        Math.abs(Math.round(c.getBoundingClientRect().top) - y0) < 4).length,
+      menu: !!sel, options: sel ? sel.options.length - 1 : 0,
+      intitule: sel ? sel.options[0].textContent.trim() : '',
+      cadreDepliant: !!cadre && cadre.tagName === 'DETAILS' && !cadre.open,
+      cadreCompte: cadre ? ((cadre.querySelector('.dc-art-n') || {}).textContent || '') : '',
+    };
+  });
+  ok('les cartes du référentiel tiennent sur TROIS colonnes',
+     refz.colonnes === 3, refz.colonnes + ' au premier rang, ' + refz.cartes + ' carte(s)');
+  ok('le cadre réglementaire est replié, et son intitulé porte le compte',
+     refz.cadreDepliant && /\d/.test(refz.cadreCompte), refz.cadreCompte);
+  ok('LE MENU PROPOSE AU MOINS HUIT SOURCES', refz.menu && refz.options >= 8,
+     refz.options + ' source(s)');
+  ok('…et son intitulé annonce le compte et le lien',
+     /\d+ sources officielles, avec leur lien/.test(refz.intitule), refz.intitule);
+
+  /* LA RÈGLE ANTI-POURRISSEMENT, mesurée sur ce que le serveur SERT : https,
+     et rien après le domaine. C'est la doctrine qui rend ces liens durables. */
+  const liens = await pg.evaluate(async () => {
+    const r = await fetch('/api/datacenter/referentiel', { credentials: 'same-origin' });
+    const j = await r.json();
+    const srcs = (j.referentiel || j).sources_consultables
+      || (j.sources_consultables || []);
+    return srcs.map(x => ({ cle: x.cle, lien: x.lien,
+      racine: /^https:\/\/[^/]+\/?$/.test(x.lien) }));
+  });
+  ok('le serveur sert les mêmes sources que le menu', liens.length === refz.options,
+     liens.length + ' servies / ' + refz.options + ' au menu');
+  ok('TOUS LES LIENS SONT EN HTTPS ET À LA RACINE DU SITE',
+     liens.length > 0 && liens.every(x => x.racine),
+     liens.filter(x => !x.racine).map(x => x.cle + '=' + x.lien).join(' ') || 'tous');
+
+  const fiche = await pg.evaluate(async () => {
+    const sel = document.querySelector('[data-dc-src]');
+    if (!sel) return { lien: null, cible: null, rel: null, verifier: '',
+                       garde: false, manque: 'aucun menu [data-dc-src]' };
+    sel.value = '0';
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 250));
+    const a = document.querySelector('#dc-src-fiche .dc-src-l');
+    const v = document.querySelector('#dc-src-fiche .dc-src-v');
+    return {
+      lien: a ? a.getAttribute('href') : null,
+      cible: a ? a.getAttribute('target') : null,
+      rel: a ? a.getAttribute('rel') : null,
+      verifier: v ? v.textContent : '',
+      garde: sel.value === '0',
+    };
+  });
+  ok('choisir une source OUVRE sa fiche, avec le lien du référentiel',
+     !!fiche.lien && liens.some(x => x.lien === fiche.lien), fiche.lien);
+  ok('…le lien s’ouvre dans un nouvel onglet SANS donner window.opener',
+     fiche.cible === '_blank' && /noopener/.test(fiche.rel || ''),
+     'target=' + fiche.cible + ' rel=' + fiche.rel);
+  ok('…la fiche dit QUOI vérifier une fois sur place',
+     /À vérifier sur place/.test(fiche.verifier), fiche.verifier.slice(0, 60));
+  /* Ce menu MONTRE une fiche : il garde sa sélection — l'idiome du sélecteur
+     de thème, et deux menus qui montrent doivent se comporter pareil. */
+  ok('…et ce menu-là GARDE sa sélection : il montre, il n’insère pas', fiche.garde);
+
   titre('5. La mise au point sur le faux « LCA »');
 
   /* Deux affirmations distinctes, deux contrôles : la notice du document, et

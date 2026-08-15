@@ -611,6 +611,25 @@
   .dc-ref-c{border:1px solid var(--line);border-radius:10px;padding:13px 15px;
     background:rgba(0,0,0,.14)}
   .dc-ref-c h4{font-size:13.5px;margin:0 0 4px;color:var(--ink)}
+  /* Le cadre réglementaire, replié : résumé cliquable, compte visible. */
+  .dc-cadre>summary{cursor:pointer;list-style-position:inside}
+  .dc-cadre>summary b{font-size:13.5px;color:var(--ink)}
+  .dc-cadre>summary:hover b{color:var(--cyan)}
+  .dc-cadre>summary:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  .dc-cadre[open]>summary{margin-bottom:8px}
+  /* La fiche d'une source consultable, sous le menu. */
+  .dc-src-c{border:1px solid var(--line);border-left:3px solid var(--teal);
+    border-radius:10px;padding:13px 15px;margin:0 0 14px;background:rgba(0,0,0,.14);
+    max-width:760px}
+  .dc-src-c .n{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;
+    letter-spacing:.06em;color:var(--muted2)}
+  .dc-src-c h4{font-size:13.5px;margin:2px 0 5px;color:var(--ink)}
+  .dc-src-c p{font-size:12.5px;line-height:1.6;margin:0 0 7px;color:var(--muted)}
+  .dc-src-v b{color:var(--ink)}
+  .dc-src-l{display:inline-block;font-size:12.5px;font-weight:600;color:var(--cyan);
+    text-decoration:underline;text-underline-offset:3px}
+  .dc-src-l:hover{color:var(--ink)}
+  .dc-src-l:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
   .dc-ref-c .n{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;
     letter-spacing:.06em;text-transform:uppercase;color:var(--amber);display:block;margin-bottom:5px}
   .dc-ref-c p{font-size:12.5px;color:var(--muted2);line-height:1.6;margin:0 0 6px}
