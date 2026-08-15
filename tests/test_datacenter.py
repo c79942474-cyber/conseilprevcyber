@@ -417,3 +417,127 @@ def test_evaluer_intensite_borne_le_pilotage_en_tonnes():
     # Sans données client : pas de bloc pilotage du tout — le moteur ne
     # fabrique pas d'étude de pilotage à partir de rien.
     assert "pilotage" not in d.evaluer_intensite(m, "FR")
+
+
+# ── Les évaluateurs eau et carbone incorporé ───────────────────────────────
+# Même doctrine que le PUE et l'intensité : jamais un second barème. La
+# référence eau est RECALCULÉE par energie()+eau(), les bornes viennent des
+# constantes d'incertitude du module — les mêmes qui écrivent « ±15 % » et
+# « ±50 % » dans les notes de calcul de l'étude.
+
+def test_evaluer_eau_est_le_meme_calcul_que_l_etude():
+    import datacenter as d
+    pr = {"puissance_it_kw": 1000, "refroidissement": "adiabatique"}
+    w = d.eau(pr, d.energie(pr))
+    appoint = w["appoint_m3"]["valeur"]
+    ev = d.evaluer_eau(pr, appoint)
+    assert ev["ok"] and ev["verdict"] == "coherent_etude"
+    assert ev["reference"]["appoint_m3"] == round(appoint, 1)
+    assert ev["reference"]["evaporation_m3"] == round(w["evaporation_m3"]["valeur"], 1)
+    # Les bornes sont DÉRIVÉES des constantes du module, pas réécrites.
+    evap = w["evaporation_m3"]["valeur"]
+    assert d.evaluer_eau(pr, evap * (1 - d.INCERTITUDE_EVAPORATION) * 0.99)["verdict"] \
+        == "sous_borne_physique"
+    assert d.evaluer_eau(pr, appoint * (1 + d.INCERTITUDE_APPOINT) * 1.01)["verdict"] \
+        == "au_dessus_etude"
+
+
+def test_evaluer_eau_refuse_sans_puissance_et_l_impossible():
+    import datacenter as d
+    r = d.evaluer_eau({}, 100)
+    assert r["ok"] is False and "puissance" in r["motif"]
+    r = d.evaluer_eau({"puissance_it_kw": 1000}, -5)
+    assert r["ok"] is False
+    r = d.evaluer_eau({"puissance_it_kw": 1000}, "beaucoup")
+    assert r["ok"] is False
+
+
+def test_evaluer_eau_famille_seche_zero_est_coherent():
+    """0 m³ n'est pas refusé : pour un rejet sec, c'est LE bon chiffre — et
+    un volume non nul y devient une question de périmètre, pas une erreur."""
+    import datacenter as d
+    sec = {"puissance_it_kw": 1000, "refroidissement": "air_dx"}
+    assert d.evaluer_eau(sec, 0)["verdict"] == "coherent_etude"
+    ev = d.evaluer_eau(sec, 500)
+    assert ev["verdict"] == "au_dessus_etude" and "décomposition" in ev["lecture"]
+
+
+def test_evaluer_eau_pointe_arithmetique():
+    """Le moteur n'a pas le climat local : sur la pointe il ne juge QUE
+    l'arithmétique — max ≥ moyenne — et nomme le profil mensuel pour le reste."""
+    import datacenter as d
+    pr = {"puissance_it_kw": 1000, "refroidissement": "adiabatique"}
+    ev = d.evaluer_eau(pr, 3650, pointe_jour_m3=8)   # jour moyen = 10
+    assert ev["pointe"]["recevable"] is False
+    assert "impossible" in ev["pointe"]["lecture"]
+    ev = d.evaluer_eau(pr, 3650, pointe_jour_m3=10)  # 365 jours identiques
+    assert ev["pointe"]["recevable"] is False
+    assert "évaporatif" in ev["pointe"]["lecture"]
+    ev = d.evaluer_eau(pr, 3650, pointe_jour_m3=25)
+    assert ev["pointe"]["recevable"] is True and ev["pointe"]["facteur"] == 2.5
+    assert "profil mensuel" in ev["pointe"]["lecture"]
+
+
+def test_evaluer_incorpore_bornes_derivees_du_referentiel():
+    import datacenter as d
+    ref = d.INCORPORE["serveur_kgCO2e"]["valeur"]
+    marge = d.INCERTITUDE_INCORPORE
+    assert d.evaluer_incorpore("serveur_kgCO2e", ref)["verdict"] == "coherent_secteur"
+    assert d.evaluer_incorpore("serveur_kgCO2e", ref * (1 - marge) * 0.99)["verdict"] \
+        == "sous_plage_sectorielle"
+    assert d.evaluer_incorpore("serveur_kgCO2e", ref * (1 + marge) * 1.01)["verdict"] \
+        == "au_dessus_secteur"
+    r = d.evaluer_incorpore("gpu_rack", 100)
+    assert r["ok"] is False and "serveur_kgCO2e" in r["motif"]  # liste les connus
+    # Nul ou négatif : refus qui ENSEIGNE — modules séparés, pas d'effacement.
+    r = d.evaluer_incorpore("batiment_kgCO2e_par_kW_IT", -5)
+    assert r["ok"] is False and "A1-A3" in r["motif"]
+
+
+def test_evaluer_incorpore_amortit_sur_la_duree_annoncee():
+    import datacenter as d
+    ref = d.INCORPORE["serveur_kgCO2e"]
+    ev = d.evaluer_incorpore("serveur_kgCO2e", ref["valeur"], duree_vie_ans=6)
+    a = ev["amorti"]
+    assert a["annonce_kg_an"] == round(ref["valeur"] / 6, 1)
+    assert a["reference_kg_an"] == round(ref["valeur"] / ref["duree_vie_ans"], 1)
+    assert "durée de vie" in a["lecture"]
+    r = d.evaluer_incorpore("serveur_kgCO2e", 1200, duree_vie_ans=0)
+    assert r["ok"] is False
+
+
+def test_les_quatre_evaluateurs_disent_a_qui_exiger():
+    """« pour BE fluides et AMO carbone » : chaque verdict nomme la main qui
+    doit produire les pièces — c'est elle que le client appellera."""
+    import datacenter as d
+    pr = {"puissance_it_kw": 1000}
+    assert d.evaluer_pue(1.3)["exige_de"] == "du BE fluides"
+    assert d.evaluer_intensite(56)["exige_de"] == "de l'énergéticien"
+    assert d.evaluer_eau(pr, 1000)["exige_de"] == "du BE fluides"
+    assert d.evaluer_incorpore("serveur_kgCO2e", 1200)["exige_de"] == "de l'AMO carbone"
+
+
+def test_exigences_incorpore_portent_les_normes_demandees():
+    """ISO 14025, EN 15804+A2, ISO 14040/14044 et les quatre normes
+    d'écoconception fournies : chacune doit être NOMMÉE dans les exigences ou
+    la marche — une norme utilisée est une norme citée."""
+    import datacenter as d
+    txt = " ".join(d.evaluer_incorpore("serveur_kgCO2e", 1200)["exigences"])
+    for norme in ("ISO 14025", "EN 15804+A2", "ISO 14040/14044",
+                  "IEC 62430", "ISO 14006", "NF X30-264", "ISO/TR 14062"):
+        assert norme in txt, norme
+    # …et l'eau cite l'écoconception pour l'arbitrage eau/énergie.
+    txt_eau = " ".join(d.evaluer_eau({"puissance_it_kw": 1000}, 1000)["exigences"])
+    for norme in ("ISO 14046", "ISO 46001", "ISO/IEC 30134-9", "IEC 62430"):
+        assert norme in txt_eau, norme
+
+
+def test_les_sources_consultables_portent_afnor_et_inies():
+    import datacenter as d
+    cles = {s["cle"] for s in d.SOURCES_CONSULTABLES}
+    assert {"afnor", "inies"} <= cles
+    # Toujours à la racine, toujours en https — le garde général le prouve
+    # déjà, mais ces deux-là sont neuves : les nommer rend l'échec lisible.
+    for s in d.SOURCES_CONSULTABLES:
+        if s["cle"] in ("afnor", "inies"):
+            assert s["lien"].startswith("https://") and s["verifier"]

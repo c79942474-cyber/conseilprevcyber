@@ -482,6 +482,11 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
   });
   ok('le serveur sert les mêmes sources que le menu', liens.length === refz.options,
      liens.length + ' servies / ' + refz.options + ' au menu');
+  /* Les normes d'écoconception fournies au cabinet ont leur porte d'entrée :
+     AFNOR (les textes) et INIES (les FDES où la substitution se fait). */
+  ok('…dont AFNOR et INIES, les portes des normes d’écoconception et des FDES',
+     ['afnor', 'inies'].every(c => liens.some(l => l.cle === c)),
+     liens.map(l => l.cle).join(', '));
   ok('TOUS LES LIENS SONT EN HTTPS ET À LA RACINE DU SITE',
      liens.length > 0 && liens.every(x => x.racine),
      liens.filter(x => !x.racine).map(x => x.cle + '=' + x.lien).join(' ') || 'tous');
@@ -575,14 +580,21 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
         && c.querySelector('[data-ev="pue"]')),
       intSurLevable: cartes.some(c => c.classList.contains('levable')
         && c.querySelector('[data-ev="intensite"]')),
-      surNonLevable: cartes.filter(c => !c.classList.contains('levable')
-        && c.querySelector('.dc-ev')).length,
+      eauPresent: cartes.some(c => !c.classList.contains('levable')
+        && c.querySelector('[data-ev="eau"]')),
+      incPresent: cartes.some(c => !c.classList.contains('levable')
+        && c.querySelector('[data-ev="incorpore"]')),
+      postesServis: [...document.querySelectorAll('[data-ev="incorpore"] [data-ev-poste] option')]
+        .map(o => o.value),
     };
   });
-  ok('deux évaluateurs, chacun sur SA carte levable, aucun ailleurs',
-     evs.total === 2 && evs.pueSurLevable && evs.intSurLevable
-       && evs.surNonLevable === 0,
-     evs.total + ' évaluateur(s), ' + evs.surNonLevable + ' hors carte levable');
+  ok('QUATRE évaluateurs — un par carte, levable ou non',
+     evs.total === 4 && evs.pueSurLevable && evs.intSurLevable
+       && evs.eauPresent && evs.incPresent,
+     evs.total + ' évaluateur(s) — eau: ' + evs.eauPresent + ', incorporé: ' + evs.incPresent);
+  ok('…et les postes d’incorporé viennent du référentiel SERVI',
+     evs.postesServis.length >= 3 && evs.postesServis.indexOf('serveur_kgCO2e') >= 0,
+     evs.postesServis.join(', '));
 
   /* Le contexte du jugement vient du FORMULAIRE : on le fixe d'abord, pour
      que le verdict attendu soit déterministe. */
@@ -656,11 +668,86 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
      /Pilotage horaire, borné/.test(v3.txt) && /26/.test(v3.txt)
        && /GWh/.test(v3.txt), v3.txt.slice(v3.txt.search(/Pilotage/), v3.txt.search(/Pilotage/) + 130));
 
-  /* On repart propre : les champs d'essai vidés, pour que la suite de la
-     recette ne juge pas une page encombrée par celle-ci. */
+  /* L'EAU : la référence est recalculée pour le profil du formulaire. À ce
+     stade de la recette la puissance n'est PAS renseignée — et c'est le
+     premier contrôle : le moteur doit REFUSER de comparer à un site
+     imaginaire, en renvoyant à l'étape 2, plutôt que d'inventer une base. */
+  await pg.fill('[data-ev="eau"] [data-ev-vol]', '1000');
+  await pg.click('[data-ev="eau"] [data-ev-go]');
+  const v4 = await verdictDans('[data-ev="eau"]');
+  ok('sans puissance au formulaire, l’eau est REFUSÉE vers l’étape 2',
+     /refus/.test(v4.classe) && /puissance/i.test(v4.txt) && /étape 2/.test(v4.txt),
+     v4.txt.slice(0, 130));
+
+  /* Puissance posée, la référence d'appoint est demandée à l'API — le MÊME
+     moteur — puis rejouée dans l'interface : l'annuel annoncé égal à
+     l'appoint calculé doit être jugé cohérent… */
+  await pg.fill('#dc-form [data-champ="puissance_it_kw"]', '1000');
+  const probe = await pg.evaluate(() =>
+    fetch('/api/datacenter/evaluer', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'eau', volume_annuel_m3: 1,
+        profil: { puissance_it_kw: 1000, refroidissement: 'adiabatique' } }),
+    }).then(r => r.json()).then(j => (j.evaluation && j.evaluation.reference) || null)
+      .catch(() => null));
+  ok('l’API rend la référence d’appoint recalculée', !!probe && probe.appoint_m3 > 0,
+     probe ? probe.appoint_m3 + ' m³/an (évap ' + probe.evaporation_m3 + ')' : 'pas de référence');
+  /* …avec, dans le même geste, une pointe arithmétiquement impossible :
+     l'irrecevable doit PRIMER — carte à l'ambre, pas au teal du cohérent. */
+  const pointeImpossible = probe ? Math.max(0.1, Math.round(probe.appoint_m3 / 365 / 2)) : 1;
+  await pg.fill('[data-ev="eau"] [data-ev-vol]', String(probe ? probe.appoint_m3 : 1000));
+  await pg.fill('[data-ev="eau"] [data-ev-pointe]', String(pointeImpossible));
+  await pg.click('[data-ev="eau"] [data-ev-go]');
+  const v5 = await verdictDans('[data-ev="eau"]');
+  ok('l’appoint calculé est jugé cohérent, profil dit dans le verdict',
+     /Cohérent avec le calcul/i.test(v5.txt) && /profil lu du formulaire/.test(v5.txt),
+     v5.txt.slice(0, 140));
+  ok('…mais la pointe impossible PRIME : ambre, « max ≥ moyenne » expliqué',
+     /attention/.test(v5.classe) && /irrecevable/i.test(v5.txt)
+       && /impossible/i.test(v5.txt), v5.txt.slice(v5.txt.search(/Pointe/), v5.txt.search(/Pointe/) + 130));
+  ok('…et les exigences eau nomment le profil mensuel et l’étiage',
+     /profil MENSUEL/i.test(v5.txt) && /étiage/i.test(v5.txt)
+       && /BE fluides/.test(v5.txt));
+
+  /* L'INCORPORÉ : l'ordre sectoriel vient du référentiel servi. Un chiffre
+     40 % sous l'ordre n'est PAS refusé — il est possible, c'est l'intérêt
+     d'une écoconception réelle — mais il EXIGE la déclaration ISO 14025. */
+  const refInc = refJson && refJson.referentiel && refJson.referentiel.incorpore
+    ? refJson.referentiel.incorpore.serveur_kgCO2e.valeur : null;
+  ok('l’ordre sectoriel du serveur est servi par l’API', refInc != null,
+     refInc != null ? refInc + ' kgCO2e' : 'référentiel illisible');
+  await pg.selectOption('[data-ev="incorpore"] [data-ev-poste]', 'serveur_kgCO2e');
+  await pg.fill('[data-ev="incorpore"] [data-ev-val]', String(Math.round((refInc || 1200) * 0.4)));
+  await pg.click('[data-ev="incorpore"] [data-ev-go]');
+  const v6 = await verdictDans('[data-ev="incorpore"]');
+  ok('un incorporé trop beau exige la déclaration, sans être refusé',
+     /attention/.test(v6.classe) && /Sous l’ordre sectoriel|Sous l'ordre sectoriel/i.test(v6.txt)
+       && /ISO 14025/.test(v6.txt) && /tierce partie/i.test(v6.txt),
+     v6.txt.slice(0, 140));
+  ok('…les exigences vont à l’AMO carbone, normes d’écoconception nommées',
+     /AMO carbone/.test(v6.txt) && /IEC 62430/.test(v6.txt)
+       && /NF X30-264/.test(v6.txt) && /EN 15804\+A2/.test(v6.txt));
+
+  /* La durée de vie annoncée est AMORTIE avec la référence en regard. */
+  await pg.fill('[data-ev="incorpore"] [data-ev-val]', String(refInc || 1200));
+  await pg.fill('[data-ev="incorpore"] [data-ev-dv]', '6');
+  await pg.click('[data-ev="incorpore"] [data-ev-go]');
+  const v7 = await verdictDans('[data-ev="incorpore"]');
+  ok('la durée de vie annoncée est amortie, référence en regard',
+     /ok/.test(v7.classe) && /Amortissement/.test(v7.txt)
+       && /premier levier/i.test(v7.txt), v7.txt.slice(v7.txt.search(/Amortissement/), v7.txt.search(/Amortissement/) + 120));
+
+  /* On repart propre : les champs d'essai vidés — puissance comprise, la
+     section 6 pose la sienne — pour que la suite de la recette ne juge pas
+     une page encombrée par celle-ci. */
   await pg.fill('[data-ev="pue"] [data-ev-pue]', '');
   await pg.fill('[data-ev="intensite"] [data-ev-facteur]', '');
   await pg.fill('[data-ev="intensite"] [data-ev-basses]', '');
+  await pg.fill('[data-ev="eau"] [data-ev-vol]', '');
+  await pg.fill('[data-ev="eau"] [data-ev-pointe]', '');
+  await pg.fill('[data-ev="incorpore"] [data-ev-val]', '');
+  await pg.fill('[data-ev="incorpore"] [data-ev-dv]', '');
+  await pg.fill('#dc-form [data-champ="puissance_it_kw"]', '');
 
   titre('5. La mise au point sur le faux « LCA »');
 

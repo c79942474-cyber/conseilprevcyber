@@ -2207,9 +2207,20 @@ def api_datacenter_evaluer():
             heures_basses_g=data.get("heures_basses_g"),
             part_differable_pct=data.get("part_differable_pct"),
             energie_mwh_an=data.get("energie_mwh_an"))
+    elif genre == "eau":
+        # L'eau se juge contre le profil COMPLET : l'appoint de référence est
+        # recalculé par le même moteur que l'étude, avec le nettoyage de
+        # profil commun — jamais un profil brut du client.
+        r = datacenter.evaluer_eau(_profil_datacenter(data.get("profil") or {}),
+                                   data.get("volume_annuel_m3"),
+                                   pointe_jour_m3=data.get("pointe_jour_m3"))
+    elif genre == "incorpore":
+        r = datacenter.evaluer_incorpore(data.get("poste"),
+                                         data.get("valeur_kg"),
+                                         duree_vie_ans=data.get("duree_vie_ans"))
     else:
         return jsonify(ok=False, error="type_inconnu",
-                       message="type attendu : pue ou intensite."), 400
+                       message="type attendu : pue, intensite, eau ou incorpore."), 400
     audit.journaliser("datacenter.evaluer", cible=genre,
                       detail=str(r.get("verdict") or r.get("motif", ""))[:80])
     return jsonify(ok=True, evaluation=r)

@@ -1165,6 +1165,50 @@
         + '<div class="dc-ev-r" data-ev-r aria-live="polite"></div>'
         + "</div>";
     }
+    if (cle === "eau_pointe") {
+      return '<div class="dc-ev" data-ev="eau">'
+        + '<span class="dc-lim-t">En attendant le profil mensuel — juger un volume annoncé</span>'
+        + '<div class="dc-ev-l">'
+        + '<input type="text" inputmode="decimal" data-ev-vol'
+        + ' aria-label="Volume annuel annoncé en mètres cubes par an"'
+        + ' placeholder="volume annuel annoncé, m³/an">'
+        + '<input type="text" inputmode="decimal" data-ev-pointe'
+        + ' aria-label="Jour de pointe annoncé, facultatif"'
+        + ' placeholder="jour de pointe, m³/j (facultatif)">'
+        + '<button type="button" class="dc-ev-go" data-ev-go>Situer ce chiffre</button>'
+        + "</div>"
+        + '<div class="dc-ev-r" data-ev-r aria-live="polite"></div>'
+        + "</div>";
+    }
+    if (cle === "carbone_incorpore") {
+      /* Les postes viennent du référentiel SERVI — la liste recopiée aurait
+         divergé le jour où le moteur en aurait porté un quatrième. */
+      var postes = Object.keys((REF && REF.referentiel && REF.referentiel.incorpore) || {});
+      var NOMS_POSTES = {
+        serveur_kgCO2e: "Serveur — kgCO2e par unité",
+        batiment_kgCO2e_par_kW_IT: "Bâtiment — kgCO2e par kW IT",
+        technique_kgCO2e_par_kW_IT: "Équip. techniques — kgCO2e par kW IT"
+      };
+      return '<div class="dc-ev" data-ev="incorpore">'
+        + '<span class="dc-lim-t">En attendant les déclarations — juger un chiffre fournisseur</span>'
+        + '<div class="dc-ev-l">'
+        + '<select data-ev-poste aria-label="Poste du référentiel">'
+        + postes.map(function (k) {
+            return '<option value="' + esc(k) + '">'
+              + esc(NOMS_POSTES[k] || k) + "</option>";
+          }).join("")
+        + "</select>"
+        + '<input type="text" inputmode="decimal" data-ev-val'
+        + ' aria-label="Valeur annoncée en kilogrammes de CO2 équivalent"'
+        + ' placeholder="valeur annoncée, kgCO2e">'
+        + '<input type="text" inputmode="decimal" data-ev-dv'
+        + ' aria-label="Durée de vie annoncée en années, facultatif"'
+        + ' placeholder="durée de vie, ans (facultatif)">'
+        + '<button type="button" class="dc-ev-go" data-ev-go>Situer ce chiffre</button>'
+        + "</div>"
+        + '<div class="dc-ev-r" data-ev-r aria-live="polite"></div>'
+        + "</div>";
+    }
     return "";
   }
 
@@ -1183,8 +1227,11 @@
     }
     var TONS = {
       coherent: "ok", coherent_location: "ok",
+      coherent_etude: "ok", coherent_secteur: "ok",
       plausible_pleine_charge: "attention", market_based_probable: "attention",
-      sous_plage: "attention", au_dessus: "attention"
+      sous_plage: "attention", au_dessus: "attention",
+      sous_borne_physique: "attention", au_dessus_etude: "attention",
+      sous_plage_sectorielle: "attention", au_dessus_secteur: "attention"
     };
     var NOMS = {
       coherent: "Cohérent à ce taux de charge",
@@ -1192,9 +1239,19 @@
       plausible_pleine_charge: "Plausible à pleine charge — pas à la vôtre",
       market_based_probable: "Facteur contractuel probable (market-based)",
       sous_plage: "Sous la plage de la famille — suspect",
-      au_dessus: "Au-dessus de la plage attendue"
+      au_dessus: "Au-dessus de la plage attendue",
+      sous_borne_physique: "Sous le plancher physique — suspect",
+      coherent_etude: "Cohérent avec le calcul de l’étude",
+      au_dessus_etude: "Au-dessus du calcul de l’étude",
+      sous_plage_sectorielle: "Sous l’ordre sectoriel — déclaration exigée",
+      coherent_secteur: "Dans l’ordre de grandeur sectoriel",
+      au_dessus_secteur: "Au-dessus de l’ordre sectoriel"
     };
-    var h = '<div class="dc-ev-v ' + (TONS[ev.verdict] || "attention") + '">'
+    /* Une pointe arithmétiquement impossible ne laisse pas la carte au teal
+       d'un annuel cohérent : l'irrecevable prime sur le recevable. */
+    var ton = TONS[ev.verdict] || "attention";
+    if (ev.pointe && ev.pointe.recevable === false) ton = "attention";
+    var h = '<div class="dc-ev-v ' + ton + '">'
       + '<span class="dc-ev-b">' + esc(NOMS[ev.verdict] || ev.verdict) + "</span>"
       + "<p>" + esc(ev.lecture) + "</p>"
       + (contexte ? '<p class="dc-ev-ctx">' + contexte + "</p>" : "");
@@ -1206,9 +1263,18 @@
               + " tCO2e/an</b> (" + esc(ev.pilotage.hypotheses) + ")."
             : "") + "</p>";
     }
+    if (ev.pointe) {
+      h += '<p class="dc-ev-pil"><b>Pointe journalière'
+        + (ev.pointe.recevable === false ? " — irrecevable" : "")
+        + "&nbsp;:</b> " + esc(ev.pointe.lecture) + "</p>";
+    }
+    if (ev.amorti) {
+      h += '<p class="dc-ev-pil"><b>Amortissement&nbsp;:</b> '
+        + esc(ev.amorti.lecture) + "</p>";
+    }
     if (ev.exigences && ev.exigences.length) {
       h += '<details class="dc-ev-ex"><summary>À exiger '
-        + (ev.pays ? "de l’énergéticien" : "du BE fluides")
+        + esc(ev.exige_de || "du bureau d’études")
         + " (" + ev.exigences.length + ")</summary><ul>"
         + ev.exigences.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("")
         + "</ul></details>";
@@ -1280,6 +1346,76 @@
               + fr(ev.moyenne_location_g) + "&nbsp;g/kWh, celle de l’étude) — "
               + (pays ? "pays lu du formulaire de l’étape 2."
                       : "pays par défaut (France), précisez-le à l’étape 2.")
+            : "";
+          rendreVerdict(zone, ev, ctx);
+        }).catch(function (e) {
+          zone.innerHTML = '<p class="dc-ev-v refus">' + esc(e.message) + "</p>";
+        });
+      });
+    }
+    /* Eau : la référence est RECALCULÉE par le moteur pour le profil du
+       formulaire — puissance comprise. Sans puissance, le serveur REFUSE de
+       comparer à un site imaginaire, et ce refus s'affiche tel quel : c'est
+       lui qui renvoie à l'étape 2. */
+    var eve = el.querySelector('[data-ev="eau"]');
+    if (eve) {
+      eve.querySelector("[data-ev-go]").addEventListener("click", function () {
+        var zone = eve.querySelector("[data-ev-r]");
+        var brut = (eve.querySelector("[data-ev-vol]").value || "").trim();
+        if (!brut) {
+          zone.innerHTML = '<p class="dc-ev-v attention">Un chiffre d’abord '
+            + ": le volume annuel annoncé par le dossier ou l’offre, en m³/an.</p>";
+          return;
+        }
+        var pointe = (eve.querySelector("[data-ev-pointe]").value || "").trim();
+        var profil = lireProfil();
+        zone.textContent = "Jugement en cours…";
+        poster("/api/datacenter/evaluer", {
+          type: "eau", profil: profil,
+          volume_annuel_m3: brut.replace(",", "."),
+          pointe_jour_m3: pointe ? pointe.replace(",", ".") : null
+        }).then(function (r) {
+          var ev = (r.j && r.j.evaluation) || null;
+          var ctx = ev && ev.ok !== false
+            ? "Référence recalculée pour «&nbsp;" + esc(ev.famille) + "&nbsp;» : appoint "
+              + fr(ev.reference.appoint_m3) + "&nbsp;m³/an, évaporation "
+              + fr(ev.reference.evaporation_m3) + "&nbsp;m³/an (part évaporative "
+              + fr(ev.reference.part_evaporative) + ") — profil lu du formulaire "
+              + "de l’étape 2."
+            : "";
+          rendreVerdict(zone, ev, ctx);
+        }).catch(function (e) {
+          zone.innerHTML = '<p class="dc-ev-v refus">' + esc(e.message) + "</p>";
+        });
+      });
+    }
+    /* Incorporé : le poste vient du référentiel servi, la comparaison des
+       ordres de grandeur du serveur — l'interface ne connaît aucun chiffre. */
+    var evc = el.querySelector('[data-ev="incorpore"]');
+    if (evc) {
+      evc.querySelector("[data-ev-go]").addEventListener("click", function () {
+        var zone = evc.querySelector("[data-ev-r]");
+        var brut = (evc.querySelector("[data-ev-val]").value || "").trim();
+        if (!brut) {
+          zone.innerHTML = '<p class="dc-ev-v attention">Un chiffre d’abord '
+            + ": la valeur annoncée par le fournisseur, en kgCO2e pour le "
+            + "poste choisi.</p>";
+          return;
+        }
+        var dv = (evc.querySelector("[data-ev-dv]").value || "").trim();
+        var poste = evc.querySelector("[data-ev-poste]").value;
+        zone.textContent = "Jugement en cours…";
+        poster("/api/datacenter/evaluer", {
+          type: "incorpore", poste: poste,
+          valeur_kg: brut.replace(",", "."),
+          duree_vie_ans: dv ? dv.replace(",", ".") : null
+        }).then(function (r) {
+          var ev = (r.j && r.j.evaluation) || null;
+          var ctx = ev && ev.ok !== false
+            ? "Comparé à l’ordre de grandeur du référentiel : "
+              + fr(ev.reference.valeur_kg) + "&nbsp;kgCO2e sur "
+              + fr(ev.reference.duree_vie_ans) + "&nbsp;ans (±"
+              + fr(ev.reference.incertitude_pct) + "&nbsp;%) — le même que l’étude."
             : "";
           rendreVerdict(zone, ev, ctx);
         }).catch(function (e) {

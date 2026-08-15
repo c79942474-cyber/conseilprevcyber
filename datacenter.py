@@ -263,6 +263,15 @@ CLASSES_ASHRAE = {
 ASHRAE_SOURCE = ("ASHRAE TC 9.9, Thermal Guidelines for Data Processing "
                  "Environments. Plages d'air à l'entrée des équipements.")
 
+# Les incertitudes du référentiel, écrites UNE fois. Elles vivaient dans les
+# chaînes des notes de calcul (« ±15 % », « ±50 % ») ; le jour où un évaluateur
+# de chiffre annoncé en a eu besoin comme BORNES, les écrire une seconde fois
+# aurait créé deux vérités — la note aurait pu dire ±15 quand le verdict
+# jugeait à ±20. Une seule constante, deux usages : la phrase ET la borne.
+INCERTITUDE_EVAPORATION = 0.10   # physique de la tour, ±10 %
+INCERTITUDE_APPOINT = 0.15       # appoint total (purge, dérive), ±15 %
+INCERTITUDE_INCORPORE = 0.50     # ordres de grandeur sectoriels, ±50 %
+
 # Carbone incorporé. Amorti sur la durée de vie : c'est ce qui permet de le
 # comparer à l'exploitation, et sans cet amortissement la comparaison n'a
 # aucun sens.
@@ -598,7 +607,8 @@ def eau(profil, res_energie):
              "L évaporés par kWh thermique": round(l_par_kwh, 3),
              "part évaporative": part_evap},
             CONSTANTES["eau_evaporee_par_kWh_thermique_L"]["source"],
-            "±10 % (température d'air et d'eau réelles)",
+            "±%s %% (température d'air et d'eau réelles)"
+            % fr(INCERTITUDE_EVAPORATION * 100),
             "Borne physique : aucune tour ne consomme moins pour la même chaleur."),
         "purge_m3": _tracer(
             "Eau de purge (déconcentration)", purge_m3, "m³/an",
@@ -610,7 +620,7 @@ def eau(profil, res_energie):
             "Appoint d'eau total du site", appoint_m3, "m³/an",
             "V_appoint = V_évap × CoC / (CoC − 1)",
             {"V_évap (m³)": round(evaporation_m3, 1), "CoC": coc},
-            "", "±15 %"),
+            "", "±%s %%" % fr(INCERTITUDE_APPOINT * 100)),
         "wue_site": _tracer(
             "WUE de site", wue_site, "L/kWh_IT",
             "WUE_site = Volume d'eau du site / Énergie informatique",
@@ -726,17 +736,20 @@ def carbone(profil, res_energie):
             "= nb serveurs × kgCO2e par serveur / durée de vie",
             {"nb serveurs": n_serv, "kgCO2e/serveur": s["valeur"],
              "durée de vie (ans)": s["duree_vie_ans"]},
-            INCORPORE_SOURCE, "±50 %", s["note"]),
+            INCORPORE_SOURCE,
+            "±%s %%" % fr(INCERTITUDE_INCORPORE * 100), s["note"]),
         "incorpore_batiment_t": _tracer(
             "Carbone incorporé — bâtiment (amorti)", inc_batiment_t, "tCO2e/an",
             "= P_IT × kgCO2e par kW / durée de vie",
             {"P_IT (kW)": p_it, "kgCO2e/kW": b["valeur"], "durée de vie": b["duree_vie_ans"]},
-            INCORPORE_SOURCE, "±50 %"),
+            INCORPORE_SOURCE,
+            "±%s %%" % fr(INCERTITUDE_INCORPORE * 100)),
         "incorpore_technique_t": _tracer(
             "Carbone incorporé — équipements techniques (amorti)", inc_technique_t,
             "tCO2e/an", "= P_IT × kgCO2e par kW / durée de vie",
             {"P_IT (kW)": p_it, "kgCO2e/kW": t["valeur"], "durée de vie": t["duree_vie_ans"]},
-            INCORPORE_SOURCE, "±50 %"),
+            INCORPORE_SOURCE,
+            "±%s %%" % fr(INCERTITUDE_INCORPORE * 100)),
         "empreinte_totale_t": _tracer(
             "Empreinte annuelle totale (exploitation marché + incorporé)",
             total_t, "tCO2e/an",
@@ -1095,6 +1108,7 @@ def evaluer_pue(pue_annonce, refroidissement=None, taux_charge=None):
             "note de conception.",
         ],
         "nature": "calcule",
+        "exige_de": "du BE fluides",
         "source": "plages de conception du référentiel + pénalité de charge "
                   "partielle — le MÊME calcul que l'étude, pas un second "
                   "barème",
@@ -1158,6 +1172,7 @@ def evaluer_intensite(facteur_g, pays=None, heures_basses_g=None,
             "l'étude de pilotage.",
         ],
         "nature": "calcule",
+        "exige_de": "de l'énergéticien",
         "source": "moyennes nationales du référentiel — les mêmes que l'étude",
     }
 
@@ -1193,6 +1208,259 @@ def evaluer_intensite(facteur_g, pays=None, heures_basses_g=None,
                                        "valeurs, pas les nôtres"
                                        % (fr(e), fr(part * 100)))
         res["pilotage"] = borne
+    return res
+
+
+def evaluer_eau(profil, volume_annuel_m3, pointe_jour_m3=None):
+    """Un volume d'eau ANNUEL annoncé est-il recevable pour ce profil ?
+
+    Le geste du BE fluides avant l'étude de profil mensuel : recalculer
+    l'appoint avec le MÊME moteur que l'étude — plancher physique
+    d'évaporation compris — et situer le chiffre annoncé. Puis, si le dossier
+    annonce aussi son jour de pointe, éprouver son arithmétique : c'est la
+    POINTE que jugent l'autorisation de prélèvement et l'étiage, jamais la
+    moyenne — et c'est exactement ce que ce moteur, sans climat local, ne
+    peut PAS établir. Il peut en revanche dire quand le chiffre posé sur la
+    table est impossible.
+    """
+    p = dict(profil or {})
+    if not p.get("puissance_it_kw"):
+        return {"ok": False,
+                "motif": "La référence se calcule avec VOTRE profil : "
+                         "renseignez au moins la puissance informatique "
+                         "installée (étape 2). Sans elle, juger un volume "
+                         "d'eau reviendrait à comparer à un site imaginaire."}
+    try:
+        vol = float(volume_annuel_m3)
+    except (TypeError, ValueError):
+        return {"ok": False, "motif": "Volume annuel illisible : m³/an attendus."}
+    if vol < 0:
+        return {"ok": False, "motif": "Un volume d'eau négatif n'existe pas."}
+
+    res_e = energie(p)
+    w = eau(p, res_e)
+    appoint = w["appoint_m3"]["valeur"]
+    evap = w["evaporation_m3"]["valeur"]
+    fam = REFROIDISSEMENT.get(p.get("refroidissement") or "eau_glacee",
+                              REFROIDISSEMENT["eau_glacee"])
+    plancher = evap * (1.0 - INCERTITUDE_EVAPORATION)
+    plafond = appoint * (1.0 + INCERTITUDE_APPOINT)
+
+    if appoint == 0:
+        # Famille à rejet sec : le calcul ne prévoit AUCUN appoint.
+        if vol == 0:
+            verdict, lecture = "coherent_etude", (
+                "Cohérent : cette famille rejette sa chaleur à sec, le calcul "
+                "ne prévoit aucun appoint de refroidissement. Reste l'eau que "
+                "le calcul ne porte pas : humidification, lavage, réseau "
+                "incendie — à lister, pas à deviner.")
+        else:
+            verdict, lecture = "au_dessus_etude", (
+                "Le calcul ne prévoit AUCUN appoint pour cette famille (rejet "
+                "sec) : les %s m³ annoncés couvrent d'autres usages — "
+                "humidification, lavage adiabatique, appoints process. "
+                "Demander la décomposition poste par poste." % fr(vol))
+    elif vol < plancher:
+        verdict, lecture = "sous_borne_physique", (
+            "SOUS le plancher physique d'évaporation (%s m³/an à −%s %%, pour "
+            "la chaleur rejetée par voie évaporative de ce profil) : aucune "
+            "tour ne consomme moins pour la même chaleur. Soit la part "
+            "évaporative réelle est plus faible que celle du profil — une "
+            "AUTRE conception —, soit le chiffre exclut la purge, soit c'est "
+            "une plaquette. Demander le périmètre exact : évaporation, purge, "
+            "appoints." % (fr(evap), fr(INCERTITUDE_EVAPORATION * 100)))
+    elif vol <= plafond:
+        verdict, lecture = "coherent_etude", (
+            "Cohérent avec l'appoint que l'étude calcule pour VOTRE profil "
+            "(%s m³/an, ±%s %%). L'annuel est recevable — c'est la POINTE "
+            "qu'il reste à établir : profil mensuel sur météo locale, "
+            "confronté à l'autorisation de prélèvement et à l'étiage."
+            % (fr(appoint), fr(INCERTITUDE_APPOINT * 100)))
+    else:
+        verdict, lecture = "au_dessus_etude", (
+            "AU-DESSUS de l'appoint calculé (%s m³/an, ±%s %%) : marge "
+            "prudente, cycles de concentration plus bas que déclarés, ou "
+            "usages hors refroidissement agrégés dans le même compteur. "
+            "Demander la décomposition — et des compteurs séparés en "
+            "exploitation." % (fr(appoint), fr(INCERTITUDE_APPOINT * 100)))
+
+    res = {
+        "ok": True, "verdict": verdict, "lecture": lecture,
+        "volume_annonce_m3": vol,
+        "famille": fam["nom"],
+        "reference": {
+            "appoint_m3": round(appoint, 1),
+            "evaporation_m3": round(evap, 1),
+            "part_evaporative": w["part_evaporative"],
+            "incertitude_pct": INCERTITUDE_APPOINT * 100,
+        },
+        "exigences": [
+            "Le périmètre du volume : évaporation, purge, humidification, "
+            "process — poste par poste, pas un total nu.",
+            "Le profil MENSUEL de consommation sur météo locale (le moteur "
+            "travaille en annuel : c'est sa limite déclarée), confronté à "
+            "l'autorisation de prélèvement et à l'étiage — agence de l'eau, "
+            "arrêtés sécheresse (ISO 14046, ISO 46001).",
+            "Le WUE de site promis en catégorie ISO/IEC 30134-9, et le WUE de "
+            "SOURCE en regard : l'arbitrage sec/évaporatif est un compromis "
+            "eau/énergie — la pensée cycle de vie de l'IEC 62430, pas une "
+            "course au WUE de site nul.",
+            "Le stockage tampon dimensionné en PRO pour tenir un arrêté "
+            "sécheresse sans délester, et des compteurs séparés par usage.",
+        ],
+        "nature": "calcule",
+        "exige_de": "du BE fluides",
+        "source": "le MÊME calcul d'appoint que l'étude — plancher physique "
+                  "d'évaporation compris — pas un second barème",
+    }
+
+    # LE JOUR DE POINTE, si le dossier l'annonce. Le moteur ne connaît pas le
+    # climat local : il ne juge QUE l'arithmétique — le maximum d'une série ne
+    # peut pas être sous sa moyenne — et nomme qui doit établir le reste.
+    if pointe_jour_m3 is not None and str(pointe_jour_m3).strip() != "":
+        try:
+            pointe = float(pointe_jour_m3)
+        except (TypeError, ValueError):
+            return {"ok": False, "motif": "Pointe journalière illisible : m³/jour attendus."}
+        moy_jour = vol / 365.0
+        if pointe < moy_jour:
+            bloc = {"recevable": False, "facteur": round(pointe / moy_jour, 2) if moy_jour else 0,
+                    "jour_moyen_m3": round(moy_jour, 2),
+                    "lecture": ("Arithmétiquement impossible : le jour de pointe "
+                                "(%s m³) est SOUS le jour moyen (%s m³ = annuel/365). "
+                                "Le maximum d'une série ne peut pas être sous sa "
+                                "moyenne — l'un des deux chiffres du dossier est faux."
+                                % (fr(pointe), fr(moy_jour)))}
+        elif moy_jour and pointe == moy_jour and w["part_evaporative"] > 0:
+            bloc = {"recevable": False, "facteur": 1.0,
+                    "jour_moyen_m3": round(moy_jour, 2),
+                    "lecture": ("Un facteur de pointe de 1,0 suppose 365 jours "
+                                "IDENTIQUES : incompatible avec un refroidissement "
+                                "évaporatif, dont la consommation suit la chaleur "
+                                "et le climat. Ce dossier prétend ne pas voir l'été.")}
+        else:
+            fac = pointe / moy_jour if moy_jour else 0.0
+            bloc = {"recevable": True, "facteur": round(fac, 2),
+                    "jour_moyen_m3": round(moy_jour, 2),
+                    "lecture": ("Le dossier suppose un facteur de pointe de %s "
+                                "(jour moyen %s m³). L'arithmétique tient ; la "
+                                "VALEUR, elle, ne peut venir que du profil mensuel "
+                                "sur météo locale — c'est ce facteur que "
+                                "l'autorisation de prélèvement doit couvrir, pas "
+                                "la moyenne." % (fr(fac), fr(moy_jour)))}
+        res["pointe"] = bloc
+    return res
+
+
+def evaluer_incorpore(poste, valeur_kg, duree_vie_ans=None):
+    """Un carbone incorporé annoncé est-il recevable pour ce poste ?
+
+    Le geste de l'AMO carbone devant une déclaration fournisseur : situer le
+    chiffre dans l'ordre de grandeur sectoriel du référentiel — le MÊME que
+    l'étude, avec la MÊME incertitude — puis exiger ce qui permet de conclure :
+    la déclaration de type III vérifiée (ISO 14025), ses modules (EN 15804+A2
+    pour la construction), son unité fonctionnelle (ISO 14040/14044). L'ordre
+    de grandeur ne départage JAMAIS deux offres ; la déclaration, oui — et
+    l'écoconception (IEC 62430, art. 5.6) fait de son obtention une exigence,
+    pas une faveur.
+    """
+    ref = INCORPORE.get(str(poste or ""))
+    if not ref:
+        return {"ok": False,
+                "motif": "Poste inconnu du référentiel : " + str(poste)
+                         + ". Connus : " + ", ".join(sorted(INCORPORE))}
+    try:
+        val = float(valeur_kg)
+    except (TypeError, ValueError):
+        return {"ok": False, "motif": "Valeur illisible : kgCO2e attendus."}
+    if val <= 0:
+        return {"ok": False,
+                "motif": "Un incorporé nul ou négatif ne se constate que par "
+                         "crédit biogénique ou module D agrégé au reste. "
+                         "EN 15804+A2 les déclare SÉPARÉMENT : demander les "
+                         "modules A1-A3 seuls — le stockage biogénique se "
+                         "déclare à part, il ne s'efface pas du dossier."}
+
+    bas = ref["valeur"] * (1.0 - INCERTITUDE_INCORPORE)
+    haut = ref["valeur"] * (1.0 + INCERTITUDE_INCORPORE)
+    if val < bas:
+        verdict, lecture = "sous_plage_sectorielle", (
+            "SOUS l'ordre de grandeur sectoriel (%s kgCO2e, ±%s %%) : possible "
+            "— c'est tout l'intérêt d'une écoconception réelle — mais cela ne "
+            "se PLAIDE pas, cela se déclare : ISO 14025 type III vérifiée par "
+            "tierce partie, modules et unité fonctionnelle comparables. Sans "
+            "la déclaration, ce chiffre est un argument commercial."
+            % (fr(ref["valeur"]), fr(INCERTITUDE_INCORPORE * 100)))
+    elif val <= haut:
+        verdict, lecture = "coherent_secteur", (
+            "Dans l'ordre de grandeur sectoriel (%s kgCO2e, ±%s %%) — et c'est "
+            "PRÉCISÉMENT pourquoi la déclaration produit reste exigée : à "
+            "±%s %%, l'ordre de grandeur ne départage pas deux offres. La "
+            "substitution se fait déclaration par déclaration, et le "
+            "classement des leviers se recalcule après chacune."
+            % (fr(ref["valeur"]), fr(INCERTITUDE_INCORPORE * 100),
+               fr(INCERTITUDE_INCORPORE * 100)))
+    else:
+        verdict, lecture = "au_dessus_secteur", (
+            "AU-DESSUS de l'ordre sectoriel (%s kgCO2e, ±%s %%) : configuration "
+            "lourde, périmètre plus large (transport A4, mise en œuvre A5), ou "
+            "déclaration honnête là où les autres offres citent une plaquette. "
+            "Demander les modules pour comparer à périmètre ÉGAL avant "
+            "d'écarter l'offre — c'est parfois la meilleure."
+            % (fr(ref["valeur"]), fr(INCERTITUDE_INCORPORE * 100)))
+
+    res = {
+        "ok": True, "verdict": verdict, "lecture": lecture,
+        "valeur_annonce_kg": val,
+        "reference": {"valeur_kg": ref["valeur"],
+                      "duree_vie_ans": ref["duree_vie_ans"],
+                      "incertitude_pct": INCERTITUDE_INCORPORE * 100,
+                      "note": ref["note"]},
+        "exigences": [
+            "La déclaration environnementale de type III (ISO 14025), vérifiée "
+            "par tierce partie, programme et vérificateur nommés — FDES base "
+            "INIES pour la construction, EPD pour les équipements.",
+            "Les modules déclarés (EN 15804+A2) : A1-A3 au minimum, et le "
+            "périmètre EXACT de tout chiffre comparé — jamais un total sans "
+            "ses modules.",
+            "L'unité fonctionnelle et les frontières du système (ISO "
+            "14040/14044) — pour un serveur : configuration mémoire et "
+            "stockage, sans quoi l'écart du simple au triple est normal.",
+            "L'exigence portée AUX MARCHÉS dès l'ACT : l'échange d'informations "
+            "dans la chaîne de valeur est une exigence d'écoconception "
+            "(IEC 62430, art. 5.6) — si le fournisseur ne déclare pas, "
+            "l'acheteur doit obtenir l'information autrement, pas y renoncer.",
+            "La démarche outillée côté projet : revues d'écoconception aux "
+            "jalons (IEC 62430, art. 5.5 ; ISO 14006 pour l'ancrage au "
+            "système de management ; NF X30-264 et ISO/TR 14062 pour la "
+            "méthode), et recalcul du classement des leviers après chaque "
+            "substitution.",
+        ],
+        "nature": "calcule",
+        "exige_de": "de l'AMO carbone",
+        "source": "ordres de grandeur sectoriels du référentiel — les MÊMES "
+                  "que l'étude, avec la même incertitude",
+    }
+    if duree_vie_ans is not None and str(duree_vie_ans).strip() != "":
+        try:
+            dv = float(duree_vie_ans)
+        except (TypeError, ValueError):
+            return {"ok": False, "motif": "Durée de vie illisible : années attendues."}
+        if dv <= 0 or dv > 60:
+            return {"ok": False, "motif": "Durée de vie hors du plausible (0 à 60 ans)."}
+        res["amorti"] = {
+            "annonce_kg_an": round(val / dv, 1),
+            "reference_kg_an": round(ref["valeur"] / ref["duree_vie_ans"], 1),
+            "duree_vie_annonce_ans": dv,
+            "duree_vie_reference_ans": ref["duree_vie_ans"],
+            "lecture": ("Amorti sur %s ans : %s kgCO2e/an, contre %s kgCO2e/an "
+                        "pour le référentiel (%s ans). Allonger la durée de vie "
+                        "RÉELLE est le premier levier dès que l'incorporé domine "
+                        "l'empreinte — et il se prouve en exploitation, pas en "
+                        "plaquette." % (fr(dv), fr(round(val / dv, 1)),
+                                        fr(round(ref["valeur"] / ref["duree_vie_ans"], 1)),
+                                        fr(ref["duree_vie_ans"]))),
+        }
     return res
 
 
@@ -1347,6 +1615,26 @@ SOURCES_CONSULTABLES = [
      "lien": "https://www.rte-france.com",
      "verifier": "éCO2mix pour l'intensité horaire constatée ; la file "
                  "d'attente de raccordement de votre région."},
+    {"cle": "afnor", "organisme": "AFNOR",
+     "nature": "organisme de normalisation",
+     "porte": "Les normes d'écoconception qui outillent l'AMO carbone : "
+              "NF EN IEC 62430 (principes et exigences), NF EN ISO 14006 "
+              "(écoconception dans le système de management), NF X30-264 "
+              "(démarche), ISO/TR 14062 (intégration en conception) — et "
+              "les NF EN 15804+A2 des FDES.",
+     "lien": "https://www.afnor.org",
+     "verifier": "l'édition EN VIGUEUR de chaque norme avant de la citer "
+                 "dans un marché — une norme se remplace, un contrat reste."},
+    {"cle": "inies", "organisme": "INIES (Alliance HQE-GBC)",
+     "nature": "base de données publique",
+     "porte": "Les déclarations environnementales des produits de "
+              "construction pour la France : FDES (EN 15804+A2, ISO 14025) "
+              "vérifiées par tierce partie — le gisement où la substitution "
+              "des ordres de grandeur du carbone incorporé se fait, "
+              "déclaration par déclaration.",
+     "lien": "https://www.inies.fr",
+     "verifier": "la FDES du produit RETENU (pas une FDES générique du même "
+                 "type), sa date de validité et ses modules déclarés."},
 ]
 
 
@@ -1423,6 +1711,7 @@ LIMITES = [
                   "de son autorisation de prélèvement et de l'étiage local.",
      "normes": ["ISO/IEC 30134-9 (WUE)", "ISO 14046 (empreinte eau)",
                 "ISO 46001 (management de l'efficacité hydrique)",
+                "NF EN IEC 62430 (écoconception — compromis eau/énergie)",
                 "code de l'environnement — autorisation de prélèvement"],
      "calcul": "Profil mensuel de consommation à partir des données météo "
                "locales ; le confronter au débit autorisé et à l'étiage "
@@ -1442,11 +1731,16 @@ LIMITES = [
      "normes": ["EN 15804+A2 (EPD / FDES, base INIES)",
                 "ISO 14025 (déclarations de type III)",
                 "ISO 14040/14044 (ACV)",
-                "ITU-T L.1410 (équipements TIC)"],
+                "ITU-T L.1410 (équipements TIC)",
+                "NF EN IEC 62430 (exigences d'écoconception)",
+                "ISO 14006 · NF X30-264 · ISO/TR 14062 (démarche)"],
      "calcul": "Substituer chaque facteur sectoriel par la déclaration "
                "environnementale du produit retenu (modules A1-A3 et suivants "
                "pertinents), amortie sur SA durée de vie ; recalculer le "
-               "classement des leviers — l'écart peut l'inverser.",
+               "classement des leviers — l'écart peut l'inverser. Conduire "
+               "cette substitution en démarche d'écoconception : exigence "
+               "écrite aux marchés, revues aux jalons, capitalisation en "
+               "revue de projet (IEC 62430, ISO 14006, NF X30-264).",
      "qui": "AMO carbone avec les acheteurs",
      "quand": "Dès l'ACT : les déclarations s'exigent dans les marchés, pas "
               "après signature."},
