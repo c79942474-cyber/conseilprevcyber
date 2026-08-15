@@ -5752,6 +5752,26 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo,
                                           mode=mode)
     except Exception:
         app.logger.exception("trame sans modèle : pièce")
+
+    # ── CE QUE LA BASE DOCUMENTE, POINT PAR POINT ────────────────────────
+    # La pièce dit ce qu'elle doit contenir ; le rédacteur recevait les
+    # extraits en vrac et faisait le rapprochement de tête. Quand la base ne
+    # disait rien d'un point, personne ne le signalait — et un point traité de
+    # mémoire est exactement ce qu'un visa relève. La couverture est
+    # CONSTATÉE, une recherche par point, et versée au document.
+    couverture = None
+    if phase and code:
+        def _chercher(req, k):
+            if doc_ids:
+                return _extraits_pour(req, doc_ids, public_only)[:k]
+            return rag.search(req, k=k, public_only=public_only)
+        try:
+            couverture = ingenierie_dc.couverture_documentaire(
+                phase, code, _chercher, data)
+        except Exception:
+            app.logger.exception("couverture documentaire")
+        if couverture and texte:
+            texte += "\n\n" + ingenierie_dc.couverture_markdown(couverture)
     if not texte:
         # Puis le livrable de la console : soixante-sept types, chacun avec son
         # plan. Sans ce second essai, la console refusait purement et
@@ -5832,6 +5852,10 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo,
                    sans_modele=True, sources=sources, id=saved_id,
                    corpus="public" if public_only else "complet",
                    famille_prioritaire=famille,
+                   # La couverture point par point, servie AUSSI hors du
+                   # document : l'écran la montre avant qu'on ouvre le Word,
+                   # là où l'on décide encore de verser une pièce à la base.
+                   couverture=couverture,
                    # Le cartouche du Word et du PDF s'en sert : sans eux, deux
                    # versions du même document sortent identiques.
                    numero=data.get("numero") or "", indice=data.get("indice") or "",

@@ -784,3 +784,173 @@ def test_le_management_datacenter_pointe_l_ecoconception():
     assert "14006" in m["titre"] and "14062" in m["titre"]
     assert "phase" in m["apporte"] and "FDES" in m["apporte"]
     assert "rapport technique" in m["certifiable"]
+
+
+# ── L'AUDIT DES FICHES DE CALCUL, figé en test ────────────────────────────
+# Une note de calcul annexée à une offre se défend fiche par fiche : chaque
+# grandeur porte sa formule, ses entrées, sa source et son incertitude. Sur
+# les vingt-trois grandeurs du moteur, quatorze avaient une case vide — dont
+# des sources et, plus grave, des incertitudes absentes qui se lisent comme
+# « exact ». Ce test interdit le retour du trou : une grandeur ajoutée sans
+# provenance le fait tomber, quel que soit le profil.
+
+def _grandeurs(res):
+    for bloc, contenu in res.items():
+        if not isinstance(contenu, dict):
+            continue
+        for cle, v in contenu.items():
+            if isinstance(v, dict) and "valeur" in v:
+                yield bloc + "." + cle, v
+
+
+def test_chaque_grandeur_tracee_porte_sa_provenance_complete():
+    import datacenter as d
+    profils = [
+        {"puissance_it_kw": 2000, "refroidissement": "tour_evaporative",
+         "pays": "FR", "part_chaleur_reutilisee": 0.25, "part_renouvelable": 0.3},
+        {"puissance_it_kw": 50},                       # petit site, valeurs nulles
+        {"puissance_it_kw": 50000, "refroidissement": "immersion",
+         "pays": "PL", "pue_cible": 1.15},             # gros site, PUE imposé
+    ]
+    for pr in profils:
+        res = d.etude(pr)
+        n = 0
+        for nom, v in _grandeurs(res):
+            n += 1
+            for champ in ("formule", "entrees", "source", "incertitude"):
+                val = v.get(champ)
+                plein = bool(val) if champ == "entrees" else bool(str(val or "").strip())
+                assert plein, "%s : %s manquant (profil %s)" % (nom, champ, pr)
+        assert n >= 20, "seulement %d grandeurs tracées" % n
+
+
+def test_les_formules_disent_leur_unite_quand_elles_multiplient_par_cent():
+    """LE PIÈGE TROUVÉ PAR L'AUDIT : la fiche ERF affichait « 25 % » sous une
+    formule qui rend 0,25, pendant que la fiche ERE voisine employait bien la
+    fraction. Un lecteur qui applique littéralement PUE × (1 − 25) obtient un
+    ERE négatif. Toute grandeur servie en % doit porter le ×100 dans sa
+    formule, et toute formule qui CONSOMME une fraction doit le dire."""
+    import datacenter as d
+    res = d.etude({"puissance_it_kw": 2000, "part_chaleur_reutilisee": 0.25,
+                   "part_renouvelable": 0.3})
+    for nom, v in _grandeurs(res):
+        if v.get("unite") == "%" and "/" in v.get("formule", ""):
+            assert "100" in v["formule"], "%s : servi en %% sans ×100 — %s" % (nom, v["formule"])
+    ere = res["chaleur"]["ere"]
+    assert "FRACTION" in ere["formule"] or "fraction" in ere["formule"]
+    assert any("fraction" in k for k in ere["entrees"]), ere["entrees"]
+    # …et la cohérence numérique des deux fiches, pas seulement leur libellé.
+    erf_pct = res["chaleur"]["erf"]["valeur"]
+    pue = res["energie"]["pue"]["valeur"]
+    assert abs(ere["valeur"] - pue * (1 - erf_pct / 100.0)) < 1e-6
+
+
+def test_les_grandeurs_derivees_declarent_leur_heritage():
+    """Une incertitude inventée est pire qu'une incertitude absente : elle se
+    cite. Les grandeurs dérivées nomment donc la CHAÎNE dont elles héritent —
+    le lecteur remonte jusqu'à la grandeur mesurée."""
+    import datacenter as d
+    res = d.etude({"puissance_it_kw": 2000, "part_chaleur_reutilisee": 0.25})
+    for nom in ("energie.dcie", "energie.energie_non_it_MWh", "eau.wue_site",
+                "eau.purge_m3", "chaleur.ere", "carbone.empreinte_totale_t",
+                "carbone.part_incorpore_pct"):
+        bloc, cle = nom.split(".")
+        inc = res[bloc][cle]["incertitude"]
+        assert "hérite" in inc, "%s ne déclare pas son héritage : %r" % (nom, inc)
+    # Les deux grandeurs CONTRACTUELLES disent qu'elles sont exactes — et
+    # pourquoi ce n'est pas une garantie de performance.
+    for nom in ("carbone.ref", "chaleur.erf"):
+        bloc, cle = nom.split(".")
+        inc = res[bloc][cle]["incertitude"]
+        assert inc.startswith("exact"), nom
+        assert "contract" in inc or "déclarée" in inc, nom
+
+
+# ── LE RAG AU SERVICE DE LA RÉDACTION : la couverture point par point ─────
+# Une pièce déclare ce qu'elle doit contenir ; la base répond, ou non. Ce que
+# ces tests protègent : le silence de la base sur un point est DIT, et il est
+# distingué du cas où la base n'a pas répondu du tout.
+
+def _chercheur(sujets_connus):
+    """Une base qui ne connaît que certains sujets — injectée, donc testable
+    sans PostgreSQL ni embeddings."""
+    def chercher(requete, k):
+        for mot in sujets_connus:
+            if mot.lower() in requete.lower():
+                return [{"doc_id": "d" * 32, "title": "Doc " + mot, "score": 0.7}]
+        return []
+    return chercher
+
+
+def test_la_couverture_nomme_les_points_que_la_base_ne_documente_pas():
+    import ingenierie_dc as g
+    c = g.couverture_documentaire("PRO", "PRO-04", _chercheur(["livraison"]))
+    assert c["resume"]["total"] == len(g.piece("PRO", "PRO-04")["contenu"])
+    assert c["resume"]["couverts"] == 1
+    assert c["resume"]["a_ecrire"] == c["resume"]["total"] - 1
+    aecrire = [p for p in c["points"] if p["etat"] == "a_ecrire"]
+    assert aecrire and all(not p["documents"] for p in aecrire)
+    md = g.couverture_markdown(c)
+    for p in aecrire:
+        assert p["point"] in md and "à écrire depuis le projet" in md
+    # La réserve accompagne TOUJOURS le constat : « couvert » ne veut pas dire
+    # « répondu ». Sans elle, le tableau se lit comme un quitus.
+    assert "jamais qu'il répond" in md
+
+
+def test_une_base_muette_n_est_pas_une_base_sans_reponse():
+    """Distinction qui compte : « aucun document sur ce point » est un
+    constat ; « la base n'a pas répondu » est une panne. Les confondre ferait
+    annoncer un trou documentaire là où il y a une base éteinte."""
+    import ingenierie_dc as g
+    vide = g.couverture_documentaire("PRO", "PRO-04", lambda r, k: [])
+    assert vide["resume"]["a_ecrire"] == vide["resume"]["total"]
+    assert vide["resume"]["inconnus"] == 0
+    assert "AUCUN" in vide["lecture"]
+
+    def morte(r, k):
+        raise RuntimeError("base injoignable")
+    ko = g.couverture_documentaire("PRO", "PRO-04", morte)
+    assert ko["resume"]["inconnus"] == ko["resume"]["total"]
+    assert ko["resume"]["a_ecrire"] == 0
+    assert "INDÉTERMINÉE" in ko["lecture"]
+    assert "indéterminée" in g.couverture_markdown(ko)
+
+
+def test_la_couverture_interroge_avec_le_contexte_du_projet():
+    """La requête d'un point porte la requête de la pièce — donc le profil du
+    projet : famille de refroidissement, pays, secteur. Sans cela, la base
+    répondrait la même chose pour tous les projets."""
+    import ingenierie_dc as g
+    vues = []
+
+    def espion(requete, k):
+        vues.append(requete)
+        return []
+    # Une pièce dont la DISCIPLINE rend le choix de refroidissement
+    # discriminant : sur une pièce où il ne l'est pas (un tableau de surfaces),
+    # le module l'écarte volontairement, et c'est ce qui protège la pertinence.
+    g.couverture_documentaire("APD", "SPC-HVAC", espion,
+                              {"refroidissement": "immersion", "pays": "SE"})
+    assert vues, "aucune recherche lancée"
+    assert all("centre de données" in r for r in vues)
+    # Chaque requête est propre à SON point : autant de requêtes que de points.
+    assert len(set(vues)) == len(vues)
+    joint = " ".join(vues).lower()
+    assert "immersion" in joint, joint[:200]
+    # …et le PAYS, lui, n'entre PAS dans une pièce CVC : il ne discrimine que
+    # là où le mix électrique ou l'eau comptent (environnement, élec, fluides).
+    # L'y ajouter partout diluerait la recherche — ce contrôle protège cette
+    # retenue autant que l'ajout ci-dessus.
+    assert "suède" not in joint, "le pays s'est invité dans une pièce CVC"
+    env = []
+    g.couverture_documentaire("APD", "SPC-CONSO", lambda r, k: env.append(r) or [],
+                              {"refroidissement": "immersion", "pays": "SE"})
+    assert env, "SPC-CONSO introuvable : le contrôle du pays ne prouve rien"
+    assert "suède" in " ".join(env).lower(), env[0][-160:]
+
+
+def test_une_piece_inconnue_ne_produit_pas_de_couverture_inventee():
+    import ingenierie_dc as g
+    assert g.couverture_documentaire("PRO", "PRO-999", _chercheur([])) is None
+    assert g.couverture_markdown(None) == ""

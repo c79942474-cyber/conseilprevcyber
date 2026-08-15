@@ -243,6 +243,20 @@
     if (e.pourquoi) h += '<p class="gd-pq">' + esc(e.pourquoi) + "</p>";
 
     h += '<p class="gd-quoi">' + esc(phrase(r)) + "</p>";
+    /* LE CHAMP VISÉ, NOMMÉ. La flèche le désigne à l'écran ; cette ligne le
+       dit — pour qui lit avec un lecteur d'écran, et pour qui a fait défiler
+       la page loin de la flèche. Les deux montrent la MÊME chose : elles
+       appellent la même fonction, elles ne peuvent pas se contredire. */
+    var pr = prochain(e.section);
+    if (pr) {
+      var nom = nomChamp(pr.el);
+      h += '<span class="gd-vers ' + pr.quoi + '">'
+        + (pr.quoi === "action"
+            ? "Tout est renseigné — la flèche désigne&nbsp;: "
+            : "La flèche désigne le champ à renseigner&nbsp;: ")
+        + "<b>" + esc(nom || "le champ suivant") + "</b>"
+        + (pr.quoi === "oblig" ? " (obligatoire)" : "") + "</span>";
+    }
     if (r.action) {
       h += '<p class="gd-act">Cette étape se termine par&nbsp;: <b>'
         + esc((r.action.textContent || "").trim()) + "</b></p>";
@@ -287,6 +301,104 @@
     return h;
   }
 
+  /* ── LA FLÈCHE QUI DÉSIGNE LE PROCHAIN CHAMP ────────────────────────────
+     Le panneau savait DIRE « à remplir : trois listes, deux champs » ; il ne
+     montrait pas LESQUELS. Sur une étape qui en porte huit, dont six arrivent
+     pré-remplies par le référentiel, « trois champs » envoie le lecteur les
+     chercher un par un — et il abandonne au troisième.
+
+     La flèche répond à la seule question qu'il se pose : « et maintenant,
+     où ? ». Elle désigne UN champ, celui qu'il faut renseigner ensuite, et
+     elle se déplace dès qu'il est renseigné. Quand il ne reste plus rien, elle
+     passe au bouton qui lance le calcul : c'est le geste suivant, et il est
+     tout aussi invisible dans une page longue.
+
+     L'ORDRE N'EST PAS L'ORDRE DU DOM : les champs OBLIGATOIRES d'abord, dans
+     l'ordre de la page, puis les autres. Suivre le DOM ferait remplir trois
+     champs facultatifs avant celui qui bloque le calcul. */
+  function prochain(sec) {
+    if (!sec || sec.hidden) return null;
+    var r = aRemplir(sec);
+    var reste = r.oblig.filter(function (e) { return !rempli(e); });
+    if (!reste.length) {
+      reste = r.listes.concat(r.champs).concat(r.cases)
+        .filter(function (e) { return !rempli(e); });
+    }
+    /* Plus rien à renseigner : le geste suivant est l'action de l'étape. On ne
+       la désigne QUE si quelque chose a été renseigné — sur une étape qui se
+       lit, une flèche pointant « Calculer » presserait sans raison. */
+    if (!reste.length) {
+      var toutes = r.listes.concat(r.champs).concat(r.cases);
+      if (r.action && toutes.length && toutes.some(rempli)) {
+        return { el: r.action, quoi: "action" };
+      }
+      return null;
+    }
+    return { el: reste[0], quoi: reste[0].required
+      || reste[0].getAttribute("aria-required") === "true" ? "oblig" : "champ" };
+  }
+
+  /* Le libellé du champ visé, pour l'annoncer AUSSI en texte : une flèche
+     seule ne dit rien à qui lit avec un lecteur d'écran, et rien du tout si
+     le champ est hors de l'écran. */
+  function nomChamp(el) {
+    if (!el) return "";
+    if (el.tagName === "BUTTON") return (el.textContent || "").trim().slice(0, 70);
+    var id = el.id && document.querySelector('label[for="' + el.id + '"]');
+    var lab = id || el.closest("label");
+    var t = "";
+    if (lab) {
+      /* LE LABEL ENGLOBE SOUVENT SON CONTRÔLE — et lire son texte brut ramène
+         alors les vingt-neuf options du pays collées au libellé :
+         « Pays d'implantation— non précisé —AllemagneAutriche… ». On lit une
+         COPIE dont les contrôles ont été retirés ; l'original n'est jamais
+         touché, et le libellé reste celui que le lecteur voit. */
+      var c = lab.cloneNode(true);
+      tous("select, input, textarea, button, option, .dc-aide, .dc-sugg", c)
+        .forEach(function (x) { x.remove(); });
+      t = c.textContent || "";
+    }
+    if (!t.replace(/\s+/g, " ").trim()) {
+      t = el.getAttribute("aria-label") || el.getAttribute("placeholder")
+        || el.name || "";
+    }
+    /* L'astérisque du champ obligatoire et l'unité entre parenthèses restent —
+       ce sont des informations —, mais pas les blancs de mise en page. */
+    return t.replace(/\s+/g, " ").trim().slice(0, 70);
+  }
+
+  var FLECHE = null;
+
+  function poserFleche(cible) {
+    if (!FLECHE) {
+      FLECHE = document.createElement("div");
+      FLECHE.className = "gd-fl";
+      FLECHE.setAttribute("aria-hidden", "true");   // le texte est dans le panneau
+      document.body.appendChild(FLECHE);
+    }
+    if (!cible || !cible.el || !utilisable(cible.el)) {
+      FLECHE.classList.remove("on");
+      return;
+    }
+    var r = cible.el.getBoundingClientRect();
+    /* Position en coordonnées de PAGE (scroll compris) : en `fixed`, la flèche
+       resterait collée à l'écran pendant que le champ défile — elle
+       désignerait alors le vide. */
+    FLECHE.style.top = (r.top + window.scrollY + r.height / 2 - 13) + "px";
+    FLECHE.style.left = (r.left + window.scrollX - 34) + "px";
+    FLECHE.className = "gd-fl on" + (cible.quoi === "action" ? " act" : "")
+      + (cible.quoi === "oblig" ? " req" : "");
+    FLECHE.textContent = cible.quoi === "action" ? "▶" : "➜";
+  }
+
+  function majFleche() {
+    if (!OUVERT) { if (FLECHE) FLECHE.classList.remove("on"); return null; }
+    var e = ETAPES[COURANT];
+    var c = e ? prochain(e.section) : null;
+    poserFleche(c);
+    return c;
+  }
+
   function surligner(sec) {
     tous(".gd-vise").forEach(function (e) { e.classList.remove("gd-vise"); });
     if (sec) sec.classList.add("gd-vise");
@@ -302,6 +414,9 @@
     } else {
       surligner(null);
     }
+    /* La flèche se repose APRÈS le rendu : le panneau vient de changer de
+       hauteur, et une position calculée avant serait décalée d'autant. */
+    majFleche();
     if (bouger === "ouvrir") {
       var p = $("#gd-panneau");
       if (p) { try { p.focus({ preventScroll: true }); } catch (err) { /* rien */ } }
@@ -371,6 +486,20 @@
     document.addEventListener("change", function () {
       if (OUVERT) rendre();
     });
+
+    /* AU FUR ET À MESURE, ET SANS VOLER LE FOCUS. Le panneau ne se redessine
+       qu'au `change` — le redessiner à chaque frappe déplacerait le curseur du
+       champ en cours. La FLÈCHE, elle, n'est pas dans le panneau : elle peut
+       suivre chaque frappe sans rien perturber, et c'est tout l'intérêt —
+       elle quitte le champ dès qu'il porte une valeur. */
+    document.addEventListener("input", function () {
+      if (OUVERT) majFleche();
+    });
+    /* Elle suit aussi la page : défilement, redimensionnement, sections qui
+       se peuplent après une requête. `passive` pour ne pas gêner le défilement
+       sur mobile — on ne fait que lire des positions. */
+    window.addEventListener("scroll", majFleche, { passive: true });
+    window.addEventListener("resize", majFleche);
   }
 
   if (document.readyState === "loading") {
@@ -387,5 +516,23 @@
     ouvert: function () { return OUVERT; },
     etat: function (i) { return ETAPES[i] ? etat(ETAPES[i].section) : null; },
     aRemplir: function (i) { return ETAPES[i] ? aRemplir(ETAPES[i].section) : null; },
+    /* Ce que la flèche DÉSIGNE, tel que la page l'a déduit — la recette ne
+       redéduit pas, sinon elle éprouverait sa propre copie. */
+    prochain: function (i) {
+      var e = ETAPES[i === undefined ? COURANT : i];
+      var c = e ? prochain(e.section) : null;
+      if (!c) return null;
+      return { quoi: c.quoi, nom: nomChamp(c.el),
+               champ: c.el.getAttribute("data-champ") || c.el.id || "",
+               balise: c.el.tagName.toLowerCase() };
+    },
+    fleche: function () {
+      if (!FLECHE || !FLECHE.classList.contains("on")) return null;
+      var r = FLECHE.getBoundingClientRect();
+      return { visible: r.width > 0 && r.height > 0,
+               signe: FLECHE.textContent,
+               classe: FLECHE.className,
+               x: Math.round(r.left), y: Math.round(r.top) };
+    },
   };
 })();

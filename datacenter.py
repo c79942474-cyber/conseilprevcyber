@@ -495,6 +495,22 @@ def fr(x, dec=None):
     return s.replace(".", ",")
 
 
+def _herite(de, note=""):
+    """L'incertitude d'une grandeur DÉRIVÉE : elle n'en a pas de propre, elle
+    hérite de celle de ses entrées.
+
+    POURQUOI CE N'EST PAS UN DÉTAIL. Une fiche sans incertitude se lit comme un
+    chiffre exact — et sur quatorze des vingt-trois grandeurs de ce moteur, la
+    case était vide. Y coller un « ±X % » inventé aurait été pire : une
+    incertitude fausse est plus coûteuse qu'une incertitude absente, parce
+    qu'elle se cite. La seule réponse honnête est de nommer la CHAÎNE : le DCiE
+    est l'inverse exact du PUE, il n'a pas d'incertitude à lui, il porte celle
+    du PUE — et un lecteur qui remonte la chaîne retrouve la grandeur mesurée.
+    """
+    return ("exact par construction ; hérite de l'incertitude de "
+            + de + ("" if not note else " — " + note))
+
+
 def _plage(a, b):
     return {"min": round(a, 4), "max": round(b, 4)}
 
@@ -659,21 +675,30 @@ def energie(profil):
             "Énergie informatique annuelle", e_it, "MWh/an",
             "E_IT = P_IT × taux de charge × heures / 1000",
             {"P_IT (kW)": p_it, "taux de charge": taux, "heures": heures},
-            "", "±5 % (mesure de la charge réelle)"),
+            "Définition de l'énergie informatique — EN 50600-4-2 ; "
+            "ISO/IEC 30134-2 (dénominateur du PUE)",
+            "±5 % (mesure de la charge réelle)"),
         "energie_totale_MWh": _tracer(
             "Énergie totale annuelle du site", e_tot, "MWh/an",
             "E_total = E_IT × PUE",
             {"E_IT (MWh)": round(e_it, 1), "PUE": round(pue, 3)},
-            "", "±" + fr((bande["max"] - bande["min"]) / max(pue, 0.01) * 100 / 2, 1) + " % (dispersion du PUE)"),
+            "Définition de l'énergie totale du site — EN 50600-4-2 ; "
+            "ISO/IEC 30134-2 (numérateur du PUE)",
+            "±" + fr((bande["max"] - bande["min"]) / max(pue, 0.01) * 100 / 2, 1) + " % (dispersion du PUE)"),
         "energie_non_it_MWh": _tracer(
             "Énergie des auxiliaires (froid, onduleurs, éclairage)", e_non_it, "MWh/an",
             "E_non_IT = E_total − E_IT",
-            {"E_total (MWh)": round(e_tot, 1), "E_IT (MWh)": round(e_it, 1)}),
+            {"E_total (MWh)": round(e_tot, 1), "E_IT (MWh)": round(e_it, 1)},
+            "Différence des deux grandeurs normées ci-dessus — EN 50600-4-2",
+            _herite("l'énergie totale, donc du PUE",
+                    "l'écart de deux grandeurs porte la somme de leurs "
+                    "incertitudes, jamais moins")),
         "dcie": _tracer(
             "DCiE — rendement d'infrastructure", 100.0 / pue, "%",
-            "DCiE = 100 / PUE",
+            "DCiE (%) = 100 / PUE",
             {"PUE": round(pue, 3)},
             "The Green Grid",
+            _herite("le PUE", "inverse exact, aucune information nouvelle"),
             note="Inverse du PUE. Certains cahiers des charges l'exigent encore."),
         "famille": ref,
     }
@@ -756,8 +781,10 @@ def eau(profil, res_energie):
             {"cycles de concentration": coc},
             "Bilan de masse d'une tour ouverte — ASHRAE Handbook, HVAC "
             "Systems & Equipment, ch. Cooling Towers",
-            "", "Augmenter les cycles réduit la purge mais durcit le "
-                "traitement d'eau et le risque d'entartrement."),
+            _herite("l'évaporation et des cycles de concentration",
+                    "les cycles réels dérivent avec la qualité d'eau du site"),
+            "Augmenter les cycles réduit la purge mais durcit le "
+            "traitement d'eau et le risque d'entartrement."),
         "appoint_m3": _tracer(
             "Appoint d'eau total du site", appoint_m3, "m³/an",
             "V_appoint = V_évap × CoC / (CoC − 1)",
@@ -767,10 +794,14 @@ def eau(profil, res_energie):
             "±%s %%" % fr(INCERTITUDE_APPOINT * 100)),
         "wue_site": _tracer(
             "WUE de site", wue_site, "L/kWh_IT",
-            "WUE_site = Volume d'eau du site / Énergie informatique",
+            "WUE_site (L/kWh_IT) = Volume d'eau du site (L) / Énergie "
+            "informatique (kWh)",
             {"appoint (m³)": round(appoint_m3, 1), "E_IT (MWh)": round(e_it, 1)},
             "ISO/IEC 30134-9",
-            "", "Repère de marché : ≤ " + fr(CADRE_UE["cndcp"]["cibles"]["wue_site_max"])
+            _herite("l'appoint d'eau, donc de la part évaporative retenue",
+                    "c'est CE paramètre de conception qui commande le "
+                    "résultat, pas la précision du calcul"),
+            "Repère de marché : ≤ " + fr(CADRE_UE["cndcp"]["cibles"]["wue_site_max"])
                 + " L/kWh (Climate Neutral Data Centre Pact)."),
         "wue_source": _tracer(
             "WUE de source (site + amont électrique)", wue_source, "L/kWh_IT",
@@ -857,6 +888,9 @@ def carbone(profil, res_energie):
             "CO2 = E_total × intensité du réseau",
             {"E_total (MWh)": round(e_tot, 1), "intensité (g/kWh)": intensite},
             "GHG Protocol Scope 2 Guidance",
+            _herite("l'énergie totale ET du facteur d'émission employé",
+                    "avec une moyenne annuelle du référentiel, l'écart au "
+                    "profil horaire réel domine tout le reste"),
             note="Ce que le site fait réellement émettre au réseau. À déclarer "
                  "TOUJOURS, même quand un contrat vert existe."),
         "co2_exploitation_marche_t": _tracer(
@@ -865,15 +899,21 @@ def carbone(profil, res_energie):
             "CO2_marché = CO2_localisé × (1 − part d'énergie sans carbone)",
             {"part renouvelable contractualisée": ref_renouv},
             "GHG Protocol Scope 2 Guidance",
+            _herite("les émissions localisées",
+                    "la part contractualisée, elle, est exacte — c'est une "
+                    "clause, pas une mesure"),
             note="Un contrat d'origine renouvelable réduit ce chiffre, pas les "
                  "émissions physiques du réseau. Présenter le seul chiffre marché "
                  "comme l'empreinte du site est une omission que les évaluateurs "
                  "sérieux relèvent."),
         "ref": _tracer(
             "REF — part d'énergie renouvelable", ref_renouv * 100, "%",
-            "REF = Énergie renouvelable / Énergie totale",
-            {"part contractualisée": ref_renouv},
+            "REF (%) = 100 × Énergie renouvelable / Énergie totale",
+            {"part contractualisée (fraction)": ref_renouv},
             "ISO/IEC 30134-3 ; EN 50600-4-3",
+            "exact : valeur contractuelle déclarée, non mesurée — à justifier "
+            "par les garanties d'origine, dont la granularité (annuelle ou "
+            "horaire) est le vrai sujet",
             note="Exigé au titre du reporting de la directive efficacité énergétique."),
         "incorpore_serveurs_t": _tracer(
             "Carbone incorporé — serveurs (amorti)", inc_serveurs_t, "tCO2e/an",
@@ -900,13 +940,23 @@ def carbone(profil, res_energie):
             "= CO2_marché + incorporé amorti",
             {"exploitation (t)": round(co2_marche_t, 1),
              "incorporé (t)": round(inc_total_t, 1)},
+            "Somme des deux périmètres calculés ci-dessus — GHG Protocol "
+            "(Scope 2) et ordres de grandeur sectoriels (incorporé)",
+            _herite("ses deux termes",
+                    "l'incertitude de l'incorporé (±%s %%) domine celle de "
+                    "l'exploitation dès que sa part dépasse la moitié"
+                    % fr(INCERTITUDE_INCORPORE * 100)),
             note="Le périmètre complet. C'est celui que demandent les acheteurs "
                  "publics européens depuis que les critères environnementaux sont "
                  "pondérés."),
         "part_incorpore_pct": _tracer(
             "Part du carbone incorporé dans l'empreinte totale", part_inc, "%",
-            "= incorporé / (exploitation + incorporé)",
+            "Part (%) = 100 × incorporé / (exploitation + incorporé)",
             {"incorporé (t)": round(inc_total_t, 1), "total (t)": round(total_t, 1)},
+            "Rapport des deux grandeurs calculées ci-dessus",
+            _herite("ses deux termes",
+                    "ce rapport sert à DÉCIDER où porter l'effort ; il ne se "
+                    "cite pas comme une performance"),
             note="Au-delà de 50 %, allonger la durée de vie du matériel et "
                  "réemployer pèsent plus que tout gain de PUE."),
     }
@@ -958,21 +1008,31 @@ def chaleur(profil, res_energie):
     return {
         "erf": _tracer(
             "ERF — Energy Reuse Factor", erf * 100, "%",
-            "ERF = Énergie réutilisée / Énergie totale",
-            {"part réutilisée": part, "E_total (MWh)": round(e_tot, 1)},
+            # LE ×100 EST ÉCRIT. Sans lui, la fiche affichait « 25 % » sous une
+            # formule qui rend 0,25 — et la fiche ERE voisine, qui emploie bien
+            # la FRACTION, se lisait alors comme une contradiction. Un lecteur
+            # qui applique littéralement PUE × (1 − 25) obtient un ERE négatif.
+            "ERF (%) = 100 × Énergie réutilisée / Énergie totale",
+            {"part réutilisée (fraction)": part, "E_total (MWh)": round(e_tot, 1)},
             "ISO/IEC 30134-6 ; EN 50600-4-6",
+            "exact : part déclarée au contrat de fourniture de chaleur, non "
+            "mesurée — la mesure suppose un comptage sur le réseau preneur",
             note="Exigé au titre du reporting de la directive efficacité énergétique."),
         "ere": _tracer(
             "ERE — Energy Reuse Effectiveness", ere, "sans unité",
-            "ERE = PUE × (1 − ERF)",
-            {"PUE": round(pue, 3), "ERF": round(erf, 3)},
+            "ERE = PUE × (1 − ERF), ERF exprimé en FRACTION (0 à 1)",
+            {"PUE": round(pue, 3), "ERF (fraction)": round(erf, 3)},
             "The Green Grid",
+            _herite("le PUE et la part de chaleur réutilisée"),
             note="Peut descendre SOUS 1 si la réutilisation dépasse les pertes "
                  "d'infrastructure. Ce n'est pas une anomalie de calcul : c'est "
                  "ce qui justifie l'implantation près d'un réseau de chaleur."),
         "energie_reutilisee_MWh": _tracer(
             "Énergie thermique réutilisée", e_reuse, "MWh/an",
-            "= E_total × ERF", {"E_total (MWh)": round(e_tot, 1), "ERF": round(erf, 3)}),
+            "= E_total × ERF, ERF en fraction",
+            {"E_total (MWh)": round(e_tot, 1), "ERF (fraction)": round(erf, 3)},
+            "Définition de l'énergie réutilisée — ISO/IEC 30134-6 ; EN 50600-4-6",
+            _herite("l'énergie totale et la part déclarée")),
         "temperature_rejet_c": t_rejet,
         "valorisation": valorisation,
         "equivalent_logements": int(e_reuse / 10.0) if e_reuse else 0,

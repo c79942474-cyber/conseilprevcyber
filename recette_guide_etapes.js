@@ -356,6 +356,176 @@ const SANS = ['/about', '/faq', '/methodologie'];
          : ctr.map(x => x.r + ':1').join(' · '));
   }
 
+  titre('LA FLÈCHE : elle désigne le prochain champ, et elle se déplace');
+
+  /* CE QU'ELLE RÉPARE. Le panneau disait « à remplir : trois listes, deux
+     champs » sans montrer LESQUELS — sur une étape qui en porte huit, dont
+     six arrivent pré-remplies, le lecteur les cherche un par un. On éprouve
+     donc trois choses : elle DÉSIGNE un champ réel, elle le NOMME aussi en
+     toutes lettres (lecteur d'écran, champ hors écran), et elle SE DÉPLACE
+     quand ce champ est renseigné — sinon elle enverrait deux fois au même
+     endroit. */
+  const ouvrirParcours = async () => {
+    const dejaOuvert = await pg.evaluate(() =>
+      window.GUIDE_ETAPES && window.GUIDE_ETAPES.ouvert());
+    if (!dejaOuvert) {
+      await pg.click('#gd-ouvrir');
+      await pg.waitForFunction(() =>
+        window.GUIDE_ETAPES && window.GUIDE_ETAPES.ouvert(), null, { timeout: 8000 });
+    }
+  };
+  /* On se place sur une étape qui a VRAIMENT des champs à remplir : sur une
+     étape de lecture, l'absence de flèche est le bon comportement, et le
+     contrôle ne prouverait rien. */
+  const idx = await pg.evaluate(() => {
+    const G = window.GUIDE_ETAPES;
+    for (let i = 0; i < G.etapes().length; i++) {
+      const r = G.aRemplir(i);
+      if (r && (r.listes.length + r.champs.length) > 0 && G.etat(i) !== 'a-venir') return i;
+    }
+    return -1;
+  });
+  ok('une étape à remplir existe pour éprouver la flèche', idx >= 0,
+     idx >= 0 ? 'étape ' + (idx + 1) : 'aucune — le contrôle ne prouverait rien');
+
+  let fl1 = null, pr1 = null;
+  if (idx >= 0) {
+    await ouvrirParcours();
+    await pg.evaluate((i) => {
+      const G = window.GUIDE_ETAPES;
+      // On se rend à l'étape par les commandes du panneau, comme un lecteur.
+      const b = document.querySelector('[data-gd-i="' + i + '"]');
+      if (b) b.click();
+    }, idx);
+    await pg.waitForTimeout(500);
+    pr1 = await pg.evaluate(() => window.GUIDE_ETAPES.prochain());
+    fl1 = await pg.evaluate(() => window.GUIDE_ETAPES.fleche());
+    ok('la flèche est POSÉE et visible à l’écran',
+       !!(fl1 && fl1.visible), fl1 ? fl1.signe + ' en ' + fl1.x + ',' + fl1.y : 'absente');
+    ok('…elle désigne un champ RÉEL de la page, nommé',
+       !!(pr1 && pr1.nom && pr1.balise),
+       pr1 ? pr1.balise + ' « ' + pr1.nom + ' » (' + pr1.quoi + ')' : 'rien de désigné');
+    /* Le panneau dit la MÊME chose : les deux lisent la même fonction. */
+    const dit = await pg.evaluate(() => {
+      const e = document.querySelector('.gd-vers');
+      return e ? e.textContent.replace(/\s+/g, ' ').trim() : '';
+    });
+    ok('…et le panneau le NOMME aussi, en toutes lettres',
+       !!dit && (!pr1 || !pr1.nom || dit.indexOf(pr1.nom.slice(0, 18)) >= 0),
+       dit.slice(0, 110) || 'aucune ligne « la flèche désigne »');
+  }
+
+  /* ELLE SE DÉPLACE — le cœur de la demande : « au fur et à mesure ». */
+  if (idx >= 0 && pr1) {
+    const bouge = await pg.evaluate((i) => {
+      const G = window.GUIDE_ETAPES;
+      const r = G.aRemplir(i);
+      const tout = r.oblig.concat(r.listes, r.champs);
+      const el = tout.find(e => !e.disabled && e.offsetParent !== null);
+      if (!el) return null;
+      const avant = (window.GUIDE_ETAPES.prochain() || {}).nom;
+      // On remplit comme un lecteur : une valeur DIFFÉRENTE de celle vue en
+      // arrivant, sinon le module ne la compte pas — et il a raison.
+      if (el.tagName === 'SELECT') {
+        const opts = [...el.options].filter(o => o.value && o.value !== el.value);
+        if (!opts.length) return null;
+        el.value = opts[0].value;
+      } else {
+        el.value = String((parseFloat(el.value) || 0) + 1234);
+      }
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      return { avant: avant };
+    }, idx);
+    await pg.waitForTimeout(400);
+    const pr2 = await pg.evaluate(() => window.GUIDE_ETAPES.prochain());
+    const fl2 = await pg.evaluate(() => window.GUIDE_ETAPES.fleche());
+    ok('un champ rempli DÉPLACE la flèche — elle ne renvoie pas au même endroit',
+       !!bouge && (!pr2 || pr2.nom !== bouge.avant),
+       bouge ? '« ' + String(bouge.avant).slice(0, 34) + ' » → « '
+               + String(pr2 ? pr2.nom : 'plus rien').slice(0, 34) + ' »'
+             : 'aucun champ remplissable');
+    ok('…et elle reste posée sur la page (ou disparaît si tout est fait)',
+       (fl2 && fl2.visible) || pr2 === null,
+       fl2 ? 'toujours là : ' + fl2.signe : 'retirée — étape complète');
+  }
+
+  /* AU FUR ET À MESURE, AU SENS STRICT : pendant la FRAPPE, sans quitter le
+     champ. C'est la promesse propre à la flèche — le panneau, lui, ne se
+     redessine qu'au `change`, et volontairement : le redessiner à chaque
+     lettre volerait le curseur. Un contrôle qui émettrait `change` ne
+     prouverait donc rien de la flèche ; celui-ci n'émet QUE `input`. */
+  if (idx >= 0) {
+    const frappe = await pg.evaluate((i) => {
+      const G = window.GUIDE_ETAPES;
+      const vise = G.prochain();
+      if (!vise) return null;
+      /* ON REMPLIT LE CHAMP QUE LA FLÈCHE DÉSIGNE — pas un autre. Remplir un
+         champ quelconque de l'étape laisserait la cible inchangée, et le
+         contrôle passerait même si la flèche ne suivait rien : c'est
+         exactement ce qui s'est produit à la première écriture de ce test. */
+      const r = G.aRemplir(i);
+      const tout = r.oblig.concat(r.listes, r.champs, r.cases);
+      const el = tout.find(e => {
+        const nom = (e.getAttribute('data-champ') || e.id || '');
+        return nom && nom === vise.champ;
+      });
+      if (!el) return null;
+      const avant = vise.nom || '';
+      /* `preventScroll` ISOLE CE QU'ON MESURE. Un `focus()` ordinaire fait
+         défiler la page jusqu'au champ, le défilement repositionne la flèche,
+         et le contrôle passerait alors même que l'écoute de la saisie serait
+         débranchée — vérifié : c'est ce qui s'est produit. Ici, seule la
+         saisie peut déplacer le repère. */
+      el.focus({ preventScroll: true });
+      const flAvant = G.fleche();
+      // Le lecteur saisit : `input` SEUL, aucun `change` — il n'a pas quitté
+      // le champ. C'est là que le panneau, lui, ne bouge pas encore.
+      if (el.tagName === 'SELECT') {
+        const opts = [...el.options].filter(o => o.value && o.value !== el.value);
+        if (!opts.length) return null;
+        el.value = opts[0].value;
+      } else if (el.type === 'checkbox' || el.type === 'radio') {
+        el.checked = !el.checked;
+      } else {
+        el.value = String((parseFloat(el.value) || 0) + 4321);
+      }
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      return { avant: avant, flAvant: flAvant, balise: el.tagName,
+               focusTenu: document.activeElement === el };
+    }, idx);
+    if (frappe) {
+      await pg.waitForTimeout(350);
+      const apres = await pg.evaluate(() => ({
+        pr: window.GUIDE_ETAPES.prochain(),
+        fl: window.GUIDE_ETAPES.fleche(),
+        focus: (document.activeElement || {}).tagName,
+      }));
+      const nomApres = apres.pr ? apres.pr.nom : null;
+      /* ON MESURE LA FLÈCHE, PAS LA CIBLE RECALCULÉE. `prochain()` interroge
+         le DOM à l'instant de l'appel : il change de réponse même si la
+         flèche, elle, est restée sur place — c'est ce qui a laissé ce
+         contrôle passer alors que l'écoute de la saisie était débranchée. Ce
+         qu'on éprouve ici, c'est le DÉPLACEMENT du repère à l'écran : soit il
+         a bougé, soit il a disparu parce qu'il n'y a plus rien à désigner. */
+      const posBougee = !!(frappe.flAvant && apres.fl
+        && (apres.fl.x !== frappe.flAvant.x || apres.fl.y !== frappe.flAvant.y));
+      const disparue = !!frappe.flAvant && !apres.fl && nomApres === null;
+      ok('LA FLÈCHE SUIT LA FRAPPE — sans attendre qu’on quitte le champ',
+         posBougee || disparue,
+         '« ' + String(frappe.avant).slice(0, 26) + ' » → « '
+         + String(nomApres || 'plus rien').slice(0, 26) + ' » · repère '
+         + (frappe.flAvant ? frappe.flAvant.x + ',' + frappe.flAvant.y : '?')
+         + ' → ' + (apres.fl ? apres.fl.x + ',' + apres.fl.y : 'retiré'));
+      ok('…et la saisie n’est pas interrompue : le champ garde le curseur',
+         frappe.focusTenu && apres.focus === frappe.balise,
+         'focus sur ' + apres.focus + ' (saisi dans ' + frappe.balise + ')');
+    } else {
+      ok('LA FLÈCHE SUIT LA FRAPPE — sans attendre qu’on quitte le champ',
+         false, 'le champ visé n’a pas pu être retrouvé ni rempli');
+    }
+  }
+
   ok('aucune erreur de script sur toute la manœuvre', err.length === 0,
      err.slice(0, 2).join(' | '));
 

@@ -3812,6 +3812,113 @@ def sous_dossiers(code_piece, discipline=None):
     return out
 
 
+def couverture_documentaire(code_phase, code_piece, chercher, inputs=None,
+                            par_point=3):
+    """CE QUE LA BASE DOCUMENTE, point par point du contenu exigé.
+
+    LE MANQUE QUE CELA COMBLE. Une pièce déclare ce qu'elle doit contenir —
+    trois à six points — et la rédaction reçoit un paquet d'extraits en vrac.
+    Le rapprochement entre les deux restait à faire de tête, et surtout : quand
+    la base ne disait RIEN sur l'un des points, personne ne le signalait. Le
+    rédacteur s'en apercevait au milieu du paragraphe, ou pas du tout — et une
+    pièce remise avec un point traité de mémoire est exactement ce qu'un visa
+    relève.
+
+    On interroge donc la base UNE FOIS PAR POINT, avec la requête générale de
+    la pièce ET les mots du point : ce qui sort est attribué au point, ce qui
+    ne sort pas est déclaré à écrire. Aucun point n'est réputé couvert par
+    défaut.
+
+    `chercher(requete, k)` est injectée — ce module ne connaît pas la base, et
+    reste testable sans elle. Elle rend des extraits {doc_id, title, score}.
+    """
+    pc = piece(code_phase, code_piece)
+    if not pc:
+        return None
+    base = requete_piece(code_phase, code_piece, inputs)
+    points, couverts = [], 0
+    for point in pc.get("contenu") or []:
+        req = (base + " " + point).strip()
+        try:
+            hits = chercher(req, par_point) or []
+        except Exception:
+            # Une base indisponible ne rend pas le point « non couvert » —
+            # elle rend la couverture INCONNUE, et le dire est le contraire
+            # d'annoncer un trou qu'on n'a pas constaté.
+            points.append({"point": point, "etat": "inconnu",
+                           "documents": [], "requete": req})
+            continue
+        docs, vus = [], set()
+        for h in hits:
+            did = h.get("doc_id")
+            if not did or did in vus:
+                continue
+            vus.add(did)
+            docs.append({"doc_id": did,
+                         "titre": (h.get("title") or "").strip() or "sans titre",
+                         "score": h.get("score")})
+        if docs:
+            couverts += 1
+        points.append({"point": point, "etat": "couvert" if docs else "a_ecrire",
+                       "documents": docs, "requete": req})
+
+    total = len(points)
+    inconnus = sum(1 for p in points if p["etat"] == "inconnu")
+    a_ecrire = sum(1 for p in points if p["etat"] == "a_ecrire")
+    if inconnus:
+        lecture = ("Couverture INDÉTERMINÉE : la base n'a pas répondu. Le "
+                   "document reste exact — moteur et registre — mais rien ne "
+                   "dit ici ce qu'elle aurait apporté.")
+    elif not total:
+        lecture = "Cette pièce ne déclare aucun point de contenu exigé."
+    elif a_ecrire == 0:
+        lecture = ("Chacun des %d points exigés trouve de la matière dans la "
+                   "base. Cela ne dit pas qu'elle SUFFIT : c'est au rédacteur "
+                   "de juger si l'extrait traite le point ou l'effleure."
+                   % total)
+    elif couverts == 0:
+        lecture = ("AUCUN des %d points exigés n'est documenté par la base. La "
+                   "pièce s'écrit intégralement depuis le projet et les "
+                   "grandeurs du moteur — c'est faisable, mais il faut le "
+                   "savoir AVANT de commencer." % total)
+    else:
+        lecture = ("%d des %d points exigés sont documentés ; %d s'écrivent "
+                   "depuis le projet, sans appui documentaire. Les nommer "
+                   "évite de s'en apercevoir en cours de rédaction."
+                   % (couverts, total, a_ecrire))
+    return {
+        "piece": pc["code"], "titre": pc["titre"], "phase": code_phase,
+        "points": points,
+        "resume": {"total": total, "couverts": couverts,
+                   "a_ecrire": a_ecrire, "inconnus": inconnus},
+        "lecture": lecture,
+        "reserve": "La couverture est CONSTATÉE sur la base interrogée, pas "
+                   "promise : un point « couvert » signale qu'un document "
+                   "parle du sujet, jamais qu'il répond à la question.",
+    }
+
+
+def couverture_markdown(c):
+    """Le chapitre à verser au document. Nommer les points non documentés est
+    le service rendu : ils s'écrivent depuis le projet, et il vaut mieux le
+    savoir avant d'écrire qu'au moment de la relecture."""
+    if not c:
+        return ""
+    L = ["## Ce que la base documente, point par point", "", c["lecture"], ""]
+    for p in c["points"]:
+        if p["etat"] == "couvert":
+            noms = ", ".join(d["titre"] for d in p["documents"])
+            L.append("- **%s** — documenté : %s" % (p["point"], noms))
+        elif p["etat"] == "a_ecrire":
+            L.append("- **%s** — *à écrire depuis le projet* : aucun document "
+                     "de la base ne traite ce point." % p["point"])
+        else:
+            L.append("- **%s** — couverture indéterminée (base sans réponse)."
+                     % p["point"])
+    L += ["", "*%s*" % c["reserve"], ""]
+    return "\n".join(L)
+
+
 def requete_piece(code_phase, code_piece, inputs=None):
     """Ce qu'on demande À LA BASE — distinct de ce qu'on demande au modèle.
 
