@@ -107,13 +107,65 @@
       + "</div>";
   }
 
+  /* LES QUESTIONS OUVERTES, AVEC LEURS PISTES. Sept cases vides arrêtaient la
+     plupart des lecteurs : « pourquoi construisons-nous ce centre ? » ne se
+     rédige pas de zéro dans un formulaire. Chaque question porte donc un menu
+     de pistes servies par le référentiel — jamais écrites ici, où elles
+     divergeraient du module au premier ajout.
+
+     LE MENU INSÈRE, IL NE RÉPOND PAS. Choisir une piste la verse dans la
+     case, où elle devient le texte du client — modifiable, complétable,
+     effaçable. Case vide : la piste la remplit. Case déjà écrite : la piste
+     S'AJOUTE à la ligne — plusieurs raisons d'être coexistent légitimement —
+     et n'écrase JAMAIS ce qui a été tapé. Puis le menu se repose sur son
+     intitulé : c'est un inséreur, pas un état, et un menu resté sur « piste
+     n° 3 » ferait croire que la réponse est ce choix-là, alors que la seule
+     réponse est le texte de la case. Le livrable ne reçoit d'ailleurs que ce
+     texte : aucune trace de quelle piste est conservée.
+
+     PAS DE <label> ENVELOPPANT : il contiendrait deux commandes, et cliquer
+     l'intitulé activerait l'une en visant l'autre. Le libellé pointe la case. */
   function rendreOuvertes() {
     $("#sd-ouvertes").innerHTML = Q.ouvertes.map(function (o) {
-      return '<label class="sd-ch sd-ouv" for="sd-ouv-' + esc(o.cle) + '">'
-        + '<span class="lab">' + esc(o.libelle) + "</span>"
-        + '<textarea id="sd-ouv-' + esc(o.cle) + '" data-ouverte="'
-        + esc(o.cle) + '"></textarea></label>';
+      var h = '<div class="sd-ch sd-ouv">'
+        + '<label class="lab" for="sd-ouv-' + esc(o.cle) + '">'
+        + esc(o.libelle) + "</label>";
+      if (o.pistes && o.pistes.length) {
+        h += '<select class="sd-piste" data-piste-pour="' + esc(o.cle) + '" '
+          + 'aria-label="Pistes de réponse — ' + esc(o.libelle) + '">'
+          + '<option value="">— pistes de réponse : choisir insère le texte, '
+          + "à adapter —</option>"
+          + o.pistes.map(function (p, i) {
+              return '<option value="' + i + '">' + esc(p) + "</option>";
+            }).join("")
+          + "</select>";
+      }
+      h += '<textarea id="sd-ouv-' + esc(o.cle) + '" data-ouverte="'
+        + esc(o.cle) + '"></textarea></div>';
+      return h;
     }).join("");
+
+    var zo = $("#sd-ouvertes");
+    if (zo.dataset.pistesBranchees) return;
+    zo.dataset.pistesBranchees = "1";
+    zo.addEventListener("change", function (ev) {
+      var s = ev.target.closest("[data-piste-pour]");
+      if (!s || s.value === "") return;
+      var cle = s.getAttribute("data-piste-pour");
+      var o = Q.ouvertes.filter(function (x) { return x.cle === cle; })[0];
+      var t = $("#sd-ouv-" + cle);
+      var p = o && o.pistes[parseInt(s.value, 10)];
+      if (!t || !p) return;
+      t.value = t.value.trim() === "" ? p
+        : t.value.replace(/\s+$/, "") + "\n" + p;
+      s.value = "";
+      /* On prévient la page comme si le client avait tapé : le parcours guidé
+         et le bandeau des piliers constatent l'avancement sur ces événements,
+         et une insertion choisie est bien une réponse du client. */
+      t.dispatchEvent(new Event("input", { bubbles: true }));
+      t.dispatchEvent(new Event("change", { bubbles: true }));
+      try { t.focus({ preventScroll: true }); } catch (e) { t.focus(); }
+    });
   }
 
   /* ═════════════════════════════════════════════════════════════════════

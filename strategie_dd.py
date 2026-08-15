@@ -530,6 +530,142 @@ FAMILLES = {
 #  5. CONTRÔLES D'INTÉGRITÉ — au chargement, pas à l'exécution
 # ═══════════════════════════════════════════════════════════════════════════
 
+# Les questions ouvertes des perspectives remplies par le client — et, pour
+# chacune, des PISTES DE RÉPONSE.
+#
+# CE QUE LES PISTES SONT, ET NE SONT PAS. Sept cases vides arrêtaient net la
+# plupart des lecteurs : « pourquoi construisons-nous ce centre ? » est une
+# vraie question de direction, et personne ne la rédige de zéro dans un
+# formulaire. Chaque question offre donc de quatre à huit réponses RÉALISTES,
+# relevées sur ce que les projets européens répondent effectivement — la
+# souveraineté, la reprise de coûts, la valorisation d'un site, l'ancrage.
+#
+# LA LIGNE : une piste choisie est INSÉRÉE dans la case, où elle devient le
+# texte du client — modifiable, complétable, effaçable. Le livrable ne retient
+# que le texte final ; aucune trace de « quelle piste » n'est conservée, parce
+# qu'une réponse de direction n'est pas un choix dans un menu. Et là où le
+# terrain le permet, la liste porte une piste INCONFORTABLE (« rien de
+# formalisé », « nos clients arbitrent au prix », « aucun engagement public ») :
+# un menu qui n'offrirait que des réponses flatteuses ne recueillerait pas une
+# stratégie, il ferait passer un test de conformité.
+OUVERTES = [
+    {"cle": "raison_etre_texte", "perspective": "raison_etre",
+     "libelle": "Pourquoi construisons-nous ce centre de données, "
+                "au-delà de la capacité ?",
+     "pistes": [
+         "Garder en Europe les données et les modèles de nos clients, sous "
+         "droit européen.",
+         "Rapprocher le calcul de nos sites industriels, pour la latence et "
+         "la continuité d'exploitation.",
+         "Reprendre la main sur des coûts d'hébergement devenus imprévisibles "
+         "chez les grands fournisseurs.",
+         "Porter la croissance de nos services d'IA sans dépendre des files "
+         "d'attente des hyperscalers.",
+         "Valoriser un site industriel existant — foncier, raccordement — "
+         "plutôt que d'artificialiser ailleurs.",
+         "Doter le territoire d'une infrastructure numérique qui y fixe des "
+         "emplois qualifiés.",
+     ]},
+    {"cle": "valeurs_texte", "perspective": "raison_etre",
+     "libelle": "Quelles valeurs définissent notre manière de le "
+                "concevoir, de le construire et de l'exploiter ?",
+     "pistes": [
+         "Sobriété d'abord : chaque kilowatt et chaque litre évités valent "
+         "mieux qu'une compensation.",
+         "Transparence : nos indicateurs — PUE, WUE, CUE — seront publiés et "
+         "auditables.",
+         "Ancrage local : entreprises du territoire, chaleur réutilisée, "
+         "dialogue avec les riverains.",
+         "Sécurité sans compromis : la disponibilité ne se négocie pas contre "
+         "le calendrier.",
+         "Réversibilité : concevoir démontable et réemployable, du bâtiment "
+         "aux baies.",
+         "Exemplarité sociale : conditions de chantier et d'exploitation "
+         "au-dessus des obligations.",
+     ]},
+    {"cle": "vision_texte", "perspective": "raison_etre",
+     "libelle": "Quel avenir souhaitons-nous pour l'entreprise, le "
+                "secteur et le territoire d'accueil ?",
+     "pistes": [
+         "Devenir la référence régionale de l'hébergement sobre pour les "
+         "charges d'IA.",
+         "Un parc qui croît sans accroître ses prélèvements d'eau ni sa "
+         "pointe sur le réseau.",
+         "Faire du site une brique du système énergétique local : chaleur "
+         "fournie, flexibilité offerte au réseau.",
+         "Fixer sur le territoire un écosystème — intégration, formation, "
+         "maintenance — qui survive au chantier.",
+         "Démontrer qu'un centre de données peut être un voisin accepté, pas "
+         "seulement toléré.",
+     ]},
+    {"cle": "engagements_texte", "perspective": "raison_etre",
+     "libelle": "Quels engagements publics avons-nous déjà pris, que "
+                "ce projet devra tenir ?",
+     "pistes": [
+         "Une neutralité carbone annoncée à échéance publique — dont le "
+         "périmètre reste à préciser ici.",
+         "L'adhésion au Climate Neutral Data Centre Pact, avec ses jalons.",
+         "Un contrat d'électricité renouvelable signé ou en négociation, sur "
+         "une part définie de la consommation.",
+         "Un engagement de réutilisation de chaleur pris auprès de la "
+         "collectivité.",
+         "Des objectifs publiés dans notre rapport annuel, que ce projet "
+         "devra chiffrer.",
+         "Aucun engagement public à ce jour — ce dossier est l'occasion d'en "
+         "formuler.",
+     ]},
+    {"cle": "ecoute_texte", "perspective": "parties_prenantes",
+     "libelle": "Comment recueillons-nous aujourd'hui les avis des "
+                "parties prenantes, et comment pourrions-nous le faire "
+                "de manière plus proactive ?",
+     "pistes": [
+         "Réunions publiques et registre pendant l'instruction ; rien "
+         "d'installé au-delà.",
+         "Un comité de suivi riverains-collectivité-exploitant, réuni à "
+         "échéance fixe.",
+         "Des enquêtes régulières auprès des clients hébergés sur leurs "
+         "attentes environnementales.",
+         "Un canal de signalement permanent — bruit, chantier, lumière — avec "
+         "engagement de réponse.",
+         "Un dialogue structuré avec le gestionnaire de réseau et l'agence de "
+         "l'eau, en amont des dossiers.",
+         "Rien de formalisé aujourd'hui : l'écoute passe par les commerciaux, "
+         "et peu remonte.",
+     ]},
+    {"cle": "clients_payer_texte", "perspective": "valeur",
+     "libelle": "Sur quels sujets nos clients hébergés sont-ils prêts "
+                "à supporter un coût supplémentaire ?",
+     "pistes": [
+         "Une électricité renouvelable garantie heure par heure, "
+         "contractualisée.",
+         "Des indicateurs vérifiés par un tiers, réutilisables dans leur "
+         "propre reporting.",
+         "La localisation souveraine des données et des modèles, avec "
+         "engagement contractuel.",
+         "Des niveaux de disponibilité supérieurs, adossés à des pénalités "
+         "réelles.",
+         "La chaleur fatale valorisée, qu'ils peuvent citer dans leur bilan.",
+         "Presque rien : nos clients arbitrent au prix — une contrainte à "
+         "assumer dans ce dossier.",
+     ]},
+    {"cle": "intangible_texte", "perspective": "valeur",
+     "libelle": "Quelle valeur intangible pouvons-nous créer par notre "
+                "leadership sur certains enjeux ?",
+     "pistes": [
+         "La crédibilité d'exploitant sobre, qui pèse dans les appels "
+         "d'offres publics.",
+         "L'acceptabilité locale : un site accepté se développe, un site "
+         "contesté s'arrête.",
+         "L'attractivité employeur sur des métiers en tension — énergie, "
+         "froid, exploitation.",
+         "Une prime de confiance des financeurs, sensibles aux risques ESG "
+         "documentés.",
+         "Un capital de bonne foi qui protège le jour où un incident "
+         "survient.",
+     ]},
+]
+
+
 def _verifier():
     fautes = []
     cles = [e["cle"] for e in ENJEUX]
@@ -587,6 +723,27 @@ def _verifier():
     if _PERSP["science"]["source"] != "donnees":
         fautes.append("la perspective scientifique ne peut pas être remplie "
                       "par le client")
+
+    # LES PISTES DE RÉPONSE : de quatre à huit par question, uniques, et
+    # jamais sur la perspective scientifique — elle n'est pas remplie par le
+    # client, elle n'a donc rien à lui souffler.
+    for o in OUVERTES:
+        p = o.get("pistes") or []
+        if not (4 <= len(p) <= 8):
+            fautes.append("question %s : %d piste(s), attendu 4 à 8"
+                          % (o["cle"], len(p)))
+        if len(set(p)) != len(p):
+            fautes.append("question %s : piste en double" % o["cle"])
+        for x in p:
+            if not (20 <= len(x) <= 140):
+                fautes.append("question %s : piste hors gabarit (%d car.)"
+                              % (o["cle"], len(x)))
+        if o["perspective"] == "science":
+            fautes.append("question %s : la perspective scientifique ne "
+                          "reçoit pas de pistes" % o["cle"])
+    cles_o = [o["cle"] for o in OUVERTES]
+    if len(set(cles_o)) != len(cles_o):
+        fautes.append("clé de question ouverte dupliquée")
     return fautes
 
 
@@ -639,30 +796,7 @@ def questionnaire():
             | ({"garde": p["garde"]} if p.get("garde") else {})
             for p in PERSPECTIVES
         ],
-        "ouvertes": [
-            {"cle": "raison_etre_texte", "perspective": "raison_etre",
-             "libelle": "Pourquoi construisons-nous ce centre de données, "
-                        "au-delà de la capacité ?"},
-            {"cle": "valeurs_texte", "perspective": "raison_etre",
-             "libelle": "Quelles valeurs définissent notre manière de le "
-                        "concevoir, de le construire et de l'exploiter ?"},
-            {"cle": "vision_texte", "perspective": "raison_etre",
-             "libelle": "Quel avenir souhaitons-nous pour l'entreprise, le "
-                        "secteur et le territoire d'accueil ?"},
-            {"cle": "engagements_texte", "perspective": "raison_etre",
-             "libelle": "Quels engagements publics avons-nous déjà pris, que "
-                        "ce projet devra tenir ?"},
-            {"cle": "ecoute_texte", "perspective": "parties_prenantes",
-             "libelle": "Comment recueillons-nous aujourd'hui les avis des "
-                        "parties prenantes, et comment pourrions-nous le faire "
-                        "de manière plus proactive ?"},
-            {"cle": "clients_payer_texte", "perspective": "valeur",
-             "libelle": "Sur quels sujets nos clients hébergés sont-ils prêts "
-                        "à supporter un coût supplémentaire ?"},
-            {"cle": "intangible_texte", "perspective": "valeur",
-             "libelle": "Quelle valeur intangible pouvons-nous créer par notre "
-                        "leadership sur certains enjeux ?"},
-        ],
+        "ouvertes": OUVERTES,
         "contexte": CONTEXTE,
         "groupes_parties_prenantes": GROUPES_PP,
         "degres": DEGRES,

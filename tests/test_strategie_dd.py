@@ -398,3 +398,48 @@ def test_la_page_porte_les_sections_du_questionnaire():
                   'id="sd-ouvertes"', 'id="sd-enjeux"', 'id="sd-resultat"'):
         assert cible in h, cible
     assert 'content="index, follow"' in h
+
+
+# ── Les pistes de réponse des questions ouvertes ────────────────────────────
+# Elles aident à répondre ; elles ne répondent pas. Le référentiel les borne
+# (4 à 8, uniques, au gabarit d'une option de menu) et le contrôle de santé
+# doit TOMBER quand la borne est franchie — sinon la borne n'existe pas.
+
+def test_chaque_question_ouverte_porte_de_4_a_8_pistes():
+    import strategie_dd as s
+    assert len(s.OUVERTES) == 7
+    for o in s.OUVERTES:
+        p = o["pistes"]
+        assert 4 <= len(p) <= 8, o["cle"]
+        assert len(set(p)) == len(p), o["cle"]
+        for x in p:
+            assert 20 <= len(x) <= 140, (o["cle"], x)
+
+
+def test_le_questionnaire_sert_les_pistes_du_referentiel():
+    import strategie_dd as s
+    q = {o["cle"]: o for o in s.questionnaire()["ouvertes"]}
+    for o in s.OUVERTES:
+        assert q[o["cle"]]["pistes"] == o["pistes"]
+
+
+def test_aucune_piste_sur_la_perspective_scientifique():
+    # Elle n'est pas remplie par le client : rien à lui souffler.
+    import strategie_dd as s
+    assert all(o["perspective"] != "science" for o in s.OUVERTES)
+
+
+def test_le_controle_de_sante_TOMBE_sur_une_liste_hors_borne():
+    """La borne 4-8 n'existe que si sa violation est détectée. On mutile une
+    copie du référentiel, on vérifie que _verifier() le voit, on restaure —
+    le tout dans un try/finally : un test qui laisse le module mutilé ferait
+    échouer tous les suivants sans que la cause soit visible."""
+    import strategie_dd as s
+    sauve = s.OUVERTES[0]["pistes"]
+    try:
+        s.OUVERTES[0]["pistes"] = sauve[:2]
+        fautes = s._verifier()
+        assert any("attendu 4 à 8" in f for f in fautes)
+    finally:
+        s.OUVERTES[0]["pistes"] = sauve
+    assert not any("attendu 4 à 8" in f for f in s._verifier())

@@ -158,6 +158,75 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
      rien.alertes.some(a => /non instruit/i.test(a)),
      (rien.alertes[0] || '').slice(0, 90));
 
+  titre('4 bis. Les pistes de réponse : elles aident, elles n’écrivent pas à votre place');
+
+  /* Sept cases vides arrêtaient les lecteurs ; chaque question porte
+     maintenant un menu de pistes servies par le référentiel. CE QUI SE JOUE
+     ICI : qu'une piste choisie REMPLISSE une case vide, S'AJOUTE à un texte
+     tapé sans jamais l'écraser, et que le menu se repose — un menu resté sur
+     « piste n° 3 » ferait croire que la réponse est ce choix, alors que la
+     seule réponse est le texte de la case. Cette section REMET À ZÉRO ce
+     qu'elle touche : la suivante éprouve un cas réel et ne doit pas hériter
+     de nos insertions. */
+  const pistes = await pg.evaluate(() => {
+    const qs = [...document.querySelectorAll('#sd-ouvertes .sd-ouv')];
+    const y0 = qs.length ? Math.round(qs[0].getBoundingClientRect().top) : 0;
+    return {
+      questions: qs.length,
+      menus: qs.filter(q => q.querySelector('[data-piste-pour]')).length,
+      comptes: qs.map(q => {
+        const s = q.querySelector('[data-piste-pour]');
+        return s ? s.options.length - 1 : 0;
+      }),
+      deuxColonnes: qs.length > 1
+        && Math.abs(Math.round(qs[1].getBoundingClientRect().top) - y0) < 4,
+      intitules: [...new Set(qs.map(q => {
+        const s = q.querySelector('[data-piste-pour]');
+        return s ? s.options[0].textContent.trim() : '';
+      }))],
+    };
+  });
+  ok('les sept questions sont là, chacune avec son menu de pistes',
+     pistes.questions === 7 && pistes.menus === 7,
+     pistes.questions + ' question(s), ' + pistes.menus + ' menu(s)');
+  ok('CHAQUE MENU PROPOSE DE 4 À 8 PISTES',
+     pistes.comptes.every(c => c >= 4 && c <= 8), pistes.comptes.join('/'));
+  ok('…et les questions tiennent sur DEUX colonnes', pistes.deuxColonnes);
+  ok('…l’intitulé du menu dit qu’insérer n’est pas répondre',
+     pistes.intitules.every(t => /insère le texte, à adapter/.test(t)),
+     pistes.intitules.join(' | ').slice(0, 80));
+
+  const ins = await pg.evaluate(async () => {
+    const s = document.querySelector('[data-piste-pour="raison_etre_texte"]');
+    const t = document.getElementById('sd-ouv-raison_etre_texte');
+    if (!s || !t) return null;
+    s.value = '0';
+    s.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 200));
+    const surVide = t.value;
+    /* Du texte TAPÉ, puis une piste : rien ne doit être écrasé. */
+    t.value = 'Notre motif, écrit à la main.';
+    t.dispatchEvent(new Event('input', { bubbles: true }));
+    s.value = '1';
+    s.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 200));
+    const apres = { surVide: surVide, surTape: t.value, repose: s.value === '' };
+    /* On rend la page comme on l'a trouvée : la section suivante éprouve un
+       questionnaire qu'ELLE remplit. */
+    t.value = '';
+    t.dispatchEvent(new Event('change', { bubbles: true }));
+    return apres;
+  });
+  ok('choisir une piste REMPLIT une case vide',
+     !!ins && ins.surVide.length > 30, ins && ins.surVide.slice(0, 60));
+  ok('…UNE PISTE N’ÉCRASE JAMAIS UN TEXTE TAPÉ — elle s’ajoute à la suite',
+     !!ins && ins.surTape.indexOf('Notre motif, écrit à la main.') === 0
+       && ins.surTape.length > 'Notre motif, écrit à la main.'.length
+       && ins.surTape.indexOf('\n') > 0,
+     ins && ins.surTape.replace(/\n/g, ' ⏎ ').slice(0, 90));
+  ok('…et le menu se repose : c’est un inséreur, pas un état',
+     !!ins && ins.repose);
+
   titre('5. Un cas réel : les divergences survivent à l’affichage');
 
   await pg.fill('[data-identite="projet"]', 'DC Nord — 20 MW');

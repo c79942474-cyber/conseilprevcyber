@@ -114,7 +114,24 @@
     border:1px solid var(--line);background:rgba(0,0,0,.24);color:var(--ink)}
   .sd-ch textarea{min-height:78px;line-height:1.55;resize:vertical}
   .sd-ch .aide{display:block;font-size:11px;color:var(--muted2);line-height:1.5;margin-top:4px}
-  .sd-ouv{margin-bottom:14px}
+  /* LES QUESTIONS OUVERTES SUR DEUX COLONNES. Empilées, sept questions à
+     zone de texte faisaient de cette étape un mur ; en grille, la largeur
+     minimale d'une carte décide du nombre de colonnes — deux dans le gabarit
+     de 1080 px, une sur téléphone. `align-items:start` : les réponses n'ont
+     pas la même longueur, les étirer creuserait du vide sous les courtes. */
+  /* `min(380px, 100%)` ET NON `380px` : un minimum FIXE devient un plancher
+     que la grille impose même quand la place manque — mesuré, la carte
+     débordait de 26 px sur un téléphone de 390 px. Borné par 100 %, le
+     minimum cède dès que le conteneur est plus étroit que lui. */
+  #sd-ouvertes{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(380px,100%),1fr));
+    gap:15px 16px;align-items:start}
+  .sd-ouv{margin-bottom:0}
+  /* Le menu des pistes : un inséreur, posé entre l'intitulé et la case. Sa
+     couleur reste celle des commandes — il ne prétend pas être la réponse. */
+  .sd-piste{width:100%;box-sizing:border-box;font-family:inherit;font-size:12px;
+    margin:0 0 6px;padding:6px 9px;border-radius:7px;border:1px solid var(--line);
+    background:rgba(0,0,0,.24);color:var(--muted)}
+  .sd-piste:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 
   /* LES ENJEUX EN COLONNES. Ils se suivaient un par ligne : vingt cartes
      empilées, et l'étape la plus longue de la page devenait un déroulé sans
@@ -127,7 +144,7 @@
      courtes sans rien apporter. Le titre de famille, lui, traverse la rangée :
      posé dans une colonne, il aurait titré un tiers de sa propre famille. */
   .sd-fam{margin:0 0 20px;display:grid;align-items:start;gap:10px;
-    grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
+    grid-template-columns:repeat(auto-fill,minmax(min(330px,100%),1fr))}
   .sd-fam>h3{grid-column:1/-1;font-size:12px;text-transform:uppercase;letter-spacing:.08em;
     color:var(--muted2);margin:0;padding-bottom:5px;border-bottom:1px solid var(--line)}
   .sd-e{border:1px solid var(--line);border-radius:10px;padding:12px 14px;
