@@ -3584,6 +3584,19 @@ def _etude_phase_markdown(d, client=""):
     A("---")
     A("")
 
+    eco = d.get("ecoconception")
+    if eco:
+        A("## %d. Écoconception de la phase (ISO 14006 · ISO/TR 14062)" % (n_ + 1))
+        A("")
+        A("**Le geste.** %s" % eco["geste"])
+        A("")
+        A("**La preuve à verser au dossier.** %s" % eco["preuve"])
+        A("")
+        A("*Fondement : %s. %s*"
+          % (eco["clause"], ingenierie_dc.ECOCONCEPTION["direction"]))
+        A("")
+        n_ += 1
+
     A("## %d. Traçabilité" % (n_ + 1))
     A("")
     A("- Registre en ligne de cette phase : [%s](%s)"

@@ -74,6 +74,20 @@ const titre = t => console.log('\n══ ' + t + ' ══\n');
   ok('l’étude de la phase retenue s’affiche', avant.dossier > 800,
      avant.dossier + ' caractères');
   ok('…et aucune bannière de session ne s’affiche à tort', !avant.banniere);
+  /* Le geste d'écoconception de la phase, VISIBLE sur la fiche : servi avec
+     le dossier (ISO/TR 14062 art. 8, ISO 14006), il donne à chaque phase le
+     management de ses produits de construction — geste, preuve, clause. */
+  const eco = await pg.evaluate(() => {
+    const t = (document.getElementById('ig-dossier').innerText || '').replace(/\s+/g, ' ');
+    return {
+      titre: /Écoconception de la phase/i.test(t),
+      preuve: /Preuve\s?:/.test(t),
+      clause: /ISO\/TR 14062, art\. 8\.3\.\d/.test(t),
+    };
+  });
+  ok('LA FICHE PORTE LE GESTE D’ÉCOCONCEPTION DE LA PHASE — preuve et clause',
+     eco.titre && eco.preuve && eco.clause,
+     'titre: ' + eco.titre + ', preuve: ' + eco.preuve + ', clause 14062: ' + eco.clause);
 
   titre('2. LA SESSION MEURT — la page le dit, au lieu de se taire');
 

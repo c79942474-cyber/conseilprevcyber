@@ -730,3 +730,57 @@ def test_les_livrables_portent_les_chapitres_management():
     assert "Ancrage dans le management de l'énergie (ISO 50001)" in md2
     assert "situation énergétique de référence" in md2
     assert "plan de mesurage" in md2
+
+
+# ── L'écoconception phase par phase (ISO/TR 14062 art. 8 · ISO 14006) ──────
+# Le management des produits de construction : chaque phase du cadre — MOE
+# comme industrielle — porte SON geste, sa preuve et sa clause, servis avec
+# le dossier et imprimés dans l'étude de phase. Une phase sans geste
+# laisserait croire que l'écoconception s'y suspend.
+
+def test_chaque_phase_porte_son_geste_d_ecoconception():
+    import ingenierie_dc as g
+    assert g._verifier_ecoconception() == []
+    codes = {p["code"] for p in g.PHASES}
+    assert set(g.ECOCONCEPTION["gestes"]) == codes and len(codes) == 14
+    # Les gestes disent le MÉTIER au bon moment : les données de cycle de vie
+    # à la spécification, l'exigence écrite au marché, la revue en clôture.
+    gestes = g.ECOCONCEPTION["gestes"]
+    assert "FDES" in gestes["PRO"]["geste"]
+    assert "CCTP" in gestes["DCE"]["geste"]
+    assert "revue" in gestes["AOR"]["geste"].lower()
+    assert "8.3.3" in gestes["ESQ"]["clause"]
+    # …et la direction est nommée : la démarche vit dans le SME (14006).
+    assert "14006" in g.ECOCONCEPTION["direction"] or "direction" in g.ECOCONCEPTION["direction"]
+
+
+def test_le_dossier_et_l_etude_de_phase_portent_le_geste():
+    import ingenierie_dc as g
+    import app as A
+    d = g.dossier({"puissance_it_kw": 1000}, "PRO")
+    assert d["ecoconception"]["clause"] == g.ECOCONCEPTION["gestes"]["PRO"]["clause"]
+    md = A._etude_phase_markdown(d)
+    assert "Écoconception de la phase (ISO 14006 · ISO/TR 14062)" in md
+    assert g.ECOCONCEPTION["gestes"]["PRO"]["preuve"][:40] in md
+    assert "ISO/TR 14062, art. 8.3.5" in md
+    # Le référentiel servi l'expose aussi — la page le lit là.
+    assert g.referentiel()["ecoconception"]["gestes"]["DCE"]["clause"]
+
+
+def test_le_garde_TOMBE_sur_une_phase_sans_geste():
+    import ingenierie_dc as g
+    sauve = g.ECOCONCEPTION["gestes"].pop("PRO")
+    try:
+        fautes = g._verifier_ecoconception()
+        assert any("phase sans geste" in f and "PRO" in f for f in fautes)
+    finally:
+        g.ECOCONCEPTION["gestes"]["PRO"] = sauve
+    assert g._verifier_ecoconception() == []
+
+
+def test_le_management_datacenter_pointe_l_ecoconception():
+    import datacenter as d
+    m = d.referentiel()["management"]["ecoconception"]
+    assert "14006" in m["titre"] and "14062" in m["titre"]
+    assert "phase" in m["apporte"] and "FDES" in m["apporte"]
+    assert "rapport technique" in m["certifiable"]

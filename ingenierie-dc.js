@@ -765,6 +765,14 @@
     h += '<div class="ig-meta">'
       + "<div><b>Ce qu'elle décide</b>" + esc(d.decide) + "</div>"
       + "<div><b>Ce qu'elle verrouille</b>" + esc(d.verrouille) + "</div>"
+      /* Le geste d'écoconception de la phase — servi avec le dossier, le même
+         que l'étude exportée : produits de construction spécifiés, exigés et
+         vérifiés au bon moment (ISO/TR 14062, ISO 14006). */
+      + (d.ecoconception
+          ? "<div><b>Écoconception de la phase</b>" + esc(d.ecoconception.geste)
+            + " <i>Preuve&nbsp;: " + esc(d.ecoconception.preuve) + "</i>"
+            + ' <span class="ig-eco-cl">' + esc(d.ecoconception.clause) + "</span></div>"
+          : "")
       + "<div><b>Précision attendue</b>" + esc(d.precision.valeur)
       + ' <span class="dc-unite"><span' + info("nature:" + d.precision.nature) + ">"
       + esc(d.precision.nature) + '</span> · <span' + info("aace:" + d.precision.aace)

@@ -3421,6 +3421,9 @@ def dossier(profil, code, inputs=None):
         # Ce que cette phase attend d'AILLEURS. Une phase qui ne dirait pas où
         # se trouve son chiffrage laisserait croire qu'elle se boucle ici.
         "renvoi": ph.get("renvoi"),
+        # Le geste d'écoconception de CETTE phase — la fiche à l'écran et
+        # l'étude exportée le lisent au même endroit, il ne peut pas diverger.
+        "ecoconception": ECOCONCEPTION["gestes"].get(code),
         "sections": ph["livrable"],
         # Le plan dit ce qu'on écrit ; le registre dit ce qu'on REMET. Les
         # confondre fait livrer un rapport là où le marché attend des pièces
@@ -5569,12 +5572,197 @@ def guide(role_id, theme_id, profil=None, code_phase=None):
     }
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  L'ÉCOCONCEPTION, PHASE PAR PHASE — le management des produits de
+#  construction, pas une déclaration d'intention.
+#
+#  Nourri des deux normes versées à la base documentaire : ISO/TR 14062:2002
+#  (art. 8 — l'intégration des aspects environnementaux à CHAQUE étape du
+#  processus de conception) et NF EN ISO 14006:2020 (art. 5 — le rôle de la
+#  direction ; 9.3 — la revue de direction ; l'écoconception vit dans le
+#  système de management, pas dans un dossier). Paraphrasées, jamais
+#  recopiées. Le principe qui commande tout (14062, introduction et art. 8) :
+#  le potentiel de réduction des impacts est MAXIMAL au début du processus,
+#  quand rien n'est encore figé — chaque phase franchie sans geste est un
+#  potentiel perdu qu'aucune phase suivante ne rattrape.
+# ═══════════════════════════════════════════════════════════════════════════
+
+ECOCONCEPTION = {
+    "titre": "L'écoconception des produits de construction, phase par phase",
+    "principe": "Le potentiel de réduction des impacts est maximal au début "
+                "du processus de conception, quand rien n'est figé — c'est là "
+                "que se joue l'essentiel du carbone incorporé, des matériaux "
+                "et de la fin de vie. Chaque phase porte donc SON geste, sa "
+                "preuve, et la clause de norme qui le fonde.",
+    "direction": "La démarche appartient au système de management, pas au "
+                 "dossier : la direction nomme les responsabilités, alloue "
+                 "les ressources et revoit les résultats en revue de "
+                 "direction (ISO 14006, art. 5 et 9.3, annexe A). Une "
+                 "écoconception portée par un seul bureau d'études s'arrête "
+                 "à son périmètre — et les produits de construction se "
+                 "décident ailleurs : au programme, aux marchés, au chantier.",
+    "source": "ISO/TR 14062:2002 (art. 8) et NF EN ISO 14006:2020 (art. 5, "
+              "9.3, annexe A), versées à la base documentaire du cabinet ; "
+              "textes : AFNOR / ISO.",
+    "gestes": {
+        # ── Filière maîtrise d'œuvre (loi MOP) ────────────────────────────
+        "ESQ": {
+            "geste": "Fixer les exigences environnementales AU PROGRAMME, au "
+                     "moment où le potentiel est maximal : facteurs externes "
+                     "(réglementation et son évolution, ressources, attentes "
+                     "des parties prenantes) et internes (disponibilité des "
+                     "matériaux, réemploi et sources renouvelables compris).",
+            "preuve": "Le profil environnemental CIBLE annexé au programme — "
+                      "carbone incorporé visé, part de réemploi, exigences "
+                      "de fin de vie.",
+            "clause": "ISO/TR 14062, art. 8.3.3"},
+        "APS": {
+            "geste": "Comparer les partis d'implantation sur des grandeurs "
+                     "PHYSIQUES (kg, kWh, m³) — le benchmarking "
+                     "environnemental de la norme — pas sur des intentions.",
+            "preuve": "Le tableau comparatif des partis, critères "
+                      "environnementaux chiffrés en regard des critères "
+                      "techniques et de coût.",
+            "clause": "ISO/TR 14062, art. 8.3.3 et 8.3.4"},
+        "APD": {
+            "geste": "Évaluer les concepts de façon ITÉRATIVE, entre eux et "
+                     "contre l'existant, et arrêter le cahier des charges de "
+                     "conception portant les cibles environnementales — avec "
+                     "les outils que la norme cite : ACV (ISO 14040), coût "
+                     "du cycle de vie, listes de contrôle matériaux.",
+            "preuve": "Le cahier des charges de conception, cibles "
+                      "environnementales écrites et arbitrages tracés.",
+            "clause": "ISO/TR 14062, art. 8.3.4"},
+        "PRO": {
+            "geste": "Spécifier les produits de construction sur des DONNÉES "
+                     "de cycle de vie : bases matériaux (FDES / INIES pour "
+                     "la construction), listes de substances, données "
+                     "valides au sens de la série ISO 14040 — et non sur "
+                     "les plaquettes.",
+            "preuve": "Les spécifications matériaux avec leur déclaration "
+                      "environnementale de référence, poste par poste.",
+            "clause": "ISO/TR 14062, art. 8.3.5"},
+        "DCE": {
+            "geste": "Faire passer les exigences environnementales DANS LES "
+                     "PIÈCES ÉCRITES : CCTP exigeant les déclarations "
+                     "(FDES / EPD), seuils par lot, part de réemploi. Une "
+                     "exigence absente du marché n'existera pas au chantier.",
+            "preuve": "Les clauses environnementales du CCTP et du RC, lot "
+                      "par lot — relues par la personne qui jugera les "
+                      "offres.",
+            "clause": "ISO/TR 14062, art. 8.3.5 ; IEC 62430, art. 5.6"},
+        "ACT": {
+            "geste": "Juger les offres SUR les déclarations remises, à "
+                     "périmètre égal (mêmes modules, même unité "
+                     "fonctionnelle), et sur la capacité réelle des "
+                     "fournisseurs à documenter — le management de la "
+                     "chaîne d'approvisionnement de la norme.",
+            "preuve": "La grille d'analyse des offres avec le critère "
+                      "environnemental pondéré et son barème écrit.",
+            "clause": "ISO/TR 14062, art. 6.6"},
+        "EXE-VISA": {
+            "geste": "Vérifier au VISA que les produits proposés tiennent "
+                     "les exigences du marché ; toute substitution est une "
+                     "NOUVELLE déclaration à fournir, pas une équivalence "
+                     "de plaquette.",
+            "preuve": "Les visas motivés ; le registre des substitutions "
+                      "avec leur déclaration de remplacement.",
+            "clause": "ISO/TR 14062, art. 8.3.6"},
+        "DET": {
+            "geste": "Contrôler en exécution ce qui a été spécifié : essais, "
+                     "traçabilité des produits réellement mis en œuvre ; "
+                     "l'écart environnemental se traite comme une "
+                     "non-conformité, pas comme un détail.",
+            "preuve": "Les fiches de contrôle et la traçabilité produits du "
+                      "chantier, rapprochées des déclarations du marché.",
+            "clause": "ISO/TR 14062, art. 8.3.6"},
+        "AOR": {
+            "geste": "Clore par la REVUE : le dossier des ouvrages exécutés "
+                     "porte les déclarations telles que construites, et le "
+                     "retour d'expérience est réintroduit dans la "
+                     "planification des opérations suivantes — c'est la "
+                     "revue de produit de la 14062 et la revue de direction "
+                     "de la 14006.",
+            "preuve": "Le DOE avec déclarations conformes à l'exécution ; le "
+                      "compte rendu de revue versé au système de management.",
+            "clause": "ISO/TR 14062, art. 8.3.8 ; ISO 14006, art. 9.3"},
+        # ── Filière industrielle ──────────────────────────────────────────
+        "FAISA": {
+            "geste": "Porter les exigences environnementales au cahier des "
+                     "charges de faisabilité — réglementation à venir, "
+                     "ressources, matériaux disponibles — quand tout est "
+                     "encore ouvert.",
+            "preuve": "Le profil environnemental cible du projet, annexé à "
+                      "l'étude de faisabilité.",
+            "clause": "ISO/TR 14062, art. 8.3.3"},
+        "BASIC": {
+            "geste": "Comparer les concepts sur critères environnementaux "
+                     "chiffrés et arrêter le cahier des charges de "
+                     "conception avec ses cibles.",
+            "preuve": "Le dossier de comparaison des concepts, critères "
+                      "environnementaux en regard du coût et du planning.",
+            "clause": "ISO/TR 14062, art. 8.3.4"},
+        "FEED": {
+            "geste": "Spécifier sur données de cycle de vie : bases "
+                     "matériaux, listes de substances, fournisseurs "
+                     "qualifiés sur leur capacité à déclarer.",
+            "preuve": "Les spécifications FEED avec données "
+                      "environnementales de référence par équipement.",
+            "clause": "ISO/TR 14062, art. 8.3.5"},
+        "EPCI": {
+            "geste": "Écrire les exigences aux contrats d'achat et de "
+                     "construction, puis vérifier en exécution — "
+                     "substitutions contrôlées, déclaration par déclaration.",
+            "preuve": "Les clauses environnementales des contrats EPC et le "
+                      "registre des écarts et substitutions.",
+            "clause": "ISO/TR 14062, art. 8.3.5 et 8.3.6 ; IEC 62430, art. 5.6"},
+        "CSU": {
+            "geste": "Vérifier à la mise en service que les performances "
+                     "tiennent les cibles du cahier des charges, et "
+                     "capitaliser : la revue nourrit la planification des "
+                     "projets suivants.",
+            "preuve": "Le rapport de mise en service confronté aux cibles "
+                      "environnementales ; la revue de clôture versée au "
+                      "système de management.",
+            "clause": "ISO/TR 14062, art. 8.3.7 et 8.3.8"},
+    },
+}
+
+
+def _verifier_ecoconception():
+    """Chaque phase du cadre porte son geste — 14/14, sans orphelin ni trou.
+
+    Une phase sans geste laisserait croire que l'écoconception s'y suspend ;
+    un geste orphelin nommerait une phase que le cadre ne connaît plus."""
+    fautes = []
+    codes = {p["code"] for p in PHASES}
+    gestes = set(ECOCONCEPTION["gestes"])
+    for c in sorted(codes - gestes):
+        fautes.append("phase sans geste d'écoconception : " + c)
+    for c in sorted(gestes - codes):
+        fautes.append("geste orphelin (phase inconnue du cadre) : " + c)
+    for c, g in ECOCONCEPTION["gestes"].items():
+        for champ in ("geste", "preuve", "clause"):
+            if not str(g.get(champ, "")).strip():
+                fautes.append("champ vide : %s.%s" % (c, champ))
+        if "14062" not in g.get("clause", "") and "14006" not in g.get("clause", ""):
+            fautes.append("clause sans norme d'écoconception : " + c)
+    return fautes
+
+
+_fautes_eco = _verifier_ecoconception()
+if _fautes_eco:
+    raise AssertionError("ECOCONCEPTION incohérent : " + " ; ".join(_fautes_eco))
+del _fautes_eco
+
+
 def referentiel():
     """Le cadre complet, pour l'interface et la documentation."""
     return {
         "version": VERSION,
         "filieres": FILIERES,
         "phases": PHASES,
+        "ecoconception": ECOCONCEPTION,
         "correspondances": CORRESPONDANCES,
         "postes": POSTES,
         "apport": APPORT,

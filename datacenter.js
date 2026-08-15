@@ -1555,6 +1555,11 @@
           + (M.iso_26000.questions_centrales || []).map(esc).join(" · ")
           + "<br><i>" + esc(M.iso_26000.certifiable) + "</i>";
       }
+      if (M.ecoconception) {
+        vm += "<br><br><b>" + esc(M.ecoconception.titre) + "</b><br>"
+          + esc(M.ecoconception.apporte)
+          + "<br><i>" + esc(M.ecoconception.certifiable) + "</i>";
+      }
       h += carteRef("Management de l’énergie et RSE", "systèmes de management",
         "Une étude ne vit pas seule : le SMÉn ISO 50001 fait suivre en "
         + "exploitation ce que le calcul a promis, et l’ISO 26000 rattache "

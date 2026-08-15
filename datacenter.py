@@ -392,6 +392,20 @@ MANAGEMENT = {
                        "outils : analyse de cycle de vie, bilan carbone — "
                        "ceux que cette étude prépare.",
     },
+    "ecoconception": {
+        "titre": "ISO 14006:2020 & ISO/TR 14062 — l'écoconception managée",
+        "apporte": "Le management des produits de construction, phase par "
+                   "phase : exigences au programme quand le potentiel est "
+                   "maximal, spécifications sur données de cycle de vie "
+                   "(FDES / INIES), exigences écrites aux marchés, "
+                   "substitutions contrôlées au chantier, revue en clôture. "
+                   "Le geste de CHAQUE phase — ESQ à AOR, FAISA à CSU — est "
+                   "publié sur la page ingénierie et dans chaque étude de "
+                   "phase exportée, avec sa preuve et sa clause.",
+        "certifiable": "L'ISO 14006 s'audite dans le cadre du SME "
+                       "(ISO 14001) ; la 14062 est un rapport technique — "
+                       "un guide de méthode, pas un certificat.",
+    },
     "source": "Livre blanc ISO 50001 et guide RSE 2022 versés à la base "
               "documentaire du cabinet ; ISO 50001:2018 ; ISO 26000:2010. "
               "Textes des normes : AFNOR / ISO (voir sources consultables).",
