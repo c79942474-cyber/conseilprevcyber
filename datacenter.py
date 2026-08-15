@@ -64,10 +64,14 @@ CONSTANTES = {
         "valeur": 3600.0 / 2442.0,     # ≈ 1,474 L par kWh de chaleur rejetée
         "unite": "L/kWh thermique",
         "source": "Déduit : 1 kWh = 3 600 kJ ; 3 600 / 2 442",
-        "note": "Borne PHYSIQUE basse de l'évaporatif pur. Aucune tour ne fait "
-                "mieux : c'est l'eau qu'il faut évaporer pour évacuer la chaleur. "
-                "Tout chiffre inférieur annoncé par un fournisseur signale soit "
-                "un refroidissement partiellement sec, soit une erreur.",
+        "note": "MAJORANT physique : c'est l'eau évaporée si TOUTE la chaleur "
+                "part en chaleur latente. Une tour réelle en rejette une part en "
+                "SENSIBLE — l'air ressort plus chaud — typiquement 20 à 25 % en "
+                "conditions courantes, et jusqu'à 75-80 % par temps froid "
+                "(ASHRAE Handbook, HVAC Systems & Equipment, ch. Cooling "
+                "Towers). L'évaporation réelle est donc un peu PLUS FAIBLE ; le "
+                "majorant est retenu pour dimensionner l'eau, où la prudence "
+                "est de surestimer — jamais pour accuser un chiffre plus bas.",
     },
 }
 
@@ -163,7 +167,11 @@ EWIF_SOURCE = ("Ordres de grandeur convergents de la littérature sur l'intensit
                "restitué). À REMPLACER par la valeur du fournisseur ou de "
                "l'exploitant du réseau dès qu'elle est disponible : ces facteurs "
                "varient fortement selon la technologie de refroidissement des "
-               "centrales, pas seulement selon le mix.")
+               "centrales, pas seulement selon le mix. RÉSERVE de méthode pour "
+               "les mix hydrauliques (NO, SE, AT, LV…) : l'évaporation des "
+               "retenues n'est PAS comptée ici — son attribution à l'électricité "
+               "est contestée et peut décupler le facteur (Macknick et al., "
+               "NREL) ; au fil de l'eau, l'effet est faible.")
 
 # Intensité carbone du réseau, en gCO2e par kWh consommé. Moyenne annuelle.
 # La moyenne annuelle ne convient PAS pour arbitrer un pilotage horaire : voir
@@ -189,14 +197,30 @@ if _ecart_pays:
         "Référentiel pays incohérent : %s figure dans une seule des deux "
         "tables (EWIF_PAYS / INTENSITE_RESEAU)." % ", ".join(sorted(_ecart_pays)))
 del _ecart_pays
-INTENSITE_SOURCE = ("Ordres de grandeur de l'intensité carbone moyenne des mix "
-                    "électriques européens. Pour une offre, utiliser la donnée "
-                    "officielle du gestionnaire de réseau de l'année de référence, "
-                    "ou le facteur contractuel du fournisseur (approche « market-based », "
-                    "GHG Protocol Scope 2 Guidance).")
+# Le MILLÉSIME est servi avec la donnée : l'évaluateur de cette page dit au
+# client qu'« un facteur sans millésime ne se défend pas » — la règle vaut
+# d'abord pour le moteur lui-même. Valeurs recoupées en août 2026 sur les
+# jeux ouverts Ember (ember-energy.org) et l'indicateur AEE : FR 56 et
+# UE 242 g/kWh sont les valeurs 2023 publiées ; quelques pays portent déjà
+# leur valeur 2024 (DE 344 contre 371-381 en 2023) — d'où la fourchette.
+INTENSITE_MILLESIME = "2023-2024"
+INTENSITE_SOURCE = ("Moyennes annuelles location-based, millésime "
+                    + INTENSITE_MILLESIME + " selon pays (dernier exercice "
+                    "publié), arrondies — jeux ouverts Ember et Agence "
+                    "européenne pour l'environnement. Pour une offre, utiliser "
+                    "la donnée officielle du gestionnaire de réseau de l'année "
+                    "de référence, ou le facteur contractuel du fournisseur "
+                    "(approche « market-based », GHG Protocol Scope 2 Guidance).")
 
 # Familles de refroidissement. Les plages recouvrent des conceptions réelles ;
 # elles ne remplacent pas une étude de site, elles servent à cadrer et comparer.
+REFROIDISSEMENT_SOURCE = ("Plages de conception à PLEINE charge, recoupées des "
+                          "enquêtes annuelles Uptime Institute (moyenne mondiale "
+                          "du parc installé ≈ 1,5-1,6, tirée vers le haut par "
+                          "l'existant) et des retours de conception récents. "
+                          "Elles cadrent une comparaison de familles ; la "
+                          "machine retenue se juge sur sa courbe constructeur, "
+                          "puis sur l'essai de performance.")
 REFROIDISSEMENT = {
     "air_dx": {
         "nom": "Détente directe (DX) sur air",
@@ -261,14 +285,25 @@ CLASSES_ASHRAE = {
     "A4": {"plage_c": (5, 45), "note": "Maximise le free cooling ; matériel qualifié requis."},
 }
 ASHRAE_SOURCE = ("ASHRAE TC 9.9, Thermal Guidelines for Data Processing "
-                 "Environments. Plages d'air à l'entrée des équipements.")
+                 "Environments. Les plages par classe sont les ADMISSIBLES ; "
+                 "l'enveloppe RECOMMANDÉE, commune, reste 18-27 °C — exploiter "
+                 "durablement au-delà se décide avec le constructeur, pas par "
+                 "défaut.")
 
 # Les incertitudes du référentiel, écrites UNE fois. Elles vivaient dans les
 # chaînes des notes de calcul (« ±15 % », « ±50 % ») ; le jour où un évaluateur
 # de chiffre annoncé en a eu besoin comme BORNES, les écrire une seconde fois
 # aurait créé deux vérités — la note aurait pu dire ±15 quand le verdict
 # jugeait à ±20. Une seule constante, deux usages : la phrase ET la borne.
-INCERTITUDE_EVAPORATION = 0.10   # physique de la tour, ±10 %
+# Part de la chaleur rejetée en LATENT par une tour, en moyenne ANNUELLE.
+# 75-80 % en conditions courantes, bien moins par temps froid où le sensible
+# domine (ASHRAE Handbook — HVAC Systems & Equipment, ch. Cooling Towers ;
+# SPX, Cooling Tower Fundamentals). Le plancher annuel retenu, 0,60, couvre
+# les climats froids : c'est LUI qui borne par le bas ce qu'une tour évapore
+# pour une chaleur donnée — le tout-latent (1,0) borne par le haut. Juger un
+# volume annoncé avec le majorant comme plancher accusait à tort tout
+# fournisseur honnête dont la tour rejette du sensible.
+PART_LATENTE_MIN = 0.60
 INCERTITUDE_APPOINT = 0.15       # appoint total (purge, dérive), ±15 %
 INCERTITUDE_INCORPORE = 0.50     # ordres de grandeur sectoriels, ±50 %
 
@@ -288,11 +323,13 @@ INCORPORE = {
                                            "groupes électrogènes, distribution."},
 }
 INCORPORE_SOURCE = ("Ordres de grandeur issus des analyses de cycle de vie "
-                    "publiées du secteur. À REMPLACER par les déclarations "
-                    "environnementales produit (FDES / EPD) des équipements "
-                    "réellement retenus dès qu'elles sont disponibles : l'écart "
-                    "entre un ordre de grandeur et une EPD peut atteindre un "
-                    "facteur deux.")
+                    "publiées du secteur : base ouverte Boavizta, empreintes "
+                    "produit publiées par les constructeurs (PCF Dell, HPE, "
+                    "Lenovo), FDES de la base INIES pour la construction. "
+                    "À REMPLACER par les déclarations environnementales produit "
+                    "(FDES / EPD, ISO 14025) des équipements réellement retenus "
+                    "dès qu'elles sont disponibles : l'écart entre un ordre de "
+                    "grandeur et une EPD peut atteindre un facteur deux.")
 
 # Seuils et obligations qui structurent une offre européenne.
 CADRE_UE = {
@@ -607,20 +644,26 @@ def eau(profil, res_energie):
              "L évaporés par kWh thermique": round(l_par_kwh, 3),
              "part évaporative": part_evap},
             CONSTANTES["eau_evaporee_par_kWh_thermique_L"]["source"],
-            "±%s %% (température d'air et d'eau réelles)"
-            % fr(INCERTITUDE_EVAPORATION * 100),
-            "Borne physique : aucune tour ne consomme moins pour la même chaleur."),
+            "majorant tout-latent ; l'évaporation réelle est plus faible "
+            "d'autant que la part sensible monte — jusqu'à −%s %% en moyenne "
+            "annuelle (climat froid)" % fr((1 - PART_LATENTE_MIN) * 100),
+            "Majorant physique : tout-latent. Une tour réelle rejette aussi du "
+            "sensible ; retenu tel quel pour DIMENSIONNER l'eau, par prudence."),
         "purge_m3": _tracer(
             "Eau de purge (déconcentration)", purge_m3, "m³/an",
             "V_purge = V_appoint − V_évap, avec V_appoint = V_évap × CoC/(CoC−1)",
             {"cycles de concentration": coc},
-            "", "", "Augmenter les cycles réduit la purge mais durcit le "
-                    "traitement d'eau et le risque d'entartrement."),
+            "Bilan de masse d'une tour ouverte — ASHRAE Handbook, HVAC "
+            "Systems & Equipment, ch. Cooling Towers",
+            "", "Augmenter les cycles réduit la purge mais durcit le "
+                "traitement d'eau et le risque d'entartrement."),
         "appoint_m3": _tracer(
             "Appoint d'eau total du site", appoint_m3, "m³/an",
             "V_appoint = V_évap × CoC / (CoC − 1)",
             {"V_évap (m³)": round(evaporation_m3, 1), "CoC": coc},
-            "", "±%s %%" % fr(INCERTITUDE_APPOINT * 100)),
+            "Bilan de masse d'une tour ouverte — ASHRAE Handbook, HVAC "
+            "Systems & Equipment, ch. Cooling Towers",
+            "±%s %%" % fr(INCERTITUDE_APPOINT * 100)),
         "wue_site": _tracer(
             "WUE de site", wue_site, "L/kWh_IT",
             "WUE_site = Volume d'eau du site / Énergie informatique",
@@ -1140,18 +1183,20 @@ def evaluer_intensite(facteur_g, pays=None, heures_basses_g=None,
 
     if f < 0.5 * moyenne:
         verdict, lecture = "market_based_probable", (
-            "Très en dessous de la moyenne location-based du réseau (%s "
-            "g/kWh) : c'est presque sûrement un facteur CONTRACTUEL "
-            "(market-based, GHG Protocol Scope 2). Légitime — mais le réseau "
-            "physique, lui, reste à %s g : exiger le DOUBLE reporting, et "
-            "vérifier si les garanties d'origine sont annuelles ou horaires. "
-            "Une garantie annuelle couvre aussi les heures où le réseau est "
-            "au charbon." % (fr(moyenne), fr(moyenne)))
+            ("Très en dessous de la moyenne location-based du réseau (%s "
+             "g/kWh, millésime %s) : c'est presque sûrement un facteur "
+             "CONTRACTUEL (market-based, GHG Protocol Scope 2). Légitime — "
+             "mais le réseau physique, lui, reste à %s g : exiger le DOUBLE "
+             "reporting, et vérifier si les garanties d'origine sont "
+             "annuelles ou horaires. Une garantie annuelle couvre aussi les "
+             "heures où le réseau est au charbon.")
+            % (fr(moyenne), INTENSITE_MILLESIME, fr(moyenne)))
     elif f <= 1.5 * moyenne:
         verdict, lecture = "coherent_location", (
-            "Cohérent avec la moyenne location-based du pays (%s g/kWh). "
-            "Préciser l'année de référence : les mixes bougent, et un facteur "
-            "sans millésime ne se défend pas." % fr(moyenne))
+            ("Cohérent avec la moyenne location-based du pays (%s g/kWh, "
+             "millésime %s — celui du référentiel). Préciser l'année de "
+             "référence du VÔTRE : les mixes bougent, et un facteur sans "
+             "millésime ne se défend pas.") % (fr(moyenne), INTENSITE_MILLESIME))
     else:
         verdict, lecture = "au_dessus", (
             "Supérieur à la moyenne nationale (%s g/kWh) : mix local "
@@ -1243,7 +1288,7 @@ def evaluer_eau(profil, volume_annuel_m3, pointe_jour_m3=None):
     evap = w["evaporation_m3"]["valeur"]
     fam = REFROIDISSEMENT.get(p.get("refroidissement") or "eau_glacee",
                               REFROIDISSEMENT["eau_glacee"])
-    plancher = evap * (1.0 - INCERTITUDE_EVAPORATION)
+    plancher = evap * PART_LATENTE_MIN
     plafond = appoint * (1.0 + INCERTITUDE_APPOINT)
 
     if appoint == 0:
@@ -1262,13 +1307,14 @@ def evaluer_eau(profil, volume_annuel_m3, pointe_jour_m3=None):
                 "Demander la décomposition poste par poste." % fr(vol))
     elif vol < plancher:
         verdict, lecture = "sous_borne_physique", (
-            "SOUS le plancher physique d'évaporation (%s m³/an à −%s %%, pour "
-            "la chaleur rejetée par voie évaporative de ce profil) : aucune "
-            "tour ne consomme moins pour la même chaleur. Soit la part "
-            "évaporative réelle est plus faible que celle du profil — une "
-            "AUTRE conception —, soit le chiffre exclut la purge, soit c'est "
-            "une plaquette. Demander le périmètre exact : évaporation, purge, "
-            "appoints." % (fr(evap), fr(INCERTITUDE_EVAPORATION * 100)))
+            "SOUS le plancher physique (%s m³/an = évaporation tout-latent "
+            "%s m³ × part latente annuelle minimale %s) : même une tour qui "
+            "rejette le maximum de sensible évapore davantage pour cette "
+            "chaleur. Soit la part évaporative réelle est plus faible que "
+            "celle du profil — une AUTRE conception —, soit le chiffre exclut "
+            "la purge, soit c'est une plaquette. Demander le périmètre "
+            "exact : évaporation, purge, appoints."
+            % (fr(round(plancher, 1)), fr(evap), fr(PART_LATENTE_MIN)))
     elif vol <= plafond:
         verdict, lecture = "coherent_etude", (
             "Cohérent avec l'appoint que l'étude calcule pour VOTRE profil "
@@ -1291,6 +1337,8 @@ def evaluer_eau(profil, volume_annuel_m3, pointe_jour_m3=None):
         "reference": {
             "appoint_m3": round(appoint, 1),
             "evaporation_m3": round(evap, 1),
+            "plancher_m3": round(plancher, 1),
+            "part_latente_min": PART_LATENTE_MIN,
             "part_evaporative": w["part_evaporative"],
             "incertitude_pct": INCERTITUDE_APPOINT * 100,
         },
@@ -1625,6 +1673,24 @@ SOURCES_CONSULTABLES = [
      "lien": "https://www.afnor.org",
      "verifier": "l'édition EN VIGUEUR de chaque norme avant de la citer "
                  "dans un marché — une norme se remplace, un contrat reste."},
+    {"cle": "ember", "organisme": "Ember",
+     "nature": "données ouvertes",
+     "porte": "Les intensités carbone annuelles des mix électriques, "
+              "millésimées et téléchargeables — la provenance des moyennes "
+              "nationales de ce moteur, et le premier endroit où vérifier "
+              "qu'elles n'ont pas vieilli.",
+     "lien": "https://ember-energy.org",
+     "verifier": "l'intensité de VOTRE pays pour l'année de référence de "
+                 "l'offre — et remplacer la moyenne du moteur si elle date."},
+    {"cle": "boavizta", "organisme": "Boavizta",
+     "nature": "association — méthodologie et données ouvertes",
+     "porte": "L'empreinte environnementale des équipements numériques : "
+              "méthode et données ouvertes pour le carbone incorporé des "
+              "serveurs — le gisement de substitution des ordres de grandeur "
+              "de ce moteur, en attendant les PCF constructeur.",
+     "lien": "https://boavizta.org",
+     "verifier": "la fiche du serveur retenu (configuration mémoire et "
+                 "stockage comprise) et la version de la méthode employée."},
     {"cle": "inies", "organisme": "INIES (Alliance HQE-GBC)",
      "nature": "base de données publique",
      "porte": "Les déclarations environnementales des produits de "
@@ -1792,11 +1858,13 @@ def referentiel():
         "sources_consultables": SOURCES_CONSULTABLES,
         "limites": LIMITES,
         "refroidissement": REFROIDISSEMENT,
+        "refroidissement_source": REFROIDISSEMENT_SOURCE,
         "classes_ashrae": CLASSES_ASHRAE,
         "ashrae_source": ASHRAE_SOURCE,
         "ewif": EWIF_PAYS,
         "ewif_source": EWIF_SOURCE,
         "intensite_reseau": INTENSITE_RESEAU,
+        "intensite_millesime": INTENSITE_MILLESIME,
         "intensite_source": INTENSITE_SOURCE,
         "incorpore": INCORPORE,
         "incorpore_source": INCORPORE_SOURCE,

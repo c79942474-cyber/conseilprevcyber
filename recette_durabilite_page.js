@@ -487,6 +487,22 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
   ok('…dont AFNOR et INIES, les portes des normes d’écoconception et des FDES',
      ['afnor', 'inies'].every(c => liens.some(l => l.cle === c)),
      liens.map(l => l.cle).join(', '));
+  ok('…et Ember + Boavizta — la provenance des moyennes et de l’incorporé',
+     ['ember', 'boavizta'].every(c => liens.some(l => l.cle === c)));
+  /* Le millésime des intensités, VISIBLE sur la carte : la page enseigne
+     qu'un facteur sans année ne se défend pas — la règle s'applique d'abord
+     à ses propres moyennes. Mesuré sur la ligne de NATURE de la carte — le
+     texte de source cite aussi le millésime, et un contrôle posé sur toute
+     la carte resterait vert avec le champ servi disparu. */
+  const millesime = await pg.evaluate(() => {
+    const carte = [...document.querySelectorAll('#dc-referentiel .dc-ref-c')]
+      .find(c => /Intensité carbone du réseau/.test((c.querySelector('h4') || {}).textContent || ''));
+    const n = carte && carte.querySelector('.n');
+    const m = n && n.textContent.match(/millésime\s+(20\d\d(?:-20\d\d)?)/);
+    return m ? m[1] : null;
+  });
+  ok('l’intensité carbone AFFICHE son millésime — sur sa ligne de nature', !!millesime,
+     millesime || 'pas de millésime dans la nature de la carte');
   ok('TOUS LES LIENS SONT EN HTTPS ET À LA RACINE DU SITE',
      liens.length > 0 && liens.every(x => x.racine),
      liens.filter(x => !x.racine).map(x => x.cle + '=' + x.lien).join(' ') || 'tous');
@@ -661,6 +677,8 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
   ok('20 g en France est lu comme un facteur CONTRACTUEL probable (ambre)',
      /attention/.test(v3.classe) && /market-based/i.test(v3.txt)
        && /double reporting/i.test(v3.txt), v3.txt.slice(0, 140));
+  ok('…et le verdict date sa propre moyenne (millésime)',
+     /millésime\s+20\d\d/.test(v3.txt));
   ok('…comparé à la moyenne SERVIE (' + moyFR + ' g), pays lu du formulaire',
      moyFR != null && v3.txt.indexOf(String(moyFR)) >= 0
        && /pays lu du formulaire/.test(v3.txt));

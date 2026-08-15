@@ -436,8 +436,12 @@ def test_evaluer_eau_est_le_meme_calcul_que_l_etude():
     assert ev["reference"]["evaporation_m3"] == round(w["evaporation_m3"]["valeur"], 1)
     # Les bornes sont DÉRIVÉES des constantes du module, pas réécrites.
     evap = w["evaporation_m3"]["valeur"]
-    assert d.evaluer_eau(pr, evap * (1 - d.INCERTITUDE_EVAPORATION) * 0.99)["verdict"] \
+    assert d.evaluer_eau(pr, evap * d.PART_LATENTE_MIN * 0.99)["verdict"] \
         == "sous_borne_physique"
+    # …et JUSTE AU-DESSUS du plancher latent-minimal, plus d'accusation : une
+    # tour réelle qui rejette du sensible évapore moins que le tout-latent.
+    assert d.evaluer_eau(pr, evap * d.PART_LATENTE_MIN * 1.01)["verdict"] \
+        != "sous_borne_physique"
     assert d.evaluer_eau(pr, appoint * (1 + d.INCERTITUDE_APPOINT) * 1.01)["verdict"] \
         == "au_dessus_etude"
 
@@ -541,3 +545,103 @@ def test_les_sources_consultables_portent_afnor_et_inies():
     for s in d.SOURCES_CONSULTABLES:
         if s["cle"] in ("afnor", "inies"):
             assert s["lien"].startswith("https://") and s["verifier"]
+
+
+# ── L'audit scientifique : ce que la page affirme doit rester vrai ─────────
+# Chaque contrôle fige une CORRECTION ou une exigence de l'audit d'août 2026 :
+# l'évaporation tout-latent est un majorant (pas un plancher), l'intensité
+# porte son millésime, les identités normées (ERE, WUE source, bilan de
+# masse) sont celles des textes — pas des variantes maison.
+
+def test_l_evaporation_tout_latent_est_un_majorant_declare():
+    """L'ancienne note disait « borne basse : aucune tour ne fait mieux » —
+    c'est l'INVERSE : une tour réelle rejette 20-25 % en sensible (jusqu'à
+    75-80 % par temps froid, ASHRAE) et évapore donc MOINS que le tout-latent.
+    Le texte doit dire « majorant », et le plancher de jugement doit être
+    latent-minimal, jamais le majorant lui-même."""
+    import datacenter as d
+    c = d.CONSTANTES["eau_evaporee_par_kWh_thermique_L"]
+    assert "MAJORANT" in c["note"] and "SENSIBLE" in c["note"]
+    assert "ASHRAE" in c["note"]
+    assert 0.5 <= d.PART_LATENTE_MIN < 1.0
+    pr = {"puissance_it_kw": 1000, "refroidissement": "tour_evaporative"}
+    ev = d.etude(pr)["eau"]["evaporation_m3"]
+    assert "majorant" in ev["incertitude"] or "Majorant" in ev["note"]
+    # L'identité elle-même : V_évap = chaleur évaporative × 3600/2442.
+    w = d.eau(pr, d.energie(pr))
+    e_tot = d.energie(pr)["energie_totale_MWh"]["valeur"]
+    attendu = e_tot * w["part_evaporative"] * (3600.0 / 2442.0)
+    # Tolérance : la valeur tracée est arrondie à 4 décimales.
+    assert abs(w["evaporation_m3"]["valeur"] - attendu) < 1e-3
+
+
+def test_le_bilan_de_masse_de_tour_est_exact_et_source():
+    """Appoint = évap × CoC/(CoC−1), purge = évap/(CoC−1) : le bilan de masse
+    d'une tour ouverte, avec sa source — plus aucune grandeur d'eau muette."""
+    import datacenter as d
+    pr = {"puissance_it_kw": 1000, "refroidissement": "tour_evaporative",
+          "cycles_concentration": 5}
+    w = d.eau(pr, d.energie(pr))
+    ev, ap, pu = (w["evaporation_m3"]["valeur"], w["appoint_m3"]["valeur"],
+                  w["purge_m3"]["valeur"])
+    # Tolérance : les valeurs tracées sont arrondies à 4 décimales chacune.
+    assert abs(ap - ev * 5 / 4) < 1e-3
+    assert abs(pu - ev / 4) < 1e-3
+    assert "ASHRAE" in w["appoint_m3"]["source"]
+    assert "ASHRAE" in w["purge_m3"]["source"]
+
+
+def test_l_intensite_porte_son_millesime_partout():
+    """« Un facteur sans millésime ne se défend pas » est la leçon que la page
+    donne au client : elle vaut d'abord pour le moteur. Le millésime est une
+    donnée SERVIE — pas une phrase — et les verdicts le répètent."""
+    import datacenter as d
+    import re
+    assert re.search(r"20\d\d", d.INTENSITE_MILLESIME)
+    assert d.INTENSITE_MILLESIME in d.INTENSITE_SOURCE
+    assert d.referentiel()["intensite_millesime"] == d.INTENSITE_MILLESIME
+    assert d.INTENSITE_MILLESIME in d.evaluer_intensite(56, "FR")["lecture"]
+    assert d.INTENSITE_MILLESIME in d.evaluer_intensite(20, "FR")["lecture"]
+    # Les valeurs recoupées en ligne pendant l'audit (Ember / AEE) : FR et UE
+    # sont les publications 2023 au gramme près — si quelqu'un les « corrige »,
+    # ce test exige de re-vérifier la source, pas de deviner.
+    assert d.INTENSITE_RESEAU["FR"] == 56 and d.INTENSITE_RESEAU["UE"] == 242
+
+
+def test_les_identites_normees_ere_wue_cue():
+    """ERE = PUE × (1 − ERF) (EN 50600-4-6), WUE_source = WUE_site + EWIF × PUE
+    (The Green Grid), CUE = PUE × intensité (ISO/IEC 30134-8) : des identités,
+    pas des choix — si l'une casse, c'est le moteur qui a tort."""
+    import datacenter as d
+    pr = {"puissance_it_kw": 2000, "refroidissement": "eau_glacee",
+          "part_chaleur_reutilisee": 0.3, "pays": "FR"}
+    res = d.etude(pr)
+    pue = res["energie"]["pue"]["valeur"]
+    assert abs(res["chaleur"]["ere"]["valeur"] - pue * 0.7) < 1e-6
+    w = res["eau"]
+    ewif = d.EWIF_PAYS["FR"]["valeur"]
+    assert abs(w["wue_source"]["valeur"]
+               - (w["wue_site"]["valeur"] + ewif * pue)) < 1e-6
+    cue = res["carbone"]["cue"]["valeur"]
+    assert abs(cue - pue * d.INTENSITE_RESEAU["FR"] / 1000.0) < 1e-3
+
+
+def test_les_reserves_de_methode_sont_ecrites():
+    """Hydraulique (évaporation des retenues non comptée), plages recommandée
+    contre admissible ASHRAE, provenance des plages PUE, gisements nommés de
+    l'incorporé : les réserves qui rendent le référentiel défendable."""
+    import datacenter as d
+    assert "retenues" in d.EWIF_SOURCE and "Macknick" in d.EWIF_SOURCE
+    assert "RECOMMANDÉE" in d.ASHRAE_SOURCE and "18-27" in d.ASHRAE_SOURCE
+    assert "Uptime" in d.REFROIDISSEMENT_SOURCE
+    assert d.referentiel()["refroidissement_source"] == d.REFROIDISSEMENT_SOURCE
+    for gisement in ("Boavizta", "INIES", "ISO 14025"):
+        assert gisement in d.INCORPORE_SOURCE, gisement
+
+
+def test_les_sources_consultables_portent_ember_et_boavizta():
+    import datacenter as d
+    cles = {s["cle"] for s in d.SOURCES_CONSULTABLES}
+    assert {"ember", "boavizta"} <= cles
+    ember = next(s for s in d.SOURCES_CONSULTABLES if s["cle"] == "ember")
+    assert "millésim" in ember["porte"]  # la raison d'être de cette entrée

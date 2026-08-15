@@ -129,7 +129,7 @@ POSTES = {
                                "charge est arbitré, elle ne suffit plus.",
     },
     "evaporation": {
-        "nom": "Borne physique de l'évaporation",
+        "nom": "Majorant physique de l'évaporation (tout-latent)",
         "nature": "physique",
         "source_ref": None,
         "remplacer_par": None,       # une constante ne se remplace pas

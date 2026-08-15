@@ -1488,7 +1488,12 @@
       var ir = Object.keys(R.intensite_reseau).map(function (k) {
         return esc(k) + " " + fr(R.intensite_reseau[k]);
       }).join(" · ");
-      h += carteRef("Intensité carbone du réseau", "moyenne annuelle",
+      /* Le millésime vient du serveur : l'évaluateur de cette page enseigne
+         qu'un facteur sans année ne se défend pas — la règle s'applique
+         d'abord aux moyennes du moteur lui-même. */
+      h += carteRef("Intensité carbone du réseau",
+        "moyenne annuelle" + (R.intensite_millesime
+          ? " — millésime " + esc(R.intensite_millesime) : ""),
         "Grammes de CO2e par kilowattheure consommé. Une moyenne annuelle ne "
         + "convient PAS pour arbitrer un pilotage horaire de la charge.",
         ir + " g/kWh", R.intensite_source,
