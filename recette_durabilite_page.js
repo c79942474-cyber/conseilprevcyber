@@ -465,6 +465,24 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
      refz.colonnes === 3, refz.colonnes + ' au premier rang, ' + refz.cartes + ' carte(s)');
   ok('le cadre réglementaire est replié, et son intitulé porte le compte',
      refz.cadreDepliant && /\d/.test(refz.cadreCompte), refz.cadreCompte);
+  /* L'ancrage management — nourri des guides ISO 50001 et RSE versés à la
+     base : la carte publie le SMÉn et les 7 questions centrales ISO 26000,
+     et le cadre replié porte l'article 11 (audit / SMÉn obligatoires). */
+  const mgmt = await pg.evaluate(() => {
+    const z = document.getElementById('dc-referentiel');
+    const t = z ? z.textContent : '';
+    return {
+      carte: /Management de l’énergie et RSE|Management de l'énergie et RSE/.test(t),
+      questions: /7 questions centrales/.test(t),
+      art11: /art\. 11/.test(t),
+      seuils: /85 TJ|85\u00a0TJ/.test(t.replace(/\s/g, ' ')) || /85 TJ/.test(t),
+    };
+  });
+  ok('la carte « Management de l’énergie et RSE » est publiée',
+     mgmt.carte && mgmt.questions,
+     'carte: ' + mgmt.carte + ', 7 questions centrales: ' + mgmt.questions);
+  ok('…et le cadre réglementaire porte l’article 11 EED et ses seuils',
+     mgmt.art11 && mgmt.seuils);
   ok('LE MENU PROPOSE AU MOINS HUIT SOURCES', refz.menu && refz.options >= 8,
      refz.options + ' source(s)');
   ok('…et son intitulé annonce le compte et le lien',
@@ -820,6 +838,11 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
   ok('le calcul aboutit pour un visiteur anonyme', res.visible);
   ok('…et rend bien l’énergie, l’eau et le carbone ensemble',
      /PUE/.test(res.txt) && /(WUE|eau)/i.test(res.txt) && /(CO2|carbone)/i.test(res.txt));
+  /* À 50 MW l'assujettissement EED art. 11 est MÉCANIQUE : l'étude doit le
+     CONSTATER — verdict SMÉn ISO 50001, avec le tonnage TJ calculé. */
+  ok('…et l’étude CONSTATE l’assujettissement EED art. 11 (SMÉn ISO 50001)',
+     /art\. 11/.test(res.txt) && /SMÉn ISO 50001/.test(res.txt)
+       && /TJ\/an/.test(res.txt), (res.txt.match(/[\d\s,]+TJ\/an/) || [''])[0].trim());
 
   ok('aucune erreur de script sur toute la manœuvre', err.length === 0, err.join(' | ').slice(0, 200));
 

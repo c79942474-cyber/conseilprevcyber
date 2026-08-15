@@ -645,3 +645,88 @@ def test_les_sources_consultables_portent_ember_et_boavizta():
     assert {"ember", "boavizta"} <= cles
     ember = next(s for s in d.SOURCES_CONSULTABLES if s["cle"] == "ember")
     assert "millésim" in ember["porte"]  # la raison d'être de cette entrée
+
+
+# ── L'ancrage management : ISO 50001 et RSE (ISO 26000) dans l'étude ───────
+# Nourri des deux guides versés à la base documentaire (livre blanc ISO 50001,
+# guide RSE 2022). Le point décisif : les seuils de l'art. 11 EED sont JUGÉS
+# sur l'énergie que l'étude calcule — TJ = MWh × 3,6/1000, une conversion,
+# pas un modèle — et les seuils du verdict sont ceux du référentiel servi.
+
+def test_l_article_11_est_juge_sur_l_energie_calculee():
+    import datacenter as d
+    seuils = d.CADRE_UE["eed_audit_smen"]
+    for p_kw in (300, 1000, 12000):
+        res = d.etude({"puissance_it_kw": p_kw})
+        tj = res["energie"]["energie_totale_MWh"]["valeur"] * 3.6 / 1000.0
+        pt = [x for x in res["conformite"] if "art. 11" in x["sujet"]][0]
+        if tj >= seuils["seuil_smen_tj"]:
+            attendu = "assujetti — SMÉn ISO 50001"
+        elif tj >= seuils["seuil_audit_tj"]:
+            attendu = "assujetti — audit énergétique"
+        else:
+            attendu = "sous les seuils — site seul"
+        assert pt["statut"] == attendu, (p_kw, tj, pt["statut"])
+        # Le détail porte le chiffre — et la bonne mise en garde par étage :
+        # sous les seuils, le périmètre ENTREPRISE (le site s'additionne) ;
+        # au-dessus du seuil SMÉn, « ce seul site » suffit à y entrer.
+        assert fr_ok(pt["detail"], tj)
+        if tj >= seuils["seuil_smen_tj"]:
+            assert "ce seul site" in pt["detail"]
+        else:
+            assert "entreprise" in pt["detail"].lower()
+    # Les trois puissances doivent couvrir les trois étages, sinon le test
+    # ne prouve qu'une branche.
+    statuts = {[x for x in d.etude({"puissance_it_kw": p})["conformite"]
+                if "art. 11" in x["sujet"]][0]["statut"]
+               for p in (300, 1000, 12000)}
+    assert len(statuts) == 3
+
+
+def fr_ok(texte, tj):
+    """Le TJ affiché (virgule française) doit être celui du calcul."""
+    import datacenter as d
+    return d.fr(tj, 1) in texte
+
+
+def test_le_referentiel_management_est_servi_et_complet():
+    import datacenter as d
+    m = d.referentiel()["management"]
+    i50 = m["iso_50001"]
+    for morceau in ("6.3", "6.4", "6.5", "usages énergétiques significatifs"):
+        assert morceau in i50["apporte"], morceau
+    assert "30134-2" in i50["ipe_naturel"]
+    assert "dispense" in i50["certifiable"]
+    i26 = m["iso_26000"]
+    assert len(i26["questions_centrales"]) == 7
+    assert "ISO 14025" in i26["achats"] and "EN 15804" in i26["achats"]
+    assert "AFAQ 26000" in i26["certifiable"] and "LUCIE" in i26["certifiable"]
+    assert "guide RSE 2022" in m["source"] and "ISO 50001" in m["source"]
+
+
+def test_l_evaluateur_pue_exige_la_situation_de_reference():
+    import datacenter as d
+    exigences = " ".join(d.evaluer_pue(1.3)["exigences"])
+    assert "ISO 50001" in exigences and "situation énergétique de référence" in exigences
+    # …et la carte de la limite porte la norme de management.
+    lim = [x for x in d.LIMITES if x["cle"] == "pue_climat"][0]
+    assert any("ISO 50001" in n for n in lim["normes"])
+
+
+def test_les_livrables_portent_les_chapitres_management():
+    """La stratégie exporte son ancrage RSE, le dossier de décarbonation son
+    ancrage SMÉn — les chapitres viennent du MÊME référentiel MANAGEMENT que
+    la page, pas d'un texte parallèle."""
+    import strategie_dd
+    md = strategie_dd.markdown(strategie_dd.strategie({}, {"puissance_it_kw": 1000}))
+    assert "Ancrage de cette stratégie dans la RSE (ISO 26000)" in md
+    assert "sept questions centrales" in md and "AFAQ 26000" in md
+    assert "85 TJ" in md  # le renvoi aux seuils calculés de la note
+
+    import app as A
+    import decarbonation
+    d = decarbonation.dossier({"puissance_it_kw": 1000}, "PERIM", {})
+    md2 = A._dossier_decarbonation_markdown(d)
+    assert "Ancrage dans le management de l'énergie (ISO 50001)" in md2
+    assert "situation énergétique de référence" in md2
+    assert "plan de mesurage" in md2

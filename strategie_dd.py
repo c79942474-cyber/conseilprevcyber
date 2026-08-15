@@ -1520,6 +1520,31 @@ def markdown(s):
             A("**%s.** %s" % (al["titre"], al["dit"]))
             A("")
 
+    # 11. Ancrage RSE — la stratégie rejoint le cadre que les évaluateurs
+    # et les acheteurs connaissent. Nourri du guide RSE versé à la base.
+    m26 = D.MANAGEMENT["iso_26000"]
+    A("## 11. Ancrage de cette stratégie dans la RSE (ISO 26000)")
+    A("")
+    A(m26["apporte"])
+    A("")
+    A("Les sept questions centrales de l'ISO 26000 — %s — donnent le langage "
+      "commun avec les directions RSE et les évaluateurs extra-financiers : "
+      "les quatre perspectives de ce document s'y rattachent sans traduction."
+      % " ; ".join(m26["questions_centrales"]))
+    A("")
+    A("**Achats.** %s" % m26["achats"])
+    A("")
+    A("**Preuve.** %s" % m26["certifiable"])
+    A("")
+    A("**Énergie.** Le volet énergie de cette stratégie a son système de "
+      "management dédié : l'ISO 50001 — revue énergétique, indicateurs de "
+      "performance et situation de référence posés avant la mise en service. "
+      "Les seuils d'assujettissement de l'article 11 de la directive "
+      "efficacité énergétique (audit au-delà de 10 TJ/an, SMÉn certifié "
+      "au-delà de 85 TJ/an, appréciés au niveau de l'entreprise) figurent, "
+      "calculés pour ce profil, dans la note de calcul de l'étude.")
+    A("")
+
     A("---")
     A("")
     A("*Méthode des quatre perspectives, appliquée aux centres de données. "

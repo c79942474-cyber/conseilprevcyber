@@ -1537,6 +1537,31 @@
         as, R.ashrae_source,
         "l’accord écrit du constructeur avant d’élargir la plage");
     }
+    /* L'ANCRAGE MANAGEMENT : où vivent ces grandeurs une fois l'étude rendue.
+       Le PUE calculé devient l'IPÉ d'un SMÉn ISO 50001 ; les arbitrages
+       deviennent des réponses aux questions centrales de l'ISO 26000. */
+    if (R.management) {
+      var M = R.management;
+      var vm = "";
+      if (M.iso_50001) {
+        vm += "<b>" + esc(M.iso_50001.titre) + "</b><br>"
+          + esc(M.iso_50001.ipe_naturel) + "<br><i>"
+          + esc(M.iso_50001.certifiable) + "</i>";
+      }
+      if (M.iso_26000) {
+        vm += "<br><br><b>" + esc(M.iso_26000.titre) + "</b><br>"
+          + (M.iso_26000.questions_centrales || []).length
+          + " questions centrales : "
+          + (M.iso_26000.questions_centrales || []).map(esc).join(" · ")
+          + "<br><i>" + esc(M.iso_26000.certifiable) + "</i>";
+      }
+      h += carteRef("Management de l’énergie et RSE", "systèmes de management",
+        "Une étude ne vit pas seule : le SMÉn ISO 50001 fait suivre en "
+        + "exploitation ce que le calcul a promis, et l’ISO 26000 rattache "
+        + "les arbitrages énergie-eau-carbone à la stratégie RSE — les deux "
+        + "chapitres correspondants figurent dans les livrables exportés.",
+        vm, M.source, "");
+    }
     if (R.cadre_ue) {
       var C = R.cadre_ue, cu = "";
       if (C.eed_reporting) {
@@ -1544,6 +1569,11 @@
           + esc(C.eed_reporting.portee) + "<br>"
           + (C.eed_reporting.exige || []).length + " grandeurs à déclarer : "
           + (C.eed_reporting.exige || []).map(esc).join(" · ");
+      }
+      if (C.eed_audit_smen) {
+        cu += "<br><br><b>" + esc(C.eed_audit_smen.titre) + "</b><br>"
+          + (C.eed_audit_smen.exige || []).map(esc).join("<br>")
+          + "<br><i>" + esc(C.eed_audit_smen.note) + "</i>";
       }
       if (C.cndcp && C.cndcp.cibles) {
         cu += "<br><br><b>" + esc(C.cndcp.titre) + "</b><br>"
@@ -1565,13 +1595,13 @@
          référence qu'on CONSULTE. Le compte est DÉRIVÉ des cadres réellement
          présents : écrit « quatre cadres », il aurait menti au premier
          ajout. */
-      var nCadres = [C.eed_reporting, C.cndcp, C.iso30134, C.en50600]
-        .filter(Boolean).length;
+      var nCadres = [C.eed_reporting, C.eed_audit_smen, C.cndcp, C.iso30134,
+                     C.en50600].filter(Boolean).length;
       h += '<details class="dc-ref-c dc-cadre" style="grid-column:1/-1">'
         + '<summary><span class="n">cadre réglementaire et normatif</span> '
         + "<b>Ce qui rend ces grandeurs opposables</b> "
         + '<span class="dc-art-n">' + nCadres + " cadre" + (nCadres > 1 ? "s" : "")
-        + " : EED, pacte, ISO 30134, EN 50600</span></summary>"
+        + " : EED (art. 11 et 12), pacte, ISO 30134, EN 50600</span></summary>"
         + '<div class="v">' + cu + "</div>"
         + (C.eed_reporting && C.eed_reporting.note
             ? '<span class="rmp">▸ ' + esc(C.eed_reporting.note) + "</span>" : "")

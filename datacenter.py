@@ -331,6 +331,72 @@ INCORPORE_SOURCE = ("Ordres de grandeur issus des analyses de cycle de vie "
                     "dès qu'elles sont disponibles : l'écart entre un ordre de "
                     "grandeur et une EPD peut atteindre un facteur deux.")
 
+# L'ANCRAGE MANAGEMENT : les grandeurs de ce moteur ne vivent pas seules.
+# Le PUE calculé ici devient, en exploitation, un INDICATEUR DE PERFORMANCE
+# ÉNERGÉTIQUE au sens de l'ISO 50001 ; les arbitrages eau-énergie-carbone
+# deviennent des réponses aux questions centrales de l'ISO 26000. Nourri des
+# deux guides versés à la base documentaire (livre blanc ISO 50001, guide
+# RSE 2022) — paraphrasés, jamais recopiés.
+MANAGEMENT = {
+    "iso_50001": {
+        "titre": "ISO 50001:2018 — système de management de l'énergie (SMÉn)",
+        "apporte": "Le cadre qui fait VIVRE les grandeurs de cette étude en "
+                   "exploitation : la revue énergétique (art. 6.3) identifie "
+                   "les usages énergétiques significatifs — le refroidissement "
+                   "d'un centre de données en est un par construction —, les "
+                   "indicateurs de performance énergétique (art. 6.4) suivent "
+                   "ce que l'étude a promis, et la situation énergétique de "
+                   "référence (art. 6.5) fige le point de comparaison AVANT la "
+                   "mise en service. Sans SER posée au départ, aucune "
+                   "amélioration n'est démontrable ensuite.",
+        "ipe_naturel": "Le PUE en catégorie ISO/IEC 30134-2 est l'IPÉ naturel "
+                       "du site ; le WUE (30134-9) et le CUE le complètent — "
+                       "les MÊMES grandeurs que cette étude, pas d'autres.",
+        "exige": ["une équipe énergie nommée, portée par la direction — pas un "
+                  "tableur orphelin",
+                  "un plan de mesurage RÉPÉTABLE : mêmes points, mêmes "
+                  "conditions, sinon la revue énergétique ne se compare pas "
+                  "d'une année à l'autre",
+                  "des audits internes réguliers et une documentation qui "
+                  "prouve — c'est elle que l'auditeur externe lit",
+                  "l'articulation avec les systèmes existants (ISO 9001, "
+                  "14001, 45001) : un système intégré, pas un silo de plus"],
+        "certifiable": "Oui — et la certification ISO 50001 dispense de "
+                       "l'audit énergétique périodique de l'art. 11 EED.",
+    },
+    "iso_26000": {
+        "titre": "ISO 26000:2010 — lignes directrices sur la responsabilité "
+                 "sociétale",
+        "apporte": "Le cadre AMONT de la stratégie : la responsabilité d'une "
+                   "organisation vis-à-vis des impacts de ses décisions sur "
+                   "la société et l'environnement — comportement éthique et "
+                   "transparent, attentes des parties prenantes, intégration "
+                   "dans toute l'organisation. Pour un centre de données, "
+                   "deux questions centrales pèsent d'abord : l'environnement "
+                   "(énergie, eau, carbone — les trois piliers de cette "
+                   "étude) et les communautés et développement local — "
+                   "l'acceptabilité de l'eau, du bruit et du foncier se joue "
+                   "là, pas dans la salle serveurs.",
+        "questions_centrales": [
+            "gouvernance de l'organisation", "droits de l'homme",
+            "relations et conditions de travail", "environnement",
+            "loyauté des pratiques",
+            "questions relatives aux consommateurs",
+            "communautés et développement local"],
+        "achats": "La loyauté des pratiques porte les ACHATS RESPONSABLES : "
+                  "exiger les déclarations environnementales (ISO 14025, "
+                  "EN 15804+A2) dans les marchés en est l'application directe "
+                  "— la même exigence que l'évaluateur de carbone incorporé.",
+        "certifiable": "Non — lignes directrices. La preuve passe par une "
+                       "ÉVALUATION (AFAQ 26000, label LUCIE) et par des "
+                       "outils : analyse de cycle de vie, bilan carbone — "
+                       "ceux que cette étude prépare.",
+    },
+    "source": "Livre blanc ISO 50001 et guide RSE 2022 versés à la base "
+              "documentaire du cabinet ; ISO 50001:2018 ; ISO 26000:2010. "
+              "Textes des normes : AFNOR / ISO (voir sources consultables).",
+}
+
 # Seuils et obligations qui structurent une offre européenne.
 CADRE_UE = {
     "eed_reporting": {
@@ -356,6 +422,27 @@ CADRE_UE = {
         },
         "note": "Engagement volontaire, non réglementaire. Il sert de repère de "
                 "marché : un dossier qui s'en écarte doit le justifier.",
+    },
+    "eed_audit_smen": {
+        "titre": "Directive efficacité énergétique (UE) 2023/1791, art. 11 — "
+                 "audit énergétique et système de management de l'énergie",
+        # Le livre blanc ISO 50001 versé à la base l'annonçait sous l'empire de
+        # l'art. 8 de 2012/27/UE : le critère de TAILLE d'entreprise allait
+        # devenir un critère de CONSOMMATION. C'est fait — et un centre de
+        # données franchit ces seuils très tôt.
+        "seuil_audit_tj": 10.0,
+        "seuil_smen_tj": 85.0,
+        "exige": ["au-delà de 10 TJ/an de consommation moyenne : audit "
+                  "énergétique (EN 16247-1 / ISO 50002) d'ici octobre 2026, "
+                  "puis tous les quatre ans",
+                  "au-delà de 85 TJ/an : système de management de l'énergie "
+                  "CERTIFIÉ ISO 50001 d'ici octobre 2027 — l'audit périodique "
+                  "ne suffit plus"],
+        "note": "Les seuils s'apprécient au niveau de l'ENTREPRISE, toutes "
+                "activités confondues, en moyenne sur les trois derniers "
+                "exercices : un site sous les seuils ne met pas l'entreprise "
+                "hors du champ — et un seul centre de données suffit souvent "
+                "à les franchir.",
     },
     "en50600": {
         "titre": "EN 50600 / EN 50600-4-x — indicateurs de performance",
@@ -1025,6 +1112,44 @@ def leviers(profil, res):
 #  6. CONFORMITÉ ET AVERTISSEMENTS
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _point_eed_art11(res):
+    """L'article 11 de l'EED, jugé sur l'énergie que l'étude vient de calculer.
+
+    TJ = MWh × 3,6 / 1000 — une conversion, pas un modèle. Les seuils
+    s'apprécient au niveau de l'ENTREPRISE : un site au-dessus la met dedans
+    à lui seul ; un site en dessous ne l'en sort pas, et le point le dit."""
+    e_tot = res["energie"]["energie_totale_MWh"]["valeur"]
+    tj = e_tot * 3.6 / 1000.0
+    c = CADRE_UE["eed_audit_smen"]
+    if tj >= c["seuil_smen_tj"]:
+        statut = "assujetti — SMÉn ISO 50001"
+        detail = ("Consommation calculée : %s MWh/an soit %s TJ/an — ce seul "
+                  "site dépasse le seuil de %s TJ : système de management de "
+                  "l'énergie CERTIFIÉ ISO 50001 exigé (échéance octobre 2027). "
+                  "La revue énergétique, les IPÉ et la situation de référence "
+                  "se posent dès la conception — après, la référence est "
+                  "perdue." % (fr(e_tot, 0), fr(tj, 1), fr(c["seuil_smen_tj"])))
+    elif tj >= c["seuil_audit_tj"]:
+        statut = "assujetti — audit énergétique"
+        detail = ("Consommation calculée : %s MWh/an soit %s TJ/an — au-dessus "
+                  "du seuil de %s TJ : audit énergétique EN 16247-1 / "
+                  "ISO 50002 (échéance octobre 2026, puis tous les quatre "
+                  "ans). Une certification ISO 50001 en dispense — et le seuil "
+                  "SMÉn de %s TJ s'apprécie sur l'ENTREPRISE entière, autres "
+                  "activités comprises."
+                  % (fr(e_tot, 0), fr(tj, 1), fr(c["seuil_audit_tj"]),
+                     fr(c["seuil_smen_tj"])))
+    else:
+        statut = "sous les seuils — site seul"
+        detail = ("Consommation calculée : %s MWh/an soit %s TJ/an, sous le "
+                  "seuil d'audit de %s TJ. ATTENTION : les seuils s'apprécient "
+                  "au niveau de l'entreprise, toutes activités confondues — ce "
+                  "site s'ADDITIONNE au reste, il ne s'en isole pas."
+                  % (fr(e_tot, 0), fr(tj, 1), fr(c["seuil_audit_tj"])))
+    return {"sujet": "Audit énergétique et SMÉn (EED, art. 11)",
+            "statut": statut, "detail": detail, "reference": c["titre"]}
+
+
 def conformite(profil, res):
     """Confrontation aux seuils réglementaires et aux repères de marché."""
     p_it = float(profil.get("puissance_it_kw") or 0)
@@ -1045,6 +1170,7 @@ def conformite(profil, res):
                     "être prévue dès la conception." if p_it >= 500 else
                     " Sous le seuil aujourd'hui — à revérifier à chaque extension."),
          "reference": CADRE_UE["eed_reporting"]["titre"]},
+        _point_eed_art11(res),
         {"sujet": "PUE — repère de marché",
          "statut": "conforme" if pue <= cible_pue else "écart",
          "detail": ("PUE calculé " + fr(pue, 3) + " ; repère " + fr(cible_pue)
@@ -1149,6 +1275,10 @@ def evaluer_pue(pue_annonce, refroidissement=None, taux_charge=None):
             "comptées sur la température HUMIDE, pas la sèche.",
             "Des pénalités assises sur la MESURE en exploitation, pas sur la "
             "note de conception.",
+            "Le suivi dans un SMÉn ISO 50001 : le PUE promis devient un IPÉ "
+            "(art. 6.4) avec sa situation énergétique de référence (art. 6.5) "
+            "posée AVANT la mise en service — sans SER, la dérive ne se "
+            "prouvera jamais.",
         ],
         "nature": "calcule",
         "exige_de": "du BE fluides",
@@ -1759,7 +1889,8 @@ LIMITES = [
                   "PUE cible : le moteur l'emploie tel quel et la réserve "
                   "disparaît du résultat.",
      "normes": ["ISO/IEC 30134-2 (PUE)", "EN 50600-4-2",
-                "ASHRAE Thermal Guidelines (plages d'admission)"],
+                "ASHRAE Thermal Guidelines (plages d'admission)",
+                "ISO 50001 (SMÉn — IPÉ et situation de référence)"],
      "calcul": "Simulation thermique dynamique du site sur une année météo "
                "type (fichier TMY), au pas horaire ; compter les heures de "
                "free-cooling sur la température HUMIDE — pas la sèche — dès "
@@ -1865,6 +1996,7 @@ def referentiel():
         "ewif_source": EWIF_SOURCE,
         "intensite_reseau": INTENSITE_RESEAU,
         "intensite_millesime": INTENSITE_MILLESIME,
+        "management": MANAGEMENT,
         "intensite_source": INTENSITE_SOURCE,
         "incorpore": INCORPORE,
         "incorpore_source": INCORPORE_SOURCE,

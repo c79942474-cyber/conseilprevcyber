@@ -2621,6 +2621,25 @@ def _dossier_decarbonation_markdown(d, client=""):
               % (r.get("inventaire"), r.get("trajectoire"), r.get("lien")))
         A("")
 
+    # Ancrage management : le plan d'actions de cette étape a un système qui
+    # le porte en exploitation — sans lui, la trajectoire reste un document.
+    m50 = datacenter.MANAGEMENT["iso_50001"]
+    A("## Ancrage dans le management de l'énergie (ISO 50001)")
+    A("")
+    A(m50["apporte"])
+    A("")
+    A("**Indicateurs.** %s" % m50["ipe_naturel"])
+    A("")
+    A("Ce que la mise en œuvre exige — et que cette étape peut préparer :")
+    A("")
+    for x in m50["exige"]:
+        A("- " + x)
+    A("")
+    A("**Certification.** %s Les seuils d'assujettissement de l'art. 11 EED "
+      "(10 TJ/an : audit ; 85 TJ/an : SMÉn certifié), calculés pour ce "
+      "profil, figurent dans la note de calcul de l'étude." % m50["certifiable"])
+    A("")
+
     A("---")
     A("")
     A("*Moteur de décarbonation CONSEILPREV v%s. Document de travail : les "
