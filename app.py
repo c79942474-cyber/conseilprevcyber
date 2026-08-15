@@ -4189,26 +4189,106 @@ def _base_url():
     return b or "https://conseilprevcyber.onrender.com"
 
 
+# Le périmètre d'exploration, écrit UNE fois : le groupe « * » et chaque robot
+# d'IA reçoivent LES MÊMES règles. Dans le protocole robots, un groupe nommé
+# REMPLACE le groupe générique — un « User-agent: GPTBot » qui ne répéterait
+# pas les Disallow ouvrirait /admin/ à ce seul robot.
+_ROBOTS_REGLES = [
+    "Allow: /",
+    "Disallow: /admin/",
+    "Disallow: /api/",
+    "Disallow: /connexion",
+    "Disallow: /inscription",
+    "Disallow: /mot-de-passe-oublie",
+    "Disallow: /reinitialiser",
+    "Disallow: /verifier-email",
+    "Disallow: /telecharger/",
+]
+# Les robots des moteurs génératifs, EXPLICITEMENT admis sur le périmètre
+# public (GEO) : être cité par ChatGPT, Gemini, Perplexity ou Claude commence
+# par les laisser lire. Les nommer un à un rend la politique lisible et
+# testable — et survit à un futur resserrement du groupe « * ».
+_ROBOTS_IA = [
+    "GPTBot", "OAI-SearchBot", "ChatGPT-User",          # OpenAI / ChatGPT
+    "ClaudeBot", "Claude-User", "Claude-SearchBot",     # Anthropic / Claude
+    "anthropic-ai",
+    "PerplexityBot", "Perplexity-User",                 # Perplexity
+    "Google-Extended",                                  # Gemini (au-delà de Googlebot)
+    "CCBot",                                            # Common Crawl, corpus commun
+]
+
+
 @app.route("/robots.txt")
 def robots_txt():
-    """Directives d'exploration : pages publiques ouvertes, zones privées fermées."""
+    """Directives d'exploration : pages publiques ouvertes — aux moteurs
+    classiques ET aux moteurs génératifs — zones privées fermées à tous."""
     base = _base_url()
-    body = "\n".join([
-        "User-agent: *",
-        "Allow: /",
-        "Disallow: /admin/",
-        "Disallow: /api/",
-        "Disallow: /connexion",
-        "Disallow: /inscription",
-        "Disallow: /mot-de-passe-oublie",
-        "Disallow: /reinitialiser",
-        "Disallow: /verifier-email",
-        "Disallow: /telecharger/",
-        "",
-        "Sitemap: %s/sitemap.xml" % base,
-        "",
-    ])
+
+    def groupe(ua):
+        return "\n".join(["User-agent: %s" % ua] + _ROBOTS_REGLES)
+
+    body = "\n".join(
+        [groupe("*"), "",
+         "# Moteurs generatifs (GEO) : memes regles que le web classique —",
+         "# tout le public est citable, rien du prive n'est offert.", ""]
+        + [groupe(b) + "\n" for b in _ROBOTS_IA]
+        + ["Sitemap: %s/sitemap.xml" % base,
+           "# Resume du site pour les assistants : %s/llms.txt" % base,
+           ""])
     return Response(body, mimetype="text/plain")
+
+
+@app.route("/llms.txt")
+def llms_txt():
+    """Le résumé du site pour les assistants (convention llmstxt.org) : qui
+    nous sommes, ce que chaque page publique contient, ce que les studios
+    réservés calculent — pour qu'un moteur qui ne peut pas les lire puisse
+    quand même les DÉCRIRE exactement. Aucune adresse privée n'y figure."""
+    b = _base_url()
+    corps = """# ConseilPrev Cyber
+
+> Cabinet de conseil français : cybersécurité industrielle (OT/IACS, IEC 62443),
+> gouvernance et conformité (NIS2, ISO 27001, AI Act, RGPD) et ingénierie de
+> centres de données — énergie, eau, carbone, coûts de maîtrise d'œuvre.
+> Contenus en français. Dirigé par Christophe Alain Cerf.
+
+Les études et calculateurs sont réservés aux comptes clients ; les pages
+ci-dessous sont publiques et citables.
+
+## Pages publiques
+
+- [Accueil]({b}/) : présentation du cabinet et des deux plateformes
+- [Services]({b}/services) : conseil OT/IACS, GRC cyber, gouvernance de l'IA
+- [Secteurs]({b}/secteurs) : industrie, énergie, nucléaire, aéronautique
+- [Études de cas]({b}/etudes-de-cas) : missions types et livrables
+- [FAQ]({b}/faq) : OT/IACS, IEC 62443, NIS2, studios data centre — questions-réponses citables
+- [Veille]({b}/veille) : actualité réglementaire et technique
+- [Ressources]({b}/ressources) : guides et documents publics
+- [Conformité]({b}/conformite) : RGPD et transparence AI Act (art. 50)
+- [Vos projets]({b}/vos-projets) · [À propos]({b}/about) · [Contact]({b}/contact)
+
+## Studios réservés aux clients — ce qu'ils calculent
+
+- Étude data centre : énergie (PUE par famille de refroidissement, pénalité de
+  charge partielle), eau (WUE de site ET de source, bilan de masse de tour),
+  carbone (CUE, incorporé amorti) — ISO/IEC 30134, EN 50600, GHG Protocol
+  Scope 2, moyennes d'intensité millésimées.
+- Évaluateurs de chiffres annoncés : un PUE de plaquette, un facteur
+  d'émission, un volume d'eau ou un carbone incorporé fournisseur est situé
+  dans les plages du référentiel, avec les pièces à exiger (ISO 14025,
+  EN 15804+A2, IEC 62430).
+- Stratégie de développement durable, ingénierie et phases (MOP/RIBA),
+  prix de maîtrise d'œuvre, relecture de contrats, continuité OT.
+
+## Site frère
+
+- [ConseilPrev — Sentinel](https://conseilprev.onrender.com) : gouvernance de
+  l'IA, conformité AI Act, et études data centre côté investisseur (enveloppe
+  d'investissement, panorama, empreinte du parc).
+""".replace("{b}", b)
+    r = Response(corps, mimetype="text/plain; charset=utf-8")
+    r.headers["Cache-Control"] = "public, max-age=3600"
+    return r
 
 
 @app.route("/sitemap.xml")
