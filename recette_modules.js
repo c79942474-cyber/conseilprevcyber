@@ -31,7 +31,7 @@ const ok = (n, c, d) => {
 const titre = t => console.log('\n══ ' + t + ' ══\n');
 
 const PAGES = [
-  ['/datacenter', 11],
+  ['/datacenter', 12],
   ['/ingenierie-datacenter', 8],
   ['/strategie-durable-datacenter', 5],
 ];

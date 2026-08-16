@@ -38,6 +38,7 @@
      premier calcul, et l'ordre des balises defer est celui de l'exécution. -->
 <script src="/dc-profil.js" defer></script>
 <script src="/datacenter.js" defer></script>
+<script src="/equipements-it.js" defer></script>
 <!-- La plateforme de décarbonation lit le formulaire construit par
      datacenter.js. L'ordre des balises defer est celui de l'exécution :
      inversé, elle chercherait un formulaire qui n'existe pas encore. -->
@@ -907,6 +908,68 @@
   .dc-limites ul{font-size:13px;color:var(--muted);line-height:1.7;max-width:78ch}
   @media print{.dc-det{display:block}.dc-det-c{display:flex !important}}
 
+  /* ── Les équipements informatiques ──────────────────────────────────────
+     La RÈGLE de quantité occupe une colonne pleine, à côté du nombre : c'est
+     la seule façon d'empêcher que « 168 commutateurs » se recopie dans un
+     budget sans que personne ne sache d'où ça sort. */
+  .dc-eq-form{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-top:16px}
+  .dc-eq-ch{display:flex;flex-direction:column;gap:5px;min-width:170px;flex:1 1 170px}
+  .dc-eq-ch>span{font-family:var(--mono);font-size:11px;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--muted2)}
+  .dc-eq-ch input,.dc-eq-ch select{background:rgba(255,255,255,.04);color:var(--ink);
+    border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;
+    font-family:inherit;width:100%}
+  .dc-eq-ch input:focus,.dc-eq-ch select:focus{outline:2px solid var(--cyan);outline-offset:1px}
+  .eq-tab-w{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:18px 0 12px}
+  .eq-tab{width:100%;border-collapse:collapse;font-size:12.5px;min-width:760px}
+  .eq-tab caption{caption-side:top;text-align:left;font-family:var(--mono);font-size:11px;
+    letter-spacing:.04em;text-transform:uppercase;color:var(--cyan);padding-bottom:8px}
+  .eq-tab th,.eq-tab td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;
+    vertical-align:top}
+  .eq-tab td.r,.eq-tab th.r{text-align:right;white-space:nowrap}
+  .eq-tab thead th{font-family:var(--mono);font-size:11px;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--muted2);font-weight:600}
+  .eq-tab tbody th{font-weight:600;color:var(--ink);max-width:22ch}
+  .eq-tab tbody td{color:var(--muted)}
+  .eq-tab tfoot th,.eq-tab tfoot td{border-top:2px solid var(--line);border-bottom:none;
+    color:var(--ink);padding-top:10px}
+  .eq-tab tbody tr:hover{background:rgba(255,255,255,.03)}
+  .eq-tab .eq-utile th{color:var(--muted)}
+  .eq-badge{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;
+    text-transform:uppercase;font-weight:400;margin-top:3px;color:var(--muted2)}
+  .eq-ind .eq-badge{color:var(--cyan)}
+  .eq-dl{margin:0}
+  .eq-dl dt{font-weight:600;color:var(--ink);margin-top:8px;font-size:12.5px}
+  .eq-dl dd{margin:2px 0 0;color:var(--muted);font-size:12.5px;line-height:1.6}
+  .eq-pq{display:block;color:var(--muted2);font-style:italic;margin-top:2px}
+
+  .eq-part,.eq-s3,.eq-vie{border:1px solid var(--line);border-radius:12px;
+    padding:16px 18px;margin-top:18px;background:rgba(255,255,255,.02)}
+  .eq-part-t,.eq-verdict{font-family:var(--mono);font-size:11px;letter-spacing:.05em;
+    text-transform:uppercase;color:var(--cyan);margin-bottom:12px}
+  .eq-part p,.eq-s3 p,.eq-vie p{font-size:13px;color:var(--muted);line-height:1.65;
+    max-width:80ch;margin:10px 0 0}
+  .eq-chiffres{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+  .eq-c{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .eq-c .v{display:block;font-size:20px;font-weight:700;color:var(--ink);line-height:1.15}
+  .eq-c .l{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.03em;
+    color:var(--muted2);margin-top:4px}
+  .eq-c-fort{border-left:3px solid var(--cyan)}
+  /* Le verdict porte sa couleur ET son icône directionnelle : la couleur
+     seule ne se lit ni en niveaux de gris, ni par un lecteur daltonien. */
+  .eq-fav{border-left:3px solid #7DD3A0}
+  .eq-fav .eq-verdict{color:#7DD3A0}
+  .eq-def{border-left:3px solid #F0B27A}
+  .eq-def .eq-verdict{color:#F0B27A}
+  .eq-refus{border:1px solid var(--line);border-left:3px solid #F0A0A0;border-radius:12px;
+    padding:14px 16px;margin-top:18px;font-size:13px;color:var(--muted);line-height:1.6}
+  .eq-refus b{color:#F0A0A0}
+  .eq-formules{font-family:var(--mono);font-size:11.5px;color:var(--muted);line-height:1.7;
+    margin:6px 0 0;padding-left:18px}
+  .eq-reserve{border-left:3px solid var(--line);padding-left:12px}
+  .eq-trous{font-size:12.5px;color:var(--muted);line-height:1.7;margin:0;padding-left:18px}
+  .eq-lien{border-left:3px solid var(--cyan);padding-left:12px}
+
   /* ── Les valeurs proposées sous un champ ────────────────────────────────
      Une puce porte SON NOMBRE et CE QU'IL EST. Un nombre nu se recopie sans
      réfléchir ; « 0,55 — seuil de pénalité de charge partielle » se choisit.
@@ -1114,7 +1177,102 @@
     <div id="dc-comparaison"></div>
   </section>
 
-  <!-- ═══ 4. LA DÉCARBONATION — DANS QUEL ORDRE AGIR ═══════════════════════
+  <!-- ═══ 4. LES ÉQUIPEMENTS INFORMATIQUES ═════════════════════════════════
+       Le chapitre manquant. Les quatorze lots de l'enveloppe travaux ne
+       contiennent AUCUN serveur : le lot d'aménagement des salles couvre les
+       planchers, les chemins de câbles et le confinement. L'informatique est
+       un budget séparé — et, en centre propre, il pèse autant que le
+       bâtiment. Une étude qui ne le dit pas fait arbitrer des économies de
+       génie civil pendant que le poste le plus lourd passe sans discussion.
+
+       Le module est PARTAGÉ à l'identique avec Sentinel, comme moe_dc : la
+       page d'enveloppe d'investissement et cette page-ci lisent les mêmes
+       quantités. Deux nomenclatures pour un même projet, c'est un écart qui
+       se découvre en comité. -->
+  <section class="wrap rc-sec" id="dc-sec-equip" data-gd="Les équipements informatiques : combien de baies, de serveurs, de commutateurs, à quel prix indicatif et quel carbone de fabrication. La puissance informatique et la densité par baie commandent tout le reste — remplissez-les d’abord.">
+    <div class="rc-etape"><span class="n">4</span><h2>Les équipements informatiques : quantités, prix, scope&nbsp;3</h2></div>
+    <p class="lead" style="max-width:76ch;margin-top:0">
+      L'enveloppe travaux calculée par Sentinel s'arrête aux murs, aux fluides et à
+      l'électricité. <b>Elle ne contient aucun serveur</b> — le lot d'aménagement des
+      salles couvre les planchers techniques, les chemins de câbles et le confinement,
+      pas les machines. Ce chapitre chiffre ce qui manque&nbsp;: le nombre
+      d'équipements que la puissance informatique impose, leur prix indicatif, et leur
+      carbone de fabrication au <b>scope&nbsp;3 du GHG Protocol</b> — la troisième
+      composante, sans laquelle les scopes&nbsp;1 et 2 ne font pas un bilan.</p>
+
+    <div class="dc-eq-form" role="group" aria-label="Dimensionnement des équipements informatiques">
+      <label class="dc-eq-ch"><span>Puissance informatique (kW)</span>
+        <input id="eq-pit" type="number" min="1" step="10" value="1000"
+               aria-describedby="eq-pit-aide"></label>
+      <label class="dc-eq-ch"><span>Densité par baie</span>
+        <select id="eq-densite"></select></label>
+      <label class="dc-eq-ch"><span>Périmètre du projet</span>
+        <select id="eq-perimetre"></select></label>
+      <label class="dc-eq-ch"><span>Enveloppe travaux (€, facultatif)</span>
+        <input id="eq-enveloppe" type="number" min="0" step="100000"
+               placeholder="issue de l'étude Sentinel"></label>
+      <button id="eq-go" class="btn" type="button">Dimensionner</button>
+    </div>
+    <p class="note" id="eq-pit-aide" style="margin:6px 0 0">
+      La <b>densité par baie</b> commande tout le dimensionnement&nbsp;: à 5&nbsp;kW il
+      faut huit fois plus de baies qu'à 40, et le nombre de baies commande les PDU, le
+      câblage, les commutateurs de rangée et la surface de salle. Si vous l'ignorez,
+      gardez la valeur proposée et lisez le résultat comme un ordre de grandeur.</p>
+
+    <div id="eq-sortie"></div>
+
+    <!-- LE LEVIER DE LA DURÉE DE VIE, ET SA LIMITE. Le message « prolongez,
+         vous allégez votre bilan » est juste — mais pas partout. Un matériel
+         ancien consomme davantage à service rendu égal, et sur un réseau
+         carboné cette surconsommation dépasse le carbone de fabrication
+         évité. Le module CALCULE la bascule au lieu de recommander sans
+         réserve, ce qui serait de la plaquette. -->
+    <div class="rc-socle" id="eq-vie-bloc" style="margin-top:22px" hidden>
+      <div style="grid-column:1/-1"><b>Prolonger la durée de vie&nbsp;: le gain, et
+        son point de bascule.</b> Allonger la vie d'un serveur étale son carbone de
+        fabrication sur plus d'années et repousse la fabrication d'un remplaçant.
+        Le gain est réel. Mais un matériel ancien consomme davantage à service rendu
+        égal&nbsp;: la question n'est pas <i>si</i> l'allongement paie, c'est
+        <b>jusqu'où</b>, et cela dépend du mix électrique qui alimente le site.</div>
+    </div>
+    <div class="dc-eq-form" id="eq-vie-form" hidden role="group" aria-label="Allongement de la durée de vie">
+      <label class="dc-eq-ch"><span>Durée actuelle (ans)</span>
+        <input id="eq-d0" type="number" min="1" max="14" step="1" value="5"></label>
+      <label class="dc-eq-ch"><span>Durée visée (ans)</span>
+        <input id="eq-d1" type="number" min="2" max="15" step="1" value="8"></label>
+      <label class="dc-eq-ch"><span>Pays du site</span>
+        <select id="eq-pays"></select></label>
+      <label class="dc-eq-ch"><span>PUE retenu</span>
+        <input id="eq-pue" type="number" min="1" max="3" step="0.05" value="1.3"></label>
+      <button id="eq-vie-go" class="btn" type="button">Calculer la bascule</button>
+    </div>
+    <div id="eq-vie"></div>
+
+    <div id="eq-scope3"></div>
+
+    <!-- LES DEUX PONTS, NOMMÉS SÉPARÉMENT. L'un va chercher le montant
+         d'enveloppe qui manque ici ; l'autre ramène ces quantités dans le
+         dossier de maîtrise d'œuvre. Un lien unique « voir Sentinel »
+         obligerait à deviner lequel des deux on suit. -->
+    <div class="rc-socle" id="eq-ponts" style="margin-top:22px">
+      <div><b>D'où vient l'enveloppe travaux.</b> Le montant à reporter ci-dessus se
+        calcule dans <a href="https://conseilprev.onrender.com/enveloppe">l'étude
+        d'enveloppe d'investissement de Sentinel</a> — quatorze lots, du foncier aux
+        essais. Les deux pages partagent ce module d'équipements&nbsp;: les quantités
+        y sont les mêmes, à la ligne près.</div>
+      <div><b>Ce que la maîtrise d'œuvre en fait.</b> La nomenclature alimente le lot
+        d'aménagement des salles et les réservations électriques&nbsp;: nombre de
+        baies, puissance par baie, nombre de départs. Elle se verse au dossier de
+        phase depuis <a href="/ingenierie-datacenter">le cadre d'ingénierie</a>, où
+        elle devient une pièce visée plutôt qu'un tableur.</div>
+      <div><b>Les achats durables.</b> Chaque poste porte le geste d'achat qui le
+        concerne — empreinte produit exigée au marché, garantie étendue,
+        démontabilité, reconditionné là où il tient. Ce sont des clauses, pas des
+        intentions&nbsp;: elles se rédigent dans les pièces d'appel d'offres.</div>
+    </div>
+  </section>
+
+  <!-- ═══ 5. LA DÉCARBONATION — DANS QUEL ORDRE AGIR ═══════════════════════
        Fusionnée depuis la page qui la portait seule. Elle y refaisait le même
        formulaire, le même profil et les mêmes renvois : deux pages qui
        partagent leur sujet finissent par se contredire — l'une est mise à
@@ -1124,7 +1282,7 @@
        pas de l'ordre des leviers avant de savoir où se trouve la masse. Elle
        lit le MÊME profil, saisi une seule fois plus haut. -->
   <section class="wrap rc-sec" id="dc-sec-deca" data-gd="L’ordre des gestes de décarbonation, à lire une fois les résultats obtenus. « Par quoi commencer » n’a pas de sens tant qu’on ne sait pas ce qui pèse le plus sur VOTRE installation.">
-    <div class="rc-etape"><span class="n">4</span><h2>Décarboner : dans quel ordre agir</h2></div>
+    <div class="rc-etape"><span class="n">5</span><h2>Décarboner : dans quel ordre agir</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Calculer n'est pas décarboner. Deux exercices distincts se mènent en parallèle,
       avec des textes différents, des preuves différentes et des équipes souvent
@@ -1155,7 +1313,7 @@
        attendu ferait remonter la compensation, qui est le plus rapide à
        acheter et le seul qui ne réduise rien. -->
   <section class="wrap rc-sec" id="dc-sec-hier" data-gd="La hiérarchie d’atténuation dans son ordre — éviter, réduire, compenser. Une liste déroulante y choisit le niveau à détailler : c’est un choix de lecture, il ne modifie aucun résultat.">
-    <div class="rc-etape"><span class="n">5</span><h2>La hiérarchie d'atténuation, dans son ordre</h2></div>
+    <div class="rc-etape"><span class="n">6</span><h2>La hiérarchie d'atténuation, dans son ordre</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Quatre rangs, et l'ordre n'est pas une préférence morale : c'est une contrainte
       de méthode. Un levier de rang inférieur n'est recevable que si les rangs
@@ -1166,7 +1324,7 @@
   </section>
 
   <section class="wrap rc-sec" id="dc-sec-docs" data-gd="Ce que l’étude produit comme documents opposables, et à quelle phase chacun devient recevable. À consulter avant d’exporter, pour ne pas envoyer un ordre de grandeur là où un engagement est attendu.">
-    <div class="rc-etape"><span class="n">6</span><h2>Documents et livrables</h2></div>
+    <div class="rc-etape"><span class="n">7</span><h2>Documents et livrables</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Les documents propres au projet — relevés d'exploitation, fiches techniques
       fournisseurs, pièces d'appel d'offres, déclarations environnementales produit — se
@@ -1243,7 +1401,7 @@
        neutre. Les afficher au même rang qu'une analyse indépendante
        tromperait, et un dossier bâti là-dessus se ferait démonter. -->
   <section class="wrap rc-sec" id="dc-sec-art" data-gd="L’état de l’art, un thème à la fois. La liste déroulante annonce, pour chaque thème, sur COMBIEN DE SOURCES il repose : quatre thèmes sur sept ne tiennent que sur une maison, et cela se lit sans ouvrir la liste." aria-labelledby="dc-art-t">
-    <div class="rc-etape"><span class="n">7</span>
+    <div class="rc-etape"><span class="n">8</span>
       <h2 id="dc-art-t">L'état de l'art — et qui le dit</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Le moteur calcule à partir de constantes normatives. Il ne dit rien du
@@ -1260,7 +1418,7 @@
        la même façon. Les afficher au même rang ferait promettre une obligation
        là où il n'y a qu'un engagement de place — ou l'inverse, plus grave. -->
   <section class="wrap rc-sec" id="dc-sec-textes" data-gd="Les textes cités et ce qu’ils pèsent — obligation, référentiel volontaire, recommandation. La distinction décide de ce qui est opposable, et c’est elle que conteste un évaluateur en premier.">
-    <div class="rc-etape"><span class="n">8</span><h2>Les textes cités, et ce qu'ils pèsent</h2></div>
+    <div class="rc-etape"><span class="n">9</span><h2>Les textes cités, et ce qu'ils pèsent</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Chaque texte porte sa portée : contraignant, norme volontaire, engagement de place
       ou méthode. La distinction n'est pas académique — un client à qui l'on promet une
@@ -1271,7 +1429,7 @@
   </section>
 
   <section class="wrap rc-sec" id="dc-sec-ref" data-gd="D’où viennent les constantes du moteur, et de quand elles datent. Une constante sans millésime ne se défend pas ; celles-ci portent le leur.">
-    <div class="rc-etape"><span class="n">9</span><h2>Le référentiel et ses sources</h2></div>
+    <div class="rc-etape"><span class="n">10</span><h2>Le référentiel et ses sources</h2></div>
     <p class="lead" style="max-width:72ch;margin-top:0">
       Chaque valeur calculée porte déjà sa source dans le résultat. Voici celles du
       RÉFÉRENTIEL lui-même : les constantes d'où tout part, leur provenance, leur
@@ -1282,7 +1440,7 @@
   </section>
 
   <section class="wrap rc-sec" id="dc-sec-limites" data-gd="À lire AVANT de citer cette étude ailleurs. Chaque limite porte désormais sa réponse — la norme, le calcul à commander, qui le mène — et, quand le moteur peut recevoir la donnée réelle, le champ exact qui la lève.">
-    <div class="rc-etape"><span class="n">10</span><h2>Ce que ce moteur ne fait pas — et comment y répondre</h2></div>
+    <div class="rc-etape"><span class="n">11</span><h2>Ce que ce moteur ne fait pas — et comment y répondre</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Le dire ici plutôt qu'en note de bas de page : ces limites décident du moment où
       il faut passer à une étude de site. Analyse faite, <b>deux des quatre se lèvent

@@ -36,7 +36,7 @@ sys.path.insert(0, ICI)
 # Green Management) — soit onze blocs, et non sept comme on pourrait le croire
 # en lisant le sommaire, qui n'en liste pas la totalité.
 PAGES = {
-    "datacenter.html": 11,
+    "datacenter.html": 12,
     "ingenierie-datacenter.html": 8,
     "strategie-durable-datacenter.html": 5,
 }
@@ -64,7 +64,8 @@ def test_chaque_page_charge_le_module_partage(page):
 @pytest.mark.parametrize("page,n", sorted(PAGES.items()))
 def test_le_compte_des_modules_est_celui_qu_on_croit(page, n):
     """Relevé plutôt que supposé : la page des centres de données en porte
-    ONZE, et non sept."""
+    DOUZE — le cadrage, puis onze étapes numérotées depuis l'ajout du chapitre
+    des équipements informatiques."""
     assert len(modules(page)) == n, [x.strip() for x in modules(page)]
 
 

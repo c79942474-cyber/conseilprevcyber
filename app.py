@@ -718,7 +718,7 @@ _STATIC_CACHE_LOCK = threading.RLock()
 _ASSETS_VERSIONNES = (
     "styles.css", "nav.js", "parcours.js", "modules.js", "transmettre.js",
     "datacenter.js", "dc-profil.js", "markdown.js", "ingenierie-dc.js",
-    "decarbonation-dc.js", "strategie-dd.js", "emblem.svg",
+    "decarbonation-dc.js", "strategie-dd.js", "equipements-it.js", "emblem.svg",
 )
 _CC_IMMUABLE = "public, max-age=31536000, immutable"
 
@@ -2034,6 +2034,7 @@ import profil_dc     # noqa: E402  — analyse le moteur ci-dessus, ne le double
 import ingenierie_dc  # noqa: E402  — situe ses résultats dans la séquence projet
 import decarbonation  # noqa: E402  — les situe dans la hiérarchie d'atténuation
 import strategie_dd  # noqa: E402  — le livrable d'ouverture, quatre perspectives
+import equipements_it  # noqa: E402  — PARTAGÉ À L'IDENTIQUE avec Sentinel
 import transmission  # noqa: E402  — ce qui doit voyager AVEC le document qui sort
 import lacunes      # noqa: E402  — instruire les trous, sans fabriquer de faits
 # Le nettoyage des extraits et des titres de sources. Nommé « extraits_mod » :
@@ -2224,6 +2225,62 @@ def api_datacenter_evaluer():
     audit.journaliser("datacenter.evaluer", cible=genre,
                       detail=str(r.get("verdict") or r.get("motif", ""))[:80])
     return jsonify(ok=True, evaluation=r)
+
+
+@app.route("/api/datacenter/equipements", methods=["POST"])
+@login_required
+def api_datacenter_equipements():
+    """La nomenclature informatique : quantités, prix indicatifs, scope 3, et
+    le point de bascule de l'allongement de durée de vie.
+
+    Le module est PARTAGÉ à l'identique avec Sentinel : l'enveloppe
+    d'investissement et l'empreinte environnementale doivent lire les mêmes
+    quantités, sans quoi l'écart se découvre en comité.
+
+    Un refus — densité inconnue, pays dont le mix n'est pas au référentiel,
+    allongement au-delà du domaine — est servi en 200 avec son motif : c'est
+    le verdict, pas une panne.
+    """
+    data = request.get_json(silent=True) or {}
+    n = equipements_it.nomenclature(data.get("puissance_it_kw"),
+                                    densite=data.get("densite"),
+                                    duree_vie_serveur=data.get("duree_vie_serveur"))
+    if not n.get("ok"):
+        return jsonify(ok=True, nomenclature=n)
+
+    part = equipements_it.part_investissement(
+        n, enveloppe_travaux_eur=data.get("enveloppe_travaux_eur"),
+        perimetre=data.get("perimetre") or "propre")
+
+    prolong = None
+    if data.get("duree_cible") is not None:
+        prolong = equipements_it.prolongation(
+            data.get("puissance_it_kw"),
+            duree_base=data.get("duree_base"),
+            duree_cible=data.get("duree_cible"),
+            pays=data.get("pays") or "FR",
+            intensite_g=data.get("intensite_g"),
+            densite=data.get("densite"),
+            pue=data.get("pue") or 1.0,
+            derive_an=data.get("derive_an"))
+
+    scope3 = equipements_it.bilan_scope3(
+        n, prolong if (prolong and prolong.get("ok")) else None)
+
+    audit.journaliser("datacenter.equipements",
+                      cible=str(data.get("puissance_it_kw"))[:20],
+                      detail=str(n.get("baies"))[:40])
+    return jsonify(ok=True, nomenclature=n, part=part,
+                   prolongation=prolong, scope3=scope3)
+
+
+@app.route("/api/datacenter/equipements/referentiel")
+@login_required
+def api_datacenter_equipements_referentiel():
+    """Les hypothèses chiffrées du module, publiées pour être contestées."""
+    return _json_fige("dc-equipements-ref",
+                      lambda: dict(ok=True,
+                                   referentiel=equipements_it.referentiel()))
 
 
 @app.route("/api/datacenter/durabilite")
@@ -4105,6 +4162,16 @@ def transmettre_js():
     d'ingénierie de centres de données. Un seul module : recopié trois fois, le
     vocabulaire aurait divergé au premier ajout."""
     return _serve_fast("transmettre.js", _CC_ASSET,
+                       mimetype="text/javascript; charset=utf-8")
+
+
+@app.route("/equipements-it.js")
+def equipements_it_js():
+    """Affichage de la nomenclature informatique.
+
+    Route publique : le script ne porte aucune donnée, seulement l'affichage.
+    Ce sont les API qu'il appelle qui exigent une session."""
+    return _serve_fast("equipements-it.js", _CC_ASSET,
                        mimetype="text/javascript; charset=utf-8")
 
 
