@@ -44,13 +44,59 @@ rendent le même résultat.
 
 VERSION = "2026-08-a"
 
-# Le moteur d'ingénierie porte déjà les facteurs de carbone incorporé et
-# l'intensité carbone par pays. Les recopier ici en ferait diverger l'une des
-# deux copies au premier ajustement.
+# L'INTENSITÉ CARBONE ET LE CARBONE INCORPORÉ SE LISENT AU MOTEUR LOCAL.
+# Les deux sites ne portent pas le même : conseilprevcyber a `datacenter`,
+# Sentinel a `empreinte_sites`. Recopier une table ici en ferait une TROISIÈME
+# vérité, qui divergerait des deux autres au premier ajustement — et c'est
+# celle-là que le lecteur verrait.
+#
+# Les deux référentiels ne s'accordent d'ailleurs pas exactement : la France
+# vaut 56 g/kWh d'un côté (millésime réseau) et 45 de l'autre (séries Ember,
+# approche production). L'écart est réel, documenté par chacun, et il ne se
+# moyenne pas ici. Chaque site répond avec SON chiffre, et le module dit
+# lequel il a lu.
+_D = None
+_MOTEUR = None
 try:
-    import datacenter as _D
-except Exception:      # noqa: BLE001 — le module reste utilisable seul
-    _D = None
+    import datacenter as _D             # conseilprevcyber
+    _MOTEUR = "datacenter"
+except Exception:                       # noqa: BLE001
+    try:
+        import empreinte_sites as _D    # conseilprev / Sentinel
+        _MOTEUR = "empreinte_sites"
+    except Exception:                   # noqa: BLE001 — utilisable seul
+        _D = None
+
+
+def _intensite_pays(code):
+    """L'intensité carbone du réseau, lue au moteur local — ou rien.
+
+    Rendre None plutôt qu'une moyenne : le verdict de l'allongement dépend
+    ENTIÈREMENT de ce chiffre, et une valeur de repli silencieuse ferait
+    conclure sur un pays qu'on n'a pas.
+    """
+    if _D is None:
+        return None
+    c = str(code or "").upper()
+    for nom in ("INTENSITE_RESEAU", "INTENSITE"):
+        table = getattr(_D, nom, None)
+        if isinstance(table, dict) and c in table:
+            try:
+                return float(table[c])
+            except (TypeError, ValueError):
+                return None
+    return None
+
+
+def pays_connus():
+    """Les pays dont le moteur local publie l'intensité carbone."""
+    if _D is None:
+        return []
+    for nom in ("INTENSITE_RESEAU", "INTENSITE"):
+        table = getattr(_D, nom, None)
+        if isinstance(table, dict) and table:
+            return sorted(table)
+    return []
 
 
 def _fr(x, dec=None):
@@ -276,14 +322,32 @@ CARBONE_SOURCE = ("Empreintes produit (PCF) publiées par les constructeurs et "
                   "d'équipement).")
 
 
+# Repli quand le moteur local ne publie pas de facteur par serveur — c'est le
+# cas de Sentinel, dont l'empreinte est exprimée par MWh informatique et non
+# par machine. Ce n'est pas une seconde table : c'est UNE valeur, nommée comme
+# repli, et la provenance effective est servie avec le résultat.
+SERVEUR_REPLI_KG = 1200.0
+SERVEUR_REPLI_ANS = 5.0
+SERVEUR_REPLI_SOURCE = ("Ordre de grandeur d'un serveur biprocesseur de volume "
+                        "(fabrication et transport), d'après les empreintes "
+                        "produit constructeurs et la base ouverte Boavizta. "
+                        "Repli utilisé faute de facteur publié par le moteur "
+                        "local — à remplacer par le PCF du matériel retenu.")
+
+
 def _facteur_serveur():
-    """Le carbone et la durée de vie d'un serveur : lus au moteur, jamais
-    recopiés — c'est la même grandeur que celle de l'étude d'empreinte."""
+    """Le carbone et la durée de vie d'un serveur, et D'OÙ ils viennent.
+
+    Lus au moteur local quand il les publie — c'est alors la même grandeur
+    que celle de l'étude d'empreinte, et les deux ne peuvent pas diverger.
+    """
     if _D is not None:
         s = getattr(_D, "INCORPORE", {}).get("serveur_kgCO2e") or {}
         if s.get("valeur"):
-            return float(s["valeur"]), float(s.get("duree_vie_ans") or 5)
-    return 1200.0, 5.0
+            return (float(s["valeur"]), float(s.get("duree_vie_ans") or 5),
+                    "moteur %s (carbone incorporé de l'étude d'empreinte)"
+                    % _MOTEUR)
+    return SERVEUR_REPLI_KG, SERVEUR_REPLI_ANS, SERVEUR_REPLI_SOURCE
 
 
 def nomenclature(puissance_it_kw, densite=None, duree_vie_serveur=None):
@@ -312,7 +376,7 @@ def nomenclature(puissance_it_kw, densite=None, duree_vie_serveur=None):
     p_serveur = PUISSANCE_SERVEUR.get(d, 0.8)
     n_serveurs = max(1, int(round(p_it * PART_CALCUL / p_serveur)))
     n_stockage = max(1, int(round(p_it * PART_STOCKAGE / PUISSANCE_STOCKAGE_CHASSIS)))
-    c_serveur, dv_serveur_ref = _facteur_serveur()
+    c_serveur, dv_serveur_ref, src_serveur = _facteur_serveur()
     dv_serveur = float(duree_vie_serveur or dv_serveur_ref)
 
     quantites = {
@@ -370,6 +434,8 @@ def nomenclature(puissance_it_kw, densite=None, duree_vie_serveur=None):
         "incertitude_carbone_pct": INCERTITUDE_CARBONE * 100,
         "prix_source": PRIX_SOURCE,
         "carbone_source": CARBONE_SOURCE,
+        "serveur_source": src_serveur,
+        "moteur_lu": _MOTEUR,
         "duree_vie_serveur_ans": dv_serveur,
     }
 
@@ -584,7 +650,7 @@ def prolongation(puissance_it_kw, duree_base=None, duree_cible=None,
     n_base = nomenclature(puissance_it_kw, densite)
     if not n_base.get("ok"):
         return {"ok": False, "motif": n_base.get("motif")}
-    c_serveur, dv_ref = _facteur_serveur()
+    c_serveur, dv_ref, _ = _facteur_serveur()
     d0 = float(duree_base or dv_ref)
     d1 = float(duree_cible or (d0 + 2))
     if d0 <= 0:
@@ -616,8 +682,8 @@ def prolongation(puissance_it_kw, duree_base=None, duree_cible=None,
 
     # L'intensité carbone : celle du moteur pour le pays, ou celle fournie.
     inten = intensite_g
-    if inten is None and _D is not None:
-        inten = getattr(_D, "INTENSITE_RESEAU", {}).get(str(pays or "FR").upper())
+    if inten is None:
+        inten = _intensite_pays(pays)
     if inten is None:
         return {"ok": False,
                 "motif": ("Intensité carbone inconnue pour « %s ». Le résultat "
@@ -866,6 +932,8 @@ def referentiel():
             "derive_efficacite_an": DERIVE_EFFICACITE_AN,
             "derive_source": DERIVE_SOURCE,
             "prix_source": PRIX_SOURCE, "carbone_source": CARBONE_SOURCE,
+            "serveur_source": _facteur_serveur()[2],
+            "moteur_lu": _MOTEUR, "pays_connus": pays_connus(),
             "incertitude_prix_pct": INCERTITUDE_PRIX * 100,
             "incertitude_carbone_pct": INCERTITUDE_CARBONE * 100}
 

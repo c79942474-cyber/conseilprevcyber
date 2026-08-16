@@ -68,13 +68,46 @@ def test_le_total_est_la_somme_des_lignes():
 
 
 def test_le_carbone_du_serveur_vient_du_moteur_et_n_est_pas_recopie():
-    """Une seconde table de facteurs divergerait au premier ajustement."""
-    import datacenter as dc
+    """Une seconde table de facteurs divergerait au premier ajustement.
+
+    Ce fichier est partagé entre les deux sites, qui n'embarquent pas le même
+    moteur : conseilprevcyber a `datacenter` et publie un facteur par
+    serveur, Sentinel a `empreinte_sites` et exprime l'empreinte par MWh. Le
+    test éprouve donc la RÈGLE, pas un moteur : quand le moteur local publie
+    le facteur, c'est LUI qui sort ; sinon, le repli est NOMMÉ comme tel.
+    """
     n = eq.nomenclature(1000.0)
     serveurs = [l for l in n["lignes"] if l["cle"] == "serveurs"][0]
-    attendu = dc.INCORPORE["serveur_kgCO2e"]
-    assert serveurs["carbone_unitaire_kg"] == pytest.approx(attendu["valeur"])
-    assert serveurs["duree_vie_ans"] == pytest.approx(attendu["duree_vie_ans"])
+    publie = (getattr(eq._D, "INCORPORE", {}) or {}).get("serveur_kgCO2e") \
+        if eq._D is not None else None
+
+    if publie and publie.get("valeur"):
+        assert serveurs["carbone_unitaire_kg"] == pytest.approx(publie["valeur"])
+        assert serveurs["duree_vie_ans"] == pytest.approx(publie["duree_vie_ans"])
+        assert eq._MOTEUR in n["serveur_source"]
+    else:
+        assert serveurs["carbone_unitaire_kg"] == eq.SERVEUR_REPLI_KG
+        assert "epli" in n["serveur_source"], n["serveur_source"]
+
+
+def test_l_intensite_carbone_est_lue_au_moteur_local_et_jamais_recopiee():
+    """Les deux sites ne publient pas la même table — 56 g/kWh d'un côté,
+    45 de l'autre pour la France. L'écart est documenté par chacun ; le
+    module ne le moyenne pas, il lit celle qui est là."""
+    assert eq._D is not None, "aucun moteur lié : le module ne saurait rien du mix"
+    pays = eq.pays_connus()
+    assert "FR" in pays and len(pays) >= 8, pays
+    table = getattr(eq._D, "INTENSITE_RESEAU", None) or getattr(eq._D, "INTENSITE")
+    for code in ("FR", "DE", "PL"):
+        if code in table:
+            assert eq._intensite_pays(code) == pytest.approx(float(table[code]))
+    p = eq.prolongation(1000.0, 5, 8, "FR")
+    assert p["intensite_g"] == pytest.approx(float(table["FR"]))
+
+
+def test_un_pays_absent_de_la_table_locale_n_est_pas_devine():
+    assert eq._intensite_pays("ZZ") is None
+    assert eq._intensite_pays(None) is None
 
 
 def test_les_postes_indispensables_pesent_l_essentiel():
