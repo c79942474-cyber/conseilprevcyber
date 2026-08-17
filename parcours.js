@@ -618,9 +618,12 @@
   /* ═══════════════════════════════════════════════════════════════════════
      LES SECTEURS — liste indépendante, croisée avec les rôles
 
-     COMMENT LES DEUX SE CROISENT, et pourquoi ainsi. Sept rôles et neuf
-     secteurs feraient soixante-trois parcours à écrire à la main : personne ne
-     les tiendrait à jour, et les trois quarts seraient du remplissage. La
+     COMMENT LES DEUX SE CROISENT, et pourquoi ainsi. Neuf rôles et neuf
+     secteurs feraient quatre-vingt-un parcours à écrire à la main : personne
+     ne les tiendrait à jour, et les trois quarts seraient du remplissage.
+     (Ce commentaire annonçait « sept rôles » et « soixante-trois » : deux
+     rôles ont été ajoutés depuis — dc-projet et dc-durabilite — sans que le
+     compte soit repris. Une recette le mesure désormais sur les listes.) La
      division du travail est donc franche :
 
         LE RÔLE DONNE L'ITINÉRAIRE — quelles pages, dans quel ordre. C'est ce
@@ -1128,6 +1131,7 @@
          progression par position peignait en vert les étapes SAUTEES. */
       if (!Array.isArray(v.vus)) v.vus = [];
       v.vus = v.vus.filter(function (u) { return typeof u === "string"; });
+      if (typeof v.bloque !== "string") v.bloque = null;
       return v;
     } catch (e) { return null; }
   }
@@ -1308,6 +1312,14 @@
     ".pc-dot.fait{background:var(--green)}",
     ".pc-dot.reste{background:none;border:1px solid var(--amber)}",
     ".pc-dot.ici{background:var(--teal);box-shadow:0 0 0 2px rgba(45,212,191,.28)}",
+    ".pc-b-step.att{color:var(--amber)}",
+    ".pc-b-mur a{color:var(--teal);font-weight:600}",
+    ".pc-mur{font-family:var(--mono);font-size:10px;letter-spacing:.05em;color:var(--amber);",
+    "border:1px solid var(--amber);border-radius:10px;padding:2px 9px;white-space:nowrap}",
+    ".pc-b-mur{flex-basis:100%;font-size:11.5px;line-height:1.55;color:var(--muted);",
+    "margin-top:8px;padding:8px 11px;border-left:3px solid var(--amber);",
+    "background:rgba(240,180,41,.07);border-radius:0 6px 6px 0}",
+    ".pc-b-mur b{color:var(--ink)}",
     ".pc-b-reste{font-family:var(--mono);font-size:10px;color:var(--amber);white-space:nowrap;",
     "animation:pcAFaireTxt 1.8s ease-in-out infinite}",
     /* Le texte ne bat que par sa LUEUR, jamais par sa couleur : l'ambre sur
@@ -1528,8 +1540,11 @@
         /* Reprendre un parcours ne remet PAS sa progression à zéro : les
            pages déjà visitées le restent. Changer de parcours, si. */
         var avant = lire();
+        /* MÊME RÈGLE QU'AU BANDEAU : le rang est une CONSTATATION. On garde
+           l'étape visée à part — elle deviendra le rang si la page s'ouvre,
+           et restera une intention si un mur de connexion la retient. */
         var g = { id: d[0], i: parseInt(d[1], 10), sec: idSec || null,
-                  vus: (avant && avant.id === d[0]) ? avant.vus : [] };
+                  vus: (avant && avant.id === d[0]) ? avant.vus : [], bloque: null };
         if (this.getAttribute("href") === ici) {   // déjà sur la page : pas de rechargement
           marquerVisite(g, ici);                   // on y est : la visite est un fait
           ecrire(g);
@@ -1571,17 +1586,49 @@
       if (vu) nVus++;
       dots += '<span class="pc-dot' + (k === i ? " ici" : (vu ? " fait" : " reste")) + '"></span>';
     }
+    /* CE QUE LE LECTEUR VOIT QUAND LE MUR EST LÀ. Le bandeau annonçait
+       l'étape visée comme atteinte ; il annonce désormais qu'elle est
+       DEMANDÉE et pourquoi elle n'est pas là. Le rang affiché reste celui de
+       la dernière page réellement vue — c'est le seul qui soit vrai. */
+    var bloque = null;
+    if (g.bloque) {
+      for (var z = 0; z < n; z++) if (p.etapes[z].url === g.bloque) bloque = { i: z, e: p.etapes[z] };
+    }
+
+    /* LE RANG N'EST AFFICHÉ QUE SI ON EST SUR L'ÉTAPE. Hors d'elle — mur de
+       connexion, page du menu, retour arrière — annoncer « Étape 5 / 7 »
+       décrit une position que le lecteur n'occupe pas. On dit alors ce qui
+       est vrai : le parcours est en attente, et voici où il reprend. */
+    var surEtape = p.etapes[i] && p.etapes[i].url === chemin();
+
     var h = '<div class="pc-b-g">'
-      + '<span class="pc-live" title="Parcours en cours"><i></i><span>Parcours en cours</span></span>'
+      + (bloque
+          ? '<span class="pc-mur" title="Cette étape demande un compte client validé">🔒 Étape '
+            + (bloque.i + 1) + " — compte requis</span>"
+          : '<span class="pc-live" title="Parcours en cours"><i></i><span>Parcours en cours</span></span>')
       + '<button class="pc-b-role" type="button" data-pc-rouvrir="' + esc(p.id) + '" '
       + 'title="Revoir le parcours complet">' + esc(p.icone + " " + p.role) + "</button>"
       + (secActif ? '<span class="pc-b-sec" title="Secteur retenu">'
                     + esc(secActif.icone + " " + secActif.nom) + "</span>" : "")
-      + '<div class="pc-b-prog"><span class="pc-b-step">Étape ' + (i + 1) + " / " + n
-      + " · " + esc(e.label) + '</span><span class="pc-b-dots">' + dots + "</span>"
+      + '<div class="pc-b-prog"><span class="pc-b-step' + (surEtape ? "" : " att") + '">'
+      + (surEtape
+          ? "Étape " + (i + 1) + " / " + n + " · " + esc(e.label)
+          : "En attente · reprise à l’étape " + (i + 1) + " / " + n + " · " + esc(e.label))
+      + '</span><span class="pc-b-dots">' + dots + "</span>"
       + '<span class="pc-b-reste">' + (n - nVus > 0
           ? (n - nVus) + " à faire"
-          : "toutes visitées ✓") + "</span></div></div>"
+          : "toutes visitées ✓") + "</span></div>"
+      + (bloque
+          ? '<div class="pc-b-mur">L’étape ' + (bloque.i + 1) + ' — <b>'
+            + esc(bloque.e.label) + '</b> — demande un compte client validé. '
+            + '<a href="/connexion?next=' + encodeURIComponent(bloque.e.url) + '">Se '
+            + 'connecter</a> ou <a href="/inscription">demander un compte</a> : vous '
+            + 'serez ramené à cette page et le parcours reprendra là. '
+            + (nVus ? 'Tant qu’elle n’est pas ouverte, elle reste comptée « à faire ».'
+                    : 'Aucune étape de ce parcours n’a encore été ouverte.')
+            + '</div>'
+          : "")
+      + "</div>"
       + '<div class="pc-b-d">';
     if (prec) {
       h += '<a class="pc-b-btn" href="' + esc(prec.url) + '" data-pc-aller="' + (i - 1)
@@ -1599,11 +1646,16 @@
     b.innerHTML = h;
     b.classList.add("on");
 
+    /* LE RANG NE S'AVANCE PLUS AU CLIC — IL SE CONSTATE À L'ARRIVÉE.
+       C'était le défaut le plus grave du dispositif : cliquer « Suivant »
+       écrivait l'étape suivante, PUIS le navigateur partait. Quand la page
+       visée demandait un compte, le serveur renvoyait vers /connexion — et le
+       bandeau annonçait « Étape 5 / 7 · Feuille de route » à un lecteur assis
+       devant un formulaire de connexion. Mesuré sur les sept étapes du
+       parcours RSSI : les sept mentaient. Le rang est désormais posé par
+       `recaler()`, au chargement de la page réellement atteinte. */
     b.querySelectorAll("[data-pc-aller]").forEach(function (a) {
-      a.addEventListener("click", function () {
-        ecrire({ id: g.id, i: parseInt(this.getAttribute("data-pc-aller"), 10),
-                 sec: g.sec || null, vus: g.vus });
-      });
+      a.addEventListener("click", function () { ecrire(g); });
     });
     b.querySelectorAll("[data-pc-fin]").forEach(function (x) {
       x.addEventListener("click", function () { ecrire(null); bandeau(); });
@@ -1631,15 +1683,33 @@
     var p = trouver(g.id), ici = chemin();
     for (var k = 0; k < p.etapes.length; k++) {
       if (p.etapes[k].url === ici) {
-        /* LA VISITE SE CONSTATE ICI, au chargement de la page — pas au clic
-           qui y mène. Un clic peut échouer (page fermée, réseau) : créditer
-           l'intention peindrait en vert une page jamais vue. */
+        /* LA VISITE ET LE RANG SE CONSTATENT ICI, au chargement de la page
+           réellement atteinte — pas au clic qui y mène. Un clic peut échouer
+           (page fermée, réseau) : créditer l'intention peindrait en vert une
+           page jamais vue, et placerait le lecteur là où il n'est pas. */
         marquerVisite(g, ici);
         g.i = k;
+        g.bloque = null;                 /* on y est : le mur est franchi */
         ecrire(g);
         return;
       }
     }
+    /* LE MUR DE CONNEXION EST UN ÉTAT DU PARCOURS, PAS UNE SORTIE.
+       Une étape réservée renvoie vers /connexion?next=… . Sans ce cas, le
+       bandeau restait muet sur la seule chose qui comptait : pourquoi la page
+       demandée n'est pas là, et comment y revenir. On retient l'étape visée —
+       elle sera franchie, ou elle restera annoncée. */
+    var m = /[?&]next=([^&]+)/.exec(location.search || "");
+    var vise = m ? decodeURIComponent(m[1]).replace(/\/+$/, "") : null;
+    if (vise) {
+      for (var j = 0; j < p.etapes.length; j++) {
+        if (p.etapes[j].url === vise) {
+          if (g.bloque !== vise) { g.bloque = vise; ecrire(g); }
+          return;
+        }
+      }
+    }
+    if (g.bloque) { g.bloque = null; ecrire(g); }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
