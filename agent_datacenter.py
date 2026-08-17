@@ -501,8 +501,100 @@ class QualityReport:
         return not self.critique_indisponible
 
 
-def deterministic_check(draft: str, sections: Sequence[str], markers: Sequence[str]) -> list[str]:
-    """Verifications sans appel de modele : plan, chiffrage, marqueurs de source."""
+# ---------------------------------------------------------------------------
+# LES CHIFFRES DOIVENT VENIR DES EXTRAITS — ET C'ETAIT UNE CONSIGNE, PAS UN
+# CONTROLE.
+#
+# Le prompt systeme dit au modele de n'utiliser que les extraits et de ne
+# jamais inventer une valeur. Rien ne le verifiait. Un livrable pouvait donc
+# citer [S1] correctement — le controle des marqueurs passait — et poser a cote
+# un chiffre qui ne figure nulle part dans le corpus. C'est le defaut le plus
+# couteux qu'un livrable puisse porter : il a l'apparence exacte du travail
+# source, et il tombe a la premiere verification du client.
+#
+# CE QU'ON CONTROLE, ET POURQUOI PAS TOUT. On ne verifie que les QUANTITES :
+# un nombre portant une unite, ou un nombre a decimales. Un identifiant n'est
+# pas une quantite — « directive 2023/1791 », « IEC 62443 », « EN 50600-4-2 »
+# ne se sourcent pas comme un debit d'eau. Les compter aurait noye le controle
+# sous des signalements faux, et un controle qui crie pour rien finit
+# desactive : le module le dit deja ailleurs, on applique la meme prudence.
+# Les entiers sous 10 sont ecartes pour la meme raison — « 3 suites », « 1
+# risque » sont des denombrements de redaction, pas des mesures.
+#
+# LA DEMANDE DU CLIENT EST UNE SOURCE LEGITIME. Un chiffre qu'il fournit dans
+# son brief (« notre site fait 4,2 MW ») doit pouvoir etre repris ; le refuser
+# obligerait a le retirer du livrable.
+
+_UNITES = (
+    r"%|€|k€|M€|Md€|kW|MW|GW|kWh|MWh|GWh|TWh|Wh|VA|kVA|kVAr|"
+    r"m3|m³|m2|m²|L|l|litres?|t|kg|g|tCO2e|kgCO2e|gCO2e|tCO₂e|kgCO₂e|gCO₂e|"
+    r"an|ans|annees?|années?|mois|jours?|heures?|h|°C|K|bar|ppm|"
+    r"W/m|kW/baie|l/kWh|L/kWh|g/kWh|m3/an|m³/an"
+)
+# LA GARDE EST EN AMONT, PAS EN AVAL. Refuser un nombre SUIVI d'un point
+# ecartait « 0,77. » en fin de phrase — c'est-a-dire la moitie des extraits, et
+# le controle signalait alors comme inventees des valeurs bel et bien sourcees.
+# La garde amont, elle, reste : elle ecarte « 1791 » de « 2023/1791 », qui est
+# un numero de directive et non une mesure.
+_NOMBRE = _re.compile(
+    r"(?<![\w./-])(\d{1,3}(?:[\s\u00a0\u202f]\d{3})+|\d+(?:[.,]\d+)?)"
+    r"(?!\w)"
+)
+# PAS DE \b APRES L'UNITE : « % », « € », « °C » ne sont pas des caracteres de
+# mot, et la frontiere echouait donc toujours apres eux. Un pourcentage invente
+# passait le controle — mesure, puis corrige.
+_SUIT_UNITE = _re.compile(r"^[\s\u00a0\u202f]{0,3}(?:" + _UNITES + r")(?![\wÀ-ÿ])")
+
+
+def _quantites(texte: str) -> set:
+    """Les nombres qui se comportent comme des MESURES, en valeur flottante."""
+    out = set()
+    for m in _NOMBRE.finditer(texte or ""):
+        brut = m.group(1)
+        normalise = (brut.replace("\u202f", "").replace("\u00a0", "")
+                     .replace(" ", "").replace(",", "."))
+        try:
+            valeur = float(normalise)
+        except ValueError:
+            continue
+        decimal = ("," in brut) or ("." in brut)
+        unite = bool(_SUIT_UNITE.match(texte[m.end():m.end() + 14]))
+        if not (decimal or unite):
+            continue
+        if abs(valeur) < 10 and float(valeur).is_integer():
+            continue
+        out.add(round(valeur, 6))
+    return out
+
+
+def _adossee(valeur: float, sourcees: set) -> bool:
+    """Une quantite est adossee si elle figure dans les extraits — a l'arrondi
+    pres. Le modele qui ecrit « 1,4 » pour un extrait a « 1,42 » n'invente
+    rien : il arrondit, et le lui reprocher rendrait le controle inutilisable.
+    """
+    for s in sourcees:
+        if s == valeur:
+            return True
+        echelle = max(abs(s), abs(valeur), 1e-9)
+        if abs(s - valeur) / echelle <= 0.005:      # arrondi a 0,5 %
+            return True
+        for chiffres in (1, 2, 3):                   # arrondi explicite
+            if round(s, chiffres) == round(valeur, chiffres):
+                return True
+    return False
+
+
+def chiffres_hors_source(draft: str, context: str, brief: str = "") -> list:
+    """Les quantites du livrable qui ne figurent ni dans les extraits ni dans
+    la demande du client. Rendues triees, pour un message stable."""
+    sourcees = _quantites(context) | _quantites(brief)
+    return sorted(v for v in _quantites(draft) if not _adossee(v, sourcees))
+
+
+def deterministic_check(draft: str, sections: Sequence[str], markers: Sequence[str],
+                        context: str = "", brief: str = "") -> list[str]:
+    """Verifications sans appel de modele : plan, chiffrage, marqueurs de
+    source, et PROVENANCE DES QUANTITES."""
     defects: list[str] = []
     probe = _normalise(draft)
     for section in sections:
@@ -517,7 +609,26 @@ def deterministic_check(draft: str, sections: Sequence[str], markers: Sequence[s
         defects.append("Aucune reference de source dans le livrable.")
     if not _re.search(r"\d", draft):
         defects.append("Aucune valeur chiffree dans le livrable.")
+    # LE CONTROLE N'EST FAIT QUE SI LE CONTEXTE EST FOURNI. Sans lui, toute
+    # quantite paraitrait inventee : un appelant qui ne le passe pas obtiendrait
+    # un livrable rejete pour une raison fausse.
+    if context:
+        inventees = chiffres_hors_source(draft, context, brief)
+        if inventees:
+            defects.append(
+                "Quantites absentes des extraits et de la demande : "
+                + ", ".join(_fr(v) for v in inventees[:8])
+                + (" (et %d autre(s))" % (len(inventees) - 8) if len(inventees) > 8 else "")
+            )
     return defects
+
+
+def _fr(v: float) -> str:
+    """Un nombre ecrit comme le livrable l'ecrit, pour que le defaut se
+    retrouve a l'oeil dans le texte."""
+    if float(v).is_integer():
+        return format(int(v), ",d").replace(",", "\u202f")
+    return ("%.4f" % v).rstrip("0").rstrip(".").replace(".", ",")
 
 
 def _parse_scores(raw: str) -> tuple[dict[str, float], list[str], bool]:
@@ -606,7 +717,7 @@ class DataCenterAgent:
                 f"{corrections}"
             )
             draft = self.complete_fn(SYSTEM_PROMPT, user_prompt, 0.2)
-            report = self.review(draft, sections, markers, context)
+            report = self.review(draft, sections, markers, context, brief)
             if report.passed:
                 break
             # AJOUT — ne pas regenerer quand le CRITIQUE est en panne et que le
@@ -637,9 +748,10 @@ class DataCenterAgent:
         }
 
     def review(
-        self, draft: str, sections: Sequence[str], markers: Sequence[str], context: str
+        self, draft: str, sections: Sequence[str], markers: Sequence[str], context: str,
+        brief: str = ""
     ) -> QualityReport:
-        deterministic = deterministic_check(draft, sections, markers)
+        deterministic = deterministic_check(draft, sections, markers, context, brief)
         # AJOUT — une panne du critique ne doit pas faire echouer la generation
         # entiere. Le controle deterministe, lui, a deja rendu son verdict et il
         # est le plus important des deux : c'est le seul qui ne depende de rien.

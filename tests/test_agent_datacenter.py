@@ -277,3 +277,91 @@ def test_aucune_collision_de_route():
         sorted(u for u in urls if urls.count(u) > 1))
     assert "/api/datacenter/etude" in urls          # moteur de calcul
     assert "/api/datacenter/agent/generer" in urls  # agent documentaire
+
+
+# ── 5. LA PROVENANCE DES QUANTITÉS ─────────────────────────────────────────
+#
+# DÉFAUT CORRIGÉ. Le prompt système ORDONNE au modèle de n'employer que les
+# extraits et de ne jamais inventer une valeur. Rien ne le VÉRIFIAIT : un
+# livrable pouvait citer [S1] correctement — le contrôle des marqueurs passait
+# — et poser à côté un chiffre absent du corpus. C'est le défaut le plus
+# coûteux qu'un livrable puisse porter, parce qu'il a l'apparence exacte du
+# travail sourcé et qu'il tombe à la première vérification du client.
+#
+# Le contrôle ne vise que les QUANTITÉS : un nombre portant une unité, ou un
+# nombre à décimales. Un identifiant — « directive 2023/1791 », « IEC 62443 »
+# — n'est pas une quantité et ne se source pas comme un débit d'eau.
+
+_CTX = (
+    "[S1] Le site présente un PUE annuel de 1,42 pour une charge IT de 1 850 kW.\n"
+    "[S2] La tour consomme 12 400 m3 d'eau par an, soit un WUE de 0,77.\n"
+    "[S3] Le raccordement prévoit une puissance souscrite de 4 MW.\n"
+    "[S4] Le rapportage EED article 12 impose une déclaration annuelle."
+)
+_BRIEF = "Diagnostic du site de Marseille, 4,2 MW souscrits."
+
+
+def test_les_quantites_des_extraits_passent():
+    assert A.chiffres_hors_source(
+        "PUE de 1,42 [S1], appoint 12 400 m3/an [S2], WUE 0,77.", _CTX, _BRIEF) == []
+
+
+def test_un_arrondi_nest_pas_une_invention():
+    """Le modèle qui écrit « 1,4 » pour un extrait à « 1,42 » n'invente rien.
+    Le lui reprocher rendrait le contrôle inutilisable, donc désactivé."""
+    assert A.chiffres_hors_source("PUE d'environ 1,4 [S1].", _CTX, _BRIEF) == []
+
+
+def test_un_chiffre_de_la_demande_client_est_une_source_legitime():
+    assert A.chiffres_hors_source("Le site souscrit 4,2 MW [S3].", _CTX, _BRIEF) == []
+
+
+def test_LE_POINT_QUI_DECIDE_un_chiffre_invente_est_signale():
+    d = A.chiffres_hors_source(
+        "PUE 1,42 [S1] et une consommation de 38 900 m3/an [S2].", _CTX, _BRIEF)
+    assert d == [38900.0]
+
+
+def test_un_pourcentage_invente_est_signale():
+    """La frontière de mot échouait après « % », « € » et « °C » : ces
+    unités-là ne sont pas des caractères de mot, et tout pourcentage inventé
+    passait le contrôle. Mesuré, puis corrigé."""
+    assert A.chiffres_hors_source(
+        "PUE 1,42 [S1], soit 27 % au-dessus du repère.", _CTX, _BRIEF) == [27.0]
+    assert A.chiffres_hors_source("Budget de 4,7 M€ [S1].", _CTX, _BRIEF) == [4.7]
+    assert A.chiffres_hors_source("Soufflage à 24 °C [S1].", _CTX, _BRIEF) == [24.0]
+
+
+def test_un_identifiant_normatif_nest_pas_une_quantite():
+    assert A.chiffres_hors_source(
+        "Directive 2023/1791, IEC 62443, EN 50600-4-2 [S4].", _CTX, _BRIEF) == []
+
+
+def test_un_denombrement_de_redaction_nest_pas_une_mesure():
+    assert A.chiffres_hors_source(
+        "3 suites [S1], 1 risque majeur [S2].", _CTX, _BRIEF) == []
+
+
+def test_une_valeur_en_fin_de_phrase_est_bien_lue():
+    """La garde en aval écartait « 0,77. » — donc la moitié des extraits — et
+    le contrôle signalait alors comme inventées des valeurs bel et bien
+    sourcées."""
+    assert 0.77 in A._quantites("soit un WUE de 0,77.")
+
+
+def test_le_controle_deterministe_porte_le_defaut():
+    d = A.deterministic_check(
+        "## Perimetre et donnees d'entree\nConsommation 38 900 m3/an [S1].\n",
+        ["Perimetre et donnees d'entree"], ["S1"], _CTX, _BRIEF)
+    assert any("Quantites absentes des extraits" in x for x in d)
+    assert any("38" in x for x in d)
+
+
+def test_sans_contexte_le_controle_ne_sanctionne_rien():
+    """Sans extraits fournis, toute quantité paraîtrait inventée : un appelant
+    qui ne les passe pas obtiendrait un livrable rejeté pour une raison
+    fausse."""
+    d = A.deterministic_check(
+        "## Perimetre et donnees d'entree\nConsommation 38 900 m3/an [S1].\n",
+        ["Perimetre et donnees d'entree"], ["S1"])
+    assert not any("Quantites absentes" in x for x in d)
