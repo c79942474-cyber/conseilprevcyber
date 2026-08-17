@@ -136,6 +136,15 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
          passerait alors même si la liste des grandeurs disparaissait. */
       grandeurs: g ? g.querySelectorAll('li').length : 0,
       textes: t ? t.querySelectorAll('li').length : 0,
+      /* LES TEXTES SONT REPLIÉS, LEUR COMPTE EST ANNONCÉ : le chiffre du
+         résumé doit être CELUI des entrées — un compte écrit à la main
+         cesserait d'être vrai au premier texte ajouté au module. */
+      texAnnonce: (() => {
+        if (!t || t.tagName !== 'DETAILS') return null;
+        const m = /—\s*(\d+)/.exec((t.querySelector('summary') || {}).textContent || '');
+        return m ? parseInt(m[1], 10) : -1;
+      })(),
+      texReplie: !!(t && t.tagName === 'DETAILS' && !t.open),
     };
   });
 
@@ -178,6 +187,10 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
   ok('…avec au moins un texte nommé par question',
      vus.length === 3 && vus.every(a => a.textes > 0),
      vus.map(a => a.textes).join(' / '));
+  ok('LES TEXTES SE REPLIENT ET LEUR COMPTE ANNONCÉ EST LE COMPTE RÉEL',
+     vus.length === 3 && vus.every(a => a.texReplie && a.texAnnonce === a.textes),
+     vus.map(a => (a.texAnnonce === null ? 'pas un dépliant' :
+       a.texAnnonce + ' annoncé / ' + a.textes + ' réel')).join(' · '));
   ok('…et chacune nomme les grandeurs qu’elle fait calculer',
      vus.length === 3 && vus.every(a => a.grandeurs > 0),
      vus.map(a => a.grandeurs).join(' / ') + ' grandeur(s)');

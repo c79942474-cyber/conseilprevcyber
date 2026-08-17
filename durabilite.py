@@ -51,14 +51,16 @@ AXES = [
         "titre": "Politique & objectifs",
         "theme": RACINE_VERTE + " / Politique & objectifs",
         "question": "Qu'est-ce qu'on vise, et à quelle date ?",
+        # La première version disait deux fois la même chose : « sans date ni
+        # périmètre » puis la liste « ce qui est visé, sur quel périmètre, à
+        # quelle échéance » — la deuxième phrase récrivait la première.
         "pourquoi":
-            "Un objectif de décarbonation sans date ni périmètre n'engage "
-            "personne et ne se vérifie pas. Le premier travail n'est pas "
-            "technique : il consiste à écrire ce qui est visé, sur quel "
-            "périmètre — le site seul, ou le site et sa chaîne amont — et à "
-            "quelle échéance. Tout le reste en découle, y compris le choix de "
-            "refroidissement, qui est un arbitrage entre électricité et eau "
-            "avant d'être une préférence technique.",
+            "Un objectif sans date ni périmètre n'engage personne et ne se "
+            "vérifie pas. Le premier travail n'est pas technique : écrire la "
+            "cible, le périmètre — site seul, ou site et chaîne amont — et "
+            "l'échéance. Tout en découle, jusqu'au refroidissement : un "
+            "arbitrage entre électricité et eau avant d'être une préférence "
+            "technique.",
         "textes": [
             {"nom": "Directive (UE) 2023/1791 sur l'efficacité énergétique, art. 12",
              "porte": "déclaration annuelle obligatoire au-dessus de 500 kW de "
@@ -87,13 +89,12 @@ AXES = [
         "theme": RACINE_VERTE + " / Indicateurs & reporting",
         "question": "Comment le prouve-t-on, et avec quelle incertitude ?",
         "pourquoi":
-            "Quatre indicateurs normalisés décrivent un centre : PUE pour "
-            "l'énergie, WUE pour l'eau, CUE pour le carbone, ERE pour la "
-            "chaleur réutilisée. Ils ne se lisent pas séparément — c'est tout "
-            "l'objet du calcul couplé. Un PUE excellent obtenu par évaporation "
-            "déplace la charge sur le WUE ; un rejet sec supprime l'eau du site "
-            "et la reporte en amont, sur celle qu'il faut pour produire "
-            "l'électricité supplémentaire.",
+            "Quatre indicateurs normalisés : PUE pour l'énergie, WUE pour "
+            "l'eau, CUE pour le carbone, ERE pour la chaleur réutilisée. Ils "
+            "ne se lisent pas séparément : un PUE excellent obtenu par "
+            "évaporation déplace la charge sur le WUE, et un rejet sec "
+            "reporte l'eau en amont, sur celle qu'exige l'électricité "
+            "supplémentaire. C'est tout l'objet du calcul couplé.",
         "textes": [
             {"nom": "ISO/IEC 30134 (séries -2 PUE, -4 ITEEsv, -5 ITEUsv, -6 ERF, -9 WUE)",
              "porte": "la définition normalisée de chaque indicateur — sans "
@@ -127,12 +128,11 @@ AXES = [
         "theme": RACINE_VERTE + " / Certifications & labels",
         "question": "Qui l'atteste, et devant qui cela tient-il ?",
         "pourquoi":
-            "Un chiffre produit par l'exploitant n'a pas le même poids qu'un "
-            "chiffre audité. Les référentiels ne se valent pas non plus : "
-            "certains attestent un SYSTÈME DE MANAGEMENT — l'organisation "
-            "s'améliore — d'autres attestent une PERFORMANCE mesurée, d'autres "
-            "encore un BÂTIMENT à sa livraison. Les confondre dans un dossier "
-            "d'appel d'offres se voit immédiatement.",
+            "Un chiffre produit par l'exploitant n'a pas le poids d'un chiffre "
+            "audité. Et les référentiels ne se valent pas : certains attestent "
+            "un SYSTÈME DE MANAGEMENT — l'organisation s'améliore —, d'autres "
+            "une PERFORMANCE mesurée, d'autres un BÂTIMENT à sa livraison. Les "
+            "confondre dans un dossier d'appel d'offres se voit immédiatement.",
         "textes": [
             {"nom": "ISO 50001 — management de l'énergie",
              "porte": "atteste un SYSTÈME, pas un niveau de performance"},

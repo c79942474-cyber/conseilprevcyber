@@ -130,6 +130,11 @@
   .dc-ax-p{font-size:13px;line-height:1.65;margin:0 0 12px;color:var(--ink)}
   .dc-ax-b{margin:0 0 11px}
   .dc-ax-b>b{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted2)}
+  .dc-ax-tx summary{cursor:pointer;list-style:none}
+  .dc-ax-tx summary::-webkit-details-marker{display:none}
+  .dc-ax-tx summary b{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted2)}
+  .dc-ax-tx summary::after{content:" +";color:var(--muted2);font-size:11px}
+  .dc-ax-tx[open] summary::after{content:" \2212"}
   .dc-ax-b ul{margin:5px 0 0;padding-left:17px}
   .dc-ax-b li{font-size:12.5px;line-height:1.55;margin-bottom:5px;color:var(--muted)}
   .dc-ax-b li b{color:var(--ink)}
@@ -1625,10 +1630,17 @@
             + '<h3>' + esc(a.titre) + '</h3>'
             + '<p class="dc-ax-q">' + esc(a.question) + '</p>'
             + '<p class="dc-ax-p">' + esc(a.pourquoi) + '</p>'
-            + '<div class="dc-ax-b"><b>Textes applicables</b><ul>'
+            /* LES TEXTES SE REPLIENT, LEUR COMPTE RESTE LU. Trois à quatre
+               entrées de deux lignes faisaient la moitié de la hauteur de la
+               carte — avant même la question suivante. Même règle que l'état
+               de l'art plus bas : le compte se lit sans ouvrir, le contenu
+               reste dans la page (et sous l'œil des contrôles), l'ouverture
+               est un geste. */
+            + '<details class="dc-ax-b dc-ax-tx"><summary><b>Textes applicables — '
+            + a.textes.length + '</b></summary><ul>'
             + a.textes.map(function(t){
                 return '<li><b>' + esc(t.nom) + '</b> — ' + esc(t.porte) + '</li>'; }).join('')
-            + '</ul></div>'
+            + '</ul></details>'
             + '<div class="dc-ax-b"><b>Ce que cette page calcule</b><ul>'
             + a.calcule.map(function(x){
                 return '<li>' + esc(x.quoi) + '</li>'; }).join('')
