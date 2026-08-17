@@ -68,6 +68,7 @@ import livrables
 import livrables_export
 import playbook
 import minimisation
+import conformite_mesures
 import rgpd
 from auth import admin_required, client_ip, current_user, guard, init_app as init_auth
 from clients_store import (BASES_LEGALES, CATEGORIES_PIECES, STATUTS,
@@ -7708,6 +7709,15 @@ def admin_clients_page():
     return _serve_fast("admin-clients.html", _CC_ADMIN)
 
 
+@app.route("/admin/rgpd")
+@admin_required
+def admin_rgpd_page():
+    """Tableau de bord RGPD + transparence IA Act : les controles MESURES
+    d'un cote, le dossier declaratif de l'autre, et le renvoi vers la gestion
+    des clients — qui existe deja et n'est pas dupliquee ici."""
+    return _serve_fast("admin-rgpd.html", _CC_ADMIN)
+
+
 @app.route("/api/admin/clients", methods=["GET"])
 @admin_required
 def api_clients_list():
@@ -7956,6 +7966,15 @@ def api_rgpd_registre():
     """
     etat = rgpd.etat()
     etat["journal"] = audit.etat()          # durée de conservation réellement appliquée
+    # LA MESURE, A COTE DU DECLARATIF. rgpd.etat() est un dossier de
+    # constantes ; conformite_mesures relit l'etat reel du site a chaque
+    # appel. Les controles n'entrent PAS dans /api/conformite (public) :
+    # publier ses non-conformites en continu n'est pas un devoir de
+    # transparence, l'admin les recoit et agit.
+    try:
+        etat["controles_mesures"] = conformite_mesures.etat(clients_db, app)
+    except Exception as _e:
+        etat["controles_mesures"] = {"erreur": str(_e)[:120]}
     return jsonify(ok=True, **etat)
 
 

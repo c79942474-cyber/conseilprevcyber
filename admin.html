@@ -33,6 +33,7 @@
         <a href="/admin/base-connaissance">Base de connaissance</a>
         <a href="/admin/livrables">Livrables</a>
         <a href="/admin/clients">Clients</a>
+        <a href="/admin/rgpd">RGPD &amp; IA Act</a>
         <a href="/admin/comptes">Comptes</a>
         <a href="#" id="logout">Déconnexion</a>
         <a href="/" class="cta-alt">Voir le site</a>
@@ -54,6 +55,7 @@
         <a class="stat" href="/admin/livrables" style="--sc:linear-gradient(90deg,var(--violet),var(--cyan))"><div class="lbl">Livrables générés</div><div class="val" id="sLiv">—</div></a>
         <a class="stat" href="/admin/comptes" style="--sc:linear-gradient(90deg,var(--amber),var(--terra))"><div class="lbl">Comptes en attente</div><div class="val" id="sWait">—</div></a>
         <a class="stat" href="/admin/comptes" style="--sc:linear-gradient(90deg,var(--teal),var(--green))"><div class="lbl">Comptes actifs</div><div class="val" id="sActive">—</div></a>
+        <a class="stat" href="/admin/rgpd" style="--sc:linear-gradient(90deg,var(--green),var(--cyan))"><div class="lbl">Conformité mesurée</div><div class="val" id="sRgpd">—</div></a>
       </div>
 
       <div class="subhead">// Gestion du contenu &amp; de l'IA</div>
@@ -148,6 +150,13 @@
         setVal('sWait', j.users.filter(function(u){return u.email_verified&&!u.approved;}).length);
         setVal('sActive', j.users.filter(function(u){return u.approved;}).length);
       }}).catch(function(){});
+    // Conformite MESUREE — jamais un pourcentage seul : « n/m » dit combien
+    // de controles sont mesures, pas seulement combien sont verts.
+    fetch('/api/admin/rgpd/registre').then(function(r){return r.ok?r.json():null;})
+      .then(function(j){
+        var c=j&&j.controles_mesures&&j.controles_mesures.comptes;
+        if(c&&c.mesures!=null)setVal('sRgpd', c.mesures_conformes+' / '+c.mesures);
+      }).catch(function(){});
 
     // Diagnostic Assistant IA — appelle /api/assistant/selftest (aucun secret exposé).
     var diagBtn=document.getElementById('diagBtn'), diagOut=document.getElementById('diagOut');
