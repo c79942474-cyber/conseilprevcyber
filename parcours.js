@@ -1123,8 +1123,25 @@
       if (!v || !trouver(v.id) || typeof v.i !== "number") return null;
       var p = trouver(v.id);
       if (v.i < 0 || v.i >= p.etapes.length) return null;
+      /* `vus` : les pages du parcours REELLEMENT ATTEINTES pendant cette
+         session. C'est ce qui distingue « fait » de « dépassé » — la
+         progression par position peignait en vert les étapes SAUTEES. */
+      if (!Array.isArray(v.vus)) v.vus = [];
+      v.vus = v.vus.filter(function (u) { return typeof u === "string"; });
       return v;
     } catch (e) { return null; }
+  }
+
+  /* Une visite CONSTATEE : l'URL n'entre dans `vus` que si elle est une étape
+     du parcours actif, et jamais deux fois. Le module constate qu'une page a
+     été atteinte — il ne prétend pas mesurer le travail qu'on y a fait, et le
+     libellé à l'écran dit exactement cela. */
+  function marquerVisite(g, url) {
+    var p = trouver(g.id);
+    if (!p) return g;
+    var estEtape = p.etapes.some(function (e) { return e.url === url; });
+    if (estEtape && g.vus.indexOf(url) < 0) g.vus.push(url);
+    return g;
   }
   function ecrire(v) {
     try {
@@ -1232,7 +1249,27 @@
     "text-transform:uppercase;color:#0d2b28;background:var(--amber);border-radius:999px;",
     "padding:3px 8px;white-space:nowrap;font-weight:700}",
     ".pc-etape{border:1px solid var(--line);border-radius:10px;padding:13px 15px;background:var(--bg2);min-width:0}",
+    /* CE QUI RESTE A FAIRE bat doucement en ambre ; CE QUI EST VISITE tient
+       en vert, immobile. Cadence 1,8 s — la meme que les guidages de
+       Sentinel, tres en dessous du seuil de photosensibilite (3 eclats/s).
+       Seule la BORDURE anime : aucun texte ne change de fond, les contrastes
+       du contenu sont constants a chaque phase. */
+    "@keyframes pcAFaire{0%,100%{border-color:rgba(240,180,41,.55);box-shadow:0 0 0 0 rgba(240,180,41,0)}",
+    "50%{border-color:var(--amber);box-shadow:0 0 12px 0 rgba(240,180,41,.35)}}",
+    ".pc-etape.pc-e-reste{border:2px solid rgba(240,180,41,.55);animation:pcAFaire 1.8s ease-in-out infinite}",
+    ".pc-etape.pc-e-fait{border:2px solid var(--green)}",
+    "@media(prefers-reduced-motion:reduce){.pc-etape.pc-e-reste{animation:none;border-color:var(--amber)}}",
+    ".pc-e-etat{flex-shrink:0;font-family:var(--mono);font-size:10px;letter-spacing:.05em;",
+    "padding:2px 8px;border-radius:10px;white-space:nowrap}",
+    ".pc-e-etat.fait{color:#0d2b1e;background:var(--green);font-weight:700}",
+    ".pc-e-etat.reste{color:var(--amber);border:1px solid var(--amber)}",
+    ".pc-compte{font-size:12.5px;color:var(--muted2);margin:2px 0 10px}",
+    ".pc-compte-fait{color:var(--green);font-weight:700}",
+    ".pc-compte-reste{color:var(--amber);font-weight:700}",
     ".pc-etape.pc-ici{border-color:var(--teal);background:rgba(45,212,191,.07)}",
+    /* La visite prime la position : une etape courante ET visitee garde le
+       fond teal du « vous y etes », mais son cadre dit la visite. */
+    ".pc-etape.pc-ici.pc-e-fait{border-color:var(--green)}",
     ".pc-etape.pc-prio-etape{border-left:3px solid var(--amber)}",
     ".pc-e-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}",
     ".pc-num{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:var(--panel2);color:var(--ink);",
@@ -1269,7 +1306,14 @@
     ".pc-b-dots{display:flex;gap:5px}",
     ".pc-dot{width:8px;height:8px;border-radius:50%;background:var(--line)}",
     ".pc-dot.fait{background:var(--green)}",
+    ".pc-dot.reste{background:none;border:1px solid var(--amber)}",
     ".pc-dot.ici{background:var(--teal);box-shadow:0 0 0 2px rgba(45,212,191,.28)}",
+    ".pc-b-reste{font-family:var(--mono);font-size:10px;color:var(--amber);white-space:nowrap;",
+    "animation:pcAFaireTxt 1.8s ease-in-out infinite}",
+    /* Le texte ne bat que par sa LUEUR, jamais par sa couleur : l'ambre sur
+       fond sombre tient le seuil AA a chaque phase. */
+    "@keyframes pcAFaireTxt{0%,100%{text-shadow:none}50%{text-shadow:0 0 8px rgba(240,180,41,.55)}}",
+    "@media(prefers-reduced-motion:reduce){.pc-b-reste{animation:none}}",
     ".pc-b-d{display:flex;align-items:center;gap:8px;flex-wrap:wrap}",
     ".pc-b-btn{font:inherit;font-size:12px;font-weight:600;padding:7px 12px;border-radius:8px;cursor:pointer;",
     "border:1px solid var(--line);background:var(--panel2);color:var(--ink);text-decoration:none;",
@@ -1353,13 +1397,23 @@
 
   /* Une étape, rendue avec la note du secteur s'il y en a une pour cette page.
      `sec` peut être null : le rendu est alors celui d'avant, à l'identique. */
-  function etapeHtml(idParcours, e, i, ici, sec, perso) {
+  function etapeHtml(idParcours, e, i, ici, sec, perso, vus) {
     var courante = e.url === ici;
     var note = sec && sec.notes ? sec.notes[e.url] : null;
     var prioAxe = perso && perso.prioIdx.hasOwnProperty(i) ? perso.prioIdx[i] : null;
-    return '<div class="pc-etape' + (courante ? " pc-ici" : "") + (prioAxe ? " pc-prio-etape" : "") + '">'
+    /* FAIT n'est pas DEPASSE : vert seulement si la page a ETE ATTEINTE
+       pendant ce parcours. Le reste est A FAIRE — encadré d'ambre et battant
+       doucement, pour que l'œil trouve d'un regard ce qui l'attend. Le badge
+       dit ce que le vert MESURE : la visite, pas le travail accompli. */
+    var faite = (vus || []).indexOf(e.url) >= 0;
+    return '<div class="pc-etape' + (courante ? " pc-ici" : "")
+      + (faite ? " pc-e-fait" : " pc-e-reste")
+      + (prioAxe ? " pc-prio-etape" : "") + '">'
       + '<div class="pc-e-top"><span class="pc-num">' + (i + 1) + "</span>"
       + '<span class="pc-e-label">' + esc(e.label) + (courante ? " · vous y êtes" : "") + "</span>"
+      + (faite
+          ? '<span class="pc-e-etat fait" title="Page atteinte pendant ce parcours — le module constate la visite, pas le travail accompli">✓ Visitée</span>'
+          : '<span class="pc-e-etat reste" title="Cette page n’a pas encore été ouverte pendant ce parcours">À faire</span>')
       + (prioAxe ? '<span class="pc-prio-badge" title="Étape à fort enjeu pour ce secteur">★ Prioritaire</span>' : "")
       + (reserve(e.url) ? '<span class="pc-cle" title="Cette page demande un compte">🔒 Compte requis</span>' : "")
       + '<a class="pc-go" href="' + esc(e.url) + '" data-pc-go="' + esc(idParcours) + "|" + i + '">'
@@ -1432,8 +1486,19 @@
        le seul cas où « régler finement » veut dire quelque chose. Un rôle seul
        garde sa séquence éprouvée ; un secteur seul mène son parcours court. */
     var perso = (p && sec) ? personnaliser(p.etapes, sec.id, sec.etapes) : null;
-    var etapes = source.etapes.map(function (e, i) {
-      return etapeHtml(idParcours, e, i, ici, sec, perso);
+    /* La progression appartient au parcours ACTIF : afficher la fiche d'un
+       autre parcours montre son chemin, pas une progression qui n'est pas la
+       sienne. */
+    var etatActif = lire();
+    var vus = (etatActif && etatActif.id === idParcours) ? etatActif.vus : [];
+    var faites = source.etapes.filter(function (e) { return vus.indexOf(e.url) >= 0; }).length;
+    var restantes = source.etapes.length - faites;
+    var compteur = '<div class="pc-compte">'
+      + '<span class="pc-compte-fait">' + faites + " visitée" + (faites > 1 ? "s" : "") + "</span>"
+      + ' · <span class="pc-compte-reste">' + restantes + " à faire</span>"
+      + " sur " + source.etapes.length + " étape" + (source.etapes.length > 1 ? "s" : "") + "</div>";
+    var etapes = compteur + source.etapes.map(function (e, i) {
+      return etapeHtml(idParcours, e, i, ici, sec, perso, vus);
     }).join('<div class="pc-fleche">↓</div>');
 
     var tete;
@@ -1460,12 +1525,20 @@
     h.querySelectorAll("[data-pc-go]").forEach(function (a) {
       a.addEventListener("click", function (ev) {
         var d = this.getAttribute("data-pc-go").split("|");
-        ecrire({ id: d[0], i: parseInt(d[1], 10), sec: idSec || null });
+        /* Reprendre un parcours ne remet PAS sa progression à zéro : les
+           pages déjà visitées le restent. Changer de parcours, si. */
+        var avant = lire();
+        var g = { id: d[0], i: parseInt(d[1], 10), sec: idSec || null,
+                  vus: (avant && avant.id === d[0]) ? avant.vus : [] };
         if (this.getAttribute("href") === ici) {   // déjà sur la page : pas de rechargement
+          marquerVisite(g, ici);                   // on y est : la visite est un fait
+          ecrire(g);
           ev.preventDefault();
           fermer();
           bandeau();
+          return;
         }
+        ecrire(g);
       });
     });
   }
@@ -1488,9 +1561,15 @@
     var e = p.etapes[i], prec = i > 0 ? p.etapes[i - 1] : null, suiv = i < n - 1 ? p.etapes[i + 1] : null;
     var secActif = g.sec ? trouverSecteur(g.sec) : null;
 
-    var dots = "";
+    /* LES POINTS DISAIENT FAUX : « fait » pour tout point AVANT la position
+       courante — sauter à l'étape 4 peignait en vert deux pages jamais
+       ouvertes. Chaque point dit désormais sa VISITE ; ce qui reste est
+       ambre, comme dans la fiche. */
+    var dots = "", nVus = 0;
     for (var k = 0; k < n; k++) {
-      dots += '<span class="pc-dot' + (k === i ? " ici" : (k < i ? " fait" : "")) + '"></span>';
+      var vu = g.vus.indexOf(p.etapes[k].url) >= 0;
+      if (vu) nVus++;
+      dots += '<span class="pc-dot' + (k === i ? " ici" : (vu ? " fait" : " reste")) + '"></span>';
     }
     var h = '<div class="pc-b-g">'
       + '<span class="pc-live" title="Parcours en cours"><i></i><span>Parcours en cours</span></span>'
@@ -1499,7 +1578,10 @@
       + (secActif ? '<span class="pc-b-sec" title="Secteur retenu">'
                     + esc(secActif.icone + " " + secActif.nom) + "</span>" : "")
       + '<div class="pc-b-prog"><span class="pc-b-step">Étape ' + (i + 1) + " / " + n
-      + " · " + esc(e.label) + '</span><span class="pc-b-dots">' + dots + "</span></div></div>"
+      + " · " + esc(e.label) + '</span><span class="pc-b-dots">' + dots + "</span>"
+      + '<span class="pc-b-reste">' + (n - nVus > 0
+          ? (n - nVus) + " à faire"
+          : "toutes visitées ✓") + "</span></div></div>"
       + '<div class="pc-b-d">';
     if (prec) {
       h += '<a class="pc-b-btn" href="' + esc(prec.url) + '" data-pc-aller="' + (i - 1)
@@ -1519,7 +1601,8 @@
 
     b.querySelectorAll("[data-pc-aller]").forEach(function (a) {
       a.addEventListener("click", function () {
-        ecrire({ id: g.id, i: parseInt(this.getAttribute("data-pc-aller"), 10), sec: g.sec || null });
+        ecrire({ id: g.id, i: parseInt(this.getAttribute("data-pc-aller"), 10),
+                 sec: g.sec || null, vus: g.vus });
       });
     });
     b.querySelectorAll("[data-pc-fin]").forEach(function (x) {
@@ -1547,8 +1630,14 @@
     if (!g) return;
     var p = trouver(g.id), ici = chemin();
     for (var k = 0; k < p.etapes.length; k++) {
-      if (p.etapes[k].url === ici && k !== g.i) {
-        ecrire({ id: g.id, i: k, sec: g.sec || null }); return;
+      if (p.etapes[k].url === ici) {
+        /* LA VISITE SE CONSTATE ICI, au chargement de la page — pas au clic
+           qui y mène. Un clic peut échouer (page fermée, réseau) : créditer
+           l'intention peindrait en vert une page jamais vue. */
+        marquerVisite(g, ici);
+        g.i = k;
+        ecrire(g);
+        return;
       }
     }
   }
