@@ -145,6 +145,17 @@
   .dc-vert-a{margin-top:10px}
   .dc-sous{color:var(--cyan)}
 
+  /* AVANT / APRÈS LE CALCUL. Deux lignes séparées par un filet, et non un
+     paragraphe unique : elles ne s'adressent pas au même moment de la lecture,
+     et l'œil doit pouvoir n'en prendre qu'une. */
+  .dc-avap{max-width:80ch;margin-top:18px;padding:11px 15px;
+    border-left:3px solid var(--cyan);background:rgba(34,211,238,.08);
+    border-radius:0 9px 9px 0}
+  .dc-avap p{font-size:13.5px;line-height:1.65;color:var(--muted);margin:0}
+  .dc-avap p+p{margin-top:9px;padding-top:9px;border-top:1px solid rgba(34,211,238,.22)}
+  .dc-avap b{color:var(--ink)}
+  .dc-avap a{white-space:nowrap;font-weight:600}
+
   /* LE BANDEAU DE REPRISE — un profil venu d'une autre étude. */
   #dc-repris{border:1px solid var(--cyan);background:rgba(34,211,238,.07);
     border-radius:10px;padding:12px 15px;margin:0 0 14px;font-size:13px;
@@ -1075,18 +1086,25 @@
          plateforme de décarbonation — désormais fusionnée dans cette page.
          Trois bandeaux empilés avant le premier champ font une page qui
          prévient au lieu de servir. -->
-    <p class="lead" style="max-width:76ch;margin-top:18px;padding:12px 15px;
-       border-left:3px solid var(--cyan);background:rgba(34,211,238,.08);
-       border-radius:0 9px 9px 0;font-size:13.5px">
-      <b>Avant de calculer</b>, il faut savoir sur quoi porte l'étude : le premier
-      livrable croise quatre perspectives — ce que le projet défend, ce que ses parties
-      prenantes disent, ce que les données établissent, ce qui affecte ses résultats —
-      et en tire les enjeux retenus, ceux qu'on écarte et le programme d'étude
-      (<a href="/strategie-durable-datacenter">la stratégie de développement
-      durable</a>). <b>Après avoir calculé</b>, il faut savoir à quelle phase le
-      chiffre devient recevable : le facteur eau amont porte ±40&nbsp;% et le carbone
-      incorporé ±50&nbsp;%, ce qui convient à un avant-projet et jamais à une pièce
-      contractuelle (<a href="/ingenierie-datacenter">l'ingénierie de projet</a>).</p>
+    <!-- AVANT / APRÈS — ET IL FAUT POUVOIR LES PRENDRE SÉPARÉMENT.
+         Les deux renvois tenaient dans un seul bloc de six lignes, « Après
+         avoir calculé » enfoui en son milieu. Or ils ne s'adressent pas au
+         même moment : celui qui vient de lancer un calcul ne relit pas un
+         chapeau lu avant de commencer, et ne trouvait donc jamais la phrase
+         qui lui disait ce que son chiffre vaut. Deux lignes étiquetées,
+         chacune finissant sur sa destination — mêmes faits, deux adresses. -->
+    <div class="dc-avap">
+      <p><b>Avant de calculer</b> — sur quoi porte l'étude. Le premier livrable
+        croise quatre perspectives : ce que le projet défend, ce que ses parties
+        prenantes disent, ce que les données établissent, ce qui affecte ses
+        résultats. Il en tire les enjeux retenus, ceux qu'on écarte et le
+        programme d'étude. <a href="/strategie-durable-datacenter">La stratégie
+        de développement durable →</a></p>
+      <p><b>Après avoir calculé</b> — à quelle phase le chiffre devient recevable.
+        Le facteur eau amont porte ±40&nbsp;%, le carbone incorporé ±50&nbsp;% :
+        un avant-projet le supporte, une pièce contractuelle jamais.
+        <a href="/ingenierie-datacenter">L'ingénierie de projet →</a></p>
+    </div>
 
     <nav class="dc-somm" aria-label="Sommaire de la page">
       <b>Sur cette page</b>
@@ -1114,11 +1132,16 @@
   <section class="wrap rc-sec" id="dc-sec-vert" aria-labelledby="dc-vert-t">
     <div class="rc-etape"><span class="n">◆</span>
       <h2 id="dc-vert-t">Le cadre — Green Management</h2></div>
+    <!-- CE CHAPEAU ÉNUMÉRAIT LES TROIS QUESTIONS QUE LA CHAÎNE AFFICHE JUSTE
+         EN DESSOUS, presque mot pour mot : « Ce qu'on vise et à quelle date »
+         contre le bouton « Qu'est-ce qu'on vise, et à quelle date ? ». Deux
+         textes pour la même chose, dont un seul est cliquable — et deux textes
+         à maintenir, qui finissent par se contredire. Le chapeau ne garde donc
+         que ce que la chaîne ne peut pas dire : laquelle des trois ce calcul
+         sert, et ce que les deux autres commandent. -->
     <p class="lead" style="max-width:74ch;margin-top:0">
       Trois questions, dans cet ordre, et aucune n'est technique au départ.
-      <b>Ce qu'on vise</b> et à quelle date. <b>Comment on le prouve</b>, avec quels
-      indicateurs normalisés et quelle incertitude. <b>Qui l'atteste</b>, et devant
-      qui cela tient. Le calcul de cette page sert la deuxième ; les deux autres
+      Le calcul de cette page ne sert que <b>la deuxième</b> — les deux autres
       décident de ce qu'on lui demande.</p>
     <div id="dc-vert" class="dc-vert"><p class="note">Chargement du cadre…</p></div>
     <!-- LE BANDEAU DES TROIS PILIERS. Il vit dans un module partagé et se
@@ -1565,15 +1588,14 @@
                   + '<span>' + esc(a.question) + '</span></button>';
               }).join('')
             + '</div>'
-            /* CETTE LIGNE NE REDIT PAS LE CHAPEAU. Il énonce déjà les trois
-               questions et dit laquelle le calcul sert ; le répéter ici ferait
-               deux textes à maintenir, qui finiraient par se contredire. Elle
-               porte ce que le chapeau ne dit pas : ce qu'on perd à n'en lire
-               qu'une, et comment passer à la suivante. */
-            + '<p class="dc-vch-f">Une question s’ouvre à la fois — au choix '
-            + 'ci-dessus ou dans la liste. <b>Chacune porte ses propres limites</b> : '
-            + 'celle affichée ne dit que ce que cette page ne calcule pas '
-            + '<i>pour elle</i>, et non la limite de l’ensemble.</p>';
+            /* CETTE LIGNE NE REDIT NI LE CHAPEAU NI CE QUE L'ÉCRAN MONTRE.
+               Qu'on choisisse au bouton ou dans la liste se découvre au premier
+               clic ; l'écrire coûtait une phrase pour rien. Reste le seul point
+               qu'un lecteur d'UNE question ne peut pas deviner : la limite
+               affichée est CELLE DE CETTE QUESTION, pas celle de l'ensemble. */
+            + '<p class="dc-vch-f">Une question à la fois. <b>Chacune porte ses '
+            + 'propres limites</b> : celle affichée ne dit que ce que cette page '
+            + 'ne calcule pas <i>pour elle</i>, jamais la limite de l’ensemble.</p>';
         }
 
         /* LE NOMBRE DE GRANDEURS FIGURE DANS L'ENTRÉE ELLE-MÊME : l'asymétrie
@@ -1592,9 +1614,9 @@
                   + ' sur cette page</option>';
               }).join('')
             + '</select>'
-            + '<span class="dc-asel-a">Le nombre de grandeurs figure dans chaque '
-            + 'entrée : une question que cette page n’instruit qu’à peine ne se '
-            + 'lit pas comme une question traitée.</span></label>';
+            + '<span class="dc-asel-a">Le compte figure dans chaque entrée : une '
+            + 'question à peine instruite ne se lit pas comme une question '
+            + 'traitée.</span></label>';
         }
 
         function axe(){

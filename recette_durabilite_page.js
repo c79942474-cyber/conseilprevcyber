@@ -209,6 +209,52 @@ const titre = (t) => console.log('\n══ ' + t + ' ══\n');
   ok('l’ouverture et l’avertissement survivent au choix',
      fixe.ouvert && fixe.avert);
 
+  /* ── LE CHAPEAU NE REDIT PAS LA CHAÎNE ─────────────────────────────────
+     LE DÉFAUT MESURÉ : le chapeau de la section énumérait les trois questions
+     que la chaîne affiche quarante pixels plus bas, presque mot pour mot —
+     « Ce qu'on vise et à quelle date » contre le bouton « Qu'est-ce qu'on
+     vise, et à quelle date ? ». Deux textes pour la même chose, dont un seul
+     est cliquable, et deux textes à maintenir : au premier remaniement du
+     module, ils se contrediraient.
+
+     LA MESURE, ET NON L'APPRÉCIATION : on compare les mots pleins du chapeau à
+     ceux de CHAQUE question rendue. Deux mots pleins en commun avec une même
+     question, c'est une redite — sur l'ancien texte, le recouvrement était de
+     trois. Les mots viennent du DOM et de la réponse du serveur : rien n'est
+     recopié ici, donc rien ne peut se démoder. */
+  const plein = (s) => new Set(String(s || '')
+    .toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ').split(' ')
+    .filter(m => m.length >= 4 && ['dans', 'cette', 'pour', 'avec', 'sans',
+      'plus', 'tout', 'tous', 'leur', 'elle', 'etre', 'sont',
+      'deux', 'trois', 'page', 'quel', 'quels'].indexOf(m) < 0));
+
+  const chapeau = await pg.evaluate(() => {
+    const s = document.getElementById('dc-sec-vert');
+    const p = s && s.querySelector(':scope > p.lead');
+    return p ? p.textContent.replace(/\s+/g, ' ').trim() : '';
+  });
+  ok('le chapeau de la section existe, et il est court',
+     chapeau.length > 40 && chapeau.length <= 220,
+     chapeau.length + ' caractères');
+
+  const motsCh = plein(chapeau);
+  const redites = vus.map(v => ({
+    q: v.question,
+    communs: [...plein(v.question)].filter(m => motsCh.has(m))
+  })).filter(r => r.communs.length >= 2);
+  ok('LE CHAPEAU NE REDIT AUCUNE DES TROIS QUESTIONS DE LA CHAÎNE',
+     redites.length === 0,
+     redites.length
+       ? redites.map(r => '« ' + r.q + ' » partage : ' + r.communs.join(', ')).join(' | ')
+       : 'aucun recouvrement sur les trois');
+
+  /* …MAIS IL GARDE CE QUE LA CHAÎNE NE PEUT PAS DIRE. Raccourcir jusqu'à
+     effacer ce point changerait la correction en perte : la chaîne montre
+     trois questions et ne dit pas laquelle CE calcul instruit. */
+  ok('…et il dit toujours laquelle des trois ce calcul sert',
+     /deuxi[eè]me/i.test(chapeau), chapeau.slice(0, 90));
+
   /* DEUX COMMANDES, UN SEUL ÉTAT. Cliquer une étape de la chaîne doit déplacer
      la liste aussi : sinon les deux se contrediraient à l'écran, et le lecteur
      croirait lire ce que la liste annonce. */

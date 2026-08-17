@@ -161,12 +161,15 @@ AXES = [
 #  CE QUE LA PAGE PUBLIQUE MONTRE, ET CE QU'ELLE RÉSERVE
 # ═══════════════════════════════════════════════════════════════════════════
 
+# La phrase disait deux fois la meme opposition : « publier les premieres
+# servirait le lecteur » redit ce que « le cadre, la methode et le calcul sont
+# ouverts » vient d'etablir. On garde la frontiere et sa RAISON, qui elle ne se
+# devine pas : ce qui est ferme l'est parce qu'il appartient aux clients.
 OUVERT = (
-    "Le cadre, la méthode et le calcul sont ouverts : on peut lancer une étude "
-    "complète sans compte, et vérifier chaque formule. Ce qui demande un compte, "
-    "ce sont les pièces — la base documentaire du cabinet, les livrables rédigés "
-    "et le suivi de projet. Publier les premières servirait le lecteur ; publier "
-    "les secondes reviendrait à publier le travail de ses clients.")
+    "Le cadre, la méthode et le calcul sont ouverts : une étude complète se lance "
+    "sans compte, et chaque formule se vérifie. Le compte n'ouvre que les pièces "
+    "— base documentaire du cabinet, livrables rédigés, suivi de projet : les "
+    "publier reviendrait à publier le travail des clients.")
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  CONTRÔLE D'INTÉGRITÉ AU CHARGEMENT
