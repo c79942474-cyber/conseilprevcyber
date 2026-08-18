@@ -213,3 +213,36 @@ def test_la_page_ouverte_est_indexable():
     h = _page()
     assert 'content="index, follow"' in h
     assert 'content="noindex' not in h
+
+
+# ── L'ÉCART ENTRE LES DEUX RÉFÉRENTIELS DU CABINET ────────────────────────
+#
+# DÉFAUT CORRIGÉ. Les deux sites servaient des intensités carbone différentes
+# pour 28 des 29 pays communs — 12,1 % d'écart moyen, France 45 contre 56 —
+# sans qu'aucun des deux ne le dise. Les deux citent Ember, mais pas le même
+# millésime ni le même périmètre : aucune valeur n'est fausse, c'est
+# l'ignorance de l'écart qui l'était. Un client qui pose côte à côte un
+# dossier d'enveloppe et une étude de durabilité le découvrait en réunion.
+
+def test_l_ecart_entre_les_deux_sites_est_declare_au_lecteur():
+    import datacenter as D
+    r = D.etude({"puissance_it_kw": 50000, "pays": "FR"})
+    ecart = [a for a in r["avertissements"] if "ÉCART CONNU" in a]
+    assert len(ecart) == 1, "l'écart inter-sites n'est pas déclaré"
+    texte = ecart[0]
+    # Les DEUX valeurs, pour que le lecteur reconnaisse celle qu'il a sous les
+    # yeux dans l'autre dossier.
+    assert "45" in texte and "56" in texte
+    assert "millésime" in texte
+    assert D.INTENSITE_MILLESIME in texte
+    # La raison, et pas seulement le constat : sans elle, l'écart passe pour
+    # une erreur de l'un des deux sites.
+    assert "Ember" in texte
+
+
+def test_l_ecart_ne_concerne_plus_qui_fournit_SON_intensite():
+    """Le client qui impose son facteur ne lit plus notre table : lui servir
+    l'avertissement serait du bruit, et le bruit fait ignorer les vrais."""
+    import datacenter as D
+    r = D.etude({"puissance_it_kw": 50000, "pays": "FR", "intensite_reseau_g": 30})
+    assert not any("ÉCART CONNU" in a for a in r["avertissements"])

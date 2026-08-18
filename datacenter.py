@@ -1730,6 +1730,24 @@ def avertissements(profil, res):
                   "des charges : pour cela il faut un profil horaire, où l'écart "
                   "entre heures creuses et heures de pointe dépasse souvent un "
                   "facteur trois.")
+        # L'AUTRE SITE DU CABINET NE DONNE PAS LE MÊME CHIFFRE, ET LE
+        # LECTEUR DOIT L'APPRENDRE ICI PLUTÔT QU'EN RÉUNION.
+        # Mesuré en août 2026 par comparaison des deux tables : 28 des 29 pays
+        # communs divergent, de 12,1 % en moyenne. Les deux citent Ember, mais
+        # pas le même millésime ni le même périmètre. Aucune des deux valeurs
+        # n'est fausse ; c'est l'ignorance de l'écart qui l'était. Un client
+        # qui pose côte à côte un dossier d'enveloppe et une étude de
+        # durabilité doit trouver la raison écrite, pas la découvrir.
+        av.append("ÉCART CONNU ENTRE LES DEUX RÉFÉRENTIELS DU CABINET. Le "
+                  "millésime employé ici est " + INTENSITE_MILLESIME + " en "
+                  "approche location-based ; le module d'empreinte de "
+                  "conseilprev.onrender.com/empreinte-parc retient 2024 en "
+                  "approche cycle de vie et donne des valeurs inférieures de "
+                  "12 % en moyenne (France 45 contre 56 gCO2e/kWh). Les deux "
+                  "s'appuient sur Ember. L'écart tient au millésime et au "
+                  "périmètre, non à une erreur : les réseaux européens se "
+                  "décarbonent vite. Pour une pièce comparative, fixer un seul "
+                  "millésime et le déclarer.")
     if not profil.get("pue_cible"):
         av.append("Le PUE est ESTIMÉ à partir de la famille de refroidissement et "
                   "du taux de charge. Il ne remplace pas une simulation "
