@@ -3987,9 +3987,73 @@
       }
       $("#ig-moe-msg").textContent = "Mission : " + (j.portee.dit || "");
       rendre(j);
+      /* LE TABLEAU DE RÉPARTITION NE S'OFFRE QU'APRÈS UN CALCUL RÉUSSI : un
+         bouton toujours présent promettrait une pièce que rien n'alimente. */
+      offrirRepartition({ mission: mission(), travaux_meur: trav,
+                          part_technique: pt === undefined ? null : pt / 100,
+                          phases: PH });
     }).catch(function (e) {
       if (e && e.message === "auth-dit") return;
       $("#ig-moe-msg").textContent = "chiffrage indisponible";
+    });
+  }
+
+  /* LE TABLEAU DE RÉPARTITION DES HONORAIRES, en pièce de marché.
+     Il était jusqu'ici recopié à la main depuis l'écran vers un classeur ;
+     c'est le moment où un chiffre juste devient faux. Le classeur est
+     construit par le serveur DEPUIS LE MÊME CALCUL que ce qui est affiché. */
+  function offrirRepartition(charge) {
+    var hote = document.getElementById("ig-moe-out");
+    if (!hote) return;
+    var anc = document.getElementById("ig-moe-rep");
+    if (anc) anc.remove();
+    var d = document.createElement("div");
+    d.id = "ig-moe-rep";
+    d.style.cssText = "margin-top:14px;display:flex;align-items:center;"
+      + "gap:12px;flex-wrap:wrap";
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "btn";
+    b.textContent = "Télécharger le tableau de répartition (.xlsx)";
+    var note = document.createElement("span");
+    note.className = "muted";
+    note.style.fontSize = "12px";
+    note.textContent = "Phases MOP en lignes, cotraitants en colonnes — "
+      + "rempli depuis ce calcul.";
+    d.appendChild(b); d.appendChild(note);
+    hote.appendChild(d);
+
+    b.addEventListener("click", function () {
+      b.disabled = true;
+      var libelle = b.textContent;
+      b.textContent = "préparation…";
+      fetch("/api/datacenter/moe/repartition?format=xlsx", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(charge)
+      }).then(function (r) {
+        if (!r.ok) throw new Error("http-" + r.status);
+        return r.blob();
+      }).then(function (blob) {
+        var u = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = u;
+        a.download = "repartition-honoraires-moe.xlsx";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        /* L'ADRESSE OBJET SE LIBÈRE, sinon le classeur reste en mémoire du
+           navigateur jusqu'à la fermeture de l'onglet. */
+        setTimeout(function () { URL.revokeObjectURL(u); }, 2000);
+        b.textContent = libelle;
+        b.disabled = false;
+      }).catch(function () {
+        /* ON DIT L'ÉCHEC PLUTÔT QUE DE RENDRE LE BOUTON À SON ÉTAT INITIAL :
+           un bouton qui redevient cliquable sans rien avoir produit laisse
+           croire à un clic manqué. */
+        b.textContent = "téléchargement indisponible";
+        b.disabled = false;
+      });
     });
   }
 
