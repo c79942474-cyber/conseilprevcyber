@@ -1716,6 +1716,63 @@ def evaluer_incorpore(poste, valeur_kg, duree_vie_ans=None):
     return res
 
 
+# Au-delà de ce seuil, l'écart avec la référence réglementaire est nommé au
+# lecteur ; en deçà, il ne change aucun arbitrage et se tait.
+#
+# CE QUE LE SEUIL FAIT RÉELLEMENT, MESURÉ PLUTÔT QUE SUPPOSÉ. On l'écrit
+# d'ordinaire pour rendre une réserve rare. Ici elle ne l'est pas : à 25 %,
+# elle paraît pour VINGT-QUATRE des vingt-neuf pays de la table. Cinq se
+# taisent — Chypre (−14 %), Croatie (−24 %), Lettonie (−8 %), Pologne (−19 %)
+# et l'Union agrégée, absente de la Base Carbone.
+#
+# On garde le seuil quand même, et on ne le relève pas pour faire joli : la
+# divergence est SYSTÉMATIQUE, pas exceptionnelle, parce que les facteurs
+# d'électricité étrangère de la v22.0 datent de 2017-2019 et que les réseaux
+# européens ont changé depuis. Une réserve qui paraîtrait rare mentirait sur
+# l'ampleur du phénomène. Relever le seuil à 30 % ferait taire la France
+# (29 %), c'est-à-dire précisément le pays où un BEGES est le plus probable.
+_SEUIL_RESERVE_ADEME_PCT = 25.0
+
+
+def _reserve_ademe(pays):
+    """L'écart du PAYS ÉTUDIÉ avec la Base Carbone, ou None s'il n'y a rien à dire.
+
+    POURQUOI CALCULÉ ET NON ÉCRIT. Une phrase écrite à la main serait juste le
+    jour où on l'écrit, et fausse le jour où l'ADEME publie une v23 — sans que
+    personne ne le voie. Celle-ci se reconstruit à chaque étude sur le fichier
+    versé au dépôt.
+
+    ELLE SE TAIT DE DEUX FAÇONS, ET LES DEUX SONT VOULUES : quand le pays est
+    absent de la Base Carbone (l'Union européenne agrégée, par exemple, qui n'y
+    figure pas), et quand l'écart est trop petit pour peser. Une réserve qui
+    paraît toujours n'est plus lue.
+    """
+    try:
+        import base_carbone
+    except Exception:
+        return None
+    valeur = INTENSITE_RESEAU.get(pays)
+    if valeur is None:
+        return None
+    ref = base_carbone.facteur(pays)
+    if not ref or not ref.get("g_kwh"):
+        return None
+    ecart = (valeur - ref["g_kwh"]) / ref["g_kwh"] * 100.0
+    if abs(ecart) < _SEUIL_RESERVE_ADEME_PCT:
+        return None
+    return ("RÉFÉRENCE RÉGLEMENTAIRE — %s. La Base Carbone de l'ADEME donne "
+            "%s gCO2e/kWh pour ce pays (validité %s), quand cette étude emploie "
+            "%s : la valeur employée est %s de %.0f %%. Pour un bilan "
+            "d'émissions français opposable (BEGES, art. L229-25 du code de "
+            "l'environnement), c'est le facteur ADEME qui fait foi, quel que "
+            "soit son âge. Pour dimensionner un projet neuf ou comparer des "
+            "pays aujourd'hui, un facteur de %s décrit un réseau qui a changé "
+            "depuis. Choisir selon la pièce produite, et le déclarer."
+            % (pays, ref["g_kwh"], ref.get("validite") or "non datée", valeur,
+               "supérieure" if ecart > 0 else "inférieure", abs(ecart),
+               ref.get("validite") or "cette période"))
+
+
 def avertissements(profil, res):
     """Ce que le calcul NE dit pas. Volontairement placé dans le résultat.
 
@@ -1733,21 +1790,41 @@ def avertissements(profil, res):
         # L'AUTRE SITE DU CABINET NE DONNE PAS LE MÊME CHIFFRE, ET LE
         # LECTEUR DOIT L'APPRENDRE ICI PLUTÔT QU'EN RÉUNION.
         # Mesuré en août 2026 par comparaison des deux tables : 28 des 29 pays
-        # communs divergent, de 12,1 % en moyenne. Les deux citent Ember, mais
-        # pas le même millésime ni le même périmètre. Aucune des deux valeurs
-        # n'est fausse ; c'est l'ignorance de l'écart qui l'était. Un client
-        # qui pose côte à côte un dossier d'enveloppe et une étude de
-        # durabilité doit trouver la raison écrite, pas la découvrir.
+        # communs divergent — MÉDIANE 9,0 %, moyenne 12,8 %, maximum 50 %. Les
+        # deux citent Ember, mais pas le même millésime ni le même périmètre.
+        # Aucune des deux valeurs n'est fausse ; c'est l'ignorance de l'écart
+        # qui l'était.
+        #
+        # LA VERSION PRÉCÉDENTE DE CETTE RÉSERVE ÉTAIT FAUSSE DEUX FOIS : elle
+        # annonçait « 12 % en moyenne » (c'est 12,8 %, et la médiane, plus
+        # honnête, vaut 9 %) et elle disait les valeurs de l'autre site
+        # « inférieures », sans réserve. Le sens S'INVERSE pour HUIT pays sur
+        # vingt-neuf — Allemagne, Italie, Lituanie, Luxembourg, Lettonie,
+        # Malte, Pologne, Slovénie — et la Norvège est identique des deux
+        # côtés. Annoncer un sens unique dispensait le lecteur de regarder son
+        # propre pays, ce qui est exactement l'inverse du but d'une réserve.
         av.append("ÉCART CONNU ENTRE LES DEUX RÉFÉRENTIELS DU CABINET. Le "
                   "millésime employé ici est " + INTENSITE_MILLESIME + " en "
                   "approche location-based ; le module d'empreinte de "
                   "conseilprev.onrender.com/empreinte-parc retient 2024 en "
-                  "approche cycle de vie et donne des valeurs inférieures de "
-                  "12 % en moyenne (France 45 contre 56 gCO2e/kWh). Les deux "
-                  "s'appuient sur Ember. L'écart tient au millésime et au "
-                  "périmètre, non à une erreur : les réseaux européens se "
-                  "décarbonent vite. Pour une pièce comparative, fixer un seul "
-                  "millésime et le déclarer.")
+                  "approche cycle de vie. Les 29 pays communs divergent d'une "
+                  "MÉDIANE de 9 % (moyenne 12,8 %, maximum 50 %). Le plus "
+                  "souvent l'autre site est plus bas — France 45 contre 56 "
+                  "gCO2e/kWh — mais le sens S'INVERSE pour huit pays "
+                  "(Allemagne, Italie, Lituanie, Luxembourg, Lettonie, Malte, "
+                  "Pologne, Slovénie) : ne pas transposer le sens de l'écart "
+                  "d'un pays à l'autre. Les deux tables s'appuient sur Ember. "
+                  "L'écart tient au millésime et au périmètre, non à une "
+                  "erreur : les réseaux européens se décarbonent vite. Pour une "
+                  "pièce comparative, fixer un seul millésime et le déclarer.")
+        # CE QUI VAUT POUR LE PAYS ÉTUDIÉ, PLUTÔT QU'UNE MOYENNE SUR VINGT-NEUF.
+        # Une réserve générale se lit et s'oublie ; celle-ci nomme l'écart du
+        # pays qu'on instruit, et se tait quand il n'y a rien à dire. Elle est
+        # CALCULÉE sur la Base Carbone versée au dépôt, jamais recopiée : si le
+        # fichier change, la phrase change.
+        _r = _reserve_ademe((profil.get("pays") or "UE").upper())
+        if _r:
+            av.append(_r)
     if not profil.get("pue_cible"):
         av.append("Le PUE est ESTIMÉ à partir de la famille de refroidissement et "
                   "du taux de charge. Il ne remplace pas une simulation "

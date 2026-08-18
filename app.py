@@ -7978,6 +7978,44 @@ def api_rgpd_registre():
     return jsonify(ok=True, **etat)
 
 
+@app.route("/api/base-carbone", methods=["GET"])
+@login_required
+def api_base_carbone():
+    """La Base Carbone ADEME, et la confrontation de nos facteurs aux siens.
+
+    FERMÉE PAR DÉFAUT, ET C'EST LE CONTRÔLE DE DÉMARRAGE QUI L'A EXIGÉ : posée
+    ouverte, elle a fait REFUSER LE DÉMARRAGE au serveur — « /api/base-carbone
+    est ouverte : fermer la page sans fermer son interface ne protège rien ».
+    La base de l'ADEME est publique, mais ce que cette route publie en plus ne
+    l'est pas : la table de facteurs du cabinet et l'écart qui la sépare de la
+    référence. C'est de la matière d'étude, elle suit le compte client.
+
+    ELLE NE REMPLACE RIEN, et c'est le point. L'ADEME fait foi pour un bilan
+    d'émissions français opposable (BEGES, art. L229-25) ; INTENSITE_RESEAU
+    décrit le réseau de l'exercice en cours. La route sert les deux et nomme
+    l'usage de chacune plutôt que de trancher à la place du lecteur.
+
+    `?table=reseau` ajoute la confrontation ligne à ligne d'INTENSITE_RESEAU.
+    """
+    try:
+        import base_carbone
+        if not base_carbone.disponible():
+            return jsonify(ok=False,
+                           erreur="Base Carbone absente du depot"), 503
+        out = {"ok": True, "version": base_carbone.VERSION,
+               "source": base_carbone.SOURCE,
+               "electricite": base_carbone.electricite()}
+        if (request.args.get("table") or "") == "reseau":
+            import datacenter
+            out["confrontation"] = base_carbone.confronter(
+                datacenter.INTENSITE_RESEAU,
+                (request.args.get("frontiere") or "production"))
+        return jsonify(**out)
+    except Exception as e:  # noqa: BLE001
+        app.logger.error("BASE_CARBONE_ERR: %s", e)
+        return jsonify(ok=False, erreur="base indisponible"), 503
+
+
 @app.route("/api/conformite", methods=["GET"])
 def api_conformite():
     """Dossier de conformité, version publique — même source, sans les actions.
