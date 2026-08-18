@@ -1773,6 +1773,58 @@ def _reserve_ademe(pays):
                ref.get("validite") or "cette période"))
 
 
+def _reserve_incorpore():
+    """Ce que la Base Carbone dit du carbone incorporé d'un serveur.
+
+    LA QUESTION N'EST PAS « LES DEUX CHIFFRES SONT-ILS ÉGAUX ». Deux valeurs
+    qui diffèrent d'un facteur deux ne se contredisent pas si la référence
+    annonce ±80 % : la question est de savoir si la valeur employée tient dans
+    l'intervalle publié, et de combien elle en sort sinon.
+
+    MESURÉ EN AOÛT 2026 : la Base Carbone donne 600 kgCO2e par appareil pour
+    « Serveurs informatiques », avec une incertitude déclarée de 80 % — soit
+    [120 ; 1 080]. INCORPORE retient 1 200, qui en sort par le haut de 11 %.
+    Ce n'est pas une contradiction franche : l'entrée ADEME ne nomme ni modèle
+    ni gamme, quand ce moteur décrit une machine biprocesseur de volume, plus
+    grosse que la moyenne d'un parc. Mais elle situe le facteur employé HAUT
+    dans sa fourchette, et c'est une information qu'un lecteur mérite.
+
+    LE BÂTI ET LES LOTS TECHNIQUES NE SONT PAS CONFRONTÉS, ET CE N'EST PAS UN
+    OUBLI : ce moteur les exprime au kilowatt informatique, la Base Carbone au
+    mètre carré (650 kgCO2e/m² SHON pour des bureaux). Aucun modèle de surface
+    n'existe ici pour faire le pont, et en inventer un pour produire une
+    comparaison serait pire que de n'en produire aucune.
+    """
+    try:
+        import base_carbone
+    except Exception:
+        return None
+    lot = base_carbone.poste("Serveurs informatiques")
+    if not lot:
+        return None
+    ref = lot[0]
+    e = base_carbone.encadre(INCORPORE["serveur_kgCO2e"]["valeur"], ref)
+    if not e or e.get("encadre") is None:
+        return None
+    return ("CARBONE INCORPORÉ, CONFRONTÉ À LA RÉFÉRENCE. La Base Carbone de "
+            "l'ADEME publie %s %s pour le poste « Serveurs informatiques », "
+            "avec une incertitude déclarée de %s %% — soit un intervalle "
+            "[%s ; %s]. Cette étude retient %s kgCO2e par serveur. %s "
+            "L'entrée ADEME ne nomme ni modèle ni gamme, quand ce moteur "
+            "décrit un serveur biprocesseur de volume : il n'y a pas "
+            "contradiction, mais le facteur employé est haut dans sa "
+            "fourchette. Le bâti et les lots techniques ne sont pas "
+            "confrontables — la Base Carbone les exprime au mètre carré, ce "
+            "moteur au kilowatt informatique, et aucun modèle de surface ne "
+            "fait le pont ici."
+            % (ref["valeur"], ref["unite"] or "kgCO2e/appareil",
+               ref["incertitude_pct"], e["bas"], e["haut"],
+               INCORPORE["serveur_kgCO2e"]["valeur"],
+               "Elle tient dans l'intervalle." if e["encadre"]
+               else "Elle en SORT par le haut, de %.0f %%."
+                    % abs(e["depassement_pct"])))
+
+
 def avertissements(profil, res):
     """Ce que le calcul NE dit pas. Volontairement placé dans le résultat.
 
@@ -1835,6 +1887,12 @@ def avertissements(profil, res):
               "remplacer par leurs déclarations environnementales produit : "
               "l'écart peut atteindre un facteur deux et changer le classement "
               "des leviers.")
+    # …ET CE QUE LA RÉFÉRENCE RÉGLEMENTAIRE EN DIT, quand elle porte le poste.
+    # Calculée sur le fichier et non écrite : le jour où l'ADEME publie une
+    # v23, la phrase suit toute seule.
+    _i = _reserve_incorpore()
+    if _i:
+        av.append(_i)
     if res["eau"]["part_evaporative"] > 0:
         av.append("La consommation d'eau est annualisée. Or elle se concentre "
                   "sur les heures chaudes — c'est-à-dire au moment où la "

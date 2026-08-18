@@ -167,3 +167,51 @@ def test_sans_table_demandee_la_route_ne_confronte_rien(connecte):
     d = connecte.get("/api/base-carbone").get_json()
     assert d["ok"] is True
     assert "confrontation" not in d
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  L'AUTRE FACTEUR D'ÉMISSION : LE CARBONE INCORPORÉ
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_LE_POINT_QUI_DECIDE_l_encadrement_repond_a_l_incertitude_declaree():
+    """DEUX CHIFFRES QUI DIFFÈRENT D'UN FACTEUR DEUX NE SE CONTREDISENT PAS si
+    la référence annonce ±80 %. La question n'est pas « sont-ils égaux » mais
+    « la valeur tient-elle dans l'intervalle publié ». Mesuré : 1 200 sort de
+    [120 ; 1 080] par le haut, de 11 % — ce qui ne tranche rien et doit être
+    écrit ainsi plutôt qu'en verdict."""
+    ref = BC.poste("Serveurs informatiques")[0]
+    assert ref["incertitude_pct"] == 80.0, ref
+    e = BC.encadre(DC.INCORPORE["serveur_kgCO2e"]["valeur"], ref)
+    assert e["encadre"] is False
+    assert e["haut"] == 1080.0
+    assert 0 < e["depassement_pct"] < 20, e
+    # Une valeur au milieu de l'intervalle est, elle, encadrée.
+    assert BC.encadre(600, ref)["encadre"] is True
+
+
+def test_sans_incertitude_declaree_on_N_EN_INVENTE_PAS():
+    e = BC.encadre(1000, {"valeur": 600, "incertitude_pct": None})
+    assert e["encadre"] is None
+    assert "ne déclare pas d'incertitude" in e["dit"]
+
+
+def test_la_reserve_incorpore_DIT_CE_QUI_N_A_PAS_PU_ETRE_CONFRONTE():
+    """Le bâti est exprimé au kW informatique ici, au m² à l'ADEME, et aucun
+    modèle de surface ne fait le pont. Inventer un ratio pour produire une
+    comparaison serait pire que de n'en produire aucune."""
+    r = DC._reserve_incorpore()
+    assert r
+    assert "1080" in r.replace(".0", "") or "1080.0" in r
+    assert "SORT par le haut" in r
+    assert "mètre carré" in r
+    assert "aucun modèle de surface" in r
+
+
+def test_l_etude_PORTE_la_confrontation_du_carbone_incorpore():
+    """Elle vaut pour toute étude : le carbone incorporé ne dépend ni du pays
+    ni du facteur réseau que le client apporterait."""
+    for profil in ({"pays": "FR", "puissance_it_kw": 500},
+                   {"pays": "SE", "puissance_it_kw": 500,
+                    "intensite_reseau_g": 12}):
+        av = " ".join(DC.etude(profil)["avertissements"])
+        assert "CARBONE INCORPORÉ, CONFRONTÉ À LA RÉFÉRENCE" in av, profil
