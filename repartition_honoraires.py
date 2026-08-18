@@ -192,6 +192,30 @@ def lignes_remplies(res, cote="haut"):
     return out
 
 
+def recalculer_fin(res, refaire):
+    """Le même calcul, à l'euro près, pour RÉPARTIR au lieu d'afficher.
+
+    POURQUOI CE DÉTOUR. Le barème arrondit au millier d'euros — la bonne
+    granularité pour afficher un ordre de grandeur. Mais ce tableau additionne
+    soixante-cinq montants ainsi arrondis, et la somme s'écartait alors de la
+    base contractuelle : 0,09 % sur un projet de 42 M€, mais 1,21 % sur un
+    projet de 2 M€, soit 2 000 € sur 165 000 €. Dans une pièce qui sert à
+    payer, ce n'est plus un arrondi.
+
+    `refaire` est la fonction qui rejoue LE MÊME calcul avec LES MÊMES entrées :
+    on ne réimplémente pas le barème, on le redemande plus fin.
+    """
+    import moe_dc
+    try:
+        with moe_dc.precision_fine():
+            r = refaire()
+        return r if r.get("ok") else res
+    except Exception:  # noqa: BLE001
+        # LE TABLEAU RESTE PRODUCTIBLE si le recalcul échoue : il portera les
+        # montants arrondis et son écart, comme avant.
+        return res
+
+
 def etat(res, cote="haut", operation="", reference=""):
     """Le bloc servi par l'API : de quoi afficher le tableau sans le fichier."""
     lg = lignes_remplies(res, cote)

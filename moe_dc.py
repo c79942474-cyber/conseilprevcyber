@@ -41,6 +41,9 @@ module refuse de le faire : il les marque, et les compte même si on les
 décoche.
 """
 
+import contextlib
+import contextvars
+
 VERSION = "2026-08-a"
 
 SOURCE = {
@@ -247,8 +250,48 @@ LOTS_EXCLUS = {
 PART_VRD_DANS_CLOS = 0.041
 
 
-def _f(x, n=3):
-    return round(float(x), n)
+# LA PRÉCISION D'ARRONDI EST CONTEXTUELLE, ET VOICI POURQUOI ELLE A DÛ L'ÊTRE.
+#
+# Tout ce module arrondit au millième de million d'euros — le millier d'euros.
+# C'est la bonne granularité POUR AFFICHER : personne ne lit un honoraire au
+# centime, et publier « 3 459 330 € » donnerait une fausse impression de
+# précision sur un barème relevé.
+#
+# Mais le tableau de répartition des honoraires n'affiche pas : il RÉPARTIT. Il
+# additionne treize missions sur cinq phases, soit soixante-cinq montants
+# arrondis chacun au millier. MESURÉ : la somme s'écarte alors de la base
+# contractuelle de 0,09 % sur un projet de 42 M€ de travaux — négligeable — mais
+# de 1,21 % sur un projet de 2 M€, soit 2 000 € sur 165 000 €. Dans une pièce
+# de marché qui sert à payer, ce n'est plus un arrondi, c'est une erreur.
+#
+# Vérifié : à précision fine, l'écart est EXACTEMENT NUL à toutes les tailles de
+# projet testées. Le barème est juste ; seul son arrondi d'affichage créait
+# l'écart.
+#
+# POURQUOI UNE VARIABLE DE CONTEXTE ET NON UN PARAMÈTRE. `_f` est appelée en
+# vingt-trois endroits ; la traverser de bout en bout aurait touché toutes les
+# signatures. Et pourquoi pas une simple globale : ce module sert des requêtes
+# concurrentes, et une globale modifiée le temps d'un calcul fuirait sur la
+# requête d'à côté. Une variable de contexte est propre à son fil d'exécution.
+_PRECISION = contextvars.ContextVar("moe_precision", default=3)
+
+
+@contextlib.contextmanager
+def precision_fine(decimales=9):
+    """Le temps d'un calcul, arrondir à l'euro près plutôt qu'au millier.
+
+    À réserver à ce qui RÉPARTIT — un tableau d'honoraires, un échéancier. Pour
+    afficher, la précision par défaut reste la bonne : un barème relevé ne se
+    lit pas au centime."""
+    jeton = _PRECISION.set(int(decimales))
+    try:
+        yield
+    finally:
+        _PRECISION.reset(jeton)
+
+
+def _f(x, n=None):
+    return round(float(x), _PRECISION.get() if n is None else n)
 
 
 def assiettes(parts_lots, enveloppe_meur):

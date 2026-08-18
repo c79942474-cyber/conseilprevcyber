@@ -2986,9 +2986,16 @@ def api_datacenter_moe_repartition():
         phases = ([x for x in (demandees or []) if x in p["phases"]]
                   if demandees is not None else p["phases"])
         cote = "bas" if (d.get("cote") == "bas") else "haut"
-        r = moe_dc.honoraires_directs(trav, part_technique=pt, phases=phases,
-                                      missions=d.get("missions"),
-                                      taux_perso=d.get("taux_perso") or None)
+        # À L'EURO PRÈS, PARCE QUE CE TABLEAU RÉPARTIT AU LIEU D'AFFICHER.
+        # Le barème arrondit au millier — bonne granularité pour lire un ordre
+        # de grandeur, mais ce tableau additionne soixante-cinq montants ainsi
+        # arrondis : la somme s'écartait de la base contractuelle de 1,21 % sur
+        # un projet de 2 M€ de travaux. Dans une pièce qui sert à payer, ce
+        # n'est plus un arrondi.
+        with moe_dc.precision_fine():
+            r = moe_dc.honoraires_directs(trav, part_technique=pt, phases=phases,
+                                          missions=d.get("missions"),
+                                          taux_perso=d.get("taux_perso") or None)
         if not r.get("ok"):
             return jsonify(r), 400
         operation = str(d.get("operation") or "")[:120]

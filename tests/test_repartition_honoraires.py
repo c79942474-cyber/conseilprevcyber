@@ -22,8 +22,17 @@ import moe_dc
 import repartition_honoraires as RH
 
 
-def _res(bas=38.0, haut=42.0):
-    r = moe_dc.honoraires_directs([bas, haut])
+def _res(bas=38.0, haut=42.0, fin=True):
+    """Le calcul, à l'euro près par défaut — comme le font les routes.
+
+    CE TABLEAU RÉPARTIT, IL N'AFFICHE PAS. Le barème arrondit au millier, ce
+    qui convient pour lire ; additionner soixante-cinq montants ainsi arrondis
+    faisait dériver la somme de 1,21 % sur un projet de 2 M€."""
+    if fin:
+        with moe_dc.precision_fine():
+            r = moe_dc.honoraires_directs([bas, haut])
+    else:
+        r = moe_dc.honoraires_directs([bas, haut])
     assert r.get("ok"), r
     return r
 
@@ -80,20 +89,41 @@ def test_l_OPC_n_est_compte_qu_une_fois():
         assert "opc" not in L["par_mission"], L["code"]
 
 
-def test_LE_TOTAL_BOUCLE_et_l_ecart_d_arrondi_est_PUBLIE():
+def test_LE_POINT_QUI_DECIDE_le_tableau_BOUCLE_A_L_EURO_PRES():
+    """LE DÉFAUT MESURÉ, ET IL ÉTAIT DANS LA PRÉCISION, PAS DANS LE PARTAGE.
+
+    Le barème arrondit chaque montant au millier d'euros. Ce tableau en
+    additionne soixante-cinq — treize missions sur cinq phases — et la somme
+    s'écartait alors de la base contractuelle : 0,09 % sur un projet de 42 M€
+    de travaux, mais 1,21 % sur un projet de 2 M€, soit 2 000 € sur 165 000 €.
+    Dans une pièce qui sert à payer, ce n'est plus un arrondi.
+
+    Calculé à l'euro près, l'écart est NUL — à toutes les tailles, y compris
+    les petites, qui étaient les plus touchées."""
+    for trav in ([2.0, 2.0], [8.0, 10.0], [38.0, 42.0], [400.0, 450.0]):
+        for cote in ("bas", "haut"):
+            E = RH.etat(_res(trav[0], trav[1]), cote)
+            assert abs(E["ecart_arrondi_eur"]) < 1.0, (trav, cote, E["ecart_arrondi_eur"])
+
+
+def test_sans_la_precision_fine_l_ecart_EXISTE_et_c_est_pourquoi_elle_est_la():
+    """Le contrôle précédent ne prouverait rien si l'écart n'existait pas sans
+    la précision fine : il passerait tout seul."""
+    E = RH.etat(_res(2.0, 2.0, fin=False))
+    assert abs(E["ecart_arrondi_pct"]) > 1.0, E["ecart_arrondi_pct"]
+
+
+def test_l_ecart_d_arrondi_reste_PUBLIE_quand_il_existe():
     """Les montants du barème sont arrondis au millier ; sur treize missions et
     cinq phases, la somme s'écarte de la base contractuelle. Mesuré : +3 000 €
     sur 3,459 M€, soit 0,09 %. Forcer le total obligerait à retoucher une ligne
     au hasard ; le taire laisserait un lecteur attentif trouver seul une
     différence inexpliquée."""
-    E = RH.etat(_res())
+    E = RH.etat(_res(2.0, 2.0, fin=False))
     assert E["total_eur"] > 0
-    assert abs(E["ecart_arrondi_pct"]) < 0.5, E["ecart_arrondi_pct"]
-    # L'écart est NON NUL sur ce jeu : sans cela le contrôle ne prouverait rien.
     assert E["ecart_arrondi_eur"] != 0
-    # …et il se retrouve bien dans le classeur.
     import io, openpyxl
-    wb = openpyxl.load_workbook(io.BytesIO(RH.octets(_res())))
+    wb = openpyxl.load_workbook(io.BytesIO(RH.octets(_res(2.0, 2.0, fin=False))))
     txt = " ".join(str(c.value) for row in wb.active.iter_rows() for c in row
                    if c.value is not None)
     assert "Écart d'arrondi" in txt
