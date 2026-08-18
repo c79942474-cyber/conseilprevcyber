@@ -209,34 +209,20 @@
             <span class="case-co">Postes haute tension</span>
             <span class="case-sec">Énergie <span class="typ">cas type</span></span>
           </div>
-          <div class="case-role">Pilotage cybersécurité OT sur projets de postes HT — IEC&nbsp;62443‑3‑2 / 3‑3 · NIS2 &amp; BDEW</div>
+          <div class="case-role">Cybersécurité OT sur projets de postes HT — IEC&nbsp;62443‑3‑2 / 3‑3 · NIS2 &amp; BDEW</div>
           <p>Un poste haute tension n'est pas une salle serveurs avec des disjoncteurs&nbsp;: <strong>l'ordre de
-          déclenchement doit partir en quelques millisecondes</strong>, et cette contrainte commande l'architecture de
-          sécurité bien plus que le catalogue de mesures.</p>
+          déclenchement part en quelques millisecondes</strong>, et cette contrainte commande l'architecture de sécurité.</p>
           <ul>
-            <li><strong>Plan d'exécution cybersécurité</strong> — périmètre étudié, rôles exploitant / intégrateur /
-            fournisseurs au sens de l'<strong>IEC&nbsp;62443‑2‑4</strong>, et <strong>points d'arrêt avant commande</strong>&nbsp;:
-            après, une exigence ne se négocie plus, elle se paie en avenant.</li>
-            <li><strong>Zones &amp; conduits (62443‑3‑2)</strong> — bus de process, bus de station, téléconduite vers le
-            dispatching, accès distant fournisseur&nbsp;: quatre régimes de risque distincts. <strong>Un SL‑T par zone,
-            pas un par site.</strong> En sortie, la spécification des exigences de cybersécurité, opposable au marché.</li>
-            <li><strong>Mesures (62443‑3‑3 et 4‑2)</strong> — les sept exigences fondamentales déclinées au SL‑T retenu,
-            puis traduites en exigences de composant et de cycle de développement fournisseur.</li>
-            <li><strong>La contrainte qui décide de l'architecture</strong> — <strong>GOOSE</strong> et valeurs
-            échantillonnées sont du multicast de niveau 2 à contrainte temps réel dure&nbsp;: ils <strong>ne traversent
-            pas un pare-feu à états</strong>, le cloisonnement se joue sur le commutateur. <strong>Modbus</strong> n'a ni
-            authentification ni intégrité&nbsp;; <strong>DNP3</strong> et <strong>OPC&nbsp;UA</strong> en ont, encore
-            faut-il les activer.</li>
-            <li><strong>Cadre réglementaire</strong> — <strong>NIS2</strong> et sa transposition allemande, catalogue de
-            sécurité de la <strong>Bundesnetzagentur</strong> (art.&nbsp;11 EnWG), livre blanc <strong>BDEW/OE</strong>
-            couramment imposé contractuellement en DACH — qui se superpose à l'IEC&nbsp;62443 sans la remplacer.</li>
-            <li><strong>Essais et remise</strong> — les exigences système au SL‑T deviennent critères d'acceptation en
-            usine puis sur site&nbsp;; l'exploitant doit pouvoir <em>tenir</em> le niveau après le départ de l'intégrateur.</li>
+            <li><strong>Zones &amp; conduits (62443‑3‑2)</strong> — bus de process, bus de station, téléconduite, accès
+            distant fournisseur&nbsp;: quatre régimes de risque. <strong>Un SL‑T par zone, pas un par site</strong> (62443‑3‑3), puis
+            les exigences cascadées aux fournisseurs (62443‑2‑4) avec points d'arrêt avant commande.</li>
+            <li><strong>Cadre allemand</strong> — NIS2, catalogue de la <strong>Bundesnetzagentur</strong> (art.&nbsp;11
+            EnWG), livre blanc <strong>BDEW/OE</strong> imposé contractuellement. À la réception, les exigences au SL‑T
+            font critères d'acceptation.</li>
           </ul>
-          <p class="muted" style="font-size:12.5px;margin-top:10px">Cadre d'intervention&nbsp;: ce
-          <strong>n'est pas</strong> le compte rendu d'une mission conduite — aucun client, aucun site, aucun résultat
-          chiffré n'y est revendiqué.</p>
-          <div class="tags"><span>IEC 62443‑3‑2</span><span>IEC 62443‑3‑3</span><span>Zones &amp; conduits</span><span>SL‑T</span><span>IEC 61850 · GOOSE</span><span>Modbus · DNP3 · OPC UA</span><span>NIS2</span><span>BDEW · EnWG</span></div>
+          <p class="muted" style="font-size:12.5px;margin-top:10px">Cadre d'intervention&nbsp;: ce <strong>n'est
+          pas</strong> une mission conduite — aucun client, aucun résultat chiffré.</p>
+          <div class="tags"><span>IEC 62443‑3‑2</span><span>SL‑T</span><span>NIS2</span><span>BDEW · EnWG</span></div>
         </div>
 
       </div>
