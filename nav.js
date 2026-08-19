@@ -70,6 +70,81 @@
     "Entreprise": "var(--violet)"
   };
 
+  /* LES ICÔNES DES ENTRÉES — quarante-trois, une par page.
+     Plus petites et plus sobres que celles des rubriques : la rubrique donne
+     la teinte, l'entrée n'en est qu'une déclinaison. Une entrée aussi voyante
+     que son titre de section ferait deux niveaux qui crient en même temps, et
+     on ne saurait plus lequel structure l'autre.
+
+     ELLES NE DISTINGUENT PAS À ELLES SEULES, et n'ont pas à le faire : chaque
+     entrée porte son intitulé écrit juste à côté, et deux sections peuvent
+     réemployer une même silhouette sans confusion — un dossier sous
+     « Expertise » et un dossier sous « Entreprise » ne se rencontrent jamais
+     dans le même regard. Ce qui compte, c'est qu'À L'INTÉRIEUR d'une rubrique
+     elles diffèrent. */
+  var NAV_IC_PAGE = {
+    /* ── Expertise ─────────────────────────────────────────────────────── */
+    "/services": '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/>',
+    "/secteurs": '<path d="M3 21V10l6 3.5V10l6 3.5V6l6 3.5V21z"/><path d="M3 21h18"/>',
+    "/methodologie": '<circle cx="5" cy="6" r="2.3"/><circle cx="5" cy="18" r="2.3"/><circle cx="19" cy="12" r="2.3"/><path d="M7.3 6h4.2a3 3 0 0 1 3 3v.8M7.3 18h4.2a3 3 0 0 0 3-3v-.8"/>',
+    "/etudes-de-cas": '<path d="M5 3.5h11l3.5 3.5v13.5H5z"/><path d="M16 3.5V7h3.5"/><path d="M9 12h6M9 16h4"/>',
+    /* ── Conseil & transformation ──────────────────────────────────────── */
+    "/operating-model": '<rect x="9" y="2.5" width="6" height="4.5" rx="1"/><rect x="2.5" y="16" width="6" height="4.5" rx="1"/><rect x="15.5" y="16" width="6" height="4.5" rx="1"/><path d="M12 7v4M5.5 16v-2.5h13V16"/>',
+    "/maturite-ot": '<path d="M4 20V15M9.3 20v-8M14.7 20v-11M20 20V6"/>',
+    "/feuille-de-route": '<path d="M3 6.5 9 4l6 2.5 6-2.5v13L15 19.5 9 17l-6 2.5z"/><path d="M9 4v13M15 6.5v13"/>',
+    "/continuite-ot": '<path d="M12 2.5 20 6v5.5c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V6z"/><path d="m12.8 8-3 4.6h3l-1 3.4"/>',
+    "/gestion-des-changements": '<path d="M3.5 7.5h13"/><path d="m13 4 3.5 3.5L13 11"/><path d="M20.5 16.5h-13"/><path d="m11 13-3.5 3.5L11 20"/>',
+    "/architecture-cible": '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.7"/><circle cx="12" cy="12" r="1.3"/>',
+    "/formation": '<path d="M12 4 2.5 8.5 12 13l9.5-4.5z"/><path d="M6.5 10.8V16c0 1.6 2.5 3 5.5 3s5.5-1.4 5.5-3v-5.2"/>',
+    "/gouvernance-ia": '<rect x="7.5" y="7.5" width="9" height="9" rx="2"/><path d="M10.5 4v3.5M13.5 4v3.5M10.5 16.5V20M13.5 16.5V20M4 10.5h3.5M4 13.5h3.5M16.5 10.5H20M16.5 13.5H20"/>',
+    "/relecture-contrat": '<path d="M5 3.5h9l4 4V15"/><path d="M14 3.5V7h4"/><path d="M5 3.5V21h6"/><circle cx="16.5" cy="17.5" r="3.2"/><path d="m19 20 2.2 2.2"/>',
+    /* ── Ingénierie de Projet — Data Center ────────────────────────────── */
+    "/strategie-durable-datacenter": '<path d="M20 4c0 9-5.5 13-11 13a5.5 5.5 0 0 1 0-11c4 0 6-2 11-2z"/><path d="M4 21c1.5-5 5-8.5 9.5-10.5"/>',
+    "/datacenter": '<rect x="3" y="3.5" width="18" height="6" rx="1.5"/><rect x="3" y="14.5" width="18" height="6" rx="1.5"/><path d="M6.8 6.5h.01M6.8 17.5h.01"/><path d="m14 5.5-1.6 2.6h2.2L13 11"/>',
+    "/ingenierie-datacenter": '<path d="M4 20 14.5 9.5"/><path d="m12.5 7.5 4 4 3-3a2.8 2.8 0 0 0-4-4z"/><path d="M4 20v-3.5L7.5 20z"/><path d="M17 17h4M19 15v4"/>',
+    /* ── Référentiel IEC 62443 ─────────────────────────────────────────── */
+    "/referentiel": '<rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M3.5 9h17M9 9v11.5"/>',
+    "/analyse-de-risque": '<path d="M12 3.5 21.5 20H2.5z"/><path d="M12 10v4M12 17h.01"/>',
+    "/programme-securite": '<path d="M12 2.5 20 6v5.5c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V6z"/><path d="M8.5 12h7M12 8.5v7"/>',
+    "/exigences-systeme": '<rect x="2.5" y="5" width="19" height="11" rx="2"/><path d="M8 20h8M12 16v4"/>',
+    "/exigences-composants": '<rect x="8" y="8" width="8" height="8" rx="1.5"/><path d="M11 4.5V8M13 4.5V8M11 16v3.5M13 16v3.5M4.5 11H8M4.5 13H8M16 11h3.5M16 13h3.5"/>',
+    "/exigences-prestataires": '<circle cx="8.5" cy="8" r="3"/><path d="M2.5 19.5a6 6 0 0 1 12 0"/><circle cx="17" cy="9.5" r="2.4"/><path d="M14.5 19.5a5 5 0 0 1 7-4.6"/>',
+    "/developpement-securise": '<path d="m8 8-4.5 4L8 16"/><path d="m16 8 4.5 4L16 16"/><path d="m13.5 5-3 14"/>',
+    "/technologies-securite": '<rect x="2.5" y="4" width="19" height="5" rx="1.2"/><rect x="2.5" y="9.5" width="19" height="5" rx="1.2"/><rect x="2.5" y="15" width="19" height="5" rx="1.2"/><path d="M8 4v5M16 9.5v5M8 15v5"/>',
+    "/gestion-correctifs": '<rect x="2.5" y="8.5" width="19" height="7" rx="3.5" transform="rotate(-38 12 12)"/><path d="m9.5 9.5 5 5"/>',
+    "/glossaire-62443": '<path d="M4 5.5A2 2 0 0 1 6 3.5h13V19H6a2 2 0 0 0-2 2z"/><path d="M8 8.5h7M8 12h5"/>',
+    "/metriques-62443": '<path d="M3.5 20h17"/><rect x="5" y="12" width="3.5" height="6" rx="1"/><rect x="10.3" y="8" width="3.5" height="10" rx="1"/><rect x="15.6" y="4.5" width="3.5" height="13.5" rx="1"/>',
+    /* ── Conformité & audit ────────────────────────────────────────────── */
+    "/audit-conformite": '<circle cx="12" cy="12" r="9"/><path d="m8 12.3 2.7 2.7L16 9.5"/>',
+    "/diagnostic": '<circle cx="10.5" cy="10.5" r="7"/><path d="m15.6 15.6 5 5"/><path d="m7.6 10.6 2 2 3.4-3.6"/>',
+    "/nis2": '<circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/><path d="M12 3a13 13 0 0 1 0 18a13 13 0 0 1 0-18"/>',
+    "/juridique": '<path d="M12 3.5V21M7 21h10"/><path d="M4 8h16"/><path d="M6.5 8 4 14h5zM17.5 8 15 14h5z"/>',
+    /* ── Plateforme ────────────────────────────────────────────────────── */
+    "/demo": '<rect x="2.5" y="4" width="19" height="12.5" rx="2"/><path d="M8 20.5h8M12 16.5v4"/><path d="m6.5 12 2.8-3 2.4 2.4L15.5 8"/>',
+    "/tendances": '<path d="M3.5 17 9 11l3.5 3.5L20.5 6"/><path d="M15.5 6h5v5"/>',
+    "/connecter": '<path d="M9 3.5v5M15 3.5v5"/><path d="M6.5 8.5h11V13a5.5 5.5 0 0 1-11 0z"/><path d="M12 18.5V21"/>',
+    "/guide-integration": '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M4.2 7.2l2.6 1.5M17.2 15.3l2.6 1.5M4.2 16.8l2.6-1.5M17.2 8.7l2.6-1.5"/>',
+    "/assistant": '<path d="M3.5 6.5A2.5 2.5 0 0 1 6 4h12a2.5 2.5 0 0 1 2.5 2.5v7A2.5 2.5 0 0 1 18 16H9l-5.5 4.5z"/><path d="M8.5 10h.01M12 10h.01M15.5 10h.01"/>',
+    /* ── Ressources ────────────────────────────────────────────────────── */
+    "/veille": '<circle cx="12" cy="18.5" r="2"/><path d="M8.2 15.3a5.4 5.4 0 0 1 7.6 0"/><path d="M5 12a10 10 0 0 1 14 0"/><path d="M2 8.7a14.5 14.5 0 0 1 20 0"/>',
+    "/ressources": '<path d="M7 3.5h9l3.5 3.5v11H7z"/><path d="M16 3.5V7h3.5"/><path d="M4.5 7v13.5H16"/>',
+    "/faq": '<circle cx="12" cy="12" r="9"/><path d="M9.4 9.3a2.7 2.7 0 0 1 5.2.9c0 1.8-2.6 2.3-2.6 3.8"/><path d="M12 17.2h.01"/>',
+    /* ── Entreprise ────────────────────────────────────────────────────── */
+    "/": '<path d="m3 10.5 9-7 9 7"/><path d="M5.5 9v11.5h13V9"/><path d="M10 20.5v-6h4v6"/>',
+    "/about": '<circle cx="12" cy="8" r="3.4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>',
+    "/vos-projets": '<rect x="2.5" y="7" width="19" height="13" rx="2"/><path d="M8.5 7V5.2A1.7 1.7 0 0 1 10.2 3.5h3.6A1.7 1.7 0 0 1 15.5 5.2V7"/><path d="M2.5 12.5h19"/>',
+    "/contact": '<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/>'
+  };
+
+  function navIconePage(chemin) {
+    var d = NAV_IC_PAGE[chemin];
+    if (!d) return "";
+    return '<svg class="drawer-ic-p" viewBox="0 0 24 24" width="14" height="14" '
+      + 'fill="none" stroke="currentColor" stroke-width="1.7" '
+      + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" '
+      + 'focusable="false">' + d + "</svg>";
+  }
+
   function navIcone(titre) {
     var d = NAV_ICONES[titre];
     if (!d) return "";
@@ -219,7 +294,8 @@
       s.l.forEach(function (it) {
         var cur = it[0] === path;
         var tip = NAV_TIP[it[0]] ? ' data-tip="' + _escAttr(NAV_TIP[it[0]]) + '"' : '';
-        html += '<a href="' + it[0] + '"' + (cur ? ' class="active" aria-current="page"' : '') + tip + '>' + it[1] + '</a>';
+        html += '<a href="' + it[0] + '"' + (cur ? ' class="active" aria-current="page"' : '')
+          + tip + '>' + navIconePage(it[0]) + '<span>' + it[1] + '</span></a>';
       });
       html += '</section>';
     });

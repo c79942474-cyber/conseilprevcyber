@@ -260,8 +260,24 @@ select:disabled option:checked{background-color:var(--panel2);color:var(--ink);
 .drawer-nav h4{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:15px;letter-spacing:.05em;text-transform:uppercase;
   font-weight:700;color:var(--ink);margin:20px 8px 8px;padding-bottom:7px;border-bottom:1px solid color-mix(in srgb,var(--nav-ic,var(--cyan)) 42%,transparent)}
 .drawer-nav section:first-child h4{margin-top:6px}
-.drawer-nav a{display:block;color:var(--muted);font-size:14px;padding:8px 10px;border-radius:8px;
+/* CHAQUE ONGLET PORTE AUSSI SON ICÔNE, mais en retrait. Elle reprend la teinte
+   de sa rubrique à intensité réduite : la famille se lit d'un coup d'œil sans
+   que l'entrée rivalise avec le titre qui la coiffe — deux niveaux également
+   voyants, et on ne sait plus lequel structure l'autre.
+   Le lien passe en rangée flexible : un intitulé qui passe à la ligne s'aligne
+   alors sur lui-même, et non sous l'icône. */
+.drawer-nav a{display:flex;align-items:flex-start;gap:9px;color:var(--muted);font-size:14px;padding:8px 10px;border-radius:8px;
   transform-origin:left center;transition:background .15s,color .15s,transform .15s ease}
+.drawer-nav a>span{min-width:0}
+/* ELLE SE CALE SUR LA PREMIÈRE LIGNE, pas sur le milieu du bloc : quelques
+   intitulés passent à la ligne dans un tiroir de 340 px, et centrés sur le bloc
+   leurs icônes tombaient ENTRE les deux lignes, en face de rien.
+   4 px, c'est la mesure : (22,4 px d'interligne − 14 px d'icône) / 2. La
+   recette la refait et échoue si l'un des trois nombres bouge sans les autres. */
+.drawer-nav .drawer-ic-p{flex:0 0 auto;margin-top:4px;color:var(--nav-ic,var(--cyan));opacity:.6;
+  transition:opacity .15s}
+.drawer-nav a:hover .drawer-ic-p,.drawer-nav a:focus-visible .drawer-ic-p,
+.drawer-nav a.active .drawer-ic-p{opacity:1}
 /* Effet loupe : l'onglet survolé grossit */
 .drawer-nav a:hover,.drawer-nav a:focus-visible{background:var(--panel2);color:var(--ink);transform:scale(1.08)}
 .drawer-nav a.active{color:var(--cyan);background:rgba(34,211,238,.10);font-weight:600}
