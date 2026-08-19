@@ -10,6 +10,75 @@
   document.documentElement.classList.add("js-nav");
 
   /* ── Arborescence unique du site (source de vérité de la navigation) ─────── */
+  /* LES ICÔNES DES RUBRIQUES — repères de navigation, pas décoration.
+     Dessinées en ligne plutôt que chargées : huit petites images feraient huit
+     requêtes pour trois kilo-octets, et un tiroir qui s'ouvre ne doit rien
+     attendre. Elles suivent la couleur du texte par `currentColor`, ce qui
+     leur donne la teinte de leur rubrique sans la répéter dans le tracé.
+
+     LA COULEUR N'EST JAMAIS LE SEUL SIGNAL. Chaque rubrique garde son
+     intitulé écrit, et chaque icône a une SILHOUETTE distincte : qui ne
+     distingue pas le cyan du violet reconnaît un livre d'un bâtiment, et lit
+     le titre dans tous les cas (WCAG 1.4.1). Les icônes sont donc masquées aux
+     aides vocales — les annoncer répéterait le titre juste à côté. */
+  var NAV_ICONES = {
+    "Expertise":
+      '<path d="M3 4.5A1.5 1.5 0 0 1 4.5 3H9a3 3 0 0 1 3 3v9a2.5 2.5 0 0 0-2.5-2.5H3z"/>'
+      + '<path d="M21 4.5A1.5 1.5 0 0 0 19.5 3H15a3 3 0 0 0-3 3v9a2.5 2.5 0 0 1 2.5-2.5H21z"/>',
+    /* DEUX FLÈCHES QUI S'ÉCHANGENT plutôt que deux arcs de cercle : les arcs
+       se refermaient mal à dix-sept pixels et donnaient une forme qu'on ne
+       reconnaissait pas. Une icône illisible à sa taille d'emploi n'est pas
+       une icône. */
+    "Conseil & transformation":
+      '<path d="M3 8.5h15"/><path d="m14 4.5 4 4-4 4"/>'
+      + '<path d="M21 15.5H6"/><path d="m10 11.5-4 4 4 4"/>',
+    "Ingénierie de Projet — Data Center":
+      '<rect x="3" y="4" width="18" height="6" rx="1.5"/>'
+      + '<rect x="3" y="14" width="18" height="6" rx="1.5"/>'
+      + '<path d="M7 7h.01M7 17h.01M11 7h5M11 17h5"/>',
+    "Référentiel IEC 62443":
+      '<path d="M12 2.5 20 6v5.5c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V6z"/>'
+      + '<path d="m8.8 11.8 2.3 2.3 4.3-4.6"/>',
+    "Conformité & audit":
+      '<rect x="4.5" y="3.5" width="15" height="17" rx="2"/>'
+      + '<path d="M9 3.5V2.8A1.3 1.3 0 0 1 10.3 1.5h3.4A1.3 1.3 0 0 1 15 2.8v.7z"/>'
+      + '<path d="m8.6 12.4 2.2 2.2 4.6-4.8"/>',
+    "Plateforme":
+      '<rect x="3" y="3.5" width="7.5" height="7" rx="1.5"/>'
+      + '<rect x="13.5" y="3.5" width="7.5" height="11" rx="1.5"/>'
+      + '<rect x="3" y="13.5" width="7.5" height="7" rx="1.5"/>'
+      + '<rect x="13.5" y="17.5" width="7.5" height="3" rx="1.5"/>',
+    "Ressources":
+      '<path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4l2 2.5h9A1.5 1.5 0 0 1 21 9v9.5A1.5 1.5 0 0 1 19.5 20h-15A1.5 1.5 0 0 1 3 18.5z"/>',
+    "Entreprise":
+      '<path d="M4 21V5.5A1.5 1.5 0 0 1 5.5 4h7A1.5 1.5 0 0 1 14 5.5V21"/>'
+      + '<path d="M14 10h4.5A1.5 1.5 0 0 1 20 11.5V21"/><path d="M2.5 21h19"/>'
+      + '<path d="M7 8h.01M11 8h.01M7 12h.01M11 12h.01M7 16h.01M11 16h.01M17 14h.01M17 17.5h.01"/>'
+  };
+
+  /* Une teinte par rubrique. Six couleurs de palette pour huit rubriques :
+     les deux dernières reprennent une teinte déjà employée, ce qui n'a pas de
+     conséquence — la couleur appuie la silhouette, elle ne la remplace pas. */
+  var NAV_TEINTES = {
+    "Expertise": "var(--cyan)",
+    "Conseil & transformation": "var(--violet)",
+    "Ingénierie de Projet — Data Center": "var(--teal)",
+    "Référentiel IEC 62443": "var(--amber)",
+    "Conformité & audit": "var(--green)",
+    "Plateforme": "var(--cyan)",
+    "Ressources": "var(--terra)",
+    "Entreprise": "var(--violet)"
+  };
+
+  function navIcone(titre) {
+    var d = NAV_ICONES[titre];
+    if (!d) return "";
+    return '<svg class="drawer-ic" viewBox="0 0 24 24" width="17" height="17" '
+      + 'fill="none" stroke="currentColor" stroke-width="1.7" '
+      + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" '
+      + 'focusable="false">' + d + "</svg>";
+  }
+
   var NAV_SECTIONS = [
     { t: "Expertise", l: [
       ["/services", "Services"], ["/secteurs", "Secteurs"],
@@ -145,7 +214,8 @@
       + '</span></button>'
       + '<nav class="drawer-nav" aria-label="Toutes les rubriques">';
     NAV_SECTIONS.forEach(function (s) {
-      html += '<section><h4>' + s.t + '</h4>';
+      html += '<section style="--nav-ic:' + (NAV_TEINTES[s.t] || "var(--cyan)")
+        + '"><h4>' + navIcone(s.t) + '<span>' + s.t + '</span></h4>';
       s.l.forEach(function (it) {
         var cur = it[0] === path;
         var tip = NAV_TIP[it[0]] ? ' data-tip="' + _escAttr(NAV_TIP[it[0]]) + '"' : '';
