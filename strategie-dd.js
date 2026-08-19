@@ -50,22 +50,64 @@
      LES QUATRE PERSPECTIVES, EN TÊTE
      ═════════════════════════════════════════════════════════════════════ */
 
+  /* UNE PERSPECTIVE À LA FOIS, CHOISIE — ET CE QUE LE PLI NE DOIT PAS EFFACER.
+     Les quatre cartes dépliées occupaient 509 px avant même la première
+     question. Repliées derrière un choix, elles en prennent le tiers.
+
+     MAIS CE BLOC EXISTE POUR MONTRER UNE ASYMÉTRIE : trois perspectives sont
+     demandées au client, la quatrième — la science — ne l'est pas, et c'est
+     tout le propos de la méthode. N'en afficher qu'une effacerait ce contraste.
+     Il est donc porté par le SÉLECTEUR lui-même : chaque option dit qui répond,
+     et une ligne au-dessus compte les deux natures. On lit l'asymétrie sans
+     ouvrir quoi que ce soit. */
+  function cartePerspective(p) {
+    return '<article class="sd-p p-' + esc(p.cle) + '">'
+      + "<h3>" + esc(p.nom)
+      + '<span class="sd-src s-' + esc(p.source) + '">'
+      + (p.source === "client" ? "vous répondez" : "établi par les données")
+      + "</span></h3>"
+      + '<p class="q">' + esc(p.question) + "</p>"
+      + '<p class="o">' + esc(p.objet) + "</p>"
+      + "<ul>" + p.outils.map(function (o) {
+          return "<li>" + esc(o) + "</li>"; }).join("") + "</ul>"
+      + (p.garde ? '<p class="sd-garde">' + esc(p.garde) + "</p>" : "")
+      + "</article>";
+  }
+
   function rendrePerspectives() {
     var z = $("#sd-persp");
     if (!z) return;
-    z.innerHTML = Q.perspectives.map(function (p) {
-      return '<article class="sd-p p-' + esc(p.cle) + '">'
-        + "<h3>" + esc(p.nom)
-        + '<span class="sd-src s-' + esc(p.source) + '">'
-        + (p.source === "client" ? "vous répondez" : "établi par les données")
-        + "</span></h3>"
-        + '<p class="q">' + esc(p.question) + "</p>"
-        + '<p class="o">' + esc(p.objet) + "</p>"
-        + "<ul>" + p.outils.map(function (o) {
-            return "<li>" + esc(o) + "</li>"; }).join("") + "</ul>"
-        + (p.garde ? '<p class="sd-garde">' + esc(p.garde) + "</p>" : "")
-        + "</article>";
-    }).join("");
+    var L = Q.perspectives || [];
+    if (!L.length) return;
+    /* LES COMPTES SE LISENT SUR LA DONNÉE, jamais écrits en dur : une
+       perspective ajoutée au moteur ne doit pas laisser un chiffre faux ici. */
+    var nClient = L.filter(function (p) { return p.source === "client"; }).length;
+    var nAutre = L.length - nClient;
+
+    z.innerHTML = '<p class="sd-persp-dit">' + L.length + " perspectives"
+      + " — <b>" + nClient + " vous sont demandées</b>, "
+      + nAutre + (nAutre > 1 ? " sont établies" : " est établie")
+      + " par les données.</p>"
+      + '<div class="sd-persp-choix">'
+      + '<label for="sd-persp-sel">Perspective</label>'
+      + '<select id="sd-persp-sel">'
+      + L.map(function (p, i) {
+          return '<option value="' + esc(p.cle) + '"' + (i === 0 ? " selected" : "")
+            + ">" + esc(p.nom) + " — "
+            + (p.source === "client" ? "vous répondez" : "établi par les données")
+            + "</option>";
+        }).join("")
+      + "</select></div>"
+      + '<div id="sd-persp-carte"></div>';
+
+    var sel = $("#sd-persp-sel");
+    var hote = $("#sd-persp-carte");
+    function montrer() {
+      var p = L.filter(function (x) { return x.cle === sel.value; })[0] || L[0];
+      hote.innerHTML = cartePerspective(p);
+    }
+    sel.addEventListener("change", montrer);
+    montrer();
   }
 
   /* ═════════════════════════════════════════════════════════════════════

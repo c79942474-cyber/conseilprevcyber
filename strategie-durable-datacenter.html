@@ -84,8 +84,25 @@
     background:rgba(0,0,0,.10)}
 
   /* ── Les quatre perspectives, en tête ──────────────────────────────── */
-  .sd-persp{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:13px;
-    margin:18px 0 4px}
+  /* UNE PERSPECTIVE À LA FOIS. Les quatre cartes dépliées prenaient 509 px
+     avant la première question. Le bloc n'est plus une grille : une ligne qui
+     compte, un sélecteur, et la carte choisie. */
+  .sd-persp{margin:18px 0 4px}
+  .sd-persp-dit{font-size:12.5px;color:var(--muted);margin:0 0 9px}
+  .sd-persp-dit b{color:var(--ink)}
+  .sd-persp-choix{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:11px}
+  .sd-persp-choix label{font-size:11.5px;color:var(--muted2);text-transform:uppercase;
+    letter-spacing:.04em}
+  .sd-persp-choix select{font-family:inherit;font-size:13px;padding:7px 30px 7px 11px;
+    min-height:34px;border-radius:8px;border:1px solid var(--line);
+    background:rgba(0,0,0,.24);color:var(--ink);cursor:pointer;
+    appearance:none;-webkit-appearance:none;max-width:100%;
+    background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='6'%3E%3Cpath d='M0 0h9L4.5 6z' fill='%238FA3AD'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 11px center;
+    transition:border-color .12s,box-shadow .12s}
+  .sd-persp-choix select:hover{border-color:var(--cyan)}
+  .sd-persp-choix select:focus-visible{outline:none;border-color:var(--cyan);
+    box-shadow:0 0 0 3px rgba(34,211,238,.20)}
   .sd-p{border:1px solid var(--line);border-radius:12px;padding:13px 15px;
     background:rgba(0,0,0,.10)}
   .sd-p.p-raison_etre{border-left:3px solid #a78bd0}
@@ -274,17 +291,12 @@
        max-width:40ch;color:var(--cyan)">Quatre perspectives, deux tensions, et
       un arbitrage qui s'assume</p>
     <p class="lead" style="max-width:74ch">
-      C'est le document qu'on écrit <b>avant</b> de calculer. Il ne dit pas combien :
-      il dit ce qu'on cherche, ce qu'on écarte, et pourquoi. Sans lui, une étude
-      d'ingénierie produit des chiffres justes sur des questions que personne n'a
-      choisies — et le dossier se renégocie à chaque comité.</p>
-    <p class="lead" style="max-width:74ch">
-      La méthode croise quatre perspectives. <b>Trois vous sont demandées</b> : ce que
-      le projet défend, ce que ses parties prenantes disent, ce qui affecte ses
-      résultats. <b>La quatrième — la science — ne l'est pas.</b> La recueillir comme
-      une opinion reviendrait à afficher un avis en le présentant comme une mesure, et
-      rendrait indétectables les écarts entre perception et réalité — qui sont
-      précisément l'apport de la méthode.</p>
+      C'est le document qu'on écrit <b>avant</b> de calculer : il ne dit pas combien,
+      il dit ce qu'on cherche et ce qu'on écarte. Sans lui, l'ingénierie produit des
+      chiffres justes sur des questions que personne n'a choisies.
+      <b>Trois perspectives vous sont demandées</b> ; la science, non — la recueillir
+      comme une opinion reviendrait à afficher un avis en le présentant comme une
+      mesure.</p>
 
     <div id="sd-persp" class="sd-persp"><p class="note">Chargement des perspectives…</p></div>
 
