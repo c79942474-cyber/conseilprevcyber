@@ -270,21 +270,35 @@ def test_l_inscription_ecrit_AU_CLIENT_et_PREVIENT_l_administrateur(
     """LES DEUX DESTINATAIRES, ET C'EST TOUTE LA DEMANDE. Le client reçoit sur
     SA propre adresse le lien qui confirme qu'elle est bien la sienne ;
     l'administrateur reçoit sur la sienne la demande à valider. L'un sans
-    l'autre laisse un compte en suspens que personne n'attend."""
+    l'autre laisse un compte en suspens que personne n'attend.
+
+    L'ORDRE A CHANGÉ, ET L'EXIGENCE EST PLUS FORTE QU'AVANT. Les deux courriels
+    partaient ensemble, au dépôt de la demande : l'administrateur recevait donc
+    des liens d'approbation portant des adresses que PERSONNE n'avait prouvées,
+    et le message le priait d'attendre une confirmation dont rien ne l'avisait
+    ensuite. Il est maintenant prévenu à la confirmation — les deux
+    destinataires y sont toujours, dans l'ordre qui les rend utiles."""
     import auth
     r = anonyme.post("/api/auth/register", headers=H,
                      json=dict(NOUVELLE, captcha=_captcha(anonyme)))
     assert r.status_code == 200, r.get_data(as_text=True)[:200]
 
-    destinataires = [m["to"] for m in courriels]
-    assert NOUVELLE["email"] in destinataires, destinataires
-    assert auth.ADMIN_EMAIL in destinataires, destinataires
-
+    # 1. Au dépôt : le client seul, et rien dans la boîte de l'exploitant.
+    assert [m["to"] for m in courriels] == [NOUVELLE["email"]], (
+        [m["to"] for m in courriels])
     au_client = next(m for m in courriels if m["to"] == NOUVELLE["email"])
     assert "/verifier-email/" in au_client["html"]
+    assert not auth.store.get(NOUVELLE["email"]).get("approve_token"), (
+        "un lien d'approbation existe avant que l'adresse soit prouvée")
+
+    # 2. À la confirmation : l'administrateur, avec un lien immédiatement utile.
+    u = auth.store.get(NOUVELLE["email"])
+    anonyme.get("/verifier-email/%s" % u["verify_token"])
     a_l_admin = next(m for m in courriels if m["to"] == auth.ADMIN_EMAIL)
     assert "/admin/approuver/" in a_l_admin["html"]
     assert NOUVELLE["email"] in a_l_admin["html"], "l'admin doit savoir qui"
+    assert auth.store.get(NOUVELLE["email"])["approve_expire"] > auth._now_ms(), (
+        "le lien d'approbation n'a pas d'échéance")
 
 
 def test_l_adresse_de_l_administrateur_est_bien_celle_qui_a_ete_donnee():
@@ -323,6 +337,9 @@ def test_la_validation_par_l_administrateur_ouvre_ET_PREVIENT_le_client(
                  json=dict(NOUVELLE, captcha=_captcha(anonyme)))
     u = auth.store.get(NOUVELLE["email"])
     anonyme.get("/verifier-email/%s" % u["verify_token"])
+    # LE JETON SE LIT APRÈS LA CONFIRMATION : c'est elle qui le frappe. Relu
+    # sur la fiche d'avant, il valait None — et le lien menait nulle part.
+    u = auth.store.get(NOUVELLE["email"])
 
     del courriels[:]
     r = anonyme.get("/admin/approuver/%s" % u["approve_token"])

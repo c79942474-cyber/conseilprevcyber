@@ -3,10 +3,16 @@
 Inspiré du système de Sentinel : mots de passe hachés (werkzeug), sessions Flask,
 captcha, protection anti-bruteforce, réponses anti-énumération, emails via Brevo.
 
-Flux : inscription → l'utilisateur confirme son email → l'admin approuve (lien reçu
-par email) → le compte peut se connecter. Les comptes non confirmés / non approuvés
-ne peuvent pas se connecter. Seuls le cockpit et la supervision sont protégés ; le
-contenu public reste ouvert.
+Flux : inscription → l'utilisateur confirme son email → C'EST ALORS SEULEMENT que
+l'administrateur est prévenu, avec un lien d'approbation valable trente jours →
+il approuve → le client est prévenu que son accès est ouvert. Les comptes non
+confirmés / non approuvés ne peuvent pas se connecter. Seuls le cockpit et la
+supervision sont protégés ; le contenu public reste ouvert.
+
+L'ORDRE DES DEUX PREMIÈRES ÉTAPES EST UN CHOIX DE SÉCURITÉ, pas de commodité :
+prévenir l'administrateur dès l'inscription lui faisait recevoir des demandes
+portant des adresses que personne n'avait prouvées, et lui demandait d'attendre
+une confirmation dont rien ne l'avisait.
 
 Stockage : PostgreSQL si DATABASE_URL est défini (persistant), sinon fichier JSON local.
 """
@@ -39,6 +45,15 @@ SENDER = {"name": "CONSEILPREV Cyber", "email": "christophe.cerf@i-aes.com"}
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 VERIFY_VALIDITY_H = 48
 RESET_VALIDITY_H = 2
+# LE JETON D'APPROBATION N'EXPIRAIT PAS, et c'était le seul des trois.
+# Confirmation d'adresse : 48 h. Réinitialisation de mot de passe : 2 h.
+# Approbation : illimitée — un courriel d'approbation vieux de deux ans
+# ouvrait encore un compte. Un lien qui ne meurt jamais survit à la boîte
+# qui l'a reçu : archive exportée, message transféré, messagerie reprise.
+# Trente jours laissent largement le temps de répondre ; passé ce délai,
+# l'approbation se fait depuis la page d'administration, qui exige une
+# session administrateur.
+APPROVE_VALIDITY_H = 24 * 30
 _MS = 1000
 
 # ---------------------------------------------------------------- utilitaires ---
@@ -100,7 +115,8 @@ client_ip = _client_ip
 # ------------------------------------------------------------------- stockage ---
 _FIELDS = ["email", "name", "org", "password_hash", "email_verified", "approved",
            "role", "verify_token", "verify_expire", "approve_token",
-           "reset_token", "reset_expire", "created_at", "last_login"]
+           "approve_expire", "reset_token", "reset_expire", "created_at",
+           "last_login"]
 
 
 class _JsonStore:
@@ -266,9 +282,14 @@ class _PgStore:
                     approved BOOLEAN DEFAULT FALSE,
                     role TEXT DEFAULT 'user',
                     verify_token TEXT, verify_expire BIGINT,
-                    approve_token TEXT,
+                    approve_token TEXT, approve_expire BIGINT,
                     reset_token TEXT, reset_expire BIGINT,
                     created_at BIGINT, last_login BIGINT)""")
+                # CREATE TABLE IF NOT EXISTS NE MIGRE RIEN : une base déjà
+                # déployée garderait son ancienne forme, et l'échéance
+                # d'approbation resterait absente là où elle compte le plus.
+                c.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+                          "approve_expire BIGINT")
             finally:
                 c.execute("SELECT pg_advisory_unlock(%s)", (self._LOCK_KEY,))
 
@@ -586,16 +607,19 @@ def _notify_admin(user, base=None):
     base = base or _base_url()
     url = "%s/admin/approuver/%s" % (base, user["approve_token"])
     send_email(ADMIN_EMAIL, "Admin",
-               "Nouvelle demande d'accès cockpit — %s" % user["email"],
+               "Accès à approuver (adresse confirmée) — %s" % user["email"],
                _shell("Nouvelle demande d'accès",
-                      "<p>Une demande de compte a été déposée :</p>"
+                      "<p>Une demande de compte a été déposée, et "
+                      "<b>l'adresse a été confirmée</b> par son titulaire :</p>"
                       "<ul><li><b>Nom :</b> %s</li><li><b>Organisation :</b> %s</li>"
                       "<li><b>Email :</b> %s</li></ul>"
-                      "<p>Après confirmation de son email par l'utilisateur, approuvez l'accès :</p>%s"
-                      "<p style=\"color:#8a9ab0;font-size:12px\">Gérer tous les comptes : "
-                      "<a href=\"%s/admin/comptes\">%s/admin/comptes</a></p>"
+                      "<p>Il ne manque que votre accord pour ouvrir l'accès :</p>%s"
+                      "<p style=\"color:#8a9ab0;font-size:12px\">Ce lien est valable "
+                      "%d jours. Passé ce délai, l'approbation se fait depuis la page "
+                      "d'administration : <a href=\"%s/admin/comptes\">%s/admin/comptes</a></p>"
                       % (user["name"] or "—", user["org"] or "—", user["email"],
-                         _btn(url, "Approuver cet accès"), base, base)))
+                         _btn(url, "Approuver cet accès"),
+                         APPROVE_VALIDITY_H // 24, base, base)))
 
 
 def _send_approved(user, base=None):
@@ -876,14 +900,15 @@ def api_register():
         "email_verified": False, "approved": False, "role": "user",
         "verify_token": secrets.token_urlsafe(32),
         "verify_expire": _now_ms() + VERIFY_VALIDITY_H * 3600 * _MS,
-        "approve_token": secrets.token_urlsafe(32),
+        # PAS DE JETON D'APPROBATION TANT QUE L'ADRESSE N'EST PAS PROUVÉE. Il
+        # est frappé à la confirmation, et pas avant — voir `verify_email`.
+        "approve_token": None, "approve_expire": None,
         "reset_token": None, "reset_expire": None,
         "created_at": _now_ms(), "last_login": None,
     }
     if not store.create(user):
         return generic
     threading.Thread(target=_send_verify, args=(user, _base_url()), daemon=True).start()
-    threading.Thread(target=_notify_admin, args=(user, _base_url()), daemon=True).start()
     return generic
 
 
@@ -893,18 +918,62 @@ def verify_email(token):
     u = store.get_by("verify_token", token)
     if not u or (u.get("verify_expire") or 0) < _now_ms():
         return send_from_directory(HERE, "lien-expire.html")
-    store.update(u["email"], email_verified=True, verify_token=None, verify_expire=None)
+    # L'ADMINISTRATEUR EST PRÉVENU ICI, ET NON À L'INSCRIPTION.
+    #
+    # Il l'était au dépôt de la demande, avec son lien d'approbation : n'importe
+    # qui pouvait donc faire tomber dans sa boîte une demande portant l'adresse
+    # d'un tiers, et le message lui-même le priait d'attendre une confirmation
+    # que rien ne lui signalait. Il approuvait à l'aveugle — la connexion
+    # refusait ensuite, faute d'adresse confirmée, mais le compte était marqué
+    # approuvé et l'administrateur croyait avoir fait son travail.
+    #
+    # Prévenir à la confirmation change trois choses : l'adresse est prouvée
+    # avant qu'on demande une décision, le lien reçu est immédiatement
+    # utilisable, et une vague de fausses inscriptions ne remplit plus la boîte
+    # de l'exploitant — seules les adresses réelles y arrivent.
+    jeton = secrets.token_urlsafe(32)
+    store.update(u["email"], email_verified=True, verify_token=None,
+                 verify_expire=None, approve_token=jeton,
+                 approve_expire=_now_ms() + APPROVE_VALIDITY_H * 3600 * _MS)
+    u = dict(u, email_verified=True, approve_token=jeton)
+    threading.Thread(target=_notify_admin, args=(u, _base_url()), daemon=True).start()
     return redirect("/connexion?verifie=1")
 
 
 @auth_bp.route("/admin/approuver/<token>")
 @comptes_requis
 def admin_approve(token):
+    # Le jeton fait 256 bits : il ne se devine pas. La limite de débit n'est
+    # donc pas là contre la force brute, mais contre l'usage d'une route
+    # ouverte comme oracle — et parce qu'une porte sans compteur ne se voit
+    # pas s'ouvrir.
+    rk = "approve:%s" % _client_ip()
+    if guard.blocked(rk, limit=20, window=600):
+        return ("<meta charset='utf-8'><p style=\"font-family:Arial;text-align:center;"
+                "margin-top:60px\">Trop de tentatives. Réessayez dans quelques minutes.</p>"), 429
+    guard.fail(rk)
     u = store.get_by("approve_token", token)
-    if not u:
+    if not u or (u.get("approve_expire") or 0) < _now_ms():
+        # UN LIEN QUI NE MEURT JAMAIS SURVIT À LA BOÎTE QUI L'A REÇU. Passé le
+        # délai, l'approbation reste possible depuis la page d'administration,
+        # qui exige une session administrateur.
         return send_from_directory(HERE, "lien-expire.html")
-    store.update(u["email"], approved=True, approve_token=None)
+    if not u.get("email_verified"):
+        # Ne devrait plus arriver — le jeton n'est frappé qu'à la confirmation —
+        # mais un compte antérieur à ce changement porte encore un jeton frappé
+        # à l'inscription. On refuse plutôt que d'approuver une adresse dont
+        # personne n'a prouvé qu'elle appartient au demandeur.
+        _tracer("compte.approbation.refus", u["email"],
+                "adresse non confirmée", ok=False)
+        return ("<meta charset='utf-8'><div style=\"font-family:Arial;max-width:520px;"
+                "margin:60px auto;text-align:center;color:#1c2530\">"
+                "<h1>Adresse non confirmée</h1><p>Le compte <b>%s</b> n'a pas encore "
+                "confirmé son adresse. L'approuver maintenant ne lui ouvrirait rien : "
+                "la connexion resterait refusée. Vous serez prévenu dès la "
+                "confirmation.</p></div>" % u["email"]), 409
+    store.update(u["email"], approved=True, approve_token=None, approve_expire=None)
     u["approved"] = True
+    _tracer("compte.approbation", u["email"], "par lien d'approbation")
     threading.Thread(target=_send_approved, args=(u, _base_url()), daemon=True).start()
     return ("<meta charset='utf-8'><div style=\"font-family:Arial;max-width:520px;margin:60px auto;"
             "text-align:center;color:#1c2530\"><h1>✅ Accès approuvé</h1>"
@@ -1136,7 +1205,7 @@ def api_admin_user_update(email):
     d = request.get_json(silent=True) or {}
     action = d.get("action")
     if action == "approve":
-        store.update(email, approved=True, approve_token=None)
+        store.update(email, approved=True, approve_token=None, approve_expire=None)
         u = store.get(email)
         threading.Thread(target=_send_approved, args=(u, _base_url()), daemon=True).start()
     elif action == "suspend":
@@ -1200,7 +1269,7 @@ def _bootstrap_admin():
         "password_hash": generate_password_hash(pw),
         "email_verified": True, "approved": True, "role": "admin",
         "verify_token": None, "verify_expire": None, "approve_token": None,
-        "reset_token": None, "reset_expire": None,
+        "approve_expire": None, "reset_token": None, "reset_expire": None,
         "created_at": _now_ms(), "last_login": None,
     })
 
