@@ -1399,6 +1399,24 @@ DISCIPLINES = {
                 "bilan de puissance du lot CFO n'est pas une valeur, c'est un "
                 "écart d'interface que personne n'a relevé.",
     },
+    # POURQUOI ELLE ARRIVE APRÈS LES AUTRES. Elle manquait, et son absence ne
+    # se voyait pas : ses livrables étaient bien au registre — estimation par
+    # lot, décomposition du prix, écart au budget — mais rattachés au
+    # management du design et à la conduite de projet, deux disciplines qui
+    # COORDONNENT le chiffrage sans le produire. Un maître d'ouvrage qui
+    # cherchait « qui établit la DPGF » ne trouvait donc personne.
+    "eco_construction": {
+        "nom": "Économie de la construction",
+        "aide": "Le chiffrage lui-même : quantitatifs, ratios, décomposition du "
+                "prix par lot, provisions, révision, écart au budget et coût "
+                "global.\nElle ne conçoit rien et ne coordonne rien — elle met "
+                "un prix sur ce que les autres ont dessiné, et c'est la seule "
+                "qui puisse dire ce qu'une décision technique coûte AVANT "
+                "qu'elle soit prise. Sur un centre de données, sa difficulté "
+                "propre est que le lot technique pèse l'essentiel de "
+                "l'enveloppe : un ratio moyen au mètre carré n'y veut rien "
+                "dire, et le chiffrage se fait au kilowatt informatique.",
+    },
     "safety": {
         "nom": "Safety — sécurité des personnes et des procédés",
         "aide": "Analyse de risque, philosophie générale de sécurité, scénarios "
@@ -1918,6 +1936,8 @@ _RECHERCHE_DISCIPLINE = {
             "température",
     "elec_cfo": "haute tension transformateur onduleur groupe électrogène TGBT "
                 "puissance",
+    "eco_construction": "estimation quantitatif DPGF décomposition prix ratio "
+                        "provision aléas budget écart chiffrage lot",
     "elec_cfa": "courants faibles GTB supervision câblage comptage",
     "telecom": "opérateur fibre adduction chemin redondant téléphonie",
     "incendie": "sécurité incendie compartimentage désenfumage détection ICPE",
@@ -2055,7 +2075,7 @@ _PIECES_DISCIPLINE = [
       "Actions attribuées : responsable, échéance et preuve de clôture attendue",
       "Décisions revenant sur un choix antérieur, et l'effet sur les pièces gelées"]),
     ("SPC-COUTAG", "Agrégation financière des lots et écart au budget",
-     "design_mgmt", "tableau", "moe", True,
+     "eco_construction", "tableau", "moe", True,
      {"ESQ": "principes", "APS": "emission", "APD": "maj", "PRO": "maj",
       "DCE": "gel", "ACT": "recalage", "AOR": "as_built",
       "FAISA": "principes", "BASIC": "emission", "FEED": "maj", "EPCI": "recalage"},
@@ -2254,7 +2274,7 @@ _PIECES_DISCIPLINE = [
       "Fin de vie, démontabilité et réversibilité du bâtiment",
       "Écart entre l'ordre de grandeur de conception et les données réelles"]),
     ("SPC-FORFAIT", "Étude globale forfaitaire et décomposition par poste",
-     "projet", "tableau", "moe", True,
+     "eco_construction", "tableau", "moe", True,
      {"APS": "principes", "APD": "emission", "PRO": "maj", "DCE": "gel",
       "FAISA": "principes", "BASIC": "emission", "FEED": "maj", "EPCI": "recalage"},
      ["Enveloppe globale et décomposition lot par lot",
@@ -3731,6 +3751,11 @@ SOUS_DOSSIERS_DISCIPLINE = {
     "fluides": ("Data center / Eau & stress hydrique",
                 "Data center / Refroidissement liquide & immersion",
                 "Data center / Thermique & refroidissement"),
+    # Deux sous-dossiers EXISTANTS, pas un de plus : le chiffrage se nourrit
+    # des pièces de marché et du retour de gouvernance de projet. Créer un
+    # dossier nouveau ferait une recherche qui ne ramène rien, sans erreur.
+    "eco_construction": ("Data center / Appels d'offres & CCTP",
+                         "Data center / Réalisation & gouvernance de projet"),
     "elec_cfo": ("Data center / Énergie & électricité",),
     # Courants faibles, télécoms : pas de sous-dossier dédié — la conception
     # d'ensemble est ce qui s'en approche le plus, et le reste de la famille
@@ -5395,7 +5420,7 @@ THEMES_GUIDE = [
         # PAS toute la discipline environnement : la RSE et le bâtiment bas
         # carbone en relèvent aussi et ne sont pas des sujets de coût. On nomme
         # l'étude de consommation, qui porte l'OPEX, et rien de plus.
-        "disciplines": ["projet"],
+        "disciplines": ["eco_construction", "projet"],
         "pieces_sup": ["SPC-CONSO", "SPC-FORFAIT", "SPC-TCO", "SPC-INVEST",
                        "SPC-AO"],
         "postes": ["incorpore"],
