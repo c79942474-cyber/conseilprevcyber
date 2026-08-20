@@ -3124,7 +3124,8 @@ def api_datacenter_economiste_chiffrer():
     r = econome_dc.chiffrer(data.get("operation"),
                             data.get("quantites"),
                             data.get("prix_unitaires"),
-                            data.get("provision_pct"))
+                            data.get("provision_pct"),
+                            data.get("provenances"))
     if not r.get("ok"):
         return jsonify(r), 400
     return jsonify(r)

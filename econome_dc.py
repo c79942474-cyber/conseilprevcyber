@@ -75,20 +75,10 @@ QUANTITES = {
         "ou": "Plans de niveau, surface utile intérieure des salles seules — "
               "hors locaux techniques, hors circulations.",
     },
-    "surface_technique_m2": {
-        "nom": "Surface des locaux techniques", "unite": "m²",
-        "ou": "Plans de niveau : locaux onduleurs, TGBT, groupes froids, "
-              "groupes électrogènes, locaux fluides.",
-    },
     "surface_batiment_m2": {
         "nom": "Surface totale du bâtiment", "unite": "m²",
         "ou": "Surface de plancher du permis, ou surface hors œuvre du DOE "
               "pour un bâtiment existant.",
-    },
-    "nombre_baies": {
-        "nom": "Nombre de baies", "unite": "baie",
-        "ou": "Plan d'implantation des salles. À défaut, la puissance "
-              "informatique divisée par la densité retenue.",
     },
     "surface_a_deposer_m2": {
         "nom": "Surface concernée par la dépose", "unite": "m²",
@@ -99,10 +89,6 @@ QUANTITES = {
         "nom": "Montant du marché repris", "unite": "€ HT",
         "ou": "Acte d'engagement du marché initial et derniers états "
               "d'acompte. Un chantier repris se chiffre sur ce qui RESTE.",
-    },
-    "duree_contrat_ans": {
-        "nom": "Durée du contrat", "unite": "an",
-        "ou": "Cahier des charges de maintenance.",
     },
 }
 
@@ -223,6 +209,61 @@ FAMILLES = {
     "existant": "Sujétions propres à l'existant",
     "exploitation": "Exploitation et renouvellement",
 }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  2 bis. D'OÙ VIENT LE PRIX — la colonne qui manquait
+#
+#     UN PRIX SANS PROVENANCE NE SE DÉFEND PAS SIX MOIS PLUS TARD. C'est la
+#     question que pose le maître d'ouvrage devant l'écart, et celle qu'on ne
+#     sait plus trancher si on ne l'a pas notée en saisissant. Le module ne
+#     propose donc AUCUN montant — il n'en a pas —, mais il propose la seule
+#     chose qu'il puisse fournir de fiable : la nature de la source, et ce
+#     qu'elle vaut.
+#
+#     LES PROVENANCES SONT ORDONNÉES, du plus opposable au moins engageant. Cet
+#     ordre est le seul jugement que le module porte sur un prix.
+# ═══════════════════════════════════════════════════════════════════════════
+
+PROVENANCES = {
+    "marche_notifie": {
+        "nom": "Marché notifié", "rang": 1,
+        "vaut": "Un prix signé sur une opération réelle. C'est le seul qui "
+                "engage quelqu'un.",
+        "reserve": "Daté : un prix de marché vieillit, et la révision se "
+                   "calcule, elle ne s'estime pas.",
+    },
+    "dgd": {
+        "nom": "Décompte général définitif", "rang": 2,
+        "vaut": "Le prix RÉELLEMENT payé, travaux modificatifs compris — le "
+                "plus instructif des cinq, et le plus rare à obtenir.",
+        "reserve": "Il porte les aléas de CETTE opération, qui ne sont pas "
+                   "ceux de la prochaine.",
+    },
+    "devis": {
+        "nom": "Devis d'entreprise", "rang": 3,
+        "vaut": "Un prix proposé sur un besoin décrit. Il engage l'entreprise "
+                "tant qu'il est valable.",
+        "reserve": "Un devis d'étude n'est pas un devis de marché : la "
+                   "consultation fait bouger les prix dans les deux sens.",
+    },
+    "bordereau": {
+        "nom": "Bordereau de prix unitaires", "rang": 4,
+        "vaut": "Votre base de prix, tenue et révisée. Elle vaut ce que vaut "
+                "sa mise à jour.",
+        "reserve": "Un bordereau non daté n'est plus un bordereau, c'est un "
+                   "souvenir.",
+    },
+    "estimation": {
+        "nom": "Estimation interne", "rang": 5,
+        "vaut": "Le jugement de l'économiste, faute de mieux. Légitime en "
+                "phase amont, à condition d'être annoncé comme tel.",
+        "reserve": "C'est la provenance qu'on oublie de remplacer. Elle doit "
+                   "se voir dans le tableau jusqu'à ce qu'elle disparaisse.",
+    },
+}
+
+ORDRE_PROVENANCES = ["marche_notifie", "dgd", "devis", "bordereau", "estimation"]
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -411,7 +452,8 @@ def operations():
     return out
 
 
-def chiffrer(operation, quantites=None, prix_unitaires=None, provision_pct=None):
+def chiffrer(operation, quantites=None, prix_unitaires=None, provision_pct=None,
+             provenances=None):
     """Le chiffrage d'une opération : quantité × prix unitaire, poste par poste.
 
     AUCUN PRIX N'EST EMBARQUÉ. Un poste sans prix unitaire ressort
@@ -425,6 +467,13 @@ def chiffrer(operation, quantites=None, prix_unitaires=None, provision_pct=None)
                            % (operation, ", ".join(ORDRE_OPERATIONS))}
     q = dict(quantites or {})
     pu = dict(prix_unitaires or {})
+    pv = dict(provenances or {})
+    prov_inconnues = sorted(set(pv.values()) - set(PROVENANCES))
+    if prov_inconnues:
+        return {"ok": False, "erreur": "provenance_inconnue",
+                "message": "Provenance inconnue : %s. Attendu : %s."
+                           % (", ".join(prov_inconnues),
+                              ", ".join(ORDRE_PROVENANCES))}
 
     inconnues = sorted(set(q) - set(QUANTITES))
     if inconnues:
@@ -437,7 +486,7 @@ def chiffrer(operation, quantites=None, prix_unitaires=None, provision_pct=None)
         return {"ok": False, "erreur": "poste_inconnu",
                 "message": "Poste inconnu : %s." % ", ".join(postes_inconnus)}
 
-    lignes, total, manque = [], 0.0, 0
+    lignes, total, manque, sans_source = [], 0.0, 0, 0
     for cle in o["postes"]:
         P = POSTES[cle]
         a = P["assiette"]
@@ -472,6 +521,23 @@ def chiffrer(operation, quantites=None, prix_unitaires=None, provision_pct=None)
                              % (_f(val_q, 3), QUANTITES[a]["unite"], _f(prix),
                                 _f(m)))
             total += m
+        # LA PROVENANCE ACCOMPAGNE LE PRIX, ou son absence est dite. Un prix
+        # sans source ne se défend pas six mois plus tard, et c'est exactement
+        # le moment où la question se pose.
+        src = pv.get(cle)
+        if prix is None:
+            ligne.update(provenance=None, provenance_nom=None, provenance_rang=None)
+        elif src:
+            V = PROVENANCES[src]
+            ligne.update(provenance=src, provenance_nom=V["nom"],
+                         provenance_rang=V["rang"],
+                         provenance_reserve=V["reserve"])
+        else:
+            ligne.update(provenance=None, provenance_nom=None,
+                         provenance_rang=None,
+                         provenance_manquante="Prix saisi sans provenance : il "
+                         "sera indéfendable devant un écart. Nommez la source.")
+            sans_source += 1
         lignes.append(ligne)
 
     n = len(o["postes"])
@@ -497,6 +563,10 @@ def chiffrer(operation, quantites=None, prix_unitaires=None, provision_pct=None)
         "total_avec_provision": _f(total + (prov["montant"] if prov else 0.0)),
         "postes_non_chiffres": manque, "postes_total": n,
         "part_non_chiffree": part_non_chiffree,
+        "prix_sans_provenance": sans_source,
+        "provenances_employees": sorted(
+            {L["provenance"] for L in lignes if L.get("provenance")},
+            key=lambda c: PROVENANCES[c]["rang"]),
         "lecture": _lecture(o, manque, n, part_non_chiffree, total),
         "sans_objet": [{"poste": p, "nom": POSTES[p]["nom"], "pourquoi": r}
                        for p, r in sorted(o["sans_objet"].items())],
@@ -560,6 +630,56 @@ def ordre_des_aleas():
     }
 
 
+def suggestions(operation=None):
+    """CE QUE LE MODULE PEUT PROPOSER, ET IL FAUT LE LIRE AVANT DE L'ATTENDRE.
+
+    Aucune valeur n'est inventée. Les propositions viennent EXCLUSIVEMENT des
+    opérations que vous avez livrées et enregistrées dans REFERENCES. Tant que
+    cette liste est vide — c'est le cas aujourd'hui — le module rend une liste
+    vide et le dit, plutôt qu'un ordre de grandeur trouvé ailleurs.
+
+    POURQUOI PAS D'ORDRES DE GRANDEUR DE FILIÈRE. Il en existe de publiés, au
+    mégawatt et pour l'opération ENTIÈRE. En tirer un prix par lot demanderait
+    de les répartir par une clé qu'aucune source ne donne : deux hypothèses
+    enchaînées, un nombre crédible, et personne pour dire d'où il sort. C'est
+    exactement le genre de chiffre qui se retourne contre celui qui le publie.
+    """
+    par_poste = {}
+    for r in REFERENCES:
+        if operation and r.get("operation") != operation:
+            continue
+        for poste, prix in (r.get("prix_unitaires") or {}).items():
+            if poste not in POSTES:
+                continue
+            par_poste.setdefault(poste, []).append(
+                {"valeur": _f(prix), "reference": r.get("reference"),
+                 "annee": r.get("annee_reception"), "source": r.get("source")})
+    out = {}
+    for poste, vals in par_poste.items():
+        v = sorted(x["valeur"] for x in vals)
+        out[poste] = {
+            "observations": vals, "n": len(vals),
+            "min": v[0], "max": v[-1],
+            # LA MÉDIANE, PAS LA MOYENNE : sur deux ou trois relevés, une
+            # moyenne se laisse emporter par l'exception, qui est justement ce
+            # qu'on veut voir.
+            "mediane": v[len(v) // 2] if len(v) % 2 else _f((v[len(v) // 2 - 1]
+                                                             + v[len(v) // 2]) / 2),
+        }
+    return {
+        "operation": operation, "postes": out,
+        "references_disponibles": len(REFERENCES),
+        "dit": ("Aucune opération livrée n'est enregistrée : le module ne "
+                "propose donc aucun prix. Il en proposera dès la première "
+                "versée dans REFERENCES — et ce seront les vôtres, pas des "
+                "ordres de grandeur de filière."
+                if not REFERENCES else
+                "Propositions tirées de %d opération(s) que vous avez livrée(s). "
+                "Ce sont des OBSERVATIONS, pas un barème : elles portent le "
+                "contexte de leur opération." % len(REFERENCES)),
+    }
+
+
 AVERTISSEMENT = (
     "Ce tableau met en ordre et compte ; il ne dimensionne rien et ne vérifie "
     "aucune quantité. Les prix unitaires viennent de vous : aucun ratio de "
@@ -573,6 +693,8 @@ AVERTISSEMENT = (
 def referentiel():
     return {"version": VERSION, "operations": operations(),
             "quantites": QUANTITES, "postes": POSTES, "familles": FAMILLES,
+            "provenances": PROVENANCES, "ordre_provenances": ORDRE_PROVENANCES,
+            "suggestions": suggestions(),
             "ordre_operations": ORDRE_OPERATIONS,
             "seuil_non_chiffre": SEUIL_NON_CHIFFRE,
             "aleas": ordre_des_aleas(),
@@ -588,6 +710,9 @@ def sante():
         "quantites": len(QUANTITES),
         "references_livrees": len(REFERENCES),
         "ratios_embarques": 0,
+        "provenances": len(PROVENANCES),
+        "quantites_orphelines": sorted(
+            set(QUANTITES) - {P["assiette"] for P in POSTES.values()}),
         "portee": "Chiffre des quantités par des prix fournis. Aucun ratio de "
                   "coût n'est embarqué : le référentiel du cabinet ne porte "
                   "aucune opération livrée avec capacité ET investissement.",
@@ -613,6 +738,24 @@ def _verifier():
         for champ in ("nom", "quoi"):
             if not str(P.get(champ, "")).strip():
                 raise RuntimeError("econome_dc : %s sans %s" % (cle, champ))
+
+    # UNE QUANTITÉ QUE NUL POSTE NE CONSOMME NE SERAIT JAMAIS DEMANDÉE par le
+    # formulaire — elle occuperait le référentiel sans que rien ne la lise.
+    # Trois y dormaient : surface des locaux techniques, nombre de baies, durée
+    # de contrat. Elles reviendront le jour où un poste s'y appuiera.
+    orphelines = sorted(set(QUANTITES) - {P["assiette"] for P in POSTES.values()})
+    if orphelines:
+        raise RuntimeError(
+            "econome_dc : quantité déclarée que nul poste ne consomme : %s"
+            % ", ".join(orphelines))
+
+    if set(ORDRE_PROVENANCES) != set(PROVENANCES):
+        raise RuntimeError("econome_dc : l'ordre des provenances ne les couvre pas")
+    rangs = sorted(PROVENANCES[c]["rang"] for c in PROVENANCES)
+    if rangs != list(range(1, len(PROVENANCES) + 1)):
+        raise RuntimeError(
+            "econome_dc : les rangs de provenance ne forment pas une suite — "
+            "c'est le seul jugement que ce module porte sur un prix")
 
     if set(ORDRE_OPERATIONS) != set(OPERATIONS):
         raise RuntimeError("econome_dc : l'ordre d'affichage ne couvre pas les "

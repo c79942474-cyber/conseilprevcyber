@@ -208,3 +208,108 @@ def test_le_referentiel_servi_porte_tout_ce_dont_la_page_a_besoin():
     assert r["seuil_non_chiffre"] == E.SEUIL_NON_CHIFFRE
     assert "249" in r["avertissement"], (
         "l'avertissement ne dit plus sur quoi repose le refus d'embarquer un ratio")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  D'OÙ VIENT LE PRIX, ET CE QUE LE MODULE PEUT PROPOSER
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_LE_POINT_QUI_DECIDE_le_module_ne_propose_AUCUN_prix_sans_operation_livree():
+    """LE PARTI PRIS, ET CELUI QU'ON AURA ENVIE D'ASSOUPLIR « pour orienter le
+    client ». Il existe des ordres de grandeur publiés, au mégawatt et pour
+    l'opération ENTIÈRE. En tirer un prix par lot demanderait une clé de
+    répartition qu'aucune source ne donne : deux hypothèses enchaînées, un
+    nombre crédible, personne pour dire d'où il sort."""
+    s = E.suggestions()
+    assert s["references_disponibles"] == 0
+    assert s["postes"] == {}, s["postes"]
+    assert "ne propose donc aucun prix" in s["dit"]
+
+
+def test_le_mecanisme_de_suggestion_FONCTIONNE_des_qu_une_operation_est_versee():
+    """Sans ce contrôle, le précédent passerait pour une bonne raison — le
+    module ne proposant jamais rien — au lieu de la vraie : il n'a pas encore
+    de base. On vérifie que le mécanisme existe et rend ce qu'il doit."""
+    E.REFERENCES.append({
+        "reference": "CONTROLE", "operation": "neuf", "annee_reception": 2024,
+        "quantites": {"puissance_it_kw": 1000},
+        "prix_unitaires": {"froid": 880, "distribution_secours": 1350},
+        "source": "marché notifié"})
+    E.REFERENCES.append({
+        "reference": "CONTROLE-2", "operation": "neuf", "annee_reception": 2025,
+        "quantites": {"puissance_it_kw": 2000},
+        "prix_unitaires": {"froid": 940},
+        "source": "décompte général définitif"})
+    # UNE TROISIÈME OBSERVATION, ET ELLE EST ABERRANTE — C'EST VOULU.
+    # Avec seulement 880 et 940, moyenne et médiane valent toutes deux 910 : le
+    # contrôle passait AUSSI quand on remplaçait la médiane par la moyenne,
+    # donc il ne gardait rien. Une opération hors norme, qui est précisément le
+    # cas où la distinction compte, les sépare : médiane 940, moyenne 1 273.
+    E.REFERENCES.append({
+        "reference": "CONTROLE-3", "operation": "neuf", "annee_reception": 2025,
+        "quantites": {"puissance_it_kw": 300},
+        "prix_unitaires": {"froid": 2000},
+        "source": "petite opération très contrainte"})
+    try:
+        s = E.suggestions("neuf")
+        assert s["references_disponibles"] == 3
+        f = s["postes"]["froid"]
+        assert f["n"] == 3 and f["min"] == 880.0 and f["max"] == 2000.0
+        # MÉDIANE ET NON MOYENNE : une moyenne se laisse emporter par
+        # l'exception, qui est justement ce qu'on veut voir.
+        assert f["mediane"] == 940.0, f["mediane"]
+        moyenne = round(sum(x["valeur"] for x in f["observations"]) / 3, 2)
+        assert abs(f["mediane"] - moyenne) > 100, (
+            "médiane et moyenne se confondent sur ce jeu : le contrôle ne "
+            "distingue plus les deux")
+        assert "OBSERVATIONS, pas un barème" in s["dit"]
+        # …et le filtre par nature d'opération tient.
+        assert E.suggestions("maintenance")["postes"] == {}
+    finally:
+        del E.REFERENCES[-3:]
+    assert E.REFERENCES == [], "les références de contrôle n'ont pas été retirées"
+
+
+def test_un_prix_porte_sa_PROVENANCE_ou_son_absence_est_dite():
+    """Un prix dont on ne sait plus d'où il vient ne se défend pas devant un
+    écart — et c'est là que la question se pose."""
+    avec = E.chiffrer("neuf", {"puissance_it_kw": 1000}, {"froid": 700},
+                      provenances={"froid": "devis"})
+    L = [x for x in avec["lignes"] if x["poste"] == "froid"][0]
+    assert L["provenance"] == "devis"
+    assert L["provenance_nom"] == "Devis d'entreprise"
+    assert L["provenance_reserve"], "une provenance sans réserve se lit comme une garantie"
+    assert avec["prix_sans_provenance"] == 0
+
+    sans = E.chiffrer("neuf", {"puissance_it_kw": 1000}, {"froid": 700})
+    M = [x for x in sans["lignes"] if x["poste"] == "froid"][0]
+    assert M["provenance"] is None
+    assert "indéfendable" in M["provenance_manquante"]
+    assert sans["prix_sans_provenance"] == 1
+
+
+def test_les_provenances_sont_ORDONNEES_du_plus_opposable_au_moins():
+    """C'est le seul jugement que ce module porte sur un prix : un marché
+    notifié engage quelqu'un, une estimation interne n'engage personne."""
+    rangs = {c: E.PROVENANCES[c]["rang"] for c in E.PROVENANCES}
+    assert rangs["marche_notifie"] < rangs["devis"] < rangs["estimation"]
+    assert sorted(rangs.values()) == list(range(1, len(E.PROVENANCES) + 1))
+    for c, v in E.PROVENANCES.items():
+        assert v["vaut"] and v["reserve"], c
+
+
+def test_une_provenance_inventee_est_REFUSEE():
+    r = E.chiffrer("neuf", {"puissance_it_kw": 1}, {"froid": 1},
+                   provenances={"froid": "au_pif"})
+    assert r["ok"] is False and r["erreur"] == "provenance_inconnue"
+
+
+def test_AUCUNE_QUANTITE_N_EST_ORPHELINE():
+    """LE DÉFAUT MESURÉ SUR MA PROPRE PREMIÈRE VERSION. Trois quantités étaient
+    déclarées que nul poste ne consommait — surface des locaux techniques,
+    nombre de baies, durée de contrat. Le formulaire ne les aurait jamais
+    demandées : elles occupaient le référentiel sans que rien ne les lise."""
+    consommees = {P["assiette"] for P in E.POSTES.values()}
+    orphelines = sorted(set(E.QUANTITES) - consommees)
+    assert orphelines == [], orphelines
+    assert E.sante()["quantites_orphelines"] == []

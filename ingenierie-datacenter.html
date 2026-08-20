@@ -1609,6 +1609,7 @@
     <p class="note" id="ig-eco-objet" style="margin-top:6px"></p>
     <div id="ig-eco-dit" class="ig-encart" style="display:none"></div>
 
+    <p class="note ig-eco-repris" id="ig-eco-repris" style="display:none"></p>
     <div id="ig-eco-saisie"></div>
 
     <div class="ig-champ" style="margin-top:12px">
@@ -1774,10 +1775,33 @@
     h += '</div><div class="ig-eco-prix"><h4>Prix unitaires <span class="ig-u">(€ HT par unité)</span></h4>';
     o.postes.forEach(function (p) {
       var Q = REF.quantites[p.assiette];
+      /* CHAQUE PRIX PORTE SA PROVENANCE. Un prix sans source ne se défend pas
+         six mois plus tard, devant l'écart — et c'est exactement le moment où
+         la question se pose. Le module ne propose aucun montant ; il propose
+         la seule chose qu'il ait de fiable : la nature de la source. */
+      var sug = (REF.suggestions.postes || {})[p.cle];
+      var liste = sug ? ' list="ecol-' + p.cle + '"' : '';
       h += '<div class="ig-champ"><label for="ecop-' + p.cle + '">' + esc(p.nom)
          + ' <span class="ig-u">(€/' + esc(Q.unite) + ')</span></label>'
-         + '<input type="number" min="0" step="any" id="ecop-' + p.cle + '" data-p="' + p.cle + '">'
-         + '<p class="note ig-ou">' + esc(p.quoi) + '</p></div>';
+         + '<div class="ig-eco-duo">'
+         + '<input type="number" min="0" step="any" id="ecop-' + p.cle + '" data-p="' + p.cle + '"' + liste + '>'
+         + '<select id="ecov-' + p.cle + '" data-v="' + p.cle + '" '
+         + 'aria-label="Provenance du prix — ' + esc(p.nom) + '">'
+         + '<option value="">— provenance —</option>'
+         + REF.ordre_provenances.map(function (c) {
+             return '<option value="' + esc(c) + '">' + esc(REF.provenances[c].nom) + '</option>';
+           }).join('')
+         + '</select></div>';
+      if (sug) {
+        h += '<datalist id="ecol-' + p.cle + '">'
+           + sug.observations.map(function (o) {
+               return '<option value="' + o.valeur + '">' + esc(o.reference || '')
+                    + (o.annee ? ' — ' + o.annee : '') + '</option>';
+             }).join('') + '</datalist>'
+           + '<p class="note ig-sug">' + sug.n + ' relevé(s) sur vos opérations livrées&nbsp;: '
+           + 'médiane ' + sug.mediane + ' €, de ' + sug.min + ' à ' + sug.max + ' €.</p>';
+      }
+      h += '<p class="note ig-ou">' + esc(p.quoi) + '</p></div>';
     });
     h += '</div></div>';
 
@@ -1792,6 +1816,7 @@
       h += '</ul></details>';
     }
     elSaisie.innerHTML = h;
+    reprendreDuProfil();
 
     var a = REF.aleas.ordre.filter(function (x) { return x.operation === o.cle; })[0];
     txt(elAlea, a ? (REF.aleas.regle + ' Cette nature est au rang ' + a.rang
@@ -1800,11 +1825,54 @@
     elOut.innerHTML = ''; txt(elMsg, '');
   }
 
+  /* ══ CE QUI EST DÉJÀ CONNU N'EST PAS REDEMANDÉ ═══════════════════════════
+
+     La puissance informatique est saisie à l'étape 2 et portée d'une page à
+     l'autre par le profil partagé. La redemander ici, c'est faire ressaisir un
+     chiffre déjà donné — et c'est la ressaisie qui décourage, pas le calcul.
+
+     ELLE EST REPRISE, PAS IMPOSÉE : le champ reste modifiable, et il DIT d'où
+     vient sa valeur. Un champ pré-rempli sans mention de son origine se prend
+     pour une saisie, et personne ne le corrige.
+
+     SEULE LA PUISSANCE EST REPRISE. Les surfaces ne sont déduites de rien :
+     aucune emprise par baie n'existe dans ce référentiel, et en inventer une
+     pour remplir trois champs produirait des mètres carrés crédibles et faux. */
+  function reprendreDuProfil() {
+    if (!window.ProfilDC || !ProfilDC.disponible || !ProfilDC.disponible()) return;
+    var p = ProfilDC.lire();
+    if (!p || !p.champs) return;
+    var v = p.champs.puissance_it_kw;
+    if (v == null || v === '') return;
+    var champ = document.getElementById('ecoq-puissance_it_kw');
+    if (!champ) return;
+    /* On n'écrase JAMAIS une saisie : le lecteur qui a corrigé la valeur ici
+       l'a fait pour une raison que le profil ne connaît pas. */
+    if (champ.value.trim() !== '' && champ.dataset.repris !== '1') return;
+    champ.value = v;
+    champ.dataset.repris = '1';
+    var note = document.getElementById('ig-eco-repris');
+    if (note) {
+      note.textContent = 'Puissance informatique reprise de l’étape 2 : '
+        + v + ' kW. Modifiable — la corriger ici ne change pas le profil.';
+      note.style.display = 'block';
+    }
+  }
+
   function lire(sel, attr) {
     var out = {};
     Array.prototype.forEach.call(elSaisie.querySelectorAll(sel), function (i) {
       var v = i.value.trim();
       if (v !== '') { var n = Number(v); if (isFinite(n)) out[i.getAttribute(attr)] = n; }
+    });
+    return out;
+  }
+
+  function lireTexte(sel, attr) {
+    var out = {};
+    Array.prototype.forEach.call(elSaisie.querySelectorAll(sel), function (i) {
+      var v = (i.value || '').trim();
+      if (v !== '') out[i.getAttribute(attr)] = v;
     });
     return out;
   }
@@ -1821,6 +1889,7 @@
         operation: o.cle,
         quantites: lire('input[data-q]', 'data-q'),
         prix_unitaires: lire('input[data-p]', 'data-p'),
+        provenances: lireTexte('select[data-v]', 'data-v'),
         provision_pct: prov === '' ? null : Number(prov)
       })
     }).then(function (r) { return r.json(); }).then(function (d) {
@@ -1845,7 +1914,11 @@
          + '<p class="note">' + esc(L.dit) + '</p></td>'
          + '<td class="num">' + (L.quantite == null ? '—'
              : Number(L.quantite).toLocaleString('fr-FR') + ' ' + esc(L.unite)) + '</td>'
-         + '<td class="num">' + (L.prix_unitaire == null ? '—' : euro(L.prix_unitaire)) + '</td>'
+         + '<td class="num">' + (L.prix_unitaire == null ? '—' : euro(L.prix_unitaire))
+         + (L.prix_unitaire == null ? ''
+            : (L.provenance_nom
+               ? '<span class="ig-eco-src">' + esc(L.provenance_nom) + '</span>'
+               : '<span class="ig-eco-src ig-eco-nosrc">sans source</span>')) + '</td>'
          + '<td class="num">' + (L.montant == null ? '—' : euro(L.montant)) + '</td></tr>';
     });
     h += '</tbody><tfoot>';
@@ -1872,6 +1945,11 @@
        + '<b>' + d.postes_non_chiffres + ' poste(s) sur ' + d.postes_total
        + ' non chiffrés — ' + String(pct).replace('.', ',') + ' %.</b> '
        + esc(d.lecture) + '</p>';
+    if (d.prix_sans_provenance) {
+      h += '<p class="note"><b>' + d.prix_sans_provenance + ' prix saisi(s) sans '
+         + 'provenance.</b> Un prix dont on ne sait plus d’où il vient ne se '
+         + 'défend pas devant un écart — et c’est là que la question se pose.</p>';
+    }
     if (d.annuel) {
       h += '<p class="note"><b>Ce montant est ANNUEL.</b> L’additionner à un '
          + 'investissement produirait un nombre qui ne veut rien dire.</p>';
@@ -1898,6 +1976,37 @@
       .catch(function () { txt(elMsg, 'Le référentiel n’a pas pu être chargé.'); });
     elOp.addEventListener('change', rendreSaisie);
     $('ig-eco-go').addEventListener('click', chiffrer);
+    /* EN TEMPS RÉEL : l'étape 2 est plus haut sur la MÊME page. Une puissance
+       corrigée là-haut doit se voir ici sans recharger — sinon les deux
+       chiffres divergent sous les yeux du lecteur, et c'est le plus ancien
+       qu'il croira. */
+    /* DÉLÉGATION, PAS LIAISON DIRECTE. Le formulaire de profil est construit
+       depuis le référentiel APRÈS le chargement : lier l'écouteur au champ à
+       l'initialisation ne trouvait rien, et la reprise ne s'est jamais
+       déclenchée — mesuré, le champ restait vide. Écouter le document marche
+       quel que soit le moment où le champ apparaît. */
+    ['input', 'change'].forEach(function (ev) {
+      document.addEventListener(ev, function (e) {
+        var t = e.target;
+        if (!t || !t.matches || !t.matches('[data-champ="puissance_it_kw"]')) return;
+        var champ = document.getElementById('ecoq-puissance_it_kw');
+        if (!champ) return;
+        if (champ.value.trim() !== '' && champ.dataset.repris !== '1') return;
+        champ.dataset.repris = '1';
+        champ.value = t.value;
+        var note = document.getElementById('ig-eco-repris');
+        if (note && String(t.value).trim() !== '') {
+          note.textContent = 'Puissance informatique reprise de l’étape 2 : '
+            + t.value + ' kW. Modifiable — la corriger ici ne change pas le profil.';
+          note.style.display = 'block';
+        }
+      });
+    });
+    /* Une saisie manuelle ICI reprend la main, définitivement. */
+    document.addEventListener('input', function (e) {
+      if (e.target && e.target.id === 'ecoq-puissance_it_kw' && e.isTrusted)
+        e.target.dataset.repris = '0';
+    });
   }
 
   if (document.readyState === 'loading')
@@ -1907,6 +2016,15 @@
 </script>
 <style>
 .ig-eco-grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px;margin-top:14px}
+.ig-eco-duo{display:flex;gap:8px;align-items:center}
+.ig-eco-duo input{flex:1 1 auto;min-width:0}
+.ig-eco-duo select{flex:0 0 auto;max-width:52%;font-size:12px}
+.ig-sug{color:var(--cyan);margin-top:3px}
+.ig-eco-repris{margin:10px 0 0;padding:8px 12px;border-left:3px solid var(--cyan);
+  background:var(--panel2);border-radius:0 6px 6px 0;font-size:12.5px}
+.ig-eco-src{display:inline-block;font-size:10px;letter-spacing:.04em;padding:1px 6px;
+  border-radius:3px;border:1px solid var(--line);color:var(--muted);margin-left:6px}
+.ig-eco-nosrc{border-color:var(--amber);color:var(--amber)}
 .ig-eco-prix{display:grid;grid-template-columns:repeat(auto-fit,minmax(228px,1fr));gap:0 20px;align-content:start}
 .ig-eco-prix h4{grid-column:1/-1}
 .ig-eco-grille h4{margin:0 0 8px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
