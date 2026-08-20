@@ -580,8 +580,299 @@ def portee(mission):
     return dict(p, mission=mission or "moe")
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  CE QUE LE MAÎTRE D'ŒUVRE ENGAGE — et que le montant des honoraires tait
+#
+#  CE QUI MANQUAIT. Ce module chiffrait ce que la maîtrise d'œuvre COÛTE. Il
+#  ne disait rien de ce qu'elle GARANTIT — or c'est cet engagement qui
+#  transforme un honoraire en risque, des deux côtés. Un maître d'ouvrage qui
+#  compare deux offres sans lire les taux de tolérance compare deux nombres
+#  qui ne portent pas la même promesse.
+#
+#  D'OÙ VIENNENT CES RÈGLES. Du modèle officiel de marché public de maîtrise
+#  d'œuvre pour la RÉUTILISATION OU RÉHABILITATION d'ouvrages de bâtiment
+#  (CCAP, mise à jour du 2 novembre 2012), qui met en œuvre le décret
+#  n° 93-1268 du 29 novembre 1993. Les formules sont reprises telles qu'elles
+#  y sont écrites ; AUCUN TAUX N'EST FOURNI — le modèle les laisse en blanc,
+#  ils se négocient, et en proposer un ici serait inventer une clause.
+#
+#  LE MODÈLE EST CELUI DE LA RÉHABILITATION, LE BARÈME EST CELUI D'UN NEUF.
+#  Ce n'est pas contradictoire — le mécanisme d'engagement est le même — mais
+#  cela se dit : le barème relevé plus haut vient d'une opération neuve, et
+#  rien ici ne permet d'en déduire des taux de réhabilitation.
+# ═══════════════════════════════════════════════════════════════════════════
+
+SOURCE_ENGAGEMENT = {
+    "titre": "Modèle de marché public de maîtrise d'œuvre — réutilisation ou "
+             "réhabilitation d'ouvrages de bâtiment (acte d'engagement et "
+             "CCAP), mise à jour du 2 novembre 2012",
+    "textes": ["Décret n° 93-1268 du 29 novembre 1993, articles 29 et 30",
+               "Arrêté du 21 décembre 1993, article 5 bis — opérations neuves "
+               "et réhabilitation",
+               "Guide à l'intention des maîtres d'ouvrages publics pour la "
+               "négociation des rémunérations de maîtrise d'œuvre "
+               "(Moniteur, 15 juillet 1994)"],
+    "nature": "referentiel",
+    "note": "Les FORMULES sont reprises du modèle. Les TAUX y sont laissés en "
+            "blanc : taux de tolérance, taux de pénalité et taux de "
+            "rémunération se négocient opération par opération. Ce module n'en "
+            "propose aucun.",
+}
+
+# LES SEPT ÉLÉMENTS DE MISSION du modèle officiel, dans son ordre, tels que sa
+# table de répartition du forfait les nomme. Ils servent de repère : ce module
+# regroupe les trois derniers sous une seule phase `exe`, et il faut pouvoir
+# le dire au lecteur qui a le modèle sous les yeux.
+ELEMENTS_MODELE = [
+    ("APS", "Études d'avant-projet sommaire", "aps"),
+    ("APD", "Études d'avant-projet définitif", "apd"),
+    ("PRO", "Études de projet", "pro"),
+    ("ACT", "Assistance à la passation des contrats de travaux", "act"),
+    ("EXE/VISA", "Études d'exécution / Visa", "exe"),
+    ("DET", "Direction de l'exécution des contrats de travaux", "exe"),
+    ("AOR", "Assistance aux opérations de réception", "exe"),
+]
+
+# LES PHASES POSTÉRIEURES À L'ATTRIBUTION DES MARCHÉS DE TRAVAUX. C'est
+# l'assiette du plafond de pénalité de l'article 30.II — et c'est la seule
+# raison pour laquelle cette liste existe.
+PHASES_APRES_ATTRIBUTION = ("exe",)
+
+ENGAGEMENTS = [
+    {
+        "cle": "cout_previsionnel",
+        "nom": "Engagement sur le coût prévisionnel des travaux",
+        "quand": "À l'issue de l'APD, sur l'estimation définitive.",
+        "seuil": "seuil de tolérance = coût prévisionnel × (1 + taux de tolérance)",
+        "depassement": "Le maître d'ouvrage peut demander une reprise partielle "
+                       "des études. Elle est effectuée SANS RÉMUNÉRATION "
+                       "SUPPLÉMENTAIRE (art. 30.I al. 2 du décret du 29 "
+                       "novembre 1993). AUCUNE PÉNALITÉ FINANCIÈRE ne peut "
+                       "être appliquée à ce stade.",
+        "penalite": False,
+    },
+    {
+        "cle": "cout_realisation",
+        "nom": "Engagement sur le coût de réalisation des travaux",
+        "quand": "Après la passation des marchés de travaux, sur la somme des "
+                 "montants initiaux.",
+        "seuil": "seuil de tolérance = coût de réalisation × (1 + taux de tolérance)",
+        "depassement": "Pénalité = (coût de référence − seuil de tolérance) × "
+                       "taux de pénalité, PLAFONNÉE à 15 % de la rémunération "
+                       "des éléments de mission postérieurs à l'attribution "
+                       "des marchés (art. 30.II du décret 93-1268).",
+        "penalite": True,
+    },
+]
+
+PLAFOND_PENALITE = 0.15   # art. 30.II du décret 93-1268 du 29 novembre 1993
+
+RETARD_PAR_JOUR = {
+    "fraction": 1.0 / 3000.0,
+    "unite": "par jour calendaire de retard, appliqué au montant en prix de "
+             "base de l'élément de mission en retard",
+    "elements": ["ESQ", "APS", "APD", "PRO",
+                 "la partie de l'ACT correspondant au DCE",
+                 "la partie de l'AOR correspondant au DOE, déduction faite des "
+                 "jours de retard imputables aux entreprises"],
+    "note": "Par dérogation à l'article 14.1 du CCAG-PI. Deux éléments ne sont "
+            "retenus que POUR PARTIE, et le modèle ne dit pas quelle part : ce "
+            "module ne la devine pas.",
+}
+
+# CE QUE LE VISA N'EST PAS. La phrase compte plus que la définition : c'est
+# elle qui dissipe le malentendu le plus coûteux sur cette phase.
+LIMITE_VISA = {
+    "est": "L'examen de la conformité au projet des études d'exécution faites "
+           "par les entreprises, et leur visa (arrêté du 21 décembre 1993, "
+           "art. 5 bis).",
+    "n_est_pas": "L'examen porte sur les anomalies NORMALEMENT DÉCELABLES PAR "
+                 "UN HOMME DE L'ART. Il ne comprend NI LE CONTRÔLE, NI LA "
+                 "VÉRIFICATION INTÉGRALE des documents établis par les "
+                 "entreprises. La délivrance du visa NE DÉGAGE PAS "
+                 "L'ENTREPRISE de sa propre responsabilité.",
+    "source": "Guide à l'intention des maîtres d'ouvrages publics pour la "
+              "négociation des rémunérations de maîtrise d'œuvre, phase "
+              "travaux, § Visa (Moniteur, 15 juillet 1994) ; repris par le "
+              "guide SYNTEC Ingénierie « Mission VISA / EXE / Synthèse », "
+              "mai 2008.",
+    "consequence": "Acheter un VISA n'est pas acheter un contrôle. Un maître "
+                   "d'ouvrage qui l'ignore croit avoir transféré un risque "
+                   "qu'il porte encore.",
+}
+
+
+def _borne_seuil(cout, taux_pct):
+    return _f(float(cout) * (1.0 + max(0.0, float(taux_pct)) / 100.0))
+
+
+def engagement(cout_meur, taux_tolerance_pct, cout_reference_meur=None,
+               taux_penalite_pct=None, resultat=None, cle="cout_realisation"):
+    """Le seuil de tolérance, et ce qu'un dépassement déclenche.
+
+    AUCUN TAUX N'EST PROPOSÉ : le modèle officiel les laisse en blanc, ils se
+    négocient. Le module refuse plutôt que d'en suggérer un — un taux de
+    tolérance suggéré deviendrait le taux du marché sans que personne ne
+    l'ait négocié.
+    """
+    E = next((x for x in ENGAGEMENTS if x["cle"] == cle), None)
+    if not E:
+        return {"ok": False, "erreur": "engagement_inconnu",
+                "message": "Engagement inconnu : %r." % cle}
+    if taux_tolerance_pct is None:
+        return {"ok": False, "erreur": "taux_absent",
+                "message": "Le taux de tolérance n'est pas fourni. Le modèle "
+                           "officiel le laisse en blanc : il se négocie, et ce "
+                           "module n'en propose aucun."}
+    seuil = _borne_seuil(cout_meur, taux_tolerance_pct)
+    out = {"ok": True, "engagement": cle, "nom": E["nom"], "quand": E["quand"],
+           "cout_meur": _f(cout_meur), "taux_tolerance_pct": _f(taux_tolerance_pct, 2),
+           "seuil_meur": seuil, "formule": E["seuil"],
+           "depassement": E["depassement"], "source": SOURCE_ENGAGEMENT}
+
+    if cout_reference_meur is not None:
+        ref = _f(cout_reference_meur)
+        out["cout_reference_meur"] = ref
+        out["depasse"] = ref > seuil
+        out["ecart_meur"] = _f(ref - seuil)
+        if not E["penalite"]:
+            out["penalite"] = None
+            out["lecture"] = (
+                "Le dépassement se règle en études, pas en argent : reprise "
+                "partielle sans rémunération supplémentaire, et aucune "
+                "pénalité financière à ce stade."
+                if out["depasse"] else
+                "L'engagement est tenu : le coût de référence reste sous le seuil.")
+        elif not out["depasse"]:
+            out["penalite"] = None
+            out["lecture"] = "L'engagement est tenu."
+        elif taux_penalite_pct is None:
+            out["penalite"] = None
+            out["lecture"] = ("Le seuil est dépassé de %s M€, mais le taux de "
+                              "pénalité n'est pas fourni : le montant reste "
+                              "ouvert." % _f(out["ecart_meur"]))
+        else:
+            brute = _f(out["ecart_meur"] * max(0.0, float(taux_penalite_pct)) / 100.0)
+            plaf = plafond_penalite(resultat) if resultat else None
+            retenue = brute if (plaf is None or plaf["plafond_meur"] is None) \
+                else _f(min(brute, plaf["plafond_meur"]))
+            out["penalite"] = {
+                "taux_pct": _f(taux_penalite_pct, 2), "brute_meur": brute,
+                "plafond": plaf, "retenue_meur": retenue,
+                "plafonnee": bool(plaf and plaf["plafond_meur"] is not None
+                                  and brute > plaf["plafond_meur"]),
+            }
+            out["lecture"] = (
+                "Seuil dépassé de %s M€. Pénalité calculée %s M€%s."
+                % (_f(out["ecart_meur"]), brute,
+                   ", ramenée à %s M€ par le plafond de l'article 30.II" % retenue
+                   if out["penalite"]["plafonnee"] else ""))
+    return out
+
+
+def plafond_penalite(resultat):
+    """15 % de la rémunération des éléments POSTÉRIEURS à l'attribution.
+
+    LE PLAFOND SE CALCULE ICI, il ne se demande pas : ce module connaît déjà
+    la rémunération phase par phase. L'article 30.II du décret 93-1268 le
+    borne aux éléments postérieurs à l'attribution des marchés de travaux —
+    dans le découpage de ce barème, la phase `exe`, qui réunit EXE/VISA, DET
+    et AOR.
+    """
+    if not resultat or not resultat.get("ok"):
+        return {"plafond_meur": None,
+                "dit": "Aucun chiffrage fourni : le plafond ne se devine pas."}
+    apres = 0.0
+    retenues = []
+    for m in resultat.get("missions", []):
+        for cle, ph in (m.get("phases") or {}).items():
+            if cle in PHASES_APRES_ATTRIBUTION and ph.get("retenue"):
+                mt = ph.get("montant_meur")
+                if isinstance(mt, (list, tuple)) and len(mt) > 1:
+                    apres += float(mt[1])
+                    retenues.append(m.get("cle"))
+    if not retenues:
+        return {"plafond_meur": None,
+                "dit": "Aucune phase postérieure à l'attribution n'est "
+                       "retenue : le maître d'œuvre ne suit pas le chantier, "
+                       "et l'assiette du plafond est vide."}
+    return {"plafond_meur": _f(apres * PLAFOND_PENALITE),
+            "assiette_meur": _f(apres),
+            "taux": PLAFOND_PENALITE,
+            "phases": list(PHASES_APRES_ATTRIBUTION),
+            "dit": "15 %% de %s M€ d'honoraires postérieurs à l'attribution "
+                   "(art. 30.II du décret 93-1268)." % _f(apres)}
+
+
+def penalite_retard(resultat, phase, jours):
+    """1/3000ᵉ du montant de l'élément en retard, par jour calendaire.
+
+    DEUX ÉLÉMENTS NE SONT RETENUS QUE POUR PARTIE — l'ACT pour son DCE, l'AOR
+    pour son DOE — et le modèle ne dit pas quelle part. Ce module calcule donc
+    sur l'élément ENTIER et le signale, plutôt que d'inventer une fraction.
+    """
+    if not resultat or not resultat.get("ok"):
+        return {"ok": False, "erreur": "chiffrage_absent"}
+    if phase not in ORDRE_PHASES:
+        return {"ok": False, "erreur": "phase_inconnue",
+                "message": "Phase inconnue : %r. Attendu : %s."
+                           % (phase, ", ".join(ORDRE_PHASES))}
+    j = max(0, int(jours or 0))
+    base = 0.0
+    for m in resultat.get("missions", []):
+        ph = (m.get("phases") or {}).get(phase) or {}
+        mt = ph.get("montant_meur")
+        if isinstance(mt, (list, tuple)) and len(mt) > 1:
+            base += float(mt[1])
+    partiel = phase in ("act", "exe")
+    return {
+        "ok": True, "phase": phase, "jours": j,
+        "assiette_meur": _f(base),
+        "par_jour_meur": _f(base * RETARD_PAR_JOUR["fraction"], 6),
+        "montant_meur": _f(base * RETARD_PAR_JOUR["fraction"] * j),
+        "source": SOURCE_ENGAGEMENT["titre"],
+        "reserve": ("Le modèle ne retient qu'une PARTIE de cet élément — l'ACT "
+                    "pour son DCE, l'AOR pour son DOE, déduction faite des "
+                    "jours imputables aux entreprises — et ne dit pas laquelle. "
+                    "Le montant ci-dessus porte sur l'élément entier : il est "
+                    "donc MAJORANT." if partiel else None),
+    }
+
+
+def correspondance_modele():
+    """Les sept éléments du modèle officiel, et où ils tombent dans ce barème.
+
+    TROIS D'ENTRE EUX SE RETROUVENT DANS UNE SEULE PHASE. Ce n'est pas une
+    approximation cachée : le barème relevé ne publie pas leur partage, et le
+    module refuse d'en inventer un. Cette table permet au lecteur qui a le
+    modèle sous les yeux de retrouver ses lignes.
+    """
+    groupes = {}
+    for code, nom, phase in ELEMENTS_MODELE:
+        groupes.setdefault(phase, []).append({"code": code, "nom": nom})
+    return {
+        "source": SOURCE_ENGAGEMENT,
+        "elements": [{"code": c, "nom": n, "phase": p} for c, n, p in ELEMENTS_MODELE],
+        "regroupements": [
+            {"phase": p, "elements": g,
+             "dit": ("Trois éléments du modèle, une seule ligne ici : le "
+                     "barème relevé n'en publie pas le partage."
+                     if len(g) > 1 else None)}
+            for p, g in groupes.items()],
+        "reserve": "Le modèle cité porte sur la RÉUTILISATION OU "
+                   "RÉHABILITATION ; le barème de ce module est relevé sur une "
+                   "opération NEUVE. Le mécanisme d'engagement est le même, "
+                   "les taux ne le sont pas — et aucun taux de réhabilitation "
+                   "ne se déduit d'ici.",
+    }
+
+
 def referentiel():
     return {"version": VERSION, "phases": PHASES, "ordre_phases": ORDRE_PHASES,
+            "engagements": ENGAGEMENTS, "source_engagement": SOURCE_ENGAGEMENT,
+            "plafond_penalite": PLAFOND_PENALITE,
+            "retard_par_jour": RETARD_PAR_JOUR, "limite_visa": LIMITE_VISA,
+            "correspondance_modele": correspondance_modele(),
             "phases_mop": PHASES_MOP, "portee_mission": PORTEE_MISSION,
             "part_technique_defaut": PART_TECHNIQUE_DEFAUT,
             "missions": MISSIONS, "ordre_missions": ORDRE_MISSIONS,
