@@ -2033,6 +2033,7 @@ import durabilite    # noqa: E402  — le cadre vert, adosse aux trois sous-doss
 import etat_art      # noqa: E402  — les faits publies, chacun avec son auteur et ce qu'il vaut
 import profil_dc     # noqa: E402  — analyse le moteur ci-dessus, ne le double pas
 import ingenierie_dc  # noqa: E402  — situe ses résultats dans la séquence projet
+import econome_dc     # l'economiste de la construction : quantites x prix
 import decarbonation  # noqa: E402  — les situe dans la hiérarchie d'atténuation
 import strategie_dd  # noqa: E402  — le livrable d'ouverture, quatre perspectives
 import equipements_it  # noqa: E402  — PARTAGÉ À L'IDENTIQUE avec Sentinel
@@ -3096,6 +3097,37 @@ def api_datacenter_ingenierie():
     # GIL par requête. Figé par processus, revalidé par ETag : 304 sans corps.
     return _json_fige("dc-ingenierie",
                       lambda: dict(ok=True, referentiel=ingenierie_dc.referentiel()))
+
+
+@app.route("/api/datacenter/economiste")
+@login_required
+def api_datacenter_economiste():
+    """Le referentiel de l'economiste : natures d'operation, postes, quantites.
+
+    Il ne porte AUCUN prix, et c'est le point : le referentiel du cabinet ne
+    contient aucune operation livree publiant a la fois sa capacite et son
+    investissement, donc aucun ratio ne peut en etre tire. La route sert la
+    structure ; les prix viennent du bordereau du client.
+    """
+    return jsonify(ok=True, referentiel=econome_dc.referentiel())
+
+
+@app.route("/api/datacenter/economiste/chiffrer", methods=["POST"])
+@login_required
+def api_datacenter_economiste_chiffrer():
+    """Le chiffrage d'une operation : quantite x prix unitaire, poste par poste.
+
+    Un poste sans prix ressort `non_chiffree` avec sa raison plutot que zero :
+    un zero muet ferait croire que le poste n'est pas du.
+    """
+    data = request.get_json(silent=True) or {}
+    r = econome_dc.chiffrer(data.get("operation"),
+                            data.get("quantites"),
+                            data.get("prix_unitaires"),
+                            data.get("provision_pct"))
+    if not r.get("ok"):
+        return jsonify(r), 400
+    return jsonify(r)
 
 
 @app.route("/api/datacenter/ingenierie/disponibilite", methods=["POST"])

@@ -1581,8 +1581,50 @@
     <div id="ig-moe-out"></div>
   </section>
 
+  <!-- ══ L'ÉCONOMISTE DE LA CONSTRUCTION ═══════════════════════════════════
+       CE BLOC NE PORTE AUCUN PRIX, et c'est le point. Le référentiel du
+       cabinet recense 249 centres de données ; AUCUN ne publie à la fois sa
+       capacité informatique et son investissement. Aucun euro par kilowatt ne
+       peut donc en être tiré, et un ratio affiché ici serait une invention
+       habillée en référentiel — crédible, ce qui est pire.
+
+       CE QUI CHANGE ENTRE UN NEUF ET UNE RÉHABILITATION N'EST PAS UN
+       COEFFICIENT, C'EST LA LISTE DES POSTES. Dépose, curage, coupures
+       programmées, coactivité, constat contradictoire : un chiffrage bâti sur
+       un ratio de neuf ne les sous-estime pas, il ne les porte pas du tout.
+       C'est ce que ce bloc rend visible avant tout chiffre. -->
+  <section class="wrap rc-sec" id="ig-eco">
+    <div class="rc-etape"><span class="n">7</span><h2>Le coût des travaux, poste par poste</h2></div>
+    <p class="lead" style="max-width:78ch;margin-top:0">
+      Le geste de l’économiste&nbsp;: <b>des quantités multipliées par vos prix
+      unitaires</b>. Choisissez la nature de l’opération — ce qui change d’une
+      nature à l’autre n’est pas un coefficient, c’est la liste des postes.
+      <b>Aucun prix n’est embarqué ici</b>&nbsp;: ils viennent de votre bordereau
+      ou d’une opération que vous avez livrée.</p>
+
+    <div class="ig-champ">
+      <label for="ig-eco-op">Nature de l’opération</label>
+      <select id="ig-eco-op"></select>
+    </div>
+    <p class="note" id="ig-eco-objet" style="margin-top:6px"></p>
+    <div id="ig-eco-dit" class="ig-encart" style="display:none"></div>
+
+    <div id="ig-eco-saisie"></div>
+
+    <div class="ig-champ" style="margin-top:12px">
+      <label for="ig-eco-prov">Provision pour aléas (%) — facultative</label>
+      <input type="number" id="ig-eco-prov" min="0" max="100" step="0.5"
+             placeholder="laisser vide si non décidée">
+    </div>
+    <p class="note" id="ig-eco-alea" style="margin-top:4px"></p>
+
+    <button type="button" class="ig-lanceur-b" id="ig-eco-go">Chiffrer l’opération →</button>
+    <p class="note" id="ig-eco-msg" style="margin-top:10px"></p>
+    <div id="ig-eco-out"></div>
+  </section>
+
   <section class="wrap rc-sec">
-    <div class="rc-etape"><span class="n">7</span><h2>Apporter vos documents</h2></div>
+    <div class="rc-etape"><span class="n">8</span><h2>Apporter vos documents</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Vos pièces existantes — notes de calcul, relevés, plans, spécifications
       d'un projet antérieur — complètent l'étude là où le moteur s'arrête. Elles
@@ -1595,7 +1637,7 @@
   </section>
 
   <section class="wrap rc-sec" id="ig-limites">
-    <div class="rc-etape"><span class="n">8</span><h2>Ce que ce cadre ne fait pas</h2></div>
+    <div class="rc-etape"><span class="n">9</span><h2>Ce que ce cadre ne fait pas</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Le dire ici plutôt qu'en note de bas de page&nbsp;: ces limites décident du moment où
       il faut un ingénieur, et les ignorer coûte plus cher que de les lire.</p>
@@ -1674,6 +1716,222 @@
     </div>
   </div>
 </footer>
+<script>
+/* ══ L'ÉCONOMISTE DE LA CONSTRUCTION ═══════════════════════════════════════
+
+   TOUT EST DÉRIVÉ DU RÉFÉRENTIEL SERVI, rien n'est écrit ici : ni les cinq
+   natures d'opération, ni les dix-sept postes, ni les quantités. Une liste
+   recopiée dans la page cesserait d'être vraie au premier poste ajouté au
+   module, sans que rien ne le signale — et c'est le lecteur qui découvrirait
+   le manque, pas nous.
+
+   AUCUN PRIX N'EST PROPOSÉ NI PRÉ-REMPLI. Le module n'en porte aucun ; la
+   page n'en invente pas.                                                    */
+(function () {
+  var REF = null, elOp, elObjet, elDit, elSaisie, elProv, elAlea, elMsg, elOut;
+
+  function $(id) { return document.getElementById(id); }
+  function txt(el, t) { el.textContent = t || ''; }
+  function esc(x) {
+    return String(x == null ? '' : x).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  var euro = function (n) {
+    if (n == null) return '—';
+    return Number(n).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' €';
+  };
+
+  function operation() {
+    if (!REF) return null;
+    var c = elOp.value;
+    for (var i = 0; i < REF.operations.length; i++)
+      if (REF.operations[i].cle === c) return REF.operations[i];
+    return null;
+  }
+
+  /* La saisie SUIT la nature choisie : on ne demande une quantité que si un
+     poste retenu s'appuie dessus. Afficher les huit quantités pour une
+     maintenance ferait chercher des chiffres qui ne servent à rien. */
+  function rendreSaisie() {
+    var o = operation();
+    if (!o) { elSaisie.innerHTML = ''; return; }
+    txt(elObjet, o.objet);
+    elDit.style.display = 'block';
+    elDit.innerHTML = '<b>' + esc(o.nom) + '</b> — ' + esc(o.dit);
+
+    var h = '<div class="ig-eco-grille"><div><h4>Quantités</h4>';
+    o.quantites_utiles.forEach(function (q) {
+      var Q = REF.quantites[q];
+      h += '<div class="ig-champ"><label for="ecoq-' + q + '">' + esc(Q.nom)
+         + ' <span class="ig-u">(' + esc(Q.unite) + ')</span></label>'
+         + '<input type="number" min="0" step="any" id="ecoq-' + q + '" data-q="' + q + '">'
+         + '<p class="note ig-ou">' + esc(Q.ou) + '</p></div>';
+    });
+    /* LES PRIX SE RÉPARTISSENT SUR PLUSIEURS COLONNES. Une réhabilitation en
+       porte treize face à quatre quantités : en une seule colonne, la moitié
+       gauche du bloc restait vide sur toute la hauteur. */
+    h += '</div><div class="ig-eco-prix"><h4>Prix unitaires <span class="ig-u">(€ HT par unité)</span></h4>';
+    o.postes.forEach(function (p) {
+      var Q = REF.quantites[p.assiette];
+      h += '<div class="ig-champ"><label for="ecop-' + p.cle + '">' + esc(p.nom)
+         + ' <span class="ig-u">(€/' + esc(Q.unite) + ')</span></label>'
+         + '<input type="number" min="0" step="any" id="ecop-' + p.cle + '" data-p="' + p.cle + '">'
+         + '<p class="note ig-ou">' + esc(p.quoi) + '</p></div>';
+    });
+    h += '</div></div>';
+
+    /* CE QUI EST ÉCARTÉ EST DIT, avec sa raison. Un poste absent sans
+       explication laisserait croire à un oubli — ou pire, à un poste gratuit. */
+    if (o.sans_objet.length) {
+      h += '<details class="ig-eco-hors"><summary>Ce que cette nature ne porte pas — '
+         + o.sans_objet.length + ' poste(s), et pourquoi</summary><ul>';
+      o.sans_objet.forEach(function (x) {
+        h += '<li><b>' + esc(x.nom) + '</b> — ' + esc(x.pourquoi) + '</li>';
+      });
+      h += '</ul></details>';
+    }
+    elSaisie.innerHTML = h;
+
+    var a = REF.aleas.ordre.filter(function (x) { return x.operation === o.cle; })[0];
+    txt(elAlea, a ? (REF.aleas.regle + ' Cette nature est au rang ' + a.rang
+                     + ' sur ' + REF.aleas.ordre.length + ' — ' + REF.aleas.refus)
+                  : REF.aleas.refus);
+    elOut.innerHTML = ''; txt(elMsg, '');
+  }
+
+  function lire(sel, attr) {
+    var out = {};
+    Array.prototype.forEach.call(elSaisie.querySelectorAll(sel), function (i) {
+      var v = i.value.trim();
+      if (v !== '') { var n = Number(v); if (isFinite(n)) out[i.getAttribute(attr)] = n; }
+    });
+    return out;
+  }
+
+  function chiffrer() {
+    var o = operation();
+    if (!o) return;
+    txt(elMsg, 'Calcul en cours…');
+    var prov = elProv.value.trim();
+    fetch('/api/datacenter/economiste/chiffrer', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        operation: o.cle,
+        quantites: lire('input[data-q]', 'data-q'),
+        prix_unitaires: lire('input[data-p]', 'data-p'),
+        provision_pct: prov === '' ? null : Number(prov)
+      })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.ok) { txt(elMsg, d.message || 'Le chiffrage a été refusé.'); return; }
+      txt(elMsg, ''); rendreResultat(d);
+    }).catch(function () { txt(elMsg, 'Le service n’a pas répondu.'); });
+  }
+
+  function rendreResultat(d) {
+    var h = '<div class="ig-eco-res">';
+    h += '<table class="ig-eco-t"><thead><tr><th>Poste</th><th>Quantité</th>'
+       + '<th>Prix unitaire</th><th>Montant</th></tr></thead><tbody>';
+    var famille = null;
+    d.lignes.forEach(function (L) {
+      if (L.famille !== famille) {
+        famille = L.famille;
+        h += '<tr class="ig-eco-fam"><td colspan="4">' + esc(L.famille_nom) + '</td></tr>';
+      }
+      var ouvert = L.etat !== 'chiffree';
+      h += '<tr' + (ouvert ? ' class="ig-eco-ouvert"' : '') + '>'
+         + '<td>' + esc(L.nom) + (ouvert ? ' <span class="ig-eco-b">non chiffré</span>' : '')
+         + '<p class="note">' + esc(L.dit) + '</p></td>'
+         + '<td class="num">' + (L.quantite == null ? '—'
+             : Number(L.quantite).toLocaleString('fr-FR') + ' ' + esc(L.unite)) + '</td>'
+         + '<td class="num">' + (L.prix_unitaire == null ? '—' : euro(L.prix_unitaire)) + '</td>'
+         + '<td class="num">' + (L.montant == null ? '—' : euro(L.montant)) + '</td></tr>';
+    });
+    h += '</tbody><tfoot>';
+    h += '<tr><th colspan="3">Total chiffré' + (d.annuel ? ' — par an' : '') + '</th>'
+       + '<th class="num">' + euro(d.total_chiffre) + '</th></tr>';
+    if (d.provision) {
+      h += '<tr><th colspan="3">Provision pour aléas ('
+         + String(d.provision.taux_pct).replace('.', ',') + ' %) — que vous avez décidée</th>'
+         + '<th class="num">' + euro(d.provision.montant) + '</th></tr>';
+      h += '<tr><th colspan="3">Total avec provision</th><th class="num">'
+         + euro(d.total_avec_provision) + '</th></tr>';
+    }
+    h += '</tfoot></table>';
+
+    /* LA PART NON CHIFFRÉE EST LA VRAIE INFORMATION, pas le total. */
+    var pct = Math.round(d.part_non_chiffree * 1000) / 10;
+    /* LE SEUIL VIENT DU RÉFÉRENTIEL, PAS DE LA RÉPONSE. Écrit `d.seuil`, il
+       valait `undefined` : toute comparaison rendait faux et l'alerte ne se
+       serait JAMAIS déclenchée — relevé à 77 % de postes non chiffrés, sur un
+       seuil de 25 %. Un signal qui ne peut pas se déclencher est pire qu'un
+       signal absent : on croit qu'il veille. */
+    var seuil = (REF && REF.seuil_non_chiffre != null) ? REF.seuil_non_chiffre : 0.25;
+    h += '<p class="ig-eco-lecture' + (d.part_non_chiffree > seuil ? ' alerte' : '') + '">'
+       + '<b>' + d.postes_non_chiffres + ' poste(s) sur ' + d.postes_total
+       + ' non chiffrés — ' + String(pct).replace('.', ',') + ' %.</b> '
+       + esc(d.lecture) + '</p>';
+    if (d.annuel) {
+      h += '<p class="note"><b>Ce montant est ANNUEL.</b> L’additionner à un '
+         + 'investissement produirait un nombre qui ne veut rien dire.</p>';
+    }
+    h += '<p class="note">' + esc(d.avertissement) + '</p></div>';
+    elOut.innerHTML = h;
+  }
+
+  function init() {
+    elOp = $('ig-eco-op'); elObjet = $('ig-eco-objet'); elDit = $('ig-eco-dit');
+    elSaisie = $('ig-eco-saisie'); elProv = $('ig-eco-prov');
+    elAlea = $('ig-eco-alea'); elMsg = $('ig-eco-msg'); elOut = $('ig-eco-out');
+    if (!elOp) return;
+    fetch('/api/datacenter/economiste', { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.ok) { txt(elMsg, 'Le référentiel n’a pas pu être chargé.'); return; }
+        REF = d.referentiel;
+        elOp.innerHTML = REF.operations.map(function (o) {
+          return '<option value="' + esc(o.cle) + '">' + esc(o.nom) + '</option>';
+        }).join('');
+        rendreSaisie();
+      })
+      .catch(function () { txt(elMsg, 'Le référentiel n’a pas pu être chargé.'); });
+    elOp.addEventListener('change', rendreSaisie);
+    $('ig-eco-go').addEventListener('click', chiffrer);
+  }
+
+  if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+</script>
+<style>
+.ig-eco-grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px;margin-top:14px}
+.ig-eco-prix{display:grid;grid-template-columns:repeat(auto-fit,minmax(228px,1fr));gap:0 20px;align-content:start}
+.ig-eco-prix h4{grid-column:1/-1}
+.ig-eco-grille h4{margin:0 0 8px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ig-u{font-weight:400;color:var(--muted);font-size:.88em}
+.ig-ou{margin:3px 0 0;font-size:11.5px;line-height:1.4}
+.ig-eco-hors{margin-top:16px;border:1px solid var(--line);border-radius:8px;padding:10px 14px}
+.ig-eco-hors summary{cursor:pointer;font-weight:600;font-size:13.5px}
+.ig-eco-hors ul{margin:10px 0 2px;padding-left:18px;font-size:13px;line-height:1.55}
+.ig-eco-res{margin-top:16px;overflow-x:auto}
+.ig-eco-t{width:100%;border-collapse:collapse;font-size:13.5px;min-width:620px}
+.ig-eco-t th,.ig-eco-t td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+.ig-eco-t .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ig-eco-t thead th{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.ig-eco-t tfoot th{font-weight:700;border-top:2px solid var(--line);border-bottom:0}
+.ig-eco-fam td{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--cyan);
+  background:rgba(34,211,238,.07);font-weight:600}
+.ig-eco-ouvert td{opacity:.72}
+.ig-eco-b{display:inline-block;font-size:10px;letter-spacing:.05em;text-transform:uppercase;
+  padding:1px 6px;border-radius:3px;border:1px solid var(--amber);color:var(--amber);margin-left:6px}
+.ig-eco-lecture{margin-top:14px;padding:12px 15px;border-left:3px solid var(--cyan);
+  background:var(--panel2);border-radius:0 6px 6px 0;font-size:13.5px;line-height:1.55}
+.ig-eco-lecture.alerte{border-left-color:var(--amber)}
+.ig-encart{margin-top:10px;padding:11px 15px;border-left:3px solid var(--cyan);
+  background:var(--panel2);border-radius:0 6px 6px 0;font-size:13.5px;line-height:1.55}
+</style>
   <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
   
 </body>

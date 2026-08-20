@@ -37,7 +37,10 @@ sys.path.insert(0, ICI)
 # en lisant le sommaire, qui n'en liste pas la totalité.
 PAGES = {
     "datacenter.html": 12,
-    "ingenierie-datacenter.html": 8,
+    # Neuf depuis l'ajout du chapitre de l'économiste de la construction,
+    # inséré en 7 — les deux suivants ont été renumérotés plutôt que de
+    # laisser la page compter 1..6, 7, 7, 8.
+    "ingenierie-datacenter.html": 9,
     "strategie-durable-datacenter.html": 5,
 }
 
