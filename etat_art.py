@@ -307,6 +307,181 @@ if _FAUTES:
     raise RuntimeError("etat_art — bibliographie incohérente : " + " ; ".join(_FAUTES))
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  COMBIEN DE SERVEURS ? — une dérivation, et ce qu'elle refuse de dériver
+#
+#  POURQUOI CE CALCUL EST ICI ET NON DANS LE MOTEUR. Le moteur tient ses
+#  constantes de NORMES, et un contrôle lui interdit d'importer ce module :
+#  un chiffre de livre blanc fournisseur entrerait sinon dans un résultat
+#  présenté comme normatif sans que rien ne le signale. Les puissances par
+#  serveur viennent précisément d'un livre blanc fournisseur. Elles restent
+#  donc ici, avec leur source et la nature de cette source, et elles servent à
+#  PROPOSER une valeur dans le formulaire — jamais à calculer un bilan.
+#
+#  CE QUE LE FORMULAIRE DEMANDAIT SANS AIDE. « Nombre de serveurs » était un
+#  nombre nu. Qui ne connaît pas déjà son parc répond au hasard ou n'y touche
+#  pas — et le module de balayage l'écrit sans détour : « aucune plage
+#  défendable sans connaître la densité visée ». C'est exact, et la conséquence
+#  n'est pas de se taire : c'est que chaque proposition doit DÉCLARER la
+#  densité qu'elle suppose. Elle redevient alors défendable.
+#
+#  LE NOMBRE DE SERVEURS N'EST PAS UNE DONNÉE INDÉPENDANTE : c'est la puissance
+#  informatique — la seule entrée indispensable du formulaire, donc déjà
+#  saisie — divisée par la puissance d'un serveur. Seule la seconde manquait.
+#
+#  QUAND LA DIVISION EST UNE LECTURE, ET QUAND ELLE SERAIT UNE INVENTION. Le
+#  fait « baies_kw » donne la puissance de la baie ET son nombre de nœuds pour
+#  les baies de calcul : la division est alors une lecture. Pour la baie
+#  d'entreprise et la baie B200, la source donne la baie SANS le nombre de
+#  nœuds — rien n'en est tiré, et ce refus est publié comme le reste.
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Le fait dont sortent les puissances par serveur, et donc la source à citer.
+_SOURCE_SERVEURS = "penguin_five"
+
+PUISSANCE_PAR_SERVEUR = {
+    "volume": {
+        "kw": 0.5,
+        "nom": "serveur de volume (biprocesseur)",
+        "obtention": "hypothese_du_moteur",
+        "fait": None,
+        "source": "Ce n'est pas un chiffre de ce dossier : c'est l'hypothèse "
+                  "que le moteur emploie déjà lui-même pour estimer un parc "
+                  "quand le champ reste vide. Elle est reprise ici pour que "
+                  "le formulaire propose la même chose que le calcul.",
+    },
+    "gpu_a100": {
+        "kw": 6.5,
+        "nom": "nœud GPU de génération A100",
+        "obtention": "derive",
+        "fait": "baies_kw",
+        "baie_kw": 13, "noeuds": 2,
+        "source": "Baie A100 à deux nœuds, 13 kW.",
+    },
+    "gpu_h100": {
+        "kw": 11.0,
+        "nom": "nœud GPU de génération H100",
+        "obtention": "derive",
+        "fait": "baies_kw",
+        "baie_kw": 22, "noeuds": 2,
+        "source": "Baie H100 à deux nœuds 22 kW — et à quatre nœuds 44 kW, "
+                  "qui donne la même puissance par nœud.",
+    },
+}
+
+ORDRE_SERVEURS = ["volume", "gpu_a100", "gpu_h100"]
+
+SERVEURS_SANS_DERIVATION = {
+    "baie_entreprise": {
+        "baie_kw": 8.6,
+        "pourquoi": "La source donne 8,6 kW pour une baie d'entreprise, sans "
+                    "dire combien de serveurs elle contient. Le remplissage "
+                    "varie du simple au triple selon le format et la "
+                    "ventilation : le supposer fabriquerait un compte "
+                    "crédible et faux.",
+    },
+    "baie_b200": {
+        "baie_kw": 57,
+        "pourquoi": "La source donne 57 kW pour une baie B200, sans son "
+                    "nombre de nœuds. C'est la génération où le nombre de "
+                    "nœuds par baie devient précisément la question de "
+                    "conception : le supposer serait y répondre à sa place.",
+    },
+}
+
+
+def serveurs_possibles(puissance_it_kw):
+    """Le nombre de serveurs que porte une puissance informatique donnée.
+
+    UN COMPTE PAR PROFIL, chacun disant la puissance par serveur qu'il suppose
+    et d'où elle vient. C'est ce qui rend la proposition défendable : ce n'est
+    pas « environ tant de serveurs », c'est « tant de serveurs SI ce sont des
+    nœuds H100 ».
+    """
+    try:
+        p = float(puissance_it_kw or 0)
+    except (TypeError, ValueError):
+        p = 0.0
+    commun = {
+        "sans_derivation": SERVEURS_SANS_DERIVATION,
+        "source": SOURCES[_SOURCE_SERVEURS],
+        "nature_source": NATURES[SOURCES[_SOURCE_SERVEURS]["nature"]]["nom"],
+    }
+    if p <= 0:
+        return dict(commun, ok=False, erreur="puissance_absente",
+                    message="Le nombre de serveurs se déduit de la puissance "
+                            "informatique : saisissez-la d'abord.")
+    profils = []
+    for cle in ORDRE_SERVEURS:
+        d = PUISSANCE_PAR_SERVEUR[cle]
+        profils.append({
+            "cle": cle, "nom": d["nom"], "kw_par_serveur": d["kw"],
+            "obtention": d["obtention"], "source": d["source"],
+            # Un demi-serveur n'existe pas ; on n'annonce pas non plus zéro
+            # quand la puissance suffit à en porter au moins un.
+            "nombre": max(1, int(round(p / d["kw"]))),
+        })
+    return dict(commun, ok=True, puissance_it_kw=p, profils=profils,
+                lecture="Ces comptes ne sont pas des ordres de grandeur : "
+                        "chacun est la puissance informatique divisée par la "
+                        "puissance d'un serveur du profil nommé. D'un profil à "
+                        "l'autre le compte varie d'un facteur vingt — c'est le "
+                        "profil qu'il faut choisir, pas le nombre.",
+                reserve="La puissance informatique porte AUSSI le stockage et "
+                        "le réseau, que ce partage ignore : le compte obtenu "
+                        "est un haut de fourchette.")
+
+
+def _verifier_serveurs():
+    """LA DÉRIVATION DOIT RESTER UNE DIVISION, et rester raccrochée à son fait.
+
+    Deux dérives, toutes deux silencieuses : qu'on retouche une puissance par
+    serveur sans toucher la baie dont elle sort, et que le fait sourcé change
+    de chiffre sans que cette table suive — la page citerait alors une source
+    qui ne dit plus ce qu'on lui fait dire.
+    """
+    fautes = []
+    if set(ORDRE_SERVEURS) != set(PUISSANCE_PAR_SERVEUR):
+        fautes.append("l'ordre des profils de serveur ne les couvre pas")
+    par_cle = {f["cle"]: f for f in FAITS}
+    for cle in ORDRE_SERVEURS:
+        d = PUISSANCE_PAR_SERVEUR[cle]
+        for champ in ("kw", "nom", "obtention", "source"):
+            if not d.get(champ):
+                fautes.append("profil serveur %s sans %s" % (cle, champ))
+        if d["obtention"] != "derive":
+            continue
+        attendu = d["baie_kw"] / float(d["noeuds"])
+        if abs(attendu - d["kw"]) > 1e-9:
+            fautes.append(
+                "le profil %s annonce %s kW par serveur, mais sa baie de %s kW "
+                "à %d nœuds en donne %s — une dérivation qui ne se refait pas "
+                "n'est plus une dérivation"
+                % (cle, d["kw"], d["baie_kw"], d["noeuds"], attendu))
+        f = par_cle.get(d["fait"])
+        if not f:
+            fautes.append("le profil %s s'appuie sur le fait %s, absent"
+                          % (cle, d["fait"]))
+            continue
+        if ("%d kW" % d["baie_kw"]) not in f["enonce"]:
+            fautes.append(
+                "le profil %s s'appuie sur une baie de %s kW que le fait « %s » "
+                "ne mentionne plus" % (cle, d["baie_kw"], d["fait"]))
+    for cle, d in SERVEURS_SANS_DERIVATION.items():
+        if len(d.get("pourquoi", "")) < 40:
+            fautes.append("le refus de dériver %s n'est pas motivé" % cle)
+    return fautes
+
+
+# LE CONTRÔLE COURT ICI, et non avec celui de la bibliographie : celui-là
+# s'exécute plus haut dans le fichier, avant que ces fonctions existent —
+# l'appeler là-bas levait un NameError au chargement du module.
+_FAUTES_SERVEURS = _verifier_serveurs()
+if _FAUTES_SERVEURS:
+    raise RuntimeError("etat_art — dérivation du nombre de serveurs "
+                       "incohérente : " + " ; ".join(_FAUTES_SERVEURS))
+
+
 def familles():
     """Les familles de faits, dans l'ordre où elles se lisent."""
     vues, out = set(), []
@@ -357,6 +532,12 @@ def etat():
         "sources": SOURCES,
         "groupes": groupes,
         "lacunes": LACUNES,
+        # Les profils de serveur voyagent AVEC l'état de l'art, pas avec le
+        # référentiel du moteur : c'est là qu'est leur source, et c'est ainsi
+        # que la page peut dire d'où vient chaque compte qu'elle propose.
+        "puissance_par_serveur": PUISSANCE_PAR_SERVEUR,
+        "ordre_serveurs": ORDRE_SERVEURS,
+        "serveurs_sans_derivation": SERVEURS_SANS_DERIVATION,
         "n_faits": len(FAITS),
         "avertissement":
             "Aucun de ces chiffres n'entre dans le calcul de cette page : le "

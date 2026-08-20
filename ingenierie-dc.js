@@ -21,6 +21,7 @@
   }
 
   var REF = null, CADRE = null, FILIERE = "moe", PHASE = null, DERNIER = null;
+  var ART = {};   /* l'état de l'art : sourcé, jamais dans un calcul */
   var DOSSIER = null;
 
   function $(s, r) { return (r || document).querySelector(s); }
@@ -170,7 +171,12 @@
         });
         h += "</select>";
       } else {
+        /* UNE LISTE DÉROULANTE, PAS UNE LISTE FERMÉE. `list` accroche un
+           menu de valeurs proposées à un champ qui reste libre : le lecteur
+           choisit dans le menu, ou tape la valeur réelle de son projet. Un
+           `select` interdirait précisément celle-là. */
         h += '<input id="' + id + '" data-champ="' + esc(c.id) + '" type="text" inputmode="decimal"'
+          + (DEROULANTS.indexOf(c.id) >= 0 ? ' list="ig-dl-' + esc(c.id) + '"' : "")
           + (c.defaut !== undefined ? ' value="' + esc(c.defaut) + '"' : "")
           + ' placeholder="' + (c.defaut !== undefined ? esc(c.defaut) : "—") + '">';
       }
@@ -201,7 +207,11 @@
      reconstruit pas le formulaire entier : cela effacerait ce que le lecteur
      est en train de taper. */
   function majSuggestionsContexte(prefixe) {
-    ["pue_cible", "intensite_reseau_g", "part_evaporative"].forEach(function (id) {
+    /* LA LISTE VIENT DE LA CONSTANTE, plus d'une copie écrite ici. Les deux
+       existaient et devaient rester d'accord : ajouter un champ contextuel
+       sans penser à la seconde posait un conteneur que rien ne redessinait —
+       la proposition n'apparaissait donc jamais. */
+    CHAMPS_CONTEXTUELS.forEach(function (id) {
       var zone = document.querySelector(prefixe + ' [data-sug="' + id + '"]');
       if (!zone) return;
       var c = (((REF || {}).champs) || []).filter(function (x) {
@@ -268,6 +278,28 @@
                        + "facteur du contrat" }];
       }
     }
+    /* COMBIEN DE SERVEURS ? Le compte n'est pas une donnée indépendante :
+       c'est la puissance informatique — déjà saisie plus haut — divisée par la
+       puissance d'un serveur. Les profils et leurs puissances viennent du
+       MOTEUR, avec leur source ; la page ne fait que poser la division, et un
+       contrôle vérifie qu'elle donne le même compte que lui. */
+    if (idChamp === "nb_serveurs") {
+      var pit = parseFloat(String(lire("puissance_it_kw")).replace(",", "."));
+      var tab = ART.puissance_par_serveur || {};
+      var ordre = ART.ordre_serveurs || [];
+      if (!isFinite(pit) || pit <= 0 || !ordre.length) {
+        return [{ valeur: null, nature: "derivation",
+                  nom: "saisissez d'abord la puissance informatique : le "
+                       + "nombre de serveurs s'en déduit" }];
+      }
+      return ordre.map(function (k) {
+        var d = tab[k] || {};
+        return { valeur: Math.max(1, Math.round(pit / d.kw)),
+                 nature: d.obtention === "derive" ? "derive_de_la_source"
+                                                  : "hypothese_du_module",
+                 nom: d.nom + " — " + fr(d.kw) + " kW par serveur" };
+      });
+    }
     if (idChamp === "part_evaporative") {
       var g = (R.refroidissement || {})[lire("refroidissement")];
       if (g && g.eau_site) {
@@ -282,13 +314,47 @@
      posée MÊME VIDE : sans conteneur, rien ne peut s'y insérer quand le
      lecteur choisit enfin sa famille de refroidissement ou son pays — et la
      proposition la plus utile de la page n'apparaîtrait jamais. */
-  var CHAMPS_CONTEXTUELS = ["pue_cible", "intensite_reseau_g", "part_evaporative"];
+  var CHAMPS_CONTEXTUELS = ["pue_cible", "intensite_reseau_g", "part_evaporative",
+                            "nb_serveurs"];
+
+  /* Les champs dont les propositions s'offrent en MENU DÉROULANT plutôt qu'en
+     puces. Le nombre de serveurs s'y prête : ses valeurs sont des comptes à
+     quatre chiffres, illisibles en puces, et le menu porte le profil supposé
+     en regard du nombre. */
+  var DEROULANTS = ["nb_serveurs"];
 
   function rendreSuggestions(c, prefixe) {
     var props = (c.suggestions || []).concat(
       suggestionsContextuelles(c.id, prefixe));
     if (!props.length && CHAMPS_CONTEXTUELS.indexOf(c.id) < 0) return "";
     var h = '<span class="ig-sug" data-sug="' + esc(c.id) + '">';
+
+    /* EN MENU DÉROULANT. Le menu est accroché au champ par son `list` ; il se
+       redessine avec cette zone dès que la puissance informatique change,
+       parce qu'il vit DEDANS. Posé ailleurs, il aurait gardé les comptes de la
+       puissance précédente sans que rien ne le dise. */
+    if (DEROULANTS.indexOf(c.id) >= 0) {
+      var chiffrees = props.filter(function (s) {
+        return s.valeur !== null && s.valeur !== undefined;
+      });
+      h += '<datalist id="ig-dl-' + esc(c.id) + '">';
+      chiffrees.forEach(function (s) {
+        h += '<option value="' + esc(s.valeur) + '" label="' + esc(s.nom) + '">';
+      });
+      h += "</datalist>";
+      if (!chiffrees.length) {
+        return h + '<span class="s-n">' + esc((props[0] || {}).nom || "") + "</span></span>";
+      }
+      /* Le menu ne se voit pas tant qu'on ne l'ouvre pas : on DIT ce qu'il
+         contient, sinon personne ne pense à cliquer dans un champ vide. */
+      h += '<span class="s-n">Menu déroulant&nbsp;: '
+        + chiffrees.map(function (s) {
+            return esc(fr(s.valeur)) + " — " + esc(s.nom);
+          }).join(" · ")
+        + ". Le champ reste libre : ces comptes se déduisent de la puissance "
+        + "informatique, chacun pour le profil de serveur qu'il nomme.</span>";
+      return h + "</span>";
+    }
     props.forEach(function (s) {
       if (s.valeur === null || s.valeur === undefined) {
         /* Une indication sans valeur reste utile — « eau de site : modérée,
@@ -3822,11 +3888,21 @@
         .then(function (r) { return r.json(); }),
       demander("/api/datacenter/ingenierie", { credentials: "same-origin" })
         .then(function (r) { return r.json(); }),
+      /* L'ÉTAT DE L'ART, pour les profils de serveur. Ces chiffres viennent de
+         livres blancs de fournisseurs et n'entrent dans AUCUN calcul — le
+         moteur tient ses constantes de normes. Ils servent uniquement à
+         proposer un nombre de serveurs dans le formulaire, en disant chaque
+         fois de quel profil il vient. Leur absence ne doit donc rien casser :
+         on retombe sur un objet vide et le champ redevient un nombre libre. */
+      demander("/api/datacenter/etat-art", { credentials: "same-origin" })
+        .then(function (r) { return r.json(); })
+        .catch(function () { return { ok: false }; }),
     ])
       .then(function (rs) {
         if (!rs[0].ok || !rs[1].ok) throw new Error("ref");
         REF = rs[0];
         CADRE = rs[1].referentiel;
+        ART = (rs[2] && rs[2].ok && rs[2].etat) || {};
         tipBrancher();
         bâtirFormulaire();
         bâtirIdentification();
