@@ -1326,16 +1326,49 @@
          et devient une gêne — et l'écran entier finit par clignoter. */
   var GESTE = null;
 
+  /* LES ÉTAPES PASSÉES. Passer n'est pas faire, et les deux ne se rangent pas
+     au même endroit : « fait » est un CONSTAT tiré de l'écran, « passé » est
+     une DÉCISION du lecteur. Elle vit le temps de la session — un choix de
+     confort n'a pas à survivre à la fermeture du navigateur. */
+  var CLE_PASSES = "ig_gestes_passes";
+
+  function passes() {
+    try {
+      var v = JSON.parse(sessionStorage.getItem(CLE_PASSES) || "[]");
+      return Array.isArray(v) ? v.filter(function (x) { return typeof x === "string"; }) : [];
+    } catch (e) { return []; }
+  }
+
+  function passer(id) {
+    var p = passes();
+    if (p.indexOf(id) < 0) p.push(id);
+    try { sessionStorage.setItem(CLE_PASSES, JSON.stringify(p)); } catch (e) { /* sans mémoire */ }
+    majGuidage();
+  }
+
+  function reprendre(id) {
+    var p = passes().filter(function (x) { return x !== id; });
+    try { sessionStorage.setItem(CLE_PASSES, JSON.stringify(p)); } catch (e) { /* sans mémoire */ }
+    majGuidage();
+  }
+
   function etatGuidage() {
     /* Ce que la page VOIT. Chaque clé est un constat, jamais une supposition :
        une clé absente vaut « pas fait », et un guide qui supposerait l'étape
        accomplie ferait sauter la seule qui manquait. */
     var A = PLAN && PLAN.avancement;
+    var t = function (sel) { var e = $(sel); return !!(e && e.innerHTML.trim()); };
     return {
       projet: !!PROJET,
       profil: !!(lireProfil() || {}).puissance_it_kw,
       phase: !!PHASE,
       disponibilite: !!(($("#ig-tier") || {}).value),
+      /* LES TROIS CONSTATS D'ARGENT. Un tableau produit, pas un bouton
+         cliqué : le clic ne prouve rien, un chiffrage refusé laisse la zone
+         vide et le fil doit continuer de proposer l'étape. */
+      moe: !!$("#ig-moe-out table"),
+      travaux: !!$("#ig-eco-out .ig-eco-t"),
+      honoraires: !!$("#ig-pont-out .ig-moe-kpi"),
       piece: !!(A && A.faits > 0),
       visa: !!(A && (A.valides_client > 0 || A.rejetes > 0)),
       obligatoires_faites: !!(A && A.total > 0 && A.obligatoires_restants === 0),
@@ -1348,10 +1381,17 @@
     if (!z || !CADRE || !CADRE.gestes) return;
     var etat = etatGuidage();
     var fil = CADRE.gestes;
+    var pss = passes();
     var g = null;
     for (var i = 0; i < fil.gestes.length; i++) {
       var c = fil.gestes[i];
-      if (etat[c.fait_si]) continue;
+      /* PASSER N'EST PAS FAIRE. Un geste passé n'est plus proposé, sinon le
+         fil resterait bloqué sur des prix unitaires qui ne sont pas arrivés et
+         cesserait de proposer quoi que ce soit d'autre. Mais il ne remplit
+         AUCUN préalable : le geste qui en dépend n'est pas proposé non plus,
+         parce qu'il ne pourrait pas aboutir — le pont sans chiffrage de
+         travaux ne rendrait qu'un refus. */
+      if (etat[c.fait_si] || pss.indexOf(c.id) >= 0) continue;
       var pret = true;
       for (var j = 0; j < c.exige.length; j++) {
         if (!etat[c.exige[j]]) { pret = false; break; }
@@ -1360,14 +1400,30 @@
     }
     GESTE = g;
     var faits = fil.gestes.filter(function (x) { return etat[x.fait_si]; });
+    var sautes = fil.gestes.filter(function (x) {
+      return !etat[x.fait_si] && pss.indexOf(x.id) >= 0; });
     var n = fil.gestes.length;
+    filVertical(fil, etat, pss, g);
 
     if (!g) {
       z.className = "ig-guid fin";
       z.innerHTML = '<div class="g-t"><span class="g-p">Parcours terminé</span>'
         + "<b>" + esc(fil.fin.titre) + "</b></div>"
         + '<p class="g-x">' + esc(fil.fin.texte) + "</p>"
-        + '<p class="g-a"><span class="fx">✓</span>' + esc(fil.fin.apres) + "</p>";
+        + '<p class="g-a"><span class="fx">✓</span>' + esc(fil.fin.apres) + "</p>"
+        /* UN PARCOURS « TERMINÉ » DONT DES ÉTAPES ONT ÉTÉ PASSÉES N'EST PAS
+           TERMINÉ, et le taire serait le plus commode des mensonges. */
+        + (sautes.length
+           ? '<p class="g-s"><span class="fx">◇</span><b>' + sautes.length
+             + " étape(s) passée(s), pas faite(s) — </b>"
+             + sautes.map(function (x) { return esc(x.titre); }).join(" · ")
+             + '. <button type="button" class="ig-g-lien" data-reprendre="'
+             + esc(sautes[0].id) + '">Reprendre la première</button></p>'
+           : "");
+      var r0 = z.querySelector("[data-reprendre]");
+      if (r0) r0.addEventListener("click", function () {
+        reprendre(this.getAttribute("data-reprendre"));
+      });
       fleche(null);
       return;
     }
@@ -1388,16 +1444,149 @@
       + esc(g.apres) + "</p>"
       + '<div class="g-b"><button type="button" class="btn btn-s" id="ig-guid-go">'
       + "M'y conduire <span class=\"fx\">➜</span></button>"
+      /* PASSER EST OFFERT LÀ OÙ C'EST LÉGITIME, et seulement là. Les prix
+         unitaires viennent du bordereau du client : sans le droit de passer,
+         le fil s'arrêterait sur une étape que le lecteur ne PEUT pas franchir,
+         et ne proposerait plus jamais de rédiger une pièce. */
+      + (g.facultatif
+         ? '<button type="button" class="ig-g-lien" id="ig-guid-passer">'
+           + "Passer cette étape</button>" : "")
       + '<span class="g-o">' + esc(g.fleche) + "</span>"
       + '<span class="g-r">' + faits.length + " / " + n
-      + " étapes franchies</span></div>"
+      + " étapes franchies"
+      + (sautes.length ? " · " + sautes.length + " passée(s)" : "")
+      + "</span></div>"
+      + (g.facultatif && g.passer
+         ? '<p class="g-s"><span class="fx">◇</span>' + esc(g.passer) + "</p>" : "")
       + '<div class="g-jauge"><i style="width:'
       + Math.round(faits.length * 100 / n) + '%"></i></div>';
 
     var b = $("#ig-guid-go");
     if (b) b.addEventListener("click", function () { allerAuGeste(g); });
+    var sp = $("#ig-guid-passer");
+    if (sp) sp.addEventListener("click", function () { passer(g.id); });
     designer(g);
   }
+
+  /* ═════════════════════════════════════════════════════════════════════
+     LE FIL VERTICAL — SAVOIR OÙ L'ON EST SANS AVOIR À REMONTER
+
+     Le bandeau dit CE QU'IL FAUT FAIRE. Il ne dit pas où l'on en est quand on
+     a défilé six écrans plus bas : arrivé à la section 7, le lecteur ne voit
+     plus rien du parcours et ne sait pas si les sections qu'il a dépassées
+     comptaient.
+
+     UNE FLÈCHE PAR SECTION, POSÉE ENTRE LES SECTIONS, dans l'ordre du fil.
+     Chacune porte trois choses : son rang, son état, et ce qui passe d'une
+     section à la suivante. Une flèche muette occupe la place sans rien
+     apprendre — c'est la règle déjà tenue par les flèches de l'étude
+     d'enveloppe, et elle vaut ici.
+
+     ELLES N'APPARAISSENT QUE LE PARCOURS ENGAGÉ. Sur une page déjà dense, un
+     fil affiché à quelqu'un qui n'a rien commencé est du décor.
+     ═════════════════════════════════════════════════════════════════════ */
+
+  var FIL_POSE = false;
+
+  function filVertical(fil, etat, pss, courant) {
+    var engage = !!(etat.projet || etat.profil || etat.phase);
+    /* Les ancres, dans l'ordre du fil et sans doublon : quatre gestes visent
+       le registre des pièces, et quatre flèches devant la même section ne
+       diraient rien de plus qu'une seule. */
+    var vues = {}, rangs = [];
+    fil.gestes.forEach(function (g, i) {
+      if (vues[g.ancre] != null) { rangs[vues[g.ancre]].fin = i + 1; return; }
+      vues[g.ancre] = rangs.length;
+      rangs.push({ ancre: g.ancre, debut: i + 1, fin: i + 1, gestes: [g] });
+      return;
+    });
+    fil.gestes.forEach(function (g) {
+      var r = rangs[vues[g.ancre]];
+      if (r.gestes.indexOf(g) < 0) r.gestes.push(g);
+    });
+
+    if (!FIL_POSE) {
+      rangs.forEach(function (r, i) {
+        /* LE RAIL EST FIXE ET FLOTTE À DROITE : y glisser une flèche
+           verticale la sortirait du fil de lecture, à l'endroit précis où
+           elle doit s'y trouver. Son geste reste dans le bandeau. */
+        if (r.ancre === "#ig-rail") return;
+        var cible = document.querySelector(r.ancre);
+        if (!cible || !cible.parentNode) return;
+        /* La flèche se pose JUSTE DEVANT l'ancre du geste, pas devant la
+           section : deux gestes visent la section 2 et deux la section 7, et
+           les empiler devant la même section ferait deux flèches côte à côte
+           qui ne désigneraient plus rien. */
+        var d = document.createElement("div");
+        d.className = "ig-jal";
+        d.setAttribute("data-rang", String(i));
+        d.hidden = true;
+        cible.parentNode.insertBefore(d, cible);
+      });
+      FIL_POSE = true;
+    }
+
+    document.querySelectorAll(".ig-jal").forEach(function (d) {
+      var r = rangs[Number(d.getAttribute("data-rang"))];
+      if (!r) { d.hidden = true; return; }
+      d.hidden = !engage;
+      if (!engage) return;
+
+      var faits = r.gestes.filter(function (g) { return etat[g.fait_si]; }).length;
+      var passesIci = r.gestes.filter(function (g) {
+        return !etat[g.fait_si] && pss.indexOf(g.id) >= 0; }).length;
+      var ici = !!(courant && r.gestes.some(function (g) { return g.id === courant.id; }));
+      var tous = r.gestes.length;
+
+      var etatMot, cls;
+      if (ici) { etatMot = "Vous êtes ici"; cls = "ici"; }
+      else if (faits === tous) { etatMot = "Franchie"; cls = "fait"; }
+      else if (faits + passesIci === tous && passesIci) { etatMot = "Passée, pas faite"; cls = "saute"; }
+      else if (faits > 0) { etatMot = faits + " sur " + tous + " franchie(s)"; cls = "fait"; }
+      else { etatMot = "À venir"; cls = "avenir"; }
+      d.className = "ig-jal " + cls;
+
+      var rang = r.debut === r.fin ? "Étape " + r.debut
+        : "Étapes " + r.debut + " à " + r.fin;
+      /* Le geste NOMMÉ est celui qui reste à faire ici, ou le dernier franchi :
+         nommer toujours le premier ferait dire « ouvrez un projet » à quelqu'un
+         qui en a ouvert un. */
+      var nomme = r.gestes.filter(function (g) { return !etat[g.fait_si]; })[0]
+                  || r.gestes[r.gestes.length - 1];
+      d.innerHTML = '<span class="ig-jal-a" aria-hidden="true">'
+        + (cls === "fait" ? "✓" : cls === "saute" ? "◇" : "↓") + "</span>"
+        + '<div class="ig-jal-c"><span class="ig-jal-p">' + esc(rang)
+        + " sur " + fil.gestes.length + " · " + esc(etatMot) + "</span>"
+        + "<b>" + esc(nomme.titre) + "</b>"
+        + '<p class="ig-jal-x">' + esc(nomme.apres) + "</p></div>";
+      d.setAttribute("data-debut", String(r.debut));
+    });
+
+    /* L'ORDRE DU PARCOURS N'EST PAS CELUI DE LA PAGE, et il faut le dire là où
+       ça se voit. Le niveau de disponibilité se décide en section 2 mais après
+       la phase, qui est en section 3 : sans un mot, le lecteur croit que la
+       numérotation est cassée et cesse de s'y fier. */
+    var prec = 0;
+    document.querySelectorAll(".ig-jal").forEach(function (d) {
+      if (d.hidden) return;
+      var deb = Number(d.getAttribute("data-debut") || 0);
+      if (deb && deb < prec) {
+        var p = document.createElement("p");
+        p.className = "ig-jal-o";
+        p.textContent = "L’ordre du parcours n’est pas celui de la page : "
+          + "cette étape se décide après une autre, plus bas.";
+        var c = d.querySelector(".ig-jal-c");
+        if (c) c.appendChild(p);
+      }
+      prec = Math.max(prec, deb);
+    });
+  }
+
+  /* Les calculs de la section 6 et de la section 7 vivent hors de ce module :
+     ils préviennent par un événement plutôt que de s'appeler l'un l'autre. Sans
+     cela, le fil ne verrait jamais qu'un chiffrage a été produit et resterait
+     posé sur une étape déjà franchie. */
+  document.addEventListener("ig-chiffrage", function () { majGuidage(); });
 
   /* Désigne UNE cible, et une seule.
      Le sélecteur d'un geste peut matcher des dizaines d'éléments — « le bouton
@@ -3919,17 +4108,46 @@
           return "<th>" + esc(f.nom) + '<span class="moe-mop">'
             + esc((mop.mop || []).join(" + ")) + "</span></th>"; }).join("")
       + "<th>Total</th></tr></thead><tbody>"
+      /* UN TAUX ABSENT N'EST PAS UN TAUX NUL. Trois missions — économie de la
+         construction, sécurité incendie, coordination SSI — n'ont pas de taux
+         au relevé de 2018. Le module publie 0,0 par commodité de calcul et
+         signale l'état par `etat` ; rendu tel quel, on lisait « 0,0 / 0,0 % »
+         et « 0 – 0 », et une mission retenue passait pour gratuite. */
       + j.missions.map(function (l) {
-          return "<tr" + (l.obligation ? ' class="loi' + (l.impose ? " impose" : "") + '"' : "")
-            + '><td title="' + esc(l.role) + '">' + esc(l.nom) + "</td><td>"
-            + (l.taux_sc * 100).toFixed(1).replace(".", ",") + " / "
-            + (l.taux_mep * 100).toFixed(1).replace(".", ",") + " %</td>"
+          var ouvert = l.etat === "taux_a_saisir";
+          var cls = l.obligation ? "loi" + (l.impose ? " impose" : "") : "";
+          if (ouvert) cls += (cls ? " " : "") + "ouv";
+          var titre = l.role + (ouvert && l.hors_releve
+            ? " — TAUX NON RELEVÉ : " + l.hors_releve.pourquoi : "");
+          return "<tr" + (cls ? ' class="' + cls + '"' : "")
+            + '><td title="' + esc(titre) + '">' + esc(l.nom) + "</td><td>"
+            + (ouvert ? '<span class="moe-asaisir">taux à saisir</span>'
+                : (l.taux_sc * 100).toFixed(1).replace(".", ",") + " / "
+                  + (l.taux_mep * 100).toFixed(1).replace(".", ",") + " %")
+            + "</td>"
             + ph.map(function (f) {
-                return "<td>" + fo(l.phases[f.cle].montant_meur) + "</td>"; }).join("")
-            + "<td><b>" + fo(l.montant_meur) + "</b></td></tr>"; }).join("")
+                return "<td>" + (ouvert ? "—" : fo(l.phases[f.cle].montant_meur))
+                  + "</td>"; }).join("")
+            + "<td><b>" + (ouvert ? "—" : fo(l.montant_meur))
+            + "</b></td></tr>"; }).join("")
       + "</tbody><tfoot><tr><td><b>Total</b></td><td></td>"
       + ph.map(function (f) { return "<td>" + fo(j.par_phase[f.cle]) + "</td>"; }).join("")
       + "<td><b>" + fo(j.total_meur) + "</b></td></tr></tfoot></table></div>";
+    /* CE QUI RESTE OUVERT EST PUBLIÉ, PAS DISSOUS. Un total qui tairait trois
+       missions retenues serait exact et trompeur : le lecteur croirait avoir
+       chiffré ce qu'il a coché. */
+    if (j.missions_ouvertes && j.missions_ouvertes.length) {
+      h += '<div class="moe-perdu moe-ouvertes"><b>'
+        + j.missions_ouvertes.length + " mission(s) retenue(s) n'entrent pas "
+        + "dans ce total.</b> " + esc(j.lecture_ouvertes) + "<ul>"
+        + j.missions_ouvertes.map(function (m) {
+            return "<li><b>" + esc(m.nom) + "</b> — "
+              + esc(m.hors_releve ? m.hors_releve.pourquoi : "")
+              + (m.hors_releve && m.hors_releve.ou_chercher
+                 ? "<br><i>Où le trouver :</i> " + esc(m.hors_releve.ou_chercher)
+                 : "") + "</li>"; }).join("")
+        + "</ul></div>";
+    }
     if (j.imposees && j.imposees.length) {
       h += '<p class="moe-perdu"><b>⚖ Deux missions ne se décochent pas.</b> '
         + j.imposees.map(function (i) {
@@ -3948,6 +4166,8 @@
     h += '<p class="note" style="margin-top:10px">' + esc(j.source.origine) + " "
       + esc(j.source.reserve) + " " + esc(j.source.anonymisation) + "</p>";
     $("#ig-moe-out").innerHTML = h;
+    /* Le fil des gestes ne lit pas dans ce module : il attend d'être prévenu. */
+    document.dispatchEvent(new CustomEvent("ig-chiffrage"));
   }
 
   function chiffrer() {

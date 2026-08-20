@@ -143,12 +143,40 @@ def _parcours():
     return json.loads(out.stdout)
 
 
-def test_deux_parcours_client_couvrent_les_trois_pages():
+def test_les_parcours_client_couvrent_ENSEMBLE_les_trois_pages():
+    """CE CONTRÔLE COMPTAIT LES PARCOURS ; il compte maintenant la COUVERTURE.
+
+    Exiger que CHACUN traverse les trois pages interdisait d'en écrire un qui
+    ne le doive pas : le parcours d'économie de la construction va du profil au
+    coût d'opération, et la stratégie de développement durable n'est pas une
+    étape de cette chaîne-là. La règle qui tient est l'inverse — ensemble, ils
+    ne doivent laisser aucune page hors du fil, et aucun d'eux ne doit envoyer
+    ailleurs que sur les pages de centre de données.
+    """
     dcp = [p for p in _parcours() if p["id"].startswith("dc-")]
-    assert len(dcp) == 2, [p["id"] for p in dcp]
+    assert len(dcp) >= 2, [p["id"] for p in dcp]
+    couvertes = set()
     for p in dcp:
         urls = [e["url"] for e in p["etapes"]]
-        assert set(urls) == set(PAGES_DC), (p["id"], urls)
+        assert len(urls) >= 2, (p["id"], urls)
+        assert set(urls) <= set(PAGES_DC), (p["id"], urls)
+        couvertes |= set(urls)
+    assert couvertes == set(PAGES_DC), sorted(set(PAGES_DC) - couvertes)
+
+
+def test_LE_POINT_QUI_DECIDE_aucun_parcours_ne_vise_deux_fois_la_meme_page():
+    """La progression se compte par URL VISITÉE — c'est le module qui le dit :
+    « les pages du parcours réellement atteintes ». Deux étapes pointant la
+    même page seraient donc cochées ensemble à la première visite, et le
+    parcours annoncerait deux tiers faits quand rien ne l'est.
+
+    Ce qui se passe DANS une page relève du fil vertical de cette page, qui
+    constate chaque calcul — pas du registre inter-pages, qui ne voit que des
+    adresses."""
+    for p in _parcours():
+        urls = [e["url"] for e in p["etapes"]]
+        assert len(urls) == len(set(urls)), (
+            p["id"], [u for u in urls if urls.count(u) > 1])
 
 
 def test_le_parcours_projet_suit_l_ordre_du_projet():

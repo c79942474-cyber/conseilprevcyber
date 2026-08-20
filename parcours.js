@@ -529,13 +529,56 @@
                "annuelle : le laisser par défaut sur un site bien rempli sous-estime la facture d'un tiers." },
         { url: "/ingenierie-datacenter", label: "La séquence projet — MOE et ingénierie",
           action: "Choisissez votre filière et votre phase, et lisez ce que le moteur peut verser à ce " +
-                  "stade — et ce qu'il faut avoir remplacé par une donnée réelle. Puis, en section 6, " +
-                  "le prix de la maîtrise d'œuvre : le montant des travaux et la part du lot technique " +
-                  "s'y pré-remplissent depuis l'étude d'enveloppe, pour le pays retenu.",
+                  "stade — et ce qu'il faut avoir remplacé par une donnée réelle. Puis descendez la " +
+                  "chaîne d'argent : section 6, les honoraires assis sur l'enveloppe reportée ; " +
+                  "section 7, le coût des travaux poste par poste, prolongé par les honoraires " +
+                  "que ces travaux portent.",
           gain: "La distinction entre un chiffre recevable en avant-projet et un chiffre opposable en " +
                 "pièce contractuelle — et, en regard, ce que coûte l'ingénierie qui produira ces pièces.",
           tip: "Le facteur eau amont porte ±40 % et le carbone incorporé ±50 % — deux valeurs qui " +
                "passent en APS et ne passent plus en DCE. Repérez-les avant, pas après." }
+      ]
+    },
+    {
+      /* LE PARCOURS QUI MANQUAIT. Les deux parcours de centre de données mènent
+         à la page d'ingénierie et s'arrêtent à sa porte : ils promettent « ce
+         que coûte l'ingénierie » sans jamais dire par où l'on obtient un coût.
+         Or l'ordre y est contraignant — quantités, puis travaux, puis
+         honoraires — et le prendre à l'envers fait asseoir des honoraires sur
+         une assiette qu'on n'a pas. */
+      id: "dc-couts",
+      icone: "📐",
+      role: "Économie de la construction · le coût d’un centre de données",
+      cas: "Du profil de l’installation au coût d’opération : les travaux d’abord, les honoraires qu’ils portent ensuite",
+      pitch: "Vous devez produire un coût défendable, et le défendre poste par poste plutôt que par un " +
+             "ratio au kilowatt. Ce parcours suit l’ordre qui contraint : on chiffre des quantités " +
+             "avant des travaux, et des travaux avant des honoraires. Il ne vous donnera aucun prix — " +
+             "le référentiel n’en porte pas, et il vous dira pourquoi.",
+      etapes: [
+        { url: "/datacenter", label: "Le profil de l’installation",
+          action: "Saisissez la puissance informatique et lancez le calcul : c’est la grandeur dont " +
+                  "tout le reste découle, et la seule qui n’a pas de valeur par défaut.",
+          gain: "Les quantités qui se reprendront ensuite dans le chiffrage des travaux sans être " +
+                "retapées — donc sans diverger.",
+          tip: "Jamais la puissance souscrite, qui comprend le refroidissement : la confondre avec la " +
+               "puissance informatique gonfle toutes les quantités qui en dépendent." },
+        /* UNE SEULE ÉTAPE POUR LA PAGE D'INGÉNIERIE, et c'est une contrainte du
+           moteur autant qu'un choix : la progression se compte par URL VISITÉE.
+           Deux étapes pointant la même page seraient toutes deux cochées après
+           une seule visite, et le parcours annoncerait deux tiers faits quand
+           rien ne l'est. La suite — travaux puis honoraires — est portée par le
+           fil vertical DANS la page, qui, lui, constate chaque calcul. */
+        { url: "/ingenierie-datacenter", label: "Les travaux, puis les honoraires qu’ils portent",
+          action: "Section 7 : choisissez la nature de l’opération — neuf, extension, réhabilitation des " +
+                  "lots techniques, reprise d’un chantier interrompu, maintenance —, chiffrez les postes " +
+                  "qu’elle porte avec VOS prix unitaires en disant d’où vient chacun, puis prolongez ce " +
+                  "chiffrage par celui de la maîtrise d’œuvre, juste en dessous. Le fil vertical de la " +
+                  "page marque où vous en êtes à chaque calcul.",
+          gain: "Un total qui tient le compte de ce qui n’est PAS chiffré, une part technique calculée " +
+                "au lieu d’être supposée, et le coût d’opération complet — travaux plus honoraires.",
+          tip: "Ce qui change d’une nature à l’autre n’est pas un coefficient, c’est la liste des postes. " +
+               "Et une mission dont un seul des deux taux est saisi reste OUVERTE : la moitié d’un taux " +
+               "n’en est pas un, et un zéro silencieux ferait croire la mission gratuite." }
       ]
     },
     {
@@ -621,10 +664,11 @@
      COMMENT LES DEUX SE CROISENT, et pourquoi ainsi. Neuf rôles et neuf
      secteurs feraient quatre-vingt-un parcours à écrire à la main : personne
      ne les tiendrait à jour, et les trois quarts seraient du remplissage.
-     (Ce commentaire annonçait « sept rôles » et « soixante-trois » : deux
-     rôles ont été ajoutés depuis — dc-projet et dc-durabilite — sans que le
-     compte soit repris. Une recette le mesure désormais sur les listes.) La
-     division du travail est donc franche :
+     (Ce commentaire annonçait « sept rôles » et « soixante-trois » : trois
+     rôles ont été ajoutés depuis — dc-projet, dc-couts et dc-durabilite —
+     sans que le compte soit repris. Une recette le mesure désormais sur les
+     listes, et c'est pourquoi les chiffres ci-dessus ne sont plus écrits ici.)
+     La division du travail est donc franche :
 
         LE RÔLE DONNE L'ITINÉRAIRE — quelles pages, dans quel ordre. C'est ce
         dont un rôle a besoin : un acheteur et un exploitant ne lisent pas les

@@ -2860,6 +2860,93 @@ GESTES = [
         "fleche": "Section 2",
         "classe": "ig-bat",
     },
+    # ── LES TROIS GESTES D'ARGENT ────────────────────────────────────────
+    #
+    # ILS MANQUAIENT, ET LE FIL SE DECLARAIT POURTANT TERMINE. Deux sections
+    # entieres de la page -- le prix de la maitrise d'oeuvre et le cout des
+    # travaux poste par poste -- n'etaient nommees nulle part dans le
+    # parcours : on arrivait a « vous etes au bout de la sequence » sans que
+    # rien n'ait jamais dit qu'elles existaient.
+    #
+    # ILS SONT PLACES ICI, ET C'EST UN ORDRE DE PROJET. Le niveau de
+    # disponibilite commande les quantites ; les quantites commandent le cout
+    # des travaux ; le cout des travaux commande les honoraires. La
+    # specification qu'on redige ensuite ENGAGE ce cout : la decouvrir apres
+    # oblige a la reprendre.
+    #
+    # ILS SONT FACULTATIFS, ET C'EST LA CONDITION POUR LES METTRE LA. Les prix
+    # unitaires viennent du bordereau du client, qui n'est pas toujours arrive.
+    # Sans le droit de passer, le fil resterait bloque sur une etape qu'on ne
+    # peut pas franchir -- et il ne proposerait plus jamais de rediger une
+    # piece. Une etape PASSEE se distingue d'une etape FAITE : elle ne remplit
+    # aucun prealable, et le geste qui en depend n'est pas propose non plus.
+    {
+        "id": "moe",
+        "fait_si": "moe",
+        "exige": ["profil"],
+        "facultatif": True,
+        "titre": "Chiffrez la maîtrise d'œuvre sur l'enveloppe reportée",
+        "texte": "Treize missions à taux relevé et trois qui attendent le "
+                 "vôtre — économie de la construction, sécurité incendie, "
+                 "coordination SSI. Le montant des travaux et la part du lot "
+                 "technique viennent de l'étude d'enveloppe, pour le pays "
+                 "retenu.",
+        "apres": "Les honoraires se répartissent mission par mission et phase "
+                 "par phase, et le tableau dit ce qu'il NE contient pas : une "
+                 "mission sans taux reste hors du total plutôt que d'y entrer "
+                 "à zéro.",
+        "cible": "#ig-moe-go",
+        "ancre": "#ig-moe",
+        "fleche": "Section 6",
+        "classe": "ig-bat",
+        "passer": "Vous n'avez pas d'enveloppe reportée : le chiffrage des "
+                  "travaux, deux sections plus bas, mène aux mêmes honoraires "
+                  "par vos propres quantités.",
+    },
+    {
+        "id": "travaux",
+        "fait_si": "travaux",
+        "exige": ["profil"],
+        "facultatif": True,
+        "titre": "Chiffrez les travaux, poste par poste",
+        "texte": "Le geste de l'économiste : des quantités multipliées par VOS "
+                 "prix unitaires. Aucun prix n'est embarqué ici — le "
+                 "référentiel ne porte aucune opération livrée publiant à la "
+                 "fois sa capacité et son investissement, et un ordre de "
+                 "grandeur inventé serait crédible, ce qui est pire qu'une "
+                 "case vide.",
+        "apres": "La part technique des travaux devient calculable, et c'est "
+                 "elle qui commande les honoraires : sans elle, le barème "
+                 "retombe sur une hypothèse à 70 % qui pèse plus lourd que "
+                 "n'importe quel taux.",
+        "cible": "#ig-eco-go",
+        "ancre": "#ig-eco",
+        "fleche": "Section 7",
+        "classe": "ig-bat",
+        "passer": "Vos prix unitaires ne sont pas arrivés : cette étape se "
+                  "reprend telle quelle dès que le bordereau est là.",
+    },
+    {
+        "id": "honoraires",
+        "fait_si": "honoraires",
+        "exige": ["travaux"],
+        "facultatif": True,
+        "titre": "Prolongez ce chiffrage par celui de la maîtrise d'œuvre",
+        "texte": "Les honoraires s'asseyent sur les travaux que vous venez de "
+                 "chiffrer, et les missions proposées suivent la nature de "
+                 "l'opération : une réhabilitation ne paie pas de VRD sur un "
+                 "bâtiment qu'elle ne touche pas.",
+        "apres": "Le coût d'opération complet, la part technique CALCULÉE — et "
+                 "les deux incomplétudes publiées côte à côte : les postes "
+                 "sans prix d'un côté, les missions sans taux de l'autre. "
+                 "Aucun indicateur ne les fond en un seul.",
+        "cible": "#ig-pont-go",
+        "ancre": "#ig-moe-pont",
+        "fleche": "Section 7",
+        "classe": "ig-bat",
+        "passer": "Vous ne cherchez que le coût des travaux : les honoraires "
+                  "se chiffrent quand vous voulez, sur le même chiffrage.",
+    },
     {
         "id": "piece",
         "fait_si": "piece",
@@ -2933,24 +3020,38 @@ GESTE_FIN = {
 }
 
 
-def prochain_geste(etat):
+def prochain_geste(etat, passes=None):
     """Le premier geste non accompli dont les préalables sont remplis.
 
-    Une règle générique, appliquée à des données — et non huit conditions
-    écrites à la main. La différence se voit au neuvième écran : ici on ajoute
+    Une règle générique, appliquée à des données — et non onze conditions
+    écrites à la main. La différence se voit au douzième écran : ici on ajoute
     une ligne, là on relit un enchaînement pour deviner où l'insérer.
 
     `etat` est un dictionnaire de booléens produit par la page à partir de ce
     qu'elle voit. Une clé absente vaut « pas fait » : un guide qui supposerait
     l'étape accomplie ferait sauter la seule qui manquait.
+
+    PASSER N'EST PAS FAIRE, et c'est tout l'objet du second paramètre. Un geste
+    passé n'est plus proposé — sans quoi le fil resterait bloqué sur des prix
+    unitaires qui ne sont pas encore arrivés, et cesserait de proposer quoi que
+    ce soit d'autre. Mais il ne remplit AUCUN préalable : le geste qui en
+    dépend n'est pas proposé non plus, parce qu'il ne pourrait pas aboutir.
+    Confondre les deux ferait envoyer le lecteur sur un calcul d'honoraires
+    sans travaux, où il ne trouverait qu'un refus.
     """
     etat = {k: bool(v) for k, v in (etat or {}).items()}
+    passes = {str(p) for p in (passes or ())}
+    connus = {g["id"] for g in GESTES}
+    inconnus = passes - connus
+    if inconnus:
+        raise ValueError("geste passé inconnu : %s" % ", ".join(sorted(inconnus)))
     for g in GESTES:
-        if etat.get(g["fait_si"]):
+        if etat.get(g["fait_si"]) or g["id"] in passes:
             continue
         if all(etat.get(k) for k in g["exige"]):
             return dict(g, reste=[x["id"] for x in GESTES
                                   if not etat.get(x["fait_si"])
+                                  and x["id"] not in passes
                                   and x["id"] != g["id"]])
     return None
 
@@ -2958,6 +3059,7 @@ def prochain_geste(etat):
 def gestes_referentiel():
     """Le fil complet, servi à la page : elle rend, elle ne réécrit pas."""
     return {"gestes": GESTES, "fin": GESTE_FIN,
+            "facultatifs": [g["id"] for g in GESTES if g.get("facultatif")],
             "etats": sorted({g["fait_si"] for g in GESTES}
                             | {k for g in GESTES for k in g["exige"]})}
 
@@ -5886,6 +5988,59 @@ _fautes_eco = _verifier_ecoconception()
 if _fautes_eco:
     raise AssertionError("ECOCONCEPTION incohérent : " + " ; ".join(_fautes_eco))
 del _fautes_eco
+
+
+def _verifier_gestes():
+    """LE FIL DOIT POUVOIR SE PARCOURIR EN ENTIER, et jusqu'au bout.
+
+    Un préalable qui ne correspond à aucun geste ne serait jamais rempli : le
+    fil s'arrêterait là, définitivement, sans rien dire. Un préalable placé
+    APRÈS le geste qui l'exige produit le même arrêt, en plus discret encore.
+
+    ET UN GESTE OBLIGATOIRE QUI NE PEUT PAS ABOUTIR BLOQUE TOUT. C'est ce qui
+    serait arrivé aux trois gestes d'argent sans le droit de les passer : les
+    prix unitaires viennent du bordereau du client, et sans lui le fil ne
+    proposerait plus jamais de rédiger une pièce.
+    """
+    fautes = []
+    ids = [g["id"] for g in GESTES]
+    if len(ids) != len(set(ids)):
+        fautes.append("deux gestes portent le même identifiant")
+    produits = {}
+    for i, g in enumerate(GESTES):
+        for champ in ("id", "fait_si", "titre", "texte", "apres", "cible",
+                      "ancre", "fleche"):
+            if not str(g.get(champ, "")).strip():
+                fautes.append("champ vide : %s.%s" % (g.get("id"), champ))
+        if not str(g["ancre"]).startswith("#"):
+            fautes.append("ancre qui ne désigne pas un élément : " + g["id"])
+        for k in g["exige"]:
+            # Le préalable doit être PRODUIT par un geste, et par un geste qui
+            # vient AVANT : plus tard, il ne serait jamais rempli à temps.
+            if k not in produits:
+                fautes.append("le geste %s exige « %s », qu'aucun geste "
+                              "antérieur ne produit" % (g["id"], k))
+        produits[g["fait_si"]] = i
+        if g.get("facultatif") and not str(g.get("passer", "")).strip():
+            fautes.append("le geste facultatif %s ne dit pas ce qu'on perd à "
+                          "le passer" % g["id"])
+        if not g.get("facultatif") and g.get("passer"):
+            fautes.append("le geste %s propose de se passer sans être "
+                          "facultatif" % g["id"])
+    # Les sections d'argent sont dans le fil : c'est ce qui manquait, et rien
+    # ne doit pouvoir les en retirer en silence.
+    for cle in ("moe", "travaux", "honoraires"):
+        if cle not in ids:
+            fautes.append("le fil ne nomme plus le geste « %s » : deux "
+                          "sections de la page redeviendraient invisibles"
+                          % cle)
+    return fautes
+
+
+_fautes_gestes = _verifier_gestes()
+if _fautes_gestes:
+    raise AssertionError("GESTES incohérent : " + " ; ".join(_fautes_gestes))
+del _fautes_gestes
 
 
 def referentiel():

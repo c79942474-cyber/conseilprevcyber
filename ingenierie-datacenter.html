@@ -119,6 +119,15 @@
     border:1px solid rgba(190,120,40,.38);background:rgba(190,120,40,.06);
     font-size:13px;line-height:1.7}
   .moe-perdu li{margin-bottom:8px}
+  .moe-ouvertes ul{margin:9px 0 0;padding-left:18px}
+  /* UNE MISSION SANS TAUX RELEVÉ. Pas de ::after ici, à la différence de la
+     ligne « obligatoire » : le contenu généré par CSS n'apparaît ni dans le
+     texte de la page ni de façon fiable dans un lecteur d'écran. Le marqueur
+     ci-dessous est du VRAI texte — il suffit, et il se lit partout. */
+  .moe-tab tr.ouv td{opacity:.78}
+  .moe-asaisir{font-size:10px;letter-spacing:.04em;text-transform:uppercase;
+    padding:1px 6px;border-radius:3px;border:1px solid rgba(190,120,40,.6);
+    color:#a8761f;white-space:nowrap}
 
   /* ── LES MODULES NUMÉROTÉS — encadrement bleu et signalement ──────────
      L'ENCADREMENT SÉPARE, LA PASTILLE INFORME, LE BATTEMENT DÉSIGNE. Trois
@@ -1091,6 +1100,47 @@
     background:linear-gradient(90deg,var(--cyan),var(--teal));
     transition:width .45s ease}
 
+  /* ── LE FIL VERTICAL ────────────────────────────────────────────────────
+     Une flèche entre deux sections, dans l'ordre du parcours. Elle porte un
+     TEXTE : une flèche muette occupe la place sans rien apprendre.
+
+     L'ÉTAT NE TIENT PAS À LA SEULE COULEUR (WCAG 1.4.1) : chaque flèche écrit
+     son état en toutes lettres — « Vous êtes ici », « Franchie », « Passée,
+     pas faite », « À venir » — et change de glyphe. La teinte ne fait que
+     redoubler ce qui est déjà écrit. */
+  .ig-jal{display:grid;grid-template-columns:28px 1fr;gap:11px;align-items:start;
+    max-width:1180px;margin:20px auto;padding:11px 15px 11px 8px;
+    border-left:3px solid var(--line);border-radius:0 9px 9px 0;
+    background:var(--panel2)}
+  .ig-jal[hidden]{display:none}
+  .ig-jal-a{font-size:19px;line-height:1.3;text-align:center;color:var(--muted2)}
+  .ig-jal-p{display:block;font-family:var(--mono);font-size:9.5px;
+    letter-spacing:.09em;text-transform:uppercase;color:var(--muted2);
+    margin-bottom:3px}
+  .ig-jal-c b{font-size:14px;color:var(--ink)}
+  .ig-jal-x{margin:4px 0 0;font-size:12px;line-height:1.6;color:var(--muted)}
+  .ig-jal.fait{border-left-color:var(--teal)}
+  .ig-jal.fait .ig-jal-a,.ig-jal.fait .ig-jal-p{color:var(--teal)}
+  .ig-jal.ici{border-left-color:var(--cyan);border-left-width:4px;
+    background:rgba(45,212,191,.07)}
+  .ig-jal.ici .ig-jal-a,.ig-jal.ici .ig-jal-p{color:var(--cyan)}
+  .ig-jal.saute{border-left-color:#E8B44A;border-left-style:dashed}
+  .ig-jal.saute .ig-jal-a,.ig-jal.saute .ig-jal-p{color:#E8B44A}
+  .ig-jal.avenir{opacity:.72}
+  .ig-jal-o{margin:6px 0 0;font-size:11px;line-height:1.55;color:var(--muted2);
+    border-left:2px solid var(--line);padding-left:8px}
+  @media(max-width:700px){.ig-jal{grid-template-columns:22px 1fr;padding:9px 12px 9px 6px}}
+
+  /* Le lien qui passe une étape, et celui qui la reprend. Un bouton discret :
+     passer ne doit pas être aussi engageant que faire. */
+  .ig-g-lien{background:none;border:none;padding:0;font:inherit;font-size:12px;
+    color:var(--muted2);text-decoration:underline;text-underline-offset:3px;
+    cursor:pointer;min-height:24px}
+  .ig-g-lien:hover{color:var(--ink)}
+  .ig-g-lien:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;border-radius:3px}
+  .ig-guid .g-s{margin:9px 0 0;font-size:12px;color:var(--muted2);line-height:1.6}
+  .ig-guid .g-s .fx{color:#E8B44A}
+
   /* La flèche posée devant la cible du geste courant. Un élément réel, masqué
      aux lecteurs d'écran : le bandeau dit déjà où aller, et la répéter en
      ferait un doublon à l'oreille. Elle respire lentement — une flèche fixe se
@@ -1648,10 +1698,10 @@
       <div id="ig-moe-missions"></div>
       <div id="ig-moe-taux"></div>
 
-      <button type="button" class="ig-lanceur-b" id="ig-moe-go">
+      <button type="button" class="ig-lanceur-b" id="ig-pont-go">
         Chiffrer la maîtrise d’œuvre →</button>
-      <p class="note" id="ig-moe-msg" style="margin-top:10px"></p>
-      <div id="ig-moe-out"></div>
+      <p class="note" id="ig-pont-msg" style="margin-top:10px"></p>
+      <div id="ig-pont-out"></div>
     </div>
   </section>
 
@@ -1987,6 +2037,7 @@
     }
     h += '<p class="note">' + esc(d.avertissement) + '</p></div>';
     elOut.innerHTML = h;
+    document.dispatchEvent(new CustomEvent('ig-chiffrage'));
   }
 
   /* ═════════════════════════════════════════════════════════════════════
@@ -2009,7 +2060,7 @@
                      mt.innerHTML = ''; return; }
         rendreMissions(d);
       })
-      .catch(function () { txt($('ig-moe-msg'), 'Les missions n’ont pas pu être chargées.'); });
+      .catch(function () { txt($('ig-pont-msg'), 'Les missions n’ont pas pu être chargées.'); });
   }
 
   function rendreMissions(d) {
@@ -2021,10 +2072,10 @@
         + 'd’œuvre ne se chiffre au pourcentage sur cette nature d’opération.</b></p>'
         + '<p>' + esc(d.dit) + '</p></div>';
       mm.innerHTML = h; mt.innerHTML = '';
-      var b = $('ig-moe-go'); if (b) b.disabled = true;
+      var b = $('ig-pont-go'); if (b) b.disabled = true;
       return;
     }
-    var b2 = $('ig-moe-go'); if (b2) b2.disabled = false;
+    var b2 = $('ig-pont-go'); if (b2) b2.disabled = false;
 
     h += '<h4 class="ig-pont-h">Missions proposées pour «&nbsp;'
        + esc(d.operation_nom) + '&nbsp;»</h4>';
@@ -2121,7 +2172,7 @@
       document.querySelectorAll('#ig-moe-missions input[data-mis]'), function (c) {
         if (c.checked || c.disabled) cochees.push(c.getAttribute('data-mis'));
       });
-    txt($('ig-moe-msg'), 'Calcul en cours…');
+    txt($('ig-pont-msg'), 'Calcul en cours…');
     var prov = elProv.value.trim();
     fetch('/api/datacenter/economiste/maitrise-oeuvre', {
       method: 'POST', credentials: 'same-origin',
@@ -2138,12 +2189,12 @@
     }).then(function (r) { return r.json(); }).then(function (d) {
       if (!d.ok) {
         /* UN REFUS MOTIVÉ N'EST PAS UNE PANNE : le dire est le service rendu. */
-        $('ig-moe-out').innerHTML = '<div class="ig-encart ig-pont-refus"><p>'
+        $('ig-pont-out').innerHTML = '<div class="ig-encart ig-pont-refus"><p>'
           + esc(d.message || 'Le calcul a été refusé.') + '</p></div>';
-        txt($('ig-moe-msg'), ''); return;
+        txt($('ig-pont-msg'), ''); return;
       }
-      txt($('ig-moe-msg'), ''); rendreMoe(d);
-    }).catch(function () { txt($('ig-moe-msg'), 'Le service n’a pas répondu.'); });
+      txt($('ig-pont-msg'), ''); rendreMoe(d);
+    }).catch(function () { txt($('ig-pont-msg'), 'Le service n’a pas répondu.'); });
   }
 
   function pct(x) {
@@ -2218,7 +2269,8 @@
          + '.</p>';
     }
     h += '<p class="note">' + esc(d.avertissement) + '</p></div>';
-    $('ig-moe-out').innerHTML = h;
+    $('ig-pont-out').innerHTML = h;
+    document.dispatchEvent(new CustomEvent('ig-chiffrage'));
   }
 
   function kpiCarte(titre, valeur, note) {
@@ -2249,10 +2301,10 @@
        conservé — sans que rien ne le signale. */
     elOp.addEventListener('change', function () {
       rendreSaisie(); chargerMissions();
-      $('ig-moe-out').innerHTML = '';
+      $('ig-pont-out').innerHTML = '';
     });
     $('ig-eco-go').addEventListener('click', chiffrer);
-    $('ig-moe-go').addEventListener('click', chiffrerMoe);
+    $('ig-pont-go').addEventListener('click', chiffrerMoe);
     /* EN TEMPS RÉEL : l'étape 2 est plus haut sur la MÊME page. Une puissance
        corrigée là-haut doit se voir ici sans recharger — sinon les deux
        chiffres divergent sous les yeux du lecteur, et c'est le plus ancien
@@ -2326,6 +2378,13 @@
   border-radius:0 6px 6px 0;font-size:13px}
 .ig-moe-refus{margin-top:8px;font-style:italic}
 .ig-moe-ouv{margin:10px 0 0;padding-left:18px;font-size:12.5px;line-height:1.6;color:var(--muted)}
+/* LA CLASSE QUI N'AVAIT AUCUN STYLE. Les champs de l'économiste portaient
+   `ig-champ`, qui n'était défini nulle part : l'étiquette et la case se
+   posaient côte à côte et la case se réduisait à son contenu — le texte
+   d'aide « laisser vide si non décidée » s'affichait « laisser vic ». */
+.ig-champ{display:block;margin-top:12px;max-width:430px}
+.ig-champ label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.ig-champ input,.ig-champ select{width:100%;min-width:0;min-height:36px}
 .ig-eco-grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px;margin-top:14px}
 .ig-eco-duo{display:flex;gap:8px;align-items:center}
 .ig-eco-duo input{flex:1 1 auto;min-width:0}
