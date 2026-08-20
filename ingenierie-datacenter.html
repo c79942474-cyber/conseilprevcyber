@@ -1622,6 +1622,37 @@
     <button type="button" class="ig-lanceur-b" id="ig-eco-go">Chiffrer l’opération →</button>
     <p class="note" id="ig-eco-msg" style="margin-top:10px"></p>
     <div id="ig-eco-out"></div>
+
+    <!-- LE PONT — l'économiste et la maîtrise d'œuvre, reliés.
+
+         CE QUE LA LIAISON APPORTE, et qu'aucun des deux blocs ne donnait
+         seul : la part technique des travaux cesse d'être une hypothèse. Le
+         barème d'honoraires, faute de mieux, la suppose à 70 % — et son
+         propre texte dit que cette hypothèse « pèse plus lourd que n'importe
+         quel taux du barème », parce que les taux y sont inversés entre
+         clos-couvert et lot technique. Ici elle se CALCULE, poste par poste.
+
+         Et les missions suivent la nature de l'opération : une réhabilitation
+         de lots techniques ne paie pas de VRD sur un bâtiment qu'elle ne
+         touche pas. -->
+    <div id="ig-moe-pont" class="ig-pont">
+      <h3>La maîtrise d’œuvre qui va avec</h3>
+      <p class="lead" style="max-width:78ch">
+        Les honoraires se calculent <b>sur les travaux ci-dessus</b>, mission
+        par mission et phase par phase. Les missions proposées dépendent de la
+        nature de l’opération&nbsp;; celles que le barème relevé ne distingue
+        pas — <b>économie de la construction, sécurité incendie, coordination
+        SSI</b> — attendent votre taux et n’entrent pas au total tant qu’il
+        n’est pas saisi.</p>
+
+      <div id="ig-moe-missions"></div>
+      <div id="ig-moe-taux"></div>
+
+      <button type="button" class="ig-lanceur-b" id="ig-moe-go">
+        Chiffrer la maîtrise d’œuvre →</button>
+      <p class="note" id="ig-moe-msg" style="margin-top:10px"></p>
+      <div id="ig-moe-out"></div>
+    </div>
   </section>
 
   <section class="wrap rc-sec">
@@ -1958,6 +1989,244 @@
     elOut.innerHTML = h;
   }
 
+  /* ═════════════════════════════════════════════════════════════════════
+     LE PONT VERS LA MAÎTRISE D'ŒUVRE
+     ═══════════════════════════════════════════════════════════════════ */
+
+  var MIS = null;   /* la sélection proposée pour la nature en cours */
+
+  function chargerMissions() {
+    var o = operation();
+    if (!o) return;
+    var mm = $('ig-moe-missions'), mt = $('ig-moe-taux');
+    if (!mm) return;
+    fetch('/api/datacenter/economiste/missions?operation=' + encodeURIComponent(o.cle),
+          { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        MIS = d;
+        if (!d.ok) { mm.innerHTML = '<p class="note">' + esc(d.message || '') + '</p>';
+                     mt.innerHTML = ''; return; }
+        rendreMissions(d);
+      })
+      .catch(function () { txt($('ig-moe-msg'), 'Les missions n’ont pas pu être chargées.'); });
+  }
+
+  function rendreMissions(d) {
+    var mm = $('ig-moe-missions'), mt = $('ig-moe-taux');
+    var h = '';
+    if (!d.retenues.length) {
+      /* « AUCUNE » EST UNE RÉPONSE, et elle se motive. */
+      h = '<div class="ig-encart ig-pont-refus"><p><b>Aucune mission de maîtrise '
+        + 'd’œuvre ne se chiffre au pourcentage sur cette nature d’opération.</b></p>'
+        + '<p>' + esc(d.dit) + '</p></div>';
+      mm.innerHTML = h; mt.innerHTML = '';
+      var b = $('ig-moe-go'); if (b) b.disabled = true;
+      return;
+    }
+    var b2 = $('ig-moe-go'); if (b2) b2.disabled = false;
+
+    h += '<h4 class="ig-pont-h">Missions proposées pour «&nbsp;'
+       + esc(d.operation_nom) + '&nbsp;»</h4>';
+    h += '<div class="ig-moe-liste">';
+    d.retenues.forEach(function (m) {
+      var id = 'moem-' + m.cle;
+      /* LE MARQUEUR RESTE COLLÉ AU NOM. Sorti du même bloc de texte, il se
+         retrouvait rejeté à droite dès que le nom passait à la ligne, et le
+         lecteur ne savait plus à quelle mission il se rapportait. */
+      h += '<div class="ig-moe-m' + (m.a_qualifier ? ' aq' : '') + '">'
+         + '<label for="' + id + '"><input type="checkbox" id="' + id + '" '
+         + 'data-mis="' + esc(m.cle) + '" checked'
+         + (m.obligatoire ? ' disabled' : '') + '> '
+         + '<span class="ig-moe-n">' + esc(m.nom)
+         + (m.obligatoire ? ' <span class="ig-moe-t obl">obligatoire</span>' : '')
+         + (m.sans_taux ? ' <span class="ig-moe-t st">taux à saisir</span>' : '')
+         + '</span></label>';
+      if (m.a_qualifier)
+        h += '<p class="note ig-moe-aq">' + esc(m.a_qualifier) + '</p>';
+      h += '</div>';
+    });
+    h += '</div>';
+
+    if (d.sans_objet.length) {
+      h += '<details class="ig-eco-hors"><summary>Ce que cette nature n’appelle '
+         + 'pas — ' + d.sans_objet.length + ' mission(s), et pourquoi</summary><ul>';
+      d.sans_objet.forEach(function (m) {
+        h += '<li><b>' + esc(m.nom) + '</b> — ' + esc(m.raison) + '</li>';
+      });
+      h += '</ul></details>';
+    }
+    h += '<p class="note ig-moe-res">' + esc(d.reserve) + '</p>';
+    mm.innerHTML = h;
+
+    /* LES TAUX QUI MANQUENT. Le barème vient d'UN projet relevé en 2018 qui ne
+       distinguait pas ces trois missions. Leur inventer un taux « d'ordre de
+       grandeur » les rendrait indiscernables des treize relevées ; la case
+       reste donc vide, et la ligne hors du total tant qu'elle l'est. */
+    var ouvertes = d.retenues.filter(function (m) { return m.sans_taux; });
+    if (!ouvertes.length) { mt.innerHTML = ''; return; }
+    var t = '<h4 class="ig-pont-h">Taux des missions que le barème ne distingue pas</h4>'
+          + '<p class="note">Deux taux par mission&nbsp;: l’un sur le '
+          + '<b>clos-couvert</b>, l’autre sur le <b>lot technique</b> — ils '
+          + 'diffèrent d’un facteur huit sur certaines missions, et un taux '
+          + 'unique se tromperait dans les deux sens à la fois. Une mission '
+          + 'dont un seul des deux taux est saisi <b>reste ouverte</b>&nbsp;: '
+          + 'la moitié d’un taux n’en est pas un.</p>'
+          + '<div class="ig-moe-taux">';
+    ouvertes.forEach(function (m) {
+      /* DE VRAIES ÉTIQUETTES, PAS DES INDICATIONS DE SAISIE. Un texte placé
+         en « placeholder » disparaît dès qu'on tape et n'est pas une
+         étiquette : le lecteur qui revient sur sa saisie ne sait plus lequel
+         des deux taux il a rempli. Mesuré aussi : le texte était tronqué. */
+      t += '<div class="ig-moe-tx"><div class="ig-moe-txn">' + esc(m.nom) + '</div>'
+         + '<div class="ig-moe-duo">'
+         + '<div class="ig-moe-ch"><label for="moet-sc-' + esc(m.cle) + '">'
+         + 'Sur le clos-couvert</label>'
+         + '<input type="number" step="0.001" min="0" max="0.2" '
+         + 'id="moet-sc-' + esc(m.cle) + '" data-tsc="' + esc(m.cle) + '" '
+         + 'placeholder="ex. 0,004"></div>'
+         + '<div class="ig-moe-ch"><label for="moet-mep-' + esc(m.cle) + '">'
+         + 'Sur le lot technique</label>'
+         + '<input type="number" step="0.001" min="0" max="0.2" '
+         + 'id="moet-mep-' + esc(m.cle) + '" data-tmep="' + esc(m.cle) + '" '
+         + 'placeholder="ex. 0,006"></div>'
+         + '</div>';
+      if (m.hors_releve && m.hors_releve.ou_chercher)
+        t += '<p class="note">Où le trouver&nbsp;: ' + esc(m.hors_releve.ou_chercher) + '</p>';
+      t += '</div>';
+    });
+    t += '</div>';
+    mt.innerHTML = t;
+  }
+
+  function lireTaux() {
+    var out = {};
+    Array.prototype.forEach.call(
+      document.querySelectorAll('#ig-moe-taux input[data-tsc],#ig-moe-taux input[data-tmep]'),
+      function (i) {
+        var v = (i.value || '').trim(); if (v === '') return;
+        var n = Number(v); if (!isFinite(n)) return;
+        var cle = i.getAttribute('data-tsc') || i.getAttribute('data-tmep');
+        out[cle] = out[cle] || {};
+        out[cle][i.hasAttribute('data-tsc') ? 'sc' : 'mep'] = n;
+      });
+    return out;
+  }
+
+  function chiffrerMoe() {
+    var o = operation();
+    if (!o) return;
+    var cochees = [];
+    Array.prototype.forEach.call(
+      document.querySelectorAll('#ig-moe-missions input[data-mis]'), function (c) {
+        if (c.checked || c.disabled) cochees.push(c.getAttribute('data-mis'));
+      });
+    txt($('ig-moe-msg'), 'Calcul en cours…');
+    var prov = elProv.value.trim();
+    fetch('/api/datacenter/economiste/maitrise-oeuvre', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        operation: o.cle,
+        quantites: lire('input[data-q]', 'data-q'),
+        prix_unitaires: lire('input[data-p]', 'data-p'),
+        provenances: lireTexte('select[data-v]', 'data-v'),
+        provision_pct: prov === '' ? null : Number(prov),
+        missions: cochees,
+        taux_perso: lireTaux()
+      })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.ok) {
+        /* UN REFUS MOTIVÉ N'EST PAS UNE PANNE : le dire est le service rendu. */
+        $('ig-moe-out').innerHTML = '<div class="ig-encart ig-pont-refus"><p>'
+          + esc(d.message || 'Le calcul a été refusé.') + '</p></div>';
+        txt($('ig-moe-msg'), ''); return;
+      }
+      txt($('ig-moe-msg'), ''); rendreMoe(d);
+    }).catch(function () { txt($('ig-moe-msg'), 'Le service n’a pas répondu.'); });
+  }
+
+  function pct(x) {
+    return x == null ? '—' : String(Math.round(x * 100) / 100).replace('.', ',') + ' %';
+  }
+
+  function rendreMoe(d) {
+    var m = d.maitrise_oeuvre, k = d.kpi, pt = d.part_technique;
+    var h = '<div class="ig-eco-res">';
+
+    /* LES CHIFFRES UTILES, ET CE QU'ILS VALENT. */
+    h += '<div class="ig-moe-kpi">'
+       + kpiCarte('Travaux — assiette des honoraires', euro(d.travaux.assiette_eur),
+                  'Bâtiment ' + euro(d.travaux.detail.batiment_eur) + ' · technique '
+                  + euro(d.travaux.detail.technique_eur) + ' · existant '
+                  + euro(d.travaux.detail.existant_eur))
+       + kpiCarte('Maîtrise d’œuvre', euro(m.total_eur),
+                  'soit ' + pct(m.taux_effectif_pct) + ' des travaux')
+       + kpiCarte('Coût d’opération', euro(k.cout_operation_eur),
+                  'la maîtrise d’œuvre y pèse ' + pct(k.part_moe_dans_operation_pct))
+       + kpiCarte('Part technique des travaux',
+                  pt.valeur == null ? '—' : pct(pt.valeur * 100),
+                  pt.nature === 'calculee' ? 'calculée sur votre chiffrage'
+                                           : 'indisponible — le barème retombe sur son hypothèse')
+       + '</div>';
+
+    /* LE POINT QUI DÉCIDE — la part technique n'est plus supposée. */
+    h += '<p class="ig-eco-lecture">' + esc(pt.dit) + '</p>';
+    h += '<p class="note">' + esc(pt.exclus) + '</p>';
+
+    /* PAR PHASE — c'est là que se décident les économies, pas sur les missions. */
+    if (m.par_phase) {
+      h += '<table class="ig-eco-t" style="margin-top:16px"><thead><tr>'
+         + '<th>Phase</th><th>Honoraires</th></tr></thead><tbody>';
+      var noms = { aps: 'APS / PC', apd: 'APD', pro: 'PRO / DCE', act: 'ACT',
+                   exe: 'EXE / DET / AOR' };
+      Object.keys(noms).forEach(function (p) {
+        if (!m.par_phase[p]) return;
+        h += '<tr><td>' + esc(noms[p]) + '</td><td class="num">'
+           + euro(m.par_phase[p][1] * 1e6) + '</td></tr>';
+      });
+      h += '</tbody><tfoot><tr><th>Total</th><th class="num">'
+         + euro(m.total_eur) + '</th></tr></tfoot></table>';
+    }
+
+    /* LES DEUX INCOMPLÉTUDES, CÔTE À CÔTE ET JAMAIS FONDUES. */
+    h += '<div class="ig-moe-inc">'
+       + '<div><b>' + k.travaux_non_chiffres.postes + ' poste(s) de travaux sur '
+       + k.travaux_non_chiffres.sur + '</b> sans prix — '
+       + String(k.travaux_non_chiffres.part_pct).replace('.', ',') + ' %.</div>'
+       + '<div><b>' + k.moe_sans_taux.missions + ' mission(s) sur '
+       + k.moe_sans_taux.sur + '</b> sans taux — '
+       + String(k.moe_sans_taux.part_pct).replace('.', ',') + ' %.</div>'
+       + '</div>';
+    h += '<p class="note ig-moe-refus">' + esc(k.refus) + '</p>';
+    h += '<p class="ig-eco-lecture' + (m.missions_ouvertes.length ? ' alerte' : '')
+       + '">' + esc(k.lecture) + '</p>';
+
+    if (m.missions_ouvertes.length) {
+      h += '<ul class="ig-moe-ouv">';
+      m.missions_ouvertes.forEach(function (o) {
+        h += '<li><b>' + esc(o.nom) + '</b>'
+           + (o.hors_releve && o.hors_releve.pourquoi
+              ? ' — ' + esc(o.hors_releve.pourquoi) : '') + '</li>';
+      });
+      h += '</ul>';
+    }
+    if (d.missions_ecartees && d.missions_ecartees.length) {
+      h += '<p class="note"><b>' + d.missions_ecartees.length
+         + ' mission(s) écartée(s) par la nature de l’opération</b> : '
+         + d.missions_ecartees.map(function (x) { return esc(x.nom); }).join(', ')
+         + '.</p>';
+    }
+    h += '<p class="note">' + esc(d.avertissement) + '</p></div>';
+    $('ig-moe-out').innerHTML = h;
+  }
+
+  function kpiCarte(titre, valeur, note) {
+    return '<div class="ig-moe-c"><div class="t">' + esc(titre) + '</div>'
+         + '<div class="v">' + valeur + '</div>'
+         + '<div class="n">' + esc(note) + '</div></div>';
+  }
+
   function init() {
     elOp = $('ig-eco-op'); elObjet = $('ig-eco-objet'); elDit = $('ig-eco-dit');
     elSaisie = $('ig-eco-saisie'); elProv = $('ig-eco-prov');
@@ -1972,10 +2241,18 @@
           return '<option value="' + esc(o.cle) + '">' + esc(o.nom) + '</option>';
         }).join('');
         rendreSaisie();
+        chargerMissions();
       })
       .catch(function () { txt(elMsg, 'Le référentiel n’a pas pu être chargé.'); });
-    elOp.addEventListener('change', rendreSaisie);
+    /* CHANGER DE NATURE CHANGE LES DEUX LISTES. Laisser la liste des missions
+       figée sur la nature précédente ferait chiffrer des VRD sur un bâtiment
+       conservé — sans que rien ne le signale. */
+    elOp.addEventListener('change', function () {
+      rendreSaisie(); chargerMissions();
+      $('ig-moe-out').innerHTML = '';
+    });
     $('ig-eco-go').addEventListener('click', chiffrer);
+    $('ig-moe-go').addEventListener('click', chiffrerMoe);
     /* EN TEMPS RÉEL : l'étape 2 est plus haut sur la MÊME page. Une puissance
        corrigée là-haut doit se voir ici sans recharger — sinon les deux
        chiffres divergent sous les yeux du lecteur, et c'est le plus ancien
@@ -2015,6 +2292,40 @@
 })();
 </script>
 <style>
+.ig-pont{margin-top:34px;padding-top:26px;border-top:1px solid var(--line)}
+.ig-pont h3{margin:0 0 6px;font-size:19px}
+.ig-pont-h{margin:20px 0 8px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ig-pont-refus{border-left:3px solid var(--amber)}
+.ig-moe-liste{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:6px 22px}
+.ig-moe-m{padding:6px 0}
+.ig-moe-m label{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;
+  cursor:pointer;min-height:24px;line-height:1.5}
+.ig-moe-m input[type=checkbox]{flex:0 0 auto;width:18px;height:18px;margin-top:2px;accent-color:var(--cyan)}
+.ig-moe-m input[type=checkbox]:disabled{cursor:not-allowed}
+.ig-moe-m.aq{border-left:2px solid var(--amber);padding-left:10px}
+.ig-moe-aq{margin:3px 0 0 26px;font-size:12px}
+.ig-moe-t{display:inline-block;font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;
+  padding:1px 6px;border-radius:3px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.ig-moe-t.obl{border-color:var(--cyan);color:var(--cyan)}
+.ig-moe-t.st{border-color:var(--amber);color:var(--amber)}
+.ig-moe-res{margin-top:12px;font-style:italic}
+.ig-moe-taux{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px 22px}
+.ig-moe-tx{padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel2)}
+.ig-moe-txn{font-size:13px;font-weight:600;margin-bottom:8px}
+.ig-moe-duo{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ig-moe-ch{min-width:0}
+.ig-moe-ch label{display:block;font-size:11px;letter-spacing:.03em;color:var(--muted);margin-bottom:3px}
+.ig-moe-ch input{width:100%;min-width:0;min-height:34px}
+.ig-moe-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px}
+.ig-moe-c{padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--panel2)}
+.ig-moe-c .t{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.ig-moe-c .v{font-size:20px;font-weight:700;margin:4px 0 2px;font-variant-numeric:tabular-nums}
+.ig-moe-c .n{font-size:11.5px;color:var(--muted);line-height:1.45}
+.ig-moe-inc{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:16px}
+.ig-moe-inc>div{padding:10px 13px;border-left:3px solid var(--amber);background:var(--panel2);
+  border-radius:0 6px 6px 0;font-size:13px}
+.ig-moe-refus{margin-top:8px;font-style:italic}
+.ig-moe-ouv{margin:10px 0 0;padding-left:18px;font-size:12.5px;line-height:1.6;color:var(--muted)}
 .ig-eco-grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px;margin-top:14px}
 .ig-eco-duo{display:flex;gap:8px;align-items:center}
 .ig-eco-duo input{flex:1 1 auto;min-width:0}

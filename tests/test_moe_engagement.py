@@ -182,7 +182,16 @@ def test_le_bareme_RESTE_celui_qu_il_etait():
     """L'ajout ne devait toucher ni les missions, ni les taux, ni les phases :
     un chiffrage en cours ne doit pas bouger parce qu'on a documenté un
     engagement."""
-    assert len(M.MISSIONS) == 13
+    # TREIZE MISSIONS RELEVÉES, et c'est cela qui ne doit pas bouger. La liste
+    # en compte désormais seize : trois ont été ajoutées SANS taux, et le
+    # contrôle dédié le vérifie. Ce qui est pinné ici, ce sont les taux du
+    # relevé, un à un.
+    relevees = {m["cle"]: (m["taux_sc"], m["taux_mep"]) for m in M.MISSIONS
+                if m["taux_sc"] is not None}
+    assert len(relevees) == 13, sorted(relevees)
+    assert relevees["architecte"] == (0.04, 0.005)
+    assert relevees["bet_fluides"] == (0.005, 0.02)
+    assert relevees["sps"] == (0.003, 0.003)
     r = _res()
     # `total_meur` est une FOURCHETTE [bas, haut] : ce module ne moyenne jamais
     # une fourchette, et un contrôle qui la traiterait en scalaire l'aurait
@@ -241,3 +250,126 @@ def test_la_limite_du_VISA_reste_une_LIMITE_et_non_une_garantie():
     # Aucune formule qui promettrait un contrôle.
     for interdit in ("comprend la vérification", "garantit", "assure le contrôle"):
         assert interdit not in n, interdit
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LES MISSIONS QUE LE RELEVÉ NE PORTE PAS
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_les_trois_missions_ajoutees_SONT_LA_et_sans_taux_inventé():
+    """Économiste, sécurité incendie, coordination SSI : elles existent, et le
+    bilan de 2018 ne les distinguait pas. Leur donner un taux « d'ordre de
+    grandeur » les rendrait indiscernables des treize relevées."""
+    par = {m["cle"]: m for m in M.MISSIONS}
+    for cle in ("bet_economiste", "bet_incendie", "coord_ssi"):
+        m = par[cle]
+        assert m["taux_sc"] is None and m["taux_mep"] is None, cle
+        assert m["hors_releve"]["pourquoi"], cle
+        assert m["hors_releve"]["ou_chercher"], cle
+        # Les phases, elles, se savent : c'est la nature de la mission.
+        assert abs(sum(m["repartition"].values()) - 1.0) < 1e-9, cle
+
+
+def test_LE_POINT_QUI_DECIDE_treize_missions_portent_un_taux_RELEVE_pas_seize():
+    """La garde n'a jamais eu pour objet d'interdire d'ajouter une mission :
+    c'est d'interdire qu'une mission NON RELEVÉE reçoive un taux en dur, où
+    plus rien ne la distinguerait des autres."""
+    relevees = [m for m in M.MISSIONS
+                if m["taux_sc"] is not None and m["taux_mep"] is not None]
+    assert len(relevees) == 13, len(relevees)
+    assert len(M.MISSIONS) == 16, len(M.MISSIONS)
+
+
+def test_une_mission_sans_taux_reste_OUVERTE_et_n_entre_pas_au_total():
+    """UN TAUX ABSENT N'EST PAS UN TAUX NUL. Un zéro silencieux ferait croire
+    la mission gratuite."""
+    r = _res()
+    par = {m["cle"]: m for m in r["missions"]}
+    for cle in ("bet_economiste", "bet_incendie", "coord_ssi"):
+        assert par[cle]["etat"] == "taux_a_saisir", cle
+    assert len(r["missions_ouvertes"]) == 3, r["missions_ouvertes"]
+    assert "n'entrent pas dans ce total" in r["lecture_ouvertes"]
+
+
+def test_LE_POINT_QUI_DECIDE_saisir_le_taux_referme_la_ligne_ET_augmente_le_total():
+    """Sans ce contrôle, « ouverte » pourrait vouloir dire « ignorée pour
+    toujours » : la ligne serait décorative."""
+    sans = _res()
+    avec = _res(taux_perso={"bet_economiste": {"sc": 0.004, "mep": 0.006}})
+    par = {m["cle"]: m for m in avec["missions"]}
+    assert par["bet_economiste"]["etat"] == "chiffree"
+    assert par["bet_economiste"]["taux_saisi"] is True
+    assert len(avec["missions_ouvertes"]) == 2
+    assert avec["total_meur"][1] > sans["total_meur"][1], (
+        "saisir un taux n'a pas augmenté le total : la mission n'est pas comptée")
+
+
+def test_le_total_SANS_taux_saisi_est_celui_d_avant_l_ajout():
+    """L'ajout de trois missions ne doit pas déplacer un chiffrage en cours :
+    tant qu'aucun taux n'est saisi, le total est exactement celui des treize
+    missions relevées."""
+    r = _res()
+    # ON SOMME LES MONTANTS DE MISSION, pas les montants par phase : ces
+    # derniers sont arrondis au millier d'euros chacun, et additionner
+    # soixante-cinq arrondis dérive de trois mille euros — c'est le phénomène
+    # que ce module documente ailleurs, pas une erreur de comptage.
+    somme = sum(m["montant_meur"][1] for m in r["missions"]
+                if m["etat"] == "chiffree")
+    assert abs(somme - r["total_meur"][1]) < 0.002, (somme, r["total_meur"][1])
+    # …et aucune mission ouverte n'y contribue.
+    for m in r["missions"]:
+        if m["etat"] == "taux_a_saisir":
+            assert m["montant_meur"] == [0.0, 0.0], (m["cle"], m["montant_meur"])
+
+
+def test_LE_POINT_QUI_DECIDE_c_est_la_GARDE_qui_ecarte_l_ouverte_pas_un_zero():
+    """Le contrôle précédent ne prouve rien à lui seul : une mission ouverte
+    porte un montant nul, donc l'additionner ou non ne changerait rien, et
+    l'exclusion pourrait n'être qu'une coïncidence arithmétique.
+
+    ICI ON SAISIT UN DEMI-TAUX : le taux SC est donné, le taux MEP ne l'est
+    pas. La ligne RESTE ouverte — un taux à moitié su n'est pas un taux — mais
+    son montant, lui, n'est plus nul. Si l'exclusion venait du zéro et non de
+    la garde, ce demi-taux entrerait au total et le déplacerait."""
+    sans = _res()
+    demi = _res(taux_perso={"bet_incendie": {"sc": 0.02}})
+    par = {m["cle"]: m for m in demi["missions"]}
+    ligne = par["bet_incendie"]
+
+    # 1. La ligne reste ouverte : la moitié d'un taux n'en est pas un.
+    assert ligne["etat"] == "taux_a_saisir", ligne["etat"]
+    assert len(demi["missions_ouvertes"]) == 3, demi["missions_ouvertes"]
+
+    # 2. …et pourtant elle porte un montant : le zéro n'explique plus rien.
+    assert ligne["montant_meur"][1] > 0.0, (
+        "le demi-taux ne produit aucun montant : ce contrôle ne prouverait "
+        "rien de plus que le précédent")
+
+    # 3. LE POINT : ce montant non nul n'atteint pas le total.
+    assert demi["total_meur"] == sans["total_meur"], (
+        demi["total_meur"], sans["total_meur"],
+        "un montant non nul d'une ligne OUVERTE est entré au total : "
+        "seule la garde « if not ouverte » devrait l'en écarter")
+
+
+def test_la_coordination_SSI_ne_se_declare_pas_obligatoire_a_la_legere():
+    """Elle relève d'une NORME, pas d'un texte qui l'impose en toutes
+    circonstances : son caractère obligatoire dépend de la catégorie du SSI,
+    que ce module ne qualifie pas — comme il ne qualifie ni l'ICPE ni le
+    contrôle technique."""
+    assert "coord_ssi" not in M.OBLIGATOIRES
+    par = {m["cle"]: m for m in M.MISSIONS}
+    h = par["coord_ssi"]["hors_releve"]["pourquoi"]
+    assert "NE QUALIFIE PAS" in h, h
+    assert "61-931" in h, h
+
+
+def test_l_OPC_et_le_SPS_etaient_DEJA_la_et_n_ont_pas_bouge():
+    """Deux des cinq missions demandées existaient : les redoubler aurait fait
+    payer deux fois."""
+    par = {m["cle"]: m for m in M.MISSIONS}
+    assert par["opc"]["taux_sc"] == 0.02 and par["opc"]["taux_mep"] == 0.01
+    assert par["sps"]["taux_sc"] == 0.003 and par["sps"]["taux_mep"] == 0.003
+    assert "sps" in M.OBLIGATOIRES
+    cles = [m["cle"] for m in M.MISSIONS]
+    assert len(cles) == len(set(cles)), "une mission apparaît deux fois"

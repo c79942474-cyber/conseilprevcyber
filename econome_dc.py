@@ -435,6 +435,27 @@ def _f(x, n=2):
     return round(float(x), n)
 
 
+def _nb(x, n=2):
+    """UN NOMBRE ÉCRIT COMME ON L'ÉCRIT EN FRANÇAIS, et seulement dans les
+    phrases. Les montants sortaient en clair du gabarit Python — « 612000.0 € »
+    au milieu d'une page où tout le reste affiche « 612 000 € ». Le lecteur ne
+    doute pas du chiffre, il doute de la page.
+
+    Les valeurs BRUTES restent publiées dans leurs propres champs : cette
+    fonction n'entre dans aucun calcul, elle habille du texte.
+    """
+    v = round(float(x), n)
+    ent = int(abs(v))
+    # ESPACE FINE INSÉCABLE (U+202F), écrite en échappement pour qu'on ne
+    # la prenne pas pour une espace ordinaire en relisant : celle-ci
+    # laisserait « 612 » finir une ligne et « 000 » commencer la suivante.
+    s = "{:,}".format(ent).replace(",", "\u202f")
+    reste = round(abs(v) - ent, n)
+    if n > 0 and reste > 0:
+        s += "," + ("%.*f" % (n, reste))[2:].rstrip("0")
+    return ("−" if v < 0 else "") + s
+
+
 def operations():
     """Le référentiel des natures d'opération, prêt pour une page."""
     out = []
@@ -518,8 +539,8 @@ def chiffrer(operation, quantites=None, prix_unitaires=None, provision_pct=None,
             m = _f(float(val_q) * float(prix))
             ligne.update(etat="chiffree", montant=m,
                          dit="%s %s × %s € = %s € HT"
-                             % (_f(val_q, 3), QUANTITES[a]["unite"], _f(prix),
-                                _f(m)))
+                             % (_nb(val_q, 3), QUANTITES[a]["unite"], _nb(prix),
+                                _nb(m)))
             total += m
         # LA PROVENANCE ACCOMPAGNE LE PRIX, ou son absence est dite. Un prix
         # sans source ne se défend pas six mois plus tard, et c'est exactement
@@ -809,3 +830,460 @@ def _verifier():
 
 
 _verifier()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  7. LE PONT VERS LA MAÎTRISE D'ŒUVRE
+#
+#     CE QU'IL APPORTE, ET CE N'EST PAS QUE DU TRANSPORT. Le barème de
+#     maîtrise d'œuvre a besoin de DEUX choses : le montant des travaux, et la
+#     part du lot technique dans ce montant. Sans la seconde, il retombe sur
+#     une hypothèse à 70 % dont son propre texte dit qu'elle « pèse plus lourd
+#     que n'importe quel taux du barème » — parce que les taux y sont inversés
+#     entre clos-couvert et technique.
+#
+#     ICI, CETTE PART SE CALCULE. Les postes de ce module portent leur famille :
+#     ce qui relève du bâtiment, ce qui relève des lots techniques. Le rapport
+#     n'est donc plus une hypothèse, c'est une conséquence du chiffrage.
+#
+#     DEUX INCOMPLÉTUDES, JAMAIS MÉLANGÉES. Les travaux ont leurs postes non
+#     chiffrés ; la maîtrise d'œuvre a ses missions sans taux relevé. Les
+#     additionner en un seul « taux de complétude » produirait un indicateur
+#     que ni l'un ni l'autre ne défend. Ils sont publiés côte à côte.
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ───────────────────────────────────────────────────────────────────────────
+#  7 bis. LES MISSIONS SELON LA NATURE DE L'OPÉRATION
+#
+#  « Selon les projets choisis » : une réhabilitation de lots techniques
+#  n'appelle pas les mêmes intervenants qu'une construction neuve, et une
+#  maintenance n'en appelle aucun au pourcentage. Le module PROPOSE une
+#  sélection par nature ; il ne l'impose pas — les cases restent décochables,
+#  sauf les deux missions que la loi rend obligatoires, que moe_dc recompte
+#  même décochées.
+#
+#  TROIS ÉTATS, ET LE TROISIÈME EST LE PLUS UTILE :
+#    · retenues     — proposée cochée, avec ce qu'elle vient faire ici ;
+#    · sans_objet   — écartée, avec la raison, tirée de la définition même de
+#                     la nature d'opération (pas d'une doctrine) ;
+#    · a_qualifier  — RETENUE MAIS INCERTAINE : le module dit ce qui décide, et
+#                     refuse de décider à la place. C'est l'état qu'un tableau
+#                     ordinaire supprime, et c'est celui qui évite de facturer
+#                     une mission inutile ou d'en oublier une obligatoire.
+# ───────────────────────────────────────────────────────────────────────────
+
+_TOUTES_MISSIONS = [
+    "architecte", "moex", "opc", "coord_etudes", "bet_structure",
+    "bet_fluides", "bet_environnement", "bet_acoustique", "bet_divers",
+    "commissioning", "bet_vrd", "controle_technique", "sps",
+    "bet_economiste", "bet_incendie", "coord_ssi",
+]
+
+# Ce qui reste vrai quelle que soit la nature : le module ne qualifie ni le
+# classement ICPE, ni la catégorie du SSI, ni la catégorie d'ouvrage qui rend
+# le contrôle technique obligatoire. Il le redit à chaque opération plutôt que
+# de le dire une fois en préambule, où personne ne le lit.
+_A_QUALIFIER_TOUJOURS = {
+    "bet_environnement": "Le classement ICPE dépend des puissances installées "
+                         "et des fluides frigorigènes retenus. Ce module ne "
+                         "les qualifie pas : c'est l'arrêté de classement qui "
+                         "décide, pas un chiffrage.",
+    "coord_ssi": "L'obligation de coordination SSI dépend de la CATÉGORIE du "
+                 "système (NF S 61-931), que ce module ne qualifie pas. "
+                 "Retenue par prudence : l'oublier en catégorie A coûte plus "
+                 "cher que de la porter à tort.",
+    "controle_technique": "Obligatoire par catégorie d'ouvrage. L'hypothèse "
+                          "retenue est qu'un centre de données y entre ; à "
+                          "vérifier sur votre projet, jamais à supposer.",
+}
+
+
+def _missions(retenues, sans_objet, a_qualifier, dit):
+    q = dict(_A_QUALIFIER_TOUJOURS)
+    q.update(a_qualifier or {})
+    # Une mission écartée n'a pas à être « à qualifier » : elle n'est pas là.
+    q = {c: v for c, v in q.items() if c not in sans_objet}
+    return {"retenues": retenues, "sans_objet": sans_objet,
+            "a_qualifier": q, "dit": dit}
+
+
+MISSIONS_PAR_OPERATION = {
+    "neuf": _missions(
+        retenues=list(_TOUTES_MISSIONS),
+        sans_objet={},
+        a_qualifier={},
+        dit="Aucune mission n'est sans objet sur une construction neuve : le "
+            "bâtiment, les lots techniques, les VRD et les autorisations "
+            "existent tous. C'est la seule nature où la liste se prend "
+            "entière — et donc la seule où l'économie se fait sur les PHASES, "
+            "pas sur les missions."),
+
+    "extension": _missions(
+        retenues=list(_TOUTES_MISSIONS),
+        sans_objet={},
+        a_qualifier={
+            "opc": "L'OPC pèse ici plus qu'en neuf : les coupures se "
+                   "négocient avec l'exploitant, et le planning n'est plus "
+                   "commandé par le chantier seul. Le taux relevé vient d'une "
+                   "opération neuve — vérifiez-le avant de le garder.",
+            "sps": "Chantier et exploitation coexistent : la coordination "
+                   "porte aussi sur l'interférence avec le personnel du site, "
+                   "ce que le taux relevé en neuf ne couvre pas.",
+        },
+        dit="L'extension appelle les mêmes missions que le neuf, mais deux "
+            "d'entre elles n'y font pas le même travail : le pilotage et la "
+            "coordination de sécurité doivent tenir un site qui continue de "
+            "fonctionner. Le barème, lui, vient d'une opération neuve."),
+
+    "rehabilitation_technique": _missions(
+        retenues=["architecte", "moex", "opc", "coord_etudes", "bet_structure",
+                  "bet_fluides", "bet_environnement", "bet_acoustique",
+                  "bet_divers", "commissioning", "controle_technique", "sps",
+                  "bet_economiste", "bet_incendie", "coord_ssi"],
+        sans_objet={
+            "bet_vrd": "Le bâtiment est conservé et l'opération ne crée ni "
+                       "voirie ni réseau extérieur. À REQUALIFIER si un "
+                       "aéroréfrigérant, une cuve ou une arrivée haute "
+                       "tension sortent du bâtiment : ce sont des VRD.",
+        },
+        a_qualifier={
+            "architecte": "SON MONTANT VA RESSORTIR TRÈS BAS, et ce n'est pas "
+                          "une erreur de calcul : son taux principal porte sur "
+                          "le clos-couvert, nul ici puisque le bâtiment est "
+                          "conservé. Son intervention réelle — désenfumage, "
+                          "percements, autorisations — ne disparaît pas pour "
+                          "autant. Si elle existe, elle se rémunère au temps "
+                          "passé, pas à ce pourcentage.",
+            "bet_structure": "Retenue, et ce n'est pas une formalité : "
+                             "reprendre des charges de groupes froids en "
+                             "toiture ou des socles d'onduleurs sur un "
+                             "plancher existant est la découverte la plus "
+                             "chère de cette nature d'opération.",
+        },
+        dit="Le bâtiment est conservé : ce qui portait sur le clos-couvert "
+            "s'effondre mécaniquement dans le barème, parce que son assiette "
+            "est nulle. Le module l'affiche au lieu de le corriger en douce — "
+            "un montant bas qui s'explique vaut mieux qu'un montant redressé "
+            "par une clé inventée."),
+
+    "reprise_travaux": _missions(
+        retenues=list(_TOUTES_MISSIONS),
+        sans_objet={},
+        a_qualifier={
+            "opc": "LA MISSION CENTRALE DE CETTE NATURE. Reprendre un chantier "
+                   "interrompu, c'est d'abord réordonnancer ce qui reste et "
+                   "réarticuler des marchés qui ne se suivent plus. Le taux "
+                   "relevé sur une opération neuve la sous-estime "
+                   "probablement ; ce module ne sait pas de combien.",
+            "bet_economiste": "Elle commence par un CONSTAT CONTRADICTOIRE de "
+                              "ce qui est exécuté, pas par un métré de ce qui "
+                              "reste. Tant que ce constat n'est pas dressé, "
+                              "aucun total de travaux n'a de valeur — et donc "
+                              "aucun pourcentage assis dessus.",
+            "controle_technique": "L'ouvrage a été commencé par un tiers : le "
+                                  "contrôleur technique qui reprend n'a pas "
+                                  "visé ce qui est déjà couvert. Sa mission "
+                                  "n'est pas celle d'un ouvrage neuf.",
+        },
+        dit="Toutes les missions restent appelées, mais aucune ne fait le "
+            "travail qu'elle ferait en neuf : on intervient sur un existant "
+            "qu'on n'a pas construit, sans les garanties de celui qui l'a "
+            "fait. C'est la nature où le pourcentage est le plus fragile."),
+
+    "maintenance": _missions(
+        retenues=[],
+        sans_objet={c: "Une maintenance est un coût ANNUEL d'exploitation : "
+                       "aucun honoraire ne s'y calcule en pourcentage de "
+                       "travaux, faute de travaux."
+                    for c in _TOUTES_MISSIONS},
+        a_qualifier={},
+        dit="Aucune mission n'est chiffrée ici, et l'obligation, elle, ne "
+            "disparaît pas pour autant : une intervention de maintenance qui "
+            "fait coexister plusieurs entreprises appelle un coordonnateur "
+            "SPS comme un chantier. Ce que ce module refuse, c'est de le "
+            "facturer au pourcentage d'un montant annuel — pas d'en rappeler "
+            "l'existence."),
+}
+
+
+def missions_pour(operation):
+    """Les missions proposées pour une nature d'opération, et pourquoi.
+
+    Rend toujours les trois états, y compris pour la maintenance : « aucune »
+    est une réponse, et elle se motive comme les autres.
+    """
+    o = MISSIONS_PAR_OPERATION.get(operation)
+    if not o:
+        return {"ok": False, "erreur": "operation_inconnue",
+                "message": "Nature d'opération inconnue : %s" % operation,
+                "connues": ORDRE_OPERATIONS}
+    try:
+        import moe_dc
+        par = {m["cle"]: m for m in moe_dc.MISSIONS}
+        obligatoires = list(moe_dc.OBLIGATOIRES)
+    except Exception:
+        par, obligatoires = {}, []
+
+    def _m(c):
+        m = par.get(c) or {}
+        # UNE MISSION SANS TAUX RELEVÉ SE SIGNALE ICI, pas seulement au total :
+        # le lecteur qui coche la ligne doit savoir qu'il devra saisir un taux,
+        # sinon il croira l'avoir chiffrée en la cochant.
+        sans_taux = bool(m) and (m.get("taux_sc") is None
+                                 or m.get("taux_mep") is None)
+        return {"cle": c, "nom": m.get("nom", c),
+                "role": m.get("role"),
+                "obligatoire": c in obligatoires,
+                "a_qualifier": o["a_qualifier"].get(c),
+                "sans_taux": sans_taux,
+                "hors_releve": m.get("hors_releve")}
+
+    return {
+        "ok": True, "operation": operation,
+        "operation_nom": OPERATIONS[operation]["nom"],
+        "retenues": [_m(c) for c in o["retenues"]],
+        "sans_objet": [{"cle": c, "nom": (par.get(c) or {}).get("nom", c),
+                        "raison": r}
+                       for c, r in sorted(o["sans_objet"].items())],
+        "dit": o["dit"],
+        "reserve": "Cette sélection est une PROPOSITION tirée de la nature de "
+                   "l'opération, pas de votre projet. Les missions "
+                   "obligatoires restent comptées même décochées : les "
+                   "retirer afficherait une économie qui n'aura pas lieu.",
+    }
+
+
+def _verifier_missions():
+    """LA MÊME DISCIPLINE QUE POUR LES POSTES, appliquée aux missions.
+
+    Une mission ni retenue ni écartée disparaîtrait en silence d'une nature
+    d'opération — et personne ne saurait qu'elle a existé. Et si moe_dc gagne
+    une mission demain sans qu'on décide de sa place ici, le service ne doit
+    pas démarrer en la faisant disparaître partout.
+    """
+    if set(MISSIONS_PAR_OPERATION) != set(OPERATIONS):
+        raise RuntimeError(
+            "econome_dc : les missions ne sont pas décidées pour toutes les "
+            "natures d'opération — %s"
+            % sorted(set(OPERATIONS) ^ set(MISSIONS_PAR_OPERATION)))
+
+    for cle, o in MISSIONS_PAR_OPERATION.items():
+        couvertes = set(o["retenues"]) | set(o["sans_objet"])
+        oubliees = sorted(set(_TOUTES_MISSIONS) - couvertes)
+        if oubliees:
+            raise RuntimeError(
+                "econome_dc : %s ne dit rien des missions %s — ni retenues ni "
+                "écartées, elles disparaîtraient sans laisser de trace"
+                % (cle, ", ".join(oubliees)))
+        double = sorted(set(o["retenues"]) & set(o["sans_objet"]))
+        if double:
+            raise RuntimeError("econome_dc : %s retient ET écarte %s"
+                               % (cle, ", ".join(double)))
+        inconnues = sorted(couvertes - set(_TOUTES_MISSIONS))
+        if inconnues:
+            raise RuntimeError("econome_dc : mission inconnue dans %s : %s"
+                               % (cle, ", ".join(inconnues)))
+        for m, raison in o["sans_objet"].items():
+            if len(str(raison).strip()) < 30:
+                raise RuntimeError(
+                    "econome_dc : écarter %s de %s sans raison lisible — "
+                    "c'est la faute que ce module reproche aux ratios"
+                    % (m, cle))
+        # Une mission « à qualifier » qui ne serait pas retenue n'aurait aucun
+        # effet : l'incertitude s'afficherait sur une ligne absente.
+        hors = sorted(set(o["a_qualifier"]) - set(o["retenues"]))
+        if hors:
+            raise RuntimeError(
+                "econome_dc : %s qualifie %s sans la retenir — l'avertissement "
+                "porterait sur une ligne qui ne s'affiche pas"
+                % (cle, ", ".join(hors)))
+        if len(o["dit"]) < 80:
+            raise RuntimeError(
+                "econome_dc : %s ne dit pas ce qui distingue sa sélection de "
+                "missions" % cle)
+
+    # LES OBLIGATOIRES NE S'ÉCARTENT PAS D'UNE OPÉRATION DE TRAVAUX. La seule
+    # nature qui les écarte est la maintenance, et elle ne le fait pas parce
+    # que l'obligation tomberait — son texte le dit — mais parce qu'aucun
+    # pourcentage de travaux ne s'y calcule.
+    try:
+        import moe_dc
+    except Exception:
+        # Le pont dira lui-même « module_absent » ; faire échouer le chiffrage
+        # des travaux parce que le barème d'honoraires manque serait pire.
+        return
+    connues = {m["cle"] for m in moe_dc.MISSIONS}
+    if connues != set(_TOUTES_MISSIONS):
+        raise RuntimeError(
+            "econome_dc : le barème porte des missions dont la place par "
+            "nature d'opération n'est pas décidée : %s"
+            % ", ".join(sorted(connues ^ set(_TOUTES_MISSIONS))))
+    for cle, o in MISSIONS_PAR_OPERATION.items():
+        if OPERATIONS[cle].get("annuel"):
+            continue
+        manquantes = [c for c in moe_dc.OBLIGATOIRES if c not in o["retenues"]]
+        if manquantes:
+            raise RuntimeError(
+                "econome_dc : %s écarte une mission obligatoire (%s) — ce "
+                "serait afficher une économie qui n'aura pas lieu"
+                % (cle, ", ".join(manquantes)))
+
+
+_verifier_missions()
+
+
+FAMILLE_VERS_ASSIETTE = {
+    "batiment": "clos_couvert",
+    "technique": "technique",
+    # L'EXISTANT NE TRANCHE PAS. Dépose, curage, mise en sécurité et site
+    # occupé servent les deux assiettes à des parts que rien ne permet de
+    # partager. Ils entrent dans le MONTANT des travaux — ce sont des travaux —
+    # mais pas dans le calcul du RAPPORT, qu'ils fausseraient d'un côté ou de
+    # l'autre selon une clé inventée.
+    "existant": None,
+    # L'EXPLOITATION N'EST PAS UN INVESTISSEMENT : elle est annuelle et sort
+    # de l'assiette d'honoraires.
+    "exploitation": "hors",
+}
+
+
+def avec_maitrise_oeuvre(chiffrage, phases=None, missions=None, taux_perso=None):
+    """Le chiffrage des travaux, prolongé par celui de la maîtrise d'œuvre.
+
+    Rend les deux, leur liaison, et les DEUX mesures d'incomplétude — celle des
+    travaux et celle des honoraires — sans jamais les fondre en une.
+    """
+    if not chiffrage or not chiffrage.get("ok"):
+        return {"ok": False, "erreur": "chiffrage_absent",
+                "message": "Aucun chiffrage de travaux : la maîtrise d'œuvre "
+                           "se calcule SUR les travaux, elle ne les remplace "
+                           "pas."}
+    if chiffrage.get("annuel"):
+        return {"ok": False, "erreur": "operation_annuelle",
+                "message": "Une maintenance est un coût annuel d'exploitation, "
+                           "pas une opération de travaux : aucun honoraire de "
+                           "maîtrise d'œuvre ne s'y calcule au pourcentage."}
+    try:
+        import moe_dc
+    except Exception:
+        return {"ok": False, "erreur": "module_absent",
+                "message": "Le barème de maîtrise d'œuvre n'est pas disponible."}
+
+    # « SELON LES PROJETS CHOISIS » : à défaut de sélection explicite, on prend
+    # celle que la nature d'opération propose — et non les seize missions, qui
+    # feraient payer des VRD sur un bâtiment conservé. Une sélection reçue de
+    # l'appelant prime : la proposition n'est pas une contrainte.
+    propose = missions_pour(chiffrage["operation"])
+    if missions is None and propose.get("ok"):
+        missions = [m["cle"] for m in propose["retenues"]]
+
+    par_famille = {f["famille"]: f["montant"] for f in chiffrage["par_famille"]}
+    bat = float(par_famille.get("batiment") or 0.0)
+    tech = float(par_famille.get("technique") or 0.0)
+    exi = float(par_famille.get("existant") or 0.0)
+    assiette_eur = bat + tech + exi
+    if assiette_eur <= 0:
+        return {"ok": False, "erreur": "assiette_vide",
+                "message": "Aucun poste de travaux n'est chiffré : il n'y a "
+                           "pas d'assiette sur laquelle asseoir des honoraires."}
+
+    socle = bat + tech
+    part_tech = (tech / socle) if socle > 0 else None
+    res = moe_dc.honoraires_directs(
+        [assiette_eur / 1e6, assiette_eur / 1e6],
+        part_technique=part_tech, phases=phases, missions=missions,
+        taux_perso=taux_perso)
+    if not res.get("ok"):
+        return {"ok": False, "erreur": "moe_refuse", "detail": res}
+
+    moe_eur = float(res["total_meur"][1]) * 1e6
+    return {
+        "ok": True, "version": VERSION,
+        "travaux": {
+            "operation": chiffrage["operation"],
+            "operation_nom": chiffrage["operation_nom"],
+            "assiette_eur": _f(assiette_eur),
+            "detail": {"batiment_eur": _f(bat), "technique_eur": _f(tech),
+                       "existant_eur": _f(exi)},
+            "postes_non_chiffres": chiffrage["postes_non_chiffres"],
+            "postes_total": chiffrage["postes_total"],
+            "part_non_chiffree": chiffrage["part_non_chiffree"],
+        },
+        "part_technique": {
+            "valeur": _f(part_tech, 4) if part_tech is not None else None,
+            "nature": "calculee" if part_tech is not None else "indisponible",
+            "dit": ("Calculée sur le chiffrage : %s %% des travaux de bâtiment "
+                    "et de technique relèvent des lots techniques. Le barème "
+                    "n'a donc pas eu à retomber sur son hypothèse à 70 %%, dont "
+                    "son propre texte dit qu'elle pèse plus lourd que n'importe "
+                    "quel taux." % _nb((part_tech or 0) * 100, 1)
+                   if part_tech is not None else
+                   "Ni le bâtiment ni la technique ne sont chiffrés : le "
+                   "rapport ne se calcule pas, et le barème retombe sur son "
+                   "hypothèse."),
+            "exclus": "Les sujétions d'existant (%s €) entrent dans l'assiette "
+                      "mais pas dans le rapport : elles servent les deux côtés "
+                      "à des parts que rien ne permet de partager." % _nb(exi),
+        },
+        "maitrise_oeuvre": {
+            "total_eur": _f(moe_eur),
+            "taux_effectif_pct": res["taux_effectif_pct"][1],
+            "par_phase": res["par_phase"],
+            "missions_ouvertes": res.get("missions_ouvertes") or [],
+            "lecture": res.get("lecture_ouvertes"),
+        },
+        "missions_proposees": propose if propose.get("ok") else None,
+        "missions_ecartees": (propose.get("sans_objet") or []
+                              if propose.get("ok") else []),
+        "kpi": _kpi(assiette_eur, moe_eur, chiffrage, res),
+        "avertissement": AVERTISSEMENT,
+    }
+
+
+def _kpi(assiette_eur, moe_eur, chiffrage, res):
+    """LES INDICATEURS, ET LE REFUS D'EN FABRIQUER UN TREIZIÈME.
+
+    Deux incomplétudes cohabitent : des postes de travaux sans prix, des
+    missions de maîtrise d'œuvre sans taux. Les fondre en un « taux de
+    complétude » unique donnerait un nombre que ni l'un ni l'autre ne défend —
+    et c'est celui-là qu'on citerait. Ils restent séparés.
+    """
+    ouvertes = len(res.get("missions_ouvertes") or [])
+    total_missions = len([m for m in res.get("missions", [])])
+    return {
+        "part_moe_sur_travaux_pct": _f(moe_eur / assiette_eur * 100, 2)
+        if assiette_eur else None,
+        "part_moe_dans_operation_pct": _f(moe_eur / (assiette_eur + moe_eur) * 100, 2)
+        if (assiette_eur + moe_eur) else None,
+        "cout_operation_eur": _f(assiette_eur + moe_eur),
+        "travaux_non_chiffres": {
+            "postes": chiffrage["postes_non_chiffres"],
+            "sur": chiffrage["postes_total"],
+            "part_pct": _f(chiffrage["part_non_chiffree"] * 100, 1),
+        },
+        "moe_sans_taux": {
+            "missions": ouvertes, "sur": total_missions,
+            "part_pct": _f(ouvertes / total_missions * 100, 1) if total_missions else None,
+        },
+        "refus": "Aucun indicateur unique ne fond ces deux incomplétudes : "
+                 "elles ne portent pas sur la même chose, et leur moyenne ne "
+                 "voudrait rien dire. Le lecteur les lit toutes les deux.",
+        "lecture": _lecture_kpi(assiette_eur, moe_eur, chiffrage, ouvertes),
+    }
+
+
+def _lecture_kpi(assiette_eur, moe_eur, chiffrage, ouvertes):
+    bouts = []
+    if assiette_eur:
+        bouts.append("La maîtrise d'œuvre représente %s %% des travaux chiffrés."
+                     % _nb(moe_eur / assiette_eur * 100, 2))
+    if chiffrage["part_non_chiffree"] > SEUIL_NON_CHIFFRE:
+        bouts.append("MAIS %d poste(s) de travaux sur %d ne sont pas chiffrés : "
+                     "l'assiette est partielle, donc les honoraires aussi."
+                     % (chiffrage["postes_non_chiffres"], chiffrage["postes_total"]))
+    if ouvertes:
+        bouts.append("Et %d mission(s) de maîtrise d'œuvre attendent leur taux : "
+                     "elles ne sont pas dans ce montant." % ouvertes)
+    if len(bouts) == 1:
+        bouts.append("Les deux chiffrages sont complets.")
+    return " ".join(bouts)

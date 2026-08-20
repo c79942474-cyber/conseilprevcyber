@@ -3131,6 +3131,54 @@ def api_datacenter_economiste_chiffrer():
     return jsonify(r)
 
 
+@app.route("/api/datacenter/economiste/maitrise-oeuvre", methods=["POST"])
+@login_required
+def api_datacenter_economiste_moe():
+    """Le pont : le chiffrage des travaux prolonge par celui de la MOE.
+
+    CE QUE CETTE ROUTE APPORTE, et qu'aucune des deux ne pouvait donner seule :
+    la part technique des travaux devient une CONSEQUENCE du chiffrage au lieu
+    d'une hypothese a 70 %, dont le bareme dit lui-meme qu'elle pese plus lourd
+    que n'importe quel taux -- les taux etant inverses entre clos-couvert et lot
+    technique. Et les missions proposees suivent la nature de l'operation : une
+    rehabilitation ne paie pas de VRD sur un batiment qu'elle ne touche pas.
+
+    Les deux incompletudes -- postes sans prix, missions sans taux -- remontent
+    cote a cote et ne sont jamais fondues en un indicateur unique.
+    """
+    data = request.get_json(silent=True) or {}
+    c = econome_dc.chiffrer(data.get("operation"),
+                            data.get("quantites"),
+                            data.get("prix_unitaires"),
+                            data.get("provision_pct"),
+                            data.get("provenances"))
+    if not c.get("ok"):
+        return jsonify(c), 400
+    r = econome_dc.avec_maitrise_oeuvre(c,
+                                        phases=data.get("phases"),
+                                        missions=data.get("missions"),
+                                        taux_perso=data.get("taux_perso"))
+    if not r.get("ok"):
+        # Un refus motive n'est pas une panne : une maintenance annuelle NE
+        # PORTE PAS d'honoraires au pourcentage, et le dire est le service rendu.
+        return jsonify(r), 400
+    r["chiffrage"] = c
+    return jsonify(r)
+
+
+@app.route("/api/datacenter/economiste/missions", methods=["GET"])
+@login_required
+def api_datacenter_economiste_missions():
+    """Les missions proposees pour une nature d'operation, et POURQUOI.
+
+    Trois etats, et le troisieme est le plus utile : retenue, ecartee avec sa
+    raison, ou retenue MAIS a qualifier -- le module dit alors ce qui decide
+    (categorie du SSI, classement ICPE) et refuse de trancher a la place.
+    """
+    r = econome_dc.missions_pour(request.args.get("operation"))
+    return jsonify(r) if r.get("ok") else (jsonify(r), 400)
+
+
 @app.route("/api/datacenter/ingenierie/disponibilite", methods=["POST"])
 @login_required
 def api_datacenter_disponibilite():

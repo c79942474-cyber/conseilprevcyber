@@ -223,6 +223,90 @@ MISSIONS = [
                   "le même chantier — ce qui est le cas de tout centre de "
                   "données. Ce n'est pas une option d'économie.",
          "reference": "Code du travail, art. L4532-2"}},
+    # ═══════════════════════════════════════════════════════════════════════
+    #  LES MISSIONS QUE LE RELEVÉ NE PORTE PAS
+    #
+    #  ELLES EXISTENT, ET LEUR TAUX N'EST PAS ICI. Le bilan de 2018 dont vient
+    #  ce barème ne les distinguait pas — soit qu'elles aient été fondues dans
+    #  un autre poste, soit qu'elles n'aient pas été confiées. Leur donner un
+    #  taux « d'ordre de grandeur » les rendrait indiscernables des douze
+    #  autres, qui sont relevées : le lecteur croirait tout tenir du même
+    #  projet, et c'est précisément ce que la garde de chargement empêche.
+    #
+    #  ELLES SONT DONC OUVERTES : les phases où elles interviennent sont
+    #  connues — c'est la nature de la mission, pas une mesure —, le taux se
+    #  saisit. Tant qu'il ne l'est pas, la ligne ressort « taux à saisir » et
+    #  n'entre pas dans le total, qui le dit.
+    # ═══════════════════════════════════════════════════════════════════════
+    {
+        "cle": "bet_economiste",
+        "nom": "BET Économie de la construction",
+        "taux_sc": None, "taux_mep": None,
+        "hors_releve": {
+            "pourquoi": "Le bilan relevé ne distingue pas l'économiste : sur "
+                        "cette opération, le chiffrage était porté par "
+                        "l'architecte et le BET fluides. Ce n'est pas la "
+                        "pratique générale, et surtout pas sur un centre de "
+                        "données où le lot technique fait l'essentiel de "
+                        "l'enveloppe.",
+            "ou_chercher": "Vos propres offres, ou la table de répartition du "
+                           "forfait du modèle de marché public de maîtrise "
+                           "d'œuvre — qui la laisse en blanc, elle aussi.",
+        },
+        "repartition": {"aps": 0.15, "apd": 0.2, "pro": 0.3, "act": 0.2,
+                        "exe": 0.15},
+        "role": "Le chiffrage lui-même : quantitatifs, ratios, décomposition "
+                "du prix par lot, provisions, révision, écart au budget. Il "
+                "n'est pas la coordination du chiffrage — c'est le chiffrage. "
+                "Sur une opération où le lot technique pèse l'essentiel, un "
+                "ratio au mètre carré ne veut rien dire et le métré se fait au "
+                "kilowatt informatique.",
+    },
+    {
+        "cle": "bet_incendie",
+        "nom": "BET Sécurité incendie",
+        "taux_sc": None, "taux_mep": None,
+        "hors_releve": {
+            "pourquoi": "Le relevé range la sécurité incendie dans les BET "
+                        "divers. Sur un centre de données elle décide de "
+                        "l'architecture — compartimentage, désenfumage, "
+                        "extinction automatique — et mérite sa ligne.",
+            "ou_chercher": "Offres de BET spécialisés. Le taux dépend fortement "
+                           "du classement de l'ouvrage, que ce module ne "
+                           "qualifie pas.",
+        },
+        "repartition": {"aps": 0.2, "apd": 0.25, "pro": 0.25, "act": 0.1,
+                        "exe": 0.2},
+        "role": "Conception de la stratégie incendie et des systèmes qui la "
+                "servent : compartimentage, désenfumage, détection, extinction "
+                "automatique. Distinct du coordonnateur SSI, qui ne conçoit "
+                "pas mais fait tenir ensemble ce que plusieurs lots "
+                "fournissent.",
+    },
+    {
+        "cle": "coord_ssi",
+        "nom": "Coordonnateur SSI",
+        "taux_sc": None, "taux_mep": None,
+        "hors_releve": {
+            "pourquoi": "Absente du relevé. Elle n'est pas optionnelle pour "
+                        "autant : la coordination SSI relève de la norme "
+                        "NF S 61-931 et s'impose dès que le système de sécurité "
+                        "incendie relève des catégories qui l'exigent. CE "
+                        "MODULE NE QUALIFIE PAS LA CATÉGORIE du SSI — comme il "
+                        "ne qualifie ni le classement ICPE ni "
+                        "l'assujettissement au contrôle technique.",
+            "ou_chercher": "Offres de coordonnateurs SSI, une fois la catégorie "
+                           "du SSI arrêtée par le BET incendie.",
+        },
+        "repartition": {"aps": 0.1, "apd": 0.2, "pro": 0.25, "act": 0.1,
+                        "exe": 0.35},
+        "role": "Il ne conçoit pas : il fait tenir ensemble ce que plusieurs "
+                "lots fournissent — détection, désenfumage, portes, "
+                "compartimentage, arrêts techniques — et porte le dossier "
+                "d'identité SSI jusqu'à la réception. Sa charge est dans "
+                "l'exécution et les essais, pas dans les études : c'est ce que "
+                "sa répartition montre.",
+    },
 ]
 
 ORDRE_MISSIONS = [m["cle"] for m in MISSIONS]
@@ -365,13 +449,21 @@ def honoraires(parts_lots, enveloppe_meur, phases=None, missions=None,
     retenues = demandees | set(OBLIGATOIRES)
 
     lignes, tot_bas, tot_haut = [], 0.0, 0.0
+    ouvertes = []
     par_phase = {p: [0.0, 0.0] for p in ORDRE_PHASES}
     for m in MISSIONS:
         if m["cle"] not in retenues:
             continue
         perso = (taux_perso or {}).get(m["cle"]) or {}
-        t_sc = float(perso.get("sc", m["taux_sc"]))
-        t_mep = float(perso.get("mep", m["taux_mep"]))
+        # UN TAUX ABSENT N'EST PAS UN TAUX NUL. Les missions hors relevé
+        # n'entrent au total qu'une fois leur taux saisi ; sans lui la ligne
+        # reste OUVERTE. Un zéro silencieux ferait croire la mission gratuite,
+        # et c'est la faute que ce module refuse ailleurs sur les phases.
+        b_sc = perso.get("sc", m["taux_sc"])
+        b_mep = perso.get("mep", m["taux_mep"])
+        ouverte = b_sc is None or b_mep is None
+        t_sc = 0.0 if b_sc is None else float(b_sc)
+        t_mep = 0.0 if b_mep is None else float(b_mep)
         base_sc = A["vrd_meur"] if m.get("assiette_etroite") else A["clos_couvert_meur"]
         base_mep = [0.0, 0.0] if m.get("assiette_etroite") else A["technique_meur"]
 
@@ -380,6 +472,8 @@ def honoraires(parts_lots, enveloppe_meur, phases=None, missions=None,
         plein_bas = base_sc[0] * t_sc + base_mep[0] * t_mep
         plein_haut = base_sc[1] * t_sc + base_mep[1] * t_mep
         bas, haut = plein_bas * part, plein_haut * part
+        if ouverte:
+            ouvertes.append(m["cle"])
 
         detail = {}
         for p in ORDRE_PHASES:
@@ -394,7 +488,6 @@ def honoraires(parts_lots, enveloppe_meur, phases=None, missions=None,
         lignes.append({
             "cle": m["cle"], "nom": m["nom"], "role": m["role"],
             "taux_sc": t_sc, "taux_mep": t_mep,
-            "taux_saisi": bool(perso),
             "assiette": "VRD seuls" if m.get("assiette_etroite")
                         else "clos-couvert + technique",
             "part_retenue": _f(part),
@@ -404,9 +497,16 @@ def honoraires(parts_lots, enveloppe_meur, phases=None, missions=None,
             "obligation": m.get("obligation"),
             "impose": m["cle"] in imposees,
             "reserve": m.get("reserve"),
+            # LA LIGNE DIT SON ÉTAT. « ouverte » n'est pas « nulle » : la
+            # mission est retenue, son taux n'est pas encore su.
+            "etat": "taux_a_saisir" if ouverte else "chiffree",
+            "hors_releve": m.get("hors_releve"),
+            "taux_saisi": bool(perso.get("sc") is not None
+                               or perso.get("mep") is not None),
         })
-        tot_bas += bas
-        tot_haut += haut
+        if not ouverte:
+            tot_bas += bas
+            tot_haut += haut
 
     travaux_bas = A["clos_couvert_meur"][0] + A["technique_meur"][0]
     travaux_haut = A["clos_couvert_meur"][1] + A["technique_meur"][1]
@@ -425,6 +525,19 @@ def honoraires(parts_lots, enveloppe_meur, phases=None, missions=None,
                       for p in ORDRE_PHASES},
         "total_meur": [_f(tot_bas), _f(tot_haut)],
         "travaux_meur": [_f(travaux_bas), _f(travaux_haut)],
+        # CE QUI RESTE OUVERT EST PUBLIÉ, pas dissous. Un total qui tairait
+        # trois missions retenues serait exact et trompeur.
+        "missions_ouvertes": [
+            {"cle": c, "nom": next(m["nom"] for m in MISSIONS if m["cle"] == c),
+             "hors_releve": next(m["hors_releve"] for m in MISSIONS
+                                 if m["cle"] == c)}
+            for c in ouvertes],
+        "lecture_ouvertes": (
+            "%d mission(s) retenue(s) n'entrent pas dans ce total : leur taux "
+            "n'est pas au relevé et n'a pas été saisi. Le total porte donc sur "
+            "les autres, et il faut le lire ainsi." % len(ouvertes)
+            if ouvertes else
+            "Toutes les missions retenues sont chiffrées."),
         "taux_effectif_pct": [
             _f(tot_bas / travaux_bas * 100, 2) if travaux_bas else None,
             _f(tot_haut / travaux_haut * 100, 2) if travaux_haut else None],
@@ -895,8 +1008,29 @@ def sante():
 
 def _verifier():
     """Refuse de charger si le barème ne se tient pas."""
-    if len(MISSIONS) != 13:
-        raise RuntimeError("moe_dc : le barème relevé porte treize missions")
+    # LA GARDE PORTE SUR LE RELEVÉ, PAS SUR LA LISTE. Son objet n'a jamais été
+    # d'interdire d'ajouter une mission : c'est d'interdire qu'une mission
+    # NON RELEVÉE se glisse parmi les relevées avec un taux inventé, où plus
+    # rien ne la distinguerait. Treize portent un taux ; les autres n'en
+    # portent aucun et disent pourquoi.
+    relevees = [m for m in MISSIONS
+                if m["taux_sc"] is not None and m["taux_mep"] is not None]
+    if len(relevees) != 13:
+        raise RuntimeError(
+            "moe_dc : le barème relevé porte treize missions à taux, %d "
+            "trouvée(s) — une mission non relevée ne doit pas recevoir de taux "
+            "en dur" % len(relevees))
+    for m in MISSIONS:
+        if m["taux_sc"] is None or m["taux_mep"] is None:
+            h = m.get("hors_releve") or {}
+            if not h.get("pourquoi") or not h.get("ou_chercher"):
+                raise RuntimeError(
+                    "moe_dc : %s n'a pas de taux et ne dit ni pourquoi ni où "
+                    "en chercher un — elle passerait pour un oubli" % m["cle"])
+            if m["taux_sc"] is not None or m["taux_mep"] is not None:
+                raise RuntimeError(
+                    "moe_dc : %s porte un demi-taux — la ligne serait chiffrée "
+                    "sur une seule assiette et paraîtrait complète" % m["cle"])
     for m in MISSIONS:
         s = sum(m["repartition"].get(p, 0.0) for p in ORDRE_PHASES)
         if abs(s - 1.0) > 1e-6:
@@ -909,7 +1043,8 @@ def _verifier():
         for champ in ("nom", "role"):
             if not str(m.get(champ, "")).strip():
                 raise RuntimeError("moe_dc : %s sans %s" % (m["cle"], champ))
-        if m["taux_sc"] < 0 or m["taux_mep"] < 0:
+        if (m["taux_sc"] is not None and m["taux_sc"] < 0) \
+                or (m["taux_mep"] is not None and m["taux_mep"] < 0):
             raise RuntimeError("moe_dc : taux négatif sur %s" % m["cle"])
     for p in PHASES:
         for champ in ("nom", "titre", "produit", "sans"):
