@@ -413,6 +413,31 @@
     });
   }
 
+  /* LE SIGNAL SE POSE SUR LE CHAMP, pas seulement au pied de la page. Un
+     message global oblige à retrouver soi-même lequel des treize champs n'a
+     pas été lu — et sur un formulaire de treize champs, personne ne cherche. */
+  function marquerRejets(rejets) {
+    document.querySelectorAll("#ig-form .ig-rejet").forEach(function (e) {
+      e.remove();
+    });
+    document.querySelectorAll("#ig-form [data-champ]").forEach(function (e) {
+      e.classList.remove("ig-illisible");
+      e.removeAttribute("aria-invalid");
+    });
+    (rejets || []).forEach(function (r) {
+      var e = document.querySelector('#ig-form [data-champ="' + r.champ + '"]');
+      if (!e) return;
+      e.classList.add("ig-illisible");
+      /* La couleur ne suffit pas : le message est du texte, et le champ se
+         déclare invalide pour les technologies d'assistance. */
+      e.setAttribute("aria-invalid", "true");
+      var p = document.createElement("span");
+      p.className = "ig-rejet";
+      p.textContent = r.message;
+      (e.closest("label") || e.parentNode).appendChild(p);
+    });
+  }
+
   function lireProfil() {
     var p = {};
     document.querySelectorAll("#ig-form [data-champ]").forEach(function (el) {
@@ -2517,6 +2542,12 @@
           if (!j.ok) throw new Error(j.message || "parcours");
           DERNIER = j.parcours;
           rendreParcours();
+          /* CE QUI N'A PAS ÉTÉ LU SE DIT ICI. Sans cela le résultat est exact
+             et trompeur : identique à celui d'une saisie valide. Mesuré,
+             « 75 % » tapé dans un champ noté « 0–1 » produisait un parcours
+             complet calculé sur la valeur par défaut, sans un mot. */
+          marquerRejets(j.rejets);
+          etat(j.lecture_rejets || "", !!j.lecture_rejets);
           if (PHASE) chargerDossier();
         })
         .catch(function (e) {
@@ -3375,7 +3406,14 @@
         + esc(d.tier.consequence) + "</p>";
     }
     var r = d.redondance;
-    if (r) {
+    /* UN REFUS N'EST PAS UN COMPTE. Le test ne portait que sur l'existence de
+       l'objet : le moteur disant désormais POURQUOI il ne compte pas, ce même
+       test aurait affiché « undefined unités installées » sur un message
+       d'erreur. On rend le motif, à la place du compte. */
+    if (r && r.nature === "refus") {
+      h += '<p class="ig-drefus"><b>Ce compte n’a pas pu être fait.</b> '
+        + esc(r.message) + "</p>";
+    } else if (r) {
       /* Le compte, en gros. C'est le chiffre qu'on vient chercher, et celui
          qui surprend : la marge est le PRIX du niveau, pas un excédent. */
       h += '<div class="ig-dr">'
@@ -3398,6 +3436,11 @@
         + '<div class="i">à la température de dimensionnement</div></div>'
         + "</div>"
         + '<p class="ig-dsrc">' + esc(r.note) + "</p>";
+      /* Hors de ce qu'on observe : jamais un refus, le calcul reste juste —
+         mais le taire laisserait passer une chaîne de mille groupes froid
+         sans un mot, là où le formulaire du profil signale déjà les siennes. */
+      if (r.hors_plage)
+        h += '<p class="ig-drefus">' + esc(r.hors_plage) + "</p>";
     }
     /* Toujours affiché, même quand tout va bien : ces quatre points sont ce
        qu'un niveau ne couvre pas, et les taire ferait passer une topologie

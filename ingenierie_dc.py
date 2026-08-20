@@ -1660,6 +1660,11 @@ REDONDANCES = {
 }
 
 
+# Au-delà de ce nombre d'unités par chaîne, on ne décrit plus une chaîne.
+# Repère d'observation, pas une limite : rien n'est refusé, tout est dit.
+PLAFOND_UNITES = 60
+
+
 def redondance(schema, n_besoin):
     """Combien d'unités installer, et quelle marge en résulte.
 
@@ -1672,12 +1677,52 @@ def redondance(schema, n_besoin):
     `n_besoin` est le nombre d'unités que la charge exige, réserve exclue.
     """
     r = REDONDANCES.get(schema)
-    try:
-        n = int(n_besoin)
-    except (TypeError, ValueError):
-        n = 0
-    if not r or n < 1:
+    if not r:
         return None
+
+    # ── CE QUE LA SAISIE VAUT, ET CE QU'ON EN DIT ──────────────────────────
+    #
+    # LE DÉFAUT CORRIGÉ ICI. `int(n_besoin)` levait sur tout ce qui n'était pas
+    # un entier nu, et l'exception ramenait n à zéro : le compte disparaissait
+    # alors SANS UN MOT. Mesuré, quatre saisies parfaitement ordinaires
+    # tombaient dans ce trou — « 6.0 », « 6,0 » (l'écriture française), « abc »
+    # et « -3 » — et donnaient toutes exactement le même écran qu'un champ
+    # laissé vide. Celui qui avait tapé quelque chose ne pouvait pas savoir
+    # qu'il n'avait rien obtenu, ni pourquoi.
+    #
+    # LA RÈGLE. Un champ vide n'est pas une erreur : on ne dit rien. Une saisie
+    # qu'on ne sait pas lire EST une erreur, et elle se nomme.
+    brut = "" if n_besoin is None else str(n_besoin).strip()
+    if brut == "":
+        return None
+
+    def _refus(erreur, message):
+        return {"nature": "refus", "erreur": erreur, "message": message,
+                "saisi": brut}
+
+    try:
+        # La virgule décimale est celle du clavier français. La refuser ici
+        # pendant que le reste de l'application l'accepte serait un piège.
+        val = float(brut.replace(",", "."))
+    except (TypeError, ValueError):
+        return _refus("illisible",
+                      "« %s » n'est pas un nombre d'unités. Indiquez combien "
+                      "de groupes froid, de chaînes onduleur ou de groupes "
+                      "électrogènes la charge exige, réserve exclue." % brut)
+    if val != int(val):
+        # UNE DEMI-UNITÉ N'EXISTE PAS. On ne l'arrondit pas en silence :
+        # arrondir choisirait à la place du concepteur, dans le sens qui
+        # l'arrange le moins une fois sur deux.
+        return _refus("non_entier",
+                      "« %s » n'est pas un compte d'unités : on installe des "
+                      "machines entières. Arrondir à votre place déciderait "
+                      "d'un groupe de plus ou de moins." % brut)
+    n = int(val)
+    if n < 1:
+        return _refus("hors_domaine",
+                      "Une chaîne qui ne porte aucune unité n'a pas de "
+                      "redondance à calculer. Indiquez au moins une unité.")
+
     par_chaine = n + r["sup"]
     installees = par_chaine * r["chaines"]
     return {
@@ -1695,6 +1740,16 @@ def redondance(schema, n_besoin):
         "note": ("Le compte porte sur les UNITÉS, pas sur la puissance : deux "
                  "groupes de 1 MW ne remplacent pas un groupe de 2 MW dès que "
                  "la charge minimale de fonctionnement entre en jeu."),
+        # CE QUI SORT DE CE QU'ON OBSERVE, et jamais un refus : le calcul
+        # reste juste, et c'est au projet de savoir s'il est hors norme. Mais
+        # le taire laisse passer une chaîne de mille groupes froid sans un
+        # mot — le formulaire du profil signale déjà ses propres saisies
+        # invraisemblables, celle-ci ne le faisait pas.
+        "hors_plage": (
+            "%d unités par chaîne dépasse ce qu'on observe : au-delà de %d, "
+            "on décrit plusieurs salles ou plusieurs bâtiments, et un compte "
+            "unique de redondance perd son sens. Le calcul reste exact."
+            % (n, PLAFOND_UNITES) if n > PLAFOND_UNITES else None),
     }
 
 
@@ -1715,7 +1770,10 @@ def disponibilite(tier=None, n_besoin=None, schema=None):
     if not sch and t:
         sch, origine = t["schema_type"], "deduit_du_niveau"
     calc = redondance(sch, n_besoin) if sch else None
-    if calc:
+    # L'ORIGINE DU SCHÉMA NE SE POSE QUE SUR UN COMPTE. Posée sur un refus,
+    # elle lui donnait l'apparence d'un résultat — avec un schéma « déduit du
+    # niveau » affiché à côté d'un message d'erreur.
+    if calc and calc.get("nature") == "calcule":
         calc["origine_schema"] = origine
     return {
         "tier": dict(t, code=code) if t else None,

@@ -2139,10 +2139,22 @@ def _themes_datacenter():
     }
 
 
-def _profil_datacenter(data):
-    """Nettoie les entrées. Les nombres reçus en texte sont convertis ici, une
-    fois pour toutes : plus bas, une chaîne dans un calcul lève, et l'étude
-    entière échouerait sur une virgule décimale."""
+def _profil_datacenter(data, rejets=None):
+    """Nettoie les entrees. Les nombres recus en texte sont convertis ici, une
+    fois pour toutes : plus bas, une chaine dans un calcul leve, et l'etude
+    entiere echouerait sur une virgule decimale.
+
+    CE QUI ETAIT AVALE EN SILENCE. Une valeur illisible tombait dans un
+    `continue` muet : le champ disparaissait, l'etude repartait sur la valeur
+    par defaut, et le resultat etait IDENTIQUE a celui d'une saisie valide.
+    Mesure : « 75 % » tape dans un champ note « 0-1 » -- la faute la plus
+    naturelle qui soit -- produisait une etude complete calculee sur 0,65, sans
+    que rien ne le signale. Le lecteur croyait avoir chiffre son projet.
+
+    Passer une liste en `rejets` la fait remplir de ce qui n'a pas ete lu, pour
+    que l'appelant le publie. Un champ absent ou vide n'est PAS un rejet :
+    c'est un choix, et il se respecte sans commentaire.
+    """
     profil = {}
     for champ in datacenter.CHAMPS:
         cid = champ["id"]
@@ -2153,10 +2165,29 @@ def _profil_datacenter(data):
             try:
                 profil[cid] = float(str(brut).replace(",", ".").strip())
             except (TypeError, ValueError):
+                if rejets is not None:
+                    rejets.append({
+                        "champ": cid,
+                        "label": champ.get("label") or cid,
+                        "saisi": str(brut)[:40],
+                        "message": "« %s » n'a pas pu être lu comme un nombre : "
+                                   "ce champ n'a pas été pris en compte."
+                                   % str(brut)[:40],
+                    })
                 continue
         else:
             profil[cid] = str(brut).strip()[:40]
     return profil
+
+
+def _lecture_rejets(rejets):
+    """Ce qu'il faut LIRE quand des champs ont ete ecartes."""
+    if not rejets:
+        return None
+    return ("%d champ(s) n'ont pas été lus et n'entrent donc pas dans ce "
+            "résultat : %s. Le calcul est reparti sur les valeurs par défaut "
+            "pour eux — ce n'est pas votre projet qui a été chiffré sur ces "
+            "postes." % (len(rejets), ", ".join(r["label"] for r in rejets)))
 
 
 @app.route("/api/datacenter/etude", methods=["POST"])
@@ -2164,8 +2195,17 @@ def _profil_datacenter(data):
 def api_datacenter_etude():
     """L'étude complète. Déterministe : deux appels identiques, même résultat."""
     data = request.get_json(silent=True) or {}
-    profil = _profil_datacenter(data)
+    rejets = []
+    profil = _profil_datacenter(data, rejets)
     if not profil.get("puissance_it_kw"):
+        # SI C'EST LA PUISSANCE ELLE-MEME QUI N'A PAS ETE LUE, on ne dit pas
+        # « champ necessaire » a quelqu'un qui vient de le remplir : on lui dit
+        # que ce qu'il a tape n'a pas pu etre lu.
+        illisible = next((r for r in rejets
+                          if r["champ"] == "puissance_it_kw"), None)
+        if illisible:
+            return jsonify(ok=False, error="puissance_illisible",
+                           message=illisible["message"], rejets=rejets), 400
         return jsonify(ok=False, error="puissance_absente",
                        message="La puissance informatique installée est nécessaire : "
                                "toutes les grandeurs en dépendent."), 400
@@ -2184,7 +2224,10 @@ def api_datacenter_etude():
                              % (profil["puissance_it_kw"],
                                 res["energie"]["pue"]["valeur"],
                                 res["eau"]["wue_site"]["valeur"]))
-    return jsonify(ok=True, etude=res)
+    # CE QUI N'A PAS ETE LU VOYAGE AVEC LE RESULTAT. Tu, le resultat serait
+    # exact et trompeur : identique a celui d'une saisie valide.
+    return jsonify(ok=True, etude=res, rejets=rejets,
+                   lecture_rejets=_lecture_rejets(rejets))
 
 
 @app.route("/api/datacenter/evaluer", methods=["POST"])
@@ -3214,8 +3257,14 @@ def api_datacenter_ingenierie_parcours():
     parallèle.
     """
     data = request.get_json(silent=True) or {}
-    profil = _profil_datacenter(data)
+    rejets = []
+    profil = _profil_datacenter(data, rejets)
     if not profil.get("puissance_it_kw"):
+        illisible = next((r for r in rejets
+                          if r["champ"] == "puissance_it_kw"), None)
+        if illisible:
+            return jsonify(ok=False, error="puissance_illisible",
+                           message=illisible["message"], rejets=rejets), 400
         return jsonify(ok=False, error="puissance_absente",
                        message="La puissance informatique installée est nécessaire."), 400
     fil = (data.get("filiere") or "").strip()
@@ -3223,6 +3272,8 @@ def api_datacenter_ingenierie_parcours():
     try:
         return jsonify(ok=True,
                        parcours={f: ingenierie_dc.parcours(profil, f) for f in filieres},
+                       rejets=rejets,
+                       lecture_rejets=_lecture_rejets(rejets),
                        correspondances=ingenierie_dc.CORRESPONDANCES)
     except Exception:
         app.logger.exception("parcours ingénierie datacenter")
