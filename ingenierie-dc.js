@@ -4180,6 +4180,89 @@ function messageDelai(e, defaut) {
       + "pouvez les vider.";
   });
 
+  /* ── REPRENDRE LE CHIFFRAGE DES TRAVAUX (section 7) ─────────────────────
+     LE DÉFAUT QUE CELA CORRIGE. Cette section demandait un montant de travaux
+     en texte libre pendant que la section 7, sur la même page, l'établissait
+     poste par poste. Deux gestes, deux chiffres, et rien pour les relier : le
+     montant retapé est celui qui se trompe, et il se trompait en silence.
+
+     UNE MAINTENANCE NE SE REPREND PAS. Son total est ANNUEL ; des honoraires
+     de maîtrise d'œuvre assis dessus ne veulent rien dire. Le bouton n'est
+     alors pas proposé, et il DIT pourquoi plutôt que de disparaître — un
+     bouton absent se lit comme une panne.
+
+     CE QUI N'EST PAS REPRIS, ET POURQUOI : la part du lot technique. Elle se
+     CALCULE dans le pont, en bas de la section 7, depuis les familles du
+     chiffrage. La recopier ici depuis le navigateur dupliquerait un calcul du
+     serveur — et deux calculs de la même grandeur finissent toujours par
+     diverger. Le bandeau renvoie donc au pont plutôt que de deviner. */
+  var TRAVAUX = null;
+
+  function _meur(euros) {
+    /* Le barème parle en M€, le chiffrage en €. Deux décimales : au-delà, on
+       afficherait une précision que le chiffrage n'a pas. */
+    return Math.round((Number(euros) || 0) / 10000) / 100;
+  }
+
+  function offrirReprise() {
+    var zone = document.getElementById("ig-moe-reprise");
+    if (!zone || !TRAVAUX) return;
+    var nom = TRAVAUX.operation_nom || "le chiffrage des travaux";
+    if (TRAVAUX.annuel) {
+      zone.innerHTML = '<div class="moe-recu moe-recu-vieux"><b>Le chiffrage '
+        + "de la section 7 porte sur « " + esc(nom) + " » : son total est "
+        + "ANNUEL.</b> Il ne se reprend pas ici — des honoraires de maîtrise "
+        + "d’œuvre s’asseyent sur un investissement, pas sur une dépense "
+        + "d’exploitation, et l’addition des deux ne voudrait rien dire.</div>";
+      return;
+    }
+    var m = _meur(TRAVAUX.total_avec_provision);
+    if (!m) { zone.innerHTML = ""; return; }
+    var reste = TRAVAUX.postes_non_chiffres
+      ? (" " + TRAVAUX.postes_non_chiffres + " poste(s) sur "
+         + TRAVAUX.postes_total + " y sont encore sans prix : le montant "
+         + "repris les ignore, il ne les estime pas.")
+      : "";
+    zone.innerHTML = '<div class="moe-recu"><b>La section 7 a chiffré « '
+      + esc(nom) + " » : " + esc(String(m).replace(".", ",")) + " M€</b>"
+      + " (provision comprise)." + esc(reste)
+      + ' <button type="button" class="moe-oubli" data-moe-reprendre>'
+      + "Reprendre ce montant</button>"
+      + "<br><span class=\"dc-aide\">La part du lot technique, elle, ne se "
+      + "reprend pas : elle se <b>calcule</b> dans « la maîtrise d’œuvre qui "
+      + "va avec », au bas de la section 7. Ici, le barème retombe sur son "
+      + "hypothèse tant que vous ne la saisissez pas.</span></div>";
+  }
+
+  /* Par délégation : le bandeau est écrit après coup, et le bouton n'existe
+     pas au moment où cet écouteur est posé. */
+  document.addEventListener("click", function (ev) {
+    var b = ev.target && ev.target.closest
+      ? ev.target.closest("[data-moe-reprendre]") : null;
+    if (!b || !TRAVAUX) return;
+    var champ = document.getElementById("ig-moe-trav");
+    if (!champ) return;
+    champ.value = String(_meur(TRAVAUX.total_avec_provision)).replace(".", ",");
+    /* Le champ accepte « 600 » ou « 600-750 » et lit le point ; la virgule
+       française doit donc repartir en point avant le calcul. On écrit la
+       virgule pour l'œil et on normalise à la lecture, comme le reste du
+       formulaire. */
+    champ.value = champ.value.replace(",", ".");
+    champ.dispatchEvent(new Event("input", { bubbles: true }));
+    var bloc = b.closest(".moe-recu");
+    if (bloc) bloc.innerHTML = "<b>Montant repris de la section 7.</b> "
+      + "Vérifiez-le : c’est votre chiffrage, pas une donnée de ce module — "
+      + "et il vaut ce que valent les prix unitaires que vous y avez posés.";
+    try { champ.focus({ preventScroll: true }); } catch (e) { champ.focus(); }
+  });
+
+  document.addEventListener("ig-chiffrage", function (ev) {
+    var d = ev && ev.detail;
+    if (!d || d.source !== "travaux") return;
+    TRAVAUX = d;
+    offrirReprise();
+  });
+
   function champs() {
     $("#ig-moe-form").innerHTML =
         '<label class="dc-champ" for="ig-moe-trav"><span class="dc-lab">'
@@ -4436,6 +4519,11 @@ function messageDelai(e, defaut) {
           if (r.pt) document.getElementById("ig-moe-pt").value = r.pt;
           bandeauRecu(r);
         }
+        /* UN CHIFFRAGE A PU ARRIVER AVANT LE BARÈME. Les deux sections
+           chargent en parallèle, et rien ne garantit l'ordre : sans ce
+           rappel, un lecteur rapide qui chiffre la section 7 pendant que le
+           barème arrive ne verrait jamais l'offre de reprise. */
+        offrirReprise();
         /* LA MISSION COMMANDE LES PHASES : changer l'une refait l'autre. Sans
            cela, un client passé en conception seule garderait à l'écran des
            phases qu'il ne confie plus.

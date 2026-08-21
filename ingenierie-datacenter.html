@@ -1630,6 +1630,11 @@
       Sans compte, la page vous le dira en clair plutôt que de vous laisser
       devant un écran vide.</p>
     </div>
+    <!-- LA REPRISE DU CHIFFRAGE DE LA SECTION 7. Vide tant qu'aucun chiffrage
+         n'a été fait : ce n'est pas un manque, c'est qu'il n'y a rien à
+         reprendre. Rempli par ingenierie-dc.js à la publication du chiffrage,
+         il propose le montant plutôt que de le faire retaper. -->
+    <div id="ig-moe-reprise"></div>
     <div class="moe-form" id="ig-moe-form"></div>
     <div class="moe-phases" id="ig-moe-phases"></div>
     <button type="button" class="ig-lanceur-b" id="ig-moe-go">Chiffrer la maîtrise d’œuvre →</button>
@@ -1657,6 +1662,18 @@
       nature à l’autre n’est pas un coefficient, c’est la liste des postes.
       <b>Aucun prix n’est embarqué ici</b>&nbsp;: ils viennent de votre bordereau
       ou d’une opération que vous avez livrée.</p>
+
+    <!-- LE PARCOURS, replié. Il est rendu par le script en bas de page depuis
+         econome_dc.PARCOURS : les étapes, leurs textes et surtout leurs
+         COMPTES viennent du référentiel, jamais de ce fichier. Écrits ici, ils
+         se démentiraient au premier poste ajouté — et personne ne le verrait,
+         parce qu'une phrase d'aide garde son air de vérité. -->
+    <details class="ig-pas" id="ig-eco-pas">
+      <summary>Comment s’y prendre — le parcours du chiffrage, étape par étape</summary>
+      <div class="ig-pas-c" id="ig-eco-pas-c">
+        <p class="note">Chargement du parcours…</p>
+      </div>
+    </details>
 
     <div class="ig-champ">
       <label for="ig-eco-op">Nature de l’opération</label>
@@ -2044,7 +2061,27 @@
     }
     h += '<p class="note">' + esc(d.avertissement) + '</p></div>';
     elOut.innerHTML = h;
-    document.dispatchEvent(new CustomEvent('ig-chiffrage'));
+    /* LE CHIFFRAGE EST PUBLIÉ, pas seulement affiché. La section 6 propose de
+       le reprendre plutôt que de faire retaper un montant qui existe déjà
+       trente lignes plus bas — c'est la saisie retapée qui se trompe, jamais
+       celle qu'on n'a pas eu à faire.
+
+       `annuel` VOYAGE AVEC LE MONTANT, et ce n'est pas décoratif : une
+       maintenance rend un coût ANNUEL, et des honoraires assis dessus ne
+       veulent rien dire. Sans ce drapeau, la section 6 n'aurait aucun moyen
+       de le savoir et l'accepterait sans broncher. */
+    document.dispatchEvent(new CustomEvent('ig-chiffrage', {
+      detail: {
+        source: 'travaux',
+        operation: d.operation, operation_nom: d.operation_nom,
+        annuel: !!d.annuel,
+        total_chiffre: d.total_chiffre,
+        total_avec_provision: d.total_avec_provision,
+        postes_non_chiffres: d.postes_non_chiffres,
+        postes_total: d.postes_total,
+        part_non_chiffree: d.part_non_chiffree
+      }
+    }));
   }
 
   /* ═════════════════════════════════════════════════════════════════════
@@ -2286,6 +2323,86 @@
          + '<div class="n">' + esc(note) + '</div></div>';
   }
 
+  /* ── LE PARCOURS DU CHIFFRAGE ──────────────────────────────────────────
+     RENDU, JAMAIS ÉCRIT ICI. Les étapes, leurs textes et leurs comptes
+     viennent de econome_dc.PARCOURS. Recopiés dans cette page, ils
+     annonceraient « dix postes » sur une nature qui en demande treize dès
+     qu'une opération change de liste — et la phrase resterait crédible.
+
+     LE PARCOURS SE RECHARGE À CHAQUE CHANGEMENT DE NATURE, pour la même
+     raison que la saisie et les missions : les comptes d'une construction
+     neuve ne sont pas ceux d'une réhabilitation. */
+  var PAS = null;
+
+  function rendrePas() {
+    var z = $('ig-eco-pas-c');
+    if (!z) return;
+    if (!PAS || !PAS.etapes) {
+      z.innerHTML = '<p class="note">Le parcours n’a pas pu être chargé. '
+        + 'Le chiffrage ci-dessous reste utilisable : chaque champ porte son '
+        + 'aide.</p>';
+      return;
+    }
+    var c = PAS.comptes || {};
+    var h = '<p class="ig-pas-d">' + esc(PAS.dit || '') + '</p>';
+    h += '<ol class="ig-pas-l">';
+    PAS.etapes.forEach(function (e) {
+      h += '<li class="ig-pas-e"><div>'
+        + '<p class="ig-pas-t">' + esc(e.titre) + '</p>'
+        + '<p class="ig-pas-g">' + esc(e.geste) + '</p>'
+        + '<p class="ig-pas-p"><b>Pourquoi.</b> ' + esc(e.pourquoi) + '</p>'
+        + '<p class="ig-pas-p"><b>Ce que ça engage.</b> ' + esc(e.engage) + '</p>'
+        + '<button type="button" class="ig-pas-go" data-pas-va="'
+        + esc(e.ancre) + '" data-pas-cible="' + esc(e.cible) + '">'
+        + 'M’y conduire →</button>'
+        + '</div></li>';
+    });
+    h += '</ol>';
+    /* Les provenances en toutes lettres : c'est le seul jugement que le
+       module porte sur un prix, et l'ordre ne se devine pas depuis le
+       formulaire, où la liste déroulante ne dit pas lequel pèse le plus. */
+    if (PAS.provenances_ordonnees && PAS.provenances_ordonnees.length) {
+      h += '<p class="ig-pas-d"><b>Les ' + c.provenances + ' provenances, '
+        + 'de la plus opposable à la moins engageante :</b> '
+        + PAS.provenances_ordonnees.map(function (p) {
+            return esc(p.nom);
+          }).join(' › ') + '.</p>';
+    }
+    z.innerHTML = h;
+  }
+
+  function chargerPas() {
+    var op = elOp && elOp.value ? elOp.value : '';
+    fetch('/api/datacenter/economiste/parcours'
+          + (op ? '?operation=' + encodeURIComponent(op) : ''),
+          { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { PAS = d && d.ok ? d : null; rendrePas(); })
+      .catch(function () { PAS = null; rendrePas(); });
+  }
+
+  /* « M'y conduire » : on défile jusqu'à l'ancre, puis on DÉSIGNE la cible.
+     Sans le second geste, le lecteur arrive devant un bloc de quatorze champs
+     sans savoir lequel l'étape désignait. Le surlignage s'éteint seul — un
+     contour permanent finirait par ne plus rien signaler. */
+  document.addEventListener('click', function (ev) {
+    var b = ev.target && ev.target.closest
+      ? ev.target.closest('[data-pas-va]') : null;
+    if (!b) return;
+    var anc = document.querySelector(b.getAttribute('data-pas-va'));
+    if (anc) anc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    var cib = document.querySelector(b.getAttribute('data-pas-cible'));
+    if (!cib) return;
+    cib.classList.add('ig-pas-vise');
+    setTimeout(function () { cib.classList.remove('ig-pas-vise'); }, 2400);
+    /* Le focus va au champ quand c'en est un : le lecteur qui navigue au
+       clavier arriverait sinon en haut de section, à refaire tout le chemin. */
+    if (typeof cib.focus === 'function'
+        && /^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(cib.tagName)) {
+      try { cib.focus({ preventScroll: true }); } catch (e) { cib.focus(); }
+    }
+  });
+
   function init() {
     elOp = $('ig-eco-op'); elObjet = $('ig-eco-objet'); elDit = $('ig-eco-dit');
     elSaisie = $('ig-eco-saisie'); elProv = $('ig-eco-prov');
@@ -2301,13 +2418,19 @@
         }).join('');
         rendreSaisie();
         chargerMissions();
+        /* Le référentiel porte déjà le parcours d'ensemble : on le rend tout
+           de suite, puis on le recharge pour la nature affichée. Attendre le
+           second appel laisserait « Chargement du parcours… » à l'écran alors
+           que la réponse est déjà là. */
+        if (REF.parcours && REF.parcours.ok) { PAS = REF.parcours; rendrePas(); }
+        chargerPas();
       })
       .catch(function () { txt(elMsg, 'Le référentiel n’a pas pu être chargé.'); });
     /* CHANGER DE NATURE CHANGE LES DEUX LISTES. Laisser la liste des missions
        figée sur la nature précédente ferait chiffrer des VRD sur un bâtiment
        conservé — sans que rien ne le signale. */
     elOp.addEventListener('change', function () {
-      rendreSaisie(); chargerMissions();
+      rendreSaisie(); chargerMissions(); chargerPas();
       $('ig-pont-out').innerHTML = '';
     });
     $('ig-eco-go').addEventListener('click', chiffrer);
@@ -2426,6 +2549,70 @@
 .ig-eco-lecture.alerte{border-left-color:var(--amber)}
 .ig-encart{margin-top:10px;padding:11px 15px;border-left:3px solid var(--cyan);
   background:var(--panel2);border-radius:0 6px 6px 0;font-size:13.5px;line-height:1.55}
+
+/* ── LE PARCOURS DU CHIFFRAGE ────────────────────────────────────────────
+   REPLIÉ PAR DÉFAUT, et c'est le point. Qui connaît le geste de l'économiste
+   n'a pas à faire défiler sept étapes pour atteindre la première liste
+   déroulante ; qui découvre la page trouve l'ordre des gestes avant de les
+   faire. Un guide déplié d'office punirait le premier pour aider le second.
+
+   Les étapes sont NUMÉROTÉES parce qu'elles forment réellement une suite : la
+   nature commande les postes, les postes commandent les quantités, et la part
+   technique qui en sort commande les honoraires. Ce n'est pas un décor de
+   liste — l'ordre porte la dépendance. */
+.ig-pas{margin:14px 0 4px;border:1px solid var(--line);border-radius:10px;
+  background:rgba(0,0,0,.12)}
+.ig-pas>summary{cursor:pointer;padding:12px 16px;font-size:13.5px;font-weight:600;
+  color:var(--ink);list-style-position:inside}
+.ig-pas>summary:hover{color:var(--cyan)}
+.ig-pas>summary:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.ig-pas[open]>summary{border-bottom:1px solid var(--line)}
+.ig-pas-n{font-family:var(--mono);font-size:11px;color:var(--cyan);font-weight:400}
+.ig-pas-c{padding:4px 16px 16px}
+.ig-pas-d{margin:10px 0 4px;font-size:12.5px;line-height:1.6;color:var(--muted)}
+.ig-pas-l{list-style:none;margin:0;padding:0;counter-reset:pas}
+.ig-pas-e{display:grid;grid-template-columns:26px 1fr;gap:12px;align-items:start;
+  padding:13px 0;border-top:1px solid var(--line)}
+.ig-pas-e:first-child{border-top:0}
+.ig-pas-e::before{counter-increment:pas;content:counter(pas);
+  font-family:var(--mono);font-size:12px;font-weight:700;color:var(--cyan);
+  width:26px;height:26px;display:flex;align-items:center;justify-content:center;
+  border-radius:50%;background:rgba(34,211,238,.13)}
+.ig-pas-t{margin:2px 0 0;font-size:14px;font-weight:600;color:var(--ink)}
+.ig-pas-g{margin:5px 0 0;font-size:13px;line-height:1.6;color:var(--muted)}
+/* « Pourquoi » et « ce que ça engage » ne sont PAS au même rang que le geste :
+   le geste se lit toujours, les deux autres se lisent quand on doute. Repliés
+   sous un résumé, ils gardent la liste parcourable d'un coup d'œil. */
+.ig-pas-p{margin:7px 0 0;font-size:12.5px;line-height:1.6;color:var(--muted2);
+  border-left:2px solid var(--line);padding-left:10px}
+.ig-pas-p b{color:var(--muted)}
+.ig-pas-go{margin-top:8px;font-family:inherit;font-size:12px;padding:4px 11px;
+  border-radius:7px;border:1px solid var(--line);background:rgba(0,0,0,.24);
+  color:inherit;cursor:pointer}
+.ig-pas-go:hover{border-color:var(--cyan);color:var(--cyan)}
+.ig-pas-go:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+/* LES ANCRES DU PARCOURS ARRIVAIENT SOUS L'EN-TÊTE — mesuré, pas supposé.
+   L'en-tête de ce site est collant et haut de 65 px, et
+   `scrollIntoView({block:'start'})` dépose la cible à 0 : cinq des sept
+   étapes atterrissaient CACHÉES, sur un guide dont conduire à la cible est
+   tout le geste. On réserve la hauteur du bandeau au-dessus de chaque ancre,
+   comme le fait déjà /datacenter pour les siennes.
+
+   La liste est explicite parce que le CSS ne peut pas lire le référentiel ;
+   un test la confronte à econome_dc.sante()["parcours_ancres"] et tombe le
+   jour où une étape désigne une ancre qui n'est pas couverte ici. */
+#ig-eco,#ig-eco-saisie,#ig-eco-prov,#ig-eco-out,#ig-moe-pont{scroll-margin-top:84px}
+
+/* La cible que le parcours vient de désigner. Deux secondes, puis elle
+   s'éteint : un surlignage permanent finirait par ne plus rien désigner. */
+.ig-pas-vise{outline:2px solid var(--cyan);outline-offset:4px;border-radius:8px}
+@media(prefers-reduced-motion:no-preference){
+  .ig-pas-vise{transition:outline-color .3s}
+}
+@media(max-width:700px){
+  .ig-pas-e{grid-template-columns:22px 1fr;gap:9px}
+  .ig-pas-e::before{width:22px;height:22px;font-size:11px}
+}
 </style>
   <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
   

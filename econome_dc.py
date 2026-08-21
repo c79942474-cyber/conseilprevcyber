@@ -701,6 +701,206 @@ def suggestions(operation=None):
     }
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE PARCOURS DU CHIFFRAGE — dans quel ordre s'y prendre, et ce que ça engage
+#
+#  CE QUI MANQUAIT. La section chiffre juste depuis le premier jour. Ce
+#  qu'elle ne disait nulle part, c'est l'ORDRE des gestes et ce que chacun
+#  décide. Un lecteur qui arrive voit une liste déroulante, une dizaine de
+#  champs et un bouton ; rien ne lui apprend que le choix de la nature commande
+#  la liste des postes plutôt qu'un coefficient, qu'un prix laissé sans
+#  provenance restera dans le tableau jusqu'à ce qu'on le nomme, ni que la part
+#  technique qu'il constitue poste par poste vaut, pour les honoraires qui
+#  suivent, bien plus que n'importe quel taux du barème.
+#
+#  AUCUN COMPTE N'EST ÉCRIT ICI. Combien de quantités, combien de postes,
+#  combien de provenances, quelles familles : tout se dérive du référentiel au
+#  moment de servir. Un compte figé dans un texte d'aide se dément au premier
+#  poste ajouté — et c'est l'erreur que personne ne voit passer, parce que la
+#  phrase garde son air de vérité longtemps après avoir cessé d'être vraie.
+#
+#  CE PARCOURS NE GARDE AUCUNE PORTE. Il explique, il ne conditionne rien :
+#  chaque étape reste faisable dans l'ordre qu'on veut, et le chiffrage part
+#  avec ce qui est renseigné. Un guide qui verrouillerait le formulaire ferait
+#  perdre à la page ce qu'elle a de meilleur — on peut y entrer par le milieu,
+#  avec les trois chiffres qu'on a sous la main.
+# ═══════════════════════════════════════════════════════════════════════════
+
+PARCOURS = [
+    {
+        "id": "nature",
+        "titre": "Commencez par la nature de l'opération",
+        "geste": "Choisissez ce que vous faites : construire, étendre, "
+                 "reprendre des lots techniques, reprendre un chantier arrêté, "
+                 "ou exploiter.",
+        "pourquoi": "Ce qui change d'une nature à l'autre n'est pas un "
+                    "coefficient appliqué au même total : c'est la LISTE DES "
+                    "POSTES. Une réhabilitation technique ne porte aucun gros "
+                    "œuvre ; le lui facturer au prorata donnerait un chiffre "
+                    "crédible et faux, c'est-à-dire le pire des deux.",
+        "engage": "Les postes à chiffrer, les quantités qu'ils réclament, et "
+                  "les postes écartés — chacun avec la raison écrite de son "
+                  "exclusion, pour qu'un relecteur puisse la contester.",
+        "cible": "#ig-eco-op",
+        "ancre": "#ig-eco",
+    },
+    {
+        "id": "quantites",
+        "titre": "Réunissez les quantités, et sachez où les prendre",
+        "geste": "Chaque quantité demandée porte, sous son champ, la pièce du "
+                 "dossier où elle se lit — un plan de niveau, un bilan de "
+                 "puissance, un acte d'engagement.",
+        "pourquoi": "C'est ici que se logent les erreurs les plus chères, "
+                    "parce qu'elles sont invisibles : une puissance souscrite "
+                    "prise pour une puissance informatique gonfle toute la "
+                    "colonne technique sans qu'aucun contrôle ne bronche. Le "
+                    "module ne peut pas vérifier vos quantités — il peut "
+                    "seulement dire où se procure la bonne.",
+        "engage": "L'assiette de chaque poste. Une quantité laissée vide ne "
+                  "vaut pas zéro : le poste qu'elle porte sort du total et se "
+                  "compte comme non chiffré.",
+        "cible": "#ig-eco-saisie",
+        "ancre": "#ig-eco-saisie",
+    },
+    {
+        "id": "prix",
+        "titre": "Posez VOS prix unitaires — ce module n'en embarque aucun",
+        "geste": "Un prix par poste, tiré de votre bordereau, d'un devis en "
+                 "main ou d'une opération que vous avez livrée.",
+        "pourquoi": "Aucun prix n'est fourni, et ce n'est pas un oubli : le "
+                    "référentiel ne porte aucune opération livrée publiant à "
+                    "la fois sa capacité et son investissement. Un ordre de "
+                    "grandeur inventé se recopierait dans une offre sans que "
+                    "personne ne sache plus d'où il sort.",
+        "engage": "Le montant de chaque ligne. Les postes laissés sans prix "
+                  "restent AFFICHÉS et comptés à part, jamais dissous dans le "
+                  "total — un poste manquant doit se voir.",
+        "cible": "#ig-eco-saisie",
+        "ancre": "#ig-eco-saisie",
+    },
+    {
+        "id": "provenance",
+        "titre": "Dites d'où vient chaque prix",
+        "geste": "À côté de chaque prix, choisissez sa provenance dans la "
+                 "liste ordonnée, du plus opposable au moins engageant.",
+        "pourquoi": "C'est le seul jugement que ce module porte sur un prix, "
+                    "et il ne le porte pas à votre place : il le rend "
+                    "VISIBLE. Deux totaux identiques ne valent pas la même "
+                    "chose si l'un tient sur des marchés notifiés et l'autre "
+                    "sur des estimations internes, et rien d'autre dans le "
+                    "tableau ne le dirait.",
+        "engage": "Une pastille de provenance sur chaque ligne, et le relevé "
+                  "des prix laissés sans source — ceux qu'un écart rendrait "
+                  "indéfendables.",
+        "cible": "#ig-eco-saisie",
+        "ancre": "#ig-eco-saisie",
+    },
+    {
+        "id": "provision",
+        "titre": "Décidez la provision pour aléas, si vous en portez une",
+        "geste": "Un pourcentage, appliqué au total chiffré. Le champ reste "
+                 "vide tant que vous n'avez pas tranché.",
+        "pourquoi": "Le module ne propose AUCUN taux. Il tient un ordre entre "
+                    "natures — laquelle en appelle plus qu'une autre, et "
+                    "pourquoi — parce qu'un rang se défend devant un "
+                    "contradicteur ; un coefficient sorti d'un outil, non.",
+        "engage": "Une ligne séparée sous le total. La provision ne se fond "
+                  "jamais dans les prix : le total sans provision reste lisible "
+                  "à côté du total avec.",
+        "cible": "#ig-eco-prov",
+        "ancre": "#ig-eco-prov",
+    },
+    {
+        "id": "lecture",
+        "titre": "Lisez le total ET ce qu'il ne contient pas",
+        "geste": "Chiffrez, puis lisez les deux chiffres ensemble : le montant, "
+                 "et la part des postes restés sans prix.",
+        "pourquoi": "Un total dont un quart des postes manque n'est plus une "
+                    "estimation, c'est un ordre de grandeur — et il se "
+                    "présente autrement. La page le dit d'elle-même au-delà du "
+                    "seuil, plutôt que de laisser lire un chiffre d'apparence "
+                    "nette.",
+        "engage": "Le total par famille, le relevé des postes non chiffrés, "
+                  "les provenances employées, et une lecture écrite de ce que "
+                  "le chiffrage vaut en l'état.",
+        "cible": "#ig-eco-go",
+        "ancre": "#ig-eco-out",
+    },
+    {
+        "id": "maitrise_oeuvre",
+        "titre": "Prolongez par la maîtrise d'œuvre qui va avec",
+        "geste": "Sous le tableau, chiffrez les honoraires sur les travaux que "
+                 "vous venez d'établir.",
+        "pourquoi": "C'est ce que le chiffrage poste par poste apporte et "
+                    "qu'un montant global ne donne pas : la part du lot "
+                    "technique se CALCULE au lieu d'être supposée. Le barème, "
+                    "faute de mieux, la pose à 70 % — et sur un centre de "
+                    "données, ce partage pèse plus lourd que n'importe quel "
+                    "taux, parce que les taux y sont inversés entre "
+                    "clos-couvert et lot technique.",
+        "engage": "Le coût d'opération complet, la part technique calculée, et "
+                  "les deux incomplétudes publiées côte à côte : postes sans "
+                  "prix d'un côté, missions sans taux de l'autre. Aucun "
+                  "indicateur ne les fond en un seul.",
+        "cible": "#ig-pont-go",
+        "ancre": "#ig-moe-pont",
+    },
+]
+
+
+def parcours(operation=None):
+    """Le parcours servi à la page, avec ses comptes DÉRIVÉS du référentiel.
+
+    Sans nature d'opération, les comptes portent sur ce que le module sait
+    chiffrer en tout. Avec une nature, ils portent sur CE QU'ELLE demande :
+    c'est la seule façon d'annoncer un nombre de quantités sans mentir sur une
+    opération qui en réclame moins.
+    """
+    o = OPERATIONS.get(operation) if operation else None
+    if operation and not o:
+        return {"ok": False, "erreur": "operation_inconnue",
+                "message": "Nature d'opération inconnue : %r. Attendu : %s."
+                           % (operation, ", ".join(ORDRE_OPERATIONS))}
+
+    postes_vus = list(o["postes"]) if o else list(POSTES)
+    quantites_vues = sorted({POSTES[p]["assiette"] for p in postes_vus})
+    familles_vues = sorted({POSTES[p]["famille"] for p in postes_vus},
+                           key=lambda f: list(FAMILLES).index(f))
+    return {
+        "ok": True, "version": VERSION,
+        "operation": operation,
+        "operation_nom": o["nom"] if o else None,
+        "etapes": PARCOURS,
+        "comptes": {
+            "natures": len(ORDRE_OPERATIONS),
+            "postes": len(postes_vus),
+            "quantites": len(quantites_vues),
+            "familles": len(familles_vues),
+            "provenances": len(ORDRE_PROVENANCES),
+            "ecartes": len(o["sans_objet"]) if o else 0,
+            "seuil_non_chiffre_pct": _f(SEUIL_NON_CHIFFRE * 100, 1),
+        },
+        # Les listes servies telles quelles : la page NOMME les quantités et
+        # les familles qu'elle va réellement demander, au lieu d'en annoncer un
+        # nombre que le lecteur ne pourrait pas recouper.
+        "quantites_demandees": [
+            {"cle": q, "nom": QUANTITES[q]["nom"], "unite": QUANTITES[q]["unite"],
+             "ou": QUANTITES[q]["ou"]} for q in quantites_vues],
+        "familles_couvertes": [{"cle": f, "nom": FAMILLES[f]} for f in familles_vues],
+        "provenances_ordonnees": [
+            {"cle": c, "nom": PROVENANCES[c]["nom"], "rang": PROVENANCES[c]["rang"],
+             "vaut": PROVENANCES[c]["vaut"], "reserve": PROVENANCES[c]["reserve"]}
+            for c in ORDRE_PROVENANCES],
+        "dit": ("Le parcours porte sur « %s » : %d poste(s) à chiffrer, %d "
+                "quantité(s) à réunir." % (o["nom"], len(postes_vus),
+                                           len(quantites_vues))
+                if o else
+                "Choisissez une nature d'opération : les comptes porteront "
+                "alors sur ce qu'elle demande, et non sur tout ce que le "
+                "module sait chiffrer."),
+    }
+
+
 AVERTISSEMENT = (
     "Ce tableau met en ordre et compte ; il ne dimensionne rien et ne vérifie "
     "aucune quantité. Les prix unitaires viennent de vous : aucun ratio de "
@@ -721,6 +921,10 @@ def referentiel():
             "aleas": ordre_des_aleas(),
             "forme_reference": FORME_REFERENCE,
             "references": REFERENCES,
+            # Le parcours part AVEC le référentiel : la page le rend sans un
+            # second aller-retour, et sans nature choisie il porte déjà les
+            # comptes d'ensemble. Il se recharge par nature au moment du choix.
+            "parcours": parcours(),
             "avertissement": AVERTISSEMENT}
 
 
@@ -734,6 +938,11 @@ def sante():
         "provenances": len(PROVENANCES),
         "quantites_orphelines": sorted(
             set(QUANTITES) - {P["assiette"] for P in POSTES.values()}),
+        "parcours_etapes": len(PARCOURS),
+        # Une étape dont l'ancre ne désigne aucun élément de la page conduirait
+        # le lecteur dans le vide. La page seule sait si l'ancre existe ; ici on
+        # publie la liste pour qu'un contrôle puisse la confronter au HTML.
+        "parcours_ancres": sorted({e["ancre"] for e in PARCOURS}),
         "portee": "Chiffre des quantités par des prix fournis. Aucun ratio de "
                   "coût n'est embarqué : le référentiel du cabinet ne porte "
                   "aucune opération livrée avec capacité ET investissement.",
@@ -781,6 +990,32 @@ def _verifier():
     if set(ORDRE_OPERATIONS) != set(OPERATIONS):
         raise RuntimeError("econome_dc : l'ordre d'affichage ne couvre pas les "
                            "natures d'opération")
+
+    # LE PARCOURS. Une étape muette, sans cible ou sans ancre, ferait cliquer
+    # dans le vide ; deux étapes de même identifiant en rendraient une
+    # inatteignable. Et l'étape qui prolonge vers la maîtrise d'œuvre doit
+    # rester nommée : c'est elle qui relie les deux sections d'argent, et la
+    # perdre en silence remettrait la part technique à l'hypothèse de 70 %.
+    vus_p = set()
+    for e in PARCOURS:
+        for champ in ("id", "titre", "geste", "pourquoi", "engage", "cible",
+                      "ancre"):
+            if not str(e.get(champ, "")).strip():
+                raise RuntimeError("econome_dc : étape de parcours %r sans %s"
+                                   % (e.get("id"), champ))
+        if e["id"] in vus_p:
+            raise RuntimeError("econome_dc : deux étapes de parcours portent "
+                               "l'identifiant %r" % e["id"])
+        vus_p.add(e["id"])
+        for champ in ("cible", "ancre"):
+            if not str(e[champ]).startswith("#"):
+                raise RuntimeError(
+                    "econome_dc : l'étape %s a un(e) %s qui ne désigne aucun "
+                    "élément : %r" % (e["id"], champ, e[champ]))
+    if "maitrise_oeuvre" not in vus_p:
+        raise RuntimeError(
+            "econome_dc : le parcours ne prolonge plus vers la maîtrise "
+            "d'œuvre — la part technique calculée redeviendrait invisible")
 
     for cle, o in OPERATIONS.items():
         if not o["postes"]:

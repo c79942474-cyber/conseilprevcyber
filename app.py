@@ -3357,6 +3357,21 @@ def api_datacenter_economiste_missions():
     return jsonify(r) if r.get("ok") else (jsonify(r), 400)
 
 
+@app.route("/api/datacenter/economiste/parcours", methods=["GET"])
+@login_required
+def api_datacenter_economiste_parcours():
+    """Le parcours du chiffrage : dans quel ordre s'y prendre, et ce que ça
+    engage — avec les comptes de CETTE nature d'operation.
+
+    Sans parametre, le parcours porte les comptes d'ensemble et le referentiel
+    le sert deja. Avec une nature, les comptes portent sur ce qu'elle demande :
+    annoncer « cinq quantites » a qui n'en remplira que trois ferait chercher
+    deux chiffres qui ne seront jamais demandes.
+    """
+    r = econome_dc.parcours(request.args.get("operation") or None)
+    return jsonify(r) if r.get("ok") else (jsonify(r), 400)
+
+
 @app.route("/api/datacenter/ingenierie/disponibilite", methods=["POST"])
 @login_required
 def api_datacenter_disponibilite():
