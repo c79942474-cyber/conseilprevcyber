@@ -179,3 +179,122 @@ def test_la_page_empeche_le_double_essai():
         html = f.read()
     assert "if(enCours) return;" in html
     assert "bouton.disabled=true" in html
+
+
+# ── 5. L'IP qui compte les échecs n'est pas celle que l'appelant écrit ─────
+#
+# LE DÉFAUT (constat bloquant de l'audit) : _client_ip() prenait la PREMIÈRE
+# valeur de X-Forwarded-For, sans liste de relais de confiance. Render ajoute
+# la vraie IP à DROITE de ce que le client envoie : la position [0] était donc
+# exactement celle qu'un attaquant écrit. Corrigé par ProxyFix(x_for=1) posé
+# sur app.wsgi_app, qui ne fait confiance qu'à la DERNIÈRE valeur — celle que
+# seul le relais de Render ajoute.
+
+def test_le_compteur_anti_bruteforce_ignore_le_prefixe_ecrit_par_lappelant():
+    """AVANT LE CORRECTIF, ce test échouait : huit essais sous huit préfixes
+    d'en-tête différents ouvraient huit compteurs neufs, et le neuvième
+    passait toujours. Le préfixe est ce qu'un attaquant écrit ; le suffixe est
+    ce que Render ajoute et lui seul contrôle — seul le suffixe doit compter."""
+    email = "cible.bruteforce@example.com"
+    _poser(email)
+    cle = "login:203.0.113.55:%s" % email
+    auth.guard.clear(cle)
+    try:
+        for i in range(8):
+            r = A.app.test_client().post(
+                "/api/auth/login", headers={**ENTETES,
+                    "X-Forwarded-For": "%d.%d.%d.%d, 203.0.113.55" % (i, i, i, i)},
+                json={"email": email, "password": "mauvais mot de passe"})
+            assert r.status_code == 401, (
+                "l'essai %d aurait dû être un simple échec, pas %r" % (i, r.get_json()))
+        r = A.app.test_client().post(
+            "/api/auth/login", headers={**ENTETES,
+                "X-Forwarded-For": "255.255.255.255, 203.0.113.55"},
+            json={"email": email, "password": "mauvais mot de passe"})
+        assert r.status_code == 429, (
+            "le neuvième essai, sous un NEUVIÈME préfixe d'en-tête, aurait dû "
+            "être bloqué : c'est le suffixe ajouté par le relais qui fixe le "
+            "compteur, pas le préfixe que l'appelant écrit")
+    finally:
+        auth.guard.clear(cle)
+        _oter(email)
+
+
+def test_deux_relais_distincts_ne_partagent_pas_le_meme_compteur():
+    """Symétrique du test précédent : la correction ne doit pas non plus
+    mélanger deux clients réels distincts sous une même clé."""
+    email = "autre.cible@example.com"
+    _poser(email)
+    cle_a = "login:203.0.113.10:%s" % email
+    cle_b = "login:203.0.113.20:%s" % email
+    auth.guard.clear(cle_a)
+    auth.guard.clear(cle_b)
+    try:
+        for _ in range(8):
+            r = A.app.test_client().post(
+                "/api/auth/login", headers={**ENTETES,
+                    "X-Forwarded-For": "1.2.3.4, 203.0.113.10"},
+                json={"email": email, "password": "mauvais mot de passe"})
+            assert r.status_code == 401
+        r = A.app.test_client().post(
+            "/api/auth/login", headers={**ENTETES,
+                "X-Forwarded-For": "1.2.3.4, 203.0.113.20"},
+            json={"email": email, "password": "mauvais mot de passe"})
+        assert r.status_code == 401, (
+            "un relais différent (203.0.113.20) a hérité du blocage d'un "
+            "autre (203.0.113.10) : les deux clés se sont mélangées")
+    finally:
+        auth.guard.clear(cle_a)
+        auth.guard.clear(cle_b)
+        _oter(email)
+
+
+# ── 6. /connexion ne renvoie pas où l'appelant le lui dit ──────────────────
+#
+# LE DÉFAUT (constat sérieux de l'audit). Un client déjà connecté qui rouvrait
+# /connexion?next=... repartait vers l'adresse donnée SANS AUCUN CONTRÔLE — y
+# compris hors du site. Pire, le cas d'un visiteur NON connecté : il voit la
+# vraie page sur le vrai domaine, se connecte pour de bon, et c'est APRÈS ce
+# succès que le navigateur l'expédie vers une copie qui lui redemande son mot
+# de passe. _safe_admin_next existait déjà, commenté « anti-open-redirect »,
+# mais n'était appliqué qu'au portail admin.
+
+def test_next_absolu_ou_protocole_relatif_est_ignore(client):
+    """Un client déjà connecté qui rouvre /connexion?next=... ne doit jamais
+    repartir hors du site."""
+    _poser(VISITEUR, email_verified=True, approved=True, role="user")
+    with client.session_transaction() as s:
+        s["user_email"] = VISITEUR
+    try:
+        for hostile in ("https://evil.example/phishing", "//evil.example/phishing",
+                        "http://evil.example", "/\\evil.example"):
+            r = client.get("/connexion", query_string={"next": hostile})
+            assert r.status_code in (301, 302, 303, 307, 308), hostile
+            assert r.headers["Location"] == "/demo", (
+                hostile, r.headers["Location"])
+    finally:
+        _oter(VISITEUR)
+
+
+def test_next_interne_est_respecte(client):
+    """Le contrôle ne doit pas non plus casser l'usage normal : un chemin
+    interne légitime doit rester suivi."""
+    _poser(VISITEUR, email_verified=True, approved=True, role="user")
+    with client.session_transaction() as s:
+        s["user_email"] = VISITEUR
+    try:
+        r = client.get("/connexion", query_string={"next": "/vos-projets"})
+        assert r.headers["Location"] == "/vos-projets"
+    finally:
+        _oter(VISITEUR)
+
+
+def test_la_page_applique_le_meme_controle_cote_client():
+    """La moitié qui compte le plus : le visiteur NON connecté voit la vraie
+    page, saisit ses VRAIS identifiants, et c'est APRÈS ce succès que le script
+    déciderait de la destination. Le contrôle serveur seul ne le couvre pas."""
+    with open(os.path.join(ICI, "connexion.html"), encoding="utf-8") as f:
+        html = f.read()
+    assert "charAt(1)!=='/'" in html or 'charAt(1)!=="/"' in html, (
+        "connexion.html doit refuser next=//... côté client, avant "
+        "location.href — c'est ce chemin-là qui sert le visiteur non connecté")

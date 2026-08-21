@@ -8,6 +8,119 @@
    Le parti pris d'affichage : le premier point d'arrêt est LA seule information
    qui commande une action. Neuf phases affichées à plat se lisent comme neuf
    chantiers parallèles, ce qu'elles ne sont pas. */
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RÉSEAU PARTAGÉ — hors des deux IIFE ci-dessous, et c'est voulu.
+
+   DÉFAUT CORRIGÉ. Ce fichier porte DEUX IIFE indépendantes : le calcul
+   principal (phases, dossier, rédaction) et, plus loin, le chiffrage des
+   honoraires de maîtrise d'œuvre. demander() vivait DANS la première : la
+   seconde n'y avait pas accès et repartait en fetch nu, donc sans délai et
+   sans le traitement centralisé du 401 — trois requêtes qui pouvaient rester
+   bloquées sur « chiffrage en cours… » indéfiniment. Ce bloc est donc sorti
+   à la portée du fichier entier, que les deux IIFE partagent déjà (une
+   fonction déclarée ici leur est visible à toutes les deux, exactement comme
+   les variables globales d'un script classique) — sans dupliquer le
+   mécanisme, et sans fusionner les deux modules pour si peu. */
+
+/* ── AUCUNE REQUÊTE SANS DÉLAI ──────────────────────────────────────────
+   Le même défaut que sur la page de calcul, et vingt-trois fois : un `fetch`
+   sans délai attend INDÉFINIMENT. Serveur saturé, en train de se réveiller,
+   coupure réseau — la page reste sur « Chargement… » sans un mot, parfois
+   plusieurs minutes, jusqu'à ce que le navigateur abandonne seul.
+
+   Borner ne répare pas la lenteur : cela la rend LISIBLE, et rend la main.
+   Trois budgets, parce que trois natures de travail : afficher, calculer,
+   rédiger. Le dernier tient compte du budget du modèle côté serveur — le
+   dépasser côté navigateur ferait perdre un document déjà écrit.
+
+   `_LENT` distingue le délai dépassé d'une vraie coupure : le geste n'est pas
+   le même, et les confondre envoie chercher la panne du mauvais côté. */
+var DELAI_COURT = 12000;     // référentiels, états, aperçus
+var DELAI_MOYEN = 45000;     // dossiers, plans, exports
+var DELAI_LONG = 130000;     // rédaction : au-delà du budget serveur (120 s)
+
+/* ═════════════════════════════════════════════════════════════════════
+   LA SESSION QUI S'ÉTEINT EN COURS DE VISITE
+
+   Toutes les commandes de cette page passent par des API réservées. Quand
+   la session expire, chacune se met à répondre 401 — et chaque zone
+   l'habillait de son message générique : « le parcours n'a pas pu être
+   établi », « dossier indisponible », pendant que la frise soutenait qu'il
+   manquait la puissance QUE LE LECTEUR VENAIT DE SAISIR. À partir de la
+   section 4, plus rien ne s'affichait, et rien ne disait ni pourquoi ni
+   quoi faire — « réessayez dans un instant » était même un conseil faux,
+   se reconnecter étant le seul remède.
+
+   Le 401 est donc reconnu à l'endroit UNIQUE par où passent toutes les
+   requêtes, et il déclenche une bannière qui nomme la cause et offre la
+   reconnexion — laquelle ramène ici même. */
+var SESSION_MORTE = false;
+
+function sessionTexte() {
+  return "<b>Votre session n’est plus active.</b> C’est pour cela que plus "
+    + "rien ne se calcule ni ne s’affiche au-delà du formulaire. "
+    + '<a class="btn btn-s" href="/connexion?next=/ingenierie-datacenter">'
+    + "Se reconnecter</a> — vous reviendrez sur cette page.";
+}
+
+function sessionEteinte() {
+  if (SESSION_MORTE) return;
+  SESSION_MORTE = true;
+  var b = document.createElement("div");
+  b.id = "ig-session";
+  b.className = "ig-session-alerte";
+  b.setAttribute("role", "alert");
+  b.innerHTML = sessionTexte();
+  var m = document.getElementById("main") || document.body;
+  m.insertBefore(b, m.firstChild);
+  /* Les deux zones qui, sinon, continueraient de raconter autre chose —
+     la frise réclamant une puissance déjà saisie, le dossier l'attendant. */
+  ["ig-parcours", "ig-dossier"].forEach(function (id) {
+    var z = document.getElementById(id);
+    if (z) z.innerHTML = '<p class="ig-dep-ko">' + sessionTexte() + "</p>";
+  });
+  b.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function demander(url, options, delai) {
+  options = options || {};
+  var ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+  var fini = false;
+  var m = setTimeout(function () {
+    if (!fini && ctrl) { try { ctrl.abort(); } catch (e) {} }
+  }, delai || DELAI_COURT);
+  if (ctrl && !options.signal) options.signal = ctrl.signal;
+  return fetch(url, options).then(function (r) {
+    fini = true; clearTimeout(m);
+    /* Le 401 est traité ICI, une fois pour toutes les zones : laissé aux
+       appelants, chacun le dissolvait dans son message générique. */
+    if (r.status === 401) {
+      sessionEteinte();
+      var t = new Error("auth"); t.name = "SessionEteinte";
+      throw t;
+    }
+    return r;
+  }, function (e) {
+    fini = true; clearTimeout(m);
+    if (e && e.name === "AbortError" && !options.__annule) {
+      var t = new Error("delai"); t.name = "DelaiDepasse";
+      t.delai = delai || DELAI_COURT;
+      throw t;
+    }
+    throw e;
+  });
+}
+
+function messageDelai(e, defaut) {
+  if (e && e.name === "DelaiDepasse") {
+    return "Le serveur n'a pas répondu en " + Math.round(e.delai / 1000)
+      + " secondes. Il est peut-être très sollicité : relancez dans un "
+      + "instant. Vos saisies sont conservées.";
+  }
+  return defaut;
+}
+
 (function () {
   "use strict";
 
@@ -30,104 +143,6 @@
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
-  /* ── AUCUNE REQUÊTE SANS DÉLAI ──────────────────────────────────────────
-     Le même défaut que sur la page de calcul, et vingt-trois fois : un `fetch`
-     sans délai attend INDÉFINIMENT. Serveur saturé, en train de se réveiller,
-     coupure réseau — la page reste sur « Chargement… » sans un mot, parfois
-     plusieurs minutes, jusqu'à ce que le navigateur abandonne seul.
-
-     Borner ne répare pas la lenteur : cela la rend LISIBLE, et rend la main.
-     Trois budgets, parce que trois natures de travail : afficher, calculer,
-     rédiger. Le dernier tient compte du budget du modèle côté serveur — le
-     dépasser côté navigateur ferait perdre un document déjà écrit.
-
-     `_LENT` distingue le délai dépassé d'une vraie coupure : le geste n'est pas
-     le même, et les confondre envoie chercher la panne du mauvais côté. */
-  var DELAI_COURT = 12000;     // référentiels, états, aperçus
-  var DELAI_MOYEN = 45000;     // dossiers, plans, exports
-  var DELAI_LONG = 130000;     // rédaction : au-delà du budget serveur (120 s)
-
-  /* ═════════════════════════════════════════════════════════════════════
-     LA SESSION QUI S'ÉTEINT EN COURS DE VISITE
-
-     Toutes les commandes de cette page passent par des API réservées. Quand
-     la session expire, chacune se met à répondre 401 — et chaque zone
-     l'habillait de son message générique : « le parcours n'a pas pu être
-     établi », « dossier indisponible », pendant que la frise soutenait qu'il
-     manquait la puissance QUE LE LECTEUR VENAIT DE SAISIR. À partir de la
-     section 4, plus rien ne s'affichait, et rien ne disait ni pourquoi ni
-     quoi faire — « réessayez dans un instant » était même un conseil faux,
-     se reconnecter étant le seul remède.
-
-     Le 401 est donc reconnu à l'endroit UNIQUE par où passent toutes les
-     requêtes, et il déclenche une bannière qui nomme la cause et offre la
-     reconnexion — laquelle ramène ici même. */
-  var SESSION_MORTE = false;
-
-  function sessionTexte() {
-    return "<b>Votre session n’est plus active.</b> C’est pour cela que plus "
-      + "rien ne se calcule ni ne s’affiche au-delà du formulaire. "
-      + '<a class="btn btn-s" href="/connexion?next=/ingenierie-datacenter">'
-      + "Se reconnecter</a> — vous reviendrez sur cette page.";
-  }
-
-  function sessionEteinte() {
-    if (SESSION_MORTE) return;
-    SESSION_MORTE = true;
-    var b = document.createElement("div");
-    b.id = "ig-session";
-    b.className = "ig-session-alerte";
-    b.setAttribute("role", "alert");
-    b.innerHTML = sessionTexte();
-    var m = document.getElementById("main") || document.body;
-    m.insertBefore(b, m.firstChild);
-    /* Les deux zones qui, sinon, continueraient de raconter autre chose —
-       la frise réclamant une puissance déjà saisie, le dossier l'attendant. */
-    ["ig-parcours", "ig-dossier"].forEach(function (id) {
-      var z = document.getElementById(id);
-      if (z) z.innerHTML = '<p class="ig-dep-ko">' + sessionTexte() + "</p>";
-    });
-    b.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }
-
-  function demander(url, options, delai) {
-    options = options || {};
-    var ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
-    var fini = false;
-    var m = setTimeout(function () {
-      if (!fini && ctrl) { try { ctrl.abort(); } catch (e) {} }
-    }, delai || DELAI_COURT);
-    if (ctrl && !options.signal) options.signal = ctrl.signal;
-    return fetch(url, options).then(function (r) {
-      fini = true; clearTimeout(m);
-      /* Le 401 est traité ICI, une fois pour toutes les zones : laissé aux
-         appelants, chacun le dissolvait dans son message générique. */
-      if (r.status === 401) {
-        sessionEteinte();
-        var t = new Error("auth"); t.name = "SessionEteinte";
-        throw t;
-      }
-      return r;
-    }, function (e) {
-      fini = true; clearTimeout(m);
-      if (e && e.name === "AbortError" && !options.__annule) {
-        var t = new Error("delai"); t.name = "DelaiDepasse";
-        t.delai = delai || DELAI_COURT;
-        throw t;
-      }
-      throw e;
-    });
-  }
-
-  function messageDelai(e, defaut) {
-    if (e && e.name === "DelaiDepasse") {
-      return "Le serveur n'a pas répondu en " + Math.round(e.delai / 1000)
-        + " secondes. Il est peut-être très sollicité : relancez dans un "
-        + "instant. Vos saisies sont conservées.";
-    }
-    return defaut;
-  }
-
   function fr(n) {
     if (n === null || n === undefined || n === "") return "—";
     var x = Number(n);
@@ -4302,21 +4317,12 @@
     }
     var pt = saisi("ig-moe-pt");
     $("#ig-moe-msg").textContent = "chiffrage en cours…";
-    fetch("/api/datacenter/moe", {
+    demander("/api/datacenter/moe", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mission: mission(), travaux_meur: trav,
                              part_technique: pt === undefined ? null : pt / 100,
                              phases: PH })
-    }).then(function (r) {
-      /* Session éteinte : « chiffrage indisponible » enverrait chercher la
-         panne du mauvais côté — le barème va très bien, c'est la session. */
-      if (r.status === 401) {
-        $("#ig-moe-msg").innerHTML = "Votre session n’est plus active. "
-          + '<a href="/connexion?next=/ingenierie-datacenter">Reconnectez-vous</a> '
-          + "pour chiffrer — vous reviendrez sur cette page.";
-        $("#ig-moe-out").innerHTML = "";
-        throw new Error("auth-dit");
-      }
+    }, DELAI_MOYEN).then(function (r) {
       return r.json();
     }).then(function (j) {
       if (!j.ok) {
@@ -4332,8 +4338,13 @@
                           part_technique: pt === undefined ? null : pt / 100,
                           phases: PH });
     }).catch(function (e) {
-      if (e && e.message === "auth-dit") return;
-      $("#ig-moe-msg").textContent = "chiffrage indisponible";
+      /* Session éteinte : la bannière partagée (sessionEteinte(), déclenchée
+         par demander()) l'a déjà dit — pas la peine de le répéter ici, ni de
+         parler d'un « chiffrage indisponible » alors que le barème va bien,
+         c'est la session qui ne l'est plus. */
+      if (e && e.name === "SessionEteinte") return;
+      $("#ig-moe-msg").textContent = messageDelai(e, "chiffrage indisponible");
+      $("#ig-moe-out").innerHTML = "";
     });
   }
 
@@ -4366,11 +4377,11 @@
       b.disabled = true;
       var libelle = b.textContent;
       b.textContent = "préparation…";
-      fetch("/api/datacenter/moe/repartition?format=xlsx", {
+      demander("/api/datacenter/moe/repartition?format=xlsx", {
         method: "POST", credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(charge)
-      }).then(function (r) {
+      }, DELAI_MOYEN).then(function (r) {
         if (!r.ok) throw new Error("http-" + r.status);
         return r.blob();
       }).then(function (blob) {
@@ -4386,11 +4397,14 @@
         setTimeout(function () { URL.revokeObjectURL(u); }, 2000);
         b.textContent = libelle;
         b.disabled = false;
-      }).catch(function () {
+      }).catch(function (e) {
         /* ON DIT L'ÉCHEC PLUTÔT QUE DE RENDRE LE BOUTON À SON ÉTAT INITIAL :
            un bouton qui redevient cliquable sans rien avoir produit laisse
-           croire à un clic manqué. */
-        b.textContent = "téléchargement indisponible";
+           croire à un clic manqué. La session éteinte, elle, a déjà sa
+           bannière partagée — pas la peine de la répéter sur le bouton. */
+        b.textContent = (e && e.name === "SessionEteinte")
+          ? libelle
+          : messageDelai(e, "téléchargement indisponible");
         b.disabled = false;
       });
     });
@@ -4399,7 +4413,8 @@
   function demarrer() {
     if (!document.getElementById("ig-moe-go")) return;
     document.getElementById("ig-moe-go").addEventListener("click", chiffrer);
-    fetch("/api/datacenter/moe").then(function (r) { return r.json(); })
+    demander("/api/datacenter/moe", {}, DELAI_COURT)
+      .then(function (r) { return r.json(); })
       .then(function (j) {
         /* Un barème qui ne charge pas doit LE DIRE : un bloc muet, formulaire
            vide, se lit comme une section morte — et personne ne recharge une
@@ -4438,7 +4453,17 @@
           $("#ig-moe-out").innerHTML = "";
           $("#ig-moe-msg").textContent = "";
         });
-      }).catch(function () {});
+      }).catch(function (e) {
+        /* AVANT, CE CATCH ÉTAIT VIDE : un délai dépassé ou une panne réseau
+           laissaient le formulaire muet, sans qu'aucun des deux messages
+           écrits pour ce module — celui-ci, ou celui du "!j.ok" ci-dessus —
+           ne sorte jamais, puisqu'une requête suspendue ne rejette pas non
+           plus sans le délai posé par demander(). */
+        if (e && e.name === "SessionEteinte") return;
+        $("#ig-moe-msg").textContent = messageDelai(e,
+          "Le barème n’a pas pu être chargé. Rechargez la page ; si cela "
+          + "persiste, reconnectez-vous.");
+      });
   }
   if (document.readyState === "loading")
     document.addEventListener("DOMContentLoaded", demarrer);

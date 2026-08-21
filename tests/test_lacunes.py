@@ -36,6 +36,7 @@ sys.path.insert(0, ICI)
 
 import etat_art  # noqa: E402
 import lacunes as L  # noqa: E402
+from conftest import ADMIN_EMAIL, _assurer_admin  # noqa: E402
 
 H = {"Origin": "http://localhost"}
 
@@ -43,10 +44,11 @@ H = {"Origin": "http://localhost"}
 @pytest.fixture
 def client():
     import app
+    _assurer_admin()
     app.app.config["TESTING"] = True
     c = app.app.test_client()
     with c.session_transaction() as s:
-        s["user_email"] = "recette@local.test"
+        s["user_email"] = ADMIN_EMAIL
     return c
 
 
@@ -290,9 +292,10 @@ def test_le_document_trouve_porte_sa_provenance(tmp_path, monkeypatch):
         theme="Data center / Eau & stress hydrique")
     monkeypatch.setattr(app, "rag", m)
 
+    _assurer_admin()
     c = app.app.test_client()
     with c.session_transaction() as s:
-        s["user_email"] = "recette@local.test"
+        s["user_email"] = ADMIN_EMAIL
     j = c.post("/api/datacenter/lacune/wue", headers=H,
                json={"lecture": False}).get_json()
     assert j["interne"]["n"] >= 1, j["interne"]

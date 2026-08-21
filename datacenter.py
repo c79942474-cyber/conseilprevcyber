@@ -73,6 +73,17 @@ CONSTANTES = {
                 "majorant est retenu pour dimensionner l'eau, où la prudence "
                 "est de surestimer — jamais pour accuser un chiffre plus bas.",
     },
+    "kw_par_serveur_estime": {
+        "valeur": 0.5,
+        "unite": "kW par serveur en charge",
+        "source": "hypothèse du moteur — aucune enquête ni FDES ne la porte",
+        "note": "Utilisée UNIQUEMENT quand le nombre de serveurs n'a pas été "
+                "saisi, pour amortir un ordre de grandeur de carbone incorporé. "
+                "Ne coïncide pas avec le compte de serveurs d'equipements_it, "
+                "qui dimensionne une nomenclature de commande par densité de "
+                "baie choisie — une question différente, à laquelle ce moteur "
+                "ne répond pas.",
+    },
 }
 
 # Facteur eau de la production électrique (Energy Water Intensity Factor).
@@ -434,8 +445,26 @@ CADRE_UE = {
             "wue_site_max": 0.40,
             "energie_sans_carbone": "100 %",
         },
+        # DÉFAUT PASSÉ : ce classement était écrit DEUX FOIS, à deux endroits du
+        # module, avec deux listes différentes (l'une comptait l'Irlande, l'autre
+        # non) — un dossier balte ou irlandais pouvait donc lire deux verdicts
+        # selon l'écran. Une seule liste désormais, lue par conformite() ET par
+        # leviers().
+        #
+        # PROVENANCE À VÉRIFIER AVANT REMISE : cet environnement n'a pas d'accès
+        # réseau pour confronter ce classement à l'annexe officielle du Pacte —
+        # ce qui suit est un jugement climatique de bon sens (Scandinavie et
+        # Finlande à climat continental/subarctique froid), PAS une liste
+        # recopiée du texte. L'Irlande, au climat océanique tempéré par le
+        # Gulf Stream, en est délibérément écartée sur ce même critère — mais ni
+        # l'inclusion ni l'exclusion n'ont été confrontées au document source.
+        # Un dossier qui s'appuie sur ce repère doit vérifier l'annexe du Pacte
+        # pour le pays concerné avant remise, en particulier en zone limite.
+        "pays_climat_froid": ("DK", "FI", "NO", "SE"),
         "note": "Engagement volontaire, non réglementaire. Il sert de repère de "
-                "marché : un dossier qui s'en écarte doit le justifier.",
+                "marché : un dossier qui s'en écarte doit le justifier. Les cibles "
+                "PUE se lisent aussi par échéance et par périmètre (centre neuf ou "
+                "existant) dans le texte du Pacte, que cette fiche ne reprend pas.",
     },
     "eed_audit_smen": {
         "titre": "Directive efficacité énergétique (UE) 2023/1791, art. 11 — "
@@ -860,9 +889,22 @@ def carbone(profil, res_energie):
 
     # Incorporé, amorti linéairement.
     n_serv = profil.get("nb_serveurs")
+    origine_n = "valeur fournie"
     if n_serv is None:
-        # À défaut, on estime par la puissance : ~0,5 kW par serveur en charge.
-        n_serv = int(p_it / 0.5) if p_it else 0
+        # À défaut, on estime par la puissance. HYPOTHÈSE DU MOTEUR, PAS UNE
+        # MESURE : la note de calcul le dit désormais (voir "origine"
+        # ci-dessous) — auparavant ce compte partait tel quel dans les
+        # entrées, lu comme une donnée du projet alors que personne ne
+        # l'avait saisi. Le bloc "équipements informatiques" de cette même
+        # page dérive son propre compte, PAR DENSITÉ DE BAIE choisie : les
+        # deux répondent à des questions différentes (un ordre de grandeur
+        # pour amortir un carbone incorporé, contre une nomenclature de
+        # commande) et ne convergent pas — c'est pourquoi chacun doit dire
+        # sa nature plutôt que de se faire passer pour l'autre.
+        kw_serveur = CONSTANTES["kw_par_serveur_estime"]["valeur"]
+        n_serv = int(p_it / kw_serveur) if p_it else 0
+        origine_n = ("estimé : puissance informatique / %s kW par serveur "
+                     "(hypothèse du moteur, pas une mesure)" % fr(kw_serveur))
     s = INCORPORE["serveur_kgCO2e"]
     b = INCORPORE["batiment_kgCO2e_par_kW_IT"]
     t = INCORPORE["technique_kgCO2e_par_kW_IT"]
@@ -919,7 +961,7 @@ def carbone(profil, res_energie):
             "Carbone incorporé — serveurs (amorti)", inc_serveurs_t, "tCO2e/an",
             "= nb serveurs × kgCO2e par serveur / durée de vie",
             {"nb serveurs": n_serv, "kgCO2e/serveur": s["valeur"],
-             "durée de vie (ans)": s["duree_vie_ans"]},
+             "durée de vie (ans)": s["duree_vie_ans"], "origine": origine_n},
             INCORPORE_SOURCE,
             "±%s %%" % fr(INCERTITUDE_INCORPORE * 100), s["note"]),
         "incorpore_batiment_t": _tracer(
@@ -1043,6 +1085,83 @@ def chaleur(profil, res_energie):
 #  5. LEVIERS — classés par ce qu'ils rapportent, pas par ce qu'ils coûtent
 # ═══════════════════════════════════════════════════════════════════════════
 
+# DÉFAUT PASSÉ : ces seize coefficients vivaient en littéraux nus, au point
+# d'usage, dans le corps de leviers() — sans nom, sans source, sans que leur
+# NATURE (hypothèse du moteur, pas une mesure) ne soit déclarée. Un maître
+# d'ouvrage qui demandait à vérifier le chiffrage d'un levier n'avait rien à
+# quoi le confronter. Nommés ici, sur le modèle qu'escalade_dc.py applique à
+# chacun des siens — et le champ `fondement` de deux leviers (le saut de
+# classe ASHRAE, le raccordement réseau de chaleur) a été VIDÉ des normes
+# qu'il citait à tort : ASHRAE TC 9.9 définit des enveloppes de température,
+# ISO/IEC 30134-6 définit l'ERF — ni l'un ni l'autre ne publie les
+# coefficients numériques employés ici.
+LEVIERS_HYPOTHESES = {
+    "ashrae_gain_pue_a2_a3": {
+        "valeur": 0.06, "nature": "hypothèse du moteur",
+        "note": "Gain de PUE estimé pour un saut de classe A2→A3."},
+    "ashrae_gain_pue_a1_a3": {
+        "valeur": 0.10, "nature": "hypothèse du moteur",
+        "note": "Gain de PUE estimé pour un saut de classe A1→A3."},
+    "ashrae_ratio_eau_energie": {
+        "valeur": 0.4, "nature": "hypothèse du moteur",
+        "note": "m³ d'eau associés par MWh gagné en élargissant la plage de "
+                "température admise."},
+    "liquide_ratio_eau_energie": {
+        "valeur": 1.2, "nature": "hypothèse du moteur",
+        "note": "m³ d'eau associés par MWh gagné en passant au refroidissement "
+                "liquide direct."},
+    "dry_cooler_seuil_part_evap": {
+        "valeur": 0.3, "nature": "hypothèse du moteur",
+        "note": "Part évaporative au-delà de laquelle un basculement vers un "
+                "rejet sec devient une piste à chiffrer."},
+    "dry_cooler_part_eau_evitee": {
+        "valeur": 0.8, "nature": "hypothèse du moteur",
+        "note": "Part de l'appoint d'eau évitée en basculant vers un rejet sec."},
+    "dry_cooler_surcout_energie": {
+        "valeur": 0.08, "nature": "hypothèse du moteur",
+        "note": "Surcoût énergétique du passage au rejet sec, en part de "
+                "l'énergie informatique."},
+    "adiabatique_seuil_part_evap": {
+        "valeur": 0.1, "nature": "hypothèse du moteur",
+        "note": "Part évaporative en-deçà de laquelle une assistance "
+                "adiabatique saisonnière devient une piste, en climat froid."},
+    "adiabatique_surcout_energie": {
+        "valeur": 0.05, "nature": "hypothèse du moteur",
+        "note": "Surcoût énergétique de l'assistance adiabatique limitée aux "
+                "heures chaudes, en part de l'énergie informatique."},
+    "adiabatique_eau_m3": {
+        "valeur": -50.0, "nature": "hypothèse du moteur",
+        "note": "Consommation d'eau annuelle supplémentaire — ordre de "
+                "grandeur forfaitaire, dépend fortement du climat local et du "
+                "dimensionnement retenu."},
+    "chaleur_fatale_part_valorisable": {
+        "valeur": 0.30, "nature": "hypothèse du moteur",
+        "note": "Part de l'énergie totale considérée valorisable par un réseau "
+                "de chaleur."},
+    "chaleur_fatale_carbone_evite_kg_par_kwh": {
+        "valeur": 0.20, "nature": "hypothèse du moteur",
+        "note": "Carbone fossile évité chez le preneur, en kgCO2e par kWh "
+                "valorisé (soit 200 gCO2e/kWh) — à remplacer par le facteur "
+                "réel du réseau receveur dès qu'il est connu."},
+    "duree_vie_seuil_part_incorpore_pct": {
+        "valeur": 30, "nature": "hypothèse du moteur",
+        "note": "Part du carbone incorporé dans l'empreinte totale au-delà de "
+                "laquelle allonger la durée de vie du matériel devient une "
+                "piste prioritaire."},
+    "duree_vie_gain_amortissement": {
+        "valeur": 0.28, "nature": "hypothèse du moteur",
+        "note": "Gain d'amortissement estimé pour un allongement de 5 à 7 ans "
+                "— proche de 1 − 5/7 (≈0,286) sans en être le calcul exact."},
+    "consolidation_gain_energie": {
+        "valeur": 0.12, "nature": "hypothèse du moteur",
+        "note": "Gain d'énergie estimé en consolidant les charges sous le "
+                "seuil de charge à consolider."},
+    "consolidation_ratio_eau_energie": {
+        "valeur": 0.8, "nature": "hypothèse du moteur",
+        "note": "m³ d'eau associés par MWh gagné en consolidant les charges."},
+}
+
+
 def leviers(profil, res):
     """Les actions possibles, chiffrées, avec leurs contreparties.
 
@@ -1059,6 +1178,7 @@ def leviers(profil, res):
     intensite = float(profil.get("intensite_reseau_g")
                       or INTENSITE_RESEAU.get(pays, INTENSITE_RESEAU["UE"]))
     prix = float(profil.get("prix_electricite_eur_mwh") or 110.0)
+    H = LEVIERS_HYPOTHESES
 
     def ajoute(titre, gain_mwh, gain_eau_m3, contrepartie, condition, fondement,
                difficulte="moyenne"):
@@ -1079,14 +1199,17 @@ def leviers(profil, res):
     classe = profil.get("classe_ashrae") or "A2"
     if classe in ("A1", "A2"):
         cible = "A3"
-        gain_pue = 0.06 if classe == "A2" else 0.10
+        gain_pue = (H["ashrae_gain_pue_a2_a3"]["valeur"] if classe == "A2"
+                   else H["ashrae_gain_pue_a1_a3"]["valeur"])
         gain = e_it * gain_pue
         ajoute(f"Passer de la classe ASHRAE {classe} à {cible}",
-               gain, gain * 0.4,
+               gain, gain * H["ashrae_ratio_eau_energie"]["valeur"],
                "Engage la garantie constructeur : à faire valider par écrit, "
                "équipement par équipement, AVANT l'engagement contractuel.",
                "Matériel qualifié pour la plage élargie.",
-               ASHRAE_SOURCE, "faible")
+               "Hypothèse du moteur, pas une mesure : " + ASHRAE_SOURCE
+               + " définit les enveloppes de température par classe, pas le "
+               "gain de PUE associé à un changement de classe.", "faible")
 
     # -- Refroidissement liquide --------------------------------------------
     if fam not in ("liquide_dlc", "immersion"):
@@ -1094,20 +1217,24 @@ def leviers(profil, res):
         if pue > pue_cible:
             gain = e_it * (pue - pue_cible)
             ajoute("Refroidissement liquide direct (plaques froides)",
-                   gain, gain * 1.2,
+                   gain, gain * H["liquide_ratio_eau_energie"]["valeur"],
                    "Impose une conception serveur compatible et une reprise "
                    "complète de la distribution hydraulique. Non rétrofitable "
                    "sans arrêt.",
                    "Densité supérieure à 20 kW par baie pour que l'économie "
                    "couvre l'investissement.",
-                   "ASHRAE Liquid Cooling Guidelines ; retours d'exploitation du secteur",
+                   "Le gain de PUE vient du référentiel REFROIDISSEMENT publié "
+                   "(ASHRAE Liquid Cooling Guidelines ; retours d'exploitation "
+                   "du secteur) ; le ratio d'eau associé est une hypothèse du "
+                   "moteur, non publiée par ce même guide.",
                    "élevée")
 
     # -- Sortir de l'évaporatif, ou y entrer : l'arbitrage se calcule --------
     part_evap = res["eau"]["part_evaporative"]
-    if part_evap > 0.3:
-        eau_evitee = res["eau"]["appoint_m3"]["valeur"] * 0.8
-        surcout = e_it * 0.08
+    if part_evap > H["dry_cooler_seuil_part_evap"]["valeur"]:
+        eau_evitee = (res["eau"]["appoint_m3"]["valeur"]
+                     * H["dry_cooler_part_eau_evitee"]["valeur"])
+        surcout = e_it * H["dry_cooler_surcout_energie"]["valeur"]
         ajoute("Basculer vers un rejet sec (dry cooler) sur la majorité de l'année",
                -surcout, eau_evitee,
                "Coûte environ " + fr(surcout, 0) + " MWh/an de plus, soit "
@@ -1115,39 +1242,51 @@ def leviers(profil, res):
                "de cette énergie consomme de l'eau à la source.",
                "Pertinent en zone de stress hydrique, ou si le mix électrique "
                "est peu intensif en eau.",
-               "Arbitrage eau/énergie ; comparer au WUE de SOURCE, pas au WUE de site.",
+               "Hypothèse du moteur, pas une mesure. Arbitrage eau/énergie ; "
+               "comparer au WUE de SOURCE, pas au WUE de site.",
                "moyenne")
-    elif part_evap < 0.1 and pays in ("SE", "NO", "FI", "DK"):
+    elif (part_evap < H["adiabatique_seuil_part_evap"]["valeur"]
+          and pays in CADRE_UE["cndcp"]["pays_climat_froid"]):
         ajoute("Assistance adiabatique limitée aux heures chaudes",
-               e_it * 0.05, -50.0,
+               e_it * H["adiabatique_surcout_energie"]["valeur"],
+               H["adiabatique_eau_m3"]["valeur"],
                "Introduit une consommation d'eau saisonnière et un traitement "
                "d'eau (risque légionelles à encadrer).",
                "Climat froid : peu d'heures concernées, donc gain énergétique "
                "réel et consommation d'eau faible.",
-               "Conception classique du free cooling indirect assisté.",
+               "Hypothèse du moteur, pas une mesure : conception classique du "
+               "free cooling indirect assisté, chiffrage propre au moteur.",
                "faible")
 
     # -- Chaleur fatale ------------------------------------------------------
     if res["chaleur"]["erf"]["valeur"] < 5:
-        e_valorisable = e_tot * 0.30
-        ajoute("Raccordement à un réseau de chaleur (30 % de l'énergie valorisée)",
+        part_valo = H["chaleur_fatale_part_valorisable"]["valeur"]
+        e_valorisable = e_tot * part_valo
+        ajoute("Raccordement à un réseau de chaleur (%s %% de l'énergie valorisée)"
+               % fr(part_valo * 100, 0),
                0.0, 0.0,
                "Ne réduit PAS la consommation du centre : le gain carbone est "
                "chez le preneur, en chaleur fossile évitée. À ne pas compter "
                "deux fois dans le bilan du site.",
                "Réseau à moins de 3 km et preneur engagé sur la durée "
                "d'amortissement. Sans preneur nommé, l'engagement ne vaut rien.",
-               "ISO/IEC 30134-6 ; directive efficacité énergétique art. 26",
+               "Hypothèse du moteur, pas une mesure : ISO/IEC 30134-6 définit "
+               "l'ERF et la directive efficacité énergétique (art. 26) impose "
+               "de déclarer la chaleur fatale, mais ni l'un ni l'autre ne "
+               "publie la part valorisable retenue ici.",
                "élevée")
-        out[-1]["gain_co2_t"] = round(e_valorisable * 0.20, 1)
+        carbone_evite = H["chaleur_fatale_carbone_evite_kg_par_kwh"]["valeur"]
+        out[-1]["gain_co2_t"] = round(e_valorisable * carbone_evite, 1)
         out[-1]["note_gain"] = ("Estimé sur une chaleur fossile évitée à "
-                                "200 gCO2e/kWh chez le preneur — à remplacer par "
+                                + fr(carbone_evite * 1000, 0)
+                                + " gCO2e/kWh chez le preneur — à remplacer par "
                                 "le facteur réel du réseau.")
 
     # -- Durée de vie du matériel : le levier que le carbone incorporé impose -
     part_inc = res["carbone"]["part_incorpore_pct"]["valeur"]
-    if part_inc > 30:
-        gain_inc = res["carbone"]["incorpore_serveurs_t"]["valeur"] * 0.28
+    if part_inc > H["duree_vie_seuil_part_incorpore_pct"]["valeur"]:
+        gain_inc = (res["carbone"]["incorpore_serveurs_t"]["valeur"]
+                   * H["duree_vie_gain_amortissement"]["valeur"])
         out.append({
             "titre": "Allonger la durée de vie des serveurs de 5 à 7 ans",
             "gain_energie_MWh": 0.0,
@@ -1158,7 +1297,8 @@ def leviers(profil, res):
                             "et risque de panne croissant. Le gain net doit être "
                             "recalculé avec la consommation réelle du parc vieillissant.",
             "condition": "Charges peu sensibles à la performance unitaire.",
-            "fondement": "Amortissement du carbone incorporé sur une durée plus longue.",
+            "fondement": "Hypothèse du moteur, pas une mesure : amortissement du "
+                        "carbone incorporé sur une durée plus longue.",
             "difficulte": "faible",
             "note_gain": "Le carbone incorporé représente " + fr(part_inc, 0) + " % de "
                          "l'empreinte : à ce niveau, ce levier pèse plus que "
@@ -1168,9 +1308,9 @@ def leviers(profil, res):
     # -- Taux de charge : le gisement invisible ------------------------------
     taux = float(profil.get("taux_charge") or 0.65)
     if taux < CHARGE_CONSOLIDER:
-        gain = e_it * 0.12
+        gain = e_it * H["consolidation_gain_energie"]["valeur"]
         ajoute("Consolider les charges pour remonter le taux d'utilisation",
-               gain, gain * 0.8,
+               gain, gain * H["consolidation_ratio_eau_energie"]["valeur"],
                "Réduit la marge de tolérance aux pics ; à border par une étude "
                "de capacité.",
                "Taux actuel de " + fr(taux * 100, 0) + " % : les auxiliaires sont "
@@ -1230,7 +1370,7 @@ def conformite(profil, res):
     pue = res["energie"]["pue"]["valeur"]
     wue = res["eau"]["wue_site"]["valeur"]
     pays = (profil.get("pays") or "UE").upper()
-    froid = pays in ("SE", "NO", "FI", "DK", "IE")
+    froid = pays in CADRE_UE["cndcp"]["pays_climat_froid"]
     cible_pue = (CADRE_UE["cndcp"]["cibles"]["pue_climat_froid"] if froid
                  else CADRE_UE["cndcp"]["cibles"]["pue_climat_tempere_chaud"])
     cible_wue = CADRE_UE["cndcp"]["cibles"]["wue_site_max"]

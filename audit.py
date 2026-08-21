@@ -227,8 +227,10 @@ def journaliser(action, cible="", detail="", ok=True, acteur=None, role=None, ip
         if ip is None:
             try:
                 from flask import request
-                ip = (request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
-                      or request.remote_addr or "")
+                # request.remote_addr est corrigé par ProxyFix (app.py) : ne
+                # pas relire X-Forwarded-For ici, sous peine de journaliser
+                # une adresse que l'auteur de la requête a écrite lui-même.
+                ip = request.remote_addr or ""
             except Exception:
                 ip = ""
         store.ajouter({"ts": int(time.time() * 1000), "acteur": str(acteur)[:200],

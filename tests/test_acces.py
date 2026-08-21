@@ -375,3 +375,74 @@ def test_le_point_de_sante_DIT_si_le_courriel_peut_partir(anonyme, monkeypatch):
     j = anonyme.get("/health").get_json()
     assert j["courriel"] == "configure", j.get("courriel")
     assert "cause_courriel" not in j
+
+
+# ── 6. La garde d'accès LIT le décorateur, plutôt que l'affirmer du préfixe ─
+#
+# LE DÉFAUT CORRIGÉ. _acces_reels()/_acces_api_reels() écrivaient "admin" en
+# dur pour tout chemin sous /admin*, sans jamais regarder si @admin_required
+# était réellement posé — et verifier_api() n'avait de toute façon aucune
+# branche pour comparer un statut "admin" attendu à ce qui est réel : une
+# interface /api/admin/… gardée par le seul @login_required (donc ouverte à
+# n'importe quel compte client) aurait traversé le contrôle de démarrage sans
+# un mot. admin_required pose maintenant `admin_gated`, un repère PLUS FIN que
+# `auth_gated` (que login_required pose aussi) et le seul que ces deux
+# fonctions lisent désormais.
+
+def test_admin_required_pose_un_repere_plus_fin_que_login_required():
+    """Sans ce second repère, rien ne distingue « exige une session » de
+    « exige le rôle admin » sur le décorateur lui-même."""
+    import auth
+
+    @auth.login_required
+    def page_client():
+        return "ok"
+
+    @auth.admin_required
+    def page_admin():
+        return "ok"
+
+    assert getattr(page_client, "auth_gated", False) is True
+    assert getattr(page_client, "admin_gated", False) is False
+    assert getattr(page_admin, "auth_gated", False) is True
+    assert getattr(page_admin, "admin_gated", False) is True
+
+
+def test_acces_reels_lit_le_decorateur_et_non_le_prefixe_admin():
+    """/admin/acces EST sous /admin, et n'est délibérément protégée par
+    AUCUN décorateur — c'est le portail public qui MÈNE à la connexion admin.
+    AVANT LE CORRECTIF, elle aurait été comptée "admin" par le seul effet de
+    son chemin ; deux comparaisons construites sur le même raccourci se
+    seraient alors accordées entre elles sans jamais avoir regardé le code."""
+    reels = A._acces_reels()
+    assert reels.get("/admin/acces") == "direct", reels.get("/admin/acces")
+    # Contre-épreuve : une VRAIE page admin, elle, doit ressortir "admin".
+    assert reels.get("/admin/comptes") == "admin", reels.get("/admin/comptes")
+
+
+def test_acces_api_reels_distingue_admin_de_client():
+    """Les 40 interfaces /api/admin/ réelles doivent toutes ressortir "admin" —
+    pas "client", ce que rendait auth_gated seul, incapable de distinguer les
+    deux paliers."""
+    reels = A._acces_api_reels()
+    admin_api = [c for c in reels if c.startswith("/api/admin/")]
+    assert len(admin_api) >= 30, "la famille /api/admin/ semble incomplète"
+    non_admin = {c: reels[c] for c in admin_api if reels[c] != "admin"}
+    assert not non_admin, non_admin
+
+
+def test_verifier_api_refuse_desormais_une_interface_admin_mal_protegee():
+    """LE POINT QUI DÉCIDE. Avant le correctif, verifier_api() n'avait AUCUNE
+    branche pour le statut "admin" : cette entrée fabriquée — une interface
+    /api/admin/ protégée par un simple compte client — traversait le contrôle
+    sans un mot. Elle doit désormais produire un écart nommé."""
+    faux = {"/api/admin/exemple-invente": "client"}
+    ecarts = acces.verifier_api(faux)
+    assert ecarts, "une interface /api/admin/ mal protégée n'a pas été détectée"
+    assert "/api/admin/exemple-invente" in ecarts[0]
+
+
+def test_verifier_api_n_est_pas_devenu_trop_strict():
+    """Le correctif ne doit pas se mettre à accuser les 40 interfaces admin
+    réellement protégées : le système réel doit rester à zéro écart."""
+    assert acces.verifier_api(A._acces_api_reels()) == []

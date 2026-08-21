@@ -954,3 +954,150 @@ def test_une_piece_inconnue_ne_produit_pas_de_couverture_inventee():
     import ingenierie_dc as g
     assert g.couverture_documentaire("PRO", "PRO-999", _chercheur([])) is None
     assert g.couverture_markdown(None) == ""
+
+
+# ── nb_serveurs par défaut : une hypothèse, déclarée comme telle ───────────
+#
+# LE DÉFAUT CORRIGÉ. Quand "nb_serveurs" n'est pas saisi, le moteur l'estime
+# depuis la puissance informatique — un littéral nu (0,5 kW/serveur), sans
+# nom ni source, et le résultat partait dans les entrées comme si c'était une
+# donnée du projet. Le bloc "équipements informatiques" de la même page
+# dérive SON PROPRE compte, par densité de baie : les deux ne se recoupent
+# pas, et rien ne le disait au lecteur.
+
+def test_nb_serveurs_par_defaut_est_declare_comme_une_hypothese():
+    etude = dc.etude(dict(PROFIL_TEMOIN, nb_serveurs=None))
+    inc = etude["carbone"]["incorpore_serveurs_t"]
+    assert inc["entrees"]["nb serveurs"] == int(
+        PROFIL_TEMOIN["puissance_it_kw"]
+        / dc.CONSTANTES["kw_par_serveur_estime"]["valeur"])
+    assert "hypothèse du moteur" in inc["entrees"]["origine"], inc["entrees"]
+
+
+def test_nb_serveurs_saisi_n_est_pas_requalifie_en_hypothese():
+    """Le contraste qui prouve que la clé "origine" suit vraiment la
+    provenance, plutôt que d'afficher toujours le même texte."""
+    etude = dc.etude(dict(PROFIL_TEMOIN, nb_serveurs=750))
+    inc = etude["carbone"]["incorpore_serveurs_t"]
+    assert inc["entrees"]["nb serveurs"] == 750
+    assert inc["entrees"]["origine"] == "valeur fournie"
+
+
+def test_le_kw_par_serveur_estime_est_nomme_et_publie_au_referentiel():
+    """La constante ne doit plus être un littéral nu au point d'usage."""
+    c = dc.referentiel()["constantes"]["kw_par_serveur_estime"]
+    assert c["valeur"] == 0.5
+    assert "hypothèse" in c["source"].lower()
+
+
+# ── « Climat froid » : une seule table, lue aux deux endroits ──────────────
+#
+# LE DÉFAUT CORRIGÉ. conformite() et leviers() codaient chacun leur propre
+# tuple de pays « climat froid », et les deux tuples différaient (l'Irlande
+# figurait dans l'un, pas dans l'autre) : le verdict de conformité PUE d'un
+# site irlandais ou balte dépendait de l'écran consulté plutôt que d'une
+# source unique. Une seule table nommée, désormais — CADRE_UE["cndcp"]
+# ["pays_climat_froid"] — lue par les deux fonctions.
+
+def test_les_deux_fonctions_lisent_la_meme_table_climat_froid():
+    """Prouvé par mutation, pas par lecture du code : on remplace la table par
+    une liste de contrôle, et on vérifie que LES DEUX fonctions en tiennent
+    compte — la preuve qu'aucune des deux n'a sa propre copie figée."""
+    sauve = dc.CADRE_UE["cndcp"]["pays_climat_froid"]
+    try:
+        dc.CADRE_UE["cndcp"]["pays_climat_froid"] = ("PL",)
+        etude_pl = dc.etude({"puissance_it_kw": 1000, "pays": "PL",
+                             "refroidissement": "eau_glacee", "taux_charge": 0.65})
+        conf = dc.conformite({"puissance_it_kw": 1000, "pays": "PL"}, etude_pl)
+        pue_pt = next(p for p in conf if p["sujet"] == "PUE — repère de marché")
+        assert "1,3" in pue_pt["detail"], (
+            "conformite() n'a pas suivi la table mutée — elle garde son "
+            "propre tuple en dur")
+
+        etude_evap = dc.etude({"puissance_it_kw": 1000, "pays": "PL",
+                               "refroidissement": "tour_evaporative",
+                               "taux_charge": 0.65, "part_evaporative": 0.05})
+        lv = dc.leviers({"puissance_it_kw": 1000, "pays": "PL"}, etude_evap)
+        assert any("adiabatique" in l["titre"].lower() for l in lv), (
+            "leviers() n'a pas suivi la table mutée — elle garde son propre "
+            "tuple en dur")
+    finally:
+        dc.CADRE_UE["cndcp"]["pays_climat_froid"] = sauve
+
+
+def test_la_table_climat_froid_est_publiee_et_coherente_entre_pays():
+    pays = dc.CADRE_UE["cndcp"]["pays_climat_froid"]
+    assert set(pays) <= set(dc.EWIF_PAYS), (
+        "la table climat froid cite un pays absent du référentiel des pays")
+
+
+def test_conformite_et_leviers_s_accordent_desormais_sur_l_irlande():
+    """L'Irlande est le cas qui divergeait avant correctif (présente dans le
+    tuple à cinq pays de conformite(), absente du tuple à quatre de
+    leviers()) : les deux doivent maintenant la traiter pareil."""
+    assert ("IE" in dc.CADRE_UE["cndcp"]["pays_climat_froid"]) == False
+    etude = dc.etude({"puissance_it_kw": 1000, "pays": "IE",
+                      "refroidissement": "eau_glacee", "taux_charge": 0.65})
+    conf = dc.conformite({"puissance_it_kw": 1000, "pays": "IE"}, etude)
+    pue_pt = next(p for p in conf if p["sujet"] == "PUE — repère de marché")
+    assert "climat tempéré ou chaud" in pue_pt["detail"]
+
+
+# ── leviers() : seize coefficients nommés, et deux fondements corrigés ─────
+#
+# LE DÉFAUT CORRIGÉ. Les coefficients qui chiffrent les leviers vivaient en
+# littéraux nus, sans nom ni nature déclarée. Deux d'entre eux citaient en
+# plus une norme réelle (ASHRAE TC 9.9 ; ISO/IEC 30134-6) comme fondement
+# d'un NOMBRE que cette norme ne publie pas — le texte existe et porte sur le
+# bon sujet, mais pas sur le chiffre attaché.
+
+def test_les_seize_coefficients_sont_nommes_avec_leur_nature():
+    assert len(dc.LEVIERS_HYPOTHESES) == 16, sorted(dc.LEVIERS_HYPOTHESES)
+    for cle, h in dc.LEVIERS_HYPOTHESES.items():
+        assert h["nature"] == "hypothèse du moteur", cle
+        assert isinstance(h["valeur"], (int, float)), cle
+        assert len(h["note"]) >= 20, cle
+
+
+def test_les_valeurs_chiffrees_des_leviers_n_ont_pas_bouge():
+    """Le seul changement voulu est la PROVENANCE affichée, jamais le
+    résultat : les mêmes profils doivent rendre les mêmes chiffres qu'avant
+    le correctif."""
+    profil = {"puissance_it_kw": 1000, "pays": "FR",
+              "refroidissement": "tour_evaporative", "taux_charge": 0.50,
+              "classe_ashrae": "A2"}
+    etude = dc.etude(profil)
+    lv = {l["titre"]: l for l in dc.leviers(profil, etude)}
+    attendu = {
+        "Raccordement à un réseau de chaleur (30 % de l'énergie valorisée)": 320.6,
+        "Allonger la durée de vie des serveurs de 5 à 7 ans": 134.4,
+        "Refroidissement liquide direct (plaques froides)": 29.4,
+        "Consolider les charges pour remonter le taux d'utilisation": 29.4,
+        "Passer de la classe ASHRAE A2 à A3": 14.7,
+        "Basculer vers un rejet sec (dry cooler) sur la majorité de l'année": -19.6,
+    }
+    assert set(lv) == set(attendu), set(lv) ^ set(attendu)
+    for titre, gain in attendu.items():
+        assert lv[titre]["gain_co2_t"] == gain, (titre, lv[titre]["gain_co2_t"])
+
+
+def test_le_fondement_ashrae_ne_pretend_plus_publier_le_gain_de_pue():
+    profil = {"puissance_it_kw": 1000, "pays": "FR",
+              "refroidissement": "eau_glacee", "taux_charge": 0.65,
+              "classe_ashrae": "A2"}
+    etude = dc.etude(profil)
+    lv = dc.leviers(profil, etude)
+    ashrae = next(l for l in lv if l["titre"] == "Passer de la classe ASHRAE A2 à A3")
+    assert "Hypothèse du moteur" in ashrae["fondement"]
+    assert "ne publie pas" in ashrae["fondement"] or "pas le gain" in ashrae["fondement"]
+
+
+def test_le_fondement_reseau_de_chaleur_ne_pretend_plus_publier_la_part_valorisable():
+    profil = {"puissance_it_kw": 1000, "pays": "FR",
+              "refroidissement": "immersion", "taux_charge": 0.65}
+    etude = dc.etude(profil)
+    lv = dc.leviers(profil, etude)
+    chaleur = [l for l in lv if l["titre"].startswith("Raccordement à un réseau")]
+    if chaleur:  # ne se déclenche que si res["chaleur"]["erf"] < 5
+        assert "Hypothèse du moteur" in chaleur[0]["fondement"]
+        assert "ne publie" in chaleur[0]["fondement"]

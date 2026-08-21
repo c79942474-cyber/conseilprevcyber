@@ -49,6 +49,7 @@ import datacenter as dc  # noqa: E402
 import decarbonation as dk  # noqa: E402
 import ingenierie_dc as ig  # noqa: E402
 import app as A  # noqa: E402
+from conftest import ADMIN_EMAIL, _assurer_admin  # noqa: E402
 
 # Un profil VRAIMENT renseigné : chaque valeur s'écarte du pré-remplissage du
 # formulaire, sans quoi les étapes resteraient bloquées pour cette raison-là et
@@ -65,10 +66,11 @@ def client():
     """CONNECTÉ — depuis que la page demande un compte, un client anonyme ne
     mesurerait plus que la porte. La porte, elle, est éprouvée par les
     contrôles qui prennent la fixture `anonyme`."""
+    _assurer_admin()
     A.app.config["TESTING"] = True
     c = A.app.test_client()
     with c.session_transaction() as s:
-        s["user_email"] = "recette@local.test"
+        s["user_email"] = ADMIN_EMAIL
     return c
 
 
@@ -752,3 +754,29 @@ def test_la_definition_de_portee_n_est_pas_repetee_sous_chaque_texte():
     assert "function bloctexte(t, sansPortee)" in js
     assert "bloctexte(t, true)" in js, "la section 8 la supprime"
     assert "h += bloctexte(t);" in js, "le dossier d'étape la conserve"
+
+
+# ── poster() ne bloque plus indéfiniment ────────────────────────────────────
+#
+# LE DÉFAUT CORRIGÉ. poster() — le seul chemin d'écriture du module — n'avait
+# pas de délai. « Calcul des deux voies… » restait à l'écran sans limite si le
+# serveur tardait, puisqu'un fetch suspendu ne déclenche jamais le .catch().
+
+def test_poster_passe_desormais_par_un_delai_avec_abortcontroller():
+    js = _lire("decarbonation-dc.js")
+    assert "AbortController" in js
+    assert "function demander(url, options, delai)" in js
+    i = js.index("function poster(url, corps)")
+    bloc = js[i:i + 200]
+    assert "demander(url, {" in bloc, (
+        "poster() doit appeler demander(), pas fetch() directement")
+
+
+def test_le_delai_depasse_produit_un_message_distinct():
+    js = _lire("decarbonation-dc.js")
+    assert "messageDelai" in js
+    assert "Vos saisies sont conservées" in js
+    i = js.index("function charger()")
+    bloc = js[i:i + 900]
+    assert "messageDelai(e," in bloc, (
+        "le .catch() de charger() doit distinguer le délai dépassé du reste")

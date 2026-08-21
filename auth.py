@@ -17,6 +17,7 @@ une confirmation dont rien ne l'avisait.
 Stockage : PostgreSQL si DATABASE_URL est défini (persistant), sinon fichier JSON local.
 """
 import functools
+import html as html_lib
 import json
 import logging
 import os
@@ -104,8 +105,10 @@ guard = _RateGuard()
 
 
 def _client_ip():
-    xff = request.headers.get("X-Forwarded-For", "")
-    return (xff.split(",")[0].strip() if xff else request.remote_addr) or "?"
+    # request.remote_addr est corrigé par ProxyFix (app.py) : X-Forwarded-For
+    # n'est plus lu ici directement, parce que ce serait relire un en-tête que
+    # l'appelant écrit lui-même — voir le commentaire près de app = Flask(...).
+    return request.remote_addr or "?"
 
 
 # Alias public (réutilisé par app.py pour la limitation de débit du formulaire de contact).
@@ -600,12 +603,19 @@ def _send_verify(user, base=None):
                       "<p>Bonjour %s,</p><p>Pour finaliser votre demande d'accès au cockpit CONSEILPREV Cyber, "
                       "confirmez votre adresse email :</p>%s<p>Ce lien est valable %d heures. Après confirmation, "
                       "votre accès sera validé par notre équipe.</p>"
-                      % (user["name"] or "", _btn(url, "Confirmer mon email"), VERIFY_VALIDITY_H)))
+                      % (html_lib.escape(user["name"] or ""), _btn(url, "Confirmer mon email"), VERIFY_VALIDITY_H)))
 
 
 def _notify_admin(user, base=None):
+    # name/org/email SONT ÉCRITS PAR LE DEMANDEUR, et n'arrivent ici qu'après
+    # confirmation de l'adresse — pas après approbation. Non échappés, ils
+    # inséreraient du HTML de son choix dans le courriel adressé à
+    # l'administrateur, au-dessus du vrai bouton « Approuver cet accès ».
     base = base or _base_url()
     url = "%s/admin/approuver/%s" % (base, user["approve_token"])
+    nom = html_lib.escape(user["name"] or "—")
+    org = html_lib.escape(user["org"] or "—")
+    email = html_lib.escape(user["email"])
     send_email(ADMIN_EMAIL, "Admin",
                "Accès à approuver (adresse confirmée) — %s" % user["email"],
                _shell("Nouvelle demande d'accès",
@@ -617,7 +627,7 @@ def _notify_admin(user, base=None):
                       "<p style=\"color:#8a9ab0;font-size:12px\">Ce lien est valable "
                       "%d jours. Passé ce délai, l'approbation se fait depuis la page "
                       "d'administration : <a href=\"%s/admin/comptes\">%s/admin/comptes</a></p>"
-                      % (user["name"] or "—", user["org"] or "—", user["email"],
+                      % (nom, org, email,
                          _btn(url, "Approuver cet accès"),
                          APPROVE_VALIDITY_H // 24, base, base)))
 
@@ -629,7 +639,7 @@ def _send_approved(user, base=None):
                _shell("Accès activé",
                       "<p>Bonjour %s,</p><p>Votre accès au cockpit de supervision CONSEILPREV Cyber a été "
                       "<b>approuvé</b>. Vous pouvez maintenant vous connecter :</p>%s"
-                      % (user["name"] or "", _btn(url, "Se connecter"))))
+                      % (html_lib.escape(user["name"] or ""), _btn(url, "Se connecter"))))
 
 
 def _send_reset(user, base=None):
@@ -743,7 +753,13 @@ def admin_required(f):
                 return jsonify(error="Accès réservé à l'administrateur."), 403
             return "<meta charset='utf-8'><p style='font-family:Arial;margin:60px auto;max-width:480px;text-align:center'>Accès réservé à l'administrateur.</p>", 403
         return f(*a, **k)
-    wrap.auth_gated = True  # repère : page protégée (exclue du sitemap public)
+    wrap.auth_gated = True   # repère : page protégée (exclue du sitemap public)
+    wrap.admin_gated = True  # repère PLUS FIN que auth_gated (que login_required
+    # pose aussi) : seul lui distingue « exige une session » de « exige le rôle
+    # admin ». Sans ce second repère, la politique d'accès (acces.py) ne pouvait
+    # lire sur le décorateur QUE « protégée », jamais « protégée par admin » —
+    # et se rabattait sur le préfixe /admin de l'URL, qu'un oubli de décorateur
+    # ne contredit jamais.
     return wrap
 
 
@@ -761,17 +777,37 @@ def _check_captcha(slot, answer):
         return False
 
 
+def _safe_next(value, default):
+    """N'autorise qu'un chemin INTERNE (anti open-redirect).
+
+    LE DÉFAUT CORRIGÉ. `next` revenait tel quel dans un redirect() : une
+    adresse absolue (`https://evil.example/...`) ou une adresse protocole-
+    relative (`//evil.example/...`, que le navigateur résout comme externe)
+    partait telle quelle. Un lien /connexion?next=... envoyé à un client déjà
+    connecté l'expédiait hors du site en un seul saut, DEPUIS le domaine
+    légitime — et pour qui n'est pas connecté, la connexion réussit d'abord,
+    sur la vraie page, avant l'envoi vers la copie de l'attaquant.
+
+    Un seul « / » en tête, jamais deux : "/x" passe, "//evil.example" et
+    "/\\evil.example" (que certains navigateurs traitent comme "//") non.
+    """
+    nxt = value or default
+    if not nxt.startswith("/") or nxt.startswith("//") or nxt.startswith("/\\"):
+        return default
+    return nxt
+
+
 # --------------------------------------------------------------------- routes ---
 @auth_bp.route("/connexion")
 def page_login():
     if current_user():
-        return redirect(request.args.get("next") or "/demo")
+        return redirect(_safe_next(request.args.get("next"), "/demo"))
     return send_from_directory(HERE, "connexion.html")
 
 
 def _safe_admin_next(value):
     """N'autorise qu'un chemin interne de la zone admin (anti open-redirect)."""
-    nxt = value or "/admin"
+    nxt = _safe_next(value, "/admin")
     if not nxt.startswith("/admin") or nxt.startswith("/admin/acces"):
         return "/admin"
     return nxt

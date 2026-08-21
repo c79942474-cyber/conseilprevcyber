@@ -56,6 +56,7 @@ import zipfile
 from urllib.parse import urlparse
 
 import requests
+from werkzeug.middleware.proxy_fix import ProxyFix
 from flask import (Flask, Response, jsonify, redirect, request, send_file,
                    send_from_directory, stream_with_context)
 
@@ -83,6 +84,16 @@ from rag_store import (RagError, THEMES, THEME_FAMILLES, FAMILLE_ENTREPRISES,
                        formats_available, make_rag_store)
 
 app = Flask(__name__)
+# Render place l'application derrière SON PROPRE proxy, qui AJOUTE la vraie IP
+# du client à droite de X-Forwarded-For — un en-tête que l'appelant, lui,
+# contrôle intégralement. Sans ce correctif, request.remote_addr valait la
+# première valeur de l'en-tête, c'est-à-dire exactement celle qu'un attaquant
+# écrit : chaque limiteur de débit keyé sur l'IP (connexion, portail admin,
+# formulaire de contact…) s'annulait en incrémentant un octet par requête.
+# x_for=1 : on ne fait confiance qu'À UN SEUL relais, celui de Render, et
+# request.remote_addr redevient la dernière valeur de la chaîne — celle que
+# l'appelant ne peut pas écrire.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 # Version applicative affichée dans l'admin (auto-test de la base de connaissance).
@@ -4085,9 +4096,10 @@ def _agent_dc_embed(textes):
     deux endroits qui appellent le même service finissent par diverger sur l'un
     de ces quatre paramètres — le jour où l'un change.
     """
+    import rag_store as _rs
     try:
-        return rag_store.embed_texts(list(textes))
-    except Exception as exc:  # noqa: BLE001
+        return _rs.embed_texts(list(textes))
+    except _rs.RagError as exc:
         raise agent_datacenter.EmbeddingIndisponible(str(exc)) from exc
 
 
@@ -4131,17 +4143,18 @@ def api_agent_dc_indexer():
     Réservé à l'administrateur : indexer, c'est décider de ce que l'agent aura
     le droit de citer. Ce n'est pas une action de lecture.
     """
+    import rag_store as _rs
     data = request.get_json(silent=True) or {}
     themes = data.get("themes")
     if not isinstance(themes, list) or not themes:
         # Par défaut, toute la famille « Centres de données » de la base.
-        themes = [t for t in rag_store.THEMES if t.startswith("Data center")]
+        themes = [t for t in _rs.THEMES if t.startswith("Data center")]
     agent = _agent_dc()
     total, docs, erreurs = 0, 0, []
     for theme in themes[:40]:
         try:
-            hits = rag_store.store.search("data center énergie eau carbone",
-                                          k=60, public_only=False, theme=theme)
+            hits = rag.search("data center énergie eau carbone",
+                              k=60, public_only=False, theme=theme)
         except Exception as exc:  # noqa: BLE001
             erreurs.append("%s : %s" % (theme, exc))
             continue
@@ -4180,6 +4193,7 @@ def api_agent_dc_etat():
     absent produisent le même refus côté utilisateur, et appellent deux gestes
     opposés — charger des documents, ou configurer une clé.
     """
+    import rag_store as _rs
     agent = _agent_dc()
     par_theme = {}
     for p in agent.index.passages:
@@ -4189,7 +4203,7 @@ def api_agent_dc_etat():
                    passages=len(agent.index.passages),
                    par_theme=par_theme,
                    corpus_version=agent_datacenter.CORPUS_VERSION,
-                   vectorisation=rag_store.embeddings_available(),
+                   vectorisation=_rs.embeddings_available(),
                    redaction=bool(dispo.get("claude") or dispo.get("mistral")),
                    seuil=agent.threshold,
                    passages_minimum=agent.min_passages)
@@ -8820,10 +8834,13 @@ def _menu_chemins():
 def _acces_reels():
     """La protection RÉELLE de chaque page, relevée sur les décorateurs posés.
 
-    On lit `auth_gated`, que login_required et admin_required apposent tous
-    deux ; le préfixe /admin distingue ensuite les seconds. Lire les
-    décorateurs plutôt qu'une liste tenue à la main est tout l'intérêt de ce
-    contrôle : c'est l'état effectif du site, celui qu'un visiteur rencontre."""
+    On lit `admin_gated` puis `auth_gated`, que admin_required et
+    login_required apposent respectivement (`admin_gated` implique
+    `auth_gated`, jamais l'inverse). Lire les décorateurs plutôt qu'une liste
+    tenue à la main OU qu'un préfixe d'URL est tout l'intérêt de ce contrôle :
+    c'est l'état effectif du site, celui qu'un visiteur rencontre — une route
+    /admin/… à laquelle on aurait oublié de poser @admin_required doit être vue
+    comme telle, pas comme « admin » parce que son chemin le laisse croire."""
     reels = {}
     for rule in app.url_map.iter_rules():
         chemin = str(rule.rule)
@@ -8836,11 +8853,12 @@ def _acces_reels():
         if chemin not in PAGES and not chemin.startswith("/admin"):
             continue
         vue = app.view_functions.get(rule.endpoint)
-        if chemin.startswith("/admin"):
+        if getattr(vue, "admin_gated", False):
             reels[chemin] = "admin"
+        elif getattr(vue, "auth_gated", False):
+            reels[chemin] = "client"
         else:
-            reels[chemin] = ("client" if getattr(vue, "auth_gated", False)
-                             else "direct")
+            reels[chemin] = "direct"
     return reels
 
 
@@ -8848,15 +8866,24 @@ def _acces_api_reels():
     """La protection RÉELLE de chaque interface de programmation.
 
     Les chemins à paramètre (« <pid> ») sont ramenés à leur forme déclarée : la
-    politique nomme des interfaces, pas des instances."""
+    politique nomme des interfaces, pas des instances. Comme pour les pages, on
+    distingue « admin_gated » de « auth_gated » : sans ce distinguo, une
+    interface /api/admin/… protégée par le seul @login_required — donc
+    accessible à N'IMPORTE QUEL compte client — se lisait « client », un statut
+    que la politique déclare justement fermé pour toute la famille /api/admin/,
+    et l'écart passait inaperçu faute de branche pour le comparer."""
     reels = {}
     for rule in app.url_map.iter_rules():
         chemin = str(rule.rule)
         if not chemin.startswith("/api/"):
             continue
         vue = app.view_functions.get(rule.endpoint)
-        reels[chemin] = ("client" if getattr(vue, "auth_gated", False)
-                         else "direct")
+        if getattr(vue, "admin_gated", False):
+            reels[chemin] = "admin"
+        elif getattr(vue, "auth_gated", False):
+            reels[chemin] = "client"
+        else:
+            reels[chemin] = "direct"
     return reels
 
 

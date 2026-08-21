@@ -3627,7 +3627,7 @@ def dossier(profil, code, inputs=None):
 # large que personne ne la lirait.
 _PLAGES_PLAUSIBLES = {
     "taux_charge": (0.45, 0.85),
-    "part_evaporation": (0.55, 0.95),
+    "part_evaporative": (0.55, 0.95),
     "cycles_concentration": (3.0, 8.0),
     "part_chaleur_reutilisee": (0.0, 0.30),
     "pue_cible": (1.15, 1.55),
@@ -6183,6 +6183,13 @@ def sante():
     inconnus = sorted({c for p in PHASES for c in p["exige"] if c not in ids})
     postes_inconnus = sorted({s for p in PHASES for s in p["substitutions"]
                               if s not in POSTES})
+    # DÉFAUT PASSÉ : _PLAGES_PLAUSIBLES portait "part_evaporation" au lieu de
+    # "part_evaporative" — une clé qui ne correspondait à AUCUN champ réel du
+    # moteur, silencieusement muette : l'étendue affichée au lecteur ignorait
+    # le champ le plus lourd sans qu'aucune erreur ne le signale. Un contrôle
+    # de santé qui se tait sur une faute de frappe la laisse taire pendant un
+    # an ; celui-ci la refuse au chargement plutôt qu'à l'usage.
+    plages_champs_inconnus = sorted(c for c in _PLAGES_PLAUSIBLES if c not in ids)
     # Contrôle des régressions sur les exigences CUMULÉES : c'est ce que voit
     # l'utilisateur. Écrites en propre, elles régressaient — le cumul l'a réglé,
     # et ce contrôle empêche que ça revienne.
@@ -6343,6 +6350,7 @@ def sante():
         "indus": sum(1 for x in PHASES if x["filiere"] == "indus"),
         "champs_exiges_inconnus": inconnus,
         "postes_inconnus": postes_inconnus,
+        "plages_plausibles_champs_inconnus": plages_champs_inconnus,
         "regressions_d_exigence": regressions,
         "pieces_occurrences": len(tous),
         "pieces_distinctes": len(titres),

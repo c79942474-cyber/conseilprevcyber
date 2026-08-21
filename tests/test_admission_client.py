@@ -236,6 +236,61 @@ def test_LE_POINT_QUI_DECIDE_la_chaine_complete_dans_son_ordre(client, courriels
         _oter(CLIENT)
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  1bis. LE COURRIEL D'APPROBATION N'EXÉCUTE PAS CE QUE LE DEMANDEUR ÉCRIT
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# LE DÉFAUT CORRIGÉ. name/org ne sont bornés qu'en LONGUEUR à l'inscription,
+# jamais en caractères. Non échappés dans le courriel HTML adressé à
+# l'administrateur, un attaquant sans compte préalable pouvait y placer son
+# propre bouton « Approuver cet accès », rendu AU-DESSUS du vrai — sur le seul
+# écran où se décide l'admission de tout le site.
+
+ATTAQUANT = "attaquant.injection@example.com"
+
+
+def test_LE_POINT_QUI_DECIDE_un_nom_ou_une_organisation_hostile_n_execute_rien(client, courriels):
+    """Le nom et l'organisation peuvent contenir du balisage — le formulaire ne
+    l'interdit pas — mais ce balisage doit arriver LITTÉRAL dans le courriel de
+    l'administrateur, jamais interprété."""
+    _oter(ATTAQUANT)
+    try:
+        piege = ('</li></ul><a href="https://evil.example/portail">'
+                 'Approuver cet accès</a><ul><li>')
+        r = client.post("/api/auth/register", headers=ENTETES,
+                        json={"email": ATTAQUANT,
+                              "name": '<img src=x onerror=alert(1)>',
+                              "org": piege, "password": MDP, "captcha": "4"})
+        assert r.status_code == 200, r.get_json()
+
+        u = auth.store.get(ATTAQUANT)
+        r = client.get("/verifier-email/%s" % u["verify_token"])
+        assert r.status_code == 302
+
+        assert len(courriels) == 2, [c["sujet"] for c in courriels]
+        admin = courriels[1]
+        assert admin["a"] == auth.ADMIN_EMAIL
+
+        # Rien de ce qui a été écrit par le demandeur ne doit survivre comme
+        # balisage actif dans le courriel de l'administrateur.
+        assert "<img" not in admin["html"], (
+            "la balise du demandeur est passée telle quelle : elle s'exécuterait "
+            "dans le client de messagerie de l'administrateur")
+        assert 'href="https://evil.example/portail"' not in admin["html"], (
+            "le faux bouton du demandeur reste un vrai lien cliquable")
+
+        # …et ce qui a été écrit reste LISIBLE, sous sa forme échappée : on
+        # informe l'administrateur, on ne fait pas disparaître la tentative.
+        assert "&lt;img" in admin["html"]
+        assert "&lt;/li&gt;&lt;/ul&gt;&lt;a href=" in admin["html"]
+
+        # Le vrai bouton d'approbation, lui, reste bien un vrai lien.
+        jeton = auth.store.get(ATTAQUANT)["approve_token"]
+        assert jeton in admin["html"]
+    finally:
+        _oter(ATTAQUANT)
+
+
 def test_LE_POINT_QUI_DECIDE_l_administrateur_n_est_pas_prevenu_a_l_inscription(client, courriels):
     """Prévenu au dépôt de la demande, il recevait des liens d'approbation
     portant des adresses que personne n'avait prouvées : n'importe qui pouvait

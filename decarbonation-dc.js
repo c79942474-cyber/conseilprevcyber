@@ -62,12 +62,50 @@
     return p;
   }
 
+  /* ── AUCUNE REQUÊTE SANS DÉLAI ──────────────────────────────────────────
+     Un `fetch` sans délai attend INDÉFINIMENT si le serveur tarde : le
+     message posé juste avant — « Calcul des deux voies… » — reste à l'écran
+     sans limite. Repris de datacenter.js, qui porte le même mécanisme pour
+     la même raison. */
+  var DELAI_LONG = 45000;
+
+  function demander(url, options, delai) {
+    options = options || {};
+    var ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+    var fini = false;
+    var minuteur = setTimeout(function () {
+      if (!fini && ctrl) { try { ctrl.abort(); } catch (e) {} }
+    }, delai || DELAI_LONG);
+    if (ctrl && !options.signal) options.signal = ctrl.signal;
+    return fetch(url, options).then(function (r) {
+      fini = true; clearTimeout(minuteur); return r;
+    }, function (e) {
+      fini = true; clearTimeout(minuteur);
+      if (e && e.name === "AbortError" && !options.__annule) {
+        var t = new Error("delai");
+        t.name = "DelaiDepasse";
+        t.delai = delai || DELAI_LONG;
+        throw t;
+      }
+      throw e;
+    });
+  }
+
+  function messageDelai(e, defaut) {
+    if (e && e.name === "DelaiDepasse") {
+      return "Le serveur n'a pas répondu en " + Math.round(e.delai / 1000)
+        + " secondes. Il est peut-être très sollicité : relancez dans un "
+        + "instant. Vos saisies sont conservées.";
+    }
+    return defaut;
+  }
+
   function poster(url, corps) {
-    return fetch(url, {
+    return demander(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(corps),
-    }).then(function (r) {
+    }, DELAI_LONG).then(function (r) {
       return r.text().then(function (t) {
         var j = null;
         try { j = JSON.parse(t); } catch (e) { j = null; }
@@ -863,7 +901,7 @@
       })
       .catch(function (e) {
         DERNIER = {};
-        etat(e.message || "Le parcours n'a pas pu être établi.", true);
+        etat(messageDelai(e, e.message || "Le parcours n'a pas pu être établi."), true);
         rendreParcours();
       });
   }

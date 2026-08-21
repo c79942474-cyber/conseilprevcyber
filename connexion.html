@@ -57,7 +57,14 @@
     function show(t,cls){msg.textContent=t;msg.className='msg '+cls;}
     if(q.get('verifie'))show('Email confirmé. Votre accès sera actif après validation par notre équipe (vous recevrez un email).','ok');
     if(q.get('deconnecte'))show('Vous êtes déconnecté.','ok');
-    var nextUrl=q.get('next')||'/demo';
+    /* ANTI-OPEN-REDIRECT. Un seul « / » en tête, jamais deux : sans ce
+       contrôle, next=https://evil.example/... ou next=//evil.example/...
+       renvoyait, après une connexion RÉUSSIE sur ce vrai domaine, vers une
+       copie qui redemande le mot de passe — le même contrôle que le serveur
+       applique côté redirection déjà connectée. */
+    var nextRaw=q.get('next');
+    var nextUrl=(nextRaw && nextRaw.charAt(0)==='/' && nextRaw.charAt(1)!=='/'
+                && nextRaw.charAt(1)!=='\\') ? nextRaw : '/demo';
     var bouton=document.querySelector('#f button[type=submit]');
     var enCours=false;
     document.getElementById('f').addEventListener('submit',function(e){

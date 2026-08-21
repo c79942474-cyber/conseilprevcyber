@@ -37,6 +37,7 @@ sys.path.insert(0, ICI)
 
 import app as A  # noqa: E402
 import ingenierie_dc as I  # noqa: E402
+from conftest import ADMIN_EMAIL, _assurer_admin  # noqa: E402
 
 H = {"Origin": "http://localhost", "Referer": "http://localhost/x"}
 BASE = {"puissance_it_kw": "1500", "pays": "FR",
@@ -45,9 +46,10 @@ BASE = {"puissance_it_kw": "1500", "pays": "FR",
 
 @pytest.fixture
 def client():
+    _assurer_admin()
     c = A.app.test_client()
     with c.session_transaction() as s:
-        s["user_email"] = "recette@local.test"
+        s["user_email"] = ADMIN_EMAIL
     A._ip_rate._hits.clear()
     yield c
     A._ip_rate._hits.clear()

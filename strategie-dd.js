@@ -46,6 +46,48 @@
     el.style.color = err ? "var(--red, #F0A0A0)" : "";
   }
 
+  /* ── AUCUNE REQUÊTE SANS DÉLAI ──────────────────────────────────────────
+     LE défaut qui fait dire « la page est bloquée ». Un `fetch` sans délai
+     attend INDÉFINIMENT si le serveur tarde : le message posé juste avant —
+     « Établissement de la stratégie… », « Chargement du registre… » — reste
+     à l'écran sans limite, et rien ne redonne la main. Repris de datacenter.js,
+     qui porte le même mécanisme pour la même raison. */
+  var DELAI_COURT = 12000;    // questionnaire : conditionne l'affichage
+  var DELAI_LONG = 45000;     // établissement, export : calcul réel côté serveur
+
+  function demander(url, options, delai) {
+    options = options || {};
+    var ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+    var fini = false;
+    var minuteur = setTimeout(function () {
+      if (!fini && ctrl) { try { ctrl.abort(); } catch (e) {} }
+    }, delai || DELAI_COURT);
+    if (ctrl && !options.signal) options.signal = ctrl.signal;
+    return fetch(url, options).then(function (r) {
+      fini = true; clearTimeout(minuteur); return r;
+    }, function (e) {
+      fini = true; clearTimeout(minuteur);
+      /* On distingue le délai dépassé du reste : « le serveur n'a pas répondu »
+         et « vous êtes hors ligne » n'appellent pas le même geste. */
+      if (e && e.name === "AbortError" && !options.__annule) {
+        var t = new Error("delai");
+        t.name = "DelaiDepasse";
+        t.delai = delai || DELAI_COURT;
+        throw t;
+      }
+      throw e;
+    });
+  }
+
+  function messageDelai(e, defaut) {
+    if (e && e.name === "DelaiDepasse") {
+      return "Le serveur n'a pas répondu en " + Math.round(e.delai / 1000)
+        + " secondes. Il est peut-être très sollicité : relancez dans un "
+        + "instant. Vos saisies sont conservées.";
+    }
+    return defaut;
+  }
+
   /* ═════════════════════════════════════════════════════════════════════
      LES QUATRE PERSPECTIVES, EN TÊTE
      ═════════════════════════════════════════════════════════════════════ */
@@ -365,11 +407,11 @@
   }
 
   function poster(url, corps) {
-    return fetch(url, {
+    return demander(url, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify(corps),
-    }).then(function (rep) {
+    }, DELAI_LONG).then(function (rep) {
       return rep.text().then(function (t) {
         var j = null;
         try { j = JSON.parse(t); } catch (e) { j = null; }
@@ -402,7 +444,7 @@
         if (z) z.scrollIntoView({behavior: "smooth", block: "start"});
       })
       .catch(function (e) {
-        etat(e.message || "La stratégie n'a pas pu être établie.", true);
+        etat(messageDelai(e, e.message || "La stratégie n'a pas pu être établie."), true);
       })
       .then(function () { if (b) b.disabled = false; });
   }
@@ -511,11 +553,11 @@
     etat("Mise en page du livrable…");
     var corps = TR(reponses());
     corps.format = fmt;
-    fetch("/api/datacenter/strategie/export", {
+    demander("/api/datacenter/strategie/export", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify(corps),
-    }).then(function (r) {
+    }, DELAI_LONG).then(function (r) {
       if (r.status === 401 || r.status === 403) {
         /* Le message nomme la cause. « Erreur » aurait envoyé le lecteur
            vérifier ses réponses alors qu'il lui manquait une session. */
@@ -536,7 +578,7 @@
       setTimeout(function () { URL.revokeObjectURL(u); }, 4000);
       etat("");
     }).catch(function (e) {
-      etat(e.message || "L’export a échoué.", true);
+      etat(messageDelai(e, e.message || "L’export a échoué."), true);
     });
   }
 
@@ -545,7 +587,7 @@
      ═════════════════════════════════════════════════════════════════════ */
 
   function demarrer() {
-    fetch("/api/datacenter/strategie/questionnaire")
+    demander("/api/datacenter/strategie/questionnaire", {}, DELAI_COURT)
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (!j.ok) throw new Error("questionnaire indisponible");

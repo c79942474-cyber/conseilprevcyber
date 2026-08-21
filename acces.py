@@ -155,6 +155,10 @@ def verifier_api(reelles):
         elif attendu == "direct" and reel != "direct":
             ecarts.append("%s est fermée alors qu'elle doit rester ouverte (%s)"
                           % (chemin, API_OUVERTES[chemin]))
+        elif attendu == "admin" and reel != "admin":
+            ecarts.append("%s est sous /api/admin/ mais protégée par « %s » : "
+                          "un compte client ordinaire (ou tout visiteur, si "
+                          "« direct ») l'atteindrait" % (chemin, reel))
     return ecarts
 
 

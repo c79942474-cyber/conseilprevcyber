@@ -61,6 +61,33 @@ def _assurer_client():
     })
 
 
+# ── LA FIXTURE « admin » NE FAISAIT QUE ROUVRIR UNE SESSION SUR ADMIN_EMAIL ─
+# sans jamais forcer le rôle, contrairement à _assurer_client() ci-dessus.
+# Sur un poste où users_db.json (hors dépôt) donne déjà le rôle admin à ce
+# compte, le défaut ne se voyait pas ; sur un clone frais, où ce fichier
+# n'existe pas du tout, le compte est introuvable et la session n'ouvre rien.
+# Dans les deux cas, la fixture ne GARANTISSAIT rien de ce que son nom promet.
+def _assurer_admin():
+    """Un compte confirmé et approuvé, de rôle « admin » — symétrique de
+    _assurer_client(), pour la même raison : une fixture doit fabriquer l'état
+    qu'elle promet, pas espérer qu'il traîne déjà quelque part sur le poste."""
+    import auth
+    u = auth.store.get(ADMIN_EMAIL)
+    if u:
+        if (u.get("role") != "admin" or not u.get("approved")
+                or not u.get("email_verified")):
+            auth.store.update(ADMIN_EMAIL, role="admin", approved=True,
+                              email_verified=True)
+        return
+    auth.store.create({
+        "email": ADMIN_EMAIL, "name": "Admin de recette", "org": "Essai",
+        "password_hash": "x", "email_verified": True, "approved": True,
+        "role": "admin", "verify_token": None, "verify_expire": None,
+        "approve_token": None, "reset_token": None, "reset_expire": None,
+        "created_at": 0, "last_login": None,
+    })
+
+
 @pytest.fixture
 def anonyme():
     """Le visiteur sans compte — celui contre qui la politique est écrite."""
@@ -77,4 +104,5 @@ def connecte():
 @pytest.fixture
 def admin():
     """L'administrateur, qui doit atteindre tout le site sans exception."""
+    _assurer_admin()
     return _client(ADMIN_EMAIL)

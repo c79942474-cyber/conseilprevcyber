@@ -38,6 +38,7 @@ ICI = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ICI)
 
 import transmission as T  # noqa: E402
+from conftest import ADMIN_EMAIL, _assurer_admin  # noqa: E402
 
 PAGES = ["datacenter.html", "ingenierie-datacenter.html",
          "strategie-durable-datacenter.html"]
@@ -62,10 +63,11 @@ def lire(nom):
 @pytest.fixture
 def client():
     import app
+    _assurer_admin()
     app.app.config["TESTING"] = True
     c = app.app.test_client()
     with c.session_transaction() as s:
-        s["user_email"] = "recette@local.test"
+        s["user_email"] = ADMIN_EMAIL
     return c
 
 

@@ -43,6 +43,7 @@ sys.path.insert(0, ICI)
 import datacenter as dc  # noqa: E402
 import etat_art as ea  # noqa: E402
 import app as A  # noqa: E402
+from conftest import ADMIN_EMAIL, _assurer_admin  # noqa: E402
 
 
 @pytest.fixture
@@ -50,10 +51,11 @@ def client():
     """CONNECTÉ — depuis que la page demande un compte, un client anonyme ne
     mesurerait plus que la porte. La porte, elle, est éprouvée par les
     contrôles qui prennent la fixture `anonyme`."""
+    _assurer_admin()
     A.app.config["TESTING"] = True
     c = A.app.test_client()
     with c.session_transaction() as s:
-        s["user_email"] = "recette@local.test"
+        s["user_email"] = ADMIN_EMAIL
     return c
 
 

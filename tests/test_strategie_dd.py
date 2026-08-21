@@ -45,6 +45,7 @@ sys.path.insert(0, ICI)
 
 import strategie_dd as S  # noqa: E402
 import app as A  # noqa: E402
+from conftest import ADMIN_EMAIL, _assurer_admin  # noqa: E402
 
 PROFIL = {"puissance_it_kw": 20000, "pays": "FR",
           "refroidissement": "tour_evaporative", "taux_charge": 0.7}
@@ -61,10 +62,11 @@ def client():
     """CONNECTÉ — depuis que la page demande un compte, un client anonyme ne
     mesurerait plus que la porte. La porte, elle, est éprouvée par les
     contrôles qui prennent la fixture `anonyme`."""
+    _assurer_admin()
     A.app.config["TESTING"] = True
     c = A.app.test_client()
     with c.session_transaction() as s:
-        s["user_email"] = "recette@local.test"
+        s["user_email"] = ADMIN_EMAIL
     return c
 
 
@@ -443,3 +445,50 @@ def test_le_controle_de_sante_TOMBE_sur_une_liste_hors_borne():
     finally:
         s.OUVERTES[0]["pistes"] = sauve
     assert not any("attendu 4 à 8" in f for f in s._verifier())
+
+
+# ── strategie-dd.js : aucune requête sans délai ─────────────────────────────
+#
+# LE DÉFAUT CORRIGÉ. Le fichier ne portait aucun AbortController : un serveur
+# lent à répondre (ou en cours de réveil) laissait « Établissement de la
+# stratégie… », « Mise en page du livrable… » ou « Chargement du
+# questionnaire » à l'écran indéfiniment, sans qu'aucun message ni aucun geste
+# ne redonne la main au client.
+
+def _js():
+    with open(os.path.join(ICI, "strategie-dd.js"), encoding="utf-8") as f:
+        return f.read()
+
+
+def test_les_trois_requetes_passent_par_demander_et_non_par_un_fetch_nu():
+    js = _js()
+    assert js.count("function demander(") == 1
+    assert "AbortController" in js
+    # Les trois sites d'appel doivent tous invoquer demander(...), pas fetch(...)
+    # directement — sauf demander() lui-même, qui doit bien finir par appeler
+    # le fetch natif.
+    hors_definition = js[js.index("function messageDelai") :]
+    assert hors_definition.count("fetch(") == 0, (
+        "un appel réseau contourne encore demander() après sa définition")
+
+
+def test_poster_et_l_export_utilisent_le_budget_long():
+    js = _js()
+    assert 'demander(url, {' in js and "DELAI_LONG" in js
+    assert 'demander("/api/datacenter/strategie/export"' in js
+    i = js.index('demander("/api/datacenter/strategie/export"')
+    assert "DELAI_LONG" in js[i:i + 300]
+
+
+def test_le_questionnaire_utilise_le_budget_court():
+    js = _js()
+    assert 'demander("/api/datacenter/strategie/questionnaire", {}, DELAI_COURT)' in js
+
+
+def test_le_delai_depasse_produit_un_message_distinct_de_la_panne_reseau():
+    js = _js()
+    assert "messageDelai" in js
+    assert "Vos saisies sont conservées" in js
+    # Les deux points d'échec qui affichent un message au client doivent
+    # passer par messageDelai(), pas seulement par e.message.
+    assert js.count("messageDelai(e,") >= 2
