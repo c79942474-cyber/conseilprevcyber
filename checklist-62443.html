@@ -83,8 +83,8 @@
       <div class="ck-jauge"><i id="ck-jauge" style="width:0"></i></div>
       <p class="ck-lect" id="ck-lecture"></p>
       <div class="ck-actions">
-        <button type="button" id="ck-vider">Tout décocher</button>
-        <button type="button" id="ck-copier">Copier ce qui reste à faire</button>
+        <button type="button" id="ck-vider" disabled>Tout décocher</button>
+        <button type="button" id="ck-copier" disabled>Copier ce qui reste à faire</button>
       </div>
     </div>
 
@@ -249,6 +249,12 @@
 
   var minuteur = null;
   function majorer() {
+    /* LE POINT QUI DÉCIDE. "Tout décocher" et "Copier ce qui reste à faire"
+       sont écrits DÉSACTIVÉS dans la page : sans ce garde-fou en plus, un
+       clic pendant le chargement (aucun délai ne le borne) ou après un échec
+       du fetch levait "Cannot read properties of null" sur REF.sections, en
+       silence — rien n'était copié, rien ne s'affichait. */
+    if (!REF) return;
     var v = coches();
     ecrire(v);
     /* Le compte par section se pose TOUT DE SUITE, sans attendre le serveur :
@@ -294,6 +300,7 @@
   /* CE QUI RESTE À FAIRE, avec sa preuve attendue : c'est la liste qu'on
      emporte en réunion, pas celle des cases déjà cochées. */
   $("#ck-copier").addEventListener("click", function () {
+    if (!REF) return;
     var v = coches(), t = "IEC 62443 — ce qui reste à faire\n\n";
     REF.sections.forEach(function (s) {
       var r = s.points.filter(function (p) { return v.indexOf(p.cle) < 0; });
@@ -320,10 +327,14 @@
       if (!j.ok) throw new Error("ref");
       REF = j.referentiel;
       rendre();
+      $("#ck-vider").disabled = false;
+      $("#ck-copier").disabled = false;
     })
     .catch(function () {
       $("#ck-liste").innerHTML = '<p class="note">La liste n’a pas pu être '
         + "chargée. Réessayez dans un instant.</p>";
+      // Les deux boutons restent désactivés : REF reste null, rien à décocher
+      // ni à copier.
     });
 })();
 </script>

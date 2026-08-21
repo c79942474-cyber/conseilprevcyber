@@ -26,6 +26,7 @@ QUATRE PROPRIÉTÉS QUE CES CONTRÔLES GARDENT
      points inexistants ne se recouperait pas.
 """
 import os
+import re
 import sys
 
 import pytest
@@ -205,6 +206,22 @@ def test_LE_POINT_QUI_DECIDE_un_point_inconnu_est_REFUSE_pas_ignore():
     assert len(r["connus"]) == 27
 
 
+def test_LE_POINT_QUI_DECIDE_le_refus_ne_plante_pas_sur_une_cle_non_textuelle():
+    """DÉFAUT CORRIGÉ. Un point coché envoyé comme nombre plutôt que comme
+    chaîne faisait planter sorted()/join() AVANT que le refus motivé ne
+    puisse s'écrire — le client de l'API n'obtenait qu'une erreur serveur
+    générique, sans jamais apprendre quelle clé était en cause."""
+    r = C.compter([1, 2])
+    assert r["ok"] is False and r["erreur"] == "points_inconnus"
+    assert "1" in r["message"] and "2" in r["message"]
+
+    r2 = C.compter(["politique", 3])
+    assert r2["ok"] is False and r2["erreur"] == "points_inconnus"
+    assert "3" in r2["message"]
+    assert "politique" not in r2["message"], (
+        "seul le point INCONNU doit être nommé, pas ceux reconnus")
+
+
 def test_les_deux_extremes_se_disent_differemment():
     vide = C.compter([])
     plein = C.compter(_toutes())
@@ -264,3 +281,45 @@ def test_la_page_ANNONCE_que_rien_n_est_conserve():
         page = f.read()
     assert "restent dans ce navigateur" in page
     assert "localStorage" in page and "/api/62443/checklist/compter" in page
+
+
+# ── « Tout décocher » / « Copier » ne plantent plus avant le chargement ────
+#
+# LE DÉFAUT CORRIGÉ. REF ne valait qu'après la résolution du fetch (jamais
+# borné dans le temps) ; les deux boutons étaient actifs dès le rendu de la
+# page et leurs écouteurs, posés au niveau supérieur, appelaient REF.sections
+# directement. Un clic pendant le chargement — ou après un échec du fetch —
+# levait "Cannot read properties of null" en silence : rien n'était copié,
+# rien ne s'affichait, et le libellé du bouton ne changeait pas.
+
+def _page():
+    with open(os.path.join(ICI, "checklist-62443.html"), encoding="utf-8") as f:
+        return f.read()
+
+
+def test_les_deux_boutons_sont_ecrits_desactives():
+    page = _page()
+    assert re.search(r'id="ck-vider"\s+disabled', page), (
+        "« Tout décocher » doit être désactivé tant que REF n'est pas arrivé")
+    assert re.search(r'id="ck-copier"\s+disabled', page), (
+        "« Copier ce qui reste à faire » doit être désactivé tant que REF "
+        "n'est pas arrivé")
+
+
+def test_les_deux_boutons_sont_reactives_apres_larrivee_du_referentiel():
+    page = _page()
+    i = page.index("REF = j.referentiel;")
+    fin = page.index("})", i)
+    bloc = page[i:fin]
+    assert '$("#ck-vider").disabled = false;' in bloc
+    assert '$("#ck-copier").disabled = false;' in bloc
+
+
+def test_majorer_et_copier_refusent_de_lire_REF_null():
+    """Le filet résiduel : même désactivés, une activation clavier ou un
+    clic pendant la fenêtre de course ne doit plus faire planter."""
+    page = _page()
+    i = page.index("function majorer() {")
+    assert "if (!REF) return;" in page[i:i + 700]
+    j = page.index('$("#ck-copier").addEventListener')
+    assert "if (!REF) return;" in page[j:j + 200]

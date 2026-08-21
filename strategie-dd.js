@@ -598,19 +598,30 @@
         rendreOuvertes();
         rendreEnjeux();
         var g = $("#sd-gen");
-        if (g) g.addEventListener("click", etablir);
+        if (g) { g.addEventListener("click", etablir); g.disabled = false; }
         var d = $("#sd-docx");
         if (d) d.addEventListener("click", function () { exporter("docx"); });
         var p = $("#sd-pdf");
         if (p) p.addEventListener("click", function () { exporter("pdf"); });
       })
-      .catch(function () {
+      .catch(function (e) {
+        /* LE DÉFAUT CORRIGÉ. "Établir la stratégie" était écrit ACTIF dans la
+           page, mais son écouteur n'était posé qu'ICI, dans le .then() de ce
+           chargement — jamais s'il échouait. Le visiteur cliquait sur un
+           bouton vivant en apparence et mort en réalité : rien ne se
+           passait, aucun message, aucun curseur d'attente. Le bouton reste
+           donc désactivé (il l'est déjà à l'écriture de la page), et le
+           message part aussi dans #sd-etat — la zone que la page réserve à
+           l'état — pas seulement dans #sd-enjeux, plus haut, que le visiteur
+           n'a aucune raison de remonter lire. */
         var z = $("#sd-enjeux");
         if (z) {
           z.innerHTML = '<p class="note">Le questionnaire n’a pas pu être '
             + 'chargé. Le <a href="/datacenter">calcul énergie, eau et '
             + "carbone</a> fonctionne indépendamment.</p>";
         }
+        etat(messageDelai(e, "Le questionnaire n’a pas pu être chargé : "
+                            + "impossible d’établir la stratégie pour l’instant."), true);
       });
   }
 

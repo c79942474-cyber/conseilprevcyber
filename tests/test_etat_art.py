@@ -223,7 +223,7 @@ def test_chaque_famille_porte_un_nom_lisible():
         assert ea.FAMILLES_NOM[fam] != fam
 
 
-# ── 6. La route est ouverte, et elle sert bien l'état de l'art ─────────────
+# ── 6. La route demande un compte, et elle sert bien l'état de l'art ───────
 
 def test_la_route_demande_un_compte(anonyme):
     """L'état de l'art suit sa page : /datacenter demande désormais un compte,

@@ -5,7 +5,7 @@
  * l'apprenne au même endroit qu'il lit le nom du client, et non dans une note
  * de bas de carte qu'il n'atteindra pas.
  */
-const { chromium } = require('playwright');
+const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const BASE = process.env.BASE || 'http://127.0.0.1:5591';
 let ko = 0;
 const ok = (t, c, d) => { console.log((c ? '  OK   ' : '  KO   ') + t + (d ? ' — ' + d : '')); if (!c) ko++; };

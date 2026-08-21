@@ -2067,19 +2067,18 @@ import extraits as extraits_mod  # noqa: E402
 @app.route("/datacenter")
 @login_required
 def datacenter_page():
-    """Data Center Sustainability & Decarbonisation — page OUVERTE.
+    """Data Center Sustainability & Decarbonisation — page reservee aux comptes.
 
-    CE QUI EST OUVERT, ET POURQUOI. Le cadre, la methode et le calcul. Le moteur
-    est deterministe, sans modele de langage, sans ecriture : deux executions
-    identiques donnent le meme resultat. Rien de ce qu'il produit n'appartient a
-    un client. Le garder derriere un compte revenait a demander de creer un
-    compte pour verifier une formule — et rendait invisible aux moteurs de
-    recherche le seul contenu du site que personne d'autre ne publie.
+    LA PAGE SUIT LA POLITIQUE DU SITE : depuis que toutes les pages du menu
+    demandent un compte (voir /api/acces), elle aussi. Le cadre, la methode et
+    le calcul restent ce qu'ils etaient : un moteur deterministe, sans modele
+    de langage, sans ecriture — deux executions identiques donnent le meme
+    resultat, et rien de ce qu'il produit n'appartient a un client.
 
-    CE QUI RESTE FERME, ET POURQUOI. Les pieces : la base documentaire du
-    cabinet, les livrables rediges, le suivi de projet, les exports. Ce sont les
-    documents de travail du cabinet et de ses clients ; les publier reviendrait
-    a publier le travail des seconds.
+    CE QUI RESTE PLUS FERME ENCORE, ET POURQUOI. Les pieces : la base
+    documentaire du cabinet, les livrables rediges, le suivi de projet, les
+    exports. Ce sont les documents de travail du cabinet et de ses clients ;
+    les publier reviendrait a publier le travail des seconds.
     """
     return _page(PAGES["/datacenter"])
 
@@ -2113,9 +2112,10 @@ def strategie_durable_datacenter_page():
     """Le questionnaire des quatre perspectives, et le livrable d'ouverture
     d'etude qui en decoule.
 
-    OUVERT. Le questionnaire ne conserve rien : les reponses transitent vers le
-    calcul et n'y sont pas ecrites. L'EXPORT du livrable, lui, reste ferme — le
-    document porte le nom du client, son site et ses arbitrages.
+    Page reservee aux comptes, comme le reste du menu. Le questionnaire ne
+    conserve rien pour autant : les reponses transitent vers le calcul et n'y
+    sont pas ecrites. L'EXPORT du livrable, lui, reste ferme — le document
+    porte le nom du client, son site et ses arbitrages.
     """
     return _page(PAGES["/strategie-durable-datacenter"])
 
@@ -2404,10 +2404,11 @@ def api_datacenter_etat_art():
     """L'etat de l'art : les faits publies, groupes, chacun avec son auteur, sa
     page et LA NATURE de cette source.
 
-    OUVERT. Trois des quatre documents sont publies par des fournisseurs
-    d'infrastructure : leurs mesures sont utiles, leur interet n'est pas neutre,
-    et chaque ligne servie le dit. Aucun de ces chiffres n'entre dans le calcul —
-    le moteur tient ses constantes de normes, pas de livres blancs.
+    Page reservee aux comptes, comme le reste du menu. Trois des quatre
+    documents sont publies par des fournisseurs d'infrastructure : leurs
+    mesures sont utiles, leur interet n'est pas neutre, et chaque ligne servie
+    le dit. Aucun de ces chiffres n'entre dans le calcul — le moteur tient ses
+    constantes de normes, pas de livres blancs.
     """
     try:
         return _json_fige("dc-etat-art",
@@ -3105,6 +3106,92 @@ def api_datacenter_moe_repartition():
     except Exception as e:  # noqa: BLE001
         app.logger.error("MOE_REPARTITION_ERR: %s", e)
         return jsonify(ok=False, error="tableau indisponible"), 500
+
+
+@app.route("/api/datacenter/moe/engagement", methods=["POST"])
+@login_required
+def api_datacenter_moe_engagement():
+    """Ce que la maîtrise d'œuvre ENGAGE — pas seulement ce qu'elle coûte.
+
+    moe_dc.engagement(), plafond_penalite() et penalite_retard() calculent le
+    seuil de tolérance, le plafond légal de pénalité (15 % des honoraires
+    postérieurs à l'attribution, art. 30.II du décret 93-1268) et la pénalité
+    de retard journalière — mais rien ne les appelait : deux offres au même
+    montant ne portent pas la même promesse si leurs taux de tolérance
+    diffèrent, et la page ne le montrait nulle part.
+
+    LA MÊME GARDE QUE LE CALCUL QU'ELLE ENGAGE. Le plafond se déduit de la
+    rémunération phase par phase ; cette route recalcule donc le chiffrage
+    elle-même plutôt que de faire confiance à un résultat renvoyé par le
+    client, exactement comme /moe/repartition.
+    """
+    d = request.get_json(silent=True) or {}
+    try:
+        mission = (d.get("mission") or ingenierie_dc.MISSION_DEFAUT).strip()
+        p = moe_dc.portee(mission)
+        if not p["couvre"]:
+            return jsonify(ok=False, error="hors_portee", mission=mission,
+                           dit=p["dit"]), 400
+        trav = d.get("travaux_meur")
+        if isinstance(trav, (int, float)):
+            trav = [float(trav), float(trav)]
+        if not isinstance(trav, (list, tuple)) or len(trav) != 2:
+            return jsonify(ok=False, error="travaux_meur attendu : [bas, haut]"), 400
+        trav = [max(0.0, float(trav[0])), max(0.0, float(trav[1]))]
+        if trav[1] <= 0:
+            return jsonify(ok=False, error="montant de travaux nul"), 400
+        try:
+            pt = d.get("part_technique")
+            pt = None if pt in (None, "") else float(pt)
+        except (TypeError, ValueError):
+            pt = None
+        demandees = d.get("phases")
+        phases = ([x for x in (demandees or []) if x in p["phases"]]
+                  if demandees is not None else p["phases"])
+        resultat = moe_dc.honoraires_directs(
+            trav, part_technique=pt, phases=phases, missions=d.get("missions"),
+            taux_perso=d.get("taux_perso") or None)
+        if not resultat.get("ok"):
+            return jsonify(resultat), 400
+
+        def _nombre(cle):
+            v = d.get(cle)
+            if v in (None, ""):
+                return None
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                return None
+
+        cout_meur = _nombre("cout_meur")
+        if cout_meur is None:
+            return jsonify(ok=False, error="cout_absent",
+                           message="Le coût prévisionnel ou de réalisation est "
+                                   "requis pour situer un seuil de tolérance."), 400
+
+        eng = moe_dc.engagement(
+            cout_meur, _nombre("taux_tolerance_pct"),
+            cout_reference_meur=_nombre("cout_reference_meur"),
+            taux_penalite_pct=_nombre("taux_penalite_pct"),
+            resultat=resultat, cle=d.get("cle") or "cout_realisation")
+        # AUCUN TAUX N'EST PROPOSÉ, PAR CHOIX DU MODÈLE : engagement() refuse
+        # alors sans planter, avec un message qui le dit. Ce n'est pas une
+        # erreur de la requête — la traiter en 400 aurait bloqué la pénalité
+        # de retard, demandée séparément, pour une information qu'elle n'a
+        # jamais réclamée. Seul un identifiant d'engagement inconnu, un bug
+        # d'appelant plutôt qu'un taux qui reste à négocier, reste un 400.
+        if eng.get("erreur") == "engagement_inconnu":
+            return jsonify(eng), 400
+        out = {"ok": True, "engagement": eng, "mission": mission}
+
+        phase_retard = d.get("phase_retard")
+        jours_retard = _nombre("jours_retard")
+        if phase_retard and jours_retard is not None:
+            out["retard"] = moe_dc.penalite_retard(resultat, phase_retard, jours_retard)
+        return jsonify(out)
+    except Exception as e:  # noqa: BLE001
+        app.logger.error("MOE_ENGAGEMENT_ERR: %s", e)
+        return jsonify(ok=False, error="engagement_indisponible"), 500
 
 
 @app.route("/api/datacenter/moe", methods=["GET", "POST"])

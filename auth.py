@@ -67,7 +67,10 @@ def _base_url():
 
 
 def valid_email(email):
-    return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email or ""))
+    # [^@\s] seul laisse passer <, >, ", ' : une adresse pourrait alors porter
+    # du HTML jusqu'aux pages qui l'affichent sans échappement (ex. les pages
+    # de confirmation d'admin_approve, plus bas).
+    return bool(re.match(r"^[^@\s<>\"']+@[^@\s<>\"']+\.[^@\s<>\"']+$", email or ""))
 
 
 def password_strength(pw):
@@ -1006,14 +1009,15 @@ def admin_approve(token):
                 "<h1>Adresse non confirmée</h1><p>Le compte <b>%s</b> n'a pas encore "
                 "confirmé son adresse. L'approuver maintenant ne lui ouvrirait rien : "
                 "la connexion resterait refusée. Vous serez prévenu dès la "
-                "confirmation.</p></div>" % u["email"]), 409
+                "confirmation.</p></div>" % html_lib.escape(u["email"])), 409
     store.update(u["email"], approved=True, approve_token=None, approve_expire=None)
     u["approved"] = True
     _tracer("compte.approbation", u["email"], "par lien d'approbation")
     threading.Thread(target=_send_approved, args=(u, _base_url()), daemon=True).start()
     return ("<meta charset='utf-8'><div style=\"font-family:Arial;max-width:520px;margin:60px auto;"
             "text-align:center;color:#1c2530\"><h1>✅ Accès approuvé</h1>"
-            "<p>Le compte <b>%s</b> est activé. L'utilisateur a été prévenu par email.</p></div>" % u["email"])
+            "<p>Le compte <b>%s</b> est activé. L'utilisateur a été prévenu par email.</p></div>"
+            % html_lib.escape(u["email"]))
 
 
 def _tracer(action, email, detail="", ok=True, role="-"):

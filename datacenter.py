@@ -286,6 +286,17 @@ REFROIDISSEMENT = {
     },
 }
 
+# Repli quand le champ « part_evaporative » n'est pas renseigné : part de la
+# chaleur rejetée par voie évaporative, en moyenne annuelle, par famille.
+# SOURCE UNIQUE : la valeur proposée pour « adiabatique » dans SUGGESTIONS,
+# plus bas, la reprend telle quelle — l'une pilote le calcul quand le champ
+# est vide, l'autre guide qui le remplit, et elles ne doivent jamais pouvoir
+# diverger comme deux littéraux recopiés l'auraient laissé faire.
+PART_EVAPORATIVE_PAR_FAMILLE = {
+    "tour_evaporative": 0.90, "adiabatique": 0.25, "eau_glacee": 0.10,
+    "air_dx": 0.0, "free_cooling_air": 0.0, "liquide_dlc": 0.05, "immersion": 0.0,
+}
+
 # Classes ASHRAE : température d'air admise à l'entrée des équipements. Élargir
 # la plage est le levier le moins cher qui existe — il ne coûte aucun matériel —
 # mais il engage la garantie constructeur, ce qui doit être écrit noir sur blanc.
@@ -757,9 +768,7 @@ def eau(profil, res_energie):
     # paramètre de conception : il porte tout le compromis eau/énergie.
     part_evap = profil.get("part_evaporative")
     if part_evap is None:
-        part_evap = {"tour_evaporative": 0.90, "adiabatique": 0.25,
-                     "eau_glacee": 0.10, "air_dx": 0.0, "free_cooling_air": 0.0,
-                     "liquide_dlc": 0.05, "immersion": 0.0}.get(fam, 0.10)
+        part_evap = PART_EVAPORATIVE_PAR_FAMILLE.get(fam, 0.10)
     part_evap = max(0.0, min(1.0, float(part_evap)))
 
     # Cycles de concentration : nombre de fois que l'eau circule avant purge.
@@ -2476,7 +2485,8 @@ SUGGESTIONS = {
     "part_evaporative": [
         {"valeur": 0.0, "nom": "aucune évaporation — refroidissement sec",
          "nature": "definition"},
-        {"valeur": 0.5, "nom": "assistance adiabatique saisonnière",
+        {"valeur": PART_EVAPORATIVE_PAR_FAMILLE["adiabatique"],
+         "nom": "assistance adiabatique saisonnière",
          "nature": "ordre_grandeur"},
         {"valeur": 1.0, "nom": "tour évaporative en fonctionnement continu",
          "nature": "definition"},

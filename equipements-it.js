@@ -14,7 +14,8 @@
   "use strict";
 
   var REF = null, NOMEN = null;
-  var DELAI = 20000;
+  var DELAI = 20000;         // dimensionnement : calcul réel côté serveur
+  var DELAI_COURT = 12000;   // chargement des listes : conditionne l'affichage
 
   function $(s, r) { return (r || document).querySelector(s); }
   function esc(s) {
@@ -39,23 +40,38 @@
   }
 
   /* Une requête sans délai attend indéfiniment : la page reste sur « Calcul
-     en cours… » sans un mot. Bornée, elle rend la main et l'explique. */
-  function poster(url, corps) {
+     en cours… » sans un mot. Bornée, elle rend la main et l'explique.
+
+     DÉFAUT CORRIGÉ. Cette mécanique — ctrl, fini, clearTimeout — n'était
+     câblée que pour poster(), en POST. Les deux GET qui remplissent les
+     listes déroulantes (remplirListes(), remplirPays()) appelaient fetch()
+     nu, sans délai : sur un serveur lent, #eq-densite et #eq-perimetre
+     restaient des listes VIDES, #eq-go restait cliquable, et les deux
+     traitements d'échec existants ne pouvaient jamais se déclencher — une
+     requête suspendue ne rejette pas. demander() généralise poster() aux
+     deux méthodes ; poster() n'est plus qu'un appel à demander(). */
+  function demander(url, options, delai) {
+    options = options || {};
     var ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
     var fini = false;
     var t = setTimeout(function () {
       if (!fini && ctrl) ctrl.abort();
-    }, DELAI);
-    return fetch(url, {
-      method: "POST", credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(corps), signal: ctrl ? ctrl.signal : undefined
-    }).then(function (r) {
+    }, delai || DELAI);
+    if (ctrl && !options.signal) options.signal = ctrl.signal;
+    return fetch(url, options).then(function (r) {
       fini = true; clearTimeout(t);
       return r.json().then(function (j) { return { ok: r.ok, statut: r.status, j: j }; });
     }, function (e) {
       fini = true; clearTimeout(t);
       throw e;
+    });
+  }
+
+  function poster(url, corps) {
+    return demander(url, {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(corps),
     });
   }
 
@@ -69,12 +85,11 @@
      du moteur au premier ajustement — et c'est la liste affichée que le
      lecteur croit. */
   function remplirListes() {
-    return fetch("/api/datacenter/equipements/referentiel",
-                 { credentials: "same-origin" })
-      .then(function (r) { return r.json(); })
-      .then(function (j) {
-        if (!j || !j.ok) throw new Error("referentiel");
-        REF = j.referentiel;
+    return demander("/api/datacenter/equipements/referentiel",
+                    { credentials: "same-origin" }, DELAI_COURT)
+      .then(function (res) {
+        if (!res.ok || !res.j || !res.j.ok) throw new Error("referentiel");
+        REF = res.j.referentiel;
 
         var sd = $("#eq-densite");
         if (sd) {
@@ -103,10 +118,10 @@
   function remplirPays() {
     var sel = $("#eq-pays");
     if (!sel) return Promise.resolve();
-    return fetch("/api/datacenter/referentiel", { credentials: "same-origin" })
-      .then(function (r) { return r.json(); })
-      .then(function (j) {
-        var R = j && j.referentiel;
+    return demander("/api/datacenter/referentiel",
+                    { credentials: "same-origin" }, DELAI_COURT)
+      .then(function (res) {
+        var R = res.j && res.j.referentiel;
         if (!R || !R.intensite_reseau) return;
         var noms = R.ewif || {};
         var codes = Object.keys(R.intensite_reseau).sort(function (a, b) {

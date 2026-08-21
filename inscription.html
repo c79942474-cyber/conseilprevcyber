@@ -60,7 +60,8 @@
     var msg=document.getElementById('msg');
     function show(t,cls){msg.textContent=t;msg.className='msg '+cls;}
     function loadCaptcha(){fetch('/api/auth/captcha').then(function(r){return r.json();})
-      .then(function(j){document.getElementById('capq').textContent=j.question;});}
+      .then(function(j){document.getElementById('capq').textContent=(j&&j.question)||'indisponible';})
+      .catch(function(){show('Vérification anti-robot indisponible — rechargez la page.','err');});}
     loadCaptcha();
     document.getElementById('f').addEventListener('submit',function(e){
       e.preventDefault();

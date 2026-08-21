@@ -36,6 +36,7 @@ CE QUE CES TESTS PROTÈGENT, ET LE PREMIER POINT EST TOUT LE SUJET :
      ses arbitrages.
 """
 import os
+import re
 import sys
 
 import pytest
@@ -492,3 +493,37 @@ def test_le_delai_depasse_produit_un_message_distinct_de_la_panne_reseau():
     # Les deux points d'échec qui affichent un message au client doivent
     # passer par messageDelai(), pas seulement par e.message.
     assert js.count("messageDelai(e,") >= 2
+
+
+# ── « Établir la stratégie » n'est plus vivant en apparence, mort en réalité
+#
+# LE DÉFAUT CORRIGÉ. #sd-gen était actif dès le rendu de la page, mais son
+# écouteur n'était posé que dans le .then() du chargement du questionnaire —
+# jamais si ce chargement échouait, et jamais non plus pendant la fenêtre,
+# non bornée avant le correctif précédent, où la requête est encore en vol.
+# Un clic dans ces deux cas ne produisait rien : ni message, ni curseur
+# d'attente, ni erreur.
+
+def test_sd_gen_est_ecrit_desactive_dans_la_page():
+    with open(os.path.join(ICI, "strategie-durable-datacenter.html"),
+             encoding="utf-8") as f:
+        html = f.read()
+    assert re.search(r'id="sd-gen"[^>]*\bdisabled\b', html), (
+        "#sd-gen doit être désactivé tant que le questionnaire n'est pas "
+        "arrivé, comme le sont déjà #sd-docx et #sd-pdf")
+
+
+def test_sd_gen_est_reactive_seulement_apres_larrivee_du_questionnaire():
+    js = _js()
+    i = js.index('g.addEventListener("click", etablir)')
+    assert "g.disabled = false" in js[i - 20:i + 70]
+
+
+def test_lechec_du_questionnaire_ecrit_aussi_dans_sd_etat():
+    """#sd-enjeux, plus haut dans la page, ne suffit pas : le visiteur qui
+    clique sur le bouton principal en bas n'a aucune raison de remonter."""
+    js = _js()
+    i = js.index("function demarrer()")
+    fin = js.index("if (document.readyState", i)
+    bloc = js[i:fin]
+    assert 'etat(messageDelai(e,' in bloc

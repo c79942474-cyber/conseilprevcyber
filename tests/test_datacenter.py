@@ -482,6 +482,23 @@ def test_evaluer_eau_pointe_arithmetique():
     assert "profil mensuel" in ev["pointe"]["lecture"]
 
 
+def test_part_evaporative_adiabatique_ne_contredit_plus_sa_propre_suggestion():
+    """LE DÉFAUT CORRIGÉ. Le moteur retombait sur 0,25 quand le champ était
+    laissé vide pour la famille « adiabatique », tandis que ce même champ
+    proposait 0,5 sous l'étiquette « assistance adiabatique saisonnière » —
+    donc suivre la suggestion du formulaire ou laisser le champ vide, pour
+    la même intention, produisait deux résultats différents. Les deux
+    valeurs viennent maintenant d'une source unique."""
+    import datacenter as d
+    suggestion = next(s["valeur"] for s in d.SUGGESTIONS["part_evaporative"]
+                       if "adiabatique" in s["nom"])
+    assert suggestion == d.PART_EVAPORATIVE_PAR_FAMILLE["adiabatique"]
+
+    pr = {"puissance_it_kw": 1000, "refroidissement": "adiabatique"}
+    w = d.eau(pr, d.energie(pr))
+    assert w["part_evaporative"] == d.PART_EVAPORATIVE_PAR_FAMILLE["adiabatique"]
+
+
 def test_evaluer_incorpore_bornes_derivees_du_referentiel():
     import datacenter as d
     ref = d.INCORPORE["serveur_kgCO2e"]["valeur"]

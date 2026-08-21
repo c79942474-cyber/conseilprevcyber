@@ -623,7 +623,13 @@ _PDF_MAP = {
     "—": " - ", "–": "-", "−": "-", "→": "->", "←": "<-",
     "⇒": "=>", "≤": "<=", "≥": ">=", "…": "...", "•": "·",
     "▪": "·", "‘": "'", "’": "'", "“": '"', "”": '"',
-    " ": " ", " ": " ", "‹": "<", "›": ">", "✓": "v",
+    # DÉFAUT CORRIGÉ : ces deux clés visaient l'espace insécable (U+00A0) et
+    # l'espace fine insécable française (U+202F) — un passage d'éditeur les
+    # avait aplaties en deux espaces ASCII identiques, sans effet, la
+    # seconde écrasant la première. Écrites en échappé plutôt qu'en
+    # caractère brut : un éditeur de texte peut retoucher un octet qu'il
+    # affiche comme un espace ordinaire, il ne retouche pas "\xa0".
+    "\xa0": " ", "\u202f": " ", "‹": "<", "›": ">", "✓": "v",
     "œ": "oe", "Œ": "OE", "€": "EUR",
 }
 _INLINE_STRIP = re.compile(r"\*\*([^*]+)\*\*|`([^`]+)`|\*([^*\n]+)\*")

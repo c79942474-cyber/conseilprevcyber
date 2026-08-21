@@ -431,7 +431,14 @@ def compter(coches=None):
     REFUSÉE plutôt qu’ignorée : une liste qui compte des points qui n’existent
     pas rendrait un total impossible à recouper.
     """
-    vues = set(coches or [])
+    # DÉFAUT CORRIGÉ : coches pouvait contenir autre chose que des chaînes
+    # (un client de l'API poste ce qu'il veut). sorted() sur un ensemble
+    # mêlant str et int lève déjà en Python 3 ; ", ".join() sur des int
+    # lève aussi. Le refus motivé — celui-là même que cette fonction existe
+    # pour rendre — se faisait donc court-circuiter par sa propre mise en
+    # forme, remplacé par une erreur serveur générique. Normaliser à
+    # l'entrée rend le refus capable de nommer n'importe quoi.
+    vues = {str(x) for x in (coches or [])}
     connues = {p["cle"] for _, p in _points()}
     inconnues = sorted(vues - connues)
     if inconnues:

@@ -372,8 +372,6 @@
     margin-bottom:7px}
   .dk-rdv b{color:var(--cyan);font-family:var(--mono);font-size:11px}
 
-
-
   /* ── L'état de l'art ───────────────────────────────────────────────────
      La NATURE de la source est portée par une couleur, et cette couleur
      n'est pas décorative : elle dit si l'on peut s'appuyer sur la ligne. */
@@ -528,26 +526,13 @@
     background:rgba(34,211,238,.16);color:var(--cyan)}
   .rc-etape h2{font-size:19px;margin:0}
 
-  .rc-panneau{border:1px solid var(--line);border-radius:14px;padding:16px 18px;
-    background:linear-gradient(180deg,var(--panel),var(--bg2))}
-  .rc-champs{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px;
-    margin-bottom:12px}
-  .rc-lab{display:flex;flex-direction:column;gap:4px;font-family:var(--mono);font-size:10px;
-    letter-spacing:.09em;text-transform:uppercase;color:var(--muted2)}
-  .rc-lab input,.rc-lab select,textarea,#rc-model{font-family:var(--sans);font-size:13.5px;
+  textarea,#rc-model{font-family:var(--sans);font-size:13.5px;
     color:var(--ink);background:rgba(0,0,0,.20);border:1px solid var(--line);border-radius:8px;
     padding:9px 11px;text-transform:none;letter-spacing:0;width:100%}
   textarea{font-size:13px;line-height:1.6;resize:vertical}
-  .rc-lab input:focus,.rc-lab select:focus,textarea:focus,#rc-model:focus{outline:2px solid var(--cyan);
+  textarea:focus,#rc-model:focus{outline:2px solid var(--cyan);
     outline-offset:1px;border-color:var(--cyan)}
-  .rc-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:11px}
-  .rc-actions .btn{padding:10px 18px;font-size:13.5px}
-  .rc-fichier{position:relative;overflow:hidden;display:inline-flex;align-items:center;
-    border:1px dashed var(--line);border-radius:8px;padding:9px 14px;cursor:pointer;
-    font-size:12.5px;color:var(--muted)}
-  .rc-fichier:hover{border-color:var(--cyan);color:var(--ink)}
-  .rc-fichier input{position:absolute;inset:0;opacity:0;cursor:pointer}
-  .rc-nomfic{font-family:var(--mono);font-size:11px;color:var(--teal)}
+
   /* ── Graphiques ─────────────────────────────────────────────────────────
      Le SVG s'étire à la largeur disponible et garde ses proportions. Sur un
      écran étroit il défile horizontalement plutôt que de se comprimer : des
@@ -713,163 +698,13 @@
   .rc-note{font-size:12.5px;color:var(--muted2);line-height:1.6;margin-top:8px}
   .rc-note.err{color:var(--danger)}
 
-  /* Compteurs : la lecture d'ensemble en une ligne. Un compteur à zéro reste
-     affiché — « 0 ligne rouge » est une information, l'absence de la case ne
-     l'est pas. */
-  .rc-compteurs{display:grid;grid-template-columns:repeat(auto-fit,minmax(126px,1fr));gap:10px;
-    margin-bottom:12px}
-  .rc-cpt{border:1px solid var(--line);border-radius:11px;padding:11px 13px;
-    background:rgba(0,0,0,.12);border-left:3px solid var(--line)}
-  .rc-cpt .v{font-family:var(--mono);font-size:22px;font-weight:700;line-height:1.1;display:block}
-  .rc-cpt .l{font-size:11px;color:var(--muted2);line-height:1.35;display:block;margin-top:3px}
-  .rc-cpt.t-mauvais{border-left-color:var(--danger)} .rc-cpt.t-mauvais .v{color:var(--danger)}
-  .rc-cpt.t-moyen{border-left-color:var(--amber)}   .rc-cpt.t-moyen .v{color:var(--amber)}
-  .rc-cpt.t-bon{border-left-color:var(--green)}     .rc-cpt.t-bon .v{color:var(--green)}
-  .rc-cpt.t-neutre{border-left-color:var(--muted2)} .rc-cpt.t-neutre .v{color:var(--muted2)}
-  .rc-synthese{font-size:14.5px;color:var(--ink);border:1px solid var(--line);border-radius:11px;
-    padding:12px 15px;background:rgba(0,0,0,.10);margin-bottom:16px;line-height:1.6}
-
-  .rc-onglets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
-  .rc-onglets button{all:unset;cursor:pointer;font-size:13px;font-weight:600;padding:8px 14px;
-    border-radius:8px;border:1px solid var(--line);color:var(--muted)}
-  .rc-onglets button:hover{border-color:var(--cyan);color:var(--ink)}
-  .rc-onglets button.on{background:rgba(34,211,238,.14);color:var(--ink);border-color:var(--cyan)}
-  .rc-onglets button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
-
-  /* Deux colonnes : la relecture à gauche, le chat à droite — et le chat COLLE,
-     parce qu'il accompagne la lecture au lieu de l'interrompre. */
-  .rc-colonnes{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:18px;align-items:start}
-  .rc-filtres{display:flex;justify-content:space-between;align-items:center;gap:12px;
-    flex-wrap:wrap;margin-bottom:10px}
-  .rc-check{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);
-    cursor:pointer}
-  .rc-compte{font-family:var(--mono);font-size:11.5px;color:var(--muted2)}
-
-  .rc-t{border:1px solid var(--line);border-left:3px solid var(--line);border-radius:11px;
-    margin-bottom:9px;background:rgba(0,0,0,.10);overflow:hidden}
-  .rc-t.n-mauvais{border-left-color:var(--danger)}
-  .rc-t.n-moyen{border-left-color:var(--amber)}
-  .rc-t.n-bon{border-left-color:var(--green)}
-  .rc-t.n-neutre{border-left-color:var(--muted2)}
-  .rc-t summary{cursor:pointer;padding:11px 14px;display:flex;align-items:flex-start;gap:10px;
-    flex-wrap:wrap;list-style:none}
-  .rc-t summary::-webkit-details-marker{display:none}
-  .rc-t summary:hover{background:rgba(255,255,255,.04)}
-  .rc-t summary:focus-visible{outline:2px solid var(--cyan);outline-offset:-2px}
-  .rc-t .ti{font-size:13.5px;font-weight:600;flex:1 1 240px;min-width:0;line-height:1.4}
-  .rc-niv{font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;
-    padding:3px 9px;border-radius:20px;white-space:nowrap;flex:0 0 auto}
-  .rc-niv.n-mauvais{background:rgba(247,158,125,.18);color:var(--danger)}
-  .rc-niv.n-moyen{background:rgba(240,180,41,.16);color:var(--amber)}
-  .rc-niv.n-bon{background:rgba(52,211,153,.15);color:var(--green)}
-  .rc-niv.n-neutre{background:rgba(214,191,176,.14);color:var(--muted2)}
-  .rc-meta{font-family:var(--mono);font-size:10px;color:var(--muted2);flex:1 1 100%;
-    letter-spacing:.03em}
-  .rc-corps{padding:0 14px 13px;font-size:13px;color:var(--muted);line-height:1.65}
-  .rc-corps h4{font-size:11px;font-family:var(--mono);letter-spacing:.09em;text-transform:uppercase;
-    color:var(--muted2);margin:12px 0 5px;font-weight:400}
-  .rc-cit{border-left:2px solid var(--line);padding:6px 0 6px 11px;margin:5px 0;font-size:12.5px;
-    color:var(--ink);font-style:italic;background:rgba(0,0,0,.12);border-radius:0 6px 6px 0}
-  .rc-cit .art{display:block;font-style:normal;font-family:var(--mono);font-size:9.5px;
-    color:var(--muted2);margin-bottom:3px;letter-spacing:.04em}
-  .rc-pourquoi{color:var(--ink)}
-  .rc-chiffre{border:1px solid var(--amber);border-radius:8px;padding:9px 11px;margin:7px 0;
-    background:rgba(240,180,41,.08);font-size:12.5px}
-  .rc-chiffre b{color:var(--amber)}
-  .rc-pos{background:rgba(0,0,0,.16);border-radius:8px;padding:10px 12px;font-size:12.5px;
-    color:var(--ink);line-height:1.6}
-  .rc-repli{font-size:12.5px;margin:4px 0;padding-left:15px;position:relative}
-  .rc-repli:before{content:"›";position:absolute;left:2px;color:var(--teal)}
-  .rc-rouge{border-left:2px solid var(--danger);padding-left:11px;font-size:12.5px;
-    color:var(--danger)}
-  .rc-tbtn{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}
-  .rc-tbtn button{all:unset;cursor:pointer;font-size:12px;font-weight:600;padding:7px 12px;
-    border-radius:7px;border:1px solid var(--line);color:var(--muted)}
-  .rc-tbtn button:hover{border-color:var(--cyan);color:var(--ink)}
-  .rc-tbtn button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
-
-  .rc-inst{border:1px solid var(--line);border-radius:11px;padding:12px 15px;margin-bottom:10px;
-    background:rgba(0,0,0,.10)}
-  .rc-inst.bloq{border-color:var(--danger)}
-  .rc-inst h3{font-size:14px;margin:0 0 3px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
-  .rc-inst .role{font-size:12px;color:var(--muted2);line-height:1.55;margin-bottom:8px}
-  .rc-inst ul{margin:0;padding-left:17px;font-size:12.5px;color:var(--muted);line-height:1.6}
-  .rc-inst li{margin:5px 0}
-  .rc-inst li b{color:var(--ink)}
-
-  .rc-mvt{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:10px;
-    padding:10px 13px;margin-bottom:7px;font-size:13px;flex-wrap:wrap;background:rgba(0,0,0,.10)}
-  .rc-mvt.recul{border-left:3px solid var(--danger)}
-  .rc-mvt.progres{border-left:3px solid var(--green)}
-  .rc-mvt .ti{flex:1 1 200px;font-weight:600}
-  .rc-fleche{font-family:var(--mono);font-size:11px;color:var(--muted2);white-space:nowrap}
-
-  .rc-export{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;
-    border:1px solid var(--line);border-radius:12px;padding:13px 16px;margin-top:16px;
-    background:rgba(0,0,0,.12)}
-  .rc-expbtn{display:flex;gap:8px}
-  .rc-expbtn .btn{padding:9px 16px;font-size:13px}
-
   /* Le chat */
-  .rc-chat{position:sticky;top:76px;border:1px solid var(--line);border-radius:14px;
-    background:linear-gradient(180deg,var(--panel),var(--bg2));display:flex;flex-direction:column;
-    max-height:calc(100vh - 96px);overflow:hidden}
-  .rc-chat-tete{display:flex;justify-content:space-between;align-items:center;gap:10px;
-    padding:12px 14px;border-bottom:1px solid var(--line)}
-  .rc-chat-tete b{font-size:13.5px}
-  .rc-chat-tete select{width:auto;max-width:148px;font-size:11.5px;padding:5px 8px;flex:0 0 auto}
-  .rc-chat-tete>div{min-width:0}
-  .rc-ancre{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;
-    text-transform:uppercase;color:var(--muted2);margin-top:2px}
-  .rc-ancre.on{color:var(--green)}
-  .rc-focus{padding:8px 14px;border-bottom:1px solid var(--line);font-size:11.5px;
-    color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .rc-focus b{color:var(--ink)}
-  .rc-focus button{all:unset;cursor:pointer;font-size:11px;color:var(--cyan);text-decoration:underline}
-  .rc-fil{flex:1 1 auto;overflow-y:auto;padding:13px 14px;display:flex;flex-direction:column;
-    gap:10px;min-height:210px}
-  .rc-msg{font-size:13px;line-height:1.65;border-radius:10px;padding:9px 12px;max-width:96%}
-  .rc-msg.moi{align-self:flex-end;background:rgba(34,211,238,.13);color:var(--ink)}
-  .rc-msg.lui{align-self:flex-start;background:rgba(0,0,0,.20);color:var(--muted);
-    border:1px solid var(--line)}
-  .rc-msg.lui b,.rc-msg.lui strong{color:var(--ink)}
-  .rc-msg.err{align-self:stretch;background:rgba(247,158,125,.10);border-color:var(--danger);
-    color:var(--danger)}
-  .rc-msg pre{white-space:pre-wrap;font-family:var(--mono);font-size:11.5px;
-    background:rgba(0,0,0,.24);border-radius:7px;padding:9px 11px;margin:7px 0;overflow-x:auto}
-  .rc-msg code{font-family:var(--mono);font-size:11.5px;background:rgba(0,0,0,.24);
-    border-radius:4px;padding:1px 5px}
-  .rc-msg ul{margin:5px 0 0;padding-left:17px}
-  .rc-vide{color:var(--muted2);font-size:12.5px;line-height:1.65}
-  .rc-sugg{display:flex;gap:6px;flex-wrap:wrap;padding:0 14px 10px}
-  .rc-sugg button{all:unset;cursor:pointer;font-size:11.5px;color:var(--muted);
-    border:1px solid var(--line);border-radius:20px;padding:5px 11px;line-height:1.4}
-  .rc-sugg button:hover{border-color:var(--cyan);color:var(--ink)}
-  .rc-sugg button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
-  .rc-saisie{display:flex;gap:8px;align-items:flex-end;padding:11px 14px;
-    border-top:1px solid var(--line)}
-  .rc-saisie textarea{flex:1 1 auto}
-  .rc-saisie .btn{padding:10px 15px;font-size:13px;white-space:nowrap}
+
   .rc-chat .rc-note{padding:0 14px 11px;margin-top:0}
 
-  .rc-pb{border:1px solid var(--line);border-radius:11px;margin-bottom:8px;
-    background:rgba(0,0,0,.10);overflow:hidden}
-  .rc-pb summary{cursor:pointer;padding:11px 14px;font-size:13.5px;font-weight:600;
-    display:flex;align-items:center;gap:10px;flex-wrap:wrap;list-style:none}
-  .rc-pb summary::-webkit-details-marker{display:none}
-  .rc-pb summary:hover{background:rgba(255,255,255,.04)}
-  .rc-pb summary:focus-visible{outline:2px solid var(--cyan);outline-offset:-2px}
-  .rc-pb .dom{font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;
-    color:var(--muted2);border:1px solid var(--line);border-radius:20px;padding:2px 8px}
-
-  @media(max-width:980px){
-    .rc-colonnes{grid-template-columns:1fr}
-    .rc-chat{position:static;max-height:none}
-    .rc-fil{max-height:340px}
-  }
   @media print{
-    .rc-chat,.rc-onglets,.rc-actions,.rc-export,.rc-filtres,header,footer{display:none !important}
-    .rc-t[open] .rc-corps{display:block}
+    header,footer{display:none !important}
+
   }
 
   /* ── Étude de centre de données ──────────────────────────────────────────
@@ -1029,6 +864,16 @@
     border:1px solid rgba(217,164,65,.32)}
   .tr-mise i{color:var(--muted,#9fb0c0);font-style:normal;display:block;
     margin-top:5px}
+
+  /* ── LA SESSION QUI S'ÉTEINT EN COURS DE VISITE ──────────────────────
+     Même bannière que la page d'ingénierie : un 401 s'y reconnaît une
+     fois pour toutes, plutôt que chaque zone n'invente son message. */
+  .dc-session-alerte{position:sticky;top:0;z-index:60;margin:0 0 14px;
+    padding:13px 16px;border-left:4px solid #F39F7D;border-radius:0 9px 9px 0;
+    background:#2A1E18;color:var(--muted);font-size:13px;line-height:1.65;
+    box-shadow:0 6px 18px rgba(0,0,0,.35)}
+  .dc-session-alerte b{color:var(--ink)}
+  .dc-session-alerte .btn{margin:0 6px;vertical-align:baseline}
 </style>
 </head>
 <body data-fond="couchant">

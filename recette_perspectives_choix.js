@@ -19,7 +19,7 @@
  * Lancement :
  *     BASE=http://127.0.0.1:5731 node recette_perspectives_choix.js
  */
-const { chromium } = require('playwright');
+const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 
 const BASE = process.env.BASE || 'http://127.0.0.1:5731';
 const MAIL = process.env.MAIL || 'recette@local.test';

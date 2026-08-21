@@ -28,7 +28,7 @@
  * Lancement :
  *     BASE=http://127.0.0.1:5732 node recette_menu_icones.js
  */
-const { chromium } = require('playwright');
+const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 
 const BASE = process.env.BASE || 'http://127.0.0.1:5732';
 

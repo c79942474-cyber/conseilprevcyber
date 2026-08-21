@@ -54,6 +54,34 @@
   var DELAI_COURT = 12000;    // référentiel, aperçu : conditionnent l'affichage
   var DELAI_LONG = 45000;     // étude, export : travail réel côté serveur
 
+  /* ── LA SESSION QUI S'ÉTEINT EN COURS DE VISITE ─────────────────────────
+     Comme sur la page d'ingénierie : toutes les requêtes de cette page
+     passent par demander(), donc le 401 s'y reconnaît une fois pour toutes
+     plutôt que d'être laissé à chaque appelant, qui le dissolvait dans son
+     message générique (« référentiel indisponible », « aperçu indisponible »)
+     sans jamais dire qu'il fallait se reconnecter. */
+  var SESSION_MORTE = false;
+
+  function sessionTexte() {
+    return "<b>Votre session n’est plus active.</b> C’est pour cela que plus "
+      + "rien ne se calcule ni ne s’affiche au-delà du formulaire. "
+      + '<a class="btn btn-s" href="/connexion?next=/datacenter">'
+      + "Se reconnecter</a> — vous reviendrez sur cette page.";
+  }
+
+  function sessionEteinte() {
+    if (SESSION_MORTE) return;
+    SESSION_MORTE = true;
+    var b = document.createElement("div");
+    b.id = "dc-session";
+    b.className = "dc-session-alerte";
+    b.setAttribute("role", "alert");
+    b.innerHTML = sessionTexte();
+    var m = document.getElementById("main") || document.body;
+    m.insertBefore(b, m.firstChild);
+    b.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
   function demander(url, options, delai) {
     options = options || {};
     var ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
@@ -63,7 +91,13 @@
     }, delai || DELAI_COURT);
     if (ctrl && !options.signal) options.signal = ctrl.signal;
     return fetch(url, options).then(function (r) {
-      fini = true; clearTimeout(minuteur); return r;
+      fini = true; clearTimeout(minuteur);
+      if (r.status === 401) {
+        sessionEteinte();
+        var t = new Error("auth"); t.name = "SessionEteinte";
+        throw t;
+      }
+      return r;
     }, function (e) {
       fini = true; clearTimeout(minuteur);
       /* On distingue le délai dépassé du reste : « le serveur n'a pas répondu
@@ -989,10 +1023,10 @@
     return defaut;
   }
 
-  /* Un refus d'accès et une panne appellent deux gestes différents. Les
-     confondre envoie l'utilisateur réessayer là où il faut se connecter. */
+  /* Le 401 ne s'y voit plus : demander() l'intercepte désormais avant que
+     poster() ne résolve, donc res.statut ne le porte plus jamais — la
+     bannière de session éteinte l'a déjà dit. */
   function messageErreur(res) {
-    if (res.statut === 401) return "Connectez-vous pour utiliser le moteur d'ingénierie.";
     if (res.statut === 503) return (res.j && res.j.message) || "Service momentanément indisponible.";
     return (res.j && res.j.message) || "Le calcul a échoué.";
   }
@@ -1739,10 +1773,7 @@
     $("#dc-form").innerHTML = '<p class="note">Chargement du référentiel…</p>';
     demander("/api/datacenter/referentiel", { credentials: "same-origin" },
              DELAI_COURT)
-      .then(function (r) {
-        if (r.status === 401) throw new Error("auth");
-        return r.json();
-      })
+      .then(function (r) { return r.json(); })
       .then(function (j) {
         if (!j.ok) throw new Error("ref");
         REF = j;
@@ -1769,11 +1800,11 @@
         etat("");
       })
       .catch(function (e) {
-        var auth = String(e.message) === "auth";
+        var auth = e && e.name === "SessionEteinte";
         var lent = e && e.name === "DelaiDepasse";
         $("#dc-form").innerHTML = '<p class="note">'
           + (auth
-              ? "Connectez-vous pour accéder au moteur d'ingénierie."
+              ? "Connectez-vous pour accéder à l'étude."
               : lent
                 ? "Le serveur n'a pas répondu en " + Math.round(e.delai / 1000)
                   + " secondes. Il est peut-être en train de se réveiller ou "
