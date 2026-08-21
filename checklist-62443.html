@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Checklist de conformité IEC 62443 — CONSEILPREV Cyber</title>
+<meta name="description" content="Liste de vérification IEC 62443 : 27 points en 6 sections — gouvernance, architecture, accès, protection, détection, fournisseurs. Chaque point dit la preuve attendue et la partie de la série qui le fonde.">
+<link rel="canonical" href="https://conseilprevcyber.onrender.com/checklist-62443">
+<link rel="icon" href="/emblem.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .ck-sec{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);
+    border-radius:12px;padding:18px 20px;margin-top:16px}
+  .ck-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+  .ck-h h2{font-size:16.5px;margin:0;letter-spacing:-.01em}
+  .ck-part{font-family:var(--mono);font-size:10.5px;color:var(--cyan);border:1px solid var(--line);
+    border-radius:6px;padding:2px 8px;white-space:nowrap}
+  .ck-n{margin-left:auto;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .ck-dit{color:var(--muted);font-size:13px;line-height:1.6;margin:0 0 12px}
+  .ck-pt{border-top:1px solid var(--line);padding:11px 0 3px}
+  .ck-pt label{display:flex;gap:11px;align-items:flex-start;cursor:pointer;min-height:24px;
+    font-size:14px;line-height:1.5}
+  .ck-pt input{flex:0 0 auto;width:19px;height:19px;margin-top:2px;accent-color:var(--cyan);cursor:pointer}
+  .ck-pt input:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  .ck-pt .lb{flex:1 1 auto}
+  .ck-pt .rt{font-family:var(--mono);font-size:10px;color:var(--muted2);border:1px solid var(--line);
+    border-radius:5px;padding:1px 6px;margin-left:7px;white-space:nowrap}
+  .ck-pr{margin:5px 0 0 30px;font-size:12.5px;line-height:1.55;color:var(--muted)}
+  .ck-pr b{color:var(--ink)}
+  .ck-pt.fait label .lb{color:var(--muted)}
+  .ck-bar{position:sticky;top:0;z-index:5;background:var(--bg);border:1px solid var(--line);
+    border-radius:12px;padding:14px 18px;margin-top:18px}
+  .ck-bar .q{font-family:var(--mono);font-size:26px;font-weight:700;letter-spacing:-.02em}
+  .ck-bar .u{font-size:13px;color:var(--muted);font-weight:400}
+  .ck-jauge{height:6px;border-radius:4px;background:var(--line);overflow:hidden;margin:9px 0 8px}
+  .ck-jauge i{display:block;height:100%;background:var(--cyan);transition:width .25s}
+  .ck-lect{font-size:13px;line-height:1.6;color:var(--muted);margin:0}
+  .ck-refus{margin-top:14px;padding:12px 15px;border-left:3px solid var(--amber);
+    background:var(--panel2);border-radius:0 8px 8px 0;font-size:13px;line-height:1.65}
+  .ck-refus b{color:var(--ink)}
+  .ck-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}
+  .ck-actions button{all:unset;cursor:pointer;font-size:12.5px;padding:7px 13px;border-radius:8px;
+    border:1px solid var(--line);color:var(--muted);min-height:24px}
+  .ck-actions button:hover{border-color:var(--cyan);color:var(--ink)}
+  .ck-actions button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+</style>
+</head>
+<body>
+  <header>
+  <div class="wrap nav">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu"><span></span><span></span><span></span></button>
+    <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="30" height="30" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+    <nav class="links" aria-label="Navigation principale">
+      <a href="/services">Services</a>
+      <a href="/referentiel">Référentiel 62443</a>
+      <a href="/audit-conformite">Audit 62443</a>
+      <a href="/demo">Cockpit</a>
+      <a href="/assistant">Assistant IA</a>
+      <a href="/veille">Veille</a>
+      <a href="/about">À propos</a>
+    </nav>
+    <div class="navcta">
+      <a href="/contact" class="cta">Contact</a>
+    </div>
+  </div>
+</header>
+
+  
+  <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow"><span class="dot"></span>IEC 62443 · Liste de vérification</span>
+      <h1>Checklist de conformité <span class="grad">IEC 62443</span></h1>
+      <p class="lead" style="max-width:76ch">Cochez les éléments pour situer votre
+        système industriel. <b>Vingt-sept points en six sections</b>, chacun rattaché à
+        la partie de la série qui le fonde, et chacun disant <b>la preuve qu'un auditeur
+        demandera</b>.</p>
+      <p class="note" style="max-width:76ch">Rien n'est envoyé ni conservé sur nos
+        serveurs&nbsp;: vos réponses restent dans ce navigateur, et vous seul les voyez.</p>
+    </section>
+
+    <div class="ck-bar" id="ck-bar" role="status" aria-live="polite">
+      <div class="q"><span id="ck-faits">0</span> <span class="u">/ <span id="ck-total">27</span> points cochés</span></div>
+      <div class="ck-jauge"><i id="ck-jauge" style="width:0"></i></div>
+      <p class="ck-lect" id="ck-lecture"></p>
+      <div class="ck-actions">
+        <button type="button" id="ck-vider">Tout décocher</button>
+        <button type="button" id="ck-copier">Copier ce qui reste à faire</button>
+      </div>
+    </div>
+
+    <!-- CE QUE LE COMPTE N'EST PAS. Placé AVANT la liste, et non en note de bas
+         de page : c'est la phrase qui empêche le chiffre d'être cité pour autre
+         chose que ce qu'il est, et une note sous vingt-sept cases ne se lit
+         jamais. -->
+    <div class="ck-refus" id="ck-refus"></div>
+
+    <div id="ck-liste"></div>
+
+    <section class="rc-sec" style="margin-top:26px">
+      <h2 style="font-size:17px">Les parties citées</h2>
+      <p class="note" style="max-width:76ch">Chaque point renvoie à une partie de la
+        série, jamais à un numéro de clause&nbsp;: une clause se cite sur le texte sous
+        les yeux.</p>
+      <div id="ck-parties" class="terms"></div>
+    </section>
+  </main>
+
+
+  <footer>
+  <div class="wrap foot">
+    <div class="foot-cols">
+      <div class="foot-brand">
+        <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="26" height="26" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+        <p>Cybersécurité industrielle IT / OT / IIoT — conformité IEC&nbsp;62443, NIS2, DORA.</p>
+      </div>
+      <nav class="foot-col" aria-label="Expertise">
+        <h4>Expertise</h4>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/methodologie">Méthodologie</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/operating-model">Operating Model</a>
+        <a href="/maturite-ot">Maturité OT</a>
+        <a href="/feuille-de-route">Feuille de route</a>
+        <a href="/continuite-ot">Continuité &amp; crise OT</a>
+        <a href="/gestion-des-changements">Gestion des changements</a>
+        <a href="/architecture-cible">Architecture cible</a>
+        <a href="/formation">Formation</a>
+        <a href="/gouvernance-ia">Governance by Design IA</a>
+      </nav>
+      <nav class="foot-col" aria-label="Norme &amp; conformité">
+        <h4>Norme &amp; conformité</h4>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/audit-conformite">Audit 62443</a>
+        <a href="/diagnostic">Diagnostic express</a>
+        <a href="/nis2">NIS2</a>
+      </nav>
+      <nav class="foot-col" aria-label="Plateforme">
+        <h4>Plateforme</h4>
+        <a href="/demo">Cockpit</a>
+        <a href="/assistant">Assistant IA</a>
+        <a href="/connecter">Connecter une source</a>
+        <a href="/guide-integration">Guide d’intégration</a>
+      </nav>
+      <nav class="foot-col" aria-label="Ressources">
+        <h4>Ressources</h4>
+        <a href="/veille">Veille</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/checklist-62443">Checklist 62443</a>
+        <a href="/glossaire-62443">Glossaire 62443</a>
+      </nav>
+    </div>
+    <div class="foot-bar">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Tous droits réservés</div>
+      <div class="foot-legal">
+        <a href="/about">À propos</a>
+        <a href="/contact">Contact</a>
+        <a href="/connexion">Espace client</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/politique-confidentialite">Confidentialité</a>
+        <a href="/conformite">Conformité IA &amp; RGPD</a>
+        <a href="/admin" rel="nofollow" class="foot-admin">Admin</a>
+      </div>
+    </div>
+  </div>
+</footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+  <script src="/nav.js" defer></script>
+  <script src="/parcours.js" defer></script>
+</body>
+
+<script>
+(function () {
+  "use strict";
+  var REF = null, CLE = "cpc-checklist-62443";
+  function $(s) { return document.querySelector(s); }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  /* CE QUI EST COCHÉ RESTE DANS CE NAVIGATEUR. Rien ne part au serveur : une
+     liste de vérification à moitié remplie décrit l'état réel d'une
+     installation industrielle, et ce n'est pas à nous de la détenir. Le
+     stockage local peut être refusé (navigation privée, réglage du
+     navigateur) : on le tente, et on continue sans lui s'il n'est pas là. */
+  function lire() {
+    try { return JSON.parse(localStorage.getItem(CLE) || "[]") || []; }
+    catch (e) { return []; }
+  }
+  function ecrire(v) {
+    try { localStorage.setItem(CLE, JSON.stringify(v)); } catch (e) {}
+  }
+
+  function coches() {
+    return Array.prototype.map.call(
+      document.querySelectorAll("#ck-liste input[data-pt]:checked"),
+      function (i) { return i.getAttribute("data-pt"); });
+  }
+
+  function rendre() {
+    var h = "";
+    REF.sections.forEach(function (s) {
+      h += '<section class="ck-sec" data-sec="' + esc(s.cle) + '">'
+        + '<div class="ck-h"><h2>' + esc(s.nom) + "</h2>"
+        + '<span class="ck-part">' + esc(s.partie) + "</span>"
+        + '<span class="ck-n" data-n="' + esc(s.cle) + '">0 / '
+        + s.points.length + "</span></div>"
+        + '<p class="ck-dit">' + esc(s.dit) + "</p>";
+      s.points.forEach(function (p) {
+        var id = "ck-" + p.cle;
+        h += '<div class="ck-pt"><label for="' + id + '">'
+          + '<input type="checkbox" id="' + id + '" data-pt="' + esc(p.cle) + '">'
+          + '<span class="lb">' + esc(p.libelle)
+          + '<span class="rt">' + esc(p.rattachement) + "</span></span></label>"
+          + '<p class="ck-pr"><b>Preuve attendue&nbsp;:</b> '
+          + esc(p.preuve) + "</p></div>";
+      });
+      h += "</section>";
+    });
+    $("#ck-liste").innerHTML = h;
+
+    var pa = "";
+    REF.ordre_sections.forEach(function () {});
+    Object.keys(REF.parties).sort().forEach(function (k) {
+      var d = REF.parties[k];
+      pa += '<div class="term"><div class="th"><span class="tt">'
+        + esc(d.titre) + '</span><span class="ab">' + esc(k) + "</span></div>"
+        + "<p>" + esc(d.porte) + "</p></div>";
+    });
+    $("#ck-parties").innerHTML = pa;
+
+    $("#ck-total").textContent = REF.total;
+    $("#ck-refus").innerHTML = "<b>Ce compte n’est pas un niveau.</b> "
+      + esc(REF.refus_maturite);
+
+    var repris = lire();
+    repris.forEach(function (c) {
+      var e = document.getElementById("ck-" + c);
+      if (e) e.checked = true;
+    });
+    document.querySelectorAll("#ck-liste input[data-pt]").forEach(function (i) {
+      i.addEventListener("change", majorer);
+    });
+    majorer();
+  }
+
+  var minuteur = null;
+  function majorer() {
+    var v = coches();
+    ecrire(v);
+    /* Le compte par section se pose TOUT DE SUITE, sans attendre le serveur :
+       une case cochée doit se voir cocher. Le serveur, lui, donne la lecture —
+       et c'est lui qui fait foi sur le compte. */
+    REF.sections.forEach(function (s) {
+      var n = s.points.filter(function (p) { return v.indexOf(p.cle) >= 0; }).length;
+      var e = document.querySelector('[data-n="' + s.cle + '"]');
+      if (e) e.textContent = n + " / " + s.points.length;
+      var z = document.querySelector('[data-sec="' + s.cle + '"]');
+      if (z) z.classList.toggle("fait", n === s.points.length);
+    });
+    document.querySelectorAll("#ck-liste .ck-pt").forEach(function (d) {
+      var i = d.querySelector("input[data-pt]");
+      d.classList.toggle("fait", !!(i && i.checked));
+    });
+    $("#ck-faits").textContent = v.length;
+    $("#ck-jauge").style.width = (REF.total ? v.length / REF.total * 100 : 0) + "%";
+
+    clearTimeout(minuteur);
+    minuteur = setTimeout(function () {
+      fetch("/api/62443/checklist/compter", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ coches: v }),
+      }).then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (!j.ok) return;
+          $("#ck-faits").textContent = j.faits;
+          $("#ck-lecture").textContent = j.lecture;
+        })
+        .catch(function () { /* le compte local reste juste */ });
+    }, 260);
+  }
+
+  $("#ck-vider").addEventListener("click", function () {
+    document.querySelectorAll("#ck-liste input[data-pt]").forEach(function (i) {
+      i.checked = false;
+    });
+    majorer();
+  });
+
+  /* CE QUI RESTE À FAIRE, avec sa preuve attendue : c'est la liste qu'on
+     emporte en réunion, pas celle des cases déjà cochées. */
+  $("#ck-copier").addEventListener("click", function () {
+    var v = coches(), t = "IEC 62443 — ce qui reste à faire\n\n";
+    REF.sections.forEach(function (s) {
+      var r = s.points.filter(function (p) { return v.indexOf(p.cle) < 0; });
+      if (!r.length) return;
+      t += s.nom + " (" + s.partie + ")\n";
+      r.forEach(function (p) {
+        t += "  - " + p.libelle + "\n    Preuve attendue : " + p.preuve + "\n";
+      });
+      t += "\n";
+    });
+    t += REF.refus_maturite + "\n";
+    var b = $("#ck-copier");
+    function dit(m) { b.textContent = m; setTimeout(function () {
+      b.textContent = "Copier ce qui reste à faire"; }, 2200); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).then(function () { dit("Copié ✓"); },
+                                           function () { dit("Copie refusée"); });
+    } else { dit("Copie indisponible"); }
+  });
+
+  fetch("/api/62443/checklist", { credentials: "same-origin" })
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      if (!j.ok) throw new Error("ref");
+      REF = j.referentiel;
+      rendre();
+    })
+    .catch(function () {
+      $("#ck-liste").innerHTML = '<p class="note">La liste n’a pas pu être '
+        + "chargée. Réessayez dans un instant.</p>";
+    });
+})();
+</script>
+</html>

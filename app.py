@@ -662,6 +662,7 @@ PAGES = {
     "/formation": "formation.html",
     "/gouvernance-ia": "gouvernance-ia.html",
     "/glossaire-62443": "glossaire-62443.html",
+    "/checklist-62443": "checklist-62443.html",
     "/metriques-62443": "metriques-62443.html",
     "/demo": "demo.html",
     "/assistant": "assistant.html",
@@ -990,6 +991,12 @@ def programme_securite():
 @login_required
 def gestion_correctifs():
     return _page(PAGES["/gestion-correctifs"])
+
+
+@app.route("/checklist-62443")
+@login_required
+def checklist_62443_page():
+    return _page(PAGES["/checklist-62443"])
 
 
 @app.route("/glossaire-62443")
@@ -2030,6 +2037,7 @@ def api_playbook_export():
 
 import datacenter    # noqa: E402
 import durabilite    # noqa: E402  — le cadre vert, adosse aux trois sous-dossiers de la base
+import checklist_62443  # noqa: E402  — la liste de verification 62443
 import etat_art      # noqa: E402  — les faits publies, chacun avec son auteur et ce qu'il vaut
 import profil_dc     # noqa: E402  — analyse le moteur ci-dessus, ne le double pas
 import ingenierie_dc  # noqa: E402  — situe ses résultats dans la séquence projet
@@ -2348,6 +2356,35 @@ def api_datacenter_durabilite():
         app.logger.exception("cadre de durabilite")
         return jsonify(ok=False, error="cadre_indisponible",
                        message="Le cadre n'a pas pu etre etabli."), 503
+
+
+@app.route("/api/62443/checklist")
+@login_required
+def api_62443_checklist():
+    """La liste de verification IEC 62443 : six sections, vingt-sept points.
+
+    CE QUE CETTE ROUTE NE REND PAS. Aucun niveau de maturite ni de securite.
+    La 62443-2-4 definit des niveaux de maturite (ML 1 a 4) et la 62443-3-3 des
+    niveaux de securite (SL 1 a 4) ; les deux se constatent sur preuves, par
+    exigence et par perimetre. Un compte de cases n'est ni l'un ni l'autre, et
+    la reponse le dit dans ses propres champs plutot qu'en note de bas de page.
+    """
+    return _json_fige("62443-checklist",
+                      lambda: dict(ok=True,
+                                   referentiel=checklist_62443.referentiel()))
+
+
+@app.route("/api/62443/checklist/compter", methods=["POST"])
+@login_required
+def api_62443_checklist_compter():
+    """Compte ce qui est coche, section par section, et ce qui reste.
+
+    Une cle inconnue est REFUSEE plutot qu'ignoree : un total qui compterait
+    des points inexistants ne se recouperait pas.
+    """
+    data = request.get_json(silent=True) or {}
+    r = checklist_62443.compter(data.get("coches"))
+    return jsonify(r) if r.get("ok") else (jsonify(r), 400)
 
 
 @app.route("/api/datacenter/etat-art")
