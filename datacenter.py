@@ -506,8 +506,20 @@ CADRE_UE = {
     },
     "iso30134": {
         "titre": "ISO/IEC 30134 — indicateurs de performance clés",
-        "parties": {"-2": "PUE", "-3": "REF", "-4": "ITEE", "-5": "ITEU",
-                    "-6": "ERF", "-8": "CER", "-9": "WUE"},
+        # ERREUR FACTUELLE CORRIGÉE. La table attribuait le CER à la partie 8 ;
+        # la partie 8 est le CUE, et le CER est la partie 7 — qui manquait
+        # entièrement. La partie 1 (vue d'ensemble et exigences générales)
+        # manquait aussi, si bien que la série paraissait commencer au PUE.
+        #
+        # POURQUOI CE N'EST PAS UNE COQUILLE. Cette table est ce que le site
+        # oppose à un lecteur qui veut vérifier une valeur : lui donner un
+        # mauvais numéro de partie, c'est l'envoyer consulter un document qui
+        # ne traite pas l'indicateur qu'il cherche. Un exploitant qui
+        # contractualiserait « CER selon 30134-8 » achèterait autre chose que
+        # ce qu'il croit — et la clause l'engagerait.
+        "parties": {"-1": "Vue d'ensemble et exigences générales",
+                    "-2": "PUE", "-3": "REF", "-4": "ITEE", "-5": "ITEU",
+                    "-6": "ERF", "-7": "CER", "-8": "CUE", "-9": "WUE"},
     },
 }
 
@@ -931,7 +943,11 @@ def carbone(profil, res_energie):
             "CUE = Émissions du site / Énergie informatique  (= PUE × intensité réseau)",
             {"intensité réseau (gCO2e/kWh)": intensite, "PUE": round(pue, 3),
              "origine": origine_i},
-            "The Green Grid ; ISO/IEC 30134 (famille)",
+            # La source nommait « la famille » ISO/IEC 30134, c'est-à-dire
+            # aucun document en particulier : c'était le seul indicateur du
+            # moteur dont la référence n'était pas re-dérivable. Le CUE est
+            # la partie 8, et elle est désormais nommée.
+            "The Green Grid ; ISO/IEC 30134-8 (CUE)",
             "±20 % (moyenne annuelle contre profil horaire réel)"),
         "co2_exploitation_localise_t": _tracer(
             "Émissions d'exploitation — approche localisée (location-based)",

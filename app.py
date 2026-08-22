@@ -415,6 +415,69 @@ def _api_error_json(err):
                        message="Le serveur a rencontré une erreur. Réessayez dans un instant."), code
     return err
 
+
+# La page est un littéral plutôt qu'un gabarit : elle doit s'afficher même si
+# c'est le chargement des gabarits qui a échoué. Le chemin demandé y entre
+# ÉCHAPPÉ et par simple substitution — le passer à un moteur de gabarit
+# reviendrait à faire évaluer une chaîne que le visiteur contrôle.
+_PAGE_404 = """<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Page introuvable — CONSEILPREV</title>
+<meta name="robots" content="noindex">
+<style>
+ body{margin:0;background:#0e1116;color:#e8edf3}
+ .e404{max-width:640px;margin:12vh auto;padding:0 24px;line-height:1.6;
+   font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+ .e404 h1{font-size:clamp(23px,4vw,33px);line-height:1.2;margin:0 0 14px;
+   font-weight:600}
+ .e404 .adr{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;
+   word-break:break-all;opacity:.7;margin:0 0 22px}
+ .e404 ul{padding-left:20px;margin:6px 0 26px}
+ .e404 li{margin:5px 0}
+ .e404 a{color:#7cc0f5}
+ @media (prefers-color-scheme:light){
+   body{background:#f7f9fc;color:#16212c} .e404 a{color:#1d4e79}
+ }
+</style></head>
+<body><main class="e404">
+ <h1>Cette page n'existe pas — ou n'existe plus.</h1>
+ <p class="adr">%(chemin)s</p>
+ <p>Le lien est peut-être ancien : le site a été réorganisé depuis. Voici les
+    entrées principales, pour ne pas vous laisser sur un cul-de-sac.</p>
+ <ul>
+   <li><a href="/">Accueil</a></li>
+   <li><a href="/ingenierie-datacenter">Ingénierie de centres de données</a></li>
+   <li><a href="/audit-conformite">Audit de conformité IEC 62443</a></li>
+   <li><a href="/gouvernance-ia">Gouvernance de l'IA</a></li>
+   <li><a href="/contact">Nous écrire</a></li>
+ </ul>
+ <p>Si vous êtes arrivé ici depuis un lien de notre part,
+    <a href="/contact">signalez-le nous</a> : c'est à nous de le corriger.</p>
+</main></body></html>"""
+
+
+@app.errorhandler(404)
+def _introuvable(_err):
+    """UNE ADRESSE INCONNUE DOIT RESTER SUR LE SITE.
+
+    DÉFAUT CORRIGÉ. Aucun gestionnaire 404 n'existait : toute adresse
+    inconnue — un lien vieilli, une coquille, un signet d'une arborescence
+    précédente — rendait la page d'erreur par défaut du serveur. En anglais,
+    sans en-tête ni pied de page, et surtout SANS UN SEUL LIEN : le visiteur
+    n'avait d'autre issue que le bouton « retour ». Sur le site d'un cabinet
+    qui vend de la rigueur, c'est la page qui dit le contraire.
+
+    Les routes d'API gardent une réponse JSON : un client qui attend du JSON
+    échouerait sur « Unexpected token '<' », et une page d'excuses en HTML ne
+    lui apprendrait rien.
+    """
+    if request.path.startswith("/api/"):
+        return jsonify(ok=False, error="introuvable",
+                       message="Cette adresse d'API n'existe pas."), 404
+    return _PAGE_404 % {"chemin": html_lib.escape(request.path)}, 404
+
+
 # --- Configuration email (expéditeur vérifié Brevo) ---------------------------
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 SENDER = {"name": "CONSEILPREV", "email": "christophe.cerf@i-aes.com"}

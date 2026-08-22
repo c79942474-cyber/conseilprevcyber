@@ -208,7 +208,7 @@
             <button id="mDemo" class="ms active" role="tab" aria-selected="true" type="button">● Démo</button>
             <button id="mLive" class="ms" role="tab" aria-selected="false" type="button">◉ Temps réel</button>
           </div>
-          <button type="button" class="tipi" data-tip="Démo : site industriel fictif représentatif. Temps réel : l'étude se branche sur l'inventaire réel de votre cockpit (/api/state et /api/assets) et se réanalyse automatiquement." aria-label="Aide : modes Démo et Temps réel">i</button>
+          <button type="button" class="tipi" data-tip="Démo : site industriel fictif représentatif. Temps réel : l'étude se branche sur l'inventaire réel de votre cockpit (/api/state et /api/assets) et se réanalyse automatiquement." aria-label="Aide : modes Démo et Temps réel. Démo : site industriel fictif représentatif. Temps réel : l'étude se branche sur l'inventaire réel de votre cockpit (/api/state et /api/assets) et se réanalyse automatiquement.">i</button>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <a href="/demo" class="btn btn-s">📡 Ouvrir le cockpit</a>
@@ -230,33 +230,33 @@
         remédiations correspondantes.</p>
       <div class="metrics" style="margin-top:16px">
         <div class="metric" style="--mc:linear-gradient(90deg,var(--cyan),var(--teal))">
-          <div class="lbl">Actifs inventoriés <button type="button" class="tipi" data-tip="Nombre d'équipements identifiés (découverte passive + relevés terrain) répartis sur les 5 couches IT/OT." aria-label="Aide : actifs inventoriés">i</button></div>
+          <div class="lbl">Actifs inventoriés <button type="button" class="tipi" data-tip="Nombre d'équipements identifiés (découverte passive + relevés terrain) répartis sur les 5 couches IT/OT." aria-label="Aide : actifs inventoriés. Nombre d'équipements identifiés (découverte passive + relevés terrain) répartis sur les 5 couches IT/OT.">i</button></div>
           <div class="val" id="kAssets">—</div><div class="sub">IT · OT · IIoT</div>
         </div>
         <div class="metric" style="--mc:linear-gradient(90deg,var(--violet),var(--cyan))">
-          <div class="lbl">Constats d'audit <button type="button" class="tipi" data-tip="Vulnérabilités et écarts relevés lors de l'analyse (obsolescence, segmentation, authentification…)." aria-label="Aide : constats d'audit">i</button></div>
+          <div class="lbl">Constats d'audit <button type="button" class="tipi" data-tip="Vulnérabilités et écarts relevés lors de l'analyse (obsolescence, segmentation, authentification…)." aria-label="Aide : constats d'audit. Vulnérabilités et écarts relevés lors de l'analyse (obsolescence, segmentation, authentification…).">i</button></div>
           <div class="val" id="kFindings">—</div><div class="sub" id="kFindingsSub">dont — majeurs</div>
         </div>
         <div class="metric" style="--mc:linear-gradient(90deg,var(--amber),var(--terra))">
-          <div class="lbl">Actifs à risque élevé <button type="button" class="tipi" data-tip="Actifs dont le niveau de risque calculé (criticité × exposition) est Élevé ou Critique." aria-label="Aide : actifs à risque">i</button></div>
+          <div class="lbl">Actifs à risque élevé <button type="button" class="tipi" data-tip="Actifs dont le niveau de risque calculé (criticité × exposition) est Élevé ou Critique." aria-label="Aide : actifs à risque. Actifs dont le niveau de risque calculé (criticité × exposition) est Élevé ou Critique.">i</button></div>
           <div class="val" id="kHigh">—</div><div class="sub">risque élevé ou critique</div>
         </div>
         <div class="metric" style="--mc:linear-gradient(90deg,var(--terra),var(--violet))">
-          <div class="lbl">Indice de risque global <button type="button" class="tipi" data-tip="Moyenne pondérée des risques par actif, ramenée sur 100. Plus l'indice est haut, plus l'exposition globale est forte." aria-label="Aide : indice de risque global">i</button></div>
+          <div class="lbl">Indice de risque global <button type="button" class="tipi" data-tip="Moyenne pondérée des risques par actif, ramenée sur 100. Plus l'indice est haut, plus l'exposition globale est forte." aria-label="Aide : indice de risque global. Moyenne pondérée des risques par actif, ramenée sur 100. Plus l'indice est haut, plus l'exposition globale est forte.">i</button></div>
           <div class="val" id="kRisk">—</div><div class="sub" id="kRiskSub">évaluation</div>
         </div>
       </div>
       <div class="panel" style="margin-top:4px">
-        <div class="ph"><h3>Inventaire audité <button type="button" class="tipi" data-tip="Trié du risque le plus fort au plus faible. En mode Temps réel, l'inventaire provient de votre cockpit." aria-label="Aide : inventaire">i</button></h3><span class="live" id="invSrc">SITE DÉMO</span></div>
+        <div class="ph"><h3>Inventaire audité <button type="button" class="tipi" data-tip="Trié du risque le plus fort au plus faible. En mode Temps réel, l'inventaire provient de votre cockpit." aria-label="Aide : inventaire. Trié du risque le plus fort au plus faible. En mode Temps réel, l'inventaire provient de votre cockpit.">i</button></h3><span class="live" id="invSrc">SITE DÉMO</span></div>
         <div class="tblwrap">
           <table>
             <thead><tr>
               <th>Actif</th><th>Type</th><th>Couche</th>
-              <th>Criticité <button type="button" class="tipi" data-tip="Impact métier/sûreté en cas de compromission, de 1 (faible) à 5 (vital pour la production ou la sécurité)." aria-label="Aide : criticité">i</button></th>
-              <th>Exposition <button type="button" class="tipi" data-tip="Surface d'attaque de 1 à 5 : proximité de l'IT/Internet, statut de la zone et constats aggravants." aria-label="Aide : exposition">i</button></th>
+              <th>Criticité <button type="button" class="tipi" data-tip="Impact métier/sûreté en cas de compromission, de 1 (faible) à 5 (vital pour la production ou la sécurité)." aria-label="Aide : criticité. Impact métier/sûreté en cas de compromission, de 1 (faible) à 5 (vital pour la production ou la sécurité).">i</button></th>
+              <th>Exposition <button type="button" class="tipi" data-tip="Surface d'attaque de 1 à 5 : proximité de l'IT/Internet, statut de la zone et constats aggravants." aria-label="Aide : exposition. Surface d'attaque de 1 à 5 : proximité de l'IT/Internet, statut de la zone et constats aggravants.">i</button></th>
               <th>Vulnérabilités</th>
-              <th>Risque <button type="button" class="tipi" data-tip="Criticité × exposition, classé Faible / Modéré / Élevé / Critique." aria-label="Aide : niveau de risque">i</button></th>
-              <th>SL cible <button type="button" class="tipi" data-tip="Niveau de sécurité visé (SL 1 à 4) pour la zone de l'actif, au sens de la série IEC 62443." aria-label="Aide : SL cible">i</button></th>
+              <th>Risque <button type="button" class="tipi" data-tip="Criticité × exposition, classé Faible / Modéré / Élevé / Critique." aria-label="Aide : niveau de risque. Criticité × exposition, classé Faible / Modéré / Élevé / Critique.">i</button></th>
+              <th>SL cible <button type="button" class="tipi" data-tip="Niveau de sécurité visé (SL 1 à 4) pour la zone de l'actif, au sens de la série IEC 62443." aria-label="Aide : SL cible. Niveau de sécurité visé (SL 1 à 4) pour la zone de l'actif, au sens de la série IEC 62443.">i</button></th>
             </tr></thead>
             <tbody id="invRows"></tbody>
           </table>
@@ -270,7 +270,7 @@
 
       <!-- Schéma 1 : modèle en couches IEC 62443 (Purdue) IT/OT -->
       <div class="panel">
-        <div class="ph"><h3>Schéma 1 — Modèle en couches IEC&nbsp;62443 (IT / OT) <button type="button" class="tipi" data-tip="Modèle de référence type « Purdue » repris par l'IEC 62443 : les niveaux 0 à 5 séparent le procédé (OT) du système d'information (IT), la DMZ industrielle formant la frontière maîtrisée entre les deux." aria-label="Aide : modèle en couches">i</button></h3>
+        <div class="ph"><h3>Schéma 1 — Modèle en couches IEC&nbsp;62443 (IT / OT) <button type="button" class="tipi" data-tip="Modèle de référence type « Purdue » repris par l'IEC 62443 : les niveaux 0 à 5 séparent le procédé (OT) du système d'information (IT), la DMZ industrielle formant la frontière maîtrisée entre les deux." aria-label="Aide : modèle en couches. Modèle de référence type « Purdue » repris par l'IEC 62443 : les niveaux 0 à 5 séparent le procédé (OT) du système d'information (IT), la DMZ industrielle formant la frontière maîtrisée entre les deux.">i</button></h3>
           <span style="font-size:11.5px;color:var(--muted2)">réf. 62443‑3‑2 · zones = couches</span></div>
         <p class="archintro">Chaque couche est une <b>zone de sécurité</b> avec un niveau cible (SL‑T). Les échanges entre couches ne transitent que par des <b>conduits</b> filtrés et journalisés ; la <b>DMZ industrielle</b> isole l'IT de l'OT.</p>
         <div class="archwrap">
@@ -349,7 +349,7 @@
 
       <!-- Schéma 2 : zones & conduits (cartographie de segmentation) -->
       <div class="panel">
-        <div class="ph"><h3>Schéma 2 — Zones &amp; conduits (segmentation) <button type="button" class="tipi" data-tip="Vue de segmentation issue de l'inventaire audité : chaque zone regroupe des actifs de même criticité/exposition ; les conduits sont les seuls points de passage entre zones, filtrés et journalisés. La cellule de production est micro-segmentée par ligne." aria-label="Aide : zones et conduits">i</button></h3>
+        <div class="ph"><h3>Schéma 2 — Zones &amp; conduits (segmentation) <button type="button" class="tipi" data-tip="Vue de segmentation issue de l'inventaire audité : chaque zone regroupe des actifs de même criticité/exposition ; les conduits sont les seuls points de passage entre zones, filtrés et journalisés. La cellule de production est micro-segmentée par ligne." aria-label="Aide : zones et conduits. Vue de segmentation issue de l'inventaire audité : chaque zone regroupe des actifs de même criticité/exposition ; les conduits sont les seuls points de passage entre zones, filtrés et journalisés. La cellule de production est micro-segmentée par ligne.">i</button></h3>
           <span style="font-size:11.5px;color:var(--muted2)">réf. 62443‑3‑2 · site démo · 25 actifs</span></div>
         <p class="archintro">Découpage de l'installation en <b>zones</b> (regroupements d'actifs homogènes en risque) reliées par des <b>conduits</b> maîtrisés. La zone de contrôle est <b>micro-segmentée</b> par ligne de production pour contenir une compromission.</p>
         <div class="archwrap">
@@ -465,7 +465,7 @@
       <h3 style="margin-top:26px;font-size:15px">Vos actifs positionnés par couche</h3>
       <p class="lead" style="font-size:13.5px;margin-top:4px;color:var(--muted2)">Inventaire de l'étude réparti sur le modèle ci-dessus — chaque pastille est colorée selon le risque de l'actif.</p>
       <div class="panel">
-        <div class="ph"><h3>Actifs par couche &amp; conduits <button type="button" class="tipi" data-tip="Les conduits sont les liaisons maîtrisées entre zones : chaque échange inter-couches doit être filtré et journalisé." aria-label="Aide : couches et conduits">i</button></h3>
+        <div class="ph"><h3>Actifs par couche &amp; conduits <button type="button" class="tipi" data-tip="Les conduits sont les liaisons maîtrisées entre zones : chaque échange inter-couches doit être filtré et journalisé." aria-label="Aide : couches et conduits. Les conduits sont les liaisons maîtrisées entre zones : chaque échange inter-couches doit être filtré et journalisé.">i</button></h3>
           <span style="font-size:11.5px;color:var(--muted2)">● <i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#34D399"></i> faible&nbsp;
           <i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#F0C24B"></i> modéré&nbsp;
           <i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#F08A3C"></i> élevé&nbsp;
@@ -478,7 +478,7 @@
       <h2 style="margin-top:34px"><span class="stepnum">3</span>Analyse de risque &amp; vulnérabilités</h2>
       <p class="lead" style="font-size:14.5px;margin-top:8px">Constats hiérarchisés par gravité, rattachés aux exigences fondamentales (FR) de la norme et aux actifs concernés.</p>
       <div class="panel">
-        <div class="ph"><h3>Constats &amp; vulnérabilités <button type="button" class="tipi" data-tip="Chaque constat référence l'exigence fondamentale (FR1 à FR7) qu'il affaiblit — c'est ce qui guide la remédiation." aria-label="Aide : constats">i</button></h3><span class="live" id="finSrc">ANALYSE</span></div>
+        <div class="ph"><h3>Constats &amp; vulnérabilités <button type="button" class="tipi" data-tip="Chaque constat référence l'exigence fondamentale (FR1 à FR7) qu'il affaiblit — c'est ce qui guide la remédiation." aria-label="Aide : constats. Chaque constat référence l'exigence fondamentale (FR1 à FR7) qu'il affaiblit — c'est ce qui guide la remédiation.">i</button></h3><span class="live" id="finSrc">ANALYSE</span></div>
         <div class="tblwrap">
           <table style="min-width:640px">
             <thead><tr><th>Constat</th><th>Gravité</th><th>Exigence affaiblie</th><th>Actifs concernés</th></tr></thead>
@@ -495,12 +495,12 @@
       <p class="lead" style="font-size:14.5px;margin-top:8px">Couverture estimée des 7 exigences fondamentales, et écart entre niveau de sécurité cible (SL‑T) et niveau atteint (SL‑A) par couche.</p>
       <div class="grid grid-2" style="margin-top:14px;align-items:start">
         <div class="panel" style="margin-top:0">
-          <div class="ph"><h3>Exigences fondamentales (FR) <button type="button" class="tipi" data-tip="Les 7 familles d'exigences de la série 62443 (reformulées). Chaque barre estime la couverture actuelle, dégradée par les constats." aria-label="Aide : exigences fondamentales">i</button></h3></div>
+          <div class="ph"><h3>Exigences fondamentales (FR) <button type="button" class="tipi" data-tip="Les 7 familles d'exigences de la série 62443 (reformulées). Chaque barre estime la couverture actuelle, dégradée par les constats." aria-label="Aide : exigences fondamentales. Les 7 familles d'exigences de la série 62443 (reformulées). Chaque barre estime la couverture actuelle, dégradée par les constats.">i</button></h3></div>
           <div id="frBars"></div>
           <p style="font-size:12px;color:var(--muted2);margin-top:10px">Détail des exigences système&nbsp;: <a href="/exigences-systeme">IEC 62443‑3‑3</a> · composants&nbsp;: <a href="/exigences-composants">4‑2</a></p>
         </div>
         <div class="panel" style="margin-top:0">
-          <div class="ph"><h3>Niveaux de sécurité par couche <button type="button" class="tipi" data-tip="SL-T = niveau visé (issu de l'analyse de risque 62443-3-2). SL-A = niveau estimé atteint aujourd'hui. L'écart guide les priorités." aria-label="Aide : SL-T et SL-A">i</button></h3></div>
+          <div class="ph"><h3>Niveaux de sécurité par couche <button type="button" class="tipi" data-tip="SL-T = niveau visé (issu de l'analyse de risque 62443-3-2). SL-A = niveau estimé atteint aujourd'hui. L'écart guide les priorités." aria-label="Aide : SL-T et SL-A. SL-T = niveau visé (issu de l'analyse de risque 62443-3-2). SL-A = niveau estimé atteint aujourd'hui. L'écart guide les priorités.">i</button></h3></div>
           <div class="tblwrap">
             <table style="min-width:0">
               <thead><tr><th>Couche</th><th>SL‑T</th><th>SL‑A</th><th>Écart</th></tr></thead>
@@ -515,7 +515,7 @@
       <h2 style="margin-top:34px"><span class="stepnum">5</span>Remédiations &amp; feuille de route</h2>
       <p class="lead" style="font-size:14.5px;margin-top:8px">Actions priorisées par risque, rattachées aux parties applicables de la série — des capteurs aux API, SCADA et contrôle de procédé.</p>
       <div class="panel">
-        <div class="ph"><h3>Plan de remédiation priorisé <button type="button" class="tipi" data-tip="Priorité héritée du risque le plus fort parmi les actifs concernés. Chaque action renvoie à la partie IEC 62443 qui la cadre." aria-label="Aide : plan de remédiation">i</button></h3></div>
+        <div class="ph"><h3>Plan de remédiation priorisé <button type="button" class="tipi" data-tip="Priorité héritée du risque le plus fort parmi les actifs concernés. Chaque action renvoie à la partie IEC 62443 qui la cadre." aria-label="Aide : plan de remédiation. Priorité héritée du risque le plus fort parmi les actifs concernés. Chaque action renvoie à la partie IEC 62443 qui la cadre.">i</button></h3></div>
         <div class="tblwrap">
           <table style="min-width:680px">
             <thead><tr><th>#</th><th>Action</th><th>Cadre 62443</th><th>Actifs</th><th>Priorité</th><th>Horizon</th></tr></thead>
@@ -738,9 +738,18 @@
       document.getElementById('kFindingsSub').textContent='dont '+fins.filter(function(f){return f.d.g>=3;}).length+' majeurs';
       var high=a.filter(function(x){return x.p>=10;}).length;
       document.getElementById('kHigh').textContent=high;
+      /* SANS ACTIF, IL N'Y A PAS D'INDICE — il y a une absence d'inventaire.
+         Le repli local calculait un risque sur une liste vide et rendait
+         « 0/100 · niveau maîtrisé », c'est-à-dire la même contrevérité que
+         le flux temps réel, par un autre chemin. Un tableau de bord qui note
+         « maîtrisé » un périmètre qu'il n'a pas vu est pire qu'un tableau de
+         bord vide. */
       var risk=liveMeta&&liveMeta.risk!=null?liveMeta.risk:res.risk;
-      document.getElementById('kRisk').textContent=risk+'/100';
-      document.getElementById('kRiskSub').textContent=risk>=70?'niveau élevé':risk>=40?'niveau modéré':'niveau maîtrisé';
+      var mesurable=a.length>0;
+      document.getElementById('kRisk').textContent=mesurable?(risk+'/100'):'—';
+      document.getElementById('kRiskSub').textContent=!mesurable
+        ? 'aucun actif : indice non calculable'
+        : (risk>=70?'niveau élevé':risk>=40?'niveau modéré':'niveau maîtrisé');
 
       document.getElementById('invRows').innerHTML=a.map(function(x){
         var l=LBYID[x.l];
@@ -870,13 +879,49 @@
           if(e.tag==='crit'){nCrit++; assets.forEach(function(a){if(a.l===lid&&a.v.indexOf('livecrit')<0)a.v.push('livecrit');});}
           if(e.tag==='warn'){nWarn++; assets.forEach(function(a){if(a.l===lid&&a.v.indexOf('livewarn')<0)a.v.push('livewarn');});}
         });
-        document.getElementById('invSrc').textContent='TEMPS RÉEL — synchro '+new Date().toLocaleTimeString('fr-FR');
-        document.getElementById('finSrc').textContent='TEMPS RÉEL ('+nCrit+' crit · '+nWarn+' à surveiller)';
+        /* ── L'ABSENCE DE MESURE N'EST PAS UN RISQUE NUL ────────────────────
+           DÉFAUT CORRIGÉ. Cette zone affichait « indice de risque 0/100 »
+           horodaté à la seconde dans DEUX cas où rien n'a été mesuré : un
+           cockpit sur lequel aucun actif n'a encore été remonté, et une
+           réponse dont le champ `risk` manque — que le `||0` d'origine
+           convertissait silencieusement en zéro.
+
+           C'est la pire erreur possible sur une page d'audit : « 0/100 »
+           avec l'heure à côté se lit comme un résultat de mesure, et zéro
+           est précisément la valeur qu'un exploitant a envie de lire. Une
+           panne de collecte se présentait donc comme un certificat de bonne
+           santé.
+
+           Les trois états sont désormais distingués — mesuré, rien à
+           mesurer, réponse inexploitable — et l'horodatage n'accompagne que
+           le premier : dater ce qui n'a pas été mesuré, c'est le certifier. */
+        var mesure = (typeof st.risk === 'number') && (typeof st.assets === 'number');
+        var vide   = mesure && st.assets === 0;
+        document.getElementById('invSrc').textContent = (mesure && !vide)
+          ? 'TEMPS RÉEL — synchro '+new Date().toLocaleTimeString('fr-FR')
+          : 'TEMPS RÉEL — aucune donnée exploitable';
+        document.getElementById('finSrc').textContent = (mesure && !vide)
+          ? 'TEMPS RÉEL ('+nCrit+' crit · '+nWarn+' à surveiller)'
+          : 'TEMPS RÉEL — indice non calculable';
         notice.style.display='block';
-        notice.innerHTML='◉ Étude branchée sur votre cockpit : <b>'+(st.assets||0)+'</b> actif(s), indice de risque <b>'
-          +(st.risk||0)+'/100</b>. L’analyse se réactualise automatiquement toutes les 30 s. '
-          +'Les constats issus du flux temps réel complètent — sans remplacer — l’audit terrain.';
-        render(analyse(assets,zoneStatusLive),{total:st.assets,risk:st.risk});
+        if(!mesure){
+          notice.innerHTML='⚠ Votre cockpit a répondu, mais sa réponse ne porte '
+            +'pas d’indice de risque exploitable. <b>Aucun indice n’est affiché</b> : '
+            +'en afficher un ici reviendrait à présenter une panne de collecte '
+            +'comme une mesure. L’étude reste consultable en mode démo.';
+        } else if(vide){
+          notice.innerHTML='◉ Votre cockpit est branché mais <b>ne remonte aucun '
+            +'actif</b>. Il n’y a donc rien à noter : <b>l’absence de mesure n’est '
+            +'pas un risque nul</b>, et aucun indice n’est affiché tant qu’aucun '
+            +'actif n’est déclaré. Vérifiez la remontée depuis '
+            +'<a href="/connecter">Connecter votre plateforme</a>.';
+        } else {
+          notice.innerHTML='◉ Étude branchée sur votre cockpit : <b>'+st.assets+'</b> actif(s), indice de risque <b>'
+            +st.risk+'/100</b>. L’analyse se réactualise automatiquement toutes les 30 s. '
+            +'Les constats issus du flux temps réel complètent — sans remplacer — l’audit terrain.';
+        }
+        render(analyse(assets,zoneStatusLive),
+               (mesure && !vide) ? {total:st.assets,risk:st.risk} : {total:null,risk:null});
       }).catch(function(e){
         if(timer){clearInterval(timer);timer=null;}
         notice.style.display='block';

@@ -57,11 +57,11 @@
         <form class="form" id="cform" onsubmit="return sendMail(event)">
           <div class="row">
             <div class="field"><label for="nom">Nom</label><input id="nom" name="nom" required autocomplete="name"></div>
-            <div class="field"><label for="org">Organisation <button type="button" class="tipi" data-tip="Facultatif. Nous aide à préparer un échange pertinent (secteur, contexte industriel)." aria-label="Aide : organisation (facultatif)">i</button></label><input id="org" name="org" autocomplete="organization"></div>
+            <div class="field"><label for="org">Organisation <button type="button" class="tipi" data-tip="Facultatif. Nous aide à préparer un échange pertinent (secteur, contexte industriel)." aria-label="Aide : organisation (facultatif). Facultatif. Nous aide à préparer un échange pertinent (secteur, contexte industriel).">i</button></label><input id="org" name="org" autocomplete="organization"></div>
           </div>
-          <div class="field"><label for="email">Email <button type="button" class="tipi" data-tip="Utilisé uniquement pour vous répondre. Vos coordonnées ne sont ni revendues ni partagées." aria-label="Aide : à quoi sert votre email">i</button></label><input id="email" name="email" type="email" required autocomplete="email"></div>
+          <div class="field"><label for="email">Email <button type="button" class="tipi" data-tip="Utilisé uniquement pour vous répondre. Vos coordonnées ne sont ni revendues ni partagées." aria-label="Aide : à quoi sert votre email. Utilisé uniquement pour vous répondre. Vos coordonnées ne sont ni revendues ni partagées.">i</button></label><input id="email" name="email" type="email" required autocomplete="email"></div>
           <div class="field">
-            <label for="sujet">Sujet <button type="button" class="tipi" data-tip="Choisissez le thème le plus proche — vous pourrez préciser dans le message." aria-label="Aide : choix du sujet">i</button></label>
+            <label for="sujet">Sujet <button type="button" class="tipi" data-tip="Choisissez le thème le plus proche — vous pourrez préciser dans le message." aria-label="Aide : choix du sujet. Choisissez le thème le plus proche — vous pourrez préciser dans le message.">i</button></label>
             <select id="sujet" name="sujet">
               <optgroup label="Découverte">
                 <option>Démonstration / demande de renseignements</option>
@@ -95,7 +95,7 @@
               </optgroup>
             </select>
           </div>
-          <div class="field"><label for="msg">Message <button type="button" class="tipi" data-tip="Décrivez votre contexte OT/IT, vos enjeux et une échéance éventuelle." aria-label="Aide : que mettre dans le message">i</button></label><textarea id="msg" name="msg" required placeholder="Votre contexte, vos enjeux, une échéance éventuelle…"></textarea></div>
+          <div class="field"><label for="msg">Message <button type="button" class="tipi" data-tip="Décrivez votre contexte OT/IT, vos enjeux et une échéance éventuelle." aria-label="Aide : que mettre dans le message. Décrivez votre contexte OT/IT, vos enjeux et une échéance éventuelle.">i</button></label><textarea id="msg" name="msg" required placeholder="Votre contexte, vos enjeux, une échéance éventuelle…"></textarea></div>
           <!-- Anti-spam : champ piège, laissé vide par les humains (masqué). -->
           <input type="text" id="site" name="site" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0" aria-hidden="true">
           <button type="submit" id="submitBtn" class="btn btn-p" style="width:100%">Envoyer le message</button>

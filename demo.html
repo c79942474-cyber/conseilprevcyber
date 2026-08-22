@@ -121,16 +121,16 @@
     <section style="padding-bottom:56px">
       <div class="metrics">
         <div class="metric" style="--mc:linear-gradient(90deg,var(--cyan),var(--teal))">
-          <div class="lbl">Actifs découverts <button type="button" class="tipi" data-tip="Équipements identifiés sur le réseau (IT, OT, IIoT) par la découverte passive, sans perturber la production." aria-label="Aide : actifs découverts">i</button></div><div class="val" id="mAssets">0</div><div class="sub">IT · OT · IIoT</div>
+          <div class="lbl">Actifs découverts <button type="button" class="tipi" data-tip="Équipements identifiés sur le réseau (IT, OT, IIoT) par la découverte passive, sans perturber la production." aria-label="Aide : actifs découverts. Équipements identifiés sur le réseau (IT, OT, IIoT) par la découverte passive, sans perturber la production.">i</button></div><div class="val" id="mAssets">0</div><div class="sub">IT · OT · IIoT</div>
         </div>
         <div class="metric" style="--mc:linear-gradient(90deg,var(--violet),var(--cyan))">
-          <div class="lbl">Zones (IEC 62443) <button type="button" class="tipi" data-tip="Découpage de l'installation en zones et conduits selon la norme IEC 62443 — socle de la segmentation." aria-label="Aide : zones IEC 62443">i</button></div><div class="val" id="mZones">5</div><div class="sub">Zones &amp; conduits</div>
+          <div class="lbl">Zones (IEC 62443) <button type="button" class="tipi" data-tip="Découpage de l'installation en zones et conduits selon la norme IEC 62443 — socle de la segmentation." aria-label="Aide : zones IEC 62443. Découpage de l'installation en zones et conduits selon la norme IEC 62443 — socle de la segmentation.">i</button></div><div class="val" id="mZones">5</div><div class="sub">Zones &amp; conduits</div>
         </div>
         <div class="metric" style="--mc:linear-gradient(90deg,var(--amber),var(--terra))">
-          <div class="lbl">Alertes actives <button type="button" class="tipi" data-tip="Anomalies et flux non conformes détectés et encore à traiter." aria-label="Aide : alertes actives">i</button></div><div class="val" id="mAlerts">0</div><div class="sub">Anomalies &amp; flux non conformes</div>
+          <div class="lbl">Alertes actives <button type="button" class="tipi" data-tip="Anomalies et flux non conformes détectés et encore à traiter." aria-label="Aide : alertes actives. Anomalies et flux non conformes détectés et encore à traiter.">i</button></div><div class="val" id="mAlerts">0</div><div class="sub">Anomalies &amp; flux non conformes</div>
         </div>
         <div class="metric" style="--mc:linear-gradient(90deg,var(--terra),var(--violet))">
-          <div class="lbl">Score de risque <button type="button" class="tipi" data-tip="Indice agrégé de 0 à 100 : plus il est élevé, plus l'exposition au risque est forte." aria-label="Aide : score de risque">i</button></div><div class="val" id="mRisk">—</div><div class="sub" id="mRiskSub">évaluation continue</div>
+          <div class="lbl">Score de risque <button type="button" class="tipi" data-tip="Indice agrégé de 0 à 100 : plus il est élevé, plus l'exposition au risque est forte." aria-label="Aide : score de risque. Indice agrégé de 0 à 100 : plus il est élevé, plus l'exposition au risque est forte.">i</button></div><div class="val" id="mRisk">—</div><div class="sub" id="mRiskSub">évaluation continue</div>
         </div>
       </div>
 
@@ -140,7 +140,7 @@
             <button id="mDemo" class="ms active" role="tab" aria-selected="true" type="button">● Démo</button>
             <button id="mLive" class="ms" role="tab" aria-selected="false" type="button">◉ Temps réel</button>
           </div>
-          <button type="button" class="tipi" data-tip="Démo : données simulées d'illustration. Temps réel : cockpit branché sur vos données via /api/stream (SSE)." aria-label="Aide : modes Démo et Temps réel">i</button>
+          <button type="button" class="tipi" data-tip="Démo : données simulées d'illustration. Temps réel : cockpit branché sur vos données via /api/stream (SSE)." aria-label="Aide : modes Démo et Temps réel. Démo : données simulées d'illustration. Temps réel : cockpit branché sur vos données via /api/stream (SSE).">i</button>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <a href="/audit-conformite" class="btn btn-s">🧭 Audit 62443</a>
@@ -153,12 +153,12 @@
       <h2 class="sr-only">Tableau de bord de supervision</h2>
       <div class="dash">
         <div class="panel">
-          <div class="ph"><h3>Journal d'événements <button type="button" class="tipi" data-tip="Flux chronologique en direct : découvertes d'actifs, alertes et changements d'état." aria-label="Aide : journal d'événements">i</button></h3><span class="live"><span class="dot"></span>EN DIRECT</span></div>
+          <div class="ph"><h3>Journal d'événements <button type="button" class="tipi" data-tip="Flux chronologique en direct : découvertes d'actifs, alertes et changements d'état." aria-label="Aide : journal d'événements. Flux chronologique en direct : découvertes d'actifs, alertes et changements d'état.">i</button></h3><span class="live"><span class="dot"></span>EN DIRECT</span></div>
           <div class="scan"><i></i></div>
           <div class="feed" id="feed"></div>
         </div>
         <div class="panel">
-          <div class="ph"><h3>Zones &amp; segmentation <button type="button" class="tipi" data-tip="État par zone : niveau de sécurité cible, nombre d'actifs et statut (OK / surveillé / alerte)." aria-label="Aide : zones et segmentation">i</button></h3><span class="live"><span class="dot"></span>ACTIF</span></div>
+          <div class="ph"><h3>Zones &amp; segmentation <button type="button" class="tipi" data-tip="État par zone : niveau de sécurité cible, nombre d'actifs et statut (OK / surveillé / alerte)." aria-label="Aide : zones et segmentation. État par zone : niveau de sécurité cible, nombre d'actifs et statut (OK / surveillé / alerte).">i</button></h3><span class="live"><span class="dot"></span>ACTIF</span></div>
           <div class="zones" id="zones"></div>
         </div>
       </div>

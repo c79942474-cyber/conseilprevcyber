@@ -322,10 +322,18 @@ select:disabled option:checked{background-color:var(--panel2);color:var(--ink);
 /* ── Infobulles (UI/UX) : petit « i » d'aide, accessible clavier + tactile ────
    Usage : <button type="button" class="tipi" data-tip="…" aria-label="…">i</button>
    S'affiche au survol et au focus (clavier / tap mobile). */
+/* LA CIBLE FAIT 24 PIXELS, PAS 16.
+   DÉFAUT CORRIGÉ : ces pastilles mesuraient 16 × 16 px, sous le minimum de
+   24 px du critère « taille de cible » (WCAG 2.2, niveau AA) et bien sous ce
+   qu'un doigt atteint sans viser. Sur un poste d'atelier, gants compris,
+   elles étaient hors de portée — et ce sont justement les pages où l'aide
+   sert le plus. La marge passe de 5 à 3 px pour que l'agrandissement ne
+   déplace pas la ligne de texte. */
 .tipi{display:inline-flex;align-items:center;justify-content:center;
-  width:16px;height:16px;padding:0;margin-left:5px;vertical-align:middle;
+  width:24px;height:24px;min-width:24px;min-height:24px;padding:0;
+  margin-left:3px;vertical-align:middle;
   border-radius:50%;border:1px solid var(--line);background:transparent;
-  color:var(--muted2);font:700 11px/1 var(--mono);cursor:help;
+  color:var(--muted2);font:700 12px/1 var(--mono);cursor:help;
   transition:color .15s,border-color .15s,background .15s;position:relative}
 .tipi:hover,.tipi:focus-visible{color:var(--ink);border-color:var(--terra);
   background:rgba(217,96,58,.12);outline:none}
