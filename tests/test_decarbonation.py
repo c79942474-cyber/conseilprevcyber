@@ -536,8 +536,15 @@ def test_le_menu_ne_porte_qu_une_entree_pour_les_deux():
     machinalement et cesse de protéger. On regarde donc la LISTE du tiroir."""
     with open(os.path.join(ICI, "nav.js"), encoding="utf-8") as f:
         nav = f.read()
+    # LE TIROIR, ET LUI SEUL. Le motif portait sur le fichier entier et
+    # ramassait donc aussi l'index de recherche : compléter cet index — treize
+    # pages du tiroir y manquaient — faisait tomber ce contrôle sans que le
+    # menu ait bougé. C'est précisément la faute que le commentaire ci-dessus
+    # décrit, et il la commettait une case plus loin.
+    i = nav.index("=", nav.index("NAV_SECTIONS"))
+    tiroir = nav[i:nav.index("\n  ];", i)]
     entrees = re.findall(r'\[\s*"(/[a-z0-9\-]*datacenter[a-z0-9\-]*)"\s*,\s*"',
-                         nav)
+                         tiroir)
     assert entrees.count("/datacenter") == 1, entrees
     assert "/decarbonation-datacenter" not in entrees, entrees
     assert "decarbonation-datacenter" not in nav

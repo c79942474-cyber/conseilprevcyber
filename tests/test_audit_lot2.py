@@ -176,3 +176,125 @@ def test_le_cue_nomme_la_partie_de_la_norme_et_non_la_famille():
     bloc = s[i:i + 700]
     assert "30134-8" in bloc, bloc[:400]
     assert "30134 (famille)" not in bloc
+
+
+# ── 6. Le cockpit ne dit plus son état par la seule couleur ───────────────
+
+def test_le_statut_de_zone_est_ecrit_et_non_seulement_colore():
+    """L'état n'était porté que par une pastille de 9 px, complétée d'un
+    `title` en anglais — attribut que les lecteurs d'écran n'exposent pas de
+    façon fiable et qui n'apparaît jamais au doigt. Un exploitant daltonien
+    voyait le même écran pour une zone saine et une zone en alerte."""
+    s = _lire("demo.html")
+    assert "var ETAT_MOT" in s
+    for mot in ("'OK'", "'Surveillé'", "'Alerte'"):
+        assert mot in s, mot
+    # la pastille ne porte plus l'information : elle la redouble
+    assert 'class="st \'+st+\'" aria-hidden="true"' in s
+    assert 'title="\'+st+\'"' not in s, "le title anglais est revenu"
+
+
+def test_le_mot_et_la_pastille_sont_ecrits_ensemble():
+    """Les mettre à jour séparément laisserait un écran affichant « OK » en
+    rouge — pire que l'absence de mot."""
+    s = _lire("demo.html")
+    i = s.index("function updateMapCounts")
+    bloc = s[i:i + 700]
+    assert "ETAT_MOT[st]" in bloc and "className='st '+st" in bloc, bloc[:400]
+
+
+def test_le_journal_d_evenements_est_annonce():
+    """Il s'écrivait sans aucune région annoncée : un utilisateur de lecteur
+    d'écran ne recevait rien, pas même les alertes critiques — alors que
+    c'est ce que cette page existe pour signaler."""
+    s = _lire("demo.html")
+    i = s.index('id="feed"')
+    bloc = s[max(0, i - 120):i + 260]
+    assert 'role="log"' in bloc and 'aria-live="polite"' in bloc, bloc
+    assert 'aria-label=' in bloc
+
+
+def test_seul_le_critique_interrompt():
+    """Tout passer en assertif rendrait la page inutilisable : le flux parle
+    en continu, et la seule issue serait de le couper — donc de perdre aussi
+    les alertes."""
+    s = _lire("demo.html")
+    assert 'id="critLive"' in s and 'aria-live="assertive"' in s
+    i = s.index("if(tag==='crit')")
+    assert "critLive" in s[i:i + 200]
+
+
+def test_les_etiquettes_du_flux_se_prononcent():
+    """« CRIT » et « WARN » en capitales abrégées ne veulent rien dire lus à
+    voix haute — or c'est ainsi qu'ils arrivent au lecteur d'écran."""
+    s = _lire("demo.html")
+    assert "var TAG_MOT" in s
+    for mot in ("'Découverte'", "'À surveiller'", "'Critique'", "'Correctif'"):
+        assert mot in s, mot
+    assert '<span class="tg \'+tag+\'" aria-hidden="true">' in s
+
+
+# ── 7. La recherche couvre le menu, et le marquage dit ce qui manque ──────
+
+def _listes_nav():
+    s = _lire("nav.js")
+    i = s.index("=", s.index("NAV_SECTIONS"))
+    tiroir = re.findall(r'\["(/[^"]*)"', s[i:s.index("\n  ];", i)])
+    k = s.index("var SEARCH = [")
+    recherche = re.findall(r'^\s*\["(/[^"]*)"', s[k:s.index("\n  ];", k)], re.M)
+    return tiroir, recherche
+
+
+def test_toute_page_du_menu_est_trouvable_par_la_recherche():
+    """DÉFAUT CORRIGÉ : l'index couvrait 34 des 43 pages du tiroir. Toute la
+    rubrique « Conseil & transformation » (neuf pages), trois pages de centres
+    de données et le conseil juridique étaient introuvables. Un visiteur qui
+    tapait « maturité » ou « feuille de route » — deux des entrées les plus
+    commerciales du site — lisait « aucun résultat », ce qui s'entend comme
+    « ce cabinet ne le fait pas ».
+
+    La dérive est silencieuse par construction : on ajoute une page au tiroir,
+    on oublie l'index, et rien ne le signale. D'où ce contrôle."""
+    tiroir, recherche = _listes_nav()
+    manquantes = [p for p in tiroir if p not in recherche]
+    assert not manquantes, manquantes
+
+
+def test_la_recherche_ne_propose_aucune_page_absente_du_site():
+    """L'inverse compte aussi : une entrée pointant dans le vide envoie le
+    visiteur sur un 404 depuis la fonction censée l'orienter."""
+    import app
+    connus = {str(r.rule) for r in app.app.url_map.iter_rules()}
+    _, recherche = _listes_nav()
+    fantomes = [p for p in recherche if p not in connus]
+    assert not fantomes, fantomes
+
+
+def test_les_deux_niveaux_d_acces_sont_servis_separement(anonyme):
+    """Fondus en une seule liste, ils empêchaient de signaler à un client
+    CONNECTÉ ce qui lui reste fermé."""
+    j = anonyme.get("/api/acces").get_json()
+    assert j["admin"], "aucune page d'administration relevée"
+    assert set(j["admin"]) <= set(j["client"])
+
+
+def test_un_client_connecte_voit_marquer_ce_qui_lui_reste_ferme():
+    """Le marquage s'arrêtait dès qu'un visiteur était connecté — vrai des
+    pages client, faux des pages d'administration. Un client validé voyait
+    donc les liens de l'espace administrateur sans marque, et le clic le
+    menait à un refus."""
+    s = _lire("nav.js")
+    i = s.index("function initAcces")
+    bloc = s[i:i + 700]
+    assert "a.estAdmin" in bloc, bloc[:300]
+    assert "a.connecte ? a.admin : a.client" in bloc, bloc[:300]
+
+
+def test_le_message_ne_propose_pas_un_compte_a_qui_en_a_un():
+    """« Compte validé requis » adressé à quelqu'un qui en possède un le
+    renvoie créer ce qu'il a déjà."""
+    s = _lire("nav.js")
+    i = s.index("function _legendeAcces")
+    bloc = s[i:i + 1100]
+    assert "réservées à" in bloc and "n’a" in bloc
+    assert "Votre compte est bien validé" in bloc, bloc[:400]

@@ -209,10 +209,23 @@ def test_la_liste_servie_dit_ce_qui_demande_un_compte(anonyme):
 
 
 def test_la_liste_servie_ne_divulgue_rien_d_autre(anonyme):
-    """Elle dit LESQUELLES demandent un compte, pas ce qu'elles contiennent."""
+    """Elle dit LESQUELLES demandent un compte, pas ce qu'elles contiennent.
+
+    `admin` a été ajouté délibérément, et la liste des clés reste FERMÉE pour
+    qu'une clé future y bute encore. Ce champ ne divulgue rien de plus :
+    distinguer « demande un compte » de « demande le rôle administrateur »
+    reste une exigence d'accès, exactement ce qu'un clic apprend. Sans cette
+    distinction, nav.js ne pouvait pas marquer, pour un client CONNECTÉ, les
+    pages qui lui restent fermées — il voyait des liens sans marque menant à
+    un refus."""
     j = anonyme.get("/api/acces").get_json()
-    assert set(j) == {"ok", "client", "note"}, sorted(j)
+    assert set(j) == {"ok", "client", "admin", "note"}, sorted(j)
     assert all(isinstance(c, str) and c.startswith("/") for c in j["client"])
+    assert all(isinstance(c, str) and c.startswith("/") for c in j["admin"])
+    # L'ensemble « admin » est un SOUS-ENSEMBLE de « client » : une page
+    # réservée à l'administration demande d'abord un compte.
+    assert set(j["admin"]) <= set(j["client"]), sorted(
+        set(j["admin"]) - set(j["client"]))
 
 
 # ── 7. LE PARCOURS QUI DONNE UN COMPTE ─────────────────────────────────────

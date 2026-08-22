@@ -8963,9 +8963,20 @@ def api_acces():
     politique — cosmétique : la protection réelle est côté serveur, sur chaque
     route."""
     def _liste():
-        fermees = sorted(c for c, e in _acces_reels().items() if e != "direct")
+        reels = _acces_reels()
+        fermees = sorted(c for c, e in reels.items() if e != "direct")
+        # LES DEUX NIVEAUX SONT DISTINGUÉS, et ce n'est pas un détail.
+        # DÉFAUT CORRIGÉ : la route les fondait en une seule liste « client »,
+        # si bien que nav.js ne pouvait pas signaler à un client CONNECTÉ les
+        # pages qui lui restent fermées. Il voyait donc des liens sans marque
+        # menant à un refus — le seul endroit du site où un lien ment.
+        # Rien de plus n'est divulgué : dire qu'une page demande le rôle
+        # administrateur, c'est dire ce qu'un clic apprendrait de toute façon.
         return dict(ok=True, client=fermees,
-                    note="Ces pages demandent un compte client validé.")
+                    admin=sorted(c for c, e in reels.items() if e == "admin"),
+                    note="« client » : toute page demandant un compte validé, "
+                         "administration comprise. « admin » : le sous-ensemble "
+                         "réservé au rôle administrateur.")
     return _json_fige("acces", _liste,
                       cache_control="public, max-age=3600")
 

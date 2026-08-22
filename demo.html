@@ -53,6 +53,13 @@
   .st.ok{background:var(--green);box-shadow:0 0 8px var(--green)}
   .st.watch{background:var(--amber);box-shadow:0 0 8px var(--amber)}
   .st.alert{background:var(--terra);box-shadow:0 0 8px var(--terra);animation:pulse 1s infinite}
+  /* LE MOT D'ÉTAT. Il est coloré comme la pastille, mais il se lit sans la
+     couleur — c'est tout l'objet de la correction : le sens doit survivre au
+     noir et blanc, à l'impression et au daltonisme. */
+  .zs{font-weight:600}
+  .zs.ok{color:var(--green)}
+  .zs.watch{color:var(--amber)}
+  .zs.alert{color:var(--terra)}
   .feed{display:flex;flex-direction:column;gap:8px;max-height:420px;overflow:hidden}
   .fi{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:baseline;font-size:13px;
     padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);animation:fadein .4s ease}
@@ -155,7 +162,18 @@
         <div class="panel">
           <div class="ph"><h3>Journal d'événements <button type="button" class="tipi" data-tip="Flux chronologique en direct : découvertes d'actifs, alertes et changements d'état." aria-label="Aide : journal d'événements. Flux chronologique en direct : découvertes d'actifs, alertes et changements d'état.">i</button></h3><span class="live"><span class="dot"></span>EN DIRECT</span></div>
           <div class="scan"><i></i></div>
-          <div class="feed" id="feed"></div>
+          <!-- ── LE FLUX EST ANNONCÉ ────────────────────────────────────────
+               DÉFAUT CORRIGÉ : ce journal s'écrivait sans aucune région
+               annoncée. Un utilisateur de lecteur d'écran ne recevait RIEN —
+               pas même les alertes critiques —, alors que c'est exactement ce
+               que cette page existe pour signaler.
+               `role="log"` + `aria-live="polite"` : les entrées sont lues à la
+               suite, sans couper la phrase en cours. Les événements critiques
+               passent en plus par la région assertive ci-dessous : c'est le
+               seul cas où interrompre se justifie. -->
+          <div class="feed" id="feed" role="log" aria-live="polite"
+               aria-relevant="additions" aria-label="Journal d'événements en direct"></div>
+          <p class="sr-only" id="critLive" role="alert" aria-live="assertive"></p>
         </div>
         <div class="panel">
           <div class="ph"><h3>Zones &amp; segmentation <button type="button" class="tipi" data-tip="État par zone : niveau de sécurité cible, nombre d'actifs et statut (OK / surveillé / alerte)." aria-label="Aide : zones et segmentation. État par zone : niveau de sécurité cible, nombre d'actifs et statut (OK / surveillé / alerte).">i</button></h3><span class="live"><span class="dot"></span>ACTIF</span></div>
@@ -271,30 +289,64 @@
       document.getElementById('mAlerts').textContent=alerts;
       document.getElementById('mRisk').textContent=Math.round(risk)+'/100';
       document.getElementById('mRiskSub').textContent='Niveau '+riskLabel(risk);
+      /* ── LE STATUT S'ÉCRIT, IL N'EST PAS SEULEMENT COLORÉ ────────────────
+         DÉFAUT CORRIGÉ. L'état de chaque zone n'était porté que par une
+         pastille de 9 px, dont le seul complément était un `title` en anglais
+         (« ok », « watch », « alert ») — un attribut que les lecteurs d'écran
+         n'exposent pas de façon fiable et qui n'apparaît jamais au doigt. Un
+         exploitant daltonien — près de 8 % des hommes — voyait donc le même
+         écran pour une zone saine et une zone en alerte.
+         Le mot est désormais écrit à côté du compte d'actifs ; la pastille
+         reste en renfort, et non en unique porteur. */
       zonesEl.innerHTML=ZONES.map(function(z){
         var st=z.alert?'alert':(z.watch?'watch':'ok');
         return '<div class="zone"><span class="lv">'+z.lv+'</span>'
-          +'<div><div class="zn">'+z.n+'</div><div class="zc">'+z.c+' actifs</div></div>'
-          +'<span class="st '+st+'" title="'+st+'"></span></div>';
+          +'<div><div class="zn">'+z.n+'</div>'
+          +'<div class="zc">'+z.c+' actifs · <b class="zs '+st+'">'+ETAT_MOT[st]+'</b></div></div>'
+          +'<span class="st '+st+'" aria-hidden="true"></span></div>';
       }).join('');
       updateMapCounts();
     }
+    /* LE MOT DE CHAQUE ÉTIQUETTE, en toutes lettres. « CRIT » et « WARN »
+       abrégés en capitales se prononcent mal et ne veulent rien dire lus à
+       voix haute — or c'est ainsi qu'ils arrivent au lecteur d'écran. */
+    var TAG_MOT = {disc:'Découverte', info:'Information', warn:'À surveiller',
+                   crit:'Critique', patch:'Correctif'};
+
     function addEvent(tag,txt){
       var el=document.createElement('div');
       el.className='fi';
-      el.innerHTML='<span class="tg '+tag+'">'+tag.toUpperCase()+'</span>'
+      el.innerHTML='<span class="tg '+tag+'" aria-hidden="true">'+tag.toUpperCase()+'</span>'
+        +'<span class="sr-only">'+(TAG_MOT[tag]||tag)+' : </span>'
         +'<span class="tx">'+txt+'</span><span class="tm">'+now()+'</span>';
       feed.insertBefore(el, feed.firstChild);
       while(feed.children.length>10){ feed.removeChild(feed.lastChild); }
+      /* UN ÉVÉNEMENT CRITIQUE INTERROMPT — les autres non. Tout passer en
+         assertif rendrait la page inutilisable au lecteur d'écran : le flux
+         parle en continu, et la seule issue serait de le couper, donc de
+         perdre aussi les alertes. */
+      if(tag==='crit'){
+        var c=document.getElementById('critLive');
+        if(c) c.textContent='Alerte critique : '+txt;
+      }
     }
+
+    /* LE VOCABULAIRE DES ÉTATS, écrit une fois. Il était en anglais et
+       seulement dans un `title` ; l'export PDF, lui, écrivait déjà « Alerte /
+       Surveillé / OK ». Deux vocabulaires pour la même donnée sur la même
+       page, c'est ainsi qu'un écran et son rapport finissent par se
+       contredire. */
+    var ETAT_MOT = {ok: 'OK', watch: 'Surveillé', alert: 'Alerte'};
 
     function buildMap(){
       if(!netmap)return;
       var html='';
       ZONES.forEach(function(z,i){
+        var st0=z.alert?'alert':(z.watch?'watch':'ok');
         html+='<div class="node" id="node-'+z.id+'"><span class="lv">'+z.lv+'</span>'
-          +'<div><div class="zn">'+z.n+'</div><div class="zc">'+z.c+' actifs</div></div>'
-          +'<span class="st ok"></span></div>';
+          +'<div><div class="zn">'+z.n+'</div>'
+          +'<div class="zc">'+z.c+' actifs · <b class="zs '+st0+'">'+ETAT_MOT[st0]+'</b></div></div>'
+          +'<span class="st '+st0+'" aria-hidden="true"></span></div>';
         if(i<ZONES.length-1){ html+='<div class="conduit'+(i===1?' fw':'')+'"><i></i></div>'; }
       });
       netmap.innerHTML=html;
@@ -303,8 +355,12 @@
       if(!netmap)return;
       ZONES.forEach(function(z){
         var n=document.getElementById('node-'+z.id); if(!n)return;
-        n.querySelector('.zc').textContent=z.c+' actifs';
-        n.querySelector('.st').className='st '+(z.alert?'alert':(z.watch?'watch':'ok'));
+        var st=z.alert?'alert':(z.watch?'watch':'ok');
+        /* Le mot est réécrit AVEC la couleur : les mettre à jour séparément
+           laisserait un écran affichant « OK » en rouge. */
+        n.querySelector('.zc').innerHTML=z.c+' actifs · <b class="zs '+st+'">'
+          +ETAT_MOT[st]+'</b>';
+        n.querySelector('.st').className='st '+st;
       });
     }
     function exportPDF(){

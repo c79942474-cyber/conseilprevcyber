@@ -887,6 +887,29 @@
 
   /* ── 10. Recherche instantanée (Ctrl+K / bouton 🔍) ─────────────────────── */
   var SEARCH = [
+    /* ── LES TREIZE PAGES QUI MANQUAIENT ────────────────────────────────
+       DÉFAUT CORRIGÉ. Cet index en couvrait 34 sur les 43 du tiroir : toute
+       la rubrique « Conseil & transformation » (neuf pages), trois pages de
+       centres de données et le conseil juridique étaient introuvables par la
+       recherche. Un visiteur qui tapait « maturité » ou « feuille de route »
+       — les deux entrées les plus commerciales du site — obtenait « aucun
+       résultat », ce qui se lit comme « ce cabinet ne le fait pas ».
+       La dérive est silencieuse par construction : on ajoute une page au
+       tiroir, on oublie l'index, et rien ne le signale. Un contrôle
+       (tests/test_audit_lot2.py) confronte désormais les deux listes. */
+    ["/operating-model", "Operating Model & gouvernance", "Modèle opérationnel cible : gouvernance, RACI, fonction OT Security.", "Conseil & transformation", "raci organisation cible pilotage"],
+    ["/maturite-ot", "Assessment de maturité", "Maturité OT cyber mesurée : IEC 62443 ML, NIST CSF, C2M2.", "Conseil & transformation", "evaluation niveau csf c2m2 diagnostic"],
+    ["/feuille-de-route", "Feuille de route", "Trajectoire de transformation : horizons, chantiers, budget.", "Conseil & transformation", "roadmap trajectoire planning budget"],
+    ["/continuite-ot", "Continuité & crise OT", "PCA / PRA industriels, sauvegarde des configurations d'automates, exercices de crise.", "Conseil & transformation", "pca pra reprise sinistre exercice"],
+    ["/gestion-des-changements", "Gestion des changements (MOC)", "Management of Change : impact cyber, approbation, fenêtres, retour arrière.", "Conseil & transformation", "moc change fenetre rollback approbation"],
+    ["/architecture-cible", "Architecture cible OT", "Zones et conduits, DMZ industrielle, bastions, diodes de données, durcissement.", "Conseil & transformation", "dmz bastion diode segmentation durcissement"],
+    ["/formation", "Formation & compétences", "Sensibilisation exploitation et maintenance, essentiels 62443, exercices de crise.", "Conseil & transformation", "sensibilisation competences apprentissage"],
+    ["/gouvernance-ia", "Governance by Design IA", "Gouvernance de l'IA côté client : maturité, RACI, conformité par conception, pilotage.", "Conseil & transformation", "ia intelligence artificielle ai act gouvernance"],
+    ["/relecture-contrat", "Relecture de contrats assistée", "Relecture assistée : playbook, écarts, validations, version par version.", "Conseil & transformation", "contrat clausier juridique relecture"],
+    ["/strategie-durable-datacenter", "Stratégie DD — centres de données", "Quatre perspectives : raison d'être, parties prenantes, matérialité, trajectoire.", "Ingénierie de Projet — Data Center", "strategie durable rse materialite"],
+    ["/datacenter", "Data Center — durabilité et décarbonation", "Énergie, eau et carbone calculés ensemble : PUE, WUE, carbone incorporé.", "Ingénierie de Projet — Data Center", "pue wue carbone energie eau decarbonation"],
+    ["/ingenierie-datacenter", "Ingénierie de projet — centres de données", "Le calcul replacé dans la séquence projet : ESQ, APS, APD, PRO, DCE, ACT, EXE.", "Ingénierie de Projet — Data Center", "esq aps apd pro dce maitrise oeuvre chiffrage"],
+    ["/juridique", "Conseil juridique", "Conseil juridique assisté : qualification, lecture des textes, clausier.", "Conformité & audit", "juridique contrat clause qualification"],
     ["/", "Accueil", "Vue d'ensemble de CONSEILPREV Cyber.", "Découvrir", "home index"],
     ["/services", "Services", "Nos offres : état des lieux, segmentation, supervision, AMOA, sensibilisation.", "Découvrir", "offres prestations amoa ia"],
     ["/etudes-de-cas", "Études de cas", "Nos références : énergie, automobile, ferroviaire, oil & gas, assurance, éolien offshore.", "Découvrir", "références missions clients"],
@@ -1161,7 +1184,16 @@
    */
   var ACCES_MARQUE = "data-acces-marque";
 
-  function _marquerAcces(fermees) {
+  /* `connecte` dit CE QUI MANQUE au visiteur, et donc ce que la marque doit
+     annoncer : un compte pour l'anonyme, le rôle administrateur pour le
+     client déjà connecté. Un seul libellé pour les deux cas dirait « compte
+     validé requis » à quelqu'un qui en a déjà un — soit le renvoyer créer un
+     compte qu'il possède. */
+  function _marquerAcces(fermees, connecte) {
+    var mot = connecte ? "réservé à l'administration" : "accès client";
+    var infobulle = connecte
+      ? "Réservé à l'administration — votre compte n'a pas ce rôle"
+      : "Accès client — compte validé requis";
     var vus = 0;
     [].forEach.call(document.querySelectorAll("a[href]"), function (a) {
       if (a.hasAttribute(ACCES_MARQUE)) return;
@@ -1171,15 +1203,15 @@
       if (fermees.indexOf(chemin) < 0) return;
       /* Le lien qui le dit déjà en toutes lettres n'a pas besoin du cadenas :
          le doubler donnerait « Ingénierie de projet · accès client 🔒 ». */
-      if (/accès client/i.test(a.textContent)) {
+      if (!connecte && /accès client/i.test(a.textContent)) {
         a.setAttribute(ACCES_MARQUE, "dit");
         return;
       }
       var c = document.createElement("span");
       c.className = "ac-cle";
       c.textContent = "🔒";
-      c.setAttribute("aria-label", "accès client");
-      c.setAttribute("title", "Accès client — compte validé requis");
+      c.setAttribute("aria-label", mot);
+      c.setAttribute("title", infobulle);
       a.appendChild(document.createTextNode(" "));
       a.appendChild(c);
       a.setAttribute(ACCES_MARQUE, "cadenas");
@@ -1188,15 +1220,22 @@
     return vus;
   }
 
-  function _legendeAcces() {
+  function _legendeAcces(connecte) {
     var pied = document.querySelector("footer");
     if (!pied || pied.querySelector(".ac-legende")) return;
     var p = document.createElement("p");
     p.className = "ac-legende";
-    p.innerHTML = '<span class="ac-cle">🔒</span>&nbsp;Ces pages demandent un '
-      + 'compte client validé. <a href="/inscription">Créer un accès</a> — votre '
-      + 'adresse est confirmée par courriel, puis l’accès est validé par notre '
-      + 'équipe, qui vous prévient.';
+    p.innerHTML = connecte
+      /* À UN CLIENT CONNECTÉ, on ne propose pas de créer un compte : il en a
+         un. On lui dit ce qui manque, et à qui le demander. */
+      ? '<span class="ac-cle">🔒</span>&nbsp;Ces pages sont réservées à '
+        + 'l’administration du site. Votre compte est bien validé — il n’a '
+        + 'simplement pas ce rôle. <a href="/contact">Écrivez-nous</a> si vous '
+        + 'pensez devoir y accéder.'
+      : '<span class="ac-cle">🔒</span>&nbsp;Ces pages demandent un '
+        + 'compte client validé. <a href="/inscription">Créer un accès</a> — votre '
+        + 'adresse est confirmée par courriel, puis l’accès est validé par notre '
+        + 'équipe, qui vous prévient.';
     pied.appendChild(p);
   }
 
@@ -1247,12 +1286,25 @@
   }
   window.navAcces = accesPromesse;
 
+  /* ── CE QUI RESTE FERMÉ À UN CLIENT CONNECTÉ ────────────────────────────
+     DÉFAUT CORRIGÉ. Le marquage s'arrêtait net dès qu'un visiteur était
+     connecté — « ces pages lui sont ouvertes ». C'est vrai des pages client,
+     faux des pages d'ADMINISTRATION : un client validé voyait donc les liens
+     de l'espace administrateur sans aucune marque, et le clic le menait à un
+     refus. C'est le seul endroit du site où un lien mentait, et il mentait
+     précisément aux personnes qui ont un compte.
+
+     La règle est donc à trois états, et non plus à deux :
+       — anonyme               → marquer tout ce qui demande un compte ;
+       — connecté, non admin   → marquer ce qui demande le rôle admin ;
+       — administrateur        → ne rien marquer, tout lui est ouvert. */
   function initAcces() {
     accesPromesse().then(function (a) {
-      if (!a || !a.client.length) return;
-      /* Connecté : ces pages lui sont ouvertes, ne rien marquer. */
-      if (a.connecte) return;
-      if (_marquerAcces(a.client)) _legendeAcces();
+      if (!a) return;
+      if (a.estAdmin) return;
+      var fermees = a.connecte ? a.admin : a.client;
+      if (!fermees || !fermees.length) return;
+      if (_marquerAcces(fermees, a.connecte)) _legendeAcces(a.connecte);
     }).catch(function () { /* le site reste utilisable sans le marquage */ });
   }
 
