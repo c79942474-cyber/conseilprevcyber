@@ -194,9 +194,21 @@
       ["/technologies-securite", "Technologies · TR 3-1"],
       ["/gestion-correctifs", "Gestion des correctifs · 2-3"],
       ["/glossaire-62443", "Glossaire · 1-2"],
-      ["/metriques-62443", "Métriques · 1-3"] ] },
+      ["/metriques-62443", "Métriques · 1-3"],
+      /* SERVIE MAIS INTROUVABLE. Cette page existait, était liée depuis
+         le référentiel, et n'apparaissait ni au menu ni à la recherche :
+         seul un visiteur qui tombait dessus par un lien la connaissait. */
+      ["/checklist-62443", "Liste de vérification"] ] },
     { t: "Conformité & audit", l: [
       ["/audit-conformite", "Audit 62443"], ["/diagnostic", "Diagnostic express"],
+      /* /conformite N'EST PAS ICI, ET C'EST VOULU. C'est le dossier de
+         conformité DU SITE — registre des traitements, bases légales,
+         classement AI Act —, sœur des mentions légales et de la politique de
+         confidentialité, que la politique d'accès range délibérément hors
+         menu. Le placer dans une rubrique de PRESTATIONS ferait attendre une
+         offre de conformité à qui cherche notre propre registre. Elle reste
+         atteignable par le pied de page et, depuis la correction du défaut,
+         par la recherche. */
       ["/nis2", "NIS2"], ["/juridique", "Conseil juridique"] ] },
     { t: "Plateforme", l: [
       ["/demo", "Cockpit de supervision"], ["/tendances", "Tendances"],
@@ -887,6 +899,8 @@
 
   /* ── 10. Recherche instantanée (Ctrl+K / bouton 🔍) ─────────────────────── */
   var SEARCH = [
+    ["/checklist-62443", "Liste de vérification 62443", "Six sections, chaque point rattaché à sa partie de la série et disant la preuve attendue.", "Référentiel 62443", "checklist controle preuve audit verification"],
+    ["/conformite", "Conformité RGPD & IA Act", "Le dossier de conformité du site lui-même : traitements, bases légales, classement AI Act.", "Conformité & audit", "rgpd ai act donnees personnelles registre traitements"],
     /* ── LES TREIZE PAGES QUI MANQUAIENT ────────────────────────────────
        DÉFAUT CORRIGÉ. Cet index en couvrait 34 sur les 43 du tiroir : toute
        la rubrique « Conseil & transformation » (neuf pages), trois pages de
@@ -1184,16 +1198,23 @@
    */
   var ACCES_MARQUE = "data-acces-marque";
 
-  /* `connecte` dit CE QUI MANQUE au visiteur, et donc ce que la marque doit
-     annoncer : un compte pour l'anonyme, le rôle administrateur pour le
-     client déjà connecté. Un seul libellé pour les deux cas dirait « compte
-     validé requis » à quelqu'un qui en a déjà un — soit le renvoyer créer un
-     compte qu'il possède. */
-  function _marquerAcces(fermees, connecte) {
-    var mot = connecte ? "réservé à l'administration" : "accès client";
-    var infobulle = connecte
-      ? "Réservé à l'administration — votre compte n'a pas ce rôle"
-      : "Accès client — compte validé requis";
+  /* CE QUE LA MARQUE ANNONCE SUIT LE NIVEAU DE LA PAGE, pas seulement l'état
+     du visiteur.
+
+     DEUXIÈME DÉFAUT, plus grave que le premier. Un visiteur anonyme voyait
+     « accès client 🔒 » sur des liens menant à /admin/… : le site lui
+     promettait donc que créer un compte client ouvrirait l'espace
+     d'administration. Il s'inscrit, attend la validation, revient — et le lien
+     refuse toujours. La promesse était fausse au moment même où elle était
+     la plus engageante.
+
+     Chaque lien porte donc le niveau de SA page ; l'état du visiteur décide
+     seulement de ce qu'on marque :
+       — anonyme             → tout ce qui est fermé, chacun à son niveau ;
+       — connecté, non admin → les seules pages d'administration ;
+       — administrateur      → rien. */
+  function _marquerAcces(fermees, connecte, admins) {
+    admins = admins || [];
     var vus = 0;
     [].forEach.call(document.querySelectorAll("a[href]"), function (a) {
       if (a.hasAttribute(ACCES_MARQUE)) return;
@@ -1207,11 +1228,15 @@
         a.setAttribute(ACCES_MARQUE, "dit");
         return;
       }
+      var estAdmin = admins.indexOf(chemin) >= 0;
       var c = document.createElement("span");
       c.className = "ac-cle";
       c.textContent = "🔒";
-      c.setAttribute("aria-label", mot);
-      c.setAttribute("title", infobulle);
+      c.setAttribute("aria-label", estAdmin ? "réservé à l'administration"
+                                            : "accès client");
+      c.setAttribute("title", estAdmin
+        ? "Réservé à l'administration du site — un compte client ne l'ouvre pas"
+        : "Accès client — compte validé requis");
       a.appendChild(document.createTextNode(" "));
       a.appendChild(c);
       a.setAttribute(ACCES_MARQUE, "cadenas");
@@ -1232,10 +1257,18 @@
         + 'l’administration du site. Votre compte est bien validé — il n’a '
         + 'simplement pas ce rôle. <a href="/contact">Écrivez-nous</a> si vous '
         + 'pensez devoir y accéder.'
+      /* À UN ANONYME, la légende ne peut pas dire « un compte ouvre tout
+         cela » : une partie des liens marqués mène à l'administration, qu'un
+         compte client n'ouvre pas. Elle distingue donc les deux, sinon
+         l'inscription se ferait sur une promesse que la validation ne tiendra
+         pas — et c'est au retour, après l'attente, que le visiteur le
+         découvrirait. */
       : '<span class="ac-cle">🔒</span>&nbsp;Ces pages demandent un '
         + 'compte client validé. <a href="/inscription">Créer un accès</a> — votre '
         + 'adresse est confirmée par courriel, puis l’accès est validé par notre '
-        + 'équipe, qui vous prévient.';
+        + 'équipe, qui vous prévient. Celles marquées <i>réservé à '
+        + 'l’administration</i> ne s’ouvrent pas avec un compte client : elles '
+        + 'sont l’outil interne du cabinet.';
     pied.appendChild(p);
   }
 
@@ -1304,7 +1337,7 @@
       if (a.estAdmin) return;
       var fermees = a.connecte ? a.admin : a.client;
       if (!fermees || !fermees.length) return;
-      if (_marquerAcces(fermees, a.connecte)) _legendeAcces(a.connecte);
+      if (_marquerAcces(fermees, a.connecte, a.admin)) _legendeAcces(a.connecte);
     }).catch(function () { /* le site reste utilisable sans le marquage */ });
   }
 

@@ -298,3 +298,91 @@ def test_le_message_ne_propose_pas_un_compte_a_qui_en_a_un():
     bloc = s[i:i + 1100]
     assert "réservées à" in bloc and "n’a" in bloc
     assert "Votre compte est bien validé" in bloc, bloc[:400]
+
+
+# ── 8. Aucune promesse d'accès qui ne sera pas tenue ──────────────────────
+
+def test_un_lien_admin_ne_promet_pas_qu_un_compte_client_l_ouvre():
+    """DÉFAUT LE PLUS ENGAGEANT DU LOT. Un visiteur anonyme voyait « accès
+    client 🔒 » sur des liens menant à /admin/… : le site lui promettait que
+    créer un compte client ouvrirait l'espace d'administration. Il s'inscrit,
+    attend la validation, revient — et le lien refuse toujours."""
+    s = _lire("nav.js")
+    i = s.index("function _marquerAcces")
+    bloc = s[i:i + 1800]
+    assert "admins.indexOf(chemin) >= 0" in bloc, bloc[:400]
+    assert "un compte client ne l'ouvre pas" in bloc
+
+
+def test_la_legende_distingue_les_deux_niveaux_pour_un_anonyme():
+    s = _lire("nav.js")
+    i = s.index("function _legendeAcces")
+    bloc = s[i:i + 1600]
+    assert "réservé à" in bloc and "outil interne du cabinet" in bloc, bloc[:600]
+
+
+def test_les_pages_servies_du_referentiel_sont_au_menu():
+    """« Liste de vérification 62443 » existait, était liée depuis le
+    référentiel, et n'apparaissait ni au menu ni à la recherche : seul un
+    visiteur qui tombait dessus par un lien la connaissait."""
+    tiroir, recherche = _listes_nav()
+    assert "/checklist-62443" in tiroir
+    assert "/checklist-62443" in recherche
+
+
+def test_le_dossier_de_conformite_du_site_reste_hors_menu_mais_trouvable():
+    """C'est le registre du SITE — sœur des mentions légales —, que la
+    politique d'accès range délibérément hors menu. Le mettre dans une
+    rubrique de prestations ferait attendre une offre à qui cherche notre
+    propre registre. Il doit rester atteignable par la recherche."""
+    import acces
+    tiroir, recherche = _listes_nav()
+    assert "/conformite" not in tiroir
+    assert "/conformite" in recherche
+    assert "/conformite" in acces.HORS_MENU_OUVERT
+
+
+def test_toutes_les_pages_publiques_offrent_le_lien_a_propos():
+    """Il manquait sur une seule des 53 pages publiques : l'en-tête de
+    juridique.html l'avait remplacé par un lien vers juridique.html — vers la
+    page qu'on est en train de lire."""
+    import glob
+    sans = []
+    for f in sorted(glob.glob(os.path.join(ICI, "*.html"))):
+        nom = os.path.basename(f)
+        if nom.startswith("admin"):
+            continue          # l'espace d'administration a son propre en-tête
+        s = open(f, encoding="utf-8").read()
+        if "</header>" not in s:
+            continue
+        if 'href="/about"' not in s.split("</header>")[0]:
+            sans.append(nom)
+    assert not sans, sans
+
+
+# ── 9. Le guide d'intégration sur petit écran ─────────────────────────────
+
+def test_le_conteneur_du_guide_masque_ce_qui_deborde():
+    """CONSTAT NON REPRODUIT, GARDE POSÉE QUAND MÊME.
+
+    Le constat annonçait la colonne « Correctif » coupée et inatteignable sur
+    mobile. Mesuré au navigateur à 320, 360 et 390 px : aucun des quatre
+    tableaux ne déborde de son conteneur, et la page ne défile pas
+    latéralement. La mise en page n'a donc pas été touchée — on ne réécrit pas
+    du code qui fonctionne sur la foi d'un constat non vérifié.
+
+    Reste que `.gsec` porte `overflow:hidden` : le jour où un tableau
+    dépasserait, il serait ROGNÉ sans barre de défilement, c'est-à-dire
+    inatteignable — et en silence. Ce contrôle fige la largeur des colonnes du
+    tableau de dépannage : s'il en gagne une, ou si une cellule cesse de
+    pouvoir se replier, il tombera avant l'utilisateur."""
+    s = _lire("guide-integration.html")
+    assert "overflow:hidden" in s[s.index(".gsec{"):s.index(".gsec{") + 260]
+    entetes = re.findall(r"<tr><th>Symptôme</th>(.*?)</tr>", s, re.S)
+    assert entetes, "le tableau de dépannage a changé de forme"
+    assert entetes[0].count("<th>") == 2, entetes[0]
+    # aucune cellule du tableau ne doit contenir de bloc non repliable
+    corps = s[s.index("<tr><th>Symptôme</th>"):]
+    corps = corps[:corps.index("</table>")]
+    assert "<pre" not in corps, "un bloc préformaté ne se replie pas : il " \
+                                "forcerait le débordement, donc le rognage"
