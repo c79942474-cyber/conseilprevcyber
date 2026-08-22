@@ -547,3 +547,43 @@ def test_les_deux_echelles_existent_bien_sur_la_meme_classe():
     partagees = [c for c, n in par_classe.items() if len(n) > 1]
     assert partagees, "les deux échelles ne se croisent plus sur aucune classe"
     assert "Classe 5" in partagees, par_classe
+
+
+# ── 14. Deux plages par champ, et leur rapport est tenu ───────────────────
+
+def test_il_n_y_a_pas_trois_plages_pour_un_meme_champ():
+    """CONSTAT NON REPRODUIT. Le constat annonçait « trois plages différentes
+    pour le même champ dans trois modules, dont deux prétendent décrire la
+    même réalité ». Mesuré : il y en a DEUX par champ, et elles décrivent
+    explicitement des choses différentes —
+
+      · PLAGES_OBSERVEES (datacenter) : ce que le formulaire ACCEPTE ;
+      · _PLAGES_PLAUSIBLES (ingenierie_dc) : l'intervalle où une installation
+        RÉELLE se situe, employé pour balayer un champ resté sur son
+        pré-remplissage.
+
+    Le module le dit lui-même : « On ne balaie PAS toute la plage admissible
+    du formulaire ». Aucune des deux ne prétend donc à la place de l'autre, et
+    rien n'a été touché."""
+    import datacenter as DC
+    import ingenierie_dc as ING
+    for champ in ING._PLAGES_PLAUSIBLES:
+        sources = [n for n in ("PLAGES_OBSERVEES",)
+                   if champ in getattr(DC, n, {})]
+        assert len(sources) <= 1, (champ, sources)
+
+
+def test_le_balayage_ne_sort_jamais_de_ce_que_le_formulaire_accepte():
+    """LA GARDE QUI MANQUAIT. Les deux plages sont légitimes, mais rien ne
+    tenait la seconde dans la première : élargir le balayage au-delà des
+    bornes admissibles le ferait explorer des valeurs que le formulaire
+    refuse, et la fourchette rendue au client couvrirait des cas qu'il ne
+    peut pas saisir."""
+    import datacenter as DC
+    import ingenierie_dc as ING
+    for champ, (bas, haut) in ING._PLAGES_PLAUSIBLES.items():
+        adm = DC.PLAGES_OBSERVEES.get(champ)
+        if not adm:
+            continue
+        assert adm["bas"] <= bas <= haut <= adm["haut"], (
+            champ, (bas, haut), (adm["bas"], adm["haut"]))
