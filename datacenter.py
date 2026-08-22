@@ -173,9 +173,14 @@ def nom_pays(code):
     return (EWIF_PAYS.get(code) or {}).get("nom") or (code or "—")
 
 
-EWIF_SOURCE = ("Ordres de grandeur convergents de la littérature sur l'intensité "
-               "en eau de la production électrique (consommation, hors prélèvement "
-               "restitué). À REMPLACER par la valeur du fournisseur ou de "
+# MÊME REQUALIFICATION QUE L'INCORPORÉ, et pour la même raison : « la
+# littérature » ne désigne aucun document. Un lecteur ne peut pas retrouver le
+# facteur retenu, ni juger s'il vaut pour son pays.
+EWIF_SOURCE = ("HYPOTHÈSE DU CABINET, PAS UNE MESURE. Ordre de grandeur retenu "
+               "au vu de la littérature convergente sur l'intensité en eau de "
+               "la production électrique (consommation, hors prélèvement "
+               "restitué) — aucune publication ne fixe LA valeur employée ici. "
+               "À REMPLACER par la valeur du fournisseur ou de "
                "l'exploitant du réseau dès qu'elle est disponible : ces facteurs "
                "varient fortement selon la technologie de refroidissement des "
                "centrales, pas seulement selon le mix. RÉSERVE de méthode pour "
@@ -225,13 +230,22 @@ INTENSITE_SOURCE = ("Moyennes annuelles location-based, millésime "
 
 # Familles de refroidissement. Les plages recouvrent des conceptions réelles ;
 # elles ne remplacent pas une étude de site, elles servent à cadrer et comparer.
-REFROIDISSEMENT_SOURCE = ("Plages de conception à PLEINE charge, recoupées des "
-                          "enquêtes annuelles Uptime Institute (moyenne mondiale "
-                          "du parc installé ≈ 1,5-1,6, tirée vers le haut par "
-                          "l'existant) et des retours de conception récents. "
-                          "Elles cadrent une comparaison de familles ; la "
-                          "machine retenue se juge sur sa courbe constructeur, "
-                          "puis sur l'essai de performance.")
+# LES PLAGES SONT UN CADRAGE DU CABINET, et le disent maintenant. Elles
+# étaient présentées comme « recoupées des enquêtes Uptime Institute et des
+# retours de conception récents » : la première source ne publie pas de plage
+# par famille de refroidissement, la seconde est notre propre expérience, qui
+# n'est pas une source. Adossées à un chiffre à deux décimales, elles se
+# lisaient comme relevées ; elles sont posées.
+REFROIDISSEMENT_SOURCE = ("HYPOTHÈSE DU CABINET, PAS UNE MESURE. Plages de "
+                          "conception à PLEINE charge, posées par nous pour "
+                          "cadrer une comparaison entre familles. Le repère "
+                          "public le plus proche est la moyenne mondiale du "
+                          "parc installé publiée par l'Uptime Institute "
+                          "(≈ 1,5-1,6, tirée vers le haut par l'existant) : "
+                          "elle ne se décline pas par famille, et ne fonde donc "
+                          "aucune des bornes ci-dessous. La machine retenue se "
+                          "juge sur sa courbe constructeur, puis sur l'essai de "
+                          "performance — jamais sur ces plages.")
 REFROIDISSEMENT = {
     "air_dx": {
         "nom": "Détente directe (DX) sur air",
@@ -328,6 +342,54 @@ ASHRAE_SOURCE = ("ASHRAE TC 9.9, Thermal Guidelines for Data Processing "
 PART_LATENTE_MIN = 0.60
 INCERTITUDE_APPOINT = 0.15       # appoint total (purge, dérive), ±15 %
 INCERTITUDE_INCORPORE = 0.50     # ordres de grandeur sectoriels, ±50 %
+# DÉFAUT CORRIGÉ. L'incertitude du facteur eau amont était recopiée à la main
+# — « ±40 % » en toutes lettres — dans sept fichiers : deux modules, deux
+# scripts et deux pages. Rien ne les tenait ensemble : le jour où l'un change,
+# les six autres continuent d'annoncer l'ancienne valeur, et le site se
+# contredit d'une page à l'autre sur la fiabilité de son propre chiffre.
+#
+# ATTENTION À L'HOMONYMIE : equipements_it.INCERTITUDE_PRIX vaut aussi 0,40,
+# mais porte sur les PRIX unitaires. Deux grandeurs sans rapport qui partagent
+# un nombre — les fondre en une seule constante « parce que c'est la même
+# valeur » créerait un lien qui n'existe pas, et le premier des deux à bouger
+# emporterait l'autre.
+INCERTITUDE_EWIF = 0.40          # facteur eau amont, ±40 %
+
+# ── CE QUI DÉCIDE DE LA VALORISATION DE CHALEUR ────────────────────────────
+# DÉFAUT CORRIGÉ. Ces dix nombres vivaient en clair dans `chaleur()` : sept
+# températures de rejet par famille et trois seuils de décision, sans nom,
+# sans source, sans mention de leur nature. Ce sont pourtant EUX qui rendent
+# le verdict — « injection directe possible » ou « température trop basse » —,
+# c'est-à-dire la seule phrase de la fonction qu'un lecteur retiendra.
+#
+# CE SONT DES HYPOTHÈSES DU CABINET, et rien d'autre. La température de rejet
+# d'une machine dépend du régime d'eau retenu, du delta T de conception et du
+# taux de charge : aucune famille n'a « une » température. Les valeurs
+# ci-dessous sont des points de départ pour cadrer une discussion, à remplacer
+# par le régime réellement projeté dès qu'il existe.
+#
+# Les seuils, eux, découpent ce que la température autorise : au-dessus de 60
+# °C on alimente un réseau basse température sans relevage ; entre 45 et 60 on
+# relève par pompe à chaleur à coefficient de performance encore favorable ;
+# en dessous de 30, le relevage coûte plus que la chaleur ne rapporte, sauf
+# usage de proximité. Ces frontières sont graduelles dans la réalité — les
+# écrire en marches nettes est une simplification, elle est déclarée.
+TEMPERATURE_REJET_DEFAUT_C = {
+    "liquide_dlc": 55, "immersion": 50, "eau_glacee": 35,
+    "tour_evaporative": 32, "adiabatique": 30, "free_cooling_air": 28,
+    "air_dx": 35,
+}
+TEMPERATURE_REJET_DEFAUT_AUTRE_C = 35
+SEUILS_VALORISATION_C = {"injection_directe": 60, "relevage_favorable": 45,
+                         "relevage_couteux": 30}
+VALORISATION_SOURCE = (
+    "HYPOTHÈSE DU CABINET, PAS UNE MESURE. La température de rejet dépend du "
+    "régime d'eau retenu, du delta T de conception et du taux de charge : "
+    "aucune famille de refroidissement n'en a « une ». Ces valeurs cadrent une "
+    "discussion ; elles ne décrivent aucune machine. À remplacer par le régime "
+    "réellement projeté dès qu'il est arrêté — c'est lui qui décide, et le "
+    "verdict ci-dessous bascule d'une catégorie à l'autre pour quelques "
+    "degrés.")
 
 # Carbone incorporé. Amorti sur la durée de vie : c'est ce qui permet de le
 # comparer à l'exploitation, et sans cet amortissement la comparaison n'a
@@ -344,14 +406,61 @@ INCORPORE = {
                                    "note": "Groupes froids, onduleurs, batteries, "
                                            "groupes électrogènes, distribution."},
 }
-INCORPORE_SOURCE = ("Ordres de grandeur issus des analyses de cycle de vie "
-                    "publiées du secteur : base ouverte Boavizta, empreintes "
-                    "produit publiées par les constructeurs (PCF Dell, HPE, "
-                    "Lenovo), FDES de la base INIES pour la construction. "
+# CE QUE CETTE SOURCE EST, ET CE QU'ELLE N'EST PAS.
+#
+# DÉFAUT CORRIGÉ. Elle nommait des ORGANISMES et des BASES — Boavizta, PCF des
+# constructeurs, FDES INIES — jamais un document. Aucun lecteur ne peut
+# re-dériver « 1 200 kgCO2e » depuis « Boavizta » : il faudrait savoir quelle
+# fiche, quelle configuration, quelle version. Présentée en regard d'un
+# chiffre précis, cette liste avait pourtant l'allure d'une référence, et
+# c'est ce qui la rendait trompeuse — elle empruntait l'autorité d'une source
+# sans en offrir la vérifiabilité.
+#
+# La valeur est donc requalifiée pour ce qu'elle est : une HYPOTHÈSE DE
+# TRAVAIL du cabinet, calée sur cette littérature, et dont on dit le rang de
+# grandeur plutôt que la précision. Le libellé « Hypothèse du moteur, pas une
+# mesure » est celui qu'emploient déjà les leviers de ce fichier ; l'appliquer
+# ici met au même rang deux choses de même nature.
+INCORPORE_SOURCE = ("HYPOTHÈSE DU CABINET, PAS UNE MESURE — et pas davantage "
+                    "une valeur re-dérivable. Ordre de grandeur calé sur les "
+                    "analyses de cycle de vie publiées du secteur (base "
+                    "ouverte Boavizta, empreintes produit des constructeurs, "
+                    "FDES de la base INIES) : aucune de ces sources ne fixe LE "
+                    "chiffre retenu ici, qui est un choix de milieu de plage. "
+                    "Il vaut comme repère de comparaison entre postes, PAS "
+                    "comme empreinte de votre parc. "
                     "À REMPLACER par les déclarations environnementales produit "
                     "(FDES / EPD, ISO 14025) des équipements réellement retenus "
                     "dès qu'elles sont disponibles : l'écart entre un ordre de "
-                    "grandeur et une EPD peut atteindre un facteur deux.")
+                    "grandeur et une EPD peut atteindre un facteur deux — c'est "
+                    "pourquoi l'incertitude affichée est de ±50 %.")
+
+# La durée de vie visée par le levier « allonger la durée de vie ». Elle est
+# ici pour être discutable : sept ans est un objectif courant sur du serveur de
+# volume, pas une règle. Le gain d'amortissement s'en DÉDUIT (voir
+# LEVIERS_HYPOTHESES) plutôt que d'être saisi à côté.
+DUREE_VIE_ALLONGEE_ANS = 7
+
+# ── L'ÉQUIVALENT EN LOGEMENTS, ET CE QU'IL VAUT ────────────────────────────
+# DÉFAUT CORRIGÉ. Le calcul était « e_reuse / 10.0 » : un 10 nu, sans nom,
+# sans unité et sans source, au milieu d'un dictionnaire de retour. Or ce
+# chiffre est le SEUL de la fonction qu'un décideur non technique retiendra —
+# « cette chaleur chauffe 400 logements » se cite en réunion, pas l'ERF.
+#
+# C'est un ordre de grandeur de chauffage seul, pour un logement collectif
+# correctement isolé. Il varie du simple au triple selon l'isolation, la zone
+# climatique et la surface : c'est pourquoi il est déclaré comme repère de
+# communication, et non comme un résultat d'étude.
+MWH_PAR_LOGEMENT_AN = 10.0
+EQUIVALENT_LOGEMENTS_SOURCE = (
+    "HYPOTHÈSE DU CABINET, PAS UNE MESURE. Repère de communication : "
+    "%s MWh/an de CHAUFFAGE seul pour un logement collectif correctement "
+    "isolé, hors eau chaude sanitaire et hors électricité spécifique. Varie "
+    "du simple au triple selon l'isolation, la zone climatique et la surface. "
+    "À n'employer que pour donner un ordre de grandeur ; le nombre de "
+    "logements réellement raccordables se calcule avec le gestionnaire du "
+    "réseau de chaleur, sur le régime de température et la courbe de charge."
+    % ("%g" % MWH_PAR_LOGEMENT_AN))
 
 # L'ANCRAGE MANAGEMENT : les grandeurs de ce moteur ne vivent pas seules.
 # Le PUE calculé ici devient, en exploitation, un INDICATEUR DE PERFORMANCE
@@ -859,7 +968,8 @@ def eau(profil, res_energie):
             {"WUE_site": round(wue_site, 3), "EWIF (L/kWh)": ewif,
              "PUE": round(pue, 3), "pays": pays},
             EWIF_SOURCE,
-            "±40 % (dispersion des facteurs eau de production)",
+            "±%s %% (dispersion des facteurs eau de production)"
+            % fr(INCERTITUDE_EWIF * 100),
             "C'est ce chiffre, et non le WUE de site, qui doit arbitrer entre "
             "évaporatif et sec. Un dry cooler affiche un WUE de site nul tout "
             "en consommant plus d'eau à la source si le mix est thermique."),
@@ -867,7 +977,7 @@ def eau(profil, res_energie):
             "Eau consommée en amont par la production électrique", eau_amont_m3, "m³/an",
             "V_amont = E_total × EWIF",
             {"E_total (MWh)": round(e_tot, 1), "EWIF": ewif},
-            EWIF_SOURCE, "±40 %"),
+            EWIF_SOURCE, "±%s %%" % fr(INCERTITUDE_EWIF * 100)),
     }
 
 
@@ -1049,23 +1159,26 @@ def chaleur(profil, res_energie):
     fam = profil.get("refroidissement") or "eau_glacee"
     # Température de rejet : c'est elle qui décide de la valorisation possible.
     t_rejet = profil.get("temperature_rejet_c")
+    origine_t = "valeur fournie"
     if t_rejet is None:
-        t_rejet = {"liquide_dlc": 55, "immersion": 50, "eau_glacee": 35,
-                   "tour_evaporative": 32, "adiabatique": 30,
-                   "free_cooling_air": 28, "air_dx": 35}.get(fam, 35)
+        t_rejet = TEMPERATURE_REJET_DEFAUT_C.get(
+            fam, TEMPERATURE_REJET_DEFAUT_AUTRE_C)
+        origine_t = ("défaut de famille « %s » — hypothèse du cabinet, pas une "
+                     "mesure" % fam)
     t_rejet = float(t_rejet)
 
     e_reuse = e_tot * part
     erf = part
     ere = pue * (1.0 - erf)
 
-    if t_rejet >= 60:
+    S = SEUILS_VALORISATION_C
+    if t_rejet >= S["injection_directe"]:
         valorisation = ("Injection directe possible dans un réseau de chaleur "
                         "basse température (4e génération).")
-    elif t_rejet >= 45:
+    elif t_rejet >= S["relevage_favorable"]:
         valorisation = ("Injection possible après relevage par pompe à chaleur, "
                         "au coefficient de performance favorable.")
-    elif t_rejet >= 30:
+    elif t_rejet >= S["relevage_couteux"]:
         valorisation = ("Valorisation possible mais coûteuse : pompe à chaleur "
                         "obligatoire, dont la consommation doit être déduite du gain.")
     else:
@@ -1101,8 +1214,19 @@ def chaleur(profil, res_energie):
             "Définition de l'énergie réutilisée — ISO/IEC 30134-6 ; EN 50600-4-6",
             _herite("l'énergie totale et la part déclarée")),
         "temperature_rejet_c": t_rejet,
+        # D'OÙ VIENT LA TEMPÉRATURE, ET CE QUE VAUT LE VERDICT. Le verdict
+        # bascule d'une catégorie à l'autre pour quelques degrés ; le servir
+        # sans dire que la température est un DÉFAUT DE FAMILLE, quand elle
+        # l'est, le fait passer pour une conclusion d'étude.
+        "temperature_rejet_origine": origine_t,
         "valorisation": valorisation,
-        "equivalent_logements": int(e_reuse / 10.0) if e_reuse else 0,
+        "valorisation_fondement": VALORISATION_SOURCE,
+        "valorisation_seuils_c": dict(SEUILS_VALORISATION_C),
+        "equivalent_logements": (int(e_reuse / MWH_PAR_LOGEMENT_AN)
+                                 if e_reuse else 0),
+        # LE REPÈRE LE PLUS CITÉ EST LE MOINS ÉTAYÉ : il part donc avec ce
+        # qu'il vaut, sans quoi « chauffe 400 logements » voyagerait seul.
+        "equivalent_logements_fondement": EQUIVALENT_LOGEMENTS_SOURCE,
     }
 
 
@@ -1173,10 +1297,26 @@ LEVIERS_HYPOTHESES = {
         "note": "Part du carbone incorporé dans l'empreinte totale au-delà de "
                 "laquelle allonger la durée de vie du matériel devient une "
                 "piste prioritaire."},
+    # ── UNE DÉRIVATION ÉCRITE EN DUR, ET QUI SE CALCULAIT ─────────────────
+    # DÉFAUT CORRIGÉ. La valeur était 0,28, avec une note admettant qu'elle
+    # était « proche de 1 − 5/7 (≈0,286) sans en être le calcul exact ». Or
+    # elle EST ce rapport : amortir le même carbone incorporé sur sept ans au
+    # lieu de cinq réduit la part annuelle de 1 − 5/7. Figer l'arrondi tout en
+    # nommant la formule est le pire des deux mondes — le jour où la durée de
+    # vie de référence change (elle est déclarée juste au-dessus, dans
+    # INCORPORE), le nombre reste et devient faux en silence, alors que la
+    # note continue de désigner la bonne formule.
     "duree_vie_gain_amortissement": {
-        "valeur": 0.28, "nature": "hypothèse du moteur",
-        "note": "Gain d'amortissement estimé pour un allongement de 5 à 7 ans "
-                "— proche de 1 − 5/7 (≈0,286) sans en être le calcul exact."},
+        "valeur": round(1 - (INCORPORE["serveur_kgCO2e"]["duree_vie_ans"]
+                             / DUREE_VIE_ALLONGEE_ANS), 3),
+        "nature": "dérivée des durées de vie déclarées",
+        "note": "Gain d'amortissement d'un allongement de %d à %d ans : "
+                "1 − %d/%d. Calculé, non saisi — il suit les durées de vie "
+                "déclarées dans INCORPORE."
+                % (INCORPORE["serveur_kgCO2e"]["duree_vie_ans"],
+                   DUREE_VIE_ALLONGEE_ANS,
+                   INCORPORE["serveur_kgCO2e"]["duree_vie_ans"],
+                   DUREE_VIE_ALLONGEE_ANS)},
     "consolidation_gain_energie": {
         "valeur": 0.12, "nature": "hypothèse du moteur",
         "note": "Gain d'énergie estimé en consolidant les charges sous le "

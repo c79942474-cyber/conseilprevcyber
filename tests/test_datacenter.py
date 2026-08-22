@@ -1068,18 +1068,43 @@ def test_conformite_et_leviers_s_accordent_desormais_sur_l_irlande():
 # d'un NOMBRE que cette norme ne publie pas — le texte existe et porte sur le
 # bon sujet, mais pas sur le chiffre attaché.
 
+# LES NATURES ADMISES, et la liste reste FERMÉE. « dérivée des durées de vie
+# déclarées » a été ajoutée pour un coefficient qui n'est plus saisi mais
+# CALCULÉ (le gain d'amortissement, 1 − 5/7) : le ranger parmi les hypothèses
+# aurait masqué qu'il suit désormais les durées de vie déclarées. Toute autre
+# nature reste refusée — c'est ce qui empêche « estimation », « valeur usuelle »
+# ou « à confirmer » d'entrer sans décision.
+NATURES_ADMISES = {"hypothèse du moteur", "dérivée des durées de vie déclarées"}
+
+
 def test_les_seize_coefficients_sont_nommes_avec_leur_nature():
     assert len(dc.LEVIERS_HYPOTHESES) == 16, sorted(dc.LEVIERS_HYPOTHESES)
     for cle, h in dc.LEVIERS_HYPOTHESES.items():
-        assert h["nature"] == "hypothèse du moteur", cle
+        assert h["nature"] in NATURES_ADMISES, (cle, h["nature"])
         assert isinstance(h["valeur"], (int, float)), cle
         assert len(h["note"]) >= 20, cle
 
 
+def test_un_coefficient_derive_suit_reellement_ce_dont_il_derive():
+    """Le gain d'amortissement valait 0,28, avec une note admettant qu'il était
+    « proche de 1 − 5/7 sans en être le calcul exact ». Il EST ce rapport :
+    figer l'arrondi tout en nommant la formule laissait le nombre devenir faux
+    en silence le jour où la durée de vie déclarée changerait."""
+    h = dc.LEVIERS_HYPOTHESES["duree_vie_gain_amortissement"]
+    base = dc.INCORPORE["serveur_kgCO2e"]["duree_vie_ans"]
+    assert h["valeur"] == round(1 - base / dc.DUREE_VIE_ALLONGEE_ANS, 3)
+    assert h["nature"] != "hypothèse du moteur", "il est calculé, pas posé"
+    assert str(base) in h["note"] and str(dc.DUREE_VIE_ALLONGEE_ANS) in h["note"]
+
+
 def test_les_valeurs_chiffrees_des_leviers_n_ont_pas_bouge():
-    """Le seul changement voulu est la PROVENANCE affichée, jamais le
-    résultat : les mêmes profils doivent rendre les mêmes chiffres qu'avant
-    le correctif."""
+    """Les mêmes profils rendent les mêmes chiffres — SAUF là où un
+    coefficient a été corrigé, et alors le test le dit.
+
+    L'allongement de durée de vie passe de 134,4 à 137,3 tCO2e. Ce n'est pas
+    une dérive : le coefficient valait 0,28, arrondi d'un rapport qu'il ne
+    faisait qu'approcher, et il vaut désormais 1 − 5/7 = 0,286 exactement. Le
+    chiffre d'avant était le faux."""
     profil = {"puissance_it_kw": 1000, "pays": "FR",
               "refroidissement": "tour_evaporative", "taux_charge": 0.50,
               "classe_ashrae": "A2"}
@@ -1087,7 +1112,7 @@ def test_les_valeurs_chiffrees_des_leviers_n_ont_pas_bouge():
     lv = {l["titre"]: l for l in dc.leviers(profil, etude)}
     attendu = {
         "Raccordement à un réseau de chaleur (30 % de l'énergie valorisée)": 320.6,
-        "Allonger la durée de vie des serveurs de 5 à 7 ans": 134.4,
+        "Allonger la durée de vie des serveurs de 5 à 7 ans": 137.3,
         "Refroidissement liquide direct (plaques froides)": 29.4,
         "Consolider les charges pour remonter le taux d'utilisation": 29.4,
         "Passer de la classe ASHRAE A2 à A3": 14.7,

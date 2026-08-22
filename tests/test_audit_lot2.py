@@ -386,3 +386,91 @@ def test_le_conteneur_du_guide_masque_ce_qui_deborde():
     corps = corps[:corps.index("</table>")]
     assert "<pre" not in corps, "un bloc préformaté ne se replie pas : il " \
                                 "forcerait le débordement, donc le rognage"
+
+
+# ── 10. Une source qui ne nomme aucun document se déclare hypothèse ───────
+
+def test_les_valeurs_non_re_derivables_se_declarent_hypotheses():
+    """DÉFAUT CORRIGÉ. Ces sources nommaient des ORGANISMES et des BASES —
+    Boavizta, PCF constructeurs, FDES INIES, enquêtes Uptime — jamais un
+    document. Aucun lecteur ne peut re-dériver « 1 200 kgCO2e » depuis
+    « Boavizta » : il faudrait savoir quelle fiche, quelle configuration,
+    quelle version. Adossées à un chiffre précis, ces listes avaient pourtant
+    l'allure d'une référence : elles empruntaient l'autorité d'une source sans
+    en offrir la vérifiabilité."""
+    import datacenter as DC
+    for nom in ("INCORPORE_SOURCE", "EWIF_SOURCE", "REFROIDISSEMENT_SOURCE"):
+        texte = getattr(DC, nom)
+        assert "HYPOTHÈSE DU CABINET, PAS UNE MESURE" in texte, nom
+
+
+def test_le_verdict_de_valorisation_part_avec_son_fondement():
+    """Sept températures et trois seuils décidaient du verdict en vivant en
+    clair dans la fonction, sans nom ni source. C'est pourtant la seule phrase
+    de `chaleur()` qu'un lecteur retiendra."""
+    import datacenter as DC
+    assert len(DC.TEMPERATURE_REJET_DEFAUT_C) == 7
+    assert set(DC.SEUILS_VALORISATION_C) == {
+        "injection_directe", "relevage_favorable", "relevage_couteux"}
+    e = DC.energie({"puissance_it_kw": 500, "refroidissement": "liquide_dlc",
+                    "pays": "FR"})
+    c = DC.chaleur({"refroidissement": "liquide_dlc",
+                    "part_chaleur_reutilisee": 0.3}, e)
+    assert "hypothèse du cabinet" in c["temperature_rejet_origine"].lower()
+    assert "HYPOTHÈSE DU CABINET" in c["valorisation_fondement"]
+    assert c["valorisation_seuils_c"] == DC.SEUILS_VALORISATION_C
+
+
+def test_une_temperature_fournie_n_est_pas_annoncee_comme_un_defaut():
+    """L'inverse compte : marquer « hypothèse » une valeur que le client a
+    saisie le pousserait à s'en méfier à tort."""
+    import datacenter as DC
+    e = DC.energie({"puissance_it_kw": 500, "refroidissement": "eau_glacee",
+                    "pays": "FR"})
+    c = DC.chaleur({"refroidissement": "eau_glacee",
+                    "temperature_rejet_c": 62}, e)
+    assert c["temperature_rejet_origine"] == "valeur fournie"
+    assert c["temperature_rejet_c"] == 62
+
+
+def test_l_incertitude_du_facteur_eau_a_une_seule_source():
+    """Elle était recopiée à la main dans sept fichiers : le jour où l'une
+    change, les six autres continuent d'annoncer l'ancienne, et le site se
+    contredit sur la fiabilité de son propre chiffre."""
+    import datacenter as DC
+    assert DC.INCERTITUDE_EWIF == 0.40
+    e = DC.energie({"puissance_it_kw": 500,
+                    "refroidissement": "tour_evaporative", "pays": "FR"})
+    w = DC.eau({"puissance_it_kw": 500, "refroidissement": "tour_evaporative",
+                "pays": "FR"}, e)
+    attendu = "±%d %%" % round(DC.INCERTITUDE_EWIF * 100)
+    assert w["eau_amont_m3"]["incertitude"] == attendu
+    assert w["wue_source"]["incertitude"].startswith(attendu)
+
+
+def test_l_incertitude_des_prix_reste_distincte_de_celle_de_l_eau():
+    """Les deux valent 0,40 et n'ont aucun rapport. Les fondre « parce que
+    c'est la même valeur » créerait un lien qui n'existe pas, et le premier
+    des deux à bouger emporterait l'autre."""
+    import datacenter as DC
+    import equipements_it as EQ
+    assert DC.INCERTITUDE_EWIF == EQ.INCERTITUDE_PRIX  # aujourd'hui
+    src = _lire("datacenter.py")
+    i = src.index("INCERTITUDE_EWIF = ")
+    assert "homonymie" in src[max(0, i - 900):i].lower(), \
+        "le piège doit rester écrit là où quelqu'un serait tenté de fondre les deux"
+
+
+def test_l_equivalent_en_logements_dit_ce_qu_il_vaut():
+    """C'est le seul chiffre de la fonction qu'un décideur non technique
+    retiendra — « cette chaleur chauffe 400 logements » se cite en réunion,
+    pas l'ERF. Il était calculé par un « / 10.0 » nu."""
+    import datacenter as DC
+    assert DC.MWH_PAR_LOGEMENT_AN == 10.0
+    e = DC.energie({"puissance_it_kw": 1000, "refroidissement": "liquide_dlc",
+                    "pays": "FR"})
+    c = DC.chaleur({"refroidissement": "liquide_dlc",
+                    "part_chaleur_reutilisee": 0.4}, e)
+    assert c["equivalent_logements"] > 0
+    assert "HYPOTHÈSE DU CABINET" in c["equivalent_logements_fondement"]
+    assert "chauffage" in c["equivalent_logements_fondement"].lower()
