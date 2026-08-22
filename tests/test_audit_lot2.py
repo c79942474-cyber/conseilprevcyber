@@ -474,3 +474,76 @@ def test_l_equivalent_en_logements_dit_ce_qu_il_vaut():
     assert c["equivalent_logements"] > 0
     assert "HYPOTHÈSE DU CABINET" in c["equivalent_logements_fondement"]
     assert "chauffage" in c["equivalent_logements_fondement"].lower()
+
+
+# ── 11. Un repère servi sans son échéance le dit ──────────────────────────
+
+def test_le_repere_du_pacte_dit_qu_il_est_servi_sans_son_echeance():
+    """Le module admettait déjà, dans une note, que les cibles se lisent par
+    échéance et par périmètre dans le texte du Pacte et qu'il ne les reprend
+    pas. Mais `conformite()` rendait un « conforme » ou un « écart » sec sur
+    la seule valeur — et « conforme » est le mot qu'on recopie dans une
+    offre."""
+    import datacenter as DC
+    reserve = DC.CADRE_UE["cndcp"]["reserve_echeances"]
+    assert "SANS son échéance" in reserve
+    r = DC.etude({"puissance_it_kw": 800, "refroidissement": "tour_evaporative",
+                  "pays": "FR", "taux_charge": 0.6})
+    points = [p for p in DC.conformite({"puissance_it_kw": 800, "pays": "FR"}, r)
+              if "repère de marché" in p["sujet"]]
+    assert len(points) == 2, [p["sujet"] for p in points]
+    for p in points:
+        assert p.get("reserve") == reserve, p["sujet"]
+        assert reserve in p["detail"], p["sujet"]
+
+
+# ── 12. Un module sans lien vérifiable ne prétend pas en avoir ────────────
+
+def test_les_prix_et_carbones_d_etude_se_declarent_hypotheses():
+    """Ce module ne porte AUCUN lien vérifiable sur ses 946 lignes, alors que
+    son en-tête promet des règles « écrites et vérifiables — pas un nombre
+    sorti d'un tableur dont personne ne retrouve l'auteur ». La promesse tient
+    pour les règles de quantité ; elle ne tenait pas pour les prix ni le
+    carbone, qui sont exactement des nombres sans auteur retrouvable."""
+    import equipements_it as EQ
+    assert EQ.PRIX_SOURCE.startswith("HYPOTHÈSE DU CABINET")
+    assert EQ.CARBONE_SOURCE.startswith("HYPOTHÈSE DU CABINET")
+    assert EQ.SERVEUR_REPLI_SOURCE.startswith("HYPOTHÈSE DU CABINET")
+
+
+def test_le_chiffrage_servi_porte_ces_declarations():
+    """Elles doivent atteindre le lecteur, pas rester dans le module."""
+    import equipements_it as EQ
+    r = EQ.referentiel()
+    assert r["prix_source"].startswith("HYPOTHÈSE DU CABINET")
+    assert r["carbone_source"].startswith("HYPOTHÈSE DU CABINET")
+
+
+# ── 13. Deux précisions pour une même classe : dit, et expliqué ───────────
+
+def test_la_divergence_des_deux_echelles_de_precision_est_ecrite():
+    """Les phases de maîtrise d'œuvre et les phases industrielles portent la
+    même classe AACE en annonçant des précisions qui diffèrent d'un facteur
+    trois — ±20 à 30 % en esquisse contre −50 % à +100 % en faisabilité,
+    toutes deux en classe 5. Et la plus ÉTROITE est celle dont la nature est
+    « usage », c'est-à-dire la non sourcée."""
+    import ingenierie_dc as ING
+    d = ING.DIVERGENCE_PRECISION_AACE
+    assert "facteur trois" in d
+    assert "ENGAGEMENTS CONTRACTUELS" in d
+    assert "ne les comparez pas terme à terme" in d
+
+
+def test_les_deux_echelles_existent_bien_sur_la_meme_classe():
+    """Le contrôle tombe si quelqu'un « harmonise » les chiffres au lieu
+    d'expliquer pourquoi ils diffèrent — l'harmonisation ferait passer une
+    tolérance contractuelle pour une précision d'estimation."""
+    import ingenierie_dc as ING
+    par_classe = {}
+    for ph in ING.PHASES:
+        p = ph.get("precision") or {}
+        if p.get("aace"):
+            par_classe.setdefault(p["aace"], set()).add(p.get("nature"))
+    partagees = [c for c, n in par_classe.items() if len(n) > 1]
+    assert partagees, "les deux échelles ne se croisent plus sur aucune classe"
+    assert "Classe 5" in partagees, par_classe

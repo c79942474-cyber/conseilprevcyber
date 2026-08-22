@@ -311,15 +311,31 @@ PUISSANCE_SERVEUR = {"classique": 0.5, "dense": 0.8, "ia_air": 6.0,
                      "ia_liquide": 10.0}
 PUISSANCE_STOCKAGE_CHASSIS = 3.0
 
-PRIX_SOURCE = ("Ordres de grandeur de marché européen, hors remise "
+# ── CE QUE CES TROIS SOURCES SONT, ET CE QU'ELLES NE SONT PAS ─────────────
+# DÉFAUT CORRIGÉ. Ce module ne porte AUCUN lien vérifiable sur ses 946 lignes,
+# alors que son propre en-tête promet des règles « écrites et vérifiables —
+# pas un nombre sorti d'un tableur dont personne ne retrouve l'auteur ». La
+# promesse tient pour les RÈGLES DE QUANTITÉ, qui sont écrites ; elle ne tenait
+# pas pour les PRIX ni pour le CARBONE, qui sont exactement des nombres sans
+# auteur retrouvable — « marché européen », « constructeurs », « Boavizta » ne
+# désignent aucun document.
+#
+# Ils sont donc requalifiés comme les autres valeurs de même nature du dépôt :
+# hypothèses du cabinet, avec leur incertitude et l'ordre de remplacement. Un
+# prix d'étude amont n'a pas à être sourcé pour être utile — il a à être
+# annoncé pour ce qu'il est, parce que c'est lui qui entre dans un budget.
+PRIX_SOURCE = ("HYPOTHÈSE DU CABINET, PAS UN PRIX RELEVÉ. Ordres de grandeur "
                "constructeur et hors options. À REMPLACER par les devis dès "
                "la consultation : l'écart entre un prix catalogue et un prix "
                "négocié atteint couramment 40 % sur le calcul.")
-CARBONE_SOURCE = ("Empreintes produit (PCF) publiées par les constructeurs et "
-                  "base ouverte Boavizta, complétées par les ordres de "
-                  "grandeur sectoriels du moteur. Scope 3 du GHG Protocol, "
-                  "catégories 1 (biens et services achetés) et 2 (biens "
-                  "d'équipement).")
+CARBONE_SOURCE = ("HYPOTHÈSE DU CABINET, PAS UNE MESURE. Ordres de grandeur "
+                  "calés sur les empreintes produit (PCF) publiées par les "
+                  "constructeurs et sur la base ouverte Boavizta — aucune de "
+                  "ces sources ne fixe LES valeurs employées ici, qui sont des "
+                  "choix de milieu de plage. Périmètre visé : scope 3 du GHG "
+                  "Protocol, catégories 1 (biens et services achetés) et 2 "
+                  "(biens d'équipement). À remplacer par les PCF des "
+                  "équipements réellement retenus.")
 
 
 # Repli quand le moteur local ne publie pas de facteur par serveur — c'est le
@@ -328,9 +344,11 @@ CARBONE_SOURCE = ("Empreintes produit (PCF) publiées par les constructeurs et "
 # repli, et la provenance effective est servie avec le résultat.
 SERVEUR_REPLI_KG = 1200.0
 SERVEUR_REPLI_ANS = 5.0
-SERVEUR_REPLI_SOURCE = ("Ordre de grandeur d'un serveur biprocesseur de volume "
-                        "(fabrication et transport), d'après les empreintes "
-                        "produit constructeurs et la base ouverte Boavizta. "
+SERVEUR_REPLI_SOURCE = ("HYPOTHÈSE DU CABINET, PAS UNE MESURE. Ordre de "
+                        "grandeur d'un serveur biprocesseur de volume "
+                        "(fabrication et transport), calé sur les empreintes "
+                        "produit constructeurs et la base ouverte Boavizta — "
+                        "sans qu'aucune fiche précise ne le fonde. "
                         "Repli utilisé faute de facteur publié par le moteur "
                         "local — à remplacer par le PCF du matériel retenu.")
 

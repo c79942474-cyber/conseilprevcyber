@@ -173,6 +173,39 @@ def _plage_pue(profil):
 # RÉELLEMENT renseignés — pas laissés sur leur pré-remplissage. `substitutions`
 # liste les postes ci-dessus dont l'ordre de grandeur ne suffit plus.
 
+# ── DEUX PRÉCISIONS POUR UNE MÊME CLASSE AACE, ET POURQUOI ────────────────
+# DÉFAUT CORRIGÉ. Les phases de maîtrise d'œuvre et les phases industrielles
+# portent la MÊME classe AACE en annonçant des précisions qui diffèrent d'un
+# facteur trois — ±20 à 30 % en esquisse contre −50 % à +100 % en faisabilité,
+# toutes deux en classe 5. Les deux chiffres coexistaient sans un mot, si bien
+# qu'un lecteur pouvait conclure que la voie française estime trois fois mieux
+# au même stade. Et la plus ÉTROITE des deux est celle dont la nature est
+# « usage » — c'est-à-dire la non sourcée.
+#
+# LES DEUX SONT LÉGITIMES, ET NE MESURENT PAS LA MÊME CHOSE :
+#   · les fourchettes AACE couvrent l'incertitude de PÉRIMÈTRE d'un projet de
+#     procédé, où l'on peut encore découvrir des unités entières à construire ;
+#   · les tolérances de maîtrise d'œuvre sont des engagements CONTRACTUELS
+#     français, pris sur un programme déjà arrêté et une enveloppe fixée — ce
+#     que l'esquisse d'un bâtiment suppose et que la faisabilité d'un procédé
+#     ne suppose pas.
+#
+# CE QUI SERAIT FAUX : présenter la tolérance de maîtrise d'œuvre comme une
+# précision d'estimation. Elle dit ce que le maître d'œuvre s'engage à tenir,
+# pas ce que l'estimation vaut statistiquement. La note ci-dessous part avec
+# chaque phase, pour qu'aucune des deux ne se lise à la place de l'autre.
+DIVERGENCE_PRECISION_AACE = (
+    "Deux échelles cohabitent ici et ne mesurent pas la même chose. Les "
+    "fourchettes AACE (filière industrielle) couvrent l'incertitude de "
+    "PÉRIMÈTRE d'un projet de procédé, où des unités entières restent à "
+    "définir. Les tolérances de maîtrise d'œuvre (filière bâtiment) sont des "
+    "ENGAGEMENTS CONTRACTUELS pris sur un programme arrêté et une enveloppe "
+    "fixée : elles sont plus étroites parce qu'elles portent sur moins "
+    "d'inconnu, PAS parce que l'estimation serait meilleure. À classe AACE "
+    "égale, l'écart entre les deux atteint un facteur trois — ne les comparez "
+    "pas terme à terme, et ne présentez jamais une tolérance de maîtrise "
+    "d'œuvre comme une précision d'estimation.")
+
 PHASES = [
     # ── Maîtrise d'œuvre — loi MOP ────────────────────────────────────────
     {
@@ -5037,6 +5070,7 @@ def prompts_piece(profil, code_phase, code_piece, inputs=None):
     A("Ce qu'elle verrouille : %s" % d["verrouille"])
     A("Niveau de précision attendu : %s (%s ; %s)"
       % (d["precision"]["valeur"], d["precision"]["nature"], d["precision"]["aace"]))
+    A("Réserve d'échelle : %s" % DIVERGENCE_PRECISION_AACE)
     A("")
     A("PROJET — client : %s · segment : %s · périmètre : %s"
       % (client, secteur, perimetre))

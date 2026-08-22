@@ -581,6 +581,24 @@ CADRE_UE = {
         # Un dossier qui s'appuie sur ce repère doit vérifier l'annexe du Pacte
         # pour le pays concerné avant remise, en particulier en zone limite.
         "pays_climat_froid": ("DK", "FI", "NO", "SE"),
+        # LA RÉSERVE VOYAGE AVEC LE VERDICT, ET PLUS SEULEMENT DANS CETTE NOTE.
+        # DÉFAUT CORRIGÉ : la note ci-dessous admettait déjà que les cibles se
+        # lisent PAR ÉCHÉANCE et PAR PÉRIMÈTRE (centre neuf ou existant) dans
+        # le texte du Pacte, et que cette fiche ne les reprend pas. Mais elle
+        # restait une note du référentiel, que rien n'obligeait à afficher,
+        # tandis que `conformite()` rendait un « conforme » ou un « écart » sec
+        # sur la seule valeur. Un exploitant pouvait donc lire « conforme »
+        # alors que l'échéance applicable à son périmètre est plus exigeante,
+        # ou l'inverse — et le mot « conforme » est celui qu'on recopie dans
+        # une offre.
+        "reserve_echeances": (
+            "Repère servi SANS son échéance ni son périmètre. Le Pacte décline "
+            "ses cibles PUE par date d'application et selon qu'il s'agit d'un "
+            "centre neuf ou existant ; cette fiche ne reprend pas ce découpage, "
+            "faute d'accès au texte depuis l'environnement de conception. Le "
+            "verdict ci-contre compare donc une valeur à une valeur, PAS un "
+            "site à son obligation. À confronter à l'annexe du Pacte avant "
+            "toute reprise dans une offre."),
         "note": "Engagement volontaire, non réglementaire. Il sert de repère de "
                 "marché : un dossier qui s'en écarte doit le justifier. Les cibles "
                 "PUE se lisent aussi par échéance et par périmètre (centre neuf ou "
@@ -1553,11 +1571,16 @@ def conformite(profil, res):
         {"sujet": "PUE — repère de marché",
          "statut": "conforme" if pue <= cible_pue else "écart",
          "detail": ("PUE calculé " + fr(pue, 3) + " ; repère " + fr(cible_pue)
-                    + (" (climat froid)." if froid else " (climat tempéré ou chaud).")),
+                    + (" (climat froid)." if froid else " (climat tempéré ou chaud).")
+                    + " " + CADRE_UE["cndcp"]["reserve_echeances"]),
+         "reserve": CADRE_UE["cndcp"]["reserve_echeances"],
          "reference": CADRE_UE["cndcp"]["titre"]},
         {"sujet": "WUE de site — repère de marché",
          "statut": "conforme" if wue <= cible_wue else "écart",
-         "detail": "WUE de site calculé " + fr(wue, 3) + " L/kWh ; repère " + fr(cible_wue) + ".",
+         "detail": ("WUE de site calculé " + fr(wue, 3) + " L/kWh ; repère "
+                    + fr(cible_wue) + ". "
+                    + CADRE_UE["cndcp"]["reserve_echeances"]),
+         "reserve": CADRE_UE["cndcp"]["reserve_echeances"],
          "reference": CADRE_UE["cndcp"]["titre"]},
     ]
     return points
