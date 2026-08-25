@@ -106,6 +106,39 @@
   .mo-non h3{margin:0;font-size:14.5px;color:var(--ink)}
   .mo-non p{font-size:12.5px;color:var(--muted);margin:7px 0 0;line-height:1.6}
   .mo-non b{color:var(--ink)}
+
+  /* ── LA LISTE DÉROULANTE DES LIVRABLES ──────────────────────────────────
+     Cinq entrées repliées tiennent en cinq lignes ; dépliées, elles faisaient
+     défiler la page sur plusieurs écrans avant d'atteindre le premier bouton
+     d'export. L'ÉTAT DE CHAQUE ENTRÉE EST DANS SON TITRE — « 5 écarts sous la
+     cible », « ne se calcule pas » — sans quoi replier n'aurait fait que
+     cacher l'information au lieu de la résumer. */
+  .mo-liv{border:1px solid var(--line);border-radius:10px;margin-top:10px;
+    background:linear-gradient(180deg,var(--panel),var(--bg2));overflow:hidden}
+  .mo-liv[open]{border-color:var(--cyan)}
+  .mo-liv-s{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:12px;
+    flex-wrap:wrap;padding:13px 16px 13px 38px;position:relative;user-select:none}
+  .mo-liv-s::-webkit-details-marker{display:none}
+  /* LE CHEVRON EST DESSINÉ, pas emprunté au marqueur natif : celui-ci ne
+     s'aligne pas sur une ligne de titre qui peut passer à la ligne. */
+  .mo-liv-s::before{content:"";position:absolute;left:16px;top:1.15em;width:7px;height:7px;
+    border-right:2px solid var(--cyan);border-bottom:2px solid var(--cyan);
+    transform:translateY(-50%) rotate(-45deg);transition:transform .18s}
+  .mo-liv[open] .mo-liv-s::before{transform:translateY(-50%) rotate(45deg)}
+  .mo-liv-s:hover{background:var(--panel2)}
+  .mo-liv-s:focus-visible{outline:2px solid var(--cyan);outline-offset:-2px}
+  .mo-liv-t{font-size:14.5px;font-weight:600;color:var(--ink);line-height:1.35;flex:1 1 auto}
+  /* L'ÉTAT NE TIENT PAS QU'À SA COULEUR : il est écrit en toutes lettres, et
+     la teinte ne fait que redoubler le mot. */
+  .mo-liv-e{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;white-space:nowrap;
+    border:1px solid currentColor;border-radius:5px;padding:2px 7px}
+  .mo-liv-e.ok{color:var(--cyan)}
+  .mo-liv-e.attente{color:var(--muted2)}
+  .mo-liv-e.non{color:var(--amber)}
+  .mo-liv-c{padding:2px 16px 16px;border-top:1px solid var(--line)}
+  .mo-liv-f{font-size:12.5px;color:var(--muted);line-height:1.6;margin:10px 0 0}
+  .mo-liv-f b{color:var(--ink)}
+  @media(prefers-reduced-motion:reduce){.mo-liv-s::before{transition:none}}
   .mo-vide{font-size:13px;color:var(--muted2);line-height:1.6;margin:12px 0 0}
 </style>
 </head>
@@ -530,24 +563,69 @@
   var OU = { "mat-radar": "mo-radar", "mat-carto-ecarts": "mo-ecarts",
              "mat-plan-montee": "mo-plan" };
 
+  /* CE QUE CHAQUE ENTRÉE ANNONCE QUAND ELLE EST FERMÉE. C'est tout l'intérêt
+     de la liste : repliée, elle doit rester un sommaire lisible. Un accordéon
+     dont les titres seuls dépassent oblige à tout ouvrir pour savoir où
+     regarder — il aurait déplacé le défilement au lieu de le supprimer. */
+  function etatLiv(l, j) {
+    if (!l.calculable) return { t: "ne se calcule pas", c: "non" };
+    if (!l.pret) return { t: "en attente de vos réponses", c: "attente" };
+    if (l.id === "mat-radar")
+      return { t: j.repondus + " domaine(s) sur " + j.sur + " renseigné(s)", c: "ok" };
+    if (l.id === "mat-carto-ecarts")
+      return { t: j.a_combler.length ? j.a_combler.length + " écart(s) sous la cible"
+                                     : "aucun écart sous la cible", c: "ok" };
+    if (l.id === "mat-plan-montee")
+      return { t: j.n_etapes ? j.n_etapes + " degré(s) à franchir"
+                             : "rien à franchir", c: "ok" };
+    return { t: "", c: "ok" };
+  }
+
+  /* L'ENTRÉE OUVERTE SURVIT AU REPEINT. Ce panneau se reconstruit à chaque
+     changement de curseur : sans cette mémoire, l'entrée qu'on vient d'ouvrir
+     se refermerait au premier degré modifié — exactement au moment où l'on
+     regarde l'effet de ce degré. `null` signifie « le lecteur n'a encore rien
+     décidé » et se distingue de `""`, qui veut dire « il a tout refermé » :
+     confondre les deux rouvrirait le radar à chaque saisie. */
+  var livOuvert = null;
+
+  window.moLivBascule = function () {
+    var d = document.querySelector("#mo-livrables details[data-liv][open]");
+    livOuvert = d ? d.getAttribute("data-liv") : "";
+  };
+
   function echafauder(j) {
-    var h = "", non = "";
-    (j.livrables || []).forEach(function (l) {
+    var liste = j.livrables || [];
+    /* Au premier affichage, la première entrée calculable s'ouvre — mais
+       seulement s'il y a quelque chose dedans. Sur un formulaire vide, tout
+       reste replié : ouvrir un cadre vide n'apprend rien. */
+    var aOuvrir = livOuvert;
+    if (aOuvrir === null) {
+      var prem = liste.filter(function (l) { return l.pret; })[0];
+      aOuvrir = prem ? prem.id : "";
+    }
+    var h = "";
+    liste.forEach(function (l) {
+      var e = etatLiv(l, j);
+      var ouv = (l.id === aOuvrir) ? " open" : "";
+      /* `name` rend l'accordéon exclusif : ouvrir une entrée referme la
+         précédente. Les navigateurs qui l'ignorent encore les laissent
+         s'ouvrir ensemble — c'est plus verbeux, jamais cassé. */
+      h += '<details class="mo-liv" name="mo-liv" data-liv="' + esc(l.id) + '"'
+        + ' ontoggle="moLivBascule()"' + ouv + ">"
+        + '<summary class="mo-liv-s"><span class="mo-liv-t">' + esc(l.label) + "</span>"
+        + '<span class="mo-liv-e ' + e.c + '">' + esc(e.t) + "</span></summary>"
+        + '<div class="mo-liv-c">'
+        + '<p class="mo-vide" style="margin-top:0">' + esc(l.dit) + "</p>";
       if (l.calculable) {
-        h += '<div class="mo-liv" style="margin-top:22px">'
-          + '<h3 style="font-size:16px;margin:0 0 2px">' + esc(l.label) + "</h3>"
-          + '<p class="mo-vide" style="margin-top:2px">' + esc(l.dit) + "</p>"
-          + '<div id="' + OU[l.id] + '"></div></div>';
+        h += '<div id="' + OU[l.id] + '"></div>';
       } else {
-        non += '<div class="mo-non"><h3>' + esc(l.label) + "</h3>"
-          + "<p>" + esc(l.dit) + "</p>"
-          + "<p><b>Ce qu’il faudrait.</b> " + esc(l.ce_qu_il_faudrait) + " "
-          + '<a href="/contact">En parler au cabinet →</a></p></div>';
+        h += "<p class=\"mo-liv-f\"><b>Ce qu’il faudrait.</b> "
+          + esc(l.ce_qu_il_faudrait) + ' <a href="/contact">En parler au cabinet →</a></p>';
       }
+      h += "</div></details>";
     });
-    $("#mo-livrables").innerHTML = h
-      + '<h3 style="font-size:16px;margin:26px 0 0">Ce que cette auto-évaluation ne produit pas</h3>'
-      + non;
+    $("#mo-livrables").innerHTML = h;
   }
 
   /* LE RADAR — mat-radar. Il ne porte JAMAIS seul l'information : le tableau

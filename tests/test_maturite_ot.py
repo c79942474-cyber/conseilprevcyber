@@ -684,6 +684,78 @@ def test_la_page_appelle_les_trois_routes():
         assert route in h, "la page n'appelle jamais %s" % route
 
 
+def _corps(nom):
+    """Le corps d'une fonction de la page, pour SCOPER un contrôle. Chercher
+    un ingrédient dans tout le fichier prouve seulement qu'il existe quelque
+    part — pas qu'il sert là où il faut."""
+    h = _page()
+    i = h.index("function %s(" % nom)
+    prof, j = 0, h.index("{", i)
+    for k in range(j, len(h)):
+        if h[k] == "{":
+            prof += 1
+        elif h[k] == "}":
+            prof -= 1
+            if prof == 0:
+                return h[i:k + 1]
+    raise AssertionError("corps de %s non délimité" % nom)
+
+
+def test_les_cinq_livrables_forment_une_seule_liste_deroulante():
+    """Dépliés, les cinq blocs faisaient défiler plusieurs écrans avant le
+    premier bouton d'export. Repliés, ils tiennent en cinq lignes.
+
+    L'ACCORDÉON EST EXCLUSIF — l'attribut `name` : ouvrir une entrée referme
+    la précédente. Sans lui, tout ouvrir redonne exactement la page d'avant."""
+    c = _corps("echafauder")
+    assert "<details" in c, "les livrables ne sont pas dans une liste dépliable"
+    assert 'name="mo-liv"' in c, (
+        "l'accordéon n'est pas exclusif : les cinq entrées peuvent être "
+        "ouvertes ensemble, ce qui redonne la page d'avant")
+    assert "<summary" in c
+    # Les cinq entrées sont dans LA MÊME liste : les deux non calculables ne
+    # sont pas relégués sous un titre à part, ils portent leur état comme les
+    # autres.
+    assert c.count("<details") == 1, (
+        "plusieurs listes : les livrables non calculables sont mis à part")
+
+
+def test_chaque_entree_repliee_annonce_son_etat():
+    """Replier ne doit pas cacher l'information, mais la résumer. Un accordéon
+    dont les titres seuls dépassent oblige à tout ouvrir pour savoir où
+    regarder — il déplace le défilement au lieu de le supprimer."""
+    c = _corps("echafauder")
+    assert "mo-liv-e" in c, "aucune pastille d'état dans les titres"
+    e = _corps("etatLiv")
+    for attendu in ("ne se calcule pas", "en attente de vos réponses"):
+        assert _apo(attendu) in _apo(e), "l'état « %s » n'est pas annoncé" % attendu
+    # Un état calculé se dit avec son chiffre, pas avec un adjectif.
+    assert "j.a_combler.length" in e and "j.n_etapes" in e, (
+        "les états des entrées calculables ne viennent pas des données")
+
+
+def test_LE_POINT_QUI_DECIDE_l_entree_ouverte_survit_au_repeint():
+    """Ce panneau se reconstruit à CHAQUE changement de curseur. Sans mémoire
+    de l'entrée ouverte, elle se refermerait au premier degré modifié —
+    c'est-à-dire précisément au moment où le lecteur regarde l'effet de ce
+    degré, et il verrait la page se replier sous ses yeux.
+
+    ET « JAMAIS DÉCIDÉ » N'EST PAS « TOUT REFERMÉ ». Les confondre rouvrirait
+    le radar à chaque saisie chez quelqu'un qui vient justement de tout
+    refermer."""
+    h = _page()
+    assert re.search(r"(?m)^\s*var livOuvert = null;", h), (
+        "aucune mémoire de l'entrée ouverte")
+    assert 'ontoggle="moLivBascule()"' in _corps("echafauder"), (
+        "l'ouverture d'une entrée n'est jamais enregistrée")
+    c = _corps("echafauder")
+    assert "livOuvert" in c, (
+        "la reconstruction ne consulte pas l'entrée précédemment ouverte")
+    assert "=== null" in c, (
+        "« jamais décidé » et « tout refermé » sont confondus : l'entrée par "
+        "défaut se rouvrirait à chaque saisie")
+
+
 def test_la_page_ne_recopie_pas_l_echelle():
     """Deux tables du même objet divergent au premier ajout. L'échelle vient
     de la route ; la page ne doit pas en porter une seconde."""
