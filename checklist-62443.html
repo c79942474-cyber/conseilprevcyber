@@ -38,6 +38,40 @@
   .ck-refus{margin-top:14px;padding:12px 15px;border-left:3px solid var(--amber);
     background:var(--panel2);border-radius:0 8px 8px 0;font-size:13px;line-height:1.65}
   .ck-refus b{color:var(--ink)}
+
+  /* LE PARCOURS. Les vagues sont numérotées parce que l'ordre PORTE une
+     information — ce qui vient après ne peut pas être prouvé avant. Un
+     numéro décoratif sur une liste sans ordre serait le contraire. */
+  /* LES JETONS SONT CEUX DU SITE, SANS REPLI ÉCRIT À CÔTÉ. Premier essai :
+     `var(--teal,#0e6d7c)` et `var(--bg2,#f6f8f9)` — deux valeurs de repli
+     CLAIRES sur un site dont le fond est un bordeaux et l'encre une crème.
+     Elles ne se déclenchaient pas, les variables existant toutes ; elles
+     n'attendaient qu'un renommage pour poser du texte crème sur du blanc. Un
+     repli qu'on n'a pas mesuré sur le vrai thème n'est pas un filet de
+     sécurité, c'est une panne différée. */
+  .ck-vg{margin-top:18px;border:1px solid var(--line);border-radius:10px;
+    overflow:hidden;background:linear-gradient(180deg,var(--panel),var(--bg2))}
+  .ck-vg-t{display:flex;align-items:baseline;gap:10px;padding:10px 15px;
+    background:var(--panel2);border-bottom:1px solid var(--line)}
+  .ck-vg-n{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--cyan)}
+  .ck-vg-d{font-size:12px;color:var(--muted)}
+  .ck-et{padding:12px 15px;border-top:1px solid var(--line)}
+  .ck-et:first-child{border-top:0}
+  .ck-et-t{font-weight:600;font-size:14px;color:var(--ink);line-height:1.35}
+  .ck-et-m{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;
+    color:var(--muted2);margin-top:3px}
+  .ck-et-p{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.55}
+  .ck-et-p b{color:var(--ink);font-weight:600}
+  .ck-et-lib{display:inline-block;font-family:var(--mono);font-size:10px;
+    font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--cyan);border:1px solid currentColor;border-radius:5px;
+    padding:1px 7px;margin-top:8px}
+  .ck-vr{margin-top:14px;padding:12px 15px;border-left:3px solid var(--cyan);
+    background:var(--panel2);border-radius:0 8px 8px 0}
+  .ck-vr h3{margin:0 0 8px;font-size:13px;color:var(--ink)}
+  .ck-vr ul{margin:0;padding-left:18px;font-size:12.5px;line-height:1.6;color:var(--muted)}
+  .ck-vr b{color:var(--ink)}
   .ck-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}
   .ck-actions button{all:unset;cursor:pointer;font-size:12.5px;padding:7px 13px;border-radius:8px;
     border:1px solid var(--line);color:var(--muted);min-height:24px}
@@ -85,6 +119,13 @@
       <div class="ck-actions">
         <button type="button" id="ck-vider" disabled>Tout décocher</button>
         <button type="button" id="ck-copier" disabled>Copier ce qui reste à faire</button>
+        <!-- EMPORTER. Le document porte la liste, l'état ET le parcours — et
+             la réserve sur les niveaux de maturité EN TÊTE, parce qu'il
+             circule sans cette page : transféré, imprimé, joint à un comité
+             de pilotage, relu six mois plus tard par quelqu'un qui n'a jamais
+             vu ce site. -->
+        <button type="button" id="ck-pdf" disabled>Emporter en PDF</button>
+        <button type="button" id="ck-docx" disabled>Emporter en Word</button>
       </div>
     </div>
 
@@ -95,6 +136,23 @@
     <div class="ck-refus" id="ck-refus"></div>
 
     <div id="ck-liste"></div>
+
+    <!-- ── LE PARCOURS ──────────────────────────────────────────────────
+         CE QUI VIENT APRÈS LE COMPTE, ET QUI DÉCIDE DAVANTAGE. Un
+         pourcentage dit à quelle distance on est de la fin ; il ne dit pas
+         par quoi commencer. Un verrou nommé — « l'inventaire bloque
+         dix-huit points » — se traduit en décision le jour même.
+
+         L'ORDRE VIENT D'UNE TABLE DE PRÉALABLES écrite à la main et motivée
+         arête par arête dans `parcours_62443.py` : un jugement de ce
+         cabinet, assumé comme tel. Chaque étape montre le sien. -->
+    <section class="rc-sec ck-parcours" id="ck-parcours" style="margin-top:26px" hidden>
+      <h2 style="font-size:17px">Le parcours — dans quel ordre prendre ce qui reste</h2>
+      <p class="note" style="max-width:76ch" id="ck-pc-dit"></p>
+      <div id="ck-verrous"></div>
+      <div id="ck-vagues"></div>
+      <p class="ck-refus" id="ck-pc-ml"></p>
+    </section>
 
     <section class="rc-sec" style="margin-top:26px">
       <h2 style="font-size:17px">Les parties citées</h2>
@@ -287,8 +345,126 @@
           $("#ck-lecture").textContent = j.lecture;
         })
         .catch(function () { /* le compte local reste juste */ });
+      rendreParcours(v);
     }, 260);
   }
+
+  /* ── LE PARCOURS ────────────────────────────────────────────────────────
+     IL EST DEMANDÉ AU SERVEUR, PAS CALCULÉ ICI. La table des préalables est
+     un jugement écrit et motivé dans `parcours_62443.py` ; la recopier dans
+     cette page en ferait une seconde table, qui divergerait de la première au
+     premier ajout de point — et c'est toujours celle qu'on regarde le moins
+     qui reste en arrière.
+
+     SEULE LA RÉPONSE À LA DERNIÈRE DEMANDE ÉCRIT DANS LA PAGE. Cocher trois
+     cases de suite lance trois requêtes ; la plus lente écraserait la plus
+     récente, et le lecteur verrait un parcours qui ne correspond à aucune de
+     ses cases. */
+  var demandePc = 0;
+  function rendreParcours(v) {
+    var mien = ++demandePc;
+    fetch("/api/62443/checklist/parcours", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ coches: v }),
+    }).then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (mien !== demandePc || !j.ok) return;
+        peindreParcours(j);
+      })
+      .catch(function () { /* la liste reste utilisable sans le parcours */ });
+  }
+
+  function peindreParcours(j) {
+    var z = $("#ck-parcours");
+    if (!z) return;
+    z.hidden = false;
+    $("#ck-pc-dit").textContent = j.lecture_parcours;
+
+    /* LES VERROUS D'ABORD. Ce qui bloque le plus se lit avant ce qu'il y a à
+       faire : c'est ce nombre-là qui décide du calendrier. */
+    var vr = "";
+    var bloquants = (j.verrous || []).filter(function (x) { return x.bloque >= 2; });
+    if (bloquants.length) {
+      vr = '<div class="ck-vr"><h3>Ce qui bloque le reste</h3><ul>'
+        + bloquants.slice(0, 5).map(function (x) {
+            return "<li><b>" + esc(x.libelle) + "</b> — libère " + x.bloque
+              + " point(s)" + (x.atteignable ? ", engageable maintenant"
+                                             : ", attend lui-même un préalable") + ".</li>";
+          }).join("")
+        + "</ul></div>";
+    }
+    $("#ck-verrous").innerHTML = vr;
+
+    var h = "";
+    (j.vagues || []).forEach(function (v) {
+      h += '<div class="ck-vg"><div class="ck-vg-t">'
+        + '<span class="ck-vg-n">Vague ' + v.rang + "</span>"
+        + '<span class="ck-vg-d">' + v.n + " point(s) — menables en parallèle</span>"
+        + "</div>";
+      v.etapes.forEach(function (e) {
+        h += '<div class="ck-et"><div class="ck-et-t">' + esc(e.libelle) + "</div>"
+          + '<div class="ck-et-m">' + esc(e.section) + " · " + esc(e.rattachement) + "</div>"
+          + '<p class="ck-et-p"><b>Preuve à produire.</b> ' + esc(e.preuve) + "</p>";
+        (e.prealables || []).forEach(function (pre) {
+          h += '<p class="ck-et-p"><b>Préalable — ' + esc(pre.libelle) + ".</b> "
+            + esc(pre.pourquoi) + "</p>";
+        });
+        if (e.libere) {
+          h += '<span class="ck-et-lib">libère ' + e.libere + " point(s)</span>";
+        }
+        h += "</div>";
+      });
+      h += "</div>";
+    });
+    $("#ck-vagues").innerHTML = h;
+
+    /* OÙ LE MOT « MATURITÉ » EST LÉGITIME. Éconduire n'est pas répondre : un
+       lecteur qui cherche un niveau doit être envoyé quelque part. */
+    var m = j.ou_la_maturite_se_constate || {};
+    $("#ck-pc-ml").innerHTML = "<b>Où un niveau de maturité se constate.</b> "
+      + esc(m.dit || "") + " Le point concerné est « " + esc(m.libelle || "")
+      + " » — " + (m.fait ? "coché" : "non coché à ce jour") + ".";
+  }
+
+  /* ── EMPORTER ───────────────────────────────────────────────────────────
+     LE DOCUMENT PASSE PAR LE SERVEUR, qui le compose avec la charte de la
+     maison — la même que les autres livrables. Composer un PDF dans le
+     navigateur aurait donné un second document, reconnaissable comme tel. */
+  function emporter(fmt, bouton) {
+    if (!REF) return;
+    var libelle = bouton.textContent;
+    bouton.disabled = true;
+    bouton.textContent = "Composition…";
+    fetch("/api/62443/checklist/emporter", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ coches: coches(), format: fmt }),
+    }).then(function (r) {
+      if (!r.ok) throw new Error("http");
+      return r.blob();
+    }).then(function (b) {
+      var u = URL.createObjectURL(b);
+      var a = document.createElement("a");
+      a.href = u;
+      a.download = "checklist-62443." + fmt;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(u); }, 4000);
+    }).catch(function () {
+      /* UN ÉCHEC SE DIT. Un bouton qui redevient normal sans rien produire
+         se lit comme un clic manqué, et l'on reclique. */
+      bouton.textContent = "Échec — réessayer";
+      setTimeout(function () { bouton.textContent = libelle; }, 2600);
+    }).then(function () {
+      bouton.disabled = false;
+      if (bouton.textContent === "Composition…") bouton.textContent = libelle;
+    });
+  }
+
+  $("#ck-pdf").addEventListener("click", function () { emporter("pdf", this); });
+  $("#ck-docx").addEventListener("click", function () { emporter("docx", this); });
 
   $("#ck-vider").addEventListener("click", function () {
     document.querySelectorAll("#ck-liste input[data-pt]").forEach(function (i) {
@@ -329,6 +505,12 @@
       rendre();
       $("#ck-vider").disabled = false;
       $("#ck-copier").disabled = false;
+      /* LES DEUX BOUTONS D'EXPORT SUIVENT LA MÊME RÈGLE que les deux autres :
+         écrits désactivés dans la page, ils ne s'ouvrent qu'une fois le
+         référentiel reçu. Un clic pendant le chargement enverrait une liste
+         de cases vide et rendrait un document qui ne dit rien de personne. */
+      $("#ck-pdf").disabled = false;
+      $("#ck-docx").disabled = false;
     })
     .catch(function () {
       $("#ck-liste").innerHTML = '<p class="note">La liste n’a pas pu être '

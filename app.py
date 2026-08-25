@@ -2112,6 +2112,7 @@ def api_playbook_export():
 import datacenter    # noqa: E402
 import durabilite    # noqa: E402  — le cadre vert, adosse aux trois sous-dossiers de la base
 import checklist_62443  # noqa: E402  — la liste de verification 62443
+import parcours_62443  # noqa: E402  — l'ordre dans lequel prendre ce qui reste
 import etat_art      # noqa: E402  — les faits publies, chacun avec son auteur et ce qu'il vaut
 import profil_dc     # noqa: E402  — analyse le moteur ci-dessus, ne le double pas
 import ingenierie_dc  # noqa: E402  — situe ses résultats dans la séquence projet
@@ -2459,6 +2460,80 @@ def api_62443_checklist_compter():
     data = request.get_json(silent=True) or {}
     r = checklist_62443.compter(data.get("coches"))
     return jsonify(r) if r.get("ok") else (jsonify(r), 400)
+
+
+@app.route("/api/62443/checklist/parcours", methods=["POST"])
+@login_required
+def api_62443_checklist_parcours():
+    """OU EN EST CE CLIENT, ET DANS QUEL ORDRE PRENDRE CE QUI RESTE.
+
+    CE QUE CETTE ROUTE NE REND PAS, ET C'EST DIT DANS SES PROPRES CHAMPS :
+    aucun niveau de maturite ni de securite. Un compte de cases n'est ni un ML
+    au sens de la 62443-2-4 ni un SL au sens de la 62443-3-3 — les deux se
+    constatent sur preuves, par exigence et par perimetre. Ce qui est rendu a
+    la place est un etat de preparation et un ordre : quel point bloque
+    combien d'autres, et ce qui peut etre engage des maintenant.
+
+    L'ORDRE VIENT D'UNE TABLE DE PREALABLES ECRITE A LA MAIN, motivee arete
+    par arete dans `parcours_62443` — un jugement de ce cabinet, assume comme
+    tel plutot que deguise en derivation.
+    """
+    data = request.get_json(silent=True) or {}
+    r = parcours_62443.parcours(data.get("coches"))
+    return jsonify(r) if r.get("ok") else (jsonify(r), 400)
+
+
+@app.route("/api/62443/checklist/emporter", methods=["POST"])
+@login_required
+def api_62443_checklist_emporter():
+    """La liste, l'etat et le parcours — en PDF ou en Word.
+
+    LE DOCUMENT CIRCULE SANS SA PAGE. Il est transfere, imprime, joint a un
+    comite de pilotage, relu six mois plus tard par quelqu'un qui n'a jamais
+    vu ce site. Il porte donc la reserve sur les niveaux de maturite AVANT
+    les chiffres, et non en note de bas de page : `parcours_62443.markdown`
+    la place en tete du document.
+    """
+    data = request.get_json(silent=True) or {}
+    fmt = str(data.get("format") or "pdf").lower()
+    if fmt not in ("pdf", "docx"):
+        return jsonify(ok=False, error="format_inconnu",
+                       message="Formats servis : pdf, docx."), 400
+
+    # LA MEME PORTE QUE L'ECRAN. `markdown` appelle `parcours`, qui appelle
+    # `compter` : une cle inconnue est refusee ici comme elle l'est la, et le
+    # motif du refus est le meme. Un format de sortie ne doit jamais devenir
+    # le chemin de contournement d'un controle.
+    verif = checklist_62443.compter(data.get("coches"))
+    if not verif.get("ok"):
+        return jsonify(verif), 400
+
+    md = parcours_62443.markdown(data.get("coches"),
+                                 titre=str(data.get("titre") or "").strip()[:120] or None)
+    meta = {"label": "Checklist IEC 62443 — etat et parcours",
+            "client": str(data.get("client") or "")[:120],
+            "perimetre": str(data.get("perimetre") or "").strip()[:300]
+                         or "installation industrielle",
+            "date": time.strftime("%d/%m/%Y")}
+    try:
+        if fmt == "pdf":
+            blob = livrables_export.build_pdf(md, meta)
+            mimetype = "application/pdf"
+        else:
+            blob = livrables_export.build_docx(md, meta)
+            mimetype = ("application/vnd.openxmlformats-officedocument"
+                        ".wordprocessingml.document")
+    except Exception:
+        app.logger.exception("export checklist 62443")
+        return jsonify(ok=False, error="export_echec",
+                       message="La mise en page a échoué."), 500
+    audit.journaliser("checklist62443.export", cible=fmt,
+                      detail="%d point(s) coché(s) sur %d"
+                             % (verif["faits"], verif["sur"]))
+    return send_file(io.BytesIO(blob),
+                     download_name="checklist-62443-%s.%s"
+                                   % (time.strftime("%Y-%m-%d"), fmt),
+                     as_attachment=True, mimetype=mimetype)
 
 
 @app.route("/api/datacenter/etat-art")
