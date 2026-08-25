@@ -2113,6 +2113,7 @@ import datacenter    # noqa: E402
 import durabilite    # noqa: E402  — le cadre vert, adosse aux trois sous-dossiers de la base
 import checklist_62443  # noqa: E402  — la liste de verification 62443
 import parcours_62443  # noqa: E402  — l'ordre dans lequel prendre ce qui reste
+import maturite_ot   # noqa: E402  — l'auto-evaluation declarative, pas un assessment
 import etat_art      # noqa: E402  — les faits publies, chacun avec son auteur et ce qu'il vaut
 import profil_dc     # noqa: E402  — analyse le moteur ci-dessus, ne le double pas
 import ingenierie_dc  # noqa: E402  — situe ses résultats dans la séquence projet
@@ -2510,7 +2511,7 @@ def api_62443_checklist_emporter():
 
     md = parcours_62443.markdown(data.get("coches"),
                                  titre=str(data.get("titre") or "").strip()[:120] or None)
-    meta = {"label": "Checklist IEC 62443 — etat et parcours",
+    meta = {"label": "Checklist IEC 62443 — état et parcours",
             "client": str(data.get("client") or "")[:120],
             "perimetre": str(data.get("perimetre") or "").strip()[:300]
                          or "installation industrielle",
@@ -2532,6 +2533,107 @@ def api_62443_checklist_emporter():
                              % (verif["faits"], verif["sur"]))
     return send_file(io.BytesIO(blob),
                      download_name="checklist-62443-%s.%s"
+                                   % (time.strftime("%Y-%m-%d"), fmt),
+                     as_attachment=True, mimetype=mimetype)
+
+
+@app.route("/api/maturite-ot/referentiel")
+@login_required
+def api_maturite_ot_referentiel():
+    """L'ECHELLE, LES SIX DOMAINES ET LEURS CIBLES — de quoi dresser le
+    formulaire sans le recopier dans la page.
+
+    CE QUE CETTE ROUTE N'EST PAS. Elle ne rend aucun assessment. Un assessment
+    se conduit : entretiens, releves, preuves examinees, contradiction. Ce qui
+    est structure ici est une AUTO-EVALUATION DECLARATIVE, et la reserve
+    voyage dans la reponse plutot qu'a cote.
+    """
+    return _json_fige("maturite-ot-referentiel",
+                      lambda: dict(ok=True,
+                                   referentiel=maturite_ot.referentiel()))
+
+
+@app.route("/api/maturite-ot/evaluer", methods=["POST"])
+@login_required
+def api_maturite_ot_evaluer():
+    """L'ECART A LA CIBLE, DOMAINE PAR DOMAINE, ET LE CHEMIN DEGRE PAR DEGRE.
+
+    LE NIVEAU N'EST PAS CALCULE, IL EST DECLARE — c'est ce qui separe cette
+    route de `checklist/parcours`, qui refuse d'en rendre un. Ici quelqu'un
+    choisit, parmi six descriptions concretes, celle qui correspond a ce qu'il
+    peut MONTRER ; le module ordonne les ecarts et ne note personne.
+
+    UN DOMAINE NON RENSEIGNE N'EST PAS ZERO. La reponse les rend `null` et les
+    liste dans `manquants` : les compter pour zero ferait dire au radar que le
+    client n'a rien alors qu'il n'a rien DIT.
+    """
+    data = request.get_json(silent=True) or {}
+    r = maturite_ot.plan(data.get("niveaux"), data.get("cibles"))
+    if not r.get("ok"):
+        return jsonify(r), 400
+    r["livrables"] = maturite_ot.livrables(data.get("niveaux"),
+                                           data.get("cibles"))["livrables"]
+    return jsonify(r)
+
+
+@app.route("/api/maturite-ot/emporter", methods=["POST"])
+@login_required
+def api_maturite_ot_emporter():
+    """L'auto-evaluation, l'ecart et le plan — en PDF ou en Word.
+
+    LE DOCUMENT CIRCULE SANS SA PAGE. Il porte donc en premiere ligne ce
+    qu'il n'est pas : `maturite_ot.markdown` place `REFUS_ASSESSMENT` avant
+    tout chiffre. Un lecteur qui ne verra jamais ce site doit savoir, avant de
+    lire un degre, que personne n'est venu le verifier.
+    """
+    data = request.get_json(silent=True) or {}
+    fmt = str(data.get("format") or "pdf").lower()
+    if fmt not in ("pdf", "docx"):
+        return jsonify(ok=False, error="format_inconnu",
+                       message="Formats servis : pdf, docx."), 400
+
+    # LA MEME PORTE QUE L'ECRAN. Un domaine inconnu est refuse ici comme il
+    # l'est a l'ecran, et pour le meme motif : un format de sortie ne doit
+    # jamais devenir le chemin de contournement d'un controle.
+    verif = maturite_ot.evaluer(data.get("niveaux"), data.get("cibles"))
+    if not verif.get("ok"):
+        return jsonify(verif), 400
+    # UN DOCUMENT SANS UNE SEULE REPONSE NE DIRAIT RIEN. Le servir quand meme
+    # produirait un livrable vide qui circulerait comme les autres.
+    if not verif.get("repondus"):
+        return jsonify(ok=False, error="rien_de_declare",
+                       message="Aucun domaine n'est renseigne : il n'y a rien "
+                               "a emporter."), 400
+
+    md = maturite_ot.markdown(data.get("niveaux"), data.get("cibles"),
+                              titre=str(data.get("titre") or "").strip()[:120]
+                                    or None)
+    # L'INTITULE PART DANS L'EN-TETE DE CHAQUE PAGE ET DANS LES PROPRIETES DU
+    # FICHIER : il porte donc ses accents, comme tous les autres livrables. Un
+    # « Auto-evaluation de maturite OT » en tete d'un document dont le corps
+    # est accentue se lit comme une chaine qui n'a pas ete relue.
+    meta = {"label": "Auto-évaluation de maturité OT",
+            "client": str(data.get("client") or "")[:120],
+            "perimetre": str(data.get("perimetre") or "").strip()[:300]
+                         or "installation industrielle",
+            "date": time.strftime("%d/%m/%Y")}
+    try:
+        if fmt == "pdf":
+            blob = livrables_export.build_pdf(md, meta)
+            mimetype = "application/pdf"
+        else:
+            blob = livrables_export.build_docx(md, meta)
+            mimetype = ("application/vnd.openxmlformats-officedocument"
+                        ".wordprocessingml.document")
+    except Exception:
+        app.logger.exception("export maturite OT")
+        return jsonify(ok=False, error="export_echec",
+                       message="La mise en page a échoué."), 500
+    audit.journaliser("maturiteot.export", cible=fmt,
+                      detail="%d domaine(s) renseigné(s) sur %d"
+                             % (verif["repondus"], verif["sur"]))
+    return send_file(io.BytesIO(blob),
+                     download_name="auto-evaluation-maturite-ot-%s.%s"
                                    % (time.strftime("%Y-%m-%d"), fmt),
                      as_attachment=True, mimetype=mimetype)
 

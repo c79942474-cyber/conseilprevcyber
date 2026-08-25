@@ -23,6 +23,91 @@
 
 <link rel="icon" href="/emblem.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/styles.css">
+<style>
+  /* L'AUTO-ÉVALUATION. Les jetons sont ceux du site, sans repli écrit à côté :
+     un `var(--cyan,#0e6d7c)` sur un fond bordeaux ne se déclenche jamais et
+     n'attend qu'un renommage pour poser du texte crème sur du blanc. */
+  .mo-refus{margin-top:18px;padding:13px 16px;border-left:3px solid var(--amber);
+    background:var(--panel2);border-radius:0 8px 8px 0;font-size:13.5px;line-height:1.65}
+  .mo-refus b{color:var(--ink)}
+
+  .mo-dom{background:linear-gradient(180deg,var(--panel),var(--bg2));
+    border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-top:14px}
+  .mo-dh{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .mo-dh h3{font-size:16px;margin:0;letter-spacing:-.01em}
+  .mo-part{font-family:var(--mono);font-size:10.5px;color:var(--cyan);
+    border:1px solid var(--line);border-radius:6px;padding:2px 8px;white-space:nowrap}
+  .mo-obj{color:var(--muted);font-size:13px;line-height:1.6;margin:7px 0 0}
+  .mo-champs{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px}
+  .mo-ch{display:flex;flex-direction:column;gap:5px;min-width:210px;flex:1 1 210px}
+  .mo-ch label{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--muted2)}
+  .mo-ch select{min-height:38px;font-size:13.5px}
+  .mo-quoi{margin:10px 0 0;font-size:12.5px;line-height:1.6;color:var(--muted);
+    border-top:1px solid var(--line);padding-top:10px}
+  .mo-quoi b{color:var(--ink)}
+  .mo-jug{margin:7px 0 0;font-size:12px;line-height:1.55;color:var(--muted2)}
+  .mo-jug b{color:var(--muted)}
+
+  .mo-bar{position:sticky;top:0;z-index:5;background:var(--bg);border:1px solid var(--line);
+    border-radius:12px;padding:14px 18px;margin-top:18px}
+  .mo-bar .q{font-family:var(--mono);font-size:26px;font-weight:700;letter-spacing:-.02em}
+  .mo-bar .u{font-size:13px;color:var(--muted);font-weight:400}
+  .mo-lect{font-size:13px;line-height:1.6;color:var(--muted);margin:8px 0 0}
+  .mo-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}
+  .mo-actions button{all:unset;cursor:pointer;font-size:12.5px;padding:7px 13px;border-radius:8px;
+    border:1px solid var(--line);color:var(--muted);min-height:24px}
+  .mo-actions button:hover{border-color:var(--cyan);color:var(--ink)}
+  .mo-actions button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  .mo-actions button[disabled]{opacity:.5;cursor:default}
+
+  /* LE RADAR NE PORTE JAMAIS SEUL L'INFORMATION. Le tableau sous lui donne
+     les mêmes chiffres en toutes lettres : une forme et deux couleurs ne se
+     lisent ni au clavier, ni en niveaux de gris, ni par un daltonien. */
+  .mo-radar{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;margin-top:14px}
+  .mo-radar svg{flex:0 1 auto;max-width:100%;height:auto}
+  .mo-leg{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:6px}
+  .mo-leg i{display:inline-block;width:22px;height:0;border-top-width:2px;
+    border-top-style:solid;vertical-align:middle;margin-right:6px}
+  .mo-tab{flex:1 1 320px;overflow-x:auto}
+  .mo-tab table{width:100%;border-collapse:collapse;font-size:13px}
+  .mo-tab th,.mo-tab td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}
+  .mo-tab th{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--muted2);font-weight:700}
+  .mo-tab td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .mo-tab tr.muet td{color:var(--muted2)}
+
+  .mo-ec{border:1px solid var(--line);border-radius:10px;padding:13px 16px;margin-top:12px;
+    background:linear-gradient(180deg,var(--panel),var(--bg2))}
+  .mo-ec-t{font-weight:600;font-size:14.5px;color:var(--ink)}
+  .mo-ec-m{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;
+    color:var(--muted2);margin-top:3px}
+  .mo-ec-p{font-size:12.5px;color:var(--muted);margin:7px 0 0;line-height:1.55}
+  .mo-ec-p b{color:var(--ink);font-weight:600}
+
+  .mo-vg{margin-top:16px;border:1px solid var(--line);border-radius:10px;overflow:hidden;
+    background:linear-gradient(180deg,var(--panel),var(--bg2))}
+  .mo-vg-t{display:flex;align-items:baseline;gap:10px;padding:10px 15px;
+    background:var(--panel2);border-bottom:1px solid var(--line)}
+  .mo-vg-n{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--cyan)}
+  .mo-vg-d{font-size:12px;color:var(--muted)}
+  .mo-et{padding:11px 15px;border-top:1px solid var(--line)}
+  .mo-et:first-child{border-top:0}
+  .mo-et-t{font-weight:600;font-size:13.5px;color:var(--ink)}
+  .mo-et-p{font-size:12.5px;color:var(--muted);margin:5px 0 0;line-height:1.55}
+  .mo-et-p b{color:var(--ink);font-weight:600}
+
+  /* CE QUI NE SE CALCULE PAS. Le bloc garde la même forme que les autres —
+     il n'est pas dégradé, il est d'une autre nature — mais son filet est
+     ambre et il porte ce qu'il faudrait pour l'obtenir. */
+  .mo-non{border:1px solid var(--line);border-left:3px solid var(--amber);
+    border-radius:0 10px 10px 0;padding:13px 16px;margin-top:12px;background:var(--panel2)}
+  .mo-non h3{margin:0;font-size:14.5px;color:var(--ink)}
+  .mo-non p{font-size:12.5px;color:var(--muted);margin:7px 0 0;line-height:1.6}
+  .mo-non b{color:var(--ink)}
+  .mo-vide{font-size:13px;color:var(--muted2);line-height:1.6;margin:12px 0 0}
+</style>
 </head>
 <body>
   <header>
@@ -50,6 +135,10 @@
       <h1>Mesurer vos <span class="grad">capacités</span>, pas seulement votre conformité.</h1>
       <p class="lead" style="margin-top:18px">Un assessment de maturité OT cyber évalue l'organisation, les processus et les capacités réelles de votre
         dispositif — au-delà de la case à cocher réglementaire — et trace un plan de progression priorisé.</p>
+      <p class="note" style="max-width:76ch;margin-top:12px">En attendant, l'auto-évaluation
+        ci-dessous se remplit en dix minutes, documents sous les yeux&nbsp;: elle situe vos
+        six domaines, calcule l'écart à la cible, ordonne ce qu'il faut prendre en premier
+        et s'emporte en Word ou PDF. Elle ne remplace pas un assessment, et elle le dit.</p>
     </section>
 
     <section class="section" style="padding-top:24px">
@@ -78,31 +167,73 @@
       </div>
     </section>
 
+    <!-- ── L'AUTO-ÉVALUATION ────────────────────────────────────────────────
+         CE QUI A CHANGÉ ICI, ET POURQUOI. Cette section montrait huit cartes
+         décoratives — un modèle qu'aucun visiteur ne pouvait remplir, posé
+         au-dessus de cinq livrables qui renvoyaient tous à l'espace
+         administrateur. La page entière était donc inerte pour celui qui la
+         lisait.
+
+         Deux défauts de ce modèle affiché, mesurés avant de le remplacer :
+         il ne comportait AUCUN domaine « contrôles d'accès » — la porte la
+         plus empruntée, et la troisième section de la checklist du site — et
+         deux de ses huit domaines n'avaient derrière eux aucun référentiel
+         écrit permettant de les coter. Ils sont maintenant déclarés hors
+         portée, avec le motif et l'endroit où ils se constatent, plutôt que
+         de disparaître ou d'être cotés au jugé.
+
+         LE NIVEAU N'EST PAS CALCULÉ, IL EST DÉCLARÉ. C'est ce qui sépare
+         cette page de `/checklist-62443`, qui refuse d'en rendre un : là-bas
+         on compterait des cases, ici quelqu'un choisit parmi six descriptions
+         concrètes celle qui correspond à ce qu'il peut MONTRER. -->
     <section class="section" style="padding-top:8px">
-      <h2 class="sec-title">// Le modèle de maturité</h2>
-      <div class="card a2" style="padding:30px">
-        <p style="color:var(--muted);font-size:15px;max-width:760px;margin:0 0 18px">
-          Chaque domaine est coté sur une <strong>échelle de 0 à 5</strong> — de <em>Initial</em> (informel, réactif) à
-          <em>Optimisé</em> (mesuré, en amélioration continue). La cotation s'appuie sur les référentiels reconnus du domaine.
-        </p>
-        <div class="grid grid-3">
-          <div class="card a1"><h3>Gouvernance &amp; organisation</h3><p>Mandat, rôles, politiques, pilotage.</p></div>
-          <div class="card a2"><h3>Gestion des actifs OT</h3><p>Inventaire, cartographie, cycle de vie.</p></div>
-          <div class="card a3"><h3>Gestion des risques</h3><p>Analyses de risques, traitement, suivi.</p></div>
-          <div class="card a4"><h3>Architecture &amp; segmentation</h3><p>Zones &amp; conduits, cloisonnement, accès.</p></div>
-          <div class="card a1"><h3>Détection &amp; réponse</h3><p>Supervision OT, détection, gestion d'incident.</p></div>
-          <div class="card a2"><h3>Gestion des tiers</h3><p>Intégrateurs, télémaintenance, exigences.</p></div>
-          <div class="card a3"><h3>Continuité &amp; résilience</h3><p>Sauvegardes, reprise, sûreté de fonctionnement.</p></div>
-          <div class="card a4"><h3>Culture &amp; compétences</h3><p>Sensibilisation, formation, appropriation.</p></div>
-        </div>
-        <div class="band" style="margin-top:22px">
-          <div class="status" style="flex-wrap:wrap;gap:8px">📐 Référentiels d'appui — niveaux de maturité <strong style="color:var(--ink)">IEC&nbsp;62443 (ML1–ML4)</strong>, <strong style="color:var(--ink)">NIST&nbsp;CSF (Tiers&nbsp;1–4)</strong>, <strong style="color:var(--ink)">C2M2 (MIL0–MIL3)</strong>, avec l'éclairage du <strong style="color:var(--ink)">NIST&nbsp;SP&nbsp;800-82</strong>.</div>
+      <h2 class="sec-title">// Où en êtes-vous — l'auto-évaluation</h2>
+
+      <!-- LA RÉSERVE AVANT LES CURSEURS, et non en note de bas de page : elle
+           doit être lue avant le premier degré, pas après la décision. -->
+      <div class="mo-refus" id="mo-refus"></div>
+
+      <p class="note" style="max-width:76ch;margin-top:14px">Vos réponses ne sont
+        pas conservées&nbsp;: elles sont envoyées pour être calculées, et rien n'en
+        est enregistré sur nos serveurs. Elles restent dans ce navigateur d'une
+        visite à l'autre.</p>
+
+      <div class="mo-bar" id="mo-bar" role="status" aria-live="polite">
+        <div class="q"><span id="mo-rep">0</span> <span class="u">/ 6 domaines renseignés</span></div>
+        <p class="mo-lect" id="mo-lecture">Choisissez, domaine par domaine, le degré que vous pourriez démontrer aujourd'hui.</p>
+        <div class="mo-actions">
+          <button type="button" id="mo-vider" disabled>Tout remettre à zéro</button>
+          <button type="button" id="mo-pdf" disabled>Emporter en PDF</button>
+          <button type="button" id="mo-docx" disabled>Emporter en Word</button>
         </div>
       </div>
+
+      <div id="mo-form"></div>
+
+      <!-- L'ÉCHELLE EST SERVIE PAR LA ROUTE, JAMAIS RECOPIÉE ICI. Deux tables
+           du même objet divergent au premier ajout, et c'est toujours celle
+           qu'on regarde le moins qui reste en arrière. -->
+      <details class="mo-vg" style="margin-top:18px">
+        <summary style="padding:11px 15px;cursor:pointer;font-size:13.5px">L'échelle employée, degré par degré — et sa correspondance approximative avec les échelles connues</summary>
+        <div id="mo-echelle"></div>
+      </details>
+
+      <!-- CE QUE CE FORMULAIRE NE COTE PAS. Nommé, avec le motif et l'endroit
+           où cela se constate : un refus sans suite n'apprend rien. -->
+      <div class="mo-non" id="mo-hors"></div>
     </section>
 
     <section class="section" style="padding-top:8px">
-      <h2 class="sec-title">// Déroulé de l'assessment</h2>
+      <h2 class="sec-title">// Déroulé de l'assessment conduit</h2>
+      <!-- CE QUI SÉPARE CETTE SECTION DE CELLE D'AU-DESSUS. Un lecteur qui
+           vient de remplir six champs pourrait croire qu'il a fait ceci. Les
+           six étapes ci-dessous sont exactement ce que l'auto-évaluation ne
+           fait pas — et l'écart entre les deux est la mesure de ce qu'un
+           assessment apporte. -->
+      <p class="lead" style="max-width:76ch;margin:0 0 18px">L'auto-évaluation ci-dessus
+        structure ce que vous <strong>déclarez</strong>. Les six étapes suivantes sont ce
+        qu'un assessment <strong>constate</strong> — et l'écart entre les deux est
+        précisément ce qu'il vous apprend.</p>
       <div class="grid grid-3">
         <div class="card a1"><div class="ico">🎙️</div><h3>1 · Entretiens &amp; ateliers</h3><p>Rencontrer les acteurs IT, OT, engineering, opérations et sûreté.</p></div>
         <div class="card a2"><div class="ico">📄</div><h3>2 · Revue documentaire</h3><p>Politiques, procédures, architectures, analyses de risques existantes.</p></div>
@@ -121,40 +252,24 @@
         <div class="status"><span class="dot"></span>L'assessment nourrit directement votre <a href="/feuille-de-route">feuille de route de transformation</a> — et pour vous situer en 2 minutes, commencez par le <a href="/diagnostic">diagnostic express</a>.</div>
       </div>
 
-      <!-- LIVRABLES:DEBUT (genere par outils/generer_blocs_livrables.py) -->
+      <!-- LIVRABLES:DEBUT
+           CE BLOC N'EST PLUS GÉNÉRÉ par outils/generer_blocs_livrables.py, et
+           c'est délibéré : le générateur produit cinq renvois identiques vers
+           l'espace administrateur, ce qui laissait la section inerte pour le
+           lecteur. Trois de ces cinq livrables se calculent depuis les
+           réponses ci-dessus et sont donc SERVIS ICI ; les deux autres ne se
+           calculent pas et disent pourquoi. Leurs intitulés viennent de
+           `livrables.py` par la route, jamais recopiés — une seconde liste
+           afficherait un titre périmé le jour où l'autre changerait. -->
     <section class="section" id="livrables" style="padding-top:8px">
       <div class="prose" style="max-width:none">
         <h2>📦 Livrables — Assessment de maturité</h2>
-        <p class="liv-promesse">Chaque livrable ci-dessous est <strong>rédigeable par l'IA</strong> (Mistral&nbsp;/&nbsp;Claude) <strong>à partir de la base de connaissance</strong> du cabinet, et <strong>exportable en Word ou PDF</strong>. Ce que l'IA produit est un <strong>brouillon structuré</strong>&nbsp;: il est relu, corrigé et validé par un consultant avant d'être remis.</p>
-        <ul class="liv-list">
-          <li class="liv-i">
-            <div class="liv-t">Radar de maturité par domaine (niveau atteint / cible)</div>
-            <div class="liv-d">Évaluation de maturité par domaine sur une échelle 0–5, niveaux atteints et cibles, radar de synthèse et écarts — appuyée sur IEC 62443 ML / NIST CSF / C2M2.</div>
-            <a class="liv-g" href="/admin/livrables?type=mat-radar" rel="nofollow">Générer dans l'espace administrateur →</a>
-          </li>
-          <li class="liv-i">
-            <div class="liv-t">Cartographie des écarts prioritaires &amp; impacts</div>
-            <div class="liv-d">Analyse des écarts de maturité par domaine, impacts (métier, conformité, risque), priorisation gravité × effort et distinction quick wins / chantiers structurants.</div>
-            <a class="liv-g" href="/admin/livrables?type=mat-carto-ecarts" rel="nofollow">Générer dans l'espace administrateur →</a>
-          </li>
-          <li class="liv-i">
-            <div class="liv-t">Benchmark sectoriel</div>
-            <div class="liv-d">Positionnement de la maturité OT cyber au regard du secteur : référentiel de comparaison, écarts vs bonnes pratiques, forces et points de vigilance.</div>
-            <a class="liv-g" href="/admin/livrables?type=mat-benchmark" rel="nofollow">Générer dans l'espace administrateur →</a>
-          </li>
-          <li class="liv-i">
-            <div class="liv-t">Plan de montée en maturité (actions séquencées, gains)</div>
-            <div class="liv-d">Plan d'actions par domaine pour atteindre la maturité cible : séquencement, gains attendus, charge, responsabilités et indicateurs de progression.</div>
-            <a class="liv-g" href="/admin/livrables?type=mat-plan-montee" rel="nofollow">Générer dans l'espace administrateur →</a>
-          </li>
-          <li class="liv-i">
-            <div class="liv-t">Support de restitution COMEX / CODIR</div>
-            <div class="liv-d">Support de restitution des résultats de l'assessment aux décideurs : messages clés, maturité globale, risques majeurs, comparaison sectorielle et décisions demandées.</div>
-            <a class="liv-g" href="/admin/livrables?type=mat-restitution-comex" rel="nofollow">Générer dans l'espace administrateur →</a>
-          </li>
-        </ul>
-        <p class="muted" style="font-size:12.5px;margin-top:14px">L'accès à la génération est réservé à l'administrateur du cabinet. <a href="/services">Voir l'ensemble des prestations →</a></p>
+        <p class="liv-promesse">Trois des cinq livrables ci-dessous se composent <strong>depuis vos propres réponses</strong>, ici et maintenant, et s'emportent en Word ou PDF. Les deux autres <strong>ne se calculent pas</strong>&nbsp;: ils demandent respectivement des données de secteur et la signature d'un consultant. Ils disent lesquelles.</p>
       </div>
+
+      <div id="mo-livrables"></div>
+
+      <p class="muted" style="font-size:12.5px;margin-top:16px">La rédaction complète d'un livrable par un consultant reste une prestation du cabinet. <a href="/services">Voir l'ensemble des prestations →</a></p>
     </section>
     <!-- LIVRABLES:FIN -->
 
@@ -232,5 +347,427 @@
   <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
   <script src="/nav.js" defer></script>
   <script src="/parcours.js" defer></script>
+
+<script>
+(function () {
+  "use strict";
+  var REF = null, CLE = "cpc-maturite-ot";
+  function $(s) { return document.querySelector(s); }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  /* LA VIRGULE DÉCIMALE, parce que le document est en français. « 1.5 sur 5 »
+     dans un rapport français signale une chaîne qui n'a pas été relue. */
+  function virgule(x) {
+    if (x === null || x === undefined) return "—";
+    return String(x).replace(".", ",");
+  }
+
+  /* CE QUI EST DÉCLARÉ RESTE DANS CE NAVIGATEUR d'une visite à l'autre. Les
+     réponses partent au serveur pour être calculées — c'est lui qui détient
+     la table des jugements — et rien n'y est enregistré. Le stockage local
+     peut être refusé (navigation privée, réglage) : on le tente, et on
+     continue sans lui s'il n'est pas là. */
+  function lire() {
+    try { return JSON.parse(localStorage.getItem(CLE) || "{}") || {}; }
+    catch (e) { return {}; }
+  }
+  function ecrire(v) {
+    try { localStorage.setItem(CLE, JSON.stringify(v)); } catch (e) {}
+  }
+
+  /* UN DOMAINE SANS RÉPONSE N'ENTRE PAS DANS L'ENVOI. Envoyer `null` ou `0`
+     le ferait compter pour une déclaration « rien n'existe », et le radar
+     dessinerait une installation que personne n'a décrite. */
+  function reponses() {
+    var niveaux = {}, cibles = {};
+    document.querySelectorAll("#mo-form select[data-dom]").forEach(function (s) {
+      if (s.value !== "") niveaux[s.getAttribute("data-dom")] = Number(s.value);
+    });
+    document.querySelectorAll("#mo-form select[data-cible]").forEach(function (s) {
+      if (s.value !== "") cibles[s.getAttribute("data-cible")] = Number(s.value);
+    });
+    return { niveaux: niveaux, cibles: cibles };
+  }
+
+  // ── LE FORMULAIRE ────────────────────────────────────────────────────────
+  function optionsDegre(vide) {
+    var h = '<option value="">' + esc(vide) + "</option>";
+    REF.echelle.forEach(function (e) {
+      h += '<option value="' + e.n + '">' + e.n + " — " + esc(e.nom) + "</option>";
+    });
+    return h;
+  }
+
+  function rendre() {
+    $("#mo-refus").innerHTML = "<b>Ce n’est pas un assessment.</b> "
+      + esc(REF.ce_que_ce_n_est_pas);
+
+    var h = "";
+    REF.domaines.forEach(function (d) {
+      h += '<div class="mo-dom" data-d="' + esc(d.cle) + '">'
+        + '<div class="mo-dh"><h3>' + esc(d.nom) + "</h3>"
+        + '<span class="mo-part">' + esc(d.partie) + "</span></div>"
+        + '<p class="mo-obj">Porte sur ' + esc(d.objet) + ".</p>"
+        + '<div class="mo-champs">'
+        + '<div class="mo-ch"><label for="mo-n-' + esc(d.cle) + '">Ce que vous pouvez montrer</label>'
+        + '<select id="mo-n-' + esc(d.cle) + '" data-dom="' + esc(d.cle) + '">'
+        + optionsDegre("— sans réponse") + "</select></div>"
+        + '<div class="mo-ch"><label for="mo-c-' + esc(d.cle) + '">Cible visée</label>'
+        + '<select id="mo-c-' + esc(d.cle) + '" data-cible="' + esc(d.cle) + '">'
+        + optionsDegre("Recommandée : " + d.cible + " — "
+                       + REF.echelle[d.cible].nom) + "</select></div>"
+        + "</div>"
+        + '<p class="mo-quoi" data-quoi="' + esc(d.cle) + '"></p>'
+        + '<p class="mo-jug"><b>Gravité ' + d.gravite + "/5.</b> " + esc(d.gravite_dit)
+        + "<br><b>Effort " + d.effort + "/5.</b> " + esc(d.effort_dit)
+        + "<br><b>Pourquoi cette cible.</b> " + esc(d.cible_dit) + "</p>"
+        + "</div>";
+    });
+    $("#mo-form").innerHTML = h;
+
+    /* L'ÉCHELLE, DÉPLIÉE DEPUIS LA ROUTE. La page n'en porte pas une seconde
+       copie : celle-ci se périmerait sans que rien ne le signale. */
+    var e = "";
+    REF.echelle.forEach(function (x) {
+      e += '<div class="mo-et"><div class="mo-et-t">' + x.n + " — " + esc(x.nom)
+        + '</div><p class="mo-et-p">' + esc(x.dit) + "</p></div>";
+    });
+    e += '<div class="mo-et"><p class="mo-et-p">' + esc(REF.voisinages) + "</p></div>";
+    $("#mo-echelle").innerHTML = e;
+
+    var hp = "<h3>Ce que ce formulaire ne cote pas</h3>"
+      + '<p>Ils ne sont pas absents du sujet : ils sont absents de ce qui se '
+      + "déclare. Un assessment conduit les couvre.</p>";
+    REF.hors_portee.forEach(function (x) {
+      hp += "<p><b>" + esc(x.nom) + ".</b> " + esc(x.pourquoi)
+        + " <i>Où cela se constate :</i> " + esc(x.ou_ca_se_constate) + "</p>";
+    });
+    $("#mo-hors").innerHTML = hp;
+
+    var repris = lire();
+    REF.domaines.forEach(function (d) {
+      var n = document.getElementById("mo-n-" + d.cle);
+      var c = document.getElementById("mo-c-" + d.cle);
+      if (repris.niveaux && repris.niveaux[d.cle] !== undefined) n.value = repris.niveaux[d.cle];
+      if (repris.cibles && repris.cibles[d.cle] !== undefined) c.value = repris.cibles[d.cle];
+    });
+    document.querySelectorAll("#mo-form select").forEach(function (s) {
+      s.addEventListener("change", majorer);
+    });
+    majorer();
+  }
+
+  /* SEULE LA RÉPONSE À LA DERNIÈRE DEMANDE ÉCRIT DANS LA PAGE. Changer trois
+     curseurs de suite lance trois requêtes ; la plus lente écraserait la plus
+     récente, et le lecteur verrait un plan qui ne correspond à aucun de ses
+     choix. */
+  var minuteur = null, demande = 0;
+  function majorer() {
+    if (!REF) return;
+    var r = reponses();
+    ecrire(r);
+
+    /* CE QUI SE POSE TOUT DE SUITE, sans attendre le serveur : le degré choisi
+       doit se voir choisi. Le reste — l'ordre, le plan — vient de la route,
+       qui détient la table des jugements. */
+    var n = 0;
+    REF.domaines.forEach(function (d) {
+      var v = r.niveaux[d.cle];
+      var z = document.querySelector('[data-quoi="' + d.cle + '"]');
+      if (v === undefined) {
+        if (z) z.innerHTML = "<b>Sans réponse.</b> Ce domaine reste vide — il "
+          + "n’est pas compté pour zéro.";
+      } else {
+        n++;
+        if (z) z.innerHTML = "<b>Degré " + v + " — " + esc(REF.echelle[v].nom)
+          + ".</b> " + esc(REF.echelle[v].dit);
+      }
+    });
+    $("#mo-rep").textContent = n;
+    $("#mo-vider").disabled = n === 0;
+    /* LES DEUX EXPORTS RESTENT FERMÉS TANT QUE RIEN N'EST DÉCLARÉ. La route
+       refuse un formulaire vide ; un bouton qui échoue à chaque clic se lit
+       comme une panne, alors que c'est une règle. */
+    $("#mo-pdf").disabled = n === 0;
+    $("#mo-docx").disabled = n === 0;
+
+    clearTimeout(minuteur);
+    minuteur = setTimeout(function () {
+      var mien = ++demande;
+      fetch("/api/maturite-ot/evaluer", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(r),
+      }).then(function (x) { return x.json(); })
+        .then(function (j) {
+          if (mien !== demande || !j.ok) return;
+          peindre(j);
+        })
+        .catch(function () { /* les degrés choisis restent lisibles sans le plan */ });
+    }, 240);
+  }
+
+  // ── CE QUE LA ROUTE REND ─────────────────────────────────────────────────
+  function peindre(j) {
+    $("#mo-lecture").textContent = j.lecture;
+    echafauder(j);
+    peindreRadar(j);
+    peindreEcarts(j);
+    peindrePlan(j);
+  }
+
+  /* LES CINQ BLOCS DE LA SECTION LIVRABLES. Leurs intitulés viennent de la
+     route — donc de `livrables.py` — et ne sont jamais recopiés ici : une
+     seconde liste afficherait un titre périmé le jour où l'autre changerait,
+     et c'est toujours celle qu'on regarde le moins qui reste en arrière.
+
+     Les trois calculables reçoivent un conteneur que les peintres remplissent
+     juste après ; les deux autres sont écrits ici même, avec ce qu'il
+     faudrait pour les obtenir. */
+  var OU = { "mat-radar": "mo-radar", "mat-carto-ecarts": "mo-ecarts",
+             "mat-plan-montee": "mo-plan" };
+
+  function echafauder(j) {
+    var h = "", non = "";
+    (j.livrables || []).forEach(function (l) {
+      if (l.calculable) {
+        h += '<div class="mo-liv" style="margin-top:22px">'
+          + '<h3 style="font-size:16px;margin:0 0 2px">' + esc(l.label) + "</h3>"
+          + '<p class="mo-vide" style="margin-top:2px">' + esc(l.dit) + "</p>"
+          + '<div id="' + OU[l.id] + '"></div></div>';
+      } else {
+        non += '<div class="mo-non"><h3>' + esc(l.label) + "</h3>"
+          + "<p>" + esc(l.dit) + "</p>"
+          + "<p><b>Ce qu’il faudrait.</b> " + esc(l.ce_qu_il_faudrait) + " "
+          + '<a href="/contact">En parler au cabinet →</a></p></div>';
+      }
+    });
+    $("#mo-livrables").innerHTML = h
+      + '<h3 style="font-size:16px;margin:26px 0 0">Ce que cette auto-évaluation ne produit pas</h3>'
+      + non;
+  }
+
+  /* LE RADAR — mat-radar. Il ne porte JAMAIS seul l'information : le tableau
+     à côté donne les mêmes chiffres en toutes lettres. Une forme et deux
+     couleurs ne se lisent ni au clavier, ni en niveaux de gris, ni par un
+     lecteur d'écran.
+
+     UN AXE SANS RÉPONSE NE REÇOIT PAS DE POINT, et le tracé ne le traverse
+     pas : relier deux axes répondus en coupant à travers un axe muet
+     dessinerait une valeur que personne n'a déclarée. */
+  /* LA TOILE EST DIMENSIONNÉE POUR SES INTITULÉS, PAS POUR SON HEXAGONE.
+     Premier tracé : R=108 dans une boîte de 264×256, intitulés posés à
+     R×1,21 du centre. Le résultat, mesuré au navigateur : « Fournisseurs »
+     rendu « eurs », « Architecture » rendu « Arcl », « Contrôles d'accès »
+     rendu « Con » — le viewBox coupait le texte qui dépassait, en silence.
+     Un graphique dont on ne peut pas lire les axes n'est pas un graphique.
+     L'hexagone est donc plus petit que la boîte, et la marge est celle du
+     plus long intitulé (« Contrôles d'accès », le côté droit). */
+  var R = 82, CX = 196, CY = 114, RL = R + 15, BW = 440, BH = 244;
+
+  function pt(i, n, val) {
+    var a = -Math.PI / 2 + 2 * Math.PI * i / n;
+    var d = R * (val / 5);
+    return [CX + d * Math.cos(a), CY + d * Math.sin(a)];
+  }
+
+  function peindreRadar(j) {
+    var L = j.domaines, n = L.length, s = "";
+    /* La toile : cinq anneaux, un par degré, pour que la distance se lise. */
+    for (var g = 1; g <= 5; g++) {
+      var pts = [];
+      for (var i = 0; i < n; i++) pts.push(pt(i, n, g).map(Math.round).join(","));
+      s += '<polygon points="' + pts.join(" ") + '" fill="none" stroke="'
+        + (g === 5 ? "var(--line)" : "var(--panel2)") + '" stroke-width="1"></polygon>';
+    }
+    for (var i2 = 0; i2 < n; i2++) {
+      var b = pt(i2, n, 5);
+      s += '<line x1="' + CX + '" y1="' + CY + '" x2="' + Math.round(b[0])
+        + '" y2="' + Math.round(b[1]) + '" stroke="var(--panel2)" stroke-width="1"></line>';
+    }
+    /* LA CIBLE — toujours définie, donc toujours un polygone fermé. */
+    var pc = [];
+    L.forEach(function (l, i) { pc.push(pt(i, n, l.cible).map(Math.round).join(",")); });
+    s += '<polygon points="' + pc.join(" ") + '" fill="none" stroke="var(--amber)"'
+      + ' stroke-width="2" stroke-dasharray="5 4"></polygon>';
+    /* LE DÉCLARÉ — un segment par axe répondu, relié à son voisin SEULEMENT
+       si ce voisin est répondu lui aussi. */
+    L.forEach(function (l, i) {
+      if (l.niveau === null) return;
+      var a = pt(i, n, l.niveau), suiv = L[(i + 1) % n];
+      if (suiv.niveau !== null) {
+        var b2 = pt((i + 1) % n, n, suiv.niveau);
+        s += '<line x1="' + a[0].toFixed(1) + '" y1="' + a[1].toFixed(1)
+          + '" x2="' + b2[0].toFixed(1) + '" y2="' + b2[1].toFixed(1)
+          + '" stroke="var(--cyan)" stroke-width="2"></line>';
+      }
+      s += '<circle cx="' + a[0].toFixed(1) + '" cy="' + a[1].toFixed(1)
+        + '" r="4" fill="var(--cyan)"></circle>';
+    });
+    /* Les intitulés d'axes : le nom du domaine RACCOURCI À SA TÊTE — ce n'est
+       pas un second vocabulaire, c'est une troncature d'affichage, et le
+       tableau d'à côté porte le nom entier. */
+    L.forEach(function (l, i) {
+      var a4 = -Math.PI / 2 + 2 * Math.PI * i / n;
+      var x = CX + RL * Math.cos(a4), y = CY + RL * Math.sin(a4);
+      var anc = x > CX + 6 ? "start" : (x < CX - 6 ? "end" : "middle");
+      s += '<text x="' + Math.round(x) + '" y="' + Math.round(y)
+        + '" text-anchor="' + anc + '" dominant-baseline="middle"'
+        + ' fill="var(--muted2)" font-size="10.5">'
+        + esc(String(l.nom).split(/\s*&\s*/)[0]) + "</text>";
+    });
+
+    var t = '<table><caption class="sr-only">Degré déclaré et cible, par domaine</caption>'
+      + "<thead><tr><th>Domaine</th><th>Déclaré</th><th>Cible</th><th>Écart</th></tr></thead><tbody>";
+    L.forEach(function (l) {
+      t += '<tr class="' + (l.niveau === null ? "muet" : "") + '"><td>' + esc(l.nom) + "</td>"
+        + '<td class="n">' + (l.niveau === null ? "— sans réponse"
+                              : l.niveau + " — " + esc(l.niveau_nom)) + "</td>"
+        + '<td class="n">' + l.cible + " — " + esc(l.cible_nom) + "</td>"
+        + '<td class="n">' + (l.ecart === null ? "—" : l.ecart) + "</td></tr>";
+    });
+    t += "</tbody></table>";
+
+    var moy = j.moyenne_declaree === null ? ""
+      : '<p class="mo-vide">Moyenne des degrés <b>déclarés</b> : '
+        + virgule(j.moyenne_declaree) + " sur 5. Ce n’est pas une note : un "
+        + "domaine grave à 1 et un domaine mineur à 5 donnent la même moyenne "
+        + "que l’inverse, et ce n’est pas la même installation.</p>";
+
+    $("#mo-radar").innerHTML =
+      '<div class="mo-radar"><svg viewBox="0 0 ' + BW + " " + BH + '" width="' + BW
+      + '" height="' + BH + '" role="img"'
+      + ' aria-label="Radar des six domaines : degré déclaré et cible. Les mêmes valeurs sont'
+      + ' dans le tableau qui suit."><g>' + s + "</g></svg>"
+      + '<div class="mo-tab">' + t
+      + '<p class="mo-leg"><span><i style="border-top-color:var(--cyan)"></i>Déclaré</span>'
+      + '<span><i style="border-top-color:var(--amber);border-top-style:dashed"></i>Cible</span></p>'
+      + moy + "</div></div>";
+  }
+
+  /* LA CARTOGRAPHIE DES ÉCARTS — mat-carto-ecarts. L'ordre vient du serveur :
+     gravité du domaine divisée par l'effort qu'il demande. C'est un jugement
+     de ce cabinet, et le bloc le dit. */
+  function peindreEcarts(j) {
+    var h = "";
+    if (!j.a_combler.length) {
+      h = '<p class="mo-vide">' + (j.repondus
+        ? "Aucun domaine renseigné n’est sous sa cible."
+        : "Renseignez au moins un domaine pour voir les écarts.") + "</p>";
+    } else {
+      j.a_combler.forEach(function (l, i) {
+        h += '<div class="mo-ec"><div class="mo-ec-t">' + (i + 1) + ". " + esc(l.nom)
+          + '</div><div class="mo-ec-m">écart de ' + l.ecart + " degré(s) · gravité "
+          + l.gravite + "/5 · effort " + l.effort + "/5</div>"
+          + '<p class="mo-ec-p"><b>Pourquoi c’est grave.</b> ' + esc(l.gravite_dit) + "</p>"
+          + '<p class="mo-ec-p"><b>Ce que ça coûte.</b> ' + esc(l.effort_dit) + "</p>"
+          + '<p class="mo-ec-p"><b>Où le vérifier point par point.</b> '
+          + '<a href="/checklist-62443">La section « ' + esc(l.nom)
+          + " » de la checklist 62443</a> dit quelle preuve un auditeur demandera.</p></div>";
+      });
+      h += '<p class="mo-vide">L’ordre vient de la gravité du domaine divisée par '
+        + "l’effort qu’il demande — un jugement de ce cabinet, motivé domaine par "
+        + "domaine ci-dessus. Il classe un ordre de passage ; il ne note personne.</p>";
+    }
+    $("#mo-ecarts").innerHTML = h;
+  }
+
+  /* LE PLAN DE MONTÉE — mat-plan-montee. Une étape n'est pas « passer de 1 à
+     4 » : c'est passer de 1 à 2, puis de 2 à 3. Le serveur produit la chaîne
+     complète ; la page la groupe par domaine, dans l'ordre de passage. */
+  function peindrePlan(j) {
+    if (!j.etapes.length) {
+      $("#mo-plan").innerHTML = '<p class="mo-vide">' + (j.repondus
+        ? "Rien à franchir : les domaines renseignés sont à leur cible."
+        : "Renseignez au moins un domaine pour voir le chemin.") + "</p>";
+      return;
+    }
+    var ordre = [], par = {};
+    j.etapes.forEach(function (e) {
+      if (!par[e.domaine]) { par[e.domaine] = []; ordre.push(e.domaine); }
+      par[e.domaine].push(e);
+    });
+    var h = "";
+    ordre.forEach(function (cle, i) {
+      var L = par[cle];
+      h += '<div class="mo-vg"><div class="mo-vg-t">'
+        + '<span class="mo-vg-n">' + (i + 1) + " · " + esc(L[0].nom) + "</span>"
+        + '<span class="mo-vg-d">' + L.length + " degré(s) à franchir, dans cet ordre</span></div>";
+      L.forEach(function (e) {
+        h += '<div class="mo-et"><div class="mo-et-t">Du degré ' + e.de + " au degré "
+          + e.vers + " — " + esc(e.vers_nom) + "</div>"
+          + '<p class="mo-et-p"><b>Ce qu’il faut pouvoir montrer.</b> '
+          + esc(e.ce_qu_il_faut) + "</p></div>";
+      });
+      h += "</div>";
+    });
+    h += '<p class="mo-vide">Sauter les intermédiaires ferait une feuille de route '
+      + "dont aucune ligne ne se termine.</p>";
+    $("#mo-plan").innerHTML = h;
+  }
+
+  /* ── EMPORTER ───────────────────────────────────────────────────────────
+     LE DOCUMENT PASSE PAR LE SERVEUR, qui le compose avec la charte de la
+     maison — la même que les autres livrables. Composer un PDF dans le
+     navigateur aurait donné un second document, reconnaissable comme tel. */
+  function emporter(fmt, bouton) {
+    if (!REF) return;
+    var libelle = bouton.textContent;
+    bouton.disabled = true;
+    bouton.textContent = "Composition…";
+    var r = reponses();
+    fetch("/api/maturite-ot/emporter", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ niveaux: r.niveaux, cibles: r.cibles, format: fmt }),
+    }).then(function (x) {
+      if (!x.ok) throw new Error("http");
+      return x.blob();
+    }).then(function (b) {
+      var u = URL.createObjectURL(b);
+      var a = document.createElement("a");
+      a.href = u;
+      a.download = "auto-evaluation-maturite-ot." + fmt;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(u); }, 4000);
+    }).catch(function () {
+      /* UN ÉCHEC SE DIT. Un bouton qui redevient normal sans rien produire se
+         lit comme un clic manqué, et l'on reclique. */
+      bouton.textContent = "Échec — réessayer";
+      setTimeout(function () { bouton.textContent = libelle; }, 2600);
+    }).then(function () {
+      bouton.disabled = false;
+      if (bouton.textContent === "Composition…") bouton.textContent = libelle;
+    });
+  }
+
+  $("#mo-pdf").addEventListener("click", function () { emporter("pdf", this); });
+  $("#mo-docx").addEventListener("click", function () { emporter("docx", this); });
+
+  $("#mo-vider").addEventListener("click", function () {
+    document.querySelectorAll("#mo-form select").forEach(function (s) { s.value = ""; });
+    majorer();
+  });
+
+  fetch("/api/maturite-ot/referentiel", { credentials: "same-origin" })
+    .then(function (x) { return x.json(); })
+    .then(function (j) {
+      if (!j.ok) throw new Error("ref");
+      REF = j.referentiel;
+      rendre();
+    })
+    .catch(function () {
+      /* REF reste nul : les trois boutons restent désactivés, il n'y a ni
+         formulaire à vider ni réponses à emporter. */
+      $("#mo-form").innerHTML = '<p class="note">L’auto-évaluation n’a pas pu être '
+        + "chargée. Réessayez dans un instant.</p>";
+    });
+})();
+</script>
 </body>
 </html>
