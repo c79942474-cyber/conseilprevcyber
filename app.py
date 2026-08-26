@@ -9248,7 +9248,38 @@ def _verifier_politique_acces():
                            + "\n  - ".join(ecarts))
 
 
+def _verifier_liens_maturite():
+    """UN LIEN VERS UNE PAGE QUI N'EXISTE PAS DOIT FAIRE ECHOUER LE DEMARRAGE,
+    pas partir en production.
+
+    `maturite_ot` declare ou chaque domaine se traite sur ce site, et le
+    deroule d'un assessment renvoie vers six pages. Le module ne peut pas
+    verifier ces chemins lui-meme : `app` l'importe, et l'inverse ferait un
+    cycle. La verification se fait donc ici, au seul endroit qui connaisse a
+    la fois les chemins declares et les pages reellement servies.
+
+    C'EST LA MEME REGLE QUE LA POLITIQUE D'ACCES CI-DESSUS, et pour la meme
+    raison : un ecart entre ce qu'on annonce et ce qu'on sert ne se decouvre
+    pas au clic d'un visiteur.
+    """
+    manquants = []
+    for cle, liens in maturite_ot.RESSOURCES.items():
+        for l in liens:
+            if l["chemin"] not in PAGES:
+                manquants.append("domaine %s -> %s" % (cle, l["chemin"]))
+    for e in maturite_ot.DEROULE:
+        if e["chemin"] and e["chemin"] not in PAGES:
+            manquants.append("deroule %s -> %s" % (e["n"], e["chemin"]))
+    for h in maturite_ot.HORS_PORTEE:
+        if h["chemin"] not in PAGES:
+            manquants.append("hors portee %s -> %s" % (h["nom"], h["chemin"]))
+    if manquants:
+        raise RuntimeError("Maturite OT renvoie vers des pages inexistantes :"
+                           "\n  - " + "\n  - ".join(manquants))
+
+
 _verifier_politique_acces()
+_verifier_liens_maturite()
 
 
 if __name__ == "__main__":

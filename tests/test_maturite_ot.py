@@ -483,6 +483,199 @@ def test_les_controles_d_acces_sont_dans_la_portee():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+#  7 bis. OÙ CHAQUE CONSTAT CONDUIT
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _chemins_declares():
+    """Tous les chemins que ce module promet, d'où qu'ils viennent."""
+    for cle, liens in M.RESSOURCES.items():
+        for l in liens:
+            yield ("domaine %s" % cle, l["chemin"])
+    for e in M.DEROULE:
+        if e["chemin"]:
+            yield ("déroulé %d" % e["n"], e["chemin"])
+    for h in M.HORS_PORTEE:
+        yield ("hors portée %s" % h["nom"], h["chemin"])
+
+
+def test_LE_POINT_QUI_DECIDE_chaque_chemin_promis_est_une_page_qui_existe():
+    """UN LIEN MORT NE SE DÉCOUVRE PAS AU CLIC D'UN VISITEUR. Le module ne
+    peut pas le vérifier lui-même — `app` l'importe, l'inverse ferait un
+    cycle — donc rien ne l'empêcherait de partir en production.
+
+    C'est le contrôle le plus utile de cette section : les autres portent sur
+    la qualité du renvoi, celui-ci sur son existence."""
+    morts = [(ou, c) for ou, c in _chemins_declares() if c not in A.PAGES]
+    assert not morts, ("chemin(s) sans page : %s"
+                       % "; ".join("%s → %s" % m for m in morts))
+
+
+def test_le_demarrage_refuse_un_lien_mort_au_lieu_de_le_servir():
+    """La garde qui rend le contrôle précédent inutile en production : le
+    service ne démarre pas si un chemin pointe dans le vide. Sans elle, un
+    renommage de page casserait la page maturité en silence.
+
+    LES TROIS SOURCES SONT ÉPROUVÉES SÉPARÉMENT. Première version : une seule
+    mutation, sur `RESSOURCES`. Retirer la branche qui regarde le déroulé
+    laissait alors le contrôle vert — la garde ne surveillait plus qu'un tiers
+    de ce qu'elle prétend surveiller, et rien ne le disait."""
+    def _mort(poser, retirer):
+        poser()
+        try:
+            with pytest.raises(RuntimeError, match="pages inexistantes"):
+                A._verifier_liens_maturite()
+        finally:
+            retirer()
+
+    r = M.RESSOURCES["gouvernance"][0]
+    v = r["chemin"]
+    _mort(lambda: r.__setitem__("chemin", "/page-qui-nexiste-pas"),
+          lambda: r.__setitem__("chemin", v))
+
+    e = M.DEROULE[0]
+    v = e["chemin"]
+    _mort(lambda: e.__setitem__("chemin", "/page-qui-nexiste-pas"),
+          lambda: e.__setitem__("chemin", v))
+
+    h = M.HORS_PORTEE[0]
+    v = h["chemin"]
+    _mort(lambda: h.__setitem__("chemin", "/page-qui-nexiste-pas"),
+          lambda: h.__setitem__("chemin", v))
+
+    # Et elle passe quand tout va bien — sans quoi les trois contrôles
+    # ci-dessus réussiraient pour la mauvaise raison.
+    A._verifier_liens_maturite()
+
+
+def test_LA_GARDE_EST_APPELEE_AU_DEMARRAGE_pas_seulement_definie():
+    """UNE GARDE QUI N'EST JAMAIS APPELÉE NE GARDE RIEN. Le contrôle
+    précédent l'invoque lui-même : il prouve qu'elle fonctionne, pas qu'elle
+    tourne. Retirer son appel au chargement du module laissait donc toute la
+    section verte, pendant qu'un lien mort serait parti en production sans un
+    mot.
+
+    Le contrôle porte sur le fichier, au niveau d'indentation zéro : c'est la
+    seule position où l'appel s'exécute à l'import."""
+    src = open(os.path.join(ICI, "app.py"), encoding="utf-8").read()
+    assert re.search(r"(?m)^_verifier_liens_maturite\(\)\s*$", src), (
+        "la garde des liens n'est pas appelée au chargement du module : elle "
+        "est définie et jamais exécutée")
+    # Sa voisine l'est aussi — si l'une des deux disparaissait, l'autre ne le
+    # dirait pas.
+    assert re.search(r"(?m)^_verifier_politique_acces\(\)\s*$", src)
+
+
+def test_chaque_domaine_a_une_destination_et_chacune_sa_raison():
+    """Un écart nommé sans endroit où le traiter laisse le lecteur avec un
+    constat — c'est le reproche qu'on fait aux diagnostics, et il est mérité.
+    Et un lien sans raison écrite est un menu déguisé en conseil : le lecteur
+    clique au hasard."""
+    assert set(M.RESSOURCES) == set(M.ORDRE)
+    for cle, liens in M.RESSOURCES.items():
+        assert liens, "%s n'a aucune destination" % cle
+        for l in liens:
+            assert l["chemin"].startswith("/")
+            assert l["titre"].strip()
+            assert len(_apo(l["pourquoi"])) >= 60, (
+                "%s → %s : la raison tient en moins d'une phrase"
+                % (cle, l["chemin"]))
+
+
+def test_un_domaine_sans_destination_leve():
+    sauve = list(M.RESSOURCES["detection"])
+    try:
+        M.RESSOURCES["detection"] = []
+        with pytest.raises(ValueError, match="aucune ressource"):
+            M._verifier()
+    finally:
+        M.RESSOURCES["detection"] = sauve
+
+
+def test_une_destination_sans_motif_leve():
+    sauve = M.RESSOURCES["acces"][0]["pourquoi"]
+    try:
+        M.RESSOURCES["acces"][0]["pourquoi"] = "voir la page"
+        with pytest.raises(ValueError, match="sans motif écrit"):
+            M._verifier()
+    finally:
+        M.RESSOURCES["acces"][0]["pourquoi"] = sauve
+
+
+def test_la_destination_voyage_avec_l_ecart():
+    """Servie à part, elle obligerait la page à recroiser deux listes — et
+    c'est au premier ajout de domaine que le croisement se perd."""
+    l = M.evaluer(BAS)["a_combler"][0]
+    assert l["ressources"], "l'écart arrive sans sa destination"
+    assert l["ressources"] == M.RESSOURCES[l["cle"]]
+
+
+def test_les_deux_domaines_hors_portee_sont_adresses_ailleurs():
+    """« On ne le cote pas » sans « voici où c'est traité » transforme une
+    réserve honnête en fin de non-recevoir. Les deux ont chacun leur page sur
+    ce site — ne pas le dire aurait été une occasion manquée, pas une
+    prudence."""
+    for h in M.HORS_PORTEE:
+        assert h["chemin"] in A.PAGES, "%s renvoie nulle part" % h["nom"]
+        assert h["titre_page"].strip()
+
+
+def test_un_hors_portee_sans_page_leve():
+    sauve = M.HORS_PORTEE[0]["chemin"]
+    try:
+        M.HORS_PORTEE[0]["chemin"] = ""
+        with pytest.raises(ValueError, match="sans page où l'adresser"):
+            M._verifier()
+    finally:
+        M.HORS_PORTEE[0]["chemin"] = sauve
+
+
+def test_LE_POINT_QUI_DECIDE_le_deroule_dit_quand_il_ne_conduit_nulle_part():
+    """Quatre des six étapes ont une page sur ce site. La cinquième — le
+    benchmark — n'en a aucune, et c'est assumé ailleurs dans ce module.
+
+    UNE CARTE MUETTE AU MILIEU DE CINQ CARTES CLIQUABLES SE LIT COMME UN LIEN
+    CASSÉ. L'étape sans page doit donc porter une raison écrite, comme les
+    autres — c'est ce qui distingue un choix d'un oubli."""
+    assert [e["n"] for e in M.DEROULE] == [1, 2, 3, 4, 5, 6]
+    sans = [e for e in M.DEROULE if not e["chemin"]]
+    assert sans, "le contrôle ne prouve rien : toutes les étapes ont une page"
+    for e in M.DEROULE:
+        assert len(_apo(e["pourquoi"])) >= 60, (
+            "étape %d : sans raison écrite, le lecteur ne sait pas pourquoi "
+            "on l'envoie là" % e["n"])
+    # Le benchmark : pas de page, pas de lien, et une raison qui le dit.
+    b = next(e for e in M.DEROULE if e["titre"] == "Benchmark")
+    assert b["chemin"] is None and b["lien"] is None
+    assert "panel" in _apo(b["pourquoi"]).lower()
+
+
+def test_le_referentiel_sert_le_deroule_et_les_destinations(client):
+    """La page ne recopie ni l'un ni l'autre : deux tables du même objet
+    divergent au premier ajout."""
+    d = client.get("/api/maturite-ot/referentiel").get_json()["referentiel"]
+    assert len(d["deroule"]) == 6
+    for x in d["domaines"]:
+        assert x["ressources"], "%s arrive sans destination" % x["cle"]
+    h = _page()
+    assert "REF.deroule.forEach" in h, "la page n'affiche jamais le déroulé servi"
+    assert "l.ressources" in h, "la page n'affiche jamais les destinations"
+    # Et elle n'en porte pas une seconde copie.
+    for cle, liens in M.RESSOURCES.items():
+        for l in liens:
+            assert _apo(l["pourquoi"])[:45] not in _apo(h), (
+                "la page recopie le motif de %s → %s" % (cle, l["chemin"]))
+
+
+def test_la_page_ne_porte_plus_les_six_cartes_ecrites_a_la_main():
+    """Elles étaient décoratives : six cartes qui ne conduisaient nulle part,
+    alors que quatre d'entre elles ont une page sur ce site."""
+    h = _page()
+    for fig in ("1 · Entretiens", "4 · Cotation", "6 · Restitution"):
+        assert fig not in h, "la carte « %s » est encore écrite en dur" % fig
+    assert 'id="mo-deroule"' in h
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 #  8. LES ROUTES — MÊME PORTE QUE L'ÉCRAN
 # ═══════════════════════════════════════════════════════════════════════════
 

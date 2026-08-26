@@ -139,6 +139,41 @@
   .mo-liv-f{font-size:12.5px;color:var(--muted);line-height:1.6;margin:10px 0 0}
   .mo-liv-f b{color:var(--ink)}
   @media(prefers-reduced-motion:reduce){.mo-liv-s::before{transition:none}}
+
+  /* ── OÙ TRAITER CE DOMAINE ──────────────────────────────────────────────
+     Le lien porte sa raison sur la ligne suivante, et non en infobulle : une
+     raison qu'il faut survoler n'existe pas au clavier ni au doigt. */
+  .mo-ec-r{margin-top:11px;padding-top:10px;border-top:1px solid var(--line)}
+  .mo-ec-r-t{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--muted2);font-weight:700;margin-bottom:7px}
+  .mo-ec-r-l{display:block;font-size:13px;font-weight:600;color:var(--cyan);
+    text-decoration:none;margin-top:8px}
+  .mo-ec-r-l:hover{text-decoration:underline}
+  .mo-ec-r-l:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;border-radius:3px}
+  .mo-ec-r-p{display:block;font-size:12px;color:var(--muted);line-height:1.55;margin-top:2px}
+
+  /* ── LE DÉROULÉ D'UN ASSESSMENT CONDUIT ────────────────────────────────
+     Les six cartes conduisent maintenant quelque part. Celle qui ne conduit
+     nulle part le DIT — muette au milieu de cinq cartes cliquables, elle se
+     lirait comme un lien cassé. */
+  .mo-dr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+  .mo-dr{border:1px solid var(--line);border-radius:12px;padding:15px 17px;
+    background:linear-gradient(180deg,var(--panel),var(--bg2));display:flex;
+    flex-direction:column}
+  .mo-dr-h{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+  .mo-dr-h strong{font-size:14.5px;color:var(--ink);line-height:1.3}
+  .mo-dr-n{flex:0 0 auto;width:22px;height:22px;border-radius:50%;background:var(--cyan);
+    color:#0B0B0B;font-family:var(--mono);font-size:11px;font-weight:700;
+    display:inline-flex;align-items:center;justify-content:center}
+  .mo-dr-p{font-size:13px;color:var(--muted);line-height:1.55;margin:0}
+  .mo-dr-w{font-size:12px;color:var(--muted2);line-height:1.55;margin:8px 0 0;
+    padding-top:8px;border-top:1px solid var(--line)}
+  .mo-dr-l{margin-top:auto;padding-top:11px;font-size:13px;font-weight:600;
+    color:var(--cyan);text-decoration:none}
+  .mo-dr-l:hover{text-decoration:underline}
+  .mo-dr-l:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;border-radius:3px}
+  .mo-dr-x{margin-top:auto;padding-top:11px;font-size:12.5px;color:var(--amber);
+    font-style:italic}
   .mo-vide{font-size:13px;color:var(--muted2);line-height:1.6;margin:12px 0 0}
 </style>
 </head>
@@ -267,14 +302,12 @@
         structure ce que vous <strong>déclarez</strong>. Les six étapes suivantes sont ce
         qu'un assessment <strong>constate</strong> — et l'écart entre les deux est
         précisément ce qu'il vous apprend.</p>
-      <div class="grid grid-3">
-        <div class="card a1"><div class="ico">🎙️</div><h3>1 · Entretiens &amp; ateliers</h3><p>Rencontrer les acteurs IT, OT, engineering, opérations et sûreté.</p></div>
-        <div class="card a2"><div class="ico">📄</div><h3>2 · Revue documentaire</h3><p>Politiques, procédures, architectures, analyses de risques existantes.</p></div>
-        <div class="card a3"><div class="ico">🔎</div><h3>3 · Revue du dispositif</h3><p>Observer le dispositif en place sur le terrain et ses pratiques réelles.</p></div>
-        <div class="card a4"><div class="ico">📊</div><h3>4 · Cotation</h3><p>Positionner chaque domaine sur l'échelle de maturité, preuves à l'appui.</p></div>
-        <div class="card a1"><div class="ico">📈</div><h3>5 · Benchmark</h3><p>Situer votre maturité au regard de votre secteur.</p></div>
-        <div class="card a2"><div class="ico">🎤</div><h3>6 · Restitution</h3><p>Présenter les résultats et les priorités aux décideurs.</p></div>
-      </div>
+      <!-- LES SIX ÉTAPES SONT SERVIES PAR LA ROUTE, PAS ÉCRITES ICI. Elles
+           l'étaient : six cartes décoratives qui ne conduisaient nulle part,
+           alors que quatre d'entre elles ont une page sur ce site. Les tenir
+           dans `maturite_ot` place leurs chemins sous la garde de démarrage,
+           qui refuse de lancer le service si l'un pointe dans le vide. -->
+      <div id="mo-deroule" class="mo-dr-grid"></div>
     </section>
 
     <section class="section" style="padding-top:8px">
@@ -475,10 +508,38 @@
       + '<p>Ils ne sont pas absents du sujet : ils sont absents de ce qui se '
       + "déclare. Un assessment conduit les couvre.</p>";
     REF.hors_portee.forEach(function (x) {
+      /* HORS PORTÉE DE CE FORMULAIRE N'EST PAS HORS SUJET DU CABINET. Les
+         deux domaines écartés ont chacun leur page : dire « on ne le cote
+         pas » sans dire « voici où c'est traité » transformerait une réserve
+         honnête en fin de non-recevoir. */
       hp += "<p><b>" + esc(x.nom) + ".</b> " + esc(x.pourquoi)
-        + " <i>Où cela se constate :</i> " + esc(x.ou_ca_se_constate) + "</p>";
+        + " <i>Où cela se constate :</i> " + esc(x.ou_ca_se_constate)
+        + ' <a href="' + esc(x.chemin) + '">' + esc(x.titre_page) + " →</a></p>";
     });
     $("#mo-hors").innerHTML = hp;
+
+    /* LE DÉROULÉ D'UN ASSESSMENT CONDUIT. Les six cartes décrivaient un
+       service sans conduire nulle part ; chacune renvoie maintenant à la page
+       qui prépare son étape — sauf les deux qui n'en ont pas, et qui disent
+       pourquoi plutôt que de rester muettes. */
+    var dr = "";
+    REF.deroule.forEach(function (e) {
+      dr += '<div class="mo-dr"><div class="mo-dr-h"><span class="mo-dr-n">'
+        + e.n + '</span><strong>' + esc(e.titre) + "</strong></div>"
+        + '<p class="mo-dr-p">' + esc(e.dit) + "</p>"
+        + '<p class="mo-dr-w">' + esc(e.pourquoi) + "</p>"
+        /* TROIS CAS, ET LE TROISIÈME EST LE PLUS UTILE. Une page ailleurs ;
+           l'auto-évaluation ci-dessus, qui est sur cette page même ; ou rien
+           — et alors on le dit, parce qu'une carte muette au milieu de cinq
+           cartes cliquables se lit comme un lien cassé. */
+        + (e.chemin
+            ? '<a class="mo-dr-l" href="' + esc(e.chemin) + '">' + esc(e.lien) + " →</a>"
+            : e.lien
+              ? '<a class="mo-dr-l" href="#mo-form">' + esc(e.lien) + " ↑</a>"
+              : '<span class="mo-dr-x">— aucune page —</span>')
+        + "</div>";
+    });
+    $("#mo-deroule").innerHTML = dr;
 
     var repris = lire();
     REF.domaines.forEach(function (d) {
@@ -744,7 +805,19 @@
           + '<p class="mo-ec-p"><b>Ce que ça coûte.</b> ' + esc(l.effort_dit) + "</p>"
           + '<p class="mo-ec-p"><b>Où le vérifier point par point.</b> '
           + '<a href="/checklist-62443">La section « ' + esc(l.nom)
-          + " » de la checklist 62443</a> dit quelle preuve un auditeur demandera.</p></div>";
+          + " » de la checklist 62443</a> dit quelle preuve un auditeur demandera.</p>"
+          /* OÙ CE DOMAINE SE TRAITE. Les destinations viennent avec l'écart —
+             `maturite_ot` les rapproche PAR LA PARTIE DE LA NORME, et chacune
+             porte sa raison. Un écart nommé sans endroit où le traiter laisse
+             le lecteur avec un constat, et c'est le reproche qu'on fait, à
+             juste titre, aux diagnostics. */
+          + '<div class="mo-ec-r"><span class="mo-ec-r-t">Où traiter ce domaine</span>'
+          + (l.ressources || []).map(function (r) {
+              return '<a class="mo-ec-r-l" href="' + esc(r.chemin) + '">'
+                + esc(r.titre) + " →</a><span class=\"mo-ec-r-p\">"
+                + esc(r.pourquoi) + "</span>";
+            }).join("")
+          + "</div></div>";
       });
       h += '<p class="mo-vide">L’ordre vient de la gravité du domaine divisée par '
         + "l’effort qu’il demande — un jugement de ce cabinet, motivé domaine par "

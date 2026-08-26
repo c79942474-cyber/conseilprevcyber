@@ -213,6 +213,123 @@ DOMAINES = [
 
 ORDRE = [d["cle"] for d in DOMAINES]
 
+#: OÙ CHAQUE DOMAINE SE TRAITE SUR CE SITE. Un écart nommé sans destination
+#: laisse le lecteur avec un constat et rien d'autre — c'est le reproche
+#: qu'on fait, à juste titre, aux diagnostics.
+#:
+#: LES RAPPROCHEMENTS SE FONT PAR LA PARTIE DE LA NORME, pas par
+#: ressemblance de titre : le domaine « gouvernance » relève de la 62443-2-1,
+#: et `/programme-securite` traite le CSMS de la 62443-2-1. Un lien posé sur
+#: une parenté de vocabulaire enverrait le lecteur sur une page voisine du
+#: sujet, ce qui use plus la confiance qu'une absence de lien.
+#:
+#: CHAQUE LIEN PORTE SA RAISON. Sans elle, une liste de liens est un menu
+#: déguisé en conseil, et le lecteur clique au hasard.
+RESSOURCES = {
+    "gouvernance": [
+        {"chemin": "/programme-securite", "titre": "Programme de sécurité (CSMS)",
+         "pourquoi": "La même partie de la norme que ce domaine — la 62443-2-1 : "
+                     "c'est là que se construisent la politique, les rôles et le "
+                     "traitement des risques que vous venez de coter."},
+        {"chemin": "/operating-model", "titre": "Operating model & gouvernance",
+         "pourquoi": "Le degré 3 demande une application sur tout le périmètre : "
+                     "cela suppose des rôles tenus et un rythme de décision, "
+                     "c'est-à-dire un modèle opérationnel, pas une politique de plus."},
+    ],
+    "architecture": [
+        {"chemin": "/analyse-de-risque", "titre": "Analyse de risque — zones & conduits",
+         "pourquoi": "La 62443-3-2, partie de ce domaine : le découpage en zones "
+                     "ne se décide pas sur un schéma réseau, il se déduit d'une "
+                     "analyse de risque du système considéré."},
+        {"chemin": "/architecture-cible", "titre": "Architecture cible OT",
+         "pourquoi": "Ce que le zonage devient une fois posé : DMZ industrielle, "
+                     "rebonds, diodes. C'est ici que le coût du degré 3 se chiffre."},
+    ],
+    "acces": [
+        {"chemin": "/exigences-systeme", "titre": "Exigences système (62443-3-3)",
+         "pourquoi": "Les deux premiers fondements de la 62443-3-3 — identification "
+                     "et contrôle d'usage — sont exactement le contenu de ce "
+                     "domaine, exigence par exigence et par niveau de sécurité."},
+        {"chemin": "/technologies-securite", "titre": "Technologies de sécurité",
+         "pourquoi": "Ce qui existe techniquement pour authentifier en OT, où les "
+                     "solutions de l'informatique de gestion ne s'appliquent pas "
+                     "telles quelles."},
+    ],
+    "protection": [
+        {"chemin": "/gestion-correctifs", "titre": "Gestion des correctifs",
+         "pourquoi": "La 62443-2-3 : un correctif s'applique quand le procédé le "
+                     "permet. C'est la partie qui décrit comment tenir un parc à "
+                     "jour sans arrêter la production."},
+        {"chemin": "/continuite-ot", "titre": "Continuité & restauration",
+         "pourquoi": "La sauvegarde qui compte est celle qu'on a restaurée. La "
+                     "restauration des configurations d'automates y est traitée "
+                     "pour elle-même, avec son exercice."},
+    ],
+    "detection": [
+        {"chemin": "/technologies-securite", "titre": "Technologies de sécurité",
+         "pourquoi": "Le panorama de la TR 62443-3-1 : ce qui se pose réellement "
+                     "sur un réseau industriel pour détecter, et ce que chaque "
+                     "technologie voit ou ne voit pas."},
+        {"chemin": "/metriques-62443", "titre": "Métriques 62443-1-3",
+         "pourquoi": "Le degré 4 exige des indicateurs regardés. La 62443-1-3 dit "
+                     "lesquels se mesurent et comment, plutôt que d'en inventer."},
+    ],
+    "fournisseurs": [
+        {"chemin": "/exigences-prestataires", "titre": "Exigences prestataires",
+         "pourquoi": "La 62443-2-4, partie de ce domaine : les capacités qu'un "
+                     "prestataire doit démontrer, à reprendre telles quelles dans "
+                     "une grille d'évaluation."},
+        {"chemin": "/exigences-composants", "titre": "Exigences composants",
+         "pourquoi": "La 62443-4-2 : ce qu'on exige d'un composant certifié. C'est "
+                     "ce qui se met au marché, et une exigence absente du marché "
+                     "ne se rattrape pas après notification."},
+    ],
+}
+
+#: LE DÉROULÉ D'UN ASSESSMENT CONDUIT, ET OÙ CHAQUE ÉTAPE SE PRÉPARE. Les six
+#: cartes de la page décrivaient un service sans conduire nulle part : un
+#: lecteur qui voulait savoir ce que « revue du dispositif » veut dire n'avait
+#: aucun endroit où aller.
+#:
+#: `chemin` vaut None pour les deux étapes qui n'ont pas de page : la cotation
+#: se fait sur CETTE page, et le benchmark ne se fait nulle part sur ce site —
+#: c'est déjà dit dans les livrables, et le redire ici en lien mènerait à une
+#: page qui n'existe pas.
+DEROULE = [
+    {"n": 1, "titre": "Entretiens & ateliers",
+     "dit": "Rencontrer les acteurs IT, OT, engineering, opérations et sûreté.",
+     "chemin": "/methodologie", "lien": "Voir la démarche",
+     "pourquoi": "La démarche décrit qui est rencontré, dans quel ordre et pour "
+                 "établir quoi — c'est ce qui distingue une série d'entretiens "
+                 "d'un tour de table."},
+    {"n": 2, "titre": "Revue documentaire",
+     "dit": "Politiques, procédures, architectures, analyses de risques existantes.",
+     "chemin": "/referentiel", "lien": "Voir le référentiel 62443",
+     "pourquoi": "Savoir quelle partie de la série fonde chaque document évite "
+                 "de réclamer une pièce que la norme ne demande pas."},
+    {"n": 3, "titre": "Revue du dispositif",
+     "dit": "Observer le dispositif en place sur le terrain et ses pratiques réelles.",
+     "chemin": "/audit-conformite", "lien": "Voir l'audit de conformité",
+     "pourquoi": "L'audit de conformité est cette revue conduite jusqu'au bout : "
+                 "état des lieux des actifs et écart aux exigences, sur preuves."},
+    {"n": 4, "titre": "Cotation",
+     "dit": "Positionner chaque domaine sur l'échelle de maturité, preuves à l'appui.",
+     "chemin": None, "lien": "Renseigner l'auto-évaluation",
+     "pourquoi": "C'est l'étape que cette page structure — à ceci près qu'ici les "
+                 "degrés sont déclarés, et que là ils sont constatés sur preuves."},
+    {"n": 5, "titre": "Benchmark",
+     "dit": "Situer votre maturité au regard de votre secteur.",
+     "chemin": None, "lien": None,
+     "pourquoi": "Aucune page de ce site ne le fait, et c'est assumé : un "
+                 "positionnement sectoriel demande un panel, une méthode et une "
+                 "date, qu'aucune donnée d'ici ne fournit."},
+    {"n": 6, "titre": "Restitution",
+     "dit": "Présenter les résultats et les priorités aux décideurs.",
+     "chemin": "/contact", "lien": "En parler au cabinet",
+     "pourquoi": "Un support de restitution est un texte qui engage celui qui le "
+                 "présente ; il se commande, il ne se génère pas."},
+]
+
 #: CE QUE L'AUTO-ÉVALUATION NE COUVRE PAS, ET QU'UN ASSESSMENT CONDUIT COUVRE.
 #: La page promettait huit domaines dont deux n'ont aucune section de checklist
 #: derrière eux — et, symétriquement, oubliait les contrôles d'accès, qui sont
@@ -230,6 +347,12 @@ HORS_PORTEE = [
                     "demande un exercice observé.",
         "ou_ca_se_constate": "Un exercice de reprise chronométré, avec son "
                              "compte rendu et ce qui a été corrigé après.",
+        # HORS PORTÉE DE CE FORMULAIRE N'EST PAS HORS SUJET DU CABINET. Les
+        # deux domaines écartés ont chacun leur page : dire « on ne le cote
+        # pas » sans dire « voici où c'est traité » transformerait une réserve
+        # honnête en fin de non-recevoir.
+        "chemin": "/continuite-ot",
+        "titre_page": "Continuité & gestion de crise OT",
     },
     {
         "nom": "Culture & compétences",
@@ -241,6 +364,8 @@ HORS_PORTEE = [
         "ou_ca_se_constate": "Des entretiens en dehors de la hiérarchie, et "
                              "ce que fait réellement un opérateur devant une "
                              "clé USB inconnue.",
+        "chemin": "/formation",
+        "titre_page": "Formation & transfert de compétences",
     },
 ]
 
@@ -284,6 +409,37 @@ def _verifier():
             if len(str(h.get(champ, "")).strip()) < 40:
                 raise ValueError("hors portée « %s » sans %s écrit"
                                  % (h.get("nom"), champ))
+        if not str(h.get("chemin", "")).startswith("/"):
+            raise ValueError("hors portée « %s » sans page où l'adresser"
+                             % h.get("nom"))
+    # CHAQUE DOMAINE A UNE DESTINATION. Un écart nommé sans endroit où le
+    # traiter laisse le lecteur avec un constat — c'est le reproche qu'on fait
+    # aux diagnostics, et il est mérité.
+    if set(RESSOURCES) != vus:
+        raise ValueError("domaines sans ressource : %s"
+                         % sorted(vus - set(RESSOURCES)))
+    for cle, liens in RESSOURCES.items():
+        if not liens:
+            raise ValueError("%s : aucune ressource" % cle)
+        for l in liens:
+            if not str(l.get("chemin", "")).startswith("/"):
+                raise ValueError("%s : chemin absent ou relatif" % cle)
+            # UN LIEN SANS RAISON ÉCRITE EST UN MENU DÉGUISÉ EN CONSEIL. Le
+            # lecteur clique alors au hasard, et la page ne l'a aidé en rien.
+            if len(str(l.get("pourquoi", "")).strip()) < 60:
+                raise ValueError("%s → %s : sans motif écrit"
+                                 % (cle, l.get("chemin")))
+            if not str(l.get("titre", "")).strip():
+                raise ValueError("%s → %s : sans intitulé" % (cle, l.get("chemin")))
+    if [e["n"] for e in DEROULE] != list(range(1, len(DEROULE) + 1)):
+        raise ValueError("déroulé discontinu")
+    for e in DEROULE:
+        if len(str(e.get("pourquoi", "")).strip()) < 60:
+            raise ValueError("étape %s du déroulé sans motif écrit" % e.get("n"))
+        # UNE ÉTAPE SANS PAGE DOIT DIRE POURQUOI ELLE N'EN A PAS, et non
+        # rester muette : « benchmark » sans lien se lirait comme un oubli.
+        if e.get("chemin") is not None and not str(e["chemin"]).startswith("/"):
+            raise ValueError("étape %s : chemin relatif" % e.get("n"))
 
 
 _verifier()
@@ -317,8 +473,10 @@ def referentiel():
         "voisinages": VOISINAGES,
         "ce_que_ce_n_est_pas": REFUS_ASSESSMENT,
         "hors_portee": HORS_PORTEE,
+        "deroule": DEROULE,
         "domaines": [
             dict(d, nom=_nom_section(d["cle"]),
+                 ressources=RESSOURCES[d["cle"]],
                  dit=next(s["dit"] for s in CK.SECTIONS if s["cle"] == d["cle"]),
                  partie=next(s["partie"] for s in CK.SECTIONS
                              if s["cle"] == d["cle"]))
@@ -383,6 +541,10 @@ def evaluer(niveaux=None, cibles=None):
             "cible_dit": d["cible_dit"],
             "ecart": ecart,
             "gravite": d["gravite"], "gravite_dit": d["gravite_dit"],
+            # LA DESTINATION VOYAGE AVEC L'ÉCART. Servie à part, elle
+            # obligerait la page à recroiser deux listes — et c'est au
+            # premier ajout de domaine que le croisement se perd.
+            "ressources": RESSOURCES[d["cle"]],
             "effort": d["effort"], "effort_dit": d["effort_dit"],
             "poids": poids,
             "section_checklist": d["cle"],
