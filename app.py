@@ -362,13 +362,31 @@ def _security_headers(resp):
 # les réponses déjà encodées (pages statiques pré-gzippées) et les binaires
 # (docx/pdf/zip, déjà compressés) ne sont pas touchés.
 _GZIP_MIN = 1400  # en dessous d'un paquet réseau, la compression ne gagne rien
+_GZIP_MAX = 8_388_608  # au-delà, on ne met pas la réponse entière en mémoire
 
 
 @app.after_request
 def _compress_text(resp):
     try:
-        if (resp.status_code != 200 or resp.direct_passthrough or resp.is_streamed
-                or resp.headers.get("Content-Encoding")):
+        if resp.status_code != 200 or resp.headers.get("Content-Encoding"):
+            return resp
+        # `is_streamed` RECOUVRE DEUX CHOSES QU'IL NE FAUT PAS CONFONDRE, et
+        # les confondre coûte cher. Une réponse de `send_from_directory` a
+        # pour corps un FileWrapper, objet sans longueur : Werkzeug la déclare
+        # `is_streamed` alors que c'est un simple fichier sur disque, borné et
+        # lisible. Un vrai flux (générateur, SSE) l'est aussi, mais lui ne doit
+        # jamais être rassemblé en mémoire.
+        #
+        # ÉCARTER LES DEUX D'UN BLOC — ce que faisait la version d'avant —
+        # revient à ne jamais comprimer un fichier statique, sans qu'aucune
+        # erreur ne le signale. Ici la conséquence était nulle, parce que les
+        # assets passent par `_serve_fast` qui les gzippe lui-même ; sur les
+        # deux sites voisins, où le même code servait les fichiers par
+        # `send_from_directory`, elle valait 2,3 Mo par première visite. Le
+        # piège est retiré plutôt que laissé en embuscade pour la prochaine
+        # route qui servira un fichier.
+        fichier = resp.direct_passthrough
+        if resp.is_streamed and not fichier:
             return resp
         mt = resp.mimetype or ""
         if not (mt.endswith("json") or mt.endswith("xml")
@@ -376,15 +394,22 @@ def _compress_text(resp):
             return resp
         if "gzip" not in (request.headers.get("Accept-Encoding") or "").lower():
             return resp
+        # Sortir du mode passe-plat : sans cela Werkzeug refuse de lire le
+        # corps. `get_data` transforme le FileWrapper en séquence et enregistre
+        # sa fermeture — le descripteur de fichier n'est pas perdu.
+        resp.direct_passthrough = False
         data = resp.get_data()
-        if len(data) < _GZIP_MIN:
+        if len(data) < _GZIP_MIN or len(data) > _GZIP_MAX:
             return resp
         gz = gzip.compress(data, 5)
         if len(gz) >= len(data):
             return resp
+        # `set_data` remet Content-Length sur la longueur du corps compressé.
+        # Ne pas contourner cet appel : une assignation directe de
+        # `resp.response` laisserait la longueur d'origine, et le client
+        # attendrait indéfiniment des octets qui ne viennent pas.
         resp.set_data(gz)
         resp.headers["Content-Encoding"] = "gzip"
-        resp.headers["Content-Length"] = str(len(gz))
         resp.vary.add("Accept-Encoding")
     except Exception:
         pass
