@@ -105,7 +105,15 @@
 </header>
 
   <main class="wrap">
-    <section class="section" style="text-align:center;padding-top:88px">
+    <!-- LE FOND DU BANDEAU. Trois étages qui se recouvrent : dégradé CSS,
+         affiche, puis vidéo si les conditions s'y prêtent. `data-video`
+         nomme le fichier attendu dans `media/` ; tant qu'il n'y est pas,
+         l'affiche tient seule et rien ne le trahit. Retirer l'attribut
+         suffit à désactiver la vidéo sans toucher au reste. -->
+    <section class="section fond-hero" data-fond-hero
+             data-video="hero-fond.mp4" data-video-webm="hero-fond.webm"
+             data-largeur-mini="1024"
+             style="text-align:center;padding-top:88px">
       <!-- LE TITRE PORTE LES DEUX MÉTIERS, ET LA PAGE LES TIENT. Il n'annonçait
            que la cybersécurité, alors que le cabinet conduit aussi la maîtrise
            d'œuvre de centres de données — trois modules complets que rien, sur
@@ -336,6 +344,7 @@
 </footer>
   <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
   <script src="/nav.js" defer></script>
+  <script src="/fond-hero.js" defer></script>
   <script src="/parcours.js" defer></script>
 </body>
 </html>

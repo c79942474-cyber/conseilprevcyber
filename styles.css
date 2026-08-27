@@ -896,3 +896,109 @@ body[data-fond="couchant"]{
   --blob-turquoise:rgba(255,132,68,.26);
   --blob-rouge:rgba(206,58,34,.30);
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   LE FOND DU BANDEAU — trois étages : dégradé, affiche, vidéo
+   ══════════════════════════════════════════════════════════════════════
+   L'ordre compte. Le dégradé est là au premier pixel peint, l'affiche
+   quelques dizaines de kilo-octets plus tard, la vidéo seulement si les
+   conditions s'y prêtent (voir fond-hero.js). Chaque étage RECOUVRE le
+   précédent sans jamais le retirer : à aucun moment le bandeau n'est vide,
+   et si un étage manque, celui d'en dessous tient.
+
+   DEUX MESURES ONT DÉCIDÉ DE CETTE MISE EN PAGE, ET ELLES ONT CORRIGÉ UNE
+   PREMIÈRE VERSION FAUSSE.
+
+   1. LE FOND DOIT SORTIR DU CONTENEUR. La section vit dans `.wrap`, large
+      de 1080 px et centrée : un fond posé dessus s'arrêtait net à
+      1032 px, avec le dégradé de page de part et d'autre. Un fond d'écran
+      qui ne touche pas les bords n'est pas un fond d'écran.
+
+   2. LE FOND N'OCCUPE PAS TOUTE LA SECTION. Mesurée, elle fait 1032 × 1407
+      — PLUS HAUTE QUE LARGE. Une vidéo panoramique étalée là-dessus est
+      agrandie d'un facteur deux et recadrée jusqu'à n'en montrer que le
+      milieu. On lui donne donc une hauteur propre, panoramique, qui
+      s'estompe vers le bas dans le dégradé de la page. */
+.fond-hero{
+  position:relative;
+  --fond-h:clamp(400px, 62vh, 760px);
+}
+/* Les trois étages partagent la même géométrie : pleine largeur de fenêtre,
+   hauteur du bandeau, calés en haut de la section. */
+.fond-hero::before,
+.fond-hero::after,
+.fond-hero-video{
+  content:""; position:absolute; pointer-events:none;
+  top:calc(-1 * var(--fond-marge, 88px)); left:50%; margin-left:-50vw;
+  width:100vw; height:var(--fond-h);
+}
+/* Étage 1 + 2 — le dégradé, puis l'affiche par-dessus. Un seul élément
+   porte les deux : l'affiche est déclarée en premier plan de
+   `background-image`, le dégradé en fond. Si l'image n'arrive pas, le
+   dégradé est déjà là. */
+.fond-hero::before{
+  z-index:-2;
+  background-image:
+    image-set(url("/media/hero-fond-1600.webp") 1x,
+              url("/media/hero-fond-3200.webp") 2x),
+    radial-gradient(900px 520px at 88% -12%, rgba(255,180,100,.22), transparent 62%),
+    linear-gradient(168deg, #5C2415 0%, #6E2A18 34%, #83321C 66%, #92381F 100%);
+  background-image:
+    -webkit-image-set(url("/media/hero-fond-1600.webp") 1x,
+                      url("/media/hero-fond-3200.webp") 2x),
+    radial-gradient(900px 520px at 88% -12%, rgba(255,180,100,.22), transparent 62%),
+    linear-gradient(168deg, #5C2415 0%, #6E2A18 34%, #83321C 66%, #92381F 100%);
+  background-size:cover, cover, cover;
+  background-position:center;
+  background-repeat:no-repeat;
+}
+/* Étage 3 — la vidéo, insérée par le script. Elle apparaît en fondu une
+   fois qu'elle a une image à montrer : sans ce fondu, on remplacerait
+   l'affiche par un rectangle noir le temps du premier décodage. */
+.fond-hero-video{
+  z-index:-1; object-fit:cover;
+  opacity:0; transition:opacity .9s ease;
+}
+/* LE TEXTE PASSE AVANT LE DÉCOR, et le bandeau se fond dans la page.
+   Le voile assure le contraste du titre quelle que soit l'image posée
+   dessous — c'est ce qui permet de changer de vidéo sans revérifier la
+   lisibilité — et sa dernière bande, opaque, raccorde au fond de page. */
+.fond-hero::after{
+  z-index:-1;
+  background:linear-gradient(180deg,
+    rgba(50,18,10,.30) 0%,
+    rgba(50,18,10,.44) 46%,
+    rgba(50,18,10,.20) 82%,
+    rgba(50,18,10,0) 100%);
+}
+/* LE RACCORD SE FAIT PAR TRANSPARENCE, PAS PAR ASSORTIMENT DE COULEUR.
+   Une première version terminait le voile sur un aplat `#6E2A18`, en
+   espérant qu'il tombe juste sur le fond de page à cette hauteur. Il n'y
+   tombait pas : une ligne horizontale se voyait nettement au bas du
+   bandeau. On estompe donc l'affiche ET la vidéo elles-mêmes, et le fond de
+   page réapparaît par en dessous — quel qu'il soit, et sans avoir à le
+   recalculer si le dégradé du corps change un jour. */
+.fond-hero::before,
+.fond-hero-video{
+  -webkit-mask-image:linear-gradient(180deg, #000 0%, #000 62%, transparent 100%);
+  mask-image:linear-gradient(180deg, #000 0%, #000 62%, transparent 100%);
+}
+/* LA VIDÉO EST EXCLUE DE CETTE RÈGLE, ET C'EST INDISPENSABLE.
+   `.fond-hero > *` a une spécificité PLUS FORTE que `.fond-hero-video` :
+   elle lui imposait `position:relative`, la vidéo retombait dans le flux,
+   et son `left:50%` la décalait de 156 px hors de la fenêtre — mesuré :
+   `video.fond-hero-video → 156..1596` pour une fenêtre de 1440. Les
+   pseudo-éléments, eux, échappaient à la règle et se plaçaient bien : le
+   fond semblait donc correct tant que la vidéo ne démarrait pas. */
+.fond-hero > *:not(.fond-hero-video){position:relative; z-index:0}
+
+@media (max-width:900px){
+  /* Sur mobile, un bandeau haut repousse le titre sous la ligne de
+     flottaison : il rétrécit. La vidéo, elle, n'y est de toute façon pas
+     chargée. */
+  .fond-hero{--fond-h:clamp(300px, 44vh, 420px)}
+}
+@media (prefers-reduced-motion:reduce){
+  .fond-hero-video{display:none}   /* ceinture et bretelles : le script ne
+                                      l'insère déjà pas dans ce cas */
+}

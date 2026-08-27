@@ -57,8 +57,8 @@ from urllib.parse import urlparse
 
 import requests
 from werkzeug.middleware.proxy_fix import ProxyFix
-from flask import (Flask, Response, jsonify, redirect, request, send_file,
-                   send_from_directory, stream_with_context)
+from flask import (Flask, Response, abort, jsonify, redirect, request,
+                   send_file, send_from_directory, stream_with_context)
 
 import acces          # qui voit quoi — la politique d'accès, écrite une fois
 import assistant
@@ -4731,6 +4731,13 @@ def nav_js():
                        mimetype="text/javascript; charset=utf-8")
 
 
+@app.route("/fond-hero.js")
+def fond_hero_js():
+    """Bascule affiche → vidéo du fond de bandeau (voir le fichier)."""
+    return _serve_fast("fond-hero.js", _CC_ASSET,
+                       mimetype="text/javascript; charset=utf-8")
+
+
 @app.route("/parcours.js")
 def parcours_js():
     """Parcours guidés par rôle — données et interface, partagés par toutes les pages."""
@@ -4884,6 +4891,64 @@ def emblem_png():
     """Emblème CONSEILPREV en PNG (logo pour données structurées / partage)."""
     return _serve_fast("emblem.png", _CC_IMAGE, mimetype="image/png",
                        gzippable=False)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# LES MÉDIAS DU FOND — ET POURQUOI ILS NE PASSENT PAS PAR `_serve_fast`
+# ══════════════════════════════════════════════════════════════════════════
+# `_serve_fast` lit le fichier ENTIER en mémoire, le garde par processus, et
+# répond toujours 200. C'est exactement ce qu'il faut pour un script de
+# quelques dizaines de kilo-octets. Pour une vidéo de fond, c'est faux deux
+# fois :
+#
+#   1. QUELQUES MÉGA-OCTETS RÉSIDENTS PAR PROCESSUS. Le service tourne avec
+#      plusieurs workers ; le fichier serait gardé autant de fois.
+#
+#   2. ET SURTOUT, PAS DE REQUÊTE PARTIELLE. Un navigateur qui lit une vidéo
+#      demande des TRANCHES (`Range: bytes=…`). Safari, sur iOS comme sur
+#      macOS, commence par demander les premiers octets : si le serveur
+#      répond 200 avec tout le fichier au lieu de 206 avec la tranche, il
+#      considère que la source ne sait pas se positionner et REFUSE DE LIRE.
+#      La vidéo ne démarre jamais, sans message d'erreur — juste un fond noir.
+#
+# `send_from_directory(conditional=True)` délègue à Werkzeug, qui sait
+# répondre 206 et poser `Accept-Ranges` et `Content-Range`. Le crochet de
+# compression, lui, ne touche que `text/*`, `json` et `xml` : une vidéo n'y
+# passe pas — et une vidéo gzippée serait de toute façon plus lourde.
+_MEDIA = os.path.join(HERE, "media")
+
+#: Ce qui peut sortir de `media/`. Une liste blanche plutôt qu'une liste noire :
+#: le jour où quelqu'un dépose une sauvegarde ou un fichier de configuration
+#: dans ce dossier, il ne devient pas téléchargeable par accident.
+_MEDIA_TYPES = {
+    ".webp": "image/webp", ".png": "image/png", ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg", ".avif": "image/avif",
+    ".mp4": "video/mp4", ".webm": "video/webm",
+}
+
+
+@app.route("/media/<nom>")
+def media(nom):
+    """Sert une image ou une vidéo de fond, en autorisant les tranches."""
+    nom = str(nom or "")
+    # `<nom>` sans convertisseur ne peut pas contenir de « / » : Werkzeug ne
+    # ferait pas correspondre la route. Le contrôle reste, parce qu'une route
+    # qu'on élargirait un jour en `<path:nom>` rendrait le trou béant sans que
+    # rien ne le rappelle.
+    if ".." in nom or "/" in nom or "\\" in nom:
+        abort(404)
+    ext = os.path.splitext(nom)[1].lower()
+    if ext not in _MEDIA_TYPES:
+        abort(404)
+    if not os.path.isfile(os.path.join(_MEDIA, nom)):
+        abort(404)
+    resp = send_from_directory(_MEDIA, nom, mimetype=_MEDIA_TYPES[ext],
+                               conditional=True)
+    # L'affiche et la vidéo ne changent qu'à une mise en ligne. Un cache long
+    # évite de retélécharger plusieurs méga-octets à chaque visite.
+    resp.headers["Cache-Control"] = _CC_IMAGE
+    resp.headers.setdefault("Accept-Ranges", "bytes")
+    return resp
 
 
 # --- Référencement (robots.txt + sitemap.xml) ---------------------------------
