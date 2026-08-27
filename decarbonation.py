@@ -284,6 +284,61 @@ TEXTES = {
                    "applicables à ses usages spécifiques doivent être vérifiés "
                    "cas par cas : ce n'est pas un bâtiment de bureaux.",
     },
+    # ── QUATRE CADRES QUI MANQUAIENT ──────────────────────────────────────
+    # Relevé en confrontant la table à la liste des textes que suit réellement
+    # une mission de mise en conformité de centre de données. Les trois
+    # premiers pèsent sur l'exploitation ou sur le choix des équipements ; le
+    # quatrième ne pèse sur rien — il décide seulement si l'on peut concourir.
+    "reen": {
+        "nom": "Loi n° 2021-1485 du 15 novembre 2021 dite « REEN », réduction "
+               "de l'empreinte environnementale du numérique",
+        "portee": "contraignant",
+        "dit": "Structure la politique française de sobriété numérique et "
+               "porte des obligations sur les acteurs du numérique, dont des "
+               "engagements attendus des exploitants de centres de données.",
+        "reserve": "Le détail des obligations applicables à un exploitant "
+                   "donné, et leur articulation avec les dispositifs fiscaux "
+                   "associés, restent à instruire sur le texte et ses décrets "
+                   "d'application.",
+    },
+    "ddadue": {
+        "nom": "Lois portant diverses dispositions d'adaptation au droit de "
+               "l'Union européenne (« DDADUE »)",
+        "portee": "contraignant",
+        "dit": "Véhicule par lequel les directives européennes — dont la "
+               "directive efficacité énergétique — entrent en droit français. "
+               "C'est là que se lisent le seuil d'assujettissement retenu en "
+               "France et le calendrier réellement opposable.",
+        "reserve": "Ces lois se succèdent : citer « la DDADUE » sans millésime "
+                   "ne désigne rien. La version applicable à une obligation "
+                   "donnée doit être identifiée avant toute conclusion.",
+    },
+    "fgas": {
+        "nom": "Règlement (UE) 2024/573 relatif aux gaz à effet de serre "
+               "fluorés",
+        "portee": "contraignant",
+        "dit": "Encadre l'usage des fluides frigorigènes fluorés et organise "
+               "leur retrait progressif. Il pèse directement sur le choix des "
+               "groupes froids d'un centre de données, et sur la durée pendant "
+               "laquelle un équipement installé aujourd'hui restera "
+               "maintenable.",
+        "reserve": "Les échéances et les fluides concernés doivent être relevés "
+                   "sur le règlement : un calendrier approximatif conduit à "
+                   "spécifier une machine dont le fluide sera indisponible "
+                   "avant la fin de son amortissement.",
+    },
+    "commande_publique": {
+        "nom": "Éco-conditionnalité de la commande publique",
+        "portee": "contraignant",
+        "dit": "Les acheteurs publics intègrent des critères environnementaux "
+               "dans leurs consultations d'hébergement et d'infrastructure : "
+               "part d'énergie renouvelable, performance mesurée, réemploi des "
+               "équipements. La preuve est demandée dans l'offre.",
+        "reserve": "Ce cadre ne rapporte rien et n'exonère de rien — il décide "
+                   "seulement de l'admissibilité à concourir. Les critères sont "
+                   "propres à chaque acheteur : il n'existe pas de seuil unique "
+                   "à viser.",
+    },
 }
 
 
@@ -596,7 +651,7 @@ ETAPES = [
                   "part_evaporative", "cycles_concentration"],
         "substitutions": ["pue", "ewif"],
         "apport_moteur": "cadre_seul",
-        "textes": ["iso30134", "en50600"],
+        "textes": ["iso30134", "en50600", "commande_publique"],
         "preuve": "Douze mois de mesure. Un PUE issu d'une plage de conception "
                   "n'est pas un PUE au sens d'ISO/IEC 30134-2 : c'est une "
                   "hypothèse de dimensionnement, et la déclarer comme un "
@@ -626,7 +681,7 @@ ETAPES = [
                   "part_chaleur_reutilisee"],
         "substitutions": ["pue", "ewif", "intensite"],
         "apport_moteur": "cadre_seul",
-        "textes": ["eed_art12", "reg2024_1364", "taxonomie"],
+        "textes": ["eed_art12", "reg2024_1364", "taxonomie", "ddadue"],
         "preuve": "Les mêmes indicateurs que l'étape précédente, mais issus de "
                   "la mesure et non du calcul. Le moteur ne fournit ici que la "
                   "structure de la déclaration.",
@@ -703,7 +758,7 @@ ETAPES = [
         "exige": ["puissance_it_kw", "pays", "refroidissement", "taux_charge"],
         "substitutions": ["intensite"],
         "apport_moteur": "partiel",
-        "textes": ["sbti", "csrd_e1", "tertiaire"],
+        "textes": ["sbti", "csrd_e1", "tertiaire", "reen"],
         "preuve": "Une cible en valeur ABSOLUE, ou une cible d'intensité "
                   "accompagnée de la trajectoire absolue qu'elle implique. La "
                   "seconde sans la première ne dit rien.",
@@ -754,7 +809,7 @@ ETAPES = [
                   "classe_ashrae", "part_evaporative", "cycles_concentration"],
         "substitutions": ["pue"],
         "apport_moteur": "partiel",
-        "textes": ["iso30134", "code_conduite", "cndcp", "iso50001"],
+        "textes": ["iso30134", "code_conduite", "cndcp", "iso50001", "fgas"],
         "preuve": "L'arbitrage eau / énergie rendu explicite : les deux "
                   "indicateurs se déplacent en sens contraire, et n'en publier "
                   "qu'un revient à choisir sa mesure après avoir vu le résultat.",
