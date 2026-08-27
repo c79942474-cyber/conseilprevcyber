@@ -486,8 +486,13 @@
     "/technologies-securite": { t: "Technologies de sécurité (TR 3-1)", p: "Le panorama des familles de technologies applicables en environnement OT.",
       s: ["Situez chaque famille par rapport à vos besoins.", "Croisez avec les exigences système."],
       k: [["IDS OT", "Sonde de détection qui comprend les protocoles industriels."]], l: REF_LINKS },
-    "/glossaire-62443": { t: "Glossaire (1-2)", p: "Le vocabulaire de la série, reformulé pour être compris de tous.",
-      s: ["Utilisez la recherche du navigateur (Ctrl+F) pour trouver un terme."], k: [], l: REF_LINKS },
+    "/glossaire-62443": { t: "Glossaire (1-2)", p: "Le vocabulaire de la série, reformulé pour être compris de tous — le glossaire normatif de référence de toute la série IEC 62443.",
+      s: ["Utilisez la recherche du navigateur (Ctrl+F) pour trouver un terme.",
+        "Lisez d’abord IACS et zone : presque toutes les autres définitions s’y adossent.",
+        "Un terme lu ici ne remplace pas la partie de la série qui le met en œuvre — le glossaire dit ce que le mot signifie, pas ce qu’il vous oblige à faire."],
+      k: [["IACS", "L’ensemble du matériel, des logiciels, des réseaux et du personnel qui assure la conduite, la surveillance et la sécurité d’un procédé industriel. C’est l’objet central de protection de toute la série."],
+        ["Pourquoi un glossaire normatif", "Les mêmes mots — zone, risque, intégrité — ne recouvrent pas la même chose en informatique de gestion et en automatisme. La série commence par les fixer."]],
+      l: REF_LINKS },
     "/metriques-62443": { t: "Métriques (1-3)", p: "Construire des indicateurs mesurables : écart au niveau cible, tendance, tableau de bord.",
       s: ["Choisissez peu d'indicateurs, mais suivis dans la durée.", "Reliez-les aux tendances du cockpit."],
       k: [["Écart SL", "Différence entre niveau cible (SL-T) et niveau atteint (SL-A)."]], l: [["Tendances", "/tendances"], ["Audit 62443", "/audit-conformite"]] },
@@ -514,20 +519,39 @@
     "/guide-integration": { t: "Guide d'intégration", p: "Le pas-à-pas professionnel complet du branchement : prérequis, sécurité, déploiement, supervision.",
       s: ["Naviguez par le sommaire à gauche.", "Copiez les commandes : votre domaine y est déjà injecté.", "Imprimez en PDF pour vos équipes."], k: [],
       l: [["Connecter votre plateforme", "/connecter"], ["Cockpit", "/demo"]] },
-    "/ressources": { t: "Ressources", p: "Les sources officielles utiles : ANSSI, CERT-FR, ENISA, CISA, IEC, NIST…",
-      s: ["Chaque lien ouvre la source officielle dans un nouvel onglet."], k: [],
+    "/ressources": { t: "Ressources", p: "Une sélection de références officielles : autorités et CERT, normes et référentiels, réglementation et guides pratiques.",
+      s: ["Chaque lien ouvre la source officielle dans un nouvel onglet.",
+        "Partez de l’autorité de votre pays avant les référentiels internationaux : c’est elle qui vous contrôlera.",
+        "Pour la lecture de la série IEC 62443 elle-même, restez sur notre référentiel : cette page renvoie aux textes, pas à leur mise en œuvre."],
+      k: [["Liens externes", "Fournis à titre informatif ; leur contenu n’engage pas CONSEILPREV, et il évolue sans nous prévenir."]],
       l: [["Référentiel 62443", "/referentiel"], ["FAQ", "/faq"]] },
-    "/faq": { t: "FAQ", p: "Les réponses aux questions les plus fréquentes sur nos interventions et la norme.",
-      s: ["Parcourez par thème.", "Pas de réponse ? Écrivez-nous."], k: [], l: [["Contact", "/contact"]] },
-    "/about": { t: "À propos", p: "Qui nous sommes : parcours, expertises et convictions.",
-      s: [], k: [], l: [["Études de cas", "/etudes-de-cas"], ["Contact", "/contact"]] },
-    "/secteurs": { t: "Secteurs", p: "Les secteurs industriels où nous intervenons et leurs enjeux propres.",
-      s: [], k: [], l: [["Études de cas", "/etudes-de-cas"], ["Services", "/services"]] },
+    "/faq": { t: "FAQ", p: "Dix-sept questions numérotées, de la différence entre sécurité informatique et sécurité industrielle jusqu’au déroulé d’une mission et à la confidentialité.",
+      s: ["Chaque question se déplie : cliquez le titre, la réponse s’ouvre sous lui.",
+        "Les questions 01 à 09 portent sur le fond — normes, zones, niveaux, correctifs, incidents ; les 10 à 12 sur la façon de travailler ensemble.",
+        "Pas de réponse à votre question ? Écrivez-nous : la page ne remplace pas un échange sur votre installation."],
+      k: [["OT / IACS", "Les systèmes qui conduisent un procédé industriel. Ils ne se sécurisent pas comme un système d’information de bureau — c’est la première question de la page, et la plus structurante."]],
+      l: [["Contact", "/contact"], ["Référentiel 62443", "/referentiel"]] },
+    "/about": { t: "À propos", p: "Un partenaire indépendant de votre cybersécurité industrielle : mission, engagements et champ d’expertise.",
+      s: ["Lisez les engagements avant le champ d’expertise : ce sont eux qui disent comment nous travaillons.",
+        "Les études de cas donnent la preuve de ce que cette page annonce — allez-y si vous cherchez des références."],
+      k: [["Indépendant", "Ni revendeur, ni intégrateur : aucune solution à placer, donc aucun conflit entre le conseil et le catalogue."],
+        ["IT / OT / IIoT", "Informatique de gestion, systèmes industriels, objets connectés industriels. Sécuriser un environnement industriel n’est pas plaquer des outils informatiques sur des installations OT."]],
+      l: [["Études de cas", "/etudes-de-cas"], ["Contact", "/contact"]] },
+    "/secteurs": { t: "Secteurs", p: "Les secteurs industriels où nous intervenons et leurs enjeux propres — chaque secteur a ses contraintes, tous ont la même exigence de continuité.",
+      s: ["Ouvrez votre secteur : l’enjeu y est nommé, et il n’est pas le même d’un secteur à l’autre.",
+        "Votre secteur n’est pas listé ? La démarche s’adapte au terrain ; la fin de page dit comment nous prendre contact.",
+        "Passez ensuite aux études de cas : elles montrent la démarche appliquée, secteur par secteur."],
+      k: [["Sans perturber la production", "C’est la contrainte qui prime en milieu industriel, et celle qui distingue une démarche OT d’une démarche informatique."]],
+      l: [["Études de cas", "/etudes-de-cas"], ["Services", "/services"]] },
     "/contact": { t: "Contact", p: "Le formulaire sécurisé pour demander une démonstration, un état des lieux ou tout renseignement.",
       s: ["Choisissez le sujet le plus proche (démo, conformité, audit…).", "Décrivez votre contexte : nous répondons sous 48 h ouvrées."],
       k: [["Formulaire sécurisé", "Transmission chiffrée, anti-spam et limitation de débit — vos données ne servent qu'à vous répondre."]],
       l: [["Démo temps réel", "/demo"], ["Services", "/services"]] },
-    "/mentions-legales": { t: "Mentions légales", p: "Les informations légales de l'éditeur du site et de l'hébergement.", s: [], k: [], l: [["Accueil", "/"], ["Politique de confidentialité", "/politique-confidentialite"]] },
+    "/mentions-legales": { t: "Mentions légales", p: "Les informations légales de l’éditeur du site, du directeur de la publication et de l’hébergement, publiées au titre de la LCEN.",
+      s: ["Cherchez l’éditeur et l’hébergeur : ce sont les deux mentions qu’une réclamation exige.",
+        "Pour ce qui touche à vos données personnelles, c’est la politique de confidentialité qui fait foi, pas cette page."],
+      k: [["LCEN", "La loi du 21 juin 2004 pour la confiance dans l’économie numérique : elle impose à tout éditeur de site de se rendre identifiable."]],
+      l: [["Accueil", "/"], ["Politique de confidentialité", "/politique-confidentialite"]] },
     "/politique-confidentialite": { t: "Politique de confidentialité", p: "Comment vos données sont traitées : finalités, bases légales, durées, droits RGPD et transparence de l'assistant IA.",
       s: ["Le tableau reprend notre registre des traitements (art. 30).", "Vos droits s'exercent par email — réponse sous un mois."],
       k: [["Portabilité", "Recevoir vos données dans un format lisible par machine (art. 20)."], ["Cookie de session", "Le seul cookie du site : strictement nécessaire à l'espace client."]],
@@ -607,6 +631,178 @@
         ["Substitution", "Un facteur dont l'ordre de grandeur ne suffit plus à ce stade : il faut aller chercher la donnée réelle, chez un fournisseur ou un gestionnaire de réseau."],
         ["Recevable", "Ne veut pas dire « juste » : veut dire que le niveau de définition correspond à celui qu'attend la phase."]],
     l: [["Le calcul énergie, eau et carbone", "/datacenter"], ["Le livrable d'ouverture", "/strategie-durable-datacenter"]] };
+
+
+  /* DIX-SEPT PAGES QUI TOMBAIENT SUR LE GUIDE PAR DÉFAUT — « utilisez le menu
+     pour naviguer ». Un guide générique sur une page dense est pire qu'aucun
+     guide : il fait croire au lecteur qu'il a lu l'aide. Chacun de ceux-ci est
+     écrit à partir de ce que la page dit d'elle-même : titre, chapeau et
+     intertitres relevés dans son gabarit. */
+  GUIDES["/admin"] = {
+    t: "Tableau de bord d’administration",
+    p: "Le point d’entrée des zones réservées : base de connaissance, générateur de livrables, comptes, clients et dossier RGPD.",
+    s: ["Partez de la base de connaissance : c’est elle qui alimente l’assistant et les livrables.",
+        "Passez aux livrables une fois la base garnie — un générateur sans documents produit du générique.",
+        "Les comptes et les clients sont deux registres distincts : l’un donne l’accès, l’autre porte les obligations RGPD."],
+    k: [["Zone réservée", "Toutes les pages de cette section exigent un compte administrateur ; un client connecté n’y accède pas."]],
+    l: [["Base de connaissance", "/admin/base-connaissance"], ["Livrables", "/admin/livrables"], ["Comptes", "/admin/comptes"]] };
+
+  GUIDES["/admin/base-connaissance"] = {
+    t: "Base de connaissance",
+    p: "Le dépôt documentaire du site : les fichiers versés ici alimentent en temps réel l’assistant conversationnel et la génération de livrables.",
+    s: ["Versez vos documents par THÈME : c’est sous ce nom que la recherche les retrouvera.",
+        "Formats acceptés : PDF, DOCX, XLSX, PPTX, TXT, MD, CSV.",
+        "Vérifiez après chargement que le document apparaît dans la liste : un fichier refusé est annoncé avec son motif, jamais silencieusement ignoré."],
+    k: [["Ce que vous versez oriente les réponses", "Une procédure périmée versée ici continuera d’être citée comme votre pratique. Retirez ce qui n’a plus cours."],
+        ["PDF scanné", "Un PDF qui ne contient qu’une image ne porte aucun texte à indexer : il faut le passer par une reconnaissance optique avant de le verser."]],
+    l: [["Générer un livrable", "/admin/livrables"], ["Tableau de bord", "/admin"]] };
+
+  GUIDES["/admin/clients"] = {
+    t: "Gestion des clients",
+    p: "Les fiches clients et prospects, tenues selon le RGPD : base légale, consentement, durée de conservation, export et effacement — avec journal d’audit et registre des traitements.",
+    s: ["Renseignez la BASE LÉGALE à la création : sans elle, la fiche existe sans droit de la détenir.",
+        "Servez-vous de l’export pour répondre à une demande d’accès, et de l’effacement pour une demande de suppression.",
+        "Le journal des opérations est ce qui rend la conformité démontrable : ne le contournez pas en modifiant ailleurs."],
+    k: [["Article 30", "Le registre des activités de traitement : la liste de ce que vous traitez, pourquoi, pour combien de temps."],
+        ["Article 5.2", "Le principe de responsabilité : il ne suffit pas d’être conforme, il faut pouvoir le démontrer. C’est ce que sert le journal."]],
+    l: [["Dossier RGPD", "/admin/rgpd"], ["Dossier public de conformité", "/conformite"]] };
+
+  GUIDES["/admin/livrables"] = {
+    t: "Générateur de livrables",
+    p: "Produit un BROUILLON de livrable — synthèse de conformité, note de cadrage, plan de remédiation — ancré sur les documents de votre base de connaissance.",
+    s: ["Choisissez le type de livrable, puis le périmètre documentaire.",
+        "Relisez intégralement avant diffusion : le texte produit est une matière première, pas un document validé.",
+        "Si le résultat est générique, la cause est presque toujours en amont : la base ne contient pas encore le document qui aurait porté le détail."],
+    k: [["Brouillon", "Le mot est à prendre au sens strict : rien ici n’est signé, relu ni opposable tant que vous ne l’avez pas repris."]],
+    l: [["Base de connaissance", "/admin/base-connaissance"], ["Tableau de bord", "/admin"]] };
+
+  GUIDES["/admin/rgpd"] = {
+    t: "RGPD et transparence IA Act",
+    p: "Les contrôles MESURÉS sur l’état réel du site — fichiers relus, documents générés puis relus, carte des routes inspectée — présentés à côté du dossier déclaratif.",
+    s: ["Lisez d’abord les contrôles mesurés : ils disent ce que le site fait, pas ce qu’on en dit.",
+        "Comparez ensuite avec le dossier déclaratif : l’écart entre les deux est le sujet de la page.",
+        "Traitez les points rouges par ordre : ils portent chacun le fichier et la ligne où se joue la correction."],
+    k: [["Mesuré et non déclaré", "Une attestation n’est jamais peinte en vert par avance, et un arbitrage n’est jamais tranché par le code : la page mesure, elle ne décide pas."],
+        ["Article 50", "L’obligation de transparence de l’IA Act : dire à la personne qu’elle interagit avec une machine, et marquer ce que la machine produit."]],
+    l: [["Dossier public de conformité", "/conformite"], ["Gestion des clients", "/admin/clients"]] };
+
+  GUIDES["/architecture-cible"] = {
+    t: "Architecture cible OT",
+    p: "Découper le procédé en zones, qualifier chaque conduit qui les traverse, et choisir la brique juste pour que la compromission d’un poste bureautique ne descende jamais jusqu’à l’automate.",
+    s: ["Commencez par le vocabulaire zones et conduits : tout le reste de la page en dépend.",
+        "Parcourez les briques — DMZ industrielle, serveur rebond, bastion, diode — et la condition qui justifie chacune.",
+        "N’omettez pas la console d’ingénierie : c’est l’angle mort le plus fréquent, et le plus direct vers l’automate."],
+    k: [["Zone", "Un ensemble d’équipements qui partagent les mêmes exigences de sécurité."],
+        ["Conduit", "Une liaison entre deux zones, dont on maîtrise et journalise ce qui la traverse."],
+        ["Diode", "Un lien physiquement unidirectionnel : la donnée sort, rien ne rentre. Elle règle un problème précis, pas tous."]],
+    l: [["Analyse de risque (3-2)", "/analyse-de-risque"], ["Lancer l’audit 62443", "/audit-conformite"]] };
+
+  GUIDES["/checklist-62443"] = {
+    t: "Checklist de conformité IEC 62443",
+    p: "Vingt-sept points en six sections pour situer votre système industriel, chacun rattaché à la partie de la série qui le fonde et disant la preuve qu’un auditeur demandera.",
+    s: ["Cochez ce qui est EN PLACE ET PROUVABLE, pas ce qui est prévu.",
+        "Lisez « Le parcours » en fin de page : il ordonne ce qui reste, plutôt que de le lister.",
+        "Chaque point cite sa partie de la série : c’est là qu’on va chercher l’exigence exacte."],
+    k: [["Rien n’est envoyé", "Vos réponses restent dans ce navigateur. Elles ne partent sur aucun serveur et personne d’autre ne les voit."],
+        ["La preuve avant la case", "Un point coché sans document derrière ne tiendra pas dix minutes devant un auditeur : c’est la preuve qui est demandée, pas la déclaration."]],
+    l: [["Lancer l’audit 62443", "/audit-conformite"], ["Référentiel 62443", "/referentiel"]] };
+
+  GUIDES["/continuite-ot"] = {
+    t: "Continuité et crise OT",
+    p: "Le plan de continuité industriel : redémarrer un procédé, avec ses automates, ses configurations, ses séquences et ses exigences de sûreté — et non seulement restaurer des données.",
+    s: ["Lisez pourquoi le plan informatique ne suffit pas : c’est le point de départ du reste.",
+        "Traduisez vos objectifs de reprise en langage d’exploitant — en heures de production, pas en minutes de serveur.",
+        "Suivez la démarche en quatre temps, et prévoyez l’exercice de crise : un plan non joué n’est pas un plan."],
+    k: [["PCA / PRA", "Plan de continuité, plan de reprise : tenir pendant, et revenir après."],
+        ["Sauvegarde des configurations d’automates", "Le point le plus souvent absent : sans elle, un automate remplacé est un automate à reprogrammer sous pression."]],
+    l: [["Gestion des changements", "/gestion-des-changements"], ["Référentiel 62443", "/referentiel"]] };
+
+  GUIDES["/gestion-des-changements"] = {
+    t: "Gestion des changements (MOC)",
+    p: "Donner à chaque modification un circuit : analyse d’impact cyber ET sûreté, approbation, fenêtre d’intervention, retour arrière, trace.",
+    s: ["Repérez d’abord ce qui DÉCLENCHE un MOC : la liste est plus large qu’on ne le croit.",
+        "Suivez le circuit en six étapes, sans en sauter : c’est l’approbation et le retour arrière qui sautent en premier, et ce sont eux qui coûtent.",
+        "Comparez avec vos derniers changements réels : combien étaient tracés ?"],
+    k: [["MOC", "Management of Change : le processus qui interdit la modification non évaluée sur un procédé en marche."],
+        ["Impact sûreté", "Un changement peut être sans risque cyber et dangereux pour les personnes. Les deux analyses sont distinctes et toutes deux obligatoires."]],
+    l: [["Continuité OT", "/continuite-ot"], ["Référentiel 62443", "/referentiel"]] };
+
+  GUIDES["/maturite-ot"] = {
+    t: "Assessment de maturité OT",
+    p: "Évaluer l’organisation, les processus et les capacités RÉELLES du dispositif — au-delà de la case réglementaire — et tracer un plan de progression priorisé.",
+    s: ["Commencez par les trois regards complémentaires : conformité, maturité et risque ne se confondent pas.",
+        "Faites l’auto-évaluation pour situer l’ordre de grandeur.",
+        "Passez à l’assessment conduit quand une décision d’investissement en dépend."],
+    k: [["Maturité n’est pas conformité", "On peut être conforme et incapable de tenir dans la durée ; on peut être mûr et en écart réglementaire. Une mesure ne remplace jamais l’autre."]],
+    l: [["Feuille de route", "/feuille-de-route"], ["Operating model", "/operating-model"]] };
+
+  GUIDES["/feuille-de-route"] = {
+    t: "Feuille de route",
+    p: "Traduire les constats en un plan pluriannuel séquencé, chiffré et défendable, priorisé par le risque et la valeur.",
+    s: ["Situez vos constats dans les trois horizons avant de chiffrer quoi que ce soit.",
+        "Rattachez chaque chantier à un stream-type : c’est ce qui rend le plan lisible en comité.",
+        "Gardez la trace de l’arbitrage : une feuille de route se défend par ses renoncements autant que par ses actions."],
+    k: [["Séquencé", "L’ordre n’est pas décoratif : certains chantiers n’ont aucun sens avant qu’un autre soit livré."],
+        ["Défendable", "Chiffré et daté, avec la raison de chaque priorité — sinon le plan ne survit pas au premier arbitrage budgétaire."]],
+    l: [["Assessment de maturité", "/maturite-ot"], ["Operating model", "/operating-model"]] };
+
+  GUIDES["/operating-model"] = {
+    t: "Operating model et gouvernance",
+    p: "Qui fait quoi, selon quels processus et quelles interfaces, avec quel pilotage — pour que la sécurité industrielle tienne au-delà des chantiers ponctuels.",
+    s: ["Parcourez les six dimensions du modèle cible : c’est la grille de lecture de la page.",
+        "Regardez le passage du build au run : c’est là que la plupart des dispositifs se perdent.",
+        "La section destinée aux instances de gouvernance est faite pour être présentée telle quelle."],
+    k: [["Build et run", "Construire et exploiter. Un dispositif qui n’a pas de run retourne à zéro dès la fin du projet."],
+        ["Interfaces", "Le point de friction habituel : entre la sécurité informatique, l’exploitation industrielle et la maintenance, personne ne tient la même définition du même mot."]],
+    l: [["Feuille de route", "/feuille-de-route"], ["Assessment de maturité", "/maturite-ot"]] };
+
+  GUIDES["/formation"] = {
+    t: "Formation et compétences",
+    p: "Des formations bâties sur vos installations et vos gestes réels : une mesure de sécurité qui n’est pas comprise sera contournée.",
+    s: ["Parcourez le catalogue et repérez le module qui parle à VOS métiers.",
+        "Lisez le parti pris de la page : il explique pourquoi les diapositives génériques ne changent rien.",
+        "Demandez l’adaptation à vos installations — c’est là que se joue l’effet."],
+    k: [["Le contournement n’est pas du sabotage", "L’opérateur qui branche sa clé, le mainteneur qui ouvre un accès distant : chacun fait son métier. Une règle qui empêche de travailler sera contournée, et c’est une donnée de conception, pas une faute."]],
+    l: [["Nos services", "/services"], ["Nous contacter", "/contact"]] };
+
+  GUIDES["/gouvernance-ia"] = {
+    t: "Governance by Design IA",
+    p: "Ce qui manque presque toujours quand un modèle passe en production : qui décide, qui contrôle, qui opère, et selon quelles règles.",
+    s: ["Lisez le problème traité avant les volets : l’offre s’insère dans un projet existant, elle ne le remplace pas.",
+        "Parcourez les quatre volets et repérez celui qui manque chez vous.",
+        "Le modèle de partenariat s’adresse aux intégrateurs et éditeurs, pas aux organisations utilisatrices."],
+    k: [["Ni intégrateur ni éditeur", "L’offre n’installe pas la technologie : elle installe la gouvernance autour d’une technologie déjà livrée."]],
+    l: [["Conseil juridique assisté", "/juridique"], ["Nous contacter", "/contact"]] };
+
+  GUIDES["/juridique"] = {
+    t: "Conseil juridique assisté",
+    p: "Trois briques distinctes : une qualification réglementaire déterministe, une analyse argumentée, et un clausier avec revue de contrat.",
+    s: ["Renseignez le profil à l’étape 1 : il restreint le périmètre des textes et rend l’analyse nettement plus précise.",
+        "Lisez la qualification avant l’analyse : la seconde s’appuie sur la première.",
+        "Ce qui ne peut pas être tranché par le questionnaire est marqué « à confirmer » — traitez ces points, ils ne se résoudront pas seuls."],
+    k: [["Déterministe", "Le rattachement est calculé par des règles explicites, sans intelligence artificielle : deux exécutions sur le même profil donnent le même résultat, et chaque texte retenu affiche pourquoi il l’est."],
+        ["Lectures possibles", "L’analyse expose les interprétations et leurs conséquences plutôt qu’une réponse unique. Une réponse unique sur un texte discuté serait une réponse fausse."]],
+    l: [["Relecture de contrat", "/relecture-contrat"], ["Dossier de conformité", "/conformite"]] };
+
+  GUIDES["/relecture-contrat"] = {
+    t: "Relecture de contrat",
+    p: "Chaque version soumise est confrontée au playbook contractuel de l’entreprise : ce qu’on demande, jusqu’où on peut céder, ce qu’on ne signe pas.",
+    s: ["Chargez la version à relire, puis lisez les écarts : chacun est cité, chiffré et adressé à l’instance qui doit trancher.",
+        "Ouvrez le playbook pour voir la règle sur laquelle l’écart se fonde.",
+        "L’assistant rédige la contre-proposition sans quitter la page — relisez-la avant de l’envoyer."],
+    k: [["Playbook contractuel", "Vos positions écrites à l’avance : la demande, la limite de concession, et la clause rédhibitoire. Sans lui, un écart n’est qu’une opinion."],
+        ["Version par version", "La relecture porte sur une version datée. C’est ce qui permet de montrer ce qui a bougé entre deux tours de négociation."]],
+    l: [["Conseil juridique assisté", "/juridique"], ["Nous contacter", "/contact"]] };
+
+  GUIDES["/conformite"] = {
+    t: "Dossier de conformité",
+    p: "Registre des traitements, qualification IA Act motivée, mesures effectivement en place et procédure d’exercice des droits.",
+    s: ["Cherchez le traitement qui vous concerne dans le registre : finalité, base légale, durée.",
+        "La section « Vos droits » donne la marche à suivre et le délai de réponse.",
+        "La qualification IA Act dit pourquoi le site se range où il se range, et non seulement où il se range."],
+    k: [["Générée depuis le référentiel interne", "Cette page ne peut pas diverger de ce que la console d’administration affiche, ni vieillir sans que le code vieillisse avec elle."],
+        ["Article 50", "L’obligation de transparence de l’IA Act : dire que l’on parle à une machine, et marquer ce qu’elle produit."]],
+    l: [["Administration RGPD", "/admin/rgpd"], ["Nous contacter", "/contact"]] };
 
   function initGuide() {
     if (document.querySelector(".guide-btn")) return;

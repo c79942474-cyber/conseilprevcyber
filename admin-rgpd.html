@@ -173,5 +173,9 @@
       .catch(function(){ $('cmErr').hidden = false; });
   })();
   </script>
+  <!-- LE SEUL GABARIT DU SITE QUI NE CHARGEAIT PAS nav.js : ni navigation de
+       page, ni bouton « Guide de la page ». Rien ne le signalait — une page
+       qui ne charge pas un script n'est pas une page en erreur. -->
+  <script src="/nav.js" defer></script>
 </body>
 </html>
