@@ -336,3 +336,48 @@ def test_laffiche_reste_sous_la_video():
     assert re.search(r'\.fond-hero-video\{[^}]*opacity:0', CSS.replace('\n', ''))
     assert 'v.style.opacity = "0"' in JS
     assert 'v.style.opacity = "1"' in JS
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# LA SONDE DE VIE — le seul point dont l'échec coupe tout le reste
+# ══════════════════════════════════════════════════════════════════════════
+# CE QUI EST ARRIVÉ, LE 27 AOÛT À 13 H 00, DANS LE JOURNAL DE PRODUCTION :
+#
+#     "GET /api/health HTTP/1.1" 404 81 "-" "Render/1.0"
+#
+# Render sondait `/api/health` ; ce service n'a jamais servi que `/health`.
+# `render.yaml` déclare pourtant le bon chemin — mais il ne vaut qu'à la
+# CRÉATION du service, et c'est le réglage du tableau de bord qui fait foi
+# ensuite. Sonde en échec, service déclaré en panne, trafic coupé, alors que
+# le site servait ses pages sans le moindre défaut.
+
+@pytest.mark.parametrize('chemin', ['/health', '/api/health'])
+def test_la_sonde_repond_sur_les_deux_chemins(chemin):
+    """Les deux noms circulent dans les notes d'exploitation et se
+    confondent. Une sonde de vie n'a aucune raison d'être difficile à
+    atteindre : c'est le seul point de l'application dont l'indisponibilité
+    coupe tout le reste."""
+    r = _get(chemin, **{'User-Agent': 'Render/1.0'})
+    assert r.status_code == 200, (
+        "%s répond %d : Render déclarerait le service en panne"
+        % (chemin, r.status_code))
+
+
+@pytest.mark.parametrize('chemin', ['/health', '/api/health'])
+def test_la_sonde_passe_les_filtres_anti_robot(chemin):
+    """Render se présente avec un agent qui n'est pas un navigateur. Si le
+    filtre anti-aspiration l'écarte, la sonde échoue pour une raison qui n'a
+    rien à voir avec la santé du service."""
+    for ua in ('Render/1.0', 'Go-http-client/2.0', 'kube-probe/1.29'):
+        assert _get(chemin, **{'User-Agent': ua}).status_code == 200, (ua, chemin)
+
+
+def test_le_blueprint_declare_un_chemin_reellement_servi():
+    """`render.yaml` ne s'applique qu'à la création du service, mais il reste
+    la seule trace écrite de l'intention. Qu'il nomme un chemin mort
+    enverrait la prochaine recréation droit dans le mur."""
+    blueprint = io.open(os.path.join(ICI, 'render.yaml'), encoding='utf-8').read()
+    m = re.search(r'healthCheckPath:\s*(\S+)', blueprint)
+    assert m, "render.yaml ne déclare aucune sonde de vie"
+    assert _get(m.group(1), **{'User-Agent': 'Render/1.0'}).status_code == 200, (
+        "render.yaml déclare %s, que le service ne sert pas" % m.group(1))

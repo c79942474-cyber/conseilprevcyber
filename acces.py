@@ -97,6 +97,13 @@ API_OUVERTES = {
     "/api/veille": "nourrit /veille, en accès direct",
     "/api/conformite": "nourrit /conformite : obligation légale",
     "/api/contact": "le formulaire de contact doit marcher sans compte",
+    # LA SONDE DE VIE, SOUS SON SECOND NOM. Journal de production du
+    # 27 août : « GET /api/health 404 "Render/1.0" ». L'hébergeur sondait
+    # ce chemin, le service ne servait que « /health », et se déclarait
+    # donc lui-même en panne — trafic coupé alors qu'il allait bien.
+    # Rien n'y est secret : elle dit qu'un processus répond, et l'état
+    # des dépendances que la supervision doit pouvoir lire sans compte.
+    "/api/health": "sonde de l'hébergeur — second nom du même point",
 }
 
 # Protégées par un jeton d'en-tête plutôt que par une session : ce sont des

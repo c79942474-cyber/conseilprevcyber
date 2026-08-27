@@ -9011,6 +9011,27 @@ def _cause_publique(txt):
     return " ".join(t.split())[:220]
 
 
+# LA SONDE RÉPOND SUR LES DEUX CHEMINS, ET CE N'EST PAS DE LA COMPLAISANCE.
+#
+# CE QUI EST ARRIVÉ. Le journal de production, le 27 août à 13 h 00 :
+#
+#     "GET /api/health HTTP/1.1" 404 81 "-" "Render/1.0"
+#
+# Render sondait `/api/health`. Ce service n'a jamais servi que `/health` —
+# `render.yaml` le déclare ainsi. Mais `render.yaml` ne vaut qu'à la CRÉATION
+# du service : le réglage du tableau de bord, lui, l'emporte pour un service
+# existant, et il pointait ailleurs. Résultat : sonde en échec, service
+# déclaré en panne, trafic coupé. Le site fonctionnait parfaitement.
+#
+# POURQUOI UN ALIAS PLUTÔT QU'UN RÉGLAGE À CORRIGER. Corriger le tableau de
+# bord règle le cas d'aujourd'hui et laisse le piège en place : ces deux noms
+# se confondent, ils circulent tous les deux dans les notes d'exploitation, et
+# la prochaine personne qui recréera le service ou changera ce champ aura une
+# chance sur deux de le remettre. Une sonde de vie n'a AUCUNE raison d'être
+# difficile à atteindre : c'est le seul point de l'application dont
+# l'indisponibilité coupe tout le reste. Les deux noms mènent donc au même
+# endroit, et le tableau de bord peut porter l'un ou l'autre.
+@app.route("/api/health")
 @app.route("/health")
 def health():
     """Point de santé (utilisé par Render pour vérifier le service).
