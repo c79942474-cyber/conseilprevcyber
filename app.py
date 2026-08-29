@@ -182,6 +182,23 @@ _RATE_EXACT = {
     # ferme pour l'abus, qui figerait le site pour tout le monde.
     "/api/datacenter/piece/export":      (30, 60),
     "/api/datacenter/ingenierie/export": (30, 60),
+    # LES QUATRE POINTS À JETON. Le compteur d'ÉCHECS (voir `_jeton_refus`)
+    # arrête la force brute ; il ne borne pas une inondation menée AVEC le bon
+    # jeton — un connecteur en boucle, ou un secret ayant fuité. Ces plafonds
+    # sont larges pour l'usage réel d'une automatisation et fermes pour l'abus.
+    # /api/rag/ingest est le plus serré des quatre : il ÉCRIT dans la base de
+    # connaissance, et c'est le chemin d'empoisonnement le plus court du site.
+    "/api/rag/ingest":         (60, 60),
+    "/api/ingest":             (240, 60),
+    "/api/reset":              (10, 3600),
+    "/api/maintenance/purge":  (10, 3600),
+    # LES EXPORTS HORS FAMILLE SURVEILLÉE. Mettre en page un document tient un
+    # fil pendant plusieurs secondes ; ceux-ci étaient les seuls à ne porter
+    # aucun plafond, alors que leurs jumeaux de /api/datacenter/ en ont un.
+    "/api/juridique/export":   (30, 60),
+    "/api/playbook/export":    (30, 60),
+    "/api/62443/checklist/emporter": (30, 60),
+    "/api/maturite-ot/emporter":     (30, 60),
 }
 _RATE_EXACT.update({
     # ── DEUX JETONS QUI SE FORÇAIENT EN AVEUGLE ─────────────────────────────
@@ -208,7 +225,17 @@ _RATE_FAMILY = (("/api/auth/", 80, 60), ("/api/admin/", 600, 60),
                 # saturer le service. Le plafond est large pour l'usage reel —
                 # personne ne relance une etude cent fois par minute a la main —
                 # et il ne genera qu'une boucle automatique.
-                ("/api/datacenter/", 120, 60))
+                ("/api/datacenter/", 120, 60),
+                # LES AUTRES SURFACES DE CALCUL, découvertes au relevé du
+                # 29 août : quatre-vingt-sept routes POST, douze sans aucun
+                # plafond. Une checklist 62443, une évaluation de maturité OT
+                # et une qualification juridique coûtent chacune du temps
+                # processeur sans écrire ni appeler de modèle — c'est-à-dire
+                # exactement le profil qu'on amplifie pour saturer un service.
+                ("/api/62443/", 120, 60),
+                ("/api/maturite-ot/", 120, 60),
+                ("/api/juridique/", 120, 60),
+                ("/api/playbook/", 120, 60))
 
 # Points protégés par jeton (server-to-server) : exemptés du contrôle d'origine
 # CSRF, car authentifiés par un secret d'en-tête (X-Ingest-Token) et non par un
@@ -255,8 +282,55 @@ def _request_is_https():
 def _token_ok(provided, expected):
     """Comparaison en temps constant du jeton d'ingestion (hmac.compare_digest) :
     un attaquant ne peut pas reconstituer le jeton octet par octet en mesurant
-    les délais de réponse."""
-    return bool(expected) and hmac.compare_digest(provided or "", expected)
+    les délais de réponse.
+
+    UN JETON PEUT AUSSI CONTENIR DU NON-ASCII, et `compare_digest` LÈVE dans ce
+    cas au lieu de rendre faux : la route rendrait 500 sur une vérification
+    d'authentification, ce qui envoie chercher une panne au lieu d'une clé mal
+    formée. Un jeton qu'on ne peut pas comparer n'est pas un jeton valide."""
+    if not expected:
+        return False
+    try:
+        return hmac.compare_digest(provided or "", expected)
+    except TypeError:
+        app.logger.error("Jeton d'ingestion non ASCII : comparaison impossible, "
+                         "tout appel sera refusé.")
+        return False
+
+
+# ── LA FORCE BRUTE SUR LES JETONS ──────────────────────────────────────────
+# `compare_digest` empêche de reconstituer le secret au CHRONOMÈTRE. Il
+# n'empêche pas de l'essayer, et le relevé du 29 août l'a montré : les quatre
+# points à jeton — dont /api/rag/ingest, qui ÉCRIT DANS LA BASE DE
+# CONNAISSANCE — n'étaient comptés nulle part. Le commentaire du limiteur
+# affirmait pourtant que c'était fait ; les chemins n'ont jamais été ajoutés à
+# la table. Un secret qu'on peut essayer sans être compté n'est plus un secret,
+# c'est un délai.
+#
+# ON COMPTE LES ÉCHECS, PAS LES APPELS. Une automatisation légitime présente
+# toujours le bon jeton : la plafonner gênerait le seul usage régulier de ces
+# points. Un attaquant, lui, ne produit QUE des échecs. Le compteur est donc
+# remis à zéro par une réussite — sans quoi une seule faute de frappe
+# interdirait la journée à un connecteur qui marche.
+_JETON_ESSAIS = 8          # échecs tolérés par IP
+_JETON_FENETRE = 900       # avant remise à zéro (15 min)
+
+
+def _jeton_refus(fourni, attendu, famille):
+    """None si le jeton passe ; la réponse de refus sinon.
+
+    Rend 429 quand le compteur est plein — et non 401 : dire « jeton invalide »
+    à la neuvième tentative apprendrait à l'attaquant que sa cadence n'a pas été
+    remarquée."""
+    cle = "jeton:%s:%s" % (famille, client_ip())
+    if guard.blocked(cle, limit=_JETON_ESSAIS, window=_JETON_FENETRE):
+        app.logger.warning("JETON_FORCE_BRUTE %s sur %s", client_ip(), famille)
+        return _rate_limited(_JETON_FENETRE)
+    if not _token_ok(fourni, attendu):
+        guard.fail(cle)
+        return jsonify(ok=False, error="unauthorized"), 401
+    guard.clear(cle)
+    return None
 
 
 def _same_origin_request():
@@ -333,8 +407,13 @@ def _rate_limit():
     # filtre d'entrée ne retenait que trois préfixes, et laissait donc passer
     # sans compteur les deux points d'ingestion protégés par un simple jeton —
     # c'est-à-dire ceux dont le secret pouvait être essayé indéfiniment.
-    if not (p in _RATE_EXACT or p.startswith("/api/auth/")
-            or p.startswith("/api/admin/") or p.startswith("/api/datacenter/")):
+    #
+    # LE FILTRE EST DÉRIVÉ DE LA TABLE, il n'est plus recopié. Les trois
+    # préfixes étaient écrits ici À LA MAIN : ajouter une famille à
+    # `_RATE_FAMILY` sans penser à cette ligne créait un plafond qui n'était
+    # jamais atteint — une protection qui a l'air posée et ne compte rien. Le
+    # relevé du 29 août a trouvé quatre familles dans ce cas.
+    if not (p in _RATE_EXACT or any(p.startswith(f[0]) for f in _RATE_FAMILY)):
         return
     ip = client_ip()
     rule = _RATE_EXACT.get(p)
@@ -8498,8 +8577,9 @@ def api_rag_ingest_token():
     token = os.environ.get("RAG_INGEST_TOKEN") or INGEST_TOKEN
     if not token:
         return jsonify(ok=False, error="not_configured"), 503
-    if not _token_ok(request.headers.get("X-Ingest-Token"), token):
-        return jsonify(ok=False, error="unauthorized"), 401
+    refus = _jeton_refus(request.headers.get("X-Ingest-Token"), token, "rag-ingest")
+    if refus:
+        return refus
     data = request.get_json(silent=True) or {}
     filename = (data.get("filename") or "").strip()
     b64 = data.get("content_base64") or ""
@@ -9142,8 +9222,9 @@ def api_ingest():
     """
     if not INGEST_TOKEN:
         return jsonify(ok=False, error="not_configured"), 503
-    if not _token_ok(request.headers.get("X-Ingest-Token"), INGEST_TOKEN):
-        return jsonify(ok=False, error="unauthorized"), 401
+    refus = _jeton_refus(request.headers.get("X-Ingest-Token"), INGEST_TOKEN, "cockpit")
+    if refus:
+        return refus
 
     data = request.get_json(silent=True) or {}
     evt = {
@@ -9189,8 +9270,9 @@ def api_reset():
     """Réinitialise l'état du cockpit (protégé par INGEST_TOKEN)."""
     if not INGEST_TOKEN:
         return jsonify(ok=False, error="not_configured"), 503
-    if not _token_ok(request.headers.get("X-Ingest-Token"), INGEST_TOKEN):
-        return jsonify(ok=False, error="unauthorized"), 401
+    refus = _jeton_refus(request.headers.get("X-Ingest-Token"), INGEST_TOKEN, "cockpit")
+    if refus:
+        return refus
     state.reset()
     broker.publish({"reset": True, "state": state.snapshot()})
     return jsonify(ok=True)
@@ -9205,8 +9287,9 @@ def api_purge():
     """
     if not INGEST_TOKEN:
         return jsonify(ok=False, error="not_configured"), 503
-    if not _token_ok(request.headers.get("X-Ingest-Token"), INGEST_TOKEN):
-        return jsonify(ok=False, error="unauthorized"), 401
+    refus = _jeton_refus(request.headers.get("X-Ingest-Token"), INGEST_TOKEN, "cockpit")
+    if refus:
+        return refus
     days = request.args.get("retention_days", type=float) or _RETENTION_DAYS
     max_rows = request.args.get("max_rows", type=int) or _MAX_ROWS
     deleted = state.purge(retention_days=days or None, max_rows=max_rows or None,
