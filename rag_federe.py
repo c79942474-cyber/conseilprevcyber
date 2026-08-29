@@ -218,6 +218,15 @@ def _appel(query, k):
     entetes = {"Content-Type": "application/json",
                "User-Agent": "conseilprev-rag-federe/1.0"}
     if CLE:
+        # UN EN-TÊTE HTTP NE TRANSPORTE QUE DE L'ASCII. Une clé accentuée fait
+        # lever la bibliothèque au moment de l'envoi — une exception, là où ce
+        # module promet de n'en jamais laisser passer vers la rédaction. On
+        # refuse donc avant, avec le motif qui dit quoi corriger.
+        try:
+            CLE.encode("ascii")
+        except UnicodeEncodeError:
+            return False, ("la clé RAG_PAIR_CLE contient un caractère non "
+                           "ASCII : employez une valeur hexadécimale ou base64")
         entetes["X-Rag-Cle"] = CLE
     try:
         r = requests.post(

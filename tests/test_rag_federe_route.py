@@ -193,3 +193,19 @@ def test_le_debit_est_borne():
     corps = _route()
     assert "guard.blocked" in corps and "guard.fail" in corps, (
         "la route fédérée n'est pas comptée : la clé devient un droit illimité")
+
+
+def test_une_cle_configuree_non_ascii_refuse_au_lieu_de_planter(client, monkeypatch):
+    """`hmac.compare_digest` LÈVE sur des chaînes non ASCII. Une clé accentuée
+    posée dans la configuration rendait donc 500 — « erreur du serveur » — là où
+    le diagnostic est « votre clé contient un caractère interdit ». Un 500 sur
+    une route d'authentification envoie chercher une panne qui n'existe pas."""
+    monkeypatch.setenv("RAG_PAIR_CLE", "clé-secrète")
+    h = dict(H, **{"X-Rag-Cle": "clé-secrète"})
+    r = client.post("/api/rag/search", json={"query": "pue"}, headers=h)
+    assert r.status_code == 403, (
+        "la route rend %d : la comparaison a levé au lieu de refuser"
+        % r.status_code)
+    assert r.get_json()["error"] == "cle_non_ascii"
+    assert "hexad" in r.get_json()["message"], (
+        "le message ne dit pas quoi employer à la place")

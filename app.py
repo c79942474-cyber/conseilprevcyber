@@ -5362,7 +5362,21 @@ def api_rag_search_federe():
                        message="La recherche fédérée n'est pas configurée sur "
                                "ce serveur (RAG_PAIR_CLE absente)."), 403
     fournie = (request.headers.get("X-Rag-Cle") or "").strip()
-    if not hmac.compare_digest(fournie, attendue):
+    # `hmac.compare_digest` LÈVE sur des chaînes non ASCII — un accent ou un
+    # emoji dans la clé configurée, et la route rend 500 au lieu de refuser.
+    # L'exploitant lirait « erreur du serveur » là où le diagnostic est
+    # « votre clé contient un caractère interdit ». On le dit.
+    try:
+        egales = hmac.compare_digest(fournie, attendue)
+    except TypeError:
+        app.logger.error("RAG_PAIR_CLE contient un caractère non ASCII : la "
+                         "comparaison est impossible, la fédération refusera "
+                         "tout appel.")
+        return jsonify(ok=False, error="cle_non_ascii",
+                       message="La clé de fédération configurée contient un "
+                               "caractère non ASCII. Employez une valeur "
+                               "hexadécimale ou base64."), 403
+    if not egales:
         return jsonify(ok=False, error="cle_invalide",
                        message="Clé de fédération invalide."), 403
 

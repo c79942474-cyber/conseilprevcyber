@@ -398,6 +398,29 @@ def test_la_mention_distingue_le_pair_muet_du_pair_absent(pair):
     assert "n'a rien rendu" in m and "SEULE" not in m
 
 
+def test_une_cle_accentuee_est_refusee_avec_son_motif(pair, monkeypatch):
+    """UN EN-TÊTE HTTP NE TRANSPORTE QUE DE L'ASCII, et la bibliothèque lève à
+    l'envoi. Ce module promet de ne jamais laisser passer d'exception vers la
+    rédaction : une clé mal choisie doit donc rendre un MOTIF, pas planter le
+    livrable. Et le motif doit dire quoi corriger — « erreur d'encodage »
+    enverrait chercher du côté du réseau."""
+    monkeypatch.setattr(rag_federe, "CLE", "clé-secrète")
+    rag_federe.oublier()
+    r = rag_federe.interroger("question")
+    assert r["ok"] is False
+    assert "non ASCII" in r["motif"] and "hexadécimale" in r["motif"], r["motif"]
+    assert not pair.journal, (
+        "l'appel a été tenté malgré une clé inutilisable : le délai est payé "
+        "pour rien")
+
+
+def test_une_cle_ascii_ordinaire_passe(pair, monkeypatch):
+    monkeypatch.setattr(rag_federe, "CLE", "a3f9c2d1e8b7")
+    rag_federe.oublier()
+    assert rag_federe.interroger("question")["ok"]
+    assert pair.journal[0]["cle"] == "a3f9c2d1e8b7"
+
+
 def test_l_en_tete_du_connecteur_passe_le_filtre_anti_robot():
     """LA PANNE QUI SERAIT RESTÉE MUETTE. Ce site bloque les robots par leur
     en-tête d'agent et répond 404 pour ne pas révéler le blocage. Un connecteur
