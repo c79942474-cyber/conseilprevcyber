@@ -117,3 +117,48 @@ def client_dc():
     pas emprunter une fixture dont il ignore ce qu'elle garantit."""
     _assurer_client()
     return _client(CLIENT_EMAIL)
+
+
+# ── LES COMPTEURS DE CADENCE SONT GLOBAUX AU PROCESSUS ─────────────────────
+# CE QUI SE PASSAIT, ET POURQUOI ON NE LE VOYAIT QU'À LA SUITE COMPLÈTE. Le
+# plafond de cadence par adresse est un compteur de processus, et toute la
+# suite tourne sous une seule adresse — 127.0.0.1. La famille
+# « /api/datacenter/ » admet cent vingt requêtes par minute : deux fichiers
+# d'essais qui la sollicitent chacun soixante fois épuisent le quota, et le
+# SECOND lit 429 là où il attendait 200. Chacun passe seul ; ensemble, le
+# dernier échoue — sur une règle qui n'a rien à voir avec la cadence, ce qui
+# envoie chercher un défaut là où il n'y en a pas.
+#
+# CE QUE CETTE REMISE À ZÉRO N'ÉTEINT PAS. Aucune règle de cadence : celles
+# qui éprouvent un plafond CONSTRUISENT leur propre quota à l'intérieur d'une
+# seule fonction d'essai, et le plafond y joue exactement comme en production.
+# Ce qui disparaît est l'héritage ENTRE essais, qui n'est pas une propriété du
+# service mais un artefact de la suite.
+#
+# ELLE EST AUTOMATIQUE, ET C'EST LE POINT. Réservée aux fichiers qui la
+# demandent — c'était le cas avant, dans un seul d'entre eux —, elle protège
+# ceux qui connaissent le piège et laisse tomber le prochain, c'est-à-dire
+# celui qui ne saura pas pourquoi il échoue.
+@pytest.fixture(autouse=True)
+def compteurs_de_cadence_neufs():
+    """LES DEUX COMPTEURS, et pas seulement celui d'adresse.
+
+    Le service en porte deux, indépendants : le plafond par adresse posé avant
+    la requête, et le compteur d'ÉCHECS de `auth.py`. Ne vider que le premier
+    laissait le second s'accumuler sur toute la session — et un essai
+    d'inscription lancé en fin de suite trouvait la porte déjà fermée par des
+    échecs vieux de trois cents autres essais. Le service se comportait alors
+    autrement qu'au premier appel d'un processus neuf, c'est-à-dire autrement
+    qu'en production, et une règle qui constate lequel des deux plafonds
+    répond concluait l'inverse de la vérité.
+    """
+    import app
+    import auth
+    def _vider():
+        with auth.guard._lock:
+            auth.guard._fails.clear()
+        with app._ip_rate._lock:
+            app._ip_rate._hits.clear()
+    _vider()
+    yield
+    _vider()

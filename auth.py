@@ -103,8 +103,60 @@ class _RateGuard:
         with self._lock:
             self._fails.pop(key, None)
 
+    def retry_after(self, key, limit=8, window=600):
+        """Dans combien de secondes le blocage se lève, au plus tôt.
+
+        POURQUOI CETTE MÉTHODE EXISTE. Un refus de cadence sans « Retry-After »
+        fait réessayer en boucle : le client légitime devient lui-même la
+        charge, et le compteur qu'il alimente repousse d'autant le moment où il
+        repassera. Le refus doit donc dire QUAND revenir, et pour le dire il
+        faut le calculer ici — c'est le seul endroit qui sait quand les échecs
+        ont été comptés.
+
+        LE CALCUL. Le blocage tient tant que `limit` échecs restent dans la
+        fenêtre. Il se lève donc quand le `limit`-ième échec le plus RÉCENT
+        sort de la fenêtre : c'est lui, et non le plus ancien de tous, qui
+        ramène le compte sous la limite.
+
+        LE MÊME VERROU QUE `blocked()`, et pas seulement par habitude : lue
+        pendant qu'un autre fil élague la liste, la durée serait calculée sur
+        un état intermédiaire — c'est-à-dire fausse, sans que rien ne le dise.
+
+        FAUTE D'ÉCHEC DATÉ, on rend la fenêtre entière. Une durée trop longue
+        fait patienter ; une durée trop courte fait revenir dans le mur, ce qui
+        est exactement ce qu'on cherche à éviter.
+        """
+        with self._lock:
+            arr = sorted(t for t in self._fails.get(key, [])
+                         if t > time.time() - window)
+            if len(arr) < limit:
+                return int(window)
+            # Les `limit` plus récents : le premier d'entre eux est celui dont
+            # la sortie de fenêtre débloque.
+            plus_ancien_retenu = arr[-limit]
+            return max(1, int(plus_ancien_retenu + window - time.time()) + 1)
+
 
 guard = _RateGuard()
+
+
+def _refus_cadence(message, key, limit=8, window=600):
+    """Le refus de cadence, avec le délai avant de revenir.
+
+    ÉCRIT UNE FOIS. Les quatre portes de ce module refusaient chacune à leur
+    façon, et aucune ne disait quand revenir : le client légitime réessayait
+    en boucle et devenait lui-même la charge qui le maintenait dehors. Trois
+    recopies de la même correction auraient divergé à la première retouche —
+    et c'est celle qu'on oublie qui reste muette.
+
+    LES BORNES SE PASSENT, elles ne sont pas devinées : chaque porte a les
+    siennes, et un en-tête calculé sur d'autres annoncerait un délai qui n'est
+    pas celui appliqué.
+    """
+    rep = jsonify(error=message)
+    rep.status_code = 429
+    rep.headers["Retry-After"] = str(guard.retry_after(key, limit, window))
+    return rep
 
 
 def _client_ip():
@@ -914,7 +966,8 @@ def api_register():
     # Anti-abus : limite les demandes d'inscription par IP (anti-flood d'emails).
     rk = "register:%s" % _client_ip()
     if guard.blocked(rk, limit=8, window=900):
-        return jsonify(error="Trop de demandes. Réessayez dans quelques minutes."), 429
+        return _refus_cadence("Trop de demandes. Réessayez dans quelques minutes.",
+                              rk, limit=8, window=900)
     guard.fail(rk)
     email = (d.get("email") or "").strip().lower()[:200]
     name = (d.get("name") or "").strip()[:120]
@@ -988,8 +1041,15 @@ def admin_approve(token):
     # pas s'ouvrir.
     rk = "approve:%s" % _client_ip()
     if guard.blocked(rk, limit=20, window=600):
-        return ("<meta charset='utf-8'><p style=\"font-family:Arial;text-align:center;"
-                "margin-top:60px\">Trop de tentatives. Réessayez dans quelques minutes.</p>"), 429
+        # Une page, pas du JSON — mais le même devoir : dire quand revenir.
+        # `make_response` est le seul moyen de poser un en-tête sur un corps
+        # rendu sous forme de chaîne.
+        rep = make_response(
+            "<meta charset='utf-8'><p style=\"font-family:Arial;text-align:center;"
+            "margin-top:60px\">Trop de tentatives. Réessayez dans quelques minutes.</p>",
+            429)
+        rep.headers["Retry-After"] = str(guard.retry_after(rk, 20, 600))
+        return rep
     guard.fail(rk)
     u = store.get_by("approve_token", token)
     if not u or (u.get("approve_expire") or 0) < _now_ms():
@@ -1040,7 +1100,8 @@ def api_login():
     pw = d.get("password") or ""
     key = "login:%s:%s" % (_client_ip(), email)
     if guard.blocked(key):
-        return jsonify(error="Trop de tentatives. Réessayez dans quelques minutes."), 429
+        return _refus_cadence("Trop de tentatives. Réessayez dans quelques minutes.",
+                              key)
     # Lecture du compte TOLÉRANTE AUX PANNES. Auparavant, une base injoignable
     # faisait remonter l'exception telle quelle : le visiteur attendait le délai
     # du pool puis recevait un « erreur_serveur » opaque, qui laissait croire à
@@ -1184,7 +1245,8 @@ def api_reset():
     # Anti-abus : limite les tentatives de réinitialisation par IP (anti-bruteforce de jeton).
     rk = "reset:%s" % _client_ip()
     if guard.blocked(rk, limit=10, window=900):
-        return jsonify(error="Trop de tentatives. Réessayez plus tard."), 429
+        return _refus_cadence("Trop de tentatives. Réessayez plus tard.",
+                              rk, limit=10, window=900)
     guard.fail(rk)
     token = (d.get("token") or "").strip()
     pw = d.get("password") or ""

@@ -31,6 +31,7 @@ CLÔTURE qui protège — le bloc nommé, annoncé comme des données, dont le
 marqueur de fermeture ne peut pas être écrit par le contenu. Les tests le
 vérifient dans cet ordre : la clôture d'abord, le dépistage ensuite.
 """
+import pathlib
 import re
 import os
 import sys
@@ -320,13 +321,169 @@ def test_la_connexion_reste_plafonnee(client):
     assert 429 in codes, codes[-6:]
 
 
-def test_le_429_dit_quand_revenir(client):
+# LES QUATRE PORTES QUI REFUSENT POUR CADENCE, et de quoi les pousser jusqu'à
+# leur propre refus. Le compte de coups est celui du plafond le plus haut
+# (vingt en six cents secondes) majoré : une porte plus tolérante ne doit pas
+# faire échouer la règle avant d'avoir refusé.
+PORTES_CADENCE = [
+    ("/api/auth/login", "post",
+     {"email": "cadence1@example.test", "password": "x"}),
+    ("/api/auth/register", "post",
+     {"email": "cadence2@example.test", "password": "Motdepasse12",
+      "name": "X", "org": "Y"}),
+    ("/api/auth/reset", "post",
+     {"token": "jeton-inexistant", "password": "Motdepasse12"}),
+    ("/admin/approuver/jeton-inexistant", "get", None),
+]
+
+
+@pytest.mark.parametrize("chemin,verbe,corps", PORTES_CADENCE,
+                         ids=[p[0] for p in PORTES_CADENCE])
+def test_tout_refus_de_cadence_dit_quand_revenir(client, chemin, verbe, corps):
     """Un refus sans « Retry-After » fait réessayer en boucle : le client
-    légitime devient lui-même la charge."""
-    for _ in range(20):
-        r = client.post("/api/auth/login", headers=H,
-                        json={"email": "inconnu2@example.test", "password": "x"})
+    légitime devient lui-même la charge — et le compteur qu'il alimente
+    repousse d'autant le moment où il repassera.
+
+    CETTE RÈGLE NE COUVRAIT QU'UNE PORTE, ET ELLE NE LA COUVRAIT PAS VRAIMENT.
+    Elle poussait la connexion et vérifiait l'en-tête du premier 429 reçu.
+    Seulement, la suite d'essais partage une adresse : un fichier précédent
+    avait déjà épuisé le plafond d'IP, et c'était CE refus-là — celui du
+    limiteur global, qui pose bien l'en-tête — que la règle lisait. Elle
+    croyait éprouver la connexion ; elle éprouvait le limiteur. Compteurs
+    isolés, elle a atteint le vrai refus de connexion, qui ne disait pas quand
+    revenir. Les trois autres portes du module ne le disaient pas davantage,
+    et aucune règle ne les regardait.
+
+    Elle porte donc sur la PROPRIÉTÉ, et sur les quatre portes : tout refus de
+    cadence dit quand revenir, et le dit avec un délai qui a un sens.
+    """
+    reponse = None
+    for _ in range(26):
+        if verbe == "post":
+            r = client.post(chemin, headers=H, json=corps)
+        else:
+            r = client.get(chemin)
         if r.status_code == 429:
-            assert r.headers.get("Retry-After"), "aucun délai indiqué"
+            reponse = r
+            break
+    assert reponse is not None, (
+        "%s ne s'est pas fermé après vingt-six coups : soit le plafond a "
+        "disparu, soit il est plus haut que ce que cette règle sait pousser"
+        % chemin)
+    valeur = reponse.headers.get("Retry-After")
+    assert valeur, "%s refuse sans dire quand revenir" % chemin
+    # UN DÉLAI QUI A UN SENS. « 0 » invite à réessayer immédiatement, ce qui
+    # est exactement le défaut qu'on corrige ; une valeur non entière n'est
+    # pas un « Retry-After » au sens de la norme et sera ignorée.
+    assert valeur.isdigit(), (chemin, valeur)
+    assert int(valeur) >= 1, (chemin, valeur)
+
+
+def _mecanisme(reponse):
+    """Lequel des deux plafonds a répondu.
+
+    IL Y EN A DEUX, ET ILS SE COURENT APRÈS : le plafond d'adresse posé avant
+    la requête (`app._rate_limited`) et le compteur d'échecs de `auth.py`. Le
+    premier qui se ferme répond, et les deux rendent 429. Sans distinguer, une
+    règle qui croit éprouver l'un éprouve l'autre — c'est très exactement le
+    défaut que la règle ci-dessus vient de corriger, et il se reproduirait en
+    silence.
+    """
+    try:
+        corps = reponse.get_json() or {}
+    except Exception:
+        return "auth"   # une page HTML : seul auth.py en rend une
+    return "adresse" if corps.get("error") == "rate_limited" else "auth"
+
+
+def test_le_compteur_d_echecs_de_l_inscription_est_hors_d_atteinte(client):
+    """CE QUE CETTE RÈGLE CONSTATE, ET POURQUOI ELLE N'EST PAS UN REPROCHE.
+
+    L'inscription porte DEUX plafonds : six par heure et par adresse au filtre
+    d'entrée, huit par quart d'heure au compteur d'échecs de `auth.py`. Le
+    premier est strictement plus serré, donc il répond toujours — et le second
+    n'est jamais atteint par une requête réelle.
+
+    La protection existe, elle vient simplement de l'autre couche. Ce qui
+    serait dangereux, c'est de l'ignorer : quiconque desserrerait le plafond
+    d'adresse croirait laisser le compteur d'échecs prendre le relais, alors
+    qu'il ne l'a jamais fait. La règle fige donc le constat — si elle tombe,
+    c'est que le rapport de force entre les deux couches a changé, et il faut
+    alors relire les deux ensemble.
+    """
+    import app
+    exact = app._RATE_EXACT.get("/api/auth/register")
+    assert exact, "le plafond d'adresse de l'inscription a disparu"
+    limite_adresse, fenetre_adresse = exact
+    # Huit échecs en neuf cents secondes, côté auth.py — lus au code, pas
+    # recopiés : une borne écrite ici cesserait de décrire celle qui joue.
+    src = pathlib.Path(ICI, "auth.py").read_text(encoding="utf-8")
+    m = re.search(r'rk = "register:%s" % _client_ip\(\)\s*\n\s*'
+                  r"if guard\.blocked\(rk, limit=(\d+), window=(\d+)\)", src)
+    assert m, "le compteur d'échecs de l'inscription a changé de forme"
+    limite_auth = int(m.group(1))
+    assert limite_adresse < limite_auth, (
+        "le plafond d'adresse (%d) n'est plus le plus serré des deux (%d au "
+        "compteur d'échecs) : le compteur d'échecs devient atteignable, et il "
+        "faut vérifier qu'il refuse aussi bien" % (limite_adresse, limite_auth))
+    r = None
+    for i in range(limite_adresse + 4):
+        r = client.post("/api/auth/register", headers=H, json={
+            "email": "cadence-reg%d@example.test" % i,
+            "password": "Motdepasse12", "name": "X", "org": "Y"})
+        if r.status_code == 429:
+            break
+    assert r.status_code == 429
+    assert _mecanisme(r) == "adresse", (
+        "c'est le compteur d'échecs qui a répondu, contrairement au constat "
+        "figé ici")
+
+
+@pytest.mark.parametrize("chemin,verbe,corps",
+                         [p for p in PORTES_CADENCE
+                          if p[0] != "/api/auth/register"],
+                         ids=[p[0] for p in PORTES_CADENCE
+                              if p[0] != "/api/auth/register"])
+def test_le_refus_vient_bien_du_compteur_d_echecs_et_non_du_plafond_d_adresse(
+        client, chemin, verbe, corps):
+    """LA RÈGLE QUI EMPÊCHE LA PRÉCÉDENTE DE MENTIR. « Tout refus de cadence
+    dit quand revenir » serait satisfaite par le plafond d'adresse seul — qui
+    posait déjà l'en-tête avant cette correction. Celle-ci vérifie que le 429
+    obtenu vient bien de la porte qu'on prétend éprouver.
+
+    L'inscription est écartée, et pas oubliée : son compteur d'échecs est hors
+    d'atteinte derrière un plafond d'adresse plus serré, ce que la règle
+    voisine constate explicitement."""
+    for _ in range(26):
+        if verbe == "post":
+            r = client.post(chemin, headers=H, json=corps)
+        else:
+            r = client.get(chemin)
+        if r.status_code == 429:
+            assert _mecanisme(r) == "auth", (
+                "%s a été fermé par le plafond d'adresse : cette porte-ci "
+                "n'est donc pas éprouvée" % chemin)
             return
-    pytest.fail("le plafond ne s'est pas déclenché")
+    pytest.fail("%s ne s'est pas fermé" % chemin)
+
+
+def test_le_delai_annonce_suit_la_fenetre_du_compteur():
+    """UN EN-TÊTE QUI SE CONTENTERAIT D'UNE CONSTANTE serait faux la moitié du
+    temps : il annoncerait la même attente à celui qui vient d'être bloqué et
+    à celui qui l'est depuis dix minutes. Le délai se calcule sur les échecs
+    réellement datés."""
+    import auth
+    g = auth._RateGuard()
+    # Compteur vide : on rend la fenêtre entière plutôt qu'une durée inventée.
+    assert g.retry_after("k", limit=3, window=600) == 600
+    for _ in range(3):
+        g.fail("k")
+    d = g.retry_after("k", limit=3, window=600)
+    assert 595 <= d <= 601, d
+    # Le blocage se lève quand le TROISIÈME échec le plus récent sort de la
+    # fenêtre — pas le plus ancien de tous.
+    import time as _t
+    g2 = auth._RateGuard()
+    g2._fails["k"] = [_t.time() - 500, _t.time() - 100, _t.time() - 10]
+    d2 = g2.retry_after("k", limit=2, window=600)
+    assert 495 <= d2 <= 501, ("la levée est calculée sur le mauvais échec", d2)

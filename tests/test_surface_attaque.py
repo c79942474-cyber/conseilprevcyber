@@ -52,21 +52,19 @@ def client():
     return app.app.test_client()
 
 
+# LA REMISE À ZÉRO DES COMPTEURS A DÉMÉNAGÉ, et elle est devenue automatique.
+# Elle vivait ici, réservée aux deux règles qui forcent une porte à jeton. Le
+# piège qu'elle décrivait — des compteurs globaux au processus, une seule
+# adresse pour toute la suite — ne concernait pourtant pas que ce fichier : il
+# a rattrapé plus tard trois fichiers du centre de données, qui passaient
+# chacun seul et échouaient ensemble sur des règles sans rapport avec la
+# cadence. Une protection réservée à ceux qui connaissent le piège laisse
+# tomber le prochain. Voir `compteurs_de_cadence_neufs` dans conftest.py.
 @pytest.fixture
-def compteurs_neufs():
-    """LES DEUX COMPTEURS SONT GLOBAUX AU PROCESSUS, et deux règles qui forcent
-    la même porte se marchent dessus : la seconde héritait du quota épuisé par
-    la première et lisait 429 là où elle attendait 200. Ce n'est pas un défaut
-    du service — c'est deux essais qui partagent une adresse."""
-    import app
-    def _vider():
-        app.guard.clear("jeton:cockpit:127.0.0.1")
-        app.guard.clear("jeton:rag-ingest:127.0.0.1")
-        with app._ip_rate._lock:
-            app._ip_rate._hits.clear()
-    _vider()
+def compteurs_neufs(compteurs_de_cadence_neufs):
+    """Conservée comme nom : les règles ci-dessous la citent, et le nom dit
+    ce dont elles ont besoin."""
     yield
-    _vider()
 
 
 def _table(nom, fin):
