@@ -453,6 +453,16 @@ OPERATIONS = [
         "faute": "Les programmer sans réserver les bancs de charge ni le "
                  "combustible. C'est une logistique lourde, et elle décale "
                  "tout le calendrier de réception quand elle est oubliée.",
+        # LE LIEN AVEC LE NIVEAU DE DISPONIBILITÉ, posé ici et pas dans la
+        # page : ce sont les mêmes épreuves. Un niveau Tier se démontre par
+        # des essais dont l'issue est observable — retirer un composant du
+        # service sans couper l'informatique, provoquer un défaut et constater
+        # que la charge tient. L'essai intégré EST cette démonstration, et un
+        # niveau écrit au marché sans son programme d'essais est une clause
+        # invérifiable.
+        "demontre": ("Les essais de confirmation du niveau de disponibilité "
+                     "visé. Le niveau ne se démontre pas autrement : ni par "
+                     "une liste de matériel, ni par un calcul de fiabilité."),
     },
     {
         "cle": "opr",

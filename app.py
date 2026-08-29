@@ -2318,6 +2318,7 @@ import icpe_dc       # noqa: E402  — crible les rubriques, ne classe pas le si
 import travaux_dc    # noqa: E402  — l'ordre des opérations de chantier et ses tiers
 import ao_dc         # noqa: E402  — lit le dossier marché, prépare la candidature
 import programme_dc  # noqa: E402  — consolide un portefeuille de sites, pas un projet
+import tier_dc       # noqa: E402  — qualifie une topologie, ne décerne aucun niveau
 import econome_dc     # l'economiste de la construction : quantites x prix
 import decarbonation  # noqa: E402  — les situe dans la hiérarchie d'atténuation
 import strategie_dd  # noqa: E402  — le livrable d'ouverture, quatre perspectives
@@ -4018,6 +4019,56 @@ def api_datacenter_icpe():
                    mission=icpe_dc.consequences_mission(c["regime_site"]),
                    champs=icpe_dc.CHAMPS,
                    rejets=rejets, lecture=_lecture_rejets(rejets))
+
+
+@app.route("/api/datacenter/tier", methods=["POST"])
+@login_required
+def api_datacenter_tier():
+    """La qualification Tier : ce que la topologie décrite permettrait de
+    revendiquer, et ce qui l'en empêche.
+
+    AUCUN NIVEAU N'EST DÉCERNÉ ICI, et la réponse le répète. La certification
+    est délivrée par l'Uptime Institute sur dossier, séparément pour les
+    documents de conception et pour l'ouvrage construit. Cette route dit ce
+    qu'une topologie permettrait de revendiquer, sur les seules données
+    saisies — ce qui est déjà tout ce dont on a besoin en revue de conception,
+    et rien de plus.
+
+    CE QU'ELLE REND ET QUI N'EST PAS LE NIVEAU : le sous-système LIMITANT.
+    « Votre site est de niveau I » n'aide personne ; « il est de niveau I parce
+    que la distribution mécanique l'est » se traite en une réunion.
+    """
+    data = request.get_json(silent=True) or {}
+    sous = data.get("sous_systemes")
+    if not isinstance(sous, dict):
+        return jsonify(ok=False, error="sous_systemes_manquants",
+                       message="La note de chaque sous-système est nécessaire.",
+                       sous_systemes=tier_dc.SOUS_SYSTEMES,
+                       niveaux=tier_dc.ORDRE), 400
+    # Le refroidissement vient du profil du moteur : c'est lui qui décide si
+    # l'eau d'appoint est un sous-système à noter ou hors périmètre. Le
+    # redemander à part le ferait diverger de la famille réellement retenue.
+    profil = _profil_datacenter(data)
+    profil.update(_profil_icpe(data))
+    evaporatif = (profil.get("refroidissement") or "") in (
+        "tour_evaporative", "adiabatique")
+    try:
+        q = tier_dc.qualifier(sous, evaporatif)
+        vise = str(data.get("vise") or "").upper().strip()
+        ecart = tier_dc.ecart_au_vise(sous, vise, evaporatif) if vise else None
+        groupes = None
+        if data.get("groupe_classe"):
+            groupes = tier_dc.capacite_qualifiante_groupes(
+                data.get("groupes_puissance_elec_kw"),
+                data.get("groupe_classe"),
+                data.get("groupe_certifiee_kw"))
+        auto = tier_dc.autonomie(profil)
+    except Exception:
+        app.logger.exception("qualification Tier datacenter")
+        return jsonify(ok=False, error="calcul",
+                       message="La qualification n'a pas pu être établie."), 500
+    return jsonify(ok=True, qualification=q, ecart=ecart, groupes=groupes,
+                   autonomie=auto, referentiel=tier_dc.referentiel())
 
 
 @app.route("/api/datacenter/travaux", methods=["POST"])

@@ -555,6 +555,55 @@
   .ig-prog-nc{border-style:dashed}
 
   /* ══════════════════════════════════════════════════════════════════════
+     LA QUALIFICATION DU NIVEAU DE DISPONIBILITÉ
+     ══════════════════════════════════════════════════════════════════════
+     Le sous-système LIMITANT porte la seule marque forte : c'est lui qui
+     décide du niveau du site, et le reste de la liste n'existe que pour le
+     faire ressortir. Un plafond se distingue d'un verdict par le cadre, pas
+     seulement par le mot — un lecteur pressé ne lit pas la mention. */
+  .ig-qua{margin-top:18px}
+  .ig-qua-t{margin:0 0 12px;font-size:12.5px;line-height:1.65;
+    color:var(--muted)}
+  .ig-qua-t b{color:var(--ink)}
+  .ig-qua-tete{margin:16px 0 12px;padding:13px 16px;border:1px solid var(--line);
+    border-left:3px solid var(--cyan);border-radius:9px;background:var(--panel)}
+  .ig-qua-plafond{border-left-color:#E8C86A;border-style:dashed}
+  .ig-qua-n{display:block;font-size:15px;color:var(--ink);font-weight:600;
+    cursor:help}
+  .ig-qua-l{display:block;margin-top:7px;font-size:12px;line-height:1.65;
+    color:var(--muted)}
+  .ig-qua-b{display:inline-block;margin-left:8px;font-family:var(--mono);
+    font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;
+    color:#E8C86A;border:1px solid rgba(232,200,106,.5);border-radius:4px;
+    padding:1px 6px}
+  .ig-qua-ss{list-style:none;margin:0 0 14px;padding:0;display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}
+  .ig-qua-s{padding:9px 12px;border:1px solid var(--line);border-radius:8px;
+    font-size:12px;color:var(--muted)}
+  .ig-qua-s b{display:block;color:var(--ink);font-size:12.5px}
+  .ig-qua-v{display:inline-block;margin-top:5px;font-family:var(--mono);
+    font-size:11px;color:var(--muted2)}
+  .ig-qua-lim{border-color:rgba(34,211,238,.6);background:rgba(34,211,238,.08)}
+  .ig-qua-lim .ig-qua-v{color:var(--ink)}
+  .ig-qua-ko{border-style:dashed;opacity:.85}
+  /* Un état que la page ne connaît pas : visible, et signalé comme tel. Une
+     ligne muette se lirait comme une ligne normale. */
+  .ig-qua-inconnu{border-style:dotted;border-color:var(--amber)}
+  .ig-qua-hors{opacity:.55}
+  .ig-qua-p{display:block;margin:5px 0 0;font-size:10.5px;line-height:1.55;
+    color:var(--muted2)}
+  .ig-qua-ec,.ig-qua-gr,.ig-qua-au,.ig-qua-rg{margin-bottom:12px;
+    padding:12px 15px;border:1px solid var(--line);border-radius:9px;
+    font-size:12px;line-height:1.65;color:var(--muted)}
+  .ig-qua-ec>b,.ig-qua-gr>b,.ig-qua-au>b,.ig-qua-rg>b{font-size:12.5px;
+    color:var(--ink);cursor:help}
+  .ig-qua-ec ul,.ig-qua-au ul,.ig-qua-rg ul{margin:7px 0 0;padding-left:18px}
+  .ig-qua-ec p,.ig-qua-gr p,.ig-qua-au p{margin:7px 0 0}
+  .ig-qua-es{margin-top:11px;padding-top:9px;
+    border-top:1px dashed var(--line)}
+  .ig-qua-rg span{cursor:help}
+
+  /* ══════════════════════════════════════════════════════════════════════
      LE CRIBLAGE ICPE
      ══════════════════════════════════════════════════════════════════════
      Le badge du régime porte la seule couleur forte de la section : c'est
@@ -1845,6 +1894,15 @@
       <div class="rc-card">
         <div class="dc-grille" id="ig-dispo"></div>
         <div id="ig-dispo-r"></div>
+        <!-- CE QUE LA QUALIFICATION AJOUTE AU CHAMP CI-DESSUS. Le champ
+             recueille une INTENTION — le niveau visé. Ce bloc constate ce que
+             la topologie décrite permettrait de revendiquer, et surtout ce qui
+             l'en empêche : le niveau d'un site est le PLUS BAS de ses
+             sous-systèmes, jamais leur moyenne, et il n'existe pas de niveau
+             fractionnaire. Neuf listes plutôt qu'une, parce que c'est le seul
+             moyen de faire apparaître le maillon faible — celui qu'on ne
+             regarde pas. -->
+        <div id="ig-qualif" class="ig-qua"></div>
       </div>
     </div>
     <p class="note" id="ig-etat" role="status" aria-live="polite" style="margin-top:12px"></p>

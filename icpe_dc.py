@@ -215,7 +215,12 @@ RUBRIQUES = {
                            "Passer de 48 à 72 heures d'autonomie augmente le "
                            "volume de moitié, et peut faire franchir un seuil "
                            "sans qu'aucune décision « réglementaire » n'ait "
-                           "été prise.",
+                           "été prise. Et l'autonomie n'est pas qu'un choix "
+                           "commercial : le référentiel Tier en fait un "
+                           "plancher — douze heures sur site à la capacité N, "
+                           "à tous les niveaux. Le niveau visé décide donc du "
+                           "volume, qui décide de la rubrique, qui décide du "
+                           "délai d'instruction.",
         "conception": "Le volume se convertit en tonnes par la masse "
                       "volumique du produit. Comptez les nourrices et le "
                       "volume mort : la nomenclature parle de ce qui est "

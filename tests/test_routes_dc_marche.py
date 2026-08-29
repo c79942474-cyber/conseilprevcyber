@@ -394,3 +394,98 @@ def test_le_glossaire_porte_les_familles_du_programme(connecte):
     g = connecte.get("/api/datacenter/ingenierie").get_json()["referentiel"]["glossaire"]
     for famille in ("nature_site", "kpi", "partie_prenante"):
         assert famille in g and g[famille], famille
+
+
+# ── La qualification Tier ──────────────────────────────────────────────────
+
+def test_un_visiteur_anonyme_n_atteint_pas_la_qualification(anonyme):
+    r = anonyme.post("/api/datacenter/tier",
+                     json={"sous_systemes": {"prod_elec": "IV"}},
+                     headers=ORIGINE)
+    assert r.status_code in (401, 403)
+
+
+def test_une_demande_sans_sous_systemes_dit_ce_qu_elle_attend(connecte):
+    """Refuser sans dire ce qu'on attend fait recommencer à l'identique."""
+    r = connecte.post("/api/datacenter/tier", json={}, headers=ORIGINE)
+    assert r.status_code == 400
+    j = r.get_json()
+    assert j["error"] == "sous_systemes_manquants"
+    assert j["sous_systemes"] and j["niveaux"] == ["I", "II", "III", "IV"]
+
+
+def test_la_route_rend_le_plus_bas_et_nomme_le_limitant(connecte):
+    """LA RÈGLE QUI FAIT TOUT LE MODULE, éprouvée de bout en bout."""
+    import tier_dc
+    ss = {c: "IV" for c in tier_dc.SOUS_SYSTEMES if c != "eau_appoint"}
+    ss["distribution_meca"] = "I"
+    j = connecte.post("/api/datacenter/tier", json={"sous_systemes": ss},
+                      headers=ORIGINE).get_json()
+    q = j["qualification"]
+    assert q["niveau"] == "I"
+    assert [l["cle"] for l in q["limitants"]] == ["distribution_meca"]
+
+
+def test_le_refroidissement_du_profil_decide_du_perimetre(connecte):
+    """L'eau d'appoint n'est un sous-système à noter que sur un site
+    évaporatif. Le redemander à part le ferait diverger de la famille
+    réellement retenue au moteur."""
+    def etat(fam):
+        j = connecte.post("/api/datacenter/tier", json={
+            "sous_systemes": {"prod_elec": "IV"}, "refroidissement": fam,
+        }, headers=ORIGINE).get_json()
+        par = {s["cle"]: s for s in j["qualification"]["sous_systemes"]}
+        return par["eau_appoint"]["etat"]
+    assert etat("air_dx") == "hors_perimetre"
+    assert etat("tour_evaporative") == "non_evalue"
+
+
+def test_l_ecart_n_est_calcule_que_si_un_niveau_est_vise(connecte):
+    """Sans intention déclarée, un écart n'a pas de sens."""
+    sans = connecte.post("/api/datacenter/tier",
+                         json={"sous_systemes": {"prod_elec": "IV"}},
+                         headers=ORIGINE).get_json()
+    assert sans["ecart"] is None
+    avec = connecte.post("/api/datacenter/tier",
+                         json={"sous_systemes": {"prod_elec": "IV"},
+                               "vise": "III"}, headers=ORIGINE).get_json()
+    assert avec["ecart"]["vise"] == "III"
+
+
+def test_la_classe_du_groupe_decide_de_la_capacite_qualifiante(connecte):
+    j = connecte.post("/api/datacenter/tier", json={
+        "sous_systemes": {"prod_elec": "IV"},
+        "groupe_classe": "secours", "groupes_puissance_elec_kw": "2000",
+    }, headers=ORIGINE).get_json()
+    assert j["groupes"]["qualifiante_kw"] == 0
+    assert j["groupes"]["eligible_iii_iv"] is False
+
+
+def test_l_autonomie_voyage_avec_la_qualification(connecte):
+    """Les douze heures sont une exigence du niveau, pas une option : elles
+    n'ont pas à être demandées séparément."""
+    j = connecte.post("/api/datacenter/tier", json={
+        "sous_systemes": {"prod_elec": "IV"},
+        "groupes_puissance_elec_kw": "2000",
+    }, headers=ORIGINE).get_json()
+    assert j["autonomie"]["heures"] == 12
+    assert j["autonomie"]["combustible"]["volume_m3"] > 0
+
+
+def test_le_referentiel_d_ingenierie_porte_les_sous_systemes(connecte):
+    """La page dessine une liste déroulante par sous-système sur cette
+    réponse : les demander à part afficherait un bloc vide."""
+    j = connecte.get("/api/datacenter/ingenierie").get_json()["referentiel"]
+    assert isinstance(j["tier_sous_systemes"], dict) and j["tier_sous_systemes"]
+    assert j["tier_ordre"] == ["I", "II", "III", "IV"]
+
+
+def test_le_glossaire_porte_les_familles_du_tier(connecte):
+    g = connecte.get("/api/datacenter/ingenierie").get_json()["referentiel"]["glossaire"]
+    for famille in ("tier_exigence", "tier_essai", "tier_regle",
+                    "classe_groupe"):
+        assert famille in g and g[famille], famille
+    # La famille « tier » du cadre reste distincte : elle NOMME les niveaux,
+    # les nouvelles portent les exigences. Deux modules ne peuvent pas tenir
+    # la même — un contrôle de démarrage le refuse.
+    assert "tier" in g

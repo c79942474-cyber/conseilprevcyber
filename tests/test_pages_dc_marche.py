@@ -471,3 +471,101 @@ def test_les_limites_couvrent_la_vue_de_programme():
     limites = h[i:i + 5000]
     assert "consolide ce qu'on lui donne" in limites
     assert "nationale" in limites
+
+
+# ── Le bloc de qualification du niveau ─────────────────────────────────────
+
+def test_le_bloc_de_qualification_existe_sous_la_disponibilite():
+    """Il PROLONGE le champ « niveau visé » plutôt que d'ouvrir une section :
+    le champ recueille une intention, ce bloc constate ce que la topologie
+    permettrait de revendiquer."""
+    h = lire("ingenierie-datacenter.html")
+    assert 'id="ig-qualif"' in h
+    assert h.index('id="ig-dispo"') < h.index('id="ig-qualif"')
+
+
+@pytest.mark.parametrize("fn", ["bâtirQualification", "qualifierLire",
+                                "qualifier", "qualifierRendre"])
+def test_chaque_fonction_de_qualification_est_definie_et_referencee(fn):
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    assert "function %s(" % fn in js, fn
+    assert len(re.findall(r"\b%s\b" % re.escape(fn), js)) >= 2, fn
+
+
+def test_le_bloc_se_dessine_avec_le_formulaire_de_disponibilite():
+    """Un bouton sans listes au-dessus n'invite personne."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function bâtirDisponibilite(")
+    corps = js[i:js.index("function bâtirQualification(")]
+    assert "bâtirQualification()" in corps
+
+
+def test_les_sous_systemes_viennent_du_referentiel_et_ne_sont_pas_ecrits():
+    """Une liste recopiée dans la page finit par noter un sous-système que le
+    calcul ne connaît plus."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function bâtirQualification(")
+    corps = js[i:js.index("function qualifierLire(")]
+    assert "CADRE.tier_sous_systemes" in corps
+    assert "CADRE.tier_ordre" in corps
+
+
+def test_le_sous_systeme_limitant_se_distingue_a_l_oeil():
+    """C'est lui, et lui seul, qui décide du niveau du site. Le noyer dans la
+    liste ferait rater l'information."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function qualifierRendre(")
+    corps = js[i:i + 6000]
+    assert "s.limitant" in corps
+    assert "ig-qua-lim" in corps
+    assert ".ig-qua-lim{" in lire("ingenierie-datacenter.html")
+
+
+def test_un_plafond_se_distingue_d_un_verdict_autrement_que_par_le_mot():
+    """Un lecteur pressé ne lit pas la mention : le cadre doit le dire aussi."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function qualifierRendre(")
+    corps = js[i:i + 6000]
+    assert "q.plafond" in corps
+    assert "ig-qua-plafond" in corps
+    h = lire("ingenierie-datacenter.html")
+    assert ".ig-qua-plafond{" in h
+    j = h.index(".ig-qua-plafond{")
+    assert "dashed" in h[j:j + 140]
+
+
+def test_un_sous_systeme_non_note_affiche_pourquoi():
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function qualifierRendre(")
+    corps = js[i:i + 6000]
+    assert "non_evalue" in corps
+    assert "s.pourquoi" in corps
+
+
+def test_la_reserve_et_la_source_ferment_le_bloc():
+    """Elles distinguent une qualification d'une certification. Un bloc qui
+    les omettrait ferait lire un niveau décerné."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function qualifierRendre(")
+    corps = js[i:i + 7000]
+    assert "q.reserve" in corps
+    assert "q.source" in corps
+
+
+def test_les_essais_a_demontrer_sont_rendus_avec_l_ecart():
+    """Le niveau se constate par des essais dont l'issue est observable. Un
+    écart sans ses essais laisse croire qu'atteindre les exigences suffit."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function qualifierRendre(")
+    corps = js[i:i + 7000]
+    assert "essais_a_demontrer" in corps
+
+
+def test_la_page_dit_la_regle_du_plus_bas_avant_tout_calcul():
+    """Un lecteur qui n'a pas encore qualifié doit déjà savoir que son site
+    vaut son maillon le plus faible."""
+    h = lire("ingenierie-datacenter.html")
+    i = h.index('id="ig-qualif"')
+    entete = h[max(0, i - 900):i + 200]
+    assert "PLUS BAS" in entete
+    assert "moyenne" in entete

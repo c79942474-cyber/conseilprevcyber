@@ -253,6 +253,27 @@ KPI = {
         "pourquoi": "C'est l'essai intégré, et lui seul, qui démontre la "
                     "disponibilité annoncée au client.",
     },
+    "tier_portefeuille": {
+        "nom": "Niveau de disponibilité du portefeuille",
+        "unite": "—",
+        "consolidation": "extremum",
+        "extremum": "le plus bas",
+        "definition": "Le niveau le plus BAS atteint parmi les sites du "
+                      "programme. La même règle que pour un site, appliquée "
+                      "un cran plus haut : un site vaut son sous-système le "
+                      "plus faible, un portefeuille vaut son site le plus "
+                      "faible.",
+        "n_indique_pas": "Ce que vaut chaque site. Un programme annoncé au "
+                         "niveau III dont un site est au niveau I n'a pas "
+                         "« presque » tenu son engagement : c'est ce site-là "
+                         "que le client mettra en avant, et c'est lui qui "
+                         "s'exploitera.",
+        "pourquoi": "C'est l'engagement pris devant le client, et il ne se "
+                    "tient pas en moyenne.",
+        "piege": "La moyenne des niveaux n'existe pas. Il n'y a pas de niveau "
+                 "fractionnaire, ni pour un site ni pour un portefeuille — "
+                 "« nous sommes globalement en III » ne veut rien dire.",
+    },
     "regime_icpe": {
         "nom": "Régime administratif des sites",
         "unite": "—",

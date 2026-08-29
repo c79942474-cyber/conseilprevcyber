@@ -1627,13 +1627,26 @@ NIVEAUX_TIER = {
     "III": {
         "nom": "Tier III — maintenable sans interruption",
         "nature": "referentiel_externe",
-        "chemins": "Plusieurs chemins de distribution, un seul actif.",
+        # CORRIGÉ SUR LE RÉFÉRENTIEL. Cette entrée disait « plusieurs chemins,
+        # un seul actif », ce qui est vrai du backbone électrique et FAUX de
+        # la distribution critique. Les deux n'ont pas la même exigence au
+        # niveau III, et c'est la nuance que les dossiers manquent le plus
+        # souvent — elle se découvre en revue, quand le câblage terminal est à
+        # reprendre.
+        "chemins": "Deux chemins. Du côté du backbone électrique — de la "
+                   "production sur site aux onduleurs — et de la distribution "
+                   "mécanique, un seul a besoin de desservir à un instant "
+                   "donné : un actif, un alterné. Mais de la SORTIE DES "
+                   "ONDULEURS aux baies, les deux chemins sont simultanément "
+                   "actifs.",
         "maintenance": "Tout composant et tout chemin s'entretient sans arrêter "
                        "l'informatique — c'est la définition même du niveau.",
         "defaut": "Un défaut non planifié peut encore provoquer une "
                   "interruption : maintenable n'est pas tolérant à la panne.",
-        "consequence": "Redondance N+1 au minimum ET double chemin dont un "
-                       "actif. Les deux, pas l'un des deux.",
+        "consequence": "Redondance N+1 au minimum ET chemins multiples et "
+                       "indépendants. Les deux, pas l'un des deux. "
+                       "L'informatique est bi-alimentée, ou dotée de "
+                       "commutateurs au point d'usage là où elle ne l'est pas.",
         "schema_type": "N+1",
     },
     "IV": {
@@ -1643,8 +1656,19 @@ NIVEAUX_TIER = {
         "maintenance": "Entretien sans interruption, comme le Tier III.",
         "defaut": "Un défaut unique, quel qu'il soit, est absorbé sans "
                   "interruption ; le compartimentage isole les chaînes.",
-        "consequence": "Redondance 2N ou 2(N+1) et séparation physique des "
-                       "chaînes — deux locaux, deux cheminements, deux sources.",
+        # CORRIGÉ SUR LE RÉFÉRENTIEL. L'exigence n'est pas « 2N » : c'est
+        # « N après toute panne », un RÉSULTAT. Le 2N est un moyen d'y
+        # parvenir, et l'écrire comme l'exigence transforme un référentiel
+        # fondé sur les résultats en liste de matériel — exactement ce qu'il
+        # se refuse à être. `schema_type` reste 2N : c'est le schéma que le
+        # calcul de quantités retient à défaut, pas la définition du niveau.
+        "consequence": "Après n'importe quelle défaillance, la capacité "
+                       "restante doit encore assurer N en puissance ET en "
+                       "froid. S'y ajoutent le compartimentage — chaînes "
+                       "physiquement isolées, pour qu'un événement unique ne "
+                       "puisse pas les atteindre ensemble — et le froid "
+                       "continu, qui tient la salle dans la plage admise "
+                       "pendant la reprise.",
         "schema_type": "2N",
     },
 }
@@ -1711,7 +1735,26 @@ def redondance(schema, n_besoin):
     """
     r = REDONDANCES.get(schema)
     if not r:
-        return None
+        # LE DERNIER REFUS MUET DE CETTE FONCTION. Tout le reste a été réécrit
+        # pour nommer ce qu'il refuse ; ce contrôle-ci, le premier, rendait
+        # encore `None` nu. Un schéma mal orthographié — « 2N+1 » pour
+        # « 2(N+1) », la faute de frappe la plus naturelle qui soit — devenait
+        # alors indiscernable d'un champ vide : le compte disparaissait sans
+        # un mot, exactement le défaut que les lignes suivantes existent pour
+        # empêcher.
+        #
+        # UN SCHÉMA ABSENT RESTE UN SILENCE, un schéma INCONNU est une erreur
+        # nommée. La distinction est la même que pour la saisie du nombre
+        # d'unités, et pour la même raison.
+        if not str(schema or "").strip():
+            return None
+        return {"nature": "refus", "erreur": "schema_inconnu",
+                "message": ("Schéma de redondance inconnu : « %s ». Les "
+                            "schémas admis sont %s."
+                            % (schema, ", ".join(
+                                sorted(REDONDANCES,
+                                       key=lambda k: REDONDANCES[k]["rang"])))),
+                "saisi": str(schema)[:20]}
 
     # ── CE QUE LA SAISIE VAUT, ET CE QU'ON EN DIT ──────────────────────────
     #
@@ -5136,7 +5179,21 @@ def prompts_piece(profil, code_phase, code_piece, inputs=None):
             A("- Comportement au défaut : %s" % t_["defaut"])
             A("- Ce que le niveau exige : %s" % t_["consequence"])
         r_ = dispo["redondance"]
-        if r_:
+        # UN REFUS EST VRAI AU SENS BOOLÉEN, et il ne porte pas les clés d'un
+        # résultat. `if r_:` laissait donc entrer un dict tronqué —
+        # {nature, erreur, message, saisi} — dans un bloc qui lit aussitôt
+        # `r_["nom"]` : KeyError, et l'étude entière échouait sur une saisie
+        # d'unités non numérique. La page se gardait du cas ; le serveur non,
+        # et aucune règle ne couvrait ce chemin.
+        #
+        # LE REFUS N'EST PAS TU POUR AUTANT : il entre dans le prompt comme
+        # refus. Une saisie écartée en silence ferait rédiger la pièce sur un
+        # dimensionnement dont personne ne saurait qu'il manque.
+        if r_ and r_.get("nature") == "refus":
+            A("- Schéma de redondance : NON CALCULÉ. %s Le nombre d'unités "
+              "n'est donc pas établi : ne l'inventez pas, signalez-le "
+              "« [à compléter] »." % r_.get("message", ""))
+        elif r_:
             A("- Schéma de redondance : %s%s"
               % (r_["nom"],
                  " (déduit du niveau visé, non saisi)"
@@ -5380,7 +5437,7 @@ def _glossaires_voisins():
     """
     out = {}
     for nom in ("technique_dc", "travaux_dc", "ao_dc", "icpe_dc",
-                "programme_dc"):
+                "programme_dc", "tier_dc"):
         try:
             mod = __import__(nom)
             g = mod.glossaire() if hasattr(mod, "glossaire") else {}
@@ -5470,7 +5527,7 @@ def _verifier_glossaire():
     """
     fautes, vues = [], {}
     for nom in ("technique_dc", "travaux_dc", "ao_dc", "icpe_dc",
-                "programme_dc"):
+                "programme_dc", "tier_dc"):
         try:
             mod = __import__(nom)
             g = mod.glossaire() if hasattr(mod, "glossaire") else {}
@@ -6283,6 +6340,12 @@ def referentiel():
         "natures_travaux_note": _table_voisine("technique_dc", "NATURES_NOTE", ""),
         "icpe_champs": _table_voisine("icpe_dc", "CHAMPS", []),
         "programme_champs": _table_voisine("programme_dc", "CHAMPS_SITE", []),
+        # Les sous-systèmes dont la note décide de celle du site. Servis avec
+        # le cadre parce que la page en dessine une liste déroulante par
+        # sous-système : les demander à part afficherait un bloc vide le temps
+        # d'un second appel, au moment exact où le lecteur cherche à noter.
+        "tier_sous_systemes": _table_voisine("tier_dc", "SOUS_SYSTEMES", {}),
+        "tier_ordre": _table_voisine("tier_dc", "ORDRE", []),
         "moteur": D.VERSION,
     }
 

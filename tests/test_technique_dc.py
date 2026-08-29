@@ -160,6 +160,68 @@ def test_le_tier_ne_s_attribue_pas():
     assert "conception" in piege
 
 
+def test_l_enjeu_tier_porte_la_regle_du_plus_bas_sous_systeme():
+    """C'EST LA RÈGLE QUI DÉCIDE, et elle vaut d'être dans l'enjeu autant que
+    dans le module de calcul : elle se dit en première réunion, avant tout
+    calcul. Un site vaut son sous-système le plus faible — jamais la moyenne,
+    et il n'existe aucun niveau fractionnaire."""
+    piege = T.ENJEUX_DC["tier"]["piege"]
+    assert "PLUS BAS" in piege, piege
+    assert "moyenne" in piege.lower(), piege
+    # Et l'exemple qui la rend concrète : c'est lui qu'on retient.
+    assert "froid" in piege.lower()
+
+
+def test_l_enjeu_tier_renvoie_aux_essais_et_non_a_une_liste_de_materiel():
+    """Le référentiel se démontre par des épreuves dont l'issue est
+    observable. Demander « quel Tier ? » sans demander les essais laisse
+    croire qu'une liste de matériel suffit."""
+    rep = T.ENJEUX_DC["tier"]["a_repondre"].lower()
+    assert "essais" in rep
+    assert "liste de contrôle" in rep or "liste de matériel" in rep
+
+
+def test_le_raccordement_dit_que_le_reseau_public_ne_qualifie_pas():
+    """L'hypothèse française la plus répandue : « nous avons deux arrivées,
+    donc nous sommes redondants ». Aucune arrivée publique ne compte.
+
+    LA RÈGLE PORTE SUR LA NÉGATION, pas sur le vocabulaire. Sa première
+    version cherchait « limite de propriété » n'importe où dans la phrase :
+    une réécriture qui aurait ouvert par « deux arrivées suffisent » tout en
+    gardant la locution plus loin passait — c'est-à-dire qu'elle acceptait
+    l'exact contraire de ce qu'elle prétend vérifier."""
+    pf = T.ARCHITECTURES_ELEC["raccordement"]["point_faible"]
+    bas = pf.lower()
+    assert "aucune arrivée publique ne compte" in bas, pf
+    i_aucune = bas.index("aucune arrivée publique")
+    assert "limite de propriété" in bas[i_aucune:], (
+        "la négation n'est pas motivée par la limite de propriété", pf)
+    # QUI est primaire, pas seulement que le mot figure. Chercher « primaire »
+    # laissait passer « le réseau public est la source primaire » — soit
+    # exactement l'inverse, avec le bon vocabulaire.
+    assert "production sur site est la source primaire" in bas[i_aucune:], (
+        "la production sur site n'est pas désignée comme source primaire", pf)
+
+
+def test_les_groupes_disent_que_la_classe_decide_de_l_eligibilite():
+    """Un groupe limité en heures consécutives à la puissance demandée ne
+    répond pas à l'exigence des niveaux III et IV — et une classe « secours »
+    l'est par définition.
+
+    ICI AUSSI, LA RÈGLE PORTE SUR LE LIEN DE CAUSE, pas sur les mots. « classe »
+    apparaît deux fois dans la phrase : chercher le mot laissait passer une
+    réécriture qui supprimait précisément l'affirmation selon laquelle la
+    classe DÉCIDE."""
+    pf = T.ARCHITECTURES_ELEC["groupes"]["point_faible"]
+    bas = pf.lower()
+    assert "classe de service décide" in bas, pf
+    i = bas.index("classe de service décide")
+    suite = bas[i:]
+    assert "secours" in suite, ("le cas qui disqualifie n'est pas nommé", pf)
+    assert "consécutives" in suite, ("la limite qui disqualifie n'est pas "
+                                     "nommée", pf)
+
+
 def test_le_pue_exige_son_perimetre_sa_periode_et_sa_charge():
     """Le même site affiche 1,2 et 1,6 sans qu'aucune valeur ne soit fausse.
     Un PUE sans ces trois-là ne veut rien dire."""

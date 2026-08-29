@@ -267,7 +267,12 @@ ARCHITECTURES_ELEC = {
         "point_faible": "Deux arrivées depuis le même poste source ne font pas "
                         "deux sources : elles tombent ensemble. L'indépendance "
                         "se vérifie sur le schéma du gestionnaire de réseau, "
-                        "pas sur le contrat.",
+                        "pas sur le contrat. Et au regard du référentiel Tier, "
+                        "AUCUNE arrivée publique ne compte : tout service "
+                        "venant d'au-delà de la limite de propriété et hors du "
+                        "contrôle de l'exploitant est traité comme non fiable. "
+                        "La production sur site est la source primaire ; le "
+                        "réseau est une alternative économique.",
         "referentiel": "nfc13100",
     },
     "poste_livraison": {
@@ -297,7 +302,11 @@ ARCHITECTURES_ELEC = {
                          "pas le même chiffre selon le régime retenu.",
         "point_faible": "Ils sont testés à vide et défaillent en charge. "
                         "L'essai qui compte est la reprise de la charge réelle, "
-                        "au commissioning puis périodiquement en exploitation.",
+                        "au commissioning puis périodiquement en exploitation. "
+                        "Et la CLASSE de service décide de l'éligibilité à un "
+                        "niveau Tier III ou IV : un groupe limité en heures "
+                        "consécutives à la puissance demandée n'y répond pas, "
+                        "et une classe « secours » l'est par définition.",
         "referentiel": "iso8528",
         "icpe": "2910",
     },
@@ -452,11 +461,19 @@ ENJEUX_DC = {
                  "sur les documents de conception et sur l'ouvrage construit. "
                  "Écrire « certifié Tier III » pour un site conçu selon les "
                  "principes du niveau III est un risque contractuel, pas une "
-                 "approximation commerciale.",
+                 "approximation commerciale. Et le niveau d'un site est le "
+                 "PLUS BAS de ses sous-systèmes, jamais leur moyenne : une "
+                 "chaîne électrique tolérante à la panne desservie par une "
+                 "production de froid à chemin unique fait un site de "
+                 "niveau I.",
         "a_repondre": "Demandez de quel Tier il s'agit : celui du besoin "
                       "métier — combien d'heures d'arrêt le client accepte — "
                       "ou celui d'une certification qu'il compte acheter. Les "
-                      "deux réponses ne conduisent pas au même budget.",
+                      "deux réponses ne conduisent pas au même budget. Puis "
+                      "demandez les ESSAIS : le référentiel se démontre par "
+                      "des épreuves dont l'issue est observable, pas par une "
+                      "liste de matériel, et beaucoup de conceptions qui "
+                      "passent une liste de contrôle échouent à l'épreuve.",
         "referentiel": "uptime",
     },
     "pue": {

@@ -224,3 +224,133 @@ def test_le_compte_lui_meme_n_a_pas_bouge():
     r = I.disponibilite("IV", "6", "2(N+1)")["redondance"]
     assert r["besoin"] == 6 and r["par_chaine"] == 7
     assert r["chaines"] == 2 and r["installees"] == 14
+
+
+# ── DEUX REFUS QUI NE SE DISAIENT PAS ─────────────────────────────────────
+# Trouvés au relevé de l'existant, tous deux dans la même famille de défauts
+# que ce fichier tient depuis le début : une saisie écartée sans un mot.
+
+def test_un_schema_mal_orthographie_est_REFUSE_avec_son_motif():
+    """LE DERNIER REFUS MUET DE `redondance`. Tout le reste de la fonction a
+    été réécrit pour nommer ce qu'il refuse ; son PREMIER contrôle — le schéma
+    inconnu — rendait encore `None` nu. « 2N+1 » pour « 2(N+1) », la faute de
+    frappe la plus naturelle qui soit, devenait indiscernable d'un champ vide :
+    le compte disparaissait, et rien ne disait pourquoi."""
+    r = I.redondance("2N+1", "6")
+    assert r is not None, "un schéma inconnu ne se distingue pas d'un champ vide"
+    assert r["nature"] == "refus"
+    assert r["erreur"] == "schema_inconnu"
+    assert "2(N+1)" in r["message"], "et le message dit les schémas admis"
+
+
+def test_un_schema_ABSENT_ne_reproche_toujours_rien():
+    """La distinction que le refus ci-dessus ne doit pas casser : un champ vide
+    n'est pas une erreur. C'est le cas nominal — la page laisse « déduit du
+    niveau » par défaut."""
+    for vide in ("", "   ", None):
+        assert I.redondance(vide, "6") is None, repr(vide)
+
+
+def test_un_refus_de_saisie_ne_fait_PAS_planter_la_redaction():
+    """LE PLANTAGE LATENT. `prompts_piece` testait `if dispo["redondance"]:`
+    puis lisait `r_["nom"]`. Un refus est vrai au sens booléen et ne porte pas
+    cette clé : l'étude entière levait un KeyError sur une saisie d'unités non
+    numérique — que la page envoie sans filtrer. La page se gardait du cas, le
+    serveur non."""
+    pr = I.prompts_piece({"puissance_it_kw": 1000}, "APD", "SPC-TIER",
+                         {"tier": "III", "n_unites": "abc"})
+    txt = pr["user"] if isinstance(pr, dict) else str(pr)
+    assert "NON CALCULÉ" in txt, (
+        "le refus est avalé : la pièce se rédigerait sur un dimensionnement "
+        "dont personne ne saurait qu'il manque")
+    assert "[à compléter]" in txt
+
+
+def test_un_schema_inconnu_ne_fait_pas_planter_la_redaction_non_plus():
+    """Le même chemin, par l'autre porte : c'est le schéma qui est refusé."""
+    pr = I.prompts_piece({"puissance_it_kw": 1000}, "APD", "SPC-TIER",
+                         {"tier": "III", "n_unites": "6",
+                          "schema_redondance": "2N+1"})
+    txt = pr["user"] if isinstance(pr, dict) else str(pr)
+    assert "SPC-TIER" in txt or "disponibilité" in txt.lower()
+
+
+# ── LA TABLE DES NIVEAUX, QUE RIEN N'ÉPROUVAIT ────────────────────────────
+# Le relevé l'a constaté : aucune règle ne portait sur `NIVEAUX_TIER`, ni sur
+# les familles d'infobulles qui en dérivent. Deux corrections viennent d'y être
+# faites sur le référentiel Uptime ; sans règle, elles se perdraient à la
+# première réécriture.
+
+def test_le_niveau_III_distingue_le_backbone_de_la_distribution_critique():
+    """CORRIGÉ SUR LE RÉFÉRENTIEL. Cette entrée disait « plusieurs chemins, un
+    seul actif » — vrai du backbone électrique, FAUX de la distribution
+    critique, qui exige deux chemins simultanément actifs de la sortie des
+    onduleurs aux baies. C'est la nuance que les dossiers manquent le plus
+    souvent, et elle se découvre en revue."""
+    c = I.NIVEAUX_TIER["III"]["chemins"]
+    bas = c.lower()
+    # LA PREMIÈRE VERSION DE CETTE RÈGLE SE LAISSAIT TROMPER. Elle cherchait
+    # trois mots n'importe où dans la phrase — « onduleur », « simultanément »,
+    # « alterné ». Une entrée qui aurait rouvert par « plusieurs chemins, un
+    # seul actif » AVANT de les employer les contenait tous, et passait : elle
+    # aurait affirmé la règle générale fausse ET sa correction dans la même
+    # phrase, ce qui est pire que l'erreur seule.
+    #
+    # Ce qui se vérifie ici, c'est la DISTINCTION : les deux côtés sont nommés,
+    # chacun avec son exigence, et l'affirmation générale erronée est absente.
+    assert "backbone" in bas, c
+    assert "un seul a besoin de desservir" in bas, c
+    assert "simultanément" in bas, c
+    i_backbone, i_ond = bas.index("backbone"), bas.index("sortie des onduleurs")
+    assert i_backbone < i_ond, (
+        "les deux côtés ne sont pas distingués dans l'ordre : le chemin unique "
+        "doit être rattaché au backbone AVANT que la sortie des onduleurs soit "
+        "nommée, sinon la nuance ne se lit pas")
+    assert "un seul actif" not in bas, (
+        "l'affirmation générale erronée est de retour : « un seul actif » vaut "
+        "pour le backbone, jamais pour la distribution critique")
+
+
+def test_le_niveau_IV_exige_un_resultat_et_non_un_schema():
+    """« N après toute panne » est un RÉSULTAT. Écrire « 2N » comme l'exigence
+    transforme un référentiel fondé sur les résultats en liste de matériel."""
+    cq = I.NIVEAUX_TIER["IV"]["consequence"]
+    assert "2N" not in cq, cq
+    assert "défaillance" in cq.lower()
+    # Le schéma reste 2N : c'est ce que le CALCUL de quantités retient à
+    # défaut, pas la définition du niveau. Les deux ne se confondent pas.
+    assert I.NIVEAUX_TIER["IV"]["schema_type"] == "2N"
+
+
+def test_le_niveau_IV_porte_le_compartimentage_et_le_froid_continu():
+    """Deux exigences propres au niveau IV, absentes de la table d'origine."""
+    cq = I.NIVEAUX_TIER["IV"]["consequence"].lower()
+    assert "compartimentage" in cq
+    assert "froid continu" in cq
+
+
+def test_les_quatre_niveaux_gardent_la_meme_forme():
+    """Une clé qui manquerait sur un seul niveau ferait un trou dans
+    l'infobulle correspondante — et une infobulle trouée ne se voit pas."""
+    champs = {"nom", "nature", "chemins", "maintenance", "defaut",
+              "consequence", "schema_type"}
+    for code in ("I", "II", "III", "IV"):
+        assert champs <= set(I.NIVEAUX_TIER[code]), code
+        assert I.NIVEAUX_TIER[code]["schema_type"] in I.REDONDANCES, code
+
+
+def test_l_ordre_des_niveaux_couvre_exactement_la_table():
+    d = I.disponibilite("III", "6", None)
+    assert set(d["niveaux_ordre"]) == set(I.NIVEAUX_TIER)
+    assert d["niveaux_ordre"] == ["I", "II", "III", "IV"]
+
+
+def test_les_infobulles_des_niveaux_derivent_de_la_table():
+    """« Tier III » se lit sur trois pages du dossier ; trois définitions du
+    même sigle valent moins qu'une seule. L'infobulle doit REPRENDRE la table,
+    pas la réécrire."""
+    g = I.glossaire()["tier"]
+    assert set(g) == set(I.NIVEAUX_TIER)
+    for code, e in g.items():
+        assert I.NIVEAUX_TIER[code]["chemins"] in e["aide"], code
+        assert I.TIER_SOURCE in e["aide"], code

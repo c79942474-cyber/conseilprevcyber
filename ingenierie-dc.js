@@ -3616,6 +3616,195 @@ function messageDelai(e, defaut) {
       var e = $(s);
       if (e) e.addEventListener(s === "#ig-nunites" ? "input" : "change", dispoDemander);
     });
+    bâtirQualification();
+  }
+
+
+  /* ── La qualification du niveau, sous-système par sous-système ──────────
+     CE QUE CE BLOC AJOUTE, et que le champ « niveau visé » ne pouvait pas
+     donner. Le champ au-dessus recueille une INTENTION ; celui-ci constate ce
+     que la topologie décrite permettrait de revendiquer — et surtout ce qui
+     l'en empêche.
+
+     LA RÈGLE QUI FAIT TOUT LE BLOC : le niveau d'un site est le PLUS BAS de
+     ses sous-systèmes. Jamais leur moyenne, et il n'existe pas de niveau
+     fractionnaire. Neuf listes déroulantes plutôt qu'une, parce que c'est le
+     seul moyen de faire apparaître le maillon faible — celui qu'on ne regarde
+     pas, en général la distribution mécanique ou l'eau d'appoint.
+
+     RIEN N'EST OBLIGATOIRE. Un sous-système non noté ne vaut pas « conforme » :
+     il ressort NON ÉVALUÉ, et le résultat est alors annoncé comme un plafond.
+     Exiger les neuf notes ferait cocher au hasard pour obtenir un chiffre. */
+  function bâtirQualification() {
+    var z = $("#ig-qualif");
+    if (!z || !CADRE) return;
+    var SS = CADRE.tier_sous_systemes || {};
+    var ordre = CADRE.tier_ordre || ["I", "II", "III", "IV"];
+    var noms = ((CADRE.disponibilite || {}).niveaux) || {};
+    var cles = Object.keys(SS);
+    if (!cles.length) { z.innerHTML = ""; return; }
+    var h = '<p class="ig-qua-t"><b>Ce que la topologie permettrait de '
+      + "revendiquer.</b> Notez chaque sous-système&nbsp;: le niveau du site "
+      + "sera le PLUS BAS d'entre eux, jamais leur moyenne. Laissez vide ce "
+      + "que vous ne savez pas — un sous-système non noté n'est pas conforme, "
+      + 'il est inconnu.</p><div class="dc-grille">';
+    cles.forEach(function (k) {
+      var id = "ig-ss-" + k;
+      h += '<label class="dc-champ" for="' + id + '"><span class="dc-lab">'
+        + esc(SS[k].nom) + "</span>"
+        + '<select id="' + id + '" data-ss="' + esc(k) + '">'
+        + '<option value="">— non évalué —</option>';
+      ordre.forEach(function (n) {
+        h += '<option value="' + esc(n) + '">'
+          + esc((noms[n] || {}).nom || ("Tier " + n)) + "</option>";
+      });
+      h += '</select><span class="dc-aide">' + esc(SS[k].aide) + "</span></label>";
+    });
+    z.innerHTML = h + "</div>"
+      + '<button type="button" class="ig-lanceur-b" id="ig-qua-go">'
+      + "Qualifier la topologie →</button>"
+      + '<p class="note" id="ig-qua-msg" style="margin-top:10px"></p>'
+      + '<div id="ig-qua-out"></div>';
+    var b = $("#ig-qua-go");
+    if (b) b.addEventListener("click", qualifier);
+  }
+
+  function qualifierLire() {
+    var ss = {};
+    document.querySelectorAll("#ig-qualif [data-ss]").forEach(function (e) {
+      var v = (e.value || "").trim();
+      if (v) ss[e.getAttribute("data-ss")] = v;
+    });
+    return ss;
+  }
+
+  function qualifier() {
+    var msg = $("#ig-qua-msg"), out = $("#ig-qua-out");
+    if (!out) return;
+    var ss = qualifierLire();
+    if (!Object.keys(ss).length) {
+      msg.textContent = "Notez au moins un sous-système.";
+      return;
+    }
+    msg.textContent = "Qualification…";
+    var corps = lireProfil();
+    corps.sous_systemes = ss;
+    corps.vise = (($("#ig-tier") || {}).value || "");
+    demander("/api/datacenter/tier", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(corps),
+    }).then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) {
+          msg.textContent = (j && j.message) || "Qualification indisponible.";
+          return;
+        }
+        msg.textContent = "";
+        qualifierRendre(j);
+      })
+      .catch(function () { msg.textContent = "Qualification indisponible."; });
+  }
+
+  function qualifierRendre(j) {
+    var out = $("#ig-qua-out"), q = j.qualification;
+    if (!q.evalue) {
+      out.innerHTML = '<p class="note">' + esc(q.pourquoi) + "</p>";
+      return;
+    }
+    /* LE NIVEAU, ET AUSSITÔT SON STATUT. Un plafond affiché comme un verdict
+       ferait annoncer au client un niveau qui ne peut que descendre. */
+    var h = '<div class="ig-qua-tete' + (q.plafond ? " ig-qua-plafond" : "") + '">'
+      + '<span class="ig-qua-n"' + info("tier_exigence:" + q.niveau) + ">"
+      + esc(q.niveau_nom) + "</span>"
+      + (q.plafond ? '<span class="ig-qua-b">plafond, pas verdict</span>' : "")
+      + '<span class="ig-qua-l">' + esc(q.lecture) + "</span></div>";
+    /* LE SOUS-SYSTÈME LIMITANT, mis en évidence : c'est lui, et lui seul, qui
+       décide du niveau du site. */
+    h += '<ul class="ig-qua-ss">';
+    q.sous_systemes.forEach(function (s) {
+      /* LES TROIS ÉTATS SE NOMMENT, aucun n'est déduit par défaut. Écrit
+         en « sinon », un quatrième état ajouté un jour au serveur tomberait
+         en silence dans le seau du non-évalué et s'afficherait comme lui —
+         faux, et invisible. */
+      var cls = s.etat === "note" ? (s.limitant ? " ig-qua-lim" : "")
+        : s.etat === "hors_perimetre" ? " ig-qua-hors"
+        : s.etat === "non_evalue" ? " ig-qua-ko" : " ig-qua-inconnu";
+      h += '<li class="ig-qua-s' + cls + '"><b>' + esc(s.nom) + "</b>"
+        + (s.etat === "note"
+            ? '<span class="ig-qua-v">' + esc(s.niveau) + "</span>"
+              + (s.limitant ? '<span class="ig-qua-b">limitant</span>' : "")
+            : '<span class="ig-qua-p">' + esc(s.pourquoi || "") + "</span>")
+        + "</li>";
+    });
+    h += "</ul>";
+    /* L'ÉCART AU NIVEAU VISÉ. Il ne s'affiche que si un niveau est visé :
+       sans intention déclarée, un écart n'a pas de sens. */
+    if (j.ecart && j.ecart.vise) {
+      var e = j.ecart;
+      h += '<div class="ig-qua-ec"><b>Écart au ' + esc(e.vise_nom) + "</b>"
+        + '<p class="ig-qua-l">' + esc(e.lecture) + "</p>";
+      if (e.manquants.length) {
+        h += "<ul>";
+        e.manquants.forEach(function (m) {
+          h += "<li>" + esc(m.nom) + " — " + esc(m.ecart) + "</li>";
+        });
+        h += "</ul>";
+      }
+      h += '<p class="ig-qua-es"><b' + info("tier_essai:" + e.vise)
+        + ">Ce qu'il faudra DÉMONTRER</b> — le niveau se constate par des "
+        + "essais dont l'issue est observable, pas par une liste de "
+        + "matériel.</p><ul>";
+      e.essais_a_demontrer.forEach(function (x) {
+        h += "<li>" + esc(x) + "</li>";
+      });
+      h += "</ul></div>";
+    }
+    /* LES GROUPES : la classe de service décide de ce qui compte. */
+    if (j.groupes) {
+      var g = j.groupes;
+      h += '<div class="ig-qua-gr"><b' + info("tier_regle:groupe_illimite")
+        + ">Groupes électrogènes</b>";
+      h += g.nature === "refus"
+        ? '<p class="ig-qua-p">' + esc(g.message) + "</p>"
+        : "<p>" + esc(nombreFr(g.qualifiante_kw)) + " kW comptent pour un "
+          + "niveau III ou IV sur " + esc(nombreFr(g.puissance_nominale_kw))
+          + " kW de plaque — " + esc(g.origine) + '.</p><p class="ig-qua-p">'
+          + esc(g.note) + "</p>";
+      h += "</div>";
+    }
+    /* L'AUTONOMIE, et son lien avec le régime administratif. */
+    if (j.autonomie) {
+      var a = j.autonomie;
+      h += '<div class="ig-qua-au"><b' + info("tier_regle:autonomie_douze_heures")
+        + ">Autonomie sur site — " + a.heures + " heures à la capacité N</b>";
+      if (a.combustible) {
+        h += "<p>Combustible : au moins " + esc(nombreFr(a.combustible.volume_m3, 1))
+          + " m³ stockés.</p>";
+      }
+      if (a.eau_appoint && a.eau_appoint.volume_m3) {
+        h += "<p>Eau d'appoint : au moins "
+          + esc(nombreFr(a.eau_appoint.volume_m3, 1)) + " m³ en réserve.</p>"
+          + '<p class="ig-qua-p">' + esc(a.eau_appoint.note) + "</p>";
+      } else if (a.eau_appoint && a.eau_appoint.pourquoi) {
+        h += '<p class="ig-qua-p">' + esc(a.eau_appoint.pourquoi) + "</p>";
+      }
+      (a.manques || []).forEach(function (m) {
+        h += '<p class="ig-qua-p">Il manque ' + esc(m) + ".</p>";
+      });
+      h += '<p class="ig-qua-p">' + esc(a.lien_icpe) + "</p></div>";
+    }
+    /* LES RÈGLES DURES, et la réserve. La réserve ferme le bloc parce que
+       c'est elle qui distingue une qualification d'une certification. */
+    h += '<div class="ig-qua-rg"><b>Les règles qui décident</b><ul>';
+    Object.keys(j.referentiel.regles).forEach(function (k) {
+      h += '<li><span' + info("tier_regle:" + k) + ">"
+        + esc(j.referentiel.regles[k].nom) + "</span></li>";
+    });
+    h += "</ul></div>"
+      + '<p class="ig-icpe-res">' + esc(q.reserve) + "</p>"
+      + '<p class="ig-icpe-res">' + esc(q.source) + "</p>";
+    out.innerHTML = h;
   }
 
   var dispoMinuteur = null;
