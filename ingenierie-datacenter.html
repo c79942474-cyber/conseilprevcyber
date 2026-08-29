@@ -421,6 +421,82 @@
     .ig-pc-fc{display:block !important}
     #ig-fiches-tout{display:none !important}
   }
+  /* ── Le sélecteur de pièces ─────────────────────────────────────────────
+     Le registre sert à DÉCIDER par quoi commencer ; le sélecteur sert à
+     ATTEINDRE une pièce qu'on a déjà en tête. Deux gestes, deux composants —
+     d'où un bloc qui se pose au-dessus de la grille sans lui ressembler. */
+  .ig-sel{position:relative;margin:0 0 10px}
+  .ig-sel-b{all:unset;box-sizing:border-box;cursor:pointer;display:flex;
+    align-items:center;gap:10px;flex-wrap:wrap;width:100%;
+    padding:9px 13px;border-radius:9px;border:1px solid var(--line);
+    background:var(--panel);color:var(--muted);transition:border-color .15s}
+  .ig-sel-b:hover{border-color:var(--cyan)}
+  .ig-sel-b:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  .ig-sel-n{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--ink);
+    font-variant-numeric:tabular-nums;line-height:1}
+  .ig-sel-lb{font-size:12.5px;color:var(--ink)}
+  /* Le détail par caractère pousse le chevron à droite : c'est le décompte que
+     le lecteur vient chercher, pas la flèche. */
+  .ig-sel-r{display:flex;gap:12px;flex-wrap:wrap;margin-left:auto}
+  .ig-sel-r-i{display:inline-flex;align-items:center;gap:5px;font-size:11px;
+    font-family:var(--mono);color:var(--muted2);white-space:nowrap}
+  .ig-sel-d{width:7px;height:7px;border-radius:50%;flex:0 0 auto;background:#9FB3C8}
+  .ig-sel-d.d-obligatoire{background:#F2A65A}
+  .ig-sel-d.d-indispensable{background:#5BC8E8}
+  .ig-sel-d.d-utile{background:#9FB3C8}
+  .ig-sel-x{width:0;height:0;flex:0 0 auto;border-left:5px solid transparent;
+    border-right:5px solid transparent;border-top:5px solid var(--muted2);
+    transition:transform .15s}
+  .ig-sel-b[aria-expanded="true"]{border-color:var(--cyan)}
+  .ig-sel-b[aria-expanded="true"] .ig-sel-x{transform:rotate(180deg)}
+  .ig-sel-p{position:absolute;z-index:30;left:0;right:0;top:calc(100% + 5px);
+    max-height:min(58vh,420px);overflow-y:auto;overscroll-behavior:contain;
+    border:1px solid var(--line);border-radius:9px;
+    /* LE SEUL ÉLÉMENT DE LA PAGE QUI DOIT ÊTRE OPAQUE. Il flotte au-dessus de
+       cinquante-quatre cartes : si son fond manque, le texte du registre le
+       traverse et la liste devient illisible. Ailleurs un jeton absent est
+       cosmétique ; ici il casse le composant. D'où la valeur de repli. */
+    background:var(--bg2,#762E1A);
+    box-shadow:0 18px 40px rgba(0,0,0,.42);padding:5px}
+  .ig-sel-p:focus{outline:none}
+  .ig-sel-p:focus-visible{outline:2px solid var(--cyan);outline-offset:-2px}
+  .ig-sel-g+.ig-sel-g{margin-top:4px}
+  /* L'en-tête de groupe reste visible pendant qu'on parcourt : sans elle, au
+     bout de vingt lignes on ne sait plus si l'on est encore dans les
+     obligatoires. */
+  .ig-sel-gh{position:sticky;top:-5px;z-index:1;display:flex;align-items:center;
+    gap:7px;padding:7px 9px 6px;background:var(--bg2,#762E1A);font-size:10px;
+    font-family:var(--mono);letter-spacing:.09em;text-transform:uppercase;
+    color:var(--muted2);border-bottom:1px solid var(--line)}
+  .ig-sel-gh b{margin-left:auto;color:var(--ink);font-variant-numeric:tabular-nums;
+    font-size:11.5px}
+  .ig-sel-o{display:flex;align-items:baseline;gap:9px;padding:7px 9px;
+    border-radius:6px;cursor:pointer;font-size:12.5px;color:var(--muted)}
+  .ig-sel-o code{font-family:var(--mono);font-size:10.5px;color:var(--muted2);
+    flex:0 0 auto}
+  .ig-sel-ti{flex:1 1 auto;line-height:1.45}
+  .ig-sel-no{flex:0 0 auto;font-family:var(--mono);font-size:10px;
+    color:var(--muted2);font-style:normal;font-variant-numeric:tabular-nums}
+  .ig-sel-o[aria-selected="true"]{background:rgba(34,211,238,.13);color:var(--ink)}
+  .ig-sel-o[aria-selected="true"] code,
+  .ig-sel-o[aria-selected="true"] .ig-sel-no{color:var(--ink)}
+  @media (max-width:620px){
+    .ig-sel-r{margin-left:0;width:100%;order:3}
+    .ig-sel-x{position:absolute;right:13px;top:16px}
+  }
+  /* La carte que l'on vient d'atteindre. Le repère s'efface tout seul : un
+     surlignage permanent se lirait comme un ÉTAT de la pièce — sélectionnée,
+     en cours, à traiter — alors qu'il ne dit que « vous êtes ici ». */
+  .ig-vise{animation:ig-vise 2.2s ease-out}
+  @keyframes ig-vise{
+    0%,55%{box-shadow:0 0 0 2px var(--cyan),0 0 22px rgba(34,211,238,.3)}
+    100%{box-shadow:0 0 0 2px transparent,0 0 0 rgba(34,211,238,0)}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .ig-vise{animation:none;box-shadow:0 0 0 2px var(--cyan)}
+    .ig-sel-x{transition:none}
+    .ig-sel-b{transition:none}
+  }
   .ig-reg-b{all:unset;cursor:pointer;font-size:11.5px;padding:4px 11px;
     margin-top:8px;border-radius:7px;border:1px solid var(--line);
     color:var(--muted);display:inline-block}

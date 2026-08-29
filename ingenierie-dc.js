@@ -1184,9 +1184,96 @@ function messageDelai(e, defaut) {
       return '<section class="ig-reg-g' + (marque ? " g-" + marque : "")
         + '"><h5>' + esc(titre) + " <span>"
         + liste.length + " · " + esc(sous) + "</span></h5>"
+        + selecteurPieces(liste, marque || "reste")
         + '<div class="ig-grille">'
         + liste.map(carteP).join("") + "</div></section>";
     }
+
+    /* ══ LE SÉLECTEUR DE PIÈCES ═══════════════════════════════════════════
+       CINQUANTE-QUATRE CARTES NE SE PARCOURENT PAS. Le registre les affiche
+       toutes, classées par importance décroissante, et c'est le bon ordre pour
+       DÉCIDER par quoi commencer. Ce n'est pas le bon geste pour ATTEINDRE une
+       pièce qu'on a déjà en tête : il faut alors faire défiler une grille de
+       cinquante-quatre éléments en lisant chaque titre.
+
+       Le sélecteur donne l'autre geste. Il ne remplace pas le registre, il y
+       conduit : choisir une pièce ouvre sa fiche là où elle se trouve, dans son
+       groupe et à son rang. Les deux lectures coexistent parce qu'elles
+       répondent à deux questions différentes — « par quoi je commence ? » et
+       « où est celle-ci ? ».
+
+       POURQUOI PAS UN <select> NATIF. Un `<select>` n'affiche qu'une ligne de
+       texte par entrée : ni la pastille de caractère, ni le code, ni le rang ne
+       s'y distinguent, et le décompte par groupe ne peut pas y être mis en
+       valeur. Or c'est exactement ce que le lecteur vient chercher — combien
+       d'obligatoires restent, et lesquelles. On écrit donc une liste de
+       sélection ARIA, avec le clavier qu'un `<select>` aurait donné : flèches,
+       Origine/Fin, Échap, et la frappe qui cherche. */
+    function selecteurPieces(liste, cle) {
+      if (!liste.length) return "";
+      /* L'ORDRE EST CELUI DU REGISTRE, PAS UN ORDRE DE PLUS. Obligatoire,
+         puis indispensable, puis utile : ce qui bloque la phase d'abord, ce qui
+         enrichit le dossier ensuite. */
+      var ordre = ["obligatoire", "indispensable", "utile"];
+      var par = {};
+      liste.forEach(function (p) {
+        (par[p.caractere] = par[p.caractere] || []).push(p);
+      });
+      /* Un caractère que le serveur ajouterait demain ne doit pas disparaître
+         du sélecteur : les rangs connus d'abord, les autres à la suite. Les
+         omettre rendrait le décompte du bouton faux sans que rien ne le dise. */
+      Object.keys(par).forEach(function (k) {
+        if (ordre.indexOf(k) < 0) ordre.push(k);
+      });
+      var presents = ordre.filter(function (k) { return par[k]; });
+      var bid = "ig-sel-b-" + cle, lid = "ig-sel-l-" + cle;
+      var resume = presents.map(function (k) {
+        var n = par[k].length;
+        return '<span class="ig-sel-r-i"><i class="ig-sel-d d-' + esc(k)
+          + '"></i>' + n + " "
+          + esc(par[k][0].caractere_nom.toLowerCase()) + (n > 1 ? "s" : "")
+          + "</span>";
+      }).join("");
+      var groupes = presents.map(function (k) {
+        var g = par[k];
+        return '<div class="ig-sel-g" role="group" aria-label="'
+          + esc(g[0].caractere_nom) + " : " + g.length + " pièce"
+          + (g.length > 1 ? "s" : "") + '">'
+          + '<div class="ig-sel-gh"><i class="ig-sel-d d-' + esc(k) + '"></i>'
+          + esc(g[0].caractere_nom) + "<b>" + g.length + "</b></div>"
+          + g.map(function (p) {
+            return '<div class="ig-sel-o" role="option" aria-selected="false"'
+              + ' id="ig-sel-o-' + esc(cle) + "-" + esc(p.code) + '"'
+              + ' data-code="' + esc(p.code) + '" data-cherche="'
+              + esc(sansAccent(p.code + " " + p.titre)) + '">'
+              + "<code>" + esc(p.code) + "</code>"
+              + '<span class="ig-sel-ti">' + esc(p.titre) + "</span>"
+              + '<em class="ig-sel-no">n° ' + esc(p.ordre) + "</em></div>";
+          }).join("") + "</div>";
+      }).join("");
+      return '<div class="ig-sel" data-sel="' + esc(cle) + '">'
+        + '<button type="button" class="ig-sel-b" id="' + bid + '"'
+        + ' aria-haspopup="listbox" aria-expanded="false" aria-controls="' + lid + '">'
+        + '<span class="ig-sel-n">' + liste.length + "</span>"
+        + '<span class="ig-sel-lb">pièce' + (liste.length > 1 ? "s" : "")
+        + " · aller à…</span>"
+        + '<span class="ig-sel-r">' + resume + "</span>"
+        + '<span class="ig-sel-x" aria-hidden="true"></span></button>'
+        + '<div class="ig-sel-p" id="' + lid + '" role="listbox" tabindex="-1"'
+        + ' aria-labelledby="' + bid + '" hidden>' + groupes + "</div></div>";
+    }
+  }
+
+  /* La frappe qui cherche doit trouver « énergie » quand on tape « energie ».
+     Un registre français sans cette normalisation oblige à composer les accents
+     pour atteindre la moitié des pièces. */
+  function sansAccent(s) {
+    /* La plage est écrite en séquences d'échappement, pas en caractères
+       combinants littéraux : un accent isolé dans un fichier source survit mal
+       à un copier-coller, à une conversion d'encodage ou à un éditeur qui
+       normalise — et la fonction devient alors silencieusement inopérante. */
+    return String(s == null ? "" : s).normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "").toLowerCase();
   }
 
   /* La barre de projet : tout emporter, prévenir, inviter. Elle n'apparaît que
@@ -2007,6 +2094,7 @@ function messageDelai(e, defaut) {
         ouvrirVisa(e.getAttribute("data-l"), e.getAttribute("data-piece"), e);
       });
     });
+    brancherSelecteurs();
     railSuite();
     redactionEtat();
     marquerManquants();
@@ -2049,6 +2137,157 @@ function messageDelai(e, defaut) {
         majToutesFiches();
       });
     }
+  }
+
+  /* ══ COMPORTEMENT DU SÉLECTEUR ════════════════════════════════════════════
+     Une liste de sélection n'est utilisable au clavier que si elle rend TOUT ce
+     qu'un <select> natif donnait : ouvrir à la flèche, parcourir, revenir au
+     bouton par Échap, et trouver en tapant. Un composant qui n'en rend qu'une
+     partie est un recul par rapport à l'élément qu'il remplace — c'est le prix
+     de l'avoir remplacé, et il se paie ici. */
+  function brancherSelecteurs() {
+    document.querySelectorAll("#ig-dossier .ig-sel").forEach(function (sel) {
+      var bouton = sel.querySelector(".ig-sel-b");
+      var panneau = sel.querySelector(".ig-sel-p");
+      if (!bouton || !panneau) return;
+      var options = Array.prototype.slice.call(panneau.querySelectorAll(".ig-sel-o"));
+      if (!options.length) return;
+      var actif = -1, frappe = "", minuteur = null;
+
+      function ouvert() { return !panneau.hidden; }
+
+      function ouvrir(depuis) {
+        panneau.hidden = false;
+        bouton.setAttribute("aria-expanded", "true");
+        panneau.focus();
+        viser(depuis === "fin" ? options.length - 1 : 0);
+      }
+
+      function fermer(rendreFocus) {
+        if (!ouvert()) return;
+        panneau.hidden = true;
+        bouton.setAttribute("aria-expanded", "false");
+        panneau.removeAttribute("aria-activedescendant");
+        if (actif >= 0) options[actif].setAttribute("aria-selected", "false");
+        actif = -1;
+        if (rendreFocus) bouton.focus();
+      }
+
+      function viser(i) {
+        if (i < 0 || i >= options.length) return;
+        if (actif >= 0) options[actif].setAttribute("aria-selected", "false");
+        actif = i;
+        var o = options[i];
+        o.setAttribute("aria-selected", "true");
+        /* aria-activedescendant plutôt que le focus réel sur l'option : dans
+           une liste longue, déplacer le focus fait défiler le document entier
+           et le panneau se dérobe sous le curseur. */
+        panneau.setAttribute("aria-activedescendant", o.id);
+        var pr = panneau.getBoundingClientRect(), orr = o.getBoundingClientRect();
+        if (orr.top < pr.top) panneau.scrollTop -= pr.top - orr.top;
+        else if (orr.bottom > pr.bottom) panneau.scrollTop += orr.bottom - pr.bottom;
+      }
+
+      function choisir(i) {
+        if (i < 0 || i >= options.length) return;
+        var code = options[i].getAttribute("data-code");
+        fermer(false);
+        allerALaPiece(code);
+      }
+
+      /* LA FRAPPE QUI CHERCHE. Un <select> saute à la première entrée dont le
+         libellé commence par la lettre tapée. Ici on cherche aussi dans le
+         TITRE et n'importe où dedans : un code de pièce ne se retient pas, et
+         un titre commence rarement par le mot qu'on a en tête. La mémoire de
+         frappe s'efface après une seconde de silence. */
+      function chercher(c) {
+        frappe += sansAccent(c);
+        clearTimeout(minuteur);
+        minuteur = setTimeout(function () { frappe = ""; }, 1000);
+        /* Une seule lettre répétée fait avancer d'une correspondance à la
+           suivante ; une frappe qui s'allonge réévalue depuis la position
+           courante. Repartir toujours du début ramènerait sans cesse à la
+           première pièce dont le titre contient la lettre. */
+        var depart = (actif < 0 ? -1 : actif) + (frappe.length > 1 ? 0 : 1);
+        for (var k = 0; k < options.length; k++) {
+          var i = ((depart + k) % options.length + options.length) % options.length;
+          if (options[i].getAttribute("data-cherche").indexOf(frappe) >= 0) {
+            viser(i);
+            return;
+          }
+        }
+      }
+
+      bouton.addEventListener("click", function () {
+        if (ouvert()) fermer(true); else ouvrir();
+      });
+      bouton.addEventListener("keydown", function (e) {
+        if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+          e.preventDefault(); ouvrir();
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault(); ouvrir("fin");
+        }
+      });
+
+      panneau.addEventListener("keydown", function (e) {
+        if (e.key === "ArrowDown") { e.preventDefault(); viser(Math.min(actif + 1, options.length - 1)); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); viser(Math.max(actif - 1, 0)); }
+        else if (e.key === "Home") { e.preventDefault(); viser(0); }
+        else if (e.key === "End") { e.preventDefault(); viser(options.length - 1); }
+        else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); choisir(actif); }
+        else if (e.key === "Escape") { e.preventDefault(); fermer(true); }
+        else if (e.key === "Tab") { fermer(false); }
+        else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          e.preventDefault(); chercher(e.key);
+        }
+      });
+
+      panneau.addEventListener("click", function (e) {
+        var o = e.target.closest && e.target.closest(".ig-sel-o");
+        if (!o) return;
+        choisir(options.indexOf(o));
+      });
+      panneau.addEventListener("mousemove", function (e) {
+        var o = e.target.closest && e.target.closest(".ig-sel-o");
+        if (o) viser(options.indexOf(o));
+      });
+
+      /* Le clic AILLEURS ferme. Sans cela le panneau reste ouvert pendant qu'on
+         travaille dans la page, et recouvre les cartes qu'il sert à atteindre. */
+      document.addEventListener("click", function (e) {
+        if (!sel.contains(e.target)) fermer(false);
+      });
+    });
+  }
+
+  /* ALLER À UNE PIÈCE, C'EST TROIS GESTES : la trouver, ouvrir sa fiche, et
+     dire OÙ l'on vient d'arriver. Le troisième est le moins évident et le plus
+     nécessaire : après un défilement, une carte parmi cinquante-quatre ne se
+     distingue de ses voisines par rien du tout. */
+  function allerALaPiece(code) {
+    var carte = document.querySelector('#ig-dossier .ig-pc[data-code="'
+      + (window.CSS && CSS.escape ? CSS.escape(code) : code) + '"]');
+    if (!carte) return;
+    var f = carte.querySelector(".ig-pc-f");
+    if (f && !f.open) {
+      f.open = true;
+      FICHES[code] = true;
+      majToutesFiches();
+    }
+    /* Le défilement suit la préférence système. Un saut animé de trente cartes
+       est exactement le mouvement que « réduire les animations » demande
+       d'éviter, et la CSS ne peut pas l'annuler ici : le comportement est
+       demandé par le script. */
+    var doux = !(window.matchMedia
+      && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    carte.scrollIntoView({ block: "center", behavior: doux ? "smooth" : "auto" });
+    /* Le repère s'efface tout seul. Un surlignage permanent se lirait comme un
+       ÉTAT de la pièce — sélectionnée, en cours, à traiter — alors qu'il ne dit
+       que « c'est ici que vous venez d'arriver ». */
+    carte.classList.remove("ig-vise");
+    void carte.offsetWidth;
+    carte.classList.add("ig-vise");
+    setTimeout(function () { carte.classList.remove("ig-vise"); }, 2200);
   }
 
   /* Le bouton dit ce qu'il VA faire, pas ce qui est. « Tout replier » sur un
