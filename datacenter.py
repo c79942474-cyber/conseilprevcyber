@@ -1003,6 +1003,136 @@ def eau(profil, res_energie):
 #  3. CARBONE — exploitation ET incorporé
 # ═══════════════════════════════════════════════════════════════════════════
 
+def scope1(profil):
+    """CE QUE LE SITE ÉMET DIRECTEMENT, et que ce moteur ne calculait pas.
+
+    LE DÉFAUT CORRIGÉ. L'étude rendait un scope 2 exemplaire — les deux
+    approches du GHG Protocol, déclarées ensemble — et un carbone incorporé
+    amorti. Le SCOPE 1 n'apparaissait nulle part : ni le gazole des essais de
+    groupes, ni les fuites de fluide frigorigène. Or sur un site froid à
+    détente directe, la fuite de fluide est régulièrement le premier poste
+    direct, devant le carburant. Un bilan qui l'omet n'est pas incomplet à la
+    marge : il manque un des trois scopes, et le GHG Protocol comme la méthode
+    Bilan Carbone® les exigent tous les trois.
+
+    UN ZÉRO SERAIT PIRE QUE RIEN. Sans donnée d'entrée, ce moteur ne rend pas
+    « 0 tCO2e » — un zéro se lit comme une mesure, et blanchirait un poste
+    qu'on n'a pas regardé. Il rend `calcule: False` et dit ce qui manque.
+
+    LE PRG N'EST PAS SUPPOSÉ. Le pouvoir de réchauffement global d'un fluide
+    fait foi par l'annexe I du règlement F-Gas ; l'inventer fausserait tout le
+    poste, et d'un facteur mille selon le fluide. Il est demandé, jamais
+    deviné — même règle que `base_carbone.facteur`, qui refuse d'estimer un
+    pays absent de la base plutôt que d'inventer un repli.
+    """
+    postes, manques = [], []
+
+    # ── LE CARBURANT DES GROUPES ────────────────────────────────────────────
+    # Le facteur vient de la Base Carbone de l'ADEME, avec son millésime : sur
+    # un poste de scope 1 destiné à une déclaration française, c'est lui qui
+    # fait foi.
+    v_m3 = profil.get("gazole_m3_an")
+    if v_m3 is None:
+        manques.append("le volume annuel de gazole consommé par les groupes "
+                       "électrogènes (essais en charge et secours réel)")
+    else:
+        f = _facteur_gazole()
+        if not f:
+            manques.append("le facteur d'émission du gazole : la Base Carbone "
+                           "n'est pas lisible sur ce serveur")
+        else:
+            t = float(v_m3) * f["kg_par_m3"] / 1000.0
+            postes.append(_tracer(
+                "Combustion des groupes électrogènes", t, "tCO2e/an",
+                "CO2 = volume × masse volumique × facteur d'émission du gazole",
+                {"volume (m³/an)": float(v_m3),
+                 "masse volumique (kg/m³)": f["densite"],
+                 "facteur (kgCO2e/tonne)": f["kg_par_tonne"],
+                 "millésime du facteur": f["validite"]},
+                "Base Carbone® ADEME — gazole (facteur %s)" % f["validite"],
+                "±5 % (le facteur est établi ; le volume relevé l'est moins)",
+                note="Scope 1 du GHG Protocol. Poste « énergie » de la méthode "
+                     "Bilan Carbone®."))
+
+    # ── LES FUITES DE FLUIDE FRIGORIGÈNE ────────────────────────────────────
+    charge = profil.get("charge_frigorigene_kg")
+    prg = profil.get("prg_frigorigene")
+    fuite = profil.get("taux_fuite_frigorigene")
+    absents = [n for n, v in (("la charge totale en fluide", charge),
+                              ("le PRG du fluide employé", prg),
+                              ("le taux de fuite annuel", fuite)) if v is None]
+    if absents:
+        manques.append(" ; ".join(absents)
+                       + " — sans ces trois valeurs, les fuites de fluide ne "
+                         "peuvent pas être chiffrées, et elles sont souvent le "
+                         "premier poste direct d'un site froid")
+    else:
+        t = float(charge) * float(fuite) * float(prg) / 1000.0
+        postes.append(_tracer(
+            "Fuites de fluide frigorigène", t, "tCO2e/an",
+            "CO2e = charge × taux de fuite × PRG",
+            {"charge (kg)": float(charge), "taux de fuite": float(fuite),
+             "PRG (kgCO2e/kg)": float(prg)},
+            "GHG Protocol — émissions fugitives (scope 1) ; PRG à l'annexe I "
+            "du règlement (UE) 2024/573",
+            "±30 % (le taux de fuite est la grandeur la moins bien connue "
+            "d'une installation en service)",
+            note="Scope 1 du GHG Protocol. La charge et le PRG se lisent sur "
+                 "le registre tenu au titre du règlement F-Gas ; ce moteur ne "
+                 "suppose aucun PRG, qui varie d'un facteur mille selon le "
+                 "fluide."))
+
+    total = sum(p["valeur"] for p in postes)
+    return {
+        "calcule": bool(postes),
+        "complet": not manques,
+        "postes": postes,
+        "total_t": total if postes else None,
+        "manques": manques,
+        # CE QUE LE LECTEUR DOIT COMPRENDRE DE L'ABSENCE. Sans cette phrase, un
+        # total de scope 1 partiel se lit comme un total.
+        "lecture": (
+            "Scope 1 non calculé : aucune des données directes n'a été saisie. "
+            "Ce n'est PAS un scope 1 nul — c'est un scope 1 non mesuré, et un "
+            "bilan qui le présenterait comme zéro serait faux."
+            if not postes else
+            ("Scope 1 PARTIEL : %s manque%s encore. Le total ci-dessous ne "
+             "couvre donc pas tout le périmètre direct."
+             % (" et ".join(manques)[:200], "nt" if len(manques) > 1 else "")
+             if manques else
+             "Scope 1 complet sur les deux postes directs d'un centre de "
+             "données : combustion des groupes et fuites de fluide.")),
+    }
+
+
+def _facteur_gazole():
+    """Le facteur d'émission du gazole, lu dans la Base Carbone de l'ADEME.
+
+    JAMAIS DE REPLI CHIFFRÉ. Si la base n'est pas lisible, on rend None et le
+    poste est déclaré non calculable — inventer un facteur ici mettrait un
+    nombre d'apparence officielle sur une valeur de mémoire."""
+    try:
+        import base_carbone
+    except Exception:
+        return None
+    lignes = base_carbone.poste("Gazole")
+    if not lignes:
+        return None
+    densite = kg_tonne = validite = None
+    for l in lignes:
+        u = (l.get("unite") or "").replace(" ", "")
+        if u in ("kg/m³", "kg/m3") and densite is None:
+            densite = l.get("valeur")
+        elif u == "kgCO2e/tonne" and kg_tonne is None:
+            kg_tonne = l.get("valeur")
+            validite = l.get("validite")
+    if not (densite and kg_tonne):
+        return None
+    return {"densite": densite, "kg_par_tonne": kg_tonne,
+            "kg_par_m3": densite * kg_tonne / 1000.0,
+            "validite": validite or "non datée"}
+
+
 def carbone(profil, res_energie):
     """CUE, émissions d'exploitation et carbone incorporé amorti.
 
@@ -2244,6 +2374,11 @@ def etude(profil):
     res["energie"] = energie(profil)
     res["eau"] = eau(profil, res["energie"])
     res["carbone"] = carbone(profil, res["energie"])
+    # LE SCOPE 1 ENTRE DANS L'ÉTUDE. Il vient APRÈS le carbone parce que
+    # sa lecture s'y adosse : « le scope 2 vaut tant, et voici ce que le
+    # site émet directement » — ou, le plus souvent, « ce qu'on ne sait pas
+    # encore de ce qu'il émet directement ».
+    res["scope1"] = scope1(profil)
     res["chaleur"] = chaleur(profil, res["energie"])
     res["leviers"] = leviers(profil, res)
     res["conformite"] = conformite(profil, res)
@@ -2604,6 +2739,31 @@ CHAMPS = [
     {"id": "nb_serveurs", "label": "Nombre de serveurs", "type": "nombre"},
     {"id": "prix_electricite_eur_mwh", "label": "Prix de l'électricité",
      "unite": "€/MWh", "type": "nombre", "defaut": 110},
+    # ── LE SCOPE 1, QUI MANQUAIT ────────────────────────────────────────────
+    # Ces quatre champs sont VIDES par défaut, et c'est délibéré : sans eux, le
+    # moteur DIT que le scope 1 n'est pas calculé, au lieu de rendre zéro. Un
+    # zéro se lit comme une mesure ; « non calculé » se lit comme ce que c'est.
+    {"id": "gazole_m3_an", "label": "Gazole consommé par les groupes",
+     "unite": "m³/an", "type": "nombre",
+     "aide": "Essais mensuels en charge et secours réel. Laisser vide si le "
+             "volume n'est pas relevé : le scope 1 sera déclaré non calculé "
+             "plutôt qu'estimé."},
+    {"id": "charge_frigorigene_kg", "label": "Charge totale en fluide frigorigène",
+     "unite": "kg", "type": "nombre",
+     "aide": "Somme des charges des groupes froid, lue sur les plaques "
+             "signalétiques ou sur le registre tenu au titre du règlement "
+             "F-Gas."},
+    {"id": "prg_frigorigene", "label": "PRG du fluide employé",
+     "unite": "kgCO2e/kg", "type": "nombre",
+     "aide": "Pouvoir de réchauffement global à 100 ans, à lire à l'annexe I "
+             "du règlement (UE) 2024/573 (F-Gas) — c'est cette valeur qui fait "
+             "foi pour une déclaration européenne. Ce moteur ne la suppose "
+             "pas : un PRG inventé fausserait tout le poste."},
+    {"id": "taux_fuite_frigorigene", "label": "Taux de fuite annuel du circuit",
+     "unite": "0–1", "type": "nombre",
+     "aide": "Part de la charge perdue par an. À défaut de relevé, le contrôle "
+             "d'étanchéité périodique prévu par le règlement F-Gas en donne "
+             "l'ordre de grandeur pour l'installation."},
 ]
 
 
@@ -2811,6 +2971,20 @@ DOMAINES = {
                                  "pourquoi": "en €/MWh : les pointes de 2022 "
                                              "ont atteint le millier, pas la "
                                              "dizaine de milliers"},
+    "gazole_m3_an":          {"min": 0, "max": 100_000,
+                              "pourquoi": "un volume annuel de gazole ne peut "
+                                          "pas être négatif"},
+    "charge_frigorigene_kg": {"min": 0, "max": 500_000,
+                              "pourquoi": "une charge de fluide ne peut pas "
+                                          "être négative"},
+    "prg_frigorigene":       {"min": 0, "max": 30_000,
+                              "pourquoi": "le PRG rapporte l'effet du fluide à "
+                                          "celui du CO2 : il vaut au moins 0, "
+                                          "et les fluides les plus lourds "
+                                          "restent sous 25 000"},
+    "taux_fuite_frigorigene": {"min": 0, "max": 1,
+                               "pourquoi": "c'est une part de la charge perdue "
+                                           "par an : entre 0 et 1"},
 }
 
 for _c in CHAMPS:
