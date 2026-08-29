@@ -1231,6 +1231,177 @@ TYPES = [
             "Préparation de la mise en service et des essais de performance",
         ],
     },
+    # ═══════════════════════════════════════════════════════════════════════
+    #  LE DOSSIER DE CANDIDATURE À UN APPEL D'OFFRES
+    # ═══════════════════════════════════════════════════════════════════════
+    # CE QUI EST ICI, ET CE QUI N'Y EST PAS. Le dossier de candidature d'un
+    # marché public se compose de trois natures de pièces : des formulaires à
+    # remplir (DC1, DC2, déclaration sur l'honneur), des justificatifs à
+    # obtenir auprès de tiers (pouvoirs, attestations, certificats), et des
+    # NOTES À RÉDIGER. Seules les notes figurent ici, parce que seules les
+    # notes se rédigent.
+    #
+    # POURQUOI LES FORMULAIRES N'Y SONT PAS. Ils portent des déclarations dont
+    # la fausseté est sanctionnée, et ils se signent par une personne
+    # habilitée. Les faire rédiger par un générateur reviendrait à produire un
+    # document d'apparence officielle sur des faits que personne n'a vérifiés.
+    # Le module ao_dc dit, rubrique par rubrique, ce que chacun attend : c'est
+    # la bonne aide, et elle ne signe rien.
+    #
+    # LA STRUCTURE DES SECTIONS SUIT ao_dc.DOSSIER_CANDIDATURE, qui dit ce que
+    # chaque note doit contenir. Les deux se relisent ensemble — une section
+    # ajoutée ici sans son exigence là-bas produirait une note qui répond à
+    # côté du règlement de consultation.
+    {
+        "id": "ao-note-equipe",
+        "mots_cles": "appel d'offres candidature équipe intervenants profils "
+                     "adéquation disponibilité remplacement maîtrise d'œuvre "
+                     "centre de données",
+        "groupe": "Appel d'offres — candidature",
+        "label": "Note de présentation de l'équipe",
+        "desc": "L'équipe rapportée aux besoins de la mission : adéquation de "
+                "chaque profil aux prestations confiées, disponibilité sur la "
+                "durée du marché, et moyens de remplacement.",
+        "sections": [
+            "Rappel de la mission et des compétences qu'elle appelle",
+            "Composition de l'équipe et rôle de chaque intervenant",
+            "Adéquation des profils aux prestations confiées",
+            "Disponibilité des intervenants sur la durée du marché",
+            "Moyens de remplacement en cas d'indisponibilité",
+        ],
+    },
+    {
+        "id": "ao-organigramme",
+        "mots_cles": "organigramme fonctionnel mandataire interlocuteur "
+                     "principal responsables disciplines groupement "
+                     "cotraitance arbitrage",
+        "groupe": "Appel d'offres — candidature",
+        "label": "Organigramme fonctionnel de la mission",
+        "desc": "Qui pilote, qui décide et qui le maître d'ouvrage appelle : "
+                "mandataire, interlocuteur principal désigné nommément, "
+                "responsables par discipline et par phase, et le point où se "
+                "tranche un désaccord entre disciplines.",
+        "sections": [
+            "Mandataire du groupement et son représentant",
+            "Interlocuteur principal du maître d'ouvrage",
+            "Responsables par discipline et par phase",
+            "Liens hiérarchiques et fonctionnels",
+            "Arbitrage des désaccords entre disciplines",
+        ],
+    },
+    {
+        "id": "ao-repartition-groupement",
+        "mots_cles": "groupement conjoint solidaire mandataire répartition des "
+                     "prestations cotraitance interfaces DC1 compétences",
+        "groupe": "Appel d'offres — candidature",
+        "label": "Note de répartition des compétences en groupement",
+        "desc": "Le périmètre de chaque cotraitant par phase et par "
+                "discipline, les interfaces entre eux et leur arbitrage, et "
+                "l'étendue de la solidarité du mandataire — en cohérence "
+                "exacte avec la répartition inscrite au DC1.",
+        "sections": [
+            "Forme du groupement et étendue de la solidarité",
+            "Périmètre de chaque cotraitant, par phase et par discipline",
+            "Interfaces entre cotraitants et leur mode d'arbitrage",
+            "Rôle du mandataire et modalités de représentation",
+            "Cohérence avec la répartition déclarée au DC1",
+        ],
+    },
+    {
+        "id": "ao-references",
+        "mots_cles": "références opérations comparables maître d'ouvrage "
+                     "montant période mission tenue attestation de bonne "
+                     "exécution centre de données",
+        "groupe": "Appel d'offres — candidature",
+        "label": "Dossier de références (six au minimum)",
+        "desc": "Six références au moins, comparables en nature et en taille, "
+                "chacune avec son maître d'ouvrage, son objet, son montant, "
+                "sa période, la mission réellement tenue et son résultat.",
+        "sections": [
+            "Critère de comparabilité retenu et périmètre des références",
+            "Références détaillées — maître d'ouvrage, objet, montant, période",
+            "Mission réellement tenue sur chaque référence",
+            "Part propre du candidat sur les références en groupement",
+            "Attestations de bonne exécution disponibles",
+        ],
+    },
+    {
+        "id": "ao-moyens-procedures",
+        "mots_cles": "moyens procédures outils coordination pilotage partage "
+                     "documentaire GED indices contrôle des études visa "
+                     "tableaux de bord",
+        "groupe": "Appel d'offres — candidature",
+        "label": "Note sur les moyens, procédures et outils",
+        "desc": "Ce que le maître d'ouvrage recevra réellement : instances et "
+                "tableaux de bord, plateforme et nomenclature documentaire, "
+                "circuit de contrôle des études et trace laissée par la "
+                "vérification.",
+        "sections": [
+            "Moyens de coordination et de pilotage — instances et périodicité",
+            "Partage documentaire — plateforme, arborescence, indices, droits",
+            "Contrôle des études — qui vérifie quoi, quand, et sa traçabilité",
+            "Outils employés et compatibilité avec ceux du maître d'ouvrage",
+            "Ce que le maître d'ouvrage reçoit, et à quelle échéance",
+        ],
+    },
+    {
+        "id": "ao-qse",
+        "mots_cles": "qualité sécurité environnement QSE certifications ISO "
+                     "9001 14001 45001 périmètre organisme validité "
+                     "intervention sur site en exploitation",
+        "groupe": "Appel d'offres — candidature",
+        "label": "Note qualité, sécurité et environnement",
+        "desc": "La démarche QSE et ce qu'elle change dans les ÉTUDES, pas "
+                "seulement dans le fonctionnement du bureau — avec le "
+                "périmètre exact des certifications détenues.",
+        "sections": [
+            "Système de management de la qualité et son périmètre réel",
+            "Démarche sécurité et interventions sur site en exploitation",
+            "Démarche environnementale appliquée aux études",
+            "Certifications détenues — périmètre, organisme, validité",
+            "Indicateurs de suivi et revues",
+        ],
+    },
+    {
+        "id": "ao-conventions-collectives",
+        "mots_cles": "conventions collectives personnels affectés "
+                     "qualifications conditions d'emploi groupement "
+                     "cotraitants taux horaires",
+        "groupe": "Appel d'offres — candidature",
+        "label": "Note sur les conventions collectives applicables",
+        "desc": "Les conventions dont relèvent les personnels affectés à la "
+                "mission, leur incidence sur les conditions d'emploi, et le "
+                "traitement des intervenants relevant de conventions "
+                "différentes au sein du groupement.",
+        "sections": [
+            "Conventions collectives applicables par entité",
+            "Personnels affectés à la mission et leur rattachement",
+            "Incidence sur les conditions d'emploi des intervenants",
+            "Intervenants relevant de conventions différentes en groupement",
+        ],
+    },
+    {
+        "id": "ao-analyse-dce",
+        "mots_cles": "analyse du dossier de consultation DCE CCTP CCAP CCAG "
+                     "règlement de consultation DPGF critères pondération "
+                     "pénalités dérogations risques go no-go",
+        "groupe": "Appel d'offres — candidature",
+        "label": "Note d'analyse du dossier de consultation",
+        "desc": "Ce que le dossier de consultation exige, ce qu'il engage et "
+                "où sont les risques : critères et pondération, ordre de "
+                "priorité des pièces, dérogations au CCAG, pénalités, "
+                "performances engagées et leur méthode de preuve.",
+        "sections": [
+            "Objet, procédure et calendrier de la consultation",
+            "Pièces du dossier et leur ordre de priorité contractuel",
+            "Critères de jugement, sous-critères et pondération",
+            "Étendue de l'engagement — délais, pénalités, garanties",
+            "Dérogations au CCAG et déplacement du risque",
+            "Performances techniques engagées et méthode de preuve",
+            "Points à éclaircir par question à l'acheteur",
+            "Risques identifiés et position recommandée",
+        ],
+    },
 ]
 
 _BY_ID = {t["id"]: t for t in TYPES}
@@ -1824,6 +1995,16 @@ GROUPE_THEMES = {
     "Conseil — Gouvernance IA": [
         "AI Act", "Juridique / IA Act", "RGPD",
         "Juridique / RGPD & données", "Gouvernance & CSMS"],
+    # La candidature puise dans deux fonds distincts et complémentaires : le
+    # droit de la commande publique d'un côté, les pièces de consultation de
+    # centre de données de l'autre. Les études de cas ferment la liste parce
+    # que c'est là que se trouvent les références.
+    "Appel d'offres — candidature": [
+        "Juridique / Marchés & appels d'offres",
+        "Data center / Appels d'offres & CCTP",
+        "Cahier des charges & CCTP",
+        "Data center / Réalisation & gouvernance de projet",
+        "Études de cas"],
     # « Centres de données » garde son chemin dédié (famille entière),
     # déjà en place côté serveur.
 }

@@ -2313,6 +2313,10 @@ import maturite_ot   # noqa: E402  — l'auto-evaluation declarative, pas un ass
 import etat_art      # noqa: E402  — les faits publies, chacun avec son auteur et ce qu'il vaut
 import profil_dc     # noqa: E402  — analyse le moteur ci-dessus, ne le double pas
 import ingenierie_dc  # noqa: E402  — situe ses résultats dans la séquence projet
+import technique_dc  # noqa: E402  — le vocabulaire du métier, servi aux infobulles
+import icpe_dc       # noqa: E402  — crible les rubriques, ne classe pas le site
+import travaux_dc    # noqa: E402  — l'ordre des opérations de chantier et ses tiers
+import ao_dc         # noqa: E402  — lit le dossier marché, prépare la candidature
 import econome_dc     # l'economiste de la construction : quantites x prix
 import decarbonation  # noqa: E402  — les situe dans la hiérarchie d'atténuation
 import strategie_dd  # noqa: E402  — le livrable d'ouverture, quatre perspectives
@@ -3930,6 +3934,213 @@ def api_datacenter_ingenierie_dossier():
         return jsonify(ok=False, error="phase_inconnue",
                        message=d.get("motif", "Phase inconnue.")), 404
     return jsonify(ok=True, dossier=d)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE CRIBLAGE ICPE, LA PHASE TRAVAUX ET LE DOSSIER MARCHÉ
+# ═══════════════════════════════════════════════════════════════════════════
+# QUATRE ROUTES QUI PROLONGENT L'INGÉNIERIE, et qui ne calculent presque rien :
+# elles servent des tables et un criblage. Elles sont en POST parce qu'elles
+# prennent le profil du projet, pas parce qu'elles écrivent quoi que ce soit —
+# aucune n'a d'effet de bord, et deux appels identiques rendent le même
+# résultat.
+
+
+def _profil_icpe(data, rejets=None):
+    """Les entrées propres au criblage ICPE, lues comme celles du moteur.
+
+    LE MÊME LECTEUR DE NOMBRE que le reste du site, et pour la même raison :
+    une valeur illisible doit RESSORTIR, pas disparaître dans un champ absent.
+    Un criblage reparti sur un champ silencieusement écarté annoncerait
+    « aucune rubrique atteinte » à quelqu'un qui vient de saisir une puissance.
+    """
+    profil = {}
+    for champ in icpe_dc.CHAMPS:
+        cid = champ["id"]
+        if cid not in data or data[cid] in ("", None):
+            continue
+        brut = data[cid]
+        if champ["type"] == "nombre":
+            valeur, motif = _lire_nombre(brut, champ)
+            if motif:
+                if rejets is not None:
+                    rejets.append({"champ": cid,
+                                   "label": champ.get("label") or cid,
+                                   "saisi": str(brut)[:40], "message": motif})
+                continue
+            profil[cid] = valeur
+        elif champ["type"] == "booleen":
+            # Une case décochée vaut FAUX ; une question non posée vaut
+            # ABSENT. Les confondre ferait retenir le seuil le plus élevé pour
+            # un local batteries au plomb dont personne n'a rien dit — et le
+            # seuil le plus élevé est ici le plus permissif.
+            profil[cid] = brut if isinstance(brut, bool) else (
+                str(brut).strip().lower() in ("1", "true", "oui", "on"))
+        else:
+            profil[cid] = str(brut).strip()[:40]
+    return profil
+
+
+@app.route("/api/datacenter/icpe", methods=["POST"])
+@login_required
+def api_datacenter_icpe():
+    """Le criblage ICPE du projet : quelles rubriques, quel régime, quel délai.
+
+    CE QUE LA ROUTE REND ET QUI N'EST PAS LE RÉGIME. Les rubriques dont la
+    grandeur n'est pas saisie ressortent à part, avec le nom de ce qui manque.
+    Une donnée absente n'est pas un seuil non atteint, et un régime prononcé
+    sur trois rubriques criblées et deux inconnues est un PLANCHER, pas un
+    classement.
+    """
+    data = request.get_json(silent=True) or {}
+    rejets = []
+    # Les deux profils se rejoignent : le criblage a besoin du mode de
+    # refroidissement et de la puissance informatique, qui vivent au moteur, et
+    # de ses propres puissances et volumes. Les lire séparément puis les fondre
+    # évite de dupliquer une définition de champ.
+    profil = dict(_profil_datacenter(data, rejets))
+    profil.update(_profil_icpe(data, rejets))
+    try:
+        r = icpe_dc.rubriques_du_projet(profil)
+    except Exception:
+        app.logger.exception("criblage ICPE datacenter")
+        return jsonify(ok=False, error="calcul",
+                       message="Le criblage n'a pas pu être établi."), 500
+    c = r["criblage"]
+    return jsonify(ok=True, rubriques=r["rubriques"], criblage=c,
+                   mission=icpe_dc.consequences_mission(c["regime_site"]),
+                   champs=icpe_dc.CHAMPS,
+                   rejets=rejets, lecture=_lecture_rejets(rejets))
+
+
+@app.route("/api/datacenter/travaux", methods=["POST"])
+@login_required
+def api_datacenter_travaux():
+    """L'organisation de la phase travaux : opérations, acteurs, points d'arrêt.
+
+    LE PLAN S'ADAPTE À DEUX CHOSES SEULEMENT — la nature des travaux et
+    l'existence d'une mission de commissioning —, et il le dit. Une opération
+    de commissioning non commandée ne disparaît pas du plan : elle y reste avec
+    la mention de qui devra l'assumer, parce que la retirer serait exactement
+    ce qui produit une réception sans essais intégrés.
+    """
+    data = request.get_json(silent=True) or {}
+    nature = str(data.get("nature_travaux") or "").strip().lower()[:20] or None
+    if nature and nature not in technique_dc.NATURES_TRAVAUX:
+        return jsonify(ok=False, error="nature_inconnue",
+                       message="Nature de travaux inconnue : %s." % nature,
+                       natures=sorted(technique_dc.NATURES_TRAVAUX)), 400
+    cx = data.get("commissioning")
+    try:
+        p = travaux_dc.plan(nature, avec_commissioning=(cx is not False))
+    except Exception:
+        app.logger.exception("plan travaux datacenter")
+        return jsonify(ok=False, error="calcul",
+                       message="Le plan n'a pas pu être établi."), 500
+    return jsonify(ok=True, plan=p,
+                   nature_detail=(technique_dc.NATURES_TRAVAUX.get(nature)
+                                  if nature else None),
+                   natures=technique_dc.NATURES_TRAVAUX,
+                   natures_note=technique_dc.NATURES_NOTE)
+
+
+@app.route("/api/datacenter/marche/analyser", methods=["POST"])
+@admin_required
+def api_datacenter_marche_analyser():
+    """L'analyse du dossier de consultation déposé, pièce par pièce.
+
+    VERROU D'ADMINISTRATION, comme le dépôt : les documents analysés sont des
+    pièces de marché d'un client, et leur contenu ressort dans la réponse sous
+    forme de citations. Ouvrir cette lecture à tout compte connecté reviendrait
+    à servir un dossier de consultation à qui a une session.
+
+    DEUX SOURCES POSSIBLES. Des documents déjà versés à la base, désignés par
+    leur identifiant, ou des documents transmis pour analyse sans dépôt. La
+    seconde existe parce qu'on analyse un dossier de consultation AVANT de
+    décider s'il vaut la peine d'être conservé.
+    """
+    ckey = "marche:%s" % client_ip()
+    if guard.blocked(ckey, limit=30, window=600):
+        return jsonify(ok=False, error="rate_limited",
+                       message="Trop d'analyses en peu de temps. "
+                               "Patientez un instant."), 429
+    guard.fail(ckey)
+    data = request.get_json(silent=True) or {}
+    docs, ignores = [], []
+    for d in (data.get("documents") or [])[:40]:
+        if not isinstance(d, dict):
+            continue
+        nom = str(d.get("nom") or d.get("filename") or "").strip()[:200]
+        if not nom:
+            continue
+        texte = d.get("texte")
+        if texte is None and d.get("document_id"):
+            try:
+                texte = rag.document_text(str(d["document_id"])[:80],
+                                          limit=400000)
+            except Exception:
+                texte = None
+                ignores.append({"fichier": nom,
+                                "pourquoi": "Le texte de ce document n'a pas "
+                                            "pu être relu depuis la base."})
+        docs.append({"nom": nom, "texte": str(texte or "")[:400000],
+                     "extension": str(d.get("extension") or "")[:8]})
+    if not docs:
+        return jsonify(ok=False, error="aucun_document",
+                       message="Aucun document à analyser."), 400
+    try:
+        a = ao_dc.analyser(docs)
+    except Exception:
+        app.logger.exception("analyse dossier marché")
+        return jsonify(ok=False, error="analyse",
+                       message="L'analyse n'a pas pu être conduite."), 500
+    audit.journaliser("marche.analyse", cible="%d document(s)" % len(docs),
+                      detail=", ".join(d["nom"][:40] for d in docs)[:400])
+    if ignores:
+        a["ignores"] = ignores
+    return jsonify(ok=True, analyse=a)
+
+
+# Le pont entre une pièce du dossier de candidature et le livrable qui la
+# rédige. Écrit ici, en un seul endroit : la page l'affiche, elle ne le
+# reconstitue pas. Toutes les pièces n'y sont pas — un formulaire ne se rédige
+# pas, un justificatif s'obtient — et c'est précisément ce que la table dit.
+_AO_REDACTION = {
+    "equipe": "ao-note-equipe",
+    "organigramme": "ao-organigramme",
+    "repartition_competences": "ao-repartition-groupement",
+    "references": "ao-references",
+    "moyens": "ao-moyens-procedures",
+    "qse": "ao-qse",
+    "conventions": "ao-conventions-collectives",
+}
+
+
+@app.route("/api/datacenter/marche/candidature", methods=["POST"])
+@login_required
+def api_datacenter_marche_candidature():
+    """Le dossier de candidature à produire, dans l'ordre où l'on s'y prend.
+
+    L'ORDRE N'EST PAS CELUI DU RÈGLEMENT DE CONSULTATION : ce qui a un délai
+    d'obtention passe en premier, parce que c'est la seule chose qu'on ne
+    rattrape pas la dernière nuit.
+    """
+    data = request.get_json(silent=True) or {}
+    analyse = data.get("analyse") if isinstance(data.get("analyse"), dict) else None
+    try:
+        p = ao_dc.plan_reponse(analyse, groupement=bool(data.get("groupement")))
+    except Exception:
+        app.logger.exception("plan de candidature")
+        return jsonify(ok=False, error="calcul",
+                       message="Le plan n'a pas pu être établi."), 500
+    # Le lien pièce → livrable se fait ICI plutôt que dans la page : une page
+    # qui devinerait quel livrable rédige quelle pièce se tromperait le jour où
+    # l'un des deux changerait de nom.
+    p["redaction"] = [{"piece": cle, "type": tid,
+                       "label": (livrables.get_type(tid) or {}).get("label")}
+                      for cle, tid in _AO_REDACTION.items()
+                      if livrables.get_type(tid)]
+    return jsonify(ok=True, plan=p, pieces_marche=ao_dc.PIECES_MARCHE)
 
 
 @app.route("/api/datacenter/ingenierie/export", methods=["POST"])

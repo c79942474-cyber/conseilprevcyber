@@ -5365,6 +5365,35 @@ def _aide_poste(v):
     return "\n\n".join(bouts)
 
 
+def _glossaires_voisins():
+    """Les familles d'infobulles servies par les modules voisins.
+
+    POURQUOI ELLES ARRIVENT ICI plutôt que par un appel séparé de la page. Le
+    mécanisme d'infobulle du navigateur ne connaît qu'UNE table — celle que
+    sert cette fonction — et un seul attribut, data-info="famille:clé". Faire
+    charger au navigateur un second glossaire par un second appel doublerait
+    le mécanisme, et un des deux finirait par ne plus être branché.
+
+    LES MODULES SONT OPTIONNELS, ET LEUR ABSENCE NE CASSE RIEN. Une famille
+    manquante rend une infobulle muette ; une exception au chargement du
+    référentiel rendrait la page entière blanche. Les deux ne se valent pas.
+    """
+    out = {}
+    for nom in ("technique_dc", "travaux_dc", "ao_dc", "icpe_dc"):
+        try:
+            mod = __import__(nom)
+            g = mod.glossaire() if hasattr(mod, "glossaire") else {}
+        except Exception:                                # pragma: no cover
+            continue
+        for famille, entrees in (g or {}).items():
+            # Une famille ne se fusionne pas : deux modules qui prétendraient
+            # tenir la même mettraient le lecteur devant deux définitions du
+            # même sigle. Le premier chargé garde la main, et c'est un
+            # contrôle de démarrage — pas un hasard — qui l'empêche d'arriver.
+            out.setdefault(famille, entrees)
+    return out
+
+
 def glossaire():
     """Toutes les familles d'étiquettes de la page, avec leur explication.
 
@@ -5372,7 +5401,7 @@ def glossaire():
     moteur, postes du référentiel — sont REPRISES ici et non recopiées : une
     définition dupliquée est une définition qui divergera.
     """
-    return {
+    return dict(_glossaires_voisins(), **{
         "phase": {p["code"]: {
             "nom": "%s — %s" % (p["code"], p["nom"]),
             # Le conseil de terrain vient EN TÊTE : c'est ce qu'un lecteur
@@ -5426,7 +5455,47 @@ def glossaire():
                          else " par chaîne, sur %d chaînes complètes"
                               % v["chaines"]))),
         } for k, v in REDONDANCES.items()},
-    }
+    })
+
+
+def _verifier_glossaire():
+    """Deux modules ne peuvent pas tenir la même famille d'infobulles.
+
+    POURQUOI C'EST UN CONTRÔLE DE DÉMARRAGE et pas une note. Si deux modules
+    déclaraient « enjeu », l'un des deux serait ignoré en silence, et le
+    lecteur verrait une définition sans savoir qu'il en existe une autre. Le
+    conflit doit se voir au chargement, pas se découvrir en survolant un
+    sigle.
+    """
+    fautes, vues = [], {}
+    for nom in ("technique_dc", "travaux_dc", "ao_dc", "icpe_dc"):
+        try:
+            mod = __import__(nom)
+            g = mod.glossaire() if hasattr(mod, "glossaire") else {}
+        except Exception:                                # pragma: no cover
+            continue
+        for famille in (g or {}):
+            if famille in vues:
+                fautes.append("famille d'infobulles revendiquée par deux "
+                              "modules (%s et %s) : %s"
+                              % (vues[famille], nom, famille))
+            vues[famille] = nom
+    # Les familles propres à ce module l'emportent sur celles des voisins :
+    # un voisin qui en déclarerait une du même nom la verrait écrasée sans
+    # rien dire.
+    propres = set(glossaire()) - set(vues)
+    for famille, mod in vues.items():
+        if famille not in glossaire():
+            fautes.append("famille déclarée par %s et absente du glossaire "
+                          "servi : %s" % (mod, famille))
+    del propres
+    return fautes
+
+
+_FAUTES_GLOSSAIRE = _verifier_glossaire()
+if _FAUTES_GLOSSAIRE:
+    raise RuntimeError("ingenierie_dc — glossaire incohérent : "
+                       + " ; ".join(_FAUTES_GLOSSAIRE))
 
 
 # ═══════════════════════════════════════════════════════════════════════════
