@@ -31,18 +31,13 @@ import pytest
 ICI = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ICI)
 
-# Le compte RÉEL des modules par page, relevé sur les fichiers. La page des
-# centres de données en porte dix numérotés plus un marqué « ◆ » (le cadre
-# Green Management) — soit onze blocs, et non sept comme on pourrait le croire
-# en lisant le sommaire, qui n'en liste pas la totalité.
-PAGES = {
-    "datacenter.html": 12,
-    # Neuf depuis l'ajout du chapitre de l'économiste de la construction,
-    # inséré en 7 — les deux suivants ont été renumérotés plutôt que de
-    # laisser la page compter 1..6, 7, 7, 8.
-    "ingenierie-datacenter.html": 9,
-    "strategie-durable-datacenter.html": 5,
-}
+# Les trois pages qui portent des modules numérotés. Le NOMBRE n'est plus écrit
+# ici — voir plus bas pourquoi.
+PAGES = (
+    "datacenter.html",
+    "ingenierie-datacenter.html",
+    "strategie-durable-datacenter.html",
+)
 
 
 def lire(nom):
@@ -64,12 +59,33 @@ def test_chaque_page_charge_le_module_partage(page):
     assert "/modules.js" in lire(page), page
 
 
-@pytest.mark.parametrize("page,n", sorted(PAGES.items()))
-def test_le_compte_des_modules_est_celui_qu_on_croit(page, n):
-    """Relevé plutôt que supposé : la page des centres de données en porte
-    DOUZE — le cadrage, puis onze étapes numérotées depuis l'ajout du chapitre
-    des équipements informatiques."""
-    assert len(modules(page)) == n, [x.strip() for x in modules(page)]
+@pytest.mark.parametrize("page", sorted(PAGES))
+def test_la_numerotation_des_modules_est_continue_et_sans_doublon(page):
+    """CE QUE CETTE RÈGLE VÉRIFIE VRAIMENT, et qu'un compte figé ne vérifiait pas.
+
+    Elle portait un NOMBRE par page — douze, neuf, cinq — relevé un jour sur
+    les fichiers. C'était un cliquet : elle échouait à chaque section ajoutée,
+    alors même que l'ajout était légitime et la page correcte. Et son propre
+    commentaire disait ce qu'elle cherchait réellement à protéger : « les deux
+    suivants ont été renumérotés plutôt que de laisser la page compter
+    1..6, 7, 7, 8 ». C'est CELA le défaut — un numéro sauté ou répété, qui fait
+    qu'un lecteur cherche une étape 8 qui n'existe pas, ou en trouve deux.
+
+    La règle porte donc sur la PROPRIÉTÉ : les repères numériques forment la
+    suite 1, 2, 3… sans trou ni doublon. Elle attrapera l'insertion mal
+    renumérotée, qu'on ait ajouté une section ou dix — ce que le compte figé,
+    lui, ne distinguait pas d'un ajout propre.
+
+    LES REPÈRES NON NUMÉRIQUES SONT ADMIS et ne comptent pas : la page des
+    centres de données ouvre sur un bloc marqué « ◆ », le cadre Green
+    Management, qui n'est pas une étape de la séquence.
+    """
+    reperes = [x.strip() for x in modules(page)]
+    assert reperes, "aucun module numéroté sur cette page"
+    nums = [int(x) for x in reperes if x.isdigit()]
+    assert nums, reperes
+    assert nums == list(range(1, len(nums) + 1)), (
+        "la numérotation des modules saute ou se répète : %s" % reperes)
 
 
 @pytest.mark.parametrize("page", sorted(PAGES))

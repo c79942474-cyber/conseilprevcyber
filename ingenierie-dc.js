@@ -4177,6 +4177,571 @@ function messageDelai(e, defaut) {
       .catch(function () { pjMsg("État non enregistré.", "ko"); });
   }
 
+  /* ══════════════════════════════════════════════════════════════════════
+     LE CRIBLAGE ICPE
+     ══════════════════════════════════════════════════════════════════════
+     CE QUE LA LISTE DÉROULANTE REND POSSIBLE. Cinq rubriques, trois états —
+     atteinte, sans donnée, écartée — et pour chacune un régime, une distance
+     au seuil suivant et ce qu'elle change pour la mission. Tout afficher à
+     plat noierait les deux qui comptent ; une liste ordonnée par gravité met
+     en tête celle qui commande le planning.
+
+     L'ORDRE EST CELUI DE L'ACTION, pas celui de la nomenclature : ce qui est
+     atteint d'abord — du régime le plus lourd au plus léger —, ce qui manque
+     ensuite, ce qui est écarté en dernier. Il vient du serveur : la page ne
+     retrie rien, sans quoi les deux ordres divergeraient. */
+  var ICPE_CHAMPS = null, ICPE = null;
+
+  function icpeFormulaire(champs) {
+    var z = $("#ig-icpe-form");
+    if (!z) return;
+    ICPE_CHAMPS = champs || [];
+    var h = '<div class="dc-grille">';
+    ICPE_CHAMPS.forEach(function (c) {
+      var id = "ig-icpe-" + c.id;
+      h += '<label class="dc-champ" for="' + id + '">'
+        + '<span class="dc-lab">' + esc(c.label)
+        + (c.unite ? ' <span class="dc-unite">(' + esc(c.unite) + ')</span>' : "")
+        /* La rubrique concernée est portée par le champ lui-même, et son
+           infobulle explique ce que la nomenclature vise. Sans elle, on
+           demande une puissance thermique sans dire pourquoi. */
+        + ' <span class="ig-icpe-r"' + info("rubrique_icpe:" + c.rubrique)
+        + ">" + esc(c.rubrique) + "</span></span>";
+      if (c.type === "booleen") {
+        /* TROIS ÉTATS, PAS DEUX. « Non précisé » n'est pas « non » : le seuil
+           de la rubrique 2925 n'est pas le même selon la technologie, et une
+           case décochée par défaut ferait retenir le seuil le plus permissif
+           pour un local dont personne n'a rien dit. */
+        h += '<select id="' + id + '" data-icpe="' + esc(c.id) + '">'
+          + '<option value="">— non précisé —</option>'
+          + '<option value="oui">Oui — accumulateurs au plomb ouverts</option>'
+          + '<option value="non">Non — technologie étanche ou lithium</option>'
+          + "</select>";
+      } else {
+        h += '<input id="' + id + '" data-icpe="' + esc(c.id)
+          + '" type="text" inputmode="decimal" placeholder="—">';
+      }
+      if (c.aide) h += '<span class="dc-aide">' + esc(c.aide) + "</span>";
+      h += "</label>";
+    });
+    z.innerHTML = h + "</div>";
+  }
+
+  function icpeLire() {
+    var p = lireProfil();
+    document.querySelectorAll("#ig-icpe-form [data-icpe]").forEach(function (el) {
+      var v = (el.value || "").trim();
+      if (v === "") return;
+      p[el.getAttribute("data-icpe")] = (v === "oui") ? true
+        : (v === "non") ? false : v;
+    });
+    return p;
+  }
+
+  function icpeCribler() {
+    var msg = $("#ig-icpe-msg"), out = $("#ig-icpe-out");
+    if (!out) return;
+    msg.textContent = "Criblage…";
+    demander("/api/datacenter/icpe", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(icpeLire()),
+    }).then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) {
+          msg.textContent = (j && j.message) || "Criblage indisponible.";
+          return;
+        }
+        ICPE = j;
+        msg.textContent = j.lecture || "";
+        icpeRendre(j);
+      })
+      .catch(function () { msg.textContent = "Criblage indisponible."; });
+  }
+
+  function icpeRendre(j) {
+    var out = $("#ig-icpe-out"), c = j.criblage;
+    var atteintes = j.rubriques.filter(function (r) { return r.etat === "declenchee"; });
+    var manquent = j.rubriques.filter(function (r) { return r.etat === "a_verifier"; });
+    var h = '<div class="ig-icpe-tete">'
+      + '<span class="ig-icpe-reg"' + info("regime_icpe:" + c.regime_site) + ">"
+      + esc(c.regime_site_detail.nom) + "</span>"
+      + '<span class="ig-icpe-n">' + esc(c.regime_site_note) + "</span></div>";
+    /* LE SÉLECTEUR. Une liste déroulante plutôt que cinq blocs dépliés : les
+       rubriques se consultent une à une, et celle qui commande le planning est
+       en tête. Le compte figure dans le libellé du bouton — « 5 rubriques,
+       3 atteintes » se lit sans ouvrir. */
+    h += '<div class="ig-sel"><button type="button" class="ig-sel-b" '
+      + 'id="ig-icpe-sel" aria-expanded="false" aria-haspopup="listbox">'
+      + '<span class="ig-sel-n">' + j.rubriques.length + " rubrique"
+      + (j.rubriques.length > 1 ? "s" : "") + "</span> · "
+      + atteintes.length + " atteinte" + (atteintes.length > 1 ? "s" : "")
+      + (manquent.length ? " · " + manquent.length + " sans donnée" : "")
+      + '<span class="ig-sel-c" aria-hidden="true">▾</span></button>'
+      + '<div class="ig-sel-p" id="ig-icpe-liste" role="listbox" hidden>';
+    j.rubriques.forEach(function (r) {
+      h += '<button type="button" class="ig-sel-o ig-icpe-o" role="option" '
+        + 'aria-selected="false" data-code="' + esc(r.code) + '">'
+        + '<span class="ig-icpe-b ig-icpe-b-' + esc(r.etat) + '">'
+        + esc(r.badge) + "</span>"
+        + '<span class="ig-sel-l">' + esc(r.libelle)
+        + '<span class="ig-sel-d">' + esc(r.resume) + "</span></span></button>";
+    });
+    h += "</div></div><div id=\"ig-icpe-fiche\"></div>";
+    h += '<div class="ig-icpe-mis"><b>Ce que le régime ajoute à la mission</b><ul>';
+    (j.mission.actions || []).forEach(function (a) {
+      h += "<li>" + esc(a) + "</li>";
+    });
+    h += "</ul><p class=\"ig-icpe-res\">" + esc(j.mission.reserve) + "</p></div>";
+    h += '<p class="ig-icpe-res">' + esc(c.reserve) + "</p>"
+      + '<p class="ig-icpe-res">' + esc(c.connexes) + "</p>";
+    out.innerHTML = h;
+    var b = $("#ig-icpe-sel"), liste = $("#ig-icpe-liste");
+    if (b) {
+      b.addEventListener("click", function () {
+        var ouvert = liste.hidden;
+        liste.hidden = !ouvert;
+        b.setAttribute("aria-expanded", ouvert ? "true" : "false");
+      });
+    }
+    out.querySelectorAll(".ig-icpe-o").forEach(function (o) {
+      o.addEventListener("click", function () {
+        out.querySelectorAll(".ig-icpe-o").forEach(function (x) {
+          x.setAttribute("aria-selected", "false");
+          x.classList.remove("ig-sel-actif");
+        });
+        o.setAttribute("aria-selected", "true");
+        o.classList.add("ig-sel-actif");
+        liste.hidden = true;
+        b.setAttribute("aria-expanded", "false");
+        icpeFiche(o.getAttribute("data-code"));
+      });
+    });
+    /* La première rubrique est ouverte d'emblée : c'est celle qui commande le
+       planning, et un panneau vide sous un sélecteur n'invite personne. */
+    var premier = out.querySelector(".ig-icpe-o");
+    if (premier) premier.click();
+  }
+
+  function icpeFiche(code) {
+    var z = $("#ig-icpe-fiche");
+    var r = (ICPE.rubriques || []).filter(function (x) { return x.code === code; })[0];
+    if (!z || !r) return;
+    var l = r.ligne;
+    var h = '<div class="ig-icpe-f"><h4' + info("rubrique_icpe:" + code) + ">"
+      + esc(l.numero) + " — " + esc(l.intitule) + "</h4>"
+      + '<p class="ig-icpe-s">' + esc(l.sous) + "</p>";
+    if (r.etat === "declenchee") {
+      h += '<p class="ig-icpe-v"><b>' + esc(l.regime_nom) + "</b> — "
+        + esc(l.grandeur) + " : <b>" + esc(String(l.valeur).replace(".", ","))
+        + " " + esc(l.unite) + "</b>"
+        + (l.estimee ? " <i>(estimée — voir le détail)</i>" : "") + "</p>";
+      if (l.detail && Object.keys(l.detail).length) {
+        h += '<dl class="ig-icpe-d">';
+        Object.keys(l.detail).forEach(function (k) {
+          h += "<dt>" + esc(k) + "</dt><dd>"
+            + esc(String(l.detail[k]).replace(".", ",")) + "</dd>";
+        });
+        h += "</dl>";
+      }
+      if (l.marge) {
+        h += '<p class="ig-icpe-m">Seuil suivant à <b>'
+          + esc(String(l.marge.prochain_seuil).replace(".", ",")) + " "
+          + esc(l.unite) + "</b> — au-delà, régime "
+          + esc(l.marge.regime_au_dela) + ". Vous en êtes à "
+          + Math.round((l.marge.part_du_seuil || 0) * 100) + " %.</p>";
+      }
+      h += '<ul class="ig-icpe-se">';
+      (l.seuils || []).forEach(function (s) {
+        h += "<li>" + esc(String(s.a_partir_de).replace(".", ",")) + " "
+          + esc(l.unite)
+          + (s.jusqu_a !== null && s.jusqu_a !== undefined
+              ? " à " + esc(String(s.jusqu_a).replace(".", ",")) + " " + esc(l.unite)
+              : " et au-delà")
+          + " → <b>" + esc(s.regime_nom) + "</b></li>";
+      });
+      h += "</ul>";
+    } else if (r.etat === "a_verifier") {
+      h += '<p class="ig-icpe-k">Il manque ' + esc(l.manque)
+        + ". Une donnée absente n'est pas un seuil non atteint.</p>";
+    } else {
+      h += '<p class="ig-icpe-x">' + esc(l.pourquoi || "") + "</p>";
+    }
+    h += '<dl class="ig-icpe-q"><dt>Ce qui la déclenche</dt><dd>'
+      + esc(l.declenche_par) + "</dd>"
+      + "<dt>Ce qui surprend</dt><dd>" + esc(l.ce_qui_surprend) + "</dd>"
+      + "<dt>En conception</dt><dd>" + esc(l.conception) + "</dd>"
+      + "<dt>Pour la mission</dt><dd>" + esc(l.moe) + "</dd></dl>"
+      + '<p class="ig-icpe-res">' + esc(l.texte) + "</p></div>";
+    z.innerHTML = h;
+  }
+
+
+  /* ══════════════════════════════════════════════════════════════════════
+     LA PHASE TRAVAUX
+     ══════════════════════════════════════════════════════════════════════
+     DEUX RÉGLAGES SEULEMENT, et ils changent le plan pour de bon : la nature
+     des travaux — neuf, fit-out, rétrofit — et l'existence d'une mission de
+     commissioning. Le reste est une structure, pas un planning : elle ne porte
+     aucune durée, parce qu'une durée dépend du site. */
+  function travauxFormulaire() {
+    var z = $("#ig-tr-form");
+    if (!z || !CADRE) return;
+    var N = (CADRE.natures_travaux || {});
+    var h = '<label class="dc-champ" for="ig-tr-nat"><span class="dc-lab">'
+      + "Nature des travaux</span>"
+      + '<select id="ig-tr-nat"><option value="">— non précisée —</option>';
+    Object.keys(N).forEach(function (k) {
+      h += '<option value="' + esc(k) + '">' + esc(N[k].nom) + "</option>";
+    });
+    h += "</select><span class=\"dc-aide\">Elle ne change ni le nom des phases "
+      + "ni la liste des pièces, mais elle change ce qu'il faut y mettre et où "
+      + "se trouve le risque.</span></label>"
+      + '<label class="dc-champ" for="ig-tr-cx"><span class="dc-lab">'
+      + "Mission de commissioning</span>"
+      + '<select id="ig-tr-cx"><option value="oui">Commandée</option>'
+      + '<option value="non">Non commandée</option></select>'
+      + '<span class="dc-aide">Non commandée, les opérations d\'essais ne '
+      + "disparaissent pas du plan : elles y restent avec la mention de qui "
+      + "devra les assumer.</span></label>";
+    z.innerHTML = h;
+    z.addEventListener("change", travauxPlan);
+    travauxPlan();
+  }
+
+  function travauxPlan() {
+    var msg = $("#ig-tr-msg"), out = $("#ig-tr-out");
+    if (!out) return;
+    var nat = ($("#ig-tr-nat") || {}).value || "";
+    var cx = (($("#ig-tr-cx") || {}).value || "oui") !== "non";
+    msg.textContent = "";
+    demander("/api/datacenter/travaux", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nature_travaux: nat, commissioning: cx }),
+    }).then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) {
+          msg.textContent = (j && j.message) || "Plan indisponible.";
+          return;
+        }
+        travauxRendre(j.plan, j.nature_detail);
+      })
+      .catch(function () { msg.textContent = "Plan indisponible."; });
+  }
+
+  function travauxRendre(p, nature) {
+    var out = $("#ig-tr-out");
+    var h = "";
+    if (nature) {
+      h += '<div class="ig-encart"><b>' + esc(nature.nom) + "</b> — "
+        + esc(nature.ce_que_c_est)
+        + '<span class="ig-tr-r">Le risque propre — ' + esc(nature.risque)
+        + "</span><span class=\"ig-tr-r\">La maîtrise d'œuvre — "
+        + esc(nature.moe) + "</span></div>";
+    }
+    /* LES PRÉALABLES BLOQUANTS EN TÊTE, et signalés comme tels. Un rétrofit
+       dont le phasage d'exploitation n'est pas étudié n'a pas de plan de
+       travaux : il a une liste de vœux. */
+    if (p.prealables && p.prealables.length) {
+      h += '<div class="ig-tr-pre"><b>À faire avant tout le reste</b>';
+      p.prealables.forEach(function (x) {
+        h += '<div class="ig-tr-pre-l"><b>' + esc(x.nom) + "</b> — "
+          + esc(x.pourquoi) + "</div>";
+      });
+      h += "</div>";
+    }
+    h += '<ol class="ig-tr-l">';
+    p.operations.forEach(function (o) {
+      h += '<li class="ig-tr-o' + (o.sans_titulaire ? " ig-tr-orph" : "") + '">'
+        + '<div class="ig-tr-h"><span class="ig-tr-f">' + esc(o.famille_nom)
+        + "</span>"
+        + '<b' + info("operation:" + o.cle) + ">" + esc(o.nom) + "</b>"
+        + '<span class="ig-tr-ph">' + esc(o.phase) + "</span></div>"
+        + '<p class="ig-tr-ob">' + esc(o.objet) + "</p>"
+        + '<p class="ig-tr-pa"><i>Ce qu\'il faut avant</i> — ' + esc(o.prealable)
+        + "</p>";
+      if (o.point_arret) {
+        h += '<p class="ig-tr-ar"><b>Point d\'arrêt</b> — '
+          + esc(o.point_arret) + "</p>";
+      }
+      if (o.sans_titulaire) {
+        h += '<p class="ig-tr-so">' + esc(o.sans_titulaire) + "</p>";
+      }
+      h += '<p class="ig-tr-ac">';
+      o.acteurs.forEach(function (a) {
+        h += '<span class="ig-tr-a ig-tr-a-' + esc(a.lien) + '"'
+          + info("intervenant:" + a.cle) + ">" + esc(a.nom) + "</span>";
+      });
+      h += "</p></li>";
+    });
+    h += "</ol>";
+    /* LES SOLUTIONS. Celles que le projet IMPOSE sont en tête et le disent :
+       le phasage d'exploitation d'un rétrofit n'est pas une bonne pratique,
+       c'est une condition de faisabilité. */
+    h += '<h3 class="ig-tr-st">Ce qui fait tenir les termes du marché</h3>'
+      + '<div class="ig-tr-sol">';
+    p.solutions.forEach(function (s) {
+      h += '<div class="ig-tr-s' + (s.impose ? " ig-tr-simp" : "") + '">'
+        + '<b' + info("solution:" + s.cle) + ">" + esc(s.nom) + "</b>"
+        + (s.impose ? '<span class="ig-tr-sb">imposée par le projet</span>' : "")
+        + '<span class="ig-tr-sn">' + esc(s.nature_nom) + "</span>"
+        + "<p><i>Ce que ça obtient</i> — " + esc(s.obtient) + "</p>"
+        + "<p><i>Ce que ça coûte</i> — " + esc(s.coute) + "</p>"
+        + "<p><i>Où et quand la poser</i> — " + esc(s.quand_poser) + "</p></div>";
+    });
+    h += "</div>" + '<p class="ig-icpe-res">' + esc(p.note) + "</p>";
+    out.innerHTML = h;
+  }
+
+
+  /* ══════════════════════════════════════════════════════════════════════
+     L'APPEL D'OFFRES — lire le dossier, préparer la réponse
+     ══════════════════════════════════════════════════════════════════════
+     LES PIÈCES SE TRANSMETTENT SANS ÊTRE DÉPOSÉES, et c'est délibéré. On lit
+     un dossier de consultation AVANT de décider s'il vaut la peine d'être
+     conservé, et les pièces d'une consultation à laquelle on ne répondra pas
+     n'ont rien à faire dans la base de connaissance. Celles qu'on veut garder
+     passent par l'étape précédente, qui les indexe.
+
+     TOUTES ENSEMBLE, PAS UNE PAR UNE. L'information la plus utile d'une
+     analyse de dossier de consultation est CE QUI MANQUE — et cela ne se voit
+     qu'en regardant le dossier entier. */
+  var AO_ANALYSE = null;
+
+  function aoDocuments() {
+    var z = $("#ig-ao-depot");
+    if (!z) return;
+    z.innerHTML =
+      '<label class="dc-champ" for="ig-ao-f"><span class="dc-lab">Pièces de '
+      + "la consultation</span>"
+      + '<input id="ig-ao-f" type="file" multiple accept="' + accepteDepot() + '">'
+      + '<span class="dc-aide">Plusieurs fichiers à la fois. Ils sont analysés '
+      + "puis lus, et ne sont PAS enregistrés : pour les verser à la base de "
+      + "connaissance, passez par l'étape précédente.</span></label>"
+      + '<div id="ig-ao-liste" class="ig-ao-docs"></div>';
+    var f = $("#ig-ao-f");
+    if (f) {
+      f.addEventListener("change", function () {
+        var l = $("#ig-ao-liste");
+        var noms = [];
+        for (var i = 0; i < f.files.length; i++) noms.push(f.files[i].name);
+        l.innerHTML = noms.length
+          ? '<p class="note">' + noms.length + " fichier"
+            + (noms.length > 1 ? "s" : "") + " · " + esc(noms.join(", ")) + "</p>"
+          : "";
+      });
+    }
+  }
+
+  /* Un fichier lu en base64, rendu comme une promesse. Le lecteur du
+     navigateur est événementiel ; l'envelopper ici évite d'imbriquer autant de
+     rappels que de fichiers, et surtout de perdre l'ordre. */
+  function aoLire(fichier) {
+    return new Promise(function (ok) {
+      var l = new FileReader();
+      l.onerror = function () {
+        ok({ nom: fichier.name, erreur: "Le fichier n'a pas pu être lu." });
+      };
+      l.onload = function () {
+        ok({ nom: fichier.name,
+             contenu: String(l.result).split(",")[1] || "" });
+      };
+      l.readAsDataURL(fichier);
+    });
+  }
+
+  function aoAnalyser() {
+    var msg = $("#ig-ao-msg");
+    var f = $("#ig-ao-f");
+    if (!f || !f.files || !f.files.length) {
+      msg.textContent = "Choisissez les pièces de la consultation.";
+      return;
+    }
+    var n = f.files.length;
+    msg.textContent = "Lecture de " + n + " pièce" + (n > 1 ? "s" : "") + "…";
+    var lectures = [];
+    for (var i = 0; i < n; i++) lectures.push(aoLire(f.files[i]));
+    Promise.all(lectures).then(function (lus) {
+      var docs = lus.filter(function (x) { return !x.erreur; });
+      if (!docs.length) {
+        msg.textContent = "Aucun fichier n'a pu être lu.";
+        return;
+      }
+      msg.textContent = "Analyse de " + docs.length + " pièce"
+        + (docs.length > 1 ? "s" : "") + "…";
+      return demander("/api/datacenter/marche/analyser", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documents: docs }),
+      }).then(function (x) { return x.json().then(function (j) { return [x.status, j]; }); })
+        .then(function (xj) {
+          var st = xj[0], j = xj[1];
+          if (st === 401 || st === 403) {
+            msg.textContent = "L'analyse d'un dossier de consultation est "
+              + "réservée aux comptes d'administration : elle rend le contenu "
+              + "des pièces du client.";
+            return;
+          }
+          if (!j || !j.ok) {
+            msg.textContent = (j && j.message) || "Analyse indisponible.";
+            if (j && j.ignores) aoIgnores(j.ignores);
+            return;
+          }
+          AO_ANALYSE = j.analyse;
+          msg.textContent = "";
+          aoRendre(j.analyse);
+        });
+    }).catch(function () { msg.textContent = "Analyse indisponible."; });
+  }
+
+  /* CE QUI N'A PAS PU ÊTRE LU EST DIT, avec son motif. Un fichier écarté en
+     silence se lit comme un fichier analysé — et le lecteur croirait son
+     dossier complet. */
+  function aoIgnores(ignores) {
+    var out = $("#ig-ao-out");
+    if (!out || !ignores || !ignores.length) return;
+    var h = '<div class="ig-ao-mq"><b>Écarté de l\'analyse</b><ul>';
+    ignores.forEach(function (x) {
+      h += "<li><b>" + esc(x.fichier) + "</b> — " + esc(x.pourquoi) + "</li>";
+    });
+    out.innerHTML = h + "</ul></div>" + out.innerHTML;
+  }
+
+  function aoRendre(a) {
+    var out = $("#ig-ao-out");
+    var h = "";
+    /* LES ALERTES EN TÊTE, dans l'ordre du risque. Ce qui rend l'offre
+       irrecevable d'abord — une pièce essentielle absente ou une date de
+       remise non trouvée se traite avant de lire un CCTP. */
+    if (a.alertes && a.alertes.length) {
+      h += '<div class="ig-ao-al">';
+      a.alertes.forEach(function (x) {
+        h += '<p class="ig-ao-a ig-ao-a-' + esc(x.niveau) + '">'
+          + esc(x.texte) + "</p>";
+      });
+      h += "</div>";
+    }
+    if (a.manquantes && a.manquantes.length) {
+      h += '<div class="ig-ao-mq"><b>Absent du dossier déposé</b><ul>';
+      a.manquantes.forEach(function (m) {
+        h += "<li><b" + info("piece_marche:" + m.code) + ">" + esc(m.sigle)
+          + "</b> — " + esc(m.ce_que_c_est)
+          + (m.gravite === "bloquante"
+              ? ' <span class="ig-ao-bl">essentielle</span>' : "")
+          + "</li>";
+      });
+      h += "</ul></div>";
+    }
+    a.pieces.forEach(function (p) {
+      h += '<div class="ig-ao-p"><div class="ig-ao-ph">'
+        + '<b' + info("piece_marche:" + p.code) + ">" + esc(p.sigle) + "</b>"
+        + '<span class="ig-ao-fn">' + esc(p.fichier) + "</span>"
+        + '<span class="ig-ao-cf ig-ao-cf-' + esc(p.identification.confiance)
+        + '">identifié · confiance ' + esc(p.identification.confiance)
+        + "</span></div>"
+        + '<p class="ig-ao-en"><i>Ce qu\'elle engage</i> — ' + esc(p.engage)
+        + "</p>"
+        + '<p class="ig-ao-pg"><i>Le piège</i> — ' + esc(p.piege) + "</p>";
+      if (p.sans_texte) h += '<p class="ig-ao-k">' + esc(p.sans_texte) + "</p>";
+      (p.releves || []).forEach(function (r) {
+        h += '<div class="ig-ao-r' + (r.trouve ? "" : " ig-ao-rk") + '">'
+          + "<b>" + esc(r.libelle) + "</b>";
+        if (r.trouve) {
+          r.citations.forEach(function (c) {
+            h += '<blockquote class="ig-ao-c">' + esc(c.texte)
+              + '<cite>à ' + c.part + " % du document</cite></blockquote>";
+          });
+        } else {
+          h += '<p class="ig-ao-n">' + esc(r.note) + "</p>";
+        }
+        h += '<p class="ig-ao-w">' + esc(r.piege) + "</p></div>";
+      });
+      h += "</div>";
+    });
+    (a.inconnues || []).forEach(function (p) {
+      h += '<div class="ig-ao-p ig-ao-inc"><b>' + esc(p.fichier) + "</b>"
+        + "<p>" + esc(p.pourquoi) + "</p></div>";
+    });
+    h += '<p class="ig-icpe-res">' + esc(a.reserve) + "</p>";
+    out.innerHTML = h;
+    /* Posé APRÈS le rendu, qui écrase le contenu du bloc : appelé avant, le
+       relevé des fichiers écartés disparaîtrait sans laisser de trace. */
+    aoIgnores(a.ignores);
+  }
+
+  function aoCandidature() {
+    var msg = $("#ig-ao-msg"), out = $("#ig-ao-cand-out");
+    msg.textContent = "";
+    demander("/api/datacenter/marche/candidature", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ analyse: AO_ANALYSE, groupement: true }),
+    }).then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) {
+          msg.textContent = (j && j.message) || "Plan indisponible.";
+          return;
+        }
+        aoCandRendre(j.plan);
+      })
+      .catch(function () { msg.textContent = "Plan indisponible."; });
+  }
+
+  function aoCandRendre(p) {
+    var out = $("#ig-ao-cand-out");
+    var red = {};
+    (p.redaction || []).forEach(function (r) { red[r.piece] = r; });
+    var h = '<h3 class="ig-tr-st">Le dossier de candidature</h3>';
+    if (p.consultation) {
+      h += '<div class="ig-encart">';
+      if (p.consultation.note) {
+        h += esc(p.consultation.note);
+      } else {
+        Object.keys(p.consultation).forEach(function (k) {
+          var c = p.consultation[k];
+          h += "<b>" + esc(c.libelle) + "</b> — "
+            + esc((c.citations[0] || {}).texte || "") + "<br>";
+        });
+      }
+      h += "</div>";
+    }
+    h += '<p class="note">L\'ordre n\'est pas celui du règlement de '
+      + "consultation : ce qui a un délai d'obtention passe en premier, parce "
+      + "que c'est la seule chose qu'on ne rattrape pas la dernière nuit.</p>";
+    h += '<div class="ig-ao-cd">';
+    p.pieces.forEach(function (x) {
+      h += '<div class="ig-ao-cp' + (x.bloquant ? " ig-ao-cpb" : "") + '">'
+        + '<div class="ig-ao-cph"><b' + info("piece_candidature:" + x.cle) + ">"
+        + esc(x.nom) + "</b>"
+        + '<span class="ig-ao-cn">' + esc(x.nature_nom) + "</span>"
+        + (x.bloquant ? '<span class="ig-ao-bl">bloquante</span>' : "")
+        + "</div>"
+        + '<p class="ig-ao-cq"><i>Produite par</i> — ' + esc(x.produit_par)
+        + "</p><ul class=\"ig-ao-cc\">";
+      x.contient.forEach(function (c) { h += "<li>" + esc(c) + "</li>"; });
+      h += "</ul>"
+        + '<p class="ig-ao-pg"><i>Le piège</i> — ' + esc(x.piege) + "</p>";
+      if (x.delai) {
+        h += '<p class="ig-ao-dl"><b>Délai d\'obtention</b> — ' + esc(x.delai)
+          + "</p>";
+      }
+      if (x.en_groupement) {
+        h += '<p class="ig-ao-gr"><i>En groupement</i> — '
+          + esc(x.en_groupement) + "</p>";
+      }
+      if (red[x.cle]) {
+        h += '<p class="ig-ao-red">Cette note se rédige — livrable «&nbsp;'
+          + esc(red[x.cle].label) + "&nbsp;», dans l'espace "
+          + "d'administration.</p>";
+      }
+      h += "</div>";
+    });
+    h += "</div>" + '<p class="ig-icpe-res">' + esc(p.note) + "</p>";
+    out.innerHTML = h;
+  }
+
+
   function démarrer() {
     Promise.all([
       /* Le 401 est levé par `demander` lui-même, bannière comprise : le
@@ -4215,6 +4780,13 @@ function messageDelai(e, defaut) {
         pjCharger();
         depotEtat();
         depotFormulaire();
+        /* Les trois prolongements : le criblage ICPE, la phase travaux et
+           l'appel d'offres. Leurs formulaires se dessinent d'emblée — un
+           bouton sans formulaire au-dessus n'invite personne —, mais aucun
+           ne calcule tant qu'on ne le lui demande pas. */
+        icpeFormulaire(CADRE.icpe_champs);
+        travauxFormulaire();
+        aoDocuments();
         rafraichir();
         /* Le lanceur du parcours guidé bat à l'ouverture : c'est le seul
            geste utile quand on ne connaît pas encore la page. Différé d'une
@@ -4235,6 +4807,9 @@ function messageDelai(e, defaut) {
     var b;
     if ((b = $("#ig-docx"))) b.addEventListener("click", function () { exporter("docx"); });
     if ((b = $("#ig-pdf"))) b.addEventListener("click", function () { exporter("pdf"); });
+    if ((b = $("#ig-icpe-go"))) b.addEventListener("click", icpeCribler);
+    if ((b = $("#ig-ao-go"))) b.addEventListener("click", aoAnalyser);
+    if ((b = $("#ig-ao-cand"))) b.addEventListener("click", aoCandidature);
   }
 
   if (document.readyState === "loading") {

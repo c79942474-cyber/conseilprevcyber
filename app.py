@@ -2397,9 +2397,15 @@ def api_datacenter_referentiel():
     # famille en porte vingt-cinq — neuf de management ajoutés sans que
     # personne ne pense à corriger la phrase. Un lecteur cherchant un HAZOP en
     # concluait qu'il n'était pas couvert.
+    # LA TECHNIQUE VOYAGE AVEC LE RÉFÉRENTIEL, et non par un second appel. Le
+    # formulaire de choix des fluides est construit à partir de cette réponse ;
+    # servir l'explication d'un mode de refroidissement séparément ferait
+    # afficher la liste avant les explications, c'est-à-dire au moment exact où
+    # le lecteur choisit.
     return _json_fige("dc-referentiel", lambda: dict(
         ok=True, referentiel=datacenter.referentiel(),
         champs=datacenter.CHAMPS,
+        technique=technique_dc.referentiel(),
         base=_themes_datacenter()))
 
 
@@ -4055,9 +4061,16 @@ def api_datacenter_marche_analyser():
     à servir un dossier de consultation à qui a une session.
 
     DEUX SOURCES POSSIBLES. Des documents déjà versés à la base, désignés par
-    leur identifiant, ou des documents transmis pour analyse sans dépôt. La
-    seconde existe parce qu'on analyse un dossier de consultation AVANT de
-    décider s'il vaut la peine d'être conservé.
+    leur identifiant, ou des fichiers transmis pour analyse SANS DÉPÔT. La
+    seconde est le cas courant : on lit un dossier de consultation avant de
+    décider s'il vaut la peine d'être conservé, et les pièces d'une
+    consultation à laquelle on ne répondra pas n'ont rien à faire dans la base
+    de connaissance.
+
+    UN FICHIER TRANSMIS PASSE PAR L'ANALYSE ANTIVIRUS avant d'être lu, comme
+    au dépôt. Le fichier n'est pas conservé — mais il est ouvert par des
+    extracteurs de texte, et un extracteur qui ouvre un fichier hostile est
+    exactement ce contre quoi cette porte existe.
     """
     ckey = "marche:%s" % client_ip()
     if guard.blocked(ckey, limit=30, window=600):
@@ -4065,6 +4078,8 @@ def api_datacenter_marche_analyser():
                        message="Trop d'analyses en peu de temps. "
                                "Patientez un instant."), 429
     guard.fail(ckey)
+    import antivirus
+    import rag_store as _rs
     data = request.get_json(silent=True) or {}
     docs, ignores = [], []
     for d in (data.get("documents") or [])[:40]:
@@ -4073,8 +4088,43 @@ def api_datacenter_marche_analyser():
         nom = str(d.get("nom") or d.get("filename") or "").strip()[:200]
         if not nom:
             continue
+        ext = str(d.get("extension") or "").strip().lower()[:8]
+        if not ext and "." in nom:
+            ext = "." + nom.rsplit(".", 1)[-1].lower()
         texte = d.get("texte")
-        if texte is None and d.get("document_id"):
+        if texte is None and d.get("contenu"):
+            try:
+                octets = base64.b64decode(d["contenu"], validate=True)
+            except Exception:
+                ignores.append({"fichier": nom,
+                                "pourquoi": "Le contenu transmis n'est pas "
+                                            "décodable."})
+                continue
+            verdict = antivirus.analyser(nom, octets)
+            audit.journaliser(
+                "marche.porte", cible=nom[:120],
+                detail=("accepté" if verdict["accepte"]
+                        else "REFUSÉ:" + verdict.get("code", "?")))
+            if not verdict["accepte"]:
+                ignores.append({"fichier": nom, "pourquoi": verdict["motif"]})
+                continue
+            try:
+                texte = _rs.extract_text(ext.lstrip("."), octets)
+            except Exception as exc:
+                # LE MOTIF RÉEL, pas un message passe-partout : le cas le plus
+                # fréquent est le PDF scanné, qui franchit l'analyse et ne
+                # porte aucun texte. « Illisible » ferait recommencer à
+                # l'identique ; le dire fait fournir une version océrisée.
+                texte = None
+                ignores.append({
+                    "fichier": nom,
+                    "pourquoi": ("Aucun texte n'a pu être extrait de ce "
+                                 "fichier (%s). Un plan ou un document scanné "
+                                 "franchit l'analyse sans porter de texte : "
+                                 "fournissez une version avec couche texte."
+                                 % getattr(exc, "code", type(exc).__name__))})
+                continue
+        elif texte is None and d.get("document_id"):
             try:
                 texte = rag.document_text(str(d["document_id"])[:80],
                                           limit=400000)
@@ -4083,11 +4133,13 @@ def api_datacenter_marche_analyser():
                 ignores.append({"fichier": nom,
                                 "pourquoi": "Le texte de ce document n'a pas "
                                             "pu être relu depuis la base."})
+                continue
         docs.append({"nom": nom, "texte": str(texte or "")[:400000],
-                     "extension": str(d.get("extension") or "")[:8]})
+                     "extension": ext})
     if not docs:
         return jsonify(ok=False, error="aucun_document",
-                       message="Aucun document à analyser."), 400
+                       message="Aucun document analysable.",
+                       ignores=ignores), 400
     try:
         a = ao_dc.analyser(docs)
     except Exception:

@@ -200,7 +200,9 @@
     $("#dc-form").addEventListener("change", function () {
       majSuggestionsContexte("#dc-form");
       controlerPlages("#dc-form");
+      expliquerFluides();
     });
+    expliquerFluides();
 
     /* L'aperçu suit la saisie. Un seul écouteur posé sur le conteneur plutôt
        que treize sur les champs : le formulaire est reconstruit depuis le
@@ -209,6 +211,92 @@
     $("#dc-form").addEventListener("input", function () { apercuProfil(); });
     $("#dc-form").addEventListener("change", function () { apercuProfil(); });
     apercuProfil(true);
+  }
+
+
+  /* ── Ce que le choix des fluides engage ─────────────────────────────────
+     LE DÉFAUT CORRIGÉ. La liste « Famille de refroidissement » proposait sept
+     libellés exacts et opaques. Le lecteur qui ne connaissait pas la
+     différence entre un free cooling direct, un free cooling indirect à
+     assistance adiabatique et une tour évaporative choisissait au hasard — et
+     produisait une étude complète, d'apparence normale, sur une conception
+     qu'il n'aurait pas retenue en connaissance de cause.
+
+     CINQ CHOSES SONT DITES, dans l'ordre où on les demande en réunion : ce que
+     la machine fait, à quelle condition ça marche, ce que ça coûte, ce que ça
+     impose au reste du projet, et l'erreur classique. Elles viennent du
+     serveur (technique_dc) : la page n'en écrit aucune, et n'a donc rien qui
+     puisse diverger du moteur.
+
+     LE MODE QUI N'EST PAS DANS LA LISTE Y FIGURE QUAND MÊME. Le free-chilling
+     est une conduite d'une production d'eau glacée, pas une septième famille.
+     Le taire ferait chercher une option absente ; le présenter comme une
+     famille ferait croire à un choix de calcul qui n'existe pas. Il est donc
+     annoncé pour ce qu'il est, sous la famille qui le porte. */
+  function fluidesTechnique() {
+    return (REF && REF.technique) || {};
+  }
+
+  function modeDeFamille(fam) {
+    var M = fluidesTechnique().modes_refroidissement || {};
+    for (var k in M) {
+      if (Object.prototype.hasOwnProperty.call(M, k) && M[k].famille === fam) {
+        return { cle: k, mode: M[k] };
+      }
+    }
+    return null;
+  }
+
+  function conduitesDe(fam) {
+    /* Les modes qui n'ont pas de famille de calcul et que CETTE famille porte.
+       Ils ne s'affichent que là : rattachés à toutes les familles, ils
+       laisseraient croire qu'un free-chilling se conduit sur un free cooling
+       direct, ce qui n'a pas de sens. */
+    var M = fluidesTechnique().modes_refroidissement || {}, out = [];
+    for (var k in M) {
+      if (Object.prototype.hasOwnProperty.call(M, k)
+          && !M[k].famille && M[k].porte_par === fam) out.push(M[k]);
+    }
+    return out;
+  }
+
+  function expliquerFluides() {
+    var z = $("#dc-fluides");
+    if (!z) return;
+    var sel = document.querySelector('#dc-form [data-champ="refroidissement"]');
+    var fam = sel ? sel.value : "";
+    var t = modeDeFamille(fam);
+    if (!fam || !t) {
+      /* PAS DE CHOIX, PAS D'EXPLICATION — mais on dit ce qui manque. Un bloc
+         vide se lit comme un bloc cassé. */
+      z.hidden = false;
+      z.innerHTML = '<p class="note">Choisissez une famille de refroidissement '
+        + "ci-dessus&nbsp;: sa technique, ce qu'elle coûte et ce qu'elle impose "
+        + "au reste du projet s'afficheront ici.</p>";
+      return;
+    }
+    var m = t.mode;
+    var h = '<h3 class="dc-fl-t">' + esc(m.nom) + "</h3>"
+      + '<p class="dc-fl-p">' + esc(m.principe) + "</p>"
+      + '<dl class="dc-fl-l">'
+      + "<dt>Quand ça marche</dt><dd>" + esc(m.quand) + "</dd>"
+      + "<dt>Ce que ça coûte</dt><dd>" + esc(m.cout) + "</dd>"
+      + "<dt>Ce que ça impose</dt><dd>" + esc(m.contrainte) + "</dd>"
+      + '<dt class="dc-fl-e">L\'erreur classique</dt><dd class="dc-fl-e">'
+      + esc(m.erreur) + "</dd></dl>";
+    conduitesDe(fam).forEach(function (c) {
+      h += '<div class="dc-fl-c"><b>' + esc(c.nom) + "</b> — "
+        + esc(c.principe) + '<span class="dc-fl-n">Ce n\'est pas une option de '
+        + "la liste ci-dessus&nbsp;: c'est une conduite de la famille retenue, "
+        + "et le moteur la calcule sous elle.</span></div>";
+    });
+    /* LA SOURCE FERME LE BLOC, comme partout ailleurs sur cette page : ces
+       descriptions cadrent un métier, elles ne fixent aucune performance. */
+    if (fluidesTechnique().modes_source) {
+      h += '<p class="dc-fl-s">' + esc(fluidesTechnique().modes_source) + "</p>";
+    }
+    z.hidden = false;
+    z.innerHTML = h;
   }
 
 

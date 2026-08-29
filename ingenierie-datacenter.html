@@ -497,6 +497,202 @@
     .ig-sel-x{transition:none}
     .ig-sel-b{transition:none}
   }
+  /* ══════════════════════════════════════════════════════════════════════
+     LE CRIBLAGE ICPE
+     ══════════════════════════════════════════════════════════════════════
+     Le badge du régime porte la seule couleur forte de la section : c'est
+     l'information qui commande le planning, et elle doit se lire sans
+     chercher. Les trois états d'une rubrique — atteinte, sans donnée,
+     écartée — se distinguent par la forme du badge autant que par sa
+     couleur : une distinction qui ne tient qu'à la teinte n'existe pas pour
+     un lecteur daltonien. */
+  .ig-icpe-r{font-family:var(--mono);font-size:10px;color:var(--muted2);
+    border:1px solid var(--line);border-radius:4px;padding:1px 5px;
+    cursor:help}
+  .ig-icpe-tete{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;
+    margin:16px 0 12px;padding:12px 15px;border:1px solid var(--line);
+    border-left:3px solid var(--cyan);border-radius:9px;background:var(--panel)}
+  .ig-icpe-reg{font-size:14px;color:var(--ink);font-weight:600;cursor:help}
+  .ig-icpe-n{flex:1 1 280px;font-size:11.5px;line-height:1.6;
+    color:var(--muted)}
+  .ig-icpe-b{flex:0 0 auto;min-width:26px;text-align:center;
+    font-family:var(--mono);font-size:10.5px;padding:2px 6px;border-radius:5px;
+    border:1px solid var(--line);color:var(--muted2)}
+  .ig-icpe-b-declenchee{border-color:rgba(34,211,238,.55);color:var(--ink);
+    background:rgba(34,211,238,.12)}
+  .ig-icpe-b-a_verifier{border-style:dashed;color:#8FDBF2}
+  .ig-icpe-b-ecartee{opacity:.55}
+  .ig-icpe-f{margin-top:12px;padding:14px 16px;border:1px solid var(--line);
+    border-radius:9px;background:var(--panel)}
+  .ig-icpe-f h4{margin:0 0 6px;font-size:13.5px;color:var(--ink);cursor:help}
+  .ig-icpe-s{margin:0 0 10px;font-size:11.5px;line-height:1.6;
+    color:var(--muted2)}
+  .ig-icpe-v{margin:0 0 8px;font-size:13px;color:var(--muted)}
+  .ig-icpe-v b{color:var(--ink);font-variant-numeric:tabular-nums}
+  .ig-icpe-d{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;
+    margin:0 0 10px;font-size:11px;line-height:1.55}
+  .ig-icpe-d dt{font-family:var(--mono);font-size:10px;color:var(--muted2)}
+  .ig-icpe-d dd{margin:0;color:var(--muted);font-variant-numeric:tabular-nums}
+  .ig-icpe-m{margin:0 0 8px;padding:7px 10px;border-radius:7px;
+    background:rgba(34,211,238,.08);font-size:11.5px;color:var(--muted)}
+  .ig-icpe-m b{color:var(--ink);font-variant-numeric:tabular-nums}
+  .ig-icpe-se{margin:0 0 12px;padding-left:18px;font-size:11px;
+    line-height:1.7;color:var(--muted2)}
+  .ig-icpe-se b{color:var(--muted)}
+  .ig-icpe-k{margin:0 0 10px;font-size:12px;line-height:1.6;color:#8FDBF2}
+  .ig-icpe-x{margin:0 0 10px;font-size:12px;line-height:1.6;
+    color:var(--muted2)}
+  .ig-icpe-q{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;
+    margin:0;font-size:11.5px;line-height:1.6}
+  .ig-icpe-q dt{font-family:var(--mono);font-size:10px;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--muted2);white-space:nowrap}
+  .ig-icpe-q dd{margin:0;color:var(--muted)}
+  .ig-icpe-mis{margin-top:14px;padding:13px 16px;border:1px solid var(--line);
+    border-radius:9px}
+  .ig-icpe-mis b{font-size:12.5px;color:var(--ink)}
+  .ig-icpe-mis ul{margin:8px 0 0;padding-left:18px;font-size:12px;
+    line-height:1.7;color:var(--muted)}
+  .ig-icpe-res{margin:12px 0 0;font-size:10.5px;line-height:1.6;
+    color:var(--muted2)}
+  @media (max-width:620px){
+    .ig-icpe-d,.ig-icpe-q{grid-template-columns:1fr;gap:1px}
+    .ig-icpe-q dd{margin-bottom:8px}
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     LA PHASE TRAVAUX
+     ══════════════════════════════════════════════════════════════════════
+     La liste est numérotée parce que l'ordre PORTE une information : chaque
+     opération a un préalable, et le franchir ne fait pas gagner de temps.
+     Les acteurs portent la couleur de leur LIEN, pas de leur métier : on ne
+     pilote pas de la même façon quelqu'un qui doit un résultat et quelqu'un
+     dont l'avis est réglementé. */
+  .ig-tr-pre{margin:14px 0;padding:13px 16px;border:1px solid rgba(34,211,238,.4);
+    border-radius:9px;background:rgba(34,211,238,.07)}
+  .ig-tr-pre>b{font-size:12.5px;color:var(--ink)}
+  .ig-tr-pre-l{margin-top:8px;font-size:12px;line-height:1.65;
+    color:var(--muted)}
+  .ig-tr-pre-l b{color:var(--ink)}
+  .ig-tr-r{display:block;margin-top:7px;font-size:11.5px;line-height:1.6;
+    color:var(--muted2)}
+  .ig-tr-l{margin:16px 0 0;padding-left:22px;counter-reset:none}
+  .ig-tr-o{margin-bottom:16px;padding-left:6px;font-size:12.5px}
+  .ig-tr-o::marker{color:var(--muted2);font-family:var(--mono);font-size:11px}
+  .ig-tr-orph{border-left:2px solid #8FDBF2;padding-left:12px;margin-left:-6px}
+  .ig-tr-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 12px}
+  .ig-tr-h b{font-size:13px;color:var(--ink);cursor:help}
+  .ig-tr-f{font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;
+    text-transform:uppercase;color:var(--muted2);border:1px solid var(--line);
+    border-radius:4px;padding:1px 6px}
+  .ig-tr-ph{font-family:var(--mono);font-size:10px;color:var(--muted2);
+    margin-left:auto}
+  .ig-tr-ob{margin:7px 0 0;font-size:12px;line-height:1.65;color:var(--muted)}
+  .ig-tr-pa{margin:6px 0 0;font-size:11.5px;line-height:1.6;
+    color:var(--muted2)}
+  .ig-tr-ar{margin:7px 0 0;padding:6px 10px;border-radius:6px;
+    background:rgba(34,211,238,.09);font-size:11.5px;line-height:1.6;
+    color:var(--muted)}
+  .ig-tr-ar b{color:var(--ink)}
+  .ig-tr-so{margin:7px 0 0;font-size:11.5px;line-height:1.6;color:#8FDBF2}
+  .ig-tr-ac{margin:8px 0 0;display:flex;flex-wrap:wrap;gap:5px}
+  .ig-tr-a{font-size:10.5px;padding:2px 8px;border-radius:11px;
+    border:1px solid var(--line);color:var(--muted2);cursor:help}
+  .ig-tr-a-commande{border-color:rgba(34,211,238,.4);color:var(--muted)}
+  .ig-tr-a-tiers_commande{border-style:dashed;
+    border-color:rgba(34,211,238,.4)}
+  .ig-tr-a-tiers_reglemente{border-style:dashed;color:#8FDBF2;
+    border-color:rgba(143,219,242,.45)}
+  .ig-tr-a-hors_contrat{opacity:.7;border-style:dotted}
+  .ig-tr-st{margin:26px 0 12px;font-size:15px;color:var(--ink)}
+  .ig-tr-sol{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+    gap:12px}
+  .ig-tr-s{padding:12px 14px;border:1px solid var(--line);border-radius:9px;
+    background:var(--panel);font-size:11.5px;line-height:1.6;
+    color:var(--muted)}
+  .ig-tr-s>b{display:block;font-size:12.5px;color:var(--ink);cursor:help}
+  .ig-tr-s p{margin:7px 0 0}
+  .ig-tr-s i{color:var(--muted2);font-style:normal;font-family:var(--mono);
+    font-size:10px;letter-spacing:.03em;text-transform:uppercase}
+  .ig-tr-simp{border-color:rgba(34,211,238,.5)}
+  .ig-tr-sb{display:inline-block;margin-top:5px;margin-right:6px;
+    font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--ink);
+    background:rgba(34,211,238,.16);border-radius:4px;padding:1px 6px}
+  .ig-tr-sn{display:block;margin-top:4px;font-size:10.5px;color:var(--muted2)}
+
+  /* ══════════════════════════════════════════════════════════════════════
+     L'APPEL D'OFFRES
+     ══════════════════════════════════════════════════════════════════════
+     Les citations sont mises en forme COMME des citations — retrait, filet,
+     position dans le document —, parce que c'est ce qu'elles sont : le
+     module ne comprend pas ce qu'il relève, et la forme doit le dire avant
+     que le texte ne le rappelle. */
+  .ig-ao-docs{margin-top:10px}
+  .ig-ao-d{display:block;font-size:12px;color:var(--muted);padding:3px 0}
+  .ig-ao-al{margin:16px 0 0}
+  .ig-ao-a{margin:0 0 7px;padding:9px 13px;border-radius:8px;font-size:12px;
+    line-height:1.6;border:1px solid var(--line);color:var(--muted)}
+  .ig-ao-a-bloquante{border-color:rgba(143,219,242,.55);color:#8FDBF2;
+    background:rgba(143,219,242,.07)}
+  .ig-ao-a-attention{border-color:rgba(232,200,106,.45)}
+  .ig-ao-mq{margin:14px 0;padding:12px 15px;border:1px solid var(--line);
+    border-radius:9px}
+  .ig-ao-mq b{font-size:12.5px;color:var(--ink)}
+  .ig-ao-mq ul{margin:8px 0 0;padding-left:18px;font-size:12px;line-height:1.7;
+    color:var(--muted)}
+  .ig-ao-bl{font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;
+    text-transform:uppercase;color:#8FDBF2;border:1px solid rgba(143,219,242,.45);
+    border-radius:4px;padding:1px 5px;margin-left:5px}
+  .ig-ao-p{margin-top:14px;padding:13px 16px;border:1px solid var(--line);
+    border-radius:9px;background:var(--panel)}
+  .ig-ao-ph{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 12px}
+  .ig-ao-ph b{font-size:13px;color:var(--ink);cursor:help}
+  .ig-ao-fn{font-family:var(--mono);font-size:10.5px;color:var(--muted2);
+    word-break:break-all}
+  .ig-ao-cf{margin-left:auto;font-family:var(--mono);font-size:9.5px;
+    letter-spacing:.04em;text-transform:uppercase;color:var(--muted2)}
+  .ig-ao-cf-faible{color:#8FDBF2}
+  .ig-ao-en,.ig-ao-pg{margin:8px 0 0;font-size:11.5px;line-height:1.6;
+    color:var(--muted)}
+  .ig-ao-en i,.ig-ao-pg i{color:var(--muted2);font-style:normal;
+    font-family:var(--mono);font-size:10px;letter-spacing:.03em;
+    text-transform:uppercase}
+  .ig-ao-r{margin-top:11px;padding-left:11px;border-left:2px solid var(--line)}
+  .ig-ao-r>b{font-size:11.5px;color:var(--ink)}
+  .ig-ao-rk{opacity:.75}
+  .ig-ao-c{margin:6px 0 0;padding:7px 11px;border-radius:7px;
+    background:rgba(255,255,255,.03);font-size:11.5px;line-height:1.6;
+    color:var(--muted);font-style:italic}
+  .ig-ao-c cite{display:block;margin-top:4px;font-style:normal;
+    font-family:var(--mono);font-size:9.5px;color:var(--muted2)}
+  .ig-ao-n,.ig-ao-k{margin:6px 0 0;font-size:11px;line-height:1.6;
+    color:#8FDBF2}
+  .ig-ao-w{margin:5px 0 0;font-size:10.5px;line-height:1.6;color:var(--muted2)}
+  .ig-ao-inc{border-style:dashed}
+  .ig-ao-cd{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+    gap:12px;margin-top:12px}
+  .ig-ao-cp{padding:13px 15px;border:1px solid var(--line);border-radius:9px;
+    background:var(--panel)}
+  .ig-ao-cpb{border-color:rgba(34,211,238,.45)}
+  .ig-ao-cph{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 10px}
+  .ig-ao-cph b{font-size:12.5px;color:var(--ink);cursor:help;flex:1 1 100%}
+  .ig-ao-cn{font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--muted2)}
+  .ig-ao-cq{margin:8px 0 0;font-size:11.5px;line-height:1.6;color:var(--muted)}
+  .ig-ao-cq i{color:var(--muted2);font-style:normal;font-family:var(--mono);
+    font-size:10px;text-transform:uppercase}
+  .ig-ao-cc{margin:7px 0 0;padding-left:17px;font-size:11.5px;line-height:1.65;
+    color:var(--muted)}
+  .ig-ao-dl{margin:8px 0 0;padding:6px 10px;border-radius:6px;
+    background:rgba(232,200,106,.09);font-size:11px;line-height:1.55;
+    color:var(--muted)}
+  .ig-ao-dl b{color:var(--ink)}
+  .ig-ao-gr{margin:8px 0 0;font-size:11px;line-height:1.6;color:var(--muted2)}
+  .ig-ao-gr i{font-style:normal;font-family:var(--mono);font-size:9.5px;
+    text-transform:uppercase}
+  .ig-ao-red{margin:8px 0 0;padding-top:7px;border-top:1px dashed var(--line);
+    font-size:11px;line-height:1.6;color:var(--muted)}
+
   .ig-reg-b{all:unset;cursor:pointer;font-size:11.5px;padding:4px 11px;
     margin-top:8px;border-radius:7px;border:1px solid var(--line);
     color:var(--muted);display:inline-block}
@@ -1804,8 +2000,62 @@
     </div>
   </section>
 
+  <!-- ═══════════════════════════════════════════════════════════════════
+       LE RÉGIME ICPE — un criblage, pas un classement.
+
+       POURQUOI ICI, entre le coût des travaux et le dépôt des pièces. Parce
+       que le régime décide du PLANNING et que le planning décide du projet :
+       une cuve agrandie de vingt mètres cubes au chiffrage peut faire passer
+       le site de la déclaration à l'enregistrement, et ajouter des mois
+       d'instruction sur le chemin critique. Le criblage se fait donc au
+       moment où les puissances et les volumes viennent d'être arbitrés,
+       pas au dépôt du permis.
+       ═══════════════════════════════════════════════════════════════════ -->
+  <section class="wrap rc-sec" id="ig-icpe">
+    <div class="rc-etape"><span class="n">8</span><h2>Le régime ICPE de votre projet</h2></div>
+    <p class="lead" style="max-width:74ch;margin-top:0">
+      Cinq rubriques de la nomenclature couvrent l'essentiel d'un centre de
+      données&nbsp;: les groupes électrogènes, leur combustible, les fluides
+      frigorigènes, le refroidissement évaporatif et les batteries d'onduleurs.
+      Le criblage dit lesquelles sont en jeu sur vos grandeurs, de quel côté du
+      seuil vous êtes, et ce que le régime coûte en délai.</p>
+    <div class="ig-encart" style="margin:14px 0">
+      <b>Ce n'est pas un classement.</b> Le classement est prononcé par le
+      préfet sur un dossier instruit, et il dépend aussi de l'implantation, du
+      voisinage et des autres activités du site. Ce module dit quelles
+      rubriques aller lire — c'est ce qu'on fait en première réunion, et cela
+      n'a jamais remplacé le bureau d'études qui monte le dossier.
+    </div>
+    <div class="rc-card" id="ig-icpe-form"><p class="note">Chargement…</p></div>
+    <button type="button" class="ig-lanceur-b" id="ig-icpe-go">Cribler les rubriques →</button>
+    <p class="note" id="ig-icpe-msg" style="margin-top:10px"></p>
+    <div id="ig-icpe-out"></div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       LA PHASE TRAVAUX — l'ordre des opérations et les tiers.
+
+       CE QUE CETTE SECTION AJOUTE au cadre des phases. Le cadre dit quelles
+       PIÈCES sont dues ; il ne dit pas qui fait quoi pendant le chantier ni
+       ce qui bloque quoi. Or la phase travaux échoue rarement sur une pièce
+       manquante : elle échoue sur une opération faite trop tard, un point
+       d'arrêt franchi sans le contrôleur, un essai intégré découvert la
+       semaine de la réception.
+       ═══════════════════════════════════════════════════════════════════ -->
+  <section class="wrap rc-sec" id="ig-travaux">
+    <div class="rc-etape"><span class="n">9</span><h2>Organiser la phase travaux</h2></div>
+    <p class="lead" style="max-width:74ch;margin-top:0">
+      Du démarrage du chantier à la fin de la garantie de parfait
+      achèvement&nbsp;: qui intervient et à quel titre, dans quel ordre les
+      opérations s'enchaînent, ce qu'il faut avant chacune, et les solutions —
+      techniques et managériales — qui font tenir les termes du dossier marché.</p>
+    <div class="dc-grille" id="ig-tr-form" style="margin-top:14px"></div>
+    <p class="note" id="ig-tr-msg" style="margin-top:10px"></p>
+    <div id="ig-tr-out"></div>
+  </section>
+
   <section class="wrap rc-sec">
-    <div class="rc-etape"><span class="n">8</span><h2>Apporter vos documents</h2></div>
+    <div class="rc-etape"><span class="n">10</span><h2>Apporter vos documents</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Vos pièces existantes — notes de calcul, relevés, plans, spécifications
       d'un projet antérieur — complètent l'étude là où le moteur s'arrête. Elles
@@ -1817,8 +2067,39 @@
     <div id="ig-depot-liste"></div>
   </section>
 
+  <!-- ═══════════════════════════════════════════════════════════════════
+       L'APPEL D'OFFRES — lire le dossier du client, préparer la réponse.
+
+       DEUX GESTES DISTINCTS, et l'ordre compte. On LIT d'abord : les pièces
+       déposées sont identifiées, leurs points de vigilance cités, et surtout
+       CE QUI MANQUE au dossier est dit. On RÉPOND ensuite, dans l'ordre où
+       l'on s'y prend réellement — les justificatifs à obtenir d'abord, parce
+       qu'ils ont un délai, les formulaires en dernier.
+
+       CE QUI NE SE FAIT PAS ICI. Les DC1, DC2 et déclarations sur l'honneur
+       ne se génèrent pas : ils portent des déclarations dont la fausseté est
+       sanctionnée. La page dit ce que chaque rubrique attend ; elle ne
+       déclare rien.
+       ═══════════════════════════════════════════════════════════════════ -->
+  <section class="wrap rc-sec" id="ig-ao">
+    <div class="rc-etape"><span class="n">11</span><h2>Répondre à l'appel d'offres</h2></div>
+    <p class="lead" style="max-width:74ch;margin-top:0">
+      Déposez les pièces de la consultation — CCTP, CCAP, CCAG, règlement de
+      consultation, DPGF, tableau de répartition MOE/AMO, feuilles de calcul —
+      à l'étape précédente, puis analysez-les ici. La composition du dossier de
+      candidature suit, avec ce que chaque pièce doit contenir.</p>
+    <div id="ig-ao-depot"></div>
+    <div class="actions" style="margin-top:14px;gap:10px;flex-wrap:wrap">
+      <button type="button" class="ig-lanceur-b" id="ig-ao-go">Analyser le dossier de consultation →</button>
+      <button type="button" class="btn btn-s" id="ig-ao-cand">Voir le dossier de candidature</button>
+    </div>
+    <p class="note" id="ig-ao-msg" style="margin-top:10px"></p>
+    <div id="ig-ao-out"></div>
+    <div id="ig-ao-cand-out"></div>
+  </section>
+
   <section class="wrap rc-sec" id="ig-limites">
-    <div class="rc-etape"><span class="n">9</span><h2>Ce que ce cadre ne fait pas</h2></div>
+    <div class="rc-etape"><span class="n">12</span><h2>Ce que ce cadre ne fait pas</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Le dire ici plutôt qu'en note de bas de page&nbsp;: ces limites décident du moment où
       il faut un ingénieur, et les ignorer coûte plus cher que de les lire.</p>
@@ -1834,6 +2115,22 @@
         remplacent pas une précision établie projet par projet.</li>
       <li>Une phase déclarée franchissable <b>ne l'est qu'au regard de ce moteur</b>.
         Aucun jalon de projet ne se franchit sur un seul critère.</li>
+      <li>Le criblage ICPE <b>ne classe pas le site</b>. Il dit quelles rubriques
+        sont en jeu sur les grandeurs saisies et de quel côté du seuil vous êtes.
+        Le classement est prononcé par le préfet sur un dossier instruit, et les
+        seuils sont des repères à revalider sur le texte consolidé en vigueur à
+        la date du dépôt&nbsp;: la nomenclature est modifiée par décret plusieurs
+        fois par an.</li>
+      <li>L'analyse du dossier de consultation <b>ne remplace pas la lecture des
+        pièces</b>. Elle identifie les documents, cite les passages qu'elle
+        reconnaît et signale ce qui manque&nbsp;; elle ne comprend pas ce qu'elle
+        cite. Chaque citation porte sa position pour être vérifiée, et tout ce
+        qui n'est pas trouvé est déclaré non trouvé plutôt que supposé absent.</li>
+      <li>Les <b>formulaires de candidature ne se génèrent pas</b>. DC1, DC2 et
+        la déclaration sur l'honneur portent des déclarations dont la fausseté
+        est sanctionnée&nbsp;: elles se signent par une personne habilitée, après
+        vérification. Ce cadre dit ce que chaque rubrique attend — il ne déclare,
+        n'atteste et n'engage rien.</li>
     </ul>
   </section>
 

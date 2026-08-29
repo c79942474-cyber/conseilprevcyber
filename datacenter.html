@@ -860,6 +860,33 @@
     margin-top:5px;border-left:2px solid #5BC8E8;padding-left:8px}
   .dc-dom{display:block;font-size:10.5px;color:var(--muted2);line-height:1.5}
 
+  /* ── CE QUE LE CHOIX DES FLUIDES ENGAGE ──────────────────────────────
+     Un bloc de lecture, pas un formulaire : il n'a ni champ ni bouton, et
+     sa hiérarchie typographique fait tout le travail. Les quatre lignes de
+     la liste de définition se lisent dans l'ordre où l'on pose les
+     questions ; l'erreur classique est mise à part parce que c'est celle
+     qu'on vient chercher. */
+  .dc-fl{margin-top:14px;padding:14px 16px;border:1px solid var(--line);
+    border-left:2px solid var(--cyan);border-radius:9px;background:var(--panel)}
+  .dc-fl-t{margin:0 0 8px;font-size:14.5px;color:var(--ink)}
+  .dc-fl-p{margin:0 0 12px;font-size:12.5px;line-height:1.65;color:var(--muted)}
+  .dc-fl-l{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;
+    font-size:12px;line-height:1.6}
+  .dc-fl-l dt{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--muted2);white-space:nowrap;
+    padding-top:2px}
+  .dc-fl-l dd{margin:0;color:var(--muted)}
+  .dc-fl-l dt.dc-fl-e{color:#8FDBF2}
+  .dc-fl-l dd.dc-fl-e{color:var(--ink)}
+  .dc-fl-c{margin-top:12px;padding:10px 12px;border:1px dashed var(--line);
+    border-radius:8px;font-size:12px;line-height:1.6;color:var(--muted)}
+  .dc-fl-c b{color:var(--ink)}
+  .dc-fl-n{display:block;margin-top:6px;font-size:10.5px;color:var(--muted2)}
+  .dc-fl-s{margin:12px 0 0;font-size:10.5px;line-height:1.55;
+    color:var(--muted2)}
+  @media (max-width:640px){.dc-fl-l{grid-template-columns:1fr;gap:2px}
+    .dc-fl-l dd{margin-bottom:8px}}
+
   /* ── L'AVANCEMENT DU FORMULAIRE ──────────────────────────────────────
      Il compte les champs RECEVABLES, pas les champs remplis. */
   .dc-av{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;
@@ -1065,6 +1092,19 @@
          il ne les vérifie pas. -->
     <div id="dc-repris" hidden></div>
     <div class="rc-card" id="dc-form"><p class="note">Chargement du référentiel…</p></div>
+
+    <!-- CE QUE LE CHOIX DES FLUIDES ENGAGE. La liste déroulante « Famille de
+         refroidissement » propose sept étiquettes exactes et opaques — « Free
+         cooling indirect à assistance adiabatique » ne s'adresse qu'à ceux qui
+         savaient déjà. Ce bloc explique le mode RETENU : son principe, la
+         condition à laquelle il marche, ce qu'il coûte, ce qu'il impose au
+         reste du projet, et l'erreur qu'on voit le plus souvent dessus.
+
+         IL PORTE AUSSI CE QUI N'EST PAS DANS LA LISTE. Le free-chilling est un
+         mode de CONDUITE d'une production d'eau glacée, pas une famille de
+         calcul : le chercher dans la liste ne mène nulle part, et ne rien dire
+         laisserait croire qu'il n'existe pas. -->
+    <div id="dc-fluides" class="dc-fl" hidden></div>
 
     <!-- OÙ L'ON EN EST, ET CE QUI RETIENT L'ÉTUDE. Le formulaire disait champ
          par champ ce qu'il acceptait ; il ne disait rien de l'ensemble. Le

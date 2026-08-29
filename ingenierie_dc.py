@@ -6272,8 +6272,30 @@ def referentiel():
         # Le glossaire, servi avec le cadre : une page dense en sigles qui ne
         # les explique pas ne s'adresse qu'à ceux qui n'en avaient pas besoin.
         "glossaire": glossaire(),
+        # LES TROIS PROLONGEMENTS, servis avec le cadre plutôt que demandés
+        # séparément. Ce sont des LISTES DE CHAMPS et des VOCABULAIRES, pas des
+        # résultats : les faire demander par la page ajouterait trois appels
+        # pour dessiner trois formulaires, et la page afficherait ses listes
+        # déroulantes vides le temps qu'ils reviennent.
+        "natures_travaux": _table_voisine("technique_dc", "NATURES_TRAVAUX"),
+        "natures_travaux_note": _table_voisine("technique_dc", "NATURES_NOTE"),
+        "icpe_champs": _table_voisine("icpe_dc", "CHAMPS"),
         "moteur": D.VERSION,
     }
+
+
+def _table_voisine(module, nom):
+    """Une table d'un module voisin, ou son vide, sans faire tomber le cadre.
+
+    POURQUOI CETTE PRUDENCE ICI ET PAS AILLEURS. Le référentiel est le premier
+    appel de la page : s'il échoue, rien ne s'affiche du tout. Un module voisin
+    absent doit coûter une section vide, jamais une page blanche — et la
+    section vide, elle, se voit.
+    """
+    try:
+        return getattr(__import__(module), nom)
+    except Exception:                                    # pragma: no cover
+        return [] if nom.endswith("CHAMPS") else {}
 
 
 def sante():
