@@ -5379,7 +5379,8 @@ def _glossaires_voisins():
     référentiel rendrait la page entière blanche. Les deux ne se valent pas.
     """
     out = {}
-    for nom in ("technique_dc", "travaux_dc", "ao_dc", "icpe_dc"):
+    for nom in ("technique_dc", "travaux_dc", "ao_dc", "icpe_dc",
+                "programme_dc"):
         try:
             mod = __import__(nom)
             g = mod.glossaire() if hasattr(mod, "glossaire") else {}
@@ -5468,7 +5469,8 @@ def _verifier_glossaire():
     sigle.
     """
     fautes, vues = [], {}
-    for nom in ("technique_dc", "travaux_dc", "ao_dc", "icpe_dc"):
+    for nom in ("technique_dc", "travaux_dc", "ao_dc", "icpe_dc",
+                "programme_dc"):
         try:
             mod = __import__(nom)
             g = mod.glossaire() if hasattr(mod, "glossaire") else {}
@@ -6277,25 +6279,33 @@ def referentiel():
         # résultats : les faire demander par la page ajouterait trois appels
         # pour dessiner trois formulaires, et la page afficherait ses listes
         # déroulantes vides le temps qu'ils reviennent.
-        "natures_travaux": _table_voisine("technique_dc", "NATURES_TRAVAUX"),
-        "natures_travaux_note": _table_voisine("technique_dc", "NATURES_NOTE"),
-        "icpe_champs": _table_voisine("icpe_dc", "CHAMPS"),
+        "natures_travaux": _table_voisine("technique_dc", "NATURES_TRAVAUX", {}),
+        "natures_travaux_note": _table_voisine("technique_dc", "NATURES_NOTE", ""),
+        "icpe_champs": _table_voisine("icpe_dc", "CHAMPS", []),
+        "programme_champs": _table_voisine("programme_dc", "CHAMPS_SITE", []),
         "moteur": D.VERSION,
     }
 
 
-def _table_voisine(module, nom):
+def _table_voisine(module, nom, vide=None):
     """Une table d'un module voisin, ou son vide, sans faire tomber le cadre.
 
     POURQUOI CETTE PRUDENCE ICI ET PAS AILLEURS. Le référentiel est le premier
     appel de la page : s'il échoue, rien ne s'affiche du tout. Un module voisin
     absent doit coûter une section vide, jamais une page blanche — et la
     section vide, elle, se voit.
+
+    LE VIDE SE DÉCLARE, il ne se devine pas. Il était déduit du NOM de la table
+    — « ça finit par CHAMPS, donc c'est une liste ». La règle marchait pour
+    `CHAMPS` et pas pour `CHAMPS_SITE`, qui aurait reçu un dictionnaire là où
+    la page attend une liste : elle aurait bouclé sur ses clés et dessiné un
+    formulaire de champs inexistants. Une convention de nommage qui décide
+    d'un TYPE se casse au premier nom qui ne la suit pas.
     """
     try:
         return getattr(__import__(module), nom)
     except Exception:                                    # pragma: no cover
-        return [] if nom.endswith("CHAMPS") else {}
+        return vide
 
 
 def sante():

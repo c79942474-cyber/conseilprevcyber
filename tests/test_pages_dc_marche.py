@@ -371,3 +371,103 @@ def test_les_classes_du_bloc_des_fluides_sont_definies():
     corps = js[i:i + 2800]
     for cls in sorted(set(re.findall(r'class="(dc-fl[a-z-]*)"', corps))):
         assert ".%s{" % cls in h, cls
+
+
+# ── La section de programme ────────────────────────────────────────────────
+
+def test_la_section_de_programme_existe_avec_ses_zones():
+    h = lire("ingenierie-datacenter.html")
+    assert 'id="ig-prog"' in h
+    for zid in ("ig-prog-sites", "ig-prog-out", "ig-prog-msg",
+                "ig-prog-add", "ig-prog-go"):
+        assert 'id="%s"' % zid in h, zid
+
+
+@pytest.mark.parametrize("fn", ["progFormulaire", "progAjouter", "progLire",
+                                "progConsolider", "progRendre", "progTotal",
+                                "nombreFr"])
+def test_chaque_fonction_de_programme_est_definie_et_referencee(fn):
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    assert "function %s(" % fn in js, fn
+    assert len(re.findall(r"\b%s\b" % re.escape(fn), js)) >= 2, fn
+
+
+@pytest.mark.parametrize("bouton,fonction", [
+    ("ig-prog-add", "progAjouter"),
+    ("ig-prog-go", "progConsolider"),
+])
+def test_les_boutons_de_programme_portent_leur_ecouteur(bouton, fonction):
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    m = re.search(r'\$\("#%s"\)+\s*b\.addEventListener\("click",\s*(\w+)'
+                  % re.escape(bouton), js)
+    assert m and m.group(1) == fonction, bouton
+
+
+def test_un_total_affiche_son_perimetre_contre_le_chiffre():
+    """LE PÉRIMÈTRE N'EST PAS UNE NOTE DE BAS DE PAGE : c'est lui qui décide
+    de ce que le total vaut. Un sous-total doit se distinguer d'un total à
+    l'œil, pas seulement au texte."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function progTotal(")
+    corps = js[i:js.index("function nombreFr(")]
+    assert "SOUS-TOTAL" in corps
+    assert "sites_absents" in corps
+    assert "ig-prog-partiel" in corps
+    assert ".ig-prog-partiel{" in lire("ingenierie-datacenter.html")
+
+
+def test_un_ratio_non_rendu_affiche_son_motif():
+    """« — » sans motif se lit comme une panne ; « les deux grandeurs ne
+    couvrent pas les mêmes sites » se lit comme une consigne."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function progRendre(")
+    corps = js[i:i + 8000]
+    assert "pourquoi" in corps
+    assert "ig-prog-w" in corps
+
+
+def test_la_mise_en_garde_multi_pays_ne_s_affiche_que_si_elle_s_applique():
+    """Une mise en garde servie à un programme national apprend à ne plus les
+    lire."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function progRendre(")
+    corps = js[i:i + 8000]
+    assert "v.par_pays.multi_pays" in corps
+    j = corps.index("v.par_pays.multi_pays")
+    assert "ce_qui_ne_se_replique_pas" in corps[j:j + 700]
+
+
+def test_ce_qui_ne_se_consolide_pas_est_rendu_et_non_omis():
+    """Une absence silencieuse se lirait comme un oubli."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function progRendre(")
+    corps = js[i:i + 9000]
+    assert "non_consolidables" in corps
+
+
+def test_une_ligne_de_site_vide_n_est_pas_comptee():
+    """La compter gonflerait l'effectif du programme et ferait apparaître un
+    « site sans nom » dans les absents de chaque total."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function progLire(")
+    corps = js[i:js.index("function progConsolider(")]
+    assert "rempli" in corps
+    assert "if (rempli)" in corps
+
+
+def test_la_page_dit_que_consolider_n_est_pas_additionner():
+    """Dans le corps de la page, pas seulement dans la réponse : un lecteur
+    qui n'a pas encore consolidé doit déjà le savoir."""
+    h = lire("ingenierie-datacenter.html")
+    i = h.index('id="ig-prog"')
+    entete = h[i:i + 2500]
+    assert "n'est pas additionner" in entete
+    assert "pondère" in entete
+
+
+def test_les_limites_couvrent_la_vue_de_programme():
+    h = lire("ingenierie-datacenter.html")
+    i = h.index('id="ig-limites"')
+    limites = h[i:i + 5000]
+    assert "consolide ce qu'on lui donne" in limites
+    assert "nationale" in limites

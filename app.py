@@ -2317,6 +2317,7 @@ import technique_dc  # noqa: E402  — le vocabulaire du métier, servi aux info
 import icpe_dc       # noqa: E402  — crible les rubriques, ne classe pas le site
 import travaux_dc    # noqa: E402  — l'ordre des opérations de chantier et ses tiers
 import ao_dc         # noqa: E402  — lit le dossier marché, prépare la candidature
+import programme_dc  # noqa: E402  — consolide un portefeuille de sites, pas un projet
 import econome_dc     # l'economiste de la construction : quantites x prix
 import decarbonation  # noqa: E402  — les situe dans la hiérarchie d'atténuation
 import strategie_dd  # noqa: E402  — le livrable d'ouverture, quatre perspectives
@@ -4166,6 +4167,53 @@ _AO_REDACTION = {
     "qse": "ao-qse",
     "conventions": "ao-conventions-collectives",
 }
+
+
+@app.route("/api/datacenter/programme", methods=["POST"])
+@login_required
+def api_datacenter_programme():
+    """La vue de programme : ce qui s'additionne, ce qui se pondère, ce qui ne
+    se consolide pas.
+
+    POURQUOI CETTE ROUTE NE VA CHERCHER AUCUNE DONNÉE. Elle consolide ce qu'on
+    lui donne, et rien d'autre. Aller lire les projets enregistrés serait
+    commode et faux : un programme n'est pas l'ensemble des projets d'un
+    compte, c'est un périmètre que quelqu'un décide — et deux programmes
+    peuvent partager un site.
+
+    CE QU'ELLE REND ET QUI N'EST PAS UN TOTAL : le nombre de sites que chaque
+    total couvre, et le nom de ceux qui manquent. Un CAPEX calculé sur quatre
+    sites sur sept est un sous-total, et le présenter autrement est la façon la
+    plus rapide de perdre la confiance d'un comité exécutif.
+    """
+    data = request.get_json(silent=True) or {}
+    sites = data.get("sites")
+    if not isinstance(sites, list):
+        return jsonify(ok=False, error="sites_manquants",
+                       message="La liste des sites du programme est "
+                               "nécessaire.",
+                       champs=programme_dc.CHAMPS_SITE), 400
+    if len(sites) > 200:
+        # Un programme de plus de deux cents sites existe ; il ne se pilote pas
+        # depuis un formulaire. Le dire vaut mieux que de servir une page qui
+        # met trente secondes à s'afficher.
+        return jsonify(ok=False, error="trop_de_sites",
+                       message="Au-delà de deux cents sites, cette vue n'est "
+                               "plus lisible : découpez le programme en "
+                               "sous-portefeuilles."), 400
+    try:
+        vue = programme_dc.consolider(sites)
+    except Exception:
+        app.logger.exception("consolidation de programme")
+        return jsonify(ok=False, error="calcul",
+                       message="La consolidation n'a pas pu être établie."), 500
+    return jsonify(ok=True, programme=vue,
+                   kpi=programme_dc.KPI,
+                   champs=programme_dc.CHAMPS_SITE,
+                   natures=programme_dc.NATURES_SITE,
+                   parties_prenantes=programme_dc.PARTIES_PRENANTES,
+                   international=programme_dc.INTERNATIONAL,
+                   zero_defaut=programme_dc.ZERO_DEFAUT)
 
 
 @app.route("/api/datacenter/marche/candidature", methods=["POST"])

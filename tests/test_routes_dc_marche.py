@@ -321,3 +321,76 @@ def test_le_glossaire_de_la_page_porte_les_familles_des_quatre_modules(connecte)
                     "solution", "piece_marche", "piece_candidature"):
         assert famille in g, famille
         assert g[famille], famille
+
+
+# ── Le pilotage de programme ───────────────────────────────────────────────
+
+def test_la_vue_de_programme_est_ouverte_a_un_compte_client(connecte):
+    r = connecte.post("/api/datacenter/programme",
+                      json={"sites": [{"nom": "A", "puissance_it_kw": 100}]},
+                      headers=ORIGINE)
+    assert r.status_code == 200, r.get_json()
+
+
+def test_un_visiteur_anonyme_n_atteint_pas_la_vue_de_programme(anonyme):
+    r = anonyme.post("/api/datacenter/programme", json={"sites": []},
+                     headers=ORIGINE)
+    assert r.status_code in (401, 403)
+
+
+def test_une_demande_sans_liste_de_sites_est_refusee_avec_ses_champs(connecte):
+    """Refuser sans dire ce qu'on attend fait recommencer à l'identique. La
+    liste des champs part avec le refus."""
+    r = connecte.post("/api/datacenter/programme", json={}, headers=ORIGINE)
+    assert r.status_code == 400
+    j = r.get_json()
+    assert j["error"] == "sites_manquants"
+    assert j["champs"], "le refus n'indique pas ce qu'on attend"
+
+
+def test_un_portefeuille_demesure_est_refuse_avec_une_consigne(connecte):
+    """Un programme de plus de deux cents sites existe ; il ne se pilote pas
+    depuis un formulaire. Le dire vaut mieux que de servir une page qui met
+    trente secondes à s'afficher."""
+    r = connecte.post("/api/datacenter/programme",
+                      json={"sites": [{"nom": str(i)} for i in range(201)]},
+                      headers=ORIGINE)
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "trop_de_sites"
+    assert "sous-portefeuilles" in r.get_json()["message"]
+
+
+def test_la_vue_rend_le_perimetre_de_chaque_total(connecte):
+    """C'est lui qui décide de ce que le total vaut, et la page l'affiche
+    contre le chiffre — pas en note de bas de page."""
+    j = connecte.post("/api/datacenter/programme", json={"sites": [
+        {"nom": "A", "puissance_it_kw": 1000, "pue": 1.2},
+        {"nom": "B"},
+    ]}, headers=ORIGINE).get_json()
+    cap = j["programme"]["capacite_engagee_kw"]
+    assert cap["sites_comptes"] == 1
+    assert cap["complet"] is False
+    assert "B" in cap["sites_absents"]
+
+
+def test_la_vue_sert_les_indicateurs_et_les_parties_prenantes(connecte):
+    """La page construit son tableau de bord sur cette réponse : une clé
+    absente le laisserait vide sans rien signaler."""
+    j = connecte.post("/api/datacenter/programme",
+                      json={"sites": [{"nom": "A", "puissance_it_kw": 100}]},
+                      headers=ORIGINE).get_json()
+    assert j["kpi"] and j["champs"] and j["natures"]
+    assert j["parties_prenantes"] and j["international"] and j["zero_defaut"]
+
+
+def test_le_referentiel_d_ingenierie_porte_les_champs_de_site(connecte):
+    j = connecte.get("/api/datacenter/ingenierie").get_json()
+    champs = j["referentiel"]["programme_champs"]
+    assert isinstance(champs, list) and champs
+    assert {c["id"] for c in champs} >= {"nom", "puissance_it_kw", "pue"}
+
+
+def test_le_glossaire_porte_les_familles_du_programme(connecte):
+    g = connecte.get("/api/datacenter/ingenierie").get_json()["referentiel"]["glossaire"]
+    for famille in ("nature_site", "kpi", "partie_prenante"):
+        assert famille in g and g[famille], famille

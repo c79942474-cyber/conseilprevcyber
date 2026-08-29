@@ -498,6 +498,63 @@
     .ig-sel-b{transition:none}
   }
   /* ══════════════════════════════════════════════════════════════════════
+     LE PROGRAMME MULTI-SITES
+     ══════════════════════════════════════════════════════════════════════
+     Un tableau de bord se lit d'un coup d'œil ou ne se lit pas. Les
+     indicateurs sont en grille, chiffre d'abord, et le PÉRIMÈTRE est collé
+     sous le chiffre — pas en note de bas de page : c'est lui qui décide de ce
+     que le chiffre vaut. Un sous-total se signale par son cadre, pour qu'on
+     ne le prenne pas pour un total. */
+  .ig-prog-s{margin-bottom:14px;padding:13px 15px;border:1px solid var(--line);
+    border-radius:10px;background:var(--panel)}
+  .ig-prog-h{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .ig-prog-h b{font-size:12.5px;color:var(--ink)}
+  .ig-prog-x{all:unset;cursor:pointer;margin-left:auto;width:24px;height:24px;
+    line-height:24px;text-align:center;border-radius:6px;color:var(--muted2);
+    border:1px solid var(--line)}
+  .ig-prog-x:hover{border-color:var(--cyan);color:var(--ink)}
+  .ig-prog-x:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  .ig-prog-l{margin:16px 0 14px;font-size:12.5px;line-height:1.7;
+    color:var(--muted)}
+  .ig-prog-kpi{display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;
+    margin-bottom:16px}
+  .ig-prog-k{padding:12px 14px;border:1px solid var(--line);border-radius:9px;
+    background:var(--panel)}
+  .ig-prog-partiel{border-style:dashed;border-color:rgba(232,200,106,.5)}
+  .ig-prog-kn{display:block;font-family:var(--mono);font-size:9.5px;
+    letter-spacing:.05em;text-transform:uppercase;color:var(--muted2);
+    cursor:help}
+  .ig-prog-kv{display:block;margin-top:6px;font-size:22px;color:var(--ink);
+    font-variant-numeric:tabular-nums;line-height:1.15}
+  .ig-prog-ku{font-size:12px;color:var(--muted2)}
+  .ig-prog-kp{display:block;margin-top:5px;font-size:10px;color:var(--muted2)}
+  .ig-prog-partiel .ig-prog-kp{color:#E8C86A}
+  .ig-prog-ka{display:block;margin-top:4px;font-size:9.5px;
+    color:var(--muted2);line-height:1.5}
+  .ig-prog-w{margin:0 0 12px;padding:8px 12px;border-radius:7px;
+    background:rgba(232,200,106,.09);font-size:11.5px;line-height:1.6;
+    color:var(--muted)}
+  .ig-prog-cc,.ig-prog-z,.ig-prog-rep,.ig-prog-int,.ig-prog-nc{
+    margin-bottom:14px;padding:13px 16px;border:1px solid var(--line);
+    border-radius:9px;font-size:12px;line-height:1.65;color:var(--muted)}
+  .ig-prog-cc>b,.ig-prog-z>b,.ig-prog-rep>b,.ig-prog-int>b,.ig-prog-nc>b{
+    font-size:12.5px;color:var(--ink)}
+  .ig-prog-z{border-left:2px solid var(--cyan)}
+  .ig-prog-zl{margin:8px 0 0;color:var(--ink)}
+  .ig-prog-zn{margin:8px 0 0;font-size:11.5px;color:var(--muted2)}
+  .ig-prog-zn i,.ig-prog-if i{font-style:normal;font-family:var(--mono);
+    font-size:10px;text-transform:uppercase}
+  .ig-prog-zc{margin:8px 0 0;padding-left:18px;font-size:11.5px;
+    line-height:1.7}
+  .ig-prog-rep ul,.ig-prog-nc ul{margin:8px 0 0;padding-left:18px}
+  .ig-prog-i{margin-top:10px;padding-top:9px;border-top:1px dashed var(--line)}
+  .ig-prog-i>b{color:var(--ink)}
+  .ig-prog-i p{margin:5px 0 0;font-size:11.5px}
+  .ig-prog-if{color:var(--muted2)}
+  .ig-prog-nc{border-style:dashed}
+
+  /* ══════════════════════════════════════════════════════════════════════
      LE CRIBLAGE ICPE
      ══════════════════════════════════════════════════════════════════════
      Le badge du régime porte la seule couleur forte de la section : c'est
@@ -2011,8 +2068,45 @@
        moment où les puissances et les volumes viennent d'être arbitrés,
        pas au dépôt du permis.
        ═══════════════════════════════════════════════════════════════════ -->
+  <!-- ═══════════════════════════════════════════════════════════════════
+       LE PROGRAMME — plusieurs sites, un portefeuille.
+
+       POURQUOI ICI, ET PAS EN TÊTE DE PAGE. Tout ce qui précède raisonne
+       PROJET : un site, un profil, une phase, un dossier. Cette section
+       raisonne PORTEFEUILLE, et elle n'a de sens qu'une fois qu'on sait ce
+       qu'un site coûte et où il en est. Elle vient donc après le chiffrage.
+
+       CE QU'ELLE REFUSE DE FAIRE. Consolider n'est pas additionner. Une
+       puissance s'additionne, un PUE se pondère, un régime administratif ne
+       se consolide pas du tout. Une console qui affiche un nombre pour
+       chacune des trois ment sur deux tiers de son tableau de bord.
+       ═══════════════════════════════════════════════════════════════════ -->
+  <section class="wrap rc-sec" id="ig-prog">
+    <div class="rc-etape"><span class="n">8</span><h2>Piloter le programme multi-sites</h2></div>
+    <p class="lead" style="max-width:74ch;margin-top:0">
+      Un programme n'est pas un gros projet&nbsp;: c'est un portefeuille de
+      sites, chacun à sa phase, souvent dans plusieurs pays. Déclarez-les ici
+      pour obtenir la capacité engagée et livrée, le coût au kilowatt
+      informatique, le PUE pondéré, le site qui tient le chemin critique et
+      l'état de la promesse «&nbsp;zéro défaut&nbsp;».</p>
+    <div class="ig-encart" style="margin:14px 0">
+      <b>Consolider n'est pas additionner.</b> Une puissance s'additionne&nbsp;;
+      un PUE se pondère — la moyenne simple des sites est fausse, et c'est
+      celle qu'on calcule spontanément&nbsp;; un régime administratif ne se
+      consolide pas du tout, parce que la nomenclature est nationale. Chaque
+      total porte le nombre de sites qu'il couvre, et nomme ceux qui manquent.
+    </div>
+    <div id="ig-prog-sites"></div>
+    <div class="actions" style="margin-top:14px;gap:10px;flex-wrap:wrap">
+      <button type="button" class="btn btn-s" id="ig-prog-add">+ Ajouter un site</button>
+      <button type="button" class="ig-lanceur-b" id="ig-prog-go">Consolider le programme →</button>
+    </div>
+    <p class="note" id="ig-prog-msg" style="margin-top:10px"></p>
+    <div id="ig-prog-out"></div>
+  </section>
+
   <section class="wrap rc-sec" id="ig-icpe">
-    <div class="rc-etape"><span class="n">8</span><h2>Le régime ICPE de votre projet</h2></div>
+    <div class="rc-etape"><span class="n">9</span><h2>Le régime ICPE de votre projet</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Cinq rubriques de la nomenclature couvrent l'essentiel d'un centre de
       données&nbsp;: les groupes électrogènes, leur combustible, les fluides
@@ -2043,7 +2137,7 @@
        semaine de la réception.
        ═══════════════════════════════════════════════════════════════════ -->
   <section class="wrap rc-sec" id="ig-travaux">
-    <div class="rc-etape"><span class="n">9</span><h2>Organiser la phase travaux</h2></div>
+    <div class="rc-etape"><span class="n">10</span><h2>Organiser la phase travaux</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Du démarrage du chantier à la fin de la garantie de parfait
       achèvement&nbsp;: qui intervient et à quel titre, dans quel ordre les
@@ -2055,7 +2149,7 @@
   </section>
 
   <section class="wrap rc-sec">
-    <div class="rc-etape"><span class="n">10</span><h2>Apporter vos documents</h2></div>
+    <div class="rc-etape"><span class="n">11</span><h2>Apporter vos documents</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Vos pièces existantes — notes de calcul, relevés, plans, spécifications
       d'un projet antérieur — complètent l'étude là où le moteur s'arrête. Elles
@@ -2082,7 +2176,7 @@
        déclare rien.
        ═══════════════════════════════════════════════════════════════════ -->
   <section class="wrap rc-sec" id="ig-ao">
-    <div class="rc-etape"><span class="n">11</span><h2>Répondre à l'appel d'offres</h2></div>
+    <div class="rc-etape"><span class="n">12</span><h2>Répondre à l'appel d'offres</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Déposez les pièces de la consultation — CCTP, CCAP, CCAG, règlement de
       consultation, DPGF, tableau de répartition MOE/AMO, feuilles de calcul —
@@ -2099,7 +2193,7 @@
   </section>
 
   <section class="wrap rc-sec" id="ig-limites">
-    <div class="rc-etape"><span class="n">12</span><h2>Ce que ce cadre ne fait pas</h2></div>
+    <div class="rc-etape"><span class="n">13</span><h2>Ce que ce cadre ne fait pas</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Le dire ici plutôt qu'en note de bas de page&nbsp;: ces limites décident du moment où
       il faut un ingénieur, et les ignorer coûte plus cher que de les lire.</p>
@@ -2126,6 +2220,12 @@
         reconnaît et signale ce qui manque&nbsp;; elle ne comprend pas ce qu'elle
         cite. Chaque citation porte sa position pour être vérifiée, et tout ce
         qui n'est pas trouvé est déclaré non trouvé plutôt que supposé absent.</li>
+      <li>La vue de programme <b>consolide ce qu'on lui donne, et rien
+        d'autre</b>. Elle ne va chercher aucune donnée et n'estime aucun site
+        manquant&nbsp;: chaque total porte le nombre de sites qu'il couvre, et
+        nomme les absents. Un ratio dont les deux termes ne portent pas sur le
+        même périmètre n'est pas rendu, et le régime administratif ne se
+        consolide pas du tout — la nomenclature est nationale.</li>
       <li>Les <b>formulaires de candidature ne se génèrent pas</b>. DC1, DC2 et
         la déclaration sur l'honneur portent des déclarations dont la fausseté
         est sanctionnée&nbsp;: elles se signent par une personne habilitée, après

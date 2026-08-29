@@ -4178,6 +4178,281 @@ function messageDelai(e, defaut) {
   }
 
   /* ══════════════════════════════════════════════════════════════════════
+     LE PROGRAMME MULTI-SITES
+     ══════════════════════════════════════════════════════════════════════
+     UNE LIGNE PAR SITE, ET RIEN D'OBLIGATOIRE. Un site connu par son seul nom
+     compte dans l'effectif et figure dans les absents de tout le reste : c'est
+     exactement l'information utile au début d'un programme, quand la moitié
+     des sites n'est encore qu'une intention. Un formulaire qui exigerait tout
+     ferait inventer des chiffres pour pouvoir cliquer.
+
+     LES TOTAUX PORTENT LEUR PÉRIMÈTRE. C'est la page qui l'affiche, mais c'est
+     le serveur qui le compte : un total dont on ne sait pas combien de sites
+     il couvre n'est pas un total, c'est une impression. */
+  var PROG_CHAMPS = null, PROG_N = 0;
+
+  function progFormulaire(champs) {
+    PROG_CHAMPS = champs || [];
+    var z = $("#ig-prog-sites");
+    if (!z) return;
+    z.innerHTML = "";
+    PROG_N = 0;
+    progAjouter();
+    progAjouter();
+  }
+
+  function progAjouter() {
+    var z = $("#ig-prog-sites");
+    if (!z || !PROG_CHAMPS) return;
+    var i = PROG_N++;
+    var d = document.createElement("div");
+    d.className = "ig-prog-s";
+    d.setAttribute("data-site", String(i));
+    var h = '<div class="ig-prog-h"><b>Site ' + (i + 1) + "</b>"
+      + '<button type="button" class="ig-prog-x" aria-label="Retirer ce site">×</button>'
+      + "</div><div class=\"dc-grille\">";
+    PROG_CHAMPS.forEach(function (c) {
+      var id = "ig-prog-" + i + "-" + c.id;
+      h += '<label class="dc-champ" for="' + id + '"><span class="dc-lab">'
+        + esc(c.label)
+        + (c.unite ? ' <span class="dc-unite">(' + esc(c.unite) + ')</span>' : "")
+        + "</span>";
+      if (c.type === "liste") {
+        h += '<select id="' + id + '" data-prog="' + esc(c.id) + '">'
+          + '<option value="">— non précisé —</option>';
+        (c.options || []).forEach(function (o) {
+          h += '<option value="' + esc(o) + '"' + info("nature_site:" + o)
+            + ">" + esc(o) + "</option>";
+        });
+        h += "</select>";
+      } else if (c.type === "booleen") {
+        h += '<select id="' + id + '" data-prog="' + esc(c.id) + '">'
+          + '<option value="">— non précisé —</option>'
+          + '<option value="oui">Oui</option><option value="non">Non</option>'
+          + "</select>";
+      } else {
+        h += '<input id="' + id + '" data-prog="' + esc(c.id) + '" type="text"'
+          + (c.type === "nombre" ? ' inputmode="decimal"' : "")
+          + ' placeholder="—">';
+      }
+      if (c.aide) h += '<span class="dc-aide">' + esc(c.aide) + "</span>";
+      h += "</label>";
+    });
+    d.innerHTML = h + "</div>";
+    z.appendChild(d);
+    var x = d.querySelector(".ig-prog-x");
+    if (x) {
+      x.addEventListener("click", function () {
+        /* On ne renumérote PAS les lignes restantes : un « Site 3 » qui
+           devient « Site 2 » sous les yeux de celui qui vient de supprimer le
+           deuxième fait douter de ce qu'il a supprimé. Le libellé est un
+           repère de saisie, pas un rang. */
+        d.remove();
+      });
+    }
+  }
+
+  function progLire() {
+    var sites = [];
+    document.querySelectorAll("#ig-prog-sites .ig-prog-s").forEach(function (d) {
+      var s = {}, rempli = false;
+      d.querySelectorAll("[data-prog]").forEach(function (e) {
+        var v = (e.value || "").trim();
+        if (v === "") return;
+        rempli = true;
+        var cle = e.getAttribute("data-prog");
+        s[cle] = (v === "oui") ? true : (v === "non") ? false : v;
+      });
+      /* Une ligne entièrement vide n'est pas un site : la compter gonflerait
+         l'effectif du programme et ferait apparaître un « site sans nom »
+         dans la liste des absents de chaque total. */
+      if (rempli) sites.push(s);
+    });
+    return sites;
+  }
+
+  function progConsolider() {
+    var msg = $("#ig-prog-msg"), out = $("#ig-prog-out");
+    if (!out) return;
+    var sites = progLire();
+    if (!sites.length) {
+      msg.textContent = "Renseignez au moins un site.";
+      return;
+    }
+    msg.textContent = "Consolidation de " + sites.length + " site"
+      + (sites.length > 1 ? "s" : "") + "…";
+    demander("/api/datacenter/programme", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sites: sites }),
+    }).then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) {
+          msg.textContent = (j && j.message) || "Consolidation indisponible.";
+          return;
+        }
+        msg.textContent = "";
+        progRendre(j);
+      })
+      .catch(function () { msg.textContent = "Consolidation indisponible."; });
+  }
+
+  /* Un total avec son périmètre. LE PÉRIMÈTRE N'EST PAS UNE NOTE DE BAS DE
+     PAGE : c'est lui qui décide de ce que le total vaut, et il s'affiche
+     contre le chiffre. */
+  function progTotal(cle, agr, unite, dec) {
+    if (!agr || agr.valeur === null || agr.valeur === undefined) {
+      return '<div class="ig-prog-k"><span class="ig-prog-kn"'
+        + info("kpi:" + cle) + ">" + esc(((CADRE.glossaire || {}).kpi
+            || {})[cle] ? CADRE.glossaire.kpi[cle].nom : cle)
+        + '</span><b class="ig-prog-kv">—</b>'
+        + '<span class="ig-prog-kp">non renseigné</span></div>';
+    }
+    var g = ((CADRE.glossaire || {}).kpi || {})[cle];
+    return '<div class="ig-prog-k' + (agr.complet ? "" : " ig-prog-partiel")
+      + '"><span class="ig-prog-kn"' + info("kpi:" + cle) + ">"
+      + esc(g ? g.nom : cle) + "</span>"
+      + '<b class="ig-prog-kv">' + esc(nombreFr(agr.valeur, dec))
+      + (unite ? ' <span class="ig-prog-ku">' + esc(unite) + "</span>" : "")
+      + "</b>"
+      + '<span class="ig-prog-kp">'
+      + (agr.complet
+          ? "sur les " + agr.sites_comptes + " sites"
+          : "SOUS-TOTAL — " + agr.sites_comptes + " site"
+            + (agr.sites_comptes > 1 ? "s" : "") + " sur "
+            + (agr.sites_comptes + (agr.sites_absents || []).length))
+      + "</span>"
+      + ((agr.sites_absents && agr.sites_absents.length)
+          ? '<span class="ig-prog-ka">absents : '
+            + esc(agr.sites_absents.join(", ")) + "</span>" : "")
+      + "</div>";
+  }
+
+  function nombreFr(x, dec) {
+    if (x === null || x === undefined) return "—";
+    var n = Number(x);
+    var s = (dec === undefined) ? String(Math.round(n)) : n.toFixed(dec);
+    return s.replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  }
+
+  function progRendre(j) {
+    var out = $("#ig-prog-out"), v = j.programme;
+    if (v.vide) {
+      out.innerHTML = '<p class="note">' + esc(v.note) + "</p>";
+      return;
+    }
+    var h = '<p class="ig-prog-l">' + esc(v.lecture) + "</p>";
+    h += '<div class="ig-prog-kpi">'
+      + progTotal("capacite_engagee", v.capacite_engagee_kw, "kW")
+      + progTotal("capacite_livree", v.capacite_livree_kw, "kW")
+      + progTotal("capex_par_kw", v.capex_par_kw.valeur !== null
+          ? { valeur: v.capex_par_kw.valeur, complet: v.capex_par_kw.complet,
+              sites_comptes: v.capex_par_kw.sites_comptes, sites_absents: [] }
+          : null, "€/kW")
+      + progTotal("opex_par_kw_an", v.opex_par_kw_an.valeur !== null
+          ? { valeur: v.opex_par_kw_an.valeur, complet: v.opex_par_kw_an.complet,
+              sites_comptes: v.opex_par_kw_an.sites_comptes, sites_absents: [] }
+          : null, "€/kW/an")
+      + progTotal("pue_programme", v.pue_programme, "", 3)
+      + "</div>";
+    /* UN RATIO NON RENDU DIT POURQUOI. « — » sans motif se lit comme une
+       panne ; « les deux grandeurs ne couvrent pas les mêmes sites » se lit
+       comme une consigne. */
+    ["capex_par_kw", "opex_par_kw_an"].forEach(function (k) {
+      if (v[k] && v[k].valeur === null && v[k].pourquoi) {
+        h += '<p class="ig-prog-w">' + esc(v[k].pourquoi) + "</p>";
+      }
+    });
+    /* LE CHEMIN CRITIQUE. Pas une moyenne : un programme livre quand son
+       dernier site livre. */
+    var cc = v.chemin_critique;
+    h += '<div class="ig-prog-cc">' + (cc.connu
+      ? "<b>Chemin critique — " + esc(cc.site) + "</b> · mise en service "
+        + esc(String(cc.date)) + '<span class="ig-tr-r">' + esc(cc.note)
+        + "</span>"
+      : "<b>Chemin critique inconnu</b>" + '<span class="ig-tr-r">'
+        + esc(cc.pourquoi) + "</span>") + "</div>";
+    /* LA PROMESSE « ZÉRO DÉFAUT », avec ses deux chiffres ensemble. */
+    var z = v.zero_defaut;
+    h += '<div class="ig-prog-z"><b>Livraison « zéro défaut »</b>'
+      + '<p class="ig-prog-zl">' + esc(z.lecture) + "</p>"
+      + '<p class="ig-prog-zn"><i>Ce que ce n\'est pas</i> — '
+      + esc(z.n_est_pas) + "</p>";
+    if (j.zero_defaut && j.zero_defaut.conditions) {
+      h += "<ul class=\"ig-prog-zc\">";
+      j.zero_defaut.conditions.forEach(function (c) {
+        h += "<li>" + esc(c) + "</li>";
+      });
+      h += "</ul><p class=\"ig-prog-zn\"><i>Ce que la promesse coûte</i> — "
+        + esc(j.zero_defaut.cout) + "</p>";
+    }
+    h += "</div>";
+    /* LA RÉPARTITION par nature et par phase. */
+    h += '<div class="ig-prog-rep"><b>Répartition</b><ul>';
+    Object.keys(v.par_nature).forEach(function (k) {
+      var n = v.par_nature[k];
+      if (!n.sites) return;
+      h += "<li>" + (k.charAt(0) === "_" ? "" : '<span' + info("nature_site:" + k) + ">")
+        + esc(n.nom) + (k.charAt(0) === "_" ? "" : "</span>")
+        + " — " + n.sites + " site" + (n.sites > 1 ? "s" : "")
+        + (n.capacite_kw ? " · " + esc(nombreFr(n.capacite_kw)) + " kW" : "")
+        + (n.pourquoi ? '<span class="ig-prog-ka">' + esc(n.pourquoi) + "</span>" : "")
+        + "</li>";
+    });
+    (v.par_phase || []).forEach(function (p) {
+      h += "<li>Phase " + esc(p.code) + " — " + esc(p.nom) + " : " + p.sites
+        + (p.hors_cadre ? " <i>(hors du cadre de phases)</i>" : "") + "</li>";
+    });
+    h += "</ul></div>";
+    /* CE QUI NE SE RÉPLIQUE PAS d'un pays à l'autre — affiché seulement quand
+       le programme est effectivement multi-pays. Une mise en garde servie à
+       un programme national apprend à ne plus les lire. */
+    if (v.par_pays.multi_pays) {
+      h += '<div class="ig-prog-int"><b>Programme multi-pays : ce qui ne se '
+        + "réplique pas</b>";
+      v.par_pays.ce_qui_ne_se_replique_pas.forEach(function (x) {
+        h += '<div class="ig-prog-i"><b>' + esc(x.sujet) + "</b>"
+          + "<p>" + esc(x.detail) + "</p>"
+          + '<p class="ig-prog-if"><i>À faire</i> — ' + esc(x.a_faire)
+          + "</p></div>";
+      });
+      h += "</div>";
+    }
+    /* CE QUI NE SE CONSOLIDE PAS DU TOUT. Une absence silencieuse se lirait
+       comme un oubli. */
+    (v.non_consolidables || []).forEach(function (x) {
+      h += '<div class="ig-prog-nc"><b>' + esc(x.grandeur)
+        + " — ne se consolide pas</b><p>" + esc(x.pourquoi) + "</p>"
+        + '<p class="ig-prog-if"><i>À la place</i> — ' + esc(x.a_la_place)
+        + "</p><ul>";
+      x.sites.forEach(function (s) {
+        h += "<li>" + esc(s.nom) + " (" + esc(s.pays) + ") — "
+          + esc(s.regime) + "</li>";
+      });
+      h += "</ul></div>";
+    });
+    /* LES PARTIES PRENANTES, et leur FENÊTRE — le moment après lequel leur
+       décision coûte cher. C'est l'information qui manque le plus souvent,
+       parce qu'elle ne figure dans aucun organigramme. */
+    if (j.parties_prenantes) {
+      h += '<h3 class="ig-tr-st">Qui décide, et jusqu\'à quand</h3>'
+        + '<div class="ig-tr-sol">';
+      Object.keys(j.parties_prenantes).forEach(function (k) {
+        var pp = j.parties_prenantes[k];
+        h += '<div class="ig-tr-s"><b' + info("partie_prenante:" + k) + ">"
+          + esc(pp.nom) + "</b>"
+          + "<p><i>Décide</i> — " + esc(pp.decide) + "</p>"
+          + "<p><i>Sa fenêtre</i> — " + esc(pp.fenetre) + "</p>"
+          + "<p><i>Quand ça coince</i> — " + esc(pp.quand_ca_coince) + "</p></div>";
+      });
+      h += "</div>";
+    }
+    h += '<p class="ig-icpe-res">' + esc(v.reserve) + "</p>";
+    out.innerHTML = h;
+  }
+
+
+  /* ══════════════════════════════════════════════════════════════════════
      LE CRIBLAGE ICPE
      ══════════════════════════════════════════════════════════════════════
      CE QUE LA LISTE DÉROULANTE REND POSSIBLE. Cinq rubriques, trois états —
@@ -4784,6 +5059,7 @@ function messageDelai(e, defaut) {
            l'appel d'offres. Leurs formulaires se dessinent d'emblée — un
            bouton sans formulaire au-dessus n'invite personne —, mais aucun
            ne calcule tant qu'on ne le lui demande pas. */
+        progFormulaire(CADRE.programme_champs);
         icpeFormulaire(CADRE.icpe_champs);
         travauxFormulaire();
         aoDocuments();
@@ -4807,6 +5083,8 @@ function messageDelai(e, defaut) {
     var b;
     if ((b = $("#ig-docx"))) b.addEventListener("click", function () { exporter("docx"); });
     if ((b = $("#ig-pdf"))) b.addEventListener("click", function () { exporter("pdf"); });
+    if ((b = $("#ig-prog-add"))) b.addEventListener("click", progAjouter);
+    if ((b = $("#ig-prog-go"))) b.addEventListener("click", progConsolider);
     if ((b = $("#ig-icpe-go"))) b.addEventListener("click", icpeCribler);
     if ((b = $("#ig-ao-go"))) b.addEventListener("click", aoAnalyser);
     if ((b = $("#ig-ao-cand"))) b.addEventListener("click", aoCandidature);

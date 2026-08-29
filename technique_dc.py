@@ -680,6 +680,33 @@ if _FAUTES:
 #  LE SERVICE AUX PAGES
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _nom_dans_la_liste(famille):
+    """Le libellé de la famille TEL QU'IL S'AFFICHE dans la liste déroulante.
+
+    LE DÉFAUT CORRIGÉ, et il tenait à un mot. L'infobulle du free-chilling
+    disait « se conduit sur "Production d'eau glacée par groupe froid" » — le
+    nom que CE module donne au mode. La liste déroulante, elle, est construite
+    sur le moteur de calcul, qui l'appelle « Eau glacée avec groupe froid ». On
+    envoyait donc le lecteur chercher une option sous un nom qui n'y figure
+    pas, c'est-à-dire exactement ce que cette mention existe pour éviter.
+
+    Le nom vient donc du MOTEUR, et de lui seul. Faute de moteur lisible, on
+    rend le nom de ce module : une désignation imparfaite vaut mieux qu'une
+    clé technique.
+    """
+    try:
+        import datacenter as _dc
+        nom = (_dc.REFROIDISSEMENT.get(famille) or {}).get("nom")
+        if nom:
+            return nom
+    except Exception:                                    # pragma: no cover
+        pass
+    for m in MODES_REFROIDISSEMENT.values():
+        if m.get("famille") == famille:
+            return m["nom"]
+    return famille
+
+
 def _aide_mode(v):
     """Le texte d'infobulle d'un mode de refroidissement.
 
@@ -692,11 +719,9 @@ def _aide_mode(v):
     bouts = []
     p = v.get("porte_par")
     if p:
-        nom = (MODES_REFROIDISSEMENT.get(
-            next((k for k, m in MODES_REFROIDISSEMENT.items()
-                  if m.get("famille") == p), ""), {}) or {}).get("nom", p)
         bouts.append("Pas une famille du calcul : se conduit sur « %s », "
-                     "qu'il faut retenir dans la liste." % nom)
+                     "qu'il faut retenir dans la liste."
+                     % _nom_dans_la_liste(p))
     bouts.append(v["principe"])
     bouts.append("Quand — " + v["quand"])
     bouts.append("Ce que ça coûte — " + v["cout"])
