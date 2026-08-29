@@ -360,6 +360,14 @@
       <!-- Documents GÉNÉRAL (tout sauf Engineering) -->
       <div class="panel">
         <div class="topbar" style="margin:0 0 12px">
+          <div class="warn" id="truncAvis" style="display:none;margin-bottom:10px"></div>
+          <div id="qualifBar" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+            <select id="qualifNature" aria-label="Nature de la source"></select>
+            <input id="qualifDate" type="text" inputmode="numeric" placeholder="année (facultatif)" style="max-width:150px">
+            <button class="btn btn-s" id="qualifGo" type="button">Appliquer</button>
+            <button class="btn btn-s" id="qualifCancel" type="button">Annuler</button>
+            <span class="sub" id="qualifInfo"></span>
+          </div>
           <div class="sec-title" style="margin:0">Documents</div>
           <div class="filterbar">
             <input type="search" id="filterSearch" placeholder="Rechercher un titre, un fichier, un thème…" aria-label="Rechercher un document">
@@ -370,6 +378,7 @@
             <select id="filterEnt" aria-label="Filtrer par entreprise ou référence"><option value="">Toutes les entreprises</option></select>
             <span class="fcount" id="fcount"></span>
             <button class="btn btn-s" id="moveGen" type="button" title="Ranger les documents ACTUELLEMENT AFFICHÉS sous un autre thème (seul le classement change : aucune réindexation)">↦ Déplacer</button>
+            <button class="btn btn-s" id="qualifGen" type="button" title="Déclarer la nature des documents ACTUELLEMENT AFFICHÉS : norme, texte réglementaire, note de projet, livre blanc de fournisseur… C'est elle qui décide de l'ordre dans lequel ils sont proposés à la rédaction d'une pièce.">◈ Qualifier</button>
             <!-- Bascule en lot. Un compte SANS droit d'administration ne cherche
                  que dans les documents publics : une base majoritairement
                  interne fait tomber les livrables des clients en « moteur
@@ -417,8 +426,8 @@
         </div>
         <div class="tblwrap">
           <table>
-            <thead><tr><th>Document</th><th>Thème</th><th>Visibilité</th><th>Statut</th><th>Taille</th><th>Ajouté</th><th>Actions</th></tr></thead>
-            <tbody id="rows"><tr><td colspan="7" class="empty">Chargement…</td></tr></tbody>
+            <thead><tr><th>Document</th><th>Thème</th><th>Nature</th><th>Visibilité</th><th>Statut</th><th>Taille</th><th>Ajouté</th><th>Actions</th></tr></thead>
+            <tbody id="rows"><tr><td colspan="8" class="empty">Chargement…</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -453,8 +462,8 @@
         </div>
         <div class="tblwrap">
           <table>
-            <thead><tr><th>Document</th><th>Sous-dossier</th><th>Visibilité</th><th>Statut</th><th>Taille</th><th>Ajouté</th><th>Actions</th></tr></thead>
-            <tbody id="rowsEng"><tr><td colspan="7" class="empty">Chargement…</td></tr></tbody>
+            <thead><tr><th>Document</th><th>Sous-dossier</th><th>Nature</th><th>Visibilité</th><th>Statut</th><th>Taille</th><th>Ajouté</th><th>Actions</th></tr></thead>
+            <tbody id="rowsEng"><tr><td colspan="8" class="empty">Chargement…</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -569,9 +578,90 @@
       acts+='<button class="danger" data-a="delete" data-id="'+d.id+'" data-t="'+esc(d.title)+'">Supprimer</button>';
       return acts;
     }
+    /* CE QUE VAUT LA SOURCE, dans le tableau. Une nature non qualifiée
+       s'affiche comme telle et NON comme un défaut : elle ne pénalise rien au
+       classement — c'est ce qui permet au fonds déjà en base de continuer à
+       remonter exactement comme avant. Le libellé vient du serveur ; l'écrire
+       ici le ferait diverger du module au premier ajout de nature. */
+    function naturePill(d){
+      var n=d.nature||'indetermine';
+      var lbl=(NATURES[n]||{}).nom||n;
+      var dt=d.date_source?(' · '+esc(d.date_source)):'';
+      if(n==='indetermine') return '<span class="pill sub" title="Nature non '
+        +'qualifiée : le document est servi sur sa seule pertinence, comme '
+        +'avant toute qualification.">à qualifier'+dt+'</span>';
+      return '<span class="pill" title="'+esc((NATURES[n]||{}).permet||'')+'">'
+        +esc(lbl)+dt+'</span>';
+    }
+
+    var NATURES={};
+
+    function remplirNatures(){
+      var sel=document.getElementById('qualifNature'); if(!sel) return;
+      var h='';
+      Object.keys(NATURES).forEach(function(k){
+        var n=NATURES[k];
+        h+='<option value="'+esc(k)+'">'+esc(n.nom)+'</option>';
+      });
+      sel.innerHTML=h;
+    }
+
+    /* LA QUALIFICATION EN LOT porte sur les documents AFFICHÉS, comme le
+       déplacement de thème — et l'avis de troncature au-dessus dit quand
+       « affichés » n'est pas « tous ». Sans lui, on croirait avoir qualifié
+       la base entière.
+
+       MÊMES OUTILS QUE SES VOISINES : note(), apiFetch(), load(). Une seconde
+       façon de signaler et de recharger divergerait de la première, et la
+       page aurait deux comportements pour la même chose. */
+    function installerQualification(){
+      var btn=document.getElementById('qualifGen'),
+          bar=document.getElementById('qualifBar');
+      if(!btn||!bar) return;
+      btn.addEventListener('click', function(){
+        if(bar.style.display!=='none'){ bar.style.display='none'; return; }
+        var n=genVisibles.length;
+        if(!n){ note('Aucun document affiché à qualifier.','err'); return; }
+        document.getElementById('qualifInfo').textContent=
+          n+' document(s) affiché(s) recevront cette nature.';
+        bar.style.display='flex';
+      });
+      document.getElementById('qualifCancel').addEventListener('click', function(){
+        bar.style.display='none';
+      });
+      document.getElementById('qualifGo').addEventListener('click', function(){
+        var ids=genVisibles.map(function(d){return d.id;});
+        if(!ids.length){ note('Rien à qualifier.','err'); return; }
+        var nat=document.getElementById('qualifNature').value;
+        var an=(document.getElementById('qualifDate').value||'').trim();
+        if(an && !/^(19|20)\d{2}$/.test(an)){
+          note('L\'année se saisit en quatre chiffres, ou se laisse vide.','err');
+          return;
+        }
+        if(!confirm('Déclarer '+ids.length+' document(s) comme « '
+                    +((NATURES[nat]||{}).nom||nat)+' » ?\n\n'
+                    +'Seul l\'ordre dans lequel ils sont proposés à la '
+                    +'rédaction change : aucune réindexation.')) return;
+        var b=this, old=b.textContent; b.disabled=true; b.textContent='Qualification…';
+        var body={ids:ids, nature:nat};
+        if(an) body.date_source=an;
+        apiFetch('/api/admin/rag/nature',{method:'POST',
+          headers:{'content-type':'application/json'},
+          body:JSON.stringify(body)}).then(readJson).then(function(j){
+            if(!j||!j.ok){ note((j&&j.message)||'Qualification impossible.','err'); return; }
+            note(j.qualifies+' document(s) qualifié(s)'
+                 +(j.echecs?(' · '+j.echecs+' échec(s)'):'')+'.','ok');
+            bar.style.display='none';
+            load();
+          }).catch(function(){ note('Qualification impossible.','err'); })
+          .then(function(){ b.disabled=false; b.textContent=old; });
+      });
+    }
+
     function docRow(d){
       return '<tr><td><div class="who">'+esc(d.title)+'</div><div class="sub">'+esc(d.filename)+' · '+(d.nb_chunks||0)+' fragments</div></td>'
         +'<td><span class="pill">'+esc(d.theme||'—')+'</span></td>'
+        +'<td>'+naturePill(d)+'</td>'
         +'<td>'+visPill(d.visibility)+'</td>'
         +'<td>'+statusPill(d)+'</td>'
         +'<td class="sub">'+fmtBytes(d.bytes)+'</td>'
@@ -640,7 +730,7 @@
                iae.style.display=attE?'inline-block':'none';
                iae.textContent='▶ Indexer '+attE+' en attente'; }
       rows.innerHTML=docs.length?docs.map(docRow).join('')
-        :'<tr><td colspan="7" class="empty">Aucun document'+((q||f)?' ne correspond à la recherche':'')+'.</td></tr>';
+        :'<tr><td colspan="8" class="empty">Aucun document'+((q||f)?' ne correspond à la recherche':'')+'.</td></tr>';
       genVisibles=docs;   // cible du déplacement en masse : ce qui est affiché
       var mcg=document.getElementById('moveCountGen');
       if(mcg) mcg.textContent='Déplacer les '+docs.length+' document'+(docs.length>1?'s':'')+' affiché'+(docs.length>1?'s':'');
@@ -662,7 +752,7 @@
       var fc=document.getElementById('fcountEng');
       if(fc) fc.textContent=docs.length?(docs.length+' doc'+(docs.length>1?'s':'')):'';
       body.innerHTML=docs.length?docs.map(docRow).join('')
-        :'<tr><td colspan="7" class="empty">Aucun document Engineering'+((fv||q)?' ne correspond':'')+'.</td></tr>';
+        :'<tr><td colspan="8" class="empty">Aucun document Engineering'+((fv||q)?' ne correspond':'')+'.</td></tr>';
       var mc=document.getElementById('moveCount');
       if(mc) mc.textContent='Déplacer les '+docs.length+' document'+(docs.length>1?'s':'')+' affiché'+(docs.length>1?'s':'');
     }
@@ -785,28 +875,41 @@
     // (au lieu d'un « Chargement… » figé ou d'une simple notification fugace).
     function loadFailed(msg){
       rows.removeAttribute('aria-busy');
-      rows.innerHTML='<tr><td colspan="7" class="empty">'+esc(msg)
+      rows.innerHTML='<tr><td colspan="8" class="empty">'+esc(msg)
         +' <button type="button" class="btn btn-s" id="rowsRetry" style="margin-left:6px">↻ Réessayer</button></td></tr>';
       var rb=document.getElementById('rowsRetry'); if(rb) rb.addEventListener('click',load);
       var re=document.getElementById('rowsEng');
-      if(re) re.innerHTML='<tr><td colspan="7" class="empty">'+esc(msg)+'</td></tr>';
+      if(re) re.innerHTML='<tr><td colspan="8" class="empty">'+esc(msg)+'</td></tr>';
     }
     function load(){
       rows.setAttribute('aria-busy','true');
       fetchJson('/api/admin/rag/documents',{},{onRetry:function(n,max){
-        rows.innerHTML='<tr><td colspan="7" class="empty">Connexion au service… (tentative '+n+'/'+max+')</td></tr>';
+        rows.innerHTML='<tr><td colspan="8" class="empty">Connexion au service… (tentative '+n+'/'+max+')</td></tr>';
       }}).then(function(j){
         rows.removeAttribute('aria-busy');
         if(j&&j.__status===401){location.href='/connexion?next=/admin/base-connaissance';return;}
-        if(j&&j.__status===403){rows.innerHTML='<tr><td colspan="7" class="empty">Accès réservé à l\'administrateur.</td></tr>';return;}
+        if(j&&j.__status===403){rows.innerHTML='<tr><td colspan="8" class="empty">Accès réservé à l\'administrateur.</td></tr>';return;}
         if(!j||!j.ok){loadFailed('Le service a répondu de façon inattendue.');return;}
         // Les bulletins CERT-FR (thème « Veille ») ne figurent PAS dans le tableau
         // des documents : ils sont présentés à part dans le panneau « Veille CERT-FR »
         // ci-dessous. Ils restent en base pour la recherche RAG et l'assistant.
         function isVeille(d){return (d.theme||'')==='Veille' || (d.title||'').indexOf('[CERT-FR]')===0;}
+        (j.natures||[]).forEach(function(n){ NATURES[n.cle]=n; });
+        remplirNatures();
         allDocs=(j.documents||[]).filter(function(d){return !isVeille(d);});
         var themesHors={}; Object.keys(j.stats.themes||{}).forEach(function(t){ if(t!=='Veille') themesHors[t]=j.stats.themes[t]; });
-        document.getElementById('kDocs').textContent=allDocs.length;
+        // LE COMPTEUR COMPTE LA BASE, PAS CE QUI A ÉTÉ REÇU. Il était calculé
+        // sur la liste servie — bornée côté serveur — et affichait donc, sur
+        // une base plus grande que la borne, un nombre sans rapport avec celui
+        // du tableau de bord, lui compté en base. Deux nombres, tous deux
+        // appelés « documents », dans un rapport de un à quatre.
+        //
+        // La veille CERT-FR se retranche du TOTAL, pas de la liste : elle a
+        // son propre panneau, et son compte exact est au décompte par thème.
+        var totalBase = (j.total!=null) ? j.total : (j.documents||[]).length;
+        var veilleBase = (j.stats.themes||{})['Veille'] || 0;
+        var docsBase = Math.max(0, totalBase - veilleBase);
+        document.getElementById('kDocs').textContent = docsBase;
         document.getElementById('kChunks').textContent=j.stats.chunks;
         document.getElementById('kThemes').textContent=Object.keys(themesHors).length;
         caps=j.capabilities||{};
@@ -825,11 +928,26 @@
           // afficherait un total sans rapport avec ce qui est visible — piège
           // constaté en situation : « 97 » au bandeau contre 7 dans le tableau.
           // Ils sont donc comptés à part, ce qui explique aussi l'occupation disque.
-          var tot=(j.documents||[]).length, n=allDocs.length, veille=tot-n;
           document.getElementById('dbDocs').textContent=
-            '· '+n+' document'+(n>1?'s':'')
-            +(veille>0 ? ('  ·  '+veille+' bulletin'+(veille>1?'s':'')+' de veille') : '');
+            '· '+docsBase+' document'+(docsBase>1?'s':'')
+            +(veilleBase>0 ? ('  ·  '+veilleBase+' bulletin'+(veilleBase>1?'s':'')+' de veille') : '');
           bn.style.display='flex';
+        })();
+        // CE QUE LE TABLEAU NE MONTRE PAS. Compter juste ne suffit pas : les
+        // actions en lot envoient les identifiants AFFICHÉS. Tant que la liste
+        // est tronquée, « Déplacer » ne déplace que le visible — et le taire
+        // serait le pire des deux défauts, puisque l'action semble avoir
+        // porté sur tout.
+        (function(){
+          var av=document.getElementById('truncAvis'); if(!av) return;
+          if(!j.tronque){ av.style.display='none'; return; }
+          var recus=(j.documents||[]).length;
+          av.innerHTML='<b>Le tableau ne montre pas toute la base.</b> '
+            +recus+' document(s) listés sur '+totalBase+'. Les actions en lot '
+            +'(déplacer, visibilité, doublons, sauvegarde) ne portent que sur '
+            +'ce qui est listé — le reste ne sera pas touché, et rien ne le '
+            +'dirait ensuite.';
+          av.style.display='block';
         })();
         var st=j.stats.storage, ks=document.getElementById('kStore');
         if(ks) ks.textContent = st ? (st.db_bytes!=null ? ('base : '+fmtBytes(st.db_bytes)+' · RAG : '+fmtBytes(st.rag_bytes)) : ('RAG : '+fmtBytes(st.rag_bytes))) : '';
@@ -1511,6 +1629,7 @@
     installerDeplacement({btn:'moveGen',bar:'moveBarGen',cible:'moveTargetGen',
       cibleEnt:'moveTargetEntGen',go:'moveGoGen',annuler:'moveCancelGen',
       docs:function(){return genVisibles;},remplir:ciblesGenerales});
+    installerQualification();
 
     /* ── VISIBILITÉ EN LOT, PAR THÈME ────────────────────────────────────────
        Pourquoi ce bouton existe : la recherche d'un compte SANS droit

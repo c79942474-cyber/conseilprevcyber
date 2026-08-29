@@ -4097,6 +4097,17 @@ def couverture_documentaire(code_phase, code_piece, chercher, inputs=None,
     if not pc:
         return None
     base = requete_piece(code_phase, code_piece, inputs)
+    # CE QUE LA PIÈCE CHANGE AU CLASSEMENT. Une pièce gelée au dossier de
+    # consultation est lue en visa, et la valeur qu'elle porte sera exigée à sa
+    # source : une plaquette de fournisseur y devient un risque. Sur une note
+    # d'esquisse, la même plaquette est à sa place. Le caractère de la pièce est
+    # déjà tenu par le registre — on le lui demande plutôt que de le rédiger.
+    inputs = dict(inputs or {})
+    contexte_classement = {
+        "contractuel": pc.get("niveau") == "gel",
+        "projet": inputs.get("projet") or inputs.get("operation") or "",
+        "client": inputs.get("client") or "",
+    }
     points, couverts = [], 0
     for point in pc.get("contenu") or []:
         req = (base + " " + point).strip()
@@ -4109,19 +4120,41 @@ def couverture_documentaire(code_phase, code_piece, chercher, inputs=None,
             points.append({"point": point, "etat": "inconnu",
                            "documents": [], "requete": req})
             continue
-        docs, vus = [], set()
-        for h in hits:
+        # LE RECLASSEMENT VIENT ICI, avant la déduplication par document.
+        # Après, il ne verrait plus qu'un extrait par source et ne pourrait
+        # plus arbitrer entre deux passages du même document.
+        classes = _classer_extraits(hits, contexte_classement)
+        docs, vus, ecartes = [], set(), []
+        for h in classes:
             did = h.get("doc_id")
-            if not did or did in vus:
+            if not did:
+                continue
+            fiche = {"doc_id": did,
+                     "titre": (h.get("title") or "").strip() or "sans titre",
+                     "score": h.get("score"),
+                     "nature": h.get("nature") or "indetermine",
+                     "nature_nom": h.get("nature_nom"),
+                     "date_source": h.get("date_source"),
+                     "rang_initial": h.get("rang_initial"),
+                     "rang_final": h.get("rang_final"),
+                     "raisons": h.get("raisons") or []}
+            if did in vus:
+                # UN SECOND PASSAGE DU MÊME DOCUMENT N'EST PAS UNE SOURCE DE
+                # PLUS. Il est écarté du décompte, mais il figure au dossier :
+                # un extrait retiré en silence se lit comme un extrait qui
+                # n'a jamais existé.
+                ecartes.append(dict(fiche, motif="doublon de source",
+                                    dit="Un autre passage du même document est "
+                                        "déjà retenu pour ce point."))
                 continue
             vus.add(did)
-            docs.append({"doc_id": did,
-                         "titre": (h.get("title") or "").strip() or "sans titre",
-                         "score": h.get("score")})
+            docs.append(fiche)
         if docs:
             couverts += 1
         points.append({"point": point, "etat": "couvert" if docs else "a_ecrire",
-                       "documents": docs, "requete": req})
+                       "documents": docs, "ecartes": ecartes,
+                       "divergences": _divergences_extraits(classes),
+                       "requete": req})
 
     total = len(points)
     inconnus = sum(1 for p in points if p["etat"] == "inconnu")
@@ -4159,6 +4192,31 @@ def couverture_documentaire(code_phase, code_piece, chercher, inputs=None,
     }
 
 
+def _classer_extraits(hits, contexte):
+    """Les extraits reclassés par l'autorité des sources, ou tels quels.
+
+    LE MODULE DE QUALIFICATION EST OPTIONNEL, ET SON ABSENCE NE COÛTE RIEN :
+    sans lui, l'ordre de la recherche est conservé — exactement le
+    comportement d'avant. Une pièce ne doit pas échouer parce qu'un
+    classement n'a pas pu se faire.
+    """
+    try:
+        import qualite_source
+        return qualite_source.classer(hits, contexte)
+    except Exception:                                    # pragma: no cover
+        return [dict(h, rang_initial=i, rang_final=i, raisons=[])
+                for i, h in enumerate(hits or [])]
+
+
+def _divergences_extraits(classes):
+    """Les écarts de valeurs entre sources retenues sur un même point."""
+    try:
+        import qualite_source
+        return qualite_source.divergences(classes)
+    except Exception:                                    # pragma: no cover
+        return None
+
+
 def couverture_markdown(c):
     """Le chapitre à verser au document. Nommer les points non documentés est
     le service rendu : ils s'écrivent depuis le projet, et il vaut mieux le
@@ -4167,16 +4225,49 @@ def couverture_markdown(c):
         return ""
     L = ["## Ce que la base documente, point par point", "", c["lecture"], ""]
     for p in c["points"]:
-        if p["etat"] == "couvert":
-            noms = ", ".join(d["titre"] for d in p["documents"])
-            L.append("- **%s** — documenté : %s" % (p["point"], noms))
-        elif p["etat"] == "a_ecrire":
+        if p["etat"] == "a_ecrire":
             L.append("- **%s** — *à écrire depuis le projet* : aucun document "
                      "de la base ne traite ce point." % p["point"])
-        else:
+            continue
+        if p["etat"] != "couvert":
             L.append("- **%s** — couverture indéterminée (base sans réponse)."
                      % p["point"])
+            continue
+        L.append("- **%s** — documenté :" % p["point"])
+        # CHAQUE SOURCE AVEC CE QU'ELLE VAUT. Une liste de titres ne dit pas
+        # si l'on s'appuie sur une norme ou sur une plaquette, et c'est
+        # précisément ce qu'un visa demandera.
+        for d in p["documents"]:
+            bouts = [d["titre"]]
+            if d.get("nature_nom") and d.get("nature") != "indetermine":
+                bouts.append(d["nature_nom"].lower())
+            else:
+                bouts.append("nature non qualifiée")
+            if d.get("date_source"):
+                bouts.append(d["date_source"])
+            L.append("    - %s" % " — ".join(bouts))
+            # Le motif du déplacement, quand il y en a eu un : un classement
+            # qu'on ne peut pas contester n'est pas un classement.
+            for r in d.get("raisons") or []:
+                if r.get("motif") == "borne":
+                    continue
+                L.append("        - *%+d rang : %s*" % (r["rangs"], r["dit"]))
+        for e in p.get("ecartes") or []:
+            L.append("    - ~~%s~~ — écarté : %s" % (e["titre"], e.get("dit")
+                                                     or e.get("motif") or ""))
+        div = p.get("divergences")
+        if div and div.get("divergences"):
+            L.append("    - **Valeurs divergentes entre sources :**")
+            for x in div["divergences"]:
+                L.append("        - %s" % x["dit"])
+            L.append("        - *%s*" % div["note"])
     L += ["", "*%s*" % c["reserve"], ""]
+    if any(d.get("nature") != "indetermine"
+           for pt in c["points"] for d in pt.get("documents") or []):
+        L += ["*Les sources sont classées par pertinence, puis corrigées par "
+              "l'autorité de la source, sa fraîcheur rapportée à la péremption "
+              "du sujet et le caractère de la pièce. Le déplacement est borné : "
+              "la pertinence reste maîtresse de l'ordre.*", ""]
     return "\n".join(L)
 
 

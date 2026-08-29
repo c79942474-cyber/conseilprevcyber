@@ -52,6 +52,14 @@ CHUNK_CHARS = 900              # taille cible d'un chunk (caractères)
 CHUNK_OVERLAP = 150            # recouvrement entre chunks
 MAX_FILE_BYTES = int(os.environ.get("RAG_MAX_FILE_MB", "30")) * 1024 * 1024
 MAX_CHUNK_UPLOAD = 480 * 1024  # taille max d'un morceau reçu (< MAX_CONTENT_LENGTH)
+
+# Combien de documents la console reçoit par défaut, et jusqu'où elle peut
+# monter. Le défaut était de 500, figé dans la requête et invisible : au-delà,
+# la console montrait une base tronquée sans le dire, et ses actions en lot
+# n'agissaient que sur la partie visible. Le plafond haut existe pour qu'une
+# base devenue très grande ne se rende pas d'un seul bloc.
+LISTE_MAX = int(os.environ.get("RAG_LISTE_MAX", "2000"))
+LISTE_PLAFOND = 10000
 # Les formats que le magasin sait INDEXER (du texte en sort). C'est une
 # contrainte technique, distincte de celle de l'analyse préalable, qui est une
 # contrainte de SÉCURITÉ — elle écarte les formats à macros. Un fichier doit
@@ -64,6 +72,30 @@ MAX_CHUNK_UPLOAD = 480 * 1024  # taille max d'un morceau reçu (< MAX_CONTENT_LE
 # même tentative.
 ALLOWED_EXT = {"txt", "md", "csv", "log", "json", "pdf", "docx", "xlsx", "xlsm",
                "pptx", "pptm"}
+
+
+# La qualification des sources : ce que vaut un document, et comment il se
+# classe. Importé ici plutôt qu'appelé de loin, parce que la nature se devine
+# AU DÉPÔT — au moment où le texte vient d'être extrait, et où l'on ne le
+# relira pas. Un import optionnel : sans lui, la base fonctionne exactement
+# comme avant, tous documents « indéterminés ».
+try:
+    import qualite_source
+except Exception:                                        # pragma: no cover
+    qualite_source = None
+
+
+def _qualifier(titre, filename, texte, theme):
+    """Nature et date devinées, ou le couple neutre. JAMAIS d'exception : un
+    dépôt ne doit pas échouer parce qu'une déduction s'est mal passée."""
+    if qualite_source is None:
+        return "indetermine", None
+    try:
+        q = qualite_source.deviner(titre, filename, texte, theme)
+        return q.get("nature") or "indetermine", q.get("date_source")
+    except Exception:                                    # pragma: no cover
+        _log.warning("qualification de source impossible", exc_info=True)
+        return "indetermine", None
 
 
 def formats_deposables():
@@ -599,6 +631,36 @@ def _porte_analyse(filename, data):
         raise e
 
 
+def _nature_valide(nature):
+    """La nature, validée contre le vocabulaire du module de qualification.
+
+    UNE NATURE INVENTÉE NE DOIT PAS ENTRER EN BASE. Elle serait traitée comme
+    « indéterminée » au classement — donc sans effet — mais s'afficherait dans
+    la console comme une qualification faite : ni classée, ni signalée comme à
+    classer, c'est le pire des deux états.
+    """
+    n = (nature or "").strip().lower()
+    connues = set(qualite_source.NATURES) if qualite_source else {"indetermine"}
+    if n not in connues:
+        raise RagError("nature_inconnue", 400)
+    return n
+
+
+def _date_valide(date_source):
+    """L'année de publication : quatre chiffres, ou rien.
+
+    Un format libre laisserait entrer « vers 2020 » ou « éd. révisée », que le
+    calcul d'âge ne saurait pas lire — et qui feraient donc cesser en silence
+    la règle de péremption pour ce document.
+    """
+    d = (date_source or "").strip()
+    if not d:
+        return None
+    if not re.fullmatch(r"(19|20)\d{2}", d):
+        raise RagError("date_invalide", 400)
+    return d
+
+
 def _clean_visibility(v):
     return v if v in VISIBILITIES else "public"
 
@@ -790,10 +852,12 @@ class MemoryRagStore:
         if not chunks:
             raise RagError("aucun_texte", 422)
         doc_id = uuid.uuid4().hex
+        nature, date_source = _qualifier(title or filename, filename, text, theme)
         meta = {
             "id": doc_id, "title": (title or filename).strip()[:300],
             "filename": filename, "ext": ext, "theme": (theme or "Général").strip()[:80],
-            "visibility": _clean_visibility(visibility), "bytes": len(data),
+            "visibility": _clean_visibility(visibility),
+            "nature": nature, "date_source": date_source, "bytes": len(data),
             "sha256": digest, "nb_chunks": len(chunks),
             "chunks_indexed": len(chunks), "status": "ready", "mode": "lexical",
             "error": None, "created_at": _now_ms(), "updated_at": _now_ms(),
@@ -822,10 +886,13 @@ class MemoryRagStore:
                 raise RagError("document_inconnu", 404)
         raise RagError("embeddings_non_configures", 409)
 
-    def list_documents(self):
+    def list_documents(self, limit=LISTE_MAX, offset=0):
+        limit = max(1, min(int(limit or LISTE_MAX), LISTE_PLAFOND))
+        offset = max(0, int(offset or 0))
         with self._lock:
-            return [dict(m) for m in sorted(self._docs.values(),
-                                            key=lambda d: d["created_at"], reverse=True)]
+            tout = sorted(self._docs.values(),
+                          key=lambda d: d["created_at"], reverse=True)
+        return [dict(m) for m in tout[offset:offset + limit]]
 
     def get_blob(self, doc_id):
         with self._lock:
@@ -884,6 +951,20 @@ class MemoryRagStore:
             if concernes:
                 self._save()
         return len(concernes)
+
+    def set_nature(self, doc_id, nature, date_source=None):
+        """Corrige la qualification d'un document. Voir la version PostgreSQL."""
+        nature = _nature_valide(nature)
+        with self._lock:
+            d = self._docs.get(doc_id)
+            if not d:
+                raise RagError("document_inconnu", 404)
+            d["nature"] = nature
+            if date_source is not None:
+                d["date_source"] = _date_valide(date_source)
+            d["updated_at"] = _now_ms()
+            self._save()
+        return True
 
     def set_theme(self, doc_id, theme):
         """Reclasse un document (change son thème / sous-dossier)."""
@@ -993,7 +1074,14 @@ class MemoryRagStore:
         top = results[:k]
         norm = top[0][0] or 1.0                            # score 0-1 lisible
         return [{"doc_id": m["id"], "title": m["title"], "theme": m["theme"],
-                 "visibility": m["visibility"], "content": c, "score": round(s / norm, 4)}
+                 "visibility": m["visibility"],
+                 # SANS CES DEUX CLÉS, LE RECLASSEMENT N'A RIEN À CLASSER. Le
+                 # repli rend exactement les mêmes que la base : sinon le tri
+                 # changerait de comportement le jour d'une panne, c'est-à-dire
+                 # le jour où personne ne le vérifie.
+                 "nature": m.get("nature") or "indetermine",
+                 "date_source": m.get("date_source"),
+                 "content": c, "score": round(s / norm, 4)}
                 for s, m, c in top]
 
 
@@ -1008,6 +1096,12 @@ _BASE_SCHEMA = [
         ext TEXT,
         theme TEXT,
         visibility TEXT NOT NULL DEFAULT 'public',
+        -- Ce que vaut la source, et de quand elle date. Devinées au dépôt,
+        -- corrigeables depuis la console. « indetermine » est NEUTRE au
+        -- classement : le fonds déjà en base ne perd rien à ne pas être
+        -- qualifié — c'est la propriété qui rend la migration sans risque.
+        nature TEXT NOT NULL DEFAULT 'indetermine',
+        date_source TEXT,
         bytes BIGINT,
         sha256 TEXT,
         nb_chunks INT NOT NULL DEFAULT 0,
@@ -1165,6 +1259,20 @@ class PostgresRagStore:
             try:
                 for stmt in _BASE_SCHEMA:
                     conn.execute(stmt)
+                # LA MIGRATION D'UNE BASE DÉJÀ EN SERVICE. `CREATE TABLE IF
+                # NOT EXISTS` ne touche pas une table existante : ses colonnes
+                # nouvelles doivent être ajoutées à part. Idempotent, et sans
+                # réindexation — la qualification ne change ni le texte, ni les
+                # fragments, ni les vecteurs.
+                for col, decl in (("nature", "TEXT NOT NULL DEFAULT "
+                                             "'indetermine'"),
+                                  ("date_source", "TEXT")):
+                    try:
+                        conn.execute("ALTER TABLE rag_documents ADD COLUMN "
+                                     "IF NOT EXISTS %s %s" % (col, decl))
+                    except Exception as exc:             # pragma: no cover
+                        _log.info("colonne %s indisponible (%s)", col,
+                                  type(exc).__name__)
                 # Tente pgvector ; sinon, repli plein-texte (déjà en place via tsv).
                 try:
                     conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
@@ -1307,6 +1415,10 @@ class PostgresRagStore:
         if not chunks:
             raise RagError("aucun_texte", 422)
         doc_id = uuid.uuid4().hex
+        # CE QUE VAUT LA SOURCE, deviné maintenant : le texte vient d'être
+        # extrait et ne sera pas relu. Une déduction ratée coûte un document
+        # « non qualifié », jamais un dépôt refusé.
+        nature, date_source = _qualifier(title or filename, filename, text, theme)
         emb_on = self.vector_mode and embeddings_available()
         status = "indexing" if emb_on else "ready"
         mode = "vectoriel" if emb_on else "texte_integral"
@@ -1318,11 +1430,13 @@ class PostgresRagStore:
         try:
             with conn.transaction():
                 conn.execute(
-                    "INSERT INTO rag_documents(id,title,filename,ext,theme,visibility,bytes,"
+                    "INSERT INTO rag_documents(id,title,filename,ext,theme,visibility,"
+                    "nature,date_source,bytes,"
                     "sha256,nb_chunks,chunks_indexed,status,mode,created_at,updated_at) "
-                    "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                     (doc_id, (title or filename).strip()[:300], filename, ext,
                      (theme or "Général").strip()[:80], _clean_visibility(visibility),
+                     nature, date_source,
                      len(data), digest, len(chunks), indexed,
                      status, mode, now, now))
                 # Insertion des fragments par lots via un INSERT multi-lignes —
@@ -1425,7 +1539,8 @@ class PostgresRagStore:
                              (_now_ms(), doc_id))
         return {"done": False, "indexed": 0, "total": row[0]}
 
-    _COLS = ("id,title,filename,ext,theme,visibility,bytes,sha256,nb_chunks,"
+    _COLS = ("id,title,filename,ext,theme,visibility,nature,date_source,"
+             "bytes,sha256,nb_chunks,"
              "chunks_indexed,status,mode,error,created_at,updated_at")
 
     def _doc_row(self, conn, doc_id):
@@ -1437,10 +1552,31 @@ class PostgresRagStore:
         keys = self._COLS.split(",")
         return dict(zip(keys, r))
 
-    def list_documents(self):
+    def list_documents(self, limit=LISTE_MAX, offset=0):
+        """Les documents, du plus récent au plus ancien.
+
+        LE PLAFOND ÉTAIT FIGÉ À 500 ET MUET, ce qui a produit un défaut réel :
+        sur une base de neuf cent trente-neuf documents, la console n'en
+        listait que cinq cents — et son compteur, calculé sur la liste reçue,
+        affichait un nombre sans rapport avec celui du tableau de bord, lui
+        calculé en base. Deux nombres, tous deux appelés « documents », dans un
+        rapport de un à quatre.
+
+        Plus grave que l'écart d'affichage : les actions EN LOT de la console
+        envoient les identifiants qu'elle a reçus. Un déplacement de thème
+        portait donc sur les cinq cents plus récents et laissait les autres où
+        ils étaient, sans le dire.
+
+        Le plafond reste — une liste non bornée finirait par ne plus tenir —
+        mais il se règle, et l'appelant peut savoir s'il a tout reçu en
+        comparant à `stats()["documents"]`.
+        """
+        limit = max(1, min(int(limit or LISTE_MAX), LISTE_PLAFOND))
+        offset = max(0, int(offset or 0))
         with self._conn() as conn:
             rows = conn.execute("SELECT %s FROM rag_documents ORDER BY created_at DESC "
-                                "LIMIT 500" % self._COLS).fetchall()
+                                "LIMIT %%s OFFSET %%s" % self._COLS,
+                                (limit, offset)).fetchall()
         return [self._row_to_dict(r) for r in rows]
 
     def get_blob(self, doc_id):
@@ -1509,6 +1645,34 @@ class PostgresRagStore:
                 "UPDATE rag_documents SET visibility=%s,updated_at=%s "
                 "WHERE theme = ANY(%s) AND visibility <> %s",
                 (cible, _now_ms(), vus, cible)).rowcount
+
+    def set_nature(self, doc_id, nature, date_source=None):
+        """Corrige la qualification d'un document — sa nature, et sa date.
+
+        POURQUOI CETTE CORRECTION EXISTE. La nature est DEVINÉE au dépôt, sur
+        le titre et les premières pages. Une déduction se trompe : un livre
+        blanc qui s'annonce « guide complet », une note de projet dont le titre
+        ne dit rien. Sans moyen de corriger, l'erreur se figerait dans le
+        classement de tous les livrables à venir, et personne ne saurait
+        pourquoi ce document ne remonte jamais.
+
+        AUCUNE RÉINDEXATION : ni le texte, ni les fragments, ni les vecteurs ne
+        changent. Seul l'ordre de sortie change.
+        """
+        nature = _nature_valide(nature)
+        with self._conn() as conn:
+            if date_source is None:
+                n = conn.execute("UPDATE rag_documents SET nature=%s,updated_at=%s "
+                                 "WHERE id=%s",
+                                 (nature, _now_ms(), doc_id)).rowcount
+            else:
+                n = conn.execute("UPDATE rag_documents SET nature=%s,date_source=%s,"
+                                 "updated_at=%s WHERE id=%s",
+                                 (nature, _date_valide(date_source),
+                                  _now_ms(), doc_id)).rowcount
+        if not n:
+            raise RagError("document_inconnu", 404)
+        return True
 
     def set_theme(self, doc_id, theme):
         """Reclasse un document. Seul le classement change : le texte, les
@@ -1772,7 +1936,7 @@ class PostgresRagStore:
         """Liste classée par similarité sémantique (cosinus, index HNSW)."""
         qvec = _vec_literal(_embed_requete(query))
         sql = ("SELECT c.content,d.id,d.title,d.theme,d.visibility,"
-               "1-(c.embedding <=> %s::vector) AS score "
+               "1-(c.embedding <=> %s::vector) AS score,d.nature,d.date_source "
                "FROM rag_chunks c JOIN rag_documents d ON d.id=c.doc_id "
                "WHERE c.embedding IS NOT NULL AND " + clause +
                " ORDER BY c.embedding <=> %s::vector LIMIT %s")
@@ -1783,7 +1947,8 @@ class PostgresRagStore:
         (tous les termes, ts_rank_cd) ; complétée par un rappel OR (au moins un
         terme) si trop peu de résultats stricts."""
         sql = ("SELECT c.content,d.id,d.title,d.theme,d.visibility,"
-               "ts_rank_cd(c.tsv, plainto_tsquery('french',%s)) AS score "
+               "ts_rank_cd(c.tsv, plainto_tsquery('french',%s)) AS score,"
+               "d.nature,d.date_source "
                "FROM rag_chunks c JOIN rag_documents d ON d.id=c.doc_id "
                "WHERE c.tsv @@ plainto_tsquery('french',%s) AND " + clause +
                " ORDER BY score DESC LIMIT %s")
@@ -1793,7 +1958,8 @@ class PostgresRagStore:
             if terms:
                 or_q = " | ".join(terms)   # termes alphanumériques : sûrs pour to_tsquery
                 sql2 = ("SELECT c.content,d.id,d.title,d.theme,d.visibility,"
-                        "ts_rank_cd(c.tsv, to_tsquery('french',%s)) AS score "
+                        "ts_rank_cd(c.tsv, to_tsquery('french',%s)) AS score,"
+                        "d.nature,d.date_source "
                         "FROM rag_chunks c JOIN rag_documents d ON d.id=c.doc_id "
                         "WHERE c.tsv @@ to_tsquery('french',%s) AND " + clause +
                         " ORDER BY score DESC LIMIT %s")
@@ -1808,8 +1974,14 @@ class PostgresRagStore:
 
     @staticmethod
     def _hit(r):
+        # Les deux dernières colonnes sont la qualification. Elles voyagent
+        # jusqu'à l'appelant : sans elles, le reclassement par autorité et
+        # fraîcheur n'aurait rien à classer, et retomberait en silence sur
+        # l'ordre de pertinence — un reclassement qui ne reclasse rien.
         return {"content": r[0], "doc_id": r[1], "title": r[2], "theme": r[3],
-                "visibility": r[4], "score": round(float(r[5]), 4)}
+                "visibility": r[4], "score": round(float(r[5]), 4),
+                "nature": (r[6] if len(r) > 6 else None) or "indetermine",
+                "date_source": (r[7] if len(r) > 7 else None)}
 
 
 # Délai minimal entre deux essais de reconnexion automatiques (secondes).
@@ -2285,7 +2457,7 @@ class ResilientRagStore:
                 caps["target_kind"] = kind
         return caps
 
-    def list_documents(self):
+    def list_documents(self, *args, **kwargs):
         self._maybe_reconnect()
         return self._read("list_documents")
 
@@ -2364,6 +2536,9 @@ class ResilientRagStore:
     def ingest_bytes(self, *args, **kwargs):
         """Chargement d'un document, tolérant aux pannes (voir _write)."""
         return self._write("ingest_bytes", *args, **kwargs)
+
+    def set_nature(self, *args, **kwargs):
+        return self._write("set_nature", *args, **kwargs)
 
     def set_theme(self, *args, **kwargs):
         """Reclassement d'un document, tolérant aux pannes (voir _write)."""

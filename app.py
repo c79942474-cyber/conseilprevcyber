@@ -5847,11 +5847,32 @@ def api_rag_list():
     # refus survenu avant l'appel, donc sans explication possible.
     import rag_store as _rs
     depos = _rs.formats_deposables()
+    # LA LISTE EST BORNÉE, ET LA CONSOLE DOIT LE SAVOIR. Elle l'était déjà —
+    # cinq cents documents, en dur dans la requête — mais rien ne le disait :
+    # sur une base plus grande, la console affichait un compteur calculé sur ce
+    # qu'elle avait reçu à côté d'un tableau de bord qui comptait en base, et
+    # les deux nombres divergeaient sans explication. On rend donc le TOTAL
+    # avec la liste, et l'appelant compare.
     try:
-        return jsonify(ok=True, documents=rag.list_documents(), stats=rag.stats(),
+        limite = int(request.args.get("limit") or _rs.LISTE_MAX)
+    except (TypeError, ValueError):
+        limite = _rs.LISTE_MAX
+    try:
+        depart = int(request.args.get("offset") or 0)
+    except (TypeError, ValueError):
+        depart = 0
+    try:
+        st = rag.stats()
+        docs = rag.list_documents(limit=limite, offset=depart)
+        return jsonify(ok=True, documents=docs, stats=st,
+                       total=st.get("documents"), listes=len(docs),
+                       offset=max(0, depart), limite=limite,
+                       tronque=bool(st.get("documents") is not None
+                                    and len(docs) + max(0, depart)
+                                    < st["documents"]),
                        capabilities=rag.capabilities(), themes=THEMES,
                        familles=_familles_payload(), formats=formats_available(),
-                       formats_deposables=depos)
+                       formats_deposables=depos, natures=_natures_payload())
     except Exception:
         try:
             caps = rag.capabilities()
@@ -5859,9 +5880,72 @@ def api_rag_list():
             caps = {"persistent": False, "mode": "lexical", "reason": "db_connection_failed"}
         return jsonify(ok=True, documents=[],
                        stats={"documents": 0, "chunks": 0, "themes": {}, "storage": None},
+                       total=0, listes=0, offset=0, limite=0, tronque=False,
                        capabilities=caps, themes=THEMES,
                        familles=_familles_payload(), formats=formats_available(),
                        formats_deposables=depos)
+
+
+def _natures_payload():
+    """Le vocabulaire des natures de source, ou une liste vide.
+
+    SERVI AVEC LA LISTE DES DOCUMENTS, comme les thèmes : une console qui
+    écrirait ses propres libellés divergerait du module au premier ajout, et
+    proposerait une qualification que la base refuserait.
+    """
+    try:
+        import qualite_source
+        return qualite_source.natures()
+    except Exception:                                    # pragma: no cover
+        return []
+
+
+@app.route("/api/admin/rag/nature", methods=["POST"])
+@admin_required
+def api_rag_nature():
+    """Corrige la qualification d'un ou plusieurs documents — nature et date.
+
+    POURQUOI CETTE ROUTE EXISTE. La nature est DEVINÉE au dépôt, sur le titre
+    et les premières pages. Elle se trompe : un livre blanc qui s'annonce
+    « guide complet », une note de projet dont le titre ne dit rien. Sans
+    correction possible, l'erreur se figerait dans le classement de tous les
+    livrables à venir, et personne ne saurait pourquoi tel document ne remonte
+    jamais.
+
+    AUCUNE RÉINDEXATION : ni le texte, ni les fragments, ni les vecteurs ne
+    changent. Seul l'ordre de sortie change — c'est immédiat et sans risque,
+    exactement comme le reclassement par thème.
+    """
+    import qualite_source as _qs
+    data = request.get_json(silent=True) or {}
+    nature = (data.get("nature") or "").strip().lower()
+    date_source = data.get("date_source")
+    ids = data.get("ids")
+    if nature not in _qs.NATURES:
+        return jsonify(ok=False, error="nature_inconnue",
+                       message="Nature inconnue — choisissez-en une dans la "
+                               "liste.",
+                       natures=_qs.natures()), 400
+    if not isinstance(ids, list) or not ids:
+        return jsonify(ok=False, error="aucun_document",
+                       message="Aucun document à qualifier."), 400
+    qualifies = echecs = 0
+    for doc_id in ids[:2000]:
+        if not _rag_valid_doc_id(str(doc_id)):
+            echecs += 1
+            continue
+        try:
+            rag.set_nature(str(doc_id), nature, date_source)
+            qualifies += 1
+        except RagError:
+            echecs += 1
+        except Exception:
+            app.logger.exception("qualification : échec pour %r", doc_id)
+            echecs += 1
+    audit.journaliser("rag.nature", cible=nature,
+                      detail="%d document(s) qualifié(s), %d échec(s)"
+                             % (qualifies, echecs))
+    return jsonify(ok=True, nature=nature, qualifies=qualifies, echecs=echecs)
 
 
 @app.route("/api/admin/rag/search", methods=["POST"])
