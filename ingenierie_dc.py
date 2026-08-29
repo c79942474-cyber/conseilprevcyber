@@ -5616,6 +5616,26 @@ ROLES_GUIDE = [
         "fin": "Vous savez ce que votre spécification doit contenir, ce que le "
                "calcul vous donne, et ce qu'il vous faudra chercher ailleurs.",
     },
+    # LE SIXIÈME RÔLE, ET POURQUOI IL MANQUAIT. La page a gagné une vue de
+    # portefeuille ; aucun des cinq rôles n'en avait l'usage, et la section
+    # restait donc hors de tout parcours. Une direction de programme ne dirige
+    # pas un projet : elle arbitre entre des sites, et elle descend au projet
+    # seulement là où la date se joue. Sa séquence part donc du portefeuille
+    # et y revient.
+    {
+        "id": "programme",
+        "couleur": "#B39DDB",
+        "icone": "▦",
+        "nom": "Direction de programme",
+        "question": "Où en est le portefeuille, et quel site tient la date ?",
+        "cherche": "La capacité livrée, le coût au kilowatt, et le site qui "
+                   "commande le calendrier de tout le programme.",
+        "phases_cles": ["FAISA", "BASIC", "FEED"],
+        "filiere": "indus",
+        "fin": "Vous savez ce que le portefeuille a livré, ce qu'il a engagé, "
+               "et lequel de vos sites déplace la date. C'est de cela que se "
+               "rend compte un comité — pas d'une moyenne.",
+    },
     {
         "id": "acheteur",
         "couleur": "#E69FC2",
@@ -5756,123 +5776,790 @@ THEMES_GUIDE = [
 # une section 3 lue avant la section 1 ne calcule rien — il change ce qu'on y
 # fait et pourquoi. Le libellé et l'ancre sont écrits ici une fois : la page les
 # reçoit, elle ne les redevine pas.
-_ETAPES_PAGE = [
-    {"ancre": "ig-form", "section": 1, "titre": "Le profil de l'installation"},
-    {"ancre": "ig-parcours", "section": 2, "titre": "Où vous en êtes dans la séquence"},
-    {"ancre": "ig-dossier", "section": 3, "titre": "L'étude de la phase retenue"},
-    {"ancre": "ig-correspondances", "section": 4, "titre": "Les deux filières face à face"},
-    {"ancre": "ig-limites", "section": 5, "titre": "Ce que ce cadre ne fait pas"},
-]
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE PARCOURS GUIDÉ — ce qu'on regarde, dans quel ordre, et pourquoi celui-là
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# CE QUI A ÉTÉ REFAIT, ET LE DÉFAUT QUI L'A IMPOSÉ. Cette table listait CINQ
+# sections et leur numéro, écrits à la main. La page en porte treize. Les cinq
+# numéros étaient donc tous faux — le profil annoncé « section 1 » quand la page
+# l'affiche en 2, les limites annoncées « section 5 » quand la page les affiche
+# en 13 — et huit sections sur treize n'apparaissaient dans AUCUN parcours :
+# le prix de la maîtrise d'œuvre, le coût des travaux, le programme multi-sites,
+# le régime réglementaire, la phase travaux, le dépôt de pièces et la réponse à
+# l'appel d'offres étaient invisibles pour qui suivait le guide.
+#
+# LE NUMÉRO N'EST PLUS ÉCRIT ICI. Il est LU SUR LA PAGE, là où il s'affiche :
+# le navigateur cherche la section qui contient l'ancre et relève son numéro.
+# Une source unique, et un renumérotage suit tout seul. Écrire le numéro à deux
+# endroits, c'était garantir qu'ils divergeraient — ils ont divergé.
+#
+# LES CONSIGNES SONT CLÉES PAR ANCRE, plus par position. Elles étaient zippées
+# rang par rang sur la liste des sections : ajouter une étape décalait TOUTES
+# les consignes d'un cran, en silence, et chaque rôle se retrouvait à conseiller
+# la section suivante. Le défaut ne lève rien et ne se voit qu'en lisant.
 
-# Ce qu'on fait à chaque section, selon le rôle. Cinq rôles × cinq sections :
-# vingt-cinq consignes, écrites — c'est la part qui ne se déduit pas. Ce qui se
-# déduit, ce sont les CHIFFRES, calculés plus bas sur le registre réel.
-_CONSIGNES = {
-    "investisseur": [
-        ("Ne renseignez que la puissance informatique. Tout le reste a une "
-         "valeur par défaut, signalée comme telle.",
-         "Un premier ordre de grandeur en une saisie — et l'aveu, en clair, de "
-         "ce qui n'est encore qu'une hypothèse."),
-        ("Basculez sur la filière ingénierie et lisez la faisabilité. C'est la "
-         "seule phase qui ne suppose aucune étude préalable.",
-         "Vous voyez d'un coup ce que le calcul peut porter maintenant, et à "
-         "partir de quelle phase il ne suffira plus."),
-        ("Ouvrez la phase de faisabilité et lisez la précision attendue avant "
-         "les chiffres eux-mêmes.",
-         "Une classe d'estimation dit ce que le montant vaut. Sans elle, un "
-         "chiffre à ±50 % se lit comme un devis."),
-        ("Comparez les deux filières : votre projet suivra l'une ou l'autre "
-         "selon qu'il est passé en marché public ou en contrat industriel.",
-         "Les jalons de décision ne tombent pas aux mêmes moments — savoir "
-         "lequel s'applique évite de croire une décision encore ouverte."),
-        ("Lisez ce que le cadre refuse de faire.",
-         "Un outil qui annonce ses limites vous dit où chercher l'expertise "
-         "qu'il ne remplace pas."),
-    ],
-    "moe": [
-        ("Renseignez la puissance, puis autant de champs que vous en tenez : "
-         "chaque champ rempli resserre les incertitudes.",
-         "Les fourchettes se referment à mesure que le projet se précise — "
-         "c'est ce resserrement que le maître d'ouvrage regarde."),
-        ("Parcourez la frise de maîtrise d'œuvre et repérez la première phase "
-         "non franchissable.",
-         "Elle vous dit exactement ce qui manque, sans avoir à l'inventorier "
-         "à la main."),
-        ("Ouvrez la phase courante et lisez le registre : les pièces sont "
-         "groupées par type, chacune avec son émetteur et son contenu exigé.",
-         "Un plan de production documentaire daté, et non une liste de bonnes "
-         "intentions."),
-        ("Regardez les correspondances : un projet mené en EPCI n'attend pas "
-         "les mêmes pièces au même moment.",
-         "Les accords faibles sont signalés — ce sont eux qui font les "
-         "malentendus d'interface."),
-        ("Lisez les limites avant de contractualiser sur ce cadre.",
-         "Le registre relève de l'usage professionnel, pas d'un texte "
-         "opposable : la nuance se dit avant, pas après."),
-    ],
-    "discipline": [
-        ("Renseignez la puissance et, si vous les connaissez, les paramètres "
-         "de votre discipline — ils remplacent les valeurs par défaut.",
-         "Le calcul travaille alors sur vos hypothèses, pas sur des moyennes."),
-        ("Choisissez la phase où vous êtes attendu. Le niveau d'émission de "
-         "votre spécification en dépend.",
-         "« Première émission » et « gel contractuel » n'engagent pas la même "
-         "chose sous le même intitulé."),
-        ("Dans le registre, repérez votre spécification : elle porte son "
-         "niveau, son contenu exigé et les autres phases où elle revient.",
-         "Vous produisez UN document indicé, pas trois documents distincts."),
-        ("Vérifiez à quelle phase de l'autre filière votre spécification "
-         "tombe : les interfaces se jouent là.",
-         "Une discipline qui livre au bon moment dans la mauvaise filière "
-         "livre en retard."),
-        ("Lisez ce que le moteur ne calcule pas dans votre discipline.",
-         "Ce qui n'est pas alimenté par le calcul devra venir de vous — "
-         "autant le savoir avant."),
-    ],
-    "acheteur": [
-        ("Renseignez le profil aussi complètement que possible : une "
-         "consultation se prépare sur des hypothèses tenues.",
-         "Les incertitudes affichées deviennent les tolérances que vous "
-         "négocierez."),
-        ("Allez jusqu'à la phase de consultation. Les exigences y sont "
-         "cumulées depuis le début de la séquence.",
-         "Rien de ce qui a été arrêté plus tôt ne redevient ouvert — c'est "
-         "précisément ce qui rend un dossier consultable."),
-        ("Lisez la précision attendue et sa classe d'estimation avant "
-         "d'ouvrir le registre.",
-         "Elle vous dit quelle tolérance est défendable, et à partir de quand "
-         "une pénalité repose sur autre chose qu'un ordre de grandeur."),
-        ("Regardez la colonne EPCI : en contrat industriel, la responsabilité "
-         "de la conception de détail change de côté.",
-         "Ce déplacement de frontière est ce qui distingue les deux montages, "
-         "bien plus que le vocabulaire."),
-        ("Lisez les limites : le pourcentage de tolérance de MOE n'est pas "
-         "fixé par la loi.",
-         "Ce qui relève de l'usage se négocie ; le présenter comme "
-         "réglementaire ferme une discussion qui devait rester ouverte."),
-    ],
-    "exploitant": [
-        ("Renseignez le profil tel qu'il sera exploité, pas tel qu'il a été "
-         "vendu — charge réelle comprise.",
-         "L'écart entre les deux est la première source de dérive après mise "
-         "en service."),
-        ("Allez jusqu'à la réception, ou à la mise en service en filière "
-         "industrielle.",
-         "C'est là que le dossier vous est remis, et là qu'il est trop tard "
-         "pour demander ce qui n'a pas été prévu."),
-        ("Dans le registre, cherchez les pièces au niveau « tel que "
-         "construit » et les points de comptage.",
-         "Sans comptage installé, aucune consommation par poste ne se "
-         "vérifie : elle reste une hypothèse de conception."),
-        ("Comparez avec la mise en service industrielle : les essais de "
-         "performance n'y portent pas sur les mêmes objets.",
-         "Vous saurez quoi réclamer selon le montage choisi."),
-        ("Lisez les limites : le moteur donne des ordres de grandeur, pas des "
-         "garanties de performance.",
-         "Une garantie se mesure sur site ; elle ne se déduit pas d'un "
-         "référentiel."),
-    ],
+# Les sections de la page, par ancre. `objet` dit à quoi la section sert, en
+# clair — c'est ce qui permet à quelqu'un qui découvre la page de savoir s'il
+# est au bon endroit avant de lire le reste.
+SECTIONS_PAGE = {
+    "ig-sec-projet": {
+        "titre": "Votre projet et son historique",
+        "objet": "Ouvrir ou reprendre un projet, et retrouver ce qui a déjà "
+                 "été produit dessus.",
+    },
+    "ig-form": {
+        "titre": "Le profil de l'installation",
+        "objet": "Les quelques grandeurs dont tout le reste découle. Seule la "
+                 "puissance informatique est indispensable.",
+    },
+    "ig-qualif": {
+        "titre": "La qualification du niveau de disponibilité",
+        "objet": "Ce que la topologie décrite permettrait de revendiquer, et "
+                 "quel sous-système l'en empêche.",
+    },
+    "ig-parcours": {
+        "titre": "Où vous en êtes dans la séquence",
+        "objet": "La frise des phases, et la première que le dossier ne "
+                 "permet pas encore de franchir.",
+    },
+    "ig-dossier": {
+        "titre": "L'étude de la phase retenue",
+        "objet": "Les pièces dues à cette phase, leur niveau d'émission, et "
+                 "celles que le calcul alimente déjà.",
+    },
+    "ig-correspondances": {
+        "titre": "Les deux filières face à face",
+        "objet": "Ce qu'une phase de maîtrise d'œuvre vaut dans un montage "
+                 "industriel, et là où l'équivalence est faible.",
+    },
+    "ig-moe": {
+        "titre": "Le prix de la maîtrise d'œuvre",
+        "objet": "Le coût des missions d'étude et de suivi, mission par "
+                 "mission et phase par phase.",
+    },
+    "ig-eco": {
+        "titre": "Le coût des travaux, poste par poste",
+        "objet": "Le chiffrage de l'opération sur vos prix, avec ce qui reste "
+                 "non chiffré déclaré comme tel.",
+    },
+    "ig-prog": {
+        "titre": "Piloter le programme multi-sites",
+        "objet": "La vue de portefeuille : capacité engagée et livrée, coût au "
+                 "kilowatt, site qui tient le chemin critique.",
+    },
+    "ig-icpe": {
+        "titre": "Le régime ICPE de votre projet",
+        "objet": "Les rubriques d'installation classée en jeu, et le délai "
+                 "d'instruction qui en découle.",
+    },
+    "ig-travaux": {
+        "titre": "Organiser la phase travaux",
+        "objet": "L'ordre des opérations de chantier, les points d'arrêt, et "
+                 "qui intervient à quel titre.",
+    },
+    "ig-depot": {
+        "titre": "Apporter vos documents",
+        "objet": "Verser vos pièces existantes pour que l'étude s'appuie "
+                 "dessus au lieu de repartir de moyennes.",
+    },
+    "ig-ao": {
+        "titre": "Répondre à l'appel d'offres",
+        "objet": "Lire le dossier de consultation du client, et préparer les "
+                 "pièces de la candidature.",
+    },
+    "ig-limites": {
+        "titre": "Ce que ce cadre ne fait pas",
+        "objet": "Les quatre choses que cette page refuse de faire à votre "
+                 "place, et où chercher ce qu'elle ne remplace pas.",
+    },
 }
+
+
+# La séquence propre à chaque rôle. UN PARCOURS N'EST PAS UNE VISITE COMPLÈTE :
+# faire passer tout le monde par les treize sections ne serait pas un parcours,
+# ce serait un sommaire. Chaque rôle suit ce qui le concerne, dans l'ordre où
+# ça lui sert — et les sections qu'il saute ne sont pas cachées, elles sont
+# simplement d'un autre métier.
+SEQUENCES = {
+    "investisseur": ["ig-form", "ig-parcours", "ig-dossier", "ig-eco",
+                     "ig-moe", "ig-icpe", "ig-limites"],
+    "moe": ["ig-sec-projet", "ig-form", "ig-parcours", "ig-dossier",
+            "ig-correspondances", "ig-travaux", "ig-depot", "ig-limites"],
+    "discipline": ["ig-form", "ig-qualif", "ig-parcours", "ig-dossier",
+                   "ig-depot", "ig-limites"],
+    "acheteur": ["ig-form", "ig-parcours", "ig-dossier", "ig-eco", "ig-ao",
+                 "ig-travaux", "ig-limites"],
+    "exploitant": ["ig-form", "ig-qualif", "ig-icpe", "ig-travaux",
+                   "ig-dossier", "ig-limites"],
+    "programme": ["ig-prog", "ig-form", "ig-icpe", "ig-travaux", "ig-moe",
+                  "ig-eco", "ig-limites"],
+}
+
+
+# Ce qu'on fait à chaque section, selon le rôle — CLÉ PAR ANCRE.
+#
+# CINQ CHOSES PAR ÉTAPE, et chacune répond à une question qu'un débutant se
+# pose sans oser la poser :
+#
+#   · faire          — le geste, à l'impératif ;
+#   · gain           — ce qu'on obtient, et qui justifie le geste ;
+#   · pourquoi_ici   — pourquoi CETTE étape vient à CE moment. C'est la partie
+#                      qui manquait : une suite d'écrans sans logique se subit,
+#                      une séquence dont on comprend l'ordre se retient ;
+#   · si_vous_sautez — ce qu'on perd à passer outre. Dire qu'on peut sauter est
+#                      plus honnête, et plus efficace, que prétendre que les
+#                      sept étapes sont également obligatoires ;
+#   · duree          — un ordre de grandeur. Savoir qu'une étape prend deux
+#                      minutes ou un quart d'heure décide si on la commence ;
+#   · notions        — les sigles employés, en références de glossaire. La page
+#                      sait déjà les expliquer au survol ; le parcours les
+#                      désigne au lieu de supposer qu'ils sont connus.
+_CONSIGNES = {
+    "investisseur": {
+        "ig-form": {
+            "faire": "Ne renseignez que la puissance informatique, en "
+                     "kilowatts. Laissez tout le reste : chaque champ vide "
+                     "prend une valeur par défaut, signalée comme telle dans "
+                     "la note.",
+            "gain": "Un premier ordre de grandeur en une saisie — et l'aveu, "
+                    "en clair, de ce qui n'est encore qu'une hypothèse.",
+            "pourquoi_ici": "Tout le reste de la page en découle : les phases "
+                            "franchissables, le coût, le régime "
+                            "réglementaire. Sans cette valeur, les sections "
+                            "suivantes n'ont rien à calculer.",
+            "si_vous_sautez": "Rien ne se calcule. C'est la seule étape dont "
+                              "on ne peut pas se passer.",
+            "duree": "deux minutes",
+            "notions": ["poste:pue"],
+        },
+        "ig-parcours": {
+            "faire": "Basculez sur la filière ingénierie et lisez la "
+                     "faisabilité. C'est la seule phase qui ne suppose aucune "
+                     "étude préalable.",
+            "gain": "Vous voyez d'un coup ce que le calcul peut porter "
+                    "maintenant, et à partir de quelle phase il ne suffira "
+                    "plus.",
+            "pourquoi_ici": "Avant de regarder un montant, il faut savoir à "
+                            "quelle phase on se situe : c'est elle qui décide "
+                            "de ce qu'un chiffre vaut.",
+            "si_vous_sautez": "Vous lirez les montants de la section suivante "
+                              "sans savoir s'ils sont indicatifs ou "
+                              "engageants.",
+            "duree": "trois minutes",
+            "notions": ["phase:FAISA", "filiere:indus"],
+        },
+        "ig-dossier": {
+            "faire": "Ouvrez la phase de faisabilité et lisez la précision "
+                     "attendue AVANT les chiffres eux-mêmes.",
+            "gain": "Une classe d'estimation dit ce que le montant vaut. Sans "
+                    "elle, un chiffre à ±50 % se lit comme un devis.",
+            "pourquoi_ici": "C'est le cœur du sujet pour vous : la question "
+                            "n'est pas « combien » mais « à partir de quand "
+                            "ce combien engage quelqu'un ».",
+            "si_vous_sautez": "Vous risquez de traiter une fourchette de "
+                              "cadrage comme un engagement — la confusion la "
+                              "plus coûteuse de tout le projet.",
+            "duree": "un quart d'heure",
+            "notions": ["aace:Classe 3", "statut:a_remplacer"],
+        },
+        "ig-eco": {
+            "faire": "Chiffrez l'opération sur vos propres prix. Les postes "
+                     "sans prix ressortent « non chiffrés », avec leur "
+                     "raison — ne les remplissez pas au jugé.",
+            "gain": "Un montant dont vous savez quelle part est réellement "
+                    "chiffrée, et quelle part reste ouverte.",
+            "pourquoi_ici": "Le coût des travaux vient avant celui des "
+                            "études : les honoraires de maîtrise d'œuvre se "
+                            "calculent en pourcentage de ce montant.",
+            "si_vous_sautez": "La section suivante devra partir d'une "
+                              "hypothèse de coût de travaux au lieu de la "
+                              "vôtre.",
+            "duree": "une demi-heure, si vous avez un bordereau",
+            "notions": ["aace:Classe 3"],
+        },
+        "ig-moe": {
+            "faire": "Chiffrez la maîtrise d'œuvre à partir du coût des "
+                     "travaux que vous venez d'établir.",
+            "gain": "Le prix des études et du suivi, mission par mission — et "
+                    "les deux missions qui ne se négocient pas.",
+            "pourquoi_ici": "Elle découle du coût des travaux, d'où sa place "
+                            "juste après. Prise isolément, elle repose sur "
+                            "une hypothèse ; prise ici, sur votre chiffrage.",
+            "si_vous_sautez": "Vous budgétez les travaux sans les études, "
+                              "c'est-à-dire une opération sans ceux qui la "
+                              "conçoivent et la suivent.",
+            "duree": "dix minutes",
+            "notions": [],
+        },
+        "ig-icpe": {
+            "faire": "Criblez les rubriques d'installation classée sur les "
+                     "puissances et volumes envisagés, même approximatifs.",
+            "gain": "Le régime probable du site, et surtout le DÉLAI "
+                    "d'instruction qui va avec.",
+            "pourquoi_ici": "Parce que ce délai est un jalon de planning, pas "
+                            "une formalité de fin de chantier — et qu'il se "
+                            "découvre trop tard dans la plupart des projets.",
+            "si_vous_sautez": "Vous engagez un calendrier qui ignore "
+                              "plusieurs mois d'instruction possibles.",
+            "duree": "dix minutes",
+            "notions": ["enjeu:icpe", "regime_icpe:E"],
+        },
+        "ig-limites": {
+            "faire": "Lisez ce que le cadre refuse de faire.",
+            "gain": "Un outil qui annonce ses limites vous dit où chercher "
+                    "l'expertise qu'il ne remplace pas.",
+            "pourquoi_ici": "En dernier, parce que ces limites se lisent "
+                            "autrement une fois qu'on a vu ce que la page "
+                            "produit.",
+            "si_vous_sautez": "Vous citerez ces résultats ailleurs sans savoir "
+                              "ce qu'ils ne couvrent pas.",
+            "duree": "trois minutes",
+            "notions": [],
+        },
+    },
+    "moe": {
+        "ig-sec-projet": {
+            "faire": "Ouvrez un projet, ou reprenez celui sur lequel vous "
+                     "travaillez. Tout ce que vous produirez s'y rattachera.",
+            "gain": "Un fil : les études, les chiffrages et les pièces "
+                    "restent ensemble au lieu de se disperser.",
+            "pourquoi_ici": "En premier, parce qu'un travail commencé hors "
+                            "projet se retrouve mal, et parce que le registre "
+                            "documentaire se construit à partir de là.",
+            "si_vous_sautez": "Vous pouvez tout faire quand même — mais rien "
+                              "ne sera conservé d'une session à l'autre.",
+            "duree": "deux minutes",
+            "notions": [],
+        },
+        "ig-form": {
+            "faire": "Renseignez la puissance, puis autant de champs que vous "
+                     "en tenez : chaque champ rempli resserre les "
+                     "incertitudes.",
+            "gain": "Les fourchettes se referment à mesure que le projet se "
+                    "précise — c'est ce resserrement que le maître d'ouvrage "
+                    "regarde.",
+            "pourquoi_ici": "Le registre des pièces dépend de ce profil : "
+                            "certaines ne deviennent exigibles qu'au-delà "
+                            "d'un seuil de puissance.",
+            "si_vous_sautez": "Le registre s'affichera dans sa version la "
+                              "plus générale, sans les pièces propres à votre "
+                              "installation.",
+            "duree": "un quart d'heure",
+            "notions": ["poste:pue", "poste:evaporation"],
+        },
+        "ig-parcours": {
+            "faire": "Parcourez la frise de maîtrise d'œuvre et repérez la "
+                     "première phase non franchissable.",
+            "gain": "Elle vous dit exactement ce qui manque, sans avoir à "
+                    "l'inventorier à la main.",
+            "pourquoi_ici": "Avant d'ouvrir un dossier de phase, il faut "
+                            "savoir laquelle : ouvrir la mauvaise fait "
+                            "produire des pièces qui ne sont pas encore dues.",
+            "si_vous_sautez": "Vous choisirez la phase au jugé, et le registre "
+                              "listera des pièces d'une autre étape du projet.",
+            "duree": "cinq minutes",
+            "notions": ["phase:APD", "filiere:moe"],
+        },
+        "ig-dossier": {
+            "faire": "Ouvrez la phase courante et lisez le registre : les "
+                     "pièces sont groupées par type, chacune avec son "
+                     "émetteur et son contenu exigé.",
+            "gain": "Un plan de production documentaire daté, et non une "
+                    "liste de bonnes intentions.",
+            "pourquoi_ici": "C'est le cœur de votre parcours : tout ce qui "
+                            "précède sert à établir CE registre-là, et tout "
+                            "ce qui suit en découle.",
+            "si_vous_sautez": "Il ne reste rien de la page pour vous.",
+            "duree": "une demi-heure, la première fois",
+            "notions": ["niveau:emission", "niveau:gel", "type_piece:contractuel",
+                        "caractere:obligatoire"],
+        },
+        "ig-correspondances": {
+            "faire": "Regardez les correspondances : un projet mené en EPCI "
+                     "n'attend pas les mêmes pièces au même moment.",
+            "gain": "Les accords faibles sont signalés — ce sont eux qui font "
+                    "les malentendus d'interface.",
+            "pourquoi_ici": "Une fois le registre connu, la question devient "
+                            "« et si le client mène l'opération autrement ? ». "
+                            "Elle ne se pose pas avant.",
+            "si_vous_sautez": "Sans conséquence si votre montage est fixé. "
+                              "À lire dès qu'un industriel entre au tour de "
+                              "table.",
+            "duree": "dix minutes",
+            "notions": ["accord:franc", "accord:faible"],
+        },
+        "ig-travaux": {
+            "faire": "Déroulez le plan de la phase travaux et relevez les "
+                     "points d'arrêt. Ce sont eux qu'il faudra écrire au "
+                     "marché.",
+            "gain": "L'ordre des opérations, ce qu'il faut avant chacune, et "
+                    "les tiers dont l'avis ne se commande pas.",
+            "pourquoi_ici": "Après le registre, parce qu'un point d'arrêt "
+                            "n'existe que s'il est écrit dans une pièce — et "
+                            "vous venez d'établir lesquelles.",
+            "si_vous_sautez": "Vous rédigerez un dossier de consultation sans "
+                              "les points d'arrêt, donc sans prise sur les "
+                              "ouvrages qui seront cachés.",
+            "duree": "un quart d'heure",
+            "notions": ["operation:visa", "operation:ist", "intervenant:csps"],
+        },
+        "ig-depot": {
+            "faire": "Versez vos pièces existantes — notes de calcul, "
+                     "relevés, spécifications d'un projet antérieur.",
+            "gain": "L'étude s'appuie sur vos documents au lieu de repartir "
+                    "de moyennes.",
+            "pourquoi_ici": "En fin de parcours, parce qu'on sait alors ce "
+                            "qui manque : déposer avant, c'est déposer au "
+                            "hasard.",
+            "si_vous_sautez": "Les études resteront alimentées par les "
+                              "valeurs par défaut du moteur.",
+            "duree": "variable",
+            "notions": [],
+        },
+        "ig-limites": {
+            "faire": "Lisez les limites avant de contractualiser sur ce cadre.",
+            "gain": "Le registre relève de l'usage professionnel, pas d'un "
+                    "texte opposable : la nuance se dit avant, pas après.",
+            "pourquoi_ici": "En dernier, quand vous savez ce que la page vous "
+                            "a donné et ce que vous vous apprêtez à en faire.",
+            "si_vous_sautez": "Vous annexerez à un marché un registre qui "
+                              "n'a pas la portée que sa forme suggère.",
+            "duree": "trois minutes",
+            "notions": [],
+        },
+    },
+    "discipline": {
+        "ig-form": {
+            "faire": "Renseignez la puissance et, si vous les connaissez, les "
+                     "paramètres de votre discipline — ils remplacent les "
+                     "valeurs par défaut.",
+            "gain": "Le calcul travaille alors sur vos hypothèses, pas sur "
+                    "des moyennes.",
+            "pourquoi_ici": "Vos propres grandeurs d'entrée décident de ce que "
+                            "le moteur pourra verser à votre spécification.",
+            "si_vous_sautez": "Votre spécification citera des valeurs par "
+                              "défaut, qu'il faudra remplacer une à une.",
+            "duree": "dix minutes",
+            "notions": ["poste:pue", "nature:analyse"],
+        },
+        "ig-qualif": {
+            "faire": "Notez le niveau de disponibilité de CHAQUE "
+                     "sous-système, y compris ceux qui ne sont pas les "
+                     "vôtres. Laissez vide ce que vous ignorez.",
+            "gain": "Le niveau du site, et le sous-système qui le limite — "
+                    "souvent pas celui qu'on croit.",
+            "pourquoi_ici": "Juste après le profil, parce que le niveau visé "
+                            "commande le nombre d'unités de votre discipline, "
+                            "donc le dimensionnement que vous allez écrire.",
+            "si_vous_sautez": "Vous dimensionnerez sur un niveau supposé. "
+                              "S'il est tenu par un autre lot, votre marge "
+                              "est payée sans être obtenue.",
+            "duree": "un quart d'heure",
+            "notions": ["tier_exigence:III", "tier_regle:plus_bas_sous_systeme",
+                        "redondance:N+1"],
+        },
+        "ig-parcours": {
+            "faire": "Choisissez la phase où vous êtes attendu. Le niveau "
+                     "d'émission de votre spécification en dépend.",
+            "gain": "« Première émission » et « gel contractuel » n'engagent "
+                    "pas la même chose sous le même intitulé.",
+            "pourquoi_ici": "Le niveau attendu change ce que le document doit "
+                            "contenir — pas seulement sa date de remise.",
+            "si_vous_sautez": "Vous écrirez au niveau que vous supposez, et "
+                              "il sera refusé au visa s'il est trop léger.",
+            "duree": "trois minutes",
+            "notions": ["niveau:principes", "niveau:emission", "niveau:gel"],
+        },
+        "ig-dossier": {
+            "faire": "Dans le registre, repérez VOTRE spécification : elle "
+                     "porte son niveau, son contenu exigé et les autres "
+                     "phases où elle revient.",
+            "gain": "Vous produisez UN document indicé, pas trois documents "
+                    "distincts.",
+            "pourquoi_ici": "C'est l'aboutissement : tout ce qui précède "
+                            "sert à savoir ce que CE document doit contenir "
+                            "aujourd'hui.",
+            "si_vous_sautez": "Il ne reste rien de la page pour vous.",
+            "duree": "un quart d'heure",
+            "notions": ["type_piece:note", "emetteur:moe"],
+        },
+        "ig-depot": {
+            "faire": "Versez vos notes de calcul et vos relevés : l'étude "
+                     "s'appuiera dessus.",
+            "gain": "Ce que vous avez déjà établi cesse d'être redemandé.",
+            "pourquoi_ici": "Une fois que vous savez ce que la spécification "
+                            "exige, vous savez lesquels de vos documents la "
+                            "servent.",
+            "si_vous_sautez": "Sans conséquence sur le registre, mais vos "
+                              "données resteront hors du calcul.",
+            "duree": "variable",
+            "notions": [],
+        },
+        "ig-limites": {
+            "faire": "Lisez ce que le moteur ne calcule pas dans votre "
+                     "discipline.",
+            "gain": "Ce qui n'est pas alimenté par le calcul devra venir de "
+                    "vous — autant le savoir avant d'écrire.",
+            "pourquoi_ici": "En dernier, parce que la liste de ce qui manque "
+                            "ne se lit utilement qu'une fois qu'on sait ce "
+                            "qu'on a.",
+            "si_vous_sautez": "Vous découvrirez les trous au visa.",
+            "duree": "trois minutes",
+            "notions": [],
+        },
+    },
+    "acheteur": {
+        "ig-form": {
+            "faire": "Renseignez la puissance et le pays. Le reste n'est pas "
+                     "de votre ressort et prendra ses valeurs par défaut.",
+            "gain": "De quoi lire les phases et les classes de précision sans "
+                    "dépendre d'un ingénieur pour la saisie.",
+            "pourquoi_ici": "C'est le minimum pour que les sections suivantes "
+                            "aient quelque chose à qualifier.",
+            "si_vous_sautez": "Rien ne se calcule : les phases s'affichent "
+                              "sans être éprouvées, et aucun montant "
+                              "n'apparaît.",
+            "duree": "deux minutes",
+            "notions": [],
+        },
+        "ig-parcours": {
+            "faire": "Repérez la phase de gel contractuel dans la filière qui "
+                     "correspond à votre montage.",
+            "gain": "Le moment exact où ce qui était indicatif devient "
+                    "opposable.",
+            "pourquoi_ici": "Votre métier tient à cette date : avant, tout se "
+                            "discute ; après, tout se négocie en avenant.",
+            "si_vous_sautez": "Vous engagerez sur des pièces qui n'ont pas "
+                              "encore la portée que vous leur prêtez.",
+            "duree": "cinq minutes",
+            "notions": ["phase:DCE", "phase:ACT", "niveau:gel"],
+        },
+        "ig-dossier": {
+            "faire": "Ouvrez la phase et lisez la classe de précision, puis "
+                     "les pièces marquées contractuelles.",
+            "gain": "Ce sur quoi vous pouvez engager quelqu'un, et avec "
+                    "quelle tolérance.",
+            "pourquoi_ici": "La classe de précision est ce qui vous manque "
+                            "quand vous rédigez une clause de prix : elle dit "
+                            "la tolérance légitime.",
+            "si_vous_sautez": "Vous écrirez une tolérance au jugé, trop serrée "
+                              "ou trop lâche — les deux se paient.",
+            "duree": "un quart d'heure",
+            "notions": ["aace:Classe 3", "type_piece:contractuel", "caractere:obligatoire"],
+        },
+        "ig-eco": {
+            "faire": "Chiffrez l'opération et regardez la part NON chiffrée "
+                     "autant que le total.",
+            "gain": "Au-delà d'un quart d'enveloppe non chiffrée, le total "
+                    "n'est pas un budget.",
+            "pourquoi_ici": "Vous ne pouvez pas rédiger un dossier de "
+                            "consultation sur une enveloppe dont vous ignorez "
+                            "la part d'inconnu.",
+            "si_vous_sautez": "Vous consulterez sur un montant sans savoir ce "
+                              "qu'il recouvre.",
+            "duree": "une demi-heure",
+            "notions": ["aace:Classe 3", "statut:a_remplacer"],
+        },
+        "ig-ao": {
+            "faire": "Déposez les pièces de la consultation du client et "
+                     "analysez-les ensemble. Lisez d'abord ce qui MANQUE.",
+            "gain": "Les points de vigilance cités avec leur position, et les "
+                    "pièces absentes du dossier — l'information qu'on remarque "
+                    "le moins.",
+            "pourquoi_ici": "C'est le cœur de votre parcours. Il vient après "
+                            "le chiffrage parce qu'une offre se construit sur "
+                            "un coût, pas l'inverse.",
+            "si_vous_sautez": "Il ne reste rien de la page pour vous.",
+            "duree": "vingt minutes",
+            "notions": ["piece_marche:rc", "piece_marche:ccap",
+                        "piece_candidature:dc1"],
+        },
+        "ig-travaux": {
+            "faire": "Relevez les points d'arrêt et les solutions à poser "
+                     "AVANT la consultation.",
+            "gain": "Ce qui, posé au cahier des charges, s'applique — et qui, "
+                    "posé après, se négocie.",
+            "pourquoi_ici": "Juste après l'analyse du dossier : vous savez "
+                            "maintenant ce que le client impose, et il reste "
+                            "à voir ce qu'il a oublié d'imposer.",
+            "si_vous_sautez": "Vous signerez un marché sans prise sur les "
+                              "ouvrages cachés ni sur les essais.",
+            "duree": "un quart d'heure",
+            "notions": ["solution:points_arret",
+                        "solution:essais_contractualises"],
+        },
+        "ig-limites": {
+            "faire": "Lisez les limites, en particulier celle sur les "
+                     "tolérances de maîtrise d'œuvre.",
+            "gain": "Elles relèvent de l'usage, pas du texte : le pourcentage "
+                    "s'arrête au contrat, il ne se cite pas.",
+            "pourquoi_ici": "En dernier, avant de rédiger : c'est là que se "
+                            "trouvent les phrases qu'il ne faut pas recopier "
+                            "dans une pièce de marché.",
+            "si_vous_sautez": "Vous citerez comme réglementaire ce qui n'est "
+                              "qu'un usage.",
+            "duree": "trois minutes",
+            "notions": [],
+        },
+    },
+    "exploitant": {
+        "ig-form": {
+            "faire": "Renseignez la puissance et le mode de refroidissement "
+                     "réellement installé, pas celui prévu au dossier.",
+            "gain": "Un calcul qui décrit votre site tel qu'il tourne.",
+            "pourquoi_ici": "Vous êtes le seul à connaître l'écart entre le "
+                            "dossier et l'ouvrage : c'est votre apport, et il "
+                            "vient en premier.",
+            "si_vous_sautez": "Le calcul décrira l'installation prévue, pas "
+                              "la vôtre.",
+            "duree": "cinq minutes",
+            "notions": ["mode_froid:adiabatique", "poste:evaporation"],
+        },
+        "ig-qualif": {
+            "faire": "Notez chaque sous-système tel qu'il est AUJOURD'HUI, "
+                     "après les modifications successives.",
+            "gain": "Le niveau réel du site, et le sous-système qui le "
+                    "limite — souvent celui qu'une modification a dégradé "
+                    "sans que personne ne le note.",
+            "pourquoi_ici": "Avant tout le reste, parce que c'est la question "
+                            "qu'on vous posera le jour d'un incident.",
+            "si_vous_sautez": "Vous continuerez d'annoncer le niveau du "
+                              "dossier d'origine.",
+            "duree": "un quart d'heure",
+            "notions": ["tier_regle:plus_bas_sous_systeme",
+                        "tier_essai:III"],
+        },
+        "ig-icpe": {
+            "faire": "Criblez les rubriques sur les grandeurs RÉELLES du "
+                     "site : charge de fluide, volume de fioul, puissance des "
+                     "groupes.",
+            "gain": "Les rubriques atteintes aujourd'hui, qui ne sont pas "
+                    "forcément celles du dossier d'autorisation.",
+            "pourquoi_ici": "Une installation ajoutée après la mise en "
+                            "service peut avoir fait basculer un régime sans "
+                            "que le dossier ait été repris.",
+            "si_vous_sautez": "Vous exploiterez sous un régime qui ne "
+                              "correspond peut-être plus à l'installation.",
+            "duree": "dix minutes",
+            "notions": ["rubrique_icpe:1185", "rubrique_icpe:2910",
+                        "regime_icpe:DC"],
+        },
+        "ig-travaux": {
+            "faire": "Lisez le transfert à l'exploitation et la levée des "
+                     "réserves, même si le chantier est ancien.",
+            "gain": "La liste de ce qui aurait dû vous être remis — et qui se "
+                    "réclame encore.",
+            "pourquoi_ici": "Ce que vous n'avez pas obtenu à la réception se "
+                            "demande d'autant mieux qu'on sait le nommer.",
+            "si_vous_sautez": "Vous continuerez d'exploiter sans les données "
+                              "qui manquent, faute de savoir lesquelles.",
+            "duree": "dix minutes",
+            "notions": ["operation:exploitation", "operation:levee"],
+        },
+        "ig-dossier": {
+            "faire": "Ouvrez la phase de réception et repérez les pièces "
+                     "d'exploitation qui vous reviennent.",
+            "gain": "Le dossier des ouvrages exécutés, le plan de comptage, "
+                    "les paramétrages : ce sont des livrables, pas des "
+                    "faveurs.",
+            "pourquoi_ici": "En fin de parcours, parce que la liste ne prend "
+                            "son sens qu'après avoir vu ce qui manque sur "
+                            "votre site.",
+            "si_vous_sautez": "Vous ne saurez pas quoi réclamer.",
+            "duree": "dix minutes",
+            "notions": ["phase:AOR", "emetteur:entreprise"],
+        },
+        "ig-limites": {
+            "faire": "Lisez les limites : le moteur donne des ordres de "
+                     "grandeur, pas des garanties de performance.",
+            "gain": "Une garantie se mesure sur site ; elle ne se déduit pas "
+                    "d'un référentiel.",
+            "pourquoi_ici": "En dernier, parce que c'est vous qui mesurerez — "
+                            "et l'écart entre le calcul et la mesure est "
+                            "normal.",
+            "si_vous_sautez": "Vous opposerez un calcul à une mesure, et la "
+                              "mesure aura raison.",
+            "duree": "trois minutes",
+            "notions": [],
+        },
+    },
+    "programme": {
+        "ig-prog": {
+            "faire": "Déclarez vos sites, même incomplets. Un site connu par "
+                     "son seul nom compte et se signale comme non renseigné.",
+            "gain": "La capacité engagée et livrée, le coût au kilowatt, et "
+                    "le site qui tient le chemin critique.",
+            "pourquoi_ici": "En premier : votre objet est le portefeuille, "
+                            "pas un site. Tout le reste de la page raisonne "
+                            "projet, et vous y descendrez ensuite.",
+            "si_vous_sautez": "Il ne reste rien de la page pour vous.",
+            "duree": "vingt minutes",
+            "notions": ["kpi:capacite_livree", "kpi:pue_programme",
+                        "nature_site:brownfield"],
+        },
+        "ig-form": {
+            "faire": "Descendez sur UN site — celui qui tient le chemin "
+                     "critique — et renseignez son profil.",
+            "gain": "Le détail du site qui commande la date de tout le "
+                    "programme.",
+            "pourquoi_ici": "La vue de portefeuille a désigné le site "
+                            "critique ; c'est celui-là qu'il faut instruire, "
+                            "pas les autres.",
+            "si_vous_sautez": "Vous piloterez au niveau agrégé sans jamais "
+                              "descendre là où la date se joue.",
+            "duree": "cinq minutes",
+            "notions": [],
+        },
+        "ig-icpe": {
+            "faire": "Criblez le régime de ce site. Recommencez pays par "
+                     "pays : le régime ne se consolide PAS.",
+            "gain": "Le délai d'instruction de chaque site — celui qui "
+                    "déplace les jalons du programme.",
+            "pourquoi_ici": "C'est la première cause de dérive d'un programme "
+                            "multi-sites, et la seule grandeur de votre "
+                            "tableau de bord qui refuse d'être agrégée.",
+            "si_vous_sautez": "Votre planning directeur ignorera des mois "
+                              "d'instruction, site par site.",
+            "duree": "dix minutes par site",
+            "notions": ["enjeu:icpe", "kpi:regime_icpe"],
+        },
+        "ig-travaux": {
+            "faire": "Relevez les essais intégrés et les conditions de la "
+                     "livraison « zéro défaut ».",
+            "gain": "Ce que la promesse coûte, chiffré : commissioning dès "
+                    "l'avant-projet, bancs de charge, temps réservé aux "
+                    "essais.",
+            "pourquoi_ici": "Après le régime, parce que les deux tiennent le "
+                            "calendrier de mise en service — l'un par "
+                            "l'amont, l'autre par l'aval.",
+            "si_vous_sautez": "Vous annoncerez « zéro défaut » sans avoir "
+                              "chiffré ce qui le rend possible.",
+            "duree": "un quart d'heure",
+            "notions": ["operation:ist", "intervenant:commissioning",
+                        "solution:revue_conception_cx"],
+        },
+        "ig-moe": {
+            "faire": "Chiffrez la maîtrise d'œuvre du site, puis rapportez-la "
+                     "au kilowatt pour la comparer aux autres.",
+            "gain": "Un coût d'études comparable d'un site à l'autre, ce que "
+                    "le montant brut ne permet pas.",
+            "pourquoi_ici": "Une fois le contenu de mission connu — régime, "
+                            "essais — le prix des études cesse d'être une "
+                            "hypothèse.",
+            "si_vous_sautez": "Vous comparerez des honoraires de sites qui "
+                              "n'ont ni la même taille ni le même périmètre.",
+            "duree": "dix minutes",
+            "notions": ["kpi:capex_par_kw"],
+        },
+        "ig-eco": {
+            "faire": "Chiffrez les travaux et remontez le coût au kilowatt "
+                     "dans la vue de portefeuille.",
+            "gain": "Le ratio qui arbitre entre sites, entre niveaux de "
+                    "redondance et entre modes de refroidissement.",
+            "pourquoi_ici": "En fin de descente : vous remontez au "
+                            "portefeuille le chiffre que vous êtes venu "
+                            "chercher.",
+            "si_vous_sautez": "Le coût au kilowatt du programme restera une "
+                              "moyenne d'hypothèses.",
+            "duree": "une demi-heure",
+            "notions": ["kpi:capex_par_kw", "kpi:opex_par_kw_an"],
+        },
+        "ig-limites": {
+            "faire": "Lisez les limites, en particulier celle sur la "
+                     "consolidation.",
+            "gain": "Ce qui s'additionne, ce qui se pondère, et ce qui ne se "
+                    "consolide pas du tout.",
+            "pourquoi_ici": "En dernier, avant de porter ces chiffres devant "
+                            "un comité qui ne les reverra pas.",
+            "si_vous_sautez": "Vous présenterez une moyenne de PUE, qui est "
+                              "fausse, ou un régime consolidé, qui n'existe "
+                              "pas.",
+            "duree": "cinq minutes",
+            "notions": ["kpi:pue_programme"],
+        },
+    },
+}
+
+
+def _nom_notion(ref):
+    """Le nom lisible d'une notion, lu au glossaire servi à la page.
+
+    POURQUOI LE NOM N'EST PAS ÉCRIT DANS LA CONSIGNE. Le parcours désigne des
+    notions par leur référence — « tier_exigence:III », « operation:ist ». Le
+    nom affiché vient du glossaire, celui-là même que l'infobulle emploie : une
+    étiquette recopiée dans la consigne finirait par nommer autrement ce que le
+    survol explique, et deux noms pour une notion valent moins qu'un seul.
+
+    Une référence inconnue rend sa clé plutôt que rien : mieux vaut un code
+    lisible qu'une puce vide, et l'anomalie se voit.
+    """
+    fam, _, cle = str(ref or "").partition(":")
+    e = (glossaire().get(fam) or {}).get(cle)
+    return (e or {}).get("nom") or cle or ref
+
+
+def _verifier_parcours():
+    """Les fautes du parcours guidé, ou une liste vide.
+
+    TROIS CONTRÔLES, ET LE TROISIÈME EST CELUI QUI MANQUAIT :
+
+      · toute ancre citée par une séquence existe au catalogue des sections ;
+      · tout rôle a une consigne pour chaque ancre de SA séquence — et pas de
+        consigne orpheline, qui serait du texte écrit pour rien ;
+      · TOUTE SECTION DU CATALOGUE EST ATTEINTE PAR AU MOINS UN PARCOURS. Sans
+        lui, huit sections sur treize sont restées invisibles pendant des
+        semaines : elles existaient, elles étaient bonnes, et aucun guide n'y
+        menait. Une section que personne ne visite ne se signale jamais toute
+        seule.
+
+    LES ANCRES ELLES-MÊMES NE SONT PAS VÉRIFIÉES ICI contre la page : ce module
+    ne lit pas le HTML, et l'y coupler pour cela reviendrait à faire dépendre
+    le serveur d'un gabarit. C'est une règle d'essai qui tient ce lien.
+    """
+    fautes = []
+    for rid, seq in SEQUENCES.items():
+        if not any(r["id"] == rid for r in ROLES_GUIDE):
+            fautes.append("séquence sans rôle : %s" % rid)
+        if not seq:
+            fautes.append("séquence vide : %s" % rid)
+        vues = set()
+        for a in seq:
+            if a not in SECTIONS_PAGE:
+                fautes.append("rôle %s : section inconnue (%s)" % (rid, a))
+            if a in vues:
+                fautes.append("rôle %s : section en double (%s)" % (rid, a))
+            vues.add(a)
+        consignes = _CONSIGNES.get(rid) or {}
+        for a in seq:
+            c = consignes.get(a)
+            if not c:
+                fautes.append("rôle %s : aucune consigne pour %s" % (rid, a))
+                continue
+            for champ in ("faire", "gain", "pourquoi_ici", "si_vous_sautez",
+                          "duree"):
+                if not (c.get(champ) or "").strip():
+                    fautes.append("rôle %s / %s : champ « %s » vide"
+                                  % (rid, a, champ))
+        for a in consignes:
+            if a not in seq:
+                fautes.append("rôle %s : consigne orpheline, %s n'est pas "
+                              "dans sa séquence" % (rid, a))
+    for r in ROLES_GUIDE:
+        if r["id"] not in SEQUENCES:
+            fautes.append("rôle sans séquence : %s" % r["id"])
+    atteintes = {a for seq in SEQUENCES.values() for a in seq}
+    for a in SECTIONS_PAGE:
+        if a not in atteintes:
+            fautes.append("section atteinte par aucun parcours : %s — elle "
+                          "existe et personne n'y est conduit" % a)
+    return fautes
+
+
+_FAUTES_PARCOURS = _verifier_parcours()
+if _FAUTES_PARCOURS:
+    raise RuntimeError("ingenierie_dc — parcours guidé incohérent : "
+                       + " ; ".join(_FAUTES_PARCOURS))
 
 
 def _pluriel(n, singulier, pluriel):
@@ -5970,13 +6657,14 @@ def guide(role_id, theme_id, profil=None, code_phase=None):
                           if g.get("statut") != "recevable"]
 
     etapes = []
-    for i, e in enumerate(_ETAPES_PAGE):
-        faire, gain = _CONSIGNES[r["id"]][i]
+    for i, ancre in enumerate(SEQUENCES[r["id"]]):
+        e = SECTIONS_PAGE[ancre]
+        c = _CONSIGNES[r["id"]][ancre]
         chiffres = []
-        if e["ancre"] == "ig-parcours":
+        if ancre == "ig-parcours":
             chiffres.append("Filière %s · phase de travail %s"
                             % (FILIERES[fil]["nom"], ph))
-        if e["ancre"] == "ig-dossier":
+        if ancre == "ig-dossier":
             chiffres.append(_pluriel(len(du_theme),
                                      "pièce de ce thème à cette phase",
                                      "pièces de ce thème à cette phase"))
@@ -5991,13 +6679,23 @@ def guide(role_id, theme_id, profil=None, code_phase=None):
                 chiffres.append(_pluriel(len(grandeurs_bloquees),
                                          "grandeur à produire ailleurs",
                                          "grandeurs à produire ailleurs"))
-        if e["ancre"] == "ig-correspondances":
+        if ancre == "ig-correspondances":
             autre = "indus" if fil == "moe" else "moe"
             chiffres.append("À rapprocher de la filière %s"
                             % FILIERES[autre]["nom"])
+        # LE NUMÉRO DE SECTION N'EST PLUS SERVI, et c'est délibéré. Il vivait
+        # ici, écrit à la main, et il a divergé de la page dès qu'une section
+        # y a été ajoutée — les cinq numéros servis étaient faux. La page le
+        # lit désormais là où il s'affiche : une seule source, et un
+        # renumérotage suit tout seul.
         etapes.append({
-            "n": i + 1, "ancre": e["ancre"], "section": e["section"],
-            "titre": e["titre"], "faire": faire, "gain": gain,
+            "n": i + 1, "ancre": ancre, "titre": e["titre"],
+            "objet": e["objet"], "faire": c["faire"], "gain": c["gain"],
+            "pourquoi_ici": c["pourquoi_ici"],
+            "si_vous_sautez": c["si_vous_sautez"],
+            "duree": c["duree"],
+            "notions": [{"ref": n, "nom": _nom_notion(n)}
+                        for n in c.get("notions") or []],
             "chiffres": chiffres,
         })
 
@@ -6513,11 +7211,22 @@ def sante():
                  if x.get("discipline") in t_["disciplines"] or x["code"] in sup_)
         if not n_:
             guide_themes_vides.append(t_["id"])
-    # Chaque rôle doit porter une consigne par section de la page, sinon le
-    # parcours lèverait une IndexError au premier affichage.
-    guide_roles_incomplets = sorted(
-        r_["id"] for r_ in ROLES_GUIDE
-        if len(_CONSIGNES.get(r_["id"], [])) != len(_ETAPES_PAGE))
+    # Chaque rôle doit porter une consigne par section de SA séquence.
+    #
+    # LE CONTRÔLE A CHANGÉ AVEC LA STRUCTURE. Il comparait deux LONGUEURS —
+    # autant de consignes que de sections de la page — parce que les consignes
+    # étaient zippées rang par rang. Un compte égal ne disait rien de
+    # l'appariement : deux listes de même longueur mais décalées passaient,
+    # et chaque rôle conseillait la section suivante. Les consignes sont
+    # désormais clées par ancre, et c'est cet appariement qui se vérifie.
+    #
+    # `_verifier_parcours()` le fait au chargement, plus complètement — il y
+    # ajoute les sections qu'aucun parcours n'atteint. On le reprend ici pour
+    # que la santé du module le dise aussi : un contrôle qui lève au démarrage
+    # ne se lit pas sur une page de santé.
+    guide_roles_incomplets = sorted({
+        f_.split()[1] for f_ in _verifier_parcours()
+        if f_.startswith("rôle ")})
     guide_postes_inconnus = sorted(
         "%s:%s" % (t_["id"], c) for t_ in THEMES_GUIDE
         for c in t_["postes"] if c not in POSTES)

@@ -554,6 +554,32 @@
   .ig-prog-if{color:var(--muted2)}
   .ig-prog-nc{border-style:dashed}
 
+  /* ── LE PARCOURS GUIDÉ, PLUS DIDACTIQUE ────────────────────────────────
+     Quatre blocs de texte s'ajoutent à l'étape : ce que la section EST, le
+     geste, ce qu'on y gagne, pourquoi c'est ici, et ce qu'on perd à sauter.
+     Ils se distinguent par le filet et la couleur du libellé, pas par la
+     taille — cinq paragraphes de tailles différentes se lisent comme un
+     désordre. */
+  .ig-g-ob{margin:2px 0 10px;font-size:12px;line-height:1.6;color:var(--muted2);
+    font-style:italic}
+  .ig-g-du{font-family:var(--mono);font-size:10.5px;color:var(--muted2)}
+  .ig-g-pq,.ig-g-sa{margin:9px 0 0;padding-left:11px;font-size:12px;
+    line-height:1.65;color:var(--muted);border-left:2px solid var(--line)}
+  .ig-g-pq{border-left-color:var(--cr,var(--cyan))}
+  .ig-g-pq b,.ig-g-sa b{display:block;font-family:var(--mono);font-size:10px;
+    letter-spacing:.05em;text-transform:uppercase;color:var(--muted2);
+    font-weight:400;margin-bottom:2px}
+  .ig-g-sa{border-left-style:dashed}
+  .ig-g-no{margin:11px 0 0;display:flex;flex-wrap:wrap;align-items:center;
+    gap:6px}
+  .ig-g-no .lb{font-family:var(--mono);font-size:10px;letter-spacing:.05em;
+    text-transform:uppercase;color:var(--muted2)}
+  .ig-g-nt{font-size:11px;padding:2px 9px;border-radius:11px;
+    border:1px dashed var(--line);color:var(--muted);cursor:help}
+  .ig-g-nt:hover,.ig-g-nt:focus-visible{border-style:solid;
+    border-color:var(--cyan);color:var(--ink)}
+  .ig-g-nt:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+
   /* ══════════════════════════════════════════════════════════════════════
      LA QUALIFICATION DU NIVEAU DE DISPONIBILITÉ
      ══════════════════════════════════════════════════════════════════════

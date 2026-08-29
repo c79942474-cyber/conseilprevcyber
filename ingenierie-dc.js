@@ -2996,6 +2996,27 @@ function messageDelai(e, defaut) {
     sec.classList.add("ig-vise");
   }
 
+  /* Le numéro de section, lu LÀ OÙ IL S'AFFICHE.
+
+     LE DÉFAUT CORRIGÉ. Le serveur servait ce numéro, écrit à la main dans une
+     table. La page en a gagné huit sections ; les cinq numéros servis sont
+     alors devenus faux — le profil annoncé « section 1 » quand la page
+     l'affiche en 2, les limites annoncées « section 5 » quand elle les affiche
+     en 13. Deux endroits pour un même nombre, c'était garantir qu'ils
+     divergeraient.
+
+     Le nombre vit désormais à un seul endroit : la puce de la section. On
+     remonte de l'ancre à sa section, on lit sa puce, et un renumérotage suit
+     tout seul. Faute de puce, on ne dit rien plutôt qu'un numéro inventé. */
+  function guideSection(ancre) {
+    var el = document.getElementById(ancre);
+    if (!el) return null;
+    var sec = el.closest("section");
+    var n = sec && sec.querySelector(".rc-etape .n");
+    var t = n && (n.textContent || "").trim();
+    return t || null;
+  }
+
   function guideChoix() {
     var roles = (CADRE && CADRE.guide_roles) || [];
     var themes = (CADRE && CADRE.guide_themes) || [];
@@ -3102,6 +3123,7 @@ function messageDelai(e, defaut) {
     /* Le panneau porte les DEUX couleurs du parcours choisi : celle du rôle en
        filet de gauche, celle du thème sur la jauge. Le lecteur reconnaît son
        parcours d'un coup d'œil, sans relire l'en-tête. */
+    var sec = guideSection(e.ancre);
     var cr = (GUIDE.role && GUIDE.role.couleur) || "var(--cyan)";
     var ct = (GUIDE.theme && GUIDE.theme.couleur) || "var(--cyan)";
     var h = '<div class="ig-g-p" style="--cr:' + esc(cr) + ";--ct:" + esc(ct) + '">'
@@ -3120,10 +3142,42 @@ function messageDelai(e, defaut) {
             + '"></span>';
         }).join("") + "</div>"
       + '<p class="ig-g-n">Étape ' + (GUIDE_ETAPE + 1) + " sur " + n
-      + " · section " + e.section + "</p>"
+      + (sec ? " · section " + esc(sec) : "")
+      + (e.duree ? ' · <span class="ig-g-du">' + esc(e.duree) + "</span>" : "")
+      + "</p>"
       + "<h3>" + esc(e.titre) + "</h3>"
+      /* CE QUE LA SECTION EST, avant ce qu'il faut y faire. Quelqu'un qui
+         découvre la page a besoin de savoir où il arrive : un impératif servi
+         sans son contexte s'exécute sans se comprendre, et ne se retient
+         pas. */
+      + (e.objet ? '<p class="ig-g-ob">' + esc(e.objet) + "</p>" : "")
       + '<p class="ig-g-f">' + esc(e.faire) + "</p>"
       + '<p class="ig-g-ga"><b>Ce que vous y gagnez.</b> ' + esc(e.gain) + "</p>";
+    /* POURQUOI CETTE ÉTAPE ICI. C'est la partie qui manquait : une suite
+       d'écrans sans logique se subit ; une séquence dont on comprend l'ordre
+       se retient, et se refait seul la fois suivante. */
+    if (e.pourquoi_ici) {
+      h += '<p class="ig-g-pq"><b>Pourquoi maintenant.</b> '
+        + esc(e.pourquoi_ici) + "</p>";
+    }
+    /* CE QU'ON PERD À SAUTER. Dire qu'une étape peut se sauter est plus
+       honnête — et plus efficace — que de présenter sept étapes comme
+       également obligatoires : le lecteur pressé saute de toute façon, autant
+       qu'il sache laquelle. */
+    if (e.si_vous_sautez) {
+      h += '<p class="ig-g-sa"><b>Si vous passez outre.</b> '
+        + esc(e.si_vous_sautez) + "</p>";
+    }
+    /* LES SIGLES DE L'ÉTAPE, désignés au lieu d'être supposés connus. Ils
+       portent le même attribut que partout ailleurs sur la page : l'infobulle
+       existante les explique, au survol comme au clavier. */
+    if (e.notions && e.notions.length) {
+      h += '<p class="ig-g-no"><span class="lb">À connaître ici</span>'
+        + e.notions.map(function (x) {
+            return '<span class="ig-g-nt"' + info(x.ref) + ">"
+              + esc(x.nom) + "</span>";
+          }).join("") + "</p>";
+    }
     if (e.chiffres && e.chiffres.length) {
       /* Les chiffres viennent du registre réel, recalculés pour ce croisement.
          Ils portent la mention de leur origine : sans elle, ils passeraient
