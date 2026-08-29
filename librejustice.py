@@ -618,6 +618,19 @@ REQUETES_CONTROVERSES = {
                 "depuis des années à d'autres prestataires.",
         "filtres": {"jurisdiction_type": ["CJUE", "CNIL", "CE"]},
     },
+    "rgpd-22-humain": {
+        "requete": "décision individuelle automatisée, portée réelle de "
+                   "l'intervention humaine et droit d'obtenir un réexamen",
+        "vise": "L'article 22 se joue sur le caractère SIGNIFICATIF de la revue "
+                "humaine. Les autorités de contrôle apprécient cette question depuis "
+                "des années — sur le scoring, la fraude et l'accès à un service — et "
+                "leurs décisions disent ce qu'une validation doit contenir pour "
+                "compter.",
+        # LA CNIL ET LE CONSEIL D'ÉTAT D'ABORD. Une décision de tribunal judiciaire
+        # sur un litige de bail ne dit rien de l'art. 22 ; c'est le contentieux des
+        # sanctions et le recours contre elles qui portent la matière.
+        "filtres": {"jurisdiction_type": ["CNIL", "CE", "CJUE"]},
+    },
     "cra-ai-act": {
         "requete": "marquage CE apposé sans évaluation de conformité régulière, "
                    "conséquences pour le fabricant et le distributeur",

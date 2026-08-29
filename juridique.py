@@ -1399,6 +1399,37 @@ CONTROVERSES = [
                      "d'elle-même.",
     },
     {
+        "id": "rgpd-22-humain",
+        "textes": ["rgpd", "ai-act"],
+        "question": "À partir de quand une revue humaine suffit-elle à faire sortir "
+                    "une décision du champ de l'art. 22 du RGPD ?",
+        "lectures": [
+            {"nom": "Lecture formelle", "these":
+             "Dès qu'un agent valide la décision avant son exécution, celle-ci n'est "
+             "plus fondée EXCLUSIVEMENT sur un traitement automatisé : la première "
+             "des trois conditions cumulatives tombe et l'art. 22 ne s'applique pas.",
+             "consequence": "Un point de validation dans le flux, et le régime de "
+                            "l'art. 22 est réputé écarté."},
+            {"nom": "Lecture substantielle", "these":
+             "L'intervention ne compte que si elle est SIGNIFICATIVE : un humain "
+             "compétent, qui accède aux données et aux motifs, comprend la logique du "
+             "score et dispose du pouvoir réel de confirmer, modifier ou annuler. Une "
+             "validation qui entérine le calcul sans pouvoir le contredire laisse la "
+             "décision dans le champ de l'article.",
+             "consequence": "Documenter la compétence du réviseur, son accès aux "
+                            "éléments, son pouvoir de réformation et la traçabilité de "
+                            "chaque revue — faute de quoi les garanties du § 3 restent "
+                            "dues."},
+        ],
+        "arbitrage": "La lecture substantielle est celle des autorités. Le contrôle "
+                     "utile n'est pas « y a-t-il un humain ? » mais « peut-on démontrer "
+                     "qu'il comprend, réexamine et peut modifier ? ». La charge de la "
+                     "preuve pèse sur le responsable de traitement : sans trace de "
+                     "revue, l'intervention est réputée absente. Le raisonnement vaut "
+                     "au-delà du crédit — assurance, fraude, notation client, accès à "
+                     "un service, désactivation de compte.",
+    },
+    {
         "id": "cra-ai-act",
         "textes": ["cra", "ai-act"],
         "question": "Un produit industriel intégrant de l'IA doit-il subir deux "
