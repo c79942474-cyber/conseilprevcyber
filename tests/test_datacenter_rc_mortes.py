@@ -61,12 +61,50 @@ def test_les_quarante_classes_copiees_de_relecture_contrat_ont_disparu():
         % sorted(survivantes))
 
 
-def test_le_style_a_perdu_plus_de_dix_kilo_octets():
+def test_aucune_classe_rc_n_est_definie_sans_etre_employee():
+    """LA LISTE FIXE EN A MANQUÉ UNE QUARANTE-ET-UNIÈME. `rc-chat` était
+    définie dans la feuille, absente des quatre gardées ET des quarante
+    retirées — donc surveillée par personne. Elle n'était portée par aucun
+    élément de la page ni posée par aucun script.
+
+    Une liste nommée ne garde que ce qu'on a pensé à y écrire. Celle-ci
+    ÉNUMÈRE ce qui est défini et vérifie que chacune sert : elle attrapera la
+    quarante-deuxième sans qu'on ait à la prévoir."""
+    h = _html()
+    style = _style_block(h)
+    hors_style = h[:h.index("<style>")] + h[h.index("</style>"):]
+    scripts = ""
+    for nom in sorted(os.listdir(ICI)):
+        if nom.endswith(".js"):
+            with open(os.path.join(ICI, nom), encoding="utf-8") as f:
+                scripts += f.read()
+    mortes = [c for c in sorted(set(re.findall(r"\.(rc-[a-zA-Z0-9_-]+)", style)))
+              if c not in hors_style and c not in scripts]
+    assert not mortes, (
+        "classe(s) définie(s) dans le <style> et portée(s) par aucun élément "
+        "ni posée(s) par aucun script : %s" % ", ".join(mortes))
+
+
+def test_les_regles_rc_pesent_ce_que_pese_ce_qui_sert():
+    """LA MESURE PORTE SUR CE QU'ELLE PROTÈGE, et plus sur la feuille entière.
+
+    La règle d'origine plafonnait le <style> COMPLET à 53 000 octets pour
+    prouver que la coupe s'était appliquée. C'était un cliquet : elle échouait
+    à la première fonctionnalité ajoutée — la validation des saisies l'a fait
+    passer à 54 679 — alors que rien de mort n'était revenu. Et elle ne
+    protégeait rien que les deux règles voisines ne protègent mieux : ce sont
+    elles qui disent si une classe morte est revenue.
+
+    Ce qui se mesure ici est donc le poids des règles `rc-*` SEULES : quatre
+    classes vivantes ne pèsent pas onze kilo-octets, et le retour du bloc
+    copié se verrait aussitôt."""
     style = _style_block(_html())
-    assert len(style) < 53000, (
-        "le <style> ne s'est pas réellement allégé (%d octets) — "
-        "la coupe des classes mortes ne s'est peut-être pas appliquée"
-        % len(style))
+    octets = sum(len(m.group(0))
+                 for m in re.finditer(r"\.rc-[^{]*\{[^}]*\}", style))
+    assert octets < 4000, (
+        "les règles rc-* pèsent %d octets pour %d classes vivantes : le bloc "
+        "copié de relecture-contrat.html est-il revenu ?"
+        % (octets, len(RESTENT)))
 
 
 def test_les_balises_et_les_accolades_restent_equilibrees():

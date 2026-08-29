@@ -162,10 +162,25 @@
       } else {
         /* UNE LISTE DÉROULANTE, PAS UNE LISTE FERMÉE : le lecteur choisit
            dans le menu, ou tape la valeur réelle de son projet. */
+        /* LES BORNES VIENNENT DU RÉFÉRENTIEL, posées sur le champ lui-même :
+           le navigateur les connaît, l'assistance vocale les annonce, et la
+           page n'en tient aucune copie qui pourrait diverger de celle du
+           serveur. `type="text"` reste — un `type="number"` refuse la virgule
+           décimale dans plusieurs navigateurs francophones, ce que ce
+           formulaire accepte depuis toujours. */
+        var d = c.domaine || {};
         h += '<input id="' + id + '" data-champ="' + esc(c.id) + '" type="text" inputmode="decimal"'
+          + (d.min !== undefined ? ' data-min="' + esc(d.min) + '"' : "")
+          + (d.max !== undefined ? ' data-max="' + esc(d.max) + '"' : "")
+          + (d.pourquoi ? ' aria-describedby="' + id + '-dom"' : "")
           + (DEROULANTS.indexOf(c.id) >= 0 ? ' list="dc-dl-' + esc(c.id) + '"' : "")
           + (c.defaut !== undefined ? ' value="' + esc(c.defaut) + '"' : "")
           + ' placeholder="' + (c.defaut !== undefined ? esc(c.defaut) : "—") + '">';
+        if (d.pourquoi) {
+          h += '<span class="dc-dom" id="' + id + '-dom">Valeurs admises&nbsp;: '
+            + esc(fr(d.min)) + " à " + esc(fr(d.max)) + " — " + esc(d.pourquoi)
+            + ".</span>";
+        }
       }
       if (c.aide) h += '<span class="dc-aide">' + esc(c.aide) + "</span>";
       /* Les valeurs proposées, sous le champ : c'est là qu'on hésite. */
@@ -177,6 +192,7 @@
     brancherSuggestions("#dc-form");
     controlerPlages("#dc-form");
     $("#dc-form").addEventListener("input", function () { controlerPlages("#dc-form"); });
+    majSuites();
     /* Les propositions contextuelles suivent les autres champs : la plage de
        PUE suit la famille de refroidissement, l'intensité carbone suit le
        pays. Sans cela, la page conseillerait sur un choix qui n'est plus le
@@ -359,19 +375,80 @@
      et c'est au projet de savoir s'il est hors norme. Mais le taire laisse
      saisir cinq cents mégawatts sans un mot, et ne le découvrir qu'au
      chiffrage. */
+  /* ══ CE QUE VAUT UNE SAISIE, ET COMMENT ON LE MONTRE ═════════════════════
+     DEUX VERDICTS QUI NE DISENT PAS LA MÊME CHOSE, et les confondre serait une
+     faute dans les deux sens.
+
+       LE DOMAINE dit ce qu'une grandeur PEUT valoir. Un taux de charge est une
+       charge rapportée à la puissance installée : il ne dépasse pas 1. Un PUE
+       rapporte l'énergie totale à l'énergie informatique : sous 1, le centre
+       produirait de l'énergie. Hors domaine, il n'y a rien à calculer — et le
+       serveur écarte la valeur, qui n'entre pas dans l'étude.
+
+       LA PLAGE OBSERVÉE est un cadrage du cabinet. Un centre de 15 kW en sort
+       et se calcule très bien : la note l'explique. Le signaler comme un défaut
+       priverait son auteur d'un résultat juste.
+
+     D'OÙ LES DEUX ÉTATS. VERT : la valeur est recevable, le calcul la prendra.
+     BLEU : elle ne l'est pas, et le champ dit POURQUOI — pas « erreur », mais
+     la raison, parce que « c'est une part : entre 0 et 1 » se corrige et
+     « champ invalide » ne se corrige pas. Un champ vide n'est ni l'un ni
+     l'autre : il n'a pas été rempli, ce qui est un choix et se respecte sans
+     couleur.
+
+     LES BORNES VIENNENT DU SERVEUR, jamais d'une table écrite ici : une
+     seconde source diverge, et c'est alors la page qui laisse passer ce que le
+     serveur refusera — le pire des deux, puisque l'utilisateur aura vu du
+     vert. */
+  function verdictSaisie(c, brut) {
+    if (brut === "" || brut === null || brut === undefined) return null;
+    var v = parseFloat(String(brut).replace(",", ".").trim());
+    if (!isFinite(v)) {
+      return { ok: false, pourquoi: "cette saisie ne se lit pas comme un nombre" };
+    }
+    var d = c.domaine;
+    if (d) {
+      var tropBas = d.strict_min ? (v <= d.min) : (v < d.min);
+      if (d.min !== undefined && tropBas) return { ok: false, pourquoi: d.pourquoi };
+      if (d.max !== undefined && v > d.max) return { ok: false, pourquoi: d.pourquoi };
+    }
+    return { ok: true, valeur: v };
+  }
+
   function controlerPlages(prefixe) {
     (((REF || {}).champs) || []).forEach(function (c) {
-      if (!c.plage_observee) return;
       var e = document.querySelector(prefixe + ' [data-champ="' + c.id + '"]');
-      if (!e) return;
+      if (!e || c.type === "liste") return;
       var lab = e.closest(".dc-champ") || e.parentNode;
       var vieux = lab.querySelector(".ig-hors");
       if (vieux) vieux.remove();
-      var v = parseFloat(String(e.value).replace(",", "."));
-      if (!isFinite(v) || e.value === "") return;
+      var vieuxR = lab.querySelector(".dc-refus");
+      if (vieuxR) vieuxR.remove();
+
+      var verdict = verdictSaisie(c, e.value);
+      lab.classList.remove("dc-ok", "dc-ko");
+      e.removeAttribute("aria-invalid");
+      if (verdict) {
+        lab.classList.add(verdict.ok ? "dc-ok" : "dc-ko");
+        if (!verdict.ok) {
+          /* `aria-invalid`, et pas seulement une couleur : un lecteur d'écran
+             ne voit pas le liseré, et une saisie écartée doit s'entendre. */
+          e.setAttribute("aria-invalid", "true");
+          var r = document.createElement("span");
+          r.className = "dc-refus";
+          r.textContent = "Cette valeur n'entrera pas dans le calcul — "
+            + verdict.pourquoi + ".";
+          lab.appendChild(r);
+        }
+      }
+
+      /* LA PLAGE OBSERVÉE RESTE UNE NOTE, jamais un refus — et elle ne
+         s'affiche que sur une valeur RECEVABLE : commenter « c'est rare » une
+         valeur déjà écartée superposerait deux messages contradictoires. */
+      if (!c.plage_observee || !verdict || !verdict.ok) return;
       var p = c.plage_observee, msg = null;
-      if (v > p.haut) msg = p.note;
-      else if (v < p.bas) msg = p.note_bas || p.note;
+      if (verdict.valeur > p.haut) msg = p.note;
+      else if (verdict.valeur < p.bas) msg = p.note_bas || p.note;
       if (!msg) return;
       var n = document.createElement("span");
       n.className = "ig-hors";
@@ -379,6 +456,99 @@
         + fr(p.haut) + ") — " + msg;
       lab.appendChild(n);
     });
+    majAvancement(prefixe);
+  }
+
+  /* ══ OÙ L'ON EN EST, ET CE QU'IL RESTE À FAIRE ═══════════════════════════
+     Le formulaire dit désormais champ par champ ce qu'il accepte. Il ne disait
+     rien de l'ENSEMBLE : combien de champs sont remplis, si l'étude peut
+     partir, et ce qui la retient. Le lecteur cliquait « Calculer » pour
+     l'apprendre — et découvrait le manque après coup.
+
+     LE COMPTE EST CELUI DES CHAMPS RECEVABLES, pas des champs remplis : une
+     saisie bleue ne compte pas, puisqu'elle n'entrera pas dans le calcul. */
+  /* ══ LE PASSAGE AU BLOC SUIVANT ═════════════════════════════════════════
+     La page est une suite d'étapes — profil, résultats, comparaison,
+     équipements, décarbonation — dont plusieurs restent MASQUÉES tant que le
+     calcul n'a pas eu lieu. Rien ne disait laquelle vient après : le lecteur
+     faisait défiler pour chercher, et manquait les blocs qui venaient
+     d'apparaître sous ses yeux plus bas.
+
+     LA FLÈCHE SE RECALCULE À CHAQUE CHANGEMENT D'ÉTAT, parce que la suite
+     change : après le calcul, trois sections s'ouvrent et la suivante n'est
+     plus la même. Une flèche posée une fois pointerait vers l'étape d'avant.
+
+     ELLE NE S'AFFICHE QUE S'IL Y A UNE SUITE. Une flèche vers rien apprend au
+     lecteur à ne plus la regarder — et c'est alors toute la signalétique qui
+     ne sert plus. */
+  function majSuites() {
+    var sections = Array.prototype.slice.call(
+      document.querySelectorAll("section.rc-sec[id^='dc-sec-']"));
+    var visibles = sections.filter(function (s) { return !s.hidden; });
+    sections.forEach(function (s) {
+      var vieux = s.querySelector(":scope > .dc-suite");
+      if (vieux) vieux.remove();
+    });
+    visibles.forEach(function (s, i) {
+      var suivante = visibles[i + 1];
+      if (!suivante) return;
+      var titre = suivante.querySelector("h2, h3");
+      var nom = titre ? titre.textContent.trim() : "la suite";
+      var a = document.createElement("button");
+      a.type = "button";
+      a.className = "dc-suite";
+      a.innerHTML = '<span class="dc-suite-n">Étape ' + (i + 2) + " / "
+        + visibles.length + '</span><span>' + esc(nom)
+        + '</span><span class="dc-suite-f" aria-hidden="true">→</span>';
+      a.setAttribute("aria-label", "Aller à l'étape suivante : " + nom);
+      a.addEventListener("click", function () {
+        var doux = !(window.matchMedia
+          && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+        suivante.scrollIntoView({ behavior: doux ? "smooth" : "auto",
+                                  block: "start" });
+        /* LE FOCUS SUIT LE DÉFILEMENT. Sans lui, la tabulation repart du haut
+           du document et le lecteur au clavier perd l'étape où il vient
+           d'arriver — le geste ne l'aurait servi qu'à la souris. */
+        var cible = suivante.querySelector("h2, h3") || suivante;
+        if (!cible.hasAttribute("tabindex")) cible.setAttribute("tabindex", "-1");
+        cible.focus({ preventScroll: true });
+      });
+      s.appendChild(a);
+    });
+  }
+
+  function majAvancement(prefixe) {
+    var zone = document.querySelector("#dc-avancement");
+    if (!zone) return;
+    var champs = (((REF || {}).champs) || []).filter(function (c) {
+      return c.type !== "liste";
+    });
+    var verts = 0, bleus = 0, requis = null;
+    champs.forEach(function (c) {
+      var e = document.querySelector(prefixe + ' [data-champ="' + c.id + '"]');
+      if (!e) return;
+      var v = verdictSaisie(c, e.value);
+      if (!v) return;
+      if (v.ok) verts++; else bleus++;
+    });
+    var pit = document.querySelector(prefixe + ' [data-champ="puissance_it_kw"]');
+    var pitOk = pit && (verdictSaisie(
+      (((REF || {}).champs) || []).filter(function (c) {
+        return c.id === "puissance_it_kw";
+      })[0] || {}, pit.value) || {}).ok;
+    if (!pitOk) {
+      requis = "La puissance informatique installée est nécessaire : toutes les "
+        + "grandeurs en dépendent.";
+    }
+    zone.className = "dc-av" + (pitOk ? " prete" : "");
+    zone.innerHTML =
+      '<span class="dc-av-n"><b>' + verts + "</b> / " + champs.length
+      + " champ" + (champs.length > 1 ? "s" : "") + " recevable"
+      + (verts > 1 ? "s" : "") + "</span>"
+      + (bleus ? '<span class="dc-av-ko">' + bleus + " à corriger</span>" : "")
+      + (requis ? '<span class="dc-av-r">' + esc(requis) + "</span>"
+                : '<span class="dc-av-ok">L\'étude peut être lancée. '
+                  + "Chaque champ ajouté resserre l'incertitude.</span>");
   }
 
   function majSuggestionsContexte(prefixe) {
@@ -523,6 +693,7 @@
 
     $("#dc-resultats").innerHTML = h;
     $("#dc-sec-res").hidden = false;
+    majSuites();
   }
 
   /* ── Graphiques ────────────────────────────────────────────────────────
@@ -999,6 +1170,7 @@
     });
     $("#dc-comparaison").innerHTML = h;
     $("#dc-sec-comp").hidden = false;
+    majSuites();
   }
 
   function poster(url, corps, delai) {
