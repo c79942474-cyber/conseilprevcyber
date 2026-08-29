@@ -67,6 +67,7 @@ import automation
 import juridique
 import librejustice   # corpus de jurisprudence, branché par MCP — voir le module
 import livrables
+import rag_federe   # la base sœur, mêlée à la nôtre — voir le module
 import livrables_export
 import playbook
 import minimisation
@@ -212,7 +213,13 @@ _RATE_FAMILY = (("/api/auth/", 80, 60), ("/api/admin/", 600, 60),
 # Points protégés par jeton (server-to-server) : exemptés du contrôle d'origine
 # CSRF, car authentifiés par un secret d'en-tête (X-Ingest-Token) et non par un
 # cookie de session — donc non vulnérables au CSRF (qui exploite le cookie ambiant).
-_CSRF_EXEMPT = {"/api/ingest", "/api/reset", "/api/maintenance/purge", "/api/rag/ingest"}
+_CSRF_EXEMPT = {"/api/ingest", "/api/reset", "/api/maintenance/purge", "/api/rag/ingest",
+                # RECHERCHE FÉDÉRÉE — appel serveur à serveur depuis CONSEILPREV.
+                # Exemptée pour une raison différente des précédentes : elle ne
+                # lit AUCUN cookie et n'écrit rien, donc il n'y a pas de session
+                # à détourner. Elle est réservée par clé partagée et ne sert que
+                # des documents publics (voir api_rag_search_federe).
+                "/api/rag/search"}
 
 # En-tête maison posé par nos propres appels d'écriture (voir _same_origin_request).
 # Un site tiers ne peut pas le poser sans pré-vérification CORS — que ce service
@@ -5330,6 +5337,66 @@ def api_rag_search():
     return jsonify(ok=True, hits=hits[:6])
 
 
+@app.route("/api/rag/search", methods=["POST"])
+def api_rag_search_federe():
+    """La base de CONSEILPREV Cyber, ouverte à l'application sœur.
+
+    DEUX LIMITES, ET ELLES NE FONT PAS LA MÊME CHOSE.
+
+    La CLÉ dit qui peut demander. Un corpus « public » au sens de « montré sur
+    le site » n'est pas pour autant offert en vrac par une API commode ; la
+    recherche est donc réservée au pair attendu. Sans clé configurée, la route
+    REFUSE au lieu de servir : une protection qui s'annule quand on oublie de
+    la régler n'en est pas une.
+
+    `public_only=True` dit ce qui est servi, et rien de ce que l'appelant
+    présente ne le lève. La raison est écrite ailleurs dans ce fichier et vaut
+    encore ici : un livrable reproduit les extraits MOT POUR MOT, et un
+    document marqué interne recopié dans une pièce qui sort du site serait une
+    fuite, pas une commodité. La clé ouvre la porte ; elle n'ouvre pas les
+    tiroirs.
+    """
+    attendue = os.environ.get("RAG_PAIR_CLE", "").strip()
+    if not attendue:
+        return jsonify(ok=False, error="federation_non_configuree",
+                       message="La recherche fédérée n'est pas configurée sur "
+                               "ce serveur (RAG_PAIR_CLE absente)."), 403
+    fournie = (request.headers.get("X-Rag-Cle") or "").strip()
+    if not hmac.compare_digest(fournie, attendue):
+        return jsonify(ok=False, error="cle_invalide",
+                       message="Clé de fédération invalide."), 403
+
+    ckey = "ragfed:%s" % client_ip()
+    if guard.blocked(ckey, limit=120, window=600):
+        return jsonify(ok=False, error="rate_limited",
+                       message="Trop de recherches fédérées."), 429
+    guard.fail(ckey)
+
+    data = request.get_json(silent=True) or {}
+    q = (data.get("query") or "").strip()
+    if not q:
+        return jsonify(ok=False, error="query_vide",
+                       message="query requis."), 400
+    try:
+        k = max(1, min(int(data.get("top_k") or 8), 10))
+    except (TypeError, ValueError):
+        k = 8
+    try:
+        hits = rag.search(q[:500], k=k, public_only=True)
+    except Exception:
+        app.logger.exception("recherche fédérée")
+        return jsonify(ok=False, error="recherche_echec",
+                       message="Recherche indisponible."), 500
+    # On ne rend QUE ce dont le pair a besoin pour rédiger. `visibility` n'a pas
+    # à voyager : tout ce qui sort d'ici est public par construction, et le
+    # champ laisserait croire qu'il pourrait en être autrement.
+    return jsonify(ok=True, resultats=[
+        {"texte": h.get("content") or "", "document": h.get("title") or "",
+         "document_id": h.get("doc_id"), "theme": h.get("theme") or "",
+         "score": h.get("score")}
+        for h in hits])
+
+
 @app.route("/api/admin/rag/eval", methods=["POST"])
 @admin_required
 def api_rag_eval():
@@ -6507,6 +6574,34 @@ def _hits_priorises(query, k, public_only, themes, elargir=None):
     return prio[:k]
 
 
+def _federer(query, hits, k=8, doc_ids=None):
+    """Les extraits de la base sœur, mêlés à ceux d'ici.
+
+    APPELÉ EN DERNIER, ET UNE SEULE FOIS. Le classement local encode un savoir
+    que le pair ne peut pas reproduire — la famille du type, le sous-dossier de
+    la pièce, le re-classement par juge. Fédérer AVANT le détruirait ; fédérer
+    à chaque étape de la chaîne interrogerait le pair trois fois par livrable.
+
+    UNE SÉLECTION MANUELLE N'EST PAS FÉDÉRÉE. Quand l'utilisateur a désigné des
+    documents, il a dit lesquels : y ajouter d'autres bases contredirait son
+    choix, et c'est le seul cas où la fédération serait une nuisance.
+
+    Rend (hits, resume). `resume` porte le compte par base et l'état du pair :
+    c'est ce qui permet au livrable de dire sur quoi il a été écrit — et
+    surtout de dire quand il n'a eu qu'une base.
+    """
+    if doc_ids or not rag_federe.configure():
+        return hits, None
+    try:
+        res = rag_federe.chercher(query, hits, k=k)
+    except Exception:
+        app.logger.exception("fédération RAG")
+        return hits, None
+    if not res["fragments"]:
+        return hits, res
+    return rag_federe.en_forme(res["fragments"]), res
+
+
 def _extraits_pour(query, doc_ids=None, public_only=False):
     """Les extraits de la base, sans re-classement par modèle.
 
@@ -6566,6 +6661,7 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo,
             if sous:
                 hits = _hits_priorises(query, 8, public_only, sous,
                                        elargir=hits)
+    hits, _fed = _federer(query, hits, 8, doc_ids)
     if documentaire:
         # Le modèle n'a pas manqué : il est débranché. Le dire avec les mots
         # de l'indisponibilité enverrait vérifier une configuration intacte.
@@ -6764,6 +6860,10 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None,
     parent_id = parent_id if _rag_valid_doc_id(parent_id) else None
     hits = []
     famille = None
+    # Initialisé AVANT le try : la branche d'exception saute l'affectation, et
+    # un `fed` non défini transformerait un échec de recherche — rattrapé,
+    # bénin — en NameError qui emporte toute la génération.
+    fed = None
     try:
         if doc_ids:
             # Documents choisis manuellement : on respecte la sélection (pas de
@@ -6800,6 +6900,7 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None,
                 if sous:
                     hits = _hits_priorises(query, 8, public_only, sous,
                                            elargir=hits)
+        hits, fed = _federer(query, hits, 8, doc_ids)
     except Exception:
         hits = []
     # LES SOURCES SONT BÂTIES SUR LES EXTRAITS RÉELLEMENT INCLUS. Le budget
@@ -6827,6 +6928,12 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None,
         # qu'on recopie dans un courriel.
         sources.append({"title": extraits_mod.titre_document(h.get("title")),
                         "theme": h.get("theme"),
+                        # LA BASE SUIT LA SOURCE JUSQU'À L'ÉCRAN ET À L'EXPORT.
+                        # Elle est déjà dans l'étiquette que lit le modèle ; si
+                        # elle s'arrêtait là, le lecteur du livrable verrait une
+                        # liste de documents sans savoir lesquels viennent de
+                        # l'autre maison.
+                        "base": h.get("base") or "",
                         "visibility": h.get("visibility"), "extraits": 1})
     user = user + livrables.dossier_documentaire(sources, choix_manuel=bool(doc_ids))
 
@@ -6915,6 +7022,14 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None,
                    mode_nom=ingenierie_dc.MODES_REDACTION[mode]["nom"],
                    mode_aide=ingenierie_dc.MODES_REDACTION[mode]["aide"],
                    corpus="public" if public_only else "complet",
+                   # SUR QUOI LE DOCUMENT A ÉTÉ ÉCRIT. La mention est due même
+                   # quand tout va bien — et surtout quand la base sœur n'a pas
+                   # répondu : le livrable aurait alors pu être différent, et le
+                   # lecteur est le seul à pouvoir en décider.
+                   bases=(rag_federe.mention(fed) if fed else None),
+                   bases_detail=({"n_local": fed["n_local"], "n_pair": fed["n_pair"],
+                                  "pair_ok": fed["pair_ok"], "motif": fed["motif"]}
+                                 if fed else None),
                    famille_prioritaire=famille,
                    numero=data.get("numero") or "", indice=data.get("indice") or "",
                    phase=(data.get("phase") or "").strip().upper()[:12],
@@ -7129,6 +7244,11 @@ def api_livrables_preview_docs():
         # génération, précisément le mensonge que la route dit empêcher.
         famille, themes = _famille_prioritaire(type_id)
         hits = _hits_priorises(query, 8, False, themes, elargir=hits)
+        # L'APERÇU FÉDÈRE AUSSI, et c'est la raison d'être de cette route :
+        # elle promet « exactement les mêmes étapes que la génération ». Un
+        # aperçu qui montrerait la seule base locale annoncerait des sources
+        # que le livrable n'aurait pas, et en tairait d'autres qu'il aurait.
+        hits, _fed = _federer(query, hits, 8, None)
     except Exception as exc:
         return jsonify(ok=False, error="apercu_echec", detail=_exc_detail(exc)), 500
     # Un document peut fournir plusieurs extraits : on regroupe par document en

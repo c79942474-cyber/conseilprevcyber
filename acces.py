@@ -114,6 +114,12 @@ API_JETON = {
     "/api/reset": "INGEST_TOKEN — remise à zéro du cockpit",
     "/api/maintenance/purge": "INGEST_TOKEN — élagage de l'historique",
     "/api/rag/ingest": "jeton d'ingestion documentaire",
+    # RECHERCHE FÉDÉRÉE — CONSEILPREV interroge notre base pour rédiger ses
+    # livrables. Serveur à serveur : aucun cookie, donc aucune session à
+    # présenter, et c'est bien pourquoi elle est nommée ici plutôt que laissée
+    # « direct ». Elle est réservée par RAG_PAIR_CLE et ne sert QUE des
+    # documents publics — la clé dit qui peut demander, pas ce qui est servi.
+    "/api/rag/search": "RAG_PAIR_CLE — recherche fédérée depuis CONSEILPREV",
 }
 
 

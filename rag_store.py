@@ -2508,6 +2508,15 @@ def build_context_retenus(hits, max_chars=3500):
         theme = h.get("theme")
         if theme and theme not in ("Général", "Veille"):
             label += " — " + theme
+        # LA BASE D'ORIGINE ENTRE DANS L'ÉTIQUETTE, ici et nulle part ailleurs.
+        # Même entonnoir que ci-dessous : les extraits fédérés arrivent par les
+        # quatre appelants, et l'étiquette est le seul endroit que le modèle
+        # lit. Sans elle, un passage venu de l'autre maison est recopié mot pour
+        # mot dans un livrable sans que rien n'en garde la trace — et personne
+        # ne peut dire, six mois plus tard, d'où sortait la phrase.
+        base = h.get("base")
+        if base:
+            label += " · " + base
         block = "[%s] %s" % (label, content)
         if total + len(block) > max_chars:
             remain = max_chars - total

@@ -31,6 +31,7 @@ CLÔTURE qui protège — le bloc nommé, annoncé comme des données, dont le
 marqueur de fermeture ne peut pas être écrit par le contenu. Les tests le
 vérifient dans cet ordre : la clôture d'abord, le dépistage ensuite.
 """
+import re
 import os
 import sys
 
@@ -211,12 +212,20 @@ def test_sans_le_garde_le_contexte_est_vide_et_non_ouvert():
     # n'en garde que le bloc, et c'est LÀ que la porte doit être. Chercher
     # depuis le premier « def build_context » trouverait le délégué, pas la
     # porte — et un déplacement de la porte hors de l'entonnoir passerait.
+    #
+    # LA FENÊTRE ÉTAIT COMPTÉE EN CARACTÈRES, ET ELLE A ACCUSÉ UN CODE JUSTE.
+    # Trois mille quatre cents, et la porte se trouvait à trois mille six cent
+    # quatre-vingt-douze : six lignes de commentaire ajoutées plus haut dans la
+    # fonction l'avaient poussée dehors, sans que rien n'ait bougé de la porte
+    # elle-même. Une fenêtre de caractères ignore les frontières du texte ; la
+    # fonction, elle, en a une — le prochain `def` de premier niveau.
     cibles = {"rag_store.py": "def build_context_retenus",
               "agent_datacenter.py": "def build_context"}
     for f, marque in cibles.items():
         src = open(os.path.join(ICI, f), encoding="utf-8").read()
         i = src.index(marque)
-        bloc = src[i:i + 3400]
+        suite = re.search(r"\n(?=def |class |@)", src[i:])
+        bloc = src[i:i + (suite.start() if suite else len(src) - i)]
         assert "import garde_ia" in bloc, f
         assert 'return ""' in bloc or 'return "", []' in bloc \
             or 'return "", sources' in bloc, f
