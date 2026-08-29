@@ -274,6 +274,31 @@ KPI = {
                  "fractionnaire, ni pour un site ni pour un portefeuille — "
                  "« nous sommes globalement en III » ne veut rien dire.",
     },
+    "delai_energisation": {
+        "nom": "Mise sous tension du portefeuille",
+        "unite": "date",
+        "consolidation": "extremum",
+        "extremum": "la plus tardive",
+        "definition": "La date à laquelle le DERNIER site du programme "
+                      "dispose de sa puissance définitive. Elle précède la "
+                      "mise en service et la commande : une salle achevée "
+                      "sans puissance ne se met pas en service, et aucune "
+                      "accélération de chantier ne rattrape un raccordement.",
+        "n_indique_pas": "La date de LIVRAISON. Entre la mise sous tension et "
+                         "la réception restent les essais, dont l'essai "
+                         "intégré. Les deux dates se suivent ensemble ; "
+                         "présenter la première pour la seconde est la façon "
+                         "la plus courante d'annoncer un programme en avance "
+                         "sur ce qu'il est.",
+        "pourquoi": "C'est le poste le plus long du programme et celui sur "
+                    "lequel le maître d'ouvrage a le moins de prise. Le "
+                    "suivre à part du calendrier de travaux est la seule "
+                    "façon de voir qu'il commande.",
+        "piege": "Prendre la moyenne des dates, ou la date du site le plus "
+                 "avancé. Un programme est sous tension quand son dernier "
+                 "site l'est ; une moyenne masque précisément celui qui "
+                 "commande la date.",
+    },
     "regime_icpe": {
         "nom": "Régime administratif des sites",
         "unite": "—",
@@ -339,7 +364,12 @@ PARTIES_PRENANTES = {
                    "il ne se rattrape par aucun moyen technique.",
         "quand_ca_coince": "Deux arrivées négociées depuis le même poste "
                            "source. Elles se paient comme deux et tombent "
-                           "comme une seule.",
+                           "comme une seule. Et, depuis que les files "
+                           "d'attente s'allongent, l'acceptation d'un "
+                           "raccordement EFFAÇABLE prise pour une simple "
+                           "clause tarifaire : elle engage la capacité à "
+                           "servir le client, donc le contrat commercial, et "
+                           "elle se chiffre avant d'être signée.",
     },
     "immobilier": {
         "nom": "Direction immobilière / foncier",
@@ -681,6 +711,7 @@ def consolider(sites):
         "par_phase": _par_phase(sites),
         "par_pays": _par_pays(sites),
         "chemin_critique": _chemin_critique(sites),
+        "energisation": _energisation(sites),
         "zero_defaut": _etat_zero_defaut(sites),
         "non_consolidables": _non_consolidables(sites),
         "reserve": RESERVE,
@@ -796,6 +827,33 @@ def _chemin_critique(sites):
                      "sans date déclarée peuvent le déplacer."
                      % (len(sites) - len(dates))) if len(dates) < len(sites)
                     else "Le programme livre quand ce site livre."}
+
+
+def _energisation(sites):
+    """La date de mise sous tension du programme : la PLUS TARDIVE.
+
+    MÊME RÈGLE QUE LE CHEMIN CRITIQUE, et pour la même raison : un programme
+    est sous tension quand son dernier site l'est. La moyenne des dates
+    n'existe pas, et elle masquerait le site qui commande.
+    """
+    dates = [(s.get("energisation"), s.get("nom") or "?")
+             for s in sites if s.get("energisation")]
+    if not dates:
+        return {"connu": False,
+                "pourquoi": ("Aucune date de mise sous tension n'est "
+                             "déclarée. C'est pourtant le poste le plus long "
+                             "du programme : sans lui, le calendrier annoncé "
+                             "repose sur des durées de chantier, qui ne sont "
+                             "pas ce qui commande.")}
+    dernier = max(dates, key=lambda d: str(d[0]))
+    sans = len(sites) - len(dates)
+    return {"connu": True, "site": dernier[1], "date": dernier[0],
+            "sites_dates": len(dates), "sites_sans_date": sans,
+            "note": ("Le programme est sous tension quand ce site l'est."
+                     + ("" if not sans else
+                        " Les %d site(s) sans date déclarée peuvent le "
+                        "déplacer, et rien ne dit qu'ils soient plus tôt."
+                        % sans))}
 
 
 def _etat_zero_defaut(sites):
@@ -949,6 +1007,12 @@ CHAMPS_SITE = [
      "type": "texte",
      "aide": "Le site le plus tardif commande la date du programme. Format "
              "libre, mais comparable — une année, ou une date ISO."},
+    {"id": "energisation", "label": "Mise sous tension attendue",
+     "type": "texte",
+     "aide": "La date de disponibilité de la puissance définitive, distincte "
+             "de la mise en service. Sur un raccordement non ferme, c'est la "
+             "date à laquelle la puissance EFFAÇABLE est disponible : "
+             "précisez-le, les deux ne valent pas la même chose."},
     {"id": "receptionne", "label": "Réception prononcée", "type": "booleen",
      "aide": "Un site réceptionné avec réserves compte comme livré : ses "
              "réserves se suivent à part."},

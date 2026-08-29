@@ -296,8 +296,15 @@ def test_le_garde_TOMBE_sur_un_lien_profond():
 # EXISTE : nommer un champ disparu enverrait chercher une case absente.
 
 def test_chaque_limite_porte_sa_reponse_complete():
+    """LE SOCLE EST NOMMÉ, PAS COMPTÉ. Un compte figé échoue sur toute limite
+    ajoutée — donc sur du travail légitime — et ne dit pas laquelle a disparu
+    quand il échoue vraiment. Nommer les limites qui ne doivent pas
+    s'effacer tient la promesse (« on n'efface aucune limite vraie ») sans
+    interdire d'en reconnaître de nouvelles."""
     import datacenter as d
-    assert len(d.LIMITES) == 4
+    socle = {"pue_climat", "eau_pointe", "carbone_incorpore", "carbone_horaire"}
+    presentes = {x["cle"] for x in d.LIMITES}
+    assert socle <= presentes, socle - presentes
     for x in d.LIMITES:
         for champ in ("quoi", "moteur_fait", "leve_note", "calcul", "qui", "quand"):
             assert str(x[champ]).strip(), (x["cle"], champ)

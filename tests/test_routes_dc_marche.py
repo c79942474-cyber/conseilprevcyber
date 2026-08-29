@@ -396,6 +396,85 @@ def test_le_glossaire_porte_les_familles_du_programme(connecte):
         assert famille in g and g[famille], famille
 
 
+# ── Le raccordement et la production sur site ─────────────────────────────
+
+def test_un_visiteur_anonyme_n_atteint_pas_l_etude_de_raccordement(anonyme):
+    r = anonyme.post("/api/datacenter/reseau", json={}, headers=ORIGINE)
+    assert r.status_code in (401, 403)
+
+
+def test_la_route_nomme_ce_qui_manque_au_lieu_de_supposer(connecte):
+    """PAS DE VALEUR PAR DÉFAUT SUR CE SUJET. Une fréquence d'effacement
+    supposée déplace le résultat d'un facteur trois, et personne ne conteste
+    un formulaire déjà rempli."""
+    j = connecte.post("/api/datacenter/reseau", json={"puissance_it_kw": 5000},
+                      headers=ORIGINE).get_json()
+    assert j["ok"] is True
+    ns = j["etude"]["non_servi"]
+    assert ns["nature"] == "incomplet" and ns["manques"]
+    assert "part_non_servie" not in ns
+
+
+def test_la_route_chiffre_et_rend_les_termes(connecte):
+    j = connecte.post("/api/datacenter/reseau", json={
+        "mode_raccordement": "non_ferme", "puissance_it_kw": 100000,
+        "taux_charge": 0.65, "part_non_ferme": 0.5,
+        "frequence_effacement": 0.3, "marge_operationnelle": 0.5,
+    }, headers=ORIGINE).get_json()
+    ns = j["etude"]["non_servi"]
+    assert ns["nature"] == "calcule"
+    assert ns["termes"]["deficit_horaire_kw"] > 0
+    assert j["etude"]["marge"]["elasticite"] == pytest.approx(2.0)
+    assert j["etude"]["mode"]["cle"] == "non_ferme"
+
+
+def test_une_saisie_illisible_ressort_dans_les_rejets(connecte):
+    """Une valeur écartée en silence ferait calculer sur un champ absent : le
+    résultat serait juste pour une question qui n'a pas été posée."""
+    j = connecte.post("/api/datacenter/reseau", json={
+        "puissance_it_kw": 100000, "taux_charge": 0.65,
+        "part_non_ferme": "beaucoup", "frequence_effacement": 0.3,
+    }, headers=ORIGINE).get_json()
+    assert any(r["champ"] == "part_non_ferme" for r in j["rejets"])
+    assert j["etude"]["non_servi"]["nature"] == "incomplet"
+
+
+def test_le_criblage_reglementaire_voyage_avec_l_etude(connecte):
+    """La production sur site s'ajoute aux groupes de secours déclarés dans le
+    MÊME envoi : c'est le cumul qui décide du régime, et le demander à part
+    les ferait diverger."""
+    j = connecte.post("/api/datacenter/reseau", json={
+        "puissance_it_kw": 100000, "taux_charge": 0.65,
+        "part_non_ferme": 0.5, "frequence_effacement": 0.3,
+        "groupes_puissance_elec_kw": 2000,
+        "btm_puissance_elec_kw": 60000, "btm_combustible": "gaz",
+        "btm_heures_an": 876, "btm_classe_iso": "prime",
+    }, headers=ORIGINE).get_json()
+    prod = j["etude"]["production_sur_site"]
+    assert prod["icpe"]["regime_sans_production"] == "DC"
+    assert prod["icpe"]["regime_avec_production"] == "A"
+    assert prod["alertes"]
+    assert prod["duty"]["qualifiante"]["qualifiante_kw"] < 60000
+
+
+def test_un_mode_de_raccordement_inconnu_est_refuse(connecte):
+    j = connecte.post("/api/datacenter/reseau",
+                      json={"mode_raccordement": "gratuit"},
+                      headers=ORIGINE).get_json()
+    assert j["etude"]["nature"] == "refus"
+    assert j["etude"]["modes"]
+
+
+def test_le_referentiel_de_raccordement_accompagne_la_reponse(connecte):
+    j = connecte.post("/api/datacenter/reseau", json={}, headers=ORIGINE).get_json()
+    r = j["referentiel"]
+    for table in ("modes", "leviers", "charges", "btm", "facteurs", "champs"):
+        assert r[table], table
+    # Chaque mode porte son repère de marché, avec son auteur.
+    for m in r["modes"]:
+        assert m["repere"]["editeur"], m["cle"]
+
+
 # ── La qualification Tier ──────────────────────────────────────────────────
 
 def test_un_visiteur_anonyme_n_atteint_pas_la_qualification(anonyme):

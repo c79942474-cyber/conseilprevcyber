@@ -193,8 +193,17 @@ def test_aucun_chiffre_de_l_etat_de_l_art_n_alimente_le_moteur():
 def test_chaque_fait_relie_au_moteur_nomme_un_champ_qui_existe():
     """`touche` est ce qui distingue une revue de presse d'un état de l'art
     utile : il dit quelle décision de conception le fait éclaire. Un champ
-    renommé dans le moteur laisserait ces renvois pointer dans le vide."""
+    renommé laisserait ces renvois pointer dans le vide.
+
+    LE CHAMP PEUT ÊTRE CELUI D'UN AUTRE MODULE DE SAISIE que le moteur — un
+    fait de raccordement éclaire une décision qui se saisit dans le module de
+    raccordement. Ce qui compte est que le champ EXISTE quelque part où le
+    lecteur le trouvera ; exiger qu'il soit dans le moteur reviendrait à
+    interdire de relier un fait à toute décision que le moteur ne calcule
+    pas, c'est-à-dire à détacher précisément les faits les plus utiles."""
+    import reseau_dc
     champs = {c["id"] for c in dc.CHAMPS}
+    champs |= {c["id"] for c in reseau_dc.CHAMPS}
     for f in ea.FAITS:
         if f.get("touche"):
             assert f["touche"] in champs, (f["cle"], f["touche"])

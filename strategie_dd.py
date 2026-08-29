@@ -299,11 +299,18 @@ ENJEUX = [
             "territoire. Là où elle manque, elle décide du projet avant tout "
             "arbitrage environnemental.",
      "outil": "Étude de raccordement du gestionnaire de réseau ; analyse des "
-              "files d'attente",
+              "files d'attente ; chiffrage du calcul non servi sous "
+              "raccordement effaçable",
      "moteur": None, "seul": False,
      "piege": "Traiter le raccordement comme une formalité de calendrier. "
               "C'est le premier motif d'abandon d'un projet de centre de "
-              "données, et il se joue des années à l'avance."},
+              "données, et il se joue des années à l'avance. ET NE PAS VOIR "
+              "L'OFFRE INTERMÉDIAIRE : entre la file d'attente et le refus, "
+              "le gestionnaire propose souvent un raccordement EFFAÇABLE, "
+              "servi tout de suite sur la capacité existante contre le droit "
+              "de réduire la puissance. Ce n'est ni une file d'attente ni un "
+              "refus : c'est une troisième réponse, qui se chiffre en calcul "
+              "non servi avant d'être acceptée."},
     {"cle": "carbone_electricite", "nom": "Contenu carbone de l'électricité (scope 2)",
      "famille": "carbone",
      "science": 3,

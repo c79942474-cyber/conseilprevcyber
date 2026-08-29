@@ -272,7 +272,14 @@ ARCHITECTURES_ELEC = {
                         "venant d'au-delà de la limite de propriété et hors du "
                         "contrôle de l'exploitant est traité comme non fiable. "
                         "La production sur site est la source primaire ; le "
-                        "réseau est une alternative économique.",
+                        "réseau est une alternative économique. ENFIN, UNE "
+                        "PUISSANCE EFFAÇABLE N'EST PAS UNE PUISSANCE : un "
+                        "raccordement non ferme s'obtient plus vite parce que "
+                        "le gestionnaire se réserve de le réduire, et la part "
+                        "réduite ne se compte ni au bilan de puissance, ni "
+                        "dans une garantie de service. Ce qu'elle coûte en "
+                        "calcul non servi se calcule sur les clauses de la "
+                        "convention.",
         "referentiel": "nfc13100",
     },
     "poste_livraison": {

@@ -185,7 +185,16 @@ RUBRIQUES = {
                            "quelques dizaines d'heures par an, qui classent le "
                            "site. Le faible nombre d'heures allège les "
                            "exigences d'émission ; il ne retire pas la "
-                           "rubrique.",
+                           "rubrique. ET L'ALLÈGEMENT TOMBE AVEC LES HEURES : "
+                           "une machine appelée pour tenir un effacement de "
+                           "réseau ou pour produire derrière le compteur "
+                           "fonctionne, elle ne secourt pas. Les valeurs "
+                           "limites d'émission s'instruisent alors sur le "
+                           "régime réel, et la puissance ajoutée fait "
+                           "généralement changer de régime administratif — "
+                           "c'est le point que manquent les projets qui "
+                           "installent de la production sur site pour éviter "
+                           "une file d'attente de raccordement.",
         "conception": "La puissance à déclarer est la puissance THERMIQUE, "
                       "environ deux fois et demie la puissance électrique "
                       "installée. Un site de 2 MW électriques de secours est "
@@ -220,7 +229,14 @@ RUBRIQUES = {
                            "plancher — douze heures sur site à la capacité N, "
                            "à tous les niveaux. Le niveau visé décide donc du "
                            "volume, qui décide de la rubrique, qui décide du "
-                           "délai d'instruction.",
+                           "délai d'instruction. L'autonomie n'est d'ailleurs "
+                           "plus le seul paramètre du volume : une production "
+                           "sur site appelée quelques centaines d'heures par "
+                           "an demande un stockage sans commune mesure avec "
+                           "les douze heures de secours — deux ordres de "
+                           "grandeur d'écart, qui font sortir la question du "
+                           "champ de cette rubrique pour l'amener sur celui "
+                           "des sites à risque d'accident majeur.",
         "conception": "Le volume se convertit en tonnes par la masse "
                       "volumique du produit. Comptez les nourrices et le "
                       "volume mort : la nomenclature parle de ce qui est "

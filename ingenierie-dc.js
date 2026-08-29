@@ -4444,6 +4444,24 @@ function messageDelai(e, defaut) {
     progAjouter();
   }
 
+  /* Le nom lisible d'une nature de site, et ce qu'elle engage — tous deux
+     pris au glossaire servi par le cadre. La liste affichait jusqu'ici la
+     clé brute, « greenfield », avec une infobulle qui ne s'affichait pas. */
+  function nomNature(cle) {
+    var g = CADRE.glossaire && CADRE.glossaire.nature_site;
+    return (g && g[cle] && g[cle].nom) || cle;
+  }
+
+  function progImplication(sel) {
+    var box = $("#" + sel.id + "-i");
+    if (!box) return;
+    var g = CADRE.glossaire && CADRE.glossaire.nature_site;
+    var e = g && g[sel.value];
+    if (!e) { box.hidden = true; box.textContent = ""; return; }
+    box.hidden = false;
+    box.textContent = e.aide || e.nom || "";
+  }
+
   function progAjouter() {
     var z = $("#ig-prog-sites");
     if (!z || !PROG_CHAMPS) return;
@@ -4461,11 +4479,16 @@ function messageDelai(e, defaut) {
         + (c.unite ? ' <span class="dc-unite">(' + esc(c.unite) + ')</span>' : "")
         + "</span>";
       if (c.type === "liste") {
+        /* PAS D'INFOBULLE SUR L'OPTION. Le menu déroulant natif est dessiné
+           par le système d'exploitation, qui ignore les attributs de la
+           page : un `data-info` posé là ne s'affiche dans aucun navigateur.
+           L'explication de la nature retenue se montre APRÈS sélection, comme
+           pour l'identification du projet. */
         h += '<select id="' + id + '" data-prog="' + esc(c.id) + '">'
           + '<option value="">— non précisé —</option>';
         (c.options || []).forEach(function (o) {
-          h += '<option value="' + esc(o) + '"' + info("nature_site:" + o)
-            + ">" + esc(o) + "</option>";
+          h += '<option value="' + esc(o) + '">' + esc(nomNature(o))
+            + "</option>";
         });
         h += "</select>";
       } else if (c.type === "booleen") {
@@ -4479,10 +4502,13 @@ function messageDelai(e, defaut) {
           + ' placeholder="—">';
       }
       if (c.aide) h += '<span class="dc-aide">' + esc(c.aide) + "</span>";
-      h += "</label>";
+      h += '<span class="ig-impl" id="' + id + '-i" hidden></span></label>';
     });
     d.innerHTML = h + "</div>";
     z.appendChild(d);
+    d.querySelectorAll('select[data-prog="nature"]').forEach(function (sel) {
+      sel.addEventListener("change", function () { progImplication(sel); });
+    });
     var x = d.querySelector(".ig-prog-x");
     if (x) {
       x.addEventListener("click", function () {
@@ -4708,6 +4734,316 @@ function messageDelai(e, defaut) {
      atteint d'abord — du régime le plus lourd au plus léger —, ce qui manque
      ensuite, ce qui est écarté en dernier. Il vient du serveur : la page ne
      retrie rien, sans quoi les deux ordres divergeraient. */
+  /* ═══════════════════════════════════════════════════════════════════════
+     LE RACCORDEMENT ET LA PRODUCTION SUR SITE
+
+     CE QUE CE BLOC AFFICHE ET QU'AUCUN AUTRE N'AFFICHE : les TERMES du calcul,
+     ligne à ligne. Une part de calcul non servie livrée comme un pourcentage
+     nu ne se discute ni avec un gestionnaire de réseau, ni avec un client :
+     elle se croit ou elle se rejette. Montrer la puissance tenue, la puissance
+     appelée, le déficit horaire, le creux de rattrapage et ce qui a pu y être
+     reporté, c'est donner de quoi contester — donc de quoi convaincre.
+
+     LES TROIS BANDEAUX QUI ACCOMPAGNENT LE CHIFFRE, et pourquoi aucun n'est
+     décoratif : le plafonnement par le creux dit si ajouter de la flexibilité
+     servira encore ; la bascule de régime dit ce que la production sur site
+     coûte en instruction administrative ; l'écart de duty dit ce qui, dans la
+     pile installée, compte pour le niveau de disponibilité — et ce qui n'y
+     compte pas. */
+  var RESEAU_CHAMPS = null, RESEAU = null;
+
+  function reseauFormulaire(champs) {
+    var z = $("#ig-res-form");
+    if (!z) return;
+    RESEAU_CHAMPS = champs || [];
+    var h = '<div class="dc-grille">';
+    RESEAU_CHAMPS.forEach(function (c) {
+      var id = "ig-res-" + c.id;
+      h += '<label class="dc-champ" for="' + id + '">'
+        + '<span class="dc-lab">' + esc(c.label)
+        + (c.unite ? ' <span class="dc-unite">(' + esc(c.unite) + ')</span>' : "")
+        + "</span>";
+      if (c.type === "choix") {
+        /* « — non précisé — » EN PREMIER, et jamais présélectionné. Sur ce
+           formulaire plus qu'ailleurs, une valeur par défaut deviendrait la
+           réponse : personne ne conteste un champ déjà rempli, et une
+           fréquence d'effacement supposée déplace le résultat d'un facteur
+           trois. */
+        h += '<select id="' + id + '" data-res="' + esc(c.id) + '">'
+          + '<option value="">— non précisé —</option>';
+        (c.options || []).forEach(function (o) {
+          h += '<option value="' + esc(o) + '">' + esc(nomOption(c.id, o))
+            + "</option>";
+        });
+        h += "</select>";
+      } else {
+        h += '<input id="' + id + '" data-res="' + esc(c.id)
+          + '" type="text" inputmode="decimal" placeholder="—">';
+      }
+      if (c.aide) h += '<span class="dc-aide">' + esc(c.aide) + "</span>";
+      /* CE QUE L'OPTION ENGAGE, APRÈS SÉLECTION — et non en infobulle sur
+         l'option. Le menu déroulant natif est dessiné par le système : un
+         `data-info` posé sur une <option> ne s'affiche jamais, et la règle
+         qui vérifierait sa présence passerait sur une infobulle morte. */
+      h += '<span class="ig-impl" id="' + id + '-i" hidden></span></label>';
+    });
+    z.innerHTML = h + "</div>";
+    z.querySelectorAll("select[data-res]").forEach(function (sel) {
+      sel.addEventListener("change", function () { reseauImplication(sel); });
+    });
+  }
+
+  /* La famille de glossaire qui explique les options d'un champ, ou null
+     quand le champ n'en a pas. Une seule fonction pour le nom et pour
+     l'explication : deux tables de correspondance auraient divergé. */
+  function familleOption(champ) {
+    return (champ === "mode_raccordement") ? "mode_raccordement"
+      : (champ === "btm_classe_iso") ? "classe_groupe" : null;
+  }
+
+  /* Le nom lisible d'une option, pris au glossaire du module quand il en
+     tient un. Sans cela, la liste afficherait « non_ferme ». */
+  function nomOption(champ, val) {
+    var fam = familleOption(champ);
+    var g = fam && CADRE.glossaire && CADRE.glossaire[fam];
+    return (g && g[val] && g[val].nom) || val;
+  }
+
+  function reseauImplication(sel) {
+    var cid = sel.getAttribute("data-res");
+    var box = $("#" + sel.id + "-i");
+    if (!box) return;
+    var fam = familleOption(cid);
+    var g = fam && CADRE.glossaire && CADRE.glossaire[fam];
+    var e = g && g[sel.value];
+    if (!e) { box.hidden = true; box.textContent = ""; return; }
+    box.hidden = false;
+    box.textContent = e.aide || e.nom || "";
+  }
+
+  function reseauLire() {
+    /* LE PROFIL DU MOTEUR ET LES GRANDEURS DU CRIBLAGE VOYAGENT AVEC. La
+       production sur site s'ajoute aux groupes de secours déjà déclarés
+       ailleurs sur la page, et c'est le CUMUL qui décide du régime. Les
+       demander une seconde fois ici les ferait diverger. */
+    var p = (typeof icpeLire === "function") ? icpeLire() : lireProfil();
+    document.querySelectorAll("#ig-res-form [data-res]").forEach(function (el) {
+      var v = (el.value || "").trim();
+      if (v !== "") p[el.getAttribute("data-res")] = v;
+    });
+    return p;
+  }
+
+  function reseauChiffrer() {
+    var msg = $("#ig-res-msg"), out = $("#ig-res-out");
+    if (!out) return;
+    msg.textContent = "Chiffrage…";
+    demander("/api/datacenter/reseau", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(reseauLire()),
+    }).then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) {
+          msg.textContent = (j && j.message) || "Chiffrage indisponible.";
+          return;
+        }
+        RESEAU = j;
+        msg.textContent = "";
+        reseauRendre(j);
+      })
+      .catch(function () { msg.textContent = "Chiffrage indisponible."; });
+  }
+
+  function pourcent(x) {
+    return (x === null || x === undefined) ? "—"
+      : (Math.round(x * 1000) / 10).toFixed(1) + " %";
+  }
+
+  function mwh(x) {
+    return (x === null || x === undefined) ? "—"
+      : Math.round(x / 1000).toLocaleString("fr-FR") + " MWh";
+  }
+
+  function reseauRendre(j) {
+    var out = $("#ig-res-out"), e = j.etude || {};
+    if (e.nature === "refus") {
+      out.innerHTML = '<p class="note">' + esc(e.message) + "</p>";
+      return;
+    }
+    var h = "";
+
+    /* Les saisies refusées d'abord : une valeur illisible écartée en silence
+       ferait calculer sur un champ absent, et le résultat serait juste pour
+       une question qui n'a pas été posée. */
+    if (j.rejets && j.rejets.length) {
+      h += '<div class="ig-encart"><b>Saisies non retenues.</b><ul>';
+      j.rejets.forEach(function (r) {
+        h += "<li>" + esc(r.label) + " — " + esc(r.message) + "</li>";
+      });
+      h += "</ul></div>";
+    }
+
+    if (e.mode) h += reseauMode(e.mode);
+    h += reseauNonServi(e.non_servi, e.marge);
+    if (e.production_sur_site) h += reseauProduction(e.production_sur_site);
+    h += '<p class="ig-icpe-res">' + esc(e.reserve) + "</p>";
+    out.innerHTML = h;
+  }
+
+  function reseauMode(m) {
+    var h = '<div class="rc-card"><h3>' + esc(m.nom) + "</h3>"
+      + "<p><b>Ce que le gestionnaire garantit —</b> " + esc(m.garantit) + "</p>"
+      + "<p><b>Ce qu'il ne garantit pas —</b> " + esc(m.ne_garantit_pas) + "</p>"
+      + "<p><b>Ce qui fixe le délai —</b> " + esc(m.ce_qui_fixe_le_delai) + "</p>";
+    if (m.a_ecrire_dans_la_convention) {
+      h += '<div class="ig-encart"><b>À faire écrire dans la convention.</b> '
+        + esc(m.a_ecrire_dans_la_convention) + "</div>";
+    }
+    /* LE REPÈRE PUBLIÉ, AVEC SON AUTEUR ET SA RÉSERVE — et la mention qu'il
+       n'entre dans aucun calcul. Un ordre de grandeur de marché affiché sans
+       son auteur se lit comme un résultat du moteur. */
+    if (m.repere) {
+      h += '<div class="ig-encart ig-repere"><b>Ce qui s\'observe ailleurs.</b> '
+        + esc(m.repere.enonce)
+        + ' <span class="note">' + esc(m.repere.editeur || "")
+        + (m.repere.date ? ", " + esc(m.repere.date) : "")
+        + (m.repere.nature ? " — " + esc(m.repere.nature) : "")
+        + ". Repère de comparaison : il n'entre dans aucun calcul de cette "
+        + "page.</span>";
+      if (m.repere.reserve) {
+        h += '<p class="note">' + esc(m.repere.reserve) + "</p>";
+      }
+      h += "</div>";
+    }
+    return h + "</div>";
+  }
+
+  function reseauNonServi(r, marge) {
+    if (!r) return "";
+    if (r.nature === "incomplet" || r.nature === "refus") {
+      var hh = '<div class="rc-card"><h3>Le calcul non servi</h3>'
+        + "<p>" + esc(r.message) + "</p>";
+      if (r.manques && r.manques.length) {
+        hh += "<ul>";
+        r.manques.forEach(function (m) { hh += "<li>" + esc(m) + "</li>"; });
+        hh += "</ul>";
+      }
+      return hh + "</div>";
+    }
+    var t = r.termes, hy = r.hypotheses;
+    var h = '<div class="rc-card"><h3>Le calcul non servi</h3>'
+      + '<div class="ig-icpe-tete"><span class="ig-icpe-reg">'
+      + pourcent(r.part_non_servie) + " du calcul annuel</span>"
+      + '<span class="ig-icpe-n">' + esc(r.lecture) + "</span></div>";
+
+    /* LES TERMES, DANS L'ORDRE OÙ ILS S'ENCHAÎNENT. C'est la partie qui rend
+       le chiffre opposable ; la masquer derrière un dépliant reviendrait à ne
+       pas la donner. */
+    h += '<table class="ig-tab"><tbody>'
+      + reseauLigne("Puissance informatique installée", t.puissance_installee_kw, "kW")
+      + reseauLigne("Puissance appelée par le calcul", t.puissance_appelee_kw, "kW")
+      + reseauLigne("Puissance tenue pendant l'effacement",
+                    t.puissance_tenue_en_effacement_kw, "kW")
+      + reseauLigne("Déficit à l'heure d'appel", t.deficit_horaire_kw, "kW")
+      + "<tr><td>Non servi avant report</td><td>" + mwh(t.non_servi_brut_kwh_an) + "</td></tr>"
+      + "<tr><td>Creux disponible pour rattraper</td><td>" + mwh(t.creux_de_rattrapage_kwh_an) + "</td></tr>"
+      + "<tr><td>Effectivement reporté</td><td>" + mwh(t.reporte_kwh_an) + "</td></tr>"
+      + "<tr><td><b>Non servi net</b></td><td><b>" + mwh(t.non_servi_net_kwh_an) + "</b></td></tr>"
+      + "</tbody></table>";
+
+    h += '<p class="note">Hypothèses retenues — part non ferme '
+      + pourcent(hy.part_non_ferme) + ", appelée sur "
+      + pourcent(hy.frequence_effacement) + " des heures, profondeur "
+      + pourcent(hy.profondeur_effacement)
+      + (hy.profondeur_supposee ? " (supposée)" : "")
+      + ", taux de charge " + pourcent(hy.taux_charge)
+      + ", part reportable " + pourcent(hy.part_reportable)
+      + " — " + esc(hy.origine_part_reportable) + ".</p>";
+
+    if (r.alerte_profondeur) {
+      h += '<div class="ig-encart"><b>Profondeur supposée.</b> '
+        + esc(r.alerte_profondeur) + "</div>";
+    }
+    /* LE BANDEAU QUI CHANGE UNE DÉCISION. Tant que le report n'est pas
+       plafonné, chercher de la flexibilité réduit encore le chiffre ; une
+       fois plafonné, cela ne sert plus à rien et seule de la puissance ferme
+       agit. Les deux conduites sont opposées, et rien d'autre sur la page ne
+       le dit. */
+    if (r.plafonne_par_le_creux) {
+      h += '<div class="ig-encart ig-alerte"><b>Le report est plafonné par le '
+        + "creux, pas par la flexibilité.</b> Il ne reste pas assez d'heures "
+        + "libres pour rattraper le travail décalé : chercher davantage de "
+        + "charge reportable ne réduira plus ce chiffre. À ce point, seule de "
+        + "la puissance ferme sur site agit encore.</div>";
+    }
+    if (marge && marge.nature === "calcule") {
+      h += '<div class="ig-encart"><b>Effet sur le résultat.</b> '
+        + esc(marge.lecture) + ' <span class="note">' + esc(marge.pourquoi)
+        + "</span></div>";
+    } else if (marge && marge.nature === "refus") {
+      h += '<p class="note">' + esc(marge.message) + "</p>";
+    }
+    h += '<p class="note">' + esc(r.limite) + "</p>";
+    return h + "</div>";
+  }
+
+  function reseauLigne(nom, val, unite) {
+    return "<tr><td>" + esc(nom) + "</td><td>"
+      + ((val === null || val === undefined) ? "—"
+         : Math.round(val).toLocaleString("fr-FR") + " " + unite)
+      + "</td></tr>";
+  }
+
+  function reseauProduction(p) {
+    var h = '<div class="rc-card"><h3>La production sur site, et ce qu\'elle '
+      + "déclenche</h3>";
+    if (p.nature === "incomplet") {
+      h += "<ul>";
+      (p.manques || []).forEach(function (m) { h += "<li>" + esc(m) + "</li>"; });
+      return h + "</ul></div>";
+    }
+    (p.alertes || []).forEach(function (a) {
+      h += '<div class="ig-encart ig-alerte">' + esc(a) + "</div>";
+    });
+    if (p.icpe) {
+      h += "<p><b>Régime administratif —</b> sans la production sur site&nbsp;: "
+        + esc(p.icpe.regime_sans_production_nom) + ". Avec&nbsp;: "
+        + esc(p.icpe.regime_avec_production_nom) + ".</p>";
+    }
+    if (p.allegement_heures) {
+      h += '<div class="ig-encart">' + esc(p.allegement_heures) + "</div>";
+    }
+    if (p.combustible) {
+      var c = p.combustible;
+      h += "<p><b>Combustible —</b> ";
+      if (c.voie === "gaz") {
+        h += esc(c.stockage) + " " + esc(c.en_echange) + "</p>"
+          + '<p class="note">' + esc(c.a_obtenir) + "</p>";
+      } else {
+        h += "réserve de douze heures au titre de la disponibilité : "
+          + Math.round(c.reserve_tier_m3 || 0).toLocaleString("fr-FR") + " m³";
+        if (c.volume_m3) {
+          h += " ; volume pour les heures de production déclarées : "
+            + Math.round(c.volume_m3).toLocaleString("fr-FR") + " m³";
+        }
+        h += ".</p>";
+        if (c.manque) h += '<p class="note">Manque — ' + esc(c.manque) + "</p>";
+        if (c.hors_perimetre) {
+          h += '<div class="ig-encart ig-alerte">' + esc(c.hors_perimetre)
+            + "</div>";
+        }
+      }
+    }
+    if (p.duty) {
+      h += '<div class="ig-encart"><b>Tenir un effacement n\'est pas '
+        + "secourir.</b> "
+        + esc(p.duty.lecture || p.duty.manque || "")
+        + ' <span class="note">' + esc(p.duty.pourquoi || "") + "</span></div>";
+    }
+    return h + "</div>";
+  }
+
   var ICPE_CHAMPS = null, ICPE = null;
 
   function icpeFormulaire(champs) {
@@ -5304,6 +5640,7 @@ function messageDelai(e, defaut) {
            ne calcule tant qu'on ne le lui demande pas. */
         progFormulaire(CADRE.programme_champs);
         icpeFormulaire(CADRE.icpe_champs);
+        reseauFormulaire(CADRE.reseau_champs);
         travauxFormulaire();
         aoDocuments();
         rafraichir();
@@ -5329,6 +5666,7 @@ function messageDelai(e, defaut) {
     if ((b = $("#ig-prog-add"))) b.addEventListener("click", progAjouter);
     if ((b = $("#ig-prog-go"))) b.addEventListener("click", progConsolider);
     if ((b = $("#ig-icpe-go"))) b.addEventListener("click", icpeCribler);
+    if ((b = $("#ig-res-go"))) b.addEventListener("click", reseauChiffrer);
     if ((b = $("#ig-ao-go"))) b.addEventListener("click", aoAnalyser);
     if ((b = $("#ig-ao-cand"))) b.addEventListener("click", aoCandidature);
   }

@@ -48,11 +48,123 @@ import re
 
 VERSION = "2026-08-a"
 
-# ── LES QUATRE LACUNES, ET PAR QUOI ON LES INSTRUIT ────────────────────────
+# ── LES SIX LACUNES, ET PAR QUOI ON LES INSTRUIT ───────────────────────────
 # `manque` reprend MOT POUR MOT la lacune déclarée par etat_art : un contrôle
 # le vérifie au chargement. Deux formulations qui divergent donneraient au
 # lecteur deux versions du même trou, et il croirait à deux trous.
 LACUNES = {
+    "raccordement_cadre": {
+        "titre": "Le cadre français du raccordement et de l'effacement",
+        "manque": "Rien sur le cadre européen du raccordement ni sur les "
+                  "mécanismes français d'effacement et de capacité",
+        "question": "À quelles conditions un gestionnaire de réseau français "
+                    "propose-t-il un raccordement à puissance limitée ou "
+                    "effaçable, sous quel fondement juridique, avec quelle "
+                    "profondeur et quelle fréquence d'appel opposables, et "
+                    "quelle rémunération ou quel abattement tarifaire "
+                    "l'accompagne ?",
+        "requete": "raccordement flexible puissance limitée effacement "
+                   "convention de raccordement file d'attente capacité "
+                   "d'accueil poste source tarif d'utilisation du réseau",
+        "themes": ["Data center / Raccordement & production sur site",
+                   "Data center / Énergie & électricité",
+                   "Data center / Études de site & implantation"],
+        "preuve": "Une offre de raccordement nominative, ou la documentation "
+                  "technique de référence du gestionnaire concerné, citant "
+                  "les clauses d'effacement applicables. Une pratique "
+                  "observée sur un autre marché européen ne comble pas cette "
+                  "lacune : les conditions sont fixées par le droit national "
+                  "et par le gestionnaire, pas par un usage de place.",
+        "gisements": [
+            {"organisme": "Commission de régulation de l'énergie",
+             "instrument": "Délibérations et documentation tarifaire relatives "
+                           "à l'utilisation des réseaux publics",
+             "contient": "Les règles tarifaires applicables au raccordement "
+                         "et à l'utilisation du réseau, et les conditions "
+                         "dans lesquelles une puissance limitée peut être "
+                         "proposée.",
+             "reserve": "Le cadre général y figure ; les conditions "
+                        "applicables à un point de livraison donné restent à "
+                        "demander au gestionnaire."},
+            {"organisme": "Gestionnaires de réseaux de transport et de "
+                          "distribution",
+             "instrument": "Documentation technique de référence et schémas "
+                           "de développement du réseau",
+             "contient": "Les capacités d'accueil par poste et les "
+                         "renforcements programmés, ainsi que les procédures "
+                         "de traitement des demandes de raccordement.",
+             "reserve": "Publiée à une date donnée et révisée : une capacité "
+                        "lue hier peut avoir été réservée depuis, et seule la "
+                        "réponse écrite à une demande engage."},
+            {"organisme": "République française",
+             "instrument": "Code de l'énergie — livre III, raccordement et "
+                           "accès aux réseaux",
+             "contient": "Les obligations du gestionnaire, les droits du "
+                         "demandeur et les fondements des mécanismes "
+                         "d'effacement de consommation.",
+             "reserve": "Le texte fixe le cadre ; il ne dit rien des délais "
+                        "réellement constatés, qui dépendent de l'état local "
+                        "du réseau."},
+        ],
+        "hors_portee": "Même complète, cette instruction ne dira pas ce que "
+                       "vaut une offre pour un terrain donné : le délai et la "
+                       "fermeté se demandent point de livraison par point de "
+                       "livraison, et la réponse est écrite, jamais déduite.",
+    },
+    "carbone_production_site": {
+        "titre": "Le carbone de la production installée sur le site",
+        "manque": "Aucun chiffrage du carbone de la production sur site",
+        "question": "Quelles émissions directes entraîne une production "
+                    "installée derrière le compteur — par technologie, par "
+                    "combustible et par régime de fonctionnement — et "
+                    "comment se comparent-elles aux émissions de réseau "
+                    "qu'elle remplace, sachant qu'elles basculent du scope 2 "
+                    "vers le scope 1 ?",
+        "requete": "émissions moteurs turbines à gaz production sur site "
+                   "scope 1 facteur d'émission combustible valeurs limites "
+                   "installations de combustion moyennes",
+        "themes": ["Data center / Raccordement & production sur site",
+                   "Data center / Carbone & analyse de cycle de vie",
+                   "Data center / Green Management / Indicateurs & reporting"],
+        "preuve": "Des facteurs d'émission par combustible et par "
+                  "technologie, appliqués aux heures de fonctionnement "
+                  "réellement prévues, et confrontés au facteur du réseau de "
+                  "l'année de référence. Une comparaison faite sur la "
+                  "puissance installée ne comble pas cette lacune : ce sont "
+                  "les heures qui produisent les émissions.",
+        "gisements": [
+            {"organisme": "ADEME",
+             "instrument": "Base Empreinte® (ex-Base Carbone®)",
+             "contient": "Les facteurs d'émission des combustibles fossiles, "
+                         "documentés et datés, applicables à une "
+                         "consommation déclarée.",
+             "reserve": "Facteurs de combustion : ils ne couvrent ni la "
+                        "fabrication des machines, ni les fuites amont de la "
+                        "chaîne d'approvisionnement."},
+            {"organisme": "Union européenne",
+             "instrument": "Directive relative aux émissions industrielles et "
+                           "directive relative aux installations de "
+                           "combustion moyennes",
+             "contient": "Les valeurs limites d'émission applicables selon la "
+                         "puissance et le régime de fonctionnement, et les "
+                         "obligations de surveillance qui les accompagnent.",
+             "reserve": "Elles fixent des limites à respecter ; elles ne "
+                        "donnent pas le bilan carbone d'une installation."},
+            {"organisme": "GHG Protocol",
+             "instrument": "Corporate Standard et Scope 2 Guidance",
+             "contient": "Les règles d'affectation entre émissions directes "
+                         "et émissions liées à l'énergie achetée, et le "
+                         "traitement des deux approches de déclaration.",
+             "reserve": "Un référentiel de comptabilisation, pas une source "
+                        "de facteurs : il dit où ranger l'émission, pas "
+                        "combien elle vaut."},
+        ],
+        "hors_portee": "Cette instruction ne tranche pas l'arbitrage : "
+                       "produire sur site peut émettre davantage tout en "
+                       "rendant le projet possible. Elle rend l'écart "
+                       "visible ; la décision reste une décision de "
+                       "direction.",
+    },
     "acv": {
         "titre": "Le carbone incorporé, et l'analyse de cycle de vie",
         "manque": "Aucune analyse de cycle de vie au sens d'ISO 14040",

@@ -2475,6 +2475,18 @@ SOURCES_CONSULTABLES = [
      "lien": "https://www.ademe.fr",
      "verifier": "La Base Empreinte pour les facteurs d'émission, et les "
                  "avis techniques sur le refroidissement."},
+    {"cle": "grd", "organisme": "Gestionnaire de réseau de distribution",
+     "nature": "gestionnaire de réseau",
+     "porte": "L'offre de raccordement au réseau de distribution : puissance "
+              "accordée, tension, DÉLAI, et — là où le réseau est contraint — "
+              "les conditions d'un raccordement effaçable, servi plus tôt "
+              "contre le droit de réduire la puissance.",
+     "lien": "https://www.enedis.fr",
+     "verifier": "La file d'attente de raccordement du poste source visé, et "
+                 "l'existence d'une offre de raccordement à puissance "
+                 "limitée ou effaçable. Les deux se demandent par écrit, pour "
+                 "un point de livraison donné : aucune moyenne de marché ne "
+                 "répond à leur place."},
     {"cle": "rte", "organisme": "RTE",
      "nature": "gestionnaire de réseau",
      "porte": "L'intensité carbone du réseau français heure par heure, et "
@@ -2649,6 +2661,33 @@ LIMITES = [
                "effectif à contractualiser (PPA, garanties horaires).",
      "qui": "Énergéticien avec l'exploitant",
      "quand": "Dès le PRO si un PPA se négocie ; sinon en exploitation."},
+    {"cle": "forme_effacement",
+     "quoi": "Le chiffrage d'un raccordement effaçable traite l'année en deux "
+             "blocs — les heures d'effacement et les autres. Il ne voit donc "
+             "pas la FORME de l'effacement, et deux cents heures continues ne "
+             "valent pas deux cents heures dispersées : les premières "
+             "dépassent l'horizon de report de toutes les classes de charge, "
+             "les secondes non.",
+     "moteur_fait": "La part de calcul non servie sur une profondeur et une "
+                    "fréquence moyennes, avec le report plafonné par le creux "
+                    "disponible — ce qui borne déjà le résultat par le haut.",
+     "leve_par": None,
+     "leve_note": "Aucune saisie de ce formulaire ne lève cette réserve : il "
+                  "y faut une série horaire, pas une moyenne de plus.",
+     "normes": ["conditions de raccordement du gestionnaire de réseau",
+                "séries horaires de charge de l'exploitant",
+                "ENTSO-E — données de marché et de congestion"],
+     "calcul": "Croiser la courbe de charge IT horaire avec la série des "
+               "appels d'effacement — profondeur, préavis et durée "
+               "consécutive — sur une année ; en tirer le calcul non servi "
+               "réel et la puissance ferme sur site qui le ramène au niveau "
+               "accepté. C'EST LA MÊME SÉRIE HORAIRE que demande la réserve "
+               "de pilotage carbone : une donnée manquante, deux réserves "
+               "levées ensemble.",
+     "qui": "Énergéticien avec l'exploitant et le gestionnaire de réseau",
+     "quand": "Avant d'accepter une offre de raccordement non ferme — après, "
+              "la clause est signée et le chiffrage ne sert plus qu'à "
+              "constater."},
 ]
 
 

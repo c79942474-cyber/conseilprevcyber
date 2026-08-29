@@ -47,6 +47,7 @@ def sans_commentaires_js(src):
 
 @pytest.mark.parametrize("ancre,titre", [
     ("ig-icpe", "régime ICPE"),
+    ("ig-reseau", "raccordement au réseau"),
     ("ig-travaux", "phase travaux"),
     ("ig-ao", "appel d'offres"),
 ])
@@ -57,11 +58,12 @@ def test_chaque_section_ajoutee_est_dans_la_page(ancre, titre):
     assert titre.lower() in h[i:i + 400].lower(), (ancre, titre)
 
 
-def test_les_zones_de_rendu_des_trois_sections_existent():
+def test_les_zones_de_rendu_des_sections_ajoutees_existent():
     """Une fonction qui écrit dans un identifiant absent échoue en silence :
     `$("#…")` rend null, et le rendu ne se produit jamais."""
     h = lire("ingenierie-datacenter.html")
     for zid in ("ig-icpe-form", "ig-icpe-out", "ig-icpe-msg",
+                "ig-res-form", "ig-res-out", "ig-res-msg",
                 "ig-tr-form", "ig-tr-out", "ig-tr-msg",
                 "ig-ao-depot", "ig-ao-out", "ig-ao-cand-out", "ig-ao-msg"):
         assert 'id="%s"' % zid in h, zid
@@ -70,7 +72,10 @@ def test_les_zones_de_rendu_des_trois_sections_existent():
 # ── Le câblage : ce qui est défini est appelé, ce qui est appelé existe ────
 
 @pytest.mark.parametrize("fn", ["icpeFormulaire", "icpeCribler", "icpeRendre",
-                                "icpeFiche", "travauxFormulaire",
+                                "icpeFiche", "reseauFormulaire",
+                                "reseauChiffrer", "reseauRendre", "reseauMode",
+                                "reseauNonServi", "reseauProduction",
+                                "travauxFormulaire",
                                 "travauxPlan", "travauxRendre", "aoDocuments",
                                 "aoAnalyser", "aoRendre", "aoCandidature",
                                 "aoCandRendre", "aoIgnores"])
@@ -90,6 +95,7 @@ def test_chaque_fonction_ajoutee_est_definie_et_appelee(fn):
 
 @pytest.mark.parametrize("bouton,fonction", [
     ("ig-icpe-go", "icpeCribler"),
+    ("ig-res-go", "reseauChiffrer"),
     ("ig-ao-go", "aoAnalyser"),
     ("ig-ao-cand", "aoCandidature"),
 ])
@@ -108,14 +114,82 @@ def test_chaque_bouton_de_la_page_porte_son_ecouteur(bouton, fonction):
     assert m.group(1) == fonction, (bouton, m.group(1))
 
 
-def test_les_trois_formulaires_sont_dessines_au_demarrage():
+def test_les_formulaires_ajoutes_sont_dessines_au_demarrage():
     """Un bouton sans formulaire au-dessus n'invite personne. Les formulaires
     se dessinent d'emblée ; aucun ne calcule tant qu'on ne le demande pas."""
     js = sans_commentaires_js(lire("ingenierie-dc.js"))
     i = js.index("function démarrer(")
     corps = js[i:i + 6000]
-    for appel in ("icpeFormulaire(", "travauxFormulaire(", "aoDocuments("):
+    for appel in ("icpeFormulaire(", "reseauFormulaire(",
+                  "travauxFormulaire(", "aoDocuments("):
         assert appel in corps, appel
+
+
+def test_le_formulaire_de_raccordement_est_alimente_par_le_referentiel():
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    assert "reseauFormulaire(CADRE.reseau_champs)" in js
+
+
+def test_les_termes_du_calcul_non_servi_sont_tous_rendus():
+    """UN POURCENTAGE NU NE SE DISCUTE PAS. Sans la décomposition, le lecteur
+    ne peut ni contester le chiffre auprès du gestionnaire de réseau, ni le
+    défendre auprès d'un client : il ne peut que le croire ou le rejeter.
+
+    Éprouvé sur les CLÉS du résultat réellement lues par le rendu, et non sur
+    la présence d'un mot : une section qui parlerait des termes sans les lire
+    passerait une règle de vocabulaire."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function reseauNonServi(")
+    corps = js[i:i + 4000]
+    for cle in ("puissance_tenue_en_effacement_kw", "puissance_appelee_kw",
+                "deficit_horaire_kw", "non_servi_brut_kwh_an",
+                "creux_de_rattrapage_kwh_an", "reporte_kwh_an",
+                "non_servi_net_kwh_an"):
+        assert cle in corps, cle
+
+
+def test_le_plafonnement_du_report_est_rendu_comme_un_bandeau():
+    """Les deux conduites sont OPPOSÉES : tant que le report n'est pas
+    plafonné, chercher de la flexibilité réduit encore le chiffre ; une fois
+    plafonné, cela ne sert plus à rien et seule de la puissance ferme agit.
+    Rien d'autre sur la page ne le dit."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function reseauNonServi(")
+    assert "plafonne_par_le_creux" in js[i:i + 4000]
+
+
+def test_aucune_infobulle_n_est_posee_sur_une_option_de_menu():
+    """UNE INFOBULLE MORTE EST PIRE QU'UNE ABSENCE D'INFOBULLE : la relecture
+    la voit, le lecteur ne la voit jamais. Le menu déroulant natif est dessiné
+    par le système d'exploitation, qui ignore les attributs de la page — un
+    `data-info` posé sur une <option> ne s'affichera dans aucun navigateur.
+
+    L'explication d'une option se montre APRÈS sélection, dans un bloc de la
+    page. C'est le motif que suit déjà l'identification du projet, et cette
+    règle empêche qu'un nouveau formulaire y déroge sans que rien ne le dise.
+
+    Éprouvé sur la construction du balisage, pas sur le rendu : `info(...)`
+    rend une chaîne d'attributs, et la faute consiste à la concaténer dans une
+    balise <option>."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    fautes = re.findall(r"<option[^>]{0,120}?\+\s*info\(", js)
+    assert not fautes, (
+        "%d infobulle(s) posée(s) sur une <option> : elles ne s'afficheront "
+        "jamais" % len(fautes))
+    # Et dans le HTML servi tel quel.
+    h = lire("ingenierie-datacenter.html")
+    assert not re.findall(r"<option[^>]*data-info=", h)
+
+
+def test_le_repere_publie_est_rendu_avec_son_auteur():
+    """Un ordre de grandeur de marché affiché sans son auteur se lit comme un
+    résultat du moteur — c'est exactement ce que la discipline de l'état de
+    l'art existe pour empêcher."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function reseauMode(")
+    corps = js[i:i + 2500]
+    assert "repere.editeur" in corps
+    assert "repere.enonce" in corps
 
 
 def test_le_formulaire_icpe_est_alimente_par_le_referentiel_et_non_ecrit():

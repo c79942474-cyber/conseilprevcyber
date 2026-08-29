@@ -2319,6 +2319,7 @@ import travaux_dc    # noqa: E402  — l'ordre des opérations de chantier et se
 import ao_dc         # noqa: E402  — lit le dossier marché, prépare la candidature
 import programme_dc  # noqa: E402  — consolide un portefeuille de sites, pas un projet
 import tier_dc       # noqa: E402  — qualifie une topologie, ne décerne aucun niveau
+import reseau_dc     # noqa: E402  — chiffre un raccordement effaçable, ne prédit aucun délai
 import econome_dc     # l'economiste de la construction : quantites x prix
 import decarbonation  # noqa: E402  — les situe dans la hiérarchie d'atténuation
 import strategie_dd  # noqa: E402  — le livrable d'ouverture, quatre perspectives
@@ -2408,6 +2409,7 @@ def api_datacenter_referentiel():
         ok=True, referentiel=datacenter.referentiel(),
         champs=datacenter.CHAMPS,
         technique=technique_dc.referentiel(),
+        reseau=reseau_dc.referentiel(),
         base=_themes_datacenter()))
 
 
@@ -3954,6 +3956,41 @@ def api_datacenter_ingenierie_dossier():
 # résultat.
 
 
+def _profil_reseau(data, rejets=None):
+    """Les entrées propres à l'étude de raccordement.
+
+    MÊME LECTEUR DE NOMBRE, MÊME RAISON que pour le criblage réglementaire :
+    une valeur illisible doit RESSORTIR dans les rejets, pas disparaître. Une
+    part d'effacement saisie « 30 » pour trente pour cent doit se voir
+    refuser, et non se ramener en silence à un — ce qui rendrait un résultat
+    plausible sur une saisie fausse.
+    """
+    profil = {}
+    for champ in reseau_dc.CHAMPS:
+        cid = champ["id"]
+        if cid not in data or data[cid] in ("", None):
+            continue
+        brut = data[cid]
+        if champ["type"] == "nombre":
+            valeur, motif = _lire_nombre(brut, champ)
+            if motif:
+                if rejets is not None:
+                    rejets.append({"champ": cid,
+                                   "label": champ.get("label") or cid,
+                                   "saisi": str(brut)[:40], "message": motif})
+                continue
+            profil[cid] = valeur
+        else:
+            profil[cid] = str(brut)[:40]
+    # La répartition des charges n'est pas un champ simple : c'est un dict de
+    # parts, et le module la valide lui-même — y compris le cas où elle ne
+    # somme pas à un, qui n'est pas une erreur bénigne.
+    rep = data.get("repartition_charges")
+    if isinstance(rep, dict):
+        profil["repartition_charges"] = rep
+    return profil
+
+
 def _profil_icpe(data, rejets=None):
     """Les entrées propres au criblage ICPE, lues comme celles du moteur.
 
@@ -4069,6 +4106,43 @@ def api_datacenter_tier():
                        message="La qualification n'a pas pu être établie."), 500
     return jsonify(ok=True, qualification=q, ecart=ecart, groupes=groupes,
                    autonomie=auto, referentiel=tier_dc.referentiel())
+
+
+@app.route("/api/datacenter/reseau", methods=["POST"])
+@login_required
+def api_datacenter_reseau():
+    """Le raccordement, le calcul non servi qu'il entraîne, et ce que la
+    production sur site déclenche ailleurs.
+
+    LES QUATRE RÉSULTATS PARTENT ENSEMBLE, et c'est le point de cette route.
+    Pris séparément, chacun se lit à l'avantage de la décision déjà prise :
+    le délai gagné sans le calcul perdu, le calcul perdu sans le délai gagné,
+    la production sur site sans son régime administratif. La décision se prend
+    sur les quatre, ou elle se prend mal.
+
+    RIEN N'EST DEVINÉ. Une grandeur absente fait ressortir un résultat
+    « incomplet » qui NOMME ce qui manque, et non un chiffre calculé sur des
+    valeurs par défaut. Sur ce sujet, une valeur par défaut deviendrait la
+    réponse : personne ne conteste un formulaire déjà rempli.
+    """
+    data = request.get_json(silent=True) or {}
+    rejets = []
+    profil = _profil_reseau(data, rejets)
+    # Les grandeurs du criblage réglementaire voyagent avec : la production
+    # sur site s'ajoute aux groupes de secours déjà déclarés, et c'est le
+    # CUMUL qui décide du régime. Les demander à part les ferait diverger.
+    profil.update(_profil_icpe(data, rejets))
+    refroidissement = _profil_datacenter(data).get("refroidissement")
+    if refroidissement:
+        profil["refroidissement"] = refroidissement
+    try:
+        etude = reseau_dc.etudier(profil)
+    except Exception:
+        app.logger.exception("étude de raccordement datacenter")
+        return jsonify(ok=False, error="calcul",
+                       message="L'étude n'a pas pu être établie."), 500
+    return jsonify(ok=True, etude=etude, rejets=rejets,
+                   referentiel=reseau_dc.referentiel())
 
 
 @app.route("/api/datacenter/travaux", methods=["POST"])

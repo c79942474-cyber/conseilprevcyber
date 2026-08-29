@@ -465,6 +465,29 @@ REGLES = {
                     "refroidissement évaporatif, la réserve d'eau d'appoint "
                     "sur la même durée.",
     },
+    "secourir_n_est_pas_produire": {
+        "nom": "Tenir un effacement de réseau n'est pas secourir",
+        "interdit": "Compter la production installée sur site pour tenir un "
+                    "raccordement effaçable comme si elle satisfaisait, par "
+                    "la même occasion, l'exigence de secours du niveau visé.",
+        "hypothese_renversee": "« Nous avons quarante mégawatts sur site, la "
+                               "redondance est couverte. » Les deux besoins "
+                               "ne se recouvrent pas : tenir un effacement "
+                               "demande de fonctionner longtemps et souvent, "
+                               "ce que seule une classe de service sans "
+                               "limite d'heures permet ; secourir demande de "
+                               "démarrer vite et de tenir la capacité N "
+                               "pendant la réserve exigée. Une même machine "
+                               "peut faire les deux, mais cela se décide à "
+                               "l'achat et se lit sur la classe — jamais "
+                               "après coup.",
+        "verifier": "Les deux capacités séparément : celle qui qualifie pour "
+                    "le niveau, calculée sur la classe de service, et celle "
+                    "qui couvre l'effacement, calculée sur la profondeur et "
+                    "la durée d'appel écrites dans la convention de "
+                    "raccordement. Et le combustible pour les deux régimes de "
+                    "fonctionnement, qui n'est pas du même ordre de grandeur.",
+    },
 }
 
 

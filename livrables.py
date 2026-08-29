@@ -1054,6 +1054,34 @@ TYPES = [
         ],
     },
     {
+        "id": "dc-raccordement-production",
+        "groupe": "Centres de données",
+        "label": "Note de stratégie de raccordement et de production sur site",
+        "desc": "Mode de raccordement visé, chiffrage du calcul non servi sous "
+                "effacement, pile de production sur site et conséquences "
+                "administratives — la note qui se rend AVANT d'accepter une "
+                "offre de raccordement, pas après.",
+        "sections": [
+            "Puissance demandée, tension et point de livraison visés",
+            "Réponse du gestionnaire de réseau : délai, fermeté, conditions "
+            "d'effacement écrites",
+            "Chiffrage du calcul non servi — profondeur, fréquence, taux de "
+            "charge, part reportable, et les termes du calcul",
+            "Effet sur le résultat d'exploitation et sur les engagements de "
+            "service souscrits auprès des clients",
+            "Production et stockage sur site : ce qui tient un effacement et "
+            "ce qui ne le tient pas",
+            "Conséquences administratives de la production sur site — "
+            "combustion, stockage de combustible, régime et délai "
+            "d'instruction",
+            "Articulation avec le niveau de disponibilité visé : ce qui "
+            "qualifie et ce qui ne qualifie que l'effacement",
+            "Comparaison des calendriers : délai de raccordement évité contre "
+            "délai d'instruction ajouté",
+            "Décision proposée, et ce qu'elle engage vis-à-vis des clients",
+        ],
+    },
+    {
         "id": "dc-chaleur-fatale",
         "groupe": "Centres de données",
         "label": "Étude de valorisation de la chaleur fatale",

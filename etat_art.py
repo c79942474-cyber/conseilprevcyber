@@ -13,7 +13,7 @@ LA RÈGLE QUI GOUVERNE CE FICHIER, ET ELLE EST LA SEULE QUI COMPTE
 
 Un fait sans son auteur n'est pas un fait, c'est une rumeur. Chaque valeur
 portée ici cite sa source, sa page et — c'est le point — la NATURE de cette
-source. Trois des quatre documents versés sont publiés par des fournisseurs
+source. Trois des cinq documents versés sont publiés par des fournisseurs
 d'infrastructure ; leurs chiffres sont utiles et leur intérêt n'est pas neutre.
 Les afficher au même rang qu'une analyse indépendante tromperait le lecteur, et
 un dossier bâti là-dessus se ferait démonter à la première contradiction.
@@ -65,7 +65,7 @@ NATURES = {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  LES QUATRE DOCUMENTS
+#  LES CINQ DOCUMENTS
 # ═══════════════════════════════════════════════════════════════════════════
 
 SOURCES = {
@@ -76,7 +76,7 @@ SOURCES = {
                    "télécommunications",
         "date": "19 novembre 2024",
         "nature": "analyse_editeur",
-        "note": "La seule des quatre qui traite la durabilité pour elle-même. "
+        "note": "La seule des cinq qui traite la durabilité pour elle-même. "
                 "C'est aussi la seule qui donne ses hypothèses ET son scénario "
                 "défavorable, ce qui permet de la contredire.",
     },
@@ -97,6 +97,23 @@ SOURCES = {
         "note": "Essentiellement stratégique et commercial. Ses chiffres portent "
                 "sur le MARCHÉ de l'IA, pas sur l'empreinte des installations : "
                 "rien n'y alimente un calcul d'énergie, d'eau ou de carbone.",
+    },
+    "bcg2026": {
+        "titre": "Alimenter l'intelligence artificielle par des centres de "
+                 "données positifs pour le système électrique",
+        "editeur": "Boston Consulting Group",
+        "date": "2026",
+        "nature": "analyse_editeur",
+        "note": "Traite la question que les quatre autres ne posent pas : à "
+                "quelles conditions le réseau accorde la puissance, et que "
+                "faire quand il ne l'accorde pas fermement. SES CHIFFRES SONT "
+                "DES SORTIES DE MODÈLE sur un cas construit par l'auteur — un "
+                "site de puissance donnée, dans une région donnée, à un "
+                "horizon donné — et non des mesures. Le lecteur ne peut ni "
+                "les reproduire ni les vérifier : les hypothèses sont "
+                "publiées, le modèle ne l'est pas. Ils situent un ordre de "
+                "grandeur ; ils ne remplacent aucun calcul de projet, et "
+                "aucun n'entre dans le moteur.",
     },
     "honeywell_cycle": {
         "titre": "Selecting a Data Center Lifecycle Solution Provider",
@@ -247,6 +264,105 @@ FAITS = [
                 "consommation totale que si le volume de travail ne croît pas "
                 "davantage — ce que la même source juge peu probable."},
 
+    # ── Le raccordement au réseau, et ce qu'il fait attendre ───────────────
+    # CES FAITS NE SONT PAS DES MESURES. Ce sont les sorties d'un modèle de
+    # cabinet sur un cas construit. Ils servent à SITUER un résultat de projet,
+    # jamais à le produire — la règle de ce fichier vaut ici plus qu'ailleurs,
+    # parce que ce sont les seuls chiffres du dossier qu'un lecteur pressé
+    # serait tenté d'employer directement.
+    {"cle": "bcg_delai_ferme", "famille": "reseau",
+     "enonce": "Sur les marchés européens contraints, l'obtention d'un "
+               "raccordement ferme de forte puissance demanderait de cinq à "
+               "dix ans, et parfois davantage — le temps du renforcement du "
+               "réseau amont.",
+     "source": "bcg2026", "page": 5, "touche": "mode_raccordement",
+     "reserve": "ORDRE DE GRANDEUR DE MARCHÉ, pas une réponse sur un terrain. "
+                "Le délai s'obtient par écrit du gestionnaire de réseau pour "
+                "un point de livraison et une puissance donnés ; il varie d'un "
+                "poste source à l'autre dans un même département."},
+    {"cle": "bcg_delai_non_ferme", "famille": "reseau",
+     "enonce": "Un raccordement acceptant l'effacement — donc servi sur la "
+               "capacité existante, sans attendre le renforcement — serait "
+               "obtenu en deux à quatre ans.",
+     "source": "bcg2026", "page": 5, "touche": "mode_raccordement",
+     "reserve": "Même réserve que pour le ferme. Et le gain de délai n'est pas "
+                "gratuit : sa contrepartie est la part de calcul non servie, "
+                "que le module de réseau calcule sur les clauses réellement "
+                "obtenues."},
+    {"cle": "bcg_non_servi_reference", "famille": "reseau",
+     "enonce": "Sur un cas de raccordement à moitié effaçable, appelé environ "
+               "trente pour cent des heures de l'année, jusqu'à huit pour cent "
+               "du calcul annuel ne serait pas servi.",
+     "source": "bcg2026", "page": 9, "touche": "frequence_effacement",
+     "reserve": "REPÈRE DE COMPARAISON, PAS UNE ENTRÉE. Notre propre calcul, "
+                "conduit sans report et à effacement total, ENCADRE ce chiffre "
+                "plutôt qu'il ne le retrouve : selon le taux de charge retenu, "
+                "il rend de sept à onze pour cent. L'écart signifie que le "
+                "modèle du cabinet suppose déjà soit une profondeur "
+                "d'effacement partielle, soit une part de charge reportable — "
+                "hypothèses qu'il n'énonce pas. C'est exactement pourquoi un "
+                "chiffre publié ne remplace pas un calcul dont on voit les "
+                "termes."},
+    {"cle": "bcg_flexibilite_seule", "famille": "reseau",
+     "enonce": "Le seul report des charges dans le temps ne réduirait la part "
+               "non servie que de vingt à soixante pour cent ; fermer l'écart "
+               "restant demanderait de la production ou du stockage sur le "
+               "site.",
+     "source": "bcg2026", "page": 10, "touche": "part_reportable",
+     "reserve": "La source constate la fourchette sans l'expliquer. Le "
+                "mécanisme est pourtant simple, et notre calcul le rend "
+                "visible : le travail reporté doit s'exécuter plus tard, sur "
+                "des heures qui ne sont pas déjà prises. À taux de charge "
+                "élevé, ce creux se referme et le report plafonne — la borne "
+                "haute n'est pas une limite technologique, c'est une "
+                "conséquence arithmétique du taux de charge."},
+    {"cle": "bcg_effet_marge", "famille": "reseau",
+     "enonce": "Chaque point de calcul non servi coûterait de un et demi à "
+               "deux points de résultat, les coûts fixes ne baissant pas avec "
+               "le revenu.",
+     "source": "bcg2026", "page": 9, "touche": "marge_operationnelle",
+     "reserve": "CELUI-CI SE RETROUVE, et c'est ce qui le rend utilisable : "
+                "l'élasticité vaut l'inverse de la marge opérationnelle, si "
+                "bien qu'une marge de cinquante à soixante-sept pour cent rend "
+                "exactement deux à un et demi. La fourchette publiée est donc "
+                "celle de la structure de coûts du cas étudié. Employez la "
+                "vôtre : le module la calcule et ne porte aucune constante."},
+    {"cle": "bcg_valeur_anticipation", "famille": "reseau",
+     "enonce": "Avancer la mise sous tension de trois ans vaudrait jusqu'à "
+               "huit millions de dollars par mégawatt, en valeur actuelle "
+               "cumulée à un coût du capital de six pour cent. Ce serait la "
+               "principale source de valeur de la production sur site — devant "
+               "l'économie d'énergie et les tarifs de réseau, qui ne "
+               "suffiraient pas seuls à la justifier.",
+     "source": "bcg2026", "page": 15, "touche": None,
+     "reserve": "Le résultat suit directement du revenu par mégawatt et de la "
+                "marge retenus par l'auteur ; changez l'un des deux et il "
+                "change d'autant. À retenir comme un ENCHAÎNEMENT — la valeur "
+                "est dans la date, pas dans la facture — plutôt que comme un "
+                "montant."},
+    {"cle": "bcg_surcout_hors_reseau", "famille": "reseau",
+     "enonce": "Le coût annuel d'approvisionnement d'un site entièrement hors "
+               "réseau dépasserait de soixante-dix à deux cent trente pour "
+               "cent celui d'un site fermement raccordé.",
+     "source": "bcg2026", "page": 17, "touche": "mode_raccordement",
+     "reserve": "L'AMPLEUR DE LA FOURCHETTE NE TIENT PAS À L'INCERTITUDE "
+                "TECHNIQUE : elle tient à la durée d'amortissement retenue "
+                "pour les actifs de production. Amortis sur leur durée de vie, "
+                "ils pèsent le bas de la fourchette ; amortis sur trois ans — "
+                "l'horizon de renouvellement du matériel informatique — ils en "
+                "pèsent le haut. C'est une hypothèse comptable, pas une donnée "
+                "physique, et c'est elle qui décide du résultat."},
+    {"cle": "bcg_file_attente", "famille": "reseau",
+     "enonce": "Les centres de données représenteraient de quarante à cinquante "
+               "pour cent des demandes en file d'attente de raccordement sur "
+               "certains marchés, et la tension se lit aussi sur les prix de "
+               "capacité de plusieurs réseaux.",
+     "source": "bcg2026", "page": 4, "touche": None,
+     "reserve": "Une file d'attente n'est pas une demande ferme : un même "
+                "projet peut y figurer sur plusieurs points, et des demandes "
+                "spéculatives s'y accumulent. La part citée mesure la "
+                "PRESSION sur l'instruction, pas la consommation à venir."},
+
     # ── Ce qui se perd ailleurs que dans la thermique ──────────────────────
     {"cle": "attente_reseau", "famille": "exploitation",
      "enonce": "Jusqu'à 30 % du temps d'horloge d'un entraînement est passé à "
@@ -264,18 +380,27 @@ FAITS = [
                 "dimensionnés pour une charge qui n'arrive pas."},
 ]
 
-# Ce que les quatre documents NE DISENT PAS — et qu'un lecteur pourrait croire
+# Ce que les cinq documents NE DISENT PAS — et qu'un lecteur pourrait croire
 # y trouver. Une bibliographie qui ne liste que ce qu'elle apporte laisse
 # supposer qu'elle couvre le reste.
 LACUNES = [
     "Aucune analyse de cycle de vie au sens d'ISO 14040 — malgré le nom de "
     "fichier d'un des documents. Le carbone incorporé de la construction et des "
-    "serveurs n'est chiffré nulle part dans ces quatre sources.",
+    "serveurs n'est chiffré nulle part dans ces cinq sources.",
     "Aucune donnée de terrain sur le WUE réel des installations européennes : "
     "l'eau n'est abordée que par un ordre de grandeur nord-américain.",
     "Aucun retour d'exploitation chiffré sur le refroidissement liquide : la "
     "réduction annoncée jusqu'à 90 % est une comparaison technologique, et la "
     "source elle-même signale que le déploiement reste marginal.",
+    "Rien sur le cadre européen du raccordement ni sur les mécanismes "
+    "français d'effacement et de capacité : le document raisonne en "
+    "conditions de marché générales, et la conclusion d'un dossier français "
+    "se prend sur le code de l'énergie et sur l'offre du gestionnaire, pas "
+    "sur une moyenne européenne.",
+    "Aucun chiffrage du carbone de la production sur site, alors que c'est "
+    "elle que le document recommande : déplacer une consommation du réseau "
+    "vers des machines à combustion sur le site transfère des émissions du "
+    "scope 2 vers le scope 1, où aucun contrat de fourniture ne les efface.",
     "Rien sur la fin de vie des équipements ni sur le réemploi — alors que le "
     "renouvellement accéléré des accélérateurs, que plusieurs de ces documents "
     "présentent comme un gain d'efficacité, se paie précisément là.",
@@ -500,6 +625,7 @@ FAMILLES_NOM = {
     "eau": "L'eau",
     "charge": "Ce que coûte un modèle",
     "exploitation": "Ce qui se perd ailleurs que dans la thermique",
+    "reseau": "Le raccordement au réseau, et ce qu'il fait attendre",
 }
 
 
@@ -543,7 +669,7 @@ def etat():
             "Aucun de ces chiffres n'entre dans le calcul de cette page : le "
             "moteur tient ses constantes de normes, pas de livres blancs. Ils "
             "servent à situer un projet dans un marché, et à savoir quelles "
-            "questions poser. Trois des quatre sources sont publiées par des "
+            "questions poser. Trois des cinq sources sont publiées par des "
             "fournisseurs d'infrastructure — leurs mesures sont utiles, leur "
             "intérêt n'est pas neutre, et chaque ligne le dit.",
     }

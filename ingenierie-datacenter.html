@@ -2211,6 +2211,44 @@
   </section>
 
   <!-- ═══════════════════════════════════════════════════════════════════
+       LE RACCORDEMENT ET LA PRODUCTION SUR SITE.
+
+       POURQUOI CETTE SECTION VIENT APRÈS L'ICPE ET AVANT LES TRAVAUX. La
+       production installée sur le site pour tenir un effacement déclenche des
+       rubriques d'installation classée — c'est la conséquence que personne
+       n'anticipe, et elle se lit mieux quand le criblage vient d'être fait.
+       Et elle se décide avant le chantier, parce qu'elle décide du chantier.
+
+       CE QUE CETTE SECTION MONTRE ET QU'AUCUNE AUTRE NE MONTRE : les termes
+       du calcul. Un chiffre de calcul non servi dont on ne voit pas la
+       décomposition ne se discute ni avec un gestionnaire de réseau ni avec
+       un client — il se croit ou il se rejette.
+       ═══════════════════════════════════════════════════════════════════ -->
+  <section class="wrap rc-sec" id="ig-reseau">
+    <div class="rc-etape"><span class="n">10</span><h2>Le raccordement au réseau et la production sur site</h2></div>
+    <p class="lead" style="max-width:74ch;margin-top:0">
+      Là où le réseau est saturé, le gestionnaire propose souvent, entre la
+      file d'attente et le refus, une troisième réponse&nbsp;: un raccordement
+      <b>effaçable</b>, servi tout de suite sur la capacité existante, contre
+      le droit de réduire votre puissance. Le délai gagné se paie en calcul non
+      servi. Cette section chiffre ce que cela coûte, et ce qu'il faudrait
+      installer sur le site pour le ramener au niveau que vous acceptez.</p>
+    <div class="ig-encart" style="margin:14px 0">
+      <b>Aucun délai n'est prédit ici.</b> Le délai et la fermeté s'obtiennent
+      par écrit du gestionnaire de réseau, pour un point de livraison et une
+      puissance donnés&nbsp;; ils varient d'un poste source à l'autre dans un
+      même département. Ce qui se calcule, ce sont les CONSÉQUENCES des
+      conditions que vous avez obtenues — et la profondeur comme la fréquence
+      de l'effacement sont des clauses de convention, pas des hypothèses
+      d'étude.
+    </div>
+    <div class="rc-card" id="ig-res-form"><p class="note">Chargement…</p></div>
+    <button type="button" class="ig-lanceur-b" id="ig-res-go">Chiffrer le raccordement →</button>
+    <p class="note" id="ig-res-msg" style="margin-top:10px"></p>
+    <div id="ig-res-out"></div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
        LA PHASE TRAVAUX — l'ordre des opérations et les tiers.
 
        CE QUE CETTE SECTION AJOUTE au cadre des phases. Le cadre dit quelles
@@ -2221,7 +2259,7 @@
        semaine de la réception.
        ═══════════════════════════════════════════════════════════════════ -->
   <section class="wrap rc-sec" id="ig-travaux">
-    <div class="rc-etape"><span class="n">10</span><h2>Organiser la phase travaux</h2></div>
+    <div class="rc-etape"><span class="n">11</span><h2>Organiser la phase travaux</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Du démarrage du chantier à la fin de la garantie de parfait
       achèvement&nbsp;: qui intervient et à quel titre, dans quel ordre les
@@ -2233,7 +2271,7 @@
   </section>
 
   <section class="wrap rc-sec">
-    <div class="rc-etape"><span class="n">11</span><h2>Apporter vos documents</h2></div>
+    <div class="rc-etape"><span class="n">12</span><h2>Apporter vos documents</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Vos pièces existantes — notes de calcul, relevés, plans, spécifications
       d'un projet antérieur — complètent l'étude là où le moteur s'arrête. Elles
@@ -2260,7 +2298,7 @@
        déclare rien.
        ═══════════════════════════════════════════════════════════════════ -->
   <section class="wrap rc-sec" id="ig-ao">
-    <div class="rc-etape"><span class="n">12</span><h2>Répondre à l'appel d'offres</h2></div>
+    <div class="rc-etape"><span class="n">13</span><h2>Répondre à l'appel d'offres</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Déposez les pièces de la consultation — CCTP, CCAP, CCAG, règlement de
       consultation, DPGF, tableau de répartition MOE/AMO, feuilles de calcul —
@@ -2277,7 +2315,7 @@
   </section>
 
   <section class="wrap rc-sec" id="ig-limites">
-    <div class="rc-etape"><span class="n">13</span><h2>Ce que ce cadre ne fait pas</h2></div>
+    <div class="rc-etape"><span class="n">14</span><h2>Ce que ce cadre ne fait pas</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Le dire ici plutôt qu'en note de bas de page&nbsp;: ces limites décident du moment où
       il faut un ingénieur, et les ignorer coûte plus cher que de les lire.</p>
@@ -2310,6 +2348,14 @@
         nomme les absents. Un ratio dont les deux termes ne portent pas sur le
         même périmètre n'est pas rendu, et le régime administratif ne se
         consolide pas du tout — la nomenclature est nationale.</li>
+      <li>L'étude de raccordement <b>ne prédit aucun délai</b>. Le délai et la
+        fermeté s'obtiennent par écrit du gestionnaire de réseau, pour un point
+        de livraison et une puissance donnés&nbsp;; ils varient d'un poste
+        source à l'autre dans un même département. Et le chiffrage du calcul
+        non servi traite l'année en deux blocs&nbsp;: il ne voit pas la
+        <b>forme</b> de l'effacement, et deux cents heures continues ne valent
+        pas deux cents heures dispersées. Il y faut une série horaire — la
+        même que réclame le pilotage carbone.</li>
       <li>Les <b>formulaires de candidature ne se génèrent pas</b>. DC1, DC2 et
         la déclaration sur l'honneur portent des déclarations dont la fausseté
         est sanctionnée&nbsp;: elles se signent par une personne habilitée, après
@@ -3106,6 +3152,15 @@
 .ig-eco-lecture.alerte{border-left-color:var(--amber)}
 .ig-encart{margin-top:10px;padding:11px 15px;border-left:3px solid var(--cyan);
   background:var(--panel2);border-radius:0 6px 6px 0;font-size:13.5px;line-height:1.55}
+
+/* DEUX VARIANTES, ET LA COULEUR PORTE UNE INFORMATION, pas une humeur.
+   L'ALERTE signale une conduite à changer : un régime administratif qui
+   bascule, un report qui a cessé d'agir, un volume sorti du périmètre criblé.
+   Le REPÈRE signale l'inverse — un ordre de grandeur publié par un tiers, qui
+   n'engage ni le calcul ni le cabinet. Les afficher du même bord ferait lire
+   une observation de marché comme un résultat du moteur. */
+.ig-encart.ig-alerte{border-left-color:var(--amber,#e0a03a)}
+.ig-encart.ig-repere{border-left-color:var(--muted,#7a8699);opacity:.94}
 
 /* ── LE PARCOURS DU CHIFFRAGE ────────────────────────────────────────────
    REPLIÉ PAR DÉFAUT, et c'est le point. Qui connaît le geste de l'économiste

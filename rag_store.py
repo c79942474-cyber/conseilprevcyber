@@ -176,6 +176,7 @@ THEME_FAMILLES = [
         "Data center / Refroidissement liquide & immersion",
         "Data center / Eau & stress hydrique",
         "Data center / Énergie & électricité",
+        "Data center / Raccordement & production sur site",
         "Data center / Chaleur fatale & réseaux de chaleur",
         "Data center / Carbone & analyse de cycle de vie",
         "Data center / Efficacité & indicateurs (PUE, WUE, CUE, ERE)",

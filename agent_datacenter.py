@@ -126,6 +126,9 @@ THEMES: dict[str, dict[str, object]] = {
         "patterns": [
             r"raccordement", r"puissance souscrite", r"effacement", r"flexibilite",
             r"groupe electrogene", r"\bups\b", r"onduleur",
+            r"non ferme", r"non-ferme", r"\bbtm\b", r"derriere le compteur",
+            r"file d'attente", r"poste source", r"hors reseau",
+            r"report de charge", r"turbine a gaz",
         ],
     },
     "gouvernance_ia": {
@@ -150,7 +153,7 @@ PAGES: dict[str, dict[str, object]] = {
         "label": "Conseils data centers bas carbone",
         "themes": [
             "energie_bas_carbone", "chaleur_fatale", "csrd_acv", "eau",
-            "efficacite_energetique", "reglementaire_eed",
+            "efficacite_energetique", "reglementaire_eed", "raccordement",
         ],
     },
     "conseils_specifiques": {

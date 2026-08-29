@@ -5422,6 +5422,15 @@ def _aide_poste(v):
     return "\n\n".join(bouts)
 
 
+# Les modules voisins qui versent des familles d'infobulles au glossaire
+# unique. UNE SEULE LISTE, parce que deux la fusion et le contrôle de
+# non-recouvrement s'en servent : dressées séparément, elles auraient divergé
+# au premier module ajouté, et c'est le CONTRÔLE qui aurait cessé de couvrir —
+# en silence, puisqu'un module non listé ne déclenche aucune faute.
+_MODULES_VOISINS = ("technique_dc", "travaux_dc", "ao_dc", "icpe_dc",
+                    "programme_dc", "tier_dc", "reseau_dc")
+
+
 def _glossaires_voisins():
     """Les familles d'infobulles servies par les modules voisins.
 
@@ -5436,8 +5445,7 @@ def _glossaires_voisins():
     référentiel rendrait la page entière blanche. Les deux ne se valent pas.
     """
     out = {}
-    for nom in ("technique_dc", "travaux_dc", "ao_dc", "icpe_dc",
-                "programme_dc", "tier_dc"):
+    for nom in _MODULES_VOISINS:
         try:
             mod = __import__(nom)
             g = mod.glossaire() if hasattr(mod, "glossaire") else {}
@@ -5526,8 +5534,7 @@ def _verifier_glossaire():
     sigle.
     """
     fautes, vues = [], {}
-    for nom in ("technique_dc", "travaux_dc", "ao_dc", "icpe_dc",
-                "programme_dc", "tier_dc"):
+    for nom in _MODULES_VOISINS:
         try:
             mod = __import__(nom)
             g = mod.glossaire() if hasattr(mod, "glossaire") else {}
@@ -5853,6 +5860,12 @@ SECTIONS_PAGE = {
         "objet": "Les rubriques d'installation classée en jeu, et le délai "
                  "d'instruction qui en découle.",
     },
+    "ig-reseau": {
+        "titre": "Le raccordement au réseau et la production sur site",
+        "objet": "Ce que coûte un raccordement effaçable en calcul non servi, "
+                 "et ce qu'il faudrait produire sur site pour le ramener au "
+                 "niveau accepté.",
+    },
     "ig-travaux": {
         "titre": "Organiser la phase travaux",
         "objet": "L'ordre des opérations de chantier, les points d'arrêt, et "
@@ -5870,8 +5883,8 @@ SECTIONS_PAGE = {
     },
     "ig-limites": {
         "titre": "Ce que ce cadre ne fait pas",
-        "objet": "Les quatre choses que cette page refuse de faire à votre "
-                 "place, et où chercher ce qu'elle ne remplace pas.",
+        "objet": "Ce que cette page refuse de faire à votre place, et où "
+                 "chercher ce qu'elle ne remplace pas.",
     },
 }
 
@@ -5883,17 +5896,18 @@ SECTIONS_PAGE = {
 # simplement d'un autre métier.
 SEQUENCES = {
     "investisseur": ["ig-form", "ig-parcours", "ig-dossier", "ig-eco",
-                     "ig-moe", "ig-icpe", "ig-limites"],
+                     "ig-moe", "ig-icpe", "ig-reseau", "ig-limites"],
     "moe": ["ig-sec-projet", "ig-form", "ig-parcours", "ig-dossier",
-            "ig-correspondances", "ig-travaux", "ig-depot", "ig-limites"],
+            "ig-correspondances", "ig-reseau", "ig-travaux", "ig-depot",
+            "ig-limites"],
     "discipline": ["ig-form", "ig-qualif", "ig-parcours", "ig-dossier",
                    "ig-depot", "ig-limites"],
     "acheteur": ["ig-form", "ig-parcours", "ig-dossier", "ig-eco", "ig-ao",
                  "ig-travaux", "ig-limites"],
-    "exploitant": ["ig-form", "ig-qualif", "ig-icpe", "ig-travaux",
-                   "ig-dossier", "ig-limites"],
-    "programme": ["ig-prog", "ig-form", "ig-icpe", "ig-travaux", "ig-moe",
-                  "ig-eco", "ig-limites"],
+    "exploitant": ["ig-form", "ig-qualif", "ig-icpe", "ig-reseau",
+                   "ig-travaux", "ig-dossier", "ig-limites"],
+    "programme": ["ig-prog", "ig-form", "ig-reseau", "ig-icpe", "ig-travaux",
+                  "ig-moe", "ig-eco", "ig-limites"],
 }
 
 
@@ -6004,6 +6018,28 @@ _CONSIGNES = {
                               "plusieurs mois d'instruction possibles.",
             "duree": "dix minutes",
             "notions": ["enjeu:icpe", "regime_icpe:E"],
+        },
+        "ig-reseau": {
+            "faire": "Saisissez la part de puissance que le gestionnaire se "
+                     "réserve de réduire et le nombre d'heures où il peut le "
+                     "faire — les deux figurent dans son offre. Laissez la "
+                     "part reportable à zéro pour voir le cas défavorable.",
+            "gain": "La part de votre calcul annuel qui ne sera pas servie, "
+                    "et ce qu'elle retire au résultat d'exploitation. C'est "
+                    "le chiffre qui manque à la plupart des dossiers "
+                    "d'investissement.",
+            "pourquoi_ici": "Vous venez de voir le régime réglementaire et le "
+                            "coût. Il reste la variable qui décide de la DATE "
+                            "de mise en service, et donc de tout le reste : "
+                            "un site achevé sans puissance ne produit aucun "
+                            "revenu.",
+            "si_vous_sautez": "Vous financez un calendrier de chantier alors "
+                              "que c'est le raccordement qui commande. C'est "
+                              "l'écart le plus courant entre un plan "
+                              "d'affaires et ce qui se passe.",
+            "duree": "un quart d'heure",
+            "notions": ["mode_raccordement:non_ferme",
+                        "levier_reseau:actifs_site"],
         },
         "ig-limites": {
             "faire": "Lisez ce que le cadre refuse de faire.",
@@ -6116,6 +6152,30 @@ _CONSIGNES = {
                               "valeurs par défaut du moteur.",
             "duree": "variable",
             "notions": [],
+        },
+        "ig-reseau": {
+            "faire": "Reprenez les conditions de l'offre de raccordement et "
+                     "chiffrez le calcul non servi. Puis ajoutez la "
+                     "production sur site envisagée, avec son combustible, "
+                     "ses heures et sa classe de service.",
+            "gain": "La matière de la spécification de raccordement et de la "
+                    "note d'hypothèses : les termes du calcul, les rubriques "
+                    "déclenchées par la production, et l'écart entre ce qui "
+                    "tient un effacement et ce qui qualifie pour le niveau "
+                    "de disponibilité.",
+            "pourquoi_ici": "Les correspondances de phases viennent d'être "
+                            "posées ; la production sur site se décide AVANT "
+                            "l'organisation du chantier, parce qu'elle change "
+                            "l'instruction administrative et donc le "
+                            "calendrier de travaux.",
+            "si_vous_sautez": "La spécification de raccordement se rédige sur "
+                              "une puissance souscrite sans dire si elle est "
+                              "ferme — et une puissance effaçable présentée "
+                              "comme une puissance est une erreur que le "
+                              "dossier porte jusqu'à l'exploitation.",
+            "duree": "vingt minutes",
+            "notions": ["mode_raccordement:non_ferme", "btm:turbine_gaz",
+                        "rubrique_icpe:2910"],
         },
         "ig-limites": {
             "faire": "Lisez les limites avant de contractualiser sur ce cadre.",
@@ -6370,6 +6430,26 @@ _CONSIGNES = {
             "duree": "dix minutes",
             "notions": ["phase:AOR", "emetteur:entreprise"],
         },
+        "ig-reseau": {
+            "faire": "Renseignez la profondeur et la fréquence d'effacement "
+                     "de votre convention, puis la répartition réelle de vos "
+                     "charges entre entraînement, lots, agents et interactif.",
+            "gain": "Ce que l'effacement retire à vos clients, et jusqu'où le "
+                    "report des charges le compense — sachant qu'il cesse "
+                    "d'agir dès que votre taux de charge monte.",
+            "pourquoi_ici": "Vous venez de voir les rubriques d'installation "
+                            "classée. La question qui suit est celle que vous "
+                            "vivrez : quand le gestionnaire appellera, quelle "
+                            "part de la charge pourrez-vous réellement "
+                            "déplacer.",
+            "si_vous_sautez": "Vous découvrirez le plafond du report le jour "
+                              "du premier appel, quand il n'y aura plus de "
+                              "creux pour rattraper — et il n'existe alors "
+                              "aucune solution d'exploitation.",
+            "duree": "un quart d'heure",
+            "notions": ["charge_flex:entrainement", "charge_flex:interactif",
+                        "levier_reseau:flexibilite"],
+        },
         "ig-limites": {
             "faire": "Lisez les limites : le moteur donne des ordres de "
                      "grandeur, pas des garanties de performance.",
@@ -6464,6 +6544,26 @@ _CONSIGNES = {
                               "moyenne d'hypothèses.",
             "duree": "une demi-heure",
             "notions": ["kpi:capex_par_kw", "kpi:opex_par_kw_an"],
+        },
+        "ig-reseau": {
+            "faire": "Chiffrez le raccordement du site le plus contraint du "
+                     "portefeuille, puis regardez ce que la production sur "
+                     "site ferait à son régime administratif.",
+            "gain": "La comparaison qui décide : le délai de raccordement "
+                    "évité contre le délai d'instruction ajouté. Aucun des "
+                    "deux ne se lit seul.",
+            "pourquoi_ici": "La consolidation vient de désigner le site qui "
+                            "tient le chemin critique. Neuf fois sur dix, ce "
+                            "qui le tient n'est pas son chantier : c'est sa "
+                            "mise sous tension, et c'est ici qu'elle "
+                            "s'instruit.",
+            "si_vous_sautez": "Le programme se pilote sur des durées de "
+                              "chantier, c'est-à-dire sur la partie que vous "
+                              "maîtrisez — et pas sur celle qui commande la "
+                              "date.",
+            "duree": "vingt minutes",
+            "notions": ["mode_raccordement:ferme", "regime_icpe:A",
+                        "classe_groupe:prime"],
         },
         "ig-limites": {
             "faire": "Lisez les limites, en particulier celle sur la "
@@ -7038,6 +7138,7 @@ def referentiel():
         "natures_travaux_note": _table_voisine("technique_dc", "NATURES_NOTE", ""),
         "icpe_champs": _table_voisine("icpe_dc", "CHAMPS", []),
         "programme_champs": _table_voisine("programme_dc", "CHAMPS_SITE", []),
+        "reseau_champs": _table_voisine("reseau_dc", "CHAMPS", []),
         # Les sous-systèmes dont la note décide de celle du site. Servis avec
         # le cadre parce que la page en dessine une liste déroulante par
         # sous-système : les demander à part afficherait un bloc vide le temps
