@@ -45,6 +45,7 @@ import concurrent.futures as _futures
 import gzip
 import hashlib
 import hmac
+import math
 import json
 import os
 import io
@@ -2418,6 +2419,53 @@ def _themes_datacenter():
     }
 
 
+def _lire_nombre(brut, champ):
+    """Un nombre, ou le motif du refus. Rend (valeur, None) ou (None, motif).
+
+    TROIS REFUS, ET ILS NE DISENT PAS LA MÊME CHOSE au lecteur.
+
+    ILLISIBLE — « abc », « 75 % ». Le champ n'entre pas dans le calcul, et le
+    message le dit : c'est le comportement d'origine, il était juste.
+
+    NON FINI — « nan », « inf », « 1e400 ». `float()` les accepte : ce sont des
+    nombres pour Python. Ils traversaient donc tout le calcul. Trois champs
+    faisaient lever l'étude, sept faisaient rendre un corps contenant `NaN`,
+    qui n'est PAS du JSON valide : la page ne pouvait même pas lire l'erreur,
+    elle voyait un `JSON.parse` échouer. On les refuse à l'entrée.
+
+    HORS DOMAINE — un taux de charge de −99, un PUE de 0,5. C'est le refus le
+    plus important des trois, parce que c'est le seul qui était SILENCIEUX :
+    l'étude revenait complète et d'apparence normale, calculée sur une grandeur
+    qui n'existe pas. Neuf champs sur dix étaient dans ce cas.
+
+    LE DOMAINE N'EST PAS LA PLAGE OBSERVÉE, et cette distinction se garde : un
+    centre de 15 kW sort du cadrage du cabinet et se calcule très bien — la
+    note l'accompagne. Sortir du DOMAINE, c'est autre chose : il n'y a rien à
+    calculer.
+    """
+    try:
+        valeur = float(str(brut).replace(",", ".").strip())
+    except (TypeError, ValueError):
+        return None, ("« %s » n'a pas pu être lu comme un nombre : ce champ "
+                      "n'a pas été pris en compte." % str(brut)[:40])
+    if not math.isfinite(valeur):
+        return None, ("« %s » n'est pas une valeur finie : ce champ n'a pas été "
+                      "pris en compte." % str(brut)[:40])
+    d = champ.get("domaine")
+    if d:
+        bas, haut = d.get("min"), d.get("max")
+        trop_bas = (valeur <= bas) if d.get("strict_min") else (valeur < bas)
+        if bas is not None and trop_bas:
+            return None, ("« %s » est hors du domaine de cette grandeur (%s) : "
+                          "ce champ n'a pas été pris en compte."
+                          % (str(brut)[:40], d["pourquoi"]))
+        if haut is not None and valeur > haut:
+            return None, ("« %s » est hors du domaine de cette grandeur (%s) : "
+                          "ce champ n'a pas été pris en compte."
+                          % (str(brut)[:40], d["pourquoi"]))
+    return valeur, None
+
+
 def _profil_datacenter(data, rejets=None):
     """Nettoie les entrees. Les nombres recus en texte sont convertis ici, une
     fois pour toutes : plus bas, une chaine dans un calcul leve, et l'etude
@@ -2441,19 +2489,17 @@ def _profil_datacenter(data, rejets=None):
             continue
         brut = data[cid]
         if champ["type"] == "nombre":
-            try:
-                profil[cid] = float(str(brut).replace(",", ".").strip())
-            except (TypeError, ValueError):
+            valeur, motif = _lire_nombre(brut, champ)
+            if motif:
                 if rejets is not None:
                     rejets.append({
                         "champ": cid,
                         "label": champ.get("label") or cid,
                         "saisi": str(brut)[:40],
-                        "message": "« %s » n'a pas pu être lu comme un nombre : "
-                                   "ce champ n'a pas été pris en compte."
-                                   % str(brut)[:40],
+                        "message": motif,
                     })
                 continue
+            profil[cid] = valeur
         else:
             profil[cid] = str(brut).strip()[:40]
     return profil

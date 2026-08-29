@@ -2758,13 +2758,72 @@ _LIBELLES_OPTIONS = {
         if (CLASSES_ASHRAE.get(k) or {}).get("plage_c") else None),
 }
 
+# ── LE DOMAINE PHYSIQUE, QUI N'EST PAS LA PLAGE OBSERVÉE ───────────────────
+#
+# CONFONDRE LES DEUX SERAIT UNE FAUTE DANS LES DEUX SENS. `PLAGES_OBSERVEES`
+# est un CADRAGE : un centre de 15 kW sort de la plage et reste parfaitement
+# réel — la note l'explique, et refuser le calcul priverait son auteur d'un
+# résultat juste. Le DOMAINE, lui, dit ce qu'une grandeur PEUT valoir : un taux
+# de charge est une charge rapportée à la puissance installée, il ne peut pas
+# dépasser 1 ; un PUE rapporte l'énergie totale à l'énergie informatique, il ne
+# peut pas descendre sous 1 sans que le centre produise de l'énergie. Hors
+# domaine, il n'y a pas de résultat à donner.
+#
+# CE QUE LE RELEVÉ DU 29 AOÛT A MESURÉ. Sur les dix champs numériques, NEUF
+# acceptaient une valeur négative sans un mot : un taux de charge de −99, une
+# part renouvelable de −99, un PUE cible de −99 entraient dans le calcul et
+# rendaient une étude complète, d'apparence normale. C'est très exactement le
+# défaut que le lecteur de profil décrit déjà pour « 75 % » tapé dans un champ
+# noté « 0-1 » : « le résultat était IDENTIQUE à celui d'une saisie valide ».
+#
+# `nan` ET `inf` SONT DES NOMBRES POUR PYTHON. `float("nan")` réussit, et la
+# valeur traverse alors tout le calcul : trois champs faisaient lever l'étude
+# (500), sept faisaient rendre un corps contenant `NaN` — qui n'est pas du JSON
+# valide, de sorte que la page ne pouvait même pas lire l'erreur.
+DOMAINES = {
+    "puissance_it_kw":      {"min": 0, "max": 5_000_000, "strict_min": True,
+                             "pourquoi": "une puissance nulle ou négative ne "
+                                         "décrit aucune installation"},
+    "taux_charge":          {"min": 0, "max": 1, "strict_min": True,
+                             "pourquoi": "c'est une charge rapportée à la "
+                                         "puissance installée : elle ne peut "
+                                         "ni être nulle ni dépasser 1"},
+    "part_evaporative":     {"min": 0, "max": 1,
+                             "pourquoi": "c'est une part : entre 0 et 1"},
+    "part_renouvelable":    {"min": 0, "max": 1,
+                             "pourquoi": "c'est une part : entre 0 et 1"},
+    "part_chaleur_reutilisee": {"min": 0, "max": 1,
+                                "pourquoi": "c'est une part : entre 0 et 1"},
+    "cycles_concentration": {"min": 1, "max": 50,
+                             "pourquoi": "une tour ne peut pas concentrer moins "
+                                         "d'une fois : ce serait diluer"},
+    "pue_cible":            {"min": 1, "max": 10,
+                             "pourquoi": "le PUE rapporte l'énergie totale à "
+                                         "l'énergie informatique : sous 1, le "
+                                         "centre produirait de l'énergie"},
+    "intensite_reseau_g":   {"min": 0, "max": 2000,
+                             "pourquoi": "en gCO2e/kWh : le charbon seul "
+                                         "approche 1 000, 2 000 n'a pas de sens"},
+    "nb_serveurs":          {"min": 0, "max": 5_000_000,
+                             "pourquoi": "un nombre de serveurs ne peut pas "
+                                         "être négatif"},
+    "prix_electricite_eur_mwh": {"min": 0, "max": 10_000,
+                                 "pourquoi": "en €/MWh : les pointes de 2022 "
+                                             "ont atteint le millier, pas la "
+                                             "dizaine de milliers"},
+}
+
 for _c in CHAMPS:
-    # Les propositions et la plage observée voyagent AVEC le champ, comme les
-    # libellés d'options : la page n'a pas à savoir dans quelle table chercher.
+    # Les propositions, la plage observée et le domaine voyagent AVEC le champ,
+    # comme les libellés d'options : la page n'a pas à savoir dans quelle table
+    # chercher — et le formulaire pose ses `min`/`max` depuis la même source que
+    # le serveur, plutôt que d'en recopier une seconde qui divergera.
     if _c["id"] in SUGGESTIONS:
         _c["suggestions"] = SUGGESTIONS[_c["id"]]
     if _c["id"] in PLAGES_OBSERVEES:
         _c["plage_observee"] = PLAGES_OBSERVEES[_c["id"]]
+    if _c["id"] in DOMAINES:
+        _c["domaine"] = DOMAINES[_c["id"]]
     _f = _LIBELLES_OPTIONS.get(_c["id"])
     if _f and _c.get("options"):
         # Le code reste la CLÉ envoyée au moteur ; seul l'affichage change. Un

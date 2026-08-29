@@ -106,3 +106,14 @@ def admin():
     """L'administrateur, qui doit atteindre tout le site sans exception."""
     _assurer_admin()
     return _client(ADMIN_EMAIL)
+
+
+@pytest.fixture
+def client_dc():
+    """Un client validé, pour les formulaires de calcul du centre de données.
+
+    Distinct de `connecte` par le nom seulement — mais le nom compte : un
+    fichier qui éprouve les SAISIES doit dire qu'il lui faut une porte ouverte,
+    pas emprunter une fixture dont il ignore ce qu'elle garantit."""
+    _assurer_client()
+    return _client(CLIENT_EMAIL)
