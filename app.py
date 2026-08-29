@@ -65,6 +65,7 @@ import assistant
 import audit
 import automation
 import juridique
+import librejustice   # corpus de jurisprudence, branché par MCP — voir le module
 import livrables
 import livrables_export
 import playbook
@@ -1310,6 +1311,11 @@ def api_juridique_config():
         suggestions=juridique.SUGGESTIONS,
         avertissement=juridique.AVERTISSEMENT,
         mention_ia=juridique.MENTION_IA,
+        # Les faits CONSTANTS du corpus de jurisprudence, pas son état : cette
+        # réponse est figée par processus, et un état constaté au démarrage
+        # serait encore affiché des heures plus tard. L'état vivant se demande
+        # sur /api/juridique/corpus.
+        corpus_jurisprudence=librejustice.declaration(),
         models=assistant.available()))
 
 
@@ -1351,6 +1357,68 @@ def api_juridique_controverses():
     """Points d'interprétation ouverts — plusieurs lectures, jamais une seule."""
     ids = [x for x in (request.args.get("textes") or "").split(",") if x.strip()]
     return jsonify(ok=True, points=juridique.controverses(ids or None))
+
+
+@app.route("/api/juridique/jurisprudence")
+@login_required
+def api_juridique_jurisprudence():
+    """Jurisprudence adossée à un point d'interprétation, ou à une question libre.
+
+    `?point=<id>` interroge le corpus avec la requête arrêtée pour cette
+    controverse, `?q=<question>` avec celle du lecteur. Le champ `vise` n'est pas
+    un ornement : aucune juridiction ne s'est prononcée sur l'article 25 de
+    l'IA Act, et les décisions rendues portent sur la question SOUS-JACENTE —
+    qui répond d'un produit qu'on a modifié. Le dire est la différence entre un
+    éclairage et une affirmation fausse."""
+    point = (request.args.get("point") or "").strip()
+    question = (request.args.get("q") or "").strip()
+    if point:
+        r = librejustice.pour_controverse(point)
+    elif question:
+        r = librejustice.rechercher(question, limite=6)
+    else:
+        return jsonify(ok=False,
+                       message="Indiquez un point d'interprétation ou une question."), 400
+    r["ok_requete"] = bool(r.get("ok"))
+    r.update(ok=True, **librejustice.declaration())
+    return jsonify(r)
+
+
+@app.route("/api/juridique/corpus")
+@login_required
+def api_juridique_corpus():
+    """État du connecteur de jurisprudence. `?test=1` interroge RÉELLEMENT le
+    corpus : un état déclaré n'est pas un état constaté, et c'est exactement la
+    distinction dont un exploitant a besoin."""
+    etat = librejustice.etat()
+    if request.args.get("test") in ("1", "true", "oui"):
+        etat["essai"] = librejustice.disponible()
+    return jsonify(ok=True, corpus=etat)
+
+
+def _juridique_jurisprudence(question, profil=None, limite=5):
+    """Décisions du corpus LibreJustice éclairant la question posée.
+
+    MÊME DISCIPLINE QUE `_juridique_extraits`, ET POUR LA MÊME RAISON : un
+    corpus externe momentanément injoignable dégrade la précision d'une analyse,
+    il ne l'empêche pas. Le conseil tenait debout sans jurisprudence avant que ce
+    connecteur existe.
+
+    Ce qui est rendu ici est exactement ce que le modèle verra, et exactement ce
+    contre quoi ses citations seront vérifiées. La liste doit donc être portée
+    jusqu'à `post_traiter` : la contrôler contre autre chose que ce qui a été
+    montré ne contrôlerait rien."""
+    try:
+        requete = " ".join(x for x in [
+            question, (profil or {}).get("secteur") or ""] if x)[:500]
+        r = librejustice.rechercher(requete, limite=limite)
+        if not r.get("ok"):
+            app.logger.info("LIBREJUSTICE_INDISPONIBLE: %s", r.get("motif"))
+            return []
+        return r.get("decisions") or []
+    except Exception as exc:
+        app.logger.info("LIBREJUSTICE_ERREUR: %s", exc)
+        return []
 
 
 def _juridique_extraits(question, profil):
@@ -1429,8 +1497,10 @@ def api_juridique_analyse():
         textes_ids = [x["id"] for x in qual["applicables"]] + \
                      [x["id"] for x in qual["a_verifier"]]
     extraits, sources = _juridique_extraits(question, profil)
+    decisions = _juridique_jurisprudence(question, profil)
     user = juridique.prompt_analyse(question, profil=profil, extraits=extraits,
-                                    textes_ids=textes_ids)
+                                    textes_ids=textes_ids,
+                                    jurisprudence=decisions)
     try:
         texte, used = assistant.generate(model, juridique.SYSTEM_JURIDIQUE, user,
                                          max_tokens=3200)
@@ -1439,15 +1509,22 @@ def api_juridique_analyse():
                        message=_JURIDIQUE_ERREURS.get(
                            exc.code, "Analyse indisponible pour le moment.")), exc.status
 
-    res = juridique.post_traiter(texte, textes_ids)
+    res = juridique.post_traiter(texte, textes_ids, jurisprudence=decisions)
+    # UNE DÉCISION INVENTÉE SE JOURNALISE COMME UNE RÉFÉRENCE INVENTÉE. Le
+    # journal servait déjà à repérer les inventions du modèle ; une citation de
+    # jurisprudence hors de la liste montrée est la même faute, et la plus
+    # crédible des deux.
+    hors_liste = res.get("jurisprudence", {}).get("suspectes") or []
     audit.journaliser("juridique.analyse", cible=used,
-                      detail="%d extrait(s) cité(s), %d référence(s) suspecte(s) ; "
-                             "minimisation : %s"
-                             % (len(sources), len(res["citations"]["suspectes"]),
+                      detail="%d extrait(s) cité(s), %d décision(s) rapportée(s), "
+                             "%d référence(s) suspecte(s), %d décision(s) hors "
+                             "liste ; minimisation : %s"
+                             % (len(sources), len(decisions),
+                                len(res["citations"]["suspectes"]), len(hors_liste),
                                 resume_min),
-                      ok=not res["citations"]["suspectes"])
+                      ok=not res["citations"]["suspectes"] and not hors_liste)
     return jsonify(ok=True, model=used, sources=sources,
-                   qualification=qual, **res)
+                   qualification=qual, decisions=decisions, **res)
 
 
 @app.route("/api/juridique/contrat", methods=["POST"])
@@ -1663,10 +1740,12 @@ def api_juridique_arbitrage():
     routage = juridique.router(profil, dossier)
     textes_ids = ([x["id"] for x in routage["qualification"]["applicables"]]
                   + [x["id"] for x in routage["qualification"]["a_verifier"]])
+    decisions = _juridique_jurisprudence(objet, profil)
     user = juridique.prompt_arbitrage(
         objet, contexte=contexte,
         extraits="\n\n".join(extraits) if extraits else None,
-        profil=profil, dossier=dossier, textes_ids=textes_ids)
+        profil=profil, dossier=dossier, textes_ids=textes_ids,
+        jurisprudence=decisions)
     try:
         texte, used = assistant.generate(model, juridique.SYSTEM_ARBITRAGE, user,
                                          max_tokens=4000)
@@ -1675,15 +1754,20 @@ def api_juridique_arbitrage():
                        message=_JURIDIQUE_ERREURS.get(
                            exc.code, "Note indisponible pour le moment.")), exc.status
 
-    res = juridique.post_traiter(texte, textes_ids)
+    res = juridique.post_traiter(texte, textes_ids, jurisprudence=decisions)
+    hors_liste = res.get("jurisprudence", {}).get("suspectes") or []
     audit.journaliser("juridique.arbitrage", cible=used,
                       detail="%d pièce(s), %d décideur(s), %d échéance(s), "
-                             "%d référence(s) suspecte(s) ; minimisation : %s"
+                             "%d décision(s) rapportée(s), %d référence(s) "
+                             "suspecte(s), %d décision(s) hors liste ; "
+                             "minimisation : %s"
                              % (len(pieces), len(routage["decisions"]),
-                                len(routage["echeances"]),
-                                len(res["citations"]["suspectes"]), resume_min),
-                      ok=not res["citations"]["suspectes"])
-    return jsonify(ok=True, model=used, pieces=pieces, routage=routage, **res)
+                                len(routage["echeances"]), len(decisions),
+                                len(res["citations"]["suspectes"]),
+                                len(hors_liste), resume_min),
+                      ok=not res["citations"]["suspectes"] and not hors_liste)
+    return jsonify(ok=True, model=used, pieces=pieces, routage=routage,
+                   decisions=decisions, **res)
 
 
 @app.route("/api/juridique/export", methods=["POST"])
