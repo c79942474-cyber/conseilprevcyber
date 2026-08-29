@@ -73,6 +73,21 @@
   .srcs{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
   .srcs .s{font-size:11.5px;background:var(--panel2);border:1px solid var(--line);
            border-radius:999px;padding:5px 11px;color:var(--muted)}
+  /* JURISPRUDENCE RAPPORTÉE. Une liste, pas des pastilles : une décision porte
+     un intitulé long, une formation, une date et parfois son sort en appel —
+     dans le conteneur flex de .srcs, chacune de ces lignes deviendrait un
+     élément flex distinct et la mise en page se disloquerait. */
+  .jur{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
+  .jur-t{font-size:11px;color:var(--muted);text-transform:uppercase;
+         letter-spacing:.06em;margin-bottom:9px}
+  .jur ol{margin:0;padding:0}
+  .jur li{font-size:12.4px;line-height:1.62;color:var(--muted);margin-bottom:9px;
+          list-style:none}
+  .jur a{color:var(--ink);text-decoration:underline;text-underline-offset:2px}
+  .jur a:hover{color:var(--terra)}
+  .jur .jur-d{font-size:11.2px;color:var(--muted)}
+  .jur .jur-s{font-size:11.2px;color:var(--terra)}
+  .jur .jur-r{font-size:11.2px;color:var(--muted);margin-top:10px;font-style:italic}
   .sug{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
   .sug button{font-size:12px;background:var(--panel);border:1px solid var(--line);color:var(--muted);
               border-radius:999px;padding:6px 12px;cursor:pointer;text-align:left;max-width:100%}
@@ -585,6 +600,119 @@
         +'. Ces références ne figurent pas au référentiel : traitez-les comme non fiables et '
         +'vérifiez-les sur la source officielle avant tout usage. Le reste de l\'analyse demeure exploitable.</div>';
     }
+    // ── Jurisprudence rapportée du corpus ──────────────────────────────
+    //
+    // LE CONTRÔLE DES DÉCISIONS EST SÉPARÉ DE CELUI DES TEXTES, ET CE N'EST PAS
+    // une redite. Une référence de texte inventée se vérifie sur EUR-Lex en
+    // trente secondes. Une décision inventée porte une chambre, une date et un
+    // numéro de pourvoi de la bonne forme : rien ne la distingue d'une vraie
+    // sans aller la chercher. C'est donc l'avertissement le plus utile de la
+    // page, et celui qui doit dire quoi faire plutôt qu'inviter à vérifier.
+    function rendreJurisprudence(c){
+      if(!c) return '';
+      if(c.ok){
+        if(!c.montrees) return '';
+        return '<div class="cit ok">✓ Contrôle de la jurisprudence : les décisions '
+          +'citées font partie de celles qui ont été rapportées du corpus et '
+          +'soumises au modèle. Ce contrôle vérifie qu\'aucune décision n\'a été '
+          +'ajoutée — il ne dit pas ce que chacune juge : lisez-la avant de vous '
+          +'en prévaloir.</div>';
+      }
+      return '<div class="cit ko"><b>⚠ Décision(s) citée(s) hors de la liste fournie</b> — '
+        +(c.suspectes||[]).map(function(s){return esc(s.cle);}).join(', ')
+        +'. Ces décisions ne font pas partie de celles qui ont été rapportées du '
+        +'corpus : traitez-les comme INEXISTANTES tant que vous ne les avez pas '
+        +'retrouvées vous-même. Une décision inventée a exactement la forme d\'une '
+        +'vraie.</div>';
+    }
+
+    // LE VOCABULAIRE DU RÉFÉRENTIEL N'EST PAS CELUI DU LECTEUR — et pour la
+    // publication la différence n'est pas cosmétique : « INEDIT_BULLETIN » dit
+    // qu'une décision NE FAIT PAS jurisprudence, ce qu'un sigle escamote.
+    var PUBLICATION={
+      PUBLIE_BULLETIN:'publiée au Bulletin',
+      PUBLIE_RAPPORT:'publiée au Rapport annuel (portée maximale)',
+      LETTRE_CHAMBRE:'signalée dans la lettre de chambre',
+      COMMUNIQUE:'accompagnée d’un communiqué',
+      INEDIT_BULLETIN:'inédite — ne fait pas jurisprudence',
+      PUBLIE_LEBON:'publiée au Lebon',
+      MENTIONNE_LEBON:'mentionnée aux tables du Lebon',
+      INEDIT_LEBON:'inédite — ne fait pas jurisprudence'
+    };
+    var SOLUTION={
+      REJET:'rejet', IRRECEVABILITE:'irrecevabilité', DESISTEMENT:'désistement',
+      NON_LIEU_A_STATUER:'non-lieu à statuer', CONFIRMATION:'confirmation',
+      INFIRMATION:'infirmation', INFIRMATION_PARTIELLE:'infirmation partielle',
+      REFORMATION:'réformation', CASSATION:'cassation',
+      CASSATION_PARTIELLE:'cassation partielle', ANNULATION:'annulation',
+      CONFORMITE:'conformité', NON_CONFORMITE:'non-conformité',
+      INELIGIBILITE:'inéligibilité', SATISFACTION_TOTALE:'demande accueillie',
+      SATISFACTION_PARTIELLE:'demande partiellement accueillie', AUTRE:''
+    };
+    function codeLisible(v,table){
+      if(!v) return '';
+      var k=(''+v).trim().toUpperCase();
+      if(Object.prototype.hasOwnProperty.call(table,k)) return table[k];
+      return k.toLowerCase().replace(/_/g,' ');
+    }
+
+    // « P5.C4 » N'EST PAS UNE FORMATION, C'EST UNE CLÉ. La grammaire est celle
+    // du référentiel : des créneaux joints par un point — P5 (pôle 5), SC4
+    // (4e section), C6 (6e chambre), CD (chambre D), C4-7, S1, LB (section B),
+    // Q1-4 (sous-sections réunies), R3-8 (chambres réunies) ; une chambre
+    // qu'aucune coordonnée ne situe porte son nom (SOCIALE, CRIMINELLE).
+    // UN CRÉNEAU QU'ON NE SAIT PAS LIRE PASSE TEL QUEL : inventer une lecture
+    // produirait une formation qui n'existe pas, ce qui est pire qu'une clé.
+    function ord(n){ return n==='1' ? '1re' : (n+'e'); }
+    function creneau(c){
+      var m;
+      if((m=/^P(\d+)$/.exec(c))) return 'pôle '+m[1];
+      if((m=/^SC(\d+)$/.exec(c))) return ord(m[1])+' section';
+      if((m=/^S(\d+)$/.exec(c))) return ord(m[1])+' section';
+      if((m=/^C(\d+)$/.exec(c))) return ord(m[1])+' chambre';
+      if((m=/^C(\d+(?:-\d+)+)$/.exec(c))) return 'chambre '+m[1];
+      if((m=/^C([A-Z])$/.exec(c))) return 'chambre '+m[1];
+      if((m=/^L([A-Z])$/.exec(c))) return 'section '+m[1];
+      if((m=/^Q(\d+(?:-\d+)+)$/.exec(c))) return 'sous-sections '+m[1].replace(/-/g,'/')+' réunies';
+      if((m=/^R(\d+(?:-\d+)+)$/.exec(c))) return 'chambres '+m[1].replace(/-/g,'/')+' réunies';
+      if(/^[A-ZÉÈÀÇ]{4,}$/.test(c)) return 'chambre '+c.toLowerCase();
+      return c;
+    }
+    function chambre(v){
+      if(!v) return '';
+      return (''+v).trim().split('.').map(creneau).join(', ');
+    }
+
+    // LES DÉCISIONS EFFECTIVEMENT CONSULTÉES. Les afficher rend le contrôle
+    // ci-dessus vérifiable par le lecteur, et lui permet d'aller lire l'arrêt
+    // plutôt que de croire ce qu'on lui en dit.
+    function rendreDecisions(list){
+      if(!list||!list.length) return '';
+      var h='<div class="jur"><div class="jur-t">Jurisprudence rapportée du '
+           +'corpus LibreJustice</div><ol>';
+      h+=list.map(function(d,i){
+        var t=esc(d.titre||'décision');
+        // L'INTITULÉ ET L'ADRESSE VIENNENT D'UN SERVICE TIERS. Échapper protège
+        // du balisage, pas du schéma : « javascript: » dans un href s'exécute
+        // au clic même parfaitement échappé. On n'ouvre que http et https.
+        var u=(''+(d.url||'')).trim();
+        var lien=/^https?:\/\//i.test(u)
+          ? '<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">'+t+'</a>' : t;
+        var det=[d.date,chambre(d.chambre),d.numero?('n° '+d.numero):'',
+                 codeLisible(d.publication,PUBLICATION), codeLisible(d.solution,SOLUTION)]
+          .filter(Boolean).map(esc).join(' · ');
+        var s=d.sort?('<br><span class="jur-s">Sort de cette décision : '+esc(d.sort)+'</span>'):'';
+        return '<li>[J'+(i+1)+'] '+lien
+          +(det?('<br><span class="jur-d">'+det+'</span>'):'')+s+'</li>';
+      }).join('');
+      // LA RÉSERVE SUIT LES DÉCISIONS, PAS LES MENTIONS LÉGALES : rangée
+      // ailleurs, elle n'accompagne pas ce qu'elle doit accompagner.
+      return h+'</ol><div class="jur-r">Une décision ne vaut que par sa portée : '
+        +'vérifiez la formation, la publication et le sort en appel avant de vous '
+        +'en prévaloir. Une décision non publiée ne fait pas jurisprudence, et une '
+        +'décision cassée ne dit plus rien.</div></div>';
+    }
+
     // ── Export Word / PDF ──────────────────────────────────────────────
     // Le serveur RECOMPOSE le document (routage, échéances, qualification) :
     // le navigateur ne renvoie que le texte rédigé et le contexte de la demande.
@@ -628,11 +756,13 @@
       h+='<div class="cnt" style="margin-bottom:10px">'+esc(titre)+' · modèle '+esc(j.model||'')
         +' · référentiel '+esc(j.version_referentiel||'')+'</div>';
       h+=rendreCitations(j.citations);
+      h+=rendreJurisprudence(j.jurisprudence);
       h+='<div class="doc">'+mdToHtml(j.texte)+'</div>';
       if(j.sources&&j.sources.length){
         h+='<div class="srcs">'+j.sources.map(function(s){
              return '<span class="s">['+s.n+'] '+esc(s.titre||'Document')+'</span>';}).join('')+'</div>';
       }
+      h+=rendreDecisions(j.decisions);
       var kind=(cible==='cres')?'contrat':'analyse';
       TEXTES[kind]=j.texte||'';
       h+=barreExport(kind, (kind==='analyse'?($('q').value||''):'Revue de contrat'),
@@ -841,7 +971,8 @@
           var h=arbRendreRoutage(j.routage);
           h+='<div class="card"><div class="cnt" style="margin-bottom:10px">Note d\'arbitrage · modèle '
             +esc(j.model||'')+' · référentiel '+esc(j.version_referentiel||'')+'</div>'
-            +rendreCitations(j.citations)+'<div class="doc">'+mdToHtml(j.texte)+'</div>';
+            +rendreCitations(j.citations)+rendreJurisprudence(j.jurisprudence)
+            +'<div class="doc">'+mdToHtml(j.texte)+'</div>';
           if(j.pieces&&j.pieces.length){
             h+='<div class="srcs">'+j.pieces.map(function(p){
               return '<span class="s">['+p.n+'] '+esc(p.titre)+' — '+esc(p.origine)+'</span>';}).join('')+'</div>';
@@ -849,6 +980,7 @@
             h+='<div class="cit ko" style="margin-top:14px">Aucune pièce n\'a pu être versée au dossier : '
               +'la note repose sur le seul cadre réglementaire. Vérifiez la section « Ce qui manque pour décider ».</div>';
           }
+          h+=rendreDecisions(j.decisions);
           TEXTES['arbitrage']=j.texte||'';
           h+=barreExport('arbitrage', objet, j.pieces||[], j.model);
           h+='</div><div class="card"><div class="avert">'+esc(j.avertissement)
