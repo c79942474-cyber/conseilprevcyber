@@ -356,3 +356,203 @@ def test_le_glossaire_couvre_les_rubriques_et_les_regimes():
     for famille in g.values():
         for cle, e in famille.items():
             assert len(e["aide"]) > 60, (cle, len(e["aide"]))
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  LE BARÈME AFFICHÉ — il doit dire exactement ce que le criblage déciderait
+# ══════════════════════════════════════════════════════════════════════════
+# LA PROPRIÉTÉ CENTRALE DE CE BLOC, et la seule qui compte vraiment : un seuil
+# montré sous un champ n'est utile que s'il est VRAI pour ce champ. Deux des
+# six champs se saisissent dans une unité qui n'est pas celle de la
+# nomenclature ; une conversion fausse afficherait un seuil crédible et faux,
+# le lecteur viserait juste en dessous, et le criblage le classerait.
+#
+# On ne vérifie donc pas que la conversion est « bien écrite » : on saisit la
+# valeur affichée et on regarde ce que le criblage en fait.
+
+def _profil_pour(champ, valeur):
+    """Un profil qui isole UN champ, sans laisser un champ prioritaire décider.
+
+    Deux rubriques ont deux entrées possibles, et la première l'emporte : la
+    puissance thermique sur l'électrique, les tonnes sur le volume. Les
+    laisser toutes deux ferait éprouver l'autre champ que celui qu'on croit.
+    """
+    p = {champ: valeur}
+    if champ == "puissance_evacuee_kw":
+        p["refroidissement"] = "tour_evaporative"
+    if champ == "batteries_charge_kw":
+        p["batteries_hydrogene"] = True
+    return p
+
+
+def _variante_de_reference(entree):
+    """La variante qu'un profil d'essai sélectionne, pour un champ donné."""
+    d = entree.get("discriminant")
+    if not d:
+        return entree["variantes"][0]
+    # Les profils d'essai ci-dessus choisissent le cas le plus contraignant :
+    # circuit ouvert, batteries dégageant de l'hydrogène.
+    cle = {"2921": "ouvert", "2925": "hydrogene"}[entree["rubrique"]]
+    return [v for v in entree["variantes"] if v["cle"] == cle][0]
+
+
+def test_chaque_seuil_affiche_declenche_bien_le_regime_annonce():
+    """LA RÈGLE QUI TIENT TOUT LE BARÈME. On saisit la valeur montrée sous le
+    champ, dans l'unité du champ, et on vérifie que le criblage rend le régime
+    que l'échelle annonçait. Une conversion fausse — mégawatts thermiques pris
+    pour des kilowatts électriques, tonnes pour des mètres cubes — se voit ici
+    et nulle part ailleurs."""
+    b = I.bareme()
+    vus = 0
+    for cid, e in b["champs"].items():
+        v = _variante_de_reference(e)
+        for p in v["paliers"]:
+            seuil = p["a_partir_de_champ"]
+            if seuil is None:
+                continue
+            # À LA VALEUR EXACTE, ET SURTOUT PAS UN CHEVEU AU-DESSUS.
+            # Une première version de cette règle éprouvait `seuil × 1,001`
+            # pour absorber le bruit des flottants ; elle absorbait aussi,
+            # sans le dire, une erreur d'arrondi entière — le seuil de cent
+            # tonnes s'affichait à 118 m³ quand 118 m³ pèsent 99,7 t. La
+            # promesse faite au lecteur est « à partir de CETTE valeur », et
+            # c'est cette valeur-là qu'il faut soumettre au criblage.
+            c = I.cribler(_profil_pour(cid, seuil))
+            lignes = {l["numero"]: l for l in c["declenchees"]}
+            assert e["rubrique"] in lignes, (cid, seuil, p["regime"])
+            assert lignes[e["rubrique"]]["regime"] == p["regime"], (
+                cid, seuil, e["unite"], p["regime"],
+                lignes[e["rubrique"]]["regime"])
+            vus += 1
+    assert vus >= 10, "le barème ne couvre presque rien : %d paliers" % vus
+
+
+def test_chaque_valeur_d_essai_atteint_le_regime_qu_elle_annonce():
+    """L'ÉTIQUETTE SUIT LA VALEUR, PAS L'INTENTION. Une valeur proposée « juste
+    en dessous » du seuil peut, après arrondi, se retrouver au-dessus. Le
+    régime annoncé est recalculé sur la valeur réellement mise dans le champ,
+    et le criblage doit le confirmer."""
+    b = I.bareme()
+    for cid, e in b["champs"].items():
+        v = _variante_de_reference(e)
+        for r in v["reperes"]:
+            c = I.cribler(_profil_pour(cid, r["valeur"]))
+            lignes = {l["numero"]: l for l in c["declenchees"]}
+            obtenu = (lignes[e["rubrique"]]["regime"]
+                      if e["rubrique"] in lignes else "hors")
+            assert obtenu == r["regime"], (
+                cid, r["valeur"], e["unite"], r["libelle"],
+                r["regime"], obtenu)
+
+
+def test_l_etiquette_d_essai_reste_juste_quand_la_marge_se_resserre():
+    """L'ÉTIQUETTE SE CALCULE SUR LA VALEUR ARRONDIE, PAS SUR L'INTENTION.
+    À 10 % d'écart, la marche d'arrondi ne peut pas faire basculer un régime,
+    et la précaution ne se voit pas. Elle devient visible dès que l'écart se
+    resserre : une valeur voulue « juste au-dessus » d'un seuil peut alors,
+    après arrondi, retomber en dessous — et l'annoncer au-dessus serait faux.
+
+    On resserre donc l'écart pour éprouver la règle, plutôt que de faire
+    confiance à une précaution qu'aucun cas ne sollicite."""
+    sauve = I.MARGE_REPERE
+    try:
+        I.MARGE_REPERE = 0.001
+        b = I.bareme()
+        vus = 0
+        for cid, e in b["champs"].items():
+            v = _variante_de_reference(e)
+            for r in v["reperes"]:
+                c = I.cribler(_profil_pour(cid, r["valeur"]))
+                lignes = {l["numero"]: l for l in c["declenchees"]}
+                obtenu = (lignes[e["rubrique"]]["regime"]
+                          if e["rubrique"] in lignes else "hors")
+                assert obtenu == r["regime"], (
+                    cid, r["valeur"], e["unite"], r["regime"], obtenu)
+                vus += 1
+        assert vus >= 8
+    finally:
+        I.MARGE_REPERE = sauve
+
+
+def test_un_seuil_a_zero_ne_propose_aucune_valeur_en_dessous():
+    """La rubrique du refroidissement évaporatif est atteinte dès la première
+    unité. Proposer une valeur « juste en dessous » laisserait croire qu'un
+    régime s'évite en réduisant la puissance — il ne s'évite qu'en changeant
+    de mode de refroidissement, ce que le barème dit ailleurs."""
+    e = I.bareme()["champs"]["puissance_evacuee_kw"]
+    ouvert = [v for v in e["variantes"] if v["cle"] == "ouvert"][0]
+    zero = [p for p in ouvert["paliers"] if p["a_partir_de"] == 0]
+    assert zero and zero[0]["des_le_premier"] is True
+    assert all(r["valeur"] > 0 for r in ouvert["reperes"])
+    assert all(r["seuil_vise"] != 0 for r in ouvert["reperes"])
+
+
+def test_les_variantes_du_bareme_sont_celles_du_criblage():
+    """DEUX SOURCES DE VÉRITÉ SUR LE MÊME BARÈME DIVERGERAIENT. Ce que
+    l'échelle affiche doit être le jeu de seuils que `_seuils_applicables`
+    retiendrait dans le même cas — sinon le lecteur vise un barème et le
+    criblage en applique un autre."""
+    b = I.bareme()
+    for cle, ctx in (("hydrogene", {"hydrogene": True}),
+                     ("sans_hydrogene", {"hydrogene": False})):
+        v = [x for x in b["rubriques"]["2925"]["variantes"]
+             if x["cle"] == cle][0]
+        seuils, _ = I._seuils_applicables("2925", ctx)
+        assert ([p["a_partir_de"] for p in v["paliers"]]
+                == sorted(s[0] for s in seuils)), cle
+    ferme = [x for x in b["rubriques"]["2921"]["variantes"]
+             if x["cle"] == "ferme"][0]
+    seuils, impose = I._seuils_applicables("2921", {"circuit_ferme": True})
+    assert seuils is None and ferme["regime_impose"] == impose
+    assert not ferme["paliers"]
+
+
+def test_toute_rubrique_figure_au_bareme_meme_sans_champ_dans_ce_formulaire():
+    """La charge en fluide frigorigène se saisit au profil de l'installation.
+    Absente du barème, elle laisserait croire qu'elle n'est pas criblée — et
+    c'est la rubrique la plus facile à oublier d'un centre de données."""
+    b = I.bareme()
+    assert set(b["rubriques"]) == set(I.RUBRIQUES)
+    sans_champ = [c for c, r in b["rubriques"].items() if not r["champs"]]
+    assert "1185" in sans_champ
+    for c in sans_champ:
+        assert b["rubriques"][c]["saisie_ailleurs"], c
+
+
+def test_un_champ_dans_une_autre_unite_declare_sa_conversion():
+    """LA FAUTE INVISIBLE À LA RELECTURE. Un champ saisi en kilowatts sous une
+    rubrique qui compte des mégawatts, sans conversion déclarée, afficherait
+    « seuil : 1 » — et le lecteur viserait mille fois trop haut."""
+    for c in I.CHAMPS:
+        if c["type"] != "nombre":
+            continue
+        if (c.get("unite") or "") != I.RUBRIQUES[c["rubrique"]]["unite"]:
+            e = I.bareme()["champs"][c["id"]]
+            assert e["conversion"], c["id"]
+            assert e["conversion"]["formule"], c["id"]
+            assert e["conversion"]["note"], c["id"]
+    # Et la règle de chargement le refuse si un champ change d'unité sans
+    # qu'une conversion soit déclarée pour lui. On déforme un champ qui n'en
+    # a PAS — celui qui en a une resterait couvert, et la mutation ne
+    # prouverait rien.
+    cible = [c for c in I.CHAMPS
+             if c["type"] == "nombre" and c["id"] not in I._conversions()][0]
+    sauve = cible["unite"]
+    try:
+        cible["unite"] = "GW"
+        assert any("aucune conversion" in f for f in I._verifier()), cible["id"]
+    finally:
+        cible["unite"] = sauve
+    assert not I._verifier()
+
+
+def test_le_bareme_ne_porte_aucune_valeur_par_defaut_dans_les_champs():
+    """Les valeurs d'essai sont des PROPOSITIONS, jamais des défauts : aucune
+    n'est marquée comme retenue, et les champs restent vides."""
+    b = I.bareme()
+    for e in b["champs"].values():
+        for v in e["variantes"]:
+            for r in v["reperes"]:
+                assert "defaut" not in r and "retenu" not in r
+    for c in I.CHAMPS:
+        assert "defaut" not in c, c["id"]

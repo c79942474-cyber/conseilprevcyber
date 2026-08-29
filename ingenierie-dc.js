@@ -5073,12 +5073,212 @@ function messageDelai(e, defaut) {
           + "</select>";
       } else {
         h += '<input id="' + id + '" data-icpe="' + esc(c.id)
-          + '" type="text" inputmode="decimal" placeholder="—">';
+          + '" type="text" inputmode="decimal" placeholder="—">'
+          /* LE MENU DES VALEURS D'ESSAI, et l'échelle des seuils sous le
+             champ. Les deux viennent du serveur DÉJÀ CONVERTIS dans l'unité
+             de saisie : deux de ces champs se saisissent dans une unité qui
+             n'est pas celle du seuil, et refaire la conversion ici la ferait
+             diverger de celle du criblage. */
+          + '<select class="ig-seuil-sel" data-vise="' + esc(c.id) + '">'
+          + '<option value="">— proposer une valeur d\u2019essai —</option>'
+          + "</select>"
+          + '<span class="ig-echelle" id="' + id + '-e"></span>';
       }
       if (c.aide) h += '<span class="dc-aide">' + esc(c.aide) + "</span>";
       h += "</label>";
     });
     z.innerHTML = h + "</div>";
+    /* Le contour se remet à jour à chaque frappe, pas seulement au criblage :
+       le lecteur doit voir le seuil se franchir pendant qu'il tape, sinon il
+       ne fait le lien qu'après coup — et souvent pas du tout. */
+    z.querySelectorAll("input[data-icpe]").forEach(function (el) {
+      el.addEventListener("input", function () { icpeSeuilEtat(el); });
+    });
+    z.querySelectorAll("select[data-icpe]").forEach(function (el) {
+      el.addEventListener("change", icpeEchelles);
+    });
+    z.querySelectorAll(".ig-seuil-sel").forEach(function (sel) {
+      sel.addEventListener("change", function () {
+        if (!sel.value) return;
+        var cible = $("#ig-icpe-" + sel.getAttribute("data-vise"));
+        if (cible) { cible.value = sel.value; icpeSeuilEtat(cible); }
+        sel.value = "";
+      });
+    });
+    icpeEchelles();
+  }
+
+  /* LE BARÈME COMPLET, LES CINQ RUBRIQUES. Le formulaire ne porte que les
+     grandeurs qu'il demande ; une rubrique dont la grandeur se saisit
+     ailleurs — la charge en fluide frigorigène, au profil de l'installation —
+     n'y apparaîtrait pas, et le lecteur conclurait qu'elle n'est pas criblée.
+     Le tableau les montre toutes, dans l'unité de la NOMENCLATURE, et dit où
+     se saisit ce qui manque. */
+  function icpeBareme() {
+    var z = $("#ig-icpe-bareme");
+    var b = CADRE.icpe_bareme || {};
+    if (!z || !b.rubriques) return;
+    var h = '<div class="rc-card"><h3>Les seuils, rubrique par rubrique</h3>'
+      + '<div class="ig-bareme-w"><table class="ig-bareme"><thead><tr>'
+      + "<th>Rubrique</th><th>Grandeur mesurée</th><th>Seuils</th>"
+      + "</tr></thead><tbody>";
+    Object.keys(b.rubriques).forEach(function (code) {
+      var r = b.rubriques[code];
+      h += '<tr><td class="n"' + info("rubrique_icpe:" + code) + ">"
+        + esc(r.numero) + "<br><span class=\"dc-unite\">" + esc(r.unite)
+        + "</span></td><td>" + esc(r.intitule)
+        + '<br><span class="ig-echelle-n">' + esc(r.grandeur) + "</span>"
+        + (r.saisie_ailleurs
+            ? '<br><span class="ig-echelle-n">' + esc(r.saisie_ailleurs)
+              + "</span>"
+            : "")
+        + "</td><td>";
+      (r.variantes || []).forEach(function (v) {
+        h += '<div class="ig-echelle">';
+        if (v.quand) h += '<span class="ig-echelle-q">' + esc(v.quand) + "</span>";
+        if (v.regime_impose) {
+          h += '<span class="ig-echelle-n">Régime imposé&nbsp;: '
+            + esc(v.regime_impose_nom) + "</span>";
+        }
+        (v.paliers || []).forEach(function (p) {
+          h += '<span class="ig-palier ig-palier-' + esc(p.regime) + '">'
+            + (p.des_le_premier ? "dès la première unité"
+                                : "≥ " + esc(String(p.a_partir_de)) + " "
+                                  + esc(r.unite))
+            + " → " + esc(p.regime_nom) + "</span>";
+        });
+        h += "</div>";
+      });
+      h += "</td></tr>";
+    });
+    h += "</tbody></table></div>"
+      + '<p class="ig-icpe-res">' + esc(b.texte || "")
+      + " " + esc(b.marge_note || "") + "</p></div>";
+    z.innerHTML = h;
+  }
+
+  /* ── LES SEUILS SOUS LE CHAMP ─────────────────────────────────────────────
+     TROIS RUBRIQUES CHANGENT DE BARÈME selon une caractéristique du projet —
+     le circuit ouvert ou fermé du refroidissement, le dégagement d'hydrogène
+     des batteries. Le barème affiché doit suivre le choix en cours, sinon le
+     lecteur vise un seuil qui ne le concerne pas. La variante applicable se
+     lit sur le DISCRIMINANT servi par le module ; aucune règle n'est écrite
+     ici. */
+  function icpeVariante(e) {
+    var vs = e.variantes || [];
+    var d = e.discriminant;
+    if (!d) return vs[0];
+    var val = null;
+    if (d.champ === "refroidissement") {
+      val = (lireProfil() || {}).refroidissement || "";
+    } else {
+      var el = $("#ig-icpe-" + d.champ);
+      val = el ? el.value : "";
+    }
+    var cle = (d.valeurs || {})[val];
+    if (cle === undefined) cle = d.sinon;
+    if (cle === null || cle === undefined) return null;
+    return vs.filter(function (v) { return v.cle === cle; })[0] || null;
+  }
+
+  function icpeBaremeChamp(cid) {
+    var b = CADRE.icpe_bareme || {};
+    return (b.champs || {})[cid] || null;
+  }
+
+  function icpeEchelles() {
+    (ICPE_CHAMPS || []).forEach(function (c) {
+      if (c.type === "booleen") return;
+      var e = icpeBaremeChamp(c.id);
+      var box = $("#ig-icpe-" + c.id + "-e");
+      var sel = document.querySelector('.ig-seuil-sel[data-vise="' + c.id + '"]');
+      if (!e || !box) return;
+      var v = icpeVariante(e);
+      box.innerHTML = icpeEchelleTexte(e, v);
+      if (sel) {
+        var h = '<option value="">— proposer une valeur d\u2019essai —</option>';
+        ((v && v.reperes) || []).forEach(function (r) {
+          h += '<option value="' + esc(String(r.valeur)) + '">'
+            + esc(String(r.valeur)) + " " + esc(e.unite || "") + " — "
+            + esc(r.libelle) + " (" + esc(r.regime_nom) + ")</option>";
+        });
+        sel.innerHTML = h;
+        /* Un menu sans proposition n'invite à rien et laisse croire à une
+           panne : il disparaît au lieu de rester vide. */
+        sel.hidden = !((v && v.reperes) || []).length;
+      }
+      var el = $("#ig-icpe-" + c.id);
+      if (el) icpeSeuilEtat(el);
+    });
+  }
+
+  function icpeEchelleTexte(e, v) {
+    if (!v) {
+      var d = e.discriminant || {};
+      return '<span class="ig-echelle-n">'
+        + esc(d.sinon_pourquoi || "Rubrique non applicable en l\u2019état.")
+        + "</span>";
+    }
+    var h = "";
+    if (v.quand) h += '<span class="ig-echelle-q">' + esc(v.quand) + "</span>";
+    if (v.regime_impose) {
+      return h + '<span class="ig-echelle-n">Régime imposé&nbsp;: '
+        + esc(v.regime_impose_nom) + ". " + esc(v.note || "") + "</span>";
+    }
+    (v.paliers || []).forEach(function (p) {
+      h += '<span class="ig-palier ig-palier-' + esc(p.regime) + '">'
+        + (p.des_le_premier
+            ? "dès la première unité"
+            : "≥ " + esc(String(p.a_partir_de_champ)) + " "
+              + esc(e.unite || ""))
+        + " → " + esc(p.regime_nom) + "</span>";
+    });
+    if (e.conversion) {
+      h += '<span class="ig-echelle-n">Seuils convertis depuis les '
+        + esc(e.unite_rubrique) + " de la rubrique — "
+        + esc(e.conversion.formule)
+        + (e.conversion.estimee ? ". Conversion ESTIMÉE : " : ". ")
+        + esc(e.conversion.note) + "</span>";
+    }
+    return h;
+  }
+
+  /* LE CONTOUR. Rouge dès qu'un seuil est franchi — c'est ce qui a été
+     demandé, et c'est le bon signal : le régime administratif entre alors au
+     chemin critique du projet. Le régime atteint est écrit à côté, parce
+     qu'un contour rouge sans nom laisse le lecteur deviner LEQUEL des trois
+     régimes il vient de déclencher, et ils ne coûtent pas la même chose. */
+  function icpeSeuilEtat(el) {
+    var cid = el.getAttribute("data-icpe");
+    var e = icpeBaremeChamp(cid);
+    var box = $("#ig-icpe-" + cid + "-e");
+    if (!e || !box) return;
+    var v = icpeVariante(e);
+    var brut = (el.value || "").trim().replace(",", ".");
+    var n = brut === "" ? null : Number(brut);
+    var franchi = null;
+    if (v && n !== null && isFinite(n)) {
+      (v.paliers || []).forEach(function (p) {
+        if (n >= p.a_partir_de_champ) franchi = p;
+      });
+    }
+    el.classList.toggle("ig-depasse", !!franchi);
+    if (franchi) {
+      el.setAttribute("aria-describedby", "ig-icpe-" + cid + "-e");
+    } else {
+      el.removeAttribute("aria-describedby");
+    }
+    var marque = box.querySelector(".ig-franchi");
+    if (marque) marque.remove();
+    if (franchi) {
+      var sp = document.createElement("span");
+      sp.className = "ig-franchi";
+      /* PAS SEULEMENT UNE COULEUR. Un contour rouge seul est invisible pour
+         qui ne distingue pas les rouges, et muet pour un lecteur d'écran :
+         le régime atteint s'écrit. */
+      sp.textContent = "Seuil franchi — " + franchi.regime_nom;
+      box.insertBefore(sp, box.firstChild);
+    }
   }
 
   function icpeLire() {
@@ -5640,6 +5840,7 @@ function messageDelai(e, defaut) {
            ne calcule tant qu'on ne le lui demande pas. */
         progFormulaire(CADRE.programme_champs);
         icpeFormulaire(CADRE.icpe_champs);
+        icpeBareme();
         reseauFormulaire(CADRE.reseau_champs);
         travauxFormulaire();
         aoDocuments();

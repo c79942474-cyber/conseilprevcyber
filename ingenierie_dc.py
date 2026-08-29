@@ -7137,6 +7137,7 @@ def referentiel():
         "natures_travaux": _table_voisine("technique_dc", "NATURES_TRAVAUX", {}),
         "natures_travaux_note": _table_voisine("technique_dc", "NATURES_NOTE", ""),
         "icpe_champs": _table_voisine("icpe_dc", "CHAMPS", []),
+        "icpe_bareme": _appel_voisin("icpe_dc", "bareme", {}),
         "programme_champs": _table_voisine("programme_dc", "CHAMPS_SITE", []),
         "reseau_champs": _table_voisine("reseau_dc", "CHAMPS", []),
         # Les sous-systèmes dont la note décide de celle du site. Servis avec
@@ -7166,6 +7167,21 @@ def _table_voisine(module, nom, vide=None):
     """
     try:
         return getattr(__import__(module), nom)
+    except Exception:                                    # pragma: no cover
+        return vide
+
+
+def _appel_voisin(module, fonction, vide=None):
+    """Le résultat d'une fonction d'un module voisin, ou son vide.
+
+    MÊME PRUDENCE QUE POUR LES TABLES, et la même raison : le référentiel est
+    le premier appel de la page. La différence est qu'une fonction peut lever
+    alors qu'une table ne le fait pas — le barème des seuils lit la Base
+    Carbone pour convertir un volume en tonnes, et cette lecture peut manquer
+    sur un serveur donné.
+    """
+    try:
+        return getattr(__import__(module), fonction)()
     except Exception:                                    # pragma: no cover
         return vide
 

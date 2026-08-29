@@ -396,6 +396,32 @@ def test_le_glossaire_porte_les_familles_du_programme(connecte):
         assert famille in g and g[famille], famille
 
 
+# ── Le barème des seuils ICPE, servi à la page ────────────────────────────
+
+def test_le_bareme_des_seuils_atteint_la_page(connecte):
+    """LE BARÈME NE SERT À RIEN S'IL N'ARRIVE PAS. Il est calculé par le
+    module qui connaît la nomenclature ET les unités de saisie ; s'il n'entre
+    pas dans le référentiel du cadre, la page dessine des champs sans échelle
+    et personne ne voit qu'il en manquait une."""
+    j = connecte.get("/api/datacenter/ingenierie").get_json()
+    b = j["referentiel"]["icpe_bareme"]
+    import icpe_dc
+    assert set(b["rubriques"]) == set(icpe_dc.RUBRIQUES)
+    # Chaque champ numérique du formulaire porte son échelle, dans SON unité.
+    for c in icpe_dc.CHAMPS:
+        if c["type"] != "nombre":
+            continue
+        e = b["champs"][c["id"]]
+        assert e["unite"] == c.get("unite"), c["id"]
+        assert e["variantes"], c["id"]
+    # Et les seuils convertis sont bien ceux, convertis, de la rubrique — pas
+    # ceux de la nomenclature affichés tels quels sous une autre unité.
+    m3 = b["champs"]["fioul_stocke_m3"]["variantes"][0]["paliers"]
+    t = b["champs"]["fioul_stocke_t"]["variantes"][0]["paliers"]
+    assert [p["a_partir_de_champ"] for p in m3] != [
+        p["a_partir_de_champ"] for p in t]
+
+
 # ── Le raccordement et la production sur site ─────────────────────────────
 
 def test_un_visiteur_anonyme_n_atteint_pas_l_etude_de_raccordement(anonyme):

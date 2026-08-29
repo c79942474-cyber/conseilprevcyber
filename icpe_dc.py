@@ -820,6 +820,7 @@ def referentiel():
         "rendement_groupe_source": RENDEMENT_GROUPE_SOURCE,
         "mission_par_regime": MISSION_PAR_REGIME,
         "champs": CHAMPS,
+        "bareme": bareme(),
     }
 
 
@@ -913,7 +914,301 @@ def _verifier():
         if c.get("rubrique") not in RUBRIQUES:
             fautes.append("champ %s : rubrique inconnue (%s)"
                           % (c["id"], c.get("rubrique")))
+        # LA FAUTE QUE CETTE RÈGLE EMPÊCHE, et elle est invisible à la
+        # relecture : un champ saisi dans une unité qui n'est PAS celle du
+        # seuil, et dont personne n'a déclaré la conversion. Le barème
+        # afficherait alors « seuil : 1 » sous un champ en kilowatts quand la
+        # rubrique compte des mégawatts — le lecteur viserait mille fois trop
+        # haut, et le criblage lui donnerait raison jusqu'au dépôt.
+        if c["type"] == "nombre" and c.get("rubrique") in RUBRIQUES:
+            u_champ = (c.get("unite") or "").strip()
+            u_rub = (RUBRIQUES[c["rubrique"]]["unite"] or "").strip()
+            if u_champ != u_rub and c["id"] not in _conversions():
+                fautes.append(
+                    "champ %s : saisi en %s alors que la rubrique %s compte "
+                    "des %s, et aucune conversion n'est déclarée — le seuil "
+                    "affiché serait faux" % (c["id"], u_champ,
+                                             c["rubrique"], u_rub))
+    for cid in _conversions():
+        if not any(c["id"] == cid for c in CHAMPS):
+            fautes.append("conversion déclarée pour un champ absent : %s" % cid)
     return fautes
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE BARÈME LISIBLE — les seuils, dans l'unité où on les saisit
+# ═══════════════════════════════════════════════════════════════════════════
+# POURQUOI CE CALCUL EST ICI ET NON DANS LA PAGE. Deux champs se saisissent
+# dans une unité qui n'est PAS celle du seuil : la puissance électrique des
+# groupes, quand la rubrique compte des mégawatts thermiques ; le volume de
+# combustible, quand la rubrique compte des tonnes. Afficher « seuil : 1 MW »
+# sous un champ en kilowatts électriques ferait viser 1 000 kW là où le seuil
+# tombe à 400. La conversion appartient donc au module qui la connaît, et la
+# page ne fait que rendre ce qu'elle reçoit.
+#
+# TROIS RUBRIQUES CHANGENT DE BARÈME selon une caractéristique du projet, et
+# le barème affiché doit suivre le choix en cours — sans quoi le lecteur
+# viserait un seuil qui ne le concerne pas. Chaque rubrique déclare donc son
+# DISCRIMINANT : le champ qui décide, et la variante que chaque réponse
+# sélectionne. La page choisit sur cette table, elle ne devine pas.
+
+# Écart retenu de part et d'autre d'un seuil pour proposer une valeur d'essai.
+# CE N'EST NI UNE MARGE DE SÉCURITÉ NI UNE RECOMMANDATION : c'est un pas de
+# sensibilité, destiné à montrer ce que change le franchissement. Le
+# dimensionnement réel ne se cale pas sur un pourcentage rond.
+MARGE_REPERE = 0.10
+MARGE_REPERE_NOTE = (
+    "Valeurs d'essai proposées à 10 % de part et d'autre du seuil. Elles ne "
+    "sont ni une marge de sécurité, ni une recommandation de dimensionnement "
+    "— elles servent à VOIR ce que le franchissement change, sur un projet "
+    "dont la grandeur réelle n'est pas encore arrêtée. Un dimensionnement se "
+    "cale sur un besoin, jamais sur un pourcentage rond.")
+
+# Les champs dont l'unité de saisie n'est pas celle du seuil. `facteur`
+# convertit une valeur EXPRIMÉE DANS L'UNITÉ DE LA RUBRIQUE vers l'unité du
+# champ ; `estimee` dit si la conversion repose sur un repère plutôt que sur
+# une constante physique, ce qui change ce que vaut le seuil affiché.
+def _conversions():
+    d = _densite_gazole()
+    return {
+        "groupes_puissance_elec_kw": {
+            "facteur": 1000.0 * RENDEMENT_GROUPE,
+            "formule": "puissance électrique = puissance thermique × "
+                       "rendement × 1000",
+            "estimee": True,
+            "note": ("Le seuil de la rubrique porte sur la puissance "
+                     "THERMIQUE. Le seuil montré ici est son équivalent "
+                     "électrique au rendement retenu pour le criblage : il "
+                     "se déplace avec le rendement réel des machines, et la "
+                     "puissance thermique déclarée par le constructeur "
+                     "l'emporte dès qu'elle est connue."),
+            "source": RENDEMENT_GROUPE_SOURCE,
+        },
+        "fioul_stocke_m3": {
+            "facteur": (1000.0 / d) if d else None,
+            "formule": "volume = tonnes × 1000 / masse volumique",
+            "estimee": False,
+            "note": ("Le seuil de la rubrique porte sur une QUANTITÉ en "
+                     "tonnes. Le volume montré ici est son équivalent à la "
+                     "masse volumique du gazole. Comptez les nourrices et le "
+                     "volume mort : la nomenclature vise ce qui est "
+                     "susceptible d'être présent."),
+            "source": "Masse volumique du gazole lue à la Base Carbone.",
+        },
+    }
+
+
+# Ce qui décide du barème applicable, rubrique par rubrique. La page lit cette
+# table pour choisir la variante ; elle n'a aucune règle en dur.
+DISCRIMINANTS = {
+    "2921": {"champ": "refroidissement",
+             "valeurs": {"tour_evaporative": "ouvert", "adiabatique": "ferme"},
+             "sinon": None,
+             "sinon_pourquoi": "Le mode retenu ne disperse pas d'eau dans un "
+                               "flux d'air : la rubrique ne s'applique pas."},
+    "2925": {"champ": "batteries_hydrogene",
+             "valeurs": {"oui": "hydrogene", "non": "sans_hydrogene",
+                         True: "hydrogene", False: "sans_hydrogene"},
+             "sinon": "hydrogene",
+             "sinon_pourquoi": "Sans réponse sur la technologie, le criblage "
+                               "retient le cas le plus contraignant."},
+}
+
+
+def _paliers(seuils):
+    """Les seuils rendus lisibles, du plus bas au plus haut.
+
+    L'ORDRE EST INVERSÉ EXPRÈS. La table de criblage les range du plus lourd
+    au plus léger, parce que le criblage teste dans cet ordre. Un barème se
+    LIT dans l'autre sens : on monte les marches.
+    """
+    return [{"a_partir_de": bas, "jusqu_a": haut, "regime": rg,
+             "regime_nom": REGIMES[rg]["nom"], "regime_code": REGIMES[rg]["code"],
+             "des_le_premier": bas == 0}
+            for bas, haut, rg in sorted(seuils, key=lambda x: x[0])]
+
+
+def _variantes(code):
+    """Les barèmes d'une rubrique — un seul, ou un par cas de figure."""
+    r = RUBRIQUES[code]
+    if code == "2921":
+        return [
+            {"cle": "ouvert",
+             "quand": "Circuit ouvert — tour aéroréfrigérante",
+             "paliers": _paliers(r["seuils"])},
+            {"cle": "ferme",
+             "quand": "Circuit fermé — refroidissement adiabatique",
+             "paliers": [],
+             "regime_impose": r.get("regime_circuit_ferme", "D"),
+             "regime_impose_nom":
+                 REGIMES[r.get("regime_circuit_ferme", "D")]["nom"],
+             "note": "Alinéa distinct : le régime ne dépend d'aucun seuil de "
+                     "puissance. Aucune valeur d'essai n'a de sens ici."},
+        ]
+    if code == "2925":
+        return [
+            {"cle": "hydrogene",
+             "quand": "Accumulateurs dégageant de l'hydrogène — plomb ouvert",
+             "paliers": _paliers(r["seuils"])},
+            {"cle": "sans_hydrogene",
+             "quand": "Technologie étanche ou lithium",
+             "paliers": _paliers(r["seuils_sans_hydrogene"])},
+        ]
+    return [{"cle": "defaut", "quand": None, "paliers": _paliers(r["seuils"])}]
+
+
+def _arrondi(x):
+    """Un nombre présentable, sans fausse précision. Pour les VALEURS D'ESSAI.
+
+    L'arrondi y est indifférent parce que le régime annoncé est recalculé
+    APRÈS : l'étiquette suit la valeur, quelle qu'elle soit.
+    """
+    if x is None:
+        return None
+    if x >= 100:
+        return round(x)
+    if x >= 10:
+        return round(x, 1)
+    return round(x, 2)
+
+
+def _arrondi_seuil(x, converti):
+    """Un SEUIL présentable — et le sens de l'arrondi n'est pas indifférent.
+
+    LE DÉFAUT QUE CETTE FONCTION CORRIGE, et il était réel : le seuil de cent
+    tonnes converti en volume vaut 118,34 m³. Arrondi à 118, il devenait FAUX
+    dans les deux sens à la fois — l'échelle annonçait « ≥ 118 m³ →
+    Enregistrement » alors que 118 m³ pèsent 99,7 t et relèvent encore de la
+    déclaration. Un seuil affiché doit être une valeur à laquelle le régime
+    est RÉELLEMENT atteint, sans quoi l'échelle promet ce que le criblage
+    dément.
+
+    D'où l'arrondi PAR EXCÈS, et au centième : la marche d'arrondi vaut alors
+    quelques litres sur une cuve de cent mètres cubes, c'est-à-dire moins que
+    la précision de n'importe quel dimensionnement. Les seuils non convertis
+    sont rendus tels quels — ce sont des nombres ronds de la nomenclature, et
+    les toucher n'apporterait rien.
+    """
+    if x is None:
+        return None
+    if not converti:
+        return x
+    import math
+    return math.ceil(x * 100.0) / 100.0
+
+
+def _reperes(paliers, facteur):
+    """Les valeurs d'essai, de part et d'autre de chaque seuil.
+
+    DEUX PRÉCAUTIONS QUI ÉVITENT DE MENTIR :
+
+      · un seuil à ZÉRO n'a pas de « en dessous ». La rubrique est atteinte
+        dès la première unité, et proposer une valeur négative laisserait
+        croire qu'un régime s'évite ;
+      · le régime annoncé est recalculé APRÈS arrondi. Une valeur arrondie
+        peut franchir le seuil qu'elle était censée éviter, et l'étiquette
+        doit suivre la valeur réellement mise dans le champ, pas l'intention
+        qui l'a produite.
+    """
+    out, vus = [], set()
+    for p in paliers:
+        s = p["a_partir_de"]
+        if not s:
+            continue
+        for signe, mot in ((-1, "juste en dessous"), (+1, "juste au-dessus")):
+            brut = s * (1.0 + signe * MARGE_REPERE)
+            val = _arrondi(brut * facteur if facteur else brut)
+            if val is None or val <= 0 or val in vus:
+                continue
+            vus.add(val)
+            # Le régime se juge sur la valeur EN UNITÉ DE RUBRIQUE, donc on
+            # reconvertit l'arrondi plutôt que de garder l'intention.
+            en_rubrique = (val / facteur) if facteur else val
+            rg = _regime_pour(en_rubrique, [(p2["a_partir_de"], p2["jusqu_a"],
+                                             p2["regime"]) for p2 in paliers])
+            out.append({
+                "valeur": val,
+                "libelle": "%s du seuil de « %s »" % (mot, p["regime_nom"]),
+                "regime": rg, "regime_nom": REGIMES[rg]["nom"],
+                "seuil_vise": p["a_partir_de"],
+            })
+    return sorted(out, key=lambda x: x["valeur"])
+
+
+def bareme():
+    """Les seuils de chaque rubrique, et de quoi les viser depuis un champ.
+
+    DEUX LECTURES DANS UN SEUL RENDU, parce qu'elles doivent dire la même
+    chose : le barème par RUBRIQUE, dans l'unité de la nomenclature — c'est
+    la lecture réglementaire —, et le barème par CHAMP, converti dans
+    l'unité de saisie, avec les valeurs d'essai. Les servir séparément
+    laisserait les deux diverger, et c'est précisément l'écart qu'un lecteur
+    ne peut pas détecter.
+    """
+    conv = _conversions()
+    par_champ = {}
+    for c in CHAMPS:
+        if c["type"] != "nombre":
+            continue
+        code = c.get("rubrique")
+        if code not in RUBRIQUES:
+            continue
+        k = conv.get(c["id"])
+        facteur = k["facteur"] if k else 1.0
+        entree = {
+            "champ": c["id"], "label": c["label"], "unite": c.get("unite"),
+            "rubrique": code, "unite_rubrique": RUBRIQUES[code]["unite"],
+            "grandeur": RUBRIQUES[code]["grandeur"],
+            "conversion": None if not k else {
+                "formule": k["formule"], "estimee": k["estimee"],
+                "note": k["note"], "source": k["source"],
+                "possible": facteur is not None},
+            "marge_note": MARGE_REPERE_NOTE,
+            "variantes": [],
+        }
+        for v in _variantes(code):
+            paliers = [dict(p, a_partir_de_champ=(
+                            _arrondi_seuil(p["a_partir_de"] * facteur,
+                                           k is not None)
+                            if facteur is not None else None))
+                       for p in v["paliers"]]
+            entree["variantes"].append(dict(
+                v, paliers=paliers,
+                reperes=(_reperes(v["paliers"], facteur)
+                         if facteur is not None else [])))
+        entree["discriminant"] = DISCRIMINANTS.get(code)
+        par_champ[c["id"]] = entree
+
+    par_rubrique = {}
+    for code, r in RUBRIQUES.items():
+        champs = [c["id"] for c in CHAMPS
+                  if c.get("rubrique") == code and c["type"] == "nombre"]
+        par_rubrique[code] = {
+            "numero": r["numero"], "intitule": r["intitule"],
+            "grandeur": r["grandeur"], "unite": r["unite"],
+            "variantes": _variantes(code),
+            "discriminant": DISCRIMINANTS.get(code),
+            "champs": champs,
+            # UNE RUBRIQUE DONT LA GRANDEUR SE SAISIT AILLEURS doit le dire.
+            # Sans cette mention, un lecteur qui ne trouve pas le champ dans
+            # ce formulaire conclut que la rubrique n'est pas criblée.
+            "saisie_ailleurs": None if champs else _SAISIE_AILLEURS.get(code),
+        }
+    return {"rubriques": par_rubrique, "champs": par_champ,
+            "regimes": REGIMES, "marge": MARGE_REPERE,
+            "marge_note": MARGE_REPERE_NOTE, "texte": TEXTE_SOURCE}
+
+
+# Où se saisit la grandeur des rubriques que le formulaire de criblage ne
+# porte pas lui-même.
+_SAISIE_AILLEURS = {
+    "1185": "La charge en fluide frigorigène se saisit au profil de "
+            "l'installation, avec le mode de refroidissement — c'est là "
+            "qu'elle sert aussi au calcul carbone.",
+    "2921": "La puissance évacuée se saisit ci-dessus ; à défaut, le criblage "
+            "retient la puissance informatique du profil, et le dit.",
+}
+
 
 
 _FAUTES = _verifier()

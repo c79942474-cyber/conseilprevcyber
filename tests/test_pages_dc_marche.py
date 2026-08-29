@@ -63,6 +63,7 @@ def test_les_zones_de_rendu_des_sections_ajoutees_existent():
     `$("#…")` rend null, et le rendu ne se produit jamais."""
     h = lire("ingenierie-datacenter.html")
     for zid in ("ig-icpe-form", "ig-icpe-out", "ig-icpe-msg",
+                "ig-icpe-bareme",
                 "ig-res-form", "ig-res-out", "ig-res-msg",
                 "ig-tr-form", "ig-tr-out", "ig-tr-msg",
                 "ig-ao-depot", "ig-ao-out", "ig-ao-cand-out", "ig-ao-msg"):
@@ -72,7 +73,10 @@ def test_les_zones_de_rendu_des_sections_ajoutees_existent():
 # ── Le câblage : ce qui est défini est appelé, ce qui est appelé existe ────
 
 @pytest.mark.parametrize("fn", ["icpeFormulaire", "icpeCribler", "icpeRendre",
-                                "icpeFiche", "reseauFormulaire",
+                                "icpeFiche", "icpeBareme", "icpeEchelles",
+                                "icpeSeuilEtat", "icpeVariante",
+                                "icpeEchelleTexte", "icpeBaremeChamp",
+                                "reseauFormulaire",
                                 "reseauChiffrer", "reseauRendre", "reseauMode",
                                 "reseauNonServi", "reseauProduction",
                                 "travauxFormulaire",
@@ -120,9 +124,114 @@ def test_les_formulaires_ajoutes_sont_dessines_au_demarrage():
     js = sans_commentaires_js(lire("ingenierie-dc.js"))
     i = js.index("function démarrer(")
     corps = js[i:i + 6000]
-    for appel in ("icpeFormulaire(", "reseauFormulaire(",
+    for appel in ("icpeFormulaire(", "icpeBareme(", "reseauFormulaire(",
                   "travauxFormulaire(", "aoDocuments("):
         assert appel in corps, appel
+
+
+# ── Les seuils de la nomenclature, là où on les saisit ────────────────────
+
+def test_aucun_seuil_de_la_nomenclature_n_est_ecrit_dans_le_rendu():
+    """LA FAUTE QUE CETTE RÈGLE EMPÊCHE. La nomenclature est modifiée par
+    décret plusieurs fois par an. Un seuil recopié dans la page continuerait
+    de s'afficher, juste et rassurant, longtemps après être devenu faux — et
+    il contredirait en silence le criblage, qui, lui, aurait été mis à jour.
+
+    LA RECHERCHE EST CIBLÉE SUR LES DEUX FONCTIONS QUI DESSINENT UNE ÉCHELLE,
+    et c'est délibéré. Balayer tout le fichier pour des nombres comme 1 ou 50
+    remonterait des largeurs de fenêtre et des découpes de chaîne : une règle
+    qu'il faut assortir d'exceptions cesse vite d'être lue. Un seuil en dur ne
+    peut vivre qu'à l'endroit où une échelle se compose, et c'est là qu'on
+    regarde — toutes valeurs confondues, converties comprises."""
+    import icpe_dc
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    seuils = set()
+    for r in icpe_dc.RUBRIQUES.values():
+        for cle in r:
+            if cle.startswith("seuils"):
+                seuils |= {bas for bas, _h, _rg in r[cle] if bas}
+    b = icpe_dc.bareme()
+    for e in b["champs"].values():
+        for v in e["variantes"]:
+            seuils |= {p["a_partir_de_champ"] for p in v["paliers"]
+                       if p["a_partir_de_champ"]}
+    assert len(seuils) >= 8, "trop peu de seuils cherchés pour prouver quoi que ce soit"
+    for nom, fin in (("icpeEchelleTexte", "function icpeSeuilEtat("),
+                     ("icpeBareme", "function icpeVariante(")):
+        i = js.index("function %s(" % nom)
+        corps = js[i:js.index(fin)] if fin in js[i:] else js[i:i + 3000]
+        for v in sorted(seuils):
+            formes = {str(v)}
+            if float(v).is_integer():
+                formes.add(str(int(v)))
+            for forme in formes:
+                motif = r"(?<![\d.])%s(?![\d.])" % re.escape(forme)
+                assert not re.search(motif, corps), (
+                    "le seuil %s est écrit dans %s" % (forme, nom))
+
+
+def test_le_bareme_et_les_echelles_viennent_du_serveur():
+    """Les seuils, les conversions et les valeurs d'essai sont calculés par le
+    module qui connaît la nomenclature ET les unités de saisie. La page les
+    lit ; elle ne les recompose pas."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    assert "CADRE.icpe_bareme" in js
+    i = js.index("function icpeBaremeChamp(")
+    assert "b.champs" in js[i:i + 400]
+
+
+def test_la_variante_de_bareme_se_choisit_sur_le_discriminant_servi():
+    """TROIS RUBRIQUES CHANGENT DE BARÈME selon le projet. La correspondance
+    entre la réponse et le barème applicable appartient au module — une règle
+    écrite dans la page divergerait du criblage au premier alinéa modifié, et
+    le lecteur viserait un seuil que le criblage n'applique pas."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function icpeVariante(")
+    corps = js[i:i + 1200]
+    assert "d.valeurs" in corps and "d.sinon" in corps
+    # Aucune clé de variante n'est écrite dans la page : elles viennent
+    # toutes de la table du module.
+    import icpe_dc
+    cles = {v["cle"] for r in icpe_dc.RUBRIQUES
+            for v in icpe_dc._variantes(r) if v["cle"] != "defaut"}
+    for cle in cles:
+        assert '"%s"' % cle not in corps, cle
+
+
+def test_le_depassement_de_seuil_se_voit_pendant_la_saisie():
+    """Un contour qui n'apparaîtrait qu'après avoir demandé le criblage
+    arriverait trop tard : le lecteur a déjà quitté le champ, et il ne fait
+    plus le lien entre la valeur qu'il vient de taper et le régime."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function icpeFormulaire(")
+    corps = js[i:js.index("function icpeBareme(")]
+    assert 'addEventListener("input"' in corps
+    assert "icpeSeuilEtat" in corps
+
+
+def test_le_depassement_ne_se_signale_pas_que_par_la_couleur():
+    """UN CONTOUR ROUGE SEUL EST MUET pour un lecteur d'écran, et invisible
+    pour qui ne distingue pas les rouges. Le régime atteint s'écrit — et il
+    le faut de toute façon : les trois régimes ne coûtent pas le même délai,
+    et un contour ne dit pas lequel vient d'être déclenché."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function icpeSeuilEtat(")
+    corps = js[i:i + 2000]
+    assert "ig-depasse" in corps
+    assert "regime_nom" in corps
+    assert "ig-franchi" in corps
+
+
+def test_les_valeurs_d_essai_remplissent_le_champ_et_ne_le_prefixent_pas():
+    """Le menu PROPOSE, il ne décide pas : il retombe sur son entrée vide
+    après avoir rempli le champ, de sorte qu'aucune valeur ne reste
+    présélectionnée dans le formulaire."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function icpeFormulaire(")
+    corps = js[i:js.index("function icpeBareme(")]
+    j = corps.index("ig-seuil-sel")
+    assert "cible.value = sel.value" in corps
+    assert "sel.value = \"\"" in corps[j:]
 
 
 def test_le_formulaire_de_raccordement_est_alimente_par_le_referentiel():

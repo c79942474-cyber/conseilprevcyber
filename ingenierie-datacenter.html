@@ -686,6 +686,46 @@
     line-height:1.7;color:var(--muted)}
   .ig-icpe-res{margin:12px 0 0;font-size:10.5px;line-height:1.6;
     color:var(--muted2)}
+
+  /* ── L'ÉCHELLE DES SEUILS, SOUS LE CHAMP ────────────────────────────────
+     LE SEUIL SE LIT LÀ OÙ ON SAISIT. Renvoyer le lecteur à un tableau plus
+     bas pour savoir ce qu'il vise revient à ne pas le lui dire : il tape une
+     valeur, il ne quitte pas son champ pour aller la comparer.
+
+     LE FOND RESTE BRIQUE, et un contour rouge sur un fond rouge se voit mal.
+     D'où l'anneau : la bordure seule ne suffirait pas à cette palette, et un
+     signal qu'on ne voit pas ne vaut pas mieux qu'une absence de signal. */
+  .ig-echelle{display:flex;flex-wrap:wrap;gap:4px 8px;margin-top:5px;
+    font-size:10.5px;line-height:1.55}
+  .ig-palier{font-family:var(--mono);font-size:10px;color:var(--muted2);
+    border:1px solid var(--line);border-radius:4px;padding:1px 6px;
+    white-space:nowrap}
+  /* La couleur du palier suit le POIDS du régime, pas son rang alphabétique :
+     une déclaration et une autorisation ne coûtent pas le même délai. */
+  .ig-palier-E{border-color:rgba(240,180,41,.5);color:var(--amber)}
+  .ig-palier-A{border-color:rgba(217,96,58,.6);color:var(--danger)}
+  .ig-echelle-q{flex:1 1 100%;font-size:10.5px;color:var(--muted2);
+    font-style:italic}
+  .ig-echelle-n{flex:1 1 100%;font-size:10px;color:var(--muted2);
+    line-height:1.55}
+  .ig-franchi{flex:1 1 100%;font-size:11px;font-weight:600;
+    color:var(--danger)}
+  .ig-bareme{margin:14px 0 0;width:100%;border-collapse:collapse;
+    font-size:11.5px}
+  .ig-bareme th,.ig-bareme td{padding:6px 8px;text-align:left;
+    border-bottom:1px solid var(--line);vertical-align:top}
+  .ig-bareme th{font-size:10.5px;text-transform:uppercase;
+    letter-spacing:.04em;color:var(--muted2);font-weight:600}
+  .ig-bareme td.n{font-family:var(--mono);white-space:nowrap}
+  .ig-bareme .ig-echelle{margin-top:0}
+  .ig-bareme-w{overflow-x:auto}
+  .ig-seuil-sel{margin-top:5px;font-size:11.5px}
+  .ig-seuil-sel[hidden]{display:none}
+  input.ig-depasse{border-color:var(--terra);
+    box-shadow:0 0 0 2px rgba(217,96,58,.35)}
+  input.ig-depasse:focus{border-color:var(--terra);
+    box-shadow:0 0 0 3px rgba(217,96,58,.45)}
+
   @media (max-width:620px){
     .ig-icpe-d,.ig-icpe-q{grid-template-columns:1fr;gap:1px}
     .ig-icpe-q dd{margin-bottom:8px}
@@ -2204,6 +2244,7 @@
       rubriques aller lire — c'est ce qu'on fait en première réunion, et cela
       n'a jamais remplacé le bureau d'études qui monte le dossier.
     </div>
+    <div id="ig-icpe-bareme"></div>
     <div class="rc-card" id="ig-icpe-form"><p class="note">Chargement…</p></div>
     <button type="button" class="ig-lanceur-b" id="ig-icpe-go">Cribler les rubriques →</button>
     <p class="note" id="ig-icpe-msg" style="margin-top:10px"></p>
