@@ -6001,8 +6001,25 @@ def api_rag_search_federe():
     fuite, pas une commodité. La clé ouvre la porte ; elle n'ouvre pas les
     tiroirs.
     """
-    attendue = os.environ.get("RAG_PAIR_CLE", "").strip()
-    if not attendue:
+    # PLUSIEURS CLÉS ACCEPTÉES, ET C'EST UNE SÉPARATION, PAS UN CONFORT.
+    # `RAG_PAIR_CLE` faisait double emploi : la clé avec laquelle ce serveur
+    # SERT, et celle avec laquelle il APPELLE son pair. Tant qu'il n'y avait
+    # que deux applications, la confusion était sans conséquence — les deux
+    # valeurs devaient de toute façon coïncider. À trois, elle impose une clé
+    # unique partagée par toute la maison : compromettre une application les
+    # ouvre toutes, et faire tourner une clé oblige à redéployer les trois le
+    # même jour.
+    #
+    # `RAG_CLES_SERVIES` porte donc les clés que CE serveur accepte — une par
+    # appelant si on le souhaite. À défaut, on retombe sur `RAG_PAIR_CLE` :
+    # une installation existante continue de fonctionner sans rien changer.
+    brut = (os.environ.get("RAG_CLES_SERVIES", "").strip()
+            or os.environ.get("RAG_PAIR_CLE", "").strip())
+    # Séparées par virgule, point-virgule ou espace — sans expression
+    # régulière : `re` n'est pas importé ici, et l'y ajouter pour découper une
+    # liste de trois valeurs coûterait plus qu'il ne rapporte.
+    attendues = [x for x in brut.replace(";", " ").replace(",", " ").split() if x]
+    if not attendues:
         return jsonify(ok=False, error="federation_non_configuree",
                        message="La recherche fédérée n'est pas configurée sur "
                                "ce serveur (RAG_PAIR_CLE absente)."), 403
@@ -6011,12 +6028,19 @@ def api_rag_search_federe():
     # emoji dans la clé configurée, et la route rend 500 au lieu de refuser.
     # L'exploitant lirait « erreur du serveur » là où le diagnostic est
     # « votre clé contient un caractère interdit ». On le dit.
+    #
+    # ET ON LES COMPARE TOUTES, SANS SORTIR À LA PREMIÈRE QUI CORRESPOND : une
+    # sortie anticipée ferait varier le temps de réponse avec le RANG de la clé
+    # valide, ce qui est précisément le genre de fuite que la comparaison en
+    # temps constant existe pour fermer.
+    egales = False
     try:
-        egales = hmac.compare_digest(fournie, attendue)
+        for attendue in attendues:
+            egales = hmac.compare_digest(fournie, attendue) or egales
     except TypeError:
-        app.logger.error("RAG_PAIR_CLE contient un caractère non ASCII : la "
-                         "comparaison est impossible, la fédération refusera "
-                         "tout appel.")
+        app.logger.error("Une clé de fédération contient un caractère non "
+                         "ASCII : la comparaison est impossible, la "
+                         "fédération refusera tout appel.")
         return jsonify(ok=False, error="cle_non_ascii",
                        message="La clé de fédération configurée contient un "
                                "caractère non ASCII. Employez une valeur "

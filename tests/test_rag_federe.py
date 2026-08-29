@@ -379,15 +379,21 @@ def test_la_mention_compte_les_deux_bases(pair):
 
 
 def test_la_mention_dit_quand_le_pair_n_a_pas_repondu(monkeypatch):
-    """LA MENTION LA PLUS UTILE DES TROIS. Un livrable écrit sur une seule base
-    aurait pu être différent, et le lecteur est le seul à pouvoir en décider."""
+    """LA MENTION LA PLUS UTILE DES TROIS. Un livrable écrit sans une base
+    aurait pu être différent, et le lecteur est le seul à pouvoir en décider.
+
+    LA RÈGLE PORTE SUR LA PROPRIÉTÉ, PAS SUR UN MOT. Elle exigeait le mot
+    « SEULE » — juste tant qu'il n'y avait que deux bases, faux dès qu'il y en
+    a trois : on peut en avoir interrogé deux sur trois, et « seule » serait
+    alors un mensonge. Ce qui doit tenir est que la base absente soit NOMMÉE et
+    que la conséquence soit dite."""
     monkeypatch.setattr(rag_federe, "PAIR", "http://127.0.0.1:9")
     monkeypatch.setattr(rag_federe, "ACTIF", True)
     rag_federe.oublier()
     m = rag_federe.mention(rag_federe.chercher("question", LOCAUX, k=4))
-    assert "SEULE" in m
+    assert rag_federe.NOM_PAIR in m, "la base absente n'est pas nommée"
+    assert "n'a pas pu être interrogée" in m
     assert "aurait pu être différent" in m
-    assert rag_federe.NOM_PAIR in m
 
 
 def test_la_mention_distingue_le_pair_muet_du_pair_absent(pair):
@@ -395,7 +401,10 @@ def test_la_mention_distingue_le_pair_muet_du_pair_absent(pair):
     pareil, et ne se lisent pas pareil dans un document."""
     pair.corps = {"ok": True, "resultats": []}
     m = rag_federe.mention(rag_federe.chercher("sujet inconnu", LOCAUX, k=4))
-    assert "n'a rien rendu" in m and "SEULE" not in m
+    assert "n'a rien rendu" in m
+    assert "n'a pas pu être interrogée" not in m, (
+        "une base muette est présentée comme injoignable : les deux ne se "
+        "soignent pas pareil")
 
 
 def test_une_cle_accentuee_est_refusee_avec_son_motif(pair, monkeypatch):
@@ -456,3 +465,204 @@ def test_l_en_tete_du_connecteur_passe_le_filtre_anti_robot():
 def test_sans_aucun_extrait_la_mention_le_dit():
     assert "Aucun extrait" in rag_federe.mention(
         {"n_local": 0, "n_pair": 0, "pair_ok": True, "motif": ""})
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  6. TROIS BASES — la maison en compte plus de deux
+# ══════════════════════════════════════════════════════════════════════════
+# CE QUI CHANGE AVEC LE TROISIÈME PAIR, et qu'aucune règle ne couvrait :
+#
+#   · un disjoncteur PARTAGÉ ferait qu'une base en panne écarte les autres —
+#     la panne d'un pair coûterait la fédération entière, ce que le
+#     disjoncteur existe précisément pour éviter ;
+#   · un cache clé sur la seule requête servirait la réponse d'une base pour
+#     une autre. C'est le défaut le plus difficile à voir de toute cette
+#     mécanique, puisque le résultat resterait plausible ;
+#   · les égalités de rang sont la RÈGLE avec des listes de même longueur :
+#     il faut un ordre déclaré, sinon la même rédaction rend deux ordres
+#     différents à deux minutes d'intervalle.
+
+
+class _PairB(_Pair):
+    """Un second pair, avec son propre journal et son propre corps."""
+    journal = []
+    statut = 200
+    lenteur = 0.0
+    corps = None
+
+
+@pytest.fixture
+def trois_bases(monkeypatch):
+    """Un local et DEUX pairs, chacun avec son serveur et sa clé."""
+    srvs, ports = [], []
+    for cls in (_Pair, _PairB):
+        s = ThreadingHTTPServer(("127.0.0.1", 0), cls)
+        threading.Thread(target=s.serve_forever, daemon=True).start()
+        cls.journal = []
+        cls.statut = 200
+        cls.lenteur = 0.0
+        cls.corps = None
+        srvs.append(s)
+        ports.append(s.server_address[1])
+    monkeypatch.setattr(rag_federe, "PAIR", "http://127.0.0.1:%d" % ports[0])
+    monkeypatch.setattr(rag_federe, "CLE", "cle-un")
+    monkeypatch.setattr(rag_federe, "NOM_PAIR", "CONSEILPREV Cyber")
+    monkeypatch.setattr(rag_federe, "NOM_LOCAL", "CONSEILPREV")
+    monkeypatch.setattr(rag_federe, "ACTIF", True)
+    monkeypatch.setattr(rag_federe, "PAIRS_SUP",
+                        [{"nom": "CONSEILPREV IA",
+                          "url": "http://127.0.0.1:%d" % ports[1],
+                          "cle": "cle-deux"}])
+    rag_federe.oublier()
+    yield {"a": _Pair, "b": _PairB, "ports": ports}
+    for s in srvs:
+        s.shutdown()
+    rag_federe.oublier()
+
+
+def test_les_trois_bases_sont_declarees_et_ordonnees(trois_bases):
+    noms = [p["nom"] for p in rag_federe.pairs()]
+    assert noms == ["CONSEILPREV Cyber", "CONSEILPREV IA"]
+    assert rag_federe.configure() is True
+    assert rag_federe.etat()["n_pairs"] == 2
+
+
+def test_chaque_pair_recoit_sa_propre_cle(trois_bases):
+    """UNE CLÉ PAR PAIR. Une clé unique partagée par trois applications fait que
+    la compromission d'une seule les ouvre toutes, et que la rotation de l'une
+    oblige à redéployer les trois le même jour."""
+    rag_federe.interroger_tous("question", k=4)
+    assert trois_bases["a"].journal[-1]["cle"] == "cle-un"
+    assert trois_bases["b"].journal[-1]["cle"] == "cle-deux"
+
+
+def test_les_deux_pairs_sont_interroges_et_leurs_fragments_reviennent(trois_bases):
+    r = rag_federe.chercher("zones et conduits", LOCAUX, k=8)
+    bases = set()
+    for f in r["fragments"]:
+        bases |= rag_federe.bases_de(f)
+    assert bases == {"CONSEILPREV", "CONSEILPREV Cyber", "CONSEILPREV IA"}
+    assert r["par_base"]["CONSEILPREV IA"] > 0
+
+
+def test_un_pair_en_panne_ne_prive_pas_des_autres(trois_bases, monkeypatch):
+    """LA PROPRIÉTÉ QUI JUSTIFIE UN DISJONCTEUR PAR PAIR. Une base tombée ne
+    doit coûter que ses documents — pas ceux des deux autres."""
+    monkeypatch.setattr(rag_federe, "PAIRS_SUP",
+                        [{"nom": "CONSEILPREV IA",
+                          "url": "http://127.0.0.1:9", "cle": "cle-deux"}])
+    rag_federe.oublier()
+    r = rag_federe.chercher("question", LOCAUX, k=8)
+    assert r["par_base"].get("CONSEILPREV Cyber", 0) > 0, (
+        "la base qui répond a été écartée avec celle qui ne répond plus")
+    assert "CONSEILPREV IA" in r["motifs"]
+    m = rag_federe.mention(r)
+    assert "CONSEILPREV IA" in m and "aurait pu être différent" in m
+
+
+def test_le_disjoncteur_d_un_pair_n_ecarte_pas_les_autres(trois_bases, monkeypatch):
+    monkeypatch.setattr(rag_federe, "PAIRS_SUP",
+                        [{"nom": "CONSEILPREV IA",
+                          "url": "http://127.0.0.1:9", "cle": "x"}])
+    rag_federe.oublier()
+    for i in range(rag_federe.ECHECS_AVANT_COUPURE + 1):
+        rag_federe.interroger_tous("q%d" % i, k=2)
+    par_pair = {p["nom"]: p for p in rag_federe.etat()["pairs"]}
+    assert par_pair["CONSEILPREV IA"]["coupe"] is True
+    assert par_pair["CONSEILPREV Cyber"]["coupe"] is False
+    # Et la base saine répond toujours, disjoncteur de l'autre ouvert ou non.
+    assert rag_federe.interroger_tous("encore", k=2)["ok"] is True
+
+
+def test_le_cache_ne_sert_pas_la_reponse_d_une_base_pour_une_autre(trois_bases):
+    """LE DÉFAUT LE PLUS DIFFICILE À VOIR DE TOUTE CETTE MÉCANIQUE. Une clé de
+    cache portant la seule requête ferait servir la réponse du premier pair
+    pour le second : le résultat resterait plausible, et rien ne signalerait
+    que la seconde base n'a jamais été lue."""
+    trois_bases["a"].corps = {"ok": True, "resultats": [
+        {"texte": "réponse de la première base", "document": "A", "id": 1}]}
+    trois_bases["b"].corps = {"ok": True, "resultats": [
+        {"texte": "réponse de la seconde base", "document": "B", "id": 2}]}
+    def textes_de(r):
+        return {f["texte"] for liste in r["fragments"] for f in liste}
+
+    attendu = {"réponse de la première base", "réponse de la seconde base"}
+    assert textes_de(rag_federe.interroger_tous("même question", k=4)) == attendu
+    assert len(trois_bases["a"].journal) == 1
+    assert len(trois_bases["b"].journal) == 1
+
+    # LE SECOND APPEL EST CELUI QUI COMPTE, et la première version de cette
+    # règle ne le faisait pas. Les pairs étant interrogés EN PARALLÈLE, les
+    # deux requêtes partent avant qu'aucune réponse ne soit mise en cache :
+    # au premier tour, une clé de cache commune ne se voit pas. C'est au
+    # second, quand les deux bases lisent la même entrée, que l'une se met à
+    # servir la réponse de l'autre.
+    assert textes_de(rag_federe.interroger_tous("même question", k=4)) == attendu
+    assert len(trois_bases["a"].journal) == 1, "le cache du premier pair n'a pas servi"
+    assert len(trois_bases["b"].journal) == 1, "le cache du second pair n'a pas servi"
+
+
+def test_les_pairs_sont_interroges_en_parallele(trois_bases):
+    """Trois pairs interrogés l'un après l'autre additionnent leurs délais. Sur
+    un pair lent, la rédaction attendrait trois fois — et l'utilisateur paierait
+    la lenteur de chacun."""
+    trois_bases["a"].lenteur = 0.4
+    trois_bases["b"].lenteur = 0.4
+    t0 = time.time()
+    rag_federe.interroger_tous("question", k=2)
+    ecoule = time.time() - t0
+    assert ecoule < 0.75, ("les pairs semblent interrogés en série : %.2f s "
+                           "pour deux appels de 0,4 s" % ecoule)
+
+
+def test_un_fragment_connu_des_trois_bases_le_dit(trois_bases):
+    commun = {"texte": "Le même passage, partout.", "document": "Commun",
+              "document_id": 42}
+    f = rag_federe.fusionner_n([
+        [dict(commun, base="CONSEILPREV")],
+        [dict(commun, base="CONSEILPREV Cyber")],
+        [dict(commun, base="CONSEILPREV IA")]], k=4)
+    assert len(f) == 1, "le même extrait est rendu plusieurs fois"
+    assert rag_federe.bases_de(f[0]) == {"CONSEILPREV", "CONSEILPREV Cyber",
+                                         "CONSEILPREV IA"}
+
+
+def test_a_rang_egal_l_ordre_des_bases_departage_et_reste_stable():
+    """LES ÉGALITÉS SONT LA RÈGLE avec des listes de même longueur : chaque
+    fragment vaut exactement le même poids rang par rang. Sans ordre déclaré,
+    la même rédaction rendrait deux classements différents à deux minutes
+    d'intervalle."""
+    def frag(nom, base):
+        return {"texte": "t" + nom, "document": nom, "document_id": nom,
+                "base": base}
+    listes = [[frag("zz", "CONSEILPREV")],
+              [frag("aa", "CONSEILPREV Cyber")],
+              [frag("mm", "CONSEILPREV IA")]]
+    attendu = ["zz", "aa", "mm"]
+    for _ in range(5):
+        assert [f["document"] for f in
+                rag_federe.fusionner_n(listes, k=5)] == attendu
+    assert attendu != sorted(attendu), (
+        "l'ordre de déclaration doit contredire l'ordre alphabétique, sans "
+        "quoi un tri sur le titre passerait pour un ordre de bases")
+
+
+def test_la_mention_nomme_chaque_base_absente(trois_bases, monkeypatch):
+    monkeypatch.setattr(rag_federe, "PAIRS_SUP",
+                        [{"nom": "CONSEILPREV IA",
+                          "url": "http://127.0.0.1:9", "cle": "x"}])
+    rag_federe.oublier()
+    m = rag_federe.mention(rag_federe.chercher("question", LOCAUX, k=4))
+    assert "CONSEILPREV IA" in m
+    assert "CONSEILPREV" in m
+
+
+def test_un_pair_declare_deux_fois_n_est_interroge_qu_une_fois(monkeypatch):
+    """Une URL répétée entre `RAG_PAIR_URL` et `RAG_PAIR2_URL` doublerait le
+    poids de cette base dans la fusion — elle apparaîtrait deux fois dans le
+    classement, et paraîtrait deux fois plus sûre."""
+    monkeypatch.setattr(rag_federe, "PAIR", "http://exemple.test")
+    monkeypatch.setattr(rag_federe, "PAIRS_SUP",
+                        [{"nom": "Doublon", "url": "http://exemple.test",
+                          "cle": "x"}])
+    assert [p["url"] for p in rag_federe.pairs()] == ["http://exemple.test"]

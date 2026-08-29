@@ -209,3 +209,60 @@ def test_une_cle_configuree_non_ascii_refuse_au_lieu_de_planter(client, monkeypa
     assert r.get_json()["error"] == "cle_non_ascii"
     assert "hexad" in r.get_json()["message"], (
         "le message ne dit pas quoi employer à la place")
+
+
+# ── Plusieurs clés servies : une par appelant ──────────────────────────────
+# LA CONFUSION QUE CE BLOC ÉPROUVE. `RAG_PAIR_CLE` faisait double emploi : la
+# clé avec laquelle ce serveur SERT, et celle avec laquelle il APPELLE son
+# pair. À deux applications, la confusion était sans conséquence. À trois, elle
+# impose une clé unique partagée par toute la maison — compromettre une
+# application les ouvre toutes.
+
+def test_plusieurs_cles_servies_sont_acceptees(client, monkeypatch):
+    monkeypatch.setenv("RAG_CLES_SERVIES", "cle-de-A, cle-de-B ; cle-de-C")
+    monkeypatch.setenv("RAG_PAIR_CLE", "")
+    for cle in ("cle-de-A", "cle-de-B", "cle-de-C"):
+        r = client.post("/api/rag/search", json={"query": "sécurité"},
+                        headers={"X-Rag-Cle": cle})
+        assert r.status_code == 200, (cle, r.status_code)
+
+
+def test_une_cle_absente_de_la_liste_est_refusee(client, monkeypatch):
+    monkeypatch.setenv("RAG_CLES_SERVIES", "cle-de-A cle-de-B")
+    monkeypatch.setenv("RAG_PAIR_CLE", "")
+    r = client.post("/api/rag/search", json={"query": "sécurité"},
+                    headers={"X-Rag-Cle": "cle-de-Z"})
+    assert r.status_code == 403
+    assert r.get_json()["error"] == "cle_invalide"
+
+
+def test_la_cle_historique_reste_acceptee_seule(client, monkeypatch):
+    """Une installation existante ne déclare que `RAG_PAIR_CLE` : elle doit
+    continuer de fonctionner sans que personne n'ait rien à changer."""
+    monkeypatch.delenv("RAG_CLES_SERVIES", raising=False)
+    monkeypatch.setenv("RAG_PAIR_CLE", "cle-historique")
+    r = client.post("/api/rag/search", json={"query": "sécurité"},
+                    headers={"X-Rag-Cle": "cle-historique"})
+    assert r.status_code == 200
+
+
+def test_la_comparaison_ne_sort_pas_a_la_premiere_cle_valide():
+    """UNE SORTIE ANTICIPÉE FERAIT VARIER LE TEMPS DE RÉPONSE avec le RANG de
+    la clé valide dans la liste — précisément la fuite que la comparaison en
+    temps constant existe pour fermer.
+
+    Éprouvé sur la forme de la boucle : l'accumulation par `or egales` la
+    parcourt entière, un `break` ou un `return` ne le ferait pas."""
+    import os
+    import re as _re
+    ici = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(ici, "app.py"), encoding="utf-8") as f:
+        src = f.read()
+    i = src.index("def api_rag_search_federe(")
+    corps = src[i:i + 4000]
+    boucle = corps[corps.index("for attendue in attendues"):]
+    boucle = boucle[:boucle.index("except TypeError")]
+    assert "or egales" in boucle
+    assert not _re.search(r"\b(break|return)\b", boucle), (
+        "la boucle de comparaison sort par anticipation : le temps de réponse "
+        "révélerait le rang de la clé valide")

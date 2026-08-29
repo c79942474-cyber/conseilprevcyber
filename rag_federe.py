@@ -55,6 +55,64 @@ NOM_LOCAL = os.environ.get("RAG_NOM", "").strip() or "base locale"
 ACTIF = (os.environ.get("RAG_FEDERE", "1").strip().lower()
          not in ("0", "off", "non", "false"))
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  PLUSIEURS PAIRS — parce que la maison en compte plus de deux
+# ═══════════════════════════════════════════════════════════════════════════
+# CE QUI A CHANGÉ. Le module a été écrit pour DEUX bases, et la maison en tient
+# désormais trois. Un pair unique obligeait à choisir laquelle des deux autres
+# on renonçait à interroger.
+#
+# LES VARIABLES SONT NUMÉROTÉES, ET C'EST DÉLIBÉRÉ. Un format compact —
+# « nom|url|clé;nom|url|clé » — tiendrait dans une seule variable, et se
+# saisirait de travers une fois sur deux dans une console d'hébergeur, sans
+# message d'erreur. `RAG_PAIR2_URL` se lit, se corrige et se compare à
+# `RAG_PAIR_URL` sans rien connaître d'un format.
+#
+# CHAQUE PAIR A SA PROPRE CLÉ. Une clé unique partagée par trois applications
+# fait que la compromission d'une seule les ouvre toutes ; et la rotation de
+# l'une oblige à redéployer les trois le même jour. À défaut de clé propre, le
+# pair reprend celle du premier — ce qui reste le montage le plus simple, et
+# doit rester possible.
+PAIRS_MAX = 8
+
+
+def _lire_pairs_supplementaires():
+    out = []
+    for i in range(2, PAIRS_MAX + 1):
+        url = os.environ.get("RAG_PAIR%d_URL" % i, "").strip().rstrip("/")
+        if not url:
+            continue
+        out.append({
+            "nom": (os.environ.get("RAG_PAIR%d_NOM" % i, "").strip()
+                    or ("base partenaire %d" % i)),
+            "url": url,
+            "cle": (os.environ.get("RAG_PAIR%d_CLE" % i, "").strip() or CLE),
+        })
+    return out
+
+
+PAIRS_SUP = _lire_pairs_supplementaires()
+
+
+def pairs():
+    """Les pairs déclarés, dans l'ordre — le premier est celui d'origine.
+
+    CALCULÉE À L'APPEL, jamais figée au chargement. Les variables historiques
+    `RAG_PAIR_URL` / `RAG_PAIR_CLE` / `RAG_PAIR_NOM` restent le PREMIER pair :
+    une installation existante continue de fonctionner sans rien changer, et
+    les essais qui les remplacent à chaud voient leur remplacement.
+    """
+    out = []
+    if PAIR:
+        out.append({"nom": NOM_PAIR, "url": PAIR, "cle": CLE})
+    for p in PAIRS_SUP:
+        # UNE URL RÉPÉTÉE ENTRE `RAG_PAIR_URL` ET `RAG_PAIR2_URL` doublerait le
+        # poids de cette base dans la fusion : elle apparaîtrait deux fois au
+        # classement, et paraîtrait deux fois plus sûre.
+        if p["url"] and p["url"] != PAIR:
+            out.append(p)
+    return out
+
 CHEMIN = "/api/rag/search"
 
 DELAI_CONNEXION = 4
@@ -70,17 +128,46 @@ DUREE_CACHE = 3600
 RRF_K = 60
 
 _verrou = threading.Lock()
+# UN DISJONCTEUR PAR PAIR, ET C'EST LE POINT. Un état partagé ferait qu'une
+# seule base en panne écarte les deux autres — la panne d'un pair coûterait la
+# fédération entière, ce qui est exactement ce que le disjoncteur existe pour
+# éviter. Le cache est clé par (pair, requête) pour la même raison.
+_etats = {}
 _etat = {"echecs": 0, "coupe_jusqu_a": 0.0, "motif": "", "derniere_reussite": 0.0}
 _cache = {}
 
 
+def _etat_de(url):
+    """L'état d'un pair. Le premier pair partage l'état historique `_etat`,
+    de sorte qu'un appelant qui l'inspecte voie encore ce qu'il voyait."""
+    if url == PAIR:
+        return _etat
+    return _etats.setdefault(url, {"echecs": 0, "coupe_jusqu_a": 0.0,
+                                   "motif": "", "derniere_reussite": 0.0})
+
+
 def configure():
-    """Vrai si un pair est déclaré et le connecteur actif."""
-    return bool(ACTIF and PAIR)
+    """Vrai si AU MOINS UN pair est déclaré et le connecteur actif."""
+    return bool(ACTIF and pairs())
 
 
 def etat():
-    """Ce que le connecteur dit de lui-même, sans rien tenter."""
+    """Ce que le connecteur dit de lui-même, sans rien tenter.
+
+    Les clés historiques décrivent le PREMIER pair — une console qui les lit
+    continue de fonctionner. `pairs` les donne tous, chacun avec son propre
+    disjoncteur : une base en panne se voit, les autres aussi.
+    """
+    maintenant = time.time()
+    liste = []
+    for p in pairs():
+        e = _etat_de(p["url"])
+        liste.append({
+            "nom": p["nom"], "url": p["url"], "cle": bool(p["cle"]),
+            "coupe": maintenant < e["coupe_jusqu_a"],
+            "motif": e["motif"],
+            "derniere_reussite": e["derniere_reussite"] or None,
+        })
     return {
         "actif": ACTIF,
         "pair": PAIR,
@@ -88,16 +175,19 @@ def etat():
         "nom_local": NOM_LOCAL,
         "configure": configure(),
         "cle": bool(CLE),
-        "coupe": time.time() < _etat["coupe_jusqu_a"],
+        "coupe": maintenant < _etat["coupe_jusqu_a"],
         "motif": _etat["motif"],
         "derniere_reussite": _etat["derniere_reussite"] or None,
+        "pairs": liste,
+        "n_pairs": len(liste),
     }
 
 
 def oublier():
-    """Vide le cache et rouvre le disjoncteur."""
+    """Vide le cache et rouvre TOUS les disjoncteurs."""
     with _verrou:
         _cache.clear()
+        _etats.clear()
         _etat.update({"echecs": 0, "coupe_jusqu_a": 0.0, "motif": ""})
 
 
@@ -163,49 +253,75 @@ def _cle(f):
 # ═══════════════════════════════════════════════════════════════════════════
 
 def interroger(query, k=8):
-    """Les fragments PUBLICS du pair. Rend {ok, fragments, motif}.
+    """Les fragments PUBLICS du PREMIER pair. Rend {ok, fragments, motif}.
+
+    Conservée telle quelle : c'est le geste d'origine, et tout ce qui
+    l'appelait continue de fonctionner. `interroger_tous` interroge la
+    fédération entière.
 
     `ok` faux n'est pas une exception : c'est un pair injoignable, et la
     rédaction continue sur la base locale."""
+    liste = pairs()
+    if not ACTIF:
+        return {"ok": False, "fragments": [],
+                "motif": "fédération désactivée (RAG_FEDERE=0)"}
+    if not liste:
+        return {"ok": False, "fragments": [],
+                "motif": "aucun pair déclaré (RAG_PAIR_URL absente)"}
+    return interroger_pair(liste[0], query, k)
+
+
+def interroger_pair(pair, query, k=8):
+    """Les fragments publics d'UN pair, avec son cache et son disjoncteur.
+
+    LE CACHE EST CLÉ PAR PAIR autant que par requête : deux bases qui
+    répondent à la même question ne rendent pas la même chose, et une clé
+    commune ferait servir la réponse de l'une pour l'autre — le défaut le plus
+    difficile à voir de toute cette mécanique, puisque le résultat resterait
+    plausible.
+    """
     q = (query or "").strip()[:500]
     if not q:
         return {"ok": False, "fragments": [], "motif": "requête vide"}
     if not ACTIF:
         return {"ok": False, "fragments": [],
                 "motif": "fédération désactivée (RAG_FEDERE=0)"}
-    if not PAIR:
+    if not (pair or {}).get("url"):
         return {"ok": False, "fragments": [],
                 "motif": "aucun pair déclaré (RAG_PAIR_URL absente)"}
 
-    cle = (q, int(k))
+    cle = (pair["url"], q, int(k))
     maintenant = time.time()
     entree = _cache.get(cle)
     if entree and maintenant - entree[0] < DUREE_CACHE:
         return entree[1]
 
+    etat_pair = _etat_de(pair["url"])
     with _verrou:
-        if maintenant < _etat["coupe_jusqu_a"]:
+        if maintenant < etat_pair["coupe_jusqu_a"]:
             return {"ok": False, "fragments": [],
-                    "motif": _etat["motif"] or "pair momentanément écarté"}
-    ok, res = _appel(q, k)
+                    "motif": etat_pair["motif"] or "pair momentanément écarté"}
+    ok, res = _appel(q, k, pair)
     with _verrou:
         if ok:
-            _etat.update({"echecs": 0, "motif": "", "coupe_jusqu_a": 0.0,
-                          "derniere_reussite": time.time()})
+            etat_pair.update({"echecs": 0, "motif": "", "coupe_jusqu_a": 0.0,
+                              "derniere_reussite": time.time()})
         else:
-            _etat["echecs"] += 1
-            _etat["motif"] = res
-            if _etat["echecs"] >= ECHECS_AVANT_COUPURE:
-                # LE DISJONCTEUR. Sans lui, un pair injoignable ajoute son délai
-                # d'expiration à CHAQUE livrable : l'utilisateur paie la panne
-                # autant de fois qu'il rédige.
-                _etat["coupe_jusqu_a"] = time.time() + DUREE_COUPURE
+            etat_pair["echecs"] += 1
+            etat_pair["motif"] = res
+            if etat_pair["echecs"] >= ECHECS_AVANT_COUPURE:
+                # LE DISJONCTEUR, PAIR PAR PAIR. Sans lui, un pair injoignable
+                # ajoute son délai d'expiration à CHAQUE livrable : l'utilisateur
+                # paie la panne autant de fois qu'il rédige. Et partagé entre
+                # pairs, il ferait écarter les bases qui répondent avec celle
+                # qui ne répond plus.
+                etat_pair["coupe_jusqu_a"] = time.time() + DUREE_COUPURE
     if not ok:
         return {"ok": False, "fragments": [], "motif": res}
 
     fragments = []
     for x in res:
-        f = canoniser(x, NOM_PAIR)
+        f = canoniser(x, pair["nom"])
         if f:
             fragments.append(f)
     sortie = {"ok": True, "fragments": fragments[:k], "motif": ""}
@@ -213,24 +329,77 @@ def interroger(query, k=8):
     return sortie
 
 
-def _appel(query, k):
-    """Un aller-retour HTTP. Rend (ok, liste_ou_motif)."""
+def interroger_tous(query, k=8):
+    """Tous les pairs, EN PARALLÈLE. Rend {par_pair, fragments, ok, motifs}.
+
+    EN PARALLÈLE, ET C'EST LE POINT. Trois pairs interrogés l'un après l'autre
+    additionnent leurs délais : sur un pair lent, la rédaction attendrait trois
+    fois. Les appels sont indépendants et bornés chacun par son propre délai ;
+    les mener de front coûte trois fils et rend le pire des trois au lieu de
+    leur somme.
+
+    UNE PANNE NE COÛTE QUE SES DOCUMENTS. Chaque pair a son disjoncteur : les
+    bases qui répondent répondent, celle qui est tombée est nommée dans les
+    motifs, et le livrable pourra le dire.
+    """
+    liste = pairs()
+    if not ACTIF or not liste:
+        return {"par_pair": [], "fragments": [], "ok": False,
+                "motifs": {}, "n_pairs": 0}
+    if len(liste) == 1:
+        r = interroger_pair(liste[0], query, k)
+        return {"par_pair": [dict(r, nom=liste[0]["nom"])],
+                "fragments": [r["fragments"]] if r["fragments"] else [],
+                "ok": r["ok"],
+                "motifs": {} if r["ok"] else {liste[0]["nom"]: r["motif"]},
+                "n_pairs": 1}
+    import concurrent.futures as _cf
+    par_pair = [None] * len(liste)
+    with _cf.ThreadPoolExecutor(max_workers=len(liste)) as ex:
+        futurs = {ex.submit(interroger_pair, p, query, k): i
+                  for i, p in enumerate(liste)}
+        for f in _cf.as_completed(futurs):
+            i = futurs[f]
+            try:
+                par_pair[i] = dict(f.result(), nom=liste[i]["nom"])
+            except Exception:                            # pragma: no cover
+                par_pair[i] = {"ok": False, "fragments": [],
+                               "motif": "erreur interne du connecteur",
+                               "nom": liste[i]["nom"]}
+    return {
+        "par_pair": par_pair,
+        # L'ORDRE DES LISTES EST CELUI DE LA DÉCLARATION, pas celui des
+        # réponses. Sans quoi la fusion départagerait les égalités selon qui a
+        # répondu le plus vite ce jour-là, et la même rédaction rendrait deux
+        # ordres différents à deux minutes d'intervalle.
+        "fragments": [r["fragments"] for r in par_pair if r and r["fragments"]],
+        "ok": any(r and r["ok"] for r in par_pair),
+        "motifs": {r["nom"]: r["motif"] for r in par_pair
+                   if r and not r["ok"] and r.get("motif")},
+        "n_pairs": len(liste),
+    }
+
+
+def _appel(query, k, pair=None):
+    """Un aller-retour HTTP vers un pair. Rend (ok, liste_ou_motif)."""
+    url = (pair or {}).get("url") or PAIR
+    cle_pair = (pair or {}).get("cle") if pair else CLE
     entetes = {"Content-Type": "application/json",
                "User-Agent": "conseilprev-rag-federe/1.0"}
-    if CLE:
+    if cle_pair:
         # UN EN-TÊTE HTTP NE TRANSPORTE QUE DE L'ASCII. Une clé accentuée fait
         # lever la bibliothèque au moment de l'envoi — une exception, là où ce
         # module promet de n'en jamais laisser passer vers la rédaction. On
         # refuse donc avant, avec le motif qui dit quoi corriger.
         try:
-            CLE.encode("ascii")
+            cle_pair.encode("ascii")
         except UnicodeEncodeError:
             return False, ("la clé RAG_PAIR_CLE contient un caractère non "
                            "ASCII : employez une valeur hexadécimale ou base64")
-        entetes["X-Rag-Cle"] = CLE
+        entetes["X-Rag-Cle"] = cle_pair
     try:
         r = requests.post(
-            PAIR + CHEMIN,
+            url + CHEMIN,
             json={"query": query, "top_k": min(int(k), 10)},
             headers=entetes,
             timeout=(DELAI_CONNEXION, DELAI_LECTURE))
@@ -274,9 +443,28 @@ def fusionner(locaux, distants, k=8):
     présent dans les DEUX bases cumule les deux — ce qui est exactement le
     signal qu'on veut faire remonter.
     """
+    return fusionner_n([locaux or [], distants or []], k)
+
+
+def fusionner_n(listes, k=8):
+    """N listes mêlées par RANG. Même règle, autant de bases qu'on veut.
+
+    LA FUSION PAR RANG SUPPORTE N LISTES SANS RIEN CHANGER, et c'est
+    précisément sa vertu : chaque fragment vaut 1/(K + son rang) dans SA liste,
+    et les contributions s'additionnent. Un fragment que trois bases connaissent
+    cumule trois fois — ce qui est exactement le signal qu'on veut faire
+    remonter, et qu'aucun tri par score ne rendrait.
+
+    L'ORDRE DES LISTES DÉPARTAGE LES ÉGALITÉS, et elles sont la règle : trois
+    listes de même longueur donnent les mêmes poids rang par rang. La base
+    locale d'abord — elle est la matière première de l'application —, puis les
+    pairs dans l'ordre où ils sont déclarés. Départager sur le titre laisserait
+    l'alphabet décider quelle maison parle en premier.
+    """
+    ordre = {}
     poids = {}
     fragments = {}
-    for liste in (locaux or [], distants or []):
+    for rang_liste, liste in enumerate(listes or []):
         for rang, f in enumerate(liste):
             if not f:
                 continue
@@ -286,20 +474,21 @@ def fusionner(locaux, distants, k=8):
             poids[c] = poids.get(c, 0.0) + 1.0 / (RRF_K + rang + 1)
             if c not in fragments:
                 fragments[c] = dict(f)
-            elif fragments[c].get("base") != f.get("base"):
-                # LE FRAGMENT QUE LES DEUX MAISONS CONNAISSENT. Le dire vaut
+                ordre[c] = rang_liste
+            elif f.get("base") and f["base"] not in bases_de(fragments[c]):
+                # LE FRAGMENT QUE PLUSIEURS MAISONS CONNAISSENT. Le dire vaut
                 # mieux que de choisir arbitrairement une provenance : c'est le
                 # fragment sur lequel on peut le plus s'appuyer.
                 fragments[c]["base"] = "%s + %s" % (fragments[c]["base"], f["base"])
                 fragments[c]["deux_bases"] = True
-    # LES ÉGALITÉS SONT LA RÈGLE, PAS L'EXCEPTION : deux listes de même longueur
+    # LES ÉGALITÉS SONT LA RÈGLE, PAS L'EXCEPTION : des listes de même longueur
     # donnent exactement les mêmes poids rang par rang. Les départager par ordre
     # alphabétique de document reviendrait à laisser le titre décider de la
-    # maison qui parle en premier. On préfère la base LOCALE : elle est la
-    # matière première de l'application, le pair la complète.
+    # maison qui parle en premier. On départage par l'ORDRE DES LISTES — la
+    # locale d'abord, puis les pairs tels qu'ils sont déclarés —, et le titre ne
+    # sert que de dernier recours, pour que le résultat reste reproductible.
     def _rang(c):
-        return (-poids[c], 0 if fragments[c].get("base") == NOM_LOCAL else 1,
-                fragments[c]["document"])
+        return (-poids[c], ordre.get(c, 99), fragments[c]["document"])
     out = []
     for c in sorted(poids, key=_rang)[:k]:
         f = fragments[c]
@@ -320,24 +509,37 @@ def bases_de(fragment):
 
 
 def chercher(query, locaux, k=8):
-    """Le geste complet : le pair, puis la fusion avec ce que l'appelant a déjà.
+    """Le geste complet : TOUS les pairs, puis la fusion avec le local.
 
     `locaux` sont les fragments de la base locale, DÉJÀ trouvés et déjà classés
     par l'appelant — on ne les recalcule pas, chaque application sachant mieux
     que ce module comment interroger la sienne.
 
-    Rend {fragments, pair_ok, motif, n_local, n_pair} : le compte par base est
-    ce qui permet à un livrable de dire sur quoi il a été écrit."""
+    Rend le compte PAR BASE : c'est ce qui permet à un livrable de dire sur
+    quoi il a été écrit, et surtout quelles bases n'ont pas répondu. Les clés
+    `pair_ok`, `motif`, `n_local` et `n_pair` décrivent encore le premier pair,
+    pour que ce qui les lisait continue de fonctionner.
+    """
     locaux = [canoniser(x, NOM_LOCAL) for x in (locaux or [])]
     locaux = [x for x in locaux if x]
-    r = interroger(query, k)
-    fusion = fusionner(locaux, r["fragments"], k)
+    tous = interroger_tous(query, k)
+    fusion = fusionner_n([locaux] + tous["fragments"], k)
+    par_base = {}
+    for f in fusion:
+        for b in bases_de(f):
+            par_base[b] = par_base.get(b, 0) + 1
+    premier = (tous["par_pair"] or [{}])[0]
     return {
         "fragments": fusion,
-        "pair_ok": r["ok"],
-        "motif": r["motif"],
-        "n_local": sum(1 for f in fusion if NOM_LOCAL in bases_de(f)),
-        "n_pair": sum(1 for f in fusion if NOM_PAIR in bases_de(f)),
+        "pair_ok": tous["ok"],
+        "motif": premier.get("motif") or "; ".join(
+            "%s : %s" % (n, m) for n, m in (tous["motifs"] or {}).items()),
+        "n_local": par_base.get(NOM_LOCAL, 0),
+        "n_pair": par_base.get(NOM_PAIR, 0),
+        "par_base": par_base,
+        "motifs": tous["motifs"],
+        "n_pairs": tous["n_pairs"],
+        "pairs_ok": [r["nom"] for r in tous["par_pair"] if r and r["ok"]],
     }
 
 
@@ -374,22 +576,38 @@ def mention(res):
     """La phrase qui accompagne un livrable : sur quoi il a été écrit.
 
     ELLE EST DUE MÊME QUAND TOUT VA BIEN. Un lecteur qui reçoit un document
-    doit savoir si la seconde base a été consultée — et surtout quand elle ne
-    l'a pas été, parce que le document aurait pu être différent."""
-    n_l, n_p = res.get("n_local", 0), res.get("n_pair", 0)
-    if not (n_l or n_p):
+    doit savoir quelles bases ont été consultées — et surtout lesquelles ne
+    l'ont pas été, parce que le document aurait pu être différent.
+
+    CHAQUE BASE MUETTE EST NOMMÉE. Avec trois bases, « la fédération a
+    partiellement échoué » ne dit rien d'exploitable : c'est le NOM de la base
+    absente qui permet de juger si le document est complet sur son sujet.
+    """
+    par_base = res.get("par_base")
+    if par_base is None:
+        par_base = {NOM_LOCAL: res.get("n_local", 0),
+                    NOM_PAIR: res.get("n_pair", 0)}
+    presentes = [(b, n) for b, n in par_base.items() if n]
+    if not presentes:
         return "Aucun extrait documentaire n'a été retrouvé pour cette rédaction."
-    if res.get("pair_ok"):
-        if n_p:
-            return ("Rédigé à partir de %d extrait%s de %s et %d de %s."
-                    % (n_l, "s" if n_l > 1 else "", NOM_LOCAL, n_p, NOM_PAIR))
-        return ("Rédigé à partir de %d extrait%s de %s ; %s a été interrogée et "
-                "n'a rien rendu sur ce sujet."
-                % (n_l, "s" if n_l > 1 else "", NOM_LOCAL, NOM_PAIR))
-    return ("Rédigé à partir de %d extrait%s de %s SEULE : %s n'a pas pu être "
-            "interrogée (%s). Le document aurait pu être différent."
-            % (n_l, "s" if n_l > 1 else "", NOM_LOCAL, NOM_PAIR,
-               res.get("motif") or "cause non qualifiée"))
+    presentes.sort(key=lambda x: (0 if x[0] == NOM_LOCAL else 1, x[0]))
+    compte = ", ".join("%d de %s" % (n, b) for b, n in presentes)
+    phrase = "Rédigé à partir de %s." % compte
+    motifs = res.get("motifs") or {}
+    if motifs:
+        return phrase + (" %s n'a pas pu être interrogée (%s). Le document "
+                         "aurait pu être différent."
+                         % (" ni ".join(sorted(motifs)),
+                            " ; ".join("%s" % m for m in motifs.values())))
+    muettes = [p["nom"] for p in pairs()
+               if p["nom"] not in par_base and p["nom"] != NOM_LOCAL]
+    if muettes:
+        return phrase + (" %s %s été interrogée%s et n'%s rien rendu sur ce "
+                         "sujet." % (", ".join(muettes),
+                                     "ont" if len(muettes) > 1 else "a",
+                                     "s" if len(muettes) > 1 else "",
+                                     "ont" if len(muettes) > 1 else "a"))
+    return phrase
 
 
 def bloc_prompt(fragments, numeroter=True):
