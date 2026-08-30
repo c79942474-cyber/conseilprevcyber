@@ -65,6 +65,11 @@ HORS_MENU_OUVERT = {
     "/health": "sonde de l'hébergeur",
     "/robots.txt": "lu par les moteurs, sans session",
     "/sitemap.xml": "lu par les moteurs, sans session",
+    # LE FLUX SORTANT DE LA VEILLE. Il ne rend que ce que la page publique rend
+    # déjà — titres, liens vers les sources, et notre classement. Le fermer
+    # n'aurait rien protégé et l'aurait rendu inutile : un flux dont il faut un
+    # compte n'est pas un flux.
+    "/veille.xml": "flux de veille, lu par les agrégateurs sans session",
 }
 
 # Réservé à l'administrateur — inchangé, rappelé ici pour que la politique se

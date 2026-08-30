@@ -5732,6 +5732,7 @@ def robots_txt():
          "# tout le public est citable, rien du prive n'est offert.", ""]
         + [groupe(b) + "\n" for b in _ROBOTS_IA]
         + ["Sitemap: %s/sitemap.xml" % base,
+           "# Flux de veille (Atom) : %s/veille.xml" % base,
            "# Resume du site pour les assistants : %s/llms.txt" % base,
            ""])
     return Response(body, mimetype="text/plain")
@@ -5788,6 +5789,89 @@ ci-dessous sont publiques et citables.
     r = Response(corps, mimetype="text/plain; charset=utf-8")
     r.headers["Cache-Control"] = "public, max-age=3600"
     return r
+
+
+@app.route("/veille.xml")
+def veille_atom():
+    """Le flux sortant de la veille — Atom.
+
+    TRENTE-SIX FLUX ENTRENT, AUCUN NE SORTAIT. Ce qui est publiable ici n'est
+    pas le contenu : les titres et les chapeaux appartiennent aux éditeurs, et
+    l'on n'en reprend que ce qu'ils mettent eux-mêmes dans leurs flux pour être
+    repris. Ce qui est À NOUS, c'est LE CLASSEMENT — domaine, pays de
+    l'émetteur, secteur, standard cité, caractère réglementaire. C'est un
+    travail original, et c'est lui qui a de la valeur pour un tiers : un abonné
+    peut filtrer « réglementaire + centres de données + France » sans nous
+    appeler.
+
+    LES FACETTES SONT DES `<category>`, mécanisme prévu par le format pour
+    exactement cela — chacune avec son `scheme`, faute de quoi « FR » (un pays)
+    et « DORA » (un standard) se liraient dans le même sac.
+
+    CE QUE CE FLUX N'EST PAS : ni STIX, ni TAXII, ni MISP. Ces formats
+    transportent des indicateurs de compromission — empreintes, adresses,
+    domaines malveillants. Nous collectons de l'actualité réglementaire ; y
+    faire passer une révision de norme produirait quelque chose qu'aucun
+    consommateur ne saurait exploiter.
+    """
+    import veille_facettes as _vf
+    base = _base_url()
+    try:
+        items = _vf.enrichir(automation.veille_list(limit=60))
+    except Exception:
+        app.logger.exception("flux de veille")
+        items = []
+
+    def esc(t):
+        return (str(t or "").replace("&", "&amp;").replace("<", "&lt;")
+                .replace(">", "&gt;"))
+
+    def iso(ms):
+        return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime((ms or 0) / 1000.0))
+
+    maj = iso(max([i.get("published") or 0 for i in items] or [0]))
+    parts = ['<?xml version="1.0" encoding="UTF-8"?>',
+             '<feed xmlns="http://www.w3.org/2005/Atom">',
+             "  <title>Veille CONSEILPREV Cyber — actualités réglementaires, "
+             "nouveaux standards et normes</title>",
+             "  <subtitle>Cybersécurité industrielle, gouvernance de l'IA, GRC "
+             "et centres de données. Les textes viennent des éditeurs ; le "
+             "classement est le nôtre.</subtitle>",
+             '  <link rel="alternate" href="%s/veille"/>' % esc(base),
+             '  <link rel="self" href="%s/veille.xml"/>' % esc(base),
+             "  <id>%s/veille.xml</id>" % esc(base),
+             "  <updated>%s</updated>" % maj]
+    for it in items:
+        f = it.get("facettes") or {}
+        parts.append("  <entry>")
+        parts.append("    <title>%s</title>" % esc(it.get("title")))
+        # UNE ENTRÉE SANS ADRESSE RECEVABLE EST PUBLIÉE SANS LIEN, jamais
+        # omise : `enrichir` a déjà écarté les schémas qui s'exécutent, et
+        # faire disparaître l'actualité par-dessus le marché priverait
+        # l'abonné de l'information ET de la raison de son absence.
+        if it.get("link"):
+            parts.append('    <link rel="alternate" href="%s"/>' % esc(it["link"]))
+        parts.append("    <id>%s</id>" % esc(it.get("guid") or it.get("link")
+                                             or it.get("title")))
+        parts.append("    <updated>%s</updated>" % iso(it.get("published")))
+        parts.append("    <author><name>%s</name></author>"
+                     % esc(it.get("emetteur") or "source"))
+        for schema, valeurs in (("domaine", [it.get("domaine")]),
+                                ("pays", [f.get("pays")]),
+                                ("theme", f.get("themes") or []),
+                                ("standard", f.get("standards") or []),
+                                ("secteur", f.get("secteurs") or []),
+                                ("entreprise", f.get("entreprises") or [])):
+            for v in valeurs:
+                if v:
+                    parts.append('    <category scheme="%s" term="%s"/>'
+                                 % (schema, esc(v)))
+        if f.get("reglementaire"):
+            parts.append('    <category scheme="nature" term="reglementaire"/>')
+        parts.append("    <summary>%s</summary>" % esc(it.get("resume")))
+        parts.append("  </entry>")
+    parts.append("</feed>")
+    return Response("\n".join(parts), mimetype="application/atom+xml")
 
 
 @app.route("/sitemap.xml")
