@@ -5948,6 +5948,61 @@ def api_rag_nature():
     return jsonify(ok=True, nature=nature, qualifies=qualifies, echecs=echecs)
 
 
+@app.route("/api/admin/rag/retirer", methods=["POST"])
+@admin_required
+def api_rag_retirer():
+    """Retire de la base documentaire une famille qu'elle ne collecte plus.
+
+    DEUX FAMILLES, DEUX RAISONS DIFFÉRENTES, et il vaut mieux les distinguer :
+
+      · `csv` — un tableau découpé en fragments de neuf cents caractères perd
+        sa ligne d'en-tête dès le deuxième morceau. Ce qui reste dans l'index
+        est une suite de valeurs dont on ne sait plus de quelles colonnes elles
+        viennent : le fragment pèse sur chaque recherche et ne peut répondre à
+        rien. Les feuilles de calcul restent lues ENTIÈRES par l'analyse des
+        pièces de marché et par les contrats — c'est la base documentaire qui
+        les écarte, pas la plateforme ;
+      · `veille` — les bulletins CERT-FR ont leur propre magasin et leur
+        propre page. La base n'en recevait qu'une copie, qui a fini par
+        occuper la majorité du fonds. La page de veille n'est pas touchée.
+
+    SIMULATION PAR DÉFAUT. Sans `confirmer`, la route COMPTE ce qui partirait
+    et ne supprime rien : la décision se prend sur un nombre, pas sur une
+    intention. Avec `confirmer`, la suppression est IRRÉVERSIBLE — le texte,
+    les fragments et le fichier d'origine partent ensemble.
+    """
+    import rag_store as _rs
+    data = request.get_json(silent=True) or {}
+    famille = (data.get("famille") or "").strip().lower()
+    confirmer = bool(data.get("confirmer"))
+    familles = sorted(_rs.EXT_RETIREES) + ["veille"]
+    if famille not in familles:
+        return jsonify(ok=False, error="famille_inconnue",
+                       message="Famille inconnue — choisissez-en une dans la "
+                               "liste.", familles=familles), 400
+    try:
+        if famille == "veille":
+            res = rag.supprimer_veille(simuler=not confirmer)
+        else:
+            res = rag.supprimer_extension(famille, simuler=not confirmer)
+    except RagError as exc:
+        return jsonify(ok=False, error=exc.args[0],
+                       message="Suppression impossible."), 400
+    except Exception:
+        app.logger.exception("retrait de famille %r", famille)
+        return jsonify(ok=False, error="suppression",
+                       message="La suppression n'a pas pu être menée."), 500
+    if confirmer:
+        # JOURNALISÉ PARCE QU'IRRÉVERSIBLE. Un retrait de plusieurs centaines
+        # de documents doit laisser une trace datée et nominative : sans elle,
+        # personne ne peut dire six mois plus tard pourquoi le fonds a maigri.
+        audit.journaliser("rag.retirer", cible=famille,
+                          detail="%d document(s), %d fragment(s) supprimés"
+                                 % (res.get("documents", 0),
+                                    res.get("fragments", 0)))
+    return jsonify(ok=True, **res)
+
+
 @app.route("/api/admin/rag/search", methods=["POST"])
 @admin_required
 def api_rag_search():

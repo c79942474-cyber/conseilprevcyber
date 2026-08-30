@@ -70,8 +70,39 @@ LISTE_PLAFOND = 10000
 # des deux ne disait ce que l'autre refusait. Un .log passait ici et échouait
 # là ; un .png passait là et échouait ici — deux refus, deux messages, pour la
 # même tentative.
-ALLOWED_EXT = {"txt", "md", "csv", "log", "json", "pdf", "docx", "xlsx", "xlsm",
-               "pptx", "pptm"}
+_FORMATS_INDEXABLES = {"txt", "md", "csv", "log", "json", "pdf", "docx",
+                       "xlsx", "xlsm", "pptx", "pptm"}
+
+# ── CE QUE LA BASE DOCUMENTAIRE NE COLLECTE PLUS ──────────────────────────
+# CE QU'UN TABLEAU DEVIENT UNE FOIS DÉCOUPÉ. Les fragments font neuf cents
+# caractères. Un tableau y perd sa ligne d'en-tête dès le deuxième fragment,
+# et une suite de valeurs séparées par des points-virgules, sans le nom des
+# colonnes, ne désigne plus rien : le fragment entre dans l'index, il pèse sur
+# chaque recherche, et il ne peut répondre à aucune question — on ne sait plus
+# de quelle grandeur il parle.
+#
+# LES FEUILLES DE CALCUL RESTENT LUES AILLEURS, ET C'EST LE POINT. L'analyse
+# des pièces de marché les reconnaît et les traite ENTIÈRES, à leur place ;
+# les contrats aussi. C'est la base DOCUMENTAIRE qui les écarte, parce que le
+# découpage en fragments les détruit — pas la plateforme.
+#
+# UNE SEULE DÉCLARATION GOUVERNE LES TROIS COMPORTEMENTS : ce qui n'est plus
+# déposé, ce qui se compte encore en base tant qu'on ne l'a pas supprimé, et
+# ce que le sélecteur de fichier propose. Trois listes séparées auraient
+# divergé, et le sélecteur aurait continué d'offrir un format voué au refus.
+EXT_RETIREES = {"csv"}
+
+# LE THÈME DE VEILLE, RETIRÉ POUR UNE AUTRE RAISON. Les bulletins CERT-FR
+# n'ont rien de mal découpé : ils sont simplement en nombre, datés, et
+# re-téléchargeables à volonté. Ils occupaient la majorité de la base
+# documentaire — trois documents listés sur cinq — pour répondre à des
+# questions qu'on ne pose pas à un fonds d'ingénierie, et ils ont leur propre
+# page, alimentée par leur propre magasin. Les retirer du RAG ne retire rien
+# au site.
+THEME_VEILLE = "Veille"
+PREFIXE_VEILLE = "[CERT-FR]"
+
+ALLOWED_EXT = _FORMATS_INDEXABLES - EXT_RETIREES
 
 
 # La qualification des sources : ce que vaut un document, et comment il se
@@ -631,6 +662,20 @@ def _porte_analyse(filename, data):
         raise e
 
 
+def _ext_a_retirer(ext):
+    """L'extension visée, bornée à celles qui ont été RETIRÉES.
+
+    LA SUPPRESSION EN LOT NE VISE QUE CE QUI EST DÉCLARÉ RETIRÉ. Ouvrir la
+    fonction à n'importe quelle extension ferait d'une route
+    d'administration un moyen de vider la base d'un mot — « pdf » supprimerait
+    l'essentiel du fonds, avec la même syntaxe et sans plus d'avertissement.
+    """
+    e = (ext or "").strip().lower().lstrip(".")
+    if e not in EXT_RETIREES:
+        raise RagError("extension_non_retiree", 400)
+    return e
+
+
 def _nature_valide(nature):
     """La nature, validée contre le vocabulaire du module de qualification.
 
@@ -977,6 +1022,57 @@ class MemoryRagStore:
             self._save()
         return True
 
+    def _residus(self, docs):
+        """Ce que la base ne collecte plus mais détient encore."""
+        out = {}
+        for e in sorted(EXT_RETIREES):
+            n = sum(1 for d in docs if (d.get("ext") or "").lower() == e)
+            if n:
+                out[e] = n
+        n = sum(1 for d in docs if self._est_veille(d))
+        if n:
+            out["veille"] = n
+        return out
+
+    def _est_veille(self, d):
+        return ((d.get("theme") or "") == THEME_VEILLE
+                or (d.get("title") or "").startswith(PREFIXE_VEILLE))
+
+    def supprimer_veille(self, simuler=True):
+        """Retire les bulletins de veille. Voir la version PostgreSQL."""
+        with self._lock:
+            vises = [d for d in self._docs.values() if self._est_veille(d)]
+            frags = sum(len(self._chunks.get(d["id"]) or []) for d in vises)
+            octets = sum(int(d.get("bytes") or 0) for d in vises)
+            if not simuler:
+                for d in vises:
+                    self._docs.pop(d["id"], None)
+                    self._chunks.pop(d["id"], None)
+                    self._blobs.pop(d["id"], None)
+                self._save()
+        return {"famille": "veille", "documents": len(vises),
+                "fragments": frags, "octets": octets, "simule": bool(simuler)}
+
+    def supprimer_extension(self, ext, simuler=True):
+        """Retire de la base tous les documents d'une extension. Voir la
+        version PostgreSQL."""
+        e = _ext_a_retirer(ext)
+        with self._lock:
+            vises = [d for d in self._docs.values()
+                     if (d.get("ext") or "").lower() == e]
+            frags = sum(len(self._chunks.get(d["id"]) or []) for d in vises)
+            octets = sum(int(d.get("bytes") or 0) for d in vises)
+            if simuler:
+                return {"extension": e, "documents": len(vises),
+                        "fragments": frags, "octets": octets, "simule": True}
+            for d in vises:
+                self._docs.pop(d["id"], None)
+                self._chunks.pop(d["id"], None)
+                self._blobs.pop(d["id"], None)
+            self._save()
+        return {"extension": e, "documents": len(vises), "fragments": frags,
+                "octets": octets, "simule": False}
+
     def delete_document(self, doc_id):
         with self._lock:
             if doc_id not in self._docs:
@@ -1002,6 +1098,12 @@ class MemoryRagStore:
                     "publics": sum(1 for d in docs
                                    if d.get("visibility") == "public"),
                     "chunks": sum(len(c) for c in self._chunks.values()),
+                    # LES MÊMES CLÉS QUE LA BASE, ET POUR LA MÊME RAISON qu'à
+                    # la recherche : un repli qui compte autrement ferait
+                    # afficher à la console deux états différents pour la même
+                    # situation, selon que la base répond ou non — et c'est le
+                    # jour où elle ne répond pas que personne ne le vérifie.
+                    "residus": self._residus(docs),
                     "themes": themes, "mode": "lexical",
                     "storage": {"db_bytes": None,
                                 "rag_bytes": sum(len(b) for b in self._blobs.values())}}
@@ -1684,6 +1786,66 @@ class PostgresRagStore:
             raise RagError("document_inconnu", 404)
         return True
 
+    def supprimer_veille(self, simuler=True):
+        """Retire les bulletins de veille CERT-FR de la base documentaire.
+
+        CE QUI N'EST PAS TOUCHÉ, et c'est l'essentiel : la page de veille et
+        son flux. Les bulletins y sont tenus par un magasin qui leur est
+        propre ; la base documentaire n'en recevait qu'une COPIE, pour la
+        recherche. Supprimer la copie ne retire rien au site, et la collecte
+        peut être rallumée d'une variable si l'on change d'avis.
+        """
+        with self._conn() as conn:
+            r = conn.execute(
+                "SELECT count(*), COALESCE(SUM(nb_chunks),0), "
+                "COALESCE(SUM(bytes),0) FROM rag_documents "
+                "WHERE theme=%s OR title LIKE %s",
+                (THEME_VEILLE, PREFIXE_VEILLE + "%")).fetchone()
+            compte = {"famille": "veille", "documents": int(r[0]),
+                      "fragments": int(r[1]), "octets": int(r[2])}
+            if simuler:
+                return dict(compte, simule=True)
+            n = conn.execute("DELETE FROM rag_documents "
+                             "WHERE theme=%s OR title LIKE %s",
+                             (THEME_VEILLE, PREFIXE_VEILLE + "%")).rowcount
+            compte["documents"] = n
+        return dict(compte, simule=False)
+
+    def supprimer_extension(self, ext, simuler=True):
+        """Retire de la base TOUS les documents d'une extension. IRRÉVERSIBLE.
+
+        POURQUOI CE N'EST PAS UNE PURGE. `purge_storage` promet dans sa
+        première ligne que « rien n'est supprimé qui ne soit reconstituable » —
+        des chargements interrompus, des bulletins re-téléchargeables, des
+        fichiers d'origine dont le texte reste en base. Ici, le document part
+        ENTIÈREMENT : son texte, ses fragments, son fichier. Ranger cela sous
+        la même fonction reviendrait à faire mentir sa garantie, et un jour
+        quelqu'un s'y fierait.
+
+        `simuler` est VRAI PAR DÉFAUT, et c'est délibéré : un appel écrit de
+        travers compte au lieu de détruire. Le compte rendu dit ce qui
+        partirait — documents, fragments, octets — de sorte que la décision se
+        prenne sur un nombre et non sur une intention.
+
+        Les fragments et les fichiers d'origine suivent par cascade : les deux
+        tables déclarent ON DELETE CASCADE, et les supprimer à part laisserait
+        des orphelins le jour où l'une des deux requêtes échouerait.
+        """
+        e = _ext_a_retirer(ext)
+        with self._conn() as conn:
+            r = conn.execute(
+                "SELECT count(*), COALESCE(SUM(nb_chunks),0), "
+                "COALESCE(SUM(bytes),0) FROM rag_documents "
+                "WHERE lower(ext)=%s", (e,)).fetchone()
+            compte = {"extension": e, "documents": int(r[0]),
+                      "fragments": int(r[1]), "octets": int(r[2])}
+            if simuler:
+                return dict(compte, simule=True)
+            n = conn.execute("DELETE FROM rag_documents WHERE lower(ext)=%s",
+                             (e,)).rowcount
+            compte["documents"] = n
+        return dict(compte, simule=False)
+
     def delete_document(self, doc_id):
         with self._conn() as conn:
             n = conn.execute("DELETE FROM rag_documents WHERE id=%s", (doc_id,)).rowcount
@@ -1841,8 +2003,14 @@ class PostgresRagStore:
                 detail["chargements_interrompus"] = conn.execute(
                     "DELETE FROM rag_uploads").rowcount
             if "veille" in scopes:
+                # LE THÈME **OU** LE PRÉFIXE DE TITRE. Sur le seul thème, un
+                # bulletin reclassé à la main survivait à la purge — et la
+                # console, qui l'écarte du tableau sur son titre, ne l'aurait
+                # jamais montré. Deux critères pour le cacher, un seul pour le
+                # supprimer : c'est ainsi qu'on fabrique un fantôme.
                 detail["veille_documents"] = conn.execute(
-                    "DELETE FROM rag_documents WHERE theme='Veille'").rowcount
+                    "DELETE FROM rag_documents WHERE theme=%s OR title LIKE %s",
+                    (THEME_VEILLE, PREFIXE_VEILLE + "%")).rowcount
             if "blobs" in scopes:
                 detail["fichiers_origine"] = conn.execute(
                     "DELETE FROM rag_blobs").rowcount
@@ -1875,6 +2043,27 @@ class PostgresRagStore:
                     "SELECT theme,count(*) FROM rag_documents GROUP BY theme "
                     "ORDER BY 2 DESC").fetchall():
                 themes[theme or "Général"] = c
+            # LE RÉSIDU SE COMPTE, IL NE SE CACHE PAS. Un document retiré du
+            # format collecté mais encore en base occupe de la place et pèse
+            # sur la recherche. Le masquer de la console en ferait un fantôme :
+            # invisible partout, présent quand même, et personne pour le
+            # supprimer. On le COMPTE, et la console propose de l'effacer.
+            residus = {}
+            for e in sorted(EXT_RETIREES):
+                n = conn.execute("SELECT count(*) FROM rag_documents "
+                                 "WHERE lower(ext)=%s", (e,)).fetchone()[0]
+                if n:
+                    residus[e] = int(n)
+            # LE MÊME CRITÈRE QUE LA SUPPRESSION, et c'est ce qui empêche le
+            # fantôme : la console masque du tableau tout ce qui porte le thème
+            # OU le préfixe de titre. Compter sur le seul thème laisserait un
+            # bulletin reclassé à la main invisible ET non compté — présent,
+            # sans que rien ne le montre ni ne le supprime.
+            n = conn.execute("SELECT count(*) FROM rag_documents "
+                             "WHERE theme=%s OR title LIKE %s",
+                             (THEME_VEILLE, PREFIXE_VEILLE + "%")).fetchone()[0]
+            if n:
+                residus["veille"] = int(n)
             # Occupation disque (surveillance de la limite de stockage de la base) :
             # taille totale de la base + part des tables RAG (fragments, originaux…).
             storage = None
@@ -1890,7 +2079,7 @@ class PostgresRagStore:
             except Exception:
                 pass
         return {"documents": docs, "publics": publics, "chunks": chunks,
-                "themes": themes,
+                "themes": themes, "residus": residus,
                 "mode": self.capabilities()["mode"], "storage": storage}
 
     def search(self, query, k=5, public_only=True, theme=None, doc_ids=None):
@@ -2539,6 +2728,12 @@ class ResilientRagStore:
 
     def set_nature(self, *args, **kwargs):
         return self._write("set_nature", *args, **kwargs)
+
+    def supprimer_extension(self, *args, **kwargs):
+        return self._write("supprimer_extension", *args, **kwargs)
+
+    def supprimer_veille(self, *args, **kwargs):
+        return self._write("supprimer_veille", *args, **kwargs)
 
     def set_theme(self, *args, **kwargs):
         """Reclassement d'un document, tolérant aux pannes (voir _write)."""

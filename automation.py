@@ -496,8 +496,27 @@ def _fetch_bulletin_text(link, fetcher=None):
     return None
 
 
+# La veille alimente-t-elle encore la base documentaire ?
+#
+# NON PAR DÉFAUT, ET C'EST UN CHOIX. Les bulletins CERT-FR ont leur propre
+# magasin et leur propre page ; la base documentaire n'en recevait qu'une
+# COPIE, pour la recherche. À raison d'une collecte toutes les six heures,
+# cette copie a fini par occuper la majorité du fonds — trois documents listés
+# sur cinq — pour répondre à des questions qu'on ne pose pas à une base
+# d'ingénierie. La veille continue exactement comme avant sur sa page ; seule
+# la copie s'arrête.
+#
+# LA VARIABLE EXISTE POUR POUVOIR REVENIR EN ARRIÈRE SANS TOUCHER AU CODE.
+# Un jour où la recherche devra porter sur les bulletins, `VEILLE_RAG=1`
+# suffira — et les documents reprendront leur place, avec leur thème.
+VEILLE_VERS_RAG = (os.environ.get("VEILLE_RAG", "0").strip().lower()
+                   in ("1", "oui", "on", "true", "vrai"))
+
+
 def veille_refresh(fetcher=None):
-    """Lit les flux, résume les nouveautés (LLM best-effort), publie + alimente le RAG.
+    """Lit les flux, résume les nouveautés (LLM best-effort) et publie.
+
+    N'ALIMENTE PLUS LA BASE DOCUMENTAIRE, sauf si `VEILLE_RAG` le redemande.
     Renvoie le nombre de nouveaux éléments."""
     feed_fetcher = fetcher or _fetch_feed
     # fetcher personnalisé (tests) réutilisé aussi pour les bulletins ; sinon le
@@ -525,8 +544,9 @@ def veille_refresh(fetcher=None):
             item["resume"] = (resume or item["description"][:500]).strip()
             _state.veille_add(item)
             new_count += 1
-            # Alimente la base de connaissance (thème Veille, public) — best-effort.
-            if rag is not None:
+            # Alimente la base de connaissance (thème Veille, public) — seulement
+            # si on l'a redemandé ; voir `VEILLE_VERS_RAG` ci-dessus.
+            if rag is not None and VEILLE_VERS_RAG:
                 try:
                     # Contenu intégral du bulletin (base exploitable) ; à défaut,
                     # le résumé. On borne le nombre de récupérations par passage.

@@ -269,7 +269,7 @@
           <div>Glissez un fichier ici ou <b>parcourir</b></div>
           <div class="sub" id="fmtListe" style="font-size:12px;color:var(--muted2);margin-top:4px">PDF · DOCX · XLSX · PPTX · TXT · MD · CSV · LOG · JSON — 30 Mo max</div>
           <div class="file" id="fileName"></div>
-          <input type="file" id="file" name="file" required accept=".pdf,.docx,.xlsx,.xlsm,.pptx,.pptm,.txt,.md,.csv,.log,.json" style="margin-top:10px">
+          <input type="file" id="file" name="file" required accept=".pdf,.docx,.xlsx,.xlsm,.pptx,.pptm,.txt,.md,.log,.json" style="margin-top:10px">
         </div>
         <div class="frow" style="margin-top:16px">
           <div class="field"><label for="title">Titre (facultatif)</label><input type="text" id="title" name="title" placeholder="Repris du nom de fichier si vide"></div>
@@ -320,7 +320,7 @@
           <div>Glissez un fichier ici ou <b>parcourir</b></div>
           <div class="sub" style="font-size:12px;color:var(--muted2);margin-top:4px">PDF · DOCX · XLSX · PPTX · TXT · MD · CSV — 30 Mo max</div>
           <div class="file" id="fileNameEng"></div>
-          <input type="file" id="fileEng" name="file" required accept=".pdf,.docx,.xlsx,.xlsm,.pptx,.pptm,.txt,.md,.csv,.log,.json" style="margin-top:10px">
+          <input type="file" id="fileEng" name="file" required accept=".pdf,.docx,.xlsx,.xlsm,.pptx,.pptm,.txt,.md,.log,.json" style="margin-top:10px">
         </div>
         <div class="frow" style="margin-top:16px">
           <div class="field"><label for="titleEng">Titre (facultatif)</label><input type="text" id="titleEng" name="title" placeholder="Repris du nom de fichier si vide"></div>
@@ -361,6 +361,7 @@
       <div class="panel">
         <div class="topbar" style="margin:0 0 12px">
           <div class="warn" id="truncAvis" style="display:none;margin-bottom:10px"></div>
+          <div class="warn" id="residusAvis" style="display:none;margin-bottom:10px"></div>
           <div id="qualifBar" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
             <select id="qualifNature" aria-label="Nature de la source"></select>
             <input id="qualifDate" type="text" inputmode="numeric" placeholder="année (facultatif)" style="max-width:150px">
@@ -658,6 +659,34 @@
       });
     }
 
+    /* LE RETRAIT SE FAIT EN DEUX TEMPS, ET LE PREMIER NE SUPPRIME RIEN. Le
+       serveur COMPTE d'abord ce qui partirait — documents, fragments, octets —
+       et la confirmation porte sur ce nombre. Demander « êtes-vous sûr ? »
+       sans dire combien revient à demander de signer une page blanche. */
+    function retirerFamille(btn, famille){
+      var old=btn.textContent; btn.disabled=true; btn.textContent='Comptage…';
+      apiFetch('/api/admin/rag/retirer',{method:'POST',
+        headers:{'content-type':'application/json'},
+        body:JSON.stringify({famille:famille})}).then(readJson).then(function(j){
+          if(!j||!j.ok){ note((j&&j.message)||'Comptage impossible.','err'); return; }
+          if(!j.documents){ note('Aucun document de cette famille en base.','ok'); load(); return; }
+          if(!confirm('Supprimer définitivement '+j.documents+' document(s) et '
+                      +j.fragments+' fragment(s) ?\n\n'
+                      +'Le texte, les fragments et les fichiers d\'origine '
+                      +'partent ensemble. Cette suppression est IRRÉVERSIBLE.')) return;
+          btn.disabled=true; btn.textContent='Suppression…';
+          return apiFetch('/api/admin/rag/retirer',{method:'POST',
+            headers:{'content-type':'application/json'},
+            body:JSON.stringify({famille:famille, confirmer:true})})
+            .then(readJson).then(function(k){
+              if(!k||!k.ok){ note((k&&k.message)||'Suppression impossible.','err'); return; }
+              note(k.documents+' document(s) supprimé(s).','ok');
+              load();
+            });
+        }).catch(function(){ note('Suppression impossible.','err'); })
+        .then(function(){ btn.disabled=false; btn.textContent=old; });
+    }
+
     function docRow(d){
       return '<tr><td><div class="who">'+esc(d.title)+'</div><div class="sub">'+esc(d.filename)+' · '+(d.nb_chunks||0)+' fragments</div></td>'
         +'<td><span class="pill">'+esc(d.theme||'—')+'</span></td>'
@@ -948,6 +977,38 @@
             +'ce qui est listé — le reste ne sera pas touché, et rien ne le '
             +'dirait ensuite.';
           av.style.display='block';
+        })();
+        /* CE QUE LA BASE NE COLLECTE PLUS MAIS DÉTIENT ENCORE. Les masquer
+           du tableau en ferait des fantômes : invisibles partout, présents
+           quand même, occupant la place — et personne pour les supprimer. On
+           les COMPTE, et on propose de les effacer. */
+        (function(){
+          var av=document.getElementById('residusAvis'); if(!av) return;
+          var r=(j.stats||{}).residus||{};
+          var cles=Object.keys(r);
+          if(!cles.length){ av.style.display='none'; return; }
+          var LIB={csv:'tableaux CSV', veille:'bulletins de veille CERT-FR'};
+          var POURQUOI={
+            csv:'Découpés en fragments, ils perdent leur ligne d\'en-tête : '
+               +'ce qui reste dans l\'index ne dit plus de quelles colonnes il '
+               +'parle. Les feuilles de calcul restent lues entières par '
+               +'l\'analyse des pièces de marché.',
+            veille:'Ils ont leur propre page et leur propre magasin ; la base '
+                  +'n\'en recevait qu\'une copie. La page de veille n\'est pas '
+                  +'touchée.'};
+          var h='<b>La base ne collecte plus ces documents, et les détient '
+               +'encore.</b>';
+          cles.forEach(function(k){
+            h+='<div style="margin-top:8px">'+r[k]+' '+esc(LIB[k]||k)
+              +' — <span class="sub">'+esc(POURQUOI[k]||'')+'</span> '
+              +'<button class="btn btn-s" type="button" data-retirer="'
+              +esc(k)+'">Supprimer</button></div>';
+          });
+          av.innerHTML=h;
+          av.style.display='block';
+          av.querySelectorAll('[data-retirer]').forEach(function(b){
+            b.addEventListener('click', function(){ retirerFamille(b, b.getAttribute('data-retirer')); });
+          });
         })();
         var st=j.stats.storage, ks=document.getElementById('kStore');
         if(ks) ks.textContent = st ? (st.db_bytes!=null ? ('base : '+fmtBytes(st.db_bytes)+' · RAG : '+fmtBytes(st.rag_bytes)) : ('RAG : '+fmtBytes(st.rag_bytes))) : '';
