@@ -86,7 +86,7 @@
         <a class="btn btn-s" href="/offre-conseilprev-cyber.pdf" download>📥 Télécharger l'offre (PDF)</a>
       </div>
 
-      <form class="form" id="pform" style="max-width:760px;margin:0 auto" onsubmit="return sendProjet(event)" novalidate>
+      <form class="form" id="pform" style="max-width:760px;margin:0 auto" novalidate>
 
         <div class="fgroup">Vos coordonnées</div>
         <div class="row">
@@ -332,6 +332,9 @@
 </footer>
   <script>
     document.getElementById('y').textContent=new Date().getFullYear();
+    // Remplace l'attribut `onsubmit` retiré : `sendProjet` appelait déjà
+    // `preventDefault()`, le comportement est inchangé.
+    document.getElementById('pform').addEventListener('submit', sendProjet);
 
     function pv(id){var e=document.getElementById(id);return e?(''+e.value).trim():'';}
     function psel(id){var e=document.getElementById(id);return (e&&e.selectedIndex>0)?e.options[e.selectedIndex].text.trim():'';}

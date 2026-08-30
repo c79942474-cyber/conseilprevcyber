@@ -939,8 +939,18 @@ def test_LE_POINT_QUI_DECIDE_l_entree_ouverte_survit_au_repeint():
     h = _page()
     assert re.search(r"(?m)^\s*var livOuvert = null;", h), (
         "aucune mémoire de l'entrée ouverte")
-    assert 'ontoggle="moLivBascule()"' in _corps("echafauder"), (
-        "l'ouverture d'une entrée n'est jamais enregistrée")
+    # LA RÈGLE VÉRIFIAIT L'ORTHOGRAPHE D'UN ATTRIBUT, PAS LE COMPORTEMENT.
+    # Elle exigeait `ontoggle="moLivBascule()"` dans le balisage engendré. Cet
+    # attribut a dû partir : aucune empreinte de politique de contenu ne peut
+    # couvrir un gestionnaire en ligne, il est bloqué net. Le comportement,
+    # lui, est intact — l'écouteur est posé sur chaque entrée après le rendu,
+    # parce que l'événement `toggle` ne remonte pas et interdit la délégation.
+    # Ce qui compte est donc que l'ouverture SOIT enregistrée, pas la façon
+    # dont on s'y abonne.
+    c0 = _corps("echafauder")
+    assert "moLivBascule" in c0, "l'ouverture d'une entrée n'est jamais enregistrée"
+    assert 'addEventListener("toggle"' in c0 or "ontoggle=" in c0, (
+        "rien n'abonne le panneau à l'ouverture d'une entrée")
     c = _corps("echafauder")
     assert "livOuvert" in c, (
         "la reconstruction ne consulte pas l'entrée précédemment ouverte")

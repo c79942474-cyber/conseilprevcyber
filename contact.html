@@ -54,7 +54,7 @@
     <section class="section" style="padding-top:24px">
       <h2 class="sr-only">Formulaire et coordonnées</h2>
       <div class="grid grid-2" style="align-items:start">
-        <form class="form" id="cform" onsubmit="return sendMail(event)">
+        <form class="form" id="cform">
           <div class="row">
             <div class="field"><label for="nom">Nom</label><input id="nom" name="nom" required autocomplete="name"></div>
             <div class="field"><label for="org">Organisation <button type="button" class="tipi" data-tip="Facultatif. Nous aide à préparer un échange pertinent (secteur, contexte industriel)." aria-label="Aide : organisation (facultatif). Facultatif. Nous aide à préparer un échange pertinent (secteur, contexte industriel).">i</button></label><input id="org" name="org" autocomplete="organization"></div>
@@ -186,6 +186,9 @@
 </footer>
   <script>
     document.getElementById('y').textContent=new Date().getFullYear();
+    // Remplace l'attribut `onsubmit` : aucune empreinte de CSP ne peut couvrir
+    // un attribut de gestionnaire, il est bloqué net.
+    document.getElementById('cform').addEventListener('submit', sendMail);
     function mailtoFallback(nom,org,email,sujet,msg){
       var body="Nom : "+nom+"\nOrganisation : "+org+"\nEmail : "+email+"\n\n"+msg;
       return "mailto:christophe.cerf@outlook.com?subject="+encodeURIComponent("[Contact site] "+sujet)
@@ -196,6 +199,8 @@
       s.style.display='block'; s.innerHTML=msg;
       s.style.color = kind==='ok' ? 'var(--green)' : (kind==='err' ? 'var(--danger)' : 'var(--muted)');
     }
+    /* `sendMail` appelle déjà `preventDefault()` : le passage de l'attribut
+       `onsubmit` à un écouteur ne change rien à son comportement. */
     function sendMail(e){
       e.preventDefault();
       var nom=document.getElementById('nom').value.trim();

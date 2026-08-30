@@ -866,11 +866,33 @@ def _safe_next(value, default):
 
 
 # --------------------------------------------------------------------- routes ---
+# ── LES PAGES SERVIES D'ICI, ET LEUR POLITIQUE DE CONTENU ────────────────
+# Elles ne passent pas par `_serve_fast` : sans ce passage, elles recevraient
+# la politique GLOBALE, qui n'admet plus l'exécution des scripts intégrés — et
+# la page de connexion tomberait le jour du déploiement, sans erreur serveur,
+# sans rien dans les journaux. Cinq des sept en portent un.
+#
+# L'empreinte est prise sur le FICHIER TEL QUEL : contrairement au chemin
+# rapide, aucune transformation n'est appliquée ici, et c'est bien ce
+# fichier-là que le navigateur reçoit.
+def _page(nom):
+    rep = make_response(send_from_directory(HERE, nom))
+    try:
+        import csp
+        with open(os.path.join(HERE, nom), "rb") as fh:
+            rep.headers["Content-Security-Policy"] = csp.pour(fh.read())
+    except (OSError, ImportError):
+        # Une politique absente laisse s'appliquer la globale : la page se
+        # dégrade, elle ne s'ouvre pas davantage.
+        pass
+    return rep
+
+
 @auth_bp.route("/connexion")
 def page_login():
     if current_user():
         return redirect(_safe_next(request.args.get("next"), "/demo"))
-    return send_from_directory(HERE, "connexion.html")
+    return _page("connexion.html")
 
 
 def _safe_admin_next(value):
@@ -959,12 +981,12 @@ def admin_gate():
 
 @auth_bp.route("/inscription")
 def page_register():
-    return send_from_directory(HERE, "inscription.html")
+    return _page("inscription.html")
 
 
 @auth_bp.route("/mot-de-passe-oublie")
 def page_forgot():
-    return send_from_directory(HERE, "mot-de-passe-oublie.html")
+    return _page("mot-de-passe-oublie.html")
 
 
 @auth_bp.route("/api/auth/captcha")
@@ -1022,7 +1044,7 @@ def api_register():
 def verify_email(token):
     u = store.get_by("verify_token", token)
     if not u or (u.get("verify_expire") or 0) < _now_ms():
-        return send_from_directory(HERE, "lien-expire.html")
+        return _page("lien-expire.html")
     # L'ADMINISTRATEUR EST PRÉVENU ICI, ET NON À L'INSCRIPTION.
     #
     # Il l'était au dépôt de la demande, avec son lien d'approbation : n'importe
@@ -1069,7 +1091,7 @@ def admin_approve(token):
         # UN LIEN QUI NE MEURT JAMAIS SURVIT À LA BOÎTE QUI L'A REÇU. Passé le
         # délai, l'approbation reste possible depuis la page d'administration,
         # qui exige une session administrateur.
-        return send_from_directory(HERE, "lien-expire.html")
+        return _page("lien-expire.html")
     if not u.get("email_verified"):
         # Ne devrait plus arriver — le jeton n'est frappé qu'à la confirmation —
         # mais un compte antérieur à ce changement porte encore un jeton frappé
@@ -1247,8 +1269,8 @@ def api_forgot():
 def page_reset(token):
     u = store.get_by("reset_token", token)
     if not u or (u.get("reset_expire") or 0) < _now_ms():
-        return send_from_directory(HERE, "lien-expire.html")
-    return send_from_directory(HERE, "reinitialiser.html")
+        return _page("lien-expire.html")
+    return _page("reinitialiser.html")
 
 
 @auth_bp.route("/api/auth/reset", methods=["POST"])
@@ -1290,7 +1312,7 @@ def _public_user(u):
 @auth_bp.route("/admin/comptes")
 @admin_required
 def page_admin_users():
-    return send_from_directory(HERE, "admin-comptes.html")
+    return _page("admin-comptes.html")
 
 
 @auth_bp.route("/api/admin/users")

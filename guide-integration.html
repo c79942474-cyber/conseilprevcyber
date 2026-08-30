@@ -104,7 +104,7 @@
       <div class="topbtns">
         <a class="btn btn-s" href="/connecter">← Retour à « Connecter »</a>
         <a class="btn btn-s" href="/telecharger/connecteur.zip">⬇ Connecteur (.zip)</a>
-        <button class="btn btn-s" onclick="window.print()" type="button">🖨 Imprimer / PDF</button>
+        <button class="btn btn-s" id="gi-print" type="button">🖨 Imprimer / PDF</button>
       </div>
     </section>
 
@@ -448,6 +448,10 @@ journalctl -u conseilprev-connector -f          <span class="c"># suivre les log
 
   <script>
   document.getElementById('y').textContent=new Date().getFullYear();
+  // Remplace l'attribut `onclick="window.print()"` : un attribut de
+  // gestionnaire n'est couvert par aucune empreinte de CSP.
+  (function(){var b=document.getElementById('gi-print');
+    if(b) b.addEventListener('click', function(){window.print();});})();
   (function(){
     // URL réelle du cockpit dans les exemples.
     ['envpre','curlpre'].forEach(function(id){

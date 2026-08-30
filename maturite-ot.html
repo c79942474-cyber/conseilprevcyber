@@ -673,7 +673,7 @@
          précédente. Les navigateurs qui l'ignorent encore les laissent
          s'ouvrir ensemble — c'est plus verbeux, jamais cassé. */
       h += '<details class="mo-liv" name="mo-liv" data-liv="' + esc(l.id) + '"'
-        + ' ontoggle="moLivBascule()"' + ouv + ">"
+        + ouv + ">"
         + '<summary class="mo-liv-s"><span class="mo-liv-t">' + esc(l.label) + "</span>"
         + '<span class="mo-liv-e ' + e.c + '">' + esc(e.t) + "</span></summary>"
         + '<div class="mo-liv-c">'
@@ -687,6 +687,13 @@
       h += "</div></details>";
     });
     $("#mo-livrables").innerHTML = h;
+    /* L'ÉVÉNEMENT `toggle` NE REMONTE PAS : la délégation, qui remplace
+       ailleurs les attributs en ligne, est exclue ici. On attache donc après
+       chaque rendu — le balisage est reconstruit à chaque fois, les anciens
+       écouteurs partent avec les anciens éléments. */
+    $("#mo-livrables").querySelectorAll("details.mo-liv").forEach(function (d) {
+      d.addEventListener("toggle", window.moLivBascule);
+    });
   }
 
   /* LE RADAR — mat-radar. Il ne porte JAMAIS seul l'information : le tableau

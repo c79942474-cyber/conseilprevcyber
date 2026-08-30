@@ -80,6 +80,7 @@ import rgpd
 from auth import admin_required, client_ip, current_user, guard, init_app as init_auth
 from clients_store import (BASES_LEGALES, CATEGORIES_PIECES, STATUTS,
                            ClientsError, make_clients_store)
+import csp          # la politique de contenu, calculée sur ce qui est servi
 from cockpit_state import make_store, tag_for
 from livrables_store import make_livrables_store
 from rag_store import (RagError, THEMES, THEME_FAMILLES, FAMILLE_ENTREPRISES,
@@ -259,23 +260,25 @@ _CSRF_EXEMPT = {"/api/ingest", "/api/reset", "/api/maintenance/purge", "/api/rag
 _CSRF_HEADER = "X-CP-Same-Origin"
 _CSRF_HEADER_VALUE = "1"
 
-# En-têtes de sécurité appliqués à toutes les réponses. La CSP autorise le style
-# et le script « inline » (site statique : nombreux <style>/<script> intégrés),
-# mais verrouille le reste : pas de ressource tierce, pas d'iframe (anti-clickjacking),
-# pas d'objet, formulaires et base-uri limités à l'origine.
+# En-têtes de sécurité appliqués à toutes les réponses.
+#
+# `script-src` N'ADMET PLUS L'EXÉCUTION EN LIGNE. Tant qu'elle l'admettait,
+# l'échappement était la seule défense contre l'injection de balisage : un seul
+# oubli — il y en avait un sur les liens de flux — devenait directement
+# exploitable. Les pages qui portent des scripts intégrés reçoivent leur propre
+# politique, avec les EMPREINTES de ces scripts, posée par `_serve_fast` ; le
+# crochet ci-dessous emploie `setdefault` et ne l'écrase donc pas.
+#
+# `style-src` garde l'exécution en ligne, délibérément : un style ne s'exécute
+# pas, et mille trente-quatre attributs `style=` pour un risque marginal serait
+# un mauvais échange.
 _SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Permissions-Policy": "geolocation=(), microphone=(), camera=(), interest-cohort=()",
     "Cross-Origin-Opener-Policy": "same-origin",
-    "Content-Security-Policy": (
-        "default-src 'self'; base-uri 'self'; form-action 'self'; "
-        "frame-ancestors 'none'; object-src 'none'; "
-        "img-src 'self' data:; font-src 'self' data:; "
-        "style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; "
-        "connect-src 'self'"
-    ),
+    "Content-Security-Policy": csp.sans_script_en_ligne(),
 }
 
 
@@ -962,6 +965,13 @@ def _static_entry(filename):
             "raw": raw,
             "gz": gzip.compress(raw, 9),
             "etag": '"cp-%s"' % hashlib.sha256(raw).hexdigest()[:24],
+            # LA POLITIQUE SE CALCULE ICI, ET NULLE PART AILLEURS : c'est le
+            # seul endroit où les octets RÉELLEMENT SERVIS sont connus —
+            # `_versionner_html` est déjà passé. Une empreinte prise sur le
+            # fichier d'origine serait juste pour un document que personne ne
+            # reçoit, et le navigateur refuserait le script sans qu'aucune
+            # erreur ne remonte.
+            "csp": csp.pour(raw) if filename.endswith(".html") else None,
         }
         _STATIC_CACHE[filename] = ent
         return ent
@@ -993,6 +1003,12 @@ def _serve_fast(filename, cache_control, mimetype="text/html; charset=utf-8",
             resp.headers["Content-Encoding"] = "gzip"
         resp.headers["Content-Length"] = str(len(body))
     resp.headers["ETag"] = ent["etag"]
+    # LA POLITIQUE DE CETTE PAGE, avec les empreintes de SES scripts intégrés.
+    # Posée ici, elle précède le crochet d'en-têtes, qui emploie `setdefault`
+    # et laisse donc celle-ci en place. Une page sans script intégré n'en
+    # reçoit pas : la politique globale, plus stricte, lui suffit.
+    if ent.get("csp"):
+        resp.headers["Content-Security-Policy"] = ent["csp"]
     resp.headers["Cache-Control"] = cache_control
     if gzippable:
         resp.headers["Vary"] = "Accept-Encoding"
