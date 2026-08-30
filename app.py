@@ -70,6 +70,8 @@ import librejustice   # corpus de jurisprudence, branché par MCP — voir le mo
 import livrables
 import rag_federe   # la base sœur, mêlée à la nôtre — voir le module
 import reglages   # un réglage illisible ne doit pas arrêter le service
+import veille_facettes   # les six axes de la veille — voir le module
+import veille_sources    # le catalogue des flux, et leur santé
 import livrables_export
 import playbook
 import minimisation
@@ -5718,7 +5720,7 @@ ci-dessous sont publiques et citables.
 - [Secteurs]({b}/secteurs) : industrie, énergie, nucléaire, aéronautique
 - [Études de cas]({b}/etudes-de-cas) : missions types et livrables
 - [FAQ]({b}/faq) : OT/IACS, IEC 62443, NIS2, studios data centre — questions-réponses citables
-- [Veille]({b}/veille) : actualité réglementaire et technique
+- [Veille]({b}/veille) : actualités réglementaires, nouveaux standards et normes
 - [Ressources]({b}/ressources) : guides et documents publics
 - [Conformité]({b}/conformite) : RGPD et transparence AI Act (art. 50)
 - [Vos projets]({b}/vos-projets) · [À propos]({b}/about) · [Contact]({b}/contact)
@@ -9208,13 +9210,54 @@ def api_livrables_export():
 
 
 # ============================================================================
-#  Automatisations exposées : veille CERT-FR, ingestion documentaire, pack mission
+#  Automatisations exposées : veille mondiale, ingestion documentaire, pack mission
 # ============================================================================
 
 @app.route("/api/veille")
 def api_veille():
-    """Veille CERT-FR (publique) : derniers bulletins, résumés automatiquement."""
-    return jsonify(ok=True, items=automation.veille_list(limit=60))
+    """La veille (publique) : éléments récents, DÉJÀ CLASSÉS, et leurs facettes.
+
+    POURQUOI LE CLASSEMENT SE FAIT ICI ET LE FILTRAGE LÀ-BAS. Le vocabulaire —
+    thèmes, standards, secteurs — est celui de la maison, tenu dans
+    `veille_facettes` qui l'adosse à `rag_store.THEMES`. Le recopier dans le
+    script de la page en ferait un second vocabulaire, et c'est l'exemplaire
+    qu'on oublie de corriger qui reste. Le filtrage, lui, reste dans la page :
+    il doit être instantané, et six axes cumulables sur soixante éléments ne
+    valent pas un aller-retour réseau.
+    """
+    limite = reglages.entier("VEILLE_PAGE", 120, mini=1, maxi=400)
+    try:
+        limite = max(1, min(int(request.args.get("limit") or limite), 400))
+    except (TypeError, ValueError):
+        pass
+    items = veille_facettes.enrichir(automation.veille_list(limit=limite))
+    domaine = (request.args.get("domaine") or "").strip()
+    pays = (request.args.get("pays") or "").strip()
+    if domaine:
+        items = [i for i in items if i.get("domaine") == domaine]
+    if pays:
+        items = [i for i in items if (i.get("facettes") or {}).get("pays") == pays]
+    return jsonify(ok=True, items=items, facettes=veille_facettes.facettes(items),
+                   # LA MENTION DE TRANSPARENCE DOIT DÉCRIRE LA RÉALITÉ. Elle
+                   # ne s'affiche que si des résumés sont RÉELLEMENT produits :
+                   # annoncer une génération par IA là où l'on recopie le
+                   # chapeau du régulateur est une mention fausse, et une
+                   # mention fausse vaut moins que pas de mention.
+                   resume_ia=bool(automation.VEILLE_RESUME),
+                   sources=veille_sources.referentiel())
+
+
+@app.route("/api/admin/veille/sante")
+@admin_required
+def api_veille_sante():
+    """Ce que chaque flux a réellement rapporté.
+
+    Le catalogue a été écrit hors ligne : certaines adresses seront fausses. Un
+    flux muet ne lève aucune erreur — il rend une liste vide, et la page affiche
+    simplement moins de choses. Cette table est le seul endroit où cela se voit,
+    et elle distingue « jamais joint » (adresse à corriger) de « devenu muet »
+    (panne à attendre)."""
+    return jsonify(ok=True, **veille_sources.etat())
 
 
 @app.route("/api/admin/veille/refresh", methods=["POST"])

@@ -131,6 +131,17 @@
         <p style="margin:4px 0 0;font-size:13px;color:var(--muted2)">Variables d'environnement écartées, devenues inutiles, ou manquantes — avec le geste à faire. Aucune valeur n'est affichée ici.</p>
         <div id="regOut" style="margin-top:14px"></div>
       </div>
+
+      <!-- MUET TANT QUE TOUS LES FLUX RÉPONDENT. Le catalogue de la veille a
+           été écrit hors ligne : certaines adresses seront fausses, et un flux
+           muet ne lève aucune erreur — il rend une liste vide, et la page
+           affiche simplement moins de choses. C'est le seul endroit où cela se
+           voit. -->
+      <div id="veilPanel" style="display:none;margin-top:26px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,var(--panel),var(--bg2));padding:20px">
+        <h3 style="margin:0">Flux de veille à regarder</h3>
+        <p style="margin:4px 0 0;font-size:13px;color:var(--muted2)">« Jamais joint » désigne une adresse à corriger ; « muet » un flux qui répondait et s'est tu.</p>
+        <div id="veilOut" style="margin-top:14px"></div>
+      </div>
     </section>
   </main>
 
@@ -243,6 +254,27 @@
           +regBloc('Posés mais inutiles','var(--muted2)',j.inertes)
           +regBloc('Manquants, avec conséquence','var(--danger)',j.absents);
         regPanel.style.display='block';
+      }).catch(function(){});
+
+    // Santé des flux de veille — /api/admin/veille/sante.
+    var veilPanel=document.getElementById('veilPanel'), veilOut=document.getElementById('veilOut');
+    var VEIL_ETAT={jamais_joint:['Jamais joint','var(--danger)'],muet:['Devenu muet','var(--amber)']};
+    if(veilPanel) fetch('/api/admin/veille/sante').then(function(r){return r.ok?r.json():null;})
+      .then(function(j){
+        if(!j||!j.ok||!j.a_regarder) return;      // tout répond : on se tait
+        var lignes=j.sources.filter(function(l){return VEIL_ETAT[l.sante];});
+        veilOut.innerHTML=lignes.map(function(l){
+          var e=VEIL_ETAT[l.sante];
+          return '<div style="display:flex;gap:12px;align-items:baseline;padding:8px 0;border-bottom:1px solid rgba(154,102,80,.28)">'
+            +'<b style="min-width:170px;color:var(--ink)">'+diagEsc(l.nom)+'</b>'
+            +'<span style="color:'+e[1]+';font-weight:600;min-width:120px">'+e[0]+'</span>'
+            +'<span style="color:var(--muted2);font-size:12.5px">'+diagEsc(l.cle)+' · '+diagEsc(l.pays)
+            +(l.eprouve?' · adresse éprouvée en production':' · adresse jamais éprouvée')
+            +(l.erreur?(' — '+diagEsc(l.erreur)):'')+'</span></div>';
+        }).join('')
+          +'<p style="font-size:12px;color:var(--muted2);margin-top:10px">'+j.a_regarder+' flux sur '+j.total
+          +'. Les adresses se corrigent dans <b>veille_sources.py</b>.</p>';
+        veilPanel.style.display='block';
       }).catch(function(){});
   })();
   </script>

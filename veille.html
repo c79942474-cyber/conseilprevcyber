@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Veille cyber — alertes et avis CERT-FR résumés — CONSEILPREV Cyber</title>
+<title>Veille : actualités réglementaires, nouveaux standards et normes — CONSEILPREV Cyber</title>
 <meta name="description" content="Veille cybersécurité automatisée : les dernières alertes et avis du CERT-FR, résumés et actualisés en continu — orientée systèmes industriels (IT/OT/IIoT).">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="CONSEILPREV Cyber">
@@ -47,6 +47,16 @@
     color:var(--ink);font-family:var(--sans);font-size:13.5px;outline:none;transition:border-color .15s;cursor:pointer}
   .vfilter select:focus{border-color:var(--cyan)}
   .vcount{font-family:var(--mono);font-size:11.5px;color:var(--muted2);white-space:nowrap}
+  /* Six axes : une grille qui se replie, plutôt qu'une rangée qui déborde. */
+  .vfilters{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin:0 0 14px}
+  .vfilters .vf{display:flex;flex-direction:column;gap:5px}
+  .vfilters select{width:100%}
+  .vbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 18px}
+  .vsrc{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;padding:2px 8px;border-radius:999px;
+    border:1px solid var(--line);color:var(--muted2);white-space:nowrap}
+  .vsrc.off{border-color:rgba(34,211,238,.42);color:var(--cyan)}
+  .vreg{border-color:rgba(245,158,11,.45);color:var(--amber)}
+  .vreset{font-family:var(--mono);font-size:11.5px;color:var(--cyan);background:none;border:0;cursor:pointer;padding:0}
 </style>
 </head>
 <body>
@@ -71,21 +81,38 @@
 
   <main class="wrap">
     <section class="page-head" style="padding-bottom:0">
-      <span class="eyebrow"><span class="dot"></span>Veille automatisée · CERT-FR</span>
-      <h1>Veille <span class="grad">cyber</span> en continu.</h1>
-      <p class="lead" style="margin-top:14px">Les dernières <strong>alertes</strong> et <strong>avis</strong> publiés par
-      le CERT-FR (ANSSI), collectés automatiquement et résumés pour aller à l'essentiel — la même veille qui alimente
-      notre <a href="/assistant">assistant IA</a> en temps réel.</p>
+      <span class="eyebrow"><span class="dot"></span>Veille automatisée · sources officielles &amp; presse spécialisée</span>
+      <h1>Veille : actualités <span class="grad">réglementaires</span>, nouveaux standards et normes.</h1>
+      <p class="lead" style="margin-top:14px">Cybersécurité industrielle, gouvernance de l'IA, GRC et centres de données —
+      collectés en continu auprès des régulateurs, des organismes de normalisation et de la presse spécialisée,
+      en France, en Europe, aux États-Unis, au Royaume-Uni et à l'international.
+      La même veille qui alimente notre <a href="/assistant">assistant IA</a>.</p>
     </section>
 
     <section class="section" style="padding-top:22px;max-width:900px">
-      <div class="vnote"><span aria-hidden="true">🤖</span><span><b style="color:var(--ink)">Transparence (AI Act art. 50)</b> —
-      les résumés sont <b>générés automatiquement par IA</b> à partir des bulletins officiels, sans relecture systématique :
-      référez-vous toujours au bulletin source (lien sous chaque élément). Collecte périodique automatique.</span></div>
-      <div class="vfilter" id="vfilter" style="display:none">
-        <label for="vtheme">Thème</label>
-        <select id="vtheme" aria-label="Filtrer la veille par thème"><option value="">Tous les thèmes</option></select>
+      <!-- LA MENTION NE S'AFFICHE QUE SI DES RÉSUMÉS SONT RÉELLEMENT PRODUITS.
+           Par défaut on reprend le chapeau que la source publie elle-même : il
+           n'y a alors aucune génération, et l'annoncer serait faux. -->
+      <div class="vnote" id="vnote" style="display:none"><span aria-hidden="true">🤖</span><span><b style="color:var(--ink)">Transparence (AI Act art. 50)</b> —
+      certains résumés sont <b>générés automatiquement par IA</b> à partir des publications, sans relecture systématique :
+      référez-vous toujours à la publication source (lien sous chaque élément).</span></div>
+      <div class="vnote" id="vnotesrc" style="display:none"><span aria-hidden="true">📰</span><span><b style="color:var(--ink)">Titres, liens et chapeaux</b> —
+      les textes affichés sont ceux que les émetteurs publient dans leurs propres flux. Aucun article n'est reproduit :
+      chaque élément renvoie à sa publication d'origine.</span></div>
+      <div class="vfilters" id="vfilters" style="display:none">
+        <div class="vf"><label for="vdomaine">Domaine</label><select id="vdomaine"></select></div>
+        <div class="vf"><label for="vpays">Pays</label><select id="vpays"></select></div>
+        <div class="vf"><label for="vtheme">Thème</label><select id="vtheme"></select></div>
+        <div class="vf"><label for="vstandard">Standard</label><select id="vstandard"></select></div>
+        <div class="vf"><label for="vsecteur">Secteur</label><select id="vsecteur"></select></div>
+        <div class="vf"><label for="ventreprise">Entreprise</label><select id="ventreprise"></select></div>
+        <div class="vf"><label for="vreg">Nature</label><select id="vreg">
+          <option value="">Tout</option><option value="1">Actualités réglementaires</option>
+          <option value="0">Hors réglementaire</option></select></div>
+      </div>
+      <div class="vbar" id="vbar" style="display:none">
         <span class="vcount" id="vcount"></span>
+        <button type="button" class="vreset" id="vreset">Tout afficher</button>
       </div>
       <div id="vlist"><div class="vempty">Chargement de la veille…</div></div>
     </section>
@@ -153,67 +180,106 @@
 
   <script>
   (function(){
-    var LIMIT=10;
+    var LIMIT=20;
     function esc(s){return (''+(s==null?'':s)).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
     function fmt(ts){if(!ts)return '';var d=new Date(ts);return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});}
 
-    // Classement thématique des bulletins (heuristique par mots-clés), priorité descendante.
-    var THEME_RULES=[
-      ['Systèmes industriels (OT/ICS)', /scada|automate|\bplc\b|\bics\b|industriel|siemens|schneider|moxa|modbus|\bot\b|rockwell|\bwago\b|hirschmann|codesys|opc[\s-]?ua|profinet|simatic|s7-/],
-      ['Réseau & périmètre', /\bvpn\b|pare-?feu|firewall|fortinet|fortios|fortigate|fortimanager|cisco|ivanti|citrix|palo\s*alto|routeur|\bf5\b|big-?ip|juniper|sonicwall|pfsense|passerelle|\bproxy\b/],
-      ['Microsoft & Windows', /microsoft|windows|exchange|\boffice\b|outlook|azure|sharepoint|\.net|active\s*directory|hyper-?v\b|\brdp\b/],
-      ['Virtualisation & Cloud', /vmware|vcenter|esxi|hyperviseur|kubernetes|docker|\bcloud\b|openstack|proxmox|nutanix/],
-      ['Linux & Unix', /linux|unix|debian|ubuntu|red\s?hat|centos|\bnoyau\b|kernel|\bbsd\b|\bsuse\b/],
-      ['Web & applications', /apache|nginx|\bphp\b|wordpress|drupal|joomla|navigateur|chrome|chromium|firefox|safari|\bweb\b|tomcat|struts|gitlab|jenkins/],
-      ['Bases de données', /\bsql\b|oracle|postgre|mysql|mariadb|mongodb|base\s+de\s+donn/],
-      ['Mobile', /android|\bios\b|iphone|ipad|\bmobile\b/]
-    ];
-    function themeOf(it){
-      var h=((it.title||'')+' '+(it.resume||'')).toLowerCase();
-      for(var i=0;i<THEME_RULES.length;i++){ if(THEME_RULES[i][1].test(h)) return THEME_RULES[i][0]; }
-      return 'Autres';
+    /* LE CLASSEMENT NE SE FAIT PLUS ICI. Cette page portait huit règles de
+       mots-clés — « Microsoft & Windows », « Linux & Unix », « Mobile » : les
+       facettes d'un flux de vulnérabilités, sans objet devant un communiqué de
+       la Commission ou une révision de norme. Le vocabulaire est désormais
+       celui de la maison, tenu côté serveur dans `veille_facettes` et adossé
+       aux thèmes de la base documentaire. Le recopier ici en ferait un second
+       vocabulaire, et c'est celui qu'on oublie de corriger qui reste. */
+    var ALL=[], PAYS={}, DOM={};
+    var vlist=document.getElementById('vlist'), vfilters=document.getElementById('vfilters'),
+        vbar=document.getElementById('vbar'), vcount=document.getElementById('vcount'),
+        vreset=document.getElementById('vreset');
+    var SEL={domaine:'vdomaine',pays:'vpays',themes:'vtheme',standards:'vstandard',
+             secteurs:'vsecteur',entreprises:'ventreprise'};
+    function el(id){return document.getElementById(id);}
+
+    function remplir(id, valeurs, tout, libelles){
+      var sel=el(id); if(!sel) return;
+      var total=valeurs.reduce(function(a,x){return a+x.n;},0);
+      sel.innerHTML='<option value="">'+esc(tout)+'</option>'
+        +valeurs.map(function(x){
+          var nom=(libelles&&libelles[x.valeur])||x.valeur;
+          return '<option value="'+esc(x.valeur)+'">'+esc(nom)+' ('+x.n+')</option>';
+        }).join('');
+      sel.disabled=!valeurs.length;
+      return total;
     }
 
-    var ALL=[];
-    var vlist=document.getElementById('vlist'), vfilter=document.getElementById('vfilter'),
-        vsel=document.getElementById('vtheme'), vcount=document.getElementById('vcount');
+    function correspond(it){
+      var f=it.facettes||{};
+      for(var axe in SEL){
+        var v=el(SEL[axe]).value;
+        if(!v) continue;
+        if(axe==='domaine'){ if(it.domaine!==v) return false; continue; }
+        if(axe==='pays'){ if(f.pays!==v) return false; continue; }
+        var liste=f[axe]||[];
+        if(liste.indexOf(v)<0) return false;
+      }
+      var r=el('vreg').value;
+      if(r==='1' && !f.reglementaire) return false;
+      if(r==='0' && f.reglementaire) return false;
+      return true;
+    }
 
     function itemHTML(it){
-      var kind=it.source==='alerte'?'<span class="vpill alerte">Alerte</span>':'<span class="vpill avis">Avis</span>';
-      return '<article class="vitem"><div class="vtop">'+kind
-        +'<span class="vpill">'+esc(it._theme)+'</span>'
+      var f=it.facettes||{};
+      /* La pastille porte l'ÉMETTEUR et son pays : sur trente flux, savoir
+         d'où vient l'information est la première chose à lire. */
+      var pays=f.pays?(' · '+esc(PAYS[f.pays]||f.pays)):'';
+      var pills='<span class="vsrc off">'+esc(it.emetteur||'Source')+pays+'</span>';
+      if(f.reglementaire) pills+='<span class="vsrc vreg">Réglementaire</span>';
+      (f.standards||[]).slice(0,2).forEach(function(x){pills+='<span class="vsrc">'+esc(x)+'</span>';});
+      (f.themes||[]).slice(0,2).forEach(function(x){pills+='<span class="vsrc">'+esc(x)+'</span>';});
+      return '<article class="vitem"><div class="vtop">'+pills
         +'<h3><a href="'+esc(it.link)+'" target="_blank" rel="noopener">'+esc(it.title)+'</a></h3>'
         +'<span class="vdate">'+fmt(it.published)+'</span></div>'
         +'<p>'+esc(it.resume)+'</p>'
-        +'<a class="vlink" href="'+esc(it.link)+'" target="_blank" rel="noopener">Bulletin officiel CERT-FR →</a></article>';
+        +'<a class="vlink" href="'+esc(it.link)+'" target="_blank" rel="noopener">'
+        +esc(it.lien_libelle||'Source')+' \u2192</a></article>';
     }
+
     function render(){
-      var t=vsel.value;
-      var items=t? ALL.filter(function(x){return x._theme===t;}) : ALL;
-      var shown=items.slice(0,LIMIT);   // les 10 plus récents (déjà triés par date décroissante)
+      var items=ALL.filter(correspond);
+      var shown=items.slice(0,LIMIT);
       vlist.innerHTML=shown.length? shown.map(itemHTML).join('')
-        : '<div class="vempty">Aucun bulletin pour ce thème.</div>';
+        : '<div class="vempty">Aucun élément pour cette combinaison de filtres.</div>';
       vcount.textContent=items.length>LIMIT
-        ? (LIMIT+' plus récents · '+items.length+' au total')
-        : (items.length+' bulletin'+(items.length>1?'s':''));
+        ? (LIMIT+' plus récents · '+items.length+' correspondants sur '+ALL.length)
+        : (items.length+' élément'+(items.length>1?'s':'')+' sur '+ALL.length);
     }
 
     fetch('/api/veille').then(function(r){return r.ok?r.json():null;}).then(function(j){
       var items=(j&&j.items)||[];
       if(!items.length){
-        vlist.innerHTML='<div class="vempty">La collecte automatique démarre — les premiers bulletins CERT-FR apparaîtront ici sous quelques heures.<br>'
-          +'En attendant : <a href="https://www.cert.ssi.gouv.fr" target="_blank" rel="noopener" style="color:var(--cyan)">cert.ssi.gouv.fr</a></div>';
+        vlist.innerHTML='<div class="vempty">La collecte automatique démarre — les premières actualités apparaîtront ici sous quelques heures.</div>';
         return;
       }
-      ALL=items.map(function(it){ it._theme=themeOf(it); return it; });
-      var order=THEME_RULES.map(function(r){return r[0];}).concat(['Autres']);
-      var counts={}; ALL.forEach(function(x){counts[x._theme]=(counts[x._theme]||0)+1;});
-      vsel.innerHTML='<option value="">Tous les thèmes ('+ALL.length+')</option>'
-        +order.filter(function(n){return counts[n];}).map(function(n){
-          return '<option value="'+esc(n)+'">'+esc(n)+' ('+counts[n]+')</option>';
-        }).join('');
-      vfilter.style.display='flex';
-      vsel.addEventListener('change',render);
+      ALL=items;
+      var fa=(j&&j.facettes)||{};
+      PAYS=fa.libelles_pays||{}; DOM=fa.libelles_domaines||{};
+      remplir('vdomaine', fa.domaines||[], 'Tous les domaines', DOM);
+      remplir('vpays', fa.pays||[], 'Tous les pays', PAYS);
+      remplir('vtheme', fa.themes||[], 'Tous les thèmes');
+      remplir('vstandard', fa.standards||[], 'Tous les standards');
+      remplir('vsecteur', fa.secteurs||[], 'Tous les secteurs');
+      remplir('ventreprise', fa.entreprises||[], 'Toutes les entreprises');
+      /* La mention de transparence décrit ce qui se passe RÉELLEMENT : elle
+         n'apparaît que si des résumés sont produits par un modèle. */
+      if(j&&j.resume_ia) el('vnote').style.display='flex';
+      el('vnotesrc').style.display='flex';
+      vfilters.style.display='grid'; vbar.style.display='flex';
+      for(var axe in SEL) el(SEL[axe]).addEventListener('change',render);
+      el('vreg').addEventListener('change',render);
+      vreset.addEventListener('click',function(){
+        for(var a in SEL) el(SEL[a]).value='';
+        el('vreg').value=''; render();
+      });
       render();
     }).catch(function(){
       vlist.innerHTML='<div class="vempty">Veille momentanément indisponible.</div>';

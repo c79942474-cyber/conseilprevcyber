@@ -30,19 +30,34 @@ import os
 import re
 import reglages   # un réglage illisible ne doit pas arrêter le service
 import threading
+import veille_sources   # le catalogue des flux, et leur santé — voir le module
 import time
 import xml.etree.ElementTree as ET
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 
 import requests
 
 _log = logging.getLogger("automation")
 
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
-VEILLE_FEEDS = [
-    ("alerte", "https://www.cert.ssi.gouv.fr/alerte/feed/"),
-    ("avis", "https://www.cert.ssi.gouv.fr/avis/feed/"),
-]
-VEILLE_MAX_ITEMS = 200
+# LES FLUX SONT UNE DONNÉE, PAS DU CODE. Ils vivent dans `veille_sources`, qui
+# porte aussi le pays, le domaine et la nature de chaque émetteur — et l'état de
+# ce que chaque passage a réellement rapporté.
+VEILLE_MAX_ITEMS = reglages.entier("VEILLE_MAX_ITEMS", 2000, mini=50)
+
+# ── CE QUE LES RÉSUMÉS COÛTENT, ET POURQUOI ILS SONT ÉTEINTS ──────────────
+# Chaque nouvel élément déclenchait un appel au modèle. Sur deux flux CERT-FR
+# c'était quelques appels par jour ; sur une trentaine de flux mondiaux, c'est
+# l'actualité du monde entier prélevée sur le budget qui sert AUSSI à rédiger
+# les livrables — et qui, épuisé, arrête les deux.
+#
+# Le repli existait déjà : le chapeau que la source publie elle-même, employé
+# quand l'IA échoue. Sur un flux officiel, ce chapeau est écrit par le
+# régulateur ; il n'a pas besoin d'être reformulé. On en fait donc le
+# comportement NORMAL, et le résumé devient un choix explicite et borné.
+VEILLE_RESUME = reglages.booleen("VEILLE_RESUME", False)
+VEILLE_RESUME_MAX = reglages.entier("VEILLE_RESUME_MAX", 10, mini=0)
 # Texte complet des bulletins (base de connaissance exploitable) : on récupère
 # le contenu intégral du bulletin CERT-FR (JSON officiel, sinon HTML) plutôt que
 # le seul résumé RSS. Désactivable (VEILLE_FULLTEXT=0) ; nombre max de bulletins
@@ -383,31 +398,100 @@ def _strip_html(text):
     return re.sub(r"<[^>]+>", " ", text or "").replace("&nbsp;", " ").strip()
 
 
+def _sans_espace_de_noms(tag):
+    """« {http://www.w3.org/2005/Atom}entry » → « entry ».
+
+    Atom place TOUT dans un espace de noms ; RSS 2.0 n'en met aucun. Comparer
+    les balises sans le préfixe est ce qui permet un seul lecteur pour les deux
+    formats, sans écrire deux fois la même boucle.
+    """
+    return tag.rsplit("}", 1)[-1] if "}" in tag else tag
+
+
+def _date_en_ms(texte):
+    """Une date de flux en millisecondes, EN GARDANT SON FUSEAU.
+
+    CE QUI ÉTAIT FAUX, ET QUI NE SE VOYAIT PAS SUR DEUX FLUX FRANÇAIS. La date
+    était lue par `time.strptime(pub[:25], "%a, %d %b %Y %H:%M:%S")` : la
+    troncature à vingt-cinq caractères COUPE le décalage horaire, et
+    `time.mktime` interprète ensuite l'heure obtenue dans le fuseau du serveur.
+    Tant que les sources étaient à Paris et le serveur en Europe, l'erreur était
+    nulle. Sur des flux répartis du Japon à la Californie, elle atteint un jour
+    entier — et une veille se lit par ordre de fraîcheur.
+
+    Les deux formats du monde des flux, l'un et l'autre dans la bibliothèque
+    standard : RFC 822 pour RSS, ISO 8601 pour Atom.
+    """
+    texte = (texte or "").strip()
+    if not texte:
+        return None
+    try:                                    # RSS : « Tue, 26 Aug 2026 09:12:00 +0200 »
+        d = parsedate_to_datetime(texte)
+        if d is not None:
+            if d.tzinfo is None:            # sans fuseau, la seule lecture honnête est UTC
+                d = d.replace(tzinfo=timezone.utc)
+            return int(d.timestamp() * 1000)
+    except (TypeError, ValueError, OverflowError):
+        pass
+    try:                                    # Atom : « 2026-08-26T09:12:00Z »
+        d = datetime.fromisoformat(texte.replace("Z", "+00:00"))
+        if d.tzinfo is None:
+            d = d.replace(tzinfo=timezone.utc)
+        return int(d.timestamp() * 1000)
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
 def _parse_feed(source, xml_text):
-    """Extrait (guid, title, link, published, description) d'un flux RSS CERT-FR."""
+    """Les éléments d'un flux RSS 2.0 OU Atom.
+
+    POURQUOI ATOM N'ÉTAIT PAS LU, ET POURQUOI PERSONNE NE L'AURAIT VU. Le
+    lecteur itérait sur `item` — la balise de RSS. Un flux Atom emploie `entry`,
+    dans un espace de noms : la boucle ne trouvait rien, ne levait rien, et
+    rendait une liste vide. Une source américaine entière pouvait donc manquer à
+    la page sans qu'aucune erreur ne soit journalisée. C'est ce silence que
+    `veille_sources` compte désormais.
+    """
     items = []
     try:
         root = ET.fromstring(xml_text)
     except ET.ParseError:
         return items
-    for it in root.iter("item"):
-        def _t(tag):
-            el = it.find(tag)
-            return (el.text or "").strip() if el is not None and el.text else ""
-        guid = _t("guid") or _t("link")
+    for noeud in root.iter():
+        balise = _sans_espace_de_noms(noeud.tag)
+        if balise not in ("item", "entry"):
+            continue
+        champs = {}
+        lien_atom = ""
+        for enfant in noeud:
+            nom = _sans_espace_de_noms(enfant.tag)
+            if nom == "link" and not (enfant.text or "").strip():
+                # Atom porte l'adresse en ATTRIBUT, pas en texte. La lire comme
+                # du texte rendait une chaîne vide — donc un élément sans lien,
+                # donc un élément écarté.
+                rel = enfant.get("rel") or "alternate"
+                if rel == "alternate" and enfant.get("href") and not lien_atom:
+                    lien_atom = enfant.get("href")
+                continue
+            if nom not in champs and (enfant.text or "").strip():
+                champs[nom] = enfant.text.strip()
+        lien = champs.get("link") or lien_atom
+        guid = champs.get("guid") or champs.get("id") or lien
         if not guid:
             continue
-        published = _now_ms()
-        pub = _t("pubDate")
-        if pub:
-            try:
-                published = int(time.mktime(time.strptime(pub[:25].strip(),
-                                                          "%a, %d %b %Y %H:%M:%S"))) * 1000
-            except (ValueError, OverflowError):
-                pass
-        items.append({"guid": guid, "source": source, "title": _t("title")[:300],
-                      "link": _t("link")[:400], "published": published,
-                      "description": _strip_html(_t("description"))[:2000]})
+        publie = None
+        for cle in ("pubDate", "published", "updated", "date"):
+            if champs.get(cle):
+                publie = _date_en_ms(champs[cle])
+                if publie is not None:
+                    break
+        chapeau = (champs.get("description") or champs.get("summary")
+                   or champs.get("content") or "")
+        items.append({"guid": guid, "source": source,
+                      "title": _strip_html(champs.get("title", ""))[:300],
+                      "link": (lien or "")[:400],
+                      "published": publie if publie is not None else _now_ms(),
+                      "description": _strip_html(chapeau)[:2000]})
     return items
 
 
@@ -523,21 +607,40 @@ def veille_refresh(fetcher=None):
     # fetcher personnalisé (tests) réutilisé aussi pour les bulletins ; sinon le
     # récupérateur de bulletin utilise son défaut (timeout plus court).
     bulletin_fetcher = fetcher
-    summarize = _deps.get("summarize")
+    summarize = _deps.get("summarize") if VEILLE_RESUME else None
     rag = _deps.get("rag")
     new_count = 0
     fulltext_budget = _VEILLE_FULLTEXT_MAX          # borne les récupérations/passage
-    for source, url in VEILLE_FEEDS:
+    # DEUX GARDES, DEUX RÔLES DISTINCTS — et c'est une mutation qui l'a
+    # mis au jour : `summarize` mis à None commande le OUI/NON, ce budget
+    # commande le COMBIEN. Écrire ici `... if VEILLE_RESUME else 0`
+    # dupliquait le premier rôle : l'une des deux gardes devenait morte, et
+    # plus aucune règle ne pouvait dire laquelle portait réellement.
+    resume_budget = VEILLE_RESUME_MAX
+    for src in veille_sources.SOURCES:
+        source, url = src["cle"], src["url"]
         try:
             xml_text = feed_fetcher(url)
         except Exception as exc:
             _log.warning("veille : flux %s injoignable (%s)", source, exc)
+            veille_sources.noter_echec(source, exc)
             continue
-        for item in _parse_feed(source, xml_text)[:30]:
+        lus = _parse_feed(source, xml_text)
+        # ON NOTE CE QUE LE PASSAGE A DONNÉ, y compris zéro. Un flux qui répond
+        # sans rien rendre — adresse valide pointant ailleurs, format inconnu du
+        # lecteur — ne lève rien : sans ce comptage, il disparaîtrait de la page
+        # sans que rien ne le signale.
+        veille_sources.noter_succes(source, len(lus))
+        for item in lus[:30]:
             if _state.veille_has(item["guid"]):
                 continue
             resume = None
-            if summarize:
+            # LE CHAPEAU DE LA SOURCE D'ABORD. Le résumé par modèle est un
+            # choix explicite (VEILLE_RESUME), et il est BORNÉ par passage :
+            # l'actualité mondiale ne doit pas pouvoir vider un budget qui sert
+            # aussi à rédiger les livrables.
+            if summarize and resume_budget > 0:
+                resume_budget -= 1
                 try:
                     resume = summarize(item["title"], item["description"])
                 except Exception:
@@ -552,16 +655,22 @@ def veille_refresh(fetcher=None):
                     # Contenu intégral du bulletin (base exploitable) ; à défaut,
                     # le résumé. On borne le nombre de récupérations par passage.
                     body = item["resume"]
-                    if fulltext_budget > 0:
+                    # LE CORPS N'EST REPRIS QUE DES SOURCES QUI L'AUTORISENT.
+                    # C'est une limite de droit : reprendre le texte d'un
+                    # article de presse n'est plus de l'agrégation. Le
+                    # catalogue tranche, source par source.
+                    if (fulltext_budget > 0
+                            and veille_sources.texte_integral_permis(source)):
                         fulltext_budget -= 1
                         full = _fetch_bulletin_text(item["link"], bulletin_fetcher)
                         if full:
                             body = full
-                    md = ("# %s\n\nSource : CERT-FR (%s) — %s\n\n%s\n" %
-                          (item["title"], source, item["link"], body))
+                    emetteur = (src["nom"] if src else source)
+                    md = ("# %s\n\nSource : %s — %s\n\n%s\n" %
+                          (item["title"], emetteur, item["link"], body))
                     slug = hashlib.sha256(item["guid"].encode()).hexdigest()[:10]
-                    rag.ingest_bytes("veille-certfr-%s.md" % slug, md.encode("utf-8"),
-                                     title="[CERT-FR] " + item["title"][:260],
+                    rag.ingest_bytes("veille-%s-%s.md" % (source, slug), md.encode("utf-8"),
+                                     title="[%s] %s" % (emetteur, item["title"][:240]),
                                      theme="Veille", visibility="public")
                 except Exception:
                     pass
