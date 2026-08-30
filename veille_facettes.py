@@ -29,6 +29,7 @@ qu'il ne faut pas cacher.
 """
 import re
 
+import lien_externe
 import rag_store
 import veille_sources
 
@@ -195,6 +196,14 @@ def enrichir(items):
     for it in items:
         s = veille_sources.source(it.get("source") or "")
         d = dict(it)
+        # L'ADRESSE EST ASSAINIE ICI, AVANT DE SORTIR — pas dans la page.
+        # Échapper protège du balisage, pas du schéma : « javascript: » dans un
+        # href s'exécute au clic même parfaitement échappé. Trente-six flux
+        # extérieurs apportent chacun des adresses écrites par des tiers, et
+        # elles rejoignent DEUX affichages — la page publique et la console
+        # d'administration. Garder la garde côté serveur les couvre tous les
+        # deux, et couvrira le troisième.
+        d["link"] = lien_externe.sur(it.get("link"))
         d["facettes"] = classer(it, s)
         d["emetteur"] = s["nom"] if s else (it.get("source") or "Source")
         d["domaine"] = s["domaine"] if s else None

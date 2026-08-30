@@ -28,6 +28,7 @@ import json
 import logging
 import os
 import re
+import lien_externe   # une adresse venue du dehors n'est pas une adresse
 import reglages   # un réglage illisible ne doit pas arrêter le service
 import threading
 import veille_sources   # le catalogue des flux, et leur santé — voir le module
@@ -579,8 +580,20 @@ def _html_to_text(html):
 
 
 def _fetch_bulletin_text(link, fetcher=None):
-    """Texte complet d'un bulletin CERT-FR : JSON officiel de préférence, sinon
-    page HTML. Best-effort — renvoie None si indisponible."""
+    """Texte complet d'un bulletin : JSON officiel de préférence, sinon page
+    HTML. Best-effort — renvoie None si indisponible.
+
+    L'ADRESSE VIENT DU FLUX, DONC DU DEHORS, et c'est le serveur qui va la
+    chercher. Ce n'est pas le même risque qu'un lien affiché : une adresse
+    pointant sur 169.254.169.254, sur la boucle locale ou sur un réseau privé
+    ferait interroger l'infrastructure elle-même — métadonnées d'hébergeur,
+    bases, pages d'administration — par un serveur qui, lui, a le droit. La
+    requête part de l'intérieur : aucun pare-feu ne la voit passer.
+    """
+    if link and not lien_externe.joignable(link):
+        _log.warning("veille : adresse de bulletin écartée (hôte interne ou "
+                     "schéma refusé)")
+        return None
     if not link or not _VEILLE_FULLTEXT:
         return None
     fetcher = fetcher or _fetch_url

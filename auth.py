@@ -356,7 +356,19 @@ class _PgStore:
         with self._conn() as c:
             return c.execute("SELECT * FROM users WHERE email=%s", ((email or "").lower(),)).fetchone()
 
+    # LES SEULES COLONNES QU'ON A LE DROIT D'INTERROGER PAR CE CHEMIN.
+    # Un nom de colonne ne peut pas être passé en paramètre : il finit
+    # forcément dans la chaîne SQL. La question n'est donc pas COMMENT
+    # l'échapper — c'est de savoir d'où il vient. Les quatre appelants
+    # d'aujourd'hui passent des littéraux ; rien n'empêchait le cinquième de
+    # passer une valeur de requête, et ce chemin lit la table des COMPTES.
+    # Une liste blanche coûte une ligne et retire l'arme.
+    _CHAMPS_CHERCHABLES = ("verify_token", "approve_token", "reset_token",
+                           "email")
+
     def get_by(self, field, value):
+        if field not in self._CHAMPS_CHERCHABLES:
+            raise ValueError("champ non interrogeable : %r" % (field,))
         with self._conn() as c:
             return c.execute("SELECT * FROM users WHERE %s=%%s" % field, (value,)).fetchone()
 

@@ -2075,8 +2075,12 @@
     var V_ALL=[];
     function vRow(it){
       var k=it.source==='alerte'?'<span class="vk al">Alerte</span>':'<span class="vk av">Avis</span>';
-      return '<div class="vrow">'+k
-        +'<a class="vt" href="'+esc(it.link)+'" target="_blank" rel="noopener">'+esc(it.title)+'</a>'
+      /* Pas d'adresse, pas d'ancre : le serveur écarte les schémas autres
+         que http et https, et un href vide mènerait ici même. */
+      var t=esc(it.title);
+      var a=it.link?('<a class="vt" href="'+esc(it.link)+'" target="_blank" rel="noopener">'+t+'</a>')
+                   :('<span class="vt">'+t+'</span>');
+      return '<div class="vrow">'+k+a
         +'<span class="vd">'+vfmt(it.published)+'</span></div>';
     }
     function renderVeille(){

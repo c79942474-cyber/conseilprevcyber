@@ -236,12 +236,20 @@
       if(f.reglementaire) pills+='<span class="vsrc vreg">Réglementaire</span>';
       (f.standards||[]).slice(0,2).forEach(function(x){pills+='<span class="vsrc">'+esc(x)+'</span>';});
       (f.themes||[]).slice(0,2).forEach(function(x){pills+='<span class="vsrc">'+esc(x)+'</span>';});
+      /* Le serveur a déjà écarté les adresses dont le schéma n'est pas http
+         ou https — « javascript: » s'exécute au clic même parfaitement
+         échappé. Ici on en tire la conséquence d'affichage : pas d'adresse,
+         pas d'ancre. Un lien vide mènerait à la page elle-même, ce qui fait
+         croire à une panne du site plutôt qu'à une source écartée. */
+      var titre=esc(it.title), lien=it.link?esc(it.link):'';
+      var tete=lien?('<a href="'+lien+'" target="_blank" rel="noopener">'+titre+'</a>'):titre;
+      var pied=lien?('<a class="vlink" href="'+lien+'" target="_blank" rel="noopener">'
+        +esc(it.lien_libelle||'Source')+' \u2192</a>')
+        :'<span class="vlink" style="opacity:.6">Adresse de source écartée</span>';
       return '<article class="vitem"><div class="vtop">'+pills
-        +'<h3><a href="'+esc(it.link)+'" target="_blank" rel="noopener">'+esc(it.title)+'</a></h3>'
+        +'<h3>'+tete+'</h3>'
         +'<span class="vdate">'+fmt(it.published)+'</span></div>'
-        +'<p>'+esc(it.resume)+'</p>'
-        +'<a class="vlink" href="'+esc(it.link)+'" target="_blank" rel="noopener">'
-        +esc(it.lien_libelle||'Source')+' \u2192</a></article>';
+        +'<p>'+esc(it.resume)+'</p>'+pied+'</article>';
     }
 
     function render(){
