@@ -4074,7 +4074,7 @@ def sous_dossiers(code_piece, discipline=None):
 
 
 def couverture_documentaire(code_phase, code_piece, chercher, inputs=None,
-                            par_point=3):
+                            par_point=3, garder_extraits=False):
     """CE QUE LA BASE DOCUMENTE, point par point du contenu exigé.
 
     LE MANQUE QUE CELA COMBLE. Une pièce déclare ce qu'elle doit contenir —
@@ -4092,6 +4092,17 @@ def couverture_documentaire(code_phase, code_piece, chercher, inputs=None,
 
     `chercher(requete, k)` est injectée — ce module ne connaît pas la base, et
     reste testable sans elle. Elle rend des extraits {doc_id, title, score}.
+
+    `garder_extraits` AJOUTE à chaque point ses extraits retenus AVEC LEUR
+    CONTENU, sous la clé « extraits ». C'est ce qui permet à la rédaction de
+    travailler sur ce que cette fonction a trouvé, au lieu de le découvrir en
+    annexe une fois le texte écrit.
+
+    Pourquoi un drapeau, et pas un ajout systématique : les fiches rendues ne
+    portent délibérément que l'ATTRIBUTION — identifiant, titre, nature, rangs,
+    raisons. Y verser le texte alourdirait un objet qui sert de rapport, et
+    changerait ce que voient des appelants qui ne l'ont pas demandé. À `False`,
+    la structure est celle d'avant, à l'identique.
     """
     pc = piece(code_phase, code_piece)
     if not pc:
@@ -4117,14 +4128,17 @@ def couverture_documentaire(code_phase, code_piece, chercher, inputs=None,
             # Une base indisponible ne rend pas le point « non couvert » —
             # elle rend la couverture INCONNUE, et le dire est le contraire
             # d'annoncer un trou qu'on n'a pas constaté.
-            points.append({"point": point, "etat": "inconnu",
-                           "documents": [], "requete": req})
+            manque = {"point": point, "etat": "inconnu",
+                      "documents": [], "requete": req}
+            if garder_extraits:
+                manque["extraits"] = []
+            points.append(manque)
             continue
         # LE RECLASSEMENT VIENT ICI, avant la déduplication par document.
         # Après, il ne verrait plus qu'un extrait par source et ne pourrait
         # plus arbitrer entre deux passages du même document.
         classes = _classer_extraits(hits, contexte_classement)
-        docs, vus, ecartes = [], set(), []
+        docs, vus, ecartes, extraits = [], set(), [], []
         for h in classes:
             did = h.get("doc_id")
             if not did:
@@ -4149,12 +4163,21 @@ def couverture_documentaire(code_phase, code_piece, chercher, inputs=None,
                 continue
             vus.add(did)
             docs.append(fiche)
+            if garder_extraits:
+                # LE POINT VOYAGE AVEC L'EXTRAIT. Sans lui, la rédaction
+                # recevrait de meilleurs extraits sans savoir lequel appuie
+                # quoi — et referait de tête le rapprochement que l'on vient
+                # précisément de faire.
+                extraits.append(dict(h, point=point))
         if docs:
             couverts += 1
-        points.append({"point": point, "etat": "couvert" if docs else "a_ecrire",
+        fiche_point = {"point": point, "etat": "couvert" if docs else "a_ecrire",
                        "documents": docs, "ecartes": ecartes,
                        "divergences": _divergences_extraits(classes),
-                       "requete": req})
+                       "requete": req}
+        if garder_extraits:
+            fiche_point["extraits"] = extraits
+        points.append(fiche_point)
 
     total = len(points)
     inconnus = sum(1 for p in points if p["etat"] == "inconnu")
@@ -4190,6 +4213,86 @@ def couverture_documentaire(code_phase, code_piece, chercher, inputs=None,
                    "promise : un point « couvert » signale qu'un document "
                    "parle du sujet, jamais qu'il répond à la question.",
     }
+
+
+def extraits_pour_redaction(couverture, complement=None):
+    """Les extraits de la couverture, ORDONNÉS POUR QUE CHAQUE POINT AIT SON APPUI.
+
+    LE PROBLÈME QUE CET ORDRE RÉSOUT. Le contexte remis au modèle est borné en
+    caractères, et la coupe se fait dans l'ordre reçu. Verser point après point
+    — tous les extraits du premier, puis tous ceux du deuxième — laisserait les
+    derniers points sans aucun appui dès que le budget se referme, et ce sont
+    justement les points qu'il faut soutenir. On sert donc par TOURS : le
+    meilleur extrait de chaque point d'abord, puis le deuxième de chaque point,
+    et ainsi de suite. Sous n'importe quelle coupe, la couverture reste
+    répartie.
+
+    `complement` — les extraits de la requête générale — vient APRÈS. Il élargit
+    la matière ; il ne doit pas prendre la place d'un appui de point.
+
+    La déduplication porte sur le document ET l'empreinte du contenu : le même
+    passage peut ressortir sur deux points voisins, et le budget de contexte
+    n'a pas à le payer deux fois.
+    """
+    if not couverture:
+        return list(complement or [])
+    par_point = [(p.get("extraits") or []) for p in couverture.get("points") or []]
+    sortie, vus = [], set()
+
+    def _ajouter(h):
+        contenu = (h.get("content") or "")[:160].strip().lower()
+        cle = (h.get("doc_id"), contenu)
+        if cle in vus:
+            return
+        vus.add(cle)
+        sortie.append(h)
+
+    for tour in range(max([len(x) for x in par_point] or [0])):
+        for extraits in par_point:
+            if tour < len(extraits):
+                _ajouter(extraits[tour])
+    for h in complement or []:
+        _ajouter(h)
+    return sortie
+
+
+def consigne_manques(couverture):
+    """Ce que la base NE DIT PAS, nommé au rédacteur, avec l'interdit qui va avec.
+
+    C'EST LA MOITIÉ UTILE DU BRANCHEMENT. Un modèle qui ignore ce que la base
+    ne couvre pas comble le trou avec ce qu'il croit savoir, et rend une pièce
+    qui a l'air documentée sans l'être — la défaillance la plus coûteuse, parce
+    qu'elle ne se voit qu'au visa. Un modèle à qui l'on NOMME le trou l'annonce.
+
+    Rend une chaîne vide quand tout est appuyé : une consigne qui s'affiche
+    toujours cesse d'être lue.
+    """
+    if not couverture:
+        return ""
+    manquants = [p["point"] for p in couverture.get("points") or []
+                 if p.get("etat") == "a_ecrire"]
+    inconnus = [p["point"] for p in couverture.get("points") or []
+                if p.get("etat") == "inconnu"]
+    if not manquants and not inconnus:
+        return ""
+    bouts = ["\n\n## Points exigés SANS APPUI DOCUMENTAIRE\n"]
+    if manquants:
+        bouts.append(
+            "La base a été interrogée sur chacun des points ci-dessous et n'a "
+            "rien rendu :\n"
+            + "".join("  - %s\n" % m for m in manquants)
+            + "\nCes points s'écrivent depuis les données du projet et les "
+              "grandeurs calculées, PAS depuis des connaissances générales. "
+              "N'inventez ni référence, ni valeur, ni citation pour les "
+              "combler : écrivez ce que le projet permet d'écrire, et signalez "
+              "explicitement dans le document ce qui reste à documenter.\n")
+    if inconnus:
+        bouts.append(
+            "\nSur les points suivants, la base n'a pas répondu — la couverture "
+            "est INDÉTERMINÉE, ce qui n'est pas la même chose qu'un manque "
+            "constaté :\n"
+            + "".join("  - %s\n" % m for m in inconnus))
+    return "".join(bouts)
 
 
 def _classer_extraits(hits, contexte):

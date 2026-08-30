@@ -7419,6 +7419,28 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo,
                 hits = _hits_priorises(query, 8, public_only, sous,
                                        elargir=hits)
     hits, _fed = _federer(query, hits, 8, doc_ids)
+
+    # ── CHERCHER PAR POINT EXIGÉ, PUIS ASSEMBLER ─────────────────────────
+    # La couverture était calculée ICI AUSSI, mais APRÈS la trame : elle ne
+    # servait qu'à l'annexe, et la trame était assemblée sur les extraits
+    # d'une seule requête générale. Elle remonte avant, et le MÊME objet sert
+    # aux deux — la base n'est plus interrogée deux fois par pièce.
+    couverture = None
+    if phase and code:
+        def _chercher(req, k):
+            if doc_ids:
+                return _extraits_pour(req, doc_ids, public_only)[:k]
+            return rag.search(req, k=k, public_only=public_only)
+        try:
+            couverture = ingenierie_dc.couverture_documentaire(
+                phase, code, _chercher, data, garder_extraits=True)
+        except Exception:
+            app.logger.exception("couverture documentaire")
+        # Sélection manuelle : la couverture dit ce qui manque, elle ne
+        # réordonne pas ce que vous avez choisi.
+        if couverture and not doc_ids:
+            hits = ingenierie_dc.extraits_pour_redaction(couverture, hits)
+
     if documentaire:
         # Le modèle n'a pas manqué : il est débranché. Le dire avec les mots
         # de l'indisponibilité enverrait vérifier une configuration intacte.
@@ -7445,25 +7467,11 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo,
     except Exception:
         app.logger.exception("trame sans modèle : pièce")
 
-    # ── CE QUE LA BASE DOCUMENTE, POINT PAR POINT ────────────────────────
-    # La pièce dit ce qu'elle doit contenir ; le rédacteur recevait les
-    # extraits en vrac et faisait le rapprochement de tête. Quand la base ne
-    # disait rien d'un point, personne ne le signalait — et un point traité de
-    # mémoire est exactement ce qu'un visa relève. La couverture est
-    # CONSTATÉE, une recherche par point, et versée au document.
-    couverture = None
-    if phase and code:
-        def _chercher(req, k):
-            if doc_ids:
-                return _extraits_pour(req, doc_ids, public_only)[:k]
-            return rag.search(req, k=k, public_only=public_only)
-        try:
-            couverture = ingenierie_dc.couverture_documentaire(
-                phase, code, _chercher, data)
-        except Exception:
-            app.logger.exception("couverture documentaire")
-        if couverture and texte:
-            texte += "\n\n" + ingenierie_dc.couverture_markdown(couverture)
+    # La couverture — calculée plus haut, AVANT l'assemblage — est versée au
+    # document. C'est le même objet : la pièce est assemblée sur ce que le
+    # dossier de sources déclare, et non l'inverse.
+    if couverture and texte:
+        texte += "\n\n" + ingenierie_dc.couverture_markdown(couverture)
     if not texte:
         # Puis le livrable de la console : soixante-sept types, chacun avec son
         # plan. Sans ce second essai, la console refusait purement et
@@ -7660,6 +7668,41 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None,
         hits, fed = _federer(query, hits, 8, doc_ids)
     except Exception:
         hits = []
+    # ── CHERCHER PAR POINT EXIGÉ, PUIS ÉCRIRE ────────────────────────────
+    # CE QUI SE PASSAIT AVANT, ET QUI NE SE VOYAIT PAS. La pièce déclare trois
+    # à six points de contenu exigé. La rédaction recevait les extraits d'UNE
+    # SEULE requête générale : le quatrième point n'avait jamais fait l'objet
+    # d'une recherche, et rien ne disait au modèle que la base n'en parlait
+    # pas. Il l'écrivait donc quand même, avec ce qu'il croit savoir — une
+    # pièce qui a l'air documentée sans l'être, ce qui ne se découvre qu'au
+    # visa.
+    #
+    # CELA NE COÛTE AUCUN APPEL DE MODÈLE : `couverture_documentaire` ne fait
+    # que des recherches. Trois à six requêtes de plus, sur un chemin qui fait
+    # déjà un appel au juge de reclassement.
+    couverture = None
+    _ph = str(data.get("phase") or "").strip().upper()[:12]
+    _pi = str(data.get("piece") or "").strip().upper()[:16]
+    if _ph and _pi:
+        def _chercher_point(req, k):
+            if doc_ids:
+                return rag.search(req, k=k, public_only=public_only,
+                                  doc_ids=doc_ids)
+            return rag.search(req, k=k, public_only=public_only)
+        try:
+            couverture = ingenierie_dc.couverture_documentaire(
+                _ph, _pi, _chercher_point, data, garder_extraits=True)
+        except Exception:
+            # La couverture est un APPUI, jamais une condition : une base qui
+            # ne répond pas ne doit pas empêcher d'écrire.
+            app.logger.exception("couverture avant rédaction")
+            couverture = None
+        # UNE SÉLECTION MANUELLE NE SE FAIT PAS RÉORDONNER. Vous avez dit
+        # quels documents : la couverture reste calculée — elle dira quels
+        # points exigés ces documents-là ne couvrent pas —, mais l'ordre des
+        # extraits reste le vôtre. Même doctrine que pour la fédération.
+        if couverture and not doc_ids:
+            hits = ingenierie_dc.extraits_pour_redaction(couverture, hits)
     # LES SOURCES SONT BÂTIES SUR LES EXTRAITS RÉELLEMENT INCLUS. Le budget
     # coupe, la déduplication écarte : construire la liste nominative sur les
     # huit hits COMPLETS faisait ordonner au modèle de « couvrir » et citer des
@@ -7693,6 +7736,10 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None,
                         "base": h.get("base") or "",
                         "visibility": h.get("visibility"), "extraits": 1})
     user = user + livrables.dossier_documentaire(sources, choix_manuel=bool(doc_ids))
+    # CE QUE LA BASE NE DIT PAS, NOMMÉ AU MODÈLE. Sans cela, il comble le trou ;
+    # avec, il l'annonce. C'est la moitié utile du branchement.
+    if couverture:
+        user += ingenierie_dc.consigne_manques(couverture)
 
     try:
         text, used_model = assistant.generate(model, system, user, context=context)

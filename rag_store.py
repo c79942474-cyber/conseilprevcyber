@@ -2889,6 +2889,15 @@ def build_context_retenus(hits, max_chars=3500):
         base = h.get("base")
         if base:
             label += " · " + base
+        # LE POINT EXIGÉ QUE CET EXTRAIT APPUIE, quand la recherche a été faite
+        # point par point. L'étiquette est « le seul endroit que le modèle
+        # lit » : sans elle, servir les extraits dans l'ordre des points ne
+        # servirait à rien — le modèle referait de tête le rapprochement que la
+        # couverture documentaire vient précisément de faire, et c'est ce
+        # rapprochement de tête qui laisse un point traité de mémoire.
+        point = (h.get("point") or "").strip()
+        if point:
+            label += " · pour : " + point[:120]
         block = "[%s] %s" % (label, content)
         if total + len(block) > max_chars:
             remain = max_chars - total
