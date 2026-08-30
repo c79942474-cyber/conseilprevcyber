@@ -24,20 +24,42 @@
 <link rel="icon" href="/emblem.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/styles.css">
 <style>
-  .vitem{border:1px solid var(--line);border-radius:13px;padding:16px 18px;margin-bottom:12px;
-    background:linear-gradient(180deg,var(--panel),var(--bg2));transition:border-color .15s}
+  /* TROIS COLONNES, MAIS PAS TROIS EN DUR. `auto-fill` avec un plancher de
+     300 px donne trois colonnes sur la largeur de la page, deux sur une
+     tablette et une sur un téléphone — sans point de rupture à maintenir.
+     Figer « repeat(3, 1fr) » rendrait des cartes de 90 px sur mobile. */
+  #vlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+    gap:12px;align-items:start}
+  /* Le message « aucun résultat » n'est pas une carte : il tient toute la
+     largeur. Laissé dans une colonne, il se lirait comme un premier résultat
+     vide plutôt que comme une réponse à la recherche. */
+  #vlist .vempty{grid-column:1/-1}
+  .vitem{border:1px solid var(--line);border-radius:13px;padding:16px 18px;
+    background:linear-gradient(180deg,var(--panel),var(--bg2));transition:border-color .15s;
+    display:flex;flex-direction:column}
   .vitem:hover{border-color:var(--cyan)}
-  .vitem .vtop{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
-  .vitem h3{font-size:15.5px;margin:0;flex:1;min-width:220px}
+  /* Dans une carte de 300 px, l'ancienne rangée « pastilles + titre + date »
+     se cassait n'importe où. Les pastilles et la date tiennent une ligne, le
+     titre la suivante : deux lignes prévisibles au lieu d'un pavé qui bouge
+     d'une carte à l'autre. */
+  .vitem .vtop{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .vitem h3{font-size:15px;margin:0;line-height:1.35}
   .vitem h3 a{color:var(--ink)}
   .vitem h3 a:hover{color:var(--cyan)}
   .vpill{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;
     border-radius:999px;padding:3px 10px;border:1px solid var(--line);white-space:nowrap}
   .vpill.alerte{color:var(--danger);border-color:rgba(247,158,125,.45);background:rgba(247,158,125,.09)}
   .vpill.avis{color:var(--teal);border-color:rgba(45,212,191,.4);background:rgba(45,212,191,.08)}
-  .vdate{font-family:var(--mono);font-size:11px;color:var(--muted2);white-space:nowrap}
-  .vitem p{font-size:13.5px;color:var(--muted);margin:0;line-height:1.6}
-  .vitem .vlink{display:inline-block;margin-top:8px;font-family:var(--mono);font-size:11.5px;color:var(--cyan)}
+  .vdate{font-family:var(--mono);font-size:11px;color:var(--muted2);white-space:nowrap;margin-left:auto}
+  /* LE CHAPEAU EST BORNÉ À CINQ LIGNES, et c'est ce qui fait gagner la place.
+     Sans cela, un chapeau de régulateur de vingt lignes imposerait sa hauteur
+     à toute la rangée, et les trois colonnes rendraient MOINS d'actualités par
+     écran qu'une seule. Le texte intégral est à un clic, sur la publication
+     d'origine. Pour revenir en arrière : retirer ce bloc. */
+  .vitem p{font-size:13.5px;color:var(--muted);margin:0;line-height:1.55;
+    display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+  .vitem .vlink{display:inline-block;margin-top:10px;font-family:var(--mono);font-size:11.5px;color:var(--cyan)}
+  .vitem>*:last-child{margin-top:auto}
   .vempty{color:var(--muted2);text-align:center;padding:44px;border:1px dashed var(--line);border-radius:13px}
   .vnote{display:flex;gap:9px;align-items:flex-start;border:1px solid rgba(34,211,238,.3);
     background:rgba(34,211,238,.06);border-radius:11px;padding:12px 15px;font-size:12.5px;color:var(--muted);margin:0 0 20px}
@@ -89,7 +111,10 @@
       La même veille qui alimente notre <a href="/assistant">assistant IA</a>.</p>
     </section>
 
-    <section class="section" style="padding-top:22px;max-width:900px">
+    <!-- La largeur de 900 px convenait à une colonne unique ; à trois, elle
+         donnerait des cartes de 284 px. On rend la section à la largeur de la
+         page — c'est elle qui décide, et elle est déjà responsive. -->
+    <section class="section" style="padding-top:22px">
       <!-- LA MENTION NE S'AFFICHE QUE SI DES RÉSUMÉS SONT RÉELLEMENT PRODUITS.
            Par défaut on reprend le chapeau que la source publie elle-même : il
            n'y a alors aucune génération, et l'annoncer serait faux. -->
@@ -246,9 +271,9 @@
       var pied=lien?('<a class="vlink" href="'+lien+'" target="_blank" rel="noopener">'
         +esc(it.lien_libelle||'Source')+' \u2192</a>')
         :'<span class="vlink" style="opacity:.6">Adresse de source écartée</span>';
-      return '<article class="vitem"><div class="vtop">'+pills
+      return '<article class="vitem">'
+        +'<div class="vtop">'+pills+'<span class="vdate">'+fmt(it.published)+'</span></div>'
         +'<h3>'+tete+'</h3>'
-        +'<span class="vdate">'+fmt(it.published)+'</span></div>'
         +'<p>'+esc(it.resume)+'</p>'+pied+'</article>';
     }
 

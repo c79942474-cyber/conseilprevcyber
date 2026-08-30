@@ -153,3 +153,57 @@ def test_la_sante_nomme_chaque_flux_du_catalogue(admin):
     assert cles == {s["cle"] for s in veille_sources.SOURCES}
     for ligne in j["sources"]:
         assert ligne["sante"] in ("ok", "muet", "jamais_joint", "pas_encore_essaye")
+
+
+# ── 5. La mise en trois colonnes ───────────────────────────────────────────
+
+def _regle_css(selecteur):
+    """Le corps d'une règle CSS, COMMENTAIRES RETIRÉS.
+
+    La première version de la règle suivante lisait le fichier entier — et
+    elle est tombée sur MON PROPRE COMMENTAIRE, celui qui explique pourquoi il
+    ne faut pas figer trois colonnes. Une règle qui compte les mots du fichier
+    ne dit rien de ce que la page FAIT : elle serait restée verte devant une
+    grille figée dont on aurait déplacé l'explication.
+    """
+    sans = re.sub(r"/\*.*?\*/", "", PAGE, flags=re.S)
+    m = re.search(re.escape(selecteur) + r"\s*\{([^}]*)\}", sans)
+    return m.group(1) if m else ""
+
+
+def test_la_liste_se_replie_au_lieu_de_figer_trois_colonnes():
+    """TROIS COLONNES SUR UNE PAGE, PAS SUR UN TÉLÉPHONE.
+
+    Figer trois colonnes donnerait des cartes de quatre-vingt-dix pixels sur un
+    écran étroit. Le plancher de `minmax` fait le repli tout seul — trois
+    colonnes sur la page, deux sur une tablette, une sur un téléphone — sans
+    point de rupture à maintenir, donc sans point de rupture à oublier.
+    """
+    regle = _regle_css("#vlist")
+    # `display` NOMMÉMENT : chercher « grid » tout court restait vrai grâce à
+    # `grid-template-columns`, qui ne sert à rien sans la grille. Une mutation
+    # passant en `display:block` survivait — la page serait revenue à une
+    # colonne, avec la déclaration des trois toujours écrite au-dessus.
+    assert "display:grid" in regle.replace(" ", "")
+    assert "repeat(auto-fill,minmax(300px,1fr))" in regle
+    assert "repeat(3," not in regle, "colonnes figées : illisible sur mobile"
+
+
+def test_le_message_de_liste_vide_tient_toute_la_largeur():
+    """Laissé dans une colonne, « aucun élément pour cette combinaison de
+    filtres » se lirait comme un premier résultat vide plutôt que comme une
+    réponse à la recherche."""
+    assert "#vlist .vempty{grid-column:1/-1}" in PAGE
+
+
+def test_la_section_n_est_plus_bridee_sous_la_largeur_de_page():
+    """Neuf cents pixels convenaient à une colonne unique ; à trois, ils
+    donneraient des cartes de deux cent quatre-vingt-quatre pixels."""
+    assert 'class="section" style="padding-top:22px;max-width:900px"' not in PAGE
+
+
+def test_le_chapeau_est_borne_sinon_les_colonnes_font_perdre_de_la_place():
+    """CE QUI FAIT RÉELLEMENT GAGNER LA PLACE. Sans borne, un chapeau de
+    régulateur de vingt lignes impose sa hauteur à toute la rangée : trois
+    colonnes rendraient alors MOINS d'actualités par écran qu'une seule."""
+    assert "-webkit-line-clamp:5" in PAGE
