@@ -686,8 +686,33 @@
     // LES DÉCISIONS EFFECTIVEMENT CONSULTÉES. Les afficher rend le contrôle
     // ci-dessus vérifiable par le lecteur, et lui permet d'aller lire l'arrêt
     // plutôt que de croire ce qu'on lui en dit.
-    function rendreDecisions(list){
-      if(!list||!list.length) return '';
+    /* LE SILENCE ÉTAIT LE DÉFAUT. Sans décision, cette fonction ne rendait
+       RIEN — et le lecteur concluait qu'aucune décision n'existe sur sa
+       question. Or une liste vide a deux causes qui ne se soignent pas
+       pareil : le corpus a répondu et ne connaît rien, ou le corpus n'a pas
+       répondu du tout. Le second cas doit se dire, sinon l'absence de
+       jurisprudence passe pour un fait juridique alors que c'est une panne
+       de raccordement. */
+    function rendreCorpusMuet(corpus){
+      if(!corpus) return '';
+      if(corpus.ok){
+        return '<div class="jur"><div class="jur-t">Jurisprudence</div>'
+          +'<div class="jur-r">Le corpus LibreJustice a été interrogé et n\'a '
+          +'rendu aucune décision sur cette question. Cela ne signifie pas '
+          +'qu\'il n\'en existe pas : vérifiez la couverture du corpus avant '
+          +'d\'en tirer une conclusion.</div></div>';
+      }
+      return '<div class="jur"><div class="jur-t">Jurisprudence — corpus non '
+        +'consulté</div><div class="jur-r"><b>Cette analyse a été produite '
+        +'SANS jurisprudence</b>, non parce qu\'il n\'en existe pas, mais '
+        +'parce que le corpus n\'a pas pu être interrogé'
+        +(corpus.motif?(' : '+esc(corpus.motif)):'.')
+        +'<br>Le reste de l\'analyse — qualification réglementaire, textes '
+        +'applicables, extraits de la base — n\'est pas affecté.</div></div>';
+    }
+
+    function rendreDecisions(list, corpus){
+      if(!list||!list.length) return rendreCorpusMuet(corpus);
       var h='<div class="jur"><div class="jur-t">Jurisprudence rapportée du '
            +'corpus LibreJustice</div><ol>';
       h+=list.map(function(d,i){
@@ -762,7 +787,7 @@
         h+='<div class="srcs">'+j.sources.map(function(s){
              return '<span class="s">['+s.n+'] '+esc(s.titre||'Document')+'</span>';}).join('')+'</div>';
       }
-      h+=rendreDecisions(j.decisions);
+      h+=rendreDecisions(j.decisions, j.corpus);
       var kind=(cible==='cres')?'contrat':'analyse';
       TEXTES[kind]=j.texte||'';
       h+=barreExport(kind, (kind==='analyse'?($('q').value||''):'Revue de contrat'),
@@ -980,7 +1005,7 @@
             h+='<div class="cit ko" style="margin-top:14px">Aucune pièce n\'a pu être versée au dossier : '
               +'la note repose sur le seul cadre réglementaire. Vérifiez la section « Ce qui manque pour décider ».</div>';
           }
-          h+=rendreDecisions(j.decisions);
+          h+=rendreDecisions(j.decisions, j.corpus);
           TEXTES['arbitrage']=j.texte||'';
           h+=barreExport('arbitrage', objet, j.pieces||[], j.model);
           h+='</div><div class="card"><div class="avert">'+esc(j.avertissement)

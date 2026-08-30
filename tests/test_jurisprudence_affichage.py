@@ -26,7 +26,8 @@ PAGE = io.open(os.path.join(ICI, 'juridique.html'), encoding='utf-8').read()
 NODE = shutil.which('node')
 
 PRELUDE = ('esc', 'PUBLICATION', 'SOLUTION', 'codeLisible',
-           'ord', 'creneau', 'chambre', 'rendreJurisprudence', 'rendreDecisions')
+           'ord', 'creneau', 'chambre', 'rendreJurisprudence',
+           'rendreCorpusMuet', 'rendreDecisions')
 
 
 def _extraire(nom):
@@ -57,8 +58,9 @@ def _evaluer(expression):
     return json.loads(r.stdout)
 
 
-def _rendre(appel, argument):
-    return _evaluer('%s(%s)' % (appel, json.dumps(argument, ensure_ascii=False)))
+def _rendre(appel, *arguments):
+    args = ', '.join(json.dumps(a, ensure_ascii=False) for a in arguments)
+    return _evaluer('%s(%s)' % (appel, args))
 
 
 DECISION = {
@@ -124,9 +126,56 @@ def test_le_sort_de_la_decision_est_affiche():
     assert 'Sort de cette décision' in h and 'confirmée' in h
 
 
-def test_aucune_decision_aucun_bloc():
+def test_aucune_decision_aucune_liste_de_decisions():
+    """Sans décision, aucune LISTE ne doit paraître — c'est ce que cette règle
+    a toujours défendu, et elle le défend encore.
+
+    CE QU'ELLE NE DÉFEND PLUS : le silence complet. Elle exigeait une chaîne
+    vide, et cela masquait une distinction qui compte. Une liste vide a deux
+    causes qui ne se soignent pas pareil — le corpus a répondu et ne connaît
+    rien, ou le corpus n'a pas répondu du tout. Ne rien dire faisait passer une
+    panne de raccordement pour un fait juridique : « il n'existe pas de
+    jurisprudence sur cette question »."""
     for vide in ([], None):
-        assert _rendre('rendreDecisions', vide) == ''
+        for etat in (None, {"ok": True}, {"ok": False, "motif": "corpus fermé"}):
+            h = _rendre('rendreDecisions', vide, etat)
+            assert '[J1]' not in h and '<ol>' not in h, (vide, etat)
+
+
+def test_sans_etat_du_corpus_la_page_se_tait():
+    """Ne rien savoir n'autorise pas à conclure. Tant que l'appelant ne dit pas
+    ce qu'a fait le corpus, la page n'invente aucune explication."""
+    assert _rendre('rendreDecisions', [], None) == ''
+
+
+def test_un_corpus_injoignable_est_annonce_avec_son_motif():
+    """LA DISTINCTION QUI COMPTE. Une analyse produite sans jurisprudence parce
+    que le corpus est fermé n'est pas une analyse qui conclut à l'absence de
+    jurisprudence — et le lecteur est le seul à pouvoir en tirer les
+    conséquences."""
+    h = _rendre('rendreDecisions', [],
+                {"ok": False, "motif": "exige une autorisation OAuth 2.1"})
+    assert 'SANS jurisprudence' in h
+    assert 'exige une autorisation OAuth 2.1' in h
+    assert "n'est pas affecté" in h, (
+        "le lecteur doit savoir que la qualification réglementaire, elle, "
+        "tient toujours")
+
+
+def test_un_corpus_interroge_et_muet_le_dit_autrement():
+    h = _rendre('rendreDecisions', [], {"ok": True})
+    assert 'aucune décision' in h
+    assert 'SANS jurisprudence' not in h, (
+        "un corpus qui a répondu est présenté comme injoignable")
+
+
+def test_le_motif_du_corpus_est_echappe():
+    """Le motif vient d'un service tiers et transite par un message
+    d'exploitation : il entre dans la page comme du texte, jamais comme du
+    balisage."""
+    h = _rendre('rendreDecisions', [],
+                {"ok": False, "motif": "<img src=x onerror=alert(1)>"})
+    assert '<img' not in h and '&lt;img' in h
 
 
 # ── LE VOCABULAIRE DU LECTEUR, PAS CELUI DU RÉFÉRENTIEL ─────────────────

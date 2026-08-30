@@ -100,6 +100,29 @@ PROTOCOLE = "2025-06-18"
 _OUTILS = ("search_decisions", "get_decision", "search_legal_texts", "get_legal_text")
 
 
+def _serveur_autorisation(entetes):
+    """L'adresse des métadonnées d'autorisation, annoncée par le refus lui-même.
+
+    LE REFUS PORTAIT LA RÉPONSE, ET PERSONNE NE LA LISAIT. La norme veut qu'un
+    401 sur une ressource protégée nomme, dans son en-tête `WWW-Authenticate`,
+    l'adresse où lire ses métadonnées d'autorisation. C'est exactement ce qu'il
+    faut consulter pour savoir si un accès sans humain est possible — et
+    c'était dans la réponse depuis le premier appel.
+
+    Rend une chaîne vide plutôt que None : cette valeur part dans un message
+    d'exploitation, et un « None » au milieu d'une phrase française est une
+    fuite de mécanique.
+    """
+    brut = ""
+    for cle in ("WWW-Authenticate", "www-authenticate"):
+        brut = (entetes or {}).get(cle) or brut
+    for champ in ("resource_metadata", "as_uri", "authorization_uri"):
+        m = re.search(champ + r'\s*=\s*"([^"]+)"', brut)
+        if m:
+            return m.group(1)
+    return ""
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # 2. CLIENT MCP — JSON-RPC 2.0 SUR HTTP
 # ═══════════════════════════════════════════════════════════════════════════
@@ -108,9 +131,28 @@ _OUTILS = ("search_decisions", "get_decision", "search_legal_texts", "get_legal_
 # en text/event-stream selon l'humeur du serveur pour une même requête. Les deux
 # portent le même message JSON-RPC ; `_extraire` les ramène à un seul cas.
 
-_verrou = threading.Lock()
+# UN VERROU RÉENTRANT, ET CE N'EST PAS UN CONFORT.
+#
+# Ce module prend son verrou À PLUSIEURS NIVEAUX PAR CONCEPTION : `_outil` et
+# `disponible` l'acquièrent, puis appellent `_ouvrir`, qui appelle `_appel`.
+# Tant qu'aucune de ces fonctions profondes ne le reprenait, un `Lock` simple
+# suffisait — mais rien ne l'empêchait, et la première ligne qui l'a fait a figé
+# l'application entière au premier refus du corpus. Sans erreur, sans trace,
+# sans fin : un interblocage ne lève rien, il ne se constate qu'à l'absence de
+# réponse.
+#
+# UNE RÈGLE D'ESSAI NE SUFFIT PAS À COUVRIR CE DÉFAUT, et c'est ce qui décide
+# du choix. Elle n'attrape le blocage que si elle s'exécute AVANT les autres
+# appels au corpus ; sinon ce sont eux qui se figent, sans délai, et la suite
+# entière meurt sur une expiration qui ne nomme rien. Un verrou réentrant
+# supprime la classe de défaut au lieu de la surveiller.
+_verrou = threading.RLock()
 _etat = {
     "session": None,        # identifiant de session MCP rendu par initialize
+    # L'adresse des métadonnées d'autorisation, retenue du dernier refus : elle
+    # est la seule piste exploitable quand le corpus se ferme, et la redemander
+    # supposerait de refaire un appel qu'on sait voué à l'échec.
+    "autorisation": "",
     "protocole": PROTOCOLE,
     "echecs": 0,
     "coupe_jusqu_a": 0.0,
@@ -182,11 +224,47 @@ def _appel(methode, params=None, notification=False):
         _etat["session"] = sid
 
     if r.status_code == 401 or r.status_code == 403:
-        # LE CAS QU'ON NE PEUT PAS DEVINER À L'AVANCE. Le dépôt annonce un accès
-        # public ; si le serveur exige malgré tout un jeton, il faut le dire
-        # précisément plutôt que de laisser croire à une panne réseau.
-        return False, ("le corpus exige une autorisation OAuth : renseignez "
-                       "LIBREJUSTICE_TOKEN (jeton porteur) — voir " + DEPOT)
+        # CE QUE LE SERVEUR EXIGE ET CE QUE CE CLIENT SAIT FAIRE NE SE
+        # RECOUVRENT PAS, et le message précédent envoyait dans une impasse.
+        #
+        # Il demandait de « renseigner LIBREJUSTICE_TOKEN (jeton porteur) ».
+        # Or LibreJustice ne délivre AUCUN jeton statique : son dépôt annonce
+        # « OAuth 2.1 avec enregistrement dynamique de client — aucune clé à
+        # configurer », un flux conçu pour un client INTERACTIF, où quelqu'un
+        # consent dans son navigateur. Ce module est un appelant sans écran :
+        # il n'a personne pour cliquer, et il ne fait ni découverte de
+        # métadonnées, ni enregistrement, ni échange de jeton.
+        #
+        # UN DIAGNOSTIC QUI PRESCRIT UNE ACTION IMPOSSIBLE COÛTE PLUS CHER
+        # QU'UN DIAGNOSTIC MUET : on le suit, et on cherche pendant des heures
+        # un jeton que personne ne délivre.
+        # PAS DE VERROU ICI, ET C'EST OBLIGATOIRE. `_appel` s'exécute DÉJÀ
+        # sous `_verrou` — `_outil` et `disponible` le prennent avant
+        # d'appeler `_ouvrir`, qui appelle `_appel`. Or `threading.Lock` n'est
+        # pas réentrant : le reprendre ici bloque le fil sur lui-même, et le
+        # premier refus du corpus fige l'application entière.
+        #
+        # L'écriture d'une clé de dictionnaire est atomique sous l'interpréteur
+        # de référence ; c'est déjà ainsi que `_etat["session"]` est posé
+        # quelques lignes plus haut, dans cette même fonction.
+        ou = _serveur_autorisation(r.headers)
+        _etat["autorisation"] = ou
+        adresse = ((" Métadonnées d'autorisation annoncées par le refus : %s."
+                    % ou) if ou else "")
+        if JETON:
+            return False, ("le corpus a REFUSÉ le jeton fourni "
+                           "(LIBREJUSTICE_TOKEN) : expiré, révoqué, ou émis "
+                           "pour une autre ressource." + adresse)
+        return False, ("le corpus exige une autorisation OAuth 2.1, et ce "
+                       "connecteur ne sait pas la négocier — il n'effectue ni "
+                       "découverte, ni enregistrement dynamique de client, ni "
+                       "échange de jeton. AUCUN JETON STATIQUE N'EST À "
+                       "DEMANDER : LibreJustice n'en délivre pas. Deux issues "
+                       "possibles — un accès sans humain si leur serveur "
+                       "d'autorisation accepte « client_credentials », sinon "
+                       "une autorisation faite UNE FOIS à la main dont on "
+                       "conserve le jeton, à poser dans LIBREJUSTICE_TOKEN."
+                       + adresse + " Voir " + DEPOT)
     if r.status_code == 404 and _etat["session"]:
         # Session expirée côté serveur : on la jette, le prochain appel en
         # ouvrira une neuve.
@@ -534,6 +612,12 @@ def etat():
         "reserve": RESERVE,
         "mention": MENTION,
         "outils": list(_etat["outils"]),
+        # CE QUE LE CONNECTEUR NE SAIT PAS FAIRE, DIT UNE FOIS POUR TOUTES.
+        # Sans cette ligne, un exploitant qui lit « exige une autorisation »
+        # conclut qu'il lui manque un réglage — alors qu'il lui manque un
+        # protocole.
+        "oauth_negocie": False,
+        "autorisation": _etat.get("autorisation") or "",
         "coupe": time.time() < _etat["coupe_jusqu_a"],
         "motif": _etat["motif"],
         "derniere_reussite": _etat["derniere_reussite"] or None,

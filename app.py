@@ -1491,6 +1491,12 @@ def _juridique_jurisprudence(question, profil=None, limite=5):
     il ne l'empêche pas. Le conseil tenait debout sans jurisprudence avant que ce
     connecteur existe.
 
+    REND AUSSI L'ÉTAT, ET C'EST TOUT LE POINT. Une liste vide a deux causes
+    qui ne se soignent pas pareil : le corpus a répondu et ne connaît rien sur
+    la question, ou le corpus n'a pas répondu du tout. Jeter le motif en route
+    laissait la page incapable de les distinguer — elle n'affichait rien dans
+    les deux cas, et le lecteur concluait qu'aucune décision n'existe.
+
     Ce qui est rendu ici est exactement ce que le modèle verra, et exactement ce
     contre quoi ses citations seront vérifiées. La liste doit donc être portée
     jusqu'à `post_traiter` : la contrôler contre autre chose que ce qui a été
@@ -1501,11 +1507,12 @@ def _juridique_jurisprudence(question, profil=None, limite=5):
         r = librejustice.rechercher(requete, limite=limite)
         if not r.get("ok"):
             app.logger.info("LIBREJUSTICE_INDISPONIBLE: %s", r.get("motif"))
-            return []
-        return r.get("decisions") or []
+            return [], {"ok": False, "motif": r.get("motif") or ""}
+        return (r.get("decisions") or []), {"ok": True, "motif": ""}
     except Exception as exc:
         app.logger.info("LIBREJUSTICE_ERREUR: %s", exc)
-        return []
+        return [], {"ok": False, "motif": "erreur du connecteur (%s)"
+                                          % type(exc).__name__}
 
 
 def _juridique_extraits(question, profil):
@@ -1584,7 +1591,7 @@ def api_juridique_analyse():
         textes_ids = [x["id"] for x in qual["applicables"]] + \
                      [x["id"] for x in qual["a_verifier"]]
     extraits, sources = _juridique_extraits(question, profil)
-    decisions = _juridique_jurisprudence(question, profil)
+    decisions, corpus = _juridique_jurisprudence(question, profil)
     user = juridique.prompt_analyse(question, profil=profil, extraits=extraits,
                                     textes_ids=textes_ids,
                                     jurisprudence=decisions)
@@ -1611,7 +1618,7 @@ def api_juridique_analyse():
                                 resume_min),
                       ok=not res["citations"]["suspectes"] and not hors_liste)
     return jsonify(ok=True, model=used, sources=sources,
-                   qualification=qual, decisions=decisions, **res)
+                   qualification=qual, decisions=decisions, corpus=corpus, **res)
 
 
 @app.route("/api/juridique/contrat", methods=["POST"])
@@ -1827,7 +1834,7 @@ def api_juridique_arbitrage():
     routage = juridique.router(profil, dossier)
     textes_ids = ([x["id"] for x in routage["qualification"]["applicables"]]
                   + [x["id"] for x in routage["qualification"]["a_verifier"]])
-    decisions = _juridique_jurisprudence(objet, profil)
+    decisions, corpus = _juridique_jurisprudence(objet, profil)
     user = juridique.prompt_arbitrage(
         objet, contexte=contexte,
         extraits="\n\n".join(extraits) if extraits else None,
@@ -1854,7 +1861,7 @@ def api_juridique_arbitrage():
                                 len(hors_liste), resume_min),
                       ok=not res["citations"]["suspectes"] and not hors_liste)
     return jsonify(ok=True, model=used, pieces=pieces, routage=routage,
-                   decisions=decisions, **res)
+                   decisions=decisions, corpus=corpus, **res)
 
 
 @app.route("/api/juridique/export", methods=["POST"])
