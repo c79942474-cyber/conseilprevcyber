@@ -69,6 +69,7 @@ import juridique
 import librejustice   # corpus de jurisprudence, branché par MCP — voir le module
 import livrables
 import rag_federe   # la base sœur, mêlée à la nôtre — voir le module
+import reglages   # un réglage illisible ne doit pas arrêter le service
 import livrables_export
 import playbook
 import minimisation
@@ -792,10 +793,12 @@ threading.Thread(target=_init_automation, daemon=True).start()
 # d'un nombre de lignes (EVENT_MAX_ROWS). Archivage JSONL optionnel avant suppression
 # (EVENT_ARCHIVE_PATH — cible durable requise, cf. DEPLOY.md). Sans ces variables,
 # aucune purge (l'historique complet est conservé).
-_RETENTION_DAYS = float(os.environ.get("EVENT_RETENTION_DAYS") or 0) or None
-_MAX_ROWS = int(os.environ.get("EVENT_MAX_ROWS") or 0) or None
+# Le `or None` final n'est pas un ornement : ZÉRO signifie « aucune purge ».
+# Le perdre allumerait une purge de lui-même sur une base de production.
+_RETENTION_DAYS = reglages.reel("EVENT_RETENTION_DAYS", 0, mini=0) or None
+_MAX_ROWS = reglages.entier("EVENT_MAX_ROWS", 0, mini=0) or None
 _ARCHIVE_PATH = os.environ.get("EVENT_ARCHIVE_PATH") or None
-_MAINTENANCE_HOURS = float(os.environ.get("MAINTENANCE_INTERVAL_HOURS") or 6)
+_MAINTENANCE_HOURS = reglages.reel("MAINTENANCE_INTERVAL_HOURS", 6, mini=0.1)
 
 
 def _start_maintenance():
@@ -10347,5 +10350,5 @@ _verifier_liens_maturite()
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = reglages.entier("PORT", 5000, mini=1, maxi=65535)
     app.run(host="0.0.0.0", port=port, debug=False)

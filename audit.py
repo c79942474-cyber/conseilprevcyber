@@ -19,6 +19,7 @@ Principes tenus ici :
 """
 import logging
 import os
+import reglages   # un réglage illisible ne doit pas arrêter le service
 import threading
 import time
 
@@ -27,7 +28,7 @@ _log = logging.getLogger("audit")
 # Plafond du journal : la base est partagée avec les documents, un journal
 # illimité finirait par manger l'espace utile. Les plus anciennes entrées sont
 # retirées au-delà.
-MAX_ENTREES = int(os.environ.get("AUDIT_MAX_ROWS", "20000"))
+MAX_ENTREES = reglages.entier("AUDIT_MAX_ROWS", 20000, mini=1)
 
 # DURÉE DE CONSERVATION — art. 5.1.e du RGPD. Le plafond de volume ci-dessus est
 # une limite technique, pas une durée : sur un site peu sollicité, 20 000 entrées
@@ -38,7 +39,7 @@ MAX_ENTREES = int(os.environ.get("AUDIT_MAX_ROWS", "20000"))
 # tardivement, assez court pour ne pas constituer un historique permanent des
 # faits et gestes des utilisateurs. Les deux règles se cumulent : on efface ce
 # qui est trop ANCIEN, et on plafonne ce qui est trop VOLUMINEUX.
-RETENTION_JOURS = max(1, int(os.environ.get("AUDIT_RETENTION_JOURS", "365")))
+RETENTION_JOURS = reglages.entier("AUDIT_RETENTION_JOURS", 365, mini=1)
 
 
 def _limite_anciennete():

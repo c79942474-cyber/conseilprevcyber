@@ -22,6 +22,7 @@ import json
 import logging
 import os
 import re
+import reglages   # un réglage illisible ne doit pas arrêter le service
 import secrets
 import threading
 import time
@@ -716,7 +717,7 @@ def _send_reset(user, base=None):
 # fraîchement révoqué reste accepté au plus quelques minutes. C'est le prix,
 # assumé et borné, pour ne pas transformer un incident de base en panne totale.
 _USER_CACHE = {}
-_USER_CACHE_TTL = float(os.environ.get("AUTH_CACHE_TTL", "300"))
+_USER_CACHE_TTL = reglages.reel("AUTH_CACHE_TTL", 300, mini=0)
 
 
 def current_user():

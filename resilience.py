@@ -36,11 +36,14 @@ ne sait pas énumérer son contenu : dans ce cas la bascule n'a lieu que si le
 repli est vide, et l'état le dit. Prétendre le contraire serait pire que la
 limite elle-même.
 
-Module autonome : bibliothèque standard uniquement.
+Module autonome : bibliothèque standard, plus `reglages` — qui n'est
+lui-même que la bibliothèque standard. La promesse tient : rien ici ne
+dépend d'un paquet à installer, ni d'un module applicatif.
 """
 import logging
 import os
 import random
+import reglages   # un réglage illisible ne doit pas arrêter le service
 import threading
 import time
 
@@ -50,8 +53,13 @@ _log = logging.getLogger("resilience")
 # compte autant que la progression — sans lui, une base absente une nuit ne
 # serait retentée qu'une fois par heure au matin, et le rétablissement
 # passerait inaperçu pendant très longtemps.
-DELAI_MIN = float(os.environ.get("RECONNECT_MIN_S", "30"))
-DELAI_MAX = float(os.environ.get("RECONNECT_MAX_S", "300"))
+DELAI_MIN = reglages.reel("RECONNECT_MIN_S", 30, mini=1)
+# Le plafond ne peut pas passer SOUS le plancher. Inversés, le recul
+# `min(DELAI_MIN * 2**n, DELAI_MAX)` plus bas s'effondre en une constante
+# PLUS COURTE que le minimum : la garde contre le martèlement se retourne
+# en martèlement. Le défaut n'est dans aucune des deux variables prise
+# seule — il est dans leur CONJONCTION, et c'est elle qu'on borne.
+DELAI_MAX = reglages.reel("RECONNECT_MAX_S", 300, mini=DELAI_MIN)
 
 
 def _assainir(exc):

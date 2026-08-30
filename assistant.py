@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import re
+import reglages   # un réglage illisible ne doit pas arrêter le service
 import threading
 
 # Journalisation : uniquement des métadonnées techniques (codes HTTP, types
@@ -123,10 +124,7 @@ class AssistantError(Exception):
 # mains vides, et il reste toujours des fils pour les pages.
 #
 # Réglable sans redéploiement de code par LLM_MAX_SIMULTANE.
-try:
-    MAX_SIMULTANE = max(1, int(os.environ.get("LLM_MAX_SIMULTANE") or 3))
-except (TypeError, ValueError):
-    MAX_SIMULTANE = 3
+MAX_SIMULTANE = reglages.entier("LLM_MAX_SIMULTANE", 3, mini=1)
 _PLACES = threading.BoundedSemaphore(MAX_SIMULTANE)
 
 

@@ -33,6 +33,11 @@ import io
 import os
 import re
 import socket
+
+# Seule dépendance, locale et sans dépendance elle-même : la promesse
+# d'en-tête porte sur les bibliothèques EXTÉRIEURES, qui manqueraient au
+# conteneur. Celle-ci voyage avec le dépôt.
+import reglages   # un réglage illisible ne doit pas arrêter le service
 import zipfile
 
 VERSION = "2026-08-a"
@@ -46,7 +51,7 @@ VERSION = "2026-08-a"
 # plafond de dépôt calé AU RAS du plafond de transport ferait échouer les
 # fichiers les plus gros au transport, avec un message qui parlerait de la
 # requête et non du document.
-MAX_OCTETS = int(os.environ.get("DEPOT_MAX_MB", "20")) * 1024 * 1024
+MAX_OCTETS = reglages.entier("DEPOT_MAX_MB", 20, mini=1) * 1024 * 1024
 
 # Ce que le transport accepte réellement, une fois l'encodage pris en compte.
 # Publié pour que le contrôle de santé puisse vérifier que les deux plafonds
@@ -187,7 +192,7 @@ def _clamav_flux(data, delai=20.0):
     """
     sock_path = os.environ.get("CLAMAV_SOCKET")
     hote = os.environ.get("CLAMAV_HOST")
-    port = int(os.environ.get("CLAMAV_PORT", "3310"))
+    port = reglages.entier("CLAMAV_PORT", 3310, mini=1, maxi=65535)
     s = None
     try:
         if sock_path:

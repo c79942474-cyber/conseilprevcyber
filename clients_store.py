@@ -19,6 +19,7 @@ Réservé à l'administrateur (routes appelantes protégées par @admin_required
 import hashlib
 import logging
 import os
+import reglages   # un réglage illisible ne doit pas arrêter le service
 import threading
 import time
 import uuid
@@ -39,7 +40,7 @@ BASES_LEGALES = ("interet_legitime", "contrat", "mesures_precontractuelles",
 # morceaux (< plafond global de 512 Ko par requête), assemblées côté serveur.
 CATEGORIES_PIECES = ("consentement", "contrat", "correspondance", "historique", "autre")
 ALLOWED_DOC_EXT = {"pdf", "docx", "doc", "odt", "txt", "md", "eml", "png", "jpg", "jpeg"}
-DOC_MAX_BYTES = int(os.environ.get("CLIENTS_DOC_MAX_MB", "15")) * 1024 * 1024
+DOC_MAX_BYTES = reglages.entier("CLIENTS_DOC_MAX_MB", 15, mini=1) * 1024 * 1024
 DOC_CHUNK_MAX = 480 * 1024
 MAX_DOCS_PER_CLIENT = 100
 

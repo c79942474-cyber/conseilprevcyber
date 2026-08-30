@@ -27,6 +27,12 @@ pas demander de toucher au code, ni de savoir le lire.
 import os
 
 
+# POURQUOI CETTE FONCTION N'EST PAS CELLE DE `reglages.py`, ALORS QUE C'EST
+# D'ICI QU'ELLE VIENT. Ce fichier est exécuté par Gunicorn AVANT que le
+# répertoire de l'application soit garanti sur le chemin d'import : un
+# `import reglages` y échangerait une panne connue contre une panne de
+# démarrage plus obscure encore. La duplication est donc un choix, pas un
+# oubli — et elle porte sur huit lignes qui n'ont jamais changé.
 def _entier(nom, defaut, mini=1):
     try:
         return max(mini, int(os.environ.get(nom) or defaut))

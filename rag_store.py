@@ -33,6 +33,7 @@ import logging
 import math
 import os
 import re
+import reglages   # un réglage illisible ne doit pas arrêter le service
 import collections
 import threading
 from contextlib import contextmanager
@@ -50,7 +51,7 @@ EMBED_TIMEOUT = 60
 
 CHUNK_CHARS = 900              # taille cible d'un chunk (caractères)
 CHUNK_OVERLAP = 150            # recouvrement entre chunks
-MAX_FILE_BYTES = int(os.environ.get("RAG_MAX_FILE_MB", "30")) * 1024 * 1024
+MAX_FILE_BYTES = reglages.entier("RAG_MAX_FILE_MB", 30, mini=1) * 1024 * 1024
 MAX_CHUNK_UPLOAD = 480 * 1024  # taille max d'un morceau reçu (< MAX_CONTENT_LENGTH)
 
 # Combien de documents la console reçoit par défaut, et jusqu'où elle peut
@@ -58,8 +59,8 @@ MAX_CHUNK_UPLOAD = 480 * 1024  # taille max d'un morceau reçu (< MAX_CONTENT_LE
 # la console montrait une base tronquée sans le dire, et ses actions en lot
 # n'agissaient que sur la partie visible. Le plafond haut existe pour qu'une
 # base devenue très grande ne se rende pas d'un seul bloc.
-LISTE_MAX = int(os.environ.get("RAG_LISTE_MAX", "2000"))
 LISTE_PLAFOND = 10000
+LISTE_MAX = reglages.entier("RAG_LISTE_MAX", 2000, mini=1, maxi=LISTE_PLAFOND)
 # Les formats que le magasin sait INDEXER (du texte en sort). C'est une
 # contrainte technique, distincte de celle de l'analyse préalable, qui est une
 # contrainte de SÉCURITÉ — elle écarte les formats à macros. Un fichier doit
@@ -2174,7 +2175,7 @@ class PostgresRagStore:
 
 
 # Délai minimal entre deux essais de reconnexion automatiques (secondes).
-_RECONNECT_MIN_INTERVAL = float(os.environ.get("RAG_RECONNECT_INTERVAL", "20"))
+_RECONNECT_MIN_INTERVAL = reglages.reel("RAG_RECONNECT_INTERVAL", 20, mini=1)
 
 
 def _sanitize_pg_error(exc):

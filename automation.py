@@ -28,6 +28,7 @@ import json
 import logging
 import os
 import re
+import reglages   # un réglage illisible ne doit pas arrêter le service
 import threading
 import time
 import xml.etree.ElementTree as ET
@@ -47,8 +48,8 @@ VEILLE_MAX_ITEMS = 200
 # le seul résumé RSS. Désactivable (VEILLE_FULLTEXT=0) ; nombre max de bulletins
 # récupérés en entier par passage (borne le temps du job en arrière-plan).
 _VEILLE_FULLTEXT = os.environ.get("VEILLE_FULLTEXT", "1").strip().lower() not in ("0", "false", "no")
-_VEILLE_FULLTEXT_MAX = int(os.environ.get("VEILLE_FULLTEXT_MAX", "25"))
-ALERT_COOLDOWN_S = int(os.environ.get("ALERTES_COOLDOWN_MIN", "60")) * 60
+_VEILLE_FULLTEXT_MAX = reglages.entier("VEILLE_FULLTEXT_MAX", 25, mini=0)
+ALERT_COOLDOWN_S = reglages.entier("ALERTES_COOLDOWN_MIN", 60, mini=0) * 60
 
 
 def _now_ms():
@@ -680,7 +681,7 @@ _JOBS = []
 
 
 def _register_jobs():
-    veille_hours = float(os.environ.get("VEILLE_INTERVAL_HOURS") or 6)
+    veille_hours = reglages.reel("VEILLE_INTERVAL_HOURS", 6, mini=0.1)
     _JOBS[:] = [
         # Toutes les 3 minutes : assez court pour qu'une base revenue soit
         # reprise sans que personne n'attende, assez espacé pour ne pas
