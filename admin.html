@@ -122,6 +122,15 @@
         </div>
         <div id="diagOut" style="margin-top:14px;display:none"></div>
       </div>
+
+      <!-- MUET QUAND TOUT VA BIEN, et c'est le point. Un panneau qui parle en
+           permanence n'est plus lu le jour où il a quelque chose à dire : il
+           n'apparaît que s'il a trouvé un réglage écarté, inerte ou manquant. -->
+      <div id="regPanel" style="display:none;margin-top:26px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,var(--panel),var(--bg2));padding:20px">
+        <h3 style="margin:0">État des réglages</h3>
+        <p style="margin:4px 0 0;font-size:13px;color:var(--muted2)">Variables d'environnement écartées, devenues inutiles, ou manquantes — avec le geste à faire. Aucune valeur n'est affichée ici.</p>
+        <div id="regOut" style="margin-top:14px"></div>
+      </div>
     </section>
   </main>
 
@@ -207,6 +216,34 @@
           +'<p style="font-size:12px;color:var(--muted2);margin-top:10px">Réglages dans <b>Render → Environment</b>, puis redéployer. Clés&nbsp;: <b>ANTHROPIC_API_KEY</b> (Claude), <b>MISTRAL_API_KEY</b> (Mistral). Modèles&nbsp;: <b>ANTHROPIC_MODEL</b> / <b>MISTRAL_MODEL</b> — laissés vides, ceux du code s\'appliquent&nbsp;; le modèle réellement employé est celui affiché ci-dessus, ligne par ligne. Fournisseur mis en avant&nbsp;: <b>ASSISTANT_DEFAULT_MODEL</b> (Claude par défaut).</p>';
       }).catch(function(){ diagBtn.disabled=false; diagBtn.textContent=old; diagOut.style.display='block'; diagOut.innerHTML='<div style="color:var(--danger)">Diagnostic impossible pour le moment.</div>'; });
     });
+
+    // État des réglages — /api/admin/reglages. AUCUN SECRET N'EN SORT : la
+    // route rend des noms de variables, des conséquences et des gestes ; pour
+    // ce qui manque, elle rend la COMMANDE qui fabrique une clé, jamais une clé.
+    var regPanel=document.getElementById('regPanel'), regOut=document.getElementById('regOut');
+    function regBloc(titre, couleur, liste){
+      if(!liste || !liste.length) return '';
+      var h='<div style="margin-top:10px"><b style="color:'+couleur+'">'+diagEsc(titre)+'</b></div>';
+      for(var i=0;i<liste.length;i++){
+        var e=liste[i];
+        h+='<div style="padding:8px 0;border-bottom:1px solid rgba(154,102,80,.28)">'
+          +'<code style="font-family:var(--mono);font-size:12.5px;color:var(--ink)">'+diagEsc(e.variable)+'</code>'
+          +(e.attendu?('<span style="color:var(--muted2);font-size:12.5px"> — attendu : '+diagEsc(e.attendu)+'</span>'):'')
+          +'<div style="color:var(--muted2);font-size:12.5px;margin-top:3px">'+diagEsc(e.consequence||'')+'</div>'
+          +(e.geste?('<div style="font-size:12.5px;margin-top:3px">→ <code style="font-family:var(--mono)">'+diagEsc(e.geste)+'</code></div>'):'')
+          +(e.reserve?('<div style="color:var(--amber);font-size:12px;margin-top:3px">'+diagEsc(e.reserve)+'</div>'):'')
+          +'</div>';
+      }
+      return h;
+    }
+    if(regPanel) fetch('/api/admin/reglages').then(function(r){return r.ok?r.json():null;})
+      .then(function(j){
+        if(!j||!j.ok||!j.total) return;          // rien à dire : on ne dit rien
+        regOut.innerHTML=regBloc('Écartés au démarrage','var(--amber)',j.ecartes)
+          +regBloc('Posés mais inutiles','var(--muted2)',j.inertes)
+          +regBloc('Manquants, avec conséquence','var(--danger)',j.absents);
+        regPanel.style.display='block';
+      }).catch(function(){});
   })();
   </script>
   <script src="/nav.js" defer></script>

@@ -1222,10 +1222,17 @@ def api_assistant_config():
 
 
 @app.route("/api/assistant/selftest")
-@login_required
+@admin_required
 def api_assistant_selftest():
     """Diagnostic : ping minimal de chaque modèle, renvoie le statut technique
-    (code HTTP, type d'erreur). Aucun secret ni contenu. Limité par IP."""
+    (code HTTP, type d'erreur). Aucun secret ni contenu. Limité par IP.
+
+    RÉSERVÉE À L'ADMINISTRATEUR, et pas seulement par principe : chaque appel
+    DÉPENSE le crédit du propriétaire du compte de facturation. La borne par
+    IP restait la seule protection, et elle est faite pour freiner un abus, pas
+    pour désigner qui a le droit. Le seul appelant est la console
+    d'administration, elle-même derrière ce rôle : le resserrement ne retire
+    l'accès à personne qui l'utilisait."""
     ckey = "selftest:%s" % client_ip()
     if guard.blocked(ckey, limit=6, window=600):
         return jsonify(ok=False, error="rate_limited",
@@ -9952,6 +9959,26 @@ def api_purge():
     return jsonify(ok=True, deleted=deleted)
 
 
+def _degrade(etat, quoi):
+    """Marque l'état dégradé EN NOMMANT ce qui l'a dégradé.
+
+    NEUF CONTRÔLES POUVAIENT LEVER LE MÊME DRAPEAU, et le lecteur n'avait que
+    le drapeau. « degraded » disait qu'une chose allait mal parmi neuf, sans
+    dire laquelle : la supervision alertait, et le diagnostic recommençait à
+    zéro. Les clés `cause`, `cause_courriel`, `cause_sessions` existaient déjà
+    mais chacune pour un contrôle, sans qu'aucune liste ne dise lesquels ont
+    effectivement mordu.
+
+    C'est aussi ce qui rend chaque contrôle ÉPROUVABLE séparément : sur un
+    environnement d'essai où trois autres causes sont déjà réunies, une règle
+    qui ne regarde que le drapeau reste verte quoi qu'on fasse au contrôle
+    qu'elle prétend surveiller.
+    """
+    etat["status"] = "degraded"
+    if quoi not in etat.setdefault("degrade_par", []):
+        etat["degrade_par"].append(quoi)
+
+
 def _cause_publique(txt):
     """Cause d'indisponibilité montrable sur une page publique : on retire ce
     qui DÉSIGNE la base (hôte, adresse IP, port, URL, mot de passe) et on garde
@@ -9965,6 +9992,94 @@ def _cause_publique(txt):
     t = _re.sub(r"\b\d{1,3}(?:\.\d{1,3}){3}\b", "…", t)        # adresses IPv4 restantes
     t = _re.sub(r"\b[\w-]+\.(?:com|net|org|io|dev|internal)\b", "…", t)
     return " ".join(t.split())[:220]
+
+
+@app.route("/api/admin/reglages")
+@admin_required
+def api_admin_reglages():
+    """L'état des réglages d'environnement : écartés, inertes, absents.
+
+    POURQUOI CETTE ROUTE EXISTE, ET PAS SEULEMENT LE JOURNAL. Un réglage
+    écarté ne coûte plus le service — il retombe sur son défaut — mais il
+    disparaît : les journaux de l'hébergeur sont éphémères et personne ne les
+    ouvre. L'exploitant croit sa valeur prise, elle ne l'est pas, et aucun
+    écran ne le contredit.
+
+    POURQUOI ICI ET PAS DANS /health. Cette route nomme des variables ; /health
+    est public et ne doit pas le faire. Le partage est celui que /health tient
+    déjà pour les causes de base de données : dehors la conséquence, dedans le
+    détail.
+
+    AUCUNE VALEUR N'EN SORT, y compris pour les variables ABSENTES : on rend la
+    commande qui en fabrique une, jamais une clé. Une clé qui traverse un écran
+    de diagnostic n'est plus une clé — c'est la leçon exacte de l'incident qui
+    a fait naître ce module.
+    """
+    ecartes = []
+    try:
+        for r in reglages.refuses():
+            ecartes.append({
+                "variable": r["variable"], "attendu": r["attendu"],
+                "consequence": "la valeur par défaut s'applique ; la valeur "
+                               "saisie est sans effet",
+                "geste": "corrigez la variable chez l'hébergeur, ou supprimez-la"})
+    except Exception:
+        ecartes = []
+
+    # ── CE QUI EST POSÉ ET NE SERT À RIEN ─────────────────────────────────
+    # Un secret inutile n'est pas neutre : il se lit dans la console de
+    # l'hébergeur, il part dans les sauvegardes de configuration, et il se
+    # copie d'un service à l'autre. Il porte le risque d'un secret sans en
+    # rendre l'usage.
+    inertes = []
+    if os.environ.get("ADMIN_PASSWORD"):
+        # ADMIN_PASSWORD ne sert QU'À CRÉER le compte au tout premier
+        # démarrage : dès que le compte existe, auth._bootstrap_admin() rend la
+        # main AVANT de la lire. La changer ne change donc plus rien — et
+        # croire le contraire est le piège, car on croit avoir tourné un
+        # mot de passe qu'on n'a pas tourné.
+        try:
+            import auth as _auth_r
+            existe = bool(_auth_r.store.get((_auth_r.ADMIN_EMAIL or "").strip().lower()))
+        except Exception:
+            existe = None      # base muette : on ne PROUVE rien, on se tait
+        if existe:
+            inertes.append({
+                "variable": "ADMIN_PASSWORD",
+                "consequence": "le compte administrateur existe déjà : cette "
+                               "variable n'est plus lue. La modifier ne change "
+                               "aucun mot de passe",
+                "geste": "changez le mot de passe DANS l'application, puis "
+                         "supprimez la variable chez l'hébergeur"})
+    if os.environ.get("RAG_ACCESS_KEY"):
+        # La fédération lit RAG_PAIR_CLE (appel) et RAG_CLES_SERVIES (service).
+        # RAG_ACCESS_KEY n'est lue nulle part ici — un essai le vérifie et
+        # retirera cette mention d'elle-même si le code venait à la lire.
+        inertes.append({
+            "variable": "RAG_ACCESS_KEY",
+            "consequence": "aucun code de ce service ne lit cette variable ; "
+                           "la fédération utilise RAG_PAIR_CLE et "
+                           "RAG_CLES_SERVIES",
+            "geste": "supprimez-la ici — et régénérez-la là où elle sert"})
+
+    # ── CE QUI MANQUE, ET CE QUE ÇA COÛTE ─────────────────────────────────
+    absents = []
+    if not os.environ.get("FLASK_SECRET_KEY", "").strip():
+        absents.append({
+            "variable": "FLASK_SECRET_KEY",
+            "consequence": "chaque processus signe les sessions avec une clé "
+                           "qu'il tire lui-même. Il y en a deux, et ils "
+                           "recyclent en cours de service : un cookie signé "
+                           "par l'un n'est pas reconnu par l'autre, et "
+                           "l'utilisateur est déconnecté par intermittence, "
+                           "sans message",
+            "geste": "python3 -c \"import secrets; print(secrets.token_hex(32))\"",
+            "reserve": "exécutez la commande CHEZ VOUS et collez le résultat "
+                       "directement chez l'hébergeur : une clé qui passe par "
+                       "un écran, une conversation ou un journal est à jeter"})
+
+    return jsonify(ok=True, ecartes=ecartes, inertes=inertes, absents=absents,
+                   total=len(ecartes) + len(inertes) + len(absents))
 
 
 # LA SONDE RÉPOND SUR LES DEUX CHEMINS, ET CE N'EST PAS DE LA COMPLAISANCE.
@@ -10016,17 +10131,17 @@ def health():
         etat["base"] = "connectee" if caps.get("persistent") else "degradee"
         etat["recherche"] = caps.get("mode")
         if not caps.get("persistent"):
-            etat["status"] = "degraded"
+            _degrade(etat, "base")
             etat["cause"] = caps.get("reason") or "base_indisponible"
     except Exception:
-        etat["status"] = "degraded"
+        _degrade(etat, "base")
         etat["base"] = "inconnue"
     # Magasin de comptes : simple lecture d'un attribut en mémoire, aucune requête.
     try:
         import auth as _auth
         etat["comptes"] = getattr(_auth.store, "mode", "inconnu")
         if etat["comptes"] != "postgres":
-            etat["status"] = "degraded"
+            _degrade(etat, "comptes")
     except Exception:
         etat["comptes"] = "inconnu"
     # ── LE COURRIEL, ET POURQUOI IL EST DEVENU CRITIQUE ────────────────────
@@ -10043,12 +10158,43 @@ def health():
         etat["courriel"] = "configure" if pret else "SANS_CLEF"
         etat["courriel_admin"] = _auth.ADMIN_EMAIL
         if not pret:
-            etat["status"] = "degraded"
+            _degrade(etat, "courriel")
             etat["cause_courriel"] = (
                 "BREVO_API_KEY absente : aucune inscription ne peut aboutir — "
                 "ni confirmation d'adresse, ni notification à l'administrateur")
     except Exception:
         etat["courriel"] = "inconnu"
+    # ── LA SIGNATURE DES SESSIONS, ET POURQUOI ELLE EST ICI ───────────────
+    # Même critère que le courriel ci-dessus : totale ET silencieuse.
+    # Sans FLASK_SECRET_KEY, auth.init_app retombe sur une clé tirée au hasard
+    # À CHAQUE PROCESSUS. Il y en a deux (gunicorn.conf.py : workers = 2), et
+    # ils recyclent en cours de service (max_requests = 8000) : un cookie signé
+    # par l'un n'est pas reconnu par l'autre, Flask traite alors la session
+    # comme vide — sans erreur — et l'utilisateur se retrouve déconnecté sans
+    # motif visible, par intermittence. Rien dans les journaux, rien à l'écran.
+    if os.environ.get("FLASK_SECRET_KEY", "").strip():
+        etat["sessions"] = "persistantes"
+    else:
+        etat["sessions"] = "non persistantes"
+        _degrade(etat, "sessions")
+        etat["cause_sessions"] = (
+            "clé de signature absente : chaque processus tire la sienne, "
+            "et les sessions sont perdues d'un processus à l'autre comme à "
+            "chaque redémarrage — déconnexions intermittentes")
+    # ── LES RÉGLAGES ÉCARTÉS : UN COMPTE, ET RIEN DE PLUS ─────────────────
+    # /health EST PUBLIC. Nommer ici les variables d'un service apprendrait à
+    # un tiers ce que l'exploitant sait déjà ; le compte suffit à faire ouvrir
+    # la console d'administration, qui elle est derrière un compte admin et
+    # peut donc les nommer, avec le geste à faire.
+    #
+    # ET CE N'EST PAS UN ÉTAT DÉGRADÉ. Le service rend exactement le service
+    # attendu, sur ses valeurs par défaut : c'est l'INTENTION de l'exploitant
+    # qui n'est pas appliquée, pas le service qui manque. Confondre les deux
+    # userait le mot « dégradé » jusqu'à ce qu'il ne fasse plus lever personne.
+    try:
+        etat["reglages_ignores"] = len(reglages.refuses())
+    except Exception:
+        etat["reglages_ignores"] = None
     # État par magasin, AVEC LA CAUSE. Sans lui, un mode dégradé se constatait
     # mais ne se diagnostiquait pas : « la connexion échoue » envoyait vérifier
     # DATABASE_URL alors qu'elle était correcte. Ces champs disent quoi
@@ -10064,7 +10210,7 @@ def health():
         if hasattr(_auth_etat.store, "etat"):
             magasins["comptes"] = _auth_etat.store.etat()
             if not magasins["comptes"].get("persistant", True):
-                etat["status"] = "degraded"
+                _degrade(etat, "magasin:comptes")
     except Exception:
         magasins["comptes"] = {"persistant": None, "cause": "état non lisible"}
     for nom, mag in (("documents", rag), ("clients", clients_db),
@@ -10076,7 +10222,7 @@ def health():
                 magasins[nom] = {"persistant": bool(getattr(mag, "persistent", False)),
                                  "cause": str(getattr(mag, "_last_error", "") or "")[:200]}
             if not magasins[nom].get("persistant", True):
-                etat["status"] = "degraded"
+                _degrade(etat, "magasin:" + nom)
         except Exception:
             magasins[nom] = {"persistant": None, "cause": "état non lisible"}
     # /health est PUBLIC. Les causes remontées telles quelles par les pilotes
@@ -10100,7 +10246,7 @@ def health():
                             "themes": "%d/%d" % (sp["themes_outilles"], sp["themes_clausier"]),
                             "motifs": sp["motifs"]}
         if not sp["ok"]:
-            etat["status"] = "degraded"
+            _degrade(etat, "playbook")
             etat["playbook"]["cause"] = (sp["motifs_casses"] or sp["sans_regle"]
                                          or sp["instances_inconnues"])[:3]
     except Exception:
@@ -10109,7 +10255,7 @@ def health():
     if request.args.get("detail") == "1":
         etat.update(_sonde_detaillee())
         if etat.get("comptes_lecture", "").startswith("echec"):
-            etat["status"] = "degraded"
+            _degrade(etat, "lecture_comptes")
     return jsonify(**etat), 200
 
 

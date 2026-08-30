@@ -28,10 +28,24 @@ importer par tous, y compris les plus bas.
 """
 import logging
 import os
+import threading
 
-VERSION = "2026-08-a"
+VERSION = "2026-08-b"
 
 _log = logging.getLogger("reglages")
+
+# CE QUE LE JOURNAL NE SUFFIT PAS À DIRE. Retomber sur le défaut sans arrêter
+# le service était le correctif ; il a laissé l'autre moitié du problème
+# intacte. Les journaux de l'hébergeur sont éphémères et personne ne les
+# ouvre : un réglage écarté y disparaît en pratique. L'exploitant croit sa
+# valeur prise, elle ne l'est pas, et rien à l'écran ne le contredit — on
+# aurait échangé une panne bruyante contre un silence.
+#
+# On garde donc la trace, pour que le diagnostic puisse la montrer. LA VALEUR
+# N'Y ENTRE PAS PLUS QU'AU JOURNAL : le nom de la variable et la forme
+# attendue, rien d'autre. Celle qui a provoqué l'incident était un secret.
+_REFUSES = []
+_VERROU = threading.Lock()
 
 
 def _refus(nom, attendu, motif):
@@ -39,6 +53,24 @@ def _refus(nom, attendu, motif):
     _log.warning("Réglage %s ignoré (%s) — %s attendu. La valeur par défaut "
                  "s'applique ; corrigez la variable d'environnement.",
                  nom, motif, attendu)
+    with _VERROU:
+        # UNE VARIABLE, UNE ENTRÉE. Plusieurs modules peuvent lire le même
+        # réglage, et une lecture faite à l'appel se répète à chaque appel :
+        # sans ce filtre, le compte affiché mesurerait le trafic plutôt que le
+        # nombre de réglages à corriger.
+        if not any(r["variable"] == nom for r in _REFUSES):
+            _REFUSES.append({"variable": nom, "attendu": attendu})
+
+
+def refuses():
+    """Les réglages écartés depuis le démarrage : nom et forme attendue.
+
+    Complète dès la fin des imports — quinze des dix-neuf lectures se font au
+    chargement des modules. Ce qu'un diagnostic en tire est donc l'état réel du
+    démarrage, et non un échantillon de ce qui a été appelé depuis.
+    """
+    with _VERROU:
+        return [dict(r) for r in _REFUSES]
 
 
 def entier(nom, defaut, mini=None, maxi=None):
