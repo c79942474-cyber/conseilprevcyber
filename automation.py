@@ -58,6 +58,25 @@ VEILLE_MAX_ITEMS = reglages.entier("VEILLE_MAX_ITEMS", 2000, mini=50)
 # comportement NORMAL, et le résumé devient un choix explicite et borné.
 VEILLE_RESUME = reglages.booleen("VEILLE_RESUME", False)
 VEILLE_RESUME_MAX = reglages.entier("VEILLE_RESUME_MAX", 10, mini=0)
+
+# ── CE QU'UN CATALOGUE QUI GROSSIT FAIT AU PLANIFICATEUR ──────────────────
+# `_loop` appelle les travaux L'UN APRÈS L'AUTRE, dans un seul fil. Avec deux
+# flux CERT-FR, la collecte durait quelques secondes et cela ne prêtait pas à
+# conséquence. À trente-six flux, chacun pouvant attendre vingt secondes avant
+# d'abandonner, un passage peut occuper DOUZE MINUTES — et pendant ce temps
+# aucun autre travail ne tourne. Dont le rebranchement de la base, prévu toutes
+# les trois minutes précisément pour qu'« une base revenue soit reprise sans
+# que personne n'attende ».
+#
+# Une base qui tomberait pendant un passage lent resterait donc débranchée
+# jusqu'à la fin de ce passage. La veille aurait dégradé la disponibilité du
+# site — et rien ne l'aurait signalé.
+#
+# On borne donc le passage. Ce qui n'a pas été lu cette fois l'est au suivant :
+# `veille_sources.ordre_de_passage()` commence par les sources les plus
+# anciennement interrogées, ce qui interdit qu'une queue de catalogue soit
+# systématiquement sautée.
+VEILLE_BUDGET_S = reglages.entier("VEILLE_BUDGET_S", 180, mini=10)
 # Texte complet des bulletins (base de connaissance exploitable) : on récupère
 # le contenu intégral du bulletin CERT-FR (JSON officiel, sinon HTML) plutôt que
 # le seul résumé RSS. Désactivable (VEILLE_FULLTEXT=0) ; nombre max de bulletins
@@ -617,7 +636,14 @@ def veille_refresh(fetcher=None):
     # dupliquait le premier rôle : l'une des deux gardes devenait morte, et
     # plus aucune règle ne pouvait dire laquelle portait réellement.
     resume_budget = VEILLE_RESUME_MAX
-    for src in veille_sources.SOURCES:
+    echeance = time.time() + VEILLE_BUDGET_S
+    interrompu = 0
+    for src in veille_sources.ordre_de_passage():
+        if time.time() > echeance:
+            # On ne tait pas l'interruption : un catalogue qui ne tient plus
+            # dans son budget est une information d'exploitation, pas un détail.
+            interrompu += 1
+            continue
         source, url = src["cle"], src["url"]
         try:
             xml_text = feed_fetcher(url)
@@ -674,6 +700,10 @@ def veille_refresh(fetcher=None):
                                      theme="Veille", visibility="public")
                 except Exception:
                     pass
+    if interrompu:
+        _log.warning("veille : passage interrompu au budget de %d s — %d source(s) "
+                     "reportées au passage suivant (elles y passeront en tête)",
+                     VEILLE_BUDGET_S, interrompu)
     if new_count:
         _state.set("veille.last_new", str(_now_ms()))
     return new_count

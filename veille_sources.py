@@ -137,6 +137,24 @@ SOURCES = [
        "monde", "centres_donnees", "organisme"),
     _s("carbon_brief", "Carbon Brief", "https://www.carbonbrief.org/feed",
        "UK", "centres_donnees", "presse_specialisee"),
+
+    # ── La filière française des centres de données ───────────────────────
+    # Elle manquait, et c'est elle qui couvre le mieux ce qui se décide ICI :
+    # implantations, raccordements, investissements européens dans le calcul
+    # pour l'IA. Les titres anglophones disent ce que font les hyperscalers ;
+    # ceux-ci disent ce que fait le territoire.
+    _s("dcmag", "DCmag", "https://dcmag.fr/feed/",
+       "FR", "centres_donnees", "presse_specialisee"),
+    _s("lemagit_dc", "LeMagIT — datacenter", "https://www.lemagit.fr/rss/Datacenter.html",
+       "FR", "centres_donnees", "presse_specialisee"),
+    _s("lmi_dc", "Le Monde Informatique — datacenter",
+       "https://www.lemondeinformatique.fr/flux-rss/thematique/datacenter/rss.xml",
+       "FR", "centres_donnees", "presse_specialisee"),
+    # France Datacenter est l'association professionnelle de la filière : ses
+    # publications sont celles d'un organisme, pas d'une rédaction. La nature
+    # commande le libellé du lien ET le droit de reprise.
+    _s("france_datacenter", "France Datacenter", "https://francedatacenter.com/feed/",
+       "FR", "centres_donnees", "organisme"),
 ]
 
 _PAR_CLE = {s["cle"]: s for s in SOURCES}
@@ -242,6 +260,25 @@ def etat():
             "total": len(lignes),
             "a_regarder": len([l for l in lignes
                                if l["sante"] in ("muet", "jamais_joint")])}
+
+
+def ordre_de_passage():
+    """Les sources, LA MOINS RÉCEMMENT INTERROGÉE D'ABORD.
+
+    POURQUOI L'ORDRE COMPTE MAINTENANT, ET PAS AVANT. Avec deux flux, l'ordre
+    était sans objet : la collecte les prenait tous les deux à chaque passage.
+    Avec trente-six, un passage peut être interrompu par son budget de temps —
+    et s'il repartait toujours du début, les dernières du catalogue ne seraient
+    JAMAIS lues. Elles ne remonteraient aucune erreur : elles seraient
+    simplement absentes de la page.
+
+    L'ancienneté du dernier essai est déjà tenue par l'état de chaque flux :
+    trier dessus suffit, sans mémoriser d'index de reprise — un index qu'un
+    redémarrage remettrait d'ailleurs à zéro, ce qui recréerait exactement la
+    famine qu'il devait éviter.
+    """
+    with _verrou:
+        return sorted(SOURCES, key=lambda s: _etat_de(s["cle"])["dernier_essai"])
 
 
 def reinitialiser():

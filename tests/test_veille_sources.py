@@ -148,13 +148,43 @@ def test_le_catalogue_dit_ce_qui_a_ete_eprouve():
 
 # ── 3. Le droit de reprise, source par source ──────────────────────────────
 
-def test_le_texte_integral_n_est_permis_que_pour_les_sources_officielles():
+# LES SEULES SOURCES DONT ON REPRENDRA LE CORPS. La liste est écrite ici EN
+# ENTIER, et c'est délibéré : c'est une autorisation, et une autorisation ne se
+# déduit pas d'un champ qu'on pourrait changer par mégarde. Faire entrer une
+# source dans cet ensemble demande de toucher cette règle — donc de le vouloir.
+#
+# La première version de cette règle ne citait que six clés choisies à la main.
+# Une mutation a reclassé « France Datacenter » en source officielle — ce qui
+# lui ouvrait le droit de reprise — et la règle est restée verte : elle ne
+# regardait pas cette source-là. Une autorisation vérifiée par échantillon
+# n'est pas vérifiée.
+REPRISE_AUTORISEE = {
+    "certfr_alerte", "certfr_avis", "anssi", "cisa_avis", "cisa_ics",
+    "ncsc_uk", "enisa", "cnil", "ec_numerique", "nist", "ico_uk",
+    "iso", "iec", "nist_csrc", "eba", "esma", "edpb", "iea", "cre",
+    "ademe", "rte",
+}
+
+
+def test_le_texte_integral_n_est_permis_qu_aux_sources_institutionnelles():
     """C'est une limite de DROIT, pas de technique : rien n'empêche de
     télécharger un article de presse, mais en reprendre le corps n'est plus de
-    l'agrégation."""
-    assert veille_sources.texte_integral_permis("certfr_avis") is True
-    assert veille_sources.texte_integral_permis("iso") is True
-    for cle in ("dcd", "the_record", "iapp", "carbon_brief"):
+    l'agrégation. La règle porte sur LE CATALOGUE ENTIER."""
+    permises = {s["cle"] for s in veille_sources.SOURCES
+                if veille_sources.texte_integral_permis(s["cle"])}
+    assert permises == REPRISE_AUTORISEE, (
+        "reprise ouverte à tort : %s ; refusée à tort : %s"
+        % (sorted(permises - REPRISE_AUTORISEE),
+           sorted(REPRISE_AUTORISEE - permises)))
+
+
+def test_aucune_redaction_ne_figure_parmi_les_sources_reprises():
+    """Le pendant, dit dans l'autre sens : tout ce qui est une rédaction — ou
+    une association professionnelle — reste au titre, au lien et au chapeau."""
+    for cle in ("dcd", "dcf", "dck", "the_record", "iapp", "carbon_brief",
+                "securityweek_ics", "industrial_cyber", "dcmag", "lemagit_dc",
+                "lmi_dc", "france_datacenter", "uptime", "oecd_ai",
+                "green_software"):
         assert veille_sources.texte_integral_permis(cle) is False, cle
 
 
@@ -193,3 +223,67 @@ def test_la_presse_specialisee_est_reellement_presente():
     assert len(presse) >= 6
     domaines = {s["domaine"] for s in presse}
     assert "centres_donnees" in domaines and "cyber_industriel" in domaines
+
+
+# ── 5. Ce qu'un catalogue qui grossit fait au planificateur ────────────────
+
+def test_les_sources_francaises_de_la_filiere_sont_au_catalogue():
+    """Ce sont elles qui couvrent ce qui se décide EN FRANCE — implantations,
+    raccordements, investissements européens dans le calcul pour l'IA."""
+    cles = {s["cle"] for s in veille_sources.SOURCES}
+    for cle in ("dcmag", "lemagit_dc", "lmi_dc", "france_datacenter"):
+        assert cle in cles, cle
+    fr = [s for s in veille_sources.sources(domaine="centres_donnees")
+          if s["pays"] == "FR"]
+    assert len(fr) >= 6
+
+
+def test_l_ordre_de_passage_commence_par_la_moins_recemment_interrogee():
+    """SANS CET ORDRE, LA QUEUE DU CATALOGUE NE SERAIT JAMAIS LUE.
+
+    Un passage borné par son budget qui repartirait toujours du début lirait
+    éternellement les mêmes premières sources. Les dernières ne remonteraient
+    aucune erreur : elles seraient simplement absentes de la page.
+    """
+    veille_sources.noter_succes("certfr_avis", 3)      # interrogée à l'instant
+    ordre = [s["cle"] for s in veille_sources.ordre_de_passage()]
+    assert ordre[-1] == "certfr_avis"
+    assert len(ordre) == len(veille_sources.SOURCES)
+
+
+def test_aucune_source_n_est_laissee_de_cote_sur_plusieurs_passages():
+    """La propriété qui compte : à budget serré, ce qui est sauté aujourd'hui
+    passe EN TÊTE demain. On simule des passages de trois sources chacun et on
+    vérifie que le catalogue entier finit par être vu."""
+    vues = set()
+    par_passage = 3
+    for _ in range(len(veille_sources.SOURCES) // par_passage + 2):
+        for src in veille_sources.ordre_de_passage()[:par_passage]:
+            veille_sources.noter_succes(src["cle"], 1)
+            vues.add(src["cle"])
+    assert vues == {s["cle"] for s in veille_sources.SOURCES}
+
+
+def test_un_passage_lent_s_arrete_a_son_budget(monkeypatch):
+    """CE QUE LA COLLECTE NE DOIT PAS FAIRE : bloquer le planificateur.
+
+    `_loop` appelle les travaux l'un après l'autre dans un seul fil. Un passage
+    de veille qui durerait douze minutes retarderait d'autant le rebranchement
+    de la base — prévu toutes les trois minutes précisément pour qu'une base
+    revenue soit reprise sans que personne n'attende.
+    """
+    import time as _time
+    monkeypatch.setattr(automation, "VEILLE_BUDGET_S", 1)
+    appels = []
+
+    def _lent(url):
+        appels.append(url)
+        _time.sleep(0.35)
+        return "<rss version='2.0'><channel></channel></rss>"
+
+    automation.init(start=False)
+    debut = _time.time()
+    automation.veille_refresh(fetcher=_lent)
+    duree = _time.time() - debut
+    assert len(appels) < len(veille_sources.SOURCES), "le budget n'a rien borné"
+    assert duree < 10, "le passage a duré %.1f s malgré son budget" % duree
