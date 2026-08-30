@@ -160,3 +160,56 @@ def test_seules_les_colonnes_prevues_sont_interrogeables():
     with pytest.raises(ValueError):
         magasin.get_by("password_hash", "x")
     assert "reset_token" in auth._PgStore._CHAMPS_CHERCHABLES
+
+
+# ── 5. La garde au PRODUCTEUR, pas au consommateur ────────────────────────
+
+def test_une_decision_du_service_tiers_ressort_sans_adresse_hostile():
+    """L'ADRESSE VIENT D'UN SERVICE TIERS, ET ELLE ENTRE ICI.
+
+    La page de jurisprudence gardait déjà — « on n'ouvre que http et https » —
+    mais elle était la SEULE, et ce qui sort de ce magasin alimente aussi les
+    exports, les livrables et la base documentaire. Garder au point d'entrée
+    couvre les consommateurs qu'on écrira plus tard et qui n'y penseront pas.
+    """
+    import librejustice
+    d = librejustice.normaliser({"url": "javascript:alert(1)",
+                                 "title": "Cass. civ. 1re"})
+    assert d["url"] == ""
+    # …et le titre survit : on ne perd pas la décision pour une adresse fautive.
+    assert d["titre"] == "Cass. civ. 1re"
+
+
+def test_une_decision_ordinaire_garde_son_adresse_ET_son_titre():
+    """Le titre passe AVANT l'adresse, et il fallait une décision qui ait les
+    deux pour l'éprouver : sur une adresse écartée, les deux ordres donnent le
+    même résultat, et la mutation survivait. Une liste de jurisprudence dont
+    les intitulés sont des URL ne se lit pas."""
+    import librejustice
+    d = librejustice.normaliser({"url": "https://ok.example/d/1",
+                                 "title": "Cass. com. 12 mars 2025"})
+    assert d["url"] == "https://ok.example/d/1"
+    assert d["titre"] == "Cass. com. 12 mars 2025"
+
+
+def test_l_adresse_officielle_est_une_propriete_verifiee_et_non_un_raisonnement():
+    """`url_officielle` ne compose que deux constantes https figées : elle est
+    sûre PARCE QUE ces constantes le sont. Un raisonnement sur les constantes
+    d'aujourd'hui ne survit pas à une refonte — la garde en fait une propriété.
+    """
+    import juridique
+    for ref in ({"celex": "32022L2555"},
+                {"nature": "loi", "officiel": "Loi n° 2018-133"},
+                {"nature": "autre"}):
+        u = juridique.url_officielle(ref)
+        assert u == "" or u.startswith(("http://", "https://")), ref
+
+
+def test_la_page_juridique_ne_garde_plus_a_moitie():
+    """Une page qui gardait à une ligne et pas à l'autre enseignait que la
+    garde était facultative — c'est ainsi qu'elle ne s'est jamais propagée."""
+    page = open(os.path.join(ICI, "juridique.html"), encoding="utf-8").read()
+    sans_commentaires = __import__("re").sub(r"/\*.*?\*/", "", page, flags=16)
+    # Les deux endroits qui rendent une ancre sur une adresse extérieure
+    # testent le schéma. Aucun `href="'+esc(` ne subsiste sans contrôle.
+    assert sans_commentaires.count("/^https?:\\/\\//i.test(") >= 2

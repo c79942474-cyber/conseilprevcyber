@@ -39,6 +39,8 @@ import functools
 import re
 import unicodedata
 
+import lien_externe
+
 # LE CONNECTEUR DE JURISPRUDENCE, S'IL EST LÀ. Ce module est partagé à
 # l'identique entre deux applications et sert aussi de brique isolée : il doit
 # rester importable sans lui. Son absence n'est pas une dégradation silencieuse
@@ -494,11 +496,17 @@ def url_officielle(ref):
     jamais un identifiant national, au risque de pointer vers un autre texte."""
     if isinstance(ref, str):
         ref = _INDEX.get(ref) or {}
+    # LA GARDE N'EST PAS ICI PARCE QUE CETTE FONCTION SERAIT DOUTEUSE. Elle
+    # ne compose que deux constantes https figées, et ne peut donc pas rendre
+    # un schéma exécutable. Elle est ici parce que cette sûreté est un
+    # RAISONNEMENT sur les constantes d'aujourd'hui, et qu'un raisonnement ne
+    # survit pas à une refonte : la garde en fait une propriété vérifiée.
     if ref.get("celex"):
-        return EURLEX % ref["celex"]
+        return lien_externe.sur(EURLEX % ref["celex"])
     if ref.get("nature") in ("loi", "code"):
         from urllib.parse import quote
-        return LEGIFRANCE % quote(ref.get("officiel", ref.get("titre", "")))
+        return lien_externe.sur(
+            LEGIFRANCE % quote(ref.get("officiel", ref.get("titre", ""))))
     return ""
 
 

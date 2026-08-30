@@ -547,7 +547,15 @@
       var jal=(x.jalons||[]).length?'<div class="jal"><b>Jalons :</b> '+x.jalons.map(esc).join(' · ')+'</div>':'';
       var pts=(x.points||[]).length?'<ul class="pts">'+x.points.map(function(p){return '<li>'+esc(p)+'</li>';}).join('')+'</ul>':'';
       var mot=(x.motifs||[]).map(function(m){return '<div class="mot">'+esc(m)+'</div>';}).join('');
-      var lien=x.url?' · <a href="'+esc(x.url)+'" target="_blank" rel="noopener">source officielle</a>':'';
+      /* MÊME GARDE QU'À LA LIGNE DES DÉCISIONS, ET POUR LA MÊME RAISON.
+         L'adresse est désormais assainie à la source — `url_officielle` ne
+         rend que du http(s) ou du vide —, et la page en tire la conséquence :
+         pas d'adresse, pas d'ancre. Une page qui gardait à un endroit et pas
+         à l'autre enseignait que la garde était facultative ; c'est ainsi
+         qu'elle ne s'est jamais propagée hors d'ici. */
+      var u=(''+(x.url||'')).trim();
+      var lien=/^https?:\/\//i.test(u)
+        ? ' · <a href="'+esc(u)+'" target="_blank" rel="noopener">source officielle</a>' : '';
       return '<div class="txt'+(warn?' warn':'')+'">'
         +'<div class="m">'+esc(x.nature||'')+(x.autorite?(' · '+esc(x.autorite)):'')+lien+'</div>'
         +'<div class="t">'+esc(x.titre)+' <span class="pill '+(warn?'wr':'ok')+'">'+(warn?'à confirmer':'applicable')+'</span></div>'

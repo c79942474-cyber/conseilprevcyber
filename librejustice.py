@@ -48,6 +48,8 @@ consécutifs : sans lui, un corpus injoignable ajouterait son délai d'expiratio
 import json
 import os
 import re
+
+import lien_externe
 import threading
 import time
 
@@ -414,11 +416,19 @@ def normaliser(brut):
     """Une décision, dans la forme que l'application manipule."""
     if not isinstance(brut, dict):
         return None
-    url = _texte(brut, "url", "link", "href")
+    # L'ADRESSE VIENT D'UN SERVICE TIERS, ET C'EST ICI QU'ELLE ENTRE.
+    # La page de jurisprudence la gardait déjà — « on n'ouvre que http et
+    # https » — mais elle est la seule à le faire, et ce qui sort de ce
+    # magasin alimente aussi les exports, les livrables et la base
+    # documentaire. Garder au point d'ENTRÉE couvre tous les consommateurs,
+    # y compris ceux qu'on écrira plus tard et qui n'y penseront pas.
+    url = lien_externe.sur(_texte(brut, "url", "link", "href"))
     titre = _texte(brut, "title", "titre", "intitule")
     if not url and not titre:
         return None
     return {
+        # Sans adresse recevable, le titre reste le titre : on ne remplace pas
+        # un intitulé par une adresse écartée.
         "titre": titre or url,
         "url": url,
         "juridiction": _texte(brut, "jurisdiction", "juridiction", "court"),
