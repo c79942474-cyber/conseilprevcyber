@@ -2341,6 +2341,7 @@ import tier_dc       # noqa: E402  — qualifie une topologie, ne décerne aucun
 import reseau_dc     # noqa: E402  — chiffre un raccordement effaçable, ne prédit aucun délai
 import econome_dc     # l'economiste de la construction : quantites x prix
 import decarbonation  # noqa: E402  — les situe dans la hiérarchie d'atténuation
+import ecart_referentiel  # noqa: E402  — ce que la carte promet vs ce que le moteur produit
 import strategie_dd  # noqa: E402  — le livrable d'ouverture, quatre perspectives
 import equipements_it  # noqa: E402  — PARTAGÉ À L'IDENTIQUE avec Sentinel
 import transmission  # noqa: E402  — ce qui doit voyager AVEC le document qui sort
@@ -3051,6 +3052,30 @@ def api_datacenter_lacune(cle):
         gisements=l["gisements"],
         gisements_note="Gisements de données ouvertes NON CONSULTÉS : ce sont "
                        "des endroits où chercher, pas des réponses.")
+
+
+@app.route("/api/datacenter/ecart-referentiel")
+@login_required
+def api_datacenter_ecart_referentiel():
+    """L'écart entre ce que le cadre annonce et ce que le moteur produit.
+
+    FERMÉE COMME TOUTE LA FAMILLE `/api/datacenter/`, et le contrôle de
+    politique d'accès l'a rappelé au premier chargement. Je l'avais ouverte en
+    raisonnant sur son CONTENU — elle ne rend aucune donnée de client, juste un
+    profil de sonde sans portée d'étude. Mais la règle de la maison ne porte pas
+    sur le contenu : « fermer la page sans fermer son interface ne protège
+    rien ». Les pages du centre de données demandent un compte ; leurs
+    interfaces aussi, sans exception à plaider.
+
+    ELLE NE DÉCLARE AUCUNE CONFORMITÉ. La colonne « reste à produire » est
+    rendue pour chaque étape, y compris quand tout sort : douze mois de mesure,
+    une note signée, un vérificateur tiers ne se remplacent par aucun calcul.
+    """
+    try:
+        return jsonify(ok=True, **ecart_referentiel.analyse())
+    except Exception:
+        app.logger.exception("écart au référentiel")
+        return jsonify(ok=False, error="sonde_indisponible"), 502
 
 
 @app.route("/api/datacenter/decarbonation")

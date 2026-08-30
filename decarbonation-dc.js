@@ -946,9 +946,47 @@
       });
   }
 
+  /* ── CE QUE LA CARTE PROMET, ET CE QUE LE MOTEUR PRODUIT ──────────────
+     `apport_moteur` est une DÉCLARATION écrite à la main. Une fonction
+     retirée, et elle continue de promettre. Ce bloc confronte la déclaration à
+     ce qui sort réellement du moteur — et ne paraît QUE s'il a trouvé quelque
+     chose : une régression, ou de la matière produite que la carte n'annonce
+     pas. Il ne déclare aucune conformité : une valeur qui sort n'est pas une
+     exigence satisfaite, et la réserve du service le dit. */
+  function ecartReferentiel() {
+    var z = $("#dk-ecart");
+    if (!z) return;
+    fetch("/api/datacenter/ecart-referentiel")
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !j.ok) return;
+        var lignes = (j.etapes || []).filter(function (l) {
+          return l.etat === "regression" || l.etat === "sous_declare";
+        });
+        if (!lignes.length) return;          /* la carte et le moteur s'accordent */
+        var h = "<h3>Écart entre le cadre et le moteur</h3>";
+        h += lignes.map(function (l) {
+          var grave = l.etat === "regression";
+          return '<div class="note" style="border-left:3px solid '
+            + (grave ? "var(--danger,#c0392b)" : "var(--amber,#b8860b)")
+            + ';padding-left:10px;margin:8px 0">'
+            + "<b>" + esc(l.nom) + "</b> — annoncé « " + esc(l.declare) + " », "
+            + l.produit.length + " grandeur(s) au moteur.<br>"
+            + esc(l.dit) + "</div>";
+        }).join("");
+        h += '<p class="note">' + esc(j.reserve) + "</p>";
+        z.innerHTML = h;
+        z.hidden = false;
+      })
+      .catch(function () { /* le calcul de la page ne dépend pas de ce bloc */ });
+  }
+
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", demarrer);
+    document.addEventListener("DOMContentLoaded", function () {
+      demarrer(); ecartReferentiel();
+    });
   } else {
     demarrer();
+    ecartReferentiel();
   }
 })();

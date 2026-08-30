@@ -154,6 +154,68 @@ TEXTES = {
                "— biens d'équipement — porte le carbone incorporé des serveurs "
                "et du bâtiment, souvent le premier poste après l'électricité.",
     },
+    # ── LE CARBONE QUI N'EST PAS DANS L'ÉLECTRICITÉ ──────────────────────
+    # Ces quatre textes manquaient, et leur absence recoupe exactement quatre
+    # lacunes que l'état de l'art déclare depuis l'origine : pas d'ACV, rien
+    # sur la fin de vie ni le réemploi, rien sur l'équipement lui-même. Ce que
+    # le fonds ne documente pas, le référentiel ne l'exigeait pas non plus.
+    #
+    # L'ENJEU GRANDIT DANS LE MAUVAIS SENS. Un bilan de centre de données bâti
+    # sur la seule électricité manque une part qui AUGMENTE à mesure que le mix
+    # se décarbone : quand le kilowattheure émet moins, ce qui reste est le
+    # carbone déjà émis pour construire le bâtiment et fabriquer les serveurs.
+    # Une étude qui n'en dit rien vieillit d'autant plus vite qu'elle réussit.
+    "iso14040": {
+        "nom": "ISO 14040:2006 et ISO 14044:2006 — analyse du cycle de vie",
+        "portee": "norme",
+        "dit": "Principes, cadre, exigences et lignes directrices de l'analyse "
+               "de cycle de vie : unité fonctionnelle, frontières du système, "
+               "règles d'affectation, interprétation. Pour un centre de "
+               "données, c'est le texte qui rend comparable le carbone "
+               "INCORPORÉ — construction, serveurs, remplacements — au carbone "
+               "d'exploitation, que le bilan annuel est seul à voir.",
+        "ne_regle_pas": "Aucune donnée. La norme dit comment conduire l'étude, "
+                        "jamais ce que pèse un serveur : les facteurs viennent "
+                        "d'ailleurs, et leur provenance reste à établir.",
+    },
+    "ecodesign_serveurs": {
+        "nom": "Règlement (UE) 2019/424 — écoconception des serveurs et des "
+               "produits de stockage de données",
+        "portee": "contraignant",
+        "dit": "Exigences d'efficacité et de rendement des alimentations, "
+               "obligations d'information — puissance à vide, efficacité aux "
+               "charges partielles —, démontabilité et disponibilité du "
+               "micrologiciel. C'est le SEUL texte contraignant qui porte sur "
+               "l'équipement informatique lui-même, et non sur le bâtiment qui "
+               "l'abrite ni sur l'électricité qui l'alimente.",
+        "ne_regle_pas": "Ne dit rien de la charge utile : un serveur conforme "
+                        "et inutilisé reste un serveur inutilisé.",
+    },
+    "deee": {
+        "nom": "Directive 2012/19/UE relative aux déchets d'équipements "
+               "électriques et électroniques (DEEE)",
+        "portee": "contraignant",
+        "dit": "Collecte séparée, traitement, objectifs de valorisation et "
+               "responsabilité élargie du producteur. Elle place la fin de vie "
+               "dans le compte, là où le renouvellement accéléré des "
+               "accélérateurs — présenté partout comme un gain d'efficacité — "
+               "se paie effectivement.",
+        "ne_regle_pas": "N'impose aucun réemploi : valoriser un équipement en "
+                        "matière première n'est pas le remettre en service, et "
+                        "les deux ne pèsent pas le même carbone évité.",
+    },
+    "agec": {
+        "nom": "Loi n° 2020-105 du 10 février 2020 dite « AGEC » "
+               "(anti-gaspillage et économie circulaire)",
+        "portee": "contraignant",
+        "dit": "Réemploi, réparabilité et obligations d'achat de biens issus "
+               "du réemploi ou comportant des matières recyclées pour la "
+               "commande publique. Elle donne au réemploi un statut d'exigence "
+               "opposable, et non de bonne intention.",
+        "ne_regle_pas": "Ne fixe aucune méthode de comptabilisation du carbone "
+                        "évité par le réemploi : l'exigence est administrative, "
+                        "le chiffrage reste à conduire selon ISO 14040.",
+    },
     "iso14064_1": {
         "nom": "ISO 14064-1:2018",
         "portee": "norme",
@@ -623,7 +685,13 @@ ETAPES = [
                   "part_renouvelable"],
         "substitutions": ["intensite"],
         "apport_moteur": "partiel",
-        "textes": ["ghg_corp", "ghg_scope2", "ghg_scope3", "iso14064_1"],
+        # ISO 14040 et la directive DEEE entrent ICI, et pas plus loin :
+        # le carbone incorporé et la fin de vie sont des POSTES du scope 3
+        # (catégories 2 et 12). Les traiter comme des sujets de la
+        # trajectoire — donc après l'inventaire — reviendrait à les
+        # « réduire » sans les avoir jamais comptés.
+        "textes": ["ghg_corp", "ghg_scope2", "ghg_scope3", "iso14064_1",
+                   "iso14040", "deee"],
         "preuve": "Le facteur d'émission du fournisseur ou du gestionnaire de "
                   "réseau pour l'année déclarée — pas une moyenne nationale "
                   "d'un référentiel général.",
@@ -809,7 +877,13 @@ ETAPES = [
                   "classe_ashrae", "part_evaporative", "cycles_concentration"],
         "substitutions": ["pue"],
         "apport_moteur": "partiel",
-        "textes": ["iso30134", "code_conduite", "cndcp", "iso50001", "fgas"],
+        # Les deux textes qui portent sur le MATÉRIEL, là où les autres
+        # portent sur le bâtiment et sur l'électricité : l'écoconception
+        # des serveurs, et l'obligation de réemploi. Un parc renouvelé plus
+        # vite consomme moins à l'usage et davantage à la fabrication ;
+        # sans ces deux-là, l'étape ne voit que la première moitié.
+        "textes": ["iso30134", "code_conduite", "cndcp", "iso50001", "fgas",
+                   "ecodesign_serveurs", "agec"],
         "preuve": "L'arbitrage eau / énergie rendu explicite : les deux "
                   "indicateurs se déplacent en sens contraire, et n'en publier "
                   "qu'un revient à choisir sa mesure après avoir vu le résultat.",
