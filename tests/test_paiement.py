@@ -13,8 +13,12 @@ LES DEUX RÈGLES QUI TIENNENT TOUT :
     formulaire de paiement. Sinon une faute de frappe encaisse un paiement qui
     n'ouvre rien, et personne ne sait pourquoi.
 """
+import hashlib
+import hmac
+import json
 import os
 import sys
+import time
 
 import pytest
 
@@ -60,6 +64,23 @@ def compte(monkeypatch):
         auth.store.update(ACHETEUR, approved=False)
     except Exception:
         pass
+
+
+SECRET = "essai"     # la valeur que pose la fixture `configure`
+
+
+def _signer(evenement, decalage_s=0, secret=SECRET):
+    """Une charge RÉELLEMENT signée, au schéma de Stripe.
+
+    `t=<horodatage>,v1=<HMAC-SHA256 de "t.charge">`. Écrit ici parce que le
+    seul moyen d'éprouver une vérification de signature est de signer : la
+    remplacer par une lambda qui rend un événement tout fait laisse le point le
+    plus sensible du chemin sans aucune règle.
+    """
+    charge = json.dumps(evenement).encode()
+    t = int(time.time()) + decalage_s
+    sig = hmac.new(secret.encode(), b"%d.%s" % (t, charge), hashlib.sha256).hexdigest()
+    return charge, "t=%d,v1=%s" % (t, sig)
 
 
 @pytest.fixture
@@ -192,20 +213,52 @@ def test_la_notification_passe_la_garde_d_origine(anonyme, configure):
     assert r.status_code != 403, "la garde d'origine bloque les paiements"
 
 
-def test_une_notification_signee_ouvre_le_compte(anonyme, configure, compte,
-                                                 monkeypatch):
-    monkeypatch.setattr(paiement, "lire_evenement",
-                        lambda charge, sig: _evenement(ACHETEUR))
-    r = anonyme.post("/api/stripe/webhook", data=b"{}",
-                     headers={"Stripe-Signature": "t=1,v1=x"})
+def test_une_notification_signee_ouvre_le_compte(anonyme, configure, compte):
+    """LA VÉRIFICATION DE SIGNATURE EST ÉPROUVÉE, PAS CONTOURNÉE.
+
+    Cette règle remplaçait `lire_evenement` par une lambda rendant un événement
+    tout fait : la signature n'était jamais vérifiée, la règle portait le mot
+    « signée » et n'éprouvait que le chemin situé APRÈS la vérification. Or
+    c'est le seul point qui empêche un tiers d'ouvrir des accès en imitant
+    Stripe. La charge est donc signée pour de bon, et c'est le code qui
+    vérifie.
+    """
+    charge, entete = _signer(_evenement(ACHETEUR))
+    r = anonyme.post("/api/stripe/webhook", data=charge,
+                     headers={"Stripe-Signature": entete})
     assert r.status_code == 200 and r.get_json()["traite"] is True
     assert auth.store.get(ACHETEUR)["approved"] is True
+
+
+def test_une_signature_fausse_n_ouvre_rien(anonyme, configure, compte):
+    """Même charge, même horodatage, signature d'un autre secret : c'est le cas
+    du tiers qui imite Stripe."""
+    charge, _ = _signer(_evenement(ACHETEUR))
+    _, entete = _signer(_evenement(ACHETEUR), secret="pas_le_bon_secret")
+    r = anonyme.post("/api/stripe/webhook", data=charge,
+                     headers={"Stripe-Signature": entete})
+    assert r.status_code == 400
+    assert auth.store.get(ACHETEUR)["approved"] is False
+
+
+def test_une_signature_perimee_n_ouvre_rien(anonyme, configure, compte):
+    """LA TOLÉRANCE D'HORODATAGE EST UNE PROPRIÉTÉ, PAS UN DÉTAIL. Sans elle,
+    une charge signée captée hier serait rejouable indéfiniment."""
+    charge, entete = _signer(_evenement(ACHETEUR), decalage_s=-3600)
+    r = anonyme.post("/api/stripe/webhook", data=charge,
+                     headers={"Stripe-Signature": entete})
+    assert r.status_code == 400
+    assert auth.store.get(ACHETEUR)["approved"] is False
 
 
 def test_un_evenement_inconnu_rend_200_sans_rien_ouvrir(anonyme, configure,
                                                         compte, monkeypatch):
     """Rendre 500 sur ce qu'on ne traite pas déclencherait des jours de
-    réessais pour un cas qui ne s'arrangera pas tout seul."""
+    réessais pour un cas qui ne s'arrangera pas tout seul.
+
+    Celle-ci remplace `lire_evenement` À DESSEIN : elle porte sur ce qui vient
+    APRÈS la vérification, et la signature a désormais ses propres règles.
+    """
     monkeypatch.setattr(paiement, "lire_evenement",
                         lambda charge, sig: _evenement("inconnu@x.test"))
     r = anonyme.post("/api/stripe/webhook", data=b"{}",

@@ -208,6 +208,20 @@ Webhook à déclarer : `https://<votre-domaine>/api/stripe/webhook`, événement
 4. Le compte doit passer `approved` tout seul et le courriel d'activation
    partir. Le journal d'audit distingue les deux voies (`« par paiement »`).
 
+**Éprouver la chaîne sans rien casser.**
+
+```
+python3 outils/recette_paiement.py
+```
+
+Onze étapes du parcours réel : refus des consentements manquants, ouverture de la
+caisse, notification **réellement signée**, ouverture de l'accès, rejeu,
+signatures fausse et périmée, courriels, journal. Avec les trois clés `sk_test_…`
+et un réseau qui joint Stripe, la dernière étape ouvre une **vraie caisse** et
+imprime l'URL à ouvrir. Sans elles, le SDK est simulé — et le script le dit en
+tête et en pied plutôt que de laisser croire à une recette complète. Il refuse de
+s'exécuter sur une clé `sk_live_`, et efface le compte de recette qu'il a créé.
+
 > **Deux comptes, deux navigateurs.** Le site n'ouvre qu'une session par
 > navigateur : le compte acheteur et le compte administrateur ne peuvent pas
 > cohabiter. L'achat se fait en fenêtre privée, la console d'administration
