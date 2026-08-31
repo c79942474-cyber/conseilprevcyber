@@ -239,3 +239,103 @@ def test_les_deux_chemins_vers_la_caisse_portent_la_case():
         assert "L221-28" in src, page
         # La page envoie bien le drapeau, et ne se contente pas de l'afficher.
         assert "renonciation" in src, page
+
+
+# ── 5. CE QUI SE JUGE NE SE LIT PAS — la confrontation au corpus ──────────
+#
+# Huit clauses du projet ne valent que ce que la jurisprudence leur laisse
+# valoir. Ces règles ne vérifient pas le droit — elles ne le peuvent pas — mais
+# elles vérifient que l'INSTRUMENT existe, qu'il refuse de se taire quand le
+# corpus ne répond pas, et que le projet et la grille ne dérivent pas l'un de
+# l'autre.
+
+def _grille():
+    sys.path.insert(0, os.path.join(ICI, "outils"))
+    import verifier_cgv
+    return verifier_cgv
+
+
+def test_chaque_clause_marquee_a_son_point_de_controle():
+    """DANS LES DEUX SENS. Une clause marquée sans point serait une promesse de
+    vérification que rien ne tient ; un point sans clause marquée serait une
+    vérification dont le lecteur du projet ignore l'existence."""
+    marques = set(re.findall(r'data-point="([a-z]+)"', _src(CGV))) - {"exemple"}
+    grille = {p["cle"] for p in _grille().POINTS}
+    assert marques == grille, (
+        "marquées sans point : %s ; points sans marque : %s"
+        % (sorted(marques - grille), sorted(grille - marques)))
+
+
+def test_chaque_point_porte_sa_question_et_son_ancrage():
+    """Un point sans question n'interroge rien ; un point sans ancrage légal
+    ne dit pas ce qu'on cherche à valider."""
+    for p in _grille().POINTS:
+        for champ in ("cle", "article", "ancrage", "enjeu", "question"):
+            assert (p.get(champ) or "").strip(), (p.get("cle"), champ)
+        assert len(p["question"].split()) >= 6, p["cle"]
+
+
+def test_l_instrument_refuse_de_se_taire_quand_le_corpus_ne_repond_pas(monkeypatch, capsys):
+    """LA RÈGLE QUI COMPTE. « Aucune décision trouvée » et « je n'ai pas pu
+    chercher » sont deux phrases opposées : les confondre rendrait un contrôle
+    rassurant qui n'a rien contrôlé."""
+    import librejustice
+    v = _grille()
+    monkeypatch.setattr(librejustice, "disponible",
+                        lambda: {"ok": False, "motif": "corpus injoignable (essai)"})
+    code = v.main(["verifier_cgv.py"])
+    sortie = capsys.readouterr().out
+    assert code != 0, "un corpus injoignable est sorti en succès"
+    assert "AUCUN POINT N'A ÉTÉ VÉRIFIÉ" in sortie
+    assert "injoignable" in sortie
+
+
+def test_l_instrument_distingue_une_liste_vide_d_une_absence_de_reponse(monkeypatch, capsys):
+    """Une liste vide EST une réponse — le corpus a cherché et n'a rien —, et
+    elle ne doit pas se lire comme une validation."""
+    import librejustice
+    v = _grille()
+    monkeypatch.setattr(librejustice, "disponible", lambda: {"ok": True, "outils": ["x"]})
+    monkeypatch.setattr(librejustice, "rechercher",
+                        lambda q, limite=6, **k: {"ok": True, "decisions": [],
+                                                  "motif": "", "requete": q})
+    code = v.main(["verifier_cgv.py", "garantie"])
+    sortie = capsys.readouterr().out
+    assert code == 0
+    assert "Aucune décision dans le corpus" in sortie
+    assert "ne valide pas la clause" in sortie
+
+
+def test_l_instrument_n_ecrit_aucune_decision_qu_il_n_a_pas_recue(monkeypatch, capsys):
+    """Il rapporte ce que le corpus rend, et rien d'autre : c'est toute la
+    raison d'être de librejustice.py."""
+    import librejustice
+    v = _grille()
+    monkeypatch.setattr(librejustice, "disponible", lambda: {"ok": True, "outils": ["x"]})
+    monkeypatch.setattr(librejustice, "rechercher",
+                        lambda q, limite=6, **k: {"ok": True, "requete": q, "motif": "",
+                                                  "decisions": [{"titre": "Cass. civ. 1re, 1 janv. 2000",
+                                                                 "url": "https://librejustice.fr/d/1",
+                                                                 "apercu": "un aperçu",
+                                                                 "apercu_non_citable": True}]})
+    v.main(["verifier_cgv.py", "plafond"])
+    sortie = capsys.readouterr().out
+    assert "Cass. civ. 1re, 1 janv. 2000" in sortie
+    assert "https://librejustice.fr/d/1" in sortie
+    # L'aperçu est servi AVEC son avertissement : il finirait sinon cité comme
+    # la position de la cour.
+    assert "NON CITABLE" in sortie
+
+
+def test_les_corrections_qui_ne_dependent_pas_du_corpus_sont_faites():
+    """Elles se tirent du code, pas de la jurisprudence : rien ne justifiait
+    de les remettre à plus tard."""
+    src = _src(CGV)
+    for fait in ("1110",        # contrat d'adhésion
+                 "1190",        # interprétation contre le vendeur
+                 "1127-1",      # conservation et impression
+                 "1127-2",      # déroulement de la commande
+                 "1170",        # clause limitative et obligation essentielle
+                 "1171",        # déséquilibre significatif
+                 "L442-1"):     # pratiques restrictives
+        assert fait in src, "article %s absent du projet" % fait

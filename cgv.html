@@ -16,6 +16,16 @@
 <link rel="canonical" href="https://conseilprevcyber.onrender.com/cgv">
 <link rel="icon" href="/emblem.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/styles.css">
+<style>
+  /* LA MARQUE DES CLAUSES DONT LA VALIDITÉ SE JUGE, ET NE SE LIT PAS.
+     Elle porte la clé du point correspondant dans outils/verifier_cgv.py :
+     une règle exige que les deux listes se recouvrent exactement, faute de
+     quoi une clause serait marquée sans être interrogée, ou interrogée sans
+     que le lecteur du projet le sache. */
+  .cgv-verif{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.05em;
+    text-transform:uppercase;border-radius:999px;padding:2px 9px;margin-left:6px;white-space:nowrap;
+    border:1px solid rgba(245,158,11,.45);color:#f59e0b;background:rgba(245,158,11,.08)}
+</style>
 </head>
 <body>
   <header>
@@ -83,6 +93,13 @@
         du paiement. Elles complètent, sans les remplacer, les
         <a href="/mentions-legales">mentions légales</a> et la
         <a href="/politique-confidentialite">politique de confidentialité</a>.</p>
+        <p>Les présentes conditions constituent un <strong>contrat d'adhésion</strong> au sens de
+        l'article 1110 du code civil : leurs stipulations n'ont pas été négociées. En conséquence,
+        et conformément à l'article 1190 du même code, <strong>elles s'interprètent contre le
+        vendeur</strong> en cas de doute.</p>
+        <p>Elles sont accessibles en permanence à l'adresse conseilprevcyber.onrender.com/cgv, sous
+        une forme qui en permet <strong>l'impression et la conservation</strong> par le client
+        (article 1127-1 du code civil).</p>
 
         <h2>Article 2 — Ce qui est vendu</h2>
         <p>Le vendeur vend <strong>l'ouverture d'un compte nominatif</strong> donnant accès aux pages
@@ -115,12 +132,19 @@
         <p>La commande suppose un compte dont <strong>l'adresse électronique a été confirmée</strong>
         par son titulaire. Le vendeur refuse d'ouvrir une caisse pour une adresse non confirmée :
         encaisser pour un accès qui ne s'ouvrirait pas serait pire que faire attendre.</p>
+        <p><strong>Déroulement de la commande</strong> (article 1127-2 du code civil) : le client
+        saisit l'adresse électronique de son compte, prend connaissance des présentes conditions et
+        exprime les consentements de l'article 5 ; il est alors conduit sur la page de paiement, où
+        le détail de sa commande et son prix lui sont récapitulés et où il <strong>peut encore
+        corriger d'éventuelles erreurs</strong> avant de confirmer. La confirmation vaut acceptation
+        de l'offre.</p>
         <p>Le contrat est formé <strong>à la confirmation du paiement par la notification signée de
         Stripe</strong> reçue par le vendeur — et non au retour du navigateur du client. En
         conséquence, la fermeture prématurée de la page de paiement <strong>n'empêche pas</strong>
-        l'ouverture de l'accès. Un courriel confirme l'ouverture.</p>
+        l'ouverture de l'accès. Un courriel confirme l'ouverture et vaut accusé de réception de la
+        commande.</p>
 
-        <h2>Article 5 — Droit de rétractation du consommateur</h2>
+        <h2>Article 5 — Droit de rétractation du consommateur <span class="cgv-verif" data-point="retractation">à confronter au corpus</span></h2>
         <p><em>Le présent article ne concerne que le client ayant la qualité de consommateur au sens
         du code de la consommation, ainsi que le professionnel qui remplit les conditions de
         l'article L221-3 du même code.</em></p>
@@ -148,7 +172,7 @@
         courrier au siège social. Le remboursement intervient dans les quatorze jours de la
         réception de la décision, par le même moyen de paiement.</p>
 
-        <h2>Article 6 — Garantie légale de conformité</h2>
+        <h2>Article 6 — Garantie légale de conformité <span class="cgv-verif" data-point="garantie">à confronter au corpus</span></h2>
         <p>Le vendeur est tenu, à l'égard du consommateur, de la
         <strong>garantie légale de conformité</strong> du contenu numérique et du service numérique
         prévue aux articles <strong>L224-25-12</strong> et suivants du code de la consommation.
@@ -159,7 +183,7 @@
         <p>Cette garantie s'ajoute à celle des <strong>vices cachés</strong> (articles 1641 et
         suivants du code civil).</p>
 
-        <h2>Article 7 — Durée, disponibilité et fin du service</h2>
+        <h2>Article 7 — Durée, disponibilité et fin du service <span class="cgv-verif" data-point="disponibilite">à confronter au corpus</span></h2>
         <p>L'accès est consenti pour une <strong>durée indéterminée</strong>, tant que la plateforme
         est exploitée. Il ne comporte aucune échéance et ne fait l'objet d'aucun renouvellement.</p>
         <p>Le vendeur est tenu d'une <strong>obligation de moyens</strong> quant à la disponibilité
@@ -172,7 +196,7 @@
         remboursement. Ce paragraphe est un engagement commercial&nbsp;: il doit être décidé, non
         subi.</em></p>
 
-        <h2>Article 8 — Obligations du client</h2>
+        <h2>Article 8 — Obligations du client <span class="cgv-verif" data-point="extraction">à confronter au corpus</span></h2>
         <ul>
           <li>Le client conserve ses identifiants et répond des usages faits depuis son compte.</li>
           <li>Le compte est personnel&nbsp;: son partage, sa revente ou sa mise à disposition d'un
@@ -183,7 +207,7 @@
           disponibilité de la plateforme.</li>
         </ul>
 
-        <h2>Article 9 — Suspension et fin de l'accès</h2>
+        <h2>Article 9 — Suspension et fin de l'accès <span class="cgv-verif" data-point="abusives">à confronter au corpus</span></h2>
         <p><strong>À l'initiative du client.</strong> Le client peut à tout moment demander
         l'effacement de son compte (article 17 du RGPD). Cet effacement met fin à l'accès et
         <strong>ne donne pas lieu à remboursement</strong>, l'accès ayant été ouvert et fourni.</p>
@@ -192,7 +216,7 @@
         jours, sauf urgence tenant à la sécurité de la plateforme. La suspension prononcée à tort
         ouvre droit au rétablissement de l'accès.</p>
 
-        <h2>Article 10 — Nature des résultats et responsabilité</h2>
+        <h2>Article 10 — Nature des résultats et responsabilité <span class="cgv-verif" data-point="plafond">à confronter au corpus</span></h2>
         <p><strong>Ce que la plateforme produit.</strong> Les outils mis à disposition produisent des
         <strong>brouillons, calculs et aides à la décision</strong>. Ils ne constituent ni un audit,
         ni une certification, ni une consultation juridique au sens de la loi n°&nbsp;71-1130 du
@@ -210,8 +234,16 @@
         peut excéder <strong>[À ARBITRER : le prix payé, ou un multiple de ce prix]</strong>. Sont
         exclus les dommages indirects, la perte de données non imputable au vendeur, la perte
         d'exploitation et le manque à gagner.</p>
+        <p>Cette limitation <strong>ne joue pas</strong> lorsqu'elle priverait de sa substance
+        l'obligation essentielle du vendeur : une clause limitative qui contredit la portée de
+        l'engagement pris est réputée non écrite (article 1170 du code civil). Elle ne joue pas
+        davantage en cas de dommage corporel, de faute lourde ou dolosive, ni là où la loi
+        l'interdit.</p>
+        <p>Aucune stipulation des présentes ne peut créer un <strong>déséquilibre significatif</strong>
+        entre les droits et obligations des parties&nbsp;: une telle clause serait réputée non
+        écrite (article 1171 du code civil), sans préjudice de l'article L442-1 du code de commerce.</p>
 
-        <h2>Article 11 — Propriété intellectuelle</h2>
+        <h2>Article 11 — Propriété intellectuelle <span class="cgv-verif" data-point="adhesion">à confronter au corpus</span></h2>
         <p>Les contenus de la plateforme (textes, référentiels, méthodes, éléments graphiques, code)
         demeurent la propriété du vendeur. La vente confère au client un <strong>droit d'usage
         personnel, non exclusif et non cessible</strong>, pour ses besoins propres et ceux de son
@@ -248,7 +280,7 @@
         son numéro de version, rappelé en tête de page et conservé au journal des opérations avec la
         commande.</p>
 
-        <h2>Article 15 — Droit applicable et juridiction</h2>
+        <h2>Article 15 — Droit applicable et juridiction <span class="cgv-verif" data-point="competence">à confronter au corpus</span></h2>
         <p>Les présentes conditions sont soumises au <strong>droit français</strong>.</p>
         <p><strong>Consommateur</strong> — aucune clause n'attribue compétence à une juridiction
         déterminée. Le consommateur peut saisir, à son choix, la juridiction du lieu où il demeurait
@@ -257,6 +289,24 @@
         <p><strong>Professionnel</strong> — à défaut de règlement amiable, compétence est attribuée
         aux tribunaux du ressort de Paris, y compris en cas de pluralité de défendeurs ou d'appel en
         garantie.</p>
+
+        <div class="divider"></div>
+
+        <h2>Ce qui reste à confronter au corpus de jurisprudence</h2>
+        <p class="muted">Huit clauses de ce projet ne valent que ce que la jurisprudence leur laisse
+        valoir : une clause limitative peut être réputée non écrite, une renonciation privée d'effet,
+        une suspension jugée disproportionnée. Ces points ne se tranchent pas en lisant le code seul,
+        et surtout pas de mémoire — une décision inventée est parfaitement crédible.</p>
+        <p>Le dépôt porte l'instrument qui interroge le corpus ouvert de
+        <a href="https://librejustice.fr" rel="noopener">LibreJustice</a> (Cour de cassation,
+        Conseil d'État, cours d'appel, CJUE, CEDH, sanctions de la CNIL) et rapporte les décisions
+        avec leur référence :</p>
+        <pre><code>python3 outils/verifier_cgv.py</code></pre>
+        <p>Il <strong>ne rend aucun verdict</strong> et refuse de se taire : si le corpus ne répond
+        pas, il le dit et sort en erreur, parce que « aucune décision trouvée » et « je n'ai pas pu
+        chercher » sont deux phrases opposées. Chaque clause marquée
+        <span class="cgv-verif" data-point="exemple">à confronter au corpus</span> ci-dessus porte
+        la clé de son point de contrôle.</p>
 
         <div class="divider"></div>
 
