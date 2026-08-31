@@ -34,6 +34,8 @@ ET UNE RÈGLE QUI EST PROPRE À CE MODULE, LA PLUS IMPORTANTE :
 """
 import logging
 import os
+import threading
+import time
 
 VERSION = "2026-08-a"
 
@@ -73,6 +75,73 @@ def _stripe():
         return None
     stripe.api_key = _valeur(CLE)
     return stripe
+
+
+# ── LE PRIX VIENT DE STRIPE, JAMAIS DE LA PAGE ────────────────────────────
+# L'écrire dans le HTML serait plus simple et faux : le jour où il change dans
+# Stripe, la page annonce un montant et la caisse en encaisse un autre. Le
+# client découvre alors le désaccord au pire moment — la carte à la main. On lit
+# donc la source ; et quand on ne peut pas la lire, on n'affiche AUCUN montant.
+# Un prix qu'on ne peut pas prouver n'est pas un prix.
+#
+# MIS EN CACHE, parce qu'un aller-retour Stripe par affichage de page se paierait
+# en latence chez le visiteur. Dix minutes : un tarif ne change pas trois fois
+# par heure, et une modification est visible au pire au bout de ce délai.
+TARIF_TTL_S = 600
+_TARIF = {"valeur": None, "lu_a": 0.0}
+_VERROU_TARIF = threading.Lock()
+
+
+def _formater(centimes, devise):
+    """« 490,00 € » — la virgule décimale et l'espace insécable du français.
+
+    Les devises sans sous-unité (yen, won) ne prennent pas de décimales : les
+    diviser par cent afficherait un montant cent fois trop petit.
+    """
+    sans_decimale = str(devise or "").lower() in ("jpy", "krw", "vnd", "clp", "isk")
+    symbole = {"eur": "\u00a0€", "usd": "\u00a0$", "gbp": "\u00a0£"}.get(
+        str(devise or "").lower(), "\u00a0" + str(devise or "").upper())
+    if sans_decimale:
+        return "%d%s" % (centimes, symbole)
+    return ("%.2f" % (centimes / 100.0)).replace(".", ",") + symbole
+
+
+def tarif():
+    """Le tarif RÉEL de l'article vendu, lu chez Stripe. None si illisible.
+
+    `recurrent` n'est pas une décoration : `session_paiement` ouvre la caisse en
+    `mode="payment"`. Un prix Stripe RÉCURRENT la ferait échouer à chaque
+    tentative, sans que rien ne l'explique — les visiteurs verraient « paiement
+    momentanément indisponible » et personne ne saurait pourquoi. C'est la
+    console d'administration qui le signale, à l'endroit où elle nomme déjà les
+    variables manquantes.
+    """
+    if not configure():
+        return None
+    maintenant = time.time()
+    with _VERROU_TARIF:
+        if _TARIF["valeur"] and maintenant - _TARIF["lu_a"] < TARIF_TTL_S:
+            return dict(_TARIF["valeur"])
+    st = _stripe()
+    if st is None:
+        return None
+    try:
+        prix = st.Price.retrieve(_valeur(CLE_PRIX))
+        centimes = prix.get("unit_amount")
+        devise = prix.get("currency") or ""
+        if centimes is None:
+            # Un prix « à la carte » (unit_amount absent) n'a pas de montant à
+            # afficher : on préfère ne rien dire plutôt qu'annoncer zéro.
+            return None
+        valeur = {"montant": int(centimes), "devise": devise,
+                  "affichage": _formater(int(centimes), devise),
+                  "recurrent": bool(prix.get("recurring"))}
+    except Exception as exc:
+        _log.warning("paiement : tarif non lu (%s)", type(exc).__name__)
+        return None
+    with _VERROU_TARIF:
+        _TARIF["valeur"], _TARIF["lu_a"] = valeur, maintenant
+    return dict(valeur)
 
 
 def session_paiement(email, base):
@@ -157,4 +226,4 @@ def glossaire():
 
 def referentiel():
     return {"version": VERSION, "configure": configure(),
-            "variables": [CLE, CLE_WEBHOOK, CLE_PRIX]}
+            "variables": [CLE, CLE_WEBHOOK, CLE_PRIX], "tarif": tarif()}

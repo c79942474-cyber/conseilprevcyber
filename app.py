@@ -843,6 +843,7 @@ login_required = init_auth(app)
 # URL propre -> fichier HTML servi
 PAGES = {
     "/": "index.html",
+    "/acces": "acces.html",
     "/services": "services.html",
     "/operating-model": "operating-model.html",
     "/maturite-ot": "maturite-ot.html",
@@ -5444,6 +5445,17 @@ def politique_confidentialite():
     return _page(PAGES["/politique-confidentialite"])
 
 
+@app.route("/acces")
+def page_acces():
+    """Comment obtenir un accès : le périmètre, le prix, les deux voies.
+
+    OUVERTE, ET C'EST LE POINT. Une page qui vend l'accès derrière l'accès ne
+    vend rien. Elle ne divulgue que ce qu'un visiteur voit déjà — les entrées
+    du tiroir — et le prix, qui n'est un secret pour personne.
+    """
+    return _page(PAGES["/acces"])
+
+
 @app.route("/conformite")
 def conformite():
     """Dossier de conformité RGPD & IA Act, rendu depuis rgpd.py via /api/conformite."""
@@ -9456,13 +9468,19 @@ def api_livrables_export():
 
 @app.route("/api/paiement/etat")
 def api_paiement_etat():
-    """Le paiement est-il proposé ? Rien d'autre — ni prix, ni clé.
+    """Le paiement est-il proposé, et à quel prix ? Aucune clé n'en sort.
 
     La page a besoin de le savoir AVANT d'afficher un bouton : un bouton qui
     mène à « paiement non configuré » vaut moins qu'un bouton absent.
+
+    LE TARIF EST LU CHEZ STRIPE, jamais recopié dans une page — sinon le jour
+    où il change, la page annonce un montant et la caisse en encaisse un autre.
+    Il vaut `null` quand on n'a pas pu le lire, et la page n'affiche alors aucun
+    montant : un prix qu'on ne peut pas prouver n'est pas un prix.
     """
     import paiement
-    return jsonify(ok=True, configure=paiement.configure())
+    return jsonify(ok=True, configure=paiement.configure(),
+                   tarif=paiement.tarif())
 
 
 @app.route("/api/paiement/checkout", methods=["POST"])
@@ -10497,6 +10515,30 @@ def api_admin_reglages():
                        "qu'une session par navigateur, et le compte acheteur "
                        "ne peut pas cohabiter avec le vôtre"})
 
+    # ── UNE CONFIGURATION COMPLÈTE QUI NE PEUT PAS MARCHER ────────────────
+    # La caisse s'ouvre en `mode="payment"` : un prix Stripe RÉCURRENT la fait
+    # échouer à chaque tentative. Les trois variables sont pourtant là, le
+    # panneau est muet, la page affiche son bouton — et le visiteur lit
+    # « paiement momentanément indisponible » sans que personne sache pourquoi.
+    # C'est le pire des cas : tout paraît en ordre.
+    if not manque:
+        try:
+            import paiement as _pay2
+            t = _pay2.tarif()
+        except Exception:
+            t = None
+        if t and t.get("recurrent"):
+            ecartes.append({
+                "variable": _pay2.CLE_PRIX,
+                "attendu": "un prix à paiement unique",
+                "consequence": "le prix configuré est RÉCURRENT (abonnement), "
+                               "alors que la caisse s'ouvre en paiement unique : "
+                               "chaque tentative échoue, et le visiteur ne lit "
+                               "que « paiement momentanément indisponible »",
+                "geste": "créez dans Stripe un prix « unique » (one-off) pour ce "
+                         "produit et remplacez l'identifiant, ou vendez un "
+                         "abonnement — ce que ce service ne sait pas encore faire"})
+
     return jsonify(ok=True, ecartes=ecartes, inertes=inertes, absents=absents,
                    total=len(ecartes) + len(inertes) + len(absents))
 
@@ -10790,6 +10832,29 @@ def api_acces():
                       cache_control="public, max-age=3600")
 
 
+@app.route("/api/acces/perimetre")
+def api_acces_perimetre():
+    """Ce qu'un compte client ouvre, par rubrique — pour la page qui le vend.
+
+    POURQUOI UNE ROUTE À PART, ET PAS UN CHAMP DE PLUS SUR /api/acces. Cette
+    dernière est la requête la plus fréquente du site : nav.js l'appelle à
+    CHAQUE page pour marquer les liens. Y verser les rubriques et leurs
+    libellés ferait payer à quarante pages le détail dont une seule a besoin.
+    Deux sujets, deux routes.
+
+    RIEN DE PLUS N'EST DIVULGUÉ : ce sont les entrées du menu, que tout
+    visiteur voit déjà dans le tiroir, et le fait qu'elles demandent un compte
+    — ce que /api/acces dit par ailleurs. La page de vente doit pouvoir décrire
+    ce qu'elle vend.
+
+    Même cache d'une heure, et pour la même raison : la réponse ne dépend ni de
+    la session ni du visiteur, et ne change qu'au déploiement.
+    """
+    import perimetre
+    return _json_fige("acces-perimetre", lambda: dict(ok=True, **perimetre.etat()),
+                      cache_control="public, max-age=3600")
+
+
 # ─────────────────────────── LA POLITIQUE D'ACCÈS EST-ELLE APPLIQUÉE ? ──────
 # À EXÉCUTER EN DERNIER, et ce n'est pas un détail d'ordonnancement : tant que
 # toutes les routes ne sont pas déclarées, le relevé est incomplet — et un
@@ -10801,13 +10866,15 @@ def _menu_chemins():
 
     La règle porte sur « les pages du menu latéral » : c'est donc le menu qui
     dit ce qui doit être décidé, et le recopier ici en ferait une seconde
-    source de vérité qui divergerait au premier ajout de page."""
-    import re as _re
-    with open(os.path.join(HERE, "nav.js"), encoding="utf-8") as f:
-        js = f.read()
-    i = js.index("var NAV_SECTIONS")
-    bloc = _re.sub(r"//[^\n]*", "", js[i:js.index("];", i)])
-    chemins = {a for a, _ in _re.findall(r'\["(/[^"]*)",\s*"([^"]*)"\]', bloc)}
+    source de vérité qui divergerait au premier ajout de page.
+
+    UN SEUL LECTEUR EN PRODUCTION. L'extraction vivait ici ET dans `perimetre`,
+    qui sert la page de vente : deux analyseurs du même fichier, dont un seul
+    aurait été corrigé le jour où le menu change de forme. Les essais, eux,
+    gardent leur propre lecture — une règle qui réutiliserait ce lecteur
+    resterait verte s'il cassait."""
+    import perimetre
+    chemins = {p["chemin"] for r in perimetre.rubriques() for p in r["pages"]}
     if len(chemins) < 30:
         raise RuntimeError(
             "politique d'accès : le menu n'a livré que %d entrées — la lecture "

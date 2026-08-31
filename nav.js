@@ -217,8 +217,8 @@
     { t: "Ressources", l: [
       ["/veille", "Veille cyber"], ["/ressources", "Ressources"], ["/faq", "FAQ"] ] },
     { t: "Entreprise", l: [
-      ["/", "Accueil"], ["/about", "À propos"], ["/vos-projets", "Vos projets"],
-      ["/contact", "Contact"] ] }
+      ["/", "Accueil"], ["/about", "À propos"], ["/acces", "Obtenir un accès"],
+      ["/vos-projets", "Vos projets"], ["/contact", "Contact"] ] }
   ];
 
   /* Infobulles du tiroir : courte description par onglet (survol + focus). */
@@ -447,6 +447,10 @@
       s: ["Parcourez les quatre domaines d'intervention.", "Ouvrez la démo temps réel pour voir le cockpit en action.", "Demandez un état des lieux via le formulaire de contact."],
       k: [["IT / OT / IIoT", "Informatique de gestion / systèmes industriels (automates, SCADA) / objets connectés industriels."], ["IEC 62443", "La série de normes de référence pour la cybersécurité des systèmes d'automatisation industriels."]],
       l: [["Nos services", "/services"], ["Démo temps réel", "/demo"], ["Nous contacter", "/contact"]] },
+    "/acces": { t: "Obtenir un accès", p: "Ce qu'un compte ouvre, ce qu'il coûte, et les deux façons de l'obtenir — validation par notre équipe, ou règlement en ligne pour une ouverture immédiate.",
+      s: ["Lisez ce que l'accès ouvre : la liste est tirée du menu, elle ne peut pas dater.", "Comparez les deux voies : la gratuite est différée, la payante est immédiate.", "Le prix affiché est celui de la caisse — il est lu chez Stripe, pas recopié."],
+      k: [["Un paiement, une fois", "Aucune reconduction et rien à résilier : ce qui est vendu, c'est l'ouverture d'un compte."], ["Adresse confirmée", "Le règlement ne porte que sur une adresse déjà confirmée : encaisser pour un accès qui ne s'ouvrirait pas serait pire que faire attendre."]],
+      l: [["Créer un compte", "/inscription"], ["Se connecter", "/connexion"], ["Nous écrire", "/contact"]] },
     "/services": { t: "Services", p: "Le détail de nos offres — de l'état des lieux à la supervision — et de nos compétences techniques.",
       s: ["Survolez les puces techniques : chaque terme est expliqué.", "Consultez les objectifs de mission et les livrables.", "Passez à l'action : état des lieux ou démo."],
       k: [["NAC", "Contrôle d'accès réseau : n'admettre que les équipements autorisés."], ["EDR", "Détection et réponse sur les postes et serveurs."], ["MCO / MCS", "Maintien en condition opérationnelle / de sécurité dans la durée."]],
@@ -1096,6 +1100,7 @@
   /* ── 10. Recherche instantanée (Ctrl+K / bouton 🔍) ─────────────────────── */
   var SEARCH = [
     ["/checklist-62443", "Liste de vérification 62443", "Six sections, chaque point rattaché à sa partie de la série et disant la preuve attendue.", "Référentiel 62443", "checklist controle preuve audit verification"],
+    ["/acces", "Obtenir un accès", "Ce qu'un compte ouvre, ce qu'il coûte, et les deux façons de l'obtenir : validation par l'équipe, ou règlement en ligne.", "Entreprise", "acces compte tarif prix acheter payer abonnement ouvrir"],
     ["/conformite", "Conformité RGPD & IA Act", "Le dossier de conformité du site lui-même : traitements, bases légales, classement AI Act.", "Conformité & audit", "rgpd ai act donnees personnelles registre traitements"],
     /* ── LES TREIZE PAGES QUI MANQUAIENT ────────────────────────────────
        DÉFAUT CORRIGÉ. Cet index en couvrait 34 sur les 43 du tiroir : toute

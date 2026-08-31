@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Obtenir un accès — CONSEILPREV Cyber</title>
+<meta name="description" content="Ce qu'ouvre un compte CONSEILPREV Cyber, ce qu'il coûte, et les deux façons de l'obtenir : validation par notre équipe, ou règlement en ligne pour une ouverture immédiate.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CONSEILPREV Cyber">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Obtenir un accès — CONSEILPREV Cyber">
+<meta property="og:description" content="Ce qu'ouvre un compte, ce qu'il coûte, et les deux façons de l'obtenir.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Obtenir un accès — CONSEILPREV Cyber">
+<meta name="twitter:description" content="Ce qu'ouvre un compte, ce qu'il coûte, et les deux façons de l'obtenir.">
+<link rel="canonical" href="https://conseilprevcyber.onrender.com/acces">
+<link rel="icon" href="/emblem.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .ac-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:16px;margin:18px 0 8px}
+  .ac-card{border:1px solid var(--line);border-radius:14px;padding:20px 22px;background:linear-gradient(180deg,var(--panel),var(--bg2));min-width:0}
+  .ac-card h3{margin:0 0 4px;font-size:16px;color:var(--ink)}
+  .ac-card p{font-size:13.5px;color:var(--muted);margin:8px 0 0;line-height:1.6}
+  .ac-card .actions{margin-top:16px}
+  .ac-tag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;
+    border-radius:999px;padding:3px 10px;border:1px solid var(--line);color:var(--muted2);white-space:nowrap}
+  .ac-tag.now{border-color:rgba(45,212,191,.4);color:var(--teal);background:rgba(45,212,191,.08)}
+  .ac-prix{font-size:30px;font-weight:800;color:var(--ink);line-height:1.1;margin:14px 0 2px;font-variant-numeric:tabular-nums}
+  .ac-prix small{display:block;font-size:12.5px;font-weight:400;color:var(--muted2);margin-top:6px;letter-spacing:0}
+  .ac-rub{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--bg2);min-width:0}
+  .ac-rub h4{margin:0 0 8px;font-size:13px;color:var(--ink)}
+  .ac-rub ul{margin:0;padding-left:18px;color:var(--muted);font-size:12.5px;line-height:1.7}
+  .ac-rub .libre{color:var(--muted2)}
+  .ac-etape{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line)}
+  .ac-etape:last-child{border-bottom:none}
+  .ac-num{flex:0 0 28px;height:28px;border-radius:999px;border:1px solid var(--line);display:flex;
+    align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;color:var(--muted2)}
+  .ac-etape .corps{min-width:0;flex:1}
+  .ac-etape .corps b{color:var(--ink);font-size:14px}
+  .ac-etape .corps p{margin:4px 0 0;font-size:13px;color:var(--muted);line-height:1.6}
+  .ac-champ{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .ac-champ input{flex:1 1 240px;min-width:0}
+  .ac-msg{margin-top:10px;font-size:13px;color:var(--muted)}
+  .ac-msg.err{color:#f59e0b}
+  .ac-faits{margin:16px 0 0;padding-left:20px;color:var(--muted);font-size:13px;line-height:1.8}
+  .ac-faits b{color:var(--ink)}
+</style>
+</head>
+<body>
+  <header>
+  <div class="wrap nav">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu"><span></span><span></span><span></span></button>
+    <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="30" height="30" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+    <nav class="links" aria-label="Navigation principale">
+      <a href="/services">Services</a>
+      <a href="/referentiel">Référentiel 62443</a>
+      <a href="/audit-conformite">Audit 62443</a>
+      <a href="/demo">Cockpit</a>
+      <a href="/assistant">Assistant IA</a>
+      <a href="/veille">Veille</a>
+      <a href="/about">À propos</a>
+    </nav>
+    <div class="navcta">
+      <a href="/contact" class="cta">Contact</a>
+    </div>
+  </div>
+</header>
+
+    <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow">Accès à la plateforme</span>
+      <h1>Obtenir un <span class="grad">accès</span></h1>
+      <!-- AUCUN COMPTE ÉCRIT ICI. Cette phrase disait « dix pages restent
+           ouvertes » : elle est devenue fausse le jour même, en ouvrant celle
+           que vous lisez. Les nombres viennent du serveur, sous la section
+           suivante — c'est toute la raison d'être de /api/acces/perimetre. -->
+      <p class="lead" style="margin-top:16px">Une partie du site se consulte librement. Le reste —
+      référentiel IEC&nbsp;62443, ingénierie de centres de données, cockpit, assistant, génération de
+      livrables — demande un compte. Cette page dit <strong>ce que ce compte ouvre</strong>,
+      <strong>ce qu'il coûte</strong> et <strong>comment l'obtenir</strong>.</p>
+    </section>
+
+    <!-- CE QUE L'ACCÈS OUVRE — LU SUR LE MENU, JAMAIS RECOPIÉ ICI.
+         Une liste écrite à la main dérive au premier déplacement de page, et
+         c'est l'exemplaire oublié qui reste : la promesse commerciale
+         décrirait alors un site qui n'existe plus. Le serveur croise le menu
+         avec la politique d'accès et rend la liste réelle. Si le menu n'a pas
+         pu être lu, cette section reste MASQUÉE — mieux vaut ne rien dire
+         qu'annoncer un périmètre faux. -->
+    <section class="section" style="padding-top:8px" id="acPerimSec" hidden>
+      <div class="prose"><h2>Ce que votre compte ouvre</h2>
+      <p class="muted" id="acPerimNote">…</p></div>
+      <div id="acPerim" class="ac-grid"></div>
+    </section>
+
+    <section class="section">
+      <div class="prose"><h2>Deux façons de l'obtenir</h2>
+      <p class="muted">Le compte est le même dans les deux cas : ce qui change, c'est le délai.</p></div>
+      <div class="ac-grid">
+        <div class="ac-card">
+          <span class="ac-tag">Sous 1 à 2 jours ouvrés</span>
+          <h3 style="margin-top:10px">Validation par notre équipe</h3>
+          <p>Vous créez un compte, vous confirmez votre adresse, nous validons. C'est la voie
+          habituelle, et elle ne coûte rien : nous regardons qui demande avant d'accorder.</p>
+          <div class="actions"><a href="/inscription" class="btn btn-s">Créer un compte</a></div>
+        </div>
+        <!-- MASQUÉE TANT QUE LE PAIEMENT N'EST PAS CONFIGURÉ. Annoncer une
+             ouverture immédiate qui n'existe pas sur ce serveur serait la même
+             faute que la page d'accueil corrigée avec elle. -->
+        <div class="ac-card" id="acVoiePayante" hidden>
+          <span class="ac-tag now">Immédiat</span>
+          <h3 style="margin-top:10px">Règlement en ligne</h3>
+          <div class="ac-prix" id="acPrix">—<small id="acPrixNote">une fois, sans reconduction</small></div>
+          <p>Votre accès s'ouvre dès le paiement confirmé, sans attendre notre validation.
+          Le paiement est traité par Stripe ; nous ne voyons jamais votre numéro de carte.</p>
+          <div class="actions"><a href="#acRegler" class="btn btn-p">Régler maintenant</a></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LE GESTE, EN DEUX TEMPS. La page ne peut pas savoir où en est le
+         visiteur : n'afficher que le champ d'adresse enverrait un nouveau venu
+         dans un refus, n'afficher que le lien d'inscription bloquerait celui
+         qui a déjà confirmé. Les deux temps sont donc montrés. -->
+    <section class="section" id="acRegler" hidden>
+      <div class="prose"><h2>Régler et ouvrir l'accès</h2>
+      <p class="muted">Le paiement ne peut porter que sur une adresse déjà confirmée : encaisser
+      pour un accès qui ne s'ouvrirait pas serait pire que de faire attendre.</p></div>
+      <div class="ac-card">
+        <div class="ac-etape">
+          <div class="ac-num">1</div>
+          <div class="corps"><b>Créez votre compte et confirmez votre adresse</b>
+            <p>Un courriel vous est envoyé ; le lien qu'il contient confirme que l'adresse est
+            bien la vôtre. Si c'est déjà fait, passez à l'étape 2.</p>
+            <div class="actions" style="margin-top:12px"><a href="/inscription" class="btn btn-s">Créer un compte</a></div>
+          </div>
+        </div>
+        <div class="ac-etape">
+          <div class="ac-num">2</div>
+          <div class="corps"><b>Réglez avec cette même adresse</b>
+            <p>Vous êtes conduit sur la caisse sécurisée de Stripe. L'accès s'ouvre à la
+            confirmation du paiement, et un courriel vous le signale.</p>
+            <div class="ac-champ">
+              <label for="acMail" class="sr-only">Adresse confirmée</label>
+              <input id="acMail" type="email" autocomplete="email" placeholder="Votre adresse confirmée">
+              <button id="acBtn" class="btn btn-p" type="button">Ouvrir mon accès</button>
+            </div>
+            <p class="ac-msg" id="acMsg" hidden></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="prose"><h2>Ce que vous achetez, exactement</h2></div>
+      <ul class="ac-faits">
+        <li><b>Un paiement, une fois.</b> Aucune reconduction, aucun prélèvement ultérieur,
+        rien à résilier. Ce service ne sait pas fermer un accès impayé, et ne vend donc pas
+        d'abonnement.</li>
+        <li><b>L'ouverture d'un compte</b>, pas un volume ni un palier : une fois ouvert,
+        l'accès porte sur l'ensemble des pages listées ci-dessus.</li>
+        <li><b>La facture est émise par Stripe</b> et vous parvient à l'adresse que vous
+        indiquez au paiement — elle n'est pas nécessairement celle du compte.</li>
+        <li><b>L'accès s'ouvre sur la notification signée de Stripe</b>, pas sur le retour de
+        votre navigateur. Si vous fermez l'onglet trop tôt, l'ouverture a lieu quand même.</li>
+        <li><b>Nous ne voyons jamais votre numéro de carte.</b> Il est saisi sur la caisse
+        hébergée par Stripe ; notre serveur n'en reçoit rien.</li>
+      </ul>
+      <p class="muted" style="margin-top:18px;font-size:13px">Vos données personnelles :
+      <a href="/politique-confidentialite">politique de confidentialité</a> &nbsp;·&nbsp;
+      <a href="/conformite">dossier de conformité</a> &nbsp;·&nbsp;
+      <a href="/mentions-legales">mentions légales</a>. Une question avant de vous engager :
+      <a href="/contact">écrivez-nous</a>.</p>
+    </section>
+    </main>
+
+<footer>
+  <div class="wrap foot">
+    <div class="foot-cols">
+      <div class="foot-brand">
+        <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="26" height="26" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+        <p>Cybersécurité industrielle IT / OT / IIoT — conformité IEC&nbsp;62443, NIS2, DORA.</p>
+      </div>
+      <nav class="foot-col" aria-label="Expertise">
+        <h4>Expertise</h4>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/methodologie">Méthodologie</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/operating-model">Operating Model</a>
+        <a href="/maturite-ot">Maturité OT</a>
+        <a href="/feuille-de-route">Feuille de route</a>
+        <a href="/continuite-ot">Continuité &amp; crise OT</a>
+        <a href="/gestion-des-changements">Gestion des changements</a>
+        <a href="/architecture-cible">Architecture cible</a>
+        <a href="/formation">Formation</a>
+        <a href="/gouvernance-ia">Governance by Design IA</a>
+      </nav>
+      <nav class="foot-col" aria-label="Norme &amp; conformité">
+        <h4>Norme &amp; conformité</h4>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/audit-conformite">Audit 62443</a>
+        <a href="/diagnostic">Diagnostic express</a>
+        <a href="/nis2">NIS2</a>
+      </nav>
+      <nav class="foot-col" aria-label="Plateforme">
+        <h4>Plateforme</h4>
+        <a href="/demo">Cockpit</a>
+        <a href="/assistant">Assistant IA</a>
+        <a href="/connecter">Connecter une source</a>
+        <a href="/guide-integration">Guide d’intégration</a>
+      </nav>
+      <nav class="foot-col" aria-label="Ressources">
+        <h4>Ressources</h4>
+        <a href="/veille">Veille</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/checklist-62443">Checklist 62443</a>
+        <a href="/glossaire-62443">Glossaire 62443</a>
+      </nav>
+    </div>
+    <div class="foot-bar">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Tous droits réservés</div>
+      <div class="foot-legal">
+        <a href="/about">À propos</a>
+        <a href="/contact">Contact</a>
+        <a href="/connexion">Espace client</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/politique-confidentialite">Confidentialité</a>
+        <a href="/conformite">Conformité IA &amp; RGPD</a>
+        <a href="/admin" rel="nofollow" class="foot-admin">Admin</a>
+      </div>
+    </div>
+  </div>
+</footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+    <script>
+  (function(){
+    var $ = function(id){ return document.getElementById(id); };
+
+    /* ── CE QUE L'ACCÈS OUVRE ──────────────────────────────────────────────
+       Construit par le DOM et non par des chaînes : les libellés viennent du
+       menu, et rien ici n'a besoin d'interpréter du HTML. */
+    fetch('/api/acces/perimetre', {headers:{'Accept':'application/json'}})
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(j){
+        if(!j || !j.ok || !j.lisible) return;   // menu illisible : on se tait
+        var hote = $('acPerim');
+        (j.rubriques || []).forEach(function(rub){
+          var fermees = (rub.pages || []).filter(function(p){ return !p.ouverte; });
+          if(!fermees.length) return;           // rubrique entièrement ouverte
+          var bloc = document.createElement('div');
+          bloc.className = 'ac-rub';
+          var h = document.createElement('h4');
+          h.textContent = rub.rubrique;
+          bloc.appendChild(h);
+          var ul = document.createElement('ul');
+          fermees.forEach(function(p){
+            var li = document.createElement('li');
+            li.textContent = p.titre;
+            ul.appendChild(li);
+          });
+          bloc.appendChild(ul);
+          hote.appendChild(bloc);
+        });
+        $('acPerimNote').textContent =
+          j.n_client + ' pages demandent un compte. ' + j.n_ouvertes
+          + ' autres restent ouvertes à tous, sans inscription.';
+        $('acPerimSec').hidden = false;
+      })
+      .catch(function(){});
+
+    /* ── LE PRIX ET LA VOIE PAYANTE ────────────────────────────────────────
+       Rien n'apparaît tant que le serveur n'a pas dit que le paiement est
+       configuré. Et le MONTANT ne s'affiche que s'il a pu être lu chez Stripe :
+       un prix qu'on ne peut pas prouver n'est pas un prix, et un montant
+       recopié qui aurait dérivé se découvrirait la carte à la main. */
+    fetch('/api/paiement/etat', {headers:{'Accept':'application/json'}})
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(j){
+        if(!j || !j.configure) return;
+        $('acVoiePayante').hidden = false;
+        $('acRegler').hidden = false;
+        var t = j.tarif;
+        if(t && t.affichage){
+          $('acPrix').firstChild.nodeValue = t.affichage;
+        } else {
+          $('acPrix').firstChild.nodeValue = 'Montant';
+          $('acPrixNote').textContent = 'affiché à l’étape de paiement';
+        }
+      })
+      .catch(function(){});
+
+    /* ── LA CAISSE ─────────────────────────────────────────────────────────
+       Aucune décision d'éligibilité ne descend ici : c'est le serveur qui
+       refuse, avec un message volontairement identique pour « adresse
+       inconnue », « non confirmée » et « accès déjà ouvert » — sans quoi cette
+       page dirait qui a un compte chez nous. */
+    function dire(texte, erreur){
+      var m = $('acMsg');
+      m.textContent = texte;
+      m.className = 'ac-msg' + (erreur ? ' err' : '');
+      m.hidden = false;
+    }
+    var b = $('acBtn'), e = $('acMail');
+    if(b) b.addEventListener('click', function(){
+      var mail = (e.value || '').trim();
+      if(!mail){ e.focus(); return; }
+      var libelle = b.textContent;
+      b.disabled = true; b.textContent = 'Ouverture…';
+      fetch('/api/paiement/checkout', {method:'POST',
+            headers:{'content-type':'application/json'},
+            body:JSON.stringify({email: mail})})
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          if(j && j.ok && j.url){ location = j.url; return; }
+          b.disabled = false; b.textContent = libelle;
+          dire((j && j.message) || 'Paiement indisponible pour le moment.', true);
+        })
+        .catch(function(){
+          b.disabled = false; b.textContent = libelle;
+          dire('Paiement indisponible pour le moment.', true);
+        });
+    });
+  })();
+  </script>
+  <script src="/nav.js" defer></script>
+  <script src="/parcours.js" defer></script>
+</body>
+</html>

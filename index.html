@@ -151,12 +151,20 @@
            en cliquant croit s'être trompé ; un visiteur qui le lit d'abord
            sait quoi faire — d'où la ligne qui suit, et l'étiquette sur chaque
            bouton concerné. -->
+      <!-- CETTE PHRASE NE DÉCRIVAIT QU'UNE SEULE VOIE. Elle annonçait la
+           validation par l'équipe, point — alors qu'un règlement en ligne
+           ouvre l'accès aussitôt. Elle ne peut pas non plus ANNONCER le
+           paiement : cette page est statique, et le paiement peut être éteint
+           sur le serveur. Elle renvoie donc vers /acces, qui interroge le
+           serveur et n'affiche que ce qui existe réellement. -->
       <p class="acces-note">Les outils de calcul et le cockpit sont réservés aux
         clients&nbsp;: <a href="/inscription">créez un accès</a> — votre adresse
         est confirmée par courriel, puis l'accès est validé par notre équipe, qui
-        vous prévient. Le reste du site se consulte librement.</p>
+        vous prévient. <a href="/acces">Ce que l'accès ouvre, et comment
+        l'obtenir</a>. Le reste du site se consulte librement.</p>
       <div class="actions" style="justify-content:center">
         <a href="/contact" class="btn btn-p">Demander un état des lieux</a>
+        <a href="/acces" class="btn btn-s">Obtenir un accès</a>
         <a href="/inscription" class="btn btn-s">Créer un accès client</a>
         <a href="/diagnostic" class="btn btn-s">🧭 Diagnostic express <span class="ac">accès client</span></a>
         <a href="/datacenter" class="btn btn-s">Ingénierie de centres de données <span class="ac">accès client</span></a>

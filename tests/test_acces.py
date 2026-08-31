@@ -53,16 +53,26 @@ FERMEES = [c for c in MENU if not acces.ouvert(c)]
 
 # ── 1. La politique dit ce que la décision disait ──────────────────────────
 
-def test_les_dix_pages_en_acces_direct_sont_celles_qui_ont_ete_nommees():
+def test_les_onze_pages_en_acces_direct_sont_celles_qui_ont_ete_nommees():
+    """LA ONZIÈME EST « /acces », ET ELLE A ÉTÉ DÉCIDÉE, PAS SUBIE.
+
+    Le site vendait un accès sans jamais dire ce qu'il ouvrait ni ce qu'il
+    coûtait : le seul chemin vers la caisse passait par /connexion, donc
+    supposait un compte déjà confirmé — ce qu'un acheteur n'a pas. Fermer la
+    page qui vend l'accès derrière l'accès ne protège rien et n'ouvre rien.
+
+    Cette liste est la trace écrite de la décision. La mettre à jour EST l'acte
+    par lequel on ouvre une page ; c'est pour cela qu'elle est énumérée à la
+    main et qu'aucune règle ne la calcule depuis `acces.DIRECT`."""
     assert sorted(acces.DIRECT) == sorted([
-        "/", "/about", "/contact", "/etudes-de-cas", "/faq", "/ressources",
-        "/secteurs", "/services", "/veille", "/vos-projets"])
+        "/", "/about", "/acces", "/contact", "/etudes-de-cas", "/faq",
+        "/ressources", "/secteurs", "/services", "/veille", "/vos-projets"])
 
 
 def test_le_menu_est_bien_lu():
     """Un menu vide validerait n'importe quoi en silence."""
     assert len(MENU) >= 40, len(MENU)
-    assert len(OUVERTES) == 10, OUVERTES
+    assert len(OUVERTES) == 11, OUVERTES
     assert len(FERMEES) >= 30, len(FERMEES)
 
 

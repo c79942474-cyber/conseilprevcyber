@@ -5,8 +5,10 @@ LA RÈGLE, telle qu'elle a été arrêtée :
   · les pages du menu latéral demandent un compte client — inscription,
     confirmation de l'adresse par le client lui-même, puis validation par
     l'administrateur, qui en est averti par courriel ;
-  · DIX pages restent en accès direct : services, secteurs, études de cas,
-    veille cyber, ressources, FAQ, accueil, à propos, vos projets, contact ;
+  · ONZE pages restent en accès direct : services, secteurs, études de cas,
+    veille cyber, ressources, FAQ, accueil, à propos, vos projets, contact —
+    et « obtenir un accès », ajoutée le jour où l'on s'est aperçu qu'aucun
+    visiteur ne pouvait trouver ce qu'il devait acheter ;
   · l'administrateur atteint tout le site, sans exception.
 
 POURQUOI UNE LISTE, ET NON QUARANTE-TROIS DÉCORATEURS QU'ON RELIT UN PAR UN.
@@ -38,6 +40,12 @@ santé, le plan du site et les fichiers servis à toute page.
 # cette liste à voix haute devant la décision d'origine et de constater qu'elles
 # disent la même chose.
 DIRECT = {
+    # ONZIÈME PAGE OUVERTE, ET LA DÉCISION EST ÉCRITE ICI. Le site vendait un
+    # accès sans jamais dire ce qu'il ouvrait ni ce qu'il coûtait : le seul
+    # chemin vers la caisse passait par /connexion, donc supposait d'avoir
+    # déjà un compte confirmé — ce qu'un acheteur n'a pas. Fermer la page qui
+    # vend l'accès derrière l'accès ne protège rien et n'ouvre rien.
+    "/acces": "Obtenir un accès",
     "/services": "Services",
     "/secteurs": "Secteurs",
     "/etudes-de-cas": "Études de cas",
@@ -99,6 +107,9 @@ API_OUVERTES = {
     "/api/acces": "dit quelles pages demandent un compte — c'est ce qui permet "
                   "de le SIGNALER avant le clic, et rien n'y est secret : le "
                   "visiteur l'apprendrait de toute façon en cliquant",
+    "/api/acces/perimetre": "nourrit /acces, la page qui vend l'accès : elle "
+                            "doit pouvoir dire ce qu'elle vend. Ce sont les "
+                            "entrées du tiroir, que tout visiteur voit déjà",
     "/api/veille": "nourrit /veille, en accès direct",
     "/api/conformite": "nourrit /conformite : obligation légale",
     "/api/contact": "le formulaire de contact doit marcher sans compte",
@@ -235,13 +246,18 @@ def verifier_application(reelles, menu):
 def _verifier():
     """La politique doit dire ce que la décision disait — sinon, rien ne part.
 
-    Les DIX pages en accès direct ont été énumérées une par une. Une liste qui
+    Les ONZE pages en accès direct ont été énumérées une par une. Une liste qui
     en perdrait une au fil d'une modification fermerait une page qui devait
     rester ouverte, et personne ne s'en apercevrait avant qu'un visiteur se
-    heurte à un formulaire de connexion sur la page « Contact »."""
+    heurte à un formulaire de connexion sur la page « Contact ».
+
+    LA ONZIÈME A ÉTÉ AJOUTÉE ICI, ET NON CONTOURNÉE. Cette garde a refusé le
+    démarrage tant que « /acces » n'était pas nommée : c'est ce refus qui fait
+    qu'ouvrir une page reste une décision et non un effet de bord. La modifier
+    est l'acte par lequel la décision est prise."""
     attendues = {"/services", "/secteurs", "/etudes-de-cas", "/veille",
                  "/ressources", "/faq", "/", "/about", "/vos-projets",
-                 "/contact"}
+                 "/contact", "/acces"}
     if set(DIRECT) != attendues:
         manquantes = sorted(attendues - set(DIRECT))
         ajoutees = sorted(set(DIRECT) - attendues)
