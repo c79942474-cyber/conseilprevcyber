@@ -53,6 +53,8 @@
            vers la caisse dont un seul recueille la renonciation laisserait une
            porte par laquelle le consentement manque — et c'est celle-là qui
            servirait. Le serveur refuse de toute façon sans elle. -->
+      <label class="payer-renonce" for="payerPro"><input type="checkbox" id="payerPro">
+        <span>Je commande <b>à titre professionnel</b>, pour les besoins de mon activité.</span></label>
       <label class="payer-renonce" for="payerCgv"><input type="checkbox" id="payerCgv">
         <span>J’ai lu et j’accepte les
         <a href="/cgv" target="_blank" rel="noopener">conditions générales de vente</a>.</span></label>
@@ -108,6 +110,13 @@
       b.addEventListener('click', function(){
         var mail=(e.value||'').trim();
         if(!mail){ e.focus(); return; }
+        var pro=document.getElementById('payerPro');
+        if(!pro||!pro.checked){
+          show('L’accès est vendu aux professionnels : déclarez commander pour '
+               +'les besoins de votre activité.','err');
+          pro && pro.focus();
+          return;
+        }
         var c=document.getElementById('payerCgv');
         if(!c||!c.checked){
           show('Acceptez les conditions générales de vente pour continuer.','err');
@@ -124,7 +133,7 @@
         b.disabled=true; var t=b.textContent; b.textContent='Ouverture…';
         fetch('/api/paiement/checkout',{method:'POST',
               headers:{'content-type':'application/json'},
-              body:JSON.stringify({email:mail,cgv:true,renonciation:true})})
+              body:JSON.stringify({email:mail,professionnel:true,cgv:true,renonciation:true})})
           .then(function(r){return r.json();})
           .then(function(j){
             if(j&&j.ok&&j.url){ location=j.url; return; }

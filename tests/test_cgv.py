@@ -105,8 +105,15 @@ def test_les_quinze_articles_sont_presents():
 
 def test_les_mentions_dont_l_absence_est_une_faute():
     src = _src(CGV)
-    for mention in ("L221-18", "L221-25", "L221-28", "L224-25-12", "R212-1",
-                    "L616-1", "TVA", "médiation", "Formulaire type de rétractation"):
+    # LA LISTE A CHANGÉ AVEC LE PUBLIC. La vente étant réservée aux
+    # professionnels, R212-1 (clauses abusives du code de la consommation) cède
+    # la place à l'article 1171 du code civil, et L616-1 (médiation) à la
+    # constatation qu'elle est sans objet. Ce qui NE change pas, c'est la
+    # réserve de l'article L221-3 : elle est la raison pour laquelle le régime
+    # protecteur ne disparaît pas tout à fait.
+    for mention in ("L221-3", "L221-18", "L221-25", "L221-28", "L224-25-12",
+                    "1170", "1171", "1604", "1641", "TVA", "médiation",
+                    "Formulaire type de rétractation"):
         assert mention in src, mention
 
 
@@ -165,12 +172,28 @@ def test_aucun_renvoi_a_la_plateforme_europeenne_de_litiges():
         assert mort not in src, mort
 
 
-def test_le_document_dit_lui_meme_qu_il_est_un_projet():
-    """Publier un projet sans le marquer engagerait l'éditeur sur un texte
-    qu'il n'a pas validé."""
+def test_le_texte_en_vigueur_ne_porte_ni_bandeau_ni_crochet():
+    """UN CONTRAT AVEC DES CROCHETS DEDANS SE LIT COMME INACHEVÉ. Tant qu'il
+    portait le bandeau « projet », les crochets étaient honnêtes ; le bandeau
+    retiré, ils deviennent des trous."""
     src = _src(CGV)
-    assert "Projet — non publié" in src
-    assert "[À ARBITRER]" in src or "À ARBITRER" in src
+    assert "Projet — non publié" not in src
+    sans_commentaires = re.sub(r"<!--.*?-->", "", src, flags=re.S)
+    fautes = re.findall(r"\[À [A-ZÀ-Ÿ]+[^\]]*\]", sans_commentaires)
+    assert not fautes, "crochets restés dans un texte en vigueur : %s" % fautes
+    assert "Version <b>2026-09-a</b>, en vigueur" in src
+
+
+def test_les_points_ouverts_ne_sont_plus_sous_les_yeux_du_client():
+    """Ils ne disparaissent pas : ils changent de place. Un client n'a pas à
+    lire « à confronter au corpus » sur huit articles du contrat qu'on lui
+    oppose ; le vendeur, lui, doit continuer de le savoir."""
+    src = _src(CGV)
+    assert "cgv-verif" not in src, "pastille encore visible"
+    assert "Ce qui reste à confronter" not in src
+    assert re.search(r"<!-- verif:[a-z]+ -->", src), "les marques ont disparu"
+    doc = _src("docs/cgv-points-ouverts.md")
+    assert "Aucune décision de justice n'a été lue" in doc
 
 
 def test_la_version_affichee_est_celle_que_le_serveur_conserve():
@@ -187,7 +210,8 @@ def test_la_caisse_refuse_sans_renonciation(anonyme, configure, compte):
     """Les conditions acceptées, la renonciation manquante : c'est le second
     consentement qui est en cause, et le message doit le dire."""
     r = anonyme.post("/api/paiement/checkout",
-                     json={"email": CLIENT, "cgv": True}, headers=ORIGINE)
+                     json={"email": CLIENT, "professionnel": True, "cgv": True},
+                     headers=ORIGINE)
     assert r.status_code == 400
     assert r.get_json()["error"] == "renonciation_absente"
 
@@ -197,23 +221,39 @@ def test_la_caisse_refuse_sans_acceptation_des_conditions(anonyme, configure, co
     en portait trois — acceptation, exécution immédiate, renoncement — et un
     consentement groupé est le plus facile à contester."""
     r = anonyme.post("/api/paiement/checkout",
-                     json={"email": CLIENT, "renonciation": True}, headers=ORIGINE)
+                     json={"email": CLIENT, "professionnel": True, "renonciation": True},
+                     headers=ORIGINE)
     assert r.status_code == 400
     assert r.get_json()["error"] == "conditions_non_acceptees"
 
 
-def test_une_renonciation_seulement_declaree_ne_suffit_pas(anonyme, configure, compte):
+def test_la_caisse_refuse_sans_declaration_de_qualite(anonyme, configure, compte):
+    """UNE RESTRICTION DÉCLARÉE N'EST PAS UNE RESTRICTION. Les conditions
+    réservent la vente aux professionnels ; sans ce refus au serveur, la clause
+    de l'article 1 serait une phrase."""
+    r = anonyme.post("/api/paiement/checkout",
+                     json={"email": CLIENT, "cgv": True, "renonciation": True},
+                     headers=ORIGINE)
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "qualite_non_declaree"
+
+
+def test_une_renonciation_seulement_declaree_ne_suffit_pas(anonyme, configure,
+                                                          compte, monkeypatch):
     """« renonciation »: « oui » n'est pas « renonciation »: true. Le serveur
     exige la valeur, pas sa présence."""
+    # LE PLAFOND DE CADENCE N'EST PAS L'OBJET DE CETTE RÈGLE. Quinze essais
+    # le déclenchent et le 429 masquerait le 400 qu'on veut voir ; la cadence a
+    # sa propre règle ailleurs.
+    import app as _app
+    monkeypatch.setattr(_app.guard, "blocked", lambda *a, **k: False)
     for valeur in ("oui", 1, "true", None, ""):
-        r = anonyme.post("/api/paiement/checkout",
-                         json={"email": CLIENT, "cgv": True, "renonciation": valeur},
-                         headers=ORIGINE)
-        assert r.status_code == 400, valeur
-        r = anonyme.post("/api/paiement/checkout",
-                         json={"email": CLIENT, "cgv": valeur, "renonciation": True},
-                         headers=ORIGINE)
-        assert r.status_code == 400, valeur
+        for champ in ("professionnel", "cgv", "renonciation"):
+            charge = {"email": CLIENT, "professionnel": True, "cgv": True,
+                      "renonciation": True}
+            charge[champ] = valeur
+            r = anonyme.post("/api/paiement/checkout", json=charge, headers=ORIGINE)
+            assert r.status_code == 400, (champ, valeur)
 
 
 def test_la_renonciation_est_tracee_avec_la_version_des_conditions(
@@ -227,9 +267,12 @@ def test_la_renonciation_est_tracee_avec_la_version_des_conditions(
     monkeypatch.setattr(paiement, "session_paiement",
                         lambda email, base: "https://caisse.test/x")
     r = anonyme.post("/api/paiement/checkout",
-                     json={"email": CLIENT, "cgv": True, "renonciation": True},
+                     json={"email": CLIENT, "professionnel": True, "cgv": True,
+                           "renonciation": True},
                      headers=ORIGINE)
     assert r.status_code == 200 and r.get_json()["url"]
+    assert [k for a, k in vues if a == "paiement.qualite"], (
+        "la déclaration de qualité professionnelle n'a laissé aucune trace")
     for action in ("paiement.renonciation", "paiement.conditions"):
         traces = [k for a, k in vues if a == action]
         assert traces, "%s n'a laissé aucune trace" % action
@@ -252,8 +295,8 @@ def test_le_bouton_nomme_le_paiement():
 def test_les_deux_chemins_vers_la_caisse_portent_la_case():
     """Deux chemins dont un seul recueille le consentement laisseraient une
     porte par laquelle il manque — et c'est celle-là qui servirait."""
-    for page, cases in (("acces.html", ("acCgv", "acRenonce")),
-                        ("connexion.html", ("payerCgv", "payerRenonce"))):
+    for page, cases in (("acces.html", ("acPro", "acCgv", "acRenonce")),
+                        ("connexion.html", ("payerPro", "payerCgv", "payerRenonce"))):
         src = _src(page)
         for ident in cases:
             assert 'id="%s"' % ident in src, (page, ident)
@@ -261,7 +304,8 @@ def test_les_deux_chemins_vers_la_caisse_portent_la_case():
         # La page envoie bien les DEUX drapeaux, et ne se contente pas de les
         # afficher : séparer à l'écran sans séparer à l'envoi serait cosmétique.
         envoi = src[src.index("checkout"):src.index("checkout") + 400]
-        assert "cgv" in envoi and "renonciation" in envoi, page
+        for drapeau in ("professionnel", "cgv", "renonciation"):
+            assert drapeau in envoi, (page, drapeau)
 
 
 # ── 5. CE QUI SE JUGE NE SE LIT PAS — la confrontation au corpus ──────────
@@ -282,7 +326,7 @@ def test_chaque_clause_marquee_a_son_point_de_controle():
     """DANS LES DEUX SENS. Une clause marquée sans point serait une promesse de
     vérification que rien ne tient ; un point sans clause marquée serait une
     vérification dont le lecteur du projet ignore l'existence."""
-    marques = set(re.findall(r'data-point="([a-z]+)"', _src(CGV))) - {"exemple"}
+    marques = set(re.findall(r"<!-- verif:([a-z]+) -->", _src(CGV)))
     grille = {p["cle"] for p in _grille().POINTS}
     assert marques == grille, (
         "marquées sans point : %s ; points sans marque : %s"
@@ -481,4 +525,84 @@ def test_l_arbitrage_du_remboursement_est_consigne_et_le_risque_nomme():
     assert "Risque assumé" in src
     assert "malgré</em> la renonciation" in src
     # La marque reste : le corpus n'a pas parlé.
-    assert 'data-point="retractation"' in src
+    assert "<!-- verif:retractation -->" in src
+
+
+# ── 7. LA RESTRICTION B2B EST EFFECTIVE, PAS DÉCORATIVE ──────────────────
+#
+# Les conditions de Sentinel se déclarent « exclusivement B2B » pendant que leur
+# formulaire accepte tout le monde. Celles-ci ne le peuvent pas : l'inscription
+# exige une organisation, et la vente exige une déclaration de qualité, refusée
+# au serveur et tracée.
+
+def test_l_inscription_refuse_une_demande_sans_organisation(anonyme, monkeypatch):
+    monkeypatch.setattr(auth, "send_email", lambda *a, **k: True)
+    monkeypatch.setattr(auth, "_check_captcha", lambda slot, rep: True)
+    r = anonyme.post("/api/auth/register", headers=ORIGINE, json={
+        "email": "sans.orga@example.test", "name": "Sans Orga",
+        "password": "MotDePasse2026", "captcha": "0"})
+    assert r.status_code == 400
+    assert "rofessionnel" in r.get_json()["error"]
+
+
+def test_l_inscription_accepte_une_demande_avec_organisation(anonyme, monkeypatch):
+    """La règle doit DISCRIMINER : refuser tout le monde la satisferait aussi."""
+    monkeypatch.setattr(auth, "send_email", lambda *a, **k: True)
+    monkeypatch.setattr(auth, "_check_captcha", lambda slot, rep: True)
+    monkeypatch.setattr(auth.threading, "Thread",
+                        lambda target, args=(), daemon=None: type(
+                            "T", (), {"start": lambda _s: None})())
+    r = anonyme.post("/api/auth/register", headers=ORIGINE, json={
+        "email": "avec.orga@example.test", "name": "Avec Orga",
+        "org": "Une société", "password": "MotDePasse2026", "captcha": "0"})
+    assert r.status_code == 200, r.get_json()
+
+
+def test_le_formulaire_ne_dit_plus_l_organisation_facultative():
+    """Un champ requis au serveur et annoncé « facultatif » à l'écran envoie le
+    demandeur dans un refus qu'il ne comprend pas."""
+    src = _src("inscription.html")
+    champ = re.search(r'<input id="org"[^>]*>', src).group(0)
+    assert "required" in champ
+    libelle = src[src.index('for="org"'):src.index('<input id="org"')]
+    assert "Facultatif" not in libelle
+
+
+def test_le_texte_reserve_la_vente_aux_professionnels_et_dit_pourquoi():
+    src = _src(CGV)
+    assert "vendu aux\n      professionnels" in src or "vendu aux professionnels" in src
+    assert "n'est pas proposé aux\n      consommateurs" in src or \
+           "pas proposé aux consommateurs" in src
+    # LA RÉSERVE N'EST PAS ENFOUIE : elle est dans le chapeau, avant les
+    # articles, parce qu'elle décide de ce que la moitié d'entre eux valent.
+    chapeau = src[:src.index("Article 1 —")]
+    assert "L221-3" in chapeau
+    assert "cinq salariés ou moins" in chapeau
+
+
+def test_les_arbitrages_sont_ecrits_dans_le_texte_et_leur_risque_dans_le_dossier():
+    """Un contrat n'argumente pas contre lui-même ; le vendeur doit pourtant
+    savoir où il est exposé. Deux endroits, deux rôles."""
+    src, doc = _src(CGV), _src("docs/cgv-points-ouverts.md")
+    assert "préavis de trois mois" in src
+    assert "ne donne lieu à aucun remboursement" in src
+    assert "montant effectivement payé" in src
+    assert "sans objet" in src            # la médiation
+    for risque in ("déséquilibre\nsignificatif", "déséquilibre significatif"):
+        if risque in doc:
+            break
+    else:
+        raise AssertionError("le risque de la clause de cessation n'est pas écrit")
+    assert "L221-3" in doc
+
+
+def test_le_dossier_des_points_ouverts_et_la_grille_ne_derivent_pas():
+    doc = _src("docs/cgv-points-ouverts.md")
+    cles = set(re.findall(r"\| `([a-z]+)` \|", doc))
+    assert cles == {p["cle"] for p in _grille().POINTS}, sorted(cles)
+
+
+def test_la_version_des_conditions_est_celle_qui_est_affichee():
+    assert paiement.VERSION_CGV == "2026-09-a"
+    assert "PROJET" not in paiement.VERSION_CGV
+    assert paiement.VERSION_CGV in _src(CGV)

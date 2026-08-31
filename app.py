@@ -9537,6 +9537,16 @@ def api_paiement_checkout():
     # et une renonciation non opposable ne vaut pas mieux que pas de
     # renonciation.
     charge = request.get_json(silent=True) or {}
+    # LA QUALITÉ SE DÉCLARE À LA VENTE, PAS À L'INSCRIPTION. Les conditions
+    # réservent l'offre aux professionnels ; c'est le contrat qui doit en porter
+    # la déclaration, et l'inscription n'est pas un contrat. Le chemin gratuit
+    # par validation manuelle n'est pas une vente non plus : il ne demande rien
+    # de tel, et les conditions ne le régissent pas.
+    if charge.get("professionnel") is not True:
+        return jsonify(ok=False, error="qualite_non_declaree",
+                       message="L'accès est vendu aux professionnels : vous "
+                               "devez déclarer commander pour les besoins de "
+                               "votre activité."), 400
     if charge.get("cgv") is not True:
         return jsonify(ok=False, error="conditions_non_acceptees",
                        message="Vous devez accepter les conditions générales "
@@ -9550,6 +9560,8 @@ def api_paiement_checkout():
     # DEUX CONSENTEMENTS, DEUX TRACES. Les séparer à l'écran sans les séparer
     # au journal serait cosmétique : c'est la trace, et elle seule, qui rend
     # l'un ou l'autre opposable.
+    audit.journaliser("paiement.qualite", cible=email,
+                      detail="commande déclarée à titre professionnel")
     audit.journaliser("paiement.conditions", cible=email,
                       detail="conditions %s acceptées" % paiement.VERSION_CGV)
     audit.journaliser("paiement.renonciation", cible=email,

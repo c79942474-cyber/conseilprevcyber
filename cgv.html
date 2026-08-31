@@ -17,16 +17,6 @@
 <link rel="icon" href="/emblem.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/styles.css">
 <style>
-  /* LA MARQUE DES CLAUSES DONT LA VALIDITÉ SE JUGE, ET NE SE LIT PAS.
-     Elle porte la clé du point correspondant dans outils/verifier_cgv.py :
-     une règle exige que les deux listes se recouvrent exactement, faute de
-     quoi une clause serait marquée sans être interrogée, ou interrogée sans
-     que le lecteur du projet le sache. */
-  .cgv-risque{border:1px solid var(--line);border-left:3px solid #f59e0b;border-radius:11px;
-    padding:12px 15px;background:var(--bg2)}
-  .cgv-verif{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.05em;
-    text-transform:uppercase;border-radius:999px;padding:2px 9px;margin-left:6px;white-space:nowrap;
-    border:1px solid rgba(245,158,11,.45);color:#f59e0b;background:rgba(245,158,11,.08)}
 </style>
 </head>
 <body>
@@ -54,25 +44,16 @@
       <span class="eyebrow">Conditions de vente</span>
       <h1>Conditions générales de <span class="grad">vente</span></h1>
       <p class="lead" style="margin-top:16px">Elles régissent la vente en ligne de l'ouverture d'un
-      compte d'accès à la plateforme CONSEILPREV Cyber. Elles s'appliquent aux <strong>consommateurs
-      comme aux professionnels</strong>&nbsp;; les articles qui ne concernent qu'un de ces publics le
-      disent expressément.</p>
-      <p class="muted" style="margin-top:10px;font-size:13px">Version <b>PROJET&nbsp;2026-08-a</b>
+      compte d'accès à la plateforme CONSEILPREV Cyber. <strong>L'accès est vendu aux
+      professionnels</strong>, pour les besoins de leur activité&nbsp;; il n'est pas proposé aux
+      consommateurs.</p>
+      <p class="lead" style="margin-top:12px">Une réserve, énoncée d'emblée plutôt qu'enfouie&nbsp;:
+      l'article L221-3 du code de la consommation étend certaines protections du consommateur au
+      <strong>professionnel employant cinq salariés ou moins</strong> dont l'objet du contrat
+      n'entre pas dans le champ de son activité principale. Les articles 5 et 6 disent ce qui lui
+      revient.</p>
+      <p class="muted" style="margin-top:10px;font-size:13px">Version <b>2026-09-a</b>, en vigueur
       &nbsp;·&nbsp; <a href="/acces">Ce que l'accès ouvre et ce qu'il coûte</a></p>
-    </section>
-
-    <!-- LE DOCUMENT DIT LUI-MÊME QU'IL N'EST PAS EN VIGUEUR. Publier un projet
-         sans le marquer serait pire que ne rien publier : un client de bonne foi
-         s'y fierait, et l'éditeur serait tenu par un texte qu'il n'a pas
-         validé. Ce bandeau se retire d'un geste, le jour où vous le décidez. -->
-    <section class="section" style="padding-top:0">
-      <div class="prose">
-        <p style="border:1px solid var(--line);border-left:3px solid #f59e0b;border-radius:11px;padding:14px 16px;background:var(--bg2)">
-        <strong>Projet — non publié.</strong> Ce texte est un <em>projet</em> soumis à relecture. Il
-        n'est pas opposable et aucune vente ne doit être ouverte sur son fondement tant que les
-        points marqués <b>[À ARBITRER]</b> ne sont pas tranchés et que le document n'a pas été
-        relu par un conseil. Retirer ce bandeau est l'acte de mise en vigueur.</p>
-      </div>
     </section>
 
     <section class="section" style="padding-top:8px">
@@ -95,6 +76,10 @@
         du paiement. Elles complètent, sans les remplacer, les
         <a href="/mentions-legales">mentions légales</a> et la
         <a href="/politique-confidentialite">politique de confidentialité</a>.</p>
+        <p><strong>Qualité de l'acheteur.</strong> En commandant, le client déclare agir pour les
+        besoins de son activité professionnelle. Cette déclaration est recueillie par une case
+        obligatoire avant le paiement, et conservée au journal des opérations du vendeur. La vente
+        n'est pas ouverte aux consommateurs.</p>
         <p>Les présentes conditions constituent un <strong>contrat d'adhésion</strong> au sens de
         l'article 1110 du code civil : leurs stipulations n'ont pas été négociées. En conséquence,
         et conformément à l'article 1190 du même code, <strong>elles s'interprètent contre le
@@ -146,13 +131,16 @@
         l'ouverture de l'accès. Un courriel confirme l'ouverture et vaut accusé de réception de la
         commande.</p>
 
-        <h2>Article 5 — Droit de rétractation du consommateur <span class="cgv-verif" data-point="retractation">à confronter au corpus</span></h2>
-        <p><em>Le présent article ne concerne que le client ayant la qualité de consommateur au sens
-        du code de la consommation, ainsi que le professionnel qui remplit les conditions de
-        l'article L221-3 du même code.</em></p>
-        <p>Conformément à l'article <strong>L221-18</strong> du code de la consommation, le
-        consommateur dispose d'un délai de <strong>quatorze jours</strong> à compter de la conclusion
-        du contrat pour exercer son droit de rétractation, sans avoir à motiver sa décision.</p>
+        <h2>Article 5 — Droit de rétractation du consommateur<!-- verif:retractation --></h2>
+        <p><strong>Sans objet pour le professionnel ordinaire.</strong> Le droit de rétractation des
+        articles L221-18 et suivants du code de la consommation ne bénéficie pas au professionnel qui
+        contracte dans le champ de son activité. La vente n'étant pas ouverte aux consommateurs, il
+        ne trouve à s'appliquer que dans le cas ci-dessous.</p>
+        <p><strong>Le cas de l'article L221-3.</strong> Le professionnel qui emploie
+        <strong>cinq salariés ou moins</strong> et dont l'objet du contrat n'entre pas dans le champ
+        de son activité principale bénéficie du délai de <strong>quatorze jours</strong> de
+        l'article L221-18, à compter de la conclusion du contrat et sans avoir à motiver sa
+        décision. Les stipulations qui suivent lui sont destinées.</p>
         <p><strong>Renonciation en cas d'ouverture immédiate.</strong> L'accès s'ouvrant dès la
         confirmation du paiement, le consommateur qui souhaite en bénéficier immédiatement doit,
         avant le paiement, <strong>demander expressément cette exécution immédiate</strong> et
@@ -180,31 +168,29 @@
         courrier au siège social. Le remboursement intervient dans les quatorze jours de la
         réception de la décision, par le même moyen de paiement.</p>
 
-        <h2>Article 6 — Garantie légale de conformité <span class="cgv-verif" data-point="garantie">à confronter au corpus</span></h2>
-        <p>Le vendeur est tenu, à l'égard du consommateur, de la
-        <strong>garantie légale de conformité</strong> du contenu numérique et du service numérique
-        prévue aux articles <strong>L224-25-12</strong> et suivants du code de la consommation.
-        L'accès doit être conforme à sa description et aux qualités que le consommateur peut
-        légitimement attendre. En cas de défaut de conformité, le consommateur peut en exiger la
-        mise en conformité et, à défaut, obtenir la réduction du prix ou la résolution du contrat,
-        sans préjudice de dommages et intérêts.</p>
-        <p>Cette garantie s'ajoute à celle des <strong>vices cachés</strong> (articles 1641 et
-        suivants du code civil).</p>
+        <h2>Article 6 — Garantie légale de conformité<!-- verif:garantie --></h2>
+        <p><strong>Envers le professionnel.</strong> Le vendeur doit délivrer un accès conforme à
+        ce qui a été convenu (article 1604 du code civil) et répond des <strong>vices cachés</strong>
+        (articles 1641 et suivants du même code). L'accès doit correspondre à la description publiée
+        sur la page <a href="/acces">Obtenir un accès</a> au jour de la commande.</p>
+        <p><strong>Envers le professionnel relevant de l'article L221-3.</strong> S'y ajoute la
+        <strong>garantie légale de conformité</strong> du contenu et du service numériques des
+        articles <strong>L224-25-12</strong> et suivants du code de la consommation : mise en
+        conformité, et à défaut réduction du prix ou résolution du contrat, sans préjudice de
+        dommages et intérêts.</p>
 
-        <h2>Article 7 — Durée, disponibilité et fin du service <span class="cgv-verif" data-point="disponibilite">à confronter au corpus</span></h2>
+        <h2>Article 7 — Durée, disponibilité et fin du service<!-- verif:disponibilite --></h2>
         <p>L'accès est consenti pour une <strong>durée indéterminée</strong>, tant que la plateforme
         est exploitée. Il ne comporte aucune échéance et ne fait l'objet d'aucun renouvellement.</p>
         <p>Le vendeur est tenu d'une <strong>obligation de moyens</strong> quant à la disponibilité
         de la plateforme. Aucun niveau de service (SLA) n'est garanti. Des interruptions peuvent
         survenir pour maintenance, mise à jour ou cause extérieure.</p>
-        <p><strong>[À ARBITRER]</strong> — <em>Si le vendeur décide de cesser l'exploitation de la
-        plateforme, proposition à confirmer&nbsp;: préavis de <b>trois mois</b> notifié par courriel
-        à chaque titulaire de compte, et <b>remboursement intégral</b> des clients dont l'accès a été
-        acheté dans les <b>douze mois</b> précédant l'annonce. Au-delà de douze mois, aucun
-        remboursement. Ce paragraphe est un engagement commercial&nbsp;: il doit être décidé, non
-        subi.</em></p>
+        <p><strong>Cessation du service.</strong> Si le vendeur décide de cesser l'exploitation de
+        la plateforme, il en informe chaque titulaire de compte par courriel en respectant un
+        <strong>préavis de trois mois</strong>, pendant lequel l'accès reste ouvert. La cessation
+        <strong>ne donne lieu à aucun remboursement</strong>, l'accès ayant été ouvert et fourni.</p>
 
-        <h2>Article 8 — Obligations du client <span class="cgv-verif" data-point="extraction">à confronter au corpus</span></h2>
+        <h2>Article 8 — Obligations du client<!-- verif:extraction --></h2>
         <ul>
           <li>Le client conserve ses identifiants et répond des usages faits depuis son compte.</li>
           <li>Le compte est personnel&nbsp;: son partage, sa revente ou sa mise à disposition d'un
@@ -215,7 +201,7 @@
           disponibilité de la plateforme.</li>
         </ul>
 
-        <h2>Article 9 — Suspension et fin de l'accès <span class="cgv-verif" data-point="abusives">à confronter au corpus</span></h2>
+        <h2>Article 9 — Suspension et fin de l'accès<!-- verif:abusives --></h2>
         <p><strong>À l'initiative du client.</strong> Le client peut à tout moment demander
         l'effacement de son compte (article 17 du RGPD). Cet effacement met fin à l'accès et
         <strong>ne donne pas lieu à remboursement</strong>, l'accès ayant été ouvert et fourni.</p>
@@ -224,7 +210,7 @@
         jours, sauf urgence tenant à la sécurité de la plateforme. La suspension prononcée à tort
         ouvre droit au rétablissement de l'accès.</p>
 
-        <h2>Article 10 — Nature des résultats et responsabilité <span class="cgv-verif" data-point="plafond">à confronter au corpus</span></h2>
+        <h2>Article 10 — Nature des résultats et responsabilité<!-- verif:plafond --></h2>
         <p><strong>Ce que la plateforme produit.</strong> Les outils mis à disposition produisent des
         <strong>brouillons, calculs et aides à la décision</strong>. Ils ne constituent ni un audit,
         ni une certification, ni une consultation juridique au sens de la loi n°&nbsp;71-1130 du
@@ -233,15 +219,15 @@
         compétente&nbsp;; les obligations de transparence applicables sont détaillées sur la page
         <a href="/conformite">Conformité</a>. Les décisions prises sur la base de ces résultats
         relèvent de la seule responsabilité du client.</p>
-        <p><strong>Envers le consommateur</strong>, le vendeur répond de ses manquements dans les
-        conditions du droit commun. Aucune clause des présentes ne saurait limiter ou exclure la
-        responsabilité du vendeur du fait de sa propre faute, une telle clause étant réputée non
-        écrite (article R212-1 du code de la consommation).</p>
-        <p><strong>Envers le professionnel</strong>, et sauf faute lourde ou dolosive, la
-        responsabilité du vendeur au titre du présent contrat est limitée aux dommages directs et ne
-        peut excéder <strong>[À ARBITRER : le prix payé, ou un multiple de ce prix]</strong>. Sont
-        exclus les dommages indirects, la perte de données non imputable au vendeur, la perte
-        d'exploitation et le manque à gagner.</p>
+        <p>Sauf faute lourde ou dolosive, la responsabilité du vendeur au titre du présent contrat
+        est limitée aux dommages directs et ne peut excéder <strong>le montant effectivement payé
+        par le client au titre de la commande en cause</strong>. Sont exclus les dommages indirects,
+        la perte de données non imputable au vendeur, la perte d'exploitation et le manque à
+        gagner.</p>
+        <p>Cette limitation ne s'applique ni au dommage corporel, ni dans les cas où la loi
+        l'interdit. Envers le professionnel relevant de l'article L221-3, aucune stipulation ne
+        saurait limiter la responsabilité du vendeur au-delà de ce que le code de la consommation
+        permet.</p>
         <p>Cette limitation <strong>ne joue pas</strong> lorsqu'elle priverait de sa substance
         l'obligation essentielle du vendeur : une clause limitative qui contredit la portée de
         l'engagement pris est réputée non écrite (article 1170 du code civil). Elle ne joue pas
@@ -251,7 +237,7 @@
         entre les droits et obligations des parties&nbsp;: une telle clause serait réputée non
         écrite (article 1171 du code civil), sans préjudice de l'article L442-1 du code de commerce.</p>
 
-        <h2>Article 11 — Propriété intellectuelle <span class="cgv-verif" data-point="adhesion">à confronter au corpus</span></h2>
+        <h2>Article 11 — Propriété intellectuelle<!-- verif:adhesion --></h2>
         <p>Les contenus de la plateforme (textes, référentiels, méthodes, éléments graphiques, code)
         demeurent la propriété du vendeur. La vente confère au client un <strong>droit d'usage
         personnel, non exclusif et non cessible</strong>, pour ses besoins propres et ceux de son
@@ -274,13 +260,13 @@
         <h2>Article 13 — Réclamation et médiation</h2>
         <p>Toute réclamation est adressée à christophe.cerf@outlook.com. Le vendeur s'engage à y
         répondre sous quinze jours ouvrés.</p>
-        <p><strong>[À COMPLÉTER — obligatoire]</strong> — <em>Conformément à l'article L616-1 du
-        code de la consommation, le vendeur doit avoir adhéré à un dispositif de médiation de la
-        consommation et en communiquer ici le nom et l'adresse (postale et électronique). Cette
-        information ne peut pas être inventée&nbsp;: tant qu'elle manque, le présent article est
-        incomplet et le document ne doit pas être mis en vigueur.</em></p>
-        <p>Le consommateur reste libre de saisir la juridiction compétente sans recourir
-        préalablement à la médiation.</p>
+        <p><strong>Médiation de la consommation&nbsp;: sans objet.</strong> Le dispositif de
+        médiation des articles L611-1 et suivants du code de la consommation s'adresse aux litiges
+        entre un professionnel et un consommateur. La vente n'étant pas ouverte aux consommateurs,
+        le vendeur n'y a pas adhéré. Il en informerait les acheteurs et adhérerait préalablement
+        s'il ouvrait un jour son offre à ce public.</p>
+        <p>Rien n'interdit aux parties de recourir, d'un commun accord, à une médiation
+        conventionnelle avant toute action.</p>
 
         <h2>Article 14 — Modification des conditions</h2>
         <p>Le vendeur peut modifier les présentes conditions. <strong>La version applicable à une
@@ -288,33 +274,13 @@
         son numéro de version, rappelé en tête de page et conservé au journal des opérations avec la
         commande.</p>
 
-        <h2>Article 15 — Droit applicable et juridiction <span class="cgv-verif" data-point="competence">à confronter au corpus</span></h2>
+        <h2>Article 15 — Droit applicable et juridiction<!-- verif:competence --></h2>
         <p>Les présentes conditions sont soumises au <strong>droit français</strong>.</p>
-        <p><strong>Consommateur</strong> — aucune clause n'attribue compétence à une juridiction
-        déterminée. Le consommateur peut saisir, à son choix, la juridiction du lieu où il demeurait
-        au moment de la conclusion du contrat ou de la survenance du fait dommageable, ou l'une des
-        juridictions territorialement compétentes selon le code de procédure civile.</p>
-        <p><strong>Professionnel</strong> — à défaut de règlement amiable, compétence est attribuée
-        aux tribunaux du ressort de Paris, y compris en cas de pluralité de défendeurs ou d'appel en
-        garantie.</p>
-
-        <div class="divider"></div>
-
-        <h2>Ce qui reste à confronter au corpus de jurisprudence</h2>
-        <p class="muted">Huit clauses de ce projet ne valent que ce que la jurisprudence leur laisse
-        valoir : une clause limitative peut être réputée non écrite, une renonciation privée d'effet,
-        une suspension jugée disproportionnée. Ces points ne se tranchent pas en lisant le code seul,
-        et surtout pas de mémoire — une décision inventée est parfaitement crédible.</p>
-        <p>Le dépôt porte l'instrument qui interroge le corpus ouvert de
-        <a href="https://librejustice.fr" rel="noopener">LibreJustice</a> (Cour de cassation,
-        Conseil d'État, cours d'appel, CJUE, CEDH, sanctions de la CNIL) et rapporte les décisions
-        avec leur référence :</p>
-        <pre><code>python3 outils/verifier_cgv.py</code></pre>
-        <p>Il <strong>ne rend aucun verdict</strong> et refuse de se taire : si le corpus ne répond
-        pas, il le dit et sort en erreur, parce que « aucune décision trouvée » et « je n'ai pas pu
-        chercher » sont deux phrases opposées. Chaque clause marquée
-        <span class="cgv-verif" data-point="exemple">à confronter au corpus</span> ci-dessus porte
-        la clé de son point de contrôle.</p>
+        <p>À défaut de règlement amiable, compétence est attribuée aux tribunaux du ressort de
+        <strong>Paris</strong>, y compris en cas de pluralité de défendeurs ou d'appel en garantie.</p>
+        <p>Cette attribution ne joue pas à l'égard d'un acheteur qui relèverait de l'article L221-3
+        du code de la consommation&nbsp;: il conserve les options de compétence que la loi lui
+        réserve.</p>
 
         <div class="divider"></div>
 

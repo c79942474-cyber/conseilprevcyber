@@ -1049,6 +1049,14 @@ def api_register():
         return jsonify(error="Adresse email invalide."), 400
     if not name:
         return jsonify(error="Nom requis."), 400
+    # L'ORGANISATION DEVIENT OBLIGATOIRE, ET CE N'EST PAS UN CAPRICE DE
+    # FORMULAIRE. Les conditions de vente réservent l'offre aux professionnels ;
+    # une clause qui le déclare pendant que le formulaire accepte une demande
+    # sans organisation est décorative. Le champ était facultatif : il ne peut
+    # plus l'être sans démentir le texte qu'il sert.
+    if not org:
+        return jsonify(error="Organisation requise : l'accès est réservé aux "
+                             "professionnels."), 400
     ok, msg = password_strength(pw)
     if not ok:
         return jsonify(error=msg), 400

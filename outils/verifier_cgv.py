@@ -49,7 +49,7 @@ POINTS = [
     {
         "cle": "retractation",
         "article": "Article 5 — renonciation au droit de rétractation",
-        "ancrage": "code de la consommation, art. L221-25 et L221-28, 13°",
+        "ancrage": "code de la consommation, art. L221-3, L221-25 et L221-28, 13°",
         "enjeu": "LE POINT LE PLUS EXPOSÉ, ET IL N'A PLUS DE FILET. Le 13° "
                  "vise un CONTENU numérique, le 1° un service PLEINEMENT "
                  "EXÉCUTÉ ; un accès à durée indéterminée fourni de manière "
@@ -83,11 +83,13 @@ POINTS = [
     },
     {
         "cle": "abusives",
-        "article": "Articles 7, 9 et 14 — clauses opposées au consommateur",
-        "ancrage": "code de la consommation, art. R212-1 et R212-2",
-        "enjeu": "Suspension, absence de remboursement et modification "
-                 "unilatérale sont les trois familles les plus souvent "
-                 "qualifiées d'abusives dans un contrat de service en ligne.",
+        "article": "Articles 7, 9 et 14 — suspension, non-remboursement, modification",
+        "ancrage": "code civil, art. 1171 ; code de commerce, art. L442-1",
+        "enjeu": "La vente étant réservée aux professionnels, ces clauses ne "
+                 "s'apprécient plus sous R212-1 mais sous le déséquilibre "
+                 "significatif. LE PLUS EXPOSÉ DES TROIS : encaisser pour une "
+                 "durée indéterminée puis fermer avec trois mois de préavis et "
+                 "sans contrepartie.",
         "question": "clause abusive contrat de service en ligne suspension du "
                     "compte modification unilatérale des conditions absence de "
                     "remboursement consommateur",
@@ -96,9 +98,9 @@ POINTS = [
         "cle": "competence",
         "article": "Article 15 — juridiction",
         "ancrage": "code de la consommation, art. R212-2 ; code de procédure civile",
-        "enjeu": "Une clause attributive de compétence est inopposable au "
-                 "consommateur. Le projet n'en stipule aucune contre lui : il "
-                 "s'agit de vérifier que la rédaction retenue tient.",
+        "enjeu": "L'attribution aux tribunaux de Paris est désormais stipulée, "
+                 "la vente étant réservée aux professionnels. Tient-elle face à "
+                 "un acheteur relevant de l'art. L221-3 ?",
         "question": "clause attributive de compétence inopposable au "
                     "consommateur contrat conclu en ligne",
     },
@@ -125,7 +127,9 @@ POINTS = [
         "cle": "garantie",
         "article": "Article 6 — garantie légale de conformité du numérique",
         "ancrage": "code de la consommation, art. L224-25-12 et suivants",
-        "enjeu": "Régime récent (2021) : la jurisprudence est encore rare, et "
+        "enjeu": "Ne joue plus que pour l'acheteur relevant de l'art. L221-3 "
+                 "— cinq salariés ou moins, objet hors activité principale. "
+                 "Régime récent (2021) : la jurisprudence est encore rare, et "
                  "une liste vide ici est une RÉPONSE, pas un échec.",
         "question": "garantie légale de conformité contenu numérique service "
                     "numérique mise en conformité réduction du prix résolution",

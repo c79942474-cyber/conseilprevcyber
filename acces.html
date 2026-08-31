@@ -159,6 +159,8 @@
                  consentement groupé est le plus facile à contester, et c'est
                  justement celui sur lequel tout repose depuis que le
                  remboursement commercial a été écarté. -->
+            <label class="ac-renonce" for="acPro"><input type="checkbox" id="acPro">
+              <span>Je commande <b>à titre professionnel</b>, pour les besoins de mon activité.</span></label>
             <label class="ac-renonce" for="acCgv"><input type="checkbox" id="acCgv">
               <span>J’ai lu et j’accepte les
               <a href="/cgv" target="_blank" rel="noopener">conditions générales de vente</a>.</span></label>
@@ -333,6 +335,13 @@
     if(b) b.addEventListener('click', function(){
       var mail = (e.value || '').trim();
       if(!mail){ e.focus(); return; }
+      var pro = $('acPro');
+      if(!pro || !pro.checked){
+        dire('L’accès est vendu aux professionnels : déclarez commander pour '
+             + 'les besoins de votre activité.', true);
+        if(pro) pro.focus();
+        return;
+      }
       var c = $('acCgv');
       if(!c || !c.checked){
         dire('Acceptez les conditions générales de vente pour continuer.', true);
@@ -350,7 +359,8 @@
       b.disabled = true; b.textContent = 'Ouverture…';
       fetch('/api/paiement/checkout', {method:'POST',
             headers:{'content-type':'application/json'},
-            body:JSON.stringify({email: mail, cgv: true, renonciation: true})})
+            body:JSON.stringify({email: mail, professionnel: true,
+                                 cgv: true, renonciation: true})})
         .then(function(r){ return r.json(); })
         .then(function(j){
           if(j && j.ok && j.url){ location = j.url; return; }
