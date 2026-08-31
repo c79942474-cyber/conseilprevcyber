@@ -10458,6 +10458,42 @@ def api_admin_reglages():
                        "directement chez l'hébergeur : une clé qui passe par "
                        "un écran, une conversation ou un journal est à jeter"})
 
+    # ── UNE CAPACITÉ ÉTEINTE QUI NE DISAIT PAS QU'ELLE L'ÉTAIT ────────────
+    # Le paiement s'éteint EN SILENCE, et c'est voulu côté visiteur : un bouton
+    # qui mène à « paiement non configuré » vaut moins qu'un bouton absent.
+    # Mais côté exploitant, ce silence est un piège — on refait tout le
+    # parcours (inscription, courriel, confirmation) en cherchant une caisse
+    # qui n'a jamais été allumée, et aucun écran ne le dit.
+    #
+    # LE CAS DANGEREUX N'EST PAS ZÉRO SUR TROIS, C'EST DEUX SUR TROIS : la clé
+    # est bien posée, on croit avoir configuré, et rien ne s'allume parce que
+    # `paiement.configure()` exige les trois ensemble. C'est pourquoi on compte
+    # ce qui est posé au lieu de se contenter de « non configuré ».
+    try:
+        import paiement as _pay
+        trois = (_pay.CLE, _pay.CLE_WEBHOOK, _pay.CLE_PRIX)
+        posees = [v for v in trois if (os.environ.get(v) or "").strip()]
+        manque = [v for v in trois if v not in posees]
+    except Exception:
+        posees, manque = [], []
+    if manque:
+        absents.append({
+            "variable": " · ".join(manque),
+            "consequence":
+                "le paiement en ligne est éteint : le bloc « Ouvrir mon accès "
+                "maintenant » de /connexion reste caché, /api/paiement/etat "
+                "répond « configure: false », et chaque compte attend votre "
+                "validation manuelle"
+                + ("" if not posees else
+                   " — ATTENTION : %d valeur(s) sur 3 sont DÉJÀ posées. Les "
+                   "trois sont exigées ensemble ; une configuration partielle "
+                   "ne s'allume pas et ne prévient pas" % len(posees)),
+            "geste": "posez les trois chez l'hébergeur : clé secrète (sk_…), "
+                     "secret de signature du webhook (whsec_…), identifiant "
+                     "de prix (price_…)",
+            "reserve": "commencez en mode TEST — clé sk_test_… et carte "
+                       "4242 4242 4242 4242 — avant toute clé de production"})
+
     return jsonify(ok=True, ecartes=ecartes, inertes=inertes, absents=absents,
                    total=len(ecartes) + len(inertes) + len(absents))
 

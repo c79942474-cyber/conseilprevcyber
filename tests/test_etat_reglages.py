@@ -281,6 +281,13 @@ def test_la_console_se_tait_quand_tout_est_en_ordre(admin, monkeypatch):
     monkeypatch.setenv("FLASK_SECRET_KEY", "x" * 64)
     monkeypatch.delenv("ADMIN_PASSWORD", raising=False)
     monkeypatch.delenv("RAG_ACCESS_KEY", raising=False)
+    # « En ordre » comprend désormais le paiement : tant qu'il manque une des
+    # trois valeurs, la capacité est éteinte et le panneau doit le dire — c'est
+    # ce silence-là qui a fait refaire tout le parcours d'inscription en
+    # cherchant une caisse qui n'avait jamais été allumée.
+    import paiement
+    for nom in (paiement.CLE, paiement.CLE_WEBHOOK, paiement.CLE_PRIX):
+        monkeypatch.setenv(nom, "essai")
     j = admin.get("/api/admin/reglages").get_json()
     assert j["total"] == 0
 

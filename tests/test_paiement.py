@@ -221,3 +221,115 @@ def test_la_page_ne_montre_le_bouton_que_si_le_paiement_est_configure():
     assert 'id="payer" style="display:none' in page
     assert "/api/paiement/etat" in page
     assert "j.configure" in page
+
+
+# ── 6. LE CHEMIN VERS LA CAISSE DOIT EXISTER, ET SON ABSENCE SE VOIR ──────
+#
+# CE QUI EST ARRIVÉ. Le parcours complet a été refait — inscription, courriel,
+# notification, validation — sans jamais rencontrer la caisse. Deux causes,
+# toutes deux silencieuses :
+#
+#   · le paiement n'était pas configuré, et AUCUN écran ne le disait. Côté
+#     visiteur ce silence est voulu (un bouton qui mène à une erreur vaut moins
+#     qu'un bouton absent) ; côté exploitant, c'était un piège ;
+#   · l'offre ne vivait QUE sur /connexion?verifie=1, la page atteinte juste
+#     après le clic du courriel. Onglet fermé, retour le lendemain : plus aucun
+#     chemin vers la caisse, ni lien, ni page, ni mention.
+
+def _script_connexion():
+    return open(os.path.join(ICI, "connexion.html"), encoding="utf-8").read()
+
+
+def _bloc_apres(source, debut):
+    """Le corps de l'accolade ouverte juste après `debut`, par comptage réel.
+
+    Lu par les ACCOLADES et non par les lignes : c'est la structure du script
+    qui est en cause, et une règle qui chercherait un mot survivrait au
+    déplacement du bloc."""
+    i = source.index(debut) + len(debut)
+    j = source.index("{", i)
+    profondeur, k = 0, j
+    while k < len(source):
+        if source[k] == "{":
+            profondeur += 1
+        elif source[k] == "}":
+            profondeur -= 1
+            if profondeur == 0:
+                return source[j:k + 1]
+        k += 1
+    raise AssertionError("accolade non refermée après " + debut)
+
+
+def test_l_offre_de_paiement_ne_vit_plus_du_seul_instant_de_la_confirmation():
+    page = _script_connexion()
+    branche = _bloc_apres(page, "if(q.get('verifie'))")
+    assert "/api/paiement/etat" not in branche, (
+        "l'offre est de nouveau enfermée dans la branche ?verifie=1 : elle "
+        "disparaît dès que l'onglet est fermé")
+    # Et elle est bien posée AILLEURS dans le script — l'avoir sortie de la
+    # branche ne vaut rien si on l'a simplement supprimée.
+    assert "/api/paiement/etat" in page
+    assert "j.configure" in page
+
+
+def test_le_courriel_de_confirmation_ne_promet_que_ce_qui_existe(monkeypatch):
+    """Annoncer une porte qui n'existe pas coûte plus cher qu'un délai
+    d'attente annoncé franchement."""
+    envois = []
+    monkeypatch.setattr(auth, "send_email",
+                        lambda to, nom, sujet, html: envois.append(html))
+    u = {"email": "x@example.test", "name": "X", "verify_token": "jeton"}
+
+    for nom in (paiement.CLE, paiement.CLE_WEBHOOK, paiement.CLE_PRIX):
+        monkeypatch.delenv(nom, raising=False)
+    auth._send_verify(u, base="https://exemple.test")
+    assert "en réglant en ligne" not in envois[-1]
+
+    for nom in (paiement.CLE, paiement.CLE_WEBHOOK, paiement.CLE_PRIX):
+        monkeypatch.setenv(nom, "essai")
+    auth._send_verify(u, base="https://exemple.test")
+    assert "en réglant en ligne" in envois[-1]
+
+
+def _absents_paiement(client):
+    r = client.get("/api/admin/reglages")
+    assert r.status_code == 200, r.status_code
+    return [a for a in r.get_json()["absents"] if "STRIPE" in a["variable"]]
+
+
+def test_les_reglages_nomment_les_variables_de_paiement_qui_manquent(admin, monkeypatch):
+    for nom in (paiement.CLE, paiement.CLE_WEBHOOK, paiement.CLE_PRIX):
+        monkeypatch.delenv(nom, raising=False)
+    lignes = _absents_paiement(admin)
+    assert len(lignes) == 1
+    for nom in (paiement.CLE, paiement.CLE_WEBHOOK, paiement.CLE_PRIX):
+        assert nom in lignes[0]["variable"]
+    assert "éteint" in lignes[0]["consequence"]
+
+
+def test_une_configuration_PARTIELLE_est_signalee_comme_telle(admin, monkeypatch):
+    """LE CAS DANGEREUX N'EST PAS ZÉRO SUR TROIS, C'EST DEUX SUR TROIS : la
+    clé est posée, on croit avoir configuré, et rien ne s'allume."""
+    monkeypatch.setenv(paiement.CLE, "sk_essai")
+    monkeypatch.setenv(paiement.CLE_WEBHOOK, "whsec_essai")
+    monkeypatch.delenv(paiement.CLE_PRIX, raising=False)
+    lignes = _absents_paiement(admin)
+    assert len(lignes) == 1
+    assert lignes[0]["variable"] == paiement.CLE_PRIX
+    assert "2 valeur(s) sur 3 sont DÉJÀ posées" in lignes[0]["consequence"]
+
+
+def test_rien_n_est_signale_quand_le_paiement_est_configure(admin, configure):
+    assert _absents_paiement(admin) == []
+
+
+def test_le_blueprint_declare_les_trois_variables():
+    """render.yaml est la liste de ce dont le service a besoin. S'il se tait
+    sur le paiement, personne ne sait qu'il faut poser quoi que ce soit."""
+    y = open(os.path.join(ICI, "render.yaml"), encoding="utf-8").read()
+    for nom in (paiement.CLE, paiement.CLE_WEBHOOK, paiement.CLE_PRIX):
+        assert "key: " + nom in y, nom + " absent du blueprint"
+    # L'adresse à déclarer chez Stripe y figure : c'est la seule information
+    # que le tableau de bord de l'hébergeur ne donne pas.
+    assert "/api/stripe/webhook" in y
+    assert "checkout.session.completed" in y

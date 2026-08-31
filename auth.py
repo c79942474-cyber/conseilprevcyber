@@ -666,12 +666,26 @@ def _btn(url, label):
 def _send_verify(user, base=None):
     base = base or _base_url()
     url = "%s/verifier-email/%s" % (base, user["verify_token"])
+    # CE QUE LE COURRIEL PROMET DOIT EXISTER SUR CE SERVEUR-LÀ. La phrase sur
+    # le règlement en ligne n'est écrite QUE si le paiement est réellement
+    # configuré : annoncer une porte qui n'existe pas coûte plus cher qu'un
+    # délai d'attente annoncé franchement.
+    suite = ("Ce lien est valable %d heures. Après confirmation, votre accès "
+             "sera validé par notre équipe." % VERIFY_VALIDITY_H)
+    try:
+        import paiement
+        if paiement.configure():
+            suite = ("Ce lien est valable %d heures. Après confirmation, votre "
+                     "accès sera validé par notre équipe — ou vous pourrez "
+                     "l'ouvrir immédiatement en réglant en ligne, depuis la "
+                     "page de connexion." % VERIFY_VALIDITY_H)
+    except Exception:
+        pass
     send_email(user["email"], user["name"], "Confirmez votre adresse email — CONSEILPREV Cyber",
                _shell("Confirmez votre email",
                       "<p>Bonjour %s,</p><p>Pour finaliser votre demande d'accès au cockpit CONSEILPREV Cyber, "
-                      "confirmez votre adresse email :</p>%s<p>Ce lien est valable %d heures. Après confirmation, "
-                      "votre accès sera validé par notre équipe.</p>"
-                      % (html_lib.escape(user["name"] or ""), _btn(url, "Confirmer mon email"), VERIFY_VALIDITY_H)))
+                      "confirmez votre adresse email :</p>%s<p>%s</p>"
+                      % (html_lib.escape(user["name"] or ""), _btn(url, "Confirmer mon email"), suite)))
 
 
 def _notify_admin(user, base=None):

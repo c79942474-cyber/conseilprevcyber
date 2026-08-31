@@ -41,7 +41,8 @@
     <!-- MASQUÉ PAR DÉFAUT : révélé seulement si le serveur dit que le paiement
          est configuré. Voir offrirPaiement(). -->
     <div id="payer" style="display:none;margin:14px 0;padding:14px 16px;border:1px solid var(--line);border-radius:11px">
-      <p style="margin:0 0 10px;font-size:13.5px">Vous préférez ne pas attendre&nbsp;? <b>Ouvrez votre accès immédiatement</b> en réglant en ligne.</p>
+      <p style="margin:0 0 10px;font-size:13.5px">Votre adresse est confirmée et vous préférez ne pas attendre la validation&nbsp;?
+        <b>Ouvrez votre accès immédiatement</b> en réglant en ligne.</p>
       <input id="payerMail" type="email" autocomplete="email" placeholder="Votre adresse confirmée" style="width:100%;margin-bottom:8px">
       <button id="payerBtn" class="btn btn-s" type="button">Ouvrir mon accès maintenant</button>
     </div>
@@ -64,13 +65,22 @@
     function show(t,cls){msg.textContent=t;msg.className='msg '+cls;}
     if(q.get('verifie')){
       show('Email confirmé. Votre accès sera actif après validation par notre équipe (vous recevrez un email).','ok');
-      /* OUVRIR SON ACCÈS SOI-MÊME, EN PAYANT. Le bouton n'apparaît QUE si le
-         paiement est réellement configuré sur ce serveur : un bouton qui mène
-         à « paiement non configuré » vaut moins qu'un bouton absent. */
-      fetch('/api/paiement/etat').then(function(r){return r.ok?r.json():null;})
-        .then(function(j){ if(j&&j.configure) offrirPaiement(); })
-        .catch(function(){});
     }
+    /* OUVRIR SON ACCÈS SOI-MÊME, EN PAYANT. Le bouton n'apparaît QUE si le
+       paiement est réellement configuré sur ce serveur : un bouton qui mène
+       à « paiement non configuré » vaut moins qu'un bouton absent.
+
+       IL NE VIT PLUS D'UN SEUL INSTANT. Il n'apparaissait que sur ?verifie=1
+       — la page atteinte juste après le clic du courriel de confirmation. Un
+       onglet fermé, un retour le lendemain sur /connexion, et il n'existait
+       plus AUCUN chemin vers la caisse : ni lien, ni page, ni mention. Le
+       bloc s'affiche donc sur toute la page de connexion. Il n'apprend rien
+       à personne au passage : le serveur refuse les adresses non éligibles
+       avec un message volontairement identique pour « inconnue », « non
+       confirmée » et « déjà ouverte ». */
+    fetch('/api/paiement/etat').then(function(r){return r.ok?r.json():null;})
+      .then(function(j){ if(j&&j.configure) offrirPaiement(); })
+      .catch(function(){});
     if(q.get('paye')==='1')show('Paiement reçu. Votre accès est ouvert — connectez-vous ci-dessous.','ok');
     if(q.get('paye')==='0')show('Paiement abandonné. Votre demande reste en attente de validation.','info');
 

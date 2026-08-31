@@ -139,6 +139,35 @@ services:
       # ce réglage sur « mistral » ramène le traitement dans l'UE.
       - key: ASSISTANT_DEFAULT_MODEL
         sync: false
+      # ── Paiement : ouvrir un accès en réglant en ligne ───────────────────
+      # LES TROIS ENSEMBLE, OU RIEN. `paiement.configure()` les exige toutes :
+      # une clé sans identifiant de prix ouvrirait un bouton qui mène à une
+      # erreur, et un bouton qui échoue vaut moins qu'un bouton absent. Tant
+      # qu'il en manque une, le bloc de paiement de /connexion reste caché,
+      # /api/paiement/etat répond « configure: false », et TOUT compte attend
+      # la validation manuelle. Le piège n'est pas zéro sur trois, c'est deux
+      # sur trois : rien ne s'allume et rien ne prévient. Le panneau « État des
+      # réglages » de /admin nomme désormais celles qui manquent.
+      #
+      # MÊME COMPTE STRIPE QUE SENTINEL, identifiant de PRIX distinct : une
+      # facturation, un tableau de bord, une TVA — deux catalogues. C'est cela,
+      # « caisses séparées ».
+      #
+      # Commencer en mode TEST : clé sk_test_… et carte 4242 4242 4242 4242.
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      # Secret de signature de l'endpoint webhook (whsec_…), pris sur la page
+      # de CE webhook dans le tableau de bord Stripe — pas sur la page des
+      # clés d'API. Sans lui, aucune notification n'est acceptée : les
+      # paiements passeraient et aucun accès ne s'ouvrirait.
+      # Événement à écouter : checkout.session.completed
+      # Adresse à déclarer : https://<votre-domaine>/api/stripe/webhook
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      # Identifiant du prix (price_…) de l'article « ouverture d'accès ».
+      # Pris sur la fiche du PRODUIT, pas sur celle du produit lui-même.
+      - key: STRIPE_PRICE_ACCES
+        sync: false
 
 # Base PostgreSQL — persistance de TOUT l'état applicatif : cockpit, base de
 # connaissance (documents + fragments indexés), livrables, comptes, clients.
