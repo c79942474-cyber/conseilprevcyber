@@ -717,9 +717,30 @@ def veille_refresh(fetcher=None):
         _log.warning("veille : passage interrompu au budget de %d s — %d source(s) "
                      "reportées au passage suivant (elles y passeront en tête)",
                      VEILLE_BUDGET_S, interrompu)
+    # CHAQUE PASSAGE EST ENREGISTRÉ, FRUCTUEUX OU NON. Seul « last_new »
+    # existait : un passage qui ne rapporte rien ne laissait donc aucune trace,
+    # et la page publique ne pouvait pas distinguer « la collecte n'a pas
+    # encore eu lieu » de « elle a eu lieu et n'a rien trouvé ». Elle promettait
+    # alors des actualités « sous quelques heures », indéfiniment.
+    _state.set("veille.last_pass", str(_now_ms()))
     if new_count:
         _state.set("veille.last_new", str(_now_ms()))
     return new_count
+
+
+def veille_collecte():
+    """L'état de la collecte, en deux valeurs et rien de plus.
+
+    Servi à la PAGE PUBLIQUE : aucun nom de source, aucune erreur, aucun
+    compte — de quoi choisir entre deux phrases vraies, et rien qui renseigne
+    un visiteur sur nos rouages.
+    """
+    brut = _state.get("veille.last_pass") if _state else None
+    try:
+        quand = int(brut) if brut else None
+    except (TypeError, ValueError):
+        quand = None
+    return {"jamais": quand is None, "le": quand}
 
 
 def veille_list(limit=60):

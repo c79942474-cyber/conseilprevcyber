@@ -9649,6 +9649,10 @@ def api_veille():
     if pays:
         items = [i for i in items if (i.get("facettes") or {}).get("pays") == pays]
     return jsonify(ok=True, items=items, facettes=veille_facettes.facettes(items),
+                   # DE QUOI DIRE LA VÉRITÉ QUAND LA LISTE EST VIDE, et rien de
+                   # plus : un booléen et un horodatage. Les noms de sources et
+                   # leurs erreurs restent dans l'espace d'administration.
+                   collecte=automation.veille_collecte(),
                    # LA MENTION DE TRANSPARENCE DOIT DÉCRIRE LA RÉALITÉ. Elle
                    # ne s'affiche que si des résumés sont RÉELLEMENT produits :
                    # annoncer une génération par IA là où l'on recopie le
@@ -9674,11 +9678,26 @@ def api_veille_sante():
 @app.route("/api/admin/veille/refresh", methods=["POST"])
 @admin_required
 def api_veille_refresh():
-    """Relance manuelle de la collecte (sinon : automatique, périodique)."""
+    """Relance la collecte, ET rend la santé du passage qu'elle vient de faire.
+
+    POURQUOI LA SANTÉ EST RENDUE ICI PLUTÔT QUE RELUE ENSUITE. L'état des flux
+    vit en mémoire de PROCESSUS (`veille_sources._etats`), et le service tourne
+    avec plusieurs ouvriers gunicorn : un second appel à /api/admin/veille/sante
+    peut tomber sur un ouvrier qui n'a rien collecté, et rendre un tableau vide
+    qui se lirait comme « rien n'a jamais tourné ». En rendant le relevé dans la
+    réponse du passage, collecte et constat ont lieu au même endroit : la
+    réponse est cohérente par construction.
+
+    Sans cette relance, le seul moyen de voir un résultat était d'attendre le
+    passage automatique — trois minutes après un démarrage, puis toutes les six
+    heures. La route existait déjà ; rien ne l'appelait.
+    """
     try:
-        return jsonify(ok=True, nouveaux=automation.veille_refresh())
+        nouveaux = automation.veille_refresh()
     except Exception:
+        app.logger.exception("veille : relance manuelle")
         return jsonify(ok=False, error="veille_echec"), 502
+    return jsonify(ok=True, nouveaux=nouveaux, **veille_sources.etat())
 
 
 @app.route("/api/rag/ingest", methods=["POST"])

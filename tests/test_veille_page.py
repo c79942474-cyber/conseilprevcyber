@@ -7,6 +7,7 @@ documentaire, une copie côté page serait un second vocabulaire — et un filtr
 qui ne désigne plus rien ne lève aucune erreur, il rend simplement zéro
 résultat. La page ne doit donc rien détenir : elle affiche ce que l'API classe.
 """
+import io
 import os
 import re
 import sys
@@ -207,3 +208,95 @@ def test_le_chapeau_est_borne_sinon_les_colonnes_font_perdre_de_la_place():
     régulateur de vingt lignes impose sa hauteur à toute la rangée : trois
     colonnes rendraient alors MOINS d'actualités par écran qu'une seule."""
     assert "-webkit-line-clamp:5" in PAGE
+
+
+ORIGINE = {"Origin": "http://localhost"}
+
+
+def _src(nom):
+    return io.open(os.path.join(ICI, nom), encoding="utf-8").read()
+
+
+# ── LA PAGE VIDE DIT CE QUI S'EST PASSÉ, ET NE PROMET RIEN ───────────────
+#
+# CE QUI ÉTAIT ÉCRIT. « La collecte automatique démarre — les premières
+# actualités apparaîtront ici sous quelques heures. » Et cela s'affichait
+# indéfiniment : la page ne pouvait pas distinguer « le service vient de
+# démarrer » de « les trente-six flux échouent depuis une semaine ». Une
+# mention qui décrit autre chose que la réalité vaut moins que pas de mention ;
+# celle-ci promettait en plus.
+
+def test_l_etat_de_collecte_distingue_aucun_passage_d_un_passage_infructueux(anonyme):
+    import automation
+    automation._state.set("veille.last_pass", None)
+    automation._state._mem.pop("veille.last_pass", None)
+    j = anonyme.get("/api/veille").get_json()
+    assert j["collecte"]["jamais"] is True and j["collecte"]["le"] is None
+
+    automation._state.set("veille.last_pass", "1756600000000")
+    j = anonyme.get("/api/veille").get_json()
+    assert j["collecte"]["jamais"] is False
+    assert j["collecte"]["le"] == 1756600000000
+
+
+def test_un_passage_infructueux_laisse_quand_meme_sa_trace(monkeypatch):
+    """Seul « last_new » existait : un passage qui ne rapporte rien ne laissait
+    aucune trace, et c'est précisément le cas qu'il fallait pouvoir nommer."""
+    import automation
+    automation._state._mem.pop("veille.last_pass", None)
+    monkeypatch.setattr(automation, "veille_sources_ordre", None, raising=False)
+    monkeypatch.setattr(automation.veille_sources, "ordre_de_passage", lambda: [])
+    assert automation.veille_refresh(fetcher=lambda url: []) == 0
+    assert automation.veille_collecte()["jamais"] is False, (
+        "un passage sans nouveauté n'a laissé aucune trace")
+
+
+def test_la_page_porte_deux_messages_et_aucune_promesse_de_delai():
+    src = _src("veille.html")
+    corps = re.sub(r"/\*.*?\*/", "", re.sub(r"<!--.*?-->", "", src, flags=re.S), flags=re.S)
+    assert "col.jamais" in corps, "la page ne distingue plus les deux états"
+    assert "n’a pas encore eu lieu" in corps
+    assert "n’ont rien rapporté au dernier passage" in corps
+    # LA RÈGLE QUI EMPÊCHE LA PROMESSE DE REVENIR.
+    for promesse in ("quelques heures", "bientôt", "prochainement", "sous peu",
+                     "d’ici peu", "dans quelques"):
+        assert promesse not in corps, "promesse de délai réintroduite : " + promesse
+
+
+# ── DIAGNOSTIQUER NE DOIT PAS DEMANDER SIX HEURES ────────────────────────
+
+def test_la_relance_rend_la_sante_du_passage_qu_elle_vient_de_faire(admin, monkeypatch):
+    """L'état des flux vit en mémoire de PROCESSUS et le service tourne avec
+    plusieurs ouvriers : un second appel pourrait tomber sur un ouvrier qui n'a
+    rien collecté et rendre un tableau vide, qui se lirait « rien n'a tourné »."""
+    import automation
+    monkeypatch.setattr(automation, "veille_refresh", lambda: 0)
+    j = admin.post("/api/admin/veille/refresh", headers=ORIGINE).get_json()
+    assert j["ok"] is True
+    assert "sources" in j and "total" in j and "a_regarder" in j
+    assert len(j["sources"]) == j["total"] >= 30
+    assert {"cle", "nom", "sante", "erreur"} <= set(j["sources"][0])
+
+
+def test_la_relance_reste_reservee_a_l_administrateur(anonyme, connecte):
+    for client in (anonyme, connecte):
+        r = client.post("/api/admin/veille/refresh", headers=ORIGINE)
+        assert r.status_code in (401, 403), r.status_code
+
+
+def test_la_console_declenche_la_collecte_et_affiche_ce_retour():
+    """La route existait et RIEN NE L'APPELAIT : le panneau ne lisait que la
+    santé, et restait caché tant qu'aucun flux n'était signalé — donc tant que
+    rien n'avait été essayé. Le bouton était inatteignable."""
+    src = _src("admin.html")
+    assert 'id="veilBtn"' in src
+    assert "/api/admin/veille/refresh" in src
+    # Le panneau n'est plus masqué par défaut, sinon le bouton reste hors
+    # d'atteinte dans le cas même où il sert.
+    bloc = src[src.index('id="veilPanel"'):src.index('id="veilPanel"') + 260]
+    assert "display:none" not in bloc
+    # Le retour de la relance est rendu directement, sans second appel.
+    script = src[src.index("veilBtn.addEventListener"):]
+    apres = script[:script.index("catch")]
+    assert "veilRendre(j)" in apres
+    assert "veille/sante" not in apres, "un second appel pourrait changer d'ouvrier"

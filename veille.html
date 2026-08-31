@@ -290,7 +290,18 @@
     fetch('/api/veille').then(function(r){return r.ok?r.json():null;}).then(function(j){
       var items=(j&&j.items)||[];
       if(!items.length){
-        vlist.innerHTML='<div class="vempty">La collecte automatique démarre — les premières actualités apparaîtront ici sous quelques heures.</div>';
+        /* DEUX ÉTATS, DEUX PHRASES, ET AUCUNE PROMESSE DE DÉLAI. Un seul
+           message disait « les premières actualités apparaîtront ici sous
+           quelques heures » — et le disait indéfiniment, y compris quand la
+           collecte avait tourné cent fois sans rien rapporter. Une mention qui
+           décrit autre chose que la réalité vaut moins que pas de mention ;
+           celle-ci promettait en plus. */
+        var col=(j&&j.collecte)||{};
+        vlist.innerHTML='<div class="vempty">'+(col.jamais
+          ? 'La collecte n’a pas encore eu lieu sur ce serveur.'
+          : 'Nos sources n’ont rien rapporté au dernier passage'
+            + (col.le ? ' (' + new Date(col.le).toLocaleString('fr-FR') + ')' : '')
+            + '. Nous vérifions leurs adresses.')+'</div>';
         return;
       }
       ALL=items;
