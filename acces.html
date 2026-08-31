@@ -40,6 +40,9 @@
   .ac-etape .corps p{margin:4px 0 0;font-size:13px;color:var(--muted);line-height:1.6}
   .ac-champ{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
   .ac-champ input{flex:1 1 240px;min-width:0}
+  .ac-renonce{display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-size:12.5px;color:var(--muted);line-height:1.55}
+  .ac-renonce input{margin-top:2px;flex:0 0 auto}
+  .ac-renonce b{color:var(--ink)}
   .ac-msg{margin-top:10px;font-size:13px;color:var(--muted)}
   .ac-msg.err{color:#f59e0b}
   .ac-faits{margin:16px 0 0;padding-left:20px;color:var(--muted);font-size:13px;line-height:1.8}
@@ -143,7 +146,23 @@
             <div class="ac-champ">
               <label for="acMail" class="sr-only">Adresse confirmée</label>
               <input id="acMail" type="email" autocomplete="email" placeholder="Votre adresse confirmée">
-              <button id="acBtn" class="btn btn-p" type="button">Ouvrir mon accès</button>
+            </div>
+            <!-- LA RENONCIATION EST RECUEILLIE ICI, ET REFUSÉE PAR LE SERVEUR SI
+                 ELLE MANQUE. L'accès s'ouvrant dès le paiement, un consommateur ne
+                 perd son droit de rétractation que s'il a DEMANDÉ l'exécution
+                 immédiate et RECONNU cette perte. Une case cochée seulement dans
+                 la page ne prouverait rien : la route la réclame, et le journal
+                 la conserve avec la version des conditions. -->
+            <label class="ac-renonce" for="acRenonce"><input type="checkbox" id="acRenonce">
+              <span>Je demande l’ouverture <b>immédiate</b> de mon accès dès la confirmation du paiement et
+              je reconnais qu’une fois l’accès ouvert, <b>je perds mon droit de rétractation</b>
+              (art. L221-25 et L221-28 du code de la consommation). J’accepte les
+              <a href="/cgv" target="_blank" rel="noopener">conditions générales de vente</a>.</span></label>
+            <!-- « Payer et ouvrir » : le bouton de commande doit dire sans
+                 ambiguïté qu'il engage à payer (art. L221-14). « Ouvrir mon
+                 accès » ne le disait pas. -->
+            <div class="ac-champ" style="margin-top:12px">
+              <button id="acBtn" class="btn btn-p" type="button">Payer et ouvrir mon accès</button>
             </div>
             <p class="ac-msg" id="acMsg" hidden></p>
           </div>
@@ -306,11 +325,18 @@
     if(b) b.addEventListener('click', function(){
       var mail = (e.value || '').trim();
       if(!mail){ e.focus(); return; }
+      var r = $('acRenonce');
+      if(!r || !r.checked){
+        dire('Cochez la demande d’ouverture immédiate pour continuer : sans elle, '
+             + 'l’accès ne peut pas s’ouvrir dès le paiement.', true);
+        if(r) r.focus();
+        return;
+      }
       var libelle = b.textContent;
       b.disabled = true; b.textContent = 'Ouverture…';
       fetch('/api/paiement/checkout', {method:'POST',
             headers:{'content-type':'application/json'},
-            body:JSON.stringify({email: mail})})
+            body:JSON.stringify({email: mail, renonciation: true})})
         .then(function(r){ return r.json(); })
         .then(function(j){
           if(j && j.ok && j.url){ location = j.url; return; }

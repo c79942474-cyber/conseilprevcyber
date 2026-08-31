@@ -40,11 +40,25 @@
       <div id="msg" class="msg"></div>
     <!-- MASQUÉ PAR DÉFAUT : révélé seulement si le serveur dit que le paiement
          est configuré. Voir offrirPaiement(). -->
+    <style>
+      .payer-renonce{display:flex;gap:9px;align-items:flex-start;margin:0 0 10px;font-size:12px;color:var(--muted);line-height:1.5}
+      .payer-renonce input{margin-top:2px;flex:0 0 auto}
+      .payer-renonce b{color:var(--ink)}
+    </style>
     <div id="payer" style="display:none;margin:14px 0;padding:14px 16px;border:1px solid var(--line);border-radius:11px">
       <p style="margin:0 0 10px;font-size:13.5px">Votre adresse est confirmée et vous préférez ne pas attendre la validation&nbsp;?
         <b>Ouvrez votre accès immédiatement</b> en réglant en ligne.</p>
       <input id="payerMail" type="email" autocomplete="email" placeholder="Votre adresse confirmée" style="width:100%;margin-bottom:8px">
-      <button id="payerBtn" class="btn btn-s" type="button">Ouvrir mon accès maintenant</button>
+      <!-- MÊME CASE QUE SUR /acces, PARCE QUE C'EST LA MÊME VENTE. Deux chemins
+           vers la caisse dont un seul recueille la renonciation laisserait une
+           porte par laquelle le consentement manque — et c'est celle-là qui
+           servirait. Le serveur refuse de toute façon sans elle. -->
+      <label class="payer-renonce" for="payerRenonce"><input type="checkbox" id="payerRenonce">
+        <span>Je demande l’ouverture <b>immédiate</b> de mon accès dès la confirmation du paiement et je
+        reconnais qu’une fois l’accès ouvert, <b>je perds mon droit de rétractation</b>
+        (art. L221-25 et L221-28 du code de la consommation). J’accepte les
+        <a href="/cgv" target="_blank" rel="noopener">conditions générales de vente</a>.</span></label>
+      <button id="payerBtn" class="btn btn-s" type="button">Payer et ouvrir mon accès</button>
     </div>
       <form id="f" class="form" style="max-width:none;background:none;border:none;padding:0">
         <div class="field"><label for="email">Email <button type="button" class="tipi" data-tip="L'adresse de votre compte (email professionnel utilisé à l'inscription)." aria-label="Aide : quel email utiliser. L'adresse de votre compte (email professionnel utilisé à l'inscription).">i</button></label><input id="email" type="email" autocomplete="username" required></div>
@@ -92,10 +106,17 @@
       b.addEventListener('click', function(){
         var mail=(e.value||'').trim();
         if(!mail){ e.focus(); return; }
+        var r=document.getElementById('payerRenonce');
+        if(!r||!r.checked){
+          show('Cochez la demande d’ouverture immédiate pour continuer : sans elle, '
+               +'l’accès ne peut pas s’ouvrir dès le paiement.','err');
+          if(r) r.focus();
+          return;
+        }
         b.disabled=true; var t=b.textContent; b.textContent='Ouverture…';
         fetch('/api/paiement/checkout',{method:'POST',
               headers:{'content-type':'application/json'},
-              body:JSON.stringify({email:mail})})
+              body:JSON.stringify({email:mail,renonciation:true})})
           .then(function(r){return r.json();})
           .then(function(j){
             if(j&&j.ok&&j.url){ location=j.url; return; }

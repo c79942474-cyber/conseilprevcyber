@@ -39,6 +39,12 @@ import time
 
 VERSION = "2026-08-a"
 
+# LA VERSION DES CONDITIONS ACCEPTÉES À L'ACHAT. Elle est conservée avec la
+# renonciation au droit de rétractation : une renonciation dont on ne sait plus
+# à quel texte elle se rapportait ne prouve rien. Un essai vérifie qu'elle est
+# bien celle qu'affiche `cgv.html` — deux exemplaires dériveraient.
+VERSION_CGV = "PROJET 2026-08-a"
+
 _log = logging.getLogger("paiement")
 
 # Les mêmes clés de COMPTE que Sentinel ; un identifiant de PRIX distinct.

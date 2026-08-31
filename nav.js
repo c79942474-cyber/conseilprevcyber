@@ -551,6 +551,10 @@
       s: ["Choisissez le sujet le plus proche (démo, conformité, audit…).", "Décrivez votre contexte : nous répondons sous 48 h ouvrées."],
       k: [["Formulaire sécurisé", "Transmission chiffrée, anti-spam et limitation de débit — vos données ne servent qu'à vous répondre."]],
       l: [["Démo temps réel", "/demo"], ["Services", "/services"]] },
+    "/cgv": { t: "Conditions générales de vente", p: "Ce qui est vendu — l’ouverture d’un compte, payée une fois —, à quel prix, et à quelles conditions.",
+      s: ["Lisez l’article 5 si vous êtes consommateur : il règle le droit de rétractation.", "L’article 7 dit ce qui se passe si le service cesse.", "Aucun montant n’y figure : le prix vit sur la page d’accès, pour ne pas y vieillir."],
+      k: [["Un paiement, une fois", "Ni abonnement, ni reconduction, ni prélèvement ultérieur : il n’y a rien à résilier."], ["Renonciation à la rétractation", "L’accès s’ouvrant aussitôt, le consommateur demande l’exécution immédiate et reconnaît perdre son droit — par une case obligatoire, conservée."]],
+      l: [["Obtenir un accès", "/acces"], ["Mentions légales", "/mentions-legales"], ["Confidentialité", "/politique-confidentialite"]] },
     "/mentions-legales": { t: "Mentions légales", p: "Les informations légales de l’éditeur du site, du directeur de la publication et de l’hébergement, publiées au titre de la LCEN.",
       s: ["Cherchez l’éditeur et l’hébergeur : ce sont les deux mentions qu’une réclamation exige.",
         "Pour ce qui touche à vos données personnelles, c’est la politique de confidentialité qui fait foi, pas cette page."],
@@ -1157,6 +1161,7 @@
     ["/contact", "Contact", "Le formulaire sécurisé — réponse sous 48 h ouvrées.", "Aide & contact", "email téléphone rendez-vous"],
     ["/connexion", "Espace client — connexion", "Accéder au cockpit et aux outils réservés.", "Compte", "login se connecter"],
     ["/inscription", "Créer un compte", "Demander un accès à l'espace client.", "Compte", "register s'inscrire"],
+    ["/cgv", "Conditions générales de vente", "Ce qui est vendu, à quel prix, et à quelles conditions : rétractation, garanties, responsabilité.", "Légal", "cgv conditions vente achat retractation garantie tva facture"],
     ["/mentions-legales", "Mentions légales", "Éditeur, hébergement, propriété intellectuelle.", "Légal", "kbis société"],
     ["/politique-confidentialite", "Politique de confidentialité", "Traitements, droits RGPD, transparence IA, cookies.", "Légal", "rgpd données personnelles vie privée"],
   ];
@@ -1350,14 +1355,30 @@
     main.appendChild(el);
   }
 
-  /* ── Lien « Admin » discret dans le pied de page ────────────────────────── */
-  /* Ajouté sur toutes les pages (pied de page partagé) pour accéder vite à la
-     console d'administration. Discret et volontairement non indexé : la route
-     /admin est de toute façon protégée (redirection vers /connexion si non
-     authentifié, 403 si le compte n'a pas le rôle admin). */
+  /* ── Liens ajoutés au pied de page partagé ──────────────────────────────── */
+  /* Le pied de page est recopié dans chaque fichier HTML : y ajouter une entrée
+     à la main demanderait quarante-sept modifications, dont une serait oubliée.
+     Ces deux-là sont donc posées ici, en un seul endroit.
+
+     « Admin » : discret et volontairement non indexé — la route /admin est de
+     toute façon protégée (redirection vers /connexion si non authentifié, page
+     de refus si le compte n'a pas le rôle admin).
+
+     « CGV » : un CONFORT, et pas le lien qui porte l'obligation. Des conditions
+     de vente doivent être accessibles avant l'achat, et c'est le lien STATIQUE
+     posé dans le bloc de règlement de /acces qui le garantit — celui-ci ne
+     dépend d'aucun script. */
   function initAdminLink() {
     var fnav = document.querySelector("footer .fnav");
-    if (!fnav || fnav.querySelector(".fnav-admin")) return;
+    if (!fnav) return;
+    if (!fnav.querySelector(".fnav-cgv")) {
+      var c = document.createElement("a");
+      c.href = "/cgv";
+      c.textContent = "CGV";
+      c.className = "fnav-cgv";
+      fnav.appendChild(c);
+    }
+    if (fnav.querySelector(".fnav-admin")) return;
     var a = document.createElement("a");
     a.href = "/admin";
     a.textContent = "Admin";

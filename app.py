@@ -879,6 +879,7 @@ PAGES = {
     "/about": "about.html",
     "/vos-projets": "vos-projets.html",
     "/contact": "contact.html",
+    "/cgv": "cgv.html",
     "/mentions-legales": "mentions-legales.html",
     "/politique-confidentialite": "politique-confidentialite.html",
     "/conformite": "conformite.html",
@@ -5435,6 +5436,18 @@ def contact():
     return _page(PAGES["/contact"])
 
 
+@app.route("/cgv")
+def cgv():
+    """Conditions générales de vente.
+
+    OUVERTE, ET C'EST UNE CONDITION DE VALIDITÉ. Des conditions de vente
+    inaccessibles avant l'achat ne sont pas opposables à l'acheteur : les
+    enfermer derrière le compte qu'elles servent à vendre les priverait de
+    tout effet.
+    """
+    return _page(PAGES["/cgv"])
+
+
 @app.route("/mentions-legales")
 def mentions_legales():
     return _page(PAGES["/mentions-legales"])
@@ -9514,6 +9527,24 @@ def api_paiement_checkout():
                        message="Cette adresse ne peut pas ouvrir de paiement. "
                                "Vérifiez d'avoir confirmé votre adresse, ou "
                                "que votre accès n'est pas déjà actif."), 400
+    # ── LA RENONCIATION AU DROIT DE RÉTRACTATION, EXIGÉE ICI ──────────────
+    # L'accès s'ouvre dès la confirmation du paiement. Un consommateur ne perd
+    # son droit de rétractation que s'il a DEMANDÉ expressément cette exécution
+    # immédiate et RECONNU expressément qu'il le perdrait (art. L221-25 et
+    # L221-28, 13°). Une case cochée dans la page ne prouve rien : c'est le
+    # serveur qui refuse d'ouvrir la caisse sans elle, et le journal qui en
+    # garde la trace. Sans cette trace, la renonciation n'est pas opposable —
+    # et une renonciation non opposable ne vaut pas mieux que pas de
+    # renonciation.
+    if (request.get_json(silent=True) or {}).get("renonciation") is not True:
+        return jsonify(ok=False, error="renonciation_absente",
+                       message="Pour que l'accès s'ouvre dès le paiement, vous "
+                               "devez demander son exécution immédiate et "
+                               "reconnaître la perte du droit de rétractation "
+                               "qui en découle."), 400
+    audit.journaliser("paiement.renonciation", cible=email,
+                      detail="exécution immédiate demandée · conditions %s"
+                             % paiement.VERSION_CGV)
     url = paiement.session_paiement(email, _base_url())
     if not url:
         return jsonify(ok=False, error="caisse_indisponible",

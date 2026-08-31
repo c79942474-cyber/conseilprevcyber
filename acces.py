@@ -66,6 +66,8 @@ HORS_MENU_OUVERT = {
     "/connexion": "sans elle, aucun compte ne peut servir",
     "/inscription": "sans elle, aucun compte ne peut être demandé",
     "/mot-de-passe-oublie": "un mot de passe perdu enfermerait le client dehors",
+    "/cgv": "obligation légale — des conditions de vente inaccessibles avant "
+            "l'achat ne sont pas opposables à l'acheteur",
     "/mentions-legales": "obligation légale",
     "/politique-confidentialite": "obligation légale",
     "/conformite": "RGPD et AI Act : exiger un compte pour lire ses droits "
