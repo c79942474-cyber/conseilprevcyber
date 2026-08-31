@@ -9536,12 +9536,22 @@ def api_paiement_checkout():
     # garde la trace. Sans cette trace, la renonciation n'est pas opposable —
     # et une renonciation non opposable ne vaut pas mieux que pas de
     # renonciation.
-    if (request.get_json(silent=True) or {}).get("renonciation") is not True:
+    charge = request.get_json(silent=True) or {}
+    if charge.get("cgv") is not True:
+        return jsonify(ok=False, error="conditions_non_acceptees",
+                       message="Vous devez accepter les conditions générales "
+                               "de vente pour commander."), 400
+    if charge.get("renonciation") is not True:
         return jsonify(ok=False, error="renonciation_absente",
                        message="Pour que l'accès s'ouvre dès le paiement, vous "
                                "devez demander son exécution immédiate et "
                                "reconnaître la perte du droit de rétractation "
                                "qui en découle."), 400
+    # DEUX CONSENTEMENTS, DEUX TRACES. Les séparer à l'écran sans les séparer
+    # au journal serait cosmétique : c'est la trace, et elle seule, qui rend
+    # l'un ou l'autre opposable.
+    audit.journaliser("paiement.conditions", cible=email,
+                      detail="conditions %s acceptées" % paiement.VERSION_CGV)
     audit.journaliser("paiement.renonciation", cible=email,
                       detail="exécution immédiate demandée · conditions %s"
                              % paiement.VERSION_CGV)
@@ -9592,7 +9602,10 @@ def api_stripe_webhook():
         return jsonify(ok=True, traite=False)
     try:
         import auth as _auth
-        ouvert = _auth.ouvrir_par_paiement(email, _base_url())
+        # LES DÉTAILS VIENNENT DE L'ÉVÉNEMENT QU'ON VIENT DE VÉRIFIER, jamais
+        # d'un second appel : la signature n'a été contrôlée que sur celui-ci.
+        ouvert = _auth.ouvrir_par_paiement(email, _base_url(),
+                                           commande=paiement.details_commande(ev))
     except Exception:
         app.logger.exception("ouverture par paiement")
         ouvert = False

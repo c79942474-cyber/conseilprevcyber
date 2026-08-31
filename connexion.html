@@ -53,11 +53,13 @@
            vers la caisse dont un seul recueille la renonciation laisserait une
            porte par laquelle le consentement manque — et c'est celle-là qui
            servirait. Le serveur refuse de toute façon sans elle. -->
+      <label class="payer-renonce" for="payerCgv"><input type="checkbox" id="payerCgv">
+        <span>J’ai lu et j’accepte les
+        <a href="/cgv" target="_blank" rel="noopener">conditions générales de vente</a>.</span></label>
       <label class="payer-renonce" for="payerRenonce"><input type="checkbox" id="payerRenonce">
         <span>Je demande l’ouverture <b>immédiate</b> de mon accès dès la confirmation du paiement et je
         reconnais qu’une fois l’accès ouvert, <b>je perds mon droit de rétractation</b>
-        (art. L221-25 et L221-28 du code de la consommation). J’accepte les
-        <a href="/cgv" target="_blank" rel="noopener">conditions générales de vente</a>.</span></label>
+        (art. L221-25 et L221-28 du code de la consommation).</span></label>
       <button id="payerBtn" class="btn btn-s" type="button">Payer et ouvrir mon accès</button>
     </div>
       <form id="f" class="form" style="max-width:none;background:none;border:none;padding:0">
@@ -106,6 +108,12 @@
       b.addEventListener('click', function(){
         var mail=(e.value||'').trim();
         if(!mail){ e.focus(); return; }
+        var c=document.getElementById('payerCgv');
+        if(!c||!c.checked){
+          show('Acceptez les conditions générales de vente pour continuer.','err');
+          c && c.focus();
+          return;
+        }
         var r=document.getElementById('payerRenonce');
         if(!r||!r.checked){
           show('Cochez la demande d’ouverture immédiate pour continuer : sans elle, '
@@ -116,7 +124,7 @@
         b.disabled=true; var t=b.textContent; b.textContent='Ouverture…';
         fetch('/api/paiement/checkout',{method:'POST',
               headers:{'content-type':'application/json'},
-              body:JSON.stringify({email:mail,renonciation:true})})
+              body:JSON.stringify({email:mail,cgv:true,renonciation:true})})
           .then(function(r){return r.json();})
           .then(function(j){
             if(j&&j.ok&&j.url){ location=j.url; return; }

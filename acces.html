@@ -153,11 +153,19 @@
                  immédiate et RECONNU cette perte. Une case cochée seulement dans
                  la page ne prouverait rien : la route la réclame, et le journal
                  la conserve avec la version des conditions. -->
+            <!-- DEUX CASES, PARCE QUE CE SONT DEUX CONSENTEMENTS. Une seule en
+                 portait trois : acceptation des conditions, demande d'exécution
+                 immédiate et renoncement au droit de rétractation. Un
+                 consentement groupé est le plus facile à contester, et c'est
+                 justement celui sur lequel tout repose depuis que le
+                 remboursement commercial a été écarté. -->
+            <label class="ac-renonce" for="acCgv"><input type="checkbox" id="acCgv">
+              <span>J’ai lu et j’accepte les
+              <a href="/cgv" target="_blank" rel="noopener">conditions générales de vente</a>.</span></label>
             <label class="ac-renonce" for="acRenonce"><input type="checkbox" id="acRenonce">
               <span>Je demande l’ouverture <b>immédiate</b> de mon accès dès la confirmation du paiement et
               je reconnais qu’une fois l’accès ouvert, <b>je perds mon droit de rétractation</b>
-              (art. L221-25 et L221-28 du code de la consommation). J’accepte les
-              <a href="/cgv" target="_blank" rel="noopener">conditions générales de vente</a>.</span></label>
+              (art. L221-25 et L221-28 du code de la consommation).</span></label>
             <!-- « Payer et ouvrir » : le bouton de commande doit dire sans
                  ambiguïté qu'il engage à payer (art. L221-14). « Ouvrir mon
                  accès » ne le disait pas. -->
@@ -325,6 +333,12 @@
     if(b) b.addEventListener('click', function(){
       var mail = (e.value || '').trim();
       if(!mail){ e.focus(); return; }
+      var c = $('acCgv');
+      if(!c || !c.checked){
+        dire('Acceptez les conditions générales de vente pour continuer.', true);
+        if(c) c.focus();
+        return;
+      }
       var r = $('acRenonce');
       if(!r || !r.checked){
         dire('Cochez la demande d’ouverture immédiate pour continuer : sans elle, '
@@ -336,7 +350,7 @@
       b.disabled = true; b.textContent = 'Ouverture…';
       fetch('/api/paiement/checkout', {method:'POST',
             headers:{'content-type':'application/json'},
-            body:JSON.stringify({email: mail, renonciation: true})})
+            body:JSON.stringify({email: mail, cgv: true, renonciation: true})})
         .then(function(r){ return r.json(); })
         .then(function(j){
           if(j && j.ok && j.url){ location = j.url; return; }

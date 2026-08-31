@@ -84,13 +84,14 @@ def test_les_conditions_sont_ouvertes_a_un_anonyme(anonyme):
 def test_le_bloc_de_reglement_porte_un_lien_STATIQUE_vers_les_conditions():
     """C'est ce lien-là qui porte l'obligation. Celui du pied de page est posé
     par nav.js : un confort, qui disparaît si le script ne s'exécute pas."""
-    for page, ident in (("acces.html", "acRenonce"), ("connexion.html", "payerRenonce")):
+    for page, ident in (("acces.html", "acCgv"), ("connexion.html", "payerCgv")):
         src = _src(page)
-        # Ancré sur la CASE elle-même, et non sur un mot : « renonce » se
-        # trouve aussi dans la feuille de style, et la règle passait alors sur
-        # un fragment qui ne prouvait rien.
+        # Ancré sur la CASE elle-même, et non sur un mot : « cgv » se trouve
+        # partout dans la page, et la règle passerait alors sur un fragment qui
+        # ne prouve rien. Le lien vit dans la case d'ACCEPTATION — c'est celle
+        # qui a besoin de mener au texte qu'elle fait accepter.
         i = src.index('id="%s"' % ident)
-        bloc = src[i:i + 900]
+        bloc = src[i:i + 500]
         assert 'href="/cgv"' in bloc, page
 
 
@@ -183,10 +184,22 @@ def test_la_version_affichee_est_celle_que_le_serveur_conserve():
 # ── 3. La renonciation est refusée par le SERVEUR si elle manque ──────────
 
 def test_la_caisse_refuse_sans_renonciation(anonyme, configure, compte):
-    r = anonyme.post("/api/paiement/checkout", json={"email": CLIENT},
-                     headers=ORIGINE)
+    """Les conditions acceptées, la renonciation manquante : c'est le second
+    consentement qui est en cause, et le message doit le dire."""
+    r = anonyme.post("/api/paiement/checkout",
+                     json={"email": CLIENT, "cgv": True}, headers=ORIGINE)
     assert r.status_code == 400
     assert r.get_json()["error"] == "renonciation_absente"
+
+
+def test_la_caisse_refuse_sans_acceptation_des_conditions(anonyme, configure, compte):
+    """DEUX CONSENTEMENTS DISTINCTS, ET DEUX REFUS DISTINCTS. Une case unique
+    en portait trois — acceptation, exécution immédiate, renoncement — et un
+    consentement groupé est le plus facile à contester."""
+    r = anonyme.post("/api/paiement/checkout",
+                     json={"email": CLIENT, "renonciation": True}, headers=ORIGINE)
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "conditions_non_acceptees"
 
 
 def test_une_renonciation_seulement_declaree_ne_suffit_pas(anonyme, configure, compte):
@@ -194,7 +207,11 @@ def test_une_renonciation_seulement_declaree_ne_suffit_pas(anonyme, configure, c
     exige la valeur, pas sa présence."""
     for valeur in ("oui", 1, "true", None, ""):
         r = anonyme.post("/api/paiement/checkout",
-                         json={"email": CLIENT, "renonciation": valeur},
+                         json={"email": CLIENT, "cgv": True, "renonciation": valeur},
+                         headers=ORIGINE)
+        assert r.status_code == 400, valeur
+        r = anonyme.post("/api/paiement/checkout",
+                         json={"email": CLIENT, "cgv": valeur, "renonciation": True},
                          headers=ORIGINE)
         assert r.status_code == 400, valeur
 
@@ -210,12 +227,14 @@ def test_la_renonciation_est_tracee_avec_la_version_des_conditions(
     monkeypatch.setattr(paiement, "session_paiement",
                         lambda email, base: "https://caisse.test/x")
     r = anonyme.post("/api/paiement/checkout",
-                     json={"email": CLIENT, "renonciation": True}, headers=ORIGINE)
+                     json={"email": CLIENT, "cgv": True, "renonciation": True},
+                     headers=ORIGINE)
     assert r.status_code == 200 and r.get_json()["url"]
-    traces = [k for a, k in vues if a == "paiement.renonciation"]
-    assert traces, "la renonciation n'a laissé aucune trace"
-    assert traces[0]["cible"] == CLIENT
-    assert paiement.VERSION_CGV in traces[0]["detail"]
+    for action in ("paiement.renonciation", "paiement.conditions"):
+        traces = [k for a, k in vues if a == action]
+        assert traces, "%s n'a laissé aucune trace" % action
+        assert traces[0]["cible"] == CLIENT
+        assert paiement.VERSION_CGV in traces[0]["detail"]
 
 
 # ── 4. Le bouton dit qu'il engage à payer ─────────────────────────────────
@@ -233,12 +252,16 @@ def test_le_bouton_nomme_le_paiement():
 def test_les_deux_chemins_vers_la_caisse_portent_la_case():
     """Deux chemins dont un seul recueille le consentement laisseraient une
     porte par laquelle il manque — et c'est celle-là qui servirait."""
-    for page, ident in (("acces.html", "acRenonce"), ("connexion.html", "payerRenonce")):
+    for page, cases in (("acces.html", ("acCgv", "acRenonce")),
+                        ("connexion.html", ("payerCgv", "payerRenonce"))):
         src = _src(page)
-        assert 'id="%s"' % ident in src, page
+        for ident in cases:
+            assert 'id="%s"' % ident in src, (page, ident)
         assert "L221-28" in src, page
-        # La page envoie bien le drapeau, et ne se contente pas de l'afficher.
-        assert "renonciation" in src, page
+        # La page envoie bien les DEUX drapeaux, et ne se contente pas de les
+        # afficher : séparer à l'écran sans séparer à l'envoi serait cosmétique.
+        envoi = src[src.index("checkout"):src.index("checkout") + 400]
+        assert "cgv" in envoi and "renonciation" in envoi, page
 
 
 # ── 5. CE QUI SE JUGE NE SE LIT PAS — la confrontation au corpus ──────────
@@ -339,3 +362,123 @@ def test_les_corrections_qui_ne_dependent_pas_du_corpus_sont_faites():
                  "1171",        # déséquilibre significatif
                  "L442-1"):     # pratiques restrictives
         assert fait in src, "article %s absent du projet" % fait
+
+
+# ── 6. LA CONFIRMATION DE COMMANDE, SUR UN SUPPORT DURABLE ───────────────
+#
+# CE QUI MANQUAIT. L'acheteur recevait « votre accès a été approuvé », et rien
+# d'autre : ni ce qu'il avait acheté, ni le prix, ni la version des conditions,
+# ni un mot de la renonciation. Le seul message parlant de commande partait chez
+# l'administrateur. La renonciation ne vivait donc que dans le journal du
+# serveur — prouvable par le vendeur, jamais confirmée à l'acheteur, alors que
+# c'est cette confirmation qui fait tenir l'exclusion (art. L221-13).
+
+def _courriels(monkeypatch):
+    envois = []
+    monkeypatch.setattr(auth, "send_email",
+                        lambda to, nom, sujet, html: envois.append((to, sujet, html)))
+    return envois
+
+
+COMMANDE = {"reference": "cs_test_x", "montant": 49000, "devise": "eur",
+            "affichage": "490,00 €", "conditions": paiement.VERSION_CGV}
+
+
+def test_le_chemin_payant_confirme_la_commande_a_l_acheteur(monkeypatch, compte):
+    envois = _courriels(monkeypatch)
+    auth._confirmer_commande(auth.store.get(CLIENT), COMMANDE, "https://exemple.test")
+    to, sujet, html = envois[-1]
+    assert to == CLIENT
+    assert "ommande" in sujet
+    for du in ("490,00", paiement.VERSION_CGV, "/cgv",
+               "L221-25", "L221-28", "support durable",
+               "perte de votre droit de rétractation"):
+        assert du in html, du
+
+
+def test_la_confirmation_porte_l_identite_du_vendeur(monkeypatch, compte):
+    """Sans elle, la confirmation ne confirme pas un contrat : elle annonce un
+    accès."""
+    envois = _courriels(monkeypatch)
+    auth._confirmer_commande(auth.store.get(CLIENT), COMMANDE, "https://exemple.test")
+    html = envois[-1][2]
+    for champ in ("denomination", "siege", "rcs", "contact"):
+        assert paiement.VENDEUR[champ] in html, champ
+
+
+def test_un_montant_absent_n_est_pas_invente(monkeypatch, compte):
+    """Une confirmation sans prix est incomplète ; une confirmation avec un
+    prix faux est fausse. On ne remplit pas le trou."""
+    envois = _courriels(monkeypatch)
+    sans = dict(COMMANDE, montant=None, affichage=None, devise=None)
+    auth._confirmer_commande(auth.store.get(CLIENT), sans, "https://exemple.test")
+    html = envois[-1][2]
+    assert "490" not in html and "0,00" not in html
+    assert "reçu" in html, "le message ne dit pas où trouver le montant"
+
+
+def test_le_chemin_manuel_ne_parle_d_aucune_commande(monkeypatch, compte):
+    """Il n'y en a pas. Y mélanger une confirmation serait la faute déjà
+    corrigée sur l'avertissement d'ouverture payée."""
+    envois = _courriels(monkeypatch)
+    auth._send_approved(auth.store.get(CLIENT), "https://exemple.test")
+    html = envois[-1][2]
+    for absent in ("L221-28", "rétractation", "Montant", paiement.VERSION_CGV):
+        assert absent not in html, absent
+
+
+def test_l_ouverture_payee_envoie_la_confirmation_et_non_l_approbation(monkeypatch, compte):
+    """`commande` non nul SIGNIFIE chemin payant : c'est ce qui décide du
+    message, et un événement sans montant reste un chemin payant."""
+    envois = _courriels(monkeypatch)
+    monkeypatch.setattr(auth.threading, "Thread",
+                        lambda target, args=(), daemon=None: type(
+                            "T", (), {"start": lambda _s: target(*args)})())
+    assert auth.ouvrir_par_paiement(CLIENT, "https://exemple.test",
+                                    commande=dict(COMMANDE, montant=None,
+                                                  affichage=None)) is True
+    vers_client = [h for to, _s, h in envois if to == CLIENT]
+    assert vers_client, "l'acheteur n'a rien reçu"
+    assert "L221-28" in vers_client[-1], (
+        "le chemin payant a envoyé le message du chemin manuel")
+
+
+def test_l_evenement_verifie_fournit_les_details_de_la_commande():
+    """Ils viennent de la notification DÉJÀ signée, jamais d'un second appel :
+    la signature n'a été contrôlée que sur celle-là."""
+    ev = {"type": "checkout.session.completed",
+          "data": {"object": {"id": "cs_1", "amount_total": 12300,
+                              "currency": "eur", "payment_status": "paid"}}}
+    d = paiement.details_commande(ev)
+    assert d["montant"] == 12300 and d["affichage"].startswith("123,00")
+    assert d["conditions"] == paiement.VERSION_CGV
+    # Sans montant, le dictionnaire EXISTE quand même : il dit « chemin
+    # payant », pas « prix connu ». Les confondre ferait partir le courriel du
+    # chemin manuel sur un événement incomplet.
+    sans = paiement.details_commande(
+        {"type": "checkout.session.completed", "data": {"object": {"id": "cs_2"}}})
+    assert sans is not None and sans["montant"] is None
+    assert paiement.details_commande({"type": "autre.chose"}) is None
+
+
+def test_l_identite_du_vendeur_est_la_meme_dans_les_trois_exemplaires():
+    """Le courriel ne peut pas lire une page HTML : il y a trois copies, et
+    c'est une règle — non la discipline — qui les tient ensemble."""
+    ml = _identite(_src("mentions-legales.html"))
+    assert paiement.VENDEUR["siege"] == ml["Siège social"]
+    assert paiement.VENDEUR["rcs"] in ml["RCS"]
+    assert paiement.VENDEUR["forme"] == ml["Forme juridique"]
+    assert paiement.VENDEUR["tva"] == ml["TVA intracommunautaire"]
+
+
+def test_l_arbitrage_du_remboursement_est_consigne_et_le_risque_nomme():
+    """Un projet qui continue de proposer une option que le donneur d'ordre a
+    rejetée n'inspire pas confiance — et un risque tu n'est pas un risque
+    absent."""
+    src = _src(CGV)
+    assert "expressément écarté" in src
+    assert "À ARBITRER]</strong> — <em>Le vendeur peut choisir" not in src
+    assert "Risque assumé" in src
+    assert "malgré</em> la renonciation" in src
+    # La marque reste : le corpus n'a pas parlé.
+    assert 'data-point="retractation"' in src

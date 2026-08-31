@@ -45,6 +45,21 @@ VERSION = "2026-08-a"
 # bien celle qu'affiche `cgv.html` — deux exemplaires dériveraient.
 VERSION_CGV = "PROJET 2026-08-a"
 
+# L'IDENTITÉ QUI DOIT FIGURER DANS LA CONFIRMATION DE COMMANDE. Elle existe
+# déjà dans `mentions-legales.html` et dans `cgv.html` ; en voici un troisième
+# exemplaire, et c'est assumé — un courriel ne peut pas lire une page HTML, et
+# renvoyer par un lien ne confirme rien sur un support durable. Ce qui empêche
+# les trois de diverger n'est pas la discipline mais une règle qui les compare
+# terme à terme, dans les deux sens.
+VENDEUR = {
+    "denomination": "CONSEILPREV",
+    "forme": "Société à responsabilité limitée (SARL) au capital de 8 000 €",
+    "siege": "19 rue Auguste Chabrières, 75015 Paris",
+    "rcs": "Paris 494 530 157",
+    "tva": "FR 24 494 530 157",
+    "contact": "christophe.cerf@outlook.com",
+}
+
 _log = logging.getLogger("paiement")
 
 # Les mêmes clés de COMPTE que Sentinel ; un identifiant de PRIX distinct.
@@ -214,6 +229,37 @@ def compte_a_ouvrir(evenement):
     if obj.get("payment_status") != "paid":
         return None
     return (obj.get("client_reference_id") or "").strip().lower() or None
+
+
+def details_commande(evenement):
+    """Ce que la notification SIGNÉE dit de la commande. None hors paiement.
+
+    ON NE REND PAS None QUAND LE MONTANT MANQUE, et la nuance décide de tout :
+    l'appelant se sert de ce dictionnaire pour savoir qu'il est sur le chemin
+    PAYANT, et non pour savoir qu'il connaît le prix. Confondre les deux ferait
+    partir, sur un événement incomplet, le courriel du chemin manuel — celui
+    qui ne dit rien de la renonciation. Le montant, lui, vaut None quand il
+    n'est pas là : une confirmation de commande sans prix est incomplète, une
+    confirmation avec un prix inventé est fausse.
+    """
+    if not isinstance(evenement, dict):
+        evenement = getattr(evenement, "to_dict", lambda: {})()
+    if evenement.get("type") != "checkout.session.completed":
+        return None
+    obj = ((evenement.get("data") or {}).get("object") or {})
+    montant = obj.get("amount_total")
+    devise = obj.get("currency") or ""
+    try:
+        montant = int(montant) if montant is not None else None
+    except (TypeError, ValueError):
+        montant = None
+    return {
+        "reference": str(obj.get("id") or "")[:80] or None,
+        "montant": montant,
+        "devise": devise or None,
+        "affichage": _formater(montant, devise) if montant is not None else None,
+        "conditions": VERSION_CGV,
+    }
 
 
 def glossaire():

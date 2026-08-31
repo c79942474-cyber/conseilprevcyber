@@ -1168,8 +1168,17 @@ def payable(email):
     return u
 
 
-def ouvrir_par_paiement(email, base=None):
+def ouvrir_par_paiement(email, base=None, commande=None):
     """Ouvre l'accès après un paiement dont la signature a été vérifiée.
+
+    `commande` NON NUL SIGNIFIE « CHEMIN PAYANT », et commande alors le
+    courriel envoyé à l'acheteur : une confirmation de commande, et non le
+    « votre accès a été approuvé » du chemin manuel. La distinction n'est pas
+    cosmétique — c'est cette confirmation qui porte, sur un support durable, la
+    demande d'exécution immédiate et le renoncement au droit de rétractation
+    sans lesquels l'article L221-28 ne joue pas. Elle manquait : la
+    renonciation ne vivait que dans le journal du serveur, prouvable par nous
+    et jamais confirmée à lui.
 
     APPELÉE UNIQUEMENT DEPUIS LA NOTIFICATION SIGNÉE. Il n'existe aucune route
     qui ouvre un accès : un client ne peut donc pas se promouvoir en appelant
@@ -1200,10 +1209,83 @@ def ouvrir_par_paiement(email, base=None):
     # LA VOIE D'OUVERTURE EST TRACÉE. Le filtre manuel du propriétaire disparaît
     # pour un compte payé : le registre doit au moins dire par où il est entré.
     _tracer("compte.approbation", email, "par paiement")
-    threading.Thread(target=_send_approved, args=(u, base), daemon=True).start()
+    # UN SEUL COURRIEL À L'ACHETEUR. Faire suivre « votre accès est approuvé »
+    # d'une confirmation de commande donnerait deux versions du même fait.
+    if commande is not None:
+        threading.Thread(target=_confirmer_commande, args=(u, commande, base),
+                         daemon=True).start()
+    else:
+        threading.Thread(target=_send_approved, args=(u, base), daemon=True).start()
     threading.Thread(target=_avertir_ouverture_payee, args=(u, base),
                      daemon=True).start()
     return True
+
+
+def _confirmer_commande(user, commande, base=None):
+    """La confirmation du contrat à l'acheteur, sur un support durable.
+
+    CE QUE CE COURRIEL FAIT, ET QU'AUCUN AUTRE NE FAISAIT. L'article L221-13 du
+    code de la consommation impose de confirmer le contrat sur un support
+    durable au plus tard au début de l'exécution ; et quand l'exclusion du droit
+    de rétractation repose sur un accord préalable exprès et un renoncement
+    exprès, c'est cette confirmation qui les reprend. Le seul message qui
+    parlait de commande partait chez l'administrateur ; l'acheteur, lui,
+    recevait « votre accès a été approuvé ».
+
+    LE MONTANT N'EST PAS INVENTÉ. Absent de la notification, il n'est pas
+    écrit : le reçu émis par le prestataire de paiement le porte, et une
+    confirmation sans prix vaut mieux qu'une confirmation avec un prix faux.
+    """
+    base = base or _base_url()
+    commande = commande or {}
+    v = _vendeur()
+    hi = html_lib.escape
+    montant = ("<li><b>Montant réglé :</b> %s</li>" % hi(commande["affichage"])
+               if commande.get("affichage") else
+               "<li><b>Montant réglé :</b> celui figurant sur le reçu qui vous a "
+               "été adressé par notre prestataire de paiement</li>")
+    reference = ("<li><b>Référence :</b> %s</li>" % hi(commande["reference"])
+                 if commande.get("reference") else "")
+    corps = (
+        "<p>Bonjour %s,</p>"
+        "<p>Votre paiement est confirmé et <b>votre accès est ouvert</b>. "
+        "Ce message vaut confirmation de votre commande.</p>"
+        "<ul>"
+        "<li><b>Objet :</b> ouverture d'un compte d'accès à la plateforme "
+        "CONSEILPREV Cyber — un paiement, une fois, sans reconduction ni "
+        "prélèvement ultérieur</li>"
+        "%s%s"
+        "<li><b>Date :</b> %s</li>"
+        "<li><b>Conditions applicables :</b> version %s — "
+        "<a href=\"%s/cgv\">%s/cgv</a></li>"
+        "</ul>"
+        "<p><b>Droit de rétractation.</b> Avant le paiement, vous avez demandé "
+        "expressément l'ouverture immédiate de votre accès et reconnu "
+        "expressément qu'il en résultait la <b>perte de votre droit de "
+        "rétractation</b> (articles L221-25 et L221-28 du code de la "
+        "consommation). Le présent message confirme ce consentement sur un "
+        "support durable.</p>"
+        "%s"
+        "<p style=\"color:#8a9ab0;font-size:12px\">Vendeur : %s, %s — %s. "
+        "RCS %s · TVA %s. Réclamations : <a href=\"mailto:%s\">%s</a>.</p>"
+        % (hi(user.get("name") or ""), montant, reference,
+           time.strftime("%d/%m/%Y"), hi(commande.get("conditions") or "—"),
+           base, base, _btn("%s/connexion" % base, "Se connecter"),
+           hi(v["denomination"]), hi(v["forme"]), hi(v["siege"]),
+           hi(v["rcs"]), hi(v["tva"]), hi(v["contact"]), hi(v["contact"])))
+    send_email(user["email"], user.get("name"),
+               "Confirmation de votre commande — CONSEILPREV Cyber",
+               _shell("Commande confirmée", corps))
+
+
+def _vendeur():
+    """L'identité commerciale, lue là où la vente la tient."""
+    try:
+        import paiement
+        return dict(paiement.VENDEUR)
+    except Exception:
+        return {"denomination": "CONSEILPREV", "forme": "", "siege": "",
+                "rcs": "", "tva": "", "contact": ADMIN_EMAIL or ""}
 
 
 def _avertir_ouverture_payee(user, base=None):

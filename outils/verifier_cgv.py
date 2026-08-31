@@ -50,9 +50,13 @@ POINTS = [
         "cle": "retractation",
         "article": "Article 5 — renonciation au droit de rétractation",
         "ancrage": "code de la consommation, art. L221-25 et L221-28, 13°",
-        "enjeu": "La renonciation suppose un service « pleinement exécuté ». "
-                 "Un accès de durée indéterminée est fourni de manière "
-                 "CONTINUE : la renonciation produit-elle effet ?",
+        "enjeu": "LE POINT LE PLUS EXPOSÉ, ET IL N'A PLUS DE FILET. Le 13° "
+                 "vise un CONTENU numérique, le 1° un service PLEINEMENT "
+                 "EXÉCUTÉ ; un accès à durée indéterminée fourni de manière "
+                 "continue n'entre parfaitement dans ni l'un ni l'autre. Le "
+                 "remboursement commercial de quatorze jours ayant été "
+                 "expressément écarté, aucune autre clause n'absorbe le coup "
+                 "si la qualification tombe. À traiter en premier.",
         "question": "renonciation au droit de rétractation contenu numérique "
                     "service fourni en ligne exécution immédiate consentement "
                     "préalable exprès article L221-28",
