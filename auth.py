@@ -833,7 +833,28 @@ def admin_required(f):
         if (u.get("role") or "user") != "admin":
             if request.path.startswith("/api/"):
                 return jsonify(error="Accès réservé à l'administrateur."), 403
-            return "<meta charset='utf-8'><p style='font-family:Arial;margin:60px auto;max-width:480px;text-align:center'>Accès réservé à l'administrateur.</p>", 403
+            # UN REFUS N'EST PAS UN CUL-DE-SAC. Ici, quelqu'un EST connecté —
+            # ce n'est simplement pas l'administrateur. Ce qui était rendu était
+            # un fragment HTML nu : pas de feuille de style, pas d'en-tête, et
+            # surtout pas le tiroir de `nav.js` qui porte le bouton
+            # « Déconnexion ». Or `/connexion` renvoie AILLEURS tout visiteur
+            # déjà connecté (voir `page_login`) : il n'existait donc, depuis
+            # cette page, aucun chemin visible pour changer de compte. Le cas
+            # n'est pas théorique — l'exploitant qui tient un compte de recette
+            # sur son propre site tombe dessus dès qu'il ouvre /admin sans
+            # avoir quitté ce compte, et rien ne lui dit lequel il porte.
+            #
+            # LE CODE NE CHANGE PAS : 403. La politique d'accès et ses essais
+            # lisent un refus ; une page d'administration qui répondrait 302
+            # vers une page publique serait plus difficile à auditer.
+            rep = _page("acces-administrateur.html")
+            rep.status_code = 403
+            # NE JAMAIS METTRE CE CORPS EN CACHE. Il est servi SOUS l'adresse
+            # demandée : mémorisé pour `/admin`, il se réafficherait après une
+            # connexion réussie en administrateur, et le refus survivrait à sa
+            # propre cause.
+            rep.headers["Cache-Control"] = "no-store"
+            return rep
         return f(*a, **k)
     wrap.auth_gated = True   # repère : page protégée (exclue du sitemap public)
     wrap.admin_gated = True  # repère PLUS FIN que auth_gated (que login_required

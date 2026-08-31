@@ -175,3 +175,42 @@ Guide complet (base Render Postgres, instance privée, presets par éditeur, ser
 3. Chaque push sur `main` déclenche un redéploiement.
 
 Point de santé exposé : `GET /health` → `{"status":"ok"}`.
+
+## Paiement — ouvrir un accès en réglant en ligne
+
+Un paiement pose `approved` sur un compte dont l'adresse est déjà confirmée. Un
+article, une fois : ni abonnement, ni renouvellement, ni résiliation — la table
+des comptes ne porte ni offre, ni palier, ni quota.
+
+**Les trois variables, ou rien.** `paiement.configure()` les exige ensemble.
+Tant qu'il en manque une, le bloc « Ouvrir mon accès maintenant » de
+`/connexion` reste caché, `/api/paiement/etat` répond `configure: false`, et
+tout compte attend la validation manuelle. Le piège n'est pas zéro sur trois,
+c'est **deux sur trois** : rien ne s'allume et rien ne prévient. Le panneau
+« État des réglages » de `/admin` nomme celles qui manquent.
+
+| Variable | Où la prendre |
+|---|---|
+| `STRIPE_SECRET_KEY` | Stripe → Développeurs → Clés d'API. Commencer par une clé `sk_test_…` |
+| `STRIPE_WEBHOOK_SECRET` | Stripe → Développeurs → Webhooks → **la page de CE webhook** (`whsec_…`), pas la page des clés |
+| `STRIPE_PRICE_ACCES` | La fiche du **prix** (`price_…`), pas celle du produit |
+
+Webhook à déclarer : `https://<votre-domaine>/api/stripe/webhook`, événement
+**`checkout.session.completed`** seul.
+
+**Recette, en mode test, avant toute clé de production.**
+
+1. Créer le produit et son prix **unique** (pas récurrent), puis le webhook.
+2. Poser les trois variables sur Render avec une clé `sk_test_…`.
+3. **Dans une fenêtre privée** : créer un compte, confirmer l'adresse par le
+   courriel, ne PAS l'approuver à la main. Sur `/connexion`, le bloc de paiement
+   doit apparaître. Carte `4242 4242 4242 4242`, date future, CVC quelconque.
+4. Le compte doit passer `approved` tout seul et le courriel d'activation
+   partir. Le journal d'audit distingue les deux voies (`« par paiement »`).
+
+> **Deux comptes, deux navigateurs.** Le site n'ouvre qu'une session par
+> navigateur : le compte acheteur et le compte administrateur ne peuvent pas
+> cohabiter. L'achat se fait en fenêtre privée, la console d'administration
+> dans la fenêtre ordinaire. Sans cette précaution, `/admin` répond « Accès
+> réservé à l'administrateur » : la page nomme alors le compte connecté,
+> propose la déconnexion et ramène où l'on allait.

@@ -10492,7 +10492,10 @@ def api_admin_reglages():
                      "secret de signature du webhook (whsec_…), identifiant "
                      "de prix (price_…)",
             "reserve": "commencez en mode TEST — clé sk_test_… et carte "
-                       "4242 4242 4242 4242 — avant toute clé de production"})
+                       "4242 4242 4242 4242 — avant toute clé de production. "
+                       "L'ACHAT SE FAIT EN FENÊTRE PRIVÉE : le site n'ouvre "
+                       "qu'une session par navigateur, et le compte acheteur "
+                       "ne peut pas cohabiter avec le vôtre"})
 
     return jsonify(ok=True, ecartes=ecartes, inertes=inertes, absents=absents,
                    total=len(ecartes) + len(inertes) + len(absents))

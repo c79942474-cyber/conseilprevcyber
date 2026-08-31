@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Accès réservé à l'administrateur — CONSEILPREV Cyber</title>
+<link rel="icon" href="/emblem.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .authwrap{min-height:calc(100vh - 64px);display:flex;align-items:center;justify-content:center;padding:40px 20px;text-align:center}
+  .authcard{max-width:520px;background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:16px;padding:36px}
+  .authcard .qui{font-size:13.5px;line-height:1.6;margin:18px 0 0;padding:12px 14px;border:1px solid var(--line);border-radius:11px;text-align:left}
+  .authcard .qui .cible{display:block;margin-top:6px;font-family:var(--mono);font-size:12px;opacity:.75;overflow-wrap:anywhere}
+  .authcard .note{font-size:12.5px;line-height:1.6;margin-top:22px;padding-top:16px;border-top:1px solid var(--line);opacity:.75}
+</style>
+</head>
+<body>
+  <header><div class="wrap nav"><div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="30" height="30" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+    <div class="spacer"></div><nav class="links"><a href="/">← Accueil</a>
+<a href="/about">À propos</a>
+<a href="/vos-projets" class="cta-alt">Vos projets</a></nav></div></header>
+  <main class="authwrap">
+    <div class="authcard">
+      <h1 style="font-size:24px">Accès réservé à l’administrateur</h1>
+      <!-- DIRE LE FAIT, PAS L'ERREUR. Ce n'est pas un mot de passe refusé ni une
+           panne : une session est ouverte, elle est simplement celle d'un autre
+           compte. Le message d'origine — un fragment HTML nu, sans style, sans
+           en-tête et sans le tiroir qui porte le bouton « Déconnexion » —
+           énonçait le refus sans offrir la moindre suite. Et la page de
+           connexion renvoie AILLEURS tout visiteur déjà connecté : il n'existait
+           donc, depuis ici, aucun chemin visible pour changer de compte — et
+           rien ne disait même quel compte on portait. -->
+      <p class="lead" style="margin:14px auto 0">Cette page demande le rôle
+      administrateur. Le compte actuellement connecté ne l’a pas — il ne s’agit
+      ni d’un mot de passe refusé, ni d’une panne.</p>
+
+      <p class="qui" id="qui">Une session est ouverte sur ce navigateur.
+        <span class="cible" id="cible"></span></p>
+
+      <div class="actions" style="justify-content:center;margin-top:24px">
+        <button class="btn btn-p" type="button" id="sortir">Se déconnecter et revenir ici</button>
+        <a href="/" class="btn btn-s">Retour à l’accueil</a>
+      </div>
+
+      <p class="note"><b>Un seul compte à la fois.</b> Le site n’ouvre qu’une
+      session par navigateur : pour atteindre la console d’administration, il
+      faut d’abord quitter le compte en cours. C’est ce que fait le bouton
+      ci-dessus, qui ramène ensuite exactement à la page demandée. Si vous
+      n’attendiez pas cet écran, il n’y a rien à faire : cette zone est réservée
+      à l’exploitant du site.</p>
+    </div>
+  </main>
+  <script>
+  (function(){
+    /* LE CHEMIN DEMANDÉ SE LIT ICI MÊME. Le refus est rendu EN PLACE, sans
+       redirection : l'adresse de la barre EST celle qu'on voulait atteindre.
+       Figer ce retour sur « /admin » perdrait la page réellement visée —
+       /admin/clients, /admin/base-connaissance — et ferait recommencer la
+       navigation après chaque changement de compte. */
+    var cible = location.pathname + location.search;
+    var c = document.getElementById('cible');
+    if(c) c.textContent = 'Page demandée : ' + location.pathname;
+
+    /* QUEL COMPTE, ET PAS SEULEMENT « UN COMPTE ». Sans le nommer, on ne sait
+       pas de quoi se déconnecter — et c'est toute la question quand on tient
+       deux comptes sur le même site. Écrit par textContent : l'adresse vient du
+       serveur, mais rien ici n'a besoin d'interpréter du HTML. */
+    fetch('/api/auth/me', {headers:{'Accept':'application/json'}})
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(a){
+        if(!a || !a.authenticated) return;
+        var q = document.getElementById('qui');
+        if(!q) return;
+        var suite = q.querySelector('.cible');
+        q.textContent = 'Vous êtes connecté comme ';
+        var b = document.createElement('b');
+        b.textContent = a.email || '(adresse inconnue)';
+        q.appendChild(b);
+        q.appendChild(document.createTextNode(
+          (a.name ? ' — ' + a.name : '') + '. Ce compte n’a pas le rôle administrateur.'));
+        if(suite) q.appendChild(suite);
+      })
+      .catch(function(){});
+
+    /* LA DÉCONNEXION EST UN POST, PAS UN LIEN. La route est derrière la garde
+       d'origine ; un <a href> ne déconnecterait rien et donnerait l'illusion du
+       contraire. Même geste que la console d'administration. */
+    var b = document.getElementById('sortir');
+    if(b) b.addEventListener('click', function(e){
+      e.preventDefault();
+      b.disabled = true; b.textContent = 'Déconnexion…';
+      fetch('/api/auth/logout', {method:'POST', headers:{'Content-Type':'application/json'}})
+        .then(function(){ location.href = '/connexion?next=' + encodeURIComponent(cible); })
+        .catch(function(){ location.href = '/connexion?deconnecte=1'; });
+    });
+  })();
+  </script>
+  <script src="/nav.js" defer></script>
+</body>
+</html>
