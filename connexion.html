@@ -38,6 +38,13 @@
       <h1>Connexion</h1>
       <p class="sub">Accédez à votre cockpit de supervision OT.</p>
       <div id="msg" class="msg"></div>
+    <!-- MASQUÉ PAR DÉFAUT : révélé seulement si le serveur dit que le paiement
+         est configuré. Voir offrirPaiement(). -->
+    <div id="payer" style="display:none;margin:14px 0;padding:14px 16px;border:1px solid var(--line);border-radius:11px">
+      <p style="margin:0 0 10px;font-size:13.5px">Vous préférez ne pas attendre&nbsp;? <b>Ouvrez votre accès immédiatement</b> en réglant en ligne.</p>
+      <input id="payerMail" type="email" autocomplete="email" placeholder="Votre adresse confirmée" style="width:100%;margin-bottom:8px">
+      <button id="payerBtn" class="btn btn-s" type="button">Ouvrir mon accès maintenant</button>
+    </div>
       <form id="f" class="form" style="max-width:none;background:none;border:none;padding:0">
         <div class="field"><label for="email">Email <button type="button" class="tipi" data-tip="L'adresse de votre compte (email professionnel utilisé à l'inscription)." aria-label="Aide : quel email utiliser. L'adresse de votre compte (email professionnel utilisé à l'inscription).">i</button></label><input id="email" type="email" autocomplete="username" required></div>
         <div class="field"><label for="password">Mot de passe <button type="button" class="tipi" data-tip="Connexion chiffrée. Après plusieurs essais infructueux, l'accès est temporairement bloqué." aria-label="Aide : sécurité du mot de passe. Connexion chiffrée. Après plusieurs essais infructueux, l'accès est temporairement bloqué.">i</button></label><input id="password" type="password" autocomplete="current-password" required></div>
@@ -55,7 +62,40 @@
   (function(){
     var q=new URLSearchParams(location.search), msg=document.getElementById('msg');
     function show(t,cls){msg.textContent=t;msg.className='msg '+cls;}
-    if(q.get('verifie'))show('Email confirmé. Votre accès sera actif après validation par notre équipe (vous recevrez un email).','ok');
+    if(q.get('verifie')){
+      show('Email confirmé. Votre accès sera actif après validation par notre équipe (vous recevrez un email).','ok');
+      /* OUVRIR SON ACCÈS SOI-MÊME, EN PAYANT. Le bouton n'apparaît QUE si le
+         paiement est réellement configuré sur ce serveur : un bouton qui mène
+         à « paiement non configuré » vaut moins qu'un bouton absent. */
+      fetch('/api/paiement/etat').then(function(r){return r.ok?r.json():null;})
+        .then(function(j){ if(j&&j.configure) offrirPaiement(); })
+        .catch(function(){});
+    }
+    if(q.get('paye')==='1')show('Paiement reçu. Votre accès est ouvert — connectez-vous ci-dessous.','ok');
+    if(q.get('paye')==='0')show('Paiement abandonné. Votre demande reste en attente de validation.','info');
+
+    function offrirPaiement(){
+      var z=document.getElementById('payer');
+      if(!z) return;
+      z.style.display='block';
+      var b=document.getElementById('payerBtn'), e=document.getElementById('payerMail');
+      b.addEventListener('click', function(){
+        var mail=(e.value||'').trim();
+        if(!mail){ e.focus(); return; }
+        b.disabled=true; var t=b.textContent; b.textContent='Ouverture…';
+        fetch('/api/paiement/checkout',{method:'POST',
+              headers:{'content-type':'application/json'},
+              body:JSON.stringify({email:mail})})
+          .then(function(r){return r.json();})
+          .then(function(j){
+            if(j&&j.ok&&j.url){ location=j.url; return; }
+            b.disabled=false; b.textContent=t;
+            show((j&&j.message)||'Paiement indisponible pour le moment.','err');
+          })
+          .catch(function(){ b.disabled=false; b.textContent=t;
+            show('Paiement indisponible pour le moment.','err'); });
+      });
+    }
     if(q.get('deconnecte'))show('Vous êtes déconnecté.','ok');
     /* ANTI-OPEN-REDIRECT. Un seul « / » en tête, jamais deux : sans ce
        contrôle, next=https://evil.example/... ou next=//evil.example/...

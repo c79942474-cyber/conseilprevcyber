@@ -1115,6 +1115,83 @@ def admin_approve(token):
             % html_lib.escape(u["email"]))
 
 
+def payable(email):
+    """Ce compte peut-il ouvrir une caisse ? (existe, confirmé, pas déjà ouvert)
+
+    LA CONFIRMATION D'ADRESSE EST UNE CONDITION, exactement comme pour
+    l'approbation manuelle : `admin_approve` refuse déjà d'approuver une
+    adresse non confirmée parce que « l'approuver maintenant ne lui ouvrirait
+    rien ». Encaisser un paiement pour un accès qui ne marchera pas serait pire
+    encore — le client aurait payé.
+    """
+    try:
+        u = store.get((email or "").strip().lower())
+    except Exception:
+        return None
+    if not u or not u.get("email_verified") or u.get("approved"):
+        return None
+    return u
+
+
+def ouvrir_par_paiement(email, base=None):
+    """Ouvre l'accès après un paiement dont la signature a été vérifiée.
+
+    APPELÉE UNIQUEMENT DEPUIS LA NOTIFICATION SIGNÉE. Il n'existe aucune route
+    qui ouvre un accès : un client ne peut donc pas se promouvoir en appelant
+    une adresse.
+
+    IDEMPOTENTE, parce que Stripe REJOUE. Une notification est réémise jusqu'à
+    ce qu'elle soit acquittée ; sans cette garde, le courriel d'activation
+    partirait plusieurs fois pour un seul paiement. Rend True seulement quand
+    l'ouverture a RÉELLEMENT eu lieu — l'appelant s'en sert pour ne notifier
+    qu'une fois.
+    """
+    email = (email or "").strip().lower()
+    u = store.get(email) if email else None
+    if not u:
+        # UNE ADRESSE INCONNUE N'EST PAS AVALÉE : un paiement encaissé pour un
+        # compte introuvable doit laisser une trace, sans quoi il disparaît.
+        _tracer("compte.paiement.inconnu", email,
+                "paiement reçu pour une adresse absente du magasin", ok=False)
+        return False
+    if u.get("approved"):
+        _tracer("compte.paiement.rejeu", email, "accès déjà ouvert")
+        return False
+    if not u.get("email_verified"):
+        _tracer("compte.paiement.refus", email, "adresse non confirmée", ok=False)
+        return False
+    store.update(email, approved=True, approve_token=None, approve_expire=None)
+    u["approved"] = True
+    # LA VOIE D'OUVERTURE EST TRACÉE. Le filtre manuel du propriétaire disparaît
+    # pour un compte payé : le registre doit au moins dire par où il est entré.
+    _tracer("compte.approbation", email, "par paiement")
+    threading.Thread(target=_send_approved, args=(u, base), daemon=True).start()
+    threading.Thread(target=_avertir_ouverture_payee, args=(u, base),
+                     daemon=True).start()
+    return True
+
+
+def _avertir_ouverture_payee(user, base=None):
+    """Vous dire ce qui s'est RÉELLEMENT passé.
+
+    Le courriel de demande d'accès dit « Il ne manque que votre accord ». Sur un
+    compte ouvert par paiement, cette phrase serait fausse : l'accès est déjà
+    ouvert, et vous n'avez rien accordé. On envoie donc un autre message, qui
+    dit l'ouverture et rappelle où la reprendre.
+    """
+    base = base or _base_url()
+    send_email(ADMIN_EMAIL, "Admin",
+               "Accès ouvert par paiement — %s" % user["email"],
+               _shell("Accès ouvert par paiement",
+                      "<p>Un paiement a ouvert l'accès de <b>%s</b> "
+                      "(%s, %s). <b>Vous n'avez rien à valider</b> : le compte "
+                      "est déjà actif.</p><p>Pour le suspendre ou le "
+                      "supprimer : <a href=\"%s/admin/comptes\">%s/admin/comptes</a></p>"
+                      % (html_lib.escape(user["email"]),
+                         html_lib.escape(user.get("name") or "—"),
+                         html_lib.escape(user.get("org") or "—"), base, base)))
+
+
 def _tracer(action, email, detail="", ok=True, role="-"):
     """Trace une tentative de connexion dans le journal d'audit.
 

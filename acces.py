@@ -109,6 +109,17 @@ API_OUVERTES = {
     # Rien n'y est secret : elle dit qu'un processus répond, et l'état
     # des dépendances que la supervision doit pouvoir lire sans compte.
     "/api/health": "sonde de l'hébergeur — second nom du même point",
+    # LE PAIEMENT S'ADRESSE À QUELQU'UN QUI N'EST PAS ENCORE ENTRÉ. Un compte
+    # non approuvé ne peut pas se connecter : exiger une session pour payer
+    # rendrait la caisse inatteignable par ceux-là mêmes à qui elle s'adresse.
+    "/api/paiement/etat": "dit si le paiement est proposé — la page doit le "
+                         "savoir AVANT d'afficher un bouton",
+    "/api/paiement/checkout": "l'acheteur n'a pas encore d'accès — c'est ce "
+                              "qu'il vient acheter",
+    # Stripe n'a pas de session, et n'en aura jamais. Ce point s'authentifie
+    # par la SIGNATURE de ce qu'il reçoit, jamais par un cookie.
+    "/api/stripe/webhook": "notification de paiement, authentifiée par sa "
+                           "signature et non par une session",
 }
 
 # Protégées par un jeton d'en-tête plutôt que par une session : ce sont des

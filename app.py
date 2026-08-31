@@ -251,7 +251,15 @@ _CSRF_EXEMPT = {"/api/ingest", "/api/reset", "/api/maintenance/purge", "/api/rag
                 # lit AUCUN cookie et n'écrit rien, donc il n'y a pas de session
                 # à détourner. Elle est réservée par clé partagée et ne sert que
                 # des documents publics (voir api_rag_search_federe).
-                "/api/rag/search"}
+                "/api/rag/search",
+                # STRIPE N'ENVOIE NI « Origin » NI « Referer », et ne peut
+                # pas porter notre en-tête maison. Sans cette ligne,
+                # chaque notification de paiement serait rejetée en 403 :
+                # les paiements passeraient, aucun accès ne s'ouvrirait, et
+                # Stripe réessaierait pendant trois jours. L'exemption est
+                # celle que ce garde nomme déjà — authentifié par secret,
+                # pas par cookie : ici, la signature de la charge.
+                "/api/stripe/webhook"}
 
 # En-tête maison posé par nos propres appels d'écriture (voir _same_origin_request).
 # Un site tiers ne peut pas le poser sans pré-vérification CORS — que ce service
@@ -9384,6 +9392,102 @@ def api_livrables_export():
 # ============================================================================
 #  Automatisations exposées : veille mondiale, ingestion documentaire, pack mission
 # ============================================================================
+
+@app.route("/api/paiement/etat")
+def api_paiement_etat():
+    """Le paiement est-il proposé ? Rien d'autre — ni prix, ni clé.
+
+    La page a besoin de le savoir AVANT d'afficher un bouton : un bouton qui
+    mène à « paiement non configuré » vaut moins qu'un bouton absent.
+    """
+    import paiement
+    return jsonify(ok=True, configure=paiement.configure())
+
+
+@app.route("/api/paiement/checkout", methods=["POST"])
+def api_paiement_checkout():
+    """Ouvre une caisse Stripe pour un compte confirmé mais pas encore ouvert.
+
+    OUVERTE SANS SESSION, ET C'EST NÉCESSAIRE : un compte non approuvé ne peut
+    pas se connecter (auth : 403). Exiger d'être connecté pour payer rendrait
+    la caisse inatteignable par ceux-là mêmes à qui elle s'adresse.
+
+    CE QU'ELLE NE FAIT PAS : ouvrir un accès. Elle ne fait qu'ouvrir une
+    caisse. L'accès ne s'ouvre que sur la notification signée — un appel à
+    cette adresse ne promeut personne.
+    """
+    import paiement
+    if not paiement.configure():
+        return jsonify(ok=False, error="paiement_non_configure",
+                       message="Le paiement en ligne n'est pas activé sur ce "
+                               "serveur."), 503
+    email = ((request.get_json(silent=True) or {}).get("email") or "").strip().lower()
+    ckey = "paiement:%s" % client_ip()
+    if guard.blocked(ckey, limit=10, window=600):
+        return jsonify(ok=False, error="rate_limited"), 429
+    guard.fail(ckey)
+    import auth as _auth
+    # ON NE DIT PAS SI LE COMPTE EXISTE. Un message distinct pour « inconnu »,
+    # « non confirmé » et « déjà ouvert » ferait de cette adresse un moyen de
+    # savoir qui a un compte ici, sans en avoir un soi-même.
+    if not _auth.payable(email):
+        return jsonify(ok=False, error="compte_non_eligible",
+                       message="Cette adresse ne peut pas ouvrir de paiement. "
+                               "Vérifiez d'avoir confirmé votre adresse, ou "
+                               "que votre accès n'est pas déjà actif."), 400
+    url = paiement.session_paiement(email, _base_url())
+    if not url:
+        return jsonify(ok=False, error="caisse_indisponible",
+                       message="Le paiement est momentanément indisponible."), 502
+    return jsonify(ok=True, url=url)
+
+
+@app.route("/api/stripe/webhook", methods=["POST"])
+def api_stripe_webhook():
+    """La notification de paiement — le SEUL chemin qui ouvre un accès.
+
+    ON REND TOUJOURS 200, y compris quand on n'a rien fait. Stripe réémet une
+    notification tant qu'elle n'est pas acquittée : rendre 500 sur une adresse
+    inconnue déclencherait trois jours de réessais pour un cas qui ne
+    s'arrangera pas tout seul. Ce qui ne peut pas être traité est TRACÉ — un
+    paiement ne doit pas disparaître en silence.
+
+    Les seuls refus sont 400 : charge non signée, ou signature invalide. Là,
+    dire non est la réponse juste.
+    """
+    # UN PLAFOND, MÊME ICI — et il a fallu que la règle de surface d'attaque me
+    # le rappelle. Ce point est ouvert et non authentifié par session : sans
+    # plafond, n'importe qui peut le marteler, et chaque charge coûte une
+    # vérification de signature.
+    #
+    # LARGE, ET CE N'EST PAS DE LA TIÉDEUR. Stripe peut envoyer une rafale —
+    # rejeux, rattrapage après une panne — et toutes ses requêtes partagent
+    # quelques adresses. Un plafond serré transformerait un rattrapage
+    # légitime en paiements perdus. Un refus reste d'ailleurs récupérable :
+    # Stripe réémet ce qui n'est pas acquitté, alors qu'un flot non borné, lui,
+    # ne se rattrape pas.
+    ckey = "stripe-webhook:%s" % client_ip()
+    if guard.blocked(ckey, limit=240, window=60):
+        return jsonify(ok=False, error="rate_limited"), 429
+    guard.fail(ckey)
+    import paiement
+    ev = paiement.lire_evenement(request.get_data(),
+                                 request.headers.get("Stripe-Signature", ""))
+    if ev is None:
+        return jsonify(ok=False, error="signature_invalide"), 400
+    email = paiement.compte_a_ouvrir(ev)
+    if not email:
+        # Stripe émet des dizaines de sortes d'événements ; n'en retenir qu'une
+        # est ce qui empêche une session simplement CRÉÉE d'ouvrir un accès.
+        return jsonify(ok=True, traite=False)
+    try:
+        import auth as _auth
+        ouvert = _auth.ouvrir_par_paiement(email, _base_url())
+    except Exception:
+        app.logger.exception("ouverture par paiement")
+        ouvert = False
+    return jsonify(ok=True, traite=bool(ouvert))
+
 
 @app.route("/api/veille")
 def api_veille():
