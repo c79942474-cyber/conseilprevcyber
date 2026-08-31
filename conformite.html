@@ -44,6 +44,7 @@
   .cf-ref.warn{border-color:rgba(245,158,11,.45);color:#f59e0b;background:rgba(245,158,11,.08)}
   .cf-ref.off{border-color:var(--line);color:var(--muted2);background:transparent}
   .cf-lim{font-size:12px;color:var(--muted2);border-left:2px solid var(--line);padding-left:10px;margin-top:8px}
+  .cf-lab{color:var(--ink);font-weight:600}
   .cf-note{border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:var(--bg2);margin:18px 0}
   .cf-note b{color:var(--ink);display:block;margin-bottom:8px}
   .cf-note ul{margin:0;padding-left:20px;color:var(--muted);font-size:13px;line-height:1.7}
@@ -107,7 +108,18 @@
     </section>
 
     <section class="section">
-      <div class="prose"><h2>Transparence de l'IA — article 50</h2></div>
+      <div class="prose"><h2>Trois obligations à ne pas confondre</h2>
+      <p class="muted">Marquage technique du fournisseur &ne; obligation légale de transparence du
+      déployeur &ne; obligations contractuelles. La confusion coûte dans les deux sens : elle fait
+      apposer un marquage d'article 50 sur des documents qu'aucun modèle n'a écrits, et elle fait
+      croire qu'une note remise à un client doit porter « rédigé avec une IA ».</p></div>
+      <div id="cfRoles" class="cf-list"></div>
+    </section>
+
+    <section class="section">
+      <div class="prose"><h2>Transparence de l'IA — article 50</h2>
+      <p class="muted">Ce que le site fait effectivement. Chaque ligne porte son fondement : toutes
+      ne relèvent pas de l'article 50, et celles qui n'en relèvent pas le disent.</p></div>
       <div id="cfArt50" class="cf-list"></div>
     </section>
 
@@ -252,6 +264,15 @@
       $('cfVerdicts').innerHTML = v.join('');
       $('cfJalons').innerHTML = (c.jalons||[]).map(function(j){
         return '<li>'+E(j)+'</li>';}).join('');
+
+      $('cfRoles').innerHTML = (d.transparence_ia||[]).map(function(r){
+        return carte(r.role, para(r.qui)
+          + '<p><span class="cf-lab">Ce qu\'il dit &mdash; </span>'+E(r.dit||'')+'</p>'
+          + '<p class="cf-lim"><span class="cf-lab">Ce qu\'il ne dit pas &mdash; </span>'
+          + E(r.ne_dit_pas||'')+'</p>'
+          + '<p><span class="cf-lab">Chez nous &mdash; </span>'+E(r.chez_nous||'')+'</p>',
+          r.ref||'');
+      }).join('');
 
       $('cfArt50').innerHTML = (d.art50||[]).map(function(a){
         var cl = a.statut==='en place' ? '' : 'off';

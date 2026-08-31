@@ -86,6 +86,12 @@
     <!-- B — TRANSPARENCE IA ACT : LE DÉCLARATIF, PRÉSENTÉ COMME TEL -->
     <section class="cm-sec">
       <h2>Transparence IA Act — art. 50</h2>
+      <p class="st"><b>Trois obligations distinctes</b> : marquage technique du fournisseur
+        (art. 50.2, lisible par machine) &ne; transparence du déployeur (art. 50 §1, §3, §4,
+        des cas nommés) &ne; obligations contractuelles. Aucune n'impose d'écrire
+        « rédigé avec une IA » sur un livrable remis à un client.</p>
+      <div id="cmRoles"></div>
+      <h2 style="margin-top:26px">Mesures déclarées</h2>
       <p class="st">Les mesures déclarées du registre de transparence. <b>Ce sont des
         déclarations</b> : ce tableau les présente comme telles, sans les convertir en
         vert — les deux contrôles d'art. 50 réellement mesurés (mention de l'assistant,
@@ -148,7 +154,16 @@
         $('cmTable').hidden = !corps;
         $('cmNote').textContent = (cm.note || '') + (cm.mesure_le ? ' Mesuré le ' + cm.mesure_le.replace('T',' ').slice(0,19) + ' UTC.' : '');
 
-        /* B — art. 50 déclaratif, rendu comme déclaratif. */
+        /* B — les trois rôles, servis par rgpd.TRANSPARENCE_IA. */
+        $('cmRoles').innerHTML = (d.transparence_ia || []).map(function(r){
+          return '<div class="cm-a50"><b>' + E(r.role || '') + '</b>'
+            + '<span>' + E(r.qui || '') + '</span>'
+            + '<span>Ce qu\'il dit — ' + E(r.dit || '') + '</span>'
+            + '<span>Ce qu\'il ne dit pas — ' + E(r.ne_dit_pas || '') + '</span>'
+            + '<span class="decl">' + E(r.ref || '') + '</span></div>';
+        }).join('') || '<p class="st">Aucun rôle déclaré.</p>';
+
+        /* B bis — art. 50 déclaratif, rendu comme déclaratif. */
         $('cmArt50').innerHTML = (d.art50 || []).map(function(a){
           return '<div class="cm-a50"><b>' + E(a.mesure || a.nom || '') + '</b>'
             + '<span>' + E(a.detail || a.description || '') + '</span>'

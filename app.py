@@ -1947,6 +1947,8 @@ def api_juridique_export():
         modele=str(data.get("model") or "")[:40], date=time.strftime("%d/%m/%Y"))
     meta = {"label": juridique.TYPES_DOCUMENT[type_doc]["titre"],
             "client": str(data.get("client") or "")[:120],
+            # Le corps du document EST la réponse du modèle : marquage dû.
+            "ia": True,
             "perimetre": objet, "model": str(data.get("model") or "")[:40],
             "date": time.strftime("%d/%m/%Y"),
             "sources": [{"title": p.get("titre"), "theme": p.get("origine")}
@@ -2309,6 +2311,12 @@ def api_playbook_export():
                                 comparaison=comparaison, echange=echange)
     meta = {"label": "Note de relecture contractuelle",
             "client": str(data.get("client") or "")[:120],
+            # La note porte l'avertissement d'assistance de `juridique` et,
+            # quand il est joint, l'échange avec l'assistant. On la marque sans
+            # chercher à distinguer une note sans échange : ce serait exact,
+            # mais l'avertissement imprimé dans le corps dirait alors le
+            # contraire du marquage.
+            "ia": True,
             "perimetre": objet or "contrat de services numériques",
             "model": str(data.get("model") or "")[:40],
             "date": time.strftime("%d/%m/%Y"),
@@ -2812,6 +2820,11 @@ def api_62443_checklist_emporter():
                                  titre=str(data.get("titre") or "").strip()[:120] or None)
     meta = {"label": "Checklist IEC 62443 — état et parcours",
             "client": str(data.get("client") or "")[:120],
+            # AUCUN MODÈLE ICI : le document est un calcul sur les cases que le
+            # client a cochées. Le marquer « généré par IA » serait une
+            # déclaration fausse, et la marque ne vaut que si elle est rare.
+            "ia": False,
+            "referentiel": "Parcours IEC 62443 CONSEILPREV v" + parcours_62443.VERSION,
             "perimetre": str(data.get("perimetre") or "").strip()[:300]
                          or "installation industrielle",
             "date": time.strftime("%d/%m/%Y")}
@@ -2913,6 +2926,9 @@ def api_maturite_ot_emporter():
     # est accentue se lit comme une chaine qui n'a pas ete relue.
     meta = {"label": "Auto-évaluation de maturité OT",
             "client": str(data.get("client") or "")[:120],
+            # Les réponses sont celles du client, le score est un calcul.
+            "ia": False,
+            "referentiel": "Maturité OT CONSEILPREV v" + maturite_ot.VERSION,
             "perimetre": str(data.get("perimetre") or "").strip()[:300]
                          or "installation industrielle",
             "date": time.strftime("%d/%m/%Y")}
@@ -3403,6 +3419,8 @@ def api_datacenter_decarbonation_export():
                      % (d.get("voie_nom") or d.get("voie")),
             "indice": "01",
             "client": client,
+            "ia": False,
+            "referentiel": "Moteur de décarbonation CONSEILPREV v" + decarbonation.VERSION,
             "perimetre": "%s kW informatiques" % round(profil["puissance_it_kw"]),
             "date": time.strftime("%d/%m/%Y"),
             "statut": "Document de travail — grandeurs « à produire » non acquises",
@@ -3501,6 +3519,8 @@ def api_datacenter_strategie_export():
             "phase": "Ouverture d'étude",
             "indice": "01",
             "client": s["identite"]["organisation"],
+            "ia": False,
+            "referentiel": "Méthode des quatre perspectives v" + strategie_dd.VERSION,
             "perimetre": s["identite"]["site"] or projet,
             "date": time.strftime("%d/%m/%Y"),
             "sources": [
@@ -4466,6 +4486,8 @@ def api_datacenter_ingenierie_export():
             "phase": "%s, %s" % (d["code"], d["nom"]),
             "indice": "01",
             "client": str(data.get("client") or "")[:120],
+            "ia": False,
+            "referentiel": "Cadre de phases CONSEILPREV v" + ingenierie_dc.VERSION,
             "perimetre": "%s kW informatiques · %s" % (
                 round(profil["puissance_it_kw"]), d["filiere_nom"]),
             "date": time.strftime("%d/%m/%Y"),
@@ -4529,6 +4551,10 @@ def api_datacenter_piece_export():
     label = pc["titre"] if pc else (code_piece or "Pièce d'ingénierie")
     meta = {"type": pc.get("code") or code_piece, "label": label,
             "client": str(data.get("client") or "")[:120],
+            # La pièce sort du moteur (« trame-… ») ou d'un modèle : le
+            # marquage suit la MÊME décision que la ligne « Établi par ».
+            "ia": _redige_par_modele(data.get("model")),
+            "referentiel": "Moteur d'ingénierie CONSEILPREV v" + ingenierie_dc.VERSION,
             # LE CARTOUCHE. Numéro, phase et indice viennent de la rédaction :
             # sans eux, deux tirages du même document sortent identiques, et
             # c'est la date du fichier qui fait foi — elle change à chaque copie.
@@ -5030,6 +5056,8 @@ def api_datacenter_export():
     md = _note_calcul_markdown(res, str(data.get("client") or "").strip()[:120])
     meta = {"label": "Note de calcul — centre de données",
             "client": str(data.get("client") or "")[:120],
+            "ia": False,
+            "referentiel": "Moteur d'ingénierie CONSEILPREV v" + datacenter.VERSION,
             "perimetre": "%s kW informatiques · %s" % (
                 round(profil["puissance_it_kw"]),
                 datacenter.REFROIDISSEMENT.get(
@@ -8000,6 +8028,25 @@ def api_livrables_generate():
     return _livrables_run(type_id, data, system, user)
 
 
+def _redige_par_modele(model):
+    """Un modèle de langage a-t-il écrit ce document ?
+
+    LA MÊME DÉCISION QUE `_auteur_document`, PRISE UNE SEULE FOIS. Elle sert
+    maintenant à deux choses — le cartouche « Établi par » et le marquage de
+    l'article 50.2 dans les propriétés du fichier — et deux exemplaires
+    divergeraient : c'est celui qu'on oublie de corriger qui resterait, et le
+    document dirait « moteur » sur sa page de garde pendant que ses propriétés
+    diraient « généré par IA ».
+
+    Seul un code `trame-*` PROUVE qu'aucun modèle n'est intervenu : c'est le
+    moteur qui l'écrit lui-même à l'assemblage. Un code vide ou inconnu ne
+    prouve rien, et vaut donc VRAI — un marquage en trop se corrige, un
+    marquage manquant est une obligation du fournisseur qu'on a perdue sans
+    que personne le voie.
+    """
+    return not (model or "").strip().startswith("trame-")
+
+
 def _auteur_document(model):
     """Qui a établi le document, en clair pour le cartouche.
 
@@ -8010,7 +8057,7 @@ def _auteur_document(model):
     m = (model or "").strip()
     if not m:
         return ""
-    if m.startswith("trame-"):
+    if not _redige_par_modele(m):
         return "Moteur d'ingénierie CONSEILPREV %s" % ingenierie_dc.VERSION
     return "Rédaction assistée (%s), relue par un ingénieur" % m
 
@@ -8757,6 +8804,10 @@ def api_projet_zip(pid):
             noms.add(nom + ".docx")
             meta = {"type": rec.get("type"), "label": rec.get("label"),
                     "client": rec.get("client"), "secteur": rec.get("secteur"),
+                    # Le code du rédacteur vient du MAGASIN, écrit au moment de
+                    # la génération : c'est la source sûre.
+                    "ia": _redige_par_modele(rec.get("model")),
+                    "referentiel": "Moteur d'ingénierie CONSEILPREV v" + ingenierie_dc.VERSION,
                     "perimetre": rec.get("perimetre"), "model": rec.get("model"),
                     "date": time.strftime("%d/%m/%Y"),
                     "sources": [x for x in (rec.get("sources") or [])
@@ -8896,6 +8947,8 @@ def api_projet_livrable(pid, lid, fmt):
     else:
         meta = {"type": rec.get("type"), "label": rec.get("label") or rec.get("type"),
                 "client": rec.get("client"), "secteur": rec.get("secteur"),
+                "ia": _redige_par_modele(rec.get("model")),
+                "referentiel": "Moteur d'ingénierie CONSEILPREV v" + ingenierie_dc.VERSION,
                 "perimetre": rec.get("perimetre"), "model": rec.get("model"),
                 "date": time.strftime("%d/%m/%Y"),
                 "sources": [s for s in (rec.get("sources") or [])
@@ -8964,6 +9017,10 @@ def api_projet_documents(pid, fmt):
                 "client": projet.get("client") or "",
                 "perimetre": projet.get("nom") or "",
                 "date": time.strftime("%d/%m/%Y"),
+                # « Moteur d'ingénierie » n'est PAS un modèle de langage : le
+                # registre est une liste tirée du magasin.
+                "ia": False,
+                "referentiel": "Moteur d'ingénierie CONSEILPREV v" + ingenierie_dc.VERSION,
                 "model": "Moteur d'ingénierie CONSEILPREV %s"
                          % ingenierie_dc.VERSION,
                 "statut": "Registre des documents visés",
@@ -9367,6 +9424,10 @@ def api_livrables_export():
     meta = {"type": data.get("type"),
             "label": t["label"] if t else (data.get("type") or "Livrable"),
             "client": data.get("client"), "secteur": data.get("secteur"),
+            # Le générateur retombe sur une trame assemblée quand aucun modèle
+            # ne répond ; le code rendu à l'écran est renvoyé ici tel quel.
+            "ia": _redige_par_modele(data.get("model")),
+            "referentiel": "Base de connaissance CONSEILPREV",
             "perimetre": data.get("perimetre"), "model": data.get("model"),
             "date": time.strftime("%d/%m/%Y"),
             "sources": srcs}

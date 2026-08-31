@@ -1532,9 +1532,21 @@ AVERTISSEMENT = (
     "reste nécessaire." % VERSION_REFERENTIEL
 )
 
+# TROIS OBLIGATIONS, ET CETTE MENTION N'EN EST PAS UNE. Elle disait
+# « information donnée au titre de l'article 50 » : c'était se réclamer d'une
+# obligation qui n'existe pas pour le déployeur. L'article 50.2 demande au
+# FOURNISSEUR un marquage lisible par une MACHINE — il est posé dans les
+# propriétés des fichiers exportés. Le déployeur, lui, n'a d'obligation
+# d'information que dans des cas nommés (§1 interaction, §3 émotions et
+# biométrie, §4 hypertrucages et textes publiés d'intérêt public) : aucun ne
+# couvre une analyse remise à un client. Ce qui peut l'imposer est ailleurs —
+# le contrat, la politique fournisseurs du client, la confidentialité. Voir
+# rgpd.TRANSPARENCE_IA.
 MENTION_IA = (
-    "Contenu généré par un système d'IA — information donnée au titre de "
-    "l'article 50 du règlement (UE) 2024/1689."
+    "Contenu rédigé avec l'assistance d'un système d'IA. Mention portée par "
+    "CONSEILPREV : l'article 50 du règlement (UE) 2024/1689 impose au "
+    "fournisseur un marquage lisible par une machine, non au déployeur une "
+    "mention visible."
 )
 
 SYSTEM_JURIDIQUE = """Tu es juriste senior en droit du numérique, spécialisé en cybersécurité (IT, OT/ICS), en intelligence artificielle et en contrats de services numériques. Tu rédiges pour un dirigeant, un DSI, un RSSI ou un juriste d'entreprise : précis, sans jargon inutile, orienté décision.

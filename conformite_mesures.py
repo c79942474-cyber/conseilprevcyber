@@ -266,32 +266,58 @@ def _m_mention_assistant():
                 "n'est pas informée dès la première interaction")
 
 
+_MARQUAGE_LIBELLE = ("Le marquage machine est posé sur ce qu'un modèle a écrit, "
+                     "et sur rien d'autre")
+
+
 def _m_marquage_exports():
-    """Généré et relu, jamais promis : un document témoin est construit et ses
-    propriétés lues. C'est le même geste que le contrôle jumeau de Sentinel."""
+    """Généré et relu, jamais promis : DEUX documents témoins sont construits
+    et leurs propriétés lues. C'est le même geste que le contrôle jumeau de
+    Sentinel, avec le témoin qui lui manquait.
+
+    POURQUOI DEUX. Le contrôle ne vérifiait que la présence de la marque sur
+    un document déclaré rédigé par un modèle. Un `_marque_ia` qui marque TOUT
+    passait donc au vert — c'est-à-dire que le contrôle validait le défaut
+    qu'il aurait dû voir : une checklist calculée sortait estampillée
+    « contenu généré par IA ». L'obligation de l'article 50.2 pèse sur le
+    fournisseur pour ce que SON système génère ; l'étendre au reste n'est pas
+    une prudence, c'est une déclaration fausse.
+    """
     try:
         import io
         import zipfile
         import livrables_export
-        blob = livrables_export.build_docx(
-            "# Controle de marquage\n\nDocument de verification, jamais distribue.\n",
-            {"ia": True, "label": "Controle art. 50"})
-        with zipfile.ZipFile(io.BytesIO(blob)) as z:
-            core = z.read("docProps/core.xml").decode("utf-8", "replace")
-        if livrables_export.MARQUE_IA in core:
-            return _ctl("marquage_exports", "IA Act art. 50.2",
-                        "Les documents exportés portent le marquage machine",
+        md = "# Controle de marquage\n\nDocument de verification, jamais distribue.\n"
+
+        def _core(meta):
+            blob = livrables_export.build_docx(md, meta)
+            with zipfile.ZipFile(io.BytesIO(blob)) as z:
+                return z.read("docProps/core.xml").decode("utf-8", "replace")
+
+        marque = livrables_export.MARQUE_IA
+        avec = marque in _core({"ia": True, "label": "Controle art. 50"})
+        sans = marque in _core({"ia": False, "label": "Controle sans modele",
+                                "referentiel": "moteur de controle"})
+        if avec and not sans:
+            return _ctl("marquage_exports", "IA Act art. 50.2", _MARQUAGE_LIBELLE,
                         "mesure", "conforme",
-                        "document généré à l'instant : docProps/core.xml porte "
-                        "« %s » (lu, pas supposé)" % livrables_export.MARQUE_IA)
-        return _ctl("marquage_exports", "IA Act art. 50.2",
-                    "Les documents exportés portent le marquage machine",
+                        "deux documents générés à l'instant : « %s » présent "
+                        "dans docProps/core.xml du document rédigé par modèle, "
+                        "absent de celui produit par calcul (lu, pas supposé)"
+                        % marque)
+        if not avec:
+            return _ctl("marquage_exports", "IA Act art. 50.2", _MARQUAGE_LIBELLE,
+                        "mesure", "non-conforme",
+                        "document rédigé par modèle SANS marque dans ses "
+                        "propriétés — le marquage dû par le fournisseur a "
+                        "disparu")
+        return _ctl("marquage_exports", "IA Act art. 50.2", _MARQUAGE_LIBELLE,
                     "mesure", "non-conforme",
-                    "document généré à l'instant : propriétés SANS marque IA — "
-                    "le marquage lisible par machine a disparu")
+                    "un document produit par calcul déterministe porte « %s » : "
+                    "le marquage est apposé là où rien n'a été généré, et une "
+                    "marque posée partout ne signale plus rien" % marque)
     except Exception as e:
-        return _ctl("marquage_exports", "IA Act art. 50.2",
-                    "Les documents exportés portent le marquage machine",
+        return _ctl("marquage_exports", "IA Act art. 50.2", _MARQUAGE_LIBELLE,
                     "mesure", "non-mesure",
                     "génération de contrôle impossible : " + str(e)[:100])
 

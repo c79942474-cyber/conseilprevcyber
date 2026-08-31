@@ -32,8 +32,21 @@ C_ZEBRA = (0xF7, 0xFA, 0xFB)     # fond des lignes paires
 
 CONTACT = ("CONSEILPREV · christophe.cerf@outlook.com · +33 6 60 69 21 45 · "
            "conseilprevcyber.onrender.com")
-MENTION = ("Brouillon généré avec l'aide de l'IA à partir de la base de connaissance "
-           "CONSEILPREV — à relire, compléter et valider par un consultant.")
+# LA MENTION DE PIED DE DOCUMENT, EN DEUX PHRASES QUI N'ONT PAS LE MÊME
+# FONDEMENT. Le STATUT dit qu'un document n'est pas encore visé : c'est une
+# nécessité professionnelle, elle vaut pour un calcul comme pour un texte
+# rédigé, et l'article 50 n'y est pour rien. L'ORIGINE dit ce qui a écrit :
+# elle change selon la réalité, et la version « IA » est un engagement de la
+# maison — le déployeur n'a AUCUNE obligation générale d'écrire « rédigé avec
+# une IA » (art. 50 §1, §3 et §4 : des cas nommés, dont aucun ne couvre un
+# livrable remis à un client). Les deux étaient soudées en une phrase, ce qui
+# faisait sortir une checklist calculée sous la mention « généré avec l'aide
+# de l'IA ».
+MENTION_STATUT = "Brouillon — à relire, compléter et valider par un consultant."
+MENTION_IA = ("Rédigé avec l'aide d'un modèle de langage, à partir de la base de "
+              "connaissance CONSEILPREV.")
+MENTION_MOTEUR = ("Établi par calcul déterministe à partir d'un référentiel versionné : "
+                  "aucun modèle de langage n'est intervenu dans la rédaction.")
 
 
 def _hex(rgb):
@@ -233,6 +246,25 @@ def _mention_pied(meta):
     return "CONSEILPREV Cyber · " + (s[:46].rstrip() if len(s) > 46 else s)
 
 
+def _mention_finale(meta):
+    """Les deux phrases du pied de document, assemblées.
+
+    Le statut suit celui du cartouche quand l'appelant le connaît : le pied de
+    page le fait déjà (`_mention_pied`), et un document visé qui se terminait
+    sur « Brouillon — à relire » se contredisait lui-même.
+
+    L'origine suit `meta["ia"]`, posé par la route qui produit le document.
+    Absent, elle vaut VRAI : un oubli sur-marque, ce qui se répare, plutôt que
+    de faire disparaître un marquage dû par le fournisseur, ce qui ne se voit
+    pas.
+    """
+    meta = meta or {}
+    statut = str(meta.get("statut") or "").strip() or MENTION_STATUT
+    if not statut.endswith("."):
+        statut += "."
+    return statut + " " + (MENTION_IA if meta.get("ia", True) else MENTION_MOTEUR)
+
+
 def _sources(meta):
     """Documents de la base effectivement mobilisés, dédoublonnés.
 
@@ -394,23 +426,68 @@ def _page_field(paragraph):
 # demande un marquage EXPLOITABLE PAR UNE MACHINE : on le place donc dans les
 # propriétés du fichier, qui voyagent avec lui et se lisent sans l'ouvrir.
 MARQUE_IA = "AI-generated"
-MARQUE_REF = "Reglement (UE) 2024/1689, art. 50"
+MARQUE_REF = "Reglement (UE) 2024/1689, art. 50.2"
 
 
 def _marque_ia(meta):
-    """Valeurs de marquage, dérivées des métadonnées du document."""
+    """Valeurs de marquage, dérivées des métadonnées du document.
+
+    QUI DOIT MARQUER, ET QUOI. L'article 50.2 pèse sur le FOURNISSEUR du
+    système qui génère : il lui demande un marquage lisible par une MACHINE.
+    CONSEILPREV est ce fournisseur pour son propre générateur de livrables ;
+    le marquage est donc dû, et il est posé ici. C'est une obligation
+    distincte de la transparence du déployeur — l'article 50 n'impose à
+    personne d'écrire « rédigé avec une IA » dans une note remise à un client
+    — et distincte encore de ce qu'un contrat peut exiger.
+
+    Quand `meta['ia']` est faux, le document n'a PAS été rédigé par un modèle :
+    les propriétés du fichier disent alors sa vraie nature — calcul
+    déterministe, référentiel versionné — au lieu d'apposer un marquage de
+    contenu synthétique là où rien n'a été synthétisé. Un marquage apposé
+    partout ne signale plus rien, et une checklist remplie à la main par le
+    client sortait marquée « contenu généré par IA ».
+    """
     meta = meta or {}
     modele = str(meta.get("model") or "").strip()
+    if not meta.get("ia", True):
+        ref = str(meta.get("referentiel") or "").strip()
+        return {
+            "marque": "Calcul deterministe - sans generation par IA",
+            "producteur": "CONSEILPREV - moteur de calcul"
+                          + (" (" + ref + ")" if ref else ""),
+            "mots_cles": "calcul-deterministe; sans-IA; referentiel-source"
+                         + ("; " + ref if ref else ""),
+            "note": "Document produit par calcul deterministe a partir d'un "
+                    "referentiel versionne et source. Aucun modele de langage "
+                    "n'est intervenu dans sa redaction.",
+        }
     return {
         "marque": MARQUE_IA,
         "producteur": "CONSEILPREV — assistance par intelligence artificielle"
                       + (" (" + modele + ")" if modele else ""),
         "mots_cles": "%s; AI-assisted; %s; brouillon-a-valider"
                      % (MARQUE_IA, MARQUE_REF),
-        "note": "Contenu produit avec l'assistance d'un systeme d'intelligence "
-                "artificielle et signale comme tel au titre du %s. "
-                "Brouillon soumis a relecture et validation humaine." % MARQUE_REF,
+        "note": "Contenu genere par IA. Marquage machine appose par "
+                "CONSEILPREV, fournisseur du systeme, au titre du %s. La "
+                "mention visible est un engagement de la maison, non une "
+                "obligation du deployeur. Brouillon a relire et valider."
+                % MARQUE_REF,
     }
+
+
+# La limite du format : au-delà, python-docx refuse la propriété. Tronquer
+# vaut mieux que perdre — un marquage amputé se lit encore, un marquage absent
+# ne dit rien.
+LIMITE_PROPRIETE = 255
+
+
+def _poser_propriete(cp, champ, valeur):
+    """Une propriété, un essai. L'échec de l'une ne doit pas coûter les autres."""
+    try:
+        v = str(valeur or "")
+        setattr(cp, champ, v[:LIMITE_PROPRIETE] if len(v) > LIMITE_PROPRIETE else v)
+    except Exception:
+        pass
 
 
 def build_docx(md, meta=None):
@@ -426,19 +503,25 @@ def build_docx(md, meta=None):
     doc = Document()
     # Marquage IA dans les propriétés du fichier : il survit à la copie et se
     # lit sans ouvrir le document (Explorateur, indexation, outillage).
+    #
+    # UNE PROPRIÉTÉ PAR ESSAI, ET NON UN BLOC. Elles étaient posées dans un
+    # seul `try` : la première qui refusait emportait toutes les suivantes, en
+    # silence. C'est arrivé — une note dépassant la limite de 255 caractères a
+    # fait disparaître d'un coup la note ET l'auteur du fichier, sans qu'aucune
+    # erreur ne remonte. Un marquage qui échoue ne doit pas empêcher la
+    # production du document ; il ne doit pas non plus en emporter d'autres.
     try:
         m = _marque_ia(meta)
         cp = doc.core_properties
-        cp.title = str(meta.get("label") or "Document")
-        cp.subject = m["marque"]
-        cp.category = m["marque"]
-        cp.keywords = m["mots_cles"]
-        cp.comments = m["note"]
-        cp.author = m["producteur"]
-        cp.last_modified_by = m["producteur"]
+        for champ, valeur in (("title", str(meta.get("label") or "Document")),
+                              ("subject", m["marque"]),
+                              ("category", m["marque"]),
+                              ("keywords", m["mots_cles"]),
+                              ("comments", m["note"]),
+                              ("author", m["producteur"]),
+                              ("last_modified_by", m["producteur"])):
+            _poser_propriete(cp, champ, valeur)
     except Exception:
-        # Un marquage qui échoue ne doit pas empêcher la production du document :
-        # la mention visible, elle, est toujours présente.
         pass
     normal = doc.styles["Normal"]
     normal.font.name = "Calibri"
@@ -600,7 +683,7 @@ def build_docx(md, meta=None):
         run.font.color.rgb = GREY
 
     _rule(doc)
-    note = doc.add_paragraph().add_run(typographie(MENTION))
+    note = doc.add_paragraph().add_run(typographie(_mention_finale(meta)))
     note.italic = True
     note.font.size = Pt(8.5)
     note.font.color.rgb = GREY
@@ -995,7 +1078,7 @@ def build_pdf(md, meta=None):
     rule()
     pdf.set_font(FAM, "I", 8.5)
     pdf.set_text_color(*C_GREY)
-    _cell(_pdf_txt(typographie(MENTION), UNI), 4.5)
+    _cell(_pdf_txt(typographie(_mention_finale(meta)), UNI), 4.5)
     pdf.set_font(FAM, "", 8.5)
     _cell(_pdf_txt(typographie(CONTACT).replace("·", "-"), UNI), 4.5)
 

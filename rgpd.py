@@ -13,6 +13,7 @@ Contenu :
   REGISTRE        — activités de traitement (art. 30 RGPD)
   SOUS_TRAITANTS  — destinataires, rôles et transferts (art. 28 et chap. V)
   CLASSIFICATION  — qualification IA Act motivée (art. 5, 6, annexe III, 50)
+  TRANSPARENCE_IA — à qui l'art. 50 parle, et ce qu'il ne dit pas
   ART50           — mesures de transparence effectivement en place
   MESURES_RGPD    — mesures techniques et organisationnelles (art. 32)
   DROITS          — exercice des droits (art. 15 à 22)
@@ -20,7 +21,7 @@ Contenu :
   ACTIONS         — ce qui reste à faire, avec son échéance
 """
 
-VERSION = "2026-07-b"
+VERSION = "2026-08-a"
 RESPONSABLE = "CONSEILPREV"
 CONTACT_DONNEES = "christophe.cerf@outlook.com"
 
@@ -268,6 +269,87 @@ CLASSIFICATION = {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Trois obligations à ne pas confondre
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#     marquage technique du fournisseur
+#   ≠ obligation légale de transparence du déployeur
+#   ≠ obligations contractuelles
+#
+# La confusion est fréquente et coûteuse dans les deux sens : elle fait
+# apposer un marquage d'article 50 sur des documents qu'aucun modèle n'a
+# écrits, et elle fait croire qu'une note remise à un client doit porter
+# « rédigé avec une IA ». Ce bloc dit, pour chaque obligation, QUI elle vise,
+# ce qu'elle DIT et ce qu'elle NE DIT PAS — le même patron que les textes de
+# `decarbonation.TEXTES`, parce qu'un texte cité sans sa portée sert d'alibi.
+TRANSPARENCE_IA = [
+    {
+        "role": "Marquage technique du fournisseur",
+        "qui": "Le FOURNISSEUR du système d'IA qui génère le contenu.",
+        "ref": "Règlement (UE) 2024/1689, art. 50 §2",
+        "dit": "Les sorties du système doivent être marquées dans un format "
+               "LISIBLE PAR UNE MACHINE et détectables comme artificiellement "
+               "générées ou manipulées, par des solutions techniques efficaces, "
+               "interopérables, robustes et fiables dans la mesure où cela est "
+               "techniquement possible.",
+        "ne_dit_pas": "Il n'impose aucune phrase à écrire DANS le document. Un "
+                      "marquage lisible par une machine et une mention lisible "
+                      "par un lecteur sont deux choses différentes, et le §2 ne "
+                      "demande que la première.",
+        "chez_nous": "CONSEILPREV est fournisseur de son propre générateur de "
+                     "livrables — voir la qualification ci-dessus — et déployeur "
+                     "des modèles tiers qu'il appelle. Le marquage est posé dans "
+                     "les PROPRIÉTÉS des fichiers Word et PDF, où il survit à la "
+                     "copie. Il n'est pas apposé sur les documents produits par "
+                     "calcul déterministe : y apposer un marquage de contenu "
+                     "synthétique serait une déclaration fausse.",
+    },
+    {
+        "role": "Transparence du déployeur",
+        "qui": "Le DÉPLOYEUR qui se sert d'un système d'IA.",
+        "ref": "Règlement (UE) 2024/1689, art. 50 §1, §3 et §4",
+        "dit": "Des obligations d'information dans des cas NOMMÉS : informer la "
+               "personne qu'elle interagit avec une machine (§1) ; informer les "
+               "personnes exposées à un système de reconnaissance des émotions "
+               "ou de catégorisation biométrique (§3) ; révéler qu'un contenu "
+               "est un hypertrucage, et qu'un texte publié pour informer le "
+               "public sur des questions d'intérêt public a été généré "
+               "artificiellement (§4).",
+        "ne_dit_pas": "AUCUNE obligation générale d'indiquer qu'un contenu a été "
+                      "produit avec l'aide d'une IA. Une note, une analyse ou un "
+                      "livrable remis à un client ne relève d'aucun des cas "
+                      "nommés ; et le §4 excepte de surcroît le texte qui a fait "
+                      "l'objet d'un contrôle humain et dont une personne assume "
+                      "la responsabilité éditoriale.",
+        "chez_nous": "Le §1 est tenu sur l'assistant, dès la première "
+                     "interaction. Le §3 est sans objet : aucune reconnaissance "
+                     "d'émotions, aucune catégorisation biométrique, aucune "
+                     "donnée biométrique traitée. Le §4 est sans objet : ni "
+                     "image, ni son, ni vidéo, et les textes publiés le sont "
+                     "sous responsabilité éditoriale après relecture humaine.",
+    },
+    {
+        "role": "Obligations contractuelles et de confidentialité",
+        "qui": "Les parties au contrat — et elles seules.",
+        "ref": "Hors IA Act : contrat de prestation, engagement de "
+               "confidentialité, politique fournisseurs du client",
+        "dit": "Un engagement de confidentialité, la politique fournisseurs du "
+               "client, une clause du marché ou, selon les circonstances, "
+               "l'exécution de bonne foi du contrat peuvent conduire à devoir "
+               "informer le cocontractant de l'usage d'une IA — voire à "
+               "l'interdire.",
+        "ne_dit_pas": "Rien de général. Cela ne se déduit pas de l'IA Act et ne "
+                      "se présume pas : cela se vérifie CONTRAT PAR CONTRAT, "
+                      "avant la première ligne écrite avec un modèle.",
+        "chez_nous": "C'est cette troisième catégorie, et non l'art. 50, qui "
+                     "décide en pratique de ce qu'un livrable doit dire. La "
+                     "mention d'assistance portée par défaut sur nos brouillons "
+                     "est un engagement de la maison, pas l'exécution d'une "
+                     "obligation légale.",
+    },
+]
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Transparence IA effectivement en place — art. 50
 # ═══════════════════════════════════════════════════════════════════════════
 ART50 = [
@@ -281,19 +363,31 @@ ART50 = [
                   "un interlocuteur humain.",
     },
     {
-        "mesure": "Marquage des contenus générés, lisible par un humain",
-        "ref": "art. 50.2", "statut": "en place",
-        "detail": "Chaque document exporté porte en clair la mention d'assistance par IA et le "
-                  "statut « brouillon à relire et valider » ; les analyses juridiques affichent "
-                  "la mention de l'art. 50 sous chaque résultat.",
+        "mesure": "Mention visible d'assistance par IA sur les documents",
+        "ref": "engagement CONSEILPREV — hors art. 50", "statut": "en place",
+        "detail": "Deux choses distinctes, et une seule relève d'une obligation. Le STATUT — "
+                  "« brouillon, à relire et valider » — figure sur tout document non visé : "
+                  "c'est une nécessité professionnelle, sans rapport avec l'IA Act, et elle "
+                  "vaut aussi pour les documents calculés sans modèle. La MENTION D'ASSISTANCE "
+                  "PAR IA, elle, est portée par défaut sur les documents qu'un modèle a rédigés "
+                  "— mais l'art. 50 ne l'impose pas au déployeur : c'est un engagement de la "
+                  "maison, que le contrat du client peut renforcer ou écarter.",
+        "limite": "Aucune obligation générale d'indiquer qu'un contenu a été produit avec une "
+                  "IA ne pèse sur le déployeur : voir le bloc des trois obligations.",
     },
     {
         "mesure": "Marquage des contenus générés, lisible par une machine",
         "ref": "art. 50.2", "statut": "en place",
-        "detail": "Les documents Word et PDF exportés portent dans leurs PROPRIÉTÉS un marquage "
-                  "exploitable automatiquement : mention « AI-generated », outil producteur, "
-                  "modèle utilisé et référence au règlement. Le marquage survit à la copie du "
-                  "fichier, contrairement à une mention de bas de page.",
+        "detail": "Obligation du FOURNISSEUR du système, que CONSEILPREV est pour son propre "
+                  "générateur. Les documents Word et PDF rédigés par un modèle portent dans "
+                  "leurs PROPRIÉTÉS un marquage exploitable automatiquement : mention "
+                  "« AI-generated », outil producteur, modèle utilisé et référence au règlement. "
+                  "Le marquage survit à la copie du fichier, contrairement à une mention de bas "
+                  "de page.",
+        "limite": "Il n'est PAS apposé sur les documents produits par calcul déterministe — "
+                  "checklist, auto-évaluation de maturité, bilan de décarbonation : leurs "
+                  "propriétés déclarent le moteur et son référentiel. Un marquage apposé "
+                  "partout ne signale plus rien.",
     },
     {
         "mesure": "Supervision humaine — aucune décision automatisée",
@@ -463,6 +557,7 @@ def etat():
         "registre": REGISTRE,
         "sous_traitants": SOUS_TRAITANTS,
         "classification": CLASSIFICATION,
+        "transparence_ia": TRANSPARENCE_IA,
         "art50": ART50,
         "mesures": MESURES_RGPD,
         "droits": DROITS,
