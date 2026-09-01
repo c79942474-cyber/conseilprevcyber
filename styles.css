@@ -21,15 +21,27 @@
      Celui-ci est le bleu d'une encre sur papier couché : sourd, désaturé,
      minoritaire — la marque reste terracotta, le bleu est l'accent.
 
-     LES ALPHAS SONT CALCULÉS, PAS CHOISIS À L'ŒIL. Un halo posé sur la partie
-     la plus claire du dégradé éclaircit le fond et fait chuter le contraste du
-     texte. Mesuré : aux valeurs d'origine (.30/.28/.24), le texte `--muted` sur
-     le pire composite tombait à 3,02:1 sur le corps et 2,56:1 sur l'accueil —
-     déjà sous l'AA, avant toute modification. Aux valeurs ci-dessous il remonte
-     à 3,33 et 2,76. `tests/test_atmosphere.py` le recalcule et interdit de
-     redescendre. Le reste de l'écart tient aux teintes claires du dégradé
-     lui-même, pas aux halos : voir la note de ce fichier de règles. */
-  --blob-terre:rgba(255,185,120,.18); --blob-bleu:rgba(62,108,146,.18); --blob-brique:rgba(214,64,40,.16);
+     CES TEINTES SONT ISO-LUMINANTES, ET C'EST TOUT L'ARBITRAGE. Le contraste
+     du texte ne souffre pas de la COULEUR d'un halo mais de sa CLARTÉ : un halo
+     qui éclaircit le fond fait chuter le rapport. En choisissant des teintes de
+     luminance proche de celle du fond, la chroma devient gratuite — on peut donc
+     monter les alphas, et la couleur se voit enfin.
+
+     Mesuré (ΔE CIE-Lab sur le fond dominant #6E2A18) :
+       · première version, alphas rabaissés : terre 10,6 · bleu 15,1 — et une
+         fluctuation d'opacité de 1,8 à 3,9, soit sous le seuil de perception.
+         C'était plus discret QU'AVANT ma modification (l'ocre était à 17,7).
+       · ici : terre 11,7 · bleu 23,9 · brique 7,9, fluctuation 3,5 à 10,6.
+       · bleu ardoise rgb(28,64,102) : luminance 0,049 contre 0,050 pour le
+         fond. Invisible en clarté, franc en chroma.
+
+     Et le contraste MONTE encore : 3,45 / 2,98 / 3,05 contre 3,33 / 2,76 / 2,85
+     à la version précédente et 3,02 / 2,56 / 2,64 à l'origine.
+     `tests/test_atmosphere.py` recalcule tout cela et interdit de redescendre.
+
+     LA BRIQUE RESTERA LA PLUS DISCRÈTE, et c'est inévitable : c'est un rouge
+     sur un rouge. Son rôle est de densifier, pas de trancher. */
+  --blob-terre:rgba(196,100,40,.32); --blob-bleu:rgba(28,64,102,.32); --blob-brique:rgba(158,44,26,.34);
   --mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
   --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   --maxw:1080px;
@@ -52,33 +64,50 @@ body{
   background-attachment:fixed;
 }
 
-/* ── Blobs pastel flottants (ocre orangé · turquoise · rouge ocré) ─────────────
-   Dérive très lente sous le contenu, phases décalées : la scène change au fil
-   de la navigation. Purs pseudo-éléments — aucune balise à ajouter aux pages. */
+/* ── Halos flottants (terre · bleu ardoise · brique) ──────────────────────────
+   Dérive lente sous le contenu, phases décalées : la scène change au fil de la
+   navigation. Purs pseudo-éléments — aucune balise à ajouter aux pages.
+
+   LE RYTHME EST UNE GRANDEUR, PAS UN GOÛT. À 90-115 s par cycle, l'écart
+   perceptuel avancait de 0,2 ΔE par seconde : l'œil s'adapte au fur et à mesure
+   et n'enregistre rien. Une dérive qu'on ne peut pas voir n'est pas subtile,
+   elle est absente. Les cycles sont ramenés autour de quarante secondes —
+   37, 43, 41, TROIS NOMBRES PREMIERS. Une première rédaction avait écrit
+   « premiers entre eux » sous 38 et 44, qui partagent un diviseur : la scène
+   serait revenue périodiquement dans la même configuration. Une règle le
+   vérifie plutôt que de le croire. */
 html::before, body::before, body::after{
   content:"";position:fixed;z-index:-1;pointer-events:none;border-radius:50%;
   width:58vmax;height:58vmax;filter:blur(90px);will-change:transform;
 }
-body::before{ /* terre ocrée — part du haut gauche, balaye vers la droite */
+body::before{ /* terre — part du haut gauche, balaye vers la droite */
   left:-20vmax;top:-16vmax;
   background:radial-gradient(circle at 38% 38%, var(--blob-terre), transparent 62%);
-  animation:blobA 90s ease-in-out infinite alternate;
+  animation:blobA 37s ease-in-out infinite alternate;
 }
-body::after{ /* bleu encré — descend le long du bord droit */
+body::after{ /* bleu ardoise — descend le long du bord droit */
   right:-22vmax;top:16vh;
   background:radial-gradient(circle at 58% 42%, var(--blob-bleu), transparent 62%);
-  animation:blobB 115s ease-in-out infinite alternate;animation-delay:-40s;
+  animation:blobB 43s ease-in-out infinite alternate;animation-delay:-17s;
 }
 html::before{ /* brique — remonte depuis le bas */
   left:26vw;bottom:-26vmax;
   background:radial-gradient(circle at 50% 50%, var(--blob-brique), transparent 60%);
-  animation:blobC 100s ease-in-out infinite alternate;animation-delay:-65s;
+  animation:blobC 41s ease-in-out infinite alternate;animation-delay:-29s;
 }
 /* ── LA COULEUR FLUCTUE, PAS SEULEMENT LA POSITION ────────────────────────
    Les trois trajets ne faisaient que translater : la scène se déplaçait, ses
-   teintes ne bougeaient jamais. Chaque étape porte désormais une opacité et
-   une légère rotation de teinte, sur des durées premières entre elles (90,
-   115, 100 s) pour que la combinaison ne se répète pas à l'œil.
+   teintes ne bougeaient jamais.
+
+   PREMIÈRE VERSION : SYMBOLIQUE. L'excursion d'opacité allait de .74 à 1, ce
+   qui, sur une couche à faible alpha, donnait un écart de 1,8 à 3,9 ΔE entre
+   les deux extrêmes — au seuil de perception sur une frontière nette, très en
+   dessous sur un dégradé de 58vmax flouté à 90 px. La règle qui vérifiait que
+   `opacity` FIGURE dans les images-clés était verte, et l'effet invisible.
+   Elle mesure désormais l'écart, pas la présence.
+
+   ICI : l'excursion va de .55 à 1 et la rotation de teinte à ±14°, ce qui porte
+   l'écart entre extrêmes à 3,5 (brique) · 5,2 (terre) · 10,6 (bleu).
 
    ET CHAQUE TRAJET EST BIDIRECTIONNEL : il passe par un extrême horizontal ET
    par un extrême vertical. Les anciennes courbes étaient des diagonales, ce
@@ -88,22 +117,22 @@ html::before{ /* brique — remonte depuis le bas */
    poserait que `hue-rotate()` remplacerait la propriété entière : le flou de
    90 px disparaîtrait et l'on verrait trois disques nets. */
 @keyframes blobA{
-  0%  {transform:translate(0,0) scale(1);          opacity:.80; filter:blur(90px) hue-rotate(-8deg)}
-  35% {transform:translate(34vw,3vh) scale(1.10);  opacity:1;   filter:blur(90px) hue-rotate(3deg)}
-  70% {transform:translate(16vw,26vh) scale(1.18); opacity:.86; filter:blur(90px) hue-rotate(10deg)}
-  100%{transform:translate(52vw,11vh) scale(.96);  opacity:.94; filter:blur(90px) hue-rotate(-3deg)}
+  0%  {transform:translate(0,0) scale(1);          opacity:.55; filter:blur(90px) hue-rotate(-14deg)}
+  35% {transform:translate(34vw,3vh) scale(1.10);  opacity:1;   filter:blur(90px) hue-rotate(4deg)}
+  70% {transform:translate(16vw,26vh) scale(1.18); opacity:.68; filter:blur(90px) hue-rotate(14deg)}
+  100%{transform:translate(52vw,11vh) scale(.96);  opacity:.88; filter:blur(90px) hue-rotate(-5deg)}
 }
 @keyframes blobB{
-  0%  {transform:translate(0,0) scale(1);           opacity:.86; filter:blur(90px) hue-rotate(6deg)}
-  30% {transform:translate(-8vw,34vh) scale(1.08);  opacity:1;   filter:blur(90px) hue-rotate(-5deg)}
-  65% {transform:translate(-36vw,18vh) scale(1.14); opacity:.78; filter:blur(90px) hue-rotate(9deg)}
-  100%{transform:translate(-14vw,44vh) scale(1.20); opacity:.92; filter:blur(90px) hue-rotate(-2deg)}
+  0%  {transform:translate(0,0) scale(1);           opacity:.62; filter:blur(90px) hue-rotate(10deg)}
+  30% {transform:translate(-8vw,34vh) scale(1.08);  opacity:1;   filter:blur(90px) hue-rotate(-8deg)}
+  65% {transform:translate(-36vw,18vh) scale(1.14); opacity:.55; filter:blur(90px) hue-rotate(14deg)}
+  100%{transform:translate(-14vw,44vh) scale(1.20); opacity:.86; filter:blur(90px) hue-rotate(-3deg)}
 }
 @keyframes blobC{
-  0%  {transform:translate(0,0) scale(1);            opacity:.88; filter:blur(90px) hue-rotate(4deg)}
-  40% {transform:translate(-26vw,-6vh) scale(1.12);  opacity:.74; filter:blur(90px) hue-rotate(-7deg)}
-  75% {transform:translate(-6vw,-30vh) scale(1.16);  opacity:1;   filter:blur(90px) hue-rotate(8deg)}
-  100%{transform:translate(26vw,-14vh) scale(1);     opacity:.90; filter:blur(90px) hue-rotate(-4deg)}
+  0%  {transform:translate(0,0) scale(1);            opacity:.72; filter:blur(90px) hue-rotate(6deg)}
+  40% {transform:translate(-26vw,-6vh) scale(1.12);  opacity:.55; filter:blur(90px) hue-rotate(-12deg)}
+  75% {transform:translate(-6vw,-30vh) scale(1.16);  opacity:1;   filter:blur(90px) hue-rotate(13deg)}
+  100%{transform:translate(26vw,-14vh) scale(1);     opacity:.82; filter:blur(90px) hue-rotate(-6deg)}
 }
 
 /* ── LE PAPIER COUCHÉ : une surface satinée par-dessus les halos ──────────
@@ -121,16 +150,16 @@ html::before{ /* brique — remonte depuis le bas */
 html::after{
   content:"";position:fixed;inset:-12vmax;z-index:-1;pointer-events:none;
   background-image:
-    radial-gradient(120vmax 78vmax at 20% -6%, rgba(255,248,240,.024), transparent 62%),
-    radial-gradient(90vmax 60vmax at 86% 96%, rgba(255,244,232,.016), transparent 60%),
-    repeating-linear-gradient(45deg, rgba(255,246,236,.008) 0 1px, transparent 1px 3px);
-  animation:satine 140s ease-in-out infinite alternate;
+    radial-gradient(120vmax 78vmax at 20% -6%, rgba(255,248,240,.045), transparent 62%),
+    radial-gradient(90vmax 60vmax at 86% 96%, rgba(255,244,232,.028), transparent 60%),
+    repeating-linear-gradient(45deg, rgba(255,246,236,.012) 0 1px, transparent 1px 3px);
+  animation:satine 60s ease-in-out infinite alternate;
   will-change:transform;
 }
 @keyframes satine{
-  0%  {transform:translate(0,0);      opacity:.82}
+  0%  {transform:translate(0,0);      opacity:.70}
   50% {transform:translate(5vw,4vh);  opacity:1}
-  100%{transform:translate(-4vw,6vh); opacity:.90}
+  100%{transform:translate(-4vw,6vh); opacity:.84}
 }
 @media (prefers-reduced-motion: reduce){
   /* LE SATINÉ EN FAIT PARTIE. Le bloc ne nommait que les trois halos ; un
@@ -960,9 +989,9 @@ body[data-fond="couchant"]{
 body[data-fond="couchant"]{
   /* LES TROIS, TOUJOURS. Une variante qui en oublierait une retomberait sur la
      valeur de base — en silence, et avec la mauvaise couleur. */
-  --blob-terre:rgba(255,196,124,.17);
-  --blob-bleu:rgba(74,116,148,.17);   /* le bleu du couchant : plus chaud, plus bas */
-  --blob-brique:rgba(206,58,34,.16);
+  --blob-terre:rgba(206,116,52,.30);
+  --blob-bleu:rgba(38,74,110,.30);   /* le bleu du couchant : plus chaud, plus bas */
+  --blob-brique:rgba(150,40,24,.32);
 }
 
 /* ══════════════════════════════════════════════════════════════════════
