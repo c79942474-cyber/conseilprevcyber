@@ -11,8 +11,25 @@
   /* Rouge lisible pour le TEXTE d'erreur/statut (contraste AA ; --terra reste
      réservé aux accents décoratifs : bordures, dégradés, fonds). */
   --danger:#F79E7D;
-  /* Blobs flottants — brique rouge & orange clair. */
-  --blob-ocre:rgba(255,185,120,.30); --blob-turquoise:rgba(255,140,80,.24); --blob-rouge:rgba(214,64,40,.28);
+  /* Blobs flottants — deux terres et un bleu encré.
+     LE NOM DIT LA COULEUR, ET IL NE LA DISAIT PAS. « --blob-turquoise »
+     contenait rgba(255,140,80) : de l'orange. Un nom qui annonce autre chose
+     que sa valeur vaut moins que pas de nom — on lit le nom, on ne recalcule
+     pas la teinte. Une règle compare désormais les deux.
+     LE BLEU EST ENCRÉ, PAS CYAN. --cyan et --teal sont réservés aux liens et
+     au texte dégradé ; posés en aplat sur la brique ils donneraient du néon.
+     Celui-ci est le bleu d'une encre sur papier couché : sourd, désaturé,
+     minoritaire — la marque reste terracotta, le bleu est l'accent.
+
+     LES ALPHAS SONT CALCULÉS, PAS CHOISIS À L'ŒIL. Un halo posé sur la partie
+     la plus claire du dégradé éclaircit le fond et fait chuter le contraste du
+     texte. Mesuré : aux valeurs d'origine (.30/.28/.24), le texte `--muted` sur
+     le pire composite tombait à 3,02:1 sur le corps et 2,56:1 sur l'accueil —
+     déjà sous l'AA, avant toute modification. Aux valeurs ci-dessous il remonte
+     à 3,33 et 2,76. `tests/test_atmosphere.py` le recalcule et interdit de
+     redescendre. Le reste de l'écart tient aux teintes claires du dégradé
+     lui-même, pas aux halos : voir la note de ce fichier de règles. */
+  --blob-terre:rgba(255,185,120,.18); --blob-bleu:rgba(62,108,146,.18); --blob-brique:rgba(214,64,40,.16);
   --mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
   --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   --maxw:1080px;
@@ -27,8 +44,10 @@ body{
     radial-gradient(1160px 740px at -6% 108%, rgba(255,120,58,.38), transparent 62%),
     radial-gradient(860px 580px at 106% 84%, rgba(255,158,88,.24), transparent 60%),
     linear-gradient(168deg, #5C2415 0%, #6E2A18 32%, #83321C 62%, #92381F 86%, #9C3C20 100%),
-    linear-gradient(rgba(168,104,68,.24) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(168,104,68,.24) 1px, transparent 1px);
+    /* La grille recule derrière le satiné : elle reste un repère d'ingénierie,
+       elle cesse d'être du papier millimétré. */
+    linear-gradient(rgba(168,104,68,.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(168,104,68,.09) 1px, transparent 1px);
   background-size:auto,auto,auto,auto,44px 44px,44px 44px;
   background-attachment:fixed;
 }
@@ -40,41 +59,86 @@ html::before, body::before, body::after{
   content:"";position:fixed;z-index:-1;pointer-events:none;border-radius:50%;
   width:58vmax;height:58vmax;filter:blur(90px);will-change:transform;
 }
-body::before{ /* ocre orangé — part du haut gauche, balaye vers la droite */
+body::before{ /* terre ocrée — part du haut gauche, balaye vers la droite */
   left:-20vmax;top:-16vmax;
-  background:radial-gradient(circle at 38% 38%, var(--blob-ocre), transparent 62%);
+  background:radial-gradient(circle at 38% 38%, var(--blob-terre), transparent 62%);
   animation:blobA 90s ease-in-out infinite alternate;
 }
-body::after{ /* turquoise pastel — descend le long du bord droit */
+body::after{ /* bleu encré — descend le long du bord droit */
   right:-22vmax;top:16vh;
-  background:radial-gradient(circle at 58% 42%, var(--blob-turquoise), transparent 62%);
+  background:radial-gradient(circle at 58% 42%, var(--blob-bleu), transparent 62%);
   animation:blobB 115s ease-in-out infinite alternate;animation-delay:-40s;
 }
-html::before{ /* rouge légèrement ocré — remonte depuis le bas */
+html::before{ /* brique — remonte depuis le bas */
   left:26vw;bottom:-26vmax;
-  background:radial-gradient(circle at 50% 50%, var(--blob-rouge), transparent 60%);
+  background:radial-gradient(circle at 50% 50%, var(--blob-brique), transparent 60%);
   animation:blobC 100s ease-in-out infinite alternate;animation-delay:-65s;
 }
+/* ── LA COULEUR FLUCTUE, PAS SEULEMENT LA POSITION ────────────────────────
+   Les trois trajets ne faisaient que translater : la scène se déplaçait, ses
+   teintes ne bougeaient jamais. Chaque étape porte désormais une opacité et
+   une légère rotation de teinte, sur des durées premières entre elles (90,
+   115, 100 s) pour que la combinaison ne se répète pas à l'œil.
+
+   ET CHAQUE TRAJET EST BIDIRECTIONNEL : il passe par un extrême horizontal ET
+   par un extrême vertical. Les anciennes courbes étaient des diagonales, ce
+   qui donnait trois glissements parallèles plutôt qu'une dérive.
+
+   `filter` EST RÉPÉTÉ À CHAQUE ÉTAPE, blur compris. Une animation qui ne
+   poserait que `hue-rotate()` remplacerait la propriété entière : le flou de
+   90 px disparaîtrait et l'on verrait trois disques nets. */
 @keyframes blobA{
-  0%{transform:translate(0,0) scale(1)}
-  50%{transform:translate(30vw,14vh) scale(1.18)}
-  100%{transform:translate(56vw,4vh) scale(.94)}
+  0%  {transform:translate(0,0) scale(1);          opacity:.80; filter:blur(90px) hue-rotate(-8deg)}
+  35% {transform:translate(34vw,3vh) scale(1.10);  opacity:1;   filter:blur(90px) hue-rotate(3deg)}
+  70% {transform:translate(16vw,26vh) scale(1.18); opacity:.86; filter:blur(90px) hue-rotate(10deg)}
+  100%{transform:translate(52vw,11vh) scale(.96);  opacity:.94; filter:blur(90px) hue-rotate(-3deg)}
 }
 @keyframes blobB{
-  0%{transform:translate(0,0) scale(1)}
-  50%{transform:translate(-34vw,20vh) scale(1.12)}
-  100%{transform:translate(-10vw,42vh) scale(1.22)}
+  0%  {transform:translate(0,0) scale(1);           opacity:.86; filter:blur(90px) hue-rotate(6deg)}
+  30% {transform:translate(-8vw,34vh) scale(1.08);  opacity:1;   filter:blur(90px) hue-rotate(-5deg)}
+  65% {transform:translate(-36vw,18vh) scale(1.14); opacity:.78; filter:blur(90px) hue-rotate(9deg)}
+  100%{transform:translate(-14vw,44vh) scale(1.20); opacity:.92; filter:blur(90px) hue-rotate(-2deg)}
 }
 @keyframes blobC{
-  0%{transform:translate(0,0) scale(1)}
-  50%{transform:translate(-20vw,-18vh) scale(1.14)}
-  100%{transform:translate(24vw,-8vh) scale(1)}
+  0%  {transform:translate(0,0) scale(1);            opacity:.88; filter:blur(90px) hue-rotate(4deg)}
+  40% {transform:translate(-26vw,-6vh) scale(1.12);  opacity:.74; filter:blur(90px) hue-rotate(-7deg)}
+  75% {transform:translate(-6vw,-30vh) scale(1.16);  opacity:1;   filter:blur(90px) hue-rotate(8deg)}
+  100%{transform:translate(26vw,-14vh) scale(1);     opacity:.90; filter:blur(90px) hue-rotate(-4deg)}
+}
+
+/* ── LE PAPIER COUCHÉ : une surface satinée par-dessus les halos ──────────
+   Un couché n'est pas un aplat mat : il porte un reflet large et très doux, et
+   un grain fin. Les deux couches tiennent sur UN pseudo-élément.
+
+   ET IL EST POSÉ SUR `html::after`, PAS SUR LE FOND DU CORPS. Six pages du
+   site — dont l'accueil — redéclarent `body{background-image}` EN ENTIER :
+   une couche ajoutée là y disparaîtrait sans un mot, à commencer par la page
+   pour laquelle ce satiné a été demandé. `html::after` était le seul
+   pseudo-élément racine encore libre, les trois autres portant les halos.
+
+   Il déborde de 12vmax de tous côtés : il dérive, et un `inset:0` laisserait
+   voir un bord nu au bout de la course. */
+html::after{
+  content:"";position:fixed;inset:-12vmax;z-index:-1;pointer-events:none;
+  background-image:
+    radial-gradient(120vmax 78vmax at 20% -6%, rgba(255,248,240,.024), transparent 62%),
+    radial-gradient(90vmax 60vmax at 86% 96%, rgba(255,244,232,.016), transparent 60%),
+    repeating-linear-gradient(45deg, rgba(255,246,236,.008) 0 1px, transparent 1px 3px);
+  animation:satine 140s ease-in-out infinite alternate;
+  will-change:transform;
+}
+@keyframes satine{
+  0%  {transform:translate(0,0);      opacity:.82}
+  50% {transform:translate(5vw,4vh);  opacity:1}
+  100%{transform:translate(-4vw,6vh); opacity:.90}
 }
 @media (prefers-reduced-motion: reduce){
-  html::before,body::before,body::after{animation:none}
+  /* LE SATINÉ EN FAIT PARTIE. Le bloc ne nommait que les trois halos ; un
+     quatrième élément animé lui aurait échappé en silence. */
+  html::before,html::after,body::before,body::after{animation:none}
 }
 @media print{
-  html::before,body::before,body::after{display:none}
+  html::before,html::after,body::before,body::after{display:none}
 }
 a{color:var(--cyan);text-decoration:none}
 .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
@@ -885,16 +949,20 @@ body[data-fond="couchant"]{
       #82311B 72%,
       #712B18 88%,
       #6E2A18 100%),
-    linear-gradient(rgba(168,104,68,.24) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(168,104,68,.24) 1px, transparent 1px);
+    /* La grille recule ici aussi : deux exemplaires qui divergent, c'est celui
+       qu'on oublie qui reste — la règle les compte tous les deux. */
+    linear-gradient(rgba(168,104,68,.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(168,104,68,.09) 1px, transparent 1px);
 }
 /* Les halos flottants reprennent les tons du couchant. Ils dérivent déjà
    lentement : c'est la seule chose de cette page qui bouge, et elle vient du
    thème d'origine — on n'en ajoute pas. */
 body[data-fond="couchant"]{
-  --blob-ocre:rgba(255,196,124,.28);
-  --blob-turquoise:rgba(255,132,68,.26);
-  --blob-rouge:rgba(206,58,34,.30);
+  /* LES TROIS, TOUJOURS. Une variante qui en oublierait une retomberait sur la
+     valeur de base — en silence, et avec la mauvaise couleur. */
+  --blob-terre:rgba(255,196,124,.17);
+  --blob-bleu:rgba(74,116,148,.17);   /* le bleu du couchant : plus chaud, plus bas */
+  --blob-brique:rgba(206,58,34,.16);
 }
 
 /* ══════════════════════════════════════════════════════════════════════

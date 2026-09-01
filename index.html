@@ -61,19 +61,32 @@
      ciel ambré lumineux en haut, nuée de fumée sombre qui balaie depuis la
      gauche, sable et mer dorés en bas. Reprend la famille chaude de la marque
      en accentuant les nuances de la scène. Le cœur, derrière le titre, reste
-     volontairement assombri → le texte crème garde un contraste élevé (AA). */
+     volontairement assombri → le texte crème garde un contraste élevé (AA),
+     et une règle le CALCULE désormais au lieu de le promettre.
+
+     UNE NUÉE FROIDE RÉPOND AUX HALOS. L'atmosphère du site porte maintenant un
+     bleu encré ; sans écho ici, la page d'accueil serait la seule à ne pas le
+     dire. Le voile bleu est posé HAUT et à faible opacité : il refroidit le
+     ciel sans toucher au cœur assombri derrière le titre, qui est ce qui tient
+     la lisibilité.
+
+     CE BLOC ÉCRASE `background-image` EN ENTIER. C'est pourquoi le satiné du
+     papier couché n'est pas ici mais sur `html::after` : posé dans le fond du
+     corps, il aurait disparu de cette page précisément. */
   body{
     background-image:
       radial-gradient(720px 400px at 82% -6%, rgba(250,214,120,.62), transparent 62%),    /* soleil vif — haut droite */
+      radial-gradient(1180px 420px at 24% -14%, rgba(62,108,146,.30), transparent 62%),    /* nuée froide — écho du bleu encré */
       radial-gradient(1600px 520px at 58% -20%, rgba(242,168,74,.46), transparent 60%),    /* large voile de ciel ambré */
       radial-gradient(900px 520px at 10% -8%, rgba(236,140,58,.36), transparent 60%),      /* ciel embrasé — haut gauche */
       radial-gradient(1250px 820px at 2% 46%, rgba(20,15,12,.60), transparent 66%),         /* nuée de fumée — gauche */
       radial-gradient(1320px 640px at 52% 20%, rgba(22,16,13,.46), transparent 60%),        /* voile sombre derrière le héros */
+      radial-gradient(980px 460px at 92% 74%, rgba(54,94,130,.22), transparent 62%),        /* rappel froid, bas droite */
       radial-gradient(1240px 560px at 50% 118%, rgba(238,176,88,.46), transparent 66%),     /* horizon doré — sable & mer */
       linear-gradient(178deg,#A85220 0%,#883E1C 22%,#6E2A18 52%,#79391F 80%,#985B2C 100%),
-      linear-gradient(rgba(168,104,68,.18) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(168,104,68,.18) 1px, transparent 1px);
-    background-size:auto,auto,auto,auto,auto,auto,auto,44px 44px,44px 44px;
+      linear-gradient(rgba(168,104,68,.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(168,104,68,.07) 1px, transparent 1px);
+    background-size:auto,auto,auto,auto,auto,auto,auto,auto,auto,44px 44px,44px 44px;
   }
 </style>
 <!-- Préchargement en tâche de fond des destinations les plus cliquées depuis
