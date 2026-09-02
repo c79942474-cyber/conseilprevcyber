@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Obtenir un accès — CONSEILPREV Cyber</title>
-<meta name="description" content="Ce qu'ouvre un compte CONSEILPREV Cyber, ce qu'il coûte, et les deux façons de l'obtenir : validation par notre équipe, ou règlement en ligne pour une ouverture immédiate.">
+<meta name="description" content="Ce qu'ouvre un compte CONSEILPREV Cyber, ce qu'il coûte, et comment l'obtenir : règlement en ligne, accès ouvert dès la confirmation du paiement.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="CONSEILPREV Cyber">
 <meta property="og:locale" content="fr_FR">
@@ -97,16 +97,9 @@
     </section>
 
     <section class="section">
-      <div class="prose"><h2>Deux façons de l'obtenir</h2>
-      <p class="muted">Le compte est le même dans les deux cas : ce qui change, c'est le délai.</p></div>
+      <div class="prose"><h2>Comment l'obtenir</h2>
+      <p class="muted">L'accès s'achète, et il s'ouvre seul dès le paiement confirmé.</p></div>
       <div class="ac-grid">
-        <div class="ac-card">
-          <span class="ac-tag">Sous 1 à 2 jours ouvrés</span>
-          <h3 style="margin-top:10px">Validation par notre équipe</h3>
-          <p>Vous créez un compte, vous confirmez votre adresse, nous validons. C'est la voie
-          habituelle, et elle ne coûte rien : nous regardons qui demande avant d'accorder.</p>
-          <div class="actions"><a href="/inscription" class="btn btn-s">Créer un compte</a></div>
-        </div>
         <!-- MASQUÉE TANT QUE LE PAIEMENT N'EST PAS CONFIGURÉ. Annoncer une
              ouverture immédiate qui n'existe pas sur ce serveur serait la même
              faute que la page d'accueil corrigée avec elle. -->
@@ -114,9 +107,26 @@
           <span class="ac-tag now">Immédiat</span>
           <h3 style="margin-top:10px">Règlement en ligne</h3>
           <div class="ac-prix" id="acPrix">—<small id="acPrixNote">une fois, sans reconduction</small></div>
-          <p>Votre accès s'ouvre dès le paiement confirmé, sans attendre notre validation.
-          Le paiement est traité par Stripe ; nous ne voyons jamais votre numéro de carte.</p>
+          <p>Vous créez un compte, vous confirmez votre adresse, vous réglez : l'accès s'ouvre
+          dès la confirmation du paiement, sans intervention de notre part. Le paiement est
+          traité par Stripe ; nous ne voyons jamais votre numéro de carte.</p>
           <div class="actions"><a href="#acRegler" class="btn btn-p">Régler maintenant</a></div>
+        </div>
+        <!-- CETTE CARTE A CHANGÉ DE NATURE, ET C'EST VOULU. Elle annonçait
+             « la voie habituelle, et elle ne coûte rien », placée en premier :
+             plus personne n'avait de raison de payer, et le courriel qui
+             ouvrait gratuitement partait à la seconde de la confirmation, si
+             bien que la caisse se refermait avant d'avoir servi. Un accès
+             offert reste possible — il se demande, il ne se produit plus tout
+             seul. NE PAS LA REMETTRE EN PREMIER SANS DÉCIDER DE REVENDRE À
+             ZÉRO : c'est l'ordre, ici, qui fait le modèle économique. -->
+        <div class="ac-card">
+          <span class="ac-tag">Sur demande</span>
+          <h3 style="margin-top:10px">Accès accordé</h3>
+          <p>Démonstration, presse, mission en cours : nous ouvrons parfois un accès sans
+          paiement. Ce n'est pas la voie normale et cela se demande —
+          <a href="mailto:christophe.cerf@outlook.com">écrivez-nous</a> en disant à quel titre.</p>
+          <div class="actions"><a href="/inscription" class="btn btn-s">Créer un compte</a></div>
         </div>
       </div>
     </section>

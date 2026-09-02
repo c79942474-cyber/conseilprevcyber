@@ -9496,6 +9496,28 @@ def api_paiement_etat():
                    tarif=paiement.tarif())
 
 
+@app.route("/api/paiement/adresse-confirmee")
+def api_paiement_adresse_confirmee():
+    """L'adresse que CET appelant a confirmée, pour préremplir la caisse.
+
+    POURQUOI UNE ROUTE À PART plutôt qu'un champ de plus dans `/etat` : cette
+    réponse dépend de la session, l'autre non. Les mêler ferait d'une réponse
+    publique et mise en cache une réponse personnelle — et un cache partagé
+    servirait l'adresse d'un visiteur au suivant.
+
+    ELLE NE RÉVÈLE RIEN : elle rend ce que l'appelant a lui-même prouvé en
+    ouvrant le lien reçu dans sa boîte. Sans cela il devait retaper son adresse
+    sur la page atteinte à la seconde même où il venait de cliquer dessus.
+    """
+    import auth as _auth
+    rep = jsonify(ok=True, email=_auth.adresse_confirmee())
+    # PAS DE MISE EN CACHE. Le préfixe /api/paiement/ n'est pas couvert par la
+    # règle globale, qui ne vise que /api/admin/ et /api/auth/ : l'écrire ici
+    # est le seul moyen d'être sûr.
+    rep.headers["Cache-Control"] = "private, no-store"
+    return rep
+
+
 @app.route("/api/paiement/checkout", methods=["POST"])
 def api_paiement_checkout():
     """Ouvre une caisse Stripe pour un compte confirmé mais pas encore ouvert.
@@ -9523,6 +9545,30 @@ def api_paiement_checkout():
     # « non confirmé » et « déjà ouvert » ferait de cette adresse un moyen de
     # savoir qui a un compte ici, sans en avoir un soi-même.
     if not _auth.payable(email):
+        # LE FLOU EST JUSTE POUR UN INCONNU, ET SEULEMENT POUR LUI. Un message
+        # distinct par cas ferait de cette adresse un moyen de savoir qui a un
+        # compte ici. Mais celui qui a ouvert le lien reçu dans sa boîte a
+        # PROUVÉ l'adresse : lui répondre en aveugle ne protège plus personne
+        # et cache la seule chose utile. C'est ce qui s'est produit — un compte
+        # déjà ouvert gratuitement s'est vu répondre « cette adresse ne peut
+        # pas ouvrir de paiement », exact et illisible.
+        if _auth.adresse_confirmee() == email:
+            motif = _auth.motif_non_payable(email)
+            if motif == _auth.MOTIF_DEJA_OUVERT:
+                return jsonify(ok=False, error="acces_deja_ouvert",
+                               message="Votre accès est déjà ouvert : il n'y a "
+                                       "rien à payer. Connectez-vous avec votre "
+                                       "adresse et votre mot de passe."), 400
+            if motif == _auth.MOTIF_NON_CONFIRMEE:
+                return jsonify(ok=False, error="adresse_non_confirmee",
+                               message="Votre adresse n'est pas confirmée. "
+                                       "Ouvrez le lien reçu par courriel, puis "
+                                       "revenez régler."), 400
+            if motif == _auth.MOTIF_INCONNUE:
+                return jsonify(ok=False, error="compte_absent",
+                               message="Aucun compte ne porte cette adresse. "
+                                       "Créez-en un, puis confirmez l'adresse "
+                                       "avant de régler."), 400
         return jsonify(ok=False, error="compte_non_eligible",
                        message="Cette adresse ne peut pas ouvrir de paiement. "
                                "Vérifiez d'avoir confirmé votre adresse, ou "

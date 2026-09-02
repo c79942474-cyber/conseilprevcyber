@@ -206,6 +206,16 @@ def test_LE_POINT_QUI_DECIDE_la_chaine_complete_dans_son_ordre(client, courriels
         assert CLIENT in admin["sujet"]
         assert "confirmée" in admin["html"], (
             "le message ne dit pas que l'adresse est prouvée")
+        # LE COURRIEL DIT CE QUE LE CLIC FAIT. Il annonçait « il ne manque que
+        # votre accord pour ouvrir l'accès » — muet sur le seul point qui
+        # engage : le demandeur n'a rien réglé, et le bouton ouvre quand même.
+        # La règle ne cherche pas une phrase mais les DEUX faits qui la
+        # rendent décidable : que rien n'a été payé, et que le geste est
+        # gratuit. Sans eux, l'exploitant clique sans savoir qu'il offre.
+        assert "n'a rien payé" in admin["html"], (
+            "le courriel ne dit pas que le demandeur n'a rien réglé")
+        assert "sans paiement" in admin["html"], (
+            "le courriel ne dit pas que le bouton ouvre gratuitement")
         assert "ACME" in admin["html"] and "Client Recette" in admin["html"]
         jeton = auth.store.get(CLIENT)["approve_token"]
         assert jeton and jeton in admin["html"], "le lien d'approbation manque"
@@ -215,18 +225,35 @@ def test_LE_POINT_QUI_DECIDE_la_chaine_complete_dans_son_ordre(client, courriels
         r = _connexion(client)
         assert r.status_code == 403 and "validation" in r.get_json()["error"]
 
-        # ── 4. L'administrateur approuve.
+        # ── 4. L'exploitant OUVRE GRATUITEMENT. Ce n'est plus « approuver » :
+        #      c'est offrir un accès vendu, et le registre doit pouvoir le
+        #      compter sans lire de la prose.
+        import audit
+        avant = len(audit.lire(limit=500, action="compte.gratuite"))
         r = client.get("/admin/approuver/%s" % jeton)
-        assert r.status_code == 200 and "approuvé" in r.get_data(as_text=True)
+        assert r.status_code == 200
         u = auth.store.get(CLIENT)
         assert u["approved"] is True
         assert u["approve_token"] is None, "le lien d'approbation reste utilisable"
+        # LA RÈGLE PORTE SUR L'ÉTAT ET SUR LA TRACE, PAS SUR UN MOT. Elle
+        # exigeait « approuvé » dans la page : le libellé a changé, la règle
+        # est tombée, et rien de ce qu'elle prétendait garder n'avait bougé.
+        # Une règle qui verrouille un libellé empêche de dire la vérité
+        # suivante.
+        gratuites = audit.lire(limit=500, action="compte.gratuite")
+        assert len(gratuites) == avant + 1, (
+            "l'ouverture gratuite n'est pas tracée comme telle")
+        assert gratuites[0]["cible"] == CLIENT
 
-        # ── 5. Le client est prévenu, à SON adresse.
+        # ── 5. Le client est prévenu, à SON adresse — et il sait qu'on lui a
+        #      OFFERT l'accès. Lire « approuvé » lui faisait croire qu'il avait
+        #      acheté : il attendait une facture qui ne viendrait jamais.
         assert len(courriels) == 3, [c["sujet"] for c in courriels]
         avis = courriels[2]
         assert avis["a"] == CLIENT
-        assert "activé" in avis["sujet"]
+        assert "ouvert" in avis["sujet"]
+        assert "offert" in avis["html"], (
+            "le bénéficiaire ne sait pas que son accès lui a été offert")
         assert "/connexion" in avis["html"]
 
         # ── 6. …et la porte s'ouvre enfin.

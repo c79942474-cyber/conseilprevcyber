@@ -46,8 +46,9 @@
       .payer-renonce b{color:var(--ink)}
     </style>
     <div id="payer" style="display:none;margin:14px 0;padding:14px 16px;border:1px solid var(--line);border-radius:11px">
-      <p style="margin:0 0 10px;font-size:13.5px">Votre adresse est confirmée et vous préférez ne pas attendre la validation&nbsp;?
-        <b>Ouvrez votre accès immédiatement</b> en réglant en ligne.</p>
+      <p style="margin:0 0 10px;font-size:13.5px">Votre adresse est confirmée&nbsp;:
+        <b>ouvrez votre accès en réglant en ligne</b>. Il s'ouvre dès la confirmation du
+        paiement, sans attendre personne.</p>
       <input id="payerMail" type="email" autocomplete="email" placeholder="Votre adresse confirmée" style="width:100%;margin-bottom:8px">
       <!-- MÊME CASE QUE SUR /acces, PARCE QUE C'EST LA MÊME VENTE. Deux chemins
            vers la caisse dont un seul recueille la renonciation laisserait une
@@ -82,7 +83,13 @@
     var q=new URLSearchParams(location.search), msg=document.getElementById('msg');
     function show(t,cls){msg.textContent=t;msg.className='msg '+cls;}
     if(q.get('verifie')){
-      show('Email confirmé. Votre accès sera actif après validation par notre équipe (vous recevrez un email).','ok');
+      /* CE MESSAGE DÉSIGNAIT LA VOIE GRATUITE COMME LA SEULE. « Votre accès
+         sera actif après validation par notre équipe » : rien de faux, et
+         pourtant le visiteur n'avait plus aucune raison de regarder le bloc de
+         règlement juste au-dessus. Il annonce désormais ce qui dépend de lui —
+         et ce qui ne dépend pas de lui reste dit, sans être présenté comme la
+         marche à suivre. */
+      show('Adresse confirmée. Réglez ci-dessous pour ouvrir votre accès tout de suite.','ok');
     }
     /* OUVRIR SON ACCÈS SOI-MÊME, EN PAYANT. Le bouton n'apparaît QUE si le
        paiement est réellement configuré sur ce serveur : un bouton qui mène
@@ -98,6 +105,18 @@
        confirmée » et « déjà ouverte ». */
     fetch('/api/paiement/etat').then(function(r){return r.ok?r.json():null;})
       .then(function(j){ if(j&&j.configure) offrirPaiement(); })
+      .catch(function(){});
+    /* L'ADRESSE NE SE RETAPE PAS. Cette page est atteinte à la seconde où le
+       visiteur vient de cliquer le lien envoyé à cette adresse-là : la lui
+       redemander était une friction posée juste devant la caisse. Le serveur
+       ne rend que ce que l'appelant a lui-même prouvé, et la réponse n'est
+       jamais mise en cache. */
+    fetch('/api/paiement/adresse-confirmee',{headers:{'Accept':'application/json'}})
+      .then(function(r){return r.ok?r.json():null;})
+      .then(function(j){
+        var e=document.getElementById('payerMail');
+        if(j&&j.email&&e&&!e.value) e.value=j.email;
+      })
       .catch(function(){});
     if(q.get('paye')==='1')show('Paiement reçu. Votre accès est ouvert — connectez-vous ci-dessous.','ok');
     if(q.get('paye')==='0')show('Paiement abandonné. Votre demande reste en attente de validation.','info');

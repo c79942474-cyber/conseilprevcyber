@@ -238,14 +238,61 @@ def test_la_voie_payante_est_masquee_et_revelee_par_le_serveur():
         "la voie payante n'est plus conditionnée à l'état du serveur")
 
 
-def test_la_voie_gratuite_est_toujours_offerte():
-    """Elle ne dépend d'aucune configuration : c'est la voie du site, et la
-    seule quand le paiement est éteint."""
-    page = _src(PAGE)
-    bloc = page[page.index("Validation par notre équipe") - 400:
-                page.index("Validation par notre équipe") + 400]
-    assert "hidden" not in bloc
-    assert 'href="/inscription"' in bloc
+def _cartes(page):
+    """Les cartes de la section « Comment l'obtenir », dans leur ORDRE.
+
+    Découpées sur le balisage plutôt que cherchées par leur titre : une règle
+    qui cherche un libellé tombe le jour où le libellé change, en laissant
+    croire que ce qu'elle gardait a bougé. C'est ce qui vient d'arriver à la
+    règle que celle-ci remplace — elle cherchait « Validation par notre
+    équipe » et n'a rien vu d'autre que la disparition de ces trois mots.
+    """
+    debut = page.index('class="ac-grid"', page.index("Comment l'obtenir"))
+    fin = page.index("</section>", debut)
+    # LES COMMENTAIRES SONT ÔTÉS AVANT LE DÉCOUPAGE. Ils se rangent avec la
+    # carte QUI PRÉCÈDE, jamais avec celle qu'ils annoncent : un commentaire
+    # contenant « hidden » ferait passer pour masquée une carte qui ne l'est
+    # pas, et la règle rendrait vrai sans que rien ne le soit.
+    section = re.sub(r"<!--.*?-->", "", page[debut:fin], flags=re.S)
+    return section.split('class="ac-card"')[1:]
+
+
+def test_une_voie_reste_ouverte_quand_le_paiement_est_eteint():
+    """SI LE PAIEMENT S'ÉTEINT, LA PAGE DOIT ENCORE DIRE PAR OÙ ENTRER.
+
+    La carte payante est masquée tant que le serveur n'a pas confirmé sa
+    configuration — c'est la règle juste, et sa conséquence est qu'une page
+    qui ne porterait QUE celle-là ne proposerait plus rien du tout le jour où
+    une clé manque. La règle ne cherche donc aucun libellé : elle lit les
+    cartes et exige qu'au moins une survive à l'extinction, en portant de quoi
+    agir.
+    """
+    cartes = _cartes(_src(PAGE))
+    assert len(cartes) >= 2, "la section ne porte plus qu'une carte"
+    survivantes = [k for k in cartes if "hidden" not in k]
+    assert survivantes, "aucune carte ne survit à l'extinction du paiement"
+    assert any(('href="/inscription"' in k) or ('href="mailto:' in k)
+               for k in survivantes), (
+        "la carte qui survit ne porte aucun moyen d'agir")
+
+
+def test_la_voie_payante_est_annoncee_la_premiere():
+    """L'ORDRE EST LE MODÈLE ÉCONOMIQUE, PAS UNE QUESTION DE GOÛT.
+
+    La carte gratuite venait en tête et s'annonçait « la voie habituelle, et
+    elle ne coûte rien » : plus personne n'avait de raison de payer, et le
+    courriel qui ouvre gratuitement partant à la seconde de la confirmation
+    d'adresse, la caisse se refermait avant d'avoir pu servir — `payable()`
+    refuse un compte déjà ouvert.
+
+    LA RÈGLE NE LIT PAS UN TITRE, elle lit QUI PORTE LE PRIX : c'est le prix
+    lu chez Stripe qui fait la carte payante, pas son intitulé.
+    """
+    cartes = _cartes(_src(PAGE))
+    assert 'id="acPrix"' in cartes[0], (
+        "la première carte n'est pas celle qui porte le prix")
+    for suivante in cartes[1:]:
+        assert 'id="acPrix"' not in suivante, "le prix apparaît deux fois"
 
 
 def test_la_page_ne_decide_pas_elle_meme_qui_peut_payer():

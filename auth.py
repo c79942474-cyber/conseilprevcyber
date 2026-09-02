@@ -3,11 +3,21 @@
 Inspiré du système de Sentinel : mots de passe hachés (werkzeug), sessions Flask,
 captcha, protection anti-bruteforce, réponses anti-énumération, emails via Brevo.
 
-Flux : inscription → l'utilisateur confirme son email → C'EST ALORS SEULEMENT que
-l'administrateur est prévenu, avec un lien d'approbation valable trente jours →
-il approuve → le client est prévenu que son accès est ouvert. Les comptes non
-confirmés / non approuvés ne peuvent pas se connecter. Seuls le cockpit et la
-supervision sont protégés ; le contenu public reste ouvert.
+Flux : inscription → l'utilisateur confirme son email → LA CAISSE LUI EST ALORS
+OUVERTE, et c'est le chemin normal : il règle, la notification signée ouvre son
+accès, personne n'a rien à décider. Les comptes non confirmés / non approuvés ne
+peuvent pas se connecter. Seuls le cockpit et la supervision sont protégés ; le
+contenu public reste ouvert.
+
+LA GRATUITÉ EXISTE ENCORE, MAIS C'EST UN GESTE, PLUS UN DÉFAUT. L'exploitant
+reçoit à la confirmation un lien qui ouvre l'accès SANS PAIEMENT. Il l'ouvrait
+par réflexe : le courriel disait « il ne manque que votre accord », arrivait à
+la seconde même de la confirmation, et refermait la caisse avant qu'elle ait pu
+servir — `payable()` refuse un compte déjà ouvert, si bien que le demandeur qui
+tentait ensuite de régler s'entendait dire que son adresse « ne peut pas ouvrir
+de paiement ». Le courriel dit désormais ce que le clic fait vraiment, le bouton
+le nomme, et le journal trace `compte.gratuite` — une action à part, comptable
+sans lire de la prose.
 
 L'ORDRE DES DEUX PREMIÈRES ÉTAPES EST UN CHOIX DE SÉCURITÉ, pas de commodité :
 prévenir l'administrateur dès l'inscription lui faisait recevoir des demandes
@@ -698,30 +708,62 @@ def _notify_admin(user, base=None):
     nom = html_lib.escape(user["name"] or "—")
     org = html_lib.escape(user["org"] or "—")
     email = html_lib.escape(user["email"])
+    # LE PRIX EST LU CHEZ STRIPE, JAMAIS RECOPIÉ ICI. Un montant écrit dans ce
+    # courriel dériverait le jour où le tarif change, et l'exploitant offrirait
+    # un accès en croyant renoncer à une somme qui n'est plus la bonne. Illisible,
+    # on n'écrit aucun montant : un prix qu'on ne peut pas prouver n'est pas un
+    # prix. Cet appel part d'un fil : sa latence ne retient personne.
+    montant = ""
+    try:
+        import paiement
+        t = paiement.tarif()
+        if t and t.get("affichage"):
+            montant = ", alors que l'accès est vendu %s" % html_lib.escape(t["affichage"])
+    except Exception:                                          # pragma: no cover
+        montant = ""
     send_email(ADMIN_EMAIL, "Admin",
-               "Accès à approuver (adresse confirmée) — %s" % user["email"],
-               _shell("Nouvelle demande d'accès",
+               "Accès à ouvrir GRATUITEMENT — %s" % user["email"],
+               _shell("Demande d'accès — adresse confirmée",
                       "<p>Une demande de compte a été déposée, et "
                       "<b>l'adresse a été confirmée</b> par son titulaire :</p>"
                       "<ul><li><b>Nom :</b> %s</li><li><b>Organisation :</b> %s</li>"
                       "<li><b>Email :</b> %s</li></ul>"
-                      "<p>Il ne manque que votre accord pour ouvrir l'accès :</p>%s"
+                      "<p><b>Ce demandeur n'a rien payé%s.</b> La caisse lui est "
+                      "ouverte : s'il règle, son accès s'ouvrira seul et vous n'aurez "
+                      "rien à faire. <b>N'ouvrez ci-dessous que si vous voulez le lui "
+                      "offrir.</b></p>"
+                      "<p>Le bouton ouvre l'accès <b>sans paiement</b>. C'est une "
+                      "gratuité que vous accordez, et le journal la trace comme "
+                      "telle :</p>%s"
                       "<p style=\"color:#8a9ab0;font-size:12px\">Ce lien est valable "
-                      "%d jours. Passé ce délai, l'approbation se fait depuis la page "
+                      "%d jours. Passé ce délai, l'ouverture se fait depuis la page "
                       "d'administration : <a href=\"%s/admin/comptes\">%s/admin/comptes</a></p>"
-                      % (nom, org, email,
-                         _btn(url, "Approuver cet accès"),
+                      % (nom, org, email, montant,
+                         _btn(url, "Ouvrir gratuitement cet accès"),
                          APPROVE_VALIDITY_H // 24, base, base)))
 
 
-def _send_approved(user, base=None):
+def _send_approved(user, base=None, gratuit=False):
+    """« Votre accès est ouvert » — et par quel chemin il l'a été.
+
+    `gratuit` N'EST PAS UNE NUANCE DE TON. Un bénéficiaire à qui l'accès est
+    OFFERT et qui lit « votre accès a été approuvé » croit avoir acheté : il
+    attend une facture qui ne viendra pas, et ne sait pas qu'il doit ce compte
+    à un geste. Le paramètre est explicite plutôt que deviné — l'appelant sait
+    par où il est passé, cette fonction ne peut que le supposer.
+    """
     base = base or _base_url()
     url = "%s/connexion" % base
-    send_email(user["email"], user["name"], "Votre accès cockpit est activé — CONSEILPREV Cyber",
-               _shell("Accès activé",
-                      "<p>Bonjour %s,</p><p>Votre accès au cockpit de supervision CONSEILPREV Cyber a été "
-                      "<b>approuvé</b>. Vous pouvez maintenant vous connecter :</p>%s"
-                      % (html_lib.escape(user["name"] or ""), _btn(url, "Se connecter"))))
+    corps = ("<p>Bonjour %s,</p><p>Votre accès au cockpit de supervision "
+             "CONSEILPREV Cyber est <b>ouvert</b>%s. Vous pouvez maintenant "
+             "vous connecter :</p>%s"
+             % (html_lib.escape(user["name"] or ""),
+                (" : il vous a été <b>offert</b>, aucun paiement ne vous sera "
+                 "demandé et aucune facture ne vous parviendra" if gratuit else ""),
+                _btn(url, "Se connecter")))
+    send_email(user["email"], user["name"],
+               "Votre accès cockpit est ouvert — CONSEILPREV Cyber",
+               _shell("Accès ouvert", corps))
 
 
 def _send_reset(user, base=None):
@@ -1107,6 +1149,13 @@ def verify_email(token):
                  approve_expire=_now_ms() + APPROVE_VALIDITY_H * 3600 * _MS)
     u = dict(u, email_verified=True, approve_token=jeton)
     threading.Thread(target=_notify_admin, args=(u, _base_url()), daemon=True).start()
+    # L'ADRESSE EST PROUVÉE ICI, ET NULLE PART AILLEURS. Le jeton vient d'être
+    # consommé : son porteur tient la boîte. On garde donc l'adresse dans la
+    # session — côté serveur, jamais dans l'URL, qui traînerait dans
+    # l'historique et dans le référent — pour deux usages, et deux seulement :
+    # préremplir la caisse, et rendre à CET appelant-là le motif exact d'un
+    # refus que tout autre continue de recevoir en aveugle.
+    session[CLE_ADRESSE_CONFIRMEE] = u["email"]
     return redirect("/connexion?verifie=1")
 
 
@@ -1150,11 +1199,20 @@ def admin_approve(token):
                 "confirmation.</p></div>" % html_lib.escape(u["email"])), 409
     store.update(u["email"], approved=True, approve_token=None, approve_expire=None)
     u["approved"] = True
-    _tracer("compte.approbation", u["email"], "par lien d'approbation")
-    threading.Thread(target=_send_approved, args=(u, _base_url()), daemon=True).start()
+    # UNE ACTION À PART, ET NON UN DÉTAIL EN PROSE. L'ouverture payante et
+    # l'ouverture offerte s'écrivaient toutes deux `compte.approbation`, et ne
+    # se distinguaient que par un membre de phrase. Compter les accès offerts
+    # demandait alors de lire du texte libre — donc de le tenir figé, et de le
+    # voir cesser de dire vrai à la première reformulation. `compte.gratuite`
+    # se compte.
+    _tracer("compte.gratuite", u["email"],
+            "accès ouvert SANS PAIEMENT, par lien d'ouverture gratuite")
+    threading.Thread(target=_send_approved, args=(u, _base_url()),
+                     kwargs={"gratuit": True}, daemon=True).start()
     return ("<meta charset='utf-8'><div style=\"font-family:Arial;max-width:520px;margin:60px auto;"
-            "text-align:center;color:#1c2530\"><h1>✅ Accès approuvé</h1>"
-            "<p>Le compte <b>%s</b> est activé. L'utilisateur a été prévenu par email.</p></div>"
+            "text-align:center;color:#1c2530\"><h1>Accès ouvert gratuitement</h1>"
+            "<p>Le compte <b>%s</b> est ouvert <b>sans paiement</b> : vous venez de le lui "
+            "offrir. Il en a été prévenu par email, et le journal en garde la trace.</p></div>"
             % html_lib.escape(u["email"]))
 
 
@@ -1174,6 +1232,55 @@ def payable(email):
     if not u or not u.get("email_verified") or u.get("approved"):
         return None
     return u
+
+
+# LA CLÉ DE SESSION QUI PORTE L'ADRESSE PROUVÉE. Nommée une fois, ici, dans le
+# module qui la pose : deux littéraux dans deux fichiers se sépareraient au
+# premier renommage, et le préremplissage cesserait sans que rien ne tombe.
+CLE_ADRESSE_CONFIRMEE = "achat_email"
+
+
+def adresse_confirmee():
+    """L'adresse dont CET appelant a prouvé qu'il tient la boîte. None sinon.
+
+    Prouvée par la consommation du jeton de confirmation, et par rien d'autre :
+    ni une saisie, ni un paramètre d'URL. C'est ce qui autorise à lui répondre
+    précisément là où l'on reste muet avec tout le monde.
+    """
+    try:
+        return session.get(CLE_ADRESSE_CONFIRMEE) or None
+    except Exception:                                          # pragma: no cover
+        return None
+
+
+# LES TROIS RAISONS DE REFUSER UNE CAISSE, NOMMÉES. `payable()` rend None pour
+# les trois, et c'est voulu : l'appelant ordinaire ne doit pas les distinguer,
+# sans quoi cette route dirait qui a un compte ici. Mais celui qui a PROUVÉ
+# l'adresse a le droit de savoir — et le lui cacher, c'est ce qui a fait qu'un
+# accès déjà ouvert s'entendait répondre « cette adresse ne peut pas ouvrir de
+# paiement », message exact et parfaitement inutilisable.
+MOTIF_INCONNUE = "inconnue"
+MOTIF_NON_CONFIRMEE = "non_confirmee"
+MOTIF_DEJA_OUVERT = "deja_ouvert"
+
+
+def motif_non_payable(email):
+    """Pourquoi cette adresse ne peut pas ouvrir de caisse. None si elle peut.
+
+    À N'APPELER QUE POUR UN APPELANT QUI A PROUVÉ L'ADRESSE. Rendue à un
+    inconnu, la valeur ferait de la route un oracle de comptes.
+    """
+    try:
+        u = store.get((email or "").strip().lower())
+    except Exception:
+        return MOTIF_INCONNUE
+    if not u:
+        return MOTIF_INCONNUE
+    if not u.get("email_verified"):
+        return MOTIF_NON_CONFIRMEE
+    if u.get("approved"):
+        return MOTIF_DEJA_OUVERT
+    return None
 
 
 def ouvrir_par_paiement(email, base=None, commande=None):
@@ -1216,6 +1323,15 @@ def ouvrir_par_paiement(email, base=None, commande=None):
     u["approved"] = True
     # LA VOIE D'OUVERTURE EST TRACÉE. Le filtre manuel du propriétaire disparaît
     # pour un compte payé : le registre doit au moins dire par où il est entré.
+    #
+    # CE NOM RESTE `compte.approbation`, ET C'EST DÉLIBÉRÉ. Il décrit mal ce
+    # chemin — rien n'y est approuvé, tout y est payé — et le renommer serait
+    # plus clair pour les lignes à venir. Mais les lignes DÉJÀ ÉCRITES portent
+    # ce nom : les compter demanderait alors d'interroger deux actions, et la
+    # première requête qui n'en connaîtrait qu'une rendrait un total faux sans
+    # rien signaler. L'ouverture gratuite, elle, n'existait pas encore sous un
+    # nom à elle — d'où l'asymétrie, qui est le prix de ne pas réécrire le
+    # passé.
     _tracer("compte.approbation", email, "par paiement")
     # UN SEUL COURRIEL À L'ACHETEUR. Faire suivre « votre accès est approuvé »
     # d'une confirmation de commande donnerait deux versions du même fait.
@@ -1223,7 +1339,11 @@ def ouvrir_par_paiement(email, base=None, commande=None):
         threading.Thread(target=_confirmer_commande, args=(u, commande, base),
                          daemon=True).start()
     else:
-        threading.Thread(target=_send_approved, args=(u, base), daemon=True).start()
+        # `gratuit=False` EXPLICITE, sur un chemin qui EST payant : c'est déjà
+        # la valeur par défaut, et l'écrire empêche qu'un jour où la valeur par
+        # défaut change, ce courriel-ci offre un accès qui a été réglé.
+        threading.Thread(target=_send_approved, args=(u, base),
+                         kwargs={"gratuit": False}, daemon=True).start()
     threading.Thread(target=_avertir_ouverture_payee, args=(u, base),
                      daemon=True).start()
     return True
@@ -1544,10 +1664,19 @@ def api_admin_user_update(email):
     d = request.get_json(silent=True) or {}
     action = d.get("action")
     if action == "approve":
+        # LA TROISIÈME PORTE, ET LA SEULE QUI NE LAISSAIT AUCUNE TRACE. Le lien
+        # d'ouverture gratuite journalisait, le paiement journalisait ; celle-ci
+        # ouvrait un accès payant sans un mot au registre. Un accès offert dont
+        # rien ne dit qu'il l'a été ne se distingue plus, six mois après, d'un
+        # accès vendu — et personne ne sait plus combien on en a donné.
         store.update(email, approved=True, approve_token=None, approve_expire=None)
         u = store.get(email)
-        threading.Thread(target=_send_approved, args=(u, _base_url()), daemon=True).start()
+        _tracer("compte.gratuite", email,
+                "accès ouvert SANS PAIEMENT, depuis la console d'administration")
+        threading.Thread(target=_send_approved, args=(u, _base_url()),
+                         kwargs={"gratuit": True}, daemon=True).start()
     elif action == "suspend":
+        _tracer("compte.suspension", email, "accès refermé depuis la console")
         store.update(email, approved=False)
     elif action == "make_admin":
         store.update(email, role="admin")

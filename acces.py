@@ -129,6 +129,13 @@ API_OUVERTES = {
                          "savoir AVANT d'afficher un bouton",
     "/api/paiement/checkout": "l'acheteur n'a pas encore d'accès — c'est ce "
                               "qu'il vient acheter",
+    # OUVERTE, MAIS VIDE POUR QUI N'A RIEN PROUVÉ. Elle ne rend que l'adresse
+    # que l'appelant a lui-même confirmée en ouvrant le lien reçu dans sa
+    # boîte, gardée dans SA session ; à tout autre elle rend `null`. Exiger
+    # une session de compte la rendrait inutile : celui qui vient payer n'a
+    # pas encore d'accès, donc pas de session de compte.
+    "/api/paiement/adresse-confirmee": "préremplit la caisse avec l'adresse que "
+                                       "l'appelant a lui-même confirmée",
     # Stripe n'a pas de session, et n'en aura jamais. Ce point s'authentifie
     # par la SIGNATURE de ce qu'il reçoit, jamais par un cookie.
     "/api/stripe/webhook": "notification de paiement, authentifiée par sa "
