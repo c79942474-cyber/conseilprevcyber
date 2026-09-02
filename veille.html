@@ -59,6 +59,16 @@
   .vitem p{font-size:13.5px;color:var(--muted);margin:0;line-height:1.55;
     display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
   .vitem .vlink{display:inline-block;margin-top:10px;font-family:var(--mono);font-size:11.5px;color:var(--cyan)}
+  .vpied{display:flex;align-items:center;gap:10px;margin-top:10px}
+  .vitem .vpied .vlink{margin-top:0}
+  /* L'ICÔNE EST DISCRÈTE AU REPOS ET FRANCHE AU SURVOL. Un bouton de partage
+     qui crie sur chaque carte d'une grille de soixante ferait concurrence au
+     titre, qui est ce qu'on vient lire. */
+  .vshare{margin-left:auto;display:inline-flex;align-items:center;justify-content:center;
+    width:26px;height:26px;border-radius:6px;border:1px solid var(--line);
+    color:var(--muted2);background:transparent;transition:all .15s;flex:0 0 auto}
+  .vshare:hover,.vshare:focus-visible{background:#0a66c2;border-color:#0a66c2;color:#fff}
+  .vshare svg{width:13px;height:13px;display:block}
   .vitem>*:last-child{margin-top:auto}
   .vempty{color:var(--muted2);text-align:center;padding:44px;border:1px dashed var(--line);border-radius:13px}
   .vnote{display:flex;gap:9px;align-items:flex-start;border:1px solid rgba(34,211,238,.3);
@@ -253,6 +263,7 @@
       return true;
     }
 
+    var LINKEDIN='';
     function itemHTML(it){
       var f=it.facettes||{};
       /* La pastille porte l'ÉMETTEUR et son pays : sur trente flux, savoir
@@ -272,10 +283,25 @@
       var pied=lien?('<a class="vlink" href="'+lien+'" target="_blank" rel="noopener">'
         +esc(it.lien_libelle||'Source')+' \u2192</a>')
         :'<span class="vlink" style="opacity:.6">Adresse de source écartée</span>';
+      /* PAS D'ADRESSE, PAS DE BOUTON — et c'est la même raison qui fait écrire
+         « Adresse de source écartée » deux lignes plus haut. La veille publie
+         un élément sans lien plutôt que de l'omettre ; lui coller un bouton de
+         partage produirait un partage vide, et un partage erroné ne se reprend
+         pas. Le point d'entrée vient du serveur : s'il manque, aucune carte
+         n'en porte, plutôt qu'une adresse inventée par la page. */
+      var part=(LINKEDIN&&lien)?('<a class="vshare" target="_blank" rel="noopener"'
+        +' href="'+esc(LINKEDIN+encodeURIComponent(it.link))+'"'
+        +' title="Partager cette actualité sur LinkedIn"'
+        +' aria-label="Partager sur LinkedIn : '+esc(it.title)+'">'
+        +'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4.98 3.5a2.5'
+        +' 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM3 9h4v12H3zM10 9h3.8v1.7h.05c.53-1 1.83-2.05 3.77-2.05'
+        +' 4.03 0 4.78 2.65 4.78 6.1V21h-4v-5.4c0-1.29-.02-2.95-1.8-2.95-1.8 0-2.07 1.4-2.07'
+        +' 2.85V21h-4z"/></svg></a>'):'';
       return '<article class="vitem">'
         +'<div class="vtop">'+pills+'<span class="vdate">'+fmt(it.published)+'</span></div>'
         +'<h3>'+tete+'</h3>'
-        +'<p>'+esc(it.resume)+'</p>'+pied+'</article>';
+        +'<p>'+esc(it.resume)+'</p>'
+        +'<div class="vpied">'+pied+part+'</div></article>';
     }
 
     function render(){
@@ -306,6 +332,10 @@
         return;
       }
       ALL=items;
+      /* Le point d'entrée de partage vient du serveur. Le recopier ici en
+         ferait un second exemplaire, et c'est celui qu'on oublie de corriger
+         qui partirait sur LinkedIn. */
+      LINKEDIN=(j&&j.partage&&j.partage.linkedin)||'';
       var fa=(j&&j.facettes)||{};
       PAYS=fa.libelles_pays||{}; DOM=fa.libelles_domaines||{};
       remplir('vdomaine', fa.domaines||[], 'Tous les domaines', DOM);

@@ -300,3 +300,98 @@ def test_la_console_declenche_la_collecte_et_affiche_ce_retour():
     apres = script[:script.index("catch")]
     assert "veilRendre(j)" in apres
     assert "veille/sante" not in apres, "un second appel pourrait changer d'ouvrier"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  PARTAGER UN ÉLÉMENT DE VEILLE SUR LINKEDIN
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# CE QUI EST PARTAGÉ N'EST PAS DE NOUS, ET C'EST LE POINT. L'adresse envoyée à
+# LinkedIn est celle de l'ÉDITEUR — le bulletin du CERT-FR, l'avis de la CISA.
+# Son robot ira lire cette page-là et y prendra ses balises OpenGraph : la carte
+# publiée porte donc son titre, son image et son nom. Le classement que nous
+# ajoutons (domaine, pays, standard) reste sur notre page. Nous ne signons pas
+# le travail d'un autre, et c'est le comportement correct.
+#
+# LA CONTRAINTE QUI COMMANDE LE RESTE : `share-offsite` NE PREND QU'UNE URL.
+# Depuis 2021 `title`, `summary` et `mini` sont ignorés en silence. Les
+# transmettre donnerait l'illusion de maîtriser la carte publiée.
+
+_GABARIT = PAGE[PAGE.index("function itemHTML"):PAGE.index("function render(")]
+
+
+def test_la_page_ne_fabrique_aucune_adresse_de_partage():
+    """LE MÊME PRINCIPE QUE POUR LE VOCABULAIRE, APPLIQUÉ AU PARTAGE. Une
+    adresse recopiée dans le script en ferait un second exemplaire, et c'est
+    celui qu'on oublie de corriger qui partirait sur LinkedIn — sans erreur,
+    sans trace, sur le compte du lecteur.
+    """
+    assert "linkedin.com" not in PAGE.lower(), (
+        "la page porte une adresse LinkedIn en dur ; elle doit la recevoir de "
+        "l'API, qui en est le seul dépositaire")
+    assert re.search(r"partage\s*&&\s*j\.partage\.linkedin", PAGE), (
+        "la page doit lire le point d'entrée servi par /api/veille")
+
+
+def test_l_api_sert_un_point_d_entree_de_partage_utilisable(anonyme):
+    """UNE CLÉ QUI EXISTE NE SUFFIT PAS : elle doit mener quelque part. La
+    règle vérifie la FORME — un point d'entrée de partage qui attend une URL —
+    plutôt que la chaîne exacte, qui doit pouvoir changer le jour où LinkedIn
+    change la sienne.
+    """
+    p = (anonyme.get("/api/veille").get_json() or {}).get("partage") or {}
+    lien = p.get("linkedin") or ""
+    assert lien.startswith("https://"), "le point d'entrée doit être en https : %r" % lien
+    assert "linkedin.com" in lien, "le point d'entrée doit être chez LinkedIn : %r" % lien
+    assert lien.rstrip().endswith("="), (
+        "le point d'entrée doit se terminer par le paramètre à compléter, "
+        "sinon la page devrait savoir comment l'assembler : %r" % lien)
+
+
+def test_un_element_sans_adresse_ne_recoit_pas_de_bouton():
+    """LA VEILLE PUBLIE UN ÉLÉMENT SANS LIEN PLUTÔT QUE DE L'OMETTRE — c'est
+    une règle de ce dépôt, et elle a sa raison. Mais lui coller un bouton de
+    partage produirait un partage VIDE : le lecteur publierait sur son compte
+    un lien qui ne mène nulle part, et un partage erroné ne se reprend pas.
+
+    La propriété : la construction du bouton dépend DES DEUX conditions — le
+    point d'entrée reçu du serveur, et l'adresse de l'élément.
+    """
+    m = re.search(r"var part\s*=\s*\(([^)]*)\)", _GABARIT)
+    assert m, "le bouton de partage n'est plus construit sous une garde"
+    garde = m.group(1)
+    assert "LINKEDIN" in garde, (
+        "sans le point d'entrée, la page fabriquerait l'adresse elle-même : %r"
+        % garde)
+    assert "lien" in garde, (
+        "un élément sans adresse recevrait un bouton de partage vide : %r"
+        % garde)
+
+
+def test_l_adresse_de_la_source_est_encodee_avant_d_etre_partagee():
+    """UNE ADRESSE AVEC UN `&` CASSE LE PARTAGE SANS RIEN LEVER. Beaucoup de
+    bulletins portent des paramètres de requête ; passée telle quelle, la
+    partie située après le premier `&` serait lue par LinkedIn comme un de SES
+    paramètres, et l'adresse partagée serait tronquée. Le lecteur publierait un
+    lien mort en croyant partager l'article.
+    """
+    bloc = _GABARIT[_GABARIT.index("var part"):]
+    bloc = bloc[:bloc.index("return")]
+    assert "encodeURIComponent" in bloc, (
+        "l'adresse de la source doit être encodée avant d'entrer dans "
+        "l'adresse de partage")
+
+
+def test_le_bouton_se_nomme_pour_qui_ne_voit_pas_l_icone():
+    """UNE ICÔNE SEULE N'EST PAS UN LIBELLÉ. Un lecteur d'écran annoncerait un
+    lien sans destination ni objet ; la règle exige que le bouton porte son
+    intention ET de quoi distinguer un élément d'un autre — soixante boutons
+    « Partager sur LinkedIn » identiques ne se distinguent pas à l'oreille.
+    """
+    bloc = _GABARIT[_GABARIT.index("var part"):]
+    bloc = bloc[:bloc.index("return")]
+    assert "aria-label" in bloc, "le bouton de partage n'a pas de libellé accessible"
+    apres = bloc[bloc.index("aria-label"):]
+    assert "it.title" in apres[:220], (
+        "le libellé accessible doit nommer l'élément partagé, sinon tous les "
+        "boutons de la grille s'annoncent de la même façon")

@@ -9613,6 +9613,25 @@ def api_stripe_webhook():
     return jsonify(ok=True, traite=bool(ouvert))
 
 
+# LE POINT D'ENTRÉE DE PARTAGE LINKEDIN, ET LA CONTRAINTE QUI LE COMMANDE.
+# `share-offsite` NE PREND QU'UNE URL : depuis 2021 les paramètres `title`,
+# `summary` et `mini` sont ignorés en silence. La carte publiée dans le fil est
+# construite par le robot de LinkedIn, qui va lire la page visée et y chercher
+# ses balises OpenGraph.
+#
+# CONSÉQUENCE ICI, ET ELLE EST HEUREUSE : ce que l'on partage depuis la veille
+# est l'ARTICLE DE L'ÉDITEUR — le bulletin du CERT-FR, l'avis de la CISA — donc
+# la carte est la sienne, avec son titre, son image et son nom. C'est
+# exactement ce qu'il faut : nous ne signons pas le travail d'un autre. Le
+# classement que nous ajoutons (domaine, pays, standard) reste sur notre page ;
+# il ne part pas dans le partage, et c'est bien ainsi.
+#
+# LA PAGE NE FABRIQUE PAS CETTE ADRESSE. Elle la reçoit ici. Si cette clé
+# manque, aucun bouton ne s'affiche : un bouton qui mène nulle part se clique
+# une fois, et un partage erroné ne se reprend pas.
+PARTAGE_LINKEDIN = "https://www.linkedin.com/sharing/share-offsite/?url="
+
+
 @app.route("/api/veille")
 def api_veille():
     """La veille (publique) : éléments récents, DÉJÀ CLASSÉS, et leurs facettes.
@@ -9648,6 +9667,10 @@ def api_veille():
                    # chapeau du régulateur est une mention fausse, et une
                    # mention fausse vaut moins que pas de mention.
                    resume_ia=bool(automation.VEILLE_RESUME),
+                   # DE QUOI PARTAGER UN ÉLÉMENT, ET RIEN DE PLUS. L'adresse
+                   # partagée est celle de l'éditeur, déjà portée par chaque
+                   # élément : il n'y a donc rien à construire côté serveur.
+                   partage={"linkedin": PARTAGE_LINKEDIN},
                    sources=veille_sources.referentiel())
 
 
