@@ -222,12 +222,26 @@ def noter_succes(cle, elements):
             e["passages_vides"] += 1
 
 
-def noter_echec(cle, erreur):
+def noter_echec(cle, erreur, a_repondu=False):
+    """Un passage qui n'a rien pu tirer de la source.
+
+    `a_repondu` DISTINGUE DEUX ÉCHECS QUE LE COMPTE NE DOIT PAS CONFONDRE.
+    Quand l'adresse n'a pas répondu du tout — 404, 403, coupure réseau — on n'a
+    RIEN compté, et `elements` doit rester None : c'est l'absence de mesure.
+    Quand elle a répondu autre chose qu'un flux, on a bel et bien compté, et le
+    compte est ZÉRO. Écrire None dans le second cas ferait dire au tableau
+    « on ne sait pas » là où l'on sait parfaitement — et c'est une règle
+    existante qui l'a relevé, à juste titre, sur une première version de ce
+    correctif qui laissait le compte à None dans les deux cas.
+    """
     with _verrou:
         e = _etat_de(cle)
         e["dernier_essai"] = time.time()
         e["echecs"] += 1
         e["erreur"] = str(erreur)[:200]
+        if a_repondu:
+            e["elements"] = 0
+            e["passages_vides"] += 1
 
 
 def etat():

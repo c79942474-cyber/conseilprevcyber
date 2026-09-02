@@ -462,6 +462,37 @@ def _date_en_ms(texte):
         return None
 
 
+def _pourquoi_pas_un_flux(xml_text):
+    """None si la réponse EST un flux ; sinon la raison, en clair.
+
+    LE SILENCE QU'IL FAUT ROMPRE. Une adresse qui répond 200 avec autre chose
+    qu'un flux — page d'accueil, page d'attente d'un pare-feu applicatif,
+    redirection aboutie vers un portail — passait pour « un flux qui a répondu
+    et n'avait rien de neuf ». Le lecteur ne trouvait ni `item` ni `entry`, ne
+    levait rien, et `noter_succes(source, 0)` inscrivait une RÉUSSITE.
+
+    Deux états parfaitement distincts se retrouvaient donc sous le même
+    libellé : « ce flux n'a rien publié cette semaine » et « cette adresse ne
+    sert pas un flux ». Le premier demande d'attendre, le second de corriger
+    l'adresse — et confondre les deux, c'est attendre indéfiniment une
+    correction que personne ne sait devoir faire. C'est le défaut que ce dépôt
+    corrige partout ailleurs, et il était au cœur de sa propre collecte.
+    """
+    if not (xml_text or "").strip():
+        return "réponse vide"
+    try:
+        racine = ET.fromstring(xml_text)
+    except ET.ParseError as exc:
+        # Une page HTML mal formée au sens XML : le cas le plus courant.
+        return "la réponse n'est pas du XML (%s)" % str(exc)[:80]
+    nom = _sans_espace_de_noms(racine.tag).lower()
+    # RSS 2.0 : <rss>. Atom : <feed>. RSS 1.0 : <RDF>. Rien d'autre n'est un flux.
+    if nom not in ("rss", "feed", "rdf"):
+        return ("la racine est <%s>, pas un flux (attendu rss, feed ou RDF) — "
+                "l'adresse sert probablement une page, pas un flux" % nom)
+    return None
+
+
 def _parse_feed(source, xml_text):
     """Les éléments d'un flux RSS 2.0 OU Atom.
 
@@ -515,9 +546,30 @@ def _parse_feed(source, xml_text):
     return items
 
 
+# CE QU'UN LECTEUR DE FLUX DOIT ANNONCER, ET POURQUOI CE N'EST PAS UN DÉTAIL.
+# Le collecteur se présentait sous « conseilprevcyber-veille/1.0 », sans dire ce
+# qu'il acceptait. Un agent inconnu qui ne demande rien de précis est ce qu'un
+# pare-feu applicatif écarte en premier : sur un passage de trente-six flux,
+# quatre refus 403 venaient de sites qui publient pourtant leur flux en libre
+# accès (CISA, IEA, IEC, SecurityWeek), et d'autres répondaient 200 avec une
+# page d'attente au lieu du flux — ce qui ne lève rien et ne rapporte rien.
+#
+# LE NOM DE LA MAISON RESTE, et c'est délibéré : un collecteur qui se fait
+# passer pour un navigateur empêche l'éditeur de nous joindre ou de nous
+# limiter proprement. Ce qui change est qu'il DIT ce qu'il vient chercher, et
+# qu'il porte une adresse de contact — c'est l'usage établi pour un agrégateur,
+# et c'est ce qui distingue un lecteur de flux d'un aspirateur anonyme.
+_ENTETES_FLUX = {
+    "User-Agent": ("Mozilla/5.0 (compatible; conseilprevcyber-veille/1.1; "
+                   "+https://conseilprevcyber.onrender.com/veille)"),
+    "Accept": ("application/rss+xml, application/atom+xml, application/xml;q=0.9, "
+               "text/xml;q=0.9, */*;q=0.8"),
+    "Accept-Language": "fr,en;q=0.8",
+}
+
+
 def _fetch_url(url, timeout=12):
-    r = requests.get(url, timeout=timeout,
-                     headers={"User-Agent": "conseilprevcyber-veille/1.0"})
+    r = requests.get(url, timeout=timeout, headers=_ENTETES_FLUX)
     r.raise_for_status()
     return r.text
 
@@ -664,11 +716,17 @@ def veille_refresh(fetcher=None):
             _log.warning("veille : flux %s injoignable (%s)", source, exc)
             veille_sources.noter_echec(source, exc)
             continue
+        # UNE RÉPONSE QUI N'EST PAS UN FLUX EST UN ÉCHEC, PAS UNE MOISSON NULLE.
+        # Sans cette distinction, une adresse qui sert une page d'accueil était
+        # comptée comme un flux en bonne santé qui n'a rien publié.
+        pourquoi = _pourquoi_pas_un_flux(xml_text)
+        if pourquoi:
+            _log.warning("veille : %s a répondu, mais %s", source, pourquoi)
+            veille_sources.noter_echec(source, pourquoi, a_repondu=True)
+            continue
         lus = _parse_feed(source, xml_text)
-        # ON NOTE CE QUE LE PASSAGE A DONNÉ, y compris zéro. Un flux qui répond
-        # sans rien rendre — adresse valide pointant ailleurs, format inconnu du
-        # lecteur — ne lève rien : sans ce comptage, il disparaîtrait de la page
-        # sans que rien ne le signale.
+        # ON NOTE CE QUE LE PASSAGE A DONNÉ, y compris zéro — mais ce zéro-là
+        # est désormais celui d'un VRAI flux qui n'a rien publié, et lui seul.
         veille_sources.noter_succes(source, len(lus))
         for item in lus[:30]:
             if _state.veille_has(item["guid"]):

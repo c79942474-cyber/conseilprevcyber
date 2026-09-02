@@ -287,3 +287,127 @@ def test_un_passage_lent_s_arrete_a_son_budget(monkeypatch):
     duree = _time.time() - debut
     assert len(appels) < len(veille_sources.SOURCES), "le budget n'a rien borné"
     assert duree < 10, "le passage a duré %.1f s malgré son budget" % duree
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  UNE RÉPONSE QUI N'EST PAS UN FLUX N'EST PAS UNE MOISSON NULLE
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# CE QUI S'EST RÉELLEMENT PASSÉ EN PRODUCTION, et qui a motivé ces règles. La
+# page de veille n'affichait rien. La collecte tournait pourtant : elle allait
+# au bout de ses trente-six sources en dix-sept secondes sur un budget de cent
+# quatre-vingts, sans être interrompue. Seize sources rendaient une erreur HTTP
+# — 404 après redirection, ou 403 d'un pare-feu applicatif. LES VINGT AUTRES
+# RÉPONDAIENT 200 SANS RIEN RENDRE, et ce cas-là était enregistré comme une
+# RÉUSSITE à zéro élément.
+#
+# Deux états qui appellent deux gestes opposés se retrouvaient donc sous le
+# même libellé : « ce flux n'a rien publié cette semaine », qui demande
+# d'attendre, et « cette adresse ne sert pas un flux », qui demande de la
+# corriger. Les confondre revient à attendre indéfiniment une correction que
+# personne ne sait devoir faire — c'est exactement ce qui s'est produit.
+
+import automation as _auto                                        # noqa: E402
+
+
+def test_une_page_html_qui_repond_200_nest_pas_un_flux():
+    """LE CAS EXACT DE LA PRODUCTION. Un pare-feu applicatif sert une page
+    d'attente avec un code 200. Elle est parfois du XML parfaitement valide —
+    donc le lecteur ne lève RIEN — et elle ne contient ni `item` ni `entry` :
+    zéro élément, zéro erreur, zéro trace.
+    """
+    attente = ("<html><head><title>Just a moment...</title></head>"
+               "<body><div id='cf'>Verifying you are human.</div></body></html>")
+    # Le témoin qui donne son sens au reste : cette page se parse SANS erreur.
+    import xml.etree.ElementTree as ET
+    ET.fromstring(attente)                       # ne lève pas — c'est le piège
+    assert _auto._parse_feed("x", attente) == [], (
+        "le lecteur ne doit rien tirer d'une page d'attente")
+    assert _auto._pourquoi_pas_un_flux(attente), (
+        "une page d'attente qui répond 200 doit être reconnue comme n'étant "
+        "PAS un flux — sans quoi elle passe pour un flux sans nouveauté")
+
+
+def test_un_vrai_flux_vide_reste_un_succes():
+    """LA SYMÉTRIE, ET C'EST ELLE QUI REND LA RÈGLE UTILE. Un flux qui n'a
+    rien publié cette semaine est un flux EN BONNE SANTÉ. Le refuser ferait
+    signaler une adresse à corriger là où il n'y a rien à corriger, et userait
+    l'alerte là où elle est méritée.
+    """
+    for vide in ('<rss version="2.0"><channel><title>t</title></channel></rss>',
+                 '<feed xmlns="http://www.w3.org/2005/Atom"><title>t</title></feed>'):
+        assert _auto._pourquoi_pas_un_flux(vide) is None, (
+            "un flux authentique et vide doit rester un succès : %s" % vide[:40])
+        assert _auto._parse_feed("x", vide) == []
+
+
+def test_le_collecteur_compte_un_echec_et_non_une_moisson_nulle(monkeypatch):
+    """LA PROPRIÉTÉ, MESURÉE SUR LE COLLECTEUR ET NON SUR LE DISCRIMINANT.
+    Vérifier la fonction seule ne dirait pas si le collecteur s'en sert : c'est
+    au bout de la chaîne que l'état d'une source se décide.
+    """
+    import veille_sources as VS
+    VS.reinitialiser()
+    _auto.init(dsn=None, start=False)
+    _auto.veille_refresh(fetcher=lambda url: "<html><body>rien</body></html>")
+    lignes = {l["cle"]: l for l in VS.etat()["sources"]}
+    sains = [c for c, l in lignes.items() if l["sante"] == "ok"]
+    assert not sains, (
+        "%d source(s) passent pour saines alors qu'aucune n'a servi de flux : "
+        "%s" % (len(sains), sains[:5]))
+    assert all(l["erreur"] for l in lignes.values()), (
+        "une source qui n'a pas servi de flux doit porter la RAISON, sinon "
+        "l'exploitant voit un tableau vide et ne sait pas quoi corriger")
+
+
+def test_le_collecteur_de_flux_annonce_ce_qu_il_vient_chercher():
+    """QUATRE 403 VENAIENT DE SITES QUI PUBLIENT POURTANT EN LIBRE ACCÈS —
+    CISA, IEA, IEC, SecurityWeek. Un agent qui ne déclare pas ce qu'il accepte
+    est ce qu'un pare-feu applicatif écarte en premier.
+
+    La règle borne DEUX propriétés, et pas la chaîne exacte : l'agent doit
+    nommer la maison — se faire passer pour un navigateur empêcherait un
+    éditeur de nous joindre ou de nous limiter proprement — et il doit annoncer
+    qu'il vient chercher un flux.
+    """
+    e = _auto._ENTETES_FLUX
+    ua = e.get("User-Agent", "")
+    assert "conseilprevcyber" in ua.lower(), (
+        "le collecteur doit se nommer : %r" % ua)
+    accept = e.get("Accept", "")
+    assert "rss" in accept and "atom" in accept, (
+        "le collecteur doit annoncer qu'il attend un flux, pas n'importe quoi "
+        ": %r" % accept)
+
+
+def test_ne_pas_avoir_repondu_et_avoir_repondu_autre_chose_ne_se_comptent_pas_pareil():
+    """« ON NE SAIT PAS » N'EST PAS « ON SAIT QUE C'EST ZÉRO », et une première
+    version de ce correctif confondait les deux — c'est une règle existante qui
+    l'a relevé, en exigeant un compte de 0 là où je laissais None.
+
+    Une adresse qui ne répond pas (404, 403, coupure) ne fournit AUCUNE mesure :
+    le compte doit rester None. Une adresse qui répond autre chose qu'un flux
+    en fournit une, et elle vaut zéro. Un tableau qui écrirait « — » dans les
+    deux cas ferait chercher une panne réseau là où l'adresse est simplement
+    fausse.
+    """
+    import veille_sources as VS
+    cle = VS.SOURCES[0]["cle"]
+
+    VS.reinitialiser()
+    VS.noter_echec(cle, "404 Not Found")
+    muet = {l["cle"]: l for l in VS.etat()["sources"]}[cle]
+    assert muet["elements"] is None, (
+        "une adresse qui n'a pas répondu n'a fourni aucun compte : %r"
+        % muet["elements"])
+
+    VS.reinitialiser()
+    VS.noter_echec(cle, "la racine est <html>", a_repondu=True)
+    repondu = {l["cle"]: l for l in VS.etat()["sources"]}[cle]
+    assert repondu["elements"] == 0, (
+        "une adresse qui a répondu autre chose qu'un flux a bien été comptée, "
+        "et le compte est zéro : %r" % repondu["elements"])
+
+    assert muet["erreur"] and repondu["erreur"], (
+        "les deux cas doivent porter leur raison — c'est elle qui dit à "
+        "l'exploitant lequel des deux gestes accomplir")
