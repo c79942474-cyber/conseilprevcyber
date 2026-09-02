@@ -170,8 +170,11 @@
        copie qui redemande le mot de passe — le même contrôle que le serveur
        applique côté redirection déjà connectée. */
     var nextRaw=q.get('next');
+    /* MÊME DESTINATION QUE LE SERVEUR — voir `ACCUEIL` dans auth.py. Cette
+       page ne peut pas la lire, elle est statique ; une règle les compare donc
+       terme à terme, sans quoi les deux exemplaires se sépareraient. */
     var nextUrl=(nextRaw && nextRaw.charAt(0)==='/' && nextRaw.charAt(1)!=='/'
-                && nextRaw.charAt(1)!=='\\') ? nextRaw : '/demo';
+                && nextRaw.charAt(1)!=='\\') ? nextRaw : '/';
     var bouton=document.querySelector('#f button[type=submit]');
     var enCours=false;
     document.getElementById('f').addEventListener('submit',function(e){

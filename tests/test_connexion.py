@@ -270,8 +270,15 @@ def test_next_absolu_ou_protocole_relatif_est_ignore(client):
                         "http://evil.example", "/\\evil.example"):
             r = client.get("/connexion", query_string={"next": hostile})
             assert r.status_code in (301, 302, 303, 307, 308), hostile
-            assert r.headers["Location"] == "/demo", (
+            # LA RÈGLE LIT LA DESTINATION DÉCLARÉE, elle ne la recopie pas.
+            # Elle exigeait « /demo » : le jour où l'atterrissage a changé de
+            # page — décision délibérée — elle est tombée en désignant un défaut
+            # d'anti-open-redirect qui n'existait pas. Ce qu'elle garde est que
+            # l'on reparte sur LE DÉFAUT DU SITE, quel qu'il soit, et jamais
+            # au-dehors : les deux moitiés sont vérifiées.
+            assert r.headers["Location"] == auth.ACCUEIL, (
                 hostile, r.headers["Location"])
+            assert "evil.example" not in r.headers["Location"], hostile
     finally:
         _oter(VISITEUR)
 

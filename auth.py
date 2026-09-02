@@ -922,6 +922,21 @@ def _check_captcha(slot, answer):
         return False
 
 
+# OÙ L'ON ATTERRIT QUAND RIEN N'EST DEMANDÉ. Écrit UNE fois : la valeur
+# vivait en double, ici et dans `connexion.html`, et deux exemplaires d'une
+# destination se séparent au premier changement — l'un des deux continuant
+# d'envoyer ailleurs sans que rien ne le signale.
+#
+# C'ÉTAIT `/demo`, ET C'ÉTAIT LE PLUS MAUVAIS CHOIX POSSIBLE. Cette page
+# s'intitule « Démonstration temps réel », affiche un bandeau « Données
+# SIMULÉES à des fins d'illustration » et tire ses chiffres de `Math.random()` ;
+# son mode « Temps réel » existe mais n'est pas celui par défaut. Un acheteur
+# qui venait de régler atterrissait donc sur des données fausses, sous un
+# avertissement. Personne ne l'avait décidé : `/demo` était le `next` par
+# défaut écrit un jour dans deux fichiers.
+ACCUEIL = "/"
+
+
 def _safe_next(value, default):
     """N'autorise qu'un chemin INTERNE (anti open-redirect).
 
@@ -968,7 +983,7 @@ def _page(nom):
 @auth_bp.route("/connexion")
 def page_login():
     if current_user():
-        return redirect(_safe_next(request.args.get("next"), "/demo"))
+        return redirect(_safe_next(request.args.get("next"), ACCUEIL))
     return _page("connexion.html")
 
 
