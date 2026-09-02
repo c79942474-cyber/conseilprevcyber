@@ -752,3 +752,45 @@ def test_la_page_dit_la_regle_du_plus_bas_avant_tout_calcul():
     entete = h[max(0, i - 900):i + 200]
     assert "PLUS BAS" in entete
     assert "moyenne" in entete
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  UN SCRIPT RÉFÉRENCÉ QUI N'EST PAS SERVI REND UNE PAGE INERTE, EN SILENCE
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_chaque_script_reference_par_une_page_est_REELLEMENT_SERVI(admin):
+    """LE DÉFAUT QUI A MOTIVÉ CETTE RÈGLE, ET QUI NE LEVAIT RIEN.
+
+    Une page neuve référençait `/ia-factory.js`. Le fichier était sur le
+    disque, son URL était versionnée dans `_ASSETS_VERSIONNES` — mais chaque
+    script de ce site est servi par une route EXPLICITE, et celle-là n'avait
+    pas été écrite. Le serveur rendait 404 ; la page, elle, se servait
+    parfaitement en 200. Résultat pour le visiteur : aucun secteur, aucun
+    champ, aucun parcours — une page morte. RIEN NE LE SIGNALAIT côté serveur,
+    parce qu'une page qui référence un script absent reste une page valide, et
+    la règle qui existait vérifiait la liste de versionnage, pas le service.
+
+    LA PROPRIÉTÉ, ICI, EST GLOBALE : tout script que N'IMPORTE QUELLE page
+    référence doit répondre 200 avec un type JavaScript. Elle ne demande à
+    aucune liste ; elle demande au serveur. L'administrateur est employé parce
+    qu'il atteint toutes les pages — une page fermée porte les mêmes scripts.
+    """
+    import app as _app
+    vus, fautes, pages_sautees = {}, [], 0
+    for chemin in sorted(_app.PAGES):
+        r = admin.get(chemin)
+        if r.status_code != 200:
+            pages_sautees += 1
+            continue
+        for src in re.findall(r'<script src="(/[^"?]+\.js)', r.get_data(as_text=True)):
+            vus.setdefault(src, chemin)
+    assert vus, "aucune page ne référence de script : la règle ne mesurerait rien"
+    for src, ou in sorted(vus.items()):
+        rr = admin.get(src)
+        t = (rr.headers.get("Content-Type") or "").lower()
+        if rr.status_code != 200 or "javascript" not in t:
+            fautes.append("%s (référencé par %s) → %d, type %r"
+                          % (src, ou, rr.status_code, t))
+    assert not fautes, (
+        "%d script(s) référencé(s) mais non servi(s) — les pages concernées "
+        "sont inertes dans un navigateur :\n  %s" % (len(fautes), "\n  ".join(fautes)))

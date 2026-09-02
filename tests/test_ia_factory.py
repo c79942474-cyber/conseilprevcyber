@@ -255,7 +255,36 @@ def test_le_parcours_guide_pose_un_cadenas_sur_la_page():
     assert '"%s": 1' % URL in bloc, "la page vendue n'a pas son cadenas dans le parcours"
 
 
-def test_le_script_de_page_est_versionne_et_ne_contourne_pas_le_delai():
+def test_chaque_script_de_la_page_est_REELLEMENT_SERVI(connecte):
+    """LA RÈGLE QUI MANQUAIT, ET LE DÉFAUT QU'ELLE AURAIT PRIS.
+
+    La version précédente vérifiait que « ia-factory.js » figurait dans
+    `_ASSETS_VERSIONNES` — la liste qui VERSIONNE les URL. Elle était verte
+    pendant que le script rendait 404 : aucune route ne le servait, chaque
+    script de ce site ayant la sienne, explicite. La page se servait
+    parfaitement ; le navigateur, lui, ne chargeait rien. Ni secteurs, ni
+    champs, ni parcours guidé — et RIEN côté serveur ne le signalait, parce
+    qu'une page qui référence un script absent est une page valide.
+
+    La propriété est donc : CHAQUE script que la page référence répond 200
+    avec un type JavaScript. Elle se moque de savoir dans quelle liste il est
+    inscrit ; elle demande au serveur.
+    """
+    page = connecte.get(URL).get_data(as_text=True)
+    scripts = re.findall(r'<script src="(/[^"?]+\.js)', page)
+    assert scripts, "la page ne référence aucun script ?"
+    fautes = []
+    for src in scripts:
+        r = connecte.get(src)
+        t = (r.headers.get("Content-Type") or "").lower()
+        if r.status_code != 200 or "javascript" not in t:
+            fautes.append("%s → %d, type %r" % (src, r.status_code, t))
+    assert not fautes, (
+        "des scripts référencés par la page ne sont pas servis :\n  %s"
+        % "\n  ".join(fautes))
+
+
+def test_le_script_de_page_ne_contourne_pas_le_delai():
     app_src = _src("app.py")
     bloc = app_src[app_src.index("_ASSETS_VERSIONNES = ("):]
     bloc = bloc[:bloc.index(")")]
@@ -541,3 +570,28 @@ def test_les_sections_sont_centrees_et_le_texte_suivi_reste_aligne():
     titre = re.search(r"\.iaf-sec h2\{([^}]*)\}", css)
     assert titre and "text-align:center" in titre.group(1), (
         "les titres, eux, doivent être centrés")
+
+
+def test_la_page_charge_le_script_qui_la_PILOTE(connecte):
+    """LE TROU QU'UNE MUTATION A OUVERT, ET QUE LES DEUX RÈGLES PRÉCÉDENTES
+    NE VOYAIENT PAS. Elles vérifient que les scripts RÉFÉRENCÉS sont servis :
+    retirer la balise `<script>` les laisse toutes deux vertes, et la page est
+    aussi morte que lorsque la route manquait.
+
+    La règle ne nomme pas de fichier — un nom figé interdirait de renommer le
+    script. Elle vérifie la RELATION : parmi les scripts que la page charge,
+    au moins un doit piloter les identifiants de CETTE page. Un script qui ne
+    les touche pas est du décor partagé, pas le moteur.
+    """
+    page = connecte.get(URL).get_data(as_text=True)
+    ids = set(re.findall(r'id="(iaf-[a-z-]+)"', page))
+    assert ids, "la page ne porte aucun identifiant `iaf-` à piloter"
+    pilotes = []
+    for src in re.findall(r'<script src="(/[^"?]+\.js)', page):
+        corps = connecte.get(src).get_data(as_text=True)
+        touches = {i for i in ids if ('"%s"' % i) in corps}
+        if len(touches) >= 3:
+            pilotes.append((src, len(touches)))
+    assert pilotes, (
+        "aucun script chargé par la page ne pilote ses identifiants (%s) : la "
+        "page s'affiche mais ne fait rien" % ", ".join(sorted(ids)[:5]))

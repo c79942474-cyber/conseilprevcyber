@@ -5619,6 +5619,23 @@ def ingenierie_dc_js():
                        mimetype="text/javascript; charset=utf-8")
 
 
+@app.route("/ia-factory.js")
+def ia_factory_js():
+    """Interface de l'étude de faisabilité IA Factory.
+
+    CETTE ROUTE MANQUAIT, ET LA PAGE ÉTAIT INERTE. Le fichier existait sur le
+    disque et son URL était versionnée — mais chaque script de ce site est
+    servi par une route EXPLICITE, et je n'en avais pas écrit. Résultat : 404,
+    aucun secteur, aucun champ, aucun parcours guidé. Rien ne le signalait
+    côté serveur : une page qui référence un script absent se sert
+    parfaitement, c'est le navigateur qui échoue, en silence pour le serveur.
+
+    Route publique, aucune donnée dans le fichier : ce sont les interfaces
+    qu'il appelle qui exigent une session."""
+    return _serve_fast("ia-factory.js", _CC_ASSET,
+                       mimetype="text/javascript; charset=utf-8")
+
+
 @app.route("/decarbonation-dc.js")
 def decarbonation_dc_js():
     """Interface de la plateforme de decarbonation. Aucune donnee dans le
