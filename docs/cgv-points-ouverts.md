@@ -10,12 +10,72 @@ confrontation au corpus de jurisprudence. Une règle d'essai vérifie que les hu
 clés de ce document, les marques `<!-- verif:… -->` de `cgv.html` et la grille se
 recouvrent exactement : aucune des trois ne peut bouger seule.
 
-> **Aucune décision de justice n'a été lue à ce jour.** Les serveurs juridiques
-> (LibreJustice, Legal Data Hunter) ont été refusés puis déconnectés de la
-> session où ces conditions ont été rédigées. Rien de ce qui suit n'est tranché,
-> et la mise en vigueur ne l'a pas tranché non plus.
+> **Le corpus a été rouvert le 1er septembre 2026, et le premier point y est
+> passé.** Les serveurs juridiques avaient été refusés puis déconnectés de la
+> session où ces conditions ont été rédigées ; ils ont répondu depuis. Le point
+> `retractation` — le plus exposé — a été confronté : voir « Ce que le corpus a
+> répondu » plus bas. **Les sept autres restent non confrontés**, et la mise en
+> vigueur ne les a pas tranchés.
 >
 >     python3 outils/verifier_cgv.py
+
+---
+
+## Ce que le corpus a répondu — `retractation` (article 5)
+
+**CJUE, 1re chambre, 9 juillet 2026, C-234/25** —
+<https://librejustice.fr/decision/GiyKATM1OyqM>
+
+La Cour dit pour droit, sur renvoi autrichien, que l'article 16, premier alinéa,
+sous m), de la directive 2011/83, lu avec son article 2, point 11 :
+
+> doit être interprété en ce sens que : la fourniture d'un service de streaming
+> par lequel un consommateur peut accéder, au moyen d'un hyperlien ou d'une
+> application numérique, à des données numériques stockées sur un serveur afin
+> de les visionner en direct, à la demande, ou encore hors ligne après
+> téléchargement sur un dispositif de mémoire propre, relève **non pas de la
+> fourniture de « contenus numériques »** au sens de ces dispositions, **mais de
+> la fourniture d'un « service numérique »** au sens de l'article 2, point 16,
+> de ladite directive, **lorsque l'offre proposée par le professionnel concerné
+> présente un caractère dynamique qui va au-delà de la seule mise à disposition
+> stable et, le cas échéant, continue de contenus spécifiques**.
+
+**POURQUOI CELA NOUS ATTEINT.** L'article 5 repose sur une renonciation au droit
+de rétractation pour un contenu numérique fourni immédiatement — c'est
+l'exception de l'article L221-28, 13°, du code de la consommation, qui transpose
+l'article 16, m). Cette exception ne joue **que pour un contenu numérique**. Si
+la prestation est un *service* numérique, elle ne joue pas : l'acheteur conserve
+son droit de rétractation, et le vendeur n'a que l'indemnité proportionnelle de
+l'article L221-25 (art. 14 § 3 de la directive), calculée *prorata temporis* ou
+sur la valeur marchande de ce qui a été effectivement consommé (points 50 à 52
+de l'arrêt).
+
+**ET NOTRE OFFRE RESSEMBLE À CE QUE LA COUR DÉCRIT.** L'accès se fait par une
+application, à des données stockées sur un serveur ; l'offre évolue — modules,
+mises à jour, veille réglementaire, nouveaux contenus. C'est le « caractère
+dynamique allant au-delà de la seule mise à disposition stable et continue de
+contenus spécifiques » que l'arrêt retient pour écarter la qualification de
+contenu numérique. La Cour laisse la vérification au juge du fond (point 45) ;
+elle ne laisse pas le critère.
+
+**DEUX RÉSERVES, ET ELLES COMPTENT.** La directive 2011/83 protège le
+*consommateur*, et la vente est réservée aux professionnels depuis le recast
+B2B. Le pont est l'article L221-3 du code de la consommation, qui étend la
+protection au professionnel employant cinq salariés au plus et contractant hors
+de son activité principale — c'est-à-dire exactement l'acheteur que l'article 15
+et le point `competence` avaient déjà signalé. Pour tout autre acheteur
+professionnel, l'arrêt ne s'applique pas.
+
+**CE QUE CELA CHANGE, ET CE QUI RESTE À DÉCIDER.** La renonciation de l'article 5
+n'est pas annulée : elle est **privée de son fondement pour les acheteurs
+couverts par L221-3**. Trois voies, et le choix n'appartient pas à la machine :
+soit l'article 5 réserve expressément le cas de L221-3 et accepte l'indemnité
+proportionnelle pour ces acheteurs-là ; soit la vente exclut contractuellement
+les professionnels de moins de six salariés, ce qui restreint le marché ; soit
+l'arbitrage est maintenu en connaissance du risque, désormais chiffré par un
+arrêt et non plus supposé.
+
+---
 
 ---
 
@@ -85,7 +145,7 @@ Les clés sont celles de `outils/verifier_cgv.py:POINTS` et des marques dans
 
 | clé | article | ce qui se joue |
 |---|---|---|
-| `retractation` | 5 | **Le plus exposé, et sans filet.** La renonciation vaut-elle pour un service fourni en continu, à durée indéterminée ? Rien n'absorbe le coup si la qualification tombe. |
+| `retractation` | 5 | **CONFRONTÉ le 1er septembre 2026 — voir ci-dessus.** CJUE C-234/25 : un service accessible par application, à l'offre dynamique, n'est pas un « contenu numérique ». La renonciation perd son fondement pour les acheteurs relevant de L221-3. |
 | `plafond` | 10 | Le plafond au montant payé laisse-t-il subsister l'obligation essentielle ? |
 | `adhesion` | 11 | Déséquilibre significatif dans un contrat non négocié, entre professionnels. |
 | `abusives` | 9 | Suspension, absence de remboursement, modification unilatérale — désormais sous l'angle des articles 1171 C. civ. et L442-1 C. com., et non plus R212-1. |

@@ -193,7 +193,26 @@ def test_les_points_ouverts_ne_sont_plus_sous_les_yeux_du_client():
     assert "Ce qui reste à confronter" not in src
     assert re.search(r"<!-- verif:[a-z]+ -->", src), "les marques ont disparu"
     doc = _src("docs/cgv-points-ouverts.md")
-    assert "Aucune décision de justice n'a été lue" in doc
+    # L'ÉTAT DE LA CONFRONTATION AU CORPUS, ET NON UNE PHRASE FIGÉE. La règle
+    # exigeait « Aucune décision de justice n'a été lue » — vrai tant que les
+    # serveurs juridiques étaient refusés, faux le jour où l'un d'eux a répondu.
+    # Une règle qui verrouille un libellé empêche de dire la vérité suivante.
+    # Ce qui doit tenir : que le document dise combien de points sont confrontés
+    # et combien ne le sont pas, et que ce compte soit celui du tableau.
+    lignes = re.findall(r"^\| `([a-z]+)` \| \d+ \| (.*)$", doc, re.M)
+    assert len(lignes) == 8, "le tableau des huit points en compte %d" % len(lignes)
+    confrontes = [c for c, t in lignes if "CONFRONTÉ" in t]
+    restants = len(lignes) - len(confrontes)
+    if restants:
+        mot = {1: "un", 2: "deux", 3: "trois", 4: "quatre",
+               5: "cinq", 6: "six", 7: "sept", 8: "huit"}[restants]
+        assert ("%s autres restent non confrontés" % mot) in doc or \
+               ("%s points restent non confrontés" % mot) in doc, (
+            "%d point(s) ne sont pas confrontés au corpus, et le document ne le "
+            "dit pas en toutes lettres" % restants)
+    for cle in confrontes:
+        assert "librejustice.fr/decision/" in doc, (
+            "le point « %s » se dit confronté sans citer de décision" % cle)
 
 
 def test_la_version_affichee_est_celle_que_le_serveur_conserve():
