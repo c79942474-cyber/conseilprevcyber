@@ -30,6 +30,7 @@ gardait la page de tarif cherchait les mots « Validation par notre équipe » e
 n'a rien su dire d'autre que leur disparition. Elles portent sur l'ÉTAT du
 compte, sur la TRACE au registre, et sur l'ÉGALITÉ des refus entre eux.
 """
+import io
 import os
 import sys
 
@@ -317,7 +318,6 @@ def test_le_chemin_payant_ne_se_compte_pas_avec_les_gratuites(courriels):
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _src(nom):
-    import io
     return io.open(os.path.join(ICI, nom), encoding="utf-8").read()
 
 
@@ -348,6 +348,38 @@ def test_la_page_de_connexion_ne_fait_pas_retaper_l_adresse_confirmee():
     page = _src("connexion.html")
     assert "/api/paiement/adresse-confirmee" in page
     assert "payerMail" in page[page.index("/api/paiement/adresse-confirmee"):]
+
+
+def test_AUCUNE_page_publique_n_annonce_plus_une_validation_par_l_equipe():
+    """LA RÈGLE PORTE SUR TOUTES LES PAGES, ET NON SUR CELLES QU'ON A PENSÉ À
+    CITER. Deux règles nommaient `inscription.html` et `connexion.html` ; la
+    même promesse dormait sur l'ACCUEIL, où un commentaire annonçait même la
+    correction qu'elle n'avait pas reçue. Une liste figée cesse de décrire le
+    site dès qu'on y ajoute une page — celle-ci les lit toutes.
+
+    Les commentaires HTML sont ôtés : ils CITENT la phrase interdite pour dire
+    pourquoi elle l'est.
+    """
+    import glob
+    import re
+    fautives = {}
+    for chemin in sorted(glob.glob(os.path.join(ICI, "*.html"))):
+        texte = io.open(chemin, encoding="utf-8").read()
+        # DEUX SYNTAXES DE COMMENTAIRE, PARCE QUE CES FICHIERS PORTENT TROIS
+        # LANGAGES. Ne retirer que `<!-- -->` laissait la règle buter sur une
+        # explication écrite en commentaire JavaScript — elle refusait la page
+        # corrigée à cause du texte qui dit pourquoi elle l'a été.
+        for motif in (r"<!--.*?-->", r"/\*.*?\*/"):
+            texte = re.sub(motif, "", texte, flags=re.S)
+        trouvees = [p for p in ("validé par notre équipe",
+                                "validée par notre équipe",
+                                "validation par notre équipe",
+                                "validation manuelle des accès")
+                    if p in texte]
+        if trouvees:
+            fautives[os.path.basename(chemin)] = trouvees
+    assert not fautives, (
+        "des pages annoncent encore une validation par l'équipe : %s" % fautives)
 
 
 def test_l_inscription_annonce_le_reglement_et_non_une_validation():
