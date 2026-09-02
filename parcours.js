@@ -61,7 +61,11 @@
      que ce bloc corrigeait, et la même recette l'a vu. */
   var RESERVE = {
     "/strategie-durable-datacenter": 1, "/datacenter": 1,
-    "/ingenierie-datacenter": 1
+    "/ingenierie-datacenter": 1,
+    /* La quatrième page vendue, du 2 septembre 2026 : l'ingénierie de projet
+       IA Factory rejoint la famille « ingénierie de projet », et son cadenas
+       avec elle. */
+    "/ingenierie-ia-factory": 1
   };
   /* Vrai tant qu'on ne sait pas le contraire. Un client connecté n'a aucun mur
      devant lui : lui coller un cadenas sur presque chaque étape serait un bruit

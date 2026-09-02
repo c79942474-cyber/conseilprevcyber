@@ -187,6 +187,7 @@ _RATE_EXACT = {
     # ferme pour l'abus, qui figerait le site pour tout le monde.
     "/api/datacenter/piece/export":      (30, 60),
     "/api/datacenter/ingenierie/export": (30, 60),
+    "/api/ia-factory/chiffrer":          (60, 60),
     # LES QUATRE POINTS À JETON. Le compteur d'ÉCHECS (voir `_jeton_refus`)
     # arrête la force brute ; il ne borne pas une inondation menée AVEC le bon
     # jeton — un connecteur en boucle, ou un secret ayant fuité. Ces plafonds
@@ -891,6 +892,7 @@ PAGES = {
     "/datacenter": "datacenter.html",
     "/ingenierie-datacenter": "ingenierie-datacenter.html",
     "/strategie-durable-datacenter": "strategie-durable-datacenter.html",
+    "/ingenierie-ia-factory": "ingenierie-ia-factory.html",
 }
 
 
@@ -926,6 +928,7 @@ _ASSETS_VERSIONNES = (
     "styles.css", "nav.js", "parcours.js", "modules.js", "transmettre.js",
     "datacenter.js", "dc-profil.js", "markdown.js", "ingenierie-dc.js",
     "decarbonation-dc.js", "strategie-dd.js", "equipements-it.js", "emblem.svg",
+    "ia-factory.js",
 )
 _CC_IMMUABLE = "public, max-age=31536000, immutable"
 
@@ -2322,6 +2325,7 @@ import maturite_ot   # noqa: E402  — l'auto-evaluation declarative, pas un ass
 import etat_art      # noqa: E402  — les faits publies, chacun avec son auteur et ce qu'il vaut
 import profil_dc     # noqa: E402  — analyse le moteur ci-dessus, ne le double pas
 import ingenierie_dc  # noqa: E402  — situe ses résultats dans la séquence projet
+import ia_factory     # noqa: E402  — l'étude de faisabilité d'une usine IA, sans prix inventé
 import technique_dc  # noqa: E402  — le vocabulaire du métier, servi aux infobulles
 import icpe_dc       # noqa: E402  — crible les rubriques, ne classe pas le site
 import travaux_dc    # noqa: E402  — l'ordre des opérations de chantier et ses tiers
@@ -2366,6 +2370,16 @@ def datacenter_page():
 def ingenierie_datacenter_page():
     """Le même calcul, replacé dans la séquence projet — MOE et ingénierie."""
     return _page(PAGES["/ingenierie-datacenter"])
+
+
+@app.route("/ingenierie-ia-factory")
+@login_required
+def ingenierie_ia_factory_page():
+    """L'étude de faisabilité chiffrée d'une usine IA. FERMÉE PAR CONSTRUCTION :
+    la liste blanche d'`acces.DIRECT` laisse close toute page qu'on n'a pas
+    décidé d'ouvrir ; celle-ci rejoint les trois pages d'ingénierie Data Center
+    dans ce que l'accès vendu ouvre, et le périmètre le lit sur le menu."""
+    return _page(PAGES["/ingenierie-ia-factory"])
 
 
 @app.route("/decarbonation-datacenter")
@@ -3809,6 +3823,35 @@ def api_datacenter_ingenierie():
     # GIL par requête. Figé par processus, revalidé par ETag : 304 sans corps.
     return _json_fige("dc-ingenierie",
                       lambda: dict(ok=True, referentiel=ingenierie_dc.referentiel()))
+
+
+@app.route("/api/ia-factory")
+@login_required
+def api_ia_factory():
+    """Le référentiel de l'étude : postes, quantités et prix ATTENDUS, ancrages
+    sourcés, phases, jalons, leviers. Il ne porte aucun prix — figé par
+    processus, comme l'ingénierie DC, parce qu'il est déterministe."""
+    return _json_fige("ia-factory", lambda: dict(ok=True, referentiel=ia_factory.referentiel()))
+
+
+@app.route("/api/ia-factory/chiffrer", methods=["POST"])
+@login_required
+def api_ia_factory_chiffrer():
+    """Le chiffrage et le planning, à partir des quantités et des prix du client.
+
+    Un poste sans prix ressort `non_chiffre` avec sa raison plutôt que zéro, et
+    la part non chiffrée est publiée : un zéro muet ferait croire que le poste
+    n'est pas dû."""
+    d = request.get_json(silent=True) or {}
+    debut = (d.get("debut") or "").strip() or None
+    try:
+        pl = ia_factory.planning(d.get("quantites"), debut)
+    except ValueError:
+        return jsonify(ok=False, error="date de début illisible (attendu AAAA-MM-JJ)"), 400
+    return jsonify(ok=True,
+                   chiffrage=ia_factory.chiffrer(d.get("quantites"), d.get("prix"),
+                                                 d.get("provision_pct")),
+                   planning=pl)
 
 
 @app.route("/api/datacenter/economiste")

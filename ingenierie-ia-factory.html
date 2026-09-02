@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ingénierie de projet — IA Factory — étude de faisabilité chiffrée — CONSEILPREV Cyber</title>
+<meta name="description" content="L'étude de faisabilité d'une usine d'intelligence artificielle pour un grand compte à infrastructure critique : postes budgétaires, équipe, planning et jalons réglementaires, conduite du changement, migration des systèmes. Chiffrée sur vos quantités et vos prix — jamais sur un ratio.">
+<meta name="robots" content="noindex, follow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CONSEILPREV Cyber">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Ingénierie de projet IA Factory — CONSEILPREV Cyber">
+<meta property="og:description" content="Une structure de postes, une équipe, un planning et ses jalons réglementaires, chiffrés sur vos prix. Le module n'en porte aucun.">
+<meta property="og:url" content="https://conseilprevcyber.onrender.com/ingenierie-ia-factory">
+<meta property="og:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="CONSEILPREV Cyber — ingénierie de projet IA Factory">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Ingénierie de projet IA Factory — CONSEILPREV Cyber">
+<meta name="twitter:description" content="Ce qu'une usine IA coûte se lit sur vos prix ; ce qu'elle risque se lit sur les migrations documentées.">
+<meta name="twitter:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<link rel="canonical" href="https://conseilprevcyber.onrender.com/ingenierie-ia-factory">
+
+<link rel="icon" href="/emblem.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<script src="/nav.js" defer></script>
+<script src="/parcours.js" defer></script>
+<script src="/ia-factory.js" defer></script>
+<style>
+  .kick{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted2)}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+  .ig-session-alerte{position:sticky;top:0;z-index:60;margin:0 0 14px;padding:12px 16px;border:1px solid currentColor;
+    border-radius:10px;background:rgba(0,0,0,.35);font-size:13.5px;line-height:1.6}
+  .ig-session-alerte b{color:var(--ink)}
+  .ig-session-alerte .btn{margin:0 6px;vertical-align:baseline}
+  .dc-refus{border:1px solid rgba(190,120,40,.42);background:rgba(190,120,40,.07);border-radius:9px;padding:11px 14px;font-size:13.5px;line-height:1.65;margin:0 0 12px}
+  .dc-refus ul{margin:0;padding-left:18px}
+  .moe-tab{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}
+  .moe-tab th,.moe-tab td{padding:6px 9px;border-bottom:1px solid rgba(255,255,255,.14);text-align:right;vertical-align:top}
+  .moe-tab th{font-size:11px;color:var(--muted2);font-weight:500}
+  .moe-tab th:first-child,.moe-tab td:first-child,.moe-tab td:nth-child(2){text-align:left}
+  .moe-tab td code{font-size:11px;opacity:.85;white-space:normal}
+  .moe-tab tr.ouv td{opacity:.78}
+  .moe-tab tr.iaf-grp td{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal);padding-top:14px;border-bottom:none}
+  .moe-tab tr.passe td{opacity:.62}
+  .moe-tot{font-size:22px;font-weight:600;margin:16px 0 2px}
+  .moe-tot .note{font-size:12.5px;font-weight:400}
+  .moe-asaisir{font-size:10px;letter-spacing:.04em;text-transform:uppercase;padding:1px 6px;border-radius:3px;border:1px solid rgba(190,120,40,.6);color:#e0a34a;white-space:nowrap}
+  .moe-recu{margin:0 0 12px;padding:10px 13px;border-left:3px solid #1C5CAB;background:rgba(28,92,171,.10);border-radius:0 7px 7px 0;font-size:12.5px;line-height:1.6}
+  .na-src-sans{margin-left:7px;padding:1px 7px;border-radius:999px;border:1px solid rgba(255,255,255,.28);color:rgba(255,255,255,.7);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase}
+
+  /* ── la page ─────────────────────────────────────────────────────── */
+  .iaf-sec{margin:34px 0 0}
+  .iaf-sec h2{font-size:22px;margin:0 0 6px}
+  .iaf-sec h3{font-size:16px;margin:18px 0 6px}
+  .iaf-sec h4{font-size:14px;margin:14px 0 4px}
+  .iaf-sec p{max-width:82ch;line-height:1.65}
+  .iaf-these{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:18px 0 6px}
+  .iaf-these div{border:1px solid var(--line);border-left:3px solid var(--teal);border-radius:10px;padding:12px 14px;
+    background:rgba(0,0,0,.10);font-size:13px;color:var(--muted);line-height:1.6}
+  .iaf-these b{color:var(--ink);display:block;margin-bottom:4px}
+  .iaf-grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px 18px;margin:12px 0}
+  .iaf-champ{display:flex;flex-direction:column;gap:3px;font-size:13px}
+  .iaf-nom{font-weight:600;color:var(--ink)}
+  .iaf-nom small{font-weight:400;color:var(--muted2)}
+  .iaf-champ input{padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:rgba(0,0,0,.18);color:var(--ink);
+    font-family:inherit;font-size:14px;outline:none}
+  .iaf-champ input:focus{border-color:var(--cyan)}
+  .iaf-ou{font-size:11.5px;color:var(--muted2);line-height:1.45}
+  .iaf-ligne{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin:14px 0}
+  .iaf-ligne label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--ink)}
+  .iaf-ligne input{padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:rgba(0,0,0,.18);color:var(--ink);font-family:inherit;font-size:14px}
+  .iaf-go{font:inherit;font-size:14px;font-weight:600;padding:10px 18px;border-radius:8px;border:1px solid currentColor;
+    background:var(--teal);color:#0b1a18;cursor:pointer}
+  .iaf-go:hover{filter:brightness(1.08)}
+  .iaf-go:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+  .iaf-cmp{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:10px 0;background:rgba(0,0,0,.10);font-size:13px}
+  .iaf-cmp h4{margin:0 0 6px;font-size:14.5px}
+  .iaf-cmp ul{margin:0;padding-left:18px;line-height:1.55}
+  .iaf-cmp li{margin-bottom:6px}
+  .iaf-src{font-family:var(--mono);font-size:10.5px;color:var(--muted2);letter-spacing:.03em}
+  .iaf-lecon{margin:8px 0 0;font-style:italic;color:var(--muted)}
+  .iaf-phases{padding-left:20px;font-size:13.5px;line-height:1.6}
+  .iaf-phases>li{margin-bottom:10px}
+  .iaf-phases ul{margin:4px 0;padding-left:18px;color:var(--muted)}
+  .iaf-nature{margin-left:8px;font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;
+    padding:1px 6px;border-radius:3px;border:1px solid rgba(255,255,255,.25);color:var(--muted2)}
+  .iaf-leviers{padding-left:18px;font-size:13.5px;line-height:1.6}
+  .iaf-leviers li{margin-bottom:10px}
+  .iaf-sources{padding-left:20px;font-size:12.5px;line-height:1.55}
+  .iaf-sources li{margin-bottom:7px}
+  .iaf-sources small{color:var(--muted2)}
+  .iaf-muet{opacity:.8}
+  .iaf-couv{border-left:3px solid var(--teal);padding:8px 12px;background:rgba(0,0,0,.10);border-radius:0 8px 8px 0;font-size:13px}
+  .iaf-lots{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+  .iaf-lots th,.iaf-lots td{padding:8px 9px;border-bottom:1px solid rgba(255,255,255,.14);text-align:left;vertical-align:top;line-height:1.5}
+  .iaf-lots th{font-size:11px;color:var(--muted2);font-weight:500;letter-spacing:.06em;text-transform:uppercase}
+  .iaf-limite{margin:26px 0 0;padding:12px 15px;border:1px dashed currentColor;border-radius:10px;font-size:12.5px;line-height:1.6;opacity:.9}
+</style>
+</head>
+<body data-fond="couchant">
+  <header>
+  <div class="wrap nav">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu"><span></span><span></span><span></span></button>
+    <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="30" height="30" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+    <nav class="links" aria-label="Navigation principale">
+      <a href="/">Accueil</a>
+      <a href="/services">Services</a>
+      <a href="/referentiel">Référentiel 62443</a>
+      <a href="/audit-conformite">Audit 62443</a>
+      <a href="/demo">Cockpit</a>
+      <a href="/assistant">Assistant IA</a>
+      <a href="/veille">Veille</a>
+      <a href="/about">À propos</a>
+    </nav>
+    <div class="navcta">
+      <a href="/contact" class="cta">Contact</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+  <section class="wrap" style="padding:44px 0 8px">
+    <p class="kick">Ingénierie de projet &amp; transformation numérique</p>
+    <h1 style="margin:8px 0 12px;max-width:26ch">Ingénierie de projet — IA Factory</h1>
+    <p class="lead" style="max-width:78ch">
+      L'étude de faisabilité d'une usine d'intelligence artificielle pour un grand compte à
+      infrastructure critique : les postes budgétaires, l'équipe, le planning et ses jalons, la
+      conduite du changement, la migration des systèmes. <b>Chiffrée sur vos quantités et vos
+      prix — jamais sur un ratio.</b> Le module ne porte aucun prix&nbsp;; il met en ordre, il
+      compte, et il dit ce qui n'est pas chiffré.</p>
+
+    <div class="iaf-these">
+      <div><b>Le cas qui sert de fil</b>Le programme Orion du groupe BPCE&nbsp;: une plateforme commune
+        à deux réseaux (Equinoxe, MySys), 800 puis 900&nbsp;M€ selon les sources (la seconde enveloppe n'a pas été retrouvée en source ouverte), un pilotage confié
+        à BCG et Wavestone, une usine IA placée sous une direction générale dédiée, cent mille
+        salariés dont un sur deux utilise déjà l'IA générative. Ce n'est pas notre étude&nbsp;: c'est
+        l'ordre de grandeur qui la situe.</div>
+      <div><b>Ce que ce module refuse</b>Un « euro par salarié » ou un « euro par cas d'usage »
+        affiché ici serait une invention habillée en référentiel — et crédible, ce qui est pire.
+        Les prix sont les vôtres&nbsp;: vos marchés de conseil, votre grille RH, vos devis
+        d'infrastructure. Un poste sans prix reste <em>non chiffré</em>, avec sa raison.</div>
+      <div><b>Ce qu'il apporte à la place</b>Les postes que le neuf ne connaît pas — les interfaces
+        portées deux fois pendant une migration, la recette en double, le gel autour de la
+        bascule&nbsp;; des ancrages publics avec ce qu'ils ne disent pas&nbsp;; des jalons
+        réglementaires qui ne glissent pas avec le projet&nbsp;; et le compte de ce qui manque.</div>
+    </div>
+  </section>
+
+  <!-- ══ 1. LES ANCRAGES ═════════════════════════════════════════════════ -->
+  <section class="wrap iaf-sec" id="s-ancrages">
+    <h2>1. Les cas comparables — pour situer, pas pour caler</h2>
+    <p>Chaque chiffre porte sa source, la nature de cette source, et surtout <b>ce qu'il ne dit
+      pas</b>. Un budget de programme ne dit pas la part de l'IA&nbsp;; un nombre de cas d'usage ne dit
+      pas la taille d'un cas&nbsp;; un objectif de « valeur » n'est pas une économie mesurée.</p>
+    <div id="iaf-cmp"><p>Chargement des comparables…</p></div>
+  </section>
+
+  <!-- ══ 2. LA SAISIE ═════════════════════════════════════════════════════ -->
+  <section class="wrap iaf-sec" id="s-saisie">
+    <h2>2. Vos quantités, vos prix</h2>
+    <p>Chaque entrée dit où la trouver. Une entrée qu'on ne sait pas où chercher est une entrée
+      qui sera inventée — c'est pour cela que les libellés sont longs.</p>
+    <h3>Les quantités</h3>
+    <div class="iaf-grille" id="iaf-q"><p>Chargement…</p></div>
+    <h3>Les prix unitaires</h3>
+    <div class="iaf-grille" id="iaf-p"></div>
+    <div class="iaf-ligne">
+      <label>Provision pour aléas (%)
+        <input type="number" id="iaf-provision" min="0" max="200" step="1" placeholder="non saisie"></label>
+      <label>Date de début
+        <input type="date" id="iaf-debut"></label>
+      <button type="button" class="iaf-go" id="iaf-go">Chiffrer et planifier</button>
+    </div>
+    <p class="iaf-ou" style="max-width:82ch">Le module ne propose aucun taux de provision. Il compare
+      celui que vous saisissez au dépassement documenté des programmes de remplacement de cœur
+      bancaire, et il le signale s'il lui est inférieur.</p>
+  </section>
+
+  <!-- ══ 3. LE CHIFFRAGE ══════════════════════════════════════════════════ -->
+  <section class="wrap iaf-sec" id="s-chiffrage">
+    <h2>3. Le chiffrage, poste par poste</h2>
+    <p>Neuf groupes de postes. Un poste dont une entrée manque n'est pas compté à zéro&nbsp;: un zéro
+      muet ferait croire qu'il n'est pas dû. La part non chiffrée de la structure s'affiche avec
+      le total.</p>
+    <div id="iaf-out"><p class="iaf-ou">Renseignez les entrées ci-dessus, puis chiffrez.</p></div>
+    <h3>L'équipe centrale (hub)</h3>
+    <p>Dérivée des seuls ratios sourcés — un ingénieur plateforme pour quatre à six constructeurs de
+      modèles, un data engineer pour deux à trois — à partir du nombre de cas d'usage et de
+      l'effectif par cas que <em>vous</em> avez observé sur vos pilotes.</p>
+    <div id="iaf-dim"></div>
+  </section>
+
+  <!-- ══ 4. LE PLANNING ═══════════════════════════════════════════════════ -->
+  <section class="wrap iaf-sec" id="s-planning">
+    <h2>4. Le planning et ses jalons</h2>
+    <p>Cinq phases dont les durées sont <b>l'usage du cabinet</b>, déclarées comme telles à ±50&nbsp;%.
+      Et des jalons <b>réglementaires</b>, qui sont des dates de textes&nbsp;: ils tombent où ils tombent,
+      projet en retard ou non. C'est pour cela qu'ils ne sont pas dans la même liste.</p>
+    <div id="iaf-phases"></div>
+    <h3>Les jalons réglementaires au jour de la lecture</h3>
+    <div id="iaf-jalons"></div>
+    <h3>Votre calendrier</h3>
+    <div id="iaf-planning"><p class="iaf-ou">Le calendrier se construit au chiffrage, à partir de la date de début saisie.</p></div>
+  </section>
+
+  <!-- ══ 5. LA CONDUITE DU CHANGEMENT ═════════════════════════════════════ -->
+  <section class="wrap iaf-sec" id="s-changement">
+    <h2>5. La conduite du changement</h2>
+    <p>La ressource rare n'est ni le data scientist ni le processeur graphique&nbsp;: c'est la personne
+      qui connaît le métier <em>et</em> l'outil. Elle se forme, elle ne se recrute pas. Cinq leviers,
+      chacun adossé à un ancrage public quand il en existe un — et dit comme convention du cabinet
+      sinon.</p>
+    <div id="iaf-changement"></div>
+  </section>
+
+  <!-- ══ 6. LA MIGRATION ══════════════════════════════════════════════════ -->
+  <section class="wrap iaf-sec" id="s-migration">
+    <h2>6. La migration des systèmes — ce qui fait déraper</h2>
+    <p>Une usine IA adossée à une migration de cœur hérite de l'aléa de la migration. Le
+      contre-exemple est documenté par une revue indépendante&nbsp;: TSB, 2018 — une bascule en un
+      événement, une recette insuffisante, 232 jours de perturbation, plus de 330 millions de
+      livres. Quatre principes en découlent.</p>
+    <div id="iaf-migration"></div>
+  </section>
+
+  <!-- ══ 7. LA CONFORMITÉ ═════════════════════════════════════════════════ -->
+  <section class="wrap iaf-sec" id="s-conformite">
+    <h2>7. La conformité et la maîtrise des risques</h2>
+    <p>Trois textes commandent le calendrier d'une usine IA bancaire. <b>DORA</b> (règlement (UE)
+      2022/2554), applicable depuis le 17 janvier 2025&nbsp;: un fournisseur de modèle est un
+      prestataire de services TIC, avec son registre, ses tests de résilience et sa gestion des
+      incidents. Le <b>règlement (UE) 2024/1689</b> sur l'IA, tel que modifié par le <b>règlement
+      (UE) 2026/1744</b> en vigueur depuis le 27 juillet 2026&nbsp;: les pratiques interdites et
+      la transparence de l'article 50 sont en vigueur&nbsp;; les systèmes à haut risque de l'annexe
+      III — évaluation de solvabilité, notation de crédit, tarification d'assurance — sont
+      reportés au 2 décembre 2027. Et la <b>supervision</b>&nbsp;: la BCE inscrit l'IA à ses priorités
+      2026-2028, l'ACPR l'a intégrée au questionnaire SREP 2025.</p>
+    <p>Ce que cela commande dans l'étude&nbsp;: la qualification annexe III se fait <em>dossier par
+      dossier</em> dès le cadrage, chaque dossier a son poste de conformité, et la date du 2 décembre
+      2027 est un jalon du planning qui ne se négocie pas.</p>
+  </section>
+
+  <!-- ══ 8. CE QUE CONSEILPREV PROPOSE ════════════════════════════════════ -->
+  <section class="wrap iaf-sec" id="s-offre">
+    <h2>8. Ce que CONSEILPREV propose — sept lots, dans l'ordre du projet</h2>
+    <p>Un dispositif calqué sur ce qu'Orion a mis en place — un pilotage principal, un
+      contre-pilotage, un lot d'accompagnement — et complété par ce que ce module chiffre&nbsp;: le
+      socle, les métiers, la migration, la conformité. Aucun prix ici&nbsp;: les jours se
+      saisissent en section 2, sur votre grille.</p>
+    <table class="iaf-lots">
+      <thead><tr><th>Lot</th><th>Ce qu'il livre</th><th>Phase</th><th>Ce qu'il consomme dans le chiffrage</th></tr></thead>
+      <tbody>
+        <tr><td><b>L1 · Cadrage et faisabilité</b></td><td>Note de cadrage, portefeuille de cas d'usage arbitré, qualification annexe III dossier par dossier, cette étude chiffrée sur vos entrées.</td><td>Faisabilité</td><td>jours de cadrage × taux conseil</td></tr>
+        <tr><td><b>L2 · Contre-pilotage</b></td><td>Audit des arbitrages techniques et budgétaires, suivi du calendrier et de la trajectoire financière, alerte sur la provision au regard des dépassements documentés.</td><td>Toutes</td><td>jours de pilotage par mois × durée × taux conseil</td></tr>
+        <tr><td><b>L3 · Socle et usine IA</b></td><td>Architecture de plateforme (infrastructure souveraine ou sur site, MLOps / LLMOps, sécurité), charte et comité IA, registre des systèmes, dimensionnement de l'équipe centrale.</td><td>Socle, pilotes</td><td>infrastructure, outillage, sécurité (annuels) ; équipe centrale</td></tr>
+        <tr><td><b>L4 · Métiers et cas d'usage</b></td><td>Accompagnement de chaque ligne métier&nbsp;: du pilote à la production, mesure d'adoption et de valeur, retours d'expérience chiffrés.</td><td>Pilotes, industrialisation, généralisation</td><td>cas d'usage × jours par cas × coût interne</td></tr>
+        <tr><td><b>L5 · Conduite du changement</b></td><td>Cadre social négocié, socle de formation pour tous puis parcours par métier, réseau d'ambassadeurs, mesure d'adoption publiée.</td><td>Socle → généralisation</td><td>effectif × part formée × heures × coût horaire ; ambassadeurs</td></tr>
+        <tr><td><b>L6 · Migration et intégration</b></td><td>Portage des interfaces (deux fois si migration de cœur), recette, gel daté autour de la bascule, pas de bascule unique.</td><td>Chevauche la migration</td><td>interfaces × coût de portage × 2 ; recette</td></tr>
+        <tr><td><b>L7 · Conformité et risque</b></td><td>Dossiers annexe III, registre DORA des prestataires TIC, transparence article 50 sur les agents vocaux, revue annuelle.</td><td>Socle → annexe III au 2 décembre 2027 (article 50 déjà en vigueur depuis le 2 août 2026)</td><td>cas haut risque × coût d'un dossier</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ══ 9. LES SOURCES ═══════════════════════════════════════════════════ -->
+  <section class="wrap iaf-sec" id="s-sources">
+    <h2>9. Les sources — obtenues, et comptées comme telles</h2>
+    <div id="iaf-sources"></div>
+    <p class="iaf-limite" id="iaf-limite"></p>
+  </section>
+
+</main>
+
+  <footer>
+  <div class="wrap foot">
+    <div class="foot-cols">
+      <div class="foot-brand">
+        <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="26" height="26" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+        <p>Cybersécurité industrielle IT / OT / IIoT — conformité IEC&nbsp;62443, NIS2, DORA.</p>
+      </div>
+      <nav class="foot-col" aria-label="Expertise">
+        <h4>Expertise</h4>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/methodologie">Méthodologie</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/operating-model">Operating Model</a>
+        <a href="/maturite-ot">Maturité OT</a>
+        <a href="/feuille-de-route">Feuille de route</a>
+        <a href="/continuite-ot">Continuité &amp; crise OT</a>
+        <a href="/gestion-des-changements">Gestion des changements</a>
+        <a href="/architecture-cible">Architecture cible</a>
+        <a href="/formation">Formation</a>
+      </nav>
+      <nav class="foot-col" aria-label="Norme &amp; conformité">
+        <h4>Norme &amp; conformité</h4>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/audit-conformite">Audit 62443</a>
+        <a href="/diagnostic">Diagnostic express</a>
+        <a href="/nis2">NIS2</a>
+      </nav>
+      <nav class="foot-col" aria-label="Plateforme">
+        <h4>Plateforme</h4>
+        <a href="/demo">Cockpit</a>
+        <a href="/assistant">Assistant IA</a>
+        <a href="/connecter">Connecter une source</a>
+        <a href="/guide-integration">Guide d’intégration</a>
+      </nav>
+      <nav class="foot-col" aria-label="Ressources">
+        <h4>Ressources</h4>
+        <a href="/veille">Veille</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/checklist-62443">Checklist 62443</a>
+        <a href="/glossaire-62443">Glossaire 62443</a>
+      </nav>
+    </div>
+    <div class="foot-bar">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Tous droits réservés</div>
+      <div class="foot-legal">
+        <a href="/about">À propos</a>
+        <a href="/contact">Contact</a>
+        <a href="/connexion">Espace client</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/politique-confidentialite">Confidentialité</a>
+        <a href="/conformite">Conformité IA &amp; RGPD</a>
+        <a href="/admin" rel="nofollow" class="foot-admin">Admin</a>
+      </div>
+    </div>
+  </div>
+</footer>
+<script>document.getElementById("y").textContent = new Date().getFullYear();</script>
+</body>
+</html>

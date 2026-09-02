@@ -36,6 +36,12 @@
       '<rect x="3" y="4" width="18" height="6" rx="1.5"/>'
       + '<rect x="3" y="14" width="18" height="6" rx="1.5"/>'
       + '<path d="M7 7h.01M7 17h.01M11 7h5M11 17h5"/>',
+    /* UNE USINE : un toit en dents de scie sur un socle. Silhouette sans
+       parenté avec les baies du Data Center juste au-dessus — c'est la
+       règle de la recette, et la couleur seule ne suffirait pas. */
+    "Ingénierie de Projet — IA Factory":
+      '<path d="M3 20V9l5 3V9l5 3V9l5 3v8"/>'
+      + '<path d="M3 20h18"/><path d="M7 20v-3h3v3M14 20v-3h3v3"/>',
     "Référentiel IEC 62443":
       '<path d="M12 2.5 20 6v5.5c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V6z"/>'
       + '<path d="m8.8 11.8 2.3 2.3 4.3-4.6"/>',
@@ -63,6 +69,7 @@
     "Expertise": "var(--cyan)",
     "Conseil & transformation": "var(--violet)",
     "Ingénierie de Projet — Data Center": "var(--teal)",
+    "Ingénierie de Projet — IA Factory": "var(--cyan)",
     "Référentiel IEC 62443": "var(--amber)",
     "Conformité & audit": "var(--green)",
     "Plateforme": "var(--cyan)",
@@ -102,6 +109,8 @@
     "/strategie-durable-datacenter": '<path d="M20 4c0 9-5.5 13-11 13a5.5 5.5 0 0 1 0-11c4 0 6-2 11-2z"/><path d="M4 21c1.5-5 5-8.5 9.5-10.5"/>',
     "/datacenter": '<rect x="3" y="3.5" width="18" height="6" rx="1.5"/><rect x="3" y="14.5" width="18" height="6" rx="1.5"/><path d="M6.8 6.5h.01M6.8 17.5h.01"/><path d="m14 5.5-1.6 2.6h2.2L13 11"/>',
     "/ingenierie-datacenter": '<path d="M4 20 14.5 9.5"/><path d="m12.5 7.5 4 4 3-3a2.8 2.8 0 0 0-4-4z"/><path d="M4 20v-3.5L7.5 20z"/><path d="M17 17h4M19 15v4"/>',
+    /* ── Ingénierie de Projet — IA Factory ───────────────────────────── */
+    "/ingenierie-ia-factory": '<rect x="3.5" y="9" width="17" height="11" rx="1.5"/><path d="M8 9V6.5a4 4 0 0 1 8 0V9"/><path d="M8.5 14h.01M12 14h.01M15.5 14h.01"/><path d="M12 3.5v1"/>',
     /* ── Référentiel IEC 62443 ─────────────────────────────────────────── */
     "/referentiel": '<rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M3.5 9h17M9 9v11.5"/>',
     "/analyse-de-risque": '<path d="M12 3.5 21.5 20H2.5z"/><path d="M12 10v4M12 17h.01"/>',
@@ -183,6 +192,13 @@
       ["/strategie-durable-datacenter", "Stratégie DD — centres de données"],
       ["/datacenter", "Data Center Sustainability & Decarbonisation"],
       ["/ingenierie-datacenter", "Ingénierie de projet — centres de données"] ] },
+    // ── L'USINE IA, JUSTE APRÈS — et à part. Même famille commerciale que
+    // l'ingénierie Data Center (c'est ce que l'accès vendu ouvre), autre
+    // objet : on n'y dimensionne pas un bâtiment mais une organisation, une
+    // plateforme et un calendrier réglementaire. La ranger DANS la rubrique
+    // Data Center aurait fait croire à un quatrième temps de la même mission.
+    { t: "Ingénierie de Projet — IA Factory", l: [
+      ["/ingenierie-ia-factory", "Étude de faisabilité chiffrée — usine IA"] ] },
     { t: "Référentiel IEC 62443", l: [
       ["/referentiel", "Vue d’ensemble"],
       ["/analyse-de-risque", "Analyse de risque · 3-2"],
@@ -254,6 +270,7 @@
     "/relecture-contrat": "Relecture assistée : playbook, écarts, validations, version par version",
     "/datacenter": "Énergie, eau et carbone calculés ensemble — PUE, WUE de site et de source, carbone incorporé — puis la décarbonation : compter et déclarer d’un côté, réduire de l’autre, et la hiérarchie d’atténuation dans son ordre",
     "/ingenierie-datacenter": "Le calcul replacé dans la séquence projet : ESQ, APS, APD, PRO, DCE, ACT, EXE, DET, AOR — et faisabilité, BASIC, FEED, EPCI, mise en service",
+    "/ingenierie-ia-factory": "L’étude de faisabilité d’une usine IA pour un grand compte à infrastructure critique : postes budgétaires, équipe, planning et jalons réglementaires, conduite du changement, migration — chiffrée sur vos prix, jamais sur un ratio",
     "/strategie-durable-datacenter": "Le premier livrable d’une étude : quatre perspectives — raison d’être, parties prenantes, science et technologie, valeur commerciale — d’où découlent la matérialité du projet et son programme d’étude",
     "/demo": "Cockpit de supervision OT en temps réel (démonstration)",
     "/tendances": "Tendances et signaux de la menace industrielle",
@@ -615,6 +632,18 @@
         ["Pourquoi la science ne vous est pas demandée", "La recueillir comme une opinion reviendrait à afficher un avis en le présentant comme une mesure — et les écarts entre perception et réalité, qui sont l'apport de la méthode, deviendraient indétectables."],
         ["Non instruit", "Ni retenu ni écarté : personne n'a regardé. Ce n'est pas un enjeu mineur, c'est un enjeu sans réponse."]],
     l: [["Le calcul énergie, eau et carbone", "/datacenter"], ["La séquence projet", "/ingenierie-datacenter"]] };
+
+  GUIDES["/ingenierie-ia-factory"] = {
+    t: "Étude de faisabilité — usine IA",
+    p: "Une structure de postes, une équipe, un planning et ses jalons réglementaires, chiffrés sur VOS quantités et VOS prix. Le module n'en porte aucun.",
+    s: ["Lisez d'abord les ANCRAGES : ils situent une étude, ils n'en estiment aucune — chacun dit ce qu'il ne dit pas.",
+        "Renseignez les quantités (effectif, cas d'usage, interfaces, systèmes à unifier) là où le module vous dit de les trouver.",
+        "Renseignez vos prix unitaires : un poste sans prix reste « non chiffré », avec sa raison, et la part non chiffrée s'affiche.",
+        "Saisissez une provision, puis lisez l'alerte si elle est inférieure au dépassement documenté des migrations de cœur."],
+    k: [["Non chiffré", "Un poste dû dont le prix manque. Il n'est pas compté à zéro : un zéro muet ferait croire qu'il n'est pas dû."],
+        ["Jalon réglementaire", "Une date de texte — DORA, règlement (UE) 2024/1689 modifié par 2026/1744. Elle ne glisse pas quand le projet glisse."],
+        ["Interfaces comptées deux fois", "Pendant une migration de cœur, chaque interface vit vers l'ancien socle ET vers le nouveau. Aucun ratio ne le voit."]],
+    l: [["L'ingénierie de projet Data Center", "/ingenierie-datacenter"], ["La gouvernance de l'IA", "/gouvernance-ia"]] };
 
   GUIDES["/datacenter"] = {
     t: "Data Center Sustainability & Decarbonisation",
@@ -1128,6 +1157,7 @@
     ["/strategie-durable-datacenter", "Stratégie DD — centres de données", "Quatre perspectives : raison d'être, parties prenantes, matérialité, trajectoire.", "Ingénierie de Projet — Data Center", "strategie durable rse materialite"],
     ["/datacenter", "Data Center — durabilité et décarbonation", "Énergie, eau et carbone calculés ensemble : PUE, WUE, carbone incorporé.", "Ingénierie de Projet — Data Center", "pue wue carbone energie eau decarbonation"],
     ["/ingenierie-datacenter", "Ingénierie de projet — centres de données", "Le calcul replacé dans la séquence projet : ESQ, APS, APD, PRO, DCE, ACT, EXE.", "Ingénierie de Projet — Data Center", "esq aps apd pro dce maitrise oeuvre chiffrage"],
+    ["/ingenierie-ia-factory", "Étude de faisabilité chiffrée — usine IA", "Postes, équipe, planning, jalons réglementaires, changement, migration : chiffrés sur vos prix.", "Ingénierie de Projet — IA Factory", "ia factory usine ia faisabilite budget planning jalons conduite du changement migration orion bpce"],
     ["/juridique", "Conseil juridique", "Conseil juridique assisté : qualification, lecture des textes, clausier.", "Conformité & audit", "juridique contrat clause qualification"],
     ["/", "Accueil", "Vue d'ensemble de CONSEILPREV Cyber.", "Découvrir", "home index"],
     ["/services", "Services", "Nos offres : état des lieux, segmentation, supervision, AMOA, sensibilisation.", "Découvrir", "offres prestations amoa ia"],
