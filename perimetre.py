@@ -77,6 +77,23 @@ def rubriques(source=None):
     return out
 
 
+def ce_qui_est_vendu():
+    """Les rubriques du menu qui demandent encore un compte, dans leur ordre.
+
+    POURQUOI UNE FONCTION PLUTÔT QU'UNE PHRASE ÉCRITE DANS LES COURRIELS. Ils
+    disaient « votre accès au cockpit de supervision » — le cockpit était UNE
+    page sur les trente-quatre que l'accès ouvrait, et il est devenu gratuit le
+    2 septembre 2026 : la phrase était fausse dans les deux régimes, d'abord
+    par défaut, ensuite par excès. Un libellé recopié dans un courriel ne suit
+    pas une politique d'accès ; une lecture, si.
+
+    REND UNE LISTE VIDE QUAND LE MENU EST ILLISIBLE, et l'appelant doit alors
+    se taire plutôt que d'inventer — même règle que le reste de ce module.
+    """
+    return [r["rubrique"] for r in rubriques()
+            if any(not p["ouverte"] for p in r["pages"])]
+
+
 def etat():
     """Le périmètre servi à la page : rubriques, et les deux comptes.
 

@@ -18,6 +18,17 @@ méta-description nomment tous l'ingénierie — et qu'ils y CONDUISENT.
 import os
 import re
 import sys
+import unicodedata
+
+
+def _sans_accents(texte):
+    """« ingénierie » et « ingenierie » sont le même mot pour une règle.
+
+    Sans cette normalisation, la comparaison entre le nom d'une rubrique du
+    menu et la phrase de l'accueil échouerait sur un accent — et ferait croire
+    à une divergence de périmètre là où il n'y a qu'une graphie."""
+    return "".join(c for c in unicodedata.normalize("NFD", texte)
+                   if unicodedata.category(c) != "Mn")
 
 import pytest
 
@@ -178,12 +189,31 @@ def test_le_bandeau_conduit_a_la_creation_d_un_acces():
 
 def test_la_page_explique_le_regime_d_acces_AVANT_les_boutons():
     """L'apprendre bouton par bouton coûte au visiteur un aller-retour par
-    clic ; le lire une fois lui coûte une phrase."""
+    clic ; le lire une fois lui coûte une phrase.
+
+    LA RÈGLE CHERCHAIT LE MOT « RÉSERVÉ », ET C'EST TOUT CE QU'ELLE GARDAIT.
+    Elle est restée verte pendant que la note affirmait « les outils de calcul
+    et le cockpit sont réservés aux clients » — le cockpit était devenu libre.
+    Un mot présent ne dit pas qu'il désigne la bonne chose.
+
+    ELLE LIT MAINTENANT CE QUI EST RÉELLEMENT FERMÉ. La note doit nommer la
+    rubrique que la politique réserve encore : si le périmètre change et que la
+    phrase ne suit pas, la règle tombe — ce qui est précisément ce qui n'était
+    pas arrivé."""
+    import perimetre
     h = sans_commentaires(accueil())
     i = h.index('class="acces-note"')
-    note = re.sub(r"<[^>]+>", " ", h[i:h.index("</p>", i)])
-    assert "réservé" in note or "réservés" in note, note
-    assert "/inscription" in h[i:h.index("</p>", i)], note
+    brut = h[i:h.index("</p>", i)]
+    note = _sans_accents(re.sub(r"<[^>]+>", " ", brut).lower())
+    vendues = perimetre.ce_qui_est_vendu()
+    assert vendues, "le menu est illisible : la règle ne compare rien"
+    for rubrique in vendues:
+        mots = [m for m in re.findall(r"[^\W\d_]{6,}", _sans_accents(rubrique.lower()))]
+        assert any(m in note for m in mots), (
+            "la note ne nomme pas ce qui demande encore un compte (%s)"
+            % rubrique, note)
+    assert "compte" in note, note
+    assert "/inscription" in brut, brut
 
 
 def test_les_liens_mis_en_avant_le_disent_EN_TOUTES_LETTRES():

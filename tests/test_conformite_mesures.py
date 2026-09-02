@@ -105,16 +105,31 @@ def test_la_derive_du_registre_publie_est_vue():
     assert c['correction']
 
 
-def test_l_assistant_sans_compte_est_un_arbitrage_nomme():
-    """CONSTAT DU JOUR : le registre publié dit « Aucun compte requis », les
-    routes /assistant et /api/chat exigent une connexion. Le contrôle signale
-    et REFUSE de trancher — ouvrir l'assistant ou corriger le registre est
-    une décision humaine."""
+def test_l_assistant_sans_compte_ne_se_contredit_plus():
+    """LA CONTRADICTION A ÉTÉ TRANCHÉE, ET DANS LE SENS DU REGISTRE.
+
+    Le registre publié affirmait « Aucun compte requis » pendant que
+    /assistant et /api/chat exigeaient une connexion : la base légale publiée —
+    consentement par l'usage volontaire, sans compte — reposait sur un fait
+    inexact. Le contrôle le disait et refusait de trancher, parce qu'ouvrir
+    l'assistant ou corriger le registre est une décision humaine. Elle a été
+    prise le 2 septembre 2026, en ouvrant le site : le registre dit vrai.
+
+    LA RÈGLE NE FIGE AUCUN DES DEUX ÉTATS. Elle exigeait « non-conforme » —
+    elle serait donc tombée le jour de la correction, en désignant un défaut à
+    l'instant où il disparaissait. Elle vérifie la PROPRIÉTÉ : déclaration et
+    code concordent, et le contrôle a bien REGARDÉ les deux — sans quoi il
+    serait vert par omission."""
     import app as application
     c = cm._m_assistant_sans_compte(application.app)
-    assert c['statut'] == 'non-conforme', c['constat']
-    assert c['mode'] == 'arbitrage'
-    assert 'NE TRANCHE PAS' in c['constat']
+    assert c['statut'] == 'conforme', c['constat']
+    import rgpd
+    fiche = next(r for r in rgpd.REGISTRE if r.get("id") == "assistant")
+    assert "Aucun compte requis" in str(fiche), (
+        "le registre ne déclare plus rien : le contrôle serait vert pour rien")
+    import acces as _acces
+    assert _acces.ouvert("/assistant")
+    assert _acces.api_statut("/api/chat") == "direct"
 
 
 def test_les_routes_admin_sont_inspectees_sur_la_carte():

@@ -53,27 +53,48 @@ FERMEES = [c for c in MENU if not acces.ouvert(c)]
 
 # ── 1. La politique dit ce que la décision disait ──────────────────────────
 
-def test_les_onze_pages_en_acces_direct_sont_celles_qui_ont_ete_nommees():
-    """LA ONZIÈME EST « /acces », ET ELLE A ÉTÉ DÉCIDÉE, PAS SUBIE.
+def test_les_pages_en_acces_direct_sont_celles_qui_ont_ete_nommees():
+    """LE 2 SEPTEMBRE 2026, LE SITE S'EST OUVERT — SAUF L'INGÉNIERIE DATA CENTER.
 
-    Le site vendait un accès sans jamais dire ce qu'il ouvrait ni ce qu'il
-    coûtait : le seul chemin vers la caisse passait par /connexion, donc
-    supposait un compte déjà confirmé — ce qu'un acheteur n'a pas. Fermer la
-    page qui vend l'accès derrière l'accès ne protège rien et n'ouvre rien.
+    Onze pages étaient ouvertes ; il y en a quarante-deux. Les trois pages
+    d'ingénierie de projet Data Center restent seules derrière le compte, et
+    ce sont désormais elles, et elles seules, que l'accès vendu ouvre.
 
     Cette liste est la trace écrite de la décision. La mettre à jour EST l'acte
     par lequel on ouvre une page ; c'est pour cela qu'elle est énumérée à la
-    main et qu'aucune règle ne la calcule depuis `acces.DIRECT`."""
-    assert sorted(acces.DIRECT) == sorted([
-        "/", "/about", "/acces", "/contact", "/etudes-de-cas", "/faq",
-        "/ressources", "/secteurs", "/services", "/veille", "/vos-projets"])
+    main et qu'aucune règle ne la calcule depuis `acces.DIRECT`. Une ouverture
+    ACCIDENTELLE — un décorateur retiré par mégarde — fait tomber cette règle
+    au lieu de passer inaperçue, et c'est tout ce qu'on lui demande."""
+    assert sorted(acces.DIRECT) == [
+        "/", "/about", "/acces", "/analyse-de-risque",
+        "/architecture-cible", "/assistant", "/audit-conformite", "/checklist-62443",
+        "/connecter", "/contact", "/continuite-ot", "/demo",
+        "/developpement-securise", "/diagnostic", "/etudes-de-cas", "/exigences-composants",
+        "/exigences-prestataires", "/exigences-systeme", "/faq", "/feuille-de-route",
+        "/formation", "/gestion-correctifs", "/gestion-des-changements", "/glossaire-62443",
+        "/gouvernance-ia", "/guide-integration", "/juridique", "/maturite-ot",
+        "/methodologie", "/metriques-62443", "/nis2", "/operating-model",
+        "/programme-securite", "/referentiel", "/relecture-contrat", "/ressources",
+        "/secteurs", "/services", "/technologies-securite", "/tendances",
+        "/veille", "/vos-projets",
+    ]
 
 
 def test_le_menu_est_bien_lu():
-    """Un menu vide validerait n'importe quoi en silence."""
+    """Un menu vide validerait n'importe quoi en silence.
+
+    LE RAPPORT S'EST INVERSÉ le 2 septembre 2026 : trente-quatre pages du menu
+    étaient fermées, il en reste TROIS. Le garde-fou ne peut donc plus
+    s'exprimer par un plancher de pages fermées — « au moins trente » d'un site
+    qui n'en ferme plus que trois. Ce qu'il garde, c'est que le menu a bien été
+    lu, et que LES DEUX RÉGIMES EXISTENT ENCORE : un menu entièrement ouvert
+    rendrait muette la règle paramétrée des pages réservées, qui passerait sur
+    zéro cas sans que rien ne tombe."""
     assert len(MENU) >= 40, len(MENU)
-    assert len(OUVERTES) == 11, OUVERTES
-    assert len(FERMEES) >= 30, len(FERMEES)
+    assert len(OUVERTES) + len(FERMEES) == len(MENU)
+    assert len(FERMEES) >= 1, ("plus aucune page fermée : la règle des pages "
+                               "réservées ne vérifie plus rien")
+    assert len(OUVERTES) >= 1, OUVERTES
 
 
 # ── 2. Les portes ouvertes le sont, les fermées le sont ────────────────────
@@ -136,12 +157,16 @@ def test_une_interface_declaree_ouverte_l_est_vraiment(chemin):
     assert chemin not in fermees, chemin
 
 
-@pytest.mark.parametrize("chemin", ["/api/datacenter/etude",
-                                    "/api/datacenter/etat-art",
-                                    "/api/datacenter/lacunes",
-                                    "/api/datacenter/referentiel",
-                                    "/api/datacenter/strategie/questionnaire",
-                                    "/api/chat"])
+# LA LISTE EST DÉRIVÉE, ELLE N'EST PLUS RECOPIÉE. Elle nommait « /api/chat »,
+# qui est devenu ouvert le 2 septembre 2026 : la règle est tombée en désignant
+# une fuite là où il y avait une décision. Une liste d'interfaces fermées
+# écrite à la main cesse de décrire le site au premier changement de politique
+# — et c'est celle-là qu'on croit encore juste.
+@pytest.mark.parametrize("chemin", sorted(
+    c for c in ("/api/datacenter/etude", "/api/datacenter/etat-art",
+                "/api/datacenter/lacunes", "/api/datacenter/referentiel",
+                "/api/datacenter/strategie/questionnaire", "/api/chat")
+    if acces.api_statut(c) == "client"))
 def test_les_interfaces_des_pages_fermees_refusent_l_inconnu(anonyme, chemin):
     r = anonyme.get(chemin)
     if r.status_code == 405:                       # interface en écriture seule

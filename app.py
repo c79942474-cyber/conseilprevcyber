@@ -1094,49 +1094,41 @@ def services():
 
 # Offres conseil & transformation — pages vitrine publiques (comme /services).
 @app.route("/operating-model")
-@login_required
 def operating_model():
     return _page(PAGES["/operating-model"])
 
 
 @app.route("/maturite-ot")
-@login_required
 def maturite_ot():
     return _page(PAGES["/maturite-ot"])
 
 
 @app.route("/feuille-de-route")
-@login_required
 def feuille_de_route():
     return _page(PAGES["/feuille-de-route"])
 
 
 @app.route("/continuite-ot")
-@login_required
 def continuite_ot():
     return _page(PAGES["/continuite-ot"])
 
 
 @app.route("/gestion-des-changements")
-@login_required
 def gestion_des_changements():
     return _page(PAGES["/gestion-des-changements"])
 
 
 @app.route("/architecture-cible")
-@login_required
 def architecture_cible():
     return _page(PAGES["/architecture-cible"])
 
 
 @app.route("/formation")
-@login_required
 def formation():
     return _page(PAGES["/formation"])
 
 
 @app.route("/gouvernance-ia")
-@login_required
 def gouvernance_ia():
     return _page(PAGES["/gouvernance-ia"])
 
@@ -1147,13 +1139,11 @@ def etudes_de_cas():
 
 
 @app.route("/referentiel")
-@login_required
 def referentiel():
     return _page(PAGES["/referentiel"])
 
 
 @app.route("/analyse-de-risque")
-@login_required
 def analyse_de_risque():
     return _page(PAGES["/analyse-de-risque"])
 
@@ -1164,86 +1154,72 @@ def secteurs():
 
 
 @app.route("/methodologie")
-@login_required
 def methodologie():
     return _page(PAGES["/methodologie"])
 
 
 @app.route("/exigences-systeme")
-@login_required
 def exigences_systeme():
     return _page(PAGES["/exigences-systeme"])
 
 
 @app.route("/exigences-composants")
-@login_required
 def exigences_composants():
     return _page(PAGES["/exigences-composants"])
 
 
 @app.route("/exigences-prestataires")
-@login_required
 def exigences_prestataires():
     return _page(PAGES["/exigences-prestataires"])
 
 
 @app.route("/developpement-securise")
-@login_required
 def developpement_securise():
     return _page(PAGES["/developpement-securise"])
 
 
 @app.route("/technologies-securite")
-@login_required
 def technologies_securite():
     return _page(PAGES["/technologies-securite"])
 
 
 @app.route("/programme-securite")
-@login_required
 def programme_securite():
     return _page(PAGES["/programme-securite"])
 
 
 @app.route("/gestion-correctifs")
-@login_required
 def gestion_correctifs():
     return _page(PAGES["/gestion-correctifs"])
 
 
 @app.route("/checklist-62443")
-@login_required
 def checklist_62443_page():
     return _page(PAGES["/checklist-62443"])
 
 
 @app.route("/glossaire-62443")
-@login_required
 def glossaire_62443():
     return _page(PAGES["/glossaire-62443"])
 
 
 @app.route("/metriques-62443")
-@login_required
 def metriques_62443():
     return _page(PAGES["/metriques-62443"])
 
 
 @app.route("/demo")
-@login_required
 def demo():
     return _page(PAGES["/demo"])
 
 
 @app.route("/assistant")
-@login_required
 def assistant_page():
     """Assistant IA conversationnel (Claude / Mistral) — cybersécurité industrielle & conformité."""
     return _page(PAGES["/assistant"])
 
 
 @app.route("/api/assistant/config")
-@login_required
 def api_assistant_config():
     """Modèles configurés + modèle par défaut de l'UI (surcharge via ASSISTANT_DEFAULT_MODEL)."""
     return jsonify(models=assistant.available(), default=assistant.preference())
@@ -1315,7 +1291,6 @@ def _minimiser(textes, mode):
 
 
 @app.route("/api/chat", methods=["POST"])
-@login_required
 def api_chat():
     """Point d'entrée du chat sécurisé. Sans état : aucune conversation n'est stockée.
 
@@ -1413,14 +1388,12 @@ def api_chat():
 # pas un contenu de vitrine.
 
 @app.route("/juridique")
-@login_required
 def juridique_page():
     """Conseil juridique assisté (clients connectés et administrateur)."""
     return _page(PAGES["/juridique"])
 
 
 @app.route("/api/juridique/config")
-@login_required
 def api_juridique_config():
     """Tout ce dont l'interface a besoin pour se construire : questionnaire,
     référentiel, clausier, amorces. Une seule définition côté serveur — une liste
@@ -1445,7 +1418,6 @@ def api_juridique_config():
 
 
 @app.route("/api/juridique/qualification", methods=["POST"])
-@login_required
 def api_juridique_qualification():
     """Qualification réglementaire d'un profil. Aucun appel de modèle : la
     réponse est identique à chaque exécution et opposable telle quelle."""
@@ -1465,7 +1437,6 @@ def api_juridique_qualification():
 
 
 @app.route("/api/juridique/clausier")
-@login_required
 def api_juridique_clausier():
     """Clausier fournisseurs, filtrable par domaine et par criticité."""
     return jsonify(ok=True,
@@ -1477,7 +1448,6 @@ def api_juridique_clausier():
 
 
 @app.route("/api/juridique/controverses")
-@login_required
 def api_juridique_controverses():
     """Points d'interprétation ouverts — plusieurs lectures, jamais une seule."""
     ids = [x for x in (request.args.get("textes") or "").split(",") if x.strip()]
@@ -1485,7 +1455,6 @@ def api_juridique_controverses():
 
 
 @app.route("/api/juridique/jurisprudence")
-@login_required
 def api_juridique_jurisprudence():
     """Jurisprudence adossée à un point d'interprétation, ou à une question libre.
 
@@ -1510,7 +1479,6 @@ def api_juridique_jurisprudence():
 
 
 @app.route("/api/juridique/corpus")
-@login_required
 def api_juridique_corpus():
     """État du connecteur de jurisprudence. `?test=1` interroge RÉELLEMENT le
     corpus : un état déclaré n'est pas un état constaté, et c'est exactement la
@@ -1595,7 +1563,6 @@ _JURIDIQUE_ERREURS = {
 
 
 @app.route("/api/juridique/analyse", methods=["POST"])
-@login_required
 def api_juridique_analyse():
     """Analyse juridique argumentée : qualification, textes, LECTURES POSSIBLES,
     risque, recommandation, réserves.
@@ -1660,7 +1627,6 @@ def api_juridique_analyse():
 
 
 @app.route("/api/juridique/contrat", methods=["POST"])
-@login_required
 def api_juridique_contrat():
     """Revue d'un contrat de services fournisseur, clause par clause.
 
@@ -1766,7 +1732,6 @@ def api_juridique_contrat():
 
 
 @app.route("/api/juridique/arbitrage", methods=["POST"])
-@login_required
 def api_juridique_arbitrage():
     """Note d'arbitrage : synthétiser un dossier et préparer la décision.
 
@@ -1903,7 +1868,6 @@ def api_juridique_arbitrage():
 
 
 @app.route("/api/juridique/export", methods=["POST"])
-@login_required
 def api_juridique_export():
     """Exporte une production juridique en Word ou PDF, prête à diffuser.
 
@@ -1976,7 +1940,6 @@ def api_juridique_export():
 
 
 @app.route("/api/juridique/dossier-documents")
-@login_required
 def api_juridique_dossier_documents():
     """Documents versables à un dossier d'arbitrage.
 
@@ -2000,7 +1963,6 @@ def api_juridique_dossier_documents():
 
 
 @app.route("/api/juridique/instances")
-@login_required
 def api_juridique_instances():
     """Catalogue des instances et des natures de dossier, pour l'interface."""
     return _json_fige("juridique-instances", lambda: dict(
@@ -2106,14 +2068,12 @@ def _domaines_demandes(corps):
 
 
 @app.route("/relecture-contrat")
-@login_required
 def relecture_contrat_page():
     """Relecture assistée d'un contrat, version par version."""
     return _page(PAGES["/relecture-contrat"])
 
 
 @app.route("/api/playbook/config")
-@login_required
 def api_playbook_config():
     """Le playbook lui-même : ce que l'entreprise accepte, jusqu'où, et qui tranche."""
     dispo = assistant.available()
@@ -2139,7 +2099,6 @@ def api_playbook_config():
 
 
 @app.route("/api/playbook/analyse", methods=["POST"])
-@login_required
 def api_playbook_analyse():
     """Verdict déterministe d'une version. Aucun modèle n'est appelé ici."""
     ckey = "pbana:%s" % client_ip()
@@ -2175,7 +2134,6 @@ def api_playbook_analyse():
 
 
 @app.route("/api/playbook/comparer", methods=["POST"])
-@login_required
 def api_playbook_comparer():
     """Ce qui a bougé entre deux versions — la question de la négociation."""
     ckey = "pbcmp:%s" % client_ip()
@@ -2207,7 +2165,6 @@ def api_playbook_comparer():
 
 
 @app.route("/api/playbook/chat", methods=["POST"])
-@login_required
 def api_playbook_chat():
     """L'assistant de relecture. Il reçoit les verdicts comme des faits.
 
@@ -2282,7 +2239,6 @@ def api_playbook_chat():
 
 
 @app.route("/api/playbook/export", methods=["POST"])
-@login_required
 def api_playbook_export():
     """La note de relecture, en Word ou en PDF.
 
@@ -2744,7 +2700,6 @@ def api_datacenter_durabilite():
 
 
 @app.route("/api/62443/checklist")
-@login_required
 def api_62443_checklist():
     """La liste de verification IEC 62443 : six sections, vingt-sept points.
 
@@ -2760,7 +2715,6 @@ def api_62443_checklist():
 
 
 @app.route("/api/62443/checklist/compter", methods=["POST"])
-@login_required
 def api_62443_checklist_compter():
     """Compte ce qui est coche, section par section, et ce qui reste.
 
@@ -2773,7 +2727,6 @@ def api_62443_checklist_compter():
 
 
 @app.route("/api/62443/checklist/parcours", methods=["POST"])
-@login_required
 def api_62443_checklist_parcours():
     """OU EN EST CE CLIENT, ET DANS QUEL ORDRE PRENDRE CE QUI RESTE.
 
@@ -2794,7 +2747,6 @@ def api_62443_checklist_parcours():
 
 
 @app.route("/api/62443/checklist/emporter", methods=["POST"])
-@login_required
 def api_62443_checklist_emporter():
     """La liste, l'etat et le parcours — en PDF ou en Word.
 
@@ -2852,7 +2804,6 @@ def api_62443_checklist_emporter():
 
 
 @app.route("/api/maturite-ot/referentiel")
-@login_required
 def api_maturite_ot_referentiel():
     """L'ECHELLE, LES SIX DOMAINES ET LEURS CIBLES — de quoi dresser le
     formulaire sans le recopier dans la page.
@@ -2868,7 +2819,6 @@ def api_maturite_ot_referentiel():
 
 
 @app.route("/api/maturite-ot/evaluer", methods=["POST"])
-@login_required
 def api_maturite_ot_evaluer():
     """L'ECART A LA CIBLE, DOMAINE PAR DOMAINE, ET LE CHEMIN DEGRE PAR DEGRE.
 
@@ -2891,7 +2841,6 @@ def api_maturite_ot_evaluer():
 
 
 @app.route("/api/maturite-ot/emporter", methods=["POST"])
-@login_required
 def api_maturite_ot_emporter():
     """L'auto-evaluation, l'ecart et le plan — en PDF ou en Word.
 
@@ -5339,27 +5288,23 @@ app.register_blueprint(
 
 
 @app.route("/audit-conformite")
-@login_required
 def audit_conformite():
     """Étude & audit de conformité IEC 62443 (mode démo public ; temps réel via compte)."""
     return _page(PAGES["/audit-conformite"])
 
 
 @app.route("/tendances")
-@login_required
 def tendances():
     return _page(PAGES["/tendances"])
 
 
 @app.route("/connecter")
-@login_required
 def connecter():
     """Page « Connecter votre plateforme » : l'entrée pour brancher une source réelle."""
     return _page(PAGES["/connecter"])
 
 
 @app.route("/guide-integration")
-@login_required
 def guide_integration():
     """Guide d'intégration détaillé (pas-à-pas professionnel du branchement)."""
     return _page(PAGES["/guide-integration"])
@@ -5476,13 +5421,11 @@ def conformite():
 
 
 @app.route("/nis2")
-@login_required
 def nis2():
     return _page(PAGES["/nis2"])
 
 
 @app.route("/diagnostic")
-@login_required
 def diagnostic():
     return _page(PAGES["/diagnostic"])
 
@@ -10359,7 +10302,6 @@ def api_contact():
 
 
 @app.route("/api/stream")
-@login_required
 def api_stream():
     """Flux Server-Sent Events du cockpit (mode « Temps réel »).
 
@@ -10424,21 +10366,18 @@ def api_ingest():
 
 
 @app.route("/api/state")
-@login_required
 def api_state():
     """Instantané de l'état courant du cockpit (inventaire, alertes, événements récents)."""
     return jsonify(state.snapshot())
 
 
 @app.route("/api/assets")
-@login_required
 def api_assets():
     """Inventaire des actifs connus du cockpit (pour l'étude de conformité)."""
     return jsonify(assets=state.inventory())
 
 
 @app.route("/api/trends")
-@login_required
 def api_trends():
     """Agrégats de tendance de l'historique (par jour, catégorie, zone)."""
     days = request.args.get("days", default=14, type=int) or 14

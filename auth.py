@@ -6,8 +6,11 @@ captcha, protection anti-bruteforce, réponses anti-énumération, emails via Br
 Flux : inscription → l'utilisateur confirme son email → LA CAISSE LUI EST ALORS
 OUVERTE, et c'est le chemin normal : il règle, la notification signée ouvre son
 accès, personne n'a rien à décider. Les comptes non confirmés / non approuvés ne
-peuvent pas se connecter. Seuls le cockpit et la supervision sont protégés ; le
-contenu public reste ouvert.
+peuvent pas se connecter. Depuis l'ouverture du 2 septembre 2026, SEULE
+L'INGÉNIERIE DE PROJET DATA CENTER demande un compte — trois pages sur
+quarante-cinq ; tout le reste du menu se consulte librement, cockpit compris.
+Ce que l'accès ouvre n'est écrit nulle part ici : `_ce_que_l_acces_ouvre()` le
+LIT sur le menu croisé avec la politique.
 
 LA GRATUITÉ EXISTE ENCORE, MAIS C'EST UN GESTE, PLUS UN DÉFAUT. L'exploitant
 reçoit à la confirmation un lien qui ouvre l'accès SANS PAIEMENT. Il l'ouvrait
@@ -673,6 +676,28 @@ def _btn(url, label):
             '<p style="color:#8a9ab0;font-size:12px;word-break:break-all">Ou copiez ce lien : %s</p>' % (url, label, url))
 
 
+def _ce_que_l_acces_ouvre(defaut="la plateforme CONSEILPREV Cyber"):
+    """La phrase qui nomme ce qui est vendu — LUE, jamais recopiée.
+
+    Les courriels disaient « votre accès au cockpit de supervision ». Le
+    cockpit était UNE page sur les trente-quatre que l'accès ouvrait ; il est
+    devenu gratuit le 2 septembre 2026. La phrase était donc fausse dans les
+    deux régimes : d'abord par défaut, ensuite par excès. Un libellé recopié
+    dans un courriel ne suit pas une politique d'accès.
+
+    SI LE MENU EST ILLISIBLE, ON DIT MOINS PLUTÔT QUE FAUX : le repli nomme la
+    plateforme sans prétendre en décrire le périmètre.
+    """
+    try:
+        import perimetre
+        rubriques = perimetre.ce_qui_est_vendu()
+    except Exception:                                          # pragma: no cover
+        rubriques = []
+    if not rubriques:
+        return defaut
+    return html_lib.escape(" et ".join(rubriques))
+
+
 def _send_verify(user, base=None):
     base = base or _base_url()
     url = "%s/verifier-email/%s" % (base, user["verify_token"])
@@ -693,9 +718,10 @@ def _send_verify(user, base=None):
         pass
     send_email(user["email"], user["name"], "Confirmez votre adresse email — CONSEILPREV Cyber",
                _shell("Confirmez votre email",
-                      "<p>Bonjour %s,</p><p>Pour finaliser votre demande d'accès au cockpit CONSEILPREV Cyber, "
-                      "confirmez votre adresse email :</p>%s<p>%s</p>"
-                      % (html_lib.escape(user["name"] or ""), _btn(url, "Confirmer mon email"), suite)))
+                      "<p>Bonjour %s,</p><p>Pour finaliser votre demande d'accès à "
+                      "<b>%s</b>, confirmez votre adresse email :</p>%s<p>%s</p>"
+                      % (html_lib.escape(user["name"] or ""), _ce_que_l_acces_ouvre(),
+                         _btn(url, "Confirmer mon email"), suite)))
 
 
 def _notify_admin(user, base=None):
@@ -754,15 +780,14 @@ def _send_approved(user, base=None, gratuit=False):
     """
     base = base or _base_url()
     url = "%s/connexion" % base
-    corps = ("<p>Bonjour %s,</p><p>Votre accès au cockpit de supervision "
-             "CONSEILPREV Cyber est <b>ouvert</b>%s. Vous pouvez maintenant "
-             "vous connecter :</p>%s"
-             % (html_lib.escape(user["name"] or ""),
+    corps = ("<p>Bonjour %s,</p><p>Votre accès à <b>%s</b> est <b>ouvert</b>%s. "
+             "Vous pouvez maintenant vous connecter :</p>%s"
+             % (html_lib.escape(user["name"] or ""), _ce_que_l_acces_ouvre(),
                 (" : il vous a été <b>offert</b>, aucun paiement ne vous sera "
                  "demandé et aucune facture ne vous parviendra" if gratuit else ""),
                 _btn(url, "Se connecter")))
     send_email(user["email"], user["name"],
-               "Votre accès cockpit est ouvert — CONSEILPREV Cyber",
+               "Votre accès est ouvert — CONSEILPREV Cyber",
                _shell("Accès ouvert", corps))
 
 

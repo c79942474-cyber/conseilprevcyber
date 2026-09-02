@@ -32,6 +32,7 @@ compte, sur la TRACE au registre, et sur l'ÉGALITÉ des refus entre eux.
 """
 import io
 import os
+import re
 import sys
 
 import pytest
@@ -260,6 +261,51 @@ def test_le_courriel_a_l_exploitant_dit_que_le_bouton_ouvre_sans_paiement(courri
     assert admin, [c["a"] for c in courriels]
     assert "n'a rien payé" in admin[-1]["html"]
     assert "sans paiement" in admin[-1]["html"]
+
+
+def test_les_courriels_nomment_CE_QUI_EST_VENDU_et_ne_le_recopient_pas(courriels):
+    """« VOTRE ACCÈS AU COCKPIT DE SUPERVISION » ÉTAIT FAUX DEUX FOIS.
+
+    D'abord par défaut : le cockpit était UNE page sur les trente-quatre que
+    l'accès ouvrait — le courriel nommait un trente-quatrième de ce qu'il
+    livrait. Puis par excès : le 2 septembre 2026 le site s'est ouvert, le
+    cockpit est devenu libre, et le courriel a continué de le vendre.
+
+    UN LIBELLÉ RECOPIÉ DANS UN COURRIEL NE SUIT PAS UNE POLITIQUE D'ACCÈS. Les
+    deux courriels lisent donc le menu croisé avec la politique. La règle
+    vérifie qu'ils nomment ce qui est réellement réservé — et le fait pour les
+    DEUX, celui de confirmation d'adresse comme celui d'ouverture, parce que
+    corriger l'un et oublier l'autre est exactement ce qui s'était produit
+    ailleurs cette semaine.
+    """
+    import perimetre
+    import unicodedata
+
+    def pur(t):
+        return "".join(c for c in unicodedata.normalize("NFD", t)
+                       if unicodedata.category(c) != "Mn").lower()
+
+    vendues = perimetre.ce_qui_est_vendu()
+    assert vendues, "le menu est illisible : la règle ne compare rien"
+
+    u = _poser(ACHETEUR, verify_token="jeton-libelle",
+               verify_expire=auth._now_ms() + 3600 * 1000)
+    auth._send_verify(u, base="http://localhost")                # 1. confirmation
+    auth._send_approved(dict(u, email_verified=True),
+                        base="http://localhost")                 # 2. ouverture
+
+    au_client = [c for c in courriels if c["a"] == ACHETEUR]
+    assert len(au_client) >= 2, [c["sujet"] for c in courriels]
+    for message in au_client:
+        corps = pur(message["html"])
+        for rubrique in vendues:
+            mots = [m for m in re.findall(r"[^\W\d_]{6,}", pur(rubrique))]
+            assert any(m in corps for m in mots), (
+                "ce courriel ne nomme pas ce qui est vendu (%s) : %s"
+                % (rubrique, message["sujet"]))
+        assert "cockpit" not in corps, (
+            "le courriel vend encore le cockpit, qui est libre depuis "
+            "l'ouverture : %s" % message["sujet"])
 
 
 def test_le_courriel_au_beneficiaire_suit_le_chemin_et_ne_le_devine_pas(courriels):

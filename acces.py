@@ -56,6 +56,60 @@ DIRECT = {
     "/about": "À propos",
     "/vos-projets": "Vos projets",
     "/contact": "Contact",
+
+    # ── L'OUVERTURE DU 2 SEPTEMBRE 2026 ────────────────────────────────────
+    # LE SITE S'OUVRE, SAUF L'INGÉNIERIE DE PROJET DATA CENTER. Trente et une
+    # pages passent en accès direct ; il en reste TROIS derrière le compte —
+    # /strategie-durable-datacenter, /datacenter, /ingenierie-datacenter — et
+    # ce sont désormais elles, et elles seules, que l'accès vendu ouvre.
+    #
+    # CE QUE CETTE DÉCISION COÛTE, ÉCRIT ICI PLUTÔT QUE DÉCOUVERT PLUS TARD :
+    # ce qui était vendu trente-quatre pages en vaut trois. Les conditions de
+    # vente, la page qui vend l'accès et le périmètre calculé doivent le dire
+    # ensemble — un site qui vend ce qu'il vient de donner ne trompe pas
+    # seulement l'acheteur, il rend la vente attaquable.
+    #
+    # LA LISTE RESTE BLANCHE, ET C'EST DÉLIBÉRÉ. L'inverser — « tout est
+    # ouvert sauf… » — serait plus court de trente lignes et changerait le sens
+    # de l'oubli : une page ajoutée sans décision serait OUVERTE. Ici elle
+    # reste fermée. Au pire elle gêne un développement, jamais elle ne laisse
+    # fuir — la même règle que pour les interfaces, et pour la même raison.
+    # Expertise
+    "/methodologie": "Méthodologie",
+    # Conseil & transformation
+    "/operating-model": "Operating Model & gouvernance",
+    "/maturite-ot": "Assessment de maturité",
+    "/feuille-de-route": "Feuille de route",
+    "/continuite-ot": "Continuité & crise OT",
+    "/gestion-des-changements": "Gestion des changements (MOC)",
+    "/architecture-cible": "Architecture cible OT",
+    "/formation": "Formation & compétences",
+    "/gouvernance-ia": "Governance by Design IA",
+    "/relecture-contrat": "Relecture de contrats assistée",
+    # Référentiel IEC 62443
+    "/referentiel": "Vue d’ensemble",
+    "/analyse-de-risque": "Analyse de risque · 3-2",
+    "/programme-securite": "Programme de sécurité · 2-1",
+    "/exigences-systeme": "Exigences système · 3-3",
+    "/exigences-composants": "Exigences composants · 4-2",
+    "/exigences-prestataires": "Exigences prestataires · 2-4",
+    "/developpement-securise": "Développement sécurisé · 4-1",
+    "/technologies-securite": "Technologies · TR 3-1",
+    "/gestion-correctifs": "Gestion des correctifs · 2-3",
+    "/glossaire-62443": "Glossaire · 1-2",
+    "/metriques-62443": "Métriques · 1-3",
+    "/checklist-62443": "Liste de vérification",
+    # Conformité & audit
+    "/audit-conformite": "Audit 62443",
+    "/diagnostic": "Diagnostic express",
+    "/nis2": "NIS2",
+    "/juridique": "Conseil juridique",
+    # Plateforme
+    "/demo": "Cockpit de supervision",
+    "/tendances": "Tendances",
+    "/connecter": "Connecter une source",
+    "/guide-integration": "Guide d’intégration",
+    "/assistant": "Assistant IA",
 }
 
 # ── Ouvert par nécessité, hors menu ────────────────────────────────────────
@@ -113,6 +167,56 @@ API_OUVERTES = {
                             "doit pouvoir dire ce qu'elle vend. Ce sont les "
                             "entrées du tiroir, que tout visiteur voit déjà",
     "/api/veille": "nourrit /veille, en accès direct",
+
+    # ── LES INTERFACES DES PAGES OUVERTES LE 2 SEPTEMBRE 2026 ──────────────
+    # OUVRIR UNE PAGE SANS OUVRIR CE QUI LA NOURRIT NE L'OUVRE PAS : elle
+    # s'affiche vide, ses boutons répondent 401, et le visiteur conclut que le
+    # site est cassé plutôt qu'il n'a pas le droit. C'est le défaut symétrique
+    # de celui que ce fichier corrigeait — quatorze interfaces servaient en
+    # clair le contenu de pages fermées ; ici il faut ouvrir en même temps,
+    # sous peine d'une ouverture qui n'en est pas une.
+    #
+    # CE QUE CELA EXPOSE, DIT SANS DÉTOUR. Trois de ces familles appellent un
+    # MODÈLE DE LANGAGE facturé à l'usage — l'assistant, la relecture de
+    # contrats, l'analyse juridique. Les ouvrir, c'est accepter qu'un visiteur
+    # anonyme dépense ce budget. Chacune porte déjà une limite par adresse IP
+    # (vingt appels par dix minutes pour l'assistant, vingt-cinq pour la
+    # relecture, douze pour l'analyse juridique) : la dépense est bornée par
+    # visiteur, pas par le nombre de visiteurs. C'est un arbitrage assumé, pas
+    # un oubli — et le premier endroit où regarder si la facture surprend.
+    "/api/62443/checklist": "la liste de vérification 62443, page ouverte",
+    "/api/62443/checklist/compter": "le décompte de cette même liste",
+    "/api/62443/checklist/emporter": "l'export de cette même liste",
+    "/api/62443/checklist/parcours": "le parcours guidé de cette même liste",
+    "/api/maturite-ot/referentiel": "le référentiel de l'assessment de maturité",
+    "/api/maturite-ot/evaluer": "le calcul de l'assessment de maturité",
+    "/api/maturite-ot/emporter": "l'export de l'assessment de maturité",
+    "/api/state": "l'état du cockpit — données SIMULÉES en mode démonstration",
+    "/api/assets": "les actifs du cockpit — mêmes données simulées",
+    "/api/trends": "les tendances, nourries du même modèle",
+    "/api/stream": "le flux temps réel du cockpit",
+    "/api/assistant/config": "dit à la page ce que l'assistant sait faire",
+    "/api/chat": "l'assistant lui-même — MODÈLE FACTURÉ, borné à 20 appels "
+                 "par IP et par dix minutes",
+    "/api/juridique/config": "dit à la page ce que l'analyse juridique propose",
+    "/api/juridique/corpus": "le corpus consultable de la page juridique",
+    "/api/juridique/clausier": "le clausier de la page juridique",
+    "/api/juridique/instances": "les instances suivies par la page juridique",
+    "/api/juridique/jurisprudence": "la jurisprudence citée par la page",
+    "/api/juridique/controverses": "les controverses citées par la page",
+    "/api/juridique/contrat": "le contrat de travail de la page juridique",
+    "/api/juridique/qualification": "la qualification juridique demandée",
+    "/api/juridique/arbitrage": "l'arbitrage rendu par la page juridique",
+    "/api/juridique/dossier-documents": "les pièces du dossier juridique",
+    "/api/juridique/analyse": "l'analyse juridique — MODÈLE FACTURÉ, borné à "
+                              "12 appels par IP et par dix minutes",
+    "/api/juridique/export": "l'export de l'analyse juridique",
+    "/api/playbook/config": "dit à la page ce que la relecture propose",
+    "/api/playbook/analyse": "la relecture de contrat — MODÈLE FACTURÉ",
+    "/api/playbook/comparer": "la comparaison de deux versions de contrat",
+    "/api/playbook/chat": "l'échange sur un contrat — MODÈLE FACTURÉ, borné à "
+                          "25 appels par IP et par dix minutes",
+    "/api/playbook/export": "l'export de la relecture de contrat",
     "/api/conformite": "nourrit /conformite : obligation légale",
     "/api/contact": "le formulaire de contact doit marcher sans compte",
     # LA SONDE DE VIE, SOUS SON SECOND NOM. Journal de production du
@@ -264,9 +368,28 @@ def _verifier():
     démarrage tant que « /acces » n'était pas nommée : c'est ce refus qui fait
     qu'ouvrir une page reste une décision et non un effet de bord. La modifier
     est l'acte par lequel la décision est prise."""
-    attendues = {"/services", "/secteurs", "/etudes-de-cas", "/veille",
-                 "/ressources", "/faq", "/", "/about", "/vos-projets",
-                 "/contact", "/acces"}
+    # DEUX DÉCISIONS, DEUX ENSEMBLES, ET L'HISTOIRE RESTE LISIBLE. Les fondre
+    # en une seule liste ferait disparaître le fait qu'un jour onze pages
+    # seulement étaient ouvertes, et pourquoi les trente et une autres l'ont
+    # été ensuite.
+    decision_onze = {"/services", "/secteurs", "/etudes-de-cas", "/veille",
+                     "/ressources", "/faq", "/", "/about", "/vos-projets",
+                     "/contact", "/acces"}
+    # Le 2 septembre 2026 : le site s'ouvre, sauf l'ingénierie Data Center.
+    decision_ouverture = {
+    "/methodologie", "/operating-model", "/maturite-ot",
+    "/feuille-de-route", "/continuite-ot", "/gestion-des-changements",
+    "/architecture-cible", "/formation", "/gouvernance-ia",
+    "/relecture-contrat", "/referentiel", "/analyse-de-risque",
+    "/programme-securite", "/exigences-systeme", "/exigences-composants",
+    "/exigences-prestataires", "/developpement-securise", "/technologies-securite",
+    "/gestion-correctifs", "/glossaire-62443", "/metriques-62443",
+    "/checklist-62443", "/audit-conformite", "/diagnostic",
+    "/nis2", "/juridique", "/demo",
+    "/tendances", "/connecter", "/guide-integration",
+    "/assistant",
+    }
+    attendues = decision_onze | decision_ouverture
     if set(DIRECT) != attendues:
         manquantes = sorted(attendues - set(DIRECT))
         ajoutees = sorted(set(DIRECT) - attendues)

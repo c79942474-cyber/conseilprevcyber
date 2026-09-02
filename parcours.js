@@ -53,17 +53,15 @@
           ici n'est plus la vérité : elle est la réponse immédiate, celle qui
           tient tant que le serveur n'a pas répondu, et celle qui reste si le
           réseau ne répond pas du tout. */
+  /* VINGT-NEUF ENTRÉES, IL EN RESTE TROIS. Le 2 septembre 2026 le site s'est
+     ouvert, sauf l'ingénierie de projet Data Center. Vingt-six cadenas
+     désignaient dès lors des pages qui s'ouvrent sans compte — et un cadenas
+     de trop n'est pas une prudence : il décourage un clic qui aboutirait, et
+     il use le cadenas là où il est mérité. C'est le défaut symétrique de celui
+     que ce bloc corrigeait, et la même recette l'a vu. */
   var RESERVE = {
-    "/referentiel": 1, "/analyse-de-risque": 1, "/programme-securite": 1,
-    "/exigences-systeme": 1, "/exigences-composants": 1, "/exigences-prestataires": 1,
-    "/developpement-securise": 1, "/technologies-securite": 1, "/gestion-correctifs": 1,
-    "/glossaire-62443": 1, "/metriques-62443": 1, "/methodologie": 1,
-    "/audit-conformite": 1, "/juridique": 1, "/relecture-contrat": 1,
-    "/diagnostic": 1, "/maturite-ot": 1, "/operating-model": 1,
-    "/feuille-de-route": 1, "/continuite-ot": 1, "/gestion-des-changements": 1,
-    "/architecture-cible": 1, "/formation": 1, "/gouvernance-ia": 1,
-    "/demo": 1, "/nis2": 1, "/strategie-durable-datacenter": 1,
-    "/datacenter": 1, "/ingenierie-datacenter": 1
+    "/strategie-durable-datacenter": 1, "/datacenter": 1,
+    "/ingenierie-datacenter": 1
   };
   /* Vrai tant qu'on ne sait pas le contraire. Un client connecté n'a aucun mur
      devant lui : lui coller un cadenas sur presque chaque étape serait un bruit

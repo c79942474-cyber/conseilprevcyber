@@ -176,7 +176,17 @@ def test_le_perimetre_dit_le_meme_ouvert_ferme_que_la_politique():
     divergerait de la politique vendrait ce qui est déjà gratuit, ou
     tairait ce qu'on achète."""
     e = perimetre.etat()
-    assert e["lisible"] and e["n_client"] >= 30
+    assert e["lisible"], "le menu n'est pas lisible : la comparaison ne porte sur rien"
+    # LE PLANCHER EXIGEAIT « AU MOINS TRENTE PAGES VENDUES ». Il en reste trois
+    # depuis l'ouverture du 2 septembre 2026 : la règle est tombée en annonçant
+    # une divergence entre le périmètre et la politique, alors que les deux
+    # concordaient parfaitement — elle mesurait le CHIFFRE D'AFFAIRES, pas
+    # l'accord. Ce qui reste garanti est qu'il y a bien quelque chose à
+    # comparer des deux côtés : sans cela, la boucle qui suit s'exécuterait à
+    # vide en affirmant que tout va bien.
+    assert e["n_client"] >= 1, "plus rien n'est vendu : la comparaison est vide"
+    assert e["n_client"] + e["n_ouvertes"] == sum(
+        len(r["pages"]) for r in e["rubriques"])
     for rub in e["rubriques"]:
         for p in rub["pages"]:
             assert p["ouverte"] == acces.ouvert(p["chemin"]), p["chemin"]

@@ -679,10 +679,25 @@ def test_la_page_ne_porte_plus_les_six_cartes_ecrites_a_la_main():
 #  8. LES ROUTES — MÊME PORTE QUE L'ÉCRAN
 # ═══════════════════════════════════════════════════════════════════════════
 
-def test_le_referentiel_demande_une_session(client):
+def test_le_referentiel_suit_la_politique_d_acces(client):
+    """LA RÈGLE EXIGEAIT UNE SESSION ; ELLE VÉRIFIE MAINTENANT L'ACCORD.
+
+    Elle affirmait « le référentiel demande une session » — vrai jusqu'au
+    2 septembre 2026, où l'assessment de maturité est passé en accès direct.
+    Une règle qui fige un régime tombe le jour d'une décision délibérée, en
+    désignant une fuite là où il n'y a qu'un choix ; et si la décision était
+    revenue en arrière, elle serait restée verte sans rien vérifier de neuf.
+
+    Ce qu'elle garde, dans les DEUX sens : l'interface est servie à un inconnu
+    si et seulement si la politique la déclare ouverte."""
+    import acces
     A._ip_rate._hits.clear()
     anon = A.app.test_client()
-    assert anon.get("/api/maturite-ot/referentiel").status_code in (302, 401, 403)
+    code = anon.get("/api/maturite-ot/referentiel").status_code
+    if acces.api_statut("/api/maturite-ot/referentiel") == "direct":
+        assert code == 200, code
+    else:
+        assert code in (302, 401, 403), code
 
 
 def test_le_referentiel_sert_l_echelle_et_les_domaines(client):
@@ -783,12 +798,19 @@ def test_LE_POINT_QUI_DECIDE_l_intitule_des_documents_porte_ses_accents():
         % "; ".join("« %s » (%s)" % f for f in fautifs))
 
 
-def test_l_export_demande_une_session(client):
+def test_l_export_suit_la_politique_d_acces(client):
+    """Même raison que ci-dessus, sur l'export : ce qui est vérifié est
+    l'accord entre la porte réelle et la politique déclarée, jamais un régime
+    recopié dans l'essai."""
+    import acces
     A._ip_rate._hits.clear()
     anon = A.app.test_client()
     r = anon.post("/api/maturite-ot/emporter",
                   json={"format": "pdf", "niveaux": BAS}, headers=H)
-    assert r.status_code in (302, 401, 403)
+    if acces.api_statut("/api/maturite-ot/emporter") == "direct":
+        assert r.status_code == 200, (r.status_code, r.get_data(as_text=True)[:200])
+    else:
+        assert r.status_code in (302, 401, 403), r.status_code
 
 
 # ═══════════════════════════════════════════════════════════════════════════
