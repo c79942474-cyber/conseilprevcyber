@@ -144,6 +144,7 @@
     "/strategie-durable-datacenter": ["analyse", "gouvernance"],
     "/datacenter": ["analyse", "preuve"],
     "/ingenierie-datacenter": ["exigences", "preuve"],
+    "/ingenierie-ia-factory": ["gouvernance", "analyse"],
     "/contact": []
   };
 
@@ -463,7 +464,15 @@
         { url: "/etudes-de-cas", label: "Études de cas",
           action: "Voyez ce qu’ont réellement produit des missions comparables à la vôtre.",
           gain: "De quoi calibrer une ambition et un budget sur des références, pas sur une brochure.",
-          tip: "Comparez à l’échelle et au secteur, pas au nom : un FPSO et une usine agroalimentaire ne se pilotent pas pareil." }
+          tip: "Comparez à l’échelle et au secteur, pas au nom : un FPSO et une usine agroalimentaire ne se pilotent pas pareil." },
+        { url: "/ingenierie-ia-factory", label: "L’usine IA — étude de faisabilité chiffrée",
+          action: "Choisissez votre secteur — banque, assurance, marchés, entité NIS 2 : il ajoute ses postes, " +
+                  "ses jalons et ses cas d’usage typiques. Renseignez vos quantités et VOS prix unitaires, " +
+                  "puis lisez la part non chiffrée AVANT le total.",
+          gain: "Une étude de faisabilité assise sur vos chiffres, avec les dates réglementaires qui ne " +
+                "glissent pas quand le projet glisse — et le compte de ce qui n’est pas encore chiffré.",
+          tip: "Ouvrez d’abord le parcours guidé de la page : six rôles, et il met en relief la section qui " +
+               "vous concerne au lieu de vous laisser devant dix." }
       ]
     },
     {

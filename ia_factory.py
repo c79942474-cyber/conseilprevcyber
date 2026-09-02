@@ -1,144 +1,183 @@
 # -*- coding: utf-8 -*-
 """INGÉNIERIE DE PROJET — IA FACTORY. L'étude de faisabilité chiffrée d'une usine
-d'intelligence artificielle pour un grand compte à infrastructure critique.
+d'intelligence artificielle pour un grand compte à infrastructure critique :
+banque, assurance, marchés financiers, et les entités essentielles ou
+importantes de la directive NIS2.
 
 CE QUE CE MODULE FAIT, ET CE QU'IL REFUSE DE FAIRE
 
 Il met en ordre une étude de faisabilité : les postes budgétaires, les
 ressources, le planning et ses jalons, la conduite du changement, la migration
-des systèmes — et il la CHIFFRE à partir des quantités et des prix unitaires que
-le client lui donne. Il ne porte AUCUN prix, aucun taux journalier, aucun coût
-d'infrastructure. C'est un choix, et c'est le même que celui de l'économiste
-de centres de données (econome_dc) : un ratio affiché ici serait une invention
-habillée en référentiel, et il serait crédible, ce qui est pire.
+des systèmes, les exigences propres à chaque secteur — et il la CHIFFRE à
+partir des quantités et des prix unitaires que le client lui donne. Il ne porte
+AUCUN prix, aucun taux journalier, aucun coût d'infrastructure. C'est un choix,
+et c'est le même que celui de l'économiste de centres de données (econome_dc) :
+un ratio affiché ici serait une invention habillée en référentiel, et il
+serait crédible, ce qui est pire.
+
+IL NE NOMME AUCUNE ENTREPRISE NI AUCUNE PERSONNE. Les cas comparables sont
+anonymisés — cas A, B, C, D — et décrits par ce qui compte pour l'étude : la
+taille, le nombre de systèmes, ce qui a été publié et ce qui ne l'a pas été.
+Les éditeurs des sources sont désignés par leur nature (autorité publique,
+texte juridique, cabinet, média, fournisseur). Les ADRESSES des sources sont
+conservées : une source sans adresse est une intention, pas une source, et un
+lecteur doit pouvoir la rouvrir.
 
 CE QU'IL PORTE À LA PLACE, ET QUI DÉCIDE VRAIMENT
 
-  1. DES ANCRAGES PUBLICS, SOURCÉS, AVEC LEUR INCERTITUDE. Le programme Orion
-     du groupe BPCE — 800 puis 900 millions d'euros, deux systèmes à unifier,
-     cent mille salariés — l'entreprise IA du Crédit Agricole (150 personnes,
-     150 millions), la migration manquée de TSB (330 millions de livres, 232
-     jours). Chaque chiffre porte sa source, la NATURE de cette source, et ce
-     qu'il ne dit pas. Ce sont des ordres de grandeur pour situer une étude ;
-     aucun n'est une estimation pour la vôtre.
+  1. DES ANCRAGES PUBLICS, SOURCÉS, AVEC LEUR INCERTITUDE. Chaque chiffre porte
+     sa source, la nature de cette source, et ce qu'il NE DIT PAS. Ce sont des
+     ordres de grandeur pour situer une étude ; aucun n'est une estimation pour
+     la vôtre.
 
   2. UNE STRUCTURE DE POSTES QUE LE NEUF NE CONNAÎT PAS. Une usine IA adossée à
-     une migration de cœur bancaire n'a pas les mêmes postes qu'une usine IA
-     posée sur un système stable : interfaces à porter deux fois, recette en
-     double, gel des développements pendant la bascule, coactivité de deux
-     équipes de run. Ce sont ces postes qui font déraper, et un chiffrage
-     construit sur un ratio « d'usine IA » ne les voit pas — il ne les
-     sous-estime pas, il les IGNORE.
+     une migration de cœur n'a pas les mêmes postes qu'une usine IA sur socle
+     stable : interfaces portées deux fois, recette en double, gel autour de la
+     bascule. Chaque poste dit ce qu'il COUVRE et ce qu'il EXCLUT.
 
-  3. DES RELATIONS D'ORDRE, LÀ OÙ ON ATTENDRAIT UN COEFFICIENT. Le module ne
-     dit pas « prévoyez 20 % d'aléas ». Il met la provision choisie en regard
-     du dépassement DOCUMENTÉ des programmes comparables, et il le signale
-     quand elle lui est inférieure. Une comparaison à un chiffre sourcé se
-     défend ; un pourcentage inventé, non.
+  3. DES POSTES PROPRES À CHAQUE SECTEUR. Un registre de prestataires TIC en
+     banque, une validation actuarielle en assurance, un dossier de sûreté par
+     composant de sécurité chez un opérateur d'infrastructure critique : ces
+     postes n'apparaissent dans aucun ratio « d'usine IA », et ce sont eux qui
+     font la différence entre une étude générique et une étude recevable.
 
-  4. LES JALONS QUI NE SE NÉGOCIENT PAS. Les dates du règlement (UE) 2024/1689
-     tel que modifié par le règlement (UE) 2026/1744 sont des jalons du
-     planning, au même titre que les jalons projet — mais elles ne bougent pas
-     quand le projet glisse. Le planning les distingue.
+  4. DES RELATIONS D'ORDRE, LÀ OÙ ON ATTENDRAIT UN COEFFICIENT. Le module ne
+     propose pas de taux d'aléas : il compare celui qu'on saisit au dépassement
+     DOCUMENTÉ des programmes comparables, et il signale l'écart.
 
-  5. LE COMPTE DE CE QUI MANQUE. Tout poste sans prix ressort `non_chiffre`
-     avec sa raison, et la part non chiffrée de l'étude est publiée. Au-delà
-     d'un certain point, un total cesse d'être une estimation pour devenir
-     l'addition de ce qu'on savait déjà.
+  5. LES JALONS QUI NE SE NÉGOCIENT PAS. Les dates des textes — règlement sur
+     l'IA tel que modifié en 2026, DORA, NIS2, Solvabilité II révisée — sont des
+     jalons du planning qui ne bougent pas quand le projet glisse. Le planning
+     les distingue des phases, qui glissent.
+
+  6. LE COMPTE DE CE QUI MANQUE. Tout poste sans prix ressort `non_chiffre` avec
+     sa raison, et la part non chiffrée de l'étude est publiée.
 
 CE QUE LES SOURCES SONT, ET NE SONT PAS. Elles ont été obtenues par recherche
 outillée depuis un poste dont le proxy refuse l'accès direct aux sites ; ce
 qui est cité est l'EXTRAIT rendu par la recherche, pas la page lue. Chaque
-source le dit (`lu: False`). Une adresse qu'on n'a pas pu ouvrir est une
-adresse, pas une lecture — et le registre le compte au lieu de le lisser.
+source le dit (`lu: False`). Le registre compte cela au lieu de le lisser.
 
-CE QU'IL NE FAIT PAS. Il ne remplace ni un cadrage sur pièces, ni une
-consultation, ni l'avis d'un contrôleur de gestion. Il met en ordre et il
-compte. Les quantités qu'on lui donne, il les croit.
+CE QU'IL NE FAIT PAS. Il ne qualifie aucun système au sens du règlement sur
+l'IA — c'est une analyse juridique, dossier par dossier — et il ne remplace ni
+un cadrage sur pièces, ni une consultation, ni un contrôleur de gestion. Il
+met en ordre et il compte. Les quantités qu'on lui donne, il les croit.
 """
 from datetime import date, timedelta
 
-VERSION = "2026-09-a"
+VERSION = "2026-09-b"
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  1. LES SOURCES — obtenues, pas lues ; et le registre le dit
+#  1. LES SOURCES — obtenues, pas lues ; éditeurs désignés par leur nature
 # ═══════════════════════════════════════════════════════════════════════════
 #
-# `nature` : officiel (l'émetteur lui-même), presse, analyste (cabinet,
-# éditeur de recherche), fournisseur (un vendeur parlant de son offre),
-# juridique (texte publié au Journal officiel). La nature commande le crédit :
-# un chiffre de fournisseur sur son propre produit se lit avec la réserve qui
-# convient.
+# `nature` : officiel (une autorité ou un organisme public, l'émetteur
+# lui-même), juridique (texte publié au Journal officiel), analyste (cabinet,
+# éditeur de recherche, cabinet d'avocats), presse (média), fournisseur (un
+# vendeur parlant de son offre). La nature commande le crédit qu'on accorde.
 
 SOURCES = {
-    "bpce_orion_consultor": {
-        "titre": "Le BCG en duo avec Wavestone : les dessous du projet SI de BPCE à 800 millions d'euros",
-        "editeur": "Consultor", "nature": "presse", "annee": 2025,
+    # ── le cas A : un grand groupe bancaire coopératif, deux réseaux, deux SI ──
+    "casA_programme_presse": {
+        "titre": "Programme de plateforme technologique commune à deux réseaux bancaires — pilotage confié à un groupement de cabinets",
+        "editeur": "Média spécialisé du conseil", "nature": "presse", "annee": 2025,
         "url": "https://www.consultor.fr/articles/le-bcg-en-duo-avec-wavestone-les-dessous-du-projet-si-de-bpce-a-800-millions-deuros",
-        "lu": False, "reserve": "Extrait de recherche. L'enveloppe de 900 M€ citée dans le cas "
-                                 "fourni (automne 2025, « La Lettre ») n'a pas été retrouvée dans "
-                                 "une source ouverte : elle est portée comme borne haute non vérifiée.",
+        "lu": False, "reserve": "Extrait de recherche. L'enveloppe de 900 M€ citée dans le cas fourni "
+                                 "(automne 2025) n'a pas été retrouvée dans une source ouverte : elle est "
+                                 "portée comme borne haute non vérifiée.",
     },
-    "bpce_orion_cp": {
-        "titre": "Le Groupe BPCE investit dans une plateforme technologique commune aux Banques Populaires et aux Caisses d'Épargne",
-        "editeur": "Groupe BPCE — espace presse", "nature": "officiel", "annee": 2025,
+    "casA_programme_cp": {
+        "titre": "Communiqué : investissement dans une plateforme technologique commune aux deux réseaux du groupe",
+        "editeur": "Groupe bancaire coopératif — espace presse", "nature": "officiel", "annee": 2025,
         "url": "https://newsroom.groupebpce.fr/actualites/le-groupe-bpce-lance-un-projet-de-plateforme-technologique-commune-aux-banques-populaires-et-aux-caisses-depargne-9ff31-7b707.html",
         "lu": False, "reserve": "Communiqué du 5 février 2025 ; page non lue (accès refusé par le proxy).",
     },
-    "bpce_ia_cp": {
-        "titre": "Le Groupe BPCE accélère l'adoption de l'IA générative et franchit le seuil d'un collaborateur sur deux utilisant l'IA au quotidien",
-        "editeur": "Groupe BPCE — espace presse", "nature": "officiel", "annee": 2026,
+    "casA_ia_cp": {
+        "titre": "Communiqué : un collaborateur sur deux utilise l'IA générative au quotidien",
+        "editeur": "Groupe bancaire coopératif — espace presse", "nature": "officiel", "annee": 2026,
         "url": "https://newsroom.groupebpce.fr/actualites/le-groupe-bpce-accelere-l-adoption-de-l-intelligence-artificielle-generative-au-service-des-clients-des-conseillers-de-tous-les-collaborateurs-et-franchit-le-seuil-d-un-collaborateur-sur-deux-utilisant-l-ia-au-quotidien-dc22f-7b707.html",
-        "lu": False, "reserve": "Extrait de recherche ; chiffres MAiA, voicebot et formation repris de l'extrait.",
+        "lu": False, "reserve": "Extrait de recherche ; usage mensuel, agent vocal et formation repris de l'extrait.",
     },
-    "bpce_gepp_cp": {
-        "titre": "Accord GEPP intégrant de manière inédite un volet sur l'intelligence artificielle",
-        "editeur": "Groupe BPCE — espace presse", "nature": "officiel", "annee": 2025,
+    "casA_accord_social": {
+        "titre": "Communiqué : accord de gestion des emplois et des parcours professionnels intégrant un volet sur l'IA",
+        "editeur": "Groupe bancaire coopératif — espace presse", "nature": "officiel", "annee": 2025,
         "url": "https://newsroom.groupebpce.fr/actualites/le-groupe-bpce-signe-un-accord-sur-la-gestion-des-emplois-et-des-parcours-professionnels-integrant-de-maniere-inedite-un-volet-sur-lintelligence-artificielle-3cba1-7b707.html",
-        "lu": False, "reserve": "Accord du 29 septembre 2025, triennal, rétroactif au 1er juillet 2025 ; signataires CFE-CGC, CFDT, UNSA (extrait).",
+        "lu": False, "reserve": "Accord du 29 septembre 2025, triennal, rétroactif au 1er juillet 2025, signé par "
+                                 "trois organisations représentatives (extrait).",
     },
-    "ca_ia_cp": {
-        "titre": "Le Crédit Agricole accélère sa transformation IA",
-        "editeur": "Crédit Agricole — espace presse", "nature": "officiel", "annee": 2026,
+    # ── le cas B : un grand groupe bancaire universel, plan IA triennal ──
+    "casB_plan_cp": {
+        "titre": "Communiqué : accélération de la transformation IA — plan triennal et entité IA mutualisée",
+        "editeur": "Groupe bancaire universel — espace presse", "nature": "officiel", "annee": 2026,
         "url": "https://presse.credit-agricole.com/le-credit-agricole-accelere-sa-transformation-ia/?lang=fra",
-        "lu": False, "reserve": "Annonce de juin 2026 ; ~500 M€ sur 2026-2028, entreprise IA 150 M€ et ~150 personnes (extrait).",
+        "lu": False, "reserve": "Annonce de juin 2026 ; ~500 M€ sur 2026-2028, entité IA dotée de 150 M€ "
+                                 "et d'environ 150 personnes (extrait).",
     },
-    "banques_ia_cio": {
+    # ── le cas C : deux banques universelles, objectifs et comptes publiés ──
+    "casC_presse": {
         "titre": "Comment les grandes banques investissent dans l'IA",
-        "editeur": "CIO Online", "nature": "presse", "annee": 2026,
+        "editeur": "Média spécialisé des directions informatiques", "nature": "presse", "annee": 2026,
         "url": "https://www.cio-online.com/actualites/lire-comment-les-grandes-banques-investissent-dans-l-ia-16194.html",
-        "lu": False, "reserve": "Société Générale, BNP Paribas, JPMorgan : chiffres repris de l'extrait.",
+        "lu": False, "reserve": "Objectif de valeur annuelle et compte de cas d'usage repris de l'extrait.",
     },
+    # ── le cas D : une banque de détail, migration manquée ──
+    "casD_revue": {
+        "titre": "Revue indépendante de la migration informatique de 2018 — publication par le conseil d'administration",
+        "editeur": "Banque de détail — espace presse", "nature": "officiel", "annee": 2019,
+        "url": "https://www.tsb.co.uk/news-releases/slaughter-and-may.html",
+        "lu": False, "reserve": "Coût > 330 M£, 232 jours avant retour à la normale, 1,9 M de clients privés "
+                                 "d'accès, amendes des deux autorités britanniques en 2022 (extraits de couverture).",
+    },
+    # ── le secteur et ses autorités ──
     "fbf_emploi_2025": {
         "titre": "Solidité des marqueurs de l'emploi dans la banque en 2025",
-        "editeur": "Fédération bancaire française", "nature": "officiel", "annee": 2026,
+        "editeur": "Fédération professionnelle des banques", "nature": "officiel", "annee": 2026,
         "url": "https://www.fbf.fr/fr/communique_de_presse/solidite-des-marqueurs-de-lemploi-dans-la-banque-en-2025/",
-        "lu": False, "reserve": "368 800 salariés en 2025 (-0,7 %), 186 200 pour les banques AFB (extrait).",
+        "lu": False, "reserve": "368 800 salariés en 2025 (-0,7 %) (extrait).",
     },
     "bce_ia_newsletter": {
-        "titre": "AI's impact on banking: use cases for credit scoring and fraud detection",
-        "editeur": "BCE — supervision bancaire", "nature": "officiel", "annee": 2025,
+        "titre": "L'impact de l'IA sur la banque : cas d'usage en notation de crédit et détection de fraude",
+        "editeur": "Banque centrale européenne — supervision bancaire", "nature": "officiel", "annee": 2025,
         "url": "https://www.bankingsupervision.europa.eu/press/supervisory-newsletters/newsletter/2025/html/ssm.nl251120_1.en.html",
         "lu": False, "reserve": "« Plus de 85 % des banques supervisées utilisent l'IA » (extrait).",
     },
     "bce_priorites_2026": {
-        "titre": "Supervisory priorities 2026-28",
-        "editeur": "BCE — supervision bancaire", "nature": "officiel", "annee": 2025,
+        "titre": "Priorités de supervision 2026-2028",
+        "editeur": "Banque centrale européenne — supervision bancaire", "nature": "officiel", "annee": 2025,
         "url": "https://www.bankingsupervision.europa.eu/framework/priorities/html/ssm.supervisory_priorities202511.en.html",
         "lu": False, "reserve": "Suivi des stratégies, de la gouvernance et de la gestion des risques IA (extrait).",
     },
     "acpr_reflexion_ia": {
         "titre": "Document de réflexion — Intelligence artificielle : enjeux pour le secteur financier",
-        "editeur": "ACPR", "nature": "officiel", "annee": 2018,
+        "editeur": "Autorité de contrôle prudentiel et de résolution", "nature": "officiel", "annee": 2018,
         "url": "https://acpr.banque-france.fr/document-de-reflexion-intelligence-artificielle-enjeux-pour-le-secteur-financier",
-        "lu": False, "reserve": "Explicabilité, équité, cybersécurité ; l'ACPR a intégré les risques IA au questionnaire SREP 2025 (extraits).",
+        "lu": False, "reserve": "Explicabilité, équité, cybersécurité ; l'autorité a intégré les risques IA au "
+                                 "questionnaire de supervision 2025 (extraits).",
+    },
+    "acpr_autorite_ia": {
+        "titre": "Rapport annuel 2025 de l'autorité prudentielle : l'autorité désignée pour le règlement sur l'IA en banque et assurance",
+        "editeur": "Cabinet d'avocats international — note d'analyse", "nature": "analyste", "annee": 2026,
+        "url": "https://www.skadden.com/insights/publications/2026/07/acpr-publishes-its-2025-annual-report",
+        "lu": False, "reserve": "L'autorité prudentielle française est désignée pour faire appliquer le règlement "
+                                 "sur l'IA aux systèmes à haut risque de la banque et de l'assurance ; une enquête "
+                                 "auprès de 9 banques et 35 assureurs a servi à mettre à jour sa méthode "
+                                 "d'évaluation (extrait).",
     },
     "bdf_rapport_ia_2025": {
         "titre": "Rapport sur les impacts juridiques et réglementaires de l'IA dans le secteur financier",
-        "editeur": "Banque de France", "nature": "officiel", "annee": 2025,
+        "editeur": "Banque centrale nationale", "nature": "officiel", "annee": 2025,
         "url": "https://www.banque-france.fr/fr/system/files/2025-07/Rapport_68_F_V3.pdf",
         "lu": False, "reserve": "Document PDF non ouvert ; cité sur son titre et sa date (juillet 2025).",
     },
+    "eiopa_opinion": {
+        "titre": "Avis sur la gouvernance et la gestion des risques de l'intelligence artificielle (EIOPA-BoS-25-360)",
+        "editeur": "Autorité européenne des assurances et des pensions professionnelles", "nature": "officiel", "annee": 2025,
+        "url": "https://www.eiopa.europa.eu/publications/opinion-artificial-intelligence-governance-and-risk-management_en",
+        "lu": False, "reserve": "Avis du 6 août 2025 adressé aux superviseurs nationaux : pas de règle nouvelle, une "
+                                 "lecture des textes assurantiels existants (Solvabilité II, distribution, DORA, RGPD) "
+                                 "à la lumière du règlement sur l'IA, proportionnée au risque (extrait).",
+    },
+    # ── les textes ──
     "ai_act": {
         "titre": "Règlement (UE) 2024/1689 établissant des règles harmonisées concernant l'intelligence artificielle",
         "editeur": "Union européenne", "nature": "juridique", "annee": 2024,
@@ -155,14 +194,24 @@ SOURCES = {
         "titre": "Règlement (UE) 2026/1744 modifiant le règlement (UE) 2024/1689 (simplification)",
         "editeur": "Union européenne", "nature": "juridique", "annee": 2026,
         "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32026R1744",
-        "lu": False, "reserve": "Règlement du 8 juillet 2026, en vigueur le 27 juillet 2026. Les dates "
-                                 "reportées sont reprises d'analyses de cabinets (extraits), pas du texte.",
+        "lu": False, "reserve": "Règlement du 8 juillet 2026, en vigueur le 27 juillet 2026. Les dates reportées "
+                                 "sont reprises d'analyses de cabinets (extraits), pas du texte.",
     },
     "omnibus_analyse": {
-        "titre": "EU AI Omnibus enters into force, amending the AI Act",
-        "editeur": "White & Case", "nature": "analyste", "annee": 2026,
+        "titre": "Entrée en vigueur du règlement de simplification modifiant le règlement sur l'IA",
+        "editeur": "Cabinet d'avocats international — alerte", "nature": "analyste", "annee": 2026,
         "url": "https://www.whitecase.com/insight-alert/eu-ai-omnibus-enters-force-amending-ai-act",
-        "lu": False, "reserve": "Annexe III reportée au 2 décembre 2027, annexe I au 2 août 2028 ; article 50 maintenu au 2 août 2026 (extrait).",
+        "lu": False, "reserve": "Annexe III reportée au 2 décembre 2027, annexe I au 2 août 2028 ; article 50 "
+                                 "maintenu au 2 août 2026 (extrait).",
+    },
+    "annexe3_infra": {
+        "titre": "Annexe III — obligations, champ et échéance du 2 décembre 2027",
+        "editeur": "Éditeur juridique spécialisé", "nature": "analyste", "annee": 2026,
+        "url": "https://www.regulation-ai.eu/en/annex-iii/",
+        "lu": False, "reserve": "Point 2 de l'annexe III : composants de sécurité dans la gestion et l'exploitation "
+                                 "d'infrastructures numériques critiques, du trafic routier, de l'eau, du gaz, du "
+                                 "chauffage et de l'électricité ; les composants à finalité exclusivement de "
+                                 "cybersécurité ne sont pas des composants de sécurité (extraits).",
     },
     "dora": {
         "titre": "Règlement (UE) 2022/2554 sur la résilience opérationnelle numérique du secteur financier (DORA)",
@@ -170,65 +219,113 @@ SOURCES = {
         "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R2554",
         "lu": False, "reserve": "Applicable depuis le 17 janvier 2025 ; adresse officielle obtenue par le service juridique.",
     },
-    "tsb_revue": {
-        "titre": "TSB Board publishes independent review of 2018 IT Migration (Slaughter and May)",
-        "editeur": "TSB Bank", "nature": "officiel", "annee": 2019,
-        "url": "https://www.tsb.co.uk/news-releases/slaughter-and-may.html",
-        "lu": False, "reserve": "Coût > 330 M£, 232 jours avant retour à la normale, 1,9 M de clients privés "
-                                 "d'accès, amendes FCA/PRA 29,8 + 18,9 M£ en 2022 (extraits de couverture).",
+    "dora_directive": {
+        "titre": "Directive (UE) 2022/2556 modifiant les directives sectorielles pour la résilience opérationnelle numérique",
+        "editeur": "Union européenne", "nature": "juridique", "annee": 2022,
+        "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022L2556",
+        "lu": False, "reserve": "Le volet directive de DORA, qui touche notamment Solvabilité II et les directives bancaires.",
     },
+    "nis2": {
+        "titre": "Directive (UE) 2022/2555 concernant des mesures destinées à assurer un niveau élevé commun de cybersécurité (NIS 2)",
+        "editeur": "Union européenne", "nature": "juridique", "annee": 2022,
+        "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022L2555",
+        "lu": False, "reserve": "Transposition au 17 octobre 2024 (article 41), application au 18 octobre 2024 ; "
+                                 "notification des incidents importants en 24 h / 72 h / un mois (article 23).",
+    },
+    "cer": {
+        "titre": "Directive (UE) 2022/2557 sur la résilience des entités critiques (REC)",
+        "editeur": "Union européenne", "nature": "juridique", "annee": 2022,
+        "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022L2557",
+        "lu": False, "reserve": "Le volet résilience physique, transposé en France dans le même texte que NIS 2 (extrait).",
+    },
+    "nis2_france": {
+        "titre": "Transposition de NIS 2 en France : loi, calendrier 2026 et obligations",
+        "editeur": "Éditeur juridique spécialisé", "nature": "analyste", "annee": 2026,
+        "url": "https://www.legiscope.com/blog/transposition-nis2-france.html",
+        "lu": False, "reserve": "Au 6 août 2026, la loi de transposition n'était pas promulguée ; procédure "
+                                 "d'infraction ouverte fin novembre 2024 ; environ 15 000 entités visées ; "
+                                 "référentiel de l'agence nationale publié le 17 mars 2026 (extraits). État à "
+                                 "vérifier au jour de la lecture.",
+    },
+    "nis2_incidents": {
+        "titre": "Notification des incidents NIS 2 : le cadre 24 h / 72 h / un mois",
+        "editeur": "Éditeur juridique spécialisé", "nature": "analyste", "annee": 2026,
+        "url": "https://www.legiscope.com/blog/nis2-incident-reporting.html",
+        "lu": False, "reserve": "Alerte précoce sous 24 h, notification sous 72 h, rapport final sous un mois (extrait).",
+    },
+    "solvency2": {
+        "titre": "Directive 2009/138/CE sur l'accès aux activités de l'assurance et de la réassurance (Solvabilité II)",
+        "editeur": "Union européenne", "nature": "juridique", "annee": 2009,
+        "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32009L0138",
+        "lu": False, "reserve": "Adresse officielle obtenue par le service juridique.",
+    },
+    "solvency2_2027": {
+        "titre": "Solvabilité II — texte consolidé applicable au 30 janvier 2027 (directive (UE) 2025/2)",
+        "editeur": "Union européenne", "nature": "juridique", "annee": 2027,
+        "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:02009L0138-20270130",
+        "lu": False, "reserve": "La directive modificative (UE) 2025/2 est entrée en vigueur le 28 janvier 2025 et "
+                                 "s'applique à compter du 30 janvier 2027 (extraits d'éditeurs juridiques).",
+    },
+    "ai_act_politique": {
+        "titre": "Le règlement sur l'IA — page de politique de la Commission européenne",
+        "editeur": "Commission européenne", "nature": "officiel", "annee": 2026,
+        "url": "https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai",
+        "lu": False, "reserve": "Page de référence ; les orientations de l'agence européenne de cybersécurité sur la "
+                                 "documentation de l'article 17 n'avaient pas été publiées en mai 2026 (extrait).",
+    },
+    # ── les analyses et les repères de marché ──
     "migration_benchmarks": {
-        "titre": "Core systems strategy for banks",
-        "editeur": "McKinsey & Company", "nature": "analyste", "annee": 2025,
+        "titre": "Stratégie de cœur bancaire : durées, coûts et dépassements documentés",
+        "editeur": "Cabinet de conseil en stratégie", "nature": "analyste", "annee": 2025,
         "url": "https://www.mckinsey.com/industries/financial-services/our-insights/banking-matters/core-systems-strategy-for-banks",
-        "lu": False, "reserve": "Grande banque : 3 à 5 ans, 200 M$ à 1 Md$ ; dépassements ≥ 50 % fréquents ; "
-                                 "50 % des transformations de cœur n'atteignent pas leurs objectifs (Gartner, "
-                                 "via couverture secondaire).",
+        "lu": False, "reserve": "Grande banque : 3 à 5 ans, 200 M$ à 1 Md$ ; dépassements ≥ 50 % fréquents ; la "
+                                 "moitié des transformations de cœur n'atteignent pas leurs objectifs (chiffre d'un "
+                                 "cabinet d'études, via couverture secondaire).",
     },
-    "stanford_2026": {
-        "titre": "The 2026 AI Index Report — Economy",
-        "editeur": "Stanford HAI", "nature": "analyste", "annee": 2026,
+    "indice_ia_2026": {
+        "titre": "Indice annuel de l'IA 2026 — chapitre économie",
+        "editeur": "Institut universitaire de recherche sur l'IA", "nature": "analyste", "annee": 2026,
         "url": "https://hai.stanford.edu/ai-index/2026-ai-index-report/economy",
-        "lu": False, "reserve": "88 % des organisations utilisent l'IA, 70 % l'IA générative ; gains de "
-                                 "productivité ~14 % service client, ~26 % développement (couverture secondaire).",
+        "lu": False, "reserve": "88 % des organisations utilisent l'IA, 70 % l'IA générative ; gains de productivité "
+                                 "~14 % sur des tâches de service client, ~26 % en développement (couverture secondaire).",
     },
     "ratios_equipes": {
-        "titre": "ML Engineering Team Structure That Scales: Roles, Reporting and Benchmarks",
-        "editeur": "KORE1", "nature": "analyste", "annee": 2026,
+        "titre": "Structure d'une équipe d'ingénierie IA : rôles, rattachements et repères",
+        "editeur": "Cabinet de recrutement spécialisé", "nature": "analyste", "annee": 2026,
         "url": "https://www.kore1.com/building-an-ml-engineering-team-structure-that-scales-roles-reporting-and-benchmarks/",
-        "lu": False, "reserve": "1 ingénieur plateforme pour 4 à 6 constructeurs de modèles ; 1 data engineer "
-                                 "pour 2 à 3 ML/DS en amorçage. Cabinet de recrutement : ratio d'usage, pas une mesure.",
+        "lu": False, "reserve": "1 ingénieur plateforme pour 4 à 6 constructeurs de modèles ; 1 data engineer pour "
+                                 "2 à 3 ML/DS en amorçage. Ratio d'usage, pas une mesure sectorielle.",
     },
-    "gartner_prod": {
-        "titre": "Enterprise AI projects failing to reach production (2025)",
-        "editeur": "Gartner (via couverture secondaire)", "nature": "analyste", "annee": 2025,
+    "projets_hors_prod": {
+        "titre": "Part des projets IA d'entreprise n'atteignant pas la production (2025)",
+        "editeur": "Cabinet d'études (via couverture secondaire)", "nature": "analyste", "annee": 2025,
         "url": None,
-        "lu": False, "reserve": "« Plus de 55 % des projets IA n'atteignent pas la production » : chiffre "
-                                 "rencontré dans plusieurs extraits, adresse primaire non obtenue.",
+        "lu": False, "reserve": "« Plus de 55 % » : chiffre rencontré dans plusieurs extraits, adresse primaire non obtenue.",
     },
-    "nvidia_dgx": {
-        "titre": "NVIDIA DGX Components, Pricing, and other FAQs",
-        "editeur": "TRG Datacenters", "nature": "fournisseur", "annee": 2026,
+    "infra_prix": {
+        "titre": "Guide d'achat d'une infrastructure de calcul IA — composants et prix indicatifs",
+        "editeur": "Revendeur d'infrastructure", "nature": "fournisseur", "annee": 2026,
         "url": "https://www.trgdatacenters.com/resource/nvidia-dgx-buyers-guide-everything-you-need-to-know/",
-        "lu": False, "reserve": "SuperPOD 7 à 60 M$ ; DGX H200 400 à 500 k$ (revendeur : prix indicatifs).",
+        "lu": False, "reserve": "Grappe de calcul clé en main : 7 à 60 M$ selon la taille ; nœud unitaire 0,4 à 0,5 M$ "
+                                 "(prix revendeur, indicatifs, hors bâtiment, énergie et exploitation).",
     },
-    "mistral_prix": {
-        "titre": "Pricing — Mistral AI",
-        "editeur": "Mistral AI", "nature": "fournisseur", "annee": 2026,
+    "jetons_prix": {
+        "titre": "Grille tarifaire publique d'un fournisseur européen de modèles",
+        "editeur": "Fournisseur de modèles", "nature": "fournisseur", "annee": 2026,
         "url": "https://mistral.ai/pricing/",
-        "lu": False, "reserve": "Mistral Large ~0,5 $/M jetons en entrée, ~1,5 $/M en sortie ; -50 % en lot, "
-                                 "-90 % sur entrée en cache (extraits). Tarif de fournisseur, périmé sans date.",
+        "lu": False, "reserve": "Modèle de premier rang : ~0,5 $/M jetons en entrée, ~1,5 $/M en sortie ; -50 % en "
+                                 "lot, -90 % sur entrée en cache (extraits). Tarif de fournisseur, périmé sans date.",
     },
     "iea_energy_ai": {
-        "titre": "Energy and AI",
+        "titre": "Énergie et IA",
         "editeur": "Agence internationale de l'énergie", "nature": "officiel", "annee": 2025,
         "url": "https://www.iea.org/reports/energy-and-ai",
         "lu": False, "reserve": "~945 TWh de consommation des centres de données en 2030 ; énergie par tâche IA "
                                  "divisée par ≥ 10 par an ces dernières années (extraits).",
     },
     "operating_model": {
-        "titre": "2026: The year of scale or fail in enterprise AI",
-        "editeur": "CIO", "nature": "presse", "annee": 2026,
+        "titre": "2026 : l'année de l'échelle ou de l'échec pour l'IA d'entreprise",
+        "editeur": "Média spécialisé des directions informatiques", "nature": "presse", "annee": 2026,
         "url": "https://www.cio.com/article/4106578/2026-the-year-of-scale-or-fail-in-enterprise-ai.html",
         "lu": False, "reserve": "Modèle hub-and-spoke dominant ; le centre porte plateforme, normes, gouvernance (extrait).",
     },
@@ -236,12 +333,9 @@ SOURCES = {
 
 
 def couverture_sources():
-    """Ce qu'un lecteur peut réellement rouvrir, et ce qu'on a réellement lu.
-
-    Deux comptes distincts, parce qu'ils répondent à deux questions : « puis-je
-    ouvrir cette adresse » et « l'auteur l'a-t-il ouverte ». Ici la seconde
-    réponse est NON pour toutes — et l'écrire vaut mieux que le laisser
-    croire."""
+    """Ce qu'un lecteur peut rouvrir, et ce que l'auteur a lu : deux comptes.
+    Ici la seconde réponse est NON pour toutes — et l'écrire vaut mieux que le
+    laisser croire."""
     n = len(SOURCES)
     avec = sum(1 for s in SOURCES.values() if s.get("url"))
     lues = sum(1 for s in SOURCES.values() if s.get("lu"))
@@ -251,60 +345,56 @@ def couverture_sources():
     return {"total": n, "avec_adresse": avec, "lues": lues,
             "part_avec_adresse": round(avec / n, 3) if n else 0.0,
             "par_nature": dict(sorted(par_nature.items())),
-            "limite": "Aucune page n'a été ouverte depuis ce poste : les chiffres sont ceux "
-                      "des extraits de recherche. Un lecteur doit rouvrir la source avant "
-                      "de s'en prévaloir."}
+            "limite": "Aucune page n'a été ouverte depuis ce poste : les chiffres sont ceux des "
+                      "extraits de recherche. Un lecteur doit rouvrir la source avant de s'en "
+                      "prévaloir. Les éditeurs sont désignés par leur nature ; les adresses, "
+                      "elles, nomment nécessairement les sites."}
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  2. LES ANCRAGES — des ordres de grandeur pour SITUER, jamais pour estimer
 # ═══════════════════════════════════════════════════════════════════════════
-#
-# Chaque ancrage porte : la valeur (ou une fourchette), l'unité, la source,
-# et surtout `ne_dit_pas` — ce que le chiffre laisse hors de son périmètre.
-# C'est cette dernière ligne qui empêche de le reporter tel quel dans une
-# étude qui ne porte pas sur le même objet.
 
 ANCRAGES = [
-    {"cle": "orion_budget", "nom": "Programme Orion (BPCE) — enveloppe globale",
-     "min": 750, "max": 900, "unite": "M€", "source": "bpce_orion_consultor",
-     "ne_dit_pas": "Ni la part de l'IA dans l'enveloppe, ni la répartition build/run, ni "
-                   "ce qui relève de la migration Equinoxe/MySys plutôt que de la plateforme."},
-    {"cle": "orion_horizon", "nom": "Programme Orion — horizon annoncé",
-     "min": 4, "max": 4, "unite": "ans", "source": "bpce_orion_consultor",
-     "ne_dit_pas": "Un horizon annoncé au lancement ; les benchmarks de migration de cœur "
-                   "documentent des dépassements de 50 % et plus."},
-    {"cle": "bpce_effectif", "nom": "Groupe BPCE — effectif",
-     "min": 100000, "max": 100000, "unite": "salariés", "source": "bpce_ia_cp",
+    {"cle": "casA_budget", "nom": "Cas A — enveloppe du programme de plateforme commune",
+     "min": 750, "max": 900, "unite": "M€", "source": "casA_programme_presse",
+     "ne_dit_pas": "Ni la part de l'IA dans l'enveloppe, ni la répartition build/run, ni ce qui "
+                   "relève de la migration des deux SI plutôt que de la plateforme."},
+    {"cle": "casA_horizon", "nom": "Cas A — horizon annoncé du programme",
+     "min": 4, "max": 4, "unite": "ans", "source": "casA_programme_presse",
+     "ne_dit_pas": "Un horizon annoncé au lancement ; les repères de migration de cœur documentent "
+                   "des dépassements de 50 % et plus."},
+    {"cle": "casA_effectif", "nom": "Cas A — effectif du groupe",
+     "min": 100000, "max": 100000, "unite": "salariés", "source": "casA_ia_cp",
      "ne_dit_pas": "Ordre de grandeur (« quelque 100 000 »)."},
-    {"cle": "bpce_usage_quotidien", "nom": "BPCE — part des salariés utilisant l'IA générative au quotidien",
-     "min": 0.5, "max": 0.5, "unite": "part", "source": "bpce_ia_cp",
+    {"cle": "casA_usage_quotidien", "nom": "Cas A — part des salariés utilisant l'IA générative au quotidien",
+     "min": 0.5, "max": 0.5, "unite": "part", "source": "casA_ia_cp",
      "ne_dit_pas": "« Au quotidien » n'est pas défini ; l'usage moyen relevé est de 40 sollicitations "
                    "par mois et par utilisateur (extrait)."},
-    {"cle": "bpce_conseillers", "nom": "BPCE — part des conseillers bancaires utilisateurs",
-     "min": 0.75, "max": 0.75, "unite": "part", "source": "bpce_orion_consultor",
-     "ne_dit_pas": "Chiffre du cas fourni (« La Lettre »), non retrouvé dans un extrait officiel."},
-    {"cle": "bpce_appels", "nom": "BPCE — appels traités de bout en bout par un agent vocal",
-     "min": 1000000, "max": 1000000, "unite": "appels/an", "source": "bpce_ia_cp",
-     "ne_dit_pas": "Sur 12 millions d'appels reçus (cas fourni) ; le taux de résolution et la "
-                   "satisfaction ne sont pas publiés."},
-    {"cle": "bpce_formes", "nom": "BPCE — collaborateurs formés à l'IA",
-     "min": 45000, "max": 45000, "unite": "salariés", "source": "bpce_gepp_cp",
+    {"cle": "casA_conseillers", "nom": "Cas A — part des conseillers utilisateurs",
+     "min": 0.75, "max": 0.75, "unite": "part", "source": "casA_programme_presse",
+     "ne_dit_pas": "Chiffre du cas fourni, non retrouvé dans un extrait officiel."},
+    {"cle": "casA_appels", "nom": "Cas A — appels traités de bout en bout par un agent vocal",
+     "min": 1000000, "max": 1000000, "unite": "appels/an", "source": "casA_ia_cp",
+     "ne_dit_pas": "Sur 12 millions d'appels reçus (cas fourni) ; ni le taux de résolution ni la "
+                   "satisfaction ne sont publiés."},
+    {"cle": "casA_formes", "nom": "Cas A — collaborateurs formés à l'IA",
+     "min": 45000, "max": 45000, "unite": "salariés", "source": "casA_accord_social",
      "ne_dit_pas": "Ni la durée ni le contenu de la formation."},
-    {"cle": "ca_plan", "nom": "Crédit Agricole — plan IA 2026-2028",
-     "min": 500, "max": 500, "unite": "M€", "source": "ca_ia_cp",
+    {"cle": "casB_plan", "nom": "Cas B — plan IA triennal 2026-2028",
+     "min": 500, "max": 500, "unite": "M€", "source": "casB_plan_cp",
      "ne_dit_pas": "« Près de 500 M€ » ; périmètre groupe (banque, assurance, gestion d'actifs)."},
-    {"cle": "ca_entreprise_ia", "nom": "Crédit Agricole — « Entreprise IA » (socle mutualisé)",
-     "min": 150, "max": 150, "unite": "M€", "source": "ca_ia_cp",
+    {"cle": "casB_entite_ia", "nom": "Cas B — entité IA mutualisée (socle)",
+     "min": 150, "max": 150, "unite": "M€", "source": "casB_plan_cp",
      "ne_dit_pas": "Effectif visé ~150 personnes ; le chiffre couvre-t-il l'infrastructure ? Non dit."},
-    {"cle": "ca_entreprise_ia_etp", "nom": "Crédit Agricole — effectif de l'entreprise IA",
-     "min": 150, "max": 150, "unite": "ETP", "source": "ca_ia_cp",
-     "ne_dit_pas": "Cible « l'an prochain » ; la ventilation par rôle n'est pas publiée."},
-    {"cle": "sg_valeur", "nom": "Société Générale — objectif de valeur créée par l'IA et la donnée",
-     "min": 500, "max": 500, "unite": "M€/an", "source": "banques_ia_cio",
+    {"cle": "casB_entite_ia_etp", "nom": "Cas B — effectif de l'entité IA",
+     "min": 150, "max": 150, "unite": "ETP", "source": "casB_plan_cp",
+     "ne_dit_pas": "Cible à un an ; la ventilation par rôle n'est pas publiée."},
+    {"cle": "casC_valeur", "nom": "Cas C — objectif de valeur annuelle créée par l'IA et la donnée",
+     "min": 500, "max": 500, "unite": "M€/an", "source": "casC_presse",
      "ne_dit_pas": "« Valeur » n'est pas « économie » : la méthode de mesure n'est pas publiée."},
-    {"cle": "bnp_cas", "nom": "BNP Paribas — cas d'usage IA en production",
-     "min": 1000, "max": 1000, "unite": "cas d'usage", "source": "banques_ia_cio",
+    {"cle": "casC_cas", "nom": "Cas C — cas d'usage IA en production",
+     "min": 1000, "max": 1000, "unite": "cas d'usage", "source": "casC_presse",
      "ne_dit_pas": "750 à l'automne 2023 ; la taille d'un « cas d'usage » n'est pas définie."},
     {"cle": "fbf_effectif", "nom": "Secteur bancaire français — effectif 2025",
      "min": 368800, "max": 368800, "unite": "salariés", "source": "fbf_emploi_2025",
@@ -312,11 +402,14 @@ ANCRAGES = [
     {"cle": "bce_usage", "nom": "Banques supervisées par la BCE utilisant l'IA",
      "min": 0.85, "max": 1.0, "unite": "part", "source": "bce_ia_newsletter",
      "ne_dit_pas": "« Utiliser l'IA » couvre un pilote comme une production à l'échelle."},
-    {"cle": "tsb_cout", "nom": "TSB 2018 — coût de la migration manquée",
-     "min": 330, "max": 400, "unite": "M£", "source": "tsb_revue",
-     "ne_dit_pas": "330 M£ de coûts de remédiation ; > 400 M£ avec les amendes FCA/PRA de 2022."},
-    {"cle": "tsb_duree", "nom": "TSB 2018 — jours avant retour à la normale",
-     "min": 232, "max": 232, "unite": "jours", "source": "tsb_revue",
+    {"cle": "acpr_enquete", "nom": "Établissements interrogés par l'autorité prudentielle pour sa méthode d'évaluation des systèmes d'IA",
+     "min": 44, "max": 44, "unite": "établissements", "source": "acpr_autorite_ia",
+     "ne_dit_pas": "9 banques et 35 assureurs ; les résultats de l'enquête ne sont pas dans l'extrait."},
+    {"cle": "casD_cout", "nom": "Cas D — coût de la migration manquée (2018)",
+     "min": 330, "max": 400, "unite": "M£", "source": "casD_revue",
+     "ne_dit_pas": "330 M£ de coûts de remédiation ; > 400 M£ avec les amendes de 2022."},
+    {"cle": "casD_duree", "nom": "Cas D — jours avant retour à la normale",
+     "min": 232, "max": 232, "unite": "jours", "source": "casD_revue",
      "ne_dit_pas": "1,9 million de clients privés d'accès en ligne ; 80 000 clients perdus."},
     {"cle": "migration_duree", "nom": "Migration de cœur bancaire, grande banque — durée",
      "min": 3, "max": 5, "unite": "ans", "source": "migration_benchmarks",
@@ -329,9 +422,9 @@ ANCRAGES = [
      "ne_dit_pas": "« Souvent ≥ 50 % » : ni médiane ni distribution publiées dans l'extrait."},
     {"cle": "migration_echec", "nom": "Transformations de cœur n'atteignant pas leurs objectifs",
      "min": 0.5, "max": 0.5, "unite": "part", "source": "migration_benchmarks",
-     "ne_dit_pas": "Chiffre Gartner rapporté par un tiers ; définition de l'échec non précisée."},
+     "ne_dit_pas": "Chiffre d'un cabinet d'études rapporté par un tiers ; définition de l'échec non précisée."},
     {"cle": "ia_hors_prod", "nom": "Projets IA d'entreprise n'atteignant pas la production",
-     "min": 0.55, "max": 0.55, "unite": "part", "source": "gartner_prod",
+     "min": 0.55, "max": 0.55, "unite": "part", "source": "projets_hors_prod",
      "ne_dit_pas": "Adresse primaire non obtenue : à confirmer avant de s'en prévaloir."},
     {"cle": "ratio_plateforme", "nom": "Ingénieurs plateforme par constructeur de modèles",
      "min": 1 / 6, "max": 1 / 4, "unite": "ETP/ETP", "source": "ratios_equipes",
@@ -340,22 +433,22 @@ ANCRAGES = [
      "min": 1 / 3, "max": 1 / 2, "unite": "ETP/ETP", "source": "ratios_equipes",
      "ne_dit_pas": "Passe à 1:1 – 1:2 en croissance selon la complexité des données."},
     {"cle": "adoption_orgs", "nom": "Organisations utilisant l'IA dans au moins une fonction",
-     "min": 0.88, "max": 0.88, "unite": "part", "source": "stanford_2026",
+     "min": 0.88, "max": 0.88, "unite": "part", "source": "indice_ia_2026",
      "ne_dit_pas": "Enquête déclarative mondiale ; 70 % pour l'IA générative."},
     {"cle": "gain_service_client", "nom": "Gain de productivité mesuré — tâches de service client",
-     "min": 0.14, "max": 0.14, "unite": "part", "source": "stanford_2026",
-     "ne_dit_pas": "Couverture secondaire du rapport ; études sur des tâches, pas sur des postes."},
+     "min": 0.14, "max": 0.14, "unite": "part", "source": "indice_ia_2026",
+     "ne_dit_pas": "Couverture secondaire ; études sur des tâches, pas sur des postes."},
     {"cle": "gain_dev", "nom": "Gain de productivité mesuré — développement logiciel",
-     "min": 0.26, "max": 0.26, "unite": "part", "source": "stanford_2026",
-     "ne_dit_pas": "Idem : gain sur tâches instrumentées, non transposable à un service entier."},
-    {"cle": "superpod", "nom": "NVIDIA DGX SuperPOD — prix indicatif",
-     "min": 7, "max": 60, "unite": "M$", "source": "nvidia_dgx",
+     "min": 0.26, "max": 0.26, "unite": "part", "source": "indice_ia_2026",
+     "ne_dit_pas": "Gain sur tâches instrumentées, non transposable à un service entier."},
+    {"cle": "grappe_calcul", "nom": "Grappe de calcul IA clé en main — prix indicatif",
+     "min": 7, "max": 60, "unite": "M$", "source": "infra_prix",
      "ne_dit_pas": "Selon la taille ; hors bâtiment, énergie, refroidissement et exploitation."},
-    {"cle": "dgx_h200", "nom": "NVIDIA DGX H200 — prix indicatif unitaire",
-     "min": 0.4, "max": 0.5, "unite": "M$", "source": "nvidia_dgx",
+    {"cle": "noeud_calcul", "nom": "Nœud de calcul IA — prix indicatif unitaire",
+     "min": 0.4, "max": 0.5, "unite": "M$", "source": "infra_prix",
      "ne_dit_pas": "Prix revendeur ; les générations se succèdent en moins d'un an."},
-    {"cle": "jetons_mistral", "nom": "Mistral Large — prix par million de jetons (entrée / sortie)",
-     "min": 0.5, "max": 1.5, "unite": "$/M jetons", "source": "mistral_prix",
+    {"cle": "jetons", "nom": "Modèle de premier rang — prix par million de jetons (entrée / sortie)",
+     "min": 0.5, "max": 1.5, "unite": "$/M jetons", "source": "jetons_prix",
      "ne_dit_pas": "Tarif public au jour de la recherche ; -50 % en lot, -90 % sur entrée en cache."},
     {"cle": "energie_par_tache", "nom": "Énergie par tâche IA — rythme d'amélioration",
      "min": 10, "max": 10, "unite": "× par an", "source": "iea_energy_ai",
@@ -364,54 +457,98 @@ ANCRAGES = [
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  3. LES QUANTITÉS — et où un client les trouve réellement
+#  3. LES QUANTITÉS ET LES PRIX — et où un client les trouve réellement
 # ═══════════════════════════════════════════════════════════════════════════
 
 QUANTITES = {
     "effectif": {"nom": "Effectif concerné", "unite": "salariés",
-                 "ou": "Bilan social ou BDESE ; périmètre des entités qui auront accès à l'usine."},
+                 "ou": "Bilan social ou base de données économiques et sociales ; périmètre des entités qui "
+                       "auront accès à l'usine."},
     "n_metiers": {"nom": "Lignes métier à accompagner", "unite": "métiers",
-                  "ou": "Organigramme de premier niveau : banque de détail, crédit, conformité, "
-                        "risques, RH, IT, relation client, etc."},
+                  "ou": "Organigramme de premier niveau : distribution, crédit ou souscription, sinistres, "
+                        "conformité, risques, RH, IT, relation client, exploitation."},
     "n_cas_usage": {"nom": "Cas d'usage visés en production à l'horizon", "unite": "cas",
-                    "ou": "Portefeuille arbitré par le comité IA ; à défaut, la liste des pilotes déjà "
-                          "menés. Un cas d'usage non nommé n'est pas un cas d'usage."},
+                    "ou": "Portefeuille arbitré par le comité IA ; à défaut, la liste des pilotes déjà menés. "
+                          "Un cas d'usage non nommé n'est pas un cas d'usage."},
     "n_cas_haut_risque": {"nom": "Dont cas relevant de l'annexe III du règlement (UE) 2024/1689",
                           "unite": "cas",
-                          "ou": "Évaluation de solvabilité, notation de crédit, tarification "
-                                "d'assurance vie et santé, recrutement : la qualification est juridique, "
-                                "elle se fait dossier par dossier."},
+                          "ou": "Évaluation de solvabilité, notation de crédit, tarification vie et santé, "
+                                "recrutement, composants de sécurité d'infrastructures critiques : la "
+                                "qualification est juridique, elle se fait dossier par dossier."},
     "etp_par_cas": {"nom": "Constructeurs de modèles par cas d'usage (ETP)", "unite": "ETP/cas",
-                    "ou": "Vos pilotes déjà menés : personnes réellement mobilisées sur un cas "
-                          "jusqu'à la production, pas l'effectif nominal de l'équipe."},
+                    "ou": "Vos pilotes déjà menés : personnes réellement mobilisées sur un cas jusqu'à la "
+                          "production, pas l'effectif nominal de l'équipe."},
     "n_si_source": {"nom": "Systèmes d'information à unifier", "unite": "SI",
-                    "ou": "Cartographie applicative ; 1 si l'usine se pose sur un socle stable, "
-                          "2 ou plus si elle accompagne une migration de cœur."},
+                    "ou": "Cartographie applicative ; 1 si l'usine se pose sur un socle stable, 2 ou plus "
+                          "si elle accompagne une migration de cœur."},
     "n_interfaces": {"nom": "Interfaces à porter vers le socle IA", "unite": "interfaces",
-                     "ou": "Cartographie des flux ; compter celles qui devront exister DEUX fois "
-                           "pendant une migration."},
+                     "ou": "Cartographie des flux ; compter celles qui devront exister DEUX fois pendant "
+                           "une migration."},
     "volume_appels": {"nom": "Appels entrants par an", "unite": "appels/an",
                       "ou": "Statistiques du centre de relation client."},
     "part_appels_ia": {"nom": "Part visée d'appels traités de bout en bout par l'IA", "unite": "part",
-                       "ou": "Objectif du comité ; BPCE publie 1 million sur 12 (ancrage, pas cible)."},
+                       "ou": "Objectif du comité ; le cas A publie 1 million sur 12 (ancrage, pas cible)."},
     "part_formes": {"nom": "Part des salariés à former", "unite": "part",
-                    "ou": "Accord GEPP ou plan de développement des compétences ; BPCE : ~45 000 "
-                          "sur ~100 000 (ancrage)."},
+                    "ou": "Accord social ou plan de développement des compétences ; cas A : ~45 000 sur "
+                          "~100 000 (ancrage)."},
     "heures_formation": {"nom": "Heures de formation par salarié formé", "unite": "h",
                          "ou": "Catalogue de formation ; distinguer socle commun et parcours métier."},
     "duree_mois": {"nom": "Horizon de l'étude", "unite": "mois",
-                   "ou": "Plan stratégique ; Orion annonce quatre ans (ancrage)."},
+                   "ou": "Plan stratégique ; le cas A annonce quatre ans (ancrage)."},
     "tokens_mois": {"nom": "Volume d'inférence prévu", "unite": "M jetons/mois",
                     "ou": "Relevés des pilotes (console du fournisseur) ; non instruit s'il n'y en a pas."},
     "jours_cadrage": {"nom": "Jours de cadrage et de gouvernance", "unite": "jours",
                       "ou": "Votre lettre de mission ou devis de conseil ; le module n'en invente pas."},
     "jours_pmo_mois": {"nom": "Jours de pilotage par mois", "unite": "jours/mois",
-                       "ou": "Dispositif PMO retenu (pilotage principal + contre-pilotage)."},
+                       "ou": "Dispositif retenu (pilotage principal + contre-pilotage)."},
     "jours_par_cas": {"nom": "Jours de développement par cas d'usage", "unite": "jours/cas",
                       "ou": "Vos pilotes : jours réellement consommés jusqu'à la production."},
     "jours_recette_interface": {"nom": "Jours de recette par interface", "unite": "jours/interface",
-                                "ou": "Retours de la dernière migration ; TSB documente ce que coûte "
+                                "ou": "Retours de la dernière migration ; le cas D documente ce que coûte "
                                       "une recette insuffisante."},
+}
+
+# Les quantités que seul un secteur demande. Elles portent leur secteur ; le
+# formulaire ne montre que celles du secteur choisi.
+QUANTITES_SECTEUR = {
+    "n_fournisseurs_ia": {"secteurs": ("banque", "assurance", "marches"), "unite": "fournisseurs",
+                          "nom": "Fournisseurs de modèles et de plateformes IA (prestataires TIC)",
+                          "ou": "Registre d'information DORA ; un fournisseur de modèle accessible par interface "
+                                "est un prestataire de services TIC."},
+    "jours_registre_fournisseur": {"secteurs": ("banque", "assurance", "marches"), "unite": "jours/fournisseur",
+                                   "nom": "Jours d'instruction du registre par fournisseur",
+                                   "ou": "Votre fonction conformité : contrat, sous-traitance, localisation, sortie."},
+    "jours_test_resilience_cas": {"secteurs": ("banque", "assurance", "marches"), "unite": "jours/cas",
+                                  "nom": "Jours de tests de résilience par cas d'usage en production",
+                                  "ou": "Programme de tests DORA ; un système d'IA en production entre dans le périmètre testé."},
+    "n_modeles_tarifaires": {"secteurs": ("assurance",), "unite": "modèles",
+                             "nom": "Modèles de tarification ou de provisionnement touchés",
+                             "ou": "Fonction actuarielle : inventaire des modèles ; un modèle assisté par IA reste un modèle."},
+    "jours_validation_modele": {"secteurs": ("assurance",), "unite": "jours/modèle",
+                                "nom": "Jours de validation indépendante par modèle",
+                                "ou": "Politique de validation des modèles ; second regard actuariel."},
+    "jours_orsa_ia": {"secteurs": ("assurance",), "unite": "jours",
+                      "nom": "Jours d'intégration des systèmes d'IA à l'évaluation interne des risques",
+                      "ou": "Fonction gestion des risques : l'évaluation interne (ORSA) doit couvrir les risques "
+                            "des systèmes d'IA, selon l'avis de l'autorité européenne de 2025."},
+    "n_cas_composant_securite": {"secteurs": ("nis2",), "unite": "cas",
+                                 "nom": "Dont cas qualifiés « composant de sécurité » d'une infrastructure critique",
+                                 "ou": "Annexe III, point 2 : un système dont la défaillance menace directement "
+                                       "l'intégrité physique ou la sécurité des personnes ; la cybersécurité seule "
+                                       "n'en fait pas un."},
+    "jours_safety_case": {"secteurs": ("nis2",), "unite": "jours/cas",
+                          "nom": "Jours de dossier de sûreté par composant de sécurité",
+                          "ou": "Votre ingénierie sûreté de fonctionnement : analyse de risques, exigences, preuves."},
+    "jours_procedure_incidents": {"secteurs": ("nis2",), "unite": "jours",
+                                  "nom": "Jours d'intégration des incidents IA à la chaîne de notification 24 h / 72 h / un mois",
+                                  "ou": "Votre procédure de gestion d'incidents ; un incident d'un système d'IA "
+                                        "qui touche un service essentiel est un incident important."},
+    "n_zones_ot": {"secteurs": ("nis2",), "unite": "zones",
+                   "nom": "Zones OT avec lesquelles le socle IA échange",
+                   "ou": "Modèle de zones et conduits IEC 62443 ; compter les conduits, pas les équipements."},
+    "jours_segmentation_zone": {"secteurs": ("nis2",), "unite": "jours/zone",
+                                "nom": "Jours de conception et de recette d'un conduit vers une zone OT",
+                                "ou": "Architecture cible OT : DMZ industrielle, bastion, diode ; retours du dernier projet."},
 }
 
 PRIX = {
@@ -424,30 +561,27 @@ PRIX = {
     "cout_etp_plateforme": {"nom": "Coût annuel chargé d'un ingénieur plateforme / data", "unite": "€/an",
                             "ou": "Grille RH, chargée."},
     "cout_infra_an": {"nom": "Socle d'infrastructure IA (cloud souverain ou sur site)", "unite": "€/an",
-                      "ou": "Devis fournisseur ; les prix publics de SuperPOD (7 à 60 M$) situent, "
+                      "ou": "Devis fournisseur ; les prix publics d'une grappe clé en main (7 à 60 M$) situent, "
                             "ils ne chiffrent pas."},
     "cout_outillage_an": {"nom": "Outillage MLOps / LLMOps et licences", "unite": "€/an",
                           "ou": "Devis éditeurs ; licences par utilisateur incluses ici."},
     "cout_securite_an": {"nom": "Sécurité et supervision du socle", "unite": "€/an",
-                         "ou": "RSSI : SOC, tests d'intrusion, revue de code modèle."},
+                         "ou": "RSSI : centre de supervision, tests d'intrusion, revue de code modèle."},
     "prix_M_jetons": {"nom": "Prix par million de jetons (moyenne entrée/sortie)", "unite": "€/M jetons",
-                      "ou": "Tarif contractuel ; les tarifs publics (Mistral Large 0,5 / 1,5 $) situent."},
+                      "ou": "Tarif contractuel ; les grilles publiques (0,5 / 1,5 $) situent."},
     "cout_heure_formation": {"nom": "Coût d'une heure de formation par salarié", "unite": "€/h",
                              "ou": "Service formation : coût complet, temps salarié inclus."},
     "cout_interface": {"nom": "Coût de portage d'une interface", "unite": "€/interface",
                        "ou": "Bordereau de votre intégrateur ; retours de la dernière migration."},
     "cout_audit_cas": {"nom": "Coût d'un dossier de conformité annexe III", "unite": "€/cas",
-                       "ou": "Devis de l'organisme ou du cabinet ; inclut la documentation technique "
-                             "et l'évaluation de conformité."},
+                       "ou": "Devis de l'organisme ou du cabinet ; inclut la documentation technique et "
+                             "l'évaluation de conformité."},
 }
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  4. LES POSTES — la structure qui reçoit vos prix, groupe par groupe
+#  4. LES POSTES — la structure qui reçoit vos prix ; chacun dit ce qu'il couvre
 # ═══════════════════════════════════════════════════════════════════════════
-#
-# Chaque poste déclare sa FORMULE en clair et les clés qu'elle consomme. Le
-# calcul ne fait que l'exécuter ; il ne complète rien.
 
 GROUPES = [
     ("cadrage", "1 · Cadrage, gouvernance et pilotage"),
@@ -457,8 +591,9 @@ GROUPES = [
     ("changement", "5 · Conduite du changement et formation"),
     ("migration", "6 · Migration et intégration des systèmes"),
     ("conformite", "7 · Conformité et maîtrise des risques"),
-    ("run", "8 · Exploitation (run) sur l'horizon"),
-    ("aleas", "9 · Provision pour aléas"),
+    ("secteur", "8 · Exigences propres au secteur"),
+    ("run", "9 · Exploitation (run) sur l'horizon"),
+    ("aleas", "10 · Provision pour aléas"),
 ]
 
 
@@ -470,72 +605,312 @@ POSTES = [
     {"cle": "cadrage_initial", "groupe": "cadrage", "nom": "Cadrage et étude de faisabilité",
      "formule": "jours_cadrage × tjm_conseil",
      "calc": lambda q, p: q["jours_cadrage"] * p["tjm_conseil"],
-     "besoin": ["jours_cadrage", "tjm_conseil"]},
+     "besoin": ["jours_cadrage", "tjm_conseil"],
+     "couvre": "Note de cadrage, portefeuille de cas d'usage arbitré, qualification juridique dossier "
+               "par dossier, cette étude chiffrée sur vos entrées.",
+     "exclut": "Toute étude d'architecture détaillée : elle relève du socle."},
     {"cle": "pilotage", "groupe": "cadrage", "nom": "Pilotage et contre-pilotage sur l'horizon",
      "formule": "jours_pmo_mois × duree_mois × tjm_conseil",
      "calc": lambda q, p: q["jours_pmo_mois"] * q["duree_mois"] * p["tjm_conseil"],
      "besoin": ["jours_pmo_mois", "duree_mois", "tjm_conseil"],
-     "note": "Orion sépare pilotage principal (BCG + Wavestone) et lot d'accompagnement "
-             "(BPCE Consulting + Very Up) : deux dispositifs, deux lignes."},
+     "couvre": "Coordination des lots, suivi du calendrier et de la trajectoire financière, audit des "
+               "arbitrages techniques et budgétaires, comitologie.",
+     "exclut": "Le pilotage interne du client (chefs de projet métier), compté en coût interne dans "
+               "les cas d'usage.",
+     "note": "Le cas A sépare un pilotage principal et un lot d'accompagnement du changement : deux "
+             "dispositifs, deux lignes."},
     {"cle": "infra", "groupe": "socle", "nom": "Infrastructure IA",
      "formule": "cout_infra_an × années",
      "calc": lambda q, p: p["cout_infra_an"] * _annees(q),
-     "besoin": ["cout_infra_an", "duree_mois"]},
+     "besoin": ["cout_infra_an", "duree_mois"],
+     "couvre": "Calcul (grappe sur site ou cloud souverain qualifié), stockage, réseau, hébergement, "
+               "énergie et refroidissement s'ils sont facturés.",
+     "exclut": "Les jetons d'inférence achetés à un fournisseur de modèles : ils sont au run."},
     {"cle": "outillage", "groupe": "socle", "nom": "Outillage MLOps / LLMOps et licences",
      "formule": "cout_outillage_an × années",
      "calc": lambda q, p: p["cout_outillage_an"] * _annees(q),
-     "besoin": ["cout_outillage_an", "duree_mois"]},
+     "besoin": ["cout_outillage_an", "duree_mois"],
+     "couvre": "Registre de modèles, chaîne de livraison, évaluation, observabilité, gestion des "
+               "invites, licences par utilisateur des assistants.",
+     "exclut": "Le développement des cas d'usage eux-mêmes."},
     {"cle": "securite", "groupe": "socle", "nom": "Sécurité et supervision du socle",
      "formule": "cout_securite_an × années",
      "calc": lambda q, p: p["cout_securite_an"] * _annees(q),
-     "besoin": ["cout_securite_an", "duree_mois"]},
+     "besoin": ["cout_securite_an", "duree_mois"],
+     "couvre": "Centre de supervision, tests d'intrusion, revue de code modèle, filtrage des entrées "
+               "et des sorties, journalisation exigée par le règlement sur l'IA.",
+     "exclut": "La segmentation vers les zones OT chez un opérateur d'infrastructure : poste sectoriel."},
     {"cle": "equipe_modeles", "groupe": "usine", "nom": "Constructeurs de modèles",
      "formule": "n_cas_usage × etp_par_cas × cout_etp_ia × années",
      "calc": lambda q, p: q["n_cas_usage"] * q["etp_par_cas"] * p["cout_etp_ia"] * _annees(q),
-     "besoin": ["n_cas_usage", "etp_par_cas", "cout_etp_ia", "duree_mois"]},
+     "besoin": ["n_cas_usage", "etp_par_cas", "cout_etp_ia", "duree_mois"],
+     "couvre": "Data scientists, ingénieurs ML, ingénieurs d'invites, sur toute la durée.",
+     "exclut": "Les profils métier détachés : ils sont dans les cas d'usage."},
     {"cle": "equipe_plateforme", "groupe": "usine", "nom": "Ingénieurs plateforme et data",
-     # LA FORMULE NOMME SES DEUX ENTRÉES. Elle disait « constructeurs », un mot
-     # dérivé qui cachait n_cas_usage et etp_par_cas : le lecteur lisait un
-     # texte, le calcul consommait deux quantités qu'il ne nommait pas. C'est
-     # la règle texte/calcul qui l'a relevé.
      "formule": "n_cas_usage × etp_par_cas × (ratio_plateforme + ratio_data) × cout_etp_plateforme × années",
      "calc": lambda q, p: _dim(q)["plateforme"]["max"] * p["cout_etp_plateforme"] * _annees(q),
      "besoin": ["n_cas_usage", "etp_par_cas", "cout_etp_plateforme", "duree_mois"],
+     "couvre": "Ingénieurs plateforme, data engineers, fiabilité et exploitation du socle.",
+     "exclut": "Rien de l'infrastructure elle-même, qui est au poste précédent.",
      "note": "Chiffré sur la borne HAUTE des ratios sourcés (1 pour 4, 1 pour 2) : sous-dimensionner "
              "la plateforme est le goulot documenté."},
     {"cle": "cas_usage", "groupe": "cas", "nom": "Développement des cas d'usage",
      "formule": "n_cas_usage × jours_par_cas × tjm_interne",
      "calc": lambda q, p: q["n_cas_usage"] * q["jours_par_cas"] * p["tjm_interne"],
-     "besoin": ["n_cas_usage", "jours_par_cas", "tjm_interne"]},
+     "besoin": ["n_cas_usage", "jours_par_cas", "tjm_interne"],
+     "couvre": "Le temps des métiers et des équipes projet : cadrage du cas, données, recette "
+               "fonctionnelle, mise en production, mesure.",
+     "exclut": "Le temps des constructeurs de modèles, compté dans l'usine."},
     {"cle": "formation", "groupe": "changement", "nom": "Formation des salariés",
      "formule": "effectif × part_formes × heures_formation × cout_heure_formation",
      "calc": lambda q, p: q["effectif"] * q["part_formes"] * q["heures_formation"] * p["cout_heure_formation"],
-     "besoin": ["effectif", "part_formes", "heures_formation", "cout_heure_formation"]},
+     "besoin": ["effectif", "part_formes", "heures_formation", "cout_heure_formation"],
+     "couvre": "Socle commun (usage, limites, données, article 4), puis parcours par métier ; le temps "
+               "salarié si votre coût horaire l'inclut.",
+     "exclut": "La formation des constructeurs de modèles (grille RH)."},
     {"cle": "ambassadeurs", "groupe": "changement", "nom": "Réseau d'ambassadeurs métier",
      "formule": "n_metiers × jours_par_cas × tjm_interne",
      "calc": lambda q, p: q["n_metiers"] * q["jours_par_cas"] * p["tjm_interne"],
      "besoin": ["n_metiers", "jours_par_cas", "tjm_interne"],
-     "note": "Un relais par métier, mobilisé à hauteur d'un cas d'usage : c'est la convention "
-             "retenue, écrite ici pour être discutée."},
+     "couvre": "Un relais par métier, formé avant les autres, mobilisé à hauteur d'un cas d'usage.",
+     "exclut": "Le management de proximité, dont le temps n'est pas isolé ici.",
+     "note": "C'est la convention retenue, écrite ici pour être discutée."},
     {"cle": "interfaces", "groupe": "migration", "nom": "Portage des interfaces",
      "formule": "n_interfaces × cout_interface × (2 si n_si_source > 1, sinon 1)",
      "calc": lambda q, p: q["n_interfaces"] * p["cout_interface"] * (2 if q.get("n_si_source", 1) > 1 else 1),
      "besoin": ["n_interfaces", "cout_interface"],
-     "note": "PORTÉES DEUX FOIS pendant une migration de cœur : une fois vers l'ancien socle, "
-             "une fois vers le nouveau. C'est le poste que le neuf ne connaît pas."},
+     "couvre": "Connexion du socle IA aux systèmes de gestion, référentiels, canaux.",
+     "exclut": "La migration du cœur lui-même, qui a son propre programme.",
+     "note": "PORTÉES DEUX FOIS pendant une migration de cœur : une fois vers l'ancien socle, une "
+             "fois vers le nouveau. C'est le poste que le neuf ne connaît pas."},
     {"cle": "recette", "groupe": "migration", "nom": "Recette des interfaces",
      "formule": "n_interfaces × jours_recette_interface × tjm_interne",
      "calc": lambda q, p: q["n_interfaces"] * q["jours_recette_interface"] * p["tjm_interne"],
-     "besoin": ["n_interfaces", "jours_recette_interface", "tjm_interne"]},
+     "besoin": ["n_interfaces", "jours_recette_interface", "tjm_interne"],
+     "couvre": "Jeux d'essai, recette fonctionnelle et technique, non-régression après bascule.",
+     "exclut": "Les tests de résilience réglementaires (poste sectoriel)."},
     {"cle": "conformite_annexe3", "groupe": "conformite", "nom": "Dossiers de conformité annexe III",
      "formule": "n_cas_haut_risque × cout_audit_cas",
      "calc": lambda q, p: q["n_cas_haut_risque"] * p["cout_audit_cas"],
-     "besoin": ["n_cas_haut_risque", "cout_audit_cas"]},
+     "besoin": ["n_cas_haut_risque", "cout_audit_cas"],
+     "couvre": "Documentation technique, système de gestion des risques, gouvernance des données, "
+               "surveillance humaine, journalisation, évaluation de conformité, enregistrement.",
+     "exclut": "La transparence de l'article 50, qui relève du développement de chaque cas."},
     {"cle": "inference", "groupe": "run", "nom": "Inférence (jetons)",
      "formule": "tokens_mois × 12 × années × prix_M_jetons",
      "calc": lambda q, p: q["tokens_mois"] * 12 * _annees(q) * p["prix_M_jetons"],
-     "besoin": ["tokens_mois", "prix_M_jetons", "duree_mois"]},
+     "besoin": ["tokens_mois", "prix_M_jetons", "duree_mois"],
+     "couvre": "Les appels aux modèles en exploitation, sur l'horizon.",
+     "exclut": "L'entraînement ou l'ajustement fin de modèles, à chiffrer au socle s'il a lieu."},
 ]
+
+# Les postes que seul un secteur connaît. Ils entrent dans le chiffrage quand le
+# secteur est choisi ; ils portent leur groupe « secteur » et leurs entrées.
+POSTES_SECTEUR = [
+    {"cle": "registre_dora", "groupe": "secteur", "secteurs": ("banque", "assurance", "marches"),
+     "nom": "Registre des prestataires TIC incluant les fournisseurs de modèles (DORA)",
+     "formule": "n_fournisseurs_ia × jours_registre_fournisseur × tjm_interne",
+     "calc": lambda q, p: q["n_fournisseurs_ia"] * q["jours_registre_fournisseur"] * p["tjm_interne"],
+     "besoin": ["n_fournisseurs_ia", "jours_registre_fournisseur", "tjm_interne"],
+     "couvre": "Instruction contractuelle, sous-traitance en chaîne, localisation des données, "
+               "stratégie de sortie, inscription au registre d'information.",
+     "exclut": "La négociation commerciale des contrats."},
+    {"cle": "tests_resilience", "groupe": "secteur", "secteurs": ("banque", "assurance", "marches"),
+     "nom": "Tests de résilience opérationnelle numérique incluant les systèmes d'IA (DORA)",
+     "formule": "n_cas_usage × jours_test_resilience_cas × tjm_interne",
+     "calc": lambda q, p: q["n_cas_usage"] * q["jours_test_resilience_cas"] * p["tjm_interne"],
+     "besoin": ["n_cas_usage", "jours_test_resilience_cas", "tjm_interne"],
+     "couvre": "Scénarios de panne du fournisseur de modèle, dégradation, bascule vers un mode "
+               "dégradé, rejeu des incidents.",
+     "exclut": "Les tests de pénétration fondés sur la menace, qui ont leur propre programme."},
+    {"cle": "validation_actuarielle", "groupe": "secteur", "secteurs": ("assurance",),
+     "nom": "Validation actuarielle indépendante des modèles assistés par IA",
+     "formule": "n_modeles_tarifaires × jours_validation_modele × tjm_interne",
+     "calc": lambda q, p: q["n_modeles_tarifaires"] * q["jours_validation_modele"] * p["tjm_interne"],
+     "besoin": ["n_modeles_tarifaires", "jours_validation_modele", "tjm_interne"],
+     "couvre": "Second regard sur la tarification et le provisionnement, explicabilité, équité, "
+               "dérive, conformément à l'avis de l'autorité européenne de 2025.",
+     "exclut": "L'évaluation de conformité annexe III, comptée au groupe 7."},
+    {"cle": "orsa_ia", "groupe": "secteur", "secteurs": ("assurance",),
+     "nom": "Intégration des systèmes d'IA à l'évaluation interne des risques et à la solvabilité",
+     "formule": "jours_orsa_ia × tjm_interne",
+     "calc": lambda q, p: q["jours_orsa_ia"] * p["tjm_interne"],
+     "besoin": ["jours_orsa_ia", "tjm_interne"],
+     "couvre": "Cartographie des risques des systèmes d'IA, appétence, scénarios, gouvernance du "
+               "système de gestion des risques.",
+     "exclut": "Le calcul du capital de solvabilité lui-même."},
+    {"cle": "safety_case", "groupe": "secteur", "secteurs": ("nis2",),
+     "nom": "Dossier de sûreté par composant de sécurité d'infrastructure critique",
+     "formule": "n_cas_composant_securite × jours_safety_case × tjm_interne",
+     "calc": lambda q, p: q["n_cas_composant_securite"] * q["jours_safety_case"] * p["tjm_interne"],
+     "besoin": ["n_cas_composant_securite", "jours_safety_case", "tjm_interne"],
+     "couvre": "Analyse de risques, exigences de sûreté, preuves, mode de repli sûr, surveillance "
+               "humaine effective.",
+     "exclut": "Le dossier de conformité annexe III, qui s'y ajoute (groupe 7)."},
+    {"cle": "notification_incidents", "groupe": "secteur", "secteurs": ("nis2",),
+     "nom": "Chaîne de notification 24 h / 72 h / un mois intégrant les incidents des systèmes d'IA",
+     "formule": "jours_procedure_incidents × tjm_interne",
+     "calc": lambda q, p: q["jours_procedure_incidents"] * p["tjm_interne"],
+     "besoin": ["jours_procedure_incidents", "tjm_interne"],
+     "couvre": "Qualification d'un incident IA en incident important, alerte précoce, notification, "
+               "rapport final, exercices.",
+     "exclut": "L'outillage de détection, compté à la sécurité du socle."},
+    {"cle": "segmentation_ot", "groupe": "secteur", "secteurs": ("nis2",),
+     "nom": "Segmentation et conduits entre le socle IA et les zones OT (IEC 62443)",
+     "formule": "n_zones_ot × jours_segmentation_zone × tjm_interne",
+     "calc": lambda q, p: q["n_zones_ot"] * q["jours_segmentation_zone"] * p["tjm_interne"],
+     "besoin": ["n_zones_ot", "jours_segmentation_zone", "tjm_interne"],
+     "couvre": "Conception des conduits, DMZ industrielle, bastion ou diode, recette, exigences "
+               "composants.",
+     "exclut": "Les équipements eux-mêmes, au bordereau du lot."},
+]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  5. LES SECTEURS — textes, jalons, cas d'usage typés, et ce qui est propre à chacun
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# La classe d'un cas d'usage n'est PAS une qualification juridique : c'est la
+# case où la question se pose. Le vocabulaire est fermé pour que le lecteur
+# sache ce qu'il lit.
+
+CLASSES_CAS = {
+    "haut_risque_annexe_III": "Relève, sauf exception, de l'annexe III : dossier de conformité, "
+                              "surveillance humaine, enregistrement — échéance 2 décembre 2027.",
+    "a_qualifier": "La classe dépend de la finalité et de l'effet sur les personnes : analyse "
+                   "juridique dossier par dossier.",
+    "transparence_art_50": "Interaction avec des personnes ou contenu généré : obligations de "
+                           "transparence en vigueur depuis le 2 août 2026.",
+    "hors_composant_securite": "Finalité de cybersécurité seule : n'est pas un composant de sécurité "
+                               "au sens de l'annexe III, point 2.",
+    "minimal": "Aucune obligation spécifique du règlement, hors maîtrise de l'IA (article 4) et "
+               "droit commun.",
+}
+
+SECTEURS = {
+    "banque": {
+        "nom": "Banque de détail et de financement",
+        "resume": "Le secteur où l'IA est déjà partout — plus de 85 % des banques supervisées "
+                  "l'utilisent — et où deux textes commandent le calendrier : DORA depuis janvier "
+                  "2025, le règlement sur l'IA pour la notation de crédit et l'évaluation de "
+                  "solvabilité au 2 décembre 2027.",
+        "textes": ["dora", "ai_act", "omnibus_2026", "omnibus_analyse", "bce_priorites_2026",
+                   "bce_ia_newsletter", "acpr_autorite_ia", "acpr_reflexion_ia", "bdf_rapport_ia_2025"],
+        "autorites": "Superviseur bancaire européen pour les établissements importants ; autorité "
+                     "prudentielle nationale, désignée pour le règlement sur l'IA en banque et assurance.",
+        "jalons": [],
+        "cas_usage": [
+            {"nom": "Évaluation de solvabilité et notation de crédit des personnes physiques",
+             "classe": "haut_risque_annexe_III", "pourquoi": "Annexe III, point 5 b."},
+            {"nom": "Agent vocal ou conversationnel de relation client",
+             "classe": "transparence_art_50", "pourquoi": "Interaction directe avec des personnes."},
+            {"nom": "Détection de fraude aux paiements", "classe": "a_qualifier",
+             "pourquoi": "Exclue de l'annexe III lorsqu'elle sert à détecter la fraude financière ; "
+                         "à vérifier dossier par dossier."},
+            {"nom": "Scoring d'alertes de lutte contre le blanchiment", "classe": "a_qualifier",
+             "pourquoi": "Effet sur les personnes (gel, déclaration) : la finalité décide."},
+            {"nom": "Assistant du conseiller (résumés, rédaction, recherche documentaire)",
+             "classe": "minimal", "pourquoi": "Aide à la rédaction sans décision automatisée."},
+        ],
+        "propre": "Le registre DORA des prestataires TIC accueille chaque fournisseur de modèle ; "
+                  "les tests de résilience couvrent les systèmes d'IA en production.",
+    },
+    "assurance": {
+        "nom": "Assurance et réassurance",
+        "resume": "L'avis de l'autorité européenne du 6 août 2025 ne crée pas de règle : il lit "
+                  "Solvabilité II, la distribution, DORA et le RGPD à la lumière du règlement sur "
+                  "l'IA. Solvabilité II révisée s'applique au 30 janvier 2027 ; la tarification vie "
+                  "et santé relève de l'annexe III.",
+        "textes": ["eiopa_opinion", "solvency2", "solvency2_2027", "dora", "dora_directive",
+                   "ai_act", "omnibus_analyse", "acpr_autorite_ia"],
+        "autorites": "Autorité européenne des assurances ; autorité prudentielle nationale.",
+        "jalons": [
+            {"date": "2027-01-30", "texte": "Solvabilité II révisée — directive (UE) 2025/2 applicable",
+             "source": "solvency2_2027",
+             "porte": "Proportionnalité, risques nouveaux, supervision transfrontière : la gouvernance "
+                      "des systèmes d'IA s'inscrit dans le système de gestion des risques révisé."},
+        ],
+        "cas_usage": [
+            {"nom": "Tarification et évaluation des risques en assurance vie et santé",
+             "classe": "haut_risque_annexe_III", "pourquoi": "Annexe III, point 5 c."},
+            {"nom": "Tarification dommages (automobile, habitation)", "classe": "a_qualifier",
+             "pourquoi": "Hors point 5 c ; l'équité et l'explicabilité restent exigées par l'avis de 2025."},
+            {"nom": "Tri et règlement automatisé des sinistres", "classe": "a_qualifier",
+             "pourquoi": "Décision à effet sur les personnes ; surveillance humaine attendue."},
+            {"nom": "Détection de fraude aux sinistres", "classe": "a_qualifier",
+             "pourquoi": "Même logique que la fraude bancaire : la finalité décide."},
+            {"nom": "Assistant de souscription et de gestion", "classe": "minimal",
+             "pourquoi": "Aide à la décision sans décision automatisée."},
+        ],
+        "propre": "Validation actuarielle indépendante des modèles assistés ; intégration des "
+                  "systèmes d'IA à l'évaluation interne des risques et de la solvabilité.",
+    },
+    "marches": {
+        "nom": "Marchés, gestion d'actifs, infrastructures de marché",
+        "resume": "DORA s'applique en tant que règlement spécial ; les infrastructures de marché "
+                  "figurent aussi à l'annexe I de NIS 2. Peu de cas relèvent de l'annexe III du "
+                  "règlement sur l'IA ; la question est celle de la résilience et de la traçabilité.",
+        "textes": ["dora", "dora_directive", "nis2", "ai_act", "omnibus_analyse"],
+        "autorites": "Autorité des marchés ; autorité prudentielle pour les établissements concernés.",
+        "jalons": [],
+        "cas_usage": [
+            {"nom": "Surveillance des abus de marché — priorisation d'alertes", "classe": "a_qualifier",
+             "pourquoi": "Effet sur des personnes physiques possible ; traçabilité exigée."},
+            {"nom": "Recherche et synthèse documentaire", "classe": "minimal",
+             "pourquoi": "Aide à l'analyse."},
+            {"nom": "Négociation algorithmique assistée", "classe": "a_qualifier",
+             "pourquoi": "Encadrée par le droit des marchés ; le règlement sur l'IA s'y ajoute rarement."},
+        ],
+        "propre": "Tests de résilience et registre des prestataires, comme en banque ; la double "
+                  "appartenance DORA / NIS 2 se règle par la primauté de DORA (règlement spécial).",
+    },
+    "nis2": {
+        "nom": "Infrastructures critiques — entités essentielles et importantes (NIS 2)",
+        "resume": "Dix-huit secteurs, dont l'énergie, les transports, la santé, l'eau et les "
+                  "infrastructures numériques. En France, la loi de transposition n'était pas "
+                  "promulguée au 6 août 2026, mais la directive s'applique dans ses échéances "
+                  "et le référentiel de l'agence nationale est publié. Un système d'IA « composant "
+                  "de sécurité » d'une infrastructure critique relève de l'annexe III.",
+        "textes": ["nis2", "cer", "nis2_france", "nis2_incidents", "annexe3_infra", "ai_act",
+                   "omnibus_analyse", "ai_act_politique"],
+        "autorites": "Agence nationale de la sécurité des systèmes d'information ; autorités "
+                     "sectorielles.",
+        "jalons": [
+            {"date": "2024-10-17", "texte": "NIS 2 — date limite de transposition (article 41)",
+             "source": "nis2",
+             "porte": "Dépassée en France ; procédure d'infraction ouverte. L'obligation de "
+                      "l'entité ne dépend pas du retard de la loi nationale pour ce qui est "
+                      "directement applicable, et l'agence nationale a publié son référentiel."},
+            {"date": "2024-10-18", "texte": "NIS 2 — mesures de gestion des risques (article 21) et notification des incidents (article 23)",
+             "source": "nis2_incidents",
+             "porte": "Alerte précoce sous 24 h, notification sous 72 h, rapport final sous un mois : "
+                      "un incident d'un système d'IA qui touche un service essentiel entre dans "
+                      "cette chaîne."},
+        ],
+        "cas_usage": [
+            {"nom": "Pilotage ou protection en temps réel d'un réseau (électricité, gaz, chaleur, eau)",
+             "classe": "haut_risque_annexe_III",
+             "pourquoi": "Annexe III, point 2 : composant de sécurité dont la défaillance menace "
+                         "l'intégrité physique ou la sécurité des personnes."},
+            {"nom": "Maintenance prédictive d'équipements", "classe": "a_qualifier",
+             "pourquoi": "Un outil de planification sans action directe sur le procédé n'est pas un "
+                         "composant de sécurité ; un déclencheur d'arrêt en est un."},
+            {"nom": "Gestion du trafic routier", "classe": "haut_risque_annexe_III",
+             "pourquoi": "Annexe III, point 2, nommément."},
+            {"nom": "Détection d'anomalies OT au centre de supervision", "classe": "hors_composant_securite",
+             "pourquoi": "Finalité de cybersécurité seule : exclue de la notion de composant de sécurité."},
+            {"nom": "Assistant documentaire des exploitants", "classe": "minimal",
+             "pourquoi": "Aide à la consultation de procédures."},
+        ],
+        "propre": "Dossier de sûreté par composant de sécurité ; chaîne de notification 24 h / 72 h / "
+                  "un mois ; segmentation IEC 62443 entre le socle IA et les zones OT.",
+        "secteurs_annexe_I": ["énergie", "transports", "banque", "infrastructures des marchés financiers",
+                              "santé", "eau potable", "eaux usées", "infrastructures numériques",
+                              "gestion des services TIC", "administration publique", "espace"],
+        "secteurs_annexe_II": ["services postaux", "gestion des déchets", "produits chimiques",
+                               "alimentation", "fabrication", "fournisseurs numériques", "recherche"],
+    },
+}
 
 
 def _nombre(v):
@@ -547,7 +922,6 @@ def _nombre(v):
 
 
 def _dim(q):
-    """Le dimensionnement de l'équipe centrale, dérivé des seuls ratios sourcés."""
     n = _nombre(q.get("n_cas_usage")) or 0
     k = _nombre(q.get("etp_par_cas")) or 0
     constructeurs = n * k
@@ -564,10 +938,6 @@ def _dim(q):
 
 
 def dimensionnement(quantites):
-    """L'équipe centrale en ETP, avec la fourchette que les ratios impliquent.
-
-    Ne rend rien si les deux quantités manquent : une équipe « de zéro » n'est
-    pas une équipe, c'est une case vide."""
     q = {k: _nombre(v) for k, v in (quantites or {}).items()}
     if not q.get("n_cas_usage") or not q.get("etp_par_cas"):
         return {"instruit": False,
@@ -577,29 +947,48 @@ def dimensionnement(quantites):
     d = _dim(q)
     total_min = d["constructeurs"]["min"] + d["plateforme"]["min"]
     total_max = d["constructeurs"]["max"] + d["plateforme"]["max"]
-    ca = [a for a in ANCRAGES if a["cle"] == "ca_entreprise_ia_etp"][0]
+    ca = [a for a in ANCRAGES if a["cle"] == "casB_entite_ia_etp"][0]
     return {"instruit": True, "roles": d,
             "total": {"min": round(total_min, 1), "max": round(total_max, 1)},
             "ancrage": {"nom": ca["nom"], "valeur": ca["max"], "unite": ca["unite"],
                         "ne_dit_pas": ca["ne_dit_pas"]},
-            "dit": "Fourchette issue des ratios sourcés ; à comparer à l'entreprise IA du "
-                   "Crédit Agricole (~150 ETP) pour situer, pas pour caler."}
+            "dit": "Fourchette issue des ratios sourcés ; à comparer à l'entité IA du cas B "
+                   "(~150 ETP) pour situer, pas pour caler."}
 
 
-def chiffrer(quantites, prix, provision_pct=None):
-    """Le chiffrage, poste par poste — et le compte de ce qui n'est pas chiffré.
+def _postes_pour(secteur):
+    base = list(POSTES)
+    if secteur in SECTEURS:
+        base += [p for p in POSTES_SECTEUR if secteur in p["secteurs"]]
+    return base
 
-    Un poste dont une entrée manque ressort `non_chiffre` avec la liste de ce
-    qui manque. Il n'est pas compté à zéro : un zéro muet ferait croire que le
-    poste n'est pas dû."""
+
+def quantites_pour(secteur):
+    """Les quantités à saisir : les communes, plus celles du secteur choisi."""
+    out = dict(QUANTITES)
+    if secteur in SECTEURS:
+        for k, v in QUANTITES_SECTEUR.items():
+            if secteur in v["secteurs"]:
+                out[k] = {kk: vv for kk, vv in v.items() if kk != "secteurs"}
+    return out
+
+
+def chiffrer(quantites, prix, provision_pct=None, secteur=None):
+    """Le chiffrage, poste par poste, secteur compris — et le compte de ce qui
+    n'est pas chiffré. Un poste dont une entrée manque ressort `non_chiffre`
+    avec la liste de ce qui manque ; il n'est pas compté à zéro."""
     q = {k: _nombre(v) for k, v in (quantites or {}).items()}
     p = {k: _nombre(v) for k, v in (prix or {}).items()}
+    secteur = secteur if secteur in SECTEURS else None
+    attendues = quantites_pour(secteur)
     lignes, sous_total, non_chiffres = [], 0.0, []
-    for poste in POSTES:
+    for poste in _postes_pour(secteur):
         manque = [k for k in poste["besoin"]
-                  if (k in QUANTITES and q.get(k) is None) or (k in PRIX and p.get(k) is None)]
+                  if (k in attendues and q.get(k) is None) or (k in PRIX and p.get(k) is None)]
         ligne = {"cle": poste["cle"], "groupe": poste["groupe"], "nom": poste["nom"],
-                 "formule": poste["formule"], "note": poste.get("note")}
+                 "formule": poste["formule"], "note": poste.get("note"),
+                 "couvre": poste.get("couvre"), "exclut": poste.get("exclut"),
+                 "sectoriel": "secteurs" in poste}
         if manque:
             ligne.update(statut="non_chiffre", manque=manque, montant=None)
             non_chiffres.append(ligne)
@@ -622,11 +1011,9 @@ def chiffrer(quantites, prix, provision_pct=None):
             g["chiffre"] += l["montant"]
         else:
             g["non_chiffres"] += 1
-    # LA PROVISION : comparée au dépassement DOCUMENTÉ, jamais proposée.
     prov = _nombre(provision_pct)
     depassement = [a for a in ANCRAGES if a["cle"] == "migration_depassement"][0]
-    alertes = []
-    provision = None
+    alertes, provision = [], None
     if prov is None:
         alertes.append("Aucune provision pour aléas n'est saisie : le total ci-dessous est un "
                        "sous-total, pas un budget.")
@@ -643,40 +1030,61 @@ def chiffrer(quantites, prix, provision_pct=None):
     if non_chiffres:
         alertes.append("%d poste(s) sur %d ne sont pas chiffrés : le total est l'addition de ce "
                        "que vous saviez déjà, pas une estimation." % (len(non_chiffres), n))
-    return {"ok": True, "version": VERSION, "lignes": lignes, "par_groupe": par_groupe,
-            "sous_total": round(sous_total, 2), "provision": provision,
-            "provision_pct": prov,
+    if secteur is None:
+        alertes.append("Aucun secteur choisi : les postes propres au secteur ne sont pas dans "
+                       "cette structure, et l'étude est de ce fait incomplète.")
+    return {"ok": True, "version": VERSION, "secteur": secteur, "lignes": lignes,
+            "par_groupe": par_groupe, "sous_total": round(sous_total, 2),
+            "provision": provision, "provision_pct": prov,
             "total": round(sous_total + (provision or 0.0), 2) if prov is not None else None,
             "n_postes": n, "n_non_chiffres": len(non_chiffres), "part_non_chiffree": part_nc,
             "alertes": alertes, "dimensionnement": dimensionnement(q)}
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  5. LE PLANNING — phases du projet, et jalons qui ne se négocient pas
+#  6. LE PLANNING — phases (glissent), jalons réglementaires (ne glissent pas)
 # ═══════════════════════════════════════════════════════════════════════════
-#
-# Les durées de phases sont l'USAGE DU CABINET : elles sont marquées comme
-# telles (`nature: propre`) avec une incertitude de ±50 %. Les jalons
-# réglementaires viennent des textes ; ils ne bougent pas avec le projet.
 
 PHASES = [
     {"cle": "faisabilite", "nom": "Cadrage et faisabilité", "mois_min": 2, "mois_max": 4,
+     "activites": ["Entretiens par ligne métier", "Inventaire des pilotes et de leurs consommations réelles",
+                   "Qualification juridique dossier par dossier", "Choix du secteur et de ses exigences",
+                   "Chiffrage sur quantités et prix du client"],
+     "entree": "Mandat de la direction générale ; accès aux pilotes et au contrôle de gestion.",
+     "sortie": "Portefeuille arbitré, étude chiffrée avec sa part non chiffrée, décision d'engager.",
      "livrables": ["Note de cadrage", "Portefeuille de cas d'usage arbitré",
                    "Qualification annexe III dossier par dossier", "Cette étude chiffrée"],
      "jalon": "Décision d'engager (comité de direction)"},
     {"cle": "socle", "nom": "Socle et gouvernance", "mois_min": 3, "mois_max": 6,
+     "activites": ["Architecture de plateforme et choix d'hébergement", "Chaîne de livraison et registre de modèles",
+                   "Charte, comité et registre des systèmes d'IA", "Ouverture de la négociation sociale",
+                   "Registre des prestataires TIC ou dossier de sûreté selon le secteur"],
+     "entree": "Décision d'engager ; équipe centrale recrutée ou détachée au moins pour moitié.",
+     "sortie": "Socle en service avec sa supervision ; premier cas déployable ; gouvernance réunie une fois.",
      "livrables": ["Plateforme (infrastructure, MLOps/LLMOps, sécurité)", "Charte IA et comité",
-                   "Registre des systèmes d'IA", "Accord social (type GEPP) ouvert"],
+                   "Registre des systèmes d'IA", "Accord social ouvert"],
      "jalon": "Socle en service, premier cas déployable"},
     {"cle": "pilotes", "nom": "Pilotes (3 à 5 cas d'usage)", "mois_min": 4, "mois_max": 6,
+     "activites": ["Un cas par métier prioritaire, en production supervisée", "Mesure d'adoption et de valeur",
+                   "Relevé des jours, ETP et jetons réellement consommés", "Premier exercice de notification d'incident"],
+     "entree": "Socle en service ; ambassadeurs formés.",
+     "sortie": "Retours d'expérience chiffrés qui remplacent les hypothèses de l'étude.",
      "livrables": ["Cas en production supervisée", "Mesure d'adoption et de valeur",
                    "Retours d'expérience chiffrés (jours, ETP, jetons)"],
      "jalon": "Go / no-go d'industrialisation"},
     {"cle": "industrialisation", "nom": "Industrialisation — vague 1", "mois_min": 6, "mois_max": 12,
+     "activites": ["Chaîne de livraison outillée de bout en bout", "Cas d'usage par métier",
+                   "Formation socle déployée", "Dossiers annexe III ouverts pour les cas concernés"],
+     "entree": "Go d'industrialisation ; étude re-chiffrée sur les retours des pilotes.",
+     "sortie": "Part de salariés utilisateurs mesurée ; premiers dossiers de conformité déposés.",
      "livrables": ["Chaîne de livraison outillée", "Cas d'usage en production par métier",
                    "Formation socle déployée"],
      "jalon": "Part de salariés utilisateurs mesurée (cible à fixer)"},
     {"cle": "generalisation", "nom": "Généralisation", "mois_min": 12, "mois_max": 24,
+     "activites": ["Essaimage dans l'ensemble des métiers", "Run stabilisé, FinOps de l'IA",
+                   "Revue de conformité annuelle", "Renégociation des fournisseurs à l'échelle"],
+     "entree": "Vague 1 en production ; run mesuré.",
+     "sortie": "Objectifs du plan stratégique tenus ou révisés, avec leurs mesures.",
      "livrables": ["Essaimage dans l'ensemble des métiers", "Run stabilisé, FinOps de l'IA",
                    "Revue de conformité annuelle"],
      "jalon": "Objectifs du plan stratégique tenus ou révisés"},
@@ -699,21 +1107,25 @@ JALONS_REGLEMENTAIRES = [
      "source": "omnibus_analyse", "porte": "Marquage lisible par machine et information des personnes : "
                                           "en vigueur, y compris pour un agent vocal."},
     {"date": "2027-12-02", "texte": "Systèmes à haut risque de l'annexe III — date reportée par le règlement (UE) 2026/1744",
-     "source": "omnibus_analyse", "porte": "Notation de crédit, solvabilité, tarification assurance : "
-                                          "dossiers de conformité à jour avant cette date."},
+     "source": "omnibus_analyse", "porte": "Notation de crédit, solvabilité, tarification vie et santé, "
+                                          "composants de sécurité d'infrastructures : dossiers à jour avant cette date."},
     {"date": "2028-08-02", "texte": "Systèmes à haut risque de l'annexe I — date reportée par le règlement (UE) 2026/1744",
      "source": "omnibus_analyse", "porte": "IA intégrée à des produits couverts par la législation "
-                                          "d'harmonisation : rarement le cas d'une banque."},
+                                          "d'harmonisation : machines, dispositifs médicaux, véhicules."},
 ]
 
 
-def planning(quantites, debut=None):
-    """Les phases posées bout à bout à partir d'une date, et les jalons
-    réglementaires placés dans le même calendrier — marqués comme tels.
+def jalons_pour(secteur):
+    """Les jalons communs et ceux du secteur, fondus et triés par date."""
+    j = list(JALONS_REGLEMENTAIRES)
+    if secteur in SECTEURS:
+        j += SECTEURS[secteur]["jalons"]
+    return sorted(j, key=lambda x: x["date"])
 
-    Les phases glissent si le projet glisse ; les jalons réglementaires, non.
-    C'est pour cela qu'ils ne sont pas dans la même liste."""
+
+def planning(quantites, debut=None, secteur=None):
     q = {k: _nombre(v) for k, v in (quantites or {}).items()}
+    secteur = secteur if secteur in SECTEURS else None
     d0 = debut or date.today()
     if isinstance(d0, str):
         d0 = date.fromisoformat(d0)
@@ -727,6 +1139,7 @@ def planning(quantites, debut=None):
                     "mois_min": ph["mois_min"], "mois_max": ph["mois_max"],
                     "debut_tot": deb_min.isoformat(), "fin_tot": cur_min.isoformat(),
                     "fin_tard": cur_max.isoformat(),
+                    "activites": ph["activites"], "entree": ph["entree"], "sortie": ph["sortie"],
                     "livrables": ph["livrables"], "jalon": ph["jalon"]})
     migration = None
     if (q.get("n_si_source") or 1) > 1:
@@ -735,11 +1148,11 @@ def planning(quantites, debut=None):
                          fin_tard=(d0 + timedelta(days=int(MIGRATION["mois_max"] * 30.44))).isoformat())
     fin_projet_tard = cur_max
     regl = []
-    for j in JALONS_REGLEMENTAIRES:
+    for j in jalons_pour(secteur):
         dj = date.fromisoformat(j["date"])
         regl.append(dict(j, passe=dj <= d0, avant_fin_projet=dj <= fin_projet_tard,
                          nature="reglementaire"))
-    return {"debut": d0.isoformat(), "phases": out,
+    return {"debut": d0.isoformat(), "secteur": secteur, "phases": out,
             "fin_projet": {"tot": cur_min.isoformat(), "tard": cur_max.isoformat()},
             "migration": migration, "jalons_reglementaires": regl,
             "dit": "Les phases sont des durées d'usage, à ±50 %. Les jalons réglementaires sont des "
@@ -747,87 +1160,169 @@ def planning(quantites, debut=None):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  6. LA CONDUITE DU CHANGEMENT ET LA MIGRATION — ce qui se décide, pas ce qui se chiffre
+#  7. LE CHANGEMENT ET LA MIGRATION — ce qui se décide
 # ═══════════════════════════════════════════════════════════════════════════
 
 LEVIERS_CHANGEMENT = [
     {"cle": "accord_social", "nom": "Un accord social dédié, signé avant le déploiement",
-     "ancrage": "bpce_gepp_cp",
-     "dit": "BPCE a intégré un volet IA à son accord GEPP triennal, signé à l'unanimité des "
-            "organisations représentatives. Un déploiement sans cadre négocié se paie en "
-            "adoption — et en contentieux."},
+     "ancrage": "casA_accord_social", "publics": "Direction, représentants du personnel, DRH",
+     "mesure": "Accord signé et daté ; clauses sur l'IA nommées.",
+     "dit": "Le cas A a intégré un volet IA à son accord triennal sur les emplois et les parcours, "
+            "signé à l'unanimité des organisations représentatives. Un déploiement sans cadre "
+            "négocié se paie en adoption — et en contentieux."},
     {"cle": "formation_socle", "nom": "Un socle de formation pour tous, puis des parcours par métier",
-     "ancrage": "bpce_formes",
-     "dit": "~45 000 formés sur ~100 000 chez BPCE au moment où l'usage quotidien atteint un "
-            "salarié sur deux. La corrélation n'est pas une causalité ; l'ordre, lui, est clair."},
+     "ancrage": "casA_formes", "publics": "Tous les salariés, puis chaque métier",
+     "mesure": "Part de salariés formés ; heures par salarié ; évaluation à froid.",
+     "dit": "Environ 45 000 formés sur 100 000 dans le cas A au moment où l'usage quotidien atteint "
+            "un salarié sur deux. La corrélation n'est pas une causalité ; l'ordre, lui, est clair."},
     {"cle": "mesure_adoption", "nom": "Une mesure d'adoption publiée, pas un objectif affiché",
-     "ancrage": "bpce_usage_quotidien",
+     "ancrage": "casA_usage_quotidien", "publics": "Comité IA, management",
+     "mesure": "Part d'utilisateurs quotidiens ET sollicitations par utilisateur et par mois.",
      "dit": "« 40 sollicitations par mois et par utilisateur » est une mesure ; « 50 % d'utilisateurs » "
             "en est une autre. Fixez les deux, et publiez-les en interne à cadence fixe."},
     {"cle": "ambassadeurs", "nom": "Un relais par métier, formé avant les autres",
-     "ancrage": None,
-     "dit": "La ressource rare n'est ni le data scientist ni le GPU : c'est la personne qui "
-            "connaît le métier ET l'outil. Elle se forme, elle ne se recrute pas."},
+     "ancrage": None, "publics": "Un référent par ligne métier",
+     "mesure": "Référents nommés et formés avant le premier pilote de leur métier.",
+     "dit": "La ressource rare n'est ni le data scientist ni le processeur graphique : c'est la "
+            "personne qui connaît le métier ET l'outil. Elle se forme, elle ne se recrute pas."},
     {"cle": "article_4", "nom": "La maîtrise de l'IA (article 4) comme obligation de moyens, tracée",
-     "ancrage": "omnibus_analyse",
+     "ancrage": "omnibus_analyse", "publics": "Tous les utilisateurs de systèmes d'IA",
+     "mesure": "Registre des actions de formation, par population et par système.",
      "dit": "Le règlement 2026/1744 reformule l'article 4 en obligation de prendre des mesures : "
             "moins exigeant sur le résultat, toujours contraignant sur la trace."},
 ]
 
 PRINCIPES_MIGRATION = [
-    {"cle": "pas_de_big_bang", "nom": "Pas de bascule unique",
-     "ancrage": "tsb_revue",
-     "dit": "TSB : une bascule en un événement, une recette insuffisante, 232 jours de "
-            "perturbation, > 330 M£. La revue indépendante nomme la méthode, pas la malchance."},
-    {"cle": "interfaces_deux_fois", "nom": "Compter chaque interface deux fois",
-     "ancrage": "migration_benchmarks",
+    {"cle": "pas_de_big_bang", "nom": "Pas de bascule unique", "ancrage": "casD_revue",
+     "geste": "Découper la bascule par périmètre et par population ; répéter la répétition générale.",
+     "dit": "Le cas D : une bascule en un événement, une recette insuffisante, 232 jours de "
+            "perturbation, plus de 330 M£. La revue indépendante nomme la méthode, pas la malchance."},
+    {"cle": "interfaces_deux_fois", "nom": "Compter chaque interface deux fois", "ancrage": "migration_benchmarks",
+     "geste": "Lister les interfaces qui vivront vers l'ancien ET le nouveau socle ; les chiffrer deux fois.",
      "dit": "Pendant une migration de cœur, l'usine IA consomme l'ancien socle ET le nouveau. "
             "Le poste existe dans ce module ; il n'existe dans aucun ratio."},
-    {"cle": "gel", "nom": "Un gel des évolutions IA autour de la bascule, daté",
-     "ancrage": None,
-     "dit": "Une semaine de gel coûte des jours ; une régression sur un cas en production "
-            "pendant la bascule coûte la confiance. Le gel se planifie, il ne se subit pas."},
-    {"cle": "provision", "nom": "Une provision alignée sur le dépassement documenté",
-     "ancrage": "migration_depassement",
+    {"cle": "gel", "nom": "Un gel des évolutions IA autour de la bascule, daté", "ancrage": None,
+     "geste": "Fixer les dates de gel au planning, les communiquer aux métiers, prévoir le rattrapage.",
+     "dit": "Une semaine de gel coûte des jours ; une régression sur un cas en production pendant "
+            "la bascule coûte la confiance. Le gel se planifie, il ne se subit pas."},
+    {"cle": "provision", "nom": "Une provision alignée sur le dépassement documenté", "ancrage": "migration_depassement",
+     "geste": "Saisir une provision et lire l'alerte du chiffrage si elle est inférieure au documenté.",
      "dit": "Les remplacements de cœur dépassent souvent de 50 % et plus. Ce module ne propose "
             "pas de taux ; il signale quand le vôtre est inférieur à ce chiffre."},
 ]
 
 
 def comparables():
-    """Les cas publics, avec leur source et ce qu'ils ne disent pas."""
     idx = {a["cle"]: a for a in ANCRAGES}
     def a(cle):
         x = idx[cle]
         return {"nom": x["nom"], "min": x["min"], "max": x["max"], "unite": x["unite"],
                 "source": x["source"], "ne_dit_pas": x["ne_dit_pas"]}
     return [
-        {"organisation": "Groupe BPCE — programme Orion et usine IA",
-         "chiffres": [a("orion_budget"), a("orion_horizon"), a("bpce_effectif"),
-                      a("bpce_usage_quotidien"), a("bpce_appels"), a("bpce_formes")],
+        {"organisation": "Cas A — grand groupe bancaire coopératif : deux réseaux, deux systèmes d'information, une usine IA",
+         "chiffres": [a("casA_budget"), a("casA_horizon"), a("casA_effectif"),
+                      a("casA_usage_quotidien"), a("casA_appels"), a("casA_formes")],
          "lecon": "Un socle commun décidé pour porter l'IA ; l'adoption a précédé le socle. "
-                  "La migration de deux SI est le risque dominant, pas l'IA."},
-        {"organisation": "Crédit Agricole — plan IA et « Entreprise IA »",
-         "chiffres": [a("ca_plan"), a("ca_entreprise_ia"), a("ca_entreprise_ia_etp")],
+                  "La migration des deux SI est le risque dominant, pas l'IA."},
+        {"organisation": "Cas B — grand groupe bancaire universel : plan IA triennal et entité IA mutualisée",
+         "chiffres": [a("casB_plan"), a("casB_entite_ia"), a("casB_entite_ia_etp")],
          "lecon": "Le seul cas français qui publie à la fois un budget de socle et un effectif "
                   "de socle : le ratio le plus proche d'une usine IA de groupe."},
-        {"organisation": "Société Générale et BNP Paribas",
-         "chiffres": [a("sg_valeur"), a("bnp_cas")],
+        {"organisation": "Cas C — deux banques universelles : objectifs de valeur et comptes de cas d'usage",
+         "chiffres": [a("casC_valeur"), a("casC_cas")],
          "lecon": "Des objectifs de valeur et des comptes de cas d'usage — sans définition publiée "
                   "de l'un ni de l'autre. À citer, pas à recopier."},
-        {"organisation": "TSB (2018) — la migration manquée",
-         "chiffres": [a("tsb_cout"), a("tsb_duree")],
+        {"organisation": "Cas D — banque de détail : la migration manquée de 2018",
+         "chiffres": [a("casD_cout"), a("casD_duree")],
          "lecon": "Le contre-exemple documenté par une revue indépendante : bascule unique, "
                   "recette insuffisante, gouvernance."},
     ]
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  8. LE PARCOURS GUIDÉ — par rôle, vers les sections de la page
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Les rôles vivent ICI, pas dans la page : c'est ce que fait déjà l'ingénierie
+# Data Center. Une étape vise une SECTION de la page par son identifiant ; une
+# règle vérifie que chaque section visée existe.
+
+PARCOURS = [
+    {"id": "dg", "nom": "Direction générale, comité exécutif",
+     "vient_pour": "Décider d'engager, et savoir ce que l'étude ne dit pas.",
+     "etapes": [
+         {"section": "s-ancrages", "faire": "Lisez les cas comparables et, pour chaque chiffre, ce qu'il ne dit pas.",
+          "obtenir": "L'ordre de grandeur, sans le prendre pour une estimation."},
+         {"section": "s-chiffrage", "faire": "Regardez d'abord la part non chiffrée, puis le sous-total.",
+          "obtenir": "Le degré de confiance réel du chiffrage."},
+         {"section": "s-planning", "faire": "Repérez les jalons réglementaires qui tombent pendant le projet.",
+          "obtenir": "Les dates qui ne se négocient pas."},
+         {"section": "s-offre", "faire": "Parcourez les sept lots et ce que chacun consomme.",
+          "obtenir": "Ce que vous achetez, dans l'ordre du projet."}]},
+    {"id": "dsi", "nom": "DSI, directeur de programme",
+     "vient_pour": "Dimensionner le socle et tenir la migration.",
+     "etapes": [
+         {"section": "s-secteur", "faire": "Choisissez le secteur : il ajoute ses postes et ses jalons.",
+          "obtenir": "Une structure complète, pas une structure générique."},
+         {"section": "s-saisie", "faire": "Renseignez systèmes à unifier, interfaces, cas d'usage, effectif par cas.",
+          "obtenir": "Les entrées qui commandent le socle et la migration."},
+         {"section": "s-chiffrage", "faire": "Lisez les groupes socle, usine et migration, et le dimensionnement.",
+          "obtenir": "L'équipe centrale en fourchette, les interfaces comptées deux fois s'il y a migration."},
+         {"section": "s-migration", "faire": "Confrontez votre plan de bascule aux quatre principes.",
+          "obtenir": "Ce qui fait déraper, nommé avant de dérape."},
+         {"section": "s-planning", "faire": "Posez la date de début et lisez le calendrier.",
+          "obtenir": "Fin au plus tôt, au plus tard, et la migration en parallèle."}]},
+    {"id": "metier", "nom": "Directeur métier",
+     "vient_pour": "Savoir quels cas d'usage engager, et ce qu'ils exigent.",
+     "etapes": [
+         {"section": "s-secteur", "faire": "Lisez les cas d'usage typiques du secteur et leur classe.",
+          "obtenir": "Ce qui relève de l'annexe III, ce qui se qualifie, ce qui est minimal."},
+         {"section": "s-saisie", "faire": "Renseignez cas d'usage, jours par cas et effectif par cas sur vos pilotes réels.",
+          "obtenir": "Un chiffrage assis sur ce que vous avez déjà mesuré."},
+         {"section": "s-changement", "faire": "Parcourez les cinq leviers et leurs mesures.",
+          "obtenir": "Ce que l'adoption demande à votre métier."},
+         {"section": "s-chiffrage", "faire": "Lisez le groupe des cas d'usage et celui du changement.",
+          "obtenir": "Le coût de votre périmètre, et ce qui n'est pas encore chiffré."}]},
+    {"id": "daf", "nom": "Direction financière, contrôle de gestion",
+     "vient_pour": "Chiffrer sans se faire raconter d'histoire.",
+     "etapes": [
+         {"section": "s-saisie", "faire": "Renseignez les prix unitaires depuis vos grilles et devis.",
+          "obtenir": "Un chiffrage sur VOS prix, pas sur un ratio."},
+         {"section": "s-chiffrage", "faire": "Saisissez une provision et lisez l'alerte si elle est sous le dépassement documenté.",
+          "obtenir": "Une provision confrontée à un chiffre sourcé."},
+         {"section": "s-ancrages", "faire": "Pour chaque ancrage, lisez ce qu'il ne dit pas avant de le citer.",
+          "obtenir": "Des ordres de grandeur utilisables en comité, avec leur réserve."}]},
+    {"id": "risques", "nom": "RSSI, conformité, gestion des risques",
+     "vient_pour": "Tenir les textes et leurs dates.",
+     "etapes": [
+         {"section": "s-secteur", "faire": "Lisez les textes du secteur, ses autorités et ses jalons propres.",
+          "obtenir": "Le corpus qui s'applique à vous, avec ses adresses."},
+         {"section": "s-conformite", "faire": "Lisez ce que l'étude retient de chaque texte.",
+          "obtenir": "Les obligations qui commandent le calendrier."},
+         {"section": "s-planning", "faire": "Repérez les jalons passés, ceux qui tombent pendant le projet.",
+          "obtenir": "Ce qui est déjà exigible."},
+         {"section": "s-sources", "faire": "Rouvrez les sources : aucune n'a été lue depuis ce poste.",
+          "obtenir": "La vérification qui vous appartient."}]},
+    {"id": "drh", "nom": "Direction des ressources humaines",
+     "vient_pour": "Former, négocier, mesurer l'adoption.",
+     "etapes": [
+         {"section": "s-changement", "faire": "Lisez les cinq leviers, leurs publics et leurs mesures.",
+          "obtenir": "Un plan de conduite du changement avec ses indicateurs."},
+         {"section": "s-saisie", "faire": "Renseignez effectif, part à former, heures par salarié.",
+          "obtenir": "Le poste formation, chiffré sur votre coût horaire."},
+         {"section": "s-chiffrage", "faire": "Lisez le groupe conduite du changement.",
+          "obtenir": "Ce que la formation et le réseau d'ambassadeurs coûtent."}]},
+]
+
+
 def referentiel():
     """Tout ce que la page affiche. Rien n'est recopié dans la page."""
     return {"version": VERSION,
-            "quantites": QUANTITES, "prix": PRIX,
+            "quantites": QUANTITES, "quantites_secteur": QUANTITES_SECTEUR, "prix": PRIX,
             "groupes": GROUPES,
             "postes": [{k: v for k, v in p.items() if k != "calc"} for p in POSTES],
+            "postes_secteur": [{k: v for k, v in p.items() if k != "calc"} for p in POSTES_SECTEUR],
+            "secteurs": SECTEURS, "classes_cas": CLASSES_CAS,
             "ancrages": ANCRAGES, "sources": SOURCES,
             "couverture_sources": couverture_sources(),
             "phases": PHASES, "migration": MIGRATION,
@@ -835,12 +1330,15 @@ def referentiel():
             "leviers_changement": LEVIERS_CHANGEMENT,
             "principes_migration": PRINCIPES_MIGRATION,
             "comparables": comparables(),
+            "parcours": PARCOURS,
             "limite": "Ce module ne porte aucun prix : il chiffre les vôtres. Ses ancrages "
-                      "situent ; ils n'estiment pas. Ses sources ont été obtenues, pas lues."}
+                      "situent ; ils n'estiment pas. Ses sources ont été obtenues, pas lues. Il ne "
+                      "nomme ni entreprise ni personne ; ses adresses nomment nécessairement des sites."}
 
 
 def sante():
     return {"module": "ia_factory", "version": VERSION,
-            "postes": len(POSTES), "ancrages": len(ANCRAGES),
+            "postes": len(POSTES), "postes_secteur": len(POSTES_SECTEUR),
+            "secteurs": len(SECTEURS), "ancrages": len(ANCRAGES),
             "sources": len(SOURCES), "phases": len(PHASES),
-            "jalons_reglementaires": len(JALONS_REGLEMENTAIRES)}
+            "jalons_reglementaires": len(JALONS_REGLEMENTAIRES), "roles": len(PARCOURS)}

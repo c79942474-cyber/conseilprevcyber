@@ -3844,13 +3844,18 @@ def api_ia_factory_chiffrer():
     n'est pas dû."""
     d = request.get_json(silent=True) or {}
     debut = (d.get("debut") or "").strip() or None
+    # LE SECTEUR N'EST PAS VALIDÉ ICI, ET C'EST DÉLIBÉRÉ : le module ignore un
+    # secteur qu'il ne connaît pas et le DIT dans ses alertes (« aucun secteur
+    # choisi »). Refuser en 400 obligerait la page à connaître la liste des
+    # secteurs pour ne pas se faire rejeter — un second exemplaire.
+    secteur = (d.get("secteur") or "").strip() or None
     try:
-        pl = ia_factory.planning(d.get("quantites"), debut)
+        pl = ia_factory.planning(d.get("quantites"), debut, secteur)
     except ValueError:
         return jsonify(ok=False, error="date de début illisible (attendu AAAA-MM-JJ)"), 400
     return jsonify(ok=True,
                    chiffrage=ia_factory.chiffrer(d.get("quantites"), d.get("prix"),
-                                                 d.get("provision_pct")),
+                                                 d.get("provision_pct"), secteur),
                    planning=pl)
 
 

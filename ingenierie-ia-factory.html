@@ -51,11 +51,24 @@
   .na-src-sans{margin-left:7px;padding:1px 7px;border-radius:999px;border:1px solid rgba(255,255,255,.28);color:rgba(255,255,255,.7);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase}
 
   /* ── la page ─────────────────────────────────────────────────────── */
-  .iaf-sec{margin:34px 0 0}
-  .iaf-sec h2{font-size:22px;margin:0 0 6px}
-  .iaf-sec h3{font-size:16px;margin:18px 0 6px}
-  .iaf-sec h4{font-size:14px;margin:14px 0 4px}
-  .iaf-sec p{max-width:82ch;line-height:1.65}
+  /* ── LE CENTRAGE, ET CE QU'IL CENTRE EXACTEMENT ────────────────────
+     Les blocs sont centrés dans la colonne (margin-inline:auto) ; le TEXTE
+     reste aligné à gauche à l'intérieur. Centrer les lignes d'un paragraphe
+     de dix lignes déplacerait le point de retour de l'œil à chaque ligne et
+     rendrait la lecture suivie pénible — c'est un effet mesuré en typographie,
+     pas une préférence. Ce qui était demandé — « au milieu et non à gauche » —
+     est obtenu par le bloc, qui cessait d'être collé au bord gauche d'une
+     colonne large.
+     Les TITRES et les phrases courtes, eux, sont centrés pour de vrai : sur
+     une ou deux lignes, il n'y a pas de point de retour à préserver. */
+  .iaf-sec{margin:34px auto 0;max-width:96ch}
+  .iaf-sec h2{font-size:22px;margin:0 0 6px;text-align:center}
+  .iaf-sec h3{font-size:16px;margin:18px 0 6px;text-align:center}
+  .iaf-sec h4{font-size:14px;margin:14px 0 4px;text-align:center}
+  .iaf-sec p{max-width:82ch;margin-inline:auto;line-height:1.65}
+  .iaf-sec>ol,.iaf-sec>ul{max-width:82ch;margin-inline:auto}
+  .iaf-tete{text-align:center;max-width:78ch;margin-inline:auto}
+  .iaf-tete .lead{text-align:left}
   .iaf-these{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:18px 0 6px}
   .iaf-these div{border:1px solid var(--line);border-left:3px solid var(--teal);border-radius:10px;padding:12px 14px;
     background:rgba(0,0,0,.10);font-size:13px;color:var(--muted);line-height:1.6}
@@ -96,7 +109,56 @@
   .iaf-lots{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
   .iaf-lots th,.iaf-lots td{padding:8px 9px;border-bottom:1px solid rgba(255,255,255,.14);text-align:left;vertical-align:top;line-height:1.5}
   .iaf-lots th{font-size:11px;color:var(--muted2);font-weight:500;letter-spacing:.06em;text-transform:uppercase}
-  .iaf-limite{margin:26px 0 0;padding:12px 15px;border:1px dashed currentColor;border-radius:10px;font-size:12.5px;line-height:1.6;opacity:.9}
+  /* ── LE SECTEUR ─────────────────────────────────────────────────── */
+  .iaf-sect-choix{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;margin:16px 0 14px}
+  .iaf-sect-b{font:inherit;font-size:13px;padding:9px 16px;border-radius:20px;border:1px solid currentColor;
+    background:transparent;color:inherit;opacity:.74;cursor:pointer}
+  .iaf-sect-b:hover{opacity:.94}
+  .iaf-sect-b.on{background:var(--teal);border-color:var(--teal);color:#0b1a18;opacity:1;font-weight:600}
+  .iaf-sect-b:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+  .iaf-autorites{font-size:12.5px;color:var(--muted)}
+  .iaf-textes{font-size:12.5px;line-height:1.6}
+  .iaf-textes li{margin-bottom:6px}
+  .iaf-classe{display:inline-block;font-size:10px;letter-spacing:.04em;text-transform:uppercase;
+    padding:1px 7px;border-radius:3px;border:1px solid rgba(255,255,255,.3);color:var(--muted2);white-space:nowrap}
+  .iaf-classe.c-haut_risque_annexe_III{border-color:rgba(190,120,40,.7);color:#e0a34a}
+  .iaf-classe.c-transparence_art_50{border-color:rgba(34,211,238,.6);color:var(--cyan)}
+  /* ── LE PARCOURS GUIDÉ ──────────────────────────────────────────── */
+  .iaf-lanceur{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:center;
+    border:1px dashed currentColor;border-radius:12px;padding:14px 18px;margin:20px auto 0;max-width:88ch;text-align:center}
+  .iaf-lanceur b{display:block;font-size:14.5px}
+  .iaf-lanceur span{font-size:12.5px;color:var(--muted);line-height:1.55}
+  .iaf-lanceur-b{font:inherit;font-size:13.5px;font-weight:600;padding:9px 16px;border-radius:8px;
+    border:1px solid currentColor;background:transparent;color:inherit;cursor:pointer;white-space:nowrap}
+  .iaf-lanceur-b:hover{background:rgba(255,255,255,.10)}
+  .iaf-lanceur-b:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+  #iaf-guide{max-width:88ch;margin:14px auto 0;border:1px solid var(--line);border-radius:12px;
+    padding:16px 18px;background:rgba(0,0,0,.14)}
+  .iaf-g-q{margin:0 0 10px;font-size:14px;font-weight:600;text-align:center}
+  .iaf-g-n{font-family:var(--mono);font-size:11px;font-weight:400;color:var(--muted2);margin-left:8px}
+  .iaf-g-liste{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:9px}
+  .iaf-g-c{font:inherit;text-align:left;padding:11px 13px;border-radius:9px;border:1px solid var(--line);
+    background:rgba(0,0,0,.12);color:inherit;cursor:pointer;display:flex;flex-direction:column;gap:3px}
+  .iaf-g-c:hover{border-color:var(--cyan)}
+  .iaf-g-c:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+  .iaf-g-c .nm{font-size:13.5px;font-weight:600;color:var(--ink)}
+  .iaf-g-c .qs{font-size:12px;color:var(--muted)}
+  .iaf-g-etape p{font-size:13.5px;line-height:1.6;text-align:left}
+  .iaf-g-nav{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;margin-top:12px}
+  .iaf-g-b{font:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:8px;
+    border:1px solid currentColor;background:var(--teal);color:#0b1a18;cursor:pointer}
+  .iaf-g-b.iaf-g-alt{background:transparent;color:inherit;font-weight:400}
+  .iaf-g-b:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+  /* La section visée par l'étape en cours. Une seule à la fois. */
+  .iaf-vise{outline:2px solid var(--cyan);outline-offset:10px;border-radius:6px;
+    transition:outline-color .3s}
+  @media(prefers-reduced-motion:reduce){.iaf-vise{transition:none}}
+  /* ── LE DÉTAIL DES PHASES ───────────────────────────────────────── */
+  .iaf-ph-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin:8px 0}
+  .iaf-ph-g>div{border-left:2px solid var(--line);padding-left:10px;font-size:12.5px;color:var(--muted)}
+  .iaf-ph-t{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--muted2);margin-top:6px}
+  .iaf-limite{margin:26px auto 0;max-width:88ch;padding:12px 15px;border:1px dashed currentColor;border-radius:10px;font-size:12.5px;line-height:1.6;opacity:.9}
 </style>
 </head>
 <body data-fond="couchant">
@@ -122,151 +184,200 @@
 
 <main id="main">
 
-  <section class="wrap" style="padding:44px 0 8px">
+  <section class="wrap iaf-tete" style="padding:44px 0 8px">
     <p class="kick">Ingénierie de projet &amp; transformation numérique</p>
-    <h1 style="margin:8px 0 12px;max-width:26ch">Ingénierie de projet — IA Factory</h1>
-    <p class="lead" style="max-width:78ch">
+    <h1 style="margin:8px 0 12px">Ingénierie de projet — IA Factory</h1>
+    <p class="lead">
       L'étude de faisabilité d'une usine d'intelligence artificielle pour un grand compte à
-      infrastructure critique : les postes budgétaires, l'équipe, le planning et ses jalons, la
-      conduite du changement, la migration des systèmes. <b>Chiffrée sur vos quantités et vos
-      prix — jamais sur un ratio.</b> Le module ne porte aucun prix&nbsp;; il met en ordre, il
-      compte, et il dit ce qui n'est pas chiffré.</p>
+      infrastructure critique : <b>banque, assurance, marchés financiers, et les entités
+      essentielles ou importantes de la directive NIS&nbsp;2</b>. Les postes budgétaires, l'équipe,
+      le planning et ses jalons, la conduite du changement, la migration des systèmes, les
+      exigences propres à chaque secteur. <b>Chiffrée sur vos quantités et vos prix — jamais sur
+      un ratio.</b> Le module ne porte aucun prix ; il met en ordre, il compte, et il dit ce qui
+      n'est pas chiffré.</p>
 
     <div class="iaf-these">
-      <div><b>Le cas qui sert de fil</b>Le programme Orion du groupe BPCE&nbsp;: une plateforme commune
-        à deux réseaux (Equinoxe, MySys), 800 puis 900&nbsp;M€ selon les sources (la seconde enveloppe n'a pas été retrouvée en source ouverte), un pilotage confié
-        à BCG et Wavestone, une usine IA placée sous une direction générale dédiée, cent mille
-        salariés dont un sur deux utilise déjà l'IA générative. Ce n'est pas notre étude&nbsp;: c'est
-        l'ordre de grandeur qui la situe.</div>
       <div><b>Ce que ce module refuse</b>Un « euro par salarié » ou un « euro par cas d'usage »
         affiché ici serait une invention habillée en référentiel — et crédible, ce qui est pire.
         Les prix sont les vôtres&nbsp;: vos marchés de conseil, votre grille RH, vos devis
-        d'infrastructure. Un poste sans prix reste <em>non chiffré</em>, avec sa raison.</div>
-      <div><b>Ce qu'il apporte à la place</b>Les postes que le neuf ne connaît pas — les interfaces
-        portées deux fois pendant une migration, la recette en double, le gel autour de la
-        bascule&nbsp;; des ancrages publics avec ce qu'ils ne disent pas&nbsp;; des jalons
-        réglementaires qui ne glissent pas avec le projet&nbsp;; et le compte de ce qui manque.</div>
+        d'infrastructure. Un poste sans prix reste <em>non chiffré</em>, avec sa raison, et la
+        part non chiffrée de l'étude s'affiche avec le total.</div>
+      <div><b>Ce qu'il apporte à la place</b>Les postes que le neuf ne connaît pas — les
+        interfaces portées deux fois pendant une migration, la recette en double, le gel autour
+        de la bascule&nbsp;; les postes propres à chaque secteur, qui n'existent dans aucun
+        ratio&nbsp;; des ancrages publics accompagnés de ce qu'ils ne disent pas&nbsp;; et des
+        jalons réglementaires qui ne glissent pas avec le projet.</div>
+      <div><b>Aucun nom, et c'est délibéré</b>Ce module ne cite aucune entreprise ni aucune
+        personne. Les cas comparables sont anonymisés — cas A, B, C, D — et décrits par ce qui
+        compte pour une étude&nbsp;: la taille, le nombre de systèmes, ce qui a été publié et ce
+        qui ne l'a pas été. Les éditeurs des sources sont désignés par leur nature. Seules les
+        adresses, nécessairement, nomment des sites&nbsp;: une source qu'on ne peut pas rouvrir
+        n'est pas une source.</div>
     </div>
+
+    <!-- LE PARCOURS GUIDÉ, POSÉ AVANT LE RESTE. Dix sections et une vingtaine de
+         champs sont justes et illisibles en arrivant. Celui qui sait par où
+         commencer passe devant sans le voir. -->
+    <div class="iaf-lanceur">
+      <div>
+        <b>Vous ne savez pas par où commencer&nbsp;?</b>
+        <span>Cette étude tient dix sections, quatre secteurs et une vingtaine d'entrées.
+          Dites qui vous êtes&nbsp;: le parcours ne montre que ce qui vous concerne, dans
+          l'ordre où cela se décide, et met en relief la section visée.</span>
+      </div>
+      <button type="button" class="iaf-lanceur-b" id="iaf-guide-b"
+        aria-expanded="false" aria-controls="iaf-guide">Ouvrir le parcours guidé</button>
+    </div>
+    <div id="iaf-guide" hidden></div>
   </section>
 
-  <!-- ══ 1. LES ANCRAGES ═════════════════════════════════════════════════ -->
+  <!-- ══ 1. LE SECTEUR ═══════════════════════════════════════════════════ -->
+  <section class="wrap iaf-sec" id="s-secteur">
+    <h2>1. Votre secteur — et ce qu'il ajoute à l'étude</h2>
+    <p>Le secteur n'est pas un habillage&nbsp;: il ajoute des <b>postes</b> que le générique ne
+      connaît pas, des <b>jalons</b> qui lui sont propres, et une liste de <b>cas d'usage
+      typiques</b> avec la case où se pose la question de leur classe. Sans secteur choisi,
+      l'étude est incomplète, et elle le dit.</p>
+    <div id="iaf-secteur"><p>Chargement des secteurs…</p></div>
+  </section>
+
+  <!-- ══ 2. LES ANCRAGES ═════════════════════════════════════════════════ -->
   <section class="wrap iaf-sec" id="s-ancrages">
-    <h2>1. Les cas comparables — pour situer, pas pour caler</h2>
-    <p>Chaque chiffre porte sa source, la nature de cette source, et surtout <b>ce qu'il ne dit
-      pas</b>. Un budget de programme ne dit pas la part de l'IA&nbsp;; un nombre de cas d'usage ne dit
-      pas la taille d'un cas&nbsp;; un objectif de « valeur » n'est pas une économie mesurée.</p>
+    <h2>2. Les cas comparables — pour situer, pas pour caler</h2>
+    <p>Quatre cas publics, anonymisés. Chaque chiffre porte sa source, la nature de cette source,
+      et surtout <b>ce qu'il ne dit pas</b>. Un budget de programme ne dit pas la part de l'IA&nbsp;;
+      un nombre de cas d'usage ne dit pas la taille d'un cas&nbsp;; un objectif de « valeur » n'est
+      pas une économie mesurée.</p>
     <div id="iaf-cmp"><p>Chargement des comparables…</p></div>
   </section>
 
-  <!-- ══ 2. LA SAISIE ═════════════════════════════════════════════════════ -->
+  <!-- ══ 3. LA SAISIE ═════════════════════════════════════════════════════ -->
   <section class="wrap iaf-sec" id="s-saisie">
-    <h2>2. Vos quantités, vos prix</h2>
+    <h2>3. Vos quantités, vos prix</h2>
     <p>Chaque entrée dit où la trouver. Une entrée qu'on ne sait pas où chercher est une entrée
-      qui sera inventée — c'est pour cela que les libellés sont longs.</p>
+      qui sera inventée — c'est pour cela que les libellés sont longs. Choisir un secteur ajoute
+      ses propres quantités&nbsp;; ce que vous avez déjà saisi est conservé.</p>
     <h3>Les quantités</h3>
     <div class="iaf-grille" id="iaf-q"><p>Chargement…</p></div>
     <h3>Les prix unitaires</h3>
     <div class="iaf-grille" id="iaf-p"></div>
-    <div class="iaf-ligne">
+    <div class="iaf-ligne" style="justify-content:center">
       <label>Provision pour aléas (%)
         <input type="number" id="iaf-provision" min="0" max="200" step="1" placeholder="non saisie"></label>
       <label>Date de début
         <input type="date" id="iaf-debut"></label>
       <button type="button" class="iaf-go" id="iaf-go">Chiffrer et planifier</button>
     </div>
-    <p class="iaf-ou" style="max-width:82ch">Le module ne propose aucun taux de provision. Il compare
-      celui que vous saisissez au dépassement documenté des programmes de remplacement de cœur
-      bancaire, et il le signale s'il lui est inférieur.</p>
+    <p class="iaf-ou" style="text-align:center">Le module ne propose aucun taux de provision. Il
+      compare celui que vous saisissez au dépassement documenté des programmes de remplacement de
+      cœur, et il le signale s'il lui est inférieur.</p>
   </section>
 
-  <!-- ══ 3. LE CHIFFRAGE ══════════════════════════════════════════════════ -->
+  <!-- ══ 4. LE CHIFFRAGE ══════════════════════════════════════════════════ -->
   <section class="wrap iaf-sec" id="s-chiffrage">
-    <h2>3. Le chiffrage, poste par poste</h2>
-    <p>Neuf groupes de postes. Un poste dont une entrée manque n'est pas compté à zéro&nbsp;: un zéro
-      muet ferait croire qu'il n'est pas dû. La part non chiffrée de la structure s'affiche avec
-      le total.</p>
-    <div id="iaf-out"><p class="iaf-ou">Renseignez les entrées ci-dessus, puis chiffrez.</p></div>
+    <h2>4. Le chiffrage, poste par poste</h2>
+    <p>Dix groupes de postes, dont un propre à votre secteur. Chaque poste dit ce qu'il
+      <b>couvre</b> et ce qu'il <b>exclut</b> — c'est cette seconde ligne qui empêche de compter
+      deux fois ou d'oublier. Un poste dont une entrée manque n'est pas compté à zéro&nbsp;: un
+      zéro muet ferait croire qu'il n'est pas dû.</p>
+    <div id="iaf-out"><p class="iaf-ou" style="text-align:center">Renseignez les entrées ci-dessus, puis chiffrez.</p></div>
     <h3>L'équipe centrale (hub)</h3>
-    <p>Dérivée des seuls ratios sourcés — un ingénieur plateforme pour quatre à six constructeurs de
-      modèles, un data engineer pour deux à trois — à partir du nombre de cas d'usage et de
+    <p>Dérivée des seuls ratios sourcés — un ingénieur plateforme pour quatre à six constructeurs
+      de modèles, un data engineer pour deux à trois — à partir du nombre de cas d'usage et de
       l'effectif par cas que <em>vous</em> avez observé sur vos pilotes.</p>
     <div id="iaf-dim"></div>
   </section>
 
-  <!-- ══ 4. LE PLANNING ═══════════════════════════════════════════════════ -->
+  <!-- ══ 5. LE PLANNING ═══════════════════════════════════════════════════ -->
   <section class="wrap iaf-sec" id="s-planning">
-    <h2>4. Le planning et ses jalons</h2>
-    <p>Cinq phases dont les durées sont <b>l'usage du cabinet</b>, déclarées comme telles à ±50&nbsp;%.
-      Et des jalons <b>réglementaires</b>, qui sont des dates de textes&nbsp;: ils tombent où ils tombent,
-      projet en retard ou non. C'est pour cela qu'ils ne sont pas dans la même liste.</p>
+    <h2>5. Le planning et ses jalons</h2>
+    <p>Cinq phases, chacune avec ses conditions d'<b>entrée</b>, ses <b>activités</b>, ses
+      <b>livrables</b> et sa condition de <b>sortie</b>. Leurs durées sont <b>l'usage du
+      cabinet</b>, déclarées comme telles à ±50&nbsp;%. Les jalons <b>réglementaires</b>, eux, sont
+      des dates de textes&nbsp;: ils tombent où ils tombent, projet en retard ou non. C'est pour
+      cela qu'ils ne sont pas dans la même liste.</p>
     <div id="iaf-phases"></div>
     <h3>Les jalons réglementaires au jour de la lecture</h3>
     <div id="iaf-jalons"></div>
     <h3>Votre calendrier</h3>
-    <div id="iaf-planning"><p class="iaf-ou">Le calendrier se construit au chiffrage, à partir de la date de début saisie.</p></div>
+    <div id="iaf-planning"><p class="iaf-ou" style="text-align:center">Le calendrier se construit au chiffrage, à partir de la date de début saisie.</p></div>
   </section>
 
-  <!-- ══ 5. LA CONDUITE DU CHANGEMENT ═════════════════════════════════════ -->
+  <!-- ══ 6. LA CONDUITE DU CHANGEMENT ═════════════════════════════════════ -->
   <section class="wrap iaf-sec" id="s-changement">
-    <h2>5. La conduite du changement</h2>
-    <p>La ressource rare n'est ni le data scientist ni le processeur graphique&nbsp;: c'est la personne
-      qui connaît le métier <em>et</em> l'outil. Elle se forme, elle ne se recrute pas. Cinq leviers,
-      chacun adossé à un ancrage public quand il en existe un — et dit comme convention du cabinet
-      sinon.</p>
+    <h2>6. La conduite du changement</h2>
+    <p>La ressource rare n'est ni le data scientist ni le processeur graphique&nbsp;: c'est la
+      personne qui connaît le métier <em>et</em> l'outil. Elle se forme, elle ne se recrute pas.
+      Cinq leviers, chacun avec son <b>public</b>, sa <b>mesure</b>, et l'ancrage public qui le
+      soutient — ou la mention qu'il s'agit d'une convention du cabinet.</p>
     <div id="iaf-changement"></div>
   </section>
 
-  <!-- ══ 6. LA MIGRATION ══════════════════════════════════════════════════ -->
+  <!-- ══ 7. LA MIGRATION ══════════════════════════════════════════════════ -->
   <section class="wrap iaf-sec" id="s-migration">
-    <h2>6. La migration des systèmes — ce qui fait déraper</h2>
+    <h2>7. La migration des systèmes — ce qui fait déraper</h2>
     <p>Une usine IA adossée à une migration de cœur hérite de l'aléa de la migration. Le
-      contre-exemple est documenté par une revue indépendante&nbsp;: TSB, 2018 — une bascule en un
+      contre-exemple est documenté par une revue indépendante&nbsp;: une bascule en un seul
       événement, une recette insuffisante, 232 jours de perturbation, plus de 330 millions de
-      livres. Quatre principes en découlent.</p>
+      livres. Quatre principes en découlent, avec le <b>geste</b> que chacun demande.</p>
     <div id="iaf-migration"></div>
   </section>
 
-  <!-- ══ 7. LA CONFORMITÉ ═════════════════════════════════════════════════ -->
+  <!-- ══ 8. LA CONFORMITÉ ═════════════════════════════════════════════════ -->
   <section class="wrap iaf-sec" id="s-conformite">
-    <h2>7. La conformité et la maîtrise des risques</h2>
-    <p>Trois textes commandent le calendrier d'une usine IA bancaire. <b>DORA</b> (règlement (UE)
-      2022/2554), applicable depuis le 17 janvier 2025&nbsp;: un fournisseur de modèle est un
-      prestataire de services TIC, avec son registre, ses tests de résilience et sa gestion des
-      incidents. Le <b>règlement (UE) 2024/1689</b> sur l'IA, tel que modifié par le <b>règlement
-      (UE) 2026/1744</b> en vigueur depuis le 27 juillet 2026&nbsp;: les pratiques interdites et
-      la transparence de l'article 50 sont en vigueur&nbsp;; les systèmes à haut risque de l'annexe
-      III — évaluation de solvabilité, notation de crédit, tarification d'assurance — sont
-      reportés au 2 décembre 2027. Et la <b>supervision</b>&nbsp;: la BCE inscrit l'IA à ses priorités
-      2026-2028, l'ACPR l'a intégrée au questionnaire SREP 2025.</p>
-    <p>Ce que cela commande dans l'étude&nbsp;: la qualification annexe III se fait <em>dossier par
-      dossier</em> dès le cadrage, chaque dossier a son poste de conformité, et la date du 2 décembre
-      2027 est un jalon du planning qui ne se négocie pas.</p>
+    <h2>8. La conformité et la maîtrise des risques</h2>
+    <p><b>Le règlement (UE) 2024/1689 sur l'IA</b>, tel que modifié par le règlement (UE)
+      2026/1744 en vigueur depuis le 27 juillet 2026. Les pratiques interdites (article 5) et la
+      transparence (article 50) sont en vigueur. Les systèmes à haut risque de l'annexe III —
+      évaluation de solvabilité, notation de crédit, tarification vie et santé, composants de
+      sécurité d'infrastructures critiques — sont reportés au <b>2 décembre 2027</b>, ceux de
+      l'annexe I au 2 août 2028. L'article 4 (maîtrise de l'IA) devient une obligation de moyens
+      qui reste contraignante sur la trace.</p>
+    <p><b>DORA — règlement (UE) 2022/2554</b>, applicable depuis le 17 janvier 2025 pour le
+      secteur financier. Un fournisseur de modèle accessible par interface est un prestataire de
+      services TIC&nbsp;: il entre au registre d'information, et les systèmes d'IA en production
+      entrent dans le programme de tests de résilience.</p>
+    <p><b>NIS&nbsp;2 — directive (UE) 2022/2555</b>, pour les entités essentielles et importantes
+      de dix-huit secteurs. Les mesures de gestion des risques (article 21) et la chaîne de
+      notification des incidents importants — <b>alerte sous 24&nbsp;h, notification sous
+      72&nbsp;h, rapport final sous un mois</b> (article 23) — s'appliquent aux incidents des
+      systèmes d'IA qui touchent un service essentiel. En France, la loi de transposition n'était
+      pas promulguée au 6 août 2026&nbsp;; l'état est à vérifier au jour de la lecture.</p>
+    <p><b>Assurance</b>&nbsp;: l'avis de l'autorité européenne des assurances du 6 août 2025 ne
+      crée aucune règle — il lit Solvabilité II, la distribution, DORA et le RGPD à la lumière du
+      règlement sur l'IA, avec une approche proportionnée au risque. Solvabilité II révisée
+      (directive (UE) 2025/2) s'applique au <b>30 janvier 2027</b>.</p>
+    <p>Ce que cela commande dans l'étude&nbsp;: la qualification se fait <em>dossier par
+      dossier</em> dès le cadrage, chaque dossier a son poste de conformité, et les dates
+      ci-dessus sont des jalons de planning qui ne se négocient pas.</p>
   </section>
 
-  <!-- ══ 8. CE QUE CONSEILPREV PROPOSE ════════════════════════════════════ -->
+  <!-- ══ 9. CE QUE CONSEILPREV PROPOSE ════════════════════════════════════ -->
   <section class="wrap iaf-sec" id="s-offre">
-    <h2>8. Ce que CONSEILPREV propose — sept lots, dans l'ordre du projet</h2>
-    <p>Un dispositif calqué sur ce qu'Orion a mis en place — un pilotage principal, un
-      contre-pilotage, un lot d'accompagnement — et complété par ce que ce module chiffre&nbsp;: le
-      socle, les métiers, la migration, la conformité. Aucun prix ici&nbsp;: les jours se
-      saisissent en section 2, sur votre grille.</p>
+    <h2>9. Ce que CONSEILPREV propose — sept lots, dans l'ordre du projet</h2>
+    <p>Un dispositif qui sépare le pilotage principal du contre-pilotage, et qui couvre ce que ce
+      module chiffre&nbsp;: le socle, les métiers, le changement, la migration, la conformité.
+      Aucun prix ici&nbsp;: les jours se saisissent en section 3, sur votre grille.</p>
     <table class="iaf-lots">
       <thead><tr><th>Lot</th><th>Ce qu'il livre</th><th>Phase</th><th>Ce qu'il consomme dans le chiffrage</th></tr></thead>
       <tbody>
-        <tr><td><b>L1 · Cadrage et faisabilité</b></td><td>Note de cadrage, portefeuille de cas d'usage arbitré, qualification annexe III dossier par dossier, cette étude chiffrée sur vos entrées.</td><td>Faisabilité</td><td>jours de cadrage × taux conseil</td></tr>
+        <tr><td><b>L1 · Cadrage et faisabilité</b></td><td>Note de cadrage, portefeuille de cas d'usage arbitré, qualification juridique dossier par dossier, cette étude chiffrée sur vos entrées.</td><td>Faisabilité</td><td>jours de cadrage × taux conseil</td></tr>
         <tr><td><b>L2 · Contre-pilotage</b></td><td>Audit des arbitrages techniques et budgétaires, suivi du calendrier et de la trajectoire financière, alerte sur la provision au regard des dépassements documentés.</td><td>Toutes</td><td>jours de pilotage par mois × durée × taux conseil</td></tr>
         <tr><td><b>L3 · Socle et usine IA</b></td><td>Architecture de plateforme (infrastructure souveraine ou sur site, MLOps / LLMOps, sécurité), charte et comité IA, registre des systèmes, dimensionnement de l'équipe centrale.</td><td>Socle, pilotes</td><td>infrastructure, outillage, sécurité (annuels) ; équipe centrale</td></tr>
-        <tr><td><b>L4 · Métiers et cas d'usage</b></td><td>Accompagnement de chaque ligne métier&nbsp;: du pilote à la production, mesure d'adoption et de valeur, retours d'expérience chiffrés.</td><td>Pilotes, industrialisation, généralisation</td><td>cas d'usage × jours par cas × coût interne</td></tr>
+        <tr><td><b>L4 · Métiers et cas d'usage</b></td><td>Accompagnement de chaque ligne métier : du pilote à la production, mesure d'adoption et de valeur, retours d'expérience chiffrés.</td><td>Pilotes → généralisation</td><td>cas d'usage × jours par cas × coût interne</td></tr>
         <tr><td><b>L5 · Conduite du changement</b></td><td>Cadre social négocié, socle de formation pour tous puis parcours par métier, réseau d'ambassadeurs, mesure d'adoption publiée.</td><td>Socle → généralisation</td><td>effectif × part formée × heures × coût horaire ; ambassadeurs</td></tr>
         <tr><td><b>L6 · Migration et intégration</b></td><td>Portage des interfaces (deux fois si migration de cœur), recette, gel daté autour de la bascule, pas de bascule unique.</td><td>Chevauche la migration</td><td>interfaces × coût de portage × 2 ; recette</td></tr>
-        <tr><td><b>L7 · Conformité et risque</b></td><td>Dossiers annexe III, registre DORA des prestataires TIC, transparence article 50 sur les agents vocaux, revue annuelle.</td><td>Socle → annexe III au 2 décembre 2027 (article 50 déjà en vigueur depuis le 2 août 2026)</td><td>cas haut risque × coût d'un dossier</td></tr>
+        <tr><td><b>L7 · Conformité et risque, par secteur</b></td><td>Dossiers annexe III ; registre DORA et tests de résilience en finance ; validation actuarielle et évaluation interne des risques en assurance ; dossier de sûreté, chaîne 24 h / 72 h et segmentation OT chez un opérateur d'infrastructure.</td><td>Socle → annexe III au 2 décembre 2027 (article 50 déjà en vigueur depuis le 2 août 2026)</td><td>cas haut risque × coût d'un dossier ; postes sectoriels</td></tr>
       </tbody>
     </table>
   </section>
 
-  <!-- ══ 9. LES SOURCES ═══════════════════════════════════════════════════ -->
+  <!-- ══ 10. LES SOURCES ══════════════════════════════════════════════════ -->
   <section class="wrap iaf-sec" id="s-sources">
-    <h2>9. Les sources — obtenues, et comptées comme telles</h2>
+    <h2>10. Les sources — obtenues, et comptées comme telles</h2>
+    <p>Les éditeurs sont désignés par leur nature — autorité publique, texte juridique, cabinet,
+      média, fournisseur. Les adresses, elles, nomment nécessairement des sites&nbsp;: une source
+      qu'on ne peut pas rouvrir est une intention, pas une source.</p>
     <div id="iaf-sources"></div>
     <p class="iaf-limite" id="iaf-limite"></p>
   </section>

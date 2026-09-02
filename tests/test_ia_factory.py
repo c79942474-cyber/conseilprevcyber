@@ -308,3 +308,236 @@ def test_chaque_identifiant_que_le_script_vise_existe_dans_la_page(connecte):
     assert vises, "le script ne vise aucun identifiant ?"
     manquants = sorted(vises - portes)
     assert not manquants, "le script vise des identifiants absents de la page : %s" % manquants
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  6. AUCUNE ENTREPRISE, AUCUNE PERSONNE
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# LA DEMANDE, ET LA SEULE FAÇON DE LA TENIR. « Ne citer aucun nom d'entreprise
+# ou de personne dans le module, les supprimer. » Une relecture ne tient pas
+# une telle règle : le premier ancrage ajouté demain la rompra sans bruit.
+#
+# CE QUI EST CONTRÔLÉ, ET CE QUI NE PEUT PAS L'ÊTRE. On vérifie que les noms
+# effectivement présents avant cette demande ont disparu de tout ce que le
+# module REND — titres, éditeurs, réserves, ancrages, secteurs, parcours — et
+# des textes de la page, du script et du menu. On ne peut pas prouver
+# l'absence de TOUT nom propre concevable ; on prouve l'absence de ceux qu'on
+# a retirés, ce qui est la propriété demandée.
+#
+# LES ADRESSES SONT HORS DE LA RÈGLE, ET C'EST UN ARBITRAGE ÉCRIT. Une source
+# qu'on ne peut pas rouvrir est une intention, pas une source : anonymiser les
+# URL les rendrait inutilisables. Le module le dit dans sa limite publiée.
+
+_NOMS_INTERDITS = (
+    # entreprises et groupes
+    "BPCE", "Banque Populaire", "Banques Populaires", "Caisse d'Épargne", "Caisses d'Épargne",
+    "Equinoxe", "MySys", "Orion", "BCG", "Boston Consulting", "Wavestone", "Very Up",
+    "Crédit Agricole", "Société Générale", "BNP Paribas", "BNP", "JPMorgan", "Crédit Mutuel",
+    "La Banque Postale", "TSB", "Slaughter and May", "McKinsey", "Gartner", "Stanford",
+    "NVIDIA", "Nvidia", "DGX", "SuperPOD", "Mistral", "OpenAI", "Anthropic", "Google",
+    "DeepMind", "Microsoft", "Adobe", "KORE1", "White & Case", "Skadden", "Deloitte",
+    "InfoQ", "Consultor", "Arcep", "ANSSI", "Legiscope",
+    # personnes citées dans le cas fourni
+    "Tyrode", "Réquillart", "Requillart",
+)
+
+
+def _textes_rendus():
+    """Toutes les chaînes que le module REND, sauf les adresses.
+
+    On descend récursivement : une chaîne enfouie dans un secteur ou un
+    parcours est aussi lue par un client que celle du premier niveau."""
+    out = []
+
+    def descendre(x, cle=None):
+        if isinstance(x, str):
+            if cle != "url":
+                out.append(x)
+        elif isinstance(x, dict):
+            for k, v in x.items():
+                descendre(k)
+                descendre(v, k)
+        elif isinstance(x, (list, tuple)):
+            for v in x:
+                descendre(v, cle)
+    descendre(F.referentiel())
+    return out
+
+
+def test_le_module_ne_nomme_aucune_entreprise_ni_personne():
+    fautes = []
+    for t in _textes_rendus():
+        for nom in _NOMS_INTERDITS:
+            if nom in t:
+                fautes.append("« %s » dans : %s" % (nom, t[:110]))
+    assert not fautes, ("le module rend des noms qu'il ne doit plus porter :\n  %s"
+                        % "\n  ".join(sorted(set(fautes))[:12]))
+
+
+def test_la_page_le_script_et_le_menu_ne_nomment_personne_non_plus():
+    """Le module peut être propre et la page porter encore les noms : ce sont
+    deux exemplaires, et c'est celui qu'on oublie qui reste."""
+    fautes = []
+    for nom_fichier in ("ingenierie-ia-factory.html", "ia-factory.js"):
+        src = _src(nom_fichier)
+        # Les adresses sont hors règle, ici aussi : on retire les attributs href
+        # et les chaînes d'URL avant de chercher.
+        sans_url = re.sub(r'href="[^"]*"', "", src)
+        sans_url = re.sub(r'https?://\S+', "", sans_url)
+        for nom in _NOMS_INTERDITS:
+            if nom in sans_url:
+                fautes.append("%s : « %s »" % (nom_fichier, nom))
+    # Le menu et le parcours : uniquement les entrées de CETTE page.
+    for nom_fichier, motif in (("nav.js", r'[^\n]*ingenierie-ia-factory[^\n]*'),
+                               ("parcours.js", r'[^\n]*ingenierie-ia-factory[^\n]*')):
+        for ligne in re.findall(motif, _src(nom_fichier)):
+            for nom in _NOMS_INTERDITS:
+                if nom in ligne:
+                    fautes.append("%s : « %s » dans %s" % (nom_fichier, nom, ligne[:70]))
+    assert not fautes, "des noms subsistent hors du module :\n  %s" % "\n  ".join(sorted(set(fautes)))
+
+
+def test_les_adresses_restent_joignables_et_l_arbitrage_est_ecrit():
+    """LA CONTREPARTIE DE L'ANONYMAT, ET ELLE DOIT ÊTRE DITE. Anonymiser les
+    adresses rendrait les sources invérifiables. La règle exige donc que les
+    adresses subsistent ET que le module écrive pourquoi."""
+    assert F.couverture_sources()["avec_adresse"] >= 30, "trop peu d'adresses conservées"
+    lim = F.referentiel()["limite"] + F.couverture_sources()["limite"]
+    assert "adresse" in lim and ("nomme" in lim or "nature" in lim), (
+        "l'arbitrage entre anonymat des éditeurs et adresses joignables n'est pas écrit")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  7. LES SECTEURS
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_les_quatre_secteurs_demandes_existent_et_sont_instruits():
+    assert set(F.SECTEURS) == {"banque", "assurance", "marches", "nis2"}
+    for cle, s in F.SECTEURS.items():
+        assert s["resume"].strip() and s["autorites"].strip() and s["propre"].strip(), cle
+        assert s["textes"], cle
+        for t in s["textes"]:
+            assert t in F.SOURCES, (cle, t)
+        assert s["cas_usage"], cle
+        for c in s["cas_usage"]:
+            assert c["classe"] in F.CLASSES_CAS, (cle, c["classe"])
+            assert c["pourquoi"].strip(), (cle, c["nom"])
+        for j in s["jalons"]:
+            assert j["source"] in F.SOURCES, (cle, j["source"])
+
+
+def test_choisir_un_secteur_ajoute_des_postes_et_des_quantites():
+    """UN SECTEUR QUI N'AJOUTERAIT RIEN NE SERAIT QU'UNE ÉTIQUETTE."""
+    base = F.chiffrer({}, {}, None, None)["n_postes"]
+    for cle in F.SECTEURS:
+        n = F.chiffrer({}, {}, None, cle)["n_postes"]
+        assert n > base, "le secteur %s n'ajoute aucun poste" % cle
+        q = F.quantites_pour(cle)
+        assert len(q) > len(F.QUANTITES), "le secteur %s n'ajoute aucune quantité" % cle
+
+
+def test_sans_secteur_l_etude_se_declare_incomplete():
+    c = F.chiffrer({}, {}, None, None)
+    assert c["secteur"] is None
+    assert any("Aucun secteur" in a for a in c["alertes"])
+    # Un secteur inconnu ne fait pas tomber : il est ignoré ET signalé.
+    inc = F.chiffrer({}, {}, None, "poterie")
+    assert inc["secteur"] is None and any("Aucun secteur" in a for a in inc["alertes"])
+
+
+def test_chaque_poste_sectoriel_consomme_un_prix_du_client():
+    for p in F.POSTES_SECTEUR:
+        assert any(k in F.PRIX for k in p["besoin"]), p["cle"]
+        assert p["secteurs"] and all(x in F.SECTEURS for x in p["secteurs"]), p["cle"]
+        assert p.get("couvre", "").strip() and p.get("exclut", "").strip(), (
+            "le poste sectoriel %s ne dit pas ce qu'il couvre ET ce qu'il exclut" % p["cle"])
+
+
+def test_chaque_poste_dit_ce_qu_il_couvre_et_ce_qu_il_exclut():
+    """« Exclut » est la ligne qui empêche de compter deux fois ou d'oublier."""
+    for p in F.POSTES:
+        assert p.get("couvre", "").strip(), p["cle"]
+        assert p.get("exclut", "").strip(), p["cle"]
+
+
+def test_les_jalons_d_un_secteur_se_fondent_et_se_trient():
+    for cle, s in F.SECTEURS.items():
+        j = F.jalons_pour(cle)
+        assert len(j) == len(F.JALONS_REGLEMENTAIRES) + len(s["jalons"]), cle
+        assert [x["date"] for x in j] == sorted(x["date"] for x in j), cle
+    # L'assurance porte Solvabilité II révisée ; la banque non.
+    assert any(x["date"] == "2027-01-30" for x in F.jalons_pour("assurance"))
+    assert not any(x["date"] == "2027-01-30" for x in F.jalons_pour("banque"))
+    # NIS 2 porte ses deux dates de 2024 en tête.
+    assert [x["date"] for x in F.jalons_pour("nis2")][:2] == ["2024-10-17", "2024-10-18"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  8. LE PARCOURS GUIDÉ ET LES PHASES DÉTAILLÉES
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_chaque_role_du_parcours_vise_des_sections_qui_existent(connecte):
+    page = connecte.get(URL).get_data(as_text=True)
+    sections = set(re.findall(r'id="(s-[a-z-]+)"', page))
+    assert sections, "la page ne porte aucune section"
+    for r in F.PARCOURS:
+        assert len(r["etapes"]) >= 3, "le rôle %s n'a que %d étape(s)" % (r["id"], len(r["etapes"]))
+        assert r["nom"].strip() and r["vient_pour"].strip(), r["id"]
+        for e in r["etapes"]:
+            assert e["section"] in sections, (
+                "le rôle %s vise la section %s, absente de la page" % (r["id"], e["section"]))
+            assert e["faire"].strip() and e["obtenir"].strip(), (r["id"], e["section"])
+
+
+def test_le_parcours_couvre_les_sections_qui_portent_une_decision():
+    """UN PARCOURS QUI IGNORE UNE SECTION LA REND INVISIBLE à qui s'y fie."""
+    vises = {e["section"] for r in F.PARCOURS for e in r["etapes"]}
+    for attendue in ("s-secteur", "s-saisie", "s-chiffrage", "s-planning",
+                     "s-changement", "s-migration", "s-conformite", "s-sources"):
+        assert attendue in vises, "aucun rôle ne mène à %s" % attendue
+
+
+def test_le_script_ne_recopie_ni_les_roles_ni_les_secteurs():
+    js = _src("ia-factory.js")
+    for r in F.PARCOURS:
+        assert r["nom"] not in js, "le script recopie le rôle « %s »" % r["nom"]
+    for cle, s in F.SECTEURS.items():
+        assert s["nom"] not in js, "le script recopie le secteur « %s »" % s["nom"]
+    assert "REF.parcours" in js and "REF.secteurs" in js, (
+        "le script doit LIRE les rôles et les secteurs servis par l'API")
+
+
+def test_chaque_phase_dit_son_entree_ses_activites_et_sa_sortie():
+    for ph in F.PHASES:
+        for champ in ("entree", "sortie"):
+            assert ph[champ].strip(), (ph["cle"], champ)
+        assert len(ph["activites"]) >= 3, ph["cle"]
+        assert ph["livrables"] and ph["jalon"].strip(), ph["cle"]
+    pl = F.planning({}, "2026-10-01")
+    assert all(p["entree"] and p["sortie"] and p["activites"] for p in pl["phases"])
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  9. LE CENTRAGE — lu dans la feuille, pas affirmé
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_les_sections_sont_centrees_et_le_texte_suivi_reste_aligne():
+    """CE QUI EST CENTRÉ, ET CE QUI NE L'EST PAS. Le bloc est centré dans la
+    colonne ; le TEXTE des paragraphes reste aligné à gauche. Centrer les
+    lignes d'un paragraphe de dix lignes déplace le point de retour de l'œil à
+    chaque ligne — c'est un effet connu, pas une préférence. La règle tient
+    les deux moitiés de cet arbitrage : sans la seconde, « centrer » serait
+    compris comme « centrer le texte », et la lecture suivie en pâtirait."""
+    css = _src("ingenierie-ia-factory.html")
+    bloc = re.search(r"\.iaf-sec\{([^}]*)\}", css)
+    assert bloc and "margin:34px auto" in bloc.group(1), (
+        "les sections ne sont pas centrées dans la colonne")
+    para = re.search(r"\.iaf-sec p\{([^}]*)\}", css)
+    assert para and "margin-inline:auto" in para.group(1), (
+        "les paragraphes ne sont pas centrés dans leur section")
+    assert "text-align:center" not in (para.group(1) if para else ""), (
+        "le TEXTE des paragraphes ne doit pas être centré : la lecture suivie en pâtit")
+    titre = re.search(r"\.iaf-sec h2\{([^}]*)\}", css)
+    assert titre and "text-align:center" in titre.group(1), (
+        "les titres, eux, doivent être centrés")
