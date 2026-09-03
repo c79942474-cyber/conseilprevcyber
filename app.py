@@ -934,6 +934,7 @@ _ASSETS_VERSIONNES = (
     "datacenter.js", "dc-profil.js", "markdown.js", "ingenierie-dc.js",
     "decarbonation-dc.js", "strategie-dd.js", "equipements-it.js", "emblem.svg",
     "ia-factory.js",
+    "impact-client.js",
 )
 _CC_IMMUABLE = "public, max-age=31536000, immutable"
 
@@ -5756,6 +5757,16 @@ def ia_factory_js():
                        mimetype="text/javascript; charset=utf-8")
 
 
+@app.route("/impact-client.js")
+def impact_client_js():
+    """La carte « Client Impact » de /etudes-de-cas.
+
+    Route publique, aucun chiffre dans le fichier : il ne fait que peindre ce
+    que /api/impact-client fait calculer par le moteur de /datacenter."""
+    return _serve_fast("impact-client.js", _CC_ASSET,
+                       mimetype="text/javascript; charset=utf-8")
+
+
 @app.route("/decarbonation-dc.js")
 def decarbonation_dc_js():
     """Interface de la plateforme de decarbonation. Aucune donnee dans le
@@ -10331,6 +10342,30 @@ def api_base_carbone():
     except Exception as e:  # noqa: BLE001
         app.logger.error("BASE_CARBONE_ERR: %s", e)
         return jsonify(ok=False, erreur="base indisponible"), 503
+
+
+@app.route("/api/impact-client", methods=["GET"])
+def api_impact_client():
+    """L'étude de cas « Client Impact », calculée à chaque appel.
+
+    POURQUOI ELLE SE CALCULE AU LIEU DE SE LIRE. Les chiffres de cette
+    démonstration sortent du moteur de /datacenter. Les figer dans la page les
+    ferait mentir au premier réglage du moteur — une intensité de réseau mise à
+    jour, un facteur incorporé révisé — et personne ne le verrait : la carte
+    continuerait d'afficher l'ancien écart, avec l'assurance d'un chiffre.
+
+    OUVERTE, ET DÉCLARÉE TELLE. La page /etudes-de-cas est ouverte ; fermer ce
+    qui la nourrit afficherait une carte vide et ferait conclure à une panne.
+    Elle ne sert aucune donnée de client : trois configurations types dans un
+    moteur déjà public.
+    """
+    try:
+        import impact_client
+        return jsonify(ok=True, etude=impact_client.comparer())
+    except Exception as e:  # noqa: BLE001
+        app.logger.error("IMPACT_CLIENT_ERR: %s", e)
+        return jsonify(ok=False,
+                       erreur="demonstration indisponible"), 503
 
 
 @app.route("/api/conformite", methods=["GET"])

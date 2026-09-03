@@ -37,6 +37,44 @@
   .case.e7{--cc:linear-gradient(90deg,var(--amber),var(--cyan))}
   .case.e8{--cc:linear-gradient(90deg,var(--cyan),var(--violet))}
   .case.e9{--cc:linear-gradient(90deg,var(--violet),var(--amber))}
+  .case.e10{--cc:linear-gradient(90deg,var(--teal),var(--amber))}
+  /* La fiche chiffrée tient sur toute la largeur : un tableau de comparaison
+     serré dans une demi-colonne devient illisible avant d'être informatif. */
+  .ci-large{grid-column:1/-1}
+  /* CE BADGE DIT L'ORIGINE DES NOMBRES, et il est distinct de « cas type » :
+     l'un dit qu'aucun client n'est revendiqué, l'autre que les chiffres
+     sortent d'un moteur de calcul et non d'une mesure de terrain. Les
+     confondre laisserait lire une démonstration comme un relevé. */
+  .calc{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--teal);border:1px solid rgba(45,212,191,.45);background:rgba(45,212,191,.10);
+    border-radius:999px;padding:3px 10px;vertical-align:middle}
+  .ci-serv{margin:12px 0 4px;padding:9px 13px;border:1px dashed var(--line);border-radius:9px;
+    font-size:12px;line-height:1.7;color:var(--muted)}
+  .ci-serv i{font-style:normal;color:var(--muted2)}
+  .ci-t{width:100%;border-collapse:collapse;margin:12px 0 4px;font-size:13px}
+  .ci-t th,.ci-t td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;
+    font-variant-numeric:tabular-nums}
+  .ci-t thead th{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;
+    color:var(--cyan);text-align:right;vertical-align:bottom}
+  .ci-t thead th small{display:block;font-family:inherit;font-size:9.5px;letter-spacing:.02em;
+    text-transform:none;color:var(--muted2);font-weight:400;margin-top:2px}
+  .ci-t tbody th{text-align:left;font-weight:600;color:var(--ink);font-size:12.5px}
+  .ci-t td{color:var(--muted);cursor:help}
+  .ci-t td small{color:var(--muted2);font-size:10.5px}
+  .ci-dec{margin:10px 0 0;padding:10px 14px;border-radius:9px;font-size:12.5px;line-height:1.7;
+    background:rgba(34,211,238,.07);border:1px solid rgba(34,211,238,.25);color:var(--muted)}
+  .ci-dec b{color:var(--ink)}
+  .ci-mal{background:rgba(240,120,110,.08);border-color:rgba(240,120,110,.35)}
+  .ci-ens{margin-top:12px}
+  .ci-res{margin-top:12px;font-size:12px;color:var(--muted2)}
+  .ci-res summary{cursor:pointer;font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--amber)}
+  .ci-res ul{margin:8px 0 0;padding-left:18px;line-height:1.7}
+  .ci-res li{padding:3px 0}
+  .ci-nat{margin-top:12px;font-size:11.5px;line-height:1.7;color:var(--muted2);
+    border-left:2px solid var(--line);padding-left:11px}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+    clip:rect(0,0,0,0);white-space:nowrap;border:0}
   .anon{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;
     color:var(--muted2);border:1px dashed var(--line);border-radius:999px;padding:3px 10px;vertical-align:middle}
   /* CE BADGE N'EST PAS DÉCORATIF. La page s'intitule « Références & missions » :
@@ -90,11 +128,18 @@
       <!-- CETTE PAGE PORTE DEUX NATURES DE FICHES, ET LE LECTEUR DOIT LE SAVOIR
            AVANT DE LES LIRE. Un cadre d'intervention publié parmi des missions
            réelles, sans que la différence soit annoncée en tête, laisserait
-           croire à une référence qui n'existe pas. -->
+           croire à une référence qui n'existe pas.
+
+           ET DEPUIS QU'UNE FICHE PORTE DES CHIFFRES, IL FAUT DIRE D'OÙ ILS
+           VIENNENT. Un cas type sans résultat ne trompe personne ; un cas type
+           AVEC des nombres serait lu comme une mesure de terrain si rien ne
+           disait qu'ils sortent d'un moteur de calcul public. -->
       <p class="note" style="margin-top:12px;font-size:13px;color:var(--muted2)">Deux natures de fiches cohabitent ici, et
         chacune le dit&nbsp;: les <strong>missions</strong> relatent un travail conduit&nbsp;; les fiches marquées
         <span class="typ">cas type</span> décrivent une <strong>démarche</strong>, sans revendiquer de client ni de
-        résultat.</p>
+        résultat. Lorsqu'un cas type porte des nombres, il porte aussi la marque
+        <span class="calc">chiffres calculés</span>&nbsp;: ils sortent du moteur public de
+        <a href="/datacenter">/datacenter</a>, avec leur formule et leur source — ce ne sont pas des mesures de terrain.</p>
     </section>
 
     <section class="section" style="padding-top:24px">
@@ -226,6 +271,57 @@
           <div class="tags"><span>IEC 62443‑3‑2</span><span>SL‑T</span><span>NIS2</span><span>BDEW · EnWG</span></div>
         </div>
 
+        <!-- ═══════════════════════════════════════════════════════════════
+             CLIENT IMPACT — la seule fiche de cette page qui porte des
+             NOMBRES sans porter de client.
+
+             POURQUOI ELLE EXISTE. « Deux centres de données rendant le même
+             service peuvent afficher des empreintes très différentes » est une
+             phrase que tout le monde signe et que personne ne chiffre. Ici
+             elle est chiffrée — et le chiffre n'est écrit NULLE PART dans
+             cette page : il est calculé à chaque affichage par le moteur de
+             /datacenter, celui qui rend pour chaque valeur sa formule, sa
+             source normative et son incertitude.
+
+             CE QUE LE HTML PORTE, ET CE QUE LE SCRIPT AJOUTE. Le propos est
+             écrit ici, en toutes lettres. Les nombres viennent de
+             /api/impact-client. Si l'interface ne répond pas, le lecteur perd
+             les nombres et garde le propos : jamais un bloc vide.
+             ═══════════════════════════════════════════════════════════════ -->
+        <div class="case e10 ci-large" id="cas-impact-client">
+          <div class="case-top">
+            <span class="case-co">Client Impact</span>
+            <span class="case-sec">Centres de données
+              <span class="typ">cas type</span>
+              <span class="calc">chiffres calculés</span></span>
+          </div>
+          <div class="case-role">Empreinte comparée à service rendu identique — ISO/IEC&nbsp;30134 · EN&nbsp;50600‑4 · périmètres GHG&nbsp;Protocol</div>
+          <p>Deux centres de données qui rendent <strong>exactement le même service</strong> — même
+          puissance informatique, même taux de charge, même parc de serveurs, même disponibilité —
+          peuvent afficher des empreintes qui n'ont rien à voir. Ce n'est pas une question de
+          performance d'exploitation&nbsp;: <strong>l'essentiel se décide avant la première machine</strong>,
+          au choix du terrain et de la famille de refroidissement.</p>
+          <ul>
+            <li><strong>Ce que le PUE ne dit pas</strong> — il mesure le rendement de
+            l'infrastructure, pas ce qu'émet le kilowattheure qu'elle appelle. Un PUE
+            excellent sur un réseau carboné agit sur le petit facteur des deux.</li>
+            <li><strong>Ce que l'exploitation ne dit pas</strong> — le carbone incorporé des
+            serveurs est identique des deux côtés et ne se déplace pas. Il devient
+            majoritaire dès que l'exploitation baisse, et aucun indicateur
+            d'exploitation ne le voit.</li>
+            <li><strong>Ce que le périmètre change</strong> — le même site, la même année,
+            les mêmes électrons publient deux empreintes également régulières selon
+            qu'on retient le réseau réel ou les contrats d'origine. Les deux sont
+            exactes&nbsp;; elles ne répondent pas à la même question.</li>
+          </ul>
+          <!-- Rempli par /impact-client.js à partir de /api/impact-client. -->
+          <div id="ci-calcul"></div>
+          <p class="muted" style="font-size:12.5px;margin-top:10px">Le moteur qui produit ces
+          chiffres est public&nbsp;: <a href="/datacenter">/datacenter</a> — chaque valeur y porte sa
+          formule, sa source et son incertitude.</p>
+          <div class="tags"><span>PUE · WUE · ERF</span><span>ISO/IEC 30134</span><span>EN 50600-4</span><span>Carbone incorporé</span><span>Scope 2 localisé / marché</span></div>
+        </div>
+
       </div>
 
       <div class="divider"></div>
@@ -300,6 +396,7 @@
   </div>
 </footer>
   <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+  <script src="/impact-client.js" defer></script>
   <script src="/nav.js" defer></script>
   <script src="/parcours.js" defer></script>
 </body>

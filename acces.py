@@ -167,6 +167,13 @@ API_OUVERTES = {
                             "doit pouvoir dire ce qu'elle vend. Ce sont les "
                             "entrées du tiroir, que tout visiteur voit déjà",
     "/api/veille": "nourrit /veille, en accès direct",
+    "/api/impact-client": "nourrit l'étude de cas « Client Impact » de "
+                          "/etudes-de-cas, page ouverte. Elle ne sert AUCUNE "
+                          "donnée de client : trois configurations types "
+                          "passées dans le moteur déjà public de /datacenter. "
+                          "La fermer afficherait une carte vide sur une page "
+                          "ouverte, et le visiteur conclurait que le site est "
+                          "cassé",
 
     # ── LES INTERFACES DES PAGES OUVERTES LE 2 SEPTEMBRE 2026 ──────────────
     # OUVRIR UNE PAGE SANS OUVRIR CE QUI LA NOURRIT NE L'OUVRE PAS : elle
