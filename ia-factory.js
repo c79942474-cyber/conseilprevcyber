@@ -240,26 +240,70 @@ function demander(url, options, delai) {
      systèmes à unifier, un horizon en années, une fraction d'effectif. Jamais
      sur un prix ni sur une charge : proposer « 1,5 ETP par cas » installerait
      une norme inventée, ce que ce module refuse partout ailleurs.
-     C'est un `datalist` et non un `select` : il suggère sans contraindre, et
-     la valeur exacte du client reste saisissable. */
+
+     UN VRAI `select`, ET NON UN `datalist` — LA PREMIÈRE VERSION NE SE VOYAIT
+     PAS. Sur un `<input type="number">`, aucun navigateur courant n'affiche
+     d'indicateur de liste : les quatre listes étaient dans le document et
+     l'utilisateur ne voyait RIEN. Une commande invisible n'est pas une
+     commande, et ma règle était verte parce qu'elle vérifiait que le module
+     DÉCLARE des choix, jamais qu'on en VOIE un.
+
+     LA SAISIE LIBRE RESTE POSSIBLE, et c'est la condition pour qu'un `select`
+     soit acceptable ici : la dernière option ouvre le champ numérique. Sans
+     cette porte, la liste cesserait de suggérer pour contraindre — et le
+     client ne pourrait plus dire sa valeur exacte. */
+  var AUTRE = "__autre";
+  /* L'option porte le LIBELLÉ ET LA VALEUR. Le libellé seul cacherait le
+     nombre qui part au chiffrage — or le champ numérique est masqué dès qu'on
+     choisit, et un client doit pouvoir vérifier que « un quart » vaut bien
+     25 %. La valeur nue, elle, ne dit pas ce qu'elle signifie. */
+  function optionLisible(v, unite) {
+    return unite === "part" ? nombre(v * 100, 0) + " %" : nombre(v, 2) + " " + unite;
+  }
   function champs(dict, prefixe) {
     var h = "";
     Object.keys(dict).forEach(function (k) {
-      var d = dict[k], lid = "dl-" + prefixe + "-" + k, liste = "";
-      if (d.choix && d.choix.length) {
-        liste = '<datalist id="' + lid + '">' + d.choix.map(function (c) {
-          return '<option value="' + esc(c[0]) + '" label="' + esc(c[1]) + '">' + esc(c[1]) + "</option>";
-        }).join("") + "</datalist>";
-      }
-      h += '<label class="iaf-champ"><span class="iaf-nom">' + esc(d.nom)
+      var d = dict[k], choix = (d.choix && d.choix.length) ? d.choix : null;
+      var tete = '<label class="iaf-champ"><span class="iaf-nom">' + esc(d.nom)
         + ' <small>(' + esc(d.unite) + ')</small>' + bulle(d.ou, "Où trouver « " + d.nom + " »")
-        + "</span>"
-        + '<input type="number" step="any" min="0" inputmode="decimal" data-cle="' + esc(k)
+        + "</span>";
+      var champ = '<input type="number" step="any" min="0" inputmode="decimal" data-cle="' + esc(k)
         + '" data-famille="' + prefixe + '" placeholder="non renseigné"'
-        + (liste ? ' list="' + lid + '"' : "") + ">" + liste
-        + '<span class="iaf-ou">' + esc(d.ou) + "</span></label>";
+        + (choix ? ' hidden' : "") + ">";
+      var liste = "";
+      if (choix) {
+        liste = '<select class="iaf-choix" data-choix="' + esc(k) + '">'
+          + '<option value="">— non renseigné —</option>'
+          + choix.map(function (c) {
+              return '<option value="' + esc(c[0]) + '">' + esc(c[1]) + " — "
+                + esc(optionLisible(c[0], d.unite)) + "</option>";
+            }).join("")
+          + '<option value="' + AUTRE + '">Autre valeur…</option></select>';
+      }
+      h += tete + liste + champ + '<span class="iaf-ou">' + esc(d.ou) + "</span></label>";
     });
     return h;
+  }
+
+  /* Le champ numérique reste le SEUL porteur de la valeur : `lire()` ne
+     regarde que lui. La liste ne fait que le renseigner — deux porteurs
+     dériveraient, et c'est celui qu'on oublie qui partirait au serveur. */
+  function brancherChoix() {
+    document.querySelectorAll("[data-choix]").forEach(function (sel) {
+      sel.addEventListener("change", function () {
+        var champ = sel.parentNode.querySelector("input[data-cle]");
+        if (!champ) return;
+        if (sel.value === AUTRE) {
+          champ.hidden = false;
+          champ.value = "";
+          champ.focus();
+        } else {
+          champ.hidden = true;
+          champ.value = sel.value;
+        }
+        champ.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    });
   }
   function lire(famille) {
     var out = {};
@@ -281,8 +325,19 @@ function demander(url, options, delai) {
     });
     $("iaf-q").innerHTML = champs(dict, "q");
     document.querySelectorAll('input[data-famille="q"]').forEach(function (i) {
-      if (garde[i.dataset.cle] != null) i.value = garde[i.dataset.cle];
+      if (garde[i.dataset.cle] == null) return;
+      i.value = garde[i.dataset.cle];
+      /* Une valeur reprise doit se retrouver DANS la liste si elle y figure,
+         sinon la liste afficherait « non renseigné » sur un champ rempli. */
+      var sel = i.parentNode.querySelector("[data-choix]");
+      if (!sel) return;
+      var connue = Array.prototype.some.call(sel.options, function (o) {
+        return o.value !== "" && o.value !== AUTRE && +o.value === +i.value;
+      });
+      if (connue) { sel.value = String(+i.value); i.hidden = true; }
+      else { sel.value = AUTRE; i.hidden = false; }
     });
+    brancherChoix();
   }
 
   /* ── LES SECTEURS ─────────────────────────────────────────────────────── */

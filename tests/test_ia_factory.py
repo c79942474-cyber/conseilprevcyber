@@ -24,6 +24,7 @@ import io
 import json
 import os
 import re
+import subprocess
 import sys
 from datetime import date
 
@@ -709,6 +710,30 @@ def test_un_bloc_LECTURE_ne_pretend_pas_etre_mesure():
         "croire à une vérification")
 
 
+def _champs_rendus(dict_champs):
+    """LE HTML RÉELLEMENT PRODUIT, en exécutant `champs()` TELLE QU'ELLE EST
+    SERVIE. Chercher « <select » dans le fichier serait vert pour un select
+    mort dans un commentaire, ou pour du code que la page n'atteint jamais.
+    On extrait la fermeture du script, on l'évalue, on appelle la fonction, et
+    on lit ce qu'elle rend — comme le navigateur.
+
+    Rendu : {clé: fragment HTML de ce champ}."""
+    src = _src("ia-factory.js")
+    ancre = "\n(function () {\n"           # en colonne 0 : la fermeture de page
+    corps = src[src.index(ancre) + len(ancre):src.index("\n  function lire(")]
+    prog = corps + ("\nconst d = JSON.parse(process.env.IAF_CHAMPS);"
+                    "\nprocess.stdout.write(champs(d, 'q'));\n")
+    env = dict(os.environ, IAF_CHAMPS=json.dumps(dict_champs))
+    out = subprocess.run(["node"], input=prog, capture_output=True, text=True,
+                         timeout=60, env=env)
+    assert out.returncode == 0, out.stderr
+    morceaux = out.stdout.split('<label class="iaf-champ">')[1:]
+    assert len(morceaux) == len(dict_champs), (
+        "champs() n'a pas rendu un champ par entrée : %d pour %d"
+        % (len(morceaux), len(dict_champs)))
+    return dict(zip(dict_champs.keys(), morceaux))
+
+
 def test_les_listes_deroulantes_n_inventent_aucune_norme():
     """LA LIGNE À NE PAS FRANCHIR. Une liste de choix sur un PRIX, ou sur une
     charge (« 1,5 ETP par cas »), installerait une norme inventée — exactement
@@ -720,13 +745,124 @@ def test_les_listes_deroulantes_n_inventent_aucune_norme():
             "le prix « %s » propose des valeurs : ce module ne propose aucun prix" % cle)
     autorises = {"n_si_source", "duree_mois", "part_formes", "part_appels_ia"}
     avec = {k for k, v in F.QUANTITES.items() if v.get("choix")}
-    assert avec <= autorises, (
-        "des quantités proposent des valeurs sans que l'énumération soit "
-        "structurelle : %s" % sorted(avec - autorises))
-    assert avec, "aucune liste déroulante : la demande n'est pas servie"
+    # L'ÉGALITÉ, ET NON L'INCLUSION. Avec « <= », retirer les choix d'UNE des
+    # quatre quantités survivait à la batterie : il restait des listes, la
+    # règle se taisait, et une commande promise avait disparu sans bruit. Les
+    # quatre énumérations sont une décision écrite ; elle se garde dans les
+    # deux sens.
+    assert avec == autorises, (
+        "les quantités à liste ne sont plus les quatre énumérations "
+        "structurelles décidées : en trop %s, manquantes %s"
+        % (sorted(avec - autorises) or "—", sorted(autorises - avec) or "—"))
     for k in avec:
         for val, libelle in F.QUANTITES[k]["choix"]:
             assert isinstance(val, (int, float)) and str(libelle).strip(), (k, val)
+
+
+def test_une_liste_declaree_est_une_liste_QU_ON_VOIT():
+    """CE QUE CETTE RÈGLE A COÛTÉ. La première version posait un `datalist` sur
+    l'`<input type="number">`. Les quatre listes étaient bien dans le document,
+    et AUCUN navigateur courant n'affiche d'indicateur de liste sur un champ
+    numérique : l'utilisateur ne voyait rien, et l'a dit. Ma règle, elle, était
+    verte — parce qu'elle vérifiait que le module DÉCLARE des choix, jamais
+    qu'on en VOIE un. Une règle qui passe pour une raison sans rapport avec ce
+    qu'elle prétend.
+
+    Elle éprouve donc quatre propriétés du HTML RÉELLEMENT RENDU :
+      1. un champ à choix rend un `select` — un élément que le navigateur
+         dessine de lui-même, et non une suggestion facultative ;
+      2. il rend UNE option par choix, plus le vide, plus une SORTIE LIBRE :
+         sans cette porte, la liste cesserait de suggérer pour contraindre, et
+         le client ne pourrait plus dire sa valeur exacte ;
+      3. le champ numérique est alors CACHÉ : deux commandes visibles pour une
+         seule valeur, c'est celle qu'on oublie qui part au serveur ;
+      4. un champ sans choix ne rend AUCUNE liste et reste, lui, visible."""
+    echantillon = dict(F.QUANTITES)
+    rendus = _champs_rendus(echantillon)
+    assert "datalist" not in "".join(rendus.values()), (
+        "un datalist est revenu : sur un champ numérique, il ne se voit pas")
+
+    avec = sorted(k for k, v in F.QUANTITES.items() if v.get("choix"))
+    sans = sorted(k for k, v in F.QUANTITES.items() if not v.get("choix"))
+    assert avec and sans, "l'échantillon ne permet pas de comparer"
+
+    for k in avec:
+        h = rendus[k]
+        assert "<select" in h and "</select>" in h, (
+            "le champ « %s » déclare des choix et ne rend pas de liste visible" % k)
+        options = re.findall(r"<option value=\"([^\"]*)\"[^>]*>([^<]*)</option>", h)
+        assert len(options) == len(F.QUANTITES[k]["choix"]) + 2, (
+            "« %s » : %d options pour %d choix + le vide + la sortie libre"
+            % (k, len(options), len(F.QUANTITES[k]["choix"])))
+        valeurs = [v for v, _ in options]
+        assert valeurs[0] == "", "la liste de « %s » n'offre pas de retour au vide" % k
+        libre = [t for v, t in options if v and not re.match(r"^-?[\d.]+$", v)]
+        assert libre, (
+            "« %s » : la liste n'offre aucune SORTIE LIBRE — elle contraindrait "
+            "le client à une valeur ronde au lieu de la sienne" % k)
+        for val, libelle in F.QUANTITES[k]["choix"]:
+            chiffrees = [x for x, _ in options if re.match(r"^-?[\d.]+$", x or "")]
+            assert any(float(x) == float(val) for x in chiffrees), (
+                "« %s » : le choix %r du module n'est pas dans la liste" % (k, val))
+            textes = [t for _, t in options if libelle in t]
+            assert textes, (
+                "« %s » : le choix %r est rendu sans son libellé — une valeur "
+                "nue ne dit pas ce qu'elle signifie" % (k, val))
+            # ET LA VALEUR EN CHIFFRES, DANS L'UNITÉ DU CHAMP. Le champ
+            # numérique est MASQUÉ dès qu'on choisit : l'option est alors le
+            # seul endroit où le client peut voir que « un quart » vaut 25 %.
+            # Un libellé seul survivait à la mutation ; il ne survit plus.
+            unite = F.QUANTITES[k]["unite"]
+            motif = r"([\d\s.,\u202f\u00a0]+)\s*%s" % ("%" if unite == "part"
+                                                        else re.escape(unite))
+            m = re.search(motif, textes[0])
+            assert m, ("« %s » : l'option %r ne dit pas la valeur dans son unité "
+                       "(%s)" % (k, textes[0], unite))
+            lu = float(re.sub(r"[\s\u202f\u00a0]", "", m.group(1)).replace(",", "."))
+            attendu = float(val) * (100 if unite == "part" else 1)
+            assert abs(lu - attendu) < 1e-6, (
+                "« %s » : l'option affiche %s et le chiffrage recevra %r"
+                % (k, m.group(0).strip(), val))
+        entree = re.search(r"<input[^>]*data-cle=\"%s\"[^>]*>" % re.escape(k), h)
+        assert entree and " hidden" in entree.group(0), (
+            "« %s » : la liste ET le champ sont visibles ensemble — deux "
+            "commandes pour une valeur" % k)
+
+    for k in sans:
+        h = rendus[k]
+        assert "<select" not in h, (
+            "le champ « %s » ne déclare aucun choix et rend pourtant une liste" % k)
+        entree = re.search(r"<input[^>]*data-cle=\"%s\"[^>]*>" % re.escape(k), h)
+        assert entree and " hidden" not in entree.group(0), (
+            "« %s » : le seul champ de saisie est caché — rien à remplir" % k)
+
+
+def test_la_liste_renseigne_le_champ_et_ne_porte_pas_la_valeur():
+    """UN SEUL PORTEUR DE LA VALEUR. `lire()` ne regarde que les `input` : si la
+    liste portait la valeur de son côté, les deux dériveraient et c'est celui
+    qu'on oublie qui partirait au serveur. La liste doit donc ÉCRIRE dans le
+    champ, et le redessinage doit savoir REVENIR de la valeur vers la liste,
+    sinon un secteur changé afficherait « non renseigné » sur un champ rempli."""
+    js = _src("ia-factory.js")
+    bloc = js[js.index("function brancherChoix("):]
+    bloc = bloc[:bloc.index("\n  }")]
+    assert "champ.value = sel.value" in bloc, (
+        "la liste ne renseigne pas le champ : elle serait décorative")
+    assert "champ.hidden = false" in bloc and "champ.focus()" in bloc, (
+        "la sortie libre n'ouvre pas le champ — l'option serait un cul-de-sac")
+    assert 'dispatchEvent(new Event("input"' in bloc, (
+        "choisir dans la liste ne relance pas le calcul de l'état des blocs")
+    lu = js[js.index("function lire("):]
+    lu = lu[:lu.index("\n  }")]
+    assert "data-choix" not in lu and "select" not in lu, (
+        "lire() regarde la liste : la valeur aurait deux porteurs")
+    red = js[js.index("function redessinerQuantites("):]
+    red = red[:red.index("\n  }")]
+    assert "brancherChoix()" in red, (
+        "les listes redessinées ne sont plus branchées : muettes après un "
+        "changement de secteur")
+    assert "sel.value" in red, (
+        "une valeur reprise ne retrouve pas sa place dans la liste")
 
 
 def test_la_page_encadre_en_bleu_et_passe_au_vert(connecte):

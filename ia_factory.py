@@ -480,7 +480,7 @@ QUANTITES = {
                           "production, pas l'effectif nominal de l'équipe."},
     "n_si_source": {"nom": "Systèmes d'information à unifier", "unite": "SI",
                     "choix": [(1, "Un seul socle, stable"),
-                              (2, "Deux systèmes — migration de cœur en cours"),
+                              (2, "Deux systèmes (migration de cœur en cours)"),
                               (3, "Trois ou plus")],
                     "ou": "Cartographie applicative ; 1 si l'usine se pose sur un socle stable, 2 ou plus "
                           "si elle accompagne une migration de cœur."},
