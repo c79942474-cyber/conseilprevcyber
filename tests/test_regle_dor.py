@@ -138,7 +138,12 @@ def test_la_valeur_exacte_ne_montre_pas_les_bavures_du_binaire():
     """0,1 + 0,2 ne doit pas se lire « 0,30000000000000004 » : cela ferait
     douter d'un calcul juste, ce qui est exactement l'inverse du but."""
     rendu = _formater([["exact", 0.1 + 0.2]])[0]
-    assert rendu.replace(" ", " ") == "0,3", rendu
+    # « 0,30 » et non « 0,3 » : la valeur exacte suit le même plancher de
+    # deux décimales que l'affichage — la même valeur écrite de deux façons
+    # dans la même infobulle ferait douter des deux. Ce qui est interdit
+    # ici, c'est la traîne du binaire, pas le zéro de courtoisie.
+    assert rendu.replace("\u202f", " ") == "0,30", rendu
+    assert "0000" not in rendu, "la bavure du binaire est revenue : %r" % rendu
 
 
 # ── 3. Plus aucun script ne refait son barème ──────────────────────────────
@@ -300,3 +305,206 @@ def test_TOUT_appel_au_module_partage_est_garde(script):
     assert not nus, (
         "%s appelle le module partagé sans garde de contexte : %s"
         % (script, nus[:2]))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  L'ÉQUATION AVEC LES DONNÉES DEDANS — et elle se vérifie
+# ═══════════════════════════════════════════════════════════════════════════
+# CE QUE CETTE PARTIE APPORTE. Les valeurs du moteur portaient leur formule et
+# leurs entrées CÔTE À CÔTE : le lecteur devait faire la substitution de tête.
+# Elle est faite au serveur — « E_total = 6 832,80 × 1,35 = 9 224,28 » — et,
+# parce qu'une équation substituée est de l'arithmétique, ELLE EST CALCULÉE ET
+# COMPARÉE À LA VALEUR. « L'équation décrit le calcul » cesse d'être une
+# affirmation et devient une mesure.
+
+import datacenter as D                                             # noqa: E402
+import formules as F                                               # noqa: E402
+
+PROFIL = {"puissance_it_kw": 1200, "taux_charge": 0.65, "nb_serveurs": 3000,
+          "pays": "PL", "refroidissement": "eau_glacee",
+          "part_evaporative": 0.7, "part_chaleur_reutilisee": 0.4,
+          "temperature_rejet_c": 45}
+
+
+def _tracees(etude=None):
+    e = etude or D.etude(dict(PROFIL))
+    for nom, bloc in e.items():
+        if not isinstance(bloc, dict):
+            continue
+        for cle, t in bloc.items():
+            if isinstance(t, dict) and "valeur" in t:
+                yield "%s.%s" % (nom, cle), t
+
+
+def test_les_deux_formateurs_du_site_disent_la_meme_chose():
+    """DEUX IMPLÉMENTATIONS POUR UNE SEULE RÈGLE, C'EST UN RISQUE : celle du
+    serveur (`formules.fr`) écrit les documents exportés, celle du navigateur
+    (`nombres.js`) écrit l'écran. Le jour où elles divergent, le document ne
+    dit plus ce que la page affiche."""
+    valeurs = [3000, 0, 5857.4178, 13.9806, 1.1489, 0.8573, 12691.884, -42.5,
+               1e6, 0.1 + 0.2, 99.999]
+    py = [F.fr(v) for v in valeurs] + [F.exact(v) for v in valeurs]
+    js = _formater([["fr", v] for v in valeurs] + [["exact", v] for v in valeurs])
+    assert py == js, [(a, b) for a, b in zip(py, js) if a != b]
+
+
+def test_chaque_valeur_tracee_porte_sa_valeur_exacte():
+    """L'affichage est arrondi à deux décimales pour que la ligne se lise ; la
+    valeur entière est là pour qu'elle se vérifie."""
+    n = 0
+    for nom, t in _tracees():
+        assert t.get("exact") is not None, "%s n'a pas de valeur exacte" % nom
+        n += 1
+    assert n >= 20, "trop peu de valeurs tracées pour que la règle mesure"
+
+
+def test_chaque_equation_chiffree_RETOMBE_sur_sa_valeur():
+    """LA RÈGLE REFAIT LE CALCUL. Lire le drapeau `calcul_verifie` serait vert
+    parce que le moteur le dit. On évalue l'équation affichée et on la compare
+    à la valeur — une équation qui ne retombe pas dessus ne décrit pas ce
+    calcul, et serait affichée avec l'assurance d'une preuve."""
+    vus = 0
+    for nom, t in _tracees():
+        if not t.get("calcul"):
+            continue
+        vus += 1
+        vf, retombe, ecart = F.verifier(t["calcul"], t["valeur"])
+        assert vf, "%s : l'équation affichée n'est pas de l'arithmétique" % nom
+        assert retombe, (
+            "%s : l'équation « %s » donne un écart de %.1f %% avec la valeur"
+            % (nom, t["calcul"], (ecart or 0) * 100))
+        assert t.get("calcul_verifie") is True, nom
+    assert vus >= 5, "trop peu d'équations chiffrées pour que la règle mesure"
+
+
+def test_une_equation_qui_ne_retombe_pas_NE_S_AFFICHE_PAS(monkeypatch):
+    """LE TÉMOIN, ET IL EST LE CŒUR DE LA GARANTIE. Une équation à moitié
+    juste, présentée comme une vérification, est pire qu'aucune équation. On
+    fausse le calcul du moteur et on vérifie que l'équation se retire en
+    disant pourquoi."""
+    vraie = D.energie
+
+    def faussee(profil):
+        r = vraie(profil)
+        r["energie_totale_MWh"]["valeur"] *= 1.5
+        return r
+
+    monkeypatch.setattr(D, "energie", faussee)
+    e = D.etude(dict(PROFIL))
+    t = e["energie"]["energie_totale_MWh"]
+    assert t.get("calcul") is None, (
+        "une équation qui ne retombe pas sur sa valeur reste affichée")
+    assert "ne retombe pas" in (t.get("calcul_incomplet") or ""), t
+
+
+def test_une_substitution_incomplete_ne_s_affiche_pas_non_plus():
+    """LA MOITIÉ SUBSTITUÉE DONNE L'ILLUSION D'UNE VÉRIFICATION. Seize valeurs
+    du moteur ont une formule qui NOMME sa grandeur sans que les entrées en
+    portent les termes : elles n'ont pas d'équation chiffrée, et elles le
+    disent au lieu d'en montrer une à trous."""
+    muettes = [(n, t) for n, t in _tracees()
+               if t.get("formule") and not t.get("calcul")]
+    assert muettes, "aucune valeur muette : la règle ne mesure rien"
+    for nom, t in muettes:
+        assert (t.get("calcul_incomplet") or "").strip(), (
+            "%s se tait sans dire pourquoi" % nom)
+
+
+def test_la_substitution_ne_confond_pas_un_symbole_avec_son_prefixe():
+    """« E » NE DOIT PAS REMPLACER LE « E » DE « E_IT » : la substitution
+    prendrait les symboles les plus courts d'abord et rendrait une équation
+    méconnaissable."""
+    # LE PREMIER CAS N'ÉPROUVAIT RIEN : la frontière de mot protège déjà « E »
+    # dans « E_IT », puisque « _ » est un caractère de mot. Trier à l'envers ne
+    # cassait rien, et la mutation survivait. LE VRAI CAS EST CELUI DES
+    # SYMBOLES À ESPACES — et le moteur en a : « taux de charge » contient
+    # « taux », qu'aucune frontière ne sépare.
+    s = F.substituer("X = E_IT × E", {"E_IT (MWh)": 10, "E": 2}, 20)
+    assert s["complet"] and "10" in s["calcul"] and "× 2" in s["calcul"], s
+
+    s = F.substituer("X = taux de charge × taux",
+                     {"taux de charge": 0.65, "taux": 2}, 1.3)
+    assert s["complet"], s
+    assert "0,65" in s["calcul"], (
+        "« taux » a été substitué à l'intérieur de « taux de charge » : %s"
+        % s["calcul"])
+    assert "de charge" not in s["calcul"], (
+        "le symbole long n'a pas été remplacé en entier : %s" % s["calcul"])
+
+
+def test_la_substitution_ne_touche_pas_au_membre_de_gauche():
+    """« 9 224,28 = 6 832,80 × 1,35 » perd le nom de ce qu'on calcule. La
+    grandeur garde son nom, ses termes prennent leurs valeurs."""
+    s = F.substituer("E_total = E_IT × PUE", {"E_IT (MWh)": 10, "PUE": 1.5}, 15)
+    assert s["calcul"].startswith("E_total = "), s["calcul"]
+
+
+def test_l_evaluateur_refuse_tout_ce_qui_n_est_pas_de_l_arithmetique():
+    """L'ÉVALUATION EST FERMÉE PAR CONSTRUCTION : ni nom à résoudre, ni appel
+    possible. Une expression qui n'est pas faite de chiffres et de quatre
+    opérateurs fait renoncer."""
+    for hostile in ("__import__('os').system('id')", "open('/etc/passwd')",
+                    "1+1;print(2)", "a + b", "PUE × 2"):
+        # LE GARDE-FOU EST ÉPROUVÉ POUR LUI-MÊME, et pas seulement le résultat
+        # final : l'évaluation se fait déjà sans aucun nom résoluble, donc ces
+        # expressions rendraient None même sans filtre — la mutation qui le
+        # retirait survivait. On vérifie que le filtre REFUSE, en amont.
+        assert F._en_python(hostile) is None, (
+            "le filtre laisse passer « %s » : il ne reste que le bac à sable"
+            % hostile)
+        assert F.evaluer(hostile) is None, hostile
+    assert abs(F.evaluer("1 200 × 0,65 × 8 760 / 1000") - 6832.8) < 1e-6
+
+
+def test_l_infobulle_RENDUE_porte_reellement_les_cinq_choses():
+    """CHERCHER « v.exact » DANS LA FONCTION NE SUFFIT PAS, et une mutation l'a
+    montré : `if (false) l.push(…)` garde le mot et perd la ligne. On exécute
+    `bulleCalcul` sur une valeur réelle du moteur et on lit ce qu'elle rend."""
+    t = D.etude(dict(PROFIL))["energie"]["energie_totale_MWh"]
+    prog = ('const esc = s => String(s == null ? "" : s);'
+            + "\nconst fr = x => String(x);"
+            + "\n" + _fonction(_src("datacenter.js"), "bulleCalcul")
+            + "\nprocess.stdout.write(bulleCalcul(JSON.parse(process.env.CP_T)));")
+    env = dict(os.environ, CP_T=json.dumps(t))
+    out = subprocess.run(["node"], input=prog, capture_output=True, text=True,
+                         timeout=60, env=env)
+    assert out.returncode == 0, out.stderr
+    h = out.stdout
+    for etiquette in ("Équation", "Avec vos données", "Valeur exacte",
+                      "Incertitude", "Source"):
+        assert etiquette in h, "l'infobulle rendue ne porte pas « %s »" % etiquette
+    assert t["exact"] in h, (
+        "la valeur exacte n'est pas dans l'infobulle rendue")
+    assert t["calcul"] in h, "l'équation chiffrée n'est pas rendue"
+    assert t["source"][:30] in h, "la source n'est pas rendue"
+
+
+def test_l_infobulle_porte_les_cinq_choses_et_s_ouvre_au_clavier():
+    """UNE SEULE QUI MANQUE, et le chiffre redevient un chiffre qu'on croit sur
+    parole. Et une infobulle qui n'existe qu'au passage de la souris exclut
+    ceux qui n'en ont pas."""
+    js = _src("datacenter.js")
+    bloc = _fonction(js, "bulleCalcul")
+    for attendu in ("v.formule", "v.calcul", "v.exact", "v.incertitude",
+                    "v.source"):
+        assert attendu in bloc, (
+            "l'infobulle ne porte pas « %s »" % attendu)
+    assert "v.calcul_incomplet" in bloc, (
+        "l'infobulle ne dit pas pourquoi l'équation manque")
+    h = _src("datacenter.html")
+    assert ".dc-b-h:focus .dc-bulle" in h, (
+        "l'infobulle ne s'ouvre pas au focus : elle exclut le clavier")
+    assert ".dc-b-h:hover .dc-bulle" in h
+    # Le porteur est un BOUTON : un div ne se focalise pas au clavier.
+    assert '<button type="button" class="dc-val-v dc-b-h"' in js, (
+        "la valeur n'est pas un bouton : l'infobulle sera inatteignable")
+    assert 'aria-describedby=' in js and 'role="tooltip"' in js
+
+
+def test_les_entrees_de_l_infobulle_suivent_la_meme_regle_que_l_equation():
+    """« 1200 » et « 0.65 » à côté d'une équation qui écrit « 1 200 » et
+    « 0,65 » : deux écritures du même nombre dans la même infobulle font
+    douter des deux."""
+    bloc = _fonction(_src("datacenter.js"), "bulleCalcul")
+    assert 'typeof x === "number" ? fr(x)' in bloc, (
+        "les entrées de l'infobulle sont rendues brutes")

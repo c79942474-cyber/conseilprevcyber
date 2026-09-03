@@ -726,6 +726,31 @@
     padding:13px 15px;background:rgba(0,0,0,.10)}
   .dc-val-n{font-size:12px;color:var(--muted);line-height:1.45;margin-bottom:7px}
   .dc-val-v{font-size:23px;font-weight:700;color:var(--ink);line-height:1.1}
+  /* L'INFOBULLE DU CALCUL. La valeur devient un bouton : c'est ce qui la rend
+     atteignable au clavier, et une infobulle qu'on ne peut pas ouvrir au
+     clavier n'existe pas pour une partie des lecteurs. */
+  .dc-b-h{background:none;border:0;padding:0;font:inherit;color:inherit;
+    cursor:help;position:relative;text-align:left;display:inline-block}
+  .dc-b-h:focus-visible{outline:2px solid var(--cyan);outline-offset:3px;border-radius:6px}
+  .dc-bulle{position:absolute;left:0;top:calc(100% + 8px);z-index:40;width:min(46ch,84vw);
+    padding:11px 13px;border-radius:10px;border:1px solid var(--line);
+    background:var(--panel);box-shadow:0 12px 34px rgba(0,0,0,.45);
+    font-size:11.5px;line-height:1.65;font-weight:400;color:var(--muted);
+    opacity:0;visibility:hidden;transform:translateY(-4px);
+    transition:opacity .14s,transform .14s,visibility .14s;pointer-events:none}
+  .dc-b-h:hover .dc-bulle,.dc-b-h:focus .dc-bulle,
+  .dc-b-h:focus-visible .dc-bulle{opacity:1;visibility:visible;
+    transform:translateY(0)}
+  .dc-bulle>div{padding:3px 0;border-top:1px solid rgba(154,102,80,.28)}
+  .dc-bulle>div:first-child{border-top:0;padding-top:0}
+  .dc-b-t{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;
+    text-transform:uppercase;color:var(--muted2);margin-bottom:1px}
+  /* L'ÉQUATION CHIFFRÉE EST CE QU'ON RELIT : elle passe en chasse fixe, pour
+     que les nombres s'alignent et que les opérateurs se distinguent. */
+  .dc-b-c{font-family:var(--mono);font-size:11px;color:var(--ink);
+    display:block;word-break:break-word}
+  .dc-b-k{color:#E8C86A;display:block}
+  @media(prefers-reduced-motion:reduce){.dc-bulle{transition:none}}
   .dc-val-u{font-family:var(--mono);font-size:12px;font-weight:400;color:var(--muted2)}
   .dc-val-i{font-family:var(--mono);font-size:11px;color:var(--muted2);margin-top:5px}
   .dc-det{margin-top:9px}

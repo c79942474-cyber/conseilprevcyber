@@ -63,6 +63,9 @@
     if (estEntier(x)) return fr(x);
     var s = parseFloat(x.toPrecision(12)).toString();
     var p = s.split(".");
+    /* AU MOINS DEUX DÉCIMALES, comme l'affichage : « 6 832,8 » à côté de
+       « 6 832,80 » est la même valeur écrite de deux façons. */
+    if (p[1] && p[1].length < 2) p[1] = (p[1] + "00").slice(0, 2);
     var e = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 })
       .format(Math.trunc(Math.abs(x)));
     return (x < 0 ? "-" : "") + e + (p[1] ? "," + p[1] : "");

@@ -2367,6 +2367,48 @@ def avertissements(profil, res):
 #  API PRINCIPALE
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _enrichir(res):
+    """Chaque valeur tracée reçoit son ÉQUATION CHIFFRÉE et sa valeur EXACTE.
+
+    POURQUOI ICI ET PAS DANS LA PAGE. La substitution est une opération sur la
+    formule et ses entrées : faite dans le script, elle dériverait de celle qui
+    sert aux exports, et deux équations pour un même calcul finiraient par ne
+    plus dire la même chose. Elle est faite une fois, au serveur.
+
+    ET ELLE EST VÉRIFIÉE. Une équation substituée est de l'arithmétique : on la
+    calcule et on la compare à la valeur. Celle qui ne retombe pas dessus est
+    marquée — elle ne s'affichera pas. Une équation fausse présentée comme une
+    preuve est pire qu'aucune équation.
+    """
+    import formules
+    for bloc in res.values():
+        if not isinstance(bloc, dict):
+            continue
+        for t in bloc.values():
+            if not isinstance(t, dict) or "valeur" not in t:
+                continue
+            b = formules.bulle(t)
+            if not b:
+                continue
+            t["exact"] = b["exact"]
+            calcul = b["calcul"]
+            if calcul:
+                vf, retombe, ecart = formules.verifier(calcul, t["valeur"])
+                if vf and not retombe:
+                    t["calcul"] = None
+                    t["calcul_incomplet"] = (
+                        "L'équation écrite ne retombe pas sur la valeur "
+                        "calculée (écart de %.1f %%) : elle ne décrit donc pas "
+                        "ce calcul, et ne s'affiche pas." % (ecart * 100))
+                    continue
+                t["calcul"] = calcul
+                t["calcul_verifie"] = bool(vf and retombe)
+            else:
+                t["calcul"] = None
+                t["calcul_incomplet"] = b["calcul_incomplet"]
+    return res
+
+
 def etude(profil):
     """L'étude complète d'un profil. Point d'entrée unique."""
     profil = dict(profil or {})
@@ -2385,7 +2427,7 @@ def etude(profil):
     res["avertissements"] = avertissements(profil, res)
     res["version"] = VERSION
     res["profil"] = profil
-    return res
+    return _enrichir(res)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

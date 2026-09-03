@@ -686,12 +686,62 @@
      La formule et la source sont dans un <details> : présentes pour qui
      vérifie, discrètes pour qui survole. Les cacher tout à fait reviendrait à
      livrer un chiffre nu ; les afficher toujours rendrait la page illisible. */
+  /* L'INFOBULLE DU CALCUL — au survol ET au focus clavier.
+
+     CE QU'ELLE PORTE, ET PAS UNE DE MOINS : l'équation, la même AVEC LES
+     DONNÉES, le résultat EXACT (l'affichage est arrondi à deux décimales,
+     celui-ci ne l'est pas), l'incertitude, la source normative. Une seule qui
+     manque, et le chiffre redevient un chiffre qu'on croit sur parole.
+
+     ELLE S'OUVRE AUSSI AU FOCUS. Une infobulle qui n'existe qu'au passage de
+     la souris exclut ceux qui n'en ont pas, et perd son texte pour un lecteur
+     d'écran comme à l'impression.
+
+     ET ELLE NE MONTRE PAS D'ÉQUATION À MOITIÉ SUBSTITUÉE. Le serveur vérifie
+     que l'équation chiffrée retombe sur la valeur ; celle qui n'y retombe pas
+     ne décrit pas ce calcul, et se tait en disant pourquoi. */
+  function bulleCalcul(v) {
+    var l = [];
+    if (v.formule) l.push(['<span class="dc-b-t">Équation</span>', esc(v.formule)]);
+    if (v.calcul) {
+      l.push(['<span class="dc-b-t">Avec vos données</span>',
+              '<span class="dc-b-c">' + esc(v.calcul) + "</span>"]);
+    } else if (v.calcul_incomplet) {
+      l.push(['<span class="dc-b-t">Avec vos données</span>',
+              '<span class="dc-b-k">' + esc(v.calcul_incomplet) + "</span>"]);
+    }
+    if (v.entrees) {
+      /* LES ENTRÉES SUIVENT LA MÊME RÈGLE QUE L'ÉQUATION. Rendues brutes,
+         elles s'affichaient « 1200 » et « 0.65 » à côté d'une équation qui
+         écrit « 1 200 » et « 0,65 » : deux écritures du même nombre dans la
+         même infobulle font douter des deux. */
+      var e = Object.keys(v.entrees).map(function (k) {
+        var x = v.entrees[k];
+        return esc(k) + " = "
+          + (typeof x === "number" ? fr(x) : esc(x));
+      }).join(" · ");
+      if (e) l.push(['<span class="dc-b-t">Entrées</span>', e]);
+    }
+    l.push(['<span class="dc-b-t">Valeur exacte</span>',
+            esc(v.exact != null ? v.exact : fr(v.valeur))
+            + (v.unite ? " " + esc(v.unite) : "")]);
+    if (v.incertitude) l.push(['<span class="dc-b-t">Incertitude</span>', esc(v.incertitude)]);
+    if (v.source) l.push(['<span class="dc-b-t">Source</span>', esc(v.source)]);
+    return l.map(function (x) { return "<div>" + x[0] + x[1] + "</div>"; }).join("");
+  }
+
+  var _bulleN = 0;
+
   function carte(v) {
     if (!v || v.valeur === undefined) return "";
+    var id = "dc-b" + (++_bulleN);
     var h = '<div class="dc-val">'
       + '<div class="dc-val-n">' + esc(v.nom) + "</div>"
-      + '<div class="dc-val-v">' + fr(v.valeur)
-      + ' <span class="dc-val-u">' + esc(v.unite) + "</span></div>";
+      + '<button type="button" class="dc-val-v dc-b-h" aria-describedby="' + id
+      + '">' + fr(v.valeur)
+      + ' <span class="dc-val-u">' + esc(v.unite) + "</span>"
+      + '<span class="dc-bulle" role="tooltip" id="' + id + '">'
+      + bulleCalcul(v) + "</span></button>";
     if (v.incertitude) h += '<div class="dc-val-i">' + esc(v.incertitude) + "</div>";
     var det = "";
     if (v.formule) det += "<div><b>Formule</b> — " + esc(v.formule) + "</div>";
