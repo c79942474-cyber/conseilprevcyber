@@ -1555,6 +1555,209 @@ def test_la_page_n_ecrit_le_nombre_de_cas_NULLE_PART():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+#  LES LEVIERS ET LES PRINCIPES — rangés par ce qui les soutient
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _leviers_rendus(liste=None, intitule="leviers", prefixe="chg"):
+    """Le HTML que `rendreLeviers` produit RÉELLEMENT, en l'exécutant."""
+    import tempfile
+    src = _src("ia-factory.js")
+    ancre = "\n(function () {\n"
+    corps = src[src.index(ancre) + len(ancre):src.index("\n  function rendreSources(")]
+    prog = (corps + "\nconst d = JSON.parse(require('fs').readFileSync("
+            + "process.env.IAF_LEV, 'utf8'));"
+            + "\nprocess.stdout.write(rendreLeviers(d.l, d.src, d.anc, d.soutiens,"
+            + " d.intitule, d.prefixe));\n")
+    ref = F.referentiel()
+    fd, chemin = tempfile.mkstemp(suffix=".json")
+    with io.open(fd, "w", encoding="utf-8") as fh:
+        json.dump({"l": liste if liste is not None else ref["leviers_changement"],
+                   "src": ref["sources"], "anc": ref["ancrages"],
+                   "soutiens": ref["soutiens_levier"],
+                   "intitule": intitule, "prefixe": prefixe}, fh)
+    try:
+        out = subprocess.run(["node"], input=prog, capture_output=True, text=True,
+                             timeout=60, env=dict(os.environ, IAF_LEV=chemin))
+    finally:
+        os.unlink(chemin)
+    assert out.returncode == 0, out.stderr
+    return out.stdout
+
+
+def test_les_leviers_se_choisissent_dans_une_liste_rangee_par_SOUTIEN():
+    """CINQ LEVIERS EMPILÉS FONT UN MUR — chacun porte son propos, son public,
+    sa mesure et son ancrage.
+
+    RANGÉS PAR CE QUI LES SOUTIENT, et c'est l'axe que le chapô de la page
+    promettait DÉJÀ sans qu'on puisse trier dessus : « l'ancrage public qui le
+    soutient — ou la mention qu'il s'agit d'une convention du cabinet ». C'est
+    la seule question qui décide de ce qu'un levier vaut dans une discussion :
+    est-ce que je peux le montrer, ou est-ce que je dois l'assumer ?"""
+    h = _leviers_rendus()
+    lev = F.referentiel()["leviers_changement"]
+    assert "<select" in h and "datalist" not in h
+    valeurs = re.findall(r'<option value="([^"]*)"', h)
+    groupes = [g["cle"] for g in F.referentiel()["soutiens_levier"]
+               if any(F.soutien_levier(l) == g["cle"] for l in lev)]
+    assert valeurs[0] == "__tous"
+    assert [v[2:] for v in valeurs if v.startswith("s:")] == groupes, (valeurs, groupes)
+    assert sorted(v for v in valeurs if re.match(r"^l\d+$", v)) == sorted(
+        "l%d" % i for i in range(len(lev))), valeurs
+    assert len(valeurs) == 1 + len(groupes) + len(lev), valeurs
+
+    # LES GROUPES EXISTENT VRAIMENT, ET CHAQUE LEVIER EST DEDANS. Éprouver les
+    # seules VALEURS d'option laissait passer la mutation qui retirait les
+    # `<optgroup>` : les options restaient, plates, et la règle se taisait —
+    # verte pour une raison sans rapport avec ce qu'elle prétend.
+    blocs = re.findall(r'<optgroup label="([^"]*)">(.*?)</optgroup>', h, re.S)
+    assert len(blocs) == len(groupes), (
+        "%d groupe(s) réellement ouvert(s) pour %d annoncé(s)" % (len(blocs), len(groupes)))
+    for libelle, dedans in blocs:
+        cle = re.search(r'<option value="s:([^"]+)"', dedans).group(1)
+        dessous = [int(x) for x in re.findall(r'<option value="l(\d+)"', dedans)]
+        attendus = [i for i, l in enumerate(lev) if F.soutien_levier(l) == cle]
+        assert dessous == attendus, (cle, dessous, attendus)
+        # ET LE COMPTE VIENT DES ITEMS, pas d'un nombre écrit : il paraît deux
+        # fois — dans l'étiquette du groupe et dans son option — et les deux
+        # doivent suivre.
+        assert "%s (%d)" % (html.unescape(libelle).split(" (")[0], len(attendus)) \
+            == html.unescape(libelle), libelle
+        assert "(%d)" % len(attendus) in html.unescape(dedans), (cle, len(attendus))
+
+
+def test_LE_POINT_QUI_DECIDE_le_groupe_saccorde_avec_la_mention_affichee():
+    """DEUX VERDICTS CONTRAIRES SUR LA MÊME LIGNE seraient le défaut : un levier
+    rangé sous « adossé à une source publique » avec, juste en dessous,
+    « Ancrage — convention du cabinet, à discuter ». Le lecteur croirait le
+    groupe, qui est ce qu'il a choisi.
+
+    La règle relit le HTML rendu et confronte, ligne par ligne, l'attribut de
+    groupe et la mention qui s'affiche."""
+    h = _leviers_rendus()
+    items = re.findall(
+        r'<li data-lev-item="l(\d+)" data-lev-soutien="([^"]+)"[^>]*>(.*?)</li>', h, re.S)
+    lev = F.referentiel()["leviers_changement"]
+    assert len(items) == len(lev)
+    for i, soutien, corps in items:
+        convention = "convention du cabinet" in html.unescape(corps)
+        assert (soutien == "convention") == convention, (
+            "le levier %s est rangé « %s » et affiche %s"
+            % (i, soutien, "une convention" if convention else "une source"))
+        assert soutien == F.soutien_levier(lev[int(i)]), (i, soutien)
+
+
+def test_le_soutien_est_calcule_sur_DES_CAS_et_pas_sur_lui_meme():
+    """MA RÈGLE PRENAIT POUR ORACLE LA FONCTION QU'ELLE ÉPROUVAIT. Toutes les
+    règles de cette section comparaient le rendu à `F.soutien_levier(...)` : la
+    mutation qui fait rendre « ancre » à TOUT passait donc, puisque les deux
+    côtés changeaient ensemble. Une règle ne peut pas se servir de mesure et de
+    référence à la fois.
+
+    On énumère donc les trois cas, écrits à la main."""
+    assert F.soutien_levier({"nom": "x"}) == "convention"
+    assert F.soutien_levier({"nom": "x", "ancrage": None}) == "convention"
+    assert F.soutien_levier({"nom": "x", "ancrage": "n_existe_pas"}) == "convention"
+    vrai = F.ANCRAGES[0]["cle"]
+    assert F.soutien_levier({"nom": "x", "ancrage": vrai}) == "ancre"
+    src = sorted(F.SOURCES)[0]
+    assert F.soutien_levier({"nom": "x", "ancrage": src}) == "ancre"
+
+    # ET LES DEUX IMPLÉMENTATIONS S'ACCORDENT — celle du module et celle du
+    # script — y compris sur un levier que le module refuserait au chargement.
+    temoins = [{"nom": "sans", "dit": "d"},
+               {"nom": "bidon", "dit": "d", "ancrage": "n_existe_pas"},
+               {"nom": "ancre", "dit": "d", "ancrage": vrai}]
+    h = _leviers_rendus(temoins, "témoins", "t")
+    rendus = re.findall(r'data-lev-item="l(\d+)" data-lev-soutien="([^"]+)"', h)
+    assert [x[1] for x in rendus] == ["convention", "convention", "ancre"], rendus
+
+
+def test_un_seul_levier_est_ouvert_au_chargement():
+    """Comme les phases et les cas : un levier se LIT. Et le témoin de l'autre
+    réglage — sans menu (un seul groupe présent), rien ne doit être masqué,
+    sinon un levier disparaîtrait sans aucun moyen de le rouvrir."""
+    h = _leviers_rendus()
+    items = re.findall(r'<li data-lev-item="(l\d+)"[^>]*?(hidden)?>', h)
+    ouverts = [c for c, cache in items if not cache]
+    assert ouverts == ["l0"], ouverts
+
+    # TÉMOIN : une liste dont tous les éléments ont le même soutien n'a pas de
+    # menu — et ne doit alors rien masquer.
+    ancres = [l for l in F.referentiel()["leviers_changement"]
+              if F.soutien_levier(l) == "ancre"]
+    h2 = _leviers_rendus(ancres)
+    assert "data-lev=" not in h2, "un menu à un seul groupe ne sert à rien"
+    assert " hidden" not in h2, (
+        "sans menu, un levier est masqué et rien ne permet de le rouvrir")
+
+
+def test_les_DEUX_sections_ont_leur_PROPRE_intitule():
+    """LA MÊME FONCTION SERT LA SECTION 6 ET LA SECTION 7. Un intitulé écrit en
+    dur aurait menti sur l'une des deux — « 5 leviers » au-dessus de quatre
+    principes de migration."""
+    ref = F.referentiel()
+    for liste, mot in ((ref["leviers_changement"], "leviers"),
+                       (ref["principes_migration"], "principes")):
+        h = _leviers_rendus(liste, mot, "x")
+        intitule = html.unescape(
+            re.search(r'<span class="iaf-nom">(.*?)</span>', h, re.S).group(1))
+        assert intitule.startswith("%d %s" % (len(liste), mot)), intitule
+
+    js = _src("ia-factory.js")
+    i = js.index("function rendreLeviers(")
+    corps = js[i:js.index("\n  function brancherLeviers(")]
+    for mot in ("leviers", "principes"):
+        assert '"%s"' % mot not in corps, (
+            "« %s » est écrit dans le rendu : il mentirait sur l'autre section" % mot)
+
+
+def test_un_levier_qui_designe_un_ancrage_absent_est_refuse_au_CHARGEMENT():
+    """Il se dirait « adossé » sans l'être : rangé parmi les leviers montrables,
+    et affichant « convention du cabinet » juste en dessous."""
+    reel = F.LEVIERS_CHANGEMENT[0]["ancrage"]
+    F.LEVIERS_CHANGEMENT[0]["ancrage"] = "n_existe_pas"
+    try:
+        with pytest.raises(ValueError) as e:
+            F._verifier_soutiens()
+        assert "n_existe_pas" in str(e.value)
+    finally:
+        F.LEVIERS_CHANGEMENT[0]["ancrage"] = reel
+
+
+def test_le_filtre_des_leviers_traite_les_TROIS_niveaux_et_masque():
+    js = _src("ia-factory.js")
+    bloc = js[js.index("function brancherLeviers("):]
+    bloc = bloc[:bloc.index("\n  }")]
+    for jeton, quoi in (("LEV_TOUS", "« tous »"), ('"s:"', "« tout un groupe »"),
+                        ("dataset.levItem", "« un seul »"),
+                        ("dataset.levSoutien", "le soutien porté par la ligne")):
+        assert jeton in bloc, "le filtre ne traite pas %s" % quoi
+    assert "hidden" in bloc
+    for interdit in ("innerHTML", "rendreLeviers("):
+        assert interdit not in bloc, (
+            "le filtre redessine (« %s ») au lieu de masquer" % interdit)
+
+
+def test_les_DEUX_listes_de_leviers_sont_branchees():
+    """Deux sections, un même rendu : un branchement posé sur un identifiant
+    laisserait l'autre menu mort."""
+    js = _src("ia-factory.js")
+    lignes = js.split("\n")
+    # LE BRANCHEMENT DOIT NOMMER SA ZONE. Cherché comme « un appel plus bas »,
+    # celui de la section 7 satisfaisait la règle pour la section 6 : les deux
+    # rendus sont à trois lignes l'un de l'autre. Une règle satisfaite par
+    # l'appel du voisin ne mesure rien.
+    for zone in ("iaf-changement", "iaf-migration"):
+        attendu = 'brancherLeviers($("%s"));' % zone
+        assert any(l.strip() == attendu for l in lignes), (
+            "la liste de « %s » n'est pas branchée : « %s » absent" % (zone, attendu))
+        i = next(k for k, l in enumerate(lignes) if '$("%s").innerHTML' % zone in l)
+        j = next(k for k, l in enumerate(lignes) if l.strip() == attendu)
+        assert 0 < j - i <= 4, (
+            "le branchement de « %s » ne suit pas son rendu" % zone)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 #  LES SOURCES EN LISTE DÉROULANTE, RANGÉES PAR NATURE
 # ═══════════════════════════════════════════════════════════════════════════
 

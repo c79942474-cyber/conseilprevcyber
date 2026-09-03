@@ -680,20 +680,95 @@ function demander(url, options, delai) {
             + esc(_nomEtatJalon(_etatJalon(j), etats)) + "</td></tr>";
         }).join("") + "</tbody></table>";
   }
-  function rendreLeviers(liste, sources, ancrages) {
+  var LEV_TOUS = "__tous";
+
+  /* CE QUI SOUTIENT UN LEVIER, calculé à UN SEUL endroit. Le rendu décidait
+     déjà de la mention affichée par une cascade — ancrage, puis source, puis
+     « convention du cabinet » ; le menu en aurait fait une seconde, et deux
+     cascades pour un même verdict divergent. On lit donc le même résultat que
+     celui qui s'affiche sous le levier. */
+  function _soutienLevier(l, parCle, sources) {
+    if (!l.ancrage) return "convention";
+    return (parCle[l.ancrage] || sources[l.ancrage]) ? "ancre" : "convention";
+  }
+
+  /* CINQ LEVIERS EMPILÉS FONT UN MUR : chacun porte son propos, son public, sa
+     mesure et son ancrage — quatre à cinq lignes. Un seul est ouvert au
+     chargement, comme les phases et les cas : un levier se LIT.
+
+     RANGÉS PAR CE QUI LES SOUTIENT, et c'est l'axe que le chapô de la page
+     promettait déjà sans qu'on puisse trier dessus. C'est la seule question
+     qui décide de ce qu'un levier vaut dans une discussion : est-ce que je peux
+     le montrer, ou est-ce que je dois l'assumer ?
+
+     LA MÊME FONCTION SERT LA SECTION 6 ET LA SECTION 7 — les leviers de
+     conduite du changement et les principes de migration ont la même forme.
+     L'intitulé arrive donc en paramètre : « 5 leviers » sur l'une, « 4
+     principes » sur l'autre. Écrit en dur, il aurait menti sur l'une des deux. */
+  function rendreLeviers(liste, sources, ancrages, soutiens, intitule, prefixe) {
     var parCle = {};
     ancrages.forEach(function (a) { parCle[a.cle] = a; });
-    return '<ul class="iaf-leviers">' + liste.map(function (l) {
+    var quoi = prefixe || "lev";
+    var etiquette = function (l) { return _soutienLevier(l, parCle, sources); };
+
+    var h = "";
+    var presents = (soutiens || []).filter(function (g) {
+      return liste.some(function (l) { return etiquette(l) === g.cle; });
+    });
+    if (presents.length > 1) {
+      h = '<label class="iaf-champ iaf-cmp-m"><span class="iaf-nom">'
+        + liste.length + " " + esc(intitule || "éléments") + " — en choisir un"
+        + '</span><select class="iaf-choix" data-lev="' + esc(quoi) + '">'
+        + '<option value="' + LEV_TOUS + '">Les ' + liste.length + " "
+        + esc(intitule || "éléments") + ", à la suite</option>";
+      presents.forEach(function (g) {
+        var dedans = [];
+        liste.forEach(function (l, i) { if (etiquette(l) === g.cle) dedans.push(i); });
+        h += '<optgroup label="' + esc(g.nom) + " (" + dedans.length + ')">'
+          + '<option value="s:' + esc(g.cle) + '">Tout ce groupe — '
+          + esc(g.nom) + " (" + dedans.length + ")</option>";
+        dedans.forEach(function (i) {
+          h += '<option value="l' + i + '"' + (i === 0 ? " selected" : "") + ">"
+            + esc(liste[i].nom) + "</option>";
+        });
+        h += "</optgroup>";
+      });
+      h += "</select></label>";
+    }
+
+    return h + '<ul class="iaf-leviers">' + liste.map(function (l, i) {
       var a = l.ancrage ? (parCle[l.ancrage] || null) : null;
       var s = l.ancrage ? (sources[l.ancrage] || null) : null;
       var ref = a ? (esc(a.nom) + " : " + esc(fourchette(a)))
         : (s ? esc(s.editeur) + ", " + esc(s.annee) : "convention du cabinet, à discuter");
-      return "<li><b>" + esc(l.nom) + "</b><br>" + esc(l.dit)
+      return '<li data-lev-item="l' + i + '" data-lev-soutien="' + esc(etiquette(l)) + '"'
+        + (i === 0 || !h ? "" : " hidden")
+        + "><b>" + esc(l.nom) + "</b><br>" + esc(l.dit)
         + (l.publics ? '<br><span class="iaf-ph-t">Publics</span>' + esc(l.publics) : "")
         + (l.mesure ? '<br><span class="iaf-ph-t">Mesure</span>' + esc(l.mesure) : "")
         + (l.geste ? '<br><span class="iaf-ph-t">Geste</span>' + esc(l.geste) : "")
         + '<br><span class="iaf-src">Ancrage — ' + ref + "</span></li>";
     }).join("") + "</ul>";
+  }
+
+  /* BRANCHÉ SUR SON CONTENEUR, comme les jalons : deux sections emploient le
+     même rendu, et un branchement posé sur un identifiant laisserait l'autre
+     menu mort. */
+  function brancherLeviers(racine) {
+    (racine || document).querySelectorAll("[data-lev]").forEach(function (sel) {
+      if (sel.dataset.branche) return;
+      sel.dataset.branche = "1";
+      sel.addEventListener("change", function () {
+        var cle = sel.value;
+        var grp = cle.slice(0, 2) === "s:" ? cle.slice(2) : null;
+        var liste = sel.closest("label").parentNode;
+        liste.querySelectorAll("[data-lev-item]").forEach(function (li) {
+          li.hidden = !(cle === LEV_TOUS
+            || (grp !== null && li.dataset.levSoutien === grp)
+            || li.dataset.levItem === cle);
+        });
+      });
+    });
   }
   /* ── LES SOURCES, EN LISTE DÉROULANTE ─────────────────────────────────
      TRENTE-SIX SOURCES À LA SUITE NE SE LISENT PAS, elles se survolent — et
@@ -915,8 +990,12 @@ function demander(url, options, delai) {
           avant_fin_projet: null });
       }), REF.sources, REF.etats_jalon);
       brancherJalons();
-      $("iaf-changement").innerHTML = rendreLeviers(REF.leviers_changement, REF.sources, REF.ancrages);
-      $("iaf-migration").innerHTML = rendreLeviers(REF.principes_migration, REF.sources, REF.ancrages);
+      $("iaf-changement").innerHTML = rendreLeviers(REF.leviers_changement, REF.sources,
+        REF.ancrages, REF.soutiens_levier, "leviers", "chg");
+      brancherLeviers($("iaf-changement"));
+      $("iaf-migration").innerHTML = rendreLeviers(REF.principes_migration, REF.sources,
+        REF.ancrages, REF.soutiens_levier, "principes", "mig");
+      brancherLeviers($("iaf-migration"));
       $("iaf-sources").innerHTML = rendreSources(REF.sources, REF.couverture_sources);
       brancherSources();
       $("iaf-limite").textContent = REF.limite;

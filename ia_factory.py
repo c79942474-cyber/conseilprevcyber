@@ -1646,6 +1646,49 @@ LEVIERS_CHANGEMENT = [
             "moins exigeant sur le résultat, toujours contraignant sur la trace."},
 ]
 
+# CE QUI SOUTIENT UN LEVIER — l'axe que le chapô de la page promettait déjà.
+#
+# « Chacun avec son public, sa mesure, et l'ancrage public qui le soutient — ou
+# la mention qu'il s'agit d'une convention du cabinet » : la page l'annonçait,
+# et rien ne permettait de trier là-dessus. C'est pourtant la seule question
+# qui décide de ce qu'un levier vaut dans une discussion : est-ce que je peux
+# le montrer, ou est-ce que je dois l'assumer ?
+#
+# LE CALCUL VIT ICI, PAS DANS LE SCRIPT. Le script décidait déjà de la mention
+# affichée par une cascade — ancrage, puis source, puis « convention » ; le
+# menu aurait fait une seconde cascade, et deux cascades pour un même verdict
+# divergent. `soutien_levier` est désormais la seule.
+SOUTIENS_LEVIER = [
+    {"cle": "ancre", "nom": "Adossé à une source publique"},
+    {"cle": "convention", "nom": "Convention du cabinet, à discuter"},
+]
+
+
+def soutien_levier(levier):
+    """« ancre » si le levier désigne un ancrage OU une source qui existe ;
+    « convention » sinon. La cascade est celle que la page applique déjà pour
+    choisir la mention qu'elle affiche."""
+    cle = levier.get("ancrage")
+    if not cle:
+        return "convention"
+    if any(a["cle"] == cle for a in ANCRAGES) or cle in SOURCES:
+        return "ancre"
+    return "convention"
+
+
+def _verifier_soutiens():
+    """UN LEVIER QUI DÉSIGNE UN ANCRAGE ABSENT SE DIRAIT « ADOSSÉ » sans
+    l'être : il ressortirait dans le groupe des leviers montrables, et la page
+    afficherait « convention du cabinet » juste en dessous. Deux verdicts
+    contraires sur la même ligne."""
+    connus = {a["cle"] for a in ANCRAGES} | set(SOURCES)
+    for liste, nom in ((LEVIERS_CHANGEMENT, "levier"), (PRINCIPES_MIGRATION, "principe")):
+        for l in liste:
+            cle = l.get("ancrage")
+            if cle and cle not in connus:
+                raise ValueError("le %s « %s » désigne un ancrage absent : %r"
+                                 % (nom, l["nom"], cle))
+
 PRINCIPES_MIGRATION = [
     {"cle": "pas_de_big_bang", "nom": "Pas de bascule unique", "ancrage": "casD_revue",
      "geste": "Découper la bascule par périmètre et par population ; répéter la répétition générale.",
@@ -1664,6 +1707,9 @@ PRINCIPES_MIGRATION = [
      "dit": "Les remplacements de cœur dépassent souvent de 50 % et plus. Ce module ne propose "
             "pas de taux ; il signale quand le vôtre est inférieur à ce chiffre."},
 ]
+
+
+_verifier_soutiens()   # refuse au chargement, pas à l'affichage
 
 
 def comparables():
@@ -1989,6 +2035,7 @@ def referentiel():
             "jalons_reglementaires": JALONS_REGLEMENTAIRES,
             "etats_jalon": ETATS_JALON,
             "leviers_changement": LEVIERS_CHANGEMENT,
+            "soutiens_levier": SOUTIENS_LEVIER,
             "principes_migration": PRINCIPES_MIGRATION,
             "comparables": comparables(),
             # L'ORDRE ET LES LIBELLÉS DES GROUPES VIENNENT D'ICI. Recopiés dans le
