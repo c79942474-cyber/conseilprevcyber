@@ -5645,6 +5645,11 @@ function messageDelai(e, defaut) {
           AO_ANALYSE = j.analyse;
           msg.textContent = "";
           aoRendre(j.analyse);
+          /* LE TEMPS RÉEL COMMENCE ICI. Les rubriques qui viennent des pièces
+             de l'acheteur — l'acheteur, l'objet, la référence, les lots — se
+             remplissent au moment où l'analyse arrive, sans qu'on ait à
+             redemander quoi que ce soit. */
+          aoRemplir(true);
         });
     }).catch(function () { msg.textContent = "Analyse indisponible."; });
   }
@@ -5796,6 +5801,226 @@ function messageDelai(e, defaut) {
   }
 
 
+  /* ── LA FICHE DU CANDIDAT, ET LE REMPLISSAGE EN TEMPS RÉEL ─────────────
+     CE QUE CE BLOC RÉSOUT. Un dossier de candidature, c'est quatorze pièces
+     qui redemandent les mêmes vingt informations. Les recopier à la main est
+     le travail qui produit les fautes de cohérence dont les candidatures
+     meurent — un SIRET d'une autre filiale sur un DC2, un objet de marché
+     amputé sur un DC1.
+
+     LA FICHE NE QUITTE PAS CE NAVIGATEUR. Elle est gardée en local, comme les
+     pièces de la consultation ne sont pas déposées : on prépare une réponse
+     avant de décider si on la remet, et l'identité d'une entreprise n'a pas à
+     s'enregistrer quelque part pour cela.
+
+     LE CRITÈRE DE REMPLISSAGE VIT AU SERVEUR. Recopié ici, il dériverait de
+     celui du module à la première rubrique ajoutée — et une pièce annoncée
+     prête pour un critère périmé est pire qu'une pièce annoncée incomplète. */
+  var AO_FICHE = {};
+  var AO_SAISIES = {};
+  var AO_REMPLI = null;
+  var _aoTempo = null;
+
+  function aoFicheCharger() {
+    try {
+      AO_FICHE = JSON.parse(localStorage.getItem("ao-fiche-v1") || "{}") || {};
+      AO_SAISIES = JSON.parse(localStorage.getItem("ao-saisies-v1") || "{}") || {};
+    } catch (e) { AO_FICHE = {}; AO_SAISIES = {}; }
+  }
+  function aoFicheEnregistrer() {
+    try {
+      localStorage.setItem("ao-fiche-v1", JSON.stringify(AO_FICHE));
+      localStorage.setItem("ao-saisies-v1", JSON.stringify(AO_SAISIES));
+    } catch (e) { /* navigation privée, stockage refusé : rien ne casse */ }
+  }
+
+  /* L'UNIQUE APPEL. Débounce à 450 ms : on tape à deux mains, et une requête
+     par frappe ferait vingt allers-retours pour une ligne d'adresse. */
+  function aoRemplir(immediat) {
+    if (_aoTempo) clearTimeout(_aoTempo);
+    _aoTempo = setTimeout(function () {
+      demander("/api/datacenter/marche/remplir", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fiche: AO_FICHE, analyse: AO_ANALYSE,
+                               saisies: AO_SAISIES, groupement: false }),
+      }).then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (!j || !j.ok) return;
+          AO_REMPLI = j.remplissage;
+          if (!$("#ig-ao-fiche").innerHTML) aoFicheRendre(j.remplissage);
+          aoRempliRendre(j.remplissage);
+        })
+        .catch(function () { /* l'état affiché reste tel quel */ });
+    }, immediat ? 0 : 450);
+  }
+
+  function aoFicheRendre(r) {
+    var z = $("#ig-ao-fiche");
+    if (!z) return;
+    var parGroupe = {};
+    r.champs.forEach(function (c) {
+      (parGroupe[c.groupe] = parGroupe[c.groupe] || []).push(c);
+    });
+    var h = '<h3 class="ig-tr-st">Votre fiche — saisie une fois, reportée '
+      + "partout</h3>"
+      + '<p class="note">Elle ne quitte pas ce navigateur : rien n\'est '
+      + "envoyé au serveur pour être conservé, et rien n\'est enregistré. "
+      + "Chaque valeur saisie ici se reporte, en dessous, dans toutes les "
+      + "pièces qui la demandent — avec la mention de son origine.</p>";
+    r.groupes.forEach(function (g) {
+      var champs = parGroupe[g[0]] || [];
+      if (!champs.length) return;
+      h += '<div class="ig-ao-fg"><h4>' + esc(g[1]) + "</h4>"
+        + '<div class="ig-ao-ff">';
+      champs.forEach(function (c) {
+        h += '<label class="ig-ao-fc"><span class="ig-ao-fl">' + esc(c.nom)
+          + "</span>"
+          + '<input type="text" data-fiche="' + esc(c.cle) + '" value="'
+          + esc(AO_FICHE[c.cle] || "") + '" placeholder="non renseigné">'
+          + (c.ou ? '<span class="ig-ao-fo">' + esc(c.ou) + "</span>" : "")
+          + "</label>";
+      });
+      h += "</div></div>";
+    });
+    z.innerHTML = h;
+    z.querySelectorAll("[data-fiche]").forEach(function (i) {
+      i.addEventListener("input", function () {
+        AO_FICHE[i.dataset.fiche] = i.value;
+        aoFicheEnregistrer();
+        aoRemplir();
+      });
+    });
+  }
+
+  /* L'EXPORT REFAIT LE CALCUL AU SERVEUR au lieu de mettre en page ce que la
+     page a sous les yeux : le document emporté doit dire la même chose que
+     l'écran, et le seul moyen de le garantir est qu'il vienne de la même
+     fonction. Renvoyer l'état affiché ferait circuler un dossier construit
+     depuis un état que le serveur n'a jamais validé. */
+  function aoExporter(fmt, bouton) {
+    var libelle = bouton.textContent;
+    bouton.disabled = true;
+    bouton.textContent = "Mise en page…";
+    demander("/api/datacenter/marche/export", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fiche: AO_FICHE, analyse: AO_ANALYSE,
+                             saisies: AO_SAISIES, format: fmt }),
+    }, DELAI_MOYEN).then(function (r) {
+      if (!r.ok) throw new Error("export");
+      return r.blob();
+    }).then(function (b) {
+      var u = URL.createObjectURL(b);
+      var a = document.createElement("a");
+      a.href = u;
+      a.download = "dossier-candidature." + fmt;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(u); }, 4000);
+    }).catch(function () {
+      $("#ig-ao-msg").textContent = "La mise en page du dossier a échoué.";
+    }).then(function () {
+      bouton.disabled = false;
+      bouton.textContent = libelle;
+    });
+  }
+
+  var AO_ETAT_CLASSE = { rempli: "ok", a_saisir: "att", a_declarer: "dec",
+                         non_trouve: "att", invalide: "mal" };
+
+  function aoRempliRendre(r) {
+    var z = $("#ig-ao-rempli");
+    if (!z) return;
+    var e = r.etat;
+    var h = '<h3 class="ig-tr-st">Les pièces, remplies de ce qui est déjà '
+      + "écrit ailleurs</h3>";
+    if (r.sans_dossier) {
+      h += '<p class="ig-ao-a ig-ao-a-attention">Aucun dossier de consultation '
+        + "n\'a encore été analysé : les rubriques qui viennent des pièces de "
+        + "l\'acheteur — l\'acheteur lui-même, l\'objet, la référence, les lots "
+        + "— restent vides. Déposez-les ci-dessus et elles se rempliront.</p>";
+    }
+    h += '<div class="ig-ao-bar">'
+      + '<span class="ig-ao-cpt ok">' + e.remplies + " remplies</span>"
+      + '<span class="ig-ao-cpt att">' + (e.a_saisir + e.non_trouvees)
+      + " à compléter</span>"
+      + '<span class="ig-ao-cpt dec">' + e.a_declarer + " à déclarer</span>"
+      + (e.invalides ? '<span class="ig-ao-cpt mal">' + e.invalides
+         + " à corriger</span>" : "")
+      + '<span class="ig-ao-cpt">' + e.pieces_completes + " / " + e.pieces
+      + " pièces sans rien à compléter</span>"
+      + (e.pieces_a_signer ? '<span class="ig-ao-cpt dec">'
+         + e.pieces_a_signer + " n'attendent plus qu'une signature</span>" : "")
+      + "</div>";
+    if (e.bloquantes_incompletes.length) {
+      h += '<p class="ig-ao-a ig-ao-a-bloquante">Pièces bloquantes encore '
+        + "incomplètes : " + esc(e.bloquantes_incompletes.join(", ")) + ".</p>";
+    }
+    h += '<div class="ig-ao-cd">';
+    r.pieces.forEach(function (p) {
+      h += '<div class="ig-ao-cp' + (p.bloquant ? " ig-ao-cpb" : "")
+        + (p.complet ? " ig-ao-cp-ok" : "") + '">'
+        + '<div class="ig-ao-cph"><b' + info("piece_candidature:" + p.cle) + ">"
+        + esc(p.nom) + "</b>"
+        + '<span class="ig-ao-cn">' + esc(p.nature_nom) + "</span>"
+        + (p.bloquant ? '<span class="ig-ao-bl">bloquante</span>' : "")
+        + "</div><dl class=\"ig-ao-rb\">";
+      p.rubriques.forEach(function (l) {
+        var cl = AO_ETAT_CLASSE[l.statut] || "att";
+        h += '<dt class="' + cl + '">' + esc(l.libelle)
+          + '<span class="ig-ao-st ' + cl + '">' + esc(l.statut_nom)
+          + "</span></dt><dd>";
+        if (l.source === "saisie") {
+          h += '<input type="text" class="ig-ao-si" data-saisie="'
+            + esc(p.cle + "." + l.cle) + '" value="' + esc(l.valeur || "")
+            + '" placeholder="à saisir pour cette consultation">';
+        } else if (l.valeur) {
+          h += '<span class="ig-ao-vv">' + esc(l.valeur) + "</span>";
+        }
+        if (l.origine) {
+          h += '<span class="ig-ao-og">' + esc(l.origine) + "</span>";
+        }
+        if (l.citation) {
+          h += '<blockquote class="ig-ao-c">' + esc(l.citation.texte)
+            + "<cite>" + esc(l.citation.fichier) + "</cite></blockquote>";
+        }
+        (l.divergences || []).forEach(function (d) {
+          h += '<p class="ig-ao-div"><b>' + esc(d.sigle || d.fichier)
+            + "</b> dit : " + esc(d.valeur) + "</p>";
+        });
+        if (l.texte) {
+          h += '<blockquote class="ig-ao-dec">' + esc(l.texte) + "</blockquote>";
+        }
+        if (l.message) h += '<p class="ig-ao-w">' + esc(l.message) + "</p>";
+        if (l.aide) h += '<p class="ig-ao-w">' + esc(l.aide) + "</p>";
+        h += "</dd>";
+      });
+      h += "</dl>"
+        + '<p class="ig-ao-pg"><i>Le piège</i> — ' + esc(p.piege) + "</p></div>";
+    });
+    h += "</div>"
+      + '<div class="actions" style="margin-top:14px;gap:10px;flex-wrap:wrap">'
+      + '<button type="button" class="btn btn-s" data-ao-exp="docx">'
+      + "Emporter le dossier préparé (Word)</button>"
+      + '<button type="button" class="btn btn-s" data-ao-exp="pdf">'
+      + "PDF</button></div>"
+      + '<p class="ig-icpe-res">' + esc(r.note) + "</p>";
+    z.innerHTML = h;
+    z.querySelectorAll("[data-ao-exp]").forEach(function (b) {
+      b.addEventListener("click", function () { aoExporter(b.dataset.aoExp, b); });
+    });
+    z.querySelectorAll("[data-saisie]").forEach(function (i) {
+      i.addEventListener("input", function () {
+        AO_SAISIES[i.dataset.saisie] = i.value;
+        aoFicheEnregistrer();
+        aoRemplir();
+      });
+    });
+  }
+
+
   function démarrer() {
     Promise.all([
       /* Le 401 est levé par `demander` lui-même, bannière comprise : le
@@ -5844,6 +6069,8 @@ function messageDelai(e, defaut) {
         reseauFormulaire(CADRE.reseau_champs);
         travauxFormulaire();
         aoDocuments();
+        aoFicheCharger();
+        aoRemplir(true);
         rafraichir();
         /* Le lanceur du parcours guidé bat à l'ouverture : c'est le seul
            geste utile quand on ne connaît pas encore la page. Différé d'une

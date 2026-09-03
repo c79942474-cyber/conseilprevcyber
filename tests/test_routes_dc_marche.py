@@ -594,3 +594,110 @@ def test_le_glossaire_porte_les_familles_du_tier(connecte):
     # les nouvelles portent les exigences. Deux modules ne peuvent pas tenir
     # la même — un contrôle de démarrage le refuse.
     assert "tier" in g
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE REMPLISSAGE ET L'EXPORT — deux routes, une même exigence
+# ═══════════════════════════════════════════════════════════════════════════
+
+FICHE_R = {"raison_sociale": "Bureau d'études Essai", "siret": "80295478500019",
+           "representant_nom": "A. Dupont"}
+
+
+@pytest.mark.parametrize("chemin", ["/api/datacenter/marche/remplir",
+                                    "/api/datacenter/marche/export"])
+def test_le_remplissage_est_ferme_a_l_anonyme(anonyme, chemin):
+    r = anonyme.post(chemin, json={}, headers=ORIGINE)
+    assert r.status_code in (401, 403), (chemin, r.status_code)
+
+
+def test_le_remplissage_rend_les_champs_ET_l_etat_en_un_seul_appel(connecte):
+    """LA PAGE NE CONNAÎT PAS LA LISTE DES CHAMPS : elle la reçoit. Une seconde
+    route pour la servir se désynchroniserait de celle qui calcule, et le
+    formulaire proposerait des cases que le moteur ignore."""
+    r = connecte.post("/api/datacenter/marche/remplir", json={}, headers=ORIGINE)
+    assert r.status_code == 200
+    j = r.get_json()["remplissage"]
+    assert j["champs"] and j["groupes"] and j["pieces"]
+    assert j["etat"]["rubriques"] == sum(p["total"] for p in j["pieces"])
+    assert j["sans_dossier"] is True
+
+
+def test_la_route_ne_declare_rien_meme_avec_une_fiche_complete(connecte):
+    """LE VERROU EST AU SERVEUR, PAS DANS LA PAGE. Une page peut être
+    remplacée ; la route, non. Aucune déclaration ne ressort pré-remplie,
+    quelle que soit la richesse de ce qu'on lui envoie."""
+    pleine = {c: "renseigné" for c in
+              ("raison_sociale", "forme_juridique", "adresse", "capital",
+               "rcs", "naf", "code_postal", "ville", "telephone", "courriel",
+               "representant_nom", "representant_qualite", "effectif",
+               "ca_n1", "ca_n2", "ca_n3", "assurance_compagnie",
+               "assurance_police", "assurance_echeance")}
+    pleine["siret"] = "80295478500019"
+    j = connecte.post("/api/datacenter/marche/remplir",
+                      json={"fiche": pleine}, headers=ORIGINE).get_json()
+    decl = [l for p in j["remplissage"]["pieces"] for l in p["rubriques"]
+            if l["source"] == "declaration"]
+    assert decl
+    assert all(l["valeur"] is None and l["statut"] == "a_declarer"
+               for l in decl)
+    assert all(not p["pret"] for p in j["remplissage"]["pieces"]
+               if p["porte_declaration"])
+
+
+def test_une_valeur_a_rallonge_est_bornee_a_l_entree(connecte):
+    """UNE CASE DE FORMULAIRE QUI RECEVRAIT UN ROMAN NE SE REMPLIT PAS : elle
+    sert à faire grossir une réponse. Les entrées sont bornées AVANT le calcul."""
+    j = connecte.post("/api/datacenter/marche/remplir",
+                      json={"fiche": {"raison_sociale": "X" * 5000}},
+                      headers=ORIGINE).get_json()
+    v = [l["valeur"] for p in j["remplissage"]["pieces"] for l in p["rubriques"]
+         if l["cle"] == "candidat" and l["valeur"]]
+    assert v and all(len(x) <= 400 for x in v), [len(x) for x in v]
+
+
+def test_la_route_ne_conserve_rien_d_un_appel_a_l_autre(connecte):
+    """Un état retenu ferait ressortir, sur la consultation suivante, des
+    valeurs de la précédente — et personne ne relit une case déjà remplie."""
+    connecte.post("/api/datacenter/marche/remplir",
+                  json={"fiche": FICHE_R}, headers=ORIGINE)
+    j = connecte.post("/api/datacenter/marche/remplir", json={},
+                      headers=ORIGINE).get_json()
+    v = [l["valeur"] for p in j["remplissage"]["pieces"] for l in p["rubriques"]
+         if l["source"] == "fiche"]
+    assert not any(v), "une valeur du premier appel survit au second"
+
+
+def test_le_dossier_s_emporte_en_word_et_en_pdf(connecte):
+    """UN DOCUMENT QUI NE SORT PAS DU SITE N'EST PAS UN LIVRABLE : le seul moyen
+    de l'emporter serait de sélectionner le texte à l'écran, c'est-à-dire de
+    perdre le titrage, les tableaux et les origines."""
+    for fmt, debut in (("docx", b"PK"), ("pdf", b"%PDF")):
+        r = connecte.post("/api/datacenter/marche/export",
+                          json={"fiche": FICHE_R, "format": fmt},
+                          headers=ORIGINE)
+        assert r.status_code == 200, (fmt, r.status_code)
+        assert r.data[:4].startswith(debut), fmt
+        assert len(r.data) > 4000, (fmt, len(r.data))
+        assert fmt in r.headers.get("Content-Disposition", "")
+
+
+def test_un_format_inconnu_ne_produit_pas_un_fichier_qui_MENT(connecte):
+    """CE QUE CETTE RÈGLE MESURE VRAIMENT, après une mutation qui a survécu à
+    sa première version. Le repli sur le Word ne change pas le CONTENU — la
+    mise en page retombe déjà sur le docx — mais il change le NOM : sans lui,
+    « format: wordperfect » rendait un document Word appelé
+    « dossier-candidature.wordperfect », que le poste du client refuse
+    d'ouvrir. Un fichier dont l'extension ment sur son contenu est perdu pour
+    celui qui le reçoit.
+
+    Ma première version vérifiait le contenu (« ça commence par PK »), qui est
+    juste des deux côtés de la mutation : elle était verte pour une raison sans
+    rapport avec ce qu'elle prétendait garder."""
+    r = connecte.post("/api/datacenter/marche/export",
+                      json={"fiche": FICHE_R, "format": "wordperfect"},
+                      headers=ORIGINE)
+    assert r.status_code == 200 and r.data[:2] == b"PK"
+    nom = r.headers.get("Content-Disposition", "")
+    assert ".docx" in nom and "wordperfect" not in nom, (
+        "le fichier rendu est un Word appelé autrement : %r" % nom)

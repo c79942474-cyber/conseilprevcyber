@@ -188,6 +188,11 @@ _RATE_EXACT = {
     "/api/datacenter/piece/export":      (30, 60),
     "/api/datacenter/ingenierie/export": (30, 60),
     "/api/ia-factory/chiffrer":          (60, 60),
+    # LE REMPLISSAGE EST APPELÉ À CHAQUE FRAPPE (avec un délai de grâce dans
+    # la page) : le plafond doit tenir une saisie continue à deux mains, et
+    # arrêter une boucle. Le calcul est pur — aucune socket, aucun fichier.
+    "/api/datacenter/marche/remplir":    (120, 60),
+    "/api/datacenter/marche/export":     (30, 60),
     # LES QUATRE POINTS À JETON. Le compteur d'ÉCHECS (voir `_jeton_refus`)
     # arrête la force brute ; il ne borne pas une inondation menée AVEC le bon
     # jeton — un connecteur en boucle, ou un secret ayant fuité. Ces plafonds
@@ -4458,6 +4463,116 @@ def api_datacenter_marche_candidature():
                       for cle, tid in _AO_REDACTION.items()
                       if livrables.get_type(tid)]
     return jsonify(ok=True, plan=p, pieces_marche=ao_dc.PIECES_MARCHE)
+
+
+@app.route("/api/datacenter/marche/remplir", methods=["POST"])
+@login_required
+def api_datacenter_marche_remplir():
+    """Les pièces de candidature remplies de ce qui est déjà écrit ailleurs.
+
+    POURQUOI CE CALCUL VIT AU SERVEUR ET PAS DANS LA PAGE. Le critère qui fait
+    qu'une rubrique est « remplie », « à saisir » ou « à déclarer » est une
+    DÉCISION du module. Recopiée dans le script, elle dériverait de celle du
+    module à la première rubrique ajoutée — et une pièce annoncée prête pour un
+    critère périmé est pire qu'une pièce annoncée incomplète.
+
+    CE QUE CETTE ROUTE NE FAIT PAS. Elle ne conserve rien : ni la fiche du
+    candidat, ni l'analyse, ni les saisies. Tout vient de la requête et repart
+    dans la réponse. La fiche reste dans le navigateur de qui la saisit.
+
+    ELLE NE DÉCLARE RIEN NON PLUS. Les rubriques de déclaration sur l'honneur
+    ressortent vides, au statut `a_declarer`, avec le texte exact de ce qui est
+    affirmé — leur fausseté est sanctionnée pénalement, et une case cochée par
+    un programme est une déclaration que personne n'a faite.
+    """
+    data = request.get_json(silent=True) or {}
+    fiche = data.get("fiche") if isinstance(data.get("fiche"), dict) else {}
+    analyse = data.get("analyse") if isinstance(data.get("analyse"), dict) else None
+    saisies = data.get("saisies") if isinstance(data.get("saisies"), dict) else {}
+    # Les valeurs sont bornées à l'entrée : une fiche est faite de lignes
+    # courtes, et une case de formulaire qui recevrait un roman ne se remplit
+    # pas — elle sert à faire grossir une réponse.
+    fiche = {str(k)[:60]: str(v)[:400] for k, v in list(fiche.items())[:80]}
+    saisies = {str(k)[:80]: str(v)[:800] for k, v in list(saisies.items())[:120]}
+    try:
+        r = ao_dc.remplir(fiche=fiche, analyse=analyse, saisies=saisies,
+                          groupement=bool(data.get("groupement")))
+    except Exception:
+        app.logger.exception("remplissage du dossier de candidature")
+        return jsonify(ok=False, error="calcul",
+                       message="Le remplissage n'a pas pu être établi."), 500
+    return jsonify(ok=True, remplissage=r)
+
+
+@app.route("/api/datacenter/marche/export", methods=["POST"])
+@login_required
+def api_datacenter_marche_export():
+    """Le dossier de candidature préparé, en Word ou en PDF.
+
+    CE DOCUMENT NE REMPLACE PAS LES FORMULAIRES. Les DC1 et DC2 ont leur
+    version, leur format et leurs cases ; un fac-similé produit ici serait
+    refusé — ou pire, accepté et faux. Celui-ci se pose À CÔTÉ, rubrique par
+    rubrique, chaque valeur avec son origine, pour être recopié en le
+    vérifiant.
+
+    LES DÉCLARATIONS EN SORTENT VIDES, avec le texte de ce qui est affirmé et
+    une ligne de signature. Les pré-remplir dans un document EXPORTÉ serait pire
+    que dans la page : le document circule, et il se signerait sans être lu.
+    """
+    data = request.get_json(silent=True) or {}
+    fiche = data.get("fiche") if isinstance(data.get("fiche"), dict) else {}
+    analyse = data.get("analyse") if isinstance(data.get("analyse"), dict) else None
+    saisies = data.get("saisies") if isinstance(data.get("saisies"), dict) else {}
+    fiche = {str(k)[:60]: str(v)[:400] for k, v in list(fiche.items())[:80]}
+    saisies = {str(k)[:80]: str(v)[:800] for k, v in list(saisies.items())[:120]}
+    fmt = (data.get("format") or "docx").strip().lower()
+    if fmt not in ("docx", "pdf"):
+        fmt = "docx"
+    try:
+        r = ao_dc.remplir(fiche=fiche, analyse=analyse, saisies=saisies,
+                          groupement=bool(data.get("groupement")))
+        md = ao_dc.markdown_remplissage(r)
+    except Exception:
+        app.logger.exception("remplissage à exporter")
+        return jsonify(ok=False, error="calcul",
+                       message="Le dossier n'a pas pu être établi."), 500
+    meta = {"label": "Dossier de candidature — pièces préparées",
+            "numero": "AO-CANDIDATURE",
+            "phase": "Réponse à consultation",
+            "indice": "01",
+            "client": str(fiche.get("raison_sociale") or "")[:120],
+            # LE DOCUMENT NE DOIT RIEN À UN MODÈLE DE LANGAGE : il est le
+            # report mécanique de valeurs saisies et de citations relevées.
+            # Le déclarer « ia » serait faux dans l'autre sens, et le registre
+            # de transparence cesserait de distinguer ce qui compte.
+            "ia": False,
+            "referentiel": "Composition de candidature CONSEILPREV v" + ao_dc.VERSION,
+            "perimetre": "%d rubriques · %d pièces"
+                         % (r["etat"]["rubriques"], r["etat"]["pieces"]),
+            "date": time.strftime("%d/%m/%Y"),
+            "sources": [{"title": "Fiche du candidat saisie par le client",
+                         "theme": "report"},
+                        {"title": "Analyse du dossier de consultation v" + ao_dc.VERSION,
+                         "theme": "citations avec position"}]}
+    md, _bord = _poser_bordereau(md, meta, "candidature", data)
+    try:
+        if fmt == "pdf":
+            blob = livrables_export.build_pdf(md, meta)
+            mimetype = "application/pdf"
+        else:
+            blob = livrables_export.build_docx(md, meta)
+            mimetype = ("application/vnd.openxmlformats-officedocument"
+                        ".wordprocessingml.document")
+    except Exception:
+        app.logger.exception("export du dossier de candidature")
+        return jsonify(ok=False, error="export_echec",
+                       message="La mise en page a échoué."), 500
+    audit.journaliser("marche.candidature.export",
+                      cible="%d rubriques" % r["etat"]["rubriques"],
+                      detail="%s · %d remplies" % (fmt, r["etat"]["remplies"]))
+    return send_file(io.BytesIO(blob),
+                     download_name="dossier-candidature.%s" % fmt,
+                     as_attachment=True, mimetype=mimetype)
 
 
 @app.route("/api/datacenter/ingenierie/export", methods=["POST"])

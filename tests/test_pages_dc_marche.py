@@ -66,7 +66,8 @@ def test_les_zones_de_rendu_des_sections_ajoutees_existent():
                 "ig-icpe-bareme",
                 "ig-res-form", "ig-res-out", "ig-res-msg",
                 "ig-tr-form", "ig-tr-out", "ig-tr-msg",
-                "ig-ao-depot", "ig-ao-out", "ig-ao-cand-out", "ig-ao-msg"):
+                "ig-ao-depot", "ig-ao-out", "ig-ao-cand-out", "ig-ao-msg",
+                "ig-ao-fiche", "ig-ao-rempli"):
         assert 'id="%s"' % zid in h, zid
 
 
@@ -794,3 +795,92 @@ def test_chaque_script_reference_par_une_page_est_REELLEMENT_SERVI(admin):
     assert not fautes, (
         "%d script(s) référencé(s) mais non servi(s) — les pages concernées "
         "sont inertes dans un navigateur :\n  %s" % (len(fautes), "\n  ".join(fautes)))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE REMPLISSAGE DES PIÈCES DANS LA PAGE
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_la_fiche_du_candidat_ne_quitte_pas_le_navigateur():
+    """CE QUE LA PAGE PROMET, LE SCRIPT DOIT LE TENIR. La page annonce que la
+    fiche « ne quitte pas ce navigateur ». Un envoi au serveur POUR ÊTRE
+    CONSERVÉ démentirait la promesse — et personne ne le verrait, puisque la
+    page continuerait de s'afficher normalement."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    # LA CLÉ CHERCHÉE DANS TOUT LE FICHIER NE PROUVAIT RIEN : elle figure aussi
+    # dans la LECTURE. Mutation vérifiée — l'écriture supprimée, la règle
+    # restait verte et la fiche se perdait à chaque rechargement. On borne donc
+    # à la fonction qui écrit, et à celle qui lit.
+    enr = js[js.index("function aoFicheEnregistrer("):]
+    enr = enr[:enr.index("\n  }")]
+    assert 'setItem("ao-fiche-v1"' in enr, (
+        "la fiche n'est pas écrite localement : elle se perd au rechargement")
+    cha = js[js.index("function aoFicheCharger("):]
+    cha = cha[:cha.index("\n  }")]
+    assert 'getItem("ao-fiche-v1"' in cha, "la fiche n'est jamais relue"
+    # Le seul point qui reçoit la fiche est le calcul, et il ne conserve rien —
+    # c'est éprouvé côté route. Aucun autre appel ne doit l'emporter.
+    envois = re.findall(r'demander\(\s*"(/api/[^"]+)"[^;]*?AO_FICHE', js, re.S)
+    assert set(envois) <= {"/api/datacenter/marche/remplir",
+                           "/api/datacenter/marche/export"}, envois
+
+
+def test_la_page_ne_recalcule_pas_le_critere_de_remplissage():
+    """LE CRITÈRE QUI FAIT QU'UNE RUBRIQUE EST REMPLIE EST UNE DÉCISION DU
+    MODULE. Recopié dans le script, il dériverait au premier ajout de rubrique,
+    et une pièce annoncée prête pour un critère périmé est pire qu'une pièce
+    annoncée incomplète."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    for interdit in ('a_declarer"] ==', "compte.a_saisir === 0",
+                     "compte.non_trouve === 0", 'statut = "rempli"'):
+        assert interdit not in js, (
+            "le script recalcule un critère au lieu de le recevoir : %r"
+            % interdit)
+    assert "l.statut_nom" in js or "statut_nom" in js, (
+        "la page réécrit le libellé des statuts au lieu de l'afficher")
+
+
+def test_la_saisie_de_la_fiche_relance_le_remplissage():
+    """« EN TEMPS RÉEL » VEUT DIRE : à la frappe. Un formulaire qu'il faut
+    valider par un bouton n'est pas ce qui a été demandé, et un bouton oublié
+    laisse le lecteur devant des pièces vides en croyant avoir saisi."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    bloc = js[js.index("function aoFicheRendre("):]
+    bloc = bloc[:bloc.index("\n  var AO_ETAT_CLASSE")]
+    assert 'addEventListener("input"' in bloc and "aoRemplir()" in bloc, (
+        "la fiche ne relance rien quand on la saisit")
+    # ET L'ANALYSE AUSSI : les rubriques qui viennent des pièces de l'acheteur
+    # doivent se remplir au moment où l'analyse arrive.
+    # LA PRÉSENCE DU MOT NE PROUVE RIEN : `if (false) aoRemplir(true);` la
+    # satisfait. Mutation vérifiée. On exige donc que l'appel soit un FRÈRE du
+    # rendu — même niveau d'indentation, aucune condition entre les deux —,
+    # ce qui est la propriété réelle : le remplissage suit l'analyse, toujours.
+    ana = js[js.index("function aoAnalyser("):]
+    ana = ana[:ana.index("function aoIgnores(")]
+    lignes = ana.split("\n")
+    i = next(k for k, l in enumerate(lignes) if "aoRendre(j.analyse)" in l)
+    j = next((k for k, l in enumerate(lignes) if "aoRemplir(" in l), None)
+    assert j is not None and j > i, (
+        "l'analyse déposée ne remplit rien : il faudrait un second geste")
+    entre = "\n".join(lignes[i + 1:j])
+    assert not re.search(r"\bif\b|\?|&&|\|\|", entre), (
+        "le remplissage qui suit l'analyse est sous condition : %r" % entre)
+    creux = lambda l: len(l) - len(l.lstrip())
+    assert creux(lignes[j]) == creux(lignes[i]), (
+        "le remplissage n'est pas au même niveau que le rendu : il dépend de "
+        "quelque chose")
+
+
+def test_le_debounce_existe_et_n_est_pas_zero():
+    """UNE REQUÊTE PAR FRAPPE FERAIT VINGT ALLERS-RETOURS POUR UNE LIGNE
+    D'ADRESSE. Le délai de grâce est ce qui rend le temps réel tenable."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    bloc = js[js.index("function aoRemplir("):]
+    bloc = bloc[:bloc.index("\n  function aoFicheRendre(")]
+    m = re.search(r"\}, immediat \? 0 : (\d+)\)", bloc)
+    assert m, "aucun délai de grâce dans aoRemplir"
+    assert 200 <= int(m.group(1)) <= 1500, (
+        "le délai de grâce est hors de l'intervalle tenable : %s ms"
+        % m.group(1))
+    assert "clearTimeout" in bloc, (
+        "les appels s'empilent au lieu de se remplacer")

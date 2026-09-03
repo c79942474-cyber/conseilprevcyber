@@ -841,6 +841,48 @@
     color:#8FDBF2}
   .ig-ao-w{margin:5px 0 0;font-size:10.5px;line-height:1.6;color:var(--muted2)}
   .ig-ao-inc{border-style:dashed}
+  .ig-ao-fg{margin-top:16px}
+  .ig-ao-fg h4{margin:0 0 8px;font-size:13px;color:var(--ink);font-weight:600}
+  .ig-ao-ff{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+    gap:12px 16px}
+  .ig-ao-fc{display:flex;flex-direction:column;gap:3px;font-size:12px}
+  .ig-ao-fl{font-weight:600;color:var(--ink);font-size:12px}
+  .ig-ao-fc input{padding:7px 10px;border-radius:8px;border:1px solid var(--line);
+    background:rgba(0,0,0,.18);color:var(--ink);font-family:inherit;font-size:13px;
+    outline:none}
+  .ig-ao-fc input:focus{border-color:var(--cyan)}
+  .ig-ao-fo{font-size:10.5px;line-height:1.5;color:var(--muted2)}
+  .ig-ao-bar{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+  .ig-ao-cpt{font-family:var(--mono);font-size:10px;letter-spacing:.04em;
+    text-transform:uppercase;padding:4px 9px;border-radius:999px;
+    border:1px solid var(--line);color:var(--muted)}
+  .ig-ao-cpt.ok{border-color:rgba(45,212,191,.5);color:var(--teal)}
+  .ig-ao-cpt.att{border-color:rgba(232,200,106,.5);color:#E8C86A}
+  .ig-ao-cpt.dec{border-color:rgba(143,219,242,.5);color:#8FDBF2}
+  .ig-ao-cpt.mal{border-color:rgba(240,120,110,.6);color:#F0786E}
+  .ig-ao-cp-ok{border-color:rgba(45,212,191,.45)}
+  .ig-ao-rb{margin:9px 0 0}
+  .ig-ao-rb dt{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;
+    font-size:11.5px;font-weight:600;color:var(--ink);margin-top:9px}
+  .ig-ao-rb dd{margin:2px 0 0;padding-left:9px;border-left:2px solid var(--line)}
+  .ig-ao-rb dt.ok{color:var(--ink)}
+  .ig-ao-st{font-family:var(--mono);font-size:9px;letter-spacing:.04em;
+    text-transform:uppercase;margin-left:auto;color:var(--muted2)}
+  .ig-ao-st.ok{color:var(--teal)}
+  .ig-ao-st.att{color:#E8C86A}
+  .ig-ao-st.dec{color:#8FDBF2}
+  .ig-ao-st.mal{color:#F0786E}
+  .ig-ao-vv{display:block;font-size:12.5px;color:var(--ink)}
+  .ig-ao-og{display:block;font-size:10.5px;color:var(--muted2);margin-top:2px}
+  .ig-ao-si{width:100%;padding:6px 9px;border-radius:7px;border:1px solid var(--line);
+    background:rgba(0,0,0,.18);color:var(--ink);font-family:inherit;font-size:12.5px;
+    outline:none}
+  .ig-ao-si:focus{border-color:var(--cyan)}
+  .ig-ao-div{margin:5px 0 0;padding:5px 9px;border-radius:6px;font-size:11px;
+    line-height:1.6;background:rgba(232,200,106,.10);color:var(--muted)}
+  .ig-ao-dec{margin:5px 0 0;padding:7px 11px;border-radius:7px;font-size:11.5px;
+    line-height:1.65;border:1px dashed rgba(143,219,242,.45);color:var(--muted);
+    font-style:normal}
   .ig-ao-cd{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
     gap:12px;margin-top:12px}
   .ig-ao-cp{padding:13px 15px;border:1px solid var(--line);border-radius:9px;
@@ -2334,18 +2376,33 @@
        l'on s'y prend réellement — les justificatifs à obtenir d'abord, parce
        qu'ils ont un délai, les formulaires en dernier.
 
-       CE QUI NE SE FAIT PAS ICI. Les DC1, DC2 et déclarations sur l'honneur
-       ne se génèrent pas : ils portent des déclarations dont la fausseté est
-       sanctionnée. La page dit ce que chaque rubrique attend ; elle ne
-       déclare rien.
+       CE QUI SE REMPLIT, ET CE QUI NE SE REMPLIRA JAMAIS. Un dossier de
+       candidature, c'est quatorze pièces qui redemandent les mêmes vingt
+       informations. Les rubriques FACTUELLES se remplissent donc toutes
+       seules, depuis deux sources et deux seulement : la fiche du candidat,
+       saisie une fois dans le navigateur, et le dossier de consultation
+       analysé au-dessus — auquel cas la valeur arrive avec sa citation et sa
+       position dans la pièce. Chaque valeur dit d'où elle vient.
+
+       LES DÉCLARATIONS, ELLES, RESTENT VIDES. Les DC1, DC2 et déclarations
+       sur l'honneur portent des affirmations dont la fausseté est sanctionnée
+       pénalement : ne pas entrer dans un cas d'exclusion, être à jour de ses
+       obligations fiscales et sociales. Une case cochée par un programme est
+       une déclaration que personne n'a faite. Elles ressortent au statut
+       « à déclarer et signer », avec le texte exact de ce qui est affirmé.
        ═══════════════════════════════════════════════════════════════════ -->
   <section class="wrap rc-sec" id="ig-ao">
     <div class="rc-etape"><span class="n">13</span><h2>Répondre à l'appel d'offres</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
-      Déposez les pièces de la consultation — CCTP, CCAP, CCAG, règlement de
-      consultation, DPGF, tableau de répartition MOE/AMO, feuilles de calcul —
-      à l'étape précédente, puis analysez-les ici. La composition du dossier de
-      candidature suit, avec ce que chaque pièce doit contenir.</p>
+      Déposez ensemble toutes les pièces de la consultation — règlement de
+      consultation, CCAP, CCAG, CCTP, DPGF, tableau de répartition MOE/AMO,
+      feuilles de calcul : c'est le dossier ENTIER qui dit ce qui manque, et
+      une pièce absente est l'information la plus utile d'une analyse de DCE.
+      Chaque point relevé est une citation, avec sa position dans la pièce.
+      Ensuite, votre fiche se saisit une fois et les rubriques factuelles du
+      dossier de candidature se remplissent au fur et à mesure, chacune avec
+      son origine. Les déclarations sur l'honneur, elles, restent à votre
+      main : leur fausseté est sanctionnée.</p>
     <div id="ig-ao-depot"></div>
     <div class="actions" style="margin-top:14px;gap:10px;flex-wrap:wrap">
       <button type="button" class="ig-lanceur-b" id="ig-ao-go">Analyser le dossier de consultation →</button>
@@ -2354,6 +2411,14 @@
     <p class="note" id="ig-ao-msg" style="margin-top:10px"></p>
     <div id="ig-ao-out"></div>
     <div id="ig-ao-cand-out"></div>
+    <!-- LE REMPLISSAGE. La fiche est saisie UNE FOIS et se reporte dans
+         toutes les pièces qui la demandent ; ce que l'analyse a relevé dans
+         le dossier de l'acheteur s'y reporte aussi, avec sa citation. Les
+         déclarations sur l'honneur restent vides : leur fausseté est
+         sanctionnée pénalement, et une case cochée par un programme est une
+         déclaration que personne n'a faite. -->
+    <div id="ig-ao-fiche"></div>
+    <div id="ig-ao-rempli"></div>
   </section>
 
   <section class="wrap rc-sec" id="ig-limites">

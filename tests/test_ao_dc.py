@@ -12,6 +12,7 @@ consultation est honnête, et qu'un dossier de candidature est complet :
   · les formulaires de candidature ne se génèrent pas, et le module le dit.
 """
 import os
+import re
 import sys
 
 import pytest
@@ -189,6 +190,102 @@ def test_ce_qui_n_est_pas_trouve_est_declare_non_trouve():
         assert isinstance(x["note"], str) and x["note"].strip(), x["cle"]
         assert "n'a pas vu" in x["note"] or "non trouvé" in x["note"].lower()
         assert not x["citations"]
+
+
+# Un règlement de consultation tel qu'un extracteur le rend : les phrases sont
+# coupées par la MISE EN PAGE, pas par leur auteur, et l'adresse de la
+# plateforme voisine avec le mot « acheteur ».
+RC_FORMULAIRE = """RÈGLEMENT DE LA CONSULTATION
+Pouvoir adjudicateur : Communauté d'agglomération de la Vallée, 12 rue du Port.
+Objet du marché : maîtrise d'œuvre pour la construction d'un centre de données
+de 4 MW IT sur le site de la zone d'activités nord.
+Procédure adaptée ouverte, en application des articles R. 2123-1 et suivants.
+Allotissement : le marché est décomposé en deux lots.
+Lot n° 1 – conception et suivi de réalisation des infrastructures techniques.
+Profil d'acheteur : https://marches.vallee-agglo.fr/consultation/2026-014
+Date et heure limites de réception des offres : 30 octobre 2026 à 12 h 00.
+"""
+
+
+def _valeurs(cle, texte=RC_FORMULAIRE, piece="rc"):
+    r = [x for x in A.relever(piece, texte) if x["cle"] == cle]
+    assert r, "le relevé « %s » n'existe pas" % cle
+    return [c["valeur"] for c in r[0]["citations"] if c["valeur"]]
+
+
+def test_les_cinq_lignes_qui_ouvrent_tout_formulaire_sont_relevees():
+    """CE QUI MANQUAIT. Le DC1, le DC2 et l'acte d'engagement commencent tous
+    les trois par les mêmes lignes : qui achète, quoi, en combien de lots,
+    selon quelle procédure, et où l'on dépose. Aucune n'était relevée — le
+    module savait dire ce que la rubrique ATTEND et n'avait rien à y mettre."""
+    for cle in ("acheteur", "objet", "lots", "procedure", "plateforme"):
+        assert _valeurs(cle), "« %s » ne rend aucune valeur" % cle
+
+
+def test_une_valeur_ne_voyage_jamais_sans_sa_citation_et_sa_position():
+    """UNE VALEUR SANS SA PHRASE D'ORIGINE EST UNE INTERPRÉTATION DÉGUISÉE. Ce
+    qui se recopie dans une case de formulaire doit pouvoir se vérifier sur la
+    pièce : la citation entière et sa position sont rendues à côté."""
+    for r in A.relever("rc", RC_FORMULAIRE):
+        for c in r["citations"]:
+            if c.get("valeur"):
+                assert c["texte"], (r["cle"], "valeur sans citation")
+                assert c["valeur"] in c["texte"] or (
+                    c["valeur"].lower() in c["texte"].lower()), (
+                    "« %s » : la valeur %r n'est pas dans sa citation %r"
+                    % (r["cle"], c["valeur"], c["texte"]))
+                assert isinstance(c["position"], int) and c["part"] >= 0, r["cle"]
+
+
+def test_le_nom_de_l_acheteur_n_est_pas_une_adresse_web():
+    """DÉFAUT ÉPROUVÉ, PAS IMAGINÉ. Le motif acceptait « acheteur » nu et
+    attrapait « Profil d'acheteur : https://… » : il proposait une adresse web
+    comme nom de pouvoir adjudicateur — dans la case la plus visible du DC1."""
+    for v in _valeurs("acheteur"):
+        assert not v.lower().startswith("http"), (
+            "l'acheteur proposé est une adresse : %r" % v)
+
+
+def test_l_objet_survit_au_retour_a_la_ligne_de_la_mise_en_page():
+    """UN SAUT DE LIGNE N'EST PAS UNE FIN DE PHRASE. L'objet du marché tient
+    sur deux lignes dans le RC d'essai parce qu'un PDF le coupe là ; s'arrêter
+    au saut rendait la moitié de l'objet — et un DC1 dont l'objet est amputé
+    ne désigne plus le même marché."""
+    v = _valeurs("objet")[0]
+    assert "4 MW" in v and "zone" in v, (
+        "l'objet s'arrête au saut de ligne : %r" % v)
+
+
+def test_l_adresse_de_la_plateforme_n_est_pas_coupee_au_premier_point():
+    """Une adresse fausse est pire qu'une case vide : elle se recopie sans
+    qu'on la relise. « https://marches » au lieu de
+    « https://marches.vallee-agglo.fr/… » envoie déposer nulle part."""
+    v = _valeurs("plateforme")
+    assert v and v[0].endswith("2026-014"), "adresse tronquée : %r" % v
+    assert not any(x == "https://marches" for x in v), (
+        "une adresse tronquée est proposée à côté de la bonne : %r" % v)
+
+
+def test_deux_citations_qui_disent_la_meme_valeur_sont_une_proposition():
+    """« Profil d'acheteur : https://x » et « https://x » sont deux phrases et
+    UNE SEULE adresse. Les rendre deux fois ferait croire à deux plateformes,
+    et obligerait à choisir entre deux propositions identiques."""
+    for cle in ("acheteur", "objet", "procedure", "plateforme"):
+        v = _valeurs(cle)
+        assert len(v) == len(set(v)), "« %s » se répète : %r" % (cle, v)
+
+
+def test_une_piece_qui_ne_porte_pas_la_ligne_ne_l_invente_pas():
+    """LE TÉMOIN. Sans lui, un motif qui capture n'importe quoi passerait les
+    six règles précédentes."""
+    for cle in ("acheteur", "objet", "lots", "procedure", "plateforme"):
+        r = [x for x in A.relever("rc", "Texte sans aucune de ces mentions.")
+             if x["cle"] == cle]
+        if r:
+            assert not r[0]["trouve"], (
+                "« %s » trouve quelque chose dans un texte qui n'en parle pas"
+                % cle)
+            assert r[0]["note"], "« %s » ne dit pas qu'il n'a pas trouvé" % cle
 
 
 def test_les_criteres_et_leur_ponderation_sont_releves():
@@ -475,3 +572,298 @@ def test_le_glossaire_couvre_les_pieces_de_marche_et_de_candidature():
 def test_aucune_infobulle_n_est_vide(famille):
     for cle, e in A.glossaire()[famille].items():
         assert len(e["aide"]) > 100, (famille, cle, len(e["aide"]))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE REMPLISSAGE DES PIÈCES — ce qui se recopie, ce qui ne se déclare jamais
+# ═══════════════════════════════════════════════════════════════════════════
+# LA LIGNE QUE CES RÈGLES TIENNENT. Un dossier de candidature, c'est quatorze
+# pièces qui redemandent les mêmes vingt informations, et les recopier à la
+# main est le travail qui produit les fautes de cohérence dont les
+# candidatures meurent. Ce module les recopie donc — et il ne DÉCLARE rien :
+# les DC1, DC2 et déclarations sur l'honneur portent des affirmations dont la
+# fausseté est sanctionnée pénalement, et une case cochée par un programme est
+# une déclaration que personne n'a faite.
+
+FICHE = {
+    "raison_sociale": "Bureau d'études Essai", "forme_juridique": "SAS",
+    "siret": "80295478500019", "adresse": "5 rue de l'Essai",
+    "representant_nom": "A. Dupont", "representant_qualite": "Président",
+}
+
+CCTP_AUTRE_OBJET = """CAHIER DES CLAUSES TECHNIQUES PARTICULIÈRES
+Objet du marché : assistance à maîtrise d'ouvrage pour un centre de données.
+Le PUE annuel engagé est de 1,25.
+"""
+
+
+def _rempli(fiche=None, avec_dossier=True, **kw):
+    an = A.analyser([{"nom": "01_RC.pdf", "texte": RC_FORMULAIRE},
+                     {"nom": "03_CCTP.pdf", "texte": CCTP_AUTRE_OBJET}]) \
+        if avec_dossier else None
+    return A.remplir(fiche=FICHE if fiche is None else fiche, analyse=an, **kw)
+
+
+def _lignes(r):
+    for p in r["pieces"]:
+        for l in p["rubriques"]:
+            yield p, l
+
+
+def test_aucune_declaration_sur_l_honneur_n_est_JAMAIS_pre_remplie():
+    """LA LIGNE À NE PAS FRANCHIR, ET LA RAISON DE TOUT CE QUI PRÉCÈDE. Ces
+    affirmations — ne pas entrer dans un cas d'exclusion, être à jour de ses
+    obligations fiscales et sociales — engagent pénalement celui qui les signe.
+    Une case cochée par un programme est une déclaration que personne n'a
+    faite. Elles ressortent VIDES, au statut `a_declarer`, avec le texte exact
+    de ce qui est affirmé, quelle que soit la richesse de la fiche."""
+    fiche_pleine = {c["cle"]: "renseigné" for c in A.CHAMPS_CANDIDAT}
+    fiche_pleine["siret"] = "80295478500019"
+    for r in (_rempli(), _rempli(fiche=fiche_pleine)):
+        decl = [l for _p, l in _lignes(r) if l["source"] == "declaration"]
+        assert len(decl) >= 4, "trop peu de déclarations pour que la règle mesure"
+        for l in decl:
+            assert l["statut"] == "a_declarer", (l["cle"], l["statut"])
+            assert l["valeur"] is None, (
+                "la déclaration « %s » est pré-remplie : %r"
+                % (l["cle"], l["valeur"]))
+            assert (l.get("texte") or "").strip(), (
+                "« %s » ne dit pas ce qui est affirmé — on signerait à "
+                "l'aveugle" % l["cle"])
+
+
+def test_le_texte_d_une_declaration_est_celui_de_la_piece_MOT_POUR_MOT():
+    """DEUX RÉDACTIONS DE LA MÊME DÉCLARATION FINIRAIENT PAR NE PLUS DIRE LA
+    MÊME CHOSE. Le texte affiché n'est pas réécrit : il est repris de ce que la
+    pièce déclare contenir, et la règle refuse qu'il en diverge."""
+    par_piece = {p["cle"]: p for p in A.DOSSIER_CANDIDATURE}
+    for _p, l in _lignes(_rempli()):
+        if l["source"] != "declaration":
+            continue
+        assert any(l["texte"] == c
+                   for piece in par_piece.values()
+                   for c in piece["contient"]), (
+            "« %s » porte un texte de déclaration qui n'existe dans aucune "
+            "pièce : il a été réécrit à côté" % l["cle"])
+
+
+def test_une_piece_qui_porte_une_declaration_n_est_JAMAIS_dite_prete():
+    """DÉFAUT ÉPROUVÉ DANS MON PROPRE CODE. `pret` était calculé sans regarder
+    les déclarations, sous un commentaire qui affirmait le contraire : un DC1
+    dont toutes les cases factuelles étaient remplies ressortait « prêt » avec
+    sa déclaration sur l'honneur vierge. C'est une SIGNATURE qui rend une pièce
+    prête, et personne ici ne signe."""
+    fiche_pleine = {c["cle"]: "renseigné" for c in A.CHAMPS_CANDIDAT}
+    fiche_pleine["siret"] = "80295478500019"
+    r = _rempli(fiche=fiche_pleine)
+    avec = [p for p in r["pieces"] if p["porte_declaration"]]
+    assert avec, "aucune pièce ne porte de déclaration : la règle ne mesure rien"
+    for p in avec:
+        assert not p["pret"], (
+            "« %s » est dite prête alors qu'il reste %d déclaration(s) à signer"
+            % (p["nom"], p["compte"]["a_declarer"]))
+    # ET LE TÉMOIN : « complète » doit, lui, pouvoir être vrai — sans quoi la
+    # règle serait satisfaite par un module qui ne remplit jamais rien.
+    assert any(p["complet"] for p in r["pieces"]), (
+        "aucune pièce n'est complète : la distinction ne sépare rien")
+
+
+def test_toute_valeur_remplie_porte_son_origine():
+    """UNE VALEUR SANS ORIGINE SE RECOPIE SANS SE RELIRE, et c'est ainsi qu'un
+    SIRET d'une autre filiale finit sur un DC2. Trois origines, et elles ne
+    s'équivalent pas : votre fiche, un relevé daté dans une pièce, un calcul
+    dont la règle est nommée."""
+    for _p, l in _lignes(_rempli()):
+        if l["statut"] == "rempli" and l["source"] != "saisie":
+            assert (l["origine"] or "").strip(), (
+                "« %s » est remplie sans dire d'où elle vient" % l["cle"])
+
+
+def test_une_valeur_venue_du_dossier_arrive_avec_sa_citation():
+    """CE QUI SE RECOPIE DOIT POUVOIR SE VÉRIFIER SUR LA PIÈCE. Une valeur
+    relevée sans sa phrase ni sa position est une interprétation déguisée."""
+    vus = 0
+    for _p, l in _lignes(_rempli()):
+        if l["source"] == "consultation" and l["statut"] == "rempli":
+            vus += 1
+            assert l["citation"], "« %s » : valeur sans citation" % l["cle"]
+            assert l["citation"]["texte"] and l["citation"]["fichier"], l["cle"]
+            assert l["valeur"].lower() in l["citation"]["texte"].lower(), (
+                "« %s » : la valeur n'est pas dans sa citation" % l["cle"])
+    assert vus >= 3, "trop peu de valeurs relevées pour que la règle mesure"
+
+
+def test_deux_pieces_qui_se_contredisent_ne_s_ecrasent_pas_en_silence():
+    """L'OBJET DU RC ET CELUI DU CCTP DIFFÈRENT PARFOIS D'UN MOT QUI CHANGE LE
+    PÉRIMÈTRE. La valeur retenue est celle de la pièce qu'on ouvre en premier ;
+    l'autre est rendue comme une DIVERGENCE. Écraser en silence ferait remplir
+    un DC1 sur un périmètre que le CCTP contredit."""
+    r = _rempli()
+    div = [l for _p, l in _lignes(r) if l["divergences"]]
+    assert div, ("la divergence entre le RC et le CCTP sur l'objet n'est pas "
+                 "signalée")
+    for l in div:
+        assert l["valeur"] and l["valeur"] not in [d["valeur"]
+                                                   for d in l["divergences"]]
+        assert "tranche" in (l["message"] or "").lower(), l["cle"]
+
+
+def test_ce_qui_n_est_pas_trouve_dit_OU_le_trouver():
+    """« À saisir » sans dire où chercher est une impasse polie. Chaque champ
+    de fiche non renseigné rend la phrase qui dit sur quel document il se lit —
+    Kbis, liasse fiscale, avis de situation INSEE."""
+    r = _rempli(fiche={})
+    manquants = [l for _p, l in _lignes(r) if l["source"] == "fiche"
+                 and l["statut"] == "a_saisir"]
+    assert len(manquants) >= 8, "trop peu de champs vides pour mesurer"
+    for l in manquants:
+        assert (l["message"] or "").strip(), (
+            "« %s » ne dit pas où trouver la valeur" % l["cle"])
+
+
+def test_un_releve_absent_du_dossier_ne_s_invente_pas():
+    """SANS DOSSIER DÉPOSÉ, les rubriques qui viennent des pièces de l'acheteur
+    restent VIDES et le disent — elles ne se remplissent pas d'un défaut."""
+    r = _rempli(avec_dossier=False)
+    assert r["sans_dossier"] is True
+    cons = [l for _p, l in _lignes(r) if l["source"] == "consultation"]
+    assert cons, "aucune rubrique ne vient de la consultation"
+    for l in cons:
+        assert l["statut"] == "non_trouve" and l["valeur"] is None, l["cle"]
+        assert "pas vu" in (l["message"] or ""), (
+            "« %s » laisse croire que l'information n'existe pas" % l["cle"])
+
+
+def test_un_SIRET_faux_est_refuse_avec_SA_raison():
+    """UN CONTRÔLE NE VALIDE PAS UNE VALEUR, IL ÉCARTE UNE FAUTE DE FRAPPE. Un
+    SIRET syntaxiquement juste peut être celui d'une autre société ; un SIRET
+    dont la clé ne tombe pas est faux à coup sûr, et il vaut mieux l'apprendre
+    ici que dans la lettre de rejet."""
+    assert A.controler("siret", "80295478500019") == (True, None)
+    for faux, attendu in (("80295478500011", "clé de contrôle"),
+                          ("802954785000", "quatorze"),
+                          ("8029547850001A", "chiffres")):
+        ok, pourquoi = A.controler("siret", faux)
+        assert ok is False and attendu in pourquoi, (faux, pourquoi)
+    # LA POSTE EST L'EXCEPTION CONNUE : ses établissements ne satisfont pas la
+    # clé de Luhn. La règle générale les refuserait à tort, et on ferait
+    # corriger un numéro juste.
+    #
+    # LE NUMÉRO D'ESSAI DOIT ÉCHOUER À LUHN, sans quoi la règle est verte pour
+    # une raison sans rapport avec ce qu'elle prétend. Ma première version
+    # employait 35600000000048, qui passe Luhn tout seul : retirer l'exception
+    # ne faisait rien tomber, et la mutation l'a montré.
+    assert not A._luhn("35600000009075"), (
+        "le numéro d'essai passe la clé générale : il n'éprouve pas "
+        "l'exception")
+    ok, _ = A.controler("siret", "35600000009075")
+    assert ok is True, "un SIRET de La Poste est refusé à tort"
+    # ET L'EXCEPTION A SA PROPRE RÈGLE — la somme des quatorze chiffres est un
+    # multiple de cinq. Sans ce témoin, l'exception accepterait n'importe quel
+    # numéro commençant par 356000000, faute de frappe comprise.
+    ok, pourquoi = A.controler("siret", "35600000000016")
+    assert ok is False and "multiple de cinq" in pourquoi, (
+        "l'exception La Poste est un trou : elle accepte %r" % pourquoi)
+    r = _rempli(fiche=dict(FICHE, siret="80295478500011"))
+    mauvais = [l for _p, l in _lignes(r) if l["statut"] == "invalide"]
+    assert mauvais and all(l["message"] for l in mauvais), (
+        "un SIRET faux passe sans être signalé")
+
+
+def test_ce_qui_se_deduit_le_dit_et_suit_la_regle_ecrite():
+    """DÉDUIRE N'EST PAS INVENTER, à une condition : que la règle soit écrite
+    et vérifiable. Le SIREN, ce sont les neuf premiers chiffres du SIRET ; la
+    clé de TVA est (12 + 3 × (SIREN mod 97)) mod 97. La règle recalcule au lieu
+    de recopier un résultat."""
+    for siret in ("80295478500019", "35600000000048", "55208131766522"):
+        d = A.derive({"siret": siret})
+        siren = siret[:9]
+        assert d["siren"]["valeur"] == siren
+        attendu = "FR%02d%s" % ((12 + 3 * (int(siren) % 97)) % 97, siren)
+        assert d["tva"]["valeur"] == attendu, (siret, d["tva"])
+        for x in ("siren", "tva"):
+            assert d[x]["regle"].strip(), "%s se déduit sans dire comment" % x
+    assert A.derive({}) == {}, "quelque chose se déduit d'un SIRET absent"
+
+
+def test_le_remplissage_ne_garde_rien_entre_deux_appels():
+    """CETTE FONCTION NE CONSERVE RIEN : ni la fiche, ni l'analyse, ni les
+    saisies. Un état retenu ferait ressortir, sur la consultation suivante, des
+    valeurs de la précédente — et personne ne relit une case déjà remplie."""
+    a = _rempli(fiche=FICHE)
+    b = _rempli(fiche={})
+    va = [l["valeur"] for _p, l in _lignes(a) if l["source"] == "fiche"]
+    vb = [l["valeur"] for _p, l in _lignes(b) if l["source"] == "fiche"]
+    assert any(va) and not any(vb), (
+        "une valeur du premier appel survit au second")
+
+
+def test_une_saisie_propre_a_la_consultation_ne_va_pas_dans_la_fiche():
+    """LES LOTS VISÉS OU LA FORME DU GROUPEMENT NE SONT PAS DE L'IDENTITÉ : ils
+    changent à chaque consultation. Les ranger dans la fiche les reporterait,
+    faux, sur la suivante."""
+    cles = {c["cle"] for c in A.CHAMPS_CANDIDAT}
+    saisies = [l for _p, l in _lignes(_rempli()) if l["source"] == "saisie"]
+    assert saisies, "aucune rubrique propre à la consultation"
+    for l in saisies:
+        assert l["cle"] not in cles, (
+            "« %s » est à la fois une saisie de consultation et un champ de "
+            "fiche" % l["cle"])
+    r = A.remplir(fiche=FICHE, saisies={"dc1.objet_candidature": "Lot n° 1"})
+    vus = [l for _p, l in _lignes(r) if l["cle"] == "objet_candidature"]
+    assert vus and vus[0]["valeur"] == "Lot n° 1" and vus[0]["statut"] == "rempli"
+
+
+def test_chaque_rubrique_designe_quelque_chose_qui_existe():
+    """LE CONTRÔLE DE STRUCTURE, ET IL A DÉJÀ SERVI. Une rubrique qui désigne un
+    relevé SANS GROUPE DE CAPTURE est une case définitivement vide : la
+    « Référence de la consultation » du DC1 ressortait « non relevée » sur un
+    dossier qui la portait en toutes lettres. Rien ne plantait."""
+    assert A._FAUTES == [], A._FAUTES
+    par_releve = {r["cle"]: r for r in A.RELEVES}
+    for piece, rubriques in A.RUBRIQUES.items():
+        for r in rubriques:
+            if r["source"] != "consultation":
+                continue
+            rel = par_releve[r["releve"]]
+            assert any(re.compile(m).groups for m in rel["motifs"]), (
+                "%s/%s vise « %s », qui cite sans capturer"
+                % (piece, r["cle"], r["releve"]))
+
+
+def test_le_document_emporte_dit_la_meme_chose_que_l_ecran():
+    """UN DOCUMENT QUI DIVERGE DE L'ÉCRAN EST PIRE QU'AUCUN DOCUMENT : il
+    circule, et c'est lui qu'on relit. Il est donc rendu par la MÊME fonction,
+    et la règle vérifie que chaque valeur affichée s'y retrouve."""
+    r = _rempli()
+    md = A.markdown_remplissage(r)
+    valeurs = [l["valeur"] for _p, l in _lignes(r)
+               if l["valeur"] and l["source"] != "declaration"]
+    assert len(valeurs) >= 8, "trop peu de valeurs pour mesurer"
+    for v in valeurs:
+        assert " ".join(v.split())[:120] in " ".join(md.split()), (
+            "la valeur %r ne figure pas dans le document emporté" % v[:60])
+
+
+def test_le_document_emporte_ne_signe_rien_non_plus():
+    """LES PRÉ-REMPLIR DANS UN DOCUMENT EXPORTÉ SERAIT PIRE QUE DANS LA PAGE :
+    le document circule, et il se signerait sans être lu. Les déclarations en
+    sortent avec leur texte et une ligne de signature vierge."""
+    md = A.markdown_remplissage(_rempli())
+    assert "Date et signature" in md and "_____" in md, (
+        "le document ne laisse pas de place à une signature")
+    for _p, l in _lignes(_rempli()):
+        if l["source"] == "declaration":
+            assert l["texte"] in md, "le texte déclaré n'est pas dans le document"
+    assert "ne déclare pas" in md.lower() or "jamais pré-remplies" in md.lower()
+
+
+def test_une_valeur_a_rallonge_ne_casse_pas_le_tableau_emporte():
+    """UN CARACTÈRE « | » DANS UNE RAISON SOCIALE CASSERAIT LE TABLEAU, et le
+    document sortirait illisible sans que rien n'ait échoué."""
+    md = A.markdown_remplissage(
+        A.remplir(fiche=dict(FICHE, raison_sociale="A | B\nC")))
+    lignes = [l for l in md.split("\n") if l.startswith("| ")]
+    assert lignes, "aucun tableau"
+    for l in lignes:
+        assert l.count("|") - l.count("\\|") == 5 or l.count("|") <= 3, l

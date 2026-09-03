@@ -595,13 +595,137 @@ RELEVES = [
         "piege": "Une variante ne dispense jamais de remettre une offre de "
                  "base conforme.",
     },
+    # LES CINQ RELEVÉS QUI OUVRENT TOUT FORMULAIRE. Le DC1, le DC2 et l'acte
+    # d'engagement commencent tous les trois par les mêmes lignes : qui achète,
+    # quoi, en combien de lots, selon quelle procédure, et où l'on dépose.
+    # Aucun n'était relevé — ce module savait dire ce que la rubrique ATTEND et
+    # n'avait rien à y mettre.
+    #
+    # LE GROUPE DE CAPTURE N'EST PAS UN DÉTAIL. Le motif cite la ligne entière
+    # — « Objet du marché : maîtrise d'œuvre pour… » — et capture la partie qui
+    # se recopie dans la case. La citation reste rendue avec sa position : ce
+    # qui se recopie doit pouvoir se vérifier sur la pièce, et une valeur sans
+    # sa phrase d'origine est une interprétation déguisée.
+    {
+        "cle": "acheteur",
+        "libelle": "Acheteur — pouvoir adjudicateur ou maître d'ouvrage",
+        "pieces": ("rc", "ae", "ccap"),
+        "motifs": [
+            # « acheteur » NU EST RETIRÉ, et c'est un défaut que l'essai a
+            # montré : il attrapait « Profil d'acheteur : https://… » et
+            # proposait une adresse web comme nom de pouvoir adjudicateur.
+            r"(?:pouvoir adjudicateur|entit[ée] adjudicatrice|ma[îi]tre "
+            r"d.?ouvrage|acheteur public)\s*:\s*([^.\n]{4,120})",
+            r"(?:march[ée]|consultation) (?:public )?(?:lanc[ée]e? |pass[ée]e? )?"
+            r"par\s+((?:la |le |l.)?[A-ZÉÈÀ][^.\n]{4,110})",
+        ],
+        "pourquoi": "C'est la première ligne du DC1 comme du DC2, et elle se "
+                    "recopie à l'identique sur chaque pièce remise.",
+        "piege": "L'acheteur qui SIGNE n'est pas toujours celui qui publie : "
+                 "une centrale d'achat, un groupement de commandes ou un "
+                 "mandataire de maîtrise d'ouvrage passe le marché pour le "
+                 "compte d'un autre. C'est le nom du POUVOIR ADJUDICATEUR "
+                 "qu'attend le formulaire.",
+    },
+    {
+        "cle": "objet",
+        "libelle": "Objet du marché",
+        "pieces": ("rc", "ae", "cctp", "ccap"),
+        "motifs": [
+            # LE RETOUR À LA LIGNE N'EST PAS UNE FIN DE PHRASE. Un objet de
+            # marché extrait d'un PDF est coupé par la mise en page, pas par
+            # son auteur : s'arrêter au premier saut rendait « maîtrise
+            # d'œuvre pour la construction d'un centre de données » là où la
+            # phrase disait « … de 4 MW IT sur le site de la zone nord ». On
+            # s'arrête au POINT, borné en longueur.
+            r"objet (?:du (?:pr[ée]sent )?march[ée]|de la consultation)"
+            r"\s*:?\s*([^.]{8,220})",
+            r"le pr[ée]sent march[ée] a pour objet\s*:?\s*([^.]{8,220})",
+            r"la pr[ée]sente consultation (?:a pour objet|porte sur)"
+            r"\s*:?\s*([^.]{8,220})",
+        ],
+        "pourquoi": "Le DC1 demande l'objet de la consultation ET l'objet de "
+                    "la candidature — marché entier, lot désigné, ou "
+                    "prestation. Les deux se remplissent depuis cette ligne.",
+        "piege": "L'objet du RC et celui du CCTP diffèrent parfois d'un mot "
+                 "qui change le périmètre — « maîtrise d'œuvre » contre "
+                 "« assistance à maîtrise d'ouvrage ». Le relevé les rend "
+                 "tous les deux plutôt que d'en choisir un.",
+    },
+    {
+        "cle": "lots",
+        "libelle": "Allotissement",
+        "pieces": ("rc",),
+        "motifs": [
+            r"(?:allotissement|d[ée]composition en lots)\s*:?\s*([^.\n]{4,160})",
+            r"march[ée] (?:non )?alloti[^.\n]{0,120}",
+            r"lot\s*n?[°o]?\s*\d{1,2}\s*[:–—-]\s*([^.\n]{4,120})",
+        ],
+        "pourquoi": "L'objet de la candidature au DC1 change selon qu'on "
+                    "postule au marché entier ou à des lots désignés.",
+        "piege": "Un candidat qui se déclare sur « le marché » alors que la "
+                 "consultation est allotie ne postule à AUCUN lot. La case "
+                 "des lots se coche, elle ne se déduit pas.",
+    },
+    {
+        "cle": "procedure",
+        "libelle": "Procédure de passation",
+        "pieces": ("rc",),
+        "motifs": [
+            r"(proc[ée]dure\s+(?:adapt[ée]e|formalis[ée]e|n[ée]goci[ée]e|"
+            r"avec n[ée]gociation|restreinte)(?:\s+ouverte)?)",
+            r"(appel d.?offres?\s+(?:ouvert|restreint))",
+            r"(dialogue comp[ée]titif)",
+            r"(march[ée] (?:public )?global(?: de performance)?)",
+        ],
+        "pourquoi": "Elle décide de ce qui se remet en une fois et de ce qui "
+                    "se remet en deux — candidature puis offre — et donc de "
+                    "la composition du pli.",
+        "piege": "En procédure restreinte, remettre l'offre avec la "
+                 "candidature n'avance à rien et peut rompre l'égalité de "
+                 "traitement. En procédure adaptée, l'inverse fait perdre.",
+    },
+    {
+        "cle": "plateforme",
+        "libelle": "Profil d'acheteur et modalités de dépôt",
+        "pieces": ("rc",),
+        "motifs": [
+            # UNE ADRESSE NE SE COUPE PAS AU PREMIER POINT — « https://marches »
+            # au lieu de « https://marches.vallee-agglo.fr/consultation/2026-014 »
+            # est une adresse fausse, ce qui est pire qu'une case vide.
+            r"(?:profil d.?acheteur|plate?[- ]?forme de d[ée]mat[ée]rialisation)"
+            r"\s*:?\s*(https?://\S{6,150})",
+            r"(https?://\S{8,150})",
+            # Le repli en texte libre ne se déclenche PAS sur une adresse :
+            # sinon il en rend une seconde, coupée au premier point.
+            r"(?:profil d.?acheteur|plate?[- ]?forme de d[ée]mat[ée]rialisation)"
+            # LE GARDE-FOU EST SUR LE DÉBUT DE LA CAPTURE, pas seulement
+            # devant le séparateur : `\s*:?\s*` peut ne rien consommer, et le
+            # moteur reculait jusqu'à faire commencer la valeur par « : », ce
+            # qui rendait « https://marches » — une adresse fausse à côté de
+            # la vraie.
+            r"\s*:?\s*(?!https?://|:)([^\s.:][^.\n]{5,140})",
+            r"d[ée]p[ôo]t\s+(?:des (?:plis|offres|candidatures)|"
+            r"[ée]lectronique)[^.\n]{0,140}",
+        ],
+        "pourquoi": "Le dépôt se fait là et nulle part ailleurs, et l'horloge "
+                    "qui fait foi est celle de cette plateforme.",
+        "piege": "Un dépôt par courriel quand le RC impose le profil "
+                 "d'acheteur est un pli non remis. Et le compte sur la "
+                 "plateforme se crée AVANT le dernier jour : la validation "
+                 "d'un certificat de signature prend parfois plusieurs jours.",
+    },
     {
         "cle": "reference",
         "libelle": "Référence de la consultation",
         "pieces": ("rc", "ae", "ccap"),
         "motifs": [
-            r"(?:r[ée]f[ée]rence|n[°o]\s*(?:de\s*)?(?:march[ée]|consultation|dossier))[^.\n]{0,80}",
-            r"\b\d{4}[-_/]\d{2,4}[-_/][A-Z0-9]{2,10}\b",
+            # SANS GROUPE DE CAPTURE, UN RELEVÉ NE PEUT REMPLIR AUCUNE CASE :
+            # il cite et c'est tout. La référence est justement ce qui « se
+            # reporte sur chaque pièce remise » — elle doit donc se recopier.
+            r"(?:r[ée]f[ée]rence|n[°o]\s*(?:de\s*)?(?:march[ée]|consultation|"
+            r"dossier))\s*:?\s*(?!:)([^\s.:][^.\n]{2,70})",
+            r"(\b\d{4}[-_/]\d{2,4}[-_/][A-Z0-9]{2,10}\b)",
         ],
         "pourquoi": "À reporter sur chaque pièce remise : une pièce sans "
                     "référence se perd dans un dépôt dématérialisé.",
@@ -627,13 +751,27 @@ def _extraire(texte, motifs, maxi=4):
             frag = " ".join(m.group(0).split())
             if len(frag) < 12:
                 continue
-            cle = frag[:80].lower()
+            # DEUX CITATIONS QUI PROPOSENT LA MÊME VALEUR SONT UNE SEULE
+            # PROPOSITION. La clé de dédoublonnage est la valeur quand il y en
+            # a une : « Profil d'acheteur : https://x » et « https://x » sont
+            # deux phrases et une seule adresse, et les rendre deux fois ferait
+            # croire à deux plateformes.
+            brut = None
+            if m.groups() and m.group(1):
+                brut = " ".join(m.group(1).split()).strip(" .:;,-–—")[:220]
+            cle = (brut or frag[:80]).lower()
             if cle in vus:
                 continue
             vus.add(cle)
+            # LA VALEUR CAPTURÉE, QUAND LE MOTIF EN ISOLE UNE. Le premier
+            # groupe est la partie qui se RECOPIE dans une case de formulaire ;
+            # la citation entière reste rendue à côté, avec sa position. Une
+            # valeur sans sa phrase d'origine est une interprétation déguisée,
+            # et c'est exactement ce que ce module refuse.
             out.append({"texte": frag[:400],
                         "position": m.start(),
-                        "part": round(100.0 * m.start() / n) if n else 0})
+                        "part": round(100.0 * m.start() / n) if n else 0,
+                        "valeur": brut or None})
             if len(out) >= maxi:
                 return out
     return out
@@ -1231,6 +1369,11 @@ def referentiel():
                     for r in RELEVES],
         "dossier_candidature": DOSSIER_CANDIDATURE,
         "natures_piece": NATURES_PIECE,
+        "champs_candidat": CHAMPS_CANDIDAT,
+        "groupes_fiche": GROUPES_FICHE,
+        "rubriques": RUBRIQUES,
+        "statuts": STATUTS,
+        "note_remplissage": NOTE_REMPLISSAGE,
         "note_reponse": NOTE_REPONSE,
         "reserve_analyse": RESERVE_ANALYSE,
         "glossaire": glossaire(),
@@ -1257,6 +1400,586 @@ def glossaire():
                         if p.get("delai") else "")),
         } for p in DOSSIER_CANDIDATURE},
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  4. LA FICHE DU CANDIDAT, ET LE REMPLISSAGE DES PIÈCES
+# ═══════════════════════════════════════════════════════════════════════════
+# CE QUE CETTE PARTIE FAIT, ET CE QU'ELLE NE FERA JAMAIS.
+#
+# Elle remplit les cases FACTUELLES du dossier de candidature : celles dont la
+# réponse est déjà écrite quelque part — dans la fiche du candidat, saisie une
+# fois, ou dans le dossier de consultation, relevé à l'instant. Une raison
+# sociale, un SIRET, un objet de marché, une date limite ne se devinent pas :
+# ils se recopient. Les recopier à la main sur quatorze pièces est le travail
+# qui produit les fautes de cohérence dont les candidatures meurent.
+#
+# ELLE NE PRÉ-REMPLIT AUCUNE DÉCLARATION, et ce n'est pas une prudence
+# d'affichage. Les DC1, DC2 et déclarations sur l'honneur portent des
+# affirmations — ne pas entrer dans un cas d'exclusion, être à jour de ses
+# obligations fiscales et sociales, ne pas être en situation de conflit
+# d'intérêts — dont la fausseté est sanctionnée pénalement. Une case cochée
+# par un programme est une déclaration que personne n'a faite. Ces rubriques
+# ressortent donc au statut `a_declarer`, avec LE TEXTE EXACT de ce qui est
+# affirmé, et elles restent vides jusqu'à ce qu'une personne habilitée les
+# assume.
+#
+# TOUTE VALEUR PORTE SON ORIGINE. Trois origines, et elles ne s'équivalent
+# pas : `fiche` (vous l'avez saisie), `consultation` (relevée dans telle pièce,
+# à tel endroit, avec la citation), `calcul` (déduite d'une autre valeur par
+# une règle nommée). Une valeur sans origine se recopie sans se relire, et
+# c'est ainsi qu'un SIRET d'une autre filiale finit sur un DC2.
+
+CHAMPS_CANDIDAT = [
+    {"cle": "raison_sociale", "nom": "Dénomination sociale", "groupe": "identite",
+     "ou": "Extrait Kbis, ligne « Dénomination ». Le nom commercial n'est pas "
+           "la dénomination sociale, et c'est la dénomination qui engage."},
+    {"cle": "forme_juridique", "nom": "Forme juridique", "groupe": "identite",
+     "ou": "Extrait Kbis. SAS, SARL, SA, SCOP, EURL, société d'exercice "
+           "libéral…"},
+    {"cle": "siret", "nom": "SIRET de l'établissement", "groupe": "identite",
+     "format": "siret",
+     "ou": "Extrait Kbis ou avis de situation INSEE. Quatorze chiffres : les "
+           "neuf du SIREN, puis les cinq du numéro interne de "
+           "l'établissement. C'est le SIRET de L'ÉTABLISSEMENT qui exécutera "
+           "le marché, pas celui du siège s'ils diffèrent."},
+    {"cle": "capital", "nom": "Capital social", "groupe": "identite",
+     "ou": "Extrait Kbis. En euros."},
+    {"cle": "rcs", "nom": "Ville d'immatriculation au RCS", "groupe": "identite",
+     "ou": "Extrait Kbis, greffe d'immatriculation."},
+    {"cle": "naf", "nom": "Code NAF / APE", "groupe": "identite",
+     "ou": "Avis de situation INSEE. Quatre chiffres et une lettre."},
+    {"cle": "adresse", "nom": "Adresse du siège", "groupe": "identite",
+     "ou": "Extrait Kbis."},
+    {"cle": "code_postal", "nom": "Code postal", "groupe": "identite"},
+    {"cle": "ville", "nom": "Ville", "groupe": "identite"},
+    {"cle": "telephone", "nom": "Téléphone", "groupe": "contact"},
+    {"cle": "courriel", "nom": "Courriel de la personne à contacter",
+     "groupe": "contact",
+     "ou": "L'adresse à laquelle l'acheteur écrira. Une boîte partagée vaut "
+           "mieux qu'une adresse personnelle : les demandes de compléments "
+           "arrivent avec un délai de réponse de quelques jours."},
+    {"cle": "representant_nom", "nom": "Nom du représentant habilité",
+     "groupe": "signature",
+     "ou": "Celui qui SIGNE. Représentant légal au Kbis, ou titulaire d'une "
+           "délégation de signature — auquel cas la délégation est jointe."},
+    {"cle": "representant_qualite", "nom": "Qualité du signataire",
+     "groupe": "signature",
+     "ou": "Président, gérant, directeur général, directeur délégué… telle "
+           "qu'elle figure sur le Kbis ou la délégation."},
+    {"cle": "effectif", "nom": "Effectif moyen annuel", "groupe": "capacites",
+     "ou": "Bilan social ou déclaration sociale nominative. Le DC2 demande "
+           "l'effectif des trois derniers exercices ; renseignez le dernier "
+           "et tenez les deux autres prêts."},
+    {"cle": "ca_n1", "nom": "Chiffre d'affaires — dernier exercice clos",
+     "groupe": "capacites", "ou": "Liasse fiscale. En euros hors taxes."},
+    {"cle": "ca_n2", "nom": "Chiffre d'affaires — exercice N-2",
+     "groupe": "capacites", "ou": "Liasse fiscale. En euros hors taxes."},
+    {"cle": "ca_n3", "nom": "Chiffre d'affaires — exercice N-3",
+     "groupe": "capacites", "ou": "Liasse fiscale. En euros hors taxes."},
+    {"cle": "assurance_compagnie", "nom": "Assureur responsabilité civile "
+     "professionnelle", "groupe": "assurances"},
+    {"cle": "assurance_police", "nom": "Numéro de police",
+     "groupe": "assurances"},
+    {"cle": "assurance_echeance", "nom": "Échéance de la police",
+     "groupe": "assurances",
+     "ou": "L'attestation doit couvrir la PÉRIODE D'EXÉCUTION du marché, pas "
+           "la date de remise du pli. Une police qui expire pendant le marché "
+           "est un motif de rejet."},
+]
+
+GROUPES_FICHE = [
+    ("identite", "Identité de l'entreprise"),
+    ("contact", "Contact"),
+    ("signature", "Signataire"),
+    ("capacites", "Capacités économiques"),
+    ("assurances", "Assurances"),
+]
+
+
+# ── LES CONTRÔLES DE FORME ─────────────────────────────────────────────────
+# UN CONTRÔLE NE VALIDE PAS UNE VALEUR, IL ÉCARTE UNE FAUTE DE FRAPPE. Un
+# SIRET syntaxiquement juste peut être celui d'une autre société ; un SIRET
+# faux, lui, est faux à coup sûr, et il vaut mieux l'apprendre ici que dans la
+# lettre de rejet.
+
+def _luhn(chiffres):
+    """La clé de contrôle des SIREN et SIRET (algorithme de Luhn)."""
+    total, pair = 0, False
+    for c in reversed(chiffres):
+        n = ord(c) - 48
+        if pair:
+            n *= 2
+            if n > 9:
+                n -= 9
+        total += n
+        pair = not pair
+    return total % 10 == 0
+
+
+def controler(cle, valeur):
+    """(valide, message) — le message dit CE QUI cloche, pas « invalide »."""
+    v = re.sub(r"[\s.-]", "", str(valeur or ""))
+    if cle == "siret":
+        if not v.isdigit():
+            return False, "Un SIRET ne contient que des chiffres."
+        if len(v) != 14:
+            return False, ("Un SIRET compte quatorze chiffres ; celui-ci en "
+                           "compte %d." % len(v))
+        if not _luhn(v):
+            # LA POSTE EST L'EXCEPTION CONNUE, et la nommer évite de faire
+            # corriger un numéro juste : ses établissements ne satisfont pas la
+            # clé de Luhn. MAIS L'EXCEPTION A SA PROPRE RÈGLE — la somme des
+            # quatorze chiffres est un multiple de cinq — et l'ignorer
+            # accepterait n'importe quel numéro commençant par 356000000, y
+            # compris une faute de frappe. Une exception sans règle n'est pas
+            # une exception, c'est un trou.
+            if v.startswith("356000000"):
+                if sum(ord(c) - 48 for c in v) % 5 == 0:
+                    return True, None
+                return False, ("Numéro de La Poste : la somme de ses quatorze "
+                               "chiffres doit être un multiple de cinq, et "
+                               "elle ne l'est pas.")
+            return False, ("La clé de contrôle ne tombe pas juste : il y a une "
+                           "faute de frappe dans ce numéro.")
+        return True, None
+    return True, None
+
+
+def derive(fiche):
+    """Ce qui se déduit d'une valeur saisie, par une règle NOMMÉE.
+
+    DÉDUIRE N'EST PAS INVENTER, à une condition : que la règle soit écrite et
+    vérifiable. Le SIREN sont les neuf premiers chiffres du SIRET ; la clé du
+    numéro de TVA intracommunautaire est (12 + 3 × (SIREN mod 97)) mod 97.
+    Ces deux-là se déduisent. Le reste se saisit.
+    """
+    out = {}
+    siret = re.sub(r"[\s.-]", "", str((fiche or {}).get("siret") or ""))
+    if len(siret) == 14 and siret.isdigit():
+        siren = siret[:9]
+        out["siren"] = {"valeur": siren,
+                        "regle": "Les neuf premiers chiffres du SIRET."}
+        cle = (12 + 3 * (int(siren) % 97)) % 97
+        out["tva"] = {"valeur": "FR%02d%s" % (cle, siren),
+                      "regle": "FR, puis la clé (12 + 3 × (SIREN mod 97)) "
+                               "mod 97, puis le SIREN."}
+    return out
+
+
+# ── LES RUBRIQUES DE CHAQUE PIÈCE, ET D'OÙ VIENT CHACUNE ───────────────────
+# QUATRE SOURCES, ET ELLES NE S'ÉQUIVALENT PAS :
+#   · `fiche`        — vous l'avez saisie une fois, elle se recopie partout ;
+#   · `consultation` — relevée dans le dossier déposé, avec sa citation et sa
+#                      position, pour être vérifiée sur la pièce ;
+#   · `calcul`       — déduite par une règle nommée (SIREN, numéro de TVA) ;
+#   · `saisie`       — propre à CETTE consultation : elle ne va pas dans la
+#                      fiche, elle se décide ici (les lots visés, la forme du
+#                      groupement) ;
+#   · `declaration`  — ce qui s'affirme sous peine de sanction. JAMAIS
+#                      pré-remplie, et le texte exact de ce qui est affirmé est
+#                      rendu pour être lu avant d'être assumé.
+#
+# LE TEXTE D'UNE DÉCLARATION N'EST PAS RÉÉCRIT ICI : il est repris mot pour mot
+# de ce que la pièce dit contenir, et une règle refuse qu'il en diverge. Deux
+# rédactions de la même déclaration finiraient par ne plus dire la même chose.
+
+RUBRIQUES = {
+    "dc1": [
+        {"cle": "acheteur", "libelle": "Identification de l'acheteur",
+         "source": "consultation", "releve": "acheteur"},
+        {"cle": "objet_consultation", "libelle": "Objet de la consultation",
+         "source": "consultation", "releve": "objet"},
+        {"cle": "reference", "libelle": "Référence de la consultation",
+         "source": "consultation", "releve": "reference"},
+        {"cle": "objet_candidature",
+         "libelle": "Objet de la candidature — marché entier, lot(s) ou "
+                    "prestation(s) désignée(s)",
+         "source": "saisie",
+         "aide": "À décider au vu de l'allotissement relevé. Un candidat qui "
+                 "se déclare sur « le marché » alors que la consultation est "
+                 "allotie ne postule à AUCUN lot."},
+        {"cle": "candidat", "libelle": "Dénomination du candidat",
+         "source": "fiche", "champ": "raison_sociale"},
+        {"cle": "forme", "libelle": "Forme juridique",
+         "source": "fiche", "champ": "forme_juridique"},
+        {"cle": "siret", "libelle": "SIRET", "source": "fiche", "champ": "siret"},
+        {"cle": "adresse", "libelle": "Adresse", "source": "fiche",
+         "champ": "adresse"},
+        {"cle": "forme_groupement",
+         "libelle": "Candidat individuel ou groupement, et forme du groupement",
+         "source": "saisie",
+         "aide": "La forme imposée ou admise est relevée au règlement de "
+                 "consultation. « Conjoint avec mandataire solidaire » n'est "
+                 "pas « solidaire »."},
+        {"cle": "mandataire",
+         "libelle": "Désignation du mandataire et étendue de son habilitation",
+         "source": "saisie",
+         "aide": "Sans objet pour un candidat individuel. En groupement, "
+                 "l'habilitation doit couvrir ce que le règlement exige — "
+                 "signer l'offre, représenter, encaisser."},
+        {"cle": "signataire", "libelle": "Signataire et qualité",
+         "source": "fiche", "champ": "representant_nom"},
+        {"cle": "qualite", "libelle": "Qualité du signataire",
+         "source": "fiche", "champ": "representant_qualite"},
+        {"cle": "d_exclusion", "source": "declaration",
+         "libelle": "Déclaration d'absence d'interdiction de soumissionner",
+         "reprend": ("honneur", 0)},
+    ],
+    "dc2": [
+        {"cle": "acheteur", "libelle": "Identification de l'acheteur",
+         "source": "consultation", "releve": "acheteur"},
+        {"cle": "objet_consultation", "libelle": "Objet de la consultation",
+         "source": "consultation", "releve": "objet"},
+        {"cle": "candidat", "libelle": "Dénomination du candidat ou du membre "
+         "du groupement", "source": "fiche", "champ": "raison_sociale"},
+        {"cle": "forme", "libelle": "Forme juridique", "source": "fiche",
+         "champ": "forme_juridique"},
+        {"cle": "siret", "libelle": "SIRET", "source": "fiche", "champ": "siret"},
+        {"cle": "siren", "libelle": "SIREN", "source": "calcul", "calcul": "siren"},
+        {"cle": "tva", "libelle": "Numéro de TVA intracommunautaire",
+         "source": "calcul", "calcul": "tva"},
+        {"cle": "capital", "libelle": "Capital social", "source": "fiche",
+         "champ": "capital"},
+        {"cle": "rcs", "libelle": "Immatriculation au RCS", "source": "fiche",
+         "champ": "rcs"},
+        {"cle": "naf", "libelle": "Code NAF / APE — aptitude à exercer "
+         "l'activité", "source": "fiche", "champ": "naf"},
+        {"cle": "ca_n1", "libelle": "Chiffre d'affaires — dernier exercice",
+         "source": "fiche", "champ": "ca_n1"},
+        {"cle": "ca_n2", "libelle": "Chiffre d'affaires — N-2",
+         "source": "fiche", "champ": "ca_n2"},
+        {"cle": "ca_n3", "libelle": "Chiffre d'affaires — N-3",
+         "source": "fiche", "champ": "ca_n3"},
+        {"cle": "effectif", "libelle": "Effectif moyen annuel",
+         "source": "fiche", "champ": "effectif"},
+        {"cle": "appui_tiers",
+         "libelle": "Capacités d'opérateurs tiers invoquées, et engagement de "
+                    "ces opérateurs",
+         "source": "saisie",
+         "aide": "Citer un tiers ne suffit pas : son ENGAGEMENT écrit se "
+                 "joint, sans quoi la capacité invoquée ne compte pas."},
+    ],
+    "honneur": [
+        {"cle": "candidat", "libelle": "Dénomination du déclarant",
+         "source": "fiche", "champ": "raison_sociale"},
+        {"cle": "signataire", "libelle": "Signataire habilité",
+         "source": "fiche", "champ": "representant_nom"},
+        {"cle": "qualite", "libelle": "Qualité du signataire",
+         "source": "fiche", "champ": "representant_qualite"},
+        {"cle": "d_obligatoires", "source": "declaration",
+         "libelle": "Interdictions obligatoires", "reprend": ("honneur", 0)},
+        {"cle": "d_facultatives", "source": "declaration",
+         "libelle": "Interdictions facultatives", "reprend": ("honneur", 1)},
+        {"cle": "d_fiscal_social", "source": "declaration",
+         "libelle": "Situation fiscale et sociale", "reprend": ("honneur", 2)},
+    ],
+    "tiers": [
+        {"cle": "acheteur", "libelle": "Acheteur destinataire du formulaire",
+         "source": "consultation", "releve": "acheteur"},
+        {"cle": "candidat", "libelle": "Dénomination", "source": "fiche",
+         "champ": "raison_sociale"},
+        {"cle": "siret", "libelle": "SIRET", "source": "fiche", "champ": "siret"},
+        {"cle": "contact", "libelle": "Courriel de contact", "source": "fiche",
+         "champ": "courriel"},
+        {"cle": "format",
+         "libelle": "Formulaire de l'acheteur, dans SA version et SON format",
+         "source": "saisie",
+         "aide": "Il n'y a pas de modèle national : le formulaire d'une autre "
+                 "consultation ne convient pas. Il est joint au dossier de "
+                 "consultation, ou à demander à l'acheteur."},
+    ],
+    "atd_atp": [
+        {"cle": "candidat", "libelle": "Dénomination", "source": "fiche",
+         "champ": "raison_sociale"},
+        {"cle": "siret", "libelle": "SIRET", "source": "fiche", "champ": "siret"},
+        {"cle": "assureur", "libelle": "Assureur responsabilité civile "
+         "professionnelle", "source": "fiche", "champ": "assurance_compagnie"},
+        {"cle": "police", "libelle": "Numéro de police", "source": "fiche",
+         "champ": "assurance_police"},
+        {"cle": "echeance", "libelle": "Échéance", "source": "fiche",
+         "champ": "assurance_echeance"},
+    ],
+}
+
+STATUTS = {
+    "rempli": "Rempli",
+    "a_saisir": "À saisir",
+    "a_declarer": "À déclarer et signer",
+    "non_trouve": "Non relevé dans le dossier",
+    "invalide": "À corriger",
+}
+
+
+def _index_releves(analyse):
+    """Ce que le dossier déposé dit, relevé par relevé, pièce par pièce.
+
+    QUAND DEUX PIÈCES NE DISENT PAS LA MÊME CHOSE, ON LE DIT. L'objet du RC et
+    celui du CCTP diffèrent parfois d'un mot qui change le périmètre. La valeur
+    retenue est celle de la pièce qu'on ouvre EN PREMIER — le règlement de
+    consultation fait foi sur ce qu'il faut remettre — et l'autre est rendue
+    comme une DIVERGENCE, jamais écrasée en silence.
+    """
+    par_cle = {}
+    for p in sorted((analyse or {}).get("pieces", []),
+                    key=lambda x: x.get("rang_lecture", 99)):
+        for r in p.get("releves", []):
+            for c in r.get("citations", []):
+                if not c.get("valeur"):
+                    continue
+                prop = {"valeur": c["valeur"], "citation": c["texte"],
+                        "fichier": p.get("fichier"), "sigle": p.get("sigle"),
+                        "part": c.get("part", 0)}
+                par_cle.setdefault(r["cle"], []).append(prop)
+                break
+    return par_cle
+
+
+def remplir(fiche=None, analyse=None, saisies=None, groupement=False):
+    """Chaque pièce, rubrique par rubrique, avec la valeur ET son origine.
+
+    RIEN N'EST INVENTÉ, ET RIEN N'EST DÉCLARÉ. Une rubrique dont la valeur
+    n'existe ni dans la fiche ni dans le dossier ressort VIDE, avec ce qui
+    manque et où le trouver. Les déclarations sur l'honneur ressortent au
+    statut `a_declarer` avec le texte exact de ce qui est affirmé.
+    """
+    fiche = fiche or {}
+    saisies = saisies or {}
+    idx = _index_releves(analyse)
+    calc = derive(fiche)
+    par_champ = {c["cle"]: c for c in CHAMPS_CANDIDAT}
+    par_piece = {p["cle"]: p for p in DOSSIER_CANDIDATURE}
+
+    pieces = []
+    for cle_piece, rubriques in RUBRIQUES.items():
+        base = par_piece[cle_piece]
+        lignes = []
+        for r in rubriques:
+            l = {"cle": r["cle"], "libelle": r["libelle"],
+                 "source": r["source"], "valeur": None, "origine": None,
+                 "citation": None, "divergences": [], "aide": r.get("aide"),
+                 "message": None}
+            if r["source"] == "declaration":
+                p_src, i = r["reprend"]
+                l["texte"] = par_piece[p_src]["contient"][i]
+                l["statut"] = "a_declarer"
+                l["message"] = ("Cette affirmation engage pénalement celui qui "
+                                "la signe. Elle n'est pas pré-remplie : lisez-la, "
+                                "vérifiez-la, puis assumez-la.")
+            elif r["source"] == "fiche":
+                champ = par_champ[r["champ"]]
+                v = str(fiche.get(r["champ"]) or "").strip()
+                if not v:
+                    l["statut"] = "a_saisir"
+                    l["message"] = champ.get("ou") or ("À renseigner dans la "
+                                                       "fiche du candidat.")
+                else:
+                    ok, pourquoi = controler(r["champ"], v)
+                    l["valeur"] = v
+                    l["origine"] = "Votre fiche — « %s »" % champ["nom"]
+                    l["statut"] = "rempli" if ok else "invalide"
+                    l["message"] = pourquoi
+            elif r["source"] == "calcul":
+                d = calc.get(r["calcul"])
+                if not d:
+                    l["statut"] = "a_saisir"
+                    l["message"] = ("Se déduit du SIRET : renseignez-le dans "
+                                    "la fiche.")
+                else:
+                    l["valeur"] = d["valeur"]
+                    l["origine"] = "Déduit — " + d["regle"]
+                    l["statut"] = "rempli"
+            elif r["source"] == "consultation":
+                props = idx.get(r["releve"], [])
+                if not props:
+                    l["statut"] = "non_trouve"
+                    l["message"] = ("Non relevé dans les pièces déposées. Ce "
+                                    "n'est pas « il n'y en a pas » : c'est "
+                                    "« le relevé ne l'a pas vu ». À lire à la "
+                                    "main, puis à saisir ici.")
+                else:
+                    p0 = props[0]
+                    l["valeur"] = p0["valeur"]
+                    l["origine"] = "Relevé dans %s, à %d %% du document" % (
+                        p0["sigle"] or p0["fichier"], p0["part"])
+                    l["citation"] = {"texte": p0["citation"],
+                                     "fichier": p0["fichier"],
+                                     "part": p0["part"]}
+                    l["statut"] = "rempli"
+                    autres = [p for p in props[1:]
+                              if p["valeur"].lower() != p0["valeur"].lower()]
+                    if autres:
+                        l["divergences"] = autres
+                        l["message"] = (
+                            "%d autre(s) pièce(s) ne disent pas la même chose. "
+                            "Une divergence entre deux pièces du même dossier "
+                            "se tranche AVANT de remplir, pas après."
+                            % len(autres))
+            else:                                       # saisie
+                v = str(saisies.get("%s.%s" % (cle_piece, r["cle"])) or "").strip()
+                if v:
+                    l["valeur"] = v
+                    l["origine"] = "Saisi pour cette consultation"
+                    l["statut"] = "rempli"
+                else:
+                    l["statut"] = "a_saisir"
+            l["statut_nom"] = STATUTS[l["statut"]]
+            lignes.append(l)
+
+        compte = {k: sum(1 for l in lignes if l["statut"] == k)
+                  for k in STATUTS}
+        pieces.append({
+            "cle": cle_piece, "nom": base["nom"], "nature": base["nature"],
+            "nature_nom": NATURES_PIECE[base["nature"]]["nom"],
+            "bloquant": base["bloquant"], "piege": base["piege"],
+            "rubriques": lignes, "compte": compte, "total": len(lignes),
+            "en_groupement": _groupement(base) if groupement else None,
+            # DEUX NOTIONS, ET LES CONFONDRE ÉTAIT UN MENSONGE. « Complète »
+            # veut dire : plus rien ne manque DE CE QUE CE MODULE PEUT
+            # APPORTER. « Prête » veut dire : et il ne reste rien à déclarer.
+            # Ma première version n'avait que `pret`, calculé comme `complet`,
+            # sous un commentaire qui affirmait le contraire — un DC1 dont
+            # toutes les cases factuelles étaient remplies ressortait « prêt »
+            # avec sa déclaration sur l'honneur vierge. Une pièce qui porte une
+            # déclaration ne peut JAMAIS être dite prête par un programme :
+            # c'est une signature qui la rend prête, et personne ici ne signe.
+            "complet": (compte["a_saisir"] == 0 and compte["non_trouve"] == 0
+                        and compte["invalide"] == 0),
+            "pret": (compte["a_saisir"] == 0 and compte["non_trouve"] == 0
+                     and compte["invalide"] == 0 and compte["a_declarer"] == 0),
+            "porte_declaration": compte["a_declarer"] > 0,
+        })
+
+    manque_bloquant = [p["nom"] for p in pieces
+                       if p["bloquant"] and not p["complet"]]
+    return {
+        "version": VERSION,
+        "pieces": pieces,
+        "statuts": STATUTS,
+        "champs": CHAMPS_CANDIDAT,
+        "groupes": GROUPES_FICHE,
+        "etat": {
+            "rubriques": sum(p["total"] for p in pieces),
+            "remplies": sum(p["compte"]["rempli"] for p in pieces),
+            "a_saisir": sum(p["compte"]["a_saisir"] for p in pieces),
+            "a_declarer": sum(p["compte"]["a_declarer"] for p in pieces),
+            "non_trouvees": sum(p["compte"]["non_trouve"] for p in pieces),
+            "invalides": sum(p["compte"]["invalide"] for p in pieces),
+            "pieces_completes": sum(1 for p in pieces if p["complet"]),
+            "pieces_pretes": sum(1 for p in pieces if p["pret"]),
+            "pieces_a_signer": sum(1 for p in pieces
+                                   if p["complet"] and p["porte_declaration"]),
+            "pieces": len(pieces),
+            "bloquantes_incompletes": manque_bloquant,
+        },
+        "note": NOTE_REMPLISSAGE,
+        "sans_dossier": not (analyse and analyse.get("pieces")),
+    }
+
+
+NOTE_REMPLISSAGE = (
+    "CE MODULE RECOPIE, IL NE DÉCLARE PAS. Il porte dans chaque pièce ce qui "
+    "est déjà écrit ailleurs — votre fiche, ou le dossier de consultation que "
+    "vous venez de déposer — et il dit pour chaque valeur d'où elle vient. Les "
+    "déclarations sur l'honneur ne sont JAMAIS pré-remplies : leur fausseté "
+    "est sanctionnée pénalement, et une case cochée par un programme est une "
+    "déclaration que personne n'a faite. Une pièce dite « prête » est une "
+    "pièce dont plus rien ne manque de ce que ce module peut apporter — elle "
+    "n'est ni relue, ni signée, ni conforme au règlement de VOTRE "
+    "consultation, qui l'emporte sur cette liste.")
+
+
+def _cellule(x):
+    """Une valeur dans une cellule de tableau, sans casser le tableau."""
+    return " ".join(str(x or "—").split()).replace("|", "\\|")[:300]
+
+
+def markdown_remplissage(r):
+    """Le dossier préparé, en Markdown, pour être emporté.
+
+    POURQUOI UN TABLEAU ET PAS UN FORMULAIRE. Ce document ne remplace pas le
+    DC1 : les formulaires officiels ont leur version, leur format et leurs
+    cases, et un fac-similé produit ici serait refusé — ou pire, accepté et
+    faux. Il se pose À CÔTÉ du formulaire, rubrique par rubrique, avec pour
+    chacune la valeur et SON ORIGINE, pour être recopié en le vérifiant.
+
+    LES DÉCLARATIONS SORTENT VIDES, avec le texte de ce qui est affirmé et une
+    ligne de signature. Les pré-remplir dans un document exporté serait pire
+    que dans la page : le document circule, et il se signerait sans être lu.
+    """
+    e = r["etat"]
+    L = ["# Dossier de candidature — pièces préparées", ""]
+    L.append(r["note"])
+    L.append("")
+    L.append("## Où en est le dossier")
+    L.append("")
+    L.append("| | Nombre |")
+    L.append("|---|---|")
+    L.append("| Rubriques remplies | %d |" % e["remplies"])
+    L.append("| À saisir | %d |" % e["a_saisir"])
+    L.append("| Non relevées dans le dossier de consultation | %d |"
+             % e["non_trouvees"])
+    L.append("| À déclarer et signer | %d |" % e["a_declarer"])
+    L.append("| À corriger | %d |" % e["invalides"])
+    L.append("| Pièces sans rien à compléter | %d sur %d |"
+             % (e["pieces_completes"], e["pieces"]))
+    L.append("| Dont il ne reste qu'à SIGNER | %d |" % e["pieces_a_signer"])
+    L.append("")
+    if e["bloquantes_incompletes"]:
+        L.append("**Pièces bloquantes encore incomplètes :** "
+                 + ", ".join(e["bloquantes_incompletes"]) + ".")
+        L.append("")
+    if r.get("sans_dossier"):
+        L.append("**Aucun dossier de consultation n'a été analysé.** Les "
+                 "rubriques qui viennent des pièces de l'acheteur — l'acheteur, "
+                 "l'objet, la référence, les lots — sont donc vides.")
+        L.append("")
+
+    for p in r["pieces"]:
+        L.append("## %s" % p["nom"])
+        L.append("")
+        L.append("*%s%s*" % (p["nature_nom"],
+                             " — pièce bloquante" if p["bloquant"] else ""))
+        L.append("")
+        lignes = [l for l in p["rubriques"] if l["source"] != "declaration"]
+        if lignes:
+            L.append("| Rubrique | Valeur | Origine | État |")
+            L.append("|---|---|---|---|")
+            for l in lignes:
+                L.append("| %s | %s | %s | %s |" % (
+                    _cellule(l["libelle"]), _cellule(l["valeur"]),
+                    _cellule(l["origine"]), _cellule(l["statut_nom"])))
+            L.append("")
+        for l in p["rubriques"]:
+            if l["citation"]:
+                L.append("> **%s** — %s  \n> *(%s, à %d %% du document)*"
+                         % (l["libelle"], l["citation"]["texte"],
+                            l["citation"]["fichier"], l["citation"]["part"]))
+                L.append("")
+            for d in l.get("divergences") or []:
+                L.append("**Divergence sur « %s ».** %s dit : %s — à trancher "
+                         "AVANT de remplir, pas après."
+                         % (l["libelle"], d.get("sigle") or d.get("fichier"),
+                            d["valeur"]))
+                L.append("")
+        decl = [l for l in p["rubriques"] if l["source"] == "declaration"]
+        if decl:
+            L.append("### Déclarations — à lire, à vérifier, puis à signer")
+            L.append("")
+            for l in decl:
+                L.append("**%s**" % l["libelle"])
+                L.append("")
+                L.append("> " + l["texte"])
+                L.append("")
+            L.append("Nom et qualité du signataire : "
+                     "_______________________________________")
+            L.append("")
+            L.append("Date et signature : "
+                     "_______________________________________")
+            L.append("")
+        L.append("*Le piège* — %s" % p["piege"])
+        L.append("")
+    return "\n".join(L)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1321,6 +2044,60 @@ def _verifier():
         for champ in ("nom", "produit_par", "piege"):
             if not (p.get(champ) or "").strip():
                 fautes.append("pièce %s : champ « %s » vide" % (p["cle"], champ))
+
+    # ── LE REMPLISSAGE : CHAQUE RUBRIQUE DOIT POUVOIR ÊTRE REMPLIE ─────────
+    # UNE RUBRIQUE QUI DÉSIGNE UN RELEVÉ SANS GROUPE DE CAPTURE EST UNE CASE
+    # DÉFINITIVEMENT VIDE. Le défaut existait : la « Référence de la
+    # consultation » du DC1 ressortait « non relevée » sur un dossier qui la
+    # portait en toutes lettres, parce que son motif citait sans capturer. Rien
+    # ne plantait — c'est bien le problème.
+    par_releve = {r["cle"]: r for r in RELEVES}
+    par_champ = {c["cle"] for c in CHAMPS_CANDIDAT}
+    par_piece = {p["cle"]: p for p in DOSSIER_CANDIDATURE}
+    calculs = set(derive({"siret": "80295478500019"}))
+    for cle_piece, rubriques in RUBRIQUES.items():
+        if cle_piece not in par_piece:
+            fautes.append("rubriques %s : aucune pièce de candidature"
+                          % cle_piece)
+            continue
+        vues_r = set()
+        for r in rubriques:
+            if r["cle"] in vues_r:
+                fautes.append("%s : rubrique en double (%s)"
+                              % (cle_piece, r["cle"]))
+            vues_r.add(r["cle"])
+            if not (r.get("libelle") or "").strip():
+                fautes.append("%s/%s : libellé vide" % (cle_piece, r["cle"]))
+            if r["source"] == "consultation":
+                rel = par_releve.get(r.get("releve"))
+                if not rel:
+                    fautes.append("%s/%s : relevé inconnu (%s)"
+                                  % (cle_piece, r["cle"], r.get("releve")))
+                elif not any(re.compile(m).groups for m in rel["motifs"]):
+                    fautes.append(
+                        "%s/%s : le relevé « %s » ne capture aucune valeur — "
+                        "la case ne pourra jamais être remplie"
+                        % (cle_piece, r["cle"], r["releve"]))
+            elif r["source"] == "fiche":
+                if r.get("champ") not in par_champ:
+                    fautes.append("%s/%s : champ de fiche inconnu (%s)"
+                                  % (cle_piece, r["cle"], r.get("champ")))
+            elif r["source"] == "calcul":
+                if r.get("calcul") not in calculs:
+                    fautes.append("%s/%s : calcul inconnu (%s)"
+                                  % (cle_piece, r["cle"], r.get("calcul")))
+            elif r["source"] == "declaration":
+                src, i = r.get("reprend", (None, None))
+                contient = (par_piece.get(src) or {}).get("contient") or []
+                # `(i or -1)` traitait l'indice 0 comme absent : 0 est faux.
+                if not (isinstance(i, int) and 0 <= i < len(contient)):
+                    fautes.append(
+                        "%s/%s : la déclaration reprise (%s, %s) n'existe pas "
+                        "— le texte de ce qui est affirmé serait réécrit à côté"
+                        % (cle_piece, r["cle"], src, i))
+            elif r["source"] != "saisie":
+                fautes.append("%s/%s : source inconnue (%s)"
+                              % (cle_piece, r["cle"], r["source"]))
     return fautes
 
 
