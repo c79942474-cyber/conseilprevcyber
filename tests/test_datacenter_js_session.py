@@ -38,8 +38,19 @@ def test_demander_reconnait_desormais_le_401():
     js = _js()
     assert js.count("function demander(url, options, delai)") == 1
     i = js.index("function demander(url, options, delai)")
-    fin = js.index("function fr(n)", i)
-    bloc = js[i:fin]
+    # LA BORNE ÉTAIT LE FORMATEUR VOISIN, ET ELLE A CASSÉ le jour où celui-ci a
+    # pris un second paramètre. Une règle qui se repère sur le code d'à côté
+    # tombe pour une raison sans rapport avec ce qu'elle éprouve. On compte les
+    # accolades de la fonction qu'on veut lire.
+    j = js.index("{", i)
+    p, k = 1, j + 1
+    while p:
+        if js[k] == "{":
+            p += 1
+        elif js[k] == "}":
+            p -= 1
+        k += 1
+    bloc = js[i:k]
     assert "r.status === 401" in bloc
     assert "sessionEteinte()" in bloc
     assert '"SessionEteinte"' in bloc

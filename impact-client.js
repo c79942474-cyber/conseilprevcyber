@@ -27,12 +27,20 @@
      que la règle interdit ailleurs dans ce fichier : un résultat écrit dans le
      texte cesse d'être vrai au premier réglage du moteur, et un commentaire
      faux se recopie comme un commentaire juste. */
+  /* LA RÈGLE D'OR PASSE PAR LE MODULE PARTAGÉ. `dec` reste accepté pour la
+     décomposition, qui a besoin d'une précision CALCULÉE au serveur — mais il
+     ne peut plus descendre sous le plancher, sans quoi le paramètre servirait
+     à contourner la règle depuis n'importe quel appel. */
   function nb(v, dec) {
+    if (typeof window !== "undefined" && window.CPNombres)
+      return window.CPNombres.fr(v, dec);
     if (v == null || isNaN(v)) return "—";
     return new Intl.NumberFormat("fr-FR", {
-      minimumFractionDigits: dec == null ? 0 : dec,
-      maximumFractionDigits: dec == null ? 0 : dec,
-    }).format(v);
+      minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
+  }
+  function exact(v) {
+    return (typeof window !== "undefined" && window.CPNombres)
+      ? window.CPNombres.exact(v) : nb(v);
   }
   /* LE SIGNE « × » APPARTIENT À LA PHRASE, PAS AU NOMBRE. La première version
      le collait à chaque facteur ET le mettait entre eux : la décomposition

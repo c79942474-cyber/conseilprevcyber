@@ -935,6 +935,7 @@ _ASSETS_VERSIONNES = (
     "decarbonation-dc.js", "strategie-dd.js", "equipements-it.js", "emblem.svg",
     "ia-factory.js",
     "impact-client.js",
+    "nombres.js",
 )
 _CC_IMMUABLE = "public, max-age=31536000, immutable"
 
@@ -5754,6 +5755,22 @@ def ia_factory_js():
     Route publique, aucune donnée dans le fichier : ce sont les interfaces
     qu'il appelle qui exigent une session."""
     return _serve_fast("ia-factory.js", _CC_ASSET,
+                       mimetype="text/javascript; charset=utf-8")
+
+
+@app.route("/nombres.js")
+def nombres_js():
+    """LE FORMATAGE DES NOMBRES, POUR TOUT LE SITE.
+
+    CE FICHIER EXISTE PARCE QUE QUATRE COPIES DU MÊME FORMATEUR VIVAIENT DANS
+    QUATRE SCRIPTS, avec le même barème : zéro décimale au-dessus de cent, une
+    entre dix et cent. « 5 857,4178 » s'affichait « 5 857 », et « 1,1489 »
+    s'affichait « 1,1 » — ce qui a produit une multiplication publique qui ne
+    tombait pas juste. Le barème est désormais décidé à un seul endroit.
+
+    Chargé AVANT les scripts de page : chacun garde son `fr()` local, qui
+    délègue ici."""
+    return _serve_fast("nombres.js", _CC_ASSET,
                        mimetype="text/javascript; charset=utf-8")
 
 

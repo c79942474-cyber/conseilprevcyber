@@ -23,13 +23,28 @@
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
+  /* DÉLÈGUE À `nombres.js`, ET C'EST TOUT L'INTÉRÊT. Ce formateur était l'une
+     de quatre copies du même barème — zéro décimale au-dessus de cent, une
+     entre dix et cent — qui violait la règle d'or du site : on n'arrondit pas
+     en dessous de deux décimales. Sur les valeurs réelles du moteur,
+     « 5 857,4178 » s'affichait « 5 857 » et « 1,1489 » s'affichait « 1,1 ».
+     Le barème est décidé à un seul endroit désormais ; les appels d'ici n'ont
+     pas changé.
+
+     LE REPLI NE MENT PAS. Si le module partagé n'est pas chargé, on formate
+     quand même à deux décimales : une page sans chiffres est pire qu'une page
+     aux chiffres moins bien groupés. */
   function fr(n, dec) {
+    if (typeof window !== "undefined" && window.CPNombres)
+      return window.CPNombres.fr(n, dec);
     if (n === null || n === undefined || n === "") return "—";
     var x = Number(n);
     if (!isFinite(x)) return String(n);
-    var d = (dec === undefined)
-      ? (Math.abs(x) >= 100 ? 0 : (Math.abs(x) >= 10 ? 1 : 2)) : dec;
-    return x.toFixed(d).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return x.toFixed(Math.floor(x) === x ? 0 : 2).replace(".", ",");
+  }
+  function exact(n) {
+    return (typeof window !== "undefined" && window.CPNombres)
+      ? window.CPNombres.exact(n) : fr(n);
   }
   function eur(n) {
     var x = Number(n);

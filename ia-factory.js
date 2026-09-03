@@ -66,14 +66,27 @@ function demander(url, options, delai) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
     });
   }
+  /* LA RÈGLE D'OR : on n'arrondit pas sous deux décimales. Un montant au
+     centime près est une valeur exacte, et supprimer les centimes est un
+     arrondi — sur un chiffrage à sept lots, sept arrondis au million font une
+     erreur qu'aucune ligne ne montre. */
   function euro(n) {
+    if (typeof window !== "undefined" && window.CPNombres)
+      return window.CPNombres.euro(n);
     if (n == null) return "—";
     return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR",
-      maximumFractionDigits: 0 }).format(n);
+      minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
   }
   function nombre(n, dec) {
+    if (typeof window !== "undefined" && window.CPNombres)
+      return window.CPNombres.fr(n, dec);
     if (n == null) return "—";
-    return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: dec == null ? 1 : dec }).format(n);
+    return new Intl.NumberFormat("fr-FR", {
+      minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  }
+  function exact(n) {
+    return (typeof window !== "undefined" && window.CPNombres)
+      ? window.CPNombres.exact(n) : nombre(n);
   }
   function fourchette(a) {
     var u = a.unite === "part" ? "" : (" " + a.unite);
