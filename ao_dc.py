@@ -272,57 +272,84 @@ PIECES_MARCHE = {
 # catégorie la plus proche : un CCTP pris pour un CCAP ferait chercher des
 # pénalités là où il n'y en a pas, et conclure qu'il n'y en a pas.
 
+# LA FRONTIÈRE D'UN SIGLE N'EST PAS `\b`, ET CE DÉFAUT A COÛTÉ LA MOITIÉ DE
+# CETTE FONCTION. En expression régulière, « _ » est un caractère de MOT :
+# `\brc\b` ne s'accroche donc PAS dans « 01_RC.pdf », ni `\bccap\b` dans
+# « 02_CCAP.pdf » ou « CCAP_v2.pdf » — c'est-à-dire dans la façon dont les
+# plateformes acheteur nomment leurs pièces. Le nom du fichier, que ce module
+# regarde EN PREMIER parce qu'il est « presque toujours juste », ne reconnaissait
+# rien sur la convention la plus répandue.
+#
+# CE QUE LE DÉFAUT PRODUISAIT, ET POURQUOI IL NE SE VOYAIT PAS. Le texte
+# rattrapait : un CCAP contient « cahier des clauses administratives
+# particulières ». Mais une DPGF est un TABLEUR — pas de texte, pas de
+# rattrapage. Éprouvé : « 04_DPGF.xlsx » était rangé en « Calculs » par son
+# extension, et la DPGF, présente dans le dossier, était déclarée MANQUANTE.
+# C'est-à-dire que le module se trompait sur ce qu'il vend comme son
+# information la plus utile.
+#
+# LA FRONTIÈRE JUSTE EST « PAS UNE LETTRE ». Le nom est déjà minusculé et
+# désaccentué : borner par des lettres laisse passer « _ », « - », « . », les
+# chiffres et les bords, et refuse « rc » dans « parcours » ou « cct » dans
+# « cctp ».
+
+
+def _sigle(s):
+    """Le motif d'un sigle de pièce, borné par autre chose qu'une lettre."""
+    return r"(?<![a-z])" + s + r"(?![a-z])"
+
+
 _MARQUEURS = {
     "rc": {
-        "nom": [r"\brc\b", r"r[eè]glement.{0,10}consultation", r"\brdc\b"],
+        "nom": [_sigle("rc"), r"r[eè]glement.{0,10}consultation", _sigle("rdc")],
         "texte": [r"r[èe]glement de (?:la )?consultation",
                   r"date (?:et heure )?limite de r[ée]ception des (?:plis|offres|candidatures)",
                   r"crit[èe]res? (?:de )?(?:jugement|s[ée]lection|attribution)",
                   r"composition du dossier"],
     },
     "ae": {
-        "nom": [r"\bae\b", r"acte.{0,3}d.?engagement", r"attri1"],
+        "nom": [_sigle("ae"), r"acte.{0,3}d.?engagement", r"attri1"],
         "texte": [r"acte d.?engagement", r"attri1",
                   r"apr[èe]s avoir pris connaissance"],
     },
     "ccap": {
-        "nom": [r"\bccap\b", r"clauses administratives particuli"],
+        "nom": [_sigle("ccap"), r"clauses administratives particuli"],
         "texte": [r"cahier des clauses administratives particuli",
                   r"p[ée]nalit[ée]s? de retard", r"retenue de garantie",
                   r"ordre de priorit[ée] des pi[èe]ces"],
     },
     "ccag": {
-        "nom": [r"\bccag\b", r"clauses administratives g[ée]n[ée]rales"],
+        "nom": [_sigle("ccag"), r"clauses administratives g[ée]n[ée]rales"],
         "texte": [r"cahier des clauses administratives g[ée]n[ée]rales",
                   r"ccag[- ](?:pi|moe|travaux|fcs|tic)"],
     },
     "cctp": {
-        "nom": [r"\bcctp\b", r"clauses techniques", r"\bcct\b"],
+        "nom": [_sigle("cctp"), r"clauses techniques", _sigle("cct")],
         "texte": [r"cahier des clauses techniques particuli",
                   r"prestations attendues", r"performances? exig[ée]es?"],
     },
     "dpgf": {
-        "nom": [r"\bdpgf\b", r"d[ée]composition du prix"],
+        "nom": [_sigle("dpgf"), r"d[ée]composition du prix"],
         "texte": [r"d[ée]composition du prix global et forfaitaire",
-                  r"\bdpgf\b"],
+                  _sigle("dpgf")],
     },
     "bpu": {
-        "nom": [r"\bbpu\b", r"bordereau des prix", r"\bdqe\b"],
+        "nom": [_sigle("bpu"), r"bordereau des prix", _sigle("dqe")],
         "texte": [r"bordereau des prix unitaires",
                   r"d[ée]tail quantitatif estimatif"],
     },
     "repartition": {
-        "nom": [r"r[ée]partition", r"moe.?amo", r"amo.?moe", r"\braci\b"],
+        "nom": [r"r[ée]partition", r"moe.?amo", r"amo.?moe", _sigle("raci")],
         "texte": [r"r[ée]partition des (?:missions|t[âa]ches)",
                   r"ma[îi]trise d.?[œoe]uvre.{0,40}assistan",
-                  r"\braci\b"],
+                  _sigle("raci")],
     },
     "calculs": {
         "nom": [r"calcul", r"bilan de puissance", r"tableur", r"estimation"],
         "texte": [r"bilan de puissance", r"hypoth[èe]ses de calcul"],
     },
     "plans": {
-        "nom": [r"\bplan\b", r"plans", r"sch[ée]ma", r"\bdwg\b", r"\bpid\b"],
+        "nom": [_sigle("plan"), r"plans", r"sch[ée]ma", _sigle("dwg"), _sigle("pid")],
         "texte": [r"[ée]chelle\s*:?\s*1[/:]", r"nomenclature des plans"],
     },
 }

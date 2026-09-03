@@ -59,6 +59,77 @@ def test_une_piece_est_identifiee_sur_son_nom_et_son_contenu():
     assert i["indices"]
 
 
+# COMMENT LES ACHETEURS NOMMENT LEURS PIÈCES. Ce ne sont pas des noms
+# inventés pour la règle : c'est la sortie d'une plateforme de
+# dématérialisation, où le numéro d'ordre précède le sigle et où le séparateur
+# est un souligné.
+CONVENTIONS = [
+    ("01_RC.pdf", "rc"),
+    ("02_CCAP.pdf", "ccap"),
+    ("03_CCTP.pdf", "cctp"),
+    ("04_DPGF.xlsx", "dpgf"),
+    ("05_BPU.xlsx", "bpu"),
+    ("CCAP_v2.pdf", "ccap"),
+    ("RC-2026-014.pdf", "rc"),
+    ("DCE_CCAG-MOE.pdf", "ccag"),
+    ("06_acte_d_engagement.pdf", "ae"),
+    ("07_repartition_MOE_AMO.xlsx", "repartition"),
+]
+
+
+def test_une_piece_se_reconnait_a_son_NOM_SEUL():
+    """CE QUE CETTE RÈGLE A COÛTÉ, ET POURQUOI ELLE PASSE LE TEXTE À VIDE.
+
+    En expression régulière, « _ » est un caractère de MOT : `\brc\b` ne
+    s'accroche donc pas dans « 01_RC.pdf », ni `\bccap\b` dans « CCAP_v2.pdf ».
+    Le nom du fichier — que ce module regarde EN PREMIER parce qu'il est
+    « presque toujours juste » — ne reconnaissait RIEN sur la convention la
+    plus répandue des plateformes acheteur.
+
+    ET AUCUNE RÈGLE NE LE VOYAIT, parce que toutes passaient un texte. Le texte
+    rattrapait : un CCAP contient « cahier des clauses administratives
+    particulières », et l'identification sortait juste POUR UNE RAISON SANS
+    RAPPORT avec la moitié qu'elle prétendait éprouver. La première règle du
+    fichier exigeait même une confiance « forte » sur « 02_CCAP_lot_unique.pdf »
+    — obtenue par le seul texte.
+
+    Le texte est donc VIDE ici. C'est la seule façon d'éprouver le nom."""
+    for nom, attendu in CONVENTIONS:
+        i = A.identifier(nom, "", "." + nom.rsplit(".", 1)[-1])
+        assert i["reconnue"], "« %s » n'est pas reconnu sur son nom seul" % nom
+        assert i["code"] == attendu, (
+            "« %s » est rangé en %s au lieu de %s" % (nom, i["code"], attendu))
+
+
+def test_un_sigle_dans_un_mot_n_est_pas_un_sigle():
+    """LA CONTREPARTIE. Élargir la frontière ne doit pas la supprimer : « rc »
+    dans « parcours », « cct » dans « cctp », « ae » dans « caen » ne sont pas
+    des sigles. Sans ce témoin, la règle précédente se satisferait d'un motif
+    qui reconnaît tout."""
+    for nom in ("parcours_de_projet.pdf", "note_recette.pdf",
+                "presentation_caen.pdf", "aerien.pdf"):
+        i = A.identifier(nom, "")
+        assert not i["reconnue"], (
+            "« %s » est pris pour %s : le sigle a été trouvé dans un mot"
+            % (nom, i.get("code")))
+
+
+def test_une_piece_PRESENTE_n_est_jamais_declaree_manquante():
+    """LA CONSÉQUENCE, ET C'EST ELLE QUI SE PAIE. Ce module vend « ce qui
+    manque » comme son information la plus utile. Une DPGF est un TABLEUR : pas
+    de texte, donc pas de rattrapage — « 04_DPGF.xlsx » était rangé en
+    « Calculs » par son extension, et la DPGF, POSÉE DANS LE DOSSIER, ressortait
+    dans la liste des pièces absentes. Se tromper là est pire que se taire."""
+    a = A.analyser([{"nom": n, "texte": "",
+                     "extension": "." + n.rsplit(".", 1)[-1]}
+                    for n, _ in CONVENTIONS])
+    manquants = {m["code"] for m in a["manquantes"]}
+    presentes = {c for _, c in CONVENTIONS}
+    assert not (manquants & presentes), (
+        "des pièces posées dans le dossier sont déclarées absentes : %s"
+        % sorted(manquants & presentes))
+
+
 def test_une_piece_non_reconnue_reste_non_reconnue():
     """LE DÉFAUT QUE CETTE RÈGLE EMPÊCHE. Ranger au plus proche ferait chercher
     des pénalités dans un CCTP pris pour un CCAP — et conclure qu'il n'y en a
