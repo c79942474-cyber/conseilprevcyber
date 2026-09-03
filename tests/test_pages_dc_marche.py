@@ -788,6 +788,51 @@ def test_le_bloc_se_dessine_avec_le_formulaire_de_disponibilite():
     assert "bâtirQualification()" in corps
 
 
+# ── Les cases minimales pour obtenir UN COMPTE ──────────────────────────────
+#
+# `dispoDemander` ne part vers le serveur QUE si le niveau OU le schéma est
+# renseigné (sinon, silence pur) ; et sans le nombre d'unités, la requête
+# part mais `ingenierie_dc.redondance()` rend `None` — aucun compte affiché,
+# seule l'exigence du niveau reste visible. Le niveau et les unités sont donc
+# la combinaison minimale qui produit un compte ; le schéma n'est qu'une
+# ALTERNATIVE au niveau, jamais une troisième case requise EN PLUS.
+
+def test_le_niveau_et_les_unites_portent_l_asterisque_obligatoire():
+    """`dc-req` est déjà le marqueur du formulaire principal
+    (`bâtirFormulaire`, piloté par `c.requis`) : la même classe, la même
+    infobulle « Champ nécessaire », pour la même raison — pas un marqueur
+    inventé pour ce bloc.
+
+    LE SCHÉMA N'EN PORTE PAS. Lui donner l'astérisque annoncerait trois
+    cases obligatoires ENSEMBLE là où deux suffisent déjà — le schéma se
+    substitue au niveau, il ne s'y ajoute pas."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function bâtirDisponibilite(")
+    corps = js[i:js.index("function bâtirQualification(")]
+    tier = corps[corps.index('for="ig-tier"'):corps.index('for="ig-nunites"')]
+    nunites = corps[corps.index('for="ig-nunites"'):corps.index('for="ig-schema"')]
+    schema = corps[corps.index('for="ig-schema"'):]
+    assert 'class="dc-req"' in tier, (
+        "le niveau visé ne se marque plus comme nécessaire")
+    assert 'class="dc-req"' in nunites, (
+        "le nombre d'unités ne se marque plus comme nécessaire")
+    assert 'class="dc-req"' not in schema, (
+        "le schéma — simple alternative au niveau — se marque à tort comme "
+        "une troisième case obligatoire")
+
+
+def test_le_niveau_et_les_unites_precedent_le_schema_dans_le_bloc():
+    """LES CASES QUI FONT UN CALCUL VIENNENT D'ABORD. Le schéma — facultatif
+    dès que le niveau est renseigné — se lit en dernier."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function bâtirDisponibilite(")
+    corps = js[i:js.index("function bâtirQualification(")]
+    assert (corps.index('for="ig-tier"') < corps.index('for="ig-nunites"')
+            < corps.index('for="ig-schema"')), (
+        "l'ordre du bloc ne place plus les deux cases nécessaires avant "
+        "l'alternative facultative")
+
+
 def test_les_sous_systemes_viennent_du_referentiel_et_ne_sont_pas_ecrits():
     """Une liste recopiée dans la page finit par noter un sous-système que le
     calcul ne connaît plus."""
@@ -1364,3 +1409,55 @@ def test_TOUTES_reste_un_CHOIX_VALIDE_au_redessin():
     assert "TR_OP === TR_TOUTES" in bloc, (
         "« toutes » n'est plus traité comme un choix valide à part entière "
         "lors du redessin")
+
+
+# ── Le prix de la maîtrise d'œuvre : une seule case bloque ─────────────────
+#
+# `chiffrer()` refuse AVANT MÊME D'INTERROGER LE SERVEUR quand le montant des
+# travaux est vide (« Indiquez le montant des travaux… ») : c'est la SEULE
+# case qui bloque ce bloc. La part du lot technique porte un défaut publié
+# dans son propre champ (le barème l'applique si rien n'est saisi) et n'est
+# jamais contrôlée avant l'appel — même règle `dc-req`, même raison, que pour
+# le bloc « Niveau de disponibilité visé » plus haut dans ce fichier.
+
+def test_le_montant_des_travaux_porte_l_asterisque_obligatoire():
+    """La part du lot technique n'en porte pas : un défaut publié n'est pas
+    une case qui bloque, exactement comme le schéma de redondance déduit du
+    niveau visé un peu plus haut."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function champs(")
+    corps = js[i:js.index("function phases(")]
+    trav = corps[corps.index('for="ig-moe-trav"'):corps.index('for="ig-moe-pt"')]
+    pt = corps[corps.index('for="ig-moe-pt"'):]
+    assert 'class="dc-req"' in trav, (
+        "le montant des travaux ne se marque plus comme nécessaire")
+    assert 'class="dc-req"' not in pt, (
+        "la part du lot technique — facultative, avec un défaut publié — se "
+        "marque à tort comme obligatoire")
+
+
+def test_le_montant_des_travaux_precede_la_part_technique_dans_le_bloc():
+    """Déjà vrai avant cette règle — elle empêche qu'un futur remaniement
+    inverse les deux champs sans que rien ne le remarque."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function champs(")
+    corps = js[i:js.index("function phases(")]
+    assert corps.index('for="ig-moe-trav"') < corps.index('for="ig-moe-pt"'), (
+        "la case qui bloque ne précède plus l'alternative facultative")
+
+
+def test_le_montant_des_travaux_EST_REELLEMENT_la_case_qui_bloque():
+    """LA RÈGLE PRÉCÉDENTE NE VÉRIFIE QU'UNE ÉTIQUETTE. Celle-ci vérifie que
+    l'étiquette dit vrai : `chiffrer()` retourne AVANT le moindre appel
+    réseau quand le montant est vide, et ne pose pas la même exigence sur la
+    part du lot technique — sinon l'astérisque promettrait un contrôle que
+    le code ne fait pas."""
+    corps = _js_fonctions("chiffrer")
+    avant_refus = corps[:corps.index("return")]
+    assert "ig-moe-trav" in avant_refus, (
+        "le refus anticipé ne porte plus sur le montant des travaux")
+    assert "demander(" not in avant_refus, (
+        "une requête part avant même le contrôle du montant des travaux")
+    assert "ig-moe-pt" not in avant_refus, (
+        "la part du lot technique est contrôlée avant tout appel, comme si "
+        "elle bloquait aussi le chiffrage")

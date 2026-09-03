@@ -3689,8 +3689,17 @@ function messageDelai(e, defaut) {
     var z = $("#ig-dispo");
     if (!z || !CADRE || !CADRE.disponibilite) return;
     var d = CADRE.disponibilite;
+    /* LES CASES QUI FONT UN CALCUL VIENNENT D'ABORD. `dispoDemander` n'envoie
+       RIEN au serveur tant que ni le niveau ni le schéma ne sont renseignés
+       (silence pur, aucune requête) ; et sans le nombre d'unités, la requête
+       part mais `redondance()` rend `null` — aucun compte affiché, seule
+       l'exigence du niveau reste visible. Le schéma reste en DERNIER : il est
+       facultatif dès que le niveau est renseigné, jamais les deux ensemble —
+       ce n'est qu'une alternative au niveau, pas une troisième case requise. */
     var h = '<label class="dc-champ" for="ig-tier">'
-      + '<span class="dc-lab">Niveau de disponibilité visé</span>'
+      + '<span class="dc-lab">Niveau de disponibilité visé'
+      + ' <b class="dc-req" title="Champ nécessaire — ou, à défaut, le schéma '
+      + 'de redondance plus bas.">*</b></span>'
       + '<select id="ig-tier"><option value="">— non arrêté —</option>';
     (d.niveaux_ordre || []).forEach(function (k) {
       h += '<option value="' + esc(k) + '">' + esc(d.niveaux[k].nom) + "</option>";
@@ -3698,6 +3707,13 @@ function messageDelai(e, defaut) {
     h += '</select><span class="dc-aide">Le niveau qualifie une TOPOLOGIE. '
       + "Ce cadre dit ce qu'il exige et compte ce qu'il installe&nbsp;; il ne "
       + "décerne aucune certification.</span></label>";
+    h += '<label class="dc-champ" for="ig-nunites">'
+      + '<span class="dc-lab">Unités nécessaires par chaîne '
+      + '<span class="dc-unite">(hors réserve)</span>'
+      + ' <b class="dc-req" title="Champ nécessaire">*</b></span>'
+      + '<input id="ig-nunites" type="text" inputmode="numeric" placeholder="ex. 6">'
+      + '<span class="dc-aide">Le nombre de groupes froid, de chaînes onduleur '
+      + "ou de groupes électrogènes que la charge exige, réserve exclue.</span></label>";
     h += '<label class="dc-champ" for="ig-schema">'
       + '<span class="dc-lab">Schéma de redondance</span>'
       + '<select id="ig-schema"><option value="">— déduit du niveau —</option>';
@@ -3705,13 +3721,9 @@ function messageDelai(e, defaut) {
       h += '<option value="' + esc(k) + '">' + esc(d.schemas[k].nom) + "</option>";
     });
     h += '</select><span class="dc-aide">Laissez « déduit » pour prendre le '
-      + "schéma que le niveau appelle, ou imposez le vôtre.</span></label>";
-    h += '<label class="dc-champ" for="ig-nunites">'
-      + '<span class="dc-lab">Unités nécessaires par chaîne '
-      + '<span class="dc-unite">(hors réserve)</span></span>'
-      + '<input id="ig-nunites" type="text" inputmode="numeric" placeholder="ex. 6">'
-      + '<span class="dc-aide">Le nombre de groupes froid, de chaînes onduleur '
-      + "ou de groupes électrogènes que la charge exige, réserve exclue.</span></label>";
+      + "schéma que le niveau appelle, ou imposez le vôtre — y compris si "
+      + "aucun niveau n'est renseigné : lui seul suffit alors, avec le nombre "
+      + "d'unités.</span></label>";
     z.innerHTML = h;
     ["#ig-tier", "#ig-schema", "#ig-nunites"].forEach(function (s) {
       var e = $(s);
@@ -6682,9 +6694,14 @@ function messageDelai(e, defaut) {
   });
 
   function champs() {
+    /* LA SEULE CASE QUI BLOQUE. Sans elle, `chiffrer()` refuse avant même
+       d'interroger le serveur — voir plus bas. La part du lot technique a un
+       défaut publié (le plancher affiché dans son propre champ) : elle reste
+       facultative, et c'est pour cela qu'elle vient après. */
     $("#ig-moe-form").innerHTML =
         '<label class="dc-champ" for="ig-moe-trav"><span class="dc-lab">'
-      + 'Montant des travaux (M€)</span>'
+      + 'Montant des travaux (M€)'
+      + ' <b class="dc-req" title="Champ nécessaire">*</b></span>'
       + '<input type="text" id="ig-moe-trav" placeholder="ex. 600 ou 600-750">'
       + '<span class="dc-aide">Le montant sur lequel portent les honoraires. '
       + 'Ce module ne le calcule pas : reportez celui de l’étude d’enveloppe, '
