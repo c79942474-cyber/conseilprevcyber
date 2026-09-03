@@ -518,20 +518,82 @@ function demander(url, options, delai) {
         + '<br><span class="iaf-src">Ancrage — ' + ref + "</span></li>";
     }).join("") + "</ul>";
   }
+  /* ── LES SOURCES, EN LISTE DÉROULANTE ─────────────────────────────────
+     TRENTE-SIX SOURCES À LA SUITE NE SE LISENT PAS, elles se survolent — et
+     une liste qu'on survole ne sert plus à vérifier, qui est sa seule raison
+     d'être. Le menu les range PAR NATURE, parce que c'est l'axe qui décide de
+     ce qu'une source vaut : une autorité publique, un texte juridique, un
+     analyste, un média et un fournisseur ne s'opposent pas de la même façon à
+     une contradiction.
+
+     ON PEUT CHOISIR UNE NATURE ENTIÈRE, et pas seulement une source. Avec
+     trente-six entrées, filtrer une à une serait une commande sans usage :
+     ce qu'on veut savoir, c'est « qu'est-ce qui vient d'une autorité ? ».
+
+     LES COMPTES VIENNENT DE `couverture_sources()`, jamais du script : le
+     module les calcule déjà, et deux comptages divergeraient. */
+  var SRC_TOUTES = "__toutes";
+
   function rendreSources(sources, couv) {
+    var parNature = {};
+    Object.keys(sources).forEach(function (k) {
+      var n = sources[k].nature || "autre";
+      (parNature[n] = parNature[n] || []).push(k);
+    });
+    var natures = Object.keys(parNature).sort();
+
     var h = '<p class="iaf-couv">' + couv.total + " sources — " + couv.avec_adresse
       + " avec adresse, <b>" + couv.lues + " lue(s) depuis ce poste</b>. " + esc(couv.limite)
-      + "</p><ol class=\"iaf-sources\">";
-    Object.keys(sources).forEach(function (k) {
-      var s = sources[k];
-      h += "<li>" + (s.url
-          ? '<a href="' + esc(s.url) + '" target="_blank" rel="noopener noreferrer">' + esc(s.titre) + "</a>"
-          : '<span class="iaf-muet">' + esc(s.titre) + '</span> <span class="na-src-sans">sans adresse</span>')
-        + " — <em>" + esc(s.editeur) + "</em>, " + esc(s.annee)
-        + ' <span class="iaf-nature">' + esc(s.nature) + "</span>"
-        + (s.reserve ? "<br><small>" + esc(s.reserve) + "</small>" : "") + "</li>";
+      + "</p>";
+    h += '<label class="iaf-champ iaf-cmp-m"><span class="iaf-nom">'
+      + couv.total + " sources, rangées par nature — en choisir une"
+      + '</span><select class="iaf-choix" data-src>'
+      + '<option value="' + SRC_TOUTES + '">Les ' + couv.total
+      + " sources, à la suite</option>";
+    natures.forEach(function (n) {
+      h += '<optgroup label="' + esc(n) + " (" + parNature[n].length + ')">'
+        + '<option value="n:' + esc(n) + '">Toutes celles de nature « '
+        + esc(n) + " » (" + parNature[n].length + ")</option>";
+      parNature[n].forEach(function (k) {
+        h += '<option value="s:' + esc(k) + '">' + esc(sources[k].editeur)
+          + ", " + esc(sources[k].annee) + "</option>";
+      });
+      h += "</optgroup>";
+    });
+    h += '</select><span class="iaf-ou">Une source qu\'on ne peut pas rouvrir '
+      + "est une intention, pas une source : celles qui n'ont pas d'adresse le "
+      + "disent, et portent leur réserve.</span></label>";
+
+    h += '<ol class="iaf-sources">';
+    natures.forEach(function (n) {
+      parNature[n].forEach(function (k) {
+        var s = sources[k];
+        h += '<li data-src-cle="' + esc(k) + '" data-src-nat="' + esc(n) + '">'
+          + (s.url
+            ? '<a href="' + esc(s.url) + '" target="_blank" rel="noopener noreferrer">' + esc(s.titre) + "</a>"
+            : '<span class="iaf-muet">' + esc(s.titre) + '</span> <span class="na-src-sans">sans adresse</span>')
+          + " — <em>" + esc(s.editeur) + "</em>, " + esc(s.annee)
+          + ' <span class="iaf-nature">' + esc(s.nature) + "</span>"
+          + (s.reserve ? "<br><small>" + esc(s.reserve) + "</small>" : "") + "</li>";
+      });
     });
     return h + "</ol>";
+  }
+
+  /* Le filtre MASQUE, il ne redessine pas : la numérotation de la liste suit
+     ce qui reste visible, et redessiner perdrait le choix qu'on vient de
+     poser. */
+  function brancherSources() {
+    var sel = document.querySelector("#iaf-sources [data-src]");
+    if (!sel) return;
+    sel.addEventListener("change", function () {
+      var v = sel.value;
+      document.querySelectorAll("#iaf-sources li[data-src-cle]").forEach(function (li) {
+        li.hidden = !(v === SRC_TOUTES
+          || (v.slice(0, 2) === "n:" && li.dataset.srcNat === v.slice(2))
+          || (v.slice(0, 2) === "s:" && li.dataset.srcCle === v.slice(2)));
+      });
+    });
   }
 
   /* ── CHIFFRAGE ───────────────────────────────────────────────────────── */
@@ -642,6 +704,7 @@ function demander(url, options, delai) {
       $("iaf-changement").innerHTML = rendreLeviers(REF.leviers_changement, REF.sources, REF.ancrages);
       $("iaf-migration").innerHTML = rendreLeviers(REF.principes_migration, REF.sources, REF.ancrages);
       $("iaf-sources").innerHTML = rendreSources(REF.sources, REF.couverture_sources);
+      brancherSources();
       $("iaf-limite").textContent = REF.limite;
       $("iaf-go").addEventListener("click", chiffrer);
       $("iaf-debut").value = new Date().toISOString().slice(0, 10);

@@ -1060,27 +1060,37 @@ def test_le_menu_des_cas_n_est_pas_cherche_comme_une_ancre_de_page():
         "le menu n'est pas cherché dans son conteneur")
 
 
+def _appel_pose(ancre_rendu, appel):
+    """L'appel `appel` suit-il RÉELLEMENT le rendu `ancre_rendu`, sans condition ?
+
+    LA LIGNE DE L'APPEL EST CONTRÔLÉE, PAS SEULEMENT CE QUI LA PRÉCÈDE. C'est
+    le trou qu'une mutation a trouvé : `if (REF.absente) brancherX();` laissait
+    l'espace entre le rendu et l'appel parfaitement vide, l'indentation
+    intacte, et le mot présent — trois contrôles verts pour un menu mort. Une
+    condition sur la ligne elle-même est la façon la plus courte de tuer un
+    branchement sans le retirer."""
+    lignes = _src("ia-factory.js").split("\n")
+    i = next(k for k, l in enumerate(lignes) if ancre_rendu in l)
+    j = next((k for k, l in enumerate(lignes)
+              if k > i and (appel + "()") in l), None)
+    assert j is not None, "%s n'est jamais appelé après le rendu" % appel
+    entre = "\n".join(lignes[i + 1:j])
+    assert not re.search(r"\bif\b|\?|&&|\|\|", entre), (
+        "le branchement est sous condition : %r" % entre)
+    assert lignes[j].strip() == appel + "();", (
+        "l'appel n'est pas une instruction nue — il peut ne jamais s'exécuter :"
+        " %r" % lignes[j].strip())
+    creux = lambda l: len(l) - len(l.lstrip())
+    assert creux(lignes[j]) == creux(lignes[i]) and j - i <= 3, (
+        "le branchement ne suit pas immédiatement le rendu")
+
+
 def test_le_menu_des_cas_est_REELLEMENT_branche():
     """UN MENU QUI NE FAIT RIEN EST PIRE QU'AUCUN MENU : il promet un tri et
     laisse le lecteur devant un seul cas sans moyen d'en voir un autre. Mes
     règles éprouvaient le rendu et le corps du gestionnaire ; aucune ne
-    vérifiait qu'il soit POSÉ, et la mutation qui retirait l'appel survivait.
-
-    L'appel doit être un FRÈRE du rendu — même indentation, aucune condition
-    entre les deux : la présence du mot ailleurs dans le fichier ne prouverait
-    rien."""
-    js = _src("ia-factory.js")
-    lignes = js.split("\n")
-    i = next(k for k, l in enumerate(lignes) if '$("iaf-cmp").innerHTML' in l)
-    j = next((k for k, l in enumerate(lignes)
-              if k > i and "brancherComparables()" in l), None)
-    assert j is not None, "le menu des cas n'est jamais branché"
-    entre = "\n".join(lignes[i + 1:j])
-    assert not re.search(r"\bif\b|\?|&&|\|\|", entre), (
-        "le branchement est sous condition : %r" % entre)
-    creux = lambda l: len(l) - len(l.lstrip())
-    assert creux(lignes[j]) == creux(lignes[i]) and j - i <= 3, (
-        "le branchement ne suit pas immédiatement le rendu")
+    vérifiait qu'il soit POSÉ, et la mutation qui retirait l'appel survivait."""
+    _appel_pose('$("iaf-cmp").innerHTML', "brancherComparables")
 
 
 def test_la_page_n_ecrit_le_nombre_de_cas_NULLE_PART():
@@ -1093,3 +1103,127 @@ def test_la_page_n_ecrit_le_nombre_de_cas_NULLE_PART():
     for compte in ("Quatre cas", "quatre cas", "4 cas", "Trois cas", "Cinq cas"):
         assert compte not in bloc, (
             "la page écrit le nombre de cas en dur : « %s »" % compte)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LES SOURCES EN LISTE DÉROULANTE, RANGÉES PAR NATURE
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _couverture_de(sources):
+    """La couverture d'un corpus quelconque, calculée par LE MODULE — pas par
+    une seconde arithmétique écrite dans les règles, qui pourrait diverger."""
+    reel = F.SOURCES
+    F.SOURCES = sources
+    try:
+        return F.couverture_sources()
+    finally:
+        F.SOURCES = reel
+
+
+def _sources_rendues(sources=None):
+    """Le HTML que `rendreSources` produit RÉELLEMENT, en l'exécutant.
+
+    Le corpus est un PARAMÈTRE : c'est ce qui permet d'éprouver que la page
+    suit le module au lieu de tomber d'accord avec lui par coïncidence."""
+    sources = F.SOURCES if sources is None else sources
+    src = _src("ia-factory.js")
+    ancre = "\n(function () {\n"
+    corps = src[src.index(ancre) + len(ancre):src.index("\n  function rendreChiffrage(")]
+    prog = (corps
+            + "\nconst d = JSON.parse(process.env.IAF_SRC);"
+            + "\nprocess.stdout.write(rendreSources(d.s, d.c));\n")
+    env = dict(os.environ, IAF_SRC=json.dumps(
+        {"s": sources, "c": _couverture_de(sources)}))
+    out = subprocess.run(["node"], input=prog, capture_output=True, text=True,
+                         timeout=60, env=env)
+    assert out.returncode == 0, out.stderr
+    return out.stdout
+
+
+_CORPUS_TEMOIN = {
+    "t_off_1": {"titre": "T1", "editeur": "E1", "annee": 2024, "nature": "officiel",
+                "url": "https://example.invalid/1"},
+    "t_off_2": {"titre": "T2", "editeur": "E2", "annee": 2025, "nature": "officiel",
+                "url": "https://example.invalid/2"},
+    "t_pre_1": {"titre": "T3", "editeur": "E3", "annee": 2023, "nature": "presse"},
+}
+
+
+def test_les_sources_se_choisissent_par_NATURE_et_une_a_une():
+    """TRENTE-SIX SOURCES À LA SUITE NE SE LISENT PAS, elles se survolent — et
+    une liste qu'on survole ne sert plus à vérifier, qui est sa seule raison
+    d'être. La nature est l'axe qui décide de ce qu'une source vaut : une
+    autorité publique et un fournisseur ne s'opposent pas de la même façon à
+    une contradiction.
+
+    ET ON PEUT CHOISIR UNE NATURE ENTIÈRE. Avec trente-six entrées, filtrer une
+    à une serait une commande sans usage : ce qu'on veut savoir, c'est « qu'est
+    -ce qui vient d'une autorité ? »."""
+    h = _sources_rendues()
+    assert "<select" in h and "datalist" not in h
+    natures = set(s["nature"] for s in F.SOURCES.values())
+    groupes = re.findall(r'<optgroup label="([^"(]+)\(', h)
+    assert {g.strip() for g in groupes} == natures, (groupes, natures)
+    options = re.findall(r'<option value="([^"]*)"', h)
+    assert options[0] == "__toutes", "le menu n'offre pas de les lire toutes"
+    par_nature = [o for o in options if o.startswith("n:")]
+    par_source = [o for o in options if o.startswith("s:")]
+    assert len(par_nature) == len(natures), par_nature
+    assert len(par_source) == len(F.SOURCES), (
+        "%d options de source pour %d sources" % (len(par_source), len(F.SOURCES)))
+
+
+def test_les_comptes_du_menu_viennent_du_MODULE_et_non_du_script():
+    """Le module calcule déjà la couverture ; deux comptages divergeraient, et
+    c'est le plus visible qui serait cru.
+
+    LA RÈGLE ÉPROUVE LA DÉPENDANCE, PAS L'ACCORD. Écrite d'abord contre le seul
+    corpus réel, elle constatait que la page affichait 36 pendant que le module
+    en comptait 36 — et restait verte quand le 36 était écrit en dur dans le
+    script. Un trente-septième source aurait laissé le menu faux. On rend donc
+    un SECOND corpus, volontairement plus petit : si la page ne suit pas, elle
+    ne tient pas ses comptes du module."""
+    for sources in (None, _CORPUS_TEMOIN):
+        h = _sources_rendues(sources)
+        couv = _couverture_de(F.SOURCES if sources is None else sources)
+        assert "%d sources, rangées par nature" % couv["total"] in h, h[:300]
+        assert "Les %d sources, à la suite" % couv["total"] in h
+        for nature, n in couv["par_nature"].items():
+            assert "%s (%d)" % (nature, n) in h, (nature, n, h[:400])
+        assert len(re.findall(r"<li data-src-cle=", h)) == couv["total"]
+
+
+def test_les_trente_six_sources_restent_VISIBLES_au_chargement():
+    """CE CHOIX DIFFÈRE DE CELUI DES CAS COMPARABLES, ET C'EST DÉLIBÉRÉ. Les
+    cas se LISENT, un à la fois ; les sources se COMPTENT. « Obtenues, et
+    comptées comme telles » : n'en montrer qu'une au chargement cacherait le
+    registre, qui est ce que la section établit. Le menu sert à réduire, pas à
+    révéler."""
+    h = _sources_rendues()
+    items = re.findall(r'<li data-src-cle="([^"]+)" data-src-nat="([^"]+)"([^>]*)>', h)
+    assert len(items) == len(F.SOURCES)
+    caches = [c for c, _n, attrs in items if "hidden" in attrs]
+    assert not caches, (
+        "%d sources sont masquées au chargement : le registre ne se compte "
+        "plus" % len(caches))
+    # Et chaque source porte sa nature, sinon le filtre par nature ne peut rien.
+    for cle, nat, _a in items:
+        assert F.SOURCES[cle]["nature"] == nat, (cle, nat)
+
+
+def test_le_filtre_des_sources_masque_et_ne_redessine_pas():
+    js = _src("ia-factory.js")
+    bloc = js[js.index("function brancherSources("):]
+    bloc = bloc[:bloc.index("\n  }")]
+    assert "hidden" in bloc
+    for interdit in ("innerHTML", "rendreSources("):
+        assert interdit not in bloc, (
+            "le filtre redessine (« %s ») au lieu de masquer" % interdit)
+    for niveau in ('"n:"', '"s:"', "SRC_TOUTES"):
+        assert niveau in bloc, (
+            "le filtre ne traite pas le niveau %s" % niveau)
+
+
+def test_le_menu_des_sources_est_REELLEMENT_branche():
+    """Un menu qui ne fait rien promet un tri et ne le rend pas."""
+    _appel_pose('$("iaf-sources").innerHTML', "brancherSources")
