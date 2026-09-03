@@ -270,6 +270,32 @@ def _intensite_employee(etude):
     return g, (du_pays is not None and abs(float(g) - float(du_pays)) < 1e-9)
 
 
+# LA PRÉCISION D'AFFICHAGE APPARTIENT À CELUI QUI PROMET LA VÉRIFICATION.
+# Toute cette phrase existe pour être refaite de tête par le lecteur. Affichée
+# à une décimale, elle donnait « 1,1 × 15,5 = 17,8 » — et 1,1 × 15,5 fait 17,05.
+# Le lecteur qui vérifie conclut que la carte est fausse, sur la seule ligne
+# dont l'intérêt est d'être vérifiable. Laisser le script choisir sa précision
+# revenait à laisser l'affichage démentir le calcul.
+_DECIMALES_PRODUIT = 1
+
+
+def _decimales_qui_tombent_juste(facteurs, produit, maxi=4):
+    """(décimales, vérifiable) — de combien de décimales le lecteur a besoin
+    pour retrouver le produit avec les nombres qu'il a sous les yeux.
+
+    On cherche la PLUS PETITE : afficher quatre décimales sur un rapport de
+    PUE serait juste et illisible, et une ligne illisible n'est pas vérifiée.
+    """
+    cible = round(produit, _DECIMALES_PRODUIT)
+    for d in range(1, maxi + 1):
+        vu = 1.0
+        for f in facteurs:
+            vu *= round(f, d)
+        if round(vu, _DECIMALES_PRODUIT) == cible:
+            return d, True
+    return maxi, False
+
+
 def _decomposition(a, b):
     """D'où vient l'écart d'exploitation, et la vérification que ça tombe juste.
 
@@ -286,6 +312,8 @@ def _decomposition(a, b):
     r_co2 = _rapport(_v(a, ("carbone", "co2_exploitation_localise_t")),
                      _v(b, ("carbone", "co2_exploitation_localise_t")))
     produit = None if (r_pue is None or r_reseau is None) else r_pue * r_reseau
+    dec, lisible = ((1, False) if produit is None
+                    else _decimales_qui_tombent_juste([r_pue, r_reseau], produit))
     exacte = (produit is not None and r_co2 is not None
               and abs(produit - r_co2) <= 1e-6 * max(1.0, abs(r_co2)))
     return {
@@ -309,11 +337,24 @@ def _decomposition(a, b):
                        "(voir /datacenter)"},
         ],
         "produit": produit,
+        # CE QUE LA PAGE DOIT AFFICHER POUR QUE LE LECTEUR RETROUVE LE PRODUIT.
+        "decimales": dec,
+        "decimales_produit": _DECIMALES_PRODUIT,
+        "arithmetique_verifiable": lisible,
         "rapport_constate": r_co2,
         "identite_verifiee": exacte,
+        # LA LECTURE NE PORTE AUCUN NOMBRE, et elle en portait un — « il le
+        # divise par 1,1 » — écrit en dur dans ce fichier. C'est exactement ce
+        # que ce module interdit ailleurs : un chiffre figé dans un texte cesse
+        # d'être vrai au premier réglage du moteur. Celui-là l'était déjà deux
+        # fois, faux à la précision corrigée et faux le jour où une famille de
+        # refroidissement change de plage.
         "lecture": ("L'écart d'exploitation est le PRODUIT de deux décisions, "
-                    "pas leur somme : un bon PUE sur un réseau carboné ne "
-                    "rattrape pas le réseau, il le divise par 1,1."),
+                    "pas leur somme : le rendement de l'infrastructure d'un "
+                    "côté, le réseau qui l'alimente de l'autre. Un excellent "
+                    "PUE agit sur le PLUS PETIT des deux facteurs — il ne "
+                    "rattrape pas un réseau carboné, il le corrige à la "
+                    "marge."),
         "reserve_si_fausse": ("L'identité ne tombe plus juste : la "
                               "décomposition ne décrit plus la chaîne de "
                               "calcul et ne doit pas être affichée comme si "

@@ -41,9 +41,15 @@
 
      ET LA PRÉCISION SUIT L'ENJEU : « 15 » pour 15,49 perd un dixième sur le
      facteur qui porte tout l'écart. Une décimale jusqu'à cent. */
-  function facteur(v) {
+  /* LA PRÉCISION VIENT DU SERVEUR, ET C'EST TOUT LE POINT. Choisie ici, elle
+     démentait le calcul : « 1,1 × 15,5 = 17,8 » affiché, et 1,1 × 15,5 fait
+     17,05. Le lecteur qui vérifie concluait que la carte était fausse, sur la
+     seule ligne dont l'intérêt est d'être vérifiable. Le module cherche la
+     plus petite précision à laquelle l'arithmétique tombe juste ; la page
+     l'applique. */
+  function facteur(v, dec) {
     if (v == null || isNaN(v)) return "—";
-    return nb(v, v < 100 ? 1 : 0);
+    return nb(v, dec == null ? 2 : dec);
   }
 
   /* L'infobulle porte la formule, la source et l'incertitude que le moteur
@@ -108,16 +114,24 @@
        vérifie l'identité à chaque appel ; si le moteur changeait au point de
        la rompre, l'afficher quand même présenterait comme une explication ce
        qui n'en serait plus une. */
-    if (d && d.identite_verifiee) {
+    if (d && d.identite_verifiee && d.arithmetique_verifiable) {
       h += '<p class="ci-dec"><b>D\'où vient l\'écart</b> — '
         + d.facteurs.map(function (f) {
             /* Le libellé N'EST PAS minusculé : « rapport des pue » ne veut
                rien dire, et un acronyme abîmé décrédibilise le chiffre qu'il
                annonce. */
-            return esc(f.libelle) + " <b>" + facteur(f.valeur) + "</b>";
+            return esc(f.libelle) + " <b>" + facteur(f.valeur, d.decimales)
+              + "</b>";
           }).join(" &nbsp;×&nbsp; ")
-        + " &nbsp;=&nbsp; <b>" + facteur(d.produit) + " ×</b> sur l'exploitation. "
-        + esc(d.lecture) + "</p>";
+        + " &nbsp;=&nbsp; <b>" + facteur(d.produit, d.decimales_produit)
+        + " ×</b> sur l'exploitation. " + esc(d.lecture) + "</p>";
+    } else if (d && d.identite_verifiee) {
+      /* L'IDENTITÉ TIENT MAIS ELLE NE SE RELIT PAS. Afficher une
+         multiplication que le lecteur ne peut pas refaire est pire que ne
+         rien afficher : il conclut que le reste est faux aussi. On garde le
+         propos, on retire l'arithmétique. */
+      h += '<p class="ci-dec"><b>D\'où vient l\'écart</b> — ' + esc(d.lecture)
+        + "</p>";
     } else if (d) {
       h += '<p class="ci-dec ci-mal">' + esc(d.reserve_si_fausse) + "</p>";
     }

@@ -381,3 +381,136 @@ def test_sante_ne_ment_pas_sur_l_etat_du_module():
     assert s["indicateurs"] == len(I.INDICATEURS)
     assert s["moteur"] == D.VERSION, (
         "la santé annonce un moteur qui n'est pas celui qui calcule")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  L'ARITHMÉTIQUE AFFICHÉE DOIT TOMBER JUSTE
+# ═══════════════════════════════════════════════════════════════════════════
+# LE DÉFAUT QUE CETTE PARTIE GARDE, ET IL A ÉTÉ VU À L'ÉCRAN. La décomposition
+# s'affichait « Rapport des PUE 1,1 × Rapport des intensités 15,5 = 17,8 ». Or
+# 1,1 × 15,5 fait 17,05. Toute cette phrase existe pour être refaite de tête
+# par le lecteur : affichée ainsi, elle le conduisait à conclure que la carte
+# était fausse — sur la seule ligne dont l'intérêt est d'être vérifiable.
+#
+# LA CAUSE N'ÉTAIT PAS UN CALCUL FAUX MAIS UN ARRONDI CHOISI AU MAUVAIS
+# ENDROIT : le script décidait de sa précision, et l'affichage démentait le
+# calcul. La précision appartient désormais à celui qui promet la
+# vérification.
+
+def test_le_produit_des_facteurs_AFFICHES_donne_le_resultat_AFFICHE():
+    """LA RÈGLE REFAIT LE CALCUL DU LECTEUR, avec les nombres qu'il a sous les
+    yeux — arrondis à la précision que le module demande d'afficher. Lire le
+    drapeau `arithmetique_verifiable` serait vert parce que le module le dit."""
+    d = ETUDE["decomposition"]
+    n = d["decimales"]
+    assert isinstance(n, int) and 1 <= n <= 4, n
+    vu = 1.0
+    for f in d["facteurs"]:
+        vu *= round(f["valeur"], n)
+    np = d["decimales_produit"]
+    assert round(vu, np) == round(d["produit"], np), (
+        "le lecteur qui multiplie ce qu'il voit trouve %s, la page annonce %s"
+        % (round(vu, np), round(d["produit"], np)))
+    assert d["arithmetique_verifiable"] is True
+
+
+def test_la_precision_est_la_PLUS_PETITE_qui_tombe_juste():
+    """AFFICHER QUATRE DÉCIMALES SERAIT JUSTE ET ILLISIBLE, et une ligne
+    illisible n'est pas vérifiée. Le témoin : à une décimale de moins,
+    l'arithmétique NE doit PAS tomber — sinon on affiche du bruit."""
+    d = ETUDE["decomposition"]
+    n = d["decimales"]
+    if n == 1:
+        return
+    vu = 1.0
+    for f in d["facteurs"]:
+        vu *= round(f["valeur"], n - 1)
+    np = d["decimales_produit"]
+    assert round(vu, np) != round(d["produit"], np), (
+        "une décimale de moins suffirait : la page en affiche une de trop")
+
+
+def test_la_page_APPLIQUE_la_precision_du_serveur_et_ne_la_choisit_pas():
+    """CHOISIE DANS LE SCRIPT, elle démentait le calcul.
+
+    VÉRIFIER LA SIGNATURE NE SUFFISAIT PAS, et une mutation l'a montré :
+    `function facteur(v, dec)` peut recevoir la précision et l'ignorer dans son
+    corps. La règle borne donc au CORPS et exige qu'il s'en serve — et qu'il ne
+    rebricole pas une règle de précision à lui."""
+    js = _src(SCRIPT)
+    assert "function facteur(v, dec)" in js, (
+        "le formateur ne reçoit plus la précision")
+    corps = js[js.index("function facteur(v, dec)"):]
+    corps = corps[:corps.index("\n  }")]
+    assert "dec" in corps.split("{", 1)[1], (
+        "le formateur reçoit la précision et ne s'en sert pas")
+    assert "v < " not in corps and "> 10" not in corps, (
+        "le formateur rebricole une règle de précision à lui : %r" % corps)
+    assert "facteur(f.valeur, d.decimales)" in js
+    assert "facteur(d.produit, d.decimales_produit)" in js
+
+
+def test_quand_aucune_precision_ne_tombe_juste_le_module_le_DIT():
+    """LE REPLI EXISTE ET DOIT ÊTRE VIVANT. Sur les données du jour la
+    recherche aboutit toujours, donc la branche d'échec n'est jamais empruntée
+    — une mutation y survivait sans rien casser. On l'emprunte ici avec des
+    facteurs dont aucun arrondi raisonnable ne reconstitue le produit."""
+    dec, ok = I._decimales_qui_tombent_juste([1.0000001, 1e6], 1000000.1)
+    assert ok is False and dec == 4, (dec, ok)
+    # ET LE TÉMOIN : sur un cas qui tombe, le drapeau doit être vrai — sinon
+    # la règle serait satisfaite par une fonction qui répond toujours « non ».
+    dec, ok = I._decimales_qui_tombent_juste([1.1489, 15.4878], 1.1489 * 15.4878)
+    assert ok is True and dec <= 4, (dec, ok)
+
+
+def test_si_l_arithmetique_ne_se_relit_pas_la_page_retire_la_multiplication():
+    """AFFICHER UNE MULTIPLICATION QUE LE LECTEUR NE PEUT PAS REFAIRE est pire
+    que ne rien afficher : il conclut que le reste est faux aussi. Le propos
+    reste, l'arithmétique part."""
+    js = _src(SCRIPT)
+    assert "d.identite_verifiee && d.arithmetique_verifiable" in js, (
+        "la page affiche l'arithmétique sans vérifier qu'elle se relit")
+    # Et le repli existe : identité vraie, arithmétique illisible.
+    i = js.index("else if (d && d.identite_verifiee) {")
+    repli = js[i:i + 500]
+    assert "d.lecture" in repli and "facteur(" not in repli, (
+        "le repli réaffiche des facteurs qu'on ne peut pas multiplier")
+
+
+def _textes_ecrits_par_le_module():
+    """Les textes que CE module écrit — pas ceux que le moteur rend. Les
+    incertitudes du moteur portent légitimement des décimales : elles sont
+    calculées, pas recopiées."""
+    yield "NATURE", I.NATURE
+    for i, r in enumerate(I.RESERVES):
+        yield "RESERVES[%d]" % i, r
+    for x in I.INVARIANTS:
+        yield "INVARIANTS/%s" % x["cle"], x["pourquoi"]
+    for c in I.CONFIGURATIONS:
+        for k in ("nom", "resume", "pourquoi"):
+            yield "CONFIGURATIONS/%s/%s" % (c["cle"], k), c[k]
+    for x in I.INDICATEURS:
+        yield "INDICATEURS/%s" % x["cle"], x["lecture"]
+    d = ETUDE["decomposition"]
+    yield "decomposition/lecture", d["lecture"]
+    yield "decomposition/reserve_si_fausse", d["reserve_si_fausse"]
+    for f in d["facteurs"]:
+        for k in ("libelle", "pourquoi", "source"):
+            yield "decomposition/%s/%s" % (f["cle"], k), f[k]
+    for e in ETUDE["enseignements"]:
+        for k in ("titre", "texte"):
+            yield "enseignements/%s/%s" % (e["cle"], k), e[k]
+
+
+def test_aucun_texte_du_module_ne_porte_de_nombre_decimal():
+    """CE MODULE N'ÉCRIT AUCUN CHIFFRE, et il en écrivait un : « il le divise
+    par 1,1 », dans la lecture de la décomposition. Il était faux deux fois —
+    à la précision corrigée, et le jour où une famille de refroidissement
+    change de plage. Une référence de norme (ISO/IEC 30134-2, EN 50600-4-2)
+    n'a pas cette forme : le motif ne cherche qu'un nombre À VIRGULE, qui est
+    ce à quoi ressemble un rapport calculé."""
+    fautifs = [(ou, t) for ou, t in _textes_ecrits_par_le_module()
+               if re.search(r"\d+[,.]\d", t or "")]
+    assert not fautifs, (
+        "des nombres calculés sont écrits en dur : %s"
+        % [(o, re.search(r"[^ ]*\d+[,.]\d[^ ]*", t).group(0)) for o, t in fautifs])
