@@ -3868,7 +3868,13 @@ def api_ia_factory_chiffrer():
     # pour un critère périmé est pire qu'un bloc bleu.
     return jsonify(ok=True, chiffrage=ch, planning=pl,
                    blocs=ia_factory.etat_blocs(d.get("quantites"), d.get("prix"),
-                                               secteur, ch))
+                                               secteur, ch),
+                   # CE QUI EST RESTÉ UN EXEMPLE, rendu AVANT que la page
+                   # n'affiche des totaux. Une étude bâtie sur les ordres de
+                   # grandeur du cabinet et présentée comme celle du client
+                   # serait la faute la plus coûteuse de cette page.
+                   valeurs_dexemple=ia_factory.valeurs_dexemple(
+                       d.get("quantites"), d.get("prix")))
 
 
 @app.route("/api/datacenter/economiste")

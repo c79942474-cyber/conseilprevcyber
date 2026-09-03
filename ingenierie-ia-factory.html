@@ -91,6 +91,22 @@
     background:rgba(0,0,0,.18);color:var(--ink);font-family:inherit;font-size:14px;
     cursor:pointer;outline:none}
   .iaf-choix:focus{border-color:var(--cyan)}
+  /* UNE LISTE D'EXEMPLES N'EST PAS UNE LISTE DE CHOIX, et cela doit se voir
+     avant d'être lu : trait discontinu, fond plus sourd, texte plus petit. La
+     liste fermée décide de la valeur ; celle-ci ne fait que proposer un point
+     de départ, et le champ libre reste ouvert juste en dessous. */
+  .iaf-exemples{border-style:dashed;opacity:.86;font-size:12.5px;
+    background:rgba(0,0,0,.10)}
+  .iaf-exemples:hover{opacity:1}
+  /* CE QUI EST RESTÉ UN ORDRE DE GRANDEUR DU CABINET, au-dessus des totaux.
+     Un avertissement placé sous un montant arrive après que le lecteur l'a
+     retenu. */
+  .iaf-alerte{border:1px solid var(--warn,#c9852a);border-left-width:4px;
+    border-radius:10px;padding:12px 14px;margin:0 0 16px;font-size:13px;
+    background:rgba(201,133,42,.10);line-height:1.55}
+  .iaf-alerte ul{margin:8px 0 0;padding-left:18px}
+  .iaf-alerte li{margin:3px 0}
+  .iaf-alerte small{opacity:.8}
   /* Le champ libre ouvert par « Autre valeur… » se distingue de la liste :
      sans cette marque, on ne voit pas qu'on a quitté les choix proposés. */
   .iaf-champ input:not([hidden]) + .iaf-ou{margin-top:1px}

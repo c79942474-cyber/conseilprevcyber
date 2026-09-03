@@ -273,13 +273,18 @@ function demander(url, options, delai) {
   function optionLisible(v, unite) {
     return unite === "part" ? nombre(v * 100, 0) + " %" : nombre(v, 2) + " " + unite;
   }
-  function champs(dict, prefixe) {
+  /* LES EXEMPLES ARRIVENT EN PARAMÈTRE, pas par une variable de portée. La
+     fonction reste pure — on peut la rendre et lire ce qu'elle produit, ce que
+     font les règles — et elle ne dépend pas de l'ordre dans lequel la page
+     s'initialise. */
+  function champs(dict, prefixe, exemples) {
     var h = "";
     Object.keys(dict).forEach(function (k) {
       var d = dict[k], choix = (d.choix && d.choix.length) ? d.choix : null;
       var tete = '<label class="iaf-champ"><span class="iaf-nom">' + esc(d.nom)
         + ' <small>(' + esc(d.unite) + ')</small>' + bulle(d.ou, "Où trouver « " + d.nom + " »")
         + "</span>";
+      var ex = (exemples || {})[k] || [];
       var champ = '<input type="number" step="any" min="0" inputmode="decimal" data-cle="' + esc(k)
         + '" data-famille="' + prefixe + '" placeholder="non renseigné"'
         + (choix ? ' hidden' : "") + ">";
@@ -293,14 +298,59 @@ function demander(url, options, delai) {
             }).join("")
           + '<option value="' + AUTRE + '">Autre valeur…</option></select>';
       }
-      h += tete + liste + champ + '<span class="iaf-ou">' + esc(d.ou) + "</span></label>";
+      /* LES EXEMPLES — une liste qui SUGGÈRE, pas une liste qui contraint.
+         `choix` est un ensemble fermé (« un seul socle / deux / trois ou
+         plus ») : le champ libre disparaît derrière lui. `exemples` est
+         l'inverse — le champ reste visible et modifiable, la liste ne fait que
+         le renseigner. Confondre les deux enfermerait le client dans nos
+         ordres de grandeur, ce qui est exactement ce que ce module refuse.
+         Rien n'est pré-sélectionné, et chaque option dit d'où elle vient. */
+      var suggestions = "";
+      if (!choix && ex.length) {
+        suggestions = '<select class="iaf-choix iaf-exemples" data-exemple="' + esc(k) + '">'
+          + '<option value="">— un exemple pour situer —</option>'
+          + ex.map(function (e) {
+              return '<option value="' + esc(e.valeur) + '" data-prov="' + esc(e.provenance) + '">'
+                + esc(e.libelle) + " — " + esc(optionLisible(e.valeur, d.unite))
+                + " (" + esc(_provCourt(e.provenance)) + ")</option>";
+            }).join("")
+          + "</select>";
+      }
+      h += tete + liste + suggestions + champ
+        + '<span class="iaf-ou">' + esc(d.ou) + "</span></label>";
     });
     return h;
+  }
+
+  /* LE MOT COURT DE LA PROVENANCE, dans l'option elle-même. Le libellé complet
+     vit dans le module (`provenances`) et s'affiche sous le formulaire : ici il
+     tiendrait la ligne sur trois lignes. Un exemple sans provenance visible
+     serait un chiffre du cabinet déguisé en donnée. */
+  function _provCourt(p) {
+    return p === "ancrage" ? "source du module"
+         : p === "cabinet" ? "usage du cabinet, à remplacer"
+         : "hypothèse de taille";
   }
 
   /* Le champ numérique reste le SEUL porteur de la valeur : `lire()` ne
      regarde que lui. La liste ne fait que le renseigner — deux porteurs
      dériveraient, et c'est celui qu'on oublie qui partirait au serveur. */
+  function brancherExemples() {
+    document.querySelectorAll("[data-exemple]").forEach(function (sel) {
+      sel.addEventListener("change", function () {
+        if (sel.value === "") return;
+        var champ = sel.parentNode.querySelector("input[data-cle]");
+        if (!champ) return;
+        champ.value = sel.value;
+        champ.dispatchEvent(new Event("input", { bubbles: true }));
+        /* LA LISTE SE REMET SUR SON INTITULÉ. Laissée sur l'exemple choisi,
+           elle affirmerait que la valeur du champ EST cet exemple — alors que
+           le client vient peut-être de la corriger juste après. */
+        sel.selectedIndex = 0;
+      });
+    });
+  }
+
   function brancherChoix() {
     document.querySelectorAll("[data-choix]").forEach(function (sel) {
       sel.addEventListener("change", function () {
@@ -336,7 +386,7 @@ function demander(url, options, delai) {
       var v = REF.quantites_secteur[k];
       if (SECTEUR && v.secteurs.indexOf(SECTEUR) >= 0) dict[k] = v;
     });
-    $("iaf-q").innerHTML = champs(dict, "q");
+    $("iaf-q").innerHTML = champs(dict, "q", REF.exemples);
     document.querySelectorAll('input[data-famille="q"]').forEach(function (i) {
       if (garde[i.dataset.cle] == null) return;
       i.value = garde[i.dataset.cle];
@@ -351,6 +401,7 @@ function demander(url, options, delai) {
       else { sel.value = AUTRE; i.hidden = false; }
     });
     brancherChoix();
+    brancherExemples();
   }
 
   /* ── LES SECTEURS ─────────────────────────────────────────────────────── */
@@ -696,6 +747,25 @@ function demander(url, options, delai) {
     }, 500);
   }
 
+  /* L'AVERTISSEMENT QUI TIENT LA PROMESSE DU MODULE. « Ce module ne porte
+     aucun prix : il chiffre les vôtres » cesse d'être vrai à la seconde où un
+     client exporte une étude bâtie sur nos ordres de grandeur sans le savoir.
+     Le compte vient du SERVEUR — le recalculer ici donnerait un second
+     comptage, et c'est le plus visible qui serait cru. */
+  function rendreValeursDexemple(liste) {
+    var aRemplacer = (liste || []).filter(function (x) { return x.a_remplacer; });
+    if (!aRemplacer.length) return "";
+    return '<div class="iaf-alerte" role="status"><b>'
+      + aRemplacer.length + " valeur(s) sont encore un ordre de grandeur du "
+      + "cabinet</b> — ce chiffrage n'est pas encore le vôtre. À remplacer par "
+      + "vos devis, votre grille RH et vos marchés en cours :<ul>"
+      + aRemplacer.map(function (x) {
+          return "<li><b>" + esc(x.nom) + "</b> — " + esc(optionLisible(x.valeur, x.unite))
+            + " <small>(" + esc(x.libelle) + ")</small></li>";
+        }).join("")
+      + "</ul></div>";
+  }
+
   function chiffrer() {
     var out = $("iaf-out"), dim = $("iaf-dim"), pla = $("iaf-planning");
     out.innerHTML = "<p>Chiffrage en cours…</p>";
@@ -705,7 +775,12 @@ function demander(url, options, delai) {
     demander("/api/ia-factory/chiffrer", { method: "POST",
       headers: { "Content-Type": "application/json" }, body: JSON.stringify(corps) }, DELAI_MOYEN)
       .then(function (j) {
-        out.innerHTML = rendreChiffrage(j.chiffrage, REF);
+        /* CE QUI EST RESTÉ UN EXEMPLE, AVANT LES TOTAUX ET NON APRÈS.
+           Placé sous le tableau, l'avertissement arriverait après que le
+           lecteur a retenu le montant — et un montant retenu ne se corrige
+           plus. */
+        out.innerHTML = rendreValeursDexemple(j.valeurs_dexemple)
+          + rendreChiffrage(j.chiffrage, REF);
         dim.innerHTML = rendreDim(j.chiffrage.dimensionnement);
         pla.innerHTML = rendrePlanning(j.planning);
         peindreBlocs(j.blocs);
@@ -718,7 +793,8 @@ function demander(url, options, delai) {
       $("iaf-secteur").innerHTML = rendreSecteurs();
       brancherSecteurs();
       redessinerQuantites();
-      $("iaf-p").innerHTML = champs(REF.prix, "p");
+      $("iaf-p").innerHTML = champs(REF.prix, "p", REF.exemples);
+      brancherExemples();
       $("iaf-cmp").innerHTML = rendreComparables(REF.comparables, REF.sources,
         REF.secteurs_comparables);
       brancherComparables();

@@ -725,6 +725,280 @@ PRIX = {
 }
 
 
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  3 bis. LES EXEMPLES — pour partir d'un ordre de grandeur, jamais pour s'en
+#         contenter
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# CE QU'UN FORMULAIRE VIDE DEMANDE VRAIMENT. Vingt-cinq cases à remplir, sans
+# aucun repère, posent au client une question qu'il ne peut pas trancher : « ce
+# que j'écris est-il vraisemblable ? » Il renonce, ou il écrit n'importe quoi —
+# et un chiffrage bâti sur n'importe quoi a l'air d'un chiffrage.
+#
+# ET CE QU'ILS NE DOIVENT SURTOUT PAS DEVENIR. Ce module publie qu'il NE PORTE
+# AUCUN PRIX : il chiffre les vôtres. Un exemple qu'on laisserait en place se
+# retrouverait dans une étude exportée, présenté comme le chiffre du client.
+# Trois garde-fous, et le troisième est le seul qui compte vraiment :
+#
+#   1. rien n'est pré-sélectionné — la liste s'ouvre sur « non renseigné » ;
+#   2. chaque exemple dit D'OÙ IL VIENT, et ce qu'il vaut :
+#        · « ancrage »  — traçable à une source du module, vérifiable ;
+#        · « cabinet »  — ordre de grandeur d'usage, AUCUNE source publique,
+#                         à remplacer impérativement ;
+#        · « scénario » — une hypothèse de taille, qui n'affirme rien du monde ;
+#   3. LE CHIFFRAGE COMPTE CE QUI EST RESTÉ UN EXEMPLE. `valeurs_dexemple()`
+#      rapproche ce que le client a saisi des exemples offerts : une valeur
+#      identique à un exemple est signalée AVANT les totaux. Sans ce troisième
+#      point, les deux premiers ne seraient que des précautions d'affichage.
+#
+# UN EXEMPLE « ancrage » DOIT DÉSIGNER UN ANCRAGE QUI EXISTE : sinon il se
+# réclame d'une source qu'on ne peut pas rouvrir, c'est-à-dire d'une intention.
+# `_verifier_exemples()` refuse au chargement.
+
+PROVENANCES = {
+    "ancrage": "Traçable à une source du module — rouvrez-la avant de vous en prévaloir.",
+    "cabinet": "Ordre de grandeur d'usage du cabinet, AUCUNE source publique. "
+               "À remplacer par votre devis ou votre grille.",
+    "scenario": "Hypothèse de taille, pour situer l'ordre de grandeur. "
+                "N'affirme rien sur le monde.",
+}
+
+EXEMPLES = {
+    # ── les quantités : des scénarios de taille, et ce que les cas publient ──
+    "effectif": [
+        {"valeur": 800, "libelle": "Entreprise de taille intermédiaire", "provenance": "scenario"},
+        {"valeur": 5000, "libelle": "Grande entreprise, un seul réseau", "provenance": "scenario"},
+        {"valeur": 100000, "libelle": "Groupe multi-réseaux — effectif du cas A",
+         "provenance": "ancrage", "ancrage": "casA_effectif"},
+    ],
+    "n_metiers": [
+        {"valeur": 4, "libelle": "Périmètre restreint (distribution, risques, IT, conformité)",
+         "provenance": "scenario"},
+        {"valeur": 9, "libelle": "Organigramme complet de premier niveau", "provenance": "scenario"},
+    ],
+    "n_cas_usage": [
+        {"valeur": 5, "libelle": "Premier portefeuille arbitré", "provenance": "scenario"},
+        {"valeur": 30, "libelle": "Usine installée, plusieurs métiers servis", "provenance": "scenario"},
+        {"valeur": 1000, "libelle": "Compte annoncé par le cas C — à citer, pas à viser",
+         "provenance": "ancrage", "ancrage": "casC_cas"},
+    ],
+    "n_cas_haut_risque": [
+        {"valeur": 0, "libelle": "Aucun cas d'annexe III identifié à ce stade", "provenance": "scenario"},
+        {"valeur": 2, "libelle": "Deux cas qualifiés (par exemple solvabilité et recrutement)",
+         "provenance": "scenario"},
+    ],
+    "etp_par_cas": [
+        {"valeur": 0.5, "libelle": "Un cas simple, mi-temps jusqu'en production", "provenance": "cabinet"},
+        {"valeur": 1.5, "libelle": "Un cas courant, une personne et demie", "provenance": "cabinet"},
+        {"valeur": 3, "libelle": "Un cas lourd (données à reprendre, intégration métier)",
+         "provenance": "cabinet"},
+    ],
+    "n_interfaces": [
+        {"valeur": 15, "libelle": "Socle stable, quelques flux à porter", "provenance": "scenario"},
+        {"valeur": 120, "libelle": "Migration en cours : les flux existent DEUX fois", "provenance": "scenario"},
+    ],
+    "volume_appels": [
+        {"valeur": 500000, "libelle": "Centre de relation client de taille moyenne", "provenance": "scenario"},
+        {"valeur": 12000000, "libelle": "Volume du cas A (12 millions reçus)",
+         "provenance": "ancrage", "ancrage": "casA_appels"},
+    ],
+    "heures_formation": [
+        {"valeur": 2, "libelle": "Sensibilisation de socle", "provenance": "scenario"},
+        {"valeur": 7, "libelle": "Une journée par salarié formé", "provenance": "scenario"},
+        {"valeur": 21, "libelle": "Parcours métier (trois jours)", "provenance": "scenario"},
+    ],
+    "duree_mois": [
+        {"valeur": 12, "libelle": "Un exercice", "provenance": "scenario"},
+        {"valeur": 36, "libelle": "Plan triennal — horizon du cas B",
+         "provenance": "ancrage", "ancrage": "casB_plan"},
+        {"valeur": 48, "libelle": "Horizon annoncé du programme du cas A",
+         "provenance": "ancrage", "ancrage": "casA_horizon"},
+    ],
+
+    "tokens_mois": [
+        {"valeur": 20, "libelle": "Assistant de rédaction pour quelques centaines d'utilisateurs",
+         "provenance": "cabinet"},
+        {"valeur": 400, "libelle": "Assistant généralisé et traitements par lots", "provenance": "cabinet"},
+    ],
+    "jours_cadrage": [
+        {"valeur": 40, "libelle": "Cadrage court, périmètre déjà arbitré", "provenance": "cabinet"},
+        {"valeur": 120, "libelle": "Cadrage complet avec gouvernance à installer", "provenance": "cabinet"},
+    ],
+    "jours_pmo_mois": [
+        {"valeur": 5, "libelle": "Pilotage léger, un quart de temps", "provenance": "cabinet"},
+        {"valeur": 20, "libelle": "Pilotage dédié, un temps plein", "provenance": "cabinet"},
+    ],
+    "jours_par_cas": [
+        {"valeur": 60, "libelle": "Cas simple, données disponibles", "provenance": "cabinet"},
+        {"valeur": 200, "libelle": "Cas lourd, intégration métier et reprise de données",
+         "provenance": "cabinet"},
+    ],
+    "jours_recette_interface": [
+        {"valeur": 5, "libelle": "Interface simple, contrat stable", "provenance": "cabinet"},
+        {"valeur": 20, "libelle": "Interface métier, recette croisée pendant une migration",
+         "provenance": "cabinet"},
+    ],
+
+    # ── les quantités propres à un secteur : elles n'apparaissent que s'il est choisi ──
+    "n_fournisseurs_ia": [
+        {"valeur": 3, "libelle": "Socle resserré, un fournisseur principal", "provenance": "scenario"},
+        {"valeur": 12, "libelle": "Plusieurs modèles et plateformes en parallèle", "provenance": "scenario"},
+    ],
+    "jours_registre_fournisseur": [
+        {"valeur": 3, "libelle": "Fournisseur déjà au registre, mise à jour", "provenance": "cabinet"},
+        {"valeur": 10, "libelle": "Entrée complète, fonction critique", "provenance": "cabinet"},
+    ],
+    "jours_test_resilience_cas": [
+        {"valeur": 5, "libelle": "Test intégré à la campagne existante", "provenance": "cabinet"},
+        {"valeur": 20, "libelle": "Scénario dédié au système d'IA", "provenance": "cabinet"},
+    ],
+    "n_modeles_tarifaires": [
+        {"valeur": 4, "libelle": "Quelques modèles de tarification touchés", "provenance": "scenario"},
+        {"valeur": 20, "libelle": "Portefeuille complet vie et non-vie", "provenance": "scenario"},
+    ],
+    "jours_validation_modele": [
+        {"valeur": 15, "libelle": "Validation indépendante d'un modèle documenté", "provenance": "cabinet"},
+        {"valeur": 45, "libelle": "Modèle structurant, revue actuarielle complète", "provenance": "cabinet"},
+    ],
+    "jours_orsa_ia": [
+        {"valeur": 20, "libelle": "Rattachement des systèmes d'IA à l'évaluation existante",
+         "provenance": "cabinet"},
+        {"valeur": 60, "libelle": "Chapitre dédié, première année", "provenance": "cabinet"},
+    ],
+    "n_cas_composant_securite": [
+        {"valeur": 0, "libelle": "Aucun composant de sécurité identifié", "provenance": "scenario"},
+        {"valeur": 3, "libelle": "Trois cas qualifiés composants de sécurité", "provenance": "scenario"},
+    ],
+    "jours_safety_case": [
+        {"valeur": 30, "libelle": "Dossier de sûreté sur une fonction bien bornée", "provenance": "cabinet"},
+        {"valeur": 90, "libelle": "Fonction critique, démonstration complète", "provenance": "cabinet"},
+    ],
+    "jours_procedure_incidents": [
+        {"valeur": 15, "libelle": "Rattachement à la chaîne d'alerte existante", "provenance": "cabinet"},
+        {"valeur": 45, "libelle": "Chaîne à construire, exercices inclus", "provenance": "cabinet"},
+    ],
+    "n_zones_ot": [
+        {"valeur": 2, "libelle": "Deux zones industrielles raccordées", "provenance": "scenario"},
+        {"valeur": 10, "libelle": "Parc étendu, plusieurs sites", "provenance": "scenario"},
+    ],
+    "jours_segmentation_zone": [
+        {"valeur": 20, "libelle": "Conduit simple vers une zone déjà segmentée", "provenance": "cabinet"},
+        {"valeur": 60, "libelle": "Segmentation à reprendre, recette sur site", "provenance": "cabinet"},
+    ],
+
+    # ── les prix : c'est ici que la prudence se paie ──
+    "tjm_conseil": [
+        {"valeur": 900, "libelle": "Cadrage et pilotage, profil confirmé", "provenance": "cabinet"},
+        {"valeur": 1500, "libelle": "Associé ou expert rare, mission courte", "provenance": "cabinet"},
+    ],
+    "tjm_interne": [
+        {"valeur": 450, "libelle": "Cadre mobilisé, coût complet chargé", "provenance": "cabinet"},
+        {"valeur": 700, "libelle": "Expert interne rare", "provenance": "cabinet"},
+    ],
+    "cout_etp_ia": [
+        {"valeur": 95000, "libelle": "Constructeur de modèles confirmé, coût chargé", "provenance": "cabinet"},
+        {"valeur": 140000, "libelle": "Profil senior ou lead", "provenance": "cabinet"},
+    ],
+    "cout_etp_plateforme": [
+        {"valeur": 85000, "libelle": "Ingénieur plateforme confirmé, coût chargé", "provenance": "cabinet"},
+        {"valeur": 125000, "libelle": "Profil senior ou lead", "provenance": "cabinet"},
+    ],
+    "cout_infra_an": [
+        {"valeur": 250000, "libelle": "Socle mutualisé, consommation maîtrisée", "provenance": "cabinet"},
+        {"valeur": 2000000, "libelle": "Socle dédié, entraînement inclus", "provenance": "cabinet"},
+        {"valeur": 6500000, "libelle": "Grappe clé en main d'entrée de gamme (7 M$, achat — pas un loyer)",
+         "provenance": "ancrage", "ancrage": "grappe_calcul"},
+    ],
+    "cout_outillage_an": [
+        {"valeur": 120000, "libelle": "Outillage et licences, périmètre restreint", "provenance": "cabinet"},
+        {"valeur": 600000, "libelle": "Chaîne complète, licences par utilisateur incluses",
+         "provenance": "cabinet"},
+    ],
+    "cout_securite_an": [
+        {"valeur": 150000, "libelle": "Supervision adossée au centre existant", "provenance": "cabinet"},
+        {"valeur": 500000, "libelle": "Supervision dédiée au socle IA", "provenance": "cabinet"},
+    ],
+    "prix_M_jetons": [
+        {"valeur": 0.5, "libelle": "Entrée d'un modèle de premier rang, tarif public bas",
+         "provenance": "ancrage", "ancrage": "jetons"},
+        {"valeur": 1.5, "libelle": "Sortie d'un modèle de premier rang, tarif public haut",
+         "provenance": "ancrage", "ancrage": "jetons"},
+    ],
+    "cout_heure_formation": [
+        {"valeur": 60, "libelle": "Module en ligne, temps salarié inclus", "provenance": "cabinet"},
+        {"valeur": 180, "libelle": "Présentiel animé, temps salarié inclus", "provenance": "cabinet"},
+    ],
+    "cout_interface": [
+        {"valeur": 15000, "libelle": "Interface simple, contrat stable", "provenance": "cabinet"},
+        {"valeur": 60000, "libelle": "Interface métier, reprise de données", "provenance": "cabinet"},
+    ],
+    "cout_audit_cas": [
+        {"valeur": 40000, "libelle": "Dossier annexe III, contrôle interne", "provenance": "cabinet"},
+        {"valeur": 120000, "libelle": "Dossier avec évaluation par un organisme tiers",
+         "provenance": "cabinet"},
+    ],
+}
+
+
+def _verifier_exemples():
+    """Refuse au chargement plutôt qu'à l'affichage.
+
+    TROIS FAÇONS DE MENTIR SANS S'EN APERCEVOIR, et une garde pour chacune :
+    un exemple posé sur un champ qui n'existe pas ne s'afficherait jamais ; une
+    provenance inconnue ne dirait rien au lecteur ; et un exemple « ancrage »
+    qui désigne un ancrage absent se réclame d'une source qu'on ne peut pas
+    rouvrir — c'est-à-dire d'une intention."""
+    cles_ancrages = {a["cle"] for a in ANCRAGES}
+    for champ, liste in EXEMPLES.items():
+        if champ not in QUANTITES and champ not in PRIX and champ not in QUANTITES_SECTEUR:
+            raise ValueError("exemples posés sur un champ inconnu : %s" % champ)
+        for ex in liste:
+            if ex["provenance"] not in PROVENANCES:
+                raise ValueError("provenance inconnue pour %s : %s" % (champ, ex["provenance"]))
+            if ex["provenance"] == "ancrage":
+                if ex.get("ancrage") not in cles_ancrages:
+                    raise ValueError("l'exemple « %s » de %s se réclame d'un ancrage absent : %r"
+                                     % (ex["libelle"], champ, ex.get("ancrage")))
+            elif "ancrage" in ex:
+                raise ValueError("l'exemple « %s » de %s désigne un ancrage sans s'en réclamer"
+                                 % (ex["libelle"], champ))
+
+
+_verifier_exemples()
+
+
+def valeurs_dexemple(quantites, prix):
+    """Les saisies restées ÉGALES à un exemple offert.
+
+    C'EST LA SEULE GARDE QUI COMPTE. Les deux autres — ne rien
+    pré-sélectionner, dire d'où vient chaque exemple — ne protègent que le
+    moment de la saisie. Celle-ci protège l'étude EXPORTÉE : un client qui
+    n'aurait rien remplacé repartirait sinon avec les ordres de grandeur du
+    cabinet présentés comme les siens.
+
+    Elle ne prétend pas lire dans les pensées : une valeur peut coïncider avec
+    un exemple parce que c'est la bonne. Elle SIGNALE, elle n'accuse pas."""
+    saisi = {}
+    saisi.update({k: _nombre(v) for k, v in (quantites or {}).items()})
+    saisi.update({k: _nombre(v) for k, v in (prix or {}).items()})
+    out = []
+    for champ, liste in EXEMPLES.items():
+        v = saisi.get(champ)
+        if v is None:
+            continue
+        for ex in liste:
+            if abs(float(ex["valeur"]) - v) < 1e-9:
+                d = QUANTITES.get(champ) or QUANTITES_SECTEUR.get(champ) or PRIX[champ]
+                out.append({"champ": champ, "nom": d["nom"], "unite": d["unite"],
+                            "valeur": ex["valeur"], "libelle": ex["libelle"],
+                            "provenance": ex["provenance"],
+                            "dit": PROVENANCES[ex["provenance"]],
+                            "a_remplacer": ex["provenance"] == "cabinet"})
+                break
+    out.sort(key=lambda x: (not x["a_remplacer"], x["champ"]))
+    return out
+
 # ═══════════════════════════════════════════════════════════════════════════
 #  4. LES POSTES — la structure qui reçoit vos prix ; chacun dit ce qu'il couvre
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1641,6 +1915,14 @@ def etat_blocs(quantites, prix, secteur=None, chiffrage=None):
             dit = ("Toutes les entrées sont renseignées." if ok
                    else "%d entrée(s) manquante(s) sur %d."
                         % (len(manquantes), len(attendues) + len(PRIX)))
+            # UNE ENTRÉE RENSEIGNÉE N'EST PAS UNE ENTRÉE À VOUS. Le bloc reste
+            # vert — une valeur peut coïncider avec un exemple parce que c'est
+            # la bonne — mais il le DIT, sinon l'étude exportée présenterait les
+            # ordres de grandeur du cabinet comme les chiffres du client.
+            a_remplacer = [x for x in valeurs_dexemple(quantites, prix) if x["a_remplacer"]]
+            if a_remplacer:
+                dit += (" %d valeur(s) sont encore un ordre de grandeur du cabinet, "
+                        "à remplacer par les vôtres." % len(a_remplacer))
         elif sec["id"] == "s-chiffrage":
             ok = bool(chiffrage) and chiffrage.get("n_non_chiffres") == 0
             dit = ("Tous les postes sont chiffrés." if ok
@@ -1664,6 +1946,10 @@ def referentiel():
             "postes_secteur": [{k: v for k, v in p.items() if k != "calc"} for p in POSTES_SECTEUR],
             "secteurs": SECTEURS, "classes_cas": CLASSES_CAS,
             "ancrages": ANCRAGES, "sources": SOURCES,
+            # LES EXEMPLES VIENNENT D'ICI, comme tout le reste. Recopiés dans le
+            # script, ils deviendraient un second barème — et c'est le plus
+            # visible qui serait cru.
+            "exemples": EXEMPLES, "provenances": PROVENANCES,
             "couverture_sources": couverture_sources(),
             "phases": PHASES, "migration": MIGRATION,
             "jalons_reglementaires": JALONS_REGLEMENTAIRES,

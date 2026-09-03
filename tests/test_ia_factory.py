@@ -711,7 +711,7 @@ def test_un_bloc_LECTURE_ne_pretend_pas_etre_mesure():
         "croire à une vérification")
 
 
-def _champs_rendus(dict_champs):
+def _champs_rendus(dict_champs, exemples=None):
     """LE HTML RÉELLEMENT PRODUIT, en exécutant `champs()` TELLE QU'ELLE EST
     SERVIE. Chercher « <select » dans le fichier serait vert pour un select
     mort dans un commentaire, ou pour du code que la page n'atteint jamais.
@@ -723,8 +723,15 @@ def _champs_rendus(dict_champs):
     ancre = "\n(function () {\n"           # en colonne 0 : la fermeture de page
     corps = src[src.index(ancre) + len(ancre):src.index("\n  function lire(")]
     prog = corps + ("\nconst d = JSON.parse(process.env.IAF_CHAMPS);"
-                    "\nprocess.stdout.write(champs(d, 'q'));\n")
-    env = dict(os.environ, IAF_CHAMPS=json.dumps(dict_champs))
+                    "\nprocess.stdout.write(champs(d.c, 'q', d.e));\n")
+    # LES EXEMPLES VIENNENT DU RÉFÉRENTIEL, PAS DU DICTIONNAIRE DU MODULE.
+    # C'est ce que la PAGE reçoit. Lus directement dans `F.EXEMPLES`, toutes
+    # les règles d'exemples restaient vertes quand `referentiel()` cessait de
+    # les publier : le module les avait, la page n'en voyait aucun, et rien ne
+    # tombait. Mutation vérifiée.
+    env = dict(os.environ, IAF_CHAMPS=json.dumps(
+        {"c": dict_champs,
+         "e": F.referentiel()["exemples"] if exemples is None else exemples}))
     out = subprocess.run(["node"], input=prog, capture_output=True, text=True,
                          timeout=60, env=env)
     assert out.returncode == 0, out.stderr
@@ -841,11 +848,171 @@ def test_une_liste_declaree_est_une_liste_QU_ON_VOIT():
 
     for k in sans:
         h = rendus[k]
-        assert "<select" not in h, (
-            "le champ « %s » ne déclare aucun choix et rend pourtant une liste" % k)
+        # AUCUNE LISTE FERMÉE — c'est le mécanisme `choix`, celui qui contraint,
+        # et il reste réservé aux quatre énumérations structurelles. Une liste
+        # d'EXEMPLES peut en revanche être là : elle suggère, elle ne contraint
+        # pas, et les règles qui suivent l'éprouvent.
+        assert "data-choix=" not in h, (
+            "le champ « %s » ne déclare aucun choix et rend pourtant une liste "
+            "fermée" % k)
         entree = re.search(r"<input[^>]*data-cle=\"%s\"[^>]*>" % re.escape(k), h)
         assert entree and " hidden" not in entree.group(0), (
             "« %s » : le seul champ de saisie est caché — rien à remplir" % k)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LES EXEMPLES — suggérer sans devenir un barème
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# CE QUI SÉPARE UN EXEMPLE D'UN CHOIX, ET POURQUOI LA LIGNE TIENT ENCORE.
+# `test_les_listes_deroulantes_n_inventent_aucune_norme` interdit une liste de
+# CHOIX sur un prix : elle installerait une norme inventée. Un formulaire de
+# vingt-cinq cases vides pose pourtant au client une question qu'il ne peut pas
+# trancher — « ce que j'écris est-il vraisemblable ? » — et il renonce, ou il
+# écrit n'importe quoi.
+#
+# Les exemples répondent à cela SANS devenir un barème, à trois conditions que
+# ces règles tiennent une par une. Sans la troisième, `exemples` ne serait que
+# `choix` sous un autre nom.
+
+def test_un_exemple_ne_se_choisit_jamais_TOUT_SEUL():
+    """PREMIÈRE CONDITION. Une liste pré-sélectionnée met le chiffre du cabinet
+    dans le champ sans que personne ne l'ait voulu — et il partira au chiffrage
+    comme s'il venait du client."""
+    echantillon = dict(F.QUANTITES); echantillon.update(F.PRIX)
+    rendus = _champs_rendus(echantillon)
+    for k, h in rendus.items():
+        if "data-exemple=" not in h:
+            continue
+        bloc = h[h.index("data-exemple="):]
+        bloc = bloc[:bloc.index("</select>")]
+        options = re.findall(r'<option value="([^"]*)"([^>]*)>', bloc)
+        assert options[0][0] == "", "« %s » : la liste d'exemples ne s'ouvre pas sur le vide" % k
+        selectionnees = [v for v, attrs in options if "selected" in attrs]
+        assert not selectionnees, (
+            "« %s » : un exemple est pré-sélectionné (%s)" % (k, selectionnees))
+
+
+def test_chaque_exemple_dit_DOU_IL_VIENT():
+    """DEUXIÈME CONDITION. « 900 €/jour » sans rien d'autre est un barème.
+    « 900 €/jour — usage du cabinet, à remplacer » est un point de départ."""
+    echantillon = dict(F.QUANTITES); echantillon.update(F.PRIX)
+    rendus = _champs_rendus(echantillon)
+    vus = 0
+    for k, h in rendus.items():
+        if "data-exemple=" not in h:
+            continue
+        bloc = h[h.index("data-exemple="):h.index("</select>", h.index("data-exemple="))]
+        for ex in F.EXEMPLES[k]:
+            vus += 1
+            motif = r'<option value="%s" data-prov="%s">([^<]*)</option>' % (
+                re.escape(str(ex["valeur"])), re.escape(ex["provenance"]))
+            m = re.search(motif, bloc)
+            assert m, ("« %s » : l'exemple %r ne porte pas sa provenance dans "
+                       "l'option" % (k, ex["libelle"]))
+            texte = html.unescape(m.group(1))
+            assert ex["libelle"] in texte, (k, texte)
+            assert "(" in texte and ")" in texte, (
+                "« %s » : l'option ne dit pas en clair d'où vient la valeur : %r"
+                % (k, texte))
+    assert vus >= 40, "l'échantillon ne couvre presque aucun exemple (%d)" % vus
+
+
+def test_LE_POINT_QUI_DECIDE_ce_qui_reste_un_exemple_est_COMPTE():
+    """TROISIÈME CONDITION, ET LA SEULE QUI PROTÈGE L'ÉTUDE EXPORTÉE.
+
+    Les deux précédentes ne protègent que le moment de la saisie. Un client qui
+    n'aurait rien remplacé repartirait sinon avec les ordres de grandeur du
+    cabinet présentés comme les siens — et une étude chiffrée a l'air d'une
+    étude chiffrée, quels que soient les nombres dedans.
+
+    La règle éprouve les DEUX sens : une valeur reprise d'un exemple « cabinet »
+    est signalée ; une valeur qui n'en vient pas ne l'est pas."""
+    cabinet = next((k, e) for k, l in F.EXEMPLES.items() for e in l
+                   if e["provenance"] == "cabinet" and k in F.PRIX)
+    cle, ex = cabinet
+    signale = F.valeurs_dexemple({}, {cle: ex["valeur"]})
+    assert [x["champ"] for x in signale] == [cle], signale
+    assert signale[0]["a_remplacer"] is True
+    assert signale[0]["libelle"] == ex["libelle"]
+
+    # LE TÉMOIN NÉGATIF. Sans lui, une fonction qui signale TOUT passerait.
+    autre = float(ex["valeur"]) * 1.37 + 1
+    assert F.valeurs_dexemple({}, {cle: autre}) == [], (
+        "une valeur qui ne vient d'aucun exemple est signalée quand même")
+
+    # ET LE BLOC DE SAISIE LE DIT, sinon le compte resterait dans une réponse
+    # que personne ne lit.
+    dit = F.etat_blocs({}, {cle: ex["valeur"]}, None, None)["s-saisie"]["dit"]
+    assert "cabinet" in dit and "remplacer" in dit, dit
+    assert "cabinet" not in F.etat_blocs({}, {cle: autre}, None, None)["s-saisie"]["dit"]
+
+
+def test_un_exemple_qui_se_reclame_dune_source_la_DESIGNE():
+    """« Traçable à une source du module » est une promesse vérifiable : ou
+    l'ancrage existe, ou l'exemple se réclame d'une intention. Le module refuse
+    au chargement — la règle éprouve ce refus."""
+    cles = {a["cle"] for a in F.ANCRAGES}
+    for champ, liste in F.EXEMPLES.items():
+        for ex in liste:
+            if ex["provenance"] == "ancrage":
+                assert ex["ancrage"] in cles, (champ, ex)
+
+    reel = F.EXEMPLES["tjm_conseil"]
+    F.EXEMPLES["tjm_conseil"] = [{"valeur": 1, "libelle": "X",
+                                  "provenance": "ancrage", "ancrage": "n_existe_pas"}]
+    try:
+        with pytest.raises(ValueError) as e:
+            F._verifier_exemples()
+        assert "n_existe_pas" in str(e.value)
+    finally:
+        F.EXEMPLES["tjm_conseil"] = reel
+
+
+def test_lavertissement_precede_les_totaux():
+    """UN AVERTISSEMENT PLACÉ SOUS UN MONTANT ARRIVE APRÈS QUE LE LECTEUR L'A
+    RETENU — et un montant retenu ne se corrige plus. L'ordre n'est pas une
+    question de mise en page : c'est ce qui décide si l'avertissement sert."""
+    js = _src("ia-factory.js")
+    # L'AFFECTATION QUI PEINT LE RÉSULTAT, pas celle qui écrit « en cours… » :
+    # la première assignation trouvée n'était pas la bonne, et la règle tombait
+    # en accusant un défaut qui n'existait pas.
+    m = next((x for x in re.finditer(r"out\.innerHTML\s*=\s*(.+?);", js, re.S)
+              if "rendreChiffrage" in x.group(1)), None)
+    assert m, "le chiffrage ne peint plus le résultat dans « out »"
+    expr = m.group(1)
+    i = expr.index("rendreValeursDexemple")
+    j = expr.index("rendreChiffrage")
+    assert i < j, ("l'avertissement est concaténé APRÈS les totaux : %r" % expr[:160])
+
+
+def test_les_listes_dexemples_sont_REELLEMENT_branchees():
+    """Une liste qui ne fait rien propose un point de départ et ne le pose pas.
+    Les DEUX rendus sont contrôlés — les quantités et les prix passent par des
+    chemins différents, et c'est celui qu'on oublie qui reste mort."""
+    _appel_pose('$("iaf-p").innerHTML', "brancherExemples")
+    # CHERCHÉ DANS SA FONCTION, ET PAS « QUELQUE PART PLUS BAS ». Bornée au
+    # fichier, la recherche trouvait l'appel du bloc des PRIX, plus bas : la
+    # règle restait verte alors que le branchement des quantités avait disparu.
+    # Une règle satisfaite par une occurrence voisine ne mesure rien.
+    js = _src("ia-factory.js")
+    corps = js[js.index("function redessinerQuantites("):]
+    corps = corps[:corps.index("\n  }")]
+    assert '$("iaf-q").innerHTML' in corps, "le rendu des quantités a changé de place"
+    assert any(l.strip() == "brancherExemples();" for l in corps.split("\n")), (
+        "les listes d'exemples des quantités ne sont pas branchées")
+
+
+def test_aucun_PRIX_ne_gagne_de_liste_fermee_par_la_bande():
+    """LA LIGNE D'ORIGINE, RÉAFFIRMÉE. Les exemples ne doivent pas devenir le
+    chemin par lequel un barème entre : un prix garde son champ libre visible,
+    et ne reçoit jamais de `choix`."""
+    rendus = _champs_rendus(dict(F.PRIX))
+    for k, h in rendus.items():
+        assert "data-choix=" not in h, "le prix « %s » a gagné une liste fermée" % k
+        entree = re.search(r'<input[^>]*data-cle="%s"[^>]*>' % re.escape(k), h)
+        assert entree and " hidden" not in entree.group(0), (
+            "« %s » : le champ libre est caché derrière une liste" % k)
 
 
 def test_la_liste_renseigne_le_champ_et_ne_porte_pas_la_valeur():
