@@ -743,6 +743,13 @@ def test_les_listes_deroulantes_n_inventent_aucune_norme():
     for cle, v in F.PRIX.items():
         assert not v.get("choix"), (
             "le prix « %s » propose des valeurs : ce module ne propose aucun prix" % cle)
+    # LES QUANTITÉS SECTORIELLES SONT SOUMISES À LA MÊME LOI. Elles passent
+    # par la même fonction de rendu ; les oublier ici laissait une porte par
+    # laquelle une norme inventée pouvait entrer sans que rien ne le dise.
+    for cle, v in F.QUANTITES_SECTEUR.items():
+        assert not v.get("choix"), (
+            "la quantité sectorielle « %s » propose des valeurs : aucune "
+            "énumération structurelle n'a été décidée pour elle" % cle)
     autorises = {"n_si_source", "duree_mois", "part_formes", "part_appels_ia"}
     avec = {k for k, v in F.QUANTITES.items() if v.get("choix")}
     # L'ÉGALITÉ, ET NON L'INCLUSION. Avec « <= », retirer les choix d'UNE des
@@ -777,13 +784,16 @@ def test_une_liste_declaree_est_une_liste_QU_ON_VOIT():
       3. le champ numérique est alors CACHÉ : deux commandes visibles pour une
          seule valeur, c'est celle qu'on oublie qui part au serveur ;
       4. un champ sans choix ne rend AUCUNE liste et reste, lui, visible."""
+    # TOUT CE QUE LA PAGE PEUT RENDRE, quantités sectorielles comprises :
+    # elles passent par la même fonction, elles obéissent à la même loi.
     echantillon = dict(F.QUANTITES)
+    echantillon.update(F.QUANTITES_SECTEUR)
     rendus = _champs_rendus(echantillon)
     assert "datalist" not in "".join(rendus.values()), (
         "un datalist est revenu : sur un champ numérique, il ne se voit pas")
 
-    avec = sorted(k for k, v in F.QUANTITES.items() if v.get("choix"))
-    sans = sorted(k for k, v in F.QUANTITES.items() if not v.get("choix"))
+    avec = sorted(k for k, v in echantillon.items() if v.get("choix"))
+    sans = sorted(k for k, v in echantillon.items() if not v.get("choix"))
     assert avec and sans, "l'échantillon ne permet pas de comparer"
 
     for k in avec:
@@ -791,16 +801,16 @@ def test_une_liste_declaree_est_une_liste_QU_ON_VOIT():
         assert "<select" in h and "</select>" in h, (
             "le champ « %s » déclare des choix et ne rend pas de liste visible" % k)
         options = re.findall(r"<option value=\"([^\"]*)\"[^>]*>([^<]*)</option>", h)
-        assert len(options) == len(F.QUANTITES[k]["choix"]) + 2, (
+        assert len(options) == len(echantillon[k]["choix"]) + 2, (
             "« %s » : %d options pour %d choix + le vide + la sortie libre"
-            % (k, len(options), len(F.QUANTITES[k]["choix"])))
+            % (k, len(options), len(echantillon[k]["choix"])))
         valeurs = [v for v, _ in options]
         assert valeurs[0] == "", "la liste de « %s » n'offre pas de retour au vide" % k
         libre = [t for v, t in options if v and not re.match(r"^-?[\d.]+$", v)]
         assert libre, (
             "« %s » : la liste n'offre aucune SORTIE LIBRE — elle contraindrait "
             "le client à une valeur ronde au lieu de la sienne" % k)
-        for val, libelle in F.QUANTITES[k]["choix"]:
+        for val, libelle in echantillon[k]["choix"]:
             chiffrees = [x for x, _ in options if re.match(r"^-?[\d.]+$", x or "")]
             assert any(float(x) == float(val) for x in chiffrees), (
                 "« %s » : le choix %r du module n'est pas dans la liste" % (k, val))
@@ -812,7 +822,7 @@ def test_une_liste_declaree_est_une_liste_QU_ON_VOIT():
             # numérique est MASQUÉ dès qu'on choisit : l'option est alors le
             # seul endroit où le client peut voir que « un quart » vaut 25 %.
             # Un libellé seul survivait à la mutation ; il ne survit plus.
-            unite = F.QUANTITES[k]["unite"]
+            unite = echantillon[k]["unite"]
             motif = r"([\d\s.,\u202f\u00a0]+)\s*%s" % ("%" if unite == "part"
                                                         else re.escape(unite))
             m = re.search(motif, textes[0])
