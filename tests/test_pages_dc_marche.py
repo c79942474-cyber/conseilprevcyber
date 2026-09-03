@@ -16,14 +16,19 @@ LA LEÇON EST ACQUISE dans ce dépôt : une règle qui cherche un TEXTE se
 satisfait d'un commentaire. Celles qui suivent cherchent des appels, des
 identifiants et des définitions — des choses qui n'existent pas en prose.
 """
+import html
+import json
 import os
 import re
+import subprocess
 import sys
 
 import pytest
 
 ICI = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ICI)
+
+import ao_dc  # noqa: E402
 
 
 def lire(nom):
@@ -884,3 +889,179 @@ def test_le_debounce_existe_et_n_est_pas_zero():
         % m.group(1))
     assert "clearTimeout" in bloc, (
         "les appels s'empilent au lieu de se remplacer")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE MENU DES PIÈCES À PRODUIRE
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _js_fonctions(*noms):
+    """Les fonctions demandées, EXTRAITES DE LA SOURCE SERVIE, par comptage
+    d'accolades. Recopier leur corps dans la règle éprouverait un script
+    imaginaire."""
+    src = lire("ingenierie-dc.js")
+    out = []
+    for nom in noms:
+        i = src.index("\n  function %s(" % nom) + 1
+        j = src.index("{", i)
+        p = 1
+        k = j + 1
+        while p:
+            if src[k] == "{":
+                p += 1
+            elif src[k] == "}":
+                p -= 1
+            k += 1
+        out.append(src[i:k])
+    return "\n".join(out)
+
+
+def _menu_rendu(remplissage, choix=""):
+    """Le HTML que `aoMenuDocs` produit RÉELLEMENT, obtenu en l'exécutant."""
+    prog = (_js_fonctions("esc", "aoMenuDocs")
+            + "\nconst r = JSON.parse(process.env.AO_REMPLI);"
+            + "\nprocess.stdout.write(aoMenuDocs(r, process.env.AO_CHOIX || ''));\n")
+    env = dict(os.environ, AO_REMPLI=json.dumps(remplissage), AO_CHOIX=choix)
+    out = subprocess.run(["node"], input=prog, capture_output=True, text=True,
+                         timeout=60, env=env)
+    assert out.returncode == 0, out.stderr
+    return out.stdout
+
+
+def test_le_menu_liste_TOUTES_les_pieces_en_deux_groupes():
+    """CHERCHER « optgroup » DANS LE FICHIER SERAIT VERT POUR UN GROUPE MORT
+    DANS UN COMMENTAIRE. On exécute la fonction et on lit ce qu'elle rend —
+    comme le navigateur."""
+    r = ao_dc.remplir(fiche={"raison_sociale": "Essai"})
+    h = _menu_rendu(r)
+    assert h.count("<optgroup") == 2, h[:200]
+    for f in ao_dc.FAMILLES_PIECE.values():
+        assert f["nom"] in h, f["nom"]
+    options = re.findall(r'<option value="([^"]*)"[^>]*>([^<]*)</option>', h)
+    valeurs = [v for v, _ in options]
+    assert valeurs[0] == "", "le menu n'offre pas de retour à « toutes »"
+    assert sorted(v for v in valeurs if v) == sorted(
+        p["cle"] for p in ao_dc.DOSSIER_CANDIDATURE), (
+        "le menu ne liste pas les quatorze pièces : %s" % valeurs)
+
+
+def test_chaque_entree_du_menu_dit_CE_QU_IL_Y_A_A_FAIRE():
+    """UN MENU DE QUATORZE DOCUMENTS D'ÉGALE URGENCE N'EN SIGNALE AUCUN. Chaque
+    entrée porte sa voie de production, et les bloquantes se disent."""
+    r = ao_dc.remplir(fiche={"raison_sociale": "Essai"})
+    h = _menu_rendu(r)
+    # LE TEXTE DES OPTIONS EST ÉCHAPPÉ, et il DOIT l'être : la moitié des noms
+    # de pièces portent une apostrophe. On le déséchappe pour comparer, ce qui
+    # vérifie au passage que l'échappement a bien eu lieu — un nom qui
+    # arriverait brut ne se déséchapperait pas en lui-même.
+    options = dict(re.findall(r'<option value="([^"]+)"[^>]*>([^<]*)</option>', h))
+    for p in r["pieces"]:
+        brut = options[p["cle"]]
+        t = html.unescape(brut)
+        if "'" in p["nom"]:
+            assert "&#39;" in brut, (
+                "« %s » n'est pas échappé dans le menu" % p["cle"])
+        assert p["nom"] in t, p["cle"]
+        assert p["voie_nom"].lower() in t.lower(), (
+            "« %s » ne dit pas ce qu'il y a à en faire : %r" % (p["cle"], t))
+        assert ("bloquante" in t) == bool(p["bloquant"]), (p["cle"], t)
+
+
+def test_le_filtre_MASQUE_et_ne_redessine_pas():
+    """REDESSINER FERAIT PERDRE LES SAISIES EN COURS dans les champs propres à
+    la consultation — et personne ne pense à les refaire."""
+    bloc = _js_fonctions("aoBrancherMenu")
+    assert "hidden" in bloc, "le filtre ne masque rien"
+    for interdit in ("innerHTML", "aoRempliRendre", "aoRemplir("):
+        assert interdit not in bloc, (
+            "le filtre redessine (« %s ») au lieu de masquer" % interdit)
+
+
+def test_le_menu_est_construit_sur_ce_que_le_SERVEUR_rend():
+    """Une liste de pièces écrite dans le script se désynchroniserait du module
+    à la première pièce ajoutée, et le menu proposerait un document qui
+    n'existe plus — ou tairait celui qui vient d'apparaître."""
+    bloc = _js_fonctions("aoMenuDocs")
+    assert "r.pieces" in bloc and "r.familles" in bloc
+    for cle in ("dc1", "dc2", "pouvoirs", "references", "administratif"):
+        assert '"%s"' % cle not in bloc and "'%s'" % cle not in bloc, (
+            "« %s » est écrit en dur dans le menu" % cle)
+
+
+def _bloc_apres(source, ancre):
+    """Le bloc `{ … }` qui suit l'ancre, par comptage d'accolades."""
+    i = source.index(ancre)
+    j = source.index("{", i)
+    p, k = 1, j + 1
+    while p:
+        if source[k] == "{":
+            p += 1
+        elif source[k] == "}":
+            p -= 1
+        k += 1
+    return source[j:k]
+
+
+def test_une_piece_qu_on_ne_remplit_pas_dit_QUAND_MEME_ce_qu_elle_contient():
+    """LE MENU LA NOMME : IL FAUT QUELQUE CHOSE DERRIÈRE. Neuf des quatorze
+    pièces ne se remplissent pas ici. Si leur carte était vide, le menu
+    proposerait un document et le lecteur ne trouverait rien — ce qui est pire
+    que de ne pas l'avoir nommé.
+
+    LA RÈGLE EST BORNÉE À LA BRANCHE, pas au fichier. Chercher « p.contient »
+    dans tout le script serait vert pour un rendu mort ailleurs — le défaut
+    exact corrigé deux fois dans ce dépôt. Une mutation a d'ailleurs survécu à
+    la première version de cette batterie, faute de cette règle."""
+    rendu = _js_fonctions("aoRempliRendre")
+    branche = _bloc_apres(rendu, "if (!p.mesurable)")
+    for attendu in ("p.contient", "p.produit_par", "p.voie_aide", "p.delai"):
+        assert attendu in branche, (
+            "la carte d'une pièce non remplissable ne montre pas « %s » : le "
+            "menu la nommerait pour rien" % attendu)
+    # ET LE TÉMOIN : la branche doit être conditionnée à la non-mesurabilité,
+    # sinon elle s'afficherait aussi sur les pièces à rubriques et doublerait
+    # ce qu'elles disent déjà.
+    assert "if (!p.mesurable)" in rendu and "if (false)" not in rendu.lower()
+
+
+def test_le_choix_du_menu_SURVIT_au_redessin():
+    """DÉFAUT ÉPROUVÉ DANS UN NAVIGATEUR, PAS IMAGINÉ. Le bloc est redessiné à
+    CHAQUE FRAPPE dans la fiche du candidat. La première version perdait la
+    sélection à la première lettre tapée : on filtrait sur « Références », on
+    tapait un caractère, et les quatorze cartes revenaient. Un menu qu'on doit
+    reposer après chaque mot n'est pas un menu.
+
+    LA RÈGLE EXÉCUTE LA FONCTION avec un choix, et lit l'option marquée — la
+    présence du mot « selected » quelque part dans le fichier serait verte pour
+    un attribut mort."""
+    r = ao_dc.remplir(fiche={"raison_sociale": "Essai"})
+    h = _menu_rendu(r, "references")
+    marquees = re.findall(r'<option value="([^"]*)"[^>]*\bselected\b', h)
+    assert marquees == ["references"], (
+        "le menu redessiné ne retient pas le choix : %s" % marquees)
+    # Et sans choix, AUCUNE option n'est marquée : sinon la première pièce
+    # paraîtrait sélectionnée alors que tout est affiché.
+    assert not re.search(r"\bselected\b", _menu_rendu(r)), (
+        "une option est marquée alors qu'aucun choix n'a été fait")
+
+
+def test_le_filtre_est_reapplique_apres_le_redessin_sans_faire_sauter_la_page():
+    """LE MARQUAGE DE L'OPTION NE SUFFIT PAS : les cartes, elles, sont
+    redessinées visibles. Le filtre doit être réappliqué — et SANS défiler,
+    sous peine de faire sauter la page sous les doigts de quelqu'un qui saisit."""
+    bloc = _js_fonctions("aoBrancherMenu")
+    assert "appliquer(false)" in bloc, (
+        "le filtre n'est pas réappliqué après le redessin")
+    assert "appliquer(true)" in bloc, "le choix explicite ne défile plus"
+    corps = _bloc_apres(bloc, "function appliquer(defiler)")
+    assert "if (!defiler) return;" in corps, (
+        "le redessin fait défiler la page : elle saute sous les doigts")
+    assert "scrollIntoView" in corps.split("if (!defiler) return;")[1], (
+        "le défilement n'est pas gardé par la condition")
+    # ET LE CHOIX DOIT ÊTRE RETENU HORS DE LA FONCTION. Sans cela, `appliquer`
+    # relit une valeur qui n'a jamais bougé : le menu change sous les yeux et
+    # rien ne se filtre. Mutation vérifiée — elle survivait aux deux règles
+    # précédentes, qui n'éprouvaient que le rendu et la structure.
+    change = _bloc_apres(bloc, 'addEventListener("change"')
+    assert "AO_DOC = sel.value" in change, (
+        "le gestionnaire ne retient pas le choix : il ne survivra à rien")

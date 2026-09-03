@@ -867,3 +867,109 @@ def test_une_valeur_a_rallonge_ne_casse_pas_le_tableau_emporte():
     assert lignes, "aucun tableau"
     for l in lignes:
         assert l.count("|") - l.count("\\|") == 5 or l.count("|") <= 3, l
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE DOSSIER ENTIER — deux familles, trois voies, et rien de tu
+# ═══════════════════════════════════════════════════════════════════════════
+# CE QUE CETTE PARTIE GARDE. La version précédente n'affichait que les cinq
+# pièces à rubriques : les neuf autres n'apparaissaient nulle part dans le bloc
+# de remplissage — dont DEUX BLOQUANTES, les pouvoirs et les références. Un
+# dossier qu'on croit complet parce que l'écran ne montre que ce que le module
+# sait faire est pire qu'un écran vide.
+
+def test_les_quatorze_pieces_sont_rangees_dans_une_famille_connue():
+    """UN MENU QUI RANGE MAL EST PIRE QU'UNE LISTE À PLAT : il fait chercher un
+    document là où il n'est pas. Le contrôle vit dans le module, au chargement ;
+    cette règle vérifie qu'il tient."""
+    assert set(A.FAMILLES_PIECE) == {"administratif", "technique"}
+    for p in A.DOSSIER_CANDIDATURE:
+        assert p.get("famille") in A.FAMILLES_PIECE, p["cle"]
+    for f, d in A.FAMILLES_PIECE.items():
+        combien = sum(1 for p in A.DOSSIER_CANDIDATURE if p["famille"] == f)
+        assert combien >= 3, ("la famille « %s » ne contient que %d pièce(s) : "
+                              "le classement ne sépare rien" % (f, combien))
+        for champ in ("nom", "etablit", "qui", "piege"):
+            assert (d.get(champ) or "").strip(), (f, champ)
+
+
+def test_le_module_refuse_une_piece_sans_famille(monkeypatch):
+    """LE TÉMOIN. Sans lui, la règle précédente lirait une table que rien
+    n'oblige à rester juste."""
+    faux = [dict(p) for p in A.DOSSIER_CANDIDATURE]
+    faux[0] = dict(faux[0]); faux[0]["famille"] = "divers"
+    monkeypatch.setattr(A, "DOSSIER_CANDIDATURE", faux)
+    assert any("famille inconnue" in f for f in A._verifier())
+
+
+def test_la_voie_se_DEDUIT_des_rubriques_et_ne_se_declare_pas():
+    """UNE VOIE ÉCRITE À LA MAIN SUR CHAQUE PIÈCE dirait « se remplit ici » le
+    jour où l'on retirerait ses rubriques — et le menu proposerait un document
+    que rien ne remplit. Elle se déduit donc, et la règle éprouve la
+    déduction dans les deux sens."""
+    for p in A.DOSSIER_CANDIDATURE:
+        v = A.voie(p["cle"], p["nature"])
+        assert v in A.VOIES, (p["cle"], v)
+        assert (v == "remplir") == (p["cle"] in A.RUBRIQUES), (
+            "« %s » annonce « %s » et %s de rubriques"
+            % (p["cle"], v, "en a" if p["cle"] in A.RUBRIQUES else "n'a pas"))
+    assert A.voie("inconnue", "justificatif") == "obtenir"
+    assert A.voie("inconnue", "note") == "rediger"
+
+
+def test_le_remplissage_rend_LE_DOSSIER_ENTIER():
+    """Les neuf pièces que ce module ne remplit pas doivent quand même être
+    là : ce sont elles qui portent les délais."""
+    r = A.remplir(fiche=FICHE)
+    assert len(r["pieces"]) == len(A.DOSSIER_CANDIDATURE) >= 14
+    rendues = {p["cle"] for p in r["pieces"]}
+    assert rendues == {p["cle"] for p in A.DOSSIER_CANDIDATURE}
+    for p in r["pieces"]:
+        assert p["famille"] in A.FAMILLES_PIECE and p["famille_nom"], p["cle"]
+        assert p["voie"] in A.VOIES and p["voie_nom"] and p["voie_aide"], p["cle"]
+        # Une pièce nommée au menu doit dire ce qu'il y a derrière.
+        assert p["contient"] and p["produit_par"], p["cle"]
+
+
+def test_une_piece_non_remplissable_n_est_ni_complete_ni_incomplete():
+    """`complet = faux` la ferait compter comme un manque que rien ne peut
+    combler ici ; `vrai` la ferait compter comme faite alors que personne ne
+    l'a écrite. `None` est la seule réponse honnête."""
+    r = A.remplir(fiche=FICHE)
+    for p in r["pieces"]:
+        if p["mesurable"]:
+            assert isinstance(p["complet"], bool), p["cle"]
+        else:
+            assert p["complet"] is None and p["pret"] is None, p["cle"]
+            assert p["total"] == 0, p["cle"]
+    e = r["etat"]
+    assert e["mesurables"] == sum(1 for p in r["pieces"] if p["mesurable"])
+    assert e["mesurables"] < e["pieces"], (
+        "toutes les pièces sont mesurables : la distinction ne sépare rien")
+    assert e["pieces_completes"] <= e["mesurables"], (
+        "le décompte des pièces complètes déborde ce qui est mesurable")
+
+
+def test_les_bloquantes_que_ce_cadre_NE_REMPLIT_PAS_sont_dites_a_part():
+    """C'EST L'INFORMATION QUI MANQUAIT LE PLUS. Les pouvoirs et les références
+    rendent la candidature irrecevable si elles manquent, et ce module n'a
+    aucun moyen de les produire. Les taire parce qu'il ne sait pas les faire
+    serait la pire des omissions."""
+    e = A.remplir(fiche=FICHE)["etat"]
+    a_produire = e["bloquantes_a_produire"]
+    assert a_produire, "aucune bloquante hors du remplissage : rien à signaler"
+    attendu = {p["nom"] for p in A.DOSSIER_CANDIDATURE
+               if p["bloquant"] and p["cle"] not in A.RUBRIQUES}
+    assert {x["nom"] for x in a_produire} == attendu, attendu
+    for x in a_produire:
+        assert x["voie_nom"] and x["famille"] in A.FAMILLES_PIECE, x
+    # Et elles ne sont PAS confondues avec les incomplètes remplissables.
+    assert not (set(e["bloquantes_incompletes"]) & {x["nom"] for x in a_produire})
+
+
+def test_le_remplissage_sert_les_familles_et_les_voies_a_la_page():
+    """La page ne connaît ni les familles ni les voies : elle les reçoit. Une
+    seconde liste écrite dans le script se désynchroniserait du module."""
+    r = A.remplir()
+    assert r["familles"] == A.FAMILLES_PIECE
+    assert r["voies"] == A.VOIES

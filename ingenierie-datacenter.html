@@ -852,6 +852,24 @@
     outline:none}
   .ig-ao-fc input:focus{border-color:var(--cyan)}
   .ig-ao-fo{font-size:10.5px;line-height:1.5;color:var(--muted2)}
+  /* LE MENU DES PIÈCES. Il tient sur toute la largeur du bloc : un sélecteur
+     étroit couperait les noms des pièces, qui sont longs par nécessité — « Note
+     de répartition des compétences » ne se raccourcit pas sans perdre ce qui
+     la distingue de la note d'équipe. */
+  .ig-ao-menu{display:flex;flex-direction:column;gap:4px;margin:14px 0 6px}
+  .ig-ao-menu select{width:100%;max-width:72ch;padding:9px 12px;border-radius:9px;
+    border:1px solid var(--line);background:rgba(0,0,0,.18);color:var(--ink);
+    font-family:inherit;font-size:13.5px;cursor:pointer;outline:none}
+  .ig-ao-menu select:focus{border-color:var(--cyan)}
+  #ig-ao-doc-aide{max-width:78ch;min-height:1.4em}
+  /* La voie de production se lit sur la carte elle-même : le menu s'oublie,
+     la carte reste sous les yeux. */
+  .ig-ao-vo{font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;
+    text-transform:uppercase;padding:2px 8px;border-radius:999px;
+    border:1px solid var(--line);color:var(--muted2)}
+  .ig-ao-vo-remplir{color:var(--teal);border-color:rgba(45,212,191,.45)}
+  .ig-ao-vo-rediger{color:#8FDBF2;border-color:rgba(143,219,242,.45)}
+  .ig-ao-vo-obtenir{color:#E8C86A;border-color:rgba(232,200,106,.45)}
   .ig-ao-bar{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
   .ig-ao-cpt{font-family:var(--mono);font-size:10px;letter-spacing:.04em;
     text-transform:uppercase;padding:4px 9px;border-radius:999px;

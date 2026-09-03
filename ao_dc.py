@@ -955,9 +955,78 @@ def _alertes(pieces, manquantes, inconnues):
 # pas au même niveau, et traiter les seize pièces avec la même urgence revient
 # à n'en traiter aucune correctement.
 
+# ── DEUX FAMILLES, ET ELLES NE SE PRÉPARENT PAS PAREIL ────────────────────
+# CE QUE LA DISTINCTION APPORTE, ET QUI N'EST PAS COSMÉTIQUE. Un règlement de
+# consultation sépare presque toujours les pièces qui établissent QUI VOUS ÊTES
+# de celles qui établissent CE QUE VOUS SAVEZ FAIRE — et ce ne sont ni les
+# mêmes personnes, ni les mêmes délais, ni les mêmes risques. L'administratif
+# se rassemble : il existe déjà quelque part, ou il s'obtient d'un tiers. Le
+# technique s'écrit : il n'existe nulle part avant qu'on l'écrive.
+#
+# LE PIÈGE QUE CETTE SÉPARATION ÉVITE. Traiter les quatorze pièces d'un seul
+# tenant fait commencer par les formulaires — ils sont courts, ils rassurent —
+# et laisse pour la fin les notes techniques, qui sont ce qui départage les
+# candidats et ce qui prend le plus de temps.
+
+FAMILLES_PIECE = {
+    "administratif": {
+        "nom": "Pièces administratives",
+        "etablit": "Qui vous êtes, et que vous avez le droit de contracter.",
+        "qui": "Direction juridique, secrétariat général, expert-comptable.",
+        "piege": "Rien ne s'y invente et rien ne s'y rattrape : une attestation "
+                 "périmée ou une délégation incomplète fait écarter une "
+                 "candidature par ailleurs excellente.",
+    },
+    "technique": {
+        "nom": "Pièces techniques et de capacité",
+        "etablit": "Ce que vous savez faire, avec qui, et l'avez déjà fait.",
+        "qui": "Direction technique, responsables de mission, RH.",
+        "piege": "C'est là que se joue la note, et c'est ce qu'on écrit en "
+                 "dernier. Une note d'équipe rédigée la veille se lit comme "
+                 "une note d'équipe rédigée la veille.",
+    },
+}
+
+# ── TROIS VOIES DE PRODUCTION, ET UNE SEULE PASSE PAR CE MODULE ───────────
+# La voie n'est pas la nature : elle dit ce que VOUS avez à faire du document,
+# ici et maintenant. Le module ne remplit que la première.
+
+VOIES = {
+    "remplir": {
+        "nom": "Se remplit ici",
+        "aide": "Ses rubriques factuelles se reportent depuis votre fiche et "
+                "depuis le dossier de consultation analysé. Ses déclarations, "
+                "elles, restent à signer.",
+    },
+    "rediger": {
+        "nom": "À rédiger",
+        "aide": "Un texte qui n'existe nulle part avant qu'on l'écrive. Ce "
+                "module dit ce qu'il doit démontrer ; il ne l'écrit pas à "
+                "votre place.",
+    },
+    "obtenir": {
+        "nom": "À obtenir",
+        "aide": "Une pièce délivrée par un tiers. Elle a un DÉLAI, et c'est ce "
+                "délai — pas la rédaction — qui fait rater les dépôts.",
+    },
+}
+
+
+def voie(cle_piece, nature):
+    """Ce qu'il y a à FAIRE de cette pièce : la remplir, l'écrire, l'obtenir.
+
+    LA VOIE SE DÉDUIT, ELLE NE SE DÉCLARE PAS. Écrite à la main sur chaque
+    pièce, elle dirait « se remplit ici » le jour où l'on retirerait ses
+    rubriques — et le menu proposerait un document que rien ne remplit.
+    """
+    if cle_piece in RUBRIQUES:
+        return "remplir"
+    return "obtenir" if nature == "justificatif" else "rediger"
+
+
 DOSSIER_CANDIDATURE = [
     {
-        "cle": "dc1",
+        "cle": "dc1", "famille": "administratif",
         "nom": "Lettre de candidature — formulaire DC1",
         "nature": "formulaire",
         "bloquant": True,
@@ -982,7 +1051,7 @@ DOSSIER_CANDIDATURE = [
         "delai": None,
     },
     {
-        "cle": "dc2",
+        "cle": "dc2", "famille": "administratif",
         "nom": "Déclaration du candidat — formulaire DC2",
         "nature": "formulaire",
         "bloquant": True,
@@ -1006,7 +1075,7 @@ DOSSIER_CANDIDATURE = [
         "delai": None,
     },
     {
-        "cle": "pouvoirs",
+        "cle": "pouvoirs", "famille": "administratif",
         "nom": "Pouvoirs des personnes habilitées à engager",
         "nature": "justificatif",
         "bloquant": True,
@@ -1026,7 +1095,7 @@ DOSSIER_CANDIDATURE = [
                  "s'il faut la faire signer.",
     },
     {
-        "cle": "tiers",
+        "cle": "tiers", "famille": "administratif",
         "nom": "Formulaire d'évaluation des tiers de l'acheteur",
         "nature": "formulaire",
         "bloquant": True,
@@ -1044,7 +1113,7 @@ DOSSIER_CANDIDATURE = [
         "delai": None,
     },
     {
-        "cle": "honneur",
+        "cle": "honneur", "famille": "administratif",
         "nom": "Déclaration sur l'honneur — absence d'interdiction de "
                "soumissionner",
         "nature": "formulaire",
@@ -1068,7 +1137,7 @@ DOSSIER_CANDIDATURE = [
         "delai": None,
     },
     {
-        "cle": "repartition_competences",
+        "cle": "repartition_competences", "famille": "technique",
         "nom": "Note de répartition des compétences en groupement",
         "nature": "note",
         "bloquant": False,
@@ -1088,7 +1157,7 @@ DOSSIER_CANDIDATURE = [
         "delai": None,
     },
     {
-        "cle": "conventions",
+        "cle": "conventions", "famille": "administratif",
         "nom": "Note sur les conventions collectives applicables",
         "nature": "note",
         "bloquant": False,
@@ -1107,7 +1176,7 @@ DOSSIER_CANDIDATURE = [
         "delai": None,
     },
     {
-        "cle": "equipe",
+        "cle": "equipe", "famille": "technique",
         "nom": "Note de présentation de l'équipe",
         "nature": "note",
         "bloquant": False,
@@ -1126,7 +1195,7 @@ DOSSIER_CANDIDATURE = [
         "delai": None,
     },
     {
-        "cle": "organigramme",
+        "cle": "organigramme", "famille": "technique",
         "nom": "Organigramme fonctionnel de la mission",
         "nature": "note",
         "bloquant": False,
@@ -1144,7 +1213,7 @@ DOSSIER_CANDIDATURE = [
         "delai": None,
     },
     {
-        "cle": "cv",
+        "cle": "cv", "famille": "technique",
         "nom": "Curriculum vitae des intervenants clés",
         "nature": "justificatif",
         "bloquant": False,
@@ -1161,7 +1230,7 @@ DOSSIER_CANDIDATURE = [
         "delai": None,
     },
     {
-        "cle": "atd_atp",
+        "cle": "atd_atp", "famille": "administratif",
         "nom": "Justificatifs d'aptitude technique et professionnelle "
                "(ATD / ATP)",
         "nature": "justificatif",
@@ -1180,7 +1249,7 @@ DOSSIER_CANDIDATURE = [
                  "demande.",
     },
     {
-        "cle": "references",
+        "cle": "references", "famille": "technique",
         "nom": "Références — six au minimum",
         "nature": "note",
         "bloquant": True,
@@ -1201,7 +1270,7 @@ DOSSIER_CANDIDATURE = [
                  "anciens clients : comptez plusieurs semaines.",
     },
     {
-        "cle": "moyens",
+        "cle": "moyens", "famille": "technique",
         "nom": "Note sur les moyens, procédures et outils",
         "nature": "note",
         "bloquant": False,
@@ -1224,7 +1293,7 @@ DOSSIER_CANDIDATURE = [
         "delai": None,
     },
     {
-        "cle": "qse",
+        "cle": "qse", "famille": "technique",
         "nom": "Note sur la démarche qualité, sécurité et environnement",
         "nature": "note",
         "bloquant": False,
@@ -1750,9 +1819,16 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False):
     par_champ = {c["cle"]: c for c in CHAMPS_CANDIDAT}
     par_piece = {p["cle"]: p for p in DOSSIER_CANDIDATURE}
 
+    # LE DOSSIER ENTIER, ET PAS SEULEMENT CE QUE CE MODULE SAIT REMPLIR.
+    # La version précédente n'affichait que les cinq pièces à rubriques : les
+    # neuf autres n'apparaissaient nulle part dans ce bloc — dont DEUX
+    # BLOQUANTES, les pouvoirs et les références. Un dossier de candidature
+    # qu'on croit complet parce que l'écran ne montre que ce qu'il sait faire
+    # est pire qu'un écran vide.
     pieces = []
-    for cle_piece, rubriques in RUBRIQUES.items():
-        base = par_piece[cle_piece]
+    for base in DOSSIER_CANDIDATURE:
+        cle_piece = base["cle"]
+        rubriques = RUBRIQUES.get(cle_piece, [])
         lignes = []
         for r in rubriques:
             l = {"cle": r["cle"], "libelle": r["libelle"],
@@ -1828,9 +1904,20 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False):
 
         compte = {k: sum(1 for l in lignes if l["statut"] == k)
                   for k in STATUTS}
+        v = voie(cle_piece, base["nature"])
+        mesurable = v == "remplir"
         pieces.append({
             "cle": cle_piece, "nom": base["nom"], "nature": base["nature"],
             "nature_nom": NATURES_PIECE[base["nature"]]["nom"],
+            "famille": base["famille"],
+            "famille_nom": FAMILLES_PIECE[base["famille"]]["nom"],
+            "voie": v, "voie_nom": VOIES[v]["nom"], "voie_aide": VOIES[v]["aide"],
+            # CE QU'UNE PIÈCE NON REMPLISSABLE DOIT QUAND MÊME DIRE : ce
+            # qu'elle contient, qui la produit, et son délai. Sans cela, le
+            # menu la nommerait et le lecteur ne trouverait rien derrière.
+            "mesurable": mesurable,
+            "contient": base["contient"], "produit_par": base["produit_par"],
+            "delai": base.get("delai"),
             "bloquant": base["bloquant"], "piege": base["piege"],
             "rubriques": lignes, "compte": compte, "total": len(lignes),
             "en_groupement": _groupement(base) if groupement else None,
@@ -1843,15 +1930,31 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False):
             # avec sa déclaration sur l'honneur vierge. Une pièce qui porte une
             # déclaration ne peut JAMAIS être dite prête par un programme :
             # c'est une signature qui la rend prête, et personne ici ne signe.
+            # UNE PIÈCE QUE CE MODULE NE REMPLIT PAS N'EST NI COMPLÈTE NI
+            # INCOMPLÈTE : elle n'est pas MESURABLE. Lui donner « complète =
+            # faux » la ferait compter comme un manque que rien ne peut
+            # combler ici ; « complète = vrai » la ferait compter comme faite
+            # alors que personne ne l'a écrite. `None` est la seule réponse
+            # honnête, et le décompte ne porte que sur les mesurables.
             "complet": (compte["a_saisir"] == 0 and compte["non_trouve"] == 0
-                        and compte["invalide"] == 0),
+                        and compte["invalide"] == 0) if mesurable else None,
             "pret": (compte["a_saisir"] == 0 and compte["non_trouve"] == 0
-                     and compte["invalide"] == 0 and compte["a_declarer"] == 0),
+                     and compte["invalide"] == 0
+                     and compte["a_declarer"] == 0) if mesurable else None,
             "porte_declaration": compte["a_declarer"] > 0,
         })
 
-    manque_bloquant = [p["nom"] for p in pieces
+    mesurables = [p for p in pieces if p["mesurable"]]
+    manque_bloquant = [p["nom"] for p in mesurables
                        if p["bloquant"] and not p["complet"]]
+    # LES BLOQUANTES QU'ON NE PEUT PAS REMPLIR ICI SONT DITES À PART, et c'est
+    # l'information qui manquait le plus : les pouvoirs et les références
+    # rendent la candidature irrecevable si elles manquent, et ce module n'a
+    # aucun moyen de les produire. Les taire parce qu'il ne sait pas les faire
+    # serait la pire des omissions.
+    a_produire = [{"nom": p["nom"], "voie": p["voie"], "voie_nom": p["voie_nom"],
+                   "delai": p["delai"], "famille": p["famille"]}
+                  for p in pieces if p["bloquant"] and not p["mesurable"]]
     return {
         "version": VERSION,
         "pieces": pieces,
@@ -1865,13 +1968,17 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False):
             "a_declarer": sum(p["compte"]["a_declarer"] for p in pieces),
             "non_trouvees": sum(p["compte"]["non_trouve"] for p in pieces),
             "invalides": sum(p["compte"]["invalide"] for p in pieces),
-            "pieces_completes": sum(1 for p in pieces if p["complet"]),
-            "pieces_pretes": sum(1 for p in pieces if p["pret"]),
-            "pieces_a_signer": sum(1 for p in pieces
+            "pieces_completes": sum(1 for p in mesurables if p["complet"]),
+            "pieces_pretes": sum(1 for p in mesurables if p["pret"]),
+            "pieces_a_signer": sum(1 for p in mesurables
                                    if p["complet"] and p["porte_declaration"]),
             "pieces": len(pieces),
+            "mesurables": len(mesurables),
             "bloquantes_incompletes": manque_bloquant,
+            "bloquantes_a_produire": a_produire,
         },
+        "familles": FAMILLES_PIECE,
+        "voies": VOIES,
         "note": NOTE_REMPLISSAGE,
         "sans_dossier": not (analyse and analyse.get("pieces")),
     }
@@ -2041,6 +2148,9 @@ def _verifier():
                           % (p["cle"], p["nature"]))
         if not p.get("contient"):
             fautes.append("pièce %s : rien à contenir" % p["cle"])
+        if p.get("famille") not in FAMILLES_PIECE:
+            fautes.append("pièce %s : famille inconnue (%s) — le menu la "
+                          "rangerait nulle part" % (p["cle"], p.get("famille")))
         for champ in ("nom", "produit_par", "piege"):
             if not (p.get(champ) or "").strip():
                 fautes.append("pièce %s : champ « %s » vide" % (p["cle"], champ))

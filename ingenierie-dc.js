@@ -5927,6 +5927,99 @@ function messageDelai(e, defaut) {
     });
   }
 
+  /* ── LE MENU DES PIÈCES À PRODUIRE ────────────────────────────────────
+     POURQUOI UN MENU, ET PAS SEULEMENT QUATORZE CARTES À LA SUITE. Un dossier
+     de candidature ne se prépare pas d'un seul tenant : l'administratif se
+     rassemble — il existe déjà quelque part, ou il s'obtient d'un tiers — et
+     le technique s'écrit. Ce ne sont ni les mêmes personnes, ni les mêmes
+     délais. Empilées sans séparation, les quatorze pièces font commencer par
+     les formulaires, qui sont courts et rassurants, et laissent pour la fin
+     les notes techniques, qui départagent les candidats.
+
+     LES DEUX GROUPES SONT DES `optgroup`, ET C'EST EXACTEMENT LEUR OFFICE :
+     le navigateur les dessine lui-même, et la feuille partagée du site tient
+     déjà leur contraste. Chaque entrée dit ce qu'il y a à FAIRE du document —
+     le remplir ici, l'écrire, l'obtenir — et signale les bloquantes : sans
+     cela, le menu proposerait quatorze documents d'égale urgence, ce qui
+     revient à n'en signaler aucun. */
+  /* LE CHOIX SURVIT AU REDESSIN, et sans cela le menu est inutilisable. Le
+     bloc est redessiné à CHAQUE FRAPPE dans la fiche : la version précédente
+     perdait la sélection à la première lettre tapée, et les quatorze cartes
+     revenaient. Éprouvé dans un navigateur — on filtre sur « Références », on
+     tape un caractère, et on se retrouve devant tout le dossier.
+
+     LE CHOIX EST PASSÉ EN PARAMÈTRE plutôt que lu dans une variable globale :
+     c'est ce qui permet d'exécuter cette fonction hors du navigateur pour
+     l'éprouver. */
+  var AO_DOC = "";
+
+  function aoMenuDocs(r, choix) {
+    var groupes = {};
+    r.pieces.forEach(function (p) {
+      (groupes[p.famille] = groupes[p.famille] || []).push(p);
+    });
+    var h = '<label class="ig-ao-menu"><span class="dc-lab">Aller à une pièce '
+      + "du dossier</span>"
+      + '<select id="ig-ao-doc"><option value="">Toutes les pièces ('
+      + r.pieces.length + ")</option>";
+    Object.keys(r.familles).forEach(function (f) {
+      var liste = groupes[f] || [];
+      if (!liste.length) return;
+      h += '<optgroup label="' + esc(r.familles[f].nom) + " ("
+        + liste.length + ')">';
+      liste.forEach(function (p) {
+        h += '<option value="' + esc(p.cle) + '"'
+          + (choix === p.cle ? " selected" : "") + ">" + esc(p.nom)
+          + " — " + esc(p.voie_nom.toLowerCase())
+          + (p.bloquant ? " · bloquante" : "") + "</option>";
+      });
+      h += "</optgroup>";
+    });
+    h += "</select>";
+    /* LA FAMILLE RETENUE DIT CE QU'ELLE ÉTABLIT ET QUI LA PRODUIT. Un menu
+       qui range sans expliquer son rangement laisse deviner le critère. */
+    h += '<span class="dc-aide" id="ig-ao-doc-aide"></span></label>';
+    return h;
+  }
+
+  /* Le filtre agit sur ce qui est DÉJÀ dessiné : il masque, il ne redessine
+     pas. Redessiner ferait perdre les saisies en cours dans les champs propres
+     à la consultation. */
+  function aoBrancherMenu(r) {
+    var sel = $("#ig-ao-doc");
+    if (!sel) return;
+    var aide = $("#ig-ao-doc-aide");
+    var parCle = {};
+    r.pieces.forEach(function (p) { parCle[p.cle] = p; });
+
+    function appliquer(defiler) {
+      var cle = AO_DOC;
+      document.querySelectorAll("#ig-ao-rempli [data-doc]").forEach(function (c) {
+        c.hidden = !!cle && c.dataset.doc !== cle;
+      });
+      if (!aide) return;
+      if (!cle || !parCle[cle]) {
+        aide.textContent = "";
+        return;
+      }
+      var p = parCle[cle];
+      var f = r.familles[p.famille];
+      aide.textContent = f.nom + " — " + f.etablit + " " + f.qui
+        + "  ·  " + p.voie_nom + " : " + p.voie_aide;
+      if (!defiler) return;
+      var carte = document.querySelector('#ig-ao-rempli [data-doc="' + cle + '"]');
+      if (carte) carte.scrollIntoView({ block: "nearest" });
+    }
+
+    sel.addEventListener("change", function () {
+      AO_DOC = sel.value;
+      appliquer(true);
+    });
+    /* APPLIQUÉ AUSSI APRÈS LE REDESSIN, sans défiler : la page ne doit pas
+       sauter sous les doigts de quelqu'un qui est en train de saisir. */
+    appliquer(false);
+  }
+
   var AO_ETAT_CLASSE = { rempli: "ok", a_saisir: "att", a_declarer: "dec",
                          non_trouve: "att", invalide: "mal" };
 
@@ -5949,24 +6042,62 @@ function messageDelai(e, defaut) {
       + '<span class="ig-ao-cpt dec">' + e.a_declarer + " à déclarer</span>"
       + (e.invalides ? '<span class="ig-ao-cpt mal">' + e.invalides
          + " à corriger</span>" : "")
-      + '<span class="ig-ao-cpt">' + e.pieces_completes + " / " + e.pieces
-      + " pièces sans rien à compléter</span>"
+      /* LE DÉCOMPTE PORTE SUR CE QUI EST MESURABLE, et il le dit. « 1 / 14 »
+         laisserait croire que treize pièces manquent alors que neuf ne se
+         remplissent pas ici — elles s'écrivent ou s'obtiennent. */
+      + '<span class="ig-ao-cpt">' + e.pieces_completes + " / " + e.mesurables
+      + " pièces remplissables sans manque</span>"
       + (e.pieces_a_signer ? '<span class="ig-ao-cpt dec">'
          + e.pieces_a_signer + " n'attendent plus qu'une signature</span>" : "")
+      + '<span class="ig-ao-cpt">' + (e.pieces - e.mesurables)
+      + " à écrire ou à obtenir</span>"
       + "</div>";
     if (e.bloquantes_incompletes.length) {
       h += '<p class="ig-ao-a ig-ao-a-bloquante">Pièces bloquantes encore '
         + "incomplètes : " + esc(e.bloquantes_incompletes.join(", ")) + ".</p>";
     }
+    /* CE QUE CE MODULE NE SAIT PAS FAIRE ET QUI REND LA CANDIDATURE
+       IRRECEVABLE. Les taire parce qu'il ne sait pas les produire serait la
+       pire des omissions : ce sont elles qui ont un délai. */
+    if ((e.bloquantes_a_produire || []).length) {
+      h += '<p class="ig-ao-a ig-ao-a-bloquante">Bloquantes que ce cadre ne '
+        + "remplit pas — "
+        + e.bloquantes_a_produire.map(function (x) {
+            return esc(x.nom) + " (" + esc(x.voie_nom.toLowerCase())
+              + (x.delai ? ", " + esc(x.delai) : "") + ")";
+          }).join(" · ") + ".</p>";
+    }
+    h += aoMenuDocs(r, AO_DOC);
     h += '<div class="ig-ao-cd">';
     r.pieces.forEach(function (p) {
       h += '<div class="ig-ao-cp' + (p.bloquant ? " ig-ao-cpb" : "")
-        + (p.complet ? " ig-ao-cp-ok" : "") + '">'
+        + (p.complet ? " ig-ao-cp-ok" : "") + '" data-doc="' + esc(p.cle)
+        + '" data-fam="' + esc(p.famille) + '">'
         + '<div class="ig-ao-cph"><b' + info("piece_candidature:" + p.cle) + ">"
         + esc(p.nom) + "</b>"
         + '<span class="ig-ao-cn">' + esc(p.nature_nom) + "</span>"
         + (p.bloquant ? '<span class="ig-ao-bl">bloquante</span>' : "")
-        + "</div><dl class=\"ig-ao-rb\">";
+        + '<span class="ig-ao-vo ig-ao-vo-' + esc(p.voie) + '">'
+        + esc(p.voie_nom) + "</span>"
+        + "</div>";
+      /* UNE PIÈCE QUE CE MODULE NE REMPLIT PAS DOIT QUAND MÊME DIRE CE QU'ELLE
+         CONTIENT. Sans cela, le menu la nommerait et le lecteur ne trouverait
+         rien derrière — ce qui est pire que de ne pas l'avoir nommée. */
+      if (!p.mesurable) {
+        h += '<p class="ig-ao-cq"><i>' + esc(p.voie_nom) + "</i> — "
+          + esc(p.voie_aide) + "</p>"
+          + '<p class="ig-ao-cq"><i>Produite par</i> — ' + esc(p.produit_par)
+          + '</p><ul class="ig-ao-cc">';
+        (p.contient || []).forEach(function (c) {
+          h += "<li>" + esc(c) + "</li>";
+        });
+        h += "</ul>";
+        if (p.delai) {
+          h += '<p class="ig-ao-dl"><b>Délai d\'obtention</b> — '
+            + esc(p.delai) + "</p>";
+        }
+      }
+      h += '<dl class="ig-ao-rb">';
       p.rubriques.forEach(function (l) {
         var cl = AO_ETAT_CLASSE[l.statut] || "att";
         h += '<dt class="' + cl + '">' + esc(l.libelle)
@@ -6008,6 +6139,7 @@ function messageDelai(e, defaut) {
       + "PDF</button></div>"
       + '<p class="ig-icpe-res">' + esc(r.note) + "</p>";
     z.innerHTML = h;
+    aoBrancherMenu(r);
     z.querySelectorAll("[data-ao-exp]").forEach(function (b) {
       b.addEventListener("click", function () { aoExporter(b.dataset.aoExp, b); });
     });
