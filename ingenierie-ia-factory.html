@@ -154,15 +154,61 @@
     padding:1px 7px;border-radius:3px;border:1px solid rgba(255,255,255,.3);color:var(--muted2);white-space:nowrap}
   .iaf-classe.c-haut_risque_annexe_III{border-color:rgba(190,120,40,.7);color:#e0a34a}
   .iaf-classe.c-transparence_art_50{border-color:rgba(34,211,238,.6);color:var(--cyan)}
-  /* ── LE PARCOURS GUIDÉ ──────────────────────────────────────────── */
-  .iaf-lanceur{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:center;
-    border:1px dashed currentColor;border-radius:12px;padding:14px 18px;margin:20px auto 0;max-width:88ch;text-align:center}
-  .iaf-lanceur b{display:block;font-size:14.5px}
-  .iaf-lanceur span{font-size:12.5px;color:var(--muted);line-height:1.55}
-  .iaf-lanceur-b{font:inherit;font-size:13.5px;font-weight:600;padding:9px 16px;border-radius:8px;
-    border:1px solid currentColor;background:transparent;color:inherit;cursor:pointer;white-space:nowrap}
-  .iaf-lanceur-b:hover{background:rgba(255,255,255,.10)}
-  .iaf-lanceur-b:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+  /* ── LE PARCOURS GUIDÉ — LA VITRINE, ET C'EST DÉLIBÉRÉ ────────────
+     Cette carte est la SEULE porte pour qui n'a pas de repère dans dix
+     sections et une trentaine de champs ; elle doit se voir AVANT qu'on lise
+     la page, pas après l'avoir parcourue en vain. D'où l'écart avec le reste,
+     sobre partout ailleurs : cadre plein bleu, dégradé, badge, chiffres qui
+     accrochent l'œil, bouton qui pulse.
+
+     LE CADRE BLEU EST STATIQUE — posé en dur sur `.iaf-lanceur`, pas dans
+     l'animation. Coupée par `prefers-reduced-motion`, la carte reste
+     signalée par sa bordure, son dégradé et sa position ; seul le battement
+     du bouton s'arrête. C'est la même règle que `.guide-btn` ailleurs sur ce
+     site : le mouvement est un RAPPEL, jamais le message. */
+  .iaf-lanceur{position:relative;display:flex;flex-direction:column;gap:12px;
+    align-items:center;text-align:center;border-radius:16px;padding:20px 22px;
+    margin:22px auto 0;max-width:88ch;
+    border:1.5px solid rgba(34,211,238,.55);
+    background:linear-gradient(160deg,rgba(34,211,238,.13),rgba(45,212,191,.07) 55%,rgba(0,0,0,.16));
+    box-shadow:0 10px 32px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.05)}
+  .iaf-lcr-tete{display:flex;align-items:center;gap:10px}
+  .iaf-lcr-badge{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;
+    width:34px;height:34px;border-radius:50%;
+    background:linear-gradient(135deg,var(--cyan),var(--teal));box-shadow:0 4px 14px rgba(34,211,238,.35)}
+  .iaf-lcr-badge svg{width:18px;height:18px;fill:#04121A}
+  .iaf-lcr-titre{font-size:16.5px;font-weight:800;color:var(--ink);letter-spacing:-.01em}
+  .iaf-lcr-txt{margin:0;max-width:64ch;font-size:13px;color:var(--muted);line-height:1.6}
+  /* LES CHIFFRES SONT DES DONNÉES, PAS DE LA PROSE — voir `rendreLanceur` : le
+     texte statique disait « une vingtaine d'entrées » quand le formulaire en
+     porte vingt-huit, jusqu'à trente-quatre selon le secteur. Le même défaut
+     que celui déjà corrigé sur le nombre de cas et sur le nombre de sources :
+     un chiffre écrit une fois à la main ne suit plus les données. */
+  .iaf-lcr-stats{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;list-style:none;
+    margin:2px 0 0;padding:0}
+  .iaf-lcr-stats li{display:inline-flex;align-items:center;gap:2px;padding:6px 12px 6px 14px;
+    border-radius:999px;border:1px solid rgba(34,211,238,.35);background:rgba(0,0,0,.16);
+    font:700 12.5px/1 var(--mono);color:var(--cyan)}
+  .iaf-lanceur-b{position:relative;display:inline-flex;align-items:center;gap:9px;
+    font:inherit;font-size:14px;font-weight:700;padding:11px 20px;border-radius:999px;
+    border:1.5px solid rgba(34,211,238,.7);
+    background:linear-gradient(135deg,var(--cyan),var(--teal));color:#04121A;
+    cursor:pointer;white-space:nowrap;margin-top:2px;
+    animation:iaf-lanceur-bat 2.4s ease-in-out infinite;
+    transition:filter .15s,transform .12s}
+  .iaf-lanceur-b:hover{filter:brightness(1.08)}
+  .iaf-lanceur-b:active{transform:scale(.97)}
+  .iaf-lanceur-b:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+  .iaf-lcr-fleche{width:15px;height:15px;fill:none;stroke:#04121A;stroke-width:2.4;
+    stroke-linecap:round;stroke-linejoin:round}
+  @keyframes iaf-lanceur-bat{
+    0%,100%{box-shadow:0 6px 20px rgba(0,0,0,.28),0 0 0 0 rgba(34,211,238,.55)}
+    50%{box-shadow:0 6px 20px rgba(0,0,0,.28),0 0 0 9px rgba(34,211,238,0)}
+  }
+  /* SEULE L'ANIMATION S'ARRÊTE — la bordure, le dégradé et la carte restent
+     posés en dur ci-dessus : rien de la visibilité ne dépend du mouvement. */
+  @media(prefers-reduced-motion:reduce){.iaf-lanceur-b{animation:none}}
+  @media(max-width:560px){.iaf-lcr-titre{font-size:15px}.iaf-lcr-tete{flex-direction:column;gap:6px}}
   #iaf-guide{max-width:88ch;margin:14px auto 0;border:1px solid var(--line);border-radius:12px;
     padding:16px 18px;background:rgba(0,0,0,.14)}
   .iaf-g-q{margin:0 0 10px;font-size:14px;font-weight:600;text-align:center}
@@ -291,19 +337,15 @@
         nomment des sites : sinon la source serait invérifiable.</div>
     </div>
 
-    <!-- LE PARCOURS GUIDÉ, POSÉ AVANT LE RESTE. Dix sections et une vingtaine de
+    <!-- LE PARCOURS GUIDÉ, POSÉ AVANT LE RESTE. Dix sections et une trentaine de
          champs sont justes et illisibles en arrivant. Celui qui sait par où
-         commencer passe devant sans le voir. -->
-    <div class="iaf-lanceur">
-      <div>
-        <b>Vous ne savez pas par où commencer&nbsp;?</b>
-        <span>Cette étude tient dix sections, quatre secteurs et une vingtaine d'entrées.
-          Dites qui vous êtes&nbsp;: le parcours ne montre que ce qui vous concerne, dans
-          l'ordre où cela se décide, et met en relief la section visée.</span>
-      </div>
-      <button type="button" class="iaf-lanceur-b" id="iaf-guide-b"
-        aria-expanded="false" aria-controls="iaf-guide">Ouvrir le parcours guidé</button>
-    </div>
+         commencer passe devant sans le voir.
+
+         VIDE ICI, REMPLI PAR LE SCRIPT — comme #iaf-phases, #iaf-cmp ou
+         #iaf-sources plus bas : les chiffres qu'affiche cette carte (sections,
+         secteurs, entrées) viennent de `rendreLanceur(REF)`, jamais d'une
+         prose écrite à la main qui cesserait de les suivre. -->
+    <div class="iaf-lanceur" id="iaf-lanceur"></div>
     <div id="iaf-guide" hidden></div>
   </section>
 

@@ -1879,3 +1879,233 @@ def test_le_filtre_des_sources_masque_et_ne_redessine_pas():
 def test_le_menu_des_sources_est_REELLEMENT_branche():
     """Un menu qui ne fait rien promet un tri et ne le rend pas."""
     _appel_pose('$("iaf-sources").innerHTML', "brancherSources")
+
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE LANCEUR DU PARCOURS — LA VITRINE, ET SES CHIFFRES SONT CALCULÉS
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# CE QUI A DÉCLENCHÉ CETTE SECTION. Une demande de rendre la carte « Vous ne
+# savez pas par où commencer ? » plus visible — cadre bleu, bouton qui pulse,
+# infobulles — a fait remonter un défaut resté invisible jusque-là : le texte
+# affirmait « une vingtaine d'entrées » quand le formulaire en porte
+# vingt-huit, jusqu'à trente-quatre selon le secteur. Le même défaut que celui
+# déjà corrigé sur le nombre de cas comparables et sur le nombre de sources —
+# un chiffre écrit une fois à la main ne suit plus les données.
+
+def _sans_commentaires(texte):
+    """Le texte débarrassé des commentaires JS/CSS (/* ... */) et HTML
+    (<!-- ... -->). UNE RÈGLE QUI INTERDIT UN MOT NE DOIT PAS CONFONDRE LE MOT
+    RENDU AVEC LE MOT SIMPLEMENT DÉCRIT DANS UNE EXPLICATION : le commentaire
+    qui raconte l'ancien défaut cite forcément son texte, sans le remettre en
+    scène."""
+    sans = re.sub(r"/\*.*?\*/", "", texte, flags=re.S)
+    return re.sub(r"<!--.*?-->", "", sans, flags=re.S)
+
+
+def _lanceur_rendu(ref=None):
+    """Le HTML que `rendreLanceur` produit RÉELLEMENT, en l'exécutant."""
+    import tempfile
+    src = _src("ia-factory.js")
+    ancre = "\n(function () {\n"
+    corps = src[src.index(ancre) + len(ancre):src.index("\n  var AUTRE = ")]
+    prog = (corps + "\nconst d = JSON.parse(require('fs').readFileSync("
+            + "process.env.IAF_LCR, 'utf8'));"
+            + "\nprocess.stdout.write(rendreLanceur(d));\n")
+    fd, chemin = tempfile.mkstemp(suffix=".json")
+    with io.open(fd, "w", encoding="utf-8") as fh:
+        json.dump(ref if ref is not None else F.referentiel(), fh)
+    try:
+        out = subprocess.run(["node"], input=prog, capture_output=True, text=True,
+                             timeout=60, env=dict(os.environ, IAF_LCR=chemin))
+    finally:
+        os.unlink(chemin)
+    assert out.returncode == 0, out.stderr
+    return out.stdout
+
+
+_REF_TEMOIN = {
+    "sections": [{"id": "s1"}, {"id": "s2"}, {"id": "s3"}],
+    "secteurs": {"a": {}, "b": {}},
+    "quantites": {"q1": {}, "q2": {}},
+    "prix": {"p1": {}},
+    "quantites_secteur": {
+        "qs1": {"secteurs": ["a"]},
+        "qs2": {"secteurs": ["a", "b"]},
+    },
+}
+
+
+def test_le_lanceur_annonce_le_VRAI_nombre_de_sections_et_de_secteurs():
+    """LE COMPTE VIENT DES DONNÉES, PAS D'UNE PROSE ÉCRITE À LA MAIN. La carte
+    disait « dix sections, quatre secteurs » en dur ; un onzième bloc ajouté
+    au module aurait laissé ce texte faux, comme « Quatre cas publics » l'a
+    été avant lui.
+
+    LA RÈGLE ÉPROUVE LA DÉPENDANCE, PAS L'ACCORD : un référentiel TÉMOIN, plus
+    petit que le réel, doit faire changer les chiffres rendus — sinon la règle
+    serait verte pour un compte qui coïncide par hasard avec le vrai."""
+    for ref, n_sections, n_secteurs in (
+        (F.referentiel(), len(F.SECTIONS), len(F.SECTEURS)),
+        (_REF_TEMOIN, 3, 2),
+    ):
+        h = _lanceur_rendu(ref)
+        stats = re.findall(r"<li>(.*?)<button", h, re.S)
+        assert html.unescape(stats[0]).startswith("%d section" % n_sections), (
+            "%r n'annonce pas %d sections" % (stats[0][:40], n_sections))
+        assert html.unescape(stats[1]).startswith("%d secteur" % n_secteurs), (
+            "%r n'annonce pas %d secteurs" % (stats[1][:40], n_secteurs))
+
+
+def test_le_compte_des_entrees_suit_les_QUANTITES_et_le_secteur_MAX():
+    """LE TROISIÈME CHIFFRE ÉTAIT LE PLUS FAUX DES TROIS : « une vingtaine »
+    pour vingt-huit à trente-quatre entrées réelles. La règle vérifie le
+    calcul sur un référentiel témoin dont le résultat se calcule à la main —
+    base = 2 quantités + 1 prix = 3 ; le secteur « a » ajoute ses deux
+    quantités propres (qs1 et qs2), le secteur « b » une seule (qs2) : le
+    maximum est donc 5, atteint par « a », pas 4."""
+    h = _lanceur_rendu(_REF_TEMOIN)
+    stats = re.findall(r"<li>(.*?)<button", h, re.S)
+    texte = html.unescape(stats[2])
+    assert texte.startswith("3 entrées"), texte
+    assert "jusqu'à 5 selon le secteur" in texte, texte
+
+    # ET SUR LE RÉFÉRENTIEL RÉEL : la valeur n'est pas rejouée à la main dans
+    # cette règle-ci, elle est reconstruite par une SECONDE implémentation,
+    # en Python, pour ne pas se contenter de comparer le script à lui-même.
+    ref = F.referentiel()
+    base = len(ref["quantites"]) + len(ref["prix"])
+    maxi = base
+    for cle in ref["secteurs"]:
+        n = base + sum(1 for q in ref["quantites_secteur"].values()
+                       if cle in q["secteurs"])
+        maxi = max(maxi, n)
+    h2 = _lanceur_rendu(ref)
+    texte2 = html.unescape(re.findall(r"<li>(.*?)<button", h2, re.S)[2])
+    assert texte2.startswith("%d entrées" % base), (texte2, base)
+    if maxi > base:
+        assert "jusqu'à %d selon le secteur" % maxi in texte2, (texte2, maxi)
+
+
+def test_chaque_statistique_porte_une_infobulle_DISTINCTE_et_non_vide():
+    """Trois pastilles, trois infobulles — et pas la même recopiée trois fois,
+    ce qui reviendrait à n'en avoir aucune."""
+    h = _lanceur_rendu()
+    bulles = re.findall(r'role="tooltip"[^>]*>([^<]+)</span>', h)
+    assert len(bulles) == 3, bulles
+    textes = [html.unescape(b) for b in bulles]
+    assert all(len(t) > 20 for t in textes), textes
+    assert len(set(textes)) == 3, "deux infobulles se recopient : %r" % textes
+    # LA MÊME BULLE ACCESSIBLE QUE LE RESTE DU FORMULAIRE — un bouton
+    # focalisable décrit par `aria-describedby`, pas une infobulle inventée
+    # pour l'occasion.
+    assert h.count('class="iaf-info"') == 3
+    assert h.count("aria-describedby=") == 3
+
+
+def test_le_bouton_porte_une_icone_ET_un_libelle_SEPARES():
+    """LE DÉFAUT QU'UNE ICÔNE AURAIT PU CAUSER. `guideOuvrir` réécrit le texte
+    du bouton à l'ouverture et à la fermeture ; si ce texte partageait son
+    conteneur avec l'icône, l'écrire effacerait l'icône. Le libellé doit donc
+    être un ENFANT du bouton, jamais le bouton lui-même."""
+    h = _lanceur_rendu()
+    m = re.search(r'<button[^>]*id="iaf-guide-b"[^>]*>(.*?)</button>', h, re.S)
+    assert m, "le bouton du parcours n'est pas rendu"
+    corps = m.group(1)
+    assert '<span class="iaf-lcr-lbl">' in corps, "le libellé n'est pas isolé"
+    assert "<svg" in corps and 'class="iaf-lcr-fleche"' in corps, (
+        "le bouton n'a plus son icône")
+    assert 'aria-hidden="true"' in corps, "l'icône décorative doit être ignorée au lecteur d'écran"
+
+
+def test_guideOuvrir_ne_touche_QUE_le_libelle_pas_tout_le_bouton():
+    """LA CAUSE RÉELLE DU DÉFAUT PRÉCÉDENT, ÉPROUVÉE DIRECTEMENT DANS LE
+    SCRIPT. `b.textContent = ...` sur le bouton entier aurait effacé la flèche
+    à la première ouverture du parcours — un défaut qui ne se serait vu
+    qu'au clic, jamais à la simple lecture de la page."""
+    js = _src("ia-factory.js")
+    corps = js[js.index("function guideOuvrir("):]
+    corps = corps[:corps.index("\n  }")]
+    corps_sans_commentaire = _sans_commentaires(corps)
+    assert not re.search(r"\bb\.textContent\s*=", corps_sans_commentaire), (
+        "le bouton entier est réécrit — l'icône serait effacée : %r" % corps)
+    assert '.querySelector(".iaf-lcr-lbl")' in corps, (
+        "le libellé n'est plus ciblé spécifiquement")
+
+
+def test_le_conteneur_du_lanceur_est_REELLEMENT_rempli_TOT():
+    """Vide dans le HTML statique — comme #iaf-phases ou #iaf-cmp plus bas —
+    et rempli avant tout ce qui dépend du bouton qu'il contient : brancher
+    l'écouteur de #iaf-guide-b sur un bouton qui n'existe pas encore ne fait
+    rien."""
+    page = _src("ingenierie-ia-factory.html")
+    m = re.search(r'<div class="iaf-lanceur" id="iaf-lanceur">(.*?)</div>', page, re.S)
+    assert m, "le conteneur du lanceur a disparu"
+    assert m.group(1).strip() == "", (
+        "le conteneur porte encore du contenu statique : %r" % m.group(1)[:120])
+
+    js = _src("ia-factory.js")
+    lignes = js.split("\n")
+    i = next(k for k, l in enumerate(lignes) if "REF = j.referentiel;" in l)
+    j = next((k for k, l in enumerate(lignes)
+              if k > i and '$("iaf-lanceur").innerHTML' in l), None)
+    assert j is not None and j - i <= 2, "le lanceur n'est pas rendu juste après REF"
+    g = next(k for k, l in enumerate(lignes) if 'addEventListener' in l and "iaf-guide-b" in l)
+    assert j < g, "le lanceur est rendu APRÈS le branchement de son propre bouton"
+
+
+def test_lancien_texte_faux_a_disparu_de_la_page_statique():
+    """« UNE VINGTAINE D'ENTRÉES » NE DOIT PLUS EXISTER NULLE PART : c'est le
+    défaut qui a déclenché cette section, et une régression le ramènerait
+    verbatim si quelqu'un revenait un jour à du texte écrit à la main."""
+    page = _sans_commentaires(_src("ingenierie-ia-factory.html"))
+    for faux in ("une vingtaine", "dix sections, quatre secteurs"):
+        assert faux not in page.lower(), (
+            "le texte statique et faux est revenu, hors commentaire : %r" % faux)
+
+
+def _regle_css(nom_bloc):
+    """La déclaration `.classe{...}` du bloc `<style>` de la page, EN DEHORS de
+    toute requête @media ou @keyframes — c'est-à-dire ce qui s'applique par
+    défaut, animation ou pas."""
+    page = _src("ingenierie-ia-factory.html")
+    style = page[page.index("<style>"):page.index("</style>")]
+    # On retire les blocs @media et @keyframes avant de chercher : sinon une
+    # déclaration DANS une requête média serait prise pour la règle de base.
+    sans_media = re.sub(r"@media[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}", "", style)
+    sans_kf = re.sub(r"@keyframes[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}", "", sans_media)
+    m = re.search(re.escape(nom_bloc) + r"\{([^}]*)\}", sans_kf)
+    assert m, "la règle de base de %s est introuvable hors animation" % nom_bloc
+    return m.group(1)
+
+
+def test_le_cadre_bleu_est_pose_EN_DUR_hors_de_lanimation():
+    """« ENTOURAGE BLEU », ET IL DOIT TENIR SANS MOUVEMENT. La bordure vit
+    dans la règle DE BASE de `.iaf-lanceur`, pas dans le `@keyframes` du
+    bouton : coupée par `prefers-reduced-motion`, la carte reste signalée."""
+    base = _regle_css(".iaf-lanceur")
+    compact = re.sub(r"\s+", "", base)
+    assert "border:" in compact and "rgba(34,211,238" in compact, (
+        "le cadre bleu n'est pas posé en dur : %r" % base)
+
+
+def test_le_bouton_pulse_PAR_DEFAUT_pas_seulement_au_survol():
+    """Le mouvement doit se voir sans qu'on touche à rien : c'est ce que
+    « clignotement » demandait. Une animation posée seulement sur `:hover`
+    ne se verrait jamais avant qu'on approche la souris."""
+    base = _regle_css(".iaf-lanceur-b")
+    assert "animation" in base and "iaf-lanceur-bat" in base, (
+        "le bouton ne pulse pas par défaut : %r" % base)
+
+
+def test_lanimation_du_bouton_sarrete_sous_prefers_reduced_motion():
+    """LE MOUVEMENT EST UN RAPPEL, PAS LE MESSAGE — la même règle que pour
+    `.guide-btn` ailleurs sur ce site : coupée ici, la bordure et le dégradé
+    de la carte restent seuls à porter la visibilité, et rien n'est perdu."""
+    page = _src("ingenierie-ia-factory.html")
+    style = page[page.index("<style>"):page.index("</style>")]
+    m = re.search(r"@media\(prefers-reduced-motion:reduce\)\{([^}]*\})*[^}]*\}", style)
+    blocs = re.findall(r"@media\(prefers-reduced-motion:reduce\)\{[^}]*\.iaf-lanceur-b[^}]*\}", style)
+    assert blocs, "aucune requête reduced-motion ne cible .iaf-lanceur-b"
+    assert "animation:none" in blocs[0].replace(" ", ""), blocs[0]

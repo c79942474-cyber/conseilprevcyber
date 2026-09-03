@@ -177,11 +177,20 @@ function demander(url, options, delai) {
     el.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   function guideOuvrir(ouvert) {
-    var z = $("iaf-guide"), b = $("iaf-guide-b");
+    /* CHERCHÉ DANS SON CONTENEUR, PAS PAR `$()` — comme le menu des cas
+       comparables : ce bouton n'est pas une ancre statique de la page, c'est
+       `rendreLanceur()` qui le crée. Une règle du dépôt vérifie que tout
+       identifiant visé par `$()` existe DANS LE HTML SERVI ; le viser par
+       `$()` ferait passer pour une ancre manquante ce qui n'en est pas une. */
+    var z = $("iaf-guide"), b = document.querySelector("#iaf-lanceur #iaf-guide-b");
     if (!z || !b) return;
     z.hidden = !ouvert;
     b.setAttribute("aria-expanded", ouvert ? "true" : "false");
-    b.textContent = ouvert ? "Fermer le parcours" : "Ouvrir le parcours guidé";
+    /* LE LIBELLÉ SEUL, PAS TOUT LE BOUTON. `b.textContent = ...` effacerait
+       aussi la flèche SVG posée à côté : on cible l'enfant qui porte le
+       texte. */
+    var lbl = b.querySelector(".iaf-lcr-lbl");
+    if (lbl) lbl.textContent = ouvert ? "Fermer le parcours" : "Ouvrir le parcours guidé";
     if (!ouvert) { surligner(null); GUIDE_ROLE = null; GUIDE_ETAPE = 0; }
   }
   function guideChoix() {
@@ -246,6 +255,65 @@ function demander(url, options, delai) {
     return '<button type="button" class="iaf-info" aria-describedby="' + id + '"'
       + ' aria-label="' + esc(etiquette || "Explication") + '">i'
       + '<span class="iaf-bulle" role="tooltip" id="' + id + '">' + esc(texte) + "</span></button>";
+  }
+
+  /* LA VITRINE DU PARCOURS GUIDÉ — SES CHIFFRES SONT CALCULÉS, PAS ÉCRITS.
+     « dix sections, quatre secteurs et une vingtaine d'entrées » vivait en
+     toutes lettres dans le HTML, et le troisième compte était FAUX : le
+     formulaire porte vingt-huit entrées de base, jusqu'à trente-quatre selon
+     le secteur retenu — pas une vingtaine. Le même défaut que celui déjà
+     corrigé sur le nombre de cas comparables et sur le nombre de sources : un
+     chiffre écrit une fois à la main ne suit plus les données le jour où un
+     champ s'ajoute. */
+  function _entreesMax(ref) {
+    var base = Object.keys(ref.quantites).length + Object.keys(ref.prix).length;
+    var max = base;
+    Object.keys(ref.secteurs).forEach(function (cle) {
+      var n = base;
+      Object.keys(ref.quantites_secteur).forEach(function (q) {
+        if (ref.quantites_secteur[q].secteurs.indexOf(cle) >= 0) n++;
+      });
+      if (n > max) max = n;
+    });
+    return { base: base, max: max };
+  }
+
+  /* CHAQUE STATISTIQUE PORTE SA PROPRE INFOBULLE, réutilisant `bulle()` — la
+     même bulle accessible que le reste du formulaire (bouton focalisable,
+     texte dans le document, lu par un lecteur d'écran via
+     `aria-describedby`), pas une infobulle inventée pour l'occasion. */
+  function rendreLanceur(ref) {
+    var e = _entreesMax(ref);
+    var nSections = ref.sections.length;
+    var nSecteurs = Object.keys(ref.secteurs).length;
+    var stats = [
+      { n: nSections, mot: nSections === 1 ? "section" : "sections", suffixe: "",
+        dit: "Chaque bloc de cette étude, du secteur retenu au chiffrage final. "
+          + "Le parcours n'en affiche que certaines, dans l'ordre où votre rôle "
+          + "les emploie." },
+      { n: nSecteurs, mot: nSecteurs === 1 ? "secteur" : "secteurs", suffixe: "",
+        dit: "Banque, assurance, marchés, infrastructures critiques (NIS 2). "
+          + "Chacun ajoute ses textes, ses jalons et ses postes propres." },
+      { n: e.base, mot: "entrées",
+        suffixe: e.max > e.base ? ", jusqu'à " + e.max + " selon le secteur" : "",
+        dit: "Quantités et prix à renseigner pour un chiffrage complet. Le "
+          + "nombre exact dépend du secteur retenu — chacun ajoute les siennes." }
+    ];
+    return '<div class="iaf-lcr-tete">'
+      + '<span class="iaf-lcr-badge" aria-hidden="true"><svg viewBox="0 0 24 24">'
+      + '<path d="M12 2 L14.5 9.5 L22 12 L14.5 14.5 L12 22 L9.5 14.5 L2 12 L9.5 9.5 Z"/></svg></span>'
+      + '<b class="iaf-lcr-titre">Vous ne savez pas par où commencer&nbsp;?</b></div>'
+      + '<p class="iaf-lcr-txt">Dites qui vous êtes&nbsp;: le parcours ne montre que ce qui '
+      + "vous concerne, dans l'ordre où cela se décide, et met en relief la section visée.</p>"
+      + '<ul class="iaf-lcr-stats">' + stats.map(function (s) {
+          return "<li>" + esc(String(s.n)) + " " + esc(s.mot) + esc(s.suffixe)
+            + bulle(s.dit, "À propos de « " + s.mot + " »") + "</li>";
+        }).join("") + "</ul>"
+      + '<button type="button" class="iaf-lanceur-b" id="iaf-guide-b" '
+      + 'aria-expanded="false" aria-controls="iaf-guide">'
+      + '<span class="iaf-lcr-lbl">Ouvrir le parcours guidé</span>'
+      + '<svg class="iaf-lcr-fleche" viewBox="0 0 24 24" aria-hidden="true">'
+      + '<path d="M5 12h14M13 6l6 6-6 6"/></svg></button>';
   }
 
   /* LA LISTE DÉROULANTE N'EXISTE QUE LÀ OÙ LE MODULE EN DÉCLARE UNE, et le
@@ -969,6 +1037,7 @@ function demander(url, options, delai) {
   function init() {
     demander("/api/ia-factory", null, DELAI_COURT).then(function (j) {
       REF = j.referentiel;
+      $("iaf-lanceur").innerHTML = rendreLanceur(REF);
       $("iaf-secteur").innerHTML = rendreSecteurs();
       brancherSecteurs();
       redessinerQuantites();
@@ -1009,7 +1078,7 @@ function demander(url, options, delai) {
         if (e.target && e.target.dataset && e.target.dataset.famille) rafraichirBlocs();
       });
       guideRendre();
-      $("iaf-guide-b").addEventListener("click", function () {
+      document.querySelector("#iaf-lanceur #iaf-guide-b").addEventListener("click", function () {
         guideOuvrir($("iaf-guide").hidden);
       });
     }, function (e) { erreur($("iaf-q"), e); });
