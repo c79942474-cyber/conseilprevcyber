@@ -432,7 +432,7 @@ function demander(url, options, delai) {
     return i > 0 ? String(nom).slice(0, i) : String(nom || "");
   }
 
-  function rendreComparables(cmp, sources) {
+  function rendreComparables(cmp, sources, secteurs) {
     var h = '<label class="iaf-champ iaf-cmp-m"><span class="iaf-nom">'
       /* LE COMPTE VIENT DES DONNÉES, en chiffre et au même endroit que dans
          l'option : « Quatre cas documentés » au-dessus de « Les 4 cas » écrit
@@ -441,15 +441,36 @@ function demander(url, options, delai) {
       + '</span><select class="iaf-choix" data-cmp>'
       + '<option value="' + CMP_TOUS + '">Les ' + cmp.length
       + " cas, à la suite</option>";
-    cmp.forEach(function (c, i) {
-      h += '<option value="c' + i + '"' + (i === 0 ? " selected" : "") + ">"
-        + esc(_casCourt(c.organisation)) + "</option>";
+    /* RANGÉS PAR SECTEUR, et c'est la raison d'être de ce menu depuis qu'il
+       n'y a plus qu'une seule activité dedans. Les quatre premiers cas
+       venaient tous de la banque ; un assureur ou un hôpital lisait quatre
+       banques sans savoir laquelle le concernait. L'ordre des groupes et
+       leurs libellés viennent du MODULE (`secteurs_comparables`), pas d'une
+       liste recopiée ici : un cinquième secteur ajouté au module apparaît
+       sans qu'on touche à ce fichier. */
+    (secteurs || []).forEach(function (sec) {
+      var dedans = [];
+      cmp.forEach(function (c, i) { if (c.secteur === sec.cle) dedans.push(i); });
+      if (!dedans.length) return;
+      h += '<optgroup label="' + esc(sec.nom) + " (" + dedans.length + ')">'
+        /* CHOISIR UN SECTEUR ENTIER, comme le menu des sources permet de
+           choisir une nature entière. Sans cela le groupe ne serait qu'un
+           intertitre : on saurait dans quelle activité on est, sans pouvoir
+           lire cette activité d'un bloc. */
+        + '<option value="s:' + esc(sec.cle) + '">Tout ce groupe — '
+        + esc(sec.nom) + " (" + dedans.length + ")</option>";
+      dedans.forEach(function (i) {
+        h += '<option value="c' + i + '"' + (i === 0 ? " selected" : "") + ">"
+          + esc(_casCourt(cmp[i].organisation)) + "</option>";
+      });
+      h += "</optgroup>";
     });
     h += '</select><span class="iaf-ou">Ils servent à SITUER un ordre de '
       + "grandeur, pas à caler un chiffrage : chaque valeur porte sa source et "
       + "ce qu'elle ne dit pas.</span></label>";
     return h + cmp.map(function (c, i) {
-      return '<article class="iaf-cmp" data-cas="c' + i + '"'
+      return '<article class="iaf-cmp" data-cas="c' + i + '" data-cmp-sec="'
+        + esc(c.secteur) + '"'
         + (i === 0 ? "" : " hidden") + "><h4>" + esc(c.organisation) + "</h4><ul>"
         + c.chiffres.map(function (x) {
             var s = sources[x.source] || {};
@@ -474,8 +495,11 @@ function demander(url, options, delai) {
     if (!sel) return;
     sel.addEventListener("change", function () {
       var cle = sel.value;
+      var sec = cle.slice(0, 2) === "s:" ? cle.slice(2) : null;
       document.querySelectorAll("#iaf-cmp [data-cas]").forEach(function (a) {
-        a.hidden = cle !== CMP_TOUS && a.dataset.cas !== cle;
+        a.hidden = !(cle === CMP_TOUS
+          || (sec !== null && a.dataset.cmpSec === sec)
+          || a.dataset.cas === cle);
       });
     });
   }
@@ -695,7 +719,8 @@ function demander(url, options, delai) {
       brancherSecteurs();
       redessinerQuantites();
       $("iaf-p").innerHTML = champs(REF.prix, "p");
-      $("iaf-cmp").innerHTML = rendreComparables(REF.comparables, REF.sources);
+      $("iaf-cmp").innerHTML = rendreComparables(REF.comparables, REF.sources,
+        REF.secteurs_comparables);
       brancherComparables();
       $("iaf-phases").innerHTML = rendrePhases(REF);
       $("iaf-jalons").innerHTML = rendreJalons(REF.jalons_reglementaires.map(function (x) {

@@ -329,8 +329,67 @@ SOURCES = {
         "url": "https://www.cio.com/article/4106578/2026-the-year-of-scale-or-fail-in-enterprise-ai.html",
         "lu": False, "reserve": "Modèle hub-and-spoke dominant ; le centre porte plateforme, normes, gouvernance (extrait).",
     },
-}
 
+    # ── LES AUTRES SECTEURS : leurs autorités, et un contre-exemple hors finance ──
+    #
+    # POURQUOI CES SOURCES SONT ENTRÉES. Les quatre cas comparables venaient
+    # TOUS de la banque. « Pour situer, pas pour caler » n'a de sens que si le
+    # lecteur peut se situer : un assureur, une société de gestion ou un
+    # hôpital n'avait aucun repère ici, et lisait quatre banques en se
+    # demandant ce qu'il devait en retenir. Chaque secteur du module a
+    # désormais le repère de SON autorité, mesuré sur SON périmètre.
+    "assur_autorite_numerisation": {
+        "titre": "Rapport sur la numérisation du secteur européen de l'assurance — enquête de suivi de marché",
+        "editeur": "Autorité européenne des assurances et des pensions professionnelles",
+        "nature": "officiel", "annee": 2024,
+        "url": "https://www.eiopa.europa.eu/publications/eiopas-report-digitalisation-european-insurance-sector_en",
+        "lu": False, "reserve": "Rapport du 30 avril 2024, sur l'enquête 2023. Extrait de recherche ; "
+                                "page non lue (accès refusé par le proxy).",
+    },
+    "assur_cas_plateforme": {
+        "titre": "Communiqué : plateforme d'IA générative interne d'un assureur composite, déploiement et cas d'usage recensés",
+        "editeur": "Assureur composite européen — espace presse", "nature": "presse", "annee": 2025,
+        "url": "https://www.allianz.com/en/mediacenter/news/articles/250218-ai-at-allianz-the-impact-of-allianzgpt.html",
+        "lu": False, "reserve": "Extrait de recherche, relayé par la presse spécialisée. Communication "
+                                "d'entreprise : ni audit ni chiffre contradictoire.",
+    },
+    "marches_autorite_adoption": {
+        "titre": "Analyse de risque — adoption de l'IA et tendances sur les marchés de valeurs mobilières",
+        "editeur": "Autorité européenne des marchés financiers", "nature": "officiel", "annee": 2026,
+        "url": "https://www.esma.europa.eu/sites/default/files/2026-02/ESMA50-481369926-30599_TRV_Risk_Analysis_AI_adoption_and_trends_in_securities_markets.pdf",
+        "lu": False, "reserve": "Enquête de l'été 2025, publiée en février 2026. Extrait de recherche ; "
+                                "document non ouvert (accès refusé par le proxy).",
+    },
+    "sante_etat_preparation_ue": {
+        "titre": "L'intelligence artificielle remodèle les systèmes de santé : état de préparation dans l'Union européenne",
+        "editeur": "Bureau régional européen de l'organisation sanitaire mondiale",
+        "nature": "officiel", "annee": 2026,
+        "url": "https://www.who.int/europe/publications/i/item/WHO-EURO-2026-12707-52481-81471",
+        "lu": False, "reserve": "Données collectées de juin 2024 à mars 2025 ; 27 États membres sur 27 "
+                                "ont répondu. Extrait de recherche ; page non lue.",
+    },
+    "public_sanction_profilage": {
+        "titre": "Sanction d'une administration fiscale pour traitement illicite et discriminatoire de la nationalité",
+        "editeur": "Autorité nationale de protection des données", "nature": "officiel", "annee": 2021,
+        "url": "https://www.autoriteitpersoonsgegevens.nl/en/current/tax-administration-fined-for-discriminatory-and-unlawful-data-processing",
+        "lu": False, "reserve": "Décision du 7 décembre 2021. Extrait de recherche ; page non lue.",
+    },
+    "public_methodes_illicites": {
+        "titre": "Constat d'illicéité et de discrimination dans les méthodes d'une administration fiscale",
+        "editeur": "Autorité nationale de protection des données", "nature": "officiel", "annee": 2020,
+        "url": "https://www.autoriteitpersoonsgegevens.nl/en/current/methods-used-by-dutch-tax-administration-unlawful-and-discriminatory",
+        "lu": False, "reserve": "Enquête publiée en juillet 2020, antérieure à la sanction. Extrait de "
+                                "recherche ; page non lue. Le nombre de familles touchées vient de la "
+                                "couverture publique de l'affaire, pas de cette décision.",
+    },
+    "eurostat_ia_entreprises": {
+        "titre": "Usage de l'intelligence artificielle dans les entreprises — par activité économique",
+        "editeur": "Office statistique de l'Union européenne", "nature": "officiel", "annee": 2025,
+        "url": "https://ec.europa.eu/eurostat/statistics-explained/index.php?title=Use_of_artificial_intelligence_in_enterprises",
+        "lu": False, "reserve": "Enquête sur l'usage des TIC, entreprises de 10 salariés et plus. Extrait "
+                                "de recherche ; page non lue (accès refusé par le proxy).",
+    },
+}
 
 def couverture_sources():
     """Ce qu'un lecteur peut rouvrir, et ce que l'auteur a lu : deux comptes.
@@ -453,6 +512,84 @@ ANCRAGES = [
     {"cle": "energie_par_tache", "nom": "Énergie par tâche IA — rythme d'amélioration",
      "min": 10, "max": 10, "unite": "× par an", "source": "iea_energy_ai",
      "ne_dit_pas": "« Au moins un ordre de grandeur par an ces dernières années » ; pas une garantie."},
+
+    # ── ASSURANCE ──
+    {"cle": "assur_non_vie", "nom": "Assureurs non-vie utilisant déjà l'IA dans la chaîne de valeur",
+     "min": 0.5, "max": 0.5, "unite": "part", "source": "assur_autorite_numerisation",
+     "ne_dit_pas": "« Environ la moitié » : l'extrait ne donne ni l'effectif interrogé ni la "
+                   "définition d'« utiliser ». Enquête 2023, publiée en 2024."},
+    {"cle": "assur_vie", "nom": "Assureurs vie utilisant déjà l'IA dans la chaîne de valeur",
+     "min": 0.24, "max": 0.25, "unite": "part", "source": "assur_autorite_numerisation",
+     "ne_dit_pas": "Deux formulations circulent — « 24 % » et « un quart » : la borne les couvre "
+                   "toutes deux plutôt que de trancher sur un extrait."},
+    {"cle": "assur_cas_utilisateurs", "nom": "Cas E — salariés utilisant la plateforme d'IA générative interne",
+     "min": 60000, "max": 60000, "unite": "salariés", "source": "assur_cas_plateforme",
+     "ne_dit_pas": "« Plus de 60 000 » début 2025 ; la fréquence d'usage n'est pas publiée."},
+    {"cle": "assur_cas_effectif", "nom": "Cas E — effectif du groupe",
+     "min": 158000, "max": 158000, "unite": "salariés", "source": "assur_cas_plateforme",
+     "ne_dit_pas": "Cible de déploiement annoncée ; l'effectif est celui du groupe, pas du périmètre outillé."},
+    {"cle": "assur_cas_usages", "nom": "Cas E — cas d'usage IA recensés dans le groupe",
+     "min": 900, "max": 900, "unite": "cas d'usage", "source": "assur_cas_plateforme",
+     "ne_dit_pas": "« Recensés » n'est pas « en production » : la part réellement servie n'est pas "
+                   "publiée, et la taille d'un cas d'usage n'est pas définie."},
+
+    # ── MARCHÉS, GESTION D'ACTIFS ──
+    {"cle": "marches_en_prod", "nom": "Acteurs de marché déclarant l'IA en production ou en développement",
+     "min": 0.28, "max": 0.28, "unite": "part", "source": "marches_autorite_adoption",
+     "ne_dit_pas": "Enquête déclarative de l'été 2025 ; « en production OU en développement » "
+                   "réunit deux états très différents."},
+    {"cle": "marches_experimentent", "nom": "Acteurs de marché expérimentant ou prévoyant de le faire sous douze mois",
+     "min": 0.22, "max": 0.22, "unite": "part", "source": "marches_autorite_adoption",
+     "ne_dit_pas": "Une intention déclarée n'est pas un déploiement."},
+    {"cle": "marches_sans_investissement", "nom": "Acteurs de marché n'ayant fait aucun investissement IA en 2024",
+     "min": 0.36, "max": 0.36, "unite": "part", "source": "marches_autorite_adoption",
+     "ne_dit_pas": "LE CHIFFRE QUI MANQUE PARTOUT AILLEURS : plus d'un tiers n'a rien engagé. "
+                   "L'extrait ne dit pas si ces acteurs sont les plus petits."},
+
+    # ── SANTÉ, ENTITÉ ESSENTIELLE ──
+    {"cle": "sante_diagnostic", "nom": "États membres de l'UE employant l'IA en aide au diagnostic",
+     "min": 0.75, "max": 0.75, "unite": "part", "source": "sante_etat_preparation_ue",
+     "ne_dit_pas": "« Le pays emploie » ne dit ni combien d'établissements, ni à quelle échelle. "
+                   "Données de juin 2024 à mars 2025."},
+    {"cle": "sante_agents", "nom": "États membres employant des agents conversationnels avec les patients",
+     "min": 0.63, "max": 0.63, "unite": "part", "source": "sante_etat_preparation_ue",
+     "ne_dit_pas": "Usage relevant de l'obligation d'information de l'article 50 : le texte du "
+                   "rapport n'en traite pas."},
+    {"cle": "sante_postes_dedies", "nom": "États membres ayant créé des postes dédiés IA et données en santé",
+     "min": 0.5, "max": 0.5, "unite": "part", "source": "sante_etat_preparation_ue",
+     "ne_dit_pas": "« Près de la moitié » ; ni le nombre de postes ni leur rattachement."},
+    {"cle": "sante_reponses", "nom": "Taux de réponse de l'enquête sur les vingt-sept États membres",
+     "min": 1.0, "max": 1.0, "unite": "part", "source": "sante_etat_preparation_ue",
+     "ne_dit_pas": "Un taux de réponse complet ne dit rien de la comparabilité des déclarations."},
+
+    # ── ADMINISTRATION PUBLIQUE — LE CONTRE-EXEMPLE ALGORITHMIQUE ──
+    {"cle": "public_amende", "nom": "Cas G — sanction pour traitement illicite et discriminatoire de la nationalité",
+     "min": 2.75, "max": 2.75, "unite": "M€", "source": "public_sanction_profilage",
+     "ne_dit_pas": "Décision du 7 décembre 2021. L'amende est sans commune mesure avec le coût "
+                   "de la réparation aux familles, qui n'est pas dans cette décision."},
+    {"cle": "public_familles", "nom": "Cas G — familles accusées à tort de fraude",
+     "min": 26000, "max": 35000, "unite": "familles", "source": "public_methodes_illicites",
+     "ne_dit_pas": "Les deux bornes circulent (26 000 accusées, 35 000 dont les droits fondamentaux "
+                   "ont été atteints) ; elles ne recouvrent pas le même ensemble. Chiffres de la "
+                   "couverture publique, pas de la décision."},
+    {"cle": "public_double_nationalite", "nom": "Cas G — personnes encore enregistrées comme binationales en mai 2018",
+     "min": 1400000, "max": 1400000, "unite": "personnes", "source": "public_sanction_profilage",
+     "ne_dit_pas": "La donnée aurait dû être effacée depuis janvier 2014 : quatre ans de conservation "
+                   "indue d'un attribut servant d'indicateur de risque."},
+
+    # ── TOUS SECTEURS — L'ÉCART ENTRE ACTIVITÉS, QUI EST LE VRAI REPÈRE ──
+    {"cle": "ue_entreprises_2025", "nom": "Entreprises de l'UE (10 salariés et plus) utilisant l'IA",
+     "min": 0.2, "max": 0.2, "unite": "part", "source": "eurostat_ia_entreprises",
+     "ne_dit_pas": "20,0 % en 2025 contre 13,5 % en 2024. « Utiliser » couvre un outil acheté "
+                   "comme un modèle entraîné."},
+    {"cle": "ue_secteur_haut", "nom": "Activité la plus équipée — information et communication",
+     "min": 0.6252, "max": 0.6252, "unite": "part", "source": "eurostat_ia_entreprises",
+     "ne_dit_pas": "Le secteur qui VEND l'outillage est aussi celui qui l'emploie : ce n'est pas "
+                   "un repère transposable."},
+    {"cle": "ue_secteur_bas", "nom": "Activité la moins équipée — construction",
+     "min": 0.1079, "max": 0.1079, "unite": "part", "source": "eurostat_ia_entreprises",
+     "ne_dit_pas": "Un rapport de près de six entre le haut et le bas de l'échelle : c'est cet "
+                   "écart, et non la moyenne, qui situe une organisation."},
 ]
 
 
@@ -1222,31 +1359,121 @@ PRINCIPES_MIGRATION = [
 
 
 def comparables():
+    """LES CAS COMPARABLES — pour situer, pas pour caler.
+
+    ILS VENAIENT TOUS DE LA BANQUE, ET C'ÉTAIT LE DÉFAUT. Quatre cas, un seul
+    secteur : un assureur, une société de gestion ou un établissement de santé
+    lisait quatre banques en se demandant ce qu'il devait en retenir. « Situer »
+    suppose un repère dans SON activité, sinon la comparaison se fait au hasard
+    — ou ne se fait pas.
+
+    CHAQUE SECTEUR DU MODULE A DÉSORMAIS LE REPÈRE DE SON AUTORITÉ, mesuré sur
+    son périmètre : le superviseur bancaire pour la banque, l'autorité des
+    assurances pour l'assurance, celle des marchés pour la gestion, et l'état
+    de préparation des systèmes de santé pour les entités essentielles. S'y
+    ajoutent un cas d'entreprise hors banque, un contre-exemple pris dans
+    l'administration publique, et l'écart entre activités — qui est le repère
+    le plus utile de tous.
+
+    CHAQUE CAS PORTE SON SECTEUR, et la page s'en sert pour les ranger. Un cas
+    dont le secteur ne serait pas un secteur du module ne se rangerait nulle
+    part : `secteurs_comparables()` le refuse."""
     idx = {a["cle"]: a for a in ANCRAGES}
     def a(cle):
         x = idx[cle]
         return {"nom": x["nom"], "min": x["min"], "max": x["max"], "unite": x["unite"],
                 "source": x["source"], "ne_dit_pas": x["ne_dit_pas"]}
     return [
-        {"organisation": "Cas A — grand groupe bancaire coopératif : deux réseaux, deux systèmes d'information, une usine IA",
+        {"secteur": "banque",
+         "organisation": "Cas A — grand groupe bancaire coopératif : deux réseaux, deux systèmes d'information, une usine IA",
          "chiffres": [a("casA_budget"), a("casA_horizon"), a("casA_effectif"),
                       a("casA_usage_quotidien"), a("casA_appels"), a("casA_formes")],
          "lecon": "Un socle commun décidé pour porter l'IA ; l'adoption a précédé le socle. "
                   "La migration des deux SI est le risque dominant, pas l'IA."},
-        {"organisation": "Cas B — grand groupe bancaire universel : plan IA triennal et entité IA mutualisée",
+        {"secteur": "banque",
+         "organisation": "Cas B — grand groupe bancaire universel : plan IA triennal et entité IA mutualisée",
          "chiffres": [a("casB_plan"), a("casB_entite_ia"), a("casB_entite_ia_etp")],
          "lecon": "Le seul cas français qui publie à la fois un budget de socle et un effectif "
                   "de socle : le ratio le plus proche d'une usine IA de groupe."},
-        {"organisation": "Cas C — deux banques universelles : objectifs de valeur et comptes de cas d'usage",
+        {"secteur": "banque",
+         "organisation": "Cas C — deux banques universelles : objectifs de valeur et comptes de cas d'usage",
          "chiffres": [a("casC_valeur"), a("casC_cas")],
          "lecon": "Des objectifs de valeur et des comptes de cas d'usage — sans définition publiée "
                   "de l'un ni de l'autre. À citer, pas à recopier."},
-        {"organisation": "Cas D — banque de détail : la migration manquée de 2018",
+        {"secteur": "banque",
+         "organisation": "Cas D — banque de détail : la migration manquée de 2018",
          "chiffres": [a("casD_cout"), a("casD_duree")],
          "lecon": "Le contre-exemple documenté par une revue indépendante : bascule unique, "
                   "recette insuffisante, gouvernance."},
+        {"secteur": "assurance",
+         "organisation": "Cas E — assureur composite européen : une plateforme d'IA générative interne, et le recensement des cas",
+         "chiffres": [a("assur_cas_utilisateurs"), a("assur_cas_effectif"), a("assur_cas_usages"),
+                      a("assur_non_vie"), a("assur_vie")],
+         "lecon": "Neuf cents cas d'usage RECENSÉS, et aucune part publiée de ce qui tourne "
+                  "réellement : le compte de cas d'usage est un indicateur d'activité, pas de "
+                  "valeur. Le repère de secteur est plus sobre — la moitié des assureurs non-vie, "
+                  "un quart des assureurs vie, et l'écart entre les deux tient à la nature du "
+                  "risque tarifé, pas à la maturité technique."},
+        {"secteur": "marches",
+         "organisation": "Cas F — marchés et gestion d'actifs : ce que déclare le secteur à son autorité",
+         "chiffres": [a("marches_en_prod"), a("marches_experimentent"),
+                      a("marches_sans_investissement")],
+         "lecon": "LE SEUL SECTEUR QUI PUBLIE SON TAUX D'ABSTENTION : plus d'un tiers des acteurs "
+                  "n'a rien investi dans l'IA en 2024. Un chiffre qu'aucune communication "
+                  "d'entreprise ne donnera jamais, et qui replace les annonces des autres cas."},
+        {"secteur": "nis2",
+         "organisation": "Cas G — systèmes de santé des vingt-sept États membres : l'IA déjà en service, la gouvernance en retard",
+         "chiffres": [a("sante_diagnostic"), a("sante_agents"), a("sante_postes_dedies"),
+                      a("sante_reponses")],
+         "lecon": "Trois pays sur quatre emploient l'IA en aide au diagnostic, deux sur trois des "
+                  "agents conversationnels — mais seulement la moitié a créé les postes qui les "
+                  "tiennent. L'écart entre l'usage et la fonction qui en répond est le risque "
+                  "propre aux entités essentielles."},
+        {"secteur": "nis2",
+         "organisation": "Cas H — administration fiscale : un profilage de risque auto-apprenant, et sa sanction",
+         "chiffres": [a("public_familles"), a("public_amende"), a("public_double_nationalite")],
+         "lecon": "LE CONTRE-EXEMPLE QUI N'EST PAS UNE PANNE INFORMATIQUE. Rien n'est tombé : le "
+                  "système a fonctionné comme il avait été conçu, avec la nationalité pour "
+                  "indicateur de risque et sans réexamen humain utile. C'est exactement ce que le "
+                  "règlement sur l'IA classe en haut risque — et le coût pour les familles est "
+                  "sans commune mesure avec l'amende."},
+        {"secteur": "tous",
+         "organisation": "Repère inter-sectoriel : l'écart entre activités, qui situe mieux qu'une moyenne",
+         "chiffres": [a("ue_entreprises_2025"), a("ue_secteur_haut"), a("ue_secteur_bas")],
+         "lecon": "Une entreprise européenne sur cinq emploie l'IA — mais près de deux sur trois "
+                  "dans l'information et la communication contre une sur dix dans la construction. "
+                  "Se comparer à la moyenne n'apprend rien ; se comparer à SON activité, si."},
     ]
 
+
+SECTEUR_TOUS = "tous"
+
+
+def secteurs_comparables():
+    """Les secteurs présents dans les cas, dans l'ordre des secteurs du module.
+
+    ET LE CONTRÔLE QUI VA AVEC : un cas dont le secteur n'existe pas ne se
+    rangerait dans aucun groupe du menu — il disparaîtrait de la page sans que
+    rien ne le signale. On refuse au chargement plutôt que de le perdre."""
+    connus = set(SECTEURS) | {SECTEUR_TOUS}
+    inconnus = sorted({c["secteur"] for c in comparables()} - connus)
+    if inconnus:
+        raise ValueError("cas comparables rattachés à un secteur inconnu : %s" % inconnus)
+    presents = {c["secteur"] for c in comparables()}
+    ordre = [k for k in SECTEURS if k in presents]
+    if SECTEUR_TOUS in presents:
+        ordre.append(SECTEUR_TOUS)
+    return ordre
+
+
+def nom_secteur_comparable(cle):
+    """Le libellé d'un secteur pour le menu des cas."""
+    if cle == SECTEUR_TOUS:
+        return "Tous secteurs"
+    return SECTEURS[cle]["nom"]
+
+
+secteurs_comparables()   # refuse au chargement, pas à l'affichage
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  8. LE PARCOURS GUIDÉ — par rôle, vers les sections de la page
@@ -1443,6 +1670,11 @@ def referentiel():
             "leviers_changement": LEVIERS_CHANGEMENT,
             "principes_migration": PRINCIPES_MIGRATION,
             "comparables": comparables(),
+            # L'ORDRE ET LES LIBELLÉS DES GROUPES VIENNENT D'ICI. Recopiés dans le
+            # script, ils divergeraient le jour où un secteur entre au module — et
+            # c'est le menu, le plus visible, qui serait cru.
+            "secteurs_comparables": [{"cle": k, "nom": nom_secteur_comparable(k)}
+                                     for k in secteurs_comparables()],
             "parcours": PARCOURS, "sections": SECTIONS,
             "limite": "Ce module ne porte aucun prix : il chiffre les vôtres. Ses ancrages "
                       "situent ; ils n'estiment pas. Ses sources ont été obtenues, pas lues. Il ne "

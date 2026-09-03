@@ -953,7 +953,7 @@ def test_l_etat_des_blocs_est_calcule_au_serveur_et_non_recopie():
 # en diagonale. Or ces cas servent à SITUER, pas à caler — et on ne situe pas
 # en lisant tout, on situe en comparant un cas à sa propre installation.
 
-def _comparables_rendus(cmp=None, sources=None):
+def _comparables_rendus(cmp=None, sources=None, secteurs=None):
     """Le HTML que `rendreComparables` produit RÉELLEMENT, en l'exécutant.
 
     Chercher « <select » dans le script serait vert pour un menu mort dans un
@@ -966,11 +966,12 @@ def _comparables_rendus(cmp=None, sources=None):
     corps = src[src.index(ancre) + len(ancre):src.index("\n  function rendrePhases(")]
     prog = (corps
             + "\nconst d = JSON.parse(process.env.IAF_CMP);"
-            + "\nprocess.stdout.write(rendreComparables(d.c, d.s));\n")
+            + "\nprocess.stdout.write(rendreComparables(d.c, d.s, d.g));\n")
     ref = F.referentiel()
     env = dict(os.environ, IAF_CMP=json.dumps(
         {"c": cmp if cmp is not None else ref["comparables"],
-         "s": sources if sources is not None else ref["sources"]}))
+         "s": sources if sources is not None else ref["sources"],
+         "g": secteurs if secteurs is not None else ref["secteurs_comparables"]}))
     out = subprocess.run(["node"], input=prog, capture_output=True, text=True,
                          timeout=60, env=env)
     assert out.returncode == 0, out.stderr
@@ -979,17 +980,111 @@ def _comparables_rendus(cmp=None, sources=None):
 
 def test_les_cas_comparables_se_choisissent_dans_une_liste():
     """UN VRAI `select`, que le navigateur dessine de lui-même — la leçon du
-    `datalist` invisible s'applique ici aussi."""
+    `datalist` invisible s'applique ici aussi.
+
+    ET RANGÉ PAR SECTEUR depuis que les cas ne viennent plus tous de la
+    banque : un groupe par activité, chacun avec l'option qui l'ouvre en
+    entier. Sans cette option, le groupe ne serait qu'un intertitre."""
     h = _comparables_rendus()
     assert "<select" in h and "</select>" in h, h[:300]
     assert "datalist" not in h, "un datalist ne se voit pas"
     options = re.findall(r'<option value="([^"]*)"[^>]*>([^<]*)</option>', h)
+    valeurs = [v for v, _t in options]
     cas = F.comparables()
-    assert len(options) == len(cas) + 1, (
-        "%d options pour %d cas + le « tous »" % (len(options), len(cas)))
-    assert options[0][0] == "__tous", "le menu n'offre pas de lire les cas à la suite"
-    for i, c in enumerate(cas):
-        assert options[i + 1][0] == "c%d" % i, options[i + 1]
+    groupes = F.secteurs_comparables()
+    assert valeurs[0] == "__tous", "le menu n'offre pas de lire les cas à la suite"
+    assert [v for v in valeurs if v.startswith("s:")] == ["s:" + g for g in groupes], (
+        "les groupes du menu ne suivent pas ceux du module", valeurs, groupes)
+    assert sorted(v for v in valeurs if v.startswith("c")) == sorted(
+        "c%d" % i for i in range(len(cas))), "un cas n'a pas son option"
+    assert len(valeurs) == 1 + len(groupes) + len(cas), valeurs
+
+
+def test_chaque_cas_est_range_sous_le_groupe_de_SON_secteur():
+    """UN CAS RANGÉ SOUS LA MAUVAISE ACTIVITÉ EST PIRE QU'UN CAS NON RANGÉ :
+    il fait croire à un repère sectoriel qui n'en est pas un. La règle relit
+    l'ordre réel du menu, groupe par groupe."""
+    h = _comparables_rendus()
+    cas = F.comparables()
+    bloc = h[h.index("<select"):h.index("</select>")]
+    for morceau in re.findall(r'<optgroup label="([^"]*)">(.*?)</optgroup>', bloc, re.S):
+        libelle, dedans = morceau
+        sec = re.search(r'<option value="s:([^"]+)"', dedans).group(1)
+        assert F.nom_secteur_comparable(sec) in html.unescape(libelle), (libelle, sec)
+        for i in [int(x) for x in re.findall(r'<option value="c(\d+)"', dedans)]:
+            assert cas[i]["secteur"] == sec, (
+                "le cas %d (secteur %s) est rangé sous « %s »"
+                % (i, cas[i]["secteur"], sec))
+
+
+def test_chaque_cas_rendu_PORTE_son_secteur_dans_le_document():
+    """SANS CET ATTRIBUT, LE FILTRE PAR GROUPE NE PEUT RIEN — et le menu
+    continue d'afficher ses cinq groupes comme si de rien n'était. Deux
+    mutations ont survécu à la première batterie pour cette raison : mes règles
+    éprouvaient le MENU, et rien n'éprouvait ce sur quoi le menu agit."""
+    h = _comparables_rendus()
+    cas = F.comparables()
+    portes = re.findall(r'<article class="iaf-cmp" data-cas="c(\d+)" data-cmp-sec="([^"]+)"', h)
+    assert len(portes) == len(cas), (
+        "%d articles portent leur secteur pour %d cas" % (len(portes), len(cas)))
+    for i, sec in portes:
+        assert cas[int(i)]["secteur"] == html.unescape(sec), (i, sec)
+
+
+def test_le_filtre_des_cas_traite_les_TROIS_niveaux():
+    """Un menu à trois niveaux — tous, un groupe, un cas — dont le filtre n'en
+    connaît que deux promet un tri qu'il ne rend pas : choisir un groupe ne
+    ferait alors rien du tout, silencieusement."""
+    js = _src("ia-factory.js")
+    bloc = js[js.index("function brancherComparables("):]
+    bloc = bloc[:bloc.index("\n  }")]
+    for niveau, quoi in ((("CMP_TOUS",), "« tous les cas »"),
+                         (('"s:"',), "« tout un groupe »"),
+                         (("dataset.cas",), "« un seul cas »"),
+                         (("dataset.cmpSec",), "le secteur porté par l'article")):
+        assert any(n in bloc for n in niveau), (
+            "le filtre ne traite pas %s : %r" % (quoi, bloc[:400]))
+    for interdit in ("innerHTML", "rendreComparables("):
+        assert interdit not in bloc, (
+            "le filtre redessine (« %s ») au lieu de masquer" % interdit)
+
+
+def test_les_cas_ne_viennent_pas_TOUS_du_meme_secteur():
+    """LE DÉFAUT QUI A DÉCLENCHÉ CE TOUR. Quatre cas, une seule activité : « pour
+    situer » ne veut rien dire pour qui n'est pas dans cette activité-là. La
+    règle borne une PROPRIÉTÉ — plusieurs activités représentées, et aucune
+    qui écrase les autres — jamais un compte, qui interdirait d'en ajouter."""
+    cas = F.comparables()
+    par_secteur = {}
+    for c in cas:
+        par_secteur.setdefault(c["secteur"], []).append(c)
+    assert len(par_secteur) >= 3, (
+        "les cas comparables couvrent %d activité(s) : %s"
+        % (len(par_secteur), sorted(par_secteur)))
+    domine = max(len(v) for v in par_secteur.values())
+    assert domine <= len(cas) / 2, (
+        "une seule activité porte %d des %d cas : le repère redevient sectoriel"
+        % (domine, len(cas)))
+    # Et chaque secteur du module doit être joignable par au moins un cas.
+    orphelins = [k for k in F.SECTEURS if k not in par_secteur]
+    assert not orphelins, (
+        "aucun cas comparable pour : %s — un lecteur de ce secteur n'a aucun "
+        "repère" % orphelins)
+
+
+def test_un_cas_rattache_a_un_secteur_inconnu_est_refuse_au_CHARGEMENT():
+    """Un cas dont le secteur n'existe pas ne se rangerait dans aucun groupe :
+    il disparaîtrait de la page sans que rien ne le signale. Le module refuse
+    au chargement plutôt que de le perdre à l'affichage."""
+    reel = F.comparables
+    F.comparables = lambda: [{"secteur": "inexistant", "organisation": "X",
+                              "chiffres": [], "lecon": "y"}]
+    try:
+        with pytest.raises(ValueError) as e:
+            F.secteurs_comparables()
+        assert "inexistant" in str(e.value)
+    finally:
+        F.comparables = reel
 
 
 def test_le_nombre_de_cas_vient_des_DONNEES_et_n_est_ecrit_qu_une_fois():
