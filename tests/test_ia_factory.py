@@ -20,6 +20,7 @@ CE QUE CES RÈGLES GARDENT, ET POURQUOI CE SONT DES PROPRIÉTÉS.
   — LA PAGE EST FERMÉE SANS QU'ON AIT EU À LA FERMER. C'est la liste blanche
     qui le garantit ; la règle vérifie que la garantie tient.
 """
+import html
 import io
 import json
 import os
@@ -942,3 +943,153 @@ def test_l_etat_des_blocs_est_calcule_au_serveur_et_non_recopie():
         assert interdit not in js, (
             "le script recalcule un critère de validation (%r) au lieu de le "
             "recevoir" % interdit)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LES CAS COMPARABLES EN LISTE DÉROULANTE
+# ═══════════════════════════════════════════════════════════════════════════
+# POURQUOI UN MENU. Chaque cas porte de deux à six chiffres, chacun avec sa
+# source ET ce qu'il ne dit pas : à la suite, cela fait un mur qu'on parcourt
+# en diagonale. Or ces cas servent à SITUER, pas à caler — et on ne situe pas
+# en lisant tout, on situe en comparant un cas à sa propre installation.
+
+def _comparables_rendus(cmp=None, sources=None):
+    """Le HTML que `rendreComparables` produit RÉELLEMENT, en l'exécutant.
+
+    Chercher « <select » dans le script serait vert pour un menu mort dans un
+    commentaire."""
+    src = _src("ia-factory.js")
+    ancre = "\n(function () {\n"
+    # LA TRANCHE VA JUSQU'APRÈS `rendreComparables`, qui vit plus bas que
+    # `lire` : la borne employée par les autres règles de ce fichier s'arrête
+    # avant elle et la fonction n'était pas définie.
+    corps = src[src.index(ancre) + len(ancre):src.index("\n  function rendrePhases(")]
+    prog = (corps
+            + "\nconst d = JSON.parse(process.env.IAF_CMP);"
+            + "\nprocess.stdout.write(rendreComparables(d.c, d.s));\n")
+    ref = F.referentiel()
+    env = dict(os.environ, IAF_CMP=json.dumps(
+        {"c": cmp if cmp is not None else ref["comparables"],
+         "s": sources if sources is not None else ref["sources"]}))
+    out = subprocess.run(["node"], input=prog, capture_output=True, text=True,
+                         timeout=60, env=env)
+    assert out.returncode == 0, out.stderr
+    return out.stdout
+
+
+def test_les_cas_comparables_se_choisissent_dans_une_liste():
+    """UN VRAI `select`, que le navigateur dessine de lui-même — la leçon du
+    `datalist` invisible s'applique ici aussi."""
+    h = _comparables_rendus()
+    assert "<select" in h and "</select>" in h, h[:300]
+    assert "datalist" not in h, "un datalist ne se voit pas"
+    options = re.findall(r'<option value="([^"]*)"[^>]*>([^<]*)</option>', h)
+    cas = F.comparables()
+    assert len(options) == len(cas) + 1, (
+        "%d options pour %d cas + le « tous »" % (len(options), len(cas)))
+    assert options[0][0] == "__tous", "le menu n'offre pas de lire les cas à la suite"
+    for i, c in enumerate(cas):
+        assert options[i + 1][0] == "c%d" % i, options[i + 1]
+
+
+def test_le_nombre_de_cas_vient_des_DONNEES_et_n_est_ecrit_qu_une_fois():
+    """« Quatre cas documentés » au-dessus de « Les 4 cas » écrit le même
+    nombre de deux façons dans la même commande — et un cinquième cas ajouté
+    au module laisserait le premier faux. La règle l'éprouve en RETIRANT un
+    cas : le menu doit suivre."""
+    cas = F.comparables()
+    h = _comparables_rendus()
+    assert "%d cas documentés" % len(cas) in h, h[:400]
+    assert "Les %d cas" % len(cas) in h
+    trois = cas[:3]
+    h3 = _comparables_rendus(cmp=trois)
+    assert "3 cas documentés" in h3 and "Les 3 cas" in h3, (
+        "le compte est écrit en dur : il ne suit pas les données")
+    assert "4 cas" not in h3
+
+
+def test_un_seul_cas_est_ouvert_au_chargement_et_le_menu_dit_combien_il_y_en_a():
+    """UN MENU QUI N'EN MONTRE QU'UN PAR DÉFAUT FERAIT CROIRE QU'IL N'Y EN A
+    QU'UN, si l'intitulé ne disait pas combien. Le premier est ouvert, les
+    autres sont là et masqués — pas absents : les masquer permet de les
+    rouvrir sans redessiner, donc sans perdre le choix qu'on vient de poser."""
+    h = _comparables_rendus()
+    articles = re.findall(r'<article class="iaf-cmp" data-cas="(c\d+)"([^>]*)>', h)
+    assert len(articles) == len(F.comparables()), articles
+    ouverts = [c for c, attrs in articles if "hidden" not in attrs]
+    assert ouverts == ["c0"], (
+        "au chargement, %d cas sont ouverts au lieu du premier seul" % len(ouverts))
+    assert "cas documentés" in h, "l'intitulé ne dit pas combien il y en a"
+
+
+def test_l_option_garde_le_repere_du_cas_et_coupe_le_developpement():
+    """« Cas A — grand groupe bancaire coopératif : deux réseaux, deux systèmes
+    d'information, une usine IA » ne tient pas dans une option sans la rendre
+    illisible. On garde le repère et la nature, on coupe après le
+    deux-points."""
+    h = _comparables_rendus()
+    options = dict(re.findall(r'<option value="(c\d+)"[^>]*>([^<]*)</option>', h))
+    for i, c in enumerate(F.comparables()):
+        t = html.unescape(options["c%d" % i])
+        assert t == c["organisation"].split(" : ")[0], (t, c["organisation"])
+        assert len(t) < 60, "l'option reste trop longue : %r" % t
+
+
+def test_le_filtre_masque_et_ne_redessine_pas():
+    """Redessiner referait le menu et perdrait le choix au moment même où on
+    vient de le poser."""
+    js = _src("ia-factory.js")
+    bloc = js[js.index("function brancherComparables("):]
+    bloc = bloc[:bloc.index("\n  }")]
+    assert "hidden" in bloc, "le filtre ne masque rien"
+    for interdit in ("innerHTML", "rendreComparables("):
+        assert interdit not in bloc, (
+            "le filtre redessine (« %s ») au lieu de masquer" % interdit)
+    assert "CMP_TOUS" in bloc, "le retour à « tous les cas » ne fait rien"
+
+
+def test_le_menu_des_cas_n_est_pas_cherche_comme_une_ancre_de_page():
+    """UNE RÈGLE DE CE FICHIER VÉRIFIE QUE TOUT IDENTIFIANT VISÉ PAR `$()`
+    EXISTE DANS LA PAGE — parce qu'un identifiant renommé d'un seul côté ne
+    lève rien et laisse une zone vide. Ce menu n'est pas une ancre de la page :
+    c'est le script qui le crée. Le viser par `$()` aurait fait passer pour une
+    ancre manquante ce qui n'en est pas une, et affaibli une règle utile."""
+    js = _src("ia-factory.js")
+    assert '$("iaf-cmp-sel")' not in js
+    assert 'document.querySelector("#iaf-cmp [data-cmp]")' in js, (
+        "le menu n'est pas cherché dans son conteneur")
+
+
+def test_le_menu_des_cas_est_REELLEMENT_branche():
+    """UN MENU QUI NE FAIT RIEN EST PIRE QU'AUCUN MENU : il promet un tri et
+    laisse le lecteur devant un seul cas sans moyen d'en voir un autre. Mes
+    règles éprouvaient le rendu et le corps du gestionnaire ; aucune ne
+    vérifiait qu'il soit POSÉ, et la mutation qui retirait l'appel survivait.
+
+    L'appel doit être un FRÈRE du rendu — même indentation, aucune condition
+    entre les deux : la présence du mot ailleurs dans le fichier ne prouverait
+    rien."""
+    js = _src("ia-factory.js")
+    lignes = js.split("\n")
+    i = next(k for k, l in enumerate(lignes) if '$("iaf-cmp").innerHTML' in l)
+    j = next((k for k, l in enumerate(lignes)
+              if k > i and "brancherComparables()" in l), None)
+    assert j is not None, "le menu des cas n'est jamais branché"
+    entre = "\n".join(lignes[i + 1:j])
+    assert not re.search(r"\bif\b|\?|&&|\|\|", entre), (
+        "le branchement est sous condition : %r" % entre)
+    creux = lambda l: len(l) - len(l.lstrip())
+    assert creux(lignes[j]) == creux(lignes[i]) and j - i <= 3, (
+        "le branchement ne suit pas immédiatement le rendu")
+
+
+def test_la_page_n_ecrit_le_nombre_de_cas_NULLE_PART():
+    """IL VIVAIT EN TOUTES LETTRES DANS LE CHAPÔ — « Quatre cas publics » —
+    pendant que le menu le tient depuis les données. Un cinquième cas ajouté au
+    module aurait laissé ce mot faux, et personne ne relit un chapô."""
+    h = _src("ingenierie-ia-factory.html")
+    i = h.index('id="s-ancrages"')
+    bloc = h[i:h.index("</section>", i)]
+    for compte in ("Quatre cas", "quatre cas", "4 cas", "Trois cas", "Cinq cas"):
+        assert compte not in bloc, (
+            "la page écrit le nombre de cas en dur : « %s »" % compte)

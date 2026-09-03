@@ -407,9 +407,50 @@ function demander(url, options, delai) {
   }
 
   /* ── ANCRAGES, PHASES, JALONS, LEVIERS, SOURCES ───────────────────────── */
+  /* ── LES CAS COMPARABLES, EN LISTE DÉROULANTE ─────────────────────────
+     POURQUOI UN MENU PLUTÔT QUE QUATRE ARTICLES EMPILÉS. Chaque cas porte de
+     deux à six chiffres, chacun avec sa source ET ce qu'il ne dit pas : à la
+     suite, cela fait un mur qu'on parcourt en diagonale. Or ces cas servent à
+     SITUER, pas à caler — et on ne situe pas en lisant tout, on situe en
+     comparant un cas à sa propre installation, un à la fois.
+
+     LE NOMBRE DE CAS EST ÉCRIT DANS L'INTITULÉ. Un menu qui n'en montre qu'un
+     par défaut ferait croire qu'il n'y en a qu'un ; le libellé dit combien il
+     y en a, et la première option les rend tous à la suite pour qui veut les
+     lire d'un bloc.
+
+     ET LE COMPTE N'EST PAS ÉCRIT EN DUR : il vient de ce que le module rend.
+     Un quatrième cas ajouté au module apparaîtrait dans le menu et le compte
+     resterait faux si on l'avait figé ici. */
+  var CMP_TOUS = "__tous";
+
+  function _casCourt(nom) {
+    /* « Cas A — grand groupe bancaire… » : l'intitulé complet ne tient pas
+       dans une option sans la rendre illisible. On garde le repère et la
+       nature, on coupe le développement. */
+    var i = String(nom || "").indexOf(" : ");
+    return i > 0 ? String(nom).slice(0, i) : String(nom || "");
+  }
+
   function rendreComparables(cmp, sources) {
-    return cmp.map(function (c) {
-      return '<article class="iaf-cmp"><h4>' + esc(c.organisation) + "</h4><ul>"
+    var h = '<label class="iaf-champ iaf-cmp-m"><span class="iaf-nom">'
+      /* LE COMPTE VIENT DES DONNÉES, en chiffre et au même endroit que dans
+         l'option : « Quatre cas documentés » au-dessus de « Les 4 cas » écrit
+         le même nombre de deux façons dans la même commande. */
+      + cmp.length + " cas documentés — en choisir un"
+      + '</span><select class="iaf-choix" data-cmp>'
+      + '<option value="' + CMP_TOUS + '">Les ' + cmp.length
+      + " cas, à la suite</option>";
+    cmp.forEach(function (c, i) {
+      h += '<option value="c' + i + '"' + (i === 0 ? " selected" : "") + ">"
+        + esc(_casCourt(c.organisation)) + "</option>";
+    });
+    h += '</select><span class="iaf-ou">Ils servent à SITUER un ordre de '
+      + "grandeur, pas à caler un chiffrage : chaque valeur porte sa source et "
+      + "ce qu'elle ne dit pas.</span></label>";
+    return h + cmp.map(function (c, i) {
+      return '<article class="iaf-cmp" data-cas="c' + i + '"'
+        + (i === 0 ? "" : " hidden") + "><h4>" + esc(c.organisation) + "</h4><ul>"
         + c.chiffres.map(function (x) {
             var s = sources[x.source] || {};
             return "<li><b>" + esc(x.nom) + "</b> : " + esc(fourchette(x))
@@ -418,6 +459,25 @@ function demander(url, options, delai) {
           }).join("")
         + '</ul><p class="iaf-lecon">' + esc(c.lecon) + "</p></article>";
     }).join("");
+  }
+
+  /* Le filtre MASQUE, il ne redessine pas : redessiner referait le menu et
+     perdrait le choix au moment même où on vient de le poser. */
+  function brancherComparables() {
+    /* CHERCHÉ DANS SON CONTENEUR, PAS PAR `$()`. Une règle du dépôt vérifie que
+       tout identifiant visé par `$()` existe DANS LA PAGE — parce qu'un
+       identifiant renommé d'un seul côté ne lève rien et laisse une zone
+       vide. Ce menu-ci n'est pas une ancre de la page : c'est le script qui le
+       crée. Le viser par `$()` aurait fait passer pour une ancre manquante ce
+       qui n'en est pas une, et surtout aurait affaibli une règle utile. */
+    var sel = document.querySelector("#iaf-cmp [data-cmp]");
+    if (!sel) return;
+    sel.addEventListener("change", function () {
+      var cle = sel.value;
+      document.querySelectorAll("#iaf-cmp [data-cas]").forEach(function (a) {
+        a.hidden = cle !== CMP_TOUS && a.dataset.cas !== cle;
+      });
+    });
   }
   function rendrePhases(ref) {
     return '<ol class="iaf-phases">' + ref.phases.map(function (p) {
@@ -574,6 +634,7 @@ function demander(url, options, delai) {
       redessinerQuantites();
       $("iaf-p").innerHTML = champs(REF.prix, "p");
       $("iaf-cmp").innerHTML = rendreComparables(REF.comparables, REF.sources);
+      brancherComparables();
       $("iaf-phases").innerHTML = rendrePhases(REF);
       $("iaf-jalons").innerHTML = rendreJalons(REF.jalons_reglementaires.map(function (x) {
         return Object.assign({}, x, { passe: x.date <= new Date().toISOString().slice(0, 10), avant_fin_projet: true });
