@@ -164,6 +164,58 @@
   .iaf-ph-g>div{border-left:2px solid var(--line);padding-left:10px;font-size:12.5px;color:var(--muted)}
   .iaf-ph-t{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;
     text-transform:uppercase;color:var(--muted2);margin-top:6px}
+  /* ══ LES DIX BLOCS : BLEU TANT QUE C'EST À FAIRE, VERT QUAND C'EST FAIT ══
+     LA COULEUR N'EST PAS LE SIGNAL, ELLE L'APPUIE. Un bandeau porte en toutes
+     lettres l'état et ce qui reste à faire : un lecteur daltonien, un écran
+     mal calibré, une impression en noir et blanc — dans les trois cas la
+     couleur seule ne dit plus rien, et le texte, lui, tient. */
+  .iaf-sec{border:1px solid rgba(56,132,222,.55);border-left:4px solid #3884de;
+    border-radius:14px;padding:20px 22px;background:rgba(56,132,222,.05);
+    transition:border-color .25s,background .25s}
+  .iaf-sec.ok{border-color:rgba(45,212,191,.6);border-left-color:var(--teal);
+    background:rgba(45,212,191,.06)}
+  @media(prefers-reduced-motion:reduce){.iaf-sec{transition:none}}
+  .iaf-etat{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;
+    margin:0 0 12px;font-size:12.5px}
+  .iaf-num{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;
+    border-radius:50%;border:1px solid #3884de;color:#7fb4f0;font-family:var(--mono);
+    font-size:12px;flex:0 0 auto}
+  .iaf-sec.ok .iaf-num{border-color:var(--teal);color:var(--teal)}
+  .iaf-pastille{padding:2px 10px;border-radius:999px;border:1px solid #3884de;color:#7fb4f0;
+    font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+  .iaf-sec.ok .iaf-pastille{border-color:var(--teal);color:var(--teal)}
+  .iaf-critere{color:var(--muted);flex:1 1 260px;text-align:left;line-height:1.5}
+  .iaf-lu{display:inline-flex;align-items:center;gap:7px;cursor:pointer;color:var(--ink);
+    white-space:nowrap}
+  .iaf-lu input{width:15px;height:15px;accent-color:var(--teal);cursor:pointer}
+
+  /* ══ LES INFOBULLES ══════════════════════════════════════════════════
+     LE TEXTE RESTE DANS LE DOCUMENT, TOUJOURS. Une infobulle construite en
+     JavaScript au survol prive le lecteur de clavier, le lecteur d'écran et
+     l'impression. Celle-ci est un <span> présent dans le HTML, masqué
+     visuellement, révélé au survol ET au focus — et lu par les technologies
+     d'assistance via aria-describedby, qu'elle soit visible ou non. */
+  .iaf-info{position:relative;display:inline-flex;align-items:center;justify-content:center;
+    width:16px;height:16px;margin-left:5px;border-radius:50%;border:1px solid currentColor;
+    font-size:10px;font-family:var(--mono);opacity:.7;cursor:help;vertical-align:middle;
+    background:transparent;color:inherit;padding:0;flex:0 0 auto}
+  .iaf-info:hover,.iaf-info:focus-visible{opacity:1;border-color:var(--cyan);color:var(--cyan)}
+  .iaf-info:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  .iaf-bulle{position:absolute;bottom:calc(100% + 9px);left:50%;transform:translateX(-50%);
+    width:min(300px,72vw);padding:10px 13px;border-radius:9px;border:1px solid rgba(34,211,238,.45);
+    background:#10161f;color:var(--muted);font-family:var(--sans);font-size:12px;
+    line-height:1.55;text-align:left;letter-spacing:normal;text-transform:none;font-weight:400;
+    box-shadow:0 8px 22px rgba(0,0,0,.45);opacity:0;visibility:hidden;z-index:70;
+    transition:opacity .16s;pointer-events:none}
+  .iaf-bulle::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);
+    border:6px solid transparent;border-top-color:rgba(34,211,238,.45)}
+  .iaf-info:hover .iaf-bulle,.iaf-info:focus-visible .iaf-bulle,
+  .iaf-info:focus .iaf-bulle{opacity:1;visibility:visible}
+  @media(prefers-reduced-motion:reduce){.iaf-bulle{transition:none}}
+  /* Près du bord gauche, la bulle sortait de l'écran : on la recale. */
+  .iaf-champ .iaf-bulle{left:0;transform:none}
+  .iaf-champ .iaf-bulle::after{left:22px;transform:none}
+
   .iaf-limite{margin:26px auto 0;max-width:88ch;padding:12px 15px;border:1px dashed currentColor;border-radius:10px;font-size:12.5px;line-height:1.6;opacity:.9}
 </style>
 </head>

@@ -3853,10 +3853,15 @@ def api_ia_factory_chiffrer():
         pl = ia_factory.planning(d.get("quantites"), debut, secteur)
     except ValueError:
         return jsonify(ok=False, error="date de début illisible (attendu AAAA-MM-JJ)"), 400
-    return jsonify(ok=True,
-                   chiffrage=ia_factory.chiffrer(d.get("quantites"), d.get("prix"),
-                                                 d.get("provision_pct"), secteur),
-                   planning=pl)
+    ch = ia_factory.chiffrer(d.get("quantites"), d.get("prix"),
+                             d.get("provision_pct"), secteur)
+    # L'ÉTAT DES BLOCS EST CALCULÉ ICI, PAS DANS LA PAGE. Le critère qui fait
+    # passer un bloc au vert est une décision ; recopiée dans un script, elle
+    # dériverait de celle du module au premier poste ajouté — et un bloc vert
+    # pour un critère périmé est pire qu'un bloc bleu.
+    return jsonify(ok=True, chiffrage=ch, planning=pl,
+                   blocs=ia_factory.etat_blocs(d.get("quantites"), d.get("prix"),
+                                               secteur, ch))
 
 
 @app.route("/api/datacenter/economiste")

@@ -636,3 +636,163 @@ def test_la_page_charge_le_script_qui_la_PILOTE(connecte):
     assert pilotes, (
         "aucun script chargé par la page ne pilote ses identifiants (%s) : la "
         "page s'affiche mais ne fait rien" % ", ".join(sorted(ids)[:5]))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  10. LES DIX BLOCS — bleu tant que c'est à faire, vert quand c'est fait
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_les_dix_blocs_sont_declares_numerotes_et_correspondent_a_la_page(connecte):
+    page = connecte.get(URL).get_data(as_text=True)
+    ids = re.findall(r'id="(s-[a-z-]+)"', page)
+    assert [s["id"] for s in F.SECTIONS] == ids, (
+        "les blocs déclarés ne sont pas ceux de la page, dans le même ordre")
+    assert [s["numero"] for s in F.SECTIONS] == list(range(1, len(ids) + 1)), (
+        "la numérotation n'est pas continue de 1 à %d" % len(ids))
+    for s in F.SECTIONS:
+        assert s["nature"] in ("mesure", "lecture"), s["id"]
+        assert s["critere"].strip(), "le bloc %s ne dit pas ce qui le valide" % s["id"]
+        assert s["aide"].strip(), "le bloc %s n'a pas d'infobulle" % s["id"]
+
+
+def test_un_bloc_MESURE_ne_verdit_pas_sans_son_fait():
+    """LE MENSONGE VISUEL QU'IL FAUT INTERDIRE. Un indicateur d'avancement qui
+    passe au vert sans que rien ne se soit passé est pire qu'aucun indicateur :
+    il est crédible. Chaque bloc « mesure » est donc éprouvé DEUX FOIS — sans
+    son fait, puis avec — et il doit changer d'état entre les deux."""
+    vide = F.etat_blocs({}, {}, None, None)
+    mesures = [s for s in F.SECTIONS if s["nature"] == "mesure"]
+    assert mesures, "aucun bloc mesuré ?"
+    for s in mesures:
+        assert vide[s["id"]]["valide"] is False, (
+            "le bloc %s est vert alors que rien n'a été fait" % s["id"])
+        assert vide[s["id"]]["dit"].strip(), (
+            "le bloc %s ne dit pas ce qui lui manque" % s["id"])
+    # Le secteur seul valide le bloc 1, et lui seul.
+    sect = F.etat_blocs({}, {}, "banque", None)
+    assert sect["s-secteur"]["valide"] is True
+    assert sect["s-saisie"]["valide"] is False and sect["s-chiffrage"]["valide"] is False
+    # Toutes les entrées renseignées valident la saisie, pas le chiffrage.
+    Q = {k: 1 for k in F.quantites_pour("banque")}
+    P = {k: 1 for k in F.PRIX}
+    plein = F.etat_blocs(Q, P, "banque", None)
+    assert plein["s-saisie"]["valide"] is True
+    assert plein["s-chiffrage"]["valide"] is False, (
+        "le chiffrage ne peut pas être vert avant d'avoir été lancé")
+    # Un chiffrage complet valide le chiffrage ET le planning.
+    ch = F.chiffrer(Q, P, 0.2, "banque")
+    fini = F.etat_blocs(Q, P, "banque", ch)
+    assert fini["s-chiffrage"]["valide"] is True and fini["s-planning"]["valide"] is True
+    # Et un chiffrage QUI LAISSE UN POSTE NON CHIFFRÉ ne valide pas.
+    partiel = F.chiffrer(Q, dict(P, cout_interface=None), 0.2, "banque")
+    assert partiel["n_non_chiffres"] > 0
+    assert F.etat_blocs(Q, dict(P, cout_interface=None), "banque",
+                        partiel)["s-chiffrage"]["valide"] is False
+
+
+def test_un_bloc_LECTURE_ne_pretend_pas_etre_mesure():
+    """PERSONNE NE PEUT CONSTATER UNE LECTURE. Le serveur rend `valide: None`
+    pour ces blocs — ni vrai ni faux — et dit que c'est une déclaration. Rendre
+    `False` laisserait croire à une mesure qui aurait échoué ; rendre `True`
+    serait un mensonge pur."""
+    e = F.etat_blocs({}, {}, "banque", None)
+    lectures = [s for s in F.SECTIONS if s["nature"] == "lecture"]
+    assert len(lectures) >= 4, "trop peu de blocs de lecture pour que la règle mesure"
+    for s in lectures:
+        assert e[s["id"]]["valide"] is None, (
+            "le bloc %s prétend être mesuré alors qu'il ne peut pas l'être" % s["id"])
+        assert "déclar" in e[s["id"]]["dit"].lower(), (
+            "le bloc %s ne dit pas que son vert est une déclaration" % s["id"])
+    js = _src("ia-factory.js")
+    assert "J’ai lu" in js or "J'ai lu" in js, (
+        "la case de lecture doit dire « J'ai lu » — pas « validé », qui ferait "
+        "croire à une vérification")
+
+
+def test_les_listes_deroulantes_n_inventent_aucune_norme():
+    """LA LIGNE À NE PAS FRANCHIR. Une liste de choix sur un PRIX, ou sur une
+    charge (« 1,5 ETP par cas »), installerait une norme inventée — exactement
+    ce que ce module refuse partout ailleurs. Les choix ne sont admis que sur
+    des énumérations STRUCTURELLES ou purement conventionnelles : un ou deux
+    systèmes à unifier, un horizon en années, une fraction d'effectif."""
+    for cle, v in F.PRIX.items():
+        assert not v.get("choix"), (
+            "le prix « %s » propose des valeurs : ce module ne propose aucun prix" % cle)
+    autorises = {"n_si_source", "duree_mois", "part_formes", "part_appels_ia"}
+    avec = {k for k, v in F.QUANTITES.items() if v.get("choix")}
+    assert avec <= autorises, (
+        "des quantités proposent des valeurs sans que l'énumération soit "
+        "structurelle : %s" % sorted(avec - autorises))
+    assert avec, "aucune liste déroulante : la demande n'est pas servie"
+    for k in avec:
+        for val, libelle in F.QUANTITES[k]["choix"]:
+            assert isinstance(val, (int, float)) and str(libelle).strip(), (k, val)
+
+
+def test_la_page_encadre_en_bleu_et_passe_au_vert(connecte):
+    """LA COULEUR EST LUE DANS LA FEUILLE, pas affirmée. Et elle n'est pas le
+    seul signal : une pastille porte l'état en toutes lettres, pour qui ne
+    distingue pas les deux teintes."""
+    css = _src("ingenierie-ia-factory.html")
+    # UNE REQUÊTE MÉDIA N'EST PAS DE LA CASCADE — troisième fois que ce piège
+    # se referme sur moi. La DERNIÈRE déclaration `.iaf-sec` du fichier est
+    # celle de `@media(prefers-reduced-motion)`, qui ne pose qu'une transition :
+    # la lire revenait à juger l'encadrement sur un bloc qui n'en parle pas.
+    # On écarte donc les blocs conditionnels avant de lire le flux.
+    flux = re.sub(r"@media[^{]*\{(?:[^{}]|\{[^{}]*\})*\}", "", css)
+    base = re.findall(r"\.iaf-sec\{([^}]*)\}", flux)
+    assert base and "border" in base[-1], "les blocs ne sont pas encadrés"
+    bleu = [b for b in base if "3884de" in b]
+    assert bleu, "l'encadrement au repos n'est pas bleu"
+    vert = re.search(r"\.iaf-sec\.ok\{([^}]*)\}", css)
+    assert vert and "--teal" in vert.group(1), (
+        "l'état validé ne passe pas au vert")
+    js = _src("ia-factory.js")
+    # LA RECHERCHE EST BORNÉE À LA FONCTION QUI PEINT, et ce n'est pas un
+    # détail : chercher `classList.remove("ok")` dans TOUT le fichier le
+    # trouvait dans le gestionnaire de la case à cocher, pendant que la
+    # peinture, elle, ne savait plus que verdir. Mutation vérifiée : elle
+    # survivait. Une règle qui cherche une chaîne au mauvais endroit est verte
+    # pour une raison sans rapport avec ce qu'elle garde.
+    # BORNÉE À LA BOUCLE QUI PEINT, ET PAS À LA FONCTION. Le gestionnaire de
+    # la case à cocher vit DANS `peindreBlocs` et contient lui aussi les deux
+    # appels : borner à la fonction ne séparait donc rien, et la mutation
+    # survivait encore. Deuxième resserrement, vérifié par mutation.
+    peint = js[js.index("REF.sections.forEach"):]
+    peint = peint[:peint.index("\n    });")]
+    assert 'classList.add("ok")' in peint and 'classList.remove("ok")' in peint, (
+        "la peinture doit pouvoir REVENIR au bleu : un état qui ne se défait "
+        "pas ment dès que le fait cesse")
+    assert "iaf-pastille" in js, (
+        "l'état doit être écrit en toutes lettres, pas porté par la seule couleur")
+
+
+def test_les_infobulles_restent_lisibles_sans_souris():
+    """UNE INFOBULLE FABRIQUÉE AU SURVOL EXCLUT CEUX QUI N'ONT PAS DE SOURIS,
+    et perd son texte pour un lecteur d'écran comme à l'impression. Celle-ci
+    est écrite dans le document, portée par un bouton focalisable, et reliée
+    par aria-describedby."""
+    js = _src("ia-factory.js")
+    bloc = js[js.index("function bulle("):]
+    bloc = bloc[:bloc.index("\n  }")]
+    assert "aria-describedby" in bloc, "l'infobulle n'est pas reliée à ce qu'elle décrit"
+    assert 'role="tooltip"' in bloc, "l'infobulle ne se déclare pas comme telle"
+    assert "<button" in bloc, (
+        "l'infobulle doit être portée par un élément focalisable au clavier")
+    assert "esc(texte)" in bloc, "le texte de l'infobulle n'est pas échappé"
+    css = _src("ingenierie-ia-factory.html")
+    assert ":focus-visible .iaf-bulle" in css or ".iaf-info:focus .iaf-bulle" in css, (
+        "l'infobulle ne s'ouvre pas au focus clavier")
+
+
+def test_l_etat_des_blocs_est_calcule_au_serveur_et_non_recopie():
+    """Le critère qui fait verdir un bloc est une DÉCISION. Recopiée dans le
+    script, elle dériverait de celle du module au premier poste ajouté — et un
+    bloc vert pour un critère périmé est pire qu'un bloc bleu."""
+    js = _src("ia-factory.js")
+    assert "j.blocs" in js and "peindreBlocs" in js, (
+        "la page doit peindre les blocs à partir de ce que le serveur rend")
+    for interdit in ("n_non_chiffres === 0", "n_non_chiffres == 0", "manquantes"):
+        assert interdit not in js, (
+            "le script recalcule un critère de validation (%r) au lieu de le "
+            "recevoir" % interdit)

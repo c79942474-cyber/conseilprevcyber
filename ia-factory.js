@@ -88,6 +88,69 @@ function demander(url, options, delai) {
       ? messageDelai(+m.slice(6)) : ("Indisponible : " + (m || "erreur inconnue"))) + "</p>";
   }
 
+  /* ══ LES DIX BLOCS : BLEU TANT QUE C'EST À FAIRE, VERT QUAND C'EST FAIT ══
+     DEUX NATURES, DEUX FAÇONS DE VERDIR, et la page ne confond pas les deux.
+     Un bloc « mesure » verdit sur un FAIT que le serveur constate, et il
+     repasse au bleu si le fait cesse. Un bloc « lecture » ne peut être
+     constate par personne : il porte une case, et son libellé dit « J'ai lu »
+     — c'est une déclaration du lecteur, pas une vérification de la page. Faire
+     verdir un bloc au défilement prétendrait mesurer une lecture ; ce serait
+     faux, et faux de la pire façon : de façon crédible.
+
+     LES DÉCLARATIONS DE LECTURE SURVIVENT AU RECHARGEMENT. Les perdre à chaque
+     visite ferait recommencer un travail que personne ne refait ; le stockage
+     est local au navigateur, et son échec (navigation privée, stockage refusé)
+     ne doit rien casser — d'où les try/catch. */
+  var CLE_LU = "iaf-lu-v1";
+  var LU = {};
+  function luCharger() {
+    try { LU = JSON.parse(localStorage.getItem(CLE_LU) || "{}") || {}; } catch (e) { LU = {}; }
+  }
+  function luEnregistrer() {
+    try { localStorage.setItem(CLE_LU, JSON.stringify(LU)); } catch (e) { /* sans effet */ }
+  }
+
+  function bandeau(sec, etat) {
+    var lecture = sec.nature === "lecture";
+    var ok = lecture ? !!LU[sec.id] : !!(etat && etat.valide);
+    var h = '<div class="iaf-etat">'
+      + '<span class="iaf-num" aria-hidden="true">' + sec.numero + "</span>"
+      + '<span class="iaf-pastille">' + (ok ? "validé" : (lecture ? "à lire" : "à compléter")) + "</span>"
+      + '<span class="iaf-critere">' + esc(sec.critere)
+      + (etat && etat.dit ? " <b>" + esc(etat.dit) + "</b>" : "")
+      + bulle(sec.aide, "À propos du bloc " + sec.numero) + "</span>";
+    if (lecture) {
+      h += '<label class="iaf-lu"><input type="checkbox" data-lu="' + esc(sec.id) + '"'
+        + (ok ? " checked" : "") + "> J’ai lu ce bloc</label>";
+    }
+    return h + "</div>";
+  }
+
+  function peindreBlocs(etats) {
+    if (!REF || !REF.sections) return;
+    REF.sections.forEach(function (sec) {
+      var z = $(sec.id);
+      if (!z) return;
+      var etat = etats ? etats[sec.id] : null;
+      var ok = sec.nature === "lecture" ? !!LU[sec.id] : !!(etat && etat.valide);
+      var b = z.querySelector(".iaf-etat");
+      if (b) { b.outerHTML = bandeau(sec, etat); }
+      else { z.insertAdjacentHTML("afterbegin", bandeau(sec, etat)); }
+      if (ok) { z.classList.add("ok"); } else { z.classList.remove("ok"); }
+    });
+    document.querySelectorAll("[data-lu]").forEach(function (c) {
+      c.addEventListener("change", function () {
+        LU[c.dataset.lu] = c.checked;
+        luEnregistrer();
+        var z = $(c.dataset.lu);
+        if (!z) return;
+        if (c.checked) { z.classList.add("ok"); } else { z.classList.remove("ok"); }
+        var p = z.querySelector(".iaf-pastille");
+        if (p) p.textContent = c.checked ? "validé" : "à lire";
+      });
+    });
+  }
+
   /* ── LE PARCOURS GUIDÉ ────────────────────────────────────────────────
      Les rôles viennent du serveur ; la page ne connaît ni leurs noms ni les
      sections qu'ils visent. Une seule section en relief à la fois : deux
@@ -158,14 +221,42 @@ function demander(url, options, delai) {
   }
 
   /* ── SAISIE : un champ par quantité et par prix, dérivés du référentiel ── */
+  /* L'INFOBULLE, ÉCRITE DANS LE DOCUMENT ET NON FABRIQUÉE AU SURVOL.
+     Un bouton focalisable, une bulle qui est un vrai <span> — donc lisible au
+     clavier, par un lecteur d'écran (aria-describedby) et à l'impression. Une
+     infobulle qui n'existe qu'au survol de la souris exclut ceux qui n'ont pas
+     de souris, et perd le texte pour tout le reste. */
+  var _bulle = 0;
+  function bulle(texte, etiquette) {
+    if (!texte) return "";
+    var id = "iaf-b" + (++_bulle);
+    return '<button type="button" class="iaf-info" aria-describedby="' + id + '"'
+      + ' aria-label="' + esc(etiquette || "Explication") + '">i'
+      + '<span class="iaf-bulle" role="tooltip" id="' + id + '">' + esc(texte) + "</span></button>";
+  }
+
+  /* LA LISTE DÉROULANTE N'EXISTE QUE LÀ OÙ LE MODULE EN DÉCLARE UNE, et le
+     module n'en déclare que sur des énumérations STRUCTURELLES — un ou deux
+     systèmes à unifier, un horizon en années, une fraction d'effectif. Jamais
+     sur un prix ni sur une charge : proposer « 1,5 ETP par cas » installerait
+     une norme inventée, ce que ce module refuse partout ailleurs.
+     C'est un `datalist` et non un `select` : il suggère sans contraindre, et
+     la valeur exacte du client reste saisissable. */
   function champs(dict, prefixe) {
     var h = "";
     Object.keys(dict).forEach(function (k) {
-      var d = dict[k];
+      var d = dict[k], lid = "dl-" + prefixe + "-" + k, liste = "";
+      if (d.choix && d.choix.length) {
+        liste = '<datalist id="' + lid + '">' + d.choix.map(function (c) {
+          return '<option value="' + esc(c[0]) + '" label="' + esc(c[1]) + '">' + esc(c[1]) + "</option>";
+        }).join("") + "</datalist>";
+      }
       h += '<label class="iaf-champ"><span class="iaf-nom">' + esc(d.nom)
-        + ' <small>(' + esc(d.unite) + ')</small></span>'
+        + ' <small>(' + esc(d.unite) + ')</small>' + bulle(d.ou, "Où trouver « " + d.nom + " »")
+        + "</span>"
         + '<input type="number" step="any" min="0" inputmode="decimal" data-cle="' + esc(k)
-        + '" data-famille="' + prefixe + '" placeholder="non renseigné">'
+        + '" data-famille="' + prefixe + '" placeholder="non renseigné"'
+        + (liste ? ' list="' + lid + '"' : "") + ">" + liste
         + '<span class="iaf-ou">' + esc(d.ou) + "</span></label>";
     });
     return h;
@@ -242,6 +333,7 @@ function demander(url, options, delai) {
         $("iaf-secteur").innerHTML = rendreSecteurs();
         brancherSecteurs();
         redessinerQuantites();
+        rafraichirBlocs();
       });
     });
   }
@@ -377,6 +469,19 @@ function demander(url, options, delai) {
     return h;
   }
 
+  /* On ne demande pas au serveur à chaque frappe : une temporisation courte
+     suffit à ce que l'état suive la saisie sans la marteler. */
+  var _tempo = null;
+  function rafraichirBlocs() {
+    clearTimeout(_tempo);
+    _tempo = setTimeout(function () {
+      var corps = { quantites: lire("q"), prix: lire("p"), secteur: SECTEUR || null };
+      demander("/api/ia-factory/chiffrer", { method: "POST",
+        headers: { "Content-Type": "application/json" }, body: JSON.stringify(corps) }, DELAI_MOYEN)
+        .then(function (j) { peindreBlocs(j.blocs); }, function () { /* l'état reste tel quel */ });
+    }, 500);
+  }
+
   function chiffrer() {
     var out = $("iaf-out"), dim = $("iaf-dim"), pla = $("iaf-planning");
     out.innerHTML = "<p>Chiffrage en cours…</p>";
@@ -389,6 +494,7 @@ function demander(url, options, delai) {
         out.innerHTML = rendreChiffrage(j.chiffrage, REF);
         dim.innerHTML = rendreDim(j.chiffrage.dimensionnement);
         pla.innerHTML = rendrePlanning(j.planning);
+        peindreBlocs(j.blocs);
       }, function (e) { erreur(out, e); });
   }
 
@@ -410,6 +516,13 @@ function demander(url, options, delai) {
       $("iaf-limite").textContent = REF.limite;
       $("iaf-go").addEventListener("click", chiffrer);
       $("iaf-debut").value = new Date().toISOString().slice(0, 10);
+      luCharger();
+      peindreBlocs(null);
+      /* Le secteur et la saisie changent l'état des blocs sans qu'on chiffre :
+         on redemande au serveur, qui reste seul juge des critères. */
+      document.addEventListener("input", function (e) {
+        if (e.target && e.target.dataset && e.target.dataset.famille) rafraichirBlocs();
+      });
       guideRendre();
       $("iaf-guide-b").addEventListener("click", function () {
         guideOuvrir($("iaf-guide").hidden);

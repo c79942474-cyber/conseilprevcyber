@@ -479,6 +479,9 @@ QUANTITES = {
                     "ou": "Vos pilotes déjà menés : personnes réellement mobilisées sur un cas jusqu'à la "
                           "production, pas l'effectif nominal de l'équipe."},
     "n_si_source": {"nom": "Systèmes d'information à unifier", "unite": "SI",
+                    "choix": [(1, "Un seul socle, stable"),
+                              (2, "Deux systèmes — migration de cœur en cours"),
+                              (3, "Trois ou plus")],
                     "ou": "Cartographie applicative ; 1 si l'usine se pose sur un socle stable, 2 ou plus "
                           "si elle accompagne une migration de cœur."},
     "n_interfaces": {"nom": "Interfaces à porter vers le socle IA", "unite": "interfaces",
@@ -487,13 +490,19 @@ QUANTITES = {
     "volume_appels": {"nom": "Appels entrants par an", "unite": "appels/an",
                       "ou": "Statistiques du centre de relation client."},
     "part_appels_ia": {"nom": "Part visée d'appels traités de bout en bout par l'IA", "unite": "part",
+                       "choix": [(0.05, "Un vingtième"), (0.1, "Un dixième"),
+                                 (0.25, "Un quart"), (0.5, "La moitié")],
                        "ou": "Objectif du comité ; le cas A publie 1 million sur 12 (ancrage, pas cible)."},
     "part_formes": {"nom": "Part des salariés à former", "unite": "part",
+                    "choix": [(0.25, "Un quart"), (0.5, "La moitié"),
+                              (0.75, "Trois quarts"), (1, "Tous")],
                     "ou": "Accord social ou plan de développement des compétences ; cas A : ~45 000 sur "
                           "~100 000 (ancrage)."},
     "heures_formation": {"nom": "Heures de formation par salarié formé", "unite": "h",
                          "ou": "Catalogue de formation ; distinguer socle commun et parcours métier."},
     "duree_mois": {"nom": "Horizon de l'étude", "unite": "mois",
+                   "choix": [(12, "Un an"), (24, "Deux ans"), (36, "Trois ans"),
+                             (48, "Quatre ans"), (60, "Cinq ans")],
                    "ou": "Plan stratégique ; le cas A annonce quatre ans (ancrage)."},
     "tokens_mois": {"nom": "Volume d'inférence prévu", "unite": "M jetons/mois",
                     "ou": "Relevés des pilotes (console du fournisseur) ; non instruit s'il n'y en a pas."},
@@ -1315,6 +1324,110 @@ PARCOURS = [
 ]
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  9. LES DIX BLOCS — et ce qui fait passer chacun du bleu au vert
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# UN BLOC QUI VERDIT SANS QUE RIEN NE SE SOIT PASSÉ EST UN MENSONGE VISUEL,
+# et c'est le piège de tout indicateur d'avancement. Deux natures de bloc,
+# donc, et elles ne se valident pas de la même façon :
+#
+#   · `mesure` — la page CONSTATE. Un secteur choisi, des entrées
+#     renseignées, un chiffrage sans poste manquant, un calendrier construit.
+#     Le vert dit un fait vérifiable, et il repart au bleu si le fait cesse.
+#
+#   · `lecture` — la page ne peut RIEN constater. Personne ne sait si un
+#     lecteur a lu. Le vert est alors une DÉCLARATION du lecteur, obtenue par
+#     une case à cocher, et le libellé le dit : « J'ai lu ». Faire verdir un
+#     bloc au défilement prétendrait mesurer une lecture ; ce serait faux, et
+#     faux de la pire façon — de façon crédible.
+#
+# `critere` est le texte affiché : le lecteur doit savoir ce qui reste à
+# faire pour passer au vert, sinon l'indicateur informe sans instruire.
+
+SECTIONS = [
+    {"id": "s-secteur", "numero": 1, "nom": "Votre secteur", "nature": "mesure",
+     "critere": "Choisissez un secteur : il ajoute ses postes, ses jalons et ses cas d'usage.",
+     "aide": "Sans secteur, l'étude reste générique — elle ignore le registre des prestataires "
+             "TIC, la validation actuarielle ou le dossier de sûreté selon le cas."},
+    {"id": "s-ancrages", "numero": 2, "nom": "Les cas comparables", "nature": "lecture",
+     "critere": "Lisez les quatre cas et, pour chaque chiffre, ce qu'il ne dit pas.",
+     "aide": "Ces ordres de grandeur situent une étude ; aucun n'est une estimation pour la "
+             "vôtre. Les citer sans leur réserve serait les transformer en promesse."},
+    {"id": "s-saisie", "numero": 3, "nom": "Vos quantités, vos prix", "nature": "mesure",
+     "critere": "Renseignez toutes les quantités attendues et tous les prix unitaires.",
+     "aide": "Chaque entrée dit où la trouver. Une entrée qu'on ne sait pas où chercher est "
+             "une entrée qui sera inventée."},
+    {"id": "s-chiffrage", "numero": 4, "nom": "Le chiffrage", "nature": "mesure",
+     "critere": "Lancez le chiffrage, et n'ayez plus aucun poste non chiffré.",
+     "aide": "Un poste sans prix n'est pas compté à zéro : il ressort « non chiffré » avec sa "
+             "raison. Le bloc reste bleu tant qu'il en reste un."},
+    {"id": "s-planning", "numero": 5, "nom": "Le planning et ses jalons", "nature": "mesure",
+     "critere": "Le calendrier se construit au chiffrage, à partir de la date de début.",
+     "aide": "Les phases glissent avec le projet ; les jalons réglementaires, non. C'est "
+             "pourquoi ils ne sont pas dans la même liste."},
+    {"id": "s-changement", "numero": 6, "nom": "La conduite du changement", "nature": "lecture",
+     "critere": "Prenez connaissance des cinq leviers, de leur public et de leur mesure.",
+     "aide": "La ressource rare est la personne qui connaît le métier ET l'outil. Elle se "
+             "forme, elle ne se recrute pas."},
+    {"id": "s-migration", "numero": 7, "nom": "La migration des systèmes", "nature": "lecture",
+     "critere": "Confrontez votre plan de bascule aux quatre principes.",
+     "aide": "Une usine IA adossée à une migration de cœur hérite de l'aléa de la migration. "
+             "Le contre-exemple est documenté par une revue indépendante."},
+    {"id": "s-conformite", "numero": 8, "nom": "La conformité", "nature": "lecture",
+     "critere": "Prenez connaissance des textes qui commandent votre calendrier.",
+     "aide": "La qualification d'un système se fait dossier par dossier, dès le cadrage. Ce "
+             "module ne qualifie rien : c'est une analyse juridique."},
+    {"id": "s-offre", "numero": 9, "nom": "Les sept lots", "nature": "lecture",
+     "critere": "Parcourez les lots et ce que chacun consomme dans le chiffrage.",
+     "aide": "Aucun prix dans ce tableau : les jours se saisissent au bloc 3, sur votre grille."},
+    {"id": "s-sources", "numero": 10, "nom": "Les sources", "nature": "lecture",
+     "critere": "Rouvrez les sources : aucune n'a été lue depuis le poste qui a bâti ce module.",
+     "aide": "Une source qu'on ne peut pas rouvrir est une intention, pas une source. Le "
+             "registre compte les adresses joignables au lieu de lisser."},
+]
+
+
+def etat_blocs(quantites, prix, secteur=None, chiffrage=None):
+    """L'état des blocs que la page peut CONSTATER — les autres se déclarent.
+
+    Rendu au serveur plutôt que calculé dans la page : le critère de validation
+    d'un bloc est une décision, et une décision recopiée dans un script dérive
+    de celle du module au premier poste ajouté."""
+    q = {k: _nombre(v) for k, v in (quantites or {}).items()}
+    p = {k: _nombre(v) for k, v in (prix or {}).items()}
+    secteur = secteur if secteur in SECTEURS else None
+    attendues = quantites_pour(secteur)
+    manquantes = ([k for k in attendues if q.get(k) is None]
+                  + [k for k in PRIX if p.get(k) is None])
+    out = {}
+    for sec in SECTIONS:
+        if sec["nature"] != "mesure":
+            out[sec["id"]] = {"nature": "lecture", "valide": None,
+                              "dit": "À déclarer lu : la page ne peut pas constater une lecture."}
+            continue
+        if sec["id"] == "s-secteur":
+            ok = secteur is not None
+            dit = ("Secteur retenu." if ok else "Aucun secteur choisi.")
+        elif sec["id"] == "s-saisie":
+            ok = not manquantes
+            dit = ("Toutes les entrées sont renseignées." if ok
+                   else "%d entrée(s) manquante(s) sur %d."
+                        % (len(manquantes), len(attendues) + len(PRIX)))
+        elif sec["id"] == "s-chiffrage":
+            ok = bool(chiffrage) and chiffrage.get("n_non_chiffres") == 0
+            dit = ("Tous les postes sont chiffrés." if ok
+                   else ("%d poste(s) non chiffré(s)." % chiffrage["n_non_chiffres"]
+                         if chiffrage else "Chiffrage pas encore lancé."))
+        elif sec["id"] == "s-planning":
+            ok = bool(chiffrage)
+            dit = ("Calendrier construit." if ok else "Le calendrier se construit au chiffrage.")
+        else:
+            ok, dit = False, ""
+        out[sec["id"]] = {"nature": "mesure", "valide": bool(ok), "dit": dit}
+    return out
+
+
 def referentiel():
     """Tout ce que la page affiche. Rien n'est recopié dans la page."""
     return {"version": VERSION,
@@ -1330,7 +1443,7 @@ def referentiel():
             "leviers_changement": LEVIERS_CHANGEMENT,
             "principes_migration": PRINCIPES_MIGRATION,
             "comparables": comparables(),
-            "parcours": PARCOURS,
+            "parcours": PARCOURS, "sections": SECTIONS,
             "limite": "Ce module ne porte aucun prix : il chiffre les vôtres. Ses ancrages "
                       "situent ; ils n'estiment pas. Ses sources ont été obtenues, pas lues. Il ne "
                       "nomme ni entreprise ni personne ; ses adresses nomment nécessairement des sites."}
@@ -1341,4 +1454,5 @@ def sante():
             "postes": len(POSTES), "postes_secteur": len(POSTES_SECTEUR),
             "secteurs": len(SECTEURS), "ancrages": len(ANCRAGES),
             "sources": len(SOURCES), "phases": len(PHASES),
-            "jalons_reglementaires": len(JALONS_REGLEMENTAIRES), "roles": len(PARCOURS)}
+            "jalons_reglementaires": len(JALONS_REGLEMENTAIRES), "roles": len(PARCOURS),
+            "sections": len(SECTIONS)}
