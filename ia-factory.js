@@ -535,6 +535,36 @@ function demander(url, options, delai) {
 
   /* Le filtre MASQUE, il ne redessine pas : redessiner referait le menu et
      perdrait le choix au moment même où on vient de le poser. */
+  function brancherPhases() {
+    var sel = document.querySelector("#iaf-phases [data-phase]");
+    if (!sel) return;
+    sel.addEventListener("change", function () {
+      var cle = sel.value;
+      document.querySelectorAll("#iaf-phases [data-ph]").forEach(function (li) {
+        li.hidden = !(cle === PH_TOUTES || li.dataset.ph === cle);
+      });
+    });
+  }
+
+  /* LE FILTRE DES JALONS EST BRANCHÉ SUR UN CONTENEUR, pas sur un
+     identifiant : la table des jalons est rendue DEUX FOIS — dans la section 5
+     au chargement, et dans le calendrier après le chiffrage. Un branchement
+     posé sur le seul premier laisserait le second menu mort. */
+  function brancherJalons(racine) {
+    (racine || document).querySelectorAll("[data-jal]").forEach(function (sel) {
+      if (sel.dataset.branche) return;
+      sel.dataset.branche = "1";
+      sel.addEventListener("change", function () {
+        var cle = sel.value;
+        var etat = cle.slice(0, 2) === "e:" ? cle.slice(2) : null;
+        var tab = sel.closest("label").parentNode;
+        tab.querySelectorAll("tr[data-jal-etat]").forEach(function (tr) {
+          tr.hidden = !(cle === JAL_TOUS || tr.dataset.jalEtat === etat);
+        });
+      });
+    });
+  }
+
   function brancherComparables() {
     /* CHERCHÉ DANS SON CONTENEUR, PAS PAR `$()`. Une règle du dépôt vérifie que
        tout identifiant visé par `$()` existe DANS LA PAGE — parce qu'un
@@ -554,9 +584,38 @@ function demander(url, options, delai) {
       });
     });
   }
+  var PH_TOUTES = "__toutes";
+
+  /* CINQ PHASES EMPILÉES FONT UN MUR. Chacune porte son entrée, sa sortie, ses
+     activités et ses livrables — de trois à sept lignes chacune : à la suite,
+     on les parcourt en diagonale, et une phase parcourue en diagonale ne sert
+     plus à décider.
+
+     UNE SEULE EST OUVERTE AU CHARGEMENT, comme les cas comparables et à
+     l'inverse des sources : une phase se LIT, les sources se COMPTENT. Et
+     l'intitulé dit combien il y en a, sinon un menu qui n'en montre qu'une
+     ferait croire qu'il n'y en a qu'une.
+
+     LES OPTIONS SONT NUMÉROTÉES, et ce n'est pas un ornement : les phases sont
+     une SÉQUENCE — la sortie de l'une est l'entrée de la suivante. Le numéro
+     porte une information que le lecteur a besoin de lire. */
   function rendrePhases(ref) {
-    return '<ol class="iaf-phases">' + ref.phases.map(function (p) {
-      return "<li><b>" + esc(p.nom) + "</b> — " + p.mois_min + " à " + p.mois_max + " mois"
+    var h = '<label class="iaf-champ iaf-cmp-m"><span class="iaf-nom">'
+      + ref.phases.length + " phases, dans l'ordre du projet — en choisir une"
+      + '</span><select class="iaf-choix" data-phase>'
+      + '<option value="' + PH_TOUTES + '">Les ' + ref.phases.length
+      + " phases, à la suite</option>"
+      + ref.phases.map(function (p, i) {
+          return '<option value="p' + i + '"' + (i === 0 ? " selected" : "") + ">"
+            + (i + 1) + ". " + esc(p.nom) + " — " + p.mois_min + " à " + p.mois_max
+            + " mois</option>";
+        }).join("")
+      + '</select><span class="iaf-ou">Les durées sont l\'usage du cabinet, à '
+      + "±50 %. La sortie d'une phase est l'entrée de la suivante : l'ordre "
+      + "porte autant que les durées.</span></label>";
+    return h + '<ol class="iaf-phases">' + ref.phases.map(function (p, i) {
+      return '<li data-ph="p' + i + '"' + (i === 0 ? "" : " hidden")
+        + "><b>" + esc(p.nom) + "</b> — " + p.mois_min + " à " + p.mois_max + " mois"
         + '<span class="iaf-nature">usage du cabinet, ±50 %</span>'
         + '<div class="iaf-ph-g"><div><span class="iaf-ph-t">Entrée</span>' + esc(p.entree) + "</div>"
         + '<div><span class="iaf-ph-t">Sortie</span>' + esc(p.sortie) + "</div></div>"
@@ -567,15 +626,58 @@ function demander(url, options, delai) {
         + "<em>Jalon : " + esc(p.jalon) + "</em></li>";
     }).join("") + "</ol>";
   }
-  function rendreJalons(jal, sources) {
-    return '<table class="moe-tab iaf-jalons"><thead><tr><th>Date</th><th>Texte</th><th>Ce que cela porte</th><th>État</th></tr></thead><tbody>'
+  var JAL_TOUS = "__tous";
+
+  /* L'ÉTAT D'UN JALON VIENT DU MODULE, pas d'une expression conditionnelle
+     écrite ici. Elle y était, et `planning()` en calculait une seconde côté
+     serveur : deux arithmétiques pour une même colonne. Voir `etat_jalon`. */
+  function _nomEtatJalon(cle, etats) {
+    var e = (etats || []).filter(function (x) { return x.cle === cle; })[0];
+    /* PAS DE LIBELLÉ DE SECOURS ÉCRIT ICI. Un repli local redeviendrait le
+       second exemplaire qu'on vient de retirer : si le module cesse de publier
+       ses états, la colonne doit le MONTRER, pas le masquer. */
+    return e ? e.nom : cle;
+  }
+
+  function _etatJalon(j) {
+    if (j.passe) return "vigueur";
+    if (j.avant_fin_projet === null || j.avant_fin_projet === undefined) return "attente";
+    return j.avant_fin_projet ? "pendant" : "apres";
+  }
+
+  /* LES JALONS SE COMPTENT, ILS NE SE LISENT PAS UN À UN : tous restent
+     visibles au chargement, et le menu sert à RÉDUIRE — c'est le choix fait
+     pour les sources, à l'inverse des cas et des phases. Ce qu'un lecteur veut
+     isoler ici est une question précise : « qu'est-ce qui me tombe dessus
+     pendant le projet ? » L'état est donc l'axe, et les groupes ne montrent
+     que les états RÉELLEMENT présents — un groupe vide promettrait un tri qui
+     ne rend rien. */
+  function rendreJalons(jal, sources, etats) {
+    var h = "";
+    var presents = (etats || []).filter(function (e) {
+      return jal.some(function (j) { return _etatJalon(j) === e.cle; });
+    });
+    if (presents.length > 1) {
+      h = '<label class="iaf-champ iaf-cmp-m"><span class="iaf-nom">'
+        + jal.length + " jalons — en isoler un état"
+        + '</span><select class="iaf-choix" data-jal>'
+        + '<option value="' + JAL_TOUS + '">Les ' + jal.length
+        + " jalons, à la suite</option>"
+        + presents.map(function (e) {
+            var n = jal.filter(function (j) { return _etatJalon(j) === e.cle; }).length;
+            return '<option value="e:' + esc(e.cle) + '">' + esc(e.nom)
+              + " (" + n + ")</option>";
+          }).join("")
+        + "</select></label>";
+    }
+    return h + '<table class="moe-tab iaf-jalons"><thead><tr><th>Date</th><th>Texte</th><th>Ce que cela porte</th><th>État</th></tr></thead><tbody>'
       + jal.map(function (j) {
           var s = sources[j.source] || {};
-          return "<tr" + (j.passe ? ' class="passe"' : "") + "><td>" + esc(j.date) + "</td><td>"
+          return '<tr data-jal-etat="' + esc(_etatJalon(j)) + '"'
+            + (j.passe ? ' class="passe"' : "") + "><td>" + esc(j.date) + "</td><td>"
             + esc(j.texte) + (s.url ? ' <a href="' + esc(s.url) + '" target="_blank" rel="noopener noreferrer">texte</a>' : "")
             + "</td><td>" + esc(j.porte) + "</td><td>"
-            + (j.passe ? "en vigueur" : (j.avant_fin_projet ? "tombe pendant le projet" : "après le projet"))
-            + "</td></tr>";
+            + esc(_nomEtatJalon(_etatJalon(j), etats)) + "</td></tr>";
         }).join("") + "</tbody></table>";
   }
   function rendreLeviers(liste, sources, ancrages) {
@@ -730,7 +832,8 @@ function demander(url, options, delai) {
       + pl.phases.map(function (p) {
           return "<tr><td>" + esc(p.nom) + "</td><td>" + esc(p.debut_tot) + "</td><td>" + esc(p.fin_tot) + "</td><td>" + esc(p.fin_tard) + "</td></tr>";
         }).join("") + "</tbody></table>";
-    h += "<h4>Jalons réglementaires, replacés dans ce calendrier</h4>" + rendreJalons(pl.jalons_reglementaires, REF.sources);
+    h += "<h4>Jalons réglementaires, replacés dans ce calendrier</h4>"
+      + rendreJalons(pl.jalons_reglementaires, REF.sources, REF.etats_jalon);
     return h;
   }
 
@@ -783,6 +886,7 @@ function demander(url, options, delai) {
           + rendreChiffrage(j.chiffrage, REF);
         dim.innerHTML = rendreDim(j.chiffrage.dimensionnement);
         pla.innerHTML = rendrePlanning(j.planning);
+        brancherJalons(pla);
         peindreBlocs(j.blocs);
       }, function (e) { erreur(out, e); });
   }
@@ -799,9 +903,18 @@ function demander(url, options, delai) {
         REF.secteurs_comparables);
       brancherComparables();
       $("iaf-phases").innerHTML = rendrePhases(REF);
+      brancherPhases();
+      /* `avant_fin_projet` RESTE INCONNU ICI, et c'est la correction. Il était
+         forcé à `true` : la colonne « État » annonçait donc « tombe pendant le
+         projet » pour des dates que personne n'avait comparées à une fin de
+         projet — il n'y en avait pas encore. Laissé nul, l'état devient
+         « à venir — replacé au chiffrage », qui est ce qui est vrai. */
       $("iaf-jalons").innerHTML = rendreJalons(REF.jalons_reglementaires.map(function (x) {
-        return Object.assign({}, x, { passe: x.date <= new Date().toISOString().slice(0, 10), avant_fin_projet: true });
-      }), REF.sources);
+        return Object.assign({}, x, {
+          passe: x.date <= new Date().toISOString().slice(0, 10),
+          avant_fin_projet: null });
+      }), REF.sources, REF.etats_jalon);
+      brancherJalons();
       $("iaf-changement").innerHTML = rendreLeviers(REF.leviers_changement, REF.sources, REF.ancrages);
       $("iaf-migration").innerHTML = rendreLeviers(REF.principes_migration, REF.sources, REF.ancrages);
       $("iaf-sources").innerHTML = rendreSources(REF.sources, REF.couverture_sources);

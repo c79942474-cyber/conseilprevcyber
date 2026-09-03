@@ -1284,6 +1284,193 @@ def test_un_seul_cas_est_ouvert_au_chargement_et_le_menu_dit_combien_il_y_en_a()
     assert "cas documentés" in h, "l'intitulé ne dit pas combien il y en a"
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE PLANNING ET SES JALONS — deux listes, deux réglages contraires
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _planning_rendu(quoi, charge=None):
+    """Le HTML que `rendrePhases` ou `rendreJalons` produit RÉELLEMENT."""
+    src = _src("ia-factory.js")
+    ancre = "\n(function () {\n"
+    corps = src[src.index(ancre) + len(ancre):src.index("\n  function rendreLeviers(")]
+    appel = {"phases": "rendrePhases(d.ref)",
+             "jalons": "rendreJalons(d.jal, d.src, d.etats)"}[quoi]
+    # LA CHARGE PASSE PAR UN FICHIER, pas par l'environnement : le référentiel
+    # complet dépasse la taille maximale d'une variable d'environnement, et
+    # `node` répondait « Argument list too long » — un échec qui ressemble à un
+    # défaut du code alors qu'il n'en est pas un.
+    prog = (corps + "\nconst d = JSON.parse(require('fs').readFileSync("
+            + "process.env.IAF_PL, 'utf8'));"
+            + "\nprocess.stdout.write(" + appel + ");\n")
+    ref = F.referentiel()
+    charge = charge if charge is not None else [
+        dict(j, passe=j["date"] <= "2026-09-03", avant_fin_projet=None)
+        for j in ref["jalons_reglementaires"]]
+    import tempfile
+    fd, chemin = tempfile.mkstemp(suffix=".json")
+    with io.open(fd, "w", encoding="utf-8") as fh:
+        json.dump({"ref": ref, "jal": charge, "src": ref["sources"],
+                   "etats": ref["etats_jalon"]}, fh)
+    env = dict(os.environ, IAF_PL=chemin)
+    try:
+        out = subprocess.run(["node"], input=prog, capture_output=True, text=True,
+                             timeout=60, env=env)
+    finally:
+        os.unlink(chemin)
+    assert out.returncode == 0, out.stderr
+    return out.stdout
+
+
+def test_les_phases_se_choisissent_dans_une_liste_ORDONNEE():
+    """CINQ PHASES EMPILÉES FONT UN MUR : chacune porte son entrée, sa sortie,
+    ses activités et ses livrables, et à la suite on les parcourt en diagonale.
+
+    LES OPTIONS SONT NUMÉROTÉES, et ce n'est pas un ornement : les phases sont
+    une SÉQUENCE — la sortie de l'une est l'entrée de la suivante. Le numéro
+    porte une information dont le lecteur a besoin. Une règle qui n'éprouverait
+    que la présence des options laisserait l'ordre se perdre."""
+    h = _planning_rendu("phases")
+    assert "<select" in h and "datalist" not in h
+    options = re.findall(r'<option value="([^"]*)"[^>]*>([^<]*)</option>', h)
+    phases = F.referentiel()["phases"]
+    assert options[0][0] == "__toutes"
+    assert len(options) == len(phases) + 1, options
+    for i, p in enumerate(phases):
+        val, texte = options[i + 1]
+        assert val == "p%d" % i, (val, i)
+        assert texte.startswith("%d. " % (i + 1)), (
+            "l'option de la phase %d ne porte pas son rang : %r" % (i, texte))
+        assert p["nom"] in html.unescape(texte), (p["nom"], texte)
+        assert "%d à %d mois" % (p["mois_min"], p["mois_max"]) in html.unescape(texte), texte
+
+
+def test_une_seule_phase_est_ouverte_au_chargement():
+    """LE MÊME CHOIX QUE POUR LES CAS, ET L'INVERSE DE CELUI DES SOURCES : une
+    phase se LIT, les sources se COMPTENT. Et l'intitulé dit combien il y en a
+    — sans quoi un menu qui n'en montre qu'une ferait croire qu'il n'y en a
+    qu'une."""
+    h = _planning_rendu("phases")
+    items = re.findall(r'<li data-ph="(p\d+)"([^>]*)>', h)
+    phases = F.referentiel()["phases"]
+    assert len(items) == len(phases)
+    ouvertes = [c for c, attrs in items if "hidden" not in attrs]
+    assert ouvertes == ["p0"], ouvertes
+
+    # LE COMPTE EST CHERCHÉ DANS L'INTITULÉ, PAS DANS TOUT LE FRAGMENT. Cherché
+    # partout, il était trouvé dans l'option « Les 5 phases, à la suite » : la
+    # règle restait verte quand l'intitulé cessait d'annoncer le nombre — une
+    # règle satisfaite par une chaîne voisine.
+    intitule = html.unescape(
+        re.search(r'<span class="iaf-nom">(.*?)</span>', h, re.S).group(1))
+    assert "%d phases" % len(phases) in intitule, (
+        "l'intitulé n'annonce pas le nombre de phases : %r" % intitule)
+
+
+def test_le_menu_des_phases_est_REELLEMENT_branche():
+    """Un menu qui ne fait rien laisse le lecteur devant UNE phase sans moyen
+    d'en voir une autre — pire qu'aucun menu, puisqu'il en promet six."""
+    _appel_pose('$("iaf-phases").innerHTML', "brancherPhases")
+
+
+def test_les_jalons_restent_TOUS_visibles_et_le_menu_REDUIT():
+    """CHOIX CONTRAIRE À CELUI DES PHASES, ET DÉLIBÉRÉ. Ce qu'un lecteur veut
+    savoir ici est une question de comptage — « combien me tombent dessus
+    pendant le projet ? » — pas une lecture suivie. N'en montrer qu'un
+    cacherait le calendrier réglementaire, qui est ce que la section établit.
+
+    ET LES GROUPES NE MONTRENT QUE LES ÉTATS PRÉSENTS : un groupe vide
+    promettrait un tri qui ne rend rien."""
+    h = _planning_rendu("jalons")
+    lignes = re.findall(r'<tr data-jal-etat="([^"]+)"([^>]*)>', h)
+    ref = F.referentiel()
+    assert len(lignes) == len(ref["jalons_reglementaires"])
+    caches = [e for e, attrs in lignes if "hidden" in attrs]
+    assert not caches, "%d jalon(s) masqué(s) au chargement" % len(caches)
+    presents = {e for e, _a in lignes}
+    offerts = {v[2:] for v in re.findall(r'<option value="(e:[^"]+)"', h)}
+    assert offerts == presents, (offerts, presents)
+    # Le compte de chaque groupe vient des lignes, pas d'un nombre écrit.
+    for etat in presents:
+        n = sum(1 for e, _a in lignes if e == etat)
+        nom = next(x["nom"] for x in ref["etats_jalon"] if x["cle"] == etat)
+        assert "%s (%d)" % (nom, n) in html.unescape(h), (nom, n)
+
+
+def test_LE_DEFAUT_letat_dun_jalon_nest_plus_AFFIRME_avant_le_chiffrage():
+    """LE DÉFAUT, TROUVÉ EN POSANT LA LISTE. La page forçait
+    `avant_fin_projet: true` au chargement : la colonne « État » annonçait
+    « tombe pendant le projet » pour des dates que PERSONNE n'avait comparées à
+    une fin de projet — il n'y en avait pas encore. Une affirmation là où il
+    n'y a pas de mesure, sur la seule colonne que le lecteur regarde pour
+    savoir ce qui le concerne.
+
+    La règle éprouve les DEUX moments : sans calendrier, l'état est « à venir » ;
+    avec, il est mesuré."""
+    assert F.etat_jalon({"passe": False}) == "attente"
+    assert F.etat_jalon({"passe": False, "avant_fin_projet": True}) == "pendant"
+    assert F.etat_jalon({"passe": False, "avant_fin_projet": False}) == "apres"
+    assert F.etat_jalon({"passe": True}) == "vigueur"
+
+    js = _src("ia-factory.js")
+    bloc = js[js.index('$("iaf-jalons").innerHTML'):]
+    bloc = bloc[:bloc.index("brancherJalons()")]
+    assert "avant_fin_projet: null" in bloc, (
+        "la page affirme à nouveau la place d'un jalon dans un calendrier qui "
+        "n'existe pas encore : %r" % bloc[:300])
+
+    h = _planning_rendu("jalons")
+    attendu = next(x["nom"] for x in F.referentiel()["etats_jalon"]
+                   if x["cle"] == "attente")
+    assert attendu in html.unescape(h), attendu
+    assert "Tombe pendant le projet" not in html.unescape(h), (
+        "sans calendrier, la table annonce déjà où tombe un jalon")
+
+
+def test_letat_dun_jalon_est_calcule_a_UN_SEUL_endroit():
+    """Deux arithmétiques pour une même colonne dérivent — et c'est la plus
+    visible qui est crue. Le script ne doit plus refaire le calcul du module
+    autrement qu'en le transposant à l'identique."""
+    js = _src("ia-factory.js")
+    hors = js.replace(js[js.index("function _etatJalon("):
+                          js.index("function _etatJalon(") + 400], "")
+    assert "avant_fin_projet ?" not in hors, (
+        "un ternaire recalcule l'état d'un jalon hors de `_etatJalon`")
+    # Et le libellé n'est pas écrit dans le script : il vient du module.
+    for etat in F.referentiel()["etats_jalon"]:
+        assert etat["nom"] not in js, (
+            "le libellé « %s » est recopié dans le script : il dériverait du "
+            "module" % etat["nom"])
+
+
+def test_les_DEUX_tables_de_jalons_sont_branchees():
+    """La table est rendue DEUX FOIS — dans la section au chargement, et dans
+    le calendrier après le chiffrage. Un branchement posé sur le seul premier
+    laisserait le second menu mort, et c'est celui-là que le lecteur atteint
+    après avoir cliqué sur « chiffrer »."""
+    js = _src("ia-factory.js")
+    lignes = js.split("\n")
+    for ancre_rendu in ('$("iaf-jalons").innerHTML', "pla.innerHTML = rendrePlanning"):
+        i = next(k for k, l in enumerate(lignes) if ancre_rendu in l)
+        j = next((k for k, l in enumerate(lignes)
+                  if k > i and l.strip().startswith("brancherJalons(")), None)
+        assert j is not None and j - i <= 8, (
+            "la table rendue par « %s » n'est pas branchée" % ancre_rendu)
+
+
+@pytest.mark.parametrize("nom,ancre", [
+    ("phases", "function brancherPhases("),
+    ("jalons", "function brancherJalons("),
+])
+def test_les_filtres_du_planning_masquent_et_ne_redessinent_pas(nom, ancre):
+    js = _src("ia-factory.js")
+    bloc = js[js.index(ancre):]
+    bloc = bloc[:bloc.index("\n  }")]
+    assert "hidden" in bloc, "le filtre de %s ne masque rien" % nom
+    for interdit in ("innerHTML", "rendrePhases(", "rendreJalons("):
+        assert interdit not in bloc, (
+            "le filtre de %s redessine (« %s ») au lieu de masquer" % (nom, interdit))
+
+
 def test_l_option_garde_le_repere_du_cas_et_coupe_le_developpement():
     """« Cas A — grand groupe bancaire coopératif : deux réseaux, deux systèmes
     d'information, une usine IA » ne tient pas dans une option sans la rendre

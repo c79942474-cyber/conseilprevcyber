@@ -1535,6 +1535,40 @@ JALONS_REGLEMENTAIRES = [
 ]
 
 
+# LES QUATRE ÉTATS D'UN JALON, ET LE QUATRIÈME EST UNE CORRECTION.
+#
+# LE DÉFAUT. La page forçait `avant_fin_projet: true` au chargement, avant tout
+# chiffrage : la colonne « État » annonçait donc « tombe pendant le projet »
+# pour des dates que PERSONNE n'avait comparées à une fin de projet — il n'y en
+# avait pas encore. Une affirmation là où il n'y a pas de mesure, sur la seule
+# colonne que le lecteur regarde pour savoir ce qui le concerne.
+#
+# « en attente » dit ce qui est vrai avant le chiffrage : la date est à venir,
+# et sa place dans le calendrier se décidera quand il y aura un calendrier.
+#
+# LES LIBELLÉS VIVENT ICI, pas dans le script : ils servent à la fois de texte
+# de colonne et d'intitulé de groupe dans le menu. Recopiés, les deux
+# dériveraient — et le menu proposerait un groupe que la table ne nomme plus.
+ETATS_JALON = [
+    {"cle": "vigueur", "nom": "En vigueur"},
+    {"cle": "pendant", "nom": "Tombe pendant le projet"},
+    {"cle": "apres", "nom": "Après le projet"},
+    {"cle": "attente", "nom": "À venir — replacé au chiffrage"},
+]
+
+
+def etat_jalon(jalon):
+    """L'état d'un jalon, calculé ICI et pas dans deux endroits.
+
+    Il était calculé par une expression conditionnelle dans le script, et par
+    `planning()` côté serveur : deux arithmétiques pour une même colonne."""
+    if jalon.get("passe"):
+        return "vigueur"
+    avant = jalon.get("avant_fin_projet")
+    if avant is None:
+        return "attente"
+    return "pendant" if avant else "apres"
+
 def jalons_pour(secteur):
     """Les jalons communs et ceux du secteur, fondus et triés par date."""
     j = list(JALONS_REGLEMENTAIRES)
@@ -1953,6 +1987,7 @@ def referentiel():
             "couverture_sources": couverture_sources(),
             "phases": PHASES, "migration": MIGRATION,
             "jalons_reglementaires": JALONS_REGLEMENTAIRES,
+            "etats_jalon": ETATS_JALON,
             "leviers_changement": LEVIERS_CHANGEMENT,
             "principes_migration": PRINCIPES_MIGRATION,
             "comparables": comparables(),
