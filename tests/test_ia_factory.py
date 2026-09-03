@@ -570,6 +570,47 @@ def test_les_sections_sont_centrees_et_le_texte_suivi_reste_aligne():
     titre = re.search(r"\.iaf-sec h2\{([^}]*)\}", css)
     assert titre and "text-align:center" in titre.group(1), (
         "les titres, eux, doivent être centrés")
+    # LE DÉFAUT QUE CETTE RÈGLE AVAIT LAISSÉ PASSER, ET QU'UNE CAPTURE A
+    # MONTRÉ. Les cartes de tête vivent dans `.iaf-tete`, qui centre : elles
+    # HÉRITAIENT du centrage sur des paragraphes de plusieurs lignes — le
+    # défaut même que la règle prétendait interdire, à un endroit qu'elle ne
+    # regardait pas. Elle regarde maintenant le corps des cartes.
+    # LA CASCADE, PAS LA PREMIÈRE OCCURRENCE — la même faute que j'ai déjà
+    # commise ailleurs. `.iaf-these div` paraît DEUX fois : d'abord pour la
+    # bordure et le fond, ensuite pour l'alignement. Lire la première rendait
+    # la règle rouge en accusant la feuille d'un manque qui n'existait pas —
+    # et pire, toutes les mutations semblaient alors « tomber », sur une règle
+    # déjà en échec. À spécificité égale, c'est la DERNIÈRE qui s'applique.
+    blocs = re.findall(r"\.iaf-these div\{([^}]*)\}", css)
+    carte = blocs[-1] if blocs else None
+    assert carte and "text-align:left" in carte, (
+        "le corps des cartes de tête hérite du centrage de `.iaf-tete` : il "
+        "doit revenir à gauche, comme tout texte de plusieurs lignes ; "
+        "dernière déclaration lue : %r" % carte)
+
+
+def test_les_cartes_de_tete_restent_breves():
+    """UNE CARTE N'EST PAS UN PARAGRAPHE. Trois cartes côte à côte se lisent
+    d'un coup d'œil ou ne se lisent pas : au-delà d'environ deux cent cinquante
+    signes, elles deviennent trois colonnes de prose que le lecteur saute.
+    Le plancher n'est pas une esthétique — c'est ce qui décide si le lecteur
+    reçoit la thèse de la page ou l'ignore.
+
+    La règle borne un PLAFOND, pas une longueur : elle laisse écrire plus
+    court, et elle n'interdit pas d'ajouter une quatrième carte."""
+    page = _src("ingenierie-ia-factory.html")
+    bloc = page[page.index('<div class="iaf-these">'):]
+    bloc = bloc[:bloc.index("<!-- LE PARCOURS")]
+    cartes = re.findall(r"<div><b>(.*?)</b>(.*?)</div>", bloc, re.S)
+    assert len(cartes) >= 3, "moins de trois cartes de tête : %d" % len(cartes)
+    longues = []
+    for titre, corps in cartes:
+        t = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", corps)).strip()
+        if len(t) > 250:
+            longues.append("« %s » : %d signes" % (re.sub(r"<[^>]+>", "", titre), len(t)))
+    assert not longues, (
+        "des cartes de tête sont trop longues pour être lues d'un coup d'œil :\n  %s"
+        % "\n  ".join(longues))
 
 
 def test_la_page_charge_le_script_qui_la_PILOTE(connecte):
