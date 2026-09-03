@@ -2984,7 +2984,12 @@ function messageDelai(e, defaut) {
      Le parcours ne DÉPLACE rien et ne masque rien de la page : il fait
      défiler vers la section concernée et la met en relief. Une page qui se
      réorganise sous le lecteur lui fait perdre ce qu'il venait de lire. */
-  var GUIDE = null, GUIDE_ETAPE = 0, GUIDE_ROLE = null, GUIDE_THEME = null;
+  /* GUIDE_THEMES EST UN TABLEAU, PAS UN SCALAIRE : « qu'est-ce qui vous
+     amène » admet plusieurs réponses — un projet arrive rarement pour
+     l'énergie SEULE, sans l'eau ni le coût qui vont avec. Le rôle, lui,
+     reste unique : on répond à la question depuis UNE position sur le
+     projet, pas plusieurs à la fois. */
+  var GUIDE = null, GUIDE_ETAPE = 0, GUIDE_ROLE = null, GUIDE_THEMES = [];
 
   function guideZone() { return $("#ig-guide"); }
 
@@ -3047,12 +3052,21 @@ function messageDelai(e, defaut) {
             + '<span class="nm">' + esc(r.nom) + "</span>"
             + '<span class="qs">' + esc(r.question) + "</span></button>";
         }).join("")
-      + '</div><p class="ig-g-q">Et qu\'est-ce qui vous amène&nbsp;?</p>'
-      + '<div class="ig-g-liste th" role="group" aria-label="Thème">'
+      + '</div><p class="ig-g-q">Et qu\'est-ce qui vous amène&nbsp;? '
+      + '<span class="ig-g-plu">Choisissez-en plusieurs si plusieurs vous '
+      + "concernent.</span></p>"
+      /* aria-multiselectable, PAS role="radiogroup" : la sémantique doit
+         dire au lecteur d'écran que plusieurs boutons peuvent rester
+         enfoncés à la fois — un radiogroup promettrait un seul choix
+         possible et contredirait ce que le clic permet réellement. */
+      + '<div class="ig-g-liste th" role="group" aria-label="Thèmes" '
+      + 'aria-multiselectable="true">'
       + themes.map(function (t) {
-          return '<button type="button" class="ig-g-c'
-            + (GUIDE_THEME === t.id ? " on" : "") + '" data-theme="' + esc(t.id)
-            + '" style="--c:' + esc(t.couleur || "var(--cyan)") + '">'
+          var choisi = GUIDE_THEMES.indexOf(t.id) >= 0;
+          return '<button type="button" class="ig-g-c' + (choisi ? " on" : "")
+            + '" data-theme="' + esc(t.id) + '" aria-pressed="'
+            + (choisi ? "true" : "false") + '" style="--c:'
+            + esc(t.couleur || "var(--cyan)") + '">'
             + '<span class="ic" aria-hidden="true">' + esc(t.icone) + "</span>"
             + '<span class="nm">' + esc(t.nom) + "</span>"
             + '<span class="qs">' + esc(t.question) + "</span></button>";
@@ -3060,10 +3074,11 @@ function messageDelai(e, defaut) {
       + "</div>";
     /* Le bouton n'apparaît QUE lorsque les deux choix sont faits : un bouton
        présent mais inopérant se lit comme une panne. */
-    h += GUIDE_ROLE && GUIDE_THEME
+    h += GUIDE_ROLE && GUIDE_THEMES.length
       ? '<div class="ig-g-go"><button type="button" class="ig-g-b" id="ig-g-go">'
         + "Commencer le parcours →</button></div>"
-      : '<p class="ig-g-att">Choisissez un rôle et un thème pour commencer.</p>';
+      : '<p class="ig-g-att">Choisissez un rôle et au moins un thème pour '
+        + "commencer.</p>";
     return h + "</div>";
   }
 
@@ -3078,7 +3093,13 @@ function messageDelai(e, defaut) {
     });
     z.querySelectorAll("[data-theme]").forEach(function (b) {
       b.addEventListener("click", function () {
-        GUIDE_THEME = b.getAttribute("data-theme"); guideRendreChoix();
+        var id = b.getAttribute("data-theme");
+        var i = GUIDE_THEMES.indexOf(id);
+        // BASCULE, PAS REMPLACEMENT : un thème déjà choisi se retire au
+        // second clic, comme n'importe quelle case à cocher — remplacer la
+        // sélection entière ferait perdre les autres thèmes déjà choisis.
+        if (i >= 0) GUIDE_THEMES.splice(i, 1); else GUIDE_THEMES.push(id);
+        guideRendreChoix();
       });
     });
     /* La carte retenue bat un instant, dans SA couleur. C'est la confirmation
@@ -3104,9 +3125,9 @@ function messageDelai(e, defaut) {
 
   function guideCharger() {
     var z = guideZone();
-    if (!z || !GUIDE_ROLE || !GUIDE_THEME) return;
+    if (!z || !GUIDE_ROLE || !GUIDE_THEMES.length) return;
     var p = lireProfil();
-    p.role = GUIDE_ROLE; p.theme = GUIDE_THEME;
+    p.role = GUIDE_ROLE; p.themes = GUIDE_THEMES;
     if (PHASE) p.phase = PHASE;
     z.innerHTML = '<p class="ig-g-att">Établissement du parcours…</p>';
     demander("/api/datacenter/ingenierie/guide", {
@@ -3135,16 +3156,22 @@ function messageDelai(e, defaut) {
     var e = GUIDE.etapes[GUIDE_ETAPE];
     var n = GUIDE.etapes.length;
     /* Le panneau porte les DEUX couleurs du parcours choisi : celle du rôle en
-       filet de gauche, celle du thème sur la jauge. Le lecteur reconnaît son
-       parcours d'un coup d'œil, sans relire l'en-tête. */
+       filet de gauche, celle du PREMIER thème sur la jauge — un dégradé
+       mêlant jusqu'à six couleurs serait moins lisible qu'un seul accent, et
+       l'ordre vient du catalogue, pas du clic, donc « premier thème » ne
+       bouge pas d'une bascule à l'autre. Le lecteur reconnaît son parcours
+       d'un coup d'œil, sans relire l'en-tête. */
     var sec = guideSection(e.ancre);
     var cr = (GUIDE.role && GUIDE.role.couleur) || "var(--cyan)";
-    var ct = (GUIDE.theme && GUIDE.theme.couleur) || "var(--cyan)";
+    var ct = (GUIDE.themes[0] && GUIDE.themes[0].couleur) || "var(--cyan)";
     var h = '<div class="ig-g-p" style="--cr:' + esc(cr) + ";--ct:" + esc(ct) + '">'
       + '<div class="ig-g-h"><span class="ig-g-rt">'
       + '<span aria-hidden="true">' + esc(GUIDE.role.icone) + "</span> "
-      + esc(GUIDE.role.nom) + " · " + esc(GUIDE.theme.icone) + " "
-      + esc(GUIDE.theme.nom) + "</span>"
+      + esc(GUIDE.role.nom) + " · "
+      + GUIDE.themes.map(function (t) {
+          return '<span aria-hidden="true">' + esc(t.icone) + "</span> "
+            + esc(t.nom);
+        }).join(" · ") + "</span>"
       + '<button type="button" class="ig-g-lien" id="ig-g-changer">Changer</button>'
       + '<button type="button" class="ig-g-lien" id="ig-g-fermer">Fermer</button></div>'
       /* La barre d'avancement : savoir combien il reste change la disposition
@@ -3210,8 +3237,14 @@ function messageDelai(e, defaut) {
         + "</span></div>";
     }
     if (GUIDE_ETAPE === n - 1) {
-      h += '<div class="ig-g-fin"><b>Le piège de ce thème.</b> '
-        + esc(GUIDE.theme.piege) + "</div>"
+      /* UN BLOC PAR THÈME, PAS UN TEXTE FUSIONNÉ : chaque thème garde son
+         propre piège, avec son propre nom au-dessus. Les fondre en un seul
+         paragraphe aurait perdu lequel vient d'où — et un lecteur qui n'a
+         choisi qu'« énergie » n'a pas à lire le piège de l'eau caché dedans. */
+      h += GUIDE.themes.map(function (t) {
+        return '<div class="ig-g-fin"><b>Le piège — ' + esc(t.nom) + '.</b> '
+          + esc(t.piege) + "</div>";
+      }).join("")
         + '<div class="ig-g-fin ok"><b>Au terme du parcours.</b> '
         + esc(GUIDE.role.fin) + "</div>";
     }

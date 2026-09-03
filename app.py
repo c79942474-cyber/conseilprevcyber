@@ -9447,27 +9447,34 @@ def api_depot_verser():
 @app.route("/api/datacenter/ingenierie/guide", methods=["POST"])
 @login_required
 def api_datacenter_guide():
-    """Le parcours d'un rôle sur un thème, avec ce que le registre en dit.
+    """Le parcours d'un rôle sur un ou plusieurs thèmes, avec ce que le
+    registre en dit.
 
     Calculé à chaque appel plutôt que servi figé : les chiffres qu'il porte —
-    pièces du thème à cette phase, part alimentée par le calcul, grandeurs
+    pièces des thèmes à cette phase, part alimentée par le calcul, grandeurs
     encore à produire — dépendent du profil saisi et de la phase regardée. Les
     figer reviendrait à afficher les chiffres d'un autre projet.
     """
     data = request.get_json(silent=True) or {}
     role = str(data.get("role") or "").strip()[:32]
-    theme = str(data.get("theme") or "").strip()[:32]
+    # UNE LISTE, BORNÉE : le catalogue ne porte que six thèmes aujourd'hui,
+    # mais une requête qui en enverrait cent ne doit pas construire cent
+    # croisements — la page n'en propose jamais plus que ce que compte
+    # THEMES_GUIDE.
+    brutes = data.get("themes")
+    themes = [str(t or "").strip()[:32] for t in brutes][:32] \
+        if isinstance(brutes, list) else []
     phase = str(data.get("phase") or "").strip().upper()[:12] or None
     profil = _profil_datacenter(data)
     try:
-        g = ingenierie_dc.guide(role, theme, profil, phase)
+        g = ingenierie_dc.guide(role, themes, profil, phase)
     except Exception:
         app.logger.exception("guide ingénierie datacenter")
         return jsonify(ok=False, error="calcul",
                        message="Le parcours n'a pas pu être établi."), 500
     if not g:
         return jsonify(ok=False, error="inconnu",
-                       message="Rôle ou thème inconnu."), 404
+                       message="Rôle inconnu, ou aucun thème reconnu."), 404
     return jsonify(ok=True, guide=g)
 
 

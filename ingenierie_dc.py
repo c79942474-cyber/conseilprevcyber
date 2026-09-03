@@ -6873,19 +6873,23 @@ def _role_guide(rid):
     return None
 
 
-def _theme_guide(tid):
-    for t in THEMES_GUIDE:
-        if t["id"] == tid:
-            return t
-    return None
+def guide(role_id, theme_ids, profil=None, code_phase=None):
+    """Le parcours d'un rôle sur un ou plusieurs thèmes, avec ce que le
+    registre en dit.
 
+    Renvoie None si le rôle est inconnu, ou si AUCUN des thèmes demandés
+    n'est reconnu : une combinaison mal orthographiée doit échouer, pas
+    produire un parcours plausible qui ne correspond à rien. Un thème
+    inconnu PARMI D'AUTRES connus, en revanche, est simplement ignoré —
+    une faute de frappe sur un second thème ne doit pas faire disparaître
+    le premier.
 
-def guide(role_id, theme_id, profil=None, code_phase=None):
-    """Le parcours d'un rôle sur un thème, avec ce que le registre en dit.
-
-    Renvoie None si le rôle ou le thème est inconnu : une combinaison mal
-    orthographiée doit échouer, pas produire un parcours plausible qui ne
-    correspond à rien.
+    LES THÈMES SE CUMULENT PAR UNION, PAS PAR RÉPÉTITION. Une pièce compte
+    dès qu'elle relève d'AU MOINS UN thème choisi ; postes et disciplines se
+    rassemblent sans double compte. Deux thèmes qui se recouperaient sur une
+    pièce ne la comptent qu'une fois — sinon les nombres cesseraient de
+    décrire le dossier réel pour décrire la somme de plusieurs lectures qui
+    se recoupent.
 
     Les CHIFFRES sont recalculés sur le registre à chaque appel. C'est le point
     de la conception : trente croisements rédigés à la main diraient bientôt
@@ -6893,8 +6897,11 @@ def guide(role_id, theme_id, profil=None, code_phase=None):
     apercevrait — un texte ne se dément pas tout seul.
     """
     r = _role_guide(role_id)
-    t = _theme_guide(theme_id)
-    if not r or not t:
+    # L'ORDRE DU CATALOGUE, PAS L'ORDRE DE CLIC : sélectionner « eau » puis
+    # « énergie » ou l'inverse doit afficher le même en-tête. Un ordre qui
+    # suivrait le clic réordonnerait l'affichage à chaque bascule.
+    ts = [t for t in THEMES_GUIDE if t["id"] in set(theme_ids or [])]
+    if not r or not ts:
         return None
     profil = dict(profil or {})
     fil = r["filiere"]
@@ -6908,18 +6915,22 @@ def guide(role_id, theme_id, profil=None, code_phase=None):
         ph = next(p["code"] for p in PHASES if p["filiere"] == fil)
 
     # ── Le croisement, calculé ────────────────────────────────────────────
-    # Les pièces de la phase qui relèvent des disciplines du thème, et la part
-    # que le calcul alimente. Rien de tout cela n'est écrit : si une pièce est
-    # ajoutée demain à la discipline « extinction », le thème « eau » la
-    # comptera sans qu'on y touche.
-    sup = set(t.get("pieces_sup") or [])
+    # Les pièces de la phase qui relèvent des disciplines d'AU MOINS UN
+    # thème choisi, et la part que le calcul alimente. Rien de tout cela
+    # n'est écrit : si une pièce est ajoutée demain à la discipline
+    # « extinction », le thème « eau » la comptera sans qu'on y touche.
+    disciplines_choisies = set()
+    sup = set()
+    for t in ts:
+        disciplines_choisies |= set(t["disciplines"])
+        sup |= set(t.get("pieces_sup") or [])
 
     def _du_theme(p):
-        return p.get("discipline") in t["disciplines"] or p["code"] in sup
+        return p.get("discipline") in disciplines_choisies or p["code"] in sup
 
     du_theme = [p for p in pieces(ph) if _du_theme(p)]
     alimentees = [p for p in du_theme if p.get("moteur")]
-    # Ce que le thème représente sur l'ENSEMBLE du projet. On compte les
+    # Ce que les thèmes représentent sur l'ENSEMBLE du projet. On compte les
     # occurrences et les phases, pas les documents distincts : ce dernier
     # chiffre valait le même que celui de la phase courante et se lisait comme
     # une contradiction — « 6 ici, 6 en tout » ne dit rien de plus.
@@ -6930,25 +6941,38 @@ def guide(role_id, theme_id, profil=None, code_phase=None):
         if n:
             phases_concernees.add(q["code"])
     d = dossier(profil, ph) if profil.get("puissance_it_kw") else {}
-    # Les postes du thème et leur état à cette phase : recevable, ou remplacé.
+    # Les postes des thèmes et leur état à cette phase : recevable, ou
+    # remplacé. Un poste demandé par deux thèmes n'apparaît qu'une fois, à
+    # son premier rang — sinon un profil « énergie + disponibilité » verrait
+    # le PUE deux fois de suite dans le même parcours.
     postes_etat = []
+    postes_vus = set()
     # Hissé : exigences(ph) refait deux cumuls triés à chaque appel, pour un
     # résultat invariant dans cette boucle. Ne pas muter — d'autres l'utilisent.
     subs = set(exigences(ph).get("substitutions") or [])
-    for cle in t["postes"]:
-        v = POSTES.get(cle)
-        if not v:
-            continue
-        substitue = cle in subs
-        postes_etat.append({
-            "cle": cle, "nom": v["nom"],
-            "incertitude": v.get("incertitude") or "",
-            "incertitude_absente": bool(v.get("incertitude_absente")),
-            "substitue": substitue,
-            "remplacer_par": v.get("remplacer_par") or "",
-        })
+    for t in ts:
+        for cle in t["postes"]:
+            if cle in postes_vus:
+                continue
+            postes_vus.add(cle)
+            v = POSTES.get(cle)
+            if not v:
+                continue
+            substitue = cle in subs
+            postes_etat.append({
+                "cle": cle, "nom": v["nom"],
+                "incertitude": v.get("incertitude") or "",
+                "incertitude_absente": bool(v.get("incertitude_absente")),
+                "substitue": substitue,
+                "remplacer_par": v.get("remplacer_par") or "",
+            })
     grandeurs_bloquees = [g["nom"] for g in (d.get("grandeurs") or [])
                           if g.get("statut") != "recevable"]
+
+    # Un seul thème se lit « de ce thème » ; plusieurs, « de ces N thèmes » —
+    # jamais « de ces thèmes », qui perdrait le compte au moment précis où il
+    # devient l'information qui distingue ce parcours d'un parcours simple.
+    theme_mot = "de ce thème" if len(ts) == 1 else "de ces %d thèmes" % len(ts)
 
     etapes = []
     for i, ancre in enumerate(SEQUENCES[r["id"]]):
@@ -6960,8 +6984,8 @@ def guide(role_id, theme_id, profil=None, code_phase=None):
                             % (FILIERES[fil]["nom"], ph))
         if ancre == "ig-dossier":
             chiffres.append(_pluriel(len(du_theme),
-                                     "pièce de ce thème à cette phase",
-                                     "pièces de ce thème à cette phase"))
+                                     "pièce %s à cette phase" % theme_mot,
+                                     "pièces %s à cette phase" % theme_mot))
             if du_theme:
                 chiffres.append("%d alimentée%s par le calcul"
                                 % (len(alimentees),
@@ -6993,11 +7017,24 @@ def guide(role_id, theme_id, profil=None, code_phase=None):
             "chiffres": chiffres,
         })
 
+    # Les disciplines de tous les thèmes choisis, chacune une seule fois, à
+    # son premier rang — même discipline, même règle que les postes.
+    disciplines_ordonnees = []
+    disciplines_vues = set()
+    for t in ts:
+        for c in t["disciplines"]:
+            if c not in disciplines_vues:
+                disciplines_vues.add(c)
+                disciplines_ordonnees.append(c)
+
     return {
         "role": {k: r[k] for k in ("id", "couleur", "icone", "nom", "question",
                                    "cherche", "fin")},
-        "theme": {k: t[k] for k in ("id", "couleur", "icone", "nom", "question",
-                                    "piege")},
+        # UNE LISTE, PAS UN OBJET SEUL : un parcours peut porter plusieurs
+        # thèmes, et chacun garde son piège propre — les fusionner en un
+        # texte unique aurait perdu lequel vient d'où.
+        "themes": [{k: t[k] for k in ("id", "couleur", "icone", "nom",
+                                      "question", "piege")} for t in ts],
         # Le conseil de la phase de travail, remonté au parcours : c'est
         # l'accompagnement demandé — un mot au moment où l'on y est.
         "conseil": CONSEILS_PHASE.get(ph),
@@ -7005,7 +7042,7 @@ def guide(role_id, theme_id, profil=None, code_phase=None):
         "phase": ph, "phase_nom": connues[ph]["nom"],
         "etapes": etapes,
         "disciplines": [{"cle": c, "nom": _nom_discipline(c)}
-                        for c in t["disciplines"]],
+                        for c in disciplines_ordonnees],
         "postes": postes_etat,
         "pieces_du_theme": [{"code": p["code"], "titre": p["titre"],
                              "discipline_nom": p["discipline_nom"],

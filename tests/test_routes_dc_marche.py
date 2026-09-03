@@ -735,3 +735,51 @@ def test_un_format_inconnu_ne_produit_pas_un_fichier_qui_MENT(connecte):
     nom = r.headers.get("Content-Disposition", "")
     assert ".docx" in nom and "wordperfect" not in nom, (
         "le fichier rendu est un Word appelé autrement : %r" % nom)
+
+
+# ── Le parcours guidé — un rôle, plusieurs thèmes ──────────────────────────
+# CE QUE CETTE ROUTE N'AVAIT JAMAIS ÉPROUVÉ, avant ce tour : uniquement des
+# tests directs de `ingenierie_dc.guide()`, jamais la route Flask elle-même —
+# ni ses portes, ni son décodage de « themes », ni son message d'erreur.
+
+def test_un_visiteur_anonyme_n_atteint_pas_le_parcours_guide(anonyme):
+    r = anonyme.post("/api/datacenter/ingenierie/guide",
+                     json={"role": "moe", "themes": ["cout"]},
+                     headers=ORIGINE)
+    assert r.status_code in (401, 403)
+
+
+def test_le_parcours_guide_accepte_plusieurs_themes(connecte):
+    j = connecte.post("/api/datacenter/ingenierie/guide",
+                      json={"role": "moe", "themes": ["energie", "eau"]},
+                      headers=ORIGINE).get_json()
+    assert j["ok"], j
+    assert [t["id"] for t in j["guide"]["themes"]] == ["energie", "eau"]
+
+
+def test_le_parcours_guide_refuse_un_role_sans_AUCUN_theme_reconnu(connecte):
+    """Un thème mal orthographié ne doit pas produire un parcours plausible
+    qui ne correspond à rien."""
+    r = connecte.post("/api/datacenter/ingenierie/guide",
+                      json={"role": "moe", "themes": ["gastronomie"]},
+                      headers=ORIGINE)
+    assert r.status_code == 404
+    assert r.get_json()["ok"] is False
+
+
+def test_le_parcours_guide_ignore_un_theme_mal_orthographie_PARMI_D_AUTRES(connecte):
+    j = connecte.post("/api/datacenter/ingenierie/guide",
+                      json={"role": "moe", "themes": ["cout", "gastronomie"]},
+                      headers=ORIGINE).get_json()
+    assert j["ok"]
+    assert [t["id"] for t in j["guide"]["themes"]] == ["cout"]
+
+
+def test_le_parcours_guide_refuse_une_liste_de_themes_qui_n_en_est_pas_une(connecte):
+    """`themes` doit être une LISTE : une chaîne unique, itérée caractère par
+    caractère, ne doit produire ni erreur 500 ni un parcours plausible."""
+    r = connecte.post("/api/datacenter/ingenierie/guide",
+                      json={"role": "moe", "themes": "cout"},
+                      headers=ORIGINE)
+    assert r.status_code == 404
+    assert r.get_json()["ok"] is False
