@@ -4457,8 +4457,9 @@ def api_datacenter_marche_candidature():
     """
     data = request.get_json(silent=True) or {}
     analyse = data.get("analyse") if isinstance(data.get("analyse"), dict) else None
+    groupement = bool(data.get("groupement"))
     try:
-        p = ao_dc.plan_reponse(analyse, groupement=bool(data.get("groupement")))
+        p = ao_dc.plan_reponse(analyse, groupement=groupement)
     except Exception:
         app.logger.exception("plan de candidature")
         return jsonify(ok=False, error="calcul",
@@ -4470,7 +4471,16 @@ def api_datacenter_marche_candidature():
                        "label": (livrables.get_type(tid) or {}).get("label")}
                       for cle, tid in _AO_REDACTION.items()
                       if livrables.get_type(tid)]
-    return jsonify(ok=True, plan=p, pieces_marche=ao_dc.PIECES_MARCHE)
+    # LE DOSSIER D'OFFRE VOYAGE AVEC LE PLAN DE CANDIDATURE, dans la même
+    # réponse : la page ouvre les deux blocs au même geste, « Voir le dossier
+    # de candidature », et un second appel pour trois pièces statiques
+    # doublerait la requête sans rien apporter. `ao_dc.offre()` ne dépend ni
+    # de la fiche ni de l'analyse, mais il reçoit le MÊME réglage de
+    # groupement que le plan de candidature ci-dessus — sinon les dix-neuf
+    # cartes de candidature diraient « En groupement » et les trois de
+    # l'offre, sur le même écran, n'en diraient rien.
+    return jsonify(ok=True, plan=p, pieces_marche=ao_dc.PIECES_MARCHE,
+                   dossier_offre=ao_dc.offre(groupement=groupement))
 
 
 @app.route("/api/datacenter/marche/remplir", methods=["POST"])

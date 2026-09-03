@@ -72,7 +72,8 @@ def test_les_zones_de_rendu_des_sections_ajoutees_existent():
                 "ig-icpe-bareme",
                 "ig-res-form", "ig-res-out", "ig-res-msg",
                 "ig-tr-form", "ig-tr-out", "ig-tr-msg",
-                "ig-ao-depot", "ig-ao-out", "ig-ao-cand-out", "ig-ao-msg",
+                "ig-ao-depot", "ig-ao-out", "ig-ao-cand-out",
+                "ig-ao-offre-out", "ig-ao-msg",
                 "ig-ao-fiche", "ig-ao-rempli"):
         assert 'id="%s"' % zid in h, zid
 
@@ -89,7 +90,7 @@ def test_les_zones_de_rendu_des_sections_ajoutees_existent():
                                 "travauxFormulaire",
                                 "travauxPlan", "travauxRendre", "aoDocuments",
                                 "aoAnalyser", "aoRendre", "aoCandidature",
-                                "aoCandRendre", "aoIgnores"])
+                                "aoCandRendre", "aoIgnores", "offreRendre"])
 def test_chaque_fonction_ajoutee_est_definie_et_appelee(fn):
     """UNE FONCTION DÉFINIE ET JAMAIS APPELÉE est du code mort qui a l'air
     vivant : la relecture la voit, la page ne l'exécute pas, et la section
@@ -464,11 +465,108 @@ def test_la_rediction_d_une_note_est_annoncee_depuis_le_serveur():
 
 
 def test_les_pieces_bloquantes_se_distinguent_dans_le_dossier_de_candidature():
-    """Traiter quatorze pièces avec la même urgence revient à n'en traiter
+    """Traiter dix-neuf pièces avec la même urgence revient à n'en traiter
     aucune correctement."""
     js = sans_commentaires_js(lire("ingenierie-dc.js"))
     assert "ig-ao-cpb" in js
     assert ".ig-ao-cpb{" in lire("ingenierie-datacenter.html")
+
+
+# ── Le dossier d'offre, à part de la candidature ───────────────────────────
+
+def test_offreRendre_est_appele_avec_aoCandRendre():
+    """LES DEUX DOSSIERS S'OUVRENT AU MÊME GESTE : un lecteur qui clique
+    « Voir le dossier de candidature » doit voir apparaître les deux blocs,
+    pas seulement celui qui porte le nom du bouton."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function aoCandidature(")
+    corps = js[i:js.index("function aoCandRendre(")]
+    assert "aoCandRendre(j.plan)" in corps
+    assert "offreRendre(j.dossier_offre)" in corps
+
+
+def test_le_dossier_d_offre_ECRIT_dans_sa_PROPRE_zone():
+    """UN COPIER-COLLER DEPUIS `aoCandRendre` POURRAIT OUBLIER DE CHANGER LA
+    CIBLE : le dossier d'offre écraserait alors le dossier de candidature au
+    lieu de se poser à côté."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function offreRendre(")
+    corps = js[i:i + 2000]
+    assert '$("#ig-ao-offre-out")' in corps
+    assert "ig-ao-cand-out" not in corps
+
+
+def test_le_dossier_d_offre_UTILISE_SON_PROPRE_glossaire():
+    """UN COPIER-COLLER DEPUIS `aoCandRendre` POURRAIT OUBLIER DE CHANGER LA
+    FAMILLE D'INFOBULLE : les trois pièces de l'offre chercheraient alors
+    leur explication dans le glossaire de la candidature, qui ne les connaît
+    pas — une infobulle muette, pour une raison invisible à la lecture du
+    rendu."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function offreRendre(")
+    corps = js[i:i + 2000]
+    assert '"piece_offre:"' in corps
+    assert "piece_candidature" not in corps
+
+
+def test_le_dossier_d_offre_rend_la_famille_ET_la_nature_de_chaque_piece():
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function offreRendre(")
+    corps = js[i:i + 2000]
+    for champ in ("p.nature_nom", "p.famille_nom", "p.bloquant",
+                  "p.produit_par", "p.contient", "p.piege"):
+        assert champ in corps, champ
+
+
+def test_la_reserve_du_dossier_d_offre_est_EN_PIED_ET_DISCRETE():
+    """DÉFAUT TROUVÉ EN RELECTURE : copiée depuis `aoCandRendre` sans y
+    penser, la réserve était en TÊTE de bloc avec la classe généraliste
+    « note » (pleine intensité, aucun style dédié) — au lieu du pied de
+    bloc et de la classe discrète `ig-icpe-res` que porte la réserve
+    équivalente du dossier de candidature juste au-dessus sur la même
+    page."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function offreRendre(")
+    corps = js[i:i + 2500]
+    assert '<p class="ig-icpe-res">\' + esc(o.note)' in corps, (
+        "la réserve du dossier d'offre ne porte plus le style discret")
+    assert '<p class="note">\' + esc(o.note)' not in corps, (
+        "la réserve du dossier d'offre est repassée en pleine intensité")
+    assert corps.index('"ig-ao-cd"') < corps.index("esc(o.note)"), (
+        "la réserve est repassée en tête de bloc, avant les cartes")
+
+
+def test_le_dossier_d_offre_montre_la_mention_EN_GROUPEMENT():
+    """DÉFAUT RÉEL, TROUVÉ EN RELECTURE : le dossier de candidature affiche
+    déjà `x.en_groupement` (aoCandRendre) sur le même écran — un dossier
+    d'offre qui ne le ferait pas laisserait croire que le groupement ne
+    change rien au prix ni à la signature."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function offreRendre(")
+    corps = js[i:i + 2000]
+    assert "p.en_groupement" in corps
+
+
+def test_le_dossier_d_offre_MARQUE_le_badge_bloquante():
+    """LE TÉMOIN QUI MANQUAIT À LA RÈGLE PRÉCÉDENTE. `p.bloquant` sert DEUX
+    fois dans ce rendu — une fois pour la classe de la carte (`ig-ao-cpb`),
+    une fois pour le badge visible « bloquante ». Chercher la seule chaîne
+    « p.bloquant » resterait vert si le badge disparaissait : l'autre usage
+    suffirait à la satisfaire. On cherche le badge lui-même."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function offreRendre(")
+    corps = js[i:i + 2000]
+    assert '<span class="ig-ao-bl">bloquante</span>' in corps
+
+
+def test_le_dossier_d_offre_ne_montre_AUCUN_menu():
+    """TROIS PIÈCES SE COMPTENT, ELLES NE SE LISENT PAS UNE À LA FOIS — à la
+    différence des dix-neuf pièces de candidature. Un menu ici masquerait
+    des pièces qu'on est précisément venu vérifier ensemble."""
+    js = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = js.index("function offreRendre(")
+    corps = js[i:i + 2000]
+    assert "<select" not in corps and "hidden" not in corps
 
 
 # ── Les réserves sur la page elle-même ─────────────────────────────────────
@@ -943,11 +1041,11 @@ def test_le_menu_liste_TOUTES_les_pieces_en_deux_groupes():
     assert valeurs[0] == "", "le menu n'offre pas de retour à « toutes »"
     assert sorted(v for v in valeurs if v) == sorted(
         p["cle"] for p in ao_dc.DOSSIER_CANDIDATURE), (
-        "le menu ne liste pas les quatorze pièces : %s" % valeurs)
+        "le menu ne liste pas les dix-neuf pièces : %s" % valeurs)
 
 
 def test_chaque_entree_du_menu_dit_CE_QU_IL_Y_A_A_FAIRE():
-    """UN MENU DE QUATORZE DOCUMENTS D'ÉGALE URGENCE N'EN SIGNALE AUCUN. Chaque
+    """UN MENU DE DIX-NEUF DOCUMENTS D'ÉGALE URGENCE N'EN SIGNALE AUCUN. Chaque
     entrée porte sa voie de production, et les bloquantes se disent."""
     r = ao_dc.remplir(fiche={"raison_sociale": "Essai"})
     h = _menu_rendu(r)
@@ -1004,7 +1102,7 @@ def _bloc_apres(source, ancre):
 
 
 def test_une_piece_qu_on_ne_remplit_pas_dit_QUAND_MEME_ce_qu_elle_contient():
-    """LE MENU LA NOMME : IL FAUT QUELQUE CHOSE DERRIÈRE. Neuf des quatorze
+    """LE MENU LA NOMME : IL FAUT QUELQUE CHOSE DERRIÈRE. Quatorze des dix-neuf
     pièces ne se remplissent pas ici. Si leur carte était vide, le menu
     proposerait un document et le lecteur ne trouverait rien — ce qui est pire
     que de ne pas l'avoir nommé.
@@ -1029,7 +1127,7 @@ def test_le_choix_du_menu_SURVIT_au_redessin():
     """DÉFAUT ÉPROUVÉ DANS UN NAVIGATEUR, PAS IMAGINÉ. Le bloc est redessiné à
     CHAQUE FRAPPE dans la fiche du candidat. La première version perdait la
     sélection à la première lettre tapée : on filtrait sur « Références », on
-    tapait un caractère, et les quatorze cartes revenaient. Un menu qu'on doit
+    tapait un caractère, et les dix-neuf cartes revenaient. Un menu qu'on doit
     reposer après chaque mot n'est pas un menu.
 
     LA RÈGLE EXÉCUTE LA FONCTION avec un choix, et lit l'option marquée — la

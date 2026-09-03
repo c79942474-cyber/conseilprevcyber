@@ -318,9 +318,43 @@ def test_le_glossaire_de_la_page_porte_les_familles_des_quatre_modules(connecte)
     g = connecte.get("/api/datacenter/ingenierie").get_json()["referentiel"]["glossaire"]
     for famille in ("mode_froid", "archi_elec", "enjeu", "nature_travaux",
                     "rubrique_icpe", "regime_icpe", "intervenant", "operation",
-                    "solution", "piece_marche", "piece_candidature"):
+                    "solution", "piece_marche", "piece_candidature",
+                    "piece_offre"):
         assert famille in g, famille
         assert g[famille], famille
+
+
+def test_le_plan_de_candidature_sert_aussi_le_dossier_d_offre(connecte):
+    """DEUX DOSSIERS, UN SEUL APPEL : la page ouvre les deux blocs depuis la
+    même réponse, au moment où elle affiche « Voir le dossier de
+    candidature ». `offre()` ne dépend ni de la fiche ni de l'analyse — un
+    second appel pour trois pièces statiques doublerait la requête pour
+    rien."""
+    import ao_dc
+    j = connecte.post("/api/datacenter/marche/candidature", json={},
+                      headers=ORIGINE).get_json()
+    assert j["dossier_offre"]["pieces"]
+    cles = {p["cle"] for p in j["dossier_offre"]["pieces"]}
+    assert cles == {p["cle"] for p in ao_dc.DOSSIER_OFFRE}
+    for p in j["dossier_offre"]["pieces"]:
+        assert p["famille_nom"] and p["voie_nom"] and p["nature_nom"]
+    # Et les deux dossiers restent bien SÉPARÉS dans la réponse.
+    assert not (cles & {p["cle"] for p in j["plan"]["pieces"]})
+
+
+def test_le_reglage_de_groupement_ATTEINT_LES_DEUX_DOSSIERS(connecte):
+    """DÉFAUT RÉEL, TROUVÉ EN RELECTURE : la page envoie UN SEUL réglage de
+    groupement pour tout l'écran. S'il n'atteignait que le plan de
+    candidature, les dix-neuf cartes diraient « En groupement » et les
+    trois de l'offre juste en dessous — dont le prix se répartit et l'acte
+    d'engagement se signe différemment selon l'habilitation du mandataire —
+    n'en diraient rien, sur le même écran."""
+    j = connecte.post("/api/datacenter/marche/candidature",
+                      json={"groupement": True}, headers=ORIGINE).get_json()
+    for p in j["plan"]["pieces"]:
+        assert p.get("en_groupement"), p["cle"]
+    for p in j["dossier_offre"]["pieces"]:
+        assert p.get("en_groupement"), p["cle"]
 
 
 # ── Le pilotage de programme ───────────────────────────────────────────────

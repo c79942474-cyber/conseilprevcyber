@@ -5511,7 +5511,7 @@ function messageDelai(e, defaut) {
      préparation » — comme les phases de maîtrise d'œuvre plus haut dans ce
      fichier. Les opérations SE LISENT, elles ne SE COMPTENT PAS : c'est
      l'inverse du menu des pièces du dossier (`aoMenuDocs`), qui garde ses
-     quatorze cartes visibles parce qu'on y vient vérifier ce qui existe, pas
+     dix-neuf cartes visibles parce qu'on y vient vérifier ce qui existe, pas
      suivre un ordre.
 
      GROUPÉES PAR FAMILLE, en revanche, MÊME IDIOME que `aoMenuDocs` : suivi,
@@ -5848,6 +5848,7 @@ function messageDelai(e, defaut) {
           return;
         }
         aoCandRendre(j.plan);
+        offreRendre(j.dossier_offre);
       })
       .catch(function () { msg.textContent = "Plan indisponible."; });
   }
@@ -5906,8 +5907,52 @@ function messageDelai(e, defaut) {
   }
 
 
+  /* ── LE DOSSIER D'OFFRE — CE QUE VOUS PROPOSEZ, PAS QUI VOUS ÊTES ───────
+     UN BLOC À PART, PAS UN GROUPE DE PLUS DANS `aoCandRendre`. Cette page,
+     comme tout le reste du fichier, appelle « dossier de candidature » celui
+     qui établit qui vous êtes ; l'acte d'engagement, la DPGF et le mémoire
+     technique établissent ce que vous PROPOSEZ. Les y ranger sous le même
+     intitulé dirait quelque chose de faux.
+
+     TOUTES LES PIÈCES SONT VISIBLES, AUCUN MENU : à la différence des dix-
+     neuf pièces de candidature, qui se lisent une à la fois derrière un menu
+     tant elles sont nombreuses et denses, les trois pièces de l'offre se
+     comptent — c'est un inventaire à vérifier avant dépôt, pas un parcours à
+     dérouler. */
+  function offreRendre(o) {
+    var out = $("#ig-ao-offre-out");
+    var h = '<h3 class="ig-tr-st">Le dossier d\'offre</h3>'
+      + '<div class="ig-ao-cd">';
+    o.pieces.forEach(function (p) {
+      h += '<div class="ig-ao-cp' + (p.bloquant ? " ig-ao-cpb" : "") + '">'
+        + '<div class="ig-ao-cph"><b' + info("piece_offre:" + p.cle) + ">"
+        + esc(p.nom) + "</b>"
+        + '<span class="ig-ao-cn">' + esc(p.nature_nom) + "</span>"
+        + '<span class="ig-ao-cn">' + esc(p.famille_nom) + "</span>"
+        + (p.bloquant ? '<span class="ig-ao-bl">bloquante</span>' : "")
+        + "</div>"
+        + '<p class="ig-ao-cq"><i>Produite par</i> — ' + esc(p.produit_par)
+        + "</p><ul class=\"ig-ao-cc\">";
+      p.contient.forEach(function (c) { h += "<li>" + esc(c) + "</li>"; });
+      h += "</ul>"
+        + '<p class="ig-ao-pg"><i>Le piège</i> — ' + esc(p.piege) + "</p>";
+      if (p.en_groupement) {
+        h += '<p class="ig-ao-gr"><i>En groupement</i> — '
+          + esc(p.en_groupement) + "</p>";
+      }
+      h += "</div>";
+    });
+    /* MÊME PLACE, MÊME CLASSE QUE LA RÉSERVE DU DOSSIER DE CANDIDATURE
+       (`aoCandRendre`, juste au-dessus) : en pied de bloc, dans le style
+       discret des réserves légales du fichier — jamais en tête, en pleine
+       intensité, comme si c'était le message principal de la carte. */
+    h += "</div>" + '<p class="ig-icpe-res">' + esc(o.note) + "</p>";
+    out.innerHTML = h;
+  }
+
+
   /* ── LA FICHE DU CANDIDAT, ET LE REMPLISSAGE EN TEMPS RÉEL ─────────────
-     CE QUE CE BLOC RÉSOUT. Un dossier de candidature, c'est quatorze pièces
+     CE QUE CE BLOC RÉSOUT. Un dossier de candidature, c'est dix-neuf pièces
      qui redemandent les mêmes vingt informations. Les recopier à la main est
      le travail qui produit les fautes de cohérence dont les candidatures
      meurent — un SIRET d'une autre filiale sur un DC2, un objet de marché
@@ -6033,11 +6078,11 @@ function messageDelai(e, defaut) {
   }
 
   /* ── LE MENU DES PIÈCES À PRODUIRE ────────────────────────────────────
-     POURQUOI UN MENU, ET PAS SEULEMENT QUATORZE CARTES À LA SUITE. Un dossier
-     de candidature ne se prépare pas d'un seul tenant : l'administratif se
+     POURQUOI UN MENU, ET PAS SEULEMENT DIX-NEUF CARTES À LA SUITE. Un
+     dossier de candidature ne se prépare pas d'un seul tenant : l'administratif se
      rassemble — il existe déjà quelque part, ou il s'obtient d'un tiers — et
      le technique s'écrit. Ce ne sont ni les mêmes personnes, ni les mêmes
-     délais. Empilées sans séparation, les quatorze pièces font commencer par
+     délais. Empilées sans séparation, les dix-neuf pièces font commencer par
      les formulaires, qui sont courts et rassurants, et laissent pour la fin
      les notes techniques, qui départagent les candidats.
 
@@ -6045,11 +6090,11 @@ function messageDelai(e, defaut) {
      le navigateur les dessine lui-même, et la feuille partagée du site tient
      déjà leur contraste. Chaque entrée dit ce qu'il y a à FAIRE du document —
      le remplir ici, l'écrire, l'obtenir — et signale les bloquantes : sans
-     cela, le menu proposerait quatorze documents d'égale urgence, ce qui
+     cela, le menu proposerait dix-neuf documents d'égale urgence, ce qui
      revient à n'en signaler aucun. */
   /* LE CHOIX SURVIT AU REDESSIN, et sans cela le menu est inutilisable. Le
      bloc est redessiné à CHAQUE FRAPPE dans la fiche : la version précédente
-     perdait la sélection à la première lettre tapée, et les quatorze cartes
+     perdait la sélection à la première lettre tapée, et les dix-neuf cartes
      revenaient. Éprouvé dans un navigateur — on filtre sur « Références », on
      tape un caractère, et on se retrouve devant tout le dossier.
 

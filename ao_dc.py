@@ -952,8 +952,8 @@ def _alertes(pieces, manquantes, inconnues):
 #     qu'elles doivent démontrer.
 #
 # LA COLONNE `bloquant` DIT CE QUI REND LA CANDIDATURE IRRECEVABLE. Tout n'est
-# pas au même niveau, et traiter les seize pièces avec la même urgence revient
-# à n'en traiter aucune correctement.
+# pas au même niveau, et traiter les dix-neuf pièces avec la même urgence
+# revient à n'en traiter aucune correctement.
 
 # ── DEUX FAMILLES, ET ELLES NE SE PRÉPARENT PAS PAREIL ────────────────────
 # CE QUE LA DISTINCTION APPORTE, ET QUI N'EST PAS COSMÉTIQUE. Un règlement de
@@ -963,7 +963,7 @@ def _alertes(pieces, manquantes, inconnues):
 # se rassemble : il existe déjà quelque part, ou il s'obtient d'un tiers. Le
 # technique s'écrit : il n'existe nulle part avant qu'on l'écrive.
 #
-# LE PIÈGE QUE CETTE SÉPARATION ÉVITE. Traiter les quatorze pièces d'un seul
+# LE PIÈGE QUE CETTE SÉPARATION ÉVITE. Traiter les dix-neuf pièces d'un seul
 # tenant fait commencer par les formulaires — ils sont courts, ils rassurent —
 # et laisse pour la fin les notes techniques, qui sont ce qui départage les
 # candidats et ce qui prend le plus de temps.
@@ -1009,19 +1009,40 @@ VOIES = {
         "aide": "Une pièce délivrée par un tiers. Elle a un DÉLAI, et c'est ce "
                 "délai — pas la rédaction — qui fait rater les dépôts.",
     },
+    "completer": {
+        "nom": "À compléter",
+        "aide": "Un imprimé dont vous complétez vous-même les valeurs — "
+                "prix, méthode, engagement — à partir de votre chiffrage de "
+                "cette consultation. Ce module dit ce qu'il doit contenir ; "
+                "il ne le complète pas à votre place.",
+    },
 }
 
 
 def voie(cle_piece, nature):
-    """Ce qu'il y a à FAIRE de cette pièce : la remplir, l'écrire, l'obtenir.
+    """Ce qu'il y a à FAIRE de cette pièce : la remplir, la compléter,
+    l'écrire, l'obtenir.
 
     LA VOIE SE DÉDUIT, ELLE NE SE DÉCLARE PAS. Écrite à la main sur chaque
     pièce, elle dirait « se remplit ici » le jour où l'on retirerait ses
     rubriques — et le menu proposerait un document que rien ne remplit.
+
+    UN FORMULAIRE SANS RUBRIQUE N'EST PAS UN TEXTE À RÉDIGER. Toutes les
+    pièces `formulaire` du dossier de candidature ont des rubriques (elles
+    tombent donc dans « remplir ») — mais ce n'est pas vrai du dossier
+    d'offre : la DPGF et l'acte d'engagement sont des imprimés à VALEURS
+    FIXÉES (par l'acheteur ou par le code) qu'on complète à partir d'un
+    chiffrage, pas des « textes qui n'existent nulle part avant qu'on les
+    écrive ». Les confondre avec « rediger » contredirait leur propre
+    `nature_nom` (« Formulaire à remplir ») sur la même fiche.
     """
     if cle_piece in RUBRIQUES:
         return "remplir"
-    return "obtenir" if nature == "justificatif" else "rediger"
+    if nature == "justificatif":
+        return "obtenir"
+    if nature == "formulaire":
+        return "completer"
+    return "rediger"
 
 
 DOSSIER_CANDIDATURE = [
@@ -1045,9 +1066,10 @@ DOSSIER_CANDIDATURE = [
         ],
         "piege": "La répartition des prestations entre cotraitants inscrite "
                  "ici engage le groupement. Elle doit correspondre exactement "
-                 "à la note de répartition des compétences et au tableau de "
-                 "répartition des honoraires — trois documents qui disent "
-                 "souvent trois choses différentes.",
+                 "à celle de la convention de groupement, de la note de "
+                 "répartition des compétences et du tableau de répartition "
+                 "des honoraires — quatre documents qui disent souvent "
+                 "quatre choses différentes.",
         "delai": None,
     },
     {
@@ -1148,7 +1170,8 @@ DOSSIER_CANDIDATURE = [
             "Les interfaces entre cotraitants et la façon dont elles sont "
             "arbitrées",
             "Le rôle du mandataire et l'étendue de sa solidarité",
-            "La cohérence avec la répartition inscrite au DC1",
+            "La cohérence avec la répartition inscrite au DC1 et à la "
+            "convention de groupement",
         ],
         "piege": "Une répartition qui laisse une tâche à personne ou à deux "
                  "se voit à la lecture, et l'évaluateur en déduit — souvent "
@@ -1312,6 +1335,136 @@ DOSSIER_CANDIDATURE = [
                  "périmètre est écrit sur le certificat, et il est lu.",
         "delai": None,
     },
+    {
+        "cle": "convention_groupement", "famille": "administratif",
+        "nom": "Convention ou projet de convention de groupement",
+        "nature": "note",
+        "bloquant": False,
+        "produit_par": "Le mandataire, avec l'accord de chaque membre du "
+                       "groupement.",
+        "contient": [
+            "La forme du groupement — conjoint ou solidaire — et l'identité "
+            "de chaque membre",
+            "La répartition des prestations confiées à chaque membre, "
+            "discipline par discipline",
+            "La désignation du mandataire et l'étendue de sa solidarité",
+            "Les modalités de règlement des cotraitants entre eux",
+        ],
+        "piege": "Une répartition qui diverge de celle inscrite au DC1 ou de "
+                 "celle de la note de répartition des compétences — dans la "
+                 "plupart des règlements de consultation, les trois "
+                 "documents doivent dire exactement la même chose. Vérifiez "
+                 "aussi si le règlement exige la convention SIGNÉE dès la "
+                 "candidature ou seulement un PROJET, la version définitive "
+                 "n'étant due qu'à l'attributaire : les deux se traitent "
+                 "très différemment dans le délai.",
+        "delai": "Plusieurs jours à négocier entre cotraitants si le "
+                 "périmètre de chacun n'est pas déjà arrêté.",
+    },
+    {
+        "cle": "autonomie_commerciale", "famille": "administratif",
+        "nom": "Attestation d'autonomie commerciale et de mise en "
+               "concurrence réelle",
+        "nature": "note",
+        "bloquant": False,
+        "produit_par": "Chaque membre concerné par un lien capitalistique "
+                       "avec un autre candidat ou cotraitant de la même "
+                       "consultation, sous la signature d'une personne "
+                       "habilitée.",
+        "contient": [
+            "L'absence de lien de dépendance qui priverait les offres du "
+            "groupe d'une autonomie commerciale réelle",
+            "La confirmation que chaque offre du groupe a été établie sans "
+            "concertation, entente ou échange d'informations avec les "
+            "entreprises liées",
+            "L'identification précise des entreprises du groupe également "
+            "candidates ou cotraitantes sur la même consultation",
+        ],
+        "piege": "Elle n'est demandée que lorsque plusieurs entités d'un "
+                 "même groupe répondent à la même consultation — la "
+                 "chercher au règlement de consultation avant de la "
+                 "préparer évite un travail inutile ou, à l'inverse, un "
+                 "oubli. Sa portée est plus large qu'il n'y paraît : un "
+                 "acheteur peut écarter deux offres du même groupe si leur "
+                 "autonomie n'est pas démontrée, même sans entente prouvée.",
+        "delai": None,
+    },
+    {
+        "cle": "regularite_fiscale_sociale", "famille": "administratif",
+        "nom": "Attestations de régularité fiscale et sociale",
+        "nature": "justificatif",
+        "bloquant": False,
+        "produit_par": "Chaque membre du groupement, auprès de "
+                       "l'administration fiscale et des organismes de "
+                       "recouvrement des cotisations sociales (URSSAF ou "
+                       "caisse équivalente).",
+        "contient": [
+            "L'attestation de régularité fiscale, délivrée par "
+            "l'administration des impôts",
+            "L'attestation de vigilance ou de régularité sociale, délivrée "
+            "par l'URSSAF ou l'organisme compétent",
+            "Une date de délivrance suffisamment récente au regard de ce "
+            "que le règlement de consultation exige",
+        ],
+        "piege": "Beaucoup de règlements de consultation ne les exigent "
+                 "qu'au moment de l'attribution, du seul candidat "
+                 "pressenti — les demander dès la candidature ferait "
+                 "perdre un temps qui ne sert à rien tant que le classement "
+                 "n'est pas connu. Vérifiez à quel stade VOTRE consultation "
+                 "les exige avant de les commander. Elle ne remplace pas la "
+                 "déclaration sur l'honneur de la pièce « honneur » : "
+                 "celle-ci AFFIRME la régularité, celle-là la PROUVE.",
+        "delai": "Quelques jours à plusieurs semaines selon l'organisme et "
+                 "la période de l'année.",
+    },
+    {
+        "cle": "attestations_assurances", "famille": "administratif",
+        "nom": "Attestations d'assurances",
+        "nature": "justificatif",
+        "bloquant": False,
+        "produit_par": "Chaque membre du groupement, auprès de son "
+                       "assureur.",
+        "contient": [
+            "L'attestation d'assurance responsabilité civile "
+            "professionnelle, en cours de validité",
+            "L'attestation d'assurance décennale quand la prestation "
+            "l'exige",
+            "Le montant des garanties, à comparer à celui exigé par le "
+            "CCAP",
+        ],
+        "piege": "Le montant de garantie assuré, pas seulement l'existence "
+                 "du contrat. Une attestation en cours de validité mais "
+                 "dont le plafond de garantie est inférieur à celui exigé "
+                 "par le CCAP ne couvre pas le risque du marché — et cela "
+                 "se voit à la lecture.",
+        "delai": "Quelques jours auprès d'un assureur déjà en place ; "
+                 "plusieurs semaines pour une garantie à souscrire ou à "
+                 "relever.",
+    },
+    {
+        "cle": "bilans", "famille": "administratif",
+        "nom": "Trois derniers bilans et comptes de résultat",
+        "nature": "justificatif",
+        "bloquant": False,
+        "produit_par": "Chaque membre du groupement, auprès de son "
+                       "expert-comptable ou de son service comptable.",
+        "contient": [
+            "Les bilans et comptes de résultat des trois derniers exercices "
+            "clos",
+            "Une cohérence avec les chiffres d'affaires déclarés au "
+            "formulaire DC2",
+        ],
+        "piege": "Un chiffre d'affaires déclaré au DC2 qui ne se retrouve "
+                 "pas dans le bilan joint se voit à la première lecture "
+                 "croisée, et jette le doute sur tout le reste du dossier. "
+                 "Pour une société récente sans trois exercices clos, le "
+                 "règlement de consultation prévoit en général une "
+                 "alternative — la chercher plutôt que de laisser la pièce "
+                 "manquante.",
+        "delai": "Immédiat si les comptes sont clos et disponibles ; "
+                 "plusieurs semaines si le dernier exercice n'est pas "
+                 "encore clôturé ou certifié.",
+    },
 ]
 
 NATURES_PIECE = {
@@ -1429,6 +1582,192 @@ def _rappel_consultation(analyse):
     return out
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  3 bis. LE DOSSIER D'OFFRE — CE QUE VOUS PROPOSEZ, PAS QUI VOUS ÊTES
+# ═══════════════════════════════════════════════════════════════════════════
+# POURQUOI UN DOSSIER À PART, ET PAS UN TROISIÈME GROUPE DANS LE PRÉCÉDENT. Le
+# dossier de candidature établit QUI VOUS ÊTES et si vous avez le DROIT de
+# contracter — c'est ce que ce fichier entier appelle « candidature » depuis
+# son en-tête, ce que dit la page, ce que porte le document exporté. L'ACTE
+# D'ENGAGEMENT, LA DPGF ET LE MÉMOIRE TECHNIQUE établissent autre chose : ce
+# que vous proposez, et à quel prix. Le code des marchés publics distingue
+# candidature et offre, et un dossier de candidature auquel on ajouterait ces
+# trois pièces sous le même intitulé dirait quelque chose de faux — un
+# lecteur qui ouvrirait « le dossier de candidature » n'y trouverait pas
+# l'engagement de prix qu'il vient de chercher, ou croirait cet engagement
+# rangé sous une réponse à laquelle il ne participe pas.
+#
+# CE QUE CE DOSSIER NE FAIT PAS. Aucune des trois pièces ne se remplit ici :
+# le prix vient du chiffrage de CETTE consultation, que ce module ne calcule
+# pas, et le mémoire technique n'existe nulle part avant qu'on l'écrive. La
+# liste dit ce que chaque pièce doit contenir et ce qui la fait écarter ; elle
+# ne la produit pas.
+
+FAMILLES_OFFRE = {
+    "engagement": {
+        "nom": "Engagement et prix",
+        "etablit": "Ce que vous vous engagez à faire, et à quel prix.",
+        "qui": "Direction, chiffrage technique, expert-comptable.",
+        "piege": "Un prix qui ne correspond plus à ce que le CCTP exige au "
+                 "moment de signer l'acte d'engagement — les deux pièces se "
+                 "relisent ensemble, jamais l'une après l'autre.",
+    },
+    "technique": {
+        "nom": "Mémoire technique",
+        "etablit": "Comment vous comptez faire, et ce qui départage les "
+                   "offres.",
+        "qui": "Direction technique, responsables de mission.",
+        "piege": "Un mémoire qui décrit l'entreprise au lieu de répondre, "
+                 "point par point, aux critères de jugement pondérés du "
+                 "règlement de consultation.",
+    },
+}
+
+DOSSIER_OFFRE = [
+    {
+        "cle": "dpgf", "famille": "engagement",
+        "nom": "Décomposition du prix global et forfaitaire (DPGF)",
+        "nature": "formulaire",
+        "bloquant": True,
+        "produit_par": "Le candidat, poste par poste, à partir de son "
+                       "chiffrage — sur le modèle fourni par l'acheteur.",
+        "contient": [
+            "Un prix pour chaque ligne du modèle fourni par l'acheteur, "
+            "sans ligne laissée à zéro ou vide",
+            "Une correspondance ligne à ligne avec les prestations exigées "
+            "au CCTP",
+            "Les unités et le mode de décomposition imposés par le modèle",
+        ],
+        "piege": "Répartir un prix global sur les lignes « pour que ça "
+                 "tombe juste ». La répartition sert de base au règlement "
+                 "des acomptes et à la valorisation des modifications en "
+                 "cours de marché : une ligne sous-évaluée se paie plus "
+                 "tard, et jamais en votre faveur.",
+        "delai": None,
+    },
+    {
+        "cle": "memoire_technique", "famille": "technique",
+        "nom": "Mémoire technique",
+        "nature": "note",
+        "bloquant": True,
+        "produit_par": "Le mandataire, avec la contribution de chaque "
+                       "cotraitant sur son périmètre.",
+        "contient": [
+            "Une réponse point par point aux critères de jugement pondérés "
+            "du règlement de consultation, dans leur ordre",
+            "La méthodologie, l'organisation et les moyens propres à CETTE "
+            "consultation — pas une plaquette générale de l'entreprise",
+            "Le planning proposé et les mesures spécifiques exigées au "
+            "CCTP",
+        ],
+        "piege": "Rédiger un mémoire générique qui décrit l'entreprise au "
+                 "lieu de répondre aux critères. Un évaluateur qui note sur "
+                 "une grille pondérée ne trouve rien à noter dans un "
+                 "paragraphe qui ne répond à aucun critère nommé.",
+        "delai": None,
+    },
+    {
+        "cle": "acte_engagement", "famille": "engagement",
+        "nom": "Acte d'engagement (AE / ATTRI1)",
+        "nature": "formulaire",
+        "bloquant": True,
+        "produit_par": "Le candidat, ou le mandataire pour le groupement, "
+                       "signé par une personne habilitée.",
+        "contient": [
+            "L'identification du candidat ou de chaque membre du "
+            "groupement",
+            "Le prix ou le taux engagé, cohérent avec la DPGF jointe",
+            "La durée du marché et la date de début d'exécution",
+            "L'acceptation, par renvoi, des autres pièces contractuelles",
+        ],
+        "piege": "Signer avant d'avoir relu les pièces qu'il vise par "
+                 "renvoi, et avant d'avoir vérifié que le prix engagé "
+                 "correspond exactement au total de la DPGF jointe — deux "
+                 "montants qui divergent d'un centime rendent l'offre "
+                 "incohérente aux yeux de l'acheteur.",
+        "delai": None,
+    },
+]
+
+NOTE_OFFRE = (
+    "CETTE LISTE NE CHIFFRE RIEN ET NE RÉDIGE RIEN. Le prix vient de votre "
+    "chiffrage de CETTE consultation, la méthode de votre façon de faire : "
+    "ce module dit ce que chaque pièce doit contenir et ce qui la fait "
+    "écarter, il ne les produit pas à votre place. La liste des pièces "
+    "réellement exigées est celle du règlement de consultation de VOTRE "
+    "consultation, et elle l'emporte sur celle-ci.")
+
+
+def _groupement_offre(p):
+    """Ce que la pièce de l'offre devient quand on répond en groupement —
+    le pendant de `_groupement()` pour le dossier de candidature.
+
+    LES TROIS PIÈCES NE SE PARTAGENT PAS PAREIL. Le prix se répartit, le
+    mémoire distingue les rôles, l'acte d'engagement se signe une fois pour
+    tous ou membre par membre selon l'habilitation du mandataire — trois
+    questions différentes que le champ `contient` de chaque pièce évoque
+    déjà, mais que ce dépôt met par ailleurs toujours dans un mécanisme
+    dédié plutôt que noyées dans un texte libre.
+    """
+    if p["cle"] == "dpgf":
+        return ("Un seul DPGF pour le groupement, décomposé par membre ou "
+                "par lot selon ce que le règlement impose, cohérent avec la "
+                "répartition inscrite au DC1 et à la convention de "
+                "groupement.")
+    if p["cle"] == "memoire_technique":
+        return ("Un mémoire unique pour le groupement, qui dit clairement "
+                "ce que CHAQUE cotraitant apporte — un mémoire qui ne "
+                "distingue pas les rôles laisse croire que n'importe quel "
+                "membre peut remplacer un autre.")
+    if p["cle"] == "acte_engagement":
+        return ("Signé par le mandataire pour le compte du groupement s'il "
+                "est habilité à engager solidairement ; sinon, chaque "
+                "membre signe pour sa part — l'étendue de l'habilitation se "
+                "vérifie avant de le déposer, pas après.")
+    return ("À produire pour le groupement, sous la responsabilité du "
+            "mandataire.")
+
+
+def offre(groupement=False):
+    """Le dossier d'offre à produire — DPGF, mémoire technique, acte
+    d'engagement.
+
+    À LA DIFFÉRENCE DU DOSSIER DE CANDIDATURE, aucune de ces trois pièces
+    n'a de rubriques à remplir depuis la fiche du candidat ou le dossier
+    déposé : `voie()` le confirme lui-même, faute d'entrée dans `RUBRIQUES`
+    pour l'une d'elles. Pas de suivi de complétude ici, donc — seulement la
+    liste et ce que chaque pièce attend.
+
+    `groupement` EXISTE POUR LA MÊME RAISON QUE DANS `plan_reponse()` ET
+    `remplir()` : la page appelle les trois avec le même réglage, sur le
+    même écran — un dossier de candidature qui affiche « En groupement »
+    sur ses dix-neuf cartes et un dossier d'offre juste en dessous qui n'en
+    dit rien sur ses trois pièces (dont le prix se répartit et l'acte
+    d'engagement se signe différemment selon l'habilitation du mandataire)
+    laisserait croire que le groupement n'y change rien.
+    """
+    pieces = []
+    for base in DOSSIER_OFFRE:
+        v = voie(base["cle"], base["nature"])
+        p = dict(base)
+        p["nature_nom"] = NATURES_PIECE[base["nature"]]["nom"]
+        p["famille_nom"] = FAMILLES_OFFRE[base["famille"]]["nom"]
+        p["voie"] = v
+        p["voie_nom"] = VOIES[v]["nom"]
+        p["voie_aide"] = VOIES[v]["aide"]
+        if groupement:
+            p["en_groupement"] = _groupement_offre(base)
+        pieces.append(p)
+    return {
+        "version": VERSION,
+        "pieces": pieces,
+        "familles": FAMILLES_OFFRE,
+        "natures": NATURES_PIECE,
+        "bloquantes": [p["nom"] for p in DOSSIER_OFFRE if p["bloquant"]],
+        "note": NOTE_OFFRE,
+    }
+
+
 def referentiel():
     """Les tables, sans analyse — pour la page et la documentation."""
     return {
@@ -1445,6 +1784,12 @@ def referentiel():
         "note_remplissage": NOTE_REMPLISSAGE,
         "note_reponse": NOTE_REPONSE,
         "reserve_analyse": RESERVE_ANALYSE,
+        # LE DOSSIER D'OFFRE EST DÉJÀ ENRICHI ICI (famille_nom, voie, voie_nom
+        # inclus) — à la différence de `dossier_candidature`, brut, dont
+        # l'enrichissement propre au remplissage vit dans `remplir()`. Ce
+        # dossier n'a pas d'équivalent à `remplir()` : rien ne dépend de la
+        # fiche du candidat, la même réponse convient à tout le monde.
+        "dossier_offre": offre(),
         "glossaire": glossaire(),
     }
 
@@ -1468,6 +1813,15 @@ def glossaire():
                         ("\n\nDélai d'obtention — " + p["delai"])
                         if p.get("delai") else "")),
         } for p in DOSSIER_CANDIDATURE},
+        "piece_offre": {p["cle"]: {
+            "nom": p["nom"],
+            "aide": ("%s\n\nProduite par — %s\n\nCe qu'elle doit contenir :\n"
+                     "· %s\n\nLe piège — %s%s"
+                     % (NATURES_PIECE[p["nature"]]["aide"], p["produit_par"],
+                        "\n· ".join(p["contient"]), p["piege"],
+                        ("\n\nDélai d'obtention — " + p["delai"])
+                        if p.get("delai") else "")),
+        } for p in DOSSIER_OFFRE},
     }
 
 
@@ -1480,7 +1834,7 @@ def glossaire():
 # réponse est déjà écrite quelque part — dans la fiche du candidat, saisie une
 # fois, ou dans le dossier de consultation, relevé à l'instant. Une raison
 # sociale, un SIRET, un objet de marché, une date limite ne se devinent pas :
-# ils se recopient. Les recopier à la main sur quatorze pièces est le travail
+# ils se recopient. Les recopier à la main sur dix-neuf pièces est le travail
 # qui produit les fautes de cohérence dont les candidatures meurent.
 #
 # ELLE NE PRÉ-REMPLIT AUCUNE DÉCLARATION, et ce n'est pas une prudence
@@ -2208,6 +2562,37 @@ def _verifier():
             elif r["source"] != "saisie":
                 fautes.append("%s/%s : source inconnue (%s)"
                               % (cle_piece, r["cle"], r["source"]))
+
+    # ── LE DOSSIER D'OFFRE — MÊME CONTRÔLE, MÊME RAISON. Séparé du dossier de
+    # candidature précisément pour ne pas mentir sur ce qu'il contient ; il ne
+    # doit pas pour autant échapper au contrôle qui protège l'autre.
+    vues_offre = set()
+    for p in DOSSIER_OFFRE:
+        if p["cle"] in vues_offre:
+            fautes.append("pièce d'offre en double : %s" % p["cle"])
+        vues_offre.add(p["cle"])
+        if p["cle"] in vues:
+            fautes.append("pièce %s : présente à la fois dans le dossier de "
+                          "candidature et dans le dossier d'offre" % p["cle"])
+        if p["nature"] not in NATURES_PIECE:
+            fautes.append("pièce d'offre %s : nature inconnue (%s)"
+                          % (p["cle"], p["nature"]))
+        if not p.get("contient"):
+            fautes.append("pièce d'offre %s : rien à contenir" % p["cle"])
+        if p.get("famille") not in FAMILLES_OFFRE:
+            fautes.append("pièce d'offre %s : famille inconnue (%s) — le "
+                          "menu la rangerait nulle part"
+                          % (p["cle"], p.get("famille")))
+        for champ in ("nom", "produit_par", "piege"):
+            if not (p.get(champ) or "").strip():
+                fautes.append("pièce d'offre %s : champ « %s » vide"
+                              % (p["cle"], champ))
+    for f, d in FAMILLES_OFFRE.items():
+        for champ in ("nom", "etablit", "qui", "piege"):
+            if not (d.get(champ) or "").strip():
+                fautes.append("famille d'offre %s : champ « %s » vide"
+                              % (f, champ))
+
     return fautes
 
 

@@ -395,15 +395,21 @@ def test_une_piece_sans_texte_le_dit_au_lieu_de_paraitre_analysee():
 
 # ── Le dossier de candidature ──────────────────────────────────────────────
 
-def test_les_quatorze_pieces_de_la_candidature_sont_decrites():
+def test_les_dix_neuf_pieces_de_la_candidature_sont_decrites():
     """La composition demandée par les acheteurs : formulaires, justificatifs
-    et notes. En oublier une la fait manquer au dépôt."""
+    et notes. En oublier une la fait manquer au dépôt.
+
+    L'ÉGALITÉ, PAS UNE INCLUSION : une pièce ajoutée sans être attendue ici,
+    ou une pièce retirée sans que la liste le remarque, doivent l'une comme
+    l'autre faire tomber la règle."""
     cles = {p["cle"] for p in A.DOSSIER_CANDIDATURE}
     attendues = {"dc1", "dc2", "pouvoirs", "tiers", "honneur",
                  "repartition_competences", "conventions", "equipe",
                  "organigramme", "cv", "atd_atp", "references", "moyens",
-                 "qse"}
-    assert attendues <= cles, attendues - cles
+                 "qse", "convention_groupement", "autonomie_commerciale",
+                 "regularite_fiscale_sociale", "attestations_assurances",
+                 "bilans"}
+    assert attendues == cles, attendues ^ cles
 
 
 def test_l_ordre_de_production_commence_par_ce_qui_a_un_delai():
@@ -416,8 +422,21 @@ def test_l_ordre_de_production_commence_par_ce_qui_a_un_delai():
     assert [rang[n] for n in natures] == sorted(rang[n] for n in natures), natures
 
 
+def test_regularite_fiscale_sociale_n_est_PAS_bloquante():
+    """DÉFAUT TROUVÉ EN RELECTURE : cette pièce contredisait son propre
+    piège. Beaucoup de règlements de consultation n'exigent les attestations
+    de régularité fiscale et sociale qu'au moment de l'attribution, du seul
+    candidat pressenti — les marquer bloquantes DÈS LA CANDIDATURE pousserait
+    un candidat à les obtenir en urgence pour rien."""
+    p = next(x for x in A.DOSSIER_CANDIDATURE
+             if x["cle"] == "regularite_fiscale_sociale")
+    assert p["bloquant"] is False, (
+        "« regularite_fiscale_sociale » est bloquante alors que son propre "
+        "piège dit le contraire")
+
+
 def test_les_pieces_bloquantes_sont_nommees_a_part():
-    """Traiter quatorze pièces avec la même urgence revient à n'en traiter
+    """Traiter dix-neuf pièces avec la même urgence revient à n'en traiter
     aucune correctement."""
     p = A.plan_reponse()
     assert p["bloquantes"]
@@ -429,6 +448,21 @@ def test_chaque_piece_dit_ce_qu_elle_contient_et_ce_qui_la_fait_ecarter():
         assert p["contient"], p["cle"]
         assert len(p["piege"]) > 40, p["cle"]
         assert p["produit_par"], p["cle"]
+
+
+def test_la_repartition_SE_RECOUPE_entre_les_QUATRE_documents_qui_la_portent():
+    """DÉFAUT RÉEL, TROUVÉ EN RELECTURE : la convention de groupement, ajoutée
+    à ce dossier, porte la MÊME répartition des prestations que le DC1 et la
+    note de répartition des compétences — sans qu'aucun des trois ne le
+    dise. Un lecteur qui aligne DC1, note et tableau des honoraires sur le
+    piège du DC1 ne saurait pas qu'un quatrième document doit suivre."""
+    par_cle = {p["cle"]: p for p in A.DOSSIER_CANDIDATURE}
+    dc1 = par_cle["dc1"]["piege"].lower()
+    convention = par_cle["convention_groupement"]["piege"].lower()
+    repartition = " ".join(par_cle["repartition_competences"]["contient"]).lower()
+    assert "convention" in dc1 and "répartition des compétences" in dc1
+    assert "répartition des compétences" in convention or "dc1" in convention
+    assert "dc1" in repartition and "convention" in repartition
 
 
 def test_le_dc1_couvre_les_sept_rubriques_du_formulaire():
@@ -490,6 +524,24 @@ def test_le_groupement_multiplie_les_pieces_qui_se_produisent_par_membre():
 def test_sans_groupement_aucune_piece_ne_porte_de_mention_de_groupement():
     for x in A.plan_reponse(groupement=False)["pieces"]:
         assert "en_groupement" not in x, x["cle"]
+
+
+def test_le_groupement_change_aussi_les_pieces_de_l_offre():
+    """MÊME DÉFAUT, MÊME RAISON QUE POUR LA CANDIDATURE : le prix se répartit
+    entre cotraitants, l'acte d'engagement se signe différemment selon
+    l'habilitation du mandataire — un dossier d'offre qui ne le dirait pas
+    laisserait croire que le groupement n'y change rien."""
+    o = A.offre(groupement=True)
+    par_cle = {p["cle"]: p for p in o["pieces"]}
+    assert "MEMBRE" in par_cle["dpgf"]["en_groupement"].upper()
+    assert "mandataire" in par_cle["acte_engagement"]["en_groupement"]
+
+
+def test_sans_groupement_aucune_piece_d_offre_ne_porte_de_mention():
+    for p in A.offre(groupement=False)["pieces"]:
+        assert "en_groupement" not in p, p["cle"]
+    for p in A.offre()["pieces"]:
+        assert "en_groupement" not in p, p["cle"]
 
 
 # ── Ce que le module refuse de faire ───────────────────────────────────────
@@ -568,7 +620,8 @@ def test_le_glossaire_couvre_les_pieces_de_marche_et_de_candidature():
     assert set(g["piece_candidature"]) == {p["cle"] for p in A.DOSSIER_CANDIDATURE}
 
 
-@pytest.mark.parametrize("famille", ["piece_marche", "piece_candidature"])
+@pytest.mark.parametrize("famille", ["piece_marche", "piece_candidature",
+                                     "piece_offre"])
 def test_aucune_infobulle_n_est_vide(famille):
     for cle, e in A.glossaire()[famille].items():
         assert len(e["aide"]) > 100, (famille, cle, len(e["aide"]))
@@ -577,7 +630,7 @@ def test_aucune_infobulle_n_est_vide(famille):
 # ═══════════════════════════════════════════════════════════════════════════
 #  LE REMPLISSAGE DES PIÈCES — ce qui se recopie, ce qui ne se déclare jamais
 # ═══════════════════════════════════════════════════════════════════════════
-# LA LIGNE QUE CES RÈGLES TIENNENT. Un dossier de candidature, c'est quatorze
+# LA LIGNE QUE CES RÈGLES TIENNENT. Un dossier de candidature, c'est dix-neuf
 # pièces qui redemandent les mêmes vingt informations, et les recopier à la
 # main est le travail qui produit les fautes de cohérence dont les
 # candidatures meurent. Ce module les recopie donc — et il ne DÉCLARE rien :
@@ -878,7 +931,7 @@ def test_une_valeur_a_rallonge_ne_casse_pas_le_tableau_emporte():
 # dossier qu'on croit complet parce que l'écran ne montre que ce que le module
 # sait faire est pire qu'un écran vide.
 
-def test_les_quatorze_pieces_sont_rangees_dans_une_famille_connue():
+def test_les_dix_neuf_pieces_sont_rangees_dans_une_famille_connue():
     """UN MENU QUI RANGE MAL EST PIRE QU'UNE LISTE À PLAT : il fait chercher un
     document là où il n'est pas. Le contrôle vit dans le module, au chargement ;
     cette règle vérifie qu'il tient."""
@@ -915,13 +968,17 @@ def test_la_voie_se_DEDUIT_des_rubriques_et_ne_se_declare_pas():
             % (p["cle"], v, "en a" if p["cle"] in A.RUBRIQUES else "n'a pas"))
     assert A.voie("inconnue", "justificatif") == "obtenir"
     assert A.voie("inconnue", "note") == "rediger"
+    # UN FORMULAIRE SANS RUBRIQUE N'EST PAS UN TEXTE : le confondre avec
+    # « rediger » contredirait sa propre nature (« Formulaire à remplir »)
+    # sur la même fiche — c'est le défaut trouvé dans offre() et corrigé ici.
+    assert A.voie("inconnue", "formulaire") == "completer"
 
 
 def test_le_remplissage_rend_LE_DOSSIER_ENTIER():
-    """Les neuf pièces que ce module ne remplit pas doivent quand même être
-    là : ce sont elles qui portent les délais."""
+    """Les quatorze pièces que ce module ne remplit pas doivent quand même
+    être là : ce sont elles qui portent les délais."""
     r = A.remplir(fiche=FICHE)
-    assert len(r["pieces"]) == len(A.DOSSIER_CANDIDATURE) >= 14
+    assert len(r["pieces"]) == len(A.DOSSIER_CANDIDATURE) == 19
     rendues = {p["cle"] for p in r["pieces"]}
     assert rendues == {p["cle"] for p in A.DOSSIER_CANDIDATURE}
     for p in r["pieces"]:
@@ -973,3 +1030,165 @@ def test_le_remplissage_sert_les_familles_et_les_voies_a_la_page():
     r = A.remplir()
     assert r["familles"] == A.FAMILLES_PIECE
     assert r["voies"] == A.VOIES
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE DOSSIER D'OFFRE — CE QUE VOUS PROPOSEZ, PAS QUI VOUS ÊTES
+# ═══════════════════════════════════════════════════════════════════════════
+# POURQUOI UN DOSSIER À PART, ET PAS UN TROISIÈME GROUPE DANS LE PRÉCÉDENT.
+# Chaque page, chaque export et l'en-tête de ce fichier appellent le dossier
+# de candidature par son nom exact — un dossier qui établit QUI VOUS ÊTES.
+# L'acte d'engagement, la DPGF et le mémoire technique établissent CE QUE
+# VOUS PROPOSEZ : les y ranger sous le même intitulé dirait quelque chose de
+# faux. Ces règles protègent la séparation autant que le contenu.
+
+def test_le_dossier_d_offre_porte_les_trois_pieces_attendues():
+    cles = {p["cle"] for p in A.DOSSIER_OFFRE}
+    assert cles == {"dpgf", "memoire_technique", "acte_engagement"}, cles
+
+
+def test_les_trois_pieces_d_offre_sont_rangees_dans_une_famille_connue():
+    """MÊME CONTRÔLE, MÊME RAISON QUE POUR LA CANDIDATURE : un menu qui range
+    mal fait chercher un document là où il n'est pas."""
+    assert set(A.FAMILLES_OFFRE) == {"engagement", "technique"}
+    for p in A.DOSSIER_OFFRE:
+        assert p.get("famille") in A.FAMILLES_OFFRE, p["cle"]
+    for f, d in A.FAMILLES_OFFRE.items():
+        assert any(p["famille"] == f for p in A.DOSSIER_OFFRE), (
+            "la famille « %s » ne contient aucune pièce" % f)
+        for champ in ("nom", "etablit", "qui", "piege"):
+            assert (d.get(champ) or "").strip(), (f, champ)
+
+
+def test_le_module_refuse_une_piece_d_offre_sans_famille(monkeypatch):
+    """LE TÉMOIN. Sans lui, la règle précédente lirait une table que rien
+    n'oblige à rester juste."""
+    faux = [dict(p) for p in A.DOSSIER_OFFRE]
+    faux[0] = dict(faux[0]); faux[0]["famille"] = "divers"
+    monkeypatch.setattr(A, "DOSSIER_OFFRE", faux)
+    assert any("famille inconnue" in f for f in A._verifier())
+
+
+def test_le_dossier_d_offre_ne_partage_AUCUNE_cle_avec_la_candidature(
+        monkeypatch):
+    """DEUX MENUS DIFFÉRENTS, DEUX PIÈCES DIFFÉRENTES : une clé partagée
+    referait sortir la même carte dans les deux dossiers, ou en écraserait une
+    des deux selon l'ordre de rendu. Elle serait aussi une preuve que
+    quelqu'un a confondu candidature et offre en écrivant la table."""
+    assert not ({p["cle"] for p in A.DOSSIER_CANDIDATURE}
+                & {p["cle"] for p in A.DOSSIER_OFFRE})
+    # ET LE TÉMOIN : une collision délibérée doit être vue.
+    faux = [dict(p) for p in A.DOSSIER_OFFRE]
+    faux[0] = dict(faux[0]); faux[0]["cle"] = A.DOSSIER_CANDIDATURE[0]["cle"]
+    monkeypatch.setattr(A, "DOSSIER_OFFRE", faux)
+    assert any("présente à la fois" in f for f in A._verifier())
+
+
+def test_chaque_piece_d_offre_dit_ce_qu_elle_contient_et_ce_qui_la_fait_ecarter():
+    for p in A.DOSSIER_OFFRE:
+        assert p["contient"], p["cle"]
+        assert len(p["piege"]) > 40, p["cle"]
+        assert p["produit_par"], p["cle"]
+
+
+def test_les_trois_pieces_d_offre_sont_TOUTES_bloquantes():
+    """UNE OFFRE SANS PRIX, SANS ENGAGEMENT SIGNÉ OU SANS MÉMOIRE N'EST PAS
+    UNE OFFRE : à la différence de la candidature, où une partie des pièces
+    ne fait que soutenir le dossier, les trois pièces de l'offre sont
+    chacune, seule, suffisante pour la faire écarter si elle manque."""
+    assert all(p["bloquant"] for p in A.DOSSIER_OFFRE), (
+        [p["cle"] for p in A.DOSSIER_OFFRE if not p["bloquant"]])
+
+
+def test_AUCUNE_piece_d_offre_ne_se_remplit_depuis_la_fiche():
+    """LA RAISON D'ÊTRE DE `offre()` SANS MACHINERIE DE REMPLISSAGE : si
+    l'une de ces pièces gagnait un jour des rubriques dans `RUBRIQUES`, la
+    voie déduite passerait à « remplir » et cette fonction mentirait par son
+    silence sur la complétude. Le test protège la PRÉMISSE, pas seulement la
+    fonction."""
+    for p in A.DOSSIER_OFFRE:
+        assert p["cle"] not in A.RUBRIQUES, p["cle"]
+        assert A.voie(p["cle"], p["nature"]) != "remplir", p["cle"]
+
+
+def test_offre_rend_les_trois_pieces_deja_enrichies():
+    """LA PAGE NE RECALCULE RIEN : `famille_nom`, `voie`, `voie_nom` et
+    `voie_aide` doivent déjà être posés, comme `remplir()` le fait pour la
+    candidature."""
+    o = A.offre()
+    assert o["familles"] == A.FAMILLES_OFFRE
+    assert o["note"] == A.NOTE_OFFRE
+    assert {p["nom"] for p in A.DOSSIER_OFFRE} == set(o["bloquantes"])
+    rendues = {p["cle"] for p in o["pieces"]}
+    assert rendues == {p["cle"] for p in A.DOSSIER_OFFRE}
+    for p in o["pieces"]:
+        assert p["famille"] in A.FAMILLES_OFFRE
+        assert p["famille_nom"] == A.FAMILLES_OFFRE[p["famille"]]["nom"]
+        assert p["voie"] in A.VOIES and p["voie_nom"] and p["voie_aide"]
+        assert p["nature_nom"] == A.NATURES_PIECE[p["nature"]]["nom"]
+        assert p["contient"] and p["produit_par"]
+
+
+def test_un_FORMULAIRE_d_offre_n_est_jamais_annonce_A_REDIGER():
+    """DÉFAUT RÉEL, TROUVÉ EN RELECTURE : la DPGF et l'acte d'engagement sont
+    des imprimés à valeurs fixées (nature « formulaire », NATURES_PIECE le
+    dit : « un imprimé dont les rubriques sont fixées ») — pas des textes
+    libres. `voie()` les faisait pourtant tomber dans « rediger », dont
+    l'aide dit l'inverse exact : « un texte qui n'existe nulle part avant
+    qu'on l'écrive ». Deux affirmations contraires sur la même fiche."""
+    o = A.offre()
+    for p in o["pieces"]:
+        if p["nature"] == "formulaire":
+            assert p["voie"] != "rediger", (
+                "« %s » est un formulaire mais annoncé « à rédiger »"
+                % p["cle"])
+            assert p["voie"] == "completer", p["cle"]
+        else:
+            assert p["nature"] == "note"
+            assert p["voie"] == "rediger", p["cle"]
+
+
+def test_la_voie_d_une_piece_d_offre_SUIT_REELLEMENT_voie(monkeypatch):
+    """TÉMOIN NÉCESSAIRE : les trois pièces de l'offre se déduisent
+    aujourd'hui toutes en « rediger » — un `offre()` qui écrirait ce mot en
+    dur au lieu d'appeler `voie()` rendrait exactement la même réponse, et
+    aucune règle qui ne fait QUE LIRE `offre()` ne le verrait. On force la
+    déduction à changer, et on vérifie qu'`offre()` la suit."""
+    faux = {"dpgf": [{"cle": "x", "libelle": "x", "source": "fiche",
+                      "champ": "raison_sociale"}]}
+    monkeypatch.setattr(A, "RUBRIQUES", faux)
+    o = A.offre()
+    dpgf = next(p for p in o["pieces"] if p["cle"] == "dpgf")
+    assert dpgf["voie"] == "remplir", (
+        "offre() ne suit plus la déduction de voie() : « dpgf » a gagné une "
+        "rubrique et le reste « %s »" % dpgf["voie"])
+
+
+def test_les_bloquantes_de_l_offre_SONT_REELLEMENT_FILTREES(monkeypatch):
+    """TÉMOIN NÉCESSAIRE, MÊME RAISON : les trois pièces de l'offre sont
+    aujourd'hui toutes bloquantes — un filtre retiré rendrait la même liste,
+    et rien qui ne fasse QUE LIRE `offre()` ne le verrait. On rend une pièce
+    non bloquante et on vérifie qu'elle sort de la liste."""
+    faux = [dict(p) for p in A.DOSSIER_OFFRE]
+    faux[0] = dict(faux[0]); faux[0]["bloquant"] = False
+    monkeypatch.setattr(A, "DOSSIER_OFFRE", faux)
+    assert faux[0]["nom"] not in A.offre()["bloquantes"], (
+        "la liste des bloquantes de l'offre n'est plus filtrée sur "
+        "« bloquant »")
+
+
+def test_referentiel_expose_le_dossier_d_offre_deja_enrichi():
+    """UNE SECONDE ROUTE QUI RECALCULERAIT `offre()` À SA FAÇON DIVERGERAIT
+    DE LA PREMIÈRE À LA PREMIÈRE PIÈCE AJOUTÉE — `referentiel()` sert
+    exactement ce que `offre()` calcule, rien de recopié à côté."""
+    ref = A.referentiel()
+    assert ref["dossier_offre"] == A.offre()
+
+
+def test_le_glossaire_porte_une_infobulle_par_piece_d_offre():
+    g = A.glossaire()["piece_offre"]
+    assert set(g) == {p["cle"] for p in A.DOSSIER_OFFRE}
+    for p in A.DOSSIER_OFFRE:
+        aide = g[p["cle"]]["aide"]
+        assert p["produit_par"] in aide and p["piege"] in aide, p["cle"]
+        assert g[p["cle"]]["nom"] == p["nom"]
