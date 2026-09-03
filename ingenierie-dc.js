@@ -5494,8 +5494,83 @@ function messageDelai(e, defaut) {
           return;
         }
         travauxRendre(j.plan, j.nature_detail);
+        travauxBrancherMenu();
       })
       .catch(function () { msg.textContent = "Plan indisponible."; });
+  }
+
+  /* ── LE MENU DES OPÉRATIONS — DOUZE CHANTIERS À LA SUITE NE SONT PAS DOUZE
+     CHANTIERS PARALLÈLES. C'est exactement le défaut déjà nommé en tête de ce
+     fichier pour les phases de maîtrise d'œuvre : affichées à plat, des
+     étapes SÉQUENTIELLES se lisent comme des blocs indépendants. Chaque
+     opération porte ici quatre à six lignes — objet, préalable, point d'arrêt
+     éventuel, acteurs — et douze à la suite font un mur qu'on parcourt en
+     diagonale plutôt qu'une séquence qu'on comprend.
+
+     UNE SEULE EST OUVERTE AU CHARGEMENT — la première, « Période de
+     préparation » — comme les phases de maîtrise d'œuvre plus haut dans ce
+     fichier. Les opérations SE LISENT, elles ne SE COMPTENT PAS : c'est
+     l'inverse du menu des pièces du dossier (`aoMenuDocs`), qui garde ses
+     quatorze cartes visibles parce qu'on y vient vérifier ce qui existe, pas
+     suivre un ordre.
+
+     GROUPÉES PAR FAMILLE, en revanche, MÊME IDIOME que `aoMenuDocs` : suivi,
+     contrôle, commissioning, réception sont quatre moments d'attention
+     différents, pour des rôles différents — le CSPS suit le contrôle, l'agent
+     de commissioning les essais, le client la réception. Le `<optgroup>` sert
+     ici à SCANNER, pas à choisir un groupe entier : chaque option reste une
+     opération unique. */
+  var TR_TOUTES = "__toutes";
+  var TR_OP = null;
+
+  /* LE CHOIX EST PASSÉ EN PARAMÈTRE, PAS LU DANS TR_OP — même discipline que
+     `aoMenuDocs` : c'est ce qui permet d'exécuter cette fonction hors du
+     navigateur pour l'éprouver, et ce qui empêche le rendu de dépendre d'un
+     état qu'un appelant oublierait de poser. */
+  function travauxMenu(p, choix) {
+    var parFamille = {};
+    p.operations.forEach(function (o) {
+      (parFamille[o.famille] = parFamille[o.famille] || []).push(o);
+    });
+    var h = '<label class="ig-ao-menu"><span class="dc-lab">'
+      + p.operations.length + " opérations, dans l'ordre du chantier — en "
+      + "choisir une</span>"
+      /* LA VALEUR « TOUTES » EST UN LITTÉRAL ICI, PAS `TR_TOUTES` : cette
+         fonction ne doit dépendre d'AUCUN état ni constante du module — même
+         discipline que `aoMenuDocs`, qui n'en lit aucun. `TR_TOUTES` reste
+         le nom partagé entre le rendu et le filtre, mais seul le filtre,
+         qui n'a pas besoin d'être pur, le lit. */
+      + '<select id="ig-tr-op"><option value="__toutes">Les '
+      + p.operations.length + " opérations, à la suite</option>";
+    Object.keys(p.familles).forEach(function (f) {
+      var liste = parFamille[f] || [];
+      if (!liste.length) return;
+      h += '<optgroup label="' + esc(p.familles[f].nom) + " (" + liste.length + ')">';
+      liste.forEach(function (o) {
+        h += '<option value="' + esc(o.cle) + '"' + (o.cle === choix ? " selected" : "")
+          + ">" + esc(o.nom) + "</option>";
+      });
+      h += "</optgroup>";
+    });
+    h += "</select><span class=\"dc-aide\">La sortie d'une opération est "
+      + "l'entrée de la suivante&nbsp;: l'ordre porte autant que le contenu."
+      + "</span></label>";
+    return h;
+  }
+
+  /* Le filtre MASQUE, il ne redessine pas — la règle tenue partout ailleurs
+     dans ce fichier (`aoBrancherMenu`, les listes de la page de calcul) :
+     redessiner perdrait tout ce que la saisie de la section a construit
+     autour, et referait le menu au moment même où on vient de le poser. */
+  function travauxBrancherMenu() {
+    var sel = $("#ig-tr-op");
+    if (!sel) return;
+    sel.addEventListener("change", function () {
+      TR_OP = sel.value;
+      document.querySelectorAll("#ig-tr-out [data-op]").forEach(function (li) {
+        li.hidden = TR_OP !== TR_TOUTES && li.dataset.op !== TR_OP;
+      });
+    });
   }
 
   function travauxRendre(p, nature) {
@@ -5519,9 +5594,25 @@ function messageDelai(e, defaut) {
       });
       h += "</div>";
     }
+    /* L'EFFECTIF DU CHOIX SE DÉCIDE ICI, UNE SEULE FOIS : s'il n'y en a pas
+       encore, ou si le précédent ne désigne plus une opération du plan
+       courant (un changement de nature pourrait en théorie faire varier la
+       liste), on retombe sur la première. `TR_OP` est mis à jour ici, et nulle
+       part ailleurs. */
+    /* « TOUTES » EST TOUJOURS UN CHOIX VALIDE, même si aucune opération ne
+       porte cette clé — sinon un plan redessiné (nature ou commissioning
+       changés) le traiterait comme absent et retomberait sur la première
+       opération, perdant la vue d'ensemble qu'on venait de choisir. */
+    var choix = TR_OP === TR_TOUTES
+      || (TR_OP && p.operations.some(function (o) { return o.cle === TR_OP; }))
+      ? TR_OP : (p.operations[0] || {}).cle;
+    TR_OP = choix;
+    h += travauxMenu(p, choix);
     h += '<ol class="ig-tr-l">';
     p.operations.forEach(function (o) {
-      h += '<li class="ig-tr-o' + (o.sans_titulaire ? " ig-tr-orph" : "") + '">'
+      h += '<li data-op="' + esc(o.cle) + '"'
+        + (choix === TR_TOUTES || o.cle === choix ? "" : " hidden")
+        + ' class="ig-tr-o' + (o.sans_titulaire ? " ig-tr-orph" : "") + '">'
         + '<div class="ig-tr-h"><span class="ig-tr-f">' + esc(o.famille_nom)
         + "</span>"
         + '<b' + info("operation:" + o.cle) + ">" + esc(o.nom) + "</b>"

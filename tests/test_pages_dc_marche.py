@@ -29,6 +29,7 @@ ICI = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ICI)
 
 import ao_dc  # noqa: E402
+import travaux_dc  # noqa: E402
 
 
 def lire(nom):
@@ -1065,3 +1066,203 @@ def test_le_filtre_est_reapplique_apres_le_redessin_sans_faire_sauter_la_page():
     change = _bloc_apres(bloc, 'addEventListener("change"')
     assert "AO_DOC = sel.value" in change, (
         "le gestionnaire ne retient pas le choix : il ne survivra à rien")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE MENU DES OPÉRATIONS DE LA PHASE TRAVAUX — MÊME IDIOME QUE aoMenuDocs
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# CE QUI A DÉCLENCHÉ CETTE SECTION. Douze opérations de chantier s'affichaient
+# à la suite, chacune avec quatre à six lignes de détail — exactement le
+# défaut déjà nommé en tête de `ingenierie-dc.js` pour les phases de maîtrise
+# d'œuvre : « affichées à plat, [elles] se lisent comme des chantiers
+# parallèles, ce qu'elles ne sont pas ». Un menu les range désormais par
+# famille, comme `aoMenuDocs` range les pièces du dossier — même fichier, même
+# discipline : le choix passe en PARAMÈTRE plutôt que d'être lu dans une
+# variable globale, pour rester exécutable hors du navigateur.
+
+def _menu_operations_rendu(plan, choix=""):
+    """Le HTML que `travauxMenu` produit RÉELLEMENT, en l'exécutant."""
+    prog = (_js_fonctions("esc", "travauxMenu")
+            + "\nconst p = JSON.parse(process.env.TR_PLAN);"
+            + "\nprocess.stdout.write(travauxMenu(p, process.env.TR_CHOIX || ''));\n")
+    env = dict(os.environ, TR_PLAN=json.dumps(plan), TR_CHOIX=choix)
+    out = subprocess.run(["node"], input=prog, capture_output=True, text=True,
+                         timeout=60, env=env)
+    assert out.returncode == 0, out.stderr
+    return out.stdout
+
+
+_PLAN_TRAVAUX = travaux_dc.plan(None, True)
+
+
+def test_le_menu_des_operations_liste_TOUTES_les_operations_en_QUATRE_groupes():
+    """CHERCHER « optgroup » DANS LE FICHIER SERAIT VERT POUR UN GROUPE MORT
+    DANS UN COMMENTAIRE — le défaut déjà nommé pour le menu des pièces. On
+    exécute la fonction et on lit ce qu'elle rend."""
+    h = _menu_operations_rendu(_PLAN_TRAVAUX)
+    familles = {o["famille"] for o in _PLAN_TRAVAUX["operations"]}
+    assert h.count("<optgroup") == len(familles), h[:200]
+    for f in familles:
+        assert _PLAN_TRAVAUX["familles"][f]["nom"] in h, f
+    options = re.findall(r'<option value="([^"]*)"[^>]*>([^<]*)</option>', h)
+    valeurs = [v for v, _ in options]
+    assert valeurs[0] == "__toutes", "le menu n'offre pas de lire les opérations à la suite"
+    assert sorted(v for v in valeurs if v != "__toutes") == sorted(
+        o["cle"] for o in _PLAN_TRAVAUX["operations"]), (
+        "le menu ne liste pas les douze opérations : %s" % valeurs)
+
+
+def test_chaque_entree_du_menu_dit_le_NOM_de_lOPERATION():
+    """LE TEXTE EST ÉCHAPPÉ, ET IL DOIT L'ÊTRE : plusieurs noms d'opération
+    portent une apostrophe (« Visa des études d'exécution »). On déséchappe
+    pour comparer, ce qui vérifie au passage que l'échappement a bien eu
+    lieu — un nom qui arriverait brut ne se déséchapperait pas en lui-même."""
+    h = _menu_operations_rendu(_PLAN_TRAVAUX)
+    options = dict(re.findall(r'<option value="([^"]+)"[^>]*>([^<]*)</option>', h))
+    apostrophes = 0
+    for o in _PLAN_TRAVAUX["operations"]:
+        brut = options[o["cle"]]
+        t = html.unescape(brut)
+        if "'" in o["nom"]:
+            apostrophes += 1
+            assert "&#39;" in brut, "« %s » n'est pas échappé dans le menu" % o["cle"]
+        assert o["nom"] in t, o["cle"]
+    assert apostrophes >= 3, "l'échantillon ne couvre presque aucune apostrophe"
+
+
+def test_le_filtre_des_operations_MASQUE_et_ne_redessine_pas():
+    """REDESSINER FERAIT PERDRE LES RÉGLAGES DE NATURE ET DE COMMISSIONING —
+    même défaut, même règle que pour le menu des pièces."""
+    bloc = _js_fonctions("travauxBrancherMenu")
+    assert "hidden" in bloc, "le filtre ne masque rien"
+    for interdit in ("innerHTML", "travauxRendre("):
+        assert interdit not in bloc, (
+            "le filtre redessine (« %s ») au lieu de masquer" % interdit)
+
+
+def test_le_menu_des_operations_est_construit_sur_ce_que_le_SERVEUR_rend():
+    """Une liste d'opérations écrite dans le script se désynchroniserait du
+    module à la première opération ajoutée."""
+    bloc = _js_fonctions("travauxMenu")
+    assert "p.operations" in bloc and "p.familles" in bloc
+    for cle in ("prep", "visa", "fat", "reception", "exploitation"):
+        assert '"%s"' % cle not in bloc and "'%s'" % cle not in bloc, (
+            "« %s » est écrit en dur dans le menu" % cle)
+
+
+def test_le_choix_du_menu_des_operations_est_REELLEMENT_marque():
+    """LA RÈGLE EXÉCUTE LA FONCTION AVEC UN CHOIX, et lit l'option marquée — la
+    présence du mot « selected » quelque part dans le fichier serait verte
+    pour un attribut mort."""
+    h = _menu_operations_rendu(_PLAN_TRAVAUX, "reception")
+    marquees = re.findall(r'<option value="([^"]*)"[^>]*\bselected\b', h)
+    assert marquees == ["reception"], (
+        "le menu ne retient pas le choix : %s" % marquees)
+    assert not re.search(r"\bselected\b", _menu_operations_rendu(_PLAN_TRAVAUX, "")), (
+        "une option est marquée alors qu'aucun choix explicite n'a été fait")
+
+
+def test_une_seule_operation_est_VISIBLE_au_chargement():
+    """LES OPÉRATIONS SE LISENT, ELLES NE SE COMPTENT PAS — l'inverse du menu
+    des pièces, qui garde ses cartes visibles parce qu'on y vérifie ce qui
+    existe plutôt que suivre un ordre. Ici, chaque opération porte quatre à
+    six lignes : à la suite, elles font un mur qu'on parcourt en diagonale au
+    lieu d'une séquence qu'on comprend."""
+    bloc = _js_fonctions("travauxRendre")
+    assert 'data-op="' in bloc and '" hidden' in bloc, (
+        "le rendu ne masque plus les opérations non choisies")
+    # ET LE TÉMOIN : le rendu ne doit pas masquer INCONDITIONNELLEMENT — sinon
+    # aucune opération ne serait jamais visible.
+    assert 'o.cle === choix ? "" : " hidden"' in sans_commentaires_js(bloc), (
+        "le masquage ne dépend plus du choix courant")
+
+
+def test_TOUTES_les_operations_restent_VISIBLES_quand_TOUTES_est_choisi():
+    """DÉFAUT ÉPROUVÉ DANS UN NAVIGATEUR, PAS IMAGINÉ. En choisissant « toutes »
+    puis en changeant la nature des travaux (ce qui redessine tout le bloc), les
+    douze opérations disparaissaient — la <li> n'était démasquée QUE si
+    `o.cle === choix`, et aucune opération ne porte la clé `__toutes` : le choix
+    « lire à la suite » se traitait donc comme n'importe quelle clé absente, et
+    tout restait masqué. `TR_OP` gardait pourtant la bonne valeur (l'écran
+    précédent le prouve) — la fuite était dans le rendu, pas dans l'état.
+
+    CHERCHER « TR_TOUTES » DANS LE FICHIER SERAIT VERT pour une mention ailleurs
+    dans la fonction (elle y figure déjà, pour calculer `choix`). On isole la
+    condition qui pose `hidden` sur CHAQUE <li> et on vérifie qu'elle admet le
+    cas « toutes » en plus du cas « cette opération précisément »."""
+    bloc = sans_commentaires_js(_js_fonctions("travauxRendre"))
+    assert re.search(
+        r'data-op="[^"]*"\'\s*\n\s*\+\s*\(choix === TR_TOUTES \|\| o\.cle === choix'
+        r' \? "" : " hidden"\)',
+        bloc), "le masquage de chaque operation ne traite pas « toutes » a part"
+
+
+def test_le_choix_effectif_retombe_sur_la_PREMIERE_operation_si_absent():
+    """`TR_OP` peut valoir `null` au premier chargement, ou désigner une
+    opération qui n'existe plus dans un plan reçu entre-temps : le rendu doit
+    alors retomber sur la première opération plutôt que de ne rien montrer."""
+    bloc = _js_fonctions("travauxRendre")
+    assert "p.operations[0] || {}).cle" in sans_commentaires_js(bloc), (
+        "aucun repli vers la première opération n'est prévu")
+
+
+def test_travauxMenu_ne_lit_PAS_letat_global_TR_OP():
+    """LA DISCIPLINE DE aoMenuDocs, REPRISE ICI : le choix est un PARAMÈTRE,
+    jamais lu dans `TR_OP` à l'intérieur de la fonction — sinon elle ne serait
+    plus exécutable hors du navigateur pour être éprouvée, exactement ce que
+    documente déjà `aoMenuDocs` dans ce même fichier."""
+    bloc = _js_fonctions("travauxMenu")
+    assert "TR_OP" not in bloc, (
+        "travauxMenu lit ou écrit l'état global au lieu de son paramètre")
+
+
+def test_le_menu_des_operations_est_un_VRAI_select():
+    """UN `<datalist>` LAISSERAIT SAISIR N'IMPORTE QUOI dans le champ, alors que
+    le choix doit être fermé aux douze opérations et à « toutes »."""
+    bloc = _js_fonctions("travauxMenu")
+    assert '<select id="ig-tr-op">' in sans_commentaires_js(bloc), (
+        "le menu des opérations n'est plus un <select> fermé")
+
+
+def test_le_gestionnaire_du_menu_des_operations_RETIENT_le_choix():
+    """SANS CELA, `travauxRendre` — appelé à chaque changement de nature ou de
+    commissioning — ne saurait jamais ce qui a été choisi : `TR_OP` est la
+    SEULE mémoire du choix entre deux redessins, exactement le défaut déjà
+    nommé pour `AO_DOC` dans `aoBrancherMenu`."""
+    bloc = _js_fonctions("travauxBrancherMenu")
+    change = _bloc_apres(bloc, 'addEventListener("change"')
+    assert "TR_OP = sel.value;" in change, (
+        "le gestionnaire ne retient pas le choix : il ne survivra à rien")
+
+
+def test_travauxBrancherMenu_est_REELLEMENT_appele_apres_le_rendu():
+    """CHERCHER `travauxBrancherMenu` DANS LE FICHIER SERAIT VERT POUR SA
+    PROPRE DÉFINITION — une fonction définie et jamais appelée ne branche
+    rien. On lit le corps de `travauxPlan`, qui charge le plan et doit
+    enchaîner rendu puis branchement, DANS CET ORDRE : brancher avant que les
+    `<li data-op>` existent ne trouverait aucun élément à masquer."""
+    bloc = sans_commentaires_js(_js_fonctions("travauxPlan"))
+    assert "travauxRendre(j.plan, j.nature_detail);" in bloc, (
+        "travauxPlan ne rend plus le plan des travaux")
+    assert bloc.index("travauxRendre(j.plan, j.nature_detail);") < bloc.index(
+        "travauxBrancherMenu();"), (
+        "le menu des opérations n'est pas (re)branché après le rendu")
+
+
+def test_TOUTES_reste_un_CHOIX_VALIDE_au_redessin():
+    """DÉFAUT ÉPROUVÉ DANS UN NAVIGATEUR, PAS IMAGINÉ. `travauxRendre` est
+    rappelé à chaque changement de nature de travaux ou de commissioning, et
+    RECALCULE `choix` à partir de `TR_OP` — mais aucune opération ne porte la
+    clé `__toutes` : sans un cas à part, « lire à la suite » se traiterait
+    comme un choix devenu absent, et retomberait sur la première opération,
+    perdant la vue d'ensemble qu'on venait précisément de choisir.
+
+    LE TÉMOIN : sans le cas à part, le repli sur la première opération reste
+    présent dans le fichier (`test_le_choix_effectif_retombe_...` resterait
+    vert) — c'est bien la disjonction explicite qu'il faut vérifier, pas la
+    seule existence d'un repli."""
+    bloc = sans_commentaires_js(_js_fonctions("travauxRendre"))
+    assert "TR_OP === TR_TOUTES" in bloc, (
+        "« toutes » n'est plus traité comme un choix valide à part entière "
+        "lors du redessin")
