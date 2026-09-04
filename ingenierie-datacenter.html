@@ -2212,6 +2212,72 @@
     <p class="note" id="ig-eco-msg" style="margin-top:10px"></p>
     <div id="ig-eco-out"></div>
 
+    <!-- ═══════════════════════════════════════════════════════════════
+         QUI PORTE L'ENVELOPPE — le prolongement direct du chiffrage.
+
+         POURQUOI ICI, ET PAS DANS UNE SECTION À PART. Ce n'est pas une étape
+         de plus : c'est une LECTURE de l'enveloppe qu'on vient de produire.
+         Le total ci-dessus dit ce que l'opération coûte ; il ne dit rien de
+         ce qu'elle coûte À PORTER, ni de ce que le porteur devra produire
+         pour qu'on la lui finance — et les deux décident autant l'un que
+         l'autre.
+
+         CE QUI A CHANGÉ ET JUSTIFIE CE BLOC. Les centres de données n'étaient
+         financés que par leurs exploitants sur bilan. Ils le sont désormais
+         par des fonds d'infrastructure, de la dette privée, des fonds de
+         pension, des fonds souverains, des fonds immobiliers, et en France
+         par des investisseurs publics. Chacun ne cherche pas la même chose et
+         n'exige pas le même dossier : préparer « un dossier de financement »
+         sans savoir pour qui, c'est le préparer pour personne.
+         ═══════════════════════════════════════════════════════════════ -->
+    <details class="ig-pas" id="ig-fin" style="margin-top:22px">
+      <summary>Qui porte cette enveloppe — familles de financement, coût de portage et pièces à produire</summary>
+      <div class="ig-pas-c">
+        <p class="note" id="ig-fin-source"></p>
+
+        <div id="ig-fin-familles"><p class="note">Chargement…</p></div>
+
+        <div class="ig-moe-taux" style="margin-top:16px">
+          <div class="ig-moe-tx">
+            <div class="ig-moe-txn">L’enveloppe et sa détention</div>
+            <div class="ig-moe-duo">
+              <div class="ig-moe-ch"><label for="ig-fin-env">Enveloppe (€)</label>
+                <input type="number" id="ig-fin-env" min="0" step="any" placeholder="— reprise du chiffrage —"></div>
+              <div class="ig-moe-ch"><label for="ig-fin-det">Détention (années)</label>
+                <input type="number" id="ig-fin-det" min="1" step="1" placeholder="— à préciser —"></div>
+            </div>
+          </div>
+          <div class="ig-moe-tx">
+            <div class="ig-moe-txn">La dette — relevée sur une offre, jamais supposée</div>
+            <div class="ig-moe-duo">
+              <div class="ig-moe-ch"><label for="ig-fin-pd">Part financée par dette (%)</label>
+                <input type="number" id="ig-fin-pd" min="0" max="100" step="any" placeholder="— à préciser —"></div>
+              <div class="ig-moe-ch"><label for="ig-fin-td">Taux de la dette (%)</label>
+                <input type="number" id="ig-fin-td" min="0" step="any" placeholder="— à préciser —"></div>
+            </div>
+            <div class="ig-moe-duo" style="margin-top:10px">
+              <div class="ig-moe-ch"><label for="ig-fin-dd">Amortissement (années)</label>
+                <input type="number" id="ig-fin-dd" min="1" step="1" placeholder="— à préciser —"></div>
+              <div class="ig-moe-ch"><label for="ig-fin-rfp">Rendement attendu des fonds propres (%)</label>
+                <input type="number" id="ig-fin-rfp" min="0" step="any" placeholder="— à préciser —"></div>
+            </div>
+          </div>
+        </div>
+
+        <p class="note" style="margin-top:10px"><b>Aucun taux n’est embarqué
+          dans ce site.</b> Coût de la dette et rendement attendu des fonds
+          propres se négocient et se relèvent sur une offre&nbsp;; ils changent
+          tous les trimestres. Laissés vides, le coût de portage sort
+          «&nbsp;indéterminé&nbsp;» en nommant ce qui manque, plutôt qu’un
+          chiffre calculé sur une valeur par défaut — qu’on ne conteste
+          jamais.</p>
+
+        <button type="button" class="ig-lanceur-b" id="ig-fin-go">Éprouver le financement →</button>
+        <p class="note" id="ig-fin-msg" style="margin-top:10px"></p>
+        <div id="ig-fin-out"></div>
+      </div>
+    </details>
+
     <!-- LE PONT — l'économiste et la maîtrise d'œuvre, reliés.
 
          CE QUE LA LIAISON APPORTE, et qu'aucun des deux blocs ne donnait
@@ -3198,6 +3264,12 @@
       .then(function (d) {
         if (!d.ok) { txt(elMsg, 'Le référentiel n’a pas pu être chargé.'); return; }
         REF = d.referentiel;
+        /* LE FINANCEMENT ARRIVE PAR LE MÊME APPEL, dans une clé distincte —
+           pas fondu dans le référentiel de l'économiste. Les deux sont servis
+           par des modules différents, et les mêler ici ferait croire à un
+           lecteur du code qu'econome_dc porte des familles de financement. */
+        FINREF = d.financement || null;
+        finFamilles();
         elOp.innerHTML = REF.operations.map(function (o) {
           return '<option value="' + esc(o.cle) + '">' + esc(o.nom) + '</option>';
         }).join('');
@@ -3219,6 +3291,13 @@
       $('ig-pont-out').innerHTML = '';
     });
     $('ig-eco-go').addEventListener('click', chiffrer);
+    if ($('ig-fin-go')) $('ig-fin-go').addEventListener('click', finEprouver);
+    /* UNE SAISIE MANUELLE DE L'ENVELOPPE REPREND LA MAIN, définitivement :
+       un chiffrage relancé ensuite ne doit pas écraser ce que le lecteur
+       vient de taper. */
+    if ($('ig-fin-env')) $('ig-fin-env').addEventListener('input', function (ev) {
+      if (ev.isTrusted) ev.target.dataset.repris = '0';
+    });
     $('ig-pont-go').addEventListener('click', chiffrerMoe);
     /* EN TEMPS RÉEL : l'étape 2 est plus haut sur la MÊME page. Une puissance
        corrigée là-haut doit se voir ici sans recharger — sinon les deux
@@ -3251,6 +3330,206 @@
       if (e.target && e.target.id === 'ecoq-puissance_it_kw' && e.isTrusted)
         e.target.dataset.repris = '0';
     });
+  }
+
+
+  /* ── QUI PORTE L'ENVELOPPE ──────────────────────────────────────────────
+     CE BLOC PROLONGE LE CHIFFRAGE, IL NE LE DOUBLE PAS. L'enveloppe se
+     REPREND du total calculé plus haut au lieu d'être ressaisie : deux
+     saisies du même montant divergent, et c'est la plus ancienne que le
+     lecteur croira. La reprise est visible et modifiable — un montant repris
+     en silence ne se conteste pas davantage qu'une valeur par défaut.
+
+     AUCUN TAUX N'EST PROPOSÉ. Ni ici, ni au serveur. Un placeholder
+     « 5,5 » ferait office de recommandation au bout de deux lectures. */
+  var FIN = null, FINREF = null;
+
+  function finFamilles() {
+    var z = $('ig-fin-familles');
+    if (!z || !FINREF) return;
+    var R = FINREF;
+    txt($('ig-fin-source'), R.sources_source);
+    var h = '<div class="ig-moe-liste">';
+    R.ordre_sources.forEach(function (k) {
+      var v = R.sources[k];
+      h += '<div class="ig-moe-m"><label for="fin-' + esc(k) + '">'
+        + '<input type="checkbox" id="fin-' + esc(k) + '" data-fin="' + esc(k) + '">'
+        + '<span><b>' + esc(v.nom) + '</b> — ' + esc(v.cherche)
+        + '<br><span class="ig-moe-aq note">Horizon ' + v.horizon_ans[0]
+        + ' à ' + v.horizon_ans[1] + ' ans. Ce qu’il ne fera pas : '
+        + esc(v.ne_fera_pas) + '</span></span></label></div>';
+    });
+    z.innerHTML = h + '</div>';
+  }
+
+  /* Le total du chiffrage, LU sur le résultat que le serveur vient de rendre
+     — pas relu dans le HTML, qui est de la mise en forme. */
+  var FIN_ENVELOPPE = null;
+
+  /* LE TOTAL ARRIVE PAR L'ÉVÉNEMENT QUE LE CHIFFRAGE ÉMET DÉJÀ, et non d'une
+     relecture du HTML : ce qui est affiché est de la mise en forme, et le
+     relire ferait dépendre un calcul d'un séparateur de milliers.
+
+     UNE MAINTENANCE NE SE REPREND PAS, et le drapeau `annuel` est là pour ça.
+     Son total est un coût ANNUEL d'exploitation ; le porter en enveloppe
+     d'investissement produirait un plan de financement sur un nombre qui ne
+     veut rien dire — et il aurait l'air juste. Le refus est DIT, pas
+     silencieux : un champ qui reste vide sans explication se remplit à la
+     main avec le même mauvais chiffre. */
+  document.addEventListener('ig-chiffrage', function (ev) {
+    var d = (ev && ev.detail) || {};
+    if (d.source !== 'travaux') return;
+    var msg = $('ig-fin-msg');
+    if (d.annuel) {
+      FIN_ENVELOPPE = null;
+      if (msg) txt(msg, 'Le chiffrage en cours est une MAINTENANCE : son '
+        + 'total est un coût annuel d’exploitation, pas une enveloppe '
+        + 'd’investissement. Il n’est donc pas repris ici — saisissez '
+        + 'l’enveloppe de l’opération à financer.');
+      return;
+    }
+    if (msg) txt(msg, '');
+    var t = (d.total_avec_provision != null) ? d.total_avec_provision
+                                             : d.total_chiffre;
+    finReprendreEnveloppe(t);
+    var note = $('ig-fin-msg');
+    if (note && t != null && d.part_non_chiffree) {
+      txt(note, 'Enveloppe reprise du chiffrage : ' + euro(t) + '. '
+        + Math.round(d.part_non_chiffree * 100) + ' % des postes ne sont pas '
+        + 'chiffrés — le plan de financement porte donc sur une addition '
+        + 'partielle, et c’est à dire au financeur avant qu’il ne le trouve.');
+    }
+  });
+
+  function finReprendreEnveloppe(total) {
+    FIN_ENVELOPPE = (total === null || total === undefined) ? null : total;
+    var c = $('ig-fin-env');
+    if (!c || FIN_ENVELOPPE === null) return;
+    if (String(c.value).trim() === '' || c.dataset.repris !== '0') {
+      c.value = Math.round(FIN_ENVELOPPE);
+      c.dataset.repris = '1';
+    }
+  }
+
+  function finLire() {
+    function v(id) { var e = $(id); return e ? (e.value || '').trim() : ''; }
+    var sources = [];
+    document.querySelectorAll('#ig-fin-familles [data-fin]').forEach(function (c) {
+      if (c.checked) sources.push(c.getAttribute('data-fin'));
+    });
+    var pit = document.getElementById('ecoq-puissance_it_kw');
+    return {
+      enveloppe_eur: v('ig-fin-env'),
+      duree_detention_ans: v('ig-fin-det'),
+      part_dette_pct: v('ig-fin-pd'),
+      taux_dette_pct: v('ig-fin-td'),
+      duree_dette_ans: v('ig-fin-dd'),
+      rendement_fonds_propres_pct: v('ig-fin-rfp'),
+      puissance_it_kw: pit ? (pit.value || '').trim() : '',
+      sources: sources
+    };
+  }
+
+  function finEprouver() {
+    var msg = $('ig-fin-msg'), out = $('ig-fin-out');
+    if (!out) return;
+    txt(msg, 'Calcul…');
+    fetch('/api/datacenter/financement', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(finLire())
+    }).then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) { txt(msg, (j && j.message) || 'Calcul indisponible.'); return; }
+        FIN = j; txt(msg, ''); finRendre(j.etude);
+      })
+      .catch(function () { txt(msg, 'Calcul indisponible.'); });
+  }
+
+  function pct(x) {
+    return x === null || x === undefined ? '—'
+      : (Math.round(x * 10000) / 100).toFixed(2).replace('.', ',') + ' %';
+  }
+
+  function finRendre(e) {
+    $('ig-fin-out').innerHTML = finPortage(e.portage) + finHorizons(e.horizons)
+      + finExigences(e.exigences);
+  }
+
+  function finPortage(p) {
+    var h = '<div class="ig-pont" style="margin-top:20px"><h3>Ce que '
+      + 'l’enveloppe coûte à porter</h3>';
+    if (!p.ok) {
+      return h + '<p class="note">' + esc(p.message) + '</p></div>';
+    }
+    h += '<div class="ig-moe-kpi">'
+      + kpiCarte('Coût annuel du capital', euro(p.cout_annuel_capital_eur),
+                 'Annuité de dette et exigence de rémunération des fonds '
+                 + 'propres réunies — deux natures différentes.')
+      + kpiCarte('Annuité de la dette', euro(p.annuite_dette_eur),
+                 'Exigible à date, sur ' + p.hypotheses.duree_dette_ans + ' ans.')
+      + kpiCarte('Coût moyen pondéré', pct(p.cmpc), 'Avant impôt.')
+      + (p.cout_annuel_par_kw
+         ? kpiCarte('Par kilowatt informatique', euro(p.cout_annuel_par_kw),
+                    'Coût annuel du capital rapporté à la puissance déclarée '
+                    + 'à l’étape 2.')
+         : '')
+      + '</div>';
+    h += '<p>Dette ' + euro(p.dette_eur) + ' · fonds propres '
+      + euro(p.fonds_propres_eur) + '. Sur la durée d’amortissement, la dette '
+      + 'aura coûté ' + euro(p.cout_total_dette_eur) + ', soit '
+      + euro(p.surcout_dette_eur) + ' au-delà du capital emprunté.</p>';
+    h += '<div class="ig-moe-inc">';
+    (p.reserves || []).forEach(function (r) { h += '<div>' + esc(r) + '</div>'; });
+    return h + '</div></div>';
+  }
+
+  function finHorizons(o) {
+    if (!o.ok) return '';
+    var h = '<div class="ig-pont"><h3>Les horizons, confrontés à la durée de '
+      + 'détention</h3>';
+    if (o.note) h += '<p class="note">' + esc(o.note) + '</p>';
+    h += '<ul>';
+    o.lignes.forEach(function (l) {
+      h += '<li><b>' + esc(l.nom) + '</b> — ' + l.horizon_ans[0] + ' à '
+        + l.horizon_ans[1] + ' ans' + (l.dit ? '. ' + esc(l.dit) : '')
+        + '</li>';
+    });
+    h += '</ul>';
+    if ((o.a_organiser || []).length) {
+      h += '<p class="ig-moe-res">' + o.a_organiser.length
+        + ' financeur(s) dont la sortie est à organiser AU MONTAGE. Découverte '
+        + 'en cours de vie, elle se règle par une vente forcée.</p>';
+    }
+    return h + '</div>';
+  }
+
+  function finExigences(o) {
+    if (!o.ok) {
+      return '<div class="ig-pont"><h3>Ce qu’il faudra produire</h3>'
+        + '<p class="note">Cochez au moins une famille de financement : les '
+        + 'pièces à produire dépendent entièrement de qui les demande.</p></div>';
+    }
+    var h = '<div class="ig-pont"><h3>Ce qu’il faudra produire — '
+      + o.exigences.length + ' pièce(s)</h3><p class="note">' + esc(o.note)
+      + '</p>';
+    if ((o.livrables_techniques || []).length) {
+      h += '<p class="ig-pont-h">Livrables d’ingénierie — ils se commandent '
+        + 'en phase d’étude</p><ul>';
+      o.livrables_techniques.forEach(function (x) {
+        h += '<li><b>' + esc(x.intitule) + '</b> — ' + esc(x.pourquoi)
+          + ' <span class="note">(' + x.nombre + ' demandeur(s) : '
+          + esc(x.demandee_par.join(', ')) + ')</span></li>';
+      });
+      h += '</ul>';
+    }
+    h += '<p class="ig-pont-h">Toutes les pièces, par nombre de demandeurs</p><ul>';
+    o.exigences.forEach(function (x) {
+      h += '<li>' + (x.nombre > 1 ? '<b>' : '') + esc(x.intitule)
+        + (x.nombre > 1 ? '</b>' : '') + ' — ' + x.nombre
+        + ' demandeur(s) : ' + esc(x.demandee_par.join(', ')) + '</li>';
+    });
+    return h + '</ul></div>';
   }
 
   if (document.readyState === 'loading')

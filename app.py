@@ -2345,6 +2345,7 @@ import ingenierie_dc  # noqa: E402  — situe ses résultats dans la séquence p
 import ia_factory     # noqa: E402  — l'étude de faisabilité d'une usine IA, sans prix inventé
 import technique_dc  # noqa: E402  — le vocabulaire du métier, servi aux infobulles
 import densite_dc   # noqa: E402  — la densité par baie contre le bâtiment
+import financement_dc  # noqa: E402  — qui porte l'enveloppe, et à quel prix
 import icpe_dc       # noqa: E402  — crible les rubriques, ne classe pas le site
 import travaux_dc    # noqa: E402  — l'ordre des opérations de chantier et ses tiers
 import ao_dc         # noqa: E402  — lit le dossier marché, prépare la candidature
@@ -2458,6 +2459,7 @@ def api_datacenter_referentiel():
         # appel, elle arriverait APRÈS la liste — c'est-à-dire au moment exact
         # où le lecteur a déjà choisi.
         densite=densite_dc.referentiel(),
+        financement=financement_dc.referentiel(),
         reseau=reseau_dc.referentiel(),
         base=_themes_datacenter()))
 
@@ -3938,8 +3940,16 @@ def api_datacenter_economiste():
     contient aucune operation livree publiant a la fois sa capacite et son
     investissement, donc aucun ratio ne peut en etre tire. La route sert la
     structure ; les prix viennent du bordereau du client.
+
+    LE FINANCEMENT VOYAGE AVEC, et non par un second appel. Les familles de
+    financement se cochent dans la MÊME section que le chiffrage, sous le
+    total qu'elles portent : servies séparément, la liste s'afficherait après
+    le résultat — c'est-à-dire après que le lecteur a refermé la section.
+    Aucun taux n'y figure : ce référentiel décrit ce que chaque famille
+    cherche et exige, jamais ce qu'elle coûte.
     """
-    return jsonify(ok=True, referentiel=econome_dc.referentiel())
+    return jsonify(ok=True, referentiel=econome_dc.referentiel(),
+                   financement=financement_dc.referentiel())
 
 
 @app.route("/api/datacenter/economiste/chiffrer", methods=["POST"])
@@ -4300,6 +4310,66 @@ def api_datacenter_reseau():
                        message="L'étude n'a pas pu être établie."), 500
     return jsonify(ok=True, etude=etude, rejets=rejets,
                    referentiel=reseau_dc.referentiel())
+
+
+@app.route("/api/datacenter/financement", methods=["POST"])
+@login_required
+def api_datacenter_financement():
+    """Qui peut porter cette enveloppe, ce qu'elle coûte à porter, et ce qu'il
+    faudra produire.
+
+    LES TROIS RÉSULTATS PARTENT ENSEMBLE parce que séparés ils se lisent
+    chacun à l'avantage de la décision déjà prise. Un coût de portage sans les
+    exigences fait croire qu'un financement se trouve sur un taux ; une liste
+    d'exigences sans le coût fait préparer un dossier pour un montage qui ne
+    servira pas.
+
+    AUCUN TAUX N'EST SUPPOSÉ. Coût de la dette et rendement attendu des fonds
+    propres se relèvent sur une offre ; absents, le portage sort
+    « indéterminé » en nommant ce qui manque. Sur ce sujet plus qu'ailleurs,
+    une valeur par défaut deviendrait la réponse — un plan de financement
+    bâti sur un taux inventé se présente en comité comme s'il était négocié.
+    """
+    data = request.get_json(silent=True) or {}
+
+    def _n(cle):
+        try:
+            v = float(str(data.get(cle) or "").replace(",", ".").strip())
+        except (TypeError, ValueError):
+            return None
+        return v
+
+    def _pct(cle):
+        """Un pourcentage saisi « 5,5 » vaut 5,5 %, pas 550 %.
+
+        LE PIÈGE EST CLASSIQUE ET SILENCIEUX : le formulaire demande des
+        pourcentages, le calcul attend des fractions. Sans cette conversion,
+        un taux de 5,5 produirait une annuité cent fois trop grande — et le
+        résultat resterait un nombre, donc crédible.
+        """
+        v = _n(cle)
+        return None if v is None else v / 100.0
+
+    sources = [x for x in (data.get("sources") or [])
+               if x in financement_dc.SOURCES]
+    try:
+        etude = financement_dc.etude(
+            enveloppe_eur=_n("enveloppe_eur"),
+            sources=sources,
+            duree_detention_ans=_n("duree_detention_ans"),
+            part_dette=_pct("part_dette_pct"),
+            taux_dette=_pct("taux_dette_pct"),
+            duree_dette_ans=_n("duree_dette_ans"),
+            rendement_fonds_propres=_pct("rendement_fonds_propres_pct"),
+            puissance_it_kw=_n("puissance_it_kw"))
+    except ValueError as e:
+        return jsonify(ok=False, error="saisie", message=str(e)), 400
+    except Exception:
+        app.logger.exception("étude de financement datacenter")
+        return jsonify(ok=False, error="calcul",
+                       message="L'étude n'a pas pu être établie."), 500
+    return jsonify(ok=True, etude=etude,
+                   referentiel=financement_dc.referentiel())
 
 
 @app.route("/api/datacenter/densite", methods=["POST"])
