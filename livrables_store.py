@@ -17,6 +17,8 @@ import threading
 import time
 import uuid
 
+import repli_direct   # le repli en connexion directe, ecrit une fois
+
 _log = logging.getLogger("livrables")
 
 MAX_MARKDOWN = 200_000   # garde-fou de taille (caractères)
@@ -213,15 +215,17 @@ class PostgresLivrablesStore:
     persistent = True
     _SCHEMA_LOCK = 907246
 
+    _KW = {"autocommit": True, "prepare_threshold": None}
+
     def __init__(self, dsn):
         from psycopg_pool import ConnectionPool
         # prepare_threshold=None : compatibilité pooler PgBouncer (endpoint
         # « -pooler » de Neon). check : valide la connexion avant usage (réveil
         # à froid d'une base serverless).
         sep = "&" if "?" in dsn else "?"
-        dsn = dsn + sep + "connect_timeout=10&client_encoding=UTF8"
-        self._pool = ConnectionPool(dsn, min_size=1, max_size=2,
-                                    kwargs={"autocommit": True, "prepare_threshold": None},
+        self._dsn = dsn + sep + "connect_timeout=10&client_encoding=UTF8"
+        self._pool = ConnectionPool(self._dsn, min_size=1, max_size=2,
+                                    kwargs=dict(self._KW),
                                     timeout=8, open=True,
                                     check=ConnectionPool.check_connection)
         try:
@@ -233,8 +237,12 @@ class PostgresLivrablesStore:
                 pass
             raise
 
+    def _conn(self):
+        """Voir repli_direct : le pool d'abord, la connexion directe s'il boude."""
+        return repli_direct.connexion(self, "livrables", _log, self._KW)
+
     def _init_schema(self):
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             conn.execute("SELECT pg_advisory_lock(%s)", (self._SCHEMA_LOCK,))
             try:
                 for stmt in _SCHEMA:
@@ -247,7 +255,7 @@ class PostgresLivrablesStore:
         if not rec["markdown"]:
             return None
         lid = uuid.uuid4().hex
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             conn.execute(
                 "INSERT INTO livrables(id,type,label,client,secteur,perimetre,model,"
                 "markdown,sources,created_at,parent_id,projet_id,phase,filiere,etat,"
@@ -263,7 +271,7 @@ class PostgresLivrablesStore:
         return lid
 
     def list(self):
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             rows = conn.execute(
                 "SELECT id,type,label,client,secteur,model,created_at,parent_id,"
                 "projet_id,phase,filiere,etat,piece,visas,numero,indice,"
@@ -282,7 +290,7 @@ class PostgresLivrablesStore:
         # contrôle passait donc au poste de travail et refusait tout en
         # production. Une colonne absente d'un SELECT ne se voit pas ; son
         # effet, si.
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             r = conn.execute(
                 "SELECT id,type,label,client,secteur,perimetre,model,markdown,sources,"
                 "created_at,parent_id,projet_id,phase,filiere,etat,piece,visas,"
@@ -301,7 +309,7 @@ class PostgresLivrablesStore:
         return rec
 
     def delete(self, lid):
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             return conn.execute("DELETE FROM livrables WHERE id=%s", (lid,)).rowcount > 0
 
     def viser(self, lid, visa):
@@ -311,18 +319,18 @@ class PostgresLivrablesStore:
             return None
         visas = (rec.get("visas") or []) + [visa]
         visas = visas[-60:]
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             conn.execute("UPDATE livrables SET visas=%s WHERE id=%s",
                          (json.dumps(visas, ensure_ascii=False), lid))
         return visas
 
     def changer_etat(self, lid, etat):
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             return conn.execute("UPDATE livrables SET etat=%s WHERE id=%s",
                                 (etat, lid)).rowcount > 0
 
     def stats(self):
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             return {"count": conn.execute("SELECT count(*) FROM livrables").fetchone()[0]}
 
 

@@ -33,8 +33,8 @@ import reglages   # un réglage illisible ne doit pas arrêter le service
 import threading
 import veille_sources   # le catalogue des flux, et leur santé — voir le module
 import time
+import repli_direct   # le repli en connexion directe, écrit une fois
 import xml.etree.ElementTree as ET
-from contextlib import contextmanager
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 
@@ -96,10 +96,7 @@ def _now_ms():
 #  État clé/valeur persistant (PostgreSQL si possible, sinon mémoire)
 # ============================================================================
 class _State:
-    # Attente maximale pour obtenir une connexion du pool avant de passer en
-    # direct, et durée pendant laquelle on cesse ensuite de le solliciter.
-    POOL_ACQUIS_S = 1.5
-    POOL_GRACE_S = 60.0
+    _KW = {"autocommit": True}
 
     def __init__(self, dsn):
         self._mem = {}
@@ -118,7 +115,7 @@ class _State:
             # check : la connexion est validée avant d'être rendue, une
             # connexion morte est remplacée au lieu d'être servie.
             self._pool = ConnectionPool(self._dsn, min_size=1, max_size=3,
-                                        kwargs={"autocommit": True}, timeout=8,
+                                        kwargs=dict(self._KW), timeout=8,
                                         open=True, check=ConnectionPool.check_connection)
         except Exception as exc:
             # Le pool n'est PAS la condition d'accès à la base : sans lui, on
@@ -138,58 +135,19 @@ class _State:
             self._pool = None
             self._dsn = None
 
-    @contextmanager
     def _conn(self):
         """Connexion pour une opération, avec REPLI SUR UNE CONNEXION DIRECTE.
-
-        MÊME REMÈDE QUE POUR LES COMPTES ET LA BASE DE CONNAISSANCE, et pour le
-        même incident — celui-ci l'a simplement montré sous un autre jour. La
-        base répondait parfaitement (103 connexions autorisées, 27 ouvertes, une
-        connexion directe établie dans la seconde) pendant que la veille rendait
-        une liste vide au bout de huit secondes, requête après requête, sur un
-        processus sur deux. Après un incident de connexion, psycopg_pool se met
-        en retrait et refuse d'en ouvrir de nouvelles pendant plusieurs minutes.
 
         CE MODULE ÉTAIT LE SEUL DES TROIS À NE PAS AVOIR CE REPLI, et c'est
         exactement pourquoi lui seul se voyait : les comptes et la base de
         connaissance basculaient en direct sans que personne ne s'en aperçoive,
-        la veille attendait son délai et rendait une page vide. Le journal le
-        disait pourtant, dans les mêmes minutes et sous une autre étiquette.
+        la veille attendait ses huit secondes et rendait une page vide. Le
+        journal le disait pourtant, dans les mêmes minutes, sous une autre
+        étiquette.
 
-        L'attente d'acquisition est COURTE et suivie d'une période de grâce : un
-        pool en bonne santé répond en millisecondes, et sans cette précaution
-        chaque opération repaierait l'attente tant que le pool boude.
-
-        L'échec d'ACQUISITION est seul traité ici : une erreur survenant DANS la
-        requête remonte normalement à l'appelant (qui, ici, retombe en mémoire).
-        """
-        import psycopg
-        try:
-            if self._pool is None or time.time() < self._pool_ko_jusqu:
-                raise RuntimeError("pool absent ou en période de grâce")
-            conn = self._pool.getconn(timeout=self.POOL_ACQUIS_S)
-        except Exception as exc:
-            self.replis_directs += 1
-            self._pool_ko_jusqu = time.time() + self.POOL_GRACE_S
-            _log.warning("automation : pool indisponible (%s) — connexion directe "
-                         "pour cette opération (%d au total).",
-                         type(exc).__name__, self.replis_directs)
-            direct = psycopg.connect(self._dsn, autocommit=True)
-            try:
-                yield direct
-            finally:
-                try:
-                    direct.close()
-                except Exception:
-                    pass
-            return
-        try:
-            yield conn
-        finally:
-            try:
-                self._pool.putconn(conn)
-            except Exception:
-                pass
+        Le mécanisme vit dans `repli_direct` — il servait déjà trois magasins
+        chacun avec sa copie, et quatre autres l'attendaient."""
+        return repli_direct.connexion(self, "automation", _log, self._KW)
 
     def get(self, key, default=None):
         if self._dsn:

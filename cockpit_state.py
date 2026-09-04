@@ -23,6 +23,10 @@ import os
 import threading
 import time
 
+import repli_direct   # le repli en connexion directe, ecrit une fois
+
+_log = logging.getLogger("cockpit")
+
 
 def _day_utc(ts_ms):
     return datetime.datetime.fromtimestamp((ts_ms or 0) / 1000,
@@ -188,6 +192,12 @@ class PostgresStore:
     convertie en hypertable TimescaleDB si l'extension est disponible, sans changer le code.
     """
 
+    _KW = {"autocommit": True, "prepare_threshold": None}
+
+    def _conn(self):
+        """Voir repli_direct : le pool d'abord, la connexion directe s'il boude."""
+        return repli_direct.connexion(self, "cockpit", _log, self._KW)
+
     def __init__(self, dsn):
         from psycopg_pool import ConnectionPool
         # connect_timeout borne l'attente si la base est injoignable (échoue vite).
@@ -195,9 +205,9 @@ class PostgresStore:
         # transaction (endpoint « -pooler » de Neon). check : valide la connexion
         # avant usage (réveil à froid d'une base serverless).
         sep = "&" if "?" in dsn else "?"
-        dsn = dsn + sep + "connect_timeout=10"
-        self._pool = ConnectionPool(dsn, min_size=1, max_size=4,
-                                    kwargs={"autocommit": True, "prepare_threshold": None},
+        self._dsn = dsn + sep + "connect_timeout=10"
+        self._pool = ConnectionPool(self._dsn, min_size=1, max_size=4,
+                                    kwargs=dict(self._KW),
                                     timeout=8, open=True,
                                     check=ConnectionPool.check_connection)
         try:
@@ -217,7 +227,7 @@ class PostgresStore:
     _SCHEMA_LOCK = 907243
 
     def _init_schema(self):
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             conn.execute("SELECT pg_advisory_lock(%s)", (self._SCHEMA_LOCK,))
             try:
                 for stmt in _SCHEMA:
@@ -236,7 +246,7 @@ class PostgresStore:
         zid = _ZONE_ID_BY_NAME.get(zone)
         ts = evt.get("ts")
         delta = _risk_delta(tag)
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             with conn.transaction():
                 conn.execute(
                     "INSERT INTO events(ts,asset,zone,type,event,severity,tag) "
@@ -284,12 +294,12 @@ class PostgresStore:
         return {"assets": assets, "alerts": alerts, "risk": risk, "zones": zones, "events": events}
 
     def snapshot(self):
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             return self._snapshot(conn)
 
     def inventory(self):
         """Inventaire des actifs connus (nom, zone, première/dernière vue)."""
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             rows = conn.execute(
                 "SELECT asset, zone, first_seen, last_seen FROM assets "
                 "ORDER BY zone NULLS LAST, asset LIMIT 2000").fetchall()
@@ -297,7 +307,7 @@ class PostgresStore:
                 for a, z, f, l in rows]
 
     def reset(self):
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             with conn.transaction():
                 conn.execute("TRUNCATE events")
                 conn.execute("TRUNCATE assets")
@@ -313,7 +323,7 @@ class PostgresStore:
         Protégé par un verrou consultatif non bloquant : en multi-instance, une
         seule instance purge à la fois (les autres passent leur tour).
         """
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             got = conn.execute("SELECT pg_try_advisory_lock(%s)", (self._PURGE_LOCK,)).fetchone()[0]
             if not got:
                 return 0
@@ -349,7 +359,7 @@ class PostgresStore:
     def trends(self, days=14):
         """Agrège l'historique persisté (comptages par jour, par catégorie, par zone)."""
         since = int((time.time() - float(days) * 86400) * 1000)
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             by_day = {}
             for day, tag, c in conn.execute(
                     "SELECT to_char(to_timestamp(ts/1000.0),'YYYY-MM-DD') d, COALESCE(tag,'info') t, "

@@ -43,6 +43,7 @@ ICI = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ICI)
 
 import automation  # noqa: E402
+import repli_direct  # noqa: E402
 
 SRC = io.open(os.path.join(ICI, "automation.py"), encoding="utf-8").read()
 
@@ -225,8 +226,8 @@ def test_la_grace_finit_par_expirer(direct):
 def test_l_attente_d_acquisition_est_courte():
     """Un pool en bonne santé répond en millisecondes. Attendre huit secondes
     avant de basculer, c'est le défaut qu'on corrige, pas le remède."""
-    assert automation._State.POOL_ACQUIS_S <= 2.0
-    assert automation._State.POOL_GRACE_S >= 10.0
+    assert repli_direct.POOL_ACQUIS_S <= 2.0
+    assert repli_direct.POOL_GRACE_S >= 10.0
 
 
 def test_le_delai_court_est_bien_celui_qui_est_passe_au_pool():
@@ -235,7 +236,7 @@ def test_le_delai_court_est_bien_celui_qui_est_passe_au_pool():
     s = _etat(pool)
     with s._conn():
         pass
-    assert pool.dernier_timeout == automation._State.POOL_ACQUIS_S
+    assert pool.dernier_timeout == repli_direct.POOL_ACQUIS_S
 
 
 def test_la_connexion_du_pool_est_toujours_rendue():
@@ -259,6 +260,28 @@ def test_un_pool_non_construit_ne_condamne_pas_la_base(direct):
     with s._conn() as c:
         c.execute("SELECT 1")
     assert len(direct) == 1
+
+
+def test_un_pool_absent_est_nomme_comme_tel_et_non_comme_un_accident(direct, caplog):
+    """LE JOURNAL DOIT DIRE LA BONNE CAUSE, et c'est tout l'enseignement de cet
+    incident : pendant un an, le signal existait mais désignait autre chose.
+
+    Sans le contrôle explicite de l'absence de pool, `None.getconn()` lève une
+    AttributeError — rattrapée par le même `except`, donc le repli fonctionne
+    quand même. Mais le journal écrit alors « pool indisponible
+    (AttributeError) » là où il n'y a pas d'incident du tout : le pool n'existe
+    simplement pas encore. Chercher un défaut de pool sur cette ligne, c'est
+    perdre une soirée sur un service qui va bien.
+    """
+    import logging
+    s = _etat(pool=None)
+    with caplog.at_level(logging.WARNING):
+        with s._conn() as c:
+            c.execute("SELECT 1")
+    messages = " ".join(r.getMessage() for r in caplog.records)
+    assert "RuntimeError" in messages, messages
+    assert "AttributeError" not in messages, (
+        "un pool absent est journalisé comme un accident : %s" % messages)
 
 
 def test_sans_base_du_tout_l_etat_reste_en_memoire():
@@ -321,7 +344,12 @@ def _modules_a_pool():
 
 
 def _a_le_repli(src):
-    return "getconn(timeout=" in src and "psycopg.connect(" in src
+    """Deux formes admises : l'appel au module commun, ou le repli écrit à la
+    main. La règle porte sur la PROPRIÉTÉ — savoir se passer du pool — et non
+    sur la façon de l'obtenir : exiger le module commun ferait tomber `auth` et
+    `rag_store`, qui portent le remède depuis plus longtemps que lui."""
+    return ("repli_direct.connexion(" in src
+            or ("getconn(timeout=" in src and "psycopg.connect(" in src))
 
 
 def test_le_releve_des_magasins_a_pool_trouve_bien_quelque_chose():
@@ -329,28 +357,95 @@ def test_le_releve_des_magasins_a_pool_trouve_bien_quelque_chose():
     assert len(_modules_a_pool()) >= 5
 
 
-def test_les_trois_magasins_deja_repliables_le_restent():
-    """auth et rag_store portaient déjà le remède ; automation les rejoint.
-    Le leur retirer ramènerait l'incident, à l'identique."""
-    for nom in ("auth.py", "rag_store.py", "automation.py"):
-        src = io.open(os.path.join(ICI, nom), encoding="utf-8").read()
-        assert _a_le_repli(src), (
-            "%s a perdu son repli en connexion directe" % nom)
+def test_AUCUN_MAGASIN_A_POOL_N_EST_SANS_REPLI():
+    """LA RÈGLE QUI AURAIT ÉVITÉ TOUT CECI, et la seule forme qui tienne : elle
+    ÉNUMÈRE, elle ne nomme pas.
 
-
-def test_le_nombre_de_magasins_SANS_repli_ne_grandit_pas():
-    """CE QUE CETTE RÈGLE DIT, ET CE QU'ELLE NE DIT PAS.
-
-    Quatre magasins n'ont toujours pas le repli — clients, livrables, cockpit
-    et audit. Ce n'est pas un oubli de ce tour : c'est un constat, posé ici
-    pour qu'il soit VU. Le corriger touche trente et un points d'appel sur des
-    chemins de données sensibles (dont les fiches clients), et cela se décide,
-    cela ne se glisse pas dans un correctif de veille.
-
-    La règle interdit seulement que le compte AUGMENTE. Un magasin neuf qui
-    naîtrait sans repli la ferait tomber — et c'est le seul moment où quelqu'un
-    peut encore choisir en connaissance de cause.
+    Elle était impossible à écrire il y a une heure — quatre magasins ne
+    l'auraient pas passée. Elle a d'abord été un cliquet (« le compte ne
+    grandit pas »), le temps que la décision soit prise ; elle est maintenant
+    pleine. C'est le seul état où le prochain magasin, écrit dans six mois par
+    quelqu'un qui n'aura jamais entendu parler du 3 septembre, tombe dans le
+    filet au lieu d'ajouter une septième porte muette.
     """
     sans = sorted(n for n, src in _modules_a_pool() if not _a_le_repli(src))
-    assert len(sans) <= 4, (
-        "un magasin de plus est né sans repli en connexion directe : %s" % sans)
+    assert not sans, (
+        "%d magasin(s) possèdent un pool sans savoir s'en passer : %s. Quand "
+        "psycopg_pool se met en retrait, leurs opérations échouent alors que "
+        "la base répond." % (len(sans), sans))
+
+
+def _magasin_nu(module, classe, prepare=None):
+    """Un magasin assemblé à la main : son __init__ ouvrirait une vraie base."""
+    import importlib
+    cls = getattr(importlib.import_module(module), classe)
+    s = cls.__new__(cls)
+    s._dsn = "postgresql://exemple/base"
+    s._pool = _PoolQuiBoude()
+    if prepare:
+        prepare(s)
+    return s
+
+
+def _audit_pret(s):
+    import threading
+    s._pool_impossible = False
+    s._schema_ok = True          # le schéma n'est pas l'objet de cette règle
+    s._lock = threading.Lock()
+
+
+MAGASINS = [
+    ("clients_store", "PostgresClientsStore", None),
+    ("livrables_store", "PostgresLivrablesStore", None),
+    ("cockpit_state", "PostgresStore", None),
+    ("audit", "_Postgres", _audit_pret),
+]
+
+
+@pytest.mark.parametrize("module,classe,prepare", MAGASINS,
+                         ids=[m[0] for m in MAGASINS])
+def test_CHAQUE_MAGASIN_OUVRE_VRAIMENT_UNE_CONNEXION_DIRECTE(
+        module, classe, prepare, direct):
+    """LA RÈGLE QUI EXÉCUTE, pour les quatre à la fois.
+
+    Les règles de forme ci-dessus lisent le texte des fichiers ; celle-ci prend
+    chaque magasin, lui donne un pool qui ne rend jamais la main, et exige
+    qu'une connexion s'ouvre quand même — puis se referme. C'est exactement ce
+    qui manquait aux deux premières livraisons du remède : elles étaient
+    justes, et rien ne le vérifiait.
+    """
+    s = _magasin_nu(module, classe, prepare)
+    with s._conn() as c:
+        c.execute("SELECT 1")
+    assert s._pool.demandes == 1, "le pool n'a pas même été sollicité"
+    assert len(direct) == 1, "aucune connexion directe n'a été ouverte"
+    assert direct[0].fermee, "la connexion directe n'a pas été refermée"
+    assert s.replis_directs == 1
+
+
+def test_AUCUNE_OPERATION_NE_COURT_CIRCUITE_L_ENTONNOIR():
+    """Le repli ne protège que ce qui passe par `_conn`. Une seule opération
+    laissée sur `self._pool.connection()` garde l'ancien comportement — et
+    c'est celle-là qui échouera, seule, un mardi, sans que rien ne l'explique.
+
+    La règle vaut pour TOUS les magasins à pool : la version précédente ne
+    regardait que l'automatisation, ce qui aurait laissé passer les quatre
+    autres exactement comme ils l'ont été pendant un an.
+    """
+    coupables = {}
+    for nom, src in _modules_a_pool():
+        n = src.count("self._pool.connection()") + src.count("self._p().connection()")
+        if n:
+            coupables[nom] = n
+    assert not coupables, (
+        "des opérations passent encore directement par le pool, sans repli : %s"
+        % coupables)
+
+
+def test_le_mecanisme_commun_est_reellement_partage():
+    """Une règle qui accepte deux formes doit vérifier que la forme commune est
+    VRAIMENT employée — sinon sept copies à la main la satisferaient aussi, et
+    c'est exactement la divergence qu'on cherche à empêcher."""
+    partages = [n for n, src in _modules_a_pool() if "repli_direct.connexion(" in src]
+    assert len(partages) >= 5, (
+        "seuls %d magasins passent par le module commun : %s" % (len(partages), partages))

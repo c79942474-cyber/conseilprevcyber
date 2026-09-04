@@ -23,6 +23,8 @@ import reglages   # un réglage illisible ne doit pas arrêter le service
 import threading
 import time
 
+import repli_direct   # le repli en connexion directe, ecrit une fois
+
 _log = logging.getLogger("audit")
 
 # Plafond du journal : la base est partagée avec les documents, un journal
@@ -131,26 +133,46 @@ class _Postgres:
         sep = "&" if "?" in dsn else "?"
         self._dsn = dsn + sep + "connect_timeout=10&client_encoding=UTF8"
         self._pool = None
+        self._pool_impossible = False
         self._schema_ok = False
         self._lock = threading.Lock()
 
-    def _p(self):
+    _KW = {"autocommit": True, "prepare_threshold": None}
+
+    def _conn(self):
+        """Voir repli_direct : le pool d'abord, la connexion directe s'il boude.
+
+        Le pool est créé au premier besoin (voir la docstring de la classe), et
+        son ÉCHEC DE CRÉATION n'abandonne plus la base : sans pool, on ouvre des
+        connexions directes. C'est d'autant plus juste ici que ce journal écrit
+        quelques fois par jour — le pool est un confort, pas une condition.
+        """
+        self._preparer()
+        return repli_direct.connexion(self, "audit", _log, self._KW)
+
+    def _preparer(self):
         with self._lock:
-            if self._pool is None:
-                from psycopg_pool import ConnectionPool
-                self._pool = ConnectionPool(
-                    self._dsn, min_size=0, max_size=1, max_idle=60,
-                    kwargs={"autocommit": True, "prepare_threshold": None},
-                    timeout=8, open=True, check=ConnectionPool.check_connection)
+            if self._pool is None and not self._pool_impossible:
+                try:
+                    from psycopg_pool import ConnectionPool
+                    self._pool = ConnectionPool(
+                        self._dsn, min_size=0, max_size=1, max_idle=60,
+                        kwargs=dict(self._KW),
+                        timeout=8, open=True, check=ConnectionPool.check_connection)
+                except Exception as exc:
+                    self._pool_impossible = True
+                    _log.warning("audit : pool non construit (%s) — connexions "
+                                 "directes", exc)
             if not self._schema_ok:
-                with self._pool.connection() as c:
+                # `repli_direct` et non `_conn` : ce dernier rappellerait
+                # `_preparer`, qui tient déjà le verrou.
+                with repli_direct.connexion(self, "audit", _log, self._KW) as c:
                     for stmt in _SCHEMA:
                         c.execute(stmt)
                 self._schema_ok = True
-        return self._pool
 
     def ajouter(self, rec):
-        with self._p().connection() as c:
+        with self._conn() as c:
             c.execute("INSERT INTO audit_journal (ts,acteur,role,action,cible,detail,ip,ok) "
                       "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
                       (rec["ts"], rec["acteur"], rec["role"], rec["action"],
@@ -165,7 +187,7 @@ class _Postgres:
         return True
 
     def purger(self):
-        with self._p().connection() as c:
+        with self._conn() as c:
             cur = c.execute("DELETE FROM audit_journal WHERE ts < %s",
                             (_limite_anciennete(),))
             return cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
@@ -180,7 +202,7 @@ class _Postgres:
             params.append(acteur)
         where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         params.append(max(1, min(int(limit or 200), 1000)))
-        with self._p().connection() as c:
+        with self._conn() as c:
             rows = c.execute(
                 "SELECT id,ts,acteur,role,action,cible,detail,ip,ok FROM audit_journal"
                 + where + " ORDER BY id DESC LIMIT %s", tuple(params)).fetchall()
@@ -188,7 +210,7 @@ class _Postgres:
         return [dict(zip(cols, r)) for r in rows]
 
     def compter(self):
-        with self._p().connection() as c:
+        with self._conn() as c:
             return c.execute("SELECT count(*) FROM audit_journal").fetchone()[0]
 
 

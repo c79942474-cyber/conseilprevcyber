@@ -24,6 +24,8 @@ import threading
 import time
 import uuid
 
+import repli_direct   # le repli en connexion directe, ecrit une fois
+
 _log = logging.getLogger("clients")
 
 LIST_LIMIT = 500
@@ -490,15 +492,17 @@ class PostgresClientsStore:
     persistent = True
     _SCHEMA_LOCK = 907247
 
+    _KW = {"autocommit": True, "prepare_threshold": None}
+
     def __init__(self, dsn):
         from psycopg_pool import ConnectionPool
         # prepare_threshold=None : compatibilité pooler PgBouncer (endpoint
         # « -pooler » de Neon). check : valide la connexion avant usage (réveil
         # à froid d'une base serverless).
         sep = "&" if "?" in dsn else "?"
-        dsn = dsn + sep + "connect_timeout=10&client_encoding=UTF8"
-        self._pool = ConnectionPool(dsn, min_size=1, max_size=2,
-                                    kwargs={"autocommit": True, "prepare_threshold": None},
+        self._dsn = dsn + sep + "connect_timeout=10&client_encoding=UTF8"
+        self._pool = ConnectionPool(self._dsn, min_size=1, max_size=2,
+                                    kwargs=dict(self._KW),
                                     timeout=8, open=True,
                                     check=ConnectionPool.check_connection)
         try:
@@ -510,8 +514,12 @@ class PostgresClientsStore:
                 pass
             raise
 
+    def _conn(self):
+        """Voir repli_direct : le pool d'abord, la connexion directe s'il boude."""
+        return repli_direct.connexion(self, "clients", _log, self._KW)
+
     def _init_schema(self):
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             conn.execute("SELECT pg_advisory_lock(%s)", (self._SCHEMA_LOCK,))
             try:
                 for stmt in _SCHEMA:
@@ -527,7 +535,7 @@ class PostgresClientsStore:
              (label or "")[:200], (details or "")[:400]))
 
     def events(self, client_id=None, limit=EVENTS_LIMIT):
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             if client_id:
                 rows = conn.execute(
                     "SELECT id,ts,actor,action,client_id,label,details FROM clients_events "
@@ -550,7 +558,7 @@ class PostgresClientsStore:
             return None
         cid = uuid.uuid4().hex
         now = _now_ms()
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             conn.execute(
                 "INSERT INTO clients(id,entreprise,contact,email,telephone,secteur,statut,"
                 "base_legale,consentement,consent_date,consent_source,retention_months,"
@@ -567,7 +575,7 @@ class PostgresClientsStore:
         return self.get(cid)
 
     def get(self, cid):
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             r = conn.execute("SELECT %s FROM clients WHERE id=%%s" % self._COLS,
                              (cid,)).fetchone()
             if not r:
@@ -578,7 +586,7 @@ class PostgresClientsStore:
         return out
 
     def list(self):
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             rows = conn.execute("SELECT %s FROM clients ORDER BY updated_at DESC LIMIT %%s"
                                 % self._COLS, (LIST_LIMIT,)).fetchall()
             counts = dict(conn.execute(
@@ -590,7 +598,7 @@ class PostgresClientsStore:
 
     def update(self, cid, rec, actor=""):
         changes = _clean(rec, partial=True)
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             r = conn.execute("SELECT %s FROM clients WHERE id=%%s" % self._COLS,
                              (cid,)).fetchone()
             if not r:
@@ -627,7 +635,7 @@ class PostgresClientsStore:
     def delete(self, cid, actor="", motif="effacement"):
         """Droit à l'effacement (art. 17) : suppression définitive (fiche + pièces
         jointes, en cascade) + journal anonymisé."""
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             r = conn.execute("SELECT %s FROM clients WHERE id=%%s" % self._COLS,
                              (cid,)).fetchone()
             if not r:
@@ -647,7 +655,7 @@ class PostgresClientsStore:
         c = self.get(cid)
         if not c:
             return None
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             self._log(conn, actor, "export", cid, c["entreprise"], "art. 20 RGPD")
         return {"format": "JSON — export RGPD (art. 15 / art. 20)",
                 "exported_at": _now_ms(), "client": c,
@@ -659,7 +667,7 @@ class PostgresClientsStore:
         ext = _doc_ext(filename)
         if total_bytes and total_bytes > DOC_MAX_BYTES:
             raise ClientsError("fichier_trop_lourd", 413)
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             if not conn.execute("SELECT 1 FROM clients WHERE id=%s", (cid,)).fetchone():
                 raise ClientsError("client_inconnu", 404)
             n = conn.execute("SELECT count(*) FROM clients_docs WHERE client_id=%s",
@@ -674,7 +682,7 @@ class PostgresClientsStore:
     def doc_upload_chunk(self, upload_id, idx, data, cid=None):
         if len(data) > DOC_CHUNK_MAX + 4096:
             raise ClientsError("morceau_trop_grand", 413)
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             total = conn.execute("SELECT COALESCE(SUM(octet_length(data)),0) "
                                  "FROM clients_docs_uploads WHERE upload_id=%s",
                                  (upload_id,)).fetchone()[0]
@@ -688,7 +696,7 @@ class PostgresClientsStore:
     def doc_upload_finish(self, cid, upload_id, categorie, actor="", filename=""):
         ext = (upload_id.rsplit(".", 1)[-1] if "." in upload_id else "").lower()
         filename = _safe_doc_filename(filename, ext)
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             row = conn.execute("SELECT entreprise FROM clients WHERE id=%s", (cid,)).fetchone()
             if not row:
                 raise ClientsError("client_inconnu", 404)
@@ -729,14 +737,14 @@ class PostgresClientsStore:
         return dict(zip(_DOC_META_COLS, r))
 
     def docs_list(self, cid):
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             rows = conn.execute(
                 "SELECT %s FROM clients_docs WHERE client_id=%%s ORDER BY created_at DESC"
                 % ",".join(_DOC_META_COLS), (cid,)).fetchall()
         return [dict(zip(_DOC_META_COLS, r)) for r in rows]
 
     def doc_get(self, cid, did, actor=""):
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             r = conn.execute("SELECT d.filename,d.data,c.entreprise,d.sha256 "
                              "FROM clients_docs d "
                              "JOIN clients c ON c.id=d.client_id "
@@ -758,7 +766,7 @@ class PostgresClientsStore:
         Pièce par pièce — charger d'un bloc cent pièces de quinze mégaoctets
         mettrait la vérification en échec par la mémoire, pas par la fraude."""
         ecarts, total = [], 0
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             ids = [r[0] for r in conn.execute(
                 "SELECT id FROM clients_docs ORDER BY created_at").fetchall()]
             for did in ids:
@@ -775,7 +783,7 @@ class PostgresClientsStore:
         return {"total": total, "ecarts": ecarts}
 
     def doc_delete(self, cid, did, actor=""):
-        with self._pool.connection() as conn:
+        with self._conn() as conn:
             r = conn.execute("SELECT d.filename,c.entreprise FROM clients_docs d "
                              "JOIN clients c ON c.id=d.client_id "
                              "WHERE d.id=%s AND d.client_id=%s", (did, cid)).fetchone()
