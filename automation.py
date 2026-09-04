@@ -34,6 +34,7 @@ import threading
 import veille_sources   # le catalogue des flux, et leur santé — voir le module
 import time
 import xml.etree.ElementTree as ET
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 
@@ -95,31 +96,105 @@ def _now_ms():
 #  État clé/valeur persistant (PostgreSQL si possible, sinon mémoire)
 # ============================================================================
 class _State:
+    # Attente maximale pour obtenir une connexion du pool avant de passer en
+    # direct, et durée pendant laquelle on cesse ensuite de le solliciter.
+    POOL_ACQUIS_S = 1.5
+    POOL_GRACE_S = 60.0
+
     def __init__(self, dsn):
         self._mem = {}
         self._pool = None
-        if dsn:
+        self._dsn = None
+        self.replis_directs = 0        # nombre de fois où le pool n'a pas répondu
+        self._pool_ko_jusqu = 0.0      # fin de la période de grâce (voir _conn)
+        if not dsn:
+            return
+        sep = "&" if "?" in dsn else "?"
+        self._dsn = dsn + sep + "connect_timeout=5&client_encoding=UTF8"
+        try:
+            from psycopg_pool import ConnectionPool
+            # max_size=1 CONDAMNAIT LE PROCESSUS : une seule connexion perdue,
+            # et toute opération attendait le délai de retrait puis renonçait.
+            # check : la connexion est validée avant d'être rendue, une
+            # connexion morte est remplacée au lieu d'être servie.
+            self._pool = ConnectionPool(self._dsn, min_size=1, max_size=3,
+                                        kwargs={"autocommit": True}, timeout=8,
+                                        open=True, check=ConnectionPool.check_connection)
+        except Exception as exc:
+            # Le pool n'est PAS la condition d'accès à la base : sans lui, on
+            # ouvre des connexions directes (voir _conn).
+            _log.warning("automation : pool non construit (%s) — connexions directes", exc)
+            self._pool = None
+        try:
+            with self._conn() as conn:
+                conn.execute("""CREATE TABLE IF NOT EXISTS automation_state (
+                    key TEXT PRIMARY KEY, value TEXT)""")
+                conn.execute("""CREATE TABLE IF NOT EXISTS veille_items (
+                    guid TEXT PRIMARY KEY,
+                    source TEXT, title TEXT, link TEXT,
+                    published BIGINT, resume TEXT, created_at BIGINT)""")
+        except Exception as exc:
+            _log.warning("automation : état en mémoire (PostgreSQL injoignable : %s)", exc)
+            self._pool = None
+            self._dsn = None
+
+    @contextmanager
+    def _conn(self):
+        """Connexion pour une opération, avec REPLI SUR UNE CONNEXION DIRECTE.
+
+        MÊME REMÈDE QUE POUR LES COMPTES ET LA BASE DE CONNAISSANCE, et pour le
+        même incident — celui-ci l'a simplement montré sous un autre jour. La
+        base répondait parfaitement (103 connexions autorisées, 27 ouvertes, une
+        connexion directe établie dans la seconde) pendant que la veille rendait
+        une liste vide au bout de huit secondes, requête après requête, sur un
+        processus sur deux. Après un incident de connexion, psycopg_pool se met
+        en retrait et refuse d'en ouvrir de nouvelles pendant plusieurs minutes.
+
+        CE MODULE ÉTAIT LE SEUL DES TROIS À NE PAS AVOIR CE REPLI, et c'est
+        exactement pourquoi lui seul se voyait : les comptes et la base de
+        connaissance basculaient en direct sans que personne ne s'en aperçoive,
+        la veille attendait son délai et rendait une page vide. Le journal le
+        disait pourtant, dans les mêmes minutes et sous une autre étiquette.
+
+        L'attente d'acquisition est COURTE et suivie d'une période de grâce : un
+        pool en bonne santé répond en millisecondes, et sans cette précaution
+        chaque opération repaierait l'attente tant que le pool boude.
+
+        L'échec d'ACQUISITION est seul traité ici : une erreur survenant DANS la
+        requête remonte normalement à l'appelant (qui, ici, retombe en mémoire).
+        """
+        import psycopg
+        try:
+            if self._pool is None or time.time() < self._pool_ko_jusqu:
+                raise RuntimeError("pool absent ou en période de grâce")
+            conn = self._pool.getconn(timeout=self.POOL_ACQUIS_S)
+        except Exception as exc:
+            self.replis_directs += 1
+            self._pool_ko_jusqu = time.time() + self.POOL_GRACE_S
+            _log.warning("automation : pool indisponible (%s) — connexion directe "
+                         "pour cette opération (%d au total).",
+                         type(exc).__name__, self.replis_directs)
+            direct = psycopg.connect(self._dsn, autocommit=True)
             try:
-                from psycopg_pool import ConnectionPool
-                sep = "&" if "?" in dsn else "?"
-                dsn = dsn + sep + "connect_timeout=5&client_encoding=UTF8"
-                self._pool = ConnectionPool(dsn, min_size=1, max_size=1,
-                                            kwargs={"autocommit": True}, timeout=8, open=True)
-                with self._pool.connection() as conn:
-                    conn.execute("""CREATE TABLE IF NOT EXISTS automation_state (
-                        key TEXT PRIMARY KEY, value TEXT)""")
-                    conn.execute("""CREATE TABLE IF NOT EXISTS veille_items (
-                        guid TEXT PRIMARY KEY,
-                        source TEXT, title TEXT, link TEXT,
-                        published BIGINT, resume TEXT, created_at BIGINT)""")
-            except Exception as exc:
-                _log.warning("automation : état en mémoire (PostgreSQL injoignable : %s)", exc)
-                self._pool = None
+                yield direct
+            finally:
+                try:
+                    direct.close()
+                except Exception:
+                    pass
+            return
+        try:
+            yield conn
+        finally:
+            try:
+                self._pool.putconn(conn)
+            except Exception:
+                pass
 
     def get(self, key, default=None):
-        if self._pool:
+        if self._dsn:
             try:
-                with self._pool.connection() as conn:
+                with self._conn() as conn:
                     r = conn.execute("SELECT value FROM automation_state WHERE key=%s",
                                      (key,)).fetchone()
                 return r[0] if r else default
@@ -129,9 +204,9 @@ class _State:
 
     def set(self, key, value):
         self._mem[key] = value
-        if self._pool:
+        if self._dsn:
             try:
-                with self._pool.connection() as conn:
+                with self._conn() as conn:
                     conn.execute(
                         "INSERT INTO automation_state(key,value) VALUES(%s,%s) "
                         "ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value", (key, str(value)))
@@ -140,9 +215,9 @@ class _State:
 
     # -- veille --
     def veille_add(self, item):
-        if self._pool:
+        if self._dsn:
             try:
-                with self._pool.connection() as conn:
+                with self._conn() as conn:
                     conn.execute(
                         "INSERT INTO veille_items(guid,source,title,link,published,resume,created_at) "
                         "VALUES(%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (guid) DO NOTHING",
@@ -161,9 +236,9 @@ class _State:
             del lst[VEILLE_MAX_ITEMS:]
 
     def veille_has(self, guid):
-        if self._pool:
+        if self._dsn:
             try:
-                with self._pool.connection() as conn:
+                with self._conn() as conn:
                     return bool(conn.execute("SELECT 1 FROM veille_items WHERE guid=%s",
                                              (guid,)).fetchone())
             except Exception:
@@ -171,9 +246,9 @@ class _State:
         return any(x["guid"] == guid for x in self._mem.get("_veille", []))
 
     def veille_list(self, limit=60):
-        if self._pool:
+        if self._dsn:
             try:
-                with self._pool.connection() as conn:
+                with self._conn() as conn:
                     rows = conn.execute(
                         "SELECT guid,source,title,link,published,resume FROM veille_items "
                         "ORDER BY published DESC LIMIT %s", (limit,)).fetchall()
