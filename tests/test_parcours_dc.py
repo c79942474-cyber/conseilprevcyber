@@ -159,9 +159,40 @@ def test_les_parcours_client_couvrent_ENSEMBLE_les_trois_pages():
     for p in dcp:
         urls = [e["url"] for e in p["etapes"]]
         assert len(urls) >= 2, (p["id"], urls)
-        assert set(urls) <= set(PAGES_DC), (p["id"], urls)
         couvertes |= set(urls)
-    assert couvertes == set(PAGES_DC), sorted(set(PAGES_DC) - couvertes)
+    assert set(PAGES_DC) <= couvertes, sorted(set(PAGES_DC) - couvertes)
+
+
+# CE QUE CETTE RÈGLE INTERDISAIT, ET POURQUOI ELLE A ÉTÉ DESSERRÉE.
+# Elle exigeait `set(urls) <= set(PAGES_DC)` : aucun parcours de centre de
+# données ne pouvait sortir des trois pages de centre de données. L'intention
+# était bonne — empêcher un parcours DC de partir en cybersécurité industrielle
+# — mais la formulation interdisait aussi ce qui a du sens : l'usine IA, qui
+# EST un centre de données d'un genre particulier, la veille, qui porte les
+# textes sous lesquels on déclare, et la conclusion, qui est le geste par
+# lequel tout parcours doit finir. La règle exige donc la COUVERTURE des trois
+# pages, et une seconde borne ce qui peut s'y ajouter — nommément, et pas plus.
+DESTINATIONS_ADMISES = set(PAGES_DC) | {
+    "/ingenierie-ia-factory",   # une usine IA est un centre de données
+    "/veille",                  # les textes qui bougent sous la déclaration
+    "/vos-projets",             # la conclusion, commune à tous les parcours
+}
+
+
+def test_un_parcours_dc_ne_part_pas_en_cybersecurite_industrielle():
+    """La borne que la règle précédente portait, sortie et rendue explicite.
+
+    Un parcours de centre de données qui enverrait sur l'analyse de risque
+    IEC 62443 ou sur le programme de sécurité ne serait plus un parcours de
+    centre de données : ce sont deux métiers, deux vocabulaires et deux
+    interlocuteurs. Élargir cette liste est possible — c'est une décision, et
+    elle se prend ici, en disant laquelle et pourquoi."""
+    for p in [x for x in _parcours() if x["id"].startswith("dc-")]:
+        hors = sorted(set(e["url"] for e in p["etapes"]) - DESTINATIONS_ADMISES)
+        assert not hors, (
+            "le parcours %s sort du périmètre « centre de données » : %s. "
+            "Soit l'étape n'a pas sa place, soit la destination doit être "
+            "admise ici, avec sa raison." % (p["id"], hors))
 
 
 def test_LE_POINT_QUI_DECIDE_aucun_parcours_ne_vise_deux_fois_la_meme_page():
@@ -181,9 +212,22 @@ def test_LE_POINT_QUI_DECIDE_aucun_parcours_ne_vise_deux_fois_la_meme_page():
 
 def test_le_parcours_projet_suit_l_ordre_du_projet():
     """On choisit AVANT de calculer, on calcule AVANT de s'engager. L'ordre
-    inverse produit un livrable d'ouverture écrit après coup."""
+    inverse produit un livrable d'ouverture écrit après coup.
+
+    CETTE RÈGLE COMPARAIT LA LISTE ENTIÈRE, et c'était une sur-spécification :
+    elle interdisait d'AJOUTER une étape au parcours, alors qu'elle prétend
+    seulement garder un ORDRE. Ajouter l'usine IA après l'ingénierie la faisait
+    tomber sans qu'aucun ordre soit rompu. Elle compare désormais les RANGS des
+    trois pages dont l'ordre est contraignant, et se tait sur le reste."""
     p = [x for x in _parcours() if x["id"] == "dc-projet"][0]
-    assert [e["url"] for e in p["etapes"]] == PAGES_DC
+    urls = [e["url"] for e in p["etapes"]]
+    for page in PAGES_DC:
+        assert page in urls, (
+            "le parcours projet ne passe plus par %s" % page)
+    rangs = [urls.index(page) for page in PAGES_DC]
+    assert rangs == sorted(rangs), (
+        "l'ordre du projet est rompu : %s vient dans l'ordre %s alors que "
+        "PAGES_DC impose %s" % (urls, rangs, sorted(rangs)))
 
 
 def test_chaque_etape_dit_quoi_faire_ce_qu_on_gagne_et_le_piege():

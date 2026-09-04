@@ -145,6 +145,21 @@
     "/datacenter": ["analyse", "preuve"],
     "/ingenierie-datacenter": ["exigences", "preuve"],
     "/ingenierie-ia-factory": ["gouvernance", "analyse"],
+    /* LES PAGES ENTRÉES DANS LES PARCOURS LE 4 SEPTEMBRE 2026. La recette
+       exige une entrée pour toute URL de parcours : sans elle, une étape
+       traversée ne pondérerait rien et le croisement rôle × secteur
+       l'ignorerait en silence. Un tableau vide reste un choix explicite. */
+    "/checklist-62443": ["preuve", "exigences"],
+    "/tendances": ["preuve", "continuite"],
+    "/guide-integration": ["technique", "preuve"],
+    "/services": [],
+    "/ressources": [],
+    "/assistant": [],
+    /* LA CONCLUSION N'EST PAS PONDÉRÉE, ET C'EST DÉLIBÉRÉ. Elle figure dans
+       TOUS les parcours : lui donner un axe le renforcerait partout de la même
+       quantité, donc ne distinguerait rien — une pondération constante est un
+       décalage, pas une information. */
+    "/vos-projets": [],
     "/contact": []
   };
 
@@ -348,6 +363,20 @@
           action: "Regardez à quoi ressemble la supervision d’un parc industriel, événements et indicateurs.",
           gain: "De quoi juger si la détection apporte quelque chose chez vous, avant d’engager un projet.",
           tip: "Sans inventaire à jour, la supervision produit du bruit : la cartographie vient d’abord." },
+        { url: "/checklist-62443", label: "Checklist de conformité · 27 points",
+          action: "Passez les vingt-sept points des six sections — gouvernance, architecture, accès, " +
+                  "protection, détection, fournisseurs — sur VOTRE installation.",
+          gain: "Un état des lieux point par point, avec ce que chacun exige et comment le prouver : " +
+                "la différence entre « on pense être conforme » et « voici où l’on ne l’est pas ».",
+          tip: "Faites-la remplir par l’exploitant, pas par l’intégrateur : c’est celui qui vit " +
+               "avec l’installation qui sait ce qui est réellement en place." },
+        { url: "/tendances", label: "Tendances de la supervision",
+          action: "Lisez le volume d’événements par jour et sa répartition par zone et par " +
+                  "catégorie, sur l’historique conservé.",
+          gain: "Ce qu’un tableau instantané ne montre jamais : une dérive lente, qui ne déclenche " +
+                "aucune alerte et change pourtant le risque.",
+          tip: "Une baisse du volume n’est pas une bonne nouvelle par défaut : vérifiez d’abord " +
+               "qu’une sonde n’est pas devenue muette." },
         { url: "/continuite-ot", label: "Continuité d’activité & crise OT",
           action: "Fixez les objectifs de reprise en langage d’exploitant — combien de temps sans " +
                   "produire, combien de données de procédé perdues — puis éprouvez-les par un exercice.",
@@ -393,6 +422,13 @@
           action: "Cadrez les obligations de vos prestataires d’intégration et de maintenance.",
           gain: "La cascade fournisseurs traitée à la source, quand elle se contractualise encore.",
           tip: "L’accès distant de maintenance est le point d’entrée le plus fréquent : traitez-le explicitement, jamais par renvoi." },
+        { url: "/guide-integration", label: "Brancher la supervision au cockpit",
+          action: "Suivez le raccordement d’une plateforme OT — Nozomi, Claroty, Tenable, " +
+                  "Defender for IoT — ou d’un simple flux syslog/CEF, jusqu’à l’export CSV.",
+          gain: "L’étape que les architectures oublient : ce qui est conçu doit ensuite REMONTER " +
+                "quelque part, et le format de remontée se décide en conception, pas à la mise en service.",
+          tip: "Négociez l’accès aux journaux dans le marché d’équipement : réclamé après la " +
+               "réception, il devient un avenant." },
         { url: "/etudes-de-cas", label: "Études de cas",
           action: "Lisez comment ces sujets ont été traités sur des projets d’infrastructure comparables.",
           gain: "Des points de comparaison concrets pour arbitrer, plutôt que des principes généraux.",
@@ -526,8 +562,11 @@
           action: "Répondez au questionnaire des quatre perspectives : ce que le projet défend, ce que " +
                   "ses parties prenantes disent, ce qui affecte ses résultats. La quatrième — la science — " +
                   "n'est pas demandée : elle est établie par les données.",
-          gain: "Le document d'ouverture d'étude : les enjeux retenus, ceux qu'on écarte, et le programme " +
-                "de travail qui en découle.",
+          gain: "Le document d'ouverture d'étude : les enjeux retenus, ceux qu'on écarte, le programme " +
+                "de travail qui en découle — et, en dernier chapitre, ce que les TRENTE PROPOSITIONS " +
+                "pour des entreprises durables engagent sur les enjeux retenus, ce qu'elles demandent " +
+                "et que la stratégie ne couvre pas encore, et ce que la stratégie porte et dont elles " +
+                "ne disent rien.",
           tip: "Répondez avec ceux qui exploiteront, pas seulement avec ceux qui décident : un enjeu " +
                "noté en comité et démenti sur site se paie à l'enquête publique." },
         { url: "/datacenter", label: "Énergie, eau et carbone — puis la décarbonation",
@@ -545,9 +584,19 @@
                   "section 7, le coût des travaux poste par poste, prolongé par les honoraires " +
                   "que ces travaux portent.",
           gain: "La distinction entre un chiffre recevable en avant-projet et un chiffre opposable en " +
-                "pièce contractuelle — et, en regard, ce que coûte l'ingénierie qui produira ces pièces.",
+                "pièce contractuelle — et, en regard, ce que coûte l'ingénierie qui produira ces pièces. " +
+                "Le dossier de candidature et le DOSSIER D'OFFRE se remplissent au même endroit : DPGF, " +
+                "mémoire technique, acte d'engagement.",
           tip: "Le facteur eau amont porte ±40 % et le carbone incorporé ±50 % — deux valeurs qui " +
-               "passent en APS et ne passent plus en DCE. Repérez-les avant, pas après." }
+               "passent en APS et ne passent plus en DCE. Repérez-les avant, pas après." },
+        { url: "/ingenierie-ia-factory", label: "Si le programme est une usine IA",
+          action: "Renseignez le secteur et le dimensionnement, et lisez les postes, les phases et " +
+                  "les jalons du modèle paramétrique.",
+          gain: "Ce qui distingue une usine IA d'un centre de données ordinaire — densité, " +
+                "refroidissement, cycle de renouvellement du matériel — et ce que cela déplace dans " +
+                "le programme.",
+          tip: "Ce module ne rend aucun prix : il rend une STRUCTURE de coût. Un chiffre au kilowatt " +
+               "trouvé ailleurs et appliqué ici donnerait un total faux et rassurant." }
       ]
     },
     {
@@ -589,7 +638,14 @@
                 "au lieu d’être supposée, et le coût d’opération complet — travaux plus honoraires.",
           tip: "Ce qui change d’une nature à l’autre n’est pas un coefficient, c’est la liste des postes. " +
                "Et une mission dont un seul des deux taux est saisi reste OUVERTE : la moitié d’un taux " +
-               "n’en est pas un, et un zéro silencieux ferait croire la mission gratuite." }
+               "n’en est pas un, et un zéro silencieux ferait croire la mission gratuite." },
+        { url: "/ingenierie-ia-factory", label: "Quand le programme est une usine IA",
+          action: "Comparez la structure de coût d’une usine IA à celle que vous venez de chiffrer : " +
+                  "postes, phases, jalons — et ce qui pèse différemment.",
+          gain: "De quoi refuser un ratio importé d’un centre de données classique : la densité et le " +
+                "cycle de renouvellement du matériel déplacent l’équilibre entre bâti et équipement.",
+          tip: "Le poste qui surprend le plus n’est pas le refroidissement, c’est le remplacement : " +
+               "un cycle matériel court change la nature de la dépense, d’investissement en charge." }
       ]
     },
     {
@@ -614,7 +670,10 @@
           action: "Notez les vingt enjeux sur les trois perspectives qui vous appartiennent, et lisez " +
                   "les deux tensions nommées pour votre projet.",
           gain: "Ce que vous retenez, ce que vous écartez, et surtout ce que personne n'a encore " +
-                "regardé — un enjeu non instruit n'est pas un enjeu mineur.",
+                "regardé — un enjeu non instruit n'est pas un enjeu mineur. Le dernier chapitre " +
+                "confronte vos enjeux retenus aux trente propositions pour des entreprises durables, " +
+                "en distinguant ce que le projet DÉCIDE, ce qu'il ANTICIPE d'une politique publique, " +
+                "et ce à quoi il CONTRIBUE sans en décider.",
           tip: "Un enjeu que les données donnent pour structurant et que personne ne soulève est le " +
                "cas le plus dangereux : il n'arrivera pas par une plainte, il arrivera par un fait." },
         { url: "/ingenierie-datacenter", label: "Prouver — les pièces, phase par phase",
@@ -622,7 +681,14 @@
                   "à remettre.",
           gain: "Le passage du tableau de bord au dossier : ce qu'on écrit, et ce qu'on REMET.",
           tip: "Les points de comptage se posent à la conception. Découvrir l'obligation de déclarer " +
-               "après avoir figé le plan de comptage coûte une année de mesure." }
+               "après avoir figé le plan de comptage coûte une année de mesure." },
+        { url: "/veille", label: "Suivre ce qui bouge sous la déclaration",
+          action: "Relevez les textes et avis parus depuis votre dernière publication — CSRD, " +
+                  "taxonomie, efficacité énergétique, déclaration européenne des centres de données.",
+          gain: "L'écart entre ce que vous avez déclaré l'an dernier et ce qui sera exigé cette " +
+                "année — c'est là que se logent les reprises de dossier.",
+          tip: "Datez chaque obligation dans votre plan de collecte : une exigence nouvelle qui porte " +
+               "sur l'exercice en cours suppose une donnée qu'on ne peut plus aller chercher." }
       ]
     },
     {
@@ -656,10 +722,30 @@
           action: "Prenez la vue d’ensemble : à quoi sert chaque partie de la norme et à qui elle s’adresse.",
           gain: "La structure d’ensemble avant le détail — c’est ce qui manque le plus souvent au démarrage.",
           tip: "Ne cherchez pas à tout retenir : repérez seulement les deux ou trois parties qui vous concernent." },
+        { url: "/services", label: "Ce que fait CONSEILPREV",
+          action: "Lisez la chaîne complète — état des lieux, architecture et segmentation, " +
+                  "analyse de risque, supervision, maintien en condition de sécurité.",
+          gain: "De quoi situer ce que vous lirez ensuite : un référentiel se comprend mieux " +
+                "quand on sait quel travail il commande.",
+          tip: "Repérez d’abord l’étape où VOUS en êtes : lire la méthode d’une phase déjà passée " +
+               "fait perdre le fil, et lire celle d’une phase lointaine décourage." },
         { url: "/glossaire-62443", label: "Glossaire · 1-2",
           action: "Fixez le vocabulaire : zone, conduit, SL-T, SL-A, IACS, CSMS.",
           gain: "De quoi suivre une réunion technique sans perdre le fil au troisième sigle.",
           tip: "La confusion SL-T (cible) / SL-A (atteint) est la plus fréquente, et la plus lourde de conséquences." },
+        { url: "/assistant", label: "Poser la question directement",
+          action: "Interrogez l’assistant sur votre situation plutôt que de chercher la page qui " +
+                  "en parle : « des automates hors support, et un audit dans six mois ».",
+          gain: "La réponse au cas précis, sans passer par le sommaire — c’est la voie la plus " +
+                "courte quand on ne sait pas encore quel mot chercher.",
+          tip: "N’y saisissez ni nom de personne ni schéma d’installation : la conversation n’est " +
+               "pas conservée, mais elle transite par un fournisseur tiers." },
+        { url: "/ressources", label: "Les sources, pour vérifier par vous-même",
+          action: "Ouvrez les références de première main — ANSSI, CERT-FR, ENISA, CISA, IEC, " +
+                  "ISO, NIST SP 800-82.",
+          gain: "De quoi contrôler à la source ce que vous venez de lire, et continuer sans nous.",
+          tip: "Ne partez jamais d’une synthèse pour une décision opposable : les synthèses " +
+               "vieillissent sans le dire, les textes portent leur date." },
         { url: "/diagnostic", label: "Diagnostic express",
           action: "Situez votre installation en quelques questions.",
           gain: "Un premier repère chiffré, sans engagement et sans mobiliser personne.",
@@ -1146,6 +1232,49 @@
       ]
     }
   ];
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     CE QU'ON FAIT À LA FIN — l'étape que dix-huit parcours sur dix-neuf
+     n'avaient pas.
+
+     LE RELEVÉ DU 4 SEPTEMBRE 2026. Un seul parcours se terminait par un
+     geste : « achats », qui finit sur /contact. Les dix-huit autres
+     s'arrêtaient sur une page de contenu — le lecteur suivait sept étapes,
+     arrivait au bout, et le bandeau s'éteignait sans rien lui proposer. Un
+     chemin de lecture qui ne mène nulle part n'est pas un parcours, c'est un
+     sommaire dans l'ordre.
+
+     ELLE EST ÉCRITE UNE FOIS ET AJOUTÉE PAR ÉNUMÉRATION, pas recopiée
+     dix-huit fois. Une conclusion recopiée dix-huit fois diverge à la
+     première retouche, et c'est celle qu'on oublie qui reste fausse. Surtout :
+     le parcours écrit dans six mois la recevra sans qu'on y pense — c'est la
+     seule façon qu'elle ne manque pas de nouveau.
+
+     ELLE NE S'AJOUTE PAS À CEUX QUI CONCLUENT DÉJÀ. Un parcours qui finit sur
+     /contact ou /vos-projets a sa conclusion ; lui en coller une seconde
+     ferait deux fois le même geste, et la deuxième serait de trop. */
+  var ETAPE_FINALE = {
+    url: "/vos-projets", label: "Soumettre votre projet",
+    action: "Décrivez le périmètre que vous venez de parcourir — installations, " +
+            "enjeu principal, échéance — et ce que vous attendez d'un tiers.",
+    gain: "Le passage de la lecture à l'engagement : un interlocuteur qui a déjà " +
+          "le contexte, au lieu d'un premier rendez-vous consacré à le reconstituer.",
+    tip: "Dites où vous en êtes VRAIMENT, y compris si c'est « nulle part » : " +
+         "un état des lieux honnête raccourcit le cadrage de plusieurs semaines, " +
+         "un état des lieux flatteur le rallonge d'autant."
+  };
+  var CONCLUSIONS = ["/vos-projets", "/contact"];
+  function conclure(etapes) {
+    var derniere = etapes[etapes.length - 1];
+    if (derniere && CONCLUSIONS.indexOf(derniere.url) >= 0) return etapes;
+    return etapes.concat([ETAPE_FINALE]);
+  }
+  for (var iP = 0; iP < PARCOURS.length; iP++) {
+    PARCOURS[iP].etapes = conclure(PARCOURS[iP].etapes);
+  }
+  for (var iS = 0; iS < SECTEURS.length; iS++) {
+    SECTEURS[iS].etapes = conclure(SECTEURS[iS].etapes);
+  }
 
   /* Le moteur et ses données sont désormais définis. Sous Node (recette), on
      les expose et on s'arrête AVANT tout code de page : rien ci-dessous ne
