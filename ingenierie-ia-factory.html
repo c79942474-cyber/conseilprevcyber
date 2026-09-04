@@ -137,9 +137,6 @@
   .iaf-sources small{color:var(--muted2)}
   .iaf-muet{opacity:.8}
   .iaf-couv{border-left:3px solid var(--teal);padding:8px 12px;background:rgba(0,0,0,.10);border-radius:0 8px 8px 0;font-size:13px}
-  .iaf-lots{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
-  .iaf-lots th,.iaf-lots td{padding:8px 9px;border-bottom:1px solid rgba(255,255,255,.14);text-align:left;vertical-align:top;line-height:1.5}
-  .iaf-lots th{font-size:11px;color:var(--muted2);font-weight:500;letter-spacing:.06em;text-transform:uppercase}
   /* ── LE SECTEUR ─────────────────────────────────────────────────── */
   .iaf-sect-choix{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;margin:16px 0 14px}
   .iaf-sect-b{font:inherit;font-size:13px;padding:9px 16px;border-radius:20px;border:1px solid currentColor;
@@ -448,27 +445,7 @@
   <!-- ══ 8. LA CONFORMITÉ ═════════════════════════════════════════════════ -->
   <section class="wrap iaf-sec" id="s-conformite">
     <h2>8. La conformité et la maîtrise des risques</h2>
-    <p><b>Le règlement (UE) 2024/1689 sur l'IA</b>, tel que modifié par le règlement (UE)
-      2026/1744 en vigueur depuis le 27 juillet 2026. Les pratiques interdites (article 5) et la
-      transparence (article 50) sont en vigueur. Les systèmes à haut risque de l'annexe III —
-      évaluation de solvabilité, notation de crédit, tarification vie et santé, composants de
-      sécurité d'infrastructures critiques — sont reportés au <b>2 décembre 2027</b>, ceux de
-      l'annexe I au 2 août 2028. L'article 4 (maîtrise de l'IA) devient une obligation de moyens
-      qui reste contraignante sur la trace.</p>
-    <p><b>DORA — règlement (UE) 2022/2554</b>, applicable depuis le 17 janvier 2025 pour le
-      secteur financier. Un fournisseur de modèle accessible par interface est un prestataire de
-      services TIC&nbsp;: il entre au registre d'information, et les systèmes d'IA en production
-      entrent dans le programme de tests de résilience.</p>
-    <p><b>NIS&nbsp;2 — directive (UE) 2022/2555</b>, pour les entités essentielles et importantes
-      de dix-huit secteurs. Les mesures de gestion des risques (article 21) et la chaîne de
-      notification des incidents importants — <b>alerte sous 24&nbsp;h, notification sous
-      72&nbsp;h, rapport final sous un mois</b> (article 23) — s'appliquent aux incidents des
-      systèmes d'IA qui touchent un service essentiel. En France, la loi de transposition n'était
-      pas promulguée au 6 août 2026&nbsp;; l'état est à vérifier au jour de la lecture.</p>
-    <p><b>Assurance</b>&nbsp;: l'avis de l'autorité européenne des assurances du 6 août 2025 ne
-      crée aucune règle — il lit Solvabilité II, la distribution, DORA et le RGPD à la lumière du
-      règlement sur l'IA, avec une approche proportionnée au risque. Solvabilité II révisée
-      (directive (UE) 2025/2) s'applique au <b>30 janvier 2027</b>.</p>
+    <div id="iaf-conformite"></div>
     <p>Ce que cela commande dans l'étude&nbsp;: la qualification se fait <em>dossier par
       dossier</em> dès le cadrage, chaque dossier a son poste de conformité, et les dates
       ci-dessus sont des jalons de planning qui ne se négocient pas.</p>
@@ -480,18 +457,7 @@
     <p>Un dispositif qui sépare le pilotage principal du contre-pilotage, et qui couvre ce que ce
       module chiffre&nbsp;: le socle, les métiers, le changement, la migration, la conformité.
       Aucun prix ici&nbsp;: les jours se saisissent en section 3, sur votre grille.</p>
-    <table class="iaf-lots">
-      <thead><tr><th>Lot</th><th>Ce qu'il livre</th><th>Phase</th><th>Ce qu'il consomme dans le chiffrage</th></tr></thead>
-      <tbody>
-        <tr><td><b>L1 · Cadrage et faisabilité</b></td><td>Note de cadrage, portefeuille de cas d'usage arbitré, qualification juridique dossier par dossier, cette étude chiffrée sur vos entrées.</td><td>Faisabilité</td><td>jours de cadrage × taux conseil</td></tr>
-        <tr><td><b>L2 · Contre-pilotage</b></td><td>Audit des arbitrages techniques et budgétaires, suivi du calendrier et de la trajectoire financière, alerte sur la provision au regard des dépassements documentés.</td><td>Toutes</td><td>jours de pilotage par mois × durée × taux conseil</td></tr>
-        <tr><td><b>L3 · Socle et usine IA</b></td><td>Architecture de plateforme (infrastructure souveraine ou sur site, MLOps / LLMOps, sécurité), charte et comité IA, registre des systèmes, dimensionnement de l'équipe centrale.</td><td>Socle, pilotes</td><td>infrastructure, outillage, sécurité (annuels) ; équipe centrale</td></tr>
-        <tr><td><b>L4 · Métiers et cas d'usage</b></td><td>Accompagnement de chaque ligne métier : du pilote à la production, mesure d'adoption et de valeur, retours d'expérience chiffrés.</td><td>Pilotes → généralisation</td><td>cas d'usage × jours par cas × coût interne</td></tr>
-        <tr><td><b>L5 · Conduite du changement</b></td><td>Cadre social négocié, socle de formation pour tous puis parcours par métier, réseau d'ambassadeurs, mesure d'adoption publiée.</td><td>Socle → généralisation</td><td>effectif × part formée × heures × coût horaire ; ambassadeurs</td></tr>
-        <tr><td><b>L6 · Migration et intégration</b></td><td>Portage des interfaces (deux fois si migration de cœur), recette, gel daté autour de la bascule, pas de bascule unique.</td><td>Chevauche la migration</td><td>interfaces × coût de portage × 2 ; recette</td></tr>
-        <tr><td><b>L7 · Conformité et risque, par secteur</b></td><td>Dossiers annexe III ; registre DORA et tests de résilience en finance ; validation actuarielle et évaluation interne des risques en assurance ; dossier de sûreté, chaîne 24 h / 72 h et segmentation OT chez un opérateur d'infrastructure.</td><td>Socle → annexe III au 2 décembre 2027 (article 50 déjà en vigueur depuis le 2 août 2026)</td><td>cas haut risque × coût d'un dossier ; postes sectoriels</td></tr>
-      </tbody>
-    </table>
+    <div id="iaf-offre"></div>
   </section>
 
   <!-- ══ 10. LES SOURCES ══════════════════════════════════════════════════ -->

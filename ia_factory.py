@@ -1709,6 +1709,101 @@ PRINCIPES_MIGRATION = [
 ]
 
 
+# ── LA CONFORMITÉ — quatre cadres, un par régime ────────────────────────────
+#
+# QUATRE CADRES, PAS DE GROUPE COMMUN. `rendreLeviers` range ses éléments par
+# ce qui les SOUTIENT ; aucun axe de ce genre ne sépare ces quatre régimes —
+# les y forcer aurait fabriqué une catégorie qui ne dit rien. Le script porte
+# donc son propre rendu, plus simple : un choix parmi quatre, ou les quatre à
+# la suite.
+CONFORMITE_CADRES = [
+    {"cle": "ai_act", "nom": "Le règlement (UE) 2024/1689 sur l'IA",
+     "texte": "Tel que modifié par le règlement (UE) 2026/1744 en vigueur depuis le 27 juillet "
+              "2026. Les pratiques interdites (article 5) et la transparence (article 50) sont "
+              "en vigueur. Les systèmes à haut risque de l'annexe III — évaluation de "
+              "solvabilité, notation de crédit, tarification vie et santé, composants de "
+              "sécurité d'infrastructures critiques — sont reportés au 2 décembre 2027, ceux de "
+              "l'annexe I au 2 août 2028. L'article 4 (maîtrise de l'IA) devient une obligation "
+              "de moyens qui reste contraignante sur la trace."},
+    {"cle": "dora", "nom": "DORA — règlement (UE) 2022/2554",
+     "texte": "Applicable depuis le 17 janvier 2025 pour le secteur financier. Un fournisseur "
+              "de modèle accessible par interface est un prestataire de services TIC : il "
+              "entre au registre d'information, et les systèmes d'IA en production entrent "
+              "dans le programme de tests de résilience."},
+    {"cle": "nis2", "nom": "NIS 2 — directive (UE) 2022/2555",
+     "texte": "Pour les entités essentielles et importantes de dix-huit secteurs. Les mesures "
+              "de gestion des risques (article 21) et la chaîne de notification des incidents "
+              "importants — alerte sous 24 h, notification sous 72 h, rapport final sous un "
+              "mois (article 23) — s'appliquent aux incidents des systèmes d'IA qui touchent "
+              "un service essentiel. En France, la loi de transposition n'était pas promulguée "
+              "au 6 août 2026 ; l'état est à vérifier au jour de la lecture."},
+    {"cle": "assurance", "nom": "Assurance",
+     "texte": "L'avis de l'autorité européenne des assurances du 6 août 2025 ne crée aucune "
+              "règle — il lit Solvabilité II, la distribution, DORA et le RGPD à la lumière du "
+              "règlement sur l'IA, avec une approche proportionnée au risque. Solvabilité II "
+              "révisée (directive (UE) 2025/2) s'applique au 30 janvier 2027."},
+]
+
+
+# ── CE QUE CONSEILPREV PROPOSE — sept lots, dans l'ordre du projet ──────────
+OFFRE_LOTS = [
+    {"cle": "l1", "nom": "L1 · Cadrage et faisabilité",
+     "livre": "Note de cadrage, portefeuille de cas d'usage arbitré, qualification juridique "
+              "dossier par dossier, cette étude chiffrée sur vos entrées.",
+     "phase": "Faisabilité", "consomme": "jours de cadrage × taux conseil"},
+    {"cle": "l2", "nom": "L2 · Contre-pilotage",
+     "livre": "Audit des arbitrages techniques et budgétaires, suivi du calendrier et de la "
+              "trajectoire financière, alerte sur la provision au regard des dépassements "
+              "documentés.",
+     "phase": "Toutes", "consomme": "jours de pilotage par mois × durée × taux conseil"},
+    {"cle": "l3", "nom": "L3 · Socle et usine IA",
+     "livre": "Architecture de plateforme (infrastructure souveraine ou sur site, MLOps / "
+              "LLMOps, sécurité), charte et comité IA, registre des systèmes, dimensionnement "
+              "de l'équipe centrale.",
+     "phase": "Socle, pilotes",
+     "consomme": "infrastructure, outillage, sécurité (annuels) ; équipe centrale"},
+    {"cle": "l4", "nom": "L4 · Métiers et cas d'usage",
+     "livre": "Accompagnement de chaque ligne métier : du pilote à la production, mesure "
+              "d'adoption et de valeur, retours d'expérience chiffrés.",
+     "phase": "Pilotes → généralisation",
+     "consomme": "cas d'usage × jours par cas × coût interne"},
+    {"cle": "l5", "nom": "L5 · Conduite du changement",
+     "livre": "Cadre social négocié, socle de formation pour tous puis parcours par métier, "
+              "réseau d'ambassadeurs, mesure d'adoption publiée.",
+     "phase": "Socle → généralisation",
+     "consomme": "effectif × part formée × heures × coût horaire ; ambassadeurs"},
+    {"cle": "l6", "nom": "L6 · Migration et intégration",
+     "livre": "Portage des interfaces (deux fois si migration de cœur), recette, gel daté "
+              "autour de la bascule, pas de bascule unique.",
+     "phase": "Chevauche la migration",
+     "consomme": "interfaces × coût de portage × 2 ; recette"},
+    {"cle": "l7", "nom": "L7 · Conformité et risque, par secteur",
+     "livre": "Dossiers annexe III ; registre DORA et tests de résilience en finance ; "
+              "validation actuarielle et évaluation interne des risques en assurance ; "
+              "dossier de sûreté, chaîne 24 h / 72 h et segmentation OT chez un opérateur "
+              "d'infrastructure.",
+     "phase": "Socle → annexe III au 2 décembre 2027 (article 50 déjà en vigueur depuis le 2 août 2026)",
+     "consomme": "cas haut risque × coût d'un dossier ; postes sectoriels"},
+]
+
+
+def _verifier_conformite_offre():
+    """Deux catalogues lus tels quels par le script : une clé dupliquée s'y
+    afficherait deux fois, un champ vide y afficherait un blanc muet."""
+    for liste, nom, champs in (
+            (CONFORMITE_CADRES, "cadre de conformité", ("nom", "texte")),
+            (OFFRE_LOTS, "lot", ("nom", "livre", "phase", "consomme"))):
+        vues = set()
+        for x in liste:
+            if x["cle"] in vues:
+                raise ValueError("clé de %s dupliquée : %r" % (nom, x["cle"]))
+            vues.add(x["cle"])
+            for c in champs:
+                if not str(x.get(c) or "").strip():
+                    raise ValueError("%s « %s » sans « %s »" % (nom, x["cle"], c))
+
+
+_verifier_conformite_offre()   # refuse au chargement, pas à l'affichage
 _verifier_soutiens()   # refuse au chargement, pas à l'affichage
 
 
@@ -2037,6 +2132,8 @@ def referentiel():
             "leviers_changement": LEVIERS_CHANGEMENT,
             "soutiens_levier": SOUTIENS_LEVIER,
             "principes_migration": PRINCIPES_MIGRATION,
+            "conformite_cadres": CONFORMITE_CADRES,
+            "offre_lots": OFFRE_LOTS,
             "comparables": comparables(),
             # L'ORDRE ET LES LIBELLÉS DES GROUPES VIENNENT D'ICI. Recopiés dans le
             # script, ils divergeraient le jour où un secteur entre au module — et

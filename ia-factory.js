@@ -916,6 +916,82 @@ function demander(url, options, delai) {
     });
   }
 
+  /* ── LA CONFORMITÉ, EN LISTE DÉROULANTE ───────────────────────────────
+     QUATRE CADRES, AUCUN GROUPE COMMUN. `rendreLeviers` range par ce qui
+     SOUTIENT chaque élément — mais rien ne rapproche le règlement IA, DORA,
+     NIS 2 et l'assurance sur un tel axe, et leur en inventer un serait une
+     catégorie qui ne dit rien. Le rendu ici est plus simple : un choix
+     parmi quatre, ou les quatre à la suite — même bascule que `rendreSources`,
+     sans le palier « par nature » qui n'a pas de sens ici. */
+  var CONF_TOUS = "__tous";
+
+  function rendreConformite(cadres) {
+    var h = '<label class="iaf-champ iaf-cmp-m"><span class="iaf-nom">'
+      + cadres.length + " cadres réglementaires — en choisir un</span>"
+      + '<select class="iaf-choix" data-conf>'
+      + '<option value="' + CONF_TOUS + '">Les ' + cadres.length
+      + " cadres, à la suite</option>";
+    cadres.forEach(function (c, i) {
+      h += '<option value="' + esc(c.cle) + '"' + (i === 0 ? " selected" : "")
+        + ">" + esc(c.nom) + "</option>";
+    });
+    h += "</select></label>";
+    return h + '<ul class="iaf-leviers">' + cadres.map(function (c, i) {
+      return '<li data-conf-cle="' + esc(c.cle) + '"' + (i === 0 ? "" : " hidden")
+        + "><b>" + esc(c.nom) + "</b><br>" + esc(c.texte) + "</li>";
+    }).join("") + "</ul>";
+  }
+
+  function brancherConformite() {
+    var sel = document.querySelector("#iaf-conformite [data-conf]");
+    if (!sel) return;
+    sel.addEventListener("change", function () {
+      var v = sel.value;
+      document.querySelectorAll("#iaf-conformite li[data-conf-cle]").forEach(function (li) {
+        li.hidden = !(v === CONF_TOUS || li.dataset.confCle === v);
+      });
+    });
+  }
+
+  /* ── CE QUE CONSEILPREV PROPOSE, EN LISTE DÉROULANTE ──────────────────
+     SEPT LOTS DANS UN TABLEAU NE SE LISENT PAS : chaque ligne portait quatre
+     colonnes de prose sur une largeur de page, et « ce qu'il consomme dans
+     le chiffrage » s'y lisait en dernier, coupé au bord. Une carte par lot,
+     choisie dans le même menu que la conformité juste au-dessus. */
+  var OFFRE_TOUS = "__tous";
+
+  function rendreOffre(lots) {
+    var h = '<label class="iaf-champ iaf-cmp-m"><span class="iaf-nom">'
+      + lots.length + " lots, dans l'ordre du projet — en choisir un</span>"
+      + '<select class="iaf-choix" data-offre>'
+      + '<option value="' + OFFRE_TOUS + '">Les ' + lots.length
+      + " lots, à la suite</option>";
+    lots.forEach(function (l, i) {
+      h += '<option value="' + esc(l.cle) + '"' + (i === 0 ? " selected" : "")
+        + ">" + esc(l.nom) + "</option>";
+    });
+    h += "</select></label>";
+    return h + '<ul class="iaf-leviers">' + lots.map(function (l, i) {
+      return '<li data-offre-cle="' + esc(l.cle) + '"' + (i === 0 ? "" : " hidden")
+        + "><b>" + esc(l.nom) + "</b>"
+        + '<br><span class="iaf-ph-t">Ce qu\'il livre</span>' + esc(l.livre)
+        + '<br><span class="iaf-ph-t">Phase</span>' + esc(l.phase)
+        + '<br><span class="iaf-ph-t">Ce qu\'il consomme dans le chiffrage</span>'
+        + esc(l.consomme) + "</li>";
+    }).join("") + "</ul>";
+  }
+
+  function brancherOffre() {
+    var sel = document.querySelector("#iaf-offre [data-offre]");
+    if (!sel) return;
+    sel.addEventListener("change", function () {
+      var v = sel.value;
+      document.querySelectorAll("#iaf-offre li[data-offre-cle]").forEach(function (li) {
+        li.hidden = !(v === OFFRE_TOUS || li.dataset.offreCle === v);
+      });
+    });
+  }
+
   /* ── CHIFFRAGE ───────────────────────────────────────────────────────── */
   function rendreChiffrage(c, ref) {
     var titres = {};
@@ -1065,6 +1141,10 @@ function demander(url, options, delai) {
       $("iaf-migration").innerHTML = rendreLeviers(REF.principes_migration, REF.sources,
         REF.ancrages, REF.soutiens_levier, "principes", "mig");
       brancherLeviers($("iaf-migration"));
+      $("iaf-conformite").innerHTML = rendreConformite(REF.conformite_cadres);
+      brancherConformite();
+      $("iaf-offre").innerHTML = rendreOffre(REF.offre_lots);
+      brancherOffre();
       $("iaf-sources").innerHTML = rendreSources(REF.sources, REF.couverture_sources);
       brancherSources();
       $("iaf-limite").textContent = REF.limite;

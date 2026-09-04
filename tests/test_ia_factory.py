@@ -1758,6 +1758,211 @@ def test_les_DEUX_listes_de_leviers_sont_branchees():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+#  LA CONFORMITÉ ET L'OFFRE — quatre cadres, sept lots, chacun sa propre liste
+#
+# NI L'UN NI L'AUTRE NE PARTAGE D'AXE DE GROUPEMENT (voir `rendreLeviers` :
+# le règlement IA, DORA, NIS 2 et l'assurance ne se rangent sous aucune
+# catégorie commune, et les sept lots non plus). Le rendu est donc plus
+# simple — un choix parmi N, ou les N à la suite — et ces règles l'éprouvent
+# séparément de celles des leviers.
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _conformite_rendue(cadres=None):
+    """Le HTML que `rendreConformite` produit RÉELLEMENT, en l'exécutant."""
+    src = _src("ia-factory.js")
+    ancre = "\n(function () {\n"
+    corps = src[src.index(ancre) + len(ancre):src.index("\n  function rendreChiffrage(")]
+    prog = (corps + "\nconst d = JSON.parse(process.env.IAF_CONF);"
+            + "\nprocess.stdout.write(rendreConformite(d));\n")
+    cadres = F.referentiel()["conformite_cadres"] if cadres is None else cadres
+    out = subprocess.run(["node"], input=prog, capture_output=True, text=True,
+                         timeout=60, env=dict(os.environ, IAF_CONF=json.dumps(cadres)))
+    assert out.returncode == 0, out.stderr
+    return out.stdout
+
+
+def _offre_rendue(lots=None):
+    """Le HTML que `rendreOffre` produit RÉELLEMENT, en l'exécutant."""
+    src = _src("ia-factory.js")
+    ancre = "\n(function () {\n"
+    corps = src[src.index(ancre) + len(ancre):src.index("\n  function rendreChiffrage(")]
+    prog = (corps + "\nconst d = JSON.parse(process.env.IAF_OFFRE);"
+            + "\nprocess.stdout.write(rendreOffre(d));\n")
+    lots = F.referentiel()["offre_lots"] if lots is None else lots
+    out = subprocess.run(["node"], input=prog, capture_output=True, text=True,
+                         timeout=60, env=dict(os.environ, IAF_OFFRE=json.dumps(lots)))
+    assert out.returncode == 0, out.stderr
+    return out.stdout
+
+
+def test_le_referentiel_porte_QUATRE_cadres_et_SEPT_lots():
+    ref = F.referentiel()
+    assert len(ref["conformite_cadres"]) == 4, ref["conformite_cadres"]
+    assert len(ref["offre_lots"]) == 7, ref["offre_lots"]
+
+
+def test_les_quatre_cadres_se_choisissent_un_par_un_ou_tous_ensemble():
+    cadres = F.referentiel()["conformite_cadres"]
+    h = _conformite_rendue()
+    assert "<select" in h
+    valeurs = re.findall(r'<option value="([^"]*)"', h)
+    assert valeurs == ["__tous"] + [c["cle"] for c in cadres], valeurs
+
+
+def test_les_sept_lots_se_choisissent_un_par_un_ou_tous_ensemble():
+    lots = F.referentiel()["offre_lots"]
+    h = _offre_rendue()
+    assert "<select" in h
+    valeurs = re.findall(r'<option value="([^"]*)"', h)
+    assert valeurs == ["__tous"] + [l["cle"] for l in lots], valeurs
+
+
+def test_un_seul_cadre_et_un_seul_lot_sont_ouverts_au_chargement():
+    for h, attribut, premiere in (
+            (_conformite_rendue(), "data-conf-cle", "ai_act"),
+            (_offre_rendue(), "data-offre-cle", "l1")):
+        items = re.findall(r'<li %s="([^"]+)"([^>]*)>' % attribut, h)
+        ouverts = [c for c, attrs in items if "hidden" not in attrs]
+        assert ouverts == [premiere], (attribut, ouverts)
+
+
+def test_LE_CADRE_ET_LE_LOT_OUVERTS_SONT_CEUX_MARQUES_SELECTED():
+    """DEUX RÉGLAGES SÉPARÉS DÉCIDENT DE CE QUI S'AFFICHE AU CHARGEMENT :
+    `selected` sur l'option, `hidden` sur le `<li>`. Rien ne les lie l'un à
+    l'autre dans le code — une régression sur l'un des deux SANS l'autre
+    ferait un menu qui affiche « DORA » pendant que la page montre le
+    règlement IA, chacun jurant du contraire de l'autre."""
+    for h in (_conformite_rendue(), _offre_rendue()):
+        selectionne = re.search(r'<option value="([^"]+)" selected>', h)
+        assert selectionne, "aucune option n'est marquée « selected »"
+        ouvert = re.search(r'<li data-(?:conf|offre)-cle="([^"]+)">', h)
+        assert ouvert, "aucun <li> n'est ouvert (sans « hidden »)"
+        assert selectionne.group(1) == ouvert.group(1), (
+            "le menu affiche « %s » comme choisi pendant que la page montre "
+            "« %s »" % (selectionne.group(1), ouvert.group(1)))
+
+
+def test_chaque_cadre_affiche_SON_PROPRE_texte_pas_celui_d_un_autre():
+    """LA RÈGLE NE PEUT PAS SE CONTENTER DE CHERCHER LE TEXTE DANS LA PAGE
+    ENTIÈRE : `rendreConformite` rend LES QUATRE cadres, seuls trois sont
+    masqués — un texte cherché sans borne serait vert même si un cadre
+    affichait le texte du voisin. On isole donc chaque `<li>` et on vérifie
+    qu'il porte SON PROPRE texte, et qu'aucun autre `<li>` du même rendu ne
+    le porte aussi."""
+    cadres = F.referentiel()["conformite_cadres"]
+    h = _conformite_rendue()
+    blocs = dict(re.findall(
+        r'<li data-conf-cle="([^"]+)"[^>]*>(.*?)</li>', h, re.S))
+    assert set(blocs) == {c["cle"] for c in cadres}
+    for c in cadres:
+        assert html.unescape(c["texte"]) in html.unescape(blocs[c["cle"]]), c["cle"]
+        for autre in cadres:
+            if autre["cle"] == c["cle"]:
+                continue
+            assert html.unescape(c["texte"]) not in html.unescape(blocs[autre["cle"]]), (
+                "le texte de « %s » apparaît aussi sous « %s »" % (c["cle"], autre["cle"]))
+
+
+def test_chaque_lot_affiche_SES_PROPRES_champs_pas_ceux_d_un_autre():
+    lots = F.referentiel()["offre_lots"]
+    h = _offre_rendue()
+    blocs = dict(re.findall(
+        r'<li data-offre-cle="([^"]+)"[^>]*>(.*?)</li>', h, re.S))
+    assert set(blocs) == {l["cle"] for l in lots}
+    for l in lots:
+        corps = html.unescape(blocs[l["cle"]])
+        for champ in ("livre", "phase", "consomme"):
+            assert html.unescape(l[champ]) in corps, (l["cle"], champ)
+        for autre in lots:
+            if autre["cle"] == l["cle"]:
+                continue
+            assert html.unescape(l["consomme"]) not in html.unescape(blocs[autre["cle"]]), (
+                "ce que consomme « %s » apparaît aussi sous « %s »" % (l["cle"], autre["cle"]))
+
+
+def test_les_filtres_de_conformite_et_d_offre_masquent_et_ne_redessinent_pas():
+    js = _src("ia-factory.js")
+    for fn, jeton_tous, jeton_cle in (
+            ("brancherConformite", "CONF_TOUS", "dataset.confCle"),
+            ("brancherOffre", "OFFRE_TOUS", "dataset.offreCle")):
+        bloc = js[js.index("function %s(" % fn):]
+        bloc = bloc[:bloc.index("\n  }")]
+        assert jeton_tous in bloc and jeton_cle in bloc and "hidden" in bloc, fn
+        for interdit in ("innerHTML", "rendreConformite(", "rendreOffre("):
+            assert interdit not in bloc, (
+                "%s redessine (« %s ») au lieu de masquer" % (fn, interdit))
+
+
+def test_le_script_ne_recopie_ni_les_cadres_ni_les_lots():
+    """MÊME DISCIPLINE QUE POUR LES RÔLES ET LES SECTEURS : un nom ou un texte
+    écrit en dur dans le script se désynchroniserait du module au premier
+    cadre ajouté ou au premier lot reformulé."""
+    js = _src("ia-factory.js")
+    i = js.index("function rendreConformite(")
+    corps_conf = js[i:js.index("\n  function brancherConformite(")]
+    for c in F.CONFORMITE_CADRES:
+        assert c["nom"] not in corps_conf, "le rendu recopie « %s »" % c["nom"]
+        assert c["texte"] not in corps_conf, "le rendu recopie le texte de « %s »" % c["cle"]
+
+    j = js.index("function rendreOffre(")
+    corps_offre = js[j:js.index("\n  function brancherOffre(")]
+    for l in F.OFFRE_LOTS:
+        assert l["nom"] not in corps_offre, "le rendu recopie « %s »" % l["nom"]
+        assert l["livre"] not in corps_offre, "le rendu recopie ce que livre « %s »" % l["cle"]
+
+    assert "REF.conformite_cadres" in js and "REF.offre_lots" in js, (
+        "la page doit LIRE les cadres et les lots servis par l'API")
+
+
+def test_la_conformite_et_l_offre_sont_branchees_apres_leur_rendu():
+    js = _src("ia-factory.js")
+    lignes = js.split("\n")
+    for zone, fn in (("iaf-conformite", "brancherConformite();"),
+                     ("iaf-offre", "brancherOffre();")):
+        assert any(l.strip() == fn for l in lignes), (
+            "« %s » n'est pas appelée" % fn)
+        i = next(k for k, l in enumerate(lignes) if '$("%s").innerHTML' % zone in l)
+        j = next(k for k, l in enumerate(lignes) if l.strip() == fn)
+        assert 0 < j - i <= 2, (
+            "le branchement de « %s » ne suit pas immédiatement son rendu" % zone)
+
+
+def test_la_page_ne_porte_plus_les_paragraphes_ni_le_tableau_statiques():
+    """LE CONTENU VIT DÉSORMAIS DANS LE MODULE. Un paragraphe ou un tableau
+    laissé en dur à côté du nouveau bloc afficherait la conformité et l'offre
+    DEUX FOIS — une fois figée, une fois à jour."""
+    page = _src("ingenierie-ia-factory.html")
+    assert 'id="iaf-conformite"' in page
+    assert 'id="iaf-offre"' in page
+    assert "<table" not in page[page.index('id="s-offre"'):page.index("</section>", page.index('id="s-offre"'))]
+    for texte in ("Le règlement (UE) 2024/1689 sur l'IA</b>, tel que modifié",
+                  "DORA — règlement (UE) 2022/2554</b>, applicable"):
+        assert texte not in page, "un paragraphe de conformité est resté figé dans la page"
+
+
+def test_un_cadre_ou_un_lot_avec_une_cle_dupliquee_est_refuse_au_CHARGEMENT():
+    reel = list(F.CONFORMITE_CADRES)
+    F.CONFORMITE_CADRES.append(dict(F.CONFORMITE_CADRES[0]))
+    try:
+        with pytest.raises(ValueError) as e:
+            F._verifier_conformite_offre()
+        assert F.CONFORMITE_CADRES[0]["cle"] in str(e.value)
+    finally:
+        F.CONFORMITE_CADRES[:] = reel
+
+
+def test_un_cadre_sans_texte_est_refuse_au_CHARGEMENT():
+    reel = F.CONFORMITE_CADRES[0]["texte"]
+    F.CONFORMITE_CADRES[0]["texte"] = "   "
+    try:
+        with pytest.raises(ValueError) as e:
+            F._verifier_conformite_offre()
+        assert "texte" in str(e.value)
+    finally:
+        F.CONFORMITE_CADRES[0]["texte"] = reel
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 #  LES SOURCES EN LISTE DÉROULANTE, RANGÉES PAR NATURE
 # ═══════════════════════════════════════════════════════════════════════════
 
