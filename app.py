@@ -1315,6 +1315,16 @@ def api_chat():
     data = request.get_json(silent=True) or {}
     model = "mistral" if data.get("model") == "mistral" else "claude"
     messages = data.get("messages")
+    # Une forme inattendue (chaîne, dict, liste de chaînes...) atteignait sinon
+    # _clean_history, qui appelle .get() sur chaque élément et lève une exception
+    # qu'aucun except ci-dessous ne rattrape (seul AssistantError l'est) — après
+    # avoir déjà déclenché une recherche RAG. On refuse avant toute dépense.
+    # « messages » absent (None) reste accepté ICI : c'est la conversation vide,
+    # déjà traitée plus loin par assistant.answer (AssistantError « empty »).
+    if messages is not None and (
+            not isinstance(messages, list)
+            or not all(isinstance(m, dict) for m in messages)):
+        return jsonify(ok=False, error="format_invalide", message="Conversation invalide."), 400
 
     # Minimisation avant transmission : le dernier message de l'utilisateur est
     # contrôlé, et lui seul — les tours précédents ont déjà été validés, les

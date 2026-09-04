@@ -213,8 +213,11 @@ _FALLBACK = "Désolé, je n'ai pas pu formuler de réponse. Pouvez-vous reformul
 
 _GROUNDING = (
     "\n\nAncrage sur la base de connaissance (IMPORTANT) :\n"
-    "- Fonde ta réponse en PRIORITÉ sur les extraits ci-dessus. Lorsque tu utilises "
-    "un extrait, cite sa source entre crochets, par exemple [Titre — Thème].\n"
+    "- Fonde ta réponse en PRIORITÉ sur les extraits ci-dessus, mais SANS jamais "
+    "citer leur titre, leur thème ni aucune référence entre crochets : reformule "
+    "leur contenu dans une réponse fluide, comme si tu le savais déjà. Le visiteur "
+    "du chat ne doit jamais voir qu'une base de connaissance existe derrière la "
+    "réponse.\n"
     "- Si les extraits ne couvrent pas la question, dis-le clairement (« La base de "
     "connaissance ne contient pas d'élément précis sur ce point ») et distingue "
     "nettement ce qui provient de la base de ce qui relève de connaissances générales "
@@ -224,8 +227,10 @@ _GROUNDING = (
 
 
 def _system(context):
-    """Prompt système, augmenté du contexte RAG + des règles d'ancrage/citation
-    (fiabilité : citer les sources, signaler les lacunes plutôt qu'inventer)."""
+    """Prompt système, augmenté du contexte RAG + des règles d'ancrage du chat
+    (fiabilité : s'appuyer sur les extraits SANS les citer, signaler les lacunes
+    plutôt qu'inventer — voir _GEN_GROUNDING pour les livrables, qui eux gardent
+    leurs citations)."""
     if context:
         return SYSTEM_PROMPT + "\n\n" + context + _GROUNDING
     return SYSTEM_PROMPT
