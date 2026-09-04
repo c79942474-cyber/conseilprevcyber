@@ -480,6 +480,108 @@ DROITS = [
      "modalite": "Sans objet : aucune décision automatisée produisant des effets juridiques n'est mise en œuvre."},
 ]
 
+# ═══════════════════════════════════════════════════════════════════════════
+# LA MENTION SOUS LES FORMULAIRES — art. 13
+#
+# CE QUE C'EST, ET CE QUE CE N'EST SURTOUT PAS. C'est une INFORMATION, pas une
+# case à cocher. Répondre à une demande entrante ne repose pas sur le
+# consentement mais sur les mesures précontractuelles (art. 6.1.b) : demander
+# un consentement là où il n'est pas la base légale coûte cher et ne rapporte
+# rien. Le consentement se retire à tout moment (art. 7.3) — il faudrait alors
+# cesser de traiter une demande qu'on a le droit de traiter — et un
+# consentement exigé pour envoyer le formulaire n'est pas libre (art. 7.4) :
+# il serait à la fois obligatoire et invalide.
+#
+# LE CONSEIL D'ÉTAT L'A JUGÉ SUR EXACTEMENT CETTE FORME (11 mars 2015,
+# n° 368624, mentionné aux tables) : le consentement donné globalement, « pour
+# l'ensemble des finalités d'un traitement », ne vaut pas consentement
+# spécifique ; la personne doit pouvoir marquer son assentiment « de manière
+# distincte en cochant une case spécifique » pour l'usage auquel elle consent.
+# Une case « en cliquant sur Envoyer, j'accepte que mes données soient
+# traitées » est précisément le montage écarté par cette décision.
+#
+# LA PROSPECTION RESTE SUR L'INTÉRÊT LÉGITIME (art. 6.1.f), comme le déclare
+# déjà le registre ci-dessus. C'est un choix, pas un défaut : en B2B, une
+# adresse professionnelle sollicitée à raison de la fonction n'appelle pas de
+# consentement. Ce que l'intérêt légitime exige en revanche, c'est de le DIRE
+# AU MOMENT DE LA COLLECTE (art. 13.1.d) et d'offrir l'opposition — sans quoi
+# les adresses recueillies ne pourront pas servir plus tard.
+#
+# UNE CANDIDATURE N'EST PAS UNE PROSPECTION, et la mention le dit : réutiliser
+# l'adresse d'un candidat à des fins commerciales serait une finalité
+# incompatible avec sa collecte.
+#
+# LE TEXTE VIT ICI, les pages le recopient, et une règle vérifie qu'elles le
+# recopient à l'identique : des pages statiques qui portent chacune sa version
+# divergent à la première retouche, et c'est celle qu'on oublie qui reste
+# fausse.
+#
+# LA DURÉE ANNONCÉE EST CELLE DU REGISTRE, pas un chiffre choisi ici. La
+# mention doit donner la durée de conservation POUR CHAQUE finalité
+# (art. 13.2.a) : celle du traitement de la demande, et celle de la
+# prospection qui peut suivre. Le registre ci-dessus les fixe à 12 mois après
+# le dernier échange et à 36 mois après le dernier contact ; une mention qui
+# annoncerait autre chose informerait faux, et une règle le vérifie.
+PROSPECTION_MOIS = 36
+_OPPOSITION = ("Votre adresse professionnelle peut ensuite servir à vous adresser "
+               "nos actualités et invitations (intérêt légitime, art. 6.1.f), "
+               "pendant %d mois au plus après notre dernier contact : vous "
+               "pouvez vous y opposer à tout moment, sans avoir à vous "
+               "justifier. " % PROSPECTION_MOIS)
+_DROITS_PHRASE = ("Droits d'accès, de rectification, d'effacement et d'opposition — "
+                  "voir la politique de confidentialité.")
+
+MENTIONS_FORMULAIRES = {
+    "demande": {
+        "quoi": "Formulaire de contact ou de demande d'étude",
+        "duree_mois": 12,
+        "texte": "Les informations transmises servent uniquement à traiter votre "
+                 "demande (mesures précontractuelles, art. 6.1.b RGPD) et sont "
+                 "conservées 12 mois au plus. " + _OPPOSITION + _DROITS_PHRASE,
+    },
+    "demande_longue": {
+        "quoi": "Demande commerciale instruite sur un cycle long (sourcing, devis)",
+        "duree_mois": 24,
+        "texte": "Les informations transmises servent uniquement à traiter votre "
+                 "demande (mesures précontractuelles, art. 6.1.b RGPD) et sont "
+                 "conservées 24 mois au plus. " + _OPPOSITION + _DROITS_PHRASE,
+    },
+    "compte": {
+        "quoi": "Création d'un compte, ou demande d'accès à l'espace client",
+        "duree_mois": None,
+        "texte": "Ces données servent à créer et à tenir votre accès "
+                 "(exécution du contrat et mesures précontractuelles, "
+                 "art. 6.1.b RGPD) et sont conservées le temps du compte, la "
+                 "suppression pouvant être demandée à tout moment. Votre mot de "
+                 "passe n'est jamais connu de CONSEILPREV : seule son empreinte "
+                 "est conservée. " + _OPPOSITION + _DROITS_PHRASE,
+    },
+    "acces_compte": {
+        "quoi": "Récupération d'accès — mot de passe oublié, réinitialisation",
+        "duree_mois": None,
+        "texte": "Votre adresse sert uniquement à vous envoyer le lien de "
+                 "récupération et à vérifier l'existence du compte (exécution du "
+                 "contrat, art. 6.1.b RGPD) ; elle n'est conservée que le temps "
+                 "du compte et ne sert à aucune prospection à ce titre. "
+                 + _DROITS_PHRASE,
+    },
+    "candidature": {
+        "quoi": "Candidature spontanée ou réponse à une offre",
+        "duree_mois": 24,
+        "texte": "Les informations et le CV transmis servent uniquement à instruire "
+                 "votre candidature (mesures précontractuelles, art. 6.1.b RGPD) et "
+                 "sont conservés 24 mois au plus. Ils ne servent à aucune "
+                 "prospection. " + _DROITS_PHRASE,
+    },
+}
+
+
+def mention(cle):
+    """Le texte à porter sous un formulaire. Lève sur une clé inconnue : une
+    mention absente se voit, une mention muette et fausse ne se voit pas."""
+    return MENTIONS_FORMULAIRES[cle]["texte"]
+
+
 # Une liste de droits sans procédure pour les exercer n'engage à rien. Voici
 # comment ils s'exercent réellement — délai, preuve d'identité et recours
 # compris, y compris le recours CONTRE nous.

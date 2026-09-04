@@ -257,13 +257,19 @@
         <!-- Anti-spam : champ piège, laissé vide par les humains (masqué). -->
         <input type="text" id="hp" name="site" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0" aria-hidden="true">
 
-        <label class="consent"><input type="checkbox" id="consent" required>
-          <span>J'accepte que mes données soient traitées par <strong>CONSEILPREV&nbsp;Cyber</strong> pour répondre à ma demande de projet, conformément aux <a href="/mentions-legales" target="_blank" rel="noopener">mentions légales</a>. Aucune donnée n'est revendue ni partagée avec des tiers. <span class="req">*</span></span>
-        </label>
+        <!-- LA CASE OBLIGATOIRE EST PARTIE. Elle invoquait le consentement là
+             où traiter une demande de projet relève des mesures
+             précontractuelles (art. 6.1.b) ; un consentement se retire
+             (art. 7.3), et un consentement exigé pour envoyer n'est pas libre
+             (art. 7.4). Elle ne servait d'ailleurs à rien : rien ne lisait sa
+             valeur, rien ne l'enregistrait — elle bloquait l'envoi sans
+             recueillir aucune preuve. La mention d'information portée plus bas
+             est ce qui est réellement dû (art. 13). -->
 
         <button type="submit" id="submitBtn" class="btn btn-p" style="width:100%;margin-top:18px">📨 Envoyer ma demande de projet</button>
         <div id="formStatus" role="status" aria-live="polite" style="margin-top:14px;display:none"></div>
         <div class="secnote"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>Transmission chiffrée (HTTPS) · protection anti-spam · réponse sous 48 h ouvrées · vos données ne servent qu'à traiter votre demande.</div>
+        <p class="muted rgpd-mention" style="margin-top:10px;color:var(--muted2);font-size:12.5px">Les informations transmises servent uniquement à traiter votre demande (mesures précontractuelles, art. 6.1.b RGPD) et sont conservées 12 mois au plus. Votre adresse professionnelle peut ensuite servir à vous adresser nos actualités et invitations (intérêt légitime, art. 6.1.f), pendant 36 mois au plus après notre dernier contact : vous pouvez vous y opposer à tout moment, sans avoir à vous justifier. Droits d'accès, de rectification, d'effacement et d'opposition — voir la <a href="/politique-confidentialite">politique de confidentialité</a>.</p>
         <p class="muted" style="margin-top:12px;color:var(--muted2);font-size:13px">
           Vous pouvez aussi écrire directement à
           <a href="mailto:christophe.cerf@outlook.com">christophe.cerf@outlook.com</a>.

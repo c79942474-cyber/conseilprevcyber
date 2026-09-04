@@ -29,6 +29,8 @@
       <div id="msg" class="msg"></div>
       <form id="f" class="form" style="max-width:none;background:none;border:none;padding:0">
         <div class="field"><label for="email">Email <button type="button" class="tipi" data-tip="Saisissez l'email de votre compte. Pour votre sécurité, la réponse est identique qu'un compte existe ou non." aria-label="Aide : email de récupération. Saisissez l'email de votre compte. Pour votre sécurité, la réponse est identique qu'un compte existe ou non.">i</button></label><input id="email" type="email" autocomplete="email" required></div>
+        <!-- Information RGPD (art. 13) — texte canonique : rgpd.py. -->
+        <p class="muted rgpd-mention" style="margin-top:10px;color:var(--muted2);font-size:12.5px">Votre adresse sert uniquement à vous envoyer le lien de récupération et à vérifier l'existence du compte (exécution du contrat, art. 6.1.b RGPD) ; elle n'est conservée que le temps du compte et ne sert à aucune prospection à ce titre. Droits d'accès, de rectification, d'effacement et d'opposition — voir la <a href="/politique-confidentialite">politique de confidentialité</a>.</p>
         <button class="btn btn-p" type="submit">Envoyer le lien</button>
         <div class="secnote"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>Lien à usage unique, valable 2 heures · aucune information révélée sur l'existence d'un compte.</div>
       </form>

@@ -50,7 +50,11 @@
         <div class="field"><label for="captcha">Vérification : <span id="capq">…</span> <button type="button" class="tipi" data-tip="Petit calcul anti-robot pour éviter les inscriptions automatisées." aria-label="Aide : vérification anti-robot. Petit calcul anti-robot pour éviter les inscriptions automatisées.">i</button></label><input id="captcha" type="text" inputmode="numeric" required></div>
         <button class="btn btn-p" type="submit">Envoyer ma demande</button>
         <div class="secnote"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>Données chiffrées en transit · mot de passe haché · adresse confirmée avant tout paiement.</div>
-        <p class="muted" style="margin-top:10px;color:var(--muted2);font-size:12.5px">Ces données servent uniquement à créer et gérer votre accès — voir la <a href="/politique-confidentialite">politique de confidentialité</a>.</p>
+        <!-- Information RGPD (art. 13). Le texte vit dans rgpd.py, cette page
+             le recopie, et une règle vérifie qu'elle le recopie à l'identique :
+             des pages qui portent chacune sa version divergent à la première
+             retouche, et c'est celle qu'on oublie qui reste fausse. -->
+        <p class="muted rgpd-mention" style="margin-top:10px;color:var(--muted2);font-size:12.5px">Ces données servent à créer et à tenir votre accès (exécution du contrat et mesures précontractuelles, art. 6.1.b RGPD) et sont conservées le temps du compte, la suppression pouvant être demandée à tout moment. Votre mot de passe n'est jamais connu de CONSEILPREV : seule son empreinte est conservée. Votre adresse professionnelle peut ensuite servir à vous adresser nos actualités et invitations (intérêt légitime, art. 6.1.f), pendant 36 mois au plus après notre dernier contact : vous pouvez vous y opposer à tout moment, sans avoir à vous justifier. Droits d'accès, de rectification, d'effacement et d'opposition — voir la <a href="/politique-confidentialite">politique de confidentialité</a>.</p>
       </form>
       <div class="authlinks">Déjà un compte&nbsp;? <a href="/connexion">Se connecter</a></div>
     </div>
