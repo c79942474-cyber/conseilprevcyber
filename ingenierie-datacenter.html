@@ -2353,6 +2353,54 @@
   </section>
 
   <!-- ═══════════════════════════════════════════════════════════════════
+       LA DENSITÉ CONTRE LE BÂTIMENT.
+
+       POURQUOI CETTE SECTION SUIT LE RACCORDEMENT. Ce sont les deux
+       contraintes PHYSIQUES du site, et elles se posent dans cet ordre :
+       l'électricité qu'on peut amener, puis le bâtiment qui peut la recevoir.
+       Les dossiers traitent la première et découvrent la seconde au moment de
+       poser les baies.
+
+       CE QU'ELLE APPORTE, ET QUE LE RESTE DE LA PAGE NE DIT PAS. On est passé
+       de baies à 1–2 kW à 130, 150 voire 300 kW. Le réflexe est d'en faire une
+       question de froid ; le calcul montre que ce n'est pas là que ça casse.
+       Au-delà d'une centaine de kilowatts par baie, la boucle d'eau se
+       dimensionne sans peine — c'est le PLANCHER qui cède, et bien avant.
+       ═══════════════════════════════════════════════════════════════════ -->
+  <section class="wrap rc-sec" id="ig-densite">
+    <div class="rc-etape"><span class="n">11</span><h2>Ce que la densité par baie impose au bâtiment</h2></div>
+    <p class="lead" style="max-width:74ch;margin-top:0">
+      On est passé de baies à 1‑2 kW à 130, 150 voire 300 kW selon les
+      architectures d’accélérateurs. Quand la densité monte, le refroidissement
+      à l’eau — et non à l’air pulsé — s’impose. Mais ce n’est pas le froid qui
+      arrête un projet : c’est le <b>plancher</b>. Cette section confronte une
+      densité à un bâtiment et rend quatre résultats ensemble — familles de
+      refroidissement encore possibles, charge au sol contre capacité déclarée,
+      sections d’eau et d’air pour la même chaleur, obstacles à la rénovation.</p>
+    <div class="ig-encart" style="margin:14px 0">
+      <b>La masse d’une baie n’est pas devinée.</b> Aucune loi ne relie la
+      puissance d’une baie à son poids : une baie de stockage est lourde et peu
+      consommatrice, une baie d’accélérateurs est les deux. Sans masse
+      déclarée — saisie, ou reprise d’un régime que vous choisissez — le
+      verdict de plancher sort « indéterminé » en nommant ce qui manque,
+      plutôt qu’un GO calculé sur une supposition. Les plafonds de densité par
+      famille et les capacités de plancher sont des <b>plages de conception du
+      cabinet</b>, pas des valeurs normatives ; aucune ne remplace un
+      diagnostic de structure.
+    </div>
+    <div id="ig-den-echelle"></div>
+    <div class="rc-card" id="ig-den-form"><p class="note">Chargement…</p></div>
+    <button type="button" class="ig-lanceur-b" id="ig-den-go">Éprouver la densité →</button>
+    <p class="note" id="ig-den-msg" style="margin-top:10px"></p>
+    <div id="ig-den-out"></div>
+
+    <details class="ig-pas" id="ig-den-prat" style="margin-top:18px">
+      <summary>Les pratiques de construction retenues, et celles qui ont été écartées</summary>
+      <div class="ig-pas-c" id="ig-den-prat-c"><p class="note">Chargement…</p></div>
+    </details>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
        LA PHASE TRAVAUX — l'ordre des opérations et les tiers.
 
        CE QUE CETTE SECTION AJOUTE au cadre des phases. Le cadre dit quelles
@@ -2363,7 +2411,7 @@
        semaine de la réception.
        ═══════════════════════════════════════════════════════════════════ -->
   <section class="wrap rc-sec" id="ig-travaux">
-    <div class="rc-etape"><span class="n">11</span><h2>Organiser la phase travaux</h2></div>
+    <div class="rc-etape"><span class="n">12</span><h2>Organiser la phase travaux</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Du démarrage du chantier à la fin de la garantie de parfait
       achèvement&nbsp;: qui intervient et à quel titre, dans quel ordre les
@@ -2375,7 +2423,7 @@
   </section>
 
   <section class="wrap rc-sec">
-    <div class="rc-etape"><span class="n">12</span><h2>Apporter vos documents</h2></div>
+    <div class="rc-etape"><span class="n">13</span><h2>Apporter vos documents</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Vos pièces existantes — notes de calcul, relevés, plans, spécifications
       d'un projet antérieur — complètent l'étude là où le moteur s'arrête. Elles
@@ -2412,7 +2460,7 @@
        « à déclarer et signer », avec le texte exact de ce qui est affirmé.
        ═══════════════════════════════════════════════════════════════════ -->
   <section class="wrap rc-sec" id="ig-ao">
-    <div class="rc-etape"><span class="n">13</span><h2>Répondre à l'appel d'offres</h2></div>
+    <div class="rc-etape"><span class="n">14</span><h2>Répondre à l'appel d'offres</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Déposez ensemble toutes les pièces de la consultation — règlement de
       consultation, CCAP, CCAG, CCTP, DPGF, tableau de répartition MOE/AMO,
@@ -2449,7 +2497,7 @@
   </section>
 
   <section class="wrap rc-sec" id="ig-limites">
-    <div class="rc-etape"><span class="n">14</span><h2>Ce que ce cadre ne fait pas</h2></div>
+    <div class="rc-etape"><span class="n">15</span><h2>Ce que ce cadre ne fait pas</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Le dire ici plutôt qu'en note de bas de page&nbsp;: ces limites décident du moment où
       il faut un ingénieur, et les ignorer coûte plus cher que de les lire.</p>
@@ -3306,6 +3354,19 @@
    nature commande les postes, les postes commandent les quantités, et la part
    technique qui en sort commande les honoraires. Ce n'est pas un décor de
    liste — l'ordre porte la dépendance. */
+/* LA SECTION DES LIMITES EST LONGUE PARCE QU'ELLE DOIT L'ÊTRE — neuf réserves,
+   chacune indispensable — mais elle n'a pas à occuper autant de hauteur qu'un
+   contenu qu'on vient lire. Elle se lit APRÈS coup, quand on vérifie une
+   hypothèse. La police descend donc d'un cran et l'interligne se resserre : le
+   texte reste entier, il prend un tiers de place en moins.
+
+   LA RÈGLE EST PORTÉE PAR LA SECTION, pas par une classe posée sur chaque
+   paragraphe. Une réserve ajoutée demain hérite du réglage sans qu'on y pense ;
+   posée à la main, elle serait la seule à ne pas l'avoir. Le TITRE et la puce
+   de numéro sont exclus : ce sont eux qui donnent son rang à la section dans
+   la page, et les rapetisser la ferait disparaître de la frise. */
+#ig-limites .lead{font-size:15px;line-height:1.5;max-width:88ch}
+#ig-limites li{margin-bottom:7px}
 .ig-pas{margin:14px 0 4px;border:1px solid var(--line);border-radius:10px;
   background:rgba(0,0,0,.12)}
 .ig-pas>summary{cursor:pointer;padding:12px 16px;font-size:13.5px;font-weight:600;

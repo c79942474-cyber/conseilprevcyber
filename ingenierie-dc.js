@@ -5952,6 +5952,291 @@ function messageDelai(e, defaut) {
   }
 
 
+  /* ── LA DENSITÉ CONTRE LE BÂTIMENT (section 11) ────────────────────────
+     CE QUE CE RENDU DOIT FAIRE COMPRENDRE, ET DANS QUEL ORDRE. Le lecteur
+     arrive avec une idée de refroidissement et repart avec une question de
+     structure : l'ordre des blocs est donc VERDICT DE PLANCHER D'ABORD, froid
+     ensuite. L'inverse — les familles de refroidissement en tête — laisserait
+     lire « il faut du liquide » et refermer la page, ce qui est exactement
+     l'erreur que cette section existe pour corriger.
+
+     LE FORMULAIRE NE PRÉ-REMPLIT RIEN. Ni la densité, ni la masse, ni le
+     plancher : sur ce sujet une valeur par défaut deviendrait la réponse, et
+     un verdict de plancher calculé sur une masse supposée serait pire que pas
+     de verdict du tout. Le choix d'un régime REMPLIT la masse, visiblement, et
+     le résultat dit d'où elle vient. */
+  var DENSITE = null;
+
+  /* L'ÉCHELLE, AVANT LE FORMULAIRE. Une salle éprouvée seule ne dit pas
+     pourquoi le sujet presse : c'est le PARC qui le dit. Ce bloc est le seul
+     de la section qui ne dépende d'aucune saisie — il pose la question à
+     laquelle le formulaire ci-dessous répond pour VOTRE bâtiment.
+
+     LE CHIFFRE EST UNE PROJECTION, ET LE RENDU LE DIT AVANT DE S'EN SERVIR.
+     La source et la réserve sortent avec la lecture, pas en note de bas de
+     page : un ordre de grandeur repris sans son émetteur devient un fait au
+     bout de deux citations. */
+  function densiteEchelle() {
+    var z = $("#ig-den-echelle"), R = (REF && REF.densite) || null;
+    if (!z || !R || !R.pression_construction) return;
+    var e = R.pression_construction, m = e.projection || {};
+    z.innerHTML = '<div class="ig-encart" style="margin:14px 0">'
+      + "<b>À l’échelle du parc français.</b> " + esc(e.lecture)
+      + '<br><span class="note">Source — ' + esc(m.source) + " "
+      + esc(m.reserve) + "</span></div>";
+  }
+
+  function densiteFormulaire() {
+    var z = $("#ig-den-form"), R = (REF && REF.densite) || null;
+    if (!z || !R) return;
+    var h = '<div class="dc-grille">';
+    h += '<label class="dc-champ" for="ig-den-kw"><span class="dc-lab">'
+      + 'Puissance par baie <span class="dc-unite">(kW)</span></span>'
+      + '<input id="ig-den-kw" type="number" min="0.5" step="0.5" '
+      + 'placeholder="— à préciser —"></label>';
+
+    h += '<label class="dc-champ" for="ig-den-regime"><span class="dc-lab">'
+      + 'Reprendre un régime connu</span><select id="ig-den-regime">'
+      + '<option value="">— non, je saisis la masse —</option>';
+    (R.ordre_regimes || Object.keys(R.regimes)).forEach(function (k) {
+      var v = R.regimes[k];
+      h += '<option value="' + esc(k) + '">' + esc(v.nom) + ' — '
+        + fr(v.kw_baie, 0) + ' kW, ' + fr(v.masse_baie_kg, 0) + ' kg</option>';
+    });
+    h += "</select></label>";
+
+    h += '<label class="dc-champ" for="ig-den-masse"><span class="dc-lab">'
+      + 'Masse d’une baie en ordre de marche <span class="dc-unite">(kg)</span>'
+      + '</span><input id="ig-den-masse" type="number" min="1" step="10" '
+      + 'placeholder="— à préciser —"></label>';
+
+    h += '<label class="dc-champ" for="ig-den-plancher"><span class="dc-lab">'
+      + 'Plancher du bâtiment</span><select id="ig-den-plancher">'
+      + '<option value="">— non précisé —</option>';
+    Object.keys(R.planchers).forEach(function (k) {
+      h += '<option value="' + esc(k) + '">' + esc(R.planchers[k].nom) + ' — '
+        + fr(R.planchers[k].kpa, 1) + ' kPa</option>';
+    });
+    h += "</select></label>";
+
+    h += '<label class="dc-champ" for="ig-den-fp"><span class="dc-lab">'
+      + 'Faux-plancher</span><select id="ig-den-fp">'
+      + '<option value="">— non précisé —</option>';
+    Object.keys(R.faux_planchers).forEach(function (k) {
+      var v = R.faux_planchers[k];
+      h += '<option value="' + esc(k) + '">' + esc(v.nom)
+        + (v.ponctuel_service_kg ? ' — ' + fr(v.ponctuel_service_kg, 0)
+          + ' kg par pied' : "") + "</option>";
+    });
+    h += "</select></label>";
+
+    h += '<label class="dc-champ" for="ig-den-diff"><span class="dc-lab">'
+      + 'Famille en place dans la salle</span><select id="ig-den-diff">'
+      + '<option value="">— non précisée, ou construction neuve —</option>';
+    (R.ordre_diffusion || []).forEach(function (k) {
+      h += '<option value="' + esc(k) + '">' + esc(R.diffusion[k].nom)
+        + "</option>";
+    });
+    h += "</select></label></div>";
+    h += '<p class="note" style="margin:10px 0 0">' + esc(R.diffusion_source)
+      + "</p>";
+    z.innerHTML = h;
+
+    /* Choisir un régime REMPLIT les deux champs au lieu de les remplacer en
+       coulisses : le lecteur voit la valeur reprise, et peut la corriger. */
+    var sel = $("#ig-den-regime");
+    if (sel) sel.addEventListener("change", function () {
+      var v = R.regimes[sel.value];
+      if (!v) return;
+      $("#ig-den-kw").value = v.kw_baie;
+      $("#ig-den-masse").value = v.masse_baie_kg;
+    });
+  }
+
+  function densiteLire() {
+    function val(id) { var e = $(id); return e ? (e.value || "").trim() : ""; }
+    return {
+      kw_baie: val("#ig-den-kw"),
+      masse_baie_kg: val("#ig-den-masse"),
+      regime: val("#ig-den-regime"),
+      plancher: val("#ig-den-plancher"),
+      faux_plancher: val("#ig-den-fp"),
+      diffusion_existante: val("#ig-den-diff"),
+    };
+  }
+
+  function densiteEprouver() {
+    var msg = $("#ig-den-msg"), out = $("#ig-den-out");
+    if (!out) return;
+    msg.textContent = "Calcul…";
+    demander("/api/datacenter/densite", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(densiteLire()),
+    }).then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) {
+          msg.textContent = (j && j.message) || "Calcul indisponible.";
+          out.innerHTML = "";
+          return;
+        }
+        DENSITE = j;
+        msg.textContent = "";
+        densiteRendre(j.etude);
+      })
+      .catch(function (e) {
+        if (e && e.name === "SessionEteinte") return;
+        msg.textContent = messageDelai(e, "Calcul indisponible.");
+      });
+  }
+
+  function densiteRendre(e) {
+    var out = $("#ig-den-out");
+    out.innerHTML = densitePlancher(e) + densiteFroid(e) + densiteTransport(e)
+      + densiteRenovation(e) + densiteReserve(e.reserve_charge);
+  }
+
+  /* LE PLANCHER VIENT EN PREMIER, et c'est délibéré : voir plus haut.
+
+     LES DEUX CRITÈRES SORTENT ENSEMBLE, et le verdict DIT lequel mord. Ce
+     n'est pas de la complétude : une salle dont la dalle tient et dont les
+     panneaux non se répare en retirant le faux-plancher, quand une salle dont
+     la dalle ne tient pas ne se répare pas du tout. Un verdict qui ne dirait
+     pas lequel des deux enverrait reprendre une structure là où il suffisait
+     de démonter un plancher technique. */
+  function densitePlancher(e) {
+    var p = e.plancher;
+    var h = '<div class="rc-card" style="margin-top:14px"><h3>Le plancher</h3>';
+    if (p.verdict === "indetermine") {
+      return h + '<p class="note">' + esc(p.message) + "</p></div>";
+    }
+    var MOT = { go: "PASSE", limite: "PASSE SANS RÉSERVE", nogo: "NE PASSE PAS" };
+    h += "<p><b>" + esc(MOT[p.verdict]) + "</b> — " + esc(p.message) + "</p>";
+
+    var d = p.dalle;
+    h += "<p><b>La dalle, en charge répartie —</b> " + fr(p.masse_baie_kg, 0)
+      + " kg sur " + fr(d.surface_influence_m2, 2) + " m² de surface "
+      + "d’influence, soit <b>" + fr(d.charge_repartie_kg_m2, 0)
+      + " kg/m²</b> (" + fr(d.charge_repartie_kpa, 2) + " kPa) pour "
+      + fr(d.capacite_kg_m2, 0) + " kg/m² déclarés — "
+      + fr(d.taux_occupation * 100, 0) + " % de la capacité. ("
+      + esc(MOT[d.verdict]) + ")</p>";
+
+    var f = p.faux_plancher;
+    h += "<p><b>Le faux-plancher, en charge ponctuelle —</b> ";
+    if (f.ponctuel_admis_kg) {
+      h += "<b>" + fr(f.charge_par_pied_kg, 0) + " kg par pied</b> pour "
+        + fr(f.ponctuel_admis_kg, 0) + " kg admis par un « "
+        + esc(f.nom) + " » — " + fr(f.taux_occupation * 100, 0)
+        + " % de la capacité. (" + esc(MOT[f.verdict]) + ")</p>";
+    } else {
+      h += esc(f.message) + "</p>";
+    }
+
+    h += '<p class="note">Pour information, la pression sous l’emprise nue de '
+      + "la baie est de " + fr(e.plancher.pression_sous_emprise_kg_m2, 0)
+      + " kg/m². Elle ne se compare à aucune des deux capacités ci-dessus : "
+      + "une capacité en kilopascals est une charge RÉPARTIE.</p>";
+
+    h += "<p><b>À vérifier, et qui ne figure dans aucun des deux verdicts :"
+      + "</b></p><ul>";
+    (p.a_verifier || []).forEach(function (x) { h += "<li>" + esc(x) + "</li>"; });
+    h += '</ul><p class="note">' + esc(p.source) + "</p></div>";
+    return h;
+  }
+
+  function densiteFroid(e) {
+    var d = e.diffusion;
+    var h = '<div class="rc-card" style="margin-top:14px">'
+      + "<h3>Les familles de refroidissement</h3>";
+    if (d.premiere_admise) {
+      h += "<p>À " + fr(e.kw_baie, 0) + " kW par baie, la famille la moins "
+        + "coûteuse en bâtiment qui tienne cette densité est <b"
+        + info("diffusion:" + d.premiere_admise.cle) + ">"
+        + esc(d.premiere_admise.nom) + "</b>.";
+      if (d.liquide_impose) {
+        h += " L’air n’est plus une option : ce n’est pas un arbitrage de "
+          + "coût, c’est la section de passage qui ne tient plus dans le "
+          + "bâtiment.";
+      }
+      h += "</p>";
+    }
+    if ((d.exclues || []).length) {
+      h += "<p><b>Écartées par la densité —</b></p><ul>";
+      d.exclues.forEach(function (x) {
+        h += "<li><b" + info("diffusion:" + x.cle) + ">" + esc(x.nom)
+          + "</b> : plafond " + fr(x.plafond_kw_baie, 0) + " kW/baie, dépassé "
+          + fr(x.depassement, 1) + " fois. " + esc(x.ce_qui_plafonne) + "</li>";
+      });
+      h += "</ul>";
+    } else {
+      h += '<p class="note">Aucune famille n’est écartée à cette densité.</p>';
+    }
+    return h + "</div>";
+  }
+
+  function densiteTransport(e) {
+    var t = e.transport;
+    return '<div class="rc-card" style="margin-top:14px">'
+      + "<h3>Ce qu’il faut de section à l’eau et à l’air</h3>"
+      + "<p>Pour la même chaleur&nbsp;: <b>" + fr(t.eau.debit_m3_h, 1)
+      + " m³/h d’eau</b> dans un tube de " + fr(t.eau.diametre_equivalent_mm, 0)
+      + " mm (écart " + fr(t.eau.delta_t_k, 0) + " K, "
+      + fr(t.eau.vitesse_m_s, 1) + " m/s), contre <b>"
+      + fr(t.air.debit_m3_h, 0) + " m³/h d’air</b> dans une gaine de "
+      + fr(t.air.cote_carre_m, 2) + " m de côté (écart "
+      + fr(t.air.delta_t_k, 0) + " K, " + fr(t.air.vitesse_m_s, 1)
+      + " m/s).</p><p>" + esc(t.lecture) + "</p></div>";
+  }
+
+  function densiteRenovation(e) {
+    var r = e.renovation;
+    var h = '<div class="rc-card" style="margin-top:14px">'
+      + "<h3>Ce que cela veut dire pour un site existant</h3>";
+    (r.leves || []).forEach(function (x) { h += "<p>" + esc(x) + "</p>"; });
+    if ((r.obstacles || []).length) {
+      h += "<ul>";
+      r.obstacles.forEach(function (x) { h += "<li>" + esc(x) + "</li>"; });
+      h += "</ul>";
+    }
+    return h + '<p class="note">' + esc(r.note) + "</p></div>";
+  }
+
+  function densiteReserve(v) {
+    if (!v) return "";
+    return '<div class="ig-encart" style="margin-top:14px">'
+      + "<b>La réserve de charge, à spécifier avant la commande de la "
+      + "charpente.</b> Environ " + fr(v.valeur_kg, 0) + " kg portés par "
+      + esc(v.porte_par) + ". " + esc(v.quand) + " " + esc(v.qui)
+      + '<br><span class="note">' + esc(v.reserve) + "</span></div>";
+  }
+
+  /* LES PRATIQUES ET LES ÉCARTS SORTENT ENSEMBLE, dans le même dépliant. Un
+     tri qui ne montre que ce qu'il garde n'est pas un tri : c'est une reprise.
+     Séparer les deux blocs sur deux écrans reviendrait au même. */
+  function densitePratiques() {
+    var z = $("#ig-den-prat-c"), R = (REF && REF.densite) || null;
+    if (!z || !R) return;
+    var h = '<p class="note">' + esc(R.construction_source) + "</p>";
+    h += "<h4>Retenues — le mécanisme, et ce qu’il ne couvre pas</h4><ul>";
+    Object.keys(R.construction).forEach(function (k) {
+      var v = R.construction[k];
+      h += "<li><b" + info("pratique_construction:" + k) + ">" + esc(v.nom)
+        + "</b> — " + esc(v.pratique) + " <i>Pourquoi cela marche :</i> "
+        + esc(v.mecanisme) + " <i>Ce que cela ne couvre pas :</i> "
+        + esc(v.ne_couvre_pas)
+        + (v.reserve ? ' <span class="note">Réserve : ' + esc(v.reserve)
+          + "</span>" : "") + "</li>";
+    });
+    h += "</ul><h4>Écartées — l’affirmation, et le motif du refus</h4><ul>";
+    Object.keys(R.ecartes).forEach(function (k) {
+      var v = R.ecartes[k];
+      h += "<li>" + esc(v.affirmation) + " <b>Motif —</b> " + esc(v.motif)
+        + "</li>";
+    });
+    z.innerHTML = h + "</ul>";
+  }
+
   /* ── LE DOSSIER D'OFFRE — CE QUE VOUS PROPOSEZ, PAS QUI VOUS ÊTES ───────
      UN BLOC À PART, PAS UN GROUPE DE PLUS DANS `aoCandRendre`. Cette page,
      comme tout le reste du fichier, appelle « dossier de candidature » celui
@@ -6397,6 +6682,9 @@ function messageDelai(e, defaut) {
         travauxFormulaire();
         aoDocuments();
         aoFicheCharger();
+        densiteEchelle();
+        densiteFormulaire();
+        densitePratiques();
         aoRemplir(true);
         rafraichir();
         /* Le lanceur du parcours guidé bat à l'ouverture : c'est le seul
@@ -6422,6 +6710,7 @@ function messageDelai(e, defaut) {
     if ((b = $("#ig-prog-go"))) b.addEventListener("click", progConsolider);
     if ((b = $("#ig-icpe-go"))) b.addEventListener("click", icpeCribler);
     if ((b = $("#ig-res-go"))) b.addEventListener("click", reseauChiffrer);
+    if ((b = $("#ig-den-go"))) b.addEventListener("click", densiteEprouver);
     if ((b = $("#ig-ao-go"))) b.addEventListener("click", aoAnalyser);
     if ((b = $("#ig-ao-cand"))) b.addEventListener("click", aoCandidature);
   }

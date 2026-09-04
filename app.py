@@ -2344,6 +2344,7 @@ import profil_dc     # noqa: E402  — analyse le moteur ci-dessus, ne le double
 import ingenierie_dc  # noqa: E402  — situe ses résultats dans la séquence projet
 import ia_factory     # noqa: E402  — l'étude de faisabilité d'une usine IA, sans prix inventé
 import technique_dc  # noqa: E402  — le vocabulaire du métier, servi aux infobulles
+import densite_dc   # noqa: E402  — la densité par baie contre le bâtiment
 import icpe_dc       # noqa: E402  — crible les rubriques, ne classe pas le site
 import travaux_dc    # noqa: E402  — l'ordre des opérations de chantier et ses tiers
 import ao_dc         # noqa: E402  — lit le dossier marché, prépare la candidature
@@ -2451,6 +2452,12 @@ def api_datacenter_referentiel():
         ok=True, referentiel=datacenter.referentiel(),
         champs=datacenter.CHAMPS,
         technique=technique_dc.referentiel(),
+        # LA DENSITÉ VOYAGE AVEC, pour la même raison que la technique : le
+        # formulaire de la section 11 propose des régimes et des planchers
+        # dont l'explication est dans ce référentiel. Servie par un second
+        # appel, elle arriverait APRÈS la liste — c'est-à-dire au moment exact
+        # où le lecteur a déjà choisi.
+        densite=densite_dc.referentiel(),
         reseau=reseau_dc.referentiel(),
         base=_themes_datacenter()))
 
@@ -4293,6 +4300,64 @@ def api_datacenter_reseau():
                        message="L'étude n'a pas pu être établie."), 500
     return jsonify(ok=True, etude=etude, rejets=rejets,
                    referentiel=reseau_dc.referentiel())
+
+
+@app.route("/api/datacenter/densite", methods=["POST"])
+@login_required
+def api_datacenter_densite():
+    """Ce que la densité par baie impose au bâtiment, et ce qu'elle interdit.
+
+    LES QUATRE RÉSULTATS PARTENT ENSEMBLE — familles de refroidissement
+    possibles, charge au sol, sections d'eau et d'air, obstacles de rénovation
+    — parce que pris séparément chacun se lit à l'avantage de la décision déjà
+    prise. « Le liquide s'impose » sans la charge au sol donne un projet qui
+    achète des unités de distribution de fluide pour une salle qui ne les
+    portera pas ; la charge au sol sans les sections laisse croire qu'un
+    renforcement de dalle suffirait à garder l'air.
+
+    LA MASSE N'EST PAS DEVINÉE. Sans masse déclarée ni régime repris
+    explicitement, le verdict de plancher sort « indéterminé » en nommant ce
+    qui manque : aucune loi ne relie la puissance d'une baie à son poids, et en
+    supposer une ferait sortir un GO sur une invention.
+    """
+    data = request.get_json(silent=True) or {}
+    try:
+        kw = float(str(data.get("kw_baie") or "").replace(",", ".").strip())
+    except (TypeError, ValueError):
+        kw = 0.0
+    if kw <= 0:
+        return jsonify(ok=False, error="kw_baie",
+                       message="La puissance par baie est requise, en "
+                               "kilowatts et strictement positive.",
+                       regimes=densite_dc.REGIMES), 400
+
+    def _nombre(cle):
+        try:
+            v = float(str(data.get(cle) or "").replace(",", ".").strip())
+        except (TypeError, ValueError):
+            return None
+        return v if v > 0 else None
+
+    def _cle(nom, table):
+        v = str(data.get(nom) or "").strip()
+        return v if v in table else None
+
+    try:
+        etude = densite_dc.salle(
+            kw,
+            masse_baie_kg=_nombre("masse_baie_kg"),
+            regime=_cle("regime", densite_dc.REGIMES),
+            capacite_kpa=_nombre("capacite_kpa"),
+            plancher_cle=_cle("plancher", densite_dc.PLANCHERS),
+            faux_plancher=_cle("faux_plancher", densite_dc.FAUX_PLANCHERS),
+            diffusion_existante=_cle("diffusion_existante",
+                                     densite_dc.DIFFUSION))
+    except Exception:
+        app.logger.exception("étude de densité datacenter")
+        return jsonify(ok=False, error="calcul",
+                       message="L'étude n'a pas pu être établie."), 500
+    return jsonify(ok=True, etude=etude,
+                   referentiel=densite_dc.referentiel())
 
 
 @app.route("/api/datacenter/travaux", methods=["POST"])

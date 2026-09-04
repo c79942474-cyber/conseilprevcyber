@@ -5622,7 +5622,8 @@ def _aide_poste(v):
 # au premier module ajouté, et c'est le CONTRÔLE qui aurait cessé de couvrir —
 # en silence, puisqu'un module non listé ne déclenche aucune faute.
 _MODULES_VOISINS = ("technique_dc", "travaux_dc", "ao_dc", "icpe_dc",
-                    "programme_dc", "tier_dc", "reseau_dc")
+                    "programme_dc", "tier_dc", "reseau_dc",
+                    "densite_dc")
 
 
 def _glossaires_voisins():
@@ -6060,6 +6061,13 @@ SECTIONS_PAGE = {
                  "et ce qu'il faudrait produire sur site pour le ramener au "
                  "niveau accepté.",
     },
+    "ig-densite": {
+        "titre": "Ce que la densité par baie impose au bâtiment",
+        "objet": "La densité confrontée au bâtiment : familles de "
+                 "refroidissement encore possibles, charge au sol contre "
+                 "capacité du plancher, et ce que la rénovation devra "
+                 "franchir.",
+    },
     "ig-travaux": {
         "titre": "Organiser la phase travaux",
         "objet": "L'ordre des opérations de chantier, les points d'arrêt, et "
@@ -6090,16 +6098,17 @@ SECTIONS_PAGE = {
 # simplement d'un autre métier.
 SEQUENCES = {
     "investisseur": ["ig-form", "ig-parcours", "ig-dossier", "ig-eco",
-                     "ig-moe", "ig-icpe", "ig-reseau", "ig-limites"],
+                     "ig-moe", "ig-icpe", "ig-reseau",
+                     "ig-densite", "ig-limites"],
     "moe": ["ig-sec-projet", "ig-form", "ig-parcours", "ig-dossier",
-            "ig-correspondances", "ig-reseau", "ig-travaux", "ig-depot",
-            "ig-limites"],
+            "ig-correspondances", "ig-reseau", "ig-densite", "ig-travaux",
+            "ig-depot", "ig-limites"],
     "discipline": ["ig-form", "ig-qualif", "ig-parcours", "ig-dossier",
                    "ig-depot", "ig-limites"],
     "acheteur": ["ig-form", "ig-parcours", "ig-dossier", "ig-eco", "ig-ao",
                  "ig-travaux", "ig-limites"],
     "exploitant": ["ig-form", "ig-qualif", "ig-icpe", "ig-reseau",
-                   "ig-travaux", "ig-dossier", "ig-limites"],
+                   "ig-densite", "ig-travaux", "ig-dossier", "ig-limites"],
     "programme": ["ig-prog", "ig-form", "ig-reseau", "ig-icpe", "ig-travaux",
                   "ig-moe", "ig-eco", "ig-limites"],
 }
@@ -6235,6 +6244,29 @@ _CONSIGNES = {
             "notions": ["mode_raccordement:non_ferme",
                         "levier_reseau:actifs_site"],
         },
+        "ig-densite": {
+            "faire": "Saisissez la densité que le client vise par baie, "
+                     "reprenez la masse du régime le plus proche, et déclarez "
+                     "la capacité du plancher du bâtiment envisagé.",
+            "gain": "Un GO / NO GO sur le BÂTIMENT, avant d'en discuter le "
+                    "prix. Si le plancher ne porte pas la baie, aucun montant "
+                    "de la section précédente n'a de sens : l'opération n'est "
+                    "pas celle qu'on croit chiffrer.",
+            "pourquoi_ici": "Vous venez d'établir ce que le réseau peut "
+                            "amener. La question suivante est celle que "
+                            "personne ne pose à temps : le bâtiment peut-il "
+                            "recevoir ce que le réseau amène. Les deux "
+                            "contraintes physiques du site se posent dans cet "
+                            "ordre.",
+            "si_vous_sautez": "Vous financerez une acquisition ou une "
+                              "rénovation sur une hypothèse de "
+                              "refroidissement, et découvrirez la reprise de "
+                              "dalle après la signature — au moment où elle ne "
+                              "se négocie plus.",
+            "duree": "cinq minutes",
+            "notions": ["regime:ia_accelerateurs", "plancher_dc:courant",
+                        "diffusion:dlc"],
+        },
         "ig-limites": {
             "faire": "Lisez ce que le cadre refuse de faire.",
             "gain": "Un outil qui annonce ses limites vous dit où chercher "
@@ -6318,6 +6350,29 @@ _CONSIGNES = {
                               "table.",
             "duree": "dix minutes",
             "notions": ["accord:franc", "accord:faible"],
+        },
+        "ig-densite": {
+            "faire": "Éprouvez la densité cible ET la densité maximale du "
+                     "programme. Comparez les sections d'eau et d'air que le "
+                     "calcul rend : c'est le chiffre qui tranche la famille de "
+                     "refroidissement sans qu'on ait à en débattre.",
+            "gain": "La famille de diffusion la moins coûteuse en bâtiment qui "
+                    "tienne la densité, la charge à porter au CCTP structure, "
+                    "et la réserve de charge à spécifier avant que la "
+                    "charpente ne soit commandée.",
+            "pourquoi_ici": "Le raccordement fixé, la densité est ce qui "
+                            "commande le lot structure et le lot fluides "
+                            "ensemble. La traiter après le chiffrage des "
+                            "travaux revient à chiffrer un bâtiment qu'on ne "
+                            "construira pas.",
+            "si_vous_sautez": "La réserve de charge ne sera pas spécifiée, et "
+                              "elle ne s'ajoute plus après fabrication des "
+                              "poutrelles. C'est la décision de cette page "
+                              "qui devient irréversible le plus tôt.",
+            "duree": "un quart d'heure",
+            "notions": ["diffusion:porte_arriere", "diffusion:dlc",
+                        "pratique_construction:add_load",
+                        "pratique_construction:composite_seuil"],
         },
         "ig-travaux": {
             "faire": "Déroulez le plan de la phase travaux et relevez les "
@@ -6598,6 +6653,29 @@ _CONSIGNES = {
             "duree": "dix minutes",
             "notions": ["rubrique_icpe:1185", "rubrique_icpe:2910",
                         "regime_icpe:DC"],
+        },
+        "ig-densite": {
+            "faire": "Déclarez la densité que vos clients demandent, la "
+                     "famille de refroidissement EN PLACE dans la salle, et la "
+                     "capacité du plancher telle qu'elle figure au dossier du "
+                     "bâtiment.",
+            "gain": "Le nombre de familles à franchir pour tenir cette "
+                    "densité, et surtout la séparation entre ce qui se lève "
+                    "par des travaux et ce qui ne se lève pas — la charge au "
+                    "sol.",
+            "pourquoi_ici": "Vous exploitez un bâtiment déjà bâti : c'est le "
+                            "seul cas où la densité n'est pas une décision "
+                            "mais une contrainte subie. Cette section vous dit "
+                            "ce que votre salle peut encore accepter avant "
+                            "qu'un client ne vous le demande.",
+            "si_vous_sautez": "Vous accepterez un engagement de densité que la "
+                              "salle ne tiendra pas, et l'obstacle ne sera "
+                              "découvert ni par l'informatique ni par le "
+                              "froid, mais par le bureau de structure — après "
+                              "la signature du contrat d'hébergement.",
+            "duree": "cinq minutes",
+            "notions": ["diffusion:air_confine", "diffusion:porte_arriere",
+                        "plancher_dc:renforce"],
         },
         "ig-travaux": {
             "faire": "Lisez le transfert à l'exploitation et la levée des "
