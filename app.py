@@ -2354,6 +2354,7 @@ import econome_dc     # l'economiste de la construction : quantites x prix
 import decarbonation  # noqa: E402  — les situe dans la hiérarchie d'atténuation
 import ecart_referentiel  # noqa: E402  — ce que la carte promet vs ce que le moteur produit
 import strategie_dd  # noqa: E402  — le livrable d'ouverture, quatre perspectives
+import entreprise_durable  # noqa: E402  — les trente propositions, et leur portée
 import equipements_it  # noqa: E402  — PARTAGÉ À L'IDENTIQUE avec Sentinel
 import transmission  # noqa: E402  — ce qui doit voyager AVEC le document qui sort
 import lacunes      # noqa: E402  — instruire les trous, sans fabriquer de faits
@@ -3455,6 +3456,30 @@ def api_datacenter_strategie_questionnaire():
                        message="Le questionnaire n'a pas pu être établi."), 503
 
 
+@app.route("/api/datacenter/entreprise-durable")
+@login_required
+def api_entreprise_durable():
+    """Les trente propositions pour des entreprises durables, et leur portée.
+
+    FERMÉE COMME LA PAGE QUI L'APPELLE, et pas parce que le contenu serait
+    sensible — ce sont des propositions publiées. C'est la règle du site, et
+    elle a été écrite pour ce cas précis : fermer une page sans fermer son
+    interface ne protège rien, le contenu se lit alors par l'API. La lecture
+    qu'en fait CONSEILPREV pour un centre de données, elle, est du travail
+    d'étude.
+
+    Figée par processus — tout est constante de module.
+    """
+    try:
+        return _json_fige("entreprise-durable",
+                          lambda: dict(ok=True,
+                                       referentiel=entreprise_durable.referentiel()))
+    except Exception:
+        app.logger.exception("référentiel entreprise durable")
+        return jsonify(ok=False, error="referentiel_indisponible",
+                       message="Le référentiel n'a pas pu être établi."), 503
+
+
 @app.route("/api/datacenter/strategie", methods=["POST"])
 @login_required
 def api_datacenter_strategie():
@@ -3511,6 +3536,16 @@ def api_datacenter_strategie_export():
                  "theme": "raison d'être, parties prenantes, science, valeur"},
                 {"title": "Moteur d'ingénierie CONSEILPREV v" + datacenter.VERSION,
                  "theme": "calcul déterministe"},
+                # LA SOURCE EXTÉRIEURE EST NOMMÉE AU BORDEREAU, et pas
+                # seulement dans le corps : un lecteur qui vérifie les sources
+                # d'un livrable lit le bordereau. Sa NATURE y figure aussi —
+                # un titre seul laisserait croire à un référentiel opposable.
+                {"title": "%s — %s, %s"
+                          % (entreprise_durable.SOURCE["titre"],
+                             entreprise_durable.SOURCE["auteur"],
+                             entreprise_durable.SOURCE["edition"]),
+                 "theme": "cadre extérieur de confrontation ; contribution de "
+                          "think tank, ni norme ni référentiel certifiable"},
             ]}
     md, bord = _poser_bordereau(md, meta, "strategie_dd", data)
     try:

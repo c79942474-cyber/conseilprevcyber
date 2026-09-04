@@ -49,8 +49,9 @@ qualifications se constatent sur dossier complet par un vérificateur accrédit�
 """
 
 import datacenter as D
+import entreprise_durable as ED   # les trente propositions — voir le module
 
-VERSION = "2026-08-a"
+VERSION = "2026-09-a"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -751,6 +752,17 @@ def _verifier():
     cles_o = [o["cle"] for o in OUVERTES]
     if len(set(cles_o)) != len(cles_o):
         fautes.append("clé de question ouverte dupliquée")
+
+    # LE CROISEMENT AVEC LES TRENTE PROPOSITIONS, vérifié ICI et pas là-bas :
+    # le registre d'enjeux vit dans ce module, et l'import ne part que dans un
+    # sens (strategie_dd → entreprise_durable). Une clé d'enjeu citée par une
+    # proposition et disparue du registre ferait un livrable qui renvoie à un
+    # enjeu inexistant — muet, puisque le rapprochement se fait par
+    # intersection d'ensembles et qu'une intersection vide ne se plaint pas.
+    inconnues = sorted(set(ED.enjeux_cites()) - set(cles))
+    if inconnues:
+        fautes.append("les trente propositions citent des enjeux absents du "
+                      "registre : %s" % ", ".join(inconnues))
     return fautes
 
 
@@ -1552,13 +1564,96 @@ def markdown(s):
       "calculés pour ce profil, dans la note de calcul de l'étude.")
     A("")
 
+    # 12. Les trente propositions — un cadre EXTÉRIEUR, et lu comme tel.
+    #
+    # POURQUOI CE CHAPITRE EST LE DERNIER, et pourquoi il n'est pas une grille
+    # de conformité : ces trente propositions s'adressent au législateur et aux
+    # branches professionnelles, pas au maître d'ouvrage. Les placer plus haut
+    # ferait lire les quatre perspectives comme leur déclinaison ; les cocher
+    # ferait signer au client des engagements qui ne lui appartiennent pas.
+    cles_retenues = [l["cle"] for l in s["retenus"]]
+    portees = ED.referentiel()["portees"]
+    A("## 12. Ce que les trente propositions pour des entreprises durables engagent")
+    A("")
+    A("Ce chapitre confronte la stratégie ci-dessus à un cadre extérieur : "
+      "*%s*, %s (%s). %s"
+      % (ED.SOURCE["titre"], ED.SOURCE["auteur"], ED.SOURCE["edition"],
+         ED.SOURCE["nature"]))
+    A("")
+    A("Chaque proposition porte donc une **portée**, qui dit ce que ce "
+      "projet-ci peut en faire — décider dans son périmètre, anticiper une "
+      "politique qui s'appliquera à lui, ou seulement contribuer. La lecture "
+      "est de CONSEILPREV, pas du Cercle de Giverny : elle se discute "
+      "proposition par proposition.")
+    A("")
+
+    touchant = ED.par_enjeu(cles_retenues)
+    if touchant:
+        A("### Ce que les propositions commandent sur les enjeux retenus")
+        A("")
+        noms = {l["cle"]: l["nom"] for l in s["retenus"]}
+        for p in touchant:
+            vises = [noms[c] for c in p["enjeux"] if c in noms]
+            A("**%d. %s**" % (p["numero"], p["titre"]))
+            A("")
+            A("*%s* — %s" % (portees[p["portee"]]["nom"], p["dit"]))
+            A("")
+            A("*Pour ce centre de données :* %s" % p["pour_le_centre"])
+            A("")
+            A("*Enjeux retenus concernés :* %s" % ", ".join(vises))
+            A("")
+    else:
+        A("*Aucun enjeu n'a été retenu : le rapprochement avec les trente "
+          "propositions n'a rien sur quoi s'appuyer. Ce n'est pas un résultat "
+          "favorable — c'est l'absence de résultat.*")
+        A("")
+
+    dehors = ED.hors_couverture(cles_retenues)
+    A("### Ce que ce cadre demande et que cette stratégie ne couvre pas")
+    A("")
+    if dehors:
+        A("Ces propositions relèvent de ce que le projet **décide** ou "
+          "**anticipe**, et aucun enjeu retenu ne les porte. C'est la moitié "
+          "utile de la confrontation : la liste de ce qui est déjà couvert "
+          "rassure, celle-ci fait avancer. Elle ne vaut pas reproche — un "
+          "arbitrage explicite reste un arbitrage — mais elle interdit que "
+          "l'omission passe pour une décision.")
+        A("")
+        for p in dehors:
+            A("- **%d. %s** — *%s.* %s"
+              % (p["numero"], p["titre"], portees[p["portee"]]["nom"],
+                 p["pour_le_centre"]))
+        A("")
+    else:
+        A("Aucune. Toutes les propositions que ce projet décide ou anticipe "
+          "touchent au moins un enjeu retenu.")
+        A("")
+
+    # LE CADRE N'EST PAS EXHAUSTIF NON PLUS, et le taire laisserait croire
+    # qu'un enjeu absent des trente propositions est un enjeu secondaire.
+    couverts = set(ED.enjeux_cites())
+    orphelins = [l for l in s["retenus"] if l["cle"] not in couverts]
+    if orphelins:
+        A("### Ce que cette stratégie porte et que le cadre ne dit pas")
+        A("")
+        A("La confrontation joue dans les deux sens. Ces enjeux ont été "
+          "retenus par la méthode et aucune des trente propositions ne les "
+          "aborde : leur absence du cadre ne les rend pas secondaires, elle "
+          "dit seulement que ce cadre-là ne les traite pas.")
+        A("")
+        for l in orphelins:
+            A("- **%s** (%s)" % (l["nom"], l["famille_nom"]))
+        A("")
+
     A("---")
     A("")
     A("*Méthode des quatre perspectives, appliquée aux centres de données. "
-      "Référentiel strategie_dd v%s ; moteur de calcul v%s. Les niveaux "
-      "scientifiques sont établis par le registre et le contexte de site "
-      "déclaré ; ils seront remplacés par les mesures de l'étude.*"
-      % (s["version"], s["version_moteur"]))
+      "Référentiel strategie_dd v%s ; moteur de calcul v%s ; cadre des "
+      "trente propositions v%s (%s, %s, %s). Les niveaux scientifiques sont "
+      "établis par le registre et le contexte de site déclaré ; ils seront "
+      "remplacés par les mesures de l'étude.*"
+      % (s["version"], s["version_moteur"], ED.VERSION, ED.SOURCE["titre"],
+         ED.SOURCE["auteur"], ED.SOURCE["edition"]))
     return "\n".join(L)
 
 

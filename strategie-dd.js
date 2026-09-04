@@ -583,10 +583,110 @@
   }
 
   /* ═════════════════════════════════════════════════════════════════════
+     LE CADRE DES TRENTE PROPOSITIONS
+
+     Un cadre EXTÉRIEUR, et la page doit le dire avant de le montrer : ces
+     propositions s'adressent au législateur et aux branches professionnelles,
+     pas au maître d'ouvrage. D'où la PORTÉE affichée sur chacune — sans elle,
+     trente propositions numérotées dans une page d'étude se lisent comme une
+     liste de conformité, et le lecteur coche.
+
+     Le filtre MASQUE, il ne redessine pas : même principe que partout ailleurs
+     sur le site.
+     ═════════════════════════════════════════════════════════════════════ */
+
+  var DUR_TOUS = "__tous";
+
+  function carteProposition(p, portees) {
+    var po = portees[p.portee] || {nom: p.portee, dit: ""};
+    return '<li class="sd-p d-' + esc(p.portee) + '" data-dur-theme="'
+      + esc(p.theme) + '">'
+      + "<h3>" + esc(p.numero + ". " + p.titre)
+      + '<span class="sd-src s-' + esc(p.portee) + '" title="' + esc(po.dit)
+      + '">' + esc(po.nom) + "</span></h3>"
+      + '<p class="o">' + esc(p.dit) + "</p>"
+      + '<p class="q">Pour ce centre de données</p>'
+      + '<p class="o">' + esc(p.pour_le_centre) + "</p>"
+      + "</li>";
+  }
+
+  function rendreDurable(ref) {
+    var themes = ref.themes || [];
+    var props = ref.propositions || [];
+    if (!themes.length || !props.length) return "";
+    var s = ref.source || {};
+    var h = '<p class="sd-note-conf"><b>' + esc(s.titre) + "</b> — "
+      + esc(s.auteur) + ", " + esc(s.edition) + ". " + esc(s.nature)
+      + " La portée indiquée sur chaque proposition est la lecture qu’en fait "
+      + "CONSEILPREV pour un centre de données ; elle se discute proposition "
+      + "par proposition.</p>";
+    h += '<div class="sd-persp-choix"><label for="sd-dur-t">Thème</label>'
+      + '<select id="sd-dur-t" data-dur>'
+      + '<option value="' + DUR_TOUS + '">Les six thèmes ('
+      + props.length + " propositions)</option>";
+    themes.forEach(function (t, i) {
+      var n = props.filter(function (p) { return p.theme === t.cle; }).length;
+      h += '<option value="' + esc(t.cle) + '"' + (i === 0 ? " selected" : "")
+        + ">" + esc(t.nom) + " (" + n + ")</option>";
+    });
+    h += "</select></div>";
+    h += '<p class="sd-persp-dit" data-dur-q>' + esc(themes[0].question) + "</p>";
+    h += '<ul class="sd-durable">' + props.map(function (p) {
+      return carteProposition(p, ref.portees || {});
+    }).join("") + "</ul>";
+    return h;
+  }
+
+  function brancherDurable(ref) {
+    var sel = document.querySelector("[data-dur]");
+    if (!sel) return;
+    var cartes = [].slice.call(document.querySelectorAll("[data-dur-theme]"));
+    var q = document.querySelector("[data-dur-q]");
+    var questions = {};
+    (ref.themes || []).forEach(function (t) { questions[t.cle] = t.question; });
+    function appliquer() {
+      var v = sel.value;
+      cartes.forEach(function (c) {
+        c.hidden = !(v === DUR_TOUS || c.getAttribute("data-dur-theme") === v);
+      });
+      /* La question du thème suit le choix. Sur « les six thèmes », aucune
+         question ne vaut pour l'ensemble : on n'en invente pas une. */
+      if (q) q.textContent = v === DUR_TOUS ? "" : (questions[v] || "");
+    }
+    sel.addEventListener("change", appliquer);
+    appliquer();
+  }
+
+  function chargerDurable() {
+    var z = $("#sd-durable");
+    if (!z) return;
+    demander("/api/datacenter/entreprise-durable", {}, DELAI_COURT)
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j.ok || !j.referentiel) throw new Error("référentiel indisponible");
+        var h = rendreDurable(j.referentiel);
+        if (!h) throw new Error("référentiel vide");
+        z.innerHTML = h;
+        brancherDurable(j.referentiel);
+      })
+      .catch(function () {
+        /* LE RESTE DE LA PAGE N'EN DÉPEND PAS et doit continuer de
+           fonctionner : ce cadre est une lecture complémentaire, pas une
+           condition du calcul. On le dit plutôt que de laisser un trou. */
+        z.innerHTML = '<p class="note">Le cadre des trente propositions n’a '
+          + "pas pu être chargé. Il figure de toute façon dans le livrable "
+          + "exporté.</p>";
+      });
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
      CHARGEMENT
      ═════════════════════════════════════════════════════════════════════ */
 
   function demarrer() {
+    /* Indépendant du questionnaire, et lancé d'abord : si le questionnaire
+       échoue, ce cadre s'affiche quand même — il ne dépend d'aucune réponse. */
+    chargerDurable();
     demander("/api/datacenter/strategie/questionnaire", {}, DELAI_COURT)
       .then(function (r) { return r.json(); })
       .then(function (j) {
