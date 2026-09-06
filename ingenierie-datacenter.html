@@ -986,8 +986,45 @@
   .ig-ao-cd{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
     gap:12px;margin-top:12px}
   .ig-ao-cp{padding:13px 15px;border:1px solid var(--line);border-radius:9px;
-    background:var(--panel)}
+    background:var(--panel);cursor:pointer;transition:border-color .18s ease}
+  .ig-ao-cp:focus-visible{outline:2px solid var(--accent, #8FDBF2);outline-offset:2px}
   .ig-ao-cpb{border-color:rgba(34,211,238,.45)}
+
+  /* LES QUATRE ÉTATS D'UNE PIÈCE QU'ON FAIT PRODUIRE, et pourquoi le contour
+     plutôt que le fond. Le fond porte déjà la lisibilité du texte ; le lui
+     faire porter en plus ferait choisir entre « on voit l'état » et « on lit
+     la carte ». Le contour est libre, et il est le même repère sur les
+     vingt-trois cartes d'une grille.
+
+     LE CONTOUR EST ÉPAIS (2 px) POUR CES QUATRE-LÀ, et fin partout ailleurs :
+     une différence de teinte seule ne se voit pas sur une grille dense, et ne
+     se voit pas du tout pour qui distingue mal le rouge du vert. L'épaisseur
+     et le libellé de la carte disent la même chose deux fois. */
+  .ig-ao-cp-sel{border:2px solid #1D4ED8;                /* choisie */
+    box-shadow:0 0 0 1px rgba(29,78,216,.25) inset}
+  .ig-ao-cp-cours{border:2px dashed #1D4ED8}             /* en cours */
+  .ig-ao-cp-fait{border:2px solid #15803D}               /* remplie */
+  .ig-ao-cp-mal{border:2px solid #DC2626}                /* en échec */
+  .ig-ao-et{margin:9px 0 0;padding:7px 11px;border-radius:7px;font-size:11.5px;
+    line-height:1.6;background:rgba(255,255,255,.045);color:var(--muted)}
+  .ig-ao-et b{color:var(--ink)}
+  .ig-ao-et a{color:var(--ink);font-weight:600}
+  .ig-ao-cp-mal .ig-ao-et{background:rgba(220,38,38,.10)}
+  .ig-ao-cp-fait .ig-ao-et{background:rgba(21,128,61,.12)}
+
+  /* LA BARRE DU GESTE GROUPÉ. Elle dit COMBIEN sont choisies avant de
+     proposer de les remplir : un bouton « Remplir » sans compte laisse
+     lancer vingt-trois productions en croyant en lancer une. */
+  .ig-ao-lot{display:flex;flex-wrap:wrap;align-items:center;gap:9px 12px;
+    margin:12px 0 0;padding:10px 13px;border:1px solid var(--line);
+    border-radius:9px}
+  .ig-ao-lot b{font-size:12.5px;color:var(--ink)}
+  .ig-ao-lot .cpt{font-family:var(--mono);font-size:10.5px;
+    letter-spacing:.04em;color:var(--muted2)}
+  .ig-ao-lot select{font:inherit;font-size:12px;padding:3px 6px;
+    border-radius:6px;border:1px solid var(--line);color:var(--ink);
+    background:var(--panel)}
+  .ig-ao-lot .pousse{margin-left:auto}
   .ig-ao-cph{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 10px}
   .ig-ao-cph b{font-size:12.5px;color:var(--ink);cursor:help;flex:1 1 100%}
   .ig-ao-cn{font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;
@@ -2577,6 +2614,17 @@
       d'un projet antérieur — complètent l'étude là où le moteur s'arrête. Elles
       sont analysées avant d'être enregistrées, et versées en visibilité
       interne.</p>
+    <!-- DEUX DÉPÔTS SUR CETTE PAGE, ET ILS NE VONT PAS AU MÊME ENDROIT. Le
+         dire ici et au § 14 plutôt que de laisser deviner : déposer un
+         règlement de consultation dans la base de connaissance ne le fait
+         pas analyser comme un dossier de marché, et l'inverse non plus. Ce
+         genre d'erreur ne se voit qu'au moment où l'on cherche le résultat
+         là où il n'est pas. -->
+    <p class="note" style="max-width:74ch">Ce dépôt-ci alimente la
+      <b>base de connaissance</b> du cabinet, et rien d'autre. Pour faire
+      analyser un <b>dossier de consultation</b> — règlement, CCAP, CCTP,
+      DPGF — c'est au <a href="#ig-ao">§&nbsp;14</a> qu'il se dépose, et il y
+      est conservé par projet, chiffré.</p>
     <div id="ig-depot-etat" class="ig-dep-etat">
       <p class="note">Vérification de la chaîne d'analyse…</p></div>
     <div class="rc-card" id="ig-depot"></div>
@@ -2619,6 +2667,11 @@
       dossier de candidature se remplissent au fur et à mesure, chacune avec
       son origine. Les déclarations sur l'honneur, elles, restent à votre
       main : leur fausseté est sanctionnée.</p>
+    <p class="note" style="max-width:74ch">Ce dépôt-ci n'entre pas dans la base
+      de connaissance du <a href="#ig-depot-etat">§&nbsp;13</a>&nbsp;: il sert
+      à LIRE cette consultation-là. Rattachez un projet plus bas et le dossier
+      y est <b>conservé chiffré</b>&nbsp;; à votre retour, l'analyse repart de
+      lui, sans rien redéposer.</p>
     <!-- LE PARCOURS GUIDÉ DE LA RÉPONSE — sept étapes, et chacune se dit
          faite ou non faite SUR UN NOMBRE. Il est en tête de section parce
          qu'un guide sert à savoir où l'on en est avant de savoir quoi

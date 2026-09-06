@@ -2995,60 +2995,158 @@ def markdown_remplissage(r):
             dossier_courant = p["dossier"]
             L.append("## %s" % titres[dossier_courant])
             L.append("")
-        L.append("### %s" % p["nom"])
-        L.append("")
-        L.append("*%s%s*" % (p["nature_nom"],
-                             " — pièce bloquante" if p["bloquant"] else ""))
-        L.append("")
-        if p["sans_objet"]:
-            L.append("**Sans objet.** %s" % p["sans_objet_aide"])
-            L.append("")
-        lignes = [l for l in p["rubriques"] if l["source"] != "declaration"]
-        if lignes:
-            L.append("| Rubrique | Valeur | Origine | État |")
-            L.append("|---|---|---|---|")
-            for l in lignes:
-                L.append("| %s | %s | %s | %s |" % (
-                    _cellule(l["libelle"]), _cellule(l["valeur"]),
-                    _cellule(l["origine"]), _cellule(l["statut_nom"])))
-            L.append("")
-        for l in p["rubriques"]:
-            if l["citation"]:
-                L.append("> **%s** — %s  \n> *(%s, à %d %% du document)*"
-                         % (l["libelle"], l["citation"]["texte"],
-                            l["citation"]["fichier"], l["citation"]["part"]))
-                L.append("")
-            for d in l.get("divergences") or []:
-                L.append("**Divergence sur « %s ».** %s dit : %s — à trancher "
-                         "AVANT de remplir, pas après."
-                         % (l["libelle"], d.get("sigle") or d.get("fichier"),
-                            d["valeur"]))
-                L.append("")
-        decl = [l for l in p["rubriques"] if l["source"] == "declaration"]
-        if decl:
-            L.append("#### Déclarations — à lire, à vérifier, puis à signer")
-            L.append("")
-            for l in decl:
-                # CE QU'ELLE ENGAGE EST DIT AVEC ELLE. Une déclaration
-                # d'absence d'interdiction de soumissionner et l'engagement
-                # d'un acte d'engagement ne se signent pas dans le même
-                # risque : la première est un délit si elle est fausse, le
-                # second lie au prix et aux pièces visées par renvoi.
-                L.append("**%s** — *%s*" % (l["libelle"], l["engage_nom"]))
-                L.append("")
-                L.append("> " + l["texte"])
-                L.append("")
-                L.append(l["message"])
-                L.append("")
-            L.append("Nom et qualité du signataire : "
-                     "_______________________________________")
-            L.append("")
-            L.append("Date et signature : "
-                     "_______________________________________")
-            L.append("")
-        L.append("*Le piège* — %s" % p["piege"])
-        L.append("")
+        L += _bloc_piece(p)
     return "\n".join(L)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE DOCUMENT D'UNE PIÈCE, ET CELUI DE TOUTES
+# ═══════════════════════════════════════════════════════════════════════════
+# CE QUE CHAQUE PIÈCE PRODUIT N'EST PAS LA MÊME CHOSE, et c'est le référentiel
+# qui le dit — sa VOIE. Quatre cas, et les confondre serait promettre un
+# formulaire là où il n'y a qu'un plan :
+#
+#   · `remplir`   — ses rubriques factuelles se reportent. Quatre de ces
+#     pièces ont en plus le formulaire officiel de l'État, qui se remplit
+#     vraiment (`ao_formulaires`) ; les autres rendent le report de leurs
+#     rubriques, à recopier sur l'imprimé de l'acheteur en le vérifiant.
+#   · `completer` — un imprimé dont VOUS portez les valeurs (le prix, la
+#     méthode). Ce module dit ce qu'il doit contenir ; il ne le chiffre pas.
+#   · `rediger`   — un texte qui n'existe pas avant qu'on l'écrive. Ce qui
+#     sort est ce qu'il doit démontrer, avec ce qui est déjà connu.
+#   · `obtenir`   — une pièce d'un tiers. Ce qui sort est la DEMANDE à faire,
+#     avec son délai. C'est le seul document utile ici, et le délai est
+#     précisément ce qui fait rater les dépôts.
+#
+# AUCUN DE CES QUATRE N'EST UN FAC-SIMILÉ. Un imprimé refait ici serait refusé
+# — ou pire, accepté et faux.
+
+PRODUCTIONS = {
+    "formulaire_officiel": {
+        "nom": "Le formulaire officiel, rempli",
+        "dit": "Le fichier du ministère lui-même, avec ses cases remplies. "
+               "Ni signé ni vérifié : il le porte en tête.",
+    },
+    "report": {
+        "nom": "Le report de ses rubriques",
+        "dit": "Chaque valeur avec son origine, à recopier sur l'imprimé de "
+               "l'acheteur en la vérifiant.",
+    },
+    "plan": {
+        "nom": "Ce qu'elle doit démontrer",
+        "dit": "Le plan de ce que la pièce doit établir, et ce qui est déjà "
+               "connu. Le texte reste à écrire.",
+    },
+    "demande": {
+        "nom": "La demande à faire, et son délai",
+        "dit": "À qui la réclamer, ce qu'elle doit couvrir, et le délai — "
+               "c'est lui qui fait rater les dépôts, pas la rédaction.",
+    },
+}
+
+
+def production(piece, avec_modele=None):
+    """Ce que CETTE pièce peut produire ici. Jamais « rien » : les vingt-trois
+    rendent un document, et c'est sa NATURE qui change.
+
+    `avec_modele` : l'ensemble des clés de pièce pour lesquelles un formulaire
+    officiel est déposé sur le serveur. Il vient de `ao_formulaires`, qui sait
+    lesquels sont réellement là — le supposer ici ferait promettre un
+    formulaire absent.
+    """
+    cle = piece["cle"] if isinstance(piece, dict) else str(piece)
+    voie = piece.get("voie") if isinstance(piece, dict) else None
+    if avec_modele and cle in set(avec_modele):
+        return "formulaire_officiel"
+    return {"remplir": "report", "completer": "plan",
+            "rediger": "plan", "obtenir": "demande"}.get(voie, "report")
+
+
+def _bloc_piece(p):
+    """Les lignes d'UNE pièce. Partagées par le document d'ensemble et par
+    celui de la pièce seule : deux rédactions du même bloc finiraient par ne
+    plus dire la même chose, et c'est celle qu'on oublie qui circulerait."""
+    L = []
+    L.append("### %s" % p["nom"])
+    L.append("")
+    L.append("*%s%s*" % (p["nature_nom"],
+                         " — pièce bloquante" if p["bloquant"] else ""))
+    L.append("")
+    if p["sans_objet"]:
+        L.append("**Sans objet.** %s" % p["sans_objet_aide"])
+        L.append("")
+    lignes = [l for l in p["rubriques"] if l["source"] != "declaration"]
+    if lignes:
+        L.append("| Rubrique | Valeur | Origine | État |")
+        L.append("|---|---|---|---|")
+        for l in lignes:
+            L.append("| %s | %s | %s | %s |" % (
+                _cellule(l["libelle"]), _cellule(l["valeur"]),
+                _cellule(l["origine"]), _cellule(l["statut_nom"])))
+        L.append("")
+    for l in p["rubriques"]:
+        if l["citation"]:
+            L.append("> **%s** — %s  \n> *(%s, à %d %% du document)*"
+                     % (l["libelle"], l["citation"]["texte"],
+                        l["citation"]["fichier"], l["citation"]["part"]))
+            L.append("")
+        for d in l.get("divergences") or []:
+            L.append("**Divergence sur « %s ».** %s dit : %s — à trancher "
+                     "AVANT de remplir, pas après."
+                     % (l["libelle"], d.get("sigle") or d.get("fichier"),
+                        d["valeur"]))
+            L.append("")
+    decl = [l for l in p["rubriques"] if l["source"] == "declaration"]
+    if decl:
+        L.append("#### Déclarations — à lire, à vérifier, puis à signer")
+        L.append("")
+        for l in decl:
+            # CE QU'ELLE ENGAGE EST DIT AVEC ELLE. Une déclaration
+            # d'absence d'interdiction de soumissionner et l'engagement
+            # d'un acte d'engagement ne se signent pas dans le même
+            # risque : la première est un délit si elle est fausse, le
+            # second lie au prix et aux pièces visées par renvoi.
+            L.append("**%s** — *%s*" % (l["libelle"], l["engage_nom"]))
+            L.append("")
+            L.append("> " + l["texte"])
+            L.append("")
+            L.append(l["message"])
+            L.append("")
+        L.append("Nom et qualité du signataire : "
+                 "_______________________________________")
+        L.append("")
+        L.append("Date et signature : "
+                 "_______________________________________")
+        L.append("")
+    L.append("*Le piège* — %s" % p["piege"])
+    L.append("")
+    return L
+
+
+def markdown_piece(r, cle, avec_modele=None):
+    """Le document d'UNE pièce, prêt à être emporté.
+
+    RENVOIE None SI LA PIÈCE N'EXISTE PAS. Rendre un document vide pour une
+    clé mal orthographiée ferait croire à une pièce sans contenu.
+    """
+    p = next((x for x in r["pieces"] if x["cle"] == cle), None)
+    if p is None:
+        return None
+    prod = PRODUCTIONS[production(p, avec_modele)]
+    L = ["# %s" % p["nom"], "",
+         "**%s** — %s" % (prod["nom"], prod["dit"]), ""]
+    if p.get("delai"):
+        # Le délai du référentiel porte parfois son point : le redoubler
+        # donnerait « … signer.. », qu'on lit comme une coquille du produit.
+        L.append("**Délai d'obtention : %s.** C'est la seule chose qui ne se "
+                 "rattrape pas la dernière nuit."
+                 % str(p["delai"]).rstrip(" ."))
+        L.append("")
+    L.append(NOTE_REMPLISSAGE)
+    L.append("")
+    L += _bloc_piece(p)
+    return "\n".join(L)
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════

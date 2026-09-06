@@ -1006,7 +1006,14 @@ def test_la_fiche_ne_quitte_le_navigateur_QUE_par_le_geste_de_conservation():
                          "/api/datacenter/marche/export",
                          "/api/datacenter/marche/formulaire",
                          "/api/datacenter/marche/dossier.zip",
-                         "/api/datacenter/marche/parcours"}
+                         "/api/datacenter/marche/parcours",
+                         # LA SEPTIÈME, ET LA RÈGLE L'A ARRÊTÉE DÈS SON
+                         # PREMIER APPEL : `/marche/piece` produit UNE pièce,
+                         # et le navigateur en lance plusieurs ensemble. Elle
+                         # a besoin de la même fiche que les six autres, et ne
+                         # conserve pas davantage : elle appelle les mêmes
+                         # fonctions et n'écrit dans aucun magasin.
+                         "/api/datacenter/marche/piece"}
     AVEC_CONSERVATION = {"/api/datacenter/marche/projet/dossier"}
 
     # LA RÈGLE A EU UN ANGLE MORT, ET IL A ÉTÉ MESURÉ. Elle cherchait

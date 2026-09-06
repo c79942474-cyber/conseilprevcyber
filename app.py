@@ -195,6 +195,11 @@ _RATE_EXACT = {
     "/api/datacenter/marche/export":     (30, 60),
     "/api/datacenter/marche/dossier.zip": (10, 60),
     "/api/datacenter/marche/parcours":   (60, 60),
+    # LA CADENCE EST HAUTE PARCE QUE LE GESTE EST GROUPÉ : choisir les
+    # vingt-trois pièces et les lancer ensemble fait vingt-trois appels en
+    # quelques secondes. Une cadence calée sur un appel isolé refuserait le
+    # geste que cette route existe pour servir.
+    "/api/datacenter/marche/piece":      (120, 60),
     # LE DOSSIER PAR PROJET ÉCRIT EN BASE, ET IL CHIFFRE. Les deux coûtent :
     # un plafond de saisie continue (comme /remplir) laisserait une boucle
     # remplir la base de coffres. L'affirmation est plus rare encore — c'est
@@ -4783,6 +4788,129 @@ def _ao_bordereau_archive(fmt, pieces, manques):
         lignes.append("Rien n'a été écarté : tout ce qui pouvait être produit "
                       "l'a été.")
     return "\n".join(lignes) + "\n"
+
+
+def _ao_modeles_deposes():
+    """Les pièces pour lesquelles un formulaire officiel est RÉELLEMENT là.
+
+    On demande au module qui vérifie l'empreinte du fichier, pas à la table
+    des modèles : un modèle absent ou altéré ne doit pas faire promettre un
+    formulaire que le remplissage refusera ensuite.
+    """
+    prets = set(ao_formulaires.modeles_disponibles().get("prets") or ())
+    return {m["piece"] for c, m in ao_formulaires.MODELES.items() if c in prets}
+
+
+@app.route("/api/datacenter/marche/piece", methods=["POST"])
+@login_required
+def api_datacenter_marche_piece():
+    """UNE pièce du dossier, produite seule — et c'est ce qui permet de les
+    lancer TOUTES EN MÊME TEMPS.
+
+    POURQUOI UN APPEL PAR PIÈCE, ET PAS UN APPEL POUR TOUTES. Un appel unique
+    rendrait une archive d'un bloc : les vingt-trois cartes changeraient de
+    couleur à la même seconde, à la fin, et l'on ne saurait pas laquelle a
+    résisté. Ici chaque pièce a sa réponse, donc sa couleur, dès qu'elle est
+    prête — et le navigateur les lance ensemble.
+
+    CE QUI SORT DÉPEND DE LA VOIE DE LA PIÈCE, et jamais le contraire :
+    quatre pièces ont le formulaire de l'État, qui sort tel quel en Word ;
+    les autres rendent leur report, leur plan ou leur demande, dans le format
+    demandé. Aucune ne rend un fac-similé.
+    """
+    data = request.get_json(silent=True) or {}
+    cle = str(data.get("piece") or "").strip().lower()[:40]
+    fiche, analyse, saisies, groupement = _ao_charge(data)
+    fmt = livrables_export.format_demande(data.get("format"))
+    try:
+        r = ao_dc.remplir(fiche=fiche, analyse=analyse, saisies=saisies,
+                          groupement=groupement)
+    except Exception:
+        app.logger.exception("pièce — remplissage")
+        return jsonify(ok=False, error="calcul",
+                       message="La pièce n'a pas pu être établie."), 500
+
+    piece = next((x for x in r["pieces"] if x["cle"] == cle), None)
+    if piece is None:
+        return jsonify(ok=False, error="piece_inconnue",
+                       message="Cette pièce n'appartient pas aux deux "
+                               "dossiers.",
+                       disponibles=[x["cle"] for x in r["pieces"]]), 400
+
+    avec_modele = _ao_modeles_deposes()
+    prod = ao_dc.production(piece, avec_modele)
+    rapport = {"cle": cle, "nom": piece["nom"], "production": prod,
+               "production_nom": ao_dc.PRODUCTIONS[prod]["nom"],
+               "bloquante": bool(piece.get("bloquant")),
+               "places": 0, "non_places": [], "reste": []}
+
+    if prod == "formulaire_officiel":
+        modele = next(c for c, m in ao_formulaires.MODELES.items()
+                      if m["piece"] == cle)
+        try:
+            octets, rap = ao_formulaires.remplir_document(
+                modele, ao_formulaires.valeurs_pour(r, cle))
+        except Exception:
+            app.logger.exception("pièce — formulaire %s", modele)
+            return jsonify(ok=False, error="remplissage", cle=cle,
+                           message="Le formulaire n'a pas pu être "
+                                   "rempli."), 500
+        if not rap.get("ok"):
+            # UN REFUS N'EST PAS UN ÉCHEC MUET : la carte doit pouvoir dire
+            # POURQUOI elle passe au rouge, et les deux motifs ne se soignent
+            # pas pareil — l'un attend un fichier, l'autre une revérification.
+            return jsonify(ok=False, error=rap["motif"], cle=cle,
+                           message=("Le modèle de ce formulaire n'est pas "
+                                    "déposé sur le serveur."
+                                    if rap["motif"] == "modele_absent" else
+                                    "Le modèle a changé depuis que ses "
+                                    "emplacements ont été repérés : le "
+                                    "remplissage est refusé plutôt que fait "
+                                    "à côté.")), 409
+        rapport["places"] = len(rap["places"])
+        rapport["non_places"] = [x["rubrique"] for x in rap["non_places"]]
+        rapport["maj"] = rap["maj"]
+        blob = octets
+        mimetype = livrables_export.MIME["docx"]
+        nom = "%s-projet-non-signe.docx" % modele
+    else:
+        md = ao_dc.markdown_piece(r, cle, avec_modele)
+        meta = {"label": piece["nom"],
+                "numero": "AO-" + cle.upper()[:20],
+                "phase": "Réponse à consultation",
+                "indice": "01",
+                "client": str(fiche.get("raison_sociale") or "")[:120],
+                # Le report est mécanique : aucun modèle de langage n'écrit
+                # ici, et le déclarer « ia » ferait perdre au registre de
+                # transparence la distinction qu'il existe pour tenir.
+                "ia": False,
+                "referentiel": "Composition de candidature CONSEILPREV v"
+                               + ao_dc.VERSION,
+                "perimetre": "%s · %s" % (piece["nature_nom"],
+                                          piece["voie_nom"]),
+                "statut": ao_dc.PRODUCTIONS[prod]["nom"],
+                "date": time.strftime("%d/%m/%Y"),
+                "sources": [{"title": "Fiche du candidat saisie par le client",
+                             "theme": "report"}]}
+        try:
+            blob, mimetype, ext = livrables_export.composer(md, meta, fmt)
+        except Exception:
+            app.logger.exception("pièce — mise en page %s", cle)
+            return jsonify(ok=False, error="export_echec", cle=cle,
+                           message="La mise en page a échoué."), 500
+        rapport["places"] = sum(1 for l in piece["rubriques"]
+                                if l.get("statut") == "rempli")
+        rapport["reste"] = [l["libelle"] for l in piece["rubriques"]
+                            if l.get("statut") in ("a_saisir", "non_trouve",
+                                                   "invalide")][:12]
+        nom = "%s.%s" % (_nom_fichier(piece["nom"]), ext)
+
+    audit.journaliser("marche.piece", cible=cle,
+                      detail="%s · %d placée(s)" % (prod, rapport["places"]))
+    reponse = send_file(io.BytesIO(blob), download_name=nom,
+                        as_attachment=True, mimetype=mimetype)
+    reponse.headers["X-Piece"] = json.dumps(rapport, ensure_ascii=True)
+    return reponse
 
 
 @app.route("/api/datacenter/marche/parcours", methods=["POST"])

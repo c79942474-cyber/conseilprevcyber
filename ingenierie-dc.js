@@ -6688,7 +6688,9 @@ function messageDelai(e, defaut) {
     h += "</select>";
     /* LA FAMILLE RETENUE DIT CE QU'ELLE ÉTABLIT ET QUI LA PRODUIT. Un menu
        qui range sans expliquer son rangement laisse deviner le critère. */
-    h += '<span class="dc-aide" id="ig-ao-doc-aide"></span></label>';
+    h += '<span class="dc-aide" id="ig-ao-doc-aide"></span>'
+      + '<span class="dc-aide">Choisir une pièce ici l\'ajoute au lot à '
+      + "remplir, et y descend.</span></label>";
     return h;
   }
 
@@ -6723,6 +6725,16 @@ function messageDelai(e, defaut) {
 
     sel.addEventListener("change", function () {
       AO_DOC = sel.value;
+      /* ELLE NAVIGUE ET ELLE CHOISIT. Le geste demandé est « au clic ou dans
+         la liste » : une liste qui ne ferait que défiler obligerait à
+         retrouver la carte pour la cliquer, c'est-à-dire à faire deux fois le
+         même travail. Elle AJOUTE au choix — elle ne le remplace pas, sans
+         quoi parcourir la liste effacerait ce qu'on vient de cocher. */
+      if (AO_DOC) {
+        AO_CHOISIES[AO_DOC] = true;
+        aoLotRafraichirCarte(AO_DOC);
+        aoLotCompter();
+      }
       appliquer(true);
     });
     /* APPLIQUÉ AUSSI APRÈS LE REDESSIN, sans défiler : la page ne doit pas
@@ -6732,6 +6744,272 @@ function messageDelai(e, defaut) {
 
   var AO_ETAT_CLASSE = { rempli: "ok", a_saisir: "att", a_declarer: "dec",
                          non_trouve: "att", invalide: "mal" };
+
+  /* ── CHOISIR PLUSIEURS PIÈCES, ET LES FAIRE PRODUIRE ENSEMBLE ─────────
+     LES CHOIX SURVIVENT AU REDESSIN. Le bloc est redessiné à chaque frappe
+     dans la fiche : garder la sélection dans le DOM la perdrait à la
+     première lettre tapée, et l'on recommencerait à cliquer vingt-trois
+     cartes. Elle vit donc ici, et le rendu la relit.
+
+     CE QUI EST PRODUIT VIT ICI AUSSI, pour la même raison : une carte verte
+     qui redeviendrait grise sous les doigts ferait relancer une production
+     déjà faite. */
+  var AO_CHOISIES = {};        /* clé -> true */
+  var AO_PRODUIT = {};         /* clé -> {etat, texte, url, nom} */
+  var AO_LOT_FMT = "docx";
+  /* SIX À LA FOIS, ET PAS VINGT-TROIS. « Simultanément » veut dire que les
+     productions se RECOUVRENT, pas qu'on ouvre vingt-trois connexions d'un
+     coup : au-delà, le navigateur les met en file lui-même et le serveur
+     répond plus lentement à chacune. Six se recouvrent franchement et
+     laissent la page réactive. */
+  var AO_LOT_FRONT = 6;
+
+  /* ── LA BARRE DU LOT ──────────────────────────────────────────────────
+     ELLE COMPTE AVANT DE PROPOSER. « Remplir les pièces choisies » sans le
+     nombre laisse lancer vingt-trois productions en croyant en lancer une —
+     et c'est le genre de clic qu'on ne retire pas. */
+  function aoLotBarre(r) {
+    var n = Object.keys(AO_CHOISIES).length;
+    var faites = 0, mal = 0;
+    Object.keys(AO_PRODUIT).forEach(function (k) {
+      if (AO_PRODUIT[k].etat === "fait") faites++;
+      else if (AO_PRODUIT[k].etat === "mal") mal++;
+    });
+    return '<div class="ig-ao-lot">'
+      + "<b>Faire produire plusieurs pièces</b>"
+      + '<span class="cpt">' + n + " choisie(s) sur " + r.pieces.length
+      + (faites ? " · " + faites + " produite(s)" : "")
+      + (mal ? " · " + mal + " en échec" : "") + "</span>"
+      + '<button type="button" class="btn btn-s" data-lot="tout">Tout choisir</button>'
+      + '<button type="button" class="btn btn-s" data-lot="rien">Rien</button>'
+      + '<button type="button" class="btn btn-s" data-lot="bloquantes">'
+      + "Les bloquantes</button>"
+      + '<label class="pousse"><span class="cpt">Format&nbsp;</span>'
+      + '<select data-lot-fmt aria-label="Format des pièces produites">'
+      + '<option value="docx"' + (AO_LOT_FMT === "docx" ? " selected" : "")
+      + ">Word</option>"
+      + '<option value="pdf"' + (AO_LOT_FMT === "pdf" ? " selected" : "")
+      + ">PDF</option>"
+      + '<option value="xlsx"' + (AO_LOT_FMT === "xlsx" ? " selected" : "")
+      + ">Excel</option></select></label>"
+      + '<button type="button" class="btn btn-p" data-lot="go"'
+      + (n ? "" : " disabled") + ">Remplir les " + n + " pièce(s) choisie(s)"
+      + "</button>"
+      + '<p class="cpt" style="flex:1 1 100%" data-lot-msg role="status" '
+      + 'aria-live="polite">Choisissez au clic sur une carte, ou dans la '
+      + "liste ci-dessus. Les pièces choisies se remplissent EN MÊME TEMPS ; "
+      + "chacune passe au vert dès que la sienne est prête.</p>"
+      + "</div>";
+  }
+
+  /* CE QUE LA CARTE DIT DE SA PROPRE PRODUCTION. Le contour donne l'état d'un
+     coup d'œil ; ce bloc donne la raison — et le lien, parce qu'un document
+     produit qu'on ne peut pas prendre n'a servi à rien. */
+  function aoLotEtatCarte(p) {
+    var x = AO_PRODUIT[p.cle];
+    if (!x) return "";
+    var h = '<p class="ig-ao-et">';
+    if (x.etat === "cours") h += "Production en cours…";
+    else if (x.etat === "mal") h += "<b>Échec</b> — " + esc(x.texte || "");
+    else {
+      h += "<b>" + esc(x.titre || "Produite") + "</b> — " + esc(x.texte || "");
+      if (x.url) {
+        h += ' <a href="' + x.url + '" download="' + esc(x.nom || "piece")
+          + '">⬇ ' + esc(x.nom || "prendre") + "</a>";
+      }
+    }
+    return h + "</p>";
+  }
+
+  function aoLotMsg(t) {
+    var m = document.querySelector("[data-lot-msg]");
+    if (m) m.textContent = t;
+  }
+
+  /* LE REDESSIN N'EST PAS INTÉGRAL PENDANT UN LOT. Redessiner tout le bloc à
+     chaque réponse ferait perdre les saisies en cours et ferait sauter la
+     page sous les doigts. On ne touche donc qu'à LA carte concernée. */
+  function aoLotRafraichirCarte(cle) {
+    var c = document.querySelector('#ig-ao-rempli [data-doc="' + cle + '"]');
+    if (!c) return;
+    ["sel", "cours", "fait", "mal"].forEach(function (e) {
+      c.classList.remove("ig-ao-cp-" + e);
+    });
+    if (AO_CHOISIES[cle]) c.classList.add("ig-ao-cp-sel");
+    var x = AO_PRODUIT[cle];
+    if (x) c.classList.add("ig-ao-cp-" + x.etat);
+    c.setAttribute("aria-pressed", AO_CHOISIES[cle] ? "true" : "false");
+    var vieux = c.querySelector(".ig-ao-et");
+    if (vieux) vieux.remove();
+    var h = aoLotEtatCarte({ cle: cle });
+    if (h) c.insertAdjacentHTML("beforeend", h);
+  }
+
+  function aoLotCompter() {
+    var b = document.querySelector('[data-lot="go"]');
+    var n = Object.keys(AO_CHOISIES).length;
+    if (b) {
+      b.disabled = !n;
+      b.textContent = "Remplir les " + n + " pièce(s) choisie(s)";
+    }
+    var c = document.querySelector(".ig-ao-lot .cpt");
+    if (c && AO_DERNIER) {
+      var faites = 0, mal = 0;
+      Object.keys(AO_PRODUIT).forEach(function (k) {
+        if (AO_PRODUIT[k].etat === "fait") faites++;
+        else if (AO_PRODUIT[k].etat === "mal") mal++;
+      });
+      c.textContent = n + " choisie(s) sur " + AO_DERNIER.pieces.length
+        + (faites ? " · " + faites + " produite(s)" : "")
+        + (mal ? " · " + mal + " en échec" : "");
+    }
+  }
+
+  function aoLotBasculer(cle) {
+    if (AO_CHOISIES[cle]) delete AO_CHOISIES[cle];
+    else AO_CHOISIES[cle] = true;
+    aoLotRafraichirCarte(cle);
+    aoLotCompter();
+  }
+
+  function aoBrancherLot(r, z) {
+    AO_DERNIER = r;
+    z.querySelectorAll("#ig-ao-rempli [data-doc], .ig-ao-cd [data-doc]")
+      .forEach(function (c) {
+        var cle = c.dataset.doc;
+        c.addEventListener("click", function (ev) {
+          /* UN CLIC DANS UN CHAMP OU SUR UN LIEN N'EST PAS UN CHOIX. Sans
+             cette réserve, saisir une valeur dans une carte la
+             sélectionnerait, et prendre le document la désélectionnerait. */
+          var t = ev.target;
+          if (t.closest("input, textarea, select, a, button")) return;
+          aoLotBasculer(cle);
+        });
+        c.addEventListener("keydown", function (ev) {
+          if (ev.key !== "Enter" && ev.key !== " ") return;
+          if (ev.target !== c) return;
+          ev.preventDefault();
+          aoLotBasculer(cle);
+        });
+      });
+    z.querySelectorAll("[data-lot]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var q = b.dataset.lot;
+        if (q === "tout") {
+          r.pieces.forEach(function (p) { AO_CHOISIES[p.cle] = true; });
+        } else if (q === "rien") {
+          AO_CHOISIES = {};
+        } else if (q === "bloquantes") {
+          AO_CHOISIES = {};
+          r.pieces.forEach(function (p) {
+            if (p.bloquant) AO_CHOISIES[p.cle] = true;
+          });
+        } else if (q === "go") {
+          aoLotRemplir(r);
+          return;
+        }
+        r.pieces.forEach(function (p) { aoLotRafraichirCarte(p.cle); });
+        aoLotCompter();
+      });
+    });
+    var f = z.querySelector("[data-lot-fmt]");
+    if (f) {
+      f.addEventListener("change", function () { AO_LOT_FMT = f.value; });
+    }
+  }
+
+  /* ── LE REMPLISSAGE SIMULTANÉ ─────────────────────────────────────────
+     TOUTES LES CARTES PASSENT EN « EN COURS » D'UN COUP, puis chacune bascule
+     pour SON PROPRE COMPTE dès que sa réponse arrive. C'est ce qui distingue
+     un lot d'une file : on voit le dossier se remplir, on ne regarde pas une
+     barre avancer.
+
+     LE DOCUMENT RESTE DANS LA PAGE, il ne se télécharge pas tout seul. Vingt
+     et un téléchargements simultanés sont bloqués par le navigateur, et celui
+     qui les autorise noie le dossier de l'utilisateur. Chaque carte porte son
+     lien ; « Tout le dossier (.zip) » reste là pour tout prendre d'un coup. */
+  function aoLotRemplir(r) {
+    var cles = r.pieces.map(function (p) { return p.cle; })
+      .filter(function (c) { return AO_CHOISIES[c]; });
+    if (!cles.length) return;
+    var t0 = (window.performance && performance.now) ? performance.now() : 0;
+    cles.forEach(function (c) {
+      /* L'URL précédente est révoquée : garder vingt-trois objets vivants à
+         chaque relance fait grossir la page sans qu'on le voie. */
+      var v = AO_PRODUIT[c];
+      if (v && v.url) { try { URL.revokeObjectURL(v.url); } catch (e) {} }
+      AO_PRODUIT[c] = { etat: "cours" };
+      aoLotRafraichirCarte(c);
+    });
+    aoLotCompter();
+    aoLotMsg(cles.length + " pièce(s) lancées ensemble…");
+
+    var i = 0, finies = 0;
+    function suivante() {
+      if (i >= cles.length) return Promise.resolve();
+      var cle = cles[i++];
+      return aoLotUne(cle).then(function () {
+        finies++;
+        aoLotRafraichirCarte(cle);
+        aoLotCompter();
+        aoLotMsg(finies + " / " + cles.length + " produite(s)…");
+        return suivante();
+      });
+    }
+    var front = [];
+    for (var k = 0; k < Math.min(AO_LOT_FRONT, cles.length); k++) {
+      front.push(suivante());
+    }
+    Promise.all(front).then(function () {
+      var ms = t0 ? Math.round(performance.now() - t0) : 0;
+      var mal = cles.filter(function (c) {
+        return (AO_PRODUIT[c] || {}).etat === "mal";
+      });
+      aoLotMsg(cles.length + " pièce(s) produites"
+        + (ms ? " en " + (ms / 1000).toFixed(1) + " s" : "")
+        + (mal.length ? " · " + mal.length
+           + " en échec, la carte dit pourquoi" : "")
+        + ". Chaque carte porte son document ; « Tout le dossier (.zip) » les "
+        + "prend tous.");
+    });
+  }
+
+  function aoLotUne(cle) {
+    var entete = null;
+    return demander("/api/datacenter/marche/piece", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ piece: cle, fiche: AO_FICHE, analyse: AO_ANALYSE,
+                             saisies: AO_SAISIES, format: AO_LOT_FMT }),
+    }, DELAI_MOYEN).then(function (x) {
+      if (!x.ok) {
+        return x.json().then(function (j) {
+          throw new Error((j && j.message) || "production refusée");
+        }, function () { throw new Error("production refusée"); });
+      }
+      entete = x.headers.get("X-Piece");
+      var cd = x.headers.get("Content-Disposition") || "";
+      var m = /filename="?([^";]+)"?/.exec(cd);
+      return x.blob().then(function (b) { return [b, m ? m[1] : cle]; });
+    }).then(function (bn) {
+      var d = null;
+      try { d = JSON.parse(entete || "null"); } catch (e) { d = null; }
+      var reste = (d && (d.reste || d.non_places)) || [];
+      AO_PRODUIT[cle] = {
+        etat: "fait",
+        titre: (d && d.production_nom) || "Produite",
+        texte: (d ? d.places + " valeur(s) portée(s)" : "document produit")
+          + (reste.length ? " · reste " + reste.slice(0, 3).join(", ")
+             + (reste.length > 3 ? "…" : "") : ""),
+        url: URL.createObjectURL(bn[0]),
+        nom: bn[1],
+      };
+    }).catch(function (e) {
+      AO_PRODUIT[cle] = { etat: "mal", texte: e.message || "échec" };
+    });
+  }
+
+  var AO_DERNIER = null;
 
   function aoRempliRendre(r) {
     var z = $("#ig-ao-rempli");
@@ -6786,10 +7064,20 @@ function messageDelai(e, defaut) {
           }).join(" · ") + ".</p>";
     }
     h += aoMenuDocs(r, AO_DOC);
+    h += aoLotBarre(r);
     h += '<div class="ig-ao-cd">';
     r.pieces.forEach(function (p) {
+      var prod = AO_PRODUIT[p.cle];
       h += '<div class="ig-ao-cp' + (p.bloquant ? " ig-ao-cpb" : "")
-        + (p.complet ? " ig-ao-cp-ok" : "") + '" data-doc="' + esc(p.cle)
+        + (p.complet ? " ig-ao-cp-ok" : "")
+        + (AO_CHOISIES[p.cle] ? " ig-ao-cp-sel" : "")
+        + (prod ? " ig-ao-cp-" + prod.etat : "")
+        + '" data-doc="' + esc(p.cle)
+        /* LA CARTE EST UN INTERRUPTEUR, et elle le dit à qui ne la voit pas.
+           Un `div` cliquable sans rôle ni état n'existe pas pour un lecteur
+           d'écran : on choisirait à la souris et jamais au clavier. */
+        + '" role="button" tabindex="0" aria-pressed="'
+        + (AO_CHOISIES[p.cle] ? "true" : "false")
         + '" data-fam="' + esc(p.famille) + '">'
         /* LA FAMILLE D'INFOBULLES SUIT LE DOSSIER. Le glossaire tient
            `piece_candidature` et `piece_offre` séparés : demander la mauvaise
@@ -6865,7 +7153,8 @@ function messageDelai(e, defaut) {
         h += "</dd>";
       });
       h += "</dl>"
-        + '<p class="ig-ao-pg"><i>Le piège</i> — ' + esc(p.piege) + "</p></div>";
+        + '<p class="ig-ao-pg"><i>Le piège</i> — ' + esc(p.piege) + "</p>"
+        + aoLotEtatCarte(p) + "</div>";
     });
     h += "</div>"
       + '<div class="actions" style="margin-top:14px;gap:10px;flex-wrap:wrap">'
@@ -6892,6 +7181,7 @@ function messageDelai(e, defaut) {
       + '<p class="ig-icpe-res">' + esc(r.note) + "</p>";
     z.innerHTML = h;
     aoBrancherMenu(r);
+    aoBrancherLot(r, z);
     z.querySelectorAll("[data-ao-exp]").forEach(function (b) {
       b.addEventListener("click", function () { aoExporter(b.dataset.aoExp, b); });
     });
@@ -6967,11 +7257,49 @@ function messageDelai(e, defaut) {
           aoProjetMsg("Ce projet n'existe plus. Le dossier n'est plus rattaché.");
         } else if (xj[1] && xj[1].ok) {
           AO_PROJET_ETAT = xj[1];
+          aoProjetReprendre();
         }
         aoProjetRendre();
         return AO_PROJET_ETAT;
       })
       .catch(function () { aoProjetRendre(); return null; });
+  }
+
+  /* ── LE DOSSIER CONSERVÉ REPREND LA MAIN ──────────────────────────────
+     CE QUI SE PASSAIT SANS CELA. Le dossier de consultation était déposé,
+     analysé, conservé chiffré — et à la visite suivante l'écran repartait
+     vide. On avait un dossier en base et rien sous les yeux : il fallait tout
+     redéposer pour retrouver ce qu'on avait déjà.
+
+     L'ANALYSE N'EST PAS REFAITE ICI. Elle a été relevée AU DÉPÔT, avec la
+     version du releveur, et conservée telle quelle : la refaire ferait varier
+     le résultat quand les motifs évoluent, et deux lectures du même dossier ne
+     diraient plus la même chose.
+
+     ON NE PIÉTINE JAMAIS UNE SAISIE EN COURS. La fiche locale, si elle porte
+     déjà quelque chose, l'emporte sur celle du coffre — c'est la plus
+     récente, et l'écraser ferait disparaître sous les doigts ce qu'on vient
+     de taper. */
+  function aoProjetReprendre() {
+    var d = (AO_PROJET_ETAT || {}).dossier;
+    if (!d || AO_ANALYSE) return;
+    if (!d.analyse || !(d.analyse.pieces || []).length) return;
+    AO_ANALYSE = d.analyse;
+    AO_DOCS = (d.pieces || []).map(function (x) {
+      return { nom: x.nom, texte: "" };   /* le texte reste au coffre */
+    });
+    if (d.fiche && !Object.keys(AO_FICHE || {}).length) AO_FICHE = d.fiche;
+    aoRendre(AO_ANALYSE);
+    /* L'ORDRE COMPTE : `aoCandidature` VIDE la ligne de message en entrant.
+       Annoncer la reprise avant elle l'aurait effacée avant d'être lue. */
+    aoCandidature();
+    var msg = $("#ig-ao-msg");
+    if (msg) {
+      msg.textContent = "Dossier conservé repris : "
+        + (d.analyse.pieces || []).length + " pièce(s) identifiée(s), "
+        + "relevées le " + String(d.maj_le || d.cree_le || "").slice(0, 10)
+        + ". Rien n'a été redéposé.";
+    }
   }
 
   function aoProjetsCharger() {
