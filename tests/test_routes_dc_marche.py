@@ -653,7 +653,17 @@ def test_le_remplissage_rend_les_champs_ET_l_etat_en_un_seul_appel(connecte):
     assert r.status_code == 200
     j = r.get_json()["remplissage"]
     assert j["champs"] and j["groupes"] and j["pieces"]
-    assert j["etat"]["rubriques"] == sum(p["total"] for p in j["pieces"])
+    # LE TOTAL NE COMPTE PAS CE QUI EST SANS OBJET, et c'est délibéré : le DC4
+    # pose vingt-trois rubriques qui n'existent que s'il y a sous-traitance.
+    # Les additionner chez un candidat qui n'en déclare aucune afficherait
+    # vingt-trois manques inventés — et un manque inventé fait chercher là où
+    # il n'y a rien.
+    assert j["etat"]["rubriques"] == sum(
+        p["total"] for p in j["pieces"] if not p["sans_objet"])
+    assert j["etat"]["sans_objet"], (
+        "aucune pièce sans objet : le témoin de cette règle a disparu")
+    assert j["etat"]["rubriques"] < sum(p["total"] for p in j["pieces"]), (
+        "le total compte tout : la distinction ne retranche rien")
     assert j["sans_dossier"] is True
 
 

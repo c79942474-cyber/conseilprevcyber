@@ -644,6 +644,12 @@ FICHE = {
     "representant_nom": "A. Dupont", "representant_qualite": "Président",
 }
 
+# LA SAISIE QUI LÈVE LA CONDITION DU DC4. Sans elle, la pièce est sans objet
+# et ses rubriques ne comptent nulle part — ce qui est exactement le
+# comportement voulu, et ce qui oblige les règles qui veulent la MESURER à
+# dire par quelle porte elles entrent.
+SAISIES_DC4 = {"dc4.sous_traitance": "oui — lot 3, génie climatique"}
+
 CCTP_AUTRE_OBJET = """CAHIER DES CLAUSES TECHNIQUES PARTICULIÈRES
 Objet du marché : assistance à maîtrise d'ouvrage pour un centre de données.
 Le PUE annuel engagé est de 1,25.
@@ -689,15 +695,30 @@ def test_le_texte_d_une_declaration_est_celui_de_la_piece_MOT_POUR_MOT():
     """DEUX RÉDACTIONS DE LA MÊME DÉCLARATION FINIRAIENT PAR NE PLUS DIRE LA
     MÊME CHOSE. Le texte affiché n'est pas réécrit : il est repris de ce que la
     pièce déclare contenir, et la règle refuse qu'il en diverge."""
-    par_piece = {p["cle"]: p for p in A.DOSSIER_CANDIDATURE}
-    for _p, l in _lignes(_rempli()):
+    par_piece = {p["cle"]: p for p in A.DOSSIER_CANDIDATURE + A.DOSSIER_OFFRE}
+    par_rubrique = {(cle, r["cle"]): r
+                    for cle, rs in A.RUBRIQUES.items() for r in rs}
+    vues = 0
+    for p, l in _lignes(_rempli(saisies=SAISIES_DC4)):
         if l["source"] != "declaration":
             continue
-        assert any(l["texte"] == c
-                   for piece in par_piece.values()
-                   for c in piece["contient"]), (
-            "« %s » porte un texte de déclaration qui n'existe dans aucune "
-            "pièce : il a été réécrit à côté" % l["cle"])
+        vues += 1
+        # LA PIÈCE VISÉE, PAS « UNE PIÈCE QUELCONQUE ». La première rédaction
+        # cherchait le texte dans TOUTES les pièces : elle serait restée verte
+        # devant un `reprend` qui pointe sur la mauvaise pièce, du moment que
+        # le texte existait ailleurs. Ce qu'on mesure ici, c'est que le texte
+        # affiché est celui de la ligne DÉSIGNÉE.
+        src, i, temoin = par_rubrique[(p["cle"], l["cle"])]["reprend"]
+        assert l["texte"] == par_piece[src]["contient"][i], (
+            "« %s » porte un texte de déclaration qui n'est pas celui de la "
+            "ligne visée (%s, %d) : il a été réécrit à côté" % (l["cle"], src, i))
+        assert A._sans_accent(temoin) in A._sans_accent(l["texte"]), (
+            "« %s » vise une ligne qui ne contient pas son témoin « %s » : "
+            "l'indice a glissé" % (l["cle"], temoin))
+    assert vues == 6, (
+        "six déclarations attendues — DC1, les trois de la déclaration sur "
+        "l'honneur, l'engagement de l'ATTRI1 et celle du sous-traitant au "
+        "DC4 — %d vues" % vues)
 
 
 def test_une_piece_qui_porte_une_declaration_n_est_JAMAIS_dite_prete():
@@ -974,15 +995,30 @@ def test_la_voie_se_DEDUIT_des_rubriques_et_ne_se_declare_pas():
     assert A.voie("inconnue", "formulaire") == "completer"
 
 
-def test_le_remplissage_rend_LE_DOSSIER_ENTIER():
-    """Les quatorze pièces que ce module ne remplit pas doivent quand même
-    être là : ce sont elles qui portent les délais."""
+def test_le_remplissage_rend_LES_DEUX_DOSSIERS_ENTIERS():
+    """Les pièces que ce module ne remplit pas doivent quand même être là :
+    ce sont elles qui portent les délais.
+
+    LE PÉRIMÈTRE A CHANGÉ, DÉLIBÉRÉMENT, ET LA RÈGLE LE DIT. Elle n'exigeait
+    que les dix-neuf pièces de candidature. L'acte d'engagement (ATTRI1) et la
+    déclaration de sous-traitance (DC4) redemandent EXACTEMENT les mêmes
+    informations que le DC1 et le DC2 — acheteur, objet, lots, dénomination,
+    SIRET, signataire — et ce sont les recopies d'un formulaire à l'autre qui
+    produisent les incohérences dont les offres meurent. Les remplir dans un
+    second mécanisme aurait donné deux définitions de « rempli ».
+    """
     r = A.remplir(fiche=FICHE)
-    assert len(r["pieces"]) == len(A.DOSSIER_CANDIDATURE) == 19
+    assert len(A.DOSSIER_CANDIDATURE) == 19 and len(A.DOSSIER_OFFRE) == 4
+    assert len(r["pieces"]) == 23
     rendues = {p["cle"] for p in r["pieces"]}
-    assert rendues == {p["cle"] for p in A.DOSSIER_CANDIDATURE}
+    assert rendues == {p["cle"] for p in A.DOSSIER_CANDIDATURE + A.DOSSIER_OFFRE}
+    assert r["etat"]["candidature"] == 19 and r["etat"]["offre"] == 4
+    # L'ORDRE COMPTE : la candidature d'abord, l'offre ensuite. Les deux ne se
+    # déposent ni au même moment ni toujours au même endroit.
+    assert [p["dossier"] for p in r["pieces"]] == ["candidature"] * 19 + ["offre"] * 4
     for p in r["pieces"]:
-        assert p["famille"] in A.FAMILLES_PIECE and p["famille_nom"], p["cle"]
+        assert p["famille"] in A.FAMILLES_REPONSE and p["famille_nom"], p["cle"]
+        assert p["famille"].startswith(p["dossier"] + ":"), p["cle"]
         assert p["voie"] in A.VOIES and p["voie_nom"] and p["voie_aide"], p["cle"]
         # Une pièce nommée au menu doit dire ce qu'il y a derrière.
         assert p["contient"] and p["produit_par"], p["cle"]
@@ -998,7 +1034,14 @@ def test_une_piece_non_remplissable_n_est_ni_complete_ni_incomplete():
             assert isinstance(p["complet"], bool), p["cle"]
         else:
             assert p["complet"] is None and p["pret"] is None, p["cle"]
-            assert p["total"] == 0, p["cle"]
+            # SANS OBJET N'EST PAS SANS RUBRIQUE. Le DC4 en porte vingt-trois
+            # et reste non mesurable tant qu'aucune sous-traitance n'est
+            # déclarée : elles s'affichent pour qu'on voie ce qu'il demande,
+            # elles ne comptent nulle part. Exiger `total == 0` de TOUTE pièce
+            # non mesurable confondait « rien à remplir » et « rien à
+            # compter ».
+            if not p["sans_objet"]:
+                assert p["total"] == 0, p["cle"]
     e = r["etat"]
     assert e["mesurables"] == sum(1 for p in r["pieces"] if p["mesurable"])
     assert e["mesurables"] < e["pieces"], (
@@ -1015,11 +1058,15 @@ def test_les_bloquantes_que_ce_cadre_NE_REMPLIT_PAS_sont_dites_a_part():
     e = A.remplir(fiche=FICHE)["etat"]
     a_produire = e["bloquantes_a_produire"]
     assert a_produire, "aucune bloquante hors du remplissage : rien à signaler"
-    attendu = {p["nom"] for p in A.DOSSIER_CANDIDATURE
+    attendu = {p["nom"] for p in A.DOSSIER_CANDIDATURE + A.DOSSIER_OFFRE
                if p["bloquant"] and p["cle"] not in A.RUBRIQUES}
     assert {x["nom"] for x in a_produire} == attendu, attendu
+    # LA DPGF ET LE MÉMOIRE TECHNIQUE Y SONT ENTRÉS avec le dossier d'offre, et
+    # c'est le témoin que la règle porte sur les deux dossiers : ce sont deux
+    # bloquantes que ce module ne produit pas davantage que les pouvoirs.
+    assert {x["dossier"] for x in a_produire} == {"candidature", "offre"}
     for x in a_produire:
-        assert x["voie_nom"] and x["famille"] in A.FAMILLES_PIECE, x
+        assert x["voie_nom"] and x["famille"] in A.FAMILLES_REPONSE, x
     # Et elles ne sont PAS confondues avec les incomplètes remplissables.
     assert not (set(e["bloquantes_incompletes"]) & {x["nom"] for x in a_produire})
 
@@ -1028,8 +1075,9 @@ def test_le_remplissage_sert_les_familles_et_les_voies_a_la_page():
     """La page ne connaît ni les familles ni les voies : elle les reçoit. Une
     seconde liste écrite dans le script se désynchroniserait du module."""
     r = A.remplir()
-    assert r["familles"] == A.FAMILLES_PIECE
+    assert r["familles"] == A.FAMILLES_REPONSE
     assert r["voies"] == A.VOIES
+    assert r["engagements"] == A.ENGAGEMENTS
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1042,9 +1090,14 @@ def test_le_remplissage_sert_les_familles_et_les_voies_a_la_page():
 # VOUS PROPOSEZ : les y ranger sous le même intitulé dirait quelque chose de
 # faux. Ces règles protègent la séparation autant que le contenu.
 
-def test_le_dossier_d_offre_porte_les_trois_pieces_attendues():
+def test_le_dossier_d_offre_porte_les_quatre_pieces_attendues():
+    """LA QUATRIÈME EST ENTRÉE DÉLIBÉRÉMENT. Le DC4 — déclaration de
+    sous-traitance — se dépose en annexe de l'offre quand le soumissionnaire
+    présente un sous-traitant, ou en acte spécial après attribution. Le
+    formulaire le dit lui-même : « soit au moment du dépôt de l'offre [...]
+    soit en cours d'exécution du marché public »."""
     cles = {p["cle"] for p in A.DOSSIER_OFFRE}
-    assert cles == {"dpgf", "memoire_technique", "acte_engagement"}, cles
+    assert cles == {"dpgf", "memoire_technique", "acte_engagement", "dc4"}, cles
 
 
 def test_les_trois_pieces_d_offre_sont_rangees_dans_une_famille_connue():
@@ -1091,34 +1144,64 @@ def test_chaque_piece_d_offre_dit_ce_qu_elle_contient_et_ce_qui_la_fait_ecarter(
         assert p["produit_par"], p["cle"]
 
 
-def test_les_trois_pieces_d_offre_sont_TOUTES_bloquantes():
+def test_les_trois_pieces_QUI_FONT_L_OFFRE_sont_bloquantes_et_le_DC4_non():
     """UNE OFFRE SANS PRIX, SANS ENGAGEMENT SIGNÉ OU SANS MÉMOIRE N'EST PAS
     UNE OFFRE : à la différence de la candidature, où une partie des pièces
-    ne fait que soutenir le dossier, les trois pièces de l'offre sont
-    chacune, seule, suffisante pour la faire écarter si elle manque."""
-    assert all(p["bloquant"] for p in A.DOSSIER_OFFRE), (
-        [p["cle"] for p in A.DOSSIER_OFFRE if not p["bloquant"]])
+    ne fait que soutenir le dossier, ces trois-là sont chacune, seule,
+    suffisante pour la faire écarter si elle manque.
+
+    LE DC4 EST L'EXCEPTION, ET C'EST TOUT SON SENS. Il n'est dû que s'il y a
+    sous-traitance. Le déclarer bloquant le ferait compter comme un manque
+    chez tout candidat qui ne sous-traite rien — un manque qu'on ne peut pas
+    combler et qu'il ne faut pas combler.
+    """
+    par_cle = {p["cle"]: p for p in A.DOSSIER_OFFRE}
+    for cle in ("dpgf", "memoire_technique", "acte_engagement"):
+        assert par_cle[cle]["bloquant"], cle
+    assert par_cle["dc4"]["bloquant"] is False
+    assert par_cle["dc4"]["condition"] == "sous_traitance"
+    assert (par_cle["dc4"].get("sans_objet") or "").strip(), (
+        "une pièce conditionnelle muette ressemble à une pièce oubliée")
+    # ET AUCUNE AUTRE N'EST CONDITIONNELLE : sans ce témoin, la règle
+    # resterait verte si toutes le devenaient.
+    assert [p["cle"] for p in A.DOSSIER_CANDIDATURE + A.DOSSIER_OFFRE
+            if p.get("condition")] == ["dc4"]
 
 
-def test_AUCUNE_piece_d_offre_ne_se_remplit_depuis_la_fiche():
-    """LA RAISON D'ÊTRE DE `offre()` SANS MACHINERIE DE REMPLISSAGE : si
-    l'une de ces pièces gagnait un jour des rubriques dans `RUBRIQUES`, la
-    voie déduite passerait à « remplir » et cette fonction mentirait par son
-    silence sur la complétude. Le test protège la PRÉMISSE, pas seulement la
-    fonction."""
-    for p in A.DOSSIER_OFFRE:
-        assert p["cle"] not in A.RUBRIQUES, p["cle"]
-        assert A.voie(p["cle"], p["nature"]) != "remplir", p["cle"]
+def test_deux_pieces_d_offre_se_remplissent_ici_et_deux_ne_le_peuvent_pas():
+    """LA PRÉMISSE A CHANGÉ, ET LA RÈGLE LA REMPLACE PLUTÔT QUE DE DISPARAÎTRE.
+
+    Elle affirmait qu'AUCUNE pièce d'offre n'avait de rubriques, et prévenait
+    que le jour où l'une en gagnerait, `offre()` mentirait par son silence sur
+    la complétude. Ce jour est arrivé : l'acte d'engagement et le DC4 en ont,
+    parce qu'ils redemandent l'acheteur, l'objet, les lots, la dénomination,
+    le SIRET et le signataire que le DC1 et le DC2 portent déjà.
+
+    LA CONSÉQUENCE ANNONCÉE A ÉTÉ TRAITÉE, pas ignorée : `remplir()` couvre
+    désormais les deux dossiers, et la docstring de `offre()` ne prétend plus
+    qu'aucune de ses pièces ne se remplit. Ce que cette règle tient maintenant,
+    c'est la LIGNE : ce qui se chiffre et ce qui s'écrit ne se remplit pas ici.
+    """
+    remplissables = {p["cle"] for p in A.DOSSIER_OFFRE
+                     if A.voie(p["cle"], p["nature"]) == "remplir"}
+    assert remplissables == {"acte_engagement", "dc4"}, remplissables
+    for cle in ("dpgf", "memoire_technique"):
+        assert cle not in A.RUBRIQUES, (
+            "%s a gagné des rubriques : ni un prix ni un mémoire ne se "
+            "recopient depuis une fiche d'entreprise" % cle)
+    # LE TÉMOIN QUE `offre()` NE MENT PLUS PAR SON SILENCE.
+    assert "aucune de ces" not in A.offre.__doc__.lower()
 
 
-def test_offre_rend_les_trois_pieces_deja_enrichies():
+def test_offre_rend_les_quatre_pieces_deja_enrichies():
     """LA PAGE NE RECALCULE RIEN : `famille_nom`, `voie`, `voie_nom` et
     `voie_aide` doivent déjà être posés, comme `remplir()` le fait pour la
     candidature."""
     o = A.offre()
     assert o["familles"] == A.FAMILLES_OFFRE
     assert o["note"] == A.NOTE_OFFRE
-    assert {p["nom"] for p in A.DOSSIER_OFFRE} == set(o["bloquantes"])
+    assert {p["nom"] for p in A.DOSSIER_OFFRE if p["bloquant"]} == set(
+        o["bloquantes"]), o["bloquantes"]
     rendues = {p["cle"] for p in o["pieces"]}
     assert rendues == {p["cle"] for p in A.DOSSIER_OFFRE}
     for p in o["pieces"]:
@@ -1142,7 +1225,12 @@ def test_un_FORMULAIRE_d_offre_n_est_jamais_annonce_A_REDIGER():
             assert p["voie"] != "rediger", (
                 "« %s » est un formulaire mais annoncé « à rédiger »"
                 % p["cle"])
-            assert p["voie"] == "completer", p["cle"]
+            # DEUX SORTIES POSSIBLES, ET LA TABLE TRANCHE : un formulaire dont
+            # les rubriques sont connues se remplit ici, les autres se
+            # complètent depuis un chiffrage. Accepter les deux sans regarder
+            # `RUBRIQUES` laisserait passer un acte d'engagement redevenu muet.
+            attendu = "remplir" if p["cle"] in A.RUBRIQUES else "completer"
+            assert p["voie"] == attendu, (p["cle"], p["voie"])
         else:
             assert p["nature"] == "note"
             assert p["voie"] == "rediger", p["cle"]

@@ -1072,21 +1072,39 @@ def _menu_rendu(remplissage, choix=""):
     return out.stdout
 
 
-def test_le_menu_liste_TOUTES_les_pieces_en_deux_groupes():
+def test_le_menu_liste_TOUTES_les_pieces_en_quatre_groupes():
     """CHERCHER « optgroup » DANS LE FICHIER SERAIT VERT POUR UN GROUPE MORT
     DANS UN COMMENTAIRE. On exécute la fonction et on lit ce qu'elle rend —
-    comme le navigateur."""
+    comme le navigateur.
+
+    QUATRE GROUPES, ET C'EST UNE CORRECTION. Le menu en comptait deux quand il
+    ne servait que la candidature. `remplir()` couvre maintenant les deux
+    dossiers, et les deux tables de familles ONT UNE CLÉ EN COMMUN :
+    « technique » désigne les pièces de capacité côté candidature, le mémoire
+    technique côté offre. Les fusionner sur la clé nue aurait rangé le mémoire
+    sous le libellé des pièces de capacité — un menu qui range faux sans que
+    rien ne le signale.
+    """
     r = ao_dc.remplir(fiche={"raison_sociale": "Essai"})
     h = _menu_rendu(r)
-    assert h.count("<optgroup") == 2, h[:200]
-    for f in ao_dc.FAMILLES_PIECE.values():
-        assert f["nom"] in h, f["nom"]
+    assert h.count("<optgroup") == 4, h[:400]
+    # ON LIT CE QUE LE NAVIGATEUR AFFICHE, pas la source : `esc()` échappe les
+    # apostrophes en `&#39;`, si bien qu'une comparaison sur le HTML brut
+    # échouerait sur « dossier d'offre » pour une raison sans rapport avec ce
+    # que la règle prétend mesurer.
+    lu = html.unescape(h)
+    for fam in ao_dc.FAMILLES_REPONSE.values():
+        assert fam["nom"] in lu, fam["nom"]
+    # LES DEUX LIBELLÉS « technique » SE DISTINGUENT DANS LE RENDU. Sans ce
+    # témoin, la règle resterait verte devant deux groupes homonymes.
+    assert lu.count("dossier de candidature") == 2, lu[:400]
+    assert lu.count("dossier d'offre") == 2, lu[:400]
     options = re.findall(r'<option value="([^"]*)"[^>]*>([^<]*)</option>', h)
     valeurs = [v for v, _ in options]
     assert valeurs[0] == "", "le menu n'offre pas de retour à « toutes »"
     assert sorted(v for v in valeurs if v) == sorted(
-        p["cle"] for p in ao_dc.DOSSIER_CANDIDATURE), (
-        "le menu ne liste pas les dix-neuf pièces : %s" % valeurs)
+        p["cle"] for p in ao_dc.DOSSIER_CANDIDATURE + ao_dc.DOSSIER_OFFRE), (
+        "le menu ne liste pas les vingt-trois pièces : %s" % valeurs)
 
 
 def test_chaque_entree_du_menu_dit_CE_QU_IL_Y_A_A_FAIRE():

@@ -1673,18 +1673,96 @@ DOSSIER_OFFRE = [
         "bloquant": True,
         "produit_par": "Le candidat, ou le mandataire pour le groupement, "
                        "signé par une personne habilitée.",
+        # CE QUE CE FORMULAIRE CONTIENT EST RELEVÉ SUR LE FORMULAIRE, cadre
+        # par cadre — ATTRI1 dans sa version du ministère de l'économie. La
+        # rédaction précédente en résumait quatre points de mémoire ; elle
+        # taisait le compte à créditer, l'avance, la nature du groupement et
+        # les reconductions, c'est-à-dire quatre cadres qui se signent.
         "contient": [
-            "L'identification du candidat ou de chaque membre du "
-            "groupement",
-            "Le prix ou le taux engagé, cohérent avec la DPGF jointe",
-            "La durée du marché et la date de début d'exécution",
-            "L'acceptation, par renvoi, des autres pièces contractuelles",
+            "L'objet du marché public et ce que l'acte couvre — marché "
+            "entier, lot(s), offre de base, variante, prestations "
+            "supplémentaires (cadre A)",
+            "Les pièces contractuelles dont le signataire déclare avoir pris "
+            "connaissance : CCAP, CCAG, CCTP, autres (cadre B1)",
+            "L'identification du titulaire individuel ou de chaque membre du "
+            "groupement titulaire (cadre B1)",
+            "Le montant hors taxes et TTC engagé, en chiffres ET en lettres, "
+            "ou le renvoi à l'annexe financière jointe (cadre B1)",
+            "La nature du groupement — conjoint ou solidaire — et, s'il est "
+            "conjoint, la répartition des prestations entre ses membres "
+            "(cadre B2)",
+            "Le ou les comptes à créditer, relevé d'identité bancaire joint "
+            "(cadre B3)",
+            "La renonciation, ou non, au bénéfice de l'avance (cadre B4)",
+            "La durée d'exécution, son point de départ — notification, ordre "
+            "de service, ou date prévue au marché — et les reconductions "
+            "(cadre B5)",
+            "Après avoir pris connaissance des pièces constitutives du "
+            "marché public et conformément à leurs clauses, le signataire "
+            "s'engage, sur la base de son offre, à exécuter les prestations "
+            "demandées aux prix indiqués (cadre B1)",
         ],
         "piege": "Signer avant d'avoir relu les pièces qu'il vise par "
                  "renvoi, et avant d'avoir vérifié que le prix engagé "
                  "correspond exactement au total de la DPGF jointe — deux "
                  "montants qui divergent d'un centime rendent l'offre "
                  "incohérente aux yeux de l'acheteur.",
+        "delai": None,
+    },
+    {
+        # LE DC4 N'EST DÛ QUE S'IL Y A SOUS-TRAITANCE, et c'est pour cela
+        # qu'il porte une `condition`. Le compter comme un manque chez un
+        # candidat qui ne sous-traite rien ferait afficher vingt rubriques
+        # « à saisir » que personne n'a à saisir — un chiffre faux, donc pire
+        # qu'un chiffre absent.
+        "cle": "dc4", "famille": "engagement",
+        "nom": "Déclaration de sous-traitance — formulaire DC4",
+        "nature": "formulaire",
+        "bloquant": False,
+        "condition": "sous_traitance",
+        "sans_objet": "Sans sous-traitance déclarée pour cette consultation, "
+                      "cette pièce ne se dépose pas : son absence n'est pas "
+                      "un manque, et ses rubriques ne comptent nulle part. "
+                      "Renseignez la première ligne ci-dessous pour qu'elle "
+                      "entre au décompte.",
+        "produit_par": "Le soumissionnaire ou le titulaire ET son "
+                       "sous-traitant — les deux le signent — puis "
+                       "l'acheteur, qui accepte le sous-traitant et agrée "
+                       "ses conditions de paiement.",
+        "contient": [
+            "L'identification de l'acheteur et l'objet du marché public, "
+            "lots concernés compris (cadres A et B)",
+            "L'objet de la déclaration : annexe à l'offre, acte spécial "
+            "après attribution, ou acte spécial modificatif (cadre C)",
+            "L'identification du soumissionnaire ou du titulaire, et celle "
+            "du sous-traitant présenté (cadres D et E)",
+            "La nature des prestations sous-traitées et, lorsqu'elles "
+            "portent sur des données à caractère personnel, les clauses "
+            "exigées par l'article 28 du RGPD (cadre F)",
+            "Le montant des prestations sous-traitées — HT et TTC, ou hors "
+            "TVA en auto-liquidation — et les modalités de variation des "
+            "prix (cadre G)",
+            "Le droit au paiement direct, le compte à créditer et la demande "
+            "d'avance du sous-traitant (cadres G et H)",
+            "La durée du contrat de sous-traitance, en mois entiers arrondis "
+            "au supérieur (cadre I)",
+            "Les capacités du sous-traitant, lorsque l'acheteur les exige et "
+            "qu'elles ne figurent pas déjà au cadre H du DC2 (cadre J)",
+            "Le sous-traitant déclare sur l'honneur ne pas entrer dans l'un "
+            "des cas d'exclusion prévus aux articles L. 2141-1 à L. 2141-5 "
+            "ou L. 2141-7 à L. 2141-10 du code de la commande publique — "
+            "articles L. 2341-1 à L. 2341-3 pour un marché de défense ou de "
+            "sécurité (cadre K1)",
+            "L'état des cessions et nantissements de créances susceptibles "
+            "de faire obstacle au paiement direct du sous-traitant "
+            "(cadre L)",
+        ],
+        "piege": "Le déposer et croire le sous-traitant accepté. "
+                 "L'acceptation du sous-traitant et l'agrément de ses "
+                 "conditions de paiement sont des actes de L'ACHETEUR "
+                 "(cadre M) : tant qu'il n'a pas signé, le sous-traitant "
+                 "n'est ni accepté ni payable directement — et le faire "
+                 "intervenir quand même engage le titulaire seul.",
         "delai": None,
     },
 ]
@@ -1724,19 +1802,33 @@ def _groupement_offre(p):
                 "est habilité à engager solidairement ; sinon, chaque "
                 "membre signe pour sa part — l'étendue de l'habilitation se "
                 "vérifie avant de le déposer, pas après.")
+    if p["cle"] == "dc4":
+        return ("UN DC4 PAR SOUS-TRAITANT, et il est déposé par le membre du "
+                "groupement qui sous-traite, pas par le mandataire au nom de "
+                "tous : c'est ce membre-là qui répond du sous-traitant "
+                "devant l'acheteur, et lui seul qui signe le cadre M avec "
+                "lui.")
     return ("À produire pour le groupement, sous la responsabilité du "
             "mandataire.")
 
 
 def offre(groupement=False):
     """Le dossier d'offre à produire — DPGF, mémoire technique, acte
-    d'engagement.
+    d'engagement, déclaration de sous-traitance.
 
-    À LA DIFFÉRENCE DU DOSSIER DE CANDIDATURE, aucune de ces trois pièces
-    n'a de rubriques à remplir depuis la fiche du candidat ou le dossier
-    déposé : `voie()` le confirme lui-même, faute d'entrée dans `RUBRIQUES`
-    pour l'une d'elles. Pas de suivi de complétude ici, donc — seulement la
-    liste et ce que chaque pièce attend.
+    CETTE LISTE NE DÉPEND NI DE LA FICHE NI DU DOSSIER DÉPOSÉ : c'est ce qui
+    la distingue de `remplir()`, et c'est pourquoi la page peut la servir
+    avec le plan de candidature, sans rien savoir du candidat. Elle dit ce
+    que chaque pièce doit contenir et ce qui la fait écarter ; le report
+    rubrique par rubrique, avec l'origine de chaque valeur, est le travail de
+    `remplir()`, qui couvre désormais les deux dossiers.
+
+    UNE PHRASE A ÉTÉ RETIRÉE D'ICI, ET IL FAUT DIRE LAQUELLE. Cette docstring
+    affirmait qu'aucune pièce d'offre n'avait de rubriques. C'était vrai le
+    jour où elle a été écrite ; l'acte d'engagement et le DC4 en ont
+    maintenant, et `voie()` répond « se remplit ici » pour eux deux. Une
+    docstring qui décrit l'état d'une table est fausse dès que la table
+    bouge : celle-ci décrit désormais un partage de rôles, qui ne bouge pas.
 
     `groupement` EXISTE POUR LA MÊME RAISON QUE DANS `plan_reponse()` ET
     `remplir()` : la page appelle les trois avec le même réglage, sur le
@@ -2007,6 +2099,36 @@ def derive(fiche):
 # de ce que la pièce dit contenir, et une règle refuse qu'il en diverge. Deux
 # rédactions de la même déclaration finiraient par ne plus dire la même chose.
 
+# ── CE QU'UNE SIGNATURE ENGAGE — DEUX CHOSES, ET LES CONFONDRE SERAIT FAUX ─
+# Le message servi avec une rubrique `declaration` était écrit en dur dans
+# `remplir()` : « cette affirmation engage pénalement celui qui la signe ».
+# C'est exact des déclarations d'absence d'interdiction de soumissionner —
+# leur fausseté est un délit. Ce ne l'est PAS de l'engagement de l'acte
+# d'engagement, qui n'affirme aucun fait : il lie au prix, au délai et aux
+# pièces visées par renvoi. Servir l'avertissement pénal sur celui-là ferait
+# dire au module une chose fausse, avec l'autorité de ce qui est écrit en dur.
+#
+# LA NATURE DE L'ENGAGEMENT EST DONC DÉCLARÉE PAR CHAQUE RUBRIQUE, jamais
+# devinée et jamais implicite : `_verifier()` refuse une rubrique de
+# déclaration qui ne dit pas laquelle des deux elle est.
+
+ENGAGEMENTS = {
+    "penal": {
+        "nom": "Déclaration sous peine de sanction pénale",
+        "message": "Cette affirmation engage pénalement celui qui la signe. "
+                   "Elle n'est pas pré-remplie : lisez-la, vérifiez-la, puis "
+                   "assumez-la.",
+    },
+    "contractuel": {
+        "nom": "Engagement contractuel",
+        "message": "Cette clause n'affirme pas un fait : elle ENGAGE. Signée, "
+                   "elle vous lie au prix, à la durée et à toutes les pièces "
+                   "qu'elle vise par renvoi. Elle n'est pas pré-remplie : les "
+                   "pièces visées se relisent AVANT la signature, jamais "
+                   "après.",
+    },
+}
+
 RUBRIQUES = {
     "dc1": [
         {"cle": "acheteur", "libelle": "Identification de l'acheteur",
@@ -2047,7 +2169,8 @@ RUBRIQUES = {
          "source": "fiche", "champ": "representant_qualite"},
         {"cle": "d_exclusion", "source": "declaration",
          "libelle": "Déclaration d'absence d'interdiction de soumissionner",
-         "reprend": ("honneur", 0)},
+         "engage": "penal",
+         "reprend": ("honneur", 0, "obligatoires")},
     ],
     "dc2": [
         {"cle": "acheteur", "libelle": "Identification de l'acheteur",
@@ -2091,11 +2214,14 @@ RUBRIQUES = {
         {"cle": "qualite", "libelle": "Qualité du signataire",
          "source": "fiche", "champ": "representant_qualite"},
         {"cle": "d_obligatoires", "source": "declaration",
-         "libelle": "Interdictions obligatoires", "reprend": ("honneur", 0)},
+         "libelle": "Interdictions obligatoires", "engage": "penal",
+         "reprend": ("honneur", 0, "obligatoires")},
         {"cle": "d_facultatives", "source": "declaration",
-         "libelle": "Interdictions facultatives", "reprend": ("honneur", 1)},
+         "libelle": "Interdictions facultatives", "engage": "penal",
+         "reprend": ("honneur", 1, "facultatives")},
         {"cle": "d_fiscal_social", "source": "declaration",
-         "libelle": "Situation fiscale et sociale", "reprend": ("honneur", 2)},
+         "libelle": "Situation fiscale et sociale", "engage": "penal",
+         "reprend": ("honneur", 2, "obligations fiscales")},
     ],
     "tiers": [
         {"cle": "acheteur", "libelle": "Acheteur destinataire du formulaire",
@@ -2123,6 +2249,254 @@ RUBRIQUES = {
         {"cle": "echeance", "libelle": "Échéance", "source": "fiche",
          "champ": "assurance_echeance"},
     ],
+
+    # ── L'ACTE D'ENGAGEMENT (ATTRI1) ──────────────────────────────────────
+    # LES CADRES SONT CEUX DU FORMULAIRE, pas une reconstitution : A (objet),
+    # B1 (pièces visées, identification, prix), B2 (groupement), B3 (compte),
+    # B4 (avance), B5 (durée et reconductions), C (signature).
+    #
+    # CE QUE CE MODULE NE CHIFFRE PAS, ET NE CHIFFRERA JAMAIS. Le montant
+    # engagé vient du chiffrage de CETTE consultation ; aucune pièce de
+    # l'acheteur ne le porte, aucune fiche ne le contient. Il est donc
+    # `saisie`, et il le reste — un prix « proposé » par un programme serait
+    # un prix que personne n'a calculé, sur un document qui se signe.
+    "acte_engagement": [
+        {"cle": "acheteur", "libelle": "Identification de l'acheteur "
+         "(cadre D)", "source": "consultation", "releve": "acheteur"},
+        {"cle": "objet_marche", "libelle": "Objet du marché public (cadre A)",
+         "source": "consultation", "releve": "objet"},
+        {"cle": "reference", "libelle": "Référence de la consultation "
+         "(cadre A)", "source": "consultation", "releve": "reference"},
+        {"cle": "lots", "libelle": "Lots concernés par cet acte d'engagement "
+         "(cadre A)", "source": "consultation", "releve": "lots"},
+        {"cle": "perimetre",
+         "libelle": "Ce que cet acte couvre — offre de base, variante(s), "
+                    "prestations supplémentaires (cadre A)",
+         "source": "saisie",
+         "aide": "Les variantes ne sont recevables que si le règlement de "
+                 "consultation les admet, et dans les limites qu'il fixe. Un "
+                 "acte d'engagement qui vise une variante non autorisée "
+                 "n'écarte pas la variante : il écarte l'offre."},
+        # NI RELEVÉE NI DEVINÉE, ET C'EST MESURÉ. Le relevé
+        # « priorite_pieces » repère l'ordre de priorité dans le CCAP mais ne
+        # CAPTURE aucune valeur : le brancher ici aurait produit une case
+        # définitivement vide, marquée « non relevée » sur un dossier qui la
+        # porte. `_verifier()` refuse d'ailleurs une rubrique branchée sur un
+        # relevé sans groupe de capture — la faute existait déjà une fois.
+        {"cle": "pieces_visees",
+         "libelle": "Pièces contractuelles visées par renvoi — CCAP, CCAG, "
+                    "CCTP, autres (cadre B1)",
+         "source": "saisie",
+         "aide": "Les numéros et intitulés EXACTS des pièces, tels qu'elles "
+                 "s'appellent dans le dossier de consultation. Cet acte "
+                 "accepte par renvoi tout ce qu'il vise : viser un CCAP par "
+                 "un intitulé approximatif, c'est signer sans savoir quoi."},
+        {"cle": "titulaire", "libelle": "Dénomination du titulaire "
+         "(cadre B1)", "source": "fiche", "champ": "raison_sociale"},
+        {"cle": "forme", "libelle": "Forme juridique (cadre B1)",
+         "source": "fiche", "champ": "forme_juridique"},
+        {"cle": "siret", "libelle": "SIRET (cadre B1)", "source": "fiche",
+         "champ": "siret"},
+        {"cle": "adresse", "libelle": "Adresse de l'établissement et du "
+         "siège (cadre B1)", "source": "fiche", "champ": "adresse"},
+        {"cle": "prix",
+         "libelle": "Montant engagé — hors taxes et TTC, en chiffres ET en "
+                    "lettres (cadre B1)",
+         "source": "saisie",
+         "aide": "Le montant en lettres et le montant en chiffres doivent "
+                 "dire la même chose, et tous deux le total EXACT de la DPGF "
+                 "jointe. Un centime d'écart entre les trois rend l'offre "
+                 "incohérente, et l'incohérence se lit avant le prix."},
+        {"cle": "groupement_nature",
+         "libelle": "Nature du groupement — conjoint ou solidaire — et "
+                    "répartition des prestations (cadre B2)",
+         "source": "saisie",
+         "aide": "Sans objet pour un titulaire individuel. En groupement "
+                 "conjoint, la répartition inscrite ici doit être celle du "
+                 "DC1 et celle de la convention de groupement : trois "
+                 "documents, une seule répartition."},
+        {"cle": "compte",
+         "libelle": "Compte à créditer — établissement et numéro, relevé "
+                    "d'identité bancaire joint (cadre B3)",
+         "source": "saisie",
+         "aide": "Le relevé d'identité bancaire se JOINT : le numéro recopié "
+                 "dans la case ne suffit pas, et c'est un motif de renvoi du "
+                 "dossier au stade de la mise au point."},
+        {"cle": "avance",
+         "libelle": "Renonciation au bénéfice de l'avance — oui ou non "
+                    "(cadre B4)",
+         "source": "saisie",
+         "aide": "Y renoncer se coche en une seconde et se paie sur toute la "
+                 "durée du marché : l'avance est une trésorerie que "
+                 "l'acheteur doit sans qu'on ait à la demander. Ne renoncez "
+                 "que si vous savez pourquoi."},
+        {"cle": "duree",
+         "libelle": "Durée d'exécution et point de départ — notification, "
+                    "ordre de service, ou date prévue (cadre B5)",
+         "source": "saisie",
+         "aide": "Le relevé « délai d'exécution » signale les passages du "
+                 "CCAP qui en parlent, mais n'en extrait pas de valeur : la "
+                 "durée se lit sur ces passages et se recopie ici. Le POINT "
+                 "DE DÉPART compte autant que la durée — notification, ordre "
+                 "de service, ou date prévue au marché ne tombent pas le "
+                 "même jour."},
+        {"cle": "reconduction",
+         "libelle": "Reconductions — nombre et durée (cadre B5)",
+         "source": "saisie",
+         "aide": "Ce que le règlement de consultation prévoit, repris tel "
+                 "quel. Une durée reconductible engage sur le total, pas sur "
+                 "la période initiale."},
+        {"cle": "signataire", "libelle": "Signataire et qualité (cadre C)",
+         "source": "fiche", "champ": "representant_nom"},
+        {"cle": "qualite", "libelle": "Qualité du signataire (cadre C)",
+         "source": "fiche", "champ": "representant_qualite"},
+        {"cle": "d_engagement", "source": "declaration",
+         "libelle": "Engagement du titulaire sur son offre (cadre B1)",
+         "engage": "contractuel",
+         "reprend": ("acte_engagement", 8, "s'engage")},
+    ],
+
+    # ── LA DÉCLARATION DE SOUS-TRAITANCE (DC4) ────────────────────────────
+    # PRESQUE TOUT Y EST « À SAISIR », ET C'EST LA VÉRITÉ DE CETTE PIÈCE. Un
+    # DC4 parle d'une AUTRE entreprise que la vôtre : ni votre fiche ni les
+    # pièces de l'acheteur ne portent le SIRET de votre sous-traitant, le
+    # montant de son contrat ou la durée de son intervention. Prétendre le
+    # contraire en pré-remplissant quoi que ce soit ici serait inventer.
+    #
+    # LA PREMIÈRE RUBRIQUE COMMANDE LA PIÈCE ENTIÈRE : tant qu'elle est vide,
+    # `remplir()` déclare le DC4 sans objet et ses rubriques ne comptent nulle
+    # part (voir `condition` sur la pièce, dans DOSSIER_OFFRE).
+    "dc4": [
+        {"cle": "sous_traitance",
+         "libelle": "Sous-traitance envisagée pour cette consultation — "
+                    "laquelle, et pour quelles prestations",
+         "source": "saisie",
+         "aide": "Tant que cette ligne est vide, le DC4 est réputé sans "
+                 "objet et rien de ce qui suit n'est compté comme manquant. "
+                 "UN FORMULAIRE PAR SOUS-TRAITANT : un DC4 qui en présente "
+                 "deux n'en présente aucun."},
+        {"cle": "acheteur", "libelle": "Identification de l'acheteur "
+         "(cadre A)", "source": "consultation", "releve": "acheteur"},
+        {"cle": "objet_marche", "libelle": "Objet du marché public (cadre B)",
+         "source": "consultation", "releve": "objet"},
+        {"cle": "lots", "libelle": "Lots concernés par cette déclaration "
+         "(cadre B)", "source": "consultation", "releve": "lots"},
+        {"cle": "nature_declaration",
+         "libelle": "Objet de la déclaration — annexe à l'offre, acte "
+                    "spécial après attribution, ou acte spécial modificatif "
+                    "(cadre C)",
+         "source": "saisie",
+         "aide": "Les trois ne se déposent pas au même moment et n'ont pas "
+                 "le même effet. Un acte spécial modificatif ANNULE ET "
+                 "REMPLACE la déclaration antérieure, qu'il faut donc "
+                 "dater."},
+        {"cle": "titulaire", "libelle": "Dénomination du soumissionnaire ou "
+         "du titulaire (cadre D)", "source": "fiche",
+         "champ": "raison_sociale"},
+        {"cle": "titulaire_forme", "libelle": "Forme juridique (cadre D)",
+         "source": "fiche", "champ": "forme_juridique"},
+        {"cle": "titulaire_siret", "libelle": "SIRET (cadre D)",
+         "source": "fiche", "champ": "siret"},
+        {"cle": "titulaire_adresse", "libelle": "Adresses postale et du "
+         "siège social (cadre D)", "source": "fiche", "champ": "adresse"},
+        {"cle": "titulaire_courriel", "libelle": "Adresse électronique "
+         "(cadre D)", "source": "fiche", "champ": "courriel"},
+        {"cle": "mandataire",
+         "libelle": "En groupement momentané, identification du mandataire "
+                    "(cadre D)",
+         "source": "saisie",
+         "aide": "Sans objet hors groupement. En groupement, c'est le membre "
+                 "qui sous-traite qui dépose ce DC4 — le mandataire est "
+                 "identifié, il ne se substitue pas à lui."},
+        {"cle": "sous_traitant",
+         "libelle": "Identification du sous-traitant — dénomination, "
+                    "adresses, SIRET, forme juridique, immatriculation "
+                    "(cadre E)",
+         "source": "saisie",
+         "aide": "Ce n'est PAS votre entreprise : rien dans votre fiche ne "
+                 "peut renseigner cette case, et rien dans le dossier de "
+                 "l'acheteur non plus. Elle se recopie sur le Kbis du "
+                 "sous-traitant."},
+        {"cle": "sous_traitant_pouvoir",
+         "libelle": "Personne(s) physique(s) ayant le pouvoir d'engager le "
+                    "sous-traitant (cadre E)",
+         "source": "saisie",
+         "aide": "En marché de défense ou de sécurité, le justificatif "
+                 "d'habilitation se JOINT. Pour les autres marchés, "
+                 "l'acheteur peut le demander : il vaut mieux l'avoir."},
+        {"cle": "prestations",
+         "libelle": "Nature des prestations sous-traitées (cadre F)",
+         "source": "saisie",
+         "aide": "Reprises telles qu'elles figurent au contrat de "
+                 "sous-traitance. Un libellé plus large ici que dans le "
+                 "contrat fait déclarer une sous-traitance qui n'est pas "
+                 "contractée ; plus étroit, il en cache une partie."},
+        {"cle": "donnees_personnelles",
+         "libelle": "Sous-traitance de traitement de données à caractère "
+                    "personnel — finalités, durée, catégories (cadre F)",
+         "source": "saisie",
+         "aide": "À remplir seulement si le sous-traitant traite des données "
+                 "personnelles. Le formulaire fait alors déclarer que le "
+                 "contrat intègre les clauses de l'article 28 du RGPD : "
+                 "cochez après avoir vérifié le contrat, pas avant."},
+        {"cle": "montant",
+         "libelle": "Montant des prestations sous-traitées — taux de TVA, "
+                    "montant HT et TTC, ou hors TVA en auto-liquidation "
+                    "(cadre G)",
+         "source": "saisie",
+         "aide": "Ce montant PLAFONNE le paiement direct : le sous-traitant "
+                 "ne sera pas payé directement au-delà, même s'il a exécuté "
+                 "davantage. Les travaux relevant du 2 nonies de "
+                 "l'article 283 du code général des impôts sont en "
+                 "auto-liquidation — la TVA est due par le titulaire."},
+        {"cle": "variation_prix",
+         "libelle": "Modalités de variation des prix des prestations "
+                    "sous-traitées (cadre G)",
+         "source": "saisie",
+         "aide": "C'est cette formule qui revalorise le plafond du paiement "
+                 "direct. Une case laissée vide sur un marché long fige le "
+                 "plafond à sa valeur du jour de la déclaration."},
+        {"cle": "paiement_direct",
+         "libelle": "Le sous-traitant remplit-il les conditions du paiement "
+                    "direct — oui ou non (cadre G)",
+         "source": "saisie",
+         "aide": "Le titulaire le DÉCLARE. Le paiement direct est un droit "
+                 "du sous-traitant au-delà du seuil fixé par le code de la "
+                 "commande publique ; répondre « non » à la légère le prive "
+                 "d'un droit et expose le titulaire."},
+        {"cle": "compte",
+         "libelle": "Compte à créditer et demande d'avance du sous-traitant "
+                    "(cadre H)",
+         "source": "saisie",
+         "aide": "Relevé d'identité bancaire ou postal JOINT — celui du "
+                 "sous-traitant, pas le vôtre."},
+        {"cle": "duree_sous_traitance",
+         "libelle": "Durée du contrat de sous-traitance, en mois (cadre I)",
+         "source": "saisie",
+         "aide": "En mois ENTIERS, arrondis au supérieur : le formulaire le "
+                 "précise lui-même (20 jours = 1 mois, 1 mois et 2 semaines "
+                 "= 2 mois)."},
+        {"cle": "capacites",
+         "libelle": "Capacités du sous-traitant — pièces et renseignements "
+                    "exigés par l'acheteur (cadre J)",
+         "source": "saisie",
+         "aide": "Inutile si ces renseignements figurent déjà au cadre H du "
+                 "DC2 — le formulaire le dit — sauf en marché de défense ou "
+                 "de sécurité, où ils sont toujours dus."},
+        {"cle": "cession_nantissement",
+         "libelle": "Cessions et nantissements de créances faisant obstacle "
+                    "au paiement direct (cadre L)",
+         "source": "saisie",
+         "aide": "À remplir quand cette déclaration est un ACTE SPÉCIAL. Le "
+                 "titulaire produit alors l'exemplaire unique ou le "
+                 "certificat de cessibilité, ou une mainlevée du "
+                 "bénéficiaire de la cession."},
+        {"cle": "d_exclusion_st", "source": "declaration",
+         "libelle": "Déclaration sur l'honneur du SOUS-TRAITANT — absence de "
+                    "cas d'exclusion (cadre K1)",
+         "engage": "penal",
+         "reprend": ("dc4", 8, "declare sur l'honneur")},
+    ],
 }
 
 STATUTS = {
@@ -2132,6 +2506,35 @@ STATUTS = {
     "non_trouve": "Non relevé dans le dossier",
     "invalide": "À corriger",
 }
+
+
+# ── LES FAMILLES DE LA RÉPONSE ENTIÈRE, CONSTRUITES ET NON RECOPIÉES ───────
+# `remplir()` couvre les deux dossiers, et les deux tables de familles ont une
+# CLÉ EN COMMUN : « technique » désigne « Pièces techniques et de capacité »
+# côté candidature et « Mémoire technique » côté offre. Les fusionner
+# naïvement ferait ranger le mémoire technique sous le libellé des pièces de
+# capacité, ou l'inverse, selon l'ordre du dictionnaire — un menu qui range
+# faux sans que rien ne le signale.
+#
+# LA CLÉ PORTE DONC SON DOSSIER, et le libellé aussi. Cette table est
+# CONSTRUITE à partir des deux autres : une famille ajoutée d'un côté ou de
+# l'autre y entre seule, et `_verifier()` refuse une pièce dont la famille n'y
+# figure pas.
+
+def _familles_reponse():
+    t = {}
+    for dossier, source, suffixe in (
+            ("candidature", FAMILLES_PIECE, "dossier de candidature"),
+            ("offre", FAMILLES_OFFRE, "dossier d'offre")):
+        for cle, valeur in source.items():
+            f = dict(valeur)
+            f["dossier"] = dossier
+            f["nom"] = "%s — %s" % (valeur["nom"], suffixe)
+            t["%s:%s" % (dossier, cle)] = f
+    return t
+
+
+FAMILLES_REPONSE = _familles_reponse()
 
 
 def _index_releves(analyse):
@@ -2159,19 +2562,33 @@ def _index_releves(analyse):
 
 
 def remplir(fiche=None, analyse=None, saisies=None, groupement=False):
-    """Chaque pièce, rubrique par rubrique, avec la valeur ET son origine.
+    """Chaque pièce des DEUX dossiers, rubrique par rubrique, avec la valeur
+    ET son origine.
 
     RIEN N'EST INVENTÉ, ET RIEN N'EST DÉCLARÉ. Une rubrique dont la valeur
     n'existe ni dans la fiche ni dans le dossier ressort VIDE, avec ce qui
     manque et où le trouver. Les déclarations sur l'honneur ressortent au
     statut `a_declarer` avec le texte exact de ce qui est affirmé.
+
+    LES QUATRE FORMULAIRES DE L'ÉTAT PASSENT PAR ICI : DC1 et DC2 pour la
+    candidature, ATTRI1 (acte d'engagement) et DC4 (déclaration de
+    sous-traitance) pour l'offre. Ils redemandent les mêmes informations —
+    acheteur, objet, lots, dénomination, SIRET, signataire — et ce sont les
+    recopies d'un formulaire à l'autre qui produisent les incohérences dont
+    les offres meurent.
+
+    CE QUI SORT D'ICI N'EST PAS UN FORMULAIRE. C'est un report : pour chaque
+    rubrique, la valeur, SON ORIGINE (quelle pièce, quel passage, à quel
+    endroit du document) et son état. Les formulaires officiels ont leur
+    version, leur format et leurs cases ; un fac-similé produit ici serait
+    refusé — ou pire, accepté et faux.
     """
     fiche = fiche or {}
     saisies = saisies or {}
     idx = _index_releves(analyse)
     calc = derive(fiche)
     par_champ = {c["cle"]: c for c in CHAMPS_CANDIDAT}
-    par_piece = {p["cle"]: p for p in DOSSIER_CANDIDATURE}
+    par_piece = {p["cle"]: p for p in DOSSIER_CANDIDATURE + DOSSIER_OFFRE}
 
     # LE DOSSIER ENTIER, ET PAS SEULEMENT CE QUE CE MODULE SAIT REMPLIR.
     # La version précédente n'affichait que les cinq pièces à rubriques : les
@@ -2179,10 +2596,29 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False):
     # BLOQUANTES, les pouvoirs et les références. Un dossier de candidature
     # qu'on croit complet parce que l'écran ne montre que ce qu'il sait faire
     # est pire qu'un écran vide.
+    #
+    # ET LES DEUX DOSSIERS, PAS SEULEMENT LA CANDIDATURE. Répondre à une
+    # consultation, c'est déposer les deux : l'acte d'engagement (ATTRI1) et
+    # la déclaration de sous-traitance (DC4) portent EXACTEMENT les mêmes
+    # informations que le DC1 et le DC2 — acheteur, objet, lots, dénomination,
+    # SIRET, signataire — et ce sont les recopies d'une pièce à l'autre qui
+    # produisent les incohérences dont les offres meurent. Les remplir dans un
+    # second mécanisme aurait donné deux définitions de « rempli », qui
+    # divergeraient le jour où l'une des deux serait corrigée.
+    a_remplir = ([("candidature", b, _groupement) for b in DOSSIER_CANDIDATURE]
+                 + [("offre", b, _groupement_offre) for b in DOSSIER_OFFRE])
     pieces = []
-    for base in DOSSIER_CANDIDATURE:
+    for dossier, base, groupe in a_remplir:
         cle_piece = base["cle"]
         rubriques = RUBRIQUES.get(cle_piece, [])
+        # UNE PIÈCE CONDITIONNELLE DONT LA CONDITION N'EST PAS RENSEIGNÉE EST
+        # SANS OBJET, et ses rubriques ne comptent nulle part. Le DC4 en pose
+        # vingt et une : les faire entrer au décompte chez un candidat qui ne
+        # sous-traite rien afficherait vingt et un manques que personne n'a à
+        # combler. Un chiffre faux se croit ; un chiffre absent se cherche.
+        cond = base.get("condition")
+        sans_objet = bool(cond) and not str(
+            saisies.get("%s.%s" % (cle_piece, cond)) or "").strip()
         lignes = []
         for r in rubriques:
             l = {"cle": r["cle"], "libelle": r["libelle"],
@@ -2190,12 +2626,17 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False):
                  "citation": None, "divergences": [], "aide": r.get("aide"),
                  "message": None}
             if r["source"] == "declaration":
-                p_src, i = r["reprend"]
+                p_src, i, _temoin = r["reprend"]
                 l["texte"] = par_piece[p_src]["contient"][i]
                 l["statut"] = "a_declarer"
-                l["message"] = ("Cette affirmation engage pénalement celui qui "
-                                "la signe. Elle n'est pas pré-remplie : lisez-la, "
-                                "vérifiez-la, puis assumez-la.")
+                # CE QU'ELLE ENGAGE VIENT DE LA RUBRIQUE, JAMAIS D'ICI. Le
+                # message était écrit en dur et parlait de sanction pénale :
+                # exact pour une déclaration d'absence d'interdiction de
+                # soumissionner, FAUX pour l'engagement de l'acte
+                # d'engagement, qui n'affirme aucun fait et lie au contrat.
+                l["engage"] = r["engage"]
+                l["engage_nom"] = ENGAGEMENTS[r["engage"]]["nom"]
+                l["message"] = ENGAGEMENTS[r["engage"]]["message"]
             elif r["source"] == "fiche":
                 champ = par_champ[r["champ"]]
                 v = str(fiche.get(r["champ"]) or "").strip()
@@ -2259,13 +2700,29 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False):
         compte = {k: sum(1 for l in lignes if l["statut"] == k)
                   for k in STATUTS}
         v = voie(cle_piece, base["nature"])
-        mesurable = v == "remplir"
+        mesurable = v == "remplir" and not sans_objet
+        famille = "%s:%s" % (dossier, base["famille"])
         pieces.append({
             "cle": cle_piece, "nom": base["nom"], "nature": base["nature"],
             "nature_nom": NATURES_PIECE[base["nature"]]["nom"],
-            "famille": base["famille"],
-            "famille_nom": FAMILLES_PIECE[base["famille"]]["nom"],
+            # LE DOSSIER FAIT PARTIE DE L'IDENTITÉ DE LA FAMILLE. « technique »
+            # ne désigne pas la même chose des deux côtés — les pièces de
+            # capacité en candidature, le mémoire technique en offre — et un
+            # menu qui rangerait les deux sous un seul libellé rangerait faux.
+            "dossier": dossier,
+            "famille": famille,
+            "famille_nom": FAMILLES_REPONSE[famille]["nom"],
+            # LA FAMILLE D'INFOBULLES SUIT LE DOSSIER, elle aussi : le
+            # glossaire tient `piece_candidature` et `piece_offre` séparés, et
+            # une page qui demanderait la mauvaise n'afficherait rien —
+            # silencieusement.
+            "glossaire": "piece_%s" % dossier,
             "voie": v, "voie_nom": VOIES[v]["nom"], "voie_aide": VOIES[v]["aide"],
+            # CE QUI EST SANS OBJET LE DIT, ET DIT POURQUOI. Une pièce
+            # conditionnelle muette ressemblerait à une pièce oubliée.
+            "sans_objet": sans_objet,
+            "sans_objet_aide": base.get("sans_objet") if sans_objet else None,
+            "conditionnelle": bool(cond),
             # CE QU'UNE PIÈCE NON REMPLISSABLE DOIT QUAND MÊME DIRE : ce
             # qu'elle contient, qui la produit, et son délai. Sans cela, le
             # menu la nommerait et le lecteur ne trouverait rien derrière.
@@ -2274,7 +2731,7 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False):
             "delai": base.get("delai"),
             "bloquant": base["bloquant"], "piege": base["piege"],
             "rubriques": lignes, "compte": compte, "total": len(lignes),
-            "en_groupement": _groupement(base) if groupement else None,
+            "en_groupement": groupe(base) if groupement else None,
             # DEUX NOTIONS, ET LES CONFONDRE ÉTAIT UN MENSONGE. « Complète »
             # veut dire : plus rien ne manque DE CE QUE CE MODULE PEUT
             # APPORTER. « Prête » veut dire : et il ne reste rien à déclarer.
@@ -2299,6 +2756,12 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False):
         })
 
     mesurables = [p for p in pieces if p["mesurable"]]
+    # LES RUBRIQUES D'UNE PIÈCE SANS OBJET NE SONT COMPTÉES NULLE PART. Elles
+    # restent affichées — pour qu'on voie ce qu'un DC4 demande avant de savoir
+    # si l'on en dépose un — mais elles n'entrent dans aucun total : « 21 à
+    # saisir » chez un candidat qui ne sous-traite pas serait un manque
+    # inventé, et un manque inventé fait chercher là où il n'y a rien.
+    comptees = [p for p in pieces if not p["sans_objet"]]
     manque_bloquant = [p["nom"] for p in mesurables
                        if p["bloquant"] and not p["complet"]]
     # LES BLOQUANTES QU'ON NE PEUT PAS REMPLIR ICI SONT DITES À PART, et c'est
@@ -2307,7 +2770,8 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False):
     # aucun moyen de les produire. Les taire parce qu'il ne sait pas les faire
     # serait la pire des omissions.
     a_produire = [{"nom": p["nom"], "voie": p["voie"], "voie_nom": p["voie_nom"],
-                   "delai": p["delai"], "famille": p["famille"]}
+                   "delai": p["delai"], "famille": p["famille"],
+                   "dossier": p["dossier"]}
                   for p in pieces if p["bloquant"] and not p["mesurable"]]
     return {
         "version": VERSION,
@@ -2316,22 +2780,27 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False):
         "champs": CHAMPS_CANDIDAT,
         "groupes": GROUPES_FICHE,
         "etat": {
-            "rubriques": sum(p["total"] for p in pieces),
-            "remplies": sum(p["compte"]["rempli"] for p in pieces),
-            "a_saisir": sum(p["compte"]["a_saisir"] for p in pieces),
-            "a_declarer": sum(p["compte"]["a_declarer"] for p in pieces),
-            "non_trouvees": sum(p["compte"]["non_trouve"] for p in pieces),
-            "invalides": sum(p["compte"]["invalide"] for p in pieces),
+            "rubriques": sum(p["total"] for p in comptees),
+            "remplies": sum(p["compte"]["rempli"] for p in comptees),
+            "a_saisir": sum(p["compte"]["a_saisir"] for p in comptees),
+            "a_declarer": sum(p["compte"]["a_declarer"] for p in comptees),
+            "non_trouvees": sum(p["compte"]["non_trouve"] for p in comptees),
+            "invalides": sum(p["compte"]["invalide"] for p in comptees),
             "pieces_completes": sum(1 for p in mesurables if p["complet"]),
             "pieces_pretes": sum(1 for p in mesurables if p["pret"]),
             "pieces_a_signer": sum(1 for p in mesurables
                                    if p["complet"] and p["porte_declaration"]),
             "pieces": len(pieces),
             "mesurables": len(mesurables),
+            "sans_objet": [p["nom"] for p in pieces if p["sans_objet"]],
+            "candidature": sum(1 for p in pieces
+                               if p["dossier"] == "candidature"),
+            "offre": sum(1 for p in pieces if p["dossier"] == "offre"),
             "bloquantes_incompletes": manque_bloquant,
             "bloquantes_a_produire": a_produire,
         },
-        "familles": FAMILLES_PIECE,
+        "familles": FAMILLES_REPONSE,
+        "engagements": ENGAGEMENTS,
         "voies": VOIES,
         "note": NOTE_REMPLISSAGE,
         "sans_dossier": not (analyse and analyse.get("pieces")),
@@ -2339,9 +2808,14 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False):
 
 
 NOTE_REMPLISSAGE = (
-    "CE MODULE RECOPIE, IL NE DÉCLARE PAS. Il porte dans chaque pièce ce qui "
+    "CE MODULE RECOPIE, IL NE DÉCLARE PAS ET IL NE SIGNE RIEN. Il porte dans "
+    "chaque pièce des deux dossiers — candidature ET offre — ce qui "
     "est déjà écrit ailleurs — votre fiche, ou le dossier de consultation que "
-    "vous venez de déposer — et il dit pour chaque valeur d'où elle vient. Les "
+    "vous venez de déposer — et il dit pour chaque valeur d'où elle vient. Il "
+    "ne produit AUCUN formulaire : les DC1, DC2, DC4 et ATTRI1 ont leur "
+    "version, leur format et leurs cases, et un fac-similé produit ici serait "
+    "refusé — ou pire, accepté et faux. Ce report se pose À CÔTÉ d'eux, pour "
+    "être recopié en le vérifiant. Les "
     "déclarations sur l'honneur ne sont JAMAIS pré-remplies : leur fausseté "
     "est sanctionnée pénalement, et une case cochée par un programme est une "
     "déclaration que personne n'a faite. Une pièce dite « prête » est une "
@@ -2369,7 +2843,7 @@ def markdown_remplissage(r):
     que dans la page : le document circule, et il se signerait sans être lu.
     """
     e = r["etat"]
-    L = ["# Dossier de candidature — pièces préparées", ""]
+    L = ["# Réponse à consultation — pièces préparées", ""]
     L.append(r["note"])
     L.append("")
     L.append("## Où en est le dossier")
@@ -2382,8 +2856,16 @@ def markdown_remplissage(r):
              % e["non_trouvees"])
     L.append("| À déclarer et signer | %d |" % e["a_declarer"])
     L.append("| À corriger | %d |" % e["invalides"])
-    L.append("| Pièces sans rien à compléter | %d sur %d |"
-             % (e["pieces_completes"], e["pieces"]))
+    # SUR LES PIÈCES MESURABLES, PAS SUR TOUTES. « 0 sur 23 » comptait dans
+    # son dénominateur les pièces que ce module ne remplit pas — les pouvoirs,
+    # les attestations, le mémoire technique — et faisait donc lire vingt-trois
+    # manques là où il y en avait sept possibles. La page, elle, comptait déjà
+    # juste : les deux dénombrements disaient deux choses différentes du même
+    # dossier.
+    L.append("| Pièces remplissables sans rien à compléter | %d sur %d |"
+             % (e["pieces_completes"], e["mesurables"]))
+    L.append("| Pièces à écrire ou à obtenir ailleurs | %d |"
+             % (e["pieces"] - e["mesurables"]))
     L.append("| Dont il ne reste qu'à SIGNER | %d |" % e["pieces_a_signer"])
     L.append("")
     if e["bloquantes_incompletes"]:
@@ -2395,13 +2877,33 @@ def markdown_remplissage(r):
                  "rubriques qui viennent des pièces de l'acheteur — l'acheteur, "
                  "l'objet, la référence, les lots — sont donc vides.")
         L.append("")
+    if e["sans_objet"]:
+        L.append("**Sans objet pour cette consultation :** "
+                 + ", ".join(e["sans_objet"]) + ". Ces pièces sont détaillées "
+                 "plus bas, mais rien de ce qu'elles demandent n'est compté "
+                 "comme manquant.")
+        L.append("")
 
+    # LES DEUX DOSSIERS SE SUIVENT, ET ILS SE DISENT. Un document qui
+    # enchaînerait vingt-trois pièces sans dire où finit la candidature et où
+    # commence l'offre ferait déposer les unes pour les autres — elles ne se
+    # remettent ni au même moment ni, souvent, sur la même plateforme.
+    titres = {"candidature": "Dossier de candidature",
+              "offre": "Dossier d'offre"}
+    dossier_courant = None
     for p in r["pieces"]:
-        L.append("## %s" % p["nom"])
+        if p["dossier"] != dossier_courant:
+            dossier_courant = p["dossier"]
+            L.append("## %s" % titres[dossier_courant])
+            L.append("")
+        L.append("### %s" % p["nom"])
         L.append("")
         L.append("*%s%s*" % (p["nature_nom"],
                              " — pièce bloquante" if p["bloquant"] else ""))
         L.append("")
+        if p["sans_objet"]:
+            L.append("**Sans objet.** %s" % p["sans_objet_aide"])
+            L.append("")
         lignes = [l for l in p["rubriques"] if l["source"] != "declaration"]
         if lignes:
             L.append("| Rubrique | Valeur | Origine | État |")
@@ -2425,12 +2927,19 @@ def markdown_remplissage(r):
                 L.append("")
         decl = [l for l in p["rubriques"] if l["source"] == "declaration"]
         if decl:
-            L.append("### Déclarations — à lire, à vérifier, puis à signer")
+            L.append("#### Déclarations — à lire, à vérifier, puis à signer")
             L.append("")
             for l in decl:
-                L.append("**%s**" % l["libelle"])
+                # CE QU'ELLE ENGAGE EST DIT AVEC ELLE. Une déclaration
+                # d'absence d'interdiction de soumissionner et l'engagement
+                # d'un acte d'engagement ne se signent pas dans le même
+                # risque : la première est un délit si elle est fausse, le
+                # second lie au prix et aux pièces visées par renvoi.
+                L.append("**%s** — *%s*" % (l["libelle"], l["engage_nom"]))
                 L.append("")
                 L.append("> " + l["texte"])
+                L.append("")
+                L.append(l["message"])
                 L.append("")
             L.append("Nom et qualité du signataire : "
                      "_______________________________________")
@@ -2517,12 +3026,15 @@ def _verifier():
     # ne plantait — c'est bien le problème.
     par_releve = {r["cle"]: r for r in RELEVES}
     par_champ = {c["cle"] for c in CHAMPS_CANDIDAT}
-    par_piece = {p["cle"]: p for p in DOSSIER_CANDIDATURE}
+    # LES DEUX DOSSIERS, parce que `remplir()` couvre les deux : l'acte
+    # d'engagement et le DC4 ont des rubriques, et une table qui ne
+    # connaîtrait que la candidature les déclarerait orphelines au chargement.
+    par_piece = {p["cle"]: p for p in DOSSIER_CANDIDATURE + DOSSIER_OFFRE}
     calculs = set(derive({"siret": "80295478500019"}))
     for cle_piece, rubriques in RUBRIQUES.items():
         if cle_piece not in par_piece:
-            fautes.append("rubriques %s : aucune pièce de candidature"
-                          % cle_piece)
+            fautes.append("rubriques %s : aucune pièce, ni au dossier de "
+                          "candidature ni au dossier d'offre" % cle_piece)
             continue
         vues_r = set()
         for r in rubriques:
@@ -2551,7 +3063,13 @@ def _verifier():
                     fautes.append("%s/%s : calcul inconnu (%s)"
                                   % (cle_piece, r["cle"], r.get("calcul")))
             elif r["source"] == "declaration":
-                src, i = r.get("reprend", (None, None))
+                if r.get("engage") not in ENGAGEMENTS:
+                    fautes.append(
+                        "%s/%s : nature d'engagement inconnue (%s) — le module "
+                        "servirait l'avertissement pénal sur une clause qui "
+                        "n'affirme aucun fait, ou l'inverse"
+                        % (cle_piece, r["cle"], r.get("engage")))
+                src, i, temoin = r.get("reprend", (None, None, None))
                 contient = (par_piece.get(src) or {}).get("contient") or []
                 # `(i or -1)` traitait l'indice 0 comme absent : 0 est faux.
                 if not (isinstance(i, int) and 0 <= i < len(contient)):
@@ -2559,6 +3077,28 @@ def _verifier():
                         "%s/%s : la déclaration reprise (%s, %s) n'existe pas "
                         "— le texte de ce qui est affirmé serait réécrit à côté"
                         % (cle_piece, r["cle"], src, i))
+                # UN INDICE VALIDE N'EST PAS UN INDICE JUSTE, et c'est la
+                # faute que la borne ne voit pas. Une ligne insérée dans
+                # `contient` décale toutes les suivantes : l'indice reste dans
+                # les bornes, aucune erreur ne se lève, et le module fait
+                # signer « Identification de l'acheteur » à la place d'une
+                # déclaration sur l'honneur.
+                #
+                # CHAQUE `reprend` PORTE DONC SON TÉMOIN — un fragment du
+                # texte visé — et le décalage se voit au chargement. Une
+                # première rédaction cherchait à la place les mots « déclare »
+                # ou « s'engage » dans la ligne reprise : les déclarations du
+                # formulaire sont rédigées en groupes nominaux (« L'absence
+                # des interdictions de soumissionner obligatoires… »), si bien
+                # que la règle refusait QUATRE lignes justes. Une heuristique
+                # sur la tournure mesure la tournure, pas la justesse.
+                elif _sans_accent(temoin or "") not in _sans_accent(contient[i]):
+                    fautes.append(
+                        "%s/%s : la ligne reprise (%s, %d) ne contient pas son "
+                        "témoin « %s » — l'indice a glissé et le texte signé "
+                        "ne serait plus celui qu'on croit : « %s »"
+                        % (cle_piece, r["cle"], src, i, temoin,
+                           contient[i][:70]))
             elif r["source"] != "saisie":
                 fautes.append("%s/%s : source inconnue (%s)"
                               % (cle_piece, r["cle"], r["source"]))
@@ -2592,6 +3132,38 @@ def _verifier():
             if not (d.get(champ) or "").strip():
                 fautes.append("famille d'offre %s : champ « %s » vide"
                               % (f, champ))
+
+    # ── LES DEUX DOSSIERS RÉUNIS : familles de la réponse, conditions ──────
+    # `remplir()` sert les deux dans une seule liste. Une famille absente de
+    # `FAMILLES_REPONSE` ferait lever au premier appel — chez un utilisateur,
+    # pas ici. Une condition qui ne désigne pas une vraie rubrique de saisie
+    # ferait pire : la pièce resterait sans objet POUR TOUJOURS, sans erreur,
+    # et ses rubriques ne compteraient jamais.
+    for dossier, liste in (("candidature", DOSSIER_CANDIDATURE),
+                           ("offre", DOSSIER_OFFRE)):
+        for p in liste:
+            f = "%s:%s" % (dossier, p.get("famille"))
+            if f not in FAMILLES_REPONSE:
+                fautes.append("pièce %s : famille absente des familles de la "
+                              "réponse (%s)" % (p["cle"], f))
+            cond = p.get("condition")
+            if cond is None:
+                continue
+            rub = {r["cle"]: r for r in RUBRIQUES.get(p["cle"], [])}
+            if cond not in rub:
+                fautes.append(
+                    "pièce %s : la condition « %s » ne désigne aucune de ses "
+                    "rubriques — la pièce serait sans objet pour toujours"
+                    % (p["cle"], cond))
+            elif rub[cond]["source"] != "saisie":
+                fautes.append(
+                    "pièce %s : la condition « %s » n'est pas une saisie (%s) "
+                    "— rien ne pourrait la lever" % (p["cle"], cond,
+                                                     rub[cond]["source"]))
+            if not (p.get("sans_objet") or "").strip():
+                fautes.append(
+                    "pièce %s : conditionnelle sans phrase « sans objet » — "
+                    "elle ressemblerait à une pièce oubliée" % p["cle"])
 
     return fautes
 

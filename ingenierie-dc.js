@@ -6507,8 +6507,16 @@ function messageDelai(e, defaut) {
     var z = $("#ig-ao-rempli");
     if (!z) return;
     var e = r.etat;
-    var h = '<h3 class="ig-tr-st">Les pièces, remplies de ce qui est déjà '
-      + "écrit ailleurs</h3>";
+    var h = '<h3 class="ig-tr-st">Les pièces des deux dossiers, remplies de '
+      + "ce qui est déjà écrit ailleurs</h3>"
+      /* CE QUE CE BLOC EST, ET CE QU'IL N'EST PAS. Il ne produit aucun
+         formulaire : les DC1, DC2, DC4 et ATTRI1 ont leur version, leur
+         format et leurs cases, et un fac-similé serait refusé — ou pire,
+         accepté et faux. Ce report se pose À CÔTÉ d'eux, chaque valeur avec
+         son origine, pour être recopié en le vérifiant. */
+      + '<p class="ig-ao-cq">Les quatre formulaires de l\'État — DC1, DC2, '
+      + "DC4, ATTRI1 — redemandent les mêmes informations. Ce report les "
+      + "rassemble avec, pour chacune, D'OÙ ELLE VIENT.</p>";
     if (r.sans_dossier) {
       h += '<p class="ig-ao-a ig-ao-a-attention">Aucun dossier de consultation '
         + "n\'a encore été analysé : les rubriques qui viennent des pièces de "
@@ -6553,13 +6561,24 @@ function messageDelai(e, defaut) {
       h += '<div class="ig-ao-cp' + (p.bloquant ? " ig-ao-cpb" : "")
         + (p.complet ? " ig-ao-cp-ok" : "") + '" data-doc="' + esc(p.cle)
         + '" data-fam="' + esc(p.famille) + '">'
-        + '<div class="ig-ao-cph"><b' + info("piece_candidature:" + p.cle) + ">"
+        /* LA FAMILLE D'INFOBULLES SUIT LE DOSSIER. Le glossaire tient
+           `piece_candidature` et `piece_offre` séparés : demander la mauvaise
+           n'affiche rien, et n'affiche rien SANS ERREUR. La clé vient donc du
+           module, elle ne se devine pas ici. */
+        + '<div class="ig-ao-cph"><b' + info(p.glossaire + ":" + p.cle) + ">"
         + esc(p.nom) + "</b>"
         + '<span class="ig-ao-cn">' + esc(p.nature_nom) + "</span>"
         + (p.bloquant ? '<span class="ig-ao-bl">bloquante</span>' : "")
         + '<span class="ig-ao-vo ig-ao-vo-' + esc(p.voie) + '">'
         + esc(p.voie_nom) + "</span>"
         + "</div>";
+      /* UNE PIÈCE SANS OBJET LE DIT, ET DIT POURQUOI. Muette, elle
+         ressemblerait à une pièce oubliée — et ses vingt-trois rubriques
+         vides, à autant de manques. */
+      if (p.sans_objet) {
+        h += '<p class="ig-ao-a ig-ao-a-attention">Sans objet — '
+          + esc(p.sans_objet_aide) + "</p>";
+      }
       /* UNE PIÈCE QUE CE MODULE NE REMPLIT PAS DOIT QUAND MÊME DIRE CE QU'ELLE
          CONTIENT. Sans cela, le menu la nommerait et le lecteur ne trouverait
          rien derrière — ce qui est pire que de ne pas l'avoir nommée. */
@@ -6602,7 +6621,14 @@ function messageDelai(e, defaut) {
             + "</b> dit : " + esc(d.valeur) + "</p>";
         });
         if (l.texte) {
-          h += '<blockquote class="ig-ao-dec">' + esc(l.texte) + "</blockquote>";
+          /* CE QU'ELLE ENGAGE EST DIT AVEC ELLE. Une déclaration d'absence
+             d'interdiction de soumissionner est un délit si elle est fausse ;
+             l'engagement d'un acte d'engagement n'affirme aucun fait et lie
+             au prix, à la durée et aux pièces visées par renvoi. Servir le
+             même avertissement sur les deux dirait une chose fausse. */
+          h += '<blockquote class="ig-ao-dec">'
+            + '<span class="ig-ao-cn">' + esc(l.engage_nom) + "</span>"
+            + esc(l.texte) + "</blockquote>";
         }
         if (l.message) h += '<p class="ig-ao-w">' + esc(l.message) + "</p>";
         if (l.aide) h += '<p class="ig-ao-w">' + esc(l.aide) + "</p>";

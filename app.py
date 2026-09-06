@@ -4666,7 +4666,14 @@ def api_datacenter_marche_candidature():
 @app.route("/api/datacenter/marche/remplir", methods=["POST"])
 @login_required
 def api_datacenter_marche_remplir():
-    """Les pièces de candidature remplies de ce qui est déjà écrit ailleurs.
+    """Les pièces des deux dossiers, remplies de ce qui est déjà écrit
+    ailleurs.
+
+    LES QUATRE FORMULAIRES DE L'ÉTAT PASSENT PAR ICI : DC1 et DC2 pour la
+    candidature, ATTRI1 (acte d'engagement) et DC4 (déclaration de
+    sous-traitance) pour l'offre. Ils redemandent les mêmes informations, et
+    ce sont les recopies d'un formulaire à l'autre qui produisent les
+    incohérences dont les offres meurent.
 
     POURQUOI CE CALCUL VIT AU SERVEUR ET PAS DANS LA PAGE. Le critère qui fait
     qu'une rubrique est « remplie », « à saisir » ou « à déclarer » est une
@@ -4705,13 +4712,13 @@ def api_datacenter_marche_remplir():
 @app.route("/api/datacenter/marche/export", methods=["POST"])
 @login_required
 def api_datacenter_marche_export():
-    """Le dossier de candidature préparé, en Word ou en PDF.
+    """La réponse préparée — candidature ET offre — en Word ou en PDF.
 
-    CE DOCUMENT NE REMPLACE PAS LES FORMULAIRES. Les DC1 et DC2 ont leur
-    version, leur format et leurs cases ; un fac-similé produit ici serait
-    refusé — ou pire, accepté et faux. Celui-ci se pose À CÔTÉ, rubrique par
-    rubrique, chaque valeur avec son origine, pour être recopié en le
-    vérifiant.
+    CE DOCUMENT NE REMPLACE PAS LES FORMULAIRES. Les DC1, DC2, DC4 et ATTRI1
+    ont leur version, leur format et leurs cases ; un fac-similé produit ici
+    serait refusé — ou pire, accepté et faux. Celui-ci se pose À CÔTÉ,
+    rubrique par rubrique, chaque valeur avec son origine, pour être recopié
+    en le vérifiant.
 
     LES DÉCLARATIONS EN SORTENT VIDES, avec le texte de ce qui est affirmé et
     une ligne de signature. Les pré-remplir dans un document EXPORTÉ serait pire
@@ -4734,8 +4741,8 @@ def api_datacenter_marche_export():
         app.logger.exception("remplissage à exporter")
         return jsonify(ok=False, error="calcul",
                        message="Le dossier n'a pas pu être établi."), 500
-    meta = {"label": "Dossier de candidature — pièces préparées",
-            "numero": "AO-CANDIDATURE",
+    meta = {"label": "Réponse à consultation — pièces préparées",
+            "numero": "AO-REPONSE",
             "phase": "Réponse à consultation",
             "indice": "01",
             "client": str(fiche.get("raison_sociale") or "")[:120],
@@ -4745,8 +4752,9 @@ def api_datacenter_marche_export():
             # de transparence cesserait de distinguer ce qui compte.
             "ia": False,
             "referentiel": "Composition de candidature CONSEILPREV v" + ao_dc.VERSION,
-            "perimetre": "%d rubriques · %d pièces"
-                         % (r["etat"]["rubriques"], r["etat"]["pieces"]),
+            "perimetre": "%d rubriques · %d pièces (%d candidature, %d offre)"
+                         % (r["etat"]["rubriques"], r["etat"]["pieces"],
+                            r["etat"]["candidature"], r["etat"]["offre"]),
             "date": time.strftime("%d/%m/%Y"),
             "sources": [{"title": "Fiche du candidat saisie par le client",
                          "theme": "report"},
@@ -4769,7 +4777,7 @@ def api_datacenter_marche_export():
                       cible="%d rubriques" % r["etat"]["rubriques"],
                       detail="%s · %d remplies" % (fmt, r["etat"]["remplies"]))
     return send_file(io.BytesIO(blob),
-                     download_name="dossier-candidature.%s" % fmt,
+                     download_name="reponse-consultation.%s" % fmt,
                      as_attachment=True, mimetype=mimetype)
 
 
