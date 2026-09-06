@@ -210,9 +210,38 @@ def test_les_points_ouverts_ne_sont_plus_sous_les_yeux_du_client():
                ("%s points restent non confrontés" % mot) in doc, (
             "%d point(s) ne sont pas confrontés au corpus, et le document ne le "
             "dit pas en toutes lettres" % restants)
+    # UN LIEN QUELQUE PART NE PROUVAIT RIEN. La règle cherchait
+    # « librejustice.fr/decision/ » DANS TOUT LE DOCUMENT : le premier point
+    # confronté en fournissait un, et les sept suivants pouvaient se déclarer
+    # confrontés sans en citer aucun. On exige donc un lien SUR LA LIGNE du
+    # point, ou dans la section qui porte son nom.
     for cle in confrontes:
-        assert "librejustice.fr/decision/" in doc, (
-            "le point « %s » se dit confronté sans citer de décision" % cle)
+        # LE TITRE DE SECTION PORTE LA CLÉ, PAS FORCÉMENT EN TÊTE : le premier
+        # point s'intitule « Ce que le corpus a répondu — `retractation` ».
+        section = re.search(r"^##[^\n]*`%s`[^\n]*\n.*?(?=\n#{1,2} |\Z)"
+                            % re.escape(cle), doc, re.S | re.M)
+        ligne = next(l for l in doc.splitlines()
+                     if l.startswith("| `%s`" % cle))
+        porte = ("librejustice.fr/decision/" in ligne
+                 or (section and "librejustice.fr/decision/" in section.group(0))
+                 or "AUCUNE DÉCISION TROUVÉE" in ligne)
+        assert porte, (
+            "le point « %s » se dit confronté sans citer de décision ni dire "
+            "qu'il n'en a trouvé aucune" % cle)
+
+    # ET LE DEGRÉ EST DIT. Une décision LUE et une décision seulement REPÉRÉE
+    # ne valent pas la même chose : un aperçu de recherche peut citer
+    # l'argument d'une partie et non le jugement. Confondre les deux ferait
+    # opposer en séance une position que personne n'a vérifiée.
+    for cle in confrontes:
+        ligne = next(l for l in doc.splitlines()
+                     if l.startswith("| `%s`" % cle))
+        assert ("LUE" in ligne or "repérées, non lues" in ligne
+                or "repérée, non lue" in ligne
+                or "AUCUNE DÉCISION TROUVÉE" in ligne
+                or "voir ci-dessus" in ligne), (
+            "le point « %s » ne dit pas si la décision a été LUE ou seulement "
+            "repérée" % cle)
 
 
 def test_la_version_affichee_est_celle_que_le_serveur_conserve():

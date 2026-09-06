@@ -10,12 +10,22 @@ confrontation au corpus de jurisprudence. Une règle d'essai vérifie que les hu
 clés de ce document, les marques `<!-- verif:… -->` de `cgv.html` et la grille se
 recouvrent exactement : aucune des trois ne peut bouger seule.
 
-> **Le corpus a été rouvert le 1er septembre 2026, et le premier point y est
-> passé.** Les serveurs juridiques avaient été refusés puis déconnectés de la
-> session où ces conditions ont été rédigées ; ils ont répondu depuis. Le point
-> `retractation` — le plus exposé — a été confronté : voir « Ce que le corpus a
-> répondu » plus bas. **Les sept autres restent non confrontés**, et la mise en
-> vigueur ne les a pas tranchés.
+> **Les huit points sont passés au corpus (6 septembre 2026).** Ce qu'il a
+> répondu est consigné ci-dessous, point par point.
+>
+> **DEUX DEGRÉS, ET ILS NE VALENT PAS LA MÊME CHOSE.** Une décision *lue
+> intégralement* est citée avec son motif ; une décision seulement *repérée*
+> est nommée sans être citée. Les aperçus rendus par la recherche ne sont pas
+> la position de la cour — ils sont écrits par une machine, ou tirés du passage
+> où les mots-clés sont tombés, qui peut être l'argument d'une partie et non le
+> jugement. **Rien ici n'est opposable tant que la décision n'est pas ouverte**,
+> et le degré est dit à chaque fois.
+>
+> **Deux points ont donné un résultat qui change quelque chose** : `plafond`
+> (l'article 10 réunit les trois facteurs qu'une cour a retenus pour écarter une
+> clause identique) et `competence` (une cour d'appel juge que le renvoi de
+> l'article L221-3 **ne porte pas** sur les clauses abusives — ce que l'article
+> 15 supposait).
 >
 >     python3 outils/verifier_cgv.py
 
@@ -146,13 +156,13 @@ Les clés sont celles de `outils/verifier_cgv.py:POINTS` et des marques dans
 | clé | article | ce qui se joue |
 |---|---|---|
 | `retractation` | 5 | **CONFRONTÉ le 1er septembre 2026 — voir ci-dessus.** CJUE C-234/25 : un service accessible par application, à l'offre dynamique, n'est pas un « contenu numérique ». La renonciation perd son fondement pour les acheteurs relevant de L221-3. |
-| `plafond` | 10 | Le plafond au montant payé laisse-t-il subsister l'obligation essentielle ? |
-| `adhesion` | 11 | Déséquilibre significatif dans un contrat non négocié, entre professionnels. |
-| `abusives` | 9 | Suspension, absence de remboursement, modification unilatérale — désormais sous l'angle des articles 1171 C. civ. et L442-1 C. com., et non plus R212-1. |
-| `competence` | 15 | L'attribution à Paris tient-elle face à un acheteur relevant de L221-3 ? |
-| `disponibilite` | 7 | Moyens ou résultat : la qualification ne s'impose pas au juge. |
-| `extraction` | 8 | L'interdiction suppose un investissement substantiel dans la base (art. L342-1 CPI). |
-| `garantie` | 6 | Régime de 2021 : jurisprudence rare. Une liste vide sera une **réponse**, pas une validation. |
+| `plafond` | 10 | **CONFRONTÉ le 6 septembre 2026 — décision LUE.** CA Limoges 21/00432 : clause écartée (art. 1170) sur trois facteurs, dont deux acquis à l'article 10. Deux décisions en sens contraire repérées, non lues. |
+| `adhesion` | 11 | **CONFRONTÉ le 6 septembre 2026 — décisions repérées, non lues.** Le corpus juge des CLAUSES (art. 1171), jamais la qualification d'adhésion en elle-même. CA Versailles 22/03581 dit comment se mesure le « significatif ». |
+| `abusives` | 9 | **CONFRONTÉ le 6 septembre 2026 — décisions repérées, non lues.** TJ Paris 21/08725 : la clôture du compte est admise, la conservation du solde est abusive. Miroir direct de l'article 9. |
+| `competence` | 15 | **CONFRONTÉ le 6 septembre 2026 — décision LUE.** CA Paris 25/19484 : le renvoi de L221-3 NE PORTE PAS sur les clauses abusives — ce que l'article 15 supposait. La clause tombe sur l'art. 48 CPC, donc sur l'écran de caisse. |
+| `disponibilite` | 7 | **CONFRONTÉ le 6 septembre 2026 — décisions repérées, non lues.** L'obligation de moyens est retenue (Cass. com. 19-26.100), mais elle est INDIFFÉRENTE quand la faute est une erreur d'exécution et non l'objectif manqué. |
+| `extraction` | 8 | **CONFRONTÉ le 6 septembre 2026 — décisions repérées, non lues.** TJ Paris 21/09261 : extraction substantielle établie, protection REFUSÉE faute d'atteinte aux investissements. L'investissement se prouve, il ne se réclame pas. |
+| `garantie` | 6 | **CONFRONTÉ le 6 septembre 2026 — AUCUNE DÉCISION TROUVÉE.** Le corpus ne rend rien qui applique L224-25-12 s. à un service numérique. C'est une réponse, pas une validation : l'article 6 est écrit sur un texte non éprouvé. |
 
 ---
 
@@ -165,3 +175,184 @@ Les clés sont celles de `outils/verifier_cgv.py:POINTS` et des marques dans
 - **Les conditions de Sentinel** (`conseilprev/cgv.html`) décrivent une autre
   offre — abonnements, SEPA, prorata, résiliation — et mériteraient leur propre
   confrontation. Elles ne sont pas touchées.
+
+---
+
+# Ce que le corpus a répondu — les sept autres points (6 septembre 2026)
+
+## `plafond` — article 10, plafond de responsabilité · **LU INTÉGRALEMENT**
+
+**Cour d'appel de Limoges, chambre économique et sociale, 15 juin 2022, 21/00432** —
+<https://librejustice.fr/decision/j88xVqSRtq1P>
+
+Prestataire informatique, perte des données d'un client lors d'une migration.
+La cour déclare **non écrites** les clauses limitatives, au visa de l'article
+1170 du code civil, et retient **trois facteurs** :
+
+> « les clauses limitatives d'indemnisation en cause figurent dans les
+> conditions générales des contrats, **non négociées** […] et **non
+> négociables**, s'agissant de contrats d'adhésion. Par ailleurs ces plafonds
+> d'indemnisation, qui **ne trouvent aucune contrepartie particulière** […]
+> s'appliquent **à toutes causes de préjudices confondues** […] Or il s'agit
+> d'une **indemnisation dérisoire** »
+
+Et, sur l'argument que le vendeur serait tenté d'opposer :
+
+> « le caractère dérisoire de l'indemnisation **ne s'apprécie pas à l'aune du
+> préjudice potentiellement le plus extrême** »
+
+**Ce que cela dit de l'article 10.** Les deux premiers facteurs lui sont
+acquis : des conditions générales publiées sur un site sont par construction
+non négociées, et le plafond n'a aucune contrepartie. Le troisième est moins
+défavorable — le plafond de CONSEILPREV est « le montant effectivement payé au
+titre de la commande en cause », plus étroit que les six mois de redevances de
+l'espèce — mais reste un plafond global. La réserve déjà écrite à l'article 10
+(« cette limitation ne joue pas lorsqu'elle priverait de sa substance
+l'obligation essentielle ») est donc **la bonne réserve** ; ce que la décision
+apprend, c'est qu'elle sera lue par un juge et non par le rédacteur.
+
+**Deux décisions en sens contraire, REPÉRÉES et non lues** — elles montrent
+qu'un plafond peut tenir, et il faut les ouvrir avant de conclure :
+- Cour de cassation, com., 29 juin 2010, 09-11.841 (Faurecia / Oracle),
+  **publié au bulletin** — <https://librejustice.fr/decision/UiUYEDBsvT__>
+- Cour d'appel de Douai, 24 avril 2025, 23/00858 (incendie du centre de données
+  OVH) — <https://librejustice.fr/decision/cnbUnskzeTMv>
+
+---
+
+## `competence` — article 15, juridiction · **LU INTÉGRALEMENT**
+
+**Cour d'appel de Paris, pôle 5 ch. 11, 26 juin 2026, 25/19484** —
+<https://librejustice.fr/decision/W7TkevKXwF76>
+
+**CE POINT CONTREDIT UNE HYPOTHÈSE DE L'ARTICLE 15.** Une SARL de moins de cinq
+salariés invoquait l'article L221-3 pour se prévaloir de la présomption de
+clause abusive de l'article R212-1 1°. La cour écarte le raisonnement :
+
+> « la présomption des clauses abusives irréfragablement acquise en vertu de
+> l'article R. 212-1 1° **n'entre pas dans le champ d'application de l'article
+> L. 221-3** limité aux dispositions des sections 2, 3, 6 du chapitre relatif
+> aux "Contrats conclus à distance et hors établissement" »
+
+Autrement dit : le renvoi de L221-3 porte sur les règles des contrats à
+distance — information précontractuelle, rétractation — **pas sur le régime
+des clauses abusives**. L'article 15 s'ancre sur R212-2 en supposant qu'il
+protège le professionnel de L221-3 ; cette cour dit le contraire.
+
+**La clause est pourtant tombée — sur un autre fondement, et il est
+opérationnel :** l'article 48 du code de procédure civile, faute d'être « très
+apparente ».
+
+> « l'accumulation en petits caractères ne permet pas de distinguer de manière
+> apparente la clause […] la procédure de cette signature n'est pas décrite, ce
+> dont il résulte qu'il ne peut non plus être apprécié dans quelles conditions
+> la clause est apparue sur écran électronique »
+
+**Ce que cela commande.** L'opposabilité de l'article 15 à un client
+professionnel se joue **à l'écran de la caisse**, pas dans la rédaction : ce qui
+est montré au moment de l'acceptation, et ce que le service peut prouver avoir
+montré. C'est une question d'interface et de journal, pas de clause.
+
+---
+
+## `abusives` — articles 7, 9 et 14 · **REPÉRÉES, non lues**
+
+- **Tribunal judiciaire de Paris, 4 décembre 2025, 21/08725** (opérateur de
+  paris en ligne) — <https://librejustice.fr/decision/84gSQXk_2vPA> — la
+  clôture du compte pour fraude est admise, mais la clause permettant de
+  **conserver le solde** est écartée comme abusive et le solde restitué. C'est
+  le miroir de l'article 9 (non-remboursement en cas de suspension).
+- **Cour d'appel de Grenoble, 26 mars 2026, 24/00805** —
+  <https://librejustice.fr/decision/QsI4gi0sT05Z> — durée et résiliation
+  anticipée jugées créer un déséquilibre significatif (art. 1171).
+- **Cour d'appel de Versailles, 16 janvier 2024, 22/03581** —
+  <https://librejustice.fr/decision/V_fegUgc8OwO> — **en sens inverse** : un
+  déséquilibre existe mais n'est pas « significatif au regard de l'économie
+  générale du contrat ». À ouvrir en premier : c'est la décision qui dit
+  comment le seuil se mesure.
+
+---
+
+## `adhesion` — articles 8 à 11 · **REPÉRÉES, non lues**
+
+Le corpus de l'article 1171 est le même que ci-dessus :
+
+- **Cour d'appel de Versailles, 16 janvier 2024, 22/03581** —
+  <https://librejustice.fr/decision/V_fegUgc8OwO>
+- **Cour d'appel de Grenoble, 26 mars 2026, 24/00805** —
+  <https://librejustice.fr/decision/QsI4gi0sT05Z>
+- **Cour d'appel de Limoges, 15 juin 2022, 21/00432** —
+  <https://librejustice.fr/decision/j88xVqSRtq1P> (celle-là a été lue)
+
+Rien n'a été trouvé qui traite d'un contrat d'adhésion de service en ligne **en
+tant que tel** ; ce qui se juge est toujours une clause précise, pas la
+qualification d'adhésion. C'est un enseignement en soi : l'article 1110 sert de
+porte d'entrée, l'article 1171 fait le travail.
+
+---
+
+## `disponibilite` — article 7 · **REPÉRÉES, non lues**
+
+- **Cour de cassation, com., 17 novembre 2021, 19-26.100** —
+  <https://librejustice.fr/decision/2byYICBvd_YC> — obligation de **moyens**
+  retenue pour un prestataire informatique ; pourvoi rejeté.
+- **Cour d'appel de Douai, 24 avril 2025, 23/00858** (OVH) —
+  <https://librejustice.fr/decision/cnbUnskzeTMv> — manquement retenu, mais
+  indemnisation ramenée à 1 800,48 € par les clauses limitatives.
+- **Tribunal judiciaire de Versailles, 11 avril 2025, 24/00224** —
+  <https://librejustice.fr/decision/p673I3jwHW1o> — inaccessibilité totale des
+  données pendant deux périodes : 16 000 € de dommages-intérêts.
+
+La qualification « obligation de moyens » de l'article 7 est donc conforme à ce
+que les juges retiennent — mais Limoges rappelle qu'elle est **indifférente**
+quand la faute reprochée n'est pas de n'avoir pas atteint l'objectif, mais
+d'avoir commis une erreur dans l'exécution.
+
+---
+
+## `extraction` — article 8 · **REPÉRÉES, non lues**
+
+- **Cour de cassation, 1re civ., 5 octobre 2022, 21-16.307**, **publié au
+  bulletin** — <https://librejustice.fr/decision/7QssPXDfPuyK>
+- **Cour de cassation, 1re civ., 15 octobre 2025, 23-23.167** —
+  <https://librejustice.fr/decision/_BmsEJA1hsNu>
+- **Tribunal judiciaire de Paris, 21 février 2025, 21/09261** —
+  <https://librejustice.fr/decision/-BXPR5iMofYY> — **rejet** : extraction
+  substantielle établie, mais **pas d'atteinte aux investissements**.
+
+L'enseignement est net et il coûte : la protection du producteur de base de
+données ne se réclame pas, elle **se prouve**, par la démonstration d'un
+investissement substantiel dans la constitution, la vérification ou la
+présentation. L'article 8 interdit l'extraction ; il ne dispense pas d'établir
+l'investissement le jour où il faudra l'opposer.
+
+---
+
+## `garantie` — article 6 · **AUCUNE DÉCISION TROUVÉE**
+
+La recherche sur la garantie légale de conformité des **contenus et services
+numériques** (art. L224-25-12 et suivants, transposition de la directive
+2019/770) ne rend, dans le corpus interrogé, **aucune décision qui l'applique à
+un service numérique**. Les résultats portent sur la garantie des **biens**
+(L217-3 et suivants) : véhicule d'occasion, hotte, tablette.
+
+**« Aucune décision trouvée » n'est pas « aucun risque ».** Le régime est entré
+en vigueur le 1er janvier 2022 et la jurisprudence n'a pas eu le temps de se
+former. L'article 6 est donc écrit sur un texte **non encore éprouvé par les
+juges** — c'est la situation la moins confortable de toutes, parce qu'elle ne
+donne aucun repère sur la manière dont il sera lu.
+
+---
+
+## Ce qui reste à faire
+
+1. **Ouvrir les décisions repérées** — Versailles 22/03581 et Douai 23/00858 en
+   premier : la première dit comment se mesure le « significatif », la seconde
+   est le cas le plus proche du nôtre où le plafond a TENU.
+2. **Trancher l'article 15.** Si le renvoi de L221-3 ne porte pas sur les
+   clauses abusives, l'ancrage sur R212-2 est à revoir — et l'opposabilité se
+   joue alors sur l'article 48 CPC, donc sur ce que l'écran de caisse montre et
+   sur ce que le service peut prouver avoir montré.
+3. **Décider pour l'article 10** : soit assumer le plafond tel quel en sachant
+   que deux des trois facteurs de Limoges lui sont acquis, soit lui donner une
+   contrepartie explicite — c'est ce qui a sauvé la clause dans Faurecia.
