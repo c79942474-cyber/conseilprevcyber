@@ -393,7 +393,9 @@ def _carte_rendue(remplissage):
     et branche des écouteurs sur ce qu'elle vient d'écrire.
     """
     prog = (
-        _js_source("esc", "info", "aoMenuDocs", "aoRempliRendre")
+        _js_source("esc", "info", "aoMenuDocs", "aoFormulairesBoutons",
+                   "aoRempliRendre")
+        + "\nvar AO_FORMULAIRES = null;"
         + "\nvar AO_DOC = '';"
         + "\nvar AO_SAISIES = {};"
         + "\nvar AO_ETAT_CLASSE = { rempli: 'ok', a_saisir: 'att',"

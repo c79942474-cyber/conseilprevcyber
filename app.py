@@ -2349,6 +2349,7 @@ import financement_dc  # noqa: E402  — qui porte l'enveloppe, et à quel prix
 import icpe_dc       # noqa: E402  — crible les rubriques, ne classe pas le site
 import travaux_dc    # noqa: E402  — l'ordre des opérations de chantier et ses tiers
 import ao_dc         # noqa: E402  — lit le dossier marché, prépare la candidature
+import ao_formulaires  # noqa: E402  — écrit DANS le formulaire officiel, sans signer
 import programme_dc  # noqa: E402  — consolide un portefeuille de sites, pas un projet
 import tier_dc       # noqa: E402  — qualifie une topologie, ne décerne aucun niveau
 import reseau_dc     # noqa: E402  — chiffre un raccordement effaçable, ne prédit aucun délai
@@ -4779,6 +4780,97 @@ def api_datacenter_marche_export():
     return send_file(io.BytesIO(blob),
                      download_name="reponse-consultation.%s" % fmt,
                      as_attachment=True, mimetype=mimetype)
+
+
+@app.route("/api/datacenter/marche/formulaire", methods=["POST"])
+@login_required
+def api_datacenter_marche_formulaire():
+    """LE FORMULAIRE OFFICIEL LUI-MÊME, rempli — et non un document posé à côté.
+
+    CE QUI SÉPARE CETTE ROUTE DE `/export`. L'export produit un report tracé,
+    rubrique par rubrique, à recopier sur le formulaire en le vérifiant. Ici,
+    on ouvre le fichier du ministère — sa version, sa mise en page, sa date de
+    mise à jour — et l'on écrit dans les emplacements qu'il laisse vides. Ce
+    qui sort EST le formulaire officiel, pas un fac-similé : un fac-similé
+    serait refusé, ou pire, accepté et faux.
+
+    ELLE NE SIGNE RIEN ET NE DÉCLARE RIEN. Les déclarations sur l'honneur et
+    les blocs de signature sont hors d'atteinte du remplissage, et le document
+    porte en tête qu'il est un projet non signé et non vérifié.
+
+    ELLE NE CONSERVE RIEN, comme les deux routes qui la précèdent : ni la
+    fiche, ni l'analyse, ni les saisies. Tout vient de la requête et repart
+    dans la réponse.
+    """
+    data = request.get_json(silent=True) or {}
+    modele = str(data.get("modele") or "").strip().lower()
+    if modele not in ao_formulaires.MODELES:
+        return jsonify(ok=False, error="modele_inconnu",
+                       message="Formulaire inconnu.",
+                       disponibles=sorted(ao_formulaires.MODELES)), 400
+    fiche = data.get("fiche") if isinstance(data.get("fiche"), dict) else {}
+    analyse = data.get("analyse") if isinstance(data.get("analyse"), dict) else None
+    saisies = data.get("saisies") if isinstance(data.get("saisies"), dict) else {}
+    fiche = {str(k)[:60]: str(v)[:400] for k, v in list(fiche.items())[:80]}
+    saisies = {str(k)[:80]: str(v)[:800] for k, v in list(saisies.items())[:120]}
+    try:
+        r = ao_dc.remplir(fiche=fiche, analyse=analyse, saisies=saisies,
+                          groupement=bool(data.get("groupement")))
+        piece = ao_formulaires.MODELES[modele]["piece"]
+        octets, rapport = ao_formulaires.remplir_document(
+            modele, ao_formulaires.valeurs_pour(r, piece))
+    except Exception:
+        app.logger.exception("remplissage du formulaire officiel")
+        return jsonify(ok=False, error="calcul",
+                       message="Le formulaire n'a pas pu être rempli."), 500
+    if not rapport.get("ok"):
+        # UN MODÈLE ABSENT ET UN MODÈLE ALTÉRÉ NE SE SOIGNENT PAS PAREIL, et le
+        # message le dit : l'un attend un fichier, l'autre une revérification
+        # des ancres.
+        return jsonify(ok=False, error=rapport["motif"], rapport=rapport,
+                       message=("Le modèle de ce formulaire n'est pas déposé "
+                                "sur le serveur."
+                                if rapport["motif"] == "modele_absent" else
+                                "Le modèle a changé depuis que ses "
+                                "emplacements ont été repérés : le "
+                                "remplissage est refusé plutôt que fait à "
+                                "côté.")), 409
+    audit.journaliser("marche.formulaire.remplir", cible=modele,
+                      detail="%d placée(s) · %d non placée(s)"
+                             % (len(rapport["places"]),
+                                len(rapport["non_places"])))
+    reponse = send_file(
+        io.BytesIO(octets),
+        download_name="%s-projet-non-signe.docx" % modele,
+        as_attachment=True,
+        mimetype=("application/vnd.openxmlformats-officedocument"
+                  ".wordprocessingml.document"))
+    # LE RAPPORT VOYAGE AVEC LE FICHIER, dans un en-tête : la page a besoin de
+    # dire ce qui n'a PAS été placé, et un téléchargement ne rend pas de JSON.
+    reponse.headers["X-Remplissage"] = json.dumps(
+        {"places": len(rapport["places"]),
+         "non_places": [x["rubrique"] for x in rapport["non_places"]],
+         "ignores": [x["rubrique"] for x in rapport["ignores"]],
+         "maj": rapport["maj"]}, ensure_ascii=True)
+    return reponse
+
+
+@app.route("/api/datacenter/marche/formulaires")
+@login_required
+def api_datacenter_marche_formulaires():
+    """Quels formulaires officiels le serveur sait remplir, et lesquels non.
+
+    LA PAGE NE DEVINE PAS. Un bouton proposé pour un modèle absent produirait
+    une erreur au clic ; un bouton caché sans explication ferait croire que la
+    fonction n'existe pas. On rend les trois états, avec ce qu'ils veulent
+    dire.
+    """
+    etat = ao_formulaires.modeles_disponibles()
+    return jsonify(ok=True, etat=etat, version=ao_formulaires.VERSION,
+                   modeles={c: {k: v for k, v in m.items()
+                                if k != "empreinte"}
+                            for c, m in ao_formulaires.MODELES.items()},
+                   bandeau=ao_formulaires.BANDEAU)
 
 
 @app.route("/api/datacenter/ingenierie/export", methods=["POST"])

@@ -967,11 +967,22 @@ def test_la_fiche_du_candidat_ne_quitte_pas_le_navigateur():
     cha = js[js.index("function aoFicheCharger("):]
     cha = cha[:cha.index("\n  }")]
     assert 'getItem("ao-fiche-v1"' in cha, "la fiche n'est jamais relue"
-    # Le seul point qui reçoit la fiche est le calcul, et il ne conserve rien —
-    # c'est éprouvé côté route. Aucun autre appel ne doit l'emporter.
+    # LES SEULS POINTS QUI REÇOIVENT LA FICHE NE CONSERVENT RIEN — c'est
+    # éprouvé côté route, chacune le dit dans sa docstring et aucune n'écrit en
+    # base. Aucun autre appel ne doit l'emporter.
+    #
+    # UNE TROISIÈME ADRESSE EST ENTRÉE DÉLIBÉRÉMENT :
+    # `/marche/formulaire` remplit le formulaire OFFICIEL — le fichier du
+    # ministère — et a donc besoin de la même fiche que le report. Elle ne
+    # conserve pas davantage : tout vient de la requête et repart dans la
+    # réponse. La liste est écrite EN ENTIER et à la main, jamais déduite du
+    # script : la déduire ferait entrer d'office la prochaine route qu'on y
+    # brancherait, ce qui est exactement ce que cette règle existe pour
+    # empêcher.
     envois = re.findall(r'demander\(\s*"(/api/[^"]+)"[^;]*?AO_FICHE', js, re.S)
     assert set(envois) <= {"/api/datacenter/marche/remplir",
-                           "/api/datacenter/marche/export"}, envois
+                           "/api/datacenter/marche/export",
+                           "/api/datacenter/marche/formulaire"}, envois
 
 
 def test_la_page_ne_recalcule_pas_le_critere_de_remplissage():

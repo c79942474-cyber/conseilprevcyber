@@ -6318,6 +6318,16 @@ function messageDelai(e, defaut) {
      par frappe ferait vingt allers-retours pour une ligne d'adresse. */
   function aoRemplir(immediat) {
     if (_aoTempo) clearTimeout(_aoTempo);
+    /* L'ÉTAT DES MODÈLES EST DEMANDÉ UNE SEULE FOIS, et son échec ne coûte que
+       les boutons : le report reste affiché. Le redemander à chaque frappe
+       dans la fiche solliciterait le serveur pour une réponse qui ne change
+       pas d'une saisie à l'autre. */
+    if (AO_FORMULAIRES === null) {
+      AO_FORMULAIRES = {};                      /* une seule tentative */
+      aoFormulairesCharger().then(function () {
+        if (AO_REMPLI) aoRempliRendre(AO_REMPLI);
+      });
+    }
     _aoTempo = setTimeout(function () {
       demander("/api/datacenter/marche/remplir", {
         method: "POST", credentials: "same-origin",
@@ -6378,6 +6388,97 @@ function messageDelai(e, defaut) {
      l'écran, et le seul moyen de le garantir est qu'il vienne de la même
      fonction. Renvoyer l'état affiché ferait circuler un dossier construit
      depuis un état que le serveur n'a jamais validé. */
+  /* ── LE FORMULAIRE OFFICIEL LUI-MÊME ──────────────────────────────────
+     CE QUI LE SÉPARE DE L'EXPORT JUSTE AU-DESSUS. L'export produit un report
+     tracé, à recopier sur le formulaire en le vérifiant. Ici, le serveur ouvre
+     le fichier du ministère — sa version, sa mise en page, sa date de mise à
+     jour — et écrit dans les emplacements qu'il laisse vides. Un fac-similé
+     redessiné serait refusé par l'acheteur, ou pire, accepté et faux.
+
+     LA PAGE NE DEVINE PAS QUELS FORMULAIRES SONT DISPONIBLES : elle le
+     demande. Un bouton proposé pour un modèle absent produirait une erreur au
+     clic ; un bouton caché sans explication ferait croire que la fonction
+     n'existe pas. */
+  var AO_FORMULAIRES = null;
+
+  function aoFormulairesCharger() {
+    return demander("/api/datacenter/marche/formulaires",
+                    { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { if (j && j.ok) AO_FORMULAIRES = j; })
+      .catch(function () { AO_FORMULAIRES = null; });
+  }
+
+  function aoFormulairesBoutons() {
+    /* `{}` EST L'ÉTAT « DEMANDÉ, PAS ENCORE REÇU », et il ne doit pas lever :
+       `AO_FORMULAIRES.etat` n'existe pas encore. Un `.etat.prets` nu ferait
+       tomber tout le rendu du report pour une liste de boutons. */
+    if (!AO_FORMULAIRES || !AO_FORMULAIRES.etat
+        || !AO_FORMULAIRES.etat.prets.length) return "";
+    var h = "";
+    AO_FORMULAIRES.etat.prets.forEach(function (cle) {
+      var m = AO_FORMULAIRES.modeles[cle] || {};
+      h += '<button type="button" class="btn btn-s" data-ao-form="'
+        + esc(cle) + '">Remplir le ' + esc(m.nom || cle.toUpperCase())
+        + " (Word)</button>";
+    });
+    return h;
+  }
+
+  function aoFormulaireRemplir(cle, bouton) {
+    var libelle = bouton.textContent;
+    var msg = $("#ig-ao-msg");
+    bouton.disabled = true;
+    bouton.textContent = "Remplissage…";
+    var etat = null;
+    demander("/api/datacenter/marche/formulaire", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ modele: cle, fiche: AO_FICHE,
+                             analyse: AO_ANALYSE, saisies: AO_SAISIES }),
+    }, DELAI_MOYEN).then(function (r) {
+      if (!r.ok) throw new Error("remplissage");
+      /* CE QUI N'A PAS ÉTÉ PLACÉ VOYAGE DANS UN EN-TÊTE : un téléchargement
+         ne rend pas de JSON, et un formulaire partiel se lirait comme
+         complet si personne ne disait ce qui manque. */
+      try { etat = JSON.parse(r.headers.get("X-Remplissage") || "null"); }
+      catch (e) { etat = null; }
+      return r.blob();
+    }).then(function (b) {
+      var u = URL.createObjectURL(b);
+      var a = document.createElement("a");
+      a.href = u;
+      a.download = cle + "-projet-non-signe.docx";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(u); }, 4000);
+      if (msg) {
+        msg.textContent = etat
+          ? (etat.places + " rubrique(s) écrite(s) dans le formulaire officiel"
+             + " (version du " + etat.maj + "). NON SIGNÉ : les déclarations "
+             + "sur l'honneur et les blocs de signature sont restés vides."
+             + (etat.non_places.length
+                ? " Sans emplacement trouvé : " + etat.non_places.join(", ")
+                  + "." : "")
+             + (etat.ignores.length
+                ? " Sans valeur, donc laissées vides : "
+                  + etat.ignores.join(", ") + "." : ""))
+          : "Formulaire téléchargé.";
+      }
+    }).catch(function () {
+      if (msg) {
+        msg.textContent = "Le formulaire n'a pas pu être rempli. Le modèle "
+          + "est peut-être absent du serveur, ou modifié depuis que ses "
+          + "emplacements ont été repérés — auquel cas le remplissage est "
+          + "refusé plutôt que fait à côté.";
+      }
+    }).then(function () {
+      bouton.disabled = false;
+      bouton.textContent = libelle;
+    });
+  }
+
   function aoExporter(fmt, bouton) {
     var libelle = bouton.textContent;
     bouton.disabled = true;
@@ -6642,12 +6743,18 @@ function messageDelai(e, defaut) {
       + '<button type="button" class="btn btn-s" data-ao-exp="docx">'
       + "Emporter le dossier préparé (Word)</button>"
       + '<button type="button" class="btn btn-s" data-ao-exp="pdf">'
-      + "PDF</button></div>"
+      + "PDF</button>"
+      + aoFormulairesBoutons() + "</div>"
       + '<p class="ig-icpe-res">' + esc(r.note) + "</p>";
     z.innerHTML = h;
     aoBrancherMenu(r);
     z.querySelectorAll("[data-ao-exp]").forEach(function (b) {
       b.addEventListener("click", function () { aoExporter(b.dataset.aoExp, b); });
+    });
+    z.querySelectorAll("[data-ao-form]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        aoFormulaireRemplir(b.dataset.aoForm, b);
+      });
     });
     z.querySelectorAll("[data-saisie]").forEach(function (i) {
       i.addEventListener("input", function () {
