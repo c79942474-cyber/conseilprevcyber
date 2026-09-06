@@ -950,11 +950,21 @@ def test_chaque_script_reference_par_une_page_est_REELLEMENT_SERVI(admin):
 #  LE REMPLISSAGE DES PIÈCES DANS LA PAGE
 # ═══════════════════════════════════════════════════════════════════════════
 
-def test_la_fiche_du_candidat_ne_quitte_pas_le_navigateur():
-    """CE QUE LA PAGE PROMET, LE SCRIPT DOIT LE TENIR. La page annonce que la
-    fiche « ne quitte pas ce navigateur ». Un envoi au serveur POUR ÊTRE
-    CONSERVÉ démentirait la promesse — et personne ne le verrait, puisque la
-    page continuerait de s'afficher normalement."""
+def test_la_fiche_ne_quitte_le_navigateur_QUE_par_le_geste_de_conservation():
+    """CE QUE LA PAGE PROMET, LE SCRIPT DOIT LE TENIR.
+
+    CETTE RÈGLE A CHANGÉ DÉLIBÉRÉMENT, ET VOICI QUOI. Elle s'appelait
+    `test_la_fiche_du_candidat_ne_quitte_pas_le_navigateur` et tenait une
+    promesse sans réserve : la fiche ne partait jamais pour être conservée.
+    Le dossier marché par projet lève cette réserve — mais SEULEMENT sur un
+    geste explicite, et la page doit dire ce que ce geste change avant de le
+    proposer.
+
+    La promesse est donc devenue CONDITIONNELLE, et la règle avec elle : il ne
+    suffit plus d'énumérer les adresses, il faut aussi que la page AVERTISSE.
+    Sans ce second volet, la règle aurait été affaiblie en silence — la
+    manière la plus discrète de perdre une garantie.
+    """
     js = sans_commentaires_js(lire("ingenierie-dc.js"))
     # LA CLÉ CHERCHÉE DANS TOUT LE FICHIER NE PROUVAIT RIEN : elle figure aussi
     # dans la LECTURE. Mutation vérifiée — l'écriture supprimée, la règle
@@ -979,10 +989,43 @@ def test_la_fiche_du_candidat_ne_quitte_pas_le_navigateur():
     # script : la déduire ferait entrer d'office la prochaine route qu'on y
     # brancherait, ce qui est exactement ce que cette règle existe pour
     # empêcher.
+    #
+    # UNE QUATRIÈME ADRESSE CONSERVE, ET ELLE EST LA SEULE :
+    # `/marche/projet/dossier`. Les trois premières ne gardent rien ; celle-ci
+    # range la fiche, chiffrée, pour la durée déclarée au registre. Elle n'est
+    # atteinte que depuis `aoProjetDeposer`, c'est-à-dire depuis un bouton que
+    # personne ne clique par accident.
+    SANS_CONSERVATION = {"/api/datacenter/marche/remplir",
+                         "/api/datacenter/marche/export",
+                         "/api/datacenter/marche/formulaire"}
+    AVEC_CONSERVATION = {"/api/datacenter/marche/projet/dossier"}
     envois = re.findall(r'demander\(\s*"(/api/[^"]+)"[^;]*?AO_FICHE', js, re.S)
-    assert set(envois) <= {"/api/datacenter/marche/remplir",
-                           "/api/datacenter/marche/export",
-                           "/api/datacenter/marche/formulaire"}, envois
+    assert set(envois) <= SANS_CONSERVATION | AVEC_CONSERVATION, envois
+
+    # LE SEUL ENVOI QUI CONSERVE PART DE LA SEULE FONCTION QUI LE DOIT.
+    dep = js[js.index("function aoProjetDeposer("):]
+    dep = dep[:dep.index("\n  }")]
+    assert "/api/datacenter/marche/projet/dossier" in dep, (
+        "le dépôt ne passe plus par aoProjetDeposer")
+    ailleurs = [x for x in re.findall(
+        r'demander\(\s*"(/api/datacenter/marche/projet/dossier)"[^;]*?AO_FICHE',
+        js.replace(dep, ""), re.S)]
+    assert not ailleurs, (
+        "la fiche est conservée depuis un autre endroit que le geste prévu")
+
+    # ET LA PAGE DIT CE QUE LE GESTE CHANGE, AVANT DE LE PROPOSER. Une
+    # conservation silencieuse serait exactement le défaut que la version
+    # précédente de cette règle empêchait.
+    inv = js[js.index("function aoProjetInvite("):]
+    inv = inv[:inv.index("\n  }")]
+    # « CHANGE CELA » EST LA CHARNIÈRE DE LA PHRASE, pas de l'emphase : c'est
+    # le mot qui prévient que la promesse du paragraphe précédent est levée.
+    # Une mutation l'a retiré sans rien faire tomber — la règle listait les
+    # faits (durée, chiffrement, effacement) et ratait l'avertissement.
+    for promesse in ("rien n'est conservé", "change cela", "chiffr",
+                     "12 mois", "effacer"):
+        assert promesse in inv.lower(), (
+            "l'invitation à conserver ne dit pas : %r" % promesse)
 
 
 def test_la_page_ne_recalcule_pas_le_critere_de_remplissage():

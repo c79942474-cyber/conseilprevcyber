@@ -22,8 +22,11 @@ yeux de qui affirme, avec sa date de péremption. On automatise la preuve,
 jamais l'affirmation.
 """
 import hashlib
+import io
 import os
+import re
 import sys
+import zipfile
 
 import pytest
 
@@ -80,8 +83,31 @@ def _valeurs(analyse):
 
 
 def _documents(valeurs):
-    return {c: hashlib.sha256(ao_formulaires.remplir_document(c, valeurs)[0])
-            .hexdigest() for c in ao_formulaires.MODELES}
+    """L'empreinte du CONTENU de chaque .docx, pas celle du fichier.
+
+    POURQUOI PAS LES OCTETS BRUTS. Un .docx est une archive zip, et
+    python-docx y écrit l'heure courante dans l'en-tête de chaque membre :
+    deux documents rigoureusement identiques produits à trois secondes
+    d'écart n'ont pas les mêmes octets. La première version de cette règle
+    comparait les octets — elle passait quand les deux générations tombaient
+    dans la même seconde et tombait sinon, c'est-à-dire au hasard de la charge
+    de la suite. Une règle intermittente est pire qu'une règle absente : on
+    finit par la relancer jusqu'à ce qu'elle passe.
+
+    Ce qu'on veut tenir est le CONTENU : la liste des membres de l'archive et
+    ce que chacun contient. C'est cela qui changerait si une déclaration
+    entrait dans le formulaire.
+    """
+    out = {}
+    for c in ao_formulaires.MODELES:
+        octets = ao_formulaires.remplir_document(c, valeurs)[0]
+        z = zipfile.ZipFile(io.BytesIO(octets))
+        h = hashlib.sha256()
+        for nom in sorted(z.namelist()):
+            h.update(nom.encode("utf-8"))
+            h.update(z.read(nom))
+        out[c] = h.hexdigest()
+    return out
 
 
 # ── CE QUE LA CONSERVATION NE DÉBLOQUE PAS ────────────────────────────────
@@ -101,13 +127,14 @@ def test_les_releves_et_les_declarations_n_ont_AUCUNE_cle_commune():
         % sorted(declarations & releves))
 
 
-def test_affirmer_les_SIX_ne_change_PAS_UN_OCTET_des_quatre_formulaires(
+def test_affirmer_les_SIX_ne_change_RIEN_au_contenu_des_quatre_formulaires(
         coffre, attestations_valides):
     """L'invariant central, mesuré sur les fichiers eux-mêmes.
 
-    Toutes preuves valides, les six déclarations assumées : les quatre .docx
-    doivent être IDENTIQUES à ceux d'avant. Comparer les rapports ne suffirait
-    pas — c'est le fichier qui est déposé.
+    Toutes preuves valides, les six déclarations assumées : le contenu des
+    quatre .docx doit être IDENTIQUE à celui d'avant — mêmes membres
+    d'archive, mêmes octets dans chacun. Comparer les rapports ne suffirait
+    pas : c'est le fichier qui est déposé chez l'acheteur.
     """
     coffre.deposer(PROJET, [{"nom": "RC.pdf", "texte": RC}])
     analyse = coffre.lire(PROJET)["analyse"]
@@ -695,3 +722,135 @@ def test_la_politique_d_acces_REFUSE_DE_DEMARRER_si_une_de_ces_routes_s_ouvre():
     assert r.returncode != 0, "le service a démarré avec une route ouverte"
     assert "politique d'accès" in r.stderr, r.stderr[-400:]
     assert "/api/datacenter/marche/projet/dossier" in r.stderr, r.stderr[-400:]
+
+
+# ── L'ÉCRAN ───────────────────────────────────────────────────────────────
+# CE QUE CES RÈGLES TIENNENT. Un écran peut afficher un état juste et faire
+# croire l'inverse de ce que le module garantit. Elles mesurent donc ce que la
+# page DIT, et ce qu'elle propose selon l'état — pas la présence d'un bloc.
+
+def _page():
+    with open(os.path.join(ICI, "ingenierie-datacenter.html"), encoding="utf-8") as f:
+        return f.read()
+
+
+def _script():
+    with open(os.path.join(ICI, "ingenierie-dc.js"), encoding="utf-8") as f:
+        return f.read()
+
+
+def test_la_section_du_projet_existe_et_le_script_la_remplit():
+    assert 'id="ig-ao-projet"' in _page()
+    js = _script()
+    assert 'z = $("#ig-ao-projet")' in js, "la section n'est jamais peinte"
+
+
+def test_l_ecran_dit_QU_ASSUMER_N_ECRIT_RIEN_dans_le_formulaire():
+    """Un lecteur attend naturellement l'inverse : la page doit le démentir.
+
+    Et elle doit le dire avec les quatre formulaires nommés — « le
+    formulaire » au singulier laisserait croire qu'un seul est concerné.
+    """
+    js = _script()
+    rendu = js[js.index("function aoProjetRendre("):]
+    rendu = rendu[:rendu.index("\n  }")]
+    assert "n\\'écrit RIEN dans le" in rendu or "n'écrit RIEN dans le" in rendu, (
+        "l'écran ne dit pas qu'assumer n'écrit rien")
+    for f in ("DC1", "DC2", "DC4", "ATTRI1"):
+        assert f in rendu, "l'écran ne nomme pas le %s" % f
+
+
+def test_une_declaration_sans_preuve_n_offre_AUCUN_bouton_pour_l_assumer():
+    """L'écran ne propose pas un geste que le serveur refusera.
+
+    Le refus côté serveur reste la barrière — mesuré plus haut. Ici on tient
+    autre chose : qu'on ne fasse pas taper un nom et cocher une case pour
+    récolter une erreur.
+    """
+    js = _script()
+    d = js[js.index("function aoDeclaration("):]
+    d = d[:d.index("\n  }")]
+    # La sortie anticipée sur « incomplete » DOIT précéder le formulaire.
+    coupe = d.index('l.couverture === "incomplete"')
+    bouton = d.index("data-cons-aff")
+    assert coupe < bouton, (
+        "le bouton « Assumer » est proposé avant le contrôle de la preuve")
+    assert "return h;" in d[coupe:bouton], (
+        "rien n'interrompt le rendu quand la preuve est incomplète")
+
+
+def test_l_absence_de_preuve_interne_demande_une_case_DE_PLUS():
+    """CETTE RÈGLE A ÉTÉ REPRISE : sa première version passait à côté.
+
+    Elle cherchait la PREMIÈRE occurrence de `sans_preuve_interne` et
+    vérifiait qu'elle précédait la case. Or la fonction nomme cette condition
+    DEUX FOIS — une pour afficher l'état de la preuve, une pour garder la
+    case. La première suffisait à satisfaire la règle, si bien qu'une mutation
+    ouvrant la case à TOUTES les déclarations ne faisait rien tomber. On
+    mesure donc la garde qui précède immédiatement la case.
+    """
+    js = _script()
+    d = js[js.index("function aoDeclaration("):]
+    d = d[:d.index("\n  }")]
+    j = d.index("data-cons-rec")
+    juste_avant = d[max(0, j - 220):j]
+    assert 'l.couverture === "sans_preuve_interne"' in juste_avant, (
+        "la case de reconnaissance n'est pas gardée par l'absence de preuve "
+        "interne : elle est proposée à toutes les déclarations")
+    assert "data-cons-rec" not in d[:j], "la case apparaît plus d'une fois"
+
+
+def test_l_etat_des_declarations_n_est_JAMAIS_garde_localement():
+    """Une preuve périme ; un état gardé ici vieillirait sans le dire.
+
+    Seul l'identifiant du projet est mémorisé — pas ce que le serveur en dit.
+    """
+    js = _script()
+    locaux = re.findall(r'(?:set|get)Item\(\s*"([^"]+)"', js)
+    for cle in locaux:
+        assert "declaration" not in cle and "affirm" not in cle, cle
+    assert "ao-projet-v1" in locaux, "le projet rattaché n'est pas mémorisé"
+    etat = js[js.index("function aoProjetEtat("):]
+    etat = etat[:etat.index("\n  }")]
+    assert "/api/datacenter/marche/projet/dossier" in etat, (
+        "l'état ne vient pas du serveur")
+
+
+def test_les_classes_du_bloc_de_conservation_ne_collisionnent_avec_AUCUNE_autre():
+    """CETTE RÈGLE EXISTE PARCE QUE LA COLLISION A EU LIEU.
+
+    Le bloc s'appelait d'abord `.ig-pj` — nom déjà porté par le formulaire des
+    PIÈCES JOINTES, plus bas dans la même feuille. Les deux jeux de règles se
+    sont écrasés l'un l'autre : mes bordures et mon fond sont passés sur leur
+    formulaire, et leur `display:flex` a mis mes titres et mes paragraphes sur
+    une seule ligne. Rien ne l'a signalé — ni la syntaxe, ni les règles, ni la
+    page, qui s'affichait simplement de travers.
+
+    On mesure donc que chaque classe du bloc est définie UNE SEULE FOIS dans
+    la feuille. Une classe définie deux fois n'est pas forcément un défaut en
+    général ; ici, où le bloc est neuf et isolé, elle l'est toujours.
+    """
+    page = _page()
+    style = page[page.index("<style"):page.rindex("</style>")]
+    js = _script()
+    # LES CLASSES, PAS LES IDENTIFIANTS. La première version de cette règle
+    # ramassait `ig-cons-go` — qui est un id de bouton, jamais défini comme
+    # classe — et échouait sur son propre ramassage. On lit donc les attributs.
+    # Le nom s'arrête au premier caractère qui n'en fait pas partie : le
+    # script construit certains attributs par concaténation, et le morceau
+    # ramassé finissait par emporter l'apostrophe de fin de chaîne.
+    classes = sorted({m for m in re.findall(r"ig-cons[A-Za-z0-9_-]*", js)
+                      if not re.search(r'(?:id|dataset)[^\n]{0,20}"' + m, js)}
+                     - {m for m in re.findall(r'id="(ig-cons[A-Za-z0-9_-]*)', js)})
+    assert len(classes) >= 8, classes
+    for c in classes:
+        # Le nombre de RÈGLES qui définissent cette classe comme sélecteur.
+        n = len(re.findall(r"[.\s,]" + re.escape(c) + r"(?=[{\s,:>.])", style))
+        assert n >= 1, "%s est employée par le script sans être définie" % c
+    # Et aucune de ces classes ne doit exister ailleurs sous un autre nom de
+    # bloc : `.ig-pj` reste au formulaire des pièces jointes, intact.
+    assert ".ig-cons" not in style[:style.index("LE PROJET CONSERVÉ")], (
+        "une classe du bloc de conservation est définie avant son propre bloc")
+    for c in classes:
+        assert not c.startswith("ig-pj"), (
+            "%s reprend le préfixe du formulaire des pièces jointes" % c)

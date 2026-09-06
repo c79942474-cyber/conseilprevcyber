@@ -5712,6 +5712,11 @@ function messageDelai(e, defaut) {
      analyse de dossier de consultation est CE QUI MANQUE — et cela ne se voit
      qu'en regardant le dossier entier. */
   var AO_ANALYSE = null;
+  /* LE TEXTE DES PIÈCES LUES, GARDÉ POUR POUVOIR ÊTRE CONSERVÉ — et pour rien
+     d'autre. Sans lui, rattacher un projet obligerait à re-choisir les
+     fichiers : l'analyse ne garde que ce qu'elle a relevé, pas ce qu'elle a
+     lu. Il reste dans cette page tant qu'aucun projet n'est choisi. */
+  var AO_DOCS = null;
 
   function aoDocuments() {
     var z = $("#ig-ao-depot");
@@ -5793,7 +5798,11 @@ function messageDelai(e, defaut) {
             return;
           }
           AO_ANALYSE = j.analyse;
+          AO_DOCS = docs;
           msg.textContent = "";
+          /* LE BLOC PROJET SUIT L'ANALYSE : il n'a rien à proposer avant
+             qu'il y ait des pièces à conserver. */
+          aoProjetsCharger().then(aoProjetEtat);
           aoRendre(j.analyse);
           /* LE TEMPS RÉEL COMMENCE ICI. Les rubriques qui viennent des pièces
              de l'acheteur — l'acheteur, l'objet, la référence, les lots — se
@@ -6766,6 +6775,314 @@ function messageDelai(e, defaut) {
   }
 
 
+  /* ── LE PROJET : CONSERVER LE DOSSIER, ET ASSUMER LES DÉCLARATIONS ─────
+     RATTACHER UN PROJET EST UNE DÉCISION, PAS UN RÉGLAGE. Tant qu'aucun
+     projet n'est choisi, la fiche vit dans ce navigateur et les pièces
+     repartent avec la réponse : rien n'est conservé. Rattacher change cela,
+     et le bloc dit quoi AVANT de le proposer — durée, chiffrement,
+     effacement. Un service qui se met à conserver sans le dire est le défaut
+     qu'on veut éviter, pas une commodité.
+
+     ASSUMER UNE DÉCLARATION N'ÉCRIT RIEN DANS LE FORMULAIRE. Ce qui se
+     conserve est QUI a affirmé QUOI, sur quel texte, avec quelles preuves
+     valides ce jour-là. Les six cases restent vides — le document produit est
+     identique, octet pour octet, avant et après. L'écran le répète parce
+     qu'un lecteur attend naturellement l'inverse. */
+  var AO_PROJET = null;         /* l'identifiant rattaché, ou null */
+  var AO_PROJET_ETAT = null;    /* la dernière réponse du serveur */
+  var AO_PROJETS = null;        /* la liste des projets du compte */
+
+  function aoProjetCharger() {
+    try { AO_PROJET = localStorage.getItem("ao-projet-v1") || null; }
+    catch (e) { AO_PROJET = null; }
+  }
+  function aoProjetRetenir(id) {
+    AO_PROJET = id || null;
+    try {
+      if (id) localStorage.setItem("ao-projet-v1", id);
+      else localStorage.removeItem("ao-projet-v1");
+    } catch (e) { /* stockage refusé : le choix vaut pour cette visite */ }
+  }
+
+  function aoProjetMsg(t) {
+    var m = $("#ig-cons-msg");
+    if (m) m.textContent = t || "";
+  }
+
+  /* L'ÉTAT VIENT DU SERVEUR, JAMAIS D'UNE MÉMOIRE LOCALE. Les preuves
+     périment et les textes changent : un état gardé ici vieillirait en
+     silence, et l'écran annoncerait « prouvée » pour une attestation expirée
+     la semaine dernière. */
+  function aoProjetEtat() {
+    if (!AO_PROJET) { aoProjetRendre(); return Promise.resolve(null); }
+    return demander("/api/datacenter/marche/projet/dossier?projet="
+                    + encodeURIComponent(AO_PROJET),
+                    { credentials: "same-origin" })
+      .then(function (r) { return r.json().then(function (j) { return [r.status, j]; }); })
+      .then(function (xj) {
+        if (xj[0] === 404) {          /* projet effacé ailleurs : on se détache */
+          aoProjetRetenir(null);
+          AO_PROJET_ETAT = null;
+          aoProjetMsg("Ce projet n'existe plus. Le dossier n'est plus rattaché.");
+        } else if (xj[1] && xj[1].ok) {
+          AO_PROJET_ETAT = xj[1];
+        }
+        aoProjetRendre();
+        return AO_PROJET_ETAT;
+      })
+      .catch(function () { aoProjetRendre(); return null; });
+  }
+
+  function aoProjetsCharger() {
+    return demander("/api/datacenter/projets", { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { AO_PROJETS = (j && j.ok) ? (j.projets || []) : []; })
+      .catch(function () { AO_PROJETS = []; });
+  }
+
+  function aoOctets(n) {
+    n = Number(n) || 0;
+    return n < 1024 ? n + " o"
+      : n < 1048576 ? (n / 1024).toFixed(1) + " Ko"
+      : (n / 1048576).toFixed(1) + " Mo";
+  }
+  function aoJour(ms) {
+    if (!ms) return "—";
+    var d = new Date(Number(ms));
+    return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("fr-FR");
+  }
+
+  /* ── LE BLOC « PAS ENCORE RATTACHÉ » ─────────────────────────────────── */
+  function aoProjetInvite() {
+    var h = '<div class="ig-cons"><h4>Conserver ce dossier dans un projet</h4>'
+      + "<p>Pour l'instant, <b>rien n'est conservé</b>&nbsp;: la fiche reste "
+      + "dans ce navigateur et les pièces repartent avec la réponse. Les "
+      + "redéposer et les retaper à chaque session est le prix de ce choix.</p>"
+      + '<div class="ig-cons-av">Rattacher un projet <b>change cela</b>&nbsp;: '
+      + "le texte des pièces, les relevés et la fiche sont conservés "
+      + "<b>chiffrés</b>, pendant <b>12 mois à compter de la dernière "
+      + "activité</b>, et vous pouvez les effacer à tout moment. Ils restent "
+      + "visibles de vous et des collègues invités sur CE projet.</div>";
+    if (!AO_DOCS || !AO_DOCS.length) {
+      h += "<p>Analysez d'abord un dossier de consultation&nbsp;: c'est ce "
+        + "qui sera conservé.</p></div>";
+      return h;
+    }
+    if (!AO_PROJETS || !AO_PROJETS.length) {
+      h += "<p>Aucun projet n'est ouvert sur ce compte. Créez-en un depuis "
+        + "vos projets, puis revenez ici.</p></div>";
+      return h;
+    }
+    h += '<div class="ig-cons-f"><select id="ig-cons-sel">';
+    AO_PROJETS.forEach(function (p) {
+      h += '<option value="' + esc(p.id) + '">' + esc(p.nom)
+        + (p.client ? " — " + esc(p.client) : "") + "</option>";
+    });
+    h += "</select>"
+      + '<button type="button" class="btn btn-s" id="ig-cons-go">'
+      + "Conserver dans ce projet</button></div>"
+      + '<p class="note" id="ig-cons-msg" style="margin-top:9px"></p></div>';
+    return h;
+  }
+
+  /* ── LES SIX DÉCLARATIONS ────────────────────────────────────────────── */
+  function aoDeclaration(l, textes) {
+    var t = textes[l.cle] || {};
+    var h = '<div class="ig-cons-d"><b>' + esc(l.libelle) + "</b>"
+      + '<span class="ig-cons-nat'
+      + (l.engage === "penal" ? " ig-cons-nat-penal" : "") + '">'
+      + esc(l.engage_nom) + "</span>"
+      + '<p class="ig-cons-txt">' + esc(t.texte || "") + "</p>";
+
+    if (l.couverture === "prouvee") {
+      h += '<p class="ig-cons-pr"><b>Preuves à jour.</b> ' + esc(l.message) + "</p>";
+    } else if (l.couverture === "sans_preuve_interne") {
+      h += '<p class="ig-cons-pr"><b>Aucune preuve interne ne la soutient.</b> '
+        + esc(l.motif_sans_preuve) + "</p>";
+    } else {
+      h += '<p class="ig-cons-pr"><b>Preuve incomplète.</b> Il manque&nbsp;: '
+        + (l.manquantes || []).map(function (m) {
+            return esc(m.nom) + " (" + esc(m.etat) + ")";
+          }).join(", ") + ".</p>";
+    }
+
+    if (l.affirmee) {
+      h += '<p class="ig-cons-ok">Assumée par <b>' + esc(l.par || "—")
+        + "</b> le " + esc(aoJour(l.le)) + ".</p>";
+      (l.a_revoir || []).forEach(function (r) {
+        h += '<p class="ig-cons-rev">À revoir&nbsp;: '
+          + (r === "texte_modifie"
+             ? "le texte de la pièce a changé depuis. Ce qui a été assumé "
+               + "n'est plus la rédaction du formulaire."
+             : "la preuve qui la soutenait a expiré. L'affirmation reste vraie "
+               + "de son jour&nbsp;; elle ne dit plus rien d'aujourd'hui.")
+          + "</p>";
+      });
+    }
+    if (l.couverture === "incomplete") {
+      h += '<p class="ig-cons-pr">Obtenez la pièce manquante avant d\'assumer '
+        + "cette déclaration. Elle ne peut pas l'être sans.</p></div>";
+      return h;
+    }
+    h += '<div class="ig-cons-f">'
+      + '<input type="text" data-cons-nom="' + esc(l.cle)
+      + '" placeholder="Nom de qui assume" maxlength="200">'
+      + '<label><input type="checkbox" data-cons-lu="' + esc(l.cle) + '">'
+      + "J'ai lu le texte ci-dessus et je l'assume.</label>";
+    if (l.couverture === "sans_preuve_interne") {
+      h += '<label><input type="checkbox" data-cons-rec="' + esc(l.cle) + '">'
+        + "Je reconnais qu'aucune attestation de l'entreprise ne soutient "
+        + "cette déclaration.</label>";
+    }
+    h += '<button type="button" class="btn btn-s" data-cons-aff="' + esc(l.cle)
+      + '">' + (l.affirmee ? "Assumer à nouveau" : "Assumer") + "</button>"
+      + "</div></div>";
+    return h;
+  }
+
+  function aoProjetRendre() {
+    var z = $("#ig-ao-projet");
+    if (!z) return;
+    if (!AO_PROJET || !AO_PROJET_ETAT) { z.innerHTML = aoProjetInvite(); }
+    else {
+      var d = AO_PROJET_ETAT.dossier;
+      var dec = AO_PROJET_ETAT.declarations || { lignes: [] };
+      var textes = {};
+      (AO_PROJET_ETAT.textes || []).forEach(function (t) { textes[t.cle] = t; });
+      var h = '<div class="ig-cons"><h4>Dossier conservé</h4>';
+      if (!d) {
+        h += "<p>Ce projet ne porte encore aucune pièce. Analysez un dossier "
+          + "de consultation, puis conservez-le ici.</p>";
+      } else {
+        h += "<p>Conservé chiffré. Dernier dépôt le <b>" + esc(aoJour(d.maj_le))
+          + "</b>, effacement automatique le <b>" + esc(aoJour(d.purge_le))
+          + "</b>.</p><ul class=\"ig-cons-l\">";
+        (d.pieces || []).forEach(function (x) {
+          h += '<li><span class="n">' + esc(x.nom) + "</span>"
+            + '<span class="o">' + esc(aoOctets(x.octets)) + " · "
+            + esc(String(x.empreinte || "").slice(0, 12)) + "</span></li>";
+        });
+        h += "</ul>"
+          + '<div class="ig-cons-f">'
+          + '<button type="button" class="btn btn-s" id="ig-cons-maj">'
+          + "Redéposer les pièces analysées</button>"
+          + '<button type="button" class="btn btn-s" id="ig-cons-off">'
+          + "Effacer ce dossier</button></div>";
+      }
+      h += '<p class="note" id="ig-cons-msg" style="margin-top:9px"></p></div>'
+        + '<div class="ig-cons"><h4>Les six déclarations</h4>'
+        + "<p>Elles ne se pré-remplissent pas. Ce qui est conservé ici est "
+        + "<b>qui</b> a affirmé <b>quoi</b>, sur quel texte, avec quelles "
+        + "preuves valides ce jour-là.</p>";
+      (dec.lignes || []).forEach(function (l) {
+        h += aoDeclaration(l, textes);
+      });
+      /* « OCTET POUR OCTET » ÉTAIT FAUX, ET LA MESURE L'A MONTRÉ. Un .docx
+         est une archive zip où python-docx écrit l'heure courante : deux
+         documents rigoureusement identiques produits à trois secondes
+         d'écart n'ont pas les mêmes octets. Ce qui est identique est le
+         CONTENU, et c'est cela que la règle mesure — l'écran dit donc la
+         même chose qu'elle. */
+      h += '<p class="ig-cons-jamais"><b>Assumer ici n\'écrit RIEN dans le '
+        + "formulaire.</b> Les six cases des DC1, DC2, DC4 et ATTRI1 restent "
+        + "vides&nbsp;: le contenu du fichier produit est identique avant et "
+        + "après. La signature reste un geste de la main.</p></div>";
+      z.innerHTML = h;
+    }
+    aoProjetBrancher(z);
+  }
+
+  function aoProjetBrancher(z) {
+    var go = $("#ig-cons-go", z);
+    if (go) go.addEventListener("click", function () {
+      var sel = $("#ig-cons-sel", z);
+      aoProjetRetenir(sel ? sel.value : null);
+      aoProjetDeposer();
+    });
+    var maj = $("#ig-cons-maj", z);
+    if (maj) maj.addEventListener("click", aoProjetDeposer);
+    var off = $("#ig-cons-off", z);
+    if (off) off.addEventListener("click", aoProjetOublier);
+    z.querySelectorAll("[data-cons-aff]").forEach(function (b) {
+      b.addEventListener("click", function () { aoAffirmer(b.dataset.consAff, z); });
+    });
+  }
+
+  function aoProjetDeposer() {
+    if (!AO_PROJET) return;
+    if (!AO_DOCS || !AO_DOCS.length) {
+      aoProjetMsg("Analysez d'abord un dossier de consultation.");
+      return;
+    }
+    aoProjetMsg("Conservation…");
+    demander("/api/datacenter/marche/projet/dossier", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projet: AO_PROJET, pieces: AO_DOCS,
+                             fiche: AO_FICHE }),
+    }, DELAI_MOYEN)
+      .then(function (r) { return r.json().then(function (j) { return [r.status, j]; }); })
+      .then(function (xj) {
+        var j = xj[1];
+        if (!j || !j.ok) {
+          /* LE REFUS EST DIT AVEC SA RAISON. Un « indisponible » nu enverrait
+             chercher une panne là où il y a une clé non configurée. */
+          aoProjetMsg((j && j.message) || "La conservation a échoué.");
+          return;
+        }
+        aoProjetMsg("");
+        return aoProjetEtat();
+      })
+      .catch(function () { aoProjetMsg("La conservation a échoué."); });
+  }
+
+  function aoProjetOublier() {
+    if (!AO_PROJET) return;
+    aoProjetMsg("Effacement…");
+    demander("/api/datacenter/marche/projet/oubli", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projet: AO_PROJET }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function () { aoProjetRetenir(null); AO_PROJET_ETAT = null;
+                          aoProjetRendre(); })
+      .catch(function () { aoProjetMsg("L'effacement a échoué."); });
+  }
+
+  function aoAffirmer(cle, z) {
+    var nom = $('[data-cons-nom="' + cle + '"]', z);
+    var lu = $('[data-cons-lu="' + cle + '"]', z);
+    var rec = $('[data-cons-rec="' + cle + '"]', z);
+    if (!nom || !nom.value.trim()) {
+      aoProjetMsg("Une déclaration porte le nom de qui l'assume."); return;
+    }
+    /* LA CASE « J'AI LU » EST TENUE ICI, ET LA PREUVE AU SERVEUR. Elle ne
+       remplace aucun contrôle : elle empêche seulement le clic distrait. */
+    if (!lu || !lu.checked) {
+      aoProjetMsg("Lisez le texte, puis cochez que vous l'assumez."); return;
+    }
+    var textes = {};
+    (AO_PROJET_ETAT.textes || []).forEach(function (t) { textes[t.cle] = t; });
+    aoProjetMsg("Enregistrement…");
+    demander("/api/datacenter/marche/projet/affirmation", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projet: AO_PROJET, declaration: cle,
+                             par: nom.value.trim(),
+                             texte_vu: (textes[cle] || {}).texte || "",
+                             reconnait_sans_preuve: !!(rec && rec.checked) }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) { aoProjetMsg((j && j.message) || "Refusé."); return; }
+        aoProjetMsg("");
+        return aoProjetEtat();
+      })
+      .catch(function () { aoProjetMsg("L'enregistrement a échoué."); });
+  }
+
+
   function démarrer() {
     Promise.all([
       /* Le 401 est levé par `demander` lui-même, bannière comprise : le
@@ -6815,6 +7132,12 @@ function messageDelai(e, defaut) {
         travauxFormulaire();
         aoDocuments();
         aoFicheCharger();
+        /* LE PROJET RATTACHÉ SE RETROUVE À L'OUVERTURE, et son état est
+           redemandé au serveur. Le garder localement le ferait vieillir en
+           silence : une preuve expirée la semaine dernière s'afficherait
+           encore « à jour ». */
+        aoProjetCharger();
+        if (AO_PROJET) aoProjetsCharger().then(aoProjetEtat);
         densiteEchelle();
         densiteFormulaire();
         densitePratiques();

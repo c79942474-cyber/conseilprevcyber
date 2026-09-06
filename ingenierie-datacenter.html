@@ -800,6 +800,51 @@
      position dans le document —, parce que c'est ce qu'elles sont : le
      module ne comprend pas ce qu'il relève, et la forme doit le dire avant
      que le texte ne le rappelle. */
+  /* ── LE PROJET CONSERVÉ, ET LES SIX DÉCLARATIONS ────────────────────
+     LA COULEUR PORTE UNE INFORMATION, elle ne décore pas : le bleu pâle des
+     alertes bloquantes du site sert ici l'engagement PÉNAL, l'ambre sert ce
+     qui est à revoir. Une déclaration prouvée reste neutre — c'est l'état
+     normal, il n'a pas à attirer l'œil. */
+  .ig-cons{margin-top:18px;padding:16px 18px;border:1px solid var(--line);
+    border-radius:10px;background:rgba(255,255,255,.02)}
+  .ig-cons h4{margin:0 0 6px;font-size:13.5px;color:var(--ink)}
+  .ig-cons p{margin:0 0 10px;font-size:12px;line-height:1.7;color:var(--muted)}
+  .ig-cons-av{margin:10px 0 12px;padding:10px 13px;border-radius:8px;
+    border:1px solid rgba(232,200,106,.4);font-size:11.5px;line-height:1.7;
+    color:var(--muted)}
+  .ig-cons-av b{color:var(--ink)}
+  .ig-cons-l{margin:0;padding:0;list-style:none;font-size:11.5px}
+  .ig-cons-l li{padding:5px 0;border-bottom:1px solid var(--line);
+    display:flex;gap:10px;flex-wrap:wrap;align-items:baseline}
+  .ig-cons-l li:last-child{border-bottom:0}
+  .ig-cons-l .n{color:var(--ink)}
+  .ig-cons-l .o{font-family:var(--mono);font-size:10px;color:var(--muted2);
+    margin-left:auto}
+  .ig-cons-d{margin:12px 0 0;padding:12px 14px;border:1px solid var(--line);
+    border-radius:9px}
+  .ig-cons-d>b{font-size:12.5px;color:var(--ink)}
+  .ig-cons-nat{display:inline-block;margin-left:8px;font-family:var(--mono);
+    font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;
+    padding:2px 7px;border-radius:20px;border:1px solid var(--line);
+    color:var(--muted2)}
+  .ig-cons-nat-penal{border-color:rgba(143,219,242,.55);color:#8FDBF2}
+  .ig-cons-txt{margin:9px 0 0;padding:10px 13px;border-radius:7px;
+    background:rgba(255,255,255,.03);font-size:11.5px;line-height:1.75;
+    color:var(--muted)}
+  .ig-cons-pr{margin:9px 0 0;font-size:11px;line-height:1.65;color:var(--muted2)}
+  .ig-cons-pr b{color:var(--ink)}
+  .ig-cons-rev{margin:8px 0 0;padding:7px 11px;border-radius:7px;
+    border:1px solid rgba(232,200,106,.45);font-size:11px;color:var(--muted)}
+  .ig-cons-ok{margin:9px 0 0;font-size:11.5px;color:var(--muted)}
+  .ig-cons-ok b{color:var(--ink)}
+  .ig-cons-f{margin:10px 0 0;display:flex;gap:9px;flex-wrap:wrap;
+    align-items:center}
+  .ig-cons-f input[type=text]{flex:1 1 190px;min-width:0}
+  .ig-cons-f label{font-size:11px;color:var(--muted);display:flex;gap:6px;
+    align-items:baseline;flex:1 1 100%}
+  .ig-cons-jamais{margin:14px 0 0;font-size:11px;line-height:1.7;
+    color:var(--muted2);border-top:1px solid var(--line);padding-top:10px}
+  .ig-cons-jamais b{color:var(--ink)}
   .ig-ao-docs{margin-top:10px}
   .ig-ao-d{display:block;font-size:12px;color:var(--muted);padding:3px 0}
   .ig-ao-al{margin:16px 0 0}
@@ -2560,6 +2605,17 @@
          déclaration que personne n'a faite. -->
     <div id="ig-ao-fiche"></div>
     <div id="ig-ao-rempli"></div>
+    <!-- LE PROJET : CONSERVER LE DOSSIER, ET ASSUMER LES DÉCLARATIONS.
+         Tant qu'aucun projet n'est choisi, RIEN ne quitte ce navigateur — la
+         fiche vit en local et les pièces repartent avec la réponse. Rattacher
+         un projet est donc une décision, pas un réglage : le bloc dit ce
+         qu'elle change avant de la proposer.
+
+         ASSUMER UNE DÉCLARATION N'ÉCRIT RIEN DANS LE FORMULAIRE, et le bloc
+         le répète à l'écran. Ce qui se conserve est QUI a affirmé QUOI, sur
+         quel texte, avec quelles preuves valides ce jour-là — jamais une case
+         cochée à la place de quelqu'un. -->
+    <div id="ig-ao-projet"></div>
   </section>
 
   <section class="wrap rc-sec" id="ig-limites">

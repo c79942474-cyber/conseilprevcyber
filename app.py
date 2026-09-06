@@ -4940,13 +4940,15 @@ def api_marche_projet_dossier():
                                "pas ouvert."), 404
     try:
         if request.method == "GET":
-            d = ao_projet.lire(projet)
-            if not d:
-                return jsonify(ok=True, dossier=None,
-                               etat=ao_projet.etat(),
-                               declarations=ao_projet.etat_affirmations(projet))
-            return jsonify(ok=True, dossier=d, etat=ao_projet.etat(),
-                           declarations=ao_projet.etat_affirmations(projet))
+            # LES TEXTES DES SIX PARTENT AVEC L'ÉTAT, dans le même appel. La
+            # page ne peut pas afficher « lisez ceci, puis assumez-le » sans
+            # les avoir ; les demander séparément ferait un écran qui montre
+            # l'état d'une déclaration avant son texte, et quelqu'un finirait
+            # par cocher avant que le texte arrive.
+            return jsonify(ok=True, dossier=ao_projet.lire(projet),
+                           etat=ao_projet.etat(),
+                           declarations=ao_projet.etat_affirmations(projet),
+                           textes=ao_dc.declarations())
         pieces = data.get("pieces")
         fiche = data.get("fiche") if isinstance(data.get("fiche"), dict) else {}
         fiche = {str(k)[:60]: str(v)[:400] for k, v in list(fiche.items())[:80]}
