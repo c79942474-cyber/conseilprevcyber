@@ -831,3 +831,189 @@ def test_la_reprise_annonce_une_DATE_et_non_un_horodatage():
     assert "3 pièce(s)" in dit, dit
     assert "2026" in dit and "1788728142" not in dit, (
         "la reprise affiche l'horodatage brut au lieu d'une date : %r" % dit)
+
+
+# ══ LE TRANSPORT : CE QUI PASSE VRAIMENT PAR LA ROUTE ════════════════════
+#
+# LE DÉFAUT MESURÉ. Le site annonce 20 Mo par fichier. Les deux routes d'appel
+# d'offres — analyser, et conserver — n'étaient pas déclarées dans
+# `_LARGE_BODY_PATHS` et retombaient donc sur le plafond commun de 512 Ko de
+# corps JSON, soit, l'inflation du base64 déduite, environ 380 Ko de fichier
+# réel — POUR L'ENSEMBLE des pièces d'un même envoi. Mesuré en navigateur : un
+# projet de marché de 818 Ko rend « Contenu trop volumineux » en 1,2 s ; le
+# même dossier en 28 Ko passe.
+#
+# C'EST LE MÊME DÉFAUT QUE CELUI DÉJÀ PAYÉ POUR `/api/datacenter/depot`, dont
+# le commentaire de `_LARGE_BODY_PATHS` porte encore le récit. Les routes
+# d'appel d'offres ont été écrites après, et n'ont jamais rejoint la liste.
+#
+# CES RÈGLES POSTENT UN CORPS RÉEL. Vérifier que la route figure dans un
+# ensemble constaterait une appartenance ; ce qu'on veut savoir, c'est ce qui
+# franchit la porte.
+
+import app as _app                                                 # noqa: E402
+
+CORPS_PETIT = 512 * 1024                       # l'ancien plafond commun
+
+
+def _piece_de(octets):
+    """Une pièce dont le CORPS transmis dépasse `octets`, base64 compris."""
+    return {"nom": "gros.txt", "contenu": _b64("A" * int(octets * 3 / 4))}
+
+
+def test_une_piece_PLUS_GROSSE_QUE_L_ANCIEN_PLAFOND_est_acceptee(connecte, projet):
+    """La règle qui manquait, du côté qui compte : le dépôt."""
+    r = _deposer(connecte, projet, pieces=[_piece_de(CORPS_PETIT * 2)], fiche={})
+    assert r.status_code != 413, (
+        "le dossier marché refuse encore un envoi d'environ %d Ko : les pièces "
+        "d'une consultation ne passent donc pas la porte"
+        % (CORPS_PETIT * 2 // 1024))
+    assert r.status_code == 200, r.data[:200]
+    d = connecte.get("/api/datacenter/marche/projet/dossier?projet=" + projet,
+                     headers=ORIGINE).get_json()["dossier"]
+    assert d["pieces"] and d["pieces"][0]["octets"] > 0
+
+
+def test_l_analyse_accepte_le_MEME_volume_que_le_depot(admin):
+    """DEUX PLAFONDS DIFFÉRENTS SUR LE MÊME GESTE SERAIT PIRE QUE LE DÉFAUT.
+    On analyse puis on conserve les mêmes fichiers ; un dossier qui franchit la
+    première porte et bute sur la seconde ne se comprend pas."""
+    r = admin.post("/api/datacenter/marche/analyser",
+                   json={"documents": [_piece_de(CORPS_PETIT * 2)]},
+                   headers=ORIGINE)
+    assert r.status_code != 413, (
+        "l'analyse refuse un volume que le dépôt accepte : les deux portes du "
+        "même geste n'ont pas le même plafond")
+
+
+def test_le_plafond_de_transport_TIENT_ce_que_le_site_ANNONCE():
+    """L'ÉCART ENTRE CE QUI EST PROMIS ET CE QUI PASSE EST LE DÉFAUT LUI-MÊME.
+    Le site annonce une taille maximale par fichier (`DEPOT_MAX_MB`, servie à
+    la page par l'état du dépôt). Si le transport en une requête ne la porte
+    pas, l'annonce est fausse — et c'est exactement ce qui s'est produit."""
+    import antivirus
+    porte = _app.RAG_UPLOAD_MAX
+    annonce = antivirus.MAX_OCTETS * antivirus.SURCOUT_BASE64
+    assert annonce <= porte, (
+        "le site annonce %d Mo par fichier mais n'accepte que %d Mo de corps : "
+        "les plus gros échoueront au transport"
+        % (antivirus.MAX_OCTETS // 1048576, porte // 1048576))
+    for route in ("/api/datacenter/marche/analyser",
+                  "/api/datacenter/marche/projet/dossier"):
+        assert route in _app._LARGE_BODY_PATHS, (
+            "%s reçoit des fichiers en base64 mais reste au plafond commun de "
+            "%d Ko" % (route, _app.SMALL_BODY_MAX // 1024))
+
+
+def test_le_refus_de_transport_NOMME_le_volume_qui_a_echoue():
+    """« Analyse indisponible. » couvrait le délai dépassé, la coupure réseau
+    et le refus du serveur : trois pannes, trois gestes, un seul mot. La règle
+    exécute la phrase sur chacune et exige qu'elles diffèrent, et que le volume
+    y figure — c'est lui qui dit s'il faut alléger ou réessayer."""
+    src = _js_source("fr", "aoOctets", "aoPanne")
+    sortie = subprocess.run(
+        ["node", "-e", "var DELAI_LONG = 130000;\n" + src + """
+        var o = 5 * 1024 * 1024;
+        var d = new Error("x"); d.name = "DelaiDepasse"; d.delai = 130000;
+        var s = new Error("x"); s.name = "SessionEteinte";
+        console.log(JSON.stringify([aoPanne(d, o), aoPanne(s, o),
+                                    aoPanne(new Error("réseau"), o),
+                                    aoPanne(new Error("x"), 1.5 * 1048576)]));
+        """], capture_output=True, text=True, timeout=60)
+    assert sortie.returncode == 0, sortie.stderr[-600:]
+    delai, session, autre, aoPanne_1_5 = json.loads(sortie.stdout)
+    assert len({delai, session, autre}) == 3, (
+        "les trois pannes rendent le même message : %r" % [delai, session, autre])
+    assert "130" in delai and "5 Mo" in delai, delai
+    assert "session" in session.lower(), session
+    assert "5 Mo" in autre, autre
+    # LA TAILLE EST ÉCRITE À LA FRANÇAISE, comme tout le reste de la page.
+    assert "1,50 Mo" in aoPanne_1_5, aoPanne_1_5
+
+
+def test_l_analyse_et_le_depot_prennent_le_DELAI_LONG():
+    """DOUZE SECONDES ÉTAIT UN BUDGET D'APERÇU. Ces deux appels téléversent
+    plusieurs mégaoctets, les passent à l'antivirus, en extraient le texte PDF
+    par PDF, puis refont dix-sept relevés. La règle lit le délai passé à
+    `demander` dans chacun des deux, au lieu de constater qu'un mot figure
+    quelque part dans le fichier."""
+    src = _src("ingenierie-dc.js")
+    for fonction, adresse in (("aoAnalyser", "/api/datacenter/marche/analyser"),
+                              ("aoProjetDeposer",
+                               "/api/datacenter/marche/projet/dossier")):
+        bloc = _js_source(fonction)
+        assert adresse in bloc, "%s n'appelle plus %s" % (fonction, adresse)
+        # le troisième argument de `demander`, tel qu'il est écrit ici
+        m = re.search(r"\}\s*,\s*(DELAI_\w+)\s*\)", bloc)
+        assert m and m.group(1) == "DELAI_LONG", (
+            "%s laisse à %s le délai %s : un transfert de plusieurs mégaoctets "
+            "sera coupé en plein vol"
+            % (fonction, adresse, m.group(1) if m else "par défaut (12 s)"))
+    assert "var DELAI_LONG = 130000;" in src
+
+
+def test_un_document_TROP_LONG_le_dit_au_lieu_d_etre_coupe_en_silence(
+        connecte, projet):
+    """LE DÉFAUT MESURÉ SUR UN VRAI DOCUMENT. Un projet de marché de 120 pages
+    porte 762 460 caractères ; le coffre en conserve 400 000. La coupe se
+    faisait en amont et sans un mot : le dossier s'affichait conservé, les
+    relevés tournaient sur un texte qui s'arrête au milieu, et 48 % des clauses
+    n'existaient plus pour personne.
+
+    LE PLAFOND RESTE — il protège le coffre et le releveur. Ce qui change est
+    qu'il se voit."""
+    long = "A" * (_app.MARCHE_TEXTE_MAX + 50_000)
+    r = _deposer(connecte, projet,
+                 pieces=[{"nom": "marche.txt", "contenu": _b64(long)}], fiche={})
+    assert r.status_code == 200, r.data[:200]
+    dits = json.dumps(r.get_json().get("ignores") or [], ensure_ascii=False)
+    assert "marche.txt" in dits, (
+        "la pièce écourtée n'est pas nommée dans la réponse : %s" % dits[:300])
+    assert str(len(long)) in dits and str(_app.MARCHE_TEXTE_MAX) in dits, (
+        "le nombre de caractères gardés et le total ne sont pas dits : %s"
+        % dits[:300])
+    # ET LA PIÈCE EST BIEN CONSERVÉE, écourtée mais présente.
+    d = connecte.get("/api/datacenter/marche/projet/dossier?projet=" + projet,
+                     headers=ORIGINE).get_json()["dossier"]
+    assert d["pieces"][0]["octets"] == _app.MARCHE_TEXTE_MAX
+
+
+def test_la_coupe_et_le_REFUS_du_coffre_parlent_du_meme_plafond():
+    """DEUX CHIFFRES POUR LA MÊME LIMITE EST UNE DIVERGENCE EN ATTENTE. La
+    route coupait à 400 000 écrit en dur pendant que `ao_projet` refusait à
+    `MAX_OCTETS_PIECE` : le refus nommé du module ne se déclenchait jamais,
+    puisque le texte lui arrivait déjà coupé pile à la limite."""
+    import ao_projet as _p
+    assert _app.MARCHE_TEXTE_MAX == _p.MAX_OCTETS_PIECE, (
+        "la route coupe à %d et le coffre refuse à %d : personne ne peut dire "
+        "laquelle des deux s'applique"
+        % (_app.MARCHE_TEXTE_MAX, _p.MAX_OCTETS_PIECE))
+
+
+def test_l_avertissement_du_depot_est_pose_APRES_le_re_rendu():
+    """MESURÉ EN NAVIGATEUR : la pièce était bel et bien écourtée, et la ligne
+    de message restait vide. `aoProjetEtat` reconstruit tout le bloc,
+    `#ig-cons-msg` compris ; écrire dedans avant elle revient à écrire sur un
+    élément qu'elle va remplacer.
+
+    LA RÈGLE MESURE L'IMBRICATION, pas la présence des deux appels : les deux
+    étaient là avant la correction, dans le mauvais ordre."""
+    bloc = _js_source("aoProjetDeposer")
+    i = bloc.find("aoProjetEtat()")
+    assert i > 0, "aoProjetDeposer ne rafraîchit plus l'état"
+    # le corps du .then qui suit aoProjetEtat(), par comptage d'accolades
+    j = bloc.index("{", bloc.index(".then", i))
+    n, fin = 0, None
+    for k in range(j, len(bloc)):
+        if bloc[k] == "{":
+            n += 1
+        elif bloc[k] == "}":
+            n -= 1
+            if n == 0:
+                fin = k
+                break
+    assert fin, "le .then qui suit aoProjetEtat() n'est pas refermé"
+    dedans = bloc[j:fin]
+    assert "aoProjetMsg" in dedans, (
+        "l'avertissement du dépôt est posé HORS du .then qui suit "
+        "aoProjetEtat() : le re-rendu l'effacera avant qu'il soit lu")

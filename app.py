@@ -143,8 +143,18 @@ app.config["MAX_CONTENT_LENGTH"] = RAG_UPLOAD_MAX
 # réel d'environ 380 Ko. Le plafond annoncé était de 30 Mo : l'écart entre ce
 # qui est affiché et ce qui passe est exactement le genre de défaut qu'on
 # découvre au premier document un peu lourd.
+# LES DEUX ROUTES D'APPEL D'OFFRES Y FIGURENT AUSSI, et pour la même raison
+# qu'au-dessus — elles avaient simplement été ajoutées après. Mesuré en
+# navigateur : un projet de marché de 818 Ko fait « Contenu trop volumineux »
+# en 1,2 s, tandis qu'un fichier de 28 Ko passe. Le site annonce 20 Mo par
+# fichier ; ces deux routes en acceptaient 380 Ko, tous fichiers CONFONDUS —
+# soit quarante fois moins que ce qui est promis, et le plafond est atteint
+# d'autant plus vite qu'on charge « plusieurs pièces à la fois », ce que le
+# champ invite explicitement à faire.
 _LARGE_BODY_PATHS = {"/api/admin/rag/upload-file", "/api/admin/rag/restore",
-                     "/api/datacenter/depot"}
+                     "/api/datacenter/depot",
+                     "/api/datacenter/marche/analyser",
+                     "/api/datacenter/marche/projet/dossier"}
 
 
 class _IPRateLimiter:
@@ -4437,6 +4447,11 @@ def api_datacenter_travaux():
                    natures_note=technique_dc.NATURES_NOTE)
 
 
+# LE PLAFOND DE TEXTE PAR PIÈCE EST CELUI DU COFFRE, lu chez lui. Le recopier
+# ici aurait fait diverger la coupe et le refus : on aurait coupé à une valeur
+# et refusé à une autre, et personne n'aurait vu laquelle s'applique.
+MARCHE_TEXTE_MAX = ao_projet.MAX_OCTETS_PIECE
+
 # ══ UNE SEULE PORTE POUR LIRE LES PIÈCES D'UNE CONSULTATION ══════════════
 #
 # ELLE EXISTE PARCE QUE LE DÉPÔT LISAIT UNE CLÉ QUE LA PAGE N'ENVOIE PAS.
@@ -4460,6 +4475,16 @@ def api_datacenter_travaux():
 def _marche_lire_documents(documents):
     """Rend (docs, ignores) : chaque doc porte `nom`, `texte` et `extension`.
 
+    CE QUI EST COUPÉ EST DIT. Le texte d'une pièce est borné — le coffre et le
+    releveur ont besoin d'une limite, et `ao_projet` refuse au-delà de
+    MAX_OCTETS_PIECE. Mais la coupe se faisait ICI, en amont et en silence, si
+    bien que le refus nommé du module ne se déclenchait jamais : un projet de
+    marché de 120 pages portant 762 460 caractères était conservé à 400 000 —
+    mesuré — et les 362 460 autres, soit 48 % du document, disparaissaient sans
+    un mot. Les relevés tournaient ensuite sur un texte qui s'arrête au milieu,
+    et une date limite figurant page 63 ressortait « non trouvée ».
+    Le troisième élément rendu nomme chaque pièce écourtée et de combien.
+
     `documents` est la liste transmise par la page. Chaque entrée désigne son
     texte de l'une des trois façons possibles : `texte` en clair, `contenu` en
     base64 (le cas du navigateur), ou `document_id` pour une pièce déjà versée
@@ -4468,7 +4493,7 @@ def _marche_lire_documents(documents):
     """
     import antivirus
     import rag_store as _rs
-    docs, ignores = [], []
+    docs, ignores, tronques = [], [], []
     for d in (documents or [])[:40]:
         if not isinstance(d, dict):
             continue
@@ -4521,9 +4546,20 @@ def _marche_lire_documents(documents):
                                 "pourquoi": "Le texte de ce document n'a pas "
                                             "pu être relu depuis la base."})
                 continue
-        docs.append({"nom": nom, "texte": str(texte or "")[:400000],
+        entier = str(texte or "")
+        if len(entier) > MARCHE_TEXTE_MAX:
+            tronques.append({
+                "fichier": nom, "garde": MARCHE_TEXTE_MAX, "total": len(entier),
+                "pourquoi": ("Seuls les %d premiers caractères sont conservés "
+                             "sur les %d que porte ce fichier (%d %% du texte). "
+                             "Ce qui suit n'est ni relevé ni conservé : "
+                             "déposez les pièces séparément plutôt qu'un "
+                             "document unique qui les rassemble."
+                             % (MARCHE_TEXTE_MAX, len(entier),
+                                round(100 - 100 * MARCHE_TEXTE_MAX / len(entier))))})
+        docs.append({"nom": nom, "texte": entier[:MARCHE_TEXTE_MAX],
                      "extension": ext})
-    return docs, ignores
+    return docs, ignores + tronques
 
 
 @app.route("/api/datacenter/marche/analyser", methods=["POST"])

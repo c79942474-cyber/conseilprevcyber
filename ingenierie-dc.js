@@ -5720,6 +5720,12 @@ function messageDelai(e, defaut) {
      lu. Il reste dans cette page tant qu'aucun projet n'est choisi. */
   var AO_DOCS = null;
 
+  /* CE QUE LE SERVEUR ACCEPTE EN UNE REQUÊTE, moins l'inflation du base64 —
+     un fichier binaire pèse un tiers de plus une fois encodé. La valeur suit
+     `RAG_UPLOAD_MAX` côté serveur ; l'annoncer permet de choisir ses fichiers
+     avant de les envoyer plutôt que d'apprendre le plafond en le heurtant. */
+  var AO_TRANSPORT_MAX = 32 * 1024 * 1024 * 3 / 4;
+
   function aoDocuments() {
     var z = $("#ig-ao-depot");
     if (!z) return;
@@ -5727,9 +5733,16 @@ function messageDelai(e, defaut) {
       '<label class="dc-champ" for="ig-ao-f"><span class="dc-lab">Pièces de '
       + "la consultation</span>"
       + '<input id="ig-ao-f" type="file" multiple accept="' + accepteDepot() + '">'
-      + '<span class="dc-aide">Plusieurs fichiers à la fois. Ils sont analysés '
-      + "puis lus, et ne sont PAS enregistrés : pour les verser à la base de "
-      + "connaissance, passez par l'étape précédente.</span></label>"
+      + '<span class="dc-aide">Plusieurs fichiers à la fois, ou un par un — '
+      + "chaque dépôt s'ajoute au précédent. Ils sont analysés puis lus, et ne "
+      + "sont PAS enregistrés dans la base de connaissance : pour cela, passez "
+      + "par l'étape précédente. "
+      /* LA LIMITE EST DITE, PARCE QU'ELLE EXISTE. Elle valait 380 Ko pour
+         l'ensemble des fichiers, sans que rien ne l'annonce : on choisissait
+         son dossier de consultation, on cliquait, et on lisait « Contenu trop
+         volumineux » sans savoir quel chiffre on avait dépassé. */
+      + "Taille : jusqu'à " + aoOctets(AO_TRANSPORT_MAX) + " pour l'ensemble "
+      + "des fichiers d'un même envoi.</span></label>"
       + '<div id="ig-ao-liste" class="ig-ao-docs"></div>';
     var f = $("#ig-ao-f");
     if (f) {
@@ -5748,6 +5761,26 @@ function messageDelai(e, defaut) {
   /* Un fichier lu en base64, rendu comme une promesse. Le lecteur du
      navigateur est événementiel ; l'envelopper ici évite d'imbriquer autant de
      rappels que de fichiers, et surtout de perdre l'ordre. */
+  /* CE QUI A ÉCHOUÉ, DIT EN TOUTES LETTRES. « Analyse indisponible. »
+     couvrait indifféremment le délai dépassé, la coupure réseau et le refus du
+     serveur : trois pannes, trois gestes différents, un seul message. Le
+     lecteur qui charge un dossier de consultation de plusieurs mégaoctets a
+     besoin de savoir s'il doit attendre, se reconnecter, ou alléger. */
+  function aoPanne(e, octets) {
+    if (e && e.name === "DelaiDepasse") {
+      return "Le serveur n'a pas répondu en "
+        + Math.round((e.delai || DELAI_LONG) / 1000) + " s pour "
+        + aoOctets(octets) + ". Réessayez, ou chargez les pièces "
+        + "en plusieurs fois : chaque dépôt s'ajoute au précédent.";
+    }
+    if (e && e.name === "SessionEteinte") {
+      return "Votre session a expiré. Reconnectez-vous, puis relancez "
+        + "l'analyse : rien n'est perdu.";
+    }
+    return "L'analyse n'a pas abouti (" + ((e && e.message) || "erreur réseau")
+      + "). Le transfert de " + aoOctets(octets) + " n'est pas allé au bout.";
+  }
+
   function aoLire(fichier) {
     return new Promise(function (ok) {
       var l = new FileReader();
@@ -5771,7 +5804,7 @@ function messageDelai(e, defaut) {
     }
     var n = f.files.length;
     msg.textContent = "Lecture de " + n + " pièce" + (n > 1 ? "s" : "") + "…";
-    var lectures = [];
+    var lectures = [], docs_octets = 0;
     for (var i = 0; i < n; i++) lectures.push(aoLire(f.files[i]));
     Promise.all(lectures).then(function (lus) {
       var docs = lus.filter(function (x) { return !x.erreur; });
@@ -5779,13 +5812,23 @@ function messageDelai(e, defaut) {
         msg.textContent = "Aucun fichier n'a pu être lu.";
         return;
       }
+      docs_octets = docs.reduce(function (n, d) {
+        return n + (d.contenu || "").length * 3 / 4;
+      }, 0);
       msg.textContent = "Analyse de " + docs.length + " pièce"
-        + (docs.length > 1 ? "s" : "") + "…";
+        + (docs.length > 1 ? "s" : "") + " · " + aoOctets(docs_octets) + "…";
+      /* LE DÉLAI LONG, PARCE QUE LE TRAVAIL EST LONG. Le délai par défaut est
+         de douze secondes — un budget d'aperçu. Ici on téléverse plusieurs
+         mégaoctets, on les passe à l'antivirus, puis on en extrait le texte
+         PDF par PDF. Douze secondes coupaient la requête en plein transfert,
+         et l'abandon ressortait comme « Analyse indisponible. » : le lecteur
+         apprenait qu'il avait échoué, jamais pourquoi. */
       return demander("/api/datacenter/marche/analyser", {
         method: "POST", credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ documents: docs }),
-      }).then(function (x) { return x.json().then(function (j) { return [x.status, j]; }); })
+      }, DELAI_LONG)
+        .then(function (x) { return x.json().then(function (j) { return [x.status, j]; }); })
         .then(function (xj) {
           var st = xj[0], j = xj[1];
           if (st === 401 || st === 403) {
@@ -5818,7 +5861,7 @@ function messageDelai(e, defaut) {
              redemander quoi que ce soit. */
           aoRemplir(true);
         });
-    }).catch(function () { msg.textContent = "Analyse indisponible."; });
+    }).catch(function (e) { msg.textContent = aoPanne(e, docs_octets); });
   }
 
   /* CE QUI N'A PAS PU ÊTRE LU EST DIT, avec son motif. Un fichier écarté en
@@ -7342,11 +7385,16 @@ function messageDelai(e, defaut) {
       .catch(function () { AO_PROJETS = []; });
   }
 
+  /* LES TAILLES PASSENT PAR `fr`, COMME TOUS LES NOMBRES DE CE SITE. Un
+     `toFixed(1)` rendait « 5.0 Mo » — le point décimal anglais, au milieu
+     d'une page où tout le reste porte la virgule. Le formateur commun décide
+     du barème une seule fois, et un entier y reste un entier : « 799 Ko »,
+     pas « 799,0 Ko ». */
   function aoOctets(n) {
     n = Number(n) || 0;
-    return n < 1024 ? n + " o"
-      : n < 1048576 ? (n / 1024).toFixed(1) + " Ko"
-      : (n / 1048576).toFixed(1) + " Mo";
+    return n < 1024 ? fr(n) + " o"
+      : n < 1048576 ? fr(n / 1024) + " Ko"
+      : fr(n / 1048576) + " Mo";
   }
   function aoJour(ms) {
     if (!ms) return "—";
@@ -7538,7 +7586,12 @@ function messageDelai(e, defaut) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ projet: AO_PROJET, pieces: AO_DOCS,
                              fiche: AO_FICHE }),
-    }, DELAI_MOYEN)
+    /* LE MÊME DÉLAI QUE L'ANALYSE, POUR LE MÊME TRAVAIL. Le dépôt transmet
+       les mêmes octets, les repasse à l'antivirus, en réextrait le texte et
+       refait le relevé sur le dossier ENTIER. Lui laisser un budget moyen
+       quand l'analyse en demande un long, c'est couper au dernier geste ce
+       qu'on a laissé passer au premier. */
+    }, DELAI_LONG)
       .then(function (r) { return r.json().then(function (j) { return [r.status, j]; }); })
       .then(function (xj) {
         var j = xj[1];
@@ -7548,10 +7601,27 @@ function messageDelai(e, defaut) {
           aoProjetMsg((j && j.message) || "La conservation a échoué.");
           return;
         }
-        aoProjetMsg("");
-        return aoProjetEtat();
+        /* CE QUI N'A PAS PU ÊTRE LU — OU QUI A ÉTÉ ÉCOURTÉ — EST DIT ICI
+           AUSSI. Un dépôt de six pièces dont deux sont écartées se lisait
+           comme un dépôt de six.
+
+           APRÈS `aoProjetEtat`, ET C'EST L'ORDRE QUI COMPTE : cette fonction
+           reconstruit tout le bloc, `#ig-cons-msg` compris. Poser le message
+           avant elle revenait à l'écrire sur un élément qu'elle allait
+           remplacer — mesuré en navigateur, le message était vide alors que la
+           pièce avait bel et bien été écourtée. */
+        var ig = j.ignores || [];
+        return aoProjetEtat().then(function () {
+          aoProjetMsg(ig.length
+            ? ig.map(function (x) { return x.fichier + " — " + x.pourquoi; })
+                .join(" · ")
+            : "");
+        });
       })
-      .catch(function () { aoProjetMsg("La conservation a échoué."); });
+      .catch(function (e) {
+        aoProjetMsg(aoPanne(e, (AO_DOCS || []).reduce(function (n, d) {
+          return n + (d.contenu || "").length * 3 / 4; }, 0)));
+      });
   }
 
   /* RETIRER UNE PIÈCE, ET REFAIRE LE RELEVÉ SUR CE QUI RESTE. C'est le
