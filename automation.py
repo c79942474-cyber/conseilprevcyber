@@ -425,6 +425,38 @@ def job_purge_rgpd():
                "purge automatique faire son travail.</p>" % rows if soon else ""))
 
 
+# ── L'INDEXATION QUI SE TERMINE, MÊME QUAND UN DOCUMENT RÉSISTE ───────────
+# CE QUI SE PASSAIT, ET POURQUOI ON NE LE VOYAIT PAS. Une exception sur UN
+# document faisait `return` : le passage entier s'arrêtait, et tous les
+# documents derrière lui n'étaient jamais touchés. Mesuré sur trois documents
+# dont le premier échoue toujours — dix passages, dix tentatives, toutes sur le
+# même : les deux autres n'ont pas avancé d'un lot. La vectorisation ne
+# finissait donc jamais, et rien ne le disait : l'exception était avalée sans
+# une ligne de journal.
+#
+# TROIS CHANGEMENTS, ET LE TROISIÈME EST LE PLUS IMPORTANT :
+#   1. un échec fait passer AU DOCUMENT SUIVANT, jamais sortir du passage ;
+#   2. il est JOURNALISÉ avec l'identifiant — un silence de deux mois était le
+#      vrai défaut, l'arrêt n'en était que la conséquence visible ;
+#   3. un document qui échoue trop souvent est MIS DE CÔTÉ. Sans cela il
+#      consommerait le budget à chaque passage et retarderait indéfiniment les
+#      autres — l'arrêt aurait simplement changé de forme.
+#
+# LA MISE DE CÔTÉ EST EN MÉMOIRE, ET C'EST VOULU : un redéploiement redonne sa
+# chance au document. Une panne d'embeddings de trois minutes ne doit pas
+# condamner un document jusqu'à intervention humaine.
+ECHECS_AVANT_MISE_DE_COTE = 3
+_echecs_index = {}
+
+
+def index_rag_etat():
+    """Ce qui bloque, nommé. Un document mis de côté doit se voir."""
+    return {"mis_de_cote": sorted(k for k, n in _echecs_index.items()
+                                  if n >= ECHECS_AVANT_MISE_DE_COTE),
+            "echecs": dict(_echecs_index),
+            "seuil": ECHECS_AVANT_MISE_DE_COTE}
+
+
 def job_index_rag():
     """Indexation vectorielle autonome des documents en attente (côté serveur)."""
     rag = _deps.get("rag")
@@ -433,15 +465,25 @@ def job_index_rag():
     try:
         pending = [d for d in rag.list_documents() if d.get("status") == "indexing"]
     except Exception:
+        _log.exception("indexation : liste des documents injoignable")
         return
     budget = 30                                  # lots max par passage (≈300 chunks)
     for doc in pending:
+        cle = str(doc.get("id"))
+        if _echecs_index.get(cle, 0) >= ECHECS_AVANT_MISE_DE_COTE:
+            continue                             # mis de côté : il ne bloque plus
         while budget > 0:
             budget -= 1
             try:
-                out = rag.index_next(doc["id"])
+                out = rag.index_next(cle)
             except Exception:
-                return
+                n = _echecs_index[cle] = _echecs_index.get(cle, 0) + 1
+                _log.exception("indexation : le document %s a échoué (%d/%d)",
+                               cle, n, ECHECS_AVANT_MISE_DE_COTE)
+                break                            # AU SUIVANT, jamais `return`
+            # UN SUCCÈS EFFACE LES ÉCHECS PASSÉS : ce sont les échecs
+            # CONSÉCUTIFS qui condamnent, pas leur total sur la vie du service.
+            _echecs_index.pop(cle, None)
             if out.get("done") or out.get("degraded"):
                 break
         if budget <= 0:

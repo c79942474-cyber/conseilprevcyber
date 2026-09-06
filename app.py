@@ -6792,7 +6792,12 @@ def api_rag_list():
                                     < st["documents"]),
                        capabilities=rag.capabilities(), themes=THEMES,
                        familles=_familles_payload(), formats=formats_available(),
-                       formats_deposables=depos, natures=_natures_payload())
+                       formats_deposables=depos, natures=_natures_payload(),
+                       # CE QUI BLOQUE L'INDEXATION, NOMMÉ. Un document mis de
+                       # côté après trois échecs reste « en cours » dans la
+                       # liste : sans cette ligne, la console montrerait un
+                       # document qui n'avancera plus, sans dire pourquoi.
+                       indexation=automation.index_rag_etat())
     except Exception:
         try:
             caps = rag.capabilities()
