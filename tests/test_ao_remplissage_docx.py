@@ -63,7 +63,15 @@ def _net(s):
 
 
 def _paras(source):
-    return [_net(p.text) for p in docx.Document(source).paragraphs]
+    """Les paragraphes DANS L'ORDRE DU DOCUMENT, cellules de tableau comprises.
+
+    ON LIT COMME LE MOTEUR ÉCRIT, et c'est une correction. Ces règles
+    passaient par `docx.Document(...).paragraphs`, qui ignore les paragraphes
+    vivant dans un tableau : les indices rendus par le rapport ne désignaient
+    plus les mêmes lignes, et la règle tombait pour un décalage de
+    référentiel — pas pour une valeur mal placée.
+    """
+    return [_net(p.text) for p in F.paragraphes(docx.Document(source))]
 
 
 def _produit(saisies=None):
@@ -180,6 +188,102 @@ def test_rien_n_est_ecrit_dans_les_declarations_ni_dans_les_signatures(document)
         "signature : %s" % [i for i in modifies if i >= k])
 
 
+def test_un_paragraphe_de_cellule_fusionnee_n_entre_qu_UNE_fois():
+    """UNE CELLULE FUSIONNÉE EST RENDUE PLUSIEURS FOIS PAR `row.cells`, et le
+    même paragraphe entrerait deux fois dans la liste du document — assez pour
+    qu'une valeur soit écrite deux fois, ou qu'un indice « déjà pris » en
+    écarte un autre.
+
+    ET CE N'EST PAS UNE PRÉCAUTION THÉORIQUE : le DC2 en compte deux, l'ATTRI1
+    quatre. Une batterie de mutations a d'abord montré que retirer le
+    dédoublonnage ne faisait tomber aucune règle — la mesure ci-dessous
+    existe parce qu'il n'y en avait aucune.
+    """
+    vus_par_modele = {}
+    for cle in sorted(F.MODELES):
+        blocs = F.paragraphes(docx.Document(F.chemin_modele(cle)))
+        elements = [id(b._p) for b in blocs]
+        assert len(elements) == len(set(elements)), (
+            "%s : %d paragraphe(s) rendu(s) deux fois"
+            % (cle, len(elements) - len(set(elements))))
+        vus_par_modele[cle] = len(blocs)
+    # LE TÉMOIN QUI PROUVE QUE LA RÈGLE MORD, et il a fallu le corriger : je
+    # comptais d'abord les fusions HORIZONTALES, ligne par ligne — il n'y en a
+    # qu'une. L'écart réel vient aussi des fusions VERTICALES, où la même
+    # cellule reparaît d'une ligne à l'autre. Ce qu'il faut mesurer, c'est
+    # donc ce que le dédoublonnage RETIRE, pas une forme particulière de
+    # fusion : on refait le parcours sans lui et on compare.
+    from docx.table import Table                                # noqa: PLC0415
+    from docx.text.paragraph import Paragraph                   # noqa: PLC0415
+
+    def _naif(doc):
+        out = []
+
+        def _p(parent, el):
+            for e in el.iterchildren():
+                if e.tag.endswith("}p"):
+                    out.append(Paragraph(e, parent))
+                elif e.tag.endswith("}tbl"):
+                    for ligne in Table(e, parent).rows:
+                        for c in ligne.cells:
+                            _p(c, c._tc)
+        _p(doc, doc.element.body)
+        return out
+
+    doublons = {cle: len(_naif(docx.Document(F.chemin_modele(cle))))
+                - vus_par_modele[cle] for cle in vus_par_modele}
+    assert sum(doublons.values()) >= 2, (
+        "aucun paragraphe n'est rendu deux fois sans le dédoublonnage : le "
+        "témoin de cette règle a disparu — %s" % doublons)
+    assert doublons["dc2"] and doublons["attri1"], doublons
+
+
+@pytest.mark.parametrize("cle,ancre", [
+    ("attri1", "C - Signature du marché public"),
+    ("dc1", "F1 – Exclusions de la procédure"),
+    ("dc4", "K1 - Le sous-traitant déclare sur l’honneur"),
+])
+def test_une_ancre_qui_viserait_une_signature_ou_une_declaration_ne_place_RIEN(
+        cle, ancre):
+    """LA BARRIÈRE QUI PROTÈGE LE BLANC, éprouvée sur les trois formulaires
+    qui portent une déclaration ou une signature.
+
+    Une batterie de mutations a montré que la retirer ne faisait tomber
+    AUCUNE règle : sur ces documents, l'invariant « on n'écrit que dans du
+    vide » suffit tant que les ancres ne s'égarent pas. Mais les blocs de
+    signature CONTIENNENT des lignes vides — 132 paragraphes interdits à
+    l'ATTRI1, 32 au DC4 — et une ancre qui glisserait y écrirait. On le
+    provoque, avec son témoin.
+    """
+    paras = [pa.text for pa in
+             F.paragraphes(docx.Document(F.chemin_modele(cle)))]
+    interdits = F._zones_interdites(paras, cle)
+    assert interdits, cle
+    assert F._cible(paras, interdits, set(), ancre, 1) is None, (
+        "%s : une ancre visant une zone de signature ou de déclaration a "
+        "trouvé un emplacement" % cle)
+    sans = F._cible(paras, set(), set(), ancre, 1)
+    assert sans is not None and sans in interdits, (
+        "%s : sans la barrière, cette ancre ne place rien non plus — la règle "
+        "serait verte pour une raison sans rapport avec ce qu'elle mesure"
+        % cle)
+
+
+def test_le_DC2_n_a_ni_declaration_ni_signature_et_le_dit():
+    """L'ABSENCE D'ENTRÉE DANS LA TABLE EST UN CONSTAT, PAS UN OUBLI. Le DC2
+    ne porte ni déclaration sur l'honneur ni bloc de signature — elles vivent
+    au DC1. Une règle le vérifie sur le document, faute de quoi on ne saurait
+    pas distinguer « rien à protéger » de « protection oubliée »."""
+    assert "dc2" not in F.ZONES_INTERDITES
+    paras = [F._net(pa.text) for pa in
+             F.paragraphes(docx.Document(F.chemin_modele("dc2")))]
+    for interdit in ("declare sur l'honneur", "Signature", "signataire"):
+        assert not any(interdit.lower() in t.lower() for t in paras), (
+            "le DC2 porte « %s » : il lui faut une zone interdite" % interdit)
+    # ET LES TROIS AUTRES EN PORTENT, sinon la distinction ne sépare rien.
+    assert set(F.ZONES_INTERDITES) == {"dc1", "attri1", "dc4"}
+
+
 def test_une_ancre_qui_viserait_une_declaration_ne_place_RIEN():
     """LA SECONDE BARRIÈRE, ET LA SEULE MESURE QUI PROUVE QU'ELLE SERT.
 
@@ -258,8 +362,12 @@ def test_le_modele_du_depot_est_bien_celui_qui_a_ete_ancre():
     côté, sans rien signaler."""
     etat = F.modeles_disponibles()
     assert etat["manquants"] == [] and etat["alteres"] == [], etat
-    assert "dc4" in etat["prets"]
-    assert F.empreinte(F.chemin_modele("dc4")) == F.MODELES["dc4"]["empreinte"]
+    # LES QUATRE FORMULAIRES DE L'ÉTAT, et chacun couvre une pièce du dossier.
+    assert etat["prets"] == ["attri1", "dc1", "dc2", "dc4"], etat["prets"]
+    for cle, m in F.MODELES.items():
+        assert F.empreinte(F.chemin_modele(cle)) == m["empreinte"], cle
+        assert m["piece"] in {p["cle"] for p in
+                              ao_dc.DOSSIER_CANDIDATURE + ao_dc.DOSSIER_OFFRE}, cle
 
 
 def test_un_modele_altere_fait_refuser_le_remplissage(tmp_path, monkeypatch):
@@ -289,7 +397,7 @@ def test_un_modele_absent_est_dit_absent_et_non_altere(tmp_path, monkeypatch):
     octets, rapport = F.remplir_document("dc4", {"titulaire": "Essai"})
     assert octets is None and rapport["motif"] == "modele_absent"
     etat = F.modeles_disponibles()
-    assert etat["manquants"] == ["dc4"] and etat["alteres"] == []
+    assert etat["manquants"] == sorted(F.MODELES) and etat["alteres"] == []
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -453,10 +561,165 @@ def test_l_etat_des_modeles_distingue_pret_absent_et_altere(connecte):
     r = connecte.get("/api/datacenter/marche/formulaires", headers=ORIGINE)
     assert r.status_code == 200
     j = r.get_json()
-    assert j["etat"]["prets"] == ["dc4"], j["etat"]
+    assert j["etat"]["prets"] == ["attri1", "dc1", "dc2", "dc4"], j["etat"]
     assert set(j["etat"]) == {"prets", "manquants", "alteres"}
     # L'EMPREINTE NE SORT PAS. Elle sert à refuser un fichier modifié ; la
     # publier n'aide personne et invite à la reproduire.
     assert "empreinte" not in j["modeles"]["dc4"], j["modeles"]["dc4"]
     assert j["modeles"]["dc4"]["maj"] == "12/10/2023"
     assert "NON SIGNÉ" in j["bandeau"]
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 6. LES TROIS AUTRES FORMULAIRES — DC1, DC2, ATTRI1
+# ══════════════════════════════════════════════════════════════════════════
+#
+# CE QUI A CHANGÉ DANS LE MOTEUR POUR LES ACCUEILLIR, et c'était nécessaire :
+# ces trois-là portent leurs INTITULÉS DE CADRE dans des tableaux d'une seule
+# cellule qui leur servent d'encadré. `doc.paragraphs` ne rend que le corps :
+# l'arrêt au cadre suivant ne voyait donc AUCUN cadre, et une ancre dont
+# l'emplacement aurait disparu aurait déposé sa valeur dix cadres plus loin.
+# Le moteur lit désormais le document dans son ORDRE RÉEL — 217 paragraphes au
+# DC1 au lieu de 168, 339 au DC2 au lieu de 223.
+
+FICHE_COMPLETE = dict(FICHE, rcs="Paris B 802 954 785", naf="7112B",
+                      ca_n1="1 400 000 €", ca_n2="1 250 000 €",
+                      ca_n3="980 000 €", capital="50 000 €", effectif="12")
+
+CCAP = "CCAP\nDélai d'exécution : 18 mois à compter de la notification.\n"
+
+
+def _forme(cle):
+    """Un formulaire rempli, avec son rapport et les deux listes de
+    paragraphes — le modèle et le produit."""
+    an = ao_dc.analyser([{"nom": "01_RC.pdf", "texte": RC},
+                         {"nom": "02_CCAP.pdf", "texte": CCAP}])
+    r = ao_dc.remplir(fiche=FICHE_COMPLETE, analyse=an, saisies=SAISIES)
+    octets, rapport = F.remplir_document(
+        cle, F.valeurs_pour(r, F.MODELES[cle]["piece"]))
+    assert octets, rapport
+    return (_paras(io.BytesIO(octets)), _paras(F.chemin_modele(cle)), rapport)
+
+
+# L'INTITULÉ ATTENDU DEVANT CHAQUE VALEUR, relevé sur chaque formulaire. C'est
+# ce qui distingue « la valeur est dans le document » de « la valeur est au bon
+# endroit ». Seule la seconde question a un intérêt.
+DEVANT_FORMES = {
+    "dc1": {
+        "acheteur": "(Reprendre le contenu de la mention",
+        "objet_consultation": "(Reprendre le contenu de la mention",
+        "lots": "pour le lot n°",
+        "candidat": "Nom commercial et dénomination sociale",
+        "adresse": "Adresses postale et du siège social",
+        "siret": "Numéro SIRET",
+    },
+    "dc2": {
+        "acheteur": "(Reprendre le contenu de la mention",
+        "objet_consultation": "(Reprendre le contenu de la mention",
+        "candidat": "Nom commercial et dénomination sociale",
+        "siret": "Numéro SIRET",
+        "forme": "Forme juridique du candidat individuel",
+        "rcs": "E1 - Renseignements sur l'inscription",
+    },
+    "attri1": {
+        "objet_marche": "(Reprendre le contenu de la mention",
+        "lots": "(Indiquer l'intitulé du ou des lots",
+        "titulaire": "[Indiquer le nom commercial",
+        "duree": "B5 - Durée d'exécution du marché public",
+    },
+}
+
+
+@pytest.mark.parametrize("cle", ["dc1", "dc2", "attri1"])
+def test_chaque_valeur_des_trois_formulaires_est_sous_son_intitule(cle):
+    out, _mod, rapport = _forme(cle)
+    par_rubrique = {x["rubrique"]: x for x in rapport["places"]}
+    assert rapport["non_places"] == [], rapport["non_places"]
+    for rubrique, intitule in DEVANT_FORMES[cle].items():
+        assert rubrique in par_rubrique, (cle, rubrique, sorted(par_rubrique))
+        i = par_rubrique[rubrique]["paragraphe"] + 1     # le bandeau décale
+        avant = [t for t in out[max(0, i - 5):i] if t]
+        assert avant, (cle, rubrique)
+        assert _net(intitule) in avant[-1], (
+            "%s : « %s » est écrite sous « %s » au lieu de « %s »"
+            % (cle, rubrique, avant[-1][:70], intitule))
+
+
+@pytest.mark.parametrize("cle", ["dc1", "dc2", "attri1"])
+def test_aucun_paragraphe_porteur_de_texte_n_est_ecrase_sur_les_trois(cle):
+    """Le même invariant que sur le DC4, éprouvé sur des documents dont la
+    structure est tout autre — onze tableaux au DC1, douze au DC2."""
+    out, mod, _r = _forme(cle)
+    assert len(out) == len(mod) + 1, (cle, len(out), len(mod))
+    modifies = 0
+    for i in range(1, len(out)):
+        if out[i] == mod[i - 1]:
+            continue
+        modifies += 1
+        assert F._emplacement_libre(mod[i - 1]), (
+            "%s ¶%d portait « %s » et a été écrasé par « %s »"
+            % (cle, i, mod[i - 1][:60], out[i][:60]))
+    assert modifies == len(_forme(cle)[2]["places"]), cle
+
+
+def test_l_acte_d_engagement_n_ecrit_RIEN_dans_les_blocs_de_signature():
+    """LES CADRES C ET D SONT LES SIGNATURES — celle du titulaire, puis celle
+    de l'acheteur. Y déposer un nom ferait ressembler à signé un document qui
+    ne l'est pas, et c'est exactement ce que ce module refuse de produire."""
+    out, mod, _r = _forme("attri1")
+    c = next(i for i, t in enumerate(out)
+             if t.startswith("C - Signature du marché public"))
+    d = next(i for i, t in enumerate(out)
+             if t.startswith("D - Identification et signature de l'acheteur"))
+    assert c < d, (c, d)
+    modifies = [i for i in range(1, len(out)) if out[i] != mod[i - 1]]
+    assert modifies, "rien n'a été écrit : la règle ne mesure rien"
+    assert [i for i in modifies if i >= c] == [], (
+        "des valeurs ont été écrites dans les blocs de signature : %s"
+        % [i for i in modifies if i >= c])
+
+
+def test_le_DC1_n_ecrit_RIEN_dans_la_declaration_sur_l_honneur():
+    """F1 porte la déclaration d'absence d'interdiction de soumissionner. Sa
+    fausseté est sanctionnée pénalement : rien n'y entre."""
+    out, mod, _r = _forme("dc1")
+    f1 = next(i for i, t in enumerate(out)
+              if t.startswith("F1 – Exclusions de la procédure"))
+    f2 = next(i for i, t in enumerate(out) if t.startswith("F2 –"))
+    modifies = [i for i in range(1, len(out)) if out[i] != mod[i - 1]]
+    assert [i for i in modifies if f1 <= i < f2] == [], (
+        "des valeurs ont été écrites dans la déclaration sur l'honneur")
+
+
+def test_les_trois_chiffres_d_affaires_du_DC2_sont_dans_LEUR_ordre():
+    """LE PIÈGE PROPRE AU DC2. Le cadre F1 range trois exercices côte à côte,
+    et les trois lignes libres qui suivent « Chiffre d'affaires global » sont
+    leurs trois colonnes. Inverser l'ordre attribuerait le chiffre du dernier
+    exercice à l'avant-dernier — une erreur qui se lit comme une entreprise en
+    croissance ou en déclin, selon le sens, et qu'aucune case vide ne
+    signale."""
+    out, _mod, rapport = _forme("dc2")
+    places = {x["rubrique"]: x["paragraphe"] for x in rapport["places"]}
+    assert places["ca_n1"] < places["ca_n2"] < places["ca_n3"], places
+    assert out[places["ca_n1"] + 1] == FICHE_COMPLETE["ca_n1"]
+    assert out[places["ca_n3"] + 1] == FICHE_COMPLETE["ca_n3"]
+    # ET ILS SE SUIVENT : trois colonnes, trois lignes consécutives.
+    assert places["ca_n3"] - places["ca_n1"] == 2, places
+
+
+def test_ce_qu_on_detient_et_que_le_formulaire_n_offre_pas_est_DIT():
+    """Une valeur qu'on a et qu'on ne pose pas doit se dire. Sans cette liste,
+    le rapport annoncerait sept valeurs écrites là où le report en connaît
+    onze, et l'écart resterait inexpliqué — on chercherait un défaut de
+    remplissage là où il n'y a qu'un formulaire sans case."""
+    _out, _mod, rapport = _forme("attri1")
+    # L'ATTRI1 N'A PAS DE CASE « acheteur » À LA MAIN DU CANDIDAT : son cadre D
+    # est le bloc de signature de l'acheteur. Le signataire du titulaire est au
+    # cadre C. Les deux sont interdits, et le rapport les nomme.
+    for rubrique in ("acheteur", "signataire", "qualite"):
+        assert rubrique in rapport["sans_ancre"], (rubrique,
+                                                   rapport["sans_ancre"])
+    assert set(rapport["sans_ancre"]).isdisjoint(
+        {x["rubrique"] for x in rapport["places"]})
+    # ET LE DC1, QUI A DES CASES POUR TOUT CE QU'IL DEMANDE, en a moins.
+    assert len(_forme("dc1")[2]["sans_ancre"]) < len(rapport["sans_ancre"])

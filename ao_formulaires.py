@@ -71,6 +71,36 @@ BANDEAU = ("PROJET — rempli automatiquement à partir de votre fiche et des "
 # n'est pas décorative : c'est ce qui permet de dire à l'utilisateur quelle
 # version il remplit, et de constater qu'elle a vieilli.
 MODELES = {
+    "dc1": {
+        "fichier": "DC1.docx",
+        "nom": "DC1 — Lettre de candidature",
+        "piece": "dc1",
+        "maj": "01/04/2019",
+        "source": "Direction des affaires juridiques, ministère chargé de "
+                  "l'économie — formulaire type.",
+        "empreinte": ("ad6b359b7d42ebb117ac3a89cfab9cf208583980"
+                      "9a33f1fd321cec560f31d040"),
+    },
+    "dc2": {
+        "fichier": "DC2.docx",
+        "nom": "DC2 — Déclaration du candidat",
+        "piece": "dc2",
+        "maj": "21/11/2023",
+        "source": "Direction des affaires juridiques, ministère chargé de "
+                  "l'économie — formulaire type.",
+        "empreinte": ("18dddc29e7d8728ff9e6a588056726a6014b0368"
+                      "3fcf637e48b2e207eec143d0"),
+    },
+    "attri1": {
+        "fichier": "ATTRI1.docx",
+        "nom": "ATTRI1 — Acte d'engagement",
+        "piece": "acte_engagement",
+        "maj": "01/04/2019",
+        "source": "Direction des affaires juridiques, ministère chargé de "
+                  "l'économie — formulaire type.",
+        "empreinte": ("7a7124984ab11c7ab4728667b791c2e0c6615e77"
+                      "9c05e9b9e2ce49c0e697c4e2"),
+    },
     "dc4": {
         "fichier": "DC4.docx",
         "nom": "DC4 — Déclaration de sous-traitance",
@@ -90,6 +120,100 @@ MODELES = {
 # place RIEN et le dit. Écrire « quelque part par là » serait pire que ne rien
 # écrire, parce que la case aurait l'air remplie.
 ANCRES = {
+    # ── DC1 — LETTRE DE CANDIDATURE ───────────────────────────────────────
+    # L'OBJET ET LA RÉFÉRENCE PARTAGENT LE CADRE B, et c'est le formulaire qui
+    # le veut : « l'indication du numéro de référence attribué au dossier par
+    # l'acheteur est également une information suffisante ». Les deux ancres
+    # visent donc le même intitulé — la première prend la ligne libre, la
+    # seconde la suivante, parce qu'un emplacement DÉJÀ PRIS fait glisser au
+    # suivant au lieu de faire renoncer.
+    "dc1": [
+        {"rubrique": "acheteur", "ancre": "A - Identification de l’acheteur"},
+        {"rubrique": "objet_consultation",
+         "ancre": "B - Objet de la consultation"},
+        {"rubrique": "reference", "ancre": "B - Objet de la consultation"},
+        # L'ALLOTISSEMENT SE POSE SOUS LA LIGNE DES LOTS, jamais sous la case
+        # « pour le marché public » : le lecteur y verrait une candidature au
+        # marché entier assortie d'un nombre de lots.
+        {"rubrique": "lots", "ancre": "pour le lot n°"},
+        {"rubrique": "candidat", "occurrence": 1,
+         "ancre": "Nom commercial et dénomination sociale de l’unité ou de "
+                  "l’établissement qui exécutera la prestation :"},
+        {"rubrique": "adresse", "occurrence": 1,
+         "ancre": "Adresses postale et du siège social (si elle est "
+                  "différente de l’adresse postale) :"},
+        {"rubrique": "siret", "occurrence": 1,
+         "ancre": "Numéro SIRET, à défaut, un numéro d’identification "
+                  "européen"},
+    ],
+
+    # ── DC2 — DÉCLARATION DU CANDIDAT ─────────────────────────────────────
+    # LE CADRE C1 PORTE DEUX FOIS LE MÊME INTITULÉ : la ligne longue qui
+    # énumère tout ce qu'il faut donner, puis la ligne courte qui ouvre
+    # l'emplacement. L'ancre se termine par « la prestation : » — ce que seule
+    # la seconde porte —, et le rang reste à 1 : il n'y a qu'un candidat au
+    # DC2, un formulaire par membre du groupement.
+    "dc2": [
+        {"rubrique": "acheteur", "ancre": "A - Identification de l’acheteur"},
+        {"rubrique": "objet_consultation",
+         "ancre": "B - Objet de la consultation"},
+        {"rubrique": "candidat", "occurrence": 1,
+         "ancre": "Nom commercial et dénomination sociale de l’unité ou de "
+                  "l’établissement qui exécutera la prestation :"},
+        {"rubrique": "siret", "occurrence": 1,
+         "ancre": "Numéro SIRET, à défaut, un numéro d’identification "
+                  "européen"},
+        {"rubrique": "forme", "occurrence": 1,
+         "ancre": "Forme juridique du candidat individuel ou du membre du "
+                  "groupement"},
+        # E1 — L'INSCRIPTION AU REGISTRE PROFESSIONNEL. Le cadre est libre :
+        # le RCS puis le code NAF s'y posent sur deux lignes.
+        {"rubrique": "rcs",
+         "ancre": "E1 - Renseignements sur l’inscription sur un registre "
+                  "professionnel"},
+        {"rubrique": "naf",
+         "ancre": "E1 - Renseignements sur l’inscription sur un registre "
+                  "professionnel"},
+        # F1 — LES TROIS EXERCICES, DANS L'ORDRE DU TABLEAU. Les trois lignes
+        # libres qui suivent « Chiffre d'affaires global » sont les trois
+        # colonnes d'exercice : N-1, N-2, N-3. L'ordre des ancres EST l'ordre
+        # des colonnes, et l'inverser attribuerait le chiffre du dernier
+        # exercice à l'avant-dernier — une erreur qui se lit comme une
+        # entreprise en déclin ou en croissance, selon le sens.
+        {"rubrique": "ca_n1", "ancre": "Chiffre d’affaires global"},
+        {"rubrique": "ca_n2", "ancre": "Chiffre d’affaires global"},
+        {"rubrique": "ca_n3", "ancre": "Chiffre d’affaires global"},
+    ],
+
+    # ── ATTRI1 — ACTE D'ENGAGEMENT ────────────────────────────────────────
+    # LE CADRE B1 N'OFFRE QU'UN SEUL BLOC pour toute l'identification — le
+    # formulaire demande « le nom commercial et la dénomination sociale […],
+    # les adresses […] et son numéro SIRET » dans le même encadré. Les trois
+    # ancres visent donc le même intitulé et se posent sur trois lignes
+    # consécutives, dans cet ordre.
+    #
+    # NI LE SIGNATAIRE NI L'ACHETEUR N'ONT D'ANCRE ICI, et c'est délibéré :
+    # les cadres C et D sont les blocs de SIGNATURE — celui du titulaire et
+    # celui de l'acheteur. Y écrire un nom ferait ressembler à signé un
+    # document qui ne l'est pas. Le rapport les nomme dans « sans_ancre ».
+    "attri1": [
+        {"rubrique": "objet_marche", "ancre": "Objet du marché public"},
+        {"rubrique": "reference", "ancre": "Objet du marché public"},
+        {"rubrique": "lots", "ancre": "au lot n°"},
+        {"rubrique": "titulaire",
+         "ancre": "s’engage, sur la base de son offre et pour son propre "
+                  "compte"},
+        {"rubrique": "adresse",
+         "ancre": "s’engage, sur la base de son offre et pour son propre "
+                  "compte"},
+        {"rubrique": "siret",
+         "ancre": "s’engage, sur la base de son offre et pour son propre "
+                  "compte"},
+        {"rubrique": "compte", "ancre": "Nom de l’établissement bancaire :"},
+        {"rubrique": "duree",
+         "ancre": "B5 - Durée d’exécution du marché public"},
+    ],
+
     # LES CADRES D ET E PORTENT LES MÊMES INTITULÉS, MOT POUR MOT : « Adresse
     # électronique : », « Numéro SIRET… », « Nom commercial et dénomination
     # sociale… ». L'un identifie le TITULAIRE, l'autre le SOUS-TRAITANT. Une
@@ -100,6 +224,10 @@ ANCRES = {
     "dc4": [
         {"rubrique": "acheteur", "ancre": "Désignation de l’acheteur :"},
         {"rubrique": "objet_marche", "ancre": "B - Objet du marché public"},
+        # LE CADRE B PORTE AUSSI LES LOTS : « en cas d'allotissement,
+        # identifier également le ou les lots concernés par la présente
+        # déclaration de sous-traitance », dit le formulaire.
+        {"rubrique": "lots", "ancre": "B - Objet du marché public"},
 
         # ── cadre D — le titulaire, premier rang ──────────────────────────
         {"rubrique": "titulaire", "occurrence": 1,
@@ -151,6 +279,20 @@ ANCRES = {
 # déclarations sur l'honneur et les signatures ne se remplissent pas : elles
 # s'assument.
 ZONES_INTERDITES = {
+    "dc1": [
+        # F1 PORTE LA DÉCLARATION SUR L'HONNEUR. Rien n'y entre.
+        {"ancre": "F1 – Exclusions de la procédure", "jusqu_a_la_fin": False},
+    ],
+    # LE DC2 N'A NI DÉCLARATION SUR L'HONNEUR NI BLOC DE SIGNATURE — elles
+    # vivent au DC1. L'absence d'entrée ici est donc un CONSTAT, pas un oubli :
+    # une règle le vérifie plutôt que de laisser croire à une table
+    # incomplète.
+    "attri1": [
+        # LES CADRES C ET D SONT LES SIGNATURES — celle du titulaire, puis
+        # celle de l'acheteur. Tout ce qui suit l'ouverture de C est hors
+        # d'atteinte, jusqu'à la fin du document.
+        {"ancre": "C - Signature du marché public", "jusqu_a_la_fin": True},
+    ],
     "dc4": [
         {"ancre": "K1 - Le sous-traitant déclare sur l’honneur",
          "jusqu_a_la_fin": False},
@@ -172,13 +314,74 @@ def _net(s):
     comparent pas — et l'ancre resterait introuvable sans que rien n'explique
     pourquoi.
     """
-    return " ".join((s or "").replace("’", "'").replace("ʼ", "'")
-                    .split())
+    # LES PUCES DE POLICE SYMBOLE NE SONT PAS DU TEXTE. Word écrit les
+    # puces des DC1 et ATTRI1 avec des glyphes de la zone à usage privé
+    # (U+E000–U+F8FF, ici « \uf06e » en Wingdings), suivis d'une espace
+    # insécable. Une ancre devrait les recopier pour s'accrocher — illisible
+    # dans la table, et cassé au premier changement de police du modèle.
+    # Elles sont retirées ici, jamais du document.
+    #
+    # `_emplacement_libre` N'UTILISE PAS CE NETTOYAGE, et c'est voulu : un
+    # paragraphe qui ne porte QUE la puce est une case à cocher, pas un
+    # emplacement libre. La nettoyer là ferait écrire dans une case.
+    t = (s or "").replace("’", "'").replace("ʼ", "'").replace("\xa0", " ")
+    t = "".join(c for c in t if not ("\ue000" <= c <= "\uf8ff"))
+    return " ".join(t.split())
 
 
 def _emplacement_libre(texte):
     """Un emplacement à remplir : vide, ou fait de pointillés."""
     return bool(_VIDE.match((texte or "").replace("’", "'")))
+
+
+def paragraphes(doc):
+    """TOUS les paragraphes, dans l'ordre du document, cellules de tableau
+    comprises.
+
+    POURQUOI `doc.paragraphs` NE SUFFIT PAS, ET C'EST UNE CORRECTION. Il ne
+    rend que les paragraphes du corps : ceux qui vivent DANS un tableau lui
+    échappent. Or les DC1, DC2 et ATTRI1 portent leurs intitulés de cadre
+    — « A - Identification de l'acheteur », « F1 – Exclusions de la
+    procédure » — dans des tableaux d'une seule cellule qui leur servent
+    d'encadré. Avec `doc.paragraphs`, l'arrêt au cadre suivant ne voyait
+    AUCUN cadre : une ancre dont l'emplacement a disparu aurait cherché
+    jusqu'au bout du document et déposé sa valeur dix cadres plus loin.
+
+    L'ORDRE EST CELUI DU CORPS XML, pas celui de deux listes recollées : un
+    tableau intercalé entre deux paragraphes doit se lire à sa place, sinon
+    « après l'intitulé » ne veut plus rien dire.
+
+    UNE CELLULE FUSIONNÉE EST RENDUE PLUSIEURS FOIS PAR `row.cells` — deux
+    fois au DC2, quatre à l'ATTRI1 —, et le même paragraphe entrerait donc
+    deux fois dans la liste : assez pour qu'une valeur soit écrite deux fois,
+    ou qu'un indice « déjà pris » en écarte un autre. On dédoublonne sur
+    l'ÉLÉMENT DU PARAGRAPHE, et cela suffit.
+
+    UNE SECONDE GARDE A ÉTÉ RETIRÉE ICI, ET IL FAUT DIRE POURQUOI. Elle
+    dédoublonnait aussi les CELLULES, pour ne pas les parcourir deux fois. Une
+    mutation l'a supprimée sans faire tomber la moindre règle : le
+    dédoublonnage des paragraphes attrape déjà tout, la cellule n'étant
+    reparcourue que pour rien. Une garde qu'aucune mesure ne distingue n'est
+    pas une garde — c'est du code qu'on croit protecteur.
+    """
+    from docx.table import Table                                # noqa: PLC0415
+    from docx.text.paragraph import Paragraph                   # noqa: PLC0415
+
+    out, vus = [], set()
+
+    def _parcourir(parent, element):
+        for enfant in element.iterchildren():
+            if enfant.tag.endswith("}p"):
+                if id(enfant) not in vus:
+                    vus.add(id(enfant))
+                    out.append(Paragraph(enfant, parent))
+            elif enfant.tag.endswith("}tbl"):
+                for ligne in Table(enfant, parent).rows:
+                    for cellule in ligne.cells:
+                        _parcourir(cellule, cellule._tc)
+
+    _parcourir(doc, doc.element.body)
+    return out
 
 
 def empreinte(chemin):
@@ -279,17 +482,20 @@ def remplir_document(cle, valeurs, bandeau=BANDEAU):
     p = chemin_modele(cle)
     if not os.path.exists(p):
         return None, {"ok": False, "motif": "modele_absent", "modele": cle,
-                      "places": [], "non_places": [], "ignores": []}
+                      "places": [], "non_places": [], "ignores": [],
+                      "sans_ancre": []}
     reelle = empreinte(p)
     if reelle != m["empreinte"]:
         # ON REFUSE PLUTÔT QUE DE REMPLIR À CÔTÉ. Les ancres sont des phrases
         # de CE fichier-ci ; un modèle mis à jour les déplace sans prévenir.
         return None, {"ok": False, "motif": "modele_altere", "modele": cle,
                       "attendue": m["empreinte"], "trouvee": reelle,
-                      "places": [], "non_places": [], "ignores": []}
+                      "places": [], "non_places": [], "ignores": [],
+                      "sans_ancre": []}
 
     doc = Document(p)
-    paras = [pa.text for pa in doc.paragraphs]
+    blocs = paragraphes(doc)
+    paras = [pa.text for pa in blocs]
     interdits = _zones_interdites(paras, cle)
     places, non_places, ignores = [], [], []
     pris = set()
@@ -304,7 +510,7 @@ def remplir_document(cle, valeurs, bandeau=BANDEAU):
             non_places.append({"rubrique": a["rubrique"], "ancre": a["ancre"],
                                "motif": "emplacement_introuvable"})
             continue
-        cible = doc.paragraphs[i]
+        cible = blocs[i]
         for r in list(cible.runs):
             r._element.getparent().remove(r._element)
         cible.add_run(v)
@@ -312,6 +518,16 @@ def remplir_document(cle, valeurs, bandeau=BANDEAU):
         pris.add(i)
         places.append({"rubrique": a["rubrique"], "ancre": a["ancre"],
                        "valeur": v, "paragraphe": i})
+
+    # CE QU'ON A ET QUE LE FORMULAIRE N'OFFRE PAS D'ÉCRIRE. L'ATTRI1 n'a pas
+    # de case « acheteur » à la main du candidat : son cadre D est le bloc de
+    # SIGNATURE de l'acheteur, et le signataire du titulaire est au cadre C —
+    # deux zones interdites. Sans cette liste, le rapport annoncerait sept
+    # valeurs écrites là où le report en connaît onze, et l'écart resterait
+    # inexpliqué. Une valeur qu'on détient et qu'on ne pose pas doit se dire.
+    ancrees = {a["rubrique"] for a in ANCRES.get(cle, [])}
+    sans_ancre = sorted(k for k, v in valeurs.items()
+                        if k not in ancrees and str(v or "").strip())
 
     if bandeau:
         # EN TÊTE, ET DANS UN PARAGRAPHE À LUI. Insérer le bandeau dans un
@@ -328,6 +544,7 @@ def remplir_document(cle, valeurs, bandeau=BANDEAU):
         "ok": True, "motif": "ok", "modele": cle, "nom": m["nom"],
         "maj": m["maj"], "source": m["source"], "empreinte": reelle,
         "places": places, "non_places": non_places, "ignores": ignores,
+        "sans_ancre": sans_ancre,
         "bandeau": bool(bandeau),
     }
 
