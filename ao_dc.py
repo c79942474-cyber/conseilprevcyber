@@ -439,7 +439,19 @@ RELEVES = [
         "cle": "date_limite",
         "libelle": "Date et heure limites de remise",
         "pieces": ("rc",),
+        # AUCUN DES TROIS MOTIFS N'AVAIT DE GROUPE DE CAPTURE : la date la
+        # plus importante du dossier était citée et jamais extraite. Les trois
+        # premiers isolent maintenant la valeur ; les trois derniers restent
+        # sans capture, à dessein — ils repèrent le passage quand la phrase ne
+        # se laisse pas découper, et le rappel de consultation a besoin de la
+        # CITATION même sans valeur.
         "motifs": [
+            r"(?:dates?|heures?)\s*(?:et\s*heures?\s*)?limites?[^:\n]{0,70}"
+            r":\s*([^.\n]{6,130})",
+            r"remise des (?:plis|offres|candidatures)[^:\n]{0,60}:\s*"
+            r"([^.\n]{6,130})",
+            r"(?:avant le|au plus tard le)\s+(\d{1,2}[\s/.-]\S{1,12}"
+            r"[\s/.-]\d{2,4}(?:\s*[àa]\s*\d{1,2}\s*[h:]\s*\d{0,2})?)",
             r"(?:date|heure)s?\s*(?:et\s*heures?\s*)?limites?[^.\n]{0,120}",
             r"remise des (?:plis|offres|candidatures)[^.\n]{0,120}",
             r"avant le\s+\d{1,2}[/ ]\w+[/ ]\d{2,4}[^.\n]{0,60}",
@@ -555,7 +567,19 @@ RELEVES = [
         "cle": "delai",
         "libelle": "Délais et durée du marché",
         "pieces": ("ccap", "cctp", "ae"),
+        # MÊME DÉFAUT, MÊME CORRECTION : aucun motif ne capturait, si bien
+        # que la durée d'exécution de l'acte d'engagement devait se saisir à la
+        # main sur un CCAP qui l'écrit noir sur blanc. Les quatre premiers
+        # isolent la valeur, les trois derniers gardent la citation nue.
         "motifs": [
+            r"d[ée]lai\s+(?:global\s+)?(?:d.?ex[ée]cution|de r[ée]alisation)"
+            r"[^:\n]{0,40}:\s*([^.\n]{3,120})",
+            r"dur[ée]e\s+(?:du march[ée]|d.?ex[ée]cution|totale)[^:\n]{0,40}"
+            r":\s*([^.\n]{3,120})",
+            r"d[ée]lai d.?ex[ée]cution[^.\n]{0,20}?\bde\s+"
+            r"(\d{1,3}\s*(?:mois|semaines?|jours?)[^.\n]{0,90})",
+            r"dur[ée]e[^.\n]{0,30}?\bde\s+"
+            r"(\d{1,3}\s*(?:mois|ans?|semaines?)[^.\n]{0,90})",
             r"d[ée]lai (?:global|d.?ex[ée]cution|de r[ée]alisation)[^.\n]{0,140}",
             r"dur[ée]e du march[ée][^.\n]{0,120}",
             r"reconduction[^.\n]{0,120}",
@@ -656,9 +680,29 @@ RELEVES = [
         "cle": "lots",
         "libelle": "Allotissement",
         "pieces": ("rc",),
+        # L'ORDRE DES MOTIFS DÉCIDE DE LA VALEUR RETENUE, et c'est le point.
+        # `_extraire` les essaie dans l'ordre et `_index_releves` garde la
+        # PREMIÈRE citation qui porte une valeur. Le compte de lots vient donc
+        # avant l'intitulé du lot n° 1 : « 3 lots » dit ce qu'il faut savoir
+        # pour cocher la bonne case du DC1, « conception » ne dit rien de
+        # l'allotissement.
+        #
+        # LA FORME LA PLUS COURANTE N'ÉTAIT PAS CAPTURÉE. « La consultation est
+        # allotie en 3 lots » tombait sur un motif SANS groupe de capture :
+        # le passage était cité, aucune valeur n'en sortait, et la case restait
+        # « non relevée » sur un dossier qui la porte en toutes lettres.
+        # Mesuré : trois formulations sur quatre ne rendaient rien.
         "motifs": [
+            r"(?:march[ée]|consultation)[^.\n]{0,40}?alloti\w*\s+en\s+"
+            r"(\d{1,2}\s+lots?)",
+            r"(?:march[ée]|consultation)[^.\n]{0,40}?(?:comporte|compte|"
+            r"d[ée]compos[ée]\w*\s+en)\s+(\d{1,2}\s+lots?)",
             r"(?:allotissement|d[ée]composition en lots)\s*:?\s*([^.\n]{4,160})",
-            r"march[ée] (?:non )?alloti[^.\n]{0,120}",
+            # LE MARCHÉ NON ALLOTI EST UNE RÉPONSE, PAS UNE ABSENCE. « Non
+            # relevé » enverrait chercher un allotissement qui n'existe pas.
+            r"(march[ée]\s+non\s+alloti\w*)",
+            r"(march[ée][^.\n]{0,20}?n[’']est pas alloti\w*)",
+            r"(sans\s+allotissement)",
             r"lot\s*n?[°o]?\s*\d{1,2}\s*[:–—-]\s*([^.\n]{4,120})",
         ],
         "pourquoi": "L'objet de la candidature au DC1 change selon qu'on "
@@ -723,8 +767,15 @@ RELEVES = [
             # SANS GROUPE DE CAPTURE, UN RELEVÉ NE PEUT REMPLIR AUCUNE CASE :
             # il cite et c'est tout. La référence est justement ce qui « se
             # reporte sur chaque pièce remise » — elle doit donc se recopier.
+            # ET LE COMPLÉMENT DE NOM SE CONSOMME AU LIEU DE SE CAPTURER.
+            # « Référence de la consultation : 2026-MOE-014 » rendait « de la
+            # consultation : 2026-MOE-014 » : la case du DC1 recevait la
+            # phrase entière au lieu du numéro, et personne ne le voyait
+            # puisque la case était pleine.
             r"(?:r[ée]f[ée]rence|n[°o]\s*(?:de\s*)?(?:march[ée]|consultation|"
-            r"dossier))\s*:?\s*(?!:)([^\s.:][^.\n]{2,70})",
+            r"dossier))(?:\s+(?:de\s+la\s+consultation|du\s+march[ée]|"
+            r"du\s+dossier|de\s+l.?op[ée]ration))?\s*:?\s*(?!:)"
+            r"([^\s.:][^.\n]{2,70})",
             r"(\b\d{4}[-_/]\d{2,4}[-_/][A-Z0-9]{2,10}\b)",
         ],
         "pourquoi": "À reporter sur chaque pièce remise : une pièce sans "
@@ -2137,6 +2188,12 @@ RUBRIQUES = {
          "source": "consultation", "releve": "objet"},
         {"cle": "reference", "libelle": "Référence de la consultation",
          "source": "consultation", "releve": "reference"},
+        # DEUX CHOSES DIFFÉRENTES, ET LES CONFONDRE COÛTE LA CANDIDATURE :
+        # ce que la consultation DÉCOUPE, qui se relève, et ce à quoi vous
+        # POSTULEZ, qui se décide. La première nourrit la seconde sans la
+        # remplacer.
+        {"cle": "lots", "libelle": "Allotissement de la consultation "
+         "(cadre C)", "source": "consultation", "releve": "lots"},
         {"cle": "objet_candidature",
          "libelle": "Objet de la candidature — marché entier, lot(s) ou "
                     "prestation(s) désignée(s)",
@@ -2330,16 +2387,21 @@ RUBRIQUES = {
                  "durée du marché : l'avance est une trésorerie que "
                  "l'acheteur doit sans qu'on ait à la demander. Ne renoncez "
                  "que si vous savez pourquoi."},
+        # ELLE ÉTAIT UNE SAISIE, ET C'EST UN CHANGEMENT DÉLIBÉRÉ. Le relevé
+        # « délai » ne portait aucun groupe de capture : il citait le passage
+        # du CCAP sans en extraire la valeur, et brancher la rubrique dessus
+        # aurait produit une case définitivement vide — le contrôle de
+        # chargement l'interdit d'ailleurs. Les motifs capturent désormais, et
+        # la durée se recopie du CCAP au lieu de se ressaisir.
+        #
+        # CE QUE LE RELEVÉ NE DIT PAS RESTE À LIRE : le POINT DE DÉPART compte
+        # autant que la durée, et notification, ordre de service ou date
+        # prévue au marché ne tombent pas le même jour. La citation est rendue
+        # avec la valeur, précisément pour qu'on aille le vérifier.
         {"cle": "duree",
          "libelle": "Durée d'exécution et point de départ — notification, "
                     "ordre de service, ou date prévue (cadre B5)",
-         "source": "saisie",
-         "aide": "Le relevé « délai d'exécution » signale les passages du "
-                 "CCAP qui en parlent, mais n'en extrait pas de valeur : la "
-                 "durée se lit sur ces passages et se recopie ici. Le POINT "
-                 "DE DÉPART compte autant que la durée — notification, ordre "
-                 "de service, ou date prévue au marché ne tombent pas le "
-                 "même jour."},
+         "source": "consultation", "releve": "delai"},
         {"cle": "reconduction",
          "libelle": "Reconductions — nombre et durée (cadre B5)",
          "source": "saisie",
