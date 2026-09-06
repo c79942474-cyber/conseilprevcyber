@@ -138,12 +138,48 @@ def test_un_flux_injoignable_porte_sa_cause():
     assert par_cle["iso"]["echecs"] == 1 and "timeout" in par_cle["iso"]["erreur"]
 
 
+# CE QUE LA RECETTE A MESURÉ LE 6 SEPTEMBRE 2026, depuis le shell du service.
+# Cette liste est écrite EN ENTIER et à la main : c'est un constat daté, pas un
+# calcul. La déduire du catalogue rendrait la règle circulaire — elle
+# confirmerait ce que le catalogue affirme, au lieu de le confronter à une
+# mesure. Une source qui entre ou sort d'ici demande d'avoir relancé
+# `outils/recette_veille_flux.py`.
+EPROUVEES_AU_6_SEPTEMBRE_2026 = {
+    "certfr_alerte", "certfr_avis", "anssi", "cisa_avis", "cisa_ics", "ncsc_uk",
+    "industrial_cyber", "securityweek", "the_record", "cnil", "ec_numerique",
+    "nist", "eba", "esma", "edpb", "dcd", "dck", "uptime", "carbon_brief",
+    "dcmag", "lmi_dc", "france_datacenter",
+}
+
+
 def test_le_catalogue_dit_ce_qui_a_ete_eprouve():
-    """Une adresse écrite n'est pas une adresse qui répond. Le catalogue ne doit
-    pas laisser croire le contraire — seuls les flux déjà en production sont
-    déclarés éprouvés."""
-    eprouves = [s["cle"] for s in veille_sources.SOURCES if s["eprouve"]]
-    assert set(eprouves) == {"certfr_alerte", "certfr_avis"}
+    """Une adresse écrite n'est pas une adresse qui répond, et le catalogue ne
+    doit pas laisser croire le contraire.
+
+    CETTE RÈGLE A CHANGÉ, DÉLIBÉRÉMENT. Elle épinglait les deux seules sources
+    du CERT-FR, parce que c'étaient les deux seules jamais éprouvées. La recette
+    a tourné le 6 septembre 2026 depuis le shell du service : vingt-deux
+    servent un flux non vide. Garder l'ancienne liste aurait fait mentir le
+    champ dans l'autre sens — vingt sources qui répondent, déclarées douteuses.
+    """
+    eprouves = {s["cle"] for s in veille_sources.SOURCES if s["eprouve"]}
+    assert eprouves == EPROUVEES_AU_6_SEPTEMBRE_2026, (
+        "en trop : %s · manquantes : %s"
+        % (sorted(eprouves - EPROUVEES_AU_6_SEPTEMBRE_2026),
+           sorted(EPROUVEES_AU_6_SEPTEMBRE_2026 - eprouves)))
+
+
+def test_une_adresse_corrigee_l_a_ete_par_ce_qui_a_repondu():
+    """LES DEUX CORRECTIONS DU 6 SEPTEMBRE, ancrées sur ce que la recette a
+    obtenu. L'ANSSI sert `/rss/` et non `/feed` ; SecurityWeek ne sert plus son
+    flux ICS/OT (403) et la variante qui répond est le flux général — d'où le
+    changement de clé ET de libellé, pour qu'une facette « cybersécurité
+    industrielle » ne couvre pas de l'actualité tout venant sans le dire."""
+    par_cle = {s["cle"]: s for s in veille_sources.SOURCES}
+    assert par_cle["anssi"]["url"].endswith("/actualites/rss/"), par_cle["anssi"]
+    assert "securityweek_ics" not in par_cle, (
+        "la clé ICS/OT subsiste alors que l'adresse sert le flux général")
+    assert "ICS" not in par_cle["securityweek"]["nom"], par_cle["securityweek"]
 
 
 # ── 3. Le droit de reprise, source par source ──────────────────────────────

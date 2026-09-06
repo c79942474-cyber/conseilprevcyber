@@ -9,10 +9,25 @@ DONNÉE, qui se corrige sans toucher au code, et qui doit dire elle-même si ell
 tient ses promesses.
 
 UNE SOURCE QU'ON NE PEUT PAS JOINDRE EST UNE INTENTION, PAS UNE SOURCE. Les
-adresses ci-dessous ont été écrites hors ligne : seules les deux du CERT-FR ont
-été éprouvées en production, et le champ `eprouve` le dit sans détour pour
-chacune. Les autres seront justes ou fausses, et c'est le premier passage en
-production qui tranchera. On ne fait donc pas semblant : chaque flux porte un
+adresses ci-dessous ont d'abord été écrites hors ligne, et seules les deux du
+CERT-FR étaient éprouvées.
+
+CE QUE LA RECETTE A MESURÉ LE 6 SEPTEMBRE 2026, depuis le shell du service —
+donc sur le réseau et avec l'en-tête de la production. VINGT-DEUX SOURCES SUR
+TRENTE-SIX servent un flux non vide ; `eprouve` le dit désormais pour chacune
+d'elles, et reste faux pour les quatorze autres. Deux adresses ont été
+corrigées par ce que la recette a réellement obtenu, jamais par ce qui
+paraissait plausible : l'ANSSI servait son flux en `/rss/` et non en `/feed`,
+et l'adresse ICS/OT de SecurityWeek répondait 403 — la variante qui répond est
+son flux GÉNÉRAL, ce qui a fait changer la clé et le libellé plutôt que de
+laisser une facette industrielle couvrir de l'actualité tout venant.
+
+Il reste quatorze adresses à retrouver à la main, et une — l'ADEME — qui sert
+un flux authentique et VIDE : ce n'est pas la même chose, et les confondre
+enverrait corriger ce qui n'a rien à corriger.
+
+Les autres seront justes ou fausses, et c'est le prochain passage de la recette
+qui tranchera. On ne fait donc pas semblant : chaque flux porte un
 état, et ce qui n'a JAMAIS répondu se distingue de ce qui a CESSÉ de répondre —
 la première situation désigne une adresse fautive, la seconde une panne. Les
 confondre enverrait corriger ce qui marche.
@@ -70,31 +85,36 @@ SOURCES = [
        "FR", "cyber_industriel", "officiel", eprouve=True),
     _s("certfr_avis", "CERT-FR — avis", "https://www.cert.ssi.gouv.fr/avis/feed/",
        "FR", "cyber_industriel", "officiel", eprouve=True),
-    _s("anssi", "ANSSI — actualités", "https://cyber.gouv.fr/actualites/feed",
-       "FR", "cyber_industriel", "officiel"),
+    _s("anssi", "ANSSI — actualités", "https://cyber.gouv.fr/actualites/rss/",
+       "FR", "cyber_industriel", "officiel", eprouve=True),
     _s("cisa_avis", "CISA — avis de sécurité", "https://www.cisa.gov/cybersecurity-advisories/all.xml",
-       "US", "cyber_industriel", "officiel"),
+       "US", "cyber_industriel", "officiel", eprouve=True),
     _s("cisa_ics", "CISA — avis systèmes industriels", "https://www.cisa.gov/cybersecurity-advisories/ics-advisories.xml",
-       "US", "cyber_industriel", "officiel"),
+       "US", "cyber_industriel", "officiel", eprouve=True),
     _s("ncsc_uk", "NCSC — Royaume-Uni", "https://www.ncsc.gov.uk/api/1/services/v1/news-rss-feed.xml",
-       "UK", "cyber_industriel", "officiel"),
+       "UK", "cyber_industriel", "officiel", eprouve=True),
     _s("enisa", "ENISA — agence européenne", "https://www.enisa.europa.eu/media/news-items/news-wire/RSS",
        "UE", "cyber_industriel", "officiel"),
     _s("industrial_cyber", "Industrial Cyber", "https://industrialcyber.co/feed/",
-       "monde", "cyber_industriel", "presse_specialisee"),
-    _s("securityweek_ics", "SecurityWeek — ICS/OT", "https://www.securityweek.com/category/ics-ot/feed/",
-       "US", "cyber_industriel", "presse_specialisee"),
+       "monde", "cyber_industriel", "presse_specialisee", eprouve=True),
+    # L'ADRESSE ICS/OT NE RÉPOND PLUS (403), ET LA VARIANTE TROUVÉE EST LE FLUX
+    # GÉNÉRAL. On la retient — 10 éléments mesurés — mais le libellé et la clé
+    # suivent : garder « ICS/OT » sur un flux généraliste ferait mentir la
+    # facette, et un lecteur qui filtre sur le domaine industriel recevrait de
+    # l'actualité cyber tout venant sans le savoir.
+    _s("securityweek", "SecurityWeek", "https://www.securityweek.com/feed/",
+       "US", "cyber_industriel", "presse_specialisee", eprouve=True),
     _s("the_record", "The Record", "https://therecord.media/feed",
-       "US", "cyber_industriel", "presse_specialisee"),
+       "US", "cyber_industriel", "presse_specialisee", eprouve=True),
 
     # ── Gouvernance de l'IA ───────────────────────────────────────────────
     _s("cnil", "CNIL — actualités", "https://www.cnil.fr/fr/rss.xml",
-       "FR", "ia_gouvernance", "officiel"),
+       "FR", "ia_gouvernance", "officiel", eprouve=True),
     _s("ec_numerique", "Commission européenne — stratégie numérique",
        "https://digital-strategy.ec.europa.eu/en/rss.xml",
-       "UE", "ia_gouvernance", "officiel"),
+       "UE", "ia_gouvernance", "officiel", eprouve=True),
     _s("nist", "NIST — actualités", "https://www.nist.gov/news-events/news/rss.xml",
-       "US", "ia_gouvernance", "officiel"),
+       "US", "ia_gouvernance", "officiel", eprouve=True),
     _s("ico_uk", "ICO — Royaume-Uni", "https://ico.org.uk/rss/news-and-blogs/",
        "UK", "ia_gouvernance", "officiel"),
     _s("oecd_ai", "OCDE.AI", "https://oecd.ai/en/rss",
@@ -110,21 +130,21 @@ SOURCES = [
     _s("nist_csrc", "NIST CSRC — publications", "https://csrc.nist.gov/Rss/Publications",
        "US", "grc_normes", "normalisation"),
     _s("eba", "EBA — résilience opérationnelle (DORA)", "https://www.eba.europa.eu/rss.xml",
-       "UE", "grc_normes", "officiel"),
+       "UE", "grc_normes", "officiel", eprouve=True),
     _s("esma", "ESMA", "https://www.esma.europa.eu/rss.xml",
-       "UE", "grc_normes", "officiel"),
+       "UE", "grc_normes", "officiel", eprouve=True),
     _s("edpb", "CEPD — comité européen de la protection des données",
-       "https://www.edpb.europa.eu/rss.xml", "UE", "grc_normes", "officiel"),
+       "https://www.edpb.europa.eu/rss.xml", "UE", "grc_normes", "officiel", eprouve=True),
 
     # ── Centres de données, énergie, bas carbone, innovation ──────────────
     _s("dcd", "DataCenterDynamics", "https://www.datacenterdynamics.com/rss/",
-       "monde", "centres_donnees", "presse_specialisee"),
+       "monde", "centres_donnees", "presse_specialisee", eprouve=True),
     _s("dcf", "Data Center Frontier", "https://www.datacenterfrontier.com/rss",
        "US", "centres_donnees", "presse_specialisee"),
     _s("dck", "Data Center Knowledge", "https://www.datacenterknowledge.com/rss.xml",
-       "monde", "centres_donnees", "presse_specialisee"),
+       "monde", "centres_donnees", "presse_specialisee", eprouve=True),
     _s("uptime", "Uptime Institute", "https://journal.uptimeinstitute.com/feed/",
-       "monde", "centres_donnees", "organisme"),
+       "monde", "centres_donnees", "organisme", eprouve=True),
     _s("iea", "AIE — Agence internationale de l'énergie", "https://www.iea.org/rss/news",
        "monde", "centres_donnees", "officiel"),
     _s("cre", "CRE — régulation de l'énergie", "https://www.cre.fr/rss",
@@ -136,7 +156,7 @@ SOURCES = [
     _s("green_software", "Green Software Foundation", "https://greensoftware.foundation/rss.xml",
        "monde", "centres_donnees", "organisme"),
     _s("carbon_brief", "Carbon Brief", "https://www.carbonbrief.org/feed",
-       "UK", "centres_donnees", "presse_specialisee"),
+       "UK", "centres_donnees", "presse_specialisee", eprouve=True),
 
     # ── La filière française des centres de données ───────────────────────
     # Elle manquait, et c'est elle qui couvre le mieux ce qui se décide ICI :
@@ -144,17 +164,17 @@ SOURCES = [
     # pour l'IA. Les titres anglophones disent ce que font les hyperscalers ;
     # ceux-ci disent ce que fait le territoire.
     _s("dcmag", "DCmag", "https://dcmag.fr/feed/",
-       "FR", "centres_donnees", "presse_specialisee"),
+       "FR", "centres_donnees", "presse_specialisee", eprouve=True),
     _s("lemagit_dc", "LeMagIT — datacenter", "https://www.lemagit.fr/rss/Datacenter.html",
        "FR", "centres_donnees", "presse_specialisee"),
     _s("lmi_dc", "Le Monde Informatique — datacenter",
        "https://www.lemondeinformatique.fr/flux-rss/thematique/datacenter/rss.xml",
-       "FR", "centres_donnees", "presse_specialisee"),
+       "FR", "centres_donnees", "presse_specialisee", eprouve=True),
     # France Datacenter est l'association professionnelle de la filière : ses
     # publications sont celles d'un organisme, pas d'une rédaction. La nature
     # commande le libellé du lien ET le droit de reprise.
     _s("france_datacenter", "France Datacenter", "https://francedatacenter.com/feed/",
-       "FR", "centres_donnees", "organisme"),
+       "FR", "centres_donnees", "organisme", eprouve=True),
 ]
 
 _PAR_CLE = {s["cle"]: s for s in SOURCES}
