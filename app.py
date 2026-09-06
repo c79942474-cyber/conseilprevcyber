@@ -2350,6 +2350,7 @@ import icpe_dc       # noqa: E402  — crible les rubriques, ne classe pas le si
 import travaux_dc    # noqa: E402  — l'ordre des opérations de chantier et ses tiers
 import ao_dc         # noqa: E402  — lit le dossier marché, prépare la candidature
 import ao_formulaires  # noqa: E402  — écrit DANS le formulaire officiel, sans signer
+import dossier_entreprise  # noqa: E402  — le dossier de CONSEILPREV, admin seul
 import programme_dc  # noqa: E402  — consolide un portefeuille de sites, pas un projet
 import tier_dc       # noqa: E402  — qualifie une topologie, ne décerne aucun niveau
 import reseau_dc     # noqa: E402  — chiffre un raccordement effaçable, ne prédit aucun délai
@@ -4871,6 +4872,102 @@ def api_datacenter_marche_formulaires():
                                 if k != "empreinte"}
                             for c, m in ao_formulaires.MODELES.items()},
                    bandeau=ao_formulaires.BANDEAU)
+
+
+# ── LE DOSSIER D'ENTREPRISE DE CONSEILPREV ────────────────────────────────
+# IL NE SORT PAS DE L'ADMINISTRATION, et ce n'est pas une précaution de forme.
+# `ao_dc.remplir()` sert des CLIENTS qui préparent LEUR candidature : y faire
+# entrer les qualifications et les références de CONSEILPREV donnerait à un
+# client les références d'un autre, et lui permettrait de les déposer comme
+# siennes. La famille /api/admin/ est fermée à l'administrateur par la
+# politique d'accès, qui refuse de démarrer si une de ses routes ne l'est pas.
+
+_DOSSIER_CLE = "dossier.corrections"
+_DOSSIER_MEMOIRE = {}
+
+
+def _dossier_corrections():
+    """Les corrections enregistrées, et COMMENT elles sont conservées.
+
+    QUAND IL N'Y A PAS DE BASE, ON LE DIT. Garder les corrections dans le
+    processus sans le signaler serait la pire des réponses : elles
+    disparaîtraient au premier redéploiement, et personne ne saurait pourquoi
+    le dossier a rajeuni.
+    """
+    etat = getattr(automation, "_state", None)
+    if etat is None:
+        return dict(_DOSSIER_MEMOIRE), "memoire"
+    try:
+        brut = etat.get(_DOSSIER_CLE) or "{}"
+        lues = json.loads(brut)
+        return (lues if isinstance(lues, dict) else {}), "base"
+    except Exception:
+        app.logger.warning("DOSSIER — corrections illisibles, ignorées")
+        return {}, "illisible"
+
+
+def _dossier_ecrire(corrections):
+    etat = getattr(automation, "_state", None)
+    if etat is None:
+        _DOSSIER_MEMOIRE.clear()
+        _DOSSIER_MEMOIRE.update(corrections)
+        return "memoire"
+    etat.set(_DOSSIER_CLE, json.dumps(corrections, ensure_ascii=False))
+    return "base"
+
+
+@app.route("/api/admin/dossier-entreprise")
+@admin_required
+def api_admin_dossier_entreprise():
+    """Le dossier d'entreprise de CONSEILPREV, avec ce qui lui manque."""
+    corrections, persistance = _dossier_corrections()
+    etat = dossier_entreprise.etat(ao_dc.DOSSIER_CANDIDATURE,
+                                   corrections=corrections)
+    return jsonify(ok=True, dossier=etat, corrections=corrections,
+                   persistance=persistance)
+
+
+@app.route("/api/admin/dossier-entreprise", methods=["POST"])
+@admin_required
+def api_admin_dossier_entreprise_corriger():
+    """Corriger le dossier — une correction refusée n'est JAMAIS enregistrée.
+
+    L'ENREGISTREMENT SUIT LA VALIDATION, jamais l'inverse. Une correction dont
+    la cible n'existe pas serait conservée pour toujours sans effet : le
+    dossier semblerait modifié, et il ne le serait pas. On applique d'abord,
+    on n'enregistre que ce qui a été retenu, et on rend la liste des refus.
+    """
+    data = request.get_json(silent=True) or {}
+    entrantes = data.get("corrections")
+    if not isinstance(entrantes, dict):
+        return jsonify(ok=False, error="corrections_attendues",
+                       message="Attendu : un objet « corrections » "
+                               "{cible: valeur}."), 400
+    entrantes = {str(k)[:120]: (v if isinstance(v, list)
+                                else str(v)[:2000])
+                 for k, v in list(entrantes.items())[:200]}
+    conservees, persistance = _dossier_corrections()
+    if data.get("remplacer"):
+        conservees = {}
+    fusion = dict(conservees)
+    # UNE VALEUR VIDE EFFACE LA CORRECTION au lieu d'écrire du vide : c'est
+    # ainsi qu'on revient à ce que le document d'origine disait.
+    for cible, valeur in entrantes.items():
+        if valeur == "" or valeur == []:
+            fusion.pop(cible, None)
+        else:
+            fusion[cible] = valeur
+    _q, _r, _i, refuses = dossier_entreprise.appliquer(fusion)
+    mauvaises = {x["cible"] for x in refuses}
+    retenues = {k: v for k, v in fusion.items() if k not in mauvaises}
+    persistance = _dossier_ecrire(retenues)
+    audit.journaliser("dossier.entreprise.corriger",
+                      cible="%d correction(s)" % len(retenues),
+                      detail="%d refusée(s)" % len(refuses))
+    etat = dossier_entreprise.etat(ao_dc.DOSSIER_CANDIDATURE,
+                                   corrections=retenues)
+    return jsonify(ok=True, dossier=etat, corrections=retenues,
+                   refusees=refuses, persistance=persistance)
 
 
 @app.route("/api/datacenter/ingenierie/export", methods=["POST"])
@@ -11537,7 +11634,7 @@ def _acces_reels():
     return reels
 
 
-def _acces_api_reels():
+def _acces_api_reels(cible=None):
     """La protection RÉELLE de chaque interface de programmation.
 
     Les chemins à paramètre (« <pid> ») sont ramenés à leur forme déclarée : la
@@ -11547,18 +11644,43 @@ def _acces_api_reels():
     accessible à N'IMPORTE QUEL compte client — se lisait « client », un statut
     que la politique déclare justement fermé pour toute la famille /api/admin/,
     et l'écart passait inaperçu faute de branche pour le comparer."""
+    # DEUX ROUTES PEUVENT PARTAGER UN CHEMIN — un GET qui lit et un POST qui
+    # écrit — avec DEUX décorateurs différents. La rédaction précédente écrasait
+    # l'entrée à chaque tour : la protection retenue était celle de la dernière
+    # règle rencontrée, dans l'ordre où Flask les rend. Une route laissée
+    # ouverte se cachait donc derrière sa jumelle fermée, et la politique
+    # d'accès la déclarait conforme.
+    #
+    # DÉFAUT TROUVÉ PAR UNE MUTATION, sur `/api/admin/dossier-entreprise` :
+    # `@admin_required` remplacé par `@login_required` sur le GET n'a rien fait
+    # lever, parce que le POST portait encore le bon décorateur.
+    #
+    # ON RETIENT DÉSORMAIS LA PROTECTION LA PLUS FAIBLE. C'est elle qui décrit
+    # ce qu'un appelant peut réellement atteindre : une porte sur deux qui
+    # ferme ne ferme pas.
+    #
+    # `cible` EXISTE POUR ÊTRE MESURABLE. Une règle qui rapiécerait
+    # `app.url_map` sur l'application vivante dépendrait de ce qui a tourné
+    # avant elle — et une règle qui change de couleur selon l'ordre des essais
+    # ne mesure plus rien. On lui passe donc une petite application à deux
+    # routes, vraie, avec de vrais décorateurs.
+    cible = cible or app
+    force = {"direct": 0, "client": 1, "admin": 2}
     reels = {}
-    for rule in app.url_map.iter_rules():
+    for rule in cible.url_map.iter_rules():
         chemin = str(rule.rule)
         if not chemin.startswith("/api/"):
             continue
-        vue = app.view_functions.get(rule.endpoint)
+        vue = cible.view_functions.get(rule.endpoint)
         if getattr(vue, "admin_gated", False):
-            reels[chemin] = "admin"
+            niveau = "admin"
         elif getattr(vue, "auth_gated", False):
-            reels[chemin] = "client"
+            niveau = "client"
         else:
-            reels[chemin] = "direct"
+            niveau = "direct"
+        ancien = reels.get(chemin)
+        if ancien is None or force[niveau] < force[ancien]:
+            reels[chemin] = niveau
     return reels
 
 
