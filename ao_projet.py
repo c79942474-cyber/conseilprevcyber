@@ -444,22 +444,96 @@ def store():
     return _STORE
 
 
-def deposer(projet, pieces, fiche=None):
-    """Déposer le dossier marché d'un projet, et le relever dans la foulée.
+def _fusionner(anciennes, nouvelles):
+    """Le dossier existant complété par ce qui arrive.
 
-    LE RELEVÉ SE FAIT ICI, PAS À LA LECTURE. Analyser à chaque lecture
-    referait le même travail sur le même texte et, surtout, ferait varier le
-    résultat quand les motifs de relevé évoluent : deux lectures du même
-    dossier ne diraient plus la même chose. On relève au dépôt, et la version
-    du releveur est conservée avec le résultat.
+    UN DOSSIER DE CONSULTATION NE SE DÉPOSE PAS D'UN SEUL COUP, et c'est la
+    réalité du geste : on reçoit le règlement et le CCAP, on demande le CCTP,
+    l'acheteur publie un rectificatif trois jours plus tard. Remplacer à chaque
+    dépôt effaçait les pièces précédentes — mesuré : déposer une pièce de plus
+    n'en laissait qu'une. Charger « une par une » était donc destructeur, et
+    silencieusement.
+
+    LE NOM FAIT L'IDENTITÉ. Un CCAP redéposé REMPLACE l'ancien : c'est le geste
+    du rectificatif, et garder les deux ferait relever deux fois des clauses
+    contradictoires. Un nom nouveau s'ajoute. L'ORDRE D'ARRIVÉE est conservé,
+    la version reprenant la place de celle qu'elle remplace : un dossier qui se
+    réordonnerait à chaque dépôt se comparerait mal à celui de la veille.
+    """
+    par_nom = {p["nom"]: i for i, p in enumerate(anciennes)}
+    out = list(anciennes)
+    for p in nouvelles:
+        i = par_nom.get(p["nom"])
+        if i is None:
+            par_nom[p["nom"]] = len(out)
+            out.append(p)
+        else:
+            out[i] = p
+    return out
+
+
+def deposer(projet, pieces, fiche=None, remplacer=False):
+    """Ajouter des pièces au dossier marché d'un projet, et le relever.
+
+    LE DÉPÔT AJOUTE, IL NE REMPLACE PAS — `remplacer=True` pour l'exiger. Le
+    geste qui vide reste `oublier()`, qui le dit et qui efface tout : deux
+    façons de perdre un dossier, dont une par accident, en faisaient une de
+    trop.
+
+    LE RELEVÉ SE FAIT ICI, PAS À LA LECTURE, et il porte sur le dossier ENTIER
+    — pas sur les seules pièces qui arrivent. C'est le dossier entier qui dit
+    ce qui MANQUE, et un relevé fait sur le dernier fichier déposé annoncerait
+    neuf pièces manquantes à chaque ajout. Analyser à chaque lecture, à
+    l'inverse, ferait varier le résultat quand les motifs évoluent : deux
+    lectures du même dossier ne diraient plus la même chose. On relève au
+    dépôt, et la version du releveur est conservée avec le résultat.
     """
     pid = _projet_id(projet)
-    propres = _valider(pieces)
+    arrivees = _valider(pieces)
+    anciennes = [] if remplacer else ((lire(projet) or {}).get("pieces") or [])
+    entier = _fusionner(anciennes, arrivees)
+    # LES BORNES PORTENT SUR L'ENSEMBLE, et le refus NOMME ce qui déborde :
+    # « le dossier dépasse » sans dire de combien ni à cause de quoi laisse
+    # supprimer au hasard.
+    if len(entier) > MAX_PIECES:
+        raise DossierError("trop_de_pieces", 413,
+                           "Le dossier porterait %d pièces ; il en admet %d. "
+                           "Retirez-en avant d'ajouter."
+                           % (len(entier), MAX_PIECES))
+    total = sum(p["octets"] for p in entier)
+    if total > MAX_OCTETS_TOTAL:
+        raise DossierError("dossier_trop_grand", 413,
+                           "Le dossier porterait %d octets de texte ; il en "
+                           "admet %d." % (total, MAX_OCTETS_TOTAL))
     import ao_dc
     analyse = ao_dc.analyser([{"nom": p["nom"], "texte": p["texte"]}
-                              for p in propres])
+                              for p in entier])
     analyse["version_ao_dc"] = ao_dc.VERSION
-    return store().deposer(pid, propres, analyse, fiche or {})
+    return store().deposer(pid, entier, analyse, fiche or {})
+
+
+def retirer(projet, nom):
+    """Retirer UNE pièce du dossier, et refaire le relevé sur ce qui reste.
+
+    POURQUOI CE GESTE EXISTE À CÔTÉ DE `oublier`. Une pièce déposée par erreur
+    — le mauvais lot, un doublon — n'a pas à coûter tout le dossier. Et sans
+    lui, la seule façon de corriger serait de tout effacer puis de tout
+    redéposer, c'est-à-dire de perdre au passage ce qu'on ne retrouverait pas.
+
+    RENVOIE None SI LA PIÈCE N'Y ÉTAIT PAS : un retrait qui réussit sans rien
+    retirer ferait croire à une correction faite.
+    """
+    d = lire(projet) or {}
+    restantes = [p for p in (d.get("pieces") or [])
+                 if p["nom"] != str(nom or "").strip()]
+    if len(restantes) == len(d.get("pieces") or []):
+        return None
+    if not restantes:
+        oublier(projet)
+        return {"pieces": [], "vide": True}
+    return deposer(projet, [{"nom": p["nom"], "texte": p["texte"]}
+                            for p in restantes], d.get("fiche"),
+                   remplacer=True)
 
 
 def lire(projet):

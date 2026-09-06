@@ -817,6 +817,16 @@
   .ig-cons-l li{padding:5px 0;border-bottom:1px solid var(--line);
     display:flex;gap:10px;flex-wrap:wrap;align-items:baseline}
   .ig-cons-l li:last-child{border-bottom:0}
+  /* LE RETRAIT EST DISCRET MAIS ATTEIGNABLE : il pousse à droite, il ne
+     s'annonce pas, et il se voit au survol comme au clavier. Un geste
+     destructeur qui saute aux yeux se clique par accident ; un geste qu'on ne
+     trouve pas oblige à tout effacer pour corriger une pièce. */
+  .ig-cons-x{margin-left:auto;padding:2px 8px;border:1px solid var(--line);
+    border-radius:6px;background:none;color:var(--muted2);font:inherit;
+    font-size:11px;line-height:1.4;cursor:pointer}
+  .ig-cons-x:hover,.ig-cons-x:focus-visible{color:#DC2626;
+    border-color:rgba(220,38,38,.55)}
+  .ig-cons-x[disabled]{opacity:.45;cursor:default}
   .ig-cons-l .n{color:var(--ink)}
   .ig-cons-l .o{font-family:var(--mono);font-size:10px;color:var(--muted2);
     margin-left:auto}
@@ -1029,6 +1039,13 @@
   .ig-ao-cph b{font-size:12.5px;color:var(--ink);cursor:help;flex:1 1 100%}
   .ig-ao-cn{font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;
     text-transform:uppercase;color:var(--muted2)}
+  /* CE QUE LA PIÈCE PRODUIRA, annoncé avant le choix. Le formulaire officiel
+     se distingue : c'est le seul cas où ce qui sort EST le fichier de
+     l'État. */
+  .ig-ao-pr{font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--muted2);padding:1px 6px;
+    border:1px solid var(--line);border-radius:5px}
+  .ig-ao-pr.off{color:#8FDBF2;border-color:rgba(143,219,242,.45)}
   .ig-ao-cq{margin:8px 0 0;font-size:11.5px;line-height:1.6;color:var(--muted)}
   .ig-ao-cq i{color:var(--muted2);font-style:normal;font-family:var(--mono);
     font-size:10px;text-transform:uppercase}

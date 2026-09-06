@@ -4437,39 +4437,39 @@ def api_datacenter_travaux():
                    natures_note=technique_dc.NATURES_NOTE)
 
 
-@app.route("/api/datacenter/marche/analyser", methods=["POST"])
-@admin_required
-def api_datacenter_marche_analyser():
-    """L'analyse du dossier de consultation déposé, pièce par pièce.
+# ══ UNE SEULE PORTE POUR LIRE LES PIÈCES D'UNE CONSULTATION ══════════════
+#
+# ELLE EXISTE PARCE QUE LE DÉPÔT LISAIT UNE CLÉ QUE LA PAGE N'ENVOIE PAS.
+# La page lit les fichiers dans le navigateur et transmet leurs octets en
+# base64 sous `contenu` ; l'analyse les décodait, l'extracteur en tirait le
+# texte, et tout marchait. Le dépôt, lui, ne lisait que `texte` — absent —
+# et conservait donc des pièces VIDES : mesuré en navigateur, trois pièces
+# à « 0 o », toutes avec l'empreinte de la chaîne vide
+# (e3b0c44298fc…, sha256 de ""). Le dossier était conservé, l'écran le
+# disait, et le remplissage automatique travaillait sur rien.
+#
+# Les règles ne l'avaient pas vu parce qu'elles appelaient `ao_projet.deposer`
+# avec la bonne clé : elles mesuraient la porte du dessous, jamais la charge
+# que le navigateur pousse réellement dans la route. C'est le même défaut que
+# celui traqué tout au long de ce chantier — une règle qui passe pour une
+# raison sans rapport avec ce qu'elle prétend.
+#
+# DEUX ROUTES, UNE EXTRACTION. L'antivirus s'applique donc aussi au dépôt :
+# un fichier déposé est ouvert par des extracteurs de texte, exactement ce
+# contre quoi cette porte existe.
+def _marche_lire_documents(documents):
+    """Rend (docs, ignores) : chaque doc porte `nom`, `texte` et `extension`.
 
-    VERROU D'ADMINISTRATION, comme le dépôt : les documents analysés sont des
-    pièces de marché d'un client, et leur contenu ressort dans la réponse sous
-    forme de citations. Ouvrir cette lecture à tout compte connecté reviendrait
-    à servir un dossier de consultation à qui a une session.
-
-    DEUX SOURCES POSSIBLES. Des documents déjà versés à la base, désignés par
-    leur identifiant, ou des fichiers transmis pour analyse SANS DÉPÔT. La
-    seconde est le cas courant : on lit un dossier de consultation avant de
-    décider s'il vaut la peine d'être conservé, et les pièces d'une
-    consultation à laquelle on ne répondra pas n'ont rien à faire dans la base
-    de connaissance.
-
-    UN FICHIER TRANSMIS PASSE PAR L'ANALYSE ANTIVIRUS avant d'être lu, comme
-    au dépôt. Le fichier n'est pas conservé — mais il est ouvert par des
-    extracteurs de texte, et un extracteur qui ouvre un fichier hostile est
-    exactement ce contre quoi cette porte existe.
+    `documents` est la liste transmise par la page. Chaque entrée désigne son
+    texte de l'une des trois façons possibles : `texte` en clair, `contenu` en
+    base64 (le cas du navigateur), ou `document_id` pour une pièce déjà versée
+    à la base. Ce qui n'a pas pu être lu ressort dans `ignores`, avec son
+    motif — jamais écarté en silence.
     """
-    ckey = "marche:%s" % client_ip()
-    if guard.blocked(ckey, limit=30, window=600):
-        return jsonify(ok=False, error="rate_limited",
-                       message="Trop d'analyses en peu de temps. "
-                               "Patientez un instant."), 429
-    guard.fail(ckey)
     import antivirus
     import rag_store as _rs
-    data = request.get_json(silent=True) or {}
     docs, ignores = [], []
-    for d in (data.get("documents") or [])[:40]:
+    for d in (documents or [])[:40]:
         if not isinstance(d, dict):
             continue
         nom = str(d.get("nom") or d.get("filename") or "").strip()[:200]
@@ -4523,6 +4523,39 @@ def api_datacenter_marche_analyser():
                 continue
         docs.append({"nom": nom, "texte": str(texte or "")[:400000],
                      "extension": ext})
+    return docs, ignores
+
+
+@app.route("/api/datacenter/marche/analyser", methods=["POST"])
+@admin_required
+def api_datacenter_marche_analyser():
+    """L'analyse du dossier de consultation déposé, pièce par pièce.
+
+    VERROU D'ADMINISTRATION, comme le dépôt : les documents analysés sont des
+    pièces de marché d'un client, et leur contenu ressort dans la réponse sous
+    forme de citations. Ouvrir cette lecture à tout compte connecté reviendrait
+    à servir un dossier de consultation à qui a une session.
+
+    DEUX SOURCES POSSIBLES. Des documents déjà versés à la base, désignés par
+    leur identifiant, ou des fichiers transmis pour analyse SANS DÉPÔT. La
+    seconde est le cas courant : on lit un dossier de consultation avant de
+    décider s'il vaut la peine d'être conservé, et les pièces d'une
+    consultation à laquelle on ne répondra pas n'ont rien à faire dans la base
+    de connaissance.
+
+    UN FICHIER TRANSMIS PASSE PAR L'ANALYSE ANTIVIRUS avant d'être lu, comme
+    au dépôt. Le fichier n'est pas conservé — mais il est ouvert par des
+    extracteurs de texte, et un extracteur qui ouvre un fichier hostile est
+    exactement ce contre quoi cette porte existe.
+    """
+    ckey = "marche:%s" % client_ip()
+    if guard.blocked(ckey, limit=30, window=600):
+        return jsonify(ok=False, error="rate_limited",
+                       message="Trop d'analyses en peu de temps. "
+                               "Patientez un instant."), 429
+    guard.fail(ckey)
+    data = request.get_json(silent=True) or {}
+    docs, ignores = _marche_lire_documents(data.get("documents"))
     if not docs:
         return jsonify(ok=False, error="aucun_document",
                        message="Aucun document analysable.",
@@ -5206,10 +5239,19 @@ def _refus_dossier(exc):
 def api_marche_projet_dossier():
     """Déposer le dossier marché d'un projet, ou le relire.
 
-    LE DÉPÔT RELÈVE DANS LA FOULÉE : les dix-sept relevés sont calculés une
-    fois, au dépôt, et conservés avec la version du releveur. Relever à chaque
-    lecture ferait varier le résultat quand les motifs évoluent — deux lectures
-    du même dossier ne diraient plus la même chose.
+    LE DÉPÔT AJOUTE. Un dossier de consultation ne se reçoit pas d'un seul
+    coup : le règlement et le CCAP arrivent, on demande le CCTP, l'acheteur
+    publie un rectificatif trois jours plus tard. Remplacer à chaque dépôt
+    effaçait les pièces précédentes — mesuré, et silencieusement. `remplacer`
+    force l'ancien comportement ; `retirer` enlève UNE pièce ; `/oubli` reste
+    le seul geste qui vide tout, et il le dit.
+
+    LE DÉPÔT RELÈVE DANS LA FOULÉE, SUR LE DOSSIER ENTIER : les dix-sept
+    relevés sont calculés une fois, au dépôt, et conservés avec la version du
+    releveur. Relever à chaque lecture ferait varier le résultat quand les
+    motifs évoluent — deux lectures du même dossier ne diraient plus la même
+    chose ; relever sur les seules pièces qui arrivent annoncerait neuf pièces
+    manquantes à chaque ajout.
     """
     data = request.get_json(silent=True) or {}
     pid = (request.args.get("projet") if request.method == "GET"
@@ -5230,10 +5272,30 @@ def api_marche_projet_dossier():
                            etat=ao_projet.etat(),
                            declarations=ao_projet.etat_affirmations(projet),
                            textes=ao_dc.declarations())
-        pieces = data.get("pieces")
         fiche = data.get("fiche") if isinstance(data.get("fiche"), dict) else {}
         fiche = {str(k)[:60]: str(v)[:400] for k, v in list(fiche.items())[:80]}
-        meta = ao_projet.deposer(projet, pieces, fiche)
+        # RETIRER UNE PIÈCE PASSE PAR LA MÊME PORTE, et c'est voulu : le
+        # contrôle d'accès au projet est fait une fois, au-dessus, et un
+        # second point d'entrée serait un second endroit où l'oublier.
+        retrait = str(data.get("retirer") or "").strip()[:200]
+        ignores = []
+        if retrait:
+            r = ao_projet.retirer(projet, retrait)
+            if r is None:
+                return jsonify(ok=False, error="piece_absente",
+                               message="Cette pièce n'est pas au dossier."), 404
+            meta = r
+        else:
+            # LA MÊME PORTE QUE L'ANALYSE. La page transmet les octets du
+            # fichier en base64 ; lire seulement `texte` conservait des pièces
+            # vides — mesuré, et l'écran l'affichait comme un dossier complet.
+            pieces, ignores = _marche_lire_documents(data.get("pieces"))
+            if not pieces:
+                return jsonify(ok=False, error="aucune_piece_lisible",
+                               message="Aucune pièce n'a pu être lue.",
+                               ignores=ignores), 400
+            meta = ao_projet.deposer(projet, pieces, fiche,
+                                     remplacer=bool(data.get("remplacer")))
     except ao_projet.DossierError as exc:
         return _refus_dossier(exc)
     except Exception:
@@ -5241,12 +5303,20 @@ def api_marche_projet_dossier():
         return jsonify(ok=False, error="depot",
                        message="Le dossier n'a pas pu être conservé."), 500
     audit.journaliser("marche.dossier.depot", cible=projet["id"][:32],
-                      detail="%d pièce(s)" % (meta or {}).get("nb_pieces", 0)
+                      detail="%s · %d pièce(s)"
+                             % ("retrait" if retrait else "ajout",
+                                (meta or {}).get("nb_pieces", 0))
                       if isinstance(meta, dict) else "")
-    return jsonify(ok=True, meta={k: v for k, v in (meta or {}).items()
-                                  if k != "coffre"},
-                   dossier=ao_projet.lire(projet),
-                   declarations=ao_projet.etat_affirmations(projet))
+    reponse = {"ok": True,
+               "meta": {k: v for k, v in (meta or {}).items()
+                        if k != "coffre"},
+               "dossier": ao_projet.lire(projet),
+               "declarations": ao_projet.etat_affirmations(projet)}
+    # CE QUI A ÉTÉ ÉCARTÉ REPART AVEC LA RÉPONSE. Un dépôt de trois pièces
+    # dont une est illisible ne doit pas se lire comme un dépôt de trois.
+    if ignores:
+        reponse["ignores"] = ignores
+    return jsonify(**reponse)
 
 
 @app.route("/api/datacenter/marche/projet/oubli", methods=["POST"])

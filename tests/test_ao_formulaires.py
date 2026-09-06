@@ -398,7 +398,8 @@ def _carte_rendue(remplissage):
         # sur « aoLotBarre is not defined » — ce qui est arrivé, et c'est
         # exactement son office : il exécute, il ne relit pas.
         _js_source("esc", "info", "aoMenuDocs", "aoFormulairesBoutons",
-                   "aoLotBarre", "aoLotEtatCarte", "aoRempliRendre")
+                   "aoProduira", "aoLotBarre", "aoLotEtatCarte",
+                   "aoRempliRendre")
         + "\nvar AO_FORMULAIRES = null;"
         + "\nvar AO_DOC = '';"
         + "\nvar AO_SAISIES = {};"

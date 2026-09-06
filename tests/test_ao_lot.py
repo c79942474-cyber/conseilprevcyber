@@ -422,3 +422,412 @@ def test_la_page_REPREND_le_dossier_conserve_sans_rien_redeposer():
     appel = js[js.index("AO_PROJET_ETAT = xj[1];"):][:200]
     assert "aoProjetReprendre()" in appel, (
         "la reprise n'est appelée nulle part : elle ne servirait à rien")
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 5. LE DOSSIER SE CHARGE UNE PAR UNE, ET IL SERT VRAIMENT À REMPLIR
+# ══════════════════════════════════════════════════════════════════════════
+#
+# CE QUI A ÉTÉ MESURÉ, ET QUI A MOTIVÉ CE BLOC. Déposer une pièce de plus
+# EFFAÇAIT les précédentes : deux pièces déposées, puis une troisième, et le
+# dossier n'en portait plus qu'une. Charger « une par une » était donc
+# destructeur, et silencieusement — le dépôt répondait 200.
+
+DCE = [
+    {"nom": "reglement-de-consultation.pdf", "texte": """
+RÈGLEMENT DE LA CONSULTATION
+Pouvoir adjudicateur : COMMUNAUTÉ D'AGGLOMÉRATION DE VAL-D'EUROPE
+Objet du marché : construction d'un centre de données de 12 MW — lot 2, CVC.
+Référence de la consultation : 2026-DC-0142
+La consultation est allotie en 4 lots. Le présent lot est le lot n° 2.
+Procédure : appel d'offres ouvert.
+Les offres sont remises sur la plateforme PLACE.
+Critères de jugement des offres : prix 40 %, valeur technique 60 %.
+Durée du marché : 24 mois à compter de la notification.
+"""},
+    {"nom": "CCAP.pdf", "texte": """
+CAHIER DES CLAUSES ADMINISTRATIVES PARTICULIÈRES
+Article 12 — Pénalités de retard : 1/1000 du montant par jour de retard.
+Article 15 — Avance : 5 % du montant du marché.
+"""},
+    {"nom": "CCTP.pdf", "texte": "Le titulaire fournit et pose les groupes froids."},
+]
+
+
+@pytest.fixture
+def projet(connecte, monkeypatch):
+    """Un projet du compte, avec le chiffrement du dossier ACTIF.
+
+    SANS CLÉ, LE MODULE REFUSE D'ÉCRIRE — et il a raison : conserver un dossier
+    de consultation en clair serait pire que ne pas le conserver. La règle
+    fournit donc une clé, au lieu de sauter le contrôle."""
+    import ao_projet
+    from cryptography.fernet import Fernet
+    monkeypatch.setenv(ao_projet.VAR_CLE, Fernet.generate_key().decode())
+    r = connecte.post("/api/datacenter/projets",
+                      json={"nom": "Dossier d'essai"}, headers=ORIGINE)
+    assert r.status_code == 200, r.data[:200]
+    return r.get_json()["projet"]["id"]
+
+
+@pytest.fixture
+def projet_admin(admin, monkeypatch):
+    """Le même projet, sur le compte d'administration : `/analyser` lui est
+    ouverte, et c'est la seule façon de comparer les deux routes."""
+    import ao_projet
+    from cryptography.fernet import Fernet
+    monkeypatch.setenv(ao_projet.VAR_CLE, Fernet.generate_key().decode())
+    r = admin.post("/api/datacenter/projets",
+                   json={"nom": "Dossier d'essai (admin)"}, headers=ORIGINE)
+    assert r.status_code == 200, r.data[:200]
+    return r.get_json()["projet"]["id"]
+
+
+def _deposer(cl, pid, **kw):
+    return cl.post("/api/datacenter/marche/projet/dossier",
+                   json=dict(projet=pid, **kw), headers=ORIGINE)
+
+
+def _dossier(cl, pid):
+    d = cl.get("/api/datacenter/marche/projet/dossier?projet=" + pid,
+               headers=ORIGINE).get_json()["dossier"] or {}
+    return ([p["nom"] for p in (d.get("pieces") or [])],
+            d.get("analyse") or {})
+
+
+def test_les_pieces_se_chargent_UNE_PAR_UNE_sans_effacer_les_precedentes(
+        connecte, projet):
+    """LE DÉFAUT MESURÉ, ET SA RÈGLE. Deux pièces, puis une troisième : le
+    dossier en portait UNE. Le geste « une par une » que la page propose était
+    donc une façon de perdre son dossier."""
+    _deposer(connecte, projet, pieces=DCE[:2], fiche={})
+    noms, _ = _dossier(connecte, projet)
+    assert noms == ["reglement-de-consultation.pdf", "CCAP.pdf"], noms
+    _deposer(connecte, projet, pieces=DCE[2:])
+    noms, a = _dossier(connecte, projet)
+    assert len(noms) == 3, "la troisième pièce a effacé les deux autres : %s" % noms
+    assert len(a.get("pieces") or []) == 3, (
+        "le relevé ne porte que sur %d pièce(s) : il est refait sur le dernier "
+        "dépôt et non sur le dossier entier"
+        % len(a.get("pieces") or []))
+
+
+def test_une_piece_REDEPOSEE_remplace_la_sienne_et_garde_sa_place(connecte, projet):
+    """Le geste du rectificatif : l'acheteur republie un CCAP trois jours plus
+    tard. Garder les deux ferait relever deux fois des clauses contradictoires ;
+    l'ajouter à la fin réordonnerait le dossier à chaque dépôt."""
+    _deposer(connecte, projet, pieces=DCE, fiche={})
+    _deposer(connecte, projet,
+             pieces=[{"nom": "CCAP.pdf", "texte": "RECTIFICATIF. Pénalités : 1/2000."}])
+    noms, _ = _dossier(connecte, projet)
+    assert noms == [p["nom"] for p in DCE], noms
+
+
+def test_une_piece_se_RETIRE_sans_perdre_le_dossier(connecte, projet):
+    """Sans ce geste, corriger un dépôt fautif imposerait de tout effacer puis
+    de tout redéposer — c'est-à-dire de perdre ce qu'on ne retrouverait pas."""
+    _deposer(connecte, projet, pieces=DCE, fiche={})
+    r = _deposer(connecte, projet, retirer="CCTP.pdf")
+    assert r.status_code == 200
+    noms, a = _dossier(connecte, projet)
+    assert noms == ["reglement-de-consultation.pdf", "CCAP.pdf"], noms
+    assert len(a["pieces"]) == 2, "le relevé n'a pas suivi le retrait"
+    assert _deposer(connecte, projet, retirer="JAMAIS-DEPOSE.pdf").status_code == 404
+
+
+def test_le_remplacement_reste_possible_mais_il_faut_le_DEMANDER(connecte, projet):
+    _deposer(connecte, projet, pieces=DCE, fiche={})
+    _deposer(connecte, projet, pieces=[{"nom": "SEUL.pdf", "texte": "x"}],
+             remplacer=True)
+    noms, _ = _dossier(connecte, projet)
+    assert noms == ["SEUL.pdf"], noms
+
+
+# ── L'APPORT DU DOSSIER AU REMPLISSAGE, COMPTÉ ───────────────────────────
+
+def test_le_dossier_depose_ALIMENTE_VRAIMENT_les_formulaires_de_l_Etat():
+    """« Les pièces déposées servent à remplir » est une affirmation tant qu'on
+    ne compte pas. On remplit les quatre formulaires officiels deux fois — sans
+    dossier, puis avec — et l'on exige que l'écart existe.
+
+    C'EST LA RÈGLE QUI TIENT LA PROMESSE DE LA PAGE. Un relevé qui cesserait
+    d'alimenter le remplissage ne se verrait nulle part ailleurs : les
+    documents sortiraient, simplement plus vides."""
+    fiche = {"raison_sociale": "CONSEILPREV", "siret": "73282932000074",
+             "forme_juridique": "SASU"}
+    sans = ao_dc.remplir(fiche=fiche, analyse=None, saisies={})
+    avec = ao_dc.remplir(fiche=fiche, analyse=ao_dc.analyser(DCE), saisies={})
+    assert avec["etat"]["remplies"] > sans["etat"]["remplies"], (
+        "le dossier n'ajoute aucune rubrique remplie : %d contre %d"
+        % (avec["etat"]["remplies"], sans["etat"]["remplies"]))
+    assert avec["etat"]["non_trouvees"] < sans["etat"]["non_trouvees"]
+    maigres = []
+    for cle, m in ao_formulaires.MODELES.items():
+        vs = len(ao_formulaires.valeurs_pour(sans, m["piece"]))
+        va = len(ao_formulaires.valeurs_pour(avec, m["piece"]))
+        if va <= vs:
+            maigres.append("%s (%d → %d)" % (cle, vs, va))
+    assert not maigres, (
+        "ces formulaires ne reçoivent RIEN du dossier déposé : "
+        + ", ".join(maigres))
+
+
+def test_les_valeurs_venues_du_dossier_se_PLACENT_dans_le_fichier_officiel():
+    """Une valeur fournie et non placée ne sert à rien : le formulaire sort
+    avec sa case vide, et personne ne le sait.
+
+    ON COMPARE LES DEUX REMPLISSAGES, on ne fixe pas de seuil. « Au moins cinq
+    valeurs placées » était un nombre choisi par moi, que le dossier d'essai
+    pouvait franchir ou non selon les champs de la fiche — un seuil arbitraire
+    mesure la fixture, pas le produit. Ce qui doit tenir est un ÉCART : chacun
+    des quatre formulaires officiels place, grâce au dossier déposé, des cases
+    qu'il laissait vides sans lui."""
+    fiche = {"raison_sociale": "CONSEILPREV", "siret": "73282932000074"}
+    sans = ao_dc.remplir(fiche=fiche, analyse=None, saisies={})
+    avec = ao_dc.remplir(fiche=fiche, analyse=ao_dc.analyser(DCE), saisies={})
+    for cle, m in ao_formulaires.MODELES.items():
+        pose = {}
+        for nom, r in (("sans", sans), ("avec", avec)):
+            v = ao_formulaires.valeurs_pour(r, m["piece"])
+            _o, rap = ao_formulaires.remplir_document(cle, v)
+            assert rap["ok"], (cle, rap.get("motif"))
+            # UNE VALEUR FOURNIE QUI DISPARAÎT SANS UN MOT est le pire des
+            # cas : le formulaire sort, il a l'air complet, et une case est
+            # vide. Chacune tombe donc dans l'un des trois sacs du rapport —
+            # placée, non placée faute d'emplacement libre, ou SANS ANCRE
+            # parce que ce formulaire-là ne demande pas cette valeur (le DC2
+            # ne demande ni le SIREN ni la TVA, que la fiche fournit).
+            comptees = (len(rap["places"]) + len(rap["non_places"])
+                        + len(rap["sans_ancre"]))
+            assert comptees == len(v), (
+                "%s (%s) : %d valeur(s) fournies, %d comptées — %s disparaît "
+                "sans un mot"
+                % (cle, nom, len(v), comptees,
+                   sorted(set(v) - {x["rubrique"] for x in rap["places"]}
+                          - {x["rubrique"] for x in rap["non_places"]}
+                          - set(rap["sans_ancre"]))))
+            pose[nom] = {x["rubrique"] for x in rap["places"]}
+        gagnees = pose["avec"] - pose["sans"]
+        assert gagnees, (
+            "%s ne place AUCUNE case de plus grâce au dossier déposé : le "
+            "relevé ne sert pas au remplissage" % cle)
+
+
+def test_la_carte_annonce_AVANT_le_choix_ce_qu_elle_produira():
+    """Sans cela on coche vingt-trois pièces en croyant recevoir vingt-trois
+    formulaires, et l'on découvre après coup que dix-neuf sont des plans."""
+    from test_ao_formulaires import _carte_rendue, _rempli
+    h = _carte_rendue(_rempli())
+    assert h.count('class="ig-ao-pr') == 23, h[:200]
+    js = _src("ingenierie-dc.js")
+    bloc = js[js.index("function aoProduira("):]
+    bloc = bloc[:bloc.index("\n  }")]
+    assert "AO_FORMULAIRES.etat.prets" in bloc, (
+        "l'annonce ne vient pas de ce que le SERVEUR dit avoir déposé : elle "
+        "promettrait un formulaire absent")
+
+
+def test_l_ecran_montre_ce_qui_est_conserve_et_laisse_en_RETIRER_une():
+    js = _src("ingenierie-dc.js")
+    bloc = js[js.index("function aoProjetRendre("):]
+    bloc = bloc[:bloc.index("\n  }\n")]
+    assert "data-retirer=" in bloc, "aucun geste pour retirer une pièce"
+    assert "Un dépôt AJOUTE" in bloc, (
+        "l'écran ne dit pas que le dépôt ajoute : on croira qu'il remplace, "
+        "et c'est ce qu'il faisait")
+    ret = js[js.index("function aoProjetRetirer("):]
+    ret = ret[:ret.index("\n  }")]
+    assert "AO_ANALYSE = null" in ret, (
+        "l'analyse à l'écran survivrait au retrait : on remplirait depuis une "
+        "pièce qu'on vient d'enlever")
+
+
+# ══ CE QUE LA PAGE ENVOIE VRAIMENT, ET CE QUE LE DÉPÔT EN FAIT ═══════════
+#
+# LE DÉFAUT QUE CES RÈGLES TIENNENT, ET POURQUOI AUCUNE AUTRE NE L'A VU.
+# Toutes les règles de dépôt ci-dessus postent `{"nom": …, "texte": …}` — la
+# forme que `ao_projet.deposer` lit. La PAGE, elle, n'a pas le texte : elle lit
+# le fichier dans le navigateur et transmet ses octets en base64 sous
+# `contenu`. La route d'analyse décodait et extrayait ; la route de dépôt ne
+# lisait que `texte`, absent, et conservait donc des pièces VIDES.
+#
+# MESURÉ EN NAVIGATEUR avant correction : trois pièces déposées, toutes à
+# « 0 o », toutes avec l'empreinte e3b0c44298fc… — le sha256 de la chaîne
+# vide. Le dossier était conservé, l'écran l'affichait comme complet, et le
+# remplissage automatique des vingt-trois pièces travaillait sur rien.
+#
+# Les règles étaient vertes parce qu'elles mesuraient la porte du dessous au
+# lieu de la charge que le navigateur pousse dans la route — une règle qui
+# passe pour une raison sans rapport avec ce qu'elle prétend. Celles-ci
+# passent par la ROUTE, avec la forme de la PAGE.
+
+def _b64(texte):
+    import base64
+    return base64.b64encode(texte.encode("utf-8")).decode("ascii")
+
+
+SHA_DU_VIDE = ("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b"
+               "7852b855")
+
+
+def _comme_la_page(pieces):
+    """La charge telle que `aoLire` la construit : le nom, et les octets du
+    fichier en base64. Jamais `texte` — la page ne l'a pas.
+
+    L'EXTENSION DEVIENT `.txt`, ET C'EST LA PORTE QUI L'IMPOSE. Transmettre du
+    texte brut sous un nom en `.pdf` est refusé par l'inspection structurelle
+    — « Le contenu ne correspond pas à l'extension annoncée » — et ce refus est
+    juste. Les règles ci-dessus n'y étaient pas soumises parce qu'elles
+    passaient le texte en clair, sans jamais ouvrir de fichier : la porte
+    n'existait pas pour elles.
+    """
+    return [{"nom": p["nom"].rsplit(".", 1)[0] + ".txt",
+             "contenu": _b64(p["texte"])} for p in pieces]
+
+
+def _noms_page(pieces):
+    return [p["nom"].rsplit(".", 1)[0] + ".txt" for p in pieces]
+
+
+def test_le_depot_conserve_le_TEXTE_des_pieces_que_la_page_envoie(connecte, projet):
+    """La règle qui manquait. Elle poste ce que le navigateur poste."""
+    r = _deposer(connecte, projet, pieces=_comme_la_page(DCE), fiche={})
+    assert r.status_code == 200, r.data[:300]
+    d = connecte.get("/api/datacenter/marche/projet/dossier?projet=" + projet,
+                     headers=ORIGINE).get_json()["dossier"]
+    vides = [p["nom"] for p in d["pieces"]
+             if not p["octets"] or p["empreinte"] == SHA_DU_VIDE]
+    assert not vides, (
+        "ces pièces ont été conservées VIDES alors que la page a transmis "
+        "leur contenu : " + ", ".join(vides))
+    # ET LE COMPTE EST LE BON : un décodage partiel passerait le contrôle
+    # ci-dessus en ne conservant qu'un octet.
+    attendu = [len(p["texte"].encode("utf-8")) for p in DCE]
+    assert [p["octets"] for p in d["pieces"]] == attendu, (
+        "le texte conservé n'est pas celui transmis : %s au lieu de %s"
+        % ([p["octets"] for p in d["pieces"]], attendu))
+
+
+def test_le_dossier_ainsi_depose_ALIMENTE_le_remplissage_des_vingt_trois(
+        connecte, projet):
+    """LA PROMESSE DE LA PAGE, DE BOUT EN BOUT — par la route, pas par le
+    module. « Charger les pièces de la consultation pour remplir
+    automatiquement les pièces choisies » n'est tenu que si l'acheteur relevé
+    dans le règlement ressort dans un document produit."""
+    _deposer(connecte, projet, pieces=_comme_la_page(DCE), fiche={})
+    d = connecte.get("/api/datacenter/marche/projet/dossier?projet=" + projet,
+                     headers=ORIGINE).get_json()["dossier"]
+    cites = json.dumps((d.get("analyse") or {}).get("pieces") or [],
+                       ensure_ascii=False).upper()
+    assert "VAL-D'EUROPE" in cites, (
+        "l'acheteur nommé dans le règlement déposé n'est cité par aucun relevé "
+        "du dossier conservé : celui-ci ne sert donc à rien pour remplir")
+    # ET LE RELEVÉ SERT VRAIMENT AU REMPLISSAGE : on repart de l'analyse
+    # conservée, exactement comme la page, et on exige que l'écart existe.
+    fiche = {"raison_sociale": "CONSEILPREV", "siret": "73282932000074"}
+    sans = ao_dc.remplir(fiche=fiche, analyse=None, saisies={})
+    avec = ao_dc.remplir(fiche=fiche, analyse=d["analyse"], saisies={})
+    assert avec["etat"]["remplies"] > sans["etat"]["remplies"], (
+        "l'analyse conservée n'ajoute aucune rubrique remplie : %d contre %d"
+        % (avec["etat"]["remplies"], sans["etat"]["remplies"]))
+
+
+def test_ce_qui_n_a_pas_pu_etre_lu_au_depot_est_NOMME(connecte, projet):
+    """Un dépôt de trois pièces dont une est illisible ne doit pas se lire
+    comme un dépôt de trois. L'écarter en silence ferait croire le dossier
+    complet — et c'est précisément l'erreur qu'on vient de corriger."""
+    charge = _comme_la_page(DCE[:1]) + [{"nom": "ABIME.pdf", "contenu": "@@@"}]
+    r = _deposer(connecte, projet, pieces=charge, fiche={})
+    assert r.status_code == 200, r.data[:300]
+    j = r.get_json()
+    assert "ABIME.pdf" in json.dumps(j.get("ignores") or [], ensure_ascii=False), (
+        "la pièce illisible n'est pas nommée dans la réponse : %r"
+        % (j.get("ignores"),))
+    noms, _ = _dossier(connecte, projet)
+    assert noms == _noms_page(DCE[:1]), noms
+
+
+def test_l_analyse_et_le_depot_lisent_par_la_MEME_porte(admin, projet_admin):
+    """DEUX EXTRACTIONS, C'EST UNE DIVERGENCE EN ATTENTE. Celle qu'on vient de
+    payer : l'analyse décodait le base64, le dépôt non. La règle exige que le
+    même contenu illisible soit écarté par les deux routes avec le MÊME motif —
+    ce qui n'est vrai que s'il n'y a qu'une porte."""
+    charge = [{"nom": "ABIME.pdf", "contenu": "@@@"}]
+    a = admin.post("/api/datacenter/marche/analyser",
+                   json={"documents": charge}, headers=ORIGINE).get_json()
+    d = _deposer(admin, projet_admin,
+                 pieces=_comme_la_page(DCE[:1]) + charge).get_json()
+    motif_a = [x["pourquoi"] for x in (a.get("ignores") or [])
+               if x["fichier"] == "ABIME.pdf"]
+    motif_d = [x["pourquoi"] for x in (d.get("ignores") or [])
+               if x["fichier"] == "ABIME.pdf"]
+    assert motif_a and motif_a == motif_d, (
+        "les deux routes n'écartent pas la même pièce pour la même raison — "
+        "elles ne partagent donc pas leur extraction : analyse %r, dépôt %r"
+        % (motif_a, motif_d))
+
+
+def test_la_page_envoie_la_forme_QUE_LE_DEPOT_LIT(connecte, projet):
+    """LA RÈGLE STRUCTURELLE. Les deux précédentes tiendraient encore si la
+    page se mettait à envoyer un troisième nom de champ. Celle-ci lit les clés
+    que `aoLire` pose réellement dans les objets que `aoProjetDeposer` envoie,
+    et exige que la route sache en tirer le texte — quel que soit leur nom."""
+    src = _js_source("aoLire")
+    # LES CHAMPS DU SUCCÈS, pas ceux de l'échec : `aoLire` rend `{nom, erreur}`
+    # quand la lecture rate, et c'est l'AUTRE littéral qui devient AO_DOCS.
+    litteraux = [set(re.findall(r"(\w+)\s*:", bloc))
+                 for bloc in re.findall(r"ok\(\{(.*?)\}\)", src, re.S)]
+    succes = [c for c in litteraux if "erreur" not in c]
+    assert len(succes) == 1 and len(succes[0]) == 2, (
+        "aoLire ne pose plus exactement deux champs au succès : %r — la règle "
+        "ne mesure donc plus la charge réelle et doit être reprise" % (litteraux,))
+    cles = sorted(succes[0])
+    nom_cle = "nom" if "nom" in cles else cles[0]
+    contenu_cle = [c for c in cles if c != nom_cle][0]
+    charge = [{nom_cle: p["nom"].rsplit(".", 1)[0] + ".txt",
+               contenu_cle: _b64(p["texte"])} for p in DCE]
+    r = _deposer(connecte, projet, pieces=charge, fiche={})
+    assert r.status_code == 200, r.data[:300]
+    d = connecte.get("/api/datacenter/marche/projet/dossier?projet=" + projet,
+                     headers=ORIGINE).get_json()["dossier"]
+    assert d and all(p["octets"] for p in d["pieces"]), (
+        "la route ne sait pas lire les champs %r que la page pose : le dossier "
+        "conservé est vide" % (cles,))
+
+
+def test_le_depot_passe_par_l_ANTIVIRUS_comme_l_analyse(connecte, projet):
+    """CE QUE LA PORTE PARTAGÉE FAIT GAGNER, et qu'il faut donc tenir. Avant,
+    le dépôt ne recevait que du texte : aucun fichier n'était ouvert, et
+    l'antivirus n'avait rien à inspecter. Maintenant que le dépôt décode et
+    extrait, il ouvre des fichiers — exactement ce contre quoi cette porte
+    existe. Un contenu qui ment sur son extension doit être refusé ICI aussi.
+    """
+    charge = [{"nom": "piege.pdf", "contenu": _b64("Ceci n'est pas un PDF.")}]
+    j = _deposer(connecte, projet, pieces=charge, fiche={}).get_json()
+    motifs = " ".join(x["pourquoi"] for x in (j.get("ignores") or []))
+    assert "extension" in motifs, (
+        "un contenu qui ment sur son extension entre au dossier sans que "
+        "l'inspection structurelle l'ait vu : %r" % (j.get("ignores"),))
+    noms, _ = _dossier(connecte, projet)
+    assert not noms, "la pièce refusée a tout de même été conservée : %s" % noms
+
+
+def test_la_reprise_annonce_une_DATE_et_non_un_horodatage():
+    """MESURÉ À L'ÉCRAN : « Dossier conservé repris : 3 pièce(s) identifiée(s),
+    relevées le 1788728142 ». La date était fabriquée en découpant les dix
+    premiers chiffres de l'horodatage. La règle exécute la phrase sur un
+    horodatage connu et exige une date lisible — chercher le mot « aoJour »
+    dans la source constaterait un appel sans jamais lire son résultat."""
+    src = _js_source("aoJour", "aoRepriseMsg")
+    quand = 1_788_728_142_000                    # 6 septembre 2026
+    sortie = subprocess.run(
+        ["node", "-e", src + """
+        var d = {maj_le: %d, analyse: {pieces: [1, 2, 3]}};
+        console.log(aoRepriseMsg(d));
+        """ % quand],
+        capture_output=True, text=True, timeout=60)
+    assert sortie.returncode == 0, sortie.stderr[-600:]
+    dit = sortie.stdout.strip()
+    assert "3 pièce(s)" in dit, dit
+    assert "2026" in dit and "1788728142" not in dit, (
+        "la reprise affiche l'horodatage brut au lieu d'une date : %r" % dit)

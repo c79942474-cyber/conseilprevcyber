@@ -6768,6 +6768,30 @@ function messageDelai(e, defaut) {
      ELLE COMPTE AVANT DE PROPOSER. « Remplir les pièces choisies » sans le
      nombre laisse lancer vingt-trois productions en croyant en lancer une —
      et c'est le genre de clic qu'on ne retire pas. */
+  /* CE QUE LA CARTE PRODUIRA, DIT AVANT LE CHOIX. Sans cela on coche
+     vingt-trois pièces en croyant recevoir vingt-trois formulaires, et l'on
+     découvre après coup que dix-neuf sont des plans à écrire. Le savoir AVANT
+     change ce qu'on choisit ; le savoir après ne change rien.
+
+     LA LISTE DES MODÈLES VIENT DU SERVEUR, qui vérifie l'empreinte du fichier
+     déposé. Annoncer « formulaire officiel » sur un modèle absent ferait
+     promettre ce que le remplissage refuserait ensuite. */
+  function aoProduira(p) {
+    var prets = (AO_FORMULAIRES && AO_FORMULAIRES.etat
+                 && AO_FORMULAIRES.etat.prets) || [];
+    var mod = (AO_FORMULAIRES && AO_FORMULAIRES.modeles) || {};
+    var a = prets.filter(function (c) {
+      return (mod[c] || {}).piece === p.cle;
+    })[0];
+    if (a) {
+      return '<span class="ig-ao-pr off">formulaire officiel — se remplit</span>';
+    }
+    return '<span class="ig-ao-pr">'
+      + (p.voie === "obtenir" ? "à demander — le document dit à qui"
+         : p.voie === "remplir" ? "report de ses rubriques"
+         : "plan de ce qu'elle doit démontrer") + "</span>";
+  }
+
   function aoLotBarre(r) {
     var n = Object.keys(AO_CHOISIES).length;
     var faites = 0, mal = 0;
@@ -7089,6 +7113,7 @@ function messageDelai(e, defaut) {
         + (p.bloquant ? '<span class="ig-ao-bl">bloquante</span>' : "")
         + '<span class="ig-ao-vo ig-ao-vo-' + esc(p.voie) + '">'
         + esc(p.voie_nom) + "</span>"
+        + aoProduira(p)
         + "</div>";
       /* UNE PIÈCE SANS OBJET LE DIT, ET DIT POURQUOI. Muette, elle
          ressemblerait à une pièce oubliée — et ses vingt-trois rubriques
@@ -7280,6 +7305,19 @@ function messageDelai(e, defaut) {
      déjà quelque chose, l'emporte sur celle du coffre — c'est la plus
      récente, et l'écraser ferait disparaître sous les doigts ce qu'on vient
      de taper. */
+  /* CE QUE L'ÉCRAN DIT DE LA REPRISE — écrit à part pour être MESURABLE.
+     La date passait par `String(ms).slice(0, 10)`, qui rend les dix premiers
+     chiffres de l'horodatage : « relevées le 1788728142 », mesuré à l'écran.
+     Elle passe désormais par `aoJour`, comme partout ailleurs. Sortir la
+     phrase de la fonction qui touche le DOM permet à une règle de l'exécuter
+     sur un horodatage connu, au lieu de constater qu'un mot y figure. */
+  function aoRepriseMsg(d) {
+    return "Dossier conservé repris : "
+      + ((d.analyse && d.analyse.pieces) || []).length
+      + " pièce(s) identifiée(s), relevées le "
+      + aoJour(d.maj_le || d.cree_le) + ". Rien n'a été redéposé.";
+  }
+
   function aoProjetReprendre() {
     var d = (AO_PROJET_ETAT || {}).dossier;
     if (!d || AO_ANALYSE) return;
@@ -7294,12 +7332,7 @@ function messageDelai(e, defaut) {
        Annoncer la reprise avant elle l'aurait effacée avant d'être lue. */
     aoCandidature();
     var msg = $("#ig-ao-msg");
-    if (msg) {
-      msg.textContent = "Dossier conservé repris : "
-        + (d.analyse.pieces || []).length + " pièce(s) identifiée(s), "
-        + "relevées le " + String(d.maj_le || d.cree_le || "").slice(0, 10)
-        + ". Rien n'a été redéposé.";
-    }
+    if (msg) msg.textContent = aoRepriseMsg(d);
   }
 
   function aoProjetsCharger() {
@@ -7423,18 +7456,29 @@ function messageDelai(e, defaut) {
         h += "<p>Ce projet ne porte encore aucune pièce. Analysez un dossier "
           + "de consultation, puis conservez-le ici.</p>";
       } else {
-        h += "<p>Conservé chiffré. Dernier dépôt le <b>" + esc(aoJour(d.maj_le))
+        h += "<p><b>" + (d.pieces || []).length + " pièce(s)</b> conservées "
+          + "chiffrées. Dernier dépôt le <b>" + esc(aoJour(d.maj_le))
           + "</b>, effacement automatique le <b>" + esc(aoJour(d.purge_le))
-          + "</b>.</p><ul class=\"ig-cons-l\">";
+          + "</b>. Un dépôt AJOUTE&nbsp;: vous pouvez les charger une par une, "
+          + "et une pièce redéposée sous le même nom remplace la sienne."
+          + "</p><ul class=\"ig-cons-l\">";
         (d.pieces || []).forEach(function (x) {
           h += '<li><span class="n">' + esc(x.nom) + "</span>"
             + '<span class="o">' + esc(aoOctets(x.octets)) + " · "
-            + esc(String(x.empreinte || "").slice(0, 12)) + "</span></li>";
+            + esc(String(x.empreinte || "").slice(0, 12)) + "</span>"
+            /* RETIRER UNE PIÈCE SANS PERDRE LE DOSSIER. Sans ce geste, la
+               seule façon de corriger un dépôt fautif serait de tout effacer
+               puis de tout redéposer — c'est-à-dire de perdre au passage ce
+               qu'on ne retrouverait pas. */
+            + '<button type="button" class="ig-cons-x" data-retirer="'
+            + esc(x.nom) + '" title="Retirer cette pièce du dossier" '
+            + 'aria-label="Retirer ' + esc(x.nom) + ' du dossier">✕</button>'
+            + "</li>";
         });
         h += "</ul>"
           + '<div class="ig-cons-f">'
           + '<button type="button" class="btn btn-s" id="ig-cons-maj">'
-          + "Redéposer les pièces analysées</button>"
+          + "Ajouter les pièces analysées au dossier</button>"
           + '<button type="button" class="btn btn-s" id="ig-cons-off">'
           + "Effacer ce dossier</button></div>";
       }
@@ -7472,6 +7516,11 @@ function messageDelai(e, defaut) {
     if (maj) maj.addEventListener("click", aoProjetDeposer);
     var off = $("#ig-cons-off", z);
     if (off) off.addEventListener("click", aoProjetOublier);
+    z.querySelectorAll("[data-retirer]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        aoProjetRetirer(b.dataset.retirer, b);
+      });
+    });
     z.querySelectorAll("[data-cons-aff]").forEach(function (b) {
       b.addEventListener("click", function () { aoAffirmer(b.dataset.consAff, z); });
     });
@@ -7503,6 +7552,38 @@ function messageDelai(e, defaut) {
         return aoProjetEtat();
       })
       .catch(function () { aoProjetMsg("La conservation a échoué."); });
+  }
+
+  /* RETIRER UNE PIÈCE, ET REFAIRE LE RELEVÉ SUR CE QUI RESTE. C'est le
+     serveur qui refait le relevé : le faire ici donnerait deux comptes du même
+     dossier, et c'est celui qu'on oublie de corriger qui resterait affiché. */
+  function aoProjetRetirer(nom, bouton) {
+    if (!AO_PROJET || !nom) return;
+    if (bouton) bouton.disabled = true;
+    aoProjetMsg("Retrait de « " + nom + " »…");
+    demander("/api/datacenter/marche/projet/dossier", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projet: AO_PROJET, retirer: nom }),
+    }, DELAI_MOYEN)
+      .then(function (r) { return r.json().then(function (j) { return [r.status, j]; }); })
+      .then(function (xj) {
+        var j = xj[1];
+        if (!j || !j.ok) {
+          aoProjetMsg((j && j.message) || "Le retrait a échoué.");
+          if (bouton) bouton.disabled = false;
+          return;
+        }
+        /* L'ANALYSE À L'ÉCRAN SUIT LE DOSSIER : la garder ferait remplir les
+           rubriques depuis une pièce qu'on vient de retirer. */
+        AO_ANALYSE = null;
+        aoProjetMsg("");
+        return aoProjetEtat();
+      })
+      .catch(function () {
+        aoProjetMsg("Le retrait a échoué.");
+        if (bouton) bouton.disabled = false;
+      });
   }
 
   function aoProjetOublier() {
