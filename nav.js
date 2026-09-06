@@ -713,6 +713,18 @@
     k: [["Brouillon", "Le mot est à prendre au sens strict : rien ici n’est signé, relu ni opposable tant que vous ne l’avez pas repris."]],
     l: [["Base de connaissance", "/admin/base-connaissance"], ["Tableau de bord", "/admin"]] };
 
+  GUIDES["/admin/dossier-entreprise"] = {
+    t: "Dossier d'entreprise et attestations",
+    p: "Les qualifications, les références et les ATTESTATIONS de CONSEILPREV. Cette page débloque le reste : sans dates portées ici, quatre des six déclarations des formulaires d'appel d'offres ne peuvent jamais être assumées, faute de preuve.",
+    s: ["Portez les dates des cinq attestations au format AAAA-MM-JJ — délivrance et fin de validité.",
+        "Vérifiez en haut de page l'état des six déclarations : ce qui est prouvé, ce qui manque, et les deux qui n'attendent aucune attestation de l'entreprise.",
+        "Une date illisible est REFUSÉE et nommée, jamais rangée telle quelle : relisez le message avant de quitter la page.",
+        "Ce qui manque aux qualifications et aux références est compté, pas raconté — une référence sans client, période ni montant n'est pas comptée comme utilisable."],
+    k: [["Preuve, pas affirmation", "Une attestation ne signe rien à votre place : elle met la preuve sous les yeux de qui va assumer la déclaration, avec sa date de péremption."],
+        ["Périmée ≠ absente", "Les deux se relancent auprès d'organismes différents : l'écran ne les confond pas."],
+        ["Fermé au client", "Rien de ce dossier n'est servi à un client du module — une candidature appuyée sur les références d'un tiers est un faux."]],
+    l: [["Tableau de bord", "/admin"], ["Ingénierie centre de données", "/ingenierie-datacenter"]] };
+
   GUIDES["/admin/rgpd"] = {
     t: "RGPD et transparence IA Act",
     p: "Les contrôles MESURÉS sur l’état réel du site — fichiers relus, documents générés puis relus, carte des routes inspectée — présentés à côté du dossier déclaratif.",

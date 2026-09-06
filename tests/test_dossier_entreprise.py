@@ -302,3 +302,115 @@ def test_deux_routes_sur_un_meme_chemin_ne_se_cachent_pas_l_une_l_autre():
     # écart — sans lui, la règle serait verte devant une politique qui refuse
     # tout.
     assert acces.verifier_api({"/api/admin/jumelle": "admin"}) == []
+
+
+# ── L'ÉCRAN DU DOSSIER ────────────────────────────────────────────────────
+# POURQUOI CETTE PAGE EXISTE, ET CE QUE SON ABSENCE COÛTAIT. Les cinq
+# attestations partent SANS DATE — le module ne sait pas ce que l'entreprise
+# détient et ne l'invente pas. Tant qu'aucun écran ne permettait de les
+# porter, quatre des six déclarations des formulaires ne pouvaient JAMAIS être
+# assumées : la preuve manquait, et rien ne permettait de la déclarer. Le
+# module était complet et la fonction inatteignable.
+
+def _page_dossier():
+    with open(os.path.join(ICI, "admin-dossier-entreprise.html"),
+              encoding="utf-8") as f:
+        return f.read()
+
+
+def test_la_page_offre_UN_CHAMP_PAR_DATE_de_chaque_attestation():
+    """Sans eux, la chaîne entière est morte : rien ne peut être prouvé."""
+    page = _page_dossier()
+    # ON MESURE LA CIBLE PRODUITE, pas la façon de l'écrire. La première
+    # version de cette règle attendait un littéral exact ; le script bâtit la
+    # cible par concaténation, sur deux lignes — la règle échouait sur sa
+    # propre attente, pas sur un défaut de la page.
+    assert "attestations.'" in page, (
+        "aucun champ ne vise la table des attestations")
+    for champ in ("delivree_le", "valable_jusqu_au"):
+        assert "'." + champ + '"' in page, "aucun champ ne porte %s" % champ
+    assert page.count("data-de-champ") >= 2, "les champs ne sont pas relevés"
+    # Et les deux champs sont bien ceux que `appliquer()` sait corriger.
+    for champ in ("delivree_le", "valable_jusqu_au"):
+        assert champ in D.CHAMPS_CORRIGIBLES["attestations"], champ
+
+
+def test_la_page_montre_l_etat_des_SIX_declarations():
+    page = _page_dossier()
+    assert "couvertures" in page, "la page n'affiche pas la couverture"
+    for etat in ("prouvee", "incomplete", "sans_preuve_interne"):
+        assert etat in page, "l'état %s n'est jamais rendu" % etat
+
+
+def test_la_page_ne_dit_JAMAIS_qu_une_declaration_sera_pre_remplie():
+    """Le dossier prouve ; il ne remplit pas. L'écran doit le dire, et ne
+    jamais laisser croire l'inverse."""
+    page = _page_dossier()
+    assert "pré-remplie" in page, "la page ne dit pas ce qu'elle ne fera pas"
+    bas = page.lower()
+    for promesse in ("remplira les déclarations", "coche pour vous",
+                     "signe à votre place"):
+        assert promesse not in bas, promesse
+
+
+def test_un_refus_de_correction_est_DIT_et_non_avale_en_enregistre(admin):
+    """CETTE RÈGLE A ÉTÉ REPRISE : sa première version mesurait l'ORDRE DU CODE.
+
+    Elle vérifiait que l'examen des refus précédait le message de succès dans
+    la page. C'était vrai — et la page lisait pourtant le mauvais champ :
+    `dossier.corrections_refusees`, que la route laisse TOUJOURS vide puisque
+    l'état est recalculé à partir des seules corrections retenues. Une date
+    illisible répondait « Enregistré ». La règle passait, le défaut vivait.
+
+    Elle mesure donc deux choses : ce que la route RÉPOND, et le champ que la
+    page LIT — les deux doivent être le même.
+    """
+    r = admin.post("/api/admin/dossier-entreprise",
+                   json={"corrections": {
+                       "attestations.T3.valable_jusqu_au": "31/12/2027"}},
+                   headers=ORIGINE)
+    assert r.status_code == 200, r.status_code
+    j = r.get_json()
+    assert j["ok"] is True
+    assert [x["motif"] for x in j["refusees"]] == ["date_illisible"], j["refusees"]
+    # ET LE CHAMP QUE LA PAGE LIT EST CELUI-LÀ — LU DANS LE CODE, PAS DANS UN
+    # COMMENTAIRE. Une mutation qui remettait l'ancien champ n'a rien fait
+    # tomber : `j.refusees` figurait encore dans le commentaire qui explique
+    # pourquoi c'est ce champ-là. La règle cherchait donc sa propre prose.
+    page = _page_dossier()
+    assert "var ref = j.refusees" in page, (
+        "la page ne LIT pas le champ où la route met les refus")
+    i, k = page.index("var ref = j.refusees"), page.index("'Enregistré.'")
+    assert i < k and "de-msg ko" in page[i:k], (
+        "le succès est annoncé sans examiner les refus")
+    # On efface la correction d'essai pour ne rien laisser derrière.
+    admin.post("/api/admin/dossier-entreprise",
+               json={"corrections": {"attestations.T3.valable_jusqu_au": ""}},
+               headers=ORIGINE)
+
+
+def test_les_comptes_ne_servent_JAMAIS_un_nombre_seul():
+    """« 2 valides » ne dit rien sans « sur 5 ». Et un ABSENT n'est pas un
+    PÉRIMÉ : les deux se relancent auprès d'organismes différents."""
+    page = _page_dossier()
+    assert "a.valides.length + ' / ' + a.total" in page, (
+        "le compte des attestations valides est servi sans son dénominateur")
+    for mot in ("Périmées", "Absentes"):
+        assert mot in page, "%s n'est pas compté à part" % mot
+
+
+def test_la_page_du_dossier_est_fermee_a_l_administration(connecte, anonyme):
+    for c in (anonyme, connecte):
+        r = c.get("/admin/dossier-entreprise", headers=ORIGINE)
+        assert r.status_code in (302, 401, 403), r.status_code
+
+
+def test_l_administrateur_atteint_la_page_et_elle_porte_son_guide(admin):
+    r = admin.get("/admin/dossier-entreprise", headers=ORIGINE)
+    assert r.status_code == 200, r.status_code
+    corps = r.get_data(as_text=True)
+    assert "Dossier d'entreprise" in corps
+    with open(os.path.join(ICI, "nav.js"), encoding="utf-8") as f:
+        nav = f.read()
+    assert 'GUIDES["/admin/dossier-entreprise"]' in nav, (
+        "la page tombe sur le guide générique")

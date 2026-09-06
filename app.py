@@ -10620,6 +10620,20 @@ def admin_clients_page():
     return _serve_fast("admin-clients.html", _CC_ADMIN)
 
 
+@app.route("/admin/dossier-entreprise")
+@admin_required
+def admin_dossier_entreprise_page():
+    """Le dossier d'entreprise de CONSEILPREV — et les attestations qui prouvent.
+
+    CETTE PAGE DÉBLOQUE LE RESTE. Les cinq attestations partent SANS DATE : le
+    module ne sait pas ce que l'entreprise détient et ne l'invente pas. Sans
+    écran pour les porter, quatre des six déclarations des formulaires ne
+    peuvent JAMAIS être assumées — la preuve manque, et rien ne permettait de
+    la déclarer.
+    """
+    return _serve_fast("admin-dossier-entreprise.html", _CC_ADMIN)
+
+
 @app.route("/admin/rgpd")
 @admin_required
 def admin_rgpd_page():
