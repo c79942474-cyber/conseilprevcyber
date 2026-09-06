@@ -30,6 +30,7 @@ CE MODULE NE PRODUIT AUCUN JUSTIFICATIF. Une attestation « à joindre » se
 demande à l'organisme qui la délivre ; un certificat se scanne. Le module dit
 ce qui manque et où cela se trouve — il ne fabrique ni l'un ni l'autre.
 """
+import datetime
 import os
 import re
 
@@ -232,6 +233,109 @@ REFERENCES = [
      "manques": []},
 ]
 
+# ── LES ATTESTATIONS — CE QUI PROUVE CE QUE LES DÉCLARATIONS AFFIRMENT ─────
+# POURQUOI ELLES ENTRENT ICI. Les six rubriques de déclaration des formulaires
+# ne sont JAMAIS pré-remplies, et rien de ce qui suit ne les remplira : une
+# attestation ne signe pas à la place de qui affirme. Ce qu'elle fait est
+# autre chose, et c'est ce qui manquait — elle met la PREUVE sous les yeux de
+# qui va affirmer, avec sa date de péremption. On automatise la preuve, jamais
+# l'affirmation.
+#
+# AUCUNE DATE N'EST INVENTÉE ICI. Le module ne sait pas quelles attestations
+# CONSEILPREV détient aujourd'hui ni jusqu'à quand : les champs partent donc
+# VIDES, et `manques` dit ce qu'il faut obtenir. Une date plausible écrite en
+# dur ferait croire à une couverture qui n'existe pas — exactement le défaut
+# que les `manques` des références servent à éviter.
+#
+# CE QU'UNE ATTESTATION COUVRE EST DÉCLARÉ, JAMAIS DEVINÉ. `couvre` nomme les
+# rubriques de déclaration que la pièce soutient. Une attestation qui ne
+# couvrirait rien serait un document de plus dans un classeur ; celle qui
+# prétendrait tout couvrir ferait passer une affirmation sans preuve.
+ATTESTATIONS = [
+    {"annexe": "T1", "cle": "vigilance_urssaf",
+     "nom": "Attestation de vigilance URSSAF",
+     "organisme": "URSSAF",
+     "delivree_le": None, "valable_jusqu_au": None,
+     "couvre": ("d_fiscal_social", "d_obligatoires"),
+     "renouvellement_mois": 6,
+     "manques": ["attestation à demander sur urssaf.fr, espace employeur",
+                 "date de délivrance et date de fin de validité à porter ici"]},
+
+    {"annexe": "T2", "cle": "regularite_fiscale",
+     "nom": "Attestation de régularité fiscale",
+     "organisme": "Direction générale des finances publiques",
+     "delivree_le": None, "valable_jusqu_au": None,
+     "couvre": ("d_fiscal_social", "d_obligatoires"),
+     "renouvellement_mois": 12,
+     "manques": ["attestation à demander sur impots.gouv.fr, espace "
+                 "professionnel",
+                 "date de délivrance et date de fin de validité à porter ici"]},
+
+    {"annexe": "T3", "cle": "extrait_kbis",
+     "nom": "Extrait Kbis",
+     "organisme": "Greffe du tribunal de commerce",
+     "delivree_le": None, "valable_jusqu_au": None,
+     # Le Kbis prouve l'absence de liquidation judiciaire — un cas
+     # d'exclusion FACULTATIF (art. L2141-7 s. CCP) — et il porte la situation
+     # de l'entreprise que les interdictions obligatoires visent aussi.
+     "couvre": ("d_facultatives", "d_obligatoires"),
+     "renouvellement_mois": 3,
+     "manques": ["extrait à demander (monidenum.fr ou greffe)",
+                 "date de délivrance à porter ici"]},
+
+    {"annexe": "T4", "cle": "casier_dirigeant",
+     "nom": "Bulletin n° 3 du casier judiciaire du dirigeant",
+     "organisme": "Casier judiciaire national",
+     "delivree_le": None, "valable_jusqu_au": None,
+     # C'est la pièce des interdictions OBLIGATOIRES : les condamnations
+     # visées aux art. L2141-1 et L2141-4 CCP. Elle ne se joint presque
+     # jamais au dossier — elle se tient, pour que l'affirmation soit faite en
+     # connaissance de cause plutôt que de mémoire.
+     "couvre": ("d_obligatoires",),
+     "renouvellement_mois": 12,
+     "manques": ["bulletin à demander sur casier-judiciaire.justice.gouv.fr",
+                 "date de délivrance à porter ici"]},
+
+    {"annexe": "T5", "cle": "assurance_rc_pro",
+     "nom": "Attestation d'assurance responsabilité civile professionnelle",
+     "organisme": "Assureur",
+     "delivree_le": None, "valable_jusqu_au": None,
+     "couvre": ("d_facultatives",),
+     "renouvellement_mois": 12,
+     "manques": ["attestation à demander à l'assureur",
+                 "montants de garantie et date d'échéance à porter ici"]},
+]
+
+# ── CE QUE CHAQUE DÉCLARATION EXIGE COMME PREUVE, ET CE QUI N'EN A PAS ─────
+# DEUX CAS N'ONT AUCUNE ATTESTATION, ET LE DIRE EST LE POINT :
+#   · l'engagement de l'acte d'engagement (B1) n'affirme aucun fait — il
+#     ENGAGE. Aucune pièce ne peut le « prouver » : il se lit, puis il se
+#     signe ;
+#   · la déclaration du SOUS-TRAITANT (DC4, cadre K1) porte sur le
+#     sous-traitant. Aucune attestation de CONSEILPREV ne la soutient — c'est
+#     au sous-traitant de fournir les siennes. Faire couvrir celle-là par nos
+#     propres pièces serait la faute la plus facile à commettre ici.
+PREUVES_ATTENDUES = {
+    "d_exclusion":     ("vigilance_urssaf", "regularite_fiscale",
+                        "extrait_kbis", "casier_dirigeant"),
+    "d_obligatoires":  ("vigilance_urssaf", "regularite_fiscale",
+                        "casier_dirigeant"),
+    "d_facultatives":  ("extrait_kbis", "assurance_rc_pro"),
+    "d_fiscal_social": ("vigilance_urssaf", "regularite_fiscale"),
+    "d_engagement":    (),
+    "d_exclusion_st":  (),
+}
+
+# Pourquoi les deux ensembles vides le sont — dit ici, pour qu'une lecture du
+# code ne conclue pas à un oubli.
+SANS_PREUVE_INTERNE = {
+    "d_engagement": "N'affirme aucun fait : engage. Rien ne le prouve, il se "
+                    "lit puis se signe.",
+    "d_exclusion_st": "Porte sur le SOUS-TRAITANT. Les attestations de "
+                      "CONSEILPREV ne la soutiennent pas — le sous-traitant "
+                      "fournit les siennes.",
+}
+
 # ── LA NOTE DE MÉTHODE — STRATÉGIE DD DES CENTRES DE DONNÉES ──────────────
 NOTE_DD = {
     "titre": "Stratégie de développement durable des centres de données",
@@ -365,6 +469,12 @@ CHAMPS_CORRIGIBLES = {
     "qualifications": ("intitule", "voie", "appui", "manques"),
     "references": ("nom", "client", "montant", "periode", "part", "objet",
                    "manques"),
+    # `couvre` n'est PAS corrigible : ce qu'une attestation prouve relève du
+    # droit, pas de la saisie. Laisser corriger ce champ permettrait de faire
+    # couvrir une déclaration par n'importe quelle pièce — et l'affirmation
+    # passerait alors sans preuve, en ayant l'air prouvée.
+    "attestations": ("nom", "organisme", "delivree_le", "valable_jusqu_au",
+                     "manques"),
 }
 
 
@@ -387,11 +497,14 @@ def appliquer(corrections=None):
     qualifications = [dict(x, manques=list(x["manques"]))
                       for x in QUALIFICATIONS]
     references = [dict(x, manques=list(x["manques"])) for x in REFERENCES]
+    attestations = [dict(x, manques=list(x["manques"])) for x in ATTESTATIONS]
     identite = dict(IDENTITE)
     refuses = []
     par_table = {"qualifications": (qualifications,
                                     _index(qualifications, "annexe")),
-                 "references": (references, _index(references, "annexe"))}
+                 "references": (references, _index(references, "annexe")),
+                 "attestations": (attestations,
+                                  _index(attestations, "annexe"))}
 
     for cible, valeur in sorted((corrections or {}).items()):
         morceaux = str(cible).split(".")
@@ -421,12 +534,123 @@ def appliquer(corrections=None):
         elif champ == "voie" and valeur not in VOIES_JUSTIFICATION:
             refuses.append({"cible": cible, "motif": "voie_inconnue"})
             continue
+        elif champ in ("delivree_le", "valable_jusqu_au"):
+            # UNE DATE MAL FORMÉE EST REFUSÉE, PAS AVALÉE. Rangée telle
+            # quelle, elle se lirait ensuite comme absente : l'attestation
+            # paraîtrait manquante alors qu'elle a été saisie, et personne ne
+            # saurait que la saisie n'avait pas pris.
+            if valeur is not None and _date(valeur) is None:
+                refuses.append({"cible": cible, "motif": "date_illisible"})
+                continue
         lignes[index[repere]][champ] = valeur
-    return qualifications, references, identite, refuses
+    # LA SIGNATURE A CHANGÉ, DÉLIBÉRÉMENT : elle rendait quatre valeurs, elle
+    # en rend cinq depuis que les attestations sont corrigibles. Un appelant
+    # non mis à jour lève une ValueError au dépaquetage — bruyant, donc sûr.
+    return qualifications, references, identite, attestations, refuses
 
 
 def _sans_valeur(x):
     return x is None or not str(x).strip()
+
+
+def _date(x):
+    """Une date ISO (AAAA-MM-JJ) en objet `date`, ou None.
+
+    NE LÈVE JAMAIS. Un champ mal saisi devient un manque compté, pas une
+    exception : l'état du dossier doit se calculer même quand une ligne est
+    abîmée, sinon une seule faute de frappe rendrait tout le dossier illisible
+    au moment précis où on en a besoin.
+    """
+    if not x:
+        return None
+    try:
+        return datetime.date(*[int(v) for v in str(x).strip()[:10].split("-")])
+    except (ValueError, TypeError):
+        return None
+
+
+def _aujourdhui(aujourdhui=None):
+    """La date du jour, ou celle qu'on impose. L'argument existe POUR LES
+    RÈGLES : sans lui, une règle sur la péremption deviendrait fausse le jour
+    où l'attestation d'essai périme, et personne ne saurait pourquoi."""
+    d = _date(aujourdhui) if aujourdhui else None
+    return d or datetime.date.today()
+
+
+def etat_attestations(aujourdhui=None, table=None):
+    """Chaque attestation : absente, périmée, ou valide — et pour combien de jours.
+
+    ON MESURE LA VALIDITÉ, ON NE LA CONSTATE PAS. Une attestation « présente »
+    ne veut rien dire : une attestation de vigilance URSSAF de l'an dernier est
+    présente et sans valeur. C'est la date d'échéance comparée à aujourd'hui
+    qui décide, et c'est elle qui est rendue.
+    """
+    jour = _aujourdhui(aujourdhui)
+    lignes, valides, perimees, absentes = [], [], [], []
+    for a in (table if table is not None else ATTESTATIONS):
+        fin = _date(a.get("valable_jusqu_au"))
+        debut = _date(a.get("delivree_le"))
+        if fin is None:
+            etat, jours = ("absente", None)
+        elif fin < jour:
+            etat, jours = ("perimee", (fin - jour).days)
+        else:
+            etat, jours = ("valide", (fin - jour).days)
+        ligne = {"annexe": a.get("annexe"), "cle": a.get("cle"),
+                 "nom": a.get("nom"), "organisme": a.get("organisme"),
+                 "delivree_le": debut.isoformat() if debut else None,
+                 "valable_jusqu_au": fin.isoformat() if fin else None,
+                 "couvre": list(a.get("couvre") or ()),
+                 "etat": etat, "jours": jours,
+                 "manques": list(a.get("manques") or [])}
+        lignes.append(ligne)
+        {"valide": valides, "perimee": perimees,
+         "absente": absentes}[etat].append(a.get("cle"))
+    return {"lignes": lignes, "total": len(lignes),
+            "valides": valides, "perimees": perimees, "absentes": absentes,
+            "jour": jour.isoformat()}
+
+
+# Les trois états d'une déclaration au regard de ses preuves. « prouvee » n'est
+# PAS le contraire de « incomplete » : un troisième état existe, et le
+# confondre avec l'un des deux est l'erreur que cette énumération empêche.
+COUVERTURES = ("prouvee", "incomplete", "sans_preuve_interne")
+
+
+def couverture(cle_declaration, aujourdhui=None, table=None):
+    """Ce qui prouve une déclaration, ce qui manque, et ce qui ne se prouve pas.
+
+    LE PIÈGE QUE CETTE FONCTION ÉVITE. Deux déclarations n'attendent AUCUNE
+    attestation de CONSEILPREV : l'engagement de l'acte d'engagement, qui
+    n'affirme aucun fait, et la déclaration du sous-traitant, qui porte sur un
+    tiers. Une liste d'attentes vide rendrait « tout est là » — donc
+    « prouvée » — pour la raison exactement inverse de celle qui compte. Elles
+    reçoivent donc un état À ELLES, et l'affirmation devra les traiter comme
+    telles au lieu de les laisser passer pour prouvées.
+    """
+    etat = etat_attestations(aujourdhui, table)
+    par_cle = {l["cle"]: l for l in etat["lignes"]}
+    attendues = list(PREUVES_ATTENDUES.get(cle_declaration, ()))
+    if cle_declaration not in PREUVES_ATTENDUES:
+        return {"cle": cle_declaration, "etat": "incomplete",
+                "motif": "declaration_inconnue", "attendues": [],
+                "valides": [], "manquantes": [], "jour": etat["jour"]}
+    if not attendues:
+        return {"cle": cle_declaration, "etat": "sans_preuve_interne",
+                "motif": SANS_PREUVE_INTERNE.get(cle_declaration, ""),
+                "attendues": [], "valides": [], "manquantes": [],
+                "jour": etat["jour"]}
+    valides = [c for c in attendues
+               if (par_cle.get(c) or {}).get("etat") == "valide"]
+    manquantes = [{"cle": c,
+                   "nom": (par_cle.get(c) or {}).get("nom", c),
+                   "etat": (par_cle.get(c) or {}).get("etat", "inconnue"),
+                   "jours": (par_cle.get(c) or {}).get("jours")}
+                  for c in attendues if c not in valides]
+    return {"cle": cle_declaration,
+            "etat": "prouvee" if not manquantes else "incomplete",
+            "motif": "", "attendues": attendues, "valides": valides,
+            "manquantes": manquantes, "jour": etat["jour"]}
 
 
 def etat_qualifications(table=None):
@@ -504,7 +728,7 @@ def minimum_references(nom_piece):
     return int(m.group(1)) if m else None
 
 
-def etat(pieces_candidature=None, corrections=None):
+def etat(pieces_candidature=None, corrections=None, aujourdhui=None):
     """Le dossier entier : ce qu'il porte, ce qui lui manque, ce qu'il couvre.
 
     `pieces_candidature` est la liste des pièces de `ao_dc.DOSSIER_CANDIDATURE`
@@ -514,9 +738,17 @@ def etat(pieces_candidature=None, corrections=None):
     par_cle = {p["cle"]: p for p in (pieces_candidature or [])}
     mini = minimum_references(
         (par_cle.get("references") or {}).get("nom"))
-    qualifications, references, identite, refuses = appliquer(corrections)
+    qualifications, references, identite, attestations, refuses = \
+        appliquer(corrections)
     q = etat_qualifications(qualifications)
     r = etat_references(mini, references)
+    t = etat_attestations(aujourdhui, attestations)
+    # LA COUVERTURE DES SIX DÉCLARATIONS, ÉNUMÉRÉE — pas échantillonnée. Elle
+    # dit, pour chacune, si la preuve est là, périmée, ou si la déclaration
+    # n'en attend aucune de nous. Elle NE REMPLIT RIEN : aucune de ces six
+    # rubriques ne reçoit jamais de valeur, quelle que soit la couverture.
+    couvertures = [couverture(c, aujourdhui, attestations)
+                   for c in sorted(PREUVES_ATTENDUES)]
     documents = []
     for cle, d in DOCUMENTS.items():
         couvre = [{"cle": c, "nom": (par_cle.get(c) or {}).get("nom") or c}
@@ -535,9 +767,15 @@ def etat(pieces_candidature=None, corrections=None):
         "identite": identite, "corrections_refusees": refuses,
         "corrigibles": {k: list(v) for k, v in CHAMPS_CORRIGIBLES.items()},
         "qualifications": q, "references": r, "note_dd": NOTE_DD,
+        "attestations": t, "couvertures": couvertures,
+        "sans_preuve_interne": dict(SANS_PREUVE_INTERNE),
         "papier_entete": PAPIER_ENTETE, "documents": documents,
         "voies": VOIES_JUSTIFICATION,
-        "a_completer": q["a_completer"] + r["a_completer"],
+        # Ce qui reste à faire compte AUSSI les attestations absentes ou
+        # périmées : les omettre ferait annoncer un dossier prêt alors que
+        # rien ne prouve ce qu'il faudra affirmer.
+        "a_completer": (q["a_completer"] + r["a_completer"]
+                        + len(t["absentes"]) + len(t["perimees"])),
         "note": NOTE_DOSSIER,
     }
 

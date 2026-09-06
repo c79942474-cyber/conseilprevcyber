@@ -25,3 +25,9 @@ python-pptx==1.0.2
 stripe==15.5.0
 # Export PDF des livrables (Python pur, aucun moteur système requis).
 fpdf2==2.8.7
+# Chiffrement au repos du dossier marché conservé par projet (ao_projet.py).
+# ÉPINGLÉE EXPRÈS, alors qu'elle est souvent présente par transitivité : rien
+# ici ne la tire, donc rien ne garantissait sa présence en production. Le
+# module refuse d'écrire sans elle plutôt que de stocker en clair — sans cette
+# ligne, la conservation serait donc simplement morte au déploiement.
+cryptography==46.0.4

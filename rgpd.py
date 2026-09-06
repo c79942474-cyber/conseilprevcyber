@@ -150,6 +150,40 @@ REGISTRE = [
                     "machine dans les documents exportés.",
     },
     {
+        "id": "dossier-marche",
+        "traitement": "Dossier marché conservé par projet",
+        "finalite": "Conserver, le temps d'une consultation, les pièces du dossier "
+                    "de consultation déposées par un compte, les relevés qui en "
+                    "sont extraits et la fiche de candidature, pour éviter de les "
+                    "redéposer et de les retaper à chaque session.",
+        "base_legale": "Exécution du contrat de service (art. 6.1.b)",
+        "donnees": "Texte des pièces déposées (règlement de consultation, CCAP, "
+                   "CCTP, acte d'engagement…) et fiche de candidature : raison "
+                   "sociale, SIRET, adresse, téléphone, courriel, effectif, "
+                   "chiffres d'affaires. Les pièces peuvent nommer des personnes "
+                   "(signataires, contacts de l'acheteur). Y figure aussi la TRACE "
+                   "des déclarations assumées : qui a affirmé quoi, quand, sur "
+                   "quel texte — jamais le contenu d'une attestation.",
+        "personnes": "Le compte qui dépose, les personnes désignées dans la fiche, "
+                     "et celles éventuellement nommées dans les pièces déposées.",
+        "duree": "12 mois à compter de la DERNIÈRE activité sur le projet, puis "
+                 "effacement. Durée portée par chaque ligne et appliquée par une "
+                 "purge qui n'a rien à déchiffrer pour savoir quoi effacer. "
+                 "Effacement à la demande à tout moment, sans conservation "
+                 "d'archive.",
+        "destinataires": "CONSEILPREV et, pour un projet partagé, les collègues "
+                         "invités sur CE projet. Aucun autre compte.",
+        "transferts": "Aucun. Base hébergée en UE (Francfort). Le contenu ne part "
+                      "vers aucun modèle de langage : les relevés sont extraits "
+                      "par expressions régulières, jamais par génération.",
+        "securite": "CHIFFRÉ AU REPOS (Fernet, clé hors base) — sans clé, rien "
+                    "n'est écrit, il n'existe aucun repli en clair. Accès décidé "
+                    "par le projet et non par un identifiant fourni. Volumes "
+                    "bornés (40 pièces, 4 Mo). Dépôt, effacement et affirmation "
+                    "journalisés. Limitation de débit sur les trois points qui "
+                    "écrivent.",
+    },
+    {
         "id": "journal",
         "traitement": "Journal d'audit des actions sensibles",
         "finalite": "Tracer les opérations à effet durable (chargement, suppression, "

@@ -193,6 +193,13 @@ _RATE_EXACT = {
     # arrêter une boucle. Le calcul est pur — aucune socket, aucun fichier.
     "/api/datacenter/marche/remplir":    (120, 60),
     "/api/datacenter/marche/export":     (30, 60),
+    # LE DOSSIER PAR PROJET ÉCRIT EN BASE, ET IL CHIFFRE. Les deux coûtent :
+    # un plafond de saisie continue (comme /remplir) laisserait une boucle
+    # remplir la base de coffres. L'affirmation est plus rare encore — c'est
+    # un geste humain, pas une frappe.
+    "/api/datacenter/marche/projet/dossier":     (20, 60),
+    "/api/datacenter/marche/projet/oubli":       (20, 60),
+    "/api/datacenter/marche/projet/affirmation": (30, 60),
     # LES QUATRE POINTS À JETON. Le compteur d'ÉCHECS (voir `_jeton_refus`)
     # arrête la force brute ; il ne borne pas une inondation menée AVEC le bon
     # jeton — un connecteur en boucle, ou un secret ayant fuité. Ces plafonds
@@ -749,6 +756,7 @@ clients_db = _f_cli.result()
 # site pour une table de treize colonnes.
 import projets_dc  # noqa: E402
 projets_db = projets_dc.make_projets_store()
+import ao_projet  # noqa: E402
 _boot_pool.shutdown(wait=False)
 
 
@@ -4874,6 +4882,162 @@ def api_datacenter_marche_formulaires():
                    bandeau=ao_formulaires.BANDEAU)
 
 
+# ── LE DOSSIER MARCHÉ CONSERVÉ PAR PROJET ─────────────────────────────────
+# LES TROIS ROUTES DE REMPLISSAGE NE CONSERVENT RIEN, ET C'EST TOUJOURS VRAI.
+# Celles-ci conservent, et c'est un traitement différent : il est déclaré au
+# registre, chiffré au repos, borné dans le temps, et effaçable à la demande.
+# Le mélanger aux précédentes aurait fait perdre au « rien conservé » son sens.
+#
+# CE QUE LA CONSERVATION NE DÉBLOQUE PAS : aucune des six déclarations. Elles
+# affirment des faits sur le candidat ; les dix-sept relevés portent sur la
+# consultation. L'intersection est vide, et une règle la mesure.
+
+def _projet_ouvert_au_compte(pid):
+    """Le PROJET, si ce compte y a accès. None sinon — et c'est le seul chemin.
+
+    LE NOM N'EST PAS ANODIN. Cette fonction s'est d'abord appelée
+    `_projet_du_compte` — nom déjà porté, plus bas dans ce fichier, par une
+    fonction qui rend un IDENTIFIANT. La définition tardive gagnait, et les
+    routes ci-dessous recevaient une chaîne là où elles attendaient
+    l'enregistrement. Rien ne l'aurait signalé si `ao_projet` n'avait pas
+    refusé les identifiants nus par construction : c'est cet invariant, et
+    lui seul, qui a fait sortir le défaut.
+
+    Toutes les routes qui suivent passent par ici : `ao_projet` n'accepte que
+    l'enregistrement rendu par ce contrôle d'accès.
+    """
+    prop = _proprietaire()
+    if not prop or not projets_dc._valid_id(str(pid or "").strip()):
+        return None
+    try:
+        return projets_db.obtenir(prop, str(pid).strip())
+    except Exception:
+        app.logger.exception("accès projet")
+        return None
+
+
+def _refus_dossier(exc):
+    return jsonify(ok=False, error=exc.code, message=exc.detail), exc.status
+
+
+@app.route("/api/datacenter/marche/projet/dossier", methods=["GET", "POST"])
+@login_required
+def api_marche_projet_dossier():
+    """Déposer le dossier marché d'un projet, ou le relire.
+
+    LE DÉPÔT RELÈVE DANS LA FOULÉE : les dix-sept relevés sont calculés une
+    fois, au dépôt, et conservés avec la version du releveur. Relever à chaque
+    lecture ferait varier le résultat quand les motifs évoluent — deux lectures
+    du même dossier ne diraient plus la même chose.
+    """
+    data = request.get_json(silent=True) or {}
+    pid = (request.args.get("projet") if request.method == "GET"
+           else data.get("projet"))
+    projet = _projet_ouvert_au_compte(pid)
+    if not projet:
+        return jsonify(ok=False, error="projet_inconnu",
+                       message="Ce projet n'existe pas, ou il ne vous est "
+                               "pas ouvert."), 404
+    try:
+        if request.method == "GET":
+            d = ao_projet.lire(projet)
+            if not d:
+                return jsonify(ok=True, dossier=None,
+                               etat=ao_projet.etat(),
+                               declarations=ao_projet.etat_affirmations(projet))
+            return jsonify(ok=True, dossier=d, etat=ao_projet.etat(),
+                           declarations=ao_projet.etat_affirmations(projet))
+        pieces = data.get("pieces")
+        fiche = data.get("fiche") if isinstance(data.get("fiche"), dict) else {}
+        fiche = {str(k)[:60]: str(v)[:400] for k, v in list(fiche.items())[:80]}
+        meta = ao_projet.deposer(projet, pieces, fiche)
+    except ao_projet.DossierError as exc:
+        return _refus_dossier(exc)
+    except Exception:
+        app.logger.exception("dépôt du dossier marché")
+        return jsonify(ok=False, error="depot",
+                       message="Le dossier n'a pas pu être conservé."), 500
+    audit.journaliser("marche.dossier.depot", cible=projet["id"][:32],
+                      detail="%d pièce(s)" % (meta or {}).get("nb_pieces", 0)
+                      if isinstance(meta, dict) else "")
+    return jsonify(ok=True, meta={k: v for k, v in (meta or {}).items()
+                                  if k != "coffre"},
+                   dossier=ao_projet.lire(projet),
+                   declarations=ao_projet.etat_affirmations(projet))
+
+
+@app.route("/api/datacenter/marche/projet/oubli", methods=["POST"])
+@login_required
+def api_marche_projet_oubli():
+    """Effacer le dossier marché d'un projet. Il efface, il n'archive pas."""
+    data = request.get_json(silent=True) or {}
+    projet = _projet_ouvert_au_compte(data.get("projet"))
+    if not projet:
+        return jsonify(ok=False, error="projet_inconnu",
+                       message="Ce projet n'existe pas, ou il ne vous est "
+                               "pas ouvert."), 404
+    parti = ao_projet.oublier(projet)
+    audit.journaliser("marche.dossier.oubli", cible=projet["id"][:32],
+                      detail="efface" if parti else "rien a effacer")
+    return jsonify(ok=True, efface=bool(parti))
+
+
+@app.route("/api/datacenter/marche/projet/affirmation", methods=["GET", "POST"])
+@login_required
+def api_marche_projet_affirmation():
+    """Consigner qu'une personne assume une déclaration — ou dire pourquoi non.
+
+    CETTE ROUTE N'ÉCRIT RIEN DANS AUCUN FORMULAIRE, et c'est sa raison d'être.
+    Elle consigne QUI a affirmé QUOI, sur quel texte, avec quelles preuves
+    valides ce jour-là. Les six rubriques de déclaration sortent de
+    `ao_dc.remplir()` au statut `a_declarer`, affirmées ou non : le document
+    produit est identique, octet pour octet, avant et après.
+    """
+    data = request.get_json(silent=True) or {}
+    pid = (request.args.get("projet") if request.method == "GET"
+           else data.get("projet"))
+    projet = _projet_ouvert_au_compte(pid)
+    if not projet:
+        return jsonify(ok=False, error="projet_inconnu",
+                       message="Ce projet n'existe pas, ou il ne vous est "
+                               "pas ouvert."), 404
+    if request.method == "GET":
+        return jsonify(ok=True,
+                       declarations=ao_projet.etat_affirmations(projet),
+                       textes=ao_dc.declarations())
+    try:
+        trace = ao_projet.affirmer(
+            projet, str(data.get("declaration") or "").strip(),
+            data.get("par"), data.get("texte_vu"),
+            reconnait_sans_preuve=bool(data.get("reconnait_sans_preuve")))
+    except ao_projet.DossierError as exc:
+        return _refus_dossier(exc)
+    except Exception:
+        app.logger.exception("affirmation")
+        return jsonify(ok=False, error="affirmation",
+                       message="L'affirmation n'a pas pu être consignée."), 500
+    audit.journaliser("marche.declaration.affirmee", cible=projet["id"][:32],
+                      detail="%s par %s" % (trace["cle"], trace["par"][:60]))
+    return jsonify(ok=True, affirmation=trace,
+                   declarations=ao_projet.etat_affirmations(projet))
+
+
+@app.route("/api/admin/marche/conservation", methods=["GET", "POST"])
+@admin_required
+def api_admin_marche_conservation():
+    """L'état de la conservation, et la purge — à l'administration.
+
+    LA PURGE EST UN GESTE D'ADMINISTRATION, PAS UNE TÂCHE DE FOND CACHÉE. Elle
+    rend le nombre de dossiers effacés : une purge qui ne dirait rien
+    laisserait croire qu'elle tourne alors qu'elle échouerait en silence.
+    """
+    if request.method == "GET":
+        return jsonify(ok=True, etat=ao_projet.etat())
+    n = ao_projet.purger()
+    audit.journaliser("marche.dossier.purge", detail="%d dossier(s)" % n)
+    return jsonify(ok=True, purges=n, etat=ao_projet.etat())
+
+
 # ── LE DOSSIER D'ENTREPRISE DE CONSEILPREV ────────────────────────────────
 # IL NE SORT PAS DE L'ADMINISTRATION, et ce n'est pas une précaution de forme.
 # `ao_dc.remplir()` sert des CLIENTS qui préparent LEUR candidature : y faire
@@ -4957,7 +5121,7 @@ def api_admin_dossier_entreprise_corriger():
             fusion.pop(cible, None)
         else:
             fusion[cible] = valeur
-    _q, _r, _i, refuses = dossier_entreprise.appliquer(fusion)
+    _q, _r, _i, _t, refuses = dossier_entreprise.appliquer(fusion)
     mauvaises = {x["cible"] for x in refuses}
     retenues = {k: v for k, v in fusion.items() if k not in mauvaises}
     persistance = _dossier_ecrire(retenues)

@@ -2583,6 +2583,43 @@ STATUTS = {
 # l'autre y entre seule, et `_verifier()` refuse une pièce dont la famille n'y
 # figure pas.
 
+def declarations():
+    """LES SIX DÉCLARATIONS, avec le texte exact de ce qui est affirmé.
+
+    POURQUOI CETTE FONCTION EXISTE. Le texte d'une déclaration se lisait
+    jusqu'ici au seul endroit où il servait : dans `remplir()`, une ligne à la
+    fois. Il faut désormais le lire AILLEURS — pour vérifier qu'une personne a
+    bien vu CE texte-là avant de l'affirmer. Le recopier à l'endroit qui
+    vérifie l'aurait détaché de la pièce : deux rédactions d'une même
+    déclaration finissent par ne plus dire la même chose, et c'est celle qu'on
+    affirme qui compte.
+
+    CE QU'ELLE NE FAIT PAS : elle ne rend aucune valeur. Une déclaration n'a
+    pas de valeur — elle a un texte, une nature d'engagement, et quelqu'un qui
+    l'assume.
+    """
+    par_piece = {x["cle"]: x for x in DOSSIER_CANDIDATURE + DOSSIER_OFFRE}
+    out = []
+    for cle_piece, defs in RUBRIQUES.items():
+        for d in defs:
+            if d.get("source") != "declaration":
+                continue
+            p_src, i, _temoin = d["reprend"]
+            out.append({
+                "cle": d["cle"],
+                "piece": cle_piece,
+                "piece_nom": (par_piece.get(cle_piece) or {}).get("nom", cle_piece),
+                "libelle": d["libelle"],
+                "texte": par_piece[p_src]["contient"][i],
+                "reprise_de": p_src,
+                "engage": d["engage"],
+                "engage_nom": ENGAGEMENTS[d["engage"]]["nom"],
+                "message": ENGAGEMENTS[d["engage"]]["message"],
+            })
+    out.sort(key=lambda x: (x["piece"], x["cle"]))
+    return out
+
+
 def _familles_reponse():
     t = {}
     for dossier, source, suffixe in (

@@ -166,7 +166,7 @@ def test_une_correction_qui_ne_designe_rien_est_refusee_et_nommee():
            "qualifications.A1.manques": "pas une liste",
            "identite.pas_un_champ": "x",
            "n_importe_quoi": "x"}
-    _q, _r, _i, refuses = D.appliquer(cas)
+    _q, _r, _i, _t, refuses = D.appliquer(cas)
     assert {x["cible"] for x in refuses} == set(cas), refuses
     motifs = {x["cible"]: x["motif"] for x in refuses}
     assert motifs["references.RXX.client"] == "repere_inconnu"
