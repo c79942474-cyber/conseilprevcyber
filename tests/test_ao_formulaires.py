@@ -25,9 +25,12 @@ CE QUE CE MODULE NE FERA JAMAIS, ET CES RÈGLES LE TIENNENT :
     celle dont on tient la fiche ;
   · il ne COMPTE PAS comme manquant ce qui n'est pas dû.
 """
+import html
 import io
+import json
 import os
 import re
+import subprocess
 import sys
 
 ICI = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -71,18 +74,6 @@ def _piece(r, cle):
 
 def _par_cle(p):
     return {l["cle"]: l for l in p["rubriques"]}
-
-
-def _bloc_js(nom):
-    """Le corps d'une fonction du script de la page, isolé de ce qui l'entoure.
-
-    LIRE LE FICHIER ENTIER SERAIT VERT POUR UNE OCCURRENCE DANS UN COMMENTAIRE
-    ou dans une AUTRE fonction — le défaut que ce dépôt corrige partout
-    ailleurs. On découpe donc au bloc.
-    """
-    js = io.open(os.path.join(ICI, "ingenierie-dc.js"), encoding="utf-8").read()
-    bloc = js[js.index("function %s(" % nom):]
-    return bloc[:bloc.index("\n  function ")]
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -352,7 +343,7 @@ def test_chaque_piece_designe_sa_famille_d_infobulles():
     # resterait verte si toutes les pièces désignaient la même.
     assert {p["glossaire"] for p in r["pieces"]} == {"piece_candidature",
                                                      "piece_offre"}
-    bloc = _bloc_js("aoRempliRendre")
+    bloc = _js_source("aoRempliRendre")
     assert 'info(p.glossaire + ":" + p.cle)' in bloc, (
         "la page recopie une famille d'infobulles au lieu de la demander au "
         "module : les pièces d'offre n'auraient aucune bulle, sans erreur")
@@ -386,3 +377,84 @@ def test_l_export_separe_les_deux_dossiers_et_signale_ce_qui_est_sans_objet():
     e = _rempli()["etat"]
     assert "| Pièces remplissables sans rien à compléter | %d sur %d |" % (
         e["pieces_completes"], e["mesurables"]) in md, md[:900]
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 7. CE QUE LA PAGE AFFICHE VRAIMENT — LA FONCTION EST EXÉCUTÉE, PAS RELUE
+# ══════════════════════════════════════════════════════════════════════════
+
+def _carte_rendue(remplissage):
+    """Le HTML que `aoRempliRendre` produit RÉELLEMENT, obtenu en l'exécutant.
+
+    CHERCHER UNE CHAÎNE DANS LE FICHIER SERAIT VERT POUR UNE OCCURRENCE DANS
+    UN COMMENTAIRE, et muet sur une erreur de rendu — un `esc(undefined)` ou
+    une propriété absente ne se voient qu'en faisant tourner la fonction. Le
+    DOM est réduit au strict nécessaire : cette fonction écrit dans UN élément
+    et branche des écouteurs sur ce qu'elle vient d'écrire.
+    """
+    prog = (
+        _js_source("esc", "info", "aoMenuDocs", "aoRempliRendre")
+        + "\nvar AO_DOC = '';"
+        + "\nvar AO_SAISIES = {};"
+        + "\nvar AO_ETAT_CLASSE = { rempli: 'ok', a_saisir: 'att',"
+          " a_declarer: 'dec', non_trouve: 'att', invalide: 'mal' };"
+        + "\nvar CADRE = { glossaire: {} };"
+        + "\nvar zone = { innerHTML: '', querySelectorAll: function () "
+          "{ return []; } };"
+        + "\nfunction $(s) { return s === '#ig-ao-rempli' ? zone : null; }"
+        + "\nfunction aoBrancherMenu() {}"
+        + "\nfunction aoExporter() {}"
+        + "\nfunction aoFicheEnregistrer() {}"
+        + "\nfunction aoRemplir() {}"
+        + "\nglobal.document = { querySelectorAll: function () { return []; },"
+          " querySelector: function () { return null; } };"
+        + "\naoRempliRendre(JSON.parse(process.env.AO_REMPLI));"
+        + "\nprocess.stdout.write(zone.innerHTML);\n")
+    out = subprocess.run(
+        ["node"], input=prog, capture_output=True, text=True, timeout=60,
+        env=dict(os.environ, AO_REMPLI=json.dumps(remplissage)))
+    assert out.returncode == 0, out.stderr[-2000:]
+    return html.unescape(out.stdout)
+
+
+def _js_source(*noms):
+    """Les fonctions demandées, extraites de la source SERVIE, par comptage
+    d'accolades — recopier leur corps ici éprouverait un script imaginaire."""
+    src = io.open(os.path.join(ICI, "ingenierie-dc.js"), encoding="utf-8").read()
+    out = []
+    for nom in noms:
+        i = src.index("\n  function %s(" % nom) + 1
+        j = src.index("{", i)
+        p, k = 1, src.index("{", i) + 1
+        while p:
+            if src[k] == "{":
+                p += 1
+            elif src[k] == "}":
+                p -= 1
+            k += 1
+        out.append(src[i:k])
+    return "\n".join(out)
+
+
+def test_la_carte_d_une_piece_sans_objet_le_dit_sur_la_page():
+    """Muette, elle ressemblerait à une pièce oubliée — et ses vingt-trois
+    rubriques vides, à autant de manques."""
+    h = _carte_rendue(_rempli())
+    assert h.count('data-doc="') == 23, h[:300]
+    assert "Sans objet — Sans sous-traitance déclarée" in h, (
+        "le DC4 s'affiche sans dire qu'il est sans objet")
+    # ET LE TÉMOIN NÉGATIF : la mention disparaît quand la condition est levée.
+    assert "Sans objet —" not in _carte_rendue(_rempli(saisies=AVEC_SOUS_TRAITANCE))
+
+
+def test_la_page_distingue_a_l_ecran_les_deux_natures_d_engagement():
+    """Servir le même avertissement sur une déclaration sur l'honneur et sur
+    l'engagement d'un acte d'engagement dirait une chose fausse."""
+    h = _carte_rendue(_rempli(saisies=AVEC_SOUS_TRAITANCE))
+    for nature in A.ENGAGEMENTS.values():
+        assert nature["nom"] in h, nature["nom"]
+    assert h.count(A.ENGAGEMENTS["contractuel"]["nom"]) == 1, (
+        "l'engagement contractuel de l'ATTRI1 n'apparaît pas exactement une "
+        "fois à l'écran")
+    assert A.ENGAGEMENTS["penal"]["message"] in h
+    assert A.ENGAGEMENTS["contractuel"]["message"] in h
