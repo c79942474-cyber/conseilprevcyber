@@ -23,6 +23,7 @@ personnelle n'est journalisée. Désactivation globale : AUTOMATION_DISABLED=1.
 """
 import base64
 import hashlib
+import math
 import html as html_lib
 import json
 import logging
@@ -839,7 +840,13 @@ def veille_list(limit=60):
 
 
 def job_veille():
+    """La collecte, au plus une fois par intervalle — l'horodatage est écrit
+    APRÈS le passage, pour qu'un passage interrompu soit retenté au réveil
+    suivant plutôt que compté comme fait."""
+    if not _veille_due():
+        return
     veille_refresh()
+    _state.set("veille.dernier", str(time.time()))
 
 
 def record_critical(evt):
@@ -944,8 +951,48 @@ def job_rapport_hebdo():
 _JOBS = []
 
 
+def _veille_due():
+    """Une semaine s'est-elle écoulée depuis le dernier passage RÉELLEMENT fait ?
+
+    POURQUOI CE N'EST PAS UN SIMPLE `every` DE SEPT JOURS. Le planificateur vit
+    EN MÉMOIRE : `_register_jobs` pose `next = now + first`, et `first` vaut
+    180 s. Un redémarrage relance donc une collecte trois minutes plus tard,
+    quelle que soit la valeur de l'intervalle. Or ce service redéploie à chaque
+    commit — plusieurs fois par jour certains jours. « Toutes les semaines »
+    aurait voulu dire « toutes les semaines, ou à chaque déploiement, le plus
+    tôt des deux », c'est-à-dire pas toutes les semaines.
+
+    La cadence se lit donc dans l'ÉTAT PERSISTANT, comme `job_rapport_hebdo` le
+    fait déjà avec sa clé de semaine. Un redémarrage ne la remet pas à zéro.
+
+    ABSENCE D'ÉTAT = DÛ. Au tout premier démarrage, ou après une base remise à
+    neuf, il n'y a rien à comparer : on collecte. Attendre une semaine parce
+    qu'on ne sait pas quand remonte le dernier passage laisserait une page vide
+    sept jours durant, pour se conformer à une cadence qu'on ne mesure pas.
+    """
+    intervalle = reglages.reel("VEILLE_INTERVAL_HOURS", 168, mini=0.1) * 3600
+    try:
+        dernier = float(_state.get("veille.dernier") or 0)
+    except (TypeError, ValueError):
+        dernier = 0.0
+    # `float("NaN")` NE LÈVE RIEN — et toute comparaison avec NaN vaut False,
+    # donc un horodatage corrompu aurait bloqué la collecte POUR TOUJOURS, sans
+    # une ligne de journal. C'est une règle qui l'a trouvé, pas une relecture :
+    # `math.isfinite` écarte NaN comme les infinis, et l'état illisible
+    # redevient ce qu'il est — une absence de mesure, donc un passage dû.
+    if not math.isfinite(dernier):
+        dernier = 0.0
+    return (time.time() - dernier) >= intervalle
+
+
 def _register_jobs():
-    veille_hours = reglages.reel("VEILLE_INTERVAL_HOURS", 6, mini=0.1)
+    # LE RÉVEIL EST HORAIRE, LA CADENCE EST HEBDOMADAIRE, ET CE SONT DEUX
+    # CHOSES. Un réveil aussi espacé que la cadence décalerait la collecte à
+    # chaque arrêt : trois jours d'indisponibilité et le passage suivant
+    # tomberait trois jours plus tard, indéfiniment. En se réveillant chaque
+    # heure et en se gardant sur l'état persistant, la collecte rattrape son
+    # retard au lieu de le reporter.
+    reveil_heures = 1
     _JOBS[:] = [
         # Toutes les 3 minutes : assez court pour qu'une base revenue soit
         # reprise sans que personne n'attende, assez espacé pour ne pas
@@ -955,7 +1002,7 @@ def _register_jobs():
         {"name": "surveillance", "every": 3600, "fn": job_surveillance, "first": 90},
         {"name": "purge_rgpd", "every": 6 * 3600, "fn": job_purge_rgpd, "first": 300},
         {"name": "index_rag", "every": 120, "fn": job_index_rag, "first": 60},
-        {"name": "veille", "every": veille_hours * 3600, "fn": job_veille, "first": 180},
+        {"name": "veille", "every": reveil_heures * 3600, "fn": job_veille, "first": 180},
         {"name": "alertes", "every": 300, "fn": job_alertes, "first": 120},
         {"name": "rapport_hebdo", "every": 3600, "fn": job_rapport_hebdo, "first": 600},
     ]
