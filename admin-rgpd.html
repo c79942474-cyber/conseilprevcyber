@@ -99,6 +99,21 @@
       <div id="cmArt50"></div>
     </section>
 
+    <!-- B ter — TRAÇABILITÉ DES CALCULS : CE QUE LE SITE PEUT OPPOSER -->
+    <section class="cm-sec">
+      <h2>Traçabilité des calculs</h2>
+      <p class="st">« Tracé » se dit de quatre choses, et <b>une seule permet de contester
+        un résultat sans lire le code</b>&nbsp;: l'équation SUBSTITUÉE, celle qui porte
+        les nombres du cas. Une formule sans ses entrées se lit, elle ne se vérifie pas.
+        Cette mesure fait <b>tourner les moteurs</b> — elle ne lit pas leur source.</p>
+      <div class="cm-tete" id="trComptes"></div>
+      <div style="overflow-x:auto"><table class="cm" id="trTable" hidden>
+        <thead><tr><th>Moteur</th><th>Page</th><th>Équations</th><th>Formule seule</th><th>Trace nue</th></tr></thead>
+        <tbody id="trCorps"></tbody>
+      </table></div>
+      <p class="cm-note" id="trNote"></p>
+    </section>
+
     <!-- C — CLIENTS : LE RENVOI, PAS UNE COPIE -->
     <section class="cm-sec" style="margin-bottom:60px">
       <h2>Clients</h2>
@@ -177,6 +192,36 @@
           $('cmCliExp').textContent = fe.statut === 'conforme' ? '0' : (m ? m[1] : '?');
           if(fe.statut !== 'conforme') $('cmCliExpK').classList.add('rouge');
         }
+        /* B ter — la traçabilité, MESURÉE en faisant tourner les moteurs. */
+        fetch('/api/admin/tracabilite', {headers:{'Accept':'application/json'}})
+          .then(function(r){ return r.json(); })
+          .then(function(t){
+            if(!t || !t.ok) return;
+            var d = t.tracabilite;
+            var avec = d.avec_equation.length, tot = d.joignables;
+            $('trComptes').innerHTML =
+                '<div class="cm-k ' + (avec===tot?'vert':'rouge') + '"><div class="lbl">Moteurs à équation</div><div class="val">' + avec + ' / ' + tot + '</div></div>'
+              + '<div class="cm-k"><div class="lbl">Équations substituables</div><div class="val">' + d.equations + '</div></div>'
+              + '<div class="cm-k"><div class="lbl">Formules sans entrées</div><div class="val">' + d.formules_seules + '</div></div>'
+              + '<div class="cm-k"><div class="lbl">Traces sans formule</div><div class="val">' + d.traces_seules + '</div></div>';
+            /* LES MOTEURS SANS ÉQUATION EN PREMIER : c'est l'information, le
+               reste est le contexte. Trier par nom rangerait la mauvaise
+               nouvelle au milieu. */
+            var lignes = d.lignes.filter(function(x){ return x.joignable; })
+              .sort(function(a,b){ return a.equations - b.equations; });
+            $('trCorps').innerHTML = lignes.map(function(x){
+              return '<tr><td><b>' + E(x.nom) + '</b></td>'
+                + '<td class="cm-mode">' + E(x.page) + '</td>'
+                + '<td class="cm-st ' + (x.equations?'conforme':'nonconforme') + '">'
+                + (x.equations ? x.equations : 'AUCUNE') + '</td>'
+                + '<td>' + x.formules_seules + '</td><td>' + x.traces_seules + '</td></tr>';
+            }).join('');
+            $('trTable').hidden = !lignes.length;
+            var nj = (d.non_joignables || []).map(function(x){ return x.cle; });
+            $('trNote').textContent = d.note
+              + (nj.length ? ' Non joignables à la mesure : ' + nj.join(', ') + '.' : '');
+          }).catch(function(){});
+
         fetch('/api/admin/clients', {headers:{'Accept':'application/json'}})
           .then(function(r){ return r.json(); })
           .then(function(j){

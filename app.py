@@ -10620,6 +10620,24 @@ def admin_clients_page():
     return _serve_fast("admin-clients.html", _CC_ADMIN)
 
 
+@app.route("/api/admin/tracabilite")
+@admin_required
+def api_admin_tracabilite():
+    """Quels moteurs tracent leurs calculs, et lesquels ne tracent RIEN.
+
+    LA MESURE FAIT TOURNER LES MOTEURS. Elle ne lit pas leur source : compter
+    les occurrences de « formule » dirait ce que le code contient, pas ce que
+    l'utilisateur reçoit — et c'est ce qu'il reçoit qui est en cause.
+    """
+    import tracabilite
+    try:
+        return jsonify(ok=True, tracabilite=tracabilite.etat())
+    except Exception:
+        app.logger.exception("mesure de traçabilité")
+        return jsonify(ok=False, error="mesure",
+                       message="La mesure n'a pas abouti."), 500
+
+
 @app.route("/admin/dossier-entreprise")
 @admin_required
 def admin_dossier_entreprise_page():
