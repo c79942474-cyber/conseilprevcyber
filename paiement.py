@@ -46,7 +46,7 @@ VERSION = "2026-08-a"
 # LA VERSION EN VIGUEUR. Elle est conservée avec chaque commande et avec la
 # renonciation ; la faire évoluer ne réécrit pas ce qui a déjà été tracé — les
 # entrées passées gardent la version sous laquelle elles ont été prises.
-VERSION_CGV = "2026-09-a"
+VERSION_CGV = "2026-09-b"
 
 # L'IDENTITÉ QUI DOIT FIGURER DANS LA CONFIRMATION DE COMMANDE. Elle existe
 # déjà dans `mentions-legales.html` et dans `cgv.html` ; en voici un troisième

@@ -181,7 +181,7 @@ def test_le_texte_en_vigueur_ne_porte_ni_bandeau_ni_crochet():
     sans_commentaires = re.sub(r"<!--.*?-->", "", src, flags=re.S)
     fautes = re.findall(r"\[À [A-ZÀ-Ÿ]+[^\]]*\]", sans_commentaires)
     assert not fautes, "crochets restés dans un texte en vigueur : %s" % fautes
-    assert "Version <b>2026-09-a</b>, en vigueur" in src
+    assert "Version <b>2026-09-b</b>, en vigueur" in src
 
 
 def test_les_points_ouverts_ne_sont_plus_sous_les_yeux_du_client():
@@ -651,6 +651,6 @@ def test_le_dossier_des_points_ouverts_et_la_grille_ne_derivent_pas():
 
 
 def test_la_version_des_conditions_est_celle_qui_est_affichee():
-    assert paiement.VERSION_CGV == "2026-09-a"
+    assert paiement.VERSION_CGV == "2026-09-b"
     assert "PROJET" not in paiement.VERSION_CGV
     assert paiement.VERSION_CGV in _src(CGV)

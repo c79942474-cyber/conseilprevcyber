@@ -49,7 +49,9 @@ POINTS = [
     {
         "cle": "retractation",
         "article": "Article 5 — renonciation au droit de rétractation",
-        "ancrage": "code de la consommation, art. L221-3, L221-25 et L221-28, 13°",
+        "ancrage": "code de la consommation, art. L221-3 (contrat conclu "
+                   "HORS ÉTABLISSEMENT — voir L221-1, I, 2°), L221-25 et "
+                   "L221-28, 13°",
         "enjeu": "LE POINT LE PLUS EXPOSÉ, ET IL N'A PLUS DE FILET. Le 13° "
                  "vise un CONTENU numérique, le 1° un service PLEINEMENT "
                  "EXÉCUTÉ ; un accès à durée indéterminée fourni de manière "
@@ -97,10 +99,15 @@ POINTS = [
     {
         "cle": "competence",
         "article": "Article 15 — juridiction",
-        "ancrage": "code de la consommation, art. R212-2 ; code de procédure civile",
+        "ancrage": "code de procédure civile, art. 48 (l'ancrage sur "
+                   "R212-2 est tombé le 6 septembre 2026 : le renvoi de "
+                   "L221-3 ne porte ni sur les clauses abusives ni sur les "
+                   "options de compétence, qui sont hors du chapitre Ier)",
         "enjeu": "L'attribution aux tribunaux de Paris est désormais stipulée, "
-                 "la vente étant réservée aux professionnels. Tient-elle face à "
-                 "un acheteur relevant de l'art. L221-3 ?",
+                 "la vente étant réservée aux professionnels. Son "
+                 "opposabilité se joue sur l'article 48 du code de procédure "
+                 "civile, donc sur ce que l'écran de caisse montre et sur ce "
+                 "que le service peut prouver avoir montré.",
         "question": "clause attributive de compétence inopposable au "
                     "consommateur contrat conclu en ligne",
     },
@@ -127,10 +134,14 @@ POINTS = [
         "cle": "garantie",
         "article": "Article 6 — garantie légale de conformité du numérique",
         "ancrage": "code de la consommation, art. L224-25-12 et suivants",
-        "enjeu": "Ne joue plus que pour l'acheteur relevant de l'art. L221-3 "
-                 "— cinq salariés ou moins, objet hors activité principale. "
-                 "Régime récent (2021) : la jurisprudence est encore rare, et "
-                 "une liste vide ici est une RÉPONSE, pas un échec.",
+        "enjeu": "VÉRIFIÉ LE 6 SEPTEMBRE 2026, ET L'ANCRAGE ÉTAIT FAUX. "
+                 "L221-3 n'étend que les sections 2, 3 et 6 du chapitre Ier ; "
+                 "L224-25-12 est au chapitre IV, et le renvoi ne l'atteint "
+                 "pas. La garantie n'est donc PAS due par la loi à l'acheteur "
+                 "relevant de L221-3 : elle est désormais accordée par le "
+                 "contrat (article 6). Ce qui se juge encore, c'est sa portée "
+                 "quand elle est stipulée. Régime récent (2021) : une liste "
+                 "vide ici est une RÉPONSE, pas un échec.",
         "question": "garantie légale de conformité contenu numérique service "
                     "numérique mise en conformité réduction du prix résolution",
     },

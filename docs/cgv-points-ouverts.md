@@ -349,10 +349,156 @@ donne aucun repère sur la manière dont il sera lu.
 1. **Ouvrir les décisions repérées** — Versailles 22/03581 et Douai 23/00858 en
    premier : la première dit comment se mesure le « significatif », la seconde
    est le cas le plus proche du nôtre où le plafond a TENU.
-2. **Trancher l'article 15.** Si le renvoi de L221-3 ne porte pas sur les
-   clauses abusives, l'ancrage sur R212-2 est à revoir — et l'opposabilité se
-   joue alors sur l'article 48 CPC, donc sur ce que l'écran de caisse montre et
-   sur ce que le service peut prouver avoir montré.
+2. ~~**Trancher l'article 15.**~~ **TRANCHÉ le 6 septembre 2026** : le renvoi
+   de L221-3 ne porte que sur les sections 2, 3 et 6 du chapitre Ier, donc ni
+   sur les clauses abusives ni sur les options de compétence. L'ancrage sur
+   R212-2 tombe ; l'opposabilité se joue sur l'article 48 CPC, donc sur ce que
+   l'écran de caisse montre et sur ce que le service peut prouver avoir montré.
+   Voir « Les seize articles cités », constat B.
 3. **Décider pour l'article 10** : soit assumer le plafond tel quel en sachant
    que deux des trois facteurs de Limoges lui sont acquis, soit lui donner une
    contrepartie explicite — c'est ce qui a sauvé la clause dans Faurecia.
+
+
+# Les seize articles cités, ouverts un par un (6 septembre 2026)
+
+Le document annonçait « treize articles cités ». Il y en avait **quinze**, et la
+vérification en a ajouté un seizième — L221-1, sans lequel la condition centrale
+n'était pas lisible. Chacun a été ouvert sur librejustice.fr dans **sa version
+en vigueur** ce jour-là. La table vit dans `cgv_articles.py` ; ce qui suit en est
+le rendu, et une règle refuse que les deux divergent.
+
+**Deux phrases sur seize étaient fausses, et les deux au même endroit** : le
+renvoi de l'article L221-3. Elles allaient en sens contraire — l'une promettait
+à trop peu de monde, l'autre promettait ce que la loi ne donne pas — mais c'est
+le même défaut : un renvoi lu de mémoire au lieu d'être ouvert.
+
+| article | code | en vigueur depuis | portée du renvoi L221-3 | ce que la page en tire |
+|---|---|---|---|---|
+| [1110](https://librejustice.fr/texte/code-civil/1110) | civil | 2018-10-01 | sans objet | la qualification que la page se donne à l'article 1 |
+| [1127-1](https://librejustice.fr/texte/code-civil/1127-1) | civil | 2016-10-01 | sans objet | l'accessibilité permanente et imprimable, article 1 — le premier alinéa, seul non dérogeable entre professionnels (1127-3) |
+| [1127-2](https://librejustice.fr/texte/code-civil/1127-2) | civil | 2016-10-01 | sans objet | le déroulement de la commande, article 4 — le vendeur s'y tient alors que 1127-3 lui permettrait d'y déroger |
+| [1170](https://librejustice.fr/texte/code-civil/1170) | civil | 2016-10-01 | sans objet | la limite du plafond, article 10 |
+| [1171](https://librejustice.fr/texte/code-civil/1171) | civil | 2018-10-01 | sans objet | la limite générale posée à l'article 10 |
+| [1190](https://librejustice.fr/texte/code-civil/1190) | civil | 2016-10-01 | sans objet | l'interprétation contre le vendeur, article 1 |
+| [1604](https://librejustice.fr/texte/code-civil/1604) | civil | 1804-03-21 | sans objet | l'obligation de délivrer un accès conforme, article 6 |
+| [1641](https://librejustice.fr/texte/code-civil/1641) | civil | 1804-03-16 | sans objet | la garantie des vices cachés, article 6 |
+| [L442-1](https://librejustice.fr/texte/code-de-commerce/l442-1) | commerce | 2026-08-20 | sans objet | le rappel joint à l'article 1171, article 10 |
+| [L221-1](https://librejustice.fr/texte/code-de-la-consommation/l221-1) | conso. | 2022-05-28 | sans objet | la condition que le chapeau et l'article 5 ont cessé de taire |
+| [L221-18](https://librejustice.fr/texte/code-de-la-consommation/l221-18) | conso. | 2016-07-01 | étendu | le délai de l'article 5 |
+| [L221-25](https://librejustice.fr/texte/code-de-la-consommation/l221-25) | conso. | 2022-05-28 | étendu | le premier des deux consentements recueillis à la caisse |
+| [L221-28](https://librejustice.fr/texte/code-de-la-consommation/l221-28) | conso. | 2022-05-28 | étendu | le fondement de la renonciation, et le risque nommé à l'article 5 |
+| [L221-3](https://librejustice.fr/texte/code-de-la-consommation/l221-3) | conso. | 2016-07-01 | sans objet | la réserve annoncée en tête, et le bénéficiaire des articles 5 et 6 |
+| [L224-25-12](https://librejustice.fr/texte/code-de-la-consommation/l224-25-12) | conso. | 2021-10-01 | **non étendu** | la garantie de l'article 6, désormais donnée par le vendeur et non par la loi |
+| [L611-1](https://librejustice.fr/texte/code-de-la-consommation/l611-1) | conso. | 2016-07-01 | **non étendu** | l'article 13, qui écarte la médiation faute de consommateurs |
+
+## Constat A — L221-3 exige un contrat conclu **hors établissement**
+
+Le chapeau et l'article 5 énonçaient deux conditions (cinq salariés ou moins ;
+objet hors de l'activité principale) et **taisaient la première** : que le
+contrat ait été conclu hors établissement. Le texte est sans ambiguïté — « sont
+étendues aux contrats conclus **hors établissement** entre deux professionnels »
+— et l'article L221-1, I, 2° réserve cette qualification aux contrats conclus en
+**présence physique simultanée** des parties, ou à distance immédiatement après
+une sollicitation personnelle intervenue dans un tel lieu.
+
+Or ce site vend **en ligne**, ce qui est un contrat *à distance* au sens du
+L221-1, I, 1°. La qualification n'est donc jamais acquise du seul fait de la
+souscription. Elle reste possible — un prospect rencontré, sollicité en personne,
+qui souscrit dans la foulée relève du b) — mais elle doit être établie.
+
+**Ce que le corpus répond, décisions LUES intégralement :**
+
+- [Cour de cassation, chambre commerciale, 4 septembre 2024, n° 23-16.886](https://librejustice.fr/decision/6mme57BKnDNb)
+  casse le jugement d'un tribunal de commerce qui avait annulé un contrat
+  souscrit « par voie dématérialisée à distance » entre deux professionnels.
+  Deux motifs, et les deux nous concernent. Le juge devait rechercher « si les
+  parties avaient été physiquement et simultanément présentes, soit au moment
+  de la sollicitation, soit au moment de la conclusion » avant d'appliquer
+  L221-3 (§ 8). Et surtout : « **le contrat litigieux ayant été conclu entre
+  deux professionnels, la société Boole ne pouvait bénéficier des dispositions
+  particulières applicables aux contrats à distance** » (§ 12).
+- [Cour d'appel de Lyon, 3e chambre A, 13 novembre 2025, n° 22/01141](https://librejustice.fr/decision/amZamF72UKR5)
+  montre le régime appliqué correctement : la cour reprend les trois conditions
+  une par une — hors établissement, objet étranger à l'activité de caviste,
+  moins de cinq salariés à la date du contrat — avant d'étendre au
+  professionnel le délai de rétractation prolongé.
+
+**Corrigé.** Le chapeau et l'article 5 énoncent les trois conditions et disent
+qu'elles se cumulent ; l'article 5 nomme l'arrêt.
+
+**Ce que cela coûte.** Le droit de rétractation de quatorze jours ne sera dû, en
+pratique, qu'à l'acheteur rencontré physiquement avant la souscription. Pour tous
+les autres, la vente en ligne entre professionnels n'ouvre rien. C'est une
+réduction réelle de ce que le document promettait — et c'est la loi. **Rien
+n'interdit au vendeur de l'accorder quand même**, contractuellement, à tout
+acheteur de cinq salariés ou moins : c'est une décision commerciale, elle n'a pas
+été prise, et elle contredirait l'arbitrage du 31 août 2026 qui a écarté tout
+remboursement de faveur.
+
+## Constat B — le renvoi n'atteint pas la garantie du numérique
+
+L221-3 étend « les dispositions des **sections 2, 3, 6 du présent chapitre** ».
+Savoir ce que portent ces numéros n'est pas devinable : il a fallu lire
+l'arborescence du code, article témoin par article témoin.
+
+| section du chapitre Ier | intitulé | témoin | étendue ? |
+|---|---|---|---|
+| 2 | Obligation d'information précontractuelle | L221-5 | oui |
+| 3 | Dispositions particulières applicables aux contrats conclus hors établissement | L221-10 | oui |
+| 4 | Dispositions particulières applicables aux contrats conclus à distance | L221-13 | **non** |
+| 6 | Droit de rétractation applicable aux contrats conclus à distance et hors établissement | L221-18 | oui |
+
+Le résultat est cohérent, et c'est ce qui le rend crédible : **le législateur a
+étendu au petit professionnel l'appareil « hors établissement » (sections 2, 3
+et 6) et rien de l'appareil « à distance » (section 4).** Les constats A et B
+n'en font donc qu'un.
+
+Conséquence : l'article **L224-25-12** — la garantie légale de conformité du
+contenu et du service numériques — est au **chapitre IV** (« Règles spécifiques
+à des contrats ayant un objet particulier », section 2 bis, sous-section 4). Le
+renvoi de L221-3 ne l'atteint pas. L'article 6 l'annonçait pourtant comme un dû
+légal.
+
+**Corrigé, et l'arbitrage est pris.** La garantie est **maintenue**, mais donnée
+par le vendeur *par le contrat* et non par la loi — le document l'avait promise
+publiquement, la retirer en silence aurait été pire que l'erreur. Sa portée suit
+le texte vérifié : pour un accès fourni de manière continue, le vendeur répond
+des défauts qui apparaissent au cours de la période de fourniture, et non
+pendant deux ans.
+
+## Ce que la vérification a AUSSI tranché
+
+- **L'article 1604 ne dit pas ce que la page lui fait dire — et la page a
+  pourtant raison.** Le texte définit la délivrance comme « le transport de la
+  chose vendue en la puissance et possession de l'acheteur » : la *conformité*
+  n'y figure pas. Elle est jugée. [Cass. 1re civ., 13 février 2019,
+  n° 17-12.580](https://librejustice.fr/decision/xv1yLXbTyhJ5), au visa de l'article 1604 : « **manque à son obligation de
+  délivrance le vendeur qui livre une chose non conforme à la chose convenue** ».
+  La fiche de l'article porte ce lien, parce qu'une proposition jurisprudentielle
+  et une proposition légale ne se vérifient pas de la même façon.
+- **Le droit de rétractation EST étendu**, contrairement à ce qu'on pouvait
+  craindre en lisant « sections 2, 3, 6 » : les articles L221-18 à L221-28 sont
+  en **section 6**, et non dans une section 4 qui aurait été exclue.
+- **L'article 15 (juridiction) trouve sa réponse.** Le renvoi de L221-3 ne porte
+  ni sur les clauses abusives (livre II, titre Ier) ni sur les options de
+  compétence du consommateur : elles sont hors du chapitre Ier. La rédaction
+  actuelle reste juste parce qu'elle est conditionnelle — « il conserve les
+  options de compétence que la loi lui réserve » — mais l'ancrage sur R212-2
+  était à revoir, et il l'est : l'opposabilité se joue sur l'article 48 CPC.
+- **La reconnaissance recueillie à la caisse est écrite pour le 13°, et ne peut
+  pas l'être pour le 1°.** L221-25 fait reconnaître au client qu'il perdra son
+  droit « après [que le professionnel] aura **entièrement exécuté** le
+  contrat » ; un accès à durée indéterminée fourni en continu n'est jamais
+  entièrement exécuté. La case dit « une fois l'accès ouvert », ce qui est la
+  logique du 13° (perte à l'ouverture de la fourniture). **On ne peut pas
+  couvrir les deux qualifications avec une seule formule** : le risque nommé à
+  l'article 5 ne peut donc pas être couvert par une rédaction plus prudente. Il
+  s'assume ou il se supprime.
+
+## Ce que la vérification n'a PAS fait
+
+Elle n'a pas jugé les clauses. Un article exact peut porter une clause nulle ;
+c'est l'objet de `outils/verifier_cgv.py` et de la section précédente. Ici on a
+seulement établi que les seize textes cités existent, dans cette version, et
+disent ce que la page leur fait dire.
