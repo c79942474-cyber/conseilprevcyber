@@ -2153,6 +2153,7 @@
     if ((b = $("#dc-comparer"))) b.addEventListener("click", comparer);
     if ((b = $("#dc-docx"))) b.addEventListener("click", function () { exporter("docx"); });
     if ((b = $("#dc-pdf"))) b.addEventListener("click", function () { exporter("pdf"); });
+    if ((b = $("#dc-xlsx"))) b.addEventListener("click", function () { exporter("xlsx"); });
   }
 
   if (document.readyState === "loading") {

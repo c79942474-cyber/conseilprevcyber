@@ -437,7 +437,7 @@
         DERNIERE = j.strategie;
         etat("");
         rendreStrategie(j.strategie);
-        ["#sd-docx", "#sd-pdf"].forEach(function (s) {
+        ["#sd-docx", "#sd-pdf", "#sd-xlsx"].forEach(function (s) {
           var e = $(s); if (e) e.disabled = false;
         });
         var z = $("#sd-resultat");
@@ -703,6 +703,8 @@
         if (d) d.addEventListener("click", function () { exporter("docx"); });
         var p = $("#sd-pdf");
         if (p) p.addEventListener("click", function () { exporter("pdf"); });
+        var x = $("#sd-xlsx");
+        if (x) x.addEventListener("click", function () { exporter("xlsx"); });
       })
       .catch(function (e) {
         /* LE DÉFAUT CORRIGÉ. "Établir la stratégie" était écrit ACTIF dans la

@@ -151,8 +151,18 @@ def test_un_document_vise_ne_se_termine_plus_sur_brouillon():
 
 # ── 3. Chaque point d'export déclare ce qui a écrit ────────────────────────
 
+# LA PORTE A CHANGÉ, LA RÈGLE LA SUIT — ET C'EST ELLE QUI L'A SIGNALÉ. Les
+# quatorze points d'export appelaient `build_docx` / `build_pdf` en direct ;
+# depuis que le troisième format existe, ils passent tous par
+# `livrables_export.composer`. Cette règle est tombée à zéro point détecté au
+# moment du changement, ce qui est exactement son travail : un détecteur qui
+# aurait continué de rendre « aucun point, aucun muet » aurait été vert en ne
+# mesurant plus rien. Le nom de la fonction change ; la position de `meta`, non.
+_PORTES_EXPORT = ("composer", "build_docx", "build_pdf")
+
+
 def _points_d_export(source):
-    """Chaque appel à build_docx/build_pdf, avec les clés du dict `meta` que la
+    """Chaque appel à une porte d'export, avec les clés du dict `meta` que la
     même fonction lui assigne. Lu par l'ARBRE et non par le texte : un
     commentaire qui contiendrait « ia » ne satisferait pas la règle."""
     arbre = ast.parse(source)
@@ -163,7 +173,7 @@ def _points_d_export(source):
         noms = set()
         for n in ast.walk(fn):
             if (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-                    and n.func.attr in ("build_docx", "build_pdf")
+                    and n.func.attr in _PORTES_EXPORT
                     and len(n.args) >= 2 and isinstance(n.args[1], ast.Name)):
                 noms.add(n.args[1].id)
         if not noms:

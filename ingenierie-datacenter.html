@@ -845,6 +845,42 @@
   .ig-cons-jamais{margin:14px 0 0;font-size:11px;line-height:1.7;
     color:var(--muted2);border-top:1px solid var(--line);padding-top:10px}
   .ig-cons-jamais b{color:var(--ink)}
+  /* TOUT LE DOSSIER : le choix de format et le bouton forment un seul geste,
+     et se lisent comme tel. Préfixe « ig-ao-zip » et non « ig-ao-z » : les
+     préfixes courts se percutent, et une règle posée pour un bloc qui déborde
+     sur son voisin est un défaut déjà payé une fois sur cette page. */
+  .ig-ao-zip{display:inline-flex;align-items:center;gap:8px;padding:4px 10px 4px 12px;
+             border:1px solid var(--line);border-radius:9px;font-size:12px;
+             color:var(--muted)}
+  .ig-ao-zip select{font:inherit;padding:3px 6px;border-radius:6px;
+                    border:1px solid var(--line);background:var(--bg2, transparent);
+                    color:var(--ink)}
+  /* LE PARCOURS DE LA RÉPONSE. Préfixe « ig-aop » et non « ig-ao-p » :
+     celui-là existe déjà pour les cartes de pièce, et deux blocs qui se
+     partagent un préfixe se partagent aussi les règles — défaut déjà payé
+     une fois sur cette page. */
+  .ig-aop{margin:14px 0 4px;padding:14px 16px;border:1px solid var(--line);
+          border-radius:12px}
+  .ig-aop-h{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+  .ig-aop-h b{font-size:13.5px;color:var(--ink)}
+  .ig-aop-b{margin-left:auto;font-family:var(--mono);font-size:10.5px;
+            letter-spacing:.04em;color:var(--muted2)}
+  .ig-aop-l{margin:12px 0 0;padding:0;list-style:none;counter-reset:aop}
+  .ig-aop-e{position:relative;margin:0 0 8px;padding:10px 13px 10px 40px;
+            border:1px solid var(--line);border-radius:9px;font-size:12px;
+            line-height:1.65}
+  .ig-aop-e::before{counter-increment:aop;content:counter(aop);
+                    position:absolute;left:13px;top:10px;
+                    font-family:var(--mono);font-size:11px;color:var(--muted2)}
+  .ig-aop-e.faite{border-color:rgba(127,212,168,.5)}
+  .ig-aop-e.bloque{border-color:rgba(143,219,242,.55)}
+  .ig-aop-e.ici{border-width:2px}
+  .ig-aop-e b{color:var(--ink);font-size:12.5px}
+  .ig-aop-m{display:block;margin-top:3px;font-family:var(--mono);
+            font-size:10.5px;color:var(--muted2)}
+  .ig-aop-e p{margin:5px 0 0;color:var(--muted)}
+  .ig-aop-e .pg{color:var(--muted2)}
+  .ig-aop-r{margin:12px 0 0;font-size:11px;line-height:1.65;color:var(--muted2)}
   .ig-ao-docs{margin-top:10px}
   .ig-ao-d{display:block;font-size:12px;color:var(--muted);padding:3px 0}
   .ig-ao-al{margin:16px 0 0}
@@ -2128,6 +2164,7 @@
     <div class="actions" style="margin-top:16px;gap:10px;flex-wrap:wrap">
       <button type="button" class="btn btn-s" id="ig-docx" disabled>Étude de phase (Word)</button>
       <button type="button" class="btn btn-s" id="ig-pdf" disabled>Étude de phase (PDF)</button>
+      <button type="button" class="btn btn-s" id="ig-xlsx" disabled>Étude de phase (Excel)</button>
     </div>
     <div id="tr-ig" class="tr-zone"></div>
   </section>
@@ -2582,6 +2619,26 @@
       dossier de candidature se remplissent au fur et à mesure, chacune avec
       son origine. Les déclarations sur l'honneur, elles, restent à votre
       main : leur fausseté est sanctionnée.</p>
+    <!-- LE PARCOURS GUIDÉ DE LA RÉPONSE — sept étapes, et chacune se dit
+         faite ou non faite SUR UN NOMBRE. Il est en tête de section parce
+         qu'un guide sert à savoir où l'on en est avant de savoir quoi
+         cliquer ; placé en bas, il aurait raconté après coup ce qu'on venait
+         de faire.
+
+         IL EST DISTINCT DU PARCOURS D'INGÉNIERIE (§ 3). Celui-là suit les
+         PHASES d'un projet — APS, APD, PRO ; celui-ci suit l'ordre du RISQUE
+         d'une remise : ce qui met trois semaines à venir passe avant ce qui
+         se remplit en une heure. Plaquer l'un sur l'autre aurait donné un
+         parcours qui a l'air juste et ne correspond à rien. -->
+    <div class="ig-aop">
+      <div class="ig-aop-h">
+        <b>Où en est ma réponse&nbsp;?</b>
+        <button type="button" class="btn btn-s" id="ig-aop-go">Mesurer les sept étapes</button>
+      </div>
+      <div id="ig-aop-out" aria-live="polite"><p class="note">Le parcours se
+        mesure sur ce que vous avez déposé et saisi&nbsp;: tant que rien n'est
+        déposé, il l'annonce plutôt que de proposer une liste de conseils.</p></div>
+    </div>
     <div id="ig-ao-depot"></div>
     <div class="actions" style="margin-top:14px;gap:10px;flex-wrap:wrap">
       <button type="button" class="ig-lanceur-b" id="ig-ao-go">Analyser le dossier de consultation →</button>

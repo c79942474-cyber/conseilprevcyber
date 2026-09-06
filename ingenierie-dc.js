@@ -2530,6 +2530,7 @@ function messageDelai(e, defaut) {
           + '<button type="button" id="ig-pc-lire">Lire</button>'
           + '<button type="button" id="ig-pc-docx">Word</button>'
           + '<button type="button" id="ig-pc-pdf">PDF</button>'
+          + '<button type="button" id="ig-pc-xlsx">Excel</button>'
           + '<button type="button" id="ig-pc-md">Markdown</button>'
           + '<span class="dit" id="ig-pc-dit" aria-live="polite"></span></div>'
           + (o.j.mode
@@ -2707,12 +2708,13 @@ function messageDelai(e, defaut) {
        quelque chose à dire. Les faire battre plus tôt aurait désigné des
        commandes sans objet. */
     battre(".ig-doc-a button", "ig-bat-doc", "emport");
-    [["#ig-pc-docx", "docx", "Word"], ["#ig-pc-pdf", "pdf", "PDF"]]
+    [["#ig-pc-docx", "docx", "Word"], ["#ig-pc-pdf", "pdf", "PDF"],
+     ["#ig-pc-xlsx", "xlsx", "Excel"]]
       .forEach(function (t) {
         var b = $(t[0]);
         if (!b) return;
         b.addEventListener("click", function () {
-          var tous = [$("#ig-pc-docx"), $("#ig-pc-pdf")];
+          var tous = [$("#ig-pc-docx"), $("#ig-pc-pdf"), $("#ig-pc-xlsx")];
           tous.forEach(function (x) { if (x) x.disabled = true; });
           note("Mise en page " + t[2] + "…");
           var corps = {};
@@ -2934,14 +2936,14 @@ function messageDelai(e, defaut) {
   }
 
   function boutons(actif) {
-    ["#ig-docx", "#ig-pdf"].forEach(function (s) {
+    ["#ig-docx", "#ig-pdf", "#ig-xlsx"].forEach(function (s) {
       var b = $(s);
       if (b) b.disabled = !actif;
     });
     /* Les exports viennent de devenir possibles : c'est l'instant où le
        battement a quelque chose à dire. Avant, il aurait désigné des boutons
        inactifs — une promesse que le clic n'aurait pas tenue. */
-    if (actif) battre("#ig-docx, #ig-pdf", "ig-bat-doc", "export");
+    if (actif) battre("#ig-docx, #ig-pdf, #ig-xlsx", "ig-bat-doc", "export");
   }
 
   function exporter(fmt) {
@@ -3435,7 +3437,7 @@ function messageDelai(e, defaut) {
     "#ig-guidage button", "#ig-guidage .ig-g-lien",
     "#ig-dossier button", "#ig-dossier a.btn", "#ig-dossier a.ig-dl",
     "#ig-rail button",
-    "#ig-docx", "#ig-pdf",
+    "#ig-docx", "#ig-pdf", "#ig-xlsx",
     ".ig-doc-a button",
     "#ig-depot button", "#ig-depot .btn", "#ig-depot-liste button",
   ].join(",");
@@ -5800,6 +5802,12 @@ function messageDelai(e, defaut) {
           AO_ANALYSE = j.analyse;
           AO_DOCS = docs;
           msg.textContent = "";
+          /* LE PARCOURS SE REMESURE ICI, ET NULLE PART AILLEURS EN AUTOMATIQUE.
+             C'est le seul instant où l'état change assez pour que le compte
+             bouge d'un coup ; le remesurer à chaque frappe dans la fiche
+             enverrait une requête par caractère pour un nombre qui bouge de
+             un. Le bouton reste là pour le reste du temps. */
+          aoParcours(null);
           /* LE BLOC PROJET SUIT L'ANALYSE : il n'a rien à proposer avant
              qu'il y ait des pièces à conserver. */
           aoProjetsCharger().then(aoProjetEtat);
@@ -6517,6 +6525,118 @@ function messageDelai(e, defaut) {
     });
   }
 
+  /* ── LE PARCOURS GUIDÉ DE LA RÉPONSE ──────────────────────────────────
+     LA PAGE AFFICHE, ELLE NE CALCULE PAS. Le compte des rubriques, des
+     pièces et des champs tenus vient du serveur, qui le tire du même
+     `ao_dc.remplir` que le remplissage affiché plus bas. Le refaire ici
+     donnerait deux comptes qui divergeraient — et c'est celui qu'on oublie
+     de corriger qui resterait sous les yeux.
+
+     LE PROJET EST TRANSMIS QUAND IL Y EN A UN : sans lui, les affirmations
+     ne se lisent pas, et l'étape des déclarations dit alors « 0 sur 6 », ce
+     qui est exact — une affirmation qui ne laisse pas de trace n'engage
+     personne. */
+  function aoParcoursRendre(p) {
+    var z = $("#ig-aop-out");
+    if (!z) return;
+    var h = '<p class="ig-aop-b">' + p.faites + " / " + p.total
+          + " étape(s) mesurée(s) comme faites"
+          + (p.pret ? " · rien de bloquant ne manque"
+                    : " · " + p.bloquants.length + " étape(s) bloquante(s)")
+          + "</p><ol class=\"ig-aop-l\">";
+    p.etapes.forEach(function (e) {
+      var cls = "ig-aop-e" + (e.fait ? " faite" : "")
+              + (!e.fait && e.bloquant ? " bloque" : "")
+              + (e.id === p.ou_en_est ? " ici" : "");
+      h += '<li class="' + cls + '">'
+        + "<b>" + esc(e.nom) + "</b>"
+        + (e.bloquant ? ' <span class="pg">— bloquante</span>' : "")
+        + '<span class="ig-aop-m">' + esc(e.mesure) + "</span>"
+        + "<p>" + esc(e.question) + "</p>"
+        + (e.fait ? ""
+                  : "<p>" + esc(e.geste)
+                    + (e.reste && e.reste.length
+                        ? " <i>Reste&nbsp;: " + esc(e.reste.join(", ")) + "</i>"
+                        : "") + "</p>")
+        + '<p class="pg"><i>Le piège</i> — ' + esc(e.piege) + "</p>"
+        + "</li>";
+    });
+    h += "</ol>" + '<p class="ig-aop-r">' + esc(p.reserve) + "</p>";
+    z.innerHTML = h;
+  }
+
+  function aoParcours(bouton) {
+    var z = $("#ig-aop-out");
+    var libelle = bouton ? bouton.textContent : "";
+    if (bouton) { bouton.disabled = true; bouton.textContent = "Mesure…"; }
+    var corps = { fiche: AO_FICHE, analyse: AO_ANALYSE, saisies: AO_SAISIES };
+    if (AO_PROJET) corps.projet = AO_PROJET;
+    demander("/api/datacenter/marche/parcours", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(corps),
+    }, DELAI_MOYEN).then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j.ok) throw new Error(j.message || "parcours");
+        aoParcoursRendre(j.parcours);
+      })
+      .catch(function () {
+        if (z) z.innerHTML = '<p class="note">Le parcours n\'a pas pu être '
+          + "mesuré. Rien n'est perdu : votre fiche et vos pièces sont "
+          + "intactes.</p>";
+      })
+      .then(function () {
+        if (bouton) { bouton.disabled = false; bouton.textContent = libelle; }
+      });
+  }
+
+  /* TOUT LE DOSSIER, ET CE QU'IL A MANQUÉ. Le compte revient dans un
+     en-tête : un téléchargement ne rend pas de JSON, et une archive dont on
+     ne sait pas combien de pièces elle porte se compte à la main en
+     l'ouvrant. Un manque se DIT — un zip silencieusement incomplet est pire
+     que pas d'archive, parce qu'il a l'air complet. */
+  function aoDossierComplet(fmt, bouton) {
+    var libelle = bouton.textContent;
+    bouton.disabled = true;
+    bouton.textContent = "Composition du dossier…";
+    var entete = null;
+    demander("/api/datacenter/marche/dossier.zip", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fiche: AO_FICHE, analyse: AO_ANALYSE,
+                             saisies: AO_SAISIES, format: fmt }),
+    }, DELAI_LONG).then(function (r) {
+      if (!r.ok) throw new Error("dossier");
+      entete = r.headers.get("X-Dossier");
+      return r.blob();
+    }).then(function (b) {
+      var u = URL.createObjectURL(b);
+      var a = document.createElement("a");
+      a.href = u;
+      a.download = "dossier-reponse-consultation.zip";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(u); }, 4000);
+      var d = null;
+      try { d = JSON.parse(entete || "null"); } catch (e) { d = null; }
+      var m = $("#ig-ao-msg");
+      if (m && d) {
+        m.textContent = d.manques && d.manques.length
+          ? d.pieces + " pièce(s) dans l'archive ; " + d.manques.length
+            + " n'a pas pu être produite (" + d.manques.join(", ")
+            + ") — le bordereau dit pourquoi."
+          : d.pieces + " pièce(s) dans l'archive, aucune manquante.";
+      }
+    }).catch(function () {
+      var m = $("#ig-ao-msg");
+      if (m) m.textContent = "La composition du dossier a échoué.";
+    }).then(function () {
+      bouton.disabled = false;
+      bouton.textContent = libelle;
+    });
+  }
+
   /* ── LE MENU DES PIÈCES À PRODUIRE ────────────────────────────────────
      POURQUOI UN MENU, ET PAS SEULEMENT DIX-NEUF CARTES À LA SUITE. Un
      dossier de candidature ne se prépare pas d'un seul tenant : l'administratif se
@@ -6753,12 +6873,33 @@ function messageDelai(e, defaut) {
       + "Emporter le dossier préparé (Word)</button>"
       + '<button type="button" class="btn btn-s" data-ao-exp="pdf">'
       + "PDF</button>"
+      + '<button type="button" class="btn btn-s" data-ao-exp="xlsx">'
+      + "Excel</button>"
+      /* TOUT LE DOSSIER EN UN GESTE. Répondre à une consultation demandait
+         cinq téléchargements — le report, puis les quatre formulaires — et
+         autant d'occasions d'en oublier un. Le choix de format ne porte que
+         sur le REPORT : les formulaires officiels restent en Word, parce que
+         ce qui sort est le fichier du ministère et qu'un fac-similé serait
+         refusé. L'archive le dit dans son bordereau. */
+      + '<label class="ig-ao-zip"><span>Tout le dossier&nbsp;:</span>'
+      + '<select data-ao-zip-fmt aria-label="Format du report dans l\'archive">'
+      + '<option value="docx">Word</option>'
+      + '<option value="pdf">PDF</option>'
+      + '<option value="xlsx">Excel</option></select>'
+      + '<button type="button" class="btn btn-s" data-ao-zip>'
+      + "⬇ Tout le dossier (.zip)</button></label>"
       + aoFormulairesBoutons() + "</div>"
       + '<p class="ig-icpe-res">' + esc(r.note) + "</p>";
     z.innerHTML = h;
     aoBrancherMenu(r);
     z.querySelectorAll("[data-ao-exp]").forEach(function (b) {
       b.addEventListener("click", function () { aoExporter(b.dataset.aoExp, b); });
+    });
+    z.querySelectorAll("[data-ao-zip]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var sel = z.querySelector("[data-ao-zip-fmt]");
+        aoDossierComplet(sel ? sel.value : "docx", b);
+      });
     });
     z.querySelectorAll("[data-ao-form]").forEach(function (b) {
       b.addEventListener("click", function () {
@@ -7162,6 +7303,7 @@ function messageDelai(e, defaut) {
     var b;
     if ((b = $("#ig-docx"))) b.addEventListener("click", function () { exporter("docx"); });
     if ((b = $("#ig-pdf"))) b.addEventListener("click", function () { exporter("pdf"); });
+    if ((b = $("#ig-xlsx"))) b.addEventListener("click", function () { exporter("xlsx"); });
     if ((b = $("#ig-prog-add"))) b.addEventListener("click", progAjouter);
     if ((b = $("#ig-prog-go"))) b.addEventListener("click", progConsolider);
     if ((b = $("#ig-icpe-go"))) b.addEventListener("click", icpeCribler);
@@ -7169,6 +7311,9 @@ function messageDelai(e, defaut) {
     if ((b = $("#ig-den-go"))) b.addEventListener("click", densiteEprouver);
     if ((b = $("#ig-ao-go"))) b.addEventListener("click", aoAnalyser);
     if ((b = $("#ig-ao-cand"))) b.addEventListener("click", aoCandidature);
+    if ((b = $("#ig-aop-go"))) {
+      b.addEventListener("click", function () { aoParcours(this); });
+    }
   }
 
   if (document.readyState === "loading") {

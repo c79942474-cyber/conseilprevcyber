@@ -274,6 +274,7 @@
           <button type="button" id="mo-vider" disabled>Tout remettre à zéro</button>
           <button type="button" id="mo-pdf" disabled>Emporter en PDF</button>
           <button type="button" id="mo-docx" disabled>Emporter en Word</button>
+          <button type="button" id="mo-xlsx" disabled>Emporter en Excel</button>
         </div>
       </div>
 
@@ -588,6 +589,7 @@
        comme une panne, alors que c'est une règle. */
     $("#mo-pdf").disabled = n === 0;
     $("#mo-docx").disabled = n === 0;
+    $("#mo-xlsx").disabled = n === 0;
 
     clearTimeout(minuteur);
     minuteur = setTimeout(function () {
@@ -907,6 +909,7 @@
 
   $("#mo-pdf").addEventListener("click", function () { emporter("pdf", this); });
   $("#mo-docx").addEventListener("click", function () { emporter("docx", this); });
+  $("#mo-xlsx").addEventListener("click", function () { emporter("xlsx", this); });
 
   $("#mo-vider").addEventListener("click", function () {
     document.querySelectorAll("#mo-form select").forEach(function (s) { s.value = ""; });

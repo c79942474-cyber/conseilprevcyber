@@ -193,6 +193,8 @@ _RATE_EXACT = {
     # arrêter une boucle. Le calcul est pur — aucune socket, aucun fichier.
     "/api/datacenter/marche/remplir":    (120, 60),
     "/api/datacenter/marche/export":     (30, 60),
+    "/api/datacenter/marche/dossier.zip": (10, 60),
+    "/api/datacenter/marche/parcours":   (60, 60),
     # LE DOSSIER PAR PROJET ÉCRIT EN BASE, ET IL CHIFFRE. Les deux coûtent :
     # un plafond de saisie continue (comme /remplir) laisserait une boucle
     # remplir la base de coffres. L'affirmation est plus rare encore — c'est
@@ -1918,9 +1920,7 @@ def api_juridique_export():
     type_doc = (data.get("type") or "analyse").strip()
     if type_doc not in juridique.TYPES_DOCUMENT:
         type_doc = "analyse"
-    fmt = (data.get("format") or "docx").strip().lower()
-    if fmt not in ("docx", "pdf"):
-        fmt = "docx"
+    fmt = livrables_export.format_demande(data.get("format"))
     objet = (data.get("objet") or "").strip()[:300]
     profil = data.get("profil") if isinstance(data.get("profil"), dict) else None
     dossier = data.get("dossier") if isinstance(data.get("dossier"), dict) else {}
@@ -1948,13 +1948,7 @@ def api_juridique_export():
             "sources": [{"title": p.get("titre"), "theme": p.get("origine")}
                         for p in pieces]}
     try:
-        if fmt == "pdf":
-            blob = livrables_export.build_pdf(md, meta)
-            mimetype = "application/pdf"
-        else:
-            blob = livrables_export.build_docx(md, meta)
-            mimetype = ("application/vnd.openxmlformats-officedocument"
-                        ".wordprocessingml.document")
+        blob, mimetype, ext = livrables_export.composer(md, meta, fmt)
     except Exception:
         app.logger.exception("export juridique")
         return jsonify(ok=False, error="export_echec",
@@ -1963,7 +1957,7 @@ def api_juridique_export():
                       detail="%s · %d caractères · %d pièce(s)"
                              % (fmt, len(texte), len(pieces)))
     return send_file(io.BytesIO(blob),
-                     download_name=juridique.nom_fichier(type_doc, objet) + "." + fmt,
+                     download_name=juridique.nom_fichier(type_doc, objet) + "." + ext,
                      as_attachment=True, mimetype=mimetype)
 
 
@@ -2279,9 +2273,7 @@ def api_playbook_export():
     if len(texte.strip()) < 200:
         return jsonify(ok=False, error="version_vide",
                        message="Aucune version à documenter."), 400
-    fmt = (data.get("format") or "docx").strip().lower()
-    if fmt not in ("docx", "pdf"):
-        fmt = "docx"
+    fmt = livrables_export.format_demande(data.get("format"))
     objet = str(data.get("objet") or "").strip()[:300]
     domaines = _domaines_demandes(data)
 
@@ -2309,13 +2301,7 @@ def api_playbook_export():
             "sources": [{"title": "Playbook contractuel v" + playbook.VERSION_PLAYBOOK,
                          "theme": "référentiel interne"}]}
     try:
-        if fmt == "pdf":
-            blob = livrables_export.build_pdf(md, meta)
-            mimetype = "application/pdf"
-        else:
-            blob = livrables_export.build_docx(md, meta)
-            mimetype = ("application/vnd.openxmlformats-officedocument"
-                        ".wordprocessingml.document")
+        blob, mimetype, ext = livrables_export.composer(md, meta, fmt)
     except Exception:
         app.logger.exception("export relecture")
         return jsonify(ok=False, error="export_echec",
@@ -2328,7 +2314,7 @@ def api_playbook_export():
                              % (len(analyse["themes"]), analyse["compte"]["ligne-rouge"],
                                 ci["n_points"]))
     return send_file(io.BytesIO(blob),
-                     download_name="note-relecture-%s.%s" % (base or "contrat", fmt),
+                     download_name="note-relecture-%s.%s" % (base or "contrat", ext),
                      as_attachment=True, mimetype=mimetype)
 
 
@@ -2358,6 +2344,7 @@ import icpe_dc       # noqa: E402  — crible les rubriques, ne classe pas le si
 import travaux_dc    # noqa: E402  — l'ordre des opérations de chantier et ses tiers
 import ao_dc         # noqa: E402  — lit le dossier marché, prépare la candidature
 import ao_formulaires  # noqa: E402  — écrit DANS le formulaire officiel, sans signer
+import ao_parcours   # noqa: E402  — où en est la réponse, étape par étape
 import dossier_entreprise  # noqa: E402  — le dossier de CONSEILPREV, admin seul
 import programme_dc  # noqa: E402  — consolide un portefeuille de sites, pas un projet
 import tier_dc       # noqa: E402  — qualifie une topologie, ne décerne aucun niveau
@@ -2808,10 +2795,11 @@ def api_62443_checklist_emporter():
     la place en tete du document.
     """
     data = request.get_json(silent=True) or {}
-    fmt = str(data.get("format") or "pdf").lower()
-    if fmt not in ("pdf", "docx"):
+    fmt = str(data.get("format") or "pdf").strip().lower()
+    if fmt not in livrables_export.FORMATS:
         return jsonify(ok=False, error="format_inconnu",
-                       message="Formats servis : pdf, docx."), 400
+                       message="Formats servis : %s."
+                               % ", ".join(livrables_export.FORMATS)), 400
 
     # LA MEME PORTE QUE L'ECRAN. `markdown` appelle `parcours`, qui appelle
     # `compter` : une cle inconnue est refusee ici comme elle l'est la, et le
@@ -2834,13 +2822,7 @@ def api_62443_checklist_emporter():
                          or "installation industrielle",
             "date": time.strftime("%d/%m/%Y")}
     try:
-        if fmt == "pdf":
-            blob = livrables_export.build_pdf(md, meta)
-            mimetype = "application/pdf"
-        else:
-            blob = livrables_export.build_docx(md, meta)
-            mimetype = ("application/vnd.openxmlformats-officedocument"
-                        ".wordprocessingml.document")
+        blob, mimetype, ext = livrables_export.composer(md, meta, fmt)
     except Exception:
         app.logger.exception("export checklist 62443")
         return jsonify(ok=False, error="export_echec",
@@ -2901,10 +2883,11 @@ def api_maturite_ot_emporter():
     lire un degre, que personne n'est venu le verifier.
     """
     data = request.get_json(silent=True) or {}
-    fmt = str(data.get("format") or "pdf").lower()
-    if fmt not in ("pdf", "docx"):
+    fmt = str(data.get("format") or "pdf").strip().lower()
+    if fmt not in livrables_export.FORMATS:
         return jsonify(ok=False, error="format_inconnu",
-                       message="Formats servis : pdf, docx."), 400
+                       message="Formats servis : %s."
+                               % ", ".join(livrables_export.FORMATS)), 400
 
     # LA MEME PORTE QUE L'ECRAN. Un domaine inconnu est refuse ici comme il
     # l'est a l'ecran, et pour le meme motif : un format de sortie ne doit
@@ -2935,13 +2918,7 @@ def api_maturite_ot_emporter():
                          or "installation industrielle",
             "date": time.strftime("%d/%m/%Y")}
     try:
-        if fmt == "pdf":
-            blob = livrables_export.build_pdf(md, meta)
-            mimetype = "application/pdf"
-        else:
-            blob = livrables_export.build_docx(md, meta)
-            mimetype = ("application/vnd.openxmlformats-officedocument"
-                        ".wordprocessingml.document")
+        blob, mimetype, ext = livrables_export.composer(md, meta, fmt)
     except Exception:
         app.logger.exception("export maturite OT")
         return jsonify(ok=False, error="export_echec",
@@ -3410,9 +3387,7 @@ def api_datacenter_decarbonation_export():
     if not d.get("connu"):
         return jsonify(ok=False, error="etape_inconnue",
                        message=d.get("motif", "Étape inconnue.")), 404
-    fmt = (data.get("format") or "docx").strip().lower()
-    if fmt not in ("docx", "pdf"):
-        fmt = "docx"
+    fmt = livrables_export.format_demande(data.get("format"))
     client = str(data.get("client") or "").strip()[:120]
     md = _dossier_decarbonation_markdown(d, client)
     meta = {"label": "%s — %s" % (d["code"], d["nom"]),
@@ -3434,18 +3409,12 @@ def api_datacenter_decarbonation_export():
                          "theme": "calcul déterministe"}]}
     md, bord = _poser_bordereau(md, meta, "trajectoire", data)
     try:
-        if fmt == "pdf":
-            blob = livrables_export.build_pdf(md, meta)
-            mimetype = "application/pdf"
-        else:
-            blob = livrables_export.build_docx(md, meta)
-            mimetype = ("application/vnd.openxmlformats-officedocument"
-                        ".wordprocessingml.document")
+        blob, mimetype, ext = livrables_export.composer(md, meta, fmt)
     except Exception:
         app.logger.exception("mise en page dossier decarbonation")
         return jsonify(ok=False, error="mise_en_page",
                        message="Le document n'a pas pu être mis en page."), 500
-    nom = _safe_download_name("decarbonation-%s.%s" % (d["code"].lower(), fmt))
+    nom = _safe_download_name("decarbonation-%s.%s" % (d["code"].lower(), ext))
     resp = Response(blob, mimetype=mimetype)
     resp.headers["Content-Disposition"] = 'attachment; filename="%s"' % nom
     resp.headers["Cache-Control"] = "no-store"
@@ -3536,9 +3505,7 @@ def api_datacenter_strategie_export():
         app.logger.exception("export strategie DD")
         return jsonify(ok=False, error="calcul",
                        message="La stratégie n'a pas pu être établie."), 500
-    fmt = (data.get("format") or "docx").strip().lower()
-    if fmt not in ("docx", "pdf"):
-        fmt = "docx"
+    fmt = livrables_export.format_demande(data.get("format"))
     projet = s["identite"]["projet"] or "Centre de données"
     meta = {"label": "Stratégie de développement durable — %s" % projet,
             "numero": "STRAT-DD",
@@ -3568,13 +3535,7 @@ def api_datacenter_strategie_export():
             ]}
     md, bord = _poser_bordereau(md, meta, "strategie_dd", data)
     try:
-        if fmt == "pdf":
-            blob = livrables_export.build_pdf(md, meta)
-            mimetype = "application/pdf"
-        else:
-            blob = livrables_export.build_docx(md, meta)
-            mimetype = ("application/vnd.openxmlformats-officedocument"
-                        ".wordprocessingml.document")
+        blob, mimetype, ext = livrables_export.composer(md, meta, fmt)
     except Exception:
         app.logger.exception("export stratégie DD")
         return jsonify(ok=False, error="export_echec",
@@ -3582,7 +3543,7 @@ def api_datacenter_strategie_export():
     audit.journaliser("datacenter.strategie.export", cible="STRAT-DD",
                       detail="%s · %d enjeu(x) retenu(s)" % (fmt, len(s["retenus"])))
     return send_file(io.BytesIO(blob),
-                     download_name="strategie-dd.%s" % fmt,
+                     download_name="strategie-dd.%s" % ext,
                      as_attachment=True, mimetype=mimetype)
 
 
@@ -4701,17 +4662,10 @@ def api_datacenter_marche_remplir():
     un programme est une déclaration que personne n'a faite.
     """
     data = request.get_json(silent=True) or {}
-    fiche = data.get("fiche") if isinstance(data.get("fiche"), dict) else {}
-    analyse = data.get("analyse") if isinstance(data.get("analyse"), dict) else None
-    saisies = data.get("saisies") if isinstance(data.get("saisies"), dict) else {}
-    # Les valeurs sont bornées à l'entrée : une fiche est faite de lignes
-    # courtes, et une case de formulaire qui recevrait un roman ne se remplit
-    # pas — elle sert à faire grossir une réponse.
-    fiche = {str(k)[:60]: str(v)[:400] for k, v in list(fiche.items())[:80]}
-    saisies = {str(k)[:80]: str(v)[:800] for k, v in list(saisies.items())[:120]}
+    fiche, analyse, saisies, groupement = _ao_charge(data)
     try:
         r = ao_dc.remplir(fiche=fiche, analyse=analyse, saisies=saisies,
-                          groupement=bool(data.get("groupement")))
+                          groupement=groupement)
     except Exception:
         app.logger.exception("remplissage du dossier de candidature")
         return jsonify(ok=False, error="calcul",
@@ -4735,17 +4689,11 @@ def api_datacenter_marche_export():
     que dans la page : le document circule, et il se signerait sans être lu.
     """
     data = request.get_json(silent=True) or {}
-    fiche = data.get("fiche") if isinstance(data.get("fiche"), dict) else {}
-    analyse = data.get("analyse") if isinstance(data.get("analyse"), dict) else None
-    saisies = data.get("saisies") if isinstance(data.get("saisies"), dict) else {}
-    fiche = {str(k)[:60]: str(v)[:400] for k, v in list(fiche.items())[:80]}
-    saisies = {str(k)[:80]: str(v)[:800] for k, v in list(saisies.items())[:120]}
-    fmt = (data.get("format") or "docx").strip().lower()
-    if fmt not in ("docx", "pdf"):
-        fmt = "docx"
+    fiche, analyse, saisies, groupement = _ao_charge(data)
+    fmt = livrables_export.format_demande(data.get("format"))
     try:
         r = ao_dc.remplir(fiche=fiche, analyse=analyse, saisies=saisies,
-                          groupement=bool(data.get("groupement")))
+                          groupement=groupement)
         md = ao_dc.markdown_remplissage(r)
     except Exception:
         app.logger.exception("remplissage à exporter")
@@ -4772,13 +4720,7 @@ def api_datacenter_marche_export():
                          "theme": "citations avec position"}]}
     md, _bord = _poser_bordereau(md, meta, "candidature", data)
     try:
-        if fmt == "pdf":
-            blob = livrables_export.build_pdf(md, meta)
-            mimetype = "application/pdf"
-        else:
-            blob = livrables_export.build_docx(md, meta)
-            mimetype = ("application/vnd.openxmlformats-officedocument"
-                        ".wordprocessingml.document")
+        blob, mimetype, ext = livrables_export.composer(md, meta, fmt)
     except Exception:
         app.logger.exception("export du dossier de candidature")
         return jsonify(ok=False, error="export_echec",
@@ -4787,8 +4729,223 @@ def api_datacenter_marche_export():
                       cible="%d rubriques" % r["etat"]["rubriques"],
                       detail="%s · %d remplies" % (fmt, r["etat"]["remplies"]))
     return send_file(io.BytesIO(blob),
-                     download_name="reponse-consultation.%s" % fmt,
+                     download_name="reponse-consultation.%s" % ext,
                      as_attachment=True, mimetype=mimetype)
+
+
+def _ao_charge(data):
+    """La charge utile commune aux trois routes de réponse à consultation.
+
+    Les mêmes bornes, au même endroit. Quatre recopies auraient dérivé, et
+    c'est celle qu'on oublie d'élargir qui tronquerait silencieusement une
+    saisie.
+
+    Les valeurs sont bornées à l'entrée : une fiche est faite de lignes
+    courtes, et une case de formulaire qui recevrait un roman ne se remplit
+    pas — elle sert à faire grossir une réponse.
+    """
+    fiche = data.get("fiche") if isinstance(data.get("fiche"), dict) else {}
+    analyse = data.get("analyse") if isinstance(data.get("analyse"), dict) else None
+    saisies = data.get("saisies") if isinstance(data.get("saisies"), dict) else {}
+    return ({str(k)[:60]: str(v)[:400] for k, v in list(fiche.items())[:80]},
+            analyse,
+            {str(k)[:80]: str(v)[:800] for k, v in list(saisies.items())[:120]},
+            bool(data.get("groupement")))
+
+
+def _ao_bordereau_archive(fmt, pieces, manques):
+    """Ce que l'archive contient, et ce qu'elle n'a PAS pu produire.
+
+    UNE ARCHIVE SILENCIEUSEMENT INCOMPLÈTE EST PIRE QUE PAS D'ARCHIVE. Celui
+    qui la reçoit compte les fichiers, en trouve six au lieu de sept, et ne
+    saura jamais si le septième n'existait pas ou s'il a échoué. Le bordereau
+    tranche : chaque manque est nommé avec sa raison.
+    """
+    lignes = ["DOSSIER DE RÉPONSE À CONSULTATION",
+              "Composé le %s" % _horodatage(),
+              "Format demandé : %s"
+              % livrables_export.NOM_FORMAT.get(fmt, fmt),
+              "",
+              "CE QUE CONTIENT CETTE ARCHIVE (%d fichier(s))" % len(pieces), ""]
+    for nom, quoi in pieces:
+        lignes.append("- %s — %s" % (nom, quoi))
+    lignes += ["",
+               "LES FORMULAIRES OFFICIELS RESTENT EN WORD, ET C'EST VOULU.",
+               "Ce qui sort EST le fichier du ministère, avec sa mise en page et",
+               "sa date : le convertir en PDF ou en classeur en ferait un",
+               "fac-similé, qui serait refusé — ou pire, accepté et faux.",
+               "Aucun n'est signé ni vérifié : chacun le porte en tête.", ""]
+    if manques:
+        lignes += ["CE QUI N'A PAS PU ÊTRE PRODUIT", ""]
+        for nom, motif in manques:
+            lignes.append("- %s : %s" % (nom, motif))
+    else:
+        lignes.append("Rien n'a été écarté : tout ce qui pouvait être produit "
+                      "l'a été.")
+    return "\n".join(lignes) + "\n"
+
+
+@app.route("/api/datacenter/marche/parcours", methods=["POST"])
+@login_required
+def api_datacenter_marche_parcours():
+    """OÙ EN EST CETTE RÉPONSE — sept étapes, chacune sur une mesure.
+
+    POURQUOI UNE ROUTE ET PAS UN CALCUL DANS LA PAGE. Le compte des rubriques,
+    des pièces et des champs tenus vient de `ao_dc.remplir` ; le refaire en
+    JavaScript donnerait deux comptes qui divergeraient, et c'est celui qu'on
+    oublie de corriger qui resterait affiché. La page AFFICHE le parcours ;
+    elle ne le calcule pas.
+
+    ELLE NE CONSERVE RIEN. Comme `/export`, `/formulaire` et `/dossier.zip` :
+    la fiche arrive dans la requête et repart dans la réponse. Rien n'est
+    écrit, pas même le parcours.
+
+    LES ATTESTATIONS SONT UN CAS À PART, et c'est réfléchi. `dossier_entreprise`
+    porte celles de CONSEILPREV, et l'administrateur seul y a accès. Un client
+    répond à SA consultation avec SES attestations, que ce site ne détient
+    pas : l'étape le dit alors, au lieu de se prononcer sur la mauvaise
+    entreprise. Elle n'est mesurée que pour l'administrateur, sur le dossier de
+    la maison.
+    """
+    data = request.get_json(silent=True) or {}
+    fiche, analyse, saisies, groupement = _ao_charge(data)
+    try:
+        r = ao_dc.remplir(fiche=fiche, analyse=analyse, saisies=saisies,
+                          groupement=groupement)
+    except Exception:
+        app.logger.exception("parcours — remplissage")
+        return jsonify(ok=False, error="calcul",
+                       message="L'état de la réponse n'a pas pu être "
+                               "établi."), 500
+
+    etat = {"analyse": analyse, "remplissage": r, "fiche": fiche,
+            "formulaires": ao_formulaires.modeles_disponibles()}
+
+    # LES AFFIRMATIONS NE SE LISENT QUE SUR UN PROJET OUVERT AU COMPTE. Sans
+    # projet, l'étape se déclare non faite — ce qui est exact : une
+    # affirmation qui ne laisse pas de trace n'engage personne.
+    projet = _projet_ouvert_au_compte(data.get("projet"))
+    if projet:
+        try:
+            etat["affirmations"] = ao_projet.etat_affirmations(projet)
+        except Exception:
+            app.logger.exception("parcours — affirmations")
+
+    if ((current_user() or {}).get("role") or "user") == "admin":
+        etat["attestations"] = dossier_entreprise.etat_attestations()
+
+    return jsonify(ok=True, parcours=ao_parcours.parcours(etat),
+                   version=ao_parcours.VERSION)
+
+
+@app.route("/api/datacenter/marche/dossier.zip", methods=["POST"])
+@login_required
+def api_datacenter_marche_dossier_zip():
+    """TOUT LE DOSSIER EN UN GESTE : le report préparé et les formulaires remplis.
+
+    CE QUE CETTE ROUTE AJOUTE AUX DEUX AUTRES. `/export` rend le report des
+    rubriques ; `/formulaire` rend UN formulaire officiel, un appel par
+    modèle. Répondre à une consultation demandait donc cinq téléchargements et
+    autant d'occasions d'en oublier un. Ici, un seul.
+
+    ELLE NE CONSERVE RIEN, comme les deux autres : tout vient de la requête et
+    repart dans la réponse. Le dossier marché conservé par projet est un autre
+    dispositif, avec son chiffrement et son échéance.
+
+    ELLE NE SIGNE RIEN. Les déclarations sortent vides et les formulaires
+    portent en tête qu'ils sont des projets non signés.
+    """
+    data = request.get_json(silent=True) or {}
+    fiche, analyse, saisies, groupement = _ao_charge(data)
+    fmt = livrables_export.format_demande(data.get("format"))
+    try:
+        r = ao_dc.remplir(fiche=fiche, analyse=analyse, saisies=saisies,
+                          groupement=groupement)
+        md = ao_dc.markdown_remplissage(r)
+    except Exception:
+        app.logger.exception("dossier complet — remplissage")
+        return jsonify(ok=False, error="calcul",
+                       message="Le dossier n'a pas pu être établi."), 500
+
+    meta = {"label": "Réponse à consultation — pièces préparées",
+            "numero": "AO-REPONSE", "phase": "Réponse à consultation",
+            "indice": "01",
+            "client": str(fiche.get("raison_sociale") or "")[:120],
+            "ia": False,
+            "referentiel": "Composition de candidature CONSEILPREV v" + ao_dc.VERSION,
+            "perimetre": "%d rubriques · %d pièces (%d candidature, %d offre)"
+                         % (r["etat"]["rubriques"], r["etat"]["pieces"],
+                            r["etat"]["candidature"], r["etat"]["offre"]),
+            "date": time.strftime("%d/%m/%Y"),
+            "sources": [{"title": "Fiche du candidat saisie par le client",
+                         "theme": "report"},
+                        {"title": "Analyse du dossier de consultation v" + ao_dc.VERSION,
+                         "theme": "citations avec position"}]}
+    md, _bord = _poser_bordereau(md, meta, "candidature", data)
+
+    tampon = io.BytesIO()
+    pieces, manques = [], []
+    with zipfile.ZipFile(tampon, "w", zipfile.ZIP_DEFLATED) as z:
+        try:
+            blob, _mt, ext = livrables_export.composer(md, meta, fmt)
+            nom = "reponse-consultation." + ext
+            z.writestr(nom, blob)
+            pieces.append((nom, "le report des %d rubriques, valeur par valeur, "
+                                "avec l'origine de chacune"
+                                % r["etat"]["rubriques"]))
+        except Exception:
+            app.logger.exception("dossier complet — mise en page du report")
+            manques.append(("reponse-consultation." + fmt,
+                            "la mise en page a échoué"))
+
+        # LES FORMULAIRES, DANS L'ORDRE DU RÉFÉRENTIEL et non celui d'un dict :
+        # un dossier dont l'ordre change d'un téléchargement à l'autre se
+        # compare mal à celui de la veille.
+        for cle in sorted(ao_formulaires.MODELES):
+            modele = ao_formulaires.MODELES[cle]
+            nom = "%s-projet-non-signe.docx" % cle
+            try:
+                octets, rapport = ao_formulaires.remplir_document(
+                    cle, ao_formulaires.valeurs_pour(r, modele["piece"]))
+            except Exception:
+                app.logger.exception("dossier complet — formulaire %s", cle)
+                manques.append((nom, "le remplissage a échoué"))
+                continue
+            if not rapport.get("ok"):
+                manques.append((nom, "modèle absent du serveur"
+                                if rapport["motif"] == "modele_absent" else
+                                "le modèle a changé depuis que ses "
+                                "emplacements ont été repérés ; le "
+                                "remplissage est refusé plutôt que fait à "
+                                "côté"))
+                continue
+            z.writestr(nom, octets)
+            pieces.append((nom, "%s — %d valeur(s) placée(s), %d non placée(s), "
+                                "version du %s"
+                                % (modele["nom"], len(rapport["places"]),
+                                   len(rapport["non_places"]), modele["maj"])))
+        z.writestr("BORDEREAU.txt",
+                   _ao_bordereau_archive(fmt, pieces, manques).encode("utf-8"))
+
+    if not pieces:
+        # RIEN N'A PU ÊTRE PRODUIT : une archive qui ne contient qu'un
+        # bordereau d'échecs se télécharge et déçoit. On refuse en le disant.
+        return jsonify(ok=False, error="dossier_vide", manques=manques,
+                       message="Aucune pièce n'a pu être produite. Le "
+                               "bordereau en donne la raison."), 409
+    audit.journaliser("marche.dossier.archive",
+                      cible="%d pièce(s)" % len(pieces),
+                      detail="%s · %d manque(s)" % (fmt, len(manques)))
+    reponse = send_file(
+        io.BytesIO(tampon.getvalue()),
+        download_name="dossier-reponse-consultation-%s.zip" % _horodatage()[:10],
+        as_attachment=True, mimetype="application/zip")
+    # LE COMPTE VOYAGE AVEC L'ARCHIVE : la page doit pouvoir dire « 5 pièces,
+    # 0 manque » sans rouvrir le zip, et un téléchargement ne rend pas de JSON.
+    reponse.headers["X-Dossier"] = json.dumps(
+        {"pieces": len(pieces), "manques": [m[0] for m in manques],
+         "format": fmt}, ensure_ascii=True)
+    return reponse
 
 
 @app.route("/api/datacenter/marche/formulaire", methods=["POST"])
@@ -4817,14 +4974,10 @@ def api_datacenter_marche_formulaire():
         return jsonify(ok=False, error="modele_inconnu",
                        message="Formulaire inconnu.",
                        disponibles=sorted(ao_formulaires.MODELES)), 400
-    fiche = data.get("fiche") if isinstance(data.get("fiche"), dict) else {}
-    analyse = data.get("analyse") if isinstance(data.get("analyse"), dict) else None
-    saisies = data.get("saisies") if isinstance(data.get("saisies"), dict) else {}
-    fiche = {str(k)[:60]: str(v)[:400] for k, v in list(fiche.items())[:80]}
-    saisies = {str(k)[:80]: str(v)[:800] for k, v in list(saisies.items())[:120]}
+    fiche, analyse, saisies, groupement = _ao_charge(data)
     try:
         r = ao_dc.remplir(fiche=fiche, analyse=analyse, saisies=saisies,
-                          groupement=bool(data.get("groupement")))
+                          groupement=groupement)
         piece = ao_formulaires.MODELES[modele]["piece"]
         octets, rapport = ao_formulaires.remplir_document(
             modele, ao_formulaires.valeurs_pour(r, piece))
@@ -5157,9 +5310,7 @@ def api_datacenter_ingenierie_export():
     if not d.get("connu"):
         return jsonify(ok=False, error="phase_inconnue",
                        message=d.get("motif", "Phase inconnue.")), 404
-    fmt = (data.get("format") or "docx").strip().lower()
-    if fmt not in ("docx", "pdf"):
-        fmt = "docx"
+    fmt = livrables_export.format_demande(data.get("format"))
     md = _etude_phase_markdown(d, str(data.get("client") or "").strip()[:120])
     meta = {"label": "Étude de phase %s, %s" % (d["code"], d["nom"]),
             "numero": "ETUDE-%s" % d["code"],
@@ -5177,13 +5328,7 @@ def api_datacenter_ingenierie_export():
                          "theme": ingenierie_dc.FILIERES[d["filiere"]]["cadre"]}]}
     md, bord = _poser_bordereau(md, meta, "etude_phase", data)
     try:
-        if fmt == "pdf":
-            blob = livrables_export.build_pdf(md, meta)
-            mimetype = "application/pdf"
-        else:
-            blob = livrables_export.build_docx(md, meta)
-            mimetype = ("application/vnd.openxmlformats-officedocument"
-                        ".wordprocessingml.document")
+        blob, mimetype, ext = livrables_export.composer(md, meta, fmt)
     except Exception:
         app.logger.exception("export étude de phase")
         return jsonify(ok=False, error="export_echec",
@@ -5191,7 +5336,7 @@ def api_datacenter_ingenierie_export():
     audit.journaliser("datacenter.ingenierie.export", cible=d["code"],
                       detail="%s · %s" % (fmt, d["filiere"]))
     return send_file(io.BytesIO(blob),
-                     download_name="etude-%s.%s" % (d["code"].lower(), fmt),
+                     download_name="etude-%s.%s" % (d["code"].lower(), ext),
                      as_attachment=True, mimetype=mimetype)
 
 
@@ -5218,9 +5363,7 @@ def api_datacenter_piece_export():
     if len(md) > 400_000:
         return jsonify(ok=False, error="trop_long",
                        message="Document trop volumineux pour la mise en page."), 413
-    fmt = (data.get("format") or "docx").strip().lower()
-    if fmt not in ("docx", "pdf"):
-        fmt = "docx"
+    fmt = livrables_export.format_demande(data.get("format"))
     code_phase = str(data.get("phase") or "").strip().upper()[:12]
     code_piece = str(data.get("piece") or "").strip().upper()[:24]
     pc = ingenierie_dc.piece(code_phase, code_piece) or {}
@@ -5263,13 +5406,7 @@ def api_datacenter_piece_export():
                  "theme": "registre des pièces"}]}
     md, bord = _poser_bordereau(md, meta, "piece", data)
     try:
-        if fmt == "pdf":
-            blob = livrables_export.build_pdf(md, meta)
-            mimetype = "application/pdf"
-        else:
-            blob = livrables_export.build_docx(md, meta)
-            mimetype = ("application/vnd.openxmlformats-officedocument"
-                        ".wordprocessingml.document")
+        blob, mimetype, ext = livrables_export.composer(md, meta, fmt)
     except Exception:
         app.logger.exception("export pièce d'ingénierie")
         return jsonify(ok=False, error="export_echec",
@@ -5729,9 +5866,7 @@ def api_datacenter_export():
     if not profil.get("puissance_it_kw"):
         return jsonify(ok=False, error="puissance_absente",
                        message="La puissance informatique installée est nécessaire."), 400
-    fmt = (data.get("format") or "docx").strip().lower()
-    if fmt not in ("docx", "pdf"):
-        fmt = "docx"
+    fmt = livrables_export.format_demande(data.get("format"))
     res = datacenter.etude(profil)
     md = _note_calcul_markdown(res, str(data.get("client") or "").strip()[:120])
     meta = {"label": "Note de calcul — centre de données",
@@ -5747,20 +5882,14 @@ def api_datacenter_export():
                          "theme": "calcul déterministe"}]}
     md, bord = _poser_bordereau(md, meta, "note_calcul", data)
     try:
-        if fmt == "pdf":
-            blob = livrables_export.build_pdf(md, meta)
-            mimetype = "application/pdf"
-        else:
-            blob = livrables_export.build_docx(md, meta)
-            mimetype = ("application/vnd.openxmlformats-officedocument"
-                        ".wordprocessingml.document")
+        blob, mimetype, ext = livrables_export.composer(md, meta, fmt)
     except Exception:
         app.logger.exception("export note de calcul")
         return jsonify(ok=False, error="export_echec",
                        message="La mise en page a échoué."), 500
     audit.journaliser("datacenter.export", cible=fmt,
                       detail="%s kW" % round(profil["puissance_it_kw"]))
-    return send_file(io.BytesIO(blob), download_name="note-calcul-datacenter." + fmt,
+    return send_file(io.BytesIO(blob), download_name="note-calcul-datacenter." + ext,
                      as_attachment=True, mimetype=mimetype)
 
 
@@ -9506,14 +9635,17 @@ def api_projet_envoyer(pid):
 @app.route("/api/datacenter/projets/<pid>/dossier.zip", methods=["GET"])
 @login_required
 def api_projet_zip(pid):
-    """Tout le dossier en une archive : un fichier Word par livrable.
+    """Tout le dossier en une archive, un fichier par livrable.
 
-    Le format Word plutôt que le Markdown de la sauvegarde : celle-ci sert à
-    RECHARGER le projet, l'archive sert à le LIRE et à le transmettre. Deux
-    besoins, deux formats — servir du Markdown à qui veut relire un CCTP le
-    ferait convertir à la main.
+    Un format de bureautique plutôt que le Markdown de la sauvegarde : celle-ci
+    sert à RECHARGER le projet, l'archive sert à le LIRE et à le transmettre.
+    Deux besoins, deux formats — servir du Markdown à qui veut relire un CCTP
+    le ferait convertir à la main.
 
-    Le paramètre `phase` restreint à une phase. Sans lui, tout le projet.
+    `format` choisit entre les trois formats servis (Word par défaut, comme
+    avant : une archive qui changerait de nature sans qu'on le demande
+    surprendrait qui l'automatise). `phase` restreint à une phase ; sans lui,
+    tout le projet.
     """
     prop = _proprietaire()
     if not prop or not projets_dc._valid_id(pid):
@@ -9521,6 +9653,7 @@ def api_projet_zip(pid):
     projet = projets_db.obtenir(prop, pid)
     if not projet:
         return jsonify(ok=False, error="introuvable"), 404
+    fmt = livrables_export.format_demande(request.args.get("format"))
     phase = (request.args.get("phase") or "").strip().upper()[:12]
     metas = [m for m in livrables_hist.list()
              if m.get("projet_id") == pid and (not phase or m.get("phase") == phase)]
@@ -9543,10 +9676,10 @@ def api_projet_zip(pid):
             # l'archive, silencieusement.
             nom = base
             n = 2
-            while nom + ".docx" in noms:
+            while nom + "." + fmt in noms:
                 nom = "%s-%d" % (base, n)
                 n += 1
-            noms.add(nom + ".docx")
+            noms.add(nom + "." + fmt)
             meta = {"type": rec.get("type"), "label": rec.get("label"),
                     "client": rec.get("client"), "secteur": rec.get("secteur"),
                     # Le code du rédacteur vient du MAGASIN, écrit au moment de
@@ -9558,8 +9691,9 @@ def api_projet_zip(pid):
                     "sources": [x for x in (rec.get("sources") or [])
                                 if isinstance(x, dict)][:40]}
             try:
-                z.writestr(nom + ".docx",
-                           livrables_export.build_docx(rec["markdown"], meta))
+                corps, _mt, ext = livrables_export.composer(rec["markdown"],
+                                                            meta, fmt)
+                z.writestr(nom + "." + ext, corps)
                 ajoutes += 1
             except Exception:
                 # Une mise en page qui échoue ne doit pas emporter l'archive
@@ -9576,8 +9710,9 @@ def api_projet_zip(pid):
                                       ("-" + phase) if phase else "",
                                       _horodatage()[:10])
     audit.journaliser("projet.archive", cible=pid[:32],
-                      detail="%d livrable(s)%s" % (ajoutes,
-                                                   " · " + phase if phase else ""))
+                      detail="%d livrable(s) · %s%s"
+                             % (ajoutes, fmt,
+                                " · " + phase if phase else ""))
     resp = Response(corps, mimetype="application/zip")
     resp.headers["Content-Disposition"] = 'attachment; filename="%s"' % nom_zip
     resp.headers["X-Content-Type-Options"] = "nosniff"
@@ -9674,7 +9809,7 @@ def api_projet_livrable(pid, lid, fmt):
     prop = _proprietaire()
     if not prop or not projets_dc._valid_id(pid) or not _rag_hex(lid):
         return jsonify(ok=False, error="reference_invalide"), 400
-    if fmt not in ("docx", "pdf", "md"):
+    if fmt not in livrables_export.FORMATS + ("md",):
         return jsonify(ok=False, error="format_inconnu"), 400
     if not projets_db.obtenir(prop, pid):
         return jsonify(ok=False, error="introuvable"), 404
@@ -9699,12 +9834,7 @@ def api_projet_livrable(pid, lid, fmt):
                 "sources": [s for s in (rec.get("sources") or [])
                             if isinstance(s, dict)][:40]}
         try:
-            if fmt == "pdf":
-                blob, mt = livrables_export.build_pdf(md, meta), "application/pdf"
-            else:
-                blob = livrables_export.build_docx(md, meta)
-                mt = ("application/vnd.openxmlformats-officedocument"
-                      ".wordprocessingml.document")
+            blob, mt, _ext = livrables_export.composer(md, meta, fmt)
         except Exception:
             return jsonify(ok=False, error="export_echec",
                            message="La mise en page a échoué."), 500
@@ -9736,7 +9866,7 @@ def api_projet_documents(pid, fmt):
     prop = _proprietaire()
     if not prop or not projets_dc._valid_id(pid):
         return jsonify(ok=False, error="reference_invalide"), 400
-    if fmt not in ("docx", "pdf", "md", "json"):
+    if fmt not in livrables_export.FORMATS + ("md", "json"):
         return jsonify(ok=False, error="format_inconnu"), 400
     projet = projets_db.obtenir(prop, pid)
     if not projet:
@@ -9771,12 +9901,7 @@ def api_projet_documents(pid, fmt):
                 "statut": "Registre des documents visés",
                 "sources": []}
         try:
-            if fmt == "pdf":
-                blob, mt = livrables_export.build_pdf(md, meta), "application/pdf"
-            else:
-                blob = livrables_export.build_docx(md, meta)
-                mt = ("application/vnd.openxmlformats-officedocument"
-                      ".wordprocessingml.document")
+            blob, mt, _ext = livrables_export.composer(md, meta, fmt)
         except Exception:
             return jsonify(ok=False, error="export_echec",
                            message="La mise en page a échoué."), 500
@@ -10165,9 +10290,7 @@ def api_livrables_export():
     md = (data.get("markdown") or "").strip()
     if not md:
         return jsonify(ok=False, error="vide", message="Aucun contenu à exporter."), 400
-    fmt = (data.get("format") or "docx").strip().lower()
-    if fmt not in ("docx", "pdf"):
-        fmt = "docx"
+    fmt = livrables_export.format_demande(data.get("format"))
     # Ces informations existaient côté application mais n'atteignaient pas le
     # document : `meta` était transmis puis ignoré par les deux constructeurs.
     # Elles alimentent désormais le bloc de garde et l'annexe des sources.
@@ -10184,13 +10307,7 @@ def api_livrables_export():
             "date": time.strftime("%d/%m/%Y"),
             "sources": srcs}
     try:
-        if fmt == "pdf":
-            blob = livrables_export.build_pdf(md, meta)
-            mimetype = "application/pdf"
-        else:
-            blob = livrables_export.build_docx(md, meta)
-            mimetype = ("application/vnd.openxmlformats-officedocument"
-                        ".wordprocessingml.document")
+        blob, mimetype, ext = livrables_export.composer(md, meta, fmt)
     except Exception:
         return jsonify(ok=False, error="export_echec",
                        message="La mise en page a échoué."), 500
@@ -10198,7 +10315,7 @@ def api_livrables_export():
     if not type_id or not all(c.isalnum() or c in "-_" for c in type_id):
         type_id = "livrable"
     return send_file(
-        io.BytesIO(blob), download_name=type_id + "." + fmt, as_attachment=True,
+        io.BytesIO(blob), download_name=type_id + "." + ext, as_attachment=True,
         mimetype=mimetype)
 
 

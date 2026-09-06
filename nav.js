@@ -663,10 +663,12 @@
     s: ["Renseignez la puissance informatique : c'est le seul champ nécessaire pour dessiner la frise.",
         "Choisissez une filière — maîtrise d'œuvre ou ingénierie industrielle — puis une phase dans la frise.",
         "Lisez le dossier de la phase : le plan du livrable, le registre des pièces, et les points encore ouverts.",
-        "Exportez l'étude de phase en Word ou PDF."],
+        "Exportez l'étude de phase en Word, PDF ou Excel — le classeur rend les tableaux, pas le texte.",
+        "Pour répondre à une consultation, allez au § 14 : le parcours en sept étapes y dit, sur des nombres, où en est votre réponse."],
     k: [["MOP / AACE", "Deux traditions coexistent sur un centre de données : la loi MOP pour le bâtiment, la filière industrielle pour le procédé. Un centre relève des DEUX."],
         ["Substitution", "Un facteur dont l'ordre de grandeur ne suffit plus à ce stade : il faut aller chercher la donnée réelle, chez un fournisseur ou un gestionnaire de réseau."],
-        ["Recevable", "Ne veut pas dire « juste » : veut dire que le niveau de définition correspond à celui qu'attend la phase."]],
+        ["Recevable", "Ne veut pas dire « juste » : veut dire que le niveau de définition correspond à celui qu'attend la phase."],
+        ["Deux parcours, deux axes", "Celui des phases suit la production documentaire d'un projet — APS, APD, PRO. Celui de la réponse à consultation (§ 14) suit l'ordre du RISQUE : ce qui met trois semaines à venir passe avant ce qui se remplit en une heure."]],
     l: [["Le calcul énergie, eau et carbone", "/datacenter"], ["Le livrable d'ouverture", "/strategie-durable-datacenter"]] };
 
 

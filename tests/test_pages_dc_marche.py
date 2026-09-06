@@ -995,12 +995,49 @@ def test_la_fiche_ne_quitte_le_navigateur_QUE_par_le_geste_de_conservation():
     # range la fiche, chiffrée, pour la durée déclarée au registre. Elle n'est
     # atteinte que depuis `aoProjetDeposer`, c'est-à-dire depuis un bouton que
     # personne ne clique par accident.
+    # UNE CINQUIÈME ET UNE SIXIÈME ADRESSE, ENTRÉES DÉLIBÉRÉMENT ELLES AUSSI :
+    # `/marche/dossier.zip` compose l'archive complète — le report ET les
+    # quatre formulaires officiels ; `/marche/parcours` mesure où en est la
+    # réponse. Les deux ont besoin de la même fiche que les trois premières,
+    # et ne conservent rien de plus : elles appellent les mêmes fonctions,
+    # n'écrivent dans aucun magasin, et le journal d'audit n'y consigne qu'un
+    # COMPTE.
     SANS_CONSERVATION = {"/api/datacenter/marche/remplir",
                          "/api/datacenter/marche/export",
-                         "/api/datacenter/marche/formulaire"}
+                         "/api/datacenter/marche/formulaire",
+                         "/api/datacenter/marche/dossier.zip",
+                         "/api/datacenter/marche/parcours"}
     AVEC_CONSERVATION = {"/api/datacenter/marche/projet/dossier"}
-    envois = re.findall(r'demander\(\s*"(/api/[^"]+)"[^;]*?AO_FICHE', js, re.S)
-    assert set(envois) <= SANS_CONSERVATION | AVEC_CONSERVATION, envois
+
+    # LA RÈGLE A EU UN ANGLE MORT, ET IL A ÉTÉ MESURÉ. Elle cherchait
+    # « AO_FICHE » APRÈS l'adresse, dans la même expression :
+    #
+    #     demander("/api/…", {body: JSON.stringify({fiche: AO_FICHE, …})})
+    #
+    # Une fonction qui prépare sa charge dans une variable AVANT l'appel —
+    # `var corps = {fiche: AO_FICHE, …}; demander("/api/…", {body: …corps})` —
+    # passait sans être vue. C'est arrivé le 06/09/2026 : `aoParcours` a été
+    # écrite ainsi, la règle est restée verte, et une sixième adresse recevait
+    # la fiche sans que personne l'ait déclarée. Exactement le défaut que cette
+    # règle existe pour empêcher, dans sa propre mécanique.
+    #
+    # ON LIT DONC PAR FONCTION. Toute fonction qui NOMME la fiche et appelle
+    # une adresse la lui envoie potentiellement : l'indirection à l'intérieur
+    # d'une fonction ne protège plus de rien. La liste reste écrite EN ENTIER
+    # et à la main — la déduire ferait entrer d'office la prochaine route,
+    # ce qui rendrait la règle décorative.
+    fonctions = re.split(r"\n(?=  function )", js)
+    vues = [f for f in fonctions if "AO_FICHE" in f
+            and re.search(r'demander\(\s*"/api/', f)]
+    assert len(vues) >= 5, (
+        "%d fonction(s) seulement envoient la fiche : le découpage ne lit "
+        "plus le script" % len(vues))
+    envois = set()
+    for f in vues:
+        envois |= set(re.findall(r'demander\(\s*"(/api/[^"]+)"', f))
+    inconnues = sorted(envois - (SANS_CONSERVATION | AVEC_CONSERVATION))
+    assert not inconnues, (
+        "la fiche part vers une adresse non déclarée : " + ", ".join(inconnues))
 
     # LE SEUL ENVOI QUI CONSERVE PART DE LA SEULE FONCTION QUI LE DOIT.
     dep = js[js.index("function aoProjetDeposer("):]

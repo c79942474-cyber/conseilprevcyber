@@ -448,6 +448,7 @@
       + '<div class="actions" style="gap:10px;flex-wrap:wrap;margin-top:10px">'
       + '<button type="button" class="btn btn-s" data-dk-exp="docx">Dossier d’étape (Word)</button>'
       + '<button type="button" class="btn btn-s" data-dk-exp="pdf">Dossier d’étape (PDF)</button>'
+      + '<button type="button" class="btn btn-s" data-dk-exp="xlsx">Dossier d’étape (Excel)</button>'
       + '</div><p class="note" data-dk-exp-etat role="status" aria-live="polite"></p></div>';
 
     h += "</div>";

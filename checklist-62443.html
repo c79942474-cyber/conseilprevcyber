@@ -127,6 +127,7 @@
              vu ce site. -->
         <button type="button" id="ck-pdf" disabled>Emporter en PDF</button>
         <button type="button" id="ck-docx" disabled>Emporter en Word</button>
+        <button type="button" id="ck-xlsx" disabled>Emporter en Excel</button>
       </div>
     </div>
 
@@ -466,6 +467,7 @@
 
   $("#ck-pdf").addEventListener("click", function () { emporter("pdf", this); });
   $("#ck-docx").addEventListener("click", function () { emporter("docx", this); });
+  $("#ck-xlsx").addEventListener("click", function () { emporter("xlsx", this); });
 
   $("#ck-vider").addEventListener("click", function () {
     document.querySelectorAll("#ck-liste input[data-pt]").forEach(function (i) {
@@ -512,6 +514,7 @@
          de cases vide et rendrait un document qui ne dit rien de personne. */
       $("#ck-pdf").disabled = false;
       $("#ck-docx").disabled = false;
+      $("#ck-xlsx").disabled = false;
     })
     .catch(function () {
       $("#ck-liste").innerHTML = '<p class="note">La liste n’a pas pu être '

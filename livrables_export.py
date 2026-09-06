@@ -1084,3 +1084,273 @@ def build_pdf(md, meta=None):
 
     out = pdf.output()
     return bytes(out)
+
+
+# =============================================================================
+#  Excel (.xlsx, via openpyxl — déjà présent pour la lecture de la base)
+# =============================================================================
+# CE QU'EXCEL EST CENSÉ RENDRE, ET CE QU'IL NE FAUT PAS LUI FAIRE RENDRE. Un
+# livrable est du texte avec, dedans, des tableaux : bordereau de pièces, DPGF,
+# relevés, écarts au référentiel. Le texte se lit dans Word ou dans le PDF ; ce
+# qu'on ne peut PAS faire avec eux, c'est trier une colonne, filtrer, sommer,
+# recoller le tableau dans un autre classeur. C'est cela, et rien d'autre, que
+# ce troisième format apporte.
+#
+# D'OÙ LE PARTI PRIS : UNE FEUILLE PAR TABLEAU. Un classeur qui recopierait le
+# document ligne à ligne dans une colonne A serait un faux service — il aurait
+# l'air d'un export Excel et se manipulerait moins bien qu'un copier-coller. Les
+# tableaux deviennent donc de vraies feuilles, avec en-tête figé et filtre ; le
+# texte va dans une feuille à part, pour que rien du document ne se perde ; et
+# la garde reste en tête, comme dans les deux autres formats.
+#
+# UN DOCUMENT SANS AUCUN TABLEAU LE DIT. Beaucoup de nos livrables sont
+# narratifs. Leur classeur ne contient alors aucune feuille de données, et il
+# l'écrit en toutes lettres au lieu de livrer une grille vide qui laisserait
+# croire à un export raté. « Ce document ne contient pas de tableau » est une
+# réponse ; une feuille vide n'en est pas une.
+
+# Excel refuse un nom de feuille au-delà de 31 caractères, et les cinq
+# caractères ci-dessous quel que soit l'endroit.
+_XL_INTERDITS = r"[]:*?/\\"
+XL_NOM_MAX = 31
+
+FEUILLE_GARDE = "Document"
+FEUILLE_TEXTE = "Texte"
+
+
+def _xl_nom(brut, pris):
+    """Un nom de feuille valide, lisible, et distinct de ceux déjà pris."""
+    n = "".join(" " if c in _XL_INTERDITS else c for c in (brut or "").strip())
+    n = re.sub(r"\s+", " ", n).strip(" '")
+    if not n:
+        n = "Tableau"
+    n = n[:XL_NOM_MAX]
+    if n not in pris:
+        return n
+    # LE SUFFIXE MANGE LA FIN DU NOM, IL NE S'Y AJOUTE PAS : « … (2) » collé à
+    # un nom déjà long redonnerait un nom refusé par le format.
+    for k in range(2, 100):
+        suf = " (%d)" % k
+        cand = n[:XL_NOM_MAX - len(suf)].rstrip() + suf
+        if cand not in pris:
+            return cand
+    return ("Tableau %d" % len(pris))[:XL_NOM_MAX]
+
+
+def _xl_valeur(cellule):
+    """Le texte d'une cellule, débarrassé de son balisage Markdown.
+
+    Une cellule reste du TEXTE. Convertir « 1 234,56 » en nombre supposerait
+    connaître l'unité, le séparateur et la locale du tableau d'origine ; se
+    tromper une fois sur mille produirait une somme fausse dans un classeur que
+    personne ne rouvrirait pour vérifier. Le document dit ce qu'il dit.
+    """
+    s = re.sub(r"\[([^\]]+)\]\((?:[^)]+)\)", r"\1", cellule or "")
+    s = re.sub(r"\*\*([^*]+)\*\*", r"\1", s)
+    s = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"\1", s)
+    s = s.replace("`", "").replace("<br>", " ").replace("<br/>", " ")
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def _xl_tableaux(blocs):
+    """Les tableaux du document, chacun avec le titre qui le précède.
+
+    LE TITRE VIENT DU DOCUMENT, PAS D'UN COMPTEUR. « Feuille 1, Feuille 2 »
+    obligerait à rouvrir le Word pour savoir lequel est lequel — soit
+    exactement ce que l'export doit éviter.
+    """
+    out, titre = [], ""
+    for genre, valeur in blocs:
+        if genre in ("h1", "h2", "h3"):
+            titre = valeur
+        elif genre == "table":
+            tete, lignes = valeur
+            out.append((titre, tete, lignes))
+    return out
+
+
+def _xl_plan(md):
+    """Le texte du document en lignes (niveau, texte), tableaux exclus.
+
+    Les tableaux ont leur propre feuille ; les répéter ici les ferait compter
+    deux fois pour qui somme le classeur.
+    """
+    lignes = []
+    for genre, valeur in _blocks(md):
+        if genre in ("h1", "h2", "h3"):
+            lignes.append((genre.upper(), valeur))
+        elif genre == "p":
+            lignes.append(("", valeur))
+        elif genre == "quote":
+            for p in valeur:
+                lignes.append(("cité", p))
+        elif genre in ("ul", "ol"):
+            for creux, texte in valeur:
+                lignes.append(("·" * (creux + 1), texte))
+        elif genre == "table":
+            tete = valeur[0]
+            lignes.append(("tableau",
+                           "%d colonne(s), %d ligne(s) — voir la feuille dédiée"
+                           % (len(tete), len(valeur[1]))))
+    return lignes
+
+
+def build_xlsx(md, meta=None):
+    """Le livrable en classeur : une feuille par tableau, plus garde et texte."""
+    from openpyxl import Workbook                                # noqa: PLC0415
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side  # noqa: PLC0415, E501
+    from openpyxl.utils import get_column_letter                 # noqa: PLC0415
+
+    meta = meta or {}
+    blocs = _blocks(md)
+    tableaux = _xl_tableaux(blocs)
+
+    navy = Font(name="Calibri", size=11, bold=True, color=_hex(C_NAVY))
+    teal = Font(name="Calibri", size=14, bold=True, color=_hex(C_TEAL))
+    gris = Font(name="Calibri", size=9, italic=True, color=_hex(C_GREY))
+    corps = Font(name="Calibri", size=11)
+    entete = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    fond = PatternFill("solid", fgColor=_hex(C_NAVY))
+    bande = PatternFill("solid", fgColor=_hex(C_ZEBRA))
+    filet = Side(style="thin", color=_hex(C_LINE))
+    cadre = Border(left=filet, right=filet, top=filet, bottom=filet)
+    haut = Alignment(vertical="top", wrap_text=True)
+
+    def largeurs(ws, colonnes, maxi=60):
+        """La largeur suit le contenu réel, plafonnée : une cellule de 400
+        signes ne doit pas pousser la colonne hors de l'écran."""
+        for j, cells in enumerate(colonnes, start=1):
+            large = max([len(str(c or "")) for c in cells] or [8])
+            ws.column_dimensions[get_column_letter(j)].width = \
+                min(max(12, large + 2), maxi)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = FEUILLE_GARDE
+
+    titre = typographie(str(meta.get("label") or meta.get("title")
+                            or "Livrable CONSEILPREV"))
+    ws.append([titre])
+    ws["A1"].font = teal
+    ws.append([])
+    for cle, val in _fiche(meta):
+        ws.append([typographie(cle), typographie(val)])
+        ws.cell(ws.max_row, 1).font = navy
+        ws.cell(ws.max_row, 2).font = corps
+        ws.cell(ws.max_row, 2).alignment = haut
+    ws.append([])
+
+    # CE QUE LE CLASSEUR CONTIENT, ÉCRIT DANS LE CLASSEUR. Un lecteur qui ouvre
+    # un fichier de trois feuilles doit savoir sans chercher s'il a tout.
+    ws.append(["Feuilles de données",
+               ("aucune — ce document ne contient pas de tableau ; "
+                "son texte est en feuille « %s »" % FEUILLE_TEXTE)
+               if not tableaux else
+               "%d tableau(x) du document, une feuille chacun" % len(tableaux)])
+    ws.cell(ws.max_row, 1).font = navy
+    ws.cell(ws.max_row, 2).font = corps
+    ws.cell(ws.max_row, 2).alignment = haut
+    ws.append([])
+    for phrase in (typographie(_mention_finale(meta)), typographie(CONTACT)):
+        ws.append([phrase])
+        ws.cell(ws.max_row, 1).font = gris
+    largeurs(ws, [[titre] + [k for k, _ in _fiche(meta)] + ["Feuilles de données"],
+                  [v for _, v in _fiche(meta)]])
+
+    pris = {FEUILLE_GARDE, FEUILLE_TEXTE}
+    for sujet, tete, lignes in tableaux:
+        nom = _xl_nom(sujet, pris)
+        pris.add(nom)
+        f = wb.create_sheet(nom)
+        f.append([_xl_valeur(c) for c in tete])
+        for c in f[1]:
+            c.font, c.fill, c.border, c.alignment = entete, fond, cadre, haut
+        for r, ligne in enumerate(lignes, start=2):
+            # UNE LIGNE PLUS COURTE QUE L'EN-TÊTE NE RÉTRÉCIT PAS LE TABLEAU,
+            # et il n'y a rien à faire pour cela — c'est mesuré. Cette boucle
+            # a porté un `vals += [""] * (len(tete) - len(vals))` censé y
+            # veiller ; une mutation l'a supprimé sans qu'aucune règle tombe,
+            # parce que la largeur vient de l'EN-TÊTE, écrit en premier :
+            # openpyxl rend la ligne à la largeur de la feuille, cellule vide
+            # ou cellule absente, y compris pour les bordures. Le
+            # complètement était donc du code mort qui avait l'air d'une
+            # protection — pire qu'une absence, parce qu'on cesse de chercher.
+            f.append([_xl_valeur(c) for c in ligne])
+            for c in f[r]:
+                c.font, c.border, c.alignment = corps, cadre, haut
+                if r % 2 == 0:
+                    c.fill = bande
+        f.freeze_panes = "A2"
+        if lignes:
+            f.auto_filter.ref = "A1:%s%d" % (get_column_letter(len(tete)),
+                                             len(lignes) + 1)
+        largeurs(f, [[_xl_valeur(tete[j])]
+                     + [_xl_valeur(l[j]) if j < len(l) else "" for l in lignes]
+                     for j in range(len(tete))])
+
+    ft = wb.create_sheet(FEUILLE_TEXTE)
+    ft.append(["Niveau", "Texte"])
+    for c in ft[1]:
+        c.font, c.fill, c.border, c.alignment = entete, fond, cadre, haut
+    for niveau, texte in _xl_plan(md):
+        ft.append([niveau, _xl_valeur(texte)])
+        ft.cell(ft.max_row, 1).font = gris
+        ft.cell(ft.max_row, 2).font = navy if niveau.startswith("H") else corps
+        ft.cell(ft.max_row, 2).alignment = haut
+    ft.freeze_panes = "A2"
+    ft.column_dimensions["A"].width = 10
+    ft.column_dimensions["B"].width = 110
+
+    flux = io.BytesIO()
+    wb.save(flux)
+    return flux.getvalue()
+
+
+# =============================================================================
+#  LA PORTE UNIQUE — un seul endroit sait ce qu'un format produit
+# =============================================================================
+# POURQUOI ELLE EXISTE. Le triptyque « si pdf … sinon docx », avec son type MIME
+# recopié à la main, figurait QUATORZE fois dans app.py. Chaque point d'export
+# rejouait la même décision, et un troisième format y aurait fait quatorze
+# occasions de diverger : une route qui ignore le nouveau format ne casse rien —
+# elle rend simplement un Word quand on lui demande un classeur, sans rien dire.
+# C'est le défaut le plus difficile à voir, parce que le téléchargement marche.
+#
+# `format_demande` et `composer` font deux choses distinctes, et c'est délibéré.
+# La première NORMALISE une entrée venue du réseau : elle accepte n'importe quoi
+# et rend un format connu. La seconde REFUSE ce qu'elle ne connaît pas : appelée
+# avec « csv » depuis le code, elle lève, au lieu de rendre silencieusement un
+# Word que l'appelant croira être autre chose.
+
+FORMATS = ("docx", "pdf", "xlsx")
+FORMAT_DEFAUT = "docx"
+
+NOM_FORMAT = {"docx": "Word", "pdf": "PDF", "xlsx": "Excel"}
+
+MIME = {
+    "docx": ("application/vnd.openxmlformats-officedocument"
+             ".wordprocessingml.document"),
+    "pdf": "application/pdf",
+    "xlsx": ("application/vnd.openxmlformats-officedocument"
+             ".spreadsheetml.sheet"),
+}
+
+
+class FormatInconnu(ValueError):
+    """Demandé au code, pas à l'utilisateur : c'est une erreur de programme."""
+
+
+def format_demande(valeur, defaut=FORMAT_DEFAUT):
+    """Le format retenu pour une valeur venue du réseau, jamais une exception."""
+    f = str(valeur or "").strip().lower()
+    return f if f in FORMATS else defaut
+
+
+def composer(md, meta=None, fmt=FORMAT_DEFAUT):
+    """Le document dans le format demandé : (contenu, type MIME, extension)."""
+    if fmt not in FORMATS:
+        raise FormatInconnu(
+            "format « %s » inconnu ; les formats servis sont %s"
+            % (fmt, ", ".join(FORMATS)))
+    fabrique = {"docx": build_docx, "pdf": build_pdf, "xlsx": build_xlsx}[fmt]
+    return fabrique(md, meta), MIME[fmt], fmt
