@@ -128,6 +128,35 @@
   .sd-durable .sd-p.d-decide{border-left:3px solid #27c39a}
   .sd-durable .sd-p.d-anticipe{border-left:3px solid #d9a441}
   .sd-durable .sd-p.d-contribue{border-left:3px solid #a78bd0}
+  /* LES MESURES D'UNE PROPOSITION, repliées par défaut. Trente-neuf mesures
+     dépliées feraient une page qu'on ne lit pas ; les cacher tout à fait
+     laisserait le résumé passer pour le texte. Le dépliant nomme son contenu
+     et son compte, de sorte qu'on sache ce qu'on ouvre. */
+  .sd-mes{margin:8px 0 0}
+  .sd-mes>summary{cursor:pointer;font-size:11px;font-weight:600;color:var(--muted2);
+    padding:3px 0;list-style:none}
+  .sd-mes>summary::-webkit-details-marker{display:none}
+  .sd-mes>summary::before{content:"▸ ";color:var(--muted2)}
+  .sd-mes[open]>summary::before{content:"▾ "}
+  .sd-mes ol{margin:5px 0 0;padding-left:0;list-style:none}
+  .sd-mes ol li{font-size:11.5px;line-height:1.55;margin-bottom:7px;
+    padding-left:10px;border-left:2px solid var(--line);color:var(--muted2)}
+  /* La portée d'une MESURE réemploie exactement les trois teintes de la
+     portée d'une proposition : deux échelles de couleur pour la même notion
+     obligeraient le lecteur à en apprendre une seconde. */
+  .sd-mp{font-size:9px;text-transform:uppercase;letter-spacing:.05em;
+    padding:1px 6px;border-radius:3px;margin-right:6px;white-space:nowrap}
+  .sd-mp.s-decide{background:rgba(39,195,154,.16);color:#27c39a}
+  .sd-mp.s-anticipe{background:rgba(217,164,65,.18);color:#d9a441}
+  .sd-mp.s-contribue{background:rgba(167,139,208,.18);color:#a78bd0}
+  .sd-spread{font-size:10.5px;line-height:1.5;color:var(--muted2);margin:6px 0 0;
+    padding:5px 9px;border-radius:6px;background:rgba(217,164,65,.10);
+    border:1px solid rgba(217,164,65,.30)}
+  .sd-sigle{font-size:10.5px;color:var(--muted2);margin-top:4px}
+  .sd-repere{margin:10px 0 0;padding:9px 11px;border-radius:7px;
+    background:rgba(0,0,0,.20);border:1px solid var(--line)}
+  .sd-repere b{color:var(--ink,#fff)}
+  .sd-repere p{font-size:11px;line-height:1.55;color:var(--muted2);margin:4px 0 0}
   .sd-garde{font-size:11.5px;line-height:1.55;margin:9px 0 0;padding:7px 10px;
     border-radius:7px;background:rgba(0,0,0,.20);border:1px solid var(--line);
     color:var(--muted2)}

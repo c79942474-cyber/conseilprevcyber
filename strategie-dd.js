@@ -599,15 +599,95 @@
 
   function carteProposition(p, portees) {
     var po = portees[p.portee] || {nom: p.portee, dit: ""};
-    return '<li class="sd-p d-' + esc(p.portee) + '" data-dur-theme="'
+    var h = '<li class="sd-p d-' + esc(p.portee) + '" data-dur-theme="'
       + esc(p.theme) + '">'
       + "<h3>" + esc(p.numero + ". " + p.titre)
       + '<span class="sd-src s-' + esc(p.portee) + '" title="' + esc(po.dit)
       + '">' + esc(po.nom) + "</span></h3>"
-      + '<p class="o">' + esc(p.dit) + "</p>"
-      + '<p class="q">Pour ce centre de données</p>'
+      + '<p class="o">' + esc(p.dit) + "</p>";
+
+    /* LES MESURES, QUAND ELLES SONT RELEVÉES. Le résumé ci-dessus les
+       compressait en une phrase sous une portée unique : un lecteur ne
+       pouvait pas distinguer ce qu'il décide de ce qu'il subit. Le dépliant
+       annonce son compte, de sorte qu'on sache ce qu'on ouvre. */
+    var mes = p.mesures || [];
+    if (mes.length) {
+      h += '<details class="sd-mes"><summary>Ce que la proposition demande — '
+        + mes.length + " mesure" + (mes.length > 1 ? "s" : "") + "</summary>";
+      if (p.chapeau) h += '<p class="o">' + esc(p.chapeau) + "</p>";
+      h += "<ol>" + mes.map(function (m) {
+        var mo = portees[m.portee] || {nom: m.portee, dit: ""};
+        var sigles = (m.termes || []).map(function (t) {
+          return "<b>" + esc(t.sigle) + "</b> (" + esc(t.developpe) + ") — "
+            + esc(t.definition);
+        }).join(" ");
+        return "<li><span class=\"sd-mp s-" + esc(m.portee) + '" title="'
+          + esc(mo.dit) + '">' + esc(mo.nom) + "</span>" + esc(m.texte)
+          + (sigles ? '<div class="sd-sigle">' + sigles + "</div>" : "")
+          + "</li>";
+      }).join("") + "</ol>";
+      /* SANS CET AVERTISSEMENT, la portée du bandeau se lit comme celle de
+         chaque ligne — et une mesure actionnable disparaît derrière
+         l'étiquette de la proposition. */
+      var sp = p.portees_mesures || [];
+      if (sp.length > 1) {
+        h += '<p class="sd-spread">La portée n’est pas la même d’une mesure à '
+          + "l’autre (" + sp.map(function (x) {
+              return esc(((portees[x] || {}).nom || x).toLowerCase());
+            }).join(", ")
+          + "). Celle du bandeau vaut pour l’ensemble, pas pour chaque ligne.</p>";
+      }
+      h += "</details>";
+    }
+
+    h += '<p class="q">Pour ce centre de données</p>'
       + '<p class="o">' + esc(p.pour_le_centre) + "</p>"
       + "</li>";
+    return h;
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
+     CE QUE LA LECTURE D'ENSEMBLE MASQUAIT
+
+     La portée d'une proposition vaut pour l'ensemble qu'elle forme, et elle
+     est juste à ce titre. Mais une proposition lue « contribue » peut porter
+     une mesure que le maître d'ouvrage décide seul — et celle-là, personne ne
+     la voyait : ni le bandeau de la proposition, ni la liste de ce que le
+     cadre demande, qui ne regarde que « décide » et « anticipe ».
+     ═════════════════════════════════════════════════════════════════════ */
+  function bandeauMasquees(ref) {
+    var m = ref.mesures_masquees || [];
+    if (!m.length) return "";
+    var portees = ref.portees || {};
+    return '<div class="sd-repere"><b>Des mesures actionnables que la lecture '
+      + "d’ensemble masquait — " + m.length + "</b>"
+      + '<p>La portée indiquée sur une proposition vaut pour l’ensemble '
+      + "qu’elle forme. Ces mesures-là engagent <b>davantage</b> : le projet "
+      + "peut les décider alors que la proposition, prise en bloc, ne relève "
+      + "que de la contribution.</p><ol>"
+      + m.map(function (x) {
+          var mo = portees[x.portee] || {nom: x.portee};
+          var po = portees[x.portee_proposition] || {nom: x.portee_proposition};
+          return '<li><span class="sd-mp s-' + esc(x.portee) + '">'
+            + esc(mo.nom) + "</span>" + esc(x.texte)
+            + '<div class="sd-sigle">Proposition ' + x.numero + ", mesure "
+            + x.rang + " — lue « " + esc(po.nom.toLowerCase())
+            + " » pour l’ensemble.</div></li>";
+        }).join("") + "</ol></div>";
+  }
+
+  /* Les repères chiffrés, avec ce qu'ils N'ÉTABLISSENT PAS. Un chiffre
+     encadré se cite de travers avec une facilité remarquable : la lecture
+     voyage donc avec lui, toujours, et jamais dans une infobulle. */
+  function bandeauReperes(ref) {
+    var r = ref.reperes || [];
+    if (!r.length) return "";
+    return r.map(function (x) {
+      return '<div class="sd-repere"><b>' + esc(x.chiffre) + "</b>"
+        + "<p>" + esc(x.enonce) + "</p>"
+        + "<p><i>Source :</i> " + esc(x.source) + " (" + esc(x.date) + ")</p>"
+        + "<p><i>Comment le lire :</i> " + esc(x.lecture) + "</p></div>";
+    }).join("");
   }
 
   function rendreDurable(ref) {
@@ -634,6 +714,21 @@
     h += '<ul class="sd-durable">' + props.map(function (p) {
       return carteProposition(p, ref.portees || {});
     }).join("") + "</ul>";
+    h += bandeauMasquees(ref);
+    h += bandeauReperes(ref);
+    /* LA COUVERTURE ACCOMPAGNE LES MESURES ET NE VIENT JAMAIS APRÈS : sans
+       elle, vingt propositions sans mesures dépliables se lisent comme vingt
+       propositions sans mesures. */
+    var cm = ref.couverture_mesures;
+    if (cm && cm.sans_mesures) {
+      var noms = {};
+      (ref.themes || []).forEach(function (t) { noms[t.cle] = t.nom; });
+      h += '<p class="sd-garde">Les mesures détaillées ne sont relevées que '
+        + "pour " + cm.avec_mesures + " des " + cm.total + " propositions — "
+        + (cm.themes_releves || []).map(function (c) {
+            return "« " + esc(noms[c] || c) + " »"; }).join(" et ")
+        + ", soit " + cm.mesures + " mesures. " + esc(cm.pourquoi) + "</p>";
+    }
     return h;
   }
 

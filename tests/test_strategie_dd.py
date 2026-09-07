@@ -527,3 +527,267 @@ def test_lechec_du_questionnaire_ecrit_aussi_dans_sd_etat():
     fin = js.index("if (document.readyState", i)
     bloc = js[i:fin]
     assert 'etat(messageDelai(e,' in bloc
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE §12 CESSE DE COMPRESSER
+#
+#  Le chapitre citait, par proposition, une phrase de résumé et une portée
+#  unique. Le document, lui, porte trois à cinq MESURES par proposition, et
+#  elles ne se ressemblent pas : « instaurer une tarification incitative » est
+#  un acte de puissance publique, « intégrer un stress test hydrique à
+#  l'évaluation du projet » est un geste que le maître d'ouvrage pose seul.
+#
+#  CES RÈGLES MESURENT LE LIVRABLE RENDU, pas la présence des fonctions. Une
+#  règle qui vérifierait que `ED.mesures_de` est appelé serait verte le jour où
+#  son résultat serait jeté — c'est le défaut trouvé deux fois cette semaine
+#  ailleurs, sur des clés servies et jamais lues.
+# ═══════════════════════════════════════════════════════════════════════════
+
+import entreprise_durable as ED  # noqa: E402
+
+
+def _md_complet():
+    """Un livrable où le maximum d'enjeux sont retenus : c'est le cas où le
+    §12 a le plus à dire, et donc celui où une omission se voit."""
+    q = S.questionnaire()
+    deg = max(S.DEGRES)
+    n = {e["cle"]: {p["cle"]: deg for p in q["perspectives"]
+                    if p["source"] == "client"} for e in q["enjeux"]}
+    s = S.strategie({"identite": {"projet": "Recette"},
+                     "contexte": {c["cle"]: (c.get("valeurs") or [{}])[0].get("cle")
+                                  for c in q["contexte"]},
+                     "ouvertes": {}, "notes": n})
+    md = S.markdown(s)
+    return s, md[md.index("## 12."):]
+
+
+def test_LE_LIVRABLE_REND_LES_MESURES_ET_NON_LEUR_RESUME():
+    """Le texte de chaque mesure doit se retrouver mot pour mot : un livrable
+    qui n'en citerait que le résumé laisserait le lecteur incapable de dire ce
+    que la proposition demande."""
+    _, bloc = _md_complet()
+    manquantes = []
+    for cle, m in ED.MESURES.items():
+        for mes in m["mesures"]:
+            if mes["texte"] not in bloc:
+                manquantes.append((cle, mes["texte"][:60]))
+    assert not manquantes, "mesures absentes du livrable : %s" % manquantes[:3]
+
+
+def test_chaque_mesure_porte_SA_portee_et_non_celle_de_sa_proposition():
+    """C'est tout l'objet du détail. La règle prend une proposition dont les
+    mesures MÉLANGENT les portées — la 22, dont deux anticipent et une se
+    décide — et vérifie que les deux étiquettes apparaissent dans son bloc."""
+    _, bloc = _md_complet()
+    d = bloc.index("**22. Évaluer")
+    f = bloc.index("**23.", d)
+    p22 = bloc[d:f]
+    portees = S.ED.referentiel()["portees"]
+    assert p22.count("[%s]" % portees["anticipe"]["nom"]) == 2, p22[:400]
+    assert p22.count("[%s]" % portees["decide"]["nom"]) == 1
+
+
+def test_le_livrable_AVERTIT_quand_les_portees_ne_sont_pas_les_memes():
+    """Sans cet avertissement, la portée annoncée en tête se lit comme celle de
+    chaque ligne — et une mesure actionnable disparaît derrière l'étiquette de
+    la proposition. La règle vérifie aussi qu'il n'apparaît PAS sur la seule
+    proposition dont les quatre mesures partagent la même portée (la 24) : un
+    avertissement permanent cesse d'être lu."""
+    _, bloc = _md_complet()
+    assert bloc.count("La portée n'est pas la même d'une mesure à l'autre") \
+        == len([p for p in ED.PROPOSITIONS
+                if len(ED.portees_des_mesures(p["cle"])) > 1])
+    d = bloc.index("**24. Adapter")
+    f = bloc.index("**25.", d)
+    assert "La portée n'est pas la même" not in bloc[d:f]
+
+
+def test_LE_DEFAUT_REPARE_les_mesures_masquees_entrent_dans_le_livrable():
+    """Elles ne pouvaient apparaître nulle part : `hors_couverture()` ne
+    regarde que les propositions DÉCIDE ou ANTICIPE, et la 25 est CONTRIBUE.
+    La règle vérifie leur présence ET la section qui les explique."""
+    _, bloc = _md_complet()
+    assert "Des mesures actionnables que la lecture d'ensemble masquait" in bloc
+    masquees = ED.mesures_masquees()
+    assert masquees
+    for m in masquees:
+        assert m["texte"] in bloc
+    # Et la 25 n'est bien PAS dans la liste de ce que le cadre demande : c'est
+    # la raison d'être de la section neuve, et si cela changeait elle ferait
+    # doublon sans que rien ne le dise.
+    d = bloc.index("### Ce que ce cadre demande")
+    f = bloc.index("###", d + 5)
+    assert "**25." not in bloc[d:f]
+
+
+def test_le_chapeau_du_document_accompagne_chaque_proposition_relevee():
+    """Le résumé dit CE QU'IL FAUT FAIRE, le chapeau dit POURQUOI — et c'est
+    le second qui se discute en comité."""
+    _, bloc = _md_complet()
+    for cle in ED.MESURES:
+        assert ED.chapeau_de(cle)[:70] in bloc, cle
+
+
+def test_UN_CHIFFRE_NE_VOYAGE_JAMAIS_SANS_SA_LECTURE():
+    """« L'industrie consomme 80 % de l'eau » est faux d'un ordre de grandeur ;
+    « 88 % du territoire en tension » est un scénario, pas une prévision. La
+    règle exige que chaque repère cité le soit avec sa source ET sa lecture —
+    le chiffre seul est un chiffre faux qui a l'air juste."""
+    _, bloc = _md_complet()
+    cites = [r for r in ED.REPERES if r["chiffre"] in bloc]
+    assert cites, "aucun repère n'est cité"
+    for r in cites:
+        assert r["source"] in bloc, r["cle"]
+        assert r["lecture"] in bloc, r["cle"]
+        # Et l'énoncé ne précède jamais sa lecture de plus loin que le bloc
+        # qui les porte : les séparer laisserait citer l'un sans l'autre.
+        assert 0 < bloc.index(r["lecture"]) - bloc.index(r["enonce"]) < 900, r["cle"]
+
+
+def test_les_sigles_employes_sont_definis_dans_le_livrable():
+    """Une mesure qui demande un « stress test cohérent avec la TRACC » est
+    inapplicable pour qui ne sait pas ce qu'est la TRACC."""
+    _, bloc = _md_complet()
+    for t in ED.glossaire_cite(list(ED.MESURES)):
+        assert t["sigle"] in bloc and t["definition"] in bloc, t["cle"]
+
+
+def test_le_livrable_dit_que_vingt_propositions_n_ont_pas_ete_relevees():
+    """Une couverture tue se lit comme une absence."""
+    _, bloc = _md_complet()
+    c = ED.couverture_mesures()
+    assert "%d des %d propositions" % (c["avec_mesures"], c["total"]) in bloc
+    assert "%d mesures" % c["mesures"] in bloc
+
+
+# ── LA PAGE ──────────────────────────────────────────────────────────────
+
+def test_la_page_deplie_les_mesures_sans_les_deplier_par_defaut():
+    """Trente-neuf mesures dépliées feraient une page qu'on ne lit pas ; les
+    cacher tout à fait laisserait le résumé passer pour le texte. Le dépliant
+    annonce son compte, de sorte qu'on sache ce qu'on ouvre."""
+    js = _js()
+    assert '<details class="sd-mes">' in js
+    assert "open" not in re.search(r'<details class="sd-mes">', js).group(0)
+    assert "Ce que la proposition demande" in js
+
+
+def test_la_page_reemploie_les_TROIS_MEMES_teintes_pour_les_deux_niveaux():
+    """Deux échelles de couleur pour la même notion obligeraient le lecteur à
+    en apprendre une seconde. La règle compare les teintes déclarées pour la
+    portée d'une PROPOSITION et celles de la portée d'une MESURE."""
+    with open(os.path.join(ICI, "strategie-durable-datacenter.html"),
+              encoding="utf-8") as f:
+        page = f.read()
+    for portee in ("decide", "anticipe", "contribue"):
+        prop = re.search(r"\.sd-src\.s-%s\{([^}]+)\}" % portee, page).group(1)
+        mes = re.search(r"\.sd-mp\.s-%s\{([^}]+)\}" % portee, page).group(1)
+        coul_p = re.search(r"color:(#\w+)", prop).group(1)
+        coul_m = re.search(r"color:(#\w+)", mes).group(1)
+        assert coul_p == coul_m, (portee, coul_p, coul_m)
+
+
+def test_la_page_ne_recopie_aucune_mesure_ni_aucun_sigle():
+    """Une liste recopiée dans le HTML finit toujours par diverger du moteur —
+    et c'est l'écran qu'on croit. La page et son script doivent tout tenir du
+    référentiel servi."""
+    js = _js()
+    with open(os.path.join(ICI, "strategie-durable-datacenter.html"),
+              encoding="utf-8") as f:
+        page = f.read()
+    for cle, bloc in ED.MESURES.items():
+        for m in bloc["mesures"]:
+            extrait = m["texte"][:45]
+            assert extrait not in js and extrait not in page, (cle, extrait)
+    for g in ED.GLOSSAIRE.values():
+        assert g["definition"][:40] not in js, g["sigle"]
+    for r in ED.REPERES:
+        assert r["enonce"][:40] not in js and r["enonce"][:40] not in page
+
+
+_HARNAIS_DD = r"""
+const fs = require('fs');
+const src = fs.readFileSync(process.argv[2], 'utf8');
+const deb = src.indexOf('  var DUR_TOUS = "__tous";');
+const fin = src.indexOf('  function brancherDurable(ref)');
+if (deb < 0 || fin < 0) throw new Error('le bloc du cadre est introuvable');
+function esc(t){ return String(t==null?'':t).replace(/[&<>"']/g,
+  c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+eval(src.slice(deb, fin));
+const ref = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
+process.stdout.write(rendreDurable(ref));
+"""
+
+
+def _peindre_cadre():
+    """Le cadre PEINT, sur le référentiel réel — et non sa source lue.
+
+    Une règle qui chercherait « mesures_masquees » dans le script serait verte
+    le jour où le résultat serait calculé puis jeté : c'est le défaut trouvé
+    deux fois cette semaine ailleurs, sur des clés servies et jamais lues."""
+    import json
+    import shutil
+    import subprocess
+    import tempfile
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le cadre ne peut pas être peint")
+    with tempfile.TemporaryDirectory() as d:
+        h = os.path.join(d, "h.js")
+        r = os.path.join(d, "ref.json")
+        with open(h, "w", encoding="utf-8") as f:
+            f.write(_HARNAIS_DD)
+        with open(r, "w", encoding="utf-8") as f:
+            json.dump(ED.referentiel(), f, ensure_ascii=False)
+        p = subprocess.run([node, h, os.path.join(ICI, "strategie-dd.js"), r],
+                           capture_output=True, text=True, timeout=90)
+    if p.returncode != 0:
+        pytest.fail("le cadre ne se peint pas :\n%s" % (p.stderr or "")[-1500:])
+    return p.stdout
+
+
+def _texte(html_):
+    import html as _h
+    return re.sub(r"\s+", " ", _h.unescape(re.sub(r"<[^>]+>", " ", html_)))
+
+
+def test_LA_PAGE_PEINTE_porte_les_trente_neuf_mesures_et_leurs_portees():
+    peint = _peindre_cadre()
+    lu = _texte(peint)
+    assert peint.count('<details class="sd-mes">') == len(ED.MESURES)
+    for cle, bloc in ED.MESURES.items():
+        for m in bloc["mesures"]:
+            assert _texte(m["texte"]) in lu, (cle, m["texte"][:50])
+    # Autant d'étiquettes de portée que de mesures, plus celles du bandeau des
+    # mesures masquées — un compte, pas une présence.
+    attendu = sum(len(b["mesures"]) for b in ED.MESURES.values()) \
+        + len(ED.mesures_masquees())
+    assert peint.count('class="sd-mp') == attendu
+
+
+def test_la_page_peinte_avertit_de_l_ecart_de_portee_et_pas_ailleurs():
+    peint = _peindre_cadre()
+    attendu = len([p for p in ED.PROPOSITIONS
+                   if len(ED.portees_des_mesures(p["cle"])) > 1])
+    assert peint.count('class="sd-spread"') == attendu
+    assert attendu == len(ED.MESURES) - 1, (
+        "une seule proposition doit être uniforme (la 24) : %d le sont"
+        % (len(ED.MESURES) - attendu))
+
+
+def test_la_page_peinte_porte_les_mesures_masquees_et_les_reperes():
+    lu = _texte(_peindre_cadre())
+    assert "masquait" in lu
+    for m in ED.mesures_masquees():
+        assert _texte(m["texte"]) in lu
+    for r in ED.REPERES:
+        assert _texte(r["enonce"]) in lu and _texte(r["lecture"]) in lu, r["cle"]
+        assert _texte(r["source"]) in lu, r["cle"]
+
+
+def test_la_page_peinte_dit_sa_couverture():
+    lu = _texte(_peindre_cadre())
+    c = ED.couverture_mesures()
+    assert "%d des %d propositions" % (c["avec_mesures"], c["total"]) in lu
+    assert "%d mesures" % c["mesures"] in lu

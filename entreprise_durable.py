@@ -35,6 +35,28 @@ et assumée comme telle, qu'un lecteur peut contester proposition par
 proposition — d'où le champ `pour_le_centre`, qui dit POURQUOI la portée est
 celle-là.
 
+CE QUE LA VERSION 2026-09-b AJOUTE, ET LE DÉFAUT QU'ELLE CORRIGE
+
+Chaque proposition du document porte trois à cinq MESURES. Le champ `dit` les
+compressait en une phrase, et une portée unique les couvrait toutes. Or à
+l'intérieur d'une même proposition les mesures ne se ressemblent pas :
+« instaurer une tarification incitative » est un acte de puissance publique,
+« intégrer un stress test hydrique à l'évaluation du projet » est un geste que
+le maître d'ouvrage pose seul, aujourd'hui.
+
+CE QUE LA COMPRESSION COÛTAIT, VÉRIFIÉ SUR LE CODE. La proposition 25 est lue
+CONTRIBUE — ce qui est juste pour l'ensemble : un centre de données ne
+structure pas la recherche nationale sur l'eau. Mais deux de ses quatre mesures
+sont la formation de ses propres exploitants aux risques hydriques, et cela il
+le décide seul. Comme `hors_couverture()` ne regarde que les propositions
+DÉCIDE ou ANTICIPE, ces deux mesures ne pouvaient apparaître dans AUCUN
+livrable, quel que soit le projet. `mesures_masquees()` les rend.
+
+Les mesures ne sont relevées que pour les thèmes « eau » et « énergie &
+numérique » — dix propositions sur trente, trente-neuf mesures.
+`couverture_mesures()` le dit : vingt propositions sans mesures détaillées ne
+sont pas vingt propositions sans mesures.
+
 CE QUE CE MODULE NE FAIT PAS. Il ne décerne aucune conformité : ces
 propositions ne sont ni une norme, ni un référentiel certifiable, ni un texte
 en vigueur. Il ne les récrit pas non plus : `titre` et `dit` restent au plus
@@ -43,7 +65,7 @@ CONSEILPREV, pas du Cercle de Giverny. Confondre les deux ferait dire à
 l'auteur ce qu'il n'a pas écrit.
 """
 
-VERSION = "2026-09-a"
+VERSION = "2026-09-b"
 
 # La source, citée une fois et lue partout. Le champ `nature` est là pour être
 # RÉPÉTÉ dans le livrable : un lecteur qui trouve trente propositions numérotées
@@ -584,6 +606,580 @@ _PAR_CLE = {p["cle"]: p for p in PROPOSITIONS}
 #  charger, pas rendre un livrable faux.
 # ═══════════════════════════════════════════════════════════════════════════
 
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LES MESURES — CE QUE CHAQUE PROPOSITION DEMANDE VRAIMENT
+#
+#  LE DÉFAUT QUE CE BLOC CORRIGE, ET SA CONSÉQUENCE MESURÉE. Chaque
+#  proposition du document porte trois à cinq MESURES. Le champ `dit` les
+#  compressait en une phrase, et une portée unique les couvrait toutes. Or à
+#  l'intérieur d'une même proposition les mesures ne se ressemblent pas :
+#  « instaurer une tarification incitative » est un acte de puissance publique,
+#  « intégrer un stress test hydrique à l'évaluation du projet » est un geste
+#  que le maître d'ouvrage pose seul, aujourd'hui.
+#
+#  CE QUE LA COMPRESSION COÛTAIT, VÉRIFIÉ SUR LE CODE. La proposition 25
+#  — « Structurer les compétences et la recherche au service de l'innovation »
+#  — est lue CONTRIBUE, ce qui est juste pour l'ensemble : un centre de données
+#  ne structure pas la recherche nationale. Mais deux de ses quatre mesures
+#  sont la formation des collaborateurs et des métiers exposés aux risques
+#  hydriques — c'est-à-dire, pour un exploitant, ses propres équipes. Et comme
+#  `hors_couverture()` ne regarde que les propositions DÉCIDE ou ANTICIPE, ces
+#  deux mesures-là ne pouvaient apparaître dans AUCUN livrable, quel que soit
+#  le projet. La moitié utile de la confrontation en laissait tomber une part,
+#  sans que rien ne le signale.
+#
+#  LA PORTÉE D'UNE MESURE RÉPOND À LA MÊME QUESTION QUE CELLE D'UNE
+#  PROPOSITION : que peut ce projet-ci en faire, seul, dans son périmètre ?
+#  Elle est donc comparable, et `_verifier()` exige que la portée annoncée par
+#  la proposition figure parmi celles de ses mesures — une proposition lue
+#  DÉCIDE dont aucune mesure ne se décide serait une promesse sans objet.
+#
+#  CE QUI N'EST RELEVÉ QUE POUR DEUX THÈMES. Les mesures ne sont saisies que
+#  pour « eau » et « énergie & numérique », les deux versés par le client. Les
+#  vingt autres propositions gardent leur résumé, et `couverture_mesures()` le
+#  dit : vingt propositions sans mesures détaillées ne sont pas vingt
+#  propositions sans mesures.
+#
+#  LE TEXTE DES MESURES EST CELUI DU DOCUMENT, à la ponctuation près. La
+#  portée, elle, est la lecture de CONSEILPREV — comme `pour_le_centre`. Les
+#  confondre ferait dire à l'auteur ce qu'il n'a pas écrit.
+# ═══════════════════════════════════════════════════════════════════════════
+
+#: Le rang d'une portée, pour comparer une mesure à sa proposition. DÉCIDE est
+#: le rang le plus haut : c'est la portée qui engage le plus le projet.
+RANG_PORTEE = {"contribue": 0, "anticipe": 1, "decide": 2}
+
+MESURES = {
+    # ── ÉNERGIE & NUMÉRIQUE ────────────────────────────────────────────────
+    "implantation_bas_carbone": {
+        "chapeau":
+            "Le train de mesures sur la souveraineté technologique européenne "
+            "porté par la Commission européenne constitue une avancée "
+            "importante en faveur d'une planification plus cohérente des "
+            "infrastructures numériques et énergétiques. Il convient de le "
+            "compléter par des critères opérationnels qui orientent le "
+            "développement de ces infrastructures vers les usages les plus "
+            "sobres et essentiels, tout en assurant au préalable le "
+            "développement de capacités suffisantes de production d'énergie, "
+            "notamment à l'échelle européenne.",
+        "mesures": [
+            {"texte": "Intégrer de manière contraignante la fourniture "
+                      "d'électrons et de molécules bas carbone dans la "
+                      "stratégie d'implantation des infrastructures numériques "
+                      "(data centers), en contrepartie de la mise en place de "
+                      "mesures facilitatrices pour leur installation "
+                      "(raccordement, autorisations, etc.).",
+             "portee": "decide",
+             "termes": []},
+            {"texte": "Faciliter l'accès aux contrats long terme (PPA/BPA) "
+                      "pour tous les acteurs via des groupements d'achats et "
+                      "des mécanismes de garantie, afin de mutualiser et "
+                      "d'améliorer la compétitivité des offres.",
+             "portee": "decide",
+             "termes": ["ppa_bpa"]},
+            {"texte": "Créer les conditions pour des offres « 24/7 » "
+                      "(fourniture en ruban décarbonée heure par heure), "
+                      "garantissant que chaque électron ou molécule consommé "
+                      "par l'infrastructure est structurellement bas carbone, "
+                      "en veillant à ce que le GHG Protocol prenne les bonnes "
+                      "dispositions pour cela.",
+             "portee": "contribue",
+             "termes": ["ghg_protocol"]},
+            {"texte": "Créer des certificats d'économie numérique, inspirés "
+                      "des certificats d'économie d'énergie, permettant de "
+                      "valoriser les réductions mesurables de consommation "
+                      "énergétique et d'empreinte carbone des services "
+                      "numériques, et d'intégrer le signal-prix carbone au "
+                      "développement de l'économie numérique.",
+             "portee": "anticipe",
+             "termes": []},
+            {"texte": "Étendre le MACF aux infrastructures et services "
+                      "numériques importés lorsque leur empreinte carbone "
+                      "n'est pas soumise à des exigences équivalentes à celles "
+                      "applicables dans l'Union européenne.",
+             "portee": "anticipe",
+             "termes": ["macf"]},
+        ],
+    },
+    "filieres_critiques": {
+        "chapeau":
+            "Face à l'intensification de la concurrence technologique "
+            "mondiale, l'Europe doit se doter d'une stratégie offensive de "
+            "souveraineté numérique. L'objectif n'est pas de reproduire les "
+            "modèles dominants existants, mais de bâtir des avantages "
+            "compétitifs européens fondés sur la confiance, la maîtrise "
+            "technologique et la réponse aux besoins structurants du "
+            "continent.",
+        "mesures": [
+            {"texte": "Définir précisément, aux échelles nationale et "
+                      "européenne, les filières critiques de notre "
+                      "souveraineté numérique et énergétique.",
+             "portee": "anticipe", "termes": []},
+            {"texte": "Concentrer les financements publics nationaux et "
+                      "européens sur un nombre limité d'acteurs et de projets "
+                      "stratégiques, sur le modèle des PIIEC, afin de faire "
+                      "émerger des champions européens capables d'atteindre "
+                      "une taille compétitive, plutôt que de disperser les "
+                      "soutiens sur une multitude d'initiatives.",
+             "portee": "contribue", "termes": ["piiec"]},
+            {"texte": "Instaurer un principe de « préférence européenne » dans "
+                      "le choix des solutions numériques, en exigeant qu'un "
+                      "recours à une solution extra-européenne fasse l'objet "
+                      "d'une justification formelle lorsqu'une alternative "
+                      "européenne répond aux besoins exprimés.",
+             "portee": "decide", "termes": []},
+            {"texte": "Conditionner les procédures accélérées de raccordement "
+                      "des data centers à des critères de souveraineté "
+                      "industrielle européenne, en privilégiant les projets "
+                      "reposant sur des technologies, équipements et services "
+                      "développés au sein de l'Union européenne.",
+             "portee": "anticipe", "termes": []},
+        ],
+    },
+    "marche_donnees": {
+        "chapeau":
+            "Les données sont devenues une ressource stratégique pour "
+            "l'innovation, la compétitivité et le développement de "
+            "l'intelligence artificielle. Pour valoriser pleinement ce "
+            "potentiel, l'Europe doit dépasser la fragmentation actuelle en "
+            "créant un marché unique des données fondé sur des règles "
+            "harmonisées, des standards communs, des infrastructures de "
+            "confiance et un accès élargi aux jeux de données stratégiques.",
+        "mesures": [
+            {"texte": "Établir une classification européenne harmonisée en "
+                      "distinguant notamment les données ouvertes, "
+                      "personnelles, confidentielles, industrielles, "
+                      "sensibles, critiques et stratégiques, afin d'adapter "
+                      "leurs conditions de circulation, de stockage, de "
+                      "traitement et d'accès.",
+             "portee": "anticipe", "termes": []},
+            {"texte": "Créer un passeport européen de la donnée avec, pour "
+                      "chaque jeu de données : origine, niveau de qualité, "
+                      "conditions d'utilisation, restrictions juridiques, "
+                      "historique de transformation, traitements auxquels il "
+                      "peut être soumis.",
+             "portee": "anticipe", "termes": []},
+            {"texte": "Accélérer l'interconnexion des écosystèmes sectoriels, "
+                      "le déploiement de standards ouverts et le développement "
+                      "d'intermédiaires de confiance garantissant "
+                      "l'interopérabilité et la portabilité des données.",
+             "portee": "contribue", "termes": []},
+            {"texte": "Adosser le développement du marché européen des données "
+                      "au PIIEC IA en orientant une partie des financements "
+                      "vers la collecte, la qualification, l'anonymisation et "
+                      "la mutualisation de jeux de données européens destinés "
+                      "à l'entraînement et à l'évaluation des modèles "
+                      "d'intelligence artificielle.",
+             "portee": "contribue", "termes": ["piiec_ia"]},
+            {"texte": "Garantir un accès effectif aux données pour les PME, "
+                      "start-ups, laboratoires de recherche et acteurs "
+                      "publics, en conditionnant les financements publics, les "
+                      "aides à l'innovation et les marchés publics à des "
+                      "engagements d'interopérabilité, de portabilité et de "
+                      "réutilisation des données produites grâce à des fonds "
+                      "publics.",
+             "portee": "anticipe", "termes": []},
+        ],
+    },
+    "stress_tests_croises": {
+        "chapeau":
+            "La résilience des infrastructures, définie comme la capacité à "
+            "maintenir la continuité des fonctions critiques malgré des "
+            "perturbations, constitue un enjeu majeur de souveraineté qui "
+            "nécessite de mieux identifier les vulnérabilités systémiques. Ces "
+            "stress tests croisés permettront de préserver la continuité des "
+            "services et activités essentiels.",
+        "mesures": [
+            {"texte": "Définir un cadre commun de stress tests des "
+                      "interdépendances entre infrastructures numériques et "
+                      "énergétiques, de scénarios à évaluer et d'indicateurs "
+                      "de résilience pertinents, à travers un groupe de "
+                      "travail associant les acteurs de l'énergie, du "
+                      "numérique, des infrastructures critiques et les "
+                      "régulateurs concernés.",
+             "portee": "contribue", "termes": []},
+            {"texte": "Réaliser régulièrement ces stress tests, en s'inspirant "
+                      "des cadres de résilience existants tels que DORA, afin "
+                      "d'identifier les vulnérabilités systémiques et de "
+                      "renforcer la continuité des services essentiels.",
+             "portee": "decide", "termes": ["dora"]},
+            {"texte": "Partager, dans un cadre sécurisé et adapté aux enjeux "
+                      "de confidentialité, les enseignements de ces exercices "
+                      "ainsi que les solutions de continuité d'activité et "
+                      "d'atténuation identifiées, accélérant ainsi la "
+                      "diffusion des bonnes pratiques et le renforcement de la "
+                      "résilience collective.",
+             "portee": "contribue", "termes": []},
+        ],
+    },
+    "competences_ia": {
+        "chapeau":
+            "L'intelligence artificielle transforme profondément les métiers "
+            "et les compétences. Pour qu'elle reste un outil au service de "
+            "l'humain plutôt qu'une finalité, il est essentiel de renforcer "
+            "les savoirs fondamentaux et les savoir-faire professionnels qui "
+            "permettent d'en comprendre le fonctionnement, d'en maîtriser les "
+            "usages et d'en challenger les résultats.",
+        "mesures": [
+            {"texte": "Identifier, dans les secteurs stratégiques, les "
+                      "compétences fondamentales dont la maîtrise humaine doit "
+                      "être maintenue malgré l'automatisation croissante des "
+                      "tâches, afin de garantir la capacité à superviser, "
+                      "contrôler et challenger les systèmes d'IA.",
+             "portee": "decide", "termes": []},
+            {"texte": "Intégrer le mapping des tâches et des compétences dans "
+                      "la révision des plans de formation (démarches "
+                      "GEPP/GPEC) pour identifier précisément les compétences "
+                      "amenées à évoluer, les savoir-faire à préserver et les "
+                      "nouveaux besoins de formation.",
+             "portee": "decide", "termes": ["gepp_gpec"]},
+            {"texte": "Développer, au sein des entreprises et des filières "
+                      "stratégiques, des dispositifs de capitalisation et de "
+                      "transmission des savoir-faire afin de préserver les "
+                      "expertises métiers.",
+             "portee": "decide", "termes": []},
+            {"texte": "Intégrer dans les cursus de formation initiale et "
+                      "continue l'apprentissage du fonctionnement de l'IA, de "
+                      "ses biais, de ses limites et des méthodes permettant "
+                      "d'exercer un regard critique sur ses résultats.",
+             "portee": "contribue", "termes": []},
+        ],
+    },
+
+    # ── EAU ────────────────────────────────────────────────────────────────
+    "ecosystemes_infrastructure": {
+        "chapeau":
+            "L'eau ne peut être dissociée des moteurs naturels que sont les "
+            "sols, les forêts, les zones humides et, plus largement, les "
+            "écosystèmes, qui assurent les fonctions essentielles de stockage, "
+            "de filtration et de régulation. Préserver ces milieux, c'est "
+            "sécuriser les ressources dont dépendent directement les activités "
+            "économiques. Leur restauration doit donc être pleinement intégrée "
+            "aux politiques publiques et aux stratégies industrielles.",
+        "mesures": [
+            {"texte": "Faire de la gestion équilibrée et durable de l'eau un "
+                      "principe structurant de l'aménagement du territoire, en "
+                      "inscrivant les fonctions de régulation hydrique des "
+                      "sols et des écosystèmes dans les documents de "
+                      "planification et les décisions d'aménagement.",
+             "portee": "anticipe", "termes": []},
+            {"texte": "Identifier et cartographier les écosystèmes dont "
+                      "dépendent les chaînes d'approvisionnement industrielles "
+                      "afin d'intégrer ces dépendances dans les décisions "
+                      "d'investissement et la gestion des risques.",
+             "portee": "decide", "termes": []},
+            {"texte": "Élargir les plans de transition bas carbone à des plans "
+                      "« transition nature », intégrant les dépendances des "
+                      "entreprises aux écosystèmes (eau verte, sols, forêts, "
+                      "zones humides) et leur contribution à leur "
+                      "préservation.",
+             "portee": "decide", "termes": []},
+            {"texte": "Déployer des politiques de préservation et de "
+                      "restauration des sols afin de conforter leur capacité "
+                      "de rétention et d'infiltration de l'eau, notamment par "
+                      "l'évolution des pratiques agricoles et des politiques "
+                      "d'urbanisme.",
+             "portee": "contribue", "termes": []},
+        ],
+    },
+    "contexte_hydrologique": {
+        "chapeau":
+            "L'évaluation de l'empreinte hydrique des projets industriels sur "
+            "l'ensemble de leur cycle de vie permet d'anticiper les effets de "
+            "l'évolution de la ressource sur leurs activités. Elle constitue "
+            "un outil de préparation à l'adaptation et doit, à ce titre, être "
+            "intégrée aux plans d'adaptation des entreprises. Cette évaluation "
+            "doit être construite au niveau local, afin de tenir compte de la "
+            "disponibilité de la ressource, des autres usages du bassin "
+            "versant et des risques propres à chaque territoire.",
+        "mesures": [
+            {"texte": "Définir un cadre commun d'accès aux données sur la "
+                      "disponibilité présente et future de la ressource, pour "
+                      "permettre aux industriels d'évaluer l'impact de leurs "
+                      "projets à l'échelle de chaque bassin versant.",
+             "portee": "anticipe", "termes": []},
+            {"texte": "Conditionner la participation aux instances de "
+                      "gouvernance des usages de l'eau à la réalisation d'une "
+                      "analyse contextualisée de l'empreinte hydrique, des "
+                      "usages et des risques, à l'échelle du bassin versant et "
+                      "sur l'ensemble du cycle de vie des projets industriels, "
+                      "y compris lors de la cessation d'activité.",
+             "portee": "anticipe", "termes": []},
+            {"texte": "Intégrer dans l'évaluation des projets industriels un "
+                      "stress test hydrique fondé sur les projections "
+                      "climatiques et hydrologiques de référence, cohérentes "
+                      "avec la TRACC, afin d'anticiper les risques liés à "
+                      "l'eau et de traduire la valeur de la ressource dans le "
+                      "pilotage de l'activité économique.",
+             "portee": "decide", "termes": ["tracc"]},
+        ],
+    },
+    "planifier_prelevements": {
+        "chapeau":
+            "L'évolution de la disponibilité de la ressource impose d'adapter "
+            "les prélèvements aux capacités de chaque bassin versant et de "
+            "renforcer la coordination entre les usagers. Une gestion "
+            "collective doit permettre de planifier les usages et d'organiser "
+            "les actions nécessaires à la préservation de la ressource.",
+        "mesures": [
+            {"texte": "Fixer des objectifs quantifiés de prélèvement par "
+                      "filière, à l'échelle des bassins et sous-bassins "
+                      "versants, adaptés à la pression exercée sur la "
+                      "ressource afin d'éclairer les décisions prises dans le "
+                      "cadre des SAGE.",
+             "portee": "anticipe", "termes": ["sage"]},
+            {"texte": "Développer des projets d'intérêt commun associant les "
+                      "usagers concernés pour définir les actions à mener sur "
+                      "l'eau et les sols, ainsi que les modalités de "
+                      "contribution et de compensation nécessaires à leur mise "
+                      "en œuvre.",
+             "portee": "contribue", "termes": []},
+            {"texte": "Prendre systématiquement en compte les enjeux du cycle "
+                      "hydrologique global dans les stratégies de "
+                      "développement économique local, en mobilisant les "
+                      "collectivités territoriales et les réseaux consulaires "
+                      "aux côtés des partenaires financiers publics et privés.",
+             "portee": "contribue", "termes": []},
+        ],
+    },
+    "tarification_eau": {
+        "chapeau":
+            "Les mécanismes de tarification doivent mieux refléter la pression "
+            "exercée sur la ressource et inciter les acteurs économiques à "
+            "réduire leurs prélèvements. Leur évolution doit également "
+            "favoriser les investissements qui améliorent l'efficacité "
+            "hydrique et contribuer au financement de la préservation des "
+            "écosystèmes à l'échelle des bassins versants.",
+        "mesures": [
+            {"texte": "Instaurer une tarification incitative associant un prix "
+                      "plancher reflétant le coût réel du service à une part "
+                      "variable modulée selon la pression exercée sur la "
+                      "ressource, tout en prévoyant un mécanisme de "
+                      "plafonnement afin de préserver les activités "
+                      "économiques.",
+             "portee": "anticipe", "termes": []},
+            {"texte": "Affecter les recettes issues de la modulation tarifaire "
+                      "au financement d'actions de préservation et de "
+                      "restauration des écosystèmes à l'échelle des bassins "
+                      "versants, sous l'égide d'une gouvernance locale "
+                      "associant collectivités, industriels, agriculteurs et "
+                      "autres usagers de la ressource.",
+             "portee": "anticipe", "termes": []},
+            {"texte": "Moduler à la baisse la part variable du tarif pour les "
+                      "usagers dont les investissements dans le recyclage, la "
+                      "réutilisation ou la récupération de l'eau permettent "
+                      "une réduction durable et mesurable des prélèvements.",
+             "portee": "anticipe", "termes": []},
+            {"texte": "Rendre visibles sur les factures des acteurs "
+                      "économiques les différentes composantes du coût de "
+                      "l'eau afin de matérialiser sa valeur réelle et de "
+                      "renforcer le signal-prix.",
+             "portee": "anticipe", "termes": []},
+        ],
+    },
+    "competences_eau": {
+        "chapeau":
+            "Le manque de compétences spécialisées et la diffusion "
+            "insuffisante des connaissances freinent le déploiement de "
+            "solutions adaptées aux enjeux de l'eau. La formation des acteurs "
+            "et le rapprochement entre recherche et entreprises doivent "
+            "accélérer leur développement et leur mise en œuvre.",
+        "mesures": [
+            {"texte": "Déployer des programmes de formation continue destinés "
+                      "aux élus et aux collaborateurs des entreprises afin "
+                      "d'ancrer une culture partagée de l'eau.",
+             "portee": "decide", "termes": []},
+            {"texte": "Développer des parcours de formation incluant des "
+                      "visites de terrain pour les métiers exposés aux risques "
+                      "hydriques, des concepteurs urbains aux exploitants "
+                      "agricoles, pour mieux appréhender le fonctionnement du "
+                      "cycle hydrologique et les enjeux économiques liés à "
+                      "l'eau.",
+             "portee": "decide", "termes": []},
+            {"texte": "Créer des chaires académiques partenariales et des "
+                      "incubateurs dédiés à l'innovation dans le domaine de "
+                      "l'eau afin d'accélérer le transfert de connaissances.",
+             "portee": "contribue", "termes": []},
+            {"texte": "Développer des centres de R&D mutualisés afin de "
+                      "concentrer les moyens consacrés à l'innovation, "
+                      "notamment sur le traitement des polluants émergents "
+                      "comme les PFAS et les micropolluants qui freinent la "
+                      "réutilisation de l'eau.",
+             "portee": "contribue", "termes": ["pfas"]},
+        ],
+    },
+}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE GLOSSAIRE — LES SIGLES QUE LES MESURES EMPLOIENT
+#
+#  Ce sont les notes de bas de page du document, reprises telles quelles. Elles
+#  ne sont pas décoratives : une mesure qui demande un « stress test hydrique
+#  cohérent avec la TRACC » est inapplicable pour qui ne sait pas ce qu'est la
+#  TRACC, et un livrable qui cite le sigle sans le définir fait porter au
+#  lecteur le travail que l'auteur avait déjà fait.
+#
+#  QUELLE MESURE CITE QUEL TERME EST CALCULÉ, jamais recopié : `termes` est
+#  déclaré sur la mesure, et `_verifier()` refuse un terme du glossaire que
+#  plus aucune mesure n'emploie — comme un terme employé qui n'existe pas.
+# ═══════════════════════════════════════════════════════════════════════════
+
+GLOSSAIRE = {
+    "tracc": {
+        "sigle": "TRACC",
+        "developpe": "Trajectoire de réchauffement de référence pour "
+                     "l'adaptation au changement climatique",
+        "definition": "Cadre élaboré par la France pour guider l'adaptation "
+                      "aux effets du changement climatique.",
+    },
+    "sage": {
+        "sigle": "SAGE",
+        "developpe": "Schéma d'aménagement et de gestion des eaux",
+        "definition": "Outil de planification locale, élaboré collectivement à "
+                      "l'échelle d'un bassin versant ou d'une nappe "
+                      "souterraine, qui fixe les objectifs et les règles de "
+                      "gestion équilibrée et durable de la ressource en eau.",
+    },
+    "pfas": {
+        "sigle": "PFAS",
+        "developpe": "Composés per- et polyfluoroalkylés",
+        "definition": "Famille de plusieurs milliers de composés chimiques "
+                      "persistants utilisés dans de nombreux produits et "
+                      "procédés industriels.",
+    },
+    "ppa_bpa": {
+        "sigle": "PPA / BPA",
+        "developpe": "Power Purchase Agreement / Biomethane Purchase Agreement",
+        "definition": "Contrats d'approvisionnement énergétique de long terme "
+                      "permettant à un consommateur d'acheter directement de "
+                      "l'électricité ou du biométhane à un producteur, afin de "
+                      "sécuriser les volumes, les prix et la visibilité des "
+                      "investissements.",
+    },
+    "ghg_protocol": {
+        "sigle": "GHG Protocol",
+        "developpe": "Greenhouse Gas Protocol",
+        "definition": "Principal référentiel international de comptabilisation "
+                      "et de reporting des émissions de gaz à effet de serre "
+                      "utilisé par les entreprises et les organisations.",
+    },
+    "macf": {
+        "sigle": "MACF",
+        "developpe": "Mécanisme d'ajustement carbone aux frontières",
+        "definition": "Mécanisme européen visant à prendre en compte le coût "
+                      "du carbone des produits importés afin de prévenir les "
+                      "fuites de carbone et de préserver l'équité "
+                      "concurrentielle.",
+    },
+    "piiec": {
+        "sigle": "PIIEC",
+        "developpe": "Projet important d'intérêt européen commun",
+        "definition": "Dispositif européen permettant aux États membres de "
+                      "soutenir conjointement, y compris par des aides "
+                      "publiques, des projets stratégiques transnationaux "
+                      "contribuant aux objectifs de l'Union européenne.",
+    },
+    "piiec_ia": {
+        "sigle": "PIIEC IA",
+        "developpe": "Projet important d'intérêt européen commun — "
+                     "intelligence artificielle",
+        "definition": "Projet de coopération européenne visant à soutenir des "
+                      "investissements stratégiques dans l'intelligence "
+                      "artificielle, sur le modèle du PIIEC.",
+    },
+    "dora": {
+        "sigle": "DORA",
+        "developpe": "Digital Operational Resilience Act",
+        "definition": "Règlement européen sur la résilience opérationnelle "
+                      "numérique, applicable au secteur financier de l'Union "
+                      "européenne depuis janvier 2025.",
+    },
+    "gepp_gpec": {
+        "sigle": "GEPP / GPEC",
+        "developpe": "Gestion des emplois et des parcours professionnels / "
+                     "Gestion prévisionnelle des emplois et des compétences",
+        "definition": "Dispositifs d'anticipation des évolutions des métiers "
+                      "et des compétences au sein des organisations.",
+    },
+}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LES REPÈRES CHIFFRÉS — ET CE QU'ILS N'ÉTABLISSENT PAS
+#
+#  Trois chiffres encadrés dans le document. Chacun porte SA source, qui n'est
+#  pas toujours le document lui-même, et une LECTURE qui dit ce qu'il ne prouve
+#  pas. Sans elle, ces trois-là se citent de travers avec une facilité
+#  remarquable : « l'industrie consomme 80 % de l'eau » est faux d'un ordre de
+#  grandeur, et « 88 % du territoire en tension en 2050 » n'est pas une
+#  prévision mais un scénario tendanciel, sur une année sèche.
+#
+#  AUCUN DE CES CHIFFRES N'EST RECALCULÉ ICI. Ils sont cités, avec leur
+#  périmètre et leur date ; un chiffre repris sans son périmètre est un chiffre
+#  faux qui a l'air juste.
+# ═══════════════════════════════════════════════════════════════════════════
+
+REPERES = [
+    {
+        "cle": "eau_usages_economiques_2022",
+        "theme": "eau",
+        "chiffre": "2,1 milliards de m³",
+        "enonce": "En 2022, 2,1 milliards de mètres cubes d'eau douce ont été "
+                  "utilisés pour l'industrie, les collectivités, les services "
+                  "publics et d'autres activités économiques — soit moins de "
+                  "10 % du total. L'industrie représente à elle seule 80 % de "
+                  "ces usages.",
+        "source": "Encadré du document — aucune source externe n'y est citée.",
+        "date": "2022",
+        "lecture": "LES 80 % SONT UNE PART DE CES 2,1 MILLIARDS, PAS DE L'EAU "
+                   "PRÉLEVÉE EN FRANCE. Lire « l'industrie consomme 80 % de "
+                   "l'eau » est faux d'un ordre de grandeur : ces usages "
+                   "économiques pèsent eux-mêmes moins de 10 % du total. Le "
+                   "chiffre sert à situer un ordre de grandeur, pas à fonder "
+                   "une répartition.",
+    },
+    {
+        "cle": "tension_hydrique_2050",
+        "theme": "eau",
+        "chiffre": "88 % du territoire hexagonal",
+        "enonce": "À l'horizon 2050, pour une année marquée par un "
+                  "printemps-été sec, dans le scénario tendanciel — sans "
+                  "inflexion notable de la situation actuelle —, 88 % du "
+                  "territoire hexagonal seraient en situation de tension "
+                  "hydrique modérée ou sévère en été.",
+        "source": "« L'eau en 2050 : graves tensions sur les écosystèmes et "
+                  "les usages », note d'analyse du Haut-commissariat à la "
+                  "stratégie.",
+        "date": "horizon 2050",
+        "lecture": "CE N'EST PAS UNE PRÉVISION, C'EST UN SCÉNARIO — celui qui "
+                   "prolonge la situation actuelle sans inflexion — ET IL "
+                   "PORTE SUR UNE ANNÉE SÈCHE, pas sur une année moyenne. Les "
+                   "deux conditions font partie du chiffre : les omettre "
+                   "transforme une hypothèse de travail en fatalité annoncée.",
+    },
+    {
+        "cle": "consommation_dc_france",
+        "theme": "energie_numerique",
+        "chiffre": "2,2 % de la consommation annuelle française",
+        "enonce": "Les data centers représentent à eux seuls 2,2 % de la "
+                  "consommation annuelle française, soit l'équivalent de "
+                  "l'électricité consommée par 9 à 10 agglomérations de plus "
+                  "de 100 000 habitants pendant un an.",
+        "source": "« Consommation électrique des data centers : 5 scénarios "
+                  "pour demain », Ademe, janvier 2026.",
+        "date": "janvier 2026",
+        "lecture": "IL S'AGIT D'ÉLECTRICITÉ, ET DU PARC ENTIER À CETTE DATE. "
+                   "La comparaison aux agglomérations est une équivalence "
+                   "d'ordre de grandeur destinée à rendre le chiffre lisible, "
+                   "pas une substitution : personne n'arbitre entre un centre "
+                   "de données et une ville. La source elle-même présente cinq "
+                   "scénarios — citer le seul chiffre d'aujourd'hui sans dire "
+                   "qu'il en existe cinq trajectoires appauvrit ce qu'elle dit.",
+    },
+]
+
 def _verifier():
     if len(PROPOSITIONS) != 30:
         raise ValueError("le référentiel annonce trente propositions et en "
@@ -619,6 +1215,62 @@ def _verifier():
             raise ValueError("le thème « %s » porte %d propositions au lieu "
                              "de cinq" % (t["nom"], n))
 
+    # ── LES MESURES ────────────────────────────────────────────────────────
+    connues = {p["cle"] for p in PROPOSITIONS}
+    cites = set()
+    for cle, bloc in MESURES.items():
+        if cle not in connues:
+            raise ValueError("MESURES : « %s » ne désigne aucune proposition"
+                             % cle)
+        if len(str(bloc.get("chapeau") or "").strip()) < 80:
+            raise ValueError("mesures de « %s » : chapeau absent ou trop "
+                             "court pour être celui du document" % cle)
+        if len(bloc["mesures"]) < 3:
+            raise ValueError("mesures de « %s » : %d mesure(s) — le document "
+                             "en porte trois à cinq par proposition"
+                             % (cle, len(bloc["mesures"])))
+        for m in bloc["mesures"]:
+            if m["portee"] not in PORTEES:
+                raise ValueError("mesure de « %s » : portée inconnue %r"
+                                 % (cle, m["portee"]))
+            if len(m["texte"].strip()) < 60:
+                raise ValueError("mesure de « %s » : texte trop court pour "
+                                 "être celui du document" % cle)
+            for t in m["termes"]:
+                if t not in GLOSSAIRE:
+                    raise ValueError("mesure de « %s » : terme « %s » absent "
+                                     "du glossaire" % (cle, t))
+                cites.add(t)
+        # LA PORTÉE DE LA PROPOSITION FIGURE PARMI CELLES DE SES MESURES. Une
+        # proposition lue DÉCIDE dont aucune mesure ne se décide serait une
+        # promesse sans objet ; l'inverse — une mesure plus engageante que sa
+        # proposition — est permis et c'est précisément ce que
+        # `mesures_masquees()` va chercher.
+        prop = [p for p in PROPOSITIONS if p["cle"] == cle][0]
+        if prop["portee"] not in {m["portee"] for m in bloc["mesures"]}:
+            raise ValueError(
+                "proposition %d : lue « %s », alors qu'aucune de ses mesures "
+                "ne l'est (%s)" % (prop["numero"], prop["portee"],
+                                   sorted({m["portee"] for m in bloc["mesures"]})))
+    orphelins = sorted(set(GLOSSAIRE) - cites)
+    if orphelins:
+        raise ValueError("termes du glossaire que plus aucune mesure "
+                         "n'emploie : %s" % orphelins)
+
+    # ── LES REPÈRES ────────────────────────────────────────────────────────
+    vus = set()
+    for r in REPERES:
+        if r["cle"] in vus:
+            raise ValueError("repère dupliqué : %r" % r["cle"])
+        vus.add(r["cle"])
+        if r["theme"] not in _THEME:
+            raise ValueError("repère %s : thème inconnu %r" % (r["cle"], r["theme"]))
+        for champ in ("chiffre", "enonce", "source", "date", "lecture"):
+            if not str(r.get(champ) or "").strip():
+                raise ValueError("repère %s : « %s » vide — un chiffre sans "
+                                 "source ni lecture se cite de travers"
+                                 % (r["cle"], champ))
+
 
 _verifier()   # refuse au chargement, pas à l'affichage
 
@@ -633,8 +1285,18 @@ def referentiel():
     return {"version": VERSION, "source": dict(SOURCE),
             "themes": [dict(t) for t in THEMES],
             "portees": {k: dict(v) for k, v in PORTEES.items()},
-            "propositions": [dict(p, enjeux=list(p["enjeux"]))
-                             for p in PROPOSITIONS]}
+            # CHAQUE PROPOSITION PORTE SES MESURES ET LEURS PORTÉES. Les
+            # servir à part obligerait l'écran à les rapprocher lui-même, et
+            # c'est exactement le rapprochement qui a manqué jusqu'ici.
+            "propositions": [dict(p, enjeux=list(p["enjeux"]),
+                                  chapeau=chapeau_de(p["cle"]),
+                                  mesures=mesures_de(p["cle"]),
+                                  portees_mesures=portees_des_mesures(p["cle"]))
+                             for p in PROPOSITIONS],
+            "couverture_mesures": couverture_mesures(),
+            "mesures_masquees": mesures_masquees(),
+            "glossaire": {k: dict(v) for k, v in GLOSSAIRE.items()},
+            "reperes": [dict(r) for r in REPERES]}
 
 
 def par_enjeu(cles_enjeux):
@@ -678,3 +1340,112 @@ def sante():
     return {"version": VERSION, "propositions": len(PROPOSITIONS),
             "themes": par_theme, "portees": par_portee,
             "enjeux_cites": len(enjeux_cites()), "problemes": []}
+
+
+def mesures_de(cle_proposition):
+    """Les mesures d'une proposition, termes du glossaire résolus.
+
+    Rend une liste VIDE pour les vingt propositions dont les mesures ne sont
+    pas relevées — et `couverture_mesures()` dit lesquelles. Une liste vide qui
+    se lirait « cette proposition n'a pas de mesures » serait fausse : elle
+    n'en a pas ICI."""
+    bloc = MESURES.get(cle_proposition)
+    if not bloc:
+        return []
+    return [dict(m, termes=[dict(GLOSSAIRE[t], cle=t) for t in m["termes"]])
+            for m in bloc["mesures"]]
+
+
+def chapeau_de(cle_proposition):
+    bloc = MESURES.get(cle_proposition)
+    return bloc["chapeau"] if bloc else None
+
+
+def couverture_mesures():
+    """Combien de propositions portent leurs mesures détaillées, et lesquelles.
+
+    ELLE EST RENDUE AVEC LES MESURES, ET JAMAIS APRÈS. Dix propositions sur
+    trente les portent : afficher les mesures sans dire cela laisserait croire
+    que les vingt autres n'en ont pas, alors qu'elles n'ont pas été relevées.
+    C'est la même règle qu'ailleurs — une couverture tue se lit comme une
+    absence."""
+    avec = [p["cle"] for p in PROPOSITIONS if p["cle"] in MESURES]
+    return {
+        "total": len(PROPOSITIONS),
+        "avec_mesures": len(avec),
+        "sans_mesures": len(PROPOSITIONS) - len(avec),
+        "themes_releves": sorted({p["theme"] for p in PROPOSITIONS
+                                  if p["cle"] in MESURES}),
+        "mesures": sum(len(b["mesures"]) for b in MESURES.values()),
+        "pourquoi": "Les mesures ne sont relevées que pour les thèmes versés "
+                    "au dossier. Les autres propositions gardent le résumé du "
+                    "document ; elles ne sont pas dépourvues de mesures, "
+                    "elles ne sont pas dépouillées ici.",
+    }
+
+
+def mesures_masquees():
+    """Les mesures que la portée de leur proposition rend invisibles.
+
+    LE DÉFAUT QUE CETTE FONCTION EXPOSE, ET QUI A MOTIVÉ TOUT LE BLOC. La
+    portée d'une proposition est une lecture d'ENSEMBLE, et elle est juste à ce
+    titre : un centre de données ne structure pas la recherche nationale sur
+    l'eau, donc la proposition 25 est bien « contribue ». Mais deux de ses
+    quatre mesures sont la formation de ses propres exploitants aux risques
+    hydriques — cela, il le décide seul.
+
+    Or `hors_couverture()` ne regarde que les propositions DÉCIDE ou ANTICIPE.
+    Ces deux mesures-là ne pouvaient donc apparaître dans AUCUN livrable, quel
+    que soit le projet : la moitié utile de la confrontation en laissait tomber
+    une part, et rien ne le signalait.
+
+    Une mesure est masquée quand sa portée engage PLUS que celle de sa
+    proposition — c'est-à-dire quand le résumé a perdu du travail actionnable
+    en route.
+    """
+    masquees = []
+    for p in PROPOSITIONS:
+        bloc = MESURES.get(p["cle"])
+        if not bloc:
+            continue
+        rang_p = RANG_PORTEE[p["portee"]]
+        for i, m in enumerate(bloc["mesures"]):
+            if RANG_PORTEE[m["portee"]] > rang_p:
+                masquees.append({
+                    "numero": p["numero"], "cle": p["cle"], "titre": p["titre"],
+                    "theme": p["theme"], "rang": i + 1,
+                    "texte": m["texte"], "portee": m["portee"],
+                    "portee_proposition": p["portee"],
+                    "enjeux": list(p["enjeux"]),
+                })
+    return masquees
+
+
+def portees_des_mesures(cle_proposition):
+    """Les portées présentes parmi les mesures, de la plus engageante à la
+    moins — pour que l'écran puisse dire qu'une proposition en mélange
+    plusieurs, au lieu de n'afficher que celle du résumé."""
+    bloc = MESURES.get(cle_proposition)
+    if not bloc:
+        return []
+    vues = {m["portee"] for m in bloc["mesures"]}
+    return sorted(vues, key=lambda x: -RANG_PORTEE[x])
+
+
+def glossaire_cite(cles_propositions):
+    """Les seuls termes employés par les propositions données.
+
+    Servir les dix termes à chaque fois noierait les deux qui comptent. Un
+    glossaire complet est un glossaire qu'on ne lit pas."""
+    voulus = set(cles_propositions or ())
+    cites = []
+    for cle in voulus:
+        for m in MESURES.get(cle, {}).get("mesures", []):
+            cites.extend(m["termes"])
+    return [dict(GLOSSAIRE[t], cle=t) for t in sorted(set(cites))]
+
+
+def reperes_des_themes(cles_themes):
+    """Les repères chiffrés des thèmes donnés, avec leur source et leur lecture."""
+    voulus = set(cles_themes or ())
+    return [dict(r) for r in REPERES if r["theme"] in voulus]

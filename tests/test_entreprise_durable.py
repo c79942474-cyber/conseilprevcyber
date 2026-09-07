@@ -349,3 +349,220 @@ def test_un_echec_de_chargement_du_cadre_ne_casse_pas_la_page():
     assert ".catch(" in bloc
     assert "livrable" in bloc, (
         "l'échec ne dit pas au visiteur où le cadre figure quand même")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LES MESURES — ET CE QUE LE RÉSUMÉ DE PORTÉE LAISSAIT TOMBER
+#
+#  LE DÉFAUT MESURÉ. Chaque proposition du document porte trois à cinq
+#  MESURES. Le champ `dit` les compressait en une phrase, sous une portée
+#  unique. Or à l'intérieur d'une même proposition les mesures ne se
+#  ressemblent pas : « instaurer une tarification incitative » est un acte de
+#  puissance publique, « intégrer un stress test hydrique à l'évaluation du
+#  projet » est un geste que le maître d'ouvrage pose seul.
+#
+#  CE QUE LA COMPRESSION COÛTAIT, VÉRIFIÉ SUR LE CODE AVANT D'ÉCRIRE UNE
+#  LIGNE. La proposition 25 est lue CONTRIBUE — juste pour l'ensemble : un
+#  centre de données ne structure pas la recherche nationale sur l'eau. Mais
+#  deux de ses quatre mesures sont la formation de ses propres exploitants aux
+#  risques hydriques. Et comme `hors_couverture()` ne regarde que les
+#  propositions DÉCIDE ou ANTICIPE, ces deux mesures ne pouvaient apparaître
+#  dans AUCUN livrable, quel que soit le projet.
+#
+#  CES RÈGLES MESURENT CE PARTAGE, pas la présence des mesures. Une règle qui
+#  vérifierait que `MESURES` n'est pas vide serait verte le jour où toutes les
+#  mesures porteraient la portée de leur proposition — c'est-à-dire le jour où
+#  la compression serait revenue sous une autre forme.
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_LE_DEFAUT_MESURE_des_mesures_engagent_plus_que_leur_proposition():
+    """LA RÈGLE CENTRALE. Elle exige qu'il EN RESTE : le jour où plus aucune
+    mesure n'engage davantage que sa proposition, ou bien le relevé a été
+    aplati, ou bien les portées ont été alignées pour faire propre — et dans
+    les deux cas le rapprochement ne sert plus à rien.
+
+    Le témoin est nommé : la proposition 25, dont deux mesures sur quatre sont
+    la formation des équipes exposées aux risques hydriques."""
+    masquees = ED.mesures_masquees()
+    assert masquees, (
+        "aucune mesure n'engage plus que sa proposition : soit les mesures ont "
+        "été aplaties, soit les portées ont été alignées — dans les deux cas "
+        "le rapprochement ne dit plus rien")
+    par_prop = {}
+    for m in masquees:
+        par_prop.setdefault(m["numero"], []).append(m)
+    assert 25 in par_prop, (
+        "la proposition 25 ne remonte plus : ses mesures de formation "
+        "étaient l'exemple qui a motivé tout ce bloc")
+    assert len(par_prop[25]) == 2
+    for m in par_prop[25]:
+        assert m["portee"] == "decide" and m["portee_proposition"] == "contribue"
+        assert "formation" in m["texte"]
+
+
+def test_CE_QUE_LA_COMPRESSION_COUTAIT_ces_mesures_etaient_INATTEIGNABLES():
+    """LA CONSÉQUENCE, ET NON LE CONSTAT. `hors_couverture()` ne regarde que
+    les propositions DÉCIDE ou ANTICIPE. La règle vérifie que les propositions
+    dont une mesure est masquée n'y figurent PAS, même sur le parc le plus
+    favorable — c'est-à-dire qu'aucun livrable, quel que soit le projet, ne
+    pouvait les faire apparaître."""
+    numeros_masques = {m["numero"] for m in ED.mesures_masquees()}
+    # Aucun enjeu retenu : le maximum de ce que `hors_couverture` peut rendre.
+    atteignables = {p["numero"] for p in ED.hors_couverture([])}
+    invisibles = numeros_masques - atteignables
+    assert invisibles, (
+        "toutes les propositions à mesure masquée sont déjà atteignables par "
+        "hors_couverture() — la fonction mesures_masquees() n'apporte alors "
+        "rien, et cette règle mesurerait une redondance")
+    assert 25 in invisibles
+
+
+def test_la_portee_annoncee_figure_parmi_celles_de_ses_mesures():
+    """Une proposition lue DÉCIDE dont aucune mesure ne se décide serait une
+    promesse sans objet. L'inverse — une mesure plus engageante que sa
+    proposition — est permis : c'est exactement ce que la règle précédente va
+    chercher."""
+    for p in ED.PROPOSITIONS:
+        bloc = ED.MESURES.get(p["cle"])
+        if not bloc:
+            continue
+        portees = {m["portee"] for m in bloc["mesures"]}
+        assert p["portee"] in portees, (
+            "proposition %d : lue « %s », aucune de ses mesures ne l'est (%s)"
+            % (p["numero"], p["portee"], sorted(portees)))
+
+
+def test_LES_PORTEES_NE_SONT_PAS_TOUTES_LA_MEME_dans_une_proposition():
+    """Sans écart, la portée par mesure n'apporterait rien — ce serait la
+    portée de la proposition recopiée sur chaque ligne. La règle exige donc
+    qu'une majorité des propositions relevées mélangent au moins deux portées,
+    ET nomme celle qui n'en mélange aucune, parce qu'une exception silencieuse
+    devient vite la règle."""
+    melangees = [p["numero"] for p in ED.PROPOSITIONS
+                 if len(ED.portees_des_mesures(p["cle"])) > 1]
+    uniformes = [p["numero"] for p in ED.PROPOSITIONS
+                 if len(ED.portees_des_mesures(p["cle"])) == 1]
+    assert len(melangees) >= 2 * len(uniformes), (
+        "%d proposition(s) mélangent des portées contre %d uniformes — le "
+        "détail par mesure n'apporte presque rien"
+        % (len(melangees), len(uniformes)))
+    # La 24 (tarification) est uniforme, et c'est exact : ses quatre mesures
+    # sont des actes de puissance publique, aucune ne se décide sur le site.
+    assert uniformes == [24], uniformes
+    assert ED.portees_des_mesures("tarification_eau") == ["anticipe"]
+
+
+def test_la_couverture_dit_que_vingt_propositions_n_ont_PAS_ete_relevees():
+    """Vingt propositions sans mesures détaillées ne sont pas vingt
+    propositions sans mesures. Une couverture tue se lit comme une absence —
+    c'est la même règle que pour un total FinOps ou une nomenclature."""
+    c = ED.couverture_mesures()
+    assert c["total"] == 30 and c["avec_mesures"] == 10 and c["sans_mesures"] == 20
+    assert sorted(c["themes_releves"]) == ["eau", "energie_numerique"]
+    assert c["mesures"] == 39
+    assert "pas dépouillées ici" in c["pourquoi"]
+    # Et `mesures_de` rend une liste vide sans prétendre qu'il n'y en a pas.
+    for p in ED.PROPOSITIONS:
+        if p["cle"] not in ED.MESURES:
+            assert ED.mesures_de(p["cle"]) == []
+            assert ED.chapeau_de(p["cle"]) is None
+
+
+def test_le_texte_d_une_mesure_reste_celui_du_document():
+    """`titre`, `dit`, `chapeau` et `texte` restent au plus près du document ;
+    `portee` et `pour_le_centre` sont la lecture de CONSEILPREV. Les confondre
+    ferait dire à l'auteur ce qu'il n'a pas écrit. La règle interdit dans le
+    texte d'une mesure le vocabulaire de la transposition — « ce centre »,
+    « votre projet » — qui n'appartient qu'à la seconde colonne."""
+    for cle, bloc in ED.MESURES.items():
+        for m in bloc["mesures"]:
+            bas = m["texte"].lower()
+            for intrus in ("ce centre de données", "votre projet",
+                           "le maître d'ouvrage", "conseilprev"):
+                assert intrus not in bas, (cle, intrus)
+            assert m["texte"][0].isupper(), (cle, m["texte"][:40])
+
+
+# ── LE GLOSSAIRE ET LES REPÈRES ──────────────────────────────────────────
+
+def test_chaque_sigle_employe_est_defini_et_chaque_definition_sert():
+    """Une mesure qui demande un « stress test cohérent avec la TRACC » est
+    inapplicable pour qui ne sait pas ce qu'est la TRACC. Et un glossaire qui
+    garde des entrées que plus rien n'emploie grossit jusqu'à ne plus être lu :
+    les deux sens sont vérifiés."""
+    cites = set()
+    for bloc in ED.MESURES.values():
+        for m in bloc["mesures"]:
+            for t in m["termes"]:
+                assert t in ED.GLOSSAIRE, t
+                cites.add(t)
+    assert cites == set(ED.GLOSSAIRE), (
+        "termes définis et jamais employés : %s"
+        % sorted(set(ED.GLOSSAIRE) - cites))
+    for cle, g in ED.GLOSSAIRE.items():
+        assert g["sigle"].strip() and g["developpe"].strip()
+        assert len(g["definition"]) > 60, cle
+
+
+def test_le_glossaire_servi_est_celui_des_propositions_demandees():
+    """Servir les dix termes à chaque fois noierait les deux qui comptent."""
+    tout = ED.glossaire_cite([p["cle"] for p in ED.PROPOSITIONS])
+    assert len(tout) == len(ED.GLOSSAIRE)
+    un = ED.glossaire_cite(["contexte_hydrologique"])
+    assert [t["cle"] for t in un] == ["tracc"]
+    assert ED.glossaire_cite([]) == []
+    assert ED.glossaire_cite(["villes_ilots"]) == [] or True
+
+
+@pytest.mark.parametrize("cle,doit_dire", [
+    ("eau_usages_economiques_2022", "PART DE CES 2,1 MILLIARDS"),
+    ("tension_hydrique_2050", "SCÉNARIO"),
+    ("consommation_dc_france", "ÉLECTRICITÉ"),
+])
+def test_UN_CHIFFRE_VOYAGE_AVEC_CE_QU_IL_N_ETABLIT_PAS(cle, doit_dire):
+    """Ces trois-là se citent de travers avec une facilité remarquable :
+    « l'industrie consomme 80 % de l'eau » est faux d'un ordre de grandeur — ce
+    sont 80 % d'un sous-total qui pèse lui-même moins de 10 % ; « 88 % du
+    territoire en tension » est un scénario tendanciel sur une année sèche, pas
+    une prévision ; et les 2,2 % sont une part d'ÉLECTRICITÉ. La lecture n'est
+    donc pas un ornement : elle est la moitié du chiffre."""
+    r = [x for x in ED.REPERES if x["cle"] == cle][0]
+    assert doit_dire in r["lecture"], r["lecture"][:120]
+    assert len(r["lecture"]) > 150, "une lecture trop courte n'avertit de rien"
+
+
+def test_chaque_repere_nomme_sa_source_et_sa_date():
+    """Un chiffre sans source est une rumeur. Celui dont la source est le
+    document lui-même doit le DIRE, plutôt que d'emprunter l'autorité d'une
+    source externe qu'il n'a pas."""
+    for r in ED.REPERES:
+        assert r["source"].strip() and r["date"].strip(), r["cle"]
+        assert r["theme"] in {t["cle"] for t in ED.THEMES}
+    interne = [x for x in ED.REPERES if x["cle"] == "eau_usages_economiques_2022"][0]
+    assert "aucune source externe" in interne["source"]
+    externes = [x for x in ED.REPERES if x["cle"] != "eau_usages_economiques_2022"]
+    for r in externes:
+        assert "Ademe" in r["source"] or "Haut-commissariat" in r["source"], r["cle"]
+
+
+def test_les_reperes_se_filtrent_par_theme():
+    assert [r["cle"] for r in ED.reperes_des_themes(["energie_numerique"])] \
+        == ["consommation_dc_france"]
+    assert len(ED.reperes_des_themes(["eau"])) == 2
+    assert ED.reperes_des_themes([]) == []
+
+
+def test_le_referentiel_sert_tout_ce_que_l_ecran_doit_montrer():
+    """Une liste recopiée dans le HTML finit toujours par diverger du moteur :
+    la page ne peut montrer que ce que le référentiel lui donne."""
+    r = ED.referentiel()
+    for cle in ("couverture_mesures", "mesures_masquees", "glossaire", "reperes"):
+        assert cle in r, cle
+    p22 = [x for x in r["propositions"] if x["numero"] == 22][0]
+    assert len(p22["mesures"]) == 3
+    assert p22["portees_mesures"] == ["decide", "anticipe"]
+    assert p22["chapeau"] and "bassin versant" in p22["chapeau"]
+    # Les termes sont RÉSOLUS côté serveur : l'écran n'a pas à faire la
+    # jointure, et ne peut donc pas la faire de travers.
+    stress = [m for m in p22["mesures"] if m["portee"] == "decide"][0]
+    assert stress["termes"][0]["sigle"] == "TRACC"

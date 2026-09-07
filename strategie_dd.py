@@ -1588,16 +1588,48 @@ def markdown(s):
     A("")
 
     touchant = ED.par_enjeu(cles_retenues)
+    # `noms` sert aussi au bloc des mesures masquées, plus bas : le laisser
+    # dans le `if` faisait dépendre ce bloc-là d'un court-circuit
+    # d'expression, ce qui tient jusqu'au jour où on réordonne.
+    noms = {l["cle"]: l["nom"] for l in s["retenus"]}
     if touchant:
         A("### Ce que les propositions commandent sur les enjeux retenus")
         A("")
-        noms = {l["cle"]: l["nom"] for l in s["retenus"]}
         for p in touchant:
             vises = [noms[c] for c in p["enjeux"] if c in noms]
             A("**%d. %s**" % (p["numero"], p["titre"]))
             A("")
             A("*%s* — %s" % (portees[p["portee"]]["nom"], p["dit"]))
             A("")
+            # LE CHAPEAU DU DOCUMENT, quand il est relevé : c'est le
+            # raisonnement de l'auteur, et il n'est pas remplaçable par le
+            # résumé — le résumé dit CE QU'IL FAUT FAIRE, le chapeau dit
+            # POURQUOI, et c'est le second qui se discute en comité.
+            chapeau = ED.chapeau_de(p["cle"])
+            if chapeau:
+                A("> %s" % chapeau)
+                A("")
+            # LES MESURES, CHACUNE AVEC SA PORTÉE PROPRE. Le résumé les
+            # compressait en une phrase sous une portée unique : un lecteur ne
+            # pouvait pas distinguer ce qu'il décide de ce qu'il subit.
+            mesures = ED.mesures_de(p["cle"])
+            if mesures:
+                A("*Ce que la proposition demande, mesure par mesure :*")
+                A("")
+                for m in mesures:
+                    A("- **[%s]** %s" % (portees[m["portee"]]["nom"], m["texte"]))
+                A("")
+                spread = ED.portees_des_mesures(p["cle"])
+                if len(spread) > 1:
+                    # SANS CET AVERTISSEMENT, la portée annoncée en tête se
+                    # lit comme celle de tout le bloc — et une mesure
+                    # actionnable disparaît derrière l'étiquette de la
+                    # proposition.
+                    A("*La portée n'est pas la même d'une mesure à l'autre "
+                      "(%s) : celle indiquée en tête vaut pour l'ensemble, "
+                      "pas pour chaque ligne.*"
+                      % ", ".join(portees[x]["nom"].lower() for x in spread))
+                    A("")
             A("*Pour ce centre de données :* %s" % p["pour_le_centre"])
             A("")
             A("*Enjeux retenus concernés :* %s" % ", ".join(vises))
@@ -1606,6 +1638,37 @@ def markdown(s):
         A("*Aucun enjeu n'a été retenu : le rapprochement avec les trente "
           "propositions n'a rien sur quoi s'appuyer. Ce n'est pas un résultat "
           "favorable — c'est l'absence de résultat.*")
+        A("")
+
+    # ── CE QUE LE RÉSUMÉ DE PORTÉE LAISSAIT TOMBER ────────────────────────
+    # LE DÉFAUT QUE CE BLOC RÉPARE. `hors_couverture()` ne regarde que les
+    # propositions DÉCIDE ou ANTICIPE — c'est juste, on ne reproche pas à un
+    # projet de ne pas décider ce qu'il ne décide pas. Mais une proposition
+    # lue CONTRIBUE peut porter une mesure que le maître d'ouvrage décide
+    # seul : celle-là ne pouvait apparaître dans AUCUN livrable, quel que soit
+    # le projet. La liste ci-dessous est donc courte et elle est neuve.
+    masquees = ED.mesures_masquees()
+    if masquees:
+        A("### Des mesures actionnables que la lecture d'ensemble masquait")
+        A("")
+        A("La portée indiquée sur une proposition vaut pour l'ensemble qu'elle "
+          "forme. Les mesures qui suivent engagent **davantage** que la "
+          "proposition qui les porte : le projet peut les décider ou les "
+          "anticiper alors que la proposition, prise en bloc, ne relève que de "
+          "la contribution. Sans ce rapprochement, elles ne figuraient nulle "
+          "part — ni dans les propositions retenues, ni dans ce que le cadre "
+          "demande et que la stratégie ne couvre pas.")
+        A("")
+        for m in masquees:
+            porte_un_enjeu = [noms[c] for c in m["enjeux"] if c in noms]
+            A("- **%d. %s** — mesure %d, lue *%s* dans une proposition *%s*. "
+              "%s%s"
+              % (m["numero"], m["titre"], m["rang"],
+                 portees[m["portee"]]["nom"].lower(),
+                 portees[m["portee_proposition"]]["nom"].lower(),
+                 m["texte"],
+                 (" *(enjeux retenus concernés : %s)*"
+                  % ", ".join(porte_un_enjeu)) if porte_un_enjeu else ""))
         A("")
 
     dehors = ED.hors_couverture(cles_retenues)
@@ -1643,6 +1706,49 @@ def markdown(s):
         A("")
         for l in orphelins:
             A("- **%s** (%s)" % (l["nom"], l["famille_nom"]))
+        A("")
+
+    # ── LES REPÈRES CHIFFRÉS DU DOCUMENT, AVEC CE QU'ILS N'ÉTABLISSENT PAS
+    # Un chiffre encadré se cite de travers avec une facilité remarquable :
+    # « l'industrie consomme 80 % de l'eau » est faux d'un ordre de grandeur,
+    # et « 88 % du territoire en tension » est un scénario, pas une
+    # prévision. La lecture voyage donc avec le chiffre, toujours.
+    themes_cites = sorted({p["theme"] for p in touchant} | {m["theme"] for m in masquees})
+    reperes = ED.reperes_des_themes(themes_cites)
+    if reperes:
+        A("### Les repères chiffrés que le document avance")
+        A("")
+        for r in reperes:
+            A("**%s** — %s" % (r["chiffre"], r["enonce"]))
+            A("")
+            A("*Source :* %s *(%s)*" % (r["source"], r["date"]))
+            A("")
+            A("*Comment le lire :* %s" % r["lecture"])
+            A("")
+
+    # ── LE GLOSSAIRE DES SEULS TERMES EMPLOYÉS ────────────────────────────
+    # Servir les dix termes à chaque fois noierait les deux qui comptent.
+    termes = ED.glossaire_cite([p["cle"] for p in touchant]
+                               + [m["cle"] for m in masquees])
+    if termes:
+        A("### Les sigles employés par ces mesures")
+        A("")
+        for t in termes:
+            A("- **%s** (%s) — %s" % (t["sigle"], t["developpe"], t["definition"]))
+        A("")
+
+    # ── CE QUI N'A PAS ÉTÉ RELEVÉ ─────────────────────────────────────────
+    # La couverture accompagne les mesures et ne vient jamais après : sans
+    # elle, vingt propositions sans mesures détaillées se lisent comme vingt
+    # propositions sans mesures.
+    couv = ED.couverture_mesures()
+    if couv["sans_mesures"]:
+        noms_themes = {t["cle"]: t["nom"] for t in ED.THEMES}
+        A("*Les mesures détaillées ne sont relevées que pour %d des %d "
+          "propositions — les thèmes %s, soit %d mesures. %s*"
+          % (couv["avec_mesures"], couv["total"],
+             " et ".join("« %s »" % noms_themes[c] for c in couv["themes_releves"]),
+             couv["mesures"], couv["pourquoi"]))
         A("")
 
     A("---")
