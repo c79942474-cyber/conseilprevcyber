@@ -270,9 +270,44 @@ API_JETON = {
 }
 
 
+# ══ LES INTERFACES ADMIN QUI NE SONT PAS SOUS /api/admin/ ════════════════
+#
+# POURQUOI CETTE LISTE EXISTE. Jusqu'ici, « admin » se déduisait du seul
+# préfixe `/api/admin/`. Une interface fermée à l'administration ailleurs
+# était donc déclarée « client » et son verrou réel passait inaperçu :
+# `verifier_api` ne signale que ce qui est TROP OUVERT, si bien qu'un
+# resserrage — voulu ou accidentel — ne se voyait nulle part. C'est
+# exactement la moitié manquante de la règle que ce module porte : « ce
+# qu'on annonce » doit aussi couvrir ce qu'on ferme.
+#
+# LA RÉPONSE À CONSULTATION EST UN OUTIL INTERNE, décidé comme tel. Un
+# dossier de consultation appartient à l'acheteur et se lit avec un métier ;
+# le cabinet l'instruit, le client reçoit le résultat. Le jour où cela
+# change, c'est ICI qu'on l'écrit, et les onze routes suivent.
+_MOTIF_MARCHE = ("réponse à consultation — outil interne : le cabinet "
+                 "instruit le dossier de l'acheteur, le client en reçoit le "
+                 "résultat")
+
+API_ADMIN = {
+    "/api/datacenter/marche/analyser": _MOTIF_MARCHE,
+    "/api/datacenter/marche/candidature": _MOTIF_MARCHE,
+    "/api/datacenter/marche/remplir": _MOTIF_MARCHE,
+    "/api/datacenter/marche/export": _MOTIF_MARCHE,
+    "/api/datacenter/marche/piece": _MOTIF_MARCHE,
+    "/api/datacenter/marche/parcours": _MOTIF_MARCHE,
+    "/api/datacenter/marche/dossier.zip": _MOTIF_MARCHE,
+    "/api/datacenter/marche/formulaire": _MOTIF_MARCHE,
+    "/api/datacenter/marche/formulaires": _MOTIF_MARCHE,
+    "/api/datacenter/marche/projet/dossier": _MOTIF_MARCHE,
+    "/api/datacenter/marche/projet/oubli": _MOTIF_MARCHE,
+    "/api/datacenter/marche/projet/affirmation": _MOTIF_MARCHE,
+}
+
+
 def api_statut(chemin):
-    """Ce qu'une interface DOIT être : « direct », « jeton » ou « client »."""
-    if chemin.startswith("/api/admin/"):
+    """Ce qu'une interface DOIT être : « direct », « jeton », « client » ou
+    « admin »."""
+    if chemin.startswith("/api/admin/") or chemin in API_ADMIN:
         return "admin"
     if chemin in API_OUVERTES:
         return "direct"
@@ -316,10 +351,33 @@ def verifier_api(reelles):
             ecarts.append("%s est fermée alors qu'elle doit rester ouverte (%s)"
                           % (chemin, API_OUVERTES[chemin]))
         elif attendu == "admin" and reel != "admin":
-            ecarts.append("%s est sous /api/admin/ mais protégée par « %s » : "
-                          "un compte client ordinaire (ou tout visiteur, si "
-                          "« direct ») l'atteindrait" % (chemin, reel))
+            ecarts.append("%s est déclarée réservée à l'administration (%s) "
+                          "mais protégée par « %s » : un compte client "
+                          "ordinaire (ou tout visiteur, si « direct ») "
+                          "l'atteindrait"
+                          % (chemin, API_ADMIN.get(chemin, "préfixe "
+                                                   "/api/admin/"), reel))
     return ecarts
+
+
+def verifier_api_couverture(reelles):
+    """L'AUTRE SENS : une interface déclarée réservée qui n'est plus servie.
+
+    SÉPARÉE DE `verifier_api`, ET C'EST LE POINT. `verifier_api` juge ce qu'on
+    lui donne — une règle lui passe légitimement deux routes d'une application
+    d'essai, et lui reprocher alors les douze routes du site n'aurait aucun
+    sens. Ce contrôle-ci suppose au contraire un relevé COMPLET, et il n'a donc
+    qu'un seul appelant : le démarrage.
+
+    CE QU'IL EMPÊCHE. `API_ADMIN` nomme des interfaces fermées hors du préfixe
+    `/api/admin/`. Si l'une disparaît ou change d'adresse, la liste continue de
+    décrire un site qui n'existe plus — et la prochaine lecture de la politique
+    croira protégée une route qui n'est plus là.
+    """
+    return ["%s est déclarée réservée à l'administration mais n'est servie "
+            "par aucune route : la déclaration décrit un site qui n'existe "
+            "plus" % chemin
+            for chemin in sorted(set(API_ADMIN) - set(reelles))]
 
 
 def verifier_application(reelles, menu):

@@ -5726,6 +5726,44 @@ function messageDelai(e, defaut) {
      avant de les envoyer plutôt que d'apprendre le plafond en le heurtant. */
   var AO_TRANSPORT_MAX = 32 * 1024 * 1024 * 3 / 4;
 
+  /* ── QUI A DROIT AU §14, DEMANDÉ AVANT LE PREMIER CLIC ───────────────
+     Les douze interfaces de la réponse à consultation sont réservées à
+     l'administration — la décision est écrite dans `acces.API_ADMIN` côté
+     serveur, avec son motif, et le service refuse de démarrer si l'une
+     d'elles s'ouvrait. Ici on ne DÉCIDE rien : on demande au serveur qui
+     regarde, et on règle la section dessus.
+
+     LE VERROU RESTE CELUI DU SERVEUR. Masquer un bouton n'a jamais protégé
+     une route ; ce qui change ici est seulement qu'on cesse de faire
+     travailler quelqu'un pour rien — choisir ses fichiers, attendre le
+     téléversement, et lire un refus. */
+  var AO_INTERNE_OUVERT = null;   /* null = pas encore su */
+
+  function aoInterne() {
+    return demander("/api/auth/me", { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { AO_INTERNE_OUVERT = !!j && j.role === "admin"; })
+      .catch(function () { AO_INTERNE_OUVERT = false; })
+      .then(function () {
+        var b = $("#ig-ao-interne");
+        if (b) b.classList.toggle("on", !AO_INTERNE_OUVERT);
+        /* LES COMMANDES PARTENT, L'EXPLICATION RESTE. Laisser un champ de
+           fichier inerte ferait croire à une panne ; le retirer sous un
+           bandeau qui dit pourquoi se comprend.
+
+           UNE CLASSE SUR LA SECTION, PAS UNE LISTE D'IDENTIFIANTS. La liste
+           avait laissé DEUX BOUTONS VIDES à l'écran — mesuré en navigateur :
+           `el.hidden` ne pèse rien face au `display:inline-block` de `.btn`,
+           et « Mesurer les sept étapes » restait cliquable vers une route qui
+           refuse. Ce qui s'adresse à celui qui opère porte `ig-ao-op` ; une
+           seule règle de feuille les ferme tous, et un bloc ajouté demain la
+           reçoit sans qu'on ait à se souvenir de cette fonction. */
+        var sec = $("#ig-ao");
+        if (sec) sec.classList.toggle("ig-ao-ferme", !AO_INTERNE_OUVERT);
+        return AO_INTERNE_OUVERT;
+      });
+  }
+
   function aoDocuments() {
     var z = $("#ig-ao-depot");
     if (!z) return;
@@ -7750,8 +7788,14 @@ function messageDelai(e, defaut) {
         icpeBareme();
         reseauFormulaire(CADRE.reseau_champs);
         travauxFormulaire();
-        aoDocuments();
-        aoFicheCharger();
+        /* L'ORDRE COMPTE : `aoInterne` décide si les commandes du §14 sont
+           dessinées du tout. Les dessiner d'abord ferait apparaître un
+           formulaire une fraction de seconde avant de le retirer. */
+        aoInterne().then(function (ouvert) {
+          if (!ouvert) return;
+          aoDocuments();
+          aoFicheCharger();
+        });
         /* LE PROJET RATTACHÉ SE RETROUVE À L'OUVERTURE, et son état est
            redemandé au serveur. Le garder localement le ferait vieillir en
            silence : une preuve expirée la semaine dernière s'afficherait

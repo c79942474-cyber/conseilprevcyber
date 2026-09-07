@@ -499,11 +499,11 @@ def test_un_visiteur_anonyme_ne_remplit_aucun_formulaire(anonyme):
         assert r.status_code in (401, 403), (chemin, r.status_code)
 
 
-def test_la_route_rend_un_docx_ouvrable_et_rempli(connecte):
+def test_la_route_rend_un_docx_ouvrable_et_rempli(marche):
     """ON OUVRE CE QUE LE SERVEUR A RENDU. Vérifier le type MIME dirait
     seulement que l'en-tête est juste ; un fichier tronqué le porterait
     aussi."""
-    r = connecte.post("/api/datacenter/marche/formulaire", json=CORPS,
+    r = marche.post("/api/datacenter/marche/formulaire", json=CORPS,
                       headers=ORIGINE)
     assert r.status_code == 200, r.data[:200]
     assert "wordprocessingml" in r.headers["Content-Type"], r.headers
@@ -514,11 +514,11 @@ def test_la_route_rend_un_docx_ouvrable_et_rempli(connecte):
     assert FICHE["siret"] in paras, "le SIRET n'est pas entré"
 
 
-def test_la_route_dit_dans_un_en_tete_ce_qui_n_a_pas_ete_place(connecte):
+def test_la_route_dit_dans_un_en_tete_ce_qui_n_a_pas_ete_place(marche):
     """Un téléchargement ne rend pas de JSON, et la page a besoin de dire ce
     qui manque : sans cela, un formulaire partiel se lirait comme complet."""
     import json as _json
-    r = connecte.post("/api/datacenter/marche/formulaire", json=CORPS,
+    r = marche.post("/api/datacenter/marche/formulaire", json=CORPS,
                       headers=ORIGINE)
     etat = _json.loads(r.headers["X-Remplissage"])
     assert etat["places"] >= 10, etat
@@ -527,10 +527,10 @@ def test_la_route_dit_dans_un_en_tete_ce_qui_n_a_pas_ete_place(connecte):
     assert isinstance(etat["ignores"], list)
 
 
-def test_un_modele_inconnu_est_refuse_en_400_et_les_choix_sont_dits(connecte):
+def test_un_modele_inconnu_est_refuse_en_400_et_les_choix_sont_dits(marche):
     """Refuser sans dire ce qui est possible ferait deviner le nom du
     formulaire."""
-    r = connecte.post("/api/datacenter/marche/formulaire",
+    r = marche.post("/api/datacenter/marche/formulaire",
                       json=dict(CORPS, modele="dc9"), headers=ORIGINE)
     assert r.status_code == 400, r.status_code
     j = r.get_json()
@@ -538,12 +538,12 @@ def test_un_modele_inconnu_est_refuse_en_400_et_les_choix_sont_dits(connecte):
     assert "dc4" in j["disponibles"]
 
 
-def test_la_route_ne_declare_rien_meme_avec_une_fiche_complete(connecte):
+def test_la_route_ne_declare_rien_meme_avec_une_fiche_complete(marche):
     """LA LIGNE À NE PAS FRANCHIR. Aucune des affirmations du cadre K1 ne doit
     apparaître comme cochée ou reprise dans le document produit : leur
     fausseté est sanctionnée pénalement, et une case remplie par un programme
     est une déclaration que personne n'a faite."""
-    r = connecte.post("/api/datacenter/marche/formulaire", json=CORPS,
+    r = marche.post("/api/datacenter/marche/formulaire", json=CORPS,
                       headers=ORIGINE)
     produit = _paras(io.BytesIO(r.data))
     modele = _paras(F.chemin_modele("dc4"))
@@ -554,11 +554,11 @@ def test_la_route_ne_declare_rien_meme_avec_une_fiche_complete(connecte):
         "route")
 
 
-def test_l_etat_des_modeles_distingue_pret_absent_et_altere(connecte):
+def test_l_etat_des_modeles_distingue_pret_absent_et_altere(marche):
     """La page ne devine pas : un bouton proposé pour un modèle absent
     produirait une erreur au clic, un bouton caché ferait croire que la
     fonction n'existe pas."""
-    r = connecte.get("/api/datacenter/marche/formulaires", headers=ORIGINE)
+    r = marche.get("/api/datacenter/marche/formulaires", headers=ORIGINE)
     assert r.status_code == 200
     j = r.get_json()
     assert j["etat"]["prets"] == ["attri1", "dc1", "dc2", "dc4"], j["etat"]

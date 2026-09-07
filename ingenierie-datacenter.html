@@ -1042,6 +1042,23 @@
   /* CE QUE LA PIÈCE PRODUIRA, annoncé avant le choix. Le formulaire officiel
      se distingue : c'est le seul cas où ce qui sort EST le fichier de
      l'État. */
+  /* L'ANNONCE D'OUTIL INTERNE. Elle n'est visible que pour qui n'y a pas
+     droit : `aoInterne()` la retire dès que le compte est administrateur.
+     Masquée par défaut — un bandeau qui clignote au chargement pour tout le
+     monde avant de disparaître est pire que pas de bandeau. */
+  /* LA SECTION FERMÉE : tout ce qui s'adresse à celui qui OPÈRE disparaît,
+     l'annonce reste. Une seule règle plutôt qu'une liste d'identifiants dans
+     le script — la liste avait déjà laissé DEUX BOUTONS VIDES à l'écran,
+     mesuré en navigateur : `el.hidden` ne pèse rien face au
+     `display:inline-block` de `.btn`. D'où le `!important`, qui est ici la
+     bonne réponse et non un contournement. */
+  #ig-ao.ig-ao-ferme .ig-ao-op{display:none!important}
+  .ig-ao-int{display:none;max-width:74ch;margin:0 0 14px;padding:11px 14px;
+    border:1px solid rgba(143,219,242,.45);border-left-width:3px;
+    border-radius:4px;background:rgba(28,64,102,.16);font-size:13.5px;
+    line-height:1.55}
+  .ig-ao-int.on{display:block}
+  .ig-ao-int a{color:#8FDBF2}
   .ig-ao-pr{font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;
     text-transform:uppercase;color:var(--muted2);padding:1px 6px;
     border:1px solid var(--line);border-radius:5px}
@@ -2674,7 +2691,22 @@
        ═══════════════════════════════════════════════════════════════════ -->
   <section class="wrap rc-sec" id="ig-ao">
     <div class="rc-etape"><span class="n">14</span><h2>Répondre à l'appel d'offres</h2></div>
-    <p class="lead" style="max-width:74ch;margin-top:0">
+    <!-- CETTE SECTION EST UN OUTIL INTERNE, ET ELLE LE DIT AVANT LE GESTE.
+         Ses douze interfaces sont réservées à l'administration — la décision
+         est écrite dans `acces.API_ADMIN`, avec son motif, et le service
+         refuse de démarrer si une seule d'entre elles s'ouvrait. Le lecteur
+         qui n'y a pas droit l'apprenait jusqu'ici en cliquant : il choisissait
+         ses fichiers, attendait, et recevait un refus. Le dire ici coûte trois
+         lignes et lui rend son temps. -->
+    <p class="ig-ao-int" id="ig-ao-interne">
+      <b>Outil interne au cabinet.</b> L'instruction d'un dossier de
+      consultation se fait ici, par CONSEILPREV&nbsp;: un DCE appartient à
+      l'acheteur, et le lire demande un métier. <b>Vous n'avez donc pas accès
+      au dépôt ci-dessous</b> — confiez-nous le dossier et vous en recevez
+      l'analyse, les pièces remplies et le dossier complet.
+      <a href="/contact">Nous transmettre une consultation</a>.
+    </p>
+    <p class="lead ig-ao-op" style="max-width:74ch;margin-top:0">
       Déposez ensemble toutes les pièces de la consultation — règlement de
       consultation, CCAP, CCAG, CCTP, DPGF, tableau de répartition MOE/AMO,
       feuilles de calcul : c'est le dossier ENTIER qui dit ce qui manque, et
@@ -2684,7 +2716,7 @@
       dossier de candidature se remplissent au fur et à mesure, chacune avec
       son origine. Les déclarations sur l'honneur, elles, restent à votre
       main : leur fausseté est sanctionnée.</p>
-    <p class="note" style="max-width:74ch">Ce dépôt-ci n'entre pas dans la base
+    <p class="note ig-ao-op" style="max-width:74ch">Ce dépôt-ci n'entre pas dans la base
       de connaissance du <a href="#ig-depot-etat">§&nbsp;13</a>&nbsp;: il sert
       à LIRE cette consultation-là. Rattachez un projet plus bas et le dossier
       y est <b>conservé chiffré</b>&nbsp;; à votre retour, l'analyse repart de
@@ -2700,7 +2732,7 @@
          d'une remise : ce qui met trois semaines à venir passe avant ce qui
          se remplit en une heure. Plaquer l'un sur l'autre aurait donné un
          parcours qui a l'air juste et ne correspond à rien. -->
-    <div class="ig-aop">
+    <div class="ig-aop ig-ao-op">
       <div class="ig-aop-h">
         <b>Où en est ma réponse&nbsp;?</b>
         <button type="button" class="btn btn-s" id="ig-aop-go">Mesurer les sept étapes</button>
@@ -2709,29 +2741,29 @@
         mesure sur ce que vous avez déposé et saisi&nbsp;: tant que rien n'est
         déposé, il l'annonce plutôt que de proposer une liste de conseils.</p></div>
     </div>
-    <div id="ig-ao-depot"></div>
-    <div class="actions" style="margin-top:14px;gap:10px;flex-wrap:wrap">
+    <div class="ig-ao-op" id="ig-ao-depot"></div>
+    <div class="actions ig-ao-op" style="margin-top:14px;gap:10px;flex-wrap:wrap">
       <button type="button" class="ig-lanceur-b" id="ig-ao-go">Analyser le dossier de consultation →</button>
       <button type="button" class="btn btn-s" id="ig-ao-cand">Voir le dossier de candidature</button>
     </div>
-    <p class="note" id="ig-ao-msg" style="margin-top:10px"></p>
-    <div id="ig-ao-out"></div>
-    <div id="ig-ao-cand-out"></div>
+    <p class="note ig-ao-op" id="ig-ao-msg" style="margin-top:10px"></p>
+    <div class="ig-ao-op" id="ig-ao-out"></div>
+    <div class="ig-ao-op" id="ig-ao-cand-out"></div>
     <!-- LE DOSSIER D'OFFRE, À PART DU DOSSIER DE CANDIDATURE — pas un
          troisième groupe dedans. La candidature établit qui vous êtes ;
          l'acte d'engagement, la DPGF et le mémoire technique établissent ce
          que vous proposez, et à quel prix. Deux mots différents, deux blocs
          différents : un lecteur qui cherche l'un ne doit pas le trouver
          rangé sous l'autre. -->
-    <div id="ig-ao-offre-out"></div>
+    <div class="ig-ao-op" id="ig-ao-offre-out"></div>
     <!-- LE REMPLISSAGE. La fiche est saisie UNE FOIS et se reporte dans
          toutes les pièces qui la demandent ; ce que l'analyse a relevé dans
          le dossier de l'acheteur s'y reporte aussi, avec sa citation. Les
          déclarations sur l'honneur restent vides : leur fausseté est
          sanctionnée pénalement, et une case cochée par un programme est une
          déclaration que personne n'a faite. -->
-    <div id="ig-ao-fiche"></div>
-    <div id="ig-ao-rempli"></div>
+    <div class="ig-ao-op" id="ig-ao-fiche"></div>
+    <div class="ig-ao-op" id="ig-ao-rempli"></div>
     <!-- LE PROJET : CONSERVER LE DOSSIER, ET ASSUMER LES DÉCLARATIONS.
          Tant qu'aucun projet n'est choisi, RIEN ne quitte ce navigateur — la
          fiche vit en local et les pièces repartent avec la réponse. Rattacher
@@ -2742,7 +2774,7 @@
          le répète à l'écran. Ce qui se conserve est QUI a affirmé QUOI, sur
          quel texte, avec quelles preuves valides ce jour-là — jamais une case
          cochée à la place de quelqu'un. -->
-    <div id="ig-ao-projet"></div>
+    <div class="ig-ao-op" id="ig-ao-projet"></div>
   </section>
 
   <section class="wrap rc-sec" id="ig-limites">

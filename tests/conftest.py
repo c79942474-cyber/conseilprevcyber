@@ -109,6 +109,29 @@ def admin():
 
 
 @pytest.fixture
+def marche(admin):
+    """LE COMPTE QUI A DROIT À LA RÉPONSE À CONSULTATION (§ 14).
+
+    LA DÉCISION EST ÉCRITE UNE FOIS, ET CETTE FIXTURE LA PORTE. Les douze
+    interfaces `/api/datacenter/marche/*` sont réservées à l'administration —
+    un dossier de consultation appartient à l'acheteur, et le cabinet
+    l'instruit pour le compte du client. La décision est déclarée côté serveur
+    dans `acces.API_ADMIN`, avec son motif, et le service refuse de démarrer si
+    l'une de ces routes s'ouvrait.
+
+    POURQUOI UNE FIXTURE PLUTÔT QUE `admin` PARTOUT. Les cinquante règles de
+    cette section n'éprouvent pas « l'administration » : elles éprouvent « le
+    compte autorisé ». Écrire `admin` dans chacune ferait de la politique
+    d'accès une donnée recopiée cinquante fois, et le jour où elle s'ouvre aux
+    clients il faudrait retrouver les cinquante. Ici, on change une ligne.
+
+    Le verrou lui-même n'est PAS tenu par cette fixture : il l'est par
+    `test_chaque_interface_declaree_admin_REFUSE_un_compte_client`, qui
+    énumère `acces.API_ADMIN` et vérifie les deux côtés de la porte."""
+    return admin
+
+
+@pytest.fixture
 def client_dc():
     """Un client validé, pour les formulaires de calcul du centre de données.
 

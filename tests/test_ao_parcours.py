@@ -254,21 +254,63 @@ def _demander(cl, corps=None):
     return r.get_json()["parcours"]
 
 
-def test_la_route_rend_les_sept_etapes_mesurees(connecte):
-    p = _demander(connecte)
+def test_la_route_rend_les_sept_etapes_mesurees(marche):
+    p = _demander(marche)
     assert len(p["etapes"]) == len(ao_parcours.ETAPES) == 7
     assert p["ou_en_est"] == "consultation" and p["pret"] is False
 
 
-def test_les_attestations_ne_sont_mesurees_que_pour_l_administrateur(connecte, admin):
-    """Le client voit « non mesurée ici » ; l'administrateur, qui répond POUR
-    CONSEILPREV, voit l'état du dossier de la maison."""
-    mc = next(e["mesure"] for e in _demander(connecte)["etapes"]
-              if e["id"] == "attestations")
-    ma = next(e["mesure"] for e in _demander(admin)["etapes"]
-              if e["id"] == "attestations")
-    assert "ne détient pas" in mc
-    assert "attestation(s) valide(s)" in ma and "ne détient pas" not in ma
+def test_le_parcours_REFUSE_un_compte_client(connecte):
+    """LA DÉCISION D'ACCÈS, MESURÉE ICI COMME AILLEURS. La réponse à
+    consultation est un outil interne : les douze interfaces de la section
+    sont déclarées dans `acces.API_ADMIN`, et le service refuse de démarrer si
+    l'une d'elles s'ouvrait."""
+    r = connecte.post("/api/datacenter/marche/parcours", json={},
+                      headers=ORIGINE)
+    assert r.status_code == 403, r.status_code
+
+
+def test_les_attestations_de_la_maison_NE_SORTENT_QUE_si_on_les_donne():
+    """LE SECOND VERROU, QUI SURVIT AU PREMIER.
+
+    CETTE RÈGLE A CHANGÉ DE NIVEAU, DÉLIBÉRÉMENT. Elle mesurait naguère que le
+    client voyait « non mesurée ici » et l'administrateur l'état réel. Ce
+    contraste n'est plus observable PAR LA ROUTE : elle est désormais fermée à
+    l'administration, un client n'y accède plus du tout, et la règle ci-dessus
+    tient ce côté-là.
+
+    CE QUI RESTE À TENIR, ET QUI COMPTE PLUS. `dossier_entreprise` porte les
+    attestations de CONSEILPREV, jamais celles du client. Le jour où cette
+    section se rouvrirait aux comptes clients, c'est cette branche — et elle
+    seule — qui empêcherait de servir à un client l'état d'une entreprise qui
+    n'est pas la sienne. On la mesure donc là où elle vit : dans le calcul du
+    parcours, avec et sans la clé."""
+    base = {"remplissage": ao_dc.remplir(fiche={"raison_sociale": "X"},
+                                         analyse=None, saisies={})}
+    sans = next(e["mesure"] for e in ao_parcours.parcours(base)["etapes"]
+                if e["id"] == "attestations")
+    import dossier_entreprise
+    avec_cle = dict(base, attestations=dossier_entreprise.etat_attestations())
+    avec = next(e["mesure"] for e in ao_parcours.parcours(avec_cle)["etapes"]
+                if e["id"] == "attestations")
+    assert "ne détient pas" in sans, sans
+    assert "attestation(s) valide(s)" in avec and "ne détient pas" not in avec, avec
+
+
+def test_la_route_ne_donne_les_attestations_QU_AU_ROLE_administrateur(marche):
+    """Et le contrôle de rôle reste posé dans la route, alors même que le
+    décorateur le rend aujourd'hui toujours vrai. Une défense en profondeur
+    qu'on retire parce qu'elle « ne sert plus » est exactement celle qui
+    manquera au prochain assouplissement."""
+    m = next(e["mesure"] for e in _demander(marche)["etapes"]
+             if e["id"] == "attestations")
+    assert "attestation(s) valide(s)" in m, m
+    src = io.open(os.path.join(ICI, "app.py"), encoding="utf-8").read()
+    bloc = src[src.index("def api_datacenter_marche_parcours("):]
+    bloc = bloc[:bloc.index("\n@app.route")]
+    assert 'role") or "user") == "admin"' in bloc, (
+        "la route ne vérifie plus le rôle avant de servir le dossier de la "
+        "maison : le décorateur devient le seul verrou")
 
 
 def test_la_route_est_fermee_a_l_anonyme(anonyme):
@@ -276,13 +318,13 @@ def test_la_route_est_fermee_a_l_anonyme(anonyme):
     assert r.status_code in (401, 403)
 
 
-def test_la_route_ne_conserve_rien(connecte):
+def test_la_route_ne_conserve_rien(marche):
     """Comme /export, /formulaire et /dossier.zip : la fiche arrive dans la
     requête et repart dans la réponse. Deux appels identiques rendent le même
     parcours ; un troisième avec une fiche vide ne garde rien du premier."""
     fiche = {c["cle"]: "valeur" for c in ao_dc.CHAMPS_CANDIDAT}
-    plein = _demander(connecte, {"fiche": fiche})
-    apres = _demander(connecte, {"fiche": {}})
+    plein = _demander(marche, {"fiche": fiche})
+    apres = _demander(marche, {"fiche": {}})
     mp = next(e["mesure"] for e in plein["etapes"] if e["id"] == "fiche")
     ma = next(e["mesure"] for e in apres["etapes"] if e["id"] == "fiche")
     assert mp != ma and ma.startswith("0 champ")

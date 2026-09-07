@@ -247,8 +247,8 @@ def _archive(cl, fmt="docx"):
     return zipfile.ZipFile(io.BytesIO(r.data)), r.headers.get("X-Dossier")
 
 
-def test_l_archive_porte_le_report_les_quatre_formulaires_et_son_bordereau(connecte):
-    z, entete = _archive(connecte)
+def test_l_archive_porte_le_report_les_quatre_formulaires_et_son_bordereau(marche):
+    z, entete = _archive(marche)
     noms = set(z.namelist())
     assert "BORDEREAU.txt" in noms
     assert "reponse-consultation.docx" in noms
@@ -261,19 +261,19 @@ def test_l_archive_porte_le_report_les_quatre_formulaires_et_son_bordereau(conne
     assert '"pieces": 5' in (entete or ""), entete
 
 
-def test_le_format_demande_ne_change_QUE_le_report(connecte):
+def test_le_format_demande_ne_change_QUE_le_report(marche):
     """Les formulaires officiels restent en Word, et c'est voulu : ce qui sort
     EST le fichier du ministère. Un fac-similé serait refusé — ou pire, accepté
     et faux."""
     for fmt in LE.FORMATS:
-        z, _ = _archive(connecte, fmt)
+        z, _ = _archive(marche, fmt)
         noms = set(z.namelist())
         assert ("reponse-consultation." + fmt) in noms, sorted(noms)
         assert len([n for n in noms
                     if n.endswith("-projet-non-signe.docx")]) == 4
 
 
-def test_le_bordereau_NOMME_ce_qui_n_a_pas_pu_etre_produit(connecte, monkeypatch):
+def test_le_bordereau_NOMME_ce_qui_n_a_pas_pu_etre_produit(marche, monkeypatch):
     """Une archive silencieusement incomplète est pire que pas d'archive :
     celui qui la reçoit compte six fichiers au lieu de sept et ne saura jamais
     si le septième n'existait pas ou s'il a échoué."""
@@ -286,7 +286,7 @@ def test_le_bordereau_NOMME_ce_qui_n_a_pas_pu_etre_produit(connecte, monkeypatch
         return vrai(modele, valeurs)
 
     monkeypatch.setattr(ao_formulaires, "remplir_document", casse)
-    z, entete = _archive(connecte)
+    z, entete = _archive(marche)
     bord = z.read("BORDEREAU.txt").decode("utf-8")
     assert "dc2-projet-non-signe.docx" not in z.namelist()
     assert "CE QUI N'A PAS PU ÊTRE PRODUIT" in bord
@@ -295,14 +295,14 @@ def test_le_bordereau_NOMME_ce_qui_n_a_pas_pu_etre_produit(connecte, monkeypatch
         "la page ne peut pas dire ce qui manque : le compte ne voyage pas")
 
 
-def test_une_archive_qui_ne_contient_rien_est_REFUSEE(connecte, monkeypatch):
+def test_une_archive_qui_ne_contient_rien_est_REFUSEE(marche, monkeypatch):
     """Un zip qui ne porte qu'un bordereau d'échecs se télécharge et déçoit."""
     import ao_formulaires
     monkeypatch.setattr(ao_formulaires, "remplir_document",
                         lambda m, v: (b"", {"ok": False, "motif": "modele_absent"}))
     monkeypatch.setattr(LE, "composer",
                         lambda *a, **k: (_ for _ in ()).throw(RuntimeError("x")))
-    r = connecte.post("/api/datacenter/marche/dossier.zip",
+    r = marche.post("/api/datacenter/marche/dossier.zip",
                       json={"fiche": {}, "format": "docx"}, headers=ORIGINE)
     assert r.status_code == 409
     assert r.get_json()["error"] == "dossier_vide"

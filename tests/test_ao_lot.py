@@ -70,13 +70,13 @@ def _texte_docx(blob):
 
 # ── 1. CHAQUE PIÈCE PRODUIT, ET CE QU'ELLE PRODUIT SUIT SA VOIE ──────────
 
-def test_les_vingt_trois_pieces_produisent_TOUTES_un_document(connecte):
+def test_les_vingt_trois_pieces_produisent_TOUTES_un_document(marche):
     """ON LES ÉNUMÈRE, ON N'EN ÉCHANTILLONNE PAS TROIS. Une pièce qui refuse
     de produire laisse une carte grise au milieu de vingt-deux vertes, et
     personne ne sait si c'est une nature ou une panne."""
     muettes = []
     for p in _pieces():
-        r = _produire(connecte, p["cle"])
+        r = _produire(marche, p["cle"])
         if r.status_code != 200 or len(r.data) < 500:
             muettes.append("%s (%s)" % (p["cle"], r.status_code))
     assert not muettes, "ces pièces ne produisent rien : " + ", ".join(muettes)
@@ -97,12 +97,12 @@ def test_la_production_suit_la_VOIE_de_la_piece():
                                       "demande"}
 
 
-def test_un_formulaire_officiel_sort_en_Word_QUEL_QUE_SOIT_le_format_demande(connecte):
+def test_un_formulaire_officiel_sort_en_Word_QUEL_QUE_SOIT_le_format_demande(marche):
     """Ce qui sort EST le fichier du ministère. Le convertir en PDF ou en
     classeur en ferait un fac-similé, qui serait refusé — ou pire, accepté et
     faux."""
     for fmt in ("docx", "pdf", "xlsx"):
-        r = _produire(connecte, "dc1", fmt)
+        r = _produire(marche, "dc1", fmt)
         assert r.status_code == 200
         d = json.loads(r.headers["X-Piece"])
         assert d["production"] == "formulaire_officiel"
@@ -111,18 +111,18 @@ def test_un_formulaire_officiel_sort_en_Word_QUEL_QUE_SOIT_le_format_demande(con
             ("word/", "[Content_Types]", "_rels"))
 
 
-def test_une_piece_SANS_formulaire_officiel_suit_le_format_demande(connecte):
+def test_une_piece_SANS_formulaire_officiel_suit_le_format_demande(marche):
     for fmt, sig in (("docx", "word/"), ("xlsx", "xl/")):
-        r = _produire(connecte, "memoire_technique", fmt)
+        r = _produire(marche, "memoire_technique", fmt)
         assert r.status_code == 200
         noms = zipfile.ZipFile(io.BytesIO(r.data)).namelist()
         assert any(n.startswith(sig) for n in noms), (fmt, noms[:3])
 
 
-def test_le_document_d_une_piece_contient_VRAIMENT_ses_rubriques(connecte):
+def test_le_document_d_une_piece_contient_VRAIMENT_ses_rubriques(marche):
     """On ouvre le fichier produit. Vérifier le Markdown qui a servi à l'écrire
     serait vert le jour où la mise en page perd le corps du document."""
-    r = _produire(connecte, "honneur")
+    r = _produire(marche, "honneur")
     t = _texte_docx(r.data)
     p = next(x for x in _pieces() if x["cle"] == "honneur")
     assert p["nom"][:20] in t
@@ -131,28 +131,28 @@ def test_le_document_d_une_piece_contient_VRAIMENT_ses_rubriques(connecte):
     assert not absentes, "rubriques absentes du document : %s" % absentes
 
 
-def test_une_piece_A_OBTENIR_porte_son_DELAI_dans_le_document(connecte):
+def test_une_piece_A_OBTENIR_porte_son_DELAI_dans_le_document(marche):
     """C'est la seule chose qu'on ne rattrape pas la dernière nuit : une
     attestation se demande, elle ne se rédige pas."""
-    r = _produire(connecte, "pouvoirs")
+    r = _produire(marche, "pouvoirs")
     t = _texte_docx(r.data)
     assert "Délai d'obtention" in t
     d = json.loads(r.headers["X-Piece"])
     assert d["production"] == "demande"
 
 
-def test_une_piece_inconnue_est_refusee_et_dit_lesquelles_existent(connecte):
-    r = _produire(connecte, "nexiste_pas")
+def test_une_piece_inconnue_est_refusee_et_dit_lesquelles_existent(marche):
+    r = _produire(marche, "nexiste_pas")
     assert r.status_code == 400
     j = r.get_json()
     assert j["error"] == "piece_inconnue"
     assert len(j["disponibles"]) == 23
 
 
-def test_l_en_tete_dit_ce_qui_a_ete_PORTE_et_ce_qui_RESTE(connecte):
+def test_l_en_tete_dit_ce_qui_a_ete_PORTE_et_ce_qui_RESTE(marche):
     """Un téléchargement ne rend pas de JSON, et une pièce partielle se lirait
     comme complète si personne ne disait ce qui manque."""
-    r = _produire(connecte, "honneur")
+    r = _produire(marche, "honneur")
     d = json.loads(r.headers["X-Piece"])
     for c in ("cle", "nom", "production", "production_nom", "places"):
         assert c in d, d
@@ -455,7 +455,7 @@ Article 15 — Avance : 5 % du montant du marché.
 
 
 @pytest.fixture
-def projet(connecte, monkeypatch):
+def projet(marche, monkeypatch):
     """Un projet du compte, avec le chiffrement du dossier ACTIF.
 
     SANS CLÉ, LE MODULE REFUSE D'ÉCRIRE — et il a raison : conserver un dossier
@@ -464,21 +464,8 @@ def projet(connecte, monkeypatch):
     import ao_projet
     from cryptography.fernet import Fernet
     monkeypatch.setenv(ao_projet.VAR_CLE, Fernet.generate_key().decode())
-    r = connecte.post("/api/datacenter/projets",
-                      json={"nom": "Dossier d'essai"}, headers=ORIGINE)
-    assert r.status_code == 200, r.data[:200]
-    return r.get_json()["projet"]["id"]
-
-
-@pytest.fixture
-def projet_admin(admin, monkeypatch):
-    """Le même projet, sur le compte d'administration : `/analyser` lui est
-    ouverte, et c'est la seule façon de comparer les deux routes."""
-    import ao_projet
-    from cryptography.fernet import Fernet
-    monkeypatch.setenv(ao_projet.VAR_CLE, Fernet.generate_key().decode())
-    r = admin.post("/api/datacenter/projets",
-                   json={"nom": "Dossier d'essai (admin)"}, headers=ORIGINE)
+    r = marche.post("/api/datacenter/projets",
+                    json={"nom": "Dossier d'essai"}, headers=ORIGINE)
     assert r.status_code == 200, r.data[:200]
     return r.get_json()["projet"]["id"]
 
@@ -496,15 +483,15 @@ def _dossier(cl, pid):
 
 
 def test_les_pieces_se_chargent_UNE_PAR_UNE_sans_effacer_les_precedentes(
-        connecte, projet):
+        marche, projet):
     """LE DÉFAUT MESURÉ, ET SA RÈGLE. Deux pièces, puis une troisième : le
     dossier en portait UNE. Le geste « une par une » que la page propose était
     donc une façon de perdre son dossier."""
-    _deposer(connecte, projet, pieces=DCE[:2], fiche={})
-    noms, _ = _dossier(connecte, projet)
+    _deposer(marche, projet, pieces=DCE[:2], fiche={})
+    noms, _ = _dossier(marche, projet)
     assert noms == ["reglement-de-consultation.pdf", "CCAP.pdf"], noms
-    _deposer(connecte, projet, pieces=DCE[2:])
-    noms, a = _dossier(connecte, projet)
+    _deposer(marche, projet, pieces=DCE[2:])
+    noms, a = _dossier(marche, projet)
     assert len(noms) == 3, "la troisième pièce a effacé les deux autres : %s" % noms
     assert len(a.get("pieces") or []) == 3, (
         "le relevé ne porte que sur %d pièce(s) : il est refait sur le dernier "
@@ -512,34 +499,34 @@ def test_les_pieces_se_chargent_UNE_PAR_UNE_sans_effacer_les_precedentes(
         % len(a.get("pieces") or []))
 
 
-def test_une_piece_REDEPOSEE_remplace_la_sienne_et_garde_sa_place(connecte, projet):
+def test_une_piece_REDEPOSEE_remplace_la_sienne_et_garde_sa_place(marche, projet):
     """Le geste du rectificatif : l'acheteur republie un CCAP trois jours plus
     tard. Garder les deux ferait relever deux fois des clauses contradictoires ;
     l'ajouter à la fin réordonnerait le dossier à chaque dépôt."""
-    _deposer(connecte, projet, pieces=DCE, fiche={})
-    _deposer(connecte, projet,
+    _deposer(marche, projet, pieces=DCE, fiche={})
+    _deposer(marche, projet,
              pieces=[{"nom": "CCAP.pdf", "texte": "RECTIFICATIF. Pénalités : 1/2000."}])
-    noms, _ = _dossier(connecte, projet)
+    noms, _ = _dossier(marche, projet)
     assert noms == [p["nom"] for p in DCE], noms
 
 
-def test_une_piece_se_RETIRE_sans_perdre_le_dossier(connecte, projet):
+def test_une_piece_se_RETIRE_sans_perdre_le_dossier(marche, projet):
     """Sans ce geste, corriger un dépôt fautif imposerait de tout effacer puis
     de tout redéposer — c'est-à-dire de perdre ce qu'on ne retrouverait pas."""
-    _deposer(connecte, projet, pieces=DCE, fiche={})
-    r = _deposer(connecte, projet, retirer="CCTP.pdf")
+    _deposer(marche, projet, pieces=DCE, fiche={})
+    r = _deposer(marche, projet, retirer="CCTP.pdf")
     assert r.status_code == 200
-    noms, a = _dossier(connecte, projet)
+    noms, a = _dossier(marche, projet)
     assert noms == ["reglement-de-consultation.pdf", "CCAP.pdf"], noms
     assert len(a["pieces"]) == 2, "le relevé n'a pas suivi le retrait"
-    assert _deposer(connecte, projet, retirer="JAMAIS-DEPOSE.pdf").status_code == 404
+    assert _deposer(marche, projet, retirer="JAMAIS-DEPOSE.pdf").status_code == 404
 
 
-def test_le_remplacement_reste_possible_mais_il_faut_le_DEMANDER(connecte, projet):
-    _deposer(connecte, projet, pieces=DCE, fiche={})
-    _deposer(connecte, projet, pieces=[{"nom": "SEUL.pdf", "texte": "x"}],
+def test_le_remplacement_reste_possible_mais_il_faut_le_DEMANDER(marche, projet):
+    _deposer(marche, projet, pieces=DCE, fiche={})
+    _deposer(marche, projet, pieces=[{"nom": "SEUL.pdf", "texte": "x"}],
              remplacer=True)
-    noms, _ = _dossier(connecte, projet)
+    noms, _ = _dossier(marche, projet)
     assert noms == ["SEUL.pdf"], noms
 
 
@@ -689,11 +676,11 @@ def _noms_page(pieces):
     return [p["nom"].rsplit(".", 1)[0] + ".txt" for p in pieces]
 
 
-def test_le_depot_conserve_le_TEXTE_des_pieces_que_la_page_envoie(connecte, projet):
+def test_le_depot_conserve_le_TEXTE_des_pieces_que_la_page_envoie(marche, projet):
     """La règle qui manquait. Elle poste ce que le navigateur poste."""
-    r = _deposer(connecte, projet, pieces=_comme_la_page(DCE), fiche={})
+    r = _deposer(marche, projet, pieces=_comme_la_page(DCE), fiche={})
     assert r.status_code == 200, r.data[:300]
-    d = connecte.get("/api/datacenter/marche/projet/dossier?projet=" + projet,
+    d = marche.get("/api/datacenter/marche/projet/dossier?projet=" + projet,
                      headers=ORIGINE).get_json()["dossier"]
     vides = [p["nom"] for p in d["pieces"]
              if not p["octets"] or p["empreinte"] == SHA_DU_VIDE]
@@ -709,13 +696,13 @@ def test_le_depot_conserve_le_TEXTE_des_pieces_que_la_page_envoie(connecte, proj
 
 
 def test_le_dossier_ainsi_depose_ALIMENTE_le_remplissage_des_vingt_trois(
-        connecte, projet):
+        marche, projet):
     """LA PROMESSE DE LA PAGE, DE BOUT EN BOUT — par la route, pas par le
     module. « Charger les pièces de la consultation pour remplir
     automatiquement les pièces choisies » n'est tenu que si l'acheteur relevé
     dans le règlement ressort dans un document produit."""
-    _deposer(connecte, projet, pieces=_comme_la_page(DCE), fiche={})
-    d = connecte.get("/api/datacenter/marche/projet/dossier?projet=" + projet,
+    _deposer(marche, projet, pieces=_comme_la_page(DCE), fiche={})
+    d = marche.get("/api/datacenter/marche/projet/dossier?projet=" + projet,
                      headers=ORIGINE).get_json()["dossier"]
     cites = json.dumps((d.get("analyse") or {}).get("pieces") or [],
                        ensure_ascii=False).upper()
@@ -732,30 +719,30 @@ def test_le_dossier_ainsi_depose_ALIMENTE_le_remplissage_des_vingt_trois(
         % (avec["etat"]["remplies"], sans["etat"]["remplies"]))
 
 
-def test_ce_qui_n_a_pas_pu_etre_lu_au_depot_est_NOMME(connecte, projet):
+def test_ce_qui_n_a_pas_pu_etre_lu_au_depot_est_NOMME(marche, projet):
     """Un dépôt de trois pièces dont une est illisible ne doit pas se lire
     comme un dépôt de trois. L'écarter en silence ferait croire le dossier
     complet — et c'est précisément l'erreur qu'on vient de corriger."""
     charge = _comme_la_page(DCE[:1]) + [{"nom": "ABIME.pdf", "contenu": "@@@"}]
-    r = _deposer(connecte, projet, pieces=charge, fiche={})
+    r = _deposer(marche, projet, pieces=charge, fiche={})
     assert r.status_code == 200, r.data[:300]
     j = r.get_json()
     assert "ABIME.pdf" in json.dumps(j.get("ignores") or [], ensure_ascii=False), (
         "la pièce illisible n'est pas nommée dans la réponse : %r"
         % (j.get("ignores"),))
-    noms, _ = _dossier(connecte, projet)
+    noms, _ = _dossier(marche, projet)
     assert noms == _noms_page(DCE[:1]), noms
 
 
-def test_l_analyse_et_le_depot_lisent_par_la_MEME_porte(admin, projet_admin):
+def test_l_analyse_et_le_depot_lisent_par_la_MEME_porte(marche, projet):
     """DEUX EXTRACTIONS, C'EST UNE DIVERGENCE EN ATTENTE. Celle qu'on vient de
     payer : l'analyse décodait le base64, le dépôt non. La règle exige que le
     même contenu illisible soit écarté par les deux routes avec le MÊME motif —
     ce qui n'est vrai que s'il n'y a qu'une porte."""
     charge = [{"nom": "ABIME.pdf", "contenu": "@@@"}]
-    a = admin.post("/api/datacenter/marche/analyser",
-                   json={"documents": charge}, headers=ORIGINE).get_json()
-    d = _deposer(admin, projet_admin,
+    a = marche.post("/api/datacenter/marche/analyser",
+                    json={"documents": charge}, headers=ORIGINE).get_json()
+    d = _deposer(marche, projet,
                  pieces=_comme_la_page(DCE[:1]) + charge).get_json()
     motif_a = [x["pourquoi"] for x in (a.get("ignores") or [])
                if x["fichier"] == "ABIME.pdf"]
@@ -767,7 +754,7 @@ def test_l_analyse_et_le_depot_lisent_par_la_MEME_porte(admin, projet_admin):
         % (motif_a, motif_d))
 
 
-def test_la_page_envoie_la_forme_QUE_LE_DEPOT_LIT(connecte, projet):
+def test_la_page_envoie_la_forme_QUE_LE_DEPOT_LIT(marche, projet):
     """LA RÈGLE STRUCTURELLE. Les deux précédentes tiendraient encore si la
     page se mettait à envoyer un troisième nom de champ. Celle-ci lit les clés
     que `aoLire` pose réellement dans les objets que `aoProjetDeposer` envoie,
@@ -786,16 +773,16 @@ def test_la_page_envoie_la_forme_QUE_LE_DEPOT_LIT(connecte, projet):
     contenu_cle = [c for c in cles if c != nom_cle][0]
     charge = [{nom_cle: p["nom"].rsplit(".", 1)[0] + ".txt",
                contenu_cle: _b64(p["texte"])} for p in DCE]
-    r = _deposer(connecte, projet, pieces=charge, fiche={})
+    r = _deposer(marche, projet, pieces=charge, fiche={})
     assert r.status_code == 200, r.data[:300]
-    d = connecte.get("/api/datacenter/marche/projet/dossier?projet=" + projet,
+    d = marche.get("/api/datacenter/marche/projet/dossier?projet=" + projet,
                      headers=ORIGINE).get_json()["dossier"]
     assert d and all(p["octets"] for p in d["pieces"]), (
         "la route ne sait pas lire les champs %r que la page pose : le dossier "
         "conservé est vide" % (cles,))
 
 
-def test_le_depot_passe_par_l_ANTIVIRUS_comme_l_analyse(connecte, projet):
+def test_le_depot_passe_par_l_ANTIVIRUS_comme_l_analyse(marche, projet):
     """CE QUE LA PORTE PARTAGÉE FAIT GAGNER, et qu'il faut donc tenir. Avant,
     le dépôt ne recevait que du texte : aucun fichier n'était ouvert, et
     l'antivirus n'avait rien à inspecter. Maintenant que le dépôt décode et
@@ -803,12 +790,12 @@ def test_le_depot_passe_par_l_ANTIVIRUS_comme_l_analyse(connecte, projet):
     existe. Un contenu qui ment sur son extension doit être refusé ICI aussi.
     """
     charge = [{"nom": "piege.pdf", "contenu": _b64("Ceci n'est pas un PDF.")}]
-    j = _deposer(connecte, projet, pieces=charge, fiche={}).get_json()
+    j = _deposer(marche, projet, pieces=charge, fiche={}).get_json()
     motifs = " ".join(x["pourquoi"] for x in (j.get("ignores") or []))
     assert "extension" in motifs, (
         "un contenu qui ment sur son extension entre au dossier sans que "
         "l'inspection structurelle l'ait vu : %r" % (j.get("ignores"),))
-    noms, _ = _dossier(connecte, projet)
+    noms, _ = _dossier(marche, projet)
     assert not noms, "la pièce refusée a tout de même été conservée : %s" % noms
 
 
@@ -861,26 +848,26 @@ def _piece_de(octets):
     return {"nom": "gros.txt", "contenu": _b64("A" * int(octets * 3 / 4))}
 
 
-def test_une_piece_PLUS_GROSSE_QUE_L_ANCIEN_PLAFOND_est_acceptee(connecte, projet):
+def test_une_piece_PLUS_GROSSE_QUE_L_ANCIEN_PLAFOND_est_acceptee(marche, projet):
     """La règle qui manquait, du côté qui compte : le dépôt."""
-    r = _deposer(connecte, projet, pieces=[_piece_de(CORPS_PETIT * 2)], fiche={})
+    r = _deposer(marche, projet, pieces=[_piece_de(CORPS_PETIT * 2)], fiche={})
     assert r.status_code != 413, (
         "le dossier marché refuse encore un envoi d'environ %d Ko : les pièces "
         "d'une consultation ne passent donc pas la porte"
         % (CORPS_PETIT * 2 // 1024))
     assert r.status_code == 200, r.data[:200]
-    d = connecte.get("/api/datacenter/marche/projet/dossier?projet=" + projet,
+    d = marche.get("/api/datacenter/marche/projet/dossier?projet=" + projet,
                      headers=ORIGINE).get_json()["dossier"]
     assert d["pieces"] and d["pieces"][0]["octets"] > 0
 
 
-def test_l_analyse_accepte_le_MEME_volume_que_le_depot(admin):
+def test_l_analyse_accepte_le_MEME_volume_que_le_depot(marche):
     """DEUX PLAFONDS DIFFÉRENTS SUR LE MÊME GESTE SERAIT PIRE QUE LE DÉFAUT.
     On analyse puis on conserve les mêmes fichiers ; un dossier qui franchit la
     première porte et bute sur la seconde ne se comprend pas."""
-    r = admin.post("/api/datacenter/marche/analyser",
-                   json={"documents": [_piece_de(CORPS_PETIT * 2)]},
-                   headers=ORIGINE)
+    r = marche.post("/api/datacenter/marche/analyser",
+                    json={"documents": [_piece_de(CORPS_PETIT * 2)]},
+                    headers=ORIGINE)
     assert r.status_code != 413, (
         "l'analyse refuse un volume que le dépôt accepte : les deux portes du "
         "même geste n'ont pas le même plafond")
@@ -953,7 +940,7 @@ def test_l_analyse_et_le_depot_prennent_le_DELAI_LONG():
 
 
 def test_un_document_TROP_LONG_le_dit_au_lieu_d_etre_coupe_en_silence(
-        connecte, projet):
+        marche, projet):
     """LE DÉFAUT MESURÉ SUR UN VRAI DOCUMENT. Un projet de marché de 120 pages
     porte 762 460 caractères ; le coffre en conserve 400 000. La coupe se
     faisait en amont et sans un mot : le dossier s'affichait conservé, les
@@ -963,7 +950,7 @@ def test_un_document_TROP_LONG_le_dit_au_lieu_d_etre_coupe_en_silence(
     LE PLAFOND RESTE — il protège le coffre et le releveur. Ce qui change est
     qu'il se voit."""
     long = "A" * (_app.MARCHE_TEXTE_MAX + 50_000)
-    r = _deposer(connecte, projet,
+    r = _deposer(marche, projet,
                  pieces=[{"nom": "marche.txt", "contenu": _b64(long)}], fiche={})
     assert r.status_code == 200, r.data[:200]
     dits = json.dumps(r.get_json().get("ignores") or [], ensure_ascii=False)
@@ -973,7 +960,7 @@ def test_un_document_TROP_LONG_le_dit_au_lieu_d_etre_coupe_en_silence(
         "le nombre de caractères gardés et le total ne sont pas dits : %s"
         % dits[:300])
     # ET LA PIÈCE EST BIEN CONSERVÉE, écourtée mais présente.
-    d = connecte.get("/api/datacenter/marche/projet/dossier?projet=" + projet,
+    d = marche.get("/api/datacenter/marche/projet/dossier?projet=" + projet,
                      headers=ORIGINE).get_json()["dossier"]
     assert d["pieces"][0]["octets"] == _app.MARCHE_TEXTE_MAX
 

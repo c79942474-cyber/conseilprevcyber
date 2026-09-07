@@ -4672,7 +4672,7 @@ def api_datacenter_programme():
 
 
 @app.route("/api/datacenter/marche/candidature", methods=["POST"])
-@login_required
+@admin_required
 def api_datacenter_marche_candidature():
     """Le dossier de candidature à produire, dans l'ordre où l'on s'y prend.
 
@@ -4709,7 +4709,7 @@ def api_datacenter_marche_candidature():
 
 
 @app.route("/api/datacenter/marche/remplir", methods=["POST"])
-@login_required
+@admin_required
 def api_datacenter_marche_remplir():
     """Les pièces des deux dossiers, remplies de ce qui est déjà écrit
     ailleurs.
@@ -4748,7 +4748,7 @@ def api_datacenter_marche_remplir():
 
 
 @app.route("/api/datacenter/marche/export", methods=["POST"])
-@login_required
+@admin_required
 def api_datacenter_marche_export():
     """La réponse préparée — candidature ET offre — en Word ou en PDF.
 
@@ -4871,7 +4871,7 @@ def _ao_modeles_deposes():
 
 
 @app.route("/api/datacenter/marche/piece", methods=["POST"])
-@login_required
+@admin_required
 def api_datacenter_marche_piece():
     """UNE pièce du dossier, produite seule — et c'est ce qui permet de les
     lancer TOUTES EN MÊME TEMPS.
@@ -4983,7 +4983,7 @@ def api_datacenter_marche_piece():
 
 
 @app.route("/api/datacenter/marche/parcours", methods=["POST"])
-@login_required
+@admin_required
 def api_datacenter_marche_parcours():
     """OÙ EN EST CETTE RÉPONSE — sept étapes, chacune sur une mesure.
 
@@ -5036,7 +5036,7 @@ def api_datacenter_marche_parcours():
 
 
 @app.route("/api/datacenter/marche/dossier.zip", methods=["POST"])
-@login_required
+@admin_required
 def api_datacenter_marche_dossier_zip():
     """TOUT LE DOSSIER EN UN GESTE : le report préparé et les formulaires remplis.
 
@@ -5146,7 +5146,7 @@ def api_datacenter_marche_dossier_zip():
 
 
 @app.route("/api/datacenter/marche/formulaire", methods=["POST"])
-@login_required
+@admin_required
 def api_datacenter_marche_formulaire():
     """LE FORMULAIRE OFFICIEL LUI-MÊME, rempli — et non un document posé à côté.
 
@@ -5215,7 +5215,7 @@ def api_datacenter_marche_formulaire():
 
 
 @app.route("/api/datacenter/marche/formulaires")
-@login_required
+@admin_required
 def api_datacenter_marche_formulaires():
     """Quels formulaires officiels le serveur sait remplir, et lesquels non.
 
@@ -5271,7 +5271,7 @@ def _refus_dossier(exc):
 
 
 @app.route("/api/datacenter/marche/projet/dossier", methods=["GET", "POST"])
-@login_required
+@admin_required
 def api_marche_projet_dossier():
     """Déposer le dossier marché d'un projet, ou le relire.
 
@@ -5356,7 +5356,7 @@ def api_marche_projet_dossier():
 
 
 @app.route("/api/datacenter/marche/projet/oubli", methods=["POST"])
-@login_required
+@admin_required
 def api_marche_projet_oubli():
     """Effacer le dossier marché d'un projet. Il efface, il n'archive pas."""
     data = request.get_json(silent=True) or {}
@@ -5372,7 +5372,7 @@ def api_marche_projet_oubli():
 
 
 @app.route("/api/datacenter/marche/projet/affirmation", methods=["GET", "POST"])
-@login_required
+@admin_required
 def api_marche_projet_affirmation():
     """Consigner qu'une personne assume une déclaration — ou dire pourquoi non.
 
@@ -12239,8 +12239,13 @@ def _acces_api_reels(cible=None):
 
 
 def _verifier_politique_acces():
+    api = _acces_api_reels()
     ecarts = (acces.verifier_application(_acces_reels(), _menu_chemins())
-              + acces.verifier_api(_acces_api_reels()))
+              + acces.verifier_api(api)
+              # LE RELEVÉ EST COMPLET ICI, ET NULLE PART AILLEURS : c'est le
+              # seul endroit d'où l'on puisse dire qu'une interface déclarée
+              # réservée a disparu du service.
+              + acces.verifier_api_couverture(api))
     if ecarts:
         raise RuntimeError("La politique d'accès n'est pas appliquée :\n  - "
                            + "\n  - ".join(ecarts))

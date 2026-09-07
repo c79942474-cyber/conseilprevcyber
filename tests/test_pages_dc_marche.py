@@ -1577,3 +1577,81 @@ def test_le_montant_des_travaux_EST_REELLEMENT_la_case_qui_bloque():
     assert "ig-moe-pt" not in avant_refus, (
         "la part du lot technique est contrôlée avant tout appel, comme si "
         "elle bloquait aussi le chiffrage")
+
+
+# ══ LE § 14 DIT SON VERROU AVANT LE GESTE ════════════════════════════════
+
+def test_la_section_14_ANNONCE_qu_elle_est_interne():
+    """Le refus arrivait après coup : on choisissait ses fichiers, on
+    attendait le téléversement, et on lisait « réservée aux comptes
+    d'administration ». Le dire d'entrée rend son temps au lecteur."""
+    page = lire("ingenierie-datacenter.html")
+    i = page.index('<span class="n">14</span>')
+    j = page.index('<span class="n">15</span>')
+    bloc = page[i:j]
+    assert 'id="ig-ao-interne"' in bloc, (
+        "le § 14 ne porte aucune annonce de verrou")
+    annonce = bloc[bloc.index('id="ig-ao-interne"'):]
+    annonce = annonce[:annonce.index("</p>")]
+    assert "interne" in annonce.lower(), annonce[:200]
+    assert "pas accès" in annonce or "n'avez donc pas" in annonce, (
+        "l'annonce n'énonce pas clairement que le dépôt est fermé : %s"
+        % annonce[:250])
+
+
+def test_l_annonce_ne_s_affiche_QUE_pour_qui_n_y_a_pas_droit():
+    """Un bandeau « vous n'avez pas accès » servi à l'administrateur qui vient
+    de s'en servir se lit comme une panne. La règle exécute le réglage dans les
+    deux cas au lieu de constater qu'une classe existe."""
+    src = sans_commentaires_js(lire("ingenierie-dc.js"))
+    for bloc, attendu in (("aoInterne", "classList.toggle"),):
+        i = src.index("function %s(" % bloc)
+        assert attendu in src[i:i + 2000], (
+            "%s ne règle pas l'affichage de l'annonce" % bloc)
+    # LE SENS DU RÉGLAGE : visible quand on n'est PAS administrateur.
+    i = src.index("function aoInterne(")
+    corps = src[i:i + 2000]
+    assert 'toggle("on", !AO_INTERNE_OUVERT)' in corps, (
+        "l'annonce est affichée à l'envers : elle apparaîtrait pour "
+        "l'administration et disparaîtrait pour le client")
+
+
+def test_TOUT_ce_qui_s_adresse_a_l_operateur_est_ferme_d_un_seul_geste():
+    """LE DÉFAUT MESURÉ EN NAVIGATEUR, ET POURQUOI LA RÈGLE A CHANGÉ DE FORME.
+
+    Une première rédaction énumérait des identifiants dans le script et posait
+    `el.hidden`. Résultat à l'écran : DEUX BOUTONS VIDES subsistaient — `.btn`
+    pose `display:inline-block`, qui l'emporte sur l'attribut `hidden` — et le
+    bloc « Mesurer les sept étapes » restait cliquable vers une route qui
+    refuse. Une liste oublie ; une classe n'oublie pas.
+
+    LA RÈGLE MESURE DONC LA COUVERTURE : chaque bloc de premier niveau du § 14
+    est soit l'en-tête, soit l'annonce, soit marqué `ig-ao-op`. Un bloc ajouté
+    demain sans marque fait tomber cette règle — c'est tout son objet."""
+    page = lire("ingenierie-datacenter.html")
+    i = page.index('<section class="wrap rc-sec" id="ig-ao">')
+    j = page.index('<section class="wrap rc-sec" id="ig-limites">')
+    bloc = page[i:j]
+    nus = [m.group(0) for m in re.finditer(r'^    <\w+[^>]*>', bloc, re.M)
+           if "ig-ao-op" not in m.group(0)
+           and "rc-etape" not in m.group(0)
+           and 'id="ig-ao-interne"' not in m.group(0)]
+    assert not nus, (
+        "ces blocs du § 14 ne sont ni l'en-tête, ni l'annonce, ni marqués "
+        "`ig-ao-op` : ils resteraient visibles pour qui n'y a pas droit — %s"
+        % nus)
+
+    # ET LA FEUILLE LES FERME VRAIMENT, avec le poids qu'il faut.
+    style = page[:i]
+    assert "#ig-ao.ig-ao-ferme .ig-ao-op{display:none!important}" in style, (
+        "la règle de fermeture est absente ou trop faible : `.btn` pose "
+        "`display:inline-block` et laisserait des boutons vides")
+
+    src = sans_commentaires_js(lire("ingenierie-dc.js"))
+    i = src.index("function aoInterne(")
+    assert 'classList.toggle("ig-ao-ferme", !AO_INTERNE_OUVERT)' in src[i:i + 2500], (
+        "le script ne ferme pas la section, ou la ferme à l'envers")
+    assert "aoDocuments();" in src[src.index("aoInterne().then"):
+                                   src.index("aoInterne().then") + 400], (
+        "le formulaire du dépôt est dessiné avant de savoir qui regarde : il "
+        "apparaîtrait une fraction de seconde avant d'être retiré")

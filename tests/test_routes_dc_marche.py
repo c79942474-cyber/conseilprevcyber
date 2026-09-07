@@ -45,12 +45,12 @@ def test_l_analyse_d_un_dossier_de_consultation_exige_l_administration(connecte)
     assert r.status_code in (401, 403), r.status_code
 
 
-def test_le_criblage_et_le_plan_sont_ouverts_a_un_compte_client(connecte):
+def test_le_criblage_et_le_plan_sont_ouverts_a_un_compte_client(marche):
     """Ils ne rendent que des tables et un calcul sur les grandeurs saisies :
     rien qui appartienne à un tiers."""
     for chemin in ("/api/datacenter/icpe", "/api/datacenter/travaux",
                    "/api/datacenter/marche/candidature"):
-        r = connecte.post(chemin, json={}, headers=ORIGINE)
+        r = marche.post(chemin, json={}, headers=ORIGINE)
         assert r.status_code == 200, (chemin, r.status_code)
 
 
@@ -239,52 +239,52 @@ def test_les_documents_sont_analyses_ensemble_pour_dire_ce_qui_manque(admin):
 
 # ── Le plan de candidature ─────────────────────────────────────────────────
 
-def test_le_plan_de_candidature_dit_quelles_notes_se_redigent(connecte):
+def test_le_plan_de_candidature_dit_quelles_notes_se_redigent(marche):
     """Le lien pièce → livrable se fait au serveur : une page qui devinerait
     quel livrable rédige quelle pièce se tromperait le jour où l'un des deux
     changerait de nom."""
-    j = connecte.post("/api/datacenter/marche/candidature", json={},
+    j = marche.post("/api/datacenter/marche/candidature", json={},
                       headers=ORIGINE).get_json()
     assert j["plan"]["redaction"]
     for r in j["plan"]["redaction"]:
         assert r["type"] and r["label"], r
 
 
-def test_toute_piece_annoncee_redigeable_existe_au_catalogue(connecte):
+def test_toute_piece_annoncee_redigeable_existe_au_catalogue(marche):
     """Un livrable annoncé et absent du catalogue conduirait le lecteur vers
     une page vide."""
     import livrables
-    j = connecte.post("/api/datacenter/marche/candidature", json={},
+    j = marche.post("/api/datacenter/marche/candidature", json={},
                       headers=ORIGINE).get_json()
     for r in j["plan"]["redaction"]:
         assert livrables.get_type(r["type"]), r["type"]
 
 
-def test_toute_piece_redigeable_designe_une_piece_du_dossier(connecte):
+def test_toute_piece_redigeable_designe_une_piece_du_dossier(marche):
     """L'inverse : un pont vers une pièce inexistante afficherait un bouton de
     rédaction sous aucune pièce."""
     import ao_dc
     cles = {p["cle"] for p in ao_dc.DOSSIER_CANDIDATURE}
-    j = connecte.post("/api/datacenter/marche/candidature", json={},
+    j = marche.post("/api/datacenter/marche/candidature", json={},
                       headers=ORIGINE).get_json()
     for r in j["plan"]["redaction"]:
         assert r["piece"] in cles, r["piece"]
 
 
-def test_seules_les_notes_sont_annoncees_redigeables(connecte):
+def test_seules_les_notes_sont_annoncees_redigeables(marche):
     """Un formulaire ne se rédige pas, un justificatif s'obtient. Proposer de
     générer un DC1 produirait un document d'apparence officielle sur des faits
     que personne n'a vérifiés."""
     import ao_dc
     natures = {p["cle"]: p["nature"] for p in ao_dc.DOSSIER_CANDIDATURE}
-    j = connecte.post("/api/datacenter/marche/candidature", json={},
+    j = marche.post("/api/datacenter/marche/candidature", json={},
                       headers=ORIGINE).get_json()
     for r in j["plan"]["redaction"]:
         assert natures[r["piece"]] == "note", (r["piece"], natures[r["piece"]])
 
 
-def test_le_plan_sert_le_vocabulaire_des_pieces_de_marche(connecte):
-    j = connecte.post("/api/datacenter/marche/candidature", json={},
+def test_le_plan_sert_le_vocabulaire_des_pieces_de_marche(marche):
+    j = marche.post("/api/datacenter/marche/candidature", json={},
                       headers=ORIGINE).get_json()
     assert "ccap" in j["pieces_marche"]
     assert j["pieces_marche"]["ccap"]["sigle"] == "CCAP"
@@ -324,14 +324,14 @@ def test_le_glossaire_de_la_page_porte_les_familles_des_quatre_modules(connecte)
         assert g[famille], famille
 
 
-def test_le_plan_de_candidature_sert_aussi_le_dossier_d_offre(connecte):
+def test_le_plan_de_candidature_sert_aussi_le_dossier_d_offre(marche):
     """DEUX DOSSIERS, UN SEUL APPEL : la page ouvre les deux blocs depuis la
     même réponse, au moment où elle affiche « Voir le dossier de
     candidature ». `offre()` ne dépend ni de la fiche ni de l'analyse — un
     second appel pour trois pièces statiques doublerait la requête pour
     rien."""
     import ao_dc
-    j = connecte.post("/api/datacenter/marche/candidature", json={},
+    j = marche.post("/api/datacenter/marche/candidature", json={},
                       headers=ORIGINE).get_json()
     assert j["dossier_offre"]["pieces"]
     cles = {p["cle"] for p in j["dossier_offre"]["pieces"]}
@@ -342,14 +342,14 @@ def test_le_plan_de_candidature_sert_aussi_le_dossier_d_offre(connecte):
     assert not (cles & {p["cle"] for p in j["plan"]["pieces"]})
 
 
-def test_le_reglage_de_groupement_ATTEINT_LES_DEUX_DOSSIERS(connecte):
+def test_le_reglage_de_groupement_ATTEINT_LES_DEUX_DOSSIERS(marche):
     """DÉFAUT RÉEL, TROUVÉ EN RELECTURE : la page envoie UN SEUL réglage de
     groupement pour tout l'écran. S'il n'atteignait que le plan de
     candidature, les dix-neuf cartes diraient « En groupement » et les
     trois de l'offre juste en dessous — dont le prix se répartit et l'acte
     d'engagement se signe différemment selon l'habilitation du mandataire —
     n'en diraient rien, sur le même écran."""
-    j = connecte.post("/api/datacenter/marche/candidature",
+    j = marche.post("/api/datacenter/marche/candidature",
                       json={"groupement": True}, headers=ORIGINE).get_json()
     for p in j["plan"]["pieces"]:
         assert p.get("en_groupement"), p["cle"]
@@ -645,11 +645,11 @@ def test_le_remplissage_est_ferme_a_l_anonyme(anonyme, chemin):
     assert r.status_code in (401, 403), (chemin, r.status_code)
 
 
-def test_le_remplissage_rend_les_champs_ET_l_etat_en_un_seul_appel(connecte):
+def test_le_remplissage_rend_les_champs_ET_l_etat_en_un_seul_appel(marche):
     """LA PAGE NE CONNAÎT PAS LA LISTE DES CHAMPS : elle la reçoit. Une seconde
     route pour la servir se désynchroniserait de celle qui calcule, et le
     formulaire proposerait des cases que le moteur ignore."""
-    r = connecte.post("/api/datacenter/marche/remplir", json={}, headers=ORIGINE)
+    r = marche.post("/api/datacenter/marche/remplir", json={}, headers=ORIGINE)
     assert r.status_code == 200
     j = r.get_json()["remplissage"]
     assert j["champs"] and j["groupes"] and j["pieces"]
@@ -667,7 +667,7 @@ def test_le_remplissage_rend_les_champs_ET_l_etat_en_un_seul_appel(connecte):
     assert j["sans_dossier"] is True
 
 
-def test_la_route_ne_declare_rien_meme_avec_une_fiche_complete(connecte):
+def test_la_route_ne_declare_rien_meme_avec_une_fiche_complete(marche):
     """LE VERROU EST AU SERVEUR, PAS DANS LA PAGE. Une page peut être
     remplacée ; la route, non. Aucune déclaration ne ressort pré-remplie,
     quelle que soit la richesse de ce qu'on lui envoie."""
@@ -678,7 +678,7 @@ def test_la_route_ne_declare_rien_meme_avec_une_fiche_complete(connecte):
                "ca_n1", "ca_n2", "ca_n3", "assurance_compagnie",
                "assurance_police", "assurance_echeance")}
     pleine["siret"] = "80295478500019"
-    j = connecte.post("/api/datacenter/marche/remplir",
+    j = marche.post("/api/datacenter/marche/remplir",
                       json={"fiche": pleine}, headers=ORIGINE).get_json()
     decl = [l for p in j["remplissage"]["pieces"] for l in p["rubriques"]
             if l["source"] == "declaration"]
@@ -689,10 +689,10 @@ def test_la_route_ne_declare_rien_meme_avec_une_fiche_complete(connecte):
                if p["porte_declaration"])
 
 
-def test_une_valeur_a_rallonge_est_bornee_a_l_entree(connecte):
+def test_une_valeur_a_rallonge_est_bornee_a_l_entree(marche):
     """UNE CASE DE FORMULAIRE QUI RECEVRAIT UN ROMAN NE SE REMPLIT PAS : elle
     sert à faire grossir une réponse. Les entrées sont bornées AVANT le calcul."""
-    j = connecte.post("/api/datacenter/marche/remplir",
+    j = marche.post("/api/datacenter/marche/remplir",
                       json={"fiche": {"raison_sociale": "X" * 5000}},
                       headers=ORIGINE).get_json()
     v = [l["valeur"] for p in j["remplissage"]["pieces"] for l in p["rubriques"]
@@ -700,24 +700,24 @@ def test_une_valeur_a_rallonge_est_bornee_a_l_entree(connecte):
     assert v and all(len(x) <= 400 for x in v), [len(x) for x in v]
 
 
-def test_la_route_ne_conserve_rien_d_un_appel_a_l_autre(connecte):
+def test_la_route_ne_conserve_rien_d_un_appel_a_l_autre(marche):
     """Un état retenu ferait ressortir, sur la consultation suivante, des
     valeurs de la précédente — et personne ne relit une case déjà remplie."""
-    connecte.post("/api/datacenter/marche/remplir",
+    marche.post("/api/datacenter/marche/remplir",
                   json={"fiche": FICHE_R}, headers=ORIGINE)
-    j = connecte.post("/api/datacenter/marche/remplir", json={},
+    j = marche.post("/api/datacenter/marche/remplir", json={},
                       headers=ORIGINE).get_json()
     v = [l["valeur"] for p in j["remplissage"]["pieces"] for l in p["rubriques"]
          if l["source"] == "fiche"]
     assert not any(v), "une valeur du premier appel survit au second"
 
 
-def test_le_dossier_s_emporte_en_word_et_en_pdf(connecte):
+def test_le_dossier_s_emporte_en_word_et_en_pdf(marche):
     """UN DOCUMENT QUI NE SORT PAS DU SITE N'EST PAS UN LIVRABLE : le seul moyen
     de l'emporter serait de sélectionner le texte à l'écran, c'est-à-dire de
     perdre le titrage, les tableaux et les origines."""
     for fmt, debut in (("docx", b"PK"), ("pdf", b"%PDF")):
-        r = connecte.post("/api/datacenter/marche/export",
+        r = marche.post("/api/datacenter/marche/export",
                           json={"fiche": FICHE_R, "format": fmt},
                           headers=ORIGINE)
         assert r.status_code == 200, (fmt, r.status_code)
@@ -726,7 +726,7 @@ def test_le_dossier_s_emporte_en_word_et_en_pdf(connecte):
         assert fmt in r.headers.get("Content-Disposition", "")
 
 
-def test_un_format_inconnu_ne_produit_pas_un_fichier_qui_MENT(connecte):
+def test_un_format_inconnu_ne_produit_pas_un_fichier_qui_MENT(marche):
     """CE QUE CETTE RÈGLE MESURE VRAIMENT, après une mutation qui a survécu à
     sa première version. Le repli sur le Word ne change pas le CONTENU — la
     mise en page retombe déjà sur le docx — mais il change le NOM : sans lui,
@@ -738,7 +738,7 @@ def test_un_format_inconnu_ne_produit_pas_un_fichier_qui_MENT(connecte):
     Ma première version vérifiait le contenu (« ça commence par PK »), qui est
     juste des deux côtés de la mutation : elle était verte pour une raison sans
     rapport avec ce qu'elle prétendait garder."""
-    r = connecte.post("/api/datacenter/marche/export",
+    r = marche.post("/api/datacenter/marche/export",
                       json={"fiche": FICHE_R, "format": "wordperfect"},
                       headers=ORIGINE)
     assert r.status_code == 200 and r.data[:2] == b"PK"
@@ -793,3 +793,81 @@ def test_le_parcours_guide_refuse_une_liste_de_themes_qui_n_en_est_pas_une(conne
                       headers=ORIGINE)
     assert r.status_code == 404
     assert r.get_json()["ok"] is False
+
+
+# ══ LA RÉPONSE À CONSULTATION EST UN OUTIL INTERNE ═══════════════════════
+#
+# LA DÉCISION, ET CE QU'ELLE CORRIGE. Une seule des douze interfaces de la
+# section était fermée — `analyser` — et c'était celle par laquelle l'écran
+# COMMENCE. Mesuré : un compte client recevait 403 sur `analyser` et 200 sur
+# `projet/dossier`. Comme la page exige l'analyse avant de proposer la
+# conservation, aucun client ne pouvait se servir du § 14 ; la page le
+# présentait pourtant comme son outil de réponse, et le refus n'arrivait
+# qu'après avoir choisi ses fichiers et attendu le téléversement.
+#
+# LA SECTION EST DONC DÉCLARÉE INTERNE, ENTIÈREMENT. Le motif est écrit dans
+# `acces.API_ADMIN` : un dossier de consultation appartient à l'acheteur et se
+# lit avec un métier ; le cabinet l'instruit, le client reçoit le résultat.
+
+def test_chaque_interface_declaree_admin_REFUSE_un_compte_client(connecte):
+    """ÉNUMÉRÉE, JAMAIS ÉCHANTILLONNÉE. C'est une porte sur douze qui reste
+    ouverte qui fait le défaut — en éprouver trois n'apprend rien sur les neuf
+    autres."""
+    import acces
+    ouvertes = []
+    for chemin in sorted(acces.API_ADMIN):
+        for envoi in (connecte.post, connecte.get):
+            r = envoi(chemin, json={}, headers=ORIGINE) if envoi is connecte.post \
+                else envoi(chemin, headers=ORIGINE)
+            if r.status_code not in (403, 401, 405):
+                ouvertes.append("%s (%s → %s)"
+                                % (chemin, envoi.__name__.upper(),
+                                   r.status_code))
+    assert not ouvertes, (
+        "ces interfaces déclarées réservées à l'administration répondent à un "
+        "compte client : " + ", ".join(ouvertes))
+
+
+def test_chaque_interface_declaree_admin_REPOND_a_l_administration(marche):
+    """LE TÉMOIN NÉGATIF. Sans lui, la règle ci-dessus serait verte devant une
+    section entièrement en panne — douze routes qui rendent 500 refusent aussi
+    bien un client qu'un administrateur."""
+    import acces
+    muettes = []
+    for chemin in sorted(acces.API_ADMIN):
+        r = marche.post(chemin, json={}, headers=ORIGINE)
+        if r.status_code in (401, 403):
+            muettes.append("%s → %s" % (chemin, r.status_code))
+    assert not muettes, (
+        "ces interfaces refusent aussi l'administration : la section n'est "
+        "pas fermée, elle est cassée — " + ", ".join(muettes))
+
+
+def test_la_politique_DECLARE_le_verrou_au_lieu_de_le_tolerer():
+    """LE DÉFAUT QUE CETTE RÈGLE TIENT. `verifier_api` ne signalait que ce qui
+    est TROP OUVERT. Une route fermée hors du préfixe `/api/admin/` était donc
+    déclarée « client » et son verrou réel passait inaperçu : on pouvait la
+    rouvrir sans qu'aucune barrière ne bronche, puisque « client » est
+    précisément ce que la politique attendait.
+
+    La règle mesure les deux sens sur une route déclarée."""
+    import acces
+    chemin = "/api/datacenter/marche/analyser"
+    assert acces.api_statut(chemin) == "admin", (
+        "%s n'est plus déclarée réservée à l'administration" % chemin)
+    assert acces.verifier_api({chemin: "client"}), (
+        "la politique accepte que cette route redevienne ouverte aux clients")
+    assert acces.verifier_api({chemin: "admin"}) == []
+    # ET LA LISTE NE PEUT PAS DÉCRIRE UN SITE QUI N'EXISTE PLUS.
+    assert acces.verifier_api_couverture({chemin: "admin"}), (
+        "une interface déclarée réservée qui a disparu du service ne se "
+        "signale nulle part")
+
+
+def test_le_motif_du_verrou_est_ECRIT_pour_chacune():
+    """« Toute interface est fermée, sauf motif écrit » — la moitié « motif »
+    compte autant que la moitié « fermée ». Un jour quelqu'un se demandera
+    pourquoi ces douze-là, et la réponse doit être dans le fichier."""
+    import acces
+    nus = [c for c, m in acces.API_ADMIN.items() if len((m or "").strip()) < 40]
+    assert not nus, "ces interfaces sont fermées sans motif écrit : %s" % nus

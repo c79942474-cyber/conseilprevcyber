@@ -577,18 +577,18 @@ def test_la_conservation_ne_se_pilote_qu_a_l_administration(connecte, anonyme):
         assert r.status_code in (401, 403), r.status_code
 
 
-def test_un_projet_qui_n_est_pas_le_votre_repond_introuvable(connecte):
+def test_un_projet_qui_n_est_pas_le_votre_repond_introuvable(marche):
     """Et il répond la MÊME chose qu'un projet inexistant.
 
     Distinguer « pas à vous » de « n'existe pas » dirait à qui essaie des
     identifiants lesquels sont pris.
     """
-    inexistant = connecte.get(
+    inexistant = marche.get(
         "/api/datacenter/marche/projet/dossier?projet=" + "f" * 32,
         headers=ORIGINE)
     assert inexistant.status_code == 404
     assert inexistant.get_json()["error"] == "projet_inconnu"
-    malforme = connecte.get(
+    malforme = marche.get(
         "/api/datacenter/marche/projet/dossier?projet=pas-un-identifiant",
         headers=ORIGINE)
     assert malforme.status_code == 404
@@ -596,7 +596,7 @@ def test_un_projet_qui_n_est_pas_le_votre_repond_introuvable(connecte):
 
 
 def test_le_depot_et_la_relecture_passent_par_le_projet_du_compte(
-        connecte, coffre):
+        marche, coffre):
     """La fixture `coffre` N'EST PAS DÉCORATIVE ICI.
 
     Sans elle, le service n'a pas de clé et répond 503 : la règle passerait en
@@ -605,12 +605,12 @@ def test_le_depot_et_la_relecture_passent_par_le_projet_du_compte(
     rapport avec ce qu'elle prétend est pire qu'une règle absente — celle-ci
     exige donc la clé, et le refus sans clé est mesuré à part, plus bas.
     """
-    cree = connecte.post("/api/datacenter/projets",
+    cree = marche.post("/api/datacenter/projets",
                          json={"nom": "Roissy"}, headers=ORIGINE)
     assert cree.status_code == 200, cree.status_code
     pid = cree.get_json()["projet"]["id"]
 
-    depot = connecte.post("/api/datacenter/marche/projet/dossier",
+    depot = marche.post("/api/datacenter/marche/projet/dossier",
                           json={"projet": pid,
                                 "pieces": [{"nom": "RC.pdf", "texte": RC}]},
                           headers=ORIGINE)
@@ -620,28 +620,28 @@ def test_le_depot_et_la_relecture_passent_par_le_projet_du_compte(
     assert len(corps["declarations"]["lignes"]) == 6
     assert corps["declarations"]["affirmees"] == []
 
-    lu = connecte.get("/api/datacenter/marche/projet/dossier?projet=" + pid,
+    lu = marche.get("/api/datacenter/marche/projet/dossier?projet=" + pid,
                       headers=ORIGINE)
     assert lu.status_code == 200
     assert lu.get_json()["dossier"]["pieces"][0]["nom"] == "RC.pdf"
 
-    oubli = connecte.post("/api/datacenter/marche/projet/oubli",
+    oubli = marche.post("/api/datacenter/marche/projet/oubli",
                           json={"projet": pid}, headers=ORIGINE)
     assert oubli.status_code == 200 and oubli.get_json()["efface"] is True
-    assert connecte.get(
+    assert marche.get(
         "/api/datacenter/marche/projet/dossier?projet=" + pid,
         headers=ORIGINE).get_json()["dossier"] is None
 
 
 def test_le_depot_sans_cle_est_refuse_par_la_route_ET_ne_range_rien(
-        connecte, monkeypatch):
+        marche, monkeypatch):
     """Le refus est mesuré à la route, pas seulement au module."""
     import ao_projet
     monkeypatch.delenv(ao_projet.VAR_CLE, raising=False)
     monkeypatch.setattr(ao_projet, "_STORE", ao_projet.MemoryDossierStore())
-    pid = connecte.post("/api/datacenter/projets", json={"nom": "Roissy"},
+    pid = marche.post("/api/datacenter/projets", json={"nom": "Roissy"},
                         headers=ORIGINE).get_json()["projet"]["id"]
-    r = connecte.post("/api/datacenter/marche/projet/dossier",
+    r = marche.post("/api/datacenter/marche/projet/dossier",
                       json={"projet": pid,
                             "pieces": [{"nom": "RC.pdf", "texte": RC}]},
                       headers=ORIGINE)
@@ -650,12 +650,12 @@ def test_le_depot_sans_cle_est_refuse_par_la_route_ET_ne_range_rien(
     assert ao_projet.store().compter()["dossiers"] == 0
 
 
-def test_les_textes_des_six_declarations_sont_servis_pour_etre_LUS(connecte):
+def test_les_textes_des_six_declarations_sont_servis_pour_etre_LUS(marche):
     """On ne peut pas affirmer ce qu'on n'a pas vu : la route rend les textes."""
-    cree = connecte.post("/api/datacenter/projets",
+    cree = marche.post("/api/datacenter/projets",
                          json={"nom": "Roissy"}, headers=ORIGINE)
     pid = cree.get_json()["projet"]["id"]
-    r = connecte.get("/api/datacenter/marche/projet/affirmation?projet=" + pid,
+    r = marche.get("/api/datacenter/marche/projet/affirmation?projet=" + pid,
                      headers=ORIGINE)
     assert r.status_code == 200
     textes = r.get_json()["textes"]
@@ -712,8 +712,14 @@ def test_la_politique_d_acces_REFUSE_DE_DEMARRER_si_une_de_ces_routes_s_ouvre():
         chemin = os.path.join(copie, "app.py")
         with open(chemin, encoding="utf-8") as f:
             source = f.read()
+        # L'ANCRE A SUIVI LA DÉCISION D'ACCÈS. Cette route était fermée par
+        # session ; elle l'est désormais à l'administration, et la politique
+        # le DÉCLARE dans `acces.API_ADMIN` au lieu de le déduire du seul
+        # préfixe `/api/admin/`. C'est ce qui rend la barrière bilatérale :
+        # elle refusait déjà ce qui s'ouvre trop, elle refuse maintenant aussi
+        # qu'une route déclarée réservée cesse de l'être.
         ancre = ('@app.route("/api/datacenter/marche/projet/dossier", '
-                 'methods=["GET", "POST"])\n@login_required')
+                 'methods=["GET", "POST"])\n@admin_required')
         assert source.count(ancre) == 1, "l'ancre de la route a changé"
         with open(chemin, "w", encoding="utf-8") as f:
             f.write(source.replace(ancre, ancre.split("\n")[0], 1))
