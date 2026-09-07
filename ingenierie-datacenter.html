@@ -2779,10 +2779,10 @@
 
   <section class="wrap rc-sec" id="ig-limites">
     <div class="rc-etape"><span class="n">15</span><h2>Ce que ce cadre ne fait pas</h2></div>
-    <p class="lead" style="max-width:74ch;margin-top:0">
+    <p class="lead">
       Le dire ici plutôt qu'en note de bas de page&nbsp;: ces limites décident du moment où
       il faut un ingénieur, et les ignorer coûte plus cher que de les lire.</p>
-    <ul class="lead" style="max-width:76ch">
+    <ul class="lead">
       <li>Il <b>ne remplace aucune mission</b>. Il dit ce que le calcul énergie / eau /
         carbone peut verser à chaque phase&nbsp;; le reste du dossier — structure, incendie,
         électricité, sûreté, acoustique — n'est pas de son ressort.</li>
@@ -3858,8 +3858,42 @@
    paragraphe. Une réserve ajoutée demain hérite du réglage sans qu'on y pense ;
    posée à la main, elle serait la seule à ne pas l'avoir. Le TITRE et la puce
    de numéro sont exclus : ce sont eux qui donnent son rang à la section dans
-   la page, et les rapetisser la ferait disparaître de la frise. */
-#ig-limites .lead{font-size:15px;line-height:1.5;max-width:88ch}
+   la page, et les rapetisser la ferait disparaître de la frise.
+
+   SECOND CRAN, DEMANDÉ ET MESURÉ. À 15 px sur 22,5 px, la section faisait
+   encore 963 px de haut — presque le corps du texte courant (16 px) pour un
+   contenu qu'on ne lit pas dans le fil. Elle passe à 13 px, qui est un cran
+   DÉJÀ EN USAGE sur cette page — l'encart, le détail d'une phase, la note
+   d'un versement — et non une valeur inventée pour l'occasion.
+
+   ON NE DESCEND PAS PLUS BAS, et c'est une limite, pas une timidité : ces
+   neuf réserves décident du moment où il faut un ingénieur. Illisibles,
+   elles ne décideraient plus rien, et une réserve qu'on ne lit pas vaut une
+   réserve absente.
+
+   LA COLONNE NE BOUGE PAS, ET C'EST DÉLIBÉRÉ. Le 88 ch de cette règle était
+   MORT : le paragraphe portait `max-width:74ch` en style en ligne et la liste
+   `76ch`, tous deux plus forts qu'elle. Les deux styles en ligne partent, si
+   bien que le 88 ch s'applique enfin — et à 13 px il rend 728 px, soit la
+   colonne physique que la section avait déjà (706 px pour le paragraphe, 725
+   pour la liste). Ce qui change est le corps, pas la mise en page.
+
+   88 SIGNES EST LONG, ET ON LE DIT. On lit plus confortablement autour de 75.
+   Le choix est de garder la colonne où elle était plutôt que de refaire la
+   mise en page d'une section dont on ne demandait que le corps ; mesuré à
+   76 ch, la section remonte à 911 px et l'on perd l'essentiel du gain.
+
+   MESURE, AVANT ET APRÈS : 15 px / 22,5 px et 963 px de haut ; 13 px /
+   21,1 px et 785 px. Un cinquième de hauteur en moins, texte entier.
+
+   UNE SEULE RÈGLE, ET ELLE PORTE L'IDENTIFIANT. Une classe ajoutée à côté
+   perdrait la cascade contre celle-ci sans le dire — un `#id` bat une
+   classe —, et l'on croirait avoir réduit ce qui n'aurait pas bougé. */
+#ig-limites .lead{font-size:13px;line-height:1.62;max-width:88ch}
+/* Le `margin-top:0` était posé en style EN LIGNE sur le paragraphe. Il rentre
+   ici avec le reste : deux endroits pour régler une même section, c'est un de
+   trop, et c'est celui qu'on oublie quand on change l'autre. */
+#ig-limites p.lead{margin-top:0}
 #ig-limites li{margin-bottom:7px}
 .ig-pas{margin:14px 0 4px;border:1px solid var(--line);border-radius:10px;
   background:rgba(0,0,0,.12)}

@@ -5542,6 +5542,7 @@ function messageDelai(e, defaut) {
         }
         travauxRendre(j.plan, j.nature_detail);
         travauxBrancherMenu();
+        travauxBrancherMenuSolutions();
       })
       .catch(function () { msg.textContent = "Plan indisponible."; });
   }
@@ -5569,6 +5570,28 @@ function messageDelai(e, defaut) {
      opération unique. */
   var TR_TOUTES = "__toutes";
   var TR_OP = null;
+
+  /* ── LE MENU DES SOLUTIONS — DIX LEVIERS NE SONT PAS DIX RECOMMANDATIONS
+     Chaque solution porte quatre lignes : ce qu'elle obtient, ce qu'elle
+     coûte, où et quand la poser. Dix à la suite font le même mur que les
+     douze opérations juste au-dessus, et se parcourent de la même façon —
+     en diagonale.
+
+     LE GROUPEMENT N'EST PAS LA NATURE, C'EST CE QUE LE PROJET IMPOSE. La
+     nature (« technique » / « managériale ») est une phrase entière dans le
+     module — « Se pose dans les pièces techniques et se démontre par un
+     document ou un essai. » — et ne fait pas un intitulé de groupe. Surtout,
+     ce n'est pas la question qu'on se pose devant ce bloc : le phasage
+     d'exploitation d'un rétrofit n'est pas une bonne pratique à arbitrer,
+     c'est une condition de faisabilité. Le menu range donc par CE QUI SE
+     DÉCIDE et CE QUI NE SE DÉCIDE PAS.
+
+     ET CE QUE LE PROJET IMPOSE EST OUVERT AU CHARGEMENT, pas la première
+     solution par ordre alphabétique. C'est la seule différence avec le menu
+     des opérations, et elle est délibérée : ouvrir sur une solution
+     arbitrable laisserait masquée celle qui n'est pas négociable. */
+  var TR_IMPOSEES = "__imposees";
+  var TR_SOL = null;
 
   /* LE CHOIX EST PASSÉ EN PARAMÈTRE, PAS LU DANS TR_OP — même discipline que
      `aoMenuDocs` : c'est ce qui permet d'exécuter cette fonction hors du
@@ -5616,6 +5639,76 @@ function messageDelai(e, defaut) {
       TR_OP = sel.value;
       document.querySelectorAll("#ig-tr-out [data-op]").forEach(function (li) {
         li.hidden = TR_OP !== TR_TOUTES && li.dataset.op !== TR_OP;
+      });
+    });
+  }
+
+  /* LE CHOIX EST PASSÉ EN PARAMÈTRE, PAS LU DANS TR_SOL — même discipline
+     que `travauxMenu` et `aoMenuDocs` : c'est ce qui permet d'exécuter cette
+     fonction hors du navigateur pour l'éprouver. */
+  function travauxMenuSolutions(p, choix) {
+    var imposees = p.solutions.filter(function (s) { return s.impose; });
+    var libres = p.solutions.filter(function (s) { return !s.impose; });
+    var h = '<label class="ig-ao-menu"><span class="dc-lab">'
+      + p.solutions.length + " solutions pour faire tenir les termes du "
+      + "marché — en choisir une</span>"
+      /* LES DEUX VALEURS SONT DES LITTÉRAUX ICI, PAS `TR_TOUTES` NI
+         `TR_IMPOSEES` : cette fonction ne doit dépendre d'AUCUN état ni
+         constante du module, même discipline que `travauxMenu`. */
+      + '<select id="ig-tr-sol"><option value="__toutes">Les '
+      + p.solutions.length + " solutions, à la suite</option>";
+    if (imposees.length) {
+      h += '<option value="__imposees"'
+        + (choix === "__imposees" ? " selected" : "") + ">Les "
+        + imposees.length + " que ce projet IMPOSE</option>";
+    }
+    [["Imposées par ce projet", imposees],
+     ["À arbitrer", libres]].forEach(function (g) {
+      if (!g[1].length) return;
+      h += '<optgroup label="' + esc(g[0]) + " (" + g[1].length + ')">';
+      g[1].forEach(function (x) {
+        h += '<option value="' + esc(x.cle) + '"'
+          + (x.cle === choix ? " selected" : "") + ">" + esc(x.nom)
+          + "</option>";
+      });
+      h += "</optgroup>";
+    });
+    h += '</select><span class="dc-aide">Ce que le projet impose n\'est pas '
+      + "négociable&nbsp;: c'est une condition de faisabilité, pas une bonne "
+      + "pratique.</span></label>";
+    return h;
+  }
+
+  /* UNE SEULE DÉFINITION DE « CETTE SOLUTION EST-ELLE VISIBLE ? », lue par le
+     RENDU et par le FILTRE.
+
+     POURQUOI PAS DEUX, COMME POUR LES OPÉRATIONS. Le menu des opérations
+     porte la même règle écrite deux fois — dans le `hidden` de `<li>` et dans
+     le gestionnaire —, et c'est précisément ce qui avait laissé passer un
+     défaut mesuré en navigateur : le gestionnaire traitait « toutes », le
+     rendu non, si bien qu'un changement de nature faisait disparaître les
+     douze opérations. Deux copies d'une règle divergent ; celle-ci n'a qu'un
+     exemplaire.
+
+     LES DEUX VALEURS SONT DES LITTÉRAUX — même discipline que
+     `travauxMenuSolutions` : la fonction reste exécutable hors du navigateur,
+     donc éprouvable sur les quatre formes de projet. */
+  function travauxSolVisible(choix, cle, impose) {
+    return choix === "__toutes"
+      || (choix === "__imposees" && !!impose)
+      || cle === choix;
+  }
+
+  /* Le filtre MASQUE, il ne redessine pas — la règle tenue partout ailleurs
+     dans ce fichier. */
+  function travauxBrancherMenuSolutions() {
+    var sel = $("#ig-tr-sol");
+    if (!sel) return;
+    sel.addEventListener("change", function () {
+      TR_SOL = sel.value;
+      document.querySelectorAll("#ig-tr-out [data-sol]").forEach(function (d) {
+        d.hidden = !travauxSolVisible(TR_SOL, d.dataset.sol,
+                                      d.dataset.impose === "1");
       });
     });
   }
@@ -5685,10 +5778,29 @@ function messageDelai(e, defaut) {
     /* LES SOLUTIONS. Celles que le projet IMPOSE sont en tête et le disent :
        le phasage d'exploitation d'un rétrofit n'est pas une bonne pratique,
        c'est une condition de faisabilité. */
-    h += '<h3 class="ig-tr-st">Ce qui fait tenir les termes du marché</h3>'
-      + '<div class="ig-tr-sol">';
+    h += '<h3 class="ig-tr-st">Ce qui fait tenir les termes du marché</h3>';
+    /* LE CHOIX EFFECTIF SE DÉCIDE ICI, UNE SEULE FOIS — même construction que
+       pour les opérations. Trois cas de repli, et chacun a sa raison :
+
+       · « toutes » reste valide quoi qu'il arrive — aucune solution ne porte
+         cette clé, et la traiter comme une clé absente ferait disparaître les
+         dix, défaut déjà mesuré sur le menu des opérations ;
+       · « imposées » n'est valide QUE s'il en reste. Changer la nature des
+         travaux ou retirer le commissioning peut vider ce groupe, et le
+         garder choisi n'afficherait plus rien ;
+       · sinon on ouvre sur les imposées quand il y en a — elles ne se
+         négocient pas —, et à défaut sur la liste entière. */
+    var impCount = p.solutions.filter(function (s) { return s.impose; }).length;
+    var cs = TR_SOL === TR_TOUTES
+      || (TR_SOL === TR_IMPOSEES && impCount)
+      || (TR_SOL && p.solutions.some(function (s) { return s.cle === TR_SOL; }))
+      ? TR_SOL : (impCount ? TR_IMPOSEES : TR_TOUTES);
+    TR_SOL = cs;
+    h += travauxMenuSolutions(p, cs) + '<div class="ig-tr-sol">';
     p.solutions.forEach(function (s) {
-      h += '<div class="ig-tr-s' + (s.impose ? " ig-tr-simp" : "") + '">'
+      h += '<div class="ig-tr-s' + (s.impose ? " ig-tr-simp" : "") + '"'
+        + ' data-sol="' + esc(s.cle) + '" data-impose="' + (s.impose ? "1" : "0")
+        + '"' + (travauxSolVisible(cs, s.cle, s.impose) ? "" : " hidden") + ">"
         + '<b' + info("solution:" + s.cle) + ">" + esc(s.nom) + "</b>"
         + (s.impose ? '<span class="ig-tr-sb">imposée par le projet</span>' : "")
         + '<span class="ig-tr-sn">' + esc(s.nature_nom) + "</span>"

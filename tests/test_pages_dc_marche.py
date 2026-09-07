@@ -1655,3 +1655,253 @@ def test_TOUT_ce_qui_s_adresse_a_l_operateur_est_ferme_d_un_seul_geste():
                                    src.index("aoInterne().then") + 400], (
         "le formulaire du dépôt est dessiné avant de savoir qui regarde : il "
         "apparaîtrait une fraction de seconde avant d'être retiré")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE MENU DES SOLUTIONS — DIX LEVIERS NE SONT PAS DIX RECOMMANDATIONS
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# CE QUI A DÉCLENCHÉ CETTE SECTION. « Ce qui fait tenir les termes du marché »
+# affichait ses dix solutions à la suite, chacune avec quatre lignes — ce qu'elle
+# obtient, ce qu'elle coûte, où et quand la poser. Exactement le mur que les
+# douze opérations juste au-dessus avaient déjà valu à cette page.
+#
+# ET UNE DIFFÉRENCE DÉLIBÉRÉE AVEC LE MENU DES OPÉRATIONS : celui-ci ouvre sur
+# la PREMIÈRE opération, celui-là sur CE QUE LE PROJET IMPOSE. Le phasage
+# d'exploitation d'un rétrofit n'est pas une bonne pratique à arbitrer, c'est
+# une condition de faisabilité : ouvrir sur une solution négociable la
+# laisserait masquée.
+
+def _menu_solutions_rendu(plan, choix=""):
+    """Le HTML que `travauxMenuSolutions` produit RÉELLEMENT, en l'exécutant."""
+    prog = (_js_fonctions("esc", "travauxMenuSolutions")
+            + "\nconst p = JSON.parse(process.env.TR_PLAN);"
+            + "\nprocess.stdout.write(travauxMenuSolutions(p, process.env.TR_CHOIX || ''));\n")
+    env = dict(os.environ, TR_PLAN=json.dumps(plan), TR_CHOIX=choix)
+    out = subprocess.run(["node"], input=prog, capture_output=True, text=True,
+                         timeout=60, env=env)
+    assert out.returncode == 0, out.stderr
+    return out.stdout
+
+
+def _visible(cas):
+    """`travauxSolVisible` EXÉCUTÉE, sur une liste de (choix, cle, impose)."""
+    prog = (_js_fonctions("travauxSolVisible")
+            + "\nconst cas = JSON.parse(process.env.CAS);"
+            + "\nprocess.stdout.write(JSON.stringify(cas.map("
+            + "c => travauxSolVisible(c[0], c[1], c[2]))));\n")
+    out = subprocess.run(["node"], input=prog, capture_output=True, text=True,
+                         timeout=60, env=dict(os.environ, CAS=json.dumps(cas)))
+    assert out.returncode == 0, out.stderr
+    return json.loads(out.stdout)
+
+
+# LES QUATRE FORMES DE PROJET, ÉNUMÉRÉES — pas une seule échantillonnée. Ce
+# que le projet impose CHANGE avec la nature des travaux et le commissioning
+# (mesuré : 0, 1, 2 et 4 solutions imposées), et c'est précisément ce que le
+# menu doit suivre.
+_FORMES = [(None, False), ("neuf", True), ("fit_out", False), ("retrofit", True)]
+
+
+def test_le_menu_des_solutions_liste_TOUTES_les_solutions():
+    """CHERCHER « optgroup » DANS LE FICHIER SERAIT VERT POUR UN GROUPE MORT
+    DANS UN COMMENTAIRE. On exécute la fonction et on lit ce qu'elle rend."""
+    for nat, cx in _FORMES:
+        plan = travaux_dc.plan(nat, cx)
+        h = _menu_solutions_rendu(plan)
+        options = re.findall(r'<option value="([^"]*)"', h)
+        assert options[0] == "__toutes", (
+            "%s/%s : le menu n'offre pas de lire les solutions à la suite" % (nat, cx))
+        cles = [v for v in options if not v.startswith("__")]
+        assert sorted(cles) == sorted(s["cle"] for s in plan["solutions"]), (
+            "%s/%s : le menu ne liste pas les dix solutions : %s" % (nat, cx, cles))
+
+
+def test_le_menu_des_solutions_separe_CE_QUE_LE_PROJET_IMPOSE_du_reste():
+    """LE GROUPEMENT PORTE LA SEULE DISTINCTION QUI DÉCIDE. La nature d'une
+    solution (« technique » / « managériale ») est une phrase entière dans le
+    module et ne fait pas un intitulé ; ce qu'on se demande devant ce bloc est
+    « qu'est-ce que je peux arbitrer ». Les comptes des deux groupes doivent
+    donc suivre EXACTEMENT ce que le module impose pour CETTE forme de projet.
+
+    ET LES QUATRE FORMES SONT ÉNUMÉRÉES : avec 0 imposée, le groupe et son
+    raccourci doivent DISPARAÎTRE — offrir « les 0 que ce projet impose »
+    ouvrirait sur une liste vide."""
+    vus = set()
+    for nat, cx in _FORMES:
+        plan = travaux_dc.plan(nat, cx)
+        imp = [s for s in plan["solutions"] if s["impose"]]
+        vus.add(len(imp))
+        h = _menu_solutions_rendu(plan)
+        groupes = dict((n, int(c)) for n, c in
+                       re.findall(r'<optgroup label="([^"(]*) \((\d+)\)"', h))
+        attendu = {"À arbitrer": len(plan["solutions"]) - len(imp)}
+        if imp:
+            attendu["Imposées par ce projet"] = len(imp)
+        assert groupes == attendu, ("%s/%s : groupes %s, attendu %s"
+                                    % (nat, cx, groupes, attendu))
+        raccourci = 'value="__imposees"' in h
+        assert raccourci == bool(imp), (
+            "%s/%s : le raccourci « les N que ce projet impose » est %s alors "
+            "que %d solution(s) sont imposées"
+            % (nat, cx, "offert" if raccourci else "absent", len(imp)))
+    # ET L'ÉCHANTILLON COUVRE BIEN LES DEUX CAS, sinon la règle ne mesurerait
+    # qu'une moitié. Mesuré : 0, 1, 2 et 4 imposées selon la forme du projet.
+    assert 0 in vus and len(vus) >= 3, (
+        "les formes de projet éprouvées n'écartent plus le cas « aucune "
+        "imposée » : %s" % sorted(vus))
+
+
+def test_la_VISIBILITE_dune_solution_est_definie_UNE_SEULE_FOIS():
+    """LE DÉFAUT QU'ON NE REFAIT PAS. Le menu des opérations porte sa règle de
+    masquage DEUX FOIS — dans le rendu et dans le filtre —, et c'est ce qui
+    avait laissé passer, mesuré en navigateur, un « toutes » qui masquait les
+    douze opérations : une copie traitait le cas, l'autre non.
+
+    ON EXÉCUTE LA FONCTION, sur les trois choix possibles et les deux états
+    d'`impose` — six cas, tous énumérés."""
+    cas = [("__toutes", "x", False), ("__toutes", "x", True),
+           ("__imposees", "x", True), ("__imposees", "x", False),
+           ("x", "x", False), ("x", "y", False)]
+    assert _visible(cas) == [True, True, True, False, True, False], _visible(cas)
+    # ET LES DEUX APPELANTS PASSENT BIEN PAR ELLE — une fonction juste que
+    # personne n'appelle ne masque rien.
+    for nom in ("travauxRendre", "travauxBrancherMenuSolutions"):
+        bloc = sans_commentaires_js(_js_fonctions(nom))
+        assert "travauxSolVisible(" in bloc, (
+            "%s décide de la visibilité pour son compte" % nom)
+
+
+def test_le_menu_des_solutions_OUVRE_sur_ce_que_le_projet_impose():
+    """OUVRIR SUR UNE SOLUTION NÉGOCIABLE LAISSERAIT MASQUÉE CELLE QUI NE
+    L'EST PAS. Le repli est calculé dans `travauxRendre`, qui touche le DOM et
+    ne s'exécute pas ici : on isole l'expression et on vérifie ses trois cas —
+    « toutes » reste valide, « imposées » ne l'est que s'il en reste, et à
+    défaut on ouvre sur les imposées puis sur la liste entière."""
+    bloc = sans_commentaires_js(_js_fonctions("travauxRendre"))
+    assert "TR_SOL === TR_TOUTES" in bloc, (
+        "« toutes » n'est plus un choix valide au redessin — le défaut déjà "
+        "mesuré sur les opérations")
+    assert "(TR_SOL === TR_IMPOSEES && impCount)" in bloc, (
+        "« imposées » reste choisi même quand le projet n'impose plus rien : "
+        "la liste serait vide")
+    assert "(impCount ? TR_IMPOSEES : TR_TOUTES)" in bloc, (
+        "le repli n'ouvre pas sur ce que le projet impose")
+
+
+def test_chaque_carte_de_solution_porte_sa_cle_ET_son_caractere_impose():
+    """LE FILTRE LIT LE DOM, PAS LE PLAN. Sans `data-impose`, le raccourci
+    « les N que ce projet impose » n'aurait aucun moyen de savoir lesquelles
+    montrer, et masquerait tout."""
+    bloc = sans_commentaires_js(_js_fonctions("travauxRendre"))
+    assert 'data-sol="' in bloc and 'data-impose="' in bloc, (
+        "les cartes de solution ne portent plus de quoi être filtrées")
+    assert 'travauxSolVisible(cs, s.cle, s.impose) ? "" : " hidden"' in bloc, (
+        "le masquage initial ne suit plus le choix courant")
+
+
+def test_le_filtre_des_solutions_MASQUE_et_ne_redessine_pas():
+    """REDESSINER FERAIT PERDRE LES RÉGLAGES DE NATURE ET DE COMMISSIONING —
+    même défaut, même règle que pour le menu des opérations."""
+    bloc = _js_fonctions("travauxBrancherMenuSolutions")
+    assert "hidden" in bloc, "le filtre ne masque rien"
+    for interdit in ("innerHTML", "travauxRendre("):
+        assert interdit not in bloc, (
+            "le filtre redessine (« %s ») au lieu de masquer" % interdit)
+
+
+def test_le_gestionnaire_du_menu_des_solutions_RETIENT_le_choix():
+    """`TR_SOL` est la SEULE mémoire du choix entre deux redessins — et
+    `travauxRendre` est rappelé à chaque changement de nature."""
+    bloc = _js_fonctions("travauxBrancherMenuSolutions")
+    change = _bloc_apres(bloc, 'addEventListener("change"')
+    assert "TR_SOL = sel.value;" in change, (
+        "le gestionnaire ne retient pas le choix : il ne survivra à rien")
+
+
+def test_le_menu_des_solutions_est_un_VRAI_select():
+    """UN `<datalist>` LAISSERAIT SAISIR N'IMPORTE QUOI dans le champ."""
+    bloc = sans_commentaires_js(_js_fonctions("travauxMenuSolutions"))
+    assert '<select id="ig-tr-sol">' in bloc, (
+        "le menu des solutions n'est plus un <select> fermé")
+
+
+def test_travauxMenuSolutions_ne_lit_PAS_letat_global_TR_SOL():
+    """LA DISCIPLINE DE travauxMenu, REPRISE ICI : le choix est un PARAMÈTRE.
+    Sans cela la fonction ne serait plus exécutable hors du navigateur, et les
+    règles ci-dessus ne pourraient pas la mesurer."""
+    for nom in ("travauxMenuSolutions", "travauxSolVisible"):
+        # LES COMMENTAIRES SONT RETIRÉS AVANT LA MESURE : les deux constantes
+        # sont NOMMÉES dans le commentaire qui explique pourquoi on ne les lit
+        # pas. Une règle qui tomberait là-dessus punirait l'explication.
+        bloc = sans_commentaires_js(_js_fonctions(nom))
+        for etat in ("TR_SOL", "TR_TOUTES", "TR_IMPOSEES"):
+            assert etat not in bloc, (
+                "%s lit l'état global « %s » au lieu de son paramètre" % (nom, etat))
+
+
+def test_le_menu_des_solutions_est_construit_sur_ce_que_le_SERVEUR_rend():
+    """Une liste de solutions écrite dans le script se désynchroniserait du
+    module à la première solution ajoutée."""
+    bloc = _js_fonctions("travauxMenuSolutions")
+    assert "p.solutions" in bloc
+    for cle in ("points_arret", "circuit_visa", "cellule_synthese",
+                "phasage_exploitation"):
+        assert '"%s"' % cle not in bloc and "'%s'" % cle not in bloc, (
+            "« %s » est écrit en dur dans le menu" % cle)
+
+
+def test_le_choix_du_menu_des_solutions_est_REELLEMENT_marque():
+    """LA PRÉSENCE DU MOT « selected » DANS LE FICHIER SERAIT VERTE POUR UN
+    ATTRIBUT MORT : on exécute avec un choix et on lit l'option marquée."""
+    plan = travaux_dc.plan("neuf", True)
+    h = _menu_solutions_rendu(plan, "points_arret")
+    assert re.findall(r'<option value="([^"]*)"[^>]*\bselected\b', h) == [
+        "points_arret"], h[:300]
+    h2 = _menu_solutions_rendu(plan, "__imposees")
+    assert re.findall(r'<option value="([^"]*)"[^>]*\bselected\b', h2) == [
+        "__imposees"], "le raccourci « imposées » ne se retient pas"
+    assert not re.search(r"\bselected\b", _menu_solutions_rendu(plan, "")), (
+        "une option est marquée alors qu'aucun choix explicite n'a été fait")
+
+
+def test_travauxBrancherMenuSolutions_est_REELLEMENT_appele_apres_le_rendu():
+    """Brancher avant que les cartes existent ne trouverait rien à masquer."""
+    bloc = sans_commentaires_js(_js_fonctions("travauxPlan"))
+    assert "travauxBrancherMenuSolutions();" in bloc, (
+        "le menu des solutions n'est jamais branché")
+    assert bloc.index("travauxRendre(j.plan, j.nature_detail);") < bloc.index(
+        "travauxBrancherMenuSolutions();"), (
+        "le menu des solutions est branché avant le rendu")
+
+
+# ── §15 « CE QUE CE CADRE NE FAIT PAS » — LE CORPS DES RÉSERVES ────────────
+
+def test_les_reserves_du_paragraphe_15_sont_en_corps_REDUIT():
+    """CE QUE CETTE RÈGLE MESURE : le rapport entre deux nombres lus dans la
+    page, pas la présence d'une valeur.
+
+    Neuf réserves au corps du texte courant faisaient de la section la plus
+    haute de la page pour un contenu qu'on ne lit pas dans le fil. Le corps
+    doit rester STRICTEMENT INFÉRIEUR à celui du texte courant — et ne pas
+    descendre sous 12 px : ces réserves décident du moment où il faut un
+    ingénieur, et illisibles elles ne décideraient plus rien.
+
+    ET UNE SEULE RÈGLE LA PORTE. Une classe ajoutée à côté perdrait la cascade
+    contre le sélecteur d'identifiant sans le dire, et l'on croirait avoir
+    réduit ce qui n'aurait pas bougé — c'est arrivé en écrivant celle-ci."""
+    src = lire("ingenierie-datacenter.html")
+    tailles = re.findall(r"#ig-limites \.lead\{font-size:(\d+(?:\.\d+)?)px", src)
+    assert len(tailles) == 1, (
+        "le corps de la section 15 est réglé à %d endroits : %s"
+        % (len(tailles), tailles))
+    corps = float(tailles[0])
+    assert 12 <= corps < 15, (
+        "le corps des réserves est de %s px : hors du cadre voulu "
+        "(réduit, mais lisible)" % corps)
+    # LE TÉMOIN : aucun style EN LIGNE ne doit reprendre la main sur elle —
+    # un `style="max-width:74ch"` sur le paragraphe battait déjà le 88 ch de
+    # cette règle, et personne ne le savait.
+    sec = src[src.index('id="ig-limites"'):src.index("</section>", src.index('id="ig-limites"'))]
+    assert "style=" not in sec, (
+        "un style en ligne subsiste dans la section 15 et bat la feuille")
