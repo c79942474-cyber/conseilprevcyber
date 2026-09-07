@@ -135,7 +135,7 @@ def test_la_page_n_affiche_la_mention_que_si_l_api_le_dit():
 def test_le_filtre_par_pays_est_servi_par_l_api(anonyme, monkeypatch):
     monkeypatch.setattr(automation, "veille_list", lambda limit=60: [
         {"guid": "a", "source": "cisa_ics", "title": "US", "link": "", "published": 0, "resume": ""},
-        {"guid": "b", "source": "certfr_avis", "title": "FR", "link": "", "published": 0, "resume": ""}])
+        {"guid": "b", "source": "anssi", "title": "FR", "link": "", "published": 0, "resume": ""}])
     j = anonyme.get("/api/veille?pays=FR").get_json()
     assert [i["title"] for i in j["items"]] == ["FR"]
 
@@ -395,3 +395,56 @@ def test_le_bouton_se_nomme_pour_qui_ne_voit_pas_l_icone():
     assert "it.title" in apres[:220], (
         "le libellé accessible doit nommer l'élément partagé, sinon tous les "
         "boutons de la grille s'annoncent de la même façon")
+
+
+def test_le_site_ne_promet_plus_CERT_FR_comme_source_COLLECTEE():
+    """LA LIGNE, ET ELLE EST NETTE. Dire que la veille COLLECTE CERT-FR est
+    devenu faux ; RENVOYER vers le CERT-FR comme référence de première main
+    reste juste — et le devient davantage, puisque c'est désormais le seul
+    endroit où lire ces bulletins.
+
+    La règle mesure donc les textes qui DÉCRIVENT LA VEILLE — métadonnées de
+    /veille, entrée de menu, fiche d'aide, carte de recherche — et laisse
+    /ressources et les parcours pointer où ils veulent."""
+    import os
+    ici = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def lire(nom):
+        with open(os.path.join(ici, nom), encoding="utf-8") as f:
+            return f.read()
+
+    fautes = []
+
+    # 1. Les métadonnées de la page de veille : elles décrivent ce qui est servi.
+    page = lire("veille.html")
+    for m in re.finditer(r'<meta[^>]*content="([^"]*)"', page):
+        if "CERT-FR" in m.group(1):
+            fautes.append("veille.html meta : " + m.group(1)[:70])
+
+    # 2. Les textes de nav.js qui portent sur /veille — et EUX SEULS.
+    nav = lire("nav.js")
+    for ligne in nav.splitlines():
+        if "/veille" in ligne and "CERT-FR" in ligne:
+            fautes.append("nav.js : " + ligne.strip()[:80])
+
+    assert not fautes, (
+        "le site annonce encore que la veille collecte CERT-FR alors qu'elle "
+        "ne le fait plus :\n  - " + "\n  - ".join(fautes))
+
+    # LE TÉMOIN NÉGATIF : /ressources DOIT continuer d'y RENVOYER. Sans lui,
+    # cette règle serait verte sur un site qui aurait effacé CERT-FR partout,
+    # y compris là où le nommer est utile.
+    #
+    # MESURÉ SUR LE LIEN, PAS SUR LA CHAÎNE — et c'est une mutation qui l'a
+    # exigé : remplacer le libellé « CERT-FR » du lien par « ANSSI » ne
+    # faisait tomber personne, parce que le mot subsistait dans les
+    # métadonnées de la page. Un renvoi, c'est une adresse.
+    res = lire("ressources.html")
+    assert "cert.ssi.gouv.fr" in res, (
+        "/ressources ne renvoie plus vers le CERT-FR : la source est publique "
+        "et c'est désormais le seul endroit où lire ces bulletins")
+    i = res.index("cert.ssi.gouv.fr")
+    autour = res[max(0, i - 400):i + 400]
+    assert "CERT-FR" in autour, (
+        "le lien vers le CERT-FR ne porte plus son nom : un visiteur ne peut "
+        "pas savoir où il mène")

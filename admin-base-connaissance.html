@@ -247,7 +247,7 @@
         <div id="purgeBox" style="display:none;margin-top:10px">
           <label style="display:block;margin-bottom:6px;font-size:12.5px;color:var(--muted)">À libérer (rien d'irremplaçable : les documents et leur indexation restent intacts)</label>
           <label style="display:inline-flex;gap:6px;align-items:center;margin-right:14px;font-size:12.5px"><input type="checkbox" id="pgUploads" checked> Résidus de chargements interrompus</label>
-          <label style="display:inline-flex;gap:6px;align-items:center;margin-right:14px;font-size:12.5px"><input type="checkbox" id="pgVeille"> Bulletins de veille CERT-FR <span class="sub">(re-téléchargeables)</span></label>
+          <label style="display:inline-flex;gap:6px;align-items:center;margin-right:14px;font-size:12.5px"><input type="checkbox" id="pgVeille"> Bulletins de veille <span class="sub">(re-téléchargeables)</span></label>
           <label style="display:inline-flex;gap:6px;align-items:center;margin-right:14px;font-size:12.5px"><input type="checkbox" id="pgBlobs"> Fichiers d'origine <span class="sub">(documents conservés et cherchables ; seul le téléchargement de l'original est perdu)</span></label>
           <div style="margin-top:10px"><button class="btn btn-s" id="purgeBtn" type="button">🧹 Libérer l'espace</button></div>
         </div>
@@ -482,7 +482,7 @@
         <div class="escope" style="display:flex;gap:18px;flex-wrap:wrap;margin:-2px 0 12px;font-size:12.5px;color:var(--muted)">
           <span style="font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted2)">Périmètre</span>
           <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="src-docs" checked> Base documentaire</label>
-          <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="src-veille" checked> Veille CERT-FR</label>
+          <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="src-veille" checked> Veille</label>
         </div>
         <div id="exploreOut"></div>
       </div>
@@ -499,18 +499,18 @@
         <div id="evalOut"></div>
       </div>
 
-      <!-- Veille CERT-FR classée par thème -->
+      <!-- Veille classée par thème -->
       <div class="panel" id="veillePanel" style="margin-top:22px">
         <div class="topbar" style="margin:0 0 6px">
-          <div class="sec-title" style="margin:0">Veille CERT-FR <span style="font-family:var(--sans);font-weight:400;font-size:13px;color:var(--muted2)">— alertes &amp; avis par thème</span></div>
+          <div class="sec-title" style="margin:0">Veille <span style="font-family:var(--sans);font-weight:400;font-size:13px;color:var(--muted2)">— publications par thème</span></div>
           <div class="filterbar">
             <label for="vtheme" style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted2)">Thème</label>
             <select id="vtheme" aria-label="Filtrer la veille par thème"><option value="">Tous les thèmes</option></select>
             <span class="fcount" id="vcount"></span>
-            <button class="btn btn-s" id="veilleRefresh" type="button" title="Relancer la collecte des bulletins officiels CERT-FR">↻ Actualiser la veille</button>
+            <button class="btn btn-s" id="veilleRefresh" type="button" title="Relancer la collecte des trente-quatre sources de veille">↻ Actualiser la veille</button>
           </div>
         </div>
-        <div class="hint">Bulletins officiels CERT-FR (alertes &amp; avis) regroupés automatiquement par thème — systèmes industriels (OT/ICS), réseau, Microsoft, virtualisation, Linux, web… Ingérés dans la base sous le thème « Veille » (visibilité publique).</div>
+        <div class="hint">Publications des trente-quatre sources de veille regroupées automatiquement par thème — systèmes industriels (OT/ICS), réseau, Microsoft, virtualisation, Linux, web… Ingérés dans la base sous le thème « Veille » (visibilité publique).</div>
         <div id="vlist" class="vlist"><div class="empty">Chargement…</div></div>
       </div>
     </section>
@@ -987,7 +987,7 @@
           var r=(j.stats||{}).residus||{};
           var cles=Object.keys(r);
           if(!cles.length){ av.style.display='none'; return; }
-          var LIB={csv:'tableaux CSV', veille:'bulletins de veille CERT-FR'};
+          var LIB={csv:'tableaux CSV', veille:'bulletins de veille'};
           var POURQUOI={
             csv:'Découpés en fragments, ils perdent leur ligne d\'en-tête : '
                +'ce qui reste dans l\'index ne dit plus de quelles colonnes il '
@@ -1963,7 +1963,7 @@
           +'<div style="margin-top:8px;color:var(--ink)"><b>Récupérable :</b></div>'
           +ligne('  fichiers d\'origine', taille(r.fichiers_origine))
           +ligne('  chargements interrompus', taille(r.chargements_interrompus))
-          +ligne('  veille CERT-FR', taille(r.veille)+' · '+(r.veille_documents||0)+' document(s)');
+          +ligne('  veille', taille(r.veille)+' · '+(r.veille_documents||0)+' document(s)');
         out.style.display='block'; box.style.display='block'; capBox.style.display='block';
       }
       /* ---- Contrôle d'intégrité ---- */
@@ -2039,7 +2039,7 @@
         if(document.getElementById('pgBlobs').checked) sc.push('blobs');
         if(!sc.length){ note('Cochez au moins un élément à libérer.','err'); return; }
         if(sc.indexOf('blobs')>-1 && !confirm('Supprimer les fichiers d\'origine ?\n\nLes documents restent en base, cherchables et exploitables : seul le téléchargement du fichier d\'origine sera perdu.')) return;
-        if(sc.indexOf('veille')>-1 && !confirm('Supprimer les bulletins de veille CERT-FR ?\n\nIls seront re-téléchargés lors de la prochaine actualisation de la veille.')) return;
+        if(sc.indexOf('veille')>-1 && !confirm('Supprimer les bulletins de veille ?\n\nIls seront re-téléchargés lors de la prochaine actualisation de la veille.')) return;
         var b=this, old=b.textContent; b.disabled=true; b.textContent='Libération…';
         apiFetch('/api/admin/rag/purge',{method:'POST',headers:{'content-type':'application/json'},
           body:JSON.stringify({scopes:sc})}).then(readJson).then(function(j){

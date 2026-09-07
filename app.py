@@ -10809,6 +10809,48 @@ def api_veille():
                    sources=veille_sources.referentiel())
 
 
+@app.route("/api/admin/veille/retirer", methods=["POST"])
+@admin_required
+def api_veille_retirer():
+    """Retire du magasin de veille les bulletins des sources RETIRÉES.
+
+    SIMULATION PAR DÉFAUT, comme `/api/admin/rag/retirer` : sans `confirmer`,
+    la route COMPTE ce qui partirait et ne supprime rien. La décision se prend
+    sur un nombre.
+
+    LES CLÉS VIENNENT DE `veille_sources.RETIREES`, ET C'EST L'ESSENTIEL. Les
+    déduire des sources encore déclarées serait aveugle par construction —
+    retirer une source commence par l'ôter de `SOURCES`. Et la liste porte la
+    clé HÉRITÉE `avis`, qui pesait 200 bulletins sur les 257 : un retrait qui
+    ne connaîtrait que les noms actuels en aurait laissé les trois quarts.
+
+    L'ÉTAT DU MAGASIN REPART AVEC LA RÉPONSE, avant et après : c'est ce qui
+    permet de voir qu'il ne reste RIEN sous les clés visées, plutôt que de le
+    croire.
+    """
+    data = request.get_json(silent=True) or {}
+    confirmer = bool(data.get("confirmer"))
+    cles = sorted(veille_sources.RETIREES)
+    avant = automation.veille_sources_stockees()
+    try:
+        res = automation.veille_purger(cles, simuler=not confirmer)
+    except Exception:
+        app.logger.exception("retrait de sources de veille")
+        return jsonify(ok=False, error="retrait",
+                       message="Le retrait n'a pas pu être mené."), 500
+    if confirmer:
+        # JOURNALISÉ PARCE QU'IRRÉVERSIBLE, comme le retrait documentaire.
+        audit.journaliser("veille.retirer",
+                          cible=",".join(cles)[:120],
+                          detail="%d bulletin(s) supprimé(s)"
+                                 % res.get("bulletins", 0))
+    apres = automation.veille_sources_stockees()
+    return jsonify(ok=True, retrait=res,
+                   motifs=veille_sources.RETIREES,
+                   restant={c: apres.get(c, 0) for c in cles},
+                   sources_avant=avant, sources_apres=apres)
+
+
 @app.route("/api/admin/veille/sante")
 @admin_required
 def api_veille_sante():

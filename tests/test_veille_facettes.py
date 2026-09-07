@@ -27,7 +27,7 @@ import veille_facettes as vf                                        # noqa: E402
 import veille_sources                                               # noqa: E402
 
 
-def _item(titre, resume="", source="certfr_avis"):
+def _item(titre, resume="", source="anssi"):
     return {"title": titre, "resume": resume, "source": source,
             "link": "https://x", "published": 0, "guid": titre}
 
@@ -70,7 +70,7 @@ def test_le_meme_texte_change_de_pays_avec_sa_source():
     """Le pendant : si le pays ne suivait pas la source, la règle précédente
     resterait verte avec un pays constant."""
     titre = "Nouvelles lignes directrices sur la sécurité industrielle"
-    assert vf.classer(_item(titre, source="certfr_avis"))["pays"] == "FR"
+    assert vf.classer(_item(titre, source="anssi"))["pays"] == "FR"
     assert vf.classer(_item(titre, source="cisa_ics"))["pays"] == "US"
     assert vf.classer(_item(titre, source="ncsc_uk"))["pays"] == "UK"
 
@@ -136,7 +136,7 @@ def test_les_facettes_sont_comptees_et_ordonnees():
     haut : l'ordre est la moitié de son utilité.
     """
     items = vf.enrichir([
-        _item("IEC 62443 et SCADA", source="certfr_avis"),
+        _item("IEC 62443 et SCADA", source="anssi"),
         _item("IEC 62443 en pratique", source="cisa_ics"),
         _item("IEC 62443 et NIS2", source="enisa"),
         _item("NIS2 : la transposition avance", source="cnil"),
@@ -171,7 +171,7 @@ def deux_flux(monkeypatch):
     """Deux sources seulement : les règles portent sur le comportement, pas sur
     la taille du catalogue du jour."""
     monkeypatch.setattr(veille_sources, "SOURCES", [
-        veille_sources.source("certfr_avis"), veille_sources.source("cisa_ics")])
+        veille_sources.source("anssi"), veille_sources.source("cisa_ics")])
     veille_sources.reinitialiser()
     yield
     veille_sources.reinitialiser()
@@ -226,7 +226,7 @@ def test_la_collecte_note_la_sante_de_chaque_flux(deux_flux):
     automation.init(start=False)
     automation.veille_refresh(fetcher=_flux)
     par_cle = {l["cle"]: l for l in veille_sources.etat()["sources"]}
-    assert par_cle["certfr_avis"]["elements"] == 2
+    assert par_cle["anssi"]["elements"] == 2
     assert par_cle["cisa_ics"]["sante"] == "ok"
 
 
@@ -237,5 +237,5 @@ def test_un_flux_illisible_est_compte_comme_muet_pas_ignore(deux_flux):
     automation.init(start=False)
     automation.veille_refresh(fetcher=lambda url: "<html><body>Bienvenue</body></html>")
     par_cle = {l["cle"]: l for l in veille_sources.etat()["sources"]}
-    assert par_cle["certfr_avis"]["elements"] == 0
-    assert par_cle["certfr_avis"]["sante"] == "jamais_joint"
+    assert par_cle["anssi"]["elements"] == 0
+    assert par_cle["anssi"]["sante"] == "jamais_joint"

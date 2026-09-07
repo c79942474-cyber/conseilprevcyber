@@ -79,12 +79,33 @@ def _s(cle, nom, url, pays, domaine, nature, eprouve=False):
             "domaine": domaine, "nature": nature, "eprouve": eprouve}
 
 
+# ══ CE QUE LA VEILLE NE COLLECTE PLUS, ET SOUS QUELLES CLÉS ══════════════
+#
+# CERT-FR EST SORTI DE LA VEILLE, PAR DÉCISION. Ses bulletins sont publics,
+# horodatés et consultables chez l'ANSSI ; les republier ici les datait sans
+# les enrichir. Les trente-quatre autres sources restent.
+#
+# TROIS CLÉS, PAS DEUX — et c'est tout l'objet de cette liste. Le magasin
+# portait `certfr_alerte`, `certfr_avis`, ET `avis`, un nom HÉRITÉ d'avant le
+# passage à deux flux nommés. Mesuré en production : 200 lignes sous `avis`,
+# 31 sous `certfr_alerte`, 26 sous `certfr_avis` — la clé oubliée pesait plus
+# que les deux autres réunies. Un retrait qui ne connaîtrait que les clés
+# DÉCLARÉES aurait laissé 200 bulletins derrière lui, et personne ne l'aurait
+# vu : ils s'affichaient déjà sous une pastille muette.
+#
+# CETTE LISTE EST DONC LA MÉMOIRE DES NOMS, pas seulement des sources. Elle
+# sert au retrait, et elle distingue « retirée volontairement » de « jamais
+# déclarée » — deux situations que `test_aucune_cle_stockee_n_est_ORPHELINE`
+# ne doit surtout pas confondre.
+RETIREES = {
+    "certfr_alerte": "CERT-FR — alertes (retiré : bulletins publics chez l'ANSSI)",
+    "certfr_avis": "CERT-FR — avis (retiré : bulletins publics chez l'ANSSI)",
+    "avis": "CERT-FR — avis, sous son nom HÉRITÉ d'avant les deux flux nommés",
+}
+
+
 SOURCES = [
     # ── Cybersécurité industrielle ────────────────────────────────────────
-    _s("certfr_alerte", "CERT-FR — alertes", "https://www.cert.ssi.gouv.fr/alerte/feed/",
-       "FR", "cyber_industriel", "officiel", eprouve=True),
-    _s("certfr_avis", "CERT-FR — avis", "https://www.cert.ssi.gouv.fr/avis/feed/",
-       "FR", "cyber_industriel", "officiel", eprouve=True),
     _s("anssi", "ANSSI — actualités", "https://cyber.gouv.fr/actualites/rss/",
        "FR", "cyber_industriel", "officiel", eprouve=True),
     _s("cisa_avis", "CISA — avis de sécurité", "https://www.cisa.gov/cybersecurity-advisories/all.xml",

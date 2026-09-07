@@ -204,6 +204,63 @@ class _State:
                 pass
         return any(x["guid"] == guid for x in self._mem.get("_veille", []))
 
+    def veille_purger(self, cles, simuler=True):
+        """Retire du magasin les bulletins des sources NOMMÉES. IRRÉVERSIBLE.
+
+        SIMULATION PAR DÉFAUT, comme le retrait de la base documentaire : sans
+        `simuler=False`, on COMPTE et on ne supprime rien. La décision se prend
+        sur un nombre, pas sur une intention.
+
+        LES CLÉS SONT DONNÉES, JAMAIS DEVINÉES. Le magasin porte des noms de
+        source qui ne sont plus déclarés — `avis` en portait 200, hérité d'avant
+        le passage à deux flux nommés. Un retrait qui déduirait les clés de
+        `SOURCES` serait aveugle à exactement ceux qu'on veut retirer, puisque
+        les retirer commence par les ôter de `SOURCES`.
+        """
+        cles = [str(c) for c in (cles or []) if str(c).strip()]
+        if not cles:
+            return {"cles": [], "bulletins": 0, "simule": bool(simuler)}
+        if self._dsn:
+            try:
+                with self._conn() as conn:
+                    n = conn.execute(
+                        "SELECT count(*) FROM veille_items WHERE source = ANY(%s)",
+                        (cles,)).fetchone()[0]
+                    if simuler:
+                        return {"cles": cles, "bulletins": int(n), "simule": True}
+                    partis = conn.execute(
+                        "DELETE FROM veille_items WHERE source = ANY(%s)",
+                        (cles,)).rowcount
+                return {"cles": cles, "bulletins": int(partis), "simule": False}
+            except Exception:
+                _log.exception("veille : retrait des sources %s", cles)
+                raise
+        lst = self._mem.get("_veille", [])
+        vises = [x for x in lst if x.get("source") in cles]
+        if not simuler:
+            self._mem["_veille"] = [x for x in lst if x.get("source") not in cles]
+        return {"cles": cles, "bulletins": len(vises), "simule": bool(simuler)}
+
+    def veille_sources_stockees(self):
+        """Les clés de source RÉELLEMENT présentes dans le magasin, comptées.
+
+        C'est le seul moyen de voir une clé qui n'est plus déclarée : la lire
+        dans les données, pas dans le code. `avis` n'était visible que comme ça.
+        """
+        if self._dsn:
+            try:
+                with self._conn() as conn:
+                    rows = conn.execute(
+                        "SELECT source, count(*) FROM veille_items "
+                        "GROUP BY source ORDER BY count(*) DESC").fetchall()
+                return {r[0]: int(r[1]) for r in rows}
+            except Exception:
+                pass
+        out = {}
+        for x in self._mem.get("_veille", []):
+            out[x.get("source")] = out.get(x.get("source"), 0) + 1
+        return out
+
     def veille_list(self, limit=60):
         if self._dsn:
             try:
@@ -879,6 +936,19 @@ def veille_collecte():
 
 def veille_list(limit=60):
     return _state.veille_list(limit=limit) if _state else []
+
+
+def veille_purger(cles, simuler=True):
+    """Retire du magasin les bulletins des sources nommées. Simulation par
+    défaut. Rend {cles, bulletins, simule}."""
+    if not _state:
+        return {"cles": list(cles or []), "bulletins": 0, "simule": bool(simuler)}
+    return _state.veille_purger(cles, simuler=simuler)
+
+
+def veille_sources_stockees():
+    """{clé: nombre} des sources réellement présentes dans le magasin."""
+    return _state.veille_sources_stockees() if _state else {}
 
 
 def job_veille():

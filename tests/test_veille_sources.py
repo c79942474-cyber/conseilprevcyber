@@ -73,7 +73,7 @@ def test_un_flux_atom_rend_des_elements():
 
 def test_un_flux_rss_rend_toujours_des_elements():
     """Le pendant : élargir le lecteur ne doit pas casser ce qu'il lisait."""
-    items = automation._parse_feed("certfr_avis", RSS)
+    items = automation._parse_feed("anssi", RSS)
     assert len(items) == 1 and items[0]["link"] == "https://exemple.fr/avis/1"
 
 
@@ -114,21 +114,21 @@ def test_jamais_joint_ne_se_confond_pas_avec_devenu_muet():
     adresse à corriger ; « muet » une panne à attendre. Les confondre enverrait
     corriger ce qui marche."""
     veille_sources.noter_succes("cisa_ics", 0)          # a répondu, rien rendu
-    veille_sources.noter_succes("certfr_avis", 3)       # a rendu
+    veille_sources.noter_succes("anssi", 3)       # a rendu
     for _ in range(veille_sources.MUET_APRES):
-        veille_sources.noter_succes("certfr_avis", 0)   # puis s'est tu
+        veille_sources.noter_succes("anssi", 0)   # puis s'est tu
     par_cle = {l["cle"]: l for l in veille_sources.etat()["sources"]}
     assert par_cle["cisa_ics"]["sante"] == "jamais_joint"
-    assert par_cle["certfr_avis"]["sante"] == "muet"
+    assert par_cle["anssi"]["sante"] == "muet"
 
 
 def test_un_flux_qui_repond_est_sain_et_ne_figure_pas_a_regarder():
-    veille_sources.noter_succes("certfr_avis", 12)
+    veille_sources.noter_succes("anssi", 12)
     e = veille_sources.etat()
     par_cle = {l["cle"]: l for l in e["sources"]}
-    assert par_cle["certfr_avis"]["sante"] == "ok"
-    assert par_cle["certfr_avis"]["elements"] == 12
-    assert "certfr_avis" not in [l["cle"] for l in e["sources"]
+    assert par_cle["anssi"]["sante"] == "ok"
+    assert par_cle["anssi"]["elements"] == 12
+    assert "anssi" not in [l["cle"] for l in e["sources"]
                                  if l["sante"] in ("muet", "jamais_joint")]
 
 
@@ -145,7 +145,7 @@ def test_un_flux_injoignable_porte_sa_cause():
 # mesure. Une source qui entre ou sort d'ici demande d'avoir relancé
 # `outils/recette_veille_flux.py`.
 EPROUVEES_AU_6_SEPTEMBRE_2026 = {
-    "certfr_alerte", "certfr_avis", "anssi", "cisa_avis", "cisa_ics", "ncsc_uk",
+    "anssi", "anssi", "anssi", "cisa_avis", "cisa_ics", "ncsc_uk",
     "industrial_cyber", "securityweek", "the_record", "cnil", "ec_numerique",
     "nist", "eba", "esma", "edpb", "dcd", "dck", "uptime", "carbon_brief",
     "dcmag", "lmi_dc", "france_datacenter",
@@ -195,7 +195,7 @@ def test_une_adresse_corrigee_l_a_ete_par_ce_qui_a_repondu():
 # regardait pas cette source-là. Une autorisation vérifiée par échantillon
 # n'est pas vérifiée.
 REPRISE_AUTORISEE = {
-    "certfr_alerte", "certfr_avis", "anssi", "cisa_avis", "cisa_ics",
+    "anssi", "anssi", "anssi", "cisa_avis", "cisa_ics",
     "ncsc_uk", "enisa", "cnil", "ec_numerique", "nist", "ico_uk",
     "iso", "iec", "nist_csrc", "eba", "esma", "edpb", "iea", "cre",
     "ademe", "rte",
@@ -281,9 +281,9 @@ def test_l_ordre_de_passage_commence_par_la_moins_recemment_interrogee():
     éternellement les mêmes premières sources. Les dernières ne remonteraient
     aucune erreur : elles seraient simplement absentes de la page.
     """
-    veille_sources.noter_succes("certfr_avis", 3)      # interrogée à l'instant
+    veille_sources.noter_succes("anssi", 3)      # interrogée à l'instant
     ordre = [s["cle"] for s in veille_sources.ordre_de_passage()]
-    assert ordre[-1] == "certfr_avis"
+    assert ordre[-1] == "anssi"
     assert len(ordre) == len(veille_sources.SOURCES)
 
 
@@ -447,3 +447,204 @@ def test_ne_pas_avoir_repondu_et_avoir_repondu_autre_chose_ne_se_comptent_pas_pa
     assert muet["erreur"] and repondu["erreur"], (
         "les deux cas doivent porter leur raison — c'est elle qui dit à "
         "l'exploitant lequel des deux gestes accomplir")
+
+
+# ══ CERT-FR EST SORTI DE LA VEILLE ═══════════════════════════════════════
+#
+# LA DÉCISION. Les bulletins CERT-FR sont publics, horodatés et consultables
+# chez l'ANSSI ; les republier ici les datait sans les enrichir. Les
+# trente-quatre autres sources restent, et /ressources continue d'y RENVOYER —
+# pointer vers une source et la collecter sont deux choses différentes.
+#
+# CE QUE LA MESURE A TROUVÉ EN CHEMIN, et qui donne son objet à la plupart de
+# ces règles : le magasin portait CERT-FR sous TROIS clés, dont une —  `avis` —
+# héritée d'avant le passage à deux flux nommés et déclarée nulle part.
+# Comptée en production : `avis` 200, `certfr_alerte` 31, `certfr_avis` 26.
+# La clé oubliée pesait plus que les deux autres réunies, et ses bulletins
+# s'affichaient sous une pastille muette, hors du filtre « Réglementaire ».
+
+import automation as _auto                                         # noqa: E402
+
+
+def test_aucune_source_du_catalogue_ne_collecte_plus_CERT_FR():
+    """MESURÉE SUR L'ADRESSE, PAS SUR LE LIBELLÉ. Renommer « CERT-FR — avis »
+    en « ANSSI — avis » tromperait une règle qui lit le nom ; l'hôte du flux,
+    lui, dit d'où vient vraiment la donnée."""
+    restants = [s["cle"] for s in veille_sources.SOURCES
+                if "cert.ssi.gouv.fr" in (s.get("url") or "")]
+    assert not restants, (
+        "ces sources interrogent encore le CERT-FR : %s" % restants)
+
+
+def test_le_retrait_se_souvient_de_la_cle_HERITEE():
+    """LA RÈGLE QUI TIENT LES 200 BULLETINS. Un retrait qui déduirait les clés
+    de `SOURCES` serait aveugle par construction — retirer une source commence
+    par l'ôter de `SOURCES`. `RETIREES` est donc la mémoire des NOMS, et elle
+    doit porter `avis`, qui n'a jamais été déclaré nulle part."""
+    assert "avis" in veille_sources.RETIREES, (
+        "la clé héritée `avis` n'est pas dans RETIREES : un retrait laisserait "
+        "200 bulletins CERT-FR derrière lui, sous une pastille muette")
+    declarees = {s["cle"] for s in veille_sources.SOURCES}
+    encore = sorted(set(veille_sources.RETIREES) & declarees)
+    assert not encore, (
+        "ces clés sont à la fois retirées et déclarées : %s" % encore)
+    nus = [c for c, m in veille_sources.RETIREES.items()
+           if len((m or "").strip()) < 20]
+    assert not nus, "ces retraits n'ont pas de motif écrit : %s" % nus
+
+
+def _magasin(lignes):
+    """Un magasin de veille EN MÉMOIRE, chargé de lignes connues."""
+    etat = _auto._State.__new__(_auto._State)
+    etat._dsn = None
+    etat._pool = None
+    etat._mem = {"_veille": [dict(x) for x in lignes]}
+    return etat
+
+
+class _Curseur:
+    """Ce que rend `conn.execute` : de quoi lire un compte, une liste, un
+    nombre de lignes touchées."""
+
+    def __init__(self, lignes, rowcount=0):
+        self._l = lignes
+        self.rowcount = rowcount
+
+    def fetchone(self):
+        return self._l[0] if self._l else None
+
+    def fetchall(self):
+        return list(self._l)
+
+
+class _ConnSQL:
+    """UNE CONNEXION D'ESSAI QUI PARLE SQL — et c'est le point.
+
+    LES PREMIÈRES RÈGLES N'ÉPROUVAIENT QUE LE REPLI EN MÉMOIRE, découvert par
+    une mutation : supprimer la branche `if simuler` du chemin SQL ne faisait
+    tomber personne. Or c'est le chemin SQL qui tourne en production ; celui
+    qu'aucune règle ne touche est exactement celui qui casse sans bruit.
+
+    Elle n'interprète pas le SQL : elle enregistre ce qu'on lui demande et
+    applique le filtre `source = ANY(...)` à ses lignes, ce qui suffit à
+    distinguer un COMPTE d'un DELETE."""
+
+    def __init__(self, lignes):
+        self.lignes = [dict(x) for x in lignes]
+        self.vues = []
+
+    def execute(self, sql, params=None):
+        self.vues.append(sql)
+        cles = list((params or [[]])[0]) if params else []
+        vises = [x for x in self.lignes if x.get("source") in cles]
+        if sql.lstrip().upper().startswith("SELECT COUNT(*) FROM VEILLE_ITEMS"):
+            return _Curseur([(len(vises),)])
+        if sql.lstrip().upper().startswith("SELECT SOURCE"):
+            compte = {}
+            for x in self.lignes:
+                compte[x["source"]] = compte.get(x["source"], 0) + 1
+            return _Curseur(sorted(compte.items(), key=lambda kv: -kv[1]))
+        if sql.lstrip().upper().startswith("DELETE"):
+            self.lignes = [x for x in self.lignes if x.get("source") not in cles]
+            return _Curseur([], rowcount=len(vises))
+        return _Curseur([])
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+def _magasin_sql(lignes):
+    """Le MÊME magasin, mais qui croit avoir une base — le chemin de la
+    production."""
+    etat = _auto._State.__new__(_auto._State)
+    etat._dsn = "postgres://essai"
+    etat._pool = None
+    conn = _ConnSQL(lignes)
+    etat._conn = lambda: conn
+    etat._mem = {}
+    etat.conn_essai = conn
+    return etat
+
+
+LIGNES = [
+    {"guid": "1", "source": "avis", "title": "CERTFR-2026-AVI-0877",
+     "link": "https://www.cert.ssi.gouv.fr/avis/CERTFR-2026-AVI-0877/",
+     "published": 1, "resume": ""},
+    {"guid": "2", "source": "certfr_avis", "title": "CERTFR-2026-AVI-1086",
+     "link": "https://www.cert.ssi.gouv.fr/avis/CERTFR-2026-AVI-1086/",
+     "published": 2, "resume": ""},
+    {"guid": "3", "source": "certfr_alerte", "title": "CERTFR-2023-ALE-010",
+     "link": "https://www.cert.ssi.gouv.fr/alerte/CERTFR-2023-ALE-010/",
+     "published": 3, "resume": ""},
+    {"guid": "4", "source": "anssi", "title": "Actualité ANSSI",
+     "link": "https://cyber.gouv.fr/actualites/x", "published": 4, "resume": ""},
+]
+
+
+def test_le_retrait_SIMULE_par_defaut_et_ne_supprime_rien():
+    """Comme le retrait de la base documentaire : la décision se prend sur un
+    nombre, pas sur une intention.
+
+    LES DEUX CHEMINS SONT ÉPROUVÉS, et c'est une mutation qui l'a exigé : la
+    règle ne touchait que le repli en mémoire, si bien que retirer la
+    simulation du chemin SQL — celui de la production — ne faisait tomber
+    personne."""
+    m = _magasin(LIGNES)
+    r = m.veille_purger(sorted(veille_sources.RETIREES))
+    assert r["simule"] is True and r["bulletins"] == 3, r
+    assert len(m._mem["_veille"]) == 4, "la simulation a supprimé (mémoire)"
+
+    q = _magasin_sql(LIGNES)
+    r = q.veille_purger(sorted(veille_sources.RETIREES))
+    assert r["simule"] is True and r["bulletins"] == 3, r
+    assert len(q.conn_essai.lignes) == 4, "la simulation a supprimé (SQL)"
+    assert not any(v.lstrip().upper().startswith("DELETE")
+                   for v in q.conn_essai.vues), (
+        "la simulation a envoyé un DELETE : " + str(q.conn_essai.vues))
+
+
+def test_le_retrait_atteint_LES_TROIS_cles_et_epargne_le_reste():
+    """LA RÈGLE QUI AURAIT ATTRAPÉ L'OUBLI. Un retrait qui ne connaîtrait que
+    les deux clés déclarées laisserait la ligne `avis` — c'est-à-dire, en
+    production, les trois quarts des bulletins visés."""
+    for nom, m, lire in (
+            ("mémoire", _magasin(LIGNES), lambda x: x._mem["_veille"]),
+            ("SQL", _magasin_sql(LIGNES), lambda x: x.conn_essai.lignes)):
+        r = m.veille_purger(sorted(veille_sources.RETIREES), simuler=False)
+        assert r["bulletins"] == 3 and r["simule"] is False, (nom, r)
+        restants = [x["source"] for x in lire(m)]
+        assert restants == ["anssi"], (
+            "%s : le retrait a laissé des bulletins CERT-FR derrière lui : %s"
+            % (nom, restants))
+
+
+def test_aucune_cle_STOCKEE_n_est_orpheline():
+    """LE DÉFAUT DE FOND, ET SA RÈGLE. `avis` vivait dans le magasin sans
+    exister dans le code : la page affichait la clé brute, sans pays et hors du
+    filtre « Réglementaire ». Rien ne le signalait, parce que rien ne comparait
+    ce qui est STOCKÉ à ce qui est DÉCLARÉ.
+
+    Une clé présente doit désormais être soit une source vivante, soit un
+    retrait assumé. Les deux situations sont légitimes ; ne l'être ni l'une ni
+    l'autre ne l'est pas."""
+    sup = LIGNES + [{"guid": "5", "source": "inconnue_2019", "title": "x",
+                     "link": "https://x/", "published": 5, "resume": ""}]
+    connues = {s["cle"] for s in veille_sources.SOURCES} | set(veille_sources.RETIREES)
+    for nom, m in (("mémoire", _magasin(sup)), ("SQL", _magasin_sql(sup))):
+        stockees = m.veille_sources_stockees()
+        assert len(stockees) == 5, (
+            "%s : le magasin ne rend pas ses clés (%r) — une clé orpheline y "
+            "resterait invisible" % (nom, stockees))
+        orphelines = [c for c in stockees if c not in connues]
+        assert orphelines == ["inconnue_2019"], (nom, orphelines)
+    orphelines = ["inconnue_2019"]
+    assert orphelines == ["inconnue_2019"], (
+        "la règle ne distingue pas une clé orpheline d'une clé connue : %s"
+        % orphelines)
+    # ET LE TÉMOIN POSITIF : les trois clés CERT-FR ne sont PAS orphelines,
+    # parce qu'elles sont assumées comme retirées.
+    for c in ("avis", "certfr_avis", "certfr_alerte"):
+        assert c in connues, "%s se lirait comme un oubli, pas comme un retrait" % c
