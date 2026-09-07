@@ -46,8 +46,12 @@ Retenue de garantie : 5 % du montant du marché, libérable à la levée des
 réserves prononcée par le maître d'ouvrage après visite contradictoire.
 Ordre de priorité des pièces : l'acte d'engagement prime le présent cahier.
 """
+# LA PHRASE QUI SUIT LE PUE EST LONGUE, ET C'EST NÉCESSAIRE. Une capture posée
+# trop large — qui franchirait le point au lieu de s'arrêter à la clause — ne
+# se verrait pas sur une phrase courte : elle rendrait quarante caractères de
+# plus, sous le seuil. Un CCTP réel enchaîne les exigences sur une même ligne.
 CCTP = """CAHIER DES CLAUSES TECHNIQUES PARTICULIÈRES
-Performances exigées : PUE annualisé inférieur ou égal à 1,25 en régime établi.
+Performances exigées : PUE annualisé inférieur ou égal à 1,25 en régime établi. Le titulaire produira les relevés horaires permettant d'en établir la valeur sur douze mois glissants, et supportera les conséquences d'un dépassement constaté sur deux trimestres consécutifs au titre des pénalités du cahier des clauses administratives.
 La récupération de chaleur fatale alimentera le réseau urbain de la commune
 voisine, avec un rendement de restitution mesuré au point de livraison.
 """
@@ -355,3 +359,109 @@ def test_le_registre_RGPD_dit_ce_qui_part_chez_Anthropic():
     assert any("Anthropic" in (s.get("nom") or "")
                for s in rgpd.SOUS_TRAITANTS), (
         "Anthropic n'est pas au registre des sous-traitants")
+
+
+# ── 5. UN RELEVÉ QUI CITE SANS EXTRAIRE N'ARRIVE NULLE PART ───────────────
+#
+# CE QUI A DÉCLENCHÉ CETTE SECTION. Le premier brouillon de mémoire technique
+# est sorti sans sa structure : les CRITÈRES DE JUGEMENT ne figuraient pas au
+# contexte. Le relevé existait pourtant, et repérait bien le passage — il ne
+# l'EXTRAYAIT pas, faute de groupe de capture.
+#
+# LA MESURE A MONTRÉ BIEN PLUS QUE « criteres » : NEUF relevés sur dix-sept
+# citaient sans jamais extraire — critères, groupement, visite, pénalités,
+# ordre de priorité des pièces, dérogations, assurances, performances,
+# variantes. Tous les neuf étaient dans ce que le module promet d'envoyer.
+# Neuf des quinze valeurs annoncées n'arrivaient donc jamais.
+#
+# LA RÈGLE EST GÉNÉRALE, PAS UNE LISTE DE NEUF. `_verifier()` tient déjà cette
+# propriété pour les relevés qu'une RUBRIQUE désigne ; celle-ci la tient pour
+# ceux que la RÉDACTION transmet — deux consommateurs, deux portes.
+
+def test_TOUT_releve_transmis_au_modele_EXTRAIT_une_valeur():
+    """UN MOTIF SANS GROUPE DE CAPTURE EST UNE PROMESSE VIDE. Il repère le
+    passage, l'affiche à l'écran avec sa position — et ne rend AUCUNE valeur.
+    `_index_releves` ne le retient pas, le contexte ne le porte pas, et le
+    brouillon est écrit sans lui. Rien ne plante : c'est le problème."""
+    import re
+    par_cle = {r["cle"]: r for r in ao_dc.RELEVES}
+    muets = []
+    for cle in ao_redaction.RELEVES_TRANSMIS:
+        r = par_cle.get(cle)
+        assert r is not None, "« %s » est annoncé transmis et n'existe pas" % cle
+        if not any(re.compile(m).groups for m in r["motifs"]):
+            muets.append(cle)
+    assert not muets, (
+        "ces relevés sont annoncés au modèle et ne peuvent RIEN lui "
+        "transmettre : %s" % muets)
+
+
+def test_les_releves_qui_STRUCTURENT_un_memoire_arrivent_VRAIMENT():
+    """ON MESURE SUR UN DOSSIER, PAS SUR LA TABLE. Un motif qui capture en
+    théorie et ne s'accroche à rien en pratique laisse le même vide.
+
+    LES QUATRE QUI DÉCIDENT DU MÉMOIRE TECHNIQUE : les critères et leur
+    pondération — ils en commandent le PLAN —, les performances exigées, les
+    pénalités et la visite. Sans eux, le brouillon est générique par
+    construction, ce que le référentiel nomme lui-même comme le piège de cette
+    pièce."""
+    an, r = _dossier()
+    piece = next(p for p in ao_redaction.pieces_redigeables(r)
+                 if p["cle"] == "memoire_technique")
+    ctx = ao_redaction.contexte(r, an, piece)
+    attendu = {
+        "criteres": "60 %",
+        "performances": "1,25",
+        "penalites": "1/3000e",
+        "visite": "obligatoire",
+        "assurances": "décennale",
+        "priorite_pieces": "acte d'engagement",
+    }
+    manques = []
+    for cle, dedans in attendu.items():
+        v = (ctx["consultation"].get(cle) or {}).get("valeur") or ""
+        if dedans not in v:
+            manques.append("%s (%r)" % (cle, v[:50] or "absent"))
+    assert not manques, "ces relevés n'arrivent pas au modèle : " + ", ".join(manques)
+    # ET LE COMPTE GLOBAL A BIEN PROGRESSÉ : six avant, onze après. Un témoin
+    # de nombre attrape une régression qui n'atteindrait aucun des six ci-dessus.
+    assert len(ctx["consultation"]) >= 11, (
+        "le contexte s'est appauvri : %d relevés" % len(ctx["consultation"]))
+
+
+def test_la_valeur_capturee_s_arrete_a_la_CLAUSE_et_pas_a_la_phrase_suivante():
+    """CAPTURER N'EST PAS TOUT PRENDRE. Un groupe posé trop large rendrait la
+    phrase du client PUIS LA SUIVANTE — c'est-à-dire ferait sortir le document
+    par tranches, sous couvert de « valeur ». Chaque motif est borné par
+    `[^.\\n]{0,N}` : une clause, jamais un paragraphe.
+
+    POURQUOI CETTE RÈGLE A ÉTÉ RÉÉCRITE. Elle vérifiait d'abord que la valeur
+    fait moins de 220 caractères — et elle était VERTE quoi qu'on fasse aux
+    motifs : `_extraire` tronque lui-même à 220 (`brut = …[:220]`). Elle
+    mesurait le garde-fou du module, pas la discipline du motif. La batterie
+    l'a montrée en laissant passer une capture élargie à `[^\\n]{0,400}`.
+
+    CE QU'ELLE MESURE MAINTENANT : la FRONTIÈRE DE PHRASE. Une valeur qui
+    porte « … établi. Le titulaire produira … » a franchi un point et emporté
+    la phrase d'après. C'est cela qu'on interdit, et le plafond de 220 ne le
+    voit pas."""
+    import re
+    an, r = _dossier()
+    piece = next(p for p in ao_redaction.pieces_redigeables(r)
+                 if p["cle"] == "memoire_technique")
+    ctx = ao_redaction.contexte(r, an, piece)
+    debordent = []
+    for c, v in ctx["consultation"].items():
+        val = v["valeur"]
+        assert "\n" not in val, (
+            "« %s » traverse une fin de ligne : %r" % (c, val[:60]))
+        # UN POINT SUIVI D'UNE ESPACE ET D'UNE MAJUSCULE : une phrase nouvelle
+        # commence. Les décimales (« 1,25 ») et les fractions (« 1/3000e ») ne
+        # ressemblent pas à cela et ne sont pas prises pour des frontières.
+        if re.search(r"\.\s+[A-ZÉÈÀÎÔÙÛ]", val):
+            debordent.append("%s : %r" % (c, val[:90]))
+    assert not debordent, (
+        "des valeurs emportent la phrase suivante : " + " · ".join(debordent))
+    # ET LE PLAFOND DU MODULE RESTE, comme dernier filet — mais il ne suffit
+    # pas, et cette règle ne se repose plus sur lui.
+    assert all(len(v["valeur"]) <= 220 for v in ctx["consultation"].values())

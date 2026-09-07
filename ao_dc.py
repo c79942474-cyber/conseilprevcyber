@@ -563,9 +563,10 @@ RELEVES = [
         "libelle": "Critères de jugement et pondération",
         "pieces": ("rc",),
         "motifs": [
-            r"crit[èe]res?\s+(?:de\s+)?(?:jugement|attribution|s[ée]lection)[^.\n]{0,200}",
-            r"(?:valeur technique|prix des prestations)[^.\n]{0,80}\d{1,3}\s*%",
-            r"\d{1,3}\s*%[^.\n]{0,60}(?:valeur technique|prix|d[ée]lai)",
+            r"crit[èe]res?\s+(?:de\s+)?(?:jugement|attribution|s[ée]lection)"
+            r"\s*:?\s*([^.\n]{4,200})",
+            r"((?:valeur technique|prix des prestations)[^.\n]{0,80}\d{1,3}\s*%)",
+            r"(\d{1,3}\s*%[^.\n]{0,60}(?:valeur technique|prix|d[ée]lai))",
         ],
         "pourquoi": "La pondération dit où placer l'effort. Un mémoire "
                     "technique à 60 % ne se rédige pas comme un mémoire à "
@@ -579,9 +580,9 @@ RELEVES = [
         "libelle": "Forme de groupement imposée ou admise",
         "pieces": ("rc",),
         "motifs": [
-            r"groupement\s+(?:conjoint|solidaire)[^.\n]{0,120}",
-            r"mandataire[^.\n]{0,120}solidaire[^.\n]{0,60}",
-            r"forme de groupement[^.\n]{0,120}",
+            r"(groupement\s+(?:conjoint|solidaire)[^.\n]{0,120})",
+            r"(mandataire[^.\n]{0,120}solidaire[^.\n]{0,60})",
+            r"forme de groupement\s*:?\s*([^.\n]{4,120})",
         ],
         "pourquoi": "Elle décide de la responsabilité de chaque cotraitant et "
                     "de la façon de remplir le DC1.",
@@ -595,8 +596,8 @@ RELEVES = [
         "libelle": "Visite de site",
         "pieces": ("rc", "cctp"),
         "motifs": [
-            r"visite (?:du site|des lieux|obligatoire)[^.\n]{0,140}",
-            r"attestation de visite[^.\n]{0,100}",
+            r"(visite (?:du site|des lieux|obligatoire)[^.\n]{0,140})",
+            r"(attestation de visite[^.\n]{0,100})",
         ],
         "pourquoi": "Une visite obligatoire non faite rend l'offre "
                     "irrégulière, et les créneaux sont limités.",
@@ -608,8 +609,8 @@ RELEVES = [
         "libelle": "Pénalités et plafonds",
         "pieces": ("ccap",),
         "motifs": [
-            r"p[ée]nalit[ée]s?[^.\n]{0,180}",
-            r"plafond[^.\n]{0,80}p[ée]nalit[ée]s?[^.\n]{0,80}",
+            r"p[ée]nalit[ée]s?(?:\s+de\s+retard)?\s*:?\s*([^.\n]{4,180})",
+            r"(plafond[^.\n]{0,80}p[ée]nalit[ée]s?[^.\n]{0,80})",
         ],
         "pourquoi": "Elles chiffrent le risque de retard, et leur plafond dit "
                     "jusqu'où il va.",
@@ -622,8 +623,9 @@ RELEVES = [
         "libelle": "Ordre de priorité des pièces contractuelles",
         "pieces": ("ccap", "ae"),
         "motifs": [
-            r"(?:ordre de priorit[ée]|pi[èe]ces contractuelles)[^.\n]{0,200}",
-            r"en cas de contradiction[^.\n]{0,160}",
+            r"(?:ordre de priorit[ée](?: des pi[èe]ces)?|pi[èe]ces "
+            r"contractuelles)\s*:?\s*([^.\n]{4,200})",
+            r"(en cas de contradiction[^.\n]{0,160})",
         ],
         "pourquoi": "Il tranche les contradictions entre pièces, et il y en a "
                     "toujours.",
@@ -636,8 +638,8 @@ RELEVES = [
         "libelle": "Dérogations au CCAG",
         "pieces": ("ccap",),
         "motifs": [
-            r"d[ée]rogation[^.\n]{0,180}",
-            r"il est d[ée]rog[ée][^.\n]{0,160}",
+            r"(d[ée]rogation[^.\n]{0,180})",
+            r"(il est d[ée]rog[ée][^.\n]{0,160})",
         ],
         "pourquoi": "C'est là que le risque se déplace vers le titulaire, "
                     "souvent en trois lignes à la fin du document.",
@@ -650,9 +652,9 @@ RELEVES = [
         "libelle": "Assurances et garanties exigées",
         "pieces": ("ccap", "rc"),
         "motifs": [
-            r"assurance[^.\n]{0,160}",
-            r"responsabilit[ée] (?:civile|d[ée]cennale)[^.\n]{0,120}",
-            r"retenue de garantie[^.\n]{0,120}",
+            r"assurances?\s*:?\s*([^.\n]{4,160})",
+            r"(responsabilit[ée] (?:civile|d[ée]cennale)[^.\n]{0,120})",
+            r"(retenue de garantie[^.\n]{0,120})",
         ],
         "pourquoi": "Les montants exigés peuvent excéder les polices en cours "
                     "et demander une extension, qui prend du temps.",
@@ -690,10 +692,10 @@ RELEVES = [
         "libelle": "Performances techniques engagées",
         "pieces": ("cctp",),
         "motifs": [
-            r"\bPUE\b[^.\n]{0,120}",
-            r"\bWUE\b[^.\n]{0,120}",
-            r"\btier\s*(?:i{1,3}v?|[1-4])\b[^.\n]{0,120}",
-            r"disponibilit[ée][^.\n]{0,60}\d{2},?\d*\s*%",
+            r"(\bPUE\b[^.\n]{0,120})",
+            r"(\bWUE\b[^.\n]{0,120})",
+            r"(\btier\s*(?:i{1,3}v?|[1-4])\b[^.\n]{0,120})",
+            r"(disponibilit[ée][^.\n]{0,60}\d{2},?\d*\s*%)",
         ],
         "pourquoi": "Une performance engagée sans méthode de preuve est une "
                     "clause invérifiable — pour vous comme pour l'acheteur.",
@@ -706,9 +708,9 @@ RELEVES = [
         "libelle": "Variantes et prestations supplémentaires",
         "pieces": ("rc",),
         "motifs": [
-            r"variantes?[^.\n]{0,140}",
-            r"prestations? suppl[ée]mentaires? [ée]ventuelles?[^.\n]{0,120}",
-            r"\bPSE\b[^.\n]{0,100}",
+            r"(variantes?[^.\n]{0,140})",
+            r"(prestations? suppl[ée]mentaires? [ée]ventuelles?[^.\n]{0,120})",
+            r"(\bPSE\b[^.\n]{0,100})",
         ],
         "pourquoi": "Une variante interdite et proposée quand même rend "
                     "l'offre irrégulière ; une variante autorisée et non "
