@@ -52,10 +52,21 @@ le décide seul. Comme `hors_couverture()` ne regarde que les propositions
 DÉCIDE ou ANTICIPE, ces deux mesures ne pouvaient apparaître dans AUCUN
 livrable, quel que soit le projet. `mesures_masquees()` les rend.
 
-Les mesures ne sont relevées que pour les thèmes « eau » et « énergie &
-numérique » — dix propositions sur trente, trente-neuf mesures.
-`couverture_mesures()` le dit : vingt propositions sans mesures détaillées ne
-sont pas vingt propositions sans mesures.
+Les mesures sont relevées pour les thèmes « eau », « énergie & numérique » et
+« infrastructures critiques » — quinze propositions sur trente,
+cinquante-huit mesures. `couverture_mesures()` le dit : les quinze autres ne
+sont pas des propositions sans mesures, ce sont des propositions dont les
+mesures ne sont pas dépouillées ici.
+
+CE QUE LE GARDE-FOU A FAIT GAGNER, SUR LE THÈME DES INFRASTRUCTURES. La
+proposition 20 est lue ANTICIPE, et sa justification tient à son chapeau : la
+directive européenne sur la résilience des entités critiques s'appliquera au
+projet. Or un chapeau n'est pas une mesure, et les quatre mesures relèvent
+d'un collectif — un guide, des instances, un label. Le contrôle d'import a
+donc obligé à désigner LAQUELLE porte l'anticipation : la première, parce
+qu'un guide harmonisé traduisant les exigences en actions « auditables et
+comparables » est, une fois écrit, le référentiel sur lequel le projet sera
+examiné. La question ne se serait pas posée sans le contrôle.
 
 CE QUE CE MODULE NE FAIT PAS. Il ne décerne aucune conformité : ces
 propositions ne sont ni une norme, ni un référentiel certifiable, ni un texte
@@ -65,7 +76,7 @@ CONSEILPREV, pas du Cercle de Giverny. Confondre les deux ferait dire à
 l'auteur ce qu'il n'a pas écrit.
 """
 
-VERSION = "2026-09-b"
+VERSION = "2026-09-c"
 
 # La source, citée une fois et lue partout. Le champ `nature` est là pour être
 # RÉPÉTÉ dans le livrable : un lecteur qui trouve trente propositions numérotées
@@ -635,11 +646,11 @@ _PAR_CLE = {p["cle"]: p for p in PROPOSITIONS}
 #  la proposition figure parmi celles de ses mesures — une proposition lue
 #  DÉCIDE dont aucune mesure ne se décide serait une promesse sans objet.
 #
-#  CE QUI N'EST RELEVÉ QUE POUR DEUX THÈMES. Les mesures ne sont saisies que
-#  pour « eau » et « énergie & numérique », les deux versés par le client. Les
-#  vingt autres propositions gardent leur résumé, et `couverture_mesures()` le
-#  dit : vingt propositions sans mesures détaillées ne sont pas vingt
-#  propositions sans mesures.
+#  CE QUI N'EST RELEVÉ QUE POUR TROIS THÈMES. Les mesures ne sont saisies que
+#  pour « eau », « énergie & numérique » et « infrastructures critiques » —
+#  ceux versés au dossier. Les quinze autres propositions gardent leur résumé,
+#  et `couverture_mesures()` le dit : quinze propositions sans mesures
+#  détaillées ne sont pas quinze propositions sans mesures.
 #
 #  LE TEXTE DES MESURES EST CELUI DU DOCUMENT, à la ponctuation près. La
 #  portée, elle, est la lecture de CONSEILPREV — comme `pour_le_centre`. Les
@@ -843,6 +854,199 @@ MESURES = {
                       "continue l'apprentissage du fonctionnement de l'IA, de "
                       "ses biais, de ses limites et des méthodes permettant "
                       "d'exercer un regard critique sur ses résultats.",
+             "portee": "contribue", "termes": []},
+        ],
+    },
+
+    # ── INFRASTRUCTURES CRITIQUES ──────────────────────────────────────────
+    # UNE DIFFICULTÉ PROPRE À CE THÈME, ET LE GARDE-FOU L'A POSÉE. La
+    # proposition 20 est lue ANTICIPE, et sa justification tient au chapeau :
+    # la directive européenne sur la résilience des entités critiques
+    # s'appliquera au projet. Or un chapeau n'est pas une mesure, et les quatre
+    # mesures relèvent d'un collectif — un guide, des instances, un label.
+    # `_verifier()` a donc demandé LAQUELLE porte l'anticipation. C'est la
+    # première : un guide harmonisé traduisant les exigences en actions
+    # AUDITABLES et comparables est, une fois écrit, le référentiel sur lequel
+    # le projet sera examiné. La question n'aurait pas été posée sans le
+    # contrôle ; c'est exactement ce pour quoi il existe.
+    "plateforme_interdependances": {
+        "chapeau":
+            "Si des outils d'analyse et de cartographie existent déjà, ils "
+            "restent souvent méconnus et principalement centrés sur les "
+            "risques territoriaux plutôt que sur les interdépendances. Les "
+            "travaux menés, notamment par la Banque mondiale, soulignent "
+            "l'importance de mieux comprendre les relations entre "
+            "infrastructures et les conséquences de leur défaillance. "
+            "L'élaboration d'une plateforme dédiée doit permettre de traduire "
+            "ces connaissances en un outil opérationnel d'aide à la décision "
+            "et de renforcer notre robustesse à l'échelle territoriale comme "
+            "systémique.",
+        "mesures": [
+            {"texte": "Cartographier les interdépendances entre "
+                      "infrastructures ainsi que les effets de cascade "
+                      "susceptibles d'affecter les services essentiels, en "
+                      "mobilisant les données, outils de cartographie et "
+                      "démarches de diagnostic existants (tels que Géorisques "
+                      "et TACCT), afin d'alimenter une modélisation en graphes "
+                      "permettant de visualiser les liaisons et de fournir une "
+                      "aide à la décision.",
+             # La finalité — « afin d'alimenter une modélisation en graphes » —
+             # rattache l'acte à un modèle partagé que le projet ne construit
+             # pas. Il peut relever ses propres dépendances et les verser :
+             # c'est une participation, pas une décision de projet.
+             "portee": "contribue", "termes": ["tacct"]},
+            {"texte": "Prendre en compte les risques émergents, en s'appuyant "
+                      "notamment sur les travaux scientifiques tels que ceux "
+                      "du laboratoire de la Caisse centrale de réassurance "
+                      "(CCR).",
+             # LA SEULE DES QUATRE SANS OBJET PARTAGÉ. Intégrer les risques
+             # émergents à sa propre analyse, à partir de travaux publiés, ne
+             # demande ni plateforme ni accord : cela se fait aujourd'hui.
+             "portee": "decide", "termes": []},
+            {"texte": "Définir un cadre de gouvernance assurant l'évolution "
+                      "continue de la plateforme et le partage sécurisé des "
+                      "données, avec des modalités d'accès adaptées à leur "
+                      "degré de sensibilité.",
+             "portee": "contribue", "termes": []},
+            {"texte": "Élaborer un référentiel commun définissant un "
+                      "vocabulaire et une méthodologie partagés pour "
+                      "caractériser et analyser les interdépendances selon des "
+                      "critères communs à l'ensemble des acteurs concernés.",
+             "portee": "contribue", "termes": []},
+        ],
+    },
+    "exercices_territoriaux": {
+        "chapeau":
+            "La préparation aux crises systémiques repose sur la capacité des "
+            "acteurs d'un territoire à tester ensemble leur réaction face à "
+            "des risques de différentes natures susceptibles de se combiner. "
+            "La réalisation régulière d'exercices multirisques et "
+            "multipartites doit permettre de mieux préparer la réponse "
+            "collective et de renforcer la culture du risque.",
+        "mesures": [
+            {"texte": "Imposer à l'échelle régionale des exercices réguliers "
+                      "multirisques, fondés sur la cartographie des risques "
+                      "propre à chaque territoire et associant l'ensemble des "
+                      "parties prenantes concernées.",
+             "portee": "anticipe", "termes": []},
+            {"texte": "Renforcer la coordination entre les différents échelons "
+                      "territoriaux lors des exercices, en assurant la "
+                      "cohérence entre les dispositifs communaux et "
+                      "départementaux et les PICS.",
+             "portee": "contribue", "termes": ["pics"]},
+            {"texte": "Capitaliser sur les initiatives existantes — Journée "
+                      "nationale de la résilience, exercices ministériels ou "
+                      "exercices cyber de l'ANSSI — afin de structurer et de "
+                      "mettre en cohérence les démarches menées sur le "
+                      "territoire.",
+             # Ces rendez-vous existent et sont ouverts : y inscrire son site
+             # ne demande l'accord de personne. C'est la mesure que le projet
+             # peut poser dès cette année, et elle porte la portée de la
+             # proposition.
+             "portee": "decide", "termes": []},
+            {"texte": "Mettre à disposition des collectivités et des "
+                      "opérateurs une bibliothèque nationale de scénarios "
+                      "d'exercices, inspirée de crises réelles et enrichie par "
+                      "les retours d'expérience.",
+             "portee": "contribue", "termes": []},
+            {"texte": "Associer la population aux exercices territoriaux et "
+                      "développer des outils pédagogiques de simulation, à "
+                      "l'instar du programme Stop Disasters Game développé par "
+                      "l'UNDRR, afin de renforcer la préparation des citoyens "
+                      "aux situations de crise.",
+             "portee": "contribue", "termes": ["undrr"]},
+        ],
+    },
+    "fonction_resilience": {
+        "chapeau":
+            "Face à la multiplication des risques systémiques, la résilience "
+            "ne doit pas se limiter à la gestion de crise. Portée au plus haut "
+            "niveau des organisations et fondée sur la coopération "
+            "public-privé, elle doit constituer une fonction reconnue, "
+            "structurée et présente chez l'ensemble des acteurs du système.",
+        "mesures": [
+            {"texte": "Généraliser la fonction de Chief Resilience Officer "
+                      "(CRO) au sein des entités critiques et l'intégrer à la "
+                      "gouvernance stratégique, en définissant clairement les "
+                      "responsabilités de chacun, les processus associés et "
+                      "les instances de pilotage.",
+             "portee": "decide", "termes": []},
+            {"texte": "Confier à cette fonction la mission de cartographier "
+                      "les interdépendances de son organisation avec son "
+                      "écosystème, puis de coordonner les actions de "
+                      "résilience associées.",
+             "portee": "decide", "termes": []},
+            {"texte": "Structurer des communautés permettant à ces "
+                      "ambassadeurs de la résilience de se rencontrer "
+                      "régulièrement pour partager leurs retours d'expérience "
+                      "et coordonner des actions de résilience à l'échelle du "
+                      "système.",
+             "portee": "contribue", "termes": []},
+        ],
+    },
+    "financement_resilience": {
+        "chapeau":
+            "Face à l'intensification des risques climatiques, cyber, "
+            "sanitaires, géopolitiques et sociétaux, les investissements de "
+            "résilience restent insuffisants alors qu'ils conditionnent la "
+            "continuité des services essentiels. Il est nécessaire de "
+            "mobiliser des mécanismes financiers dédiés pour soutenir la "
+            "prévention, l'adaptation et le renforcement des infrastructures "
+            "critiques.",
+        "mesures": [
+            {"texte": "Construire une taxonomie de la résilience à l'image des "
+                      "critères ESG pour prioriser les financements.",
+             "portee": "anticipe", "termes": []},
+            {"texte": "Imposer aux entreprises amenées à gérer des "
+                      "infrastructures critiques d'allouer une part de leurs "
+                      "fonds propres au renforcement de leur résilience, en "
+                      "s'inspirant de la logique de Bâle III.",
+             "portee": "anticipe", "termes": ["bale_iii"]},
+            {"texte": "Doter financièrement des fonds dédiés à la prévention "
+                      "et à la résilience des infrastructures critiques, en "
+                      "s'inspirant du Fonds Barnier ainsi que de dispositifs "
+                      "internationaux tels que le programme BRIC aux "
+                      "États-Unis ou le Plan national pour la reprise et la "
+                      "résilience du Luxembourg.",
+             "portee": "contribue", "termes": ["bric"]},
+        ],
+    },
+    "professionnalisation_resilience": {
+        "chapeau":
+            "La directive européenne sur la Résilience des entités critiques "
+            "(REC) renforce les exigences applicables aux infrastructures "
+            "critiques. Au-delà de la conformité, elle constitue une "
+            "opportunité de transformation pour les organisations, à condition "
+            "de s'appuyer sur l'expertise des instances professionnelles, de "
+            "transposer les référentiels en accord avec la réalité du terrain "
+            "et de développer les compétences sur l'ensemble de la chaîne de "
+            "valeur.",
+        "mesures": [
+            {"texte": "Développer et mettre à jour un guide opérationnel "
+                      "harmonisé, intégrant les principaux référentiels "
+                      "nationaux et internationaux, permettant de traduire les "
+                      "exigences réglementaires en actions concrètes, "
+                      "auditables et comparables, à l'image du Vade-mecum des "
+                      "démarches de reconnaissance de la résilience.",
+             # « AUDITABLES ET COMPARABLES » : une fois ce guide écrit, c'est
+             # sur lui que le projet sera examiné. C'est la seule des quatre
+             # mesures qui s'impose à lui — et donc celle qui porte
+             # l'anticipation que la proposition annonce.
+             "portee": "anticipe", "termes": ["vade_mecum"]},
+            {"texte": "Impliquer les acteurs de référence de l'audit et de la "
+                      "certification pour accompagner la transposition "
+                      "opérationnelle des directives européennes au niveau "
+                      "national et sectoriel.",
+             "portee": "contribue", "termes": []},
+            {"texte": "Développer une action collective autour des instances "
+                      "professionnelles pivots, afin d'harmoniser les "
+                      "pratiques et d'impacter l'ensemble des acteurs des "
+                      "systèmes critiques, y compris leur chaîne de valeur.",
+             "portee": "contribue", "termes": []},
+            {"texte": "Créer un label professionnel d'experts en résilience "
+                      "pour valoriser les compétences des auditeurs face aux "
+                      "risques majeurs, garantissant la qualité de l'exécution "
+                      "tout en mutualisant les coûts de formation.",
              "portee": "contribue", "termes": []},
         ],
     },
@@ -1096,6 +1300,55 @@ GLOSSAIRE = {
                       "numérique, applicable au secteur financier de l'Union "
                       "européenne depuis janvier 2025.",
     },
+    "tacct": {
+        "sigle": "TACCT",
+        "developpe": "Trajectoires d'adaptation au changement climatique des "
+                     "territoires",
+        "definition": "Démarche développée par l'Ademe pour accompagner les "
+                      "collectivités dans l'évaluation de leur vulnérabilité "
+                      "au changement climatique et la définition de stratégies "
+                      "d'adaptation.",
+    },
+    "pics": {
+        "sigle": "PICS",
+        "developpe": "Plan intercommunal de sauvegarde",
+        "definition": "Document organisant la préparation et la coordination "
+                      "des communes d'un même territoire face aux situations "
+                      "de crise.",
+    },
+    "undrr": {
+        "sigle": "UNDRR",
+        "developpe": "United Nations Office for Disaster Risk Reduction",
+        "definition": "Agence des Nations unies chargée de coordonner les "
+                      "actions internationales de réduction des risques de "
+                      "catastrophe et de renforcer la résilience des "
+                      "territoires.",
+    },
+    "bale_iii": {
+        "sigle": "Bâle III",
+        "developpe": "Accord international de Bâle III",
+        "definition": "Nom de l'accord international conclu en 2010 qui a pour "
+                      "objectif de renforcer la solidité du secteur bancaire, "
+                      "afin de tirer les leçons de la crise financière de 2008.",
+    },
+    "bric": {
+        "sigle": "BRIC",
+        "developpe": "Building Resilient Infrastructure and Communities",
+        "definition": "Programme de financement visant à renforcer la "
+                      "résilience des infrastructures et des territoires face "
+                      "aux risques naturels et aux effets du changement "
+                      "climatique.",
+    },
+    "vade_mecum": {
+        "sigle": "Vade-mecum",
+        "developpe": "Vade-mecum des démarches de reconnaissance de la "
+                     "résilience",
+        "definition": "Menée par Résilience France (HCFRN) et l'association "
+                      "Résiliances, cette étude vise à l'établissement d'un "
+                      "panorama des démarches de reconnaissance de la "
+                      "résilience et à la définition d'un vade-mecum pour "
+                      "chaque type de démarche identifiée.",
+    },
     "gepp_gpec": {
         "sigle": "GEPP / GPEC",
         "developpe": "Gestion des emplois et des parcours professionnels / "
@@ -1158,6 +1411,61 @@ REPERES = [
                    "PORTE SUR UNE ANNÉE SÈCHE, pas sur une année moyenne. Les "
                    "deux conditions font partie du chiffre : les omettre "
                    "transforme une hypothèse de travail en fatalité annoncée.",
+    },
+    {
+        "cle": "pertes_infrastructures_europe",
+        "theme": "infrastructures",
+        "chiffre": "66 milliards de dollars pour la France",
+        "enonce": "Les pertes cumulées liées aux dommages causés aux "
+                  "infrastructures par les aléas climatiques en Europe sont "
+                  "estimées à environ 340 milliards de dollars au cours des "
+                  "dix prochaines années, dans les conditions climatiques "
+                  "actuelles. Parmi les pays européens, la France apparaît "
+                  "comme le pays le plus exposé, avec 66 milliards de dollars "
+                  "de pertes d'infrastructures, principalement dues aux "
+                  "dommages causés aux réseaux de transport et au secteur de "
+                  "l'énergie.",
+        "source": "« The 2 Trillion Dollars Question, A Review of Short-Term "
+                  "Climate Risks for Global Infrastructures », étude Callendar "
+                  "— start-up française spécialisée dans l'évaluation des "
+                  "risques climatiques, juin 2025.",
+        "date": "juin 2025",
+        "lecture": "DEUX BORNES CHANGENT CE QUE CE CHIFFRE DIT. Il est calculé "
+                   "DANS LES CONDITIONS CLIMATIQUES ACTUELLES : il ne chiffre "
+                   "pas le réchauffement à venir, il chiffre l'exposition "
+                   "d'aujourd'hui sur dix ans. Et les 66 milliards sont "
+                   "dominés par les RÉSEAUX DE TRANSPORT ET L'ÉNERGIE — un "
+                   "exploitant de centre de données qui le lirait comme son "
+                   "exposition propre se tromperait de périmètre. Ce qui le "
+                   "concerne dans ce chiffre, c'est que ses deux dépendances "
+                   "les plus critiques sont précisément les postes les plus "
+                   "touchés.",
+    },
+    {
+        "cle": "investissement_infrastructures_fr",
+        "theme": "infrastructures",
+        "chiffre": "76 milliards de dollars investis en 2024",
+        "enonce": "Avec 76 milliards de dollars investis en 2024, la France "
+                  "représente 12 % du marché européen des infrastructures et "
+                  "se positionne comme le 3e marché du continent derrière "
+                  "l'Allemagne et le Royaume-Uni. D'ici 2050, les "
+                  "investissements annuels devraient atteindre 99 milliards de "
+                  "dollars, soit une progression de 30 %, mais inférieure à la "
+                  "dynamique européenne (+45 %). La France entre ainsi dans "
+                  "une phase de modernisation stratégique, davantage que dans "
+                  "une logique d'expansion massive.",
+        "source": "« 151 000 milliards de dollars : le monde entre dans le "
+                  "plus grand cycle d'investissements en infrastructures de "
+                  "son histoire », communiqué de presse PwC, juillet 2026.",
+        "date": "juillet 2026",
+        "lecture": "LA SOURCE EST UN COMMUNIQUÉ DE PRESSE, pas une étude "
+                   "publiée : les hypothèses de la projection à 2050 n'y sont "
+                   "pas exposées, et le « +30 % » est une trajectoire "
+                   "attendue, non un engagement. La phrase « modernisation "
+                   "stratégique davantage qu'expansion massive » est "
+                   "l'interprétation de l'auteur, pas une grandeur mesurée — "
+                   "la citer comme un fait ferait passer une opinion de marché "
+                   "pour un constat.",
     },
     {
         "cle": "consommation_dc_france",

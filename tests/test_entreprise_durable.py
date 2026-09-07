@@ -452,14 +452,26 @@ def test_LES_PORTEES_NE_SONT_PAS_TOUTES_LA_MEME_dans_une_proposition():
     assert ED.portees_des_mesures("tarification_eau") == ["anticipe"]
 
 
-def test_la_couverture_dit_que_vingt_propositions_n_ont_PAS_ete_relevees():
-    """Vingt propositions sans mesures détaillées ne sont pas vingt
-    propositions sans mesures. Une couverture tue se lit comme une absence —
-    c'est la même règle que pour un total FinOps ou une nomenclature."""
+def test_la_couverture_dit_les_propositions_qui_n_ont_PAS_ete_relevees():
+    """Les propositions sans mesures détaillées ne sont pas des propositions
+    sans mesures. Une couverture tue se lit comme une absence — c'est la même
+    règle que pour un total FinOps ou une nomenclature.
+
+    LES NOMBRES CHANGENT À CHAQUE THÈME VERSÉ, ET C'EST VOULU. Ils étaient
+    10 / 20 / 39 quand seuls « eau » et « énergie & numérique » étaient
+    relevés ; le thème « infrastructures critiques » les porte à 15 / 15 / 58.
+    La règle les fige exprès : un relevé qui rétrécirait sans qu'on l'ait
+    décidé ne se verrait pas autrement, et la couverture affichée deviendrait
+    fausse partout où elle paraît."""
     c = ED.couverture_mesures()
-    assert c["total"] == 30 and c["avec_mesures"] == 10 and c["sans_mesures"] == 20
-    assert sorted(c["themes_releves"]) == ["eau", "energie_numerique"]
-    assert c["mesures"] == 39
+    assert c["total"] == 30 and c["avec_mesures"] == 15 and c["sans_mesures"] == 15
+    assert sorted(c["themes_releves"]) == ["eau", "energie_numerique",
+                                           "infrastructures"]
+    assert c["mesures"] == 58
+    # Les nombres annoncés sont ceux du relevé, et non deux comptages séparés
+    # qui dériveraient l'un de l'autre.
+    assert c["avec_mesures"] == len(ED.MESURES)
+    assert c["mesures"] == sum(len(b["mesures"]) for b in ED.MESURES.values())
     assert "pas dépouillées ici" in c["pourquoi"]
     # Et `mesures_de` rend une liste vide sans prétendre qu'il n'y en a pas.
     for p in ED.PROPOSITIONS:
@@ -538,11 +550,24 @@ def test_chaque_repere_nomme_sa_source_et_sa_date():
     for r in ED.REPERES:
         assert r["source"].strip() and r["date"].strip(), r["cle"]
         assert r["theme"] in {t["cle"] for t in ED.THEMES}
-    interne = [x for x in ED.REPERES if x["cle"] == "eau_usages_economiques_2022"][0]
-    assert "aucune source externe" in interne["source"]
-    externes = [x for x in ED.REPERES if x["cle"] != "eau_usages_economiques_2022"]
+    # CE QUI SE MESURE EST LA PROPRIÉTÉ, PAS UNE LISTE D'ÉDITEURS. Un premier
+    # jet exigeait « Ademe » ou « Haut-commissariat » — les deux que le relevé
+    # portait alors. La règle est tombée au premier repère d'un troisième
+    # éditeur, pour une raison sans rapport avec ce qu'elle prétendait garder :
+    # elle ne vérifiait pas qu'un repère est sourcé, elle vérifiait qu'il
+    # venait de l'un de deux endroits.
+    internes = [x for x in ED.REPERES if "aucune source externe" in x["source"]]
+    externes = [x for x in ED.REPERES if x not in internes]
+    assert internes and externes, (
+        "le relevé ne porte plus les deux cas : un repère dont la source est "
+        "le document lui-même, et des repères sourcés à l'extérieur")
     for r in externes:
-        assert "Ademe" in r["source"] or "Haut-commissariat" in r["source"], r["cle"]
+        assert re.search(r"\b(19|20)\d{2}\b", r["source"]), (
+            "%s : la source ne porte pas d'année — un chiffre sans millésime "
+            "ne se revérifie pas" % r["cle"])
+        assert len(r["source"]) > 50, (
+            "%s : la source est trop courte pour désigner un document "
+            "identifiable" % r["cle"])
 
 
 def test_les_reperes_se_filtrent_par_theme():
@@ -566,3 +591,106 @@ def test_le_referentiel_sert_tout_ce_que_l_ecran_doit_montrer():
     # jointure, et ne peut donc pas la faire de travers.
     stress = [m for m in p22["mesures"] if m["portee"] == "decide"][0]
     assert stress["termes"][0]["sigle"] == "TRACC"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE THÈME « INFRASTRUCTURES CRITIQUES »
+#
+#  Troisième thème relevé. Il a posé une difficulté que les deux premiers
+#  n'avaient pas, et le garde-fou d'import l'a trouvée seul : la proposition 20
+#  est lue ANTICIPE, mais sa justification tient à son CHAPEAU — la directive
+#  européenne sur la résilience des entités critiques s'appliquera au projet.
+#  Un chapeau n'est pas une mesure. Il a fallu désigner laquelle des quatre
+#  porte l'anticipation, et la réponse n'était pas évidente.
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_le_theme_infrastructures_est_releve_en_entier():
+    """Cinq propositions, dix-neuf mesures. Un thème à moitié relevé
+    afficherait une couverture juste et un contenu creux."""
+    cles = [p["cle"] for p in ED.PROPOSITIONS if p["theme"] == "infrastructures"]
+    assert len(cles) == 5
+    for cle in cles:
+        assert cle in ED.MESURES, "%s n'a pas ses mesures" % cle
+    assert sum(len(ED.MESURES[c]["mesures"]) for c in cles) == 19
+
+
+def test_LA_PROPOSITION_20_TIENT_SON_ANTICIPATION_D_UNE_MESURE_NOMMEE():
+    """LA DIFFICULTÉ DU THÈME, ET CE QUE LE GARDE-FOU A FAIT GAGNER. La
+    proposition annonce une portée que son chapeau justifie — la directive REC
+    — mais ses quatre mesures relèvent d'un collectif : un guide, des
+    instances, un label. Le contrôle d'import a obligé à dire laquelle
+    s'impose au projet.
+
+    C'est la première : un guide harmonisé traduisant les exigences en actions
+    « auditables et comparables » est, une fois écrit, le référentiel sur
+    lequel le projet sera examiné. La règle vérifie qu'il n'y en a QU'UNE —
+    marquer les quatre « anticipe » ferait disparaître la difficulté au lieu
+    de la trancher."""
+    mesures = ED.MESURES["professionnalisation_resilience"]["mesures"]
+    anticipe = [m for m in mesures if m["portee"] == "anticipe"]
+    assert len(anticipe) == 1, (
+        "%d mesures sur %d portent l'anticipation : si toutes l'annoncent, "
+        "l'arbitrage a été contourné" % (len(anticipe), len(mesures)))
+    assert "auditables et comparables" in anticipe[0]["texte"]
+    assert mesures.index(anticipe[0]) == 0, (
+        "ce n'est plus la première mesure qui porte l'anticipation — le "
+        "raisonnement écrit dans le module ne vaut plus")
+
+
+def test_LA_PLATEFORME_MASQUE_UNE_MESURE_QUE_LE_PROJET_DECIDE_SEUL():
+    """La proposition 16 est lue CONTRIBUE : un centre de données ne construit
+    pas la plateforme nationale des interdépendances. Trois de ses quatre
+    mesures ont bien un objet partagé — le graphe, la gouvernance, le
+    référentiel commun. La quatrième n'en a pas : intégrer les risques
+    émergents à sa propre analyse, à partir de travaux publiés, ne demande ni
+    plateforme ni accord. Elle serait restée invisible."""
+    masquees = [m for m in ED.mesures_masquees() if m["numero"] == 16]
+    assert len(masquees) == 1, (
+        "%d mesure(s) masquée(s) sur la proposition 16" % len(masquees))
+    m = masquees[0]
+    assert m["portee"] == "decide" and m["portee_proposition"] == "contribue"
+    assert "risques émergents" in m["texte"]
+    # Les trois autres gardent bien un objet partagé : sans cela, la
+    # distinction ne tiendrait plus et les quatre seraient « decide ».
+    autres = [x for x in ED.MESURES["plateforme_interdependances"]["mesures"]
+              if x["portee"] != "decide"]
+    assert len(autres) == 3
+
+
+def test_les_sigles_du_theme_sont_ceux_que_le_document_met_en_note():
+    """Le document met six sigles en note sur ce thème, et pas d'autres :
+    Géorisques, la CCR, l'ANSSI, le CRO et le Fonds Barnier sont cités dans le
+    corps sans être définis. Le glossaire suit ce choix — l'enrichir de
+    définitions que l'auteur n'a pas données ferait passer notre lecture pour
+    la sienne."""
+    du_theme = set()
+    for cle in [p["cle"] for p in ED.PROPOSITIONS if p["theme"] == "infrastructures"]:
+        for m in ED.MESURES[cle]["mesures"]:
+            du_theme.update(m["termes"])
+    assert du_theme == {"tacct", "pics", "undrr", "bale_iii", "bric",
+                        "vade_mecum"}, sorted(du_theme)
+    corps = " ".join(m["texte"] for cle in ED.MESURES
+                     for m in ED.MESURES[cle]["mesures"])
+    for cite_sans_note in ("Géorisques", "ANSSI", "Chief Resilience Officer",
+                           "Fonds Barnier"):
+        assert cite_sans_note in corps, cite_sans_note
+        assert not [g for g in ED.GLOSSAIRE.values()
+                    if cite_sans_note.lower() in g["developpe"].lower()], (
+            "%s a reçu une définition que le document ne donne pas"
+            % cite_sans_note)
+
+
+def test_les_deux_reperes_du_theme_disent_leur_limite_de_perimetre():
+    """Les 66 milliards sont dominés par les réseaux de transport et
+    l'énergie : un exploitant qui les lirait comme son exposition propre se
+    tromperait de périmètre. Et la seconde source est un COMMUNIQUÉ DE PRESSE,
+    dont les hypothèses ne sont pas exposées."""
+    par_cle = {r["cle"]: r for r in ED.reperes_des_themes(["infrastructures"])}
+    assert set(par_cle) == {"pertes_infrastructures_europe",
+                            "investissement_infrastructures_fr"}
+    pertes = par_cle["pertes_infrastructures_europe"]
+    assert "CONDITIONS CLIMATIQUES ACTUELLES" in pertes["lecture"]
+    assert "RÉSEAUX DE TRANSPORT" in pertes["lecture"]
+    invest = par_cle["investissement_infrastructures_fr"]
+    assert "COMMUNIQUÉ DE PRESSE" in invest["lecture"]
+    assert "interprétation" in invest["lecture"]
