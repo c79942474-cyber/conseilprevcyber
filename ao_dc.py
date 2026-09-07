@@ -434,6 +434,12 @@ def identifier(nom, texte="", extension=""):
 # rempli par un défaut. Une date de remise absente du relevé veut dire « allez
 # la lire vous-même », et c'est la seule réponse honnête.
 
+# CE QUI SÉPARE UNE CONTINUATION DE LIGNE D'UN CHAMP SUIVANT — voir le
+# relevé « objet », le seul qui en ait besoin aujourd'hui. Nommée ici plutôt
+# que recopiée trois fois : trois copies d'une garde divergent.
+_JUSQU_AU_CHAMP_SUIVANT = (
+    r"((?:(?!\n\s*[A-ZÉÈÀÎÔÙÛ][^\n:]{2,44}\s*:)[^.]){8,220})")
+
 RELEVES = [
     {
         "cle": "date_limite",
@@ -662,11 +668,33 @@ RELEVES = [
             # d'œuvre pour la construction d'un centre de données » là où la
             # phrase disait « … de 4 MW IT sur le site de la zone nord ». On
             # s'arrête au POINT, borné en longueur.
+            #
+            # MAIS UN RETOUR À LA LIGNE SUIVI D'UN NOUVEAU CHAMP EN EST UNE.
+            # Ce choix, juste sur un PDF, était faux sur un règlement écrit
+            # UNE LIGNE PAR RUBRIQUE — c'est-à-dire le cas ordinaire d'un
+            # fichier texte ou d'un tableau converti. Mesuré, et ÉCRIT DANS
+            # LE FORMULAIRE : le cadre B du DC1 portait « construction et
+            # exploitation d'un centre de données de proximité Procédure :
+            # procédure formalisée ». L'objet ET la procédure, dans la case
+            # qui ne demande que l'objet — recopié tel quel par qui remplit.
+            #
+            # LA GARDE EST POSÉE CARACTÈRE PAR CARACTÈRE : on avance tant
+            # qu'on n'est pas au seuil d'une ligne qui commence par un
+            # intitulé court en capitale suivi de deux-points. Une ligne de
+            # continuation ordinaire — « de données de 4 MW IT… » — ne
+            # ressemble pas à cela et la capture se poursuit.
+            #
+            # CE QU'ELLE COÛTE, ET ON LE DIT : un objet dont la suite
+            # commencerait par un mot capitalisé suivi de deux-points serait
+            # tronqué là. Le cas est rare, et l'erreur inverse — verser la
+            # procédure dans la case de l'objet — se lit sur le formulaire
+            # remis à l'acheteur.
             r"objet (?:du (?:pr[ée]sent )?march[ée]|de la consultation)"
-            r"\s*:?\s*([^.]{8,220})",
-            r"le pr[ée]sent march[ée] a pour objet\s*:?\s*([^.]{8,220})",
+            r"\s*:?\s*" + _JUSQU_AU_CHAMP_SUIVANT,
+            r"le pr[ée]sent march[ée] a pour objet\s*:?\s*"
+            + _JUSQU_AU_CHAMP_SUIVANT,
             r"la pr[ée]sente consultation (?:a pour objet|porte sur)"
-            r"\s*:?\s*([^.]{8,220})",
+            r"\s*:?\s*" + _JUSQU_AU_CHAMP_SUIVANT,
         ],
         "pourquoi": "Le DC1 demande l'objet de la consultation ET l'objet de "
                     "la candidature — marché entier, lot désigné, ou "
@@ -777,6 +805,13 @@ RELEVES = [
             r"du\s+dossier|de\s+l.?op[ée]ration))?\s*:?\s*(?!:)"
             r"([^\s.:][^.\n]{2,70})",
             r"(\b\d{4}[-_/]\d{2,4}[-_/][A-Z0-9]{2,10}\b)",
+            # LA FORME « 2026-C-00396 » — année, lettre de service, numéro —
+            # n'entrait dans aucun des deux motifs : le premier veut le mot
+            # « référence » écrit, le second exige des CHIFFRES après le
+            # premier séparateur. Une référence portée par le seul nom de
+            # fichier du dossier restait « non relevée », et le cadre B du
+            # DC1 partait sans elle.
+            r"(\b\d{4}[-_/][A-Z]{1,3}[-_/]\d{2,8}\b)",
         ],
         "pourquoi": "À reporter sur chaque pièce remise : une pièce sans "
                     "référence se perd dans un dépôt dématérialisé.",
@@ -2192,8 +2227,14 @@ RUBRIQUES = {
         # ce que la consultation DÉCOUPE, qui se relève, et ce à quoi vous
         # POSTULEZ, qui se décide. La première nourrit la seconde sans la
         # remplacer.
-        {"cle": "lots", "libelle": "Allotissement de la consultation "
-         "(cadre C)", "source": "consultation", "releve": "lots"},
+        # LE LIBELLÉ NE DIT PLUS « (cadre C) ». Le cadre C du DC1 demande
+        # POUR QUELS LOTS on postule — c'est `objet_candidature`, juste
+        # dessous. Cette rubrique-ci porte un FAIT relevé au règlement : la
+        # consultation est allotie, et en combien. Elle éclaire la décision,
+        # elle ne la remplace pas, et elle ne s'écrit dans aucune case.
+        {"cle": "lots",
+         "libelle": "Allotissement de la consultation",
+         "source": "consultation", "releve": "lots"},
         {"cle": "objet_candidature",
          "libelle": "Objet de la candidature — marché entier, lot(s) ou "
                     "prestation(s) désignée(s)",
@@ -2210,6 +2251,16 @@ RUBRIQUES = {
          "champ": "adresse",
          "champs": ["adresse", "code_postal", "ville"],
          "joint": [", ", " "]},
+        # LE CADRE D A UNE LIGNE POUR CHACUNE, PAS UNE POUR LES DEUX. Le DC4
+        # les demande ensemble — « Adresse électronique et téléphone » — et
+        # sa rubrique les compose ; ici le formulaire ouvre « Adresse
+        # électronique : » puis « Numéros de téléphone et de télécopie : » sur
+        # deux lignes distinctes. Les composer les écrirait toutes deux dans
+        # la première et laisserait la seconde vide.
+        {"cle": "courriel", "libelle": "Adresse électronique",
+         "source": "fiche", "champ": "courriel"},
+        {"cle": "telephone", "libelle": "Numéros de téléphone et de télécopie",
+         "source": "fiche", "champ": "telephone"},
         {"cle": "forme_groupement",
          "libelle": "Candidat individuel ou groupement, et forme du groupement",
          "source": "saisie",
@@ -2241,6 +2292,22 @@ RUBRIQUES = {
         {"cle": "forme", "libelle": "Forme juridique", "source": "fiche",
          "champ": "forme_juridique"},
         {"cle": "siret", "libelle": "SIRET", "source": "fiche", "champ": "siret"},
+        # LE CADRE C1 — « CAS GÉNÉRAL » — OUVRE CINQ LIGNES, et le module n'en
+        # remplissait que deux. Nom, adresses, adresse électronique, téléphone
+        # et télécopie, SIRET, forme juridique : le dossier d'entreprise porte
+        # l'adresse, le courriel et le téléphone, et aucune rubrique ne les
+        # demandait. Trois lignes restaient à recopier à la main d'un dossier
+        # qui les contenait.
+        {"cle": "adresse",
+         "libelle": "Adresses postale et du siège social (cadre C1)",
+         "source": "fiche", "champ": "adresse",
+         "champs": ["adresse", "code_postal", "ville"],
+         "joint": [", ", " "]},
+        {"cle": "courriel", "libelle": "Adresse électronique (cadre C1)",
+         "source": "fiche", "champ": "courriel"},
+        {"cle": "telephone",
+         "libelle": "Numéros de téléphone et de télécopie (cadre C1)",
+         "source": "fiche", "champ": "telephone"},
         {"cle": "siren", "libelle": "SIREN", "source": "calcul", "calcul": "siren"},
         {"cle": "tva", "libelle": "Numéro de TVA intracommunautaire",
          "source": "calcul", "calcul": "tva"},

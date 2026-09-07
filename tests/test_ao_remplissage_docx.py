@@ -45,9 +45,19 @@ La consultation est allotie en 3 lots.
 FICHE = {"raison_sociale": "Bureau d'études Essai", "forme_juridique": "SAS",
          "siret": "80295478500019", "adresse": "5 rue de l'Essai, 75001 Paris",
          "courriel": "contact@essai.example",
+         # LE TÉLÉPHONE ENTRE DANS LE MONTAGE parce que le cadre D du DC1 et
+         # le cadre C1 du DC2 ouvrent une ligne « Numéros de téléphone et de
+         # télécopie : » que le module remplit désormais. Sans lui, la règle
+         # de placement ne mesurerait pas cette ligne-là.
+         "telephone": "+33 1 23 45 67 89",
          "representant_nom": "A. Dupont", "representant_qualite": "Président"}
 
 SAISIES = {
+    # LE CADRE C DU DC1 EST UNE DÉCISION, PAS UN FAIT. Sans cette saisie, la
+    # ligne « pour le lot n°… » reste vide — c'est voulu, et une autre règle
+    # le tient. Elle est ici pour que le PLACEMENT de la décision, quand elle
+    # est prise, soit mesuré sous son propre intitulé.
+    "dc1.objet_candidature": "pour les lots n° 1 et 3",
     "dc4.sous_traitance": "oui — lot 3",
     "dc4.sous_traitant": "Froid Concept SARL — 59000 Lille — SIRET 51234567800021",
     "dc4.sous_traitant_pouvoir": "M. Martin, gérant",
@@ -608,15 +618,30 @@ DEVANT_FORMES = {
     "dc1": {
         "acheteur": "(Reprendre le contenu de la mention",
         "objet_consultation": "(Reprendre le contenu de la mention",
-        "lots": "pour le lot n°",
+        # LE CADRE C PORTE LA DÉCISION DU CANDIDAT, PAS LE NOMBRE DE LOTS.
+        # Cette ligne disait `"lots": "pour le lot n°"`, et elle était verte :
+        # le module écrivait bien l'allotissement relevé — « 3 lots » — sous
+        # « pour le lot n°……. ou les lots n°…………… ». La règle mesurait le bon
+        # emplacement d'une valeur qui n'avait rien à y faire. L'acheteur qui
+        # ouvrait le pli lisait « la candidature est présentée pour le lot
+        # n° 3 lots ».
+        "objet_candidature": "pour le lot n°",
         "candidat": "Nom commercial et dénomination sociale",
         "adresse": "Adresses postale et du siège social",
+        # LES DEUX LIGNES DU CADRE D QUE PERSONNE NE REMPLISSAIT.
+        "courriel": "Adresse électronique",
+        "telephone": "Numéros de téléphone et de télécopie",
         "siret": "Numéro SIRET",
     },
     "dc2": {
         "acheteur": "(Reprendre le contenu de la mention",
         "objet_consultation": "(Reprendre le contenu de la mention",
         "candidat": "Nom commercial et dénomination sociale",
+        # LES TROIS LIGNES DU CADRE C1 — « CAS GÉNÉRAL » — QUE LE DOSSIER
+        # D'ENTREPRISE PORTAIT ET QU'AUCUNE RUBRIQUE NE DEMANDAIT.
+        "adresse": "Adresses postale et du siège social",
+        "courriel": "Adresse électronique",
+        "telephone": "Numéros de téléphone et de télécopie",
         "siret": "Numéro SIRET",
         "forme": "Forme juridique du candidat individuel",
         "rcs": "E1 - Renseignements sur l'inscription",
@@ -721,5 +746,36 @@ def test_ce_qu_on_detient_et_que_le_formulaire_n_offre_pas_est_DIT():
                                                    rapport["sans_ancre"])
     assert set(rapport["sans_ancre"]).isdisjoint(
         {x["rubrique"] for x in rapport["places"]})
-    # ET LE DC1, QUI A DES CASES POUR TOUT CE QU'IL DEMANDE, en a moins.
-    assert len(_forme("dc1")[2]["sans_ancre"]) < len(rapport["sans_ancre"])
+    # ET CE QUE LE DC1 DÉTIENT SANS CASE EST D'UNE AUTRE NATURE.
+    #
+    # POURQUOI CETTE RÈGLE A CHANGÉ. Elle comparait deux LONGUEURS — « le DC1
+    # en a moins que l'ATTRI1 » —, ce qui était vrai par accident : 3 contre
+    # 4. Depuis que `lots` a cessé d'être écrit dans le cadre C (il y
+    # répondait à côté de la question), le DC1 en détient 4 lui aussi, et la
+    # règle tombait sur une CORRECTION. Un compte n'est pas la propriété
+    # qu'on veut tenir.
+    #
+    # CE QU'ON TIENT VRAIMENT : l'ATTRI1 retient l'acheteur et le signataire
+    # parce que ses cadres C et D sont des blocs de SIGNATURE — y écrire un
+    # nom ferait ressembler à signé un document qui ne l'est pas. Le DC1, lui,
+    # ne retient rien de cet ordre : ce qu'il détient sans case est de
+    # l'information sur la consultation ou sur la forme du candidat, jamais
+    # une identité qui vaudrait signature.
+    # CE QUI SÉPARE LES DEUX, MESURÉ : l'ATTRI1 retient l'ACHETEUR — son
+    # cadre D est le bloc de signature de l'acheteur, il n'existe aucune case
+    # à la main du candidat pour l'y nommer. Le DC1 a son cadre A, l'y écrit,
+    # et ne le retient donc pas.
+    #
+    # LE SIGNATAIRE, LUI, EST RETENU PAR LES DEUX, et c'est juste : les deux
+    # formulaires finissent par un bloc de signature, et y porter un nom
+    # ferait ressembler à signé un document qui ne l'est pas.
+    dc1 = set(_forme("dc1")[2]["sans_ancre"])
+    assert "acheteur" in rapport["sans_ancre"], rapport["sans_ancre"]
+    assert "acheteur" not in dc1, (
+        "le DC1 retient l'acheteur alors que son cadre A l'accueille : %s"
+        % sorted(dc1))
+    for r in ("signataire", "qualite"):
+        assert r in dc1 and r in rapport["sans_ancre"], (
+            "« %s » cesse d'être retenu par l'un des deux formulaires : "
+            "DC1 %s · ATTRI1 %s" % (r, sorted(dc1),
+                                    sorted(rapport["sans_ancre"])))

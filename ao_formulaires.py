@@ -132,16 +132,37 @@ ANCRES = {
         {"rubrique": "objet_consultation",
          "ancre": "B - Objet de la consultation"},
         {"rubrique": "reference", "ancre": "B - Objet de la consultation"},
-        # L'ALLOTISSEMENT SE POSE SOUS LA LIGNE DES LOTS, jamais sous la case
-        # « pour le marché public » : le lecteur y verrait une candidature au
-        # marché entier assortie d'un nombre de lots.
-        {"rubrique": "lots", "ancre": "pour le lot n°"},
+        # LE CADRE C NE DEMANDE PAS COMBIEN LA CONSULTATION A DE LOTS, IL
+        # DEMANDE POUR LESQUELS ON POSTULE. C'est `objet_candidature` — une
+        # décision du candidat —, et non `lots`, qui est un FAIT relevé au
+        # règlement de consultation.
+        #
+        # LE DÉFAUT, MESURÉ SUR UN DOSSIER RÉEL. `lots` valait « 3 lots », et
+        # le DC1 produit portait, sous « pour le lot n°……. ou les lots
+        # n°…………… », la mention « 3 lots ». L'acheteur qui ouvre le pli lit
+        # une candidature présentée « pour le lot n° 3 lots » : une réponse
+        # fausse, dans un formulaire officiel, à la question qui détermine à
+        # QUOI l'on postule.
+        #
+        # RIEN N'EST ÉCRIT TANT QUE LA DÉCISION N'EST PAS PRISE. Sans saisie,
+        # `objet_candidature` reste « à saisir » : la ligne demeure vide dans
+        # le formulaire et la pièce le DIT dans son « reste ». Une case vide
+        # se remplit ; une case faussement remplie ne se relit pas.
+        {"rubrique": "objet_candidature", "ancre": "pour le lot n°"},
         {"rubrique": "candidat", "occurrence": 1,
          "ancre": "Nom commercial et dénomination sociale de l’unité ou de "
                   "l’établissement qui exécutera la prestation :"},
         {"rubrique": "adresse", "occurrence": 1,
          "ancre": "Adresses postale et du siège social (si elle est "
                   "différente de l’adresse postale) :"},
+        # DEUX LIGNES DU CADRE D QUE PERSONNE NE REMPLISSAIT, alors que le
+        # dossier d'entreprise les porte. Elles sont SÉPARÉES ici — le DC4 les
+        # demande sur une seule ligne et sa rubrique les compose ; ce
+        # formulaire-ci ouvre deux emplacements distincts.
+        {"rubrique": "courriel", "occurrence": 1,
+         "ancre": "Adresse électronique :"},
+        {"rubrique": "telephone", "occurrence": 1,
+         "ancre": "Numéros de téléphone et de télécopie :"},
         {"rubrique": "siret", "occurrence": 1,
          "ancre": "Numéro SIRET, à défaut, un numéro d’identification "
                   "européen"},
@@ -160,6 +181,16 @@ ANCRES = {
         {"rubrique": "candidat", "occurrence": 1,
          "ancre": "Nom commercial et dénomination sociale de l’unité ou de "
                   "l’établissement qui exécutera la prestation :"},
+        # LE CADRE C1 — « CAS GÉNÉRAL » — OUVRE CINQ LIGNES et n'en recevait
+        # que deux. Trois valeurs que le dossier d'entreprise détient
+        # restaient à recopier à la main d'un dossier qui les contenait.
+        {"rubrique": "adresse", "occurrence": 1,
+         "ancre": "Adresses postale et du siège social (si elle est "
+                  "différente de l’adresse postale) :"},
+        {"rubrique": "courriel", "occurrence": 1,
+         "ancre": "Adresse électronique :"},
+        {"rubrique": "telephone", "occurrence": 1,
+         "ancre": "Numéros de téléphone et de télécopie :"},
         {"rubrique": "siret", "occurrence": 1,
          "ancre": "Numéro SIRET, à défaut, un numéro d’identification "
                   "européen"},

@@ -1370,3 +1370,163 @@ def test_le_bouton_PAR_FORMULAIRE_dit_lui_aussi_ce_qui_reste_a_recopier(marche):
                          % (modele, sorted(d.get("sans_ancre") or []) or "rien",
                             attendu or "aucune"))
     assert not muets, " · ".join(muets)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  CE QUE LE RÈGLEMENT DE CONSULTATION VERSE DANS LES CADRES DU DC1 ET DU DC2
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# CE QUI A DÉCLENCHÉ CETTE SECTION. Un dossier réel, analysé de bout en bout,
+# a montré DEUX valeurs fausses écrites dans les formulaires du ministère —
+# pas absentes : FAUSSES, et donc recopiées telles quelles par qui remplit.
+
+RC_LIGNES = """RÈGLEMENT DE LA CONSULTATION
+
+Pouvoir adjudicateur : Communauté d'agglomération de l'Essai
+SIRET : 24780064500147
+
+Objet du marché : construction et exploitation d'un centre de données
+Procédure : procédure formalisée — appel d'offres ouvert
+Allotissement : le marché est alloti en 3 lots.
+Référence de la consultation : 2026-C-00396
+"""
+
+
+def _releve(cle, texte=RC_LIGNES):
+    an = ao_dc.analyser([{"nom": "01_RC.pdf", "texte": texte}])
+    props = ao_dc._index_releves(an).get(cle) or []
+    return props[0]["valeur"] if props else None
+
+
+def test_l_objet_s_arrete_au_champ_suivant_et_PAS_au_premier_point():
+    """DEUX FAUTES SYMÉTRIQUES, ET IL FAUT LES ÉVITER TOUTES DEUX.
+
+    S'arrêter au premier saut de ligne tronquerait un objet coupé par la mise
+    en page d'un PDF — c'est pour cela que la capture les franchissait. Mais
+    les franchir TOUS versait la ligne suivante dans la case : mesuré sur un
+    règlement écrit une ligne par rubrique, le cadre B du DC1 portait
+    « construction et exploitation d'un centre de données Procédure :
+    procédure formalisée ». L'objet ET la procédure.
+
+    ON MESURE LES DEUX CAS, pas seulement celui qu'on vient de corriger."""
+    v = _releve("objet")
+    assert v == "construction et exploitation d'un centre de données", repr(v)
+    assert "Procédure" not in v, (
+        "la ligne suivante du règlement est versée dans l'objet : %r" % v)
+    # ET LE TÉMOIN INVERSE : une continuation de ligne reste prise.
+    coupe = ("Objet du marché : maîtrise d'œuvre pour la construction d'un\n"
+             "centre de données de 4 MW IT sur le site de la zone nord.\n")
+    w = _releve("objet", coupe)
+    assert w and "zone nord" in w, (
+        "un objet coupé par la mise en page est tronqué : %r" % w)
+
+
+def test_la_reference_reconnait_la_forme_ANNEE_LETTRE_NUMERO():
+    """« 2026-C-00396 » — année, lettre de service, numéro — est une forme
+    courante, et elle n'entrait dans aucun des deux motifs : le premier veut
+    le mot « référence » écrit, le second exige des CHIFFRES après le premier
+    séparateur. Le cadre B du DC1 partait sans elle.
+
+    ON ÉNUMÈRE LES FORMES, on n'en échantillonne pas une."""
+    assert _releve("reference") == "2026-C-00396"
+    for texte, attendu in (
+            ("Consultation n° 2026-C-00396 — travaux", "2026-C-00396"),
+            ("Marché n° 2024-018-TRX", "2024-018-TRX"),
+            ("Dossier 2026/C/00396", "2026/C/00396"),
+            ("Objet : travaux (2026-C-00396)", "2026-C-00396")):
+        v = _releve("reference", "RÈGLEMENT DE LA CONSULTATION\n" + texte + "\n")
+        assert v == attendu, "%r -> %r (attendu %r)" % (texte, v, attendu)
+
+
+def test_le_cadre_C_du_DC1_recoit_la_DECISION_du_candidat_pas_le_nombre_de_lots():
+    """LA FAUTE LA PLUS COÛTEUSE DES DEUX, parce qu'elle est PLAUSIBLE.
+
+    Le cadre C demande « la candidature est présentée … pour le lot n°……. ou
+    les lots n°…………… ». Le module y écrivait `lots`, c'est-à-dire
+    l'allotissement RELEVÉ au règlement — « 3 lots ». L'acheteur qui ouvrait
+    le pli lisait « présentée pour le lot n° 3 lots » : une réponse fausse à
+    la question qui détermine à QUOI l'on postule, dans un formulaire signé.
+
+    CE QUE LE CADRE ATTEND est `objet_candidature`, une DÉCISION que personne
+    ne peut prendre à la place du candidat. Sans elle, la ligne reste vide et
+    la pièce le dit."""
+    ancres = {a["rubrique"]: a["ancre"] for a in ao_formulaires.ANCRES["dc1"]}
+    assert ancres.get("objet_candidature") == "pour le lot n°", ancres
+    assert "lots" not in ancres, (
+        "l'allotissement relevé est de nouveau écrit dans le cadre C")
+    # ET ON LE MESURE SUR LE DOCUMENT PRODUIT, pas seulement sur la table.
+    an = ao_dc.analyser([{"nom": "01_RC.pdf", "texte": RC_LIGNES}])
+    r = ao_dc.remplir(fiche=_socle(), analyse=an, saisies={})
+    _b, rap = ao_formulaires.remplir_document(
+        "dc1", ao_formulaires.valeurs_pour(r, "dc1"))
+    ecrites = {x["rubrique"]: x["valeur"] for x in rap["places"]}
+    assert "lots" not in ecrites, (
+        "« %s » est écrit dans le DC1" % ecrites.get("lots"))
+    assert "lots" in rap["sans_ancre"], (
+        "l'allotissement n'est plus DIT alors qu'on le détient : %s"
+        % rap["sans_ancre"])
+    # ET LA LIGNE RESTE VIDE, SANS ÊTRE OUBLIÉE.
+    p = next(x for x in r["pieces"] if x["cle"] == "dc1")
+    oc = next(l for l in p["rubriques"] if l["cle"] == "objet_candidature")
+    assert oc["statut"] == "a_saisir" and not oc.get("valeur"), oc
+
+
+def test_le_SIRET_du_candidat_ne_peut_PAS_venir_du_reglement_de_consultation():
+    """LE PIÈGE QUE LE RÈGLEMENT TEND. Un RC porte le SIRET de L'ACHETEUR —
+    ici 24780064500147. Les cadres C1 du DC2 et D du DC1 demandent celui du
+    CANDIDAT. Les confondre remplirait la case d'un numéro juste, plausible,
+    et qui désigne la mauvaise entreprise : le candidat se déclarerait sous
+    l'identité de son acheteur.
+
+    LA GARANTIE EST STRUCTURELLE, et c'est ce qu'on mesure : aucun relevé de
+    consultation ne s'appelle « siret », et TOUTES les rubriques de SIRET
+    tirent de la fiche. Une règle qui vérifierait seulement que la valeur
+    n'apparaît pas serait verte tant que le dossier d'essai ne la contient
+    pas."""
+    assert not [r for r in ao_dc.RELEVES if r["cle"] == "siret"], (
+        "un relevé « siret » existe : le SIRET de l'acheteur peut désormais "
+        "atteindre une rubrique de consultation")
+    fautes = []
+    for piece, rubriques in ao_dc.RUBRIQUES.items():
+        for l in rubriques:
+            if "siret" in l["cle"] and l["source"] != "fiche":
+                fautes.append("%s.%s (source=%s)" % (piece, l["cle"], l["source"]))
+    assert not fautes, "un SIRET ne vient plus de la fiche : %s" % fautes
+    # ET LE TÉMOIN SUR UN DOSSIER QUI PORTE LE NUMÉRO DE L'ACHETEUR.
+    an = ao_dc.analyser([{"nom": "01_RC.pdf", "texte": RC_LIGNES}])
+    r = ao_dc.remplir(fiche=_socle(), analyse=an, saisies={})
+    for cle in ("dc1", "dc2"):
+        p = next(x for x in r["pieces"] if x["cle"] == cle)
+        vals = " ".join(str(l.get("valeur") or "") for l in p["rubriques"])
+        assert "24780064500147" not in vals, (
+            "%s porte le SIRET de l'acheteur" % cle)
+
+
+def test_le_cadre_C1_du_DC2_recoit_les_CINQ_lignes_que_le_dossier_porte():
+    """« C1 — CAS GÉNÉRAL » OUVRE CINQ LIGNES et n'en recevait que deux.
+
+    Nom, adresses, adresse électronique, téléphone et télécopie, SIRET, forme
+    juridique. Le dossier d'entreprise porte l'adresse, le courriel et le
+    téléphone — et aucune rubrique ne les demandait : trois lignes à recopier
+    à la main d'un dossier qui les contenait.
+
+    ON MESURE LE DOCUMENT PRODUIT, SOUS SON INTITULÉ. Vérifier qu'une valeur
+    est « quelque part » serait vert pour une valeur posée dans le mauvais
+    cadre — le DC2 porte « Adresse internet : » plus bas, au cadre C2."""
+    an = ao_dc.analyser([{"nom": "01_RC.pdf", "texte": RC_LIGNES}])
+    socle = _socle()
+    r = ao_dc.remplir(fiche=socle, analyse=an, saisies={})
+    attendu = {
+        "dc1": {"courriel": socle["courriel"], "telephone": socle["telephone"]},
+        "dc2": {"adresse": "%s, %s %s" % (socle["adresse"], socle["code_postal"],
+                                          socle["ville"]),
+                "courriel": socle["courriel"], "telephone": socle["telephone"]},
+    }
+    for modele, lignes in attendu.items():
+        _b, rap = ao_formulaires.remplir_document(
+            modele, ao_formulaires.valeurs_pour(r, modele))
+        ecrites = {x["rubrique"]: x["valeur"] for x in rap["places"]}
+        for cle, valeur in lignes.items():
+            assert ecrites.get(cle) == valeur, (
+                "%s : « %s » vaut %r, attendu %r"
+                % (modele, cle, ecrites.get(cle), valeur))
