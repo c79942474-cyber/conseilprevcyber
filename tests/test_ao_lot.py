@@ -55,10 +55,17 @@ def _pieces():
     Interroger le module avec la seule fiche d'essai donnerait des pièces plus
     pauvres que celles que la route produit, et une règle qui compare les deux
     mesurerait l'écart entre son propre montage et le produit."""
+    return ao_dc.remplir(fiche=_socle(), analyse=None, saisies={})["pieces"]
+
+
+def _socle():
+    """La fiche telle que la route la compose : le dossier d'entreprise, que
+    ce que l'appelant envoie corrige. UN SEUL ENDROIT — deux montages
+    divergeraient, et la règle mesurerait l'écart entre eux."""
     import dossier_entreprise as _de
     socle = dict(_de.fiche_candidat()["fiche"])
     socle.update(FICHE)
-    return ao_dc.remplir(fiche=socle, analyse=None, saisies={})["pieces"]
+    return socle
 
 
 def _produire(cl, cle, fmt="docx"):
@@ -1100,9 +1107,20 @@ def test_le_dossier_d_entreprise_remplit_la_fiche_SANS_AUCUNE_SAISIE(marche):
     # ET LES VALEURS SONT BIEN LES SIENNES, pas des chaînes quelconques.
     valeurs = {l["valeur"] for p in j["remplissage"]["pieces"]
                for l in p["rubriques"] if l.get("valeur")}
-    for cle in ("raison_sociale", "capital", "representant_nom", "courriel"):
-        assert socle[cle] in valeurs, (
+    # PRÉSENCE, PAS ÉGALITÉ : une rubrique peut COMPOSER plusieurs champs —
+    # l'adresse en porte trois, le contact deux. Exiger la valeur seule ferait
+    # échouer la règle sur la composition, qui est précisément ce qu'on veut.
+    tout = " § ".join(str(v) for v in valeurs)
+    for cle in ("raison_sociale", "capital", "representant_nom", "courriel",
+                "code_postal", "ville", "telephone"):
+        assert socle[cle] in tout, (
             "« %s » du dossier d'entreprise n'atteint aucune pièce" % cle)
+    # ET L'ADRESSE EST ÉCRITE À L'USAGE POSTAL : « rue, code postal ville ».
+    # « 75015, Paris » n'est l'usage nulle part, et un DC1 se lit.
+    attendu = "%s, %s %s" % (socle["adresse"], socle["code_postal"],
+                             socle["ville"])
+    assert attendu in tout, (
+        "l'adresse n'est pas composée à l'usage postal : %r attendu" % attendu)
 
 
 def test_ce_que_le_dossier_NE_PEUT_PAS_fournir_est_NOMME():
@@ -1235,3 +1253,120 @@ def test_une_adresse_qui_ne_se_decoupe_pas_est_REFUSEE_pas_devinee():
         assert c in manquants, (
             "« %s » ne ressort pas comme manquant : une valeur devinée "
             "passerait pour une réponse" % c)
+
+
+def test_une_composition_incomplete_SAUTE_le_manquant_et_le_DIT():
+    """UN POINT D'INTERROGATION DANS UN DC1 SE LIT COMME UNE RÉPONSE.
+
+    Une rubrique qui compose trois champs et n'en reçoit que deux doit rendre
+    les deux — « 19 rue X, 75015 » —, jamais « 19 rue X, 75015, ? ». Et elle
+    doit DIRE lequel manque : la valeur est là, donc la pièce se dirait
+    complète, et personne ne relit une case déjà remplie."""
+    import dossier_entreprise as _de
+    partielle = dict(_de.fiche_candidat()["fiche"])
+    partielle.pop("ville", None)
+    r = ao_dc.remplir(fiche=partielle, analyse=None, saisies={})
+    lignes = [l for p in r["pieces"] for l in p["rubriques"]
+              if l.get("cle") == "adresse"]
+    assert lignes, "la rubrique adresse a disparu"
+    l = lignes[0]
+    assert l["valeur"] == "%s, %s" % (partielle["adresse"],
+                                      partielle["code_postal"]), l["valeur"]
+    assert "?" not in l["valeur"], (
+        "un champ manquant a été remplacé par un signe : %r" % l["valeur"])
+    assert "Ville" in (l.get("message") or ""), (
+        "la rubrique ne dit pas quel champ lui manque : %r" % l.get("message"))
+
+
+def test_une_valeur_DETENUE_que_le_formulaire_n_offre_pas_d_ecrire_est_NOMMEE(marche):
+    """CE QU'ON A, QUI EST JUSTE, ET QUI N'A PAS DE CASE.
+
+    LE DÉFAUT MESURÉ. Le DC1 recevait cinq valeurs et n'en écrivait que deux ;
+    l'en-tête annonçait « 2 valeur(s) portée(s) » et se taisait sur les trois
+    autres. Ce n'est ni `non_places` — le modèle n'a AUCUN emplacement pour
+    elles —, ni `reste` — elles ne manquent pas, on les détient. Le module les
+    calcule (`sans_ancre`) précisément pour qu'on les dise ; la route les
+    jetait avant la page.
+
+    POURQUOI CELA COMPTE. « 2 portées » sur un formulaire qui ne peut pas
+    faire mieux se lit comme « aussi rempli que possible ». Trois lignes
+    restaient à recopier à la main, et rien ne le disait.
+
+    LA RÈGLE COMPARE AU MODULE, ELLE NE RECOPIE PAS UNE LISTE. Écrire ici
+    « DC1 doit dire forme, signataire, qualite » ferait une seconde vérité qui
+    dériverait de la première au premier modèle mis à jour.
+    """
+    par_cle = {p["cle"]: p for p in _pieces()}
+    r_module = ao_dc.remplir(fiche=_socle(), analyse=None, saisies={})
+    muets, vus = [], 0
+    for modele, m in ao_formulaires.MODELES.items():
+        cle = m["piece"]
+        assert cle in par_cle, (modele, cle)
+        valeurs = ao_formulaires.valeurs_pour(r_module, cle)
+        _blob, rap = ao_formulaires.remplir_document(modele, valeurs)
+        attendu = list(rap.get("sans_ancre") or [])
+        d = json.loads(_produire(marche, cle).headers["X-Piece"])
+        dit = list(d.get("sans_ancre") or [])
+        if attendu:
+            vus += 1
+        if sorted(dit) != sorted(attendu):
+            muets.append("%s : l'en-tête dit %s, le modèle en détient %s"
+                         % (cle, dit or "rien", attendu or "aucune"))
+    assert not muets, " · ".join(muets)
+    # ET IL Y EN A BIEN, sans quoi la règle passerait sur quatre listes vides.
+    # MESURÉ : DC1, DC2 et ATTRI1 en détiennent ; le DC4 place tout ce qu'il a.
+    assert vus >= 3, (
+        "aucun formulaire ne détient plus de valeurs qu'il n'en place : la "
+        "règle ne mesure plus rien (%d)" % vus)
+
+
+def test_les_DEUX_ecrans_disent_ce_qui_reste_a_recopier_a_la_main():
+    """LA MESURE NE SERT À RIEN SI ELLE S'ARRÊTE À L'EN-TÊTE HTTP.
+
+    Deux chemins produisent un formulaire officiel — le bouton par formulaire
+    (en-tête `X-Remplissage`) et la production en lot (en-tête `X-Piece`) — et
+    ils dessinent deux endroits différents. Un seul des deux corrigé laisserait
+    la moitié des utilisateurs devant « 2 valeur(s) portée(s) ».
+
+    CE QUE CETTE RÈGLE-CI FAIT, ET CE QU'ELLE NE FAIT PAS. Elle LIT LA SOURCE
+    de la page : elle tient qu'aucun des deux écrans ne perde la mention. Elle
+    ne prouve pas que le texte s'affiche — c'est la recette navigateur qui le
+    voit, et ce sont les deux règles d'en-tête qui mesurent que les VALEURS
+    dites sont bien celles que le modèle détient. Le dire ici évite de la
+    croire plus forte qu'elle n'est."""
+    js = _src("ingenierie-dc.js")
+    for ancre, quoi in ((".sans_ancre", "l'en-tête du bouton par formulaire"),
+                        ("d.sans_ancre", "la carte de la production en lot")):
+        assert ancre in js, "%s ne lit pas la liste" % quoi
+    assert js.count("recopier à la main") >= 2, (
+        "les deux écrans ne disent pas ce qui reste à recopier : %d mention(s)"
+        % js.count("recopier à la main"))
+
+
+def test_le_bouton_PAR_FORMULAIRE_dit_lui_aussi_ce_qui_reste_a_recopier(marche):
+    """L'AUTRE CHEMIN, ET IL PORTE SON PROPRE EN-TÊTE.
+
+    Deux routes produisent un formulaire officiel : /marche/piece (en-tête
+    `X-Piece`, la production en lot) et /marche/formulaire (en-tête
+    `X-Remplissage`, le bouton par formulaire). Corriger la première seule
+    laisserait la seconde muette — et c'est la seconde que l'on clique quand
+    on ne veut qu'un DC1.
+
+    ON MESURE L'EN-TÊTE RENDU, pas la présence de la clé dans la source :
+    une clé écrite et jamais servie ne dirait rien à personne."""
+    r_module = ao_dc.remplir(fiche=_socle(), analyse=None, saisies={})
+    muets = []
+    for modele, m in ao_formulaires.MODELES.items():
+        valeurs = ao_formulaires.valeurs_pour(r_module, m["piece"])
+        _blob, rap = ao_formulaires.remplir_document(modele, valeurs)
+        attendu = sorted(rap.get("sans_ancre") or [])
+        rep = marche.post("/api/datacenter/marche/formulaire",
+                          json={"modele": modele, "fiche": FICHE},
+                          headers=ORIGINE)
+        assert rep.status_code == 200, (modele, rep.status_code)
+        d = json.loads(rep.headers["X-Remplissage"])
+        if sorted(d.get("sans_ancre") or []) != attendu:
+            muets.append("%s : l'en-tête dit %s, le modèle en détient %s"
+                         % (modele, sorted(d.get("sans_ancre") or []) or "rien",
+                            attendu or "aucune"))
+    assert not muets, " · ".join(muets)

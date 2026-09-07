@@ -4938,7 +4938,8 @@ def api_datacenter_marche_piece():
     rapport = {"cle": cle, "nom": piece["nom"], "production": prod,
                "production_nom": ao_dc.PRODUCTIONS[prod]["nom"],
                "bloquante": bool(piece.get("bloquant")),
-               "places": 0, "non_places": [], "reste": []}
+               "places": 0, "non_places": [], "reste": [],
+               "sans_ancre": []}
 
     if prod == "formulaire_officiel":
         modele = next(c for c, m in ao_formulaires.MODELES.items()
@@ -4980,6 +4981,22 @@ def api_datacenter_marche_piece():
         rapport["reste"] = [l["libelle"] for l in piece["rubriques"]
                             if l.get("statut") in ("a_saisir", "non_trouve",
                                                    "invalide")][:12]
+        # CE QU'ON DÉTIENT ET QUE LE FORMULAIRE N'OFFRE PAS D'ÉCRIRE. Le
+        # module le calcule — c'est la raison d'être de `sans_ancre` — et la
+        # route le jetait : la carte annonçait « 2 valeur(s) portée(s) » là où
+        # le report en tenait cinq, sans un mot sur les trois autres.
+        #
+        # MESURÉ : DC1 détient « forme », « signataire » et « qualite » sans
+        # emplacement à sa main, DC2 « capital », ATTRI1 les mêmes trois que
+        # DC1 — ses cadres C et D sont des blocs de SIGNATURE, où écrire un
+        # nom ferait ressembler à signé un document qui ne l'est pas.
+        #
+        # CE N'EST NI `non_places` NI `reste`. `non_places` dit « le modèle a
+        # un emplacement, la valeur manquait » ; `reste` dit « la rubrique
+        # attend encore d'être renseignée ». Ici la valeur EST là, elle est
+        # juste, et le formulaire n'a pas de case pour elle : à recopier à la
+        # main, donc à dire.
+        rapport["sans_ancre"] = list(rap.get("sans_ancre") or [])
         blob = octets
         mimetype = livrables_export.MIME["docx"]
         nom = "%s-projet-non-signe.docx" % modele
@@ -5251,6 +5268,10 @@ def api_datacenter_marche_formulaire():
         {"places": len(rapport["places"]),
          "non_places": [x["rubrique"] for x in rapport["non_places"]],
          "ignores": [x["rubrique"] for x in rapport["ignores"]],
+         # ET CE QU'ON DÉTIENT SANS POUVOIR L'ÉCRIRE — voir le commentaire de
+         # /marche/piece : une valeur juste que le formulaire n'offre pas de
+         # porter est à recopier à la main, et se tait autrement.
+         "sans_ancre": list(rapport.get("sans_ancre") or []),
          "maj": rapport["maj"]}, ensure_ascii=True)
     return reponse
 

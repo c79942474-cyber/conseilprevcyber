@@ -2207,7 +2207,9 @@ RUBRIQUES = {
          "source": "fiche", "champ": "forme_juridique"},
         {"cle": "siret", "libelle": "SIRET", "source": "fiche", "champ": "siret"},
         {"cle": "adresse", "libelle": "Adresse", "source": "fiche",
-         "champ": "adresse"},
+         "champ": "adresse",
+         "champs": ["adresse", "code_postal", "ville"],
+         "joint": [", ", " "]},
         {"cle": "forme_groupement",
          "libelle": "Candidat individuel ou groupement, et forme du groupement",
          "source": "saisie",
@@ -2286,7 +2288,9 @@ RUBRIQUES = {
         {"cle": "candidat", "libelle": "Dénomination", "source": "fiche",
          "champ": "raison_sociale"},
         {"cle": "siret", "libelle": "SIRET", "source": "fiche", "champ": "siret"},
-        {"cle": "contact", "libelle": "Courriel de contact", "source": "fiche",
+        {"cle": "contact", "libelle": "Courriel et téléphone de contact",
+         "source": "fiche", "champs": ["courriel", "telephone"],
+         "joint": " — ",
          "champ": "courriel"},
         {"cle": "format",
          "libelle": "Formulaire de l'acheteur, dans SA version et SON format",
@@ -2355,7 +2359,9 @@ RUBRIQUES = {
         {"cle": "siret", "libelle": "SIRET (cadre B1)", "source": "fiche",
          "champ": "siret"},
         {"cle": "adresse", "libelle": "Adresse de l'établissement et du "
-         "siège (cadre B1)", "source": "fiche", "champ": "adresse"},
+         "siège (cadre B1)", "source": "fiche", "champ": "adresse",
+         "champs": ["adresse", "code_postal", "ville"],
+         "joint": [", ", " "]},
         {"cle": "prix",
          "libelle": "Montant engagé — hors taxes et TTC, en chiffres ET en "
                     "lettres (cadre B1)",
@@ -2460,9 +2466,12 @@ RUBRIQUES = {
         {"cle": "titulaire_siret", "libelle": "SIRET (cadre D)",
          "source": "fiche", "champ": "siret"},
         {"cle": "titulaire_adresse", "libelle": "Adresses postale et du "
-         "siège social (cadre D)", "source": "fiche", "champ": "adresse"},
-        {"cle": "titulaire_courriel", "libelle": "Adresse électronique "
-         "(cadre D)", "source": "fiche", "champ": "courriel"},
+         "siège social (cadre D)", "source": "fiche", "champ": "adresse",
+         "champs": ["adresse", "code_postal", "ville"],
+         "joint": [", ", " "]},
+        {"cle": "titulaire_courriel", "libelle": "Adresse électronique et "
+         "téléphone (cadre D)", "source": "fiche", "champ": "courriel",
+         "champs": ["courriel", "telephone"], "joint": " — "},
         {"cle": "mandataire",
          "libelle": "En groupement momentané, identification du mandataire "
                     "(cadre D)",
@@ -2737,18 +2746,63 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False):
                 l["engage_nom"] = ENGAGEMENTS[r["engage"]]["nom"]
                 l["message"] = ENGAGEMENTS[r["engage"]]["message"]
             elif r["source"] == "fiche":
-                champ = par_champ[r["champ"]]
-                v = str(fiche.get(r["champ"]) or "").strip()
+                # UNE RUBRIQUE PEUT PUISER DANS PLUSIEURS CHAMPS.
+                #
+                # POURQUOI CE N'EST PAS UN CAS PARTICULIER DE L'ADRESSE. Un
+                # formulaire demande « adresse du siège » en une case ; la
+                # fiche la collecte en trois — rue, code postal, ville —,
+                # parce que c'est ainsi qu'on la saisit et qu'on la contrôle.
+                # Mesuré : le code postal, la ville et le téléphone étaient
+                # demandés au formulaire et AUCUNE rubrique ne les lisait. Ils
+                # n'étaient pas mal remplis : ils n'arrivaient nulle part.
+                #
+                # LES CHAMPS ABSENTS SONT SAUTÉS, PAS REMPLACÉS. Une adresse
+                # sans ville rend « 19 rue X, 75015 » plutôt que « 19 rue X,
+                # 75015, ? » : un point d'interrogation dans un DC1 se lit
+                # comme une réponse.
+                cles = r.get("champs") or [r["champ"]]
+                champ = par_champ[cles[0]]
+                morceaux = [str(fiche.get(c) or "").strip() for c in cles]
+                presents = [(i, c, m) for i, (c, m)
+                            in enumerate(zip(cles, morceaux)) if m]
+                # LE SÉPARATEUR PEUT DIFFÉRER D'UN INTERVALLE À L'AUTRE. Une
+                # adresse française s'écrit « rue, code postal ville » : une
+                # virgule puis une espace. Un séparateur unique donnait
+                # « 75015, Paris », qui n'est l'usage nulle part. Le
+                # séparateur est celui de la position du morceau qui PRÉCÈDE,
+                # ce qui reste juste quand un morceau manque.
+                sep = r.get("joint") or ", "
+                seps = sep if isinstance(sep, (list, tuple)) else [sep]
+                v = ""
+                for rang, (i, _c, m) in enumerate(presents):
+                    if rang:
+                        j = presents[rang - 1][0]
+                        v += seps[j] if j < len(seps) else seps[-1]
+                    v += m
+                presents = [(c, m) for _i, c, m in presents]
                 if not v:
                     l["statut"] = "a_saisir"
                     l["message"] = champ.get("ou") or ("À renseigner dans la "
                                                        "fiche du candidat.")
                 else:
-                    ok, pourquoi = controler(r["champ"], v)
+                    invalides = [(c, p) for c, p in
+                                 ((c, controler(c, m)) for c, m in presents)
+                                 if not p[0]]
                     l["valeur"] = v
-                    l["origine"] = "Votre fiche — « %s »" % champ["nom"]
-                    l["statut"] = "rempli" if ok else "invalide"
-                    l["message"] = pourquoi
+                    l["origine"] = "Votre fiche — %s" % ", ".join(
+                        "« %s »" % par_champ[c]["nom"] for c, _ in presents)
+                    l["statut"] = "rempli" if not invalides else "invalide"
+                    l["message"] = invalides[0][1][1] if invalides else \
+                        (controler(cles[0], morceaux[0])[1] if morceaux[0] else "")
+                    # CE QUI MANQUE À UNE RUBRIQUE COMPOSÉE EST DIT. Une
+                    # adresse amputée de sa ville reste « remplie » — elle
+                    # porte une valeur —, mais le lecteur doit savoir laquelle
+                    # des trois lignes n'est pas venue.
+                    absents = [par_champ[c]["nom"] for c, m in zip(cles, morceaux)
+                               if not m]
+                    if absents and not invalides:
+                        l["message"] = ("Complet sauf : %s — à renseigner dans "
+                                        "la fiche." % ", ".join(absents))
             elif r["source"] == "calcul":
                 d = calc.get(r["calcul"])
                 if not d:

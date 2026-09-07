@@ -6580,7 +6580,15 @@ function messageDelai(e, defaut) {
                   + "." : "")
              + (etat.ignores.length
                 ? " Sans valeur, donc laissées vides : "
-                  + etat.ignores.join(", ") + "." : ""))
+                  + etat.ignores.join(", ") + "." : "")
+             /* CE QU'ON DÉTIENT ET QUE LE FORMULAIRE N'OFFRE PAS D'ÉCRIRE.
+                Ni « non placée » — le modèle n'a pas d'emplacement —, ni
+                « sans valeur » : la valeur est là et juste. Se taire ferait
+                croire le formulaire aussi complet qu'il peut l'être, alors
+                qu'il reste trois lignes à recopier. */
+             + ((etat.sans_ancre || []).length
+                ? " À RECOPIER À LA MAIN — le formulaire n'a pas de case "
+                  + "pour : " + etat.sans_ancre.join(", ") + "." : ""))
           : "Formulaire téléchargé.";
       }
     }).catch(function () {
@@ -7131,10 +7139,16 @@ function messageDelai(e, defaut) {
       var d = null;
       try { d = JSON.parse(entete || "null"); } catch (e) { d = null; }
       var reste = (d && (d.reste || d.non_places)) || [];
+      /* CE QU'ON DÉTIENT ET QUE LE FORMULAIRE N'OFFRE PAS D'ÉCRIRE. « 2
+         valeur(s) portée(s) » sur un DC1 qui en tient cinq se lit comme un
+         formulaire aussi rempli qu'il peut l'être. Les trois autres sont
+         justes et sans case : à recopier, donc à dire ICI, sur la carte. */
+      var main = (d && d.sans_ancre) || [];
       AO_PRODUIT[cle] = {
         etat: "fait",
         titre: (d && d.production_nom) || "Produite",
         texte: (d ? d.places + " valeur(s) portée(s)" : "document produit")
+          + (main.length ? " · à recopier à la main : " + main.join(", ") : "")
           + (reste.length ? " · reste " + reste.slice(0, 3).join(", ")
              + (reste.length > 3 ? "…" : "") : ""),
         url: URL.createObjectURL(bn[0]),
