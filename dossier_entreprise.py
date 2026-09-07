@@ -789,3 +789,136 @@ NOTE_DOSSIER = (
     "ou le montant manque n'est pas comptée comme utilisable : annoncer six "
     "références là où l'acheteur en trouvera quatre documentées fait douter "
     "de tout le reste du dossier.")
+
+
+# ══ LA FICHE DE CANDIDATURE, TIRÉE DU DOSSIER PLUTÔT QUE RETAPÉE ═════════
+#
+# CE QUE CETTE PORTE CHANGE. Les vingt-trois pièces d'une réponse comptent
+# soixante-quatre rubriques ; trente-huit d'entre elles viennent de l'identité
+# du candidat, c'est-à-dire des vingt champs de `ao_dc.CHAMPS_CANDIDAT`. Ces
+# vingt champs ne dépendent PAS de la consultation : ce sont ceux de
+# CONSEILPREV, et ils sont déjà écrits ici. Les retaper à chaque consultation
+# était la plus grosse part du travail manuel restant.
+#
+# ELLE NE SERT QUE L'ADMINISTRATION, et cela n'a rien d'accessoire : ce sont
+# les données de CONSEILPREV. La réponse à consultation est désormais un outil
+# interne — déclaré dans `acces.API_ADMIN` —, ce qui rend ce report légitime.
+# Le jour où la section s'ouvrirait à des clients, cette porte devrait rester
+# fermée : un client répond avec SON identité, jamais avec celle du cabinet.
+#
+# CE QU'ELLE NE FAIT PAS, ET LE DIT. Dix champs sur vingt ne sont pas portés
+# par les documents d'origine — le SIRET y figure explicitement comme absent.
+# Les inventer produirait un DC1 faux ; les taire ferait croire le formulaire
+# complet. Ils ressortent donc NOMMÉS, avec l'endroit où les trouver, comme les
+# attestations le font déjà.
+
+# Où chaque champ manquant se trouve. Écrit ici plutôt que dans l'écran : c'est
+# une propriété du champ, pas de la page qui l'affiche.
+OU_TROUVER = {
+    "siret": "sur l'avis de situation INSEE (avis-situation-sirene.insee.fr) — "
+             "le SIREN est connu, il manque les cinq chiffres du NIC",
+    "rcs": "sur l'extrait Kbis, mention « RCS » suivie de la ville et du numéro",
+    "naf": "sur l'avis de situation INSEE, code APE/NAF à quatre chiffres et "
+           "une lettre",
+    "effectif": "effectif moyen annuel — bilan social ou déclaration sociale "
+                "nominative",
+    "ca_n1": "chiffre d'affaires du dernier exercice clos — liasse fiscale",
+    "ca_n2": "chiffre d'affaires de l'avant-dernier exercice clos",
+    "ca_n3": "chiffre d'affaires du troisième exercice clos",
+    "assurance_compagnie": "sur l'attestation de responsabilité civile "
+                           "professionnelle en cours",
+    "assurance_police": "numéro de police, sur la même attestation",
+    "assurance_echeance": "date d'échéance, sur la même attestation",
+}
+
+_ADRESSE = re.compile(r"^\s*(.+?)\s*,\s*(\d{5})\s+(.+?)\s*$")
+
+
+def _scinder_adresse(brut):
+    """« 19 rue X, 75015 Paris » → les trois champs du formulaire.
+
+    ELLE REFUSE PLUTÔT QUE DE DEVINER. Une adresse qui ne se laisse pas
+    découper rend (None, None, None) : le champ ressort alors comme manquant,
+    ce qui se corrige, au lieu d'un code postal inventé, qui ne se voit pas.
+    """
+    m = _ADRESSE.match(str(brut or ""))
+    return (m.group(1), m.group(2), m.group(3)) if m else (None, None, None)
+
+
+def fiche_candidat(identite=None):
+    """La fiche AO du cabinet : ce que le dossier fournit, et ce qui manque.
+
+    Rend {fiche, manques, fournis, attendus} — `fiche` ne porte QUE des valeurs
+    réelles, jamais une chaîne vide qui passerait pour une réponse.
+    """
+    ident = dict(identite if identite is not None else IDENTITE)
+    rue, cp, ville = _scinder_adresse(ident.get("adresse"))
+    brut = {
+        "raison_sociale": ident.get("raison_sociale"),
+        "forme_juridique": ident.get("forme_juridique"),
+        "siret": ident.get("siret"),
+        "capital": ident.get("capital"),
+        "rcs": ident.get("rcs"),
+        "naf": ident.get("naf"),
+        "adresse": rue,
+        "code_postal": cp,
+        "ville": ville,
+        "telephone": ident.get("telephone"),
+        "courriel": ident.get("courriel"),
+        "representant_nom": ident.get("representant_nom"),
+        "representant_qualite": ident.get("representant_qualite"),
+        "effectif": ident.get("effectif"),
+        "ca_n1": ident.get("ca_n1"),
+        "ca_n2": ident.get("ca_n2"),
+        "ca_n3": ident.get("ca_n3"),
+        "assurance_compagnie": ident.get("assurance_compagnie"),
+        "assurance_police": ident.get("assurance_police"),
+        "assurance_echeance": ident.get("assurance_echeance"),
+    }
+    fiche = {k: str(v).strip() for k, v in brut.items()
+             if v is not None and str(v).strip()}
+    manques = [{"cle": k,
+                "ou_trouver": OU_TROUVER.get(k, "à porter au dossier "
+                                                "d'entreprise")}
+               for k in brut if k not in fiche]
+    return {"fiche": fiche, "manques": manques,
+            "fournis": len(fiche), "attendus": len(brut)}
+
+
+def entete_markdown(objet="", destinataire="", reference="", aujourdhui=None):
+    """L'en-tête CONSEILPREV, en Markdown, prêt à coiffer un document.
+
+    POURQUOI ICI ET PAS DANS `ao_dc`. Le papier à en-tête est une donnée du
+    CABINET : son bandeau, son accroche, son signataire et son pied de page
+    vivent avec l'identité, et changent avec elle. `ao_dc` compose des pièces
+    de marché ; il n'a pas à connaître le capital social ni le numéro de TVA.
+
+    CE QUI NE LE REÇOIT JAMAIS : les quatre formulaires de l'État. Le DC1, le
+    DC2, le DC4 et l'ATTRI1 sortent tels que le ministère les publie ; leur
+    coller un en-tête d'entreprise en ferait des fac-similés, refusés à
+    l'ouverture des plis — ou pire, acceptés et faux. La distinction est tenue
+    par `ao_dc.markdown_piece`, et une règle la mesure.
+    """
+    d = _aujourdhui(aujourdhui)
+    L = ["**%s**" % PAPIER_ENTETE["bandeau"], "",
+         "*%s*" % PAPIER_ENTETE["accroche"], "",
+         "---", ""]
+    if destinataire:
+        L += [str(destinataire), ""]
+    L.append("%s, le %s" % (IDENTITE["adresse"].rsplit(" ", 1)[-1],
+                            d.strftime("%d/%m/%Y")))
+    L.append("")
+    if objet:
+        L += ["**Objet — %s**" % objet, ""]
+    if reference:
+        L += ["**Référence de la consultation — %s**" % reference, ""]
+    L += ["---", ""]
+    return L
+
+
+def pied_markdown():
+    """Le pied de page du papier à en-tête : la formule, la signature, les
+    mentions légales. Séparé de l'en-tête parce qu'il se pose APRÈS le corps."""
+    return ["", "---", "", PAPIER_ENTETE["formule"], "",
+            PAPIER_ENTETE["signataire"].replace("\n", "  \n"), "",
+            "---", "", "*%s*" % PAPIER_ENTETE["pied"].replace("\n", " — ")]

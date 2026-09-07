@@ -48,7 +48,17 @@ def _src(nom):
 
 
 def _pieces():
-    return ao_dc.remplir(fiche=FICHE, analyse=None, saisies={})["pieces"]
+    """Les pièces TELLES QUE LA ROUTE LES VOIT.
+
+    LE SOCLE EST INCLUS, ET C'EST NÉCESSAIRE. `_ao_charge` fait partir la fiche
+    du dossier d'entreprise et laisse ce que l'appelant envoie la corriger.
+    Interroger le module avec la seule fiche d'essai donnerait des pièces plus
+    pauvres que celles que la route produit, et une règle qui compare les deux
+    mesurerait l'écart entre son propre montage et le produit."""
+    import dossier_entreprise as _de
+    socle = dict(_de.fiche_candidat()["fiche"])
+    socle.update(FICHE)
+    return ao_dc.remplir(fiche=socle, analyse=None, saisies={})["pieces"]
 
 
 def _produire(cl, cle, fmt="docx"):
@@ -157,9 +167,39 @@ def test_l_en_tete_dit_ce_qui_a_ete_PORTE_et_ce_qui_RESTE(marche):
     for c in ("cle", "nom", "production", "production_nom", "places"):
         assert c in d, d
     assert isinstance(d["places"], int)
-    assert d["reste"] or d["non_places"], (
-        "une pièce qui ne dit RIEN de ce qui reste : le dossier d'essai n'a "
-        "pourtant qu'une raison sociale et un SIRET")
+
+    # LA RÈGLE CHERCHE UNE PIÈCE PARTIELLE AU LIEU D'EN SUPPOSER UNE.
+    #
+    # POURQUOI ELLE A CHANGÉ. Elle éprouvait `honneur` en tenant pour acquis
+    # qu'il lui manquerait toujours quelque chose — « le dossier d'essai n'a
+    # qu'une raison sociale et un SIRET ». La fiche part désormais du dossier
+    # d'entreprise, et cette pièce-là n'a plus rien à compléter : la règle
+    # tombait sur une amélioration. Ce qu'elle doit tenir n'est pas « cette
+    # pièce est partielle » mais « une pièce partielle DIT ce qui lui manque ».
+    #
+    # Dix des vingt champs de la fiche ne sont pas portés par le dossier
+    # (SIRET, RCS, NAF, effectif, chiffres d'affaires, assurance) : il reste
+    # donc forcément des pièces incomplètes, et si un jour il n'en reste
+    # aucune, la première assertion le dira plutôt que de passer en silence.
+    # QUELLES PIÈCES SONT RÉELLEMENT INCOMPLÈTES : c'est le module qui le dit,
+    # pas une supposition de la règle. Une pièce SANS rubrique — un plan à
+    # rédiger, un justificatif à obtenir — n'est pas « incomplète et muette » :
+    # elle n'a rien à placer, et c'est sa nature.
+    par_cle = {p["cle"]: p for p in _pieces()}
+    incompletes = [c for c, p in par_cle.items()
+                   if [x for x in (p.get("rubriques") or [])
+                       if x.get("source") == "fiche" and not x.get("valeur")]]
+    assert incompletes, (
+        "aucune pièce n'attend plus rien de la fiche, alors que dix des vingt "
+        "champs ne sont pas portés par le dossier d'entreprise")
+    muettes = []
+    for cle in incompletes:
+        h = json.loads(_produire(marche, cle).headers["X-Piece"])
+        if not ((h.get("reste") or []) or (h.get("non_places") or [])):
+            muettes.append(cle)
+    assert not muettes, (
+        "ces pièces attendent des champs de la fiche et ne disent RIEN de ce "
+        "qui leur manque : %s" % muettes)
 
 
 def test_la_route_est_fermee_a_l_anonyme(anonyme):
@@ -1004,3 +1044,194 @@ def test_l_avertissement_du_depot_est_pose_APRES_le_re_rendu():
     assert "aoProjetMsg" in dedans, (
         "l'avertissement du dépôt est posé HORS du .then qui suit "
         "aoProjetEtat() : le re-rendu l'effacera avant qu'il soit lu")
+
+
+# ══ LE REMPLISSAGE SANS SAISIE ═══════════════════════════════════════════
+#
+# CE QUI A ÉTÉ MESURÉ, ET QUI DONNE SON OBJET À CES RÈGLES. Les vingt-trois
+# pièces comptent soixante-quatre rubriques. Réparties par ORIGINE :
+#
+#     fiche         38   l'identité du candidat — 20 champs
+#     saisie        26   des choix propres à CETTE offre (lot, groupement…)
+#     consultation  15   l'acheteur, l'objet, la référence, les lots
+#     declaration    6   les déclarations sur l'honneur
+#     calcul         2   SIREN et TVA, déduits du SIRET
+#
+# Et ce que chaque source apporte, compté sur un dossier réel :
+#
+#                                     remplies   à saisir   non trouvées
+#     rien du tout                           0         47             12
+#     les pièces seules                     11         47              1
+#     le dossier d'entreprise seul          19         28             12
+#     LES DEUX                              30         28              1
+#
+# TRENTE RUBRIQUES SUR SOIXANTE-QUATRE SANS UNE SEULE FRAPPE. Les vingt-huit
+# qui restent sont des choix propres à cette offre, et les six déclarations ne
+# se pré-remplissent JAMAIS : leur fausseté est pénalement sanctionnée.
+
+def test_le_dossier_d_entreprise_remplit_la_fiche_SANS_AUCUNE_SAISIE(marche):
+    """LA RÈGLE CENTRALE. Une requête qui n'envoie RIEN doit tout de même
+    ressortir avec l'identité du cabinet placée dans les pièces."""
+    import dossier_entreprise as _de
+    j = marche.post("/api/datacenter/marche/remplir", json={},
+                    headers=ORIGINE).get_json()
+    e = j["remplissage"]["etat"]
+    socle = _de.fiche_candidat()["fiche"]
+    assert e["remplies"] >= len(socle), (
+        "une requête vide ne remplit que %d rubrique(s) alors que le dossier "
+        "d'entreprise en fournit %d" % (e["remplies"], len(socle)))
+    # ON MESURE LES RUBRIQUES REMPLIES, pas les clés de la fiche.
+    #
+    # POURQUOI. Les rubriques portent LEURS noms — `candidat`, `titulaire`,
+    # `signataire`, `contact` — et non ceux des champs de la fiche : la
+    # correspondance est faite par le moteur. Comparer les deux jeux de clés
+    # mesurerait la nomenclature, pas le report.
+    #
+    # ONZE RUBRIQUES DISTINCTES REÇOIVENT LE DOSSIER, mesuré : adresse,
+    # candidat, capital, contact, forme, qualite, signataire, titulaire,
+    # titulaire_adresse, titulaire_courriel, titulaire_forme. Les autres
+    # attendent les dix champs que le dossier ne porte pas.
+    remplies = {l.get("cle") for p in j["remplissage"]["pieces"]
+                for l in p["rubriques"]
+                if l.get("source") == "fiche" and l.get("valeur")}
+    assert len(remplies) >= 11, (
+        "le dossier d'entreprise ne remplit plus que %d rubrique(s) "
+        "distincte(s) : %s" % (len(remplies), sorted(remplies)))
+    # ET LES VALEURS SONT BIEN LES SIENNES, pas des chaînes quelconques.
+    valeurs = {l["valeur"] for p in j["remplissage"]["pieces"]
+               for l in p["rubriques"] if l.get("valeur")}
+    for cle in ("raison_sociale", "capital", "representant_nom", "courriel"):
+        assert socle[cle] in valeurs, (
+            "« %s » du dossier d'entreprise n'atteint aucune pièce" % cle)
+
+
+def test_ce_que_le_dossier_NE_PEUT_PAS_fournir_est_NOMME():
+    """DIX CHAMPS SUR VINGT NE SONT PAS PORTÉS par les documents d'origine —
+    le SIRET y figure explicitement comme absent. Les inventer produirait un
+    DC1 faux ; les taire ferait croire le formulaire complet. Chacun ressort
+    donc avec l'endroit où le trouver, comme les attestations le font déjà."""
+    import dossier_entreprise as _de
+    r = _de.fiche_candidat()
+    assert r["fournis"] + len(r["manques"]) == r["attendus"] == 20, r
+    assert r["manques"], "le dossier prétend tout fournir"
+    nus = [m["cle"] for m in r["manques"]
+           if len((m.get("ou_trouver") or "").strip()) < 25]
+    assert not nus, (
+        "ces champs manquants ne disent pas où les trouver : %s" % nus)
+    # ET LE SIRET EN FAIT PARTIE, nommément : c'est le cas que les documents
+    # d'origine signalent eux-mêmes.
+    assert "siret" in [m["cle"] for m in r["manques"]]
+
+
+def test_les_pieces_et_le_dossier_s_ADDITIONNENT():
+    """LE GAIN EST MESURÉ, PAS AFFIRMÉ. Chacune des deux sources apporte, et
+    les deux ensemble apportent plus que chacune seule — sans quoi l'une
+    écraserait l'autre."""
+    import dossier_entreprise as _de
+    a = ao_dc.analyser(DCE)
+    f = _de.fiche_candidat()["fiche"]
+    rien = ao_dc.remplir(fiche={}, analyse=None, saisies={})["etat"]["remplies"]
+    pieces = ao_dc.remplir(fiche={}, analyse=a, saisies={})["etat"]["remplies"]
+    dossier = ao_dc.remplir(fiche=f, analyse=None, saisies={})["etat"]["remplies"]
+    deux = ao_dc.remplir(fiche=f, analyse=a, saisies={})["etat"]["remplies"]
+    assert rien == 0, rien
+    assert pieces > 0 and dossier > 0, (pieces, dossier)
+    assert deux > pieces and deux > dossier, (
+        "les deux sources ne s'additionnent pas : pièces %d, dossier %d, "
+        "ensemble %d" % (pieces, dossier, deux))
+
+
+def test_les_six_declarations_ne_se_pre_remplissent_JAMAIS():
+    """LA LIGNE QUE L'AUTOMATISATION NE FRANCHIT PAS. Une case cochée par un
+    programme est une déclaration que personne n'a faite, et sa fausseté est
+    pénalement sanctionnée. Le socle du dossier d'entreprise ne doit rien y
+    changer."""
+    import dossier_entreprise as _de
+    r = ao_dc.remplir(fiche=_de.fiche_candidat()["fiche"],
+                      analyse=ao_dc.analyser(DCE), saisies={})
+    remplies = [l["libelle"] for p in r["pieces"] for l in p["rubriques"]
+                if l.get("source") == "declaration" and l.get("valeur")]
+    assert not remplies, (
+        "des déclarations sur l'honneur sont pré-remplies : %s" % remplies)
+
+
+def test_les_documents_du_cabinet_portent_l_EN_TETE_et_les_formulaires_NON():
+    """LES DEUX MOITIÉS DE LA MÊME RÈGLE, et la seconde compte autant.
+
+    Une note ou une lettre écrite par CONSEILPREV doit sortir sur son papier —
+    sinon il faut la recomposer avant de la joindre. Un formulaire de l'État,
+    lui, ne doit JAMAIS en porter : ce qui sort pour lui EST le fichier du
+    ministère, et un bandeau d'entreprise en ferait un fac-similé, refusé à
+    l'ouverture des plis."""
+    import dossier_entreprise as _de
+    bandeau = _de.PAPIER_ENTETE["bandeau"]
+    r = ao_dc.remplir(fiche=_de.fiche_candidat()["fiche"],
+                      analyse=ao_dc.analyser(DCE), saisies={})
+    officiels = sorted(MODELES)
+    nus, coiffes = [], []
+    for p in r["pieces"]:
+        md = ao_dc.markdown_piece(r, p["cle"], officiels) or ""
+        voie = ao_dc.production(p, officiels)
+        if voie == "formulaire_officiel":
+            if bandeau in md:
+                coiffes.append(p["cle"])
+        elif bandeau not in md:
+            nus.append(p["cle"])
+    assert not nus, (
+        "ces documents du cabinet sortent sans en-tête : %s" % nus)
+    assert not coiffes, (
+        "ces formulaires de l'État portent un bandeau d'entreprise — ce sont "
+        "des fac-similés : %s" % coiffes)
+    # LE TÉMOIN : l'en-tête porte bien la signature et le pied de page.
+    md = ao_dc.markdown_piece(r, "conventions", officiels) or ""
+    assert _de.IDENTITE["representant_nom"] in md, "l'en-tête ne signe pas"
+    assert _de.IDENTITE["siren"] in md, "le pied de page perd les mentions"
+
+
+def test_ce_que_l_ECRAN_envoie_l_emporte_sur_le_dossier(marche):
+    """L'ORDRE DE LA FUSION, MESURÉ DANS LE BON SENS.
+
+    Le dossier fournit le socle ; une valeur transmise par l'écran l'emporte,
+    parce qu'elle est plus récente et parce qu'une consultation peut demander
+    une variante — un établissement secondaire, un autre signataire. L'inverse
+    rendrait toute correction impossible, et une règle qui ne mesure que la
+    non-persistance ne le voit pas : dans les deux sens, la valeur envoyée a
+    disparu au second appel."""
+    import dossier_entreprise as _de
+    socle = _de.fiche_candidat()["fiche"]["raison_sociale"]
+    autre = "CONSEILPREV — ÉTABLISSEMENT DE LYON"
+    assert autre != socle
+    j = marche.post("/api/datacenter/marche/remplir",
+                    json={"fiche": {"raison_sociale": autre}},
+                    headers=ORIGINE).get_json()
+    valeurs = {l["valeur"] for p in j["remplissage"]["pieces"]
+               for l in p["rubriques"] if l.get("valeur")}
+    assert autre in valeurs, (
+        "la valeur envoyée par l'écran n'atteint pas les pièces : le dossier "
+        "d'entreprise l'écrase, et aucune correction n'est possible")
+    assert socle not in valeurs, (
+        "les deux valeurs coexistent : le formulaire porterait deux "
+        "dénominations différentes")
+
+
+def test_une_adresse_qui_ne_se_decoupe_pas_est_REFUSEE_pas_devinee():
+    """UN CODE POSTAL INVENTÉ NE SE VOIT PAS, et c'est ce qui le rend
+    dangereux : il part dans un DC1 et personne ne le relit. Une adresse qui
+    ne se laisse pas découper doit donc rendre trois champs vides — qui
+    ressortent alors comme manquants, ce qui se corrige."""
+    import dossier_entreprise as _de
+    for brut in ("19 rue Auguste Chabrières, 75015 Paris",):
+        assert _de._scinder_adresse(brut) == ("19 rue Auguste Chabrières",
+                                              "75015", "Paris"), brut
+    for brut in ("", None, "Chez Untel", "19 rue X 75015 Paris",
+                 "19 rue X, Paris"):
+        assert _de._scinder_adresse(brut) == (None, None, None), (
+            "« %s » a été découpée alors qu'elle n'en porte pas les repères : "
+            "%r" % (brut, _de._scinder_adresse(brut)))
+    # ET LE REFUS SE VOIT DANS LA FICHE : les trois champs y sont manquants.
+    r = _de.fiche_candidat(dict(_de.IDENTITE, adresse="Chez Untel"))
+    manquants = {m["cle"] for m in r["manques"]}
+    for c in ("adresse", "code_postal", "ville"):
+        assert c in manquants, (
+            "« %s » ne ressort pas comme manquant : une valeur devinée "
+            "passerait pour une réponse" % c)

@@ -6438,6 +6438,25 @@ function messageDelai(e, defaut) {
           AO_REMPLI = j.remplissage;
           if (!$("#ig-ao-fiche").innerHTML) aoFicheRendre(j.remplissage);
           aoRempliRendre(j.remplissage);
+          /* LES VINGT-TROIS PIÈCES SONT CHOISIES D'OFFICE DÈS QU'UN DOSSIER
+             A ÉTÉ ANALYSÉ.
+
+             POURQUOI ICI ET PAS APRÈS `aoRemplir`. Cette fonction est
+             asynchrone : choisir juste après l'avoir appelée reviendrait à
+             parcourir un remplissage pas encore arrivé, et à ne rien cocher.
+             C'est à la réponse que l'état existe.
+
+             POURQUOI D'OFFICE. Analyser un dossier de consultation n'a qu'un
+             but : produire la réponse. Laisser la sélection vide obligeait à
+             cocher vingt-trois cartes pour dire « oui, tout » — qui est le cas
+             courant. Le choix reste défaisable : on décoche ce qu'on ne
+             dépose pas. Et il ne se fait QU'UNE FOIS, à la première réponse
+             qui suit une analyse : le refaire à chaque frappe dans la fiche
+             recocherait ce qu'on vient de décocher. */
+          if (AO_ANALYSE && !AO_CHOIX_FAIT) {
+            AO_CHOIX_FAIT = true;
+            aoToutChoisir();
+          }
         })
         .catch(function () { /* l'état affiché reste tel quel */ });
     }, immediat ? 0 : 450);
@@ -6836,6 +6855,7 @@ function messageDelai(e, defaut) {
      qui redeviendrait grise sous les doigts ferait relancer une production
      déjà faite. */
   var AO_CHOISIES = {};        /* clé -> true */
+  var AO_CHOIX_FAIT = false;   /* le choix d'office n'a lieu qu'une fois */
   var AO_PRODUIT = {};         /* clé -> {etat, texte, url, nom} */
   var AO_LOT_FMT = "docx";
   /* SIX À LA FOIS, ET PAS VINGT-TROIS. « Simultanément » veut dire que les
@@ -6948,6 +6968,17 @@ function messageDelai(e, defaut) {
     if (vieux) vieux.remove();
     var h = aoLotEtatCarte({ cle: cle });
     if (h) c.insertAdjacentHTML("beforeend", h);
+  }
+
+  /* TOUT CHOISIR, une fois l'analyse revenue. Écrit à part pour être appelable
+     ailleurs — et pour qu'une règle puisse l'exécuter sans rejouer l'analyse. */
+  function aoToutChoisir() {
+    var r = (AO_REMPLI && AO_REMPLI.pieces) || [];
+    if (!r.length) return 0;
+    r.forEach(function (p) { AO_CHOISIES[p.cle] = true; });
+    r.forEach(function (p) { aoLotRafraichirCarte(p.cle); });
+    aoLotCompter();
+    return r.length;
   }
 
   function aoLotCompter() {

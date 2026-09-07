@@ -3123,6 +3123,20 @@ def _bloc_piece(p):
     return L
 
 
+def _valeur_relevee(r, cle_rubrique):
+    """La première valeur d'une rubrique DÉJÀ REMPLIE, ou "".
+
+    Sert à adresser une lettre : l'acheteur et la référence viennent du dossier
+    de consultation. Rendre "" plutôt qu'une approximation évite d'écrire à un
+    destinataire inventé.
+    """
+    for p in (r.get("pieces") or []):
+        for c in (p.get("rubriques") or []):
+            if c.get("cle") == cle_rubrique and c.get("valeur"):
+                return str(c["valeur"])
+    return ""
+
+
 def markdown_piece(r, cle, avec_modele=None):
     """Le document d'UNE pièce, prêt à être emporté.
 
@@ -3132,9 +3146,34 @@ def markdown_piece(r, cle, avec_modele=None):
     p = next((x for x in r["pieces"] if x["cle"] == cle), None)
     if p is None:
         return None
-    prod = PRODUCTIONS[production(p, avec_modele)]
-    L = ["# %s" % p["nom"], "",
-         "**%s** — %s" % (prod["nom"], prod["dit"]), ""]
+    voie = production(p, avec_modele)
+    prod = PRODUCTIONS[voie]
+    # ── LE PAPIER À EN-TÊTE, SUR LES PIÈCES QUI SONT LES NÔTRES ──────────
+    #
+    # UNE LETTRE DU CABINET DOIT RESSEMBLER À UNE LETTRE DU CABINET. Les
+    # dix-neuf pièces qui ne sont pas des formulaires de l'État sont écrites
+    # PAR CONSEILPREV : notes, mémoires, demandes à des tiers. Les rendre sans
+    # en-tête obligeait à les recomposer dans un traitement de texte avant de
+    # les joindre — c'est-à-dire à refaire à la main ce que le module venait
+    # de préparer.
+    #
+    # LES QUATRE FORMULAIRES N'EN REÇOIVENT JAMAIS, et c'est le même principe
+    # qui l'interdit : ce qui sort pour eux EST le fichier du ministère. Un
+    # bandeau d'entreprise en ferait un fac-similé, refusé à l'ouverture des
+    # plis — ou pire, accepté et faux.
+    entete, pied = [], []
+    if voie != "formulaire_officiel":
+        try:
+            import dossier_entreprise as _de
+            entete = _de.entete_markdown(
+                objet=p["nom"],
+                destinataire=_valeur_relevee(r, "acheteur"),
+                reference=_valeur_relevee(r, "reference"))
+            pied = _de.pied_markdown()
+        except Exception:
+            entete, pied = [], []
+    L = entete + ["# %s" % p["nom"], "",
+                  "**%s** — %s" % (prod["nom"], prod["dit"]), ""]
     if p.get("delai"):
         # Le délai du référentiel porte parfois son point : le redoubler
         # donnerait « … signer.. », qu'on lit comme une coquille du produit.
@@ -3145,6 +3184,7 @@ def markdown_piece(r, cle, avec_modele=None):
     L.append(NOTE_REMPLISSAGE)
     L.append("")
     L += _bloc_piece(p)
+    L += pied
     return "\n".join(L)
 
 

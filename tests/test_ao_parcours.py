@@ -327,7 +327,16 @@ def test_la_route_ne_conserve_rien(marche):
     apres = _demander(marche, {"fiche": {}})
     mp = next(e["mesure"] for e in plein["etapes"] if e["id"] == "fiche")
     ma = next(e["mesure"] for e in apres["etapes"] if e["id"] == "fiche")
-    assert mp != ma and ma.startswith("0 champ")
+    # LA MESURE RECULE MAIS NE TOMBE PAS À ZÉRO, et c'est voulu : la fiche part
+    # du dossier d'entreprise, identique à chaque appel. Ce qui ne doit pas
+    # survivre est ce que l'APPELANT a envoyé — les vingt champs ci-dessus —,
+    # pas le socle du cabinet.
+    import dossier_entreprise as _de
+    socle = len(_de.fiche_candidat()["fiche"])
+    assert mp != ma, "le second appel rend la même mesure que le premier"
+    assert ma.startswith("%d champ" % socle), (
+        "la mesure après un appel vide devrait retomber sur le seul socle "
+        "(%d champs) : %r" % (socle, ma))
 
 
 # ── 5. IL EST ATTEIGNABLE, ET DISTINCT DE CELUI DES PHASES ───────────────

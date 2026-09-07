@@ -702,14 +702,34 @@ def test_une_valeur_a_rallonge_est_bornee_a_l_entree(marche):
 
 def test_la_route_ne_conserve_rien_d_un_appel_a_l_autre(marche):
     """Un état retenu ferait ressortir, sur la consultation suivante, des
-    valeurs de la précédente — et personne ne relit une case déjà remplie."""
+    valeurs de la précédente — et personne ne relit une case déjà remplie.
+
+    LA RÈGLE A ÉTÉ RESSERRÉE, DÉLIBÉRÉMENT, ET ELLE Y GAGNE. Elle exigeait
+    qu'AUCUNE valeur de fiche ne ressorte au second appel. La fiche part
+    désormais du dossier d'entreprise — l'identité de CONSEILPREV, identique à
+    chaque appel et à chaque consultation : ce n'est pas une survivance, c'est
+    un socle, et c'est précisément ce qui supprime la ressaisie.
+
+    CE QUI NE DOIT TOUJOURS PAS SURVIVRE, ET QUE LA RÈGLE MESURE MAINTENANT
+    NOMMÉMENT : ce que L'APPELANT a envoyé. On transmet donc une valeur
+    reconnaissable, et on exige qu'elle ait disparu au second appel — pendant
+    que le socle, lui, est bien là."""
+    marque = "ZZ-VALEUR-DU-PREMIER-APPEL-ZZ"
     marche.post("/api/datacenter/marche/remplir",
-                  json={"fiche": FICHE_R}, headers=ORIGINE)
+                json={"fiche": dict(FICHE_R, raison_sociale=marque)},
+                headers=ORIGINE)
     j = marche.post("/api/datacenter/marche/remplir", json={},
-                      headers=ORIGINE).get_json()
+                    headers=ORIGINE).get_json()
     v = [l["valeur"] for p in j["remplissage"]["pieces"] for l in p["rubriques"]
          if l["source"] == "fiche"]
-    assert not any(v), "une valeur du premier appel survit au second"
+    assert marque not in v, "une valeur du premier appel survit au second"
+    # LE TÉMOIN : le socle, lui, DOIT être là — sans lui la règle serait verte
+    # sur une route qui aurait cessé de remplir quoi que ce soit.
+    import dossier_entreprise as _de
+    socle = _de.fiche_candidat()["fiche"]["raison_sociale"]
+    assert socle in v, (
+        "le dossier d'entreprise n'alimente plus la fiche : la ressaisie "
+        "revient à chaque consultation")
 
 
 def test_le_dossier_s_emporte_en_word_et_en_pdf(marche):

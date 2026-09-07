@@ -4821,7 +4821,34 @@ def _ao_charge(data):
     fiche = data.get("fiche") if isinstance(data.get("fiche"), dict) else {}
     analyse = data.get("analyse") if isinstance(data.get("analyse"), dict) else None
     saisies = data.get("saisies") if isinstance(data.get("saisies"), dict) else {}
-    return ({str(k)[:60]: str(v)[:400] for k, v in list(fiche.items())[:80]},
+    fiche = {str(k)[:60]: str(v)[:400] for k, v in list(fiche.items())[:80]}
+    # LA FICHE PART DU DOSSIER D'ENTREPRISE, ET CE QUI ARRIVE LA CORRIGE.
+    #
+    # CE QUE CELA SUPPRIME. Trente-huit des soixante-quatre rubriques des
+    # vingt-trois pièces viennent de l'identité du candidat — vingt champs qui
+    # ne dépendent pas de la consultation. Les retaper à chaque dossier était
+    # la plus grosse part du travail manuel restant. Mesuré : sans rien,
+    # 0 rubrique remplie ; avec les seules pièces, 11 ; avec le seul dossier
+    # d'entreprise, 19 ; avec les deux, 30. DC1 passe de 0 à 9 champs placés.
+    #
+    # L'ORDRE COMPTE, ET IL EST DANS CE SENS. Le dossier fournit le socle ;
+    # une valeur transmise par l'écran l'emporte, parce qu'elle est plus
+    # récente et parce qu'une consultation peut demander une variante (un
+    # établissement secondaire, un autre signataire). L'inverse aurait rendu
+    # toute correction impossible.
+    #
+    # LÉGITIME PARCE QUE LA SECTION EST INTERNE. Ce sont les données de
+    # CONSEILPREV ; elles ne sortent que vers l'administration, qui répond POUR
+    # le cabinet. Le jour où le § 14 s'ouvrirait à des clients, ce report
+    # devrait tomber : un client répond avec SON identité.
+    socle = {}
+    try:
+        socle = dossier_entreprise.fiche_candidat()["fiche"]
+    except Exception:
+        app.logger.exception("fiche candidat depuis le dossier d'entreprise")
+    fusion = dict(socle)
+    fusion.update({k: v for k, v in fiche.items() if str(v).strip()})
+    return (fusion,
             analyse,
             {str(k)[:80]: str(v)[:800] for k, v in list(saisies.items())[:120]},
             bool(data.get("groupement")))
@@ -4939,6 +4966,20 @@ def api_datacenter_marche_piece():
         rapport["places"] = len(rap["places"])
         rapport["non_places"] = [x["rubrique"] for x in rap["non_places"]]
         rapport["maj"] = rap["maj"]
+        # CE QUE LA PIÈCE ATTEND ENCORE, ET PAS SEULEMENT CE QUE LE MODÈLE
+        # N'A PAS SU PLACER. Les deux comptes sont différents et le second ne
+        # couvre pas le premier : `non_places` dit « le modèle a un
+        # emplacement, la valeur manquait », tandis qu'une rubrique que le
+        # modèle ne connaît pas du tout n'y figure jamais.
+        #
+        # MESURÉ SUR LE DC2 : son modèle ne déclare AUCUN champ ici, si bien
+        # que l'en-tête annonçait « 0 placée, rien qui reste » pendant que la
+        # pièce attendait six valeurs — RCS, NAF, les trois chiffres
+        # d'affaires et l'effectif. Une pièce qui ne dit rien de ce qui lui
+        # manque se lit comme une pièce complète.
+        rapport["reste"] = [l["libelle"] for l in piece["rubriques"]
+                            if l.get("statut") in ("a_saisir", "non_trouve",
+                                                   "invalide")][:12]
         blob = octets
         mimetype = livrables_export.MIME["docx"]
         nom = "%s-projet-non-signe.docx" % modele
