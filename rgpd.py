@@ -157,6 +157,11 @@ REGISTRE = [
                     "sont extraits et la fiche de candidature, pour éviter de les "
                     "redéposer et de les retaper à chaque session.",
         "base_legale": "Exécution du contrat de service (art. 6.1.b)",
+        # CE QUI EST ÉCRIT ICI ET CE QUI EN SORT SONT DEUX QUESTIONS. La ligne
+        # « donnees » dit ce que la BASE conserve ; « transferts » dit ce qui
+        # QUITTE le cabinet. Les confondre ferait croire que tout ce qui est
+        # conservé est aussi transmis — c'est faux, et c'est la distinction que
+        # `ao_redaction.contexte()` tient et qu'une règle mesure.
         "donnees": "Texte des pièces déposées (règlement de consultation, CCAP, "
                    "CCTP, acte d'engagement…) et fiche de candidature : raison "
                    "sociale, SIRET, adresse, téléphone, courriel, effectif, "
@@ -173,9 +178,20 @@ REGISTRE = [
                  "d'archive.",
         "destinataires": "CONSEILPREV et, pour un projet partagé, les collègues "
                          "invités sur CE projet. Aucun autre compte.",
-        "transferts": "Aucun. Base hébergée en UE (Francfort). Le contenu ne part "
-                      "vers aucun modèle de langage : les relevés sont extraits "
-                      "par expressions régulières, jamais par génération.",
+        "transferts": "Base hébergée en UE (Francfort). LE TEXTE DES PIÈCES "
+                      "DÉPOSÉES NE SORT PAS : les relevés en sont extraits par "
+                      "expressions régulières, jamais par génération, et les "
+                      "citations restent à l'écran.\n\n"
+                      "CE QUI SORT, ET SEULEMENT SI LA RÉDACTION ASSISTÉE EST "
+                      "DEMANDÉE : pour mettre en brouillon les onze pièces qui "
+                      "se rédigent (mémoire technique, références, DPGF, notes "
+                      "d'accompagnement), les VALEURS relevées — objet, "
+                      "procédure, lots, critères, performances exigées, "
+                      "pénalités, délais, acheteur — et la fiche du cabinet "
+                      "sont transmises à Anthropic (États-Unis). Ni le texte "
+                      "des pièces, ni les citations. Le geste est explicite, "
+                      "pièce par pièce ; sans lui, rien ne part. Mécanisme de "
+                      "transfert à documenter — voir ACTIONS.",
         "securite": "CHIFFRÉ AU REPOS (Fernet, clé hors base) — sans clé, rien "
                     "n'est écrit, il n'existe aucun repli en clair. Accès décidé "
                     "par le projet et non par un identifiant fourni. Volumes "
