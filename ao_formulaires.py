@@ -230,7 +230,11 @@ ANCRES = {
     "attri1": [
         {"rubrique": "objet_marche", "ancre": "Objet du marché public"},
         {"rubrique": "reference", "ancre": "Objet du marché public"},
-        {"rubrique": "lots", "ancre": "au lot n°"},
+        # LE CADRE A DEMANDE L'INTITULÉ DES LOTS QUE CET ACTE COUVRE, pas
+        # combien la consultation en compte — même défaut, même correction
+        # qu'au cadre C du DC1. Sans saisie, la ligne reste vide : une case
+        # vide se remplit, une case faussement remplie ne se relit pas.
+        {"rubrique": "lots_vises", "ancre": "au lot n°"},
         {"rubrique": "titulaire",
          "ancre": "s’engage, sur la base de son offre et pour son propre "
                   "compte"},

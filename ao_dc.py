@@ -370,6 +370,81 @@ def _sans_accent(s):
                    if unicodedata.category(c) != "Mn")
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  « RC » VEUT DIRE TROIS CHOSES, ET DEUX D'ENTRE ELLES NE SONT PAS DU MARCHÉ
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#   · RC  — le RÈGLEMENT DE CONSULTATION, pièce du dossier de l'acheteur ;
+#   · RCS — le REGISTRE DU COMMERCE ET DES SOCIÉTÉS, où CONSEILPREV est
+#           immatriculée : c'est le Kbis, une pièce à NOUS ;
+#   · RC pro — la RESPONSABILITÉ CIVILE professionnelle : l'attestation de
+#           notre assureur, une pièce à NOUS elle aussi.
+#
+# LE DÉFAUT MESURÉ. « attestation-rc-pro.pdf » et « RC-professionnelle-2026.pdf »
+# étaient identifiés RÈGLEMENT DE LA CONSULTATION — sur leur seul nom, avec la
+# mention « confiance moyenne ». Deux conséquences, et la seconde est la pire :
+# le module cherchait dans une attestation d'assurance la date limite, les
+# critères et l'objet du marché (il ne trouvait rien, et le disait) ; surtout,
+# il déclarait le règlement de consultation PRÉSENT alors qu'il manquait. Ce
+# que ce module vend comme son information la plus utile — « ce qui manque » —
+# était faux, dans le sens qui coûte le plus.
+#
+# LA BORNE `(?![a-z])` NE SUFFISAIT PAS. Elle protège « rcs » et « rcpro »,
+# où la lettre suit immédiatement ; elle laisse passer « rc-pro », « rc_pro »,
+# « rc pro » et « rc professionnelle », où un séparateur s'intercale.
+#
+# ON NE SE CONTENTE PAS DE REFUSER : ON NOMME. Une pièce rendue « non
+# reconnue » enverrait chercher une erreur de nommage là où il n'y en a pas.
+# Le module dit ce que le document EST, et à quel dossier il appartient.
+PIECES_CANDIDAT = {
+    "assurance_rc_pro": {
+        "nom": "Attestation d'assurance responsabilité civile professionnelle",
+        "dossier": "votre dossier de candidature",
+        # LE SÉPARATEUR D'UN NOM DE FICHIER N'EST PAS TOUJOURS L'ESPACE.
+        # Mesuré : « assurance-responsabilite-civile.pdf » n'entrait pas dans
+        # un motif écrit avec une espace — le tiret est pourtant le
+        # séparateur le plus courant des noms de fichiers.
+        "nom_motifs": [r"(?<![a-z])rc[\s._-]*(?:pro|professionnelle?)",
+                       r"responsabilit[ée][\s._-]*civile"],
+        "texte_motifs": [r"attestation d.?assurance",
+                         r"responsabilit[ée] civile professionnelle"],
+        "ou": "Elle se dépose au dossier d'entreprise, avec sa date de fin de "
+              "validité — c'est elle qui décide si la pièce est encore "
+              "opposable le jour de la remise.",
+    },
+    "extrait_kbis": {
+        "nom": "Extrait Kbis — immatriculation au registre du commerce (RCS)",
+        "dossier": "votre dossier de candidature",
+        "nom_motifs": [r"(?<![a-z])kbis(?![a-z])", r"(?<![a-z])rcs(?![a-z])"],
+        "texte_motifs": [r"extrait kbis",
+                         r"registre du commerce et des soci[ée]t[ée]s"],
+        "ou": "C'est de là que se lisent la ville d'immatriculation au RCS, "
+              "la forme juridique et le capital de la fiche candidat.",
+    },
+}
+
+
+def _piece_candidat(n, t):
+    """La pièce du dossier CANDIDAT reconnue, ou None.
+
+    LE NOM SEUL NE SUFFIT PAS QUAND LE TEXTE EXISTE, et l'inverse non plus :
+    un règlement de consultation EXIGE une attestation de responsabilité
+    civile et la nomme dans sa liste de pièces. Reconnaître sur le seul texte
+    classerait donc le vrai règlement comme une attestation.
+
+    LA RÈGLE : le NOM décide, le texte CONFIRME ou CONTREDIT. Un nom qui dit
+    « rc pro » et un texte qui dit « règlement de la consultation » : c'est le
+    règlement, mal nommé, et l'on n'écarte rien.
+    """
+    for cle, p in PIECES_CANDIDAT.items():
+        if not any(re.search(m, n) for m in p["nom_motifs"]):
+            continue
+        if t and re.search(r"r[èe]glement de (?:la )?consultation", t):
+            return None
+        return dict(p, cle=cle)
+    return None
+
+
 def identifier(nom, texte="", extension=""):
     """Ce qu'une pièce est, avec la confiance et les indices qui le disent.
 
@@ -379,6 +454,22 @@ def identifier(nom, texte="", extension=""):
     """
     n = _sans_accent((nom or "").lower())
     t = _sans_accent((texte or "")[:20000].lower())
+    # AVANT TOUT COMPTAGE : ce document est-il une pièce à NOUS ? « RC » est
+    # le sigle du règlement de consultation, mais aussi celui de la
+    # responsabilité civile ; « RCS » celui du registre du commerce. Compter
+    # d'abord et corriger ensuite reviendrait à laisser un point au règlement
+    # pour une attestation d'assurance.
+    candidat = _piece_candidat(n, t)
+    if candidat:
+        return {"code": None, "nom": None, "confiance": "aucune",
+                "indices": [], "reconnue": False,
+                "candidat": {"cle": candidat["cle"], "nom": candidat["nom"],
+                             "dossier": candidat["dossier"],
+                             "ou": candidat["ou"]},
+                "pourquoi": ("%s — c'est une pièce de %s, pas du dossier de "
+                             "consultation. %s"
+                             % (candidat["nom"], candidat["dossier"],
+                                candidat["ou"]))}
     scores, indices = {}, {}
     for code, m in _MARQUEURS.items():
         pts, vus = 0, []
@@ -898,7 +989,7 @@ def analyser(documents):
     constat qu'on fait trois jours avant la remise si personne ne le fait le
     premier jour.
     """
-    pieces, inconnues, presentes = [], [], set()
+    pieces, inconnues, presentes, a_nous = [], [], set(), []
     for d in documents or []:
         nom = (d.get("nom") or d.get("filename") or "").strip()
         texte = d.get("texte") or ""
@@ -925,6 +1016,14 @@ def analyser(documents):
                     "points de vigilance n'ont pas pu y être cherchés. La "
                     "pièce est identifiée sur son nom seul.")
             pieces.append(ligne)
+        elif ident.get("candidat"):
+            # PAS « INCONNUE » : ON SAIT EXACTEMENT CE QUE C'EST. La ranger
+            # avec les fichiers illisibles ferait chercher une faute de
+            # nommage là où il n'y en a pas — le fichier est bien nommé, il
+            # appartient simplement à l'autre dossier.
+            ligne.update(ident["candidat"])
+            ligne["pourquoi"] = ident.get("pourquoi", "")
+            a_nous.append(ligne)
         else:
             ligne["pourquoi"] = ident.get("pourquoi", "")
             inconnues.append(ligne)
@@ -940,8 +1039,13 @@ def analyser(documents):
         "version": VERSION,
         "pieces": pieces,
         "inconnues": inconnues,
+        # LES PIÈCES QUI SONT LES NÔTRES, DÉPOSÉES ICI PAR MÉGARDE. Elles ne
+        # comptent NI comme pièces du dossier de consultation — elles n'en
+        # sont pas — NI comme fichiers non reconnus : on sait ce qu'elles
+        # sont, et on dit où elles vont.
+        "pieces_candidat": a_nous,
         "manquantes": manquantes,
-        "alertes": _alertes(pieces, manquantes, inconnues),
+        "alertes": _alertes(pieces, manquantes, inconnues, a_nous),
         "ordre_lecture": [{"rang": p["rang_lecture"], "sigle": p["sigle"],
                            "nom": p["nom"]}
                           for p in sorted(PIECES_MARCHE.values(),
@@ -960,7 +1064,7 @@ RESERVE_ANALYSE = (
     "absent.")
 
 
-def _alertes(pieces, manquantes, inconnues):
+def _alertes(pieces, manquantes, inconnues, pieces_candidat=()):
     """Ce qui doit sauter aux yeux avant le reste.
 
     L'ORDRE EST CELUI DU RISQUE : ce qui rend l'offre irrecevable d'abord, ce
@@ -999,6 +1103,20 @@ def _alertes(pieces, manquantes, inconnues):
             "niveau": "verifier",
             "texte": "%d fichier(s) n'ont pas été reconnus. Ils ne sont pas "
                      "rangés au plus proche : ouvrez-les." % len(inconnues),
+        })
+    # DÉPOSER SES PROPRES PIÈCES ICI N'EST PAS UNE FAUTE, MAIS ELLES N'Y
+    # SERVENT À RIEN — et surtout, une attestation « RC pro » prise pour le
+    # règlement de consultation ferait déclarer PRÉSENT un règlement absent.
+    if pieces_candidat:
+        a.append({
+            "niveau": "verifier",
+            "texte": "%d pièce(s) de VOTRE dossier ont été déposées avec le "
+                     "dossier de consultation : %s. Elles ne sont pas "
+                     "analysées ici — « RC » désigne le règlement de "
+                     "consultation, jamais la responsabilité civile ni le "
+                     "registre du commerce."
+                     % (len(pieces_candidat),
+                        ", ".join(x["nom"] for x in pieces_candidat)),
         })
     for p in pieces:
         if p["identification"]["confiance"] == "faible":
@@ -2395,8 +2513,24 @@ RUBRIQUES = {
          "source": "consultation", "releve": "objet"},
         {"cle": "reference", "libelle": "Référence de la consultation "
          "(cadre A)", "source": "consultation", "releve": "reference"},
-        {"cle": "lots", "libelle": "Lots concernés par cet acte d'engagement "
-         "(cadre A)", "source": "consultation", "releve": "lots"},
+        # LE MÊME PARTAGE QU'AU CADRE C DU DC1 : un FAIT relevé, et une
+        # DÉCISION. Le libellé promettait « les lots concernés par cet acte »
+        # et livrait l'allotissement de la consultation — l'ATTRI1 produit
+        # portait, sous « au lot n°……. ou aux lots n°…………… du marché public »,
+        # la mention « 3 lots ». L'acheteur lisait « cet acte d'engagement
+        # correspond au lot n° 3 lots », et le formulaire demande pourtant
+        # « l'intitulé du ou des lots tel qu'il figure dans l'avis d'appel à
+        # la concurrence ».
+        {"cle": "lots", "libelle": "Allotissement de la consultation",
+         "source": "consultation", "releve": "lots"},
+        {"cle": "lots_vises",
+         "libelle": "Lots couverts par cet acte d'engagement — leur intitulé "
+                    "(cadre A)",
+         "source": "saisie",
+         "aide": "L'intitulé, tel qu'il figure à l'avis d'appel à la "
+                 "concurrence — pas leur nombre. Un acte d'engagement est "
+                 "établi par lot attribué : celui-ci ne couvre que ce qu'il "
+                 "nomme."},
         {"cle": "perimetre",
          "libelle": "Ce que cet acte couvre — offre de base, variante(s), "
                     "prestations supplémentaires (cadre A)",

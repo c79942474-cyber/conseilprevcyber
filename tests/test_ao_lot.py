@@ -21,6 +21,7 @@ donne :
     revienne. Mesuré en navigateur : 6 au même instant, 23 pièces en 1,25 s pour
     6,7 s de travail.
 """
+import html
 import io
 import json
 import os
@@ -1530,3 +1531,199 @@ def test_le_cadre_C1_du_DC2_recoit_les_CINQ_lignes_que_le_dossier_porte():
             assert ecrites.get(cle) == valeur, (
                 "%s : « %s » vaut %r, attendu %r"
                 % (modele, cle, ecrites.get(cle), valeur))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  « RC » VEUT DIRE TROIS CHOSES, ET DEUX NE SONT PAS DU DOSSIER MARCHÉ
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#   · RC      — le RÈGLEMENT DE CONSULTATION, pièce de l'acheteur ;
+#   · RCS     — le REGISTRE DU COMMERCE ET DES SOCIÉTÉS, où CONSEILPREV est
+#               immatriculée : le Kbis, une pièce à NOUS ;
+#   · RC pro  — la RESPONSABILITÉ CIVILE professionnelle : l'attestation de
+#               notre assureur, une pièce à NOUS elle aussi.
+
+def _ident(nom, texte=""):
+    return ao_dc.identifier(nom, texte)
+
+
+def test_une_attestation_RC_PRO_n_est_PAS_prise_pour_le_reglement():
+    """LE DÉFAUT MESURÉ, ET SA CONSÉQUENCE LA PIRE.
+
+    « attestation-rc-pro.pdf » était identifié RÈGLEMENT DE LA CONSULTATION,
+    sur son seul nom. Le module cherchait alors dans une attestation
+    d'assurance la date limite, les critères et l'objet du marché — il ne
+    trouvait rien, et le disait. Mais surtout il déclarait le règlement
+    PRÉSENT alors qu'il MANQUAIT : « ce qui manque », l'information que ce
+    module vend comme la plus utile, devenait fausse dans le sens qui coûte.
+
+    LA BORNE `(?![a-z])` NE SUFFISAIT PAS : elle protège « rcs » et
+    « rcpro », où la lettre suit immédiatement, et laisse passer « rc-pro »,
+    « rc_pro », « rc pro » et « rc professionnelle ».
+
+    ON ÉNUMÈRE LES ÉCRITURES, on n'en échantillonne pas une."""
+    for nom in ("attestation-rc-pro.pdf", "RC-professionnelle-2026.pdf",
+                "RC_pro.pdf", "rc pro 2026.pdf", "RC.professionnelle.pdf",
+                "assurance-responsabilite-civile.pdf"):
+        r = _ident(nom, "ATTESTATION D'ASSURANCE responsabilité civile "
+                        "professionnelle — police n° 12345")
+        assert r["code"] != "rc", (
+            "« %s » est pris pour le règlement de consultation" % nom)
+        assert (r.get("candidat") or {}).get("cle") == "assurance_rc_pro", (
+            "« %s » n'est pas nommé : %s" % (nom, r.get("pourquoi")))
+
+
+def test_un_extrait_RCS_ou_KBIS_n_est_PAS_pris_pour_le_reglement():
+    """LE REGISTRE DU COMMERCE EST À NOUS. C'est de lui que se lisent la ville
+    d'immatriculation au RCS, la forme juridique et le capital de la fiche."""
+    for nom in ("extrait-RCS.pdf", "kbis.pdf", "KBIS_CONSEILPREV.pdf",
+                "rcs_paris.pdf"):
+        r = _ident(nom, "EXTRAIT KBIS — registre du commerce et des sociétés")
+        assert r["code"] != "rc", nom
+        assert (r.get("candidat") or {}).get("cle") == "extrait_kbis", (
+            "« %s » n'est pas nommé : %s" % (nom, r.get("pourquoi")))
+
+
+def test_le_VRAI_reglement_reste_reconnu_meme_quand_il_PARLE_de_RC_pro():
+    """LE TÉMOIN INVERSE, ET IL EST INDISPENSABLE. Un règlement de
+    consultation EXIGE une attestation de responsabilité civile et la nomme
+    dans sa liste de pièces à remettre. Une garde posée sur le TEXTE
+    écarterait donc le vrai règlement.
+
+    LA RÈGLE RETENUE : le NOM décide, le texte CONFIRME ou CONTREDIT. Un
+    fichier nommé « rc-pro » dont le texte dit « règlement de la
+    consultation » est le règlement, mal nommé, et rien n'est écarté."""
+    r = _ident("RC.pdf", "RÈGLEMENT DE LA CONSULTATION. Le candidat produira "
+                         "une attestation d'assurance responsabilité civile "
+                         "professionnelle en cours de validité.")
+    assert r["code"] == "rc", r
+    mal_nomme = _ident("rc-pro.pdf", "RÈGLEMENT DE LA CONSULTATION — "
+                                     "critères de jugement et pondération")
+    assert mal_nomme["code"] == "rc", (
+        "un règlement mal nommé est écarté : %s" % mal_nomme.get("pourquoi"))
+    for nom in ("01_RC.pdf", "reglement-de-consultation.pdf", "RDC.pdf"):
+        assert _ident(nom, "Composition du dossier à remettre.")["code"] == "rc", nom
+
+
+def test_le_reglement_est_declare_MANQUANT_quand_seule_la_RC_pro_est_deposee():
+    """LA CONSÉQUENCE, MESURÉE SUR L'ANALYSE COMPLÈTE — pas sur la seule
+    identification. C'est là que le défaut coûtait : le dossier paraissait
+    complet."""
+    a = ao_dc.analyser([
+        {"nom": "attestation-rc-pro.pdf",
+         "texte": "ATTESTATION D'ASSURANCE responsabilité civile professionnelle"},
+        {"nom": "02_CCAP.pdf", "texte": "Cahier des clauses administratives "
+                                        "particulières — pénalités de retard"},
+    ])
+    assert "rc" not in {p["code"] for p in a["pieces"]}, (
+        "le règlement est déclaré présent sur la foi d'une attestation")
+    assert "rc" in {m["code"] for m in a["manquantes"]}, (
+        "le règlement absent n'est pas signalé manquant")
+    # ET LA PIÈCE EST NOMMÉE, pas rangée avec les fichiers illisibles.
+    assert [p["fichier"] for p in a["pieces_candidat"]] == \
+        ["attestation-rc-pro.pdf"], a["pieces_candidat"]
+    assert not a["inconnues"], a["inconnues"]
+
+
+def test_l_ecran_DIT_que_ces_pieces_sont_les_notres_et_ou_elles_vont():
+    """UNE PIÈCE ÉCARTÉE SANS UN MOT ENVERRAIT CHERCHER UNE FAUTE DE NOMMAGE
+    LÀ OÙ IL N'Y EN A PAS : le fichier est bien nommé, il appartient
+    simplement à l'autre dossier."""
+    a = ao_dc.analyser([{"nom": "kbis.pdf", "texte": "Extrait Kbis"}])
+    alertes = " ".join(x["texte"] for x in a["alertes"])
+    assert "VOTRE dossier" in alertes, alertes
+    assert "responsabilité civile" in alertes and "registre du commerce" in alertes, (
+        "l'alerte ne lève pas l'ambiguïté du sigle : %s" % alertes)
+    p = a["pieces_candidat"][0]
+    for champ in ("nom", "dossier", "ou"):
+        assert (p.get(champ) or "").strip(), (champ, p)
+    # ET LA PAGE LES DESSINE — un champ rendu par le serveur que personne
+    # n'affiche est une correction que personne ne voit.
+    #
+    # ON EXÉCUTE LE RENDU, ON NE CHERCHE PAS LE NOM DANS LE FICHIER. Deux
+    # mutations l'ont prouvé nécessaire : remplacer la condition par
+    # `if (false)` laisse « a.pieces_candidat » dans la boucle juste en
+    # dessous, et renommer la règle de style laisse « ig-ao-nous » sur la
+    # ligne suivante. Une règle qui cherche une chaîne survit aux deux.
+    # LE TEXTE EST ÉCHAPPÉ AU RENDU, ET IL DOIT L'ÊTRE. On déséchappe pour
+    # comparer — ce qui vérifie au passage que l'échappement a bien eu lieu :
+    # un texte arrivé brut ne se déséchapperait pas en lui-même.
+    rendu = html.unescape(_rendu_analyse(a))
+    assert "ig-ao-nous" in rendu, (
+        "le bloc des pièces du candidat n'est pas dessiné")
+    for p in a["pieces_candidat"]:
+        assert p["fichier"] in rendu and p["nom"] in rendu, (
+            "« %s » n'apparaît pas à l'écran" % p["fichier"])
+        assert p["ou"] in rendu, "où la porter n'est pas dit"
+    # ET LE BLOC A UN STYLE À LUI : sans quoi il se confondrait avec une
+    # pièce du marché.
+    css = _src("ingenierie-datacenter.html")
+    assert ".ig-ao-nous{" in css, (
+        "le bloc n'a plus de règle de style propre")
+    # LE TÉMOIN NÉGATIF : sans pièce à nous, aucun bloc.
+    vide = html.unescape(_rendu_analyse(ao_dc.analyser(
+        [{"nom": "01_RC.pdf", "texte": "RÈGLEMENT DE LA CONSULTATION"}])))
+    assert "ig-ao-nous" not in vide, (
+        "le bloc s'affiche alors qu'aucune pièce du candidat n'a été déposée")
+
+
+def _rendu_analyse(analyse):
+    """Le HTML que `aoRendre` produit RÉELLEMENT, en l'exécutant sous node.
+
+    Le rendu écrit dans le DOM ; on lui en donne un minimal — un objet qui
+    retient ce qu'on lui pose — et l'on relit ce qu'il a écrit."""
+    prog = _js_source("esc", "info", "aoIgnores", "aoRendre") + "\n".join([
+        "",
+        "const zone = {innerHTML: ''};",
+        "globalThis.$ = () => zone;",
+        "globalThis.document = {querySelector: () => null,"
+        " querySelectorAll: () => []};",
+        "aoRendre(JSON.parse(process.env.AN));",
+        "process.stdout.write(zone.innerHTML);",
+        "",
+    ])
+    out = subprocess.run(["node"], input=prog, capture_output=True,
+                         text=True, timeout=60,
+                         env=dict(os.environ, AN=json.dumps(analyse)))
+    assert out.returncode == 0, out.stderr[-1500:]
+    return out.stdout
+
+
+def test_le_cadre_A_de_l_ATTRI1_recoit_l_objet_du_MARCHE_relevé_au_reglement():
+    """« A — OBJET DE L'ACTE D'ENGAGEMENT » ATTEND L'OBJET DU MARCHÉ PUBLIC,
+    et cet objet est écrit dans le règlement de consultation — pas ailleurs.
+
+    LE CADRE PORTE DEUX CHOSES, ET IL FAUT LES SÉPARER :
+      · « Objet du marché public » — un FAIT, relevé au règlement ;
+      · « Cet acte d'engagement correspond … au lot n°……. ou aux lots
+        n°…………… » avec l'instruction « Indiquer l'INTITULÉ du ou des lots » —
+        une DÉCISION du titulaire.
+
+    LE DÉFAUT MESURÉ, jumeau de celui du cadre C du DC1 : l'allotissement
+    relevé — « 3 lots » — était écrit sous la seconde ligne. L'acheteur lisait
+    « cet acte d'engagement correspond au lot n° 3 lots », là où le formulaire
+    réclame un intitulé."""
+    an = ao_dc.analyser([{"nom": "01_RC.pdf", "texte": RC_LIGNES}])
+    r = ao_dc.remplir(fiche=_socle(), analyse=an, saisies={})
+    _b, rap = ao_formulaires.remplir_document(
+        "attri1", ao_formulaires.valeurs_pour(r, "acte_engagement"))
+    ecrites = {x["rubrique"]: x["valeur"] for x in rap["places"]}
+    # L'OBJET DU MARCHÉ ARRIVE, ET IL VIENT BIEN DU RÈGLEMENT.
+    assert ecrites.get("objet_marche") == \
+        "construction et exploitation d'un centre de données", ecrites
+    assert "Procédure" not in ecrites.get("objet_marche", ""), (
+        "la ligne suivante du règlement est versée dans le cadre A")
+    # ET L'ALLOTISSEMENT N'EST PAS ÉCRIT À LA PLACE DE LA DÉCISION.
+    assert "lots" not in ecrites, (
+        "« %s » est écrit dans le cadre A" % ecrites.get("lots"))
+    assert "lots" in rap["sans_ancre"], rap["sans_ancre"]
+    p = next(x for x in r["pieces"] if x["cle"] == "acte_engagement")
+    lv = next(l for l in p["rubriques"] if l["cle"] == "lots_vises")
+    assert lv["statut"] == "a_saisir" and not lv.get("valeur"), lv
+    # QUAND LA DÉCISION EST PRISE, ELLE S'ÉCRIT — et sous SON intitulé.
+    r2 = ao_dc.remplir(fiche=_socle(), analyse=an,
+                       saisies={"acte_engagement.lots_vises": "Lot 3 — froid"})
+    _b2, rap2 = ao_formulaires.remplir_document(
+        "attri1", ao_formulaires.valeurs_pour(r2, "acte_engagement"))
+    assert {x["rubrique"]: x["valeur"] for x in rap2["places"]}.get(
+        "lots_vises") == "Lot 3 — froid", rap2["places"]

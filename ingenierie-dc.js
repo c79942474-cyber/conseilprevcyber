@@ -6082,6 +6082,25 @@ function messageDelai(e, defaut) {
       h += '<div class="ig-ao-p ig-ao-inc"><b>' + esc(p.fichier) + "</b>"
         + "<p>" + esc(p.pourquoi) + "</p></div>";
     });
+    /* LES PIÈCES QUI SONT LES NÔTRES, DÉPOSÉES ICI PAR MÉGARDE. Elles ne se
+       rangent pas avec les fichiers non reconnus : on sait exactement ce
+       qu'elles sont. « RC » est le sigle du règlement de consultation, mais
+       aussi celui de la responsabilité civile — et « RCS » celui du registre
+       du commerce. Les confondre faisait déclarer PRÉSENT un règlement de
+       consultation absent, sur la foi d'une attestation d'assurance. */
+    if ((a.pieces_candidat || []).length) {
+      h += '<div class="ig-ao-p ig-ao-nous"><b>Des pièces de VOTRE dossier '
+        + "ont été déposées ici</b>"
+        + "<p>Elles ne sont pas analysées avec le dossier de consultation — "
+        + "elles n'en font pas partie. Leur place est au dossier "
+        + "d'entreprise.</p>";
+      a.pieces_candidat.forEach(function (p) {
+        h += '<div class="ig-ao-r"><b>' + esc(p.fichier) + "</b>"
+          + "<p>" + esc(p.nom) + "</p>"
+          + '<p class="ig-ao-w">' + esc(p.ou) + "</p></div>";
+      });
+      h += "</div>";
+    }
     h += '<p class="ig-icpe-res">' + esc(a.reserve) + "</p>";
     out.innerHTML = h;
     /* Posé APRÈS le rendu, qui écrase le contenu du bloc : appelé avant, le

@@ -58,6 +58,7 @@ SAISIES = {
     # le tient. Elle est ici pour que le PLACEMENT de la décision, quand elle
     # est prise, soit mesuré sous son propre intitulé.
     "dc1.objet_candidature": "pour les lots n° 1 et 3",
+    "acte_engagement.lots_vises": "Lot 3 — production de froid",
     "dc4.sous_traitance": "oui — lot 3",
     "dc4.sous_traitant": "Froid Concept SARL — 59000 Lille — SIRET 51234567800021",
     "dc4.sous_traitant_pouvoir": "M. Martin, gérant",
@@ -648,7 +649,13 @@ DEVANT_FORMES = {
     },
     "attri1": {
         "objet_marche": "(Reprendre le contenu de la mention",
-        "lots": "(Indiquer l'intitulé du ou des lots",
+        # MÊME CORRECTION QU'AU CADRE C DU DC1, et pour la même raison. Cette
+        # ligne disait `"lots": "(Indiquer l'intitulé du ou des lots"` et elle
+        # était VERTE : le module écrivait bien l'allotissement relevé —
+        # « 3 lots » — sous « au lot n°……. ou aux lots n°…………… du marché
+        # public ». L'intitulé que le formulaire réclame là est celui des lots
+        # que CET ACTE couvre ; il ne peut venir que du titulaire.
+        "lots_vises": "(Indiquer l'intitulé du ou des lots",
         "titulaire": "[Indiquer le nom commercial",
         "duree": "B5 - Durée d'exécution du marché public",
     },
