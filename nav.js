@@ -95,6 +95,9 @@
     "/secteurs": '<path d="M3 21V10l6 3.5V10l6 3.5V6l6 3.5V21z"/><path d="M3 21h18"/>',
     "/methodologie": '<circle cx="5" cy="6" r="2.3"/><circle cx="5" cy="18" r="2.3"/><circle cx="19" cy="12" r="2.3"/><path d="M7.3 6h4.2a3 3 0 0 1 3 3v.8M7.3 18h4.2a3 3 0 0 0 3-3v-.8"/>',
     "/etudes-de-cas": '<path d="M5 3.5h11l3.5 3.5v13.5H5z"/><path d="M16 3.5V7h3.5"/><path d="M9 12h6M9 16h4"/>',
+    /* Le registre : un tampon sur une page — ce qui s'atteste, par opposition
+       au dossier de l'étude de cas, qui se raconte. */
+    "/references": '<path d="M5 3.5h14v17H5z"/><path d="M8.5 8h7M8.5 12h7"/><circle cx="15.5" cy="16.5" r="2.5"/>',
     /* ── Conseil & transformation ──────────────────────────────────────── */
     "/operating-model": '<rect x="9" y="2.5" width="6" height="4.5" rx="1"/><rect x="2.5" y="16" width="6" height="4.5" rx="1"/><rect x="15.5" y="16" width="6" height="4.5" rx="1"/><path d="M12 7v4M5.5 16v-2.5h13V16"/>',
     "/maturite-ot": '<path d="M4 20V15M9.3 20v-8M14.7 20v-11M20 20V6"/>',
@@ -166,7 +169,8 @@
   var NAV_SECTIONS = [
     { t: "Expertise", l: [
       ["/services", "Services"], ["/secteurs", "Secteurs"],
-      ["/methodologie", "Méthodologie"], ["/etudes-de-cas", "Études de cas"] ] },
+      ["/methodologie", "Méthodologie"], ["/etudes-de-cas", "Études de cas"],
+      ["/references", "Références de missions"] ] },
     { t: "Conseil & transformation", l: [
       ["/operating-model", "Operating Model & gouvernance"],
       ["/maturite-ot", "Assessment de maturité"],
@@ -244,6 +248,7 @@
     "/secteurs": "Énergie, eau, nucléaire, aérospatial-défense, industrie…",
     "/methodologie": "Notre démarche, alignée sur la norme IEC 62443",
     "/etudes-de-cas": "Références et retours d'expérience anonymisés",
+    "/references": "Le registre des missions : donneur d'ordre, objet, période",
     "/operating-model": "Modèle opérationnel cible : gouvernance, RACI, fonction OT Security",
     "/maturite-ot": "Assessment de maturité OT cyber (IEC 62443 ML, NIST CSF, C2M2)",
     "/continuite-ot": "PCA / PRA industriels, sauvegarde des configurations d'automates, exercices de crise",
@@ -476,6 +481,10 @@
       s: ["Chaque carte résume le contexte, le rôle tenu et les résultats.", "Survolez les étiquettes techniques pour leur définition.", "Un enjeu similaire ? Contactez-nous."],
       k: [["EBIOS RM", "La méthode française d'analyse de risque (ANSSI)."], ["SIEM", "Plateforme qui centralise et corrèle les journaux de sécurité."], ["CSMS", "Système de management de la cybersécurité (volet organisationnel)."]],
       l: [["Nos services", "/services"], ["Contact", "/contact"]] },
+    "/references": { t: "Registre des missions", p: "Dix missions : donneur d'ordre, objet, période et interlocuteur. C'est ce qu'un acheteur demande pour vérifier une expérience — le détail technique de ce qui a été conduit est dans les études de cas.",
+      s: ["Cliquez une carte : elle pivote sur la fiche de mission.", "Le premier rail porte les missions achevées, le second celles en cours.", "Aucun nom de personne physique n'est publié : les interlocuteurs sont désignés par leur fonction, et leurs coordonnées se demandent."],
+      k: [["Attestation de bonne exécution", "Le document par lequel un donneur d'ordre confirme qu'une prestation a été réalisée. Il se demande, et se fournit."], ["Cotraitance", "Plusieurs prestataires répondent ensemble, chacun engagé pour son lot, sans lien de sous-traitance entre eux."], ["Mission confidentielle", "Sous engagement de confidentialité : ce qui en est dit est volontairement limité et ne peut être diffusé sans accord préalable."]],
+      l: [["Études de cas", "/etudes-de-cas"], ["Contact", "/contact"]] },
     "/referentiel": { t: "Référentiel IEC 62443", p: "La carte de la série IEC 62443 : chaque carte ouvre notre lecture d'une partie de la norme.",
       s: ["Survolez le « i » d'une carte pour situer la partie.", "Ouvrez une partie pour le détail.", "Lancez l'étude de conformité pour l'appliquer à votre installation."],
       k: [["FR", "Les 7 familles d'exigences fondamentales de la série."], ["SL", "Niveaux de sécurité gradués (1 à 4) selon la menace visée."], ["Zones & conduits", "Découpage de l'installation en îlots reliés par des liaisons maîtrisées."]],
@@ -1176,6 +1185,12 @@
     ["/", "Accueil", "Vue d'ensemble de CONSEILPREV Cyber.", "Découvrir", "home index"],
     ["/services", "Services", "Nos offres : état des lieux, segmentation, supervision, AMOA, sensibilisation.", "Découvrir", "offres prestations amoa ia"],
     ["/etudes-de-cas", "Études de cas", "Nos références : énergie, automobile, ferroviaire, oil & gas, assurance, éolien offshore.", "Découvrir", "références missions clients"],
+    /* LE REGISTRE ENTRE À L'INDEX EN MÊME TEMPS QU'AU TIROIR. Les deux listes
+       vivent à trois cents lignes l'une de l'autre : ajouter la page à l'une
+       et oublier l'autre ne casse rien, et le visiteur qui cherche
+       « références » lit « aucun résultat » — ce qui s'entend comme « ce
+       cabinet n'en a pas ». Une règle compare désormais les deux. */
+    ["/references", "Registre des missions", "Dix missions : donneur d'ordre, objet, période et interlocuteur — ce qu'un acheteur demande pour vérifier.", "Découvrir", "references registre missions attestation donneur ordre interlocuteur experience"],
     ["/secteurs", "Secteurs", "Énergie, eau, manufacturing, agro, chimie, transport, assurance.", "Découvrir", "industries marchés"],
     ["/about", "À propos", "Qui nous sommes : parcours, expertises, convictions.", "Découvrir", "equipe société"],
     ["/vos-projets", "Vos projets", "Décrivez votre besoin — réponse sous 48 h ouvrées.", "Découvrir", "devis demande brief"],

@@ -416,6 +416,49 @@ def _specificite(sel, porte=".case"):
     return max(poids(m) for m in membres)
 
 
+def _hors_media(css):
+    """La feuille SANS ses blocs @media.
+
+    LE FAUX VERT QU'ELLE FERME, TROUVÉ PAR MUTATION. La règle de la loupe
+    cherchait une neutralisation « .case:hover{transform:none} » n'importe où
+    dans la cascade. Elle en trouvait une — mais à l'intérieur du bloc
+    « @media (prefers-reduced-motion: reduce) », où elle ne s'applique qu'aux
+    lecteurs qui ont désactivé les animations. Pour tout le monde d'autre, la
+    loupe reprenait la main, et la règle restait verte. Une déclaration sous
+    condition ne neutralise rien pour qui ne remplit pas la condition."""
+    out, i, prof = [], 0, 0
+    while i < len(css):
+        if css.startswith("@media", i):
+            j = css.index("{", i) + 1
+            prof = 1
+            while prof:
+                if css[j] == "{":
+                    prof += 1
+                elif css[j] == "}":
+                    prof -= 1
+                j += 1
+            i = j
+            continue
+        out.append(css[i])
+        i += 1
+    return "".join(out)
+
+
+def _cascade():
+    """Ce que le navigateur lit, DANS L'ORDRE : la feuille partagée, puis le
+    bloc en ligne de la page.
+
+    LES DEUX RÈGLES QUI SUIVENT MESURENT UNE CASCADE, PAS UN FICHIER. Le
+    mécanisme des cartes a été mutualisé dans styles.css après avoir vécu en
+    ligne dans la page : une règle qui aurait cherché la neutralisation « dans
+    etudes-de-cas.html » serait tombée le jour du déménagement, sans que rien
+    ait cessé de fonctionner. Ce qui compte est l'ordre où le navigateur les
+    rencontre, et c'est cela qu'on reconstitue."""
+    page = _src(PAGE)
+    enligne = page[page.index("<style>"):page.index("</style>")]
+    return _src("styles.css") + "\n/* ↓ bloc en ligne de la page ↓ */\n" + enligne
+
+
 def test_la_LOUPE_du_site_ne_s_applique_pas_a_une_carte_qui_pivote():
     """LE DÉFAUT, MESURÉ AVANT CORRECTION : styles.css agrandit « .case » de
     5 % au survol. Sur une carte qui pivote, cette mise à l'échelle porte sur
@@ -426,22 +469,25 @@ def test_la_LOUPE_du_site_ne_s_applique_pas_a_une_carte_qui_pivote():
     La règle suit le vrai mécanisme : elle ne réclame la neutralisation QUE
     tant que la feuille partagée agrandit .case, et elle vérifie ce qui fait
     qu'elle gagne — spécificité au moins égale, et déclarée APRÈS."""
-    feuille = _src("styles.css")
-    loupe = re.search(r"([^\n{]*\.case:hover[^\n{]*)\{([^}]*scale\([^}]*)\}",
-                      feuille, re.S)
+    # SANS LES BLOCS @media : une neutralisation qui n'existe que sous
+    # « prefers-reduced-motion » ne neutralise rien pour le visiteur ordinaire.
+    casc = _hors_media(_cascade())
+    loupe = re.search(r"([^\n{]*\.case:hover[^\n{]*)\{([^}]*scale\([^}]*)\}", casc, re.S)
     if not loupe:
         pytest.skip("la feuille partagée n'agrandit plus .case au survol")
-    src = _src(PAGE)
-    neutre = re.search(r"([^\n{]*\.case:hover[^\n{]*)\{([^}]*)\}", src)
-    assert neutre and "transform:none" in neutre.group(2), (
+    neutre = None
+    for m in re.finditer(r"([^\n{]*\.case:hover[^\n{]*)\{([^}]*)\}", casc):
+        if "transform:none" in m.group(2):
+            neutre = m
+    assert neutre, (
         "rien ne neutralise la loupe : la carte survolée n'aura pas la "
         "largeur des autres")
     assert _specificite(neutre.group(1)) >= _specificite(loupe.group(1)), (
         "la neutralisation est moins spécifique que la loupe : %s contre %s"
         % (neutre.group(1).strip(), loupe.group(1).strip()))
-    assert src.index('href="/styles.css"') < src.index(neutre.group(0)), (
-        "la neutralisation est déclarée AVANT la feuille partagée : à "
-        "spécificité égale, c'est la loupe qui gagnerait")
+    assert neutre.start() > loupe.start(), (
+        "la neutralisation est rencontrée AVANT la loupe : à spécificité "
+        "égale, c'est la loupe qui gagnerait")
 
 
 def test_une_carte_de_rail_ne_depend_pas_de_l_apparition_au_defilement():
@@ -460,15 +506,14 @@ def test_une_carte_de_rail_ne_depend_pas_de_l_apparition_au_defilement():
     bloc = bloc[:bloc.index("\n  }")]
     if ".case" not in bloc or '"rv"' not in bloc:
         pytest.skip("nav.js ne met plus les cartes en attente d'apparition")
-    src = _src(PAGE)
-    m = re.search(r"([^\n{]*\.case\.rv[^\n{]*)\{([^}]*)\}", src)
+    casc = _hors_media(_cascade())
+    m = re.search(r"([^\n{]*\.case\.rv[^\n{]*)\{([^}]*)\}", casc)
     assert m and "opacity:1" in m.group(2), (
         "rien ne rend visible une carte de rail : elle attendra d'avoir "
         "dérivé jusque dans la fenêtre")
-    feuille = _src("styles.css")
-    rv = re.search(r"(^|\})\s*(\.rv)\{([^}]*opacity:0[^}]*)\}", feuille, re.M)
+    rv = re.search(r"(^|\})\s*(\.rv)\{([^}]*opacity:0[^}]*)\}", casc, re.M)
     assert rv, "la feuille partagée ne définit plus .rv ?"
-    assert _specificite(m.group(1)) > _specificite(rv.group(2)), (
+    assert _specificite(m.group(1), ".case") > _specificite(rv.group(2), ".rv"), (
         "le rattrapage n'est pas plus spécifique que .rv")
 
 

@@ -880,6 +880,7 @@ PAGES = {
     "/maturite-ot": "maturite-ot.html",
     "/feuille-de-route": "feuille-de-route.html",
     "/etudes-de-cas": "etudes-de-cas.html",
+    "/references": "references.html",
     "/referentiel": "referentiel.html",
     "/analyse-de-risque": "analyse-de-risque.html",
     "/secteurs": "secteurs.html",
@@ -1172,6 +1173,15 @@ def gouvernance_ia():
 @app.route("/etudes-de-cas")
 def etudes_de_cas():
     return _page(PAGES["/etudes-de-cas"])
+
+
+@app.route("/references")
+def references():
+    """Le REGISTRE des missions : donneur d'ordre, objet, période,
+    interlocuteur. Distincte de /etudes-de-cas, qui raconte ce qui a été
+    conduit ; six missions figurent dans les deux, et chaque page dit que
+    l'autre existe pour que le recouvrement ne passe pas pour une redite."""
+    return _page(PAGES["/references"])
 
 
 @app.route("/referentiel")
@@ -6883,7 +6893,8 @@ def media(nom):
 # quand on protège une nouvelle page. `_SITEMAP_EXCLUDE` reste pour d'éventuelles
 # exclusions manuelles (pages publiques mais non indexables).
 _SITEMAP_EXCLUDE = set()
-_SITEMAP_TOP = {"/", "/services", "/contact", "/etudes-de-cas", "/about"}
+_SITEMAP_TOP = {"/", "/services", "/contact", "/etudes-de-cas", "/references",
+                "/about"}
 
 
 def _auth_gated_paths():
@@ -6974,6 +6985,7 @@ ci-dessous sont publiques et citables.
 - [Services]({b}/services) : conseil OT/IACS, GRC cyber, gouvernance de l'IA
 - [Secteurs]({b}/secteurs) : industrie, énergie, nucléaire, aéronautique
 - [Études de cas]({b}/etudes-de-cas) : missions types et livrables
+- [Références]({b}/references) : le registre des missions — donneur d'ordre, objet, période
 - [FAQ]({b}/faq) : OT/IACS, IEC 62443, NIS2, studios data centre — questions-réponses citables
 - [Veille]({b}/veille) : actualités réglementaires, nouveaux standards et normes
 - [Ressources]({b}/ressources) : guides et documents publics

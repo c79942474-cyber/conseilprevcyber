@@ -137,6 +137,11 @@
     "/relecture-contrat": ["juridique", "tiers"],
     "/nis2": ["juridique"],
     "/etudes-de-cas": ["analyse"],
+    /* LE REGISTRE DES MISSIONS N'EST PAS UNE ANALYSE : c'est ce qu'on oppose
+       à un acheteur qui demande « pour qui avez-vous travaillé, et qui peut
+       le confirmer ». Son axe est donc la preuve, et la gouvernance de la
+       relation — pas la technique, qui est l'axe des études de cas. */
+    "/references": ["preuve", "gouvernance"],
     /* Les trois pages « centres de données ». Elles ne relèvent pas de la
        cybersécurité : leur axe est l'analyse (ce qu'on mesure), la preuve (ce
        qu'on peut opposer) et la gouvernance (ce qu'on décide). Sans ces
@@ -501,6 +506,10 @@
           action: "Voyez ce qu’ont réellement produit des missions comparables à la vôtre.",
           gain: "De quoi calibrer une ambition et un budget sur des références, pas sur une brochure.",
           tip: "Comparez à l’échelle et au secteur, pas au nom : un FPSO et une usine agroalimentaire ne se pilotent pas pareil." },
+        { url: "/references", label: "Registre des missions",
+          action: "Parcourez les dix missions : donneur d’ordre, objet, période, et à quelle direction l’interlocuteur appartenait.",
+          gain: "De quoi vérifier une expérience plutôt que la croire — les attestations de bonne exécution se demandent, et se fournissent.",
+          tip: "Demandez l’attestation AVANT de rédiger le cahier des charges : ce qu’un prestataire peut prouver borne ce qu’il est raisonnable d’exiger." },
         { url: "/ingenierie-ia-factory", label: "L’usine IA — étude de faisabilité chiffrée",
           action: "Choisissez votre secteur — banque, assurance, marchés, entité NIS 2 : il ajoute ses postes, " +
                   "ses jalons et ses cas d’usage typiques. Renseignez vos quantités et VOS prix unitaires, " +

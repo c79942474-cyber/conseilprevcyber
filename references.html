@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Références de missions — CONSEILPREV</title>
+<meta name="description" content="Le registre des missions CONSEILPREV : donneur d’ordre, objet, période et interlocuteur. Dix missions conduites pour des opérateurs d’infrastructures, des industriels et des éditeurs.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CONSEILPREV Cyber">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Références de missions — CONSEILPREV">
+<meta property="og:description" content="Le registre des missions CONSEILPREV : donneur d’ordre, objet, période et interlocuteur. Dix missions pour des opérateurs d’infrastructures, des industriels et des éditeurs.">
+<meta property="og:url" content="https://conseilprevcyber.onrender.com/references">
+<meta property="og:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="CONSEILPREV — références de missions">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Références de missions — CONSEILPREV">
+<meta name="twitter:description" content="Le registre des missions CONSEILPREV : donneur d’ordre, objet, période et interlocuteur.">
+<meta name="twitter:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<link rel="canonical" href="https://conseilprevcyber.onrender.com/references">
+
+<link rel="icon" href="/emblem.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  /* LE MÉCANISME DES CARTES EST DANS styles.css — deux pages s’en servent.
+     Ne reste ici que ce qui appartient à celle-ci : les deux marques d’état,
+     et le cartouche qui dit ce que ce registre n’est pas. */
+  .scelle{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--amber);border:1px solid rgba(240,180,41,.45);
+    background:rgba(240,180,41,.12);border-radius:999px;padding:3px 10px;vertical-align:middle}
+  .interne{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--muted2);border:1px dashed var(--line);
+    border-radius:999px;padding:3px 10px;vertical-align:middle}
+  .ref-note{margin-top:26px;border:1px dashed var(--line);border-radius:14px;padding:20px 24px}
+  .ref-note h2{font-size:19px;letter-spacing:-.01em;margin-bottom:8px}
+  .ref-note p{font-size:13.5px;color:var(--muted);margin-top:8px;max-width:74ch}
+  .ref-note p+p{margin-top:10px}
+</style>
+</head>
+<body>
+  <header>
+  <div class="wrap nav">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu"><span></span><span></span><span></span></button>
+    <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="30" height="30" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+    <nav class="links" aria-label="Navigation principale">
+      <a href="/">Accueil</a>
+      <a href="/services">Services</a>
+      <a href="/referentiel">Référentiel 62443</a>
+      <a href="/audit-conformite">Audit 62443</a>
+      <a href="/demo">Cockpit</a>
+      <a href="/assistant">Assistant IA</a>
+      <a href="/veille">Veille</a>
+      <a href="/about">À propos</a>
+    </nav>
+    <div class="navcta">
+      <a href="/contact" class="cta">Contact</a>
+    </div>
+  </div>
+</header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow"><span class="dot"></span>Registre des missions</span>
+      <h1>Dix missions pour des <span class="grad">opérateurs d’infrastructures</span>.</h1>
+      <p class="lead" style="margin-top:18px">Énergie, mobilité, gaz, oil &amp; gas, éolien offshore, édition
+        logicielle et gouvernance de l’intelligence artificielle — en direct, en sous-traitance ou en
+        cotraitance, sur des projets EPC et FEED jusqu’à cinquante millions d’euros.</p>
+      <!-- CETTE PAGE ET /etudes-de-cas NE DISENT PAS LA MÊME CHOSE, et le
+           lecteur doit le savoir avant de choisir laquelle lire. Celle-ci est
+           le REGISTRE : qui, quoi, quand, auprès de qui vérifier. L’autre est
+           le RÉCIT technique de ce qui a été fait. Six missions figurent dans
+           les deux ; sans cette phrase, le recouvrement passerait pour une
+           redite. -->
+      <p class="note" style="margin-top:12px;font-size:13px;color:var(--muted2)">Ce registre donne le
+        <strong>donneur d’ordre, l’objet, la période et l’interlocuteur</strong> de chaque mission. Pour le
+        détail technique de ce qui a été conduit — périmètres, normes, livrables —, voyez les
+        <a href="/etudes-de-cas">études de cas</a>. Cliquez une carte&nbsp;: elle pivote sur la fiche.</p>
+    </section>
+
+    <section class="section" style="padding-top:24px">
+      <div class="kal-barre">
+        <p class="kal-titre" style="padding:0"><b>CONSEILPREV SARL</b> — SIREN 494 530 157 · contrats disponibles depuis 2019</p>
+        <div class="kal-vues" role="group" aria-label="Affichage des références">
+          <button type="button" id="kal-v-rails" aria-pressed="true">Rails</button>
+          <button type="button" id="kal-v-grille" aria-pressed="false">Grille</button>
+        </div>
+      </div>
+
+      <div class="kal" id="kal">
+        <div class="kal-piste">
+          <p class="kal-titre"><b>Missions de référence</b> — achevées · 2020 → 2026</p>
+          <div class="kal-rail" id="kal-rail-a" style="--duree:88s">
+          <button type="button" class="case e4" aria-pressed="false"
+              aria-label="DT MASTER-CARBON — mission achevée. — voir la fiche de mission">
+            <span class="case-pivot">
+            <span class="case-face case-recto">
+              <span class="case-top"><span class="case-sec">Décarbonation</span><span class="case-co">DT MASTER-CARBON</span></span>
+              <span class="case-role">Directeur technique et cofondateur</span>
+              <span class="tags"><span>Net Zéro</span><span>Trajectoires de décarbonation</span><span>Direction technique</span></span>
+              <span class="case-bas"><span>2023 — 2026</span><span class="tourne">Fiche ↻</span></span>
+            </span>
+            <span class="case-face case-verso">
+              <span class="v-tete"><span>Fiche de mission</span><span class="v-etat">2023 — 2026</span></span>
+              <span class="v-co">DT MASTER-CARBON</span>
+              <span class="v-texte">
+            <span class="para">Startup en technologies climatiques et décarbonation. Directeur technique et cofondateur — accompagnement des entreprises sur leurs trajectoires Net Zéro.</span>
+            <span class="v-note"><strong>Attestation de bonne exécution et coordonnées de l’interlocuteur sur demande.</strong></span>
+              </span>
+              <span class="v-pied"><strong>Interlocuteur&nbsp;:</strong> Direction générale.<br>Mission achevée.</span>
+            </span>
+            </span>
+          </button>
+          <button type="button" class="case e1" aria-pressed="false"
+              aria-label="EDF / TALAN Consulting — mission achevée. — voir la fiche de mission">
+            <span class="case-pivot">
+            <span class="case-face case-recto">
+              <span class="case-top"><span class="case-sec">Énergie</span><span class="case-co">EDF / TALAN Consulting</span></span>
+              <span class="case-role">Expert cybersécurité et sûreté des systèmes d’information — DSI EDF</span>
+              <span class="tags"><span>Sûreté du SI</span><span>Risques IA</span><span>Fiabilité</span></span>
+              <span class="case-bas"><span>2022 — 2024</span><span class="tourne">Fiche ↻</span></span>
+            </span>
+            <span class="case-face case-verso">
+              <span class="v-tete"><span>Fiche de mission</span><span class="v-etat">2022 — 2024</span></span>
+              <span class="v-co">EDF / TALAN Consulting</span>
+              <span class="v-texte">
+            <span class="para">Expert cybersécurité et sûreté des systèmes d’information — DSI EDF. Études de cybersécurité et de sûreté, gestion des risques IA du système d’information, fiabilité des infrastructures.</span>
+            <span class="v-note"><strong>Attestation de bonne exécution et coordonnées de l’interlocuteur sur demande.</strong></span>
+              </span>
+              <span class="v-pied"><strong>Interlocuteur&nbsp;:</strong> Direction de la sûreté du SI, DSI EDF.<br>Mission achevée.</span>
+            </span>
+            </span>
+          </button>
+          <button type="button" class="case e2" aria-pressed="false"
+              aria-label="RENAULT GROUP — mission achevée. — voir la fiche de mission">
+            <span class="case-pivot">
+            <span class="case-face case-recto">
+              <span class="case-top"><span class="case-sec">Automobile</span><span class="case-co">RENAULT GROUP</span></span>
+              <span class="case-role">Expert cybersécurité, direction qualité</span>
+              <span class="tags"><span>WP.29</span><span>CSMS</span><span>Gestion des risques</span><span>Formation</span></span>
+              <span class="case-bas"><span>2021 — 2022</span><span class="tourne">Fiche ↻</span></span>
+            </span>
+            <span class="case-face case-verso">
+              <span class="v-tete"><span>Fiche de mission</span><span class="v-etat">2021 — 2022</span></span>
+              <span class="v-co">RENAULT GROUP</span>
+              <span class="v-texte">
+            <span class="para">Expert cybersécurité, direction qualité — cartographie des exigences WP.29 et CSMS, conseil cyber et gestion des risques, feuille de route de formation.</span>
+            <span class="v-note"><strong>Attestation de bonne exécution et coordonnées de l’interlocuteur sur demande.</strong></span>
+              </span>
+              <span class="v-pied"><strong>Interlocuteur&nbsp;:</strong> Direction qualité et cybersécurité.<br>Mission achevée.</span>
+            </span>
+            </span>
+          </button>
+          <button type="button" class="case e3" aria-pressed="false"
+              aria-label="ALSTOM / AIRBUS Cyberdéfense — mission achevée. — voir la fiche de mission">
+            <span class="case-pivot">
+            <span class="case-face case-recto">
+              <span class="case-top"><span class="case-sec">Ferroviaire</span><span class="case-co">ALSTOM / AIRBUS Cyberdéfense</span></span>
+              <span class="case-role">Cybersécurité de plateforme — contrat SIEM</span>
+              <span class="tags"><span>SIEM</span><span>Ferroviaire</span><span>Plateforme</span></span>
+              <span class="case-bas"><span>2021</span><span class="tourne">Fiche ↻</span></span>
+            </span>
+            <span class="case-face case-verso">
+              <span class="v-tete"><span>Fiche de mission</span><span class="v-etat">2021</span></span>
+              <span class="v-co">ALSTOM / AIRBUS Cyberdéfense</span>
+              <span class="v-texte">
+            <span class="para">Cybersécurité de plateforme, contrat SIEM — Réseau express métropolitain.</span>
+            <span class="v-note"><strong>Attestation de bonne exécution et coordonnées de l’interlocuteur sur demande.</strong></span>
+              </span>
+              <span class="v-pied"><strong>Interlocuteur&nbsp;:</strong> Direction de la cybersécurité des plateformes clés en main, Alstom.<br>Mission achevée.</span>
+            </span>
+            </span>
+          </button>
+          <button type="button" class="case e5" aria-pressed="false"
+              aria-label="ATOS / Société du Grand Paris — mission achevée. — voir la fiche de mission">
+            <span class="case-pivot">
+            <span class="case-face case-recto">
+              <span class="case-top"><span class="case-sec">Transport</span><span class="case-co">ATOS / Société du Grand Paris</span></span>
+              <span class="case-role">Expert cybersécurité — ingénierie réseau et sécurité</span>
+              <span class="tags"><span>EBIOS RM</span><span>Ingénierie réseau</span><span>Cotraitance</span></span>
+              <span class="case-bas"><span>2021</span><span class="tourne">Fiche ↻</span></span>
+            </span>
+            <span class="case-face case-verso">
+              <span class="v-tete"><span>Fiche de mission</span><span class="v-etat">2021</span></span>
+              <span class="v-co">ATOS / Société du Grand Paris</span>
+              <span class="v-texte">
+            <span class="para">Expert cybersécurité — ingénierie réseau et sécurité, analyses EBIOS RM, en cotraitance avec EGIS et SETEC.</span>
+            <span class="v-note"><strong>Attestation de bonne exécution et coordonnées de l’interlocuteur sur demande.</strong></span>
+              </span>
+              <span class="v-pied"><strong>Interlocuteur&nbsp;:</strong> Contrat conjoint CS Group / CONSEILPREV.<br>Mission achevée.</span>
+            </span>
+            </span>
+          </button>
+          <button type="button" class="case e6" aria-pressed="false"
+              aria-label="GRDF / THALES Cyber — mission achevée. — voir la fiche de mission">
+            <span class="case-pivot">
+            <span class="case-face case-recto">
+              <span class="case-top"><span class="case-sec">Gaz</span><span class="case-co">GRDF / THALES Cyber</span></span>
+              <span class="case-role">Cybersécurité du système d’information industriel</span>
+              <span class="tags"><span>SI industriel</span><span>Biométhane</span><span>OT</span></span>
+              <span class="case-bas"><span>2020</span><span class="tourne">Fiche ↻</span></span>
+            </span>
+            <span class="case-face case-verso">
+              <span class="v-tete"><span>Fiche de mission</span><span class="v-etat">2020</span></span>
+              <span class="v-co">GRDF / THALES Cyber</span>
+              <span class="v-texte">
+            <span class="para">Cybersécurité du système d’information industriel, projet biométhane.</span>
+            <span class="v-note"><strong>Attestation de bonne exécution et coordonnées de l’interlocuteur sur demande.</strong></span>
+              </span>
+              <span class="v-pied"><strong>Interlocuteur&nbsp;:</strong> Responsable du pôle informatique industrielle, DSI GRDF.<br>Mission achevée.</span>
+            </span>
+            </span>
+          </button>
+          </div>
+        </div>
+        <div class="kal-piste">
+          <p class="kal-titre"><b>Missions en cours</b> — sous engagement de confidentialité, sauf le projet interne</p>
+          <div class="kal-rail inverse" id="kal-rail-b" style="--duree:62s">
+          <button type="button" class="case e7" aria-pressed="false"
+              aria-label="Éditeur de solutions logicielles et IA — mission en cours. — voir la fiche de mission">
+            <span class="case-pivot">
+            <span class="case-face case-recto">
+              <span class="case-top"><span class="case-sec">Édition logicielle <span class="scelle">confidentielle</span></span><span class="case-co">Éditeur de solutions logicielles et IA</span></span>
+              <span class="case-role">Alignement d’une plateforme sur le règlement européen sur l’IA</span>
+              <span class="tags"><span>Règlement IA</span><span>Traçabilité</span><span>Audit</span><span>Six mois</span></span>
+              <span class="case-bas"><span>En cours</span><span class="tourne">Fiche ↻</span></span>
+            </span>
+            <span class="case-face case-verso">
+              <span class="v-tete"><span>Fiche de mission</span><span class="v-etat">En cours</span></span>
+              <span class="v-co">Éditeur de solutions logicielles et IA</span>
+              <span class="v-texte">
+            <span class="para">Alignement d’une plateforme sur le règlement européen sur l’intelligence artificielle — feuille de route sur six mois. Transparence, supervision et traçabilité intégrées nativement plutôt qu’ajoutées a posteriori, avec un cadre robuste pour la gouvernance et l’audit.</span>
+            <span class="v-note">Mission sous engagement de confidentialité&nbsp;: les informations sont volontairement limitées et ne peuvent être diffusées sans accord préalable.</span>
+              </span>
+              <span class="v-pied"><strong>Interlocuteur&nbsp;:</strong> Direction produit — développement logiciel et solutions d’IA.<br>Mission en cours.</span>
+            </span>
+            </span>
+          </button>
+          <button type="button" class="case e8" aria-pressed="false"
+              aria-label="Campus Numérique in the Alps — mission en cours. — voir la fiche de mission">
+            <span class="case-pivot">
+            <span class="case-face case-recto">
+              <span class="case-top"><span class="case-sec">Formation <span class="scelle">confidentielle</span></span><span class="case-co">Campus Numérique in the Alps</span></span>
+              <span class="case-role">Accompagnement à l’implémentation du règlement européen sur l’IA</span>
+              <span class="tags"><span>Règlement IA</span><span>Formation</span><span>Données</span></span>
+              <span class="case-bas"><span>En cours</span><span class="tourne">Fiche ↻</span></span>
+            </span>
+            <span class="case-face case-verso">
+              <span class="v-tete"><span>Fiche de mission</span><span class="v-etat">En cours</span></span>
+              <span class="v-co">Campus Numérique in the Alps</span>
+              <span class="v-texte">
+            <span class="para">Organisme de formations en alternance et pour les professionnels, en données et intelligence artificielle. Accompagnement à l’implémentation du règlement européen sur l’intelligence artificielle.</span>
+            <span class="v-note">Mission sous engagement de confidentialité&nbsp;: les informations sont volontairement limitées et ne peuvent être diffusées sans accord préalable.</span>
+              </span>
+              <span class="v-pied"><strong>Interlocuteur&nbsp;:</strong> Consultant cybersécurité, gouvernance des risques et conformité.<br>Mission en cours.</span>
+            </span>
+            </span>
+          </button>
+          <button type="button" class="case e9" aria-pressed="false"
+              aria-label="CONSEILPREV — plateformes numériques — projet interne, sans donneur d’ordre. — voir la fiche de mission">
+            <span class="case-pivot">
+            <span class="case-face case-recto">
+              <span class="case-top"><span class="case-sec">Édition <span class="interne">projet interne</span></span><span class="case-co">CONSEILPREV — plateformes numériques</span></span>
+              <span class="case-role">Conception, développement et mise en production</span>
+              <span class="tags"><span>i-aes.com</span><span>i-aes.eu</span><span>Déploiement continu</span><span>Hébergement</span></span>
+              <span class="case-bas"><span>En cours</span><span class="tourne">Fiche ↻</span></span>
+            </span>
+            <span class="case-face case-verso">
+              <span class="v-tete"><span>Fiche de mission</span><span class="v-etat">En cours</span></span>
+              <span class="v-co">CONSEILPREV — plateformes numériques</span>
+              <span class="v-texte">
+            <span class="para">Conception, développement et mise en production de deux plateformes propriétaires&nbsp;: i-aes.com, consacrée à l’ingénierie de centres de données et à la cybersécurité industrielle, et i-aes.eu, consacrée à la gouvernance de l’intelligence artificielle et à la conformité. Développement applicatif, hébergement, chaîne de déploiement continu et sécurisation.</span>
+
+              </span>
+              <span class="v-pied"><strong>Interlocuteur&nbsp;:</strong> Projet interne.<br>Projet interne, sans donneur d’ordre.</span>
+            </span>
+            </span>
+          </button>
+          <button type="button" class="case e10" aria-pressed="false"
+              aria-label="Projet confidentiel — infrastructure IA agentique — mission en cours. — voir la fiche de mission">
+            <span class="case-pivot">
+            <span class="case-face case-recto">
+              <span class="case-top"><span class="case-sec">Confidentiel <span class="scelle">confidentielle</span></span><span class="case-co">Projet confidentiel — infrastructure IA agentique</span></span>
+              <span class="case-role">Gouvernance, risques et conformité</span>
+              <span class="tags"><span>IA agentique</span><span>GRC</span><span>Trois phases</span><span>Déploiement européen</span></span>
+              <span class="case-bas"><span>En cours</span><span class="tourne">Fiche ↻</span></span>
+            </span>
+            <span class="case-face case-verso">
+              <span class="v-tete"><span>Fiche de mission</span><span class="v-etat">En cours</span></span>
+              <span class="v-co">Projet confidentiel — infrastructure IA agentique</span>
+              <span class="v-texte">
+            <span class="para">Gouvernance, risques et conformité d’une infrastructure IA robuste, sécurisée et évolutive, intégrant des agents métier dédiés au support, au pilotage, à la tarification et à la conformité. Trois phases&nbsp;: pilote sur structure existante, intégration applicative, puis durcissement en vue d’un déploiement européen puis international.</span>
+            <span class="v-note">Mission sous engagement de confidentialité&nbsp;: les informations sont volontairement limitées et ne peuvent être diffusées sans accord préalable.</span>
+              </span>
+              <span class="v-pied"><strong>Interlocuteur&nbsp;:</strong> Expertise en gouvernance, risques et conformité de l’IA.<br>Mission en cours.</span>
+            </span>
+            </span>
+          </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════════════════
+           CE QUE CE REGISTRE NE PORTE PAS, ÉCRIT AVANT QU’ON LE CHERCHE.
+           Aucune citation de client n’y figure, et aucun nom de personne
+           physique non plus : ce sont deux décisions, pas deux oublis.
+           ═══════════════════════════════════════════════════════════════ -->
+      <div class="ref-note">
+        <h2>Ce que ces fiches portent, et ce qu’elles ne portent pas</h2>
+        <p><strong>Aucune citation de client.</strong> Les versos reprennent l’objet de la mission tel
+          qu’il figure au document de références — intervention, périmètre, période. Les recommandations
+          verbatim ne sont pas recueillies à ce jour, et il n’en a pas été rédigé à leur place.</p>
+        <p><strong>Aucun nom de personne physique.</strong> Les interlocuteurs sont désignés par leur
+          fonction et leur direction. Publier le nom, l’employeur et le poste d’une personne sur une page
+          ouverte est une diffusion de données personnelles&nbsp;: elle demande son accord, qui n’a pas été
+          sollicité pour cet usage. <strong>Attestations de bonne exécution et coordonnées des
+          interlocuteurs fournies sur demande.</strong></p>
+        <p><strong>Les missions en cours sont sous engagement de confidentialité</strong>, sauf le projet
+          interne. Ce qui en est dit est volontairement limité et ne peut être diffusé sans accord préalable.</p>
+      </div>
+
+      <div class="divider"></div>
+      <div style="text-align:center">
+        <h2>Un enjeu similaire&nbsp;?</h2>
+        <p class="lead" style="margin:10px auto 0">Parlons de votre installation et de la démarche la plus utile pour vous.</p>
+        <div class="actions" style="justify-content:center">
+          <a href="/contact" class="btn btn-p">Nous contacter</a>
+          <a href="/etudes-de-cas" class="btn btn-s">Voir les études de cas</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+  <div class="wrap foot">
+    <div class="foot-cols">
+      <div class="foot-brand">
+        <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="26" height="26" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+        <p>Cybersécurité industrielle IT / OT / IIoT — conformité IEC&nbsp;62443, NIS2, DORA.</p>
+      </div>
+      <nav class="foot-col" aria-label="Expertise">
+        <h4>Expertise</h4>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/methodologie">Méthodologie</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/references">Références</a>
+        <a href="/operating-model">Operating Model</a>
+        <a href="/maturite-ot">Maturité OT</a>
+        <a href="/feuille-de-route">Feuille de route</a>
+        <a href="/continuite-ot">Continuité &amp; crise OT</a>
+        <a href="/gestion-des-changements">Gestion des changements</a>
+        <a href="/architecture-cible">Architecture cible</a>
+        <a href="/formation">Formation</a>
+        <a href="/gouvernance-ia">Governance by Design IA</a>
+      </nav>
+      <nav class="foot-col" aria-label="Norme &amp; conformité">
+        <h4>Norme &amp; conformité</h4>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/audit-conformite">Audit 62443</a>
+        <a href="/diagnostic">Diagnostic express</a>
+        <a href="/nis2">NIS2</a>
+      </nav>
+      <nav class="foot-col" aria-label="Plateforme">
+        <h4>Plateforme</h4>
+        <a href="/demo">Cockpit</a>
+        <a href="/assistant">Assistant IA</a>
+        <a href="/connecter">Connecter une source</a>
+        <a href="/guide-integration">Guide d’intégration</a>
+      </nav>
+      <nav class="foot-col" aria-label="Ressources">
+        <h4>Ressources</h4>
+        <a href="/veille">Veille</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/checklist-62443">Checklist 62443</a>
+        <a href="/glossaire-62443">Glossaire 62443</a>
+      </nav>
+    </div>
+    <div class="foot-bar">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Tous droits réservés</div>
+      <div class="foot-legal">
+        <a href="/about">À propos</a>
+        <a href="/contact">Contact</a>
+        <a href="/connexion">Espace client</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/politique-confidentialite">Confidentialité</a>
+        <a href="/conformite">Conformité IA &amp; RGPD</a>
+        <a href="/admin" rel="nofollow" class="foot-admin">Admin</a>
+      </div>
+    </div>
+  </div>
+</footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+  <!-- CE BLOC EST LE SEUL À CHARGER DES SCRIPTS. Le pied de page a été repris
+       de /etudes-de-cas, et il entraînait avec lui les balises <script> qui le
+       suivaient : etudes-cartes.js s'exécutait DEUX FOIS, et clonait au second
+       passage les copies du premier — trente copies de dérive pour dix cartes.
+       Rien ne plantait ; le rail était simplement trois fois trop long.
+       impact-client.js, lui, n'a rien à peindre ici : cette page ne porte
+       aucune fiche chiffrée. -->
+  <script src="/etudes-cartes.js" defer></script>
+  <script src="/nav.js" defer></script>
+  <script src="/parcours.js" defer></script>
+</body>
+</html>

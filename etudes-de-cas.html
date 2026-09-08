@@ -24,143 +24,6 @@
 <link rel="icon" href="/emblem.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/styles.css">
 <style>
-  /* ══════════════════════════════════════════════════════════════════════
-     LES ÉTUDES DE CAS SONT DES CARTES QUI PIVOTENT.
-
-     POURQUOI DES RAILS ET NON UNE GRILLE. Neuf fiches ouvertes en même temps
-     se lisaient comme un mur : on parcourait des titres sans en retenir un.
-     Les cartes dérivent, s'arrêtent au survol, et se retournent d'un clic —
-     le recto porte de quoi RECONNAÎTRE la fiche (nom, secteur, nature,
-     mots-clés), le verso porte ce qu'elle RACONTE. La vue Grille reste
-     accessible d'un bouton, pour qui veut tout voir d'un coup.
-
-     ET LA DISTINCTION DES DEUX NATURES DEVIENT STRUCTURELLE. Un cas type ne
-     dérive PAS parmi les missions : il est plus bas, dans une bande à part
-     qui dit en toutes lettres qu'aucun client n'y est revendiqué. Le badge
-     « cas type » reste là où il était — dans le même bloc que le nom, à
-     portée du même regard — parce que c'est CELA qui décide, et non une note
-     de bas de carte que personne n'atteint.
-
-     LA FICHE CHIFFRÉE NE PIVOTE PAS, ET C'EST DÉLIBÉRÉ. Elle porte un tableau
-     de comparaison, qu'une carte de 330 px rendrait illisible avant de le
-     rendre informatif — c'est l'arbitrage déjà pris par .ci-large. Elle garde
-     sa pleine largeur, sa structure et son id #ci-calcul : sans lui,
-     impact-client.js ne peindrait plus aucun nombre.
-     ══════════════════════════════════════════════════════════════════════ */
-
-  /* ── LES RAILS ─────────────────────────────────────────────────────── */
-  .kal{margin-top:10px}
-  /* Sans script, la piste reste une bande qu'on fait défiler à la main :
-     la dérive n'est branchée que lorsque le script a posé les copies. */
-  .kal-piste{overflow-x:auto;scrollbar-width:thin;padding-bottom:8px}
-  .kal.derive .kal-piste{overflow:hidden;padding-bottom:0}
-  .kal-piste+.kal-piste{margin-top:22px}
-  .kal-titre{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
-    color:var(--muted2);padding-bottom:10px;display:flex;gap:9px;align-items:baseline;flex-wrap:wrap}
-  .kal-titre b{color:var(--ink);font-weight:500}
-  .kal-rail{display:flex;gap:16px;width:max-content}
-  .kal.derive .kal-rail{animation:kal-derive var(--duree,66s) linear infinite}
-  .kal.derive .kal-rail.inverse{animation-direction:reverse}
-  .kal.derive:hover .kal-rail,
-  .kal.derive:focus-within .kal-rail,
-  body.kal-fige .kal-rail{animation-play-state:paused}
-  @keyframes kal-derive{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-
-  /* ── LA BASCULE DE VUE ─────────────────────────────────────────────── */
-  .kal-vues{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;
-    align-self:flex-start}
-  .kal-vues button{font-family:var(--sans);font-size:12px;font-weight:600;letter-spacing:.03em;
-    padding:8px 14px;border:0;background:transparent;color:var(--muted);cursor:pointer}
-  .kal-vues button+button{border-left:1px solid var(--line)}
-  .kal-vues button[aria-pressed="true"]{background:rgba(34,211,238,.14);color:var(--cyan)}
-  .kal-vues button:focus-visible{outline:2px solid var(--cyan);outline-offset:-2px}
-  .kal-barre{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;
-    margin-bottom:6px}
-  /* LA VUE GRILLE NE DUPLIQUE RIEN : elle met les mêmes rails à plat, garde
-     leurs intitulés comme titres de groupe, et masque les copies de dérive. */
-  .kal.grille .kal-piste{overflow:visible;padding-bottom:0}
-  .kal.grille .kal-rail{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
-    width:auto;animation:none}
-  .kal.grille .kal-rail .case{flex:none;width:auto}
-  .kal.grille [data-copie]{display:none}
-
-  /* ── LA CARTE ──────────────────────────────────────────────────────── */
-  /* LES ENFANTS DE LA CARTE SONT DES <span> : un <button> ne peut pas contenir
-     de <div> sans sortir du contenu autorisé. Il faut donc leur donner une
-     boîte — « width » et « height » ne s'appliquent pas à un inline, et les
-     faces en position:absolute;inset:0 s'effondreraient sur un parent de
-     taille nulle : dix pastilles au lieu de dix cartes. */
-  .case{--cc:linear-gradient(90deg,var(--cyan),var(--teal));--carte:330px;
-    flex:0 0 var(--carte);width:var(--carte);height:420px;perspective:1400px;
-    background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;
-    border-radius:16px;text-align:left}
-  .case:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
-  .case-pivot{display:block;position:relative;width:100%;height:100%;
-    transform-style:preserve-3d;transition:transform .62s cubic-bezier(.22,.72,.24,1)}
-  .case[aria-pressed="true"] .case-pivot{transform:rotateY(180deg)}
-  .case-face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
-    border-radius:16px;overflow:hidden;display:flex;flex-direction:column;
-    background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);
-    padding:22px 20px 18px}
-  .case-face::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--cc)}
-  /* LA « LOUPE » DU SITE NE S'APPLIQUE PAS À UNE CARTE QUI PIVOTE.
-     styles.css agrandit « .case » de 5 % au survol — un effet écrit pour des
-     tuiles statiques. Ici il pose une mise à l'échelle SUR le conteneur de
-     perspective : la projection du pivot s'en trouve faussée, et une carte
-     survolée cesse d'avoir la largeur des autres (346,5 px au lieu de 330,
-     mesuré). Le survol garde son signal, porté par la face — bordure cyan et
-     ombre — et la dérive s'arrête, ce qui est le vrai retour attendu. */
-  .case:hover{transform:none;box-shadow:none}
-  /* L'APPARITION AU DÉFILEMENT NE S'APPLIQUE PAS À UNE CARTE QUI DÉRIVE.
-     nav.js pose « .rv » (opacity:0) sur « main .case » puis attend qu'un
-     IntersectionObserver la voie entrer dans la fenêtre. Une carte de rail est
-     rognée HORIZONTALEMENT par sa piste : tant qu'elle n'a pas dérivé jusque
-     dans la fenêtre, l'observateur ne la voit pas — et elle reste invisible.
-     Mesuré sur cette page avant correction : quatre cartes sur dix-sept encore
-     à opacity 0 après quatorze secondes de dérive, dont tout le second rail.
-     Les cartes de rail s'affichent donc d'emblée ; celles qui sont hors rail
-     gardent l'apparition du site, qui pour elles fonctionne. */
-  .kal .case.rv{opacity:1;transform:none}
-  .case:hover .case-face{border-color:rgba(34,211,238,.55);
-    box-shadow:0 22px 50px rgba(0,0,0,.42),0 0 24px 3px rgba(34,211,238,.22)}
-  .case-verso{transform:rotateY(180deg)}
-  @media (prefers-reduced-motion:reduce){
-    .case-pivot{transition-duration:.001s}
-    .kal.derive .kal-rail{animation:none}
-  }
-  .case-co,.case-role,.case-bas,.v-tete,.v-co,.v-texte,.v-pied,
-  .para,.pt,.win,.v-note{display:block}
-  .case-bas{margin-top:auto;padding-top:12px;border-top:1px solid var(--line);
-    display:flex;justify-content:space-between;align-items:center;gap:8px;
-    font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;
-    color:var(--muted2)}
-  .case-bas span{display:block}
-  .case-bas .tourne{color:var(--cyan)}
-
-  /* ── LE VERSO ──────────────────────────────────────────────────────── */
-  .v-tete{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
-    color:var(--muted2);display:flex;justify-content:space-between;gap:8px;
-    padding-bottom:8px;border-bottom:1px solid var(--line)}
-  .v-tete span{display:block}
-  .v-etat{color:var(--cyan)}
-  .v-co{font-family:var(--serif,inherit);font-size:17px;font-weight:800;letter-spacing:-.01em;
-    margin-top:10px;line-height:1.25}
-  /* Le propos peut être long : il défile dans sa propre boîte plutôt que
-     d'être coupé. Un texte tronqué est un défaut, pas une mise en page. */
-  .v-texte{font-size:13px;line-height:1.6;color:var(--muted);margin-top:9px;
-    overflow-y:auto;flex:1;padding-right:6px}
-  .v-texte::-webkit-scrollbar{width:5px}
-  .v-texte::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
-  .v-texte strong{color:var(--ink)}
-  .para{margin-bottom:8px}
-  .pt{position:relative;padding:4px 0 4px 18px}
-  .pt::before{content:"▸";position:absolute;left:0;top:4px;color:var(--cyan)}
-  .v-note{margin-top:10px;padding-left:11px;border-left:2px solid var(--line);
-    font-size:12px;line-height:1.7;color:var(--muted2)}
-  .v-pied{margin-top:10px;padding-top:9px;border-top:1px solid var(--line);
-    font-size:11px;line-height:1.55;color:var(--muted2)}
-  .v-pied strong{color:var(--ink)}
-
   /* ── LA BANDE DES CADRES D'INTERVENTION — hors des rails, et c'est le
      propos : une carte qui dérive au milieu de références se lit comme une
      référence. ──────────────────────────────────────────────────────── */
@@ -178,18 +41,6 @@
     .case{--carte:288px}
     .cadres{padding:18px}
   }
-
-  /* ── LES ACCENTS, UN PAR FICHE ─────────────────────────────────────── */
-  .e1{--cc:linear-gradient(90deg,var(--cyan),var(--teal))}
-  .e2{--cc:linear-gradient(90deg,var(--violet),var(--cyan))}
-  .e3{--cc:linear-gradient(90deg,var(--terra),var(--violet))}
-  .e4{--cc:linear-gradient(90deg,var(--amber),var(--terra))}
-  .e5{--cc:linear-gradient(90deg,var(--teal),var(--green))}
-  .e6{--cc:linear-gradient(90deg,var(--green),var(--cyan))}
-  .e7{--cc:linear-gradient(90deg,var(--amber),var(--cyan))}
-  .e8{--cc:linear-gradient(90deg,var(--cyan),var(--violet))}
-  .e9{--cc:linear-gradient(90deg,var(--violet),var(--amber))}
-  .e10{--cc:linear-gradient(90deg,var(--teal),var(--amber))}
 
   /* ── LA FICHE CHIFFRÉE — l'ancienne .case, sous son propre nom ─────── */
   .fiche-calc{background:linear-gradient(180deg,var(--panel),var(--bg2));
@@ -247,23 +98,8 @@
   .typ{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;
     color:var(--amber);border:1px solid rgba(240,180,41,.45);background:rgba(240,180,41,.12);
     border-radius:999px;padding:3px 10px;vertical-align:middle}
-  .case-top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px}
-  /* SUR UNE CARTE, LA PASTILLE PASSE AU-DESSUS DU NOM. En ligne, un nom de
-     deux lignes la rejetait 66 px plus bas : le badge « cas type » cessait
-     d'être lisible du même regard que l'intitulé — la propriété même que
-     cette page a été écrite pour tenir. En bandeau, l'écart est constant. */
-  .case-recto .case-top{flex-direction:column;align-items:flex-start;gap:9px;margin-bottom:0}
-  .case-sec{display:block}
-  .case-co{font-family:var(--serif,inherit);font-size:22px;font-weight:800;letter-spacing:-.01em;
-    line-height:1.15}
   .fiche-calc .case-co{font-size:24px}
-  .case-sec{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);border:1px solid var(--line);border-radius:999px;padding:3px 9px}
-  .case-role{font-size:12.5px;color:var(--muted2);font-family:var(--mono);margin-top:8px;line-height:1.55}
   .fiche-calc .case-role{margin-bottom:12px}
-  .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
-  .tags span{font-family:var(--mono);font-size:10.5px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
-  .win{margin-top:10px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);border-radius:10px;padding:9px 12px;font-size:12.5px;line-height:1.55;color:var(--green)}
-  .win strong{color:var(--green)}
 </style>
 </head>
 <body>
@@ -309,6 +145,16 @@
         <a href="#cadres">Cadres d'intervention</a>. Lorsqu'un cas type porte des nombres, il porte aussi la marque
         <span class="calc">chiffres calculés</span>&nbsp;: ils sortent du moteur public de
         <a href="/datacenter">/datacenter</a>, avec leur formule et leur source — ce ne sont pas des mesures de terrain.</p>
+      <!-- LES DEUX PAGES NE DISENT PAS LA MÊME CHOSE, et le lecteur doit le
+           savoir avant de choisir. Celle-ci RACONTE ce qui a été conduit ; le
+           registre donne le donneur d'ordre, la période et l'interlocuteur —
+           ce qu'un acheteur demande pour vérifier. Six missions figurent dans
+           les deux ; sans cette phrase, le recouvrement passerait pour une
+           redite. -->
+      <p class="note" style="margin-top:8px;font-size:13px;color:var(--muted2)">Ces fiches disent
+        <strong>ce qui a été conduit</strong>. Pour le donneur d'ordre, la période et l'interlocuteur de
+        chaque mission — ce qu'un acheteur demande pour vérifier —, voyez le
+        <a href="/references">registre des missions</a>.</p>
     </section>
 
     <section class="section" style="padding-top:24px">
@@ -629,6 +475,7 @@
         <a href="/secteurs">Secteurs</a>
         <a href="/methodologie">Méthodologie</a>
         <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/references">Références</a>
         <a href="/operating-model">Operating Model</a>
         <a href="/maturite-ot">Maturité OT</a>
         <a href="/feuille-de-route">Feuille de route</a>

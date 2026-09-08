@@ -49,6 +49,11 @@ DIRECT = {
     "/services": "Services",
     "/secteurs": "Secteurs",
     "/etudes-de-cas": "Études de cas",
+    # LE REGISTRE DES MISSIONS, OUVERT LE 8 SEPTEMBRE 2026. Une page qui
+    # sert à être montrée à un acheteur ne peut pas demander un compte :
+    # la fermer reviendrait à cacher ses références à qui vient les lire.
+    # Elle ne porte aucun nom de personne physique ni aucune donnée client.
+    "/references": "Références de missions",
     "/veille": "Veille cyber",
     "/ressources": "Ressources",
     "/faq": "FAQ",
@@ -437,6 +442,10 @@ def _verifier():
     # en une seule liste ferait disparaître le fait qu'un jour onze pages
     # seulement étaient ouvertes, et pourquoi les trente et une autres l'ont
     # été ensuite.
+    # LE REGISTRE DES MISSIONS, 8 SEPTEMBRE 2026 — troisième décision, et
+    # elle reste séparée des deux autres pour la même raison qu'elles le sont
+    # entre elles : l'histoire des ouvertures doit rester lisible.
+    decision_registre = {"/references"}
     decision_onze = {"/services", "/secteurs", "/etudes-de-cas", "/veille",
                      "/ressources", "/faq", "/", "/about", "/vos-projets",
                      "/contact", "/acces"}
@@ -454,7 +463,7 @@ def _verifier():
     "/tendances", "/connecter", "/guide-integration",
     "/assistant",
     }
-    attendues = decision_onze | decision_ouverture
+    attendues = decision_onze | decision_ouverture | decision_registre
     if set(DIRECT) != attendues:
         manquantes = sorted(attendues - set(DIRECT))
         ajoutees = sorted(set(DIRECT) - attendues)

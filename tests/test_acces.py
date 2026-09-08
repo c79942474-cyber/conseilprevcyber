@@ -56,7 +56,7 @@ FERMEES = [c for c in MENU if not acces.ouvert(c)]
 def test_les_pages_en_acces_direct_sont_celles_qui_ont_ete_nommees():
     """LE 2 SEPTEMBRE 2026, LE SITE S'EST OUVERT — SAUF L'INGÉNIERIE DATA CENTER.
 
-    Onze pages étaient ouvertes ; il y en a quarante-deux. Les trois pages
+    Onze pages étaient ouvertes ; il y en a quarante-trois. Les trois pages
     d'ingénierie de projet Data Center restent seules derrière le compte, et
     ce sont désormais elles, et elles seules, que l'accès vendu ouvre.
 
@@ -74,7 +74,11 @@ def test_les_pages_en_acces_direct_sont_celles_qui_ont_ete_nommees():
         "/formation", "/gestion-correctifs", "/gestion-des-changements", "/glossaire-62443",
         "/gouvernance-ia", "/guide-integration", "/juridique", "/maturite-ot",
         "/methodologie", "/metriques-62443", "/nis2", "/operating-model",
-        "/programme-securite", "/referentiel", "/relecture-contrat", "/ressources",
+        "/programme-securite", # Le registre des missions, ouvert le 8 septembre 2026 : une page
+        # qui sert à être montrée à un acheteur ne peut pas demander un
+        # compte — la fermer reviendrait à cacher ses références à qui
+        # vient les lire.
+        "/references", "/referentiel", "/relecture-contrat", "/ressources",
         "/secteurs", "/services", "/technologies-securite", "/tendances",
         "/veille", "/vos-projets",
     ]
