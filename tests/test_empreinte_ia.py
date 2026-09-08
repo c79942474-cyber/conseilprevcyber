@@ -428,3 +428,115 @@ def test_les_repere_de_puissance_portent_leur_propre_valeur():
         assert float(nom) == w
     assert "ne désignent aucun modèle" in E.PUISSANCE_SOURCE
 
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  8. LE PARC — la couverture d'abord, et le périmètre incomplet nommé
+# ═══════════════════════════════════════════════════════════════════════════
+
+PARC = [
+    {"nom": "Assistant support", "modele": "claude", "unite_facturation": "jetons",
+     "volume_sortie_mois": "12 000 000"},
+    {"nom": "Recherche interne", "modele": "mistral", "unite_facturation": "requetes",
+     "volume_sortie_mois": "40000"},
+    {"nom": "Vision qualité", "modele": "inconnu"},
+    {"nom": "Copilote métier", "modele": "mistral-large", "unite_facturation": "jetons",
+     "volume_sortie_mois": "3000000", "ajustement_fin": COMPLET},
+]
+
+
+def test_un_volume_ABSENT_ne_devient_jamais_zero():
+    """LE DÉFAUT QUE CETTE RÈGLE PREND : un parc à moitié déclaré qui paraît
+    deux fois plus sobre qu'il n'est. Une ligne sans volume ressort « non
+    instruite », jamais à zéro kilowattheure."""
+    m = E.mensuel({"nom": "X", "modele": "claude"}, 60.0, 380.0)
+    assert m["nature"] == "non_instruit" and m["wh"] is None
+    assert "aucun volume" in m["motif"]
+    for faux in ("", None, "à venir", "-3"):
+        assert E.mensuel({"modele": "claude", "volume_sortie_mois": faux},
+                         60.0, 380.0)["nature"] == "non_instruit", faux
+
+
+def test_un_volume_ecrit_a_la_francaise_est_LU():
+    """« 12 000 000 » avec des espaces fines est ce qu'un client recopie de sa
+    console. Le refuser ferait ressortir la ligne comme non instruite — un
+    manque qui n'existe pas."""
+    for ecriture in ("12000000", "12 000 000", "12 000 000", "12000000,0"):
+        m = E.mensuel({"modele": "claude", "volume_sortie_mois": ecriture}, 60.0, 380.0)
+        assert m["nature"] == "declare" and m["jetons"] == 12000000.0, ecriture
+
+
+def test_le_terme_d_HEBERGEMENT_n_est_pas_derive_d_un_volume_de_jetons():
+    """LE POINT LE PLUS DÉLICAT DE L'AGRÉGATION, ET IL EST NOMMÉ.
+
+    L'hébergement vaut 0,15 Wh PAR REQUÊTE. Un parc facturé au jeton déclare
+    des jetons : le nombre d'appels est inconnu, et l'inventer — en supposant
+    une longueur de réponse moyenne — ferait entrer un chiffre que personne n'a
+    déclaré dans un livrable vendu. Le drapeau dit que le périmètre est
+    incomplet ; la liste nomme les systèmes concernés."""
+    jetons = E.mensuel(PARC[0], 60.0, 380.0)
+    requetes = E.mensuel(PARC[1], 60.0, 380.0)
+    assert jetons["hebergement_derive"] is False
+    assert requetes["hebergement_derive"] is True
+    # Au jeton, la méthode C n'ajoute que la majoration de fabrication.
+    fab = 1 + E.FACTEURS["fabrication_pct"]["valeur"] / 100.0
+    assert jetons["wh"] == pytest.approx(jetons["wh_b"])
+    assert jetons["g_co2"] == pytest.approx(
+        jetons["wh_b"] / 1000.0 * 60.0 * fab)
+    # À la requête, il l'ajoute vraiment.
+    heb = E.FACTEURS["hebergement_wh_req"]["valeur"] * 40000
+    assert requetes["wh"] == pytest.approx(requetes["wh_b"] + heb)
+
+
+def test_le_parc_NOMME_les_systemes_au_perimetre_incomplet():
+    r = E.parc(PARC, 60.0, 380.0, pays_eau="FR", depuis=2026, horizon=2030)
+    assert r["hebergement_non_derivable"] == ["Assistant support", "Copilote métier"]
+    assert "Recherche interne" not in r["hebergement_non_derivable"]
+
+
+def test_la_COUVERTURE_precede_les_totaux_et_nomme_le_manquant():
+    r = E.parc(PARC, 60.0, 380.0)
+    assert list(r)[0] == "couverture", "la couverture n'est pas la première clé"
+    assert r["couverture"]["volume_declare"] == 3
+    assert r["couverture"]["volume_manquant"] == ["Vision qualité"]
+
+
+def test_l_ajustement_fin_est_rendu_SEPAREMENT_de_l_inference():
+    """Les mêler ferait disparaître le terme qui, sur un parc qui affine ses
+    modèles, est souvent le plus lourd."""
+    r = E.parc(PARC, 60.0, 380.0)
+    assert r["ajustement_fin_mois"]["wh"] > 0
+    # LE TOTAL D'INFÉRENCE NE CONTIENT QUE DE L'INFÉRENCE, et c'est cela qu'on
+    # mesure. La première version comparait le total à la somme des deux postes
+    # — une égalité qui reste vraie si l'ajustement fin a DÉJÀ été versé dans
+    # l'inférence : la mutation qui les fondait a survécu, en comptant deux
+    # fois le terme le plus lourd. On recompose donc l'inférence ligne à ligne.
+    somme_lignes = sum(l["inference"]["wh"] for l in r["lignes"]
+                       if l["inference"]["nature"] == "declare")
+    assert r["inference_mois"]["wh"] == pytest.approx(somme_lignes), (
+        "le total d'inférence contient autre chose que de l'inférence")
+    assert r["total_mois"]["wh"] == pytest.approx(
+        r["inference_mois"]["wh"] + r["ajustement_fin_mois"]["wh"])
+    assert r["total_mois"]["g_co2"] == pytest.approx(
+        r["inference_mois"]["g_co2"] + r["ajustement_fin_mois"]["g_co2"])
+    # Un seul système déclare un ajustement fin, et c'est le sien qui pèse.
+    seul = E.ajustement_fin(COMPLET, 60.0)
+    assert r["ajustement_fin_mois"]["wh"] == pytest.approx(seul["wh_mois"])
+
+
+def test_la_base_des_trajectoires_est_LE_TOTAL_annualise():
+    """Projeter la seule inférence ferait décrire une trajectoire à un parc
+    dont on aurait retiré le terme dominant."""
+    r = E.parc(PARC, 60.0, 380.0, depuis=2026, horizon=2030)
+    assert r["base_annuelle_kg"] == pytest.approx(
+        r["total_mois"]["g_co2"] * 12.0 / 1000.0)
+    assert len(r["trajectoires"]) == 5
+    assert all(t["points"][0]["valeur"] == pytest.approx(r["base_annuelle_kg"])
+               for t in r["trajectoires"])
+
+
+def test_un_parc_vide_ne_rend_pas_un_total_rassurant():
+    r = E.parc([], 60.0, 380.0)
+    assert r["couverture"]["systemes"] == 0 and r["couverture"]["part"] == 0.0
+    assert r["total_mois"]["wh"] == 0.0
+    assert r["lignes"] == []

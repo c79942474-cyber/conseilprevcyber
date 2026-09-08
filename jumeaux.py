@@ -57,7 +57,7 @@ _ICI = os.path.dirname(os.path.abspath(__file__))
 #: lui-même, empreintes mises à blanc — sans quoi elle se référencerait.
 JUMEAUX = {
     "empreinte_ia.py": {
-        "empreinte": "c49ab3e0f17a863a",
+        "empreinte": "14711f48fa5d52b8",
         "porte": "Les facteurs d'empreinte de l'IA et leurs sources, les trois "
                  "méthodes, l'ajustement fin déclaré, les trajectoires.",
     },

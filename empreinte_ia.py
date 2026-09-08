@@ -553,6 +553,116 @@ def trajectoires(base_annuelle, depuis, jusqu_a=2030):
 #  7. LA COUVERTURE, ET L'ÉTAT DU MODULE
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _nombre(v):
+    """Un volume déclaré, ou None. Jamais zéro par défaut : zéro se lit
+    « cela ne consomme rien », et l'absence se lit « on ne sait pas »."""
+    if v in (None, ""):
+        return None
+    try:
+        n = float(str(v).replace(" ", "").replace("\u202f", "").replace(",", "."))
+    except (TypeError, ValueError):
+        return None
+    return n if n >= 0 else None
+
+
+def mensuel(systeme, intensite_usage, intensite_hebergement, pays_eau=None):
+    """L'empreinte mensuelle d'un système du registre, sur son volume DÉCLARÉ.
+
+    LE TERME D'HÉBERGEMENT NE SE DÉRIVE PAS D'UN VOLUME DE JETONS, ET C'EST LE
+    POINT DÉLICAT DE CETTE FONCTION. Il vaut 0,15 Wh PAR REQUÊTE servie. Un
+    parc facturé au jeton déclare des jetons, pas des requêtes : le nombre
+    d'appels est inconnu, et l'inventer — en supposant une longueur de réponse
+    moyenne, par exemple — ferait entrer dans un livrable un chiffre que
+    personne n'a déclaré. La méthode C rend donc, pour ces systèmes-là, la
+    majoration de fabrication (qui est proportionnelle) SANS le terme
+    d'hébergement, et `hebergement_derive` dit que le périmètre est incomplet.
+
+    Un système facturé à la requête, lui, déclare ce qu'il faut : le terme est
+    alors calculé, et le drapeau le dit aussi."""
+    jetons = _nombre(systeme.get("volume_sortie_mois"))
+    if jetons is None:
+        return {"nature": "non_instruit", "motif": "aucun volume de sortie déclaré",
+                "wh": None, "g_co2": None, "mj": None, "eau": None}
+    unite = str(systeme.get("unite_facturation") or "").lower()
+    requetes = jetons if unite == "requetes" else None
+    p = profil(systeme.get("modele"))
+    bas, central, haut = WH_1K_JETONS.get(p["classe"], WH_1K_JETONS["moyen"])
+    k = jetons / 1000.0
+    pue = float(p.get("pue") or 1.2)
+
+    wh_a = central * k
+    wh_b, wh_b_min, wh_b_max = central * k * pue, bas * k * pue, haut * k * pue
+    g_b = wh_b / 1000.0 * float(intensite_usage)
+
+    heb_wh = float(FACTEURS["hebergement_wh_req"]["valeur"]) * requetes if requetes else 0.0
+    fab = 1.0 + max(0.0, float(FACTEURS["fabrication_pct"]["valeur"])) / 100.0
+    wh_c = wh_b + heb_wh
+    g_c = g_b * fab + heb_wh / 1000.0 * float(intensite_hebergement)
+    kwh_c = wh_c / 1000.0
+    return {"nature": "declare", "motif": None,
+            "classe": p["classe"], "profil_connu": p["connu"], "pays": p["pays"],
+            "jetons": jetons, "unite": unite or None,
+            "hebergement_derive": requetes is not None,
+            "wh_a": wh_a, "wh_b": wh_b, "wh": wh_c,
+            "wh_min": wh_b_min * fab, "wh_max": wh_b_max * fab,
+            "g_co2": g_c, "mj": energie_primaire_mj(kwh_c),
+            "eau": eau_m3(kwh_c, pays_eau or p["pays"])}
+
+
+def parc(systemes, intensite_usage, intensite_hebergement, pays_eau=None,
+         horizon=None, depuis=None):
+    """L'empreinte mensuelle d'un parc, ET CE QU'ELLE IGNORE.
+
+    LA COUVERTURE PRÉCÈDE LES TOTAUX, ici comme à l'écran. Un total qui tait ce
+    qu'il ignore est un total faux : il ne compte que ce qu'on lui a donné, et
+    un parc à moitié déclaré paraîtrait deux fois plus sobre qu'il n'est.
+
+    L'AJUSTEMENT FIN ENTRE AMORTI, et il est rendu SÉPARÉMENT de l'inférence.
+    Les mêler ferait disparaître le terme qui, sur un parc qui affine ses
+    modèles, est souvent le plus lourd."""
+    couv = couverture(systemes)
+    lignes, tot = [], {"wh": 0.0, "g_co2": 0.0, "mj": 0.0, "eau_m3": 0.0}
+    fin_tot = {"wh": 0.0, "g_co2": 0.0, "mj": 0.0}
+    sans_hebergement = []
+    for s in (systemes or []):
+        nom = s.get("nom") or s.get("id") or "?"
+        m = mensuel(s, intensite_usage, intensite_hebergement, pays_eau)
+        f = ajustement_fin(s.get("ajustement_fin") or {}, intensite_usage,
+                           pays_eau or "EU")
+        if m["nature"] == "declare":
+            tot["wh"] += m["wh"]
+            tot["g_co2"] += m["g_co2"]
+            tot["mj"] += m["mj"] or 0.0
+            if (m["eau"] or {}).get("m3"):
+                tot["eau_m3"] += m["eau"]["m3"]
+            if not m["hebergement_derive"]:
+                sans_hebergement.append(nom)
+        if f["nature"] == "declare":
+            fin_tot["wh"] += f["wh_mois"]
+            fin_tot["g_co2"] += f["g_co2_mois"]
+            fin_tot["mj"] += energie_primaire_mj(f["wh_mois"] / 1000.0)
+        lignes.append({"nom": nom, "inference": m, "ajustement_fin": f})
+
+    base_annuelle = (tot["g_co2"] + fin_tot["g_co2"]) * 12.0 / 1000.0   # kg CO2/an
+    traj = trajectoires(base_annuelle, depuis, horizon) if depuis else []
+    return {
+        "couverture": couv,
+        "lignes": lignes,
+        "inference_mois": tot,
+        "ajustement_fin_mois": fin_tot,
+        "total_mois": {"wh": tot["wh"] + fin_tot["wh"],
+                       "g_co2": tot["g_co2"] + fin_tot["g_co2"],
+                       "mj": tot["mj"] + fin_tot["mj"],
+                       "eau_m3": tot["eau_m3"]},
+        # LE PÉRIMÈTRE INCOMPLET EST NOMMÉ, PAS DÉDUIT. Sans cette liste, un
+        # lecteur croirait la méthode C appliquée partout.
+        "hebergement_non_derivable": sorted(sans_hebergement),
+        "base_annuelle_kg": base_annuelle,
+        "trajectoires": traj,
+        "indicateurs": INDICATEURS,
+    }
+
+
 def couverture(systemes):
     """Ce qui est déclaré, et ce qui manque — AVANT tout montant.
 
