@@ -26,8 +26,15 @@ import io
 import os
 import sys
 
-#: Les modules qui doivent être identiques dans les deux dépôts.
-JUMEAUX = ("empreinte_ia.py", "moe_dc.py", "equipements_it.py", "base_carbone.py")
+# LA LISTE N'EST PAS ICI : elle est dans `jumeaux.py`, avec les empreintes et
+# les divergences assumées. En recopier une seconde ici aurait créé le doublon
+# que cet outil existe pour trouver — et il aurait été le premier à ne pas se
+# voir lui-même.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import jumeaux as _J                                                # noqa: E402
+
+JUMEAUX = tuple(_J.JUMEAUX)
+ASSUMES = dict(_J.DIVERGENTS_ASSUMES)
 
 
 def _empreinte(chemin):
@@ -64,6 +71,8 @@ def main():
     a, b = sys.argv[1], sys.argv[2]
     res = comparer(a, b)
     faux = 0
+    for nom, raison in sorted(ASSUMES.items()):
+        print("  ASSUMÉ      %-22s divergence voulue — %s" % (nom, raison[:64] + "…"))
     for r in res:
         if not r["present"]:
             print("  ABSENT      %-22s %s" % (r["module"],
