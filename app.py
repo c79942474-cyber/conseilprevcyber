@@ -960,6 +960,7 @@ _ASSETS_VERSIONNES = (
     "decarbonation-dc.js", "strategie-dd.js", "equipements-it.js", "emblem.svg",
     "ia-factory.js",
     "impact-client.js",
+    "etudes-cartes.js",
     "nombres.js",
 )
 _CC_IMMUABLE = "public, max-age=31536000, immutable"
@@ -6755,6 +6756,17 @@ def nombres_js():
     Chargé AVANT les scripts de page : chacun garde son `fr()` local, qui
     délègue ici."""
     return _serve_fast("nombres.js", _CC_ASSET,
+                       mimetype="text/javascript; charset=utf-8")
+
+
+@app.route("/etudes-cartes.js")
+def etudes_cartes_js():
+    """La dérive, le pivot et la bascule de vue de /etudes-de-cas.
+
+    Route publique. Aucune donnée dans le fichier : les neuf études sont
+    écrites dans la page, en clair — sans ce script elles restent toutes
+    lisibles, et indexables. Il n'ajoute que le mouvement."""
+    return _serve_fast("etudes-cartes.js", _CC_ASSET,
                        mimetype="text/javascript; charset=utf-8")
 
 

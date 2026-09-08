@@ -24,20 +24,183 @@
 <link rel="icon" href="/emblem.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/styles.css">
 <style>
-  .cases{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:8px}
-  @media(max-width:820px){.cases{grid-template-columns:minmax(0,1fr)}}
-  .case{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:16px;padding:24px;position:relative}
-  .case::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;border-radius:16px 16px 0 0;background:var(--cc,linear-gradient(90deg,var(--cyan),var(--teal)))}
-  .case.e1{--cc:linear-gradient(90deg,var(--cyan),var(--teal))}
-  .case.e2{--cc:linear-gradient(90deg,var(--violet),var(--cyan))}
-  .case.e3{--cc:linear-gradient(90deg,var(--terra),var(--violet))}
-  .case.e4{--cc:linear-gradient(90deg,var(--amber),var(--terra))}
-  .case.e5{--cc:linear-gradient(90deg,var(--teal),var(--green))}
-  .case.e6{--cc:linear-gradient(90deg,var(--green),var(--cyan))}
-  .case.e7{--cc:linear-gradient(90deg,var(--amber),var(--cyan))}
-  .case.e8{--cc:linear-gradient(90deg,var(--cyan),var(--violet))}
-  .case.e9{--cc:linear-gradient(90deg,var(--violet),var(--amber))}
-  .case.e10{--cc:linear-gradient(90deg,var(--teal),var(--amber))}
+  /* ══════════════════════════════════════════════════════════════════════
+     LES ÉTUDES DE CAS SONT DES CARTES QUI PIVOTENT.
+
+     POURQUOI DES RAILS ET NON UNE GRILLE. Neuf fiches ouvertes en même temps
+     se lisaient comme un mur : on parcourait des titres sans en retenir un.
+     Les cartes dérivent, s'arrêtent au survol, et se retournent d'un clic —
+     le recto porte de quoi RECONNAÎTRE la fiche (nom, secteur, nature,
+     mots-clés), le verso porte ce qu'elle RACONTE. La vue Grille reste
+     accessible d'un bouton, pour qui veut tout voir d'un coup.
+
+     ET LA DISTINCTION DES DEUX NATURES DEVIENT STRUCTURELLE. Un cas type ne
+     dérive PAS parmi les missions : il est plus bas, dans une bande à part
+     qui dit en toutes lettres qu'aucun client n'y est revendiqué. Le badge
+     « cas type » reste là où il était — dans le même bloc que le nom, à
+     portée du même regard — parce que c'est CELA qui décide, et non une note
+     de bas de carte que personne n'atteint.
+
+     LA FICHE CHIFFRÉE NE PIVOTE PAS, ET C'EST DÉLIBÉRÉ. Elle porte un tableau
+     de comparaison, qu'une carte de 330 px rendrait illisible avant de le
+     rendre informatif — c'est l'arbitrage déjà pris par .ci-large. Elle garde
+     sa pleine largeur, sa structure et son id #ci-calcul : sans lui,
+     impact-client.js ne peindrait plus aucun nombre.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  /* ── LES RAILS ─────────────────────────────────────────────────────── */
+  .kal{margin-top:10px}
+  /* Sans script, la piste reste une bande qu'on fait défiler à la main :
+     la dérive n'est branchée que lorsque le script a posé les copies. */
+  .kal-piste{overflow-x:auto;scrollbar-width:thin;padding-bottom:8px}
+  .kal.derive .kal-piste{overflow:hidden;padding-bottom:0}
+  .kal-piste+.kal-piste{margin-top:22px}
+  .kal-titre{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted2);padding-bottom:10px;display:flex;gap:9px;align-items:baseline;flex-wrap:wrap}
+  .kal-titre b{color:var(--ink);font-weight:500}
+  .kal-rail{display:flex;gap:16px;width:max-content}
+  .kal.derive .kal-rail{animation:kal-derive var(--duree,66s) linear infinite}
+  .kal.derive .kal-rail.inverse{animation-direction:reverse}
+  .kal.derive:hover .kal-rail,
+  .kal.derive:focus-within .kal-rail,
+  body.kal-fige .kal-rail{animation-play-state:paused}
+  @keyframes kal-derive{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+  /* ── LA BASCULE DE VUE ─────────────────────────────────────────────── */
+  .kal-vues{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;
+    align-self:flex-start}
+  .kal-vues button{font-family:var(--sans);font-size:12px;font-weight:600;letter-spacing:.03em;
+    padding:8px 14px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+  .kal-vues button+button{border-left:1px solid var(--line)}
+  .kal-vues button[aria-pressed="true"]{background:rgba(34,211,238,.14);color:var(--cyan)}
+  .kal-vues button:focus-visible{outline:2px solid var(--cyan);outline-offset:-2px}
+  .kal-barre{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;
+    margin-bottom:6px}
+  /* LA VUE GRILLE NE DUPLIQUE RIEN : elle met les mêmes rails à plat, garde
+     leurs intitulés comme titres de groupe, et masque les copies de dérive. */
+  .kal.grille .kal-piste{overflow:visible;padding-bottom:0}
+  .kal.grille .kal-rail{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+    width:auto;animation:none}
+  .kal.grille .kal-rail .case{flex:none;width:auto}
+  .kal.grille [data-copie]{display:none}
+
+  /* ── LA CARTE ──────────────────────────────────────────────────────── */
+  /* LES ENFANTS DE LA CARTE SONT DES <span> : un <button> ne peut pas contenir
+     de <div> sans sortir du contenu autorisé. Il faut donc leur donner une
+     boîte — « width » et « height » ne s'appliquent pas à un inline, et les
+     faces en position:absolute;inset:0 s'effondreraient sur un parent de
+     taille nulle : dix pastilles au lieu de dix cartes. */
+  .case{--cc:linear-gradient(90deg,var(--cyan),var(--teal));--carte:330px;
+    flex:0 0 var(--carte);width:var(--carte);height:420px;perspective:1400px;
+    background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;
+    border-radius:16px;text-align:left}
+  .case:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+  .case-pivot{display:block;position:relative;width:100%;height:100%;
+    transform-style:preserve-3d;transition:transform .62s cubic-bezier(.22,.72,.24,1)}
+  .case[aria-pressed="true"] .case-pivot{transform:rotateY(180deg)}
+  .case-face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+    border-radius:16px;overflow:hidden;display:flex;flex-direction:column;
+    background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);
+    padding:22px 20px 18px}
+  .case-face::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--cc)}
+  /* LA « LOUPE » DU SITE NE S'APPLIQUE PAS À UNE CARTE QUI PIVOTE.
+     styles.css agrandit « .case » de 5 % au survol — un effet écrit pour des
+     tuiles statiques. Ici il pose une mise à l'échelle SUR le conteneur de
+     perspective : la projection du pivot s'en trouve faussée, et une carte
+     survolée cesse d'avoir la largeur des autres (346,5 px au lieu de 330,
+     mesuré). Le survol garde son signal, porté par la face — bordure cyan et
+     ombre — et la dérive s'arrête, ce qui est le vrai retour attendu. */
+  .case:hover{transform:none;box-shadow:none}
+  /* L'APPARITION AU DÉFILEMENT NE S'APPLIQUE PAS À UNE CARTE QUI DÉRIVE.
+     nav.js pose « .rv » (opacity:0) sur « main .case » puis attend qu'un
+     IntersectionObserver la voie entrer dans la fenêtre. Une carte de rail est
+     rognée HORIZONTALEMENT par sa piste : tant qu'elle n'a pas dérivé jusque
+     dans la fenêtre, l'observateur ne la voit pas — et elle reste invisible.
+     Mesuré sur cette page avant correction : quatre cartes sur dix-sept encore
+     à opacity 0 après quatorze secondes de dérive, dont tout le second rail.
+     Les cartes de rail s'affichent donc d'emblée ; celles qui sont hors rail
+     gardent l'apparition du site, qui pour elles fonctionne. */
+  .kal .case.rv{opacity:1;transform:none}
+  .case:hover .case-face{border-color:rgba(34,211,238,.55);
+    box-shadow:0 22px 50px rgba(0,0,0,.42),0 0 24px 3px rgba(34,211,238,.22)}
+  .case-verso{transform:rotateY(180deg)}
+  @media (prefers-reduced-motion:reduce){
+    .case-pivot{transition-duration:.001s}
+    .kal.derive .kal-rail{animation:none}
+  }
+  .case-co,.case-role,.case-bas,.v-tete,.v-co,.v-texte,.v-pied,
+  .para,.pt,.win,.v-note{display:block}
+  .case-bas{margin-top:auto;padding-top:12px;border-top:1px solid var(--line);
+    display:flex;justify-content:space-between;align-items:center;gap:8px;
+    font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;
+    color:var(--muted2)}
+  .case-bas span{display:block}
+  .case-bas .tourne{color:var(--cyan)}
+
+  /* ── LE VERSO ──────────────────────────────────────────────────────── */
+  .v-tete{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted2);display:flex;justify-content:space-between;gap:8px;
+    padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .v-tete span{display:block}
+  .v-etat{color:var(--cyan)}
+  .v-co{font-family:var(--serif,inherit);font-size:17px;font-weight:800;letter-spacing:-.01em;
+    margin-top:10px;line-height:1.25}
+  /* Le propos peut être long : il défile dans sa propre boîte plutôt que
+     d'être coupé. Un texte tronqué est un défaut, pas une mise en page. */
+  .v-texte{font-size:13px;line-height:1.6;color:var(--muted);margin-top:9px;
+    overflow-y:auto;flex:1;padding-right:6px}
+  .v-texte::-webkit-scrollbar{width:5px}
+  .v-texte::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .v-texte strong{color:var(--ink)}
+  .para{margin-bottom:8px}
+  .pt{position:relative;padding:4px 0 4px 18px}
+  .pt::before{content:"▸";position:absolute;left:0;top:4px;color:var(--cyan)}
+  .v-note{margin-top:10px;padding-left:11px;border-left:2px solid var(--line);
+    font-size:12px;line-height:1.7;color:var(--muted2)}
+  .v-pied{margin-top:10px;padding-top:9px;border-top:1px solid var(--line);
+    font-size:11px;line-height:1.55;color:var(--muted2)}
+  .v-pied strong{color:var(--ink)}
+
+  /* ── LA BANDE DES CADRES D'INTERVENTION — hors des rails, et c'est le
+     propos : une carte qui dérive au milieu de références se lit comme une
+     référence. ──────────────────────────────────────────────────────── */
+  .cadres{margin-top:30px;border:1px dashed var(--line);border-radius:18px;padding:26px}
+  .cadres-tete{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:26px;align-items:start}
+  @media(max-width:900px){.cadres-tete{grid-template-columns:1fr}}
+  .cadres-kick{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--amber);margin-bottom:7px}
+  .cadres h2{font-size:22px;letter-spacing:-.01em}
+  .cadres p{font-size:14px;color:var(--muted);margin-top:10px;max-width:58ch}
+  .cadres .case{justify-self:start}
+  @media(max-width:460px){
+    /* La largeur baisse POUR TOUT LE MONDE, sinon la carte des cadres
+       rétrécirait seule et cesserait d'avoir la taille des autres. */
+    .case{--carte:288px}
+    .cadres{padding:18px}
+  }
+
+  /* ── LES ACCENTS, UN PAR FICHE ─────────────────────────────────────── */
+  .e1{--cc:linear-gradient(90deg,var(--cyan),var(--teal))}
+  .e2{--cc:linear-gradient(90deg,var(--violet),var(--cyan))}
+  .e3{--cc:linear-gradient(90deg,var(--terra),var(--violet))}
+  .e4{--cc:linear-gradient(90deg,var(--amber),var(--terra))}
+  .e5{--cc:linear-gradient(90deg,var(--teal),var(--green))}
+  .e6{--cc:linear-gradient(90deg,var(--green),var(--cyan))}
+  .e7{--cc:linear-gradient(90deg,var(--amber),var(--cyan))}
+  .e8{--cc:linear-gradient(90deg,var(--cyan),var(--violet))}
+  .e9{--cc:linear-gradient(90deg,var(--violet),var(--amber))}
+  .e10{--cc:linear-gradient(90deg,var(--teal),var(--amber))}
+
+  /* ── LA FICHE CHIFFRÉE — l'ancienne .case, sous son propre nom ─────── */
+  .fiche-calc{background:linear-gradient(180deg,var(--panel),var(--bg2));
+    border:1px solid var(--line);border-radius:16px;padding:24px;position:relative;margin-top:22px}
+  .fiche-calc::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;
+    border-radius:16px 16px 0 0;background:var(--cc)}
+  .fiche-calc p{font-size:14px;color:var(--muted);margin-bottom:8px}
+  .fiche-calc ul{list-style:none;margin:8px 0 0}
+  .fiche-calc li{font-size:13.5px;color:var(--muted);padding:4px 0 4px 18px;position:relative}
+  .fiche-calc li::before{content:"▸";position:absolute;left:0;color:var(--cyan)}
+  .fiche-calc li strong{color:var(--ink)}
   /* La fiche chiffrée tient sur toute la largeur : un tableau de comparaison
      serré dans une demi-colonne devient illisible avant d'être informatif. */
   .ci-large{grid-column:1/-1}
@@ -85,17 +248,22 @@
     color:var(--amber);border:1px solid rgba(240,180,41,.45);background:rgba(240,180,41,.12);
     border-radius:999px;padding:3px 10px;vertical-align:middle}
   .case-top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px}
-  .case-co{font-family:var(--serif,inherit);font-size:24px;font-weight:800;letter-spacing:-.01em}
+  /* SUR UNE CARTE, LA PASTILLE PASSE AU-DESSUS DU NOM. En ligne, un nom de
+     deux lignes la rejetait 66 px plus bas : le badge « cas type » cessait
+     d'être lisible du même regard que l'intitulé — la propriété même que
+     cette page a été écrite pour tenir. En bandeau, l'écart est constant. */
+  .case-recto .case-top{flex-direction:column;align-items:flex-start;gap:9px;margin-bottom:0}
+  .case-sec{display:block}
+  .case-co{font-family:var(--serif,inherit);font-size:22px;font-weight:800;letter-spacing:-.01em;
+    line-height:1.15}
+  .fiche-calc .case-co{font-size:24px}
   .case-sec{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);border:1px solid var(--line);border-radius:999px;padding:3px 9px}
-  .case-role{font-size:13px;color:var(--muted2);font-family:var(--mono);margin-bottom:12px}
-  .case p{font-size:14px;color:var(--muted);margin-bottom:8px}
-  .case ul{list-style:none;margin:8px 0 0}
-  .case li{font-size:13.5px;color:var(--muted);padding:4px 0 4px 18px;position:relative}
-  .case li::before{content:"▸";position:absolute;left:0;color:var(--cyan)}
-  .case li strong{color:var(--ink)}
-  .case .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
-  .case .tags span{font-family:var(--mono);font-size:10.5px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
-  .case .win{margin-top:12px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--green)}
+  .case-role{font-size:12.5px;color:var(--muted2);font-family:var(--mono);margin-top:8px;line-height:1.55}
+  .fiche-calc .case-role{margin-bottom:12px}
+  .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+  .tags span{font-family:var(--mono);font-size:10.5px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+  .win{margin-top:10px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);border-radius:10px;padding:9px 12px;font-size:12.5px;line-height:1.55;color:var(--green)}
+  .win strong{color:var(--green)}
 </style>
 </head>
 <body>
@@ -137,158 +305,271 @@
       <p class="note" style="margin-top:12px;font-size:13px;color:var(--muted2)">Deux natures de fiches cohabitent ici, et
         chacune le dit&nbsp;: les <strong>missions</strong> relatent un travail conduit&nbsp;; les fiches marquées
         <span class="typ">cas type</span> décrivent une <strong>démarche</strong>, sans revendiquer de client ni de
-        résultat. Lorsqu'un cas type porte des nombres, il porte aussi la marque
+        résultat. Elles ne dérivent pas parmi les missions&nbsp;: elles sont réunies plus bas, sous
+        <a href="#cadres">Cadres d'intervention</a>. Lorsqu'un cas type porte des nombres, il porte aussi la marque
         <span class="calc">chiffres calculés</span>&nbsp;: ils sortent du moteur public de
         <a href="/datacenter">/datacenter</a>, avec leur formule et leur source — ce ne sont pas des mesures de terrain.</p>
     </section>
 
     <section class="section" style="padding-top:24px">
-      <div class="cases">
-
-        <div class="case e1">
-          <div class="case-top"><span class="case-co">EDF — DSI</span><span class="case-sec">Énergie</span></div>
-          <div class="case-role">Cybersécurité &amp; Sûreté · IA Risk Management du Système d'Information</div>
-          <p>Au sein de la DPO, la <strong>Mission Sûreté du SI</strong> contribue à l'amélioration de la fiabilité des
-          infrastructures du SI, en particulier les <strong>datacenters et réseaux d'EDF SA</strong>.</p>
-          <ul>
-            <li>Élaboration des <strong>guides de sûreté de fonctionnement</strong> des Systèmes d'Information (EDF DSIT).</li>
-            <li><strong>Études de cybersécurité</strong> des assets EDF et <strong>revues d'architectures</strong> des SI.</li>
-            <li><strong>Analyse des risques</strong> via <strong>EBIOS RM</strong>.</li>
-          </ul>
-          <div class="tags"><span>Sûreté de fonctionnement</span><span>Datacenters</span><span>Réseaux</span><span>IA Risk Management</span><span>EBIOS RM</span></div>
+      <div class="kal-barre">
+        <p class="kal-titre" style="padding:0"><b>Neuf études de cas</b> — cliquez une carte&nbsp;: elle pivote sur la fiche</p>
+        <div class="kal-vues" role="group" aria-label="Affichage des études de cas">
+          <button type="button" id="kal-v-rails" aria-pressed="true">Rails</button>
+          <button type="button" id="kal-v-grille" aria-pressed="false">Grille</button>
         </div>
+      </div>
 
-        <div class="case e2">
-          <div class="case-top"><span class="case-co">RENAULT</span><span class="case-sec">Automobile</span></div>
-          <div class="case-role">Cyber Consulting &amp; Risk Management · Training — Direction Qualité</div>
-          <p>Mapping des exigences <strong>WP.29 / CSMS</strong> et pilotage de la cybersécurité du véhicule connecté&nbsp;:
-          Cybersecurity Management System &amp; Safety.</p>
-          <ul>
-            <li><strong>Roadsecurity Plan</strong> aligné <strong>ISO/SAE 21434</strong>.</li>
-            <li>Cybersecurity Engineering &amp; Regulations&nbsp;: <strong>CSMS &amp; SUMS</strong>, exigences réglementaires (UNECE <strong>R155/R156</strong>).</li>
-            <li>Volet données personnelles&nbsp;: <strong>PIA / AIPD / RGPD</strong>.</li>
-          </ul>
-          <div class="win">✅ Certification <strong>ISO/SAE 21434</strong> « first-to-market » pour le véhicule connecté · ✅ ‑30 % d'incidents grâce au dispositif de cybersécurité.</div>
-          <div class="tags"><span>WP.29</span><span>ISO/SAE 21434</span><span>R155/R156</span><span>CSMS · SUMS</span><span>RGPD</span></div>
-        </div>
+      <div class="kal" id="kal">
+        <div class="kal-piste">
+          <p class="kal-titre"><b>Conduite industrielle et énergie</b> — SI industriel, biométhane, oil &amp; gas, éolien offshore</p>
+          <div class="kal-rail" id="kal-rail-a" style="--duree:70s">
+          <button type="button" class="case e1" aria-pressed="false"
+              aria-label="EDF — DSI — mission conduite — voir l’étude de cas">
+            <span class="case-pivot">
+            <span class="case-face case-recto">
+              <span class="case-top"><span class="case-sec">Énergie</span><span class="case-co">EDF — DSI</span></span>
+              <span class="case-role">Cybersécurité &amp; Sûreté · IA Risk Management du Système d’information</span>
+              <span class="tags"><span>Sûreté de fonctionnement</span><span>Datacenters</span><span>Réseaux</span><span>IA Risk Management</span><span>EBIOS RM</span></span>
+              <span class="case-bas"><span>Étude de cas</span><span class="tourne">Fiche ↻</span></span>
+            </span>
+            <span class="case-face case-verso">
+              <span class="v-tete"><span>Étude de cas</span><span class="v-etat">Énergie</span></span>
+              <span class="v-co">EDF — DSI</span>
+              <span class="v-texte">
+            <span class="para">Au sein de la DPO, la <strong>Mission Sûreté du SI</strong> contribue à l’amélioration de la fiabilité des infrastructures du SI, en particulier les <strong>datacenters et réseaux d’EDF SA</strong>.</span>
+            <span class="pt">Élaboration des <strong>guides de sûreté de fonctionnement</strong> des Systèmes d’Information (EDF DSIT).</span>
+            <span class="pt"><strong>Études de cybersécurité</strong> des assets EDF et <strong>revues d’architectures</strong> des SI.</span>
+            <span class="pt"><strong>Analyse des risques</strong> via <strong>EBIOS RM</strong>.</span>
 
-        <div class="case e3">
-          <div class="case-top"><span class="case-co">ATOS — Société du Grand Paris</span><span class="case-sec">Transport ferroviaire</span></div>
-          <div class="case-role">Ingénieur Réseau &amp; Sécurité · Analyste EBIOS RM — avec EGIS &amp; SETEC</div>
-          <p>Marché de fourniture, installation et maintenance du <strong>réseau multi-services</strong> et des
-          <strong>systèmes de surveillance des espaces</strong> des <strong>lignes 15, 16 et 17</strong> du réseau
-          Grand Paris Express.</p>
-          <div class="tags"><span>EBIOS RM</span><span>Réseau multi-services</span><span>Vidéosurveillance</span><span>Grand Paris Express</span></div>
-        </div>
 
-        <div class="case e4">
-          <div class="case-top"><span class="case-co">ALSTOM — Projet REM (Montréal)</span><span class="case-sec">Ferroviaire</span></div>
-          <div class="case-role">Contrat SIEM (Alstom / Airbus) — avec Atos · Réseau Express Métropolitain</div>
-          <p>Pilotage de lots du <strong>contrat SIEM</strong> pour le Réseau Express Métropolitain de Montréal&nbsp;:</p>
-          <ul>
-            <li>Exécution du <strong>WP1.1</strong> — définition et mise à jour du <strong>DAT</strong> (dossier d'architecture technique).</li>
-            <li>Exécution du <strong>WP2.1</strong> — pré-intégration du SIEM.</li>
-            <li>Conception de la <strong>plateforme d'hébergement du SIEM</strong> sur les définitions manquantes.</li>
-            <li>Évaluation de la définition des risques de l'<strong>analyse de risque système</strong> comme entrant de l'implémentation du SIEM.</li>
-          </ul>
-          <div class="tags"><span>SIEM</span><span>DAT</span><span>Analyse de risque</span><span>Intégration</span></div>
-        </div>
+              </span>
+              <span class="v-pied"><strong>Mission conduite.</strong> Contrat de prestation et attestation de bonne exécution sur demande.</span>
+            </span>
+            </span>
+          </button>
+          <button type="button" class="case e5" aria-pressed="false"
+              aria-label="GRDF — Projet Biométhane — mission conduite — voir l’étude de cas">
+            <span class="case-pivot">
+            <span class="case-face case-recto">
+              <span class="case-top"><span class="case-sec">Énergie / Gaz</span><span class="case-co">GRDF — Projet Biométhane</span></span>
+              <span class="case-role">Cybersécurité du SI Industriel · EBIOS · MCS</span>
+              <span class="tags"><span>PSSI industrielle</span><span>EBIOS</span><span>LPM · NIS</span><span>IEC 62443</span><span>Biométhane</span></span>
+              <span class="case-bas"><span>Étude de cas</span><span class="tourne">Fiche ↻</span></span>
+            </span>
+            <span class="case-face case-verso">
+              <span class="v-tete"><span>Étude de cas</span><span class="v-etat">Énergie / Gaz</span></span>
+              <span class="v-co">GRDF — Projet Biométhane</span>
+              <span class="v-texte">
+            <span class="para">Rédaction de la <strong>politique de sécurité du SI Industriel</strong> (politique de sécurité des systèmes de contrôle industriel) et pilotage des risques.</span>
+            <span class="pt"><strong>Analyses de risques</strong> (EBIOS) et maintien en condition de sécurité (MCS) des SI.</span>
+            <span class="pt">Mesures de mitigation des risques d’intrusion &amp; de propagation&nbsp;: <strong>cartographie du SI industriel</strong>, intégration de la cybersécurité («&nbsp;Specification for Design System Integration&nbsp;»), moyens de <strong>détection d’incident</strong> et plan d’action (MCO).</span>
+            <span class="pt"><strong>Analyse d’écarts</strong> par rapport aux lois <strong>LPM</strong> et <strong>NIS</strong>.</span>
 
-        <div class="case e5">
-          <div class="case-top"><span class="case-co">GRDF — Projet Biométhane</span><span class="case-sec">Énergie / Gaz</span></div>
-          <div class="case-role">Cybersécurité du SI Industriel · EBIOS · MCS</div>
-          <p>Rédaction de la <strong>politique de sécurité du SI Industriel</strong> (politique de sécurité des systèmes de
-          contrôle industriel) et pilotage des risques&nbsp;:</p>
-          <ul>
-            <li><strong>Analyses de risques</strong> (EBIOS) et maintien en condition de sécurité (MCS) des SI.</li>
-            <li>Mesures de mitigation des risques d'intrusion &amp; de propagation&nbsp;: <strong>cartographie du SI industriel</strong>, intégration de la cybersécurité (« Specification for Design System Integration »), moyens de <strong>détection d'incident</strong> et plan d'action (MCO).</li>
-            <li><strong>Analyse d'écarts</strong> par rapport aux lois <strong>LPM</strong> et <strong>NIS</strong>.</li>
-          </ul>
-          <p class="muted" style="font-size:12.5px">Corpus mobilisé : ISO 27001, NIST SP 800‑82, NIST SP 800‑53, guide ANSSI sécurité industrielle, IEC 62443.</p>
-          <div class="tags"><span>PSSI industrielle</span><span>EBIOS</span><span>LPM · NIS</span><span>IEC 62443</span><span>Biométhane</span></div>
-        </div>
+            <span class="v-note">Corpus mobilisé&nbsp;: ISO 27001, NIST SP 800‑82, NIST SP 800‑53, guide ANSSI sécurité industrielle, IEC 62443.</span>
+              </span>
+              <span class="v-pied"><strong>Mission conduite.</strong> Contrat de prestation et attestation de bonne exécution sur demande.</span>
+            </span>
+            </span>
+          </button>
+          <button type="button" class="case e6" aria-pressed="false"
+              aria-label="TECHNIPENERGIES — mission conduite — voir l’étude de cas">
+            <span class="case-pivot">
+            <span class="case-face case-recto">
+              <span class="case-top"><span class="case-sec">Oil &amp; Gas</span><span class="case-co">TECHNIPENERGIES</span></span>
+              <span class="case-role">Ingénieur cybersécurité des systèmes de contrôle industriel</span>
+              <span class="tags"><span>SCADA · DCS</span><span>PLC · HMI</span><span>Architecture</span><span>Supervision</span><span>Oil &amp; Gas</span></span>
+              <span class="case-bas"><span>Étude de cas</span><span class="tourne">Fiche ↻</span></span>
+            </span>
+            <span class="case-face case-verso">
+              <span class="v-tete"><span>Étude de cas</span><span class="v-etat">Oil &amp; Gas</span></span>
+              <span class="v-co">TECHNIPENERGIES</span>
+              <span class="v-texte">
+            <span class="para">Conception, <strong>architectures</strong> et <strong>supervision</strong> des systèmes de contrôle industriel (<strong>PLC, HMI, SCADA, DCS</strong>) sur des projets majeurs du secteur énergie.</span>
+            <span class="pt">Projets&nbsp;: <strong>KARISH &amp; Tanin FPSO</strong>, GTLA, MANASEER MCC, Martin Linge, MOTIVA FEED, US GAS CAP.</span>
 
-        <div class="case e6">
-          <div class="case-top"><span class="case-co">TECHNIPENERGIES</span><span class="case-sec">Oil &amp; Gas</span></div>
-          <div class="case-role">Ingénieur cybersécurité des systèmes de contrôle industriel</div>
-          <p>Conception, <strong>architectures</strong> et <strong>supervision</strong> des systèmes de contrôle industriel
-          (<strong>PLC, HMI, SCADA, DCS</strong>) sur des projets majeurs du secteur énergie.</p>
-          <ul>
-            <li>Projets&nbsp;: <strong>KARISH &amp; Tanin FPSO</strong>, GTLA, MANASEER MCC, Martin Linge, MOTIVA FEED, US GAS CAP.</li>
-          </ul>
-          <div class="tags"><span>SCADA · DCS</span><span>PLC · HMI</span><span>Architecture</span><span>Supervision</span><span>Oil &amp; Gas</span></div>
-        </div>
 
-        <div class="case e7">
-          <div class="case-top"><span class="case-co">Groupe d'assurance international</span><span class="case-sec">Assurance <span class="anon">référence anonymisée</span></span></div>
-          <div class="case-role">Direction de projet AMOA — intégration IA &amp; cyberdéfense (étude commandée par le client)</div>
-          <p>Face à l'<strong>accélération des découvertes de vulnérabilités par l'IA</strong>, structuration d'un programme
-          groupe multi-filiales&nbsp;: d'une posture réactive à une posture <strong>proactive et anticipative</strong>.</p>
-          <ul>
-            <li><strong>Cartographie de l'exposition du SI</strong> — recensement des applications exposées sur internet et priorisation des remédiations.</li>
-            <li><strong>Chaînes de patching &amp; remédiation</strong> — capacité du SI et des équipes à absorber une vague de vulnérabilités critiques.</li>
-            <li><strong>SOC &amp; cyberdéfense augmentée par l'IA</strong> — adaptation des moyens humains et logiciels de détection et de réponse.</li>
-            <li><strong>Gouvernance &amp; gestion de crise</strong> — dispositif adapté aux crises rapides et systémiques.</li>
-            <li><strong>Anticipation &amp; stratégie</strong> — usage de l'IA pour anticiper les menaces liées à l'IA.</li>
-          </ul>
-          <p class="muted" style="font-size:12.5px">Pilotage par indicateurs : TTD, MTTR, MTTP, taux d'automatisation. Démarche transposable aux environnements industriels (IT/OT). Méthode présentée sans aucune donnée client (mission en cours).</p>
-          <div class="tags"><span>AMOA · IA</span><span>SOC augmenté IA</span><span>Gestion de crise</span><span>DORA</span><span>TTD · MTTR · MTTP</span></div>
-        </div>
+              </span>
+              <span class="v-pied"><strong>Mission conduite.</strong> Contrat de prestation et attestation de bonne exécution sur demande.</span>
+            </span>
+            </span>
+          </button>
+          <button type="button" class="case e8" aria-pressed="false"
+              aria-label="Management OT — Offshore Substation Wind Farm — mission conduite — voir l’étude de cas">
+            <span class="case-pivot">
+            <span class="case-face case-recto">
+              <span class="case-top"><span class="case-sec">Éolien offshore</span><span class="case-co">Management OT — Offshore Substation Wind Farm</span></span>
+              <span class="case-role">Management de la sécurité OT — prestataire de services IACS (IEC 62443)</span>
+              <span class="tags"><span>IEC 62443</span><span>ISO 27000</span><span>Security levels</span><span>Architecture OT</span><span>EPCI</span><span>Éolien offshore</span></span>
+              <span class="case-bas"><span>Étude de cas</span><span class="tourne">Fiche ↻</span></span>
+            </span>
+            <span class="case-face case-verso">
+              <span class="v-tete"><span>Étude de cas</span><span class="v-etat">Éolien offshore</span></span>
+              <span class="v-co">Management OT — Offshore Substation Wind Farm</span>
+              <span class="v-texte">
+            <span class="para">Définition et pilotage du <strong>schéma de sécurité OT</strong> de la sous-station électrique offshore d’un parc éolien, de l’exigence normative jusqu’à la cascade contractuelle vers les fournisseurs.</span>
+            <span class="pt"><strong>Exigences de sécurité OT</strong> — identification des exigences <strong>IEC 62443</strong> et <strong>ISO 27000</strong> applicables au parc éolien offshore et au rôle de <strong>prestataire de services IACS</strong> sur le projet.</span>
+            <span class="pt"><strong>Périmètre &amp; niveaux de sécurité</strong> — identification des systèmes de la sous-station à placer sous schéma de sécurité OT spécifique au sens de l’IEC 62443, déclinaison des <strong>security levels</strong> et définition des niveaux de maturité.</span>
+            <span class="pt"><strong>Architecture de sécurité OT</strong> — appui à sa définition et aux mesures de sécurité qui en découlent, aux niveaux <strong>système et composant</strong>.</span>
+            <span class="pt"><strong>Plan de management de la sécurité OT</strong> — documentation de conception et de tests couvrant l’<strong>EPCI</strong> et ses interfaces.</span>
+            <span class="pt"><strong>Cascade fournisseurs</strong> — identification et élaboration des plans de management, politiques et procédures à décliner vers les <strong>fournisseurs et sous-traitants</strong>.</span>
 
-        <div class="case e8">
-          <div class="case-top"><span class="case-co">Management OT — Offshore Substation Wind Farm</span><span class="case-sec">Éolien offshore</span></div>
-          <div class="case-role">Management de la sécurité OT — prestataire de services IACS (IEC 62443)</div>
-          <p>Définition et pilotage du <strong>schéma de sécurité OT</strong> de la sous-station électrique offshore d'un parc
-          éolien, de l'exigence normative jusqu'à la cascade contractuelle vers les fournisseurs.</p>
-          <ul>
-            <li><strong>Exigences de sécurité OT</strong> — identification des exigences <strong>IEC 62443</strong> et <strong>ISO 27000</strong> applicables au parc éolien offshore et au rôle de <strong>prestataire de services IACS</strong> sur le projet.</li>
-            <li><strong>Périmètre &amp; niveaux de sécurité</strong> — identification des systèmes de la sous-station à placer sous schéma de sécurité OT spécifique au sens de l'IEC 62443, déclinaison des <strong>security levels</strong> et définition des niveaux de maturité.</li>
-            <li><strong>Architecture de sécurité OT</strong> — appui à sa définition et aux mesures de sécurité qui en découlent, aux niveaux <strong>système et composant</strong>.</li>
-            <li><strong>Plan de management de la sécurité OT</strong> — documentation de conception et de tests couvrant l'<strong>EPCI</strong> et ses interfaces.</li>
-            <li><strong>Cascade fournisseurs</strong> — identification et élaboration des plans de management, politiques et procédures à décliner vers les <strong>fournisseurs et sous-traitants</strong>.</li>
-          </ul>
-          <div class="tags"><span>IEC 62443</span><span>ISO 27000</span><span>Security levels</span><span>Architecture OT</span><span>EPCI</span><span>Éolien offshore</span></div>
-        </div>
 
-        <div class="case e9">
-          <div class="case-top">
-            <span class="case-co">Postes haute tension</span>
-            <span class="case-sec">Énergie <span class="typ">cas type</span></span>
+              </span>
+              <span class="v-pied"><strong>Mission conduite.</strong> Contrat de prestation et attestation de bonne exécution sur demande.</span>
+            </span>
+            </span>
+          </button>
           </div>
-          <div class="case-role">Cybersécurité OT sur projets de postes HT — IEC&nbsp;62443‑3‑2 / 3‑3 · NIS2 &amp; BDEW</div>
-          <p>Un poste haute tension n'est pas une salle serveurs avec des disjoncteurs&nbsp;: <strong>l'ordre de
-          déclenchement part en quelques millisecondes</strong>, et cette contrainte commande l'architecture de sécurité.</p>
-          <ul>
-            <li><strong>Zones &amp; conduits (62443‑3‑2)</strong> — bus de process, bus de station, téléconduite, accès
-            distant fournisseur&nbsp;: quatre régimes de risque. <strong>Un SL‑T par zone, pas un par site</strong> (62443‑3‑3), puis
-            les exigences cascadées aux fournisseurs (62443‑2‑4) avec points d'arrêt avant commande.</li>
-            <li><strong>Cadre allemand</strong> — NIS2, catalogue de la <strong>Bundesnetzagentur</strong> (art.&nbsp;11
-            EnWG), livre blanc <strong>BDEW/OE</strong> imposé contractuellement. À la réception, les exigences au SL‑T
-            font critères d'acceptation.</li>
-          </ul>
-          <p class="muted" style="font-size:12.5px;margin-top:10px">Cadre d'intervention&nbsp;: ce <strong>n'est
-          pas</strong> une mission conduite — aucun client, aucun résultat chiffré.</p>
-          <div class="tags"><span>IEC 62443‑3‑2</span><span>SL‑T</span><span>NIS2</span><span>BDEW · EnWG</span></div>
+        </div>
+        <div class="kal-piste">
+          <p class="kal-titre"><b>Mobilité, transport et systèmes d’information</b> — véhicule connecté, ferroviaire, SI d’assurance</p>
+          <div class="kal-rail inverse" id="kal-rail-b" style="--duree:58s">
+          <button type="button" class="case e2" aria-pressed="false"
+              aria-label="RENAULT — mission conduite — voir l’étude de cas">
+            <span class="case-pivot">
+            <span class="case-face case-recto">
+              <span class="case-top"><span class="case-sec">Automobile</span><span class="case-co">RENAULT</span></span>
+              <span class="case-role">Cyber Consulting &amp; Risk Management · Training — Direction Qualité</span>
+              <span class="tags"><span>WP.29</span><span>ISO/SAE 21434</span><span>R155/R156</span><span>CSMS · SUMS</span><span>RGPD</span></span>
+              <span class="case-bas"><span>Étude de cas</span><span class="tourne">Fiche ↻</span></span>
+            </span>
+            <span class="case-face case-verso">
+              <span class="v-tete"><span>Étude de cas</span><span class="v-etat">Automobile</span></span>
+              <span class="v-co">RENAULT</span>
+              <span class="v-texte">
+            <span class="para">Mapping des exigences <strong>WP.29 / CSMS</strong> et pilotage de la cybersécurité du véhicule connecté&nbsp;: Cybersecurity Management System &amp; Safety.</span>
+            <span class="pt"><strong>Roadsecurity Plan</strong> aligné <strong>ISO/SAE 21434</strong>.</span>
+            <span class="pt">Cybersecurity Engineering &amp; Regulations&nbsp;: <strong>CSMS &amp; SUMS</strong>, exigences réglementaires (UNECE <strong>R155/R156</strong>).</span>
+            <span class="pt">Volet données personnelles&nbsp;: <strong>PIA / AIPD / RGPD</strong>.</span>
+            <span class="win">✅ Certification <strong>ISO/SAE 21434</strong> «&nbsp;first-to-market&nbsp;» pour le véhicule connecté · ✅ ‑30&nbsp;% d’incidents grâce au dispositif de cybersécurité.</span>
+
+              </span>
+              <span class="v-pied"><strong>Mission conduite.</strong> Contrat de prestation et attestation de bonne exécution sur demande.</span>
+            </span>
+            </span>
+          </button>
+          <button type="button" class="case e3" aria-pressed="false"
+              aria-label="ATOS — Société du Grand Paris — mission conduite — voir l’étude de cas">
+            <span class="case-pivot">
+            <span class="case-face case-recto">
+              <span class="case-top"><span class="case-sec">Transport ferroviaire</span><span class="case-co">ATOS — Société du Grand Paris</span></span>
+              <span class="case-role">Ingénieur Réseau &amp; Sécurité · Analyste EBIOS RM — avec EGIS &amp; SETEC</span>
+              <span class="tags"><span>EBIOS RM</span><span>Réseau multi-services</span><span>Vidéosurveillance</span><span>Grand Paris Express</span></span>
+              <span class="case-bas"><span>Étude de cas</span><span class="tourne">Fiche ↻</span></span>
+            </span>
+            <span class="case-face case-verso">
+              <span class="v-tete"><span>Étude de cas</span><span class="v-etat">Transport ferroviaire</span></span>
+              <span class="v-co">ATOS — Société du Grand Paris</span>
+              <span class="v-texte">
+            <span class="para">Marché de fourniture, installation et maintenance du <strong>réseau multi-services</strong> et des <strong>systèmes de surveillance des espaces</strong> des <strong>lignes 15, 16 et 17</strong> du réseau Grand Paris Express.</span>
+
+
+
+              </span>
+              <span class="v-pied"><strong>Mission conduite.</strong> Contrat de prestation et attestation de bonne exécution sur demande.</span>
+            </span>
+            </span>
+          </button>
+          <button type="button" class="case e4" aria-pressed="false"
+              aria-label="ALSTOM — Projet REM (Montréal) — mission conduite — voir l’étude de cas">
+            <span class="case-pivot">
+            <span class="case-face case-recto">
+              <span class="case-top"><span class="case-sec">Ferroviaire</span><span class="case-co">ALSTOM — Projet REM (Montréal)</span></span>
+              <span class="case-role">Contrat SIEM (Alstom / Airbus) — avec Atos · Réseau Express Métropolitain</span>
+              <span class="tags"><span>SIEM</span><span>DAT</span><span>Analyse de risque</span><span>Intégration</span></span>
+              <span class="case-bas"><span>Étude de cas</span><span class="tourne">Fiche ↻</span></span>
+            </span>
+            <span class="case-face case-verso">
+              <span class="v-tete"><span>Étude de cas</span><span class="v-etat">Ferroviaire</span></span>
+              <span class="v-co">ALSTOM — Projet REM (Montréal)</span>
+              <span class="v-texte">
+            <span class="para">Pilotage de lots du <strong>contrat SIEM</strong> pour le Réseau Express Métropolitain de Montréal&nbsp;:</span>
+            <span class="pt">Exécution du <strong>WP1.1</strong> — définition et mise à jour du <strong>DAT</strong> (dossier d’architecture technique).</span>
+            <span class="pt">Exécution du <strong>WP2.1</strong> — pré-intégration du SIEM.</span>
+            <span class="pt">Conception de la <strong>plateforme d’hébergement du SIEM</strong> sur les définitions manquantes.</span>
+            <span class="pt">Évaluation de la définition des risques de l’<strong>analyse de risque système</strong> comme entrant de l’implémentation du SIEM.</span>
+
+
+              </span>
+              <span class="v-pied"><strong>Mission conduite.</strong> Contrat de prestation et attestation de bonne exécution sur demande.</span>
+            </span>
+            </span>
+          </button>
+          <button type="button" class="case e7" aria-pressed="false"
+              aria-label="Groupe d’assurance international — référence anonymisée — voir l’étude de cas">
+            <span class="case-pivot">
+            <span class="case-face case-recto">
+              <span class="case-top"><span class="case-sec">Assurance <span class="anon">référence anonymisée</span></span><span class="case-co">Groupe d’assurance international</span></span>
+              <span class="case-role">Direction de projet AMOA — intégration IA &amp; cyberdéfense (étude commandée par le client)</span>
+              <span class="tags"><span>AMOA · IA</span><span>SOC augmenté IA</span><span>Gestion de crise</span><span>DORA</span><span>TTD · MTTR · MTTP</span></span>
+              <span class="case-bas"><span>Étude de cas</span><span class="tourne">Fiche ↻</span></span>
+            </span>
+            <span class="case-face case-verso">
+              <span class="v-tete"><span>Étude de cas</span><span class="v-etat">Assurance</span></span>
+              <span class="v-co">Groupe d’assurance international</span>
+              <span class="v-texte">
+            <span class="para">Face à l’<strong>accélération des découvertes de vulnérabilités par l’IA</strong>, structuration d’un programme groupe multi-filiales&nbsp;: d’une posture réactive à une posture <strong>proactive et anticipative</strong>.</span>
+            <span class="pt"><strong>Cartographie de l’exposition du SI</strong> — recensement des applications exposées sur internet et priorisation des remédiations.</span>
+            <span class="pt"><strong>Chaînes de patching &amp; remédiation</strong> — capacité du SI et des équipes à absorber une vague de vulnérabilités critiques.</span>
+            <span class="pt"><strong>SOC &amp; cyberdéfense augmentée par l’IA</strong> — adaptation des moyens humains et logiciels de détection et de réponse.</span>
+            <span class="pt"><strong>Gouvernance &amp; gestion de crise</strong> — dispositif adapté aux crises rapides et systémiques.</span>
+            <span class="pt"><strong>Anticipation &amp; stratégie</strong> — usage de l’IA pour anticiper les menaces liées à l’IA.</span>
+
+            <span class="v-note">Pilotage par indicateurs&nbsp;: TTD, MTTR, MTTP, taux d’automatisation. Démarche transposable aux environnements industriels (IT/OT). Méthode présentée sans aucune donnée client (mission en cours).</span>
+              </span>
+              <span class="v-pied"><strong>Référence anonymisée</strong> à la demande du client. Aucune donnée client n’est présentée.</span>
+            </span>
+            </span>
+          </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════════════════
+           LES CADRES D'INTERVENTION — HORS DES RAILS, ET C'EST LE PROPOS.
+           Une fiche sans client qui dériverait au milieu des missions se
+           lirait comme une mission. Elle est donc ailleurs, sous un titre
+           qui dit ce qu'elle est, et la fiche chiffrée la suit dans le même
+           encadré pointillé : les deux sont de la même nature.
+           ═══════════════════════════════════════════════════════════════ -->
+      <div class="cadres" id="cadres">
+        <div class="cadres-tete">
+          <div>
+            <p class="cadres-kick">Aucun client, aucun résultat revendiqué</p>
+            <h2>Cadres d’intervention</h2>
+            <p>Ces deux fiches ne relatent <strong>aucune mission conduite</strong>&nbsp;: elles décrivent une
+              démarche. Elles sont tenues à l’écart des missions plutôt que mêlées à elles.</p>
+            <p>La seconde porte des nombres&nbsp;; ils ne sont écrits nulle part dans cette page&nbsp;: ils sont
+              <strong>calculés à chaque affichage</strong> par le moteur public de <a href="/datacenter">/datacenter</a>,
+              qui rend pour chaque valeur sa formule, sa source normative et son incertitude.</p>
+          </div>
+          <button type="button" class="case e9" aria-pressed="false"
+              aria-label="Postes haute tension — cas type — voir l’étude de cas">
+            <span class="case-pivot">
+            <span class="case-face case-recto">
+              <span class="case-top"><span class="case-sec">Énergie <span class="typ">cas type</span></span><span class="case-co">Postes haute tension</span></span>
+              <span class="case-role">Cybersécurité OT sur projets de postes HT — IEC&nbsp;62443‑3‑2 / 3‑3 · NIS2 &amp; BDEW</span>
+              <span class="tags"><span>IEC 62443‑3‑2</span><span>SL‑T</span><span>NIS2</span><span>BDEW · EnWG</span></span>
+              <span class="case-bas"><span>Cadre d’intervention</span><span class="tourne">Fiche ↻</span></span>
+            </span>
+            <span class="case-face case-verso">
+              <span class="v-tete"><span>Cadre d’intervention</span><span class="v-etat">Énergie</span></span>
+              <span class="v-co">Postes haute tension</span>
+              <span class="v-texte">
+            <span class="para">Un poste haute tension n’est pas une salle serveurs avec des disjoncteurs&nbsp;: <strong>l’ordre de déclenchement part en quelques millisecondes</strong>, et cette contrainte commande l’architecture de sécurité.</span>
+            <span class="pt"><strong>Zones &amp; conduits (62443‑3‑2)</strong> — bus de process, bus de station, téléconduite, accès distant fournisseur&nbsp;: quatre régimes de risque. <strong>Un SL‑T par zone, pas un par site</strong> (62443‑3‑3), puis les exigences cascadées aux fournisseurs (62443‑2‑4) avec points d’arrêt avant commande.</span>
+            <span class="pt"><strong>Cadre allemand</strong> — NIS2, catalogue de la <strong>Bundesnetzagentur</strong> (art.&nbsp;11 EnWG), livre blanc <strong>BDEW/OE</strong> imposé contractuellement. À la réception, les exigences au SL‑T font critères d’acceptation.</span>
+
+            <span class="v-note">Cadre d’intervention&nbsp;: ce <strong>n’est pas</strong> une mission conduite — aucun client, aucun résultat chiffré.</span>
+              </span>
+              <span class="v-pied"><strong>Cas type.</strong> Cette fiche décrit une démarche&nbsp;: aucun client n’est revendiqué, aucun résultat n’est chiffré.</span>
+            </span>
+            </span>
+          </button>
         </div>
 
-        <!-- ═══════════════════════════════════════════════════════════════
-             CLIENT IMPACT — la seule fiche de cette page qui porte des
-             NOMBRES sans porter de client.
-
-             POURQUOI ELLE EXISTE. « Deux centres de données rendant le même
-             service peuvent afficher des empreintes très différentes » est une
-             phrase que tout le monde signe et que personne ne chiffre. Ici
-             elle est chiffrée — et le chiffre n'est écrit NULLE PART dans
-             cette page : il est calculé à chaque affichage par le moteur de
-             /datacenter, celui qui rend pour chaque valeur sa formule, sa
-             source normative et son incertitude.
-
-             CE QUE LE HTML PORTE, ET CE QUE LE SCRIPT AJOUTE. Le propos est
-             écrit ici, en toutes lettres. Les nombres viennent de
-             /api/impact-client. Si l'interface ne répond pas, le lecteur perd
-             les nombres et garde le propos : jamais un bloc vide.
-             ═══════════════════════════════════════════════════════════════ -->
-        <div class="case e10 ci-large" id="cas-impact-client">
+        <div class="fiche-calc e10 ci-large" id="cas-impact-client">
           <div class="case-top">
             <span class="case-co">Client Impact</span>
             <span class="case-sec">Centres de données
@@ -321,7 +602,6 @@
           formule, sa source et son incertitude.</p>
           <div class="tags"><span>PUE · WUE · ERF</span><span>ISO/IEC 30134</span><span>EN 50600-4</span><span>Carbone incorporé</span><span>Scope 2 localisé / marché</span></div>
         </div>
-
       </div>
 
       <div class="divider"></div>
@@ -397,6 +677,7 @@
 </footer>
   <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
   <script src="/nombres.js"></script>
+  <script src="/etudes-cartes.js" defer></script>
   <script src="/impact-client.js" defer></script>
   <script src="/nav.js" defer></script>
   <script src="/parcours.js" defer></script>
