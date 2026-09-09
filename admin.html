@@ -150,6 +150,29 @@
         <div style="margin-top:12px"><button id="veilBtn" class="btn btn-s" type="button">Relancer la collecte maintenant</button>
           <span id="veilEtat" style="margin-left:10px;font-size:12.5px;color:var(--muted2)"></span></div>
         <div id="veilOut" style="margin-top:14px"></div>
+
+        <!-- ══════════════════════════════════════════════════════════════
+             LE RETRAIT DES SOURCES SORTIES DE LA VEILLE
+             ══════════════════════════════════════════════════════════════
+             LA ROUTE EXISTAIT, AUCUNE PAGE NE L'APPELAIT. `/api/admin/veille/
+             retirer` simule, compte et journalise depuis le 7 septembre —
+             mais elle n'était atteignable qu'en ligne de commande avec une
+             session d'administration. Une suppression qu'on ne peut pas
+             déclencher n'est pas une suppression disponible.
+
+             DEUX TEMPS, ET C'EST LA ROUTE QUI LES IMPOSE : le premier appel
+             COMPTE sans rien supprimer, le second confirme. Le bouton rouge
+             n'apparaît qu'une fois le nombre connu — on ne détruit pas sur
+             une intention, mais sur un chiffre qu'on vient de lire. -->
+        <div id="retrPanel" style="margin-top:18px;border-top:1px solid var(--line);padding-top:16px">
+          <h4 style="margin:0;font-size:14px">Sources sorties de la veille</h4>
+          <p style="margin:4px 0 0;font-size:13px;color:var(--muted2)">Ces clés ne sont plus collectées&nbsp;; leurs bulletins restent en base
+            tant qu'on ne les retire pas. Le premier bouton <b>compte sans rien supprimer</b>.</p>
+          <div style="margin-top:12px"><button id="retrBtn" class="btn btn-s" type="button">Compter ce qui partirait</button>
+            <button id="retrGo" class="btn btn-s" type="button" style="display:none;margin-left:8px;background:var(--danger);border-color:var(--danger);color:#fff">Supprimer définitivement</button>
+            <span id="retrEtat" style="margin-left:10px;font-size:12.5px;color:var(--muted2)"></span></div>
+          <div id="retrOut" style="margin-top:12px"></div>
+        </div>
       </div>
     </section>
   </main>
@@ -286,6 +309,68 @@
       }).join('')
         +'<p style="font-size:12px;color:var(--muted2);margin-top:10px">'+j.a_regarder+' flux sur '+j.total
         +'. Les adresses se corrigent dans <b>veille_sources.py</b>.</p>';
+    }
+
+    /* ── LE RETRAIT DES SOURCES SORTIES DE LA VEILLE ──────────────────
+       LE COMPTE PRÉCÈDE LA SUPPRESSION, ET LE BOUTON ROUGE N'EXISTE PAS
+       AVANT LUI. La route simule par défaut ; l'écran suit la même règle.
+       On ne détruit pas sur une intention, mais sur un chiffre qu'on vient
+       de lire — et le chiffre vient du serveur, jamais d'ici. */
+    var retrPanel=document.getElementById('retrPanel');
+    if(retrPanel){
+      var retrBtn=document.getElementById('retrBtn'), retrGo=document.getElementById('retrGo'),
+          retrEtat=document.getElementById('retrEtat'), retrOut=document.getElementById('retrOut');
+
+      function retrRendre(j, confirme){
+        if(!j||!j.ok){ retrOut.innerHTML='<p style="font-size:13px;color:var(--danger)">Le retrait n\'a pas pu être mené.</p>'; return; }
+        var r=j.retrait||{}, motifs=j.motifs||{}, restant=j.restant||{};
+        var cles=Object.keys(motifs).sort();
+        /* CHAQUE CLÉ PORTE SON MOTIF ET SON RÉSIDU. Un total seul ne dit pas
+           laquelle a été oubliée — et c'est précisément la clé héritée
+           « avis » qui pesait le plus. */
+        retrOut.innerHTML='<div style="font-size:13px;color:var(--ink);margin-bottom:8px"><b>'
+          +(r.bulletins||0)+'</b> bulletin(s) '+(confirme?'supprimé(s)':'partiraient')
+          +' sur '+cles.length+' clé(s).</div>'
+          +cles.map(function(c){
+            return '<div style="display:flex;gap:12px;align-items:baseline;padding:6px 0;border-bottom:1px solid rgba(154,102,80,.28)">'
+              +'<b style="min-width:130px;color:var(--ink)">'+diagEsc(c)+'</b>'
+              +'<span style="color:var(--muted2);font-size:12.5px;flex:1">'+diagEsc(motifs[c])+'</span>'
+              +'<span style="min-width:110px;text-align:right;color:'
+              +((restant[c]||0)?'var(--amber)':'var(--muted2)')+'">reste '+(restant[c]||0)+'</span></div>';
+          }).join('')
+          +(confirme
+            ? '<p style="font-size:12px;color:var(--muted2);margin-top:10px">Retrait journalisé. La collecte de ces sources est déjà arrêtée&nbsp;: rien ne reviendra.</p>'
+            : '<p style="font-size:12px;color:var(--muted2);margin-top:10px">Rien n\'a été supprimé. Le bouton rouge confirme.</p>');
+      }
+
+      retrBtn.addEventListener('click', function(){
+        retrBtn.disabled=true; retrEtat.textContent='Comptage…';
+        fetch('/api/admin/veille/retirer',{method:'POST',
+              headers:{'Content-Type':'application/json'},body:'{}'})
+          .then(function(r){return r.json();})
+          .then(function(j){
+            retrBtn.disabled=false; retrEtat.textContent='';
+            retrRendre(j,false);
+            /* LE BOUTON ROUGE NE PARAÎT QUE S'IL Y A QUELQUE CHOSE À RETIRER :
+               proposer de supprimer zéro bulletin ferait douter du compte. */
+            retrGo.style.display=((j&&j.retrait&&j.retrait.bulletins)?'':'none');
+          })
+          .catch(function(){ retrBtn.disabled=false; retrEtat.textContent='Comptage impossible.'; });
+      });
+
+      retrGo.addEventListener('click', function(){
+        if(!window.confirm('Supprimer définitivement ces bulletins ? Cette action est irréversible.')) return;
+        retrGo.disabled=true; retrEtat.textContent='Suppression…';
+        fetch('/api/admin/veille/retirer',{method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({confirmer:true})})
+          .then(function(r){return r.json();})
+          .then(function(j){
+            retrGo.disabled=false; retrGo.style.display='none'; retrEtat.textContent='';
+            retrRendre(j,true);
+          })
+          .catch(function(){ retrGo.disabled=false; retrEtat.textContent='Suppression impossible.'; });
+      });
     }
 
     if(veilPanel){
