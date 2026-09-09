@@ -34,7 +34,18 @@
     color:var(--amber);margin-bottom:7px}
   .cadres h2{font-size:22px;letter-spacing:-.01em}
   .cadres p{font-size:14px;color:var(--muted);margin-top:10px;max-width:58ch}
-  .cadres .case{justify-self:start}
+  /* ── LE FORMAT LARGE, POUR LA BANDE DES CADRES ──────────────────────
+     LA RAISON EST MESURÉE, PAS ESTHÉTIQUE. Le verso de « Postes haute
+     tension » demandait 490 px de lecture dans une boîte de 259 px à 288 px
+     de large : deux tiers du texte étaient derrière un défilement. Ces deux
+     fiches ne dérivent pas dans un rail — rien ne les oblige à la largeur des
+     neuf missions. Elles prennent donc toute la bande, et le texte respire.
+     `--carte` reste la seule poignée : la largeur des cartes de mission n'est
+     pas touchée, ici comme sur /references. */
+  .case--large{--carte:100%;width:100%;height:400px}
+  .cadres-cartes{display:grid;gap:22px;margin-top:22px}
+  .cadres .case{justify-self:stretch}
+  @media(max-width:700px){.case--large{height:520px}}
   @media(max-width:460px){
     /* La largeur baisse POUR TOUT LE MONDE, sinon la carte des cadres
        rétrécirait seule et cesserait d'avoir la taille des autres. */
@@ -55,6 +66,14 @@
   /* La fiche chiffrée tient sur toute la largeur : un tableau de comparaison
      serré dans une demi-colonne devient illisible avant d'être informatif. */
   .ci-large{grid-column:1/-1}
+  /* LE CAS TIENT EN UN SEUL BLOC : la carte qui raconte, puis les chiffres
+     qu'elle annonce. Les séparer en deux enfants du même conteneur garde le
+     lien visible — et garde à `#cas-impact-client` la portée que les règles
+     lui donnent depuis le début. */
+  .ci-bloc{display:block}
+  .ci-bloc .fiche-calc{margin-top:14px}
+  .fiche-calc-tete{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--cyan);margin-bottom:10px}
   /* CE BADGE DIT L'ORIGINE DES NOMBRES, et il est distinct de « cas type » :
      l'un dit qu'aucun client n'est revendiqué, l'autre que les chiffres
      sortent d'un moteur de calcul et non d'une mesure de terrain. Les
@@ -390,12 +409,23 @@
               <strong>calculés à chaque affichage</strong> par le moteur public de <a href="/datacenter">/datacenter</a>,
               qui rend pour chaque valeur sa formule, sa source normative et son incertitude.</p>
           </div>
-          <button type="button" class="case e9" aria-pressed="false"
+        </div>
+
+        <div class="cadres-cartes">
+          <button type="button" class="case case--large e9" aria-pressed="false"
               aria-label="Postes haute tension — cas type — voir l’étude de cas">
             <span class="case-pivot">
             <span class="case-face case-recto">
               <span class="case-top"><span class="case-sec">Énergie <span class="typ">cas type</span></span><span class="case-co">Postes haute tension</span></span>
               <span class="case-role">Cybersécurité OT sur projets de postes HT — IEC&nbsp;62443‑3‑2 / 3‑3 · NIS2 &amp; BDEW</span>
+              <!-- L'ACCROCHE ENTRE AU RECTO, ET LA RAISON EST MESURÉE. À 330 px,
+                   badges, titre et étiquettes remplissaient la carte. À 978 px
+                   ils tiennent en quatre lignes et laissent 190 px de vide : le
+                   format large a besoin d'une phrase, sinon il montre surtout
+                   du fond. Elle vient du verso, qui garde les deux points
+                   techniques — même partage que Client Impact : le recto pose
+                   la contrainte, le verso dit comment on la traite. -->
+              <span class="v-texte"><span class="para">Un poste haute tension n’est pas une salle serveurs avec des disjoncteurs&nbsp;: <strong>l’ordre de déclenchement part en quelques millisecondes</strong>, et cette contrainte commande l’architecture de sécurité.</span></span>
               <span class="tags"><span>IEC 62443‑3‑2</span><span>SL‑T</span><span>NIS2</span><span>BDEW · EnWG</span></span>
               <span class="case-bas"><span>Cadre d’intervention</span><span class="tourne">Fiche ↻</span></span>
             </span>
@@ -403,7 +433,6 @@
               <span class="v-tete"><span>Cadre d’intervention</span><span class="v-etat">Énergie</span></span>
               <span class="v-co">Postes haute tension</span>
               <span class="v-texte">
-            <span class="para">Un poste haute tension n’est pas une salle serveurs avec des disjoncteurs&nbsp;: <strong>l’ordre de déclenchement part en quelques millisecondes</strong>, et cette contrainte commande l’architecture de sécurité.</span>
             <span class="pt"><strong>Zones &amp; conduits (62443‑3‑2)</strong> — bus de process, bus de station, téléconduite, accès distant fournisseur&nbsp;: quatre régimes de risque. <strong>Un SL‑T par zone, pas un par site</strong> (62443‑3‑3), puis les exigences cascadées aux fournisseurs (62443‑2‑4) avec points d’arrêt avant commande.</span>
             <span class="pt"><strong>Cadre allemand</strong> — NIS2, catalogue de la <strong>Bundesnetzagentur</strong> (art.&nbsp;11 EnWG), livre blanc <strong>BDEW/OE</strong> imposé contractuellement. À la réception, les exigences au SL‑T font critères d’acceptation.</span>
 
@@ -413,40 +442,57 @@
             </span>
             </span>
           </button>
-        </div>
 
-        <div class="fiche-calc e10 ci-large" id="cas-impact-client">
-          <div class="case-top">
-            <span class="case-co">Client Impact</span>
-            <span class="case-sec">Centres de données
-              <span class="typ">cas type</span>
-              <span class="calc">chiffres calculés</span></span>
+          <!-- ═══════════════════════════════════════════════════════════════
+               CLIENT IMPACT — UNE CARTE POUR LE RÉCIT, LE TABLEAU RESTE OUVERT
+               ═══════════════════════════════════════════════════════════════
+               L'ARBITRAGE PRÉCÉDENT DISAIT « pas une carte », et son motif
+               était la LARGEUR : « un tableau de comparaison serré dans une
+               carte de 330 px devient illisible avant d'être informatif ».
+               Le format large répond à cette objection POUR LE RÉCIT, qui
+               tient à l'aise sur toute la bande.
+
+               IL NE Y RÉPOND PAS POUR LE TABLEAU, et la mesure le dit : le
+               bloc calculé fait 1 093 px de haut à lui seul — 2 959 des 4 380
+               caractères de la fiche. Derrière un pivot, il faudrait cliquer
+               puis faire défiler mille pixels pour atteindre ce qui fait
+               justement l'intérêt de la fiche. Le récit pivote donc ; les
+               chiffres restent ouverts, sous la carte, dans la même bande.
+               ═══════════════════════════════════════════════════════════════ -->
+          <div class="ci-bloc ci-large" id="cas-impact-client">
+            <button type="button" class="case case--large e10" aria-pressed="false"
+                aria-label="Client Impact — cas type à chiffres calculés — voir l’étude de cas">
+              <span class="case-pivot">
+              <span class="case-face case-recto">
+                <span class="case-top"><span class="case-sec">Centres de données <span class="typ">cas type</span> <span class="calc">chiffres calculés</span></span><span class="case-co">Client Impact</span></span>
+                <span class="case-role">Empreinte comparée à service rendu identique — ISO/IEC&nbsp;30134 · EN&nbsp;50600‑4 · périmètres GHG&nbsp;Protocol</span>
+                <span class="v-texte"><span class="para">Deux centres de données qui rendent <strong>exactement le même service</strong> — même puissance informatique, même taux de charge, même parc de serveurs, même disponibilité — peuvent afficher des empreintes qui n’ont rien à voir. Ce n’est pas une question de performance d’exploitation&nbsp;: <strong>l’essentiel se décide avant la première machine</strong>, au choix du terrain et de la famille de refroidissement.</span></span>
+                <span class="tags"><span>PUE · WUE · ERF</span><span>ISO/IEC 30134</span><span>EN 50600-4</span><span>Carbone incorporé</span><span>Scope 2 localisé / marché</span></span>
+                <span class="case-bas"><span>Cadre d’intervention</span><span class="tourne">Ce que les indicateurs ne disent pas ↻</span></span>
+              </span>
+              <span class="case-face case-verso">
+                <span class="v-tete"><span>Cadre d’intervention</span><span class="v-etat">Centres de données</span></span>
+                <span class="v-co">Ce que les indicateurs ne disent pas</span>
+                <span class="v-texte">
+              <span class="pt"><strong>Ce que le PUE ne dit pas</strong> — il mesure le rendement de l’infrastructure, pas ce qu’émet le kilowattheure qu’elle appelle. Un PUE excellent sur un réseau carboné agit sur le petit facteur des deux.</span>
+              <span class="pt"><strong>Ce que l’exploitation ne dit pas</strong> — le carbone incorporé des serveurs est identique des deux côtés et ne se déplace pas. Il devient majoritaire dès que l’exploitation baisse, et aucun indicateur d’exploitation ne le voit.</span>
+              <span class="pt"><strong>Ce que le périmètre change</strong> — le même site, la même année, les mêmes électrons publient deux empreintes également régulières selon qu’on retient le réseau réel ou les contrats d’origine. Les deux sont exactes&nbsp;; elles ne répondent pas à la même question.</span>
+              <span class="v-note">Les chiffres de comparaison restent <strong>sous cette carte</strong>, à découvert&nbsp;: ils sont le fond du sujet, pas un détail à replier.</span>
+                </span>
+                <span class="v-pied"><strong>Cas type.</strong> Cette fiche décrit une démarche&nbsp;: aucun client n’est revendiqué. Les nombres sont calculés, non relevés sur un site.</span>
+              </span>
+              </span>
+            </button>
+
+            <div class="fiche-calc">
+              <div class="fiche-calc-tete">Les chiffres, calculés à chaque affichage</div>
+              <!-- Rempli par /impact-client.js à partir de /api/impact-client. -->
+              <div id="ci-calcul"></div>
+              <p class="muted" style="font-size:12.5px;margin-top:10px">Le moteur qui produit ces
+              chiffres est public&nbsp;: <a href="/datacenter">/datacenter</a> — chaque valeur y porte sa
+              formule, sa source et son incertitude.</p>
+            </div>
           </div>
-          <div class="case-role">Empreinte comparée à service rendu identique — ISO/IEC&nbsp;30134 · EN&nbsp;50600‑4 · périmètres GHG&nbsp;Protocol</div>
-          <p>Deux centres de données qui rendent <strong>exactement le même service</strong> — même
-          puissance informatique, même taux de charge, même parc de serveurs, même disponibilité —
-          peuvent afficher des empreintes qui n'ont rien à voir. Ce n'est pas une question de
-          performance d'exploitation&nbsp;: <strong>l'essentiel se décide avant la première machine</strong>,
-          au choix du terrain et de la famille de refroidissement.</p>
-          <ul>
-            <li><strong>Ce que le PUE ne dit pas</strong> — il mesure le rendement de
-            l'infrastructure, pas ce qu'émet le kilowattheure qu'elle appelle. Un PUE
-            excellent sur un réseau carboné agit sur le petit facteur des deux.</li>
-            <li><strong>Ce que l'exploitation ne dit pas</strong> — le carbone incorporé des
-            serveurs est identique des deux côtés et ne se déplace pas. Il devient
-            majoritaire dès que l'exploitation baisse, et aucun indicateur
-            d'exploitation ne le voit.</li>
-            <li><strong>Ce que le périmètre change</strong> — le même site, la même année,
-            les mêmes électrons publient deux empreintes également régulières selon
-            qu'on retient le réseau réel ou les contrats d'origine. Les deux sont
-            exactes&nbsp;; elles ne répondent pas à la même question.</li>
-          </ul>
-          <!-- Rempli par /impact-client.js à partir de /api/impact-client. -->
-          <div id="ci-calcul"></div>
-          <p class="muted" style="font-size:12.5px;margin-top:10px">Le moteur qui produit ces
-          chiffres est public&nbsp;: <a href="/datacenter">/datacenter</a> — chaque valeur y porte sa
-          formule, sa source et son incertitude.</p>
-          <div class="tags"><span>PUE · WUE · ERF</span><span>ISO/IEC 30134</span><span>EN 50600-4</span><span>Carbone incorporé</span><span>Scope 2 localisé / marché</span></div>
         </div>
       </div>
 

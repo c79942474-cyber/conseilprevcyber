@@ -88,10 +88,19 @@ def _cartes():
     une carte est ainsi rendue avec ses deux faces, et jamais avec la voisine."""
     src = _src(PAGE)
     out = {}
-    for m in re.finditer(r'<button type="button" class="case (e\d+)"', src):
+    # LE MOTIF LIT UNE LISTE DE CLASSES, PAS UNE CHAÎNE EXACTE. Le premier jet
+    # exigeait `class="case eN"` au caractère près : le jour où la carte des
+    # cadres a reçu un modificateur de format — `class="case case--large e9"` —
+    # elle a cessé d'exister POUR LA RÈGLE. Quatre contrôles sont alors devenus
+    # rouges en annonçant « la fiche e9 a disparu de la page », alors qu'elle
+    # y était, entière. Une règle qui se casse sur l'ordre des classes ne
+    # mesure pas la carte, elle mesure sa mise en forme.
+    for m in re.finditer(r'<button type="button" class="([^"]*\bcase\b[^"]*)"', src):
+        cles = [c for c in m.group(1).split() if re.fullmatch(r"e\d+", c)]
+        if not cles:
+            continue
         fin = src.index("</button>", m.start())
-        bloc = src[m.start():fin]
-        out[m.group(1)] = bloc
+        out[cles[0]] = src[m.start():fin]
     return out
 
 
@@ -159,9 +168,24 @@ def test_chaque_etude_porte_encore_TOUTE_sa_substance(cle):
 
 
 def test_il_y_a_NEUF_cartes_et_pas_une_de_plus():
-    """Un compte, pas une présence. La page en portait neuf dans sa grille ;
-    en perdre une ou en dupliquer une se verrait ici avant l'écran."""
-    assert len(CARTES) == 9, sorted(CARTES)
+    """Un compte, pas une présence. En perdre une ou en dupliquer une se
+    verrait ici avant l'écran.
+
+    NEUF, PUIS DIX. La dixième est « Client Impact », qui était une fiche
+    déroulée et devient une carte au format large. Le compte se met à jour
+    parce que c'est une décision, pas un accident : neuf missions dans les
+    rails, une dixième carte dans la bande des cadres. Le partage entre les
+    deux est gardé par `test_le_cas_type_ne_derive_pas_parmi_les_missions`."""
+    assert len(CARTES) == 10, sorted(CARTES)
+    # LE PARTAGE EST MESURÉ, PAS SUPPOSÉ : huit missions dans les rails, deux
+    # cadres dans la bande. Une carte de cadre qui glisserait parmi les
+    # missions se lirait comme une mission conduite — c'est précisément ce que
+    # la bande pointillée existe pour empêcher.
+    src = _src(PAGE)
+    d_cad = src.index('<div class="cadres"')
+    dans_cadres = sorted(c for c in CARTES if src.index(CARTES[c][:60]) > d_cad)
+    assert dans_cadres == ["e10", "e9"], dans_cadres
+    assert len(CARTES) - len(dans_cadres) == 8, sorted(CARTES)
     assert len(SUBSTANCE) == 9
 
 
@@ -181,7 +205,16 @@ def test_chaque_carte_a_ses_deux_faces_et_de_quoi_les_lire(cle):
             % (nom, cle, len(_texte(zone))))
     assert '<span class="case-co">' in recto, "le nom n'est pas sur la face visible"
     assert '<span class="tags">' in recto, "les mots-clés ne sont pas sur la face visible"
-    assert '<span class="para">' in verso and '<span class="v-pied">' in verso
+    # L'ACCROCHE EST SUR UNE FACE, PAS FORCÉMENT SUR LE VERSO. Les cartes de
+    # mission, larges de 330 px, la portent au verso : le recto y est déjà
+    # plein. Les deux cartes de la bande des cadres font 978 px — badges,
+    # titre et étiquettes n'y remplissent que le tiers haut, et laissaient
+    # 190 px de vide mesurés. L'accroche est donc passée à leur recto. Ce que
+    # la règle garde n'est pas SA PLACE, c'est qu'elle EXISTE et que le verso
+    # porte sa mention de nature.
+    assert '<span class="para">' in b, (
+        "%s n'a plus d'accroche, ni au recto ni au verso" % cle)
+    assert '<span class="v-pied">' in verso
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -235,9 +268,15 @@ def test_le_badge_de_nature_se_lit_du_MEME_REGARD_que_le_nom():
                 "%s : le badge %s n'est pas dans le bloc du nom" % (cle, classe))
             assert 'class="case-co"' in top, (
                 "%s : le nom n'est pas dans le bloc du badge" % cle)
-    assert marques == 2, (
-        "deux fiches exactement portent une marque de nature — un cas type et "
-        "une référence anonymisée ; %d trouvée(s)" % marques)
+    # DEUX, PUIS TROIS. La troisième est « Client Impact », devenue carte : elle
+    # porte « cas type » ET « chiffres calculés », deux marques distinctes —
+    # l'une dit qu'aucun client n'est revendiqué, l'autre que les nombres
+    # sortent d'un moteur de calcul et non d'un relevé de terrain. Le compte
+    # est une garde, pas un décor : il demande une décision à chaque marque
+    # ajoutée, et la voici.
+    assert marques == 3, (
+        "trois fiches exactement portent une marque de nature — deux cas types "
+        "et une référence anonymisée ; %d trouvée(s)" % marques)
 
 
 def test_aucun_nom_accessible_ne_porte_de_BALISAGE():
@@ -333,18 +372,38 @@ def test_la_fiche_chiffree_garde_L_ANCRE_QUE_SON_SCRIPT_VISE():
             "impact-client.js peint dans #%s, que la page ne porte plus" % ancre)
 
 
-def test_la_fiche_chiffree_NE_PIVOTE_PAS_et_garde_sa_largeur():
-    """L'ARBITRAGE EST ANCIEN ET IL TIENT TOUJOURS : un tableau de comparaison
-    serré dans une carte de 330 px devient illisible avant d'être informatif.
-    La fiche reste donc pleine largeur, hors des cartes."""
+def test_le_TABLEAU_reste_hors_du_pivot_meme_si_le_recit_y_entre():
+    """L'ARBITRAGE CHANGE DE PORTÉE, ET SON MOTIF EXPLIQUE POURQUOI.
+
+    L'ancienne règle disait « la fiche chiffrée NE PIVOTE PAS », et son motif
+    était la LARGEUR : « un tableau de comparaison serré dans une carte de
+    330 px devient illisible avant d'être informatif ». Le format large répond
+    à cette objection — la carte fait 978 px mesurés, presque trois fois plus.
+    Le RÉCIT entre donc dans une carte.
+
+    LE TABLEAU, LUI, RESTE DEHORS, et c'est une mesure qui le décide : le bloc
+    calculé fait 1 093 px de haut à lui seul, 2 959 des 4 380 caractères de la
+    fiche. Derrière un pivot, il faudrait cliquer puis faire défiler mille
+    pixels pour atteindre ce qui fait l'intérêt de la fiche. Une carte qui
+    replie sa substance n'est pas une refonte, c'est une perte.
+
+    CE QUE LA RÈGLE GARDE désormais : l'ancre du tableau n'est JAMAIS dans une
+    face de carte."""
     src = _src(PAGE)
     d = src.index('id="cas-impact-client"')
     ouvre = src.rindex("<div", 0, d)
-    balise = src[ouvre:src.index(">", d) + 1]
     bloc = src[ouvre:src.index('<div class="divider">', d)]
-    assert "fiche-calc" in balise, balise[:90]
-    assert "ci-large" in balise, balise[:90]
-    assert "case-pivot" not in bloc, "la fiche chiffrée est devenue une carte"
+    assert 'class="ci-bloc' in src[ouvre:src.index(">", d) + 1], (
+        "le cas n'est plus tenu en un seul bloc")
+    assert "ci-large" in src[ouvre:src.index(">", d) + 1]
+    # L'ANCRE DU TABLEAU N'EST PAS DANS UNE FACE. On mesure la POSITION, pas la
+    # présence : `#ci-calcul` doit tomber après la fermeture du bouton.
+    fin_bouton = bloc.rindex("</button>")
+    assert bloc.index('id="ci-calcul"') > fin_bouton, (
+        "l'ancre du tableau est passée DANS la carte : le lecteur devra "
+        "cliquer puis faire défiler mille pixels pour atteindre les chiffres")
+    assert '<div class="fiche-calc">' in bloc[fin_bouton:], (
+        "le bloc chiffré n'a plus son propre encadré sous la carte")
     # LE TABLEAU N'EST PAS DANS LA PAGE, ET C'EST NORMAL : il est bâti à
     # l'affichage par impact-client.js dans l'ancre. La première version de
     # cette règle le cherchait dans le HTML et tombait pour une raison sans
@@ -356,9 +415,25 @@ def test_la_fiche_chiffree_NE_PIVOTE_PAS_et_garde_sa_largeur():
         "impact-client.js ne bâtit plus de tableau : l'arbitrage de pleine "
         "largeur n'a plus de raison d'être, cette règle non plus")
     assert 'id="ci-calcul"' in bloc, "la fiche a perdu l'ancre où le tableau se peint"
-    assert 'class="calc"' in bloc, (
-        "le badge « chiffres calculés » a disparu : la fiche se lirait comme "
-        "un relevé de terrain")
+
+
+def test_Client_Impact_porte_SES_DEUX_marques_de_nature():
+    """DEUX MARQUES, DEUX CHOSES DIFFÉRENTES, et une seule ne suffit pas :
+    « cas type » dit qu'aucun client n'est revendiqué, « chiffres calculés »
+    que les nombres sortent d'un moteur et non d'un relevé de terrain. Une
+    fiche qui ne porterait que la première se lirait comme une mesure de
+    site.
+
+    CETTE RÈGLE EST NÉE D'UNE ASSERTION MAL LOGÉE. Le contrôle du badge vivait
+    dans la règle du tableau : une mutation qui retirait le badge faisait
+    tomber une règle dont le nom parle de tout autre chose, et personne
+    n'aurait su, en lisant l'échec, ce qui avait réellement disparu."""
+    b = CARTES["e10"]
+    top = b[b.index('class="case-top"'):b.index("</span>", b.index('class="case-co"'))]
+    for classe, quoi in (("typ", "cas type"), ("calc", "chiffres calculés")):
+        assert 'class="%s"' % classe in top, (
+            "Client Impact ne porte plus la marque « %s » au même regard que "
+            "son nom" % quoi)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -740,3 +815,72 @@ def test_la_marque_de_defilement_est_MESUREE_et_pas_posee_partout():
         "une carte qui ne déborde pas a perdu son secteur")
     assert JOUE["marque"]["apres_retour"] == "Énergie", (
         "la marque ne redescend jamais : elle constate au lieu de mesurer")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE FORMAT LARGE DE LA BANDE DES CADRES
+# ═══════════════════════════════════════════════════════════════════════════
+# CE QUE LA MESURE A ÉTABLI, ET QUI A DÉCIDÉ CE FORMAT. Le verso de « Postes
+# haute tension » demandait 490 px de lecture dans une boîte de 259 px à
+# 288 px de large : deux tiers du texte étaient derrière un défilement, sur une
+# fiche que rien n'obligeait à la largeur des missions. À 978 px, le même texte
+# tient entier — 257 px de contenu dans 257 px de boîte, zéro défilement.
+
+def test_les_deux_cadres_portent_le_format_LARGE():
+    """Sans le modificateur, elles reprennent 330 px et le verso redevient un
+    tiroir : la mesure d'origine reste vraie, seul le format la corrigeait."""
+    for cle in ("e9", "e10"):
+        b = CARTES[cle]
+        ouvre = b[:b.index(">")]
+        assert "case--large" in ouvre, (
+            "%s a perdu le format large : son verso redevient un défilement"
+            % cle)
+
+
+def test_le_format_large_ne_touche_PAS_les_cartes_de_mission():
+    """LA POIGNÉE EST UNIQUE ET LOCALE. `--carte` vit dans styles.css, partagé
+    avec /references : élargir « .case » y aurait élargi les dix cartes de
+    références sans que personne ne le demande. Le modificateur est donc dans
+    la feuille de la page, et les missions gardent leur largeur."""
+    page = _src(PAGE)
+    assert ".case--large{" in page, (
+        "le format large n'est plus défini dans la feuille de la page")
+    css = _src("styles.css")
+    assert "case--large" not in css, (
+        "le format large a migré dans la feuille partagée : il élargirait "
+        "aussi les cartes de /references")
+    for cle in CARTES:
+        if cle in ("e9", "e10"):
+            continue
+        assert "case--large" not in CARTES[cle][:CARTES[cle].index(">")], (
+            "%s, qui est une mission, a reçu le format large" % cle)
+
+
+def test_le_recto_large_porte_une_accroche_et_pas_seulement_des_etiquettes():
+    """LE DÉFAUT MESURÉ APRÈS LE PREMIER JET : à 978 px, badges, titre, rôle et
+    étiquettes ne remplissaient que le tiers haut et laissaient 190 px de vide.
+    Une carte large sans phrase montre surtout du fond."""
+    for cle in ("e9", "e10"):
+        b = CARTES[cle]
+        recto = b[b.index('class="case-face case-recto"'):
+                  b.index('class="case-face case-verso"')]
+        assert '<span class="para">' in recto, (
+            "%s : le recto large n'a pas d'accroche" % cle)
+        assert len(_texte(recto)) >= 260, (
+            "%s : le recto large porte %d caractères — il montrera du vide"
+            % (cle, len(_texte(recto))))
+
+
+def test_l_accroche_n_est_pas_REPETEE_du_recto_au_verso():
+    """Le format large a déplacé l'accroche vers le recto. La laisser aussi au
+    verso ferait lire deux fois la même phrase à qui retourne la carte — et
+    prendrait la place des points techniques qui, eux, ne sont nulle part
+    ailleurs."""
+    for cle in ("e9", "e10"):
+        b = CARTES[cle]
+        d = b.index('class="case-face case-verso"')
+        verso = b[d:]
+        assert '<span class="para">' not in verso, (
+            "%s : l'accroche est répétée au verso" % cle)
+        assert verso.count('<span class="pt">') >= 2, (
+            "%s : le verso ne porte plus au moins deux points techniques" % cle)
