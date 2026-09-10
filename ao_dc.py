@@ -2874,7 +2874,8 @@ def _index_releves(analyse):
     return par_cle
 
 
-def remplir(fiche=None, analyse=None, saisies=None, groupement=False):
+def remplir(fiche=None, analyse=None, saisies=None, groupement=False,
+            fournies=None):
     """Chaque pièce des DEUX dossiers, rubrique par rubrique, avec la valeur
     ET son origine.
 
@@ -2898,6 +2899,15 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False):
     """
     fiche = fiche or {}
     saisies = saisies or {}
+    # LE GESTE « FOURNIE HORS OUTIL », ET SON UNIQUE SOURCE. Une pièce que ce
+    # module NE PEUT PAS produire — les pouvoirs à obtenir, les références à
+    # écrire — reste bloquante tant qu'on ne l'a pas sécurisée ailleurs. Ce
+    # geste laisse l'utilisateur AFFIRMER qu'il l'a fournie, pour qu'elle
+    # sorte de la liste des blocages. Il ne vient QUE d'ici, de la charge
+    # transmise : le programme ne le pose jamais lui-même, et l'écran dit que
+    # c'est une affirmation NON VÉRIFIÉE. C'est la même règle que les
+    # déclarations sur l'honneur — jamais pré-cochées, toujours assumées.
+    fournies = {str(x) for x in (fournies or [])}
     idx = _index_releves(analyse)
     calc = derive(fiche)
     par_champ = {c["cle"]: c for c in CHAMPS_CANDIDAT}
@@ -3081,6 +3091,12 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False):
             "sans_objet": sans_objet,
             "sans_objet_aide": base.get("sans_objet") if sans_objet else None,
             "conditionnelle": bool(cond),
+            # FOURNIE : AFFIRMÉE PAR L'UTILISATEUR, ET JAMAIS AUTREMENT. Réservé
+            # aux pièces NON mesurables — celles que ce module ne remplit pas.
+            # Sur une pièce mesurable, l'affirmation n'a aucun sens : elle se
+            # remplit ici, et laisser « fournie » la faire passer verte serait
+            # un contournement du remplissage honnête. On l'ignore donc.
+            "fournie": (cle_piece in fournies) and not mesurable,
             # CE QU'UNE PIÈCE NON REMPLISSABLE DOIT QUAND MÊME DIRE : ce
             # qu'elle contient, qui la produit, et son délai. Sans cela, le
             # menu la nommerait et le lecteur ne trouverait rien derrière.
@@ -3127,10 +3143,19 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False):
     # rendent la candidature irrecevable si elles manquent, et ce module n'a
     # aucun moyen de les produire. Les taire parce qu'il ne sait pas les faire
     # serait la pire des omissions.
+    # UNE BLOQUANTE AFFIRMÉE FOURNIE QUITTE « À PRODUIRE » — c'est tout
+    # l'objet du geste — et passe dans « fournies », qui reste affichée
+    # séparément parce que l'affirmation n'est pas une vérification : le
+    # relecteur doit voir ce que l'utilisateur a dit tenir sans que l'outil
+    # l'ait constaté.
     a_produire = [{"nom": p["nom"], "voie": p["voie"], "voie_nom": p["voie_nom"],
                    "delai": p["delai"], "famille": p["famille"],
                    "dossier": p["dossier"]}
-                  for p in pieces if p["bloquant"] and not p["mesurable"]]
+                  for p in pieces
+                  if p["bloquant"] and not p["mesurable"] and not p["fournie"]]
+    bloquantes_fournies = [p["nom"] for p in pieces
+                           if p["bloquant"] and not p["mesurable"]
+                           and p["fournie"]]
     return {
         "version": VERSION,
         "pieces": pieces,
@@ -3156,6 +3181,7 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False):
             "offre": sum(1 for p in pieces if p["dossier"] == "offre"),
             "bloquantes_incompletes": manque_bloquant,
             "bloquantes_a_produire": a_produire,
+            "bloquantes_fournies": bloquantes_fournies,
         },
         "familles": FAMILLES_REPONSE,
         "engagements": ENGAGEMENTS,

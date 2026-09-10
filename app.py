@@ -4749,9 +4749,10 @@ def api_datacenter_marche_remplir():
     """
     data = request.get_json(silent=True) or {}
     fiche, analyse, saisies, groupement = _ao_charge(data)
+    fournies = _ao_fournies(data)
     try:
         r = ao_dc.remplir(fiche=fiche, analyse=analyse, saisies=saisies,
-                          groupement=groupement)
+                          groupement=groupement, fournies=fournies)
     except Exception:
         app.logger.exception("remplissage du dossier de candidature")
         return jsonify(ok=False, error="calcul",
@@ -4864,6 +4865,24 @@ def _ao_charge(data):
             analyse,
             {str(k)[:80]: str(v)[:800] for k, v in list(saisies.items())[:120]},
             bool(data.get("groupement")))
+
+
+def _ao_fournies(data):
+    """Les pièces que l'utilisateur AFFIRME avoir fournies hors de l'outil.
+
+    À PART DU RESTE, ET C'EST VOULU. `_ao_charge` sert huit routes qui n'ont
+    pas toutes affaire à ce geste ; en faire un cinquième élément de son tuple
+    obligerait à retoucher huit points d'appel pour un besoin qui n'en concerne
+    qu'un — le remplissage, seul endroit qui calcule l'état des blocages.
+
+    C'EST UNE LISTE DE CLÉS, RIEN DE PLUS. Bornée comme le reste. `ao_dc.remplir`
+    n'en retient que les pièces NON remplissables : une clé inconnue, ou une
+    pièce mesurable, n'y produit aucun effet.
+    """
+    brut = data.get("fournies")
+    if not isinstance(brut, (list, tuple)):
+        return []
+    return [str(x)[:40] for x in brut[:60]]
 
 
 def _ao_bordereau_archive(fmt, pieces, manques):

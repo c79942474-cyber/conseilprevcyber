@@ -6234,6 +6234,22 @@ function messageDelai(e, defaut) {
     z.innerHTML = h;
   }
 
+  /* ── AFFIRMER « JE L'AI FOURNIE » ────────────────────────────────────
+     PAR DÉLÉGATION, comme la rédaction : la carte du dossier se reconstruit à
+     chaque remplissage. Le geste bascule l'affirmation et RELANCE le
+     remplissage — c'est le serveur qui décide si elle lève un blocage (une
+     pièce mesurable ou inconnue reste sans effet), jamais la page. */
+  document.addEventListener("click", function (ev) {
+    var b = ev.target && ev.target.closest
+      ? ev.target.closest("[data-fournie]") : null;
+    if (!b) return;
+    ev.preventDefault();
+    var cle = b.getAttribute("data-fournie");
+    if (AO_FOURNIES[cle]) delete AO_FOURNIES[cle];
+    else AO_FOURNIES[cle] = true;
+    aoRemplir(true);
+  });
+
   document.addEventListener("click", function (ev) {
     var b = ev.target && ev.target.closest
       ? ev.target.closest("[data-rediger]") : null;
@@ -6652,7 +6668,8 @@ function messageDelai(e, defaut) {
         method: "POST", credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fiche: AO_FICHE, analyse: AO_ANALYSE,
-                               saisies: AO_SAISIES, groupement: false }),
+                               saisies: AO_SAISIES, groupement: false,
+                               fournies: Object.keys(AO_FOURNIES) }),
       }).then(function (r) { return r.json(); })
         .then(function (j) {
           if (!j || !j.ok) return;
@@ -7084,6 +7101,12 @@ function messageDelai(e, defaut) {
      qui redeviendrait grise sous les doigts ferait relancer une production
      déjà faite. */
   var AO_CHOISIES = {};        /* clé -> true */
+  /* CE QU'ON AFFIRME AVOIR FOURNI HORS OUTIL, EN MÉMOIRE SEULEMENT — et c'est
+     un choix de sûreté, pas un oubli. Persisté dans le navigateur, un « fourni »
+     posé pour une consultation reparaîtrait sur la suivante et affirmerait une
+     pièce qu'on n'a pas : une fausse affirmation est pire qu'un blocage
+     honnête. Il repart donc à chaque rechargement. */
+  var AO_FOURNIES = {};        /* clé -> true (bloquantes non remplissables) */
   var AO_CHOIX_FAIT = false;   /* le choix d'office n'a lieu qu'une fois */
   var AO_PRODUIT = {};         /* clé -> {etat, texte, url, nom} */
   var AO_LOT_FMT = "docx";
@@ -7434,6 +7457,14 @@ function messageDelai(e, defaut) {
               + (x.delai ? ", " + esc(x.delai) : "") + ")";
           }).join(" · ") + ".</p>";
     }
+    /* CE QUE VOUS AFFIRMEZ TENIR, DIT À PART. Une bloquante affirmée fournie a
+       quitté la liste ci-dessus ; la répéter ici — comme « affirmée, non
+       vérifiée » — évite qu'un relecteur la croie constatée par l'outil. */
+    if ((e.bloquantes_fournies || []).length) {
+      h += '<p class="ig-ao-a ig-ao-a-fournie">Bloquantes affirmées fournies '
+        + "hors outil — " + e.bloquantes_fournies.map(esc).join(" · ")
+        + ". <b>Votre affirmation, non vérifiée par l'outil.</b></p>";
+    }
     h += aoMenuDocs(r, AO_DOC);
     h += aoLotBarre(r);
     h += '<div class="ig-ao-cd">';
@@ -7441,6 +7472,7 @@ function messageDelai(e, defaut) {
       var prod = AO_PRODUIT[p.cle];
       h += '<div class="ig-ao-cp' + (p.bloquant ? " ig-ao-cpb" : "")
         + (p.complet ? " ig-ao-cp-ok" : "")
+        + (p.fournie ? " ig-ao-cp-fournie" : "")
         + (AO_CHOISIES[p.cle] ? " ig-ao-cp-sel" : "")
         + (prod ? " ig-ao-cp-" + prod.etat : "")
         + '" data-doc="' + esc(p.cle)
@@ -7484,6 +7516,27 @@ function messageDelai(e, defaut) {
         if (p.delai) {
           h += '<p class="ig-ao-dl"><b>Délai d\'obtention</b> — '
             + esc(p.delai) + "</p>";
+        }
+        /* LE GESTE « JE L'AI FOURNIE », SUR LES SEULES PIÈCES QUE CE MODULE NE
+           REMPLIT PAS. Il ne coche rien à votre place : c'est VOUS qui affirmez
+           avoir obtenu ou écrit la pièce hors de l'outil, et la carte le dit —
+           « affirmé par vous, non vérifié ». Réservé aux bloquantes : ce sont
+           les seules dont l'affirmation lève un blocage. */
+        if (p.bloquant) {
+          h += '<div class="ig-ao-fo' + (p.fournie ? " ig-ao-fo-on" : "") + '">';
+          if (p.fournie) {
+            h += '<span class="ig-ao-fo-m">✓ Fournie — <b>affirmé par vous</b>,'
+              + " non vérifié par l'outil.</span>"
+              + '<button type="button" class="btn btn-s" data-fournie="'
+              + esc(p.cle) + '" data-on="1">Annuler</button>';
+          } else {
+            h += '<span class="ig-ao-fo-q">Elle ne se remplit pas ici. Une fois '
+              + "obtenue ou écrite hors de l'outil, marquez-la pour qu'elle "
+              + "sorte des blocages.</span>"
+              + '<button type="button" class="btn btn-s" data-fournie="'
+              + esc(p.cle) + '">J\'ai fourni cette pièce</button>';
+          }
+          h += "</div>";
         }
       }
       h += '<dl class="ig-ao-rb">';
