@@ -288,10 +288,10 @@ API_JETON = {
 # LA RÉPONSE À CONSULTATION EST UN OUTIL INTERNE, décidé comme tel. Un
 # dossier de consultation appartient à l'acheteur et se lit avec un métier ;
 # le cabinet l'instruit, le client reçoit le résultat. Le jour où cela
-# change, c'est ICI qu'on l'écrit, et les onze routes suivent.
+# change, c'est ICI qu'on l'écrit, et toutes les routes ci-dessous suivent.
 _MOTIF_MARCHE = ("réponse à consultation — outil interne : le cabinet "
                  "instruit le dossier de l'acheteur, le client en reçoit le "
-                 "résultat")
+                 "résultat.")
 
 API_ADMIN = {
     "/api/datacenter/marche/analyser": _MOTIF_MARCHE,
@@ -303,6 +303,11 @@ API_ADMIN = {
     "/api/datacenter/marche/dossier.zip": _MOTIF_MARCHE,
     "/api/datacenter/marche/formulaire": _MOTIF_MARCHE,
     "/api/datacenter/marche/formulaires": _MOTIF_MARCHE,
+    "/api/datacenter/marche/rediger":
+        _MOTIF_MARCHE + " Celle-ci, en outre, transmet la fiche, les relevés "
+        "et des extraits du fonds documentaire à un sous-traitant, et "
+        "consomme des jetons : le transfert est déclaré au registre RGPD sous "
+        "« dossier-marche ».",
     "/api/datacenter/marche/projet/dossier": _MOTIF_MARCHE,
     "/api/datacenter/marche/projet/oubli": _MOTIF_MARCHE,
     "/api/datacenter/marche/projet/affirmation": _MOTIF_MARCHE,

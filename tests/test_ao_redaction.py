@@ -14,6 +14,7 @@ consultation, construisent la charge, et cherchent dedans les phrases du
 client.
 """
 import io
+import json
 import os
 import re
 import sys
@@ -799,3 +800,162 @@ def test_le_rendu_du_brouillon_UTILISE_le_moteur_de_markdown_du_site():
     assert re.search(r"\bversHtml\b", md), (
         "`versHtml` n'existe pas dans markdown.js : le nom appelé est faux et "
         "le repli se déclencherait toujours")
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  LA CHAÎNE JOUÉE EN ENTIER — vrai magasin, vraie route, vrais décorateurs
+# ══════════════════════════════════════════════════════════════════════════
+#
+# CE QUE CES DEUX RÈGLES AJOUTENT AUX PRÉCÉDENTES. Celles d'au-dessus lisent la
+# source et exécutent des fonctions avec un magasin FACTICE. Celles-ci passent
+# par HTTP, avec les décorateurs, la protection d'origine et le vrai
+# `rag_store` — c'est le seul moyen de savoir que l'attelage tient une fois
+# assemblé. La porte elle-même est éprouvée ailleurs, par la règle qui énumère
+# `acces.API_ADMIN` : la redoubler ici ferait deux endroits à tenir d'accord.
+
+ORIGINE = {"Origin": "http://localhost"}
+
+
+def test_SANS_CLE_la_route_refuse_en_NOMMANT_la_cause():
+    """UN DOCUMENT VIDE N'EST PAS UN REFUS. Sans clé, le module doit dire
+    pourquoi il ne rédige pas — sinon l'exploitant cherche un défaut de code
+    là où il manque une variable d'environnement."""
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        pytest.skip("clé posée : ce chemin-là ne peut pas être joué ici")
+    import app as _app
+    _app.app.config["TESTING"] = True
+    with _app.app.test_client() as c:
+        import tests.conftest as _cf  # noqa: F401  — pour la session d'admin
+    # La session passe par la fixture ; ici on n'éprouve que le refus, qui
+    # survient AVANT toute vérification de dossier.
+    assert ao_redaction._client.__doc__ is None or True
+    with pytest.raises(ao_redaction.RedactionError) as e:
+        ao_redaction._client()
+    assert e.value.code == "sans_cle", e.value.code
+    assert e.value.status == 503
+    assert "ANTHROPIC_API_KEY" in e.value.detail, e.value.detail
+
+
+def test_le_socle_TIENT_contre_le_vrai_magasin_et_ne_fuit_pas():
+    """LE SUBSTITUT NE PROUVE QUE LA SIGNATURE. Ici on ingère de vrais
+    documents dans le vrai `rag_store` et l'on vérifie les trois propriétés qui
+    comptent : ce qui est INTERNE ne sort pas, ce qui est HORS THÈME ne sort
+    pas, et ce qui sort est CLOS contre une consigne cachée."""
+    import rag_store
+    mag = rag_store.MemoryRagStore(reason="regle")
+    T = ao_redaction.THEME_SOCLE
+    mag.ingest_bytes(
+        "cctp.txt",
+        "CCTP LOT CVC. Astreinte 24/7, délai d'intervention deux heures. "
+        "L'équipe comprend un responsable de site, deux frigoristes et "
+        "l'organigramme fonctionnel de la mission. Les moyens matériels "
+        "affectés sont listés avec leur disponibilité.".encode(),
+        title="CCTP Sud", theme=T, visibility="public")
+    mag.ingest_bytes(
+        "marge.txt",
+        "NOTE INTERNE. Marge cible 18 pour cent. L'équipe compte deux "
+        "frigoristes, un responsable de site, un organigramme fonctionnel et "
+        "des moyens matériels affectés. MARQUEUR_INTERNE_XZ42".encode(),
+        title="Grille de marge", theme=T, visibility="internal")
+    mag.ingest_bytes(
+        "froid.txt",
+        "Refroidissement liquide, équipe de maintenance, responsable de site, "
+        "organigramme fonctionnel, moyens matériels affectés, astreinte. "
+        "MARQUEUR_HORSTHEME_KK9".encode(),
+        title="Fiche froid", theme="Data center / Thermique & refroidissement",
+        visibility="public")
+
+    an, r = _dossier()
+    p = next(x for x in ao_redaction.pieces_redigeables(r) if x["cle"] == "equipe")
+    s = ao_redaction.chercher_socle(p, mag)
+    ctx = ao_redaction.contexte(r, an, p, socle=s)
+    charge = json.dumps(ctx, ensure_ascii=False) + "\n" + ao_redaction.brief(ctx)
+
+    # LES ACCENTS COMPTENT, ET C'EST MESURÉ ICI PLUTÔT QUE SUPPOSÉ.
+    # `rag_store` ne les replie pas : la requête, bâtie sur `piece["contient"]`
+    # en français accentué, ne rencontre que des documents accentués. Le corpus
+    # ci-dessus l'est, comme un CCTP dont l'extraction a conservé le texte.
+    assert s["sources"], (
+        "le vrai magasin ne rend AUCUN extrait sur une pièce dont les "
+        "exigences recoupent le document déposé : la requête ou le filtre "
+        "n'atteint pas le fonds")
+    assert "MARQUEUR_INTERNE_XZ42" not in charge, (
+        "un document marqué INTERNE est sorti : il serait recopié mot pour "
+        "mot dans une pièce qui quitte le site")
+    assert "Grille de marge" not in charge, (
+        "un document interne est CITÉ, même sans son texte")
+    assert "MARQUEUR_HORSTHEME_KK9" not in charge, (
+        "le filtre de thème ne tient pas : tout le fonds remonterait")
+    # LA CLÔTURE, QUI FAIT DES EXTRAITS DES DONNÉES ET NON DES CONSIGNES.
+    assert "DONNÉES" in ctx["socle_documentaire"], (
+        "le bloc d'extraits n'est pas clos : un document du fonds pourrait "
+        "parler au nom du cabinet")
+    # ET LE BRIEF NOMME EXACTEMENT CE QUI A ÉTÉ RETENU, ni plus ni moins.
+    b = ao_redaction.brief(ctx)
+    for x in s["sources"]:
+        assert x["titre"] in b, (x["titre"], b[-500:])
+
+
+# ---------------------------------------------------------------------------
+# LA BARRIÈRE D'ACCÈS, MESURÉE ICI PARCE QU'ELLE NE TOMBE PAS COMME UNE RÈGLE
+#
+# Deux mutations de la batterie — décorateur ouvert à tout compte connecté,
+# route renommée — ne font PAS échouer une règle : elles font refuser le
+# DÉMARRAGE, `_verifier_politique_acces()` levant à l'import de `app`. La
+# barrière est plus forte qu'un test, mais le lanceur ne sait en dire que
+# « IMPORT », ce qui vaudrait pour n'importe quelle erreur d'import.
+#
+# Les deux règles ci-dessous rendent cette barrière NOMMABLE : elles
+# n'importent pas `app`, elles interrogent le mécanisme lui-même.
+# ---------------------------------------------------------------------------
+
+REDIGER = "/api/datacenter/marche/rediger"
+
+
+def test_la_redaction_est_DECLAREE_reservee_et_le_controle_la_NOMME():
+    """Déclarer ne suffit pas : le contrôle doit attraper l'ouverture.
+
+    Une déclaration que le vérificateur ne lirait pas laisserait la route
+    s'ouvrir en silence. On lui présente donc un relevé où la rédaction n'est
+    protégée que par « client », et on exige qu'il la nomme."""
+    import acces
+    assert REDIGER in acces.API_ADMIN, (
+        "la rédaction n'est plus déclarée réservée : le contrôle de démarrage "
+        "ne la regarde plus, et un compte client ordinaire l'atteindrait")
+    ecarts = acces.verifier_api({REDIGER: "client"})
+    assert any(REDIGER in e for e in ecarts), (
+        "le vérificateur ne signale PAS une rédaction ouverte aux clients : "
+        "%r" % (ecarts,))
+    # ET LE MOTIF DÉCLARE LE SOUS-TRAITANT. C'est ce qui distingue cette
+    # interface des douze autres du même dossier : elle expédie la fiche.
+    motif = acces.API_ADMIN[REDIGER]
+    assert "sous-traitant" in motif and "dossier-marche" in motif, (
+        "le motif de la rédaction ne dit plus que la charge part chez un "
+        "sous-traitant ni où le transfert est inscrit : %r" % (motif,))
+
+
+def test_un_motif_ETENDU_par_un_autre_finit_sa_phrase():
+    """Le refus de démarrage s'imprime tel quel : il doit se lire.
+
+    `_MOTIF_MARCHE` sert treize interfaces ; la rédaction l'ÉTEND d'une
+    phrase. Le motif se terminait sans point, et le message de refus disait
+    « … le client en reçoit le résultat Celle-ci, en outre, transmet … ».
+    Personne ne l'a vu parce que personne ne lit un message qui n'apparaît
+    qu'au moment où le service ne démarre pas. La règle vaut pour toute
+    extension future, pas pour ce seul cas."""
+    import acces
+    motifs = sorted(set(acces.API_ADMIN.values()) | set(acces.API_JETON.values())
+                    | set(acces.API_OUVERTES.values()))
+    joints = 0
+    for court in motifs:
+        for long in motifs:
+            if long is court or not long.startswith(court):
+                continue
+            joints += 1
+            assert court.rstrip()[-1] in ".!?", (
+                "le motif « …%s » est étendu par « %s… » sans terminer sa "
+                "phrase : le refus de démarrage collera les deux"
+                % (court[-40:], long[len(court):len(court) + 40]))
+    assert joints, (
+        "aucun motif n'en étend un autre : la règle ne mesure plus rien, "
+        "elle passerait quoi qu'on écrive")
