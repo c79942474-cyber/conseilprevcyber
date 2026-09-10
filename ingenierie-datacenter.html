@@ -1082,7 +1082,27 @@
   .ig-ao-gr i{font-style:normal;font-family:var(--mono);font-size:9.5px;
     text-transform:uppercase}
   .ig-ao-red{margin:8px 0 0;padding-top:7px;border-top:1px dashed var(--line);
-    font-size:11px;line-height:1.6;color:var(--muted)}
+    font-size:11px;line-height:1.6;color:var(--muted);
+    display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+  .ig-ao-redb{flex:0 0 auto}
+  /* LA ZONE DU BROUILLON PREND TOUTE LA LARGEUR DE LA CARTE : posée en
+     ligne à côté du bouton, un mémoire technique de six mille signes se
+     serait affiché dans une colonne de deux centimètres. */
+  .ig-ao-redo{flex:1 0 100%}
+  .ig-ao-reds{margin:8px 0 0;font-size:11.5px;line-height:1.55;color:var(--muted)}
+  .ig-ao-reds b{color:var(--ink)}
+  /* CE QUI MANQUE SE VOIT AUTREMENT QUE PAR LE MOT. Un brouillon sans socle
+     et un brouillon tronqué ne sont pas des brouillons ordinaires : le
+     relecteur doit le savoir avant de lire, pas en cherchant la phrase. */
+  .ig-ao-redk{border-left:2px solid var(--amber);padding-left:9px}
+  .ig-ao-redm{margin-top:10px;padding:12px 14px;border-radius:8px;
+    border:1px solid var(--line);background:var(--panel2);
+    font-size:13px;line-height:1.65;color:var(--ink);
+    max-height:520px;overflow-y:auto}
+  .ig-ao-redm h2{font-size:15px;margin:14px 0 6px}
+  .ig-ao-redm h3{font-size:13.5px;margin:12px 0 5px}
+  .ig-ao-redm p,.ig-ao-redm li{font-size:13px;line-height:1.65}
+  .ig-ao-redm pre{white-space:pre-wrap;font-size:12px}
 
   .ig-reg-b{all:unset;cursor:pointer;font-size:11.5px;padding:4px 11px;
     margin-top:8px;border-radius:7px;border:1px solid var(--line);

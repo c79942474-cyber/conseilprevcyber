@@ -1013,7 +1013,21 @@ def test_la_fiche_ne_quitte_le_navigateur_QUE_par_le_geste_de_conservation():
                          # a besoin de la même fiche que les six autres, et ne
                          # conserve pas davantage : elle appelle les mêmes
                          # fonctions et n'écrit dans aucun magasin.
-                         "/api/datacenter/marche/piece"}
+                         "/api/datacenter/marche/piece",
+                         # LA HUITIÈME, ET LA RÈGLE L'A ENCORE ARRÊTÉE DÈS SON
+                         # PREMIER APPEL — c'est la deuxième fois, et c'est ce
+                         # qui rend cette liste utile.
+                         #
+                         # `/marche/rediger` MET UNE NOTE EN BROUILLON, et elle
+                         # est d'une autre nature que les sept précédentes : la
+                         # fiche ne sert pas à composer un document ici, elle
+                         # PART CHEZ UN SOUS-TRAITANT, avec les relevés et des
+                         # extraits du fonds. Elle ne conserve toujours rien —
+                         # aucun magasin n'est écrit, tout vient de la requête
+                         # et repart dans la réponse — mais le TRANSFERT, lui,
+                         # est déclaré au registre RGPD sous « dossier-marche »,
+                         # et une règle de `test_ao_redaction.py` le mesure.
+                         "/api/datacenter/marche/rediger"}
     AVEC_CONSERVATION = {"/api/datacenter/marche/projet/dossier"}
 
     # LA RÈGLE A EU UN ANGLE MORT, ET IL A ÉTÉ MESURÉ. Elle cherchait

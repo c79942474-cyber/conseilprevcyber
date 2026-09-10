@@ -2369,6 +2369,7 @@ import financement_dc  # noqa: E402  — qui porte l'enveloppe, et à quel prix
 import icpe_dc       # noqa: E402  — crible les rubriques, ne classe pas le site
 import travaux_dc    # noqa: E402  — l'ordre des opérations de chantier et ses tiers
 import ao_dc         # noqa: E402  — lit le dossier marché, prépare la candidature
+import ao_redaction  # noqa: E402  — met la note en brouillon, socle compris
 import ao_formulaires  # noqa: E402  — écrit DANS le formulaire officiel, sans signer
 import ao_parcours   # noqa: E402  — où en est la réponse, étape par étape
 import dossier_entreprise  # noqa: E402  — le dossier de CONSEILPREV, admin seul
@@ -5049,6 +5050,68 @@ def api_datacenter_marche_piece():
                         as_attachment=True, mimetype=mimetype)
     reponse.headers["X-Piece"] = json.dumps(rapport, ensure_ascii=True)
     return reponse
+
+
+@app.route("/api/datacenter/marche/rediger", methods=["POST"])
+@admin_required
+def api_datacenter_marche_rediger():
+    """LE BROUILLON D'UNE NOTE, appuyé sur le fonds documentaire du cabinet.
+
+    CE QU'ELLE AJOUTE À `/piece`. `/piece` rend le PLAN de ce que la note doit
+    démontrer : c'est utile, et c'est loin d'une réponse. Ici le plan devient un
+    texte — relu, corrigé et signé par un humain, jamais autrement.
+
+    UNE PIÈCE PAR APPEL, comme `/piece` : c'est ce qui permet de les lancer
+    ensemble et de voir laquelle a résisté. Un appel unique rendrait dix
+    brouillons d'un bloc, à la fin, sans savoir lequel a échoué.
+
+    LE MAGASIN EST PASSÉ EXPLICITEMENT, et c'est le point de la conception :
+    `ao_redaction` ne va chercher aucun objet global. Sans magasin il rédige
+    quand même, et le brouillon DIT qu'il n'a consulté aucun dossier antérieur
+    plutôt que de faire semblant. Ici on le joint — c'est le seul appelant.
+
+    CE QU'ELLE NE FAIT PAS. Aucune déclaration : les DC1, DC2 et déclarations
+    sur l'honneur n'ont pas la voie « rédiger » et `pieces_redigeables` les
+    écarte par construction, pas par une liste de clés qu'on pourrait oublier
+    de tenir à jour.
+    """
+    admin = _is_admin_request()
+    # DEUX COMPTEURS, comme la rédaction de pièce d'ingénierie. Une rédaction
+    # coûte des jetons ; borner l'adresse seule laisserait un bureau entier
+    # derrière un même routeur se les partager, et un compte seul en consommer
+    # autant qu'il veut en changeant de réseau.
+    for ckey, lim in (("aored:%s" % client_ip(), 12),
+                      ("aoredc:%s" % (_proprietaire() or "-"), 12)):
+        if guard.blocked(ckey, limit=lim, window=600):
+            return jsonify(ok=False, error="rate_limited",
+                           message="Trop de rédactions en peu de temps. "
+                                   "Patientez quelques minutes."), 429
+        guard.fail(ckey)
+
+    data = request.get_json(silent=True) or {}
+    cle = str(data.get("piece") or "").strip().lower()[:40]
+    fiche, analyse, saisies, groupement = _ao_charge(data)
+    try:
+        r = ao_dc.remplir(fiche=fiche, analyse=analyse, saisies=saisies,
+                          groupement=groupement)
+    except Exception:
+        app.logger.exception("rédaction — remplissage")
+        return jsonify(ok=False, error="calcul",
+                       message="Le dossier n'a pas pu être établi."), 500
+
+    audit.journaliser("marche.rediger", cible=cle,
+                      detail="socle %s" % ao_redaction.THEME_SOCLE)
+    try:
+        # LE MAGASIN VOYAGE JUSQU'ICI ET S'ARRÊTE LÀ : `rediger` le passe à
+        # `chercher_socle`, qui est la seule fonction impure de son module.
+        brouillon = ao_redaction.rediger(cle, r, analyse=analyse, rag=rag)
+    except ao_redaction.RedactionError as e:
+        return jsonify(ok=False, error=e.code, message=e.detail), e.status
+    except Exception:
+        app.logger.exception("rédaction de pièce de marché")
+        return jsonify(ok=False, error="redaction",
+                       message="Le brouillon n'a pas pu être écrit."), 502
+    return jsonify(ok=True, **brouillon)
 
 
 @app.route("/api/datacenter/marche/parcours", methods=["POST"])

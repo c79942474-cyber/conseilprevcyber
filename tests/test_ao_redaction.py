@@ -670,3 +670,132 @@ def test_le_texte_du_module_ne_promet_plus_la_base_sans_condition():
     # ET LES TROIS SOURCES RÉELLEMENT MONTÉES PAR `contexte`, pas deux.
     for source in ("relevés", "dossier d'entreprise"):
         assert source in aide, (source, aide)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  LE GESTE — une capacité qu'on ne peut pas déclencher n'existe pas
+# ══════════════════════════════════════════════════════════════════════════
+#
+# CE QUI A ÉTÉ TROUVÉ LE 10 SEPTEMBRE 2026. Ce module était écrit, éprouvé par
+# les règles ci-dessus, et relié au fonds documentaire — et AUCUNE ROUTE NE
+# L'APPELAIT. Douze règles vertes sur un module que personne ne pouvait
+# atteindre depuis la page. C'est le défaut le plus coûteux à découvrir tard :
+# rien ne casse, rien ne s'affiche, et il n'y a pas d'erreur à chercher.
+
+def _app_src():
+    return io.open(os.path.join(ICI, "app.py"), encoding="utf-8").read()
+
+
+def _js_src():
+    return io.open(os.path.join(ICI, "ingenierie-dc.js"), encoding="utf-8").read()
+
+
+def test_la_route_de_redaction_EXISTE_et_appelle_bien_ce_module():
+    """UNE ROUTE QUI NE MÈNE NULLE PART EST UN MODULE MORT."""
+    src = _app_src()
+    assert '@app.route("/api/datacenter/marche/rediger", methods=["POST"])' in src, (
+        "aucune route ne mène à la rédaction des pièces de marché")
+    i = src.index('@app.route("/api/datacenter/marche/rediger"')
+    corps = src[i:i + 4200]
+    assert "ao_redaction.rediger(" in corps, (
+        "la route existe mais n'appelle pas le module de rédaction")
+
+
+def test_la_route_JOINT_le_magasin_faute_de_quoi_le_socle_reste_vide():
+    """LE POINT DE TOUT L'ATTELAGE. `chercher_socle` rend un socle vide quand
+    aucun magasin n'est joint — et c'est correct, mais silencieux du point de
+    vue du code. Une route qui oublie `rag=` produirait des brouillons sans
+    fonds, indéfiniment, sans qu'aucune erreur ne se lève."""
+    src = _app_src()
+    i = src.index('@app.route("/api/datacenter/marche/rediger"')
+    corps = src[i:i + 4200]
+    m = re.search(r"ao_redaction\.rediger\(([^)]*)\)", corps, re.S)
+    assert m, corps[-800:]
+    assert re.search(r"\brag\s*=\s*rag\b", m.group(1)), (
+        "la route n'joint pas le magasin : le socle documentaire serait "
+        "toujours vide, sans que rien ne le signale — %s" % m.group(1))
+
+
+def test_la_route_est_RESERVEE_et_CADENCEE():
+    """ELLE COÛTE DES JETONS ET LIT LE FONDS INTERNE : deux raisons de la
+    borner, et elles ne se remplacent pas l'une l'autre."""
+    src = _app_src()
+    i = src.index('@app.route("/api/datacenter/marche/rediger"')
+    entete = src[i:src.index("def api_datacenter_marche_rediger")]
+    assert "@admin_required" in entete, (
+        "la rédaction n'est pas réservée à l'administration")
+    corps = src[i:i + 4200]
+    assert "guard.blocked(" in corps, (
+        "aucune cadence : un seul compte pourrait consommer sans borne")
+    assert 'client_ip()' in corps and '_proprietaire()' in corps, (
+        "la cadence ne borne qu'un seul des deux axes — l'adresse ou le "
+        "compte : borner l'adresse seule laisse un bureau entier se partager "
+        "les rédactions, borner le compte seul se contourne en changeant de "
+        "réseau")
+
+
+def test_le_brouillon_REMONTE_ses_sources_jusqu_a_l_ecran():
+    """UN TEXTE QUI CITE « [CCTP Sud] » SANS QUE LA PAGE DISE D'OÙ VIENT CE
+    DOCUMENT EST INVÉRIFIABLE — et c'est exactement ce qu'on interdit au modèle
+    de faire. La chaîne se mesure de bout en bout : le module rend les sources,
+    et le script les affiche."""
+    src = io.open(os.path.join(ICI, "ao_redaction.py"), encoding="utf-8").read()
+    i = src.index("\ndef rediger(")
+    assert '"socle_sources"' in src[i:], (
+        "`rediger` ne rend pas les sources du socle : la page ne peut pas les "
+        "montrer")
+    assert '"socle_absent"' in src[i:], (
+        "`rediger` ne rend pas le motif d'absence : un brouillon sans fonds "
+        "se lirait comme un brouillon ordinaire")
+    js = _js_src()
+    assert "socle_sources" in js, (
+        "le script ne lit pas les sources : elles remontent et personne ne "
+        "les affiche")
+    assert "socle_absent" in js, (
+        "le script n'affiche pas l'absence de socle")
+
+
+def test_le_bouton_de_redaction_ATTEINT_la_route():
+    """UN BOUTON SANS ÉCOUTEUR, OU UN ÉCOUTEUR SANS BOUTON : les deux se
+    lisent « la fonction est là », et aucun des deux ne marche."""
+    js = _js_src()
+    assert 'data-rediger="' in js, (
+        "aucun bouton ne porte la marque de rédaction")
+    assert 'closest("[data-rediger]")' in js, (
+        "aucun écouteur ne ramasse le clic sur ces boutons")
+    assert '"/api/datacenter/marche/rediger"' in js, (
+        "le geste n'appelle pas la route de rédaction")
+    # ET IL PART AVEC LA FICHE : sans elle, le brouillon serait marqué
+    # À COMPLÉTER de bout en bout, ce qui a l'air de marcher.
+    i = js.index('closest("[data-rediger]")')
+    bloc = js[i:i + 2200]
+    for besoin in ("AO_FICHE", "AO_ANALYSE", "AO_SAISIES"):
+        assert besoin in bloc, (
+            "le geste n'envoie pas %s : le serveur rédigerait sur un dossier "
+            "vide" % besoin)
+
+
+def test_le_rendu_du_brouillon_UTILISE_le_moteur_de_markdown_du_site():
+    """LE REPLI QUI SE DÉCLENCHE TOUJOURS. Le premier jet appelait
+    `CPMarkdown.rendre` — un nom qui n'existe pas. La page fonctionnait, le
+    repli `<pre>` s'affichait, et rien ne signalait que le moteur de rendu
+    n'était jamais utilisé."""
+    js = _js_src()
+    i = js.index('function aoRedigerRendre(')
+    bloc = js[i:i + 2600]
+
+    # ON MESURE L'APPEL, PAS LA PRÉSENCE DU NOM. Une première version de cette
+    # règle cherchait « CPMarkdown.versHtml » n'importe où dans le bloc — et la
+    # GARDE `(window.CPMarkdown && CPMarkdown.versHtml)` contient ce texte. Une
+    # mutation qui remplaçait l'APPEL par un nom inexistant est donc passée :
+    # le repli se serait déclenché toujours, la règle restant verte. Ce sont
+    # les parenthèses qui font la différence entre un test et un appel.
+    appels = set(re.findall(r"CPMarkdown\.(\w+)\s*\(", bloc))
+    assert appels == {"versHtml"}, (
+        "le rendu du brouillon n'appelle pas `versHtml`, mais %s : le repli "
+        "`<pre>` se déclencherait toujours et le moteur ne servirait jamais"
+        % (sorted(appels) or "aucun moteur"))
+    md = io.open(os.path.join(ICI, "markdown.js"), encoding="utf-8").read()
+    assert re.search(r"\bversHtml\b", md), (
+        "`versHtml` n'existe pas dans markdown.js : le nom appelé est faux et "
+        "le repli se déclencherait toujours")

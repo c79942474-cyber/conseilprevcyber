@@ -6170,15 +6170,105 @@ function messageDelai(e, defaut) {
           + esc(x.en_groupement) + "</p>";
       }
       if (red[x.cle]) {
-        h += '<p class="ig-ao-red">Cette note se rédige — livrable «&nbsp;'
-          + esc(red[x.cle].label) + "&nbsp;», dans l'espace "
-          + "d'administration.</p>";
+        h += '<div class="ig-ao-red">'
+          + '<span>Cette note se rédige — livrable «&nbsp;'
+          + esc(red[x.cle].label) + "&nbsp;».</span>"
+          + '<button type="button" class="btn btn-s ig-ao-redb" '
+          + 'data-rediger="' + esc(x.cle) + '">Mettre en brouillon</button>'
+          + '<div class="ig-ao-redo" data-redout="' + esc(x.cle) + '"></div>'
+          + "</div>";
       }
       h += "</div>";
     });
     h += "</div>" + '<p class="ig-icpe-res">' + esc(p.note) + "</p>";
     out.innerHTML = h;
   }
+
+
+  /* ── METTRE UNE NOTE EN BROUILLON ─────────────────────────────────────
+     PAR DÉLÉGATION, ET C'EST NÉCESSAIRE : la carte du dossier est reconstruite
+     à chaque remplissage, et rebrancher un écouteur par bouton en laisserait
+     tôt ou tard un sans. Un écouteur posé sur le document survit à un élément
+     qui n'existe pas encore.
+
+     LE BROUILLON DIT SUR QUOI IL S'APPUIE. Un texte qui cite « [CCTP Sud] »
+     sans que la page dise d'où vient ce document est invérifiable — et c'est
+     exactement ce qu'on interdit au modèle de faire. Les documents du socle
+     sont donc affichés SOUS le brouillon, et son absence est affichée aussi :
+     elle explique pourquoi le texte est plus pauvre. */
+  function aoRedigerRendre(z, j) {
+    var h = "";
+    if (j.socle_sources && j.socle_sources.length) {
+      h += '<p class="ig-ao-reds"><b>Socle documentaire</b> — ' + fr(j.socle_sources.length)
+        + " document(s) du fonds : ";
+      h += j.socle_sources.map(function (x) {
+        return esc(x.titre) + (x.date_source ? " (" + esc(x.date_source) + ")" : "");
+      }).join(" · ") + "</p>";
+    } else {
+      /* NOMMER L'ABSENCE PLUTÔT QUE DE LAISSER LE VIDE PARLER. Un brouillon
+         sans socle n'est pas le même document qu'un brouillon avec : le
+         relecteur doit savoir lequel il tient. */
+      h += '<p class="ig-ao-reds ig-ao-redk"><b>Sans socle documentaire</b> — '
+        + esc({ magasin_non_joint: "la base de connaissance n'a pas été jointe",
+                base_injoignable: "la base de connaissance est injoignable",
+                aucun_extrait: "aucun extrait du thème appels d'offres et CCTP "
+                               + "n'a été jugé pertinent"
+              }[j.socle_absent] || "aucun extrait retenu")
+        + ". Le texte ne s'appuie sur aucun dossier antérieur.</p>";
+    }
+    if (j.a_completer) {
+      h += '<p class="ig-ao-reds"><b>' + fr(j.a_completer) + "</b> passage(s) "
+        + "marqué(s) À COMPLÉTER : ce sont les endroits que le modèle n'a pas "
+        + "inventés.</p>";
+    }
+    if (j.tronque) {
+      h += '<p class="ig-ao-reds ig-ao-redk"><b>Brouillon tronqué</b> — la '
+        + "limite de longueur a été atteinte : la fin manque.</p>";
+    }
+    /* Sans le moteur de rendu — fichier non chargé — on montre le texte
+       plutôt que rien : un lecteur vide serait pire qu'un texte brut. */
+    h += '<div class="ig-ao-redm">'
+      + ((window.CPMarkdown && CPMarkdown.versHtml)
+          ? CPMarkdown.versHtml(j.markdown)
+          : "<pre>" + esc(j.markdown) + "</pre>") + "</div>";
+    z.innerHTML = h;
+  }
+
+  document.addEventListener("click", function (ev) {
+    var b = ev.target && ev.target.closest
+      ? ev.target.closest("[data-rediger]") : null;
+    if (!b) return;
+    ev.preventDefault();
+    var cle = b.getAttribute("data-rediger");
+    var z = $('[data-redout="' + cle + '"]');
+    if (!z) return;
+    b.disabled = true;
+    z.innerHTML = '<p class="note">Rédaction en cours — le modèle écrit, '
+      + "cela prend une minute ou deux.</p>";
+    demander("/api/datacenter/marche/rediger", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ piece: cle, fiche: AO_FICHE,
+                             analyse: AO_ANALYSE, saisies: AO_SAISIES })
+    }, DELAI_LONG)
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) {
+          z.innerHTML = '<p class="ig-dep-ko">'
+            + esc((j && j.message) || "Le brouillon n'a pas pu être écrit.")
+            + "</p>";
+          return;
+        }
+        aoRedigerRendre(z, j);
+      })
+      .catch(function (e) {
+        if (e && e.name === "SessionEteinte") return;
+        z.innerHTML = '<p class="ig-dep-ko">'
+          + esc(messageDelai(e, "Le brouillon n'a pas pu être écrit."))
+          + "</p>";
+      })
+      .then(function () { b.disabled = false; });
+  });
 
 
   /* ── LA DENSITÉ CONTRE LE BÂTIMENT (section 11) ────────────────────────

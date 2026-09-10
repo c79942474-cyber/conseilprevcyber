@@ -390,6 +390,8 @@ def rediger(cle, remplissage, analyse=None, rag=None):
         "cle": cle,
         "nom": piece["nom"],
         "markdown": texte,
+        "socle_sources": list(ctx.get("socle_sources") or []),
+        "socle_absent": ctx.get("socle_absent") or "",
         "modele": getattr(reponse, "model", MODELE),
         "tronque": getattr(reponse, "stop_reason", "") == "max_tokens",
         "a_completer": texte.count(_A_COMPLETER),
