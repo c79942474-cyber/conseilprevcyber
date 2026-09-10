@@ -8850,8 +8850,14 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo,
         # famille : un ordre, jamais un filtre — appliquée par-dessus.
         pc0 = ingenierie_dc.piece(phase, code) if (phase and code) else None
         if pc0:
+            # LA PHASE COMPLÈTE L'AIGUILLAGE, ICI AUSSI : les pièces
+            # transversales de maîtrise d'œuvre (sans discipline) se rangent
+            # par leur STADE plutôt que sur toute la famille. Même chemin que
+            # la génération avec modèle — les deux doivent l'avoir, sinon la
+            # trame et le livrable diraient deux choses.
             sous = ingenierie_dc.sous_dossiers(pc0["code"],
-                                               pc0.get("discipline"))
+                                               pc0.get("discipline"),
+                                               phase=phase)
             if sous:
                 hits = _hits_priorises(query, 8, public_only, sous,
                                        elargir=hits)
@@ -9097,8 +9103,13 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None,
             pi0 = str(data.get("piece") or "").strip().upper()[:16]
             pc0 = ingenierie_dc.piece(ph0, pi0) if (ph0 and pi0) else None
             if pc0:
+                # LA PHASE COMPLÈTE L'AIGUILLAGE : une pièce transversale de
+                # maîtrise d'œuvre — sans discipline — se range alors par son
+                # STADE (dossier de consultation, réception…), au lieu de
+                # retomber sur toute la famille « Centres de données ».
                 sous = ingenierie_dc.sous_dossiers(pc0["code"],
-                                                   pc0.get("discipline"))
+                                                   pc0.get("discipline"),
+                                                   phase=ph0)
                 if sous:
                     hits = _hits_priorises(query, 8, public_only, sous,
                                            elargir=hits)

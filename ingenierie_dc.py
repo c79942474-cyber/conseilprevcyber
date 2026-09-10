@@ -4058,19 +4058,109 @@ _SOUS_DOSSIERS_PIECE = {
 }
 
 
-def sous_dossiers(code_piece, discipline=None):
+# ── LE BON SOUS-DOSSIER PAR ÉTAPE DE MAÎTRISE D'ŒUVRE ────────────────────────
+# CE QUE CETTE TABLE COMBLE, MESURÉ. Sur les 460 pièces d'ingénierie, 108
+# n'ont AUCUNE discipline : ce sont les pièces transversales de chaque étape —
+# la maîtrise d'œuvre elle-même. Une notice d'intention (ESQ), un CCAP (DCE),
+# un PV de réception (AOR) ne relèvent d'aucun lot technique, et retombaient
+# donc sur la famille « Centres de données » ENTIÈRE. Le stade du projet, lui,
+# dit précisément quel sous-dossier interroger : un dossier de consultation va
+# aux pièces de marché, une réception aux essais de mise en service.
+#
+# C'EST LE TROISIÈME NIVEAU D'UN AIGUILLAGE, ET IL PASSE EN DERNIER. La pièce
+# d'abord (son exception), la discipline ensuite (son lot), l'étape en dernier
+# recours — pour ne toucher QUE les pièces qu'aucune des deux ne cartographie.
+# Une pièce déjà rangée par sa discipline garde sa précision : le stade ne la
+# dilue pas.
+#
+# Les deux cycles de la page : la loi MOP (ESQ→AOR) et l'ingénierie
+# industrielle (FAISA→CSU). Chaque code de phase DOIT figurer ici — la recette
+# le vérifie —, sinon un onglet neuf rouvrirait le trou en silence.
+SOUS_DOSSIERS_PHASE = {
+    # Loi MOP — maîtrise d'œuvre bâtiment.
+    "ESQ": ("Data center / Conception & architecture",
+            "Data center / Études de site & implantation"),
+    "APS": ("Data center / Conception & architecture",
+            "Data center / Efficacité & indicateurs (PUE, WUE, CUE, ERE)"),
+    "APD": ("Data center / Conception & architecture",
+            "Data center / Normes (EN 50600, ISO/IEC 30134, ASHRAE)"),
+    "PRO": ("Data center / Conception & architecture",
+            "Data center / Normes (EN 50600, ISO/IEC 30134, ASHRAE)"),
+    "DCE": ("Data center / Appels d'offres & CCTP",
+            "Data center / Réalisation & gouvernance de projet"),
+    "ACT": ("Data center / Appels d'offres & CCTP",
+            "Data center / Réalisation & gouvernance de projet"),
+    "EXE-VISA": ("Data center / Réalisation & gouvernance de projet",
+                 "Data center / Qualité & non-conformités"),
+    "DET": ("Data center / Réalisation & gouvernance de projet",
+            "Data center / Qualité & non-conformités"),
+    "AOR": ("Data center / Mise en service & essais",
+            "Data center / Qualité & non-conformités",
+            "Data center / Efficacité & indicateurs (PUE, WUE, CUE, ERE)"),
+    # Ingénierie industrielle — cycle EPC.
+    "FAISA": ("Data center / Études de site & implantation",
+              "Data center / Conception & architecture",
+              "Data center / Recherche & état de l'art"),
+    "BASIC": ("Data center / Conception & architecture",
+              "Data center / Normes (EN 50600, ISO/IEC 30134, ASHRAE)"),
+    "FEED": ("Data center / Conception & architecture",
+             "Data center / Fournisseurs & fiches techniques",
+             "Data center / Normes (EN 50600, ISO/IEC 30134, ASHRAE)"),
+    "EPCI": ("Data center / Réalisation & gouvernance de projet",
+             "Data center / Fournisseurs & fiches techniques",
+             "Data center / Qualité & non-conformités"),
+    "CSU": ("Data center / Mise en service & essais",
+            "Data center / Efficacité & indicateurs (PUE, WUE, CUE, ERE)",
+            "Data center / Retours d'exploitation & mesures"),
+}
+
+
+def sous_dossiers(code_piece, discipline=None, phase=None):
     """Les sous-dossiers de la base à interroger EN PREMIER pour cette pièce.
 
-    L'exception de la pièce d'abord, la carte de la discipline ensuite — dans
-    cet ordre et sans doublon. Liste vide si rien n'est cartographié :
-    l'appelant retombe alors sur la famille entière, ce qui est le comportement
-    d'avant cette carte.
+    L'exception de la pièce d'abord, la carte de la discipline ensuite, puis —
+    SEULEMENT si les deux sont muettes — le stade de maîtrise d'œuvre. Dans cet
+    ordre et sans doublon. Liste vide seulement si rien n'est cartographié à
+    aucun des trois niveaux : l'appelant retombe alors sur la famille entière.
+
+    POURQUOI L'ÉTAPE EN DERNIER RECOURS, ET PAS EN COMPLÉMENT. Une pièce déjà
+    rangée par sa discipline est mieux ciblée que par son stade — la note
+    thermique d'un lot CVC en APD doit rester devant la « conception
+    d'ensemble » du stade. On ne l'y ajoute donc pas : le stade ne sert qu'aux
+    pièces que rien d'autre ne range.
     """
     out = list(_SOUS_DOSSIERS_PIECE.get((code_piece or "").strip().upper(), ()))
     for t in SOUS_DOSSIERS_DISCIPLINE.get((discipline or "").strip(), ()):
         if t not in out:
             out.append(t)
+    if not out:
+        out = list(SOUS_DOSSIERS_PHASE.get((phase or "").strip().upper(), ()))
     return out
+
+
+def _verifier_sous_dossiers_phase():
+    """Les intitulés de l'aiguillage par étape existent dans la base, et chaque
+    phase est couverte. Un intitulé recopié de travers ne remonterait aucun
+    document sans erreur ; une phase oubliée rouvrirait le trou qu'on comble.
+    """
+    import rag_store as _rs
+    connus = set(_rs.THEMES)
+    fautes = []
+    for ph, ts in SOUS_DOSSIERS_PHASE.items():
+        for t in ts:
+            if t not in connus:
+                fautes.append("thème inconnu de la base (%s) : %s" % (ph, t))
+    codes = {p["code"] if isinstance(p, dict) else p for p in PHASES}
+    for c in sorted(codes):
+        if c not in SOUS_DOSSIERS_PHASE:
+            fautes.append("phase sans aiguillage documentaire : %s" % c)
+    return fautes
+
+
+_FAUTES_SOUS_DOSSIERS_PHASE = _verifier_sous_dossiers_phase()
+if _FAUTES_SOUS_DOSSIERS_PHASE:
+    raise RuntimeError("ingenierie_dc — aiguillage par étape incohérent : "
+                       + " ; ".join(_FAUTES_SOUS_DOSSIERS_PHASE))
 
 
 def couverture_documentaire(code_phase, code_piece, chercher, inputs=None,
