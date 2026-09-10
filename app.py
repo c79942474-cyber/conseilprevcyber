@@ -68,6 +68,7 @@ import automation
 import juridique
 import librejustice   # corpus de jurisprudence, branché par MCP — voir le module
 import livrables
+import orchestrateur_livrables
 import rag_federe   # la base sœur, mêlée à la nôtre — voir le module
 import reglages   # un réglage illisible ne doit pas arrêter le service
 import veille_facettes   # les six axes de la veille — voir le module
@@ -9061,6 +9062,12 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None,
         return _trame_sans_modele(type_id, data, extra_query, label, dispo,
                                   public_only)
     query = (livrables.retrieval_query(type_id, data) + " " + extra_query).strip()
+    # L'ORCHESTRATEUR PILOTE — il ne rédige pas. Il rend le plan de l'agent du
+    # sujet (référentiel visé, sous-dossiers, et le levier de rapidité), que
+    # ce chemin exécute. Pur : aucun appel modèle n'a lieu ici.
+    plan_agent = orchestrateur_livrables.ORCHESTRATEUR.plan(
+        type_id, phase=data.get("phase"), piece=data.get("piece"),
+        rapide=bool(data.get("rapide")), inputs=data)
     # Documents de référence choisis manuellement (facultatif) ; sinon récupération auto.
     doc_ids = [d for d in (data.get("doc_ids") or []) if _rag_valid_doc_id(d)]
     # Version parente (chaînage des itérations) — présent lors d'un affinage.
@@ -9084,9 +9091,14 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None,
             # Récupération LARGE puis re-classement par LLM-juge → les 8 extraits
             # les plus pertinents avant génération (précision accrue). Repli sûr
             # (sans clé API ou en cas d'échec : simple troncature).
-            large = assistant.rerank(model, query,
-                                     rag.search(query, k=24,
-                                                public_only=public_only), 8)
+            #
+            # LE MODE RAPIDE DE L'AGENT SAUTE LE JUGE — un appel modèle de moins,
+            # une réponse plus prompte. C'est le seul levier de rapidité, et il
+            # est PILOTÉ PAR LE PLAN, jamais décidé ici : le compromis (rappel
+            # un peu moindre) est déclaré dans le plan, rendu au client.
+            brut = rag.search(query, k=24, public_only=public_only)
+            large = (assistant.rerank(model, query, brut, 8)
+                     if plan_agent["reclasser"] else brut)
             # LA FAMILLE PASSE DEVANT, et APRÈS le re-classement : le juge
             # ordonne par pertinence, la famille par sujet. Le faire avant
             # laisserait le juge défaire l'ordre qu'on vient de poser — c'est
@@ -9274,6 +9286,10 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None,
                    mode_nom=ingenierie_dc.MODES_REDACTION[mode]["nom"],
                    mode_aide=ingenierie_dc.MODES_REDACTION[mode]["aide"],
                    corpus="public" if public_only else "complet",
+                   # L'AGENT QUI A PILOTÉ, ET SON COMPROMIS S'IL Y EN A UN. Le
+                   # client voit quel sujet a été routé, vers quels thèmes, et
+                   # si le mode rapide a sauté le juge.
+                   agent=plan_agent,
                    # SUR QUOI LE DOCUMENT A ÉTÉ ÉCRIT. La mention est due même
                    # quand tout va bien — et surtout quand la base sœur n'a pas
                    # répondu : le livrable aurait alors pu être différent, et le
