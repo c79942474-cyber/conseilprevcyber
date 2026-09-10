@@ -816,24 +816,27 @@ def test_le_rendu_du_brouillon_UTILISE_le_moteur_de_markdown_du_site():
 ORIGINE = {"Origin": "http://localhost"}
 
 
-def test_SANS_CLE_la_route_refuse_en_NOMMANT_la_cause():
+def test_SANS_CLE_la_route_refuse_en_NOMMANT_la_cause(marche):
     """UN DOCUMENT VIDE N'EST PAS UN REFUS. Sans clé, le module doit dire
     pourquoi il ne rédige pas — sinon l'exploitant cherche un défaut de code
-    là où il manque une variable d'environnement."""
+    là où il manque une variable d'environnement.
+
+    LA MESURE PASSE PAR HTTP, comme le dit l'en-tête de cette section : ce
+    qu'on veut savoir, c'est ce qu'un exploitant VOIT à l'écran. Une version
+    antérieure appelait `ao_redaction._client()` en direct après avoir ouvert
+    un client de test dont elle ne se servait pas ; elle mesurait la levée
+    d'exception, jamais le code ni le corps de la réponse."""
     if os.environ.get("ANTHROPIC_API_KEY"):
         pytest.skip("clé posée : ce chemin-là ne peut pas être joué ici")
-    import app as _app
-    _app.app.config["TESTING"] = True
-    with _app.app.test_client() as c:
-        import tests.conftest as _cf  # noqa: F401  — pour la session d'admin
-    # La session passe par la fixture ; ici on n'éprouve que le refus, qui
-    # survient AVANT toute vérification de dossier.
-    assert ao_redaction._client.__doc__ is None or True
-    with pytest.raises(ao_redaction.RedactionError) as e:
-        ao_redaction._client()
-    assert e.value.code == "sans_cle", e.value.code
-    assert e.value.status == 503
-    assert "ANTHROPIC_API_KEY" in e.value.detail, e.value.detail
+    rep = marche.post("/api/datacenter/marche/rediger",
+                      json={"piece": "equipe"}, headers=ORIGINE)
+    assert rep.status_code == 503, (rep.status_code, rep.data[:300])
+    j = rep.get_json() or {}
+    assert j.get("error") == "sans_cle", j
+    # LE NOM DU CHAMP COMPTE : la route rend « message », pas « detail ».
+    # L'ancienne règle lisait `.detail` sur l'exception et ne pouvait pas
+    # s'en apercevoir ; c'est « message » que la page affiche.
+    assert "ANTHROPIC_API_KEY" in (j.get("message") or ""), j
 
 
 def test_le_socle_TIENT_contre_le_vrai_magasin_et_ne_fuit_pas():
