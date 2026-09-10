@@ -440,9 +440,10 @@ def test_la_substitution_ne_touche_pas_au_membre_de_gauche():
 
 
 def test_l_evaluateur_refuse_tout_ce_qui_n_est_pas_de_l_arithmetique():
-    """L'ÉVALUATION EST FERMÉE PAR CONSTRUCTION : ni nom à résoudre, ni appel
-    possible. Une expression qui n'est pas faite de chiffres et de quatre
-    opérateurs fait renoncer."""
+    """L'ÉVALUATION SE FAIT SANS NOM À RÉSOUDRE — mais « fermée par
+    construction » était trop dire, et c'est le pentest qui l'a montré (voir la
+    règle suivante). Une expression qui n'est pas faite de chiffres et de
+    quatre opérateurs fait renoncer."""
     for hostile in ("__import__('os').system('id')", "open('/etc/passwd')",
                     "1+1;print(2)", "a + b", "PUE × 2"):
         # LE GARDE-FOU EST ÉPROUVÉ POUR LUI-MÊME, et pas seulement le résultat
@@ -454,6 +455,60 @@ def test_l_evaluateur_refuse_tout_ce_qui_n_est_pas_de_l_arithmetique():
             % hostile)
         assert F.evaluer(hostile) is None, hostile
     assert abs(F.evaluer("1 200 × 0,65 × 8 760 / 1000") - 6832.8) < 1e-6
+
+
+def test_l_evaluateur_ne_se_laisse_pas_IMMOBILISER_par_une_exponentiation():
+    """UN DÉNI DE SERVICE SANS AUCUN NOM À RÉSOUDRE. La classe de caractères
+    admet « * » ; « ** » est donc de l'« arithmétique » au sens du filtre, et
+    `9**9**9**9` calcule un entier de centaines de millions de chiffres qui
+    épuise CPU et mémoire — sans jamais sortir du bac à sable. Le bac à sable
+    ne protège que de l'exécution de NOMS ; il ne protège de rien contre le
+    coût d'un calcul licite.
+
+    LA RÈGLE MESURE LE TEMPS, PAS SEULEMENT LE RÉSULTAT — DANS UN PROCESSUS À
+    PART. Sans le correctif, `evaluer` ne rend pas None : il part calculer un
+    entier gigantesque. Le mesurer dans un thread ne suffisait pas — le thread
+    abandonné après un `join(timeout)` CONTINUE de tourner, épuise la mémoire
+    et fige le processus de test tout entier (c'est arrivé une fois, et c'est
+    précisément la preuve que le déni de service est réel). On l'isole donc
+    dans un sous-processus BORNÉ par le noyau — plafond CPU et mémoire via
+    `resource` — que l'OS tue net s'il déborde. La règle exige : rend vite,
+    rend None."""
+    import subprocess
+    import sys
+    import textwrap
+
+    # Le sous-processus pose ses propres limites AVANT d'appeler evaluer :
+    # 5 s de CPU, ~512 Mo d'adressage. Un `9**9**9**9` non filtré meurt donc
+    # sur SIGXCPU/MemoryError au lieu d'emporter la machine ; il n'imprime
+    # jamais "REND". Un evaluer corrigé imprime "REND None" en un clin d'œil.
+    gabarit = textwrap.dedent("""
+        import resource, sys
+        resource.setrlimit(resource.RLIMIT_CPU, (5, 5))
+        resource.setrlimit(resource.RLIMIT_AS, (512*1024*1024, 512*1024*1024))
+        sys.path.insert(0, %r)
+        import formules
+        v = formules.evaluer(%r)
+        sys.stdout.write("REND " + repr(v))
+    """)
+    racine = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    for charge in ("9**9**9**9", "9 ** 9", "2**64", "(9)**(9)**(9)",
+                   "9× ×9"):   # « × × » dont l'espace tombe → « ** »
+        p = subprocess.run([sys.executable, "-c", gabarit % (racine, charge)],
+                           capture_output=True, text=True, timeout=30)
+        assert p.stdout.startswith("REND "), (
+            "evaluer(%r) n'a pas rendu (code %s) : l'exponentiation a fait "
+            "tuer le sous-processus par le noyau — c'est le déni de service "
+            "que le filtre doit refuser. stderr=%s"
+            % (charge, p.returncode, p.stderr[-200:]))
+        assert p.stdout == "REND None", (charge, p.stdout)
+
+    # ET LE FILTRE REFUSE EN AMONT : la traduction rend None, ce n'est pas
+    # seulement le calcul qui échoue.
+    assert F._en_python("9**9**9**9") is None
+    # L'ARITHMÉTIQUE LÉGITIME N'EST PAS TOUCHÉE — un seul « * » passe toujours.
+    assert abs(F.evaluer("6833,10 × 1,35") - 9224.685) < 1e-3
 
 
 def test_l_infobulle_RENDUE_porte_reellement_les_cinq_choses():

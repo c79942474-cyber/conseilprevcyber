@@ -206,6 +206,19 @@ def _en_python(expr):
     # Les séparateurs de milliers partent, la virgule décimale devient point.
     e = e.replace(_FINE, "").replace("\u00a0", "").replace(" ", "")
     e = e.replace(",", ".")
+    # L'EXPONENTIATION EST REFUS\u00c9E, ET C'EST LE POINT DE S\u00dbRET\u00c9. La classe de
+    # caract\u00e8res de `_ARITH` admet \u00ab * \u00bb ; deux \u00e0 la suite \u2014 \u00e9crits, ou n\u00e9s
+    # d'un \u00ab \u00d7 \u00d7 \u00bb dont l'espace vient de tomber \u2014 forment l'op\u00e9rateur `**` de
+    # Python. Or `9**9**9**9` n'invoque aucun nom et ne sort d'aucun bac \u00e0
+    # sable, mais immobilise le worker : le calcul d'un entier de centaines de
+    # millions de chiffres \u00e9puise le CPU et la m\u00e9moire. Le commentaire au-dessus
+    # d'`evaluer` disait l'\u00e9valuation \u00ab ferm\u00e9e par construction \u00bb ; elle ne
+    # l'\u00e9tait pas contre cela. Une \u00e9quation substitu\u00e9e n'a JAMAIS d'exposant \u2014
+    # ses op\u00e9rateurs viennent de \u00ab \u00d7 \u00f7 + - \u00bb \u2014 donc la refuser ne retire rien
+    # de l\u00e9gitime. Le faire ICI, avant `eval`, prot\u00e8ge tout appelant, pr\u00e9sent
+    # ou futur, y compris un qui laisserait passer du texte d'utilisateur.
+    if "**" in e:
+        return None
     return e
 
 
