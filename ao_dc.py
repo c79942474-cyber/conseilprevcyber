@@ -1689,9 +1689,11 @@ NATURES_PIECE = {
     },
     "note": {
         "nom": "Note à rédiger",
-        "aide": "Un texte à écrire, qui se génère à partir du dossier de "
-                "consultation et de la base de connaissance, puis se relit et "
-                "s'assume.",
+        "aide": "Un texte à écrire, qui se génère à partir des relevés du "
+                "dossier de consultation, du dossier d'entreprise, et — quand "
+                "la base de connaissance est jointe — d'extraits de ses "
+                "documents publics du thème appels d'offres et CCTP. Puis il "
+                "se relit et s'assume.",
     },
 }
 
