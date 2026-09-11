@@ -5831,6 +5831,13 @@ function messageDelai(e, defaut) {
      fichiers : l'analyse ne garde que ce qu'elle a relevé, pas ce qu'elle a
      lu. Il reste dans cette page tant qu'aucun projet n'est choisi. */
   var AO_DOCS = null;
+  /* LA FILE D'ATTENTE DES PIÈCES CHOISIES, avant analyse. Tenue à la main
+     parce qu'un FileList natif n'est ni modifiable ni cumulable : on ne peut
+     pas en ôter UN fichier, et re-choisir REMPLACE tout. Elle porte {nom,file},
+     s'ajoute à chaque dépôt, et se défait pièce par pièce. Jamais relue d'un
+     stockage local — une pièce d'une consultation ne doit pas reparaître sur
+     la suivante, exactement comme AO_FOURNIES. */
+  var AO_EN_ATTENTE = [];
 
   /* CE QUE LE SERVEUR ACCEPTE EN UNE REQUÊTE, moins l'inflation du base64 —
      un fichier binaire pèse un tiers de plus une fois encodé. La valeur suit
@@ -5896,16 +5903,65 @@ function messageDelai(e, defaut) {
       + '<div id="ig-ao-liste" class="ig-ao-docs"></div>';
     var f = $("#ig-ao-f");
     if (f) {
+      /* CHAQUE DÉPÔT S'AJOUTE — ET DEVIENT RETIRABLE. On ne se contente plus du
+         FileList natif : chaque sélection AJOUTE à `AO_EN_ATTENTE` (un même nom
+         remplace le sien, comme le dossier conservé), et une liste déroulante
+         la donne à voir et à défaire pièce par pièce. L'input est vidé après
+         coup, sinon « Aucun fichier choisi » contredirait la liste, et
+         re-choisir le même fichier ne rejouerait pas `change`. */
       f.addEventListener("change", function () {
-        var l = $("#ig-ao-liste");
-        var noms = [];
-        for (var i = 0; i < f.files.length; i++) noms.push(f.files[i].name);
-        l.innerHTML = noms.length
-          ? '<p class="note">' + noms.length + " fichier"
-            + (noms.length > 1 ? "s" : "") + " · " + esc(noms.join(", ")) + "</p>"
-          : "";
+        for (var i = 0; i < f.files.length; i++) {
+          var fic = f.files[i], j = aoEnAttenteIndex(fic.name);
+          if (j >= 0) AO_EN_ATTENTE[j] = { nom: fic.name, file: fic };
+          else AO_EN_ATTENTE.push({ nom: fic.name, file: fic });
+        }
+        f.value = "";
+        aoEnAttenteRendre();
       });
     }
+    aoEnAttenteRendre();
+  }
+
+  /* L'INDEX D'UN NOM DANS LA FILE, ou -1. Le nom fait l'identité, comme au
+     dossier conservé : re-déposer « CCTP.pdf » corrigé remplace le premier au
+     lieu d'en garder deux. */
+  function aoEnAttenteIndex(nom) {
+    for (var i = 0; i < AO_EN_ATTENTE.length; i++) {
+      if (AO_EN_ATTENTE[i].nom === nom) return i;
+    }
+    return -1;
+  }
+
+  /* LA LISTE DÉROULANTE DES PIÈCES CHOISIES, avec le retrait pièce par pièce.
+     Elle rend ce que `aoAnalyser` va RÉELLEMENT lire : la même file. Ôter une
+     pièce ici l'ôte donc de l'analyse — pas seulement de l'écran. */
+  function aoEnAttenteRendre() {
+    var l = $("#ig-ao-liste");
+    if (!l) return;
+    if (!AO_EN_ATTENTE.length) { l.innerHTML = ""; return; }
+    var octets = AO_EN_ATTENTE.reduce(function (n, d) {
+      return n + ((d.file && d.file.size) || 0); }, 0);
+    var h = '<label class="dc-lab" for="ig-ao-sel">Pièces choisies ('
+      + AO_EN_ATTENTE.length + " · " + esc(aoOctets(octets)) + ")</label>"
+      + '<div class="ig-ao-choisis"><select id="ig-ao-sel" '
+      + 'aria-label="Pièces de la consultation choisies">';
+    AO_EN_ATTENTE.forEach(function (d, i) {
+      h += '<option value="' + i + '">' + esc(d.nom) + " · "
+        + esc(aoOctets((d.file && d.file.size) || 0)) + "</option>";
+    });
+    h += "</select>"
+      + '<button type="button" class="btn btn-s" id="ig-ao-ret">'
+      + "Retirer le fichier sélectionné</button></div>";
+    l.innerHTML = h;
+    var ret = $("#ig-ao-ret");
+    if (ret) ret.addEventListener("click", function () {
+      var sel = $("#ig-ao-sel");
+      var i = sel ? parseInt(sel.value, 10) : -1;
+      if (i >= 0 && i < AO_EN_ATTENTE.length) {
+        AO_EN_ATTENTE.splice(i, 1);
+        aoEnAttenteRendre();
+      }
+    });
   }
 
   /* Un fichier lu en base64, rendu comme une promesse. Le lecteur du
@@ -5947,15 +6003,17 @@ function messageDelai(e, defaut) {
 
   function aoAnalyser() {
     var msg = $("#ig-ao-msg");
-    var f = $("#ig-ao-f");
-    if (!f || !f.files || !f.files.length) {
+    /* L'ANALYSE LIT LA FILE D'ATTENTE, PAS LE FILELIST BRUT. C'est ce qui rend
+       le retrait réel : ôter une pièce de la liste déroulante l'ôte de ce qui
+       part à l'analyse, puisque c'est cette même file qu'on lit ici. */
+    if (!AO_EN_ATTENTE.length) {
       msg.textContent = "Choisissez les pièces de la consultation.";
       return;
     }
-    var n = f.files.length;
+    var n = AO_EN_ATTENTE.length;
     msg.textContent = "Lecture de " + n + " pièce" + (n > 1 ? "s" : "") + "…";
     var lectures = [], docs_octets = 0;
-    for (var i = 0; i < n; i++) lectures.push(aoLire(f.files[i]));
+    for (var i = 0; i < n; i++) lectures.push(aoLire(AO_EN_ATTENTE[i].file));
     Promise.all(lectures).then(function (lus) {
       var docs = lus.filter(function (x) { return !x.erreur; });
       if (!docs.length) {
