@@ -1175,6 +1175,53 @@ def relever(code_piece, texte):
     return out
 
 
+# ── CE QU'UN FICHIER QU'ON N'A PAS SU NOMMER APPORTE QUAND MÊME ─────────────
+# LE DÉFAUT CORRIGÉ ICI. Un document déposé et non identifié était rangé dans
+# `inconnues` avec son nom, sa taille — et SON TEXTE JETÉ. Il ne versait rien
+# au remplissage : ni acheteur, ni objet, ni date limite, alors qu'il les
+# portait peut-être en première page. Sur un dossier réel où deux fichiers sur
+# dix ne sont pas reconnus, c'est deux fichiers déposés pour rien.
+#
+# POURQUOI TOUS LES RELEVÉS, ET NON CEUX D'UNE PIÈCE. `relever()` ne cherche
+# que ce que la pièce DÉSIGNÉE est censée porter — c'est ce qui évite de
+# chercher un critère de jugement dans un diagnostic géotechnique. Ici on ne
+# sait justement pas ce qu'on tient : restreindre reviendrait à deviner. On
+# cherche donc tout, et c'est le RANG qui protège — ces propositions passent
+# APRÈS toutes les pièces identifiées et ne comblent que des trous.
+#
+# POURQUOI SEULEMENT CE QUI EST TROUVÉ. Sur une pièce identifiée, « non
+# trouvé » informe : un CCAP sans pénalités, cela se remarque. Sur un fichier
+# dont on ignore la nature, « non trouvé » n'apprend rien — on rendrait vingt
+# lignes vides par fichier inconnu, qui noieraient les deux qui portent
+# quelque chose.
+RANG_NON_IDENTIFIE = 900
+
+
+def relever_sans_piece(texte):
+    """Les relevés d'un fichier dont on n'a pas su dire ce qu'il est.
+
+    Rend UNIQUEMENT ce qui a été trouvé, et chaque ligne porte
+    `non_identifie` : une valeur tirée d'un fichier qu'on ne sait pas nommer
+    est une piste, pas une source. Ce qui la consomme doit pouvoir le dire.
+    """
+    out = []
+    for r in RELEVES:
+        trouves = _extraire(texte, r["motifs"])
+        if not trouves:
+            continue
+        out.append({
+            "cle": r["cle"], "libelle": r["libelle"],
+            "pourquoi": r["pourquoi"], "piege": r["piege"],
+            "trouve": True, "citations": trouves,
+            "non_identifie": True,
+            "note": "Relevé dans un fichier que l'identification n'a pas su "
+                    "nommer. La valeur est une PISTE : elle ne vaut que ce "
+                    "que vaut le fichier, qu'il faut ouvrir avant de la "
+                    "reporter sur un formulaire.",
+        })
+    return out
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 #  L'ANALYSE DU DOSSIER DÉPOSÉ
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1309,6 +1356,16 @@ def analyser(documents):
             a_nous.append(ligne)
         else:
             ligne["pourquoi"] = ident.get("pourquoi", "")
+            # UN FICHIER NON IDENTIFIÉ N'EST PAS UN FICHIER VIDE. On ne sait
+            # pas le nommer ; son texte, lui, est là. Le jeter, c'est déposer
+            # un document pour rien. On relève donc ce qu'il porte, à charge
+            # pour `_index_releves` de le faire passer APRÈS toute pièce
+            # identifiée : il comble des trous, il n'écrase rien.
+            if texte:
+                ap = relever_sans_piece(texte)
+                if ap:
+                    ligne["releves"] = ap
+                    ligne["apports"] = sorted(r["cle"] for r in ap)
             inconnues.append(ligne)
 
     pieces.sort(key=lambda l: l["rang_lecture"])
@@ -3178,16 +3235,31 @@ def _index_releves(analyse):
     consultation fait foi sur ce qu'il faut remettre — et l'autre est rendue
     comme une DIVERGENCE, jamais écrasée en silence.
     """
+    # LES FICHIERS QU'ON N'A PAS SU NOMMER PASSENT EN DERNIER, JAMAIS AVANT.
+    # Ils versent ce qu'ils portent, mais `RANG_NON_IDENTIFIE` les range après
+    # la dernière pièce identifiée : la valeur retenue reste celle d'une pièce
+    # qu'on sait nommer dès qu'il en existe une, et un fichier inconnu qui dit
+    # autre chose ressort en DIVERGENCE — visible — au lieu de s'imposer.
+    rangees = ([(p.get("rang_lecture", 99), False, p)
+                for p in (analyse or {}).get("pieces", [])]
+               + [(RANG_NON_IDENTIFIE, True, p)
+                  for p in (analyse or {}).get("inconnues", [])
+                  if p.get("releves")])
     par_cle = {}
-    for p in sorted((analyse or {}).get("pieces", []),
-                    key=lambda x: x.get("rang_lecture", 99)):
+    for _rang, non_identifie, p in sorted(rangees, key=lambda t: t[0]):
         for r in p.get("releves", []):
             for c in r.get("citations", []):
                 if not c.get("valeur"):
                     continue
                 prop = {"valeur": c["valeur"], "citation": c["texte"],
                         "fichier": p.get("fichier"), "sigle": p.get("sigle"),
-                        "part": c.get("part", 0)}
+                        "part": c.get("part", 0),
+                        # LA FAIBLESSE VOYAGE AVEC LA VALEUR. Sans ce drapeau,
+                        # `remplir()` afficherait « Relevé dans dossier.pdf »
+                        # exactement comme il affiche « Relevé dans RC » — et
+                        # on recopierait sur un formulaire de l'État une valeur
+                        # tirée d'un fichier dont personne n'a dit ce qu'il est.
+                        "non_identifie": non_identifie}
                 par_cle.setdefault(r["cle"], []).append(prop)
                 break
     return par_cle
@@ -3358,21 +3430,41 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False,
                 else:
                     p0 = props[0]
                     l["valeur"] = p0["valeur"]
-                    l["origine"] = "Relevé dans %s, à %d %% du document" % (
-                        p0["sigle"] or p0["fichier"], p0["part"])
+                    # UNE VALEUR TIRÉE D'UN FICHIER NON IDENTIFIÉ LE DIT DANS
+                    # SON ORIGINE. La ligne reste « remplie » — sinon le
+                    # fichier n'aurait servi à rien, et c'est bien ce qu'on
+                    # corrige — mais elle est marquée `a_confirmer` et
+                    # l'origine nomme la faiblesse. Ce qui se recopie sur un
+                    # formulaire de l'État doit porter d'où il vient.
+                    if p0.get("non_identifie"):
+                        l["origine"] = (
+                            "Relevé dans %s — FICHIER NON IDENTIFIÉ, à %d %% "
+                            "du document" % (p0["fichier"], p0["part"]))
+                        l["a_confirmer"] = True
+                    else:
+                        l["origine"] = "Relevé dans %s, à %d %% du document" % (
+                            p0["sigle"] or p0["fichier"], p0["part"])
                     l["citation"] = {"texte": p0["citation"],
                                      "fichier": p0["fichier"],
                                      "part": p0["part"]}
                     l["statut"] = "rempli"
                     autres = [p for p in props[1:]
                               if p["valeur"].lower() != p0["valeur"].lower()]
+                    dits = []
+                    if l.get("a_confirmer"):
+                        dits.append(
+                            "Cette valeur vient d'un fichier que "
+                            "l'identification n'a pas su nommer : aucune pièce "
+                            "identifiée ne la porte. Ouvrez le fichier et "
+                            "confirmez avant de la reporter.")
                     if autres:
                         l["divergences"] = autres
-                        l["message"] = (
-                            "%d autre(s) pièce(s) ne disent pas la même chose. "
-                            "Une divergence entre deux pièces du même dossier "
-                            "se tranche AVANT de remplir, pas après."
-                            % len(autres))
+                        dits.append(
+                            "%d autre(s) source(s) du dossier ne disent pas la "
+                            "même chose. Une divergence se tranche AVANT de "
+                            "remplir, pas après." % len(autres))
+                    if dits:
+                        l["message"] = " ".join(dits)
             else:                                       # saisie
                 v = str(saisies.get("%s.%s" % (cle_piece, r["cle"])) or "").strip()
                 if v:

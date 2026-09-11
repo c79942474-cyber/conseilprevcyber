@@ -6136,9 +6136,29 @@ function messageDelai(e, defaut) {
       });
       h += "</div>";
     });
+    /* UN FICHIER NON RECONNU N'EST PAS UN FICHIER PERDU. L'écran ne disait
+       que « non reconnu, voici pourquoi » — et l'utilisateur en concluait,
+       à raison jusqu'ici, que son dépôt n'avait servi à rien. Le module
+       relève désormais ce que le fichier porte ; encore faut-il le MONTRER,
+       sinon le gain reste invisible et personne ne saura qu'il existe. */
     (a.inconnues || []).forEach(function (p) {
       h += '<div class="ig-ao-p ig-ao-inc"><b>' + esc(p.fichier) + "</b>"
-        + "<p>" + esc(p.pourquoi) + "</p></div>";
+        + "<p>" + esc(p.pourquoi) + "</p>";
+      if ((p.releves || []).length) {
+        h += '<p class="ig-ao-k">Le fichier n\'a pas été identifié, mais son '
+          + "texte a été lu : ce qu'il porte est repris ci-dessous et versé "
+          + "au remplissage EN DERNIER — une pièce identifiée l'emporte "
+          + "toujours. Ouvrez-le avant de reporter ces valeurs.</p>";
+        p.releves.forEach(function (r) {
+          h += '<div class="ig-ao-r"><b>' + esc(r.libelle) + "</b>";
+          (r.citations || []).forEach(function (c) {
+            h += '<blockquote class="ig-ao-c">' + esc(c.texte)
+              + '<cite>à ' + c.part + " % du document</cite></blockquote>";
+          });
+          h += '<p class="ig-ao-w">' + esc(r.piege) + "</p></div>";
+        });
+      }
+      h += "</div>";
     });
     /* LES PIÈCES QUI SONT LES NÔTRES, DÉPOSÉES ICI PAR MÉGARDE. Elles ne se
        rangent pas avec les fichiers non reconnus : on sait exactement ce
@@ -7639,7 +7659,13 @@ function messageDelai(e, defaut) {
           h += '<span class="ig-ao-vv">' + esc(l.valeur) + "</span>";
         }
         if (l.origine) {
-          h += '<span class="ig-ao-og">' + esc(l.origine) + "</span>";
+          /* UNE VALEUR TIRÉE D'UN FICHIER NON IDENTIFIÉ NE SE LIT PAS COMME
+             LES AUTRES. L'origine est un texte de 10,5 px en gris : sur une
+             ligne marquée « Rempli », personne ne la lira avant de signer.
+             La classe la sort du gris. */
+          h += '<span class="ig-ao-og'
+            + (l.a_confirmer ? " ig-ao-og-conf" : "") + '">'
+            + esc(l.origine) + "</span>";
         }
         if (l.citation) {
           h += '<blockquote class="ig-ao-c">' + esc(l.citation.texte)

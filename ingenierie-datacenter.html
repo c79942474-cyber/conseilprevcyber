@@ -1011,6 +1011,14 @@
   .ig-ao-st.mal{color:#F0786E}
   .ig-ao-vv{display:block;font-size:12.5px;color:var(--ink)}
   .ig-ao-og{display:block;font-size:10.5px;color:var(--muted2);margin-top:2px}
+  /* Une valeur venue d'un fichier que l'identification n'a pas su nommer :
+     elle est utilisable, elle n'est pas sourcée. Le gris à 10,5 px la
+     rendrait invisible sur une ligne marquée « Rempli ».
+     LA COULEUR EST --danger, ET C'EST MESURÉ. Le premier essai posait
+     #9C3C20 : 1,32:1 sur --panel, c'est-à-dire illisible — la mise en garde
+     aurait disparu en voulant se faire voir. --danger tient 4,35:1 sur
+     --panel et 5,05:1 sur --bg ; --terra reste interdit au texte. */
+  .ig-ao-og-conf{color:var(--danger,#F79E7D);font-weight:600}
   .ig-ao-si{width:100%;padding:6px 9px;border-radius:7px;border:1px solid var(--line);
     background:rgba(0,0,0,.18);color:var(--ink);font-family:inherit;font-size:12.5px;
     outline:none}
