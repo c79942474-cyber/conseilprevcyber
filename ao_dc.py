@@ -741,6 +741,18 @@ RELEVES = [
             r"d.?ouvrage|acheteur public)\s*:\s*([^.\n]{4,120})",
             r"(?:march[ée]|consultation) (?:public )?(?:lanc[ée]e? |pass[ée]e? )?"
             r"par\s+((?:la |le |l.)?[A-ZÉÈÀ][^.\n]{4,110})",
+            # AJOUTS MESURÉS : trois formulations rendaient « non relevé » sur
+            # des dossiers qui nomment pourtant l'acheteur en toutes lettres —
+            # « Le pouvoir adjudicateur EST la Communauté… » (sans deux-points),
+            # « organisme acheteur : … » (formule BOAMP), « Identification de
+            # l'acheteur : … » (l'intitulé du cadre A, repris en prose). Aucun
+            # ne rouvre le piège « Profil d'acheteur : https:// » : le premier
+            # exige « est » suivi d'une majuscule, les deux autres un intitulé
+            # que l'adresse web ne porte pas.
+            r"(?:pouvoir adjudicateur|entit[ée] adjudicatrice|ma[îi]tre "
+            r"d.?ouvrage)\s+est\s+((?:la |le |l.)?[A-ZÉÈÀ][^.\n]{4,110})",
+            r"organisme (?:acheteur|adjudicateur)\s*:\s*([^.\n]{4,120})",
+            r"identification de l.?acheteur\s*:\s*([^.\n]{4,120})",
         ],
         "pourquoi": "C'est la première ligne du DC1 comme du DC2, et elle se "
                     "recopie à l'identique sur chaque pièce remise.",
@@ -788,6 +800,13 @@ RELEVES = [
             + _JUSQU_AU_CHAMP_SUIVANT,
             r"la pr[ée]sente consultation (?:a pour objet|porte sur)"
             r"\s*:?\s*" + _JUSQU_AU_CHAMP_SUIVANT,
+            # AJOUTS MESURÉS : « Objet : … » nu — mais EN TÊTE DE LIGNE, pour
+            # ne pas attraper « objet social » ni « l'objet de la visite » au
+            # fil d'une phrase — et « La consultation a pour objet … » sans
+            # « présente ». Les deux rendaient « non relevé » sur des
+            # règlements courts qui portent l'objet noir sur blanc.
+            r"(?:^|\n)[ \t]*objet\s*:\s*" + _JUSQU_AU_CHAMP_SUIVANT,
+            r"la consultation a pour objet\s*:?\s*" + _JUSQU_AU_CHAMP_SUIVANT,
         ],
         "pourquoi": "Le DC1 demande l'objet de la consultation ET l'objet de "
                     "la candidature — marché entier, lot désigné, ou "
