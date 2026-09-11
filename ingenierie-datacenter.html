@@ -941,6 +941,18 @@
     color:#8FDBF2}
   .ig-ao-w{margin:5px 0 0;font-size:10.5px;line-height:1.6;color:var(--muted2)}
   .ig-ao-inc{border-style:dashed}
+  /* LES CASES OUVERTES ET VIDES D'UN FORMULAIRE OFFICIEL. Visible sans
+     crier : c'est une liste de travail, pas une alerte. Le liseré ambré la
+     distingue du corps de la carte sans lui disputer le contour d'état
+     (vert produite / rouge en échec) qui, lui, doit rester le signal fort. */
+  .ig-ao-cv{margin:8px 0 0;padding:8px 10px;border-radius:8px;
+    border-left:3px solid rgba(240,180,41,.65);background:rgba(0,0,0,.18);
+    font-size:11px;line-height:1.6}
+  .ig-ao-cv>b{color:var(--ink)}
+  .ig-ao-cvg{margin:7px 0 2px;font-size:10.5px;color:var(--muted2)}
+  .ig-ao-cv ul{margin:0;padding-left:18px}
+  .ig-ao-cv li{margin:2px 0;color:var(--muted)}
+  .ig-ao-cv li b{color:var(--ink)}
   /* ── LE LECTEUR D'UNE PIÈCE ────────────────────────────────────────────
      LE FOND EST MESURÉ, PAS CHOISI. C'est une SURFACE DE LECTURE : on y lit
      parfois plusieurs centaines de lignes, et le contraste d'un panneau

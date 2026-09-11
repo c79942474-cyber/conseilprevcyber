@@ -885,6 +885,54 @@ RELEVES = [
             r"d.?ouvrage)\s+est\s+((?:la |le |l.)?[A-ZÉÈÀ][^.\n]{4,110})",
             r"organisme (?:acheteur|adjudicateur)\s*:\s*([^.\n]{4,120})",
             r"identification de l.?acheteur\s*:\s*([^.\n]{4,120})",
+            # ── CINQ FORMULATIONS SUR HUIT N'ÉTAIENT PAS VUES ─────────────
+            # MESURÉ SUR LES FORMES QU'UN RC EN PDF REND VRAIMENT. Les motifs
+            # ci-dessus exigent tous DEUX-POINTS puis la valeur. Or un
+            # règlement de consultation présente presque toujours son cadre
+            # d'identification en TABLEAU : l'extracteur rend alors l'intitulé
+            # sur une ligne et la valeur sur la suivante, SANS deux-points.
+            # Mesuré : « Pouvoir adjudicateur \n Communauté d'agglomération… »
+            # n'était pas relevé, ni « Identification de l'acheteur » — qui est
+            # pourtant l'intitulé EXACT du cadre A du DC1 —, ni « Acheteur : »
+            # tout court, ni « Collectivité : ». Trois formes sur huit
+            # passaient ; le cadre A des quatre formulaires restait vide sur un
+            # dossier qui nomme son acheteur en première page.
+            #
+            # LA VALEUR EST PRISE À LA LIGNE SUIVANTE, ET SOUS CONDITIONS : la
+            # ligne doit commencer par une majuscule ou un article et NE PAS
+            # être elle-même un intitulé — une ligne qui se termine par « : »
+            # est le libellé du cadre d'après, pas une réponse. Sans cette
+            # garde, un tableau vide ferait relever le titre de la rubrique
+            # suivante comme nom d'acheteur, et le DC1 porterait un acheteur
+            # faux — pire qu'une case vide, qui elle se remarque.
+            r"(?:^|\n)[ \t]*(?:pouvoir adjudicateur|entit[ée] adjudicatrice|"
+            r"ma[îi]tre d.?ouvrage|acheteur|identification de l.?acheteur|"
+            r"collectivit[ée]|organisme acheteur|nom de l.?acheteur)"
+            r"[ \t]*:?[ \t]*\n[ \t]*"
+            # LA MAJUSCULE EST EXIGÉE MALGRÉ LE DRAPEAU, ET C'EST NÉCESSAIRE.
+            # `_extraire` compile en IGNORECASE : une classe [A-Z] y matche
+            # aussi les minuscules, et la garde ne gardait donc RIEN. Mesuré :
+            # « Maître d'ouvrage \n voir article 2 du présent règlement »
+            # ressortait comme nom d'acheteur — une phrase de renvoi recopiée
+            # dans le cadre A d'un DC1. `(?-i:…)` rend la casse significative
+            # sur ce seul caractère : un nom d'organisme commence par une
+            # majuscule, une phrase de règlement non.
+            r"((?:la |le |l.|les )?(?-i:[A-ZÉÈÀÎÔÙÛ])[^\n:]{4,110})(?=\n|$)",
+            # L'INTITULÉ SEUL AVEC SES DEUX-POINTS, sur la même ligne. Ancré en
+            # DÉBUT DE LIGNE pour ne pas mordre sur « profil d'acheteur : », qui
+            # porte une adresse de plateforme et non un nom d'organisme — et
+            # la valeur refuse explicitement une adresse.
+            r"(?:^|\n)[ \t]*(?:acheteur|collectivit[ée]|nom de l.?acheteur)"
+            # LE REFUS D'UNE ADRESSE EST ANCRÉ SUR LE PREMIER CARACTÈRE
+            # CAPTURÉ, ET C'EST NÉCESSAIRE. Écrit « \s*:\s*(?!https?:) », il
+            # était contournable par un simple retour arrière : le moteur
+            # reculait `\s*` d'un caractère, évaluait le refus sur « espace +
+            # https » — qui ne commence pas par « https: » — et capturait
+            # « https://www » comme nom d'acheteur. Une garde qui avait l'air
+            # juste et ne gardait RIEN ; c'est une mutation survivante qui l'a
+            # montré. Exiger un premier caractère non blanc fixe la position
+            # où le refus s'évalue.
+            r"\s*:\s*((?!https?:|www\.)[^\s.][^.\n]{3,119})",
         ],
         "pourquoi": "C'est la première ligne du DC1 comme du DC2, et elle se "
                     "recopie à l'identique sur chaque pièce remise.",
@@ -938,6 +986,14 @@ RELEVES = [
             # « présente ». Les deux rendaient « non relevé » sur des
             # règlements courts qui portent l'objet noir sur blanc.
             r"(?:^|\n)[ \t]*objet\s*:\s*" + _JUSQU_AU_CHAMP_SUIVANT,
+            # DEUX INTITULÉS COURANTS QUE RIEN NE VOYAIT — mesuré :
+            # « Intitulé du marché : … » et « Désignation des prestations : … »
+            # ressortaient non relevés alors qu'ils nomment l'objet aussi
+            # clairement que « Objet du marché ».
+            r"(?:^|\n)[ \t]*(?:intitul[ée] (?:du|de la) (?:march[ée]|"
+            r"consultation)|d[ée]signation (?:des prestations|du march[ée])|"
+            r"nature (?:des prestations|du march[ée]))\s*:?\s*"
+            r"((?:(?!\n\s*[A-ZÉÈÀÎÔÙÛ][^\n:]{2,44}\s*:)[^.]){8,220})",
             r"la consultation a pour objet\s*:?\s*" + _JUSQU_AU_CHAMP_SUIVANT,
         ],
         "pourquoi": "Le DC1 demande l'objet de la consultation ET l'objet de "
@@ -2654,11 +2710,26 @@ def derive(fiche):
     Ces deux-là se déduisent. Le reste se saisit.
     """
     out = {}
-    siret = re.sub(r"[\s.-]", "", str((fiche or {}).get("siret") or ""))
+    d = fiche or {}
+    siret = re.sub(r"[\s.-]", "", str(d.get("siret") or ""))
+    siren = ""
     if len(siret) == 14 and siret.isdigit():
         siren = siret[:9]
         out["siren"] = {"valeur": siren,
                         "regle": "Les neuf premiers chiffres du SIRET."}
+    else:
+        # LA TVA NE DÉPEND QUE DU SIREN, ET C'EST CE QUE LA RÈGLE DIT.
+        #
+        # LE DÉFAUT, MESURÉ. Cette déduction exigeait un SIRET de quatorze
+        # chiffres. Un cabinet qui connaît son SIREN sans avoir porté son SIRET
+        # — le cas réel : l'avis INSEE donne le SIREN, le NIC se cherche —
+        # perdait son numéro de TVA alors que la formule ne demande pas un
+        # seul chiffre de plus que ce qu'il détient. Le SIRET reste le chemin
+        # PRÉFÉRÉ parce qu'il donne les deux ; le SIREN seul donne la TVA.
+        brut = re.sub(r"[\s.-]", "", str(d.get("siren") or ""))
+        if len(brut) == 9 and brut.isdigit():
+            siren = brut
+    if siren and not str(d.get("tva") or "").strip():
         cle = (12 + 3 * (int(siren) % 97)) % 97
         out["tva"] = {"valeur": "FR%02d%s" % (cle, siren),
                       "regle": "FR, puis la clé (12 + 3 × (SIREN mod 97)) "

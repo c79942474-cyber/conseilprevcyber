@@ -1134,13 +1134,23 @@ def test_le_dossier_d_entreprise_remplit_la_fiche_SANS_AUCUNE_SAISIE(marche):
 
 
 def test_ce_que_le_dossier_NE_PEUT_PAS_fournir_est_NOMME():
-    """DIX CHAMPS SUR VINGT NE SONT PAS PORTÉS par les documents d'origine —
-    le SIRET y figure explicitement comme absent. Les inventer produirait un
-    DC1 faux ; les taire ferait croire le formulaire complet. Chacun ressort
-    donc avec l'endroit où le trouver, comme les attestations le font déjà."""
+    """DIX CHAMPS NE SONT PAS PORTÉS par les documents d'origine — le SIRET y
+    figure explicitement comme absent. Les inventer produirait un DC1 faux ;
+    les taire ferait croire le formulaire complet. Chacun ressort donc avec
+    l'endroit où le trouver, comme les attestations le font déjà.
+
+    LE TOTAL N'EST PLUS ÉPINGLÉ À VINGT, ET C'EST UNE CORRECTION. Ce nombre
+    ne mesurait rien d'autre que « personne n'a ajouté de champ » : le jour où
+    le SIREN et la TVA — détenus par l'identité et jusque-là perdus — ont
+    rejoint la fiche, la règle est tombée alors que le dossier s'AMÉLIORAIT.
+    Ce qui compte est l'invariant : tout champ attendu est soit fourni, soit
+    déclaré manquant, et aucun ne disparaît entre les deux. Le plancher
+    garantit que la fiche ne se vide pas."""
     import dossier_entreprise as _de
     r = _de.fiche_candidat()
-    assert r["fournis"] + len(r["manques"]) == r["attendus"] == 20, r
+    assert r["fournis"] + len(r["manques"]) == r["attendus"], r
+    assert r["attendus"] >= 20, (
+        "la fiche candidat a maigri : %d champs attendus" % r["attendus"])
     assert r["manques"], "le dossier prétend tout fournir"
     nus = [m["cle"] for m in r["manques"]
            if len((m.get("ou_trouver") or "").strip()) < 25]

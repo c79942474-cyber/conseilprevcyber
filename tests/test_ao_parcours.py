@@ -332,11 +332,20 @@ def test_la_route_ne_conserve_rien(marche):
     # survivre est ce que l'APPELANT a envoyé — les vingt champs ci-dessus —,
     # pas le socle du cabinet.
     import dossier_entreprise as _de
-    socle = len(_de.fiche_candidat()["fiche"])
+    # LE SOCLE SE COMPTE SUR L'INTERSECTION, ET C'EST UNE CORRECTION.
+    # `len(fiche_candidat()["fiche"])` supposait que tout ce que le dossier
+    # d'entreprise fournit est un CHAMP_CANDIDAT. Ce n'est plus vrai depuis
+    # que le SIREN et le numéro de TVA — détenus par l'identité et jusque-là
+    # perdus — rejoignent la fiche : ils servent aux formulaires sans figurer
+    # parmi les vingt champs que l'écran demande. La règle tombait donc alors
+    # que le dossier s'ENRICHISSAIT. Ce que le parcours compte, ce sont les
+    # champs candidats renseignés ; c'est cela qu'on compare.
+    champs = {c["cle"] for c in ao_dc.CHAMPS_CANDIDAT}
+    socle = len(set(_de.fiche_candidat()["fiche"]) & champs)
     assert mp != ma, "le second appel rend la même mesure que le premier"
     assert ma.startswith("%d champ" % socle), (
         "la mesure après un appel vide devrait retomber sur le seul socle "
-        "(%d champs) : %r" % (socle, ma))
+        "(%d champs candidats renseignés) : %r" % (socle, ma))
 
 
 # ── 5. IL EST ATTEIGNABLE, ET DISTINCT DE CELUI DES PHASES ───────────────

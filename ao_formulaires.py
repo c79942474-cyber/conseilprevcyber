@@ -584,6 +584,55 @@ def remplir_document(cle, valeurs, bandeau=BANDEAU):
     }
 
 
+# ── CE QUE LE FORMULAIRE SAIT ÉCRIRE ET QU'ON NE LUI DONNE PAS ────────────
+# POURQUOI CETTE FONCTION EXISTE. Un DC2 sortait avec sept valeurs portées et
+# SIX CASES OUVERTES VIDES — RCS, code NAF, les trois chiffres d'affaires, le
+# SIRET — sans que rien ne le dise. Le document avait l'air produit ; il était
+# à moitié vide, et c'est en l'ouvrant, tard, qu'on s'en apercevait. « 7
+# valeur(s) portée(s) » se lit comme « aussi rempli qu'il peut l'être ».
+#
+# ELLE NE MÉLANGE PAS TROIS MANQUES QUI NE SE CORRIGENT PAS PAREIL :
+#   · `fiche`        — une donnée du CABINET qui n'est pas au dossier
+#                      d'entreprise. Elle se trouve sur une pièce (Kbis, avis
+#                      INSEE, liasse fiscale) et se porte UNE FOIS pour tous
+#                      les dossiers à venir. C'est le manque qui rapporte le
+#                      plus, et `ou_trouver` dit où chercher.
+#   · `consultation` — le relevé ne l'a pas vue dans le dossier déposé. Se lit
+#                      à la main dans la pièce, puis se saisit.
+#   · `saisie`       — une DÉCISION propre à cette consultation (les lots
+#                      visés, la durée, le compte). Elle ne se « trouve » nulle
+#                      part ; elle se prend.
+#   · `declaration`  — jamais pré-remplie, par construction.
+#
+# LES CONFONDRE ENVERRAIT CHERCHER DANS UN KBIS un montant qui se décide.
+def cases_vides(cle_modele, piece, ou_trouver=None):
+    """Les rubriques ANCRÉES de ce formulaire qui n'ont pas de valeur.
+
+    `piece` est l'entrée de `ao_dc.remplir()["pieces"]`. On ne rend QUE ce que
+    ce formulaire-ci sait écrire : une valeur manquante sans case ouverte ne
+    coûte rien ici, et l'annoncer ferait chercher un remède sans effet.
+    """
+    ou_trouver = ou_trouver or {}
+    ancrees = [a["rubrique"] for a in ANCRES.get(cle_modele, [])]
+    vues, par_cle = set(), {l["cle"]: l for l in (piece or {}).get("rubriques", [])}
+    out = []
+    for r in ancrees:
+        if r in vues:
+            continue
+        vues.add(r)
+        l = par_cle.get(r)
+        if l is None or l.get("statut") == "rempli":
+            continue
+        out.append({
+            "cle": r,
+            "libelle": l.get("libelle") or r,
+            "source": l.get("source"),
+            "statut": l.get("statut"),
+            "ou_trouver": ou_trouver.get(r) or "",
+        })
+    return out
+
+
 def valeurs_pour(remplissage, piece):
     """Ce qu'on peut écrire, pris dans le report de `ao_dc.remplir()`.
 

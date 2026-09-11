@@ -7508,8 +7508,43 @@ function messageDelai(e, defaut) {
         h += ' <a href="' + x.url + '" download="' + esc(x.nom || "piece")
           + '">⬇ ' + esc(x.nom || "prendre") + "</a>";
       }
+      h += "</p>" + aoCasesVides(x.cases);
+      return h;
     }
     return h + "</p>";
+  }
+
+  /* CE QUE LE FORMULAIRE SAIT ÉCRIRE ET QU'ON NE LUI A PAS DONNÉ.
+     TROIS MANQUES QUI NE SE CORRIGENT PAS PAREIL, DONC TROIS GROUPES. Une
+     donnée d'identité se cherche UNE FOIS sur un Kbis ou un avis INSEE et
+     sert à tous les dossiers à venir ; une valeur non relevée se lit à la
+     main dans la pièce déposée ; une saisie se DÉCIDE pour cette
+     consultation et ne se trouve nulle part. Les mêler enverrait chercher
+     dans un Kbis un montant qui se décide. */
+  var AO_MANQUE_GROUPES = [
+    ["fiche", "À porter une fois au dossier d'entreprise — ces cases se "
+              + "rempliront ensuite sur TOUS vos dossiers"],
+    ["consultation", "Non relevé dans les pièces déposées — à lire à la main, "
+                     + "puis à saisir"],
+    ["calcul", "Se déduirait d'une valeur d'identité absente"],
+    ["saisie", "À décider pour CETTE consultation"],
+  ];
+
+  function aoCasesVides(cases) {
+    if (!cases || !cases.length) return "";
+    var h = '<div class="ig-ao-cv"><b>' + cases.length
+      + " case(s) de ce formulaire restent vides.</b>";
+    AO_MANQUE_GROUPES.forEach(function (g) {
+      var l = cases.filter(function (c) { return c.source === g[0]; });
+      if (!l.length) return;
+      h += '<p class="ig-ao-cvg">' + esc(g[1]) + "</p><ul>";
+      l.forEach(function (c) {
+        h += "<li><b>" + esc(c.libelle) + "</b>"
+          + (c.ou_trouver ? " — " + esc(c.ou_trouver) : "") + "</li>";
+      });
+      h += "</ul>";
+    });
+    return h + "</div>";
   }
 
   function aoLotMsg(t) {
@@ -7709,6 +7744,11 @@ function messageDelai(e, defaut) {
           + (main.length ? " · à recopier à la main : " + main.join(", ") : "")
           + (reste.length ? " · reste " + reste.slice(0, 3).join(", ")
              + (reste.length > 3 ? "…" : "") : ""),
+        /* LES CASES OUVERTES ET VIDES, GARDÉES POUR ÊTRE MONTRÉES. Un DC2
+           sortait avec sept valeurs portées et six cases vides — SIRET, RCS,
+           NAF, les trois chiffres d'affaires — sans un mot. « 7 valeur(s)
+           portée(s) » se lit comme « aussi rempli qu'il peut l'être ». */
+        cases: (d && d.cases_vides) || [],
         url: URL.createObjectURL(bn[0]),
         nom: bn[1],
       };

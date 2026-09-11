@@ -5021,6 +5021,21 @@ def api_datacenter_marche_piece():
         rapport["places"] = len(rap["places"])
         rapport["non_places"] = [x["rubrique"] for x in rap["non_places"]]
         rapport["maj"] = rap["maj"]
+        # LES CASES QUE CE FORMULAIRE OUVRE ET QU'ON NE SAIT PAS REMPLIR.
+        #
+        # MESURÉ SUR LE DC2 : sept valeurs portées, SIX CASES OUVERTES VIDES —
+        # SIRET, RCS, code NAF et les trois chiffres d'affaires. Toutes
+        # viennent de l'identité du cabinet, aucune de la consultation, et
+        # aucune n'était nommée nulle part : le document sortait à moitié vide
+        # en silence, et « 7 valeur(s) portée(s) » se lisait comme « aussi
+        # rempli qu'il peut l'être ».
+        #
+        # CE N'EST PAS `reste`, QUI COMPTE TOUTES LES RUBRIQUES EN ATTENTE —
+        # y compris celles que ce formulaire-ci n'a aucun moyen d'écrire.
+        # Ici on ne nomme que ce qui a une case : c'est la liste dont chaque
+        # ligne cochée fait vraiment avancer CE document.
+        rapport["cases_vides"] = ao_formulaires.cases_vides(
+            modele, piece, dossier_entreprise.OU_TROUVER)
         # CE QUE LA PIÈCE ATTEND ENCORE, ET PAS SEULEMENT CE QUE LE MODÈLE
         # N'A PAS SU PLACER. Les deux comptes sont différents et le second ne
         # couvre pas le premier : `non_places` dit « le modèle a un

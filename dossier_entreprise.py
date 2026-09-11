@@ -857,6 +857,22 @@ def fiche_candidat(identite=None):
         "raison_sociale": ident.get("raison_sociale"),
         "forme_juridique": ident.get("forme_juridique"),
         "siret": ident.get("siret"),
+        # LE SIREN ET LA TVA ÉTAIENT DÉTENUS ET N'ARRIVAIENT NULLE PART.
+        #
+        # CE QUI A ÉTÉ MESURÉ. `IDENTITE` porte le SIREN « 494 530 157 » et le
+        # numéro de TVA « FR 24 494 530 157 » — vérifiés cohérents entre eux
+        # par la règle de clé. Cette fonction ne les recopiait simplement pas :
+        # ils ne franchissaient jamais la porte de la fiche candidat, et les
+        # cases SIREN et TVA des formulaires de l'État restaient vides sur un
+        # dossier qui contient les deux valeurs. En aval, `ao_dc.derive()` sait
+        # les déduire — mais À PARTIR DU SIRET, qui manque. Deux chemins vers
+        # la même valeur, tous deux coupés.
+        #
+        # ILS SONT ICI ET NON DÉDUITS : une valeur déclarée l'emporte sur une
+        # valeur calculée, parce qu'elle est vérifiable sur un document. La
+        # déduction reste, pour le jour où le SIRET sera porté.
+        "siren": ident.get("siren"),
+        "tva": ident.get("tva"),
         "capital": ident.get("capital"),
         "rcs": ident.get("rcs"),
         "naf": ident.get("naf"),
