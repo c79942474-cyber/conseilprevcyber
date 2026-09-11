@@ -255,6 +255,101 @@ PIECES_MARCHE = {
                  "exécution.",
         "obligatoire_dce": False,
     },
+    # ── CINQ PIÈCES QUE LES DOSSIERS RÉELS CONTIENNENT, ET QUE LE RELEVÉ
+    #    IGNORAIT. Un « PROGRAMME FONCTIONNEL » déposé ressortait « non
+    #    reconnu » : le dossier paraissait vide de sa pièce la plus dense, et
+    #    rien en aval ne pouvait s'en servir. Aucune n'est OBLIGATOIRE au DCE —
+    #    les porter bloquantes ferait crier au dossier incomplet sur des
+    #    consultations parfaitement régulières.
+    "programme": {
+        "nom": "Programme (fonctionnel ou technique détaillé)",
+        "sigle": "Programme",
+        "rang_lecture": 11,
+        "contractuel": True,
+        "ce_que_c_est": "L'expression du besoin par le maître d'ouvrage : "
+                        "activités à héberger, surfaces, effectifs, niveaux de "
+                        "service attendus, contraintes de site et d'exploitation. "
+                        "En maîtrise d'œuvre, c'est la pièce qui FONDE le CCTP.",
+        "engage": "Beaucoup, et souvent plus que le CCTP : le programme fixe "
+                  "le besoin auquel l'ouvrage devra répondre. Un écart entre "
+                  "l'ouvrage livré et le programme se plaide.",
+        "chercher": "Les surfaces et effectifs cibles, les niveaux de "
+                    "disponibilité visés, les puissances à héberger, les "
+                    "phases d'exploitation, et ce qui est déclaré NON compris.",
+        "piege": "Le lire comme une documentation d'ambiance. Le programme "
+                 "porte des chiffres opposables — puissance, surface, "
+                 "disponibilité — que l'offre est réputée tenir.",
+        "obligatoire_dce": False,
+    },
+    "aapc": {
+        "nom": "Avis d'appel public à la concurrence",
+        "sigle": "AAPC",
+        "rang_lecture": 12,
+        "contractuel": False,
+        "ce_que_c_est": "L'avis publié qui ouvre la consultation : objet, "
+                        "procédure, date limite, critères annoncés, adresse de "
+                        "dépôt, et parfois des exigences de capacité.",
+        "engage": "Rien au contrat, mais il fait courir les délais et il "
+                  "prime sur le règlement en cas de contradiction sur la date.",
+        "chercher": "La date et l'heure limites, la procédure exacte, "
+                    "l'allotissement, et les niveaux minimaux de capacité.",
+        "piege": "Le croire redondant avec le règlement. Quand les deux "
+                 "divergent sur une date, c'est l'avis publié qui a été "
+                 "opposable aux autres candidats.",
+        "obligatoire_dce": False,
+    },
+    "planning": {
+        "nom": "Calendrier prévisionnel et phasage",
+        "sigle": "Calendrier",
+        "rang_lecture": 13,
+        "contractuel": False,
+        "ce_que_c_est": "Le calendrier de l'opération : phases d'études, "
+                        "jalons de validation, période de travaux, "
+                        "contraintes de site et d'exploitation dans le temps.",
+        "engage": "Selon ce que le CCAP en dit : indicatif le plus souvent, "
+                  "contractuel dès qu'il est visé comme pièce du marché.",
+        "chercher": "Les jalons qui conditionnent un paiement, les périodes "
+                    "d'interdiction d'intervention, et la durée réellement "
+                    "laissée aux études.",
+        "piege": "Chiffrer sur la durée totale sans regarder le phasage. Une "
+                 "même durée découpée en six interventions courtes ne coûte "
+                 "pas ce qu'elle coûte en continu.",
+        "obligatoire_dce": False,
+    },
+    "rapport": {
+        "nom": "Rapports, études et diagnostics fournis",
+        "sigle": "Diagnostics",
+        "rang_lecture": 14,
+        "contractuel": False,
+        "ce_que_c_est": "Ce que l'acheteur a fait établir avant de consulter : "
+                        "diagnostic de l'existant, étude géotechnique, repérage "
+                        "amiante ou plomb, audit énergétique, relevé de charges.",
+        "engage": "Ils ne vous engagent pas, mais ils sont réputés CONNUS : "
+                  "un aléa qu'un diagnostic fourni annonçait ne se réclame pas "
+                  "en travaux supplémentaires.",
+        "chercher": "La date de l'étude, son périmètre exact, ses réserves, "
+                    "et ce qu'elle déclare n'avoir pas pu vérifier.",
+        "piege": "Les archiver sans les lire. C'est la pièce dont l'acheteur "
+                 "se sert pour refuser un supplément : « c'était au dossier ».",
+        "obligatoire_dce": False,
+    },
+    "notice": {
+        "nom": "Notices (sécurité, accessibilité, environnement)",
+        "sigle": "Notices",
+        "rang_lecture": 15,
+        "contractuel": False,
+        "ce_que_c_est": "Les notices réglementaires jointes au dossier : "
+                        "sécurité incendie, accessibilité, notice "
+                        "environnementale, parfois notice de maintenance.",
+        "engage": "Elles fixent des obligations réglementaires que l'offre "
+                  "doit tenir, qu'elles soient contractuelles ou non.",
+        "chercher": "Le classement de l'établissement, les contraintes "
+                    "d'exploitation en site occupé, et les exigences qui "
+                    "dépassent la réglementation générale.",
+        "piege": "Supposer que la notice reprend simplement le code. Elle y "
+                 "ajoute souvent une exigence propre au site, plus sévère.",
+        "obligatoire_dce": False,
+    },
 }
 
 
@@ -351,6 +446,43 @@ _MARQUEURS = {
     "plans": {
         "nom": [_sigle("plan"), r"plans", r"sch[ée]ma", _sigle("dwg"), _sigle("pid")],
         "texte": [r"[ée]chelle\s*:?\s*1[/:]", r"nomenclature des plans"],
+    },
+    # Les marqueurs des cinq pièces ajoutées. Le NOM porte le plus souvent la
+    # désignation en clair ; le TEXTE sert de second témoin quand le fichier
+    # est nommé « annexe 3 ».
+    "programme": {
+        "nom": [r"programme.{0,15}(?:fonctionnel|technique|g[ée]n[ée]ral)",
+                r"\bprogramme\b", _sigle("ptd")],
+        "texte": [r"programme (?:fonctionnel|technique d[ée]taill[ée])",
+                  r"le pr[ée]sent programme",
+                  r"expression (?:du|des) besoins?"],
+    },
+    "aapc": {
+        "nom": [_sigle("aapc"), r"avis.{0,10}(?:appel|march[ée]|publicit)",
+                _sigle("ao")],
+        "texte": [r"avis d.?appel public [àa] la concurrence",
+                  r"avis de march[ée]",
+                  r"section i\s*[:.)]?\s*pouvoir adjudicateur"],
+    },
+    "planning": {
+        "nom": [r"calendrier", r"planning", r"phasage", r"[ée]ch[ée]ancier"],
+        "texte": [r"calendrier pr[ée]visionnel",
+                  r"phasage (?:des|de l.?)(?:travaux|op[ée]ration)",
+                  r"planning (?:pr[ée]visionnel|d.?ex[ée]cution)"],
+    },
+    "rapport": {
+        "nom": [r"diagnostic", r"g[ée]otechni", r"amiante", r"plomb",
+                r"audit [ée]nerg", r"[ée]tude.{0,10}(?:sol|existant)",
+                r"rapport"],
+        "texte": [r"rapport (?:de|d.?)(?:diagnostic|[ée]tude|mission)",
+                  r"[ée]tude g[ée]otechnique", r"mission g\s?[12345]\b",
+                  r"rep[ée]rage avant travaux"],
+    },
+    "notice": {
+        "nom": [r"notice"],
+        "texte": [r"notice (?:de )?s[ée]curit[ée]",
+                  r"notice d.?accessibilit[ée]",
+                  r"notice environnementale"],
     },
 }
 
@@ -931,6 +1063,55 @@ RELEVES = [
                  "parfois. Reportez les deux.",
     },
 ]
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  CE QUE LES CINQ PIÈCES AJOUTÉES APPORTENT VRAIMENT
+# ═══════════════════════════════════════════════════════════════════════════
+# RECONNAÎTRE UNE PIÈCE NE SERT À RIEN SI AUCUN RELEVÉ NE LA LIT. C'est le
+# piège tendu à ce module : on ajoute un type, la pièce cesse d'être « non
+# reconnue », la carte s'allume — et le remplissage reste vide, parce que
+# `relever()` ne cherche que dans les pièces que chaque relevé DÉSIGNE. Un
+# programme fonctionnel reconnu mais lu par personne n'a rien apporté.
+#
+# On déclare donc, relevé par relevé, les pièces neuves où l'information se
+# trouve réellement. Ce n'est pas « toutes les pièces partout » : un
+# diagnostic géotechnique ne porte ni critère de jugement ni date limite, et
+# l'y chercher ne ferait que produire des citations fausses.
+_APPORTS_PIECES_AJOUTEES = {
+    # La page de garde de presque toute pièce nomme l'acheteur et l'opération.
+    "acheteur":     ("programme", "aapc", "planning", "rapport", "notice"),
+    "objet":        ("programme", "aapc", "planning", "rapport", "notice"),
+    # Le programme porte les cibles chiffrées — c'est sa raison d'être.
+    "performances": ("programme",),
+    # L'avis publié porte la procédure et les délais, parfois avant le RC.
+    "date_limite":  ("aapc",),
+    "criteres":     ("aapc",),
+    "procedure":    ("aapc",),
+    "lots":         ("aapc",),
+    "reference":    ("aapc",),
+    # Le calendrier porte les délais, et rien d'autre d'exploitable ici.
+    "delai":        ("planning",),
+}
+
+for _r in RELEVES:
+    _sup = _APPORTS_PIECES_AJOUTEES.get(_r["cle"])
+    if _sup:
+        _r["pieces"] = tuple(sorted(set(_r["pieces"]) | set(_sup)))
+
+# GARDE AU CHARGEMENT : une clé de relevé mal orthographiée ici ne lèverait
+# rien — elle ne s'appliquerait simplement jamais, et la pièce resterait muette
+# sans que personne le sache.
+_cles_releves = {r["cle"] for r in RELEVES}
+_orphelins_apports = sorted(set(_APPORTS_PIECES_AJOUTEES) - _cles_releves)
+if _orphelins_apports:
+    raise RuntimeError("apports déclarés pour des relevés inexistants : "
+                       + ", ".join(_orphelins_apports))
+_pieces_apports = {c for v in _APPORTS_PIECES_AJOUTEES.values() for c in v}
+_orphelines_apports = sorted(_pieces_apports - set(PIECES_MARCHE))
+if _orphelines_apports:
+    raise RuntimeError("apports déclarés pour des pièces inexistantes : "
+                       + ", ".join(_orphelines_apports))
+
 
 
 def _extraire(texte, motifs, maxi=4):
