@@ -941,6 +941,39 @@
     color:#8FDBF2}
   .ig-ao-w{margin:5px 0 0;font-size:10.5px;line-height:1.6;color:var(--muted2)}
   .ig-ao-inc{border-style:dashed}
+  /* ── LE LECTEUR D'UNE PIÈCE ────────────────────────────────────────────
+     LE FOND EST MESURÉ, PAS CHOISI. C'est une SURFACE DE LECTURE : on y lit
+     parfois plusieurs centaines de lignes, et le contraste d'un panneau
+     ordinaire (--ink sur --panel : 7,96:1) suffit à une étiquette mais se
+     paie sur un long texte. Un voile noir à 30 % sur --panel donne #472D22,
+     où --ink tient 11,13:1 — sans introduire de teinte étrangère à la
+     palette.
+
+     LE SURLIGNAGE INVERSE SON TEXTE, COMME UN VRAI SURLIGNEUR. À .75
+     l'ambre donne un halo à 4,53:1 du fond — il SE VOIT comme surlignage —
+     et un texte clair par-dessus retomberait à 2,54:1, c'est-à-dire
+     illisible précisément là où il faut lire. Le texte passe donc en sombre :
+     7,2:1. Le soulignement double le signal sans la couleur. */
+  .ig-ao-lec{border:1px solid var(--line);border-radius:10px;
+    padding:12px 14px;margin:0 0 14px;background:rgba(0,0,0,.30)}
+  .ig-ao-lech{display:flex;align-items:center;gap:10px;
+    justify-content:space-between;flex-wrap:wrap}
+  .ig-ao-lech>b{font-family:var(--mono);font-size:12px;color:var(--ink)}
+  .ig-ao-lecn{margin:8px 0 0;font-size:11px;line-height:1.6;color:#8FDBF2}
+  .ig-ao-lecc{margin:6px 0 0;font-size:10.5px;color:var(--muted2);
+    font-variant-numeric:tabular-nums}
+  .ig-ao-lect-t{margin:10px 0 0;padding:10px 12px;max-height:60vh;
+    overflow:auto;white-space:pre-wrap;word-break:break-word;
+    font-family:var(--mono);font-size:11.5px;line-height:1.7;
+    color:var(--ink);background:rgba(0,0,0,.18);border-radius:8px}
+  .ig-ao-mk{background:rgba(240,180,41,.75);color:#1B0F09;
+    border-radius:3px;padding:0 2px;text-decoration:underline}
+  /* Le bouton « Lire » : discret dans la liste, net au survol et au clavier. */
+  .ig-ao-lb{border:1px solid var(--line);background:transparent;
+    color:var(--muted);border-radius:6px;padding:2px 9px;font-size:10.5px;
+    cursor:pointer;line-height:1.7}
+  .ig-ao-lb:hover,.ig-ao-lb:focus-visible{color:var(--ink);
+    border-color:var(--ink)}
   /* LES PIÈCES QUI SONT LES NÔTRES, DÉPOSÉES AVEC LE DOSSIER DE
      CONSULTATION. Trait plein et arête ambrée : ce n'est ni une pièce du
      marché (bordure ordinaire) ni un fichier illisible (pointillés) — c'est
@@ -2802,6 +2835,12 @@
       <button type="button" class="btn btn-s" id="ig-ao-cand">Voir le dossier de candidature</button>
     </div>
     <p class="note ig-ao-op" id="ig-ao-msg" style="margin-top:10px"></p>
+    <!-- LE LECTEUR D'UNE PIÈCE. Placé AVANT le relevé, parce qu'on l'ouvre
+         depuis le relevé : le poser après obligerait à remonter la page pour
+         lire ce qu'on vient de demander à voir. Il est vide tant qu'on n'a
+         rien demandé — un lecteur affiché en permanence pousserait le relevé
+         hors de l'écran. -->
+    <div class="ig-ao-op" id="ig-ao-lect" aria-live="polite"></div>
     <div class="ig-ao-op" id="ig-ao-out"></div>
     <div class="ig-ao-op" id="ig-ao-cand-out"></div>
     <!-- LE DOSSIER D'OFFRE, À PART DU DOSSIER DE CANDIDATURE — pas un

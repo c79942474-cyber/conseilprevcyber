@@ -467,8 +467,17 @@ def test_la_page_REPREND_le_dossier_conserve_sans_rien_redeposer():
         "la reprise écraserait une analyse déjà à l'écran")
     assert "!Object.keys(AO_FICHE || {}).length" in bloc, (
         "la reprise écraserait une saisie en cours")
-    appel = js[js.index("AO_PROJET_ETAT = xj[1];"):][:200]
-    assert "aoProjetReprendre()" in appel, (
+    # LA FENÊTRE ÉTAIT DE 200 OCTETS APRÈS L'ANCRE, ET C'EST CE QU'ELLE
+    # MESURAIT. Un commentaire ajouté entre l'affectation et l'appel la
+    # faisait tomber alors que rien du comportement n'avait changé — la règle
+    # mesurait la longueur d'un commentaire. On borne désormais à la FONCTION
+    # qui porte l'affectation : c'est ce qu'on veut dire, et un commentaire
+    # n'en change pas le sens.
+    i = js.index("function aoProjetEtat(")
+    fonction = js[i:js.index("\n  }", i)]
+    assert "AO_PROJET_ETAT = xj[1];" in fonction, (
+        "l'état n'est plus retenu là où on le croyait")
+    assert "aoProjetReprendre()" in fonction, (
         "la reprise n'est appelée nulle part : elle ne servirait à rien")
 
 
@@ -1672,10 +1681,17 @@ def _rendu_analyse(analyse):
 
     Le rendu écrit dans le DOM ; on lui en donne un minimal — un objet qui
     retient ce qu'on lui pose — et l'on relit ce qu'il a écrit."""
-    prog = _js_source("esc", "info", "aoIgnores", "aoRendre") + "\n".join([
+    prog = _js_source("esc", "info", "aoTexteBouton", "aoTexteFermer",
+                       "aoTexteBrancherListe", "aoIgnores", "aoRendre") + "\n".join([
         "",
-        "const zone = {innerHTML: ''};",
-        "globalThis.$ = () => zone;",
+        # LE RENDU BRANCHE DÉSORMAIS DES ÉCOUTEURS SUR CE QU'IL VIENT
+        # D'ÉCRIRE (le bouton « Lire » de chaque pièce) et ferme le lecteur.
+        # Le banc doit donc offrir `querySelectorAll` sur la zone, comme le
+        # ferait un vrai élément. Sans cela il tombe — et c'est son office.
+        "const zone = {innerHTML: '', querySelectorAll: () => []};",
+        "const lect = {innerHTML: ''};",
+        "var AO_TEXTES = {}, AO_TEXTE_OUVERT = null;",
+        "globalThis.$ = (s) => (s === '#ig-ao-lect' ? lect : zone);",
         "globalThis.document = {querySelector: () => null,"
         " querySelectorAll: () => []};",
         "aoRendre(JSON.parse(process.env.AN));",

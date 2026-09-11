@@ -5831,6 +5831,121 @@ function messageDelai(e, defaut) {
      fichiers : l'analyse ne garde que ce qu'elle a relevé, pas ce qu'elle a
      lu. Il reste dans cette page tant qu'aucun projet n'est choisi. */
   var AO_DOCS = null;
+  /* ── LE TEXTE LU DE CHAQUE PIÈCE, POUR POUVOIR LE RELIRE ────────────────
+     CE QUI MANQUAIT. La page montrait des citations de trois lignes et rien
+     autour. Vérifier une valeur dans son contexte, ou comprendre pourquoi une
+     pièce n'avait pas été reconnue, supposait d'aller rouvrir le fichier
+     ailleurs — c'est-à-dire de sortir de l'outil au moment précis où il
+     demande de vérifier.
+
+     DEUX SOURCES, UNE SEULE TABLE. L'analyse d'une session rend le texte
+     qu'elle vient de lire ; le dossier conservé rend le sien, déchiffré. Deux
+     tables auraient divergé, et l'écran aurait montré l'une ou l'autre selon
+     l'ordre d'arrivée des réponses.
+
+     LA RÈGLE DE PRÉSÉANCE EST EXPLICITE, ET C'EST NÉCESSAIRE. Les deux
+     réponses n'arrivent pas dans un ordre garanti : l'analyse d'abord, puis
+     l'état du projet — sauf quand l'état arrive au chargement, avant toute
+     analyse. Ce qui vient d'être lu l'emporte TOUJOURS (`ecraser`), le coffre
+     ne fait que COMBLER. Sans cette règle, le texte du coffre écraserait
+     parfois celui d'une pièce qu'on vient de redéposer. */
+  var AO_TEXTES = {};
+  var AO_TEXTE_OUVERT = null;
+
+  /* Le texte lu d'une pièce entre dans la table. `ecraser` distingue les deux
+     sources : vrai pour ce qui vient d'être lu, faux pour le coffre. */
+  function aoTextesPoser(table, ecraser) {
+    Object.keys(table || {}).forEach(function (nom) {
+      var t = table[nom];
+      if (typeof t !== "string" || !t) return;
+      if (ecraser || !AO_TEXTES[nom]) AO_TEXTES[nom] = t;
+    });
+  }
+
+  /* LES PASSAGES RELEVÉS DANS UNE PIÈCE, AVEC LEUR POSITION EXACTE.
+     On les tire de l'analyse et non d'une recherche dans le texte : le
+     releveur a déjà donné l'offset du passage qu'il a retenu, et rechercher
+     la chaîne surlignerait aussi ses occurrences ailleurs — y compris celles
+     que le relevé n'a PAS retenues. Ce qu'on montre doit être ce qui a servi,
+     pas ce qui lui ressemble. */
+  /* LA FIN RÉELLE D'UNE CITATION DANS LE TEXTE D'ORIGINE.
+     CE QUI A ÉTÉ MESURÉ, ET QUI CONDAMNE LA MÉTHODE ÉVIDENTE. La citation
+     rendue par le relevé est NORMALISÉE — le releveur fait l'équivalent de
+     `" ".join(split())` — si bien que « Objet :\nconstruction… » y devient
+     « Objet : construction… ». Sa longueur n'est donc PAS celle du passage
+     d'origine dès qu'il contient un saut de ligne ou deux espaces. Prendre
+     `position + citation.length` décalait la marque d'un caractère sur
+     l'essai le plus simple — et d'autant plus que le texte vient d'un PDF,
+     où les retours à la ligne sont partout. Un surlignage décalé de dix
+     caractères désigne la phrase d'à côté, avec l'aplomb d'une preuve.
+
+     ON REJOUE DONC LA NORMALISATION À L'ENVERS : on avance dans le texte
+     d'origine en consommant la citation, une suite d'espaces valant un
+     espace. ET ON REND -1 DÈS QUE ÇA DIVERGE — on ne surligne que ce qu'on
+     peut prouver. Ne rien surligner se voit ; surligner à côté, non. */
+  function aoTexteFin(texte, i, frag) {
+    var k = i, f = 0;
+    while (k < texte.length && /\s/.test(texte.charAt(k))) k++;   /* le motif
+        peut commencer sur l'espace que la normalisation a ôté */
+    while (f < frag.length) {
+      if (frag.charAt(f) === " ") {
+        if (k >= texte.length || !/\s/.test(texte.charAt(k))) return -1;
+        while (k < texte.length && /\s/.test(texte.charAt(k))) k++;
+        f++;
+      } else {
+        if (texte.charAt(k) !== frag.charAt(f)) return -1;
+        k++; f++;
+      }
+    }
+    return k;
+  }
+
+  function aoTexteMarques(nom, texte) {
+    var a = AO_ANALYSE || {}, out = [];
+    texte = texte || "";
+    [].concat(a.pieces || [], a.inconnues || []).forEach(function (p) {
+      if (p.fichier !== nom) return;
+      (p.releves || []).forEach(function (r) {
+        (r.citations || []).forEach(function (c) {
+          var i = Number(c.position);
+          if (!isFinite(i) || i < 0 || !c.texte) return;
+          var deb = i;
+          while (deb < texte.length && /\s/.test(texte.charAt(deb))) deb++;
+          var j = aoTexteFin(texte, i, String(c.texte));
+          if (j < 0 || j <= deb) return;        /* non réaligné : pas de marque */
+          out.push({ i: deb, j: j, cle: r.cle, libelle: r.libelle });
+        });
+      });
+    });
+    /* Les relevés se recouvrent parfois — « Objet : ... » est cité par deux
+       motifs. Deux balises imbriquées produiraient du HTML cassé ; on garde la
+       première et on saute ce qui chevauche. */
+    out.sort(function (x, y) { return x.i - y.i || y.j - x.j; });
+    var gardes = [], fin = -1;
+    out.forEach(function (m) {
+      if (m.i < fin) return;
+      gardes.push(m);
+      fin = m.j;
+    });
+    return gardes;
+  }
+
+  /* Le texte d'une pièce en HTML, ses passages relevés surlignés.
+     ÉCRIT À PART POUR ÊTRE MESURABLE : une règle peut l'exécuter sur un texte
+     et des marques connus, au lieu de constater qu'un mot figure dans le
+     fichier. */
+  function aoTexteHtml(texte, marques) {
+    var h = "", k = 0;
+    (marques || []).forEach(function (m) {
+      if (m.i < k || m.j > texte.length) return;
+      h += esc(texte.slice(k, m.i))
+        + '<mark class="ig-ao-mk" data-releve="' + esc(m.cle) + '" title="'
+        + esc(m.libelle || m.cle) + '">' + esc(texte.slice(m.i, m.j))
+        + "</mark>";
+      k = m.j;
+    });
+    return h + esc(texte.slice(k));
+  }
   /* LA FILE D'ATTENTE DES PIÈCES CHOISIES, avant analyse. Tenue à la main
      parce qu'un FileList natif n'est ni modifiable ni cumulable : on ne peut
      pas en ôter UN fichier, et re-choisir REMPLACE tout. Elle porte {nom,file},
@@ -6052,6 +6167,11 @@ function messageDelai(e, defaut) {
           }
           AO_ANALYSE = j.analyse;
           AO_DOCS = docs;
+          /* CE QUI VIENT D'ÊTRE LU L'EMPORTE. Une pièce redéposée sous le
+             même nom remplace la sienne au dossier ; son texte doit suivre,
+             sinon le lecteur montrerait l'ancienne version sous le relevé de
+             la nouvelle. */
+          aoTextesPoser(j.textes, true);
           msg.textContent = "";
           /* LE PARCOURS SE REMESURE ICI, ET NULLE PART AILLEURS EN AUTOMATIQUE.
              C'est le seul instant où l'état change assez pour que le compte
@@ -6085,6 +6205,84 @@ function messageDelai(e, defaut) {
     out.innerHTML = h + "</ul></div>" + out.innerHTML;
   }
 
+  /* ── LE LECTEUR D'UNE PIÈCE ──────────────────────────────────────────────
+     CE QU'IL MONTRE, ET CE QU'IL NE MONTRE PAS. Il montre LE TEXTE EXTRAIT —
+     exactement ce sur quoi les relevés ont tourné. Il ne montre pas le fichier
+     d'origine : le PDF n'est pas conservé, il est passé à l'antivirus, ouvert
+     par l'extracteur, puis abandonné. Laisser croire le contraire ferait
+     chercher une mise en page qui n'existe plus ici, et surtout ferait
+     prendre une extraction incomplète pour le document lui-même. L'écran le
+     dit en toutes lettres, et une règle l'exige.
+
+     POURQUOI LE TEXTE EXTRAIT EST LA BONNE CHOSE À MONTRER. Quand l'outil
+     annonce « non trouvé dans cette pièce », la question suivante est
+     toujours la même : le document ne le porte pas, ou l'extraction l'a
+     perdu ? Un PDF scanné rend trois lignes de bruit ; un tableau à deux
+     colonnes ressort entrelacé. Aucune citation ne le dit. Le texte lu, si. */
+  function aoTexteFermer() {
+    AO_TEXTE_OUVERT = null;
+    var z = $("#ig-ao-lect");
+    if (z) z.innerHTML = "";
+  }
+
+  function aoTexteOuvrir(nom) {
+    var z = $("#ig-ao-lect");
+    if (!z) return;
+    if (AO_TEXTE_OUVERT === nom) { aoTexteFermer(); return; }
+    AO_TEXTE_OUVERT = nom;
+    var t = AO_TEXTES[nom];
+    var h = '<div class="ig-ao-lec"><div class="ig-ao-lech">'
+      + "<b>" + esc(nom) + "</b>"
+      + '<button type="button" class="btn btn-s" id="ig-ao-lecx">Fermer'
+      + "</button></div>";
+    if (typeof t !== "string" || !t) {
+      /* PAS DE TEXTE N'EST PAS UNE PANNE, ET LE DIRE ÉVITE DE LA CHERCHER.
+         Un DWG, un ZIP, un PDF scanné franchissent l'analyse sans rendre une
+         ligne. Un lecteur vide et muet se lirait comme un bogue. */
+      h += '<p class="ig-ao-k">Aucun texte n\'a pu être extrait de cette '
+        + "pièce. C'est le cas d'un fichier de dessin, d'une archive, ou d'un "
+        + "PDF scanné sans couche texte. Les relevés n'ont donc rien pu y "
+        + "chercher&nbsp;: ce qu'elle porte est à lire dans le fichier "
+        + "d'origine, hors de cet outil.</p></div>";
+      z.innerHTML = h;
+      aoTexteBrancher(z);
+      return;
+    }
+    var marques = aoTexteMarques(nom, t);
+    h += '<p class="ig-ao-lecn"><b>Ceci est le texte extrait, pas le fichier '
+      + "d'origine.</b> Le site ne conserve pas le PDF&nbsp;: il est analysé, "
+      + "lu, puis abandonné. Ce que vous voyez ici est exactement ce sur quoi "
+      + "les relevés ont tourné — c'est donc ici, et nulle part ailleurs, "
+      + "qu'on voit si un « non trouvé » vient du document ou de "
+      + "l'extraction.</p>"
+      + '<p class="ig-ao-lecc">' + fr(t.length) + " caractères lus · "
+      + marques.length + " passage(s) relevé(s), surlignés.</p>"
+      + '<pre class="ig-ao-lect-t">' + aoTexteHtml(t, marques) + "</pre></div>";
+    z.innerHTML = h;
+    aoTexteBrancher(z);
+    if (z.scrollIntoView) z.scrollIntoView({ block: "nearest" });
+  }
+
+  function aoTexteBrancher(z) {
+    var x = $("#ig-ao-lecx", z);
+    if (x) x.addEventListener("click", aoTexteFermer);
+  }
+
+  /* Le bouton, écrit UNE FOIS : il apparaît sur les pièces identifiées, sur
+     les fichiers non reconnus et sur les pièces du dossier conservé. Trois
+     copies auraient divergé le jour où l'une des trois change. */
+  function aoTexteBouton(nom) {
+    return '<button type="button" class="ig-ao-lb" data-lire="' + esc(nom)
+      + '" title="Lire le texte extrait de cette pièce" '
+      + 'aria-label="Lire le texte extrait de ' + esc(nom) + '">Lire</button>';
+  }
+
+  function aoTexteBrancherListe(z) {
+    z.querySelectorAll("[data-lire]").forEach(function (b) {
+      b.addEventListener("click", function () { aoTexteOuvrir(b.dataset.lire); });
+    });
+  }
+
   function aoRendre(a) {
     var out = $("#ig-ao-out");
     var h = "";
@@ -6116,7 +6314,7 @@ function messageDelai(e, defaut) {
         + '<span class="ig-ao-fn">' + esc(p.fichier) + "</span>"
         + '<span class="ig-ao-cf ig-ao-cf-' + esc(p.identification.confiance)
         + '">identifié · confiance ' + esc(p.identification.confiance)
-        + "</span></div>"
+        + "</span>" + aoTexteBouton(p.fichier) + "</div>"
         + '<p class="ig-ao-en"><i>Ce qu\'elle engage</i> — ' + esc(p.engage)
         + "</p>"
         + '<p class="ig-ao-pg"><i>Le piège</i> — ' + esc(p.piege) + "</p>";
@@ -6142,7 +6340,12 @@ function messageDelai(e, defaut) {
        relève désormais ce que le fichier porte ; encore faut-il le MONTRER,
        sinon le gain reste invisible et personne ne saura qu'il existe. */
     (a.inconnues || []).forEach(function (p) {
-      h += '<div class="ig-ao-p ig-ao-inc"><b>' + esc(p.fichier) + "</b>"
+      /* LE BOUTON COMPTE DOUBLE ICI. « Non reconnu » laisse une question
+         sans réponse : le fichier ne portait rien, ou l'identification n'a
+         pas su le nommer ? Les deux se distinguent en lisant le texte, et
+         d'aucune autre manière. */
+      h += '<div class="ig-ao-p ig-ao-inc"><div class="ig-ao-ph"><b>'
+        + esc(p.fichier) + "</b>" + aoTexteBouton(p.fichier) + "</div>"
         + "<p>" + esc(p.pourquoi) + "</p>";
       if ((p.releves || []).length) {
         h += '<p class="ig-ao-k">Le fichier n\'a pas été identifié, mais son '
@@ -6181,6 +6384,11 @@ function messageDelai(e, defaut) {
     }
     h += '<p class="ig-icpe-res">' + esc(a.reserve) + "</p>";
     out.innerHTML = h;
+    aoTexteBrancherListe(out);
+    /* LE LECTEUR SE FERME QUAND LE RELEVÉ EST REFAIT. Il montrerait sinon le
+       texte d'une pièce qu'on vient de retirer du dossier, sous un relevé qui
+       ne la mentionne plus. */
+    aoTexteFermer();
     /* Posé APRÈS le rendu, qui écrase le contenu du bloc : appelé avant, le
        relevé des fichiers écartés disparaîtrait sans laisser de trace. */
     aoIgnores(a.ignores);
@@ -7794,6 +8002,12 @@ function messageDelai(e, defaut) {
           aoProjetMsg("Ce projet n'existe plus. Le dossier n'est plus rattaché.");
         } else if (xj[1] && xj[1].ok) {
           AO_PROJET_ETAT = xj[1];
+          /* LE COFFRE COMBLE, IL N'ÉCRASE PAS — et c'est posé ici, pas dans
+             `aoProjetReprendre`, qui sort tôt dès qu'une analyse est en cours.
+             Le texte conservé serait alors resté inaccessible précisément
+             dans le cas le plus courant : on analyse, puis on regarde le
+             projet. */
+          aoTextesPoser(aoTextesDuCoffre(xj[1].dossier), false);
           aoProjetReprendre();
         }
         aoProjetRendre();
@@ -7845,6 +8059,19 @@ function messageDelai(e, defaut) {
     aoCandidature();
     var msg = $("#ig-ao-msg");
     if (msg) msg.textContent = aoRepriseMsg(d);
+  }
+
+  /* Le texte des pièces du coffre, par nom de fichier. Écrit à part pour
+     qu'une règle puisse l'exécuter sur un dossier connu : `aoProjetEtat` ne
+     s'éprouve qu'avec une requête. */
+  function aoTextesDuCoffre(d) {
+    var out = {};
+    ((d || {}).pieces || []).forEach(function (p) {
+      if (p && p.nom && typeof p.texte === "string" && p.texte) {
+        out[p.nom] = p.texte;
+      }
+    });
+    return out;
   }
 
   function aoProjetsCharger() {
@@ -7977,12 +8204,18 @@ function messageDelai(e, defaut) {
           + "chiffrées. Dernier dépôt le <b>" + esc(aoJour(d.maj_le))
           + "</b>, effacement automatique le <b>" + esc(aoJour(d.purge_le))
           + "</b>. Un dépôt AJOUTE&nbsp;: vous pouvez les charger une par une, "
-          + "et une pièce redéposée sous le même nom remplace la sienne."
-          + "</p><ul class=\"ig-cons-l\">";
+          + "et une pièce redéposée sous le même nom remplace la sienne. "
+          + "<b>Ce qui est conservé est le texte extrait</b>, pas le fichier "
+          + "d'origine&nbsp;: « Lire » ouvre ce texte, avec les passages "
+          + "relevés surlignés.</p><ul class=\"ig-cons-l\">";
         (d.pieces || []).forEach(function (x) {
+          /* « 85 o » À CÔTÉ DE « RC.pdf » SE LIT COMME LA TAILLE DU PDF.
+             C'est celle du TEXTE EXTRAIT — le fichier n'est pas conservé. Le
+             mot manquait, et il change ce que le chiffre veut dire. */
           h += '<li><span class="n">' + esc(x.nom) + "</span>"
-            + '<span class="o">' + esc(aoOctets(x.octets)) + " · "
+            + '<span class="o">' + esc(aoOctets(x.octets)) + " de texte · "
             + esc(String(x.empreinte || "").slice(0, 12)) + "</span>"
+            + aoTexteBouton(x.nom)
             /* RETIRER UNE PIÈCE SANS PERDRE LE DOSSIER. Sans ce geste, la
                seule façon de corriger un dépôt fautif serait de tout effacer
                puis de tout redéposer — c'est-à-dire de perdre au passage ce
@@ -8038,6 +8271,7 @@ function messageDelai(e, defaut) {
         aoProjetRetirer(b.dataset.retirer, b);
       });
     });
+    aoTexteBrancherListe(z);
     z.querySelectorAll("[data-cons-aff]").forEach(function (b) {
       b.addEventListener("click", function () { aoAffirmer(b.dataset.consAff, z); });
     });

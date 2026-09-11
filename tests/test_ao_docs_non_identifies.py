@@ -331,10 +331,15 @@ def _rendu_analyse(analyse):
     qu'il s'exécute. (Le même piège est consigné dans test_ao_lot.py : c'est
     la deuxième fois, d'où ce banc.)
     """
-    prog = (_js_source("esc", "info", "aoIgnores", "aoRendre")
-            + "\nvar zone = { innerHTML: '' }, ignores = { innerHTML: '' };"
+    prog = (_js_source("esc", "info", "aoTexteBouton", "aoTexteFermer",
+                            "aoTexteBrancherListe", "aoIgnores", "aoRendre")
+            + "\nvar zone = { innerHTML: '', querySelectorAll: function () "
+              "{ return []; } };"
+            + "\nvar ignores = { innerHTML: '' }, lect = { innerHTML: '' };"
+            + "\nvar AO_TEXTES = {}, AO_TEXTE_OUVERT = null;"
             + "\nfunction $(s) { return s === '#ig-ao-out' ? zone"
-              " : (s === '#ig-ao-ign' ? ignores : null); }"
+              " : (s === '#ig-ao-ign' ? ignores"
+              " : (s === '#ig-ao-lect' ? lect : null)); }"
             + "\nvar CADRE = { glossaire: {} };"
             + "\nglobal.document = { querySelectorAll: function () { return []; },"
               " querySelector: function () { return null; } };"

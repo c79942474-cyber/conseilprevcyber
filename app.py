@@ -4619,7 +4619,29 @@ def api_datacenter_marche_analyser():
                       detail=", ".join(d["nom"][:40] for d in docs)[:400])
     if ignores:
         a["ignores"] = ignores
-    return jsonify(ok=True, analyse=a)
+    # LE TEXTE LU REPART AVEC L'ANALYSE, pour qu'on puisse LE RELIRE.
+    #
+    # CE QUI MANQUAIT. La page recevait des citations de trois lignes et rien
+    # autour : impossible de vérifier une valeur dans son contexte, ni de
+    # comprendre pourquoi une pièce n'avait pas été reconnue. « Le relevé ne
+    # l'a pas vu » se vérifie en ouvrant le document — encore faut-il pouvoir
+    # l'ouvrir. Le dossier CONSERVÉ rendait déjà son texte ; l'analyse d'une
+    # session, non, si bien que la lecture n'existait qu'après avoir rattaché
+    # un projet.
+    #
+    # CE N'EST PAS UN ÉLARGISSEMENT DE DIVULGATION. La route est déjà fermée
+    # aux comptes d'administration précisément parce qu'elle rend le contenu
+    # des pièces sous forme de citations, et le texte rendu ici est celui que
+    # l'appelant vient lui-même de transmettre. Ce qui est servi en plus, c'est
+    # à qui l'a envoyé, et à personne d'autre.
+    #
+    # C'EST LE TEXTE EXTRAIT, PAS LE FICHIER. Le PDF n'est pas conservé — il
+    # est passé à l'antivirus, ouvert par l'extracteur, puis abandonné. Ce
+    # qu'on rend est exactement ce sur quoi les relevés ont tourné, ce qui est
+    # la seule chose utile à relire pour comprendre un relevé. L'écran doit le
+    # dire, et une règle l'exige.
+    return jsonify(ok=True, analyse=a,
+                   textes={d["nom"]: d["texte"] for d in docs})
 
 
 # Le pont entre une pièce du dossier de candidature et le livrable qui la
