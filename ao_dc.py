@@ -979,6 +979,83 @@ def relever(code_piece, texte):
 #  L'ANALYSE DU DOSSIER DÉPOSÉ
 # ═══════════════════════════════════════════════════════════════════════════
 
+# ── CE QUE LE RÈGLEMENT EXIGE — REPÉRÉ DANS LE TEXTE, JAMAIS DÉCIDÉ ──────────
+# POURQUOI « REPÉRÉ » ET NON « EXIGÉ ». La liste des pièces réellement exigées
+# est celle du règlement de VOTRE consultation, et elle l'emporte sur tout. Ce
+# que ce module sait faire, c'est REPÉRER dans le texte déposé les pièces du
+# catalogue qu'il nomme — avec la citation, pour qu'on aille vérifier. Un
+# repérage manqué n'est donc PAS « non exigé » : c'est « le repérage ne l'a pas
+# vu », exactement comme un relevé. On sous-repère plutôt que de sur-affirmer :
+# une pièce annoncée exigée à tort ferait produire un document inutile ; une
+# pièce « non repérée » renvoie à la lecture du RC, qui tranche.
+#
+# LES MARQUEURS SONT DES PHRASES DU RÈGLEMENT, choisies pour leur pouvoir
+# distinctif : « déclaration de sous-traitance » ne se confond avec rien, là où
+# « références » nu se déclencherait sur « références réglementaires ». Les
+# pièces sans marqueur fiable n'en ont pas et ressortent « non repérées » :
+# lacune assumée, pas faux négatif silencieux.
+EXIGENCES = {
+    "dc1": [r"lettre de candidature", r"formulaire\s+dc\s?1\b",
+            r"\bdc\s?1\b[^.\n]{0,30}(?:candidature|lettre)"],
+    "dc2": [r"d[ée]claration du candidat", r"formulaire\s+dc\s?2\b"],
+    "dc4": [r"d[ée]claration de sous-traitance", r"formulaire\s+dc\s?4\b",
+            r"\bdc\s?4\b[^.\n]{0,30}sous-trait"],
+    "acte_engagement": [r"acte d.?engagement", r"formulaire\s+attri\s?1\b",
+                        r"\battri\s?1\b[^.\n]{0,30}engagement"],
+    "dpgf": [r"d[ée]composition du prix (?:global|forfaitaire)",
+             r"d[ée]tail quantitatif estimatif", r"\bDPGF\b[^.\n]{8,40}"],
+    "memoire_technique": [r"m[ée]moire technique", r"note m[ée]thodologique",
+                          r"m[ée]moire justificatif"],
+    "attestations_assurances": [r"attestations?\s+d.?assurance",
+                                r"assurance responsabilit[ée] civile",
+                                r"assurance d[ée]cennale",
+                                r"responsabilit[ée] civile professionnelle"],
+    "references": [r"liste des r[ée]f[ée]rences", r"principales r[ée]f[ée]rences",
+                   r"r[ée]f[ée]rences (?:de moins de|similaires|principales)"],
+    "pouvoirs": [r"d[ée]l[ée]gation de (?:pouvoir|signature)",
+                 r"pouvoir (?:de signer|d.?engager)",
+                 r"habilitation [àa] engager"],
+    "bilans": [r"bilans? et comptes", r"comptes annuels",
+               r"trois derniers exercices"],
+    "moyens": [r"moyens (?:humains|mat[ée]riels|techniques)"],
+    "qse": [r"d[ée]marche qualit[ée]", r"certification\s+ISO",
+            r"syst[èe]me de management de la qualit[ée]"],
+    "organigramme": [r"organigramme"],
+    "convention_groupement": [r"convention de groupement",
+                              r"accord de groupement"],
+    "regularite_fiscale_sociale": [r"r[ée]gularit[ée] fiscale et sociale",
+                                   r"attestation de vigilance",
+                                   r"attestations?\s+(?:fiscales?|sociales?)"],
+}
+
+_CODES_EXIGENCES = ("rc", "ccap", "ccag", "cctp", "ae")
+
+
+def exigees(sources):
+    """Les pièces du catalogue REPÉRÉES dans le texte déposé, avec citation.
+
+    `sources` : liste de {fichier, code, sigle, texte} — les pièces de
+    consultation. Rend {cle: {repere, citation, libelle}} pour CHAQUE pièce du
+    catalogue : `repere` faux et `citation` None quand rien n'est repéré, jamais
+    absente — une pièce muette se lit « non repérée », elle ne disparaît pas.
+    """
+    par_cle = {p["cle"]: p["nom"] for p in DOSSIER_CANDIDATURE}
+    par_cle.update({p["cle"]: p["nom"] for p in DOSSIER_OFFRE})
+    out = {cle: {"repere": False, "citation": None, "libelle": nom}
+           for cle, nom in par_cle.items()}
+    for cle, motifs in EXIGENCES.items():
+        for s in sources or []:
+            hits = _extraire(s.get("texte") or "", motifs, maxi=1)
+            if hits:
+                out[cle] = {"repere": True, "libelle": par_cle.get(cle, cle),
+                            "citation": {"fichier": s.get("fichier"),
+                                         "sigle": s.get("sigle") or s.get("code"),
+                                         "texte": hits[0]["texte"],
+                                         "part": hits[0]["part"]}}
+                break
+    return out
+
+
 def analyser(documents):
     """Le dossier de consultation, pièce par pièce, et ce qui manque.
 
@@ -992,6 +1069,7 @@ def analyser(documents):
     premier jour.
     """
     pieces, inconnues, presentes, a_nous = [], [], set(), []
+    srcs = []
     for d in documents or []:
         nom = (d.get("nom") or d.get("filename") or "").strip()
         texte = d.get("texte") or ""
@@ -1017,6 +1095,9 @@ def analyser(documents):
                     "Aucun texte n'a pu être extrait de ce fichier : les "
                     "points de vigilance n'ont pas pu y être cherchés. La "
                     "pièce est identifiée sur son nom seul.")
+            if code in _CODES_EXIGENCES:
+                srcs.append({"fichier": nom, "code": code,
+                             "sigle": p["sigle"], "texte": texte})
             pieces.append(ligne)
         elif ident.get("candidat"):
             # PAS « INCONNUE » : ON SAIT EXACTEMENT CE QUE C'EST. La ranger
@@ -1040,6 +1121,10 @@ def analyser(documents):
     return {
         "version": VERSION,
         "pieces": pieces,
+        # CE QUE LE RÈGLEMENT NOMME, REPÉRÉ AVEC SA CITATION. « Repéré », pas
+        # « exigé » : le RG de la consultation fait foi, et une pièce non
+        # repérée renvoie à sa lecture.
+        "exigences": exigees(srcs),
         "inconnues": inconnues,
         # LES PIÈCES QUI SONT LES NÔTRES, DÉPOSÉES ICI PAR MÉGARDE. Elles ne
         # comptent NI comme pièces du dossier de consultation — elles n'en
@@ -1712,11 +1797,17 @@ def plan_reponse(analyse=None, groupement=False):
     qui répond de l'ensemble.
     """
     ordre = {"justificatif": 0, "note": 1, "formulaire": 2}
+    exig = (analyse or {}).get("exigences") or {}
     out = []
     for p in DOSSIER_CANDIDATURE:
         e = dict(p)
         e["nature_nom"] = NATURES_PIECE[p["nature"]]["nom"]
         e["nature_aide"] = NATURES_PIECE[p["nature"]]["aide"]
+        # REPÉRÉE DANS LE DOSSIER DÉPOSÉ (avec citation), ou non. Le RC de la
+        # consultation fait foi ; « non repérée » renvoie à sa lecture.
+        _x = exig.get(p["cle"]) or {}
+        e["repere"] = bool(_x.get("repere"))
+        e["citation_exigence"] = _x.get("citation")
         e["rang"] = (ordre[p["nature"]], 0 if p["bloquant"] else 1, p["nom"])
         if groupement:
             e["en_groupement"] = _groupement(p)
@@ -1732,6 +1823,8 @@ def plan_reponse(analyse=None, groupement=False):
         "avec_delai": [{"nom": p["nom"], "delai": p["delai"]}
                        for p in DOSSIER_CANDIDATURE if p.get("delai")],
         "note": NOTE_REPONSE,
+        "note_exigences": NOTE_EXIGENCES,
+        "exigences_actives": bool(exig),
         "consultation": _rappel_consultation(analyse),
     }
 
@@ -1764,6 +1857,14 @@ NOTE_REPONSE = (
     "n'atteste et n'engage rien. La liste des pièces réellement exigées est "
     "celle du règlement de consultation de VOTRE consultation, et elle "
     "l'emporte sur celle-ci.")
+
+
+NOTE_EXIGENCES = (
+    "« Repérée dans le dossier » signale que le règlement déposé NOMME cette "
+    "pièce — la citation le montre. « Non repérée » ne veut pas dire « non "
+    "exigée » : le repérage automatique ne l'a pas vue, et c'est le règlement "
+    "de VOTRE consultation qui tranche. On sous-repère plutôt que d'affirmer à "
+    "tort qu'une pièce est due.")
 
 
 def _rappel_consultation(analyse):
@@ -2020,7 +2121,19 @@ def _groupement_offre(p):
             "mandataire.")
 
 
-def offre(groupement=False):
+# Contrôle au chargement : tout marqueur d'EXIGENCES vise une pièce réelle du
+# catalogue (candidature ou offre). Placé ICI, une fois les deux dossiers
+# définis : un `cle` en trop ne repérerait jamais rien, et le catalogue le
+# porterait sans que personne le voie — l'erreur muette que ce fichier chasse.
+_orphelins_exigences = [c for c in EXIGENCES
+                        if c not in ({p["cle"] for p in DOSSIER_CANDIDATURE}
+                                     | {p["cle"] for p in DOSSIER_OFFRE})]
+if _orphelins_exigences:
+    raise RuntimeError("EXIGENCES vise des pièces inconnues : %s"
+                       % _orphelins_exigences)
+
+
+def offre(groupement=False, analyse=None):
     """Le dossier d'offre à produire — DPGF, mémoire technique, acte
     d'engagement, déclaration de sous-traitance.
 
@@ -2047,9 +2160,13 @@ def offre(groupement=False):
     laisserait croire que le groupement n'y change rien.
     """
     pieces = []
+    exig = (analyse or {}).get("exigences") or {}
     for base in DOSSIER_OFFRE:
         v = voie(base["cle"], base["nature"])
         p = dict(base)
+        _x = exig.get(base["cle"]) or {}
+        p["repere"] = bool(_x.get("repere"))
+        p["citation_exigence"] = _x.get("citation")
         p["nature_nom"] = NATURES_PIECE[base["nature"]]["nom"]
         p["famille_nom"] = FAMILLES_OFFRE[base["famille"]]["nom"]
         p["voie"] = v
@@ -2064,6 +2181,8 @@ def offre(groupement=False):
         "familles": FAMILLES_OFFRE,
         "natures": NATURES_PIECE,
         "bloquantes": [p["nom"] for p in DOSSIER_OFFRE if p["bloquant"]],
+        "exigences_actives": bool(exig),
+        "note_exigences": NOTE_EXIGENCES,
         "note": NOTE_OFFRE,
     }
 

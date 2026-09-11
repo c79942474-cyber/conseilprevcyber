@@ -6185,6 +6185,26 @@ function messageDelai(e, defaut) {
       .catch(function () { msg.textContent = "Plan indisponible."; });
   }
 
+  /* LA PASTILLE « REPÉRÉE DANS LE DOSSIER » — détection, jamais décision.
+     Partagée par les cartes de candidature et d'offre. Elle ne s'affiche que
+     lorsqu'un dossier a été analysé (`actives`) : hors dossier, on ne peut
+     rien dire de ce que le RC exige. « Repérée » porte la citation en
+     infobulle — le passage qui l'a déclenchée, pour aller vérifier. « Non
+     repérée » n'affirme rien : le règlement de la consultation fait foi. */
+  function aoExigence(actives, piece) {
+    if (!actives) return "";
+    if (piece.repere) {
+      var c = piece.citation_exigence || {};
+      return '<span class="ig-ao-ex ig-ao-ex-oui"'
+        + (c.texte ? ' title="' + esc((c.sigle ? c.sigle + " · " : "")
+                                       + c.texte) + '"' : "")
+        + ">repérée dans le dossier</span>";
+    }
+    return '<span class="ig-ao-ex ig-ao-ex-non" title="Le repérage '
+      + 'automatique ne l\'a pas vue : le règlement de votre consultation '
+      + 'fait foi.">non repérée ici</span>';
+  }
+
   function aoCandRendre(p) {
     var out = $("#ig-ao-cand-out");
     var red = {};
@@ -6206,6 +6226,9 @@ function messageDelai(e, defaut) {
     h += '<p class="note">L\'ordre n\'est pas celui du règlement de '
       + "consultation : ce qui a un délai d'obtention passe en premier, parce "
       + "que c'est la seule chose qu'on ne rattrape pas la dernière nuit.</p>";
+    if (p.exigences_actives) {
+      h += '<p class="note ig-ao-exn">' + esc(p.note_exigences || "") + "</p>";
+    }
     h += '<div class="ig-ao-cd">';
     p.pieces.forEach(function (x) {
       h += '<div class="ig-ao-cp' + (x.bloquant ? " ig-ao-cpb" : "") + '">'
@@ -6213,6 +6236,7 @@ function messageDelai(e, defaut) {
         + esc(x.nom) + "</b>"
         + '<span class="ig-ao-cn">' + esc(x.nature_nom) + "</span>"
         + (x.bloquant ? '<span class="ig-ao-bl">bloquante</span>' : "")
+        + aoExigence(p.exigences_actives, x)
         + "</div>"
         + '<p class="ig-ao-cq"><i>Produite par</i> — ' + esc(x.produit_par)
         + "</p><ul class=\"ig-ao-cc\">";
@@ -6644,8 +6668,11 @@ function messageDelai(e, defaut) {
      dérouler. */
   function offreRendre(o) {
     var out = $("#ig-ao-offre-out");
-    var h = '<h3 class="ig-tr-st">Le dossier d\'offre</h3>'
-      + '<div class="ig-ao-cd">';
+    var h = '<h3 class="ig-tr-st">Le dossier d\'offre</h3>';
+    if (o.exigences_actives) {
+      h += '<p class="note ig-ao-exn">' + esc(o.note_exigences || "") + "</p>";
+    }
+    h += '<div class="ig-ao-cd">';
     o.pieces.forEach(function (p) {
       h += '<div class="ig-ao-cp' + (p.bloquant ? " ig-ao-cpb" : "") + '">'
         + '<div class="ig-ao-cph"><b' + info("piece_offre:" + p.cle) + ">"
@@ -6653,6 +6680,7 @@ function messageDelai(e, defaut) {
         + '<span class="ig-ao-cn">' + esc(p.nature_nom) + "</span>"
         + '<span class="ig-ao-cn">' + esc(p.famille_nom) + "</span>"
         + (p.bloquant ? '<span class="ig-ao-bl">bloquante</span>' : "")
+        + aoExigence(o.exigences_actives, p)
         + "</div>"
         + '<p class="ig-ao-cq"><i>Produite par</i> — ' + esc(p.produit_par)
         + "</p><ul class=\"ig-ao-cc\">";

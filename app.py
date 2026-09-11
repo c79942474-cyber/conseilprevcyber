@@ -4718,7 +4718,7 @@ def api_datacenter_marche_candidature():
     # cartes de candidature diraient « En groupement » et les trois de
     # l'offre, sur le même écran, n'en diraient rien.
     return jsonify(ok=True, plan=p, pieces_marche=ao_dc.PIECES_MARCHE,
-                   dossier_offre=ao_dc.offre(groupement=groupement))
+                   dossier_offre=ao_dc.offre(groupement=groupement, analyse=analyse))
 
 
 @app.route("/api/datacenter/marche/remplir", methods=["POST"])
