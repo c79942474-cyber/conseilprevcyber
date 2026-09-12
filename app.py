@@ -4802,6 +4802,39 @@ def api_datacenter_marche_remplir():
     return jsonify(ok=True, remplissage=r)
 
 
+@app.route("/api/datacenter/marche/selection", methods=["POST"])
+@admin_required
+def api_datacenter_marche_selection():
+    """LA SÉLECTION RECALCULÉE, quand l'opérateur ajoute ou retire une pièce.
+
+    POURQUOI ELLE EXISTE À CÔTÉ DE `analyser`. Le premier calcul sort du même
+    appel que l'analyse — c'est la garantie que l'écran ne montre pas une
+    sélection établie sur une autre lecture. Mais retirer une pièce ne doit pas
+    obliger à redéposer le dossier : ce serait payer une minute de
+    téléversement pour un clic.
+
+    ELLE NE RECALCULE PAS AU NAVIGATEUR, et c'est le point. Y recopier le socle
+    et les motifs d'exigence aurait donné DEUX définitions de « retenue », qui
+    divergeraient le jour où l'une des deux serait corrigée — et c'est celle de
+    l'écran qui aurait tort, sans que personne le sache.
+    """
+    data = request.get_json(silent=True) or {}
+    analyse = data.get("analyse")
+    if not isinstance(analyse, dict):
+        return jsonify(ok=False, error="analyse_manquante",
+                       message="La sélection se calcule sur une analyse : "
+                               "analysez d'abord le dossier."), 400
+    ajouts = [str(x)[:64] for x in (data.get("ajouts") or [])][:60]
+    ecartees = [str(x)[:64] for x in (data.get("ecartees") or [])][:60]
+    try:
+        sel = ao_dc.selection(analyse, ajouts=ajouts, ecartees=ecartees)
+    except Exception:
+        app.logger.exception("recalcul de la sélection")
+        return jsonify(ok=False, error="calcul",
+                       message="La sélection n'a pas pu être recalculée."), 500
+    return jsonify(ok=True, selection=sel)
+
+
 @app.route("/api/datacenter/marche/fiche-cabinet", methods=["GET"])
 @admin_required
 def api_datacenter_marche_fiche_cabinet():

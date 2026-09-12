@@ -381,11 +381,21 @@ def test_la_taille_affichee_dit_qu_elle_est_celle_du_texte():
 
     C'est celle du texte extrait. Le mot manquait, et il change ce que le
     chiffre veut dire.
+
+    ANCRAGE. Cette règle s'ancrait sur la PREMIÈRE occurrence de
+    `<li><span class="n">` dans le script — et une seconde liste, écrite plus
+    haut pour la sélection du § 14, l'a fait lire un bloc qui n'est pas celui
+    qu'elle garde. Elle vise maintenant la liste du dossier conservé par sa
+    classe propre : c'est le seul endroit où un nombre d'octets désigne du
+    texte extrait et non un fichier.
     """
     js = _lire("ingenierie-dc.js")
-    i = js.index('h += \'<li><span class="n">\'')
-    bloc = js[i:i + 500]
-    assert "de texte" in bloc, bloc[:300]
+    assert js.count("ig-cons-l") == 1, \
+        "la liste du dossier conservé n'est plus repérable sans ambiguïté"
+    bloc = js[js.index("ig-cons-l"):][:900]
+    assert "aoOctets(" in bloc, \
+        "la liste du dossier conservé n'affiche plus de taille"
+    assert "de texte" in bloc, bloc[:400]
 
 
 # ═══════════════════════════════════════════════════════════════════════════

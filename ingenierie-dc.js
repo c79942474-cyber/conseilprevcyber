@@ -5826,6 +5826,14 @@ function messageDelai(e, defaut) {
      analyse de dossier de consultation est CE QUI MANQUE — et cela ne se voit
      qu'en regardant le dossier entier. */
   var AO_ANALYSE = null;
+  /* LA SÉLECTION, ET LES DEUX GESTES QUI LA CORRIGENT.
+     Ils vivent ici et pas au serveur : l'opérateur connaît la consultation,
+     le moteur ne fait que lire un texte. Ils repartent à chaque analyse pour
+     que la sélection soit recalculée AVEC eux — la recalculer sans les
+     emporter les effacerait au premier redépôt. */
+  var AO_SELECTION = null;
+  var AO_SEL_AJOUTS = {};
+  var AO_SEL_ECARTEES = {};
   /* LE TEXTE DES PIÈCES LUES, GARDÉ POUR POUVOIR ÊTRE CONSERVÉ — et pour rien
      d'autre. Sans lui, rattacher un projet obligerait à re-choisir les
      fichiers : l'analyse ne garde que ce qu'elle a relevé, pas ce qu'elle a
@@ -6149,7 +6157,13 @@ function messageDelai(e, defaut) {
       return demander("/api/datacenter/marche/analyser", {
         method: "POST", credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documents: docs }),
+        /* LES DEUX GESTES PARTENT AVEC LES DOCUMENTS. Les garder au
+           navigateur et recalculer la sélection sans eux les effacerait au
+           premier redépôt — et l'opérateur verrait revenir une pièce qu'il
+           venait d'écarter, sans savoir pourquoi. */
+        body: JSON.stringify({ documents: docs,
+                               ajouts: Object.keys(AO_SEL_AJOUTS),
+                               ecartees: Object.keys(AO_SEL_ECARTEES) }),
       }, DELAI_LONG)
         .then(function (x) { return x.json().then(function (j) { return [x.status, j]; }); })
         .then(function (xj) {
@@ -6183,6 +6197,10 @@ function messageDelai(e, defaut) {
              qu'il y ait des pièces à conserver. */
           aoProjetsCharger().then(aoProjetEtat);
           aoRendre(j.analyse);
+          /* LA SÉLECTION VIENT DU MÊME APPEL QUE L'ANALYSE, et c'est voulu :
+             deux requêtes auraient permis d'afficher une sélection calculée
+             sur une analyse à côté d'un relevé issu d'une autre. */
+          aoSelectionRendre(j.selection);
           /* LE TEMPS RÉEL COMMENCE ICI. Les rubriques qui viennent des pièces
              de l'acheteur — l'acheteur, l'objet, la référence, les lots — se
              remplissent au moment où l'analyse arrive, sans qu'on ait à
@@ -6432,6 +6450,174 @@ function messageDelai(e, defaut) {
       + 'automatique ne l\'a pas vue : le règlement de votre consultation '
       + 'fait foi.">non repérée ici</span>';
   }
+
+  /* ══ LA COLONNE DROITE : CE QUE CE DOSSIER-LÀ DEMANDE ═══════════════════
+
+     ELLE REND UNE DÉCISION, PAS UN CATALOGUE. Avant ce tour, l'écran montrait
+     les vingt-trois pièces quoi qu'il arrive : le nombre affiché était une
+     propriété du catalogue, jamais du dossier de l'acheteur, et
+     « 23 documents à remplir » se lisait comme une exigence de la
+     consultation.
+
+     TROIS GROUPES, ET LE TROISIÈME EST LE PLUS UTILE. Candidature et offre
+     parce que ce sont deux dossiers distincts — l'un établit qui vous êtes,
+     l'autre ce que vous proposez. Puis « non repérées », qui reste OUVERT :
+     masquer ce que le moteur n'a pas trouvé ferait passer un défaut de
+     reconnaissance pour une absence d'exigence, et c'est là qu'un opérateur
+     qui connaît la consultation rattrape la lecture.
+
+     CE QUI SE REMPLIT VRAIMENT EST DIT À PART. Quatre modèles de l'État se
+     remplissent ; les autres pièces se rédigent ou s'obtiennent d'un tiers.
+     Annoncer « sept documents remplis automatiquement » quand trois le sont
+     est la promesse la plus facile à démentir de tout ce module. */
+  function aoSelectionRendre(sel) {
+    var z = $("#ig-ao-retenus");
+    if (!z) return;
+    AO_SELECTION = sel || null;
+    if (!sel) {
+      z.innerHTML = '<p class="note">La sélection n\'a pas pu être établie. '
+        + "Le relevé ci-dessous reste valable ; les pièces se choisissent à "
+        + "la main.</p>";
+      return;
+    }
+    var groupes = [
+      ["candidature", "Dossier de candidature", true],
+      ["offre", "Dossier d'offre", true],
+      ["__non", "Non repérées dans le dossier", false],
+    ];
+    var h = '<p class="note ig-ao-colp"><b>' + sel.retenues + " document(s)</b> "
+      + "retenus sur " + sel.catalogue + " au catalogue — dont <b>"
+      + sel.remplissables.length + "</b> que ce module remplit, et "
+      + sel.a_produire.length + " à rédiger ou à obtenir d'un tiers.</p>";
+    groupes.forEach(function (g) {
+      var lignes = sel.lignes.filter(function (x) {
+        return g[2] ? (x.retenue && x.dossier === g[0]) : !x.retenue;
+      });
+      h += '<div class="ig-ao-sg"><h4>' + esc(g[1]) + "</h4>"
+        + '<span class="ig-ao-sn">' + lignes.length + " pièce(s)</span>";
+      if (!lignes.length) {
+        h += '<p class="note" style="margin:7px 0 0">'
+          + (g[2] ? "Aucune pièce de ce dossier n'est demandée par la "
+                  + "consultation analysée."
+                  : "Toutes les pièces du catalogue sont retenues.")
+          + "</p></div>";
+        return;
+      }
+      /* LA LISTE DÉROULANTE ET LA LISTE DÉTAILLÉE DISENT LA MÊME CHOSE. La
+         déroulante sert à parcourir vite quand il y en a quinze ; le détail
+         sert à lire le motif et à défaire. Les tenir séparément aurait
+         garanti qu'elles divergent. */
+      h += '<select id="ig-ao-grp-' + g[0] + '" aria-label="' + esc(g[1]) + '">'
+        + '<option value="">' + lignes.length + " pièce(s) — parcourir…</option>";
+      lignes.forEach(function (x) {
+        h += '<option value="' + esc(x.cle) + '">' + esc(x.nom) + "</option>";
+      });
+      h += "</select>" + '<ul class="ig-ao-sl">';
+      lignes.forEach(function (x) {
+        var cls = x.pourquoi === "citee" ? " p-citee"
+                : x.pourquoi === "socle" ? " p-socle" : "";
+        h += '<li><span class="n">' + esc(x.nom)
+          + (x.remplissable ? "" : ' <span class="ig-ao-sn">à produire</span>')
+          + "</span>"
+          + '<span class="p' + cls + '">' + esc(x.pourquoi.replace("_", " "))
+          + "</span>"
+          + '<button type="button" data-sel-' + (x.retenue ? "off" : "on")
+          + '="' + esc(x.cle) + '">' + (x.retenue ? "retirer" : "ajouter")
+          + "</button></li>";
+        /* LA CITATION QUI DÉCLENCHE LA PIÈCE, AVEC SA POSITION. Sans elle,
+           « citée » est une affirmation — et c'est la doctrine du module
+           depuis le début : chaque point relevé se vérifie. */
+        if (x.citation && x.citation.texte) {
+          h += '<li class="ig-ao-sc">« ' + esc(x.citation.texte) + " » — "
+            + esc(x.citation.fichier || "")
+            + (x.citation.part != null
+               ? ", à " + Math.round(x.citation.part * 100) + " % du document"
+               : "") + "</li>";
+        } else if (!x.retenue || x.pourquoi !== "citee") {
+          h += '<li class="ig-ao-sc">' + esc(x.motif || "") + "</li>";
+        }
+      });
+      h += "</ul></div>";
+    });
+    z.innerHTML = h;
+    aoSelectionBrancher(z);
+  }
+
+
+  /* LES DEUX GESTES, ET LE RECALCUL QU'ILS DÉCLENCHENT.
+
+     ON NE CORRIGE PAS LA LISTE À L'ÉCRAN : on renvoie le geste au moteur et
+     on réaffiche ce qu'il rend. Retoucher l'affichage aurait donné deux
+     vérités — celle de l'écran et celle du serveur — qui divergeraient au
+     premier rechargement. */
+  function aoSelectionBrancher(z) {
+    z.querySelectorAll("[data-sel-off]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var c = b.dataset.selOff;
+        delete AO_SEL_AJOUTS[c];
+        AO_SEL_ECARTEES[c] = 1;
+        aoSelectionRecalculer();
+      });
+    });
+    z.querySelectorAll("[data-sel-on]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var c = b.dataset.selOn;
+        delete AO_SEL_ECARTEES[c];
+        AO_SEL_AJOUTS[c] = 1;
+        aoSelectionRecalculer();
+      });
+    });
+    /* LA DÉROULANTE MÈNE À LA PIÈCE dans le dossier rempli, en dessous : elle
+       sert à ATTEINDRE, pas à choisir. Un sélecteur qui modifierait la
+       sélection ferait de chaque parcours de la liste une décision. */
+    ["candidature", "offre", "__non"].forEach(function (g) {
+      var sl = $("#ig-ao-grp-" + g, z);
+      if (!sl) return;
+      sl.addEventListener("change", function () {
+        var cible = document.getElementById("ig-ao-p-" + sl.value);
+        if (cible && cible.scrollIntoView) {
+          cible.scrollIntoView({ block: "center" });
+        }
+        sl.value = "";
+      });
+    });
+  }
+
+
+  /* LE RECALCUL PASSE PAR LE SERVEUR, avec les documents déjà lus. Recalculer
+     au navigateur supposerait d'y recopier `SOCLE_REPONSE` et les motifs
+     d'exigence — deux définitions de « retenue », qui divergeraient le jour
+     où l'une des deux serait corrigée. */
+  function aoSelectionRecalculer() {
+    if (!AO_ANALYSE) return;
+    return demander("/api/datacenter/marche/selection", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ analyse: AO_ANALYSE,
+                             ajouts: Object.keys(AO_SEL_AJOUTS),
+                             ecartees: Object.keys(AO_SEL_ECARTEES) }),
+    }).then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) return;
+        aoSelectionRendre(j.selection);
+        /* LE REMPLISSAGE SUIT LE PÉRIMÈTRE. Sans ce rappel, l'écran de droite
+           dirait six pièces et le dossier rempli en dessous en montrerait
+           vingt-trois. */
+        aoRemplir(true);
+      });
+  }
+
+
+  /* LE PÉRIMÈTRE, POUR TOUT CE QUI PRODUIT LE DOSSIER. Une seule fonction le
+     donne : le remplissage, l'export, l'archive et le parcours doivent voir
+     le MÊME. `null` tant qu'aucune sélection n'existe — c'est-à-dire tout le
+     catalogue, le comportement d'avant. */
+  function aoPerimetre() {
+    if (!AO_SELECTION) return null;
+    return AO_SELECTION.lignes.filter(function (x) { return x.retenue; })
+      .map(function (x) { return x.cle; });
+  }
+
 
   function aoCandRendre(p) {
     var out = $("#ig-ao-cand-out");
@@ -6983,7 +7169,8 @@ function messageDelai(e, defaut) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fiche: AO_FICHE, analyse: AO_ANALYSE,
                                saisies: AO_SAISIES, groupement: false,
-                               fournies: Object.keys(AO_FOURNIES) }),
+                               fournies: Object.keys(AO_FOURNIES) ,
+                               perimetre: aoPerimetre() }),
       }).then(function (r) { return r.json(); })
         .then(function (j) {
           if (!j || !j.ok) return;
@@ -7244,7 +7431,8 @@ function messageDelai(e, defaut) {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fiche: AO_FICHE, analyse: AO_ANALYSE,
-                             saisies: AO_SAISIES, format: fmt }),
+                             saisies: AO_SAISIES, format: fmt ,
+                               perimetre: aoPerimetre() }),
     }, DELAI_MOYEN).then(function (r) {
       if (!r.ok) throw new Error("export");
       return r.blob();
@@ -7309,7 +7497,15 @@ function messageDelai(e, defaut) {
     var z = $("#ig-aop-out");
     var libelle = bouton ? bouton.textContent : "";
     if (bouton) { bouton.disabled = true; bouton.textContent = "Mesure…"; }
-    var corps = { fiche: AO_FICHE, analyse: AO_ANALYSE, saisies: AO_SAISIES };
+    /* LE PÉRIMÈTRE ENTRE ICI AUSSI, et il a failli être oublié : cette
+       fonction prépare sa charge dans une VARIABLE au lieu de l'écrire dans
+       l'appel, si bien que le câblage automatique des trois autres l'a
+       sautée. C'est exactement l'indirection qui avait déjà fait passer cette
+       fonction sous une règle de la maison, le 06/09/2026. Sans le périmètre,
+       le parcours compterait les blocages des vingt-trois pièces tandis que
+       l'écran en annonce six. */
+    var corps = { fiche: AO_FICHE, analyse: AO_ANALYSE, saisies: AO_SAISIES,
+                  perimetre: aoPerimetre() };
     if (AO_PROJET) corps.projet = AO_PROJET;
     demander("/api/datacenter/marche/parcours", {
       method: "POST", credentials: "same-origin",
@@ -7344,7 +7540,8 @@ function messageDelai(e, defaut) {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fiche: AO_FICHE, analyse: AO_ANALYSE,
-                             saisies: AO_SAISIES, format: fmt }),
+                             saisies: AO_SAISIES, format: fmt ,
+                               perimetre: aoPerimetre() }),
     }, DELAI_LONG).then(function (r) {
       if (!r.ok) throw new Error("dossier");
       entete = r.headers.get("X-Dossier");

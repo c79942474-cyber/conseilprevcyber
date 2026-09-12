@@ -900,6 +900,43 @@
   .ig-ao-cab>button{flex:0 0 auto}
   .ig-ao-cab>.note{flex:1 1 260px;margin:0;line-height:1.6}
   @media (max-width:620px){.ig-ao-cab{flex-direction:column}}
+  /* LA GRILLE DU § 14. Deux colonnes de même poids : aucune des deux n'est
+     accessoire — sans dossier déposé il n'y a rien à produire, et sans
+     sélection le dépôt ne sert à rien. Sous 980 px elles s'empilent, le
+     dossier d'abord : c'est l'ordre du geste. */
+  .ig-ao-grille{display:grid;grid-template-columns:1fr 1fr;gap:22px;
+    margin:16px 0 4px;align-items:start}
+  .ig-ao-col{min-width:0;padding:14px 16px;border:1px solid var(--line);
+    border-radius:11px}
+  .ig-ao-colh{margin:0 0 4px;font-size:14px;color:var(--ink)}
+  .ig-ao-colp{margin:0 0 12px;line-height:1.6}
+  @media (max-width:980px){.ig-ao-grille{grid-template-columns:1fr}}
+  /* LA SÉLECTION, DOSSIER PAR DOSSIER. Chaque groupe porte son compte et sa
+     liste déroulante : « 5 pièces » se lit avant qu'on ouvre la liste. */
+  .ig-ao-sg{margin:0 0 14px;padding:11px 13px;border:1px solid var(--line);
+    border-left:3px solid var(--terra);border-radius:9px}
+  .ig-ao-sg>h4{margin:0 0 3px;font-size:13px;color:var(--ink)}
+  .ig-ao-sn{font-family:var(--mono);font-size:10.5px;color:var(--muted2);
+    letter-spacing:.04em}
+  .ig-ao-sg select{width:100%;margin-top:9px;font:inherit;font-size:12px;
+    padding:6px 8px;border-radius:6px;border:1px solid var(--line);
+    background:var(--panel);color:var(--ink)}
+  .ig-ao-sl{margin:9px 0 0;padding:0;list-style:none}
+  .ig-ao-sl li{display:flex;align-items:flex-start;gap:8px;padding:4px 0;
+    font-size:12px;line-height:1.55;border-top:1px solid var(--line)}
+  .ig-ao-sl li:first-child{border-top:0}
+  .ig-ao-sl .n{flex:1 1 auto;color:var(--ink)}
+  .ig-ao-sl .p{flex:0 0 auto;font-family:var(--mono);font-size:9.5px;
+    letter-spacing:.04em;padding:2px 6px;border-radius:3px;
+    border:1px solid var(--line);color:var(--muted2)}
+  .ig-ao-sl .p-citee{color:#7FD19A;border-color:rgba(127,209,154,.45)}
+  .ig-ao-sl .p-socle{color:#8FDBF2;border-color:rgba(143,219,242,.45)}
+  .ig-ao-sl button{flex:0 0 auto;font-family:var(--mono);font-size:9.5px;
+    padding:2px 7px;border-radius:3px;border:1px solid var(--line);
+    background:transparent;color:var(--muted);cursor:pointer}
+  .ig-ao-sl button:hover{color:var(--ink);border-color:var(--terra)}
+  .ig-ao-sc{margin:8px 0 0;font-size:11px;line-height:1.6;color:var(--muted2);
+    font-style:italic}
   .ig-ao-docs{margin-top:10px}
   .ig-ao-d{display:block;font-size:12px;color:var(--muted);padding:3px 0}
   .ig-ao-al{margin:16px 0 0}
@@ -2850,12 +2887,46 @@
         mesure sur ce que vous avez déposé et saisi&nbsp;: tant que rien n'est
         déposé, il l'annonce plutôt que de proposer une liste de conseils.</p></div>
     </div>
-    <div class="ig-ao-op" id="ig-ao-depot"></div>
-    <div class="actions ig-ao-op" style="margin-top:14px;gap:10px;flex-wrap:wrap">
-      <button type="button" class="ig-lanceur-b" id="ig-ao-go">Analyser le dossier de consultation →</button>
-      <button type="button" class="btn btn-s" id="ig-ao-cand">Voir le dossier de candidature</button>
+    <!-- ══ LES DEUX COLONNES ════════════════════════════════════════════
+         À GAUCHE CE QUI ARRIVE, À DROITE CE QUI PART. Le dossier de
+         l'acheteur d'un côté, les pièces à produire de l'autre : c'est le
+         seul découpage qui corresponde au geste réel, et il rend visible la
+         chose qu'on veut voir — QUELLE pièce déposée fait entrer QUEL
+         document à remplir.
+
+         POURQUOI LA PILE VERTICALE NE SUFFISAIT PAS. Les dix blocs se
+         suivaient sur treize mille pixels de haut : pour savoir si le DC2
+         était retenu il fallait faire défiler loin du dépôt, et rien ne
+         disait plus lequel des deux on regardait. Deux colonnes tiennent le
+         rapport sous les yeux.
+
+         LES BLOCS DE DÉTAIL RESTENT DESSOUS. Le relevé complet, le lecteur
+         de pièce, la fiche et le remplissage ne sont pas un troisième
+         volet : on les ouvre APRÈS avoir décidé, et les faire entrer dans
+         une colonne les aurait rendus illisibles à mi-largeur. -->
+    <div class="ig-ao-grille ig-ao-op">
+      <div class="ig-ao-col">
+        <h3 class="ig-ao-colh">Le dossier du donneur d'ordres</h3>
+        <p class="note ig-ao-colp">Déposez-le en entier. Chaque dépôt
+          s'ajoute au précédent, et une pièce se retire de la liste sans
+          défaire le reste.</p>
+        <div id="ig-ao-depot"></div>
+        <div class="actions" style="margin-top:14px;gap:10px;flex-wrap:wrap">
+          <button type="button" class="ig-lanceur-b" id="ig-ao-go">Analyser le dossier de consultation →</button>
+          <button type="button" class="btn btn-s" id="ig-ao-cand">Voir le dossier de candidature</button>
+        </div>
+        <p class="note" id="ig-ao-msg" style="margin-top:10px"></p>
+      </div>
+      <div class="ig-ao-col">
+        <h3 class="ig-ao-colh">Les documents à produire</h3>
+        <!-- IL EST VIDE AVANT L'ANALYSE, ET IL LE DIT. Afficher les
+             vingt-trois pièces du catalogue en attendant ferait lire comme
+             une exigence de la consultation ce qui n'est qu'une liste de
+             références — c'est exactement le défaut que la sélection
+             corrige. -->
+        <div id="ig-ao-retenus" aria-live="polite"></div>
+      </div>
     </div>
-    <p class="note ig-ao-op" id="ig-ao-msg" style="margin-top:10px"></p>
     <!-- LE LECTEUR D'UNE PIÈCE. Placé AVANT le relevé, parce qu'on l'ouvre
          depuis le relevé : le poser après obligerait à remonter la page pour
          lire ce qu'on vient de demander à voir. Il est vide tant qu'on n'a
