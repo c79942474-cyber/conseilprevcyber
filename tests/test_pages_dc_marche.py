@@ -1030,6 +1030,25 @@ def test_la_fiche_ne_quitte_le_navigateur_QUE_par_le_geste_de_conservation():
                          "/api/datacenter/marche/rediger"}
     AVEC_CONSERVATION = {"/api/datacenter/marche/projet/dossier"}
 
+    # LA NEUVIÈME ADRESSE VA DANS L'AUTRE SENS, ET C'EST POURQUOI ELLE A SA
+    # PROPRE CATÉGORIE.
+    #
+    # `/marche/fiche-cabinet` ne REÇOIT pas la fiche : elle la REMPLIT. Le
+    # geste « charger la fiche du cabinet » lit le dossier d'entreprise de
+    # CONSEILPREV et écrit ses valeurs dans les champs — l'information descend
+    # du serveur vers le navigateur, jamais l'inverse.
+    #
+    # LA RÈGLE L'A POURTANT ARRÊTÉE, ET C'EST BIEN. Elle lit par fonction :
+    # `aoFicheCabinet` nomme `AO_FICHE` et appelle une adresse, donc elle est
+    # PRÉSUMÉE l'envoyer. Cette présomption est la bonne, et il ne faut pas
+    # l'affaiblir — une catégorie qui dirait seulement « celle-là est permise »
+    # ouvrirait la porte à la prochaine route qui, elle, enverrait vraiment.
+    #
+    # LA CATÉGORIE VIENT DONC AVEC UN CONTRÔLE PLUS STRICT, appliqué juste
+    # après : l'appel ne doit porter NI corps, NI sérialisation de la fiche.
+    # Le jour où quelqu'un y ajoute un `body`, la règle tombe.
+    VERS_LA_FICHE = {"/api/datacenter/marche/fiche-cabinet"}
+
     # LA RÈGLE A EU UN ANGLE MORT, ET IL A ÉTÉ MESURÉ. Elle cherchait
     # « AO_FICHE » APRÈS l'adresse, dans la même expression :
     #
@@ -1056,9 +1075,29 @@ def test_la_fiche_ne_quitte_le_navigateur_QUE_par_le_geste_de_conservation():
     envois = set()
     for f in vues:
         envois |= set(re.findall(r'demander\(\s*"(/api/[^"]+)"', f))
-    inconnues = sorted(envois - (SANS_CONSERVATION | AVEC_CONSERVATION))
+    inconnues = sorted(envois
+                       - (SANS_CONSERVATION | AVEC_CONSERVATION | VERS_LA_FICHE))
     assert not inconnues, (
         "la fiche part vers une adresse non déclarée : " + ", ".join(inconnues))
+
+    # LE CONTRÔLE PROPRE À LA TROISIÈME CATÉGORIE. Une adresse déclarée
+    # « descendante » qui se mettrait à emporter la fiche serait la pire des
+    # échappatoires : déclarée inoffensive, et devenue un envoi.
+    for adr in sorted(VERS_LA_FICHE):
+        for f in vues:
+            if not re.search(r'demander\(\s*"' + re.escape(adr) + r'"', f):
+                continue
+            i = f.index(adr)
+            appel = f[i:i + 300]
+            assert "body" not in appel, (
+                "%s emporte un corps de requête : elle est déclarée comme "
+                "remplissant la fiche, pas comme l'envoyant — %r"
+                % (adr, appel[:160]))
+            assert "JSON.stringify" not in appel, (
+                "%s sérialise quelque chose : à vérifier, cette adresse ne "
+                "doit rien emporter — %r" % (adr, appel[:160]))
+            assert "method" not in appel or '"GET"' in appel, (
+                "%s n'est plus une simple lecture — %r" % (adr, appel[:160]))
 
     # LE SEUL ENVOI QUI CONSERVE PART DE LA SEULE FONCTION QUI LE DOIT.
     dep = js[js.index("function aoProjetDeposer("):]

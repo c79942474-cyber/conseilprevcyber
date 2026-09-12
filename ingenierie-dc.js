@@ -7026,7 +7026,27 @@ function messageDelai(e, defaut) {
       + '<p class="note">Elle ne quitte pas ce navigateur : rien n\'est '
       + "envoyé au serveur pour être conservé, et rien n\'est enregistré. "
       + "Chaque valeur saisie ici se reporte, en dessous, dans toutes les "
-      + "pièces qui la demandent — avec la mention de son origine.</p>";
+      + "pièces qui la demandent — avec la mention de son origine.</p>"
+      /* LE GESTE QUI MANQUAIT, ET LE DÉFAUT QU'IL CORRIGE.
+         `_ao_charge()` verse DÉJÀ la fiche du cabinet comme socle côté
+         serveur : le SIRET, le SIREN, la TVA et les trois chiffres d'affaires
+         atteignent les formulaires à chaque appel. Mais ces champs-ci lisent
+         le stockage du navigateur, et affichaient donc « non renseigné » sur
+         des valeurs que le serveur allait employer. Mesuré en navigateur.
+         L'écran disait le contraire de ce qu'il produisait — ce qui fait
+         ressaisir à la main ce qui était déjà là, ou pousser une valeur
+         approximative par-dessus une valeur vérifiée.
+         C'EST UN GESTE, PAS UN PRÉ-REMPLISSAGE. Le faire au chargement
+         supposerait que toute consultation se réponde au nom de CONSEILPREV ;
+         or ce § sert aussi à instruire le dossier d'un client, et un client
+         répond avec SON identité. */
+      + '<div class="ig-ao-cab">'
+      + '<button type="button" class="btn btn-s" id="ig-ao-cab-go">'
+      + "Charger la fiche du cabinet</button>"
+      + '<span class="note" id="ig-ao-cab-msg">Les valeurs du dossier '
+      + "d'entreprise CONSEILPREV — dénomination, SIRET, chiffres d'affaires — "
+      + "s'écrivent dans les champs ci-dessous. Ce que vous avez déjà saisi "
+      + "n'est pas écrasé.</span></div>";
     r.groupes.forEach(function (g) {
       var champs = parGroupe[g[0]] || [];
       if (!champs.length) return;
@@ -7050,7 +7070,67 @@ function messageDelai(e, defaut) {
         aoRemplir();
       });
     });
+    var cab = $("#ig-ao-cab-go", z);
+    if (cab) cab.addEventListener("click", aoFicheCabinet);
   }
+
+
+  /* LA FICHE DU CABINET, ÉCRITE DANS LES CHAMPS SOUS LES YEUX DE QUI DEMANDE.
+
+     CE QU'ELLE N'ÉCRASE PAS : ce qui est déjà saisi. Une consultation peut
+     demander une variante — un établissement secondaire, un autre signataire
+     — et celui qui l'a tapée en sait plus que le dossier. C'est le même ordre
+     que côté serveur, où le socle passe DERRIÈRE la saisie : les deux
+     divergeraient si l'un des deux s'inversait.
+
+     ELLE DIT AUSSI CE QUI MANQUE AU DOSSIER. Le RCS, le code NAF, l'effectif
+     et l'assurance n'y sont pas ; annoncer « fiche chargée » sans le dire
+     ferait croire la fiche complète, et c'est au dépôt des plis qu'on s'en
+     apercevrait. */
+  function aoFicheCabinet() {
+    var msg = $("#ig-ao-cab-msg"), b = $("#ig-ao-cab-go");
+    if (b) b.disabled = true;
+    if (msg) msg.textContent = "Lecture du dossier d'entreprise…";
+    return demander("/api/datacenter/marche/fiche-cabinet",
+                    { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) throw new Error((j && j.message) || "dossier");
+        var pose = 0, gardes = 0;
+        Object.keys(j.fiche || {}).forEach(function (k) {
+          if (String(AO_FICHE[k] || "").trim()) { gardes++; return; }
+          AO_FICHE[k] = j.fiche[k];
+          pose++;
+        });
+        aoFicheEnregistrer();
+        var absents = (j.manques || []).map(function (m) { return m.cle; });
+        /* ON REDESSINE LA FICHE AVANT DE PARLER. Les champs portent les
+           anciennes valeurs dans leur attribut `value` : sans ce tour, on
+           annoncerait « 16 valeurs écrites » au-dessus de seize champs
+           restés vides. `aoRemplir` ne redessine la fiche que si elle est
+           VIDE — mesuré dans le source — donc c'est ici, et nulle part
+           ailleurs, que le redessin doit se faire. */
+        if (AO_REMPLI) aoFicheRendre(AO_REMPLI);
+        aoRemplir();
+        var m2 = $("#ig-ao-cab-msg");
+        if (m2) m2.textContent =
+          pose + " valeur(s) écrite(s)"
+          + (gardes ? ", " + gardes + " saisie(s) conservée(s)" : "")
+          + ". Le dossier fournit " + j.fournis + " champ(s) sur " + j.attendus
+          + (absents.length
+             ? " — absents : " + absents.join(", ")
+               + ". Ils ne s'inventent pas : portez-les au dossier "
+               + "d'entreprise."
+             : ".");
+      })
+      .catch(function (e) {
+        var m2 = $("#ig-ao-cab-msg");
+        if (m2) m2.textContent =
+          "Le dossier d'entreprise n'a pas pu être lu : " + (e.message || e);
+      })
+      .then(function () { var b2 = $("#ig-ao-cab-go"); if (b2) b2.disabled = false; });
+  }
+
 
   /* L'EXPORT REFAIT LE CALCUL AU SERVEUR au lieu de mettre en page ce que la
      page a sous les yeux : le document emporté doit dire la même chose que

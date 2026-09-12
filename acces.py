@@ -308,6 +308,13 @@ API_ADMIN = {
         "et des extraits du fonds documentaire à un sous-traitant, et "
         "consomme des jetons : le transfert est déclaré au registre RGPD sous "
         "« dossier-marche ».",
+    # CELLE-CI SORT LES DONNÉES DU CABINET LUI-MÊME — SIRET, chiffres
+    # d'affaires, adresse, signataire. Elle n'a rien à faire ailleurs qu'entre
+    # les mains de qui répond POUR CONSEILPREV.
+    "/api/datacenter/marche/fiche-cabinet":
+        _MOTIF_MARCHE + " Celle-ci rend en outre l'identité du CABINET "
+        "elle-même : dénomination, SIRET, chiffres d'affaires des trois "
+        "derniers exercices, signataire.",
     "/api/datacenter/marche/projet/dossier": _MOTIF_MARCHE,
     "/api/datacenter/marche/projet/oubli": _MOTIF_MARCHE,
     "/api/datacenter/marche/projet/affirmation": _MOTIF_MARCHE,
