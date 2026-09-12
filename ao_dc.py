@@ -1298,11 +1298,31 @@ def relever_sans_piece(texte):
 # pièces sans marqueur fiable n'en ont pas et ressortent « non repérées » :
 # lacune assumée, pas faux négatif silencieux.
 EXIGENCES = {
+    # LES SIGLES NUS COMPTENT, ET C'EST MESURÉ. « Les candidats produiront un
+    # DC1 et un DC2 » — formulation des plus banales — ne repérait RIEN : les
+    # motifs exigeaient le mot « formulaire » ou un « candidature » à moins de
+    # trente caractères. Le garde-fou visait juste (un « DC1 » peut désigner un
+    # plan, un lot, un local) mais il était posé trop haut.
+    #
+    # LE NOUVEAU GARDE-FOU EST LE CONTEXTE DE LA PHRASE, pas la proximité d'un
+    # mot : un sigle DC suivi de son chiffre, dans une phrase qui parle de
+    # remise de pièces, est une exigence. Les verbes sont ceux des règlements
+    # de consultation, et ils précèdent ou suivent le sigle.
     "dc1": [r"lettre de candidature", r"formulaire\s+dc\s?1\b",
-            r"\bdc\s?1\b[^.\n]{0,30}(?:candidature|lettre)"],
-    "dc2": [r"d[ée]claration du candidat", r"formulaire\s+dc\s?2\b"],
+            r"\bdc\s?1\b[^.\n]{0,30}(?:candidature|lettre)",
+            r"(?:produir|remettr|fournir|joindr|compl[ée]t|transmettr|"
+            r"pr[ée]sent)[^.\n]{0,60}\bdc\s?1\b",
+            r"\bdc\s?1\b[^.\n]{0,60}(?:sera|seront|est|sont)\s+"
+            r"(?:produit|remis|fourni|joint|exig)"],
+    "dc2": [r"d[ée]claration du candidat", r"formulaire\s+dc\s?2\b",
+            r"(?:produir|remettr|fournir|joindr|compl[ée]t|transmettr|"
+            r"pr[ée]sent)[^.\n]{0,60}\bdc\s?2\b",
+            r"\bdc\s?2\b[^.\n]{0,60}(?:sera|seront|est|sont)\s+"
+            r"(?:produit|remis|fourni|joint|exig)"],
     "dc4": [r"d[ée]claration de sous-traitance", r"formulaire\s+dc\s?4\b",
-            r"\bdc\s?4\b[^.\n]{0,30}sous-trait"],
+            r"\bdc\s?4\b[^.\n]{0,30}sous-trait",
+            r"(?:produir|remettr|fournir|joindr|compl[ée]t|transmettr|"
+            r"pr[ée]sent)[^.\n]{0,60}\bdc\s?4\b"],
     "acte_engagement": [r"acte d.?engagement", r"formulaire\s+attri\s?1\b",
                         r"\battri\s?1\b[^.\n]{0,30}engagement"],
     "dpgf": [r"d[ée]composition du prix (?:global|forfaitaire)",
@@ -1329,9 +1349,177 @@ EXIGENCES = {
     "regularite_fiscale_sociale": [r"r[ée]gularit[ée] fiscale et sociale",
                                    r"attestation de vigilance",
                                    r"attestations?\s+(?:fiscales?|sociales?)"],
+
+    # ── LES HUIT QUI N'AVAIENT AUCUN MOTIF ─────────────────────────────────
+    # MESURÉ : `EXIGENCES` ne couvrait que quinze pièces sur vingt-trois. Les
+    # huit autres ne pouvaient donc JAMAIS être repérées — pas « rarement » :
+    # jamais, quel que soit le texte déposé. Une sélection fondée là-dessus
+    # aurait systématiquement omis la déclaration sur l'honneur, les CV et la
+    # note d'équipe, qui sont parmi les pièces les plus souvent demandées.
+    #
+    # CHAQUE MOTIF EST ANCRÉ SUR UNE FORMULATION, PAS SUR UN MOT. « équipe »
+    # seul apparaît dans n'importe quel CCTP ; « composition de l'équipe » est
+    # une exigence de candidature. C'est la différence entre repérer et
+    # ramasser.
+    "honneur": [r"d[ée]claration sur l.?honneur",
+                r"interdictions? de soumissionner",
+                r"absence de condamnation"],
+    "cv": [r"\bcurriculum vit[æae]\b", r"\bCV\b\s+(?:des|du|nominatifs?)",
+           r"CV des (?:intervenants|personnes|cadres)"],
+    "equipe": [r"composition de l.?[ée]quipe",
+               r"pr[ée]sentation de l.?[ée]quipe",
+               r"[ée]quipe (?:d[ée]di[ée]e|affect[ée]e|propos[ée]e)"],
+    "atd_atp": [r"aptitude technique et professionnelle",
+                r"\bATD\b\s*/?\s*\bATP\b",
+                r"capacit[ée]s? techniques? et professionnelles?"],
+    "conventions": [r"conventions? collectives?",
+                    r"convention collective applicable"],
+    "repartition_competences": [r"r[ée]partition des (?:comp[ée]tences|t[âa]ches)",
+                                r"r[ée]partition des prestations entre"],
+    "autonomie_commerciale": [r"autonomie commerciale",
+                              r"mise en concurrence r[ée]elle",
+                              r"absence d.?entente"],
+    "tiers": [r"[ée]valuation des tiers",
+              r"questionnaire (?:fournisseur|tiers)",
+              r"fiche d.?identification (?:fournisseur|tiers)"],
 }
 
 _CODES_EXIGENCES = ("rc", "ccap", "ccag", "cctp", "ae")
+
+
+# ── LE SOCLE : CE QU'UN DOSSIER MUET EXIGE QUAND MÊME ──────────────────────
+# POURQUOI IL EXISTE. Sans lui, un règlement de consultation qui n'énumère pas
+# ses pièces — c'est fréquent, il renvoie au CCAP ou à la plateforme — rendrait
+# une sélection VIDE. « Aucun document à remplir » serait faux, et faux dans le
+# sens qui fait perdre le marché.
+#
+# CE QU'IL N'EST PAS : une liste d'obligations légales. Le code de la commande
+# publique n'impose aucun FORMULAIRE — depuis le DUME, le DC1 et le DC2 sont
+# des modèles d'usage, pas des pièces obligatoires. Ce socle dit donc autre
+# chose, et le dit dans son motif : ces trois pièces portent des INFORMATIONS
+# qu'aucune consultation ne peut ne pas demander — qui candidate, avec quelle
+# capacité, et à quel prix il s'engage. Le support peut changer ; la question
+# non.
+#
+# TROIS, PAS TREIZE. Un socle large ramènerait la sélection à la liste
+# complète, et on aurait rhabillé le défaut qu'on corrige.
+SOCLE_REPONSE = {
+    "dc1": "Toute consultation demande QUI candidate. Le support varie — DC1, "
+           "DUME, formulaire propre à l'acheteur — la question non.",
+    "dc2": "Toute consultation demande sur QUELLE CAPACITÉ le candidat "
+           "s'appuie : chiffres d'affaires, références, moyens.",
+    "acte_engagement": "Une offre est un engagement de prix signé. Sans pièce "
+                       "qui le porte, il n'y a pas d'offre.",
+}
+
+
+def _catalogue():
+    """Les pièces des deux dossiers, avec leur appartenance. Une seule lecture
+    du catalogue : deux boucles séparées ont divergé une fois déjà."""
+    out = []
+    for p in DOSSIER_CANDIDATURE:
+        out.append((p, "candidature"))
+    for p in DOSSIER_OFFRE:
+        out.append((p, "offre"))
+    return out
+
+
+def selection(analyse=None, ajouts=(), ecartees=()):
+    """COMBIEN de documents ce dossier-là demande, et LESQUELS.
+
+    C'EST LA FONCTION QUI MANQUAIT, et son absence se mesurait : `remplir()`
+    rendait TOUJOURS les vingt-trois pièces du catalogue, qu'on ait déposé un
+    règlement de consultation bavard ou rien du tout. `exigees()` savait déjà
+    dire laquelle est citée où — mais son résultat servait de PASTILLE à côté
+    de chaque pièce, jamais de filtre. Le nombre affiché était donc une
+    propriété du catalogue, pas du dossier de l'acheteur.
+
+    QUATRE RAISONS D'ÊTRE RETENUE, ET CHACUNE SE DIT :
+      · `citee`   — le dossier la nomme, et la citation est joint ;
+      · `socle`   — aucune consultation ne peut ne pas la demander (voir
+                    `SOCLE_REPONSE`, qui porte le motif de chacune des trois) ;
+      · `ajoutee` — l'opérateur l'a demandée à la main ;
+      · `ecartee` — l'opérateur l'a retirée, alors même qu'elle était citée.
+
+    UNE PIÈCE NON RETENUE NE DISPARAÎT PAS. Elle ressort `retenue: False` avec
+    `pourquoi: "non_reperee"`, et c'est délibéré : masquer ce qui n'a pas été
+    repéré ferait passer un défaut de reconnaissance pour une absence
+    d'exigence. C'est déjà la doctrine d'`exigees`, et elle vaut ici.
+
+    LE GESTE DE L'OPÉRATEUR L'EMPORTE SUR LE RELEVÉ, dans les deux sens : il
+    connaît la consultation, le moteur ne fait que lire. Mais écarter une pièce
+    CITÉE laisse une trace — `contre_citation` — parce que retirer ce que
+    l'acheteur demande est une décision, pas un réglage.
+    """
+    ex = (analyse or {}).get("exigences") or {}
+    ajouts = set(ajouts or ())
+    ecartees = set(ecartees or ())
+    # LA CORRESPONDANCE PIÈCE → MODÈLE EST LUE, PAS RECOPIÉE. Les clés ne
+    # coïncident pas : le modèle de l'acte d'engagement s'appelle « attri1 »,
+    # la pièce « acte_engagement ». Un `cle in MODELES` déclarait donc l'acte
+    # d'engagement non remplissable alors qu'il l'est — mesuré, deux
+    # remplissables au lieu de trois. `MODELES[x]["piece"]` porte le lien, et
+    # c'est le seul endroit où il est écrit.
+    import ao_formulaires as _F
+    remplissables = set()
+    for _cle_mod, _m in _F.MODELES.items():
+        remplissables.add(_m.get("piece") or _cle_mod)
+
+    lignes = []
+    for p, dossier in _catalogue():
+        cle = p["cle"]
+        e = ex.get(cle) or {}
+        citee = bool(e.get("repere"))
+        ligne = {
+            "cle": cle,
+            "nom": p["nom"],
+            "dossier": dossier,
+            "famille": p.get("famille"),
+            "nature": p.get("nature"),
+            "bloquant": bool(p.get("bloquant")),
+            "citation": e.get("citation"),
+            "remplissable": cle in remplissables,
+            "contre_citation": False,
+        }
+        if cle in ecartees:
+            ligne.update(retenue=False, pourquoi="ecartee",
+                         motif="Retirée à la main.",
+                         contre_citation=citee)
+        elif cle in ajouts:
+            ligne.update(retenue=True, pourquoi="ajoutee",
+                         motif="Ajoutée à la main pour cette consultation.")
+        elif citee:
+            ligne.update(retenue=True, pourquoi="citee",
+                         motif="Nommée dans le dossier déposé.")
+        elif cle in SOCLE_REPONSE:
+            ligne.update(retenue=True, pourquoi="socle",
+                         motif=SOCLE_REPONSE[cle])
+        else:
+            ligne.update(retenue=False, pourquoi="non_reperee",
+                         motif="Non repérée dans le dossier déposé. Le dossier "
+                               "peut la demander sans la nommer : ajoutez-la.")
+        lignes.append(ligne)
+
+    retenues = [x for x in lignes if x["retenue"]]
+    return {
+        "version": VERSION,
+        "lignes": lignes,
+        "catalogue": len(lignes),
+        "retenues": len(retenues),
+        "par_dossier": {
+            "candidature": [x["cle"] for x in retenues
+                            if x["dossier"] == "candidature"],
+            "offre": [x["cle"] for x in retenues if x["dossier"] == "offre"],
+        },
+        # CE QUE LE MOTEUR NE SAIT PAS REMPLIR, DIT ICI ET PAS DÉCOUVERT PLUS
+        # TARD. Quatre modèles de l'État sont remplissables ; les autres pièces
+        # se rédigent ou se demandent à un tiers. Annoncer « 11 documents à
+        # remplir automatiquement » quand quatre seulement le sont est la
+        # promesse la plus facile à démentir de tout ce module.
+        "remplissables": [x["cle"] for x in retenues if x["remplissable"]],
+        "a_produire": [x["cle"] for x in retenues if not x["remplissable"]],
+        "sans_analyse": not ex,
+    }
 
 
 def exigees(sources):
@@ -3337,7 +3525,7 @@ def _index_releves(analyse):
 
 
 def remplir(fiche=None, analyse=None, saisies=None, groupement=False,
-            fournies=None):
+            fournies=None, perimetre=None):
     """Chaque pièce des DEUX dossiers, rubrique par rubrique, avec la valeur
     ET son origine.
 
@@ -3392,6 +3580,25 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False,
     # divergeraient le jour où l'une des deux serait corrigée.
     a_remplir = ([("candidature", b, _groupement) for b in DOSSIER_CANDIDATURE]
                  + [("offre", b, _groupement_offre) for b in DOSSIER_OFFRE])
+
+    # LE PÉRIMÈTRE : CE QUE CE DOSSIER-LÀ DEMANDE, ET RIEN D'AUTRE.
+    #
+    # CE QUE LE DÉFAUT COÛTAIT. Sans ce filtre, l'écran rendait TOUJOURS les
+    # vingt-trois pièces du catalogue — qu'on ait déposé un règlement bavard
+    # ou rien. Le nombre affiché était une propriété du CATALOGUE, jamais du
+    # dossier de l'acheteur, et « 23 documents à remplir » se lisait comme une
+    # exigence de la consultation. C'est `selection()` qui décide désormais, et
+    # ce paramètre est la porte par laquelle sa décision entre.
+    #
+    # UN PÉRIMÈTRE VIDE N'EST PAS UN PÉRIMÈTRE ABSENT. `None` veut dire « tout
+    # le catalogue » — c'est le comportement d'avant, et tous les appels qui
+    # ne connaissent pas encore la sélection le gardent. Une LISTE vide veut
+    # dire « rien n'est retenu », et rend zéro pièce : confondre les deux
+    # ferait réapparaître les vingt-trois au moment précis où la sélection
+    # conclut qu'aucune n'est demandée.
+    if perimetre is not None:
+        garde = {str(x) for x in perimetre}
+        a_remplir = [x for x in a_remplir if x[1]["cle"] in garde]
     pieces = []
     for dossier, base, groupe in a_remplir:
         cle_piece = base["cle"]

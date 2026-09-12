@@ -4640,7 +4640,25 @@ def api_datacenter_marche_analyser():
     # qu'on rend est exactement ce sur quoi les relevés ont tourné, ce qui est
     # la seule chose utile à relire pour comprendre un relevé. L'écran doit le
     # dire, et une règle l'exige.
-    return jsonify(ok=True, analyse=a,
+    # LA SÉLECTION SORT DU MÊME APPEL QUE L'ANALYSE, et ce n'est pas une
+    # commodité. Deux routes séparées auraient permis à l'écran d'afficher une
+    # sélection calculée sur une analyse, à côté d'un relevé issu d'une autre —
+    # le genre d'incohérence qu'on ne voit pas et qui fait remplir la mauvaise
+    # pièce. Un seul appel, une seule vérité.
+    #
+    # LES GESTES DE L'OPÉRATEUR VOYAGENT AVEC LA DEMANDE. `ajouts` et
+    # `ecartees` viennent du navigateur : il connaît la consultation, le moteur
+    # ne fait que lire un texte. La liste est bornée — une charge qui
+    # énumérerait dix mille clés ne coûterait rien à écrire et ferait tourner
+    # la sélection sur du bruit.
+    ajouts = [str(x)[:64] for x in (data.get("ajouts") or [])][:60]
+    ecartees = [str(x)[:64] for x in (data.get("ecartees") or [])][:60]
+    try:
+        sel = ao_dc.selection(a, ajouts=ajouts, ecartees=ecartees)
+    except Exception:
+        app.logger.exception("sélection des pièces à remplir")
+        sel = None
+    return jsonify(ok=True, analyse=a, selection=sel,
                    textes={d["nom"]: d["texte"] for d in docs})
 
 
@@ -4775,7 +4793,8 @@ def api_datacenter_marche_remplir():
     fournies = _ao_fournies(data)
     try:
         r = ao_dc.remplir(fiche=fiche, analyse=analyse, saisies=saisies,
-                          groupement=groupement, fournies=fournies)
+                          groupement=groupement, fournies=fournies,
+                          perimetre=_ao_perimetre(data))
     except Exception:
         app.logger.exception("remplissage du dossier de candidature")
         return jsonify(ok=False, error="calcul",
@@ -4803,7 +4822,8 @@ def api_datacenter_marche_export():
     fmt = livrables_export.format_demande(data.get("format"))
     try:
         r = ao_dc.remplir(fiche=fiche, analyse=analyse, saisies=saisies,
-                          groupement=groupement)
+                          groupement=groupement,
+                          perimetre=_ao_perimetre(data))
         md = ao_dc.markdown_remplissage(r)
     except Exception:
         app.logger.exception("remplissage à exporter")
@@ -4905,6 +4925,30 @@ def _ao_fournies(data):
     brut = data.get("fournies")
     if not isinstance(brut, (list, tuple)):
         return []
+    return [str(x)[:40] for x in brut[:60]]
+
+
+def _ao_perimetre(data):
+    """LES PIÈCES QUE CE DOSSIER-LÀ DEMANDE — ou None pour tout le catalogue.
+
+    IL SERT DEUX ROUTES, ET C'EST LA RAISON DE SON EXISTENCE. Le remplissage
+    et l'export doivent voir le MÊME périmètre : un écran qui annonce six
+    pièces à côté d'une archive qui en livre vingt-trois est un défaut qu'on ne
+    découvre qu'à la remise, chez l'acheteur. Lire le périmètre à deux endroits
+    aurait garanti qu'ils divergent le jour où l'un des deux serait corrigé.
+
+    `None` ET `[]` NE SONT PAS LA MÊME CHOSE, et la distinction est tout
+    l'intérêt. Clé absente → `None` → tout le catalogue, c'est-à-dire le
+    comportement d'avant la sélection, que gardent les appels qui ne la
+    connaissent pas. Liste vide → `[]` → aucune pièce : la sélection a conclu
+    que ce dossier n'en demande aucune, et lui répondre par les vingt-trois
+    serait exactement le défaut qu'on corrige.
+    """
+    brut = data.get("perimetre")
+    if brut is None:
+        return None
+    if not isinstance(brut, (list, tuple)):
+        return None
     return [str(x)[:40] for x in brut[:60]]
 
 
@@ -5197,7 +5241,8 @@ def api_datacenter_marche_parcours():
     fiche, analyse, saisies, groupement = _ao_charge(data)
     try:
         r = ao_dc.remplir(fiche=fiche, analyse=analyse, saisies=saisies,
-                          groupement=groupement)
+                          groupement=groupement,
+                          perimetre=_ao_perimetre(data))
     except Exception:
         app.logger.exception("parcours — remplissage")
         return jsonify(ok=False, error="calcul",
@@ -5246,7 +5291,8 @@ def api_datacenter_marche_dossier_zip():
     fmt = livrables_export.format_demande(data.get("format"))
     try:
         r = ao_dc.remplir(fiche=fiche, analyse=analyse, saisies=saisies,
-                          groupement=groupement)
+                          groupement=groupement,
+                          perimetre=_ao_perimetre(data))
         md = ao_dc.markdown_remplissage(r)
     except Exception:
         app.logger.exception("dossier complet — remplissage")
