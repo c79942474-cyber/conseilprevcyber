@@ -6363,8 +6363,18 @@ function messageDelai(e, defaut) {
          pas su le nommer ? Les deux se distinguent en lisant le texte, et
          d'aucune autre manière. */
       h += '<div class="ig-ao-p ig-ao-inc"><div class="ig-ao-ph"><b>'
-        + esc(p.fichier) + "</b>" + aoTexteBouton(p.fichier) + "</div>"
-        + "<p>" + esc(p.pourquoi) + "</p>";
+        + esc(p.fichier) + "</b>" + aoTexteBouton(p.fichier) + "</div>";
+      /* UN FORMULAIRE VIERGE N'EST PAS UN FICHIER NON RECONNU, et le dire
+         ainsi ferait croire à une panne d'identification alors que le module
+         l'a placé, à droite, dans les documents à produire. Deux écrans qui
+         se contredisent sur le même fichier sont pires qu'un seul muet. */
+      if (p.formulaire_fourni) {
+        h += '<p class="ig-ao-k">Formulaire à remplir joint au dossier. Il ne '
+          + "porte aucune clause à relever&nbsp;: il est porté à droite, dans "
+          + "les documents à produire.</p>";
+      } else {
+        h += "<p>" + esc(p.pourquoi) + "</p>";
+      }
       if ((p.releves || []).length) {
         h += '<p class="ig-ao-k">Le fichier n\'a pas été identifié, mais son '
           + "texte a été lu : ce qu'il porte est repris ci-dessous et versé "
@@ -6515,11 +6525,20 @@ function messageDelai(e, defaut) {
       h += "</select>" + '<ul class="ig-ao-sl">';
       lignes.forEach(function (x) {
         var cls = x.pourquoi === "citee" ? " p-citee"
-                : x.pourquoi === "socle" ? " p-socle" : "";
+                : x.pourquoi === "socle" ? " p-socle"
+                : x.pourquoi === "fournie_au_dossier" ? " p-fournie" : "";
         h += '<li><span class="n">' + esc(x.nom)
           + (x.remplissable ? "" : ' <span class="ig-ao-sn">à produire</span>')
+          /* LE FICHIER QUI L'A APPORTÉE, DIT SUR LA LIGNE. Sans lui, « fournie
+             au dossier » n'est qu'une affirmation de plus : on ne saurait pas
+             lequel des quinze fichiers déposés porte ce formulaire. */
+          + (x.fichier_fourni
+              ? ' <span class="ig-ao-sn">formulaire joint&nbsp;: '
+                + esc(x.fichier_fourni) + "</span>"
+              : "")
           + "</span>"
-          + '<span class="p' + cls + '">' + esc(x.pourquoi.replace("_", " "))
+          + '<span class="p' + cls + '">'
+          + esc(x.pourquoi.split("_").join(" "))
           + "</span>"
           + '<button type="button" data-sel-' + (x.retenue ? "off" : "on")
           + '="' + esc(x.cle) + '">' + (x.retenue ? "retirer" : "ajouter")

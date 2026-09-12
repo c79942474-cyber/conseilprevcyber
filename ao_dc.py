@@ -556,6 +556,90 @@ PIECES_CANDIDAT = {
 }
 
 
+#: LES FORMULAIRES À REMPLIR QUE L'ACHETEUR JOINT À SON DOSSIER.
+#:
+#: UN FORMULAIRE PRÉSENT DANS LE DCE EST UN FORMULAIRE ATTENDU EN RETOUR, et
+#: c'est un fait au moins aussi fort qu'une citation dans le règlement : le
+#: règlement peut omettre de lister une pièce dont il joint pourtant le
+#: cerfa. Jusqu'ici un DC1 vierge déposé avec le dossier tombait en
+#: « non identifié » — le module ne savait pas le nommer, et la colonne de
+#: droite ne le voyait pas.
+#:
+#: LE NOM DE FICHIER DÉCIDE, PAS LE TEXTE. Le règlement de la consultation
+#: nomme « DC1 » à longueur de page : reconnaître sur le texte ferait passer
+#: le règlement lui-même pour un formulaire DC1. Ce que cette table repère,
+#: c'est la PRÉSENCE du fichier — la citation, elle, a déjà son chemin.
+#: LA BORNE DE DROITE COMPTE AUTANT QUE CELLE DE GAUCHE. Mesuré :
+#: « plan-dc-1er-etage.pdf » entrait dans un motif borné au seul chiffre —
+#: « dc-1 » suivi de « er ». Un plan d'étage serait devenu un DC1 à remplir.
+#: La lettre qui suit le chiffre est donc interdite, comme le chiffre.
+FORMULAIRES_FOURNIS = {
+    "dc1": [r"(?<![a-z0-9])dc[\s._-]*0*1(?![0-9a-z])",
+            r"lettre de candidature"],
+    "dc2": [r"(?<![a-z0-9])dc[\s._-]*0*2(?![0-9a-z])",
+            r"d[ée]claration du candidat"],
+    "dc4": [r"(?<![a-z0-9])dc[\s._-]*0*4(?![0-9a-z])",
+            r"d[ée]claration de sous[\s._-]*trait"],
+}
+
+#: Les pièces du DCE qui SONT des formulaires de réponse, et la pièce de
+#: réponse qu'elles appellent. Elles sont déjà identifiées comme pièces du
+#: dossier de consultation : inutile de les reconnaître deux fois, il suffit
+#: de dire ce qu'elles commandent.
+CODE_DCE_VERS_REPONSE = {
+    "ae": "acte_engagement",
+    "dpgf": "dpgf",
+}
+
+
+#: LE LIBELLÉ PROPRE DE CHAQUE FORMULAIRE — ce qui, dans le nom ou dans le
+#: texte, lève l'ambiguïté du sigle.
+FORMULAIRE_LIBELLE = {
+    "dc1": r"lettre de candidature",
+    "dc2": r"d[ée]claration du candidat",
+    "dc4": r"d[ée]claration de sous[\s._-]*trait",
+}
+
+#: « DC » EST LE SIGLE DU CENTRE DE DONNÉES AUTANT QUE CELUI DE LA DÉCLARATION
+#: DU CANDIDAT — et ce module ne traite QUE des centres de données. Mesuré :
+#: « lot DC 2 - CVC.pdf », un lot de travaux, passait pour un formulaire DC2.
+#: Un nom qui désigne un LOT ne désigne pas un cerfa.
+#:
+#: L'ARBITRAGE, ET CE QU'IL COÛTE. Un nom qui porte À LA FOIS le sigle et le
+#: libellé du formulaire échappe à cette garde : « DC1 - lettre de candidature
+#: - lot 1.pdf » reste un DC1. Ce qui est perdu, c'est le formulaire nommé par
+#: son seul sigle À CÔTÉ d'un numéro de lot. Le manque est sans gravité pour
+#: le DC1 et le DC2 — le socle les retient de toute façon — et rattrapable à
+#: la main pour le DC4. Le faux positif inverse, lui, ferait produire un
+#: formulaire qu'aucune consultation ne demande.
+_LOT = re.compile(r"(?<![a-z])(?:lots?|tranches?|phase)(?![a-z])")
+
+
+def _formulaire_fourni(n, code_dce, t=""):
+    """La pièce de RÉPONSE que ce fichier déposé appelle, ou None.
+
+    `n` : le nom de fichier en minuscules, désaccentué. `code_dce` : le code de
+    pièce du DCE si le fichier en est une. `t` : son texte, même traitement.
+
+    LE NOM PROPOSE, LE TEXTE DISPOSE — la doctrine déjà écrite pour
+    `_piece_candidat`, et pour la même raison. Un formulaire vierge scanné n'a
+    pas de texte : le nom décide alors seul.
+    """
+    if code_dce and code_dce in CODE_DCE_VERS_REPONSE:
+        return CODE_DCE_VERS_REPONSE[code_dce]
+    for cle, motifs in FORMULAIRES_FOURNIS.items():
+        if not any(re.search(m, n) for m in motifs):
+            continue
+        libelle = FORMULAIRE_LIBELLE[cle]
+        if _LOT.search(n) and not re.search(libelle, n):
+            return None
+        if t and not (re.search(libelle, t)
+                      or any(re.search(m, t) for m in motifs)):
+            return None
+        return cle
+    return None
+
+
 def _piece_candidat(n, t):
     """La pièce du dossier CANDIDAT reconnue, ou None.
 
@@ -1465,6 +1549,15 @@ def selection(analyse=None, ajouts=(), ecartees=()):
     for _cle_mod, _m in _F.MODELES.items():
         remplissables.add(_m.get("piece") or _cle_mod)
 
+    # LES FORMULAIRES JOINTS AU DOSSIER DÉPOSÉ. Deuxième source, à côté des
+    # citations : la présence du cerfa vierge dit que l'acheteur l'attend
+    # rempli, même si son règlement omet de le lister.
+    fournis = {}
+    for f in (analyse or {}).get("formulaires_fournis") or []:
+        c = f.get("cle")
+        if c and c not in fournis:
+            fournis[c] = f.get("fichier") or ""
+
     lignes = []
     for p, dossier in _catalogue():
         cle = p["cle"]
@@ -1480,6 +1573,11 @@ def selection(analyse=None, ajouts=(), ecartees=()):
             "citation": e.get("citation"),
             "remplissable": cle in remplissables,
             "contre_citation": False,
+            # LE FICHIER QUI L'A APPORTÉE, s'il y en a un. Il reste attaché à
+            # la ligne quelle que soit la raison de la retenue : une pièce
+            # citée ET fournie doit dire « citée » — c'est l'exigence qui
+            # compte — sans perdre qu'on en tient déjà le formulaire.
+            "fichier_fourni": fournis.get(cle),
         }
         if cle in ecartees:
             ligne.update(retenue=False, pourquoi="ecartee",
@@ -1491,6 +1589,11 @@ def selection(analyse=None, ajouts=(), ecartees=()):
         elif citee:
             ligne.update(retenue=True, pourquoi="citee",
                          motif="Nommée dans le dossier déposé.")
+        elif cle in fournis:
+            ligne.update(
+                retenue=True, pourquoi="fournie_au_dossier",
+                motif="Le formulaire vierge est joint au dossier déposé "
+                      "(%s) : l'acheteur l'attend rempli." % fournis[cle])
         elif cle in SOCLE_REPONSE:
             ligne.update(retenue=True, pourquoi="socle",
                          motif=SOCLE_REPONSE[cle])
@@ -1560,7 +1663,7 @@ def analyser(documents):
     premier jour.
     """
     pieces, inconnues, presentes, a_nous = [], [], set(), []
-    srcs = []
+    srcs, fournis = [], []
     for d in documents or []:
         nom = (d.get("nom") or d.get("filename") or "").strip()
         texte = d.get("texte") or ""
@@ -1569,6 +1672,17 @@ def analyser(documents):
         ident = identifier(nom, texte, ext)
         ligne = {"fichier": nom, "identification": ident,
                  "octets_texte": len(texte)}
+        # UN FORMULAIRE JOINT AU DOSSIER EST UN FORMULAIRE ATTENDU EN RETOUR.
+        # Il se relève ICI, avant tout classement : un DC1 vierge n'est ni une
+        # pièce du dossier de consultation — il ne porte aucune clause — ni un
+        # fichier illisible. Il tombait donc en « non identifié », et la
+        # colonne des documents à produire ne le voyait pas.
+        _rep = _formulaire_fourni(_sans_accent((nom or "").lower()),
+                                  ident.get("code"),
+                                  _sans_accent(texte[:20000].lower()))
+        if _rep:
+            ligne["formulaire_fourni"] = _rep
+            fournis.append({"fichier": nom, "cle": _rep})
         if ident["reconnue"]:
             code = ident["code"]
             presentes.add(code)
@@ -1632,6 +1746,11 @@ def analyser(documents):
         # sont pas — NI comme fichiers non reconnus : on sait ce qu'elles
         # sont, et on dit où elles vont.
         "pieces_candidat": a_nous,
+        # LES FORMULAIRES VIERGES QUE L'ACHETEUR JOINT, et la pièce de réponse
+        # que chacun appelle. C'est la seconde source de la sélection, à côté
+        # des citations du règlement : un dossier qui joint le cerfa sans le
+        # lister dans son article « pièces à produire » l'attend quand même.
+        "formulaires_fournis": fournis,
         "manquantes": manquantes,
         "alertes": _alertes(pieces, manquantes, inconnues, a_nous),
         "ordre_lecture": [{"rang": p["rang_lecture"], "sigle": p["sigle"],
