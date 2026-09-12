@@ -45,12 +45,42 @@ DOSSIER_ORIGINE = os.path.join(ICI, "dossier_entreprise", "origine")
 # dire depuis combien de temps.
 ETABLI_LE = "2026-08-13"
 
+# ── LES EXERCICES CLOS, ET D'OÙ CHAQUE MONTANT SORT ───────────────────────
+# LE DC2 DEMANDE LE CHIFFRE D'AFFAIRES GLOBAL DES TROIS DERNIERS EXERCICES, et
+# l'acheteur peut le confronter à la liasse. Un montant arrondi de mémoire se
+# voit donc — et se voit du mauvais côté. Chaque ligne porte SA SOURCE : le
+# document qui l'établit, et à quelle page ou rubrique il l'établit.
+#
+# ILS SONT RANGÉS PAR ANNÉE DÉCROISSANTE, ET C'EST LE RANG QUI FAIT n1/n2/n3.
+# Écrire « ca_n1 = … » figerait le rang : le jour où l'exercice 2026 est clos,
+# il faudrait décaler trois valeurs à la main, et rien ne dirait qu'on a
+# oublié. Ici, une ligne s'ajoute en tête et les trois rangs suivent seuls.
+EXERCICES = (
+    {"annee": 2025, "ca": "7 496 €",
+     "source": "attestation de présentation des comptes, BDO Rennes — "
+               "exercice du 01/01/2025 au 31/12/2025"},
+    {"annee": 2024, "ca": "21 800 €",
+     "source": "attestation d'expert-comptable, BDO — exercice du "
+               "01/01/2024 au 31/12/2024"},
+    {"annee": 2023, "ca": "79 328 €",
+     "source": "colonne 31/12/2023 du compte de résultat des états "
+               "financiers 2024 (BDO, page 4) et soldes intermédiaires de "
+               "gestion (page 15)"},
+)
+
 IDENTITE = {
     "raison_sociale": "CONSEILPREV SARL",
     "forme_juridique": "SARL",
     "capital": "8 000 €",
     "siren": "494 530 157",
-    "siret": None,                      # non porté par les documents d'origine
+    # LE SIRET A ÉTÉ TRANCHÉ PAR LE GÉRANT, PAS PAR UN CALCUL. Deux valeurs
+    # circulaient — celle-ci et « 494 530 157 00010 » —, et les DEUX passent la
+    # clé de Luhn : l'arithmétique ne pouvait pas départager, seul l'avis de
+    # situation le pouvait. Elle est retenue sur déclaration du gérant du
+    # 12/09/2026. La cohérence avec le SIREN et la clé restent vérifiées à
+    # l'import : une faute de frappe se verrait.
+    "siret": "494 530 157 00036",
+    "exercices": EXERCICES,
     "tva": "FR 24 494 530 157",
     "adresse": "19 rue Auguste Chabrières, 75015 Paris",
     "telephone": "+33 6 60 69 21 45",
@@ -815,21 +845,94 @@ NOTE_DOSSIER = (
 # Où chaque champ manquant se trouve. Écrit ici plutôt que dans l'écran : c'est
 # une propriété du champ, pas de la page qui l'affiche.
 OU_TROUVER = {
-    "siret": "sur l'avis de situation INSEE (avis-situation-sirene.insee.fr) — "
-             "le SIREN est connu, il manque les cinq chiffres du NIC",
+    "siret": "sur l'avis de situation INSEE (avis-situation-sirene.insee.fr)",
     "rcs": "sur l'extrait Kbis, mention « RCS » suivie de la ville et du numéro",
     "naf": "sur l'avis de situation INSEE, code APE/NAF à quatre chiffres et "
            "une lettre",
     "effectif": "effectif moyen annuel — bilan social ou déclaration sociale "
                 "nominative",
-    "ca_n1": "chiffre d'affaires du dernier exercice clos — liasse fiscale",
-    "ca_n2": "chiffre d'affaires de l'avant-dernier exercice clos",
-    "ca_n3": "chiffre d'affaires du troisième exercice clos",
+    # Ces trois-là se déduisent d'`EXERCICES` : ils ne manquent que si le
+    # dossier porte moins de trois exercices clos. Le dire ainsi plutôt que
+    # « liasse fiscale » envoie au bon endroit — le module, pas le classeur.
+    "ca_n1": "chiffre d'affaires du dernier exercice clos — à porter dans "
+             "EXERCICES, avec la source qui l'établit",
+    "ca_n2": "chiffre d'affaires de l'avant-dernier exercice clos — à porter "
+             "dans EXERCICES, avec sa source",
+    "ca_n3": "chiffre d'affaires du troisième exercice clos — à porter dans "
+             "EXERCICES, avec sa source",
     "assurance_compagnie": "sur l'attestation de responsabilité civile "
                            "professionnelle en cours",
     "assurance_police": "numéro de police, sur la même attestation",
     "assurance_echeance": "date d'échéance, sur la même attestation",
 }
+
+def _rangs_exercices(exercices):
+    """Les trois derniers exercices clos, rangés : {ca_n1, ca_n2, ca_n3}.
+
+    ELLE NE LIT PAS L'HORLOGE. « Le dernier exercice clos » est le plus récent
+    de ceux que le dossier PORTE, pas celui que le calendrier suggère : si
+    l'exercice 2026 est clos mais pas encore versé ici, le rappeler ne le ferait
+    pas exister, et un `datetime.now()` ferait simplement rendre un document
+    différent selon le jour où on le demande.
+
+    ELLE REND MOINS DE TROIS RANGS PLUTÔT QUE DE COMPLÉTER. Deux exercices
+    portés donnent deux rangs ; le troisième ressort alors comme MANQUANT, avec
+    l'endroit où le trouver — ce qui se corrige — au lieu d'un montant recopié
+    du précédent, qui ne se voit pas.
+    """
+    lignes = [x for x in (exercices or [])
+              if isinstance(x, dict) and x.get("annee") is not None
+              and str(x.get("ca") or "").strip()]
+    lignes.sort(key=lambda x: -int(x["annee"]))
+    return {"ca_n%d" % (i + 1): x["ca"] for i, x in enumerate(lignes[:3])}
+
+
+def _verifier_identite():
+    """Les contrôles d'intégrité de l'identité, passés à l'import.
+
+    POURQUOI À L'IMPORT ET NON DANS UNE RÈGLE. Un SIRET incohérent avec son
+    SIREN part dans un DC1 déposé chez un acheteur. Le module doit refuser de
+    démarrer, pas attendre qu'on lance la suite de tests.
+    """
+    siren = re.sub(r"\D", "", IDENTITE["siren"] or "")
+    siret = re.sub(r"\D", "", IDENTITE["siret"] or "")
+    if siret:
+        if not siret.startswith(siren):
+            raise AssertionError(
+                "SIRET %s : ne commence pas par le SIREN %s" % (siret, siren))
+        if len(siret) != 14:
+            raise AssertionError("SIRET %s : %d chiffres au lieu de 14"
+                                 % (siret, len(siret)))
+        if not _luhn(siret):
+            raise AssertionError("SIRET %s : clé de contrôle fausse" % siret)
+    annees = [x["annee"] for x in EXERCICES]
+    if annees != sorted(annees, reverse=True) or len(set(annees)) != len(annees):
+        raise AssertionError(
+            "EXERCICES : les années doivent être distinctes et décroissantes, "
+            "lues %r" % (annees,))
+    for x in EXERCICES:
+        if not str(x.get("source") or "").strip():
+            raise AssertionError(
+                "Exercice %s : un montant sans source ne se vérifie pas."
+                % x.get("annee"))
+
+
+def _luhn(chiffres):
+    """La clé de contrôle SIREN/SIRET. Elle ne prouve pas que le numéro EXISTE
+    — seulement qu'il n'a pas été mal recopié. Les deux SIRET qui circulaient
+    pour ce cabinet la passaient tous les deux : c'est bien un garde-fou de
+    frappe, pas une vérification d'identité."""
+    total, double = 0, False
+    for ch in reversed(str(chiffres)):
+        d = int(ch)
+        if double:
+            d *= 2
+            if d > 9:
+                d -= 9
+        total += d
+        double = not double
+    return total % 10 == 0
+
 
 _ADRESSE = re.compile(r"^\s*(.+?)\s*,\s*(\d{5})\s+(.+?)\s*$")
 
@@ -853,6 +956,7 @@ def fiche_candidat(identite=None):
     """
     ident = dict(identite if identite is not None else IDENTITE)
     rue, cp, ville = _scinder_adresse(ident.get("adresse"))
+    rangs = _rangs_exercices(ident.get("exercices"))
     brut = {
         "raison_sociale": ident.get("raison_sociale"),
         "forme_juridique": ident.get("forme_juridique"),
@@ -884,9 +988,13 @@ def fiche_candidat(identite=None):
         "representant_nom": ident.get("representant_nom"),
         "representant_qualite": ident.get("representant_qualite"),
         "effectif": ident.get("effectif"),
-        "ca_n1": ident.get("ca_n1"),
-        "ca_n2": ident.get("ca_n2"),
-        "ca_n3": ident.get("ca_n3"),
+        # LE RANG SE CALCULE, IL NE SE RECOPIE PAS — voir `EXERCICES`. Une
+        # correction explicite (« identite.ca_n1 ») l'emporte quand même :
+        # c'est la seule façon de rattraper un exercice non encore porté ici
+        # sans attendre une mise à jour du module.
+        "ca_n1": ident.get("ca_n1") or rangs.get("ca_n1"),
+        "ca_n2": ident.get("ca_n2") or rangs.get("ca_n2"),
+        "ca_n3": ident.get("ca_n3") or rangs.get("ca_n3"),
         "assurance_compagnie": ident.get("assurance_compagnie"),
         "assurance_police": ident.get("assurance_police"),
         "assurance_echeance": ident.get("assurance_echeance"),
@@ -938,3 +1046,9 @@ def pied_markdown():
     return ["", "---", "", PAPIER_ENTETE["formule"], "",
             PAPIER_ENTETE["signataire"].replace("\n", "  \n"), "",
             "---", "", "*%s*" % PAPIER_ENTETE["pied"].replace("\n", " — ")]
+
+
+# LA GARDE PASSE À L'IMPORT, PAS DANS UNE RÈGLE. Un SIRET incohérent avec son
+# SIREN, ou un montant sans source, partiraient dans un DC1 déposé chez un
+# acheteur. Le module refuse de démarrer plutôt que d'attendre la suite.
+_verifier_identite()

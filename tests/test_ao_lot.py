@@ -1156,9 +1156,34 @@ def test_ce_que_le_dossier_NE_PEUT_PAS_fournir_est_NOMME():
            if len((m.get("ou_trouver") or "").strip()) < 25]
     assert not nus, (
         "ces champs manquants ne disent pas où les trouver : %s" % nus)
-    # ET LE SIRET EN FAIT PARTIE, nommément : c'est le cas que les documents
-    # d'origine signalent eux-mêmes.
-    assert "siret" in [m["cle"] for m in r["manques"]]
+    # ET LA MÊME FAUTE A ÉTÉ COMMISE DEUX FOIS DANS CE FICHIER. La ligne qui
+    # suivait épinglait « siret » parmi les manques — exactement le défaut que
+    # la docstring ci-dessus dénonce, reproduit sur le champ d'à côté. Elle est
+    # tombée le jour où le SIRET a été porté au dossier, c'est-à-dire le jour
+    # où le programme a fait ce qu'on lui demandait.
+    #
+    # L'INVARIANT QUI TIENT : un champ est fourni OU manquant, jamais les deux,
+    # jamais aucun des deux. C'est ce que la liste doit garantir, et cela reste
+    # vrai que le dossier se remplisse ou se vide.
+    fournis, manquants = set(r["fiche"]), {m["cle"] for m in r["manques"]}
+    assert not (fournis & manquants), sorted(fournis & manquants)
+    assert not any(not str(v).strip() for v in r["fiche"].values()), (
+        "un champ vide passe pour fourni : %r"
+        % {k: v for k, v in r["fiche"].items() if not str(v).strip()})
+
+    # ET LE CAS POUR LEQUEL LE FILTRE EXISTE EST EXERCÉ. Sur les données
+    # réelles, un champ absent vaut None — jamais "" ni "   ". La ligne
+    # ci-dessus est donc vraie même si le filtre ne rejetait plus que None,
+    # et une mutation qui l'affaiblit y survit : mesuré, elle a survécu.
+    # Or `appliquer()` accepte des corrections saisies, et une correction
+    # effacée arrive comme chaîne vide. Le filtre sert précisément à ça.
+    creux = dict(_de.IDENTITE, telephone="", courriel="   ")
+    c = _de.fiche_candidat(creux)
+    assert "telephone" not in c["fiche"] and "courriel" not in c["fiche"], (
+        "une chaîne vide passe pour une valeur : %r"
+        % {k: c["fiche"].get(k) for k in ("telephone", "courriel")})
+    vides = {m["cle"] for m in c["manques"]}
+    assert {"telephone", "courriel"} <= vides, sorted(vides)
 
 
 def test_les_pieces_et_le_dossier_s_ADDITIONNENT():
