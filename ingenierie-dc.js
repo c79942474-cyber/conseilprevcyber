@@ -8524,7 +8524,32 @@ function messageDelai(e, defaut) {
           + "et une pièce redéposée sous le même nom remplace la sienne. "
           + "<b>Ce qui est conservé est le texte extrait</b>, pas le fichier "
           + "d'origine&nbsp;: « Lire » ouvre ce texte, avec les passages "
-          + "relevés surlignés.</p><ul class=\"ig-cons-l\">";
+          + "relevés surlignés.</p>";
+        /* LA LISTE DÉROULANTE DU DOSSIER CONSERVÉ. Elle sert à ATTEINDRE une
+           pièce quand il y en a quinze, et à en retirer une sans parcourir le
+           détail. Le détail reste dessous : il porte l'empreinte et la taille,
+           que la déroulante ne peut pas montrer sans devenir illisible.
+
+           LES DEUX LISENT LA MÊME TABLE, `d.pieces`. Les alimenter séparément
+           aurait garanti qu'elles divergent — et c'est la déroulante, plus
+           courte, qu'on aurait crue exhaustive. */
+        h += '<div class="ig-cons-rang">'
+          + '<label class="dc-lab" for="ig-cons-piece">Les pièces conservées'
+          + "</label>"
+          + '<select id="ig-cons-piece" '
+          + 'aria-label="Pièces conservées dans ce projet">'
+          + '<option value="">' + (d.pieces || []).length
+          + " pièce(s) — choisir…</option>";
+        (d.pieces || []).forEach(function (x) {
+          h += '<option value="' + esc(x.nom) + '">' + esc(x.nom) + " — "
+            + esc(aoOctets(x.octets)) + " de texte</option>";
+        });
+        h += "</select>"
+          + '<button type="button" class="btn btn-s" id="ig-cons-lire">'
+          + "Lire</button>"
+          + '<button type="button" class="btn btn-s" id="ig-cons-otez">'
+          + "Retirer</button></div>"
+          + '<ul class="ig-cons-l">';
         (d.pieces || []).forEach(function (x) {
           /* « 85 o » À CÔTÉ DE « RC.pdf » SE LIT COMME LA TAILLE DU PDF.
              C'est celle du TEXTE EXTRAIT — le fichier n'est pas conservé. Le
@@ -8587,6 +8612,22 @@ function messageDelai(e, defaut) {
       b.addEventListener("click", function () {
         aoProjetRetirer(b.dataset.retirer, b);
       });
+    });
+    /* LA DÉROULANTE NE FAIT RIEN D'ELLE-MÊME. Un sélecteur qui retirerait au
+       changement ferait de chaque parcours de la liste une suppression — et
+       ce qui est retiré du dossier conservé ne se retrouve pas : le fichier
+       d'origine n'est pas gardé. Deux boutons, donc, et un choix explicite
+       avant l'un comme avant l'autre. */
+    var pc = $("#ig-cons-piece", z);
+    var lir = $("#ig-cons-lire", z);
+    var otz = $("#ig-cons-otez", z);
+    if (pc && lir) lir.addEventListener("click", function () {
+      if (!pc.value) { aoProjetMsg("Choisissez d'abord une pièce."); return; }
+      aoTexteOuvrir(pc.value);
+    });
+    if (pc && otz) otz.addEventListener("click", function () {
+      if (!pc.value) { aoProjetMsg("Choisissez d'abord une pièce."); return; }
+      aoProjetRetirer(pc.value, otz);
     });
     aoTexteBrancherListe(z);
     z.querySelectorAll("[data-cons-aff]").forEach(function (b) {

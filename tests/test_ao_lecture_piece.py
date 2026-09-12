@@ -385,17 +385,21 @@ def test_la_taille_affichee_dit_qu_elle_est_celle_du_texte():
     ANCRAGE. Cette règle s'ancrait sur la PREMIÈRE occurrence de
     `<li><span class="n">` dans le script — et une seconde liste, écrite plus
     haut pour la sélection du § 14, l'a fait lire un bloc qui n'est pas celui
-    qu'elle garde. Elle vise maintenant la liste du dossier conservé par sa
-    classe propre : c'est le seul endroit où un nombre d'octets désigne du
-    texte extrait et non un fichier.
+    qu'elle garde. Elle couvre maintenant TOUS les endroits où le bloc du
+    dossier conservé affiche une taille : la liste détaillée et la liste
+    déroulante. Une règle qui n'en regarde qu'un reste verte pendant que
+    l'autre ment.
     """
     js = _lire("ingenierie-dc.js")
-    assert js.count("ig-cons-l") == 1, \
-        "la liste du dossier conservé n'est plus repérable sans ambiguïté"
-    bloc = js[js.index("ig-cons-l"):][:900]
-    assert "aoOctets(" in bloc, \
-        "la liste du dossier conservé n'affiche plus de taille"
-    assert "de texte" in bloc, bloc[:400]
+    i = js.index("\n  function aoProjetRendre(")
+    bloc = js[i:js.index("\n  function ", i + 10)]
+    tailles = [m.end() for m in re.finditer(r"aoOctets\(", bloc)]
+    assert tailles, "le dossier conservé n'affiche plus la taille de ses pièces"
+    muettes = [bloc[k:k + 70].split("\n")[0] for k in tailles
+               if "de texte" not in bloc[k:k + 70]]
+    assert not muettes, (
+        "%d endroit(s) affichent une taille sans dire qu'elle est celle du "
+        "texte : %s" % (len(muettes), muettes))
 
 
 # ═══════════════════════════════════════════════════════════════════════════

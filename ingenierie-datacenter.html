@@ -813,6 +813,24 @@
     border:1px solid rgba(232,200,106,.4);font-size:11.5px;line-height:1.7;
     color:var(--muted)}
   .ig-cons-av b{color:var(--ink)}
+  /* LA DÉROULANTE DU DOSSIER CONSERVÉ, AVEC SES DEUX GESTES SUR LA MÊME
+     LIGNE. Les séparer du sélecteur laisserait chercher où agit « Retirer » :
+     sur la pièce choisie, ou sur tout le dossier. */
+  /* SON NOM PROPRE, ET LA RAISON. « ig-cons-d » était déjà pris par le bloc
+     des six déclarations : mesuré au navigateur, cette rangée héritait d'un
+     cadre et de 12 px de marge qu'elle n'avait pas demandés — et, plus grave,
+     le `display:flex` déclaré ici s'appliquait aux six déclarations, qui ne
+     sont pas des rangées. C'est la version « feuille de style » de la
+     collision d'identifiants corrigée au § 14 : elle ne casse rien à
+     l'endroit qu'on regarde. */
+  .ig-cons-rang{display:flex;gap:9px;align-items:center;flex-wrap:wrap;
+    margin:0 0 12px}
+  .ig-cons-rang label{flex:0 0 auto;margin:0}
+  .ig-cons-rang select{flex:1 1 220px;min-width:0;font:inherit;font-size:12px;
+    padding:6px 8px;border-radius:6px;border:1px solid var(--line);
+    background:var(--panel);color:var(--ink)}
+  .ig-cons-rang button{flex:0 0 auto}
+  @media (max-width:620px){.ig-cons-rang select{flex:1 1 100%}}
   .ig-cons-l{margin:0;padding:0;list-style:none;font-size:11.5px}
   .ig-cons-l li{padding:5px 0;border-bottom:1px solid var(--line);
     display:flex;gap:10px;flex-wrap:wrap;align-items:baseline}
