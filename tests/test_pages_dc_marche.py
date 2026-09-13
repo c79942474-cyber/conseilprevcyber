@@ -1027,7 +1027,25 @@ def test_la_fiche_ne_quitte_le_navigateur_QUE_par_le_geste_de_conservation():
                          # et repart dans la réponse — mais le TRANSFERT, lui,
                          # est déclaré au registre RGPD sous « dossier-marche »,
                          # et une règle de `test_ao_redaction.py` le mesure.
-                         "/api/datacenter/marche/rediger"}
+                         "/api/datacenter/marche/rediger",
+                         #
+                         # `/marche/atelier` FAIT TOUT EN UN GESTE — lire,
+                         # remplir, rédiger, relire — et c'est LA PLUS GROSSE
+                         # sortie de ce bloc : la fiche part avec le TEXTE
+                         # ENTIER des pièces déposées.
+                         #
+                         # Elle ne conserve rien pour autant : documents et
+                         # fiche arrivent dans la requête, le dossier repart
+                         # dans la réponse, aucun magasin n'est écrit, rien ne
+                         # touche le disque. Une règle de
+                         # `test_routes_dc_marche.py` le mesure en vérifiant
+                         # qu'un passage confidentiel transmis NE RESSORT PAS
+                         # dans la réponse.
+                         #
+                         # Le TRANSFERT vers le sous-traitant est le même que
+                         # celui de `/rediger`, déjà déclaré au registre RGPD
+                         # sous « dossier-marche ».
+                         "/api/datacenter/marche/atelier"}
     AVEC_CONSERVATION = {"/api/datacenter/marche/projet/dossier"}
 
     # LA NEUVIÈME ADRESSE VA DANS L'AUTRE SENS, ET C'EST POURQUOI ELLE A SA

@@ -2893,6 +2893,28 @@
       dossier de candidature se remplissent au fur et à mesure, chacune avec
       son origine. Les déclarations sur l'honneur, elles, restent à votre
       main : leur fausseté est sanctionnée.</p>
+    <!-- L'ATELIER — LE GESTE QUI FAIT TOUT, ET QUI DIT CE QU'IL A REFUSÉ.
+         Il n'est pas offert avant le dépôt : sans pièces à lire, tout ce qui
+         serait rempli serait inventé. Le bouton reste donc inerte tant que le
+         dossier n'est pas là, et la phrase en dit la raison plutôt que de
+         laisser cliquer dans le vide. -->
+    <div class="ig-atelier ig-ao-op" id="ao-atelier-bloc">
+      <h3 style="margin:0 0 .4rem">Tout remplir automatiquement</h3>
+      <p class="note" style="margin:0 0 .6rem;max-width:70ch">
+        Un seul geste&nbsp;: les rubriques manquantes sont <b>cherchées dans
+        les pièces déposées</b>, les notes sont mises en brouillon, puis ce qui
+        vient d'être écrit est relu pour combler ce qui restait. Rien n'entre
+        <b>sans un passage retrouvé mot pour mot</b> dans une pièce du dossier ;
+        une valeur dont la citation est introuvable est refusée, et le refus
+        est affiché. Les déclarations sur l'honneur ne sont jamais touchées.
+      </p>
+      <button type="button" class="btn" id="ao-atelier" disabled
+              aria-describedby="ao-atelier-etat">Lancer l'atelier</button>
+      <span class="note" id="ao-atelier-etat" aria-live="polite">Déposez
+        d'abord les pièces du marché.</span>
+      <div id="ao-atelier-bilan" hidden></div>
+    </div>
+
     <p class="note ig-ao-op" style="max-width:74ch">Ce dépôt-ci n'entre pas dans la base
       de connaissance du <a href="#ig-depot-etat">§&nbsp;13</a>&nbsp;: il sert
       à LIRE cette consultation-là. Rattachez un projet plus bas et le dossier

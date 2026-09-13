@@ -5839,6 +5839,82 @@ function messageDelai(e, defaut) {
      fichiers : l'analyse ne garde que ce qu'elle a relevé, pas ce qu'elle a
      lu. Il reste dans cette page tant qu'aucun projet n'est choisi. */
   var AO_DOCS = null;
+
+  /* ════════════════════════════════════════════════════════════════════
+     L'ATELIER — un geste, et le dossier se remplit
+     ════════════════════════════════════════════════════════════════════
+     LE BOUTON RESTE INERTE TANT QU'IL N'Y A RIEN À LIRE. Sans pièces
+     déposées, tout ce qui serait rempli serait inventé : le serveur refuse
+     en le disant, et l'écran n'a pas à laisser cliquer dans le vide. */
+  function atelierArmer() {
+    var b = document.getElementById("ao-atelier");
+    var e = document.getElementById("ao-atelier-etat");
+    if (!b) return;
+    var pret = !!(AO_DOCS && AO_DOCS.length);
+    b.disabled = !pret;
+    if (e) e.textContent = pret
+      ? (AO_DOCS.length + " pièce(s) déposée(s) — prêt.")
+      : "Déposez d'abord les pièces du marché.";
+  }
+
+  function atelierBilan(j) {
+    var z = document.getElementById("ao-atelier-bilan");
+    if (!z) return;
+    var h = '<p class="note"><b>' + (j.remplies || 0) + " rubrique(s) remplies sur "
+      + (j.rubriques || 0) + "</b> — " + (j.tours || 0) + " tour(s), "
+      + ((j.brouillons || []).length) + " brouillon(s).</p>";
+    /* CE QUI A ÉTÉ REFUSÉ EST MONTRÉ, PAS TU. Une valeur écartée parce que sa
+       citation ne se retrouvait dans aucune pièce est l'information la plus
+       importante de l'écran : elle dit que la lecture a voulu inventer. */
+    if ((j.rejets || []).length) {
+      h += '<p class="note"><b>' + j.rejets.length + " valeur(s) REFUSÉE(S)</b> "
+        + "— citation introuvable dans les pièces déposées. Rien n'a été "
+        + "reporté pour elles.</p>";
+    }
+    if ((j.reclamations || []).length) {
+      h += '<p class="note"><b>À obtenir auprès d\'un tiers — aucun outil ne '
+        + "les produit :</b></p><ul class=\"note\">"
+        + j.reclamations.map(function (r) {
+            return "<li>" + esc(r.nom || r.cle)
+              + (r.bloquant ? " <b>(bloquante)</b>" : "") + "</li>";
+          }).join("") + "</ul>";
+    }
+    if ((j.echecs || []).length) {
+      h += '<p class="note">' + j.echecs.length + " pièce(s) n'ont pas abouti : "
+        + esc(j.echecs.map(function (x) { return x.nom || x.cle; }).join(", "))
+        + ".</p>";
+    }
+    z.innerHTML = h;
+    z.hidden = false;
+  }
+
+  function atelierLancer() {
+    var b = document.getElementById("ao-atelier");
+    var e = document.getElementById("ao-atelier-etat");
+    if (!b || b.disabled) return;
+    b.disabled = true;
+    if (e) e.textContent = "L'atelier travaille — lecture, remplissage, "
+      + "rédaction, relecture. Cela prend un moment.";
+    demander("/api/datacenter/marche/atelier", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fiche: AO_FICHE, analyse: AO_ANALYSE,
+                             documents: AO_DOCS })
+    }, 600000).then(function (r) { return r.json(); }).then(function (j) {
+      if (!j || !j.ok) {
+        if (e) e.textContent = (j && j.message) || "L'atelier n'a pas abouti.";
+        atelierArmer();
+        return;
+      }
+      if (e) e.textContent = "Terminé.";
+      atelierBilan(j);
+      atelierArmer();
+    }).catch(function () {
+      if (e) e.textContent = "L'atelier n'a pas abouti.";
+      atelierArmer();
+    });
+  }
+
   /* ── LE TEXTE LU DE CHAQUE PIÈCE, POUR POUVOIR LE RELIRE ────────────────
      CE QUI MANQUAIT. La page montrait des citations de trois lignes et rien
      autour. Vérifier une valeur dans son contexte, ou comprendre pourquoi une
@@ -6181,6 +6257,7 @@ function messageDelai(e, defaut) {
           }
           AO_ANALYSE = j.analyse;
           AO_DOCS = docs;
+          atelierArmer();
           /* CE QUI VIENT D'ÊTRE LU L'EMPORTE. Une pièce redéposée sous le
              même nom remplace la sienne au dossier ; son texte doit suivre,
              sinon le lecteur montrerait l'ancienne version sous le relevé de
@@ -8879,6 +8956,11 @@ function messageDelai(e, defaut) {
     if ((b = $("#ig-aop-go"))) {
       b.addEventListener("click", function () { aoParcours(this); });
     }
+    /* L'ATELIER SE BRANCHE ICI, ET S'ARME TOUT DE SUITE. Sans l'armement au
+       chargement, le bouton resterait dans l'état écrit dans le HTML — désarmé
+       — même après un dépôt fait avant que ce code ne tourne. */
+    if ((b = $("#ao-atelier"))) b.addEventListener("click", atelierLancer);
+    atelierArmer();
   }
 
   if (document.readyState === "loading") {

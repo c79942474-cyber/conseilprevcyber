@@ -891,3 +891,84 @@ def test_le_motif_du_verrou_est_ECRIT_pour_chacune():
     import acces
     nus = [c for c, m in acces.API_ADMIN.items() if len((m or "").strip()) < 40]
     assert not nus, "ces interfaces sont fermées sans motif écrit : %s" % nus
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  L'ATELIER — le dossier entier en un geste
+# ══════════════════════════════════════════════════════════════════════════
+# CE QUI EST ÉPROUVÉ ICI. Le module `ao_atelier` a ses propres règles ; ce qui
+# se mesure de ce côté est la PORTE, le REFUS SANS DOSSIER, et le fait que ce
+# qui est rendu porte les rejets et le journal — un atelier qui rendrait un
+# dossier sans dire ce qu'il a refusé serait un atelier qu'on ne peut pas
+# relire.
+
+def test_l_atelier_n_est_pas_atteignable_par_un_visiteur_anonyme(anonyme):
+    r = anonyme.post("/api/datacenter/marche/atelier", json={}, headers=ORIGINE)
+    assert r.status_code in (401, 403), r.status_code
+
+
+def test_l_atelier_exige_l_administration_comme_l_analyse(connecte):
+    """Il rend le CONTENU des pièces du client sous forme de citations, et il
+    consomme dix-huit appels de modèle. Les deux raisons suffisent."""
+    r = connecte.post("/api/datacenter/marche/atelier",
+                      json={"documents": [{"nom": "RC.pdf", "texte": "x"}]},
+                      headers=ORIGINE)
+    assert r.status_code in (401, 403), r.status_code
+
+
+def test_sans_dossier_depose_l_atelier_REFUSE_en_le_disant(admin):
+    """Rendre un dossier vide aurait l'air d'une panne de l'outil ; et tout ce
+    qui serait rendu sans pièces à lire serait inventé."""
+    r = admin.post("/api/datacenter/marche/atelier", json={}, headers=ORIGINE)
+    assert r.status_code == 400, r.status_code
+    j = r.get_json()
+    assert j["error"] == "sans_dossier"
+    assert "Déposez" in j["message"]
+
+
+def test_l_atelier_rend_le_JOURNAL_et_les_REJETS(admin, monkeypatch):
+    """Ce qui est rendu n'est pas que le résultat. Sans le journal ni les
+    rejets, on ne peut ni relire ni déboguer une réponse à consultation."""
+    import ao_atelier
+
+    def faux_atelier(**kw):
+        assert kw.get("executeur") is not None, "l'éventail n'est pas joint"
+        return {"remplissage": {"pieces": []}, "brouillons": [],
+                "extraits": {}, "rejets": [{"rubrique": "x",
+                                            "motif": "citation_introuvable"}],
+                "echecs": [], "reclamations": [{"cle": "assurances"}],
+                "journal": [{"tour": 1, "lues": 0, "gagnees": 0}],
+                "tours": 1, "remplies": 0, "rubriques": 0}
+
+    monkeypatch.setattr(ao_atelier, "atelier", faux_atelier)
+    r = admin.post("/api/datacenter/marche/atelier",
+                   json={"documents": [{"nom": "RC.pdf", "texte": "un texte"}]},
+                   headers=ORIGINE)
+    assert r.status_code == 200, r.get_data(as_text=True)[:300]
+    j = r.get_json()
+    assert j["ok"] is True
+    for cle in ("journal", "rejets", "reclamations", "tours", "remplies"):
+        assert cle in j, "l'atelier ne rend pas « %s »" % cle
+
+
+def test_l_atelier_NE_CONSERVE_RIEN_du_texte_du_client(admin, monkeypatch):
+    """Comme /remplir et /parcours : les pièces arrivent dans la requête et le
+    dossier repart dans la réponse. Rien ne touche la base ni le disque."""
+    import ao_atelier
+    vus = {}
+
+    def faux_atelier(**kw):
+        vus["documents"] = kw.get("documents")
+        return {"remplissage": {"pieces": []}, "brouillons": [], "extraits": {},
+                "rejets": [], "echecs": [], "reclamations": [], "journal": [],
+                "tours": 1, "remplies": 0, "rubriques": 0}
+
+    monkeypatch.setattr(ao_atelier, "atelier", faux_atelier)
+    secret = "PASSAGE-CONFIDENTIEL-DU-CLIENT-42"
+    r = admin.post("/api/datacenter/marche/atelier",
+                   json={"documents": [{"nom": "RC.pdf", "texte": secret}]},
+                   headers=ORIGINE)
+    assert r.status_code == 200
+    assert vus["documents"][0]["texte"] == secret, "le texte n'est pas transmis"
+    assert secret not in r.get_data(as_text=True), \
+        "le texte du client ressort dans la réponse"

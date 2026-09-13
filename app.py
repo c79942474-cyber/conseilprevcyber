@@ -211,6 +211,11 @@ _RATE_EXACT = {
     # quelques secondes. Une cadence calée sur un appel isolé refuserait le
     # geste que cette route existe pour servir.
     "/api/datacenter/marche/piece":      (120, 60),
+    # L'ATELIER FAIT TOUT EN UN GESTE : sept lectures et onze rédactions en
+    # éventail, plusieurs tours. C'est l'appel le plus cher du site, et il est
+    # DÉLIBÉRÉMENT rare — une cadence de saisie continue ici laisserait une
+    # boucle consommer un budget de jetons entier en une minute.
+    "/api/datacenter/marche/atelier":    (6, 600),
     # LE DOSSIER PAR PROJET ÉCRIT EN BASE, ET IL CHIFFRE. Les deux coûtent :
     # un plafond de saisie continue (comme /remplir) laisserait une boucle
     # remplir la base de coffres. L'affirmation est plus rare encore — c'est
@@ -2371,6 +2376,8 @@ import icpe_dc       # noqa: E402  — crible les rubriques, ne classe pas le si
 import travaux_dc    # noqa: E402  — l'ordre des opérations de chantier et ses tiers
 import ao_dc         # noqa: E402  — lit le dossier marché, prépare la candidature
 import ao_redaction  # noqa: E402  — met la note en brouillon, socle compris
+import ao_extraction  # noqa: E402  — cherche dans le dossier ce qui manque au report
+import ao_atelier  # noqa: E402  — lit, remplit, rédige, relit, et boucle
 import ao_formulaires  # noqa: E402  — écrit DANS le formulaire officiel, sans signer
 import ao_parcours   # noqa: E402  — où en est la réponse, étape par étape
 import dossier_entreprise  # noqa: E402  — le dossier de CONSEILPREV, admin seul
@@ -5283,6 +5290,75 @@ def api_datacenter_marche_rediger():
         return jsonify(ok=False, error="redaction",
                        message="Le brouillon n'a pas pu être écrit."), 502
     return jsonify(ok=True, **brouillon)
+
+
+@app.route("/api/datacenter/marche/atelier", methods=["POST"])
+@admin_required
+def api_datacenter_marche_atelier():
+    """LE DOSSIER ENTIER EN UN GESTE : lire, remplir, rédiger, RELIRE, boucler.
+
+    CE QU'ELLE AJOUTE AUX AUTRES. `/remplir` reporte ce qu'on sait déjà.
+    `/piece` rend le plan d'une pièce. `/rediger` en écrit le brouillon. Aucune
+    ne CHERCHE dans le dossier déposé ce qui manque au report — et c'était le
+    plafond : 21 rubriques remplies sur 93, mesuré le 13 septembre, parce que
+    76 d'entre elles n'avaient aucun chemin d'extraction.
+
+    ELLE NE CONSERVE RIEN, comme `/remplir` et `/parcours` : les pièces
+    arrivent dans la requête, le dossier repart dans la réponse. Le texte du
+    client ne touche ni la base ni le disque.
+
+    LE MAGASIN EST PASSÉ EXPLICITEMENT — `ao_atelier` ne va chercher aucun
+    objet global. Sans lui, la rédaction dit qu'elle n'a consulté aucun dossier
+    antérieur plutôt que de faire semblant.
+
+    CE QUI EST RENDU N'EST PAS QUE LE RÉSULTAT. Les REJETS y sont — les valeurs
+    écartées parce que leur citation ne se retrouvait dans aucune pièce
+    déposée — et le JOURNAL des tours. Un atelier qui rendrait un dossier sans
+    dire ce qu'il a refusé serait un atelier qu'on ne peut pas relire.
+    """
+    admin = _is_admin_request()
+    # LE MÊME DOUBLE COMPTEUR QUE LA RÉDACTION, et plus serré : un atelier
+    # coûte dix-huit appels de modèle. Borner l'adresse seule laisserait un
+    # bureau entier derrière un même routeur se les partager ; borner le compte
+    # seul en laisserait un en consommer autant qu'il veut en changeant de
+    # réseau.
+    for ckey, lim in (("aoatl:%s" % client_ip(), 6),
+                      ("aoatlc:%s" % (_proprietaire() or "-"), 6)):
+        if guard.blocked(ckey, limit=lim, window=1800):
+            return jsonify(ok=False, error="rate_limited",
+                           message="L'atelier a déjà tourné plusieurs fois. "
+                                   "Patientez quelques minutes."), 429
+        guard.fail(ckey)
+
+    data = request.get_json(silent=True) or {}
+    fiche, analyse, saisies, groupement = _ao_charge(data)
+    documents = data.get("documents")
+    if not isinstance(documents, list) or not documents:
+        # SANS PIÈCES DÉPOSÉES, IL N'Y A RIEN À LIRE — et tout ce qui serait
+        # rendu serait inventé. On refuse en le disant, plutôt que de rendre
+        # un dossier vide qui aurait l'air d'un échec de l'outil.
+        return jsonify(ok=False, error="sans_dossier",
+                       message="Déposez d'abord les pièces du marché : sans "
+                               "elles, aucune rubrique ne peut être lue."), 400
+    documents = [{"nom": str(d.get("nom") or "")[:200],
+                  "texte": str(d.get("texte") or "")}
+                 for d in documents[:40] if isinstance(d, dict)]
+
+    audit.journaliser("marche.atelier", cible="dossier",
+                      detail="%d piece(s) deposee(s)" % len(documents))
+    try:
+        res = ao_atelier.atelier(
+            fiche=fiche, documents=documents, analyse=analyse,
+            saisies=saisies, groupement=groupement, rag=rag,
+            executeur=ao_atelier.executeur_parallele(),
+            rediger=bool(data.get("rediger", True)))
+    except ao_extraction.ExtractionError as e:
+        return jsonify(ok=False, error=e.code, message=e.detail), e.status
+    except Exception:
+        app.logger.exception("atelier de réponse à consultation")
+        return jsonify(ok=False, error="atelier",
+                       message="L'atelier n'a pas pu aboutir."), 502
+    return jsonify(ok=True, **res)
 
 
 @app.route("/api/datacenter/marche/parcours", methods=["POST"])
