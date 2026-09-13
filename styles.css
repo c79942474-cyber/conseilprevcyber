@@ -42,10 +42,123 @@
      LA BRIQUE RESTERA LA PLUS DISCRÈTE, et c'est inévitable : c'est un rouge
      sur un rouge. Son rôle est de densifier, pas de trancher. */
   --blob-terre:rgba(196,100,40,.32); --blob-bleu:rgba(28,64,102,.32); --blob-brique:rgba(158,44,26,.34);
+  /* ── L'AVANCEMENT, EN DEUX COULEURS ET TROIS CANAUX ──────────────────────
+     BLEU tant que ce n'est pas fait, VERT BATTANT dès que c'est validé ou
+     calculé. Le bleu n'existait pas dans cette palette : --cyan et --teal sont
+     des cyans VERTS, et posés à côté du vert « fait » ils ne s'en distinguaient
+     que par la nuance — l'œil devait comparer deux pastilles au lieu de lire
+     un état. Celui-ci est un azur franc.
+
+     MESURÉ sur les quatre fonds du site (--bg, --bg2, --panel, --panel2) :
+       --blue  #9CC4F5 → 5,79 · 5,34 · 4,99 · 4,40
+       --green #34D399 → 5,44 · 5,02 · 4,69 · 4,13
+     Les deux tiennent partout le seuil des éléments non textuels (3:1) et
+     l'AA texte (4,5:1) sur trois fonds sur quatre. ΔE(bleu, vert) = 69 :
+     aucune confusion de teinte n'est possible.
+
+     TROIS CANAUX, PAS UN. La couleur seule exclut une part des lecteurs — le
+     bleu et le vert se rapprochent en tritanopie. S'y ajoutent donc le
+     MOUVEMENT (seul le vert bat, le bleu est immobile) et le TEXTE (« ✓ Fait »
+     contre « À faire »). Aucun état ne se lit par la couleur seule.
+
+     LA CADENCE VIT ICI, UNE FOIS. Trois modules l'emploient — le parcours
+     guidé, le guide d'étapes et les blocs de page. Écrite trois fois, elle
+     aurait divergé au premier réglage. 1,8 s fait 0,55 éclat par seconde,
+     très en dessous du seuil de photosensibilité de 3 (WCAG 2.3.1). Seul le
+     CONTOUR anime : aucun texte ne change de fond, et les contrastes du
+     contenu sont donc constants à chaque phase du battement. */
+  --blue:#9CC4F5;
+  --cp-battement:1.8s;
   --mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
   --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   --maxw:1080px;
 }
+/* ── LA GRAMMAIRE D'AVANCEMENT, DÉFINIE UNE FOIS ─────────────────────────────
+   `cpValide` et `cpVersSuite` sont nommées ici et EMPLOYÉES ailleurs : les
+   images-clés d'une feuille de style sont globales, si bien que parcours.js et
+   guide-etapes.js n'ont qu'à écrire `animation:cpValide var(--cp-battement)…`
+   sans redéfinir ni la cadence ni la couleur. Une règle d'essai vérifie qu'ils
+   ne les redéfinissent pas — trois copies de la même seconde et demie auraient
+   divergé au premier réglage.
+
+   `cpVersSuite` est la flèche qui MÈNE quelque part : elle ne bat pas sur
+   place, elle DESCEND vers l'étape suivante. Un battement dit « regarde ici » ;
+   un déplacement dit « va là ». C'est la différence entre signaler et guider. */
+@keyframes cpValide{
+  0%,100%{border-color:rgba(52,211,153,.58);box-shadow:0 0 0 0 rgba(52,211,153,0)}
+  50%    {border-color:var(--green);box-shadow:0 0 13px 0 rgba(52,211,153,.42)}
+}
+/* ELLE NE S'ESTOMPE PAS, ELLE SE DEPLACE — et la mesure a tranché. Une
+   première version faisait varier l'opacité de .5 à 1 : composée sur les
+   quatre fonds du site, la flèche tombait entre 2,21 et 2,48:1 au creux du
+   cycle, sous le plancher de 3:1 des éléments non textuels — et elle porte un
+   LIBELLE, donc c'est 4,5:1 qui s'applique. Un guidage illisible la moitié du
+   temps n'est pas un guidage. Le déplacement suffit à dire « ça va par là », et
+   il ne coûte pas un point de contraste. */
+@keyframes cpVersSuite{
+  0%,100%{transform:translateY(-3px)}
+  50%    {transform:translateY(3px)}
+}
+/* Un TEXTE ne peut pas faire battre une bordure qu'il n'a pas : le sien bat
+   par sa lueur. Sa couleur, elle, ne change jamais — le contraste tient donc
+   identique à chaque phase, ce qu'un changement de teinte ne garantirait pas. */
+@keyframes cpTexteValide{
+  0%,100%{text-shadow:none}
+  50%    {text-shadow:0 0 9px rgba(52,211,153,.60)}
+}
+/* ── LE BLOC DE PAGE LUI-MEME ────────────────────────────────────────────────
+   Bleu au repos, vert battant une fois validé ou calculé. Posé sur la SECTION
+   réelle, pas sur une vignette de guide : c'est là que le lecteur travaille,
+   c'est là qu'il doit voir l'état changer.
+
+   LE RAIL NE DEPLACE RIEN. Une bordure ajoutée à la validation décalerait le
+   bloc de deux pixels au moment précis où le lecteur le regarde — un
+   tressaillement qui se lit comme un défaut. Le rail est donc un
+   pseudo-élément en position absolue : il apparaît, il ne pousse pas.
+
+   LE JETON NE TOUCHE PAS A LA PASTILLE DE LA PAGE. Les quatre pages numérotent
+   leurs sections chacune à leur façon — cercle cyan, cercle en dégradé, nombre
+   nu teal. Repeindre ces pastilles aurait demandé un cas par page, et posé du
+   vert sur un dégradé clair là où le contraste ne tenait plus. Le jeton est
+   une balise à nous, identique partout, et il porte le TEXTE — c'est lui le
+   canal qui ne dépend ni de la couleur ni du mouvement. */
+.cp-bloc{position:relative}
+.cp-bloc::before{content:"";position:absolute;left:-14px;top:2px;bottom:2px;width:3px;
+  border-radius:2px;background:var(--line);transition:background-color .25s ease}
+.cp-bloc.cp-attente::before{background:var(--blue)}
+.cp-bloc.cp-valide::before{background:var(--green);
+  animation:cpRail var(--cp-battement) ease-in-out infinite}
+@keyframes cpRail{
+  0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}
+  50%    {box-shadow:0 0 10px 1px rgba(52,211,153,.60)}
+}
+/* La section VISEE par le guide élargit le rail existant au lieu d'en dessiner
+   un second au même endroit : deux traits superposés ne se voient pas, ils
+   s'annulent. */
+.gd-vise.cp-bloc::before{width:6px;left:-16px}
+/* L'en-tête accepte de passer à la ligne : le jeton ne doit jamais écraser le
+   titre sur un écran étroit. Les quatre pages posent `.rc-etape` en flex sans
+   `wrap` — on le leur ajoute ici, à spécificité supérieure. */
+.cp-bloc > .rc-etape{flex-wrap:wrap}
+.cp-etat{flex:0 0 auto;margin-left:auto;font-family:var(--mono);font-size:10px;
+  letter-spacing:.05em;text-transform:uppercase;padding:3px 9px;border-radius:999px;
+  white-space:nowrap;font-weight:700}
+.cp-etat.cp-attente{color:var(--blue);border:1px solid var(--blue)}
+.cp-etat.cp-valide{color:#0d2b1e;background:var(--green);
+  animation:cpJeton var(--cp-battement) ease-in-out infinite}
+.cp-etat.cp-avenir{color:var(--muted2);border:1px solid var(--line);font-weight:400}
+@keyframes cpJeton{
+  0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}
+  50%    {box-shadow:0 0 0 4px rgba(52,211,153,.38)}
+}
+@media(prefers-reduced-motion:reduce){
+  .cp-bloc.cp-valide::before,.cp-etat.cp-valide{animation:none}
+}
+@media(max-width:900px){
+  .cp-bloc::before{left:-8px}
+  .gd-vise.cp-bloc::before{left:-9px}
+}
+
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;overflow-x:clip}
 body{
@@ -971,8 +1084,15 @@ footer a:hover{color:var(--cyan)}
    pour une étape renseignée, cerné pour l'étape ouverte, vide sinon. */
 .gd-jauge{display:flex;gap:5px;margin-bottom:12px}
 .gd-jauge span{flex:1;height:4px;border-radius:2px;background:var(--line)}
-.gd-jauge span.fa{background:var(--teal)}
-.gd-jauge span.ic{background:var(--cyan)}
+/* LA JAUGE PARLE LA MEME LANGUE QUE TOUT LE RESTE : vert battant pour ce qui
+   est validé ou calculé, bleu pour l'étape en cours, ligne sourde pour la
+   suite. La cadence est lue dans --cp-battement, jamais réécrite ici. */
+.gd-jauge span.fa{background:var(--green);
+  animation:cpJauge var(--cp-battement) ease-in-out infinite}
+@keyframes cpJauge{0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}
+  50%{box-shadow:0 0 7px 0 rgba(52,211,153,.55)}}
+.gd-jauge span.ic{background:var(--blue)}
+@media(prefers-reduced-motion:reduce){.gd-jauge span.fa{animation:none}}
 .gd-n{margin:0 0 5px;font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;
   text-transform:uppercase;color:var(--cyan)}
 .gd-p h3{margin:0 0 9px;font-size:16px;color:var(--ink);line-height:1.3}
@@ -985,8 +1105,10 @@ footer a:hover{color:var(--cyan)}
 .gd-act{margin:0 0 9px;font-size:12.5px;line-height:1.6;color:var(--muted)}
 .gd-act b{color:var(--ink)}
 .gd-etat{margin:0 0 13px;font-family:var(--mono);font-size:11px;letter-spacing:.04em}
-.gd-etat.fait{color:var(--teal)}
-.gd-etat.a-faire{color:var(--amber)}
+.gd-etat.fait{color:var(--green);
+  animation:cpTexteValide var(--cp-battement) ease-in-out infinite}
+.gd-etat.a-faire{color:var(--blue)}
+@media(prefers-reduced-motion:reduce){.gd-etat.fait{animation:none}}
 .gd-etat.lecture{color:var(--muted2)}
 
 .gd-cmd{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
@@ -1019,8 +1141,8 @@ footer a:hover{color:var(--cyan)}
 .gd-saut[aria-current="true"]{color:var(--ink);background:rgba(34,211,238,.10);
   box-shadow:inset 2px 0 0 var(--cyan)}
 .gd-saut .st{font-family:var(--mono);font-size:11px;flex:0 0 auto;width:12px}
-.gd-saut .st.fait{color:var(--teal)}
-.gd-saut .st.a-faire{color:var(--amber)}
+.gd-saut .st.fait{color:var(--green)}
+.gd-saut .st.a-faire{color:var(--blue)}
 .gd-saut .st.lecture{color:var(--muted2)}
 
 /* LA SECTION VISÉE. Un liseré et un fond, jamais un déplacement : une page
@@ -1035,9 +1157,12 @@ footer a:hover{color:var(--cyan)}
   font-size:19px;line-height:1;color:var(--cyan);
   text-shadow:0 0 10px rgba(34,211,238,.55);
   transition:top .18s ease,left .18s ease,opacity .18s ease}
-.gd-fl.on{opacity:1;animation:gd-fl-bat 1.5s ease-in-out infinite}
-.gd-fl.req{color:var(--amber);text-shadow:0 0 10px rgba(240,178,122,.55)}
-.gd-fl.act{color:var(--teal);text-shadow:0 0 10px rgba(45,212,191,.55)}
+.gd-fl.on{opacity:1;animation:gd-fl-bat var(--cp-battement) ease-in-out infinite}
+/* CE QUI RESTE A FAIRE EST BLEU, champ ou bouton. Les deux se distinguent
+   par leur GLYPHE — « ➜ » pour un champ à renseigner, « ▶ » pour un calcul à
+   lancer —, si bien que la couleur n'a rien à porter de plus ; elle dit
+   seulement « pas encore fait », comme partout ailleurs. */
+.gd-fl.req,.gd-fl.act{color:var(--blue);text-shadow:0 0 10px rgba(156,196,245,.55)}
 @keyframes gd-fl-bat{0%,100%{transform:translateX(0)}50%{transform:translateX(-5px)}}
 /* Mouvement réduit : la flèche reste, l'animation part. Elle sert à DÉSIGNER,
    et cette fonction ne dépend pas du mouvement. */
@@ -1055,16 +1180,14 @@ footer a:hover{color:var(--cyan)}
 .gd-vers{display:block;margin-top:8px;font-size:12px;line-height:1.5;
   color:var(--cyan)}
 .gd-vers b{color:var(--ink)}
-.gd-vers.req{color:var(--amber)}
-.gd-vers.act{color:var(--teal)}
+.gd-vers.req,.gd-vers.act{color:var(--blue)}
 
+/* LE RAIL DE LA SECTION VISEE EST CELUI DU BLOC, élargi — voir .cp-bloc
+   ci-dessus. En dessiner un second au même pixel revenait à n'en dessiner
+   aucun. Reste ici ce qui lui est propre : le numéro de la section prend la
+   couleur de l'état en cours. */
 .gd-vise{position:relative}
-.gd-vise::before{content:"";position:absolute;left:-14px;top:0;bottom:0;width:3px;
-  border-radius:2px;background:var(--cyan)}
-.gd-vise > .rc-etape .n{border-color:var(--cyan);color:var(--cyan)}
-@media(max-width:900px){
-  .gd-vise::before{left:-8px}
-}
+.gd-vise > .rc-etape .n{border-color:var(--blue);color:var(--blue)}
 @media(max-width:640px){
   .gd-lanceur{padding:13px 14px}
   .gd-p{padding:15px 15px}

@@ -404,6 +404,71 @@
     if (sec) sec.classList.add("gd-vise");
   }
 
+  /* ── 4 bis. LE BLOC DE LA PAGE PORTE SON PROPRE ÉTAT ─────────────────────
+     CE QUE ÇA CHANGE, ET POURQUOI CE N'EST PAS UN ORNEMENT. L'avancement ne
+     vivait que dans le panneau du guide : fermé — et il l'est par défaut —, la
+     page ne disait plus rien de ce qui était fait. Le lecteur remontait pour
+     vérifier, ou refaisait une section déjà remplie. L'état se pose désormais
+     sur la SECTION elle-même, là où il travaille, et il y reste que le guide
+     soit ouvert ou fermé.
+
+     LE JETON DIT CE QUE LE MODULE MESURE VRAIMENT, mot pour mot :
+       · « ✓ Calculé »    — la section était masquée à l'arrivée et ne l'est
+                            plus : le calcul a bien tourné, c'est un fait
+                            observable et non une déduction ;
+       · « ✓ Renseigné »  — ses champs obligatoires portent une réponse. Ce
+                            n'est PAS « calculé », et l'écrire aurait promis
+                            un résultat que personne n'a demandé ;
+       · « À calculer »   — il reste un bouton de calcul à presser ici ;
+       · « À renseigner » — il reste des champs ;
+       · « En attente »   — la section n'est pas encore affichée : elle dépend
+                            d'un calcul, pas du lecteur.
+     Une section qui se LIT ne reçoit aucun jeton : lui en poser un ferait
+     chercher un travail qui n'existe pas. */
+  var MASQUEE_AU_DEPART = new WeakSet();
+
+  function jeton(sec, e) {
+    if (e === "a-venir") return { cl: "cp-avenir", txt: "En attente" };
+    /* UNE SECTION QUI ÉTAIT MASQUÉE ET NE L'EST PLUS A ÉTÉ PRODUITE PAR UN
+       CALCUL, qu'elle porte des champs ou non. C'est le cas le plus fréquent
+       des blocs de résultats — ils n'ont rien à remplir, et les traiter comme
+       « en lecture » les aurait laissés SANS jeton : le lecteur venait de
+       lancer un calcul et rien ne le lui confirmait. */
+    if (MASQUEE_AU_DEPART.has(sec)) return { cl: "cp-valide", txt: "\u2713 Calculé" };
+    if (e === "lecture") return null;
+    if (e === "fait") return { cl: "cp-valide", txt: "\u2713 Renseigné" };
+    return aRemplir(sec).action
+      ? { cl: "cp-attente", txt: "À calculer" }
+      : { cl: "cp-attente", txt: "À renseigner" };
+  }
+
+  function peindreBlocs() {
+    ETAPES.forEach(function (x) {
+      var sec = x.section;
+      if (sec.hidden) MASQUEE_AU_DEPART.add(sec);
+      var e = etat(sec);
+      var j = jeton(sec, e);
+      sec.classList.add("cp-bloc");
+      sec.classList.toggle("cp-valide", !!j && j.cl === "cp-valide");
+      sec.classList.toggle("cp-attente", !!j && j.cl === "cp-attente");
+      var tete = sec.querySelector(".rc-etape");
+      if (!tete) return;
+      var b = tete.querySelector(".cp-etat");
+      if (!j) { if (b) b.remove(); return; }
+      if (!b) {
+        b = document.createElement("span");
+        b.className = "cp-etat";
+        tete.appendChild(b);
+      }
+      /* `aria-live` sur le jeton, et non sur la section : un lecteur d'écran
+         doit entendre « Renseigné » au moment où ça le devient, sans qu'on lui
+         relise toute la section à chaque frappe. */
+      b.setAttribute("aria-live", "polite");
+      b.className = "cp-etat " + j.cl;
+      if (b.textContent !== j.txt) b.textContent = j.txt;
+    });
+  }
+
   function rendre(bouger) {
     var z = $("#gd");
     if (!z) return;
@@ -414,6 +479,7 @@
     } else {
       surligner(null);
     }
+    peindreBlocs();
     /* La flèche se repose APRÈS le rendu : le panneau vient de changer de
        hauteur, et une position calculée avant serait décalée d'autant. */
     majFleche();
@@ -442,19 +508,47 @@
     if (cible) { setTimeout(function () { try { cible.focus({ preventScroll: true }); } catch (err) { /* rien */ } }, reduit ? 0 : 420); }
   }
 
-  /* ── 5. BRANCHEMENT ──────────────────────────────────────────────────── */
+  /* ── 5. BRANCHEMENT ──────────────────────────────────────────────────────
+     DEUX DISPOSITIFS, ET UN SEUL EST OBLIGATOIRE. L'ÉTAT DES BLOCS appartient
+     à la page : il se pose sur les sections qu'elle numérote déjà, et il n'a
+     besoin de rien d'autre. LE PANNEAU, lui, demande un point d'accroche
+     `#gd` — une page peut vouloir l'état sans vouloir le panneau, et c'est le
+     cas d'une page à vingt sections dont l'enchaînement est déjà porté par
+     une carte. Les lier aurait imposé le tout ou rien.
+
+     C'EST CE QUI A ÉTÉ RÉPARÉ ICI : `demarrer()` sortait à la première ligne
+     quand `#gd` manquait, si bien que les pages sans panneau n'avaient AUCUN
+     marquage d'avancement — pas même celui qui ne dépend pas de lui. */
+  function brancherEtat() {
+    document.addEventListener("change", function () { peindreBlocs(); if (OUVERT) rendre(); });
+    document.addEventListener("input", function () { peindreBlocs(); if (OUVERT) majFleche(); });
+    /* UNE SECTION QUI APPARAÎT NE DÉCLENCHE NI `change` NI `input`. Les blocs
+       de résultats sont dévoilés par le script de la page — `hidden` tombe, et
+       aucun événement de saisie ne part. Sans cet observateur, « En attente »
+       restait affiché sur une section pourtant calculée, sous les yeux du
+       lecteur, jusqu'à ce qu'il touche un champ ailleurs. */
+    if (window.MutationObserver) {
+      var obs = new MutationObserver(function () { peindreBlocs(); });
+      ETAPES.forEach(function (x) {
+        obs.observe(x.section, { attributes: true, attributeFilter: ["hidden"] });
+      });
+    }
+  }
+
   function demarrer() {
     var z = $("#gd");
-    if (!z) return;
     ETAPES = etapesDeLaPage();
     /* MOINS DE DEUX ÉTAPES : PAS DE PARCOURS. Guider quelqu'un à travers une
        seule section ajoute une commande sans rien apprendre. Le bloc reste
        vide plutôt que de se remplir pour exister. */
-    if (ETAPES.length < 2) { z.innerHTML = ""; return; }
+    if (ETAPES.length < 2) { if (z) z.innerHTML = ""; return; }
     /* On relève la référence de TOUTES les commandes présentes avant le
        premier rendu. Celles qui arriveront plus tard prendront la leur à leur
        première rencontre — c'est le même geste, au bon moment. */
     tous("select, input, textarea").forEach(depart);
+    peindreBlocs();
+    brancherEtat();
+    if (!z) return;      // pas de panneau ici : l'état des blocs suffit
     try {
       var v = parseInt(localStorage.getItem(CLE), 10);
       if (v >= 0 && v < ETAPES.length) COURANT = v;
@@ -479,25 +573,15 @@
       if (s) { COURANT = parseInt(s.getAttribute("data-gd-i"), 10) || 0; rendre(); aller(); }
     });
 
-    /* L'AVANCEMENT SUIT LA SAISIE, SANS LA GÊNER. On réagit à `change` et non
-       à `input` : recalculer et redessiner le panneau à chaque frappe volerait
-       le focus du champ en cours de frappe — le lecteur perdrait sa saisie de
-       vue à chaque lettre. */
-    document.addEventListener("change", function () {
-      if (OUVERT) rendre();
-    });
+    /* LA FLÈCHE SUIT LA PAGE : défilement, redimensionnement, sections qui se
+       peuplent après une requête. `passive` pour ne pas gêner le défilement
+       sur mobile — on ne fait que lire des positions.
 
-    /* AU FUR ET À MESURE, ET SANS VOLER LE FOCUS. Le panneau ne se redessine
-       qu'au `change` — le redessiner à chaque frappe déplacerait le curseur du
-       champ en cours. La FLÈCHE, elle, n'est pas dans le panneau : elle peut
-       suivre chaque frappe sans rien perturber, et c'est tout l'intérêt —
+       ELLE NE SE REPOSE PAS À CHAQUE FRAPPE DEPUIS LE PANNEAU : le panneau ne
+       se redessine qu'au `change`, sinon le curseur du champ en cours de
+       saisie sauterait à chaque lettre. La flèche, elle, n'est pas dans le
+       panneau — `brancherEtat` la suit à l'`input`, et c'est tout l'intérêt :
        elle quitte le champ dès qu'il porte une valeur. */
-    document.addEventListener("input", function () {
-      if (OUVERT) majFleche();
-    });
-    /* Elle suit aussi la page : défilement, redimensionnement, sections qui
-       se peuplent après une requête. `passive` pour ne pas gêner le défilement
-       sur mobile — on ne fait que lire des positions. */
     window.addEventListener("scroll", majFleche, { passive: true });
     window.addEventListener("resize", majFleche);
   }
@@ -525,6 +609,16 @@
       return { quoi: c.quoi, nom: nomChamp(c.el),
                champ: c.el.getAttribute("data-champ") || c.el.id || "",
                balise: c.el.tagName.toLowerCase() };
+    },
+    /* Ce que le BLOC affiche — la recette lit le jeton réellement posé, et non
+       ce que le module aurait dû poser. */
+    jeton: function (i) {
+      var e = ETAPES[i];
+      if (!e) return null;
+      var b = e.section.querySelector(".cp-etat");
+      return { classes: e.section.className,
+               jeton: b ? b.textContent : null,
+               jetonClasse: b ? b.className : null };
     },
     fleche: function () {
       if (!FLECHE || !FLECHE.classList.contains("on")) return null;

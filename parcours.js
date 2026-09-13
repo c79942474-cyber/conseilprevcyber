@@ -1446,26 +1446,34 @@
     "text-transform:uppercase;color:#0d2b28;background:var(--amber);border-radius:999px;",
     "padding:3px 8px;white-space:nowrap;font-weight:700}",
     ".pc-etape{border:1px solid var(--line);border-radius:10px;padding:13px 15px;background:var(--bg2);min-width:0}",
-    /* CE QUI RESTE A FAIRE bat doucement en ambre ; CE QUI EST VISITE tient
-       en vert, immobile. Cadence 1,8 s — la meme que les guidages de
-       Sentinel, tres en dessous du seuil de photosensibilite (3 eclats/s).
-       Seule la BORDURE anime : aucun texte ne change de fond, les contrastes
-       du contenu sont constants a chaque phase. */
-    "@keyframes pcAFaire{0%,100%{border-color:rgba(240,180,41,.55);box-shadow:0 0 0 0 rgba(240,180,41,0)}",
-    "50%{border-color:var(--amber);box-shadow:0 0 12px 0 rgba(240,180,41,.35)}}",
-    ".pc-etape.pc-e-reste{border:2px solid rgba(240,180,41,.55);animation:pcAFaire 1.8s ease-in-out infinite}",
-    ".pc-etape.pc-e-fait{border:2px solid var(--green)}",
-    "@media(prefers-reduced-motion:reduce){.pc-etape.pc-e-reste{animation:none;border-color:var(--amber)}}",
+    /* CE QUI RESTE A FAIRE TIENT EN BLEU, IMMOBILE ; CE QUI EST VALIDE BAT EN
+       VERT. Les images-cles `cpValide` et la cadence `--cp-battement` vivent
+       dans styles.css : ce module les EMPLOIE, il ne les redefinit pas.
+       Trois modules partagent cette grammaire ; trois copies de la meme
+       seconde et demie auraient diverge au premier reglage.
+
+       POURQUOI LE BLEU NE BAT PAS. Si tout bat, plus rien ne signale. Le
+       battement est le langage de l'ACQUIS — il recompense, il n'aiguillonne
+       pas. Ce qui reste a faire se lit a la fleche qui y mene, pas a un
+       clignotement de plus. */
+    ".pc-etape.pc-e-reste{border:2px solid var(--blue)}",
+    ".pc-etape.pc-e-fait{border:2px solid var(--green);",
+    "animation:cpValide var(--cp-battement) ease-in-out infinite}",
+    "@media(prefers-reduced-motion:reduce){.pc-etape.pc-e-fait{animation:none;border-color:var(--green)}}",
     ".pc-e-etat{flex-shrink:0;font-family:var(--mono);font-size:10px;letter-spacing:.05em;",
     "padding:2px 8px;border-radius:10px;white-space:nowrap}",
     ".pc-e-etat.fait{color:#0d2b1e;background:var(--green);font-weight:700}",
-    ".pc-e-etat.reste{color:var(--amber);border:1px solid var(--amber)}",
+    ".pc-e-etat.reste{color:var(--blue);border:1px solid var(--blue)}",
     ".pc-compte{font-size:12.5px;color:var(--muted2);margin:2px 0 10px}",
     ".pc-compte-fait{color:var(--green);font-weight:700}",
-    ".pc-compte-reste{color:var(--amber);font-weight:700}",
-    ".pc-etape.pc-ici{border-color:var(--teal);background:rgba(45,212,191,.07)}",
+    ".pc-compte-reste{color:var(--blue);font-weight:700}",
+    /* « VOUS Y ETES » EST UNE POSITION, PAS UN ETAT. Elle se dit par le fond
+       et par le texte, jamais par une troisieme couleur : deux couleurs
+       suffisent a dire l'avancement, une troisieme le brouillerait. */
+    ".pc-etape.pc-ici{background:rgba(156,196,245,.10);border-width:2px}",
+    ".pc-etape.pc-ici.pc-e-reste{border-color:var(--blue);box-shadow:0 0 0 1px rgba(156,196,245,.35)}",
     /* La visite prime la position : une etape courante ET visitee garde le
-       fond teal du « vous y etes », mais son cadre dit la visite. */
+       fond du « vous y etes », et son cadre vert bat comme les autres. */
     ".pc-etape.pc-ici.pc-e-fait{border-color:var(--green)}",
     ".pc-etape.pc-prio-etape{border-left:3px solid var(--amber)}",
     ".pc-e-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}",
@@ -1483,7 +1491,16 @@
     ".pc-e-d b{color:var(--ink)}",
     ".pc-e-tip{font-size:12px;color:var(--muted2);line-height:1.55;margin-top:7px;padding-left:10px;",
     "border-left:2px solid var(--line)}",
+    /* LA FLECHE NE DECORE PLUS, ELLE MENE. Trois etats : verte entre deux
+       etapes faites (le chemin parcouru), BLEUE ET DESCENDANTE devant la
+       prochaine a faire (le chemin a prendre), sourde ailleurs. Elle porte un
+       LIBELLE : « a faire ensuite » se lit sans distinguer les couleurs. */
     ".pc-fleche{text-align:center;color:var(--muted2);font-size:15px;line-height:1;margin:7px 0}",
+    ".pc-fleche.pc-fl-fait{color:var(--green)}",
+    ".pc-fleche.pc-fl-suite{color:var(--blue);font-family:var(--mono);font-size:10.5px;",
+    "letter-spacing:.07em;text-transform:uppercase;font-weight:700;margin:9px 0;",
+    "animation:cpVersSuite var(--cp-battement) ease-in-out infinite}",
+    "@media(prefers-reduced-motion:reduce){.pc-fleche.pc-fl-suite{animation:none}}",
     /* Bandeau de continuité */
     "@keyframes pcDot{0%,100%{opacity:1}50%{opacity:.3}}",
     ".pc-bandeau{position:fixed;left:0;right:0;bottom:0;z-index:3900;display:none;align-items:center;",
@@ -1502,10 +1519,16 @@
     ".pc-b-step{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
     ".pc-b-dots{display:flex;gap:5px}",
     ".pc-dot{width:8px;height:8px;border-radius:50%;background:var(--line)}",
-    ".pc-dot.fait{background:var(--green)}",
-    ".pc-dot.reste{background:none;border:1px solid var(--amber)}",
-    ".pc-dot.ici{background:var(--teal);box-shadow:0 0 0 2px rgba(45,212,191,.28)}",
-    ".pc-b-step.att{color:var(--amber)}",
+    ".pc-dot.fait{background:var(--green);animation:cpPastille var(--cp-battement) ease-in-out infinite}",
+    ".pc-dot.reste{background:none;border:1px solid var(--blue)}",
+    ".pc-dot.ici{background:var(--blue);box-shadow:0 0 0 2px rgba(156,196,245,.32)}",
+    /* La pastille n'a pas de bordure a faire battre : c'est sa LUEUR qui bat,
+       et sa couleur pleine ne change jamais — le contraste tient a chaque
+       phase. Cadence lue dans la meme variable que tout le reste. */
+    "@keyframes cpPastille{0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}",
+    "50%{box-shadow:0 0 0 3px rgba(52,211,153,.40)}}",
+    "@media(prefers-reduced-motion:reduce){.pc-dot.fait{animation:none}}",
+    ".pc-b-step.att{color:var(--blue)}",
     ".pc-b-mur a{color:var(--teal);font-weight:600}",
     ".pc-mur{font-family:var(--mono);font-size:10px;letter-spacing:.05em;color:var(--amber);",
     "border:1px solid var(--amber);border-radius:10px;padding:2px 9px;white-space:nowrap}",
@@ -1513,18 +1536,25 @@
     "margin-top:8px;padding:8px 11px;border-left:3px solid var(--amber);",
     "background:rgba(240,180,41,.07);border-radius:0 6px 6px 0}",
     ".pc-b-mur b{color:var(--ink)}",
-    ".pc-b-reste{font-family:var(--mono);font-size:10px;color:var(--amber);white-space:nowrap;",
-    "animation:pcAFaireTxt 1.8s ease-in-out infinite}",
-    /* Le texte ne bat que par sa LUEUR, jamais par sa couleur : l'ambre sur
-       fond sombre tient le seuil AA a chaque phase. */
-    "@keyframes pcAFaireTxt{0%,100%{text-shadow:none}50%{text-shadow:0 0 8px rgba(240,180,41,.55)}}",
-    "@media(prefers-reduced-motion:reduce){.pc-b-reste{animation:none}}",
+    ".pc-b-reste{font-family:var(--mono);font-size:10px;color:var(--blue);white-space:nowrap}",
+    /* CE QUI BAT EST CE QUI EST ACQUIS. « 3 a faire » se tient tranquille en
+       bleu ; « toutes visitees ✓ » bat en vert — c'est l'arrivee qu'on
+       celebre, pas le reste du chemin. Le texte ne bat que par sa LUEUR,
+       jamais par sa couleur : le vert tient le seuil AA a chaque phase. */
+    ".pc-b-reste.fini{color:var(--green);animation:cpTexteValide var(--cp-battement) ease-in-out infinite}",
+    "@media(prefers-reduced-motion:reduce){.pc-b-reste.fini{animation:none}}",
     ".pc-b-d{display:flex;align-items:center;gap:8px;flex-wrap:wrap}",
     ".pc-b-btn{font:inherit;font-size:12px;font-weight:600;padding:7px 12px;border-radius:8px;cursor:pointer;",
     "border:1px solid var(--line);background:var(--panel2);color:var(--ink);text-decoration:none;",
     "max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
     ".pc-b-btn:hover{border-color:var(--teal);color:var(--teal)}",
-    ".pc-b-suiv{border-color:var(--teal);background:rgba(45,212,191,.14);color:var(--teal)}",
+    ".pc-b-suiv{border-color:var(--blue);background:rgba(156,196,245,.14);color:var(--blue)}",
+    /* La fleche du bouton AVANCE, elle ne clignote pas : un bouton qui
+       clignote se lit comme une alerte. Le mouvement est horizontal parce
+       que le geste l'est — on passe a la page suivante. */
+    ".pc-b-suiv .pc-av{display:inline-block;animation:cpAvance var(--cp-battement) ease-in-out infinite}",
+    "@keyframes cpAvance{0%,100%{transform:translateX(0)}50%{transform:translateX(4px)}}",
+    "@media(prefers-reduced-motion:reduce){.pc-b-suiv .pc-av{animation:none}}",
     ".pc-b-x{background:none;border:none;color:var(--muted2);font-size:22px;line-height:1;cursor:pointer;padding:0 5px}",
     ".pc-b-x:hover{color:var(--ink)}",
     "@media(max-width:640px){.pc-b-btn{max-width:130px}.pc-live span{display:none}.pc-b-role{max-width:140px}",
@@ -1607,9 +1637,9 @@
     var note = sec && sec.notes ? sec.notes[e.url] : null;
     var prioAxe = perso && perso.prioIdx.hasOwnProperty(i) ? perso.prioIdx[i] : null;
     /* FAIT n'est pas DEPASSE : vert seulement si la page a ETE ATTEINTE
-       pendant ce parcours. Le reste est A FAIRE — encadré d'ambre et battant
-       doucement, pour que l'œil trouve d'un regard ce qui l'attend. Le badge
-       dit ce que le vert MESURE : la visite, pas le travail accompli. */
+       pendant ce parcours. Le reste tient en BLEU, immobile — c'est la flèche
+       qui désigne la prochaine, pas un clignotement de plus. Le badge dit ce
+       que le vert MESURE : la visite, pas le travail accompli. */
     var faite = (vus || []).indexOf(e.url) >= 0;
     return '<div class="pc-etape' + (courante ? " pc-ici" : "")
       + (faite ? " pc-e-fait" : " pc-e-reste")
@@ -1629,6 +1659,17 @@
       + (note ? '<div class="pc-e-sec"><b>' + esc(sec.icone + " " + sec.nom) + " — </b>"
                 + esc(note) + "</div>" : "")
       + "</div>";
+  }
+
+  /* LE LIBELLE FAIT PARTIE DE LA FLECHE, il n'est pas un ornement. Un lecteur
+     qui ne distingue pas le bleu du vert lit « À FAIRE ENSUITE » et sait où
+     aller ; la couleur et le mouvement ne font qu'accélérer la même lecture.
+     Les flèches muettes restent `aria-hidden` : elles n'apprennent rien à qui
+     écoute la page, et trois « flèche vers le bas » de suite la encombrent. */
+  function fleche(etat, texte) {
+    return '<div class="pc-fleche pc-fl-' + etat + '"'
+      + (texte ? "" : ' aria-hidden="true"') + ">"
+      + (texte ? "↓ " + esc(texte) + " ↓" : "↓") + "</div>";
   }
 
   /* Nom court du rôle (avant le « · ») pour les titres croisés. */
@@ -1702,9 +1743,31 @@
       + '<span class="pc-compte-fait">' + faites + " visitée" + (faites > 1 ? "s" : "") + "</span>"
       + ' · <span class="pc-compte-reste">' + restantes + " à faire</span>"
       + " sur " + source.etapes.length + " étape" + (source.etapes.length > 1 ? "s" : "") + "</div>";
-    var etapes = compteur + source.etapes.map(function (e, i) {
+    /* LES FLECHES SAVENT CE QU'ELLES RELIENT. Toutes identiques, elles ne
+       disaient rien — un ↓ entre deux etapes est une ponctuation, pas un
+       guide. Chacune lit desormais l'etat de ses DEUX extremites :
+
+         · entre deux etapes faites  → verte : le chemin parcouru
+         · devant la prochaine a faire → BLEUE, descendante, et LIBELLEE
+         · ailleurs                   → sourde
+
+       UNE SEULE est mise en avant, et c'est tout l'effet : un guide qui
+       souligne tout ne guide rien. Si la premiere etape est aussi la
+       prochaine a faire, la fleche se place AVANT elle — « commencez ici ». */
+    var faitesTab = source.etapes.map(function (e) { return vus.indexOf(e.url) >= 0; });
+    var prochaine = faitesTab.indexOf(false);
+    var blocs = source.etapes.map(function (e, i) {
       return etapeHtml(idParcours, e, i, ici, sec, perso, vus);
-    }).join('<div class="pc-fleche">↓</div>');
+    });
+    var etapes = compteur;
+    if (prochaine === 0) etapes += fleche("suite", "Commencez ici");
+    for (var bi = 0; bi < blocs.length; bi++) {
+      etapes += blocs[bi];
+      if (bi === blocs.length - 1) break;
+      etapes += (faitesTab[bi] && faitesTab[bi + 1]) ? fleche("fait", "")
+        : (bi + 1 === prochaine) ? fleche("suite", "À faire ensuite")
+        : fleche("calme", "");
+    }
 
     var tete;
     if (p) {
@@ -1772,7 +1835,7 @@
     /* LES POINTS DISAIENT FAUX : « fait » pour tout point AVANT la position
        courante — sauter à l'étape 4 peignait en vert deux pages jamais
        ouvertes. Chaque point dit désormais sa VISITE ; ce qui reste est
-       ambre, comme dans la fiche. */
+       bleu, comme dans la fiche. */
     var dots = "", nVus = 0;
     for (var k = 0; k < n; k++) {
       var vu = g.vus.indexOf(p.etapes[k].url) >= 0;
@@ -1808,9 +1871,8 @@
           ? "Étape " + (i + 1) + " / " + n + " · " + esc(e.label)
           : "En attente · reprise à l’étape " + (i + 1) + " / " + n + " · " + esc(e.label))
       + '</span><span class="pc-b-dots">' + dots + "</span>"
-      + '<span class="pc-b-reste">' + (n - nVus > 0
-          ? (n - nVus) + " à faire"
-          : "toutes visitées ✓") + "</span></div>"
+      + '<span class="pc-b-reste' + (n - nVus > 0 ? "" : " fini") + '">'
+      + (n - nVus > 0 ? (n - nVus) + " à faire" : "toutes visitées ✓") + "</span></div>"
       + (bloque
           ? '<div class="pc-b-mur">L’étape ' + (bloque.i + 1) + ' — <b>'
             + esc(bloque.e.label) + '</b> — demande un compte client validé. '
@@ -1830,7 +1892,8 @@
     if (suiv) {
       h += '<a class="pc-b-btn pc-b-suiv" href="' + esc(suiv.url) + '" data-pc-aller="' + (i + 1)
         + '" title="' + (reserve(suiv.url) ? "Cette page demande un compte" : esc(suiv.label))
-        + '">Suivant : ' + (reserve(suiv.url) ? "🔒 " : "") + esc(suiv.label) + " →</a>";
+        + '">Suivant : ' + (reserve(suiv.url) ? "🔒 " : "") + esc(suiv.label)
+        + ' <span class="pc-av" aria-hidden="true">→</span></a>';
     } else {
       h += '<button class="pc-b-btn pc-b-suiv" type="button" data-pc-fin="1">Terminer ✓</button>';
     }
