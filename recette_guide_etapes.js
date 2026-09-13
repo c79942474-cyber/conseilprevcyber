@@ -219,25 +219,29 @@ const SANS = ['/about', '/faq', '/methodologie'];
        fait ». Il aurait été vert sur un module qui répond « fait » à tout.
        On vide donc d'abord, on constate le passage à « à faire », puis on
        remplit et on constate le retour à « fait ». */
-    const bascule = await pg.evaluate(async () => {
+    const iBascule = await pg.evaluate(() => {
       const g = window.GUIDE_ETAPES;
-      const i = g.etapes().findIndex((_, k) => {
+      return g.etapes().findIndex((_, k) => {
         const r = g.aRemplir(k);
         return r && r.champs.length > 0 && !r.oblig.length;
       });
-      if (i < 0) return null;
-      const r = g.aRemplir(i);
-      const pose = (v) => { r.champs.forEach(c => {
-        c.value = v; c.dispatchEvent(new Event('change', { bubbles: true })); }); };
-      const cases = g.aRemplir(i).cases || [];
-      cases.forEach(c => { c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); });
-      pose('');
-      await new Promise(x => setTimeout(x, 320));
-      const vide = g.etat(i);
-      pose('10');
-      await new Promise(x => setTimeout(x, 320));
-      return { i: i, vide: vide, plein: g.etat(i), n: r.champs.length };
     });
+    let bascule = null;
+    if (iBascule >= 0) {
+      const cible = await marquer(pg, iBascule, 'champ');
+      if (cible) {
+        await saisir(pg, cible, '');            // on vide, à la main
+        await pg.waitForTimeout(320);
+        const vide = await pg.evaluate((i) => window.GUIDE_ETAPES.etat(i), iBascule);
+        await saisir(pg, cible, '10');          // on remplit, à la main
+        await pg.waitForTimeout(320);
+        const plein = await pg.evaluate((i) => window.GUIDE_ETAPES.etat(i), iBascule);
+        const n = await pg.evaluate((i) => window.GUIDE_ETAPES.aRemplir(i).champs.length,
+                                    iBascule);
+        await demarquer(pg);
+        bascule = { i: iBascule, vide: vide, plein: plein, n: n };
+      }
+    }
     ok('VIDER UNE ÉTAPE LA REMET « À FAIRE »',
        !!bascule && bascule.vide === 'a-faire',
        bascule ? 'état à vide : ' + bascule.vide : 'aucune étape à champs trouvée');
@@ -246,6 +250,53 @@ const SANS = ['/about', '/faq', '/methodologie'];
        bascule ? bascule.vide + ' → ' + bascule.plein + ' (' + bascule.n + ' champ(s))'
                : 'aucune étape à champs trouvée');
   }
+
+  /* ══ REMPLIR COMME UN LECTEUR, ET NON COMME UN SCRIPT ═══════════════════
+     Le module ne crédite plus que ce qu'une MAIN a touché : un événement
+     fabriqué depuis la page ne compte pas — et c'est exactement ce qu'il doit
+     faire, puisque la page elle-même écrit dans ses propres champs (les prix
+     unitaires de référence de l'ingénierie data centre en sont l'exemple).
+
+     Une recette qui continuerait à fabriquer ses événements éprouverait donc
+     un chemin qu'aucun visiteur n'emprunte, et rendrait « rien n'avance » sur
+     un module qui avance très bien. Elle passe par le clavier et la souris du
+     pilote : ce sont les seuls gestes que le navigateur marque comme dignes
+     de confiance. */
+  const marquer = async (pg, i, choisir) => {
+    return await pg.evaluate(({ i, quoi }) => {
+      const G = window.GUIDE_ETAPES, r = G.aRemplir(i);
+      const tout = quoi === 'champ' ? r.champs
+                 : r.oblig.concat(r.listes, r.champs);
+      const el = tout.find(e => !e.disabled && e.offsetParent !== null);
+      if (!el) return null;
+      el.setAttribute('data-recette', 'cible');
+      return { balise: el.tagName, type: el.type || '',
+               valeur: String(el.value == null ? '' : el.value),
+               options: el.tagName === 'SELECT'
+                 ? [...el.options].map(o => o.value).filter(v => v && v !== el.value)
+                 : [] };
+    }, { i: i, quoi: choisir || 'tout' });
+  };
+
+  const saisir = async (pg, cible, valeur) => {
+    const sel = '[data-recette="cible"]';
+    if (cible.balise === 'SELECT') {
+      await pg.selectOption(sel, valeur);
+    } else if (cible.type === 'checkbox' || cible.type === 'radio') {
+      await pg.click(sel);
+    } else {
+      await pg.click(sel);
+      await pg.fill(sel, valeur);
+      await pg.keyboard.press('Tab');          // le lecteur quitte le champ
+    }
+  };
+
+  const demarquer = async (pg) => {
+    await pg.evaluate(() => {
+      const e = document.querySelector('[data-recette="cible"]');
+      if (e) e.removeAttribute('data-recette');
+    });
+  };
 
   titre('5. Il ne casse rien : la page reste entière');
 
@@ -417,26 +468,21 @@ const SANS = ['/about', '/faq', '/methodologie'];
 
   /* ELLE SE DÉPLACE — le cœur de la demande : « au fur et à mesure ». */
   if (idx >= 0 && pr1) {
-    const bouge = await pg.evaluate((i) => {
-      const G = window.GUIDE_ETAPES;
-      const r = G.aRemplir(i);
-      const tout = r.oblig.concat(r.listes, r.champs);
-      const el = tout.find(e => !e.disabled && e.offsetParent !== null);
-      if (!el) return null;
-      const avant = (window.GUIDE_ETAPES.prochain() || {}).nom;
-      // On remplit comme un lecteur : une valeur DIFFÉRENTE de celle vue en
-      // arrivant, sinon le module ne la compte pas — et il a raison.
-      if (el.tagName === 'SELECT') {
-        const opts = [...el.options].filter(o => o.value && o.value !== el.value);
-        if (!opts.length) return null;
-        el.value = opts[0].value;
-      } else {
-        el.value = String((parseFloat(el.value) || 0) + 1234);
+    let bouge = null;
+    {
+      const cible = await marquer(pg, idx);
+      if (cible && !(cible.balise === 'SELECT' && !cible.options.length)) {
+        const avant = await pg.evaluate(
+          () => (window.GUIDE_ETAPES.prochain() || {}).nom);
+        // Une valeur DIFFÉRENTE de celle vue en arrivant, sinon le module ne
+        // la compte pas — et il a raison.
+        await saisir(pg, cible, cible.balise === 'SELECT'
+          ? cible.options[0]
+          : String((parseFloat(cible.valeur) || 0) + 1234));
+        await demarquer(pg);
+        bouge = { avant: avant };
       }
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-      return { avant: avant };
-    }, idx);
+    }
     await pg.waitForTimeout(400);
     const pr2 = await pg.evaluate(() => window.GUIDE_ETAPES.prochain());
     const fl2 = await pg.evaluate(() => window.GUIDE_ETAPES.fleche());
@@ -456,10 +502,10 @@ const SANS = ['/about', '/faq', '/methodologie'];
      lettre volerait le curseur. Un contrôle qui émettrait `change` ne
      prouverait donc rien de la flèche ; celui-ci n'émet QUE `input`. */
   if (idx >= 0) {
-    const frappe = await pg.evaluate((i) => {
+    const vise = await pg.evaluate((i) => {
       const G = window.GUIDE_ETAPES;
-      const vise = G.prochain();
-      if (!vise) return null;
+      const v = G.prochain();
+      if (!v) return null;
       /* ON REMPLIT LE CHAMP QUE LA FLÈCHE DÉSIGNE — pas un autre. Remplir un
          champ quelconque de l'étape laisserait la cible inchangée, et le
          contrôle passerait même si la flèche ne suivait rien : c'est
@@ -468,32 +514,41 @@ const SANS = ['/about', '/faq', '/methodologie'];
       const tout = r.oblig.concat(r.listes, r.champs, r.cases);
       const el = tout.find(e => {
         const nom = (e.getAttribute('data-champ') || e.id || '');
-        return nom && nom === vise.champ;
+        return nom && nom === v.champ;
       });
       if (!el) return null;
-      const avant = vise.nom || '';
-      /* `preventScroll` ISOLE CE QU'ON MESURE. Un `focus()` ordinaire fait
-         défiler la page jusqu'au champ, le défilement repositionne la flèche,
-         et le contrôle passerait alors même que l'écoute de la saisie serait
-         débranchée — vérifié : c'est ce qui s'est produit. Ici, seule la
-         saisie peut déplacer le repère. */
-      el.focus({ preventScroll: true });
-      const flAvant = G.fleche();
-      // Le lecteur saisit : `input` SEUL, aucun `change` — il n'a pas quitté
-      // le champ. C'est là que le panneau, lui, ne bouge pas encore.
-      if (el.tagName === 'SELECT') {
-        const opts = [...el.options].filter(o => o.value && o.value !== el.value);
-        if (!opts.length) return null;
-        el.value = opts[0].value;
-      } else if (el.type === 'checkbox' || el.type === 'radio') {
-        el.checked = !el.checked;
-      } else {
-        el.value = String((parseFloat(el.value) || 0) + 4321);
-      }
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      return { avant: avant, flAvant: flAvant, balise: el.tagName,
-               focusTenu: document.activeElement === el };
+      el.setAttribute('data-recette', 'cible');
+      return { avant: v.nom || '', flAvant: G.fleche(), balise: el.tagName,
+               type: el.type || '',
+               valeur: String(el.value == null ? '' : el.value),
+               options: el.tagName === 'SELECT'
+                 ? [...el.options].map(o => o.value).filter(x => x && x !== el.value)
+                 : [] };
     }, idx);
+    let frappe = null;
+    if (vise && !(vise.balise === 'SELECT' && !vise.options.length)) {
+      const sel = '[data-recette="cible"]';
+      /* LE LECTEUR SAISIT SANS QUITTER LE CHAMP : `input` seul, aucun
+         `change`. C'est là que le panneau, lui, ne bouge pas encore — et
+         c'est ce que ce contrôle sépare. On TAPE donc au clavier du pilote :
+         `fill` émettrait aussi `change` et brouillerait la distinction, et un
+         événement fabriqué ne serait plus compté du tout. */
+      if (vise.balise === 'SELECT') {
+        await pg.selectOption(sel, vise.options[0]);
+      } else if (vise.type === 'checkbox' || vise.type === 'radio') {
+        await pg.click(sel);
+      } else {
+        await pg.click(sel);
+        await pg.keyboard.type('4321');
+      }
+      const focusTenu = await pg.evaluate((q) =>
+        document.activeElement === document.querySelector(q), sel);
+      await pg.evaluate((q) => {
+        const e = document.querySelector(q); if (e) e.removeAttribute('data-recette');
+      }, sel);
+      frappe = { avant: vise.avant, flAvant: vise.flAvant,
+                 balise: vise.balise, focusTenu: focusTenu };
+    }
     if (frappe) {
       await pg.waitForTimeout(350);
       const apres = await pg.evaluate(() => ({

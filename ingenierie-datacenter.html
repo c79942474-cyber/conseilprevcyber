@@ -2261,12 +2261,20 @@
         franchissable que si les entrées sont réellement saisies et les substitutions
         faites. Une valeur laissée par défaut compte comme manquante.</div>
     </div>
+
+    <!-- LE PARCOURS GUIDÉ DES QUINZE SECTIONS. Posé après le socle et avant la
+         première : le socle dit ce qu'on vise, le parcours dit par où l'on
+         commence. Le script partagé lit les étapes SUR la page — aucune liste
+         n'est recopiée ici, donc aucune ne peut diverger. Le « pourquoi » de
+         chaque section vit sur la section elle-même (data-gd), à côté de ce
+         qu'il explique, et non dans un registre lointain. -->
+    <div id="gd"></div>
   </section>
 
   <!-- Le projet, posé AVANT tout le reste : c'est lui qui donne un destinataire
        à ce qui sera produit plus bas. Placé après, il aurait fallu rattacher
        après coup des documents déjà écrits — et personne ne le fait. -->
-  <section class="wrap rc-sec" id="ig-sec-projet">
+  <section class="wrap rc-sec" id="ig-sec-projet" data-gd="SANS PROJET OUVERT, CE QUI SERA PRODUIT PLUS BAS NE SE RATTACHE À RIEN. Les pièces rédigées ensuite s'y rangent seules, avec leur phase et leur date. Ouvert après coup, il faudrait raccrocher à la main des documents déjà écrits — et personne ne le fait.">
     <div class="rc-etape"><span class="n">1</span><h2>Votre projet et son historique</h2></div>
     <p class="lead" style="max-width:76ch;margin-top:0">
       Ouvrez un projet&nbsp;: les pièces rédigées plus bas s'y rattachent
@@ -2282,7 +2290,7 @@
     <div id="ig-pj-hist" class="ig-hi"></div>
   </section>
 
-  <section class="wrap rc-sec">
+  <section class="wrap rc-sec" data-gd="LA SEULE SECTION DONT TOUT LE RESTE DÉPEND. Elle décide des phases que vous pouvez franchir, du régime ICPE probable et de ce que la densité impose au bâtiment. Une valeur laissée par défaut compte comme MANQUANTE, et c'est délibéré : un chiffre d'usine qui traverse le projet devient opposable en consultation.">
     <div class="rc-etape"><span class="n">2</span><h2>Le profil de l'installation</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Le même profil que sur la page de calcul&nbsp;: seule la puissance informatique est
@@ -2358,7 +2366,7 @@
     <p class="note" id="ig-etat" role="status" aria-live="polite" style="margin-top:12px"></p>
   </section>
 
-  <section class="wrap rc-sec">
+  <section class="wrap rc-sec" data-gd="À LIRE AVANT DE TRAVAILLER, pas après. Le premier point d'arrêt est le seul qui commande une action ; les phases suivantes sont là pour voir venir. Travailler en parallèle sur une phase non franchissable, c'est produire des pièces qu'il faudra refaire.">
     <div class="rc-etape"><span class="n">3</span><h2>Où vous en êtes dans la séquence</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Chaque phase est éprouvée contre votre profil. Le premier point d'arrêt est le seul
@@ -2368,7 +2376,7 @@
     <div id="ig-parcours" aria-live="polite"><p class="note">Renseignez la puissance informatique pour éprouver les phases.</p></div>
   </section>
 
-  <section class="wrap rc-sec">
+  <section class="wrap rc-sec" data-gd="CE QUE LE MOTEUR VERSE, ET CE QUI RESTE À PRODUIRE. La distinction est l'objet même de cette section : sans elle, un ordre de grandeur provisoire traverse tout le projet et se retrouve dans un document opposable, avec son incertitude effacée en route.">
     <div class="rc-etape"><span class="n">4</span><h2>L'étude de la phase retenue</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Le plan du dossier, avec les grandeurs que le moteur y verse légitimement et la
@@ -2409,7 +2417,7 @@
     <div id="tr-ig" class="tr-zone"></div>
   </section>
 
-  <section class="wrap rc-sec">
+  <section class="wrap rc-sec" data-gd="LES CORRESPONDANCES NE SONT PAS DES ÉQUIVALENCES. Un FEED va plus loin qu'un APD sur le procédé et l'ignore sur le bâtiment. Croire les deux filières interchangeables laisse découvert précisément ce qu'on croyait couvert — c'est l'erreur la plus fréquente et la plus chère.">
     <div class="rc-etape"><span class="n">5</span><h2>Les deux filières face à face</h2></div>
     <p class="lead" style="max-width:76ch;margin-top:0">
       Les correspondances ne sont pas des équivalences. Un FEED va plus loin qu'un APD sur
@@ -2432,7 +2440,7 @@
        CETTE PAGE NE CALCULE PAS L'ENVELOPPE, elle le dit déjà ailleurs et
        renvoie vers conseilprev pour cela. Le montant des travaux est donc une
        ENTRÉE : le module ne le reconstitue pas, et sans lui il ne rend rien. -->
-  <section class="wrap rc-sec" id="ig-moe">
+  <section class="wrap rc-sec" id="ig-moe" data-gd="LES HONORAIRES PORTENT SUR LE MONTANT DES TRAVAUX, que ce module ne calcule pas : il chiffre l'énergie, l'eau et le carbone. Apportez donc le montant de la section suivante ou votre propre estimation — sans assiette, le taux ne dit rien.">
     <div class="rc-etape"><span class="n">6</span><h2>Le prix de la maîtrise d’œuvre</h2></div>
     <p class="lead" style="max-width:76ch;margin-top:0">
     Selon <b>la mission choisie plus haut</b> et les <b>phases</b> que vous confiez.
@@ -2492,7 +2500,7 @@
        programmées, coactivité, constat contradictoire : un chiffrage bâti sur
        un ratio de neuf ne les sous-estime pas, il ne les porte pas du tout.
        C'est ce que ce bloc rend visible avant tout chiffre. -->
-  <section class="wrap rc-sec" id="ig-eco">
+  <section class="wrap rc-sec" id="ig-eco" data-gd="CE QUI CHANGE D'UNE NATURE D'OPÉRATION À L'AUTRE N'EST PAS UN COEFFICIENT, C'EST LA LISTE DES POSTES. Se tromper de nature n'ajuste pas un total : cela fait disparaître des postes entiers, et le total paraît juste. Les prix unitaires sont les VÔTRES ; le module fournit les quantités.">
     <div class="rc-etape"><span class="n">7</span><h2>Le coût des travaux, poste par poste</h2></div>
     <p class="lead" style="max-width:78ch;margin-top:0">
       Le geste de l’économiste&nbsp;: <b>des quantités multipliées par vos prix
@@ -2656,7 +2664,7 @@
        se consolide pas du tout. Une console qui affiche un nombre pour
        chacune des trois ment sur deux tiers de son tableau de bord.
        ═══════════════════════════════════════════════════════════════════ -->
-  <section class="wrap rc-sec" id="ig-prog">
+  <section class="wrap rc-sec" id="ig-prog" data-gd="À REMPLIR SEULEMENT SI VOUS AVEZ PLUSIEURS SITES. Un programme n'est pas un gros projet : c'est un portefeuille, chaque site à sa phase et souvent dans plusieurs pays. Traité comme un projet unique, il masque le site qui retient tous les autres.">
     <div class="rc-etape"><span class="n">8</span><h2>Piloter le programme multi-sites</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Un programme n'est pas un gros projet&nbsp;: c'est un portefeuille de
@@ -2680,7 +2688,7 @@
     <div id="ig-prog-out"></div>
   </section>
 
-  <section class="wrap rc-sec" id="ig-icpe">
+  <section class="wrap rc-sec" id="ig-icpe" data-gd="LE RÉGIME COMMANDE LE CALENDRIER, et le calendrier est souvent le chemin critique. Cinq rubriques suffisent à basculer d'une déclaration à une autorisation — soit des mois d'écart, décidés par des choix techniques faits bien plus haut.">
     <div class="rc-etape"><span class="n">9</span><h2>Le régime ICPE de votre projet</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Cinq rubriques de la nomenclature couvrent l'essentiel d'un centre de
@@ -2716,7 +2724,7 @@
        décomposition ne se discute ni avec un gestionnaire de réseau ni avec
        un client — il se croit ou il se rejette.
        ═══════════════════════════════════════════════════════════════════ -->
-  <section class="wrap rc-sec" id="ig-reseau">
+  <section class="wrap rc-sec" id="ig-reseau" data-gd="ENTRE LA FILE D'ATTENTE ET LE REFUS, IL EXISTE UNE TROISIÈME RÉPONSE. Le raccordement effaçable est servi tout de suite sur la capacité existante, en échange d'un engagement d'effacement. L'ignorer fait attendre des années une capacité déjà disponible sous condition.">
     <div class="rc-etape"><span class="n">10</span><h2>Le raccordement au réseau et la production sur site</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Là où le réseau est saturé, le gestionnaire propose souvent, entre la
@@ -2755,7 +2763,7 @@
        Au-delà d'une centaine de kilowatts par baie, la boucle d'eau se
        dimensionne sans peine — c'est le PLANCHER qui cède, et bien avant.
        ═══════════════════════════════════════════════════════════════════ -->
-  <section class="wrap rc-sec" id="ig-densite">
+  <section class="wrap rc-sec" id="ig-densite" data-gd="LA DENSITÉ DÉCIDE DU BÂTIMENT, pas seulement du refroidissement. Au-delà d'un seuil, l'eau s'impose à l'air pulsé — et avec elle des charges au sol, des hauteurs et des réservations qui ne se rattrapent pas une fois le gros œuvre lancé. C'est la décision prise trop tard le plus souvent.">
     <div class="rc-etape"><span class="n">11</span><h2>Ce que la densité par baie impose au bâtiment</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       On est passé de baies à 1‑2 kW à 130, 150 voire 300 kW selon les
@@ -2798,7 +2806,7 @@
        d'arrêt franchi sans le contrôleur, un essai intégré découvert la
        semaine de la réception.
        ═══════════════════════════════════════════════════════════════════ -->
-  <section class="wrap rc-sec" id="ig-travaux">
+  <section class="wrap rc-sec" id="ig-travaux" data-gd="L'ORDRE ET LES PRÉALABLES SONT CE QUI COÛTE quand ils manquent. Du démarrage à la fin de la garantie de parfait achèvement : qui intervient, à quel titre, et ce qu'il faut avoir avant chaque opération. Une réception préparée trois semaines trop tard se paie en pénalités.">
     <div class="rc-etape"><span class="n">12</span><h2>Organiser la phase travaux</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Du démarrage du chantier à la fin de la garantie de parfait
@@ -2810,7 +2818,7 @@
     <div id="ig-tr-out"></div>
   </section>
 
-  <section class="wrap rc-sec">
+  <section class="wrap rc-sec" data-gd="C'EST ICI QU'ON QUITTE L'ESTIMATION. Vos notes de calcul, relevés et plans remplacent des valeurs par défaut par des valeurs DÉCLARÉES — et c'est la seule façon de resserrer l'incertitude que le moteur annonce. Les pièces sont analysées avant d'être enregistrées.">
     <div class="rc-etape"><span class="n">13</span><h2>Apporter vos documents</h2></div>
     <p class="lead" style="max-width:74ch;margin-top:0">
       Vos pièces existantes — notes de calcul, relevés, plans, spécifications
@@ -2858,7 +2866,7 @@
        une déclaration que personne n'a faite. Elles ressortent au statut
        « à déclarer et signer », avec le texte exact de ce qui est affirmé.
        ═══════════════════════════════════════════════════════════════════ -->
-  <section class="wrap rc-sec" id="ig-ao">
+  <section class="wrap rc-sec" id="ig-ao" data-gd="RÉSERVÉ À CONSEILPREV, et ce n'est pas une restriction de confort : un dossier de consultation appartient à l'acheteur, et l'instruire demande un métier. Vous voyez ce que le cabinet produit ; le dépôt reste de son côté.">
     <div class="rc-etape"><span class="n">14</span><h2>Répondre à l'appel d'offres</h2></div>
     <!-- CETTE SECTION EST UN OUTIL INTERNE, ET ELLE LE DIT AVANT LE GESTE.
          Ses douze interfaces sont réservées à l'administration — la décision
@@ -2986,7 +2994,7 @@
     <div class="ig-ao-op" id="ig-ao-projet"></div>
   </section>
 
-  <section class="wrap rc-sec" id="ig-limites">
+  <section class="wrap rc-sec" id="ig-limites" data-gd="À LIRE MÊME SI RIEN N'EST À REMPLIR. Ces limites décident du moment où il faut un ingénieur, et les ignorer coûte plus cher que de les lire. C'est pour cela qu'elles sont une étape du parcours et non une note de bas de page.">
     <div class="rc-etape"><span class="n">15</span><h2>Ce que ce cadre ne fait pas</h2></div>
     <p class="lead">
       Le dire ici plutôt qu'en note de bas de page&nbsp;: ces limites décident du moment où

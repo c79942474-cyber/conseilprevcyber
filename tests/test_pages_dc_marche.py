@@ -1682,8 +1682,25 @@ def test_TOUT_ce_qui_s_adresse_a_l_operateur_est_ferme_d_un_seul_geste():
     est soit l'en-tête, soit l'annonce, soit marqué `ig-ao-op`. Un bloc ajouté
     demain sans marque fait tomber cette règle — c'est tout son objet."""
     page = lire("ingenierie-datacenter.html")
-    i = page.index('<section class="wrap rc-sec" id="ig-ao">')
-    j = page.index('<section class="wrap rc-sec" id="ig-limites">')
+
+    def ouverture(ident):
+        """La balise ouvrante de la section, retrouvée par son IDENTIFIANT.
+
+        CE QUI A ÉTÉ REPRIS ICI, ET POURQUOI CE N'EST PAS UN AFFAIBLISSEMENT.
+        La règle s'ancrait sur la balise ÉCRITE AU CARACTÈRE PRÈS. Le jour où
+        la section a reçu un attribut de plus — le « pourquoi » que lit le
+        parcours guidé —, elle est tombée en disant « substring not found » :
+        pas sur ce qu'elle mesure, sur la façon dont elle attrape ce qu'elle
+        mesure. Une règle qui casse à l'ajout d'un attribut n'apprend rien, et
+        la faire taire en recopiant la nouvelle balise aurait garanti qu'elle
+        retombe au prochain attribut. L'identifiant, lui, est ce qui DÉSIGNE
+        la section — et l'assertion, elle, n'a pas bougé d'un mot."""
+        m = re.search(r'<section\b[^>]*\bid="%s"[^>]*>' % re.escape(ident), page)
+        assert m, "la section %s a disparu de la page" % ident
+        return m.start()
+
+    i = ouverture("ig-ao")
+    j = ouverture("ig-limites")
     bloc = page[i:j]
     nus = [m.group(0) for m in re.finditer(r'^    <\w+[^>]*>', bloc, re.M)
            if "ig-ao-op" not in m.group(0)

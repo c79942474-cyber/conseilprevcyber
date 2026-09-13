@@ -447,9 +447,10 @@ def test_les_pages_NUMEROTEES_chargent_toutes_le_module_d_etat():
 DIAG = lire("diagnostic.html")
 
 
-def _bloc_js(nom, src=DIAG):
+def _bloc_js(nom, src=None):
     """La fonction demandée, extraite de la page SERVIE, par comptage
     d'accolades. La recopier ici éprouverait un script imaginaire."""
+    src = DIAG if src is None else src
     i = src.index("function %s(" % nom)
     p, k = 1, src.index("{", i) + 1
     while p:
@@ -553,3 +554,150 @@ def test_la_fleche_du_bouton_n_avance_QUE_quand_on_peut_avancer():
     assert m.group(1) == "pret", (
         "la flèche suit « %s » et non la disponibilité du bouton" % m.group(1))
     assert "f.classList.toggle('cp-valide', repondu(n-1))" in corps, corps[:600]
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  LE PANNEAU GUIDÉ — ce qu'il dit, et ce qu'il compte pour une réponse
+# ══════════════════════════════════════════════════════════════════════════
+def _pages_guidees():
+    """Les pages qui portent le point d'accroche du panneau."""
+    out = []
+    for f in sorted(os.listdir(ICI)):
+        if f.endswith(".html") and 'id="gd"' in lire(f):
+            out.append(f)
+    return out
+
+
+def _sections_numerotees(src):
+    """Ce que `etapesDeLaPage()` retiendrait : une section, un numéro, un titre."""
+    out = []
+    for m in re.finditer(r"<section\b([^>]*)>(.*?)</section>", src, re.S):
+        n = re.search(r'<span class="n">([^<]*)</span>', m.group(2))
+        h = re.search(r"<h[23][^>]*>(.*?)</h[23]>", m.group(2), re.S)
+        if not n or not h or not n.group(1).strip().isdigit():
+            continue
+        gd = re.search(r'data-gd="([^"]*)"', m.group(1))
+        out.append({"n": n.group(1).strip(),
+                    "titre": re.sub(r"<[^>]+>", "", h.group(1)).strip(),
+                    "pourquoi": gd.group(1) if gd else ""})
+    return out
+
+
+def test_chaque_section_guidee_DIT_pourquoi_elle_demande_ce_qu_elle_demande():
+    """LE SEUL TEXTE QUE LA MACHINE NE PEUT PAS DÉDUIRE. Elle sait compter des
+    champs ; elle ne sait pas dire pourquoi ils décident de quelque chose. Une
+    étape sans ce texte se réduit à « trois listes déroulantes » — ce que le
+    lecteur voyait déjà sans le parcours.
+
+    ET LE TEXTE DOIT APPORTER QUELQUE CHOSE. Remplir l'attribut en reformulant
+    le titre est la façon la plus facile de satisfaire une règle sans rien
+    apprendre à personne, et cela ne se voit pas à la relecture.
+
+    UNE PREMIÈRE VERSION MESURAIT LE RECOUVREMENT des mots avec le titre — et
+    se trompait de cible : elle punissait « Les deux filières face à face »,
+    dont l'unique mot porteur est « filières », qu'un bon texte est justement
+    obligé d'employer. Elle ne mesurait pas « répète le titre » mais « parle du
+    sujet ». On mesure donc l'INVERSE, qui est la vraie prétention : combien de
+    mots porteurs le texte apporte que le titre n'a pas."""
+    pages = _pages_guidees()
+    assert len(pages) >= 4, "témoin : %d page(s) guidée(s) trouvée(s)" % len(pages)
+    sans, creux, pauvres = [], [], []
+    for f in pages:
+        for s in _sections_numerotees(lire(f)):
+            if not s["pourquoi"].strip():
+                sans.append((f, s["n"], s["titre"]))
+                continue
+            if len(s["pourquoi"]) < 80:
+                creux.append((f, s["n"], s["pourquoi"]))
+            mots = lambda t: {w.lower().strip(".,;:!?«»'’()") for w in t.split()
+                              if len(w) > 4}
+            neufs = mots(s["pourquoi"]) - mots(s["titre"])
+            if len(neufs) < 8:
+                pauvres.append((f, s["n"], s["titre"], len(neufs)))
+    assert not sans, "sections guidées sans « pourquoi » : %s" % sans
+    assert not creux, "« pourquoi » trop courts pour dire quoi que ce soit : %s" % creux
+    assert not pauvres, (
+        "ces « pourquoi » n'apportent presque rien que le titre ne dise déjà "
+        "(mots porteurs neufs) : %s" % pauvres)
+
+
+def test_le_pourquoi_vit_sur_la_SECTION_et_non_dans_un_registre():
+    """Un registre de textes dans le script se désynchronise au premier titre
+    renommé, et c'est le registre qu'on croit à jour. Le module LIT l'attribut
+    posé à côté de ce qu'il explique — et ne porte aucune table de secours."""
+    assert 'getAttribute("data-gd")' in GUIDE, GUIDE[:200]
+    # Aucune table page → texte : ce serait la copie qui dérive.
+    assert not re.search(r"(POURQUOI|TEXTES|REGISTRE)\s*=\s*\{", GUIDE), (
+        "un registre de « pourquoi » est apparu dans le module")
+
+
+def _rempli(cas):
+    """Ce que `rempli()` répond RÉELLEMENT — la fonction servie, exécutée."""
+    src = (_bloc_js("depart", GUIDE) + "\n" + _bloc_js("noterGeste", GUIDE)
+           + "\n" + _bloc_js("rempli", GUIDE))
+    prog = ("var DEPART=new WeakMap(), TOUCHE=new WeakSet();\n" + src + """
+function champ(v){ return {type:'text', value:v}; }
+var out={};
+// 1. LE SCRIPT DE LA PAGE ÉCRIT une valeur : ce n'est pas une réponse.
+var a=champ(''); depart(a); a.value='250';
+out.script_seul = rempli(a);
+// 2. UNE MAIN touche et change : c'en est une.
+var b=champ(''); depart(b); b.value='250';
+noterGeste({isTrusted:true, target:b});
+out.main = rempli(b);
+// 3. UNE MAIN touche mais la valeur de départ n'a pas bougé : on ne peut pas
+//    savoir, donc on ne l'affirme pas.
+var c=champ('80'); depart(c); noterGeste({isTrusted:true, target:c});
+out.touche_sans_bouger = rempli(c);
+// 4. UN ÉVÉNEMENT SYNTHÉTIQUE ne vaut pas une main.
+var d=champ(''); depart(d); d.value='250';
+noterGeste({isTrusted:false, target:d});
+out.evenement_fabrique = rempli(d);
+process.stdout.write(JSON.stringify(out));
+""")
+    out = subprocess.run(["node"], input=prog, capture_output=True, text=True,
+                         timeout=60)
+    assert out.returncode == 0, out.stderr[-2000:]
+    return json.loads(out.stdout)[cas]
+
+
+def test_une_reponse_exige_un_GESTE_et_non_une_ecriture_du_SCRIPT():
+    """LE DÉFAUT QUE CECI FERME, trouvé en posant le module sur une page neuve.
+    Le module comparait la valeur d'un champ à celle vue en arrivant pour
+    distinguer une RÉPONSE d'un défaut. Cela distingue en réalité « a changé »
+    de « n'a pas changé » — et la page elle-même change des valeurs.
+
+    L'ingénierie data centre écrit ses prix unitaires de référence quelques
+    centaines de millisecondes après le chargement. Le relevé était pris avant :
+    la comparaison voyait bouger vingt-six champs, et la section s'annonçait
+    « ✓ Renseigné » à quelqu'un qui n'avait rien fait. Mesuré au navigateur, sur
+    la page réelle.
+
+    LES QUATRE CAS SONT ÉPROUVÉS ENSEMBLE, et c'est nécessaire : une règle qui
+    n'éprouverait que le premier serait satisfaite par un `rempli()` qui répond
+    toujours faux — c'est-à-dire par un parcours qui n'avance jamais."""
+    assert _rempli("script_seul") is False, (
+        "une écriture du script compte encore comme une réponse")
+    assert _rempli("main") is True, (
+        "une vraie saisie ne compte plus : le parcours n'avancerait jamais")
+    assert _rempli("touche_sans_bouger") is False
+    assert _rempli("evenement_fabrique") is False, (
+        "un événement fabriqué vaut une main : le garde ne garde rien")
+
+
+def test_la_recette_du_guide_ne_FABRIQUE_plus_ses_evenements():
+    """CONSÉQUENCE DIRECTE DU GARDE, et il fallait la tirer. Le module ne
+    crédite plus que ce qu'une main a touché ; une recette qui continue de
+    fabriquer ses `Event` éprouve un chemin qu'aucun visiteur n'emprunte, et
+    rendrait « rien n'avance » sur un module qui avance très bien.
+
+    Le plus dangereux n'est pas qu'elle échoue — c'est qu'on la « répare » en
+    rouvrant le garde. La règle ferme cette porte : la recette passe par le
+    clavier et la souris du pilote, seuls gestes que le navigateur marque
+    comme dignes de confiance."""
+    rec = lire("recette_guide_etapes.js")
+    assert "dispatchEvent" not in rec, (
+        "la recette fabrique de nouveau ses événements : elle n'éprouve plus "
+        "le chemin d'un lecteur")
+    for geste in ("pg.fill(", "pg.click(", "pg.keyboard.type(", "pg.selectOption("):
+        assert geste in rec, "la recette n'emploie plus %s" % geste

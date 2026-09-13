@@ -147,6 +147,36 @@
      demander à ce parcours. */
   var DEPART = new WeakMap();
 
+  /* CE QUI A ÉTÉ TOUCHÉ PAR UNE MAIN, ET PAR RIEN D'AUTRE.
+     ═══════════════════════════════════════════════════════════════════════
+     LE DÉFAUT QUE CECI CORRIGE, trouvé en posant le module sur une page qui
+     ne l'avait pas. Comparer la valeur d'un champ à celle qu'on a vue en
+     arrivant devait distinguer une RÉPONSE d'un défaut ; cela distingue en
+     réalité « a changé » de « n'a pas changé », et la page elle-même change
+     des valeurs. L'ingénierie data centre écrit ses prix unitaires de
+     référence quelques centaines de millisecondes après le chargement : le
+     relevé était pris avant, la comparaison voyait bouger vingt-six champs, et
+     la section s'annonçait « ✓ Renseigné » à quelqu'un qui n'avait rien fait.
+
+     Un événement de saisie porte `isTrusted` : vrai quand il vient du
+     clavier ou de la souris, faux quand c'est un script qui l'a produit. On
+     retient donc les commandes RÉELLEMENT touchées, et la comparaison de
+     valeur ne s'applique qu'à elles.
+
+     LE COÛT EST ASSUMÉ, ET IL EST LE BON SENS : qui accepte une valeur par
+     défaut sans y toucher n'est pas crédité. Sous-évaluer l'avancement se
+     corrige d'un clic ; le sur-évaluer fait croire à un travail qui n'a pas eu
+     lieu — et c'est l'avancement qu'on vient demander à ce parcours. */
+  var TOUCHE = new WeakSet();
+
+  function noterGeste(e) {
+    if (e && e.isTrusted && e.target) TOUCHE.add(e.target);
+  }
+  /* EN CAPTURE : un champ dont le script de la page arrête la propagation
+     resterait invisible autrement, et sa réponse ne compterait jamais. */
+  document.addEventListener("input", noterGeste, true);
+  document.addEventListener("change", noterGeste, true);
+
   function depart(el) {
     if (!DEPART.has(el)) {
       DEPART.set(el, el.type === "checkbox" || el.type === "radio"
@@ -157,6 +187,10 @@
   }
 
   function rempli(el) {
+    /* PAS DE MAIN, PAS DE RÉPONSE. C'est le premier filtre, avant même la
+       comparaison de valeur : sans lui, toute écriture du script de la page
+       se lit comme une saisie. */
+    if (!TOUCHE.has(el)) return false;
     var d = depart(el);
     if (el.type === "checkbox" || el.type === "radio") {
       return el.checked ? d === "" : false;
