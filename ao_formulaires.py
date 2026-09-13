@@ -60,6 +60,11 @@ DOSSIER_MODELES = os.path.join(ICI, "modeles")
 # pas altéré, il est précédé. Elle se retire d'un coup de touche avant
 # signature — et si on l'oublie, on dépose un formulaire qui dit qu'il est un
 # projet, ce qui est gênant mais honnête. L'inverse ne l'est pas.
+# LE ROUGE DES CASES QUI RESTENT À COMPLÉTER. Une seule définition : deux
+# teintes différentes dans deux formulaires du même dossier se liraient comme
+# deux natures de manque, et il n'y en a qu'une.
+_ROUGE = (0xB0, 0x30, 0x20)
+
 BANDEAU = ("PROJET — rempli automatiquement à partir de votre fiche et des "
            "pièces de consultation déposées. NON SIGNÉ, NON VÉRIFIÉ. Les "
            "déclarations sur l'honneur et les blocs de signature sont restés "
@@ -512,6 +517,7 @@ def remplir_document(cle, valeurs, bandeau=BANDEAU):
     rendu sans dire ce qui manque se lit comme un formulaire complet.
     """
     from docx import Document                                   # noqa: PLC0415
+    from docx.shared import RGBColor                            # noqa: PLC0415
 
     m = MODELES[cle]
     p = chemin_modele(cle)
@@ -564,6 +570,71 @@ def remplir_document(cle, valeurs, bandeau=BANDEAU):
     sans_ancre = sorted(k for k, v in valeurs.items()
                         if k not in ancrees and str(v or "").strip())
 
+    # ── POURQUOI LES CASES VIDES NE SONT **PAS** MARQUÉES DANS LE FORMULAIRE
+    # J'AI ESSAYÉ, ET QUATRE RÈGLES DE SÉCURITÉ M'ONT ARRÊTÉ. L'idée venait
+    # d'un script de travail : écrire « [ À COMPLÉTER ] » en rouge dans chaque
+    # case ancrée restée vide, pour la voir à l'impression — c'est là qu'on
+    # relit un dossier de candidature. Dix-huit cases sortaient muettes.
+    #
+    # Mais ce module tient un invariant que plusieurs règles mesurent
+    # séparément : LE FORMULAIRE PRODUIT NE DIFFÈRE DU MODÈLE QUE LÀ OÙ UNE
+    # VALEUR EST POSÉE. C'est ce qui garantit qu'aucun cadre n'est récrit,
+    # qu'aucune déclaration sur l'honneur n'est touchée, et qu'un bloc de
+    # signature reste celui de l'acheteur. Marquer les cases vides ajoutait
+    # des modifications que ces règles ne connaissaient pas — et les
+    # assouplir pour gagner un repère visuel aurait affaibli exactement les
+    # gardes qui protègent un engagement pénal.
+    #
+    # L'INFORMATION N'EST PAS PERDUE POUR AUTANT : elle passe par l'annexe
+    # ci-dessous, qui s'ajoute APRÈS le formulaire et n'en modifie pas un
+    # caractère. Le lecteur a la même liste sur le même papier.
+    a_completer = [{"rubrique": a["rubrique"]} for a in ANCRES.get(cle, [])
+                   if not str(valeurs.get(a["rubrique"]) or "").strip()]
+
+    # ── CE QUE LE FORMULAIRE N'OFFRE PAS DE PORTER VA EN ANNEXE ──────────
+    # ON NE L'INSÈRE PAS DANS LE CORPS, ET C'EST UNE DÉCISION. Glisser un
+    # paragraphe après un cadre du formulaire officiel est tentant — c'est ce
+    # que fait le script de travail dont ce bloc s'inspire — mais un cadre est
+    # parfois réservé à l'ACHETEUR : le cadre D de l'ATTRI1 est son bloc de
+    # signature. Y écrire une donnée du candidat produirait un formulaire dans
+    # lequel le candidat a rempli la case de l'acheteur. Une annexe, à la fin,
+    # sous son propre titre, ne peut pas commettre cette faute.
+    #
+    # ET ELLE NE PERD RIEN : onze valeurs connues étaient jetées faute
+    # d'emplacement — forme juridique, qualité du signataire, capital,
+    # effectif, SIREN, TVA. Elles sont au dossier, elles doivent y figurer.
+    # L'ANNEXE N'EXISTE QUE POUR UN DOSSIER EN COURS, et c'est la seconde fois
+    # que les règles du dépôt me l'apprennent. Un formulaire produit SANS
+    # AUCUNE VALEUR doit ressortir octet pour octet identique au modèle : il
+    # sert aussi à être imprimé et rempli à la main. Une annexe collée à un
+    # formulaire vierge en ferait un document altéré sans que personne l'ait
+    # demandé — et `test_sans_bandeau_le_formulaire_ressort_octet_pour_octet_
+    # inchange` le dit sans ambiguïté.
+    if places and (sans_ancre or a_completer):
+        titre = doc.add_paragraph()
+        rt = titre.add_run("Compléments — informations du candidat")
+        rt.bold = True
+        note = doc.add_paragraph()
+        rn = note.add_run(
+            "Le formulaire n'offre pas de case pour les porter, ou la case "
+            "reste à remplir. Ce complément s'ajoute à la suite et ne modifie "
+            "pas un caractère du formulaire officiel.")
+        rn.italic = True
+        for k in sans_ancre:
+            li = doc.add_paragraph()
+            li.add_run("%s : " % k)
+            rv = li.add_run(str(valeurs[k]))
+            rv.bold = True
+        # ET CE QUI RESTE À REMPLIR, sur le même papier. Un dossier relu à
+        # l'impression doit porter ses trous : les découvrir à l'écran, plus
+        # tard, est la façon dont on dépose un formulaire à moitié vide.
+        for x in a_completer:
+            li = doc.add_paragraph()
+            li.add_run("%s : " % x["rubrique"])
+            rc = li.add_run("À COMPLÉTER")
+            rc.bold = True
+            rc.font.color.rgb = RGBColor(*_ROUGE)
+
     if bandeau:
         # EN TÊTE, ET DANS UN PARAGRAPHE À LUI. Insérer le bandeau dans un
         # cadre du formulaire modifierait le formulaire ; le poser devant ne le
@@ -580,6 +651,11 @@ def remplir_document(cle, valeurs, bandeau=BANDEAU):
         "maj": m["maj"], "source": m["source"], "empreinte": reelle,
         "places": places, "non_places": non_places, "ignores": ignores,
         "sans_ancre": sans_ancre,
+        # CE QUI A ÉTÉ MARQUÉ ET CE QUI A ÉTÉ REPORTÉ EN ANNEXE. Sans ces deux
+        # comptes, l'écran dirait « 29 valeurs placées » pour un document qui
+        # en porte quarante — et l'écart resterait inexpliqué.
+        "a_completer": a_completer,
+        "annexe": list(sans_ancre),
         "bandeau": bool(bandeau),
     }
 

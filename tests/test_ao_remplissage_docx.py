@@ -97,7 +97,30 @@ def _produit(saisies=None):
 @pytest.fixture(scope="module")
 def document():
     octets, rapport = _produit()
-    return _paras(io.BytesIO(octets)), _paras(F.chemin_modele("dc4")), rapport
+    produit = _paras(io.BytesIO(octets))
+    modele = _paras(F.chemin_modele("dc4"))
+    # LA QUEUE EST VÉRIFIÉE, PUIS RETIRÉE — voir la note de `_forme`. Les
+    # règles de ce bloc comparent le produit au modèle paragraphe par
+    # paragraphe ; l'annexe, qui s'ajoute APRÈS le formulaire, les faisait
+    # tomber en IndexError au lieu de mesurer. Elle est contrôlée pour ce
+    # qu'elle doit être, puis écartée : le corps garde toute son exigence.
+    return (_sans_annexe(produit, modele, rapport), modele, rapport)
+
+
+def _sans_annexe(produit, modele, rapport):
+    """Le corps seul — après avoir vérifié que la queue EST bien l'annexe."""
+    attendu = len(modele) + (1 if rapport.get("bandeau") else 0)
+    queue = produit[attendu:]
+    annonce = list(rapport.get("annexe") or []) + [
+        x["rubrique"] for x in (rapport.get("a_completer") or [])]
+    if annonce and rapport.get("places"):
+        assert len(queue) == 2 + len(annonce), (
+            "l'annexe fait %d paragraphe(s) pour %d ligne(s) annoncée(s)"
+            % (len(queue), len(annonce)))
+        assert queue[0].startswith("Compléments — informations du candidat")
+    else:
+        assert queue == [], "du texte suit le formulaire sans être annoncé"
+    return produit[:attendu]
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -560,7 +583,10 @@ def test_la_route_ne_declare_rien_meme_avec_une_fiche_complete(marche):
     modele = _paras(F.chemin_modele("dc4"))
     k = next(i for i, t in enumerate(produit)
              if t.startswith("K1 - Le sous-traitant déclare sur l'honneur"))
-    assert produit[k:] == modele[k - 1:], (
+    # L'ANNEXE S'AJOUTE APRÈS LE FORMULAIRE : la comparaison porte sur le
+    # CORPS. Ce qui suit est contrôlé séparément par `_sans_annexe`.
+    fin = len(modele) + 1
+    assert produit[k:fin] == modele[k - 1:], (
         "la zone des déclarations et des signatures a été touchée par la "
         "route")
 
@@ -609,7 +635,36 @@ def _forme(cle):
     octets, rapport = F.remplir_document(
         cle, F.valeurs_pour(r, F.MODELES[cle]["piece"]))
     assert octets, rapport
-    return (_paras(io.BytesIO(octets)), _paras(F.chemin_modele(cle)), rapport)
+    produit = _paras(io.BytesIO(octets))
+    modele = _paras(F.chemin_modele(cle))
+
+    # ── CE QUI SUIT LE FORMULAIRE EST VÉRIFIÉ ICI, PUIS RETIRÉ ─────────────
+    # Les règles de ce fichier comparent le produit au modèle PARAGRAPHE PAR
+    # PARAGRAPHE : c'est leur force, et c'est ce qui garantit qu'aucun cadre
+    # n'a été récrit. Depuis que les valeurs sans emplacement sont reportées en
+    # ANNEXE plutôt que jetées, le produit est plus long que le modèle — et les
+    # comparaisons tombaient en IndexError au lieu de mesurer quoi que ce soit.
+    #
+    # ON NE LES AFFAIBLIT PAS : l'annexe est vérifiée ici, une fois, et pour ce
+    # qu'elle doit être — un titre, sa note, et EXACTEMENT une ligne par valeur
+    # annoncée au rapport, rien d'autre. Puis on rend le corps seul, sur lequel
+    # les règles gardent toute leur exigence. Tolérer la QUEUE sans la vérifier
+    # aurait ouvert la porte à n'importe quoi après la dernière page.
+    attendu = len(modele) + (1 if rapport.get("bandeau") else 0)
+    queue = produit[attendu:]
+    annonce = list(rapport.get("annexe") or []) + [
+        x["rubrique"] for x in (rapport.get("a_completer") or [])]
+    if annonce:
+        assert len(queue) == 2 + len(annonce), (
+            "l'annexe fait %d paragraphe(s) pour %d ligne(s) annoncée(s)"
+            % (len(queue), len(annonce)))
+        assert queue[0].startswith("Compléments — informations du candidat")
+        for k in annonce:
+            assert any(t.startswith("%s :" % k) for t in queue[2:]), \
+                "« %s » est annoncée en annexe et n'y figure pas" % k
+    else:
+        assert queue == [], "du texte suit le formulaire sans être annoncé"
+    return (produit[:attendu], modele, rapport)
 
 
 # L'INTITULÉ ATTENDU DEVANT CHAQUE VALEUR, relevé sur chaque formulaire. C'est

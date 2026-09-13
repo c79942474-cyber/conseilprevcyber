@@ -470,3 +470,265 @@ def test_la_page_distingue_a_l_ecran_les_deux_natures_d_engagement():
         "fois à l'écran")
     assert A.ENGAGEMENTS["penal"]["message"] in h
     assert A.ENGAGEMENTS["contractuel"]["message"] in h
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  CE QU'ON DÉTIENT ET QUE LE FORMULAIRE N'OFFRE PAS DE PORTER
+# ══════════════════════════════════════════════════════════════════════════
+# MESURÉ LE 13 SEPTEMBRE SUR LES QUATRE FORMULAIRES, fiche cabinet complète :
+# 40 valeurs connues, 29 placées, et ONZE JETÉES faute d'emplacement — forme
+# juridique, qualité du signataire, capital, effectif, SIREN, TVA. Le rapport
+# les nommait ; le document, lui, ne les portait nulle part.
+#
+# ET DIX-HUIT CASES ANCRÉES SORTAIENT VIDES sans rien qui les distingue d'une
+# case que le formulaire laisse volontairement blanche.
+
+import io as _io
+
+import pytest
+
+import ao_dc as _D
+import ao_formulaires as _F
+
+
+_RC_RECETTE = u"""REGLEMENT DE CONSULTATION
+Pouvoir adjudicateur : CENTRE INFORMATIQUE DOUANIER (CID), 95520 Osny.
+Objet du marche : travaux de climatisation d'une salle informatique.
+Procedure : marche a procedure adaptee. Reference : CID MAPA n 2026-01.
+Remise des offres : le 14 novembre 2026 a 12h00. Duree : douze mois.
+"""
+_FICHE_RECETTE = {
+    "raison_sociale": "CONSEILPREV", "forme_juridique": "SARL",
+    "capital": "8 000 euros", "siret": "49453015700018", "rcs": "Paris",
+    "naf": "7112B", "adresse": "19 rue Auguste Chabrieres",
+    "code_postal": "75015", "ville": "Paris",
+    "telephone": "+33 6 60 69 21 45", "courriel": "christophe.cerf@i-aes.com",
+    "representant_nom": "Christophe CERF", "representant_qualite": "Gerant",
+    "effectif": "3", "ca_n1": "420 000", "ca_n2": "380 000", "ca_n3": "310 000",
+}
+
+
+def _report_recette():
+    an = _D.analyser([{"nom": "RC.pdf", "texte": _RC_RECETTE}])
+    return _D.remplir(fiche=_FICHE_RECETTE, analyse=an)
+
+
+def _produire(cle):
+    r = _report_recette()
+    vals = _F.valeurs_pour(r, _F.MODELES[cle]["piece"])
+    octets, rap = _F.remplir_document(cle, vals)
+    return vals, octets, rap
+
+
+def _texte_du_docx(octets):
+    from docx import Document
+    d = Document(_io.BytesIO(octets))
+    return "\n".join(p.text for p in d.paragraphs)
+
+
+def _rouges(octets):
+    from docx import Document
+    d = Document(_io.BytesIO(octets))
+    out = []
+    for p in d.paragraphs:
+        for run in p.runs:
+            c = run.font.color
+            if c is not None and c.rgb is not None and tuple(c.rgb) == _F._ROUGE:
+                out.append(run.text)
+    return out
+
+
+@pytest.mark.parametrize("cle", ["dc1", "dc2", "attri1"])
+def test_une_valeur_SANS_ANCRE_n_est_plus_PERDUE_elle_passe_en_annexe(cle):
+    """LA RÈGLE MESURE LE DOCUMENT, PAS LE RAPPORT. Un rapport qui nomme une
+    valeur « sans ancre » décrit une perte ; il ne la répare pas. On relit donc
+    les octets produits et on exige d'y retrouver la valeur."""
+    vals, octets, rap = _produire(cle)
+    assert rap["annexe"], "%s : aucune valeur sans ancre — la règle ne mesure rien" % cle
+    texte = _texte_du_docx(octets)
+    for k in rap["annexe"]:
+        assert str(vals[k]) in texte, \
+            "%s : « %s » (%s) est connue et ne figure NULLE PART dans le document" % (
+                cle, k, vals[k])
+
+
+def test_l_annexe_ne_MODIFIE_pas_le_formulaire_officiel():
+    """Le principe du module : on remplit les cases, on ne récrit pas le
+    formulaire. L'annexe s'AJOUTE à la fin — les paragraphes officiels doivent
+    rester au même nombre et dans le même ordre."""
+    from docx import Document
+    r = _report_recette()
+    vals = _F.valeurs_pour(r, _F.MODELES["dc2"]["piece"])
+    avec, rap = _F.remplir_document("dc2", vals, bandeau=None)
+    # LE TÉMOIN EST LE MODÈLE LUI-MÊME, pas un document produit à vide : un
+    # formulaire sans valeur ressort désormais identique au modèle, annexe
+    # comprise — c'est l'invariant que les règles du dépôt protègent.
+    from docx import Document as _Doc
+    sans_paras = [x.text for x in _Doc(_F.chemin_modele("dc2")).paragraphs]
+    pa = [x.text for x in Document(_io.BytesIO(avec)).paragraphs]
+    ps = sans_paras
+    assert rap["annexe"]
+
+    # LE NOMBRE NE DIT RIEN DE LA POSITION — ma première version comptait les
+    # paragraphes, et une annexe insérée EN TÊTE du formulaire officiel donnait
+    # exactement le même compte. La batterie l'a montré : M2 survivait. On
+    # mesure donc où elle est.
+    i = next((k for k, t in enumerate(pa)
+              if t.startswith("Compléments — informations du candidat")), None)
+    assert i is not None, "l'annexe n'est pas dans le document"
+    assert i >= len(ps), \
+        ("l'annexe commence au paragraphe %d, avant la fin du formulaire "
+         "officiel (%d paragraphes) : elle s'est insérée dans le CORPS" % (i, len(ps)))
+
+    # ET CHAQUE LIGNE DE L'ANNEXE, PAS SEULEMENT SON TITRE. Ma deuxième
+    # version ne regardait que le titre : une mutation qui déplaçait les
+    # VALEURS en tête du formulaire, titre resté à la fin, passait encore.
+    # Chaque valeur doit se trouver après la fin du formulaire officiel.
+    for k in rap["annexe"]:
+        v = str(vals[k])
+        pos = [j for j, t in enumerate(pa) if v in t]
+        assert pos, "« %s » a disparu du document" % k
+        assert max(pos) >= len(ps), \
+            ("« %s » figure au paragraphe %d, dans le CORPS du formulaire "
+             "officiel (%d paragraphes)" % (k, max(pos), len(ps)))
+
+    # Et le corps officiel est intact : les paragraphes qui précèdent l'annexe
+    # sont, un pour un, ceux du formulaire non rempli — aux valeurs près.
+    assert len(pa) == len(ps) + 2 + len(rap["annexe"]) + len(rap["a_completer"])
+
+
+@pytest.mark.parametrize("cle", ["dc1", "dc2", "attri1", "dc4"])
+def test_une_case_ancree_restee_VIDE_est_MARQUEE_et_visible(cle):
+    """Une case vide et une case volontairement blanche se ressemblent à
+    l'impression — et c'est à l'impression qu'on relit un dossier de
+    candidature. La marque est rouge pour cette raison-là."""
+    _vals, octets, rap = _produire(cle)
+
+    # UNE RÈGLE QUI S'ESQUIVE QUAND LA FONCTION DISPARAÎT NE VAUT RIEN. Sa
+    # première version appelait `pytest.skip` dès que `a_completer` était vide
+    # — c'est-à-dire précisément dans le cas où le marquage aurait été
+    # supprimé. La batterie l'a montré : M3 survivait en la faisant passer en
+    # « ignorée ». Le DC4 porte onze cases ancrées vides sur ce montage : on
+    # l'EXIGE, et les autres formulaires suivent s'ils en ont.
+    if cle == "dc4":
+        assert rap["a_completer"], \
+            "le DC4 ne marque plus aucune case : le marquage a disparu"
+    elif not rap["a_completer"]:
+        return
+    # LES CASES RESTÉES VIDES SONT DITES DANS L'ANNEXE, PAS DANS LE
+    # FORMULAIRE. Marquer à l'intérieur du formulaire aurait modifié des
+    # cadres que ce module s'interdit de toucher — quatre règles de sécurité
+    # l'ont arrêté, et elles avaient raison. L'annexe porte la même liste sur
+    # le même papier, sans changer un caractère du formulaire officiel.
+    texte = _texte_du_docx(octets)
+    marques = _rouges(octets)
+    assert len(marques) >= len(rap["a_completer"]), \
+        "%s : %d case(s) annoncée(s) à compléter, %d marque(s) dans le document" % (
+            cle, len(rap["a_completer"]), len(marques))
+    assert all("À COMPLÉTER" in m for m in marques)
+    for x in rap["a_completer"]:
+        assert "%s : À COMPLÉTER" % x["rubrique"] in texte, \
+            "%s : « %s » est annoncée vide et ne figure pas à l'annexe" % (
+                cle, x["rubrique"])
+
+
+def test_la_marque_passe_APRES_les_vraies_valeurs():
+    """Une case libre est d'abord offerte à une valeur connue ; la marque ne
+    prend que ce qui reste. L'inverse ferait perdre une valeur au profit d'un
+    repère — et personne ne s'en apercevrait."""
+    vals, octets, rap = _produire("dc1")
+    texte = _texte_du_docx(octets)
+    assert rap["places"], "aucune valeur placée : la règle ne mesure rien"
+    for pl in rap["places"]:
+        assert str(pl["valeur"]) in texte, \
+            "« %s » était placée et a disparu du document" % pl["rubrique"]
+        assert "À COMPLÉTER — %s" % pl["rubrique"] not in texte, \
+            "« %s » porte une marque alors qu'elle a une valeur" % pl["rubrique"]
+
+
+def test_le_garde_des_zones_interdites_MORD_vraiment():
+    """LE GARDE SE MESURE SUR UN CAS OÙ IL DOIT MORDRE, pas sur un jeu où il
+    n'a rien à faire.
+
+    Ma première version relisait les marques posées sur les vrais formulaires
+    et vérifiait qu'aucune n'était en zone interdite. Elle était verte — mais
+    parce qu'AUCUNE ancre de ces formulaires-là ne tombe dans une zone
+    interdite : la mutation qui retirait le garde ne changeait rien, et elle
+    survivait. On éprouve donc `_cible` directement, sur un cas construit pour
+    que l'emplacement libre SOIT interdit."""
+    paras = ["F1 - Déclaration sur l'honneur", "", "", "G - Autre cadre", ""]
+    libre = _F._cible(paras, interdits=set(), pris=set(),
+                      ancre="F1 - Déclaration sur l'honneur", occurrence=1)
+    assert libre == 1, "le montage ne vise pas la ligne libre attendue"
+    garde = _F._cible(paras, interdits={1, 2}, pris=set(),
+                      ancre="F1 - Déclaration sur l'honneur", occurrence=1)
+    assert garde is None, \
+        "le garde laisse écrire dans une zone interdite (§%s)" % garde
+
+
+def test_le_formulaire_officiel_n_est_MODIFIE_que_la_ou_une_valeur_est_posee():
+    """L'INVARIANT DU MODULE, et la raison pour laquelle les cases vides sont
+    dites à l'annexe et non marquées dans le formulaire.
+
+    J'avais écrit « [ À COMPLÉTER ] » en rouge dans chaque case ancrée vide —
+    l'idée venait d'un script de travail, et elle est bonne à l'impression.
+    Quatre règles de sécurité sont tombées : elles mesurent que le produit ne
+    diffère du modèle QUE là où une valeur est posée, et c'est ce qui garantit
+    qu'aucune déclaration sur l'honneur, aucun bloc de signature de l'acheteur
+    n'est touché. Les assouplir pour un repère visuel aurait affaibli les
+    gardes qui protègent un engagement pénal."""
+    from docx import Document
+    for cle in _F.MODELES:
+        vals, octets, rap = _produire(cle)
+        # LE MÊME ESPACE D'INDEX QUE LE MODULE. `rapport["places"]` numérote les
+        # blocs rendus par `F.paragraphes()` — paragraphes ET cellules de
+        # tableau. Comparer contre `doc.paragraphs`, qui ignore les tableaux,
+        # mettait en regard deux numérotations différentes : ma règle accusait
+        # le module de modifier sept paragraphes hors emplacement alors qu'elle
+        # lisait simplement ailleurs.
+        produit = [x.text for x in _F.paragraphes(Document(_io.BytesIO(octets)))]
+        modele = [x.text for x in _F.paragraphes(
+            Document(_F.chemin_modele(cle)))]
+        corps = produit[1:1 + len(modele)]          # après le bandeau
+        # LA BANNIÈRE EST DÉJÀ RETIRÉE PAR LA TRANCHE : `corps[i]` correspond à
+        # `modele[i]`, et `places` numérote dans l'espace du MODÈLE. Ajouter un
+        # décalage ici le comptait deux fois, et la règle accusait le module
+        # d'écrire un cran plus loin qu'il ne le fait.
+        ecarts = {i for i in range(len(modele)) if corps[i] != modele[i]}
+        poses = {pl["paragraphe"] for pl in rap["places"]}
+        assert ecarts, "%s : rien n'a été écrit, la règle ne mesure rien" % cle
+
+        # L'INCLUSION, PAS L'ÉGALITÉ. Ma première version exigeait autant de
+        # paragraphes modifiés que de valeurs posées — et trois valeurs
+        # écrivent un texte identique à celui qui était déjà là, donc ne
+        # « modifient » rien. L'égalité était une exigence fausse ; la
+        # propriété qui compte est que RIEN ne bouge en dehors des
+        # emplacements où une valeur a été posée.
+        assert ecarts <= poses, (
+            "%s : le formulaire est modifié hors des emplacements de valeurs "
+            "— %s" % (cle, sorted(ecarts - poses)))
+
+
+def test_le_RAPPORT_compte_l_annexe_et_les_marques():
+    """« 29 valeurs placées » pour un document qui en porte quarante laisserait
+    onze de côté sans explication. Le rapport doit fermer l'écart."""
+    for cle in _F.MODELES:
+        vals, _octets, rap = _produire(cle)
+        comptees = (len(rap["places"]) + len(rap["annexe"])
+                    + len([x for x in rap["non_places"]]))
+        assert comptees == len(vals), (
+            "%s : %d valeur(s) données, %d expliquée(s) par le rapport"
+            % (cle, len(vals), comptees))
+        assert "a_completer" in rap and "annexe" in rap
+
+
+def test_AUCUNE_declaration_sur_l_honneur_n_est_PRE_COCHEE():
+    """LA RÈGLE QUI NE DOIT JAMAIS TOMBER. Une déclaration sur l'honneur engage
+    pénalement celui qui la signe. Un programme qui la coche signe à la place
+    d'une personne — et le fait sans qu'elle l'ait lue."""
+    for cle in _F.MODELES:
+        _vals, octets, _rap = _produire(cle)
+        texte = _texte_du_docx(octets)
+        for marque in ("[X]", "☒", "[x]"):
+            assert marque not in texte, \
+                "%s : le document produit porte une case cochée « %s »" % (cle, marque)
