@@ -35,6 +35,9 @@ brief, et la seule dont l'échec ne se voit pas à la lecture.
 """
 import logging
 import os
+import re
+
+import reglages
 
 _log = logging.getLogger("ao_redaction")
 
@@ -120,6 +123,59 @@ def requete_socle(piece):
     return " ".join(" ".join(mots).split())[:600]
 
 
+DOSSIER_K = reglages.entier("AO_REDACTION_DOSSIER_K", 5, mini=1, maxi=20)
+DOSSIER_CARACTERES = reglages.entier("AO_REDACTION_DOSSIER_CHARS", 6000, mini=500)
+
+
+def chercher_dossier(piece, corp):
+    """LE SECOND SOCLE : ce que LA CONSULTATION exige, dans ses propres mots.
+
+    POURQUOI DEUX SOCLES ET PAS UN. Le fonds documentaire dit comment on a
+    répondu AILLEURS ; il ne dit rien de ce que CET acheteur demande. Rédiger
+    une note sur les moyens à partir du seul fonds produit un texte fidèle à
+    nos habitudes et distrait du dossier auquel il répond — c'est exactement ce
+    qui fait perdre une consultation.
+
+    ET IL NE PASSE PAS PAR UN MAGASIN. Le dossier déposé tient en quelques
+    pièces : les indexer demanderait une base, un espace par projet, une purge,
+    et ferait sortir le texte du client d'un périmètre où il est aujourd'hui
+    contenu. Une recherche lexicale sur les paragraphes déposés suffit, ne
+    coûte rien, et garde le texte là où il est.
+
+    FONCTION PURE : le corpus est passé, jamais cherché. Une règle l'éprouve
+    sans base ni réseau.
+    """
+    mots = [m for m in re.split(r"[^0-9A-Za-zÀ-ÿ]+", requete_socle(piece).lower())
+            if len(m) > 3]
+    if not mots or not (corp or {}).get("pieces"):
+        return {"bloc": "", "sources": [], "absent": "dossier_absent"}
+    notes = []
+    for p in corp["pieces"]:
+        for i, para in enumerate(re.split(r"\n\s*\n", p["texte"])):
+            t = para.strip()
+            if len(t) < 40:
+                continue
+            bas = t.lower()
+            score = sum(1 for m in set(mots) if m in bas)
+            if score:
+                notes.append((score, -i, p, t))
+    if not notes:
+        return {"bloc": "", "sources": [], "absent": "aucun_passage"}
+    notes.sort(key=lambda x: (-x[0], -x[1]))
+    bloc, sources, taille = [], [], 0
+    for _sc, _i, p, t in notes[:DOSSIER_K]:
+        if taille + len(t) > DOSSIER_CARACTERES:
+            break
+        taille += len(t)
+        nom = p["sigle"] or p["fichier"]
+        bloc.append("[%s] %s" % (nom, t))
+        if nom not in [x["titre"] for x in sources]:
+            sources.append({"titre": nom, "fichier": p["fichier"]})
+    if not bloc:
+        return {"bloc": "", "sources": [], "absent": "aucun_passage"}
+    return {"bloc": "\n\n".join(bloc), "sources": sources, "absent": ""}
+
+
 def chercher_socle(piece, rag=None):
     """LES EXTRAITS DU FONDS, et la seule fonction impure de ce module.
 
@@ -171,7 +227,7 @@ def chercher_socle(piece, rag=None):
     }
 
 
-def contexte(remplissage, analyse, piece, socle=None):
+def contexte(remplissage, analyse, piece, socle=None, dossier=None):
     """CE QUI PART CHEZ ANTHROPIC, construit ici et nulle part ailleurs.
 
     Fonction PURE : elle n'appelle rien, ne lit aucun environnement, et rend un
@@ -217,7 +273,16 @@ def contexte(remplissage, analyse, piece, socle=None):
     # contexte qui le NOMME lui fait marquer À COMPLÉTER là où il aurait
     # brodé. C'est la même règle que pour `cabinet_ne_porte_pas`, appliquée à
     # la source suivante.
-    s = socle or {}
+    # UN SOCLE NON JOINT SE DIT AUSSI. `rediger` passe toujours le résultat de
+    # `chercher_socle`, qui nomme déjà son absence — mais un appel direct à
+    # `contexte` laissait `socle_absent` vide, et le brief se taisait alors sur
+    # une source entière. Les deux sources sont désormais traitées pareil.
+    s = socle if socle is not None else {"absent": "socle_non_joint"}
+    # UN DOSSIER NON JOINT SE DIT, comme un magasin non joint. Sans ce nom, ni
+    # la branche « extraits » ni la branche « absent » du brief ne s'écrivent,
+    # et la consigne se tait sur une source entière — le modèle ne sait alors
+    # pas s'il n'a rien trouvé ou si on ne lui a rien donné.
+    d = dossier if dossier is not None else {"absent": "dossier_non_joint"}
     return {
         "piece": {
             "cle": piece["cle"],
@@ -233,6 +298,12 @@ def contexte(remplissage, analyse, piece, socle=None):
         "socle_documentaire": s.get("bloc") or "",
         "socle_sources": list(s.get("sources") or []),
         "socle_absent": s.get("absent") or "",
+        # LE SECOND SOCLE, celui de la consultation elle-même. Il est SÉPARÉ du
+        # fonds, et non fondu avec lui : le brief doit pouvoir dire lequel
+        # commande. Ce que l'acheteur exige prime sur ce que nous savons faire.
+        "dossier_extraits": (d or {}).get("bloc") or "",
+        "dossier_sources": list((d or {}).get("sources") or []),
+        "dossier_absent": (d or {}).get("absent") or "",
     }
 
 
@@ -272,6 +343,26 @@ def brief(ctx):
     # ── LA QUATRIÈME RÈGLE : LE SOCLE EST UNE DONNÉE, PAS UNE AUTORITÉ ──────
     # Elle n'est écrite QUE s'il y a un socle. Une consigne qui parle d'extraits
     # absents apprend au modèle à en inventer pour obéir.
+    # LE DOSSIER DE L'ACHETEUR PASSE AVANT LE FONDS, ET LA CONSIGNE LE DIT.
+    # Les deux blocs sont des extraits ; sans cette phrase, rien n'apprend au
+    # modèle qu'une exigence écrite par l'acheteur l'emporte sur une formule
+    # éprouvée ailleurs — et c'est ainsi qu'on rend une note hors sujet.
+    if ctx.get("dossier_extraits"):
+        titres = [x.get("titre") or "" for x in (ctx.get("dossier_sources") or [])]
+        L += [
+            "",
+            "PASSAGES DE LA CONSULTATION ELLE-MÊME — ILS COMMANDENT. Ce que "
+            "l'acheteur écrit prime sur toute pratique éprouvée ailleurs : "
+            "quand les deux divergent, suivez la consultation et dites-le.",
+            "Pièces citées : " + ", ".join(t for t in titres if t) + ".",
+            ctx["dossier_extraits"],
+        ]
+    elif ctx.get("dossier_absent"):
+        L += ["", "Aucun passage de la consultation n'a pu être retenu "
+                       "pour cette pièce (%s) : ne prêtez à l'acheteur aucune "
+                       "exigence que vous n'avez pas lue."
+                   % ctx["dossier_absent"]]
+
     if ctx.get("socle_documentaire"):
         titres = [x.get("titre") or "" for x in (ctx.get("socle_sources") or [])]
         L += [
@@ -323,7 +414,7 @@ def _client():
     return anthropic
 
 
-def rediger(cle, remplissage, analyse=None, rag=None):
+def rediger(cle, remplissage, analyse=None, rag=None, corpus_dossier=None):
     """Le brouillon d'UNE pièce. Rend le Markdown et ce qu'il a coûté.
 
     UNE PIÈCE PAR APPEL, comme `/marche/piece` : c'est ce qui permet de les
@@ -340,7 +431,8 @@ def rediger(cle, remplissage, analyse=None, rag=None):
     # L'ORDRE : chercher d'abord, composer ensuite. `chercher_socle` est la
     # seule impureté ; `contexte` reste une fonction de ses arguments.
     ctx = contexte(remplissage, analyse, piece,
-                   socle=chercher_socle(piece, rag))
+                   socle=chercher_socle(piece, rag),
+                   dossier=chercher_dossier(piece, corpus_dossier))
     consigne = brief(ctx)
     client = anthropic.Anthropic()
     try:
