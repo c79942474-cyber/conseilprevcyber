@@ -102,6 +102,16 @@
 /* Un TEXTE ne peut pas faire battre une bordure qu'il n'a pas : le sien bat
    par sa lueur. Sa couleur, elle, ne change jamais — le contraste tient donc
    identique à chaque phase, ce qu'un changement de teinte ne garantirait pas. */
+/* La flèche d'un BOUTON avance, elle ne clignote pas : un bouton qui clignote
+   se lit comme une alerte. Le mouvement est horizontal parce que le geste
+   l'est — on passe à la suite. Trois consommateurs : le bandeau du parcours,
+   l'assistant du diagnostic, et tout bouton d'enchaînement à venir. */
+@keyframes cpAvance{
+  0%,100%{transform:translateX(0)}
+  50%    {transform:translateX(4px)}
+}
+.cp-av{display:inline-block;animation:cpAvance var(--cp-battement) ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){.cp-av{animation:none}}
 @keyframes cpTexteValide{
   0%,100%{text-shadow:none}
   50%    {text-shadow:0 0 9px rgba(52,211,153,.60)}
@@ -1082,17 +1092,21 @@ footer a:hover{color:var(--cyan)}
   border-radius:13px;padding:18px 20px;background:var(--panel)}
 /* La jauge dit CE QUI EST REMPLI, pas où l'on en est dans le parcours : plein
    pour une étape renseignée, cerné pour l'étape ouverte, vide sinon. */
-.gd-jauge{display:flex;gap:5px;margin-bottom:12px}
-.gd-jauge span{flex:1;height:4px;border-radius:2px;background:var(--line)}
+.cp-jauge{display:flex;gap:5px;margin-bottom:12px}
+.cp-jauge span{flex:1;height:4px;border-radius:2px;background:var(--line)}
 /* LA JAUGE PARLE LA MEME LANGUE QUE TOUT LE RESTE : vert battant pour ce qui
    est validé ou calculé, bleu pour l'étape en cours, ligne sourde pour la
    suite. La cadence est lue dans --cp-battement, jamais réécrite ici. */
-.gd-jauge span.fa{background:var(--green);
+.cp-jauge span.fa{background:var(--green);
   animation:cpJauge var(--cp-battement) ease-in-out infinite}
 @keyframes cpJauge{0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}
   50%{box-shadow:0 0 7px 0 rgba(52,211,153,.55)}}
-.gd-jauge span.ic{background:var(--blue)}
-@media(prefers-reduced-motion:reduce){.gd-jauge span.fa{animation:none}}
+.cp-jauge span.ic{background:var(--blue)}
+/* OÙ L'ON SE TROUVE est une POSITION, pas un état : un anneau, jamais une
+   troisième couleur. Une question déjà répondue reste donc verte quand on y
+   revient, et l'anneau dit seulement qu'on y est. */
+.cp-jauge span.ou{box-shadow:0 0 0 2px rgba(156,196,245,.48)}
+@media(prefers-reduced-motion:reduce){.cp-jauge span.fa{animation:none}}
 .gd-n{margin:0 0 5px;font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;
   text-transform:uppercase;color:var(--cyan)}
 .gd-p h3{margin:0 0 9px;font-size:16px;color:var(--ink);line-height:1.3}
@@ -1195,7 +1209,7 @@ footer a:hover{color:var(--cyan)}
 }
 /* Une étape PAS ENCORE AFFICHÉE — les résultats, tant que le calcul n'a pas
    tourné. Ni faite ni à faire : en attente d'autre chose que du lecteur. */
-.gd-jauge span.av{background:transparent;box-shadow:inset 0 0 0 1px var(--line)}
+.cp-jauge span.av{background:transparent;box-shadow:inset 0 0 0 1px var(--line)}
 .gd-etat.a-venir{color:var(--muted2)}
 .gd-saut .st.a-venir{color:var(--muted2)}
 

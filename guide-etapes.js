@@ -234,7 +234,7 @@
     }).join("");
 
     var h = '<div class="gd-p" id="gd-panneau">'
-      + '<div class="gd-jauge" role="img" aria-label="'
+      + '<div class="cp-jauge" role="img" aria-label="'
       + esc(faits + " étape(s) remplie(s) sur " + comptables) + '">' + jauge + "</div>"
       + '<p class="gd-n">Étape ' + esc(String(COURANT + 1)) + " sur "
       + ETAPES.length + " · section " + esc(e.num) + " de la page</p>"

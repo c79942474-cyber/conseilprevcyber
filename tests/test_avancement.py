@@ -132,17 +132,30 @@ def test_la_cadence_du_battement_est_ecrite_UNE_fois_et_LUE_partout():
 
 def test_les_images_cles_partagees_ne_sont_definies_qu_UNE_fois():
     """Une image-clé redéfinie dans un module gagne sur la feuille pour ce
-    module SEULEMENT : les deux moitiés du site battent alors différemment,
-    et rien ne lève."""
-    tout = {"styles.css": CSS, "parcours.js": PARCOURS, "guide-etapes.js": GUIDE}
-    for nom in ("cpValide", "cpVersSuite", "cpTexteValide"):
-        ou = [(f, len(re.findall(r"@keyframes\s+" + nom + r"\b", s)))
-              for f, s in tout.items()]
-        total = sum(n for _, n in ou)
-        assert total == 1, "%s est défini %d fois : %s" % (nom, total, ou)
-        assert dict(ou)["styles.css"] == 1, (
-            "%s doit vivre dans la feuille partagée, pas dans un module : %s"
-            % (nom, ou))
+    module SEULEMENT : les deux moitiés du site battent alors différemment, et
+    rien ne lève.
+
+    LA LISTE N'EST PLUS TENUE À LA MAIN, et c'est une mutation qui l'a exigé.
+    Elle nommait trois images-clés ; le jour où `cpAvance` a gagné un second
+    consommateur, il n'y figurait pas — et une redéfinition dans un module
+    passait sans bruit. Une règle dont la portée se met à jour à la main finit
+    toujours par mesurer moins que ce qu'elle annonce. On part donc de ce que
+    la FEUILLE définit, et on interdit qu'un module le redéfinise."""
+    partagees = set(re.findall(r"@keyframes\s+(cp[A-Za-z0-9]+)", CSS))
+    assert len(partagees) >= 4, (
+        "témoin : la feuille ne définit que %d image(s)-clé(s) de la grammaire"
+        % len(partagees))
+    ailleurs = []
+    for fichier, src in [("parcours.js", PARCOURS), ("guide-etapes.js", GUIDE)] + [
+            (f, lire(f)) for f in sorted(os.listdir(ICI)) if f.endswith(".html")]:
+        for nom in re.findall(r"@keyframes\s+(cp[A-Za-z0-9]+)", src):
+            if nom in partagees:
+                ailleurs.append((fichier, nom))
+    assert not ailleurs, (
+        "ces images-clés de la feuille sont redéfinies ailleurs : %s" % ailleurs)
+    for nom in sorted(partagees):
+        assert len(re.findall(r"@keyframes\s+" + nom + r"\b", CSS)) == 1, (
+            "%s est défini deux fois dans la feuille elle-même" % nom)
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -426,3 +439,117 @@ def test_les_pages_NUMEROTEES_chargent_toutes_le_module_d_etat():
     assert not manquantes, (
         "ces pages numérotent leurs sections sans charger le module d'état : %s"
         % manquantes)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  L'ASSISTANT DU DIAGNOSTIC — le dernier parcours guidé qui restait muet
+# ══════════════════════════════════════════════════════════════════════════
+DIAG = lire("diagnostic.html")
+
+
+def _bloc_js(nom, src=DIAG):
+    """La fonction demandée, extraite de la page SERVIE, par comptage
+    d'accolades. La recopier ici éprouverait un script imaginaire."""
+    i = src.index("function %s(" % nom)
+    p, k = 1, src.index("{", i) + 1
+    while p:
+        if src[k] == "{":
+            p += 1
+        elif src[k] == "}":
+            p -= 1
+        k += 1
+    return src[i:k]
+
+
+def _assistant(reponses, rang):
+    """La jauge que la page produit RÉELLEMENT pour un état de réponses donné.
+
+    `reponses` est ce que le visiteur a coché, `rang` la question qu'il a sous
+    les yeux — les deux sont INDÉPENDANTS, et c'est tout l'objet de ces règles."""
+    champs = re.search(r"var CHAMPS=(\[[^\]]*\]);", DIAG)
+    assert champs, "la liste des champs a disparu de la page"
+    prog = (
+        "var TOTAL=4, step=" + str(rang) + ";\n"
+        "var CHAMPS=" + champs.group(1) + ";\n"
+        "var REP=JSON.parse(process.env.REP);\n"
+        "function val(n){ return REP[n] || null; }\n"
+        "var J={innerHTML:'',attrs:{},setAttribute:function(k,v){this.attrs[k]=v;}};\n"
+        "var document={getElementById:function(id){"
+        "  if(id==='stepJauge') return J; throw new Error('inattendu: '+id); }};\n"
+        + _bloc_js("repondu") + "\n" + _bloc_js("jauge") + "\n"
+        "jauge();\n"
+        "process.stdout.write(JSON.stringify({html:J.innerHTML,"
+        "libelle:J.attrs['aria-label']}));\n")
+    out = subprocess.run(["node"], input=prog, capture_output=True, text=True,
+                         timeout=60,
+                         env=dict(os.environ, REP=json.dumps(reponses)))
+    assert out.returncode == 0, out.stderr[-2000:]
+    return json.loads(out.stdout)
+
+
+def test_la_jauge_du_diagnostic_constate_les_REPONSES_et_non_le_RANG():
+    """LE DÉFAUT QUE CETTE RÈGLE FERME, et il était structurel. La barre se
+    remplissait sur `(step-1)/TOTAL` : elle mesurait l'AVANCÉE DANS LE
+    FORMULAIRE, pas le travail. Revenir à la question 1 après en avoir répondu
+    trois la ramenait à zéro — sous les yeux de quelqu'un qui venait justement
+    de répondre trois fois.
+
+    Mesuré sur l'état RÉEL : trois réponses en poche, retour à la question 1.
+    Trois segments doivent être verts, et l'anneau bleu doit dire où l'on est."""
+    trois = {"secteur": "energie", "taille": "grande", "situation": "debut"}
+    r = _assistant(trois, rang=1)
+    assert r["html"].count('class="fa') == 3, r["html"]
+    assert r["html"].count("av") == 1, r["html"]
+    # L'anneau de position est sur la PREMIÈRE, là où le lecteur se trouve.
+    assert r["html"].split("</span>")[0].endswith('class="fa ou">'), r["html"]
+    # Et le témoin négatif : sans aucune réponse, aucun vert, quel que soit le rang.
+    vide = _assistant({}, rang=4)
+    assert vide["html"].count('class="fa') == 0, vide["html"]
+
+
+def test_le_libelle_de_la_jauge_DIT_le_compte_et_change_avec_lui():
+    """LA JAUGE EST UN GRAPHIQUE : sans libellé, elle n'existe pas pour qui
+    écoute la page. Et un libellé FIXE serait pire qu'aucun — il affirmerait
+    un avancement qui ne bouge pas. On mesure donc qu'il CHANGE."""
+    a = _assistant({}, rang=1)["libelle"]
+    b = _assistant({"secteur": "eau"}, rang=2)["libelle"]
+    c = _assistant({"secteur": "eau", "taille": "petite"}, rang=2)["libelle"]
+    assert a and b and c, (a, b, c)
+    assert a != b != c, (a, b, c)
+    assert "aucune" in a.lower(), a
+    assert "1 question répondue" in b, b
+    assert "2 questions répondues" in c, c
+
+
+def test_la_jauge_du_diagnostic_a_AUTANT_de_segments_que_la_page_a_de_questions():
+    """UNE JAUGE QUI PROMET QUATRE ÉTAPES SUR UNE PAGE QUI EN PORTE CINQ fait
+    chercher une question qui n'existe pas — ou en cache une. Le nombre est
+    écrit une fois dans le script ; la règle le confronte au balisage."""
+    n = len(re.findall(r'class="stepblock', DIAG))
+    m = re.search(r"var step=1,\s*TOTAL=(\d+);", DIAG)
+    assert m, "le total des étapes a disparu du script"
+    assert int(m.group(1)) == n, (
+        "le script annonce %s étapes, la page en porte %d" % (m.group(1), n))
+    assert _assistant({}, rang=1)["html"].count("<span") == n
+
+
+def test_la_liste_des_questions_n_est_ecrite_qu_UNE_fois():
+    """`show()` et la jauge lisent la même liste. Écrite deux fois, elle se
+    serait séparée à la première question ajoutée — et c'est la jauge, muette,
+    qui aurait eu tort."""
+    assert DIAG.count("'secteur','taille','situation','priorite'") == 1, (
+        "la liste des champs est recopiée : %d occurrences"
+        % DIAG.count("'secteur','taille','situation','priorite'"))
+
+
+def test_la_fleche_du_bouton_n_avance_QUE_quand_on_peut_avancer():
+    """Une flèche qui s'agite sur un bouton désactivé invite à un geste qui ne
+    marche pas. On lit le code qui la pose : la classe est conditionnée à ce
+    QUI REND LE BOUTON ACTIF, et à rien d'autre."""
+    corps = _bloc_js("show")
+    assert "b.disabled=!pret" in corps.replace(" ", ""), corps[-700:]
+    m = re.search(r"'<span class=\"'\+\(([a-z]+)\?'cp-av':''\)", corps)
+    assert m, "la flèche n'est plus conditionnée : %s" % corps[-500:]
+    assert m.group(1) == "pret", (
+        "la flèche suit « %s » et non la disponibilité du bouton" % m.group(1))
+    assert "f.classList.toggle('cp-valide', repondu(n-1))" in corps, corps[:600]

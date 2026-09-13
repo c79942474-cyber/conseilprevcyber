@@ -295,7 +295,7 @@ const SANS = ['/about', '/faq', '/methodologie'];
         tousBoutons: boutons.every(b => b.tagName === 'BUTTON' && b.type === 'button'),
         expanded: (document.querySelector('#gd-ouvrir') || {}).getAttribute
           ? document.querySelector('#gd-ouvrir').getAttribute('aria-expanded') : null,
-        jauge: !!(p && p.querySelector('.gd-jauge[aria-label]')),
+        jauge: !!(p && p.querySelector('.cp-jauge[aria-label]')),
         /* La désignation ne doit pas reposer sur la SEULE couleur (WCAG
            1.4.1) : l'étape ouverte du sommaire porte aussi `aria-current`. */
         courantMarque: !!document.querySelector('.gd-saut[aria-current="true"]'),

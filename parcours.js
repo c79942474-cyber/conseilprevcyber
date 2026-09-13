@@ -1549,12 +1549,6 @@
     "max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
     ".pc-b-btn:hover{border-color:var(--teal);color:var(--teal)}",
     ".pc-b-suiv{border-color:var(--blue);background:rgba(156,196,245,.14);color:var(--blue)}",
-    /* La fleche du bouton AVANCE, elle ne clignote pas : un bouton qui
-       clignote se lit comme une alerte. Le mouvement est horizontal parce
-       que le geste l'est — on passe a la page suivante. */
-    ".pc-b-suiv .pc-av{display:inline-block;animation:cpAvance var(--cp-battement) ease-in-out infinite}",
-    "@keyframes cpAvance{0%,100%{transform:translateX(0)}50%{transform:translateX(4px)}}",
-    "@media(prefers-reduced-motion:reduce){.pc-b-suiv .pc-av{animation:none}}",
     ".pc-b-x{background:none;border:none;color:var(--muted2);font-size:22px;line-height:1;cursor:pointer;padding:0 5px}",
     ".pc-b-x:hover{color:var(--ink)}",
     "@media(max-width:640px){.pc-b-btn{max-width:130px}.pc-live span{display:none}.pc-b-role{max-width:140px}",
@@ -1893,7 +1887,7 @@
       h += '<a class="pc-b-btn pc-b-suiv" href="' + esc(suiv.url) + '" data-pc-aller="' + (i + 1)
         + '" title="' + (reserve(suiv.url) ? "Cette page demande un compte" : esc(suiv.label))
         + '">Suivant : ' + (reserve(suiv.url) ? "🔒 " : "") + esc(suiv.label)
-        + ' <span class="pc-av" aria-hidden="true">→</span></a>';
+        + ' <span class="cp-av" aria-hidden="true">→</span></a>';
     } else {
       h += '<button class="pc-b-btn pc-b-suiv" type="button" data-pc-fin="1">Terminer ✓</button>';
     }

@@ -31,9 +31,13 @@
 <script src="/parcours.js" defer></script>
 
 <style>
-  .steps{display:flex;gap:8px;align-items:center;margin:8px 0 26px;font-family:var(--mono);font-size:11px;color:var(--muted2)}
-  .steps .sbar{flex:1;height:6px;border-radius:99px;background:var(--bg2);border:1px solid var(--line);overflow:hidden}
-  .steps .sbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--teal));transition:width .25s}
+  /* LA JAUGE EST CELLE DU RESTE DU SITE, pas une quatrième. Elle vient de
+     styles.css (.cp-jauge) : vert battant pour une question répondue, bleu
+     pour celle où l'on se trouve, sourd pour la suite. Une barre continue
+     disait l'AVANCÉE DANS LE FORMULAIRE ; quatre segments disent ce qui est
+     RÉPONDU — et c'est la question que se pose le lecteur. */
+  .steps{display:flex;gap:12px;align-items:center;margin:8px 0 26px;font-family:var(--mono);font-size:11px;color:var(--muted2)}
+  .steps .cp-jauge{flex:1;margin:0}
   .qpanel{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:16px;padding:26px 28px}
   .qpanel h2{font-size:21px;margin-bottom:6px}
   .qpanel .hint{color:var(--muted2);font-size:13.5px;margin-bottom:18px}
@@ -130,7 +134,12 @@
         <div class="h"><span class="n">3</span><span><b>Gardez la main</b><span>Imprimez votre parcours ou contactez-nous — message pré-rempli, modifiable.</span></span></div>
       </div>
 
-      <div class="steps" aria-hidden="true"><span id="stepLbl">Étape 1/4</span><div class="sbar"><i id="stepBar"></i></div></div>
+      <!-- PLUS `aria-hidden` : la jauge portait une barre décorative, elle porte
+           maintenant un état — et un lecteur d'écran a le droit de l'entendre.
+           Son libellé est réécrit à chaque geste, et il dit le NOMBRE de
+           questions répondues, pas seulement le rang où l'on se trouve. -->
+      <div class="steps"><span id="stepLbl">Étape 1/4</span><div class="cp-jauge"
+           id="stepJauge" role="img" aria-label="Aucune question répondue sur 4."></div></div>
 
       <form id="diag" class="qpanel" novalidate>
         <!-- Q1 -->
@@ -200,7 +209,7 @@
 
         <div class="qnav">
           <button type="button" class="btn btn-s" id="prevBtn" style="visibility:hidden">← Précédent</button>
-          <button type="button" class="btn btn-p" id="nextBtn" disabled>Suivant →</button>
+          <button type="button" class="btn btn-p" id="nextBtn" disabled>Suivant <span class="cp-av" aria-hidden="true">→</span></button>
         </div>
         <div class="privacy"><span aria-hidden="true">🔒</span><span><b style="color:var(--ink)">Aucune donnée enregistrée.</b>
         Vos réponses restent dans votre navigateur : rien n'est transmis ni conservé tant que vous ne nous contactez pas vous-même.</span></div>
@@ -457,14 +466,57 @@
     var step=1, TOTAL=4;
     var form=document.getElementById('diag'), res=document.getElementById('res');
     function val(n){var el=form.querySelector('input[name='+n+']:checked');return el?el.value:null;}
+    /* LES QUATRE CHAMPS, NOMMÉS UNE FOIS. Ils étaient écrits en toutes lettres
+       au milieu de `show()` ; la jauge en a besoin aussi, et deux copies de la
+       même liste se seraient séparées à la première question ajoutée. */
+    var CHAMPS=['secteur','taille','situation','priorite'];
+    function repondu(i){ return !!val(CHAMPS[i]); }
+
+    /* CE QUI EST RÉPONDU EST CONSTATÉ, JAMAIS DÉDUIT DU RANG. Une barre qui se
+       remplit à mesure qu'on AVANCE se remplit aussi quand on revient en
+       arrière sans rien répondre — elle mesure la navigation, pas le travail.
+       Chaque segment lit donc SA question.
+
+       LE VERT PRIME LA POSITION, comme partout ailleurs dans Sentinel : une
+       question répondue reste verte même quand on y revient, et l'anneau bleu
+       dit seulement où l'on se trouve. */
+    function jauge(){
+      var j=document.getElementById('stepJauge'), h='', faits=0;
+      for(var k=0;k<TOTAL;k++){
+        var ok=repondu(k);
+        if(ok) faits++;
+        h+='<span class="'+(ok?'fa':(k===step-1?'ic':'av'))
+          +(k===step-1?' ou':'')+'"></span>';
+      }
+      j.innerHTML=h;
+      j.setAttribute('aria-label', faits===0
+        ? 'Aucune question répondue sur '+TOTAL+'. Vous êtes à la question '+step+'.'
+        : faits+' question'+(faits>1?'s':'')+' répondue'+(faits>1?'s':'')+' sur '
+          +TOTAL+'. Vous êtes à la question '+step+'.');
+    }
+
     function show(){
-      form.querySelectorAll('.stepblock').forEach(function(f){f.classList.toggle('on',+f.getAttribute('data-step')===step);});
+      form.querySelectorAll('.stepblock').forEach(function(f){
+        var n=+f.getAttribute('data-step');
+        f.classList.toggle('on',n===step);
+        /* LE RAIL SUR LA QUESTION ELLE-MÊME : bleu tant qu'elle attend une
+           réponse, vert battant dès qu'elle en a une. C'est le seul retour
+           immédiat du formulaire — le bouton « Suivant » qui s'active ne se
+           voit pas, il est plus bas que le regard. */
+        f.classList.add('cp-bloc');
+        f.classList.toggle('cp-valide', repondu(n-1));
+        f.classList.toggle('cp-attente', !repondu(n-1));
+      });
       document.getElementById('stepLbl').textContent='Étape '+step+'/'+TOTAL;
-      document.getElementById('stepBar').style.width=((step-1)/TOTAL*100)+'%';
+      jauge();
       document.getElementById('prevBtn').style.visibility=step>1?'visible':'hidden';
-      var name=['secteur','taille','situation','priorite'][step-1];
-      document.getElementById('nextBtn').disabled=!val(name);
-      document.getElementById('nextBtn').textContent=step===TOTAL?'Voir mon parcours →':'Suivant →';
+      var pret=repondu(step-1);
+      var b=document.getElementById('nextBtn');
+      b.disabled=!pret;
+      /* LA FLÈCHE N'AVANCE QUE QUAND ON PEUT AVANCER : posée sur un bouton
+         désactivé, elle inviterait à un geste qui ne marche pas. */
+      b.innerHTML=(step===TOTAL?'Voir mon parcours ':'Suivant ')
+        +'<span class="'+(pret?'cp-av':'')+'" aria-hidden="true">→</span>';
     }
     form.addEventListener('change',show);
     document.getElementById('prevBtn').addEventListener('click',function(){if(step>1){step--;show();}});
