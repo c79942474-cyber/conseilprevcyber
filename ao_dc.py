@@ -3643,8 +3643,43 @@ def _index_releves(analyse):
     return par_cle
 
 
+def _poser_extrait(ligne, extrait):
+    """Poser une valeur LUE dans le dossier par lecture assistée — ou rien.
+
+    ELLE ARRIVE DÉJÀ VÉRIFIÉE. `ao_extraction.retenir` a REJETÉ tout ce dont la
+    citation ne se retrouvait pas mot pour mot dans une pièce déposée : ce qui
+    parvient ici porte un passage réel, à un endroit réel du document. Ce
+    module n'a donc pas à re-juger la citation — il a à DIRE d'où elle vient.
+
+    ET ELLE EST MARQUÉE « À CONFIRMER », exactement comme une valeur tirée d'un
+    fichier que l'identification n'a pas su nommer. La citation prouve que le
+    passage existe ; elle ne prouve pas que la lecture en ait tiré la bonne
+    valeur. Ce qui se recopie sur un formulaire signé se relit.
+    """
+    v = str((extrait or {}).get("valeur") or "").strip()
+    if not v:
+        return False
+    ligne["valeur"] = v
+    sigle = extrait.get("sigle") or extrait.get("fichier") or "le dossier"
+    ligne["origine"] = ("Lu dans %s, à %d %% du document — LECTURE ASSISTÉE"
+                        % (sigle, int(extrait.get("part") or 0)))
+    ligne["citation"] = {"texte": extrait.get("citation") or "",
+                         "fichier": extrait.get("fichier"),
+                         "part": int(extrait.get("part") or 0)}
+    ligne["statut"] = "rempli"
+    ligne["a_confirmer"] = True
+    dits = ["Valeur lue automatiquement dans le dossier déposé. Le passage "
+            "cité a été retrouvé mot pour mot dans la pièce ; la valeur qui "
+            "en est tirée, elle, reste à confirmer avant signature."]
+    if extrait.get("non_identifie"):
+        dits.append("De plus, la pièce d'où elle vient n'a pas pu être "
+                    "identifiée : ouvrez-la avant de reporter.")
+    ligne["message"] = " ".join(dits)
+    return True
+
+
 def remplir(fiche=None, analyse=None, saisies=None, groupement=False,
-            fournies=None, perimetre=None):
+            fournies=None, perimetre=None, extraits=None):
     """Chaque pièce des DEUX dossiers, rubrique par rubrique, avec la valeur
     ET son origine.
 
@@ -3668,6 +3703,10 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False,
     """
     fiche = fiche or {}
     saisies = saisies or {}
+    # CE QUE LA LECTURE ASSISTÉE A TROUVÉ, et qui ne prime JAMAIS sur une
+    # saisie humaine : une personne qui a corrigé une valeur l'a fait parce que
+    # la lecture s'était trompée, et la relancer l'écraserait à chaque tour.
+    extraits = extraits or {}
     # LE GESTE « FOURNIE HORS OUTIL », ET SON UNIQUE SOURCE. Une pièce que ce
     # module NE PEUT PAS produire — les pouvoirs à obtenir, les références à
     # écrire — reste bloquante tant qu'on ne l'a pas sécurisée ailleurs. Ce
@@ -3819,11 +3858,19 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False,
             elif r["source"] == "consultation":
                 props = idx.get(r["releve"], [])
                 if not props:
-                    l["statut"] = "non_trouve"
-                    l["message"] = ("Non relevé dans les pièces déposées. Ce "
-                                    "n'est pas « il n'y en a pas » : c'est "
-                                    "« le relevé ne l'a pas vu ». À lire à la "
-                                    "main, puis à saisir ici.")
+                    # LE RELEVÉ PAR MOTIFS D'ABORD, LA LECTURE ASSISTÉE ENSUITE.
+                    # Un motif qui a mordu est déterministe et rejouable ; une
+                    # lecture ne l'est pas. Mettre la lecture devant ferait
+                    # varier d'un tour à l'autre une valeur que le motif rendait
+                    # stable — et personne ne saurait pourquoi.
+                    if _poser_extrait(l, extraits.get("%s.%s" % (cle_piece, r["cle"]))):
+                        pass
+                    else:
+                        l["statut"] = "non_trouve"
+                        l["message"] = ("Non relevé dans les pièces déposées. Ce "
+                                        "n'est pas « il n'y en a pas » : c'est "
+                                        "« le relevé ne l'a pas vu ». À lire à la "
+                                        "main, puis à saisir ici.")
                 else:
                     p0 = props[0]
                     l["valeur"] = p0["valeur"]
@@ -3863,12 +3910,13 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False,
                     if dits:
                         l["message"] = " ".join(dits)
             else:                                       # saisie
-                v = str(saisies.get("%s.%s" % (cle_piece, r["cle"])) or "").strip()
+                k = "%s.%s" % (cle_piece, r["cle"])
+                v = str(saisies.get(k) or "").strip()
                 if v:
                     l["valeur"] = v
                     l["origine"] = "Saisi pour cette consultation"
                     l["statut"] = "rempli"
-                else:
+                elif not _poser_extrait(l, extraits.get(k)):
                     l["statut"] = "a_saisir"
             l["statut_nom"] = STATUTS[l["statut"]]
             lignes.append(l)
