@@ -4665,7 +4665,28 @@ def api_datacenter_marche_analyser():
     except Exception:
         app.logger.exception("sélection des pièces à remplir")
         sel = None
-    return jsonify(ok=True, analyse=a, selection=sel,
+    # LA FICHE DU CABINET PART AVEC L'ANALYSE, ET NON SUR UN SECOND GESTE.
+    #
+    # CE QUE CELA SUPPRIME. Elle était servie par une route à part, appelée
+    # par un bouton « Charger la fiche du cabinet ». Or `_ao_charge()` la
+    # verse DÉJÀ comme socle à chaque remplissage : l'écran demandait donc au
+    # serveur ce que le serveur employait de toute façon, et l'opérateur
+    # devait y penser. Un aller-retour de moins, un bouton de moins, et une
+    # cause de moins pour que l'écran contredise le résultat.
+    #
+    # ELLE NE PRÉ-REMPLIT RIEN DE FORCE : la page verse ces valeurs dans les
+    # champs VIDES seulement. Une consultation peut se répondre au nom d'un
+    # client, et ce qui est tapé l'emporte — même ordre que côté serveur.
+    #
+    # SON ÉCHEC NE COÛTE QUE LA FICHE. Un dossier d'entreprise illisible ne
+    # doit pas emporter l'analyse du dossier de consultation, qui est le
+    # travail cher de cette route.
+    try:
+        cab = dossier_entreprise.fiche_candidat()
+    except Exception:
+        app.logger.exception("fiche du cabinet jointe à l'analyse")
+        cab = None
+    return jsonify(ok=True, analyse=a, selection=sel, cabinet=cab,
                    textes={d["nom"]: d["texte"] for d in docs})
 
 
@@ -4840,43 +4861,6 @@ def api_datacenter_marche_selection():
         return jsonify(ok=False, error="calcul",
                        message="La sélection n'a pas pu être recalculée."), 500
     return jsonify(ok=True, selection=sel)
-
-
-@app.route("/api/datacenter/marche/fiche-cabinet", methods=["GET"])
-@admin_required
-def api_datacenter_marche_fiche_cabinet():
-    """LA FICHE DU CABINET, POUR QUE L'ÉCRAN CESSE DE CONTREDIRE LE RÉSULTAT.
-
-    LE DÉFAUT QU'ELLE CORRIGE, MESURÉ EN NAVIGATEUR. `_ao_charge()` verse
-    DÉJÀ cette fiche comme socle : le SIRET, le SIREN, la TVA et les trois
-    chiffres d'affaires atteignent les formulaires de l'État à chaque appel.
-    Mais les champs de l'écran lisent le stockage du navigateur, et affichaient
-    donc « non renseigné » sur des valeurs que le serveur allait employer. Un
-    écran qui dit le contraire de ce qu'il produit fait ressaisir à la main ce
-    qui était déjà là — ou, pire, fait croire à un trou et pousser une valeur
-    approximative par-dessus une valeur vérifiée.
-
-    ELLE NE PRÉ-REMPLIT RIEN TOUTE SEULE. C'est un GESTE : l'opérateur demande
-    la fiche du cabinet, et elle s'écrit dans les champs sous ses yeux. Le
-    remplir au chargement supposerait que toute consultation se répond au nom
-    de CONSEILPREV — or ce § sert aussi à instruire le dossier d'un client, et
-    un client répond avec SON identité.
-
-    VERROU D'ADMINISTRATION, comme tout le § 14 : ce sont les données du
-    cabinet, elles ne sortent que vers qui répond pour lui.
-
-    ELLE REND AUSSI CE QUI MANQUE, avec l'endroit où le trouver. Le RCS, le
-    code NAF, l'effectif et l'assurance ne sont pas au dossier ; les taire
-    ferait croire la fiche complète.
-    """
-    try:
-        etat = dossier_entreprise.fiche_candidat()
-    except Exception:
-        app.logger.exception("fiche du cabinet")
-        return jsonify(ok=False, error="dossier",
-                       message="Le dossier d'entreprise n'a pas pu être lu."), 500
-    return jsonify(ok=True, fiche=etat["fiche"], manques=etat["manques"],
-                   fournis=etat["fournis"], attendus=etat["attendus"])
 
 
 def _ao_report(data):

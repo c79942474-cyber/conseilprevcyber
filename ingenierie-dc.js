@@ -6291,6 +6291,10 @@ function messageDelai(e, defaut) {
           }
           AO_ANALYSE = j.analyse;
           AO_DOCS = docs;
+          /* LE CABINET ARRIVE AVEC L'ANALYSE, ET IL SE VERSE AVANT QUE LA
+             FICHE SOIT DESSINÉE : les champs portent alors les valeurs dès
+             leur premier rendu, sans redessin ni clignotement. */
+          aoCabinetVerser(j.cabinet);
           /* CE QUI VIENT D'ÊTRE LU L'EMPORTE. Une pièce redéposée sous le
              même nom remplace la sienne au dossier ; son texte doit suivre,
              sinon le lecteur montrerait l'ancienne version sous le relevé de
@@ -7361,12 +7365,8 @@ function messageDelai(e, defaut) {
          or ce § sert aussi à instruire le dossier d'un client, et un client
          répond avec SON identité. */
       + '<div class="ig-ao-cab">'
-      + '<button type="button" class="btn btn-s" id="ig-ao-cab-go">'
-      + "Charger la fiche du cabinet</button>"
-      + '<span class="note" id="ig-ao-cab-msg">Les valeurs du dossier '
-      + "d'entreprise CONSEILPREV — dénomination, SIRET, chiffres d'affaires — "
-      + "s'écrivent dans les champs ci-dessous. Ce que vous avez déjà saisi "
-      + "n'est pas écrasé.</span></div>";
+      + '<span class="note" id="ig-ao-cab-msg">' + esc(aoCabinetTexte())
+      + "</span></div>";
     r.groupes.forEach(function (g) {
       var champs = parGroupe[g[0]] || [];
       if (!champs.length) return;
@@ -7390,12 +7390,16 @@ function messageDelai(e, defaut) {
         aoRemplir();
       });
     });
-    var cab = $("#ig-ao-cab-go", z);
-    if (cab) cab.addEventListener("click", aoFicheCabinet);
   }
 
 
-  /* LA FICHE DU CABINET, ÉCRITE DANS LES CHAMPS SOUS LES YEUX DE QUI DEMANDE.
+  /* LA FICHE DU CABINET, VERSÉE PAR L'ANALYSE — PLUS AUCUN GESTE À FAIRE.
+
+     CE QUE CELA SUPPRIME. Un bouton « Charger la fiche du cabinet » et un
+     aller-retour réseau, pour des valeurs que le serveur versait DÉJÀ comme
+     socle à chaque remplissage. L'écran demandait ce qu'il allait recevoir de
+     toute façon, et l'opérateur devait y penser. La fiche arrive maintenant
+     avec l'analyse, dans la même réponse.
 
      CE QU'ELLE N'ÉCRASE PAS : ce qui est déjà saisi. Une consultation peut
      demander une variante — un établissement secondaire, un autre signataire
@@ -7407,48 +7411,45 @@ function messageDelai(e, defaut) {
      et l'assurance n'y sont pas ; annoncer « fiche chargée » sans le dire
      ferait croire la fiche complète, et c'est au dépôt des plis qu'on s'en
      apercevrait. */
-  function aoFicheCabinet() {
-    var msg = $("#ig-ao-cab-msg"), b = $("#ig-ao-cab-go");
-    if (b) b.disabled = true;
-    if (msg) msg.textContent = "Lecture du dossier d'entreprise…";
-    return demander("/api/datacenter/marche/fiche-cabinet",
-                    { credentials: "same-origin" })
-      .then(function (r) { return r.json(); })
-      .then(function (j) {
-        if (!j || !j.ok) throw new Error((j && j.message) || "dossier");
-        var pose = 0, gardes = 0;
-        Object.keys(j.fiche || {}).forEach(function (k) {
-          if (String(AO_FICHE[k] || "").trim()) { gardes++; return; }
-          AO_FICHE[k] = j.fiche[k];
-          pose++;
-        });
-        aoFicheEnregistrer();
-        var absents = (j.manques || []).map(function (m) { return m.cle; });
-        /* ON REDESSINE LA FICHE AVANT DE PARLER. Les champs portent les
-           anciennes valeurs dans leur attribut `value` : sans ce tour, on
-           annoncerait « 16 valeurs écrites » au-dessus de seize champs
-           restés vides. `aoRemplir` ne redessine la fiche que si elle est
-           VIDE — mesuré dans le source — donc c'est ici, et nulle part
-           ailleurs, que le redessin doit se faire. */
-        if (AO_REMPLI) aoFicheRendre(AO_REMPLI);
-        aoRemplir();
-        var m2 = $("#ig-ao-cab-msg");
-        if (m2) m2.textContent =
-          pose + " valeur(s) écrite(s)"
-          + (gardes ? ", " + gardes + " saisie(s) conservée(s)" : "")
-          + ". Le dossier fournit " + j.fournis + " champ(s) sur " + j.attendus
-          + (absents.length
-             ? " — absents : " + absents.join(", ")
-               + ". Ils ne s'inventent pas : portez-les au dossier "
-               + "d'entreprise."
-             : ".");
-      })
-      .catch(function (e) {
-        var m2 = $("#ig-ao-cab-msg");
-        if (m2) m2.textContent =
-          "Le dossier d'entreprise n'a pas pu être lu : " + (e.message || e);
-      })
-      .then(function () { var b2 = $("#ig-ao-cab-go"); if (b2) b2.disabled = false; });
+  var AO_CABINET = null;      /* la dernière fiche reçue du serveur */
+  var AO_CAB_BILAN = null;    /* {poses, gardes} du dernier versement */
+
+  function aoCabinetVerser(cab) {
+    if (!cab || !cab.fiche) return null;
+    var poses = 0, gardes = 0;
+    Object.keys(cab.fiche).forEach(function (k) {
+      if (String(AO_FICHE[k] || "").trim()) { gardes++; return; }
+      AO_FICHE[k] = cab.fiche[k];
+      poses++;
+    });
+    AO_CABINET = cab;
+    AO_CAB_BILAN = { poses: poses, gardes: gardes };
+    if (poses) aoFicheEnregistrer();
+    /* SI LA FICHE EST DÉJÀ DESSINÉE, elle porte les anciennes valeurs dans
+       son attribut `value` : sans ce redessin, on annoncerait « 16 valeurs
+       versées » au-dessus de seize champs restés vides. Si elle ne l'est pas
+       encore, son premier dessin les lira directement dans AO_FICHE. */
+    if (AO_REMPLI) { aoFicheRendre(AO_REMPLI); aoRemplir(); }
+    return AO_CAB_BILAN;
+  }
+
+  function aoCabinetTexte() {
+    if (!AO_CAB_BILAN) {
+      return "Les valeurs du dossier d'entreprise CONSEILPREV — dénomination, "
+        + "SIRET, chiffres d'affaires — se versent dans les champs ci-dessous "
+        + "dès l'analyse du dossier de consultation. Ce que vous avez déjà "
+        + "saisi n'est pas écrasé.";
+    }
+    var c = AO_CABINET || {}, b = AO_CAB_BILAN;
+    var absents = (c.manques || []).map(function (m) { return m.cle; });
+    return b.poses + " valeur(s) du dossier d'entreprise versée(s)"
+      + (b.gardes ? ", " + b.gardes + " saisie(s) conservée(s)" : "")
+      + ". Le dossier fournit " + (c.fournis || 0) + " champ(s) sur "
+      + (c.attendus || 0)
+      + (absents.length
+         ? " — absents : " + absents.join(", ")
+           + ". Ils ne s'inventent pas : portez-les au dossier d'entreprise."
+         : ".");
   }
 
 

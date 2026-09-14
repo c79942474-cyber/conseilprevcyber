@@ -294,7 +294,14 @@ _MOTIF_MARCHE = ("réponse à consultation — outil interne : le cabinet "
                  "résultat.")
 
 API_ADMIN = {
-    "/api/datacenter/marche/analyser": _MOTIF_MARCHE,
+    # ELLE REND EN OUTRE L'IDENTITÉ DU CABINET LUI-MÊME, depuis que la
+    # fiche part avec l'analyse au lieu d'une route à part : dénomination,
+    # SIRET, chiffres d'affaires des trois derniers exercices, signataire.
+    # Le motif est écrit ici parce que c'est ici que la décision se prend.
+    "/api/datacenter/marche/analyser":
+        _MOTIF_MARCHE + " Elle rend en outre l'identité du CABINET "
+        "elle-même : dénomination, SIRET, chiffres d'affaires des trois "
+        "derniers exercices, signataire.",
     "/api/datacenter/marche/candidature": _MOTIF_MARCHE,
     "/api/datacenter/marche/remplir": _MOTIF_MARCHE,
     "/api/datacenter/marche/export": _MOTIF_MARCHE,
@@ -309,13 +316,11 @@ API_ADMIN = {
         "consomme des jetons : le transfert est déclaré au registre RGPD sous "
         "« dossier-marche ».",
     "/api/datacenter/marche/selection": _MOTIF_MARCHE,
-    # CELLE-CI SORT LES DONNÉES DU CABINET LUI-MÊME — SIRET, chiffres
-    # d'affaires, adresse, signataire. Elle n'a rien à faire ailleurs qu'entre
-    # les mains de qui répond POUR CONSEILPREV.
-    "/api/datacenter/marche/fiche-cabinet":
-        _MOTIF_MARCHE + " Celle-ci rend en outre l'identité du CABINET "
-        "elle-même : dénomination, SIRET, chiffres d'affaires des trois "
-        "derniers exercices, signataire.",
+    # LA FICHE DU CABINET N'A PLUS DE ROUTE À ELLE, ET LE MOTIF A DÉMÉNAGÉ
+    # PLUS HAUT. Elle part désormais avec l'analyse — « /analyser » rend
+    # l'identité du CABINET elle-même : dénomination, SIRET, chiffres
+    # d'affaires des trois derniers exercices, signataire. Le verrou est le
+    # même, et il porte sur une route de moins.
     "/api/datacenter/marche/projet/dossier": _MOTIF_MARCHE,
     "/api/datacenter/marche/projet/oubli": _MOTIF_MARCHE,
     "/api/datacenter/marche/projet/affirmation": _MOTIF_MARCHE,
