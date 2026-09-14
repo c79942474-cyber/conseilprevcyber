@@ -1045,7 +1045,34 @@ def test_la_fiche_ne_quitte_le_navigateur_QUE_par_le_geste_de_conservation():
                          # Le TRANSFERT vers le sous-traitant est le même que
                          # celui de `/rediger`, déjà déclaré au registre RGPD
                          # sous « dossier-marche ».
-                         "/api/datacenter/marche/atelier"}
+                         "/api/datacenter/marche/atelier",
+                         # SEPTIÈME ADRESSE, ENTRÉE DÉLIBÉRÉMENT :
+                         # `/marche/brouillon` met en page un brouillon déjà
+                         # écrit, pour l'emporter en Word, PDF ou Excel.
+                         #
+                         # ELLE NE PORTE PAS LA FICHE, et la règle l'a
+                         # pourtant arrêtée — à raison. Le découpage par
+                         # fonction colle `aoBrouillonEmporter` au
+                         # gestionnaire de clic de `/rediger`, qui suit
+                         # immédiatement et n'est pas une déclaration de
+                         # fonction : les deux forment un seul bloc, et ce
+                         # bloc nomme `AO_FICHE`. La présomption est la bonne
+                         # et il ne faut pas l'affaiblir ; l'adresse s'écrit
+                         # donc ici, avec ce qu'elle emporte VRAIMENT.
+                         #
+                         # CE QU'ELLE EMPORTE : le markdown du brouillon —
+                         # qui porte le nom de l'acheteur, l'objet du marché
+                         # et les moyens du cabinet. C'est du même ordre que
+                         # la fiche, et cela justifie la déclaration autant
+                         # que l'indirection.
+                         #
+                         # ET CE QU'ELLE NE CONSERVE PAS : rien. Le texte
+                         # monte dans la requête, le fichier redescend,
+                         # aucun magasin n'est écrit et rien ne touche le
+                         # disque. C'est la décision prise pour les
+                         # brouillons — téléchargeables, jamais stockés — et
+                         # la catégorie la dit.
+                         "/api/datacenter/marche/brouillon"}
     AVEC_CONSERVATION = {"/api/datacenter/marche/projet/dossier"}
 
     # LA NEUVIÈME ADRESSE VA DANS L'AUTRE SENS, ET C'EST POURQUOI ELLE A SA

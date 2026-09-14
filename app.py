@@ -204,6 +204,11 @@ _RATE_EXACT = {
     # arrêter une boucle. Le calcul est pur — aucune socket, aucun fichier.
     "/api/datacenter/marche/remplir":    (120, 60),
     "/api/datacenter/marche/export":     (30, 60),
+    # LE BROUILLON MONTE AVEC LA DEMANDE — jusqu'à 130 000 caractères — et
+    # redescend mis en page. C'est le même coût de calcul qu'un export, pour
+    # un geste plus fréquent : on télécharge chaque pièce rédigée, et il y en
+    # a onze.
+    "/api/datacenter/marche/brouillon":  (40, 60),
     "/api/datacenter/marche/dossier.zip": (10, 60),
     "/api/datacenter/marche/parcours":   (60, 60),
     # LA CADENCE EST HAUTE PARCE QUE LE GESTE EST GROUPÉ : choisir les
@@ -4577,8 +4582,15 @@ def _marche_lire_documents(documents):
                              "document unique qui les rassemble."
                              % (MARCHE_TEXTE_MAX, len(entier),
                                 round(100 - 100 * MARCHE_TEXTE_MAX / len(entier))))})
+        # LE CÔTÉ DÉCLARÉ TRAVERSE, ET IL EST BORNÉ ICI. La page dit
+        # « consultation » ou « cabinet » ; toute autre valeur redevient
+        # « consultation », qui est le côté qui SUBIT l'identification. Le
+        # repli ne peut donc pas faire passer un document pour nôtre et le
+        # soustraire à la lecture — c'est le sens prudent du défaut.
+        cote = str(d.get("cote") or "").strip().lower()
         docs.append({"nom": nom, "texte": entier[:MARCHE_TEXTE_MAX],
-                     "extension": ext})
+                     "extension": ext,
+                     "cote": "cabinet" if cote == "cabinet" else "consultation"})
     return docs, ignores + tronques
 
 
@@ -4957,6 +4969,80 @@ def _ao_report(data):
                          "theme": "citations avec position"}]}
     md, _bord = _poser_bordereau(md, meta, "candidature", data)
     return fiche, r, md, meta, fmt
+
+
+@app.route("/api/datacenter/marche/brouillon", methods=["POST"])
+@admin_required
+def api_datacenter_marche_brouillon():
+    """Le brouillon d'une pièce, en Word, PDF ou Excel — pour l'emporter.
+
+    CE QU'ELLE RÉPARE. Le brouillon d'une note coûte une minute de rédaction,
+    puis n'existait QUE dans l'onglet : `/marche/rediger` le rendait, la page
+    l'écrivait dans le DOM, et rien d'autre. Un rafraîchissement, un clic de
+    retour, une session qui expire — et le texte était à réécrire, au prix
+    d'un second appel au modèle.
+
+    IL N'EST PAS CONSERVÉ CÔTÉ SERVEUR, ET C'EST LE CHOIX FAIT. Le brouillon
+    porte le nom de l'acheteur, l'objet du marché et les moyens du cabinet :
+    le garder chiffré dans le projet était possible, l'emporter tout de suite
+    l'est aussi, et c'est la sobriété en données qui a tranché. Le texte monte
+    donc AVEC la demande — il ne redescend pas d'un coffre.
+
+    ELLE NE RÉDIGE RIEN : elle met en page ce qu'on lui donne. La seule chose
+    qu'elle refuse est un corps vide, parce qu'un document vide se lit comme
+    un document raté plutôt que comme une demande mal formée.
+    """
+    data = request.get_json(silent=True) or {}
+    md = str(data.get("markdown") or "")
+    if not md.strip():
+        return jsonify(ok=False, error="vide",
+                       message="Aucun texte à mettre en page."), 400
+    # LA BORNE EST CELLE DU BROUILLON LE PLUS LONG QUE LE MODÈLE PUISSE
+    # RENDRE. `ao_redaction.JETONS_MAX` vaut 16 000 jetons ; à quatre
+    # caractères par jeton, 64 000 suffisent, et l'on prend le double pour ne
+    # pas couper un brouillon légitime. Au-delà, ce n'est plus un brouillon
+    # de ce module.
+    if len(md) > 130000:
+        return jsonify(ok=False, error="trop_long",
+                       message="Ce texte dépasse la taille d'un brouillon "
+                               "de pièce."), 400
+    fmt = str(data.get("format") or livrables_export.FORMAT_DEFAUT).lower()
+    nom = str(data.get("nom") or "Brouillon")[:120]
+    # LE NOM DE FICHIER EST ASSAINI ICI, ET SANS EXPRESSION RÉGULIÈRE : `re`
+    # n'est pas importé dans ce module, et l'ajouter pour trois caractères
+    # serait une dépendance de plus pour rien. La clé sert de nom de fichier
+    # téléchargé ; tout ce qui n'est pas alphanumérique devient un tiret,
+    # ce qui neutralise au passage un « ../ » ou un guillemet dans l'en-tête.
+    brut = str(data.get("piece") or "piece").lower()
+    cle = "".join(c if ("a" <= c <= "z" or "0" <= c <= "9") else "-"
+                  for c in brut).strip("-") or "piece"
+    meta = {
+        "titre": nom,
+        # LE DOCUMENT DIT QU'IL EST UN BROUILLON, DANS SON CARTOUCHE. Sorti en
+        # Word, il ressemble à une pièce finie ; c'est la version qu'on
+        # retrouve trois semaines plus tard, et rien sur la page ne rappelle
+        # alors qu'elle n'a été ni relue ni signée.
+        "chapeau": ("BROUILLON — écrit par un modèle de langage à partir du "
+                    "dossier analysé et de la fiche du cabinet. Il doit être "
+                    "relu, corrigé et signé par une personne habilitée avant "
+                    "tout dépôt. Les passages marqués « À COMPLÉTER » sont "
+                    "ceux que le modèle n'a pas inventés."),
+        "ia": {"redaction": True},
+    }
+    try:
+        blob, mimetype, ext = livrables_export.composer(md, meta, fmt)
+    except livrables_export.FormatInconnu:
+        return jsonify(ok=False, error="format",
+                       message="Format inconnu."), 400
+    except Exception:
+        app.logger.exception("mise en page d'un brouillon de pièce")
+        return jsonify(ok=False, error="export_echec",
+                       message="La mise en page a échoué."), 500
+    audit.journaliser("marche.brouillon.export", cible=cle,
+                      detail="%s · %d caractères" % (fmt, len(md)))
+    return send_file(io.BytesIO(blob),
+                     download_name="brouillon-%s.%s" % (cle or "piece", ext),
+                     as_attachment=True, mimetype=mimetype)
 
 
 @app.route("/api/datacenter/marche/export", methods=["POST"])

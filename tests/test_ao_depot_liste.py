@@ -33,6 +33,37 @@ def _fn(nom):
     return JS[i:(j if j > 0 else len(JS))]
 
 
+def _fn_avec_aidantes(nom):
+    """Le corps d'une fonction ET celui des fonctions du module qu'elle
+    appelle, sur un seul niveau.
+
+    POURQUOI CETTE PORTÉE-LÀ. Les deux règles ci-dessous cherchaient
+    `AO_EN_ATTENTE.push(` dans `aoDocuments`. Le jour où le dépôt a gagné une
+    SECONDE ZONE — pièces de la consultation d'un côté, documents du cabinet
+    de l'autre — le branchement commun est passé dans `aoBrancherDepot`, et
+    les règles sont tombées alors que la propriété qu'elles mesurent était
+    intacte : la file est toujours partagée, elle est toujours alimentée par
+    ajout.
+
+    LA MAUVAISE CORRECTION AURAIT ÉTÉ DE DÉFAIRE LE PARTAGE pour contenter la
+    règle — deux écouteurs recopiés, qui auraient divergé au premier
+    correctif. La bonne est de suivre la valeur dans l'aidante NOMMÉE, ce qui
+    élargit la portée sans ouvrir d'échappatoire : déplacer le code dans une
+    fonction que `aoDocuments` n'appelle pas ne suffit toujours pas, puisque
+    seules les appelées sont suivies. Une mutation le vérifie.
+    """
+    corps = _fn(nom)
+    vu = [corps]
+    for appelee in sorted(set(re.findall(r"\b(ao[A-Z]\w*)\s*\(", corps))):
+        if appelee == nom:
+            continue
+        try:
+            vu.append(_fn(appelee))
+        except ValueError:
+            continue                    # fonction d'un autre fichier
+    return "\n".join(vu)
+
+
 def test_le_depot_offre_une_liste_deroulante_avec_retrait():
     """Le rendu des pièces choisies est une VRAIE liste déroulante (`<select>`),
     et il porte le bouton de retrait. Un `<ul>` mis à la place ferait tomber la
@@ -64,7 +95,7 @@ def test_deposer_AJOUTE_a_la_file_sans_la_remplacer():
     """Chaque dépôt s'ajoute au précédent (un même nom remplace le sien), il ne
     remet pas la file à zéro. Une mutation qui réaffecterait `AO_EN_ATTENTE = […]`
     au lieu d'y pousser casserait le cumul — et tomberait ici."""
-    corps = _fn("aoDocuments")
+    corps = _fn_avec_aidantes("aoDocuments")
     assert "AO_EN_ATTENTE.push(" in corps, "le dépôt n'ajoute pas à la file"
     assert "aoEnAttenteIndex(" in corps, (
         "le dépôt ne dédoublonne pas par nom : deux versions d'une même pièce "
@@ -79,7 +110,7 @@ def test_les_trois_gestes_partagent_la_MEME_file():
     c'est ce partage, et lui seul, qui fait qu'ajouter et retirer changent ce
     qui est analysé. Trois files séparées se désynchroniseraient en silence."""
     for nom in ("aoDocuments", "aoEnAttenteRendre", "aoAnalyser"):
-        assert "AO_EN_ATTENTE" in _fn(nom), (
+        assert "AO_EN_ATTENTE" in _fn_avec_aidantes(nom), (
             "%s ne touche pas la file partagée AO_EN_ATTENTE" % nom)
 
 
