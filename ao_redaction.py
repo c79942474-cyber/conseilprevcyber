@@ -287,6 +287,14 @@ def contexte(remplissage, analyse, piece, socle=None, dossier=None):
         "piece": {
             "cle": piece["cle"],
             "nom": piece["nom"],
+            # LA VOIE ET LE DOSSIER PASSENT, parce que la consigne en dépend.
+            # Sans la voie, le brief traitait la DPGF comme une note à écrire
+            # — alors que c'est un imprimé À CHIFFRER, et que le chiffrage est
+            # précisément ce que ce module ne produira jamais. Sans le
+            # dossier, il appelait « pièce de candidature » un mémoire
+            # technique, qui appartient à l'offre.
+            "voie": piece.get("voie") or "",
+            "dossier": piece.get("dossier") or "",
             "ce_qu_elle_doit_contenir": list(piece.get("contient") or []),
             "produite_par": piece.get("produit_par") or "",
             "piege": piece.get("piege") or "",
@@ -309,10 +317,19 @@ def contexte(remplissage, analyse, piece, socle=None, dossier=None):
 
 def brief(ctx):
     """La consigne. Séparée de l'appel pour être lue, éprouvée et discutée."""
+    # LE DOSSIER EST NOMMÉ, ET IL N'EST PAS TOUJOURS LA CANDIDATURE. Deux des
+    # onze pièces rédigeables appartiennent à l'OFFRE — le mémoire technique
+    # et la décomposition du prix. Les annoncer « pièce de candidature »
+    # oriente le modèle vers ce qui prouve QUI NOUS SOMMES, alors que l'offre
+    # démontre CE QUE NOUS PROPOSONS : deux documents différents.
+    _dossier = {"candidature": "du dossier de candidature",
+                "offre": "du dossier d'offre"}.get(
+                    ctx["piece"].get("dossier"), "d'une réponse")
     L = [
-        "Vous rédigez le BROUILLON d'une pièce de candidature à un marché "
-        "public français, pour le compte du cabinet dont la fiche est donnée "
-        "ci-dessous. Le brouillon sera relu, corrigé et signé par un humain.",
+        "Vous rédigez le BROUILLON d'une pièce %s d'un marché public "
+        "français, pour le compte du cabinet dont la fiche est donnée "
+        "ci-dessous. Le brouillon sera relu, corrigé et signé par un humain."
+        % _dossier,
         "",
         "TROIS RÈGLES, DANS CET ORDRE.",
         "",
@@ -330,6 +347,37 @@ def brief(ctx):
         "engagent pénalement celui qui les signe : elles se prennent à la "
         "main, ailleurs, par une personne habilitée.",
         "",
+    ]
+    # ── LE CAS DE L'IMPRIMÉ À CHIFFRER, ET POURQUOI IL EST ÉCRIT ICI ───────
+    # LE CONTEXTE CONTREDIT LA RÈGLE 1, ET C'EST MESURABLE. Pour la DPGF, il
+    # porte « Un prix pour chaque ligne du modèle fourni par l'acheteur, sans
+    # ligne laissée à zéro ou vide » — c'est-à-dire, mot pour mot, l'ordre
+    # d'inventer des montants, adressé à un modèle à qui la règle 1 vient
+    # d'interdire tout prix hors contexte. Laisser deux consignes se
+    # contredire, c'est confier l'arbitrage au modèle ; et le seul arbitrage
+    # qu'on ne verrait pas à la relecture est le mauvais, parce qu'un tableau
+    # de prix plausible ne se distingue pas d'un tableau juste.
+    #
+    # ELLE N'EST ÉCRITE QUE POUR LA VOIE « compléter », qui ne compte qu'une
+    # pièce aujourd'hui. Une consigne sur les prix servie pour une note de
+    # moyens apprendrait au modèle à voir des montants là où il n'y en a pas.
+    if ctx["piece"].get("voie") == "completer":
+        L += [
+            "CE DOCUMENT-CI EST UN IMPRIMÉ À CHIFFRER, ET LE CHIFFRAGE N'EST "
+            "PAS DE VOTRE RESSORT. Le contexte vous dira peut-être qu'aucune "
+            "ligne ne doit rester vide : c'est vrai du document DÉPOSÉ, pas "
+            "de votre brouillon. Vous produisez le CADRE — les postes "
+            "attendus, leur correspondance ligne à ligne avec le CCTP, les "
+            "unités imposées par le modèle de l'acheteur, ce que chaque ligne "
+            "engage — et vous laissez CHAQUE montant, CHAQUE quantité et "
+            "CHAQUE taux sous la forme « %s : … ] ». Un tableau de prix "
+            "vraisemblable est ici le pire résultat possible : la répartition "
+            "sert de base au règlement des acomptes et à la valorisation des "
+            "modifications en cours de marché, et personne ne relit un "
+            "chiffre qui a l'air juste." % _A_COMPLETER,
+            "",
+        ]
+    L += [
         "3. RÉPONDEZ À CETTE CONSULTATION-CI. Le contexte porte l'objet, la "
         "procédure, les critères de jugement et les exigences relevés au "
         "dossier de l'acheteur. Une note qui pourrait servir à n'importe "

@@ -4690,11 +4690,23 @@ def api_datacenter_marche_analyser():
                    textes={d["nom"]: d["texte"] for d in docs})
 
 
-# Le pont entre une pièce du dossier de candidature et le livrable qui la
-# rédige. Écrit ici, en un seul endroit : la page l'affiche, elle ne le
-# reconstitue pas. Toutes les pièces n'y sont pas — un formulaire ne se rédige
-# pas, un justificatif s'obtient — et c'est précisément ce que la table dit.
+# Le pont entre une pièce des deux dossiers et le livrable qui la rédige.
+# Écrit ici, en un seul endroit : la page l'affiche, elle ne le reconstitue
+# pas.
+#
+# IL DOIT COUVRIR EXACTEMENT LES PIÈCES QUE L'ATELIER ACCEPTE, et il ne le
+# faisait pas : sept entrées pour onze pièces de voie « rédiger » ou
+# « compléter ». Les quatre orphelines se rédigeaient quand même — l'atelier
+# lit `ao_dc.voie()`, pas cette table — mais le plan n'offrait aucun document
+# où déposer le brouillon. L'écart avait tenu parce que rien ne le mesurait ;
+# une règle compare désormais cette table à l'ensemble que
+# `ao_redaction.pieces_redigeables` retient, dans les deux sens.
+#
+# CE QUI N'Y EST PAS N'Y EST PAS PAR CONSTRUCTION : un formulaire de l'État se
+# remplit, un justificatif s'obtient. Ni l'un ni l'autre n'a de voie
+# rédactionnelle, donc ni l'un ni l'autre n'entre dans l'ensemble comparé.
 _AO_REDACTION = {
+    # Dossier de candidature.
     "equipe": "ao-note-equipe",
     "organigramme": "ao-organigramme",
     "repartition_competences": "ao-repartition-groupement",
@@ -4702,7 +4714,29 @@ _AO_REDACTION = {
     "moyens": "ao-moyens-procedures",
     "qse": "ao-qse",
     "conventions": "ao-conventions-collectives",
+    "autonomie_commerciale": "ao-autonomie-commerciale",
+    "convention_groupement": "ao-convention-groupement",
+    # Dossier d'offre. LE CADRE DE DPGF NE PORTE AUCUN PRIX, et c'est la
+    # raison d'être de son intitulé : la répartition d'un prix global sert de
+    # base au règlement des acomptes et à la valorisation des modifications en
+    # cours de marché. Un tableau prérempli serait le document le plus
+    # dangereux de ce module.
+    "memoire_technique": "ao-memoire-technique",
+    "dpgf": "ao-dpgf-cadre",
 }
+
+
+def _ao_dossiers_des_pieces():
+    """À quel dossier appartient chaque pièce — LU chez `ao_dc`, pas recopié.
+
+    Une seconde liste écrite ici dirait « candidature » pour une pièce passée
+    à l'offre, et le plan afficherait son livrable sous le mauvais dossier :
+    l'un se remet à la candidature, l'autre plus tard et souvent sur une autre
+    plateforme.
+    """
+    d = {p["cle"]: "candidature" for p in ao_dc.DOSSIER_CANDIDATURE}
+    d.update({p["cle"]: "offre" for p in ao_dc.DOSSIER_OFFRE})
+    return d
 
 
 @app.route("/api/datacenter/programme", methods=["POST"])
@@ -4773,10 +4807,20 @@ def api_datacenter_marche_candidature():
     # Le lien pièce → livrable se fait ICI plutôt que dans la page : une page
     # qui devinerait quel livrable rédige quelle pièce se tromperait le jour où
     # l'un des deux changerait de nom.
-    p["redaction"] = [{"piece": cle, "type": tid,
-                       "label": (livrables.get_type(tid) or {}).get("label")}
-                      for cle, tid in _AO_REDACTION.items()
-                      if livrables.get_type(tid)]
+    #
+    # CHAQUE DOSSIER PORTE SES PROPRES PONTS. Verser les onze dans le plan de
+    # candidature afficherait un mémoire technique et un cadre de DPGF sous le
+    # dossier de candidature, où ils ne se déposent pas : ils appartiennent à
+    # l'offre, remise plus tard et souvent sur une autre plateforme. Le tri se
+    # fait sur le dossier que `ao_dc` déclare pour la pièce — jamais sur une
+    # seconde liste écrite ici, qui se désaccorderait de la première.
+    _dossiers = _ao_dossiers_des_pieces()
+    _ponts = [{"piece": cle, "type": tid,
+               "label": (livrables.get_type(tid) or {}).get("label"),
+               "dossier": _dossiers.get(cle)}
+              for cle, tid in _AO_REDACTION.items()
+              if livrables.get_type(tid)]
+    p["redaction"] = [x for x in _ponts if x["dossier"] == "candidature"]
     # LE DOSSIER D'OFFRE VOYAGE AVEC LE PLAN DE CANDIDATURE, dans la même
     # réponse : la page ouvre les deux blocs au même geste, « Voir le dossier
     # de candidature », et un second appel pour trois pièces statiques
@@ -4785,8 +4829,10 @@ def api_datacenter_marche_candidature():
     # groupement que le plan de candidature ci-dessus — sinon les dix-neuf
     # cartes de candidature diraient « En groupement » et les trois de
     # l'offre, sur le même écran, n'en diraient rien.
+    _offre = ao_dc.offre(groupement=groupement, analyse=analyse)
+    _offre["redaction"] = [x for x in _ponts if x["dossier"] == "offre"]
     return jsonify(ok=True, plan=p, pieces_marche=ao_dc.PIECES_MARCHE,
-                   dossier_offre=ao_dc.offre(groupement=groupement, analyse=analyse))
+                   dossier_offre=_offre)
 
 
 @app.route("/api/datacenter/marche/remplir", methods=["POST"])

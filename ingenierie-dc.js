@@ -7248,6 +7248,13 @@ function messageDelai(e, defaut) {
      dérouler. */
   function offreRendre(o) {
     var out = $("#ig-ao-offre-out");
+    /* LES DEUX PIÈCES D'OFFRE QUI SE RÉDIGENT ONT MAINTENANT LEUR BOUTON. Le
+       pont pièce → livrable ne couvrait que la candidature : le mémoire
+       technique et la décomposition du prix se rédigeaient — l'atelier les
+       accepte, il lit la voie — mais aucune carte ne l'offrait, et le
+       brouillon n'avait nulle part où se déposer. */
+    var red = {};
+    (o.redaction || []).forEach(function (r) { red[r.piece] = r; });
     var h = '<h3 class="ig-tr-st">Le dossier d\'offre</h3>';
     if (o.exigences_actives) {
       h += '<p class="note ig-ao-exn">' + esc(o.note_exigences || "") + "</p>";
@@ -7270,6 +7277,25 @@ function messageDelai(e, defaut) {
       if (p.en_groupement) {
         h += '<p class="ig-ao-gr"><i>En groupement</i> — '
           + esc(p.en_groupement) + "</p>";
+      }
+      if (red[p.cle]) {
+        /* LA PHRASE SUIT LA VOIE, ET C'EST TOUT SAUF COSMÉTIQUE. « Cette
+           note se rédige » servi sur la DPGF ferait attendre un document
+           fini ; or ce qui sort est un CADRE dont chaque montant reste à
+           porter depuis le chiffrage. Le dire ici, à côté du bouton, est le
+           seul endroit où l'opérateur le lit avant de cliquer. */
+        h += '<div class="ig-ao-red"><span>'
+          + (p.voie === "completer"
+              ? "Ce cadre se prépare ici — postes, correspondance au CCTP et "
+                + "unités. Les prix restent à porter depuis votre chiffrage. "
+                + "Livrable «&nbsp;" + esc(red[p.cle].label) + "&nbsp;»."
+              : "Cette note se rédige — livrable «&nbsp;"
+                + esc(red[p.cle].label) + "&nbsp;».")
+          + "</span>"
+          + '<button type="button" class="btn btn-s ig-ao-redb" '
+          + 'data-rediger="' + esc(p.cle) + '">Mettre en brouillon</button>'
+          + '<div class="ig-ao-redo" data-redout="' + esc(p.cle) + '"></div>'
+          + "</div>";
       }
       h += "</div>";
     });
