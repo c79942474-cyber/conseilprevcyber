@@ -6594,10 +6594,14 @@ function messageDelai(e, defaut) {
      reconnaissance pour une absence d'exigence, et c'est là qu'un opérateur
      qui connaît la consultation rattrape la lecture.
 
-     CE QUI SE REMPLIT VRAIMENT EST DIT À PART. Quatre modèles de l'État se
-     remplissent ; les autres pièces se rédigent ou s'obtiennent d'un tiers.
-     Annoncer « sept documents remplis automatiquement » quand trois le sont
-     est la promesse la plus facile à démentir de tout ce module. */
+     CE QUI SE REMPLIT VRAIMENT EST DIT À PART, ET EN QUATRE ESPÈCES. Quatre
+     modèles de l'État se remplissent sur leur cerfa ; d'autres pièces voient
+     leurs rubriques se reporter ici sans cerfa à joindre ; l'atelier en
+     rédige un brouillon ; les dernières sortent d'un greffe ou d'un assureur
+     et rien ici ne les écrira. Annoncer « sept documents remplis
+     automatiquement » quand trois le sont est la promesse la plus facile à
+     démentir de tout ce module — et les ranger en deux tas seulement oblige
+     le lecteur à demander pourquoi les huit ne sont pas rédigées. */
   function aoSelectionRendre(sel) {
     var z = $("#ig-ao-retenus");
     if (!z) return;
@@ -6613,10 +6617,35 @@ function messageDelai(e, defaut) {
       ["offre", "Dossier d'offre", true],
       ["__non", "Non repérées dans le dossier", false],
     ];
+    /* QUATRE CATÉGORIES, PARCE QUE DEUX MENTAIENT PAR OMISSION. Ce compte a
+       longtemps dit « 4 que ce module remplit, et 8 à rédiger ou à obtenir
+       d'un tiers » — et la question est tombée : pourquoi les huit ne sont-
+       elles pas rédigées ? Parce que « à rédiger ou à obtenir » mélangeait
+       trois espèces qui n'appellent pas le même geste. Un compte qui oblige à
+       poser la question est un compte qui n'a pas répondu.
+
+       CHAQUE CATÉGORIE EST LUE SUR LA SÉLECTION, JAMAIS DÉDUITE ICI. Les
+       quatre listes viennent de `selection()`, qui les déduit de `voie()` —
+       la même fonction qui envoie une pièce à l'atelier ou non. Les
+       recalculer dans la page garantirait qu'un jour elles divergent. */
+    var categories = [
+      [sel.remplissables, "que ce module remplit sur le cerfa officiel"],
+      [sel.au_report, "dont il reporte les rubriques ici, sans cerfa à "
+                      + "joindre : le document reste à établir et à signer"],
+      [sel.redigeables, "dont l'atelier rédige un brouillon"],
+      [sel.a_demander, "à demander à un tiers — c'est le délai, pas la "
+                       + "rédaction, qui fait rater les dépôts"],
+    ];
     var h = '<p class="note ig-ao-colp"><b>' + sel.retenues + " document(s)</b> "
-      + "retenus sur " + sel.catalogue + " au catalogue — dont <b>"
-      + sel.remplissables.length + "</b> que ce module remplit, et "
-      + sel.a_produire.length + " à rédiger ou à obtenir d'un tiers.</p>";
+      + "retenus sur " + sel.catalogue + " au catalogue.</p>";
+    var dits = categories.filter(function (c) { return (c[0] || []).length; });
+    if (dits.length) {
+      h += '<ul class="note ig-ao-quatre">'
+        + dits.map(function (c) {
+            return "<li><b>" + c[0].length + "</b> " + c[1] + ".</li>";
+          }).join("")
+        + "</ul>";
+    }
     groupes.forEach(function (g) {
       var lignes = sel.lignes.filter(function (x) {
         return g[2] ? (x.retenue && x.dossier === g[0]) : !x.retenue;

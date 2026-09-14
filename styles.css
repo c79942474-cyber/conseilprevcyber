@@ -1459,3 +1459,13 @@ body[data-fond="couchant"]{
   background: var(--acc, #9C3C20);
 }
 .ig-ao-temps + .note { color: inherit; opacity: .82; }
+
+/* LES QUATRE ESPÈCES DE DOCUMENTS RETENUS. Une liste, pas une phrase : quatre
+   gestes différents dans un même paragraphe se lisent comme un seul. */
+.ig-ao-quatre {
+  margin: .45rem 0 0;
+  padding-left: 1.15em;
+  line-height: 1.5;
+}
+.ig-ao-quatre > li { margin: .2em 0; }
+.ig-ao-quatre > li > b { font-variant-numeric: tabular-nums; }
