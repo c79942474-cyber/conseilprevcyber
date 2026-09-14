@@ -5846,15 +5846,49 @@ function messageDelai(e, defaut) {
      LE BOUTON RESTE INERTE TANT QU'IL N'Y A RIEN À LIRE. Sans pièces
      déposées, tout ce qui serait rempli serait inventé : le serveur refuse
      en le disant, et l'écran n'a pas à laisser cliquer dans le vide. */
+  /* CE QUI PART À L'ATELIER, C'EST LE TEXTE LU — JAMAIS LE FICHIER BRUT.
+     LE DÉFAUT CORRIGÉ ICI. `AO_DOCS` porte ce que `aoLire` a produit :
+     `{nom, contenu}`, le base64 du téléversement. La route, elle, ne lit que
+     `texte` — et remplaçait donc chaque pièce par une chaîne vide. L'atelier
+     partait pour dix-huit appels de modèle sur un dossier sans un caractère,
+     ne retrouvait aucune citation, refusait tout, et consommait un des six
+     passages de la demi-heure. Le bouton s'allumait ; il ne pouvait rien
+     rendre. Le texte est dans `AO_TEXTES` — posé par l'analyse, et complété
+     par le coffre du projet — et c'est lui qui part.
+
+     LA DEUXIÈME VOIE COMPTE AUTANT. À la reprise d'un projet, `AO_DOCS` est
+     reconstruit avec `texte: ""` (le texte reste au coffre) : s'armer sur
+     `AO_DOCS.length` aurait donc allumé le bouton dans le cas même où il n'y
+     avait rien à envoyer. On s'arme sur ce qu'on peut envoyer. */
+  function atelierDocuments() {
+    var noms = (AO_DOCS || []).map(function (d) { return d.nom; });
+    if (!noms.length) noms = Object.keys(AO_TEXTES || {});
+    var out = [];
+    noms.forEach(function (nom) {
+      var t = (AO_TEXTES || {})[nom];
+      if (typeof t === "string" && t) out.push({ nom: nom, texte: t });
+    });
+    return out;
+  }
+
   function atelierArmer() {
     var b = document.getElementById("ao-atelier");
     var e = document.getElementById("ao-atelier-etat");
     if (!b) return;
-    var pret = !!(AO_DOCS && AO_DOCS.length);
-    b.disabled = !pret;
-    if (e) e.textContent = pret
-      ? (AO_DOCS.length + " pièce(s) déposée(s) — prêt.")
-      : "Déposez d'abord les pièces du marché.";
+    var docs = atelierDocuments();
+    b.disabled = !docs.length;
+    if (!e) return;
+    if (docs.length) {
+      e.textContent = docs.length + " pièce(s) lue(s) — prêt.";
+    } else if (AO_DOCS && AO_DOCS.length) {
+      /* Le cas qui passait pour « prêt » : des pièces au dossier, mais aucun
+         texte sous la main. Le dire, plutôt que de laisser partir un atelier
+         qui ne peut rien lire. */
+      e.textContent = "Le texte des pièces n'est pas disponible — relancez "
+        + "l'analyse du dossier avant l'atelier.";
+    } else {
+      e.textContent = "Déposez d'abord les pièces du marché.";
+    }
   }
 
   function atelierBilan(j) {
@@ -5899,7 +5933,7 @@ function messageDelai(e, defaut) {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fiche: AO_FICHE, analyse: AO_ANALYSE,
-                             documents: AO_DOCS })
+                             documents: atelierDocuments() })
     }, 600000).then(function (r) { return r.json(); }).then(function (j) {
       if (!j || !j.ok) {
         if (e) e.textContent = (j && j.message) || "L'atelier n'a pas abouti.";
@@ -6257,12 +6291,15 @@ function messageDelai(e, defaut) {
           }
           AO_ANALYSE = j.analyse;
           AO_DOCS = docs;
-          atelierArmer();
           /* CE QUI VIENT D'ÊTRE LU L'EMPORTE. Une pièce redéposée sous le
              même nom remplace la sienne au dossier ; son texte doit suivre,
              sinon le lecteur montrerait l'ancienne version sous le relevé de
              la nouvelle. */
           aoTextesPoser(j.textes, true);
+          /* L'ARMEMENT SUIT LE TEXTE, IL NE LE PRÉCÈDE PAS. Le bouton se
+             mesure désormais sur le texte réellement lu : armé une ligne trop
+             tôt, il resterait éteint alors que tout est là. */
+          atelierArmer();
           msg.textContent = "";
           /* LE PARCOURS SE REMESURE ICI, ET NULLE PART AILLEURS EN AUTOMATIQUE.
              C'est le seul instant où l'état change assez pour que le compte
@@ -8470,6 +8507,10 @@ function messageDelai(e, defaut) {
     /* L'ORDRE COMPTE : `aoCandidature` VIDE la ligne de message en entrant.
        Annoncer la reprise avant elle l'aurait effacée avant d'être lue. */
     aoCandidature();
+    /* LA REPRISE ARMAIT TOUT SAUF L'ATELIER. On revenait sur un projet, le
+       relevé réapparaissait, et le bouton restait éteint en répétant « Déposez
+       d'abord les pièces » — alors que le coffre venait de rendre leur texte. */
+    atelierArmer();
     var msg = $("#ig-ao-msg");
     if (msg) msg.textContent = aoRepriseMsg(d);
   }
