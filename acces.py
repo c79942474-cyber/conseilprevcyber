@@ -308,7 +308,6 @@ API_ADMIN = {
     "/api/datacenter/marche/piece": _MOTIF_MARCHE,
     "/api/datacenter/marche/parcours": _MOTIF_MARCHE,
     "/api/datacenter/marche/dossier.zip": _MOTIF_MARCHE,
-    "/api/datacenter/marche/formulaire": _MOTIF_MARCHE,
     "/api/datacenter/marche/formulaires": _MOTIF_MARCHE,
     "/api/datacenter/marche/rediger":
         _MOTIF_MARCHE + " Celle-ci, en outre, transmet la fiche, les relevés "

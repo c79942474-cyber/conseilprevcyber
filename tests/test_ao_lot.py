@@ -1394,8 +1394,14 @@ def test_le_bouton_PAR_FORMULAIRE_dit_lui_aussi_ce_qui_reste_a_recopier(marche):
     Deux routes produisent un formulaire officiel : /marche/piece (en-tête
     `X-Piece`, la production en lot) et /marche/formulaire (en-tête
     `X-Remplissage`, le bouton par formulaire). Corriger la première seule
-    laisserait la seconde muette — et c'est la seconde que l'on clique quand
-    on ne veut qu'un DC1.
+    laissait la seconde muette — et c'était la seconde que l'on cliquait quand
+    on ne voulait qu'un DC1.
+
+    LES DEUX N'EN FONT PLUS QU'UNE. `/formulaire` a fusionné dans `/piece` :
+    le bouton par formulaire y passe désormais, avec la clé de PIÈCE que le
+    modèle remplit. Le risque que cette règle surveillait — deux chemins dont
+    un seul est corrigé — a disparu avec le second chemin ; la règle reste,
+    parce qu'elle mesure aussi que l'en-tête DIT ce que le modèle détient.
 
     ON MESURE L'EN-TÊTE RENDU, pas la présence de la clé dans la source :
     une clé écrite et jamais servie ne dirait rien à personne."""
@@ -1405,11 +1411,15 @@ def test_le_bouton_PAR_FORMULAIRE_dit_lui_aussi_ce_qui_reste_a_recopier(marche):
         valeurs = ao_formulaires.valeurs_pour(r_module, m["piece"])
         _blob, rap = ao_formulaires.remplir_document(modele, valeurs)
         attendu = sorted(rap.get("sans_ancre") or [])
-        rep = marche.post("/api/datacenter/marche/formulaire",
-                          json={"modele": modele, "fiche": FICHE},
+        # LA ROUTE DÉDIÉE A FUSIONNÉ DANS `/piece` : même travail, même
+        # fichier, un chemin de moins. La règle suit celui qui reste, et
+        # nomme la PIÈCE que le modèle remplit.
+        rep = marche.post("/api/datacenter/marche/piece",
+                          json={"piece": m["piece"], "fiche": FICHE,
+                                "format": "docx"},
                           headers=ORIGINE)
         assert rep.status_code == 200, (modele, rep.status_code)
-        d = json.loads(rep.headers["X-Remplissage"])
+        d = json.loads(rep.headers["X-Piece"])
         if sorted(d.get("sans_ancre") or []) != attendu:
             muets.append("%s : l'en-tête dit %s, le modèle en détient %s"
                          % (modele, sorted(d.get("sans_ancre") or []) or "rien",

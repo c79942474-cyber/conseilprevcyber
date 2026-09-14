@@ -5196,6 +5196,13 @@ def api_datacenter_marche_piece():
         # juste, et le formulaire n'a pas de case pour elle : à recopier à la
         # main, donc à dire.
         rapport["sans_ancre"] = list(rap.get("sans_ancre") or [])
+        # ET CE QUI A ÉTÉ LAISSÉ VIDE FAUTE DE VALEUR. `/formulaire`,
+        # avant sa fusion ici, le rendait ; cette route le jetait. Ce
+        # n'est ni « non placée » — le modèle a bien un emplacement — ni
+        # « sans ancre » : c'est la RUBRIQUE qui n'est pas renseignée.
+        # Se taire ferait lire un formulaire à moitié vide comme un
+        # formulaire aussi complet qu'il peut l'être.
+        rapport["ignores"] = list(rap.get("ignores") or [])
         blob = octets
         mimetype = livrables_export.MIME["docx"]
         nom = "%s-projet-non-signe.docx" % modele
@@ -5511,79 +5518,6 @@ def api_datacenter_marche_dossier_zip():
     reponse.headers["X-Dossier"] = json.dumps(
         {"pieces": len(pieces), "manques": [m[0] for m in manques],
          "format": fmt}, ensure_ascii=True)
-    return reponse
-
-
-@app.route("/api/datacenter/marche/formulaire", methods=["POST"])
-@admin_required
-def api_datacenter_marche_formulaire():
-    """LE FORMULAIRE OFFICIEL LUI-MÊME, rempli — et non un document posé à côté.
-
-    CE QUI SÉPARE CETTE ROUTE DE `/export`. L'export produit un report tracé,
-    rubrique par rubrique, à recopier sur le formulaire en le vérifiant. Ici,
-    on ouvre le fichier du ministère — sa version, sa mise en page, sa date de
-    mise à jour — et l'on écrit dans les emplacements qu'il laisse vides. Ce
-    qui sort EST le formulaire officiel, pas un fac-similé : un fac-similé
-    serait refusé, ou pire, accepté et faux.
-
-    ELLE NE SIGNE RIEN ET NE DÉCLARE RIEN. Les déclarations sur l'honneur et
-    les blocs de signature sont hors d'atteinte du remplissage, et le document
-    porte en tête qu'il est un projet non signé et non vérifié.
-
-    ELLE NE CONSERVE RIEN, comme les deux routes qui la précèdent : ni la
-    fiche, ni l'analyse, ni les saisies. Tout vient de la requête et repart
-    dans la réponse.
-    """
-    data = request.get_json(silent=True) or {}
-    modele = str(data.get("modele") or "").strip().lower()
-    if modele not in ao_formulaires.MODELES:
-        return jsonify(ok=False, error="modele_inconnu",
-                       message="Formulaire inconnu.",
-                       disponibles=sorted(ao_formulaires.MODELES)), 400
-    fiche, analyse, saisies, groupement = _ao_charge(data)
-    try:
-        r = ao_dc.remplir(fiche=fiche, analyse=analyse, saisies=saisies,
-                          groupement=groupement)
-        piece = ao_formulaires.MODELES[modele]["piece"]
-        octets, rapport = ao_formulaires.remplir_document(
-            modele, ao_formulaires.valeurs_pour(r, piece))
-    except Exception:
-        app.logger.exception("remplissage du formulaire officiel")
-        return jsonify(ok=False, error="calcul",
-                       message="Le formulaire n'a pas pu être rempli."), 500
-    if not rapport.get("ok"):
-        # UN MODÈLE ABSENT ET UN MODÈLE ALTÉRÉ NE SE SOIGNENT PAS PAREIL, et le
-        # message le dit : l'un attend un fichier, l'autre une revérification
-        # des ancres.
-        return jsonify(ok=False, error=rapport["motif"], rapport=rapport,
-                       message=("Le modèle de ce formulaire n'est pas déposé "
-                                "sur le serveur."
-                                if rapport["motif"] == "modele_absent" else
-                                "Le modèle a changé depuis que ses "
-                                "emplacements ont été repérés : le "
-                                "remplissage est refusé plutôt que fait à "
-                                "côté.")), 409
-    audit.journaliser("marche.formulaire.remplir", cible=modele,
-                      detail="%d placée(s) · %d non placée(s)"
-                             % (len(rapport["places"]),
-                                len(rapport["non_places"])))
-    reponse = send_file(
-        io.BytesIO(octets),
-        download_name="%s-projet-non-signe.docx" % modele,
-        as_attachment=True,
-        mimetype=("application/vnd.openxmlformats-officedocument"
-                  ".wordprocessingml.document"))
-    # LE RAPPORT VOYAGE AVEC LE FICHIER, dans un en-tête : la page a besoin de
-    # dire ce qui n'a PAS été placé, et un téléchargement ne rend pas de JSON.
-    reponse.headers["X-Remplissage"] = json.dumps(
-        {"places": len(rapport["places"]),
-         "non_places": [x["rubrique"] for x in rapport["non_places"]],
-         "ignores": [x["rubrique"] for x in rapport["ignores"]],
-         # ET CE QU'ON DÉTIENT SANS POUVOIR L'ÉCRIRE — voir le commentaire de
-         # /marche/piece : une valeur juste que le formulaire n'offre pas de
-         # porter est à recopier à la main, et se tait autrement.
-         "sans_ancre": list(rapport.get("sans_ancre") or []),
-         "maj": rapport["maj"]}, ensure_ascii=True)
     return reponse
 
 

@@ -522,12 +522,16 @@ def test_le_rapport_dit_quelle_version_du_formulaire_a_ete_remplie(document):
 # ══════════════════════════════════════════════════════════════════════════
 
 ORIGINE = {"Origin": "http://localhost"}
-CORPS = {"modele": "dc4", "fiche": FICHE, "saisies": SAISIES}
+# LA ROUTE DÉDIÉE A FUSIONNÉ DANS `/piece`. « modele » (dc4) et « piece »
+# (dc4) portaient le même travail derrière deux noms ; ces règles suivent le
+# chemin qui reste, sans rien perdre de ce qu'elles tenaient.
+ROUTE = "/api/datacenter/marche/piece"
+CORPS = {"piece": "dc4", "fiche": FICHE, "saisies": SAISIES}
 
 
 def test_un_visiteur_anonyme_ne_remplit_aucun_formulaire(anonyme):
     """La route reçoit une fiche d'entreprise et rend un document nominatif."""
-    for chemin, methode in (("/api/datacenter/marche/formulaire", "post"),
+    for chemin, methode in ((ROUTE, "post"),
                             ("/api/datacenter/marche/formulaires", "get")):
         r = getattr(anonyme, methode)(chemin, json=CORPS, headers=ORIGINE)
         assert r.status_code in (401, 403), (chemin, r.status_code)
@@ -537,8 +541,7 @@ def test_la_route_rend_un_docx_ouvrable_et_rempli(marche):
     """ON OUVRE CE QUE LE SERVEUR A RENDU. Vérifier le type MIME dirait
     seulement que l'en-tête est juste ; un fichier tronqué le porterait
     aussi."""
-    r = marche.post("/api/datacenter/marche/formulaire", json=CORPS,
-                      headers=ORIGINE)
+    r = marche.post(ROUTE, json=CORPS, headers=ORIGINE)
     assert r.status_code == 200, r.data[:200]
     assert "wordprocessingml" in r.headers["Content-Type"], r.headers
     assert "non-signe" in r.headers.get("Content-Disposition", "")
@@ -552,23 +555,36 @@ def test_la_route_dit_dans_un_en_tete_ce_qui_n_a_pas_ete_place(marche):
     """Un téléchargement ne rend pas de JSON, et la page a besoin de dire ce
     qui manque : sans cela, un formulaire partiel se lirait comme complet."""
     import json as _json
-    r = marche.post("/api/datacenter/marche/formulaire", json=CORPS,
-                      headers=ORIGINE)
-    etat = _json.loads(r.headers["X-Remplissage"])
+    r = marche.post(ROUTE, json=CORPS, headers=ORIGINE)
+    etat = _json.loads(r.headers["X-Piece"])
     assert etat["places"] >= 10, etat
     assert etat["maj"] == "12/10/2023", etat
     assert isinstance(etat["non_places"], list)
-    assert isinstance(etat["ignores"], list)
+    # CE QUI A ÉTÉ LAISSÉ VIDE FAUTE DE VALEUR — ET LA RÈGLE LE COMPARE AU
+    # MODULE, ELLE NE SE CONTENTE PAS DU TYPE.
+    #
+    # LA PREMIÈRE ÉCRITURE SE CONTENTAIT DE `isinstance(..., list)`. Une
+    # mutation qui vidait la clé — `rapport["ignores"] = []` — y survivait :
+    # la liste restait une liste, la règle restait verte, et l'opérateur ne
+    # savait plus quelles rubriques étaient restées vides. On mesure donc ce
+    # que l'en-tête DIT contre ce que le module DÉTIENT.
+    valeurs = F.valeurs_pour(
+        ao_dc.remplir(fiche=FICHE, analyse=None, saisies=SAISIES), "dc4")
+    _b, rap = F.remplir_document("dc4", valeurs)
+    attendu = sorted(x["rubrique"] for x in (rap.get("ignores") or []))
+    assert attendu, "le témoin est cassé : le modèle n'ignore plus rien"
+    assert sorted(x["rubrique"] for x in etat["ignores"]) == attendu, (
+        "l'en-tête dit %s, le modèle en ignore %s"
+        % (etat["ignores"], attendu))
 
 
 def test_un_modele_inconnu_est_refuse_en_400_et_les_choix_sont_dits(marche):
     """Refuser sans dire ce qui est possible ferait deviner le nom du
     formulaire."""
-    r = marche.post("/api/datacenter/marche/formulaire",
-                      json=dict(CORPS, modele="dc9"), headers=ORIGINE)
+    r = marche.post(ROUTE, json=dict(CORPS, piece="dc9"), headers=ORIGINE)
     assert r.status_code == 400, r.status_code
     j = r.get_json()
-    assert j["error"] == "modele_inconnu"
+    assert j["error"] == "piece_inconnue"
     assert "dc4" in j["disponibles"]
 
 
@@ -577,8 +593,7 @@ def test_la_route_ne_declare_rien_meme_avec_une_fiche_complete(marche):
     apparaître comme cochée ou reprise dans le document produit : leur
     fausseté est sanctionnée pénalement, et une case remplie par un programme
     est une déclaration que personne n'a faite."""
-    r = marche.post("/api/datacenter/marche/formulaire", json=CORPS,
-                      headers=ORIGINE)
+    r = marche.post(ROUTE, json=CORPS, headers=ORIGINE)
     produit = _paras(io.BytesIO(r.data))
     modele = _paras(F.chemin_modele("dc4"))
     k = next(i for i, t in enumerate(produit)

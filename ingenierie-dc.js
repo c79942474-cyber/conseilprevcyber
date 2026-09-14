@@ -7501,17 +7501,29 @@ function messageDelai(e, defaut) {
     bouton.disabled = true;
     bouton.textContent = "Remplissage…";
     var etat = null;
-    demander("/api/datacenter/marche/formulaire", {
+    /* UN SEUL CHEMIN POUR REMPLIR UN FORMULAIRE OFFICIEL, ET C'EST `/piece`.
+       LE DOUBLON SUPPRIMÉ. `/formulaire` prenait un MODÈLE (« dc1 ») et
+       `/piece` une PIÈCE (« dc1 », « acte_engagement ») — mais
+       `ao_formulaires.MODELES[m]["piece"]` faisait déjà le pont, et les deux
+       routes appelaient les mêmes trois moteurs pour rendre le même fichier,
+       au même nom. Deux chemins vers un seul résultat divergent au premier
+       ajout, et c'est celui qu'on oublie qui rend un formulaire d'hier.
+       La correspondance vient du serveur (`AO_FORMULAIRES.modeles`), elle
+       n'est pas recopiée ici. */
+    var piece = ((AO_FORMULAIRES || {}).modeles || {})[cle];
+    piece = (piece && piece.piece) || cle;
+    demander("/api/datacenter/marche/piece", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ modele: cle, fiche: AO_FICHE,
-                             analyse: AO_ANALYSE, saisies: AO_SAISIES }),
+      body: JSON.stringify({ piece: piece, fiche: AO_FICHE,
+                             analyse: AO_ANALYSE, saisies: AO_SAISIES,
+                             format: "docx" }),
     }, DELAI_MOYEN).then(function (r) {
       if (!r.ok) throw new Error("remplissage");
       /* CE QUI N'A PAS ÉTÉ PLACÉ VOYAGE DANS UN EN-TÊTE : un téléchargement
          ne rend pas de JSON, et un formulaire partiel se lirait comme
          complet si personne ne disait ce qui manque. */
-      try { etat = JSON.parse(r.headers.get("X-Remplissage") || "null"); }
+      try { etat = JSON.parse(r.headers.get("X-Piece") || "null"); }
       catch (e) { etat = null; }
       return r.blob();
     }).then(function (b) {
@@ -7531,7 +7543,7 @@ function messageDelai(e, defaut) {
              + (etat.non_places.length
                 ? " Sans emplacement trouvé : " + etat.non_places.join(", ")
                   + "." : "")
-             + (etat.ignores.length
+             + ((etat.ignores || []).length
                 ? " Sans valeur, donc laissées vides : "
                   + etat.ignores.join(", ") + "." : "")
              /* CE QU'ON DÉTIENT ET QUE LE FORMULAIRE N'OFFRE PAS D'ÉCRIRE.
