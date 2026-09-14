@@ -1430,6 +1430,106 @@ TYPES = [
             "Risques identifiés et position recommandée",
         ],
     },
+
+    # ── LES QUATRE PIÈCES QUI SE RÉDIGEAIENT SANS AVOIR DE LIVRABLE ────────
+    # Le pont pièce → livrable en comptait sept quand onze pièces ont la voie
+    # « rédiger » ou « compléter ». Les quatre manquantes se rédigeaient quand
+    # même — l'atelier les accepte, il lit la voie et non cette table — mais
+    # le plan n'offrait aucun document où les déposer : le brouillon sortait
+    # sans cadre, et la page ne proposait rien à ouvrir. Une règle mesure
+    # désormais la complétude du pont contre `ao_dc`, ce qui interdit à
+    # l'écart de se rouvrir en silence.
+    {
+        "id": "ao-autonomie-commerciale",
+        "mots_cles": "autonomie commerciale mise en concurrence réelle groupe "
+                     "liens capitalistiques entreprises liées entente "
+                     "concertation candidats du même groupe",
+        "groupe": "Appel d'offres — candidature",
+        "label": "Note d'autonomie commerciale au sein du groupe",
+        "desc": "Ce qui démontre que deux offres d'un même groupe ont été "
+                "établies séparément : identification des entités liées "
+                "également candidates, absence de dépendance qui priverait "
+                "les offres d'autonomie, et cloisonnement effectif.",
+        # CETTE NOTE PRÉPARE UNE ATTESTATION, ELLE NE L'EST PAS. La pièce
+        # déposée porte une affirmation signée par une personne habilitée ;
+        # ce livrable rassemble ce qui la fonde. La consigne de rédaction
+        # interdit d'ailleurs toute formule d'attestation.
+        "sections": [
+            "Entités du groupe également candidates ou cotraitantes",
+            "Liens capitalistiques et de direction entre ces entités",
+            "Cloisonnement des équipes et des informations d'offre",
+            "Éléments démontrant l'établissement séparé de chaque offre",
+        ],
+    },
+    {
+        "id": "ao-convention-groupement",
+        "mots_cles": "convention de groupement projet de convention conjoint "
+                     "solidaire mandataire répartition des prestations "
+                     "règlement des cotraitants DC1 cotraitance",
+        "groupe": "Appel d'offres — candidature",
+        "label": "Projet de convention de groupement",
+        "desc": "La forme du groupement et l'identité de chaque membre, la "
+                "répartition des prestations discipline par discipline, "
+                "l'étendue de la solidarité du mandataire et les modalités "
+                "de règlement entre cotraitants.",
+        "sections": [
+            "Forme du groupement et identité de chaque membre",
+            "Répartition des prestations, discipline par discipline",
+            "Désignation du mandataire et étendue de sa solidarité",
+            "Modalités de règlement des cotraitants entre eux",
+            "Cohérence avec le DC1 et la note de répartition",
+        ],
+    },
+    {
+        "id": "ao-memoire-technique",
+        "mots_cles": "mémoire technique valeur technique critères de jugement "
+                     "pondération méthodologie organisation moyens planning "
+                     "CCTP offre centre de données",
+        "groupe": "Appel d'offres — offre",
+        "label": "Mémoire technique",
+        "desc": "La pièce sur laquelle se joue la note technique : une "
+                "réponse point par point aux critères pondérés du règlement, "
+                "dans leur ordre, avec la méthodologie et les moyens propres "
+                "à CETTE consultation.",
+        # L'ORDRE DES SECTIONS EST CELUI DES CRITÈRES, PAS CELUI DE
+        # L'ENTREPRISE. Un évaluateur note sur une grille : ce qui ne se
+        # rattache à aucun critère nommé ne rapporte aucun point.
+        "sections": [
+            "Compréhension de l'opération et de ses contraintes propres",
+            "Réponse aux critères de jugement, dans l'ordre du règlement",
+            "Méthodologie et organisation proposées pour cette mission",
+            "Moyens affectés — humains, techniques, métrologiques",
+            "Planning proposé et articulation avec les délais du marché",
+            "Mesures spécifiques exigées au CCTP et preuve associée",
+        ],
+    },
+    {
+        "id": "ao-dpgf-cadre",
+        "mots_cles": "DPGF décomposition du prix global et forfaitaire postes "
+                     "lignes unités correspondance CCTP acomptes "
+                     "modifications chiffrage offre",
+        "groupe": "Appel d'offres — offre",
+        "label": "Cadre de décomposition du prix (DPGF)",
+        # CE LIVRABLE NE PORTE AUCUN PRIX, ET SON NOM LE DIT. C'est la seule
+        # pièce de la liste dont le contenu attendu est CHIFFRÉ, et le
+        # chiffrage est la chose que ce module ne fera jamais : une
+        # répartition inventée sert de base au règlement des acomptes et à la
+        # valorisation des modifications en cours de marché. Un « Livrable :
+        # DPGF » qui rendrait un tableau prérempli serait le document le plus
+        # dangereux du dépôt.
+        "desc": "La structure de la décomposition, pas les montants : les "
+                "postes attendus, leur correspondance ligne à ligne avec le "
+                "CCTP, les unités imposées par le modèle de l'acheteur et ce "
+                "que chaque ligne engage. Les prix restent à porter depuis "
+                "votre chiffrage.",
+        "sections": [
+            "Postes attendus et mode de décomposition imposé par le modèle",
+            "Correspondance ligne à ligne avec les prestations du CCTP",
+            "Unités et quantités imposées, et ce qui reste à mesurer",
+            "Ce que chaque ligne engage — acomptes, modifications, révision",
+            "Lignes à chiffrer, et où trouver chaque élément du chiffrage",
+        ],
+    },
 ]
 
 _BY_ID = {t["id"]: t for t in TYPES}
@@ -2033,6 +2133,20 @@ GROUPE_THEMES = {
         "Cahier des charges & CCTP",
         "Data center / Réalisation & gouvernance de projet",
         "Études de cas"],
+    # L'OFFRE NE PUISE PAS AU MÊME FONDS QUE LA CANDIDATURE, et c'est la
+    # raison d'être du groupe distinct. La candidature démontre QUI NOUS
+    # SOMMES — elle a besoin des références et du droit de la commande
+    # publique. L'offre démontre CE QUE NOUS PROPOSONS : elle a besoin des
+    # CCTP et de la conduite d'opération, où se trouvent la méthodologie et
+    # les mesures que le mémoire technique doit engager. Le droit reste en
+    # queue plutôt que d'être retiré : la recevabilité de l'offre s'y joue
+    # aussi, mais elle n'est pas ce qu'on note.
+    "Appel d'offres — offre": [
+        "Data center / Appels d'offres & CCTP",
+        "Cahier des charges & CCTP",
+        "Data center / Réalisation & gouvernance de projet",
+        "Études de cas",
+        "Juridique / Marchés & appels d'offres"],
     # « Centres de données » garde son chemin dédié (famille entière),
     # déjà en place côté serveur.
 }
