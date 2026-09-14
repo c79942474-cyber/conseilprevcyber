@@ -2893,27 +2893,6 @@
       dossier de candidature se remplissent au fur et à mesure, chacune avec
       son origine. Les déclarations sur l'honneur, elles, restent à votre
       main : leur fausseté est sanctionnée.</p>
-    <!-- L'ATELIER — LE GESTE QUI FAIT TOUT, ET QUI DIT CE QU'IL A REFUSÉ.
-         Il n'est pas offert avant le dépôt : sans pièces à lire, tout ce qui
-         serait rempli serait inventé. Le bouton reste donc inerte tant que le
-         dossier n'est pas là, et la phrase en dit la raison plutôt que de
-         laisser cliquer dans le vide. -->
-    <div class="ig-atelier ig-ao-op" id="ao-atelier-bloc">
-      <h3 style="margin:0 0 .4rem">Tout remplir automatiquement</h3>
-      <p class="note" style="margin:0 0 .6rem;max-width:70ch">
-        Un seul geste&nbsp;: les rubriques manquantes sont <b>cherchées dans
-        les pièces déposées</b>, les notes sont mises en brouillon, puis ce qui
-        vient d'être écrit est relu pour combler ce qui restait. Rien n'entre
-        <b>sans un passage retrouvé mot pour mot</b> dans une pièce du dossier ;
-        une valeur dont la citation est introuvable est refusée, et le refus
-        est affiché. Les déclarations sur l'honneur ne sont jamais touchées.
-      </p>
-      <button type="button" class="btn" id="ao-atelier" disabled
-              aria-describedby="ao-atelier-etat">Lancer l'atelier</button>
-      <span class="note" id="ao-atelier-etat" aria-live="polite">Déposez
-        d'abord les pièces du marché.</span>
-      <div id="ao-atelier-bilan" hidden></div>
-    </div>
 
     <p class="note ig-ao-op" style="max-width:74ch">Ce dépôt-ci n'entre pas dans la base
       de connaissance du <a href="#ig-depot-etat">§&nbsp;13</a>&nbsp;: il sert
@@ -2940,6 +2919,8 @@
         mesure sur ce que vous avez déposé et saisi&nbsp;: tant que rien n'est
         déposé, il l'annonce plutôt que de proposer une liste de conseils.</p></div>
     </div>
+    <h3 class="ig-ao-temps ig-ao-op"><span>1</span>Déposer le dossier de consultation</h3>
+    <p class="note ig-ao-op" style="max-width:74ch;margin-top:-.2rem">Les pièces du marché en entier. L'analyse dit ce qu'elles contiennent, ce qui manque, et quels documents la consultation exige — et elle verse au passage la fiche du cabinet dans les champs vides.</p>
     <!-- ══ LES DEUX COLONNES ════════════════════════════════════════════
          À GAUCHE CE QUI ARRIVE, À DROITE CE QUI PART. Le dossier de
          l'acheteur d'un côté, les pièces à produire de l'autre : c'est le
@@ -2995,6 +2976,8 @@
          différents : un lecteur qui cherche l'un ne doit pas le trouver
          rangé sous l'autre. -->
     <div class="ig-ao-op" id="ig-ao-offre-out"></div>
+    <h3 class="ig-ao-temps ig-ao-op"><span>2</span>Compléter ce qui ne se lit nulle part</h3>
+    <p class="note ig-ao-op" style="max-width:74ch;margin-top:-.2rem">Ce que ni le dossier de l'acheteur ni celui du cabinet ne portent se saisit ici, une fois, et se reporte partout. Les déclarations sur l'honneur restent à votre main : leur fausseté est sanctionnée.</p>
     <!-- LE REMPLISSAGE. La fiche est saisie UNE FOIS et se reporte dans
          toutes les pièces qui la demandent ; ce que l'analyse a relevé dans
          le dossier de l'acheteur s'y reporte aussi, avec sa citation. Les
@@ -3003,6 +2986,30 @@
          déclaration que personne n'a faite. -->
     <div class="ig-ao-op" id="ig-ao-fiche"></div>
     <div class="ig-ao-op" id="ig-ao-rempli"></div>
+    <h3 class="ig-ao-temps ig-ao-op"><span>3</span>Tout produire</h3>
+    <p class="note ig-ao-op" style="max-width:74ch;margin-top:-.2rem">L'atelier cherche dans les pièces déposées ce qui manque encore, met les notes en brouillon, puis relit ce qu'il vient d'écrire. Il ne peut évidemment rien faire avant les deux temps précédents — c'est pour cela qu'il est ici et non en tête.</p>
+    <!-- L'ATELIER — LE GESTE QUI FAIT TOUT, ET QUI DIT CE QU'IL A REFUSÉ.
+         Il n'est pas offert avant le dépôt : sans pièces à lire, tout ce qui
+         serait rempli serait inventé. Le bouton reste donc inerte tant que le
+         dossier n'est pas là, et la phrase en dit la raison plutôt que de
+         laisser cliquer dans le vide. -->
+    <div class="ig-atelier ig-ao-op" id="ao-atelier-bloc">
+      <h3 style="margin:0 0 .4rem">Tout remplir automatiquement</h3>
+      <p class="note" style="margin:0 0 .6rem;max-width:70ch">
+        Un seul geste&nbsp;: les rubriques manquantes sont <b>cherchées dans
+        les pièces déposées</b>, les notes sont mises en brouillon, puis ce qui
+        vient d'être écrit est relu pour combler ce qui restait. Rien n'entre
+        <b>sans un passage retrouvé mot pour mot</b> dans une pièce du dossier ;
+        une valeur dont la citation est introuvable est refusée, et le refus
+        est affiché. Les déclarations sur l'honneur ne sont jamais touchées.
+      </p>
+      <button type="button" class="btn" id="ao-atelier" disabled
+              aria-describedby="ao-atelier-etat">Lancer l'atelier</button>
+      <span class="note" id="ao-atelier-etat" aria-live="polite">Déposez
+        d'abord les pièces du marché.</span>
+      <div id="ao-atelier-bilan" hidden></div>
+    </div>
+
     <!-- LE PROJET : CONSERVER LE DOSSIER, ET ASSUMER LES DÉCLARATIONS.
          Tant qu'aucun projet n'est choisi, RIEN ne quitte ce navigateur — la
          fiche vit en local et les pièces repartent avec la réponse. Rattacher

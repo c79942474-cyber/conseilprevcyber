@@ -1425,3 +1425,37 @@ body[data-fond="couchant"]{
   .fond-hero-video{display:none}   /* ceinture et bretelles : le script ne
                                       l'insère déjà pas dans ce cas */
 }
+
+
+/* ── LES TROIS TEMPS DU § 14 ─────────────────────────────────────────────
+   POURQUOI ILS EXISTENT. La section portait neuf gestes mis bout à bout, et
+   l'ordre de la page contredisait l'ordre du travail : « Tout remplir
+   automatiquement » venait AVANT le dépôt du dossier, alors qu'il ne peut
+   rien faire sans lui. Trois intertitres numérotés remettent la lecture dans
+   le sens du geste — déposer, compléter, produire — sans rien retirer de ce
+   que la section sait faire.
+
+   LE NUMÉRO EST UNE INFORMATION, pas une décoration : ces trois temps sont
+   un ORDRE, et l'un ne peut pas se faire avant le précédent. */
+.ig-ao-temps {
+  display: flex;
+  align-items: baseline;
+  gap: .6rem;
+  margin: 2.2rem 0 .5rem;
+  font-size: 1.12rem;
+  letter-spacing: -.01em;
+}
+.ig-ao-temps > span {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 1.7em;
+  height: 1.7em;
+  border-radius: 50%;
+  font-size: .82em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  background: var(--acc, #9C3C20);
+}
+.ig-ao-temps + .note { color: inherit; opacity: .82; }
