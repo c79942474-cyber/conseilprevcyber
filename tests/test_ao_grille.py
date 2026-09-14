@@ -577,6 +577,13 @@ PRODUISENT_LE_DOSSIER = (
     "/api/datacenter/marche/export",
     "/api/datacenter/marche/parcours",
     "/api/datacenter/marche/dossier.zip",
+    # CINQUIÈME REQUÊTE, ENTRÉE DÉLIBÉRÉMENT : l'atelier. Il n'en portait pas,
+    # et c'était un défaut, pas une exception — il travaillait sur les
+    # vingt-trois pièces du catalogue quand la consultation n'en demande que
+    # douze. C'est l'appel le plus cher du module : lui faire lire, remplir et
+    # rédiger onze pièces qu'on ne déposera pas coûte des jetons pour rien, et
+    # son bilan réclamait des pièces hors sélection.
+    "/api/datacenter/marche/atelier",
 )
 
 

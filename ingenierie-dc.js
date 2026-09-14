@@ -5920,6 +5920,40 @@ function messageDelai(e, defaut) {
     }
     z.innerHTML = h;
     z.hidden = false;
+
+    /* ── CE QUE L'ATELIER A PRODUIT REVIENT DANS LES CARTES ──────────────
+       LE DÉFAUT QUI EXPLIQUE TOUT LE RESTE. L'atelier rend le remplissage
+       FINAL — les vingt-trois pièces, rubrique par rubrique, après plusieurs
+       tours de lecture — et les onze brouillons. Cette fonction n'en faisait
+       rien : elle écrivait un résumé dans un coin de page et jetait les deux.
+       Les cartes restaient dans l'état d'avant, et l'on concluait que « les
+       pièces ne sont pas produites automatiquement » — alors qu'elles
+       l'étaient, côté serveur, puis perdues au retour.
+
+       LA SAISIE N'EST PAS ÉCRASÉE : le remplissage rendu a été calculé AVEC
+       `AO_SAISIES`, qui part maintenant dans la requête. Ce qui revient
+       contient donc déjà vos corrections — l'atelier comble les trous, il ne
+       reprend pas la main sur ce que vous avez tranché. */
+    if (j.remplissage && j.remplissage.pieces) {
+      AO_REMPLI = j.remplissage;
+      /* LE MÊME RENDU QUE `aoRemplir`, et pas un rendu parallèle : c'est
+         `aoRempliRendre` qui dessine les vingt-trois cartes, rebranche les
+         champs de correction et rearme les boutons. Une seconde fonction
+         d'affichage aurait divergé de celle-ci au premier correctif. */
+      aoRempliRendre(AO_REMPLI);
+      if (AO_ANALYSE && !AO_CHOIX_FAIT) {
+        AO_CHOIX_FAIT = true;
+        aoToutChoisir();
+      }
+    }
+    /* ET LES BROUILLONS S'AFFICHENT SOUS LEUR PIÈCE, avec leurs boutons
+       d'emport — le même rendu que la rédaction pièce par pièce. Les compter
+       sans les montrer obligeait à relancer onze rédactions pour lire ce que
+       l'atelier venait d'écrire. */
+    (j.brouillons || []).forEach(function (b) {
+      var zz = $('[data-redout="' + (b.cle || "") + '"]');
+      if (zz && b.markdown) aoRedigerRendre(zz, b);
+    });
   }
 
   function atelierLancer() {
@@ -5932,7 +5966,23 @@ function messageDelai(e, defaut) {
     demander("/api/datacenter/marche/atelier", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
+      /* VOS CORRECTIONS PARTENT AVEC, et c'est un correctif, pas un ajout.
+         MESURÉ : cet appel envoyait `fiche`, `analyse` et `documents` — pas
+         `saisies`. La route les lit pourtant (`_ao_charge`), et recevait donc
+         un dictionnaire VIDE. L'atelier repartait de zéro sur les
+         quatre-vingt-treize rubriques, ignorait tout ce qui avait été tapé à
+         la main, et rendait un bilan qui déclarait incomplètes des pièces
+         qu'on venait de compléter. Le geste le plus coûteux du module
+         défaisait le travail de l'opérateur.
+
+         LE PÉRIMÈTRE ET LES PIÈCES AFFIRMÉES PARTENT AUSSI, pour la même
+         raison : sans eux l'atelier travaille sur les vingt-trois pièces du
+         catalogue quand la consultation n'en demande que douze, et
+         réclame une attestation qu'on a déjà marquée fournie. */
       body: JSON.stringify({ fiche: AO_FICHE, analyse: AO_ANALYSE,
+                             saisies: AO_SAISIES,
+                             fournies: Object.keys(AO_FOURNIES),
+                             perimetre: aoPerimetre(),
                              documents: atelierDocuments() })
     }, 600000).then(function (r) { return r.json(); }).then(function (j) {
       if (!j || !j.ok) {
@@ -8490,10 +8540,40 @@ function messageDelai(e, defaut) {
         h += '<dt class="' + cl + '">' + esc(l.libelle)
           + '<span class="ig-ao-st ' + cl + '">' + esc(l.statut_nom)
           + "</span></dt><dd>";
-        if (l.source === "saisie") {
-          h += '<input type="text" class="ig-ao-si" data-saisie="'
+        /* TOUTE RUBRIQUE SE CORRIGE À LA MAIN, SAUF LES DÉCLARATIONS.
+           CE QUI ÉTAIT MESURÉ. Un champ n'était offert que sur les rubriques
+           de source « saisie » — 27 sur 93. Les 66 autres, remplies depuis la
+           fiche, depuis le relevé du dossier ou par calcul, s'affichaient en
+           texte mort : un acheteur mal lu, un objet tronqué, un SIRET d'une
+           autre filiale ne pouvaient être repris NULLE PART. Pire, une
+           rubrique sans valeur et de source « fiche » n'affichait ni champ ni
+           texte — la ligne disait « à saisir » au-dessus du vide.
+
+           LES DÉCLARATIONS RESTENT HORS D'ATTEINTE, et c'est la doctrine du
+           module : elles affirment des faits dont la fausseté est
+           sanctionnée, et se prennent à la main par une personne habilitée.
+           Le moteur refuse d'y écrire ; la page n'offre donc pas de champ. */
+        if (l.source !== "declaration") {
+          h += '<input type="text" class="ig-ao-si'
+            + (l.corrige ? " ig-ao-si-cor" : "") + '" data-saisie="'
             + esc(p.cle + "." + l.cle) + '" value="' + esc(l.valeur || "")
-            + '" placeholder="à saisir pour cette consultation">';
+            + '" placeholder="'
+            + (l.source === "saisie"
+                ? "à saisir pour cette consultation"
+                : "vide — le module n'a rien trouvé")
+            + '">';
+          /* CE QUE LE MODULE AVAIT LU, GARDÉ À CÔTÉ DE VOTRE CORRECTION. Sans
+             lui, corriger efface la lecture et l'on ne peut plus la comparer
+             — ni revenir dessus en connaissance de cause. Vider le champ
+             rend la valeur du moteur. */
+          if (l.corrige) {
+            h += '<span class="ig-ao-cor">Corrigé à la main'
+              + (l.valeur_moteur
+                  ? " — le module avait lu «\u00a0" + esc(l.valeur_moteur)
+                    + "\u00a0»"
+                  : " — le module n'avait rien trouvé")
+              + ". Videz le champ pour revenir à sa lecture.</span>";
+          }
         } else if (l.valeur) {
           h += '<span class="ig-ao-vv">' + esc(l.valeur) + "</span>";
         }

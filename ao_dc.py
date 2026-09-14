@@ -4103,6 +4103,46 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False,
                     l["statut"] = "rempli"
                 elif not _poser_extrait(l, extraits.get(k)):
                     l["statut"] = "a_saisir"
+            # ── LA CORRECTION À LA MAIN L'EMPORTE, QUELLE QUE SOIT LA
+            #    SOURCE ────────────────────────────────────────────────────
+            # CE QUI ÉTAIT MESURÉ, ET QUI REND LE MODULE INUTILISABLE SUR UN
+            # VRAI DOSSIER. Une valeur tapée pour `dc1.candidat` était
+            # SILENCIEUSEMENT IGNORÉE : la branche `saisie` ci-dessus n'est
+            # atteinte que par les rubriques déclarées `source: "saisie"` — 27
+            # sur 93. Les 66 autres se remplissaient depuis la fiche, le
+            # relevé ou un calcul, et rien ne permettait de les corriger. Un
+            # acheteur mal lu, un objet tronqué, un SIRET d'une autre filiale
+            # : le module affichait sa lecture, et l'opérateur n'avait aucun
+            # moyen de la reprendre. « Analyser, vérifier, corriger » s'arrête
+            # à « vérifier » si la troisième étape n'existe pas.
+            #
+            # LA VALEUR DU MOTEUR EST GARDÉE À CÔTÉ, jamais effacée. C'est ce
+            # qui distingue une correction d'un écrasement : la ligne dit ce
+            # que le module avait lu ET ce que vous avez mis à la place, et la
+            # correction se défait en vidant le champ.
+            #
+            # LES DÉCLARATIONS N'EN SONT PAS, ET C'EST LA SEULE EXCEPTION.
+            # Une déclaration sur l'honneur affirme un fait dont la fausseté
+            # est sanctionnée pénalement ; elle se prend à la main, ailleurs,
+            # par une personne habilitée. Un programme qui écrirait dedans
+            # produirait une déclaration que personne n'a faite.
+            corr = str(saisies.get("%s.%s" % (cle_piece, r["cle"]))
+                       or "").strip()
+            if corr and r["source"] != "declaration" and l["statut"] != "rempli_saisie":
+                if r["source"] != "saisie" and corr != (l.get("valeur") or ""):
+                    l["valeur_moteur"] = l.get("valeur") or ""
+                    l["origine_moteur"] = l.get("origine") or ""
+                    l["corrige"] = True
+                    l["valeur"] = corr
+                    l["origine"] = "Corrigé à la main pour cette consultation"
+                    l["statut"] = "rempli"
+                    # LA DIVERGENCE ET LA DEMANDE DE CONFIRMATION TOMBENT AVEC
+                    # LA CORRECTION : elles portaient sur la valeur qu'on vient
+                    # de remplacer. Les garder ferait signaler un conflit
+                    # tranché.
+                    l.pop("a_confirmer", None)
+                    l.pop("divergences", None)
+                    l["message"] = ""
             l["statut_nom"] = STATUTS[l["statut"]]
             lignes.append(l)
 

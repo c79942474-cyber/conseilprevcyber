@@ -1484,3 +1484,18 @@ body[data-fond="couchant"]{
   font-size: .92em;
 }
 .ig-ao-redt > span { flex: 1 1 14rem; opacity: .85; }
+
+/* UNE VALEUR CORRIGÉE À LA MAIN SE VOIT. Sans marque, une correction se perd
+   parmi quatre-vingt-treize lignes, et l'on re-corrige ce qu'on avait déjà
+   repris — ou l'on croit lu ce qu'on a écrit soi-même. */
+.ig-ao-si-cor {
+  border-color: var(--acc, #9C3C20) !important;
+  box-shadow: inset 2px 0 0 var(--acc, #9C3C20);
+}
+.ig-ao-cor {
+  display: block;
+  margin-top: .25rem;
+  font-size: .82em;
+  line-height: 1.45;
+  color: var(--acc, #9C3C20);
+}
