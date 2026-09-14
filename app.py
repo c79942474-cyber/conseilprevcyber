@@ -4879,33 +4879,33 @@ def api_datacenter_marche_fiche_cabinet():
                    fournis=etat["fournis"], attendus=etat["attendus"])
 
 
-@app.route("/api/datacenter/marche/export", methods=["POST"])
-@admin_required
-def api_datacenter_marche_export():
-    """La réponse préparée — candidature ET offre — en Word ou en PDF.
+def _ao_report(data):
+    """LE REPORT PRÉPARÉ — UNE SEULE COMPOSITION POUR /export ET /dossier.zip.
 
-    CE DOCUMENT NE REMPLACE PAS LES FORMULAIRES. Les DC1, DC2, DC4 et ATTRI1
-    ont leur version, leur format et leurs cases ; un fac-similé produit ici
-    serait refusé — ou pire, accepté et faux. Celui-ci se pose À CÔTÉ,
-    rubrique par rubrique, chaque valeur avec son origine, pour être recopié
-    en le vérifiant.
+    CE QUE CELA SUPPRIME, MESURÉ. Les deux routes portaient VINGT-CINQ lignes
+    de code identiques : la charge utile, le remplissage, le markdown, le
+    cartouche et le bordereau. Ce n'est pas une redite de confort — c'est le
+    CARTOUCHE qui est en double, et le cartouche porte le périmètre annoncé
+    (« %d rubriques · %d pièces »). Deux copies divergent au premier ajout, et
+    celle qu'on oublie part chez l'acheteur avec un périmètre faux, sans que
+    rien ne le signale : un document dont l'en-tête ment sur son propre
+    contenu.
 
-    LES DÉCLARATIONS EN SORTENT VIDES, avec le texte de ce qui est affirmé et
-    une ligne de signature. Les pré-remplir dans un document EXPORTÉ serait pire
-    que dans la page : le document circule, et il se signerait sans être lu.
+    ELLE NE DÉCIDE RIEN DE NEUF. Mêmes bornes, même ordre, même bordereau : le
+    contrat des deux routes est inchangé, et une règle mesure qu'elles rendent
+    bien le MÊME report pour la même requête.
+
+    LES EXCEPTIONS REMONTENT. Chaque route garde son propre libellé de journal
+    — « remplissage à exporter » et « dossier complet — remplissage » — parce
+    que c'est ce libellé qui dit, dans les traces, lequel des deux gestes a
+    échoué.
     """
-    data = request.get_json(silent=True) or {}
     fiche, analyse, saisies, groupement = _ao_charge(data)
     fmt = livrables_export.format_demande(data.get("format"))
-    try:
-        r = ao_dc.remplir(fiche=fiche, analyse=analyse, saisies=saisies,
-                          groupement=groupement,
-                          perimetre=_ao_perimetre(data))
-        md = ao_dc.markdown_remplissage(r)
-    except Exception:
-        app.logger.exception("remplissage à exporter")
-        return jsonify(ok=False, error="calcul",
-                       message="Le dossier n'a pas pu être établi."), 500
+    r = ao_dc.remplir(fiche=fiche, analyse=analyse, saisies=saisies,
+                      groupement=groupement,
+                      perimetre=_ao_perimetre(data))
+    md = ao_dc.markdown_remplissage(r)
     meta = {"label": "Réponse à consultation — pièces préparées",
             "numero": "AO-REPONSE",
             "phase": "Réponse à consultation",
@@ -4926,6 +4926,31 @@ def api_datacenter_marche_export():
                         {"title": "Analyse du dossier de consultation v" + ao_dc.VERSION,
                          "theme": "citations avec position"}]}
     md, _bord = _poser_bordereau(md, meta, "candidature", data)
+    return fiche, r, md, meta, fmt
+
+
+@app.route("/api/datacenter/marche/export", methods=["POST"])
+@admin_required
+def api_datacenter_marche_export():
+    """La réponse préparée — candidature ET offre — en Word ou en PDF.
+
+    CE DOCUMENT NE REMPLACE PAS LES FORMULAIRES. Les DC1, DC2, DC4 et ATTRI1
+    ont leur version, leur format et leurs cases ; un fac-similé produit ici
+    serait refusé — ou pire, accepté et faux. Celui-ci se pose À CÔTÉ,
+    rubrique par rubrique, chaque valeur avec son origine, pour être recopié
+    en le vérifiant.
+
+    LES DÉCLARATIONS EN SORTENT VIDES, avec le texte de ce qui est affirmé et
+    une ligne de signature. Les pré-remplir dans un document EXPORTÉ serait pire
+    que dans la page : le document circule, et il se signerait sans être lu.
+    """
+    data = request.get_json(silent=True) or {}
+    try:
+        fiche, r, md, meta, fmt = _ao_report(data)
+    except Exception:
+        app.logger.exception("remplissage à exporter")
+        return jsonify(ok=False, error="calcul",
+                       message="Le dossier n'a pas pu être établi."), 500
     try:
         blob, mimetype, ext = livrables_export.composer(md, meta, fmt)
     except Exception:
@@ -5433,33 +5458,12 @@ def api_datacenter_marche_dossier_zip():
     portent en tête qu'ils sont des projets non signés.
     """
     data = request.get_json(silent=True) or {}
-    fiche, analyse, saisies, groupement = _ao_charge(data)
-    fmt = livrables_export.format_demande(data.get("format"))
     try:
-        r = ao_dc.remplir(fiche=fiche, analyse=analyse, saisies=saisies,
-                          groupement=groupement,
-                          perimetre=_ao_perimetre(data))
-        md = ao_dc.markdown_remplissage(r)
+        fiche, r, md, meta, fmt = _ao_report(data)
     except Exception:
         app.logger.exception("dossier complet — remplissage")
         return jsonify(ok=False, error="calcul",
                        message="Le dossier n'a pas pu être établi."), 500
-
-    meta = {"label": "Réponse à consultation — pièces préparées",
-            "numero": "AO-REPONSE", "phase": "Réponse à consultation",
-            "indice": "01",
-            "client": str(fiche.get("raison_sociale") or "")[:120],
-            "ia": False,
-            "referentiel": "Composition de candidature CONSEILPREV v" + ao_dc.VERSION,
-            "perimetre": "%d rubriques · %d pièces (%d candidature, %d offre)"
-                         % (r["etat"]["rubriques"], r["etat"]["pieces"],
-                            r["etat"]["candidature"], r["etat"]["offre"]),
-            "date": time.strftime("%d/%m/%Y"),
-            "sources": [{"title": "Fiche du candidat saisie par le client",
-                         "theme": "report"},
-                        {"title": "Analyse du dossier de consultation v" + ao_dc.VERSION,
-                         "theme": "citations avec position"}]}
-    md, _bord = _poser_bordereau(md, meta, "candidature", data)
 
     tampon = io.BytesIO()
     pieces, manques = [], []

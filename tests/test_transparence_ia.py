@@ -185,8 +185,56 @@ def _points_d_export(source):
                     if isinstance(t, ast.Name) and t.id in noms:
                         cles |= {k.value for k in n.value.keys
                                  if isinstance(k, ast.Constant)}
+        # LE CARTOUCHE PEUT VENIR D'UNE COMPOSITION PARTAGÉE, ET LA RÈGLE
+        # DOIT SUIVRE LA VALEUR PLUTÔT QUE LA FRONTIÈRE DE LA FONCTION.
+        #
+        # POURQUOI CET ÉLARGISSEMENT, ET POURQUOI IL N'OUVRE PAS DE BRÈCHE.
+        # `/export` et `/dossier.zip` portaient VINGT-CINQ lignes identiques,
+        # dont le cartouche — et un cartouche en double finit par diverger.
+        # Les deux reçoivent désormais `meta` d'une aide unique. Exiger le
+        # drapeau DANS la route aurait interdit la déduplication, ou pire,
+        # fait recopier le drapeau à côté de l'aide : deux déclarations, et
+        # c'est celle qu'on oublie qui ment.
+        #
+        # La brèche est fermée par la précision du chemin suivi : il faut que
+        # la MÊME variable soit reçue d'un appel à une fonction du module, et
+        # que ce soit CETTE fonction qui déclare. Un drapeau posé n'importe où
+        # ailleurs ne satisfait pas la règle, et retirer « ia » de l'aide la
+        # fait tomber pour les deux routes à la fois.
+        for n in ast.walk(fn):
+            if not (isinstance(n, ast.Assign) and isinstance(n.value, ast.Call)
+                    and isinstance(n.value.func, ast.Name)):
+                continue
+            recus = set()
+            for t in n.targets:
+                if isinstance(t, (ast.Tuple, ast.List)):
+                    recus |= {e.id for e in t.elts if isinstance(e, ast.Name)}
+                elif isinstance(t, ast.Name):
+                    recus.add(t.id)
+            if noms & recus:
+                cles |= _cles_declarees(arbre, n.value.func.id, noms)
         out.append((fn.name, cles))
     return out
+
+
+def _cles_declarees(arbre, nom_fonction, noms):
+    """Les clés qu'une fonction du module assigne aux variables `noms`.
+
+    Lue sur l'ARBRE, comme le reste : c'est la déclaration qui compte, pas un
+    commentaire qui contiendrait le mot.
+    """
+    for fn in ast.walk(arbre):
+        if (isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and fn.name == nom_fonction):
+            cles = set()
+            for n in ast.walk(fn):
+                if isinstance(n, ast.Assign) and isinstance(n.value, ast.Dict):
+                    for t in n.targets:
+                        if isinstance(t, ast.Name) and t.id in noms:
+                            cles |= {k.value for k in n.value.keys
+                                     if isinstance(k, ast.Constant)}
+            return cles
+    return set()
 
 
 def test_chaque_point_d_export_declare_ce_qui_a_ecrit_le_document():
