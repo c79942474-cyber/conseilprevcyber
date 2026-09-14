@@ -1616,11 +1616,32 @@ def selection(analyse=None, ajouts=(), ecartees=()):
         },
         # CE QUE LE MOTEUR NE SAIT PAS REMPLIR, DIT ICI ET PAS DÉCOUVERT PLUS
         # TARD. Quatre modèles de l'État sont remplissables ; les autres pièces
-        # se rédigent ou se demandent à un tiers. Annoncer « 11 documents à
-        # remplir automatiquement » quand quatre seulement le sont est la
-        # promesse la plus facile à démentir de tout ce module.
+        # se reportent à la main, se rédigent, ou se demandent à un tiers.
+        # Annoncer « 11 documents à remplir automatiquement » quand quatre
+        # seulement le sont est la promesse la plus facile à démentir de tout
+        # ce module.
         "remplissables": [x["cle"] for x in retenues if x["remplissable"]],
         "a_produire": [x["cle"] for x in retenues if not x["remplissable"]],
+        # ET CE QUE « À PRODUIRE » RECOUVRE, PARCE QUE DEUX CATÉGORIES N'EN
+        # DISENT PAS ASSEZ. « 4 que ce module remplit, et 8 à rédiger ou à
+        # obtenir d'un tiers » a fait poser la question : pourquoi les huit ne
+        # sont-elles pas rédigées ? Réponse mesurée : parce qu'elles ne sont
+        # pas de la même espèce. Certaines se reportent ici sans cerfa à
+        # joindre, l'atelier en rédige d'autres, et les dernières sortent d'un
+        # greffe ou d'un assureur — aucun logiciel ne les écrit.
+        #
+        # LES TROIS SOUS-LISTES SONT DÉDUITES DE `voie()`, PAS RECOPIÉES. Une
+        # table écrite ici se désaccorderait le jour où une pièce change de
+        # nature, et le compte affiché mentirait sans qu'aucune règle tombe.
+        # `voie()` est la même fonction que `remplir()` consulte, et que
+        # `ao_redaction.pieces_redigeables` lit pour décider qui va à l'atelier.
+        "au_report": [x["cle"] for x in retenues if not x["remplissable"]
+                      and voie(x["cle"], x["nature"]) == "remplir"],
+        "redigeables": [x["cle"] for x in retenues if not x["remplissable"]
+                        and voie(x["cle"], x["nature"]) in ("rediger",
+                                                            "completer")],
+        "a_demander": [x["cle"] for x in retenues if not x["remplissable"]
+                       and voie(x["cle"], x["nature"]) == "obtenir"],
         "sans_analyse": not ex,
     }
 
