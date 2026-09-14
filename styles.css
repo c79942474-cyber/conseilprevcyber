@@ -1469,3 +1469,18 @@ body[data-fond="couchant"]{
 }
 .ig-ao-quatre > li { margin: .2em 0; }
 .ig-ao-quatre > li > b { font-variant-numeric: tabular-nums; }
+
+/* EMPORTER LE BROUILLON — la barre des trois formats, sous le texte rendu.
+   Les boutons se serrent à droite et la phrase garde la ligne : c'est elle
+   qui dit pourquoi ils sont là. */
+.ig-ao-redt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+  margin-top: .9rem;
+  padding-top: .7rem;
+  border-top: 1px solid rgba(255, 255, 255, .18);
+  font-size: .92em;
+}
+.ig-ao-redt > span { flex: 1 1 14rem; opacity: .85; }

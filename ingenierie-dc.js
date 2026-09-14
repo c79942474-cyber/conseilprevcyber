@@ -6119,11 +6119,26 @@ function messageDelai(e, defaut) {
   function aoDocuments() {
     var z = $("#ig-ao-depot");
     if (!z) return;
+    /* DEUX ZONES, PARCE QUE LE MODULE NE DOIT PAS DEVINER LE CÔTÉ. Mesuré
+       avant cette séparation : un mémoire technique CONSEILPREV, qui reprend
+       par construction les critères de jugement pondérés de la consultation à
+       laquelle il répond, était identifié « règlement de consultation » sur
+       cette seule phrase. Tout son texte partait alors dans la détection des
+       exigences, et le module annonçait « l'acheteur demande un mémoire
+       technique » en citant NOTRE fichier — compte gonflé, motif faux.
+
+       C'EST VOUS QUI DITES DE QUEL CÔTÉ EST UN FICHIER. Aucune heuristique ne
+       peut trancher de façon sûre entre un document qui EXIGE et un document
+       qui RÉPOND : les deux parlent des mêmes pièces, dans les mêmes termes.
+       Deviner est exactement ce qui s'est trompé. */
     z.innerHTML =
       '<label class="dc-champ" for="ig-ao-f"><span class="dc-lab">Pièces de '
-      + "la consultation</span>"
+      + "la consultation <i>(de l'acheteur)</i></span>"
       + '<input id="ig-ao-f" type="file" multiple accept="' + accepteDepot() + '">'
-      + '<span class="dc-aide">Plusieurs fichiers à la fois, ou un par un — '
+      + '<span class="dc-aide">Le règlement, le CCAP, le CCTP, les cerfa '
+      + "vierges — ce que l'acheteur publie. C'est le seul côté qui sert à "
+      + "repérer ce qui est EXIGÉ. "
+      + "Plusieurs fichiers à la fois, ou un par un — "
       + "chaque dépôt s'ajoute au précédent. Ils sont analysés puis lus, et ne "
       + "sont PAS enregistrés dans la base de connaissance : pour cela, passez "
       + "par l'étape précédente. "
@@ -6133,8 +6148,25 @@ function messageDelai(e, defaut) {
          volumineux » sans savoir quel chiffre on avait dépassé. */
       + "Taille : jusqu'à " + aoOctets(AO_TRANSPORT_MAX) + " pour l'ensemble "
       + "des fichiers d'un même envoi.</span></label>"
+      + '<label class="dc-champ" for="ig-ao-fc"><span class="dc-lab">Documents '
+      + "du cabinet <i>(les vôtres)</i></span>"
+      + '<input id="ig-ao-fc" type="file" multiple accept="' + accepteDepot()
+      + '">'
+      + '<span class="dc-aide">Attestation d\'assurance, URSSAF, Kbis, bilans, '
+      + "CV, mémoire, références… Ils ne servent JAMAIS à repérer ce que "
+      + "l'acheteur exige : ils disent quelles pièces vous tenez déjà. Un "
+      + "fichier dont le nom ne désigne aucune pièce est gardé et signalé, "
+      + "jamais rattaché au hasard.</span></label>"
       + '<div id="ig-ao-liste" class="ig-ao-docs"></div>';
-    var f = $("#ig-ao-f");
+    aoBrancherDepot($("#ig-ao-f"), "consultation");
+    aoBrancherDepot($("#ig-ao-fc"), "cabinet");
+    aoEnAttenteRendre();
+  }
+
+  /* LE MÊME BRANCHEMENT POUR LES DEUX ZONES, avec le côté en argument. Deux
+     écouteurs écrits séparément auraient divergé au premier correctif — et
+     c'est la zone la moins regardée qui aurait gardé le défaut. */
+  function aoBrancherDepot(f, cote) {
     if (f) {
       /* CHAQUE DÉPÔT S'AJOUTE — ET DEVIENT RETIRABLE. On ne se contente plus du
          FileList natif : chaque sélection AJOUTE à `AO_EN_ATTENTE` (un même nom
@@ -6145,14 +6177,16 @@ function messageDelai(e, defaut) {
       f.addEventListener("change", function () {
         for (var i = 0; i < f.files.length; i++) {
           var fic = f.files[i], j = aoEnAttenteIndex(fic.name);
-          if (j >= 0) AO_EN_ATTENTE[j] = { nom: fic.name, file: fic };
-          else AO_EN_ATTENTE.push({ nom: fic.name, file: fic });
+          /* LE CÔTÉ SUIT LE FICHIER, et redéposer le même nom dans l'autre
+             zone le DÉPLACE : c'est la façon de corriger un fichier posé du
+             mauvais côté, sans avoir à le retirer d'abord. */
+          if (j >= 0) AO_EN_ATTENTE[j] = { nom: fic.name, file: fic, cote: cote };
+          else AO_EN_ATTENTE.push({ nom: fic.name, file: fic, cote: cote });
         }
         f.value = "";
         aoEnAttenteRendre();
       });
     }
-    aoEnAttenteRendre();
   }
 
   /* L'INDEX D'UN NOM DANS LA FILE, ou -1. Le nom fait l'identité, comme au
@@ -6174,12 +6208,20 @@ function messageDelai(e, defaut) {
     if (!AO_EN_ATTENTE.length) { l.innerHTML = ""; return; }
     var octets = AO_EN_ATTENTE.reduce(function (n, d) {
       return n + ((d.file && d.file.size) || 0); }, 0);
-    var h = '<label class="dc-lab" for="ig-ao-sel">Pièces choisies ('
-      + AO_EN_ATTENTE.length + " · " + esc(aoOctets(octets)) + ")</label>"
+    var nCab = AO_EN_ATTENTE.filter(function (d) {
+      return d.cote === "cabinet"; }).length;
+    var h = '<label class="dc-lab" for="ig-ao-sel">Fichiers choisis ('
+      + (AO_EN_ATTENTE.length - nCab) + " de la consultation, " + nCab
+      + " du cabinet · " + esc(aoOctets(octets)) + ")</label>"
       + '<div class="ig-ao-choisis"><select id="ig-ao-sel" '
       + 'aria-label="Pièces de la consultation choisies">';
+    /* LE CÔTÉ EST DIT SUR CHAQUE LIGNE. Sans lui, un fichier posé dans la
+       mauvaise zone est invisible jusqu'à l'analyse — et l'analyse ne dira
+       pas qu'il s'est trompé de côté, elle dira seulement un résultat faux. */
     AO_EN_ATTENTE.forEach(function (d, i) {
-      h += '<option value="' + i + '">' + esc(d.nom) + " · "
+      h += '<option value="' + i + '">'
+        + (d.cote === "cabinet" ? "[cabinet] " : "[consultation] ")
+        + esc(d.nom) + " · "
         + esc(aoOctets((d.file && d.file.size) || 0)) + "</option>";
     });
     h += "</select>"
@@ -6248,6 +6290,14 @@ function messageDelai(e, defaut) {
     var lectures = [], docs_octets = 0;
     for (var i = 0; i < n; i++) lectures.push(aoLire(AO_EN_ATTENTE[i].file));
     Promise.all(lectures).then(function (lus) {
+      /* LE CÔTÉ EST RECOLLÉ PAR L'INDEX, parce que `aoLire` ne le connaît
+         pas : il lit un fichier, pas une file. L'ordre de `Promise.all` est
+         celui des promesses, garanti par la spécification — c'est ce qui rend
+         l'appariement sûr. Sans lui, tout repartirait « consultation » et la
+         séparation ne servirait à rien. */
+      lus.forEach(function (x, i) {
+        if (x && !x.erreur) x.cote = (AO_EN_ATTENTE[i] || {}).cote || "consultation";
+      });
       var docs = lus.filter(function (x) { return !x.erreur; });
       if (!docs.length) {
         msg.textContent = "Aucun fichier n'a pu être lu.";
@@ -6893,7 +6943,70 @@ function messageDelai(e, defaut) {
       + ((window.CPMarkdown && CPMarkdown.versHtml)
           ? CPMarkdown.versHtml(j.markdown)
           : "<pre>" + esc(j.markdown) + "</pre>") + "</div>";
+    /* EMPORTER LE BROUILLON, PARCE QU'IL NE SURVIT PAS À L'ONGLET. Rien n'est
+       conservé côté serveur — décision prise : le texte porte le nom de
+       l'acheteur, l'objet du marché et les moyens du cabinet, et la sobriété
+       en données l'a emporté sur la commodité d'un coffre. Mais une minute de
+       rédaction perdue au premier rafraîchissement est un coût réel, payé
+       deux fois : le temps, et un second appel au modèle.
+
+       LE TEXTE EST GARDÉ SUR LE BOUTON, pas relu dans le DOM au moment du
+       clic. Le markdown affiché est passé au moteur de rendu — le relire
+       depuis le HTML rendrait un texte reconstitué, avec ses titres perdus. */
+    h += '<div class="ig-ao-redt"><span>Ce brouillon n\'est pas conservé : '
+      + "emportez-le.</span>"
+      + ["docx", "pdf", "xlsx"].map(function (f) {
+          return '<button type="button" class="btn btn-s" data-brouillon="'
+            + f + '">' + f.toUpperCase() + "</button>";
+        }).join("")
+      + "</div>";
     z.innerHTML = h;
+    var bs = z.querySelectorAll("[data-brouillon]");
+    for (var i = 0; i < bs.length; i++) {
+      (function (b) {
+        b.addEventListener("click", function () {
+          aoBrouillonEmporter(b.getAttribute("data-brouillon"), j, b);
+        });
+      })(bs[i]);
+    }
+  }
+
+
+  /* LE BROUILLON REMONTE POUR ÊTRE MIS EN PAGE, puis descend en fichier. Un
+     lien de téléchargement construit dans la page ne suffirait pas : c'est le
+     serveur qui compose le Word, le PDF et l'Excel, avec le cartouche qui dit
+     que le document est un brouillon écrit par un modèle. */
+  function aoBrouillonEmporter(fmt, j, bouton) {
+    bouton.disabled = true;
+    demander("/api/datacenter/marche/brouillon", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ markdown: j.markdown, format: fmt,
+                             piece: j.cle, nom: j.nom })
+    }, DELAI_LONG)
+      .then(function (r) {
+        if (!r.ok) throw new Error("mise en page refusée");
+        return r.blob();
+      })
+      .then(function (blob) {
+        var u = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = u;
+        a.download = "brouillon-" + (j.cle || "piece") + "." + fmt;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        /* LE LIEN OBJET EST RELÂCHÉ, SINON LE BLOB RESTE EN MÉMOIRE jusqu'au
+           déchargement de la page — onze brouillons de plusieurs centaines de
+           kilo-octets, gardés pour rien. Le délai laisse le téléchargement
+           démarrer avant que l'URL ne devienne invalide. */
+        setTimeout(function () { URL.revokeObjectURL(u); }, 30000);
+      })
+      .catch(function (e) {
+        if (e && e.name === "SessionEteinte") return;
+        bouton.textContent = "échec";
+      })
+      .then(function () { bouton.disabled = false; });
   }
 
   /* ── AFFIRMER « JE L'AI FOURNIE » ────────────────────────────────────

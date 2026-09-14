@@ -556,6 +556,91 @@ PIECES_CANDIDAT = {
 }
 
 
+# ── LES DOCUMENTS QUE VOUS DÉPOSEZ, ET LA PIÈCE QUE CHACUN FOURNIT ────────
+#
+# POURQUOI CETTE TABLE EXISTE, ET CE QU'ELLE RÉPARE. Le dépôt ne connaissait
+# qu'un côté : celui de l'acheteur. Un document du cabinet posé là n'était pas
+# seulement ignoré — il était LU COMME LE RÈGLEMENT. Mesuré : un mémoire
+# technique CONSEILPREV, qui par construction reprend les critères de jugement
+# pondérés de la consultation à laquelle il répond, est identifié « rc » par
+# cette seule phrase ; tout son texte part alors dans la détection des
+# exigences, et le module annonce « l'acheteur demande un mémoire technique »
+# en citant NOTRE fichier. Le compte des pièces retenues est gonflé par notre
+# propre paperasse, et le motif affiché est faux.
+#
+# LE CÔTÉ EST DÉCLARÉ, IL N'EST PAS DEVINÉ. C'est la décision qui rend cette
+# table tenable : l'opérateur dépose dans « Documents du cabinet », et rien
+# ici ne cherche à distinguer un mémoire d'un règlement. Deviner est
+# exactement ce qui s'est trompé.
+#
+# ET LE PIÈGE D'À CÔTÉ NE S'APPLIQUE PLUS. `_piece_candidat` doit se méfier du
+# texte, parce qu'un règlement EXIGE une attestation d'assurance et la nomme :
+# reconnaître sur le texte classerait le règlement comme une attestation. Ici
+# le document est déjà déclaré nôtre ; le nom peut donc décider seul, et la
+# seule erreur possible est un rattachement à la mauvaise pièce — visible sur
+# la ligne, et défaisable.
+CABINET_MOTIFS = {
+    "attestations_assurances": [r"(?<![a-z])rc[\s._-]*(?:pro|professionnelle?)",
+                                r"responsabilit[ée][\s._-]*civile",
+                                r"assurance", r"attestation[\s._-]*axa"],
+    "regularite_fiscale_sociale": [r"urssaf", r"vigilance",
+                                   r"r[ée]gularit[ée][\s._-]*(?:fiscale|sociale)",
+                                   r"fiscale?[\s._-]*et[\s._-]*sociale?"],
+    "bilans": [r"(?<![a-z])bilans?(?![a-z])", r"liasse[\s._-]*fiscale",
+               r"compte[\s._-]*de[\s._-]*r[ée]sultat"],
+    "cv": [r"(?<![a-z])cv(?![a-z])", r"curriculum"],
+    "pouvoirs": [r"(?<![a-z])pouvoirs?(?![a-z])",
+                 r"d[ée]l[ée]gation[\s._-]*de[\s._-]*signature"],
+    "memoire_technique": [r"m[ée]moire[\s._-]*technique", r"(?<![a-z])memtech"],
+    "references": [r"r[ée]f[ée]rences?(?![a-z])", r"attestations?[\s._-]*de[\s._-]*"
+                   r"bonne[\s._-]*ex[ée]cution"],
+    "organigramme": [r"organigramme"],
+    "qse": [r"(?<![a-z])qse(?![a-z])", r"iso[\s._-]*(?:9001|14001|45001)",
+            r"certification"],
+    "moyens": [r"(?<![a-z])moyens(?![a-z])", r"mat[ée]riels?(?![a-z])"],
+    "equipe": [r"(?<![a-z])[ée]quipe(?![a-z])", r"intervenants?(?![a-z])"],
+    "conventions": [r"convention[\s._-]*collective"],
+    "dpgf": [r"(?<![a-z])dpgf(?![a-z])",
+             r"d[ée]composition[\s._-]*du[\s._-]*prix"],
+    "honneur": [r"(?:d[ée]claration[\s._-]*sur[\s._-]*l)?honneur"],
+    "convention_groupement": [r"convention[\s._-]*de[\s._-]*groupement"],
+    "autonomie_commerciale": [r"autonomie[\s._-]*commerciale"],
+}
+
+
+def _NOMS_PIECES():
+    """{clé: nom} pour les vingt-trois pièces, LU sur le catalogue.
+
+    Recopier ces noms ici les ferait diverger du jour où l'un change : la
+    liste des documents du cabinet afficherait un intitulé que plus aucune
+    carte ne porte.
+    """
+    return {p["cle"]: p["nom"] for p, _d in _catalogue()}
+
+
+def piece_du_cabinet(nom, texte=""):
+    """La pièce de réponse que CE document du cabinet fournit, ou None.
+
+    LE NOM DÉCIDE. Le texte n'est pas consulté : il l'est déjà par le côté
+    consultation, et c'est précisément ce qui a fait passer un mémoire pour un
+    règlement. Ici, on répond à « lequel de mes vingt-trois documents ai-je
+    déposé », question à laquelle le nom du fichier répond bien mieux que son
+    contenu.
+
+    L'ORDRE DES MOTIFS COMPTE, et le premier qui accroche gagne : un fichier
+    nommé « memoire-technique-references-2025.docx » est un mémoire, pas une
+    liste de références. `CABINET_MOTIFS` est donc lue dans son ordre
+    d'écriture, du plus spécifique au plus général — Python 3.7 garantit
+    l'ordre d'insertion des dictionnaires, et c'est ce qui rend la table
+    lisible comme une liste de priorités.
+    """
+    n = _sans_accent((nom or "").lower())
+    for cle, motifs in CABINET_MOTIFS.items():
+        if any(re.search(m, n) for m in motifs):
+            return cle
+    return None
+
+
 #: LES FORMULAIRES À REMPLIR QUE L'ACHETEUR JOINT À SON DOSSIER.
 #:
 #: UN FORMULAIRE PRÉSENT DANS LE DCE EST UN FORMULAIRE ATTENDU EN RETOUR, et
@@ -1558,6 +1643,17 @@ def selection(analyse=None, ajouts=(), ecartees=()):
         if c and c not in fournis:
             fournis[c] = f.get("fichier") or ""
 
+    # CE QUE VOUS TENEZ DÉJÀ, DÉCLARÉ AU DÉPÔT. Troisième source, et la seule
+    # qui vienne de NOTRE côté : un document rangé dans « Documents du
+    # cabinet » dit qu'une pièce est en main.
+    #
+    # ELLE NE CHANGE PAS LA RETENUE, ET C'EST LE POINT. Ce qui est retenu est
+    # ce que l'ACHETEUR demande ; tenir une attestation qu'il ne demande pas
+    # n'en fait pas une pièce du dossier. Confondre les deux est précisément
+    # le défaut corrigé en amont — le compte « N retenus sur 23 » comptait nos
+    # propres fichiers.
+    tenues = dict((analyse or {}).get("fournies_cabinet") or {})
+
     lignes = []
     for p, dossier in _catalogue():
         cle = p["cle"]
@@ -1578,6 +1674,12 @@ def selection(analyse=None, ajouts=(), ecartees=()):
             # citée ET fournie doit dire « citée » — c'est l'exigence qui
             # compte — sans perdre qu'on en tient déjà le formulaire.
             "fichier_fourni": fournis.get(cle),
+            # LE DOCUMENT QUE NOUS TENONS POUR CETTE PIÈCE, s'il y en a un.
+            # Distinct de `fichier_fourni`, qui est le cerfa VIERGE joint par
+            # l'acheteur : l'un dit « il l'attend rempli », l'autre « nous
+            # l'avons ». Les fondre ferait lire « fournie » sur une pièce dont
+            # on ne tient que le formulaire à remplir.
+            "fichier_cabinet": tenues.get(cle),
         }
         if cle in ecartees:
             ligne.update(retenue=False, pourquoi="ecartee",
@@ -1642,6 +1744,16 @@ def selection(analyse=None, ajouts=(), ecartees=()):
                                                             "completer")],
         "a_demander": [x["cle"] for x in retenues if not x["remplissable"]
                        and voie(x["cle"], x["nature"]) == "obtenir"],
+        # LES PIÈCES QUE NOUS TENONS DÉJÀ, PARMI LES RETENUES. C'est le compte
+        # qui manquait à l'opérateur : sur les N documents demandés, combien
+        # sont déjà dans nos dossiers, et lesquels restent à produire.
+        "deja_tenues": [x["cle"] for x in retenues if x["fichier_cabinet"]],
+        # ET CELLES QUE NOUS TENONS SANS QU'ELLES SOIENT DEMANDÉES. Elles ne
+        # gonflent aucun compte ; les taire ferait chercher un document qu'on
+        # vient de déposer.
+        "tenues_hors_selection": sorted(
+            c for c in tenues
+            if c not in {x["cle"] for x in retenues}),
         "sans_analyse": not ex,
     }
 
@@ -1684,15 +1796,52 @@ def analyser(documents):
     premier jour.
     """
     pieces, inconnues, presentes, a_nous = [], [], set(), []
-    srcs, fournis = [], []
+    srcs, fournis, cabinet = [], [], []
     for d in documents or []:
         nom = (d.get("nom") or d.get("filename") or "").strip()
         texte = d.get("texte") or ""
         ext = d.get("extension") or ("." + nom.rsplit(".", 1)[-1].lower()
                                      if "." in nom else "")
-        ident = identifier(nom, texte, ext)
-        ligne = {"fichier": nom, "identification": ident,
+        # ── LE CÔTÉ EST DÉCLARÉ, ET IL DÉTOURNE AVANT TOUTE IDENTIFICATION ──
+        # UN DOCUMENT DU CABINET N'EST JAMAIS SOUMIS À `identifier`, et c'est
+        # tout l'objet de la séparation. Mesuré avant correction : un mémoire
+        # technique CONSEILPREV, qui reprend les critères de jugement pondérés
+        # de la consultation à laquelle il répond, était identifié « rc » sur
+        # cette seule phrase ; son texte entrait dans `srcs`, et le module
+        # annonçait ensuite « l'acheteur demande un mémoire technique » en
+        # citant notre propre fichier. Le compte des pièces retenues comptait
+        # notre paperasse, et le motif affiché était faux.
+        #
+        # LE DÉFAUT PAR DÉFAUT EST « consultation », ET C'EST DÉLIBÉRÉ : tout
+        # appelant écrit avant cette séparation continue de se comporter comme
+        # avant, et une valeur inconnue ne crée pas un troisième côté silencieux.
+        cote = str(d.get("cote") or "consultation").strip().lower()
+        if cote != "cabinet":
+            cote = "consultation"
+        ident = identifier(nom, texte, ext) if cote == "consultation" else None
+        ligne = {"fichier": nom, "cote": cote, "identification": ident,
                  "octets_texte": len(texte)}
+        if cote == "cabinet":
+            cle = piece_du_cabinet(nom, texte)
+            # LE KBIS ET L'ATTESTATION NOURRISSENT AUSSI LA FICHE, et ce n'est
+            # pas la même chose que fournir une pièce : l'un se lit pour en
+            # tirer des valeurs, l'autre se joint tel quel au dossier. Les
+            # deux sont dits, parce qu'un document peut faire les deux.
+            f = _piece_candidat(_sans_accent(nom.lower()),
+                                _sans_accent(texte[:20000].lower()))
+            ligne["cle"] = cle
+            ligne["nom_piece"] = (_NOMS_PIECES().get(cle) if cle else None)
+            ligne["alimente_fiche"] = ({"cle": f["cle"], "nom": f["nom"],
+                                        "ou": f["ou"]} if f else None)
+            if not cle and not f:
+                # NI RATTACHÉ NI LU : ON LE DIT. Le taire ferait croire le
+                # document pris en compte alors qu'il ne sert à rien.
+                ligne["pourquoi"] = (
+                    "Déposé du côté du cabinet, mais son nom ne le rattache à "
+                    "aucune des pièces à produire. Renommez-le d'après la "
+                    "pièce qu'il fournit, ou rattachez-le à la main.")
+            cabinet.append(ligne)
+            continue
         # UN FORMULAIRE JOINT AU DOSSIER EST UN FORMULAIRE ATTENDU EN RETOUR.
         # Il se relève ICI, avant tout classement : un DC1 vierge n'est ni une
         # pièce du dossier de consultation — il ne porte aucune clause — ni un
@@ -1767,6 +1916,21 @@ def analyser(documents):
         # sont pas — NI comme fichiers non reconnus : on sait ce qu'elles
         # sont, et on dit où elles vont.
         "pieces_candidat": a_nous,
+        # LES DOCUMENTS DU CABINET, DÉCLARÉS COMME TELS AU DÉPÔT. Ils ne sont
+        # NI des pièces de consultation — ils n'en portent aucune clause — NI
+        # des fichiers mal nommés : c'est l'opérateur qui a dit de quel côté
+        # ils sont, et le module ne le discute pas.
+        "pieces_cabinet": cabinet,
+        # ET LA PIÈCE DE RÉPONSE QUE CHACUN FOURNIT, {clé: fichier}. C'est ce
+        # que `selection()` lit pour dire « vous la tenez déjà » — le premier
+        # fichier gagne, comme partout ailleurs dans ce module.
+        # LE PREMIER FICHIER GAGNE, et `reversed` est ce qui l'obtient : en
+        # parcourant à l'envers, le premier déposé est écrit en dernier et
+        # écrase les suivants. Deux attestations d'assurance déposées, c'est
+        # la première qui est annoncée — et la seconde reste dans la liste,
+        # visible, plutôt que d'être tue.
+        "fournies_cabinet": {c["cle"]: c["fichier"]
+                             for c in reversed(cabinet) if c.get("cle")},
         # LES FORMULAIRES VIERGES QUE L'ACHETEUR JOINT, et la pièce de réponse
         # que chacun appelle. C'est la seconde source de la sélection, à côté
         # des citations du règlement : un dossier qui joint le cerfa sans le
