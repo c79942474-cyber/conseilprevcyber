@@ -76,11 +76,50 @@ DELAI = reglages.reel("AO_EXTRACTION_TIMEOUT", 180.0, mini=10.0)
 # le règlement de consultation fait foi sur ce qu'il faut remettre.
 CORPUS_MAX = reglages.entier("AO_EXTRACTION_CORPUS_MAX", 120000, mini=2000)
 
-# LES SOURCES QUE CE MODULE A LE DROIT DE REMPLIR. La fiche cabinet se saisit
-# une fois et ne se devine pas ; un calcul se dérive ; une DÉCLARATION SUR
-# L'HONNEUR s'affirme par une personne et JAMAIS par un programme — la
-# pré-cocher serait signer à la place de quelqu'un.
-SOURCES_CIBLES = ("saisie", "consultation")
+# LES SOURCES QUE CE MODULE A LE DROIT DE REMPLIR.
+#
+# LA FICHE Y ENTRE, ET C'EST LE GAIN PRINCIPAL DE CE MODULE. Elle en était
+# exclue au motif qu'elle « se saisit une fois et ne se devine pas ». C'était
+# juste tant que le dépôt ne connaissait qu'un côté, celui de l'acheteur : la
+# forme juridique du candidat n'a rien à faire dans un CCTP, et l'y chercher
+# n'aurait ramené que du bruit.
+#
+# CE QUI A CHANGÉ : LE DÉPÔT PREND MAINTENANT VOS PROPRES DOCUMENTS. Un Kbis
+# porte la forme juridique, la ville d'immatriculation au RCS et le capital ;
+# un bilan porte les chiffres d'affaires. Mesuré sur un dossier réel, ce sont
+# VINGT-HUIT rubriques `fiche` restées vides — vingt-deux « à saisir » et six
+# « invalide » — qu'aucune recherche ne visait, sur quatre-vingt-treize. Le
+# module lisait ces documents et ne s'en servait pour rien.
+#
+# CE QUI PROTÈGE DE LA DEVINETTE RESTE ENTIER, et c'est ce qui rend l'ouverture
+# tenable : toute valeur extraite doit se retrouver CITÉE dans un document
+# déposé, sans quoi elle est REJETÉE (`rejets`) et rien n'est reporté. Ouvrir
+# la fiche à la recherche n'ouvre donc pas la porte à l'invention — cela permet
+# de lire dans vos pièces ce que vous auriez retapé à la main.
+#
+# UN CALCUL NE SE CHERCHE TOUJOURS PAS : il se dérive d'une autre rubrique, et
+# aller le lire ailleurs mettrait en concurrence une valeur calculée et une
+# valeur lue. Une DÉCLARATION SUR L'HONNEUR non plus : elle s'affirme par une
+# personne et JAMAIS par un programme — la pré-cocher serait signer à la place
+# de quelqu'un.
+SOURCES_CIBLES = ("saisie", "consultation", "fiche")
+
+# ── LA CONTRAINTE QUI REND L'OUVERTURE DE LA FICHE TENABLE ────────────────
+# CE QUE LA RÈGLE MAISON DISAIT, ET ELLE AVAIT RAISON : « Le SIRET du candidat
+# n'est pas dans le règlement de l'acheteur. L'y chercher ferait remonter le
+# SIRET DE L'ACHETEUR — et il serait recopié. » Le garde-fou habituel — une
+# valeur doit être CITÉE dans un document déposé — ne protège pas de ce
+# défaut-là : le SIRET de l'acheteur EST cité, noir sur blanc, dans son propre
+# règlement. La citation existe, elle est exacte, et la valeur est fausse.
+#
+# CE QUI REND LA RECHERCHE POSSIBLE AUJOURD'HUI : le dépôt a deux côtés. Une
+# rubrique qui décrit LE CANDIDAT ne se cherche que dans les documents QUE
+# NOUS AVONS DÉPOSÉS — Kbis, bilans, attestations. Le règlement de l'acheteur
+# n'entre pas dans ce corpus-là, et son SIRET ne peut donc plus être proposé.
+#
+# SANS DOCUMENT DU CABINET, RIEN NE CHANGE : la liste est vide, aucune
+# recherche ne part, et la fiche reste à saisir comme avant.
+SOURCES_DU_CANDIDAT = ("fiche",)
 
 # CE QU'ON NE CHERCHE JAMAIS, ET C'EST DIT ICI PLUTÔT QU'AILLEURS. Une
 # déclaration sur l'honneur s'affirme par une personne : la pré-remplir serait
@@ -94,7 +133,15 @@ SOURCES_INTERDITES = ("declaration",)
 
 # LES ÉTATS QUI APPELLENT UNE RECHERCHE. Une rubrique déjà remplie ne se
 # recherche pas : on ne va pas écraser une saisie humaine ni un relevé cité.
-STATUTS_CIBLES = ("a_saisir", "non_trouve")
+#
+# « invalide » Y ENTRE AVEC L'OUVERTURE DE LA FICHE. Une rubrique invalide
+# porte une valeur que le contrôle refuse — un SIRET à treize chiffres, un
+# code postal tronqué. Elle n'est pas « remplie » : elle est fausse, et le
+# document sortirait avec. La chercher dans les pièces déposées est
+# exactement le geste utile ; et comme toute valeur extraite doit être citée
+# pour être reportée, on ne remplace une valeur fausse que par une valeur
+# qu'un document porte noir sur blanc.
+STATUTS_CIBLES = ("a_saisir", "non_trouve", "invalide")
 
 
 class ExtractionError(Exception):
@@ -130,16 +177,45 @@ def cibles(remplissage):
                   and r.get("statut") in STATUTS_CIBLES]
         if not restes:
             continue
-        out.append({
-            "cle": p.get("cle"),
-            "nom": p.get("nom") or p.get("cle"),
-            "dossier": p.get("dossier"),
-            "rubriques": [{"cle": r.get("cle"), "libelle": r.get("libelle"),
-                           "source": r.get("source"),
-                           "aide": r.get("aide") or r.get("message") or ""}
-                          for r in restes],
-        })
+        # DEUX ENTRÉES QUAND LA PIÈCE MÊLE LES DEUX, et pas une seule avec un
+        # corpus élargi : ce qui décrit le candidat et ce qui décrit la
+        # consultation ne se cherchent pas au même endroit, et les fondre
+        # rouvrirait la porte au SIRET de l'acheteur.
+        for cote, lot in (("cabinet", [r for r in restes
+                                       if r.get("source") in SOURCES_DU_CANDIDAT]),
+                          (None, [r for r in restes
+                                  if r.get("source") not in SOURCES_DU_CANDIDAT])):
+            if not lot:
+                continue
+            out.append({
+                "cle": p.get("cle"),
+                "nom": p.get("nom") or p.get("cle"),
+                "dossier": p.get("dossier"),
+                # LE CORPUS ADMIS POUR CETTE ENTRÉE. `None` veut dire « tout
+                # ce qui a été déposé » ; « cabinet » borne aux documents que
+                # nous avons fournis.
+                "corpus_cote": cote,
+                "rubriques": [{"cle": r.get("cle"), "libelle": r.get("libelle"),
+                               "source": r.get("source"),
+                               "aide": r.get("aide") or r.get("message") or ""}
+                              for r in lot],
+            })
     return out
+
+
+def corpus_du_cote(corp, cote):
+    """Le corpus borné à un côté — ou le corpus entier si aucun n'est demandé.
+
+    RENDRE UN CORPUS VIDE PLUTÔT QUE LE CORPUS ENTIER quand notre côté est
+    vide : c'est la différence entre « je ne trouve rien » et « je cherche le
+    SIRET du candidat dans le règlement de l'acheteur ».
+    """
+    if not cote:
+        return corp
+    pieces = [x for x in (corp or {}).get("pieces") or []
+              if x.get("cote") == cote]
+    return dict(corp or {}, pieces=pieces,
+                octets=sum(len(x.get("texte") or "") for x in pieces))
 
 
 def requete(cible):
@@ -176,6 +252,27 @@ def corpus(documents, analyse=None):
                                          p.get("sigle") or p.get("code"), False)
     for p in (analyse or {}).get("inconnues", []):
         par_fichier.setdefault(p.get("fichier"), (900, None, True))
+    # LES DOCUMENTS DU CABINET ONT UN RANG ET UN NOM, comme les autres.
+    #
+    # CE QUE LA SÉPARATION DES DEUX CÔTÉS AVAIT CASSÉ SANS LE DIRE. Depuis
+    # qu'un document déposé du côté cabinet ne figure plus ni dans `pieces`
+    # ni dans `inconnues`, il retombait sur le défaut `(950, None, True)` :
+    # lu en DERNIER — donc le premier tronqué quand le budget de texte est
+    # atteint — et marqué `non_identifie`, ce qui fait ressortir chaque
+    # valeur qu'il porte avec « FICHIER NON IDENTIFIÉ, à confirmer ».
+    # Autrement dit : une attestation déposée exprès, nommée sans ambiguïté
+    # et rattachée à sa pièce, était lue comme un fichier anonyme de dernier
+    # recours.
+    #
+    # LE RANG 500 LES PLACE APRÈS LES PIÈCES DE L'ACHETEUR ET AVANT LES
+    # FICHIERS NON RECONNUS. C'est l'ordre du risque : ce que l'acheteur
+    # écrit commande, ce que nous déposons vient ensuite, ce que personne
+    # n'a su nommer passe en dernier.
+    cabinet = set()
+    for p in (analyse or {}).get("pieces_cabinet", []):
+        cabinet.add(p.get("fichier"))
+        par_fichier.setdefault(
+            p.get("fichier"), (500, p.get("cle") or "cabinet", False))
 
     lus = []
     for d in (documents or []):
@@ -184,8 +281,11 @@ def corpus(documents, analyse=None):
         if not texte.strip():
             continue
         rang, sigle, inconnu = par_fichier.get(nom, (950, None, True))
+        # LE CÔTÉ VOYAGE AVEC LE TEXTE, parce que la recherche en dépend :
+        # une rubrique de la fiche ne se cherche QUE de notre côté.
         lus.append({"fichier": nom, "sigle": sigle, "texte": texte,
-                    "rang": rang, "non_identifie": inconnu})
+                    "rang": rang, "non_identifie": inconnu,
+                    "cote": "cabinet" if nom in cabinet else "consultation"})
     lus.sort(key=lambda x: (x["rang"], x["fichier"]))
 
     # LE BUDGET SE DÉPENSE DANS L'ORDRE DE LECTURE, et ce qui dépasse est
@@ -479,7 +579,10 @@ def lire_le_dossier(remplissage, documents, analyse=None, client=None,
 
     def un(cible):
         try:
-            return (cible, extraire(cible, corp, client=client), None)
+            return (cible,
+                    extraire(cible,
+                             corpus_du_cote(corp, cible.get("corpus_cote")),
+                             client=client), None)
         except ExtractionError as e:
             return (cible, None, {"cle": cible["cle"], "nom": cible["nom"],
                                   "code": e.code, "dit": e.detail})
@@ -487,6 +590,18 @@ def lire_le_dossier(remplissage, documents, analyse=None, client=None,
             _log.exception("lecture assistée : pièce %s", cible.get("cle"))
             return (cible, None, {"cle": cible["cle"], "nom": cible["nom"],
                                   "code": "inattendu", "dit": str(e)[:200]})
+
+    # UNE CIBLE SANS CORPUS N'EST PAS UN ÉCHEC, C'EST UN NON-LIEU. Les
+    # rubriques de la fiche ne se cherchent que dans les documents du cabinet ;
+    # quand on n'en a déposé aucun, il n'y a rien à lire — et lancer l'appel
+    # pour récolter un « sans_dossier » par pièce remplirait le bilan d'échecs
+    # qui ne disent rien, en consommant des jetons pour rien.
+    liste = [c for c in liste
+             if (corpus_du_cote(corp, c.get("corpus_cote")) or {}).get("pieces")]
+    if not liste:
+        return {"extraits": {}, "rejets": [], "pieces": [], "echecs": [],
+                "corpus": {"octets": corp["octets"],
+                           "tronques": corp["tronques"]}}
 
     resultats = list(executeur(un, liste)) if executeur else [un(c) for c in liste]
 
