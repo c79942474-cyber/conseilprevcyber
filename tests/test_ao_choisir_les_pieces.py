@@ -162,9 +162,10 @@ def _selection(ajouts=None, ecartees=None):
 def _ecran(sel):
     """Le HTML rendu, et le journal de ce que les gestes envoient au moteur."""
     prog = (DOM
-            + _js_source("esc", "aoSelectionRendre", "aoSelectionBrancher")
+            + _js_source("esc", "aoSelectionRendre", "aoSelectionBrancher",
+                         "aoVueOptions", "aoVueAppliquer", "aoVueBrancher")
             + """
-    var AO_SELECTION = null;
+    var AO_SELECTION = null, AO_VUE = {};
     var AO_SEL_AJOUTS = {}, AO_SEL_ECARTEES = {};
     var JOURNAL = [];
     function aoSelectionRecalculer() {
@@ -176,7 +177,8 @@ def _ecran(sel):
     global.document = { getElementById: function () { return null; } };
 
     var sel = JSON.parse(process.env.SEL || "null");
-    zone = { innerHTML: "", querySelectorAll: function () { return []; } };
+    zone = { innerHTML: "", querySelectorAll: function () { return []; },
+             querySelector: function () { return null; } };
     aoSelectionRendre(sel);
     var html = zone.innerHTML;
 

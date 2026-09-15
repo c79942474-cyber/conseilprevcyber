@@ -1729,13 +1729,17 @@ def _rendu_analyse(analyse):
     Le rendu écrit dans le DOM ; on lui en donne un minimal — un objet qui
     retient ce qu'on lui pose — et l'on relit ce qu'il a écrit."""
     prog = _js_source("esc", "info", "aoTexteBouton", "aoTexteFermer",
-                       "aoTexteBrancherListe", "aoIgnores", "aoRendre") + "\n".join([
+                       "aoTexteBrancherListe", "aoIgnores", "aoRendre",
+                       "aoVueDoc", "aoVueDocAppliquer",
+                       "aoVueDocBrancher") + "\n".join([
+        'var AO_VUE_DOC = "";',
         "",
         # LE RENDU BRANCHE DÉSORMAIS DES ÉCOUTEURS SUR CE QU'IL VIENT
         # D'ÉCRIRE (le bouton « Lire » de chaque pièce) et ferme le lecteur.
         # Le banc doit donc offrir `querySelectorAll` sur la zone, comme le
         # ferait un vrai élément. Sans cela il tombe — et c'est son office.
-        "const zone = {innerHTML: '', querySelectorAll: () => []};",
+        "const zone = {innerHTML: '', querySelectorAll: () => [],"
+        " querySelector: () => null};",
         "const lect = {innerHTML: ''};",
         "var AO_TEXTES = {}, AO_TEXTE_OUVERT = null;",
         "globalThis.$ = (s) => (s === '#ig-ao-lect' ? lect : zone);",

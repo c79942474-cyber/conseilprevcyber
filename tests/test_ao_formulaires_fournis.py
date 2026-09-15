@@ -267,10 +267,14 @@ def test_le_formulaire_joint_est_REELLEMENT_rempli_et_pas_seulement_annonce():
 # LES DEUX ÉCRANS DISENT LA MÊME CHOSE DU MÊME FICHIER
 # ==========================================================================
 def _selection_rendue(sel):
-    prog = (_js_source("esc", "aoSelectionRendre")
+    # LES DEUX FONCTIONS D'AFFICHAGE, AJOUTÉES AU BANC. Le rendu les
+    # appelle désormais ; un banc qui les ignore tombe — et c'est le
+    # harnais qui fait son travail : il EXÉCUTE, il ne relit pas.
+    prog = (_js_source("esc", "aoSelectionRendre", "aoVueOptions",
+                       "aoVueAppliquer", "aoVueBrancher")
             + "\nfunction aoSelectionBrancher(){}"
-            + "\nvar AO_SELECTION = null;"
-            + "\nvar zone = { innerHTML: '' };"
+            + "\nvar AO_SELECTION = null, AO_VUE = {};"
+            + "\nvar zone = { innerHTML: '', querySelectorAll: function () { return []; }, querySelector: function () { return null; } };"
             + "\nfunction $(s){ return s === '#ig-ao-retenus' ? zone : null; }"
             + "\naoSelectionRendre(JSON.parse(process.env.SEL));"
             + "\nprocess.stdout.write(zone.innerHTML);\n")
@@ -313,13 +317,15 @@ def test_la_pastille_du_formulaire_JOINT_a_sa_propre_teinte():
 
 def _releve_rendu(analyse):
     prog = (_js_source("esc", "aoTexteBouton", "aoIgnores", "aoExigence",
-                       "aoRendre")
-            + "\nvar AO_TEXTES = {};"
+                       "aoRendre", "aoVueDoc", "aoVueDocAppliquer",
+                       "aoVueDocBrancher")
+            + "\nvar AO_TEXTES = {}, AO_VUE_DOC = \"\";"
             + "\nfunction info(){ return ''; }"
             + "\nfunction aoTexteBrancherListe(){}"
             + "\nfunction aoTexteFermer(){}"
             + "\nvar zone = { innerHTML: '', querySelectorAll: function () "
-              "{ return []; } };"
+              "{ return []; }, querySelector: function () "
+              "{ return null; } };"
             + "\nvar ign = { innerHTML: '' }, lect = { innerHTML: '' };"
             + "\nfunction $(s) { return s === '#ig-ao-out' ? zone"
               " : (s === '#ig-ao-ign' ? ign"

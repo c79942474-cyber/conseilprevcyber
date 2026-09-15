@@ -211,10 +211,11 @@ def test_le_cas_qui_a_fait_poser_la_question_y_repond_maintenant():
 # --------------------------------------------------------------------------
 def _rendu(sel):
     """Le balisage que `aoSelectionRendre` produit RÉELLEMENT sur `sel`."""
-    prog = (_js_source("esc", "aoSelectionRendre")
-            + "\nvar AO_SELECTION = null;"
+    prog = (_js_source("esc", "aoSelectionRendre", "aoVueOptions",
+                       "aoVueAppliquer", "aoVueBrancher")
+            + "\nvar AO_SELECTION = null, AO_VUE = {};"
             + "\nfunction aoSelectionBrancher() {}"
-            + "\nvar zone = { innerHTML: '' };"
+            + "\nvar zone = { innerHTML: '', querySelectorAll: function () { return []; }, querySelector: function () { return null; } };"
             + "\nfunction $(s){ return s === '#ig-ao-retenus' ? zone : null; }"
             + "\naoSelectionRendre(JSON.parse(process.env.SEL));"
             + "\nprocess.stdout.write(zone.innerHTML);\n")

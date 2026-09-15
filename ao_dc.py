@@ -1726,6 +1726,62 @@ def _catalogue():
     return out
 
 
+#: LES QUATRE GESTES QU'UNE PIÈCE RETENUE PEUT APPELER, ET RIEN D'AUTRE.
+#:
+#: L'ORDRE EST CELUI DE L'EFFORT : ce que la machine fait seule d'abord, ce
+#: qu'elle prépare ensuite, ce qu'un tiers doit fournir en dernier — et c'est
+#: le dernier qui fait rater les dépôts, parce que c'est un délai et non une
+#: rédaction.
+#:
+#: DEUX LIBELLÉS, PARCE QU'ILS NE SONT PAS LUS AU MÊME ENDROIT. Le long se lit
+#: dans une phrase — « 8 dont l'atelier rédige un brouillon » — et doit se
+#: terminer comme une phrase. Le court tient dans une option de liste
+#: déroulante, où une subordonnée de trois lignes ne se lit pas.
+#:
+#: ILS SONT ÉCRITS ICI, PAS DANS LA PAGE. Les quatre phrases longues étaient
+#: recopiées dans `ingenierie-dc.js` : deux tables du même texte, qui
+#: divergent le jour où l'on en corrige une. La page les lit désormais.
+CATEGORIES_PIECE = {
+    "remplissable": {
+        "court": "Remplies sur le cerfa officiel",
+        "long": "que ce module remplit sur le cerfa officiel",
+    },
+    "au_report": {
+        "court": "Reportées ici, sans cerfa",
+        "long": "dont il reporte les rubriques ici, sans cerfa à joindre : "
+                "le document reste à établir et à signer",
+    },
+    "redigeable": {
+        "court": "Brouillon rédigé par l'atelier",
+        "long": "dont l'atelier rédige un brouillon",
+    },
+    "a_demander": {
+        "court": "À demander à un tiers",
+        "long": "à demander à un tiers — c'est le délai, pas la rédaction, "
+                "qui fait rater les dépôts",
+    },
+}
+
+
+def _categorie(cle, nature, remplissable):
+    """Le geste que CETTE pièce appelle — une seule dérivation, quatre vues.
+
+    ELLE PASSE PAR `voie()`, ET C'EST TOUT L'INTÉRÊT. Une table écrite ici se
+    désaccorderait le jour où une pièce change de nature, et le compte affiché
+    mentirait sans qu'aucune règle tombe. `voie()` est la même fonction que
+    `remplir()` consulte et que `ao_redaction.pieces_redigeables` lit pour
+    décider qui part à l'atelier.
+    """
+    if remplissable:
+        return "remplissable"
+    v = voie(cle, nature)
+    if v == "remplir":
+        return "au_report"
+    if v in ("rediger", "completer"):
+        return "redigeable"
+    return "a_demander"
+
+
 def selection(analyse=None, ajouts=(), ecartees=()):
     """COMBIEN de documents ce dossier-là demande, et LESQUELS.
 
@@ -1801,6 +1857,23 @@ def selection(analyse=None, ajouts=(), ecartees=()):
             "bloquant": bool(p.get("bloquant")),
             "citation": e.get("citation"),
             "remplissable": cle in remplissables,
+            # CE QUE CETTE PIÈCE DEMANDE COMME GESTE, PORTÉ PAR LA LIGNE.
+            #
+            # POURQUOI ELLE DESCEND JUSQU'ICI. Les quatre comptes affichés —
+            # remplies sur le cerfa, reportées ici, brouillon d'atelier, à
+            # demander à un tiers — étaient quatre compréhensions séparées,
+            # et la ligne ne savait à laquelle elle appartenait. Un écran qui
+            # veut MONTRER une catégorie devait donc la recalculer ; deux
+            # calculs de la même chose finissent toujours par diverger, et
+            # celui-là aurait divergé en silence, sur un compte que personne
+            # ne revérifie.
+            #
+            # LES QUATRE LISTES EN DÉCOULENT désormais, au lieu d'être quatre
+            # lectures parallèles de `voie()`. Une seule dérivation, quatre
+            # vues : le compte affiché et la pièce filtrée ne peuvent plus se
+            # contredire.
+            "categorie": _categorie(cle, p.get("nature"),
+                                    cle in remplissables),
             "contre_citation": False,
             # LE FICHIER QUI L'A APPORTÉE, s'il y en a un. Il reste attaché à
             # la ligne quelle que soit la raison de la retenue : une pièce
@@ -1855,7 +1928,25 @@ def selection(analyse=None, ajouts=(), ecartees=()):
         # Annoncer « 11 documents à remplir automatiquement » quand quatre
         # seulement le sont est la promesse la plus facile à démentir de tout
         # ce module.
-        "remplissables": [x["cle"] for x in retenues if x["remplissable"]],
+        # LE TABLEAU DES CATÉGORIES, AVEC SES LIBELLÉS ET SES PIÈCES.
+        #
+        # POURQUOI IL EST RENDU. La page affichait les quatre comptes en
+        # recopiant les quatre phrases dans son propre code, et en allant
+        # chercher chacune des quatre listes par son nom. Elle avait donc sa
+        # propre table — quatre libellés et quatre noms de clés — qui n'avait
+        # aucune raison de rester d'accord avec celle-ci. Elle la lit
+        # désormais, dans l'ordre où elle est écrite ici : l'ordre de
+        # l'effort, ce que la machine fait seule d'abord.
+        #
+        # LES QUATRE LISTES NOMMÉES RESTENT, et ce n'est pas un doublon : les
+        # règles et `ao_redaction` les lisent par leur nom depuis longtemps.
+        # Elles sont désormais des VUES de la même dérivation.
+        "categories": [
+            {"cle": c, "court": lib["court"], "long": lib["long"],
+             "pieces": [x["cle"] for x in retenues if x["categorie"] == c]}
+            for c, lib in CATEGORIES_PIECE.items()],
+        "remplissables": [x["cle"] for x in retenues
+                          if x["categorie"] == "remplissable"],
         "a_produire": [x["cle"] for x in retenues if not x["remplissable"]],
         # ET CE QUE « À PRODUIRE » RECOUVRE, PARCE QUE DEUX CATÉGORIES N'EN
         # DISENT PAS ASSEZ. « 4 que ce module remplit, et 8 à rédiger ou à
@@ -1870,13 +1961,12 @@ def selection(analyse=None, ajouts=(), ecartees=()):
         # nature, et le compte affiché mentirait sans qu'aucune règle tombe.
         # `voie()` est la même fonction que `remplir()` consulte, et que
         # `ao_redaction.pieces_redigeables` lit pour décider qui va à l'atelier.
-        "au_report": [x["cle"] for x in retenues if not x["remplissable"]
-                      and voie(x["cle"], x["nature"]) == "remplir"],
-        "redigeables": [x["cle"] for x in retenues if not x["remplissable"]
-                        and voie(x["cle"], x["nature"]) in ("rediger",
-                                                            "completer")],
-        "a_demander": [x["cle"] for x in retenues if not x["remplissable"]
-                       and voie(x["cle"], x["nature"]) == "obtenir"],
+        "au_report": [x["cle"] for x in retenues
+                      if x["categorie"] == "au_report"],
+        "redigeables": [x["cle"] for x in retenues
+                        if x["categorie"] == "redigeable"],
+        "a_demander": [x["cle"] for x in retenues
+                       if x["categorie"] == "a_demander"],
         # LES PIÈCES QUE NOUS TENONS DÉJÀ, PARMI LES RETENUES. C'est le compte
         # qui manquait à l'opérateur : sur les N documents demandés, combien
         # sont déjà dans nos dossiers, et lesquels restent à produire.
