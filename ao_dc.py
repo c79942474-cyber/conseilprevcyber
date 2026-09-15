@@ -642,6 +642,73 @@ CABINET_MOTIFS = {
 }
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  OÙ VA CHAQUE DOCUMENT DU CABINET QU'ON VEUT CONSERVER
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# À QUOI ÇA SERT. `CABINET_MOTIFS` sait dire, sur le seul nom du fichier, de
+# quelle PIÈCE un document est. La base de connaissance, elle, range par
+# THÈME. Entre les deux il n'y avait rien : conserver un document imposait
+# d'aller le rétéléverser dans l'écran d'administration et d'y choisir un
+# thème parmi cent quatorze — et un thème choisi de travers rend le document
+# invisible aux DEUX chercheurs qui le liront ensuite.
+#
+# LA TABLE VA DE LA PIÈCE VERS LE THÈME, ET PAS L'INVERSE, parce que plusieurs
+# pièces partagent un thème : les CV, l'organigramme et la note d'équipe
+# décrivent tous les mêmes moyens humains. Le thème est un rayon, la pièce est
+# un document.
+#
+# CE QUI N'Y FIGURE PAS N'EST PAS UN OUBLI. Trois pièces reconnues par leur nom
+# ne se rangent PAS sur l'étagère du cabinet :
+#
+#   · `dpgf` — un imprimé de l'acheteur, chiffré pour CETTE consultation. Le
+#     conserver ferait proposer les prix d'un marché dans un autre.
+#   · `honneur` — une déclaration signée pour un acheteur nommé, à une date.
+#     Elle ne se réemploie pas ; elle se resigne.
+#   · `tiers` — un questionnaire fourni par l'acheteur, propre à lui.
+#
+# Un document de ces trois-là déposé côté cabinet reste utile pour le dossier
+# en cours ; il n'a simplement rien à faire sur une étagère qui sert aux
+# dossiers SUIVANTS. L'écran le dit plutôt que de ranger en silence.
+THEME_CABINET = {
+    "kbis": "Cabinet / Identité & existence légale",
+    "extrait_kbis": "Cabinet / Identité & existence légale",
+    "attestations_assurances": "Cabinet / Assurances",
+    "regularite_fiscale_sociale": "Cabinet / Régularité fiscale & sociale",
+    "bilans": "Cabinet / Comptes, bilans & chiffre d'affaires",
+    "references": "Cabinet / Références & attestations de bonne exécution",
+    "cv": "Cabinet / Moyens humains, CV & organigramme",
+    "organigramme": "Cabinet / Moyens humains, CV & organigramme",
+    "equipe": "Cabinet / Moyens humains, CV & organigramme",
+    "moyens": "Cabinet / Moyens matériels & techniques",
+    "qse": "Cabinet / Qualifications, certifications & QSE",
+    "atd_atp": "Cabinet / Qualifications, certifications & QSE",
+    "memoire_technique": "Cabinet / Mémoires techniques & notes méthodologiques",
+    "conventions": "Cabinet / Mémoires techniques & notes méthodologiques",
+    "autonomie_commerciale": "Cabinet / Mémoires techniques & notes méthodologiques",
+    "pouvoirs": "Cabinet / Pouvoirs, délégations & groupement",
+    "convention_groupement": "Cabinet / Pouvoirs, délégations & groupement",
+    "repartition_competences": "Cabinet / Pouvoirs, délégations & groupement",
+}
+
+#: CE QUI NE SE CONSERVE PAS, ET POURQUOI — dit à l'écran, jamais deviné.
+SANS_ETAGERE = {
+    "dpgf": "C'est l'imprimé de CET acheteur, chiffré pour CETTE "
+            "consultation. Le conserver ferait proposer les prix d'un marché "
+            "dans un autre.",
+    "honneur": "Une déclaration sur l'honneur est signée pour un acheteur "
+               "nommé, à une date. Elle ne se réemploie pas : elle se "
+               "resigne.",
+    "tiers": "Le questionnaire d'évaluation est propre à l'acheteur qui le "
+             "fournit ; un autre aura le sien.",
+}
+
+
+def theme_cabinet(cle_piece):
+    """Le rayon où ce document se range, ou None s'il ne se conserve pas."""
+    return THEME_CABINET.get(cle_piece or "")
+
+
 def _NOMS_PIECES():
     """{clé: nom} pour les vingt-trois pièces, LU sur le catalogue.
 

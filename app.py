@@ -152,7 +152,8 @@ app.config["MAX_CONTENT_LENGTH"] = RAG_UPLOAD_MAX
 # soit quarante fois moins que ce qui est promis, et le plafond est atteint
 # d'autant plus vite qu'on charge « plusieurs pièces à la fois », ce que le
 # champ invite explicitement à faire.
-_LARGE_BODY_PATHS = {"/api/admin/rag/upload-file", "/api/admin/rag/restore",
+_LARGE_BODY_PATHS = {"/api/datacenter/marche/cabinet",
+                     "/api/admin/rag/upload-file", "/api/admin/rag/restore",
                      "/api/datacenter/depot",
                      "/api/datacenter/marche/analyser",
                      "/api/datacenter/marche/projet/dossier"}
@@ -190,6 +191,10 @@ _RATE_EXACT = {
     "/api/auth/forgot":           (6, 3600),
     "/api/auth/reset":            (12, 3600),
     "/api/admin/rag/upload-file": (40, 60),
+    # RANGER SUR L'ÉTAGÈRE ÉCRIT DANS LA BASE DE CONNAISSANCE, exactement
+    # comme l'envoi ci-dessus, et se cadence donc pareil. Le plafond est celui
+    # d'un geste humain : quinze documents au total, qu'on pose un par un.
+    "/api/datacenter/marche/cabinet": (20, 60),
     "/api/admin/rag/restore":     (6, 300),
     "/api/admin/rag/backup":      (20, 300),
     # Mettre en page un document coûte du temps de calcul — une centaine de
@@ -785,6 +790,11 @@ clients_db = _f_cli.result()
 import projets_dc  # noqa: E402
 projets_db = projets_dc.make_projets_store()
 import ao_projet  # noqa: E402
+# L'ÉTAGÈRE DU CABINET : les documents qu'on dépose une fois et qui
+# servent à tous les dossiers suivants. Ce n'est pas un magasin — c'est
+# la famille « pièces du cabinet » de la base de connaissance, et les
+# règles propres à l'étagère (rayon, plafond, publication).
+import dossier_cabinet  # noqa: E402
 _boot_pool.shutdown(wait=False)
 
 
@@ -5502,6 +5512,72 @@ def api_datacenter_marche_rediger():
         return jsonify(ok=False, error="redaction",
                        message="Le brouillon n'a pas pu être écrit."), 502
     return jsonify(ok=True, **brouillon)
+
+
+@app.route("/api/datacenter/marche/cabinet", methods=["GET", "POST"])
+@admin_required
+def api_datacenter_marche_cabinet():
+    """L'ÉTAGÈRE DU CABINET : ce qui y est rangé, et y ranger un document.
+
+    POURQUOI ELLE EXISTE. Les pièces de l'acheteur changent à chaque
+    consultation ; les nôtres — organigramme, CV, moyens, certifications,
+    références, note méthodologique — sont les mêmes d'un dossier à l'autre, et
+    il fallait pourtant les redéposer à chaque fois : elles vivaient le temps
+    d'une page. Rangées ici, elles nourrissent TOUS les dossiers suivants,
+    chez des clients différents, sans être redéposées.
+
+    UNE SEULE PORTE POUR LES DEUX GESTES, et c'est le même arbitrage que pour
+    le dossier de projet : le contrôle d'accès est fait une fois, au-dessus.
+    Un second point d'entrée serait un second endroit où l'oublier.
+
+    ELLE N'EST PAS UN SECOND MAGASIN. L'étagère EST la famille « CONSEILPREV —
+    pièces du cabinet » de la base de connaissance, déjà lue par le
+    remplissage et par la rédaction. Ce que cette route ajoute, c'est le
+    GESTE — et les règles propres à l'étagère : le rayon déduit de la pièce, le
+    plafond, et le régime de publication.
+
+    LE FICHIER ARRIVE EN MULTIPART, PAS EN JSON. Ranger un document suppose ses
+    OCTETS : la base extrait le texte elle-même, selon le format, et un texte
+    déjà extrait par le navigateur perdrait la mise en forme, les tableaux et
+    la possibilité de relire l'original.
+    """
+    if request.method == "GET":
+        return jsonify(ok=True, etagere=dossier_cabinet.etagere(rag),
+                       visibilites=dossier_cabinet.VISIBILITES,
+                       defaut=dossier_cabinet.VISIBILITE_DEFAUT,
+                       version=dossier_cabinet.VERSION)
+
+    f = request.files.get("file")
+    if f is None or not (f.filename or "").strip():
+        return jsonify(ok=False, error="fichier_manquant",
+                       message="Aucun fichier fourni."), 400
+    nom = f.filename
+    # LA PIÈCE EST DÉDUITE DU NOM, PAS DEMANDÉE À LA PAGE. Une clé transmise
+    # par le navigateur serait une clé qu'on peut se tromper en recopiant — et
+    # un mauvais rayon rend le document invisible aux deux chercheurs qui le
+    # liront ensuite. `piece_du_cabinet` est la même fonction que l'analyse
+    # utilise pour classer le dépôt : une seule reconnaissance, deux lecteurs.
+    cle = ao_dc.piece_du_cabinet(nom)
+    visibilite = (request.form.get("visibilite")
+                  or dossier_cabinet.VISIBILITE_DEFAUT).strip()
+    try:
+        r = dossier_cabinet.ranger(rag, nom, f.read(), cle,
+                                   visibilite=visibilite,
+                                   titre=request.form.get("titre") or "")
+    except dossier_cabinet.EtagereError as e:
+        return jsonify(ok=False, error=e.code, message=e.detail,
+                       piece=cle or "", etagere=dossier_cabinet.etagere(rag)), \
+            e.status
+    except Exception:
+        app.logger.exception("étagère du cabinet — rangement de %r", nom)
+        return jsonify(ok=False, error="rangement",
+                       message="Le document n'a pas pu être rangé."), 502
+    # LE JOURNAL PORTE LE RAYON ET LE RÉGIME, pas seulement le nom : c'est le
+    # régime qui décide si ce document partira un jour chez un acheteur, et
+    # c'est la seule trace qu'on aura de la décision.
+    audit.journaliser("marche.cabinet.ranger", cible=nom[:120],
+                      detail="rayon=%s visibilite=%s" % (r["rayon"], visibilite))
+    return jsonify(ok=True, **r)
 
 
 @app.route("/api/datacenter/marche/atelier", methods=["POST"])

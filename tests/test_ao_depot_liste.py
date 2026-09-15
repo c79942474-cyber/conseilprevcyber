@@ -77,7 +77,13 @@ def _rendu_file(fichiers):
     """
     file_js = json.dumps([{"nom": n, "cote": c, "file": {"size": 100000}}
                           for n, c in fichiers])
-    prog = (_js_source("esc", "aoOctets", "aoEnAttenteRendre")
+    # LE BANC APPREND LE GESTE DE CONSERVATION. `aoEnAttenteRendre` pose
+    # désormais la case « conserver pour les prochains dossiers » et la
+    # branche ; un banc qui les ignore tombe — il EXÉCUTE le rendu, il ne
+    # le relit pas.
+    prog = (_js_source("esc", "aoOctets", "aoEnAttenteRendre",
+                       "aoEtagereGeste", "aoEtagereBrancher",
+                       "aoEtagereEtat")
             + "\nfunction fr(n){ return String(Math.round(Number(n)||0)); }"
             + "\nvar AO_TRANSPORT_MAX = 4000000;"
             + "\nvar AO_EN_ATTENTE = " + file_js + ";"
@@ -203,7 +209,13 @@ def test_chaque_cote_a_SA_liste_et_SON_bouton():
     dit le côté, plus un préfixe à lire sur chaque ligne."""
     h = _rendu_file([("01_RC.pdf", "consultation"), ("02_CCTP.pdf", "consultation"),
                      ("attestation-rc-pro.pdf", "cabinet")])
-    selects = re.findall(r'<select id="([^"]+)"', h)
+    # ON COMPTE LES LISTES DE CÔTÉ, PAS TOUS LES MENUS DE LA ZONE. La zone
+    # porte désormais un troisième menu — le régime de publication de
+    # l'étagère — qui ne désigne aucun côté. Compter les `<select>` faisait
+    # tomber cette règle pour une raison sans rapport avec ce qu'elle mesure :
+    # c'est `data-*` et l'identifiant de côté qui disent lesquels comptent.
+    selects = [x for x in re.findall(r'<select id="([^"]+)"', h)
+               if x.startswith("ig-ao-sel")]
     assert len(selects) == 2, selects
     boutons = re.findall(r'<button[^>]*id="([^"]+)"[^>]*>Retirer', h)
     assert len(boutons) == 2, boutons
@@ -228,8 +240,15 @@ def test_chaque_liste_ne_porte_QUE_les_fichiers_de_son_cote():
     h = _rendu_file([("01_RC.pdf", "consultation"), ("02_CCTP.pdf", "consultation"),
                      ("attestation-rc-pro.pdf", "cabinet"),
                      ("bilan-2024.pdf", "cabinet")])
-    blocs = re.findall(r'<select id="([^"]+)"[^>]*>(.*?)</select>', h, re.S)
-    assert len(blocs) == 2
+    # ON NE RETIENT QUE LES LISTES DE CÔTÉ. La zone porte désormais un
+    # troisième menu — le régime de publication de l'étagère — qui ne désigne
+    # aucun côté et ne contient aucun fichier. Compter tous les <select>
+    # faisait tomber cette règle pour une raison sans rapport avec ce qu'elle
+    # mesure : la répartition des fichiers entre les deux listes.
+    blocs = [(i, b) for i, b in
+             re.findall(r'<select id="([^"]+)"[^>]*>(.*?)</select>', h, re.S)
+             if i.startswith("ig-ao-sel")]
+    assert len(blocs) == 2, [i for i, _ in blocs]
     par_id = {i: re.findall(r"<option[^>]*>(.*?) ·", b) for i, b in blocs}
     consult = [v for k, v in par_id.items() if "cab" not in k][0]
     cabinet = [v for k, v in par_id.items() if "cab" in k][0]

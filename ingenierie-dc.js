@@ -6352,8 +6352,20 @@ function messageDelai(e, defaut) {
       h += "</select>"
         + '<button type="button" class="btn btn-s" id="' + c[3] + '">'
         + "Retirer</button></div>";
+      /* ── CONSERVER UN DOCUMENT DU CABINET, ET SEULEMENT DU CABINET ──
+         POURQUOI LE GESTE EST ICI, AU DÉPÔT. C'est le seul moment où les
+         OCTETS du fichier existent encore dans la page : après l'analyse, il
+         ne reste que le texte extrait, et un texte réenvoyé perdrait la mise
+         en forme, les tableaux, et la possibilité de relire l'original.
+
+         POURQUOI PAS SUR LES PIÈCES DE L'ACHETEUR. Elles changent à chaque
+         consultation — c'est leur nature. Les ranger sur une étagère qui sert
+         aux dossiers SUIVANTS ferait proposer le CCTP d'un marché dans un
+         autre. */
+      if (c[0] === "cabinet") h += aoEtagereGeste(dans.length);
     });
     l.innerHTML = h;
+    aoEtagereBrancher(l);
     AO_COTES.forEach(function (c) {
       var ret = $("#" + c[3]);
       if (!ret) return;
@@ -6365,6 +6377,159 @@ function messageDelai(e, defaut) {
           aoEnAttenteRendre();
         }
       });
+    });
+  }
+
+  /* ══ L'ÉTAGÈRE DU CABINET ══════════════════════════════════════════════
+
+     CE QU'ELLE CHANGE. Les pièces de l'acheteur changent à chaque
+     consultation ; les nôtres — organigramme, CV, moyens, certifications,
+     références, note méthodologique — sont les mêmes d'un dossier à l'autre,
+     et il fallait pourtant les redéposer à chaque fois : elles vivaient le
+     temps d'une page. Rangées, elles nourrissent tous les dossiers suivants.
+
+     LE RÉGIME DE PUBLICATION EST UN CHOIX, JAMAIS UN DÉFAUT MUET. Il décide
+     si le document pourra être recopié dans un brouillon remis à un acheteur.
+     Se tromper vers l'interne coûte un brouillon plus maigre ; se tromper
+     vers le publiable peut envoyer l'architecture d'un client chez un autre.
+     Des deux erreurs, une seule se rattrape — le défaut est donc « interne »,
+     et l'écran dit ce que ça coûte. */
+  var AO_ETAGERE = null;
+
+  function aoEtagereGeste(combien) {
+    return '<div class="ig-ao-etg">'
+      + '<label class="ig-ao-etg-l"><input type="checkbox" id="ig-ao-etg-on">'
+      + " <b>Conserver pour les prochains dossiers</b></label>"
+      + '<p class="ig-ao-etg-q">Ces ' + combien + " document(s) resteront "
+      + "disponibles pour toutes vos consultations suivantes, sans être "
+      + "redéposés. Seuls ceux dont le nom dit la pièce qu'ils fournissent "
+      + "peuvent être rangés.</p>"
+      + '<div class="ig-ao-etg-v" hidden id="ig-ao-etg-vis">'
+      + '<label for="ig-ao-etg-r">Régime</label>'
+      + '<select id="ig-ao-etg-r">'
+      + '<option value="internal">Interne — sert à remplir vos formulaires'
+      + "</option>"
+      + '<option value="public">Publiable — peut être recopié dans un '
+      + "brouillon remis à l'acheteur</option>"
+      + "</select>"
+      + '<p class="ig-ao-etg-q" id="ig-ao-etg-d"></p></div>'
+      + '<p class="ig-ao-etg-e" id="ig-ao-etg-etat"></p></div>';
+  }
+
+  function aoEtagereBrancher(z) {
+    var on = $("#ig-ao-etg-on", z), vis = $("#ig-ao-etg-vis", z);
+    var reg = $("#ig-ao-etg-r", z), dit = $("#ig-ao-etg-d", z);
+    if (!on) return;
+    function peindre() {
+      if (vis) vis.hidden = !on.checked;
+      if (dit && reg) {
+        dit.textContent = reg.value === "public"
+          ? "Ses extraits pourront partir chez un acheteur. Ne le marquez "
+            + "ainsi que si rien n'y engage la confidentialité d'un client."
+          : "Il ne partira JAMAIS dans un brouillon remis à un acheteur, sur "
+            + "les rayons qui peuvent décrire un client — mémoires, "
+            + "références. Il servira à remplir vos formulaires.";
+      }
+    }
+    /* L'ÉTAT DE L'ÉTAGÈRE SE DEMANDE QUAND ON S'Y INTÉRESSE, PAS À CHAQUE
+       REDESSIN. Cette zone est réaffichée à chaque fichier ajouté ou retiré :
+       appeler le serveur depuis le rendu aurait lancé une requête par clic,
+       pour une information que personne ne regarde tant que la case est
+       décochée. Un rendu qui parle au réseau est aussi ce qui a fait tomber
+       trois bancs — ils exécutent le rendu et n'ont pas de `demander`. */
+    on.addEventListener("change", function () {
+      peindre();
+      if (on.checked) aoEtagereEtat();
+    });
+    if (reg) reg.addEventListener("change", peindre);
+    peindre();
+  }
+
+  /* CE QUI EST DÉJÀ RANGÉ, ET COMBIEN DE PLACES RESTENT. Une étagère dont on
+     ne voit pas le contenu se remplit de doublons : on redépose un
+     organigramme qu'on croyait avoir oublié de ranger. */
+  function aoEtagereEtat() {
+    var z = $("#ig-ao-etg-etat");
+    if (!z) return;
+    demander("/api/datacenter/marche/cabinet", {credentials: "same-origin"})
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok || !j.etagere) return;
+        AO_ETAGERE = j.etagere;
+        var e = j.etagere;
+        if (e.absent) {
+          z.textContent = "L'étagère n'a pas pu être lue (" + e.absent + ").";
+          return;
+        }
+        var nourri = e.documents.filter(function (d) {
+          return d.nourrit_les_brouillons; }).length;
+        z.textContent = e.total + " document(s) rangé(s) sur " + e.plafond
+          + " · " + e.places + " place(s) libre(s) · " + nourri
+          + " nourrissent les brouillons";
+      })
+      /* UN ÉCHEC DE LECTURE SE DIT, IL NE S'AVALE PAS. Une règle de la maison
+         interdit le `catch` vide, et elle a raison : un `catch(){}` ici
+         laisserait la ligne d'état MUETTE après une coupure, et l'opérateur
+         lirait « rien n'est rangé » là où il fallait lire « je n'ai pas pu
+         regarder ». Les deux se soignent différemment. */
+      .catch(function (e) {
+        z.textContent = "L'état de l'étagère n'a pas pu être lu ("
+          + ((e && e.message) || "réseau") + "). Ce qui y est rangé reste "
+          + "utilisé par le remplissage et la rédaction.";
+      });
+  }
+
+  /* RANGER SE FAIT APRÈS L'ANALYSE, ET FICHIER PAR FICHIER. Un envoi groupé
+     rendrait un seul verdict pour cinq documents : on ne saurait pas lequel a
+     été refusé, ni pourquoi. Chaque refus NOMME son motif — un nom de fichier
+     qui ne dit pas la pièce, une étagère pleine, une pièce qui ne se conserve
+     pas. */
+  function aoEtagereRanger(fichiers, regime) {
+    var faits = [], rates = [];
+    return fichiers.reduce(function (chaine, f) {
+      return chaine.then(function () {
+        var fd = new FormData();
+        fd.append("file", f);
+        fd.append("visibilite", regime);
+        return demander("/api/datacenter/marche/cabinet",
+                        {method: "POST", credentials: "same-origin", body: fd})
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            if (j && j.ok) faits.push({nom: f.name, rayon: j.rayon});
+            else rates.push({nom: f.name,
+                             dit: (j && j.message) || "refus sans motif"});
+          })
+          .catch(function (e) {
+            rates.push({nom: f.name, dit: (e && e.message) || "envoi échoué"});
+          });
+      });
+    }, Promise.resolve()).then(function () {
+      aoEtagereEtat();
+      return {ranges: faits, refuses: rates};
+    });
+  }
+
+  /* LE BILAN DU RANGEMENT, DIT PIÈCE PAR PIÈCE.
+
+     UN REFUS GROUPÉ NE SE SOIGNE PAS. « 2 documents sur 5 rangés » laisse
+     chercher lesquels et pourquoi ; chaque refus porte donc son nom et son
+     motif — nom de fichier qui ne dit pas la pièce, étagère pleine, pièce qui
+     ne se conserve pas d'un marché à l'autre. */
+  function aoEtagereBilan(fichiers, regime) {
+    var z = $("#ig-ao-etg-etat");
+    if (z) z.textContent = "Rangement de " + fichiers.length + " document(s)…";
+    return aoEtagereRanger(fichiers, regime).then(function (bilan) {
+      var m = $("#ig-ao-msg");
+      if (!m) return bilan;
+      var dit = bilan.ranges.length + " document(s) rangé(s) sur l'étagère du "
+        + "cabinet.";
+      if (bilan.refuses.length) {
+        dit += " " + bilan.refuses.length + " refusé(s) : "
+          + bilan.refuses.map(function (r) {
+              return r.nom + " — " + r.dit; }).join(" ; ");
+      }
+      m.textContent = (m.textContent ? m.textContent + " " : "") + dit;
+      return bilan;
     });
   }
 
@@ -6415,6 +6580,18 @@ function messageDelai(e, defaut) {
       return;
     }
     var n = AO_EN_ATTENTE.length;
+    /* ── CE QU'ON RANGE, SAISI AVANT QUE LA FILE SOIT CONSOMMÉE ────────
+       L'analyse vide la file ; si l'on lisait la case après, on ne saurait
+       plus quels fichiers étaient du côté cabinet. On retient donc ici les
+       objets `File` eux-mêmes — pas leur index — parce que ce sont eux qui
+       portent les octets que l'étagère attend. */
+    var etgOn = $("#ig-ao-etg-on");
+    var etgReg = $("#ig-ao-etg-r");
+    var aRanger = (etgOn && etgOn.checked)
+      ? AO_EN_ATTENTE.filter(function (d) { return d.cote === "cabinet"; })
+          .map(function (d) { return d.file; })
+      : [];
+    var etgRegime = (etgReg && etgReg.value) || "internal";
     msg.textContent = "Lecture de " + n + " pièce" + (n > 1 ? "s" : "") + "…";
     var lectures = [], docs_octets = 0;
     for (var i = 0; i < n; i++) lectures.push(aoLire(AO_EN_ATTENTE[i].file));
@@ -6474,6 +6651,15 @@ function messageDelai(e, defaut) {
              FICHE SOIT DESSINÉE : les champs portent alors les valeurs dès
              leur premier rendu, sans redessin ni clignotement. */
           aoCabinetVerser(j.cabinet);
+          /* LE RANGEMENT SUIT L'ANALYSE, IL NE LA PRÉCÈDE PAS. Ranger d'abord
+             ferait garder un document que l'analyse aurait ensuite refusé, et
+             l'étagère porterait une pièce que le dossier n'a jamais vue.
+             Il est aussi DÉTACHÉ du fil principal : un refus de rangement ne
+             doit pas faire échouer une analyse qui, elle, a réussi.
+             ET IL PASSE APRÈS LE VERSEMENT DE LA FICHE, qui doit arriver
+             AVANT que la fiche soit dessinée — une règle de la maison le tient,
+             et c'est elle qui m'a rappelé l'ordre. */
+          if (aRanger.length) aoEtagereBilan(aRanger, etgRegime);
           /* CE QUI VIENT D'ÊTRE LU L'EMPORTE. Une pièce redéposée sous le
              même nom remplace la sienne au dossier ; son texte doit suivre,
              sinon le lecteur montrerait l'ancienne version sous le relevé de
