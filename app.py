@@ -5495,9 +5495,16 @@ def api_datacenter_marche_atelier():
     audit.journaliser("marche.atelier", cible="dossier",
                       detail="%d piece(s) deposee(s)" % len(documents))
     try:
+        # LES PIÈCES AFFIRMÉES ET LE PÉRIMÈTRE ENTRENT ICI, ET C'EST UN
+        # CORRECTIF DE MA MAIN. La page les envoie depuis que l'atelier a
+        # cessé de repartir de zéro ; cette route les ignorait, si bien que
+        # l'appel le plus cher du module travaillait encore sur les
+        # vingt-trois pièces du catalogue quand la consultation n'en demande
+        # que douze, et réclamait une attestation déjà marquée fournie.
         res = ao_atelier.atelier(
             fiche=fiche, documents=documents, analyse=analyse,
             saisies=saisies, groupement=groupement, rag=rag,
+            fournies=_ao_fournies(data), perimetre=_ao_perimetre(data),
             executeur=ao_atelier.executeur_parallele(),
             rediger=bool(data.get("rediger", True)))
     except ao_extraction.ExtractionError as e:

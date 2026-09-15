@@ -134,15 +134,64 @@ def test_une_DECLARATION_sur_l_honneur_n_est_JAMAIS_recherchee():
     assert not (vises & declarations)
 
 
-def test_une_rubrique_de_la_FICHE_CABINET_n_est_pas_cherchee_dans_le_dossier():
+def test_une_rubrique_de_la_FICHE_n_est_JAMAIS_cherchee_chez_l_ACHETEUR():
     """Le SIRET du candidat n'est pas dans le règlement de l'acheteur. L'y
-    chercher ferait remonter le SIRET DE L'ACHETEUR — et il serait recopié."""
+    chercher ferait remonter le SIRET DE L'ACHETEUR — et il serait recopié.
+
+    CETTE RÈGLE A CHANGÉ DE FORME, PAS DE RAISON. Elle interdisait de
+    CHERCHER une rubrique de la fiche, tout court — la seule protection
+    possible quand le dépôt ne connaissait qu'un côté. Depuis qu'il en a deux,
+    ces rubriques se cherchent, mais UNIQUEMENT dans les documents que nous
+    avons déposés : Kbis, bilans, attestations. Le règlement de l'acheteur
+    n'entre pas dans ce corpus-là.
+
+    POURQUOI LE GARDE-FOU HABITUEL NE SUFFISAIT PAS ICI. Toute valeur extraite
+    doit être CITÉE dans un document déposé, sans quoi elle est rejetée. Le
+    SIRET de l'acheteur, lui, EST cité — noir sur blanc, dans son propre
+    règlement. La citation existe, elle est exacte, et la valeur est fausse.
+    Seul le cloisonnement des corpus protège de ce défaut-là.
+    """
     r = _remplissage()
-    vises = {(c["cle"], x["cle"]) for c in X.cibles(r) for x in c["rubriques"]}
     fiches = {(p["cle"], x["cle"]) for p in r["pieces"]
               for x in (p.get("rubriques") or []) if x["source"] == "fiche"}
     assert fiches
-    assert not (vises & fiches)
+    vus = {}
+    for c in X.cibles(r):
+        for x in c["rubriques"]:
+            vus.setdefault((c["cle"], x["cle"]), set()).add(c.get("corpus_cote"))
+    for cle in fiches & set(vus):
+        assert vus[cle] == {"cabinet"}, (
+            "%s est cherchée hors des documents du cabinet (%r) : le SIRET de "
+            "l'acheteur redevient atteignable" % (cle, vus[cle]))
+    # ET LE TÉMOIN : elles sont bien cherchées. Une règle qui n'en verrait
+    # aucune serait verte en ne protégeant plus rien.
+    assert fiches & set(vus), (
+        "aucune rubrique de la fiche n'est cherchée : la règle est vide")
+
+
+def test_le_corpus_du_cabinet_EXCLUT_les_pieces_de_l_acheteur():
+    """La contrainte, mesurée sur le corpus lui-même et pas sur l'intention.
+
+    C'EST LE POINT OÙ LE DÉFAUT SE PRODUIRAIT. Si `corpus_du_cote` rendait le
+    corpus entier faute de documents du cabinet — le repli « commode » —, la
+    recherche du SIRET du candidat repartirait dans le règlement de
+    l'acheteur, et la protection serait annulée exactement quand elle est le
+    plus nécessaire : quand nous n'avons rien déposé.
+    """
+    an = {"pieces": [{"fichier": "01_RC.pdf", "rang_lecture": 1, "sigle": "RC"}],
+          "pieces_cabinet": [{"fichier": "KBIS.pdf", "cle": "extrait_kbis"}]}
+    docs = [{"nom": "01_RC.pdf", "texte": "SIRET de l'acheteur 21750001600019."},
+            {"nom": "KBIS.pdf", "texte": "CONSEILPREV, SIRET 49453015700038."}]
+    corp = X.corpus(docs, an)
+    vu = X.corpus_du_cote(corp, "cabinet")
+    assert [x["fichier"] for x in vu["pieces"]] == ["KBIS.pdf"], vu["pieces"]
+    assert "21750001600019" not in " ".join(x["texte"] for x in vu["pieces"])
+    # SANS AUCUN DOCUMENT DU CABINET, LE CORPUS EST VIDE — pas entier.
+    vide = X.corpus_du_cote(X.corpus(docs[:1], {"pieces": an["pieces"]}),
+                            "cabinet")
+    assert vide["pieces"] == [], vide["pieces"]
+    # ET SANS CÔTÉ DEMANDÉ, RIEN N'EST RETIRÉ : le reste cherche partout.
+    assert len(X.corpus_du_cote(corp, None)["pieces"]) == 2
 
 
 def test_une_rubrique_DEJA_remplie_n_est_pas_remise_en_jeu():
