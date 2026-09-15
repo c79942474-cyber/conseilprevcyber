@@ -687,6 +687,25 @@ def _app_src():
     return io.open(os.path.join(ICI, "app.py"), encoding="utf-8").read()
 
 
+def _corps_route_rediger():
+    """Le corps ENTIER de la route de rédaction, jusqu'à la suivante.
+
+    LES TROIS RÈGLES QUI SUIVENT DÉCOUPAIENT 4 200 CARACTÈRES À PARTIR DU
+    DÉCORATEUR, et cette fenêtre a fini par tomber au milieu du corps : le jour
+    où la route a reçu les documents du marché, les commentaires qui
+    l'expliquent ont repoussé l'appel au-delà. Les trois règles sont devenues
+    rouges sans qu'aucune des trois choses qu'elles mesurent — la route existe,
+    elle appelle le module, elle joint le magasin — ait bougé d'une ligne.
+
+    UNE BORNE EN CARACTÈRES NE DIT RIEN DU CODE. Celle-ci suit la structure :
+    d'une route à la suivante.
+    """
+    src = _app_src()
+    i = src.index('@app.route("/api/datacenter/marche/rediger"')
+    j = src.index("\n@app.route(", i + 1)
+    return src[i:j]
+
+
 def _js_src():
     return io.open(os.path.join(ICI, "ingenierie-dc.js"), encoding="utf-8").read()
 
@@ -696,8 +715,7 @@ def test_la_route_de_redaction_EXISTE_et_appelle_bien_ce_module():
     src = _app_src()
     assert '@app.route("/api/datacenter/marche/rediger", methods=["POST"])' in src, (
         "aucune route ne mène à la rédaction des pièces de marché")
-    i = src.index('@app.route("/api/datacenter/marche/rediger"')
-    corps = src[i:i + 4200]
+    corps = _corps_route_rediger()
     assert "ao_redaction.rediger(" in corps, (
         "la route existe mais n'appelle pas le module de rédaction")
 
@@ -707,9 +725,7 @@ def test_la_route_JOINT_le_magasin_faute_de_quoi_le_socle_reste_vide():
     aucun magasin n'est joint — et c'est correct, mais silencieux du point de
     vue du code. Une route qui oublie `rag=` produirait des brouillons sans
     fonds, indéfiniment, sans qu'aucune erreur ne se lève."""
-    src = _app_src()
-    i = src.index('@app.route("/api/datacenter/marche/rediger"')
-    corps = src[i:i + 4200]
+    corps = _corps_route_rediger()
     m = re.search(r"ao_redaction\.rediger\(([^)]*)\)", corps, re.S)
     assert m, corps[-800:]
     assert re.search(r"\brag\s*=\s*rag\b", m.group(1)), (
@@ -725,14 +741,49 @@ def test_la_route_est_RESERVEE_et_CADENCEE():
     entete = src[i:src.index("def api_datacenter_marche_rediger")]
     assert "@admin_required" in entete, (
         "la rédaction n'est pas réservée à l'administration")
-    corps = src[i:i + 4200]
-    assert "guard.blocked(" in corps, (
-        "aucune cadence : un seul compte pourrait consommer sans borne")
+    corps = _corps_route_rediger()
     assert 'client_ip()' in corps and '_proprietaire()' in corps, (
         "la cadence ne borne qu'un seul des deux axes — l'adresse ou le "
         "compte : borner l'adresse seule laisse un bureau entier se partager "
         "les rédactions, borner le compte seul se contourne en changeant de "
         "réseau")
+
+
+def test_la_cadence_de_la_redaction_SE_FERME_pour_de_bon(marche, monkeypatch):
+    """ET ELLE SE MESURE, ELLE NE SE CONSTATE PAS.
+
+    LA VERSION D'AVANT CHERCHAIT « guard.blocked( » DANS LA SOURCE. Une
+    mutation qui laissait la ligne en place et rendait la boucle vide —
+    `for ckey, lim in () and (...)` — l'a traversée sans être vue : le texte
+    était là, la cadence ne l'était plus. Une règle qui lit du texte ne mesure
+    pas un comportement.
+
+    ON POUSSE DONC JUSQU'À CE QUE LA PORTE SE FERME. La rédaction coûte des
+    jetons ET lit le fonds interne : sans plafond, un seul compte peut
+    consommer sans borne.
+    """
+    import app as A
+    monkeypatch.setattr(A.ao_redaction, "rediger", lambda *a, **k: {
+        "cle": "moyens", "nom": "X", "markdown": "## X", "socle_sources": [],
+        "socle_absent": "", "fonds_sources": [], "fonds_absent": "",
+        "socles": {"consultation": 0, "cabinet": 0, "doctrine": 0,
+                   "manques": []},
+        "modele": "faux", "tronque": False, "a_completer": 0,
+        "jetons": {"entree": 1, "sortie": 1, "cache_ecrit": 0, "cache_lu": 0}})
+    ferme = None
+    for _ in range(40):
+        rep = marche.post("/api/datacenter/marche/rediger",
+                          json={"piece": "moyens",
+                                "fiche": {"raison_sociale": "CONSEILPREV"}},
+                          headers=ORIGINE)
+        if rep.status_code == 429:
+            ferme = rep
+            break
+    assert ferme is not None, (
+        "la rédaction ne se ferme jamais : un seul compte pourrait consommer "
+        "sans borne")
+    assert (ferme.get_json() or {}).get("error") == "rate_limited", \
+        ferme.get_json()
 
 
 def test_le_brouillon_REMONTE_ses_sources_jusqu_a_l_ecran():

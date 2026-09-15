@@ -124,8 +124,78 @@ def requete_socle(piece):
     return " ".join(" ".join(mots).split())[:600]
 
 
-DOSSIER_K = reglages.entier("AO_REDACTION_DOSSIER_K", 5, mini=1, maxi=20)
 DOSSIER_CARACTERES = reglages.entier("AO_REDACTION_DOSSIER_CHARS", 6000, mini=500)
+
+# IL Y AVAIT DEUX BORNES, ET C'EST LA MUETTE QUI GAGNAIT.
+#
+# `AO_REDACTION_DOSSIER_K` bornait le ramassage à CINQ paragraphes, en plus du
+# budget de six mille caractères. Un paragraphe de CCTP fait trois à cinq cents
+# caractères : cinq d'entre eux en font deux mille, et le budget n'était donc
+# jamais atteint — il ne servait à rien. Mesuré le 15 septembre 2026 sur un
+# dossier de maîtrise d'œuvre : les onze pièces ramassaient 20 609 caractères
+# là où le budget en autorisait 66 000, et 22 des 35 passages qu'un répondant
+# doit avoir sous les yeux — 63 %.
+#
+# CE N'ÉTAIT PAS UNE ERREUR DE VALEUR, MAIS D'UNITÉ. `SOCLE_K` et `FONDS_K`
+# bornent des EXTRAITS de base de connaissance, gros de plusieurs centaines de
+# caractères chacun ; ici l'unité est le PARAGRAPHE, dix fois plus petit. Le
+# même ordre de grandeur y borne dix fois moins de texte.
+#
+# LE BUDGET EN CARACTÈRES RESTE SEUL, parce que c'est lui qui dit ce que ça
+# coûte : les jetons se paient au caractère, pas au paragraphe.
+
+
+# CE QUE L'ACHETEUR IMPOSE, DANS SON REGISTRE À LUI.
+#
+# POURQUOI CETTE LISTE EXISTE. Un mémoire technique se juge sur ce que le
+# dossier EXIGE : le PUE cible, la redondance attendue, le niveau de BIM, le
+# référentiel de sécurité, le phasage sur site occupé. Aucun de ces articles ne
+# partage un mot avec la description que NOUS faisons de la pièce à rédiger —
+# ils étaient donc invisibles à une recherche qui ne cherche que nos mots, et
+# le brouillon parlait de méthodologie sans jamais nommer une seule exigence.
+# Mesuré : le mémoire technique ramassait 4 des 9 passages qu'il lui faut.
+#
+# CE QU'ON RECONNAÎT, C'EST UN REGISTRE, PAS UN SUJET. Ces marques ne disent
+# pas de quoi parle un paragraphe — elles disent qu'il ENGAGE quelqu'un. C'est
+# ce qui les rend utilisables sur n'importe quel marché : un CCTP de voirie
+# écrit « le titulaire remet » exactement comme un CCTP de centre de données.
+# Une liste de termes techniques, elle, aurait été à réécrire à chaque métier.
+#
+# SANS ACCENTS, PARCE QUE LE TEXTE ARRIVE D'UN PDF. L'extraction rend
+# couramment « penalite », « designe », « etablit ». Comparer des formes
+# accentuées à ce texte-là ne trouve rien — c'est le défaut qui avait rendu le
+# fonds du cabinet muet, et il se reproduit ici mot pour mot.
+OBLIGATIONS = (
+    # QUI est engagé
+    "le titulaire", "le candidat", "le prestataire", "le soumissionnaire",
+    "le maitre d'oeuvre", "le mandataire", "l'attributaire",
+    # CE QUI est exigé
+    "doit ", "devra ", "est tenu", "s'engage", "respecte", "produit ",
+    "remet ", "justifie", "etablit", "souscrit", "designe", "indique",
+    "assure ", "conduit", "precise", "propose", "comprend", "renseigne",
+    "atteste", "fournit", "transmet", "communique",
+    # LA MESURE de ce qui est exigé
+    "est de ", "sont de ", "ne depasse pas", "au minimum", "au plus tard",
+    "cible", "attendue", "attendu", "vise", "limite a", "est limite",
+    "penalite", "delai", "au prorata", "par jour",
+)
+
+
+def impose(texte):
+    """Combien de marques d'obligation porte ce paragraphe.
+
+    ON COMPTE, ON NE TRANCHE PAS. Un booléen aurait mis sur le même plan
+    l'article qui fixe le PUE, la redondance et le commissionnement, et la
+    phrase de transition qui contient « delai ». C'est cette note qui départage
+    les paragraphes que la recherche lexicale laisse à égalité.
+    """
+    import ao_dc                                                  # noqa: PLC0415
+    # LA MÊME DÉSACCENTUATION QUE L'IDENTIFICATION DES PIÈCES, pas une seconde.
+    # Deux fonctions qui dépliront les accents « presque pareil » finissent par
+    # diverger sur un caractère, et c'est le genre d'écart qu'on ne voit qu'au
+    # jour où un paragraphe cesse d'être ramassé sans que rien n'ait changé.
+    bas = ao_dc._sans_accent((texte or "").lower())
+    return sum(1 for m in OBLIGATIONS if m in bas)
 
 
 def chercher_dossier(piece, corp):
@@ -143,10 +213,35 @@ def chercher_dossier(piece, corp):
     contenu. Une recherche lexicale sur les paragraphes déposés suffit, ne
     coûte rien, et garde le texte là où il est.
 
+    DEUX LECTURES, ET LA SECONDE EST CE QUI FAIT TENIR UN MÉMOIRE. La première
+    cherche nos propres mots. La seconde cherche CE QUE L'ACHETEUR IMPOSE — et
+    il ne l'écrit pas dans notre vocabulaire : « PUE cible 1,25 », « redondance
+    N+1 », « BIM de niveau 2 », « référentiel ANSSI » ne partagent pas un mot
+    avec « la méthodologie, l'organisation et les moyens propres à cette
+    consultation ». Ces articles-là étaient donc ramassés par personne, quel
+    que soit le budget. Voir `OBLIGATIONS`.
+
     FONCTION PURE : le corpus est passé, jamais cherché. Une règle l'éprouve
     sans base ni réseau.
     """
-    mots = [m for m in re.split(r"[^0-9A-Za-zÀ-ÿ]+", requete_socle(piece).lower())
+    import ao_dc                                                  # noqa: PLC0415
+    # LES DEUX CÔTÉS DÉSACCENTUÉS, ET C'EST LE MÊME DÉFAUT QU'AU FONDS.
+    #
+    # La requête vient du NOM FRANÇAIS de la pièce — « Références », « démarche
+    # qualité, sécurité », « décomposition » — donc accentué. Le texte, lui,
+    # sort d'un PDF, et l'extraction rend couramment « references », « securite
+    # », « decomposition ». Comparés tels quels, ces mots-là ne se rencontrent
+    # JAMAIS : sur la note QSE, 14 des 37 mots de la requête étaient morts, et
+    # parmi eux « sécurité » et « qualité », c'est-à-dire le sujet même de la
+    # note. L'article ANSSI et l'article HQE étaient introuvables par
+    # construction.
+    #
+    # C'EST EXACTEMENT CE QUI AVAIT RENDU LE FONDS DU CABINET MUET, un étage
+    # plus haut. Un défaut qui se reproduit à l'identique à deux endroits n'est
+    # pas une coïncidence : dès qu'on compare une chaîne française à du texte
+    # extrait d'un PDF, il faut déplier les accents des deux côtés.
+    mots = [m for m in re.split(r"[^0-9A-Za-zÀ-ÿ]+",
+                                ao_dc._sans_accent(requete_socle(piece).lower()))
             if len(m) > 3]
     if not mots or not (corp or {}).get("pieces"):
         return {"bloc": "", "sources": [], "absent": "dossier_absent"}
@@ -156,20 +251,38 @@ def chercher_dossier(piece, corp):
             t = para.strip()
             if len(t) < 40:
                 continue
-            bas = t.lower()
+            bas = ao_dc._sans_accent(t.lower())
             score = sum(1 for m in set(mots) if m in bas)
-            if score:
-                notes.append((score, -i, p, t))
+            if score or impose(t):
+                notes.append((score, impose(t), -i, p, t))
     if not notes:
         return {"bloc": "", "sources": [], "absent": "aucun_passage"}
-    notes.sort(key=lambda x: (-x[0], -x[1]))
+    # L'ORDRE : LA PIÈCE COMMANDE, L'OBLIGATION DÉPARTAGE.
+    #
+    # Additionner les deux notes les aurait mises sur le même plan, et elles ne
+    # le sont pas : un paragraphe peut porter quarante marques d'obligation et
+    # ne rien devoir à la pièce qu'on rédige — l'article « pénalités de retard »
+    # écraserait alors la présentation de l'équipe dans une note d'équipe. Ce
+    # que la seconde note gagne, ce sont les places que la première laisse
+    # vides : le budget se remplit de ce que l'acheteur exige plutôt que de rien.
+    notes.sort(key=lambda x: (-x[0], -x[1], -x[2]))
     bloc, sources, taille = [], [], 0
-    for _sc, _i, p, t in notes[:DOSSIER_K]:
-        if taille + len(t) > DOSSIER_CARACTERES:
-            break
-        taille += len(t)
+    for _sc, _ob, _i, p, t in notes:
+        # ON SAUTE LE PARAGRAPHE TROP LONG, ON N'ABANDONNE PAS LA SUITE. Le
+        # `break` d'avant rendait le ramassage otage d'UN article : un long
+        # article de CCTP bien classé arrêtait tout ce qui venait après, y
+        # compris dix paragraphes courts qui tenaient dans ce qui restait.
+        # Le dossier d'essai ne le déclenche pas ; un vrai CCTP, si.
         nom = p["sigle"] or p["fichier"]
-        bloc.append("[%s] %s" % (nom, t))
+        # ON COMPTE CE QU'ON ÉCRIT, PAS SEULEMENT LE PARAGRAPHE. L'entrée porte
+        # le sigle de la pièce et le séparateur : les compter à part laissait le
+        # bloc dépasser le budget déclaré — sans conséquence tant que le budget
+        # n'était jamais atteint, visible dès qu'il l'est.
+        entree = "[%s] %s" % (nom, t)
+        if taille + len(entree) + 2 > DOSSIER_CARACTERES:
+            continue
+        taille += len(entree) + 2
+        bloc.append(entree)
         if nom not in [x["titre"] for x in sources]:
             sources.append({"titre": nom, "fichier": p["fichier"]})
     if not bloc:
