@@ -9071,9 +9071,24 @@ function messageDelai(e, defaut) {
               + '<button type="button" class="btn btn-s" data-fournie="'
               + esc(p.cle) + '" data-on="1">Annuler</button>';
           } else {
-            h += '<span class="ig-ao-fo-q">Elle ne se remplit pas ici. Une fois '
-              + "obtenue ou écrite hors de l'outil, marquez-la pour qu'elle "
-              + "sorte des blocages.</span>"
+            /* CETTE PHRASE DISAIT « ELLE NE SE REMPLIT PAS ICI » À DES
+               PIÈCES QUE L'ATELIER RÉDIGE. Sur un mémoire technique —
+               bloquant, et l'une des onze que l'atelier met en brouillon —
+               la carte annonçait donc qu'il fallait l'écrire ailleurs, à
+               côté d'un atelier qui l'écrivait. Le geste « je l'ai fournie »
+               reste offert : avoir écrit la pièce hors de l'outil est un cas
+               parfaitement légitime. Ce qui change, c'est qu'on ne prétend
+               plus que c'est le seul. */
+            h += '<span class="ig-ao-fo-q">'
+              + (p.redigeable
+                  ? "L'atelier en rédige un brouillon à partir du dossier "
+                    + "déposé et de vos propres documents. Si vous l'avez "
+                    + "écrite vous-même hors de l'outil, marquez-la pour "
+                    + "qu'elle sorte des blocages."
+                  : "Elle ne se remplit pas ici. Une fois obtenue ou écrite "
+                    + "hors de l'outil, marquez-la pour qu'elle sorte des "
+                    + "blocages.")
+              + "</span>"
               + '<button type="button" class="btn btn-s" data-fournie="'
               + esc(p.cle) + '">J\'ai fourni cette pièce</button>';
           }
