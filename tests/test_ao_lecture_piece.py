@@ -291,7 +291,8 @@ def _lecteur_rendu(nom, textes, analyse):
             + "\nvar AO_ANALYSE = JSON.parse(process.env.AN);"
             + "\naoTextesPoser(JSON.parse(process.env.TX), true);"
             + "\nvar zone = { innerHTML: '', querySelectorAll: function () "
-              "{ return []; } };"
+              "{ return []; }, querySelector: function () "
+              "{ return null; } };"
             + "\nfunction $(s) { return s === '#ig-ao-lect' ? zone : null; }"
             + "\nfunction fr(n) { return String(n); }"
             + "\naoTexteOuvrir(process.env.N);"
@@ -355,10 +356,13 @@ def test_le_bouton_lire_est_pose_sur_les_pieces_ET_sur_les_non_reconnues():
     assert [p["fichier"] for p in a["pieces"]] == [
         "reglement-de-consultation.pdf"], a["pieces"]
     prog = (_js_source("esc", "info", "aoTexteBouton", "aoTexteFermer",
-                       "aoTexteBrancherListe", "aoIgnores", "aoRendre")
+                       "aoTexteBrancherListe", "aoIgnores", "aoRendre",
+                       "aoVueDoc", "aoVueDocAppliquer", "aoVueDocBrancher")
+            + '\nvar AO_VUE_DOC = "";'
             + "\nvar AO_TEXTES = {}, AO_TEXTE_OUVERT = null;"
             + "\nvar zone = { innerHTML: '', querySelectorAll: function () "
-              "{ return []; } };"
+              "{ return []; }, querySelector: function () "
+              "{ return null; } };"
             + "\nvar ign = { innerHTML: '' }, lect = { innerHTML: '' };"
             + "\nfunction $(s) { return s === '#ig-ao-out' ? zone"
               " : (s === '#ig-ao-ign' ? ign"

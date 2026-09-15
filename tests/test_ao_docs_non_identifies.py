@@ -332,9 +332,13 @@ def _rendu_analyse(analyse):
     la deuxième fois, d'où ce banc.)
     """
     prog = (_js_source("esc", "info", "aoTexteBouton", "aoTexteFermer",
-                            "aoTexteBrancherListe", "aoIgnores", "aoRendre")
+                            "aoTexteBrancherListe", "aoIgnores", "aoRendre",
+                            "aoVueDoc", "aoVueDocAppliquer",
+                            "aoVueDocBrancher")
+            + '\nvar AO_VUE_DOC = "";'
             + "\nvar zone = { innerHTML: '', querySelectorAll: function () "
-              "{ return []; } };"
+              "{ return []; }, querySelector: function () "
+              "{ return null; } };"
             + "\nvar ignores = { innerHTML: '' }, lect = { innerHTML: '' };"
             + "\nvar AO_TEXTES = {}, AO_TEXTE_OUVERT = null;"
             + "\nfunction $(s) { return s === '#ig-ao-out' ? zone"

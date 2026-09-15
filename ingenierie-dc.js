@@ -5834,6 +5834,27 @@ function messageDelai(e, defaut) {
   var AO_SELECTION = null;
   var AO_SEL_AJOUTS = {};
   var AO_SEL_ECARTEES = {};
+
+  /* ══ CE QU'ON REGARDE — ET QUI NE DÉCIDE DE RIEN ════════════════════════
+
+     DEUX DÉROULANTES VIVENT DÉSORMAIS CÔTE À CÔTE DANS CE BLOC, ET ELLES NE
+     FONT PAS LA MÊME CHOSE. `data-sel-liste` CHOISIT une pièce et un bouton
+     nommé l'ajoute ou la retire : elle engage le dossier. `data-vue-liste`
+     ne fait que MONTRER : elle ne touche ni la sélection, ni les comptes, ni
+     ce qui partira dans l'archive. Les confondre serait la pire des
+     confusions possibles ici — « je n'affiche que les brouillons » ne doit
+     jamais vouloir dire « je ne dépose que les brouillons ».
+
+     C'EST POUR CELA QUE LE FILTRE DIT CE QU'IL CACHE. Un écran qui montre
+     quatre lignes sur quinze sans le dire se lit comme un dossier de quatre
+     lignes. Le compte des masquées est donc affiché, en toutes lettres, sous
+     chaque liste filtrée.
+
+     L'ÉTAT SURVIT AU REDESSIN. `aoSelectionRecalculer()` réaffiche tout le
+     bloc à chaque ajout ou retrait ; sans mémoire, le filtre sauterait à
+     « tout afficher » au moment précis où l'on travaille sur une catégorie. */
+  var AO_VUE = {};            /* {groupe: catégorie choisie} — affichage seul */
+  var AO_VUE_DOC = "";        /* ce qu'on regarde parmi les documents déposés */
   /* LE TEXTE DES PIÈCES LUES, GARDÉ POUR POUVOIR ÊTRE CONSERVÉ — et pour rien
      d'autre. Sans lui, rattacher un projet obligerait à re-choisir les
      fichiers : l'analyse ne garde que ce qu'elle a relevé, pas ce qu'elle a
@@ -6577,6 +6598,95 @@ function messageDelai(e, defaut) {
     });
   }
 
+  /* LA DÉROULANTE DU RELEVÉ, ET CE QU'ELLE PROPOSE.
+
+     UNE OPTION PAR PIÈCE, NOMMÉE PAR SON SIGLE ET SON FICHIER. « CCAP » seul
+     ne suffit pas quand deux fichiers portent le même sigle — cela arrive,
+     un CCAP et son annexe — et le nom de fichier seul ne dit pas ce qu'on va
+     lire. Les deux ensemble se reconnaissent d'un coup d'œil.
+
+     LES SECTIONS VIDES NE SONT PAS PROPOSÉES : une option qui mène à rien se
+     lit comme un filtre cassé. */
+  function aoVueDoc(a) {
+    var opts = "";
+    var total = 0;
+    if (a.manquantes && a.manquantes.length) {
+      total += 1;
+      opts += '<option value="manquantes">Absent du dossier déposé ('
+        + a.manquantes.length + ")</option>";
+    }
+    if ((a.pieces || []).length) {
+      opts += '<optgroup label="Pièces identifiées">';
+      a.pieces.forEach(function (p) {
+        total += 1;
+        opts += '<option value="doc:' + esc(p.fichier) + '">'
+          + esc(p.sigle) + " — " + esc(p.fichier) + "</option>";
+      });
+      opts += "</optgroup>";
+    }
+    if ((a.inconnues || []).length) {
+      total += 1;
+      opts += '<option value="inconnues">Fichiers non reconnus ('
+        + a.inconnues.length + ")</option>";
+    }
+    if ((a.pieces_candidat || []).length) {
+      total += 1;
+      opts += '<option value="nous">Pièces de VOTRE dossier déposées ici ('
+        + a.pieces_candidat.length + ")</option>";
+    }
+    /* SOUS DEUX SECTIONS, LE FILTRE NE SERT À RIEN et encombre : on ne le
+       propose pas. Un écran qui offre un outil inutile fait douter de ceux
+       qui servent. */
+    if (total < 3) return "";
+    return '<div class="ig-ao-ch ig-ao-vue">'
+      + '<label for="ig-ao-vue-doc">Afficher</label>'
+      + '<select id="ig-ao-vue-doc" data-vue-doc'
+      + ' aria-label="Filtrer l\'affichage du relevé">'
+      + '<option value="">Tout le relevé (' + total + " section(s))</option>"
+      + opts + "</select>"
+      + '<span class="ig-ao-vm" data-vue-doc-masque></span>'
+      + '<span class="ig-ao-vm ig-ao-vk">Les alertes restent affichées quel '
+      + "que soit le filtre.</span>"
+      + "</div>";
+  }
+
+
+  function aoVueDocAppliquer(z, choix) {
+    AO_VUE_DOC = choix || "";
+    var caches = 0, vues = 0;
+    z.querySelectorAll("[data-vue-doc-item]").forEach(function (d) {
+      var ok = !choix || d.dataset.vueDocItem === choix;
+      d.hidden = !ok;
+      if (ok) vues += 1; else caches += 1;
+    });
+    var dit = z.querySelector("[data-vue-doc-masque]");
+    if (dit) {
+      dit.textContent = caches
+        ? vues + " section(s) affichée(s), " + caches + " masquée(s) par ce "
+          + "filtre — le relevé porte toujours sur l'ensemble du dossier."
+        : "";
+    }
+  }
+
+
+  function aoVueDocBrancher(z) {
+    var sel = z.querySelector("[data-vue-doc]");
+    if (!sel) { AO_VUE_DOC = ""; return; }
+    sel.addEventListener("change", function () {
+      aoVueDocAppliquer(z, sel.value);
+    });
+    /* LE CHOIX NE SURVIT PAS À UNE NOUVELLE ANALYSE, et c'est voulu : les
+       pièces ne sont plus les mêmes, et garder « doc:CCAP-2025.pdf » sur un
+       dossier qui ne le contient plus masquerait TOUT le relevé sans qu'on
+       comprenne pourquoi. On ne restaure donc que ce qui existe encore. */
+    var garde = AO_VUE_DOC
+      && z.querySelector('[data-vue-doc-item="' + AO_VUE_DOC + '"]')
+      ? AO_VUE_DOC : "";
+    sel.value = garde;
+    aoVueDocAppliquer(z, garde);
+  }
+
+
   function aoRendre(a) {
     var out = $("#ig-ao-out");
     var h = "";
@@ -6591,8 +6701,26 @@ function messageDelai(e, defaut) {
       });
       h += "</div>";
     }
+    /* ── CE QU'ON REGARDE DANS LE RELEVÉ ────────────────────────────────
+       LE DÉFAUT : une consultation ordinaire dépose une douzaine de pièces,
+       et chaque pièce déroule ce qu'elle engage, son piège et tous ses
+       relevés avec leurs citations. La colonne fait plusieurs écrans, et
+       chercher ce que dit le CCAP oblige à passer devant tout le reste.
+
+       LES ALERTES NE SONT JAMAIS MASQUÉES, et c'est la seule règle non
+       négociable de ce filtre. Elles disent ce qui rend l'offre irrecevable —
+       une pièce essentielle absente, une date limite non trouvée. Les cacher
+       parce qu'on regarde le CCTP serait le pire résultat possible : un
+       filtre d'affichage qui escamote un risque n'est plus un filtre, c'est
+       une omission. Elles sont donc rendues AVANT ce bloc, et aucun
+       `data-vue-doc-item` ne les porte.
+
+       LA DÉROULANTE NE DÉCIDE RIEN NON PLUS. Elle ne retire aucune pièce du
+       dossier, ne change aucun compte et ne touche pas à l'archive. */
+    h += aoVueDoc(a);
     if (a.manquantes && a.manquantes.length) {
-      h += '<div class="ig-ao-mq"><b>Absent du dossier déposé</b><ul>';
+      h += '<div class="ig-ao-mq" data-vue-doc-item="manquantes">'
+        + "<b>Absent du dossier déposé</b><ul>";
       a.manquantes.forEach(function (m) {
         h += "<li><b" + info("piece_marche:" + m.code) + ">" + esc(m.sigle)
           + "</b> — " + esc(m.ce_que_c_est)
@@ -6603,7 +6731,8 @@ function messageDelai(e, defaut) {
       h += "</ul></div>";
     }
     a.pieces.forEach(function (p) {
-      h += '<div class="ig-ao-p"><div class="ig-ao-ph">'
+      h += '<div class="ig-ao-p" data-vue-doc-item="doc:' + esc(p.fichier)
+        + '"><div class="ig-ao-ph">'
         + '<b' + info("piece_marche:" + p.code) + ">" + esc(p.sigle) + "</b>"
         + '<span class="ig-ao-fn">' + esc(p.fichier) + "</span>"
         + '<span class="ig-ao-cf ig-ao-cf-' + esc(p.identification.confiance)
@@ -6638,7 +6767,8 @@ function messageDelai(e, defaut) {
          sans réponse : le fichier ne portait rien, ou l'identification n'a
          pas su le nommer ? Les deux se distinguent en lisant le texte, et
          d'aucune autre manière. */
-      h += '<div class="ig-ao-p ig-ao-inc"><div class="ig-ao-ph"><b>'
+      h += '<div class="ig-ao-p ig-ao-inc" data-vue-doc-item="inconnues">'
+        + '<div class="ig-ao-ph"><b>'
         + esc(p.fichier) + "</b>" + aoTexteBouton(p.fichier) + "</div>";
       /* UN FORMULAIRE VIERGE N'EST PAS UN FICHIER NON RECONNU, et le dire
          ainsi ferait croire à une panne d'identification alors que le module
@@ -6674,7 +6804,8 @@ function messageDelai(e, defaut) {
        du commerce. Les confondre faisait déclarer PRÉSENT un règlement de
        consultation absent, sur la foi d'une attestation d'assurance. */
     if ((a.pieces_candidat || []).length) {
-      h += '<div class="ig-ao-p ig-ao-nous"><b>Des pièces de VOTRE dossier '
+      h += '<div class="ig-ao-p ig-ao-nous" data-vue-doc-item="nous">'
+        + "<b>Des pièces de VOTRE dossier "
         + "ont été déposées ici</b>"
         + "<p>Elles ne sont pas analysées avec le dossier de consultation — "
         + "elles n'en font pas partie. Leur place est au dossier "
@@ -6688,6 +6819,7 @@ function messageDelai(e, defaut) {
     }
     h += '<p class="ig-icpe-res">' + esc(a.reserve) + "</p>";
     out.innerHTML = h;
+    aoVueDocBrancher(out);
     aoTexteBrancherListe(out);
     /* LE LECTEUR SE FERME QUAND LE RELEVÉ EST REFAIT. Il montrerait sinon le
        texte d'une pièce qu'on vient de retirer du dossier, sous un relevé qui
@@ -6785,15 +6917,16 @@ function messageDelai(e, defaut) {
        CHAQUE CATÉGORIE EST LUE SUR LA SÉLECTION, JAMAIS DÉDUITE ICI. Les
        quatre listes viennent de `selection()`, qui les déduit de `voie()` —
        la même fonction qui envoie une pièce à l'atelier ou non. Les
-       recalculer dans la page garantirait qu'un jour elles divergent. */
-    var categories = [
-      [sel.remplissables, "que ce module remplit sur le cerfa officiel"],
-      [sel.au_report, "dont il reporte les rubriques ici, sans cerfa à "
-                      + "joindre : le document reste à établir et à signer"],
-      [sel.redigeables, "dont l'atelier rédige un brouillon"],
-      [sel.a_demander, "à demander à un tiers — c'est le délai, pas la "
-                       + "rédaction, qui fait rater les dépôts"],
-    ];
+       recalculer dans la page garantirait qu'un jour elles divergent.
+
+       ET LES QUATRE PHRASES NE SONT PLUS ÉCRITES ICI. Elles l'étaient — mot
+       pour mot, à côté des quatre noms de listes — si bien que la page
+       portait sa propre table des catégories, qui n'avait aucune raison de
+       rester d'accord avec celle du module. Elles viennent maintenant de
+       `sel.categories`, dans l'ordre où le module les écrit. */
+    var categories = (sel.categories || []).map(function (c) {
+      return [c.pieces || [], c.long];
+    });
     var h = '<p class="note ig-ao-colp"><b>' + sel.retenues + " document(s)</b> "
       + "retenus sur " + sel.catalogue + " au catalogue.</p>";
     var dits = categories.filter(function (c) { return (c[0] || []).length; });
@@ -6841,6 +6974,24 @@ function messageDelai(e, defaut) {
          LA LISTE DÉTAILLÉE RESTE, et ses boutons aussi. C'est là qu'on lit le
          motif et la citation ; la déroulante sert quand on sait déjà ce qu'on
          cherche parmi quinze. Les deux rendent le MÊME geste au même moteur. */
+      /* ── ET UNE SECONDE DÉROULANTE, QUI NE DÉCIDE RIEN ──────────────
+         POURQUOI ELLE VIENT EN PREMIER À L'ÉCRAN. C'est le geste le moins
+         engageant des deux : on regarde avant de choisir. La mettre après
+         celle qui ajoute et retire ferait du filtrage un geste qu'on
+         découvre APRÈS avoir modifié le dossier.
+
+         LES OPTIONS VIDES NE SONT PAS PROPOSÉES. Une catégorie sans pièce
+         dans CE groupe conduit à une liste vide : l'offrir quand même ferait
+         croire à un filtre cassé. */
+      h += '<div class="ig-ao-ch ig-ao-vue">'
+        + '<label for="ig-ao-vue-' + g[0] + '">Afficher</label>'
+        + '<select id="ig-ao-vue-' + g[0] + '" data-vue-liste="' + g[0] + '"'
+        + ' aria-label="Filtrer l\'affichage — ' + esc(g[1]) + '">'
+        + '<option value="">Toutes les pièces (' + lignes.length + ")</option>"
+        + aoVueOptions(lignes, AO_VUE[g[0]] || "")
+        + "</select>"
+        + '<span class="ig-ao-vm" data-vue-masque="' + g[0] + '"></span>'
+        + "</div>";
       h += '<div class="ig-ao-ch">'
         + '<select id="ig-ao-grp-' + g[0] + '" data-sel-liste="' + g[0] + '"'
         + ' aria-label="Choisir une pièce — ' + esc(g[1]) + '">'
@@ -6860,7 +7011,12 @@ function messageDelai(e, defaut) {
         var cls = x.pourquoi === "citee" ? " p-citee"
                 : x.pourquoi === "socle" ? " p-socle"
                 : x.pourquoi === "fournie_au_dossier" ? " p-fournie" : "";
-        h += '<li><span class="n">' + esc(x.nom)
+        /* LA LIGNE PORTE SA PIÈCE ET SA CATÉGORIE, et la citation qui la
+           suit porte la MÊME pièce : ce sont deux <li> frères, et n'en
+           masquer qu'un laisserait une citation orpheline sous une pièce
+           disparue. */
+        h += '<li data-vue-piece="' + esc(x.cle) + '" data-vue-cat="'
+          + esc(x.categorie || "") + '"><span class="n">' + esc(x.nom)
           + (x.remplissable ? "" : ' <span class="ig-ao-sn">à produire</span>')
           /* LE FICHIER QUI L'A APPORTÉE, DIT SUR LA LIGNE. Sans lui, « fournie
              au dossier » n'est qu'une affirmation de plus : on ne saurait pas
@@ -6880,19 +7036,92 @@ function messageDelai(e, defaut) {
            « citée » est une affirmation — et c'est la doctrine du module
            depuis le début : chaque point relevé se vérifie. */
         if (x.citation && x.citation.texte) {
-          h += '<li class="ig-ao-sc">« ' + esc(x.citation.texte) + " » — "
+          h += '<li class="ig-ao-sc" data-vue-piece="' + esc(x.cle)
+            + '" data-vue-cat="' + esc(x.categorie || "") + '">« '
+            + esc(x.citation.texte) + " » — "
             + esc(x.citation.fichier || "")
             + (x.citation.part != null
                ? ", à " + Math.round(x.citation.part * 100) + " % du document"
                : "") + "</li>";
         } else if (!x.retenue || x.pourquoi !== "citee") {
-          h += '<li class="ig-ao-sc">' + esc(x.motif || "") + "</li>";
+          h += '<li class="ig-ao-sc" data-vue-piece="' + esc(x.cle)
+            + '" data-vue-cat="' + esc(x.categorie || "") + '">'
+            + esc(x.motif || "") + "</li>";
         }
       });
       h += "</ul></div>";
     });
     z.innerHTML = h;
     aoSelectionBrancher(z);
+    aoVueBrancher(z);
+  }
+
+
+  /* LES OPTIONS DU FILTRE, LUES SUR LES LIGNES QU'IL VA FILTRER.
+
+     ON NE RECOPIE PAS LE CATALOGUE DES CATÉGORIES. Les libellés viennent de
+     `AO_CATEGORIES`, qui est le reflet exact de `CATEGORIES_PIECE` côté
+     serveur ; les COMPTES, eux, viennent des lignes de CE groupe. Une option
+     « 8 brouillons » sur un groupe qui n'en contient qu'un serait un chiffre
+     juste au mauvais endroit — et c'est la sorte d'erreur qu'on ne remarque
+     pas, parce que le nombre existe ailleurs dans la page. */
+  function aoVueOptions(lignes, choisie) {
+    var h = "";
+    ((AO_SELECTION && AO_SELECTION.categories) || []).forEach(function (c) {
+      var n = lignes.filter(function (x) {
+        return x.categorie === c.cle;
+      }).length;
+      if (!n) return;
+      h += '<option value="' + esc(c.cle) + '"'
+        + (c.cle === choisie ? " selected" : "") + ">"
+        + esc(c.court) + " (" + n + ")</option>";
+    });
+    return h;
+  }
+
+
+  /* LE FILTRE S'APPLIQUE, ET IL DIT CE QU'IL CACHE.
+
+     `hidden` ET PAS `display:none` — c'est la convention de cette page, et
+     elle compte : un lecteur d'écran saute ce qui est `hidden`, et ce qui est
+     masqué par le filtre ne doit pas être lu comme présent.
+
+     LE COMPTE DES MASQUÉES EST ÉCRIT À CÔTÉ DE LA DÉROULANTE. Sans lui, un
+     dossier de quinze pièces filtré à quatre se lit comme un dossier de
+     quatre pièces — et c'est au moment du dépôt qu'on s'en aperçoit. */
+  function aoVueAppliquer(z, groupe, cat) {
+    AO_VUE[groupe] = cat || "";
+    var bloc = z.querySelector('[data-vue-liste="' + groupe + '"]');
+    bloc = bloc && bloc.closest(".ig-ao-sg");
+    if (!bloc) return;
+    var caches = 0, vues = 0;
+    bloc.querySelectorAll("[data-vue-piece]").forEach(function (li) {
+      var ok = !cat || li.dataset.vueCat === cat;
+      li.hidden = !ok;
+      if (li.classList.contains("ig-ao-sc")) return;   /* la citation ne compte pas */
+      if (ok) vues += 1; else caches += 1;
+    });
+    var dit = bloc.querySelector('[data-vue-masque="' + groupe + '"]');
+    if (dit) {
+      dit.textContent = caches
+        ? vues + " affichée(s), " + caches + " masquée(s) par ce filtre — "
+          + "les comptes ci-dessus portent sur l'ensemble."
+        : "";
+    }
+  }
+
+
+  function aoVueBrancher(z) {
+    z.querySelectorAll("[data-vue-liste]").forEach(function (sel) {
+      var g = sel.dataset.vueListe;
+      sel.addEventListener("change", function () {
+        aoVueAppliquer(z, g, sel.value);
+      });
+      /* APPLIQUÉ AU RENDU, pas seulement au clic : le bloc est réaffiché à
+         chaque ajout ou retrait de pièce, et le filtre doit se retrouver là
+         où on l'avait laissé. */
+      aoVueAppliquer(z, g, AO_VUE[g] || "");
+    });
   }
 
 
