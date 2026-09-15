@@ -150,6 +150,49 @@ REGISTRE = [
                     "machine dans les documents exportés.",
     },
     {
+        "id": "etagere-cabinet",
+        "traitement": "Étagère des documents du cabinet",
+        "finalite": "Conserver durablement une quinzaine de documents "
+                    "PROPRES À CONSEILPREV — organigramme, CV, moyens, "
+                    "certifications, références, notes méthodologiques — pour "
+                    "qu'ils nourrissent le remplissage des formulaires et la "
+                    "rédaction des brouillons de TOUTES les consultations "
+                    "suivantes, sans être redéposés à chaque dossier.",
+        "base_legale": "Intérêt légitime (art. 6.1.f)",
+        # CE QUE CETTE LIGNE DOIT DIRE, ET QU'ON NE PEUT PAS ADOUCIR : des CV
+        # nomment des personnes, et un CV est une donnée personnelle. Le
+        # traitement est donc réel, même si le « client » est nous.
+        "donnees": "Documents professionnels du cabinet. Certains nomment des "
+                   "personnes : CV, organigramme, note d'équipe — identité, "
+                   "fonction, diplômes, expérience professionnelle. Les "
+                   "références nomment des clients et des opérations.",
+        "personnes": "Salariés et intervenants de CONSEILPREV dont le CV ou "
+                     "la fonction figure dans un document rangé ; contacts et "
+                     "organisations cités dans les références.",
+        "duree": "Tant que le document reste sur l'étagère, que "
+                 "l'administrateur maîtrise : quinze places, retrait à la "
+                 "main. Une version périmée se retire, elle ne s'accumule "
+                 "pas.",
+        "destinataires": "CONSEILPREV ; fournisseur du modèle le temps d'une "
+                         "rédaction, pour les seuls extraits retenus ; et "
+                         "l'ACHETEUR d'une consultation, lorsqu'un brouillon "
+                         "reprenant ces extraits est remis.",
+        "transferts": "Selon le modèle retenu pour la rédaction : Mistral AI "
+                      "(UE) ou Anthropic (États-Unis). Stockage en UE "
+                      "(PostgreSQL — Francfort).",
+        # LA SÉCURITÉ EST ICI UNE RÈGLE MÉTIER, ET ELLE MÉRITE D'ÊTRE DITE.
+        # Les rayons qui peuvent décrire un TIERS — mémoires écrits pour un
+        # acheteur, références nommant un client — ne sont lus par la
+        # rédaction que s'ils ont été marqués publiables. Le marquage est une
+        # décision humaine, et le défaut est « interne ».
+        "securite": "Accès administrateur seul. Deux régimes de publication : "
+                    "un document « interne » sert au remplissage mais ne part "
+                    "jamais dans un brouillon remis à un acheteur, sur les "
+                    "rayons qui peuvent décrire un tiers. Rayon déduit du nom "
+                    "du fichier, plafond de quinze documents, journal des "
+                    "rangements avec le rayon et le régime retenus.",
+    },
+    {
         "id": "dossier-marche",
         "traitement": "Dossier marché conservé par projet",
         "finalite": "Conserver, le temps d'une consultation, les pièces du dossier "

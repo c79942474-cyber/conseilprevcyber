@@ -234,7 +234,8 @@ def test_la_route_transmet_le_cote_et_refuse_d_en_inventer_un_troisieme(marche):
 # --------------------------------------------------------------------------
 def _depot_rendu():
     prog = (_js_source("esc", "aoOctets", "aoDocuments", "aoBrancherDepot",
-                       "aoEnAttenteRendre")
+                       "aoEnAttenteRendre",
+     "aoEtagereGeste", "aoEtagereBrancher", "aoEtagereEtat")
             + "\nfunction fr(n){ return String(Math.round(Number(n)||0)); }"
             + "\nvar AO_EN_ATTENTE = [];"
             + "\nvar AO_TRANSPORT_MAX = 4000000;"
@@ -283,14 +284,22 @@ def test_le_cote_part_avec_chaque_document():
     # `x.cote = "consultation"` en dur — c'est-à-dire qui supprimait toute la
     # séparation — a donc survécu. On mesure maintenant L'AFFECTATION
     # elle-même : ce qui est écrit dans `cote` doit venir de la file.
-    ligne = next((l for l in src.splitlines() if ".cote =" in l), None)
+    # UNE AFFECTATION, PAS UNE COMPARAISON. « .cote = » se retrouve tel quel
+    # dans « .cote === "cabinet" » : la zone filtre désormais la file par côté
+    # pour savoir quels fichiers ranger sur l'étagère, et cette comparaison
+    # arrivait la première. La règle lisait donc une ligne qui n'affecte rien,
+    # et n'aurait plus rien mesuré de l'affectation qu'elle prétend surveiller.
+    lignes = [l for l in src.splitlines()
+              if re.search(r"\.cote\s*=(?!=)", l)]
+    ligne = lignes[0] if lignes else None
     assert ligne, "aucune affectation de côté sur les documents lus"
     droite = ligne.split(".cote =", 1)[1]
     assert "AO_EN_ATTENTE" in droite, (
         "le côté affecté ne vient pas de la file : il est écrit en dur, et "
         "tous les documents repartent du même côté — %s" % ligne.strip())
     bloc = src[src.index("Promise.all"):]
-    assert bloc.index(".cote =") < bloc.index("documents: docs"), (
+    pose = re.search(r"\.cote\s*=(?!=)", bloc)
+    assert pose and pose.start() < bloc.index("documents: docs"), (
         "le côté est posé après l'envoi : il ne part pas")
 
 

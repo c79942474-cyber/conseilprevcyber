@@ -312,7 +312,109 @@ def _fonds_themes_connus():
             [t for t in FONDS_TIERS if t in famille])
 
 
-def chercher_au_fonds_cabinet(piece, rag=None):
+def requete_fonds(piece, analyse=None, rayons=None):
+    """CE QU'ON VA CHERCHER SUR L'ÉTAGÈRE — et ce n'est PAS `requete_socle`.
+
+    LE DÉFAUT QUE CETTE FONCTION CORRIGE, MESURÉ AVANT DE LIVRER. La première
+    version de `chercher_au_fonds_cabinet` réutilisait `requete_socle`. Le
+    branchement était juste, les règles étaient vertes — et l'apport réel était
+    NUL : sur une étagère portant un organigramme, des certifications et une
+    note méthodologique, la recherche ramenait ZÉRO extrait.
+
+    LA RAISON EST INSTRUCTIVE. `requete_socle` est bâtie sur ce que la pièce
+    doit DÉMONTRER : pour un mémoire technique, « une réponse point par point
+    aux critères de jugement pondérés du règlement de consultation ». C'est le
+    vocabulaire de l'ACHETEUR, et il vise juste sur le socle documentaire, qui
+    est fait d'extraits de règlements et de CCTP. Sur l'étagère du cabinet, il
+    ne touche rien : un organigramme ne parle pas de critères pondérés, il
+    parle d'effectifs.
+
+    ON INTERROGE DONC AVEC LE VOCABULAIRE DE CE QU'ON RANGE — les noms des
+    rayons eux-mêmes, qui sont exactement cela — et avec l'OBJET de la
+    consultation, pour que les références et les méthodes ramenées soient du
+    bon domaine. Pas de table nouvelle : les rayons sont déjà déclarés, et les
+    réutiliser garantit que la requête suit l'étagère si elle change.
+    """
+    import ao_dc                                                  # noqa: PLC0415
+    mots = [str(piece.get("nom") or "")]
+    # ── L'OBJET VIENT EN TÊTE, ET C'EST UNE CORRECTION ───────────────────
+    #
+    # Il était ajouté EN DERNIER, après les rayons, leurs graphies sans accents
+    # et leurs formes au singulier — et la requête est bornée à 600 caractères.
+    # Le terme le plus DISCRIMINANT de tous était donc le premier sacrifié par
+    # le budget : mesuré, « centre de données » ne figurait pas dans la requête
+    # d'une consultation qui ne parle que de cela.
+    #
+    # LE VOCABULAIRE DES RAYONS EST RÉPÉTITIF ET SURVIT À UNE COUPE ; l'objet,
+    # lui, n'est écrit qu'une fois. L'ordre suit donc ce qui est irremplaçable.
+    if analyse:
+        idx = ao_dc._index_releves(analyse)
+        for cle in ("objet", "objet_consultation"):
+            props = idx.get(cle) or []
+            if props and props[0].get("valeur"):
+                mots.append(str(props[0]["valeur"]))
+                break
+    # ── LE VOCABULAIRE DES SEULS RAYONS QU'ON INTERROGE ──────────────────
+    #
+    # DEUXIÈME CORRECTION D'ORDRE, ET ELLE VIENT DE LA PREMIÈRE. Après avoir
+    # mis l'objet en tête, la requête portait le vocabulaire des CINQ rayons,
+    # deux fois (avec et sans accents), plus leurs formes au singulier — et
+    # les 600 caractères coupaient désormais la QUEUE, c'est-à-dire les
+    # rayons « mémoires » et « références ». Mesuré : la note méthodologique,
+    # bien rangée et publiable, redevenait introuvable. On déplaçait la
+    # troncature, on ne la supprimait pas.
+    #
+    # LA REQUÊTE SUIT DONC LA RECHERCHE. Chaque moitié de la famille est
+    # interrogée avec SON vocabulaire : les rayons qui nous décrivent pour la
+    # première, ceux qui peuvent décrire un tiers pour la seconde. Chaque
+    # requête tient alors largement dans le budget — et elle est mieux visée,
+    # puisqu'elle ne porte plus les mots des rayons qu'on n'interroge pas.
+    vocab = [t.split("/", 1)[-1].replace("&", " ")
+             for t in (rayons if rayons is not None
+                       else list(FONDS_NOUS) + list(FONDS_TIERS))]
+    # ── ET LA MÊME CHOSE SANS ACCENTS ────────────────────────────────────
+    #
+    # POURQUOI, ET CE QUE ÇA RÉPARE. Le magasin découpe la requête en termes
+    # et les compare tels quels : il ne déplie ni les accents ni les
+    # flexions. « méthodologiques » et « methodologique » sont pour lui deux
+    # mots sans rapport.
+    #
+    # OR L'EXTRACTION D'UN PDF REND SOUVENT UN TEXTE SANS ACCENTS. Mesuré sur
+    # l'étagère d'essai : une note méthodologique rangée au bon rayon, marquée
+    # publiable, restait INTROUVABLE par une requête écrite avec les accents
+    # des noms de rayons — le document était là, le branchement était juste, et
+    # la recherche ramenait zéro.
+    #
+    # ON JOINT DONC LES DEUX GRAPHIES. C'est trois lignes et cela double la
+    # portée ; corriger le découpeur du magasin toucherait toutes les
+    # recherches de l'application, ce qui n'est pas la décision de ce tour.
+    # LES VARIANTES NE PORTENT QUE SUR LE VOCABULAIRE DES RAYONS, jamais sur
+    # le nom de la pièce ni sur l'objet. Décliner « maîtrise d'œuvre pour un
+    # centre de données de 12 MW » en trois graphies n'apprend rien au magasin
+    # et consomme le budget : la requête touchait le plafond de 600 caractères
+    # et se faisait tronquer, alors qu'elle tient maintenant en moitié moins.
+    vocab += [ao_dc._sans_accent(m) for m in list(vocab)]
+    # ── ET AU SINGULIER, POUR LA MÊME RAISON ─────────────────────────────
+    #
+    # Le magasin ne déplie pas non plus les flexions : « notes » et « note »
+    # sont deux termes. Or les rayons sont nommés au PLURIEL — « Mémoires
+    # techniques & notes méthodologiques » — et un document s'intitule au
+    # singulier : « Note méthodologique de conception ». Mesuré : ce document,
+    # rangé au bon rayon et marqué publiable, restait introuvable même une fois
+    # les accents traités.
+    #
+    # ON NE FAIT PAS DE RACINISATION, ET C'EST VOLONTAIRE : on ajoute la forme
+    # sans « s » final pour les mots assez longs, rien de plus. Un vrai
+    # raciniseur appartiendrait au magasin, où il servirait à toutes les
+    # recherches — pas à une requête particulière.
+    vocab += [" ".join(w[:-1] if len(w) > 4 and w.endswith("s") else w
+                       for w in m.split())
+              for m in list(vocab)]
+    mots += vocab
+    return " ".join(" ".join(mots).split())[:600]
+
+
+def chercher_au_fonds_cabinet(piece, rag=None, analyse=None):
     """CE QUE NOUS AVONS DÉJÀ ÉCRIT, et qui peut nourrir cette pièce-ci.
 
     DEUX RECHERCHES ET PAS UNE, parce que les deux moitiés de la famille ne se
@@ -331,11 +433,12 @@ def chercher_au_fonds_cabinet(piece, rag=None):
         if not nous and not tiers:
             return {"bloc": "", "sources": [], "absent": "famille_inconnue"}
         hits = []
-        q = requete_socle(piece)
         if nous:
-            hits += rag.search(q, k=FONDS_K, public_only=False, theme=nous)
+            hits += rag.search(requete_fonds(piece, analyse, nous),
+                               k=FONDS_K, public_only=False, theme=nous)
         if tiers:
-            hits += rag.search(q, k=FONDS_K, public_only=True, theme=tiers)
+            hits += rag.search(requete_fonds(piece, analyse, tiers),
+                               k=FONDS_K, public_only=True, theme=tiers)
         bloc, retenus = rag_store.build_context_retenus(
             hits, max_chars=FONDS_CARACTERES)
     except Exception:
@@ -675,7 +778,7 @@ def rediger(cle, remplissage, analyse=None, rag=None, corpus_dossier=None):
     ctx = contexte(remplissage, analyse, piece,
                    socle=chercher_socle(piece, rag),
                    dossier=chercher_dossier(piece, corpus_dossier),
-                   fonds=chercher_au_fonds_cabinet(piece, rag))
+                   fonds=chercher_au_fonds_cabinet(piece, rag, analyse))
     consigne = brief(ctx)
     client = anthropic.Anthropic()
     try:
