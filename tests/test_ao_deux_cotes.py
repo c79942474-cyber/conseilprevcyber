@@ -334,20 +334,35 @@ def test_la_route_rend_un_vrai_fichier_dans_chaque_format(marche, fmt):
     assert len(r.data) > 400, len(r.data)
 
 
-def test_le_document_emporte_DIT_qu_il_est_un_brouillon():
+def test_le_document_emporte_DIT_qu_il_est_un_brouillon(marche):
     """Sorti en Word, il ressemble à une pièce finie. C'est la version qu'on
     retrouve trois semaines plus tard, et rien sur la page ne rappelle alors
-    qu'elle n'a été ni relue ni signée."""
-    import app as APP
-    src = io.open(os.path.join(ICI, "app.py"), encoding="utf-8").read()
-    i = src.index("def api_datacenter_marche_brouillon")
-    bloc = src[i:src.index("\n@app.route", i)]
-    code = "\n".join(l for l in bloc.splitlines()
-                     if not l.lstrip().startswith("#"))
-    assert "BROUILLON" in code and "chapeau" in code, (
-        "le cartouche ne dit pas que le document est un brouillon")
-    assert '"ia"' in code, (
-        "le document ne déclare pas avoir été écrit par un modèle")
+    qu'elle n'a été ni relue ni signée.
+
+    CETTE RÈGLE A ÉTÉ REPRISE, ET VOICI POURQUOI. Sa première version lisait
+    la SOURCE de la route et exigeait d'y trouver « BROUILLON » et
+    « chapeau ». Les deux y étaient, elle était verte — et le document sortait
+    pourtant SANS la réserve : `livrables_export` ne lit jamais la clé
+    `chapeau`, si bien qu'elle était écrite, transmise et jetée. La règle
+    constatait la présence d'un mot dans un fichier ; elle ne mesurait pas ce
+    que le document porte. On ouvre donc le document.
+    """
+    import docx
+    r = marche.post("/api/datacenter/marche/brouillon",
+                    json={"piece": "memoire_technique", "nom": "Mémoire",
+                          "markdown": "# Mémoire\n\nNotre méthode.",
+                          "format": "docx"}, headers=ORIGINE)
+    assert r.status_code == 200, r.data[:300]
+    doc = docx.Document(io.BytesIO(r.data))
+    texte = "\n".join(x.text for x in doc.paragraphs)
+    cartouche = "\n".join(c.text for t in doc.tables for ro in t.rows
+                          for c in ro.cells)
+    assert "À COMPLÉTER" in texte and "dossier analysé" in texte, (
+        "la réserve n'est pas dans le corps : %r" % texte[:400])
+    assert "BROUILLON" in cartouche, cartouche[:300]
+    # ET LE DOCUMENT DÉCLARE AVOIR ÉTÉ ÉCRIT PAR UN MODÈLE — c'est le registre
+    # de transparence qui le lit, et une déclaration absente y ferait un trou.
+    assert "modèle de langage" in texte + cartouche, texte[:400]
 
 
 def test_la_route_refuse_un_corps_vide_et_un_texte_demesure(marche):

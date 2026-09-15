@@ -1149,6 +1149,33 @@
   .ig-ao-cp:focus-visible{outline:2px solid var(--accent, #8FDBF2);outline-offset:2px}
   .ig-ao-cpb{border-color:rgba(34,211,238,.45)}
 
+  /* ── LA PIÈCE OUVERTE PREND TOUTE LA LARGEUR ────────────────────────────
+     POURQUOI `grid-column:1/-1` ET PAS UNE FENÊTRE MODALE. Une modale
+     couperait la pièce du dossier : on remplit en comparant avec la carte
+     voisine — le même acheteur, le même objet — et une fenêtre qui masque le
+     reste supprime précisément ce qu'on regarde. Ici la carte reste à sa
+     place dans la grille et s'étale sur toute la rangée.
+
+     LES CHAMPS DEVIENNENT LARGES, et c'est tout l'objet : dans une colonne de
+     320 px on saisit un SIRET à l'aveugle. Deux colonnes au-delà de 900 px —
+     le libellé et son champ côte à côte — pour que l'œil n'ait pas à faire
+     l'aller-retour de haut en bas sur quinze rubriques. */
+  .ig-ao-cp-grand{grid-column:1 / -1;border-width:2px;
+    border-color:rgba(45,212,191,.55);box-shadow:0 2px 18px rgba(0,0,0,.18)}
+  .ig-ao-cp-grand .ig-ao-rb{max-width:none}
+  .ig-ao-cp-grand .ig-ao-si{font-size:15px;padding:9px 12px}
+  @media (min-width:900px){
+    .ig-ao-cp-grand .ig-ao-rb{display:grid;
+      grid-template-columns:minmax(220px,1fr) minmax(320px,2fr);
+      column-gap:18px;align-items:start}
+    .ig-ao-cp-grand .ig-ao-rb dt{margin:0;padding:9px 0}
+    .ig-ao-cp-grand .ig-ao-rb dd{margin:0;padding:5px 0}
+  }
+  /* LES DEUX BOUTONS DE L'EN-TÊTE, poussés à droite pour ne pas couper le
+     nom de la pièce, et qui restent atteignables au petit écran. */
+  .ig-ao-cpa{display:inline-flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+  .ig-ao-plus{margin-top:6px;width:100%;text-align:left}
+
   /* LES QUATRE ÉTATS D'UNE PIÈCE QU'ON FAIT PRODUIRE, et pourquoi le contour
      plutôt que le fond. Le fond porte déjà la lisibilité du texte ; le lui
      faire porter en plus ferait choisir entre « on voit l'état » et « on lit

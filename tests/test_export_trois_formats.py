@@ -247,18 +247,120 @@ def _archive(cl, fmt="docx"):
     return zipfile.ZipFile(io.BytesIO(r.data)), r.headers.get("X-Dossier")
 
 
-def test_l_archive_porte_le_report_les_quatre_formulaires_et_son_bordereau(marche):
+def test_l_archive_porte_TOUTES_les_pieces_pas_seulement_les_formulaires(marche):
+    """CE QUE CETTE RÈGLE DEMANDAIT AVANT, ET POURQUOI ELLE A CHANGÉ.
+
+    Elle exigeait « le report, les quatre formulaires et le bordereau » — cinq
+    fichiers — et elle était verte. Elle décrivait pourtant une archive qui
+    mentait sur son propre nom : « Tout le dossier » ne portait AUCUNE des
+    dix-neuf autres pièces. Lettre de candidature, mémoire technique, DPGF,
+    demandes aux tiers, attestations : il fallait les redemander une par une,
+    et le bouton qui promettait tout n'en donnait qu'un cinquième.
+
+    LE CONTRAT EST DONC ÉLARGI, DÉLIBÉRÉMENT : une pièce par fichier, dans
+    `pieces/`, en plus du report d'ensemble et des quatre imprimés qui
+    restent à la racine — ce sont eux qu'on dépose, et les noyer parmi
+    vingt-trois ferait chercher.
+    """
     z, entete = _archive(marche)
     noms = set(z.namelist())
     assert "BORDEREAU.txt" in noms
     assert "reponse-consultation.docx" in noms
+
+    # LES QUATRE IMPRIMÉS RESTENT À LA RACINE, et pas dans un sous-dossier.
     formulaires = {n for n in noms if n.endswith("-projet-non-signe.docx")}
     assert len(formulaires) == 4, (
         "l'archive porte %d formulaire(s) sur 4 : %s"
         % (len(formulaires), sorted(formulaires)))
+    assert not any("/" in n for n in formulaires), sorted(formulaires)
+
+    # CHAQUE PIÈCE DU DOSSIER A SON FICHIER. Le compte n'est pas écrit ici : il
+    # se lit sur le module, sans quoi l'ajout d'une pièce laisserait la règle
+    # verte avec une archive incomplète.
+    import ao_dc
+    attendu = len(ao_dc.remplir(fiche={"raison_sociale": "CONSEILPREV",
+                                       "siret": "73282932000074"})["pieces"])
+    seules = {n for n in noms if n.startswith("pieces/")}
+    assert len(seules) == attendu, (
+        "%d pièce(s) dans l'archive pour %d au dossier : %s"
+        % (len(seules), attendu, sorted(seules)[:4]))
+
     for n in noms:
         assert z.getinfo(n).file_size > 200, "« %s » est vide dans l'archive" % n
-    assert '"pieces": 5' in (entete or ""), entete
+    # LE COMPTE QUI VOYAGE DANS L'EN-TÊTE SUIT, sinon la page annoncerait
+    # « 5 pièces » sur une archive qui en porte vingt-huit.
+    assert '"pieces": %d' % (attendu + 5) in (entete or ""), entete
+
+
+def test_les_BROUILLONS_redliges_entrent_dans_l_archive(marche):
+    """Ils ne sont nulle part ailleurs.
+
+    L'atelier écrit onze notes — mémoire technique, autonomie commerciale,
+    convention de groupement, cadre de DPGF. Elles vivaient dans la page, à
+    emporter une par une : celui qui prenait « tout le dossier » et fermait
+    l'onglet les perdait toutes. Et chacune sort avec la réserve qui dit
+    qu'elle n'a été ni relue ni signée.
+    """
+    r = marche.post("/api/datacenter/marche/dossier.zip",
+                    json={"fiche": {"raison_sociale": "CONSEILPREV",
+                                    "siret": "73282932000074"},
+                          "saisies": {}, "format": "docx",
+                          "brouillons": [
+                              {"piece": "memoire_technique",
+                               "nom": "Mémoire technique",
+                               "texte": "# Mémoire\n\nNotre méthode."}]},
+                    headers=ORIGINE)
+    assert r.status_code == 200, r.data[:300]
+    z = zipfile.ZipFile(io.BytesIO(r.data))
+    assert "brouillons/memoire-technique.docx" in z.namelist(), z.namelist()
+    bord = z.read("BORDEREAU.txt").decode("utf-8")
+    assert "brouillon rédigé" in bord and "RELIRE" in bord, bord[:600]
+
+    # LA RÉSERVE EST DANS LE DOCUMENT, PAS SEULEMENT DANS LE BORDEREAU.
+    #
+    # UNE MUTATION A SURVÉCU À LA PREMIÈRE VERSION DE CETTE RÈGLE : vider le
+    # chapeau du brouillon ne changeait rien, parce qu'elle ne lisait que le
+    # bordereau — lequel est composé ailleurs. Or c'est le fichier Word qui
+    # sort du site et qu'on retrouve trois semaines plus tard ; s'il ne dit
+    # pas lui-même qu'il n'a été ni relu ni signé, rien ne le dira.
+    import docx
+    doc = docx.Document(io.BytesIO(z.read("brouillons/memoire-technique.docx")))
+    texte = "\n".join(p.text for p in doc.paragraphs)
+    cartouche = "\n".join(c.text for t in doc.tables for r in t.rows
+                          for c in r.cells)
+
+    # DEUX PORTES, ET ON MESURE LES DEUX SÉPARÉMENT.
+    #
+    # UNE MUTATION A SURVÉCU À LA DEUXIÈME VERSION DE CETTE RÈGLE : elle
+    # cherchait « BROUILLON » dans le corps, et le trouvait — dans le PIED DE
+    # PAGE, qui le tient déjà du statut du cartouche. Vider la réserve du
+    # corps ne la faisait donc pas tomber : elle passait pour une raison sans
+    # rapport avec ce qu'elle prétendait. On cherche maintenant ce que SEULE
+    # la réserve du corps dit — pourquoi des passages sont marqués
+    # « À COMPLÉTER », et d'où le texte vient.
+    assert "À COMPLÉTER" in texte and "dossier analysé" in texte, (
+        "la réserve n'est pas dans le corps du document : %r" % texte[:500])
+    # ET LE CARTOUCHE PORTE LE STATUT, pour qui lit la page de garde.
+    assert "BROUILLON" in cartouche, cartouche[:400]
+
+    # UN BROUILLON VIDE NE CRÉE AUCUN FICHIER. Un document de zéro ligne dans
+    # l'archive se télécharge et déçoit — et fait croire à une rédaction
+    # perdue plutôt qu'à une rédaction jamais lancée.
+    r2 = marche.post("/api/datacenter/marche/dossier.zip",
+                     json={"fiche": {"raison_sociale": "CONSEILPREV",
+                                     "siret": "73282932000074"},
+                           "saisies": {}, "format": "docx",
+                           "brouillons": [{"piece": "qse", "nom": "QSE",
+                                           "texte": "   \n  "}]},
+                     headers=ORIGINE)
+    assert r2.status_code == 200
+    z3 = zipfile.ZipFile(io.BytesIO(r2.data))
+    assert not [n for n in z3.namelist() if n.startswith("brouillons/")], (
+        "un brouillon vide a produit un fichier : %s" % z3.namelist())
+
+    # ET LE TÉMOIN NÉGATIF : sans brouillon envoyé, aucun dossier `brouillons/`.
+    z2, _ = _archive(marche)
+    assert not [n for n in z2.namelist() if n.startswith("brouillons/")]
 
 
 def test_le_format_demande_ne_change_QUE_le_report(marche):

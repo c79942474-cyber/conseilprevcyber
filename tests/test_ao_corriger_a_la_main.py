@@ -183,13 +183,24 @@ def test_toutes_les_rubriques_NON_declaratives_sont_corrigeables():
 # --------------------------------------------------------------------------
 # 2. LA PAGE OFFRE UN CHAMP PARTOUT OÙ LE MOTEUR EN ACCEPTE UN.
 # --------------------------------------------------------------------------
-def _carte(remplissage):
+def _carte(remplissage, ouverte=None):
+    # LES DEUX GARDES DU FOCUS ENTRENT AU BANC, ET C'EST LE BANC QUI L'A
+    # DEMANDÉ : `aoRempliRendre` les appelle, et sans elles il tombe sur
+    # « aoFocusRetenir is not defined ». Il exécute, il ne relit pas.
     prog = (_js_source("esc", "info", "aoMenuDocs", "aoFormulairesBoutons",
                        "aoProduira", "aoLotBarre", "aoLotEtatCarte",
+                       "aoFocusRetenir", "aoFocusRendre",
                        "aoRempliRendre")
             + "\nvar AO_FORMULAIRES = null;\nvar AO_DOC = '';"
             + "\nvar AO_SAISIES = {};\nvar AO_CHOISIES = {};"
             + "\nvar AO_PRODUIT = {};\nvar AO_LOT_FMT = 'docx';"
+            # L'APERÇU ET L'OUVERTURE EN GRAND sont un ÉTAT de la zone : la
+            # carte le lit pour savoir si elle déroule quatre rubriques ou
+            # toutes. Sans ces deux-là, le banc tombe — et c'est son office.
+            + "\nvar AO_OUVERTE = process.env.OUVERTE || null;"
+            + "\nvar AO_APERCU = 4;"
+            + "\nvar AO_REMPLI = null;"
+            + "\nfunction aoOuvrir() {}\nfunction aoPieceEmporter() {}"
             + "\nvar AO_DERNIER = null;"
             + "\nvar AO_ETAT_CLASSE = { rempli: 'ok', a_saisir: 'att',"
               " a_declarer: 'dec', non_trouve: 'att', invalide: 'mal' };"
@@ -210,7 +221,8 @@ def _carte(remplissage):
             + "\nprocess.stdout.write(zone.innerHTML);\n")
     out = subprocess.run(["node"], input=prog, capture_output=True, text=True,
                          timeout=60,
-                         env=dict(os.environ, R=json.dumps(remplissage)))
+                         env=dict(os.environ, R=json.dumps(remplissage),
+                                  OUVERTE=ouverte or ""))
     assert out.returncode == 0, out.stderr[-2000:]
     return out.stdout
 
@@ -221,7 +233,13 @@ def test_la_page_offre_un_champ_sur_CHAQUE_rubrique_non_declarative():
     RÉELLEMENT produits, et on les compare une à une aux rubriques que le
     moteur accepte de corriger."""
     rap = A.remplir(fiche=FICHE)
-    h = _carte(rap)
+    # CHAQUE PIÈCE EST MESURÉE OUVERTE, ET LA RÈGLE LE DIT. Depuis que la
+    # carte repliée montre un APERÇU — ce qui demande attention, puis le
+    # reste, quatre lignes — « toutes les rubriques » n'est vrai que de la
+    # pièce ouverte. Mesurer sur l'aperçu ferait dire à cette règle « 4 champs
+    # sur 93 » et la ferait tomber pour une raison SANS RAPPORT avec ce
+    # qu'elle prétend : elle éprouve le droit de corriger, pas le repli.
+    h = "".join(_carte(rap, ouverte=x["cle"]) for x in rap["pieces"])
     champs = set(re.findall(r'data-saisie="([^"]+)"', h))
     attendus = {"%s.%s" % (p, l["cle"]) for p, l in _toutes(rap)
                 if l["source"] != "declaration"}
@@ -239,7 +257,8 @@ def test_une_rubrique_corrigee_se_voit_et_dit_ce_que_le_module_avait_lu():
     """Sans marque, une correction se perd parmi quatre-vingt-treize lignes —
     et l'on croit lu ce qu'on a écrit soi-même."""
     h = _carte(A.remplir(fiche=FICHE,
-                         saisies={"dc1.candidat": "AUTRE RAISON"}))
+                         saisies={"dc1.candidat": "AUTRE RAISON"}),
+                ouverte="dc1")
     # LA BALISE ENTIÈRE, PAS SA FIN. La classe précède `data-saisie` dans le
     # balisage : partir de l'attribut cherché la laisse hors de portée, et la
     # règle tombe sur une marque pourtant présente.
