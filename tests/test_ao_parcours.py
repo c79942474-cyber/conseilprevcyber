@@ -235,13 +235,43 @@ def test_sans_attestations_remises_l_etape_le_DIT_au_lieu_de_se_prononcer():
     assert "ne détient pas" in e["mesure"]
 
 
-def test_des_attestations_remises_sont_mesurees():
+def test_des_attestations_valides_A_LA_DATE_DE_REMISE_font_l_etape():
+    """CETTE RÈGLE A CHANGÉ DE CONTRAT, ET IL FAUT DIRE POURQUOI.
+
+    Elle affirmait que « 5 valide(s) sur 5 » suffit à faire l'étape. C'était
+    FAUX, et d'une façon qui coûte un marché : l'étape demande « Mes
+    attestations sont-elles valides À LA DATE DE REMISE ? », et « valides »
+    voulait dire « valides aujourd'hui ». Mesuré sur un dossier à remettre
+    dans quarante jours avec une attestation de vigilance valable dix :
+    l'étape passait au vert et le dossier serait parti avec une attestation
+    périmée depuis trente jours.
+
+    LE CONTRAT EST DÉSORMAIS : l'étape n'est faite que si rien ne manque ET
+    que la date à laquelle le verdict vaut est connue."""
     at = {"total": 5, "valides": ["a", "b", "c", "d", "e"],
-          "absentes": [], "perimees": []}
+          "absentes": [], "perimees": [], "expirent_avant_remise": [],
+          "remise": "2026-12-01"}
     e = next(x for x in ao_parcours.parcours(dict(_etat_avance(),
                                                   attestations=at))["etapes"]
              if x["id"] == "attestations")
-    assert e["fait"] is True and "5 attestation(s) valide(s) sur 5" in e["mesure"]
+    assert e["fait"] is True
+    assert "5 attestation(s) valide(s) sur 5" in e["mesure"]
+    assert "2026-12-01" in e["mesure"], \
+        "la mesure ne dit pas à quelle date son verdict vaut"
+
+
+def test_sans_date_de_remise_l_etape_NE_SE_DECLARE_PAS_faite():
+    """LE TÉMOIN QUI MANQUAIT. Sans lui, la règle ci-dessus passerait aussi
+    bien sur un module qui ignore la date de remise : c'est exactement ce
+    qu'il faisait."""
+    at = {"total": 5, "valides": ["a", "b", "c", "d", "e"],
+          "absentes": [], "perimees": [], "expirent_avant_remise": [],
+          "remise": None, "jour": "2026-09-15"}
+    e = next(x for x in ao_parcours.parcours(dict(_etat_avance(),
+                                                  attestations=at))["etapes"]
+             if x["id"] == "attestations")
+    assert e["fait"] is False
+    assert "NON LUE" in e["mesure"]
 
 
 # ── 4. LA ROUTE, ET CE QU'ELLE DONNE À QUI ───────────────────────────────
