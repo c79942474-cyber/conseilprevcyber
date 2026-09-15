@@ -39,11 +39,20 @@ rien elle le DIT au lieu de se déclarer faite.
 import ao_dc
 import ao_formulaires
 
-VERSION = "2026-09-b"
+VERSION = "2026-09-c"
 
 # Ce qu'on attend d'un dossier de consultation complet : le référentiel le
 # dit, on ne le recopie pas.
 PIECES_ATTENDUES = len(ao_dc.PIECES_MARCHE)
+
+# Et ce que le CANDIDAT peut avoir à produire : les deux dossiers, lus sur le
+# module et jamais recopiés.
+#
+# PAS `len(ao_dc.RUBRIQUES)`, ET LE PREMIER JET S'Y ÉTAIT TROMPÉ : cette table
+# ne porte que les pièces qui ONT des rubriques — sept sur vingt-trois. Le
+# parcours aurait annoncé « sept pièces au catalogue » à côté d'un écran qui
+# en montre vingt-trois.
+PIECES_REPONSE = len(ao_dc.DOSSIER_CANDIDATURE) + len(ao_dc.DOSSIER_OFFRE)
 
 
 def _n(x):
@@ -94,6 +103,37 @@ def _m_lire(e):
         "mesure": "%d pièce(s) dépouillée(s) sur %d déposée(s) · "
                   "%d relevé(s) cité(s) avec leur position"
                   % (len(lues), len(pieces), releves),
+    }
+
+
+def _m_choisir(e):
+    """Ce que CE dossier-là demande, et ce qu'il laisse de côté.
+
+    POURQUOI CETTE ÉTAPE EXISTE DÉSORMAIS. Le parcours allait de « lire » à
+    « fiche » sans jamais nommer le geste qui décide de TOUT le reste : quelles
+    pièces sont au périmètre. Or il compte — le remplissage, les blocages,
+    l'archive et le parcours lui-même portent sur les pièces retenues, pas sur
+    les vingt-trois du catalogue. Une étape qu'on ne nomme pas est une étape
+    qu'on ne fait pas, et l'on découvre à la remise qu'il manque la pièce que
+    le règlement demandait sans que le moteur l'ait repérée.
+    """
+    sel = e.get("selection") or {}
+    lignes = sel.get("lignes") or []
+    if not lignes:
+        return {"fait": False, "reste": [],
+                "mesure": "aucun dossier analysé : la sélection porterait sur "
+                          "les %d pièces du catalogue" % PIECES_REPONSE}
+    non = [x for x in lignes if not x.get("retenue")]
+    return {
+        # UNE SÉLECTION VIDE N'EST PAS UNE SÉLECTION FAITE. Zéro pièce retenue
+        # veut dire que rien n'a été reconnu : c'est le cas qui appelle
+        # justement la déroulante des non repérées.
+        "fait": _n(sel.get("retenues")) > 0,
+        "reste": [x.get("nom") or x.get("cle") for x in non][:8],
+        "mesure": "%d pièce(s) retenue(s) sur %d au catalogue · "
+                  "%d non repérée(s) dans le dossier, à prendre ou à laisser"
+                  % (_n(sel.get("retenues")), _n(sel.get("catalogue")),
+                     len(non)),
     }
 
 
@@ -195,10 +235,15 @@ ETAPES = [
         "pourquoi": "Un DCE sans règlement de consultation ni CCAP n'est pas "
                     "un DCE. C'est le genre de constat qu'on fait trois jours "
                     "avant la remise si personne ne le fait le premier jour.",
-        "geste": "Déposez les pièces du dossier de consultation : "
-                 "l'identification se fait sur le nom et sur le texte.",
-        "piege": "Une pièce identifiée sur son seul nom n'a pas été lue. "
-                 "Un PDF scanné passe pour présent et ne dit rien.",
+        "geste": "Déposez dans DEUX zones distinctes : à gauche les pièces "
+                 "de l'acheteur, à droite vos propres documents — Kbis, "
+                 "bilans, attestations. L'identification se fait sur le nom "
+                 "et sur le texte.",
+        "piege": "Une pièce identifiée sur son seul nom n'a pas été lue : un "
+                 "PDF scanné passe pour présent et ne dit rien. Et un "
+                 "document du cabinet déposé du MAUVAIS côté serait lu comme "
+                 "une pièce de l'acheteur — c'est ainsi qu'un mémoire est "
+                 "passé un jour pour un règlement de consultation.",
         "ancre": "#ig-ao-depot",
         "bloquant": True,
         "mesurer": _m_consultation,
@@ -218,6 +263,33 @@ ETAPES = [
         "ancre": "#ig-ao-out",
         "bloquant": False,
         "mesurer": _m_lire,
+    },
+    {
+        # ELLE ARRIVE APRÈS « LIRE » ET AVANT TOUT LE RESTE, et l'ordre n'est
+        # pas de confort : le périmètre décide des attestations à demander, du
+        # nombre de rubriques à remplir et du contenu de l'archive. Le placer
+        # après le remplissage ferait remplir des pièces qu'on ne dépose pas,
+        # et demander des attestations dont on n'a pas besoin.
+        "id": "choisir",
+        "nom": "Choisir les pièces à produire",
+        "question": "Quelles pièces CETTE consultation demande-t-elle ?",
+        "pourquoi": "Le catalogue en compte vingt-trois ; une consultation "
+                    "n'en demande presque jamais autant. Tout produire coûte "
+                    "du temps ; en oublier une rend l'offre irrecevable. "
+                    "C'est le périmètre qui commande tout le reste du "
+                    "parcours.",
+        "geste": "Dans « Les documents à produire », chaque groupe a sa liste "
+                 "déroulante : choisissez une pièce, puis pressez le bouton "
+                 "qui la nomme — « ＋ Ajouter » sous les non repérées, "
+                 "« − Retirer » sous les deux dossiers. Parcourir la liste ne "
+                 "décide rien ; c'est le bouton qui engage.",
+        "piege": "« Non repérée » ne veut pas dire « non demandée » : cela "
+                 "veut dire que le relevé ne l'a pas vue. C'est là que celui "
+                 "qui a LU le règlement rattrape la lecture automatique — et "
+                 "c'est le seul endroit où il peut le faire.",
+        "ancre": "#ig-ao-retenus",
+        "bloquant": True,
+        "mesurer": _m_choisir,
     },
     {
         "id": "fiche",
@@ -255,13 +327,19 @@ ETAPES = [
         "id": "remplir",
         "nom": "Remplir les rubriques",
         "question": "Que reste-t-il à saisir, et qu'est-ce qui se reprend tout seul ?",
-        "pourquoi": "La plupart des rubriques se déduisent de la fiche et de "
-                    "l'analyse. Ce qui reste à saisir est court, et c'est là "
-                    "qu'il faut mettre l'attention.",
-        "geste": "Parcourez les pièces : chaque valeur porte son origine — "
-                 "reprise de la fiche, relevée du DCE, ou à saisir.",
-        "piege": "Une rubrique remplie n'est pas une pièce prête : il reste "
-                 "les déclarations, qui ne se pré-remplissent jamais.",
+        "pourquoi": "La plupart des rubriques se déduisent de la fiche, de "
+                    "l'analyse et de vos documents. Ce qui reste à saisir est "
+                    "court, et c'est là qu'il faut mettre l'attention.",
+        "geste": "Lancez l'atelier : il lit les pièces déposées ET la famille "
+                 "« pièces du cabinet » de la base de connaissance, remplit, "
+                 "rédige les brouillons, puis relit. Ouvrez ensuite chaque "
+                 "carte en grand — toute rubrique se corrige à la main, et "
+                 "votre correction l'emporte sur la lecture.",
+        "piege": "« Rempli » ne veut pas dire « réglé ». Une valeur lue dans "
+                 "un fichier non identifié, une valeur qu'une autre pièce "
+                 "contredit, une valeur recopiée depuis un autre formulaire : "
+                 "toutes sont remplies et toutes se relisent. L'aperçu de la "
+                 "carte les montre en premier, avant les rubriques vides.",
         "ancre": "#ig-ao-rempli",
         "bloquant": True,
         "mesurer": _m_remplir,
@@ -286,11 +364,15 @@ ETAPES = [
         "id": "emporter",
         "nom": "Emporter le dossier complet",
         "question": "Ai-je tout, en un seul geste ?",
-        "pourquoi": "Le dossier partait jusqu'ici en cinq téléchargements — "
-                    "le report, puis les quatre formulaires — et autant "
-                    "d'occasions d'en oublier un.",
-        "geste": "Prenez l'archive complète : le report dans le format de "
-                 "votre choix, et les quatre formulaires officiels.",
+        "pourquoi": "Une pièce oubliée au moment de déposer ne se rattrape "
+                    "pas : la plateforme ferme à l'heure dite. L'archive est "
+                    "faite pour qu'il n'y ait rien à rassembler à la main.",
+        "geste": "Prenez « Tout le dossier (.zip) » : le report d'ensemble "
+                 "dans le format de votre choix, les quatre formulaires "
+                 "officiels à la racine, CHAQUE pièce dans son propre fichier "
+                 "sous « pieces/ », et les brouillons rédigés sous "
+                 "« brouillons/ ». Une pièce seule s'emporte par le « ⬇ » de "
+                 "sa carte.",
         "piege": "Les formulaires officiels restent en Word, et c'est voulu : "
                  "ce qui sort EST le fichier du ministère. Un fac-similé "
                  "serait refusé — ou pire, accepté et faux.",

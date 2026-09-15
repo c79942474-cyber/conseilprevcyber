@@ -58,10 +58,29 @@ def sans_commentaires_js(src):
     ("ig-ao", "appel d'offres"),
 ])
 def test_chaque_section_ajoutee_est_dans_la_page(ancre, titre):
+    """Le sujet est cherché dans le TITRE de la section, pas dans ses 400
+    premiers caractères.
+
+    CETTE RÈGLE A ÉTÉ REPRISE, ET C'EST ELLE QUI L'A DEMANDÉ. Sa première
+    version lisait une fenêtre de quatre cents signes après l'identifiant.
+    Elle est tombée le jour où le guide de la section — l'attribut `data-gd`,
+    qui précède le titre — a été étoffé pour dire les six gestes du parcours
+    au lieu de la seule restriction d'accès. Le titre était toujours là, bien
+    formé, à quatre cent vingt signes. Une règle qui dépend de la longueur
+    d'un texte voisin ne mesure pas ce qu'elle annonce : elle mesure une
+    mise en page.
+    """
+    import re as _re
     h = lire("ingenierie-datacenter.html")
     assert 'id="%s"' % ancre in h, ancre
     i = h.index('id="%s"' % ancre)
-    assert titre.lower() in h[i:i + 400].lower(), (ancre, titre)
+    # Le premier titre de la section, quelle que soit la longueur de ce qui le
+    # précède — et borné à la section suivante pour ne pas emprunter le sien.
+    fin = h.find("<section", i + 1)
+    bloc = h[i:fin if fin > 0 else len(h)]
+    m = _re.search(r"<h[23][^>]*>(.*?)</h[23]>", bloc, _re.S)
+    assert m, "la section « %s » n'a pas de titre" % ancre
+    assert titre.lower() in m.group(1).lower(), (ancre, titre, m.group(1)[:120])
 
 
 def test_les_zones_de_rendu_des_sections_ajoutees_existent():
