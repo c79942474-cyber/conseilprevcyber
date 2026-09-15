@@ -180,6 +180,7 @@ def atelier(fiche=None, documents=None, analyse=None, saisies=None,
     plafond = int(tours_max or TOURS_MAX)
 
     extraits, rejets, brouillons, echecs, journal = {}, [], [], [], []
+    fonds = set()
     reclamations = None
 
     for tour in range(1, plafond + 1):
@@ -196,13 +197,24 @@ def atelier(fiche=None, documents=None, analyse=None, saisies=None,
         an_lecture = _analyse_avec_brouillons(analyse, brouillons)
         docs_lecture = documents + _brouillons_en_corpus(brouillons)
 
+        # LE MAGASIN DESCEND JUSQU'À LA LECTURE, et pas seulement jusqu'à la
+        # rédaction. Il n'y allait pas : le fonds documentaire nourrissait les
+        # onze notes et laissait les quatre-vingt-treize rubriques se remplir
+        # à la main, alors que le Kbis et les bilans de la maison y dorment.
+        # `ao_extraction` borne ce qu'il en lit — famille nommée, côté cabinet
+        # seulement.
         lu = ao_extraction.lire_le_dossier(remplissage, docs_lecture, an_lecture,
                                            client=client_extraction,
-                                           executeur=executeur)
+                                           executeur=executeur, rag=rag)
         neufs = {k: v for k, v in lu["extraits"].items() if k not in extraits}
         extraits.update(neufs)
         rejets.extend(lu["rejets"])
         echecs.extend(lu["echecs"])
+        # CE QUE LE FONDS A APPORTÉ REMONTE JUSQU'À L'ÉCRAN. Sans cette
+        # remontée, un fonds mal rangé — donc muet — serait indiscernable
+        # d'un fonds qui travaille : on verrait des rubriques vides sans
+        # jamais savoir si la base a été consultée.
+        fonds.update((lu.get("corpus") or {}).get("fonds") or [])
 
         apres_lecture = ao_dc.remplir(fiche=fiche, analyse=analyse,
                                       saisies=saisies, groupement=groupement,
@@ -248,4 +260,5 @@ def atelier(fiche=None, documents=None, analyse=None, saisies=None,
         "remplies": _remplies(final),
         "rubriques": sum(len(p.get("rubriques") or [])
                          for p in final.get("pieces", [])),
+        "fonds": sorted(fonds),
     }

@@ -5905,6 +5905,22 @@ function messageDelai(e, defaut) {
         + "— citation introuvable dans les pièces déposées. Rien n'a été "
         + "reporté pour elles.</p>";
     }
+    /* CE QUE LA BASE DE CONNAISSANCE A APPORTÉ, NOMMÉ DOCUMENT PAR DOCUMENT.
+       Le fonds ne remplit que les rubriques qui décrivent LE CABINET, et
+       seulement depuis les documents rangés dans « CONSEILPREV — pièces du
+       cabinet ». Quand cette liste est vide alors qu'on attendait un Kbis,
+       c'est que le document n'est pas rangé là — et le dire ici évite de
+       chercher le défaut du côté du moteur. */
+    if ((j.fonds || []).length) {
+      h += '<p class="note"><b>Lu dans la base de connaissance :</b> '
+        + esc(j.fonds.join(", ")) + ".</p>";
+    } else {
+      h += '<p class="note">Rien n\'a été lu dans la base de connaissance. '
+        + "Pour qu'elle serve au remplissage, les pièces du cabinet (Kbis, "
+        + "bilans, attestations, références) doivent être rangées dans la "
+        + "famille « CONSEILPREV — pièces du cabinet » de l'administration "
+        + "de la base.</p>";
+    }
     if ((j.reclamations || []).length) {
       h += '<p class="note"><b>À obtenir auprès d\'un tiers — aucun outil ne '
         + "les produit :</b></p><ul class=\"note\">"
