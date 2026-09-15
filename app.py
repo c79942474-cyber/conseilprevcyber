@@ -5137,6 +5137,28 @@ def api_datacenter_marche_export():
                      as_attachment=True, mimetype=mimetype)
 
 
+def _ao_documents(data):
+    """LES PIÈCES DÉPOSÉES, AUX MÊMES BORNES POUR LES DEUX ROUTES QUI LES LISENT.
+
+    POURQUOI C'EST ICI ET PAS RECOPIÉ. `/atelier` et `/rediger` reçoivent la
+    même chose — la liste `{nom, texte}` que la page tient dans `AO_TEXTES`. Les
+    deux bornes qui comptent (quarante pièces, deux cents caractères de nom)
+    écrites à deux endroits, c'est celle qu'on oublie d'élargir qui tronque
+    silencieusement un dossier, et personne pour s'en apercevoir : un dossier
+    tronqué rédige quand même.
+
+    ELLE NE REFUSE RIEN. `/atelier` exige des pièces — sans elles il n'a rien à
+    lire. `/rediger` rédige aussi sans elles, plus maigrement, et le dit : c'est
+    à l'appelant de décider, pas à la lecture de la charge.
+    """
+    documents = data.get("documents")
+    if not isinstance(documents, list):
+        return []
+    return [{"nom": str(d.get("nom") or "")[:200],
+             "texte": str(d.get("texte") or "")}
+            for d in documents[:40] if isinstance(d, dict)]
+
+
 def _ao_charge(data):
     """La charge utile commune aux trois routes de réponse à consultation.
 
@@ -5491,20 +5513,37 @@ def api_datacenter_marche_rediger():
         return jsonify(ok=False, error="calcul",
                        message="Le dossier n'a pas pu être établi."), 500
 
+    # LES TROIS SOURCES SE CROISENT ICI, ET C'EST TOUT L'OBJET DE LA ROUTE.
+    #
+    # CE QUI MANQUAIT. Cette route rédigeait sans les documents du marché : sa
+    # charge ne portait que l'analyse, qui garde les relevés et non les textes.
+    # Les onze pièces sortaient donc avec ZÉRO source de consultation —
+    # mesuré — c'est-à-dire un mémoire technique qui ne cite pas une seule
+    # exigence du CCTP auquel il répond. Il se lisait comme un brouillon fini,
+    # ce qui est la pire forme du défaut : rien à l'écran ne le distinguait.
+    #
+    # LE CORPUS SE COMPOSE PAR LA MÊME FONCTION QUE L'ATELIER. Apparier les
+    # textes déposés à l'ordre de lecture de l'analyse est ce qui permet à une
+    # citation de nommer « CCTP » plutôt que « document 2 » ; le refaire ici à
+    # la main aurait donné deux appariements qui divergent au premier
+    # changement.
+    documents = _ao_documents(data)
+    corp = ao_extraction.corpus(documents, analyse) if documents else None
     audit.journaliser("marche.rediger", cible=cle,
-                      detail="socle %s" % ao_redaction.THEME_SOCLE)
+                      detail="socle %s · %d piece(s) du marche"
+                             % (ao_redaction.THEME_SOCLE, len(documents)))
     try:
         # LE MAGASIN VOYAGE JUSQU'ICI ET S'ARRÊTE LÀ : `rediger` le passe aux
         # DEUX fonctions impures de son module — `chercher_socle`, qui lit la
         # doctrine du domaine, et `chercher_au_fonds_cabinet`, qui lit nos
         # propres pièces sous une règle de publication plus stricte.
         #
-        # CETTE ROUTE REND UN BROUILLON PLUS MAIGRE QUE L'ATELIER, et il faut
-        # le dire : sa charge ne porte PAS les documents du marché — seulement
-        # l'analyse, qui en garde les relevés et non les textes. Le brouillon
-        # sort donc sans `corpus_dossier`, le brief nomme ce manque, et le
-        # bilan `socles` du rendu le compte. L'atelier, lui, les joint.
-        brouillon = ao_redaction.rediger(cle, r, analyse=analyse, rag=rag)
+        # SANS DOCUMENTS, ELLE RÉDIGE QUAND MÊME, et le brouillon DIT qu'il n'a
+        # pas lu la consultation plutôt que de faire semblant : le brief nomme
+        # le manque et le bilan `socles` du rendu le compte. Refuser aurait
+        # cassé le seul geste dont dispose qui n'a pas encore déposé ses pièces.
+        brouillon = ao_redaction.rediger(cle, r, analyse=analyse, rag=rag,
+                                         corpus_dossier=corp)
     except ao_redaction.RedactionError as e:
         return jsonify(ok=False, error=e.code, message=e.detail), e.status
     except Exception:
@@ -5628,9 +5667,7 @@ def api_datacenter_marche_atelier():
         return jsonify(ok=False, error="sans_dossier",
                        message="Déposez d'abord les pièces du marché : sans "
                                "elles, aucune rubrique ne peut être lue."), 400
-    documents = [{"nom": str(d.get("nom") or "")[:200],
-                  "texte": str(d.get("texte") or "")}
-                 for d in documents[:40] if isinstance(d, dict)]
+    documents = _ao_documents(data)
 
     audit.journaliser("marche.atelier", cible="dossier",
                       detail="%d piece(s) deposee(s)" % len(documents))

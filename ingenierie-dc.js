@@ -7649,8 +7649,16 @@ function messageDelai(e, defaut) {
     demander("/api/datacenter/marche/rediger", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
+      /* LES DOCUMENTS DU MARCHÉ PARTENT AVEC LA DEMANDE. La page les tient
+         déjà — `AO_TEXTES`, posé par l'analyse et complété par le coffre du
+         projet — et `atelierDocuments` est l'appariement que l'atelier
+         envoie. Sans eux, le serveur rédigeait les onze pièces sans une seule
+         source de consultation : un mémoire technique qui ne cite aucune
+         exigence du CCTP auquel il répond, et qui se lit pourtant comme un
+         brouillon fini. La route les accepte sans les exiger. */
       body: JSON.stringify({ piece: cle, fiche: AO_FICHE,
-                             analyse: AO_ANALYSE, saisies: AO_SAISIES })
+                             analyse: AO_ANALYSE, saisies: AO_SAISIES,
+                             documents: atelierDocuments() })
     }, DELAI_LONG)
       .then(function (r) { return r.json(); })
       .then(function (j) {

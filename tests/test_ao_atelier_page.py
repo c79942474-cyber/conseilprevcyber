@@ -47,11 +47,28 @@ def corps_route_atelier():
 
 
 def champs_lus_par_la_route():
-    """Les champs que la route lit sur CHAQUE document reçu."""
-    corps = corps_route_atelier()
-    m = re.search(r"documents\s*=\s*\[\{(.+?)\}\s*\n?\s*for d in documents",
-                  corps, re.S)
-    assert m, "la route ne recompose plus les documents comme attendu"
+    """Les champs que la route lit sur CHAQUE document reçu.
+
+    ON LIT LA FONCTION COMMUNE, PLUS LE CORPS DE LA ROUTE. La recomposition a
+    quitté `api_datacenter_marche_atelier` pour `_ao_documents`, que les DEUX
+    routes qui reçoivent des pièces appellent désormais — l'atelier et la
+    rédaction. La chercher dans un seul corps de route ferait tomber cette
+    règle pour une raison sans rapport avec ce qu'elle mesure : que la page
+    émette exactement le champ que le serveur lit.
+
+    ET ON VÉRIFIE QUE LA ROUTE L'APPELLE VRAIMENT, sinon lire la fonction
+    commune serait lire du code mort — et la règle passerait alors que la
+    route recompose autre chose chez elle.
+    """
+    assert "_ao_documents(data)" in corps_route_atelier(), (
+        "la route de l'atelier ne lit plus les documents par la fonction "
+        "commune : ce qu'on mesure ici n'est plus ce qu'elle emploie")
+    py = lire("app.py")
+    d = py.index("def _ao_documents(")
+    f = py.index("\ndef ", d + 1)
+    m = re.search(r"return \[\{(.+?)\}\s*\n?\s*for d in documents",
+                  py[d:f], re.S)
+    assert m, "la fonction commune ne recompose plus les documents"
     return set(re.findall(r'd\.get\(\s*"([a-z_]+)"', m.group(1)))
 
 
