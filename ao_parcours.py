@@ -301,7 +301,10 @@ ETAPES = [
                  "contrôlées à la saisie, pas à la remise.",
         "piege": "En groupement, la fiche est celle du MANDATAIRE, et chaque "
                  "membre a la sienne. Un membre oublié rend la candidature "
-                 "incomplète pour tous.",
+                 "incomplète pour tous. Déposez votre NOTE DE RÉPARTITION DES "
+                 "COMPÉTENCES du côté cabinet : le cadre E du DC1 — un "
+                 "cotraitant par ligne, avec ses prestations — s'écrit alors "
+                 "depuis la note, réserves comprises.",
         "ancre": "#ig-ao-fiche",
         "bloquant": True,
         "mesurer": _m_fiche,

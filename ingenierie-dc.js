@@ -8355,7 +8355,7 @@ function messageDelai(e, defaut) {
         h += ' <a href="' + x.url + '" download="' + esc(x.nom || "piece")
           + '">⬇ ' + esc(x.nom || "prendre") + "</a>";
       }
-      h += "</p>" + aoCasesVides(x.cases);
+      h += "</p>" + aoCadreE(x.groupement) + aoCasesVides(x.cases);
       return h;
     }
     return h + "</p>";
@@ -8376,6 +8376,43 @@ function messageDelai(e, defaut) {
     ["calcul", "Se déduirait d'une valeur d'identité absente"],
     ["saisie", "À décider pour CETTE consultation"],
   ];
+
+  /* LE CADRE E DU DC1 — CE QUI Y A ÉTÉ ÉCRIT, ET CE QUI N'A PAS PU L'ÊTRE.
+     ══════════════════════════════════════════════════════════════════════
+     POURQUOI UN BLOC À PART, ET PAS UNE CASE DE PLUS. `aoCasesVides` range
+     des RUBRIQUES par ce qui manque pour les remplir — une fiche, une
+     consultation, une saisie. Le cadre E n'est pas une rubrique : c'est une
+     GRILLE, une ligne par cotraitant, et ce qui lui manque ne se corrige pas
+     en remplissant un champ de la page — il faut l'adresse et le SIRET de
+     chaque membre, qui ne sont nulle part chez nous.
+
+     LES RÉSERVES SONT MONTRÉES LES PREMIÈRES, ET C'EST LE POINT. La note dit
+     « [À confirmer] » devant certaines répartitions ; on les recopie telles
+     quelles plutôt que de les effacer, mais recopier sans le dire ferait
+     partir à l'acheteur un formulaire où une réserve de travail passe pour un
+     engagement pris. */
+  function aoCadreE(g) {
+    if (!g || !g.ecrits) return "";
+    var h = '<div class="ig-ao-cv"><b>Cadre E — ' + g.ecrits
+      + " membre(s) du groupement écrit(s) dans le formulaire"
+      + (g.lignes_ajoutees ? ", " + g.lignes_ajoutees
+         + " ligne(s) ajoutée(s) à la grille" : "") + ".</b>";
+    if (g.a_confirmer && g.a_confirmer.length) {
+      h += '<p class="ig-ao-cvg">Réserve « à confirmer » portée par la note, '
+        + "à trancher avant signature</p><ul>";
+      g.a_confirmer.forEach(function (n) {
+        h += "<li><b>" + esc(n) + "</b></li>";
+      });
+      h += "</ul>";
+    }
+    if (g.a_completer && g.a_completer.length) {
+      h += '<p class="ig-ao-cvg">Ce que le cadre demande encore, et que la '
+        + "note ne donne pas — à compléter à la main</p><ul>";
+      g.a_completer.forEach(function (t) { h += "<li>" + esc(t) + "</li>"; });
+      h += "</ul>";
+    }
+    return h + "</div>";
+  }
 
   function aoCasesVides(cases) {
     if (!cases || !cases.length) return "";
@@ -8596,6 +8633,11 @@ function messageDelai(e, defaut) {
            NAF, les trois chiffres d'affaires — sans un mot. « 7 valeur(s)
            portée(s) » se lit comme « aussi rempli qu'il peut l'être ». */
         cases: (d && d.cases_vides) || [],
+        /* LE CADRE E, GARDÉ POUR ÊTRE MONTRÉ. Il ne compte dans aucun des
+           deux autres bilans : cinq cotraitants écrits ne sont pas cinq
+           « valeurs portées », et la carte annoncerait sinon le même bilan
+           qu'un DC1 au cadre E vide. */
+        groupement: (d && d.cadre_e) || null,
         url: URL.createObjectURL(bn[0]),
         nom: bn[1],
       };

@@ -5308,7 +5308,8 @@ def api_datacenter_marche_piece():
                       if m["piece"] == cle)
         try:
             octets, rap = ao_formulaires.remplir_document(
-                modele, ao_formulaires.valeurs_pour(r, cle))
+                modele, ao_formulaires.valeurs_pour(r, cle),
+                membres=ao_formulaires.membres_pour(r))
         except Exception:
             app.logger.exception("pièce — formulaire %s", modele)
             return jsonify(ok=False, error="remplissage", cle=cle,
@@ -5381,6 +5382,15 @@ def api_datacenter_marche_piece():
         # Se taire ferait lire un formulaire à moitié vide comme un
         # formulaire aussi complet qu'il peut l'être.
         rapport["ignores"] = list(rap.get("ignores") or [])
+        # LE CADRE E DU DC1, QUAND IL A ÉTÉ ÉCRIT. Ce n'est ni une case ni
+        # une rubrique : c'est une GRILLE, remplie depuis la note de
+        # répartition déposée du côté cabinet, et le compte de valeurs placées
+        # ne la voit pas. Sans cette ligne, un DC1 dont les cinq membres
+        # viennent d'être écrits annoncerait exactement le même bilan qu'un
+        # DC1 dont le cadre E est resté vide — et les réserves « [À confirmer] »
+        # transportées telles quelles dans un formulaire officiel se
+        # découvriraient à la relecture, ou pas du tout.
+        rapport["cadre_e"] = dict(rap.get("cadre_e") or {})
         blob = octets
         mimetype = livrables_export.MIME["docx"]
         nom = "%s-projet-non-signe.docx" % modele
@@ -5679,7 +5689,8 @@ def api_datacenter_marche_dossier_zip():
             nom = "%s-projet-non-signe.docx" % cle
             try:
                 octets, rapport = ao_formulaires.remplir_document(
-                    cle, ao_formulaires.valeurs_pour(r, modele["piece"]))
+                    cle, ao_formulaires.valeurs_pour(r, modele["piece"]),
+                    membres=ao_formulaires.membres_pour(r))
             except Exception:
                 app.logger.exception("dossier complet — formulaire %s", cle)
                 manques.append((nom, "le remplissage a échoué"))
@@ -5693,10 +5704,22 @@ def api_datacenter_marche_dossier_zip():
                                 "côté"))
                 continue
             z.writestr(nom, octets)
-            pieces.append((nom, "%s — %d valeur(s) placée(s), %d non placée(s), "
+            # LE CADRE E SE DIT AU BORDEREAU, parce qu'il ne se compte pas
+            # ailleurs : une grille remplie n'est pas une « valeur placée », et
+            # le lecteur du bordereau n'a aucun moyen de savoir que le DC1 est
+            # sorti avec ses cotraitants dedans — ni combien d'entre eux
+            # portent encore une réserve.
+            _ce = rapport.get("cadre_e") or {}
+            _grp = ("" if not _ce.get("ecrits") else
+                    ", cadre E : %d membre(s) du groupement%s"
+                    % (_ce["ecrits"],
+                       (" dont %d à confirmer" % len(_ce.get("a_confirmer") or ())
+                        if _ce.get("a_confirmer") else "")))
+            pieces.append((nom, "%s — %d valeur(s) placée(s), %d non placée(s)%s, "
                                 "version du %s"
                                 % (modele["nom"], len(rapport["places"]),
-                                   len(rapport["non_places"]), modele["maj"])))
+                                   len(rapport["non_places"]), _grp,
+                                   modele["maj"])))
         # ── CHAQUE PIÈCE, DANS SON PROPRE FICHIER ────────────────────
         #
         # CE QUI MANQUAIT, ET QUI SE VOIT À L'OUVERTURE DE L'ARCHIVE. Elle
