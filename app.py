@@ -5484,8 +5484,16 @@ def api_datacenter_marche_rediger():
     audit.journaliser("marche.rediger", cible=cle,
                       detail="socle %s" % ao_redaction.THEME_SOCLE)
     try:
-        # LE MAGASIN VOYAGE JUSQU'ICI ET S'ARRÊTE LÀ : `rediger` le passe à
-        # `chercher_socle`, qui est la seule fonction impure de son module.
+        # LE MAGASIN VOYAGE JUSQU'ICI ET S'ARRÊTE LÀ : `rediger` le passe aux
+        # DEUX fonctions impures de son module — `chercher_socle`, qui lit la
+        # doctrine du domaine, et `chercher_au_fonds_cabinet`, qui lit nos
+        # propres pièces sous une règle de publication plus stricte.
+        #
+        # CETTE ROUTE REND UN BROUILLON PLUS MAIGRE QUE L'ATELIER, et il faut
+        # le dire : sa charge ne porte PAS les documents du marché — seulement
+        # l'analyse, qui en garde les relevés et non les textes. Le brouillon
+        # sort donc sans `corpus_dossier`, le brief nomme ce manque, et le
+        # bilan `socles` du rendu le compte. L'atelier, lui, les joint.
         brouillon = ao_redaction.rediger(cle, r, analyse=analyse, rag=rag)
     except ao_redaction.RedactionError as e:
         return jsonify(ok=False, error=e.code, message=e.detail), e.status

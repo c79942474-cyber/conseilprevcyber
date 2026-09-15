@@ -2341,9 +2341,24 @@ VOIES = {
     },
     "rediger": {
         "nom": "À rédiger",
-        "aide": "Un texte qui n'existe nulle part avant qu'on l'écrive. Ce "
-                "module dit ce qu'il doit démontrer ; il ne l'écrit pas à "
-                "votre place.",
+        # CETTE PHRASE DISAIT LE CONTRAIRE DE CE QUE LE MODULE FAIT.
+        #
+        # Elle affirmait : « Ce module dit ce qu'il doit démontrer ; il ne
+        # l'écrit pas à votre place. » C'était vrai avant `ao_redaction`. Ça a
+        # cessé de l'être le jour où l'atelier s'est mis à rédiger ONZE pièces,
+        # dont le mémoire technique — et la phrase est restée. Un utilisateur
+        # l'a lue et a demandé qu'on ajoute une fonction qui existait déjà :
+        # c'est la mesure exacte du coût d'un écran qui ment.
+        #
+        # CE QUI N'A PAS CHANGÉ, ET QUI RESTE DIT : un brouillon n'est pas une
+        # pièce. Personne ne l'a relu, personne ne l'a signé, et c'est vous qui
+        # décidez de ce qui part.
+        "aide": "Un texte qui n'existe nulle part avant qu'on l'écrive. "
+                "L'atelier en rédige un BROUILLON, à partir du dossier "
+                "déposé, de vos propres documents et du fonds documentaire — "
+                "et il marque « À COMPLÉTER » partout où il lui manque un "
+                "fait. Ce brouillon n'est ni relu ni signé : c'est une "
+                "matière première, pas une pièce.",
     },
     "obtenir": {
         "nom": "À obtenir",
@@ -2352,12 +2367,28 @@ VOIES = {
     },
     "completer": {
         "nom": "À compléter",
+        # MÊME CORRECTION, ET MÊME RÉSERVE. L'atelier dresse le CADRE — les
+        # postes, les lignes, ce que chacune engage — et laisse vides les
+        # montants et les quantités. C'est écrit dans la consigne de rédaction
+        # depuis le début ; l'écran, lui, disait « il ne le complète pas à
+        # votre place », ce qui se lisait comme « il n'y touche pas ».
         "aide": "Un imprimé dont vous complétez vous-même les valeurs — "
-                "prix, méthode, engagement — à partir de votre chiffrage de "
-                "cette consultation. Ce module dit ce qu'il doit contenir ; "
-                "il ne le complète pas à votre place.",
+                "prix, quantités, engagement — à partir de votre chiffrage "
+                "de cette consultation. L'atelier en dresse le CADRE et "
+                "laisse CHAQUE montant vide : aucun chiffre ne sortira "
+                "d'ici, et c'est délibéré.",
     },
 }
+
+#: LES VOIES QUE L'ATELIER SAIT METTRE EN BROUILLON.
+#:
+#: DÉCLARÉE ICI PARCE QUE TROIS ENDROITS EN DÉPENDENT :
+#: `ao_redaction.pieces_redigeables` décide qui part au modèle, `remplir()`
+#: pose le drapeau que la carte lit, et la carte décide quoi promettre. Trois
+#: copies du même couple de chaînes auraient divergé, et la divergence se
+#: serait vue comme un bouton qui n'écrit rien — ou pire, comme une carte qui
+#: promet un brouillon que le moteur refuse.
+VOIES_REDIGEABLES = ("rediger", "completer")
 
 
 def voie(cle_piece, nature):
@@ -4637,6 +4668,11 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False,
             # silencieusement.
             "glossaire": "piece_%s" % dossier,
             "voie": v, "voie_nom": VOIES[v]["nom"], "voie_aide": VOIES[v]["aide"],
+            # CE QUE L'ATELIER SAIT ÉCRIRE, DIT SUR LA PIÈCE. La carte ne doit
+            # pas refaire le test : elle se tromperait le jour où une voie
+            # entre ou sort de la liste, et promettrait un brouillon que le
+            # moteur refuserait de produire.
+            "redigeable": v in VOIES_REDIGEABLES,
             # CE QUI EST SANS OBJET LE DIT, ET DIT POURQUOI. Une pièce
             # conditionnelle muette ressemblerait à une pièce oubliée.
             "sans_objet": sans_objet,
