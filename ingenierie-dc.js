@@ -6818,16 +6818,44 @@ function messageDelai(e, defaut) {
           + "</p></div>";
         return;
       }
-      /* LA LISTE DÉROULANTE ET LA LISTE DÉTAILLÉE DISENT LA MÊME CHOSE. La
-         déroulante sert à parcourir vite quand il y en a quinze ; le détail
-         sert à lire le motif et à défaire. Les tenir séparément aurait
-         garanti qu'elles divergent. */
-      h += '<select id="ig-ao-grp-' + g[0] + '" aria-label="' + esc(g[1]) + '">'
-        + '<option value="">' + lignes.length + " pièce(s) — parcourir…</option>";
+      /* ── LA DÉROULANTE CHOISIT, ET UN BOUTON AGIT ────────────────────
+         CE QU'ELLE FAISAIT, ET POURQUOI ÇA CHANGE. Elle ne servait qu'à
+         ATTEINDRE une pièce plus bas dans la page, jamais à la choisir, et
+         c'était écrit ici en toutes lettres : « un sélecteur qui modifierait
+         la sélection ferait de chaque parcours de la liste une décision ».
+         Le souci était juste — dérouler quinze noms pour voir ce qu'ils sont
+         ne doit pas engager le dossier.
+
+         CE QUI LE RÉSOUT SANS LE NIER : la déroulante CHOISIT, un bouton
+         AGIT. Parcourir reste gratuit ; il faut un second geste, nommé, pour
+         que le dossier change. Et le bouton dit ce qu'il va faire, sur la
+         pièce nommée — « ＋ Ajouter : Convention de groupement » — au lieu
+         d'un « Appliquer » qui n'engage que celui qui se souvient de ce
+         qu'il vient de sélectionner.
+
+         LE GESTE EST PORTÉ PAR L'OPTION, PAS PAR LE GROUPE. « on: » ou
+         « off: » vient de `x.retenue`, ligne par ligne : déduire le geste du
+         titre du groupe marcherait tant qu'un groupe ne mêle pas les deux, et
+         se tromperait en silence le jour où il en mêle.
+
+         LA LISTE DÉTAILLÉE RESTE, et ses boutons aussi. C'est là qu'on lit le
+         motif et la citation ; la déroulante sert quand on sait déjà ce qu'on
+         cherche parmi quinze. Les deux rendent le MÊME geste au même moteur. */
+      h += '<div class="ig-ao-ch">'
+        + '<select id="ig-ao-grp-' + g[0] + '" data-sel-liste="' + g[0] + '"'
+        + ' aria-label="Choisir une pièce — ' + esc(g[1]) + '">'
+        + '<option value="">' + lignes.length + " pièce(s) — choisir…</option>";
       lignes.forEach(function (x) {
-        h += '<option value="' + esc(x.cle) + '">' + esc(x.nom) + "</option>";
+        h += '<option value="' + (x.retenue ? "off:" : "on:") + esc(x.cle)
+          + '">' + esc(x.nom) + "</option>";
       });
-      h += "</select>" + '<ul class="ig-ao-sl">';
+      h += "</select>"
+        + '<button type="button" class="btn btn-s" data-sel-agir="' + g[0]
+        + '" disabled>Choisissez une pièce…</button>'
+        + '<button type="button" class="btn btn-s" data-sel-voir="' + g[0]
+        + '" disabled>Aller à la pièce</button>'
+        + "</div>"
+        + '<ul class="ig-ao-sl">';
       lignes.forEach(function (x) {
         var cls = x.pourquoi === "citee" ? " p-citee"
                 : x.pourquoi === "socle" ? " p-socle"
@@ -6891,19 +6919,57 @@ function messageDelai(e, defaut) {
         aoSelectionRecalculer();
       });
     });
-    /* LA DÉROULANTE MÈNE À LA PIÈCE dans le dossier rempli, en dessous : elle
-       sert à ATTEINDRE, pas à choisir. Un sélecteur qui modifierait la
-       sélection ferait de chaque parcours de la liste une décision. */
-    ["candidature", "offre", "__non"].forEach(function (g) {
-      var sl = $("#ig-ao-grp-" + g, z);
-      if (!sl) return;
-      sl.addEventListener("change", function () {
-        var cible = document.getElementById("ig-ao-p-" + sl.value);
-        if (cible && cible.scrollIntoView) {
-          cible.scrollIntoView({ block: "center" });
-        }
-        sl.value = "";
-      });
+    /* ── CHOISIR PUIS AGIR, EN DEUX GESTES ────────────────────────────
+       Le premier ne change rien — on peut dérouler les quinze noms sans
+       engager le dossier. Le second est nommé, et il dit sur QUELLE pièce il
+       porte avant qu'on le presse. */
+    z.querySelectorAll("[data-sel-liste]").forEach(function (sl) {
+      var g = sl.dataset.selListe;
+      var agir = z.querySelector('[data-sel-agir="' + g + '"]');
+      var voir = z.querySelector('[data-sel-voir="' + g + '"]');
+
+      function dit() {
+        var v = sl.value;
+        var nom = sl.options[sl.selectedIndex]
+          ? sl.options[sl.selectedIndex].textContent : "";
+        if (voir) voir.disabled = !v;
+        if (!agir) return;
+        agir.disabled = !v;
+        agir.textContent = !v ? "Choisissez une pièce…"
+          : (v.indexOf("on:") === 0 ? "＋ Ajouter : " : "− Retirer : ") + nom;
+      }
+      sl.addEventListener("change", dit);
+      dit();
+
+      if (agir) {
+        agir.addEventListener("click", function () {
+          var v = sl.value;
+          if (!v) return;
+          var cle = v.slice(v.indexOf(":") + 1);
+          /* LE MÊME COUPLE QUE LES BOUTONS DE LA LISTE DÉTAILLÉE, et c'est
+             délibéré : deux façons d'écrire le même geste finiraient par ne
+             plus dire la même chose. */
+          if (v.indexOf("on:") === 0) {
+            delete AO_SEL_ECARTEES[cle];
+            AO_SEL_AJOUTS[cle] = 1;
+          } else {
+            delete AO_SEL_AJOUTS[cle];
+            AO_SEL_ECARTEES[cle] = 1;
+          }
+          aoSelectionRecalculer();
+        });
+      }
+      if (voir) {
+        voir.addEventListener("click", function () {
+          var v = sl.value;
+          if (!v) return;
+          var cible = document.getElementById(
+            "ig-ao-p-" + v.slice(v.indexOf(":") + 1));
+          if (cible && cible.scrollIntoView) {
+            cible.scrollIntoView({ block: "center" });
+          }
+        });
+      }
     });
   }
 

@@ -497,16 +497,33 @@ def test_la_selection_n_ECRIT_ni_ne_LIT_dans_le_dom_du_depot():
 def test_chaque_groupe_de_droite_porte_SA_liste_deroulante():
     """Règle 4 : « une liste de menu déroulant » par dossier. Trois groupes,
     trois listes — et trois identifiants qui ne peuvent pas se confondre,
-    puisqu'ils dérivent de la clé du groupe."""
+    puisqu'ils dérivent de la clé du groupe.
+
+    CETTE RÈGLE A ÉTÉ REPRISE. Sa première version cherchait le préfixe
+    d'identifiant dans le corps de `aoSelectionBrancher` : elle disait donc
+    « rendues et branchées » en comparant deux chaînes de caractères, et elle
+    serait tombée pour un simple changement de sélecteur — ce qui est arrivé
+    le jour où la déroulante a cessé d'être un moyen d'atteindre pour devenir
+    un moyen de choisir. Elle vérifie maintenant que chaque groupe porte SA
+    liste, avec un identifiant dérivé ET une accroche que le brancheur
+    retrouve, quelle que soit la forme de cette accroche.
+    """
     corps = _fonction("aoSelectionRendre")
+    assert "<select" in corps, "aucune liste déroulante n'est rendue"
     prefixes = re.findall(r"""id=["']([A-Za-z0-9_-]+-)["']\s*\+""", corps)
     assert prefixes, \
         "les listes déroulantes des groupes n'ont pas d'identifiant dérivé"
-    assert "<select" in corps, "aucune liste déroulante n'est rendue"
+
+    # L'ACCROCHE DU BRANCHEUR EST CELLE QUE LE RENDU POSE. On prend les
+    # attributs `data-sel-*` écrits par le rendu et l'on exige que le
+    # brancheur les lise : un rendu qui pose une accroche que personne ne
+    # branche produit une liste morte, et c'est exactement ce qu'on cherche.
     branche = _fonction("aoSelectionBrancher")
-    for p in set(prefixes):
-        assert p in branche, \
-            "les listes « %s » sont rendues mais jamais branchées" % p
+    poses = set(re.findall(r"(data-sel-[a-z]+)=", corps))
+    assert poses, "le rendu ne pose aucune accroche de sélection"
+    orphelines = [a for a in poses if a not in branche]
+    assert not orphelines, (
+        "ces accroches sont rendues et jamais branchées : %s" % orphelines)
 
 
 # ==========================================================================
