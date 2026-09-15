@@ -156,6 +156,11 @@ VISIBILITIES = ("public", "internal")
 # propose les domaines par groupes plutôt qu'en une seule rangée d'étiquettes
 # devenue illisible — et qui sépare les ENTREPRISES du reste, car classer un
 # document par client relève d'une autre intention que le classer par sujet.
+# LA FAMILLE DES PIÈCES DE LA MAISON, nommée AVANT la table parce que la table
+# s'en sert. C'est la seule famille que le remplissage d'un dossier de réponse
+# accepte de lire : tout le reste du fonds décrit le monde, pas CONSEILPREV.
+FAMILLE_CABINET = "CONSEILPREV — pièces du cabinet"
+
 THEME_FAMILLES = [
     ("Normes & réglementations", [
         # « Normes IEC » regroupe les normes CEI hors 62443 (61850, 62351,
@@ -319,6 +324,34 @@ THEME_FAMILLES = [
         "Renault",
         "SGP",
         "Technip",
+    ]),
+    # ── LES PIÈCES DE CONSEILPREV ELLE-MÊME ────────────────────────────────
+    # Famille à part, et la seule que le remplissage des dossiers de réponse
+    # accepte de lire (voir `ao_extraction.THEMES_CABINET`).
+    #
+    # POURQUOI ELLE EXISTE. Le reste de cette base est un FONDS DOCUMENTAIRE :
+    # des normes, des guides ANSSI, des CCTP d'autres consultations, des
+    # références clientes nommées (EDF, Alstom, Renault…). Y chercher le SIRET
+    # ou le chiffre d'affaires DU CANDIDAT ferait remonter celui d'un autre —
+    # exactement le défaut que la séparation acheteur/cabinet a écarté du côté
+    # des dépôts. Le fonds ne portait aucune marque disant « ceci est une pièce
+    # de la maison » : cette famille EST cette marque, posée à la main, une
+    # fois, par l'administrateur qui range le document.
+    #
+    # LE DÉCOUPAGE SUIT LES PIÈCES D'UN DOSSIER DE CANDIDATURE, pas les sujets
+    # techniques : c'est dans cet ordre qu'on cherche une attestation quand un
+    # avis de marché court.
+    (FAMILLE_CABINET, [
+        "Cabinet / Identité & existence légale",
+        "Cabinet / Assurances",
+        "Cabinet / Régularité fiscale & sociale",
+        "Cabinet / Comptes, bilans & chiffre d'affaires",
+        "Cabinet / Références & attestations de bonne exécution",
+        "Cabinet / Moyens humains, CV & organigramme",
+        "Cabinet / Moyens matériels & techniques",
+        "Cabinet / Qualifications, certifications & QSE",
+        "Cabinet / Mémoires techniques & notes méthodologiques",
+        "Cabinet / Pouvoirs, délégations & groupement",
     ]),
     ("Divers", [
         "Veille",

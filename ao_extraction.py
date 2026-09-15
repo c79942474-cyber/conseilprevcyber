@@ -144,6 +144,44 @@ SOURCES_INTERDITES = ("declaration",)
 STATUTS_CIBLES = ("a_saisir", "non_trouve", "invalide")
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE FONDS DOCUMENTAIRE — CE QUE LA BASE DE CONNAISSANCE APPORTE AU REMPLISSAGE
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# CE QUE J'AVAIS RÉPONDU, ET QUI ÉTAIT FAUX. « Le RAG contient les CCTP et
+# dossiers d'AUTRES consultations ; le brancher sur le remplissage importerait
+# les valeurs d'un autre marché. » La base contient AUSSI — et c'est ce qui
+# manquait à ma lecture — les pièces de CONSEILPREV elle-même : Kbis, bilans,
+# attestations, mémoires, références. Les laisser dehors, c'était retaper à la
+# main ce que la maison a déjà déposé une fois.
+#
+# CE QUI RESTE VRAI, ET QUI COMMANDE LA FORME DE CE BRANCHEMENT. La base
+# contient les deux. Normes, guides ANSSI, CCTP d'autres marchés et références
+# clientes nommées (EDF, Alstom, Renault…) y voisinent avec nos propres
+# pièces, et AUCUN champ ne disait lesquelles sont les nôtres. Chercher le
+# SIRET du candidat dans un fonds indifférencié ferait remonter celui d'un
+# client — le même défaut que le SIRET de l'acheteur, par une autre porte.
+#
+# LA PORTE EST DONC NOMMÉE, ET UNE SEULE. Seuls les thèmes de la famille
+# `rag_store.FAMILLE_CABINET` entrent ici ; le rangement est un geste humain,
+# fait une fois, dans la console. Un document qu'on n'a pas rangé là n'est pas
+# lu — c'est un manque visible, pas une fuite silencieuse.
+#
+# LE FONDS N'ENTRE QUE DU CÔTÉ CABINET. Une rubrique qui décrit LA
+# CONSULTATION continue de ne se lire que dans les pièces de l'acheteur : le
+# fonds ne sait rien de ce marché-ci, et ce qu'il en dirait viendrait d'un
+# autre.
+FONDS_K = reglages.entier("AO_FONDS_EXTRAITS", 12, mini=1)
+FONDS_CARACTERES = reglages.entier("AO_FONDS_CARACTERES", 14000, mini=500)
+
+# LE RANG DU FONDS : APRÈS CE QU'ON A DÉPOSÉ POUR CETTE CONSULTATION-CI.
+# Un Kbis glissé dans la zone du cabinet ce matin est plus à jour que celui qui
+# dort dans la base depuis deux ans ; quand les deux portent une valeur, c'est
+# le déposé qui doit être lu en premier. 500 pour le déposé, 600 pour le fonds,
+# 900 pour ce que personne n'a su nommer.
+RANG_FONDS = 600
+
+
 class ExtractionError(Exception):
     """Un refus nommé, avec son code HTTP — même forme que `ao_redaction`."""
 
@@ -214,6 +252,117 @@ def corpus_du_cote(corp, cote):
         return corp
     pieces = [x for x in (corp or {}).get("pieces") or []
               if x.get("cote") == cote]
+    return dict(corp or {}, pieces=pieces,
+                octets=sum(len(x.get("texte") or "") for x in pieces))
+
+
+def chercher_au_fonds(cible, rag=None):
+    """LES PIÈCES DE LA MAISON QUI DORMENT DANS LA BASE DE CONNAISSANCE.
+
+    Rend des pièces de corpus, prêtes à rejoindre celles du dépôt — ou une
+    liste vide. LA SEULE FONCTION IMPURE DE CE MODULE, et c'est délibéré :
+    tout le reste s'éprouve sans base ni modèle, et y glisser une recherche
+    aurait échangé cette garantie contre une commodité.
+
+    TROIS PORTES, ET IL FAUT LES TROIS.
+
+    1. LE MAGASIN EST INJECTÉ, JAMAIS DEVINÉ. Sans lui, on ne cherche pas, et
+       le remplissage continue exactement comme avant — le fonds est un
+       APPORT, jamais une dépendance.
+
+    2. LE CÔTÉ CABINET, ET LUI SEUL. Une rubrique qui décrit la CONSULTATION
+       ne se lit que dans les pièces de l'acheteur : le fonds ne sait rien de
+       ce marché-ci, et ce qu'il en dirait viendrait d'un autre. C'est le même
+       arbitrage que `SOURCES_DU_CANDIDAT`, appliqué à l'autre bout du fil.
+
+    3. LA FAMILLE NOMMÉE. Le fonds mêle nos pièces à des normes, des guides
+       ANSSI, des CCTP d'autres consultations et des références clientes
+       nommées. Sans cette borne, « chiffre d'affaires » ramènerait celui
+       d'EDF. Un document non rangé dans la famille n'est pas lu : c'est un
+       manque VISIBLE — la rubrique reste à saisir — et non une fuite muette.
+
+    `public_only=False`, ET C'EST L'INVERSE DE LA RÉDACTION. `chercher_socle`
+    impose `True` parce qu'un brouillon RECOPIE ses extraits et part chez
+    l'acheteur : un document interne recopié là serait une fuite. Ici, rien ne
+    part : on lit une valeur — un SIRET, un capital — pour la reporter dans
+    NOTRE propre formulaire, derrière `@admin_required`. Exiger `public_only`
+    aurait rendu illisible précisément ce qu'on range en interne : le Kbis, les
+    bilans, les attestations. La règle serait restée verte et l'apport nul.
+
+    UNE BASE INJOIGNABLE NE DOIT PAS EMPÊCHER DE REMPLIR : on rend une liste
+    vide et le dossier se remplit avec ce qui a été déposé.
+    """
+    if rag is None or (cible or {}).get("corpus_cote") != "cabinet":
+        return []
+    try:
+        import rag_store
+        themes = rag_store.themes_famille(rag_store.FAMILLE_CABINET)
+    except Exception:                                    # pragma: no cover
+        _log.exception("vocabulaire du fonds indisponible")
+        return []
+    # UNE FAMILLE VIDE NE VAUT PAS « TOUTE LA BASE ». `rag.search(theme=None)`
+    # cherche partout : un renommage de la famille ferait donc passer, en
+    # silence, d'une recherche bornée à une recherche totale. On préfère ne
+    # rien lire.
+    if not themes:
+        return []
+    try:
+        hits = rag.search(requete(cible), k=FONDS_K, public_only=False,
+                          theme=themes)
+    except Exception:                                    # pragma: no cover
+        _log.exception("fonds indisponible pour le remplissage")
+        return []
+
+    # UN DOCUMENT, UNE PIÈCE. La recherche rend des fragments ; les recoller
+    # par document donne au modèle un texte suivi, et surtout donne à
+    # `verifier_citation` une meule où la citation se retrouve d'un seul
+    # tenant — un extrait coupé en deux fragments rejetterait une citation
+    # pourtant exacte.
+    par_doc, budget = {}, FONDS_CARACTERES
+    for h in (hits or []):
+        contenu = str((h or {}).get("content") or "").strip()
+        if not contenu or budget <= 0:
+            continue
+        titre = str(h.get("title") or "").strip() or "Document du cabinet"
+        morceau = contenu[:budget]
+        budget -= len(morceau)
+        d = par_doc.setdefault(titre, {"textes": [], "theme": h.get("theme") or ""})
+        if morceau not in d["textes"]:
+            d["textes"].append(morceau)
+    return [{"fichier": titre,
+             # LE SIGLE DIT D'OÙ ÇA VIENT. Une valeur reportée depuis le fonds
+             # et une valeur lue dans une pièce déposée ce matin ne se
+             # relisent pas de la même façon.
+             "sigle": "fonds",
+             "texte": "\n\n".join(d["textes"]),
+             "rang": RANG_FONDS,
+             "non_identifie": False,
+             "cote": "cabinet",
+             "fonds": True,
+             "theme": d["theme"],
+             "tronque": False}
+            for titre, d in par_doc.items()]
+
+
+def avec_le_fonds(corp, pieces_fonds):
+    """Le corpus d'une cible, augmenté du fonds — SANS TOUCHER À L'ORDRE.
+
+    Le tri est refait sur le rang : les pièces déposées pour CETTE
+    consultation restent devant celles qui dormaient dans la base.
+
+    LA SECONDE SERRURE, ET ELLE N'EST PAS UNE CEINTURE DE PLUS. La borne du
+    côté vit dans `chercher_au_fonds` ; ici on la REVÉRIFIE sur ce qui est
+    présenté. C'est la batterie de mutations qui l'a exigée : tant que rien ne
+    lisait le `cote` porté par une pièce du fonds, ce champ était décoratif —
+    on pouvait le mettre à « consultation » sans qu'aucune règle bronche. Un
+    champ décoratif est un champ qui ment le jour où un appelant change.
+    """
+    admises = [x for x in (pieces_fonds or [])
+               if x.get("fonds") and x.get("cote") == "cabinet"]
+    if not admises:
+        return corp
+    pieces = list((corp or {}).get("pieces") or []) + admises
+    pieces.sort(key=lambda x: (x.get("rang", 950), x.get("fichier") or ""))
     return dict(corp or {}, pieces=pieces,
                 octets=sum(len(x.get("texte") or "") for x in pieces))
 
@@ -454,16 +603,30 @@ def demande(cible, corp):
         "- `%s` — %s%s" % (r["cle"], r["libelle"],
                            ("  (%s)" % r["aide"]) if r.get("aide") else "")
         for r in cible["rubriques"])
+    def _marque(p):
+        if p.get("fonds"):
+            # LE FONDS SE NOMME DANS LE PROMPT. Une valeur lue dans un
+            # document de la base ne se relit pas comme une valeur lue dans
+            # une pièce déposée pour cette consultation-ci : celle-ci a été
+            # choisie ce matin, celle-là dort peut-être depuis deux ans.
+            return " — BASE DE CONNAISSANCE DU CABINET"
+        return " — FICHIER NON IDENTIFIÉ" if p.get("non_identifie") else ""
+
     pieces = "\n\n".join(
         "───── %s (%s)%s ─────\n%s"
-        % (p["sigle"] or p["fichier"], p["fichier"],
-           " — FICHIER NON IDENTIFIÉ" if p.get("non_identifie") else "",
-           p["texte"])
+        % (p["sigle"] or p["fichier"], p["fichier"], _marque(p), p["texte"])
         for p in corp.get("pieces", []))
+    # L'INTITULÉ SUIT LE CÔTÉ, et c'est un correctif : « Pièces déposées par
+    # l'acheteur » était FAUX pour une cible du côté cabinet, où l'on ne
+    # donne à lire que NOS documents. Le modèle lisait donc nos attestations
+    # sous une étiquette qui les disait écrites par l'acheteur.
+    entete = ("Documents du cabinet (les nôtres)"
+              if (cible or {}).get("corpus_cote") == "cabinet"
+              else "Pièces déposées par l'acheteur")
     return ("Pièce de réponse à remplir : « %s ».\n\n"
             "Rubriques à trouver :\n%s\n\n"
-            "Pièces déposées par l'acheteur :\n\n%s"
-            % (cible["nom"], rub, pieces))
+            "%s :\n\n%s"
+            % (cible["nom"], rub, entete, pieces))
 
 
 def _client():
@@ -557,7 +720,7 @@ def extraire(cible, corp, client=None):
 
 
 def lire_le_dossier(remplissage, documents, analyse=None, client=None,
-                    executeur=None):
+                    executeur=None, rag=None):
     """Toutes les pièces, EN ÉVENTAIL : le temps mur est celui de la plus lente.
 
     Sept pièces enchaînées, c'est la somme des sept attentes. Lancées ensemble,
@@ -575,14 +738,13 @@ def lire_le_dossier(remplissage, documents, analyse=None, client=None,
     liste = cibles(remplissage)
     if not liste:
         return {"extraits": {}, "rejets": [], "pieces": [], "echecs": [],
-                "corpus": {"octets": corp["octets"], "tronques": corp["tronques"]}}
+                "corpus": {"octets": corp["octets"],
+                           "tronques": corp["tronques"], "fonds": []}}
 
-    def un(cible):
+    def un(paire):
+        cible, corp_cible = paire
         try:
-            return (cible,
-                    extraire(cible,
-                             corpus_du_cote(corp, cible.get("corpus_cote")),
-                             client=client), None)
+            return (cible, extraire(cible, corp_cible, client=client), None)
         except ExtractionError as e:
             return (cible, None, {"cle": cible["cle"], "nom": cible["nom"],
                                   "code": e.code, "dit": e.detail})
@@ -591,19 +753,38 @@ def lire_le_dossier(remplissage, documents, analyse=None, client=None,
             return (cible, None, {"cle": cible["cle"], "nom": cible["nom"],
                                   "code": "inattendu", "dit": str(e)[:200]})
 
+    # LE CORPUS DE CHAQUE CIBLE, CALCULÉ UNE FOIS ET AVANT L'ÉVENTAIL.
+    #
+    # POURQUOI PAS DANS `un`, où ce serait parallèle. Parce que le filtre du
+    # non-lieu, juste en dessous, DÉCIDE sur ce corpus-là : une cible que le
+    # fonds alimente ne doit pas être écartée pour cause de corpus vide. Le
+    # faire après l'aurait écartée avant d'avoir cherché. La recherche au
+    # fonds est une requête de base de données — quelques millisecondes — et
+    # c'est l'appel de modèle qui reste en éventail.
+    prepares = [(c, avec_le_fonds(corpus_du_cote(corp, c.get("corpus_cote")),
+                                  chercher_au_fonds(c, rag)))
+                for c in liste]
+
     # UNE CIBLE SANS CORPUS N'EST PAS UN ÉCHEC, C'EST UN NON-LIEU. Les
     # rubriques de la fiche ne se cherchent que dans les documents du cabinet ;
-    # quand on n'en a déposé aucun, il n'y a rien à lire — et lancer l'appel
-    # pour récolter un « sans_dossier » par pièce remplirait le bilan d'échecs
-    # qui ne disent rien, en consommant des jetons pour rien.
-    liste = [c for c in liste
-             if (corpus_du_cote(corp, c.get("corpus_cote")) or {}).get("pieces")]
-    if not liste:
+    # quand on n'en a déposé aucun ET que le fonds ne rend rien, il n'y a rien
+    # à lire — et lancer l'appel pour récolter un « sans_dossier » par pièce
+    # remplirait le bilan d'échecs qui ne disent rien, en consommant des
+    # jetons pour rien.
+    prepares = [(c, cc) for c, cc in prepares if (cc or {}).get("pieces")]
+    if not prepares:
         return {"extraits": {}, "rejets": [], "pieces": [], "echecs": [],
                 "corpus": {"octets": corp["octets"],
-                           "tronques": corp["tronques"]}}
+                           "tronques": corp["tronques"], "fonds": []}}
 
-    resultats = list(executeur(un, liste)) if executeur else [un(c) for c in liste]
+    # CE QUE LE FONDS A RÉELLEMENT APPORTÉ, compté sur les pièces admises et
+    # non sur le fait qu'un magasin ait été joint. Un branchement qui ne
+    # rapporte rien doit se voir dans le bilan, pas se deviner.
+    du_fonds = sorted({x.get("fichier") for _c, cc in prepares
+                       for x in (cc.get("pieces") or []) if x.get("fonds")})
+
+    resultats = (list(executeur(un, prepares)) if executeur
+                 else [un(x) for x in prepares])
 
     extraits, rejets, pieces, echecs = {}, [], [], []
     for _cible, r, echec in resultats:
@@ -616,4 +797,5 @@ def lire_le_dossier(remplissage, documents, analyse=None, client=None,
                                          "retenus", "jetons") if k in r})
     return {"extraits": extraits, "rejets": rejets, "pieces": pieces,
             "echecs": echecs,
-            "corpus": {"octets": corp["octets"], "tronques": corp["tronques"]}}
+            "corpus": {"octets": corp["octets"], "tronques": corp["tronques"],
+                       "fonds": du_fonds}}
