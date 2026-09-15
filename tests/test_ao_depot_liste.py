@@ -14,6 +14,9 @@ relisait le FileList brut, ôter une pièce de la liste ne l'ôterait pas de ce 
 part à l'analyse — une case vidée à l'écran, pleine sur le fil. La règle la plus
 lourde vérifie donc exactement cela.
 """
+import html
+import json
+import subprocess
 import io
 import os
 import re
@@ -21,6 +24,8 @@ import re
 ICI = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 JS = io.open(os.path.join(ICI, "ingenierie-dc.js"), encoding="utf-8").read()
 
+
+from test_ao_formulaires import _js_source                 # noqa: E402
 
 def _fn(nom):
     """Le corps d'une fonction JS, de `function nom(` au `function ` suivant.
@@ -64,16 +69,60 @@ def _fn_avec_aidantes(nom):
     return "\n".join(vu)
 
 
+def _rendu_file(fichiers):
+    """Le balisage que `aoEnAttenteRendre` produit RÉELLEMENT sur une file.
+
+    `fichiers` : une liste de (nom, côté). Les tailles sont fixées ici — ce
+    qu'on mesure est la structure, pas un poids.
+    """
+    file_js = json.dumps([{"nom": n, "cote": c, "file": {"size": 100000}}
+                          for n, c in fichiers])
+    prog = (_js_source("esc", "aoOctets", "aoEnAttenteRendre")
+            + "\nfunction fr(n){ return String(Math.round(Number(n)||0)); }"
+            + "\nvar AO_TRANSPORT_MAX = 4000000;"
+            + "\nvar AO_EN_ATTENTE = " + file_js + ";"
+            + "\nvar AO_COTES = " + _cotes_js() + ";"
+            + "\nvar zone = { innerHTML: '' };"
+            + "\nfunction $(s){ return s === '#ig-ao-liste' ? zone :"
+              " { addEventListener: function(){}, value: '0' }; }"
+            + "\naoEnAttenteRendre();"
+            + "\nprocess.stdout.write(zone.innerHTML);\n")
+    out = subprocess.run(["node"], input=prog, capture_output=True, text=True,
+                         timeout=60)
+    assert out.returncode == 0, out.stderr[-2000:]
+    return html.unescape(out.stdout)
+
+
+def _cotes_js():
+    """LA TABLE DES CÔTÉS, LUE DANS LE SCRIPT et non recopiée ici. La recopier
+    ferait passer la règle le jour où le script en déclarerait un troisième
+    que la page n'afficherait pas."""
+    m = re.search(r"var AO_COTES = (\[.*?\]);", JS, re.S)
+    assert m, "la table des côtés a disparu du script"
+    return m.group(1)
+
+
 def test_le_depot_offre_une_liste_deroulante_avec_retrait():
     """Le rendu des pièces choisies est une VRAIE liste déroulante (`<select>`),
     et il porte le bouton de retrait. Un `<ul>` mis à la place ferait tomber la
-    première assertion ; un rendu sans bouton, la seconde."""
-    corps = _fn("aoEnAttenteRendre")
-    assert '<select id="ig-ao-sel"' in corps, (
-        "le dépôt ne rend pas une liste déroulante des pièces choisies")
-    assert 'id="ig-ao-ret"' in corps, (
+    première assertion ; un rendu sans bouton, la seconde.
+
+    CETTE RÈGLE EXÉCUTE LE RENDU DEPUIS QUE LES LISTES SONT DEUX. Elle
+    cherchait `<select id="ig-ao-sel"` dans le SOURCE ; le jour où les
+    identifiants sont devenus une donnée de la table des côtés — une liste
+    par zone de dépôt —, la chaîne a disparu du fichier alors que la liste
+    déroulante, elle, s'affiche toujours. Lire le balisage produit mesure la
+    propriété que la règle nomme ; lire le source mesurait une façon de
+    l'écrire.
+    """
+    h = _rendu_file([("01_RC.pdf", "consultation")])
+    assert "<select " in h and "</select>" in h, (
+        "le dépôt ne rend pas une liste déroulante des pièces choisies : %s"
+        % h[:200])
+    assert "<option " in h, "la liste déroulante est vide"
+    assert re.search(r"<button[^>]*>Retirer", h), (
         "la liste n'offre pas de bouton pour retirer une pièce")
-    assert "AO_EN_ATTENTE.splice(" in corps, (
+    assert "AO_EN_ATTENTE.splice(" in _fn("aoEnAttenteRendre"), (
         "le retrait n'ôte pas la pièce de la file : il ne serait que cosmétique")
 
 
@@ -133,3 +182,125 @@ def test_la_file_ne_SURVIT_PAS_a_un_rechargement():
         "d'une consultation à l'autre")
     assert "ao-en-attente" not in JS, (
         "une clé de stockage local pour la file d'attente est apparue")
+
+
+# ==========================================================================
+# DEUX LISTES, UNE SOUS CHAQUE ZONE
+# ==========================================================================
+# POURQUOI SÉPARER. La file était une seule liste où chaque ligne portait
+# « [consultation] » ou « [cabinet] » en tête. Ce préfixe faisait lire à l'œil,
+# ligne par ligne, ce que la mise en page savait déjà : les deux zones de
+# dépôt sont juste au-dessus. Et le retrait était ambigu — un seul bouton sur
+# une liste mêlée retirait aussi bien un CCTP pendant qu'on regardait ses
+# propres attestations.
+#
+# CE QUI NE SE SÉPARE PAS : LE POIDS. La limite de transport porte sur l'envoi
+# ENTIER. Deux totaux par côté laisseraient lire « 1,8 Mo » puis « 1,9 Mo » et
+# conclure qu'on passe — pour se faire refuser.
+
+def test_chaque_cote_a_SA_liste_et_SON_bouton():
+    """Deux zones au-dessus, deux listes en-dessous : c'est la structure qui
+    dit le côté, plus un préfixe à lire sur chaque ligne."""
+    h = _rendu_file([("01_RC.pdf", "consultation"), ("02_CCTP.pdf", "consultation"),
+                     ("attestation-rc-pro.pdf", "cabinet")])
+    selects = re.findall(r'<select id="([^"]+)"', h)
+    assert len(selects) == 2, selects
+    boutons = re.findall(r'<button[^>]*id="([^"]+)"[^>]*>Retirer', h)
+    assert len(boutons) == 2, boutons
+    assert len(set(selects)) == 2 and len(set(boutons)) == 2, (
+        "deux contrôles partagent un identifiant : le second ne serait jamais "
+        "atteint")
+
+
+def test_le_prefixe_de_cote_a_disparu_des_lignes():
+    """C'est le bénéfice mesurable de la séparation : la ligne ne porte plus
+    que le nom du fichier et son poids."""
+    h = _rendu_file([("01_RC.pdf", "consultation"),
+                     ("attestation-rc-pro.pdf", "cabinet")])
+    for txt in re.findall(r"<option[^>]*>(.*?)</option>", h):
+        assert "[consultation]" not in txt and "[cabinet]" not in txt, txt
+
+
+def test_chaque_liste_ne_porte_QUE_les_fichiers_de_son_cote():
+    """Le point dur. Une liste qui déborderait sur l'autre côté ferait retirer
+    le mauvais fichier — et c'est précisément ce que la séparation devait
+    empêcher."""
+    h = _rendu_file([("01_RC.pdf", "consultation"), ("02_CCTP.pdf", "consultation"),
+                     ("attestation-rc-pro.pdf", "cabinet"),
+                     ("bilan-2024.pdf", "cabinet")])
+    blocs = re.findall(r'<select id="([^"]+)"[^>]*>(.*?)</select>', h, re.S)
+    assert len(blocs) == 2
+    par_id = {i: re.findall(r"<option[^>]*>(.*?) ·", b) for i, b in blocs}
+    consult = [v for k, v in par_id.items() if "cab" not in k][0]
+    cabinet = [v for k, v in par_id.items() if "cab" in k][0]
+    assert consult == ["01_RC.pdf", "02_CCTP.pdf"], consult
+    assert cabinet == ["attestation-rc-pro.pdf", "bilan-2024.pdf"], cabinet
+
+
+def test_l_option_porte_l_indice_REEL_de_la_file():
+    """LE PIÈGE DE LA SÉPARATION, ET LE SEUL QUI COÛTE DES DONNÉES.
+    Renuméroter les options par liste ferait retirer le fichier d'indice 0 de
+    la file — un CCTP — en croyant retirer le premier document du cabinet.
+    Les valeurs sont donc les indices de `AO_EN_ATTENTE`, pas des rangs
+    locaux."""
+    h = _rendu_file([("01_RC.pdf", "consultation"),
+                     ("attestation-rc-pro.pdf", "cabinet"),
+                     ("02_CCTP.pdf", "consultation"),
+                     ("bilan-2024.pdf", "cabinet")])
+    vus = {}
+    for bloc_id, bloc in re.findall(r'<select id="([^"]+)"[^>]*>(.*?)</select>',
+                                    h, re.S):
+        for v, nom in re.findall(r'<option value="(\d+)">(.*?) ·', bloc):
+            vus[nom] = int(v)
+    assert vus == {"01_RC.pdf": 0, "attestation-rc-pro.pdf": 1,
+                   "02_CCTP.pdf": 2, "bilan-2024.pdf": 3}, vus
+
+
+def test_une_liste_vide_ne_s_affiche_pas():
+    """Un sélecteur sans option et un bouton qui ne retire rien se lisent
+    comme une panne."""
+    h = _rendu_file([("01_RC.pdf", "consultation")])
+    assert len(re.findall(r"<select ", h)) == 1, h
+    assert "cabinet" not in h.lower(), (
+        "la page parle du cabinet alors qu'aucun document n'en vient")
+
+
+def test_le_poids_reste_UNIQUE_et_se_lit_contre_la_limite():
+    """Deux totaux par côté laisseraient conclure qu'on passe alors que la
+    limite porte sur l'envoi entier. Et « 3,7 Mo » seul ne dit pas s'il
+    passe : c'est au moment de choisir qu'il faut le savoir."""
+    h = _rendu_file([("01_RC.pdf", "consultation"),
+                     ("attestation-rc-pro.pdf", "cabinet")])
+    poids = re.findall(r'<p class="[^"]*ig-ao-poids[^"]*">(.*?)</p>', h, re.S)
+    assert len(poids) == 1, ("le poids est affiché %d fois" % len(poids), poids)
+    assert "sur" in poids[0] and "envoi" in poids[0], poids[0]
+    # LE TOTAL EST CELUI DES DEUX CÔTÉS, et on le vérifie en le comparant à
+    # ce que `aoOctets` rend pour la SOMME — pas en cherchant « 200 » dans un
+    # texte que le formateur écrit « 195 Ko ». Comparer à une chaîne écrite
+    # ici mesurerait ma lecture du formateur, pas le total affiché.
+    assert _octets(200000) in poids[0], (poids[0], _octets(200000))
+    # ET IL N'EST PAS CELUI D'UN SEUL CÔTÉ : c'est tout l'objet de la règle.
+    assert _octets(100000) not in poids[0], poids[0]
+
+
+def _octets(n):
+    """Ce que `aoOctets` rend pour n octets — demandé au script lui-même."""
+    prog = (_js_source("aoOctets")
+            + "\nfunction fr(x){ return String(Math.round(Number(x)||0)); }"
+            + "\nprocess.stdout.write(aoOctets(%d));\n" % n)
+    out = subprocess.run(["node"], input=prog, capture_output=True, text=True,
+                         timeout=60)
+    assert out.returncode == 0, out.stderr[-1000:]
+    return html.unescape(out.stdout)
+
+
+def test_chaque_liste_est_nommee_pour_un_lecteur_d_ecran():
+    """L'`aria-label` disait « Pièces de la consultation choisies » sur la
+    liste MÊLÉE : un lecteur d'écran annonçait le mauvais côté pour la moitié
+    des lignes. Deux listes, deux libellés, et chacun le sien."""
+    h = _rendu_file([("01_RC.pdf", "consultation"),
+                     ("attestation-rc-pro.pdf", "cabinet")])
+    labels = re.findall(r'aria-label="([^"]+)"', h)
+    assert len(labels) == 2 and len(set(labels)) == 2, labels
+    assert any("consultation" in x.lower() for x in labels), labels
+    assert any("cabinet" in x.lower() for x in labels), labels

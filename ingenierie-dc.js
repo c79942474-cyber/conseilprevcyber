@@ -6252,40 +6252,82 @@ function messageDelai(e, defaut) {
   /* LA LISTE DÉROULANTE DES PIÈCES CHOISIES, avec le retrait pièce par pièce.
      Elle rend ce que `aoAnalyser` va RÉELLEMENT lire : la même file. Ôter une
      pièce ici l'ôte donc de l'analyse — pas seulement de l'écran. */
+  /* ── DEUX LISTES, UNE SOUS CHAQUE ZONE ────────────────────────────────
+     POURQUOI SÉPARER, ET CE QUE ÇA RÉPARE. La file était une seule liste où
+     chaque ligne portait « [consultation] » ou « [cabinet] » en tête. Ce
+     préfixe était un pis-aller : il faisait lire à l'œil, ligne par ligne, ce
+     que la mise en page savait déjà — les deux zones de dépôt sont juste
+     au-dessus. Une liste posée SOUS sa zone n'a plus rien à préfixer.
+
+     ET LE RETRAIT CESSE D'ÊTRE AMBIGU. Un seul bouton « Retirer le fichier
+     sélectionné » sur une liste mêlée retirait aussi bien un CCTP pendant
+     qu'on regardait ses propres attestations. Chaque liste a désormais le
+     sien, et il ne peut atteindre que son côté.
+
+     CE QUI NE SE SÉPARE PAS : LE POIDS. La limite de transport porte sur
+     l'ENVOI ENTIER, pas sur un côté. Deux totaux séparés laisseraient lire
+     « 1,8 Mo » puis « 1,9 Mo » et conclure qu'on est dans les clous — pour se
+     faire refuser. Le total reste unique, au-dessus des deux listes, et il se
+     lit CONTRE la limite plutôt que seul. */
+  var AO_COTES = [
+    ["consultation", "Pièces de la consultation", "ig-ao-sel",
+     "ig-ao-ret", "de l'acheteur"],
+    ["cabinet", "Documents du cabinet", "ig-ao-sel-cab",
+     "ig-ao-ret-cab", "les vôtres"],
+  ];
+
   function aoEnAttenteRendre() {
     var l = $("#ig-ao-liste");
     if (!l) return;
     if (!AO_EN_ATTENTE.length) { l.innerHTML = ""; return; }
     var octets = AO_EN_ATTENTE.reduce(function (n, d) {
       return n + ((d.file && d.file.size) || 0); }, 0);
-    var nCab = AO_EN_ATTENTE.filter(function (d) {
-      return d.cote === "cabinet"; }).length;
-    var h = '<label class="dc-lab" for="ig-ao-sel">Fichiers choisis ('
-      + (AO_EN_ATTENTE.length - nCab) + " de la consultation, " + nCab
-      + " du cabinet · " + esc(aoOctets(octets)) + ")</label>"
-      + '<div class="ig-ao-choisis"><select id="ig-ao-sel" '
-      + 'aria-label="Pièces de la consultation choisies">';
-    /* LE CÔTÉ EST DIT SUR CHAQUE LIGNE. Sans lui, un fichier posé dans la
-       mauvaise zone est invisible jusqu'à l'analyse — et l'analyse ne dira
-       pas qu'il s'est trompé de côté, elle dira seulement un résultat faux. */
-    AO_EN_ATTENTE.forEach(function (d, i) {
-      h += '<option value="' + i + '">'
-        + (d.cote === "cabinet" ? "[cabinet] " : "[consultation] ")
-        + esc(d.nom) + " · "
-        + esc(aoOctets((d.file && d.file.size) || 0)) + "</option>";
+    /* LE POIDS SE LIT CONTRE LA LIMITE. « 3,7 Mo » seul ne dit pas s'il
+       passe ; « 3,7 Mo sur 4 Mo » le dit, et c'est au moment de choisir les
+       fichiers qu'il faut le savoir — pas après le refus. */
+    var h = '<p class="dc-lab ig-ao-poids">' + AO_EN_ATTENTE.length
+      + " fichier" + (AO_EN_ATTENTE.length > 1 ? "s" : "") + " choisi"
+      + (AO_EN_ATTENTE.length > 1 ? "s" : "") + " · "
+      + esc(aoOctets(octets)) + " sur " + esc(aoOctets(AO_TRANSPORT_MAX))
+      + " pour l'envoi</p>";
+    AO_COTES.forEach(function (c) {
+      var dans = [];
+      AO_EN_ATTENTE.forEach(function (d, i) {
+        if ((d.cote === "cabinet" ? "cabinet" : "consultation") === c[0]) {
+          dans.push([i, d]);
+        }
+      });
+      /* UNE LISTE VIDE NE S'AFFICHE PAS. Un sélecteur sans option et un
+         bouton qui ne retire rien se lisent comme une panne. */
+      if (!dans.length) return;
+      h += '<label class="dc-lab" for="' + c[2] + '">' + esc(c[1])
+        + " <i>(" + esc(c[4]) + ")</i> — " + dans.length + " fichier"
+        + (dans.length > 1 ? "s" : "") + "</label>"
+        + '<div class="ig-ao-choisis"><select id="' + c[2] + '" '
+        + 'aria-label="' + esc(c[1]) + ' choisis">';
+      /* L'INDICE RÉEL DE LA FILE RESTE LA VALEUR DE L'OPTION. Renuméroter par
+         liste ferait retirer le mauvais fichier dès que les deux côtés sont
+         peuplés : c'est `AO_EN_ATTENTE` qu'on découpe, pas deux files. */
+      dans.forEach(function (x) {
+        h += '<option value="' + x[0] + '">' + esc(x[1].nom) + " · "
+          + esc(aoOctets((x[1].file && x[1].file.size) || 0)) + "</option>";
+      });
+      h += "</select>"
+        + '<button type="button" class="btn btn-s" id="' + c[3] + '">'
+        + "Retirer</button></div>";
     });
-    h += "</select>"
-      + '<button type="button" class="btn btn-s" id="ig-ao-ret">'
-      + "Retirer le fichier sélectionné</button></div>";
     l.innerHTML = h;
-    var ret = $("#ig-ao-ret");
-    if (ret) ret.addEventListener("click", function () {
-      var sel = $("#ig-ao-sel");
-      var i = sel ? parseInt(sel.value, 10) : -1;
-      if (i >= 0 && i < AO_EN_ATTENTE.length) {
-        AO_EN_ATTENTE.splice(i, 1);
-        aoEnAttenteRendre();
-      }
+    AO_COTES.forEach(function (c) {
+      var ret = $("#" + c[3]);
+      if (!ret) return;
+      ret.addEventListener("click", function () {
+        var sel = $("#" + c[2]);
+        var i = sel ? parseInt(sel.value, 10) : -1;
+        if (i >= 0 && i < AO_EN_ATTENTE.length) {
+          AO_EN_ATTENTE.splice(i, 1);
+          aoEnAttenteRendre();
+        }
+      });
     });
   }
 
