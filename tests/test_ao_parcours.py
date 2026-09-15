@@ -254,9 +254,22 @@ def _demander(cl, corps=None):
     return r.get_json()["parcours"]
 
 
-def test_la_route_rend_les_sept_etapes_mesurees(marche):
+def test_la_route_rend_TOUTES_les_etapes_mesurees(marche):
+    """LE COMPTE EST PASSÉ DE SEPT À HUIT, ET C'EST DÉLIBÉRÉ.
+
+    Le parcours allait de « lire » à « fiche » sans nommer le geste qui décide
+    de tout le reste : quelles pièces CETTE consultation demande. Le
+    remplissage, les blocages, les attestations à réclamer et l'archive
+    portent tous sur les pièces RETENUES — une étape qu'on ne nomme pas est
+    une étape qu'on ne fait pas.
+
+    LE NOMBRE EST LU SUR LE MODULE, et il l'était déjà : la seule chose que
+    cette règle fige, c'est que la route ne perde aucune étape en chemin.
+    Le « 8 » écrit ici n'est donc pas un doublon du module — c'est le témoin
+    qui empêche les deux comptes de diverger en silence.
+    """
     p = _demander(marche)
-    assert len(p["etapes"]) == len(ao_parcours.ETAPES) == 7
+    assert len(p["etapes"]) == len(ao_parcours.ETAPES) == 8
     assert p["ou_en_est"] == "consultation" and p["pret"] is False
 
 

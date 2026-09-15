@@ -5599,6 +5599,17 @@ def api_datacenter_marche_parcours():
     etat = {"analyse": analyse, "remplissage": r, "fiche": fiche,
             "formulaires": ao_formulaires.modeles_disponibles()}
 
+    # LA SÉLECTION ENTRE DANS L'ÉTAT MESURÉ, parce que le parcours a désormais
+    # une étape qui porte sur elle. Elle se recalcule ici plutôt que d'être
+    # reçue : la page envoie le PÉRIMÈTRE — le résultat des choix — et non les
+    # choix eux-mêmes, si bien qu'on ne saurait pas dire combien de pièces
+    # restent « non repérées ». `selection` est pure et ne coûte qu'un
+    # parcours du catalogue.
+    try:
+        etat["selection"] = ao_dc.selection(analyse)
+    except Exception:
+        app.logger.exception("parcours — sélection")
+
     # LES AFFIRMATIONS NE SE LISENT QUE SUR UN PROJET OUVERT AU COMPTE. Sans
     # projet, l'étape se déclare non faite — ce qui est exact : une
     # affirmation qui ne laisse pas de trace n'engage personne.
