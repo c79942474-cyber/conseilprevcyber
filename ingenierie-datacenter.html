@@ -937,9 +937,25 @@
   .ig-ao-sg>h4{margin:0 0 3px;font-size:13px;color:var(--ink)}
   .ig-ao-sn{font-family:var(--mono);font-size:10.5px;color:var(--muted2);
     letter-spacing:.04em}
-  .ig-ao-sg select{width:100%;margin-top:9px;font:inherit;font-size:12px;
+  .ig-ao-sg select{width:100%;font:inherit;font-size:12px;
     padding:6px 8px;border-radius:6px;border:1px solid var(--line);
     background:var(--panel);color:var(--ink)}
+
+  /* ── CHOISIR PUIS AGIR ────────────────────────────────────────────────
+     La déroulante prend la largeur — les noms de pièces sont longs et un
+     sélecteur étroit les tronque au milieu, ce qui est exactement ce qu'on
+     ne veut pas quand il faut distinguer « Attestation de régularité
+     fiscale » d'« Attestation de régularité sociale ». Les deux boutons
+     passent dessous et se partagent la ligne ; celui qui agit prend la place
+     qu'il faut, parce qu'il porte le NOM de la pièce choisie. */
+  .ig-ao-ch{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+  .ig-ao-ch select{flex:1 1 100%}
+  .ig-ao-ch button{flex:1 1 auto;font-size:12px;text-align:left}
+  .ig-ao-ch button[data-sel-voir]{flex:0 0 auto}
+  /* UN BOUTON ÉTEINT DOIT SE VOIR ÉTEINT. Sans cela, on presse « Ajouter »
+     sans pièce choisie et il ne se passe rien — ce qui se lit comme une
+     panne, pas comme une étape manquante. */
+  .ig-ao-ch button:disabled{opacity:.55;cursor:not-allowed}
   .ig-ao-sl{margin:9px 0 0;padding:0;list-style:none}
   .ig-ao-sl li{display:flex;align-items:flex-start;gap:8px;padding:4px 0;
     font-size:12px;line-height:1.55;border-top:1px solid var(--line)}
