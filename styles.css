@@ -1499,3 +1499,11 @@ body[data-fond="couchant"]{
   line-height: 1.45;
   color: var(--acc, #9C3C20);
 }
+
+/* LE POIDS DE L'ENVOI, AU-DESSUS DES DEUX LISTES. Il ne se sépare pas : la
+   limite porte sur l'envoi entier, et deux totaux par côté laisseraient
+   conclure qu'on passe alors qu'on sera refusé. */
+.ig-ao-poids {
+  margin: .9rem 0 .35rem;
+  font-variant-numeric: tabular-nums;
+}
