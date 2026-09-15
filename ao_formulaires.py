@@ -506,7 +506,121 @@ def _cible(paras, interdits, pris, ancre, occurrence):
     return None
 
 
-def remplir_document(cle, valeurs, bandeau=BANDEAU):
+# ═══════════════════════════════════════════════════════════════════════════
+#  LE CADRE E DU DC1 — UNE GRILLE, QUE LES ANCRES DE PARAGRAPHE N'ATTEIGNENT PAS
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# CE QUI N'ÉTAIT PAS REMPLI, ET POURQUOI PERSONNE NE S'EN APERCEVAIT. Les
+# ancres de ce module posent une valeur dans un PARAGRAPHE : elles cherchent un
+# intitulé, prennent la ligne libre qui suit, et écrivent. Le cadre E n'est pas
+# fait de lignes — c'est un TABLEAU de trois colonnes, en-tête plus quatre
+# rangées vides. Aucune ancre ne pouvait l'atteindre, et le rapport ne le
+# signalait pas : une rubrique sans ancre n'est pas « non placée », elle
+# n'existe simplement pas dans la table. Le DC1 d'un groupement sortait donc
+# avec son cadre E intégralement vierge, sans un mot.
+#
+# LA GRILLE EST TROUVÉE PAR SON EN-TÊTE, PAS PAR SON RANG. « Le neuvième
+# tableau du document » tiendrait tant que le ministère ne republie pas le
+# formulaire ; l'empreinte garde déjà contre cela, mais un repère de position
+# ne dit pas ce qu'il désigne, et c'est ce qui rend une correction risquée
+# trois ans plus tard.
+COLONNES_CADRE_E = ("nom commercial", "prestations")
+
+#: Combien de membres au plus. Un groupement de mille membres n'existe pas ;
+#: ce plafond borne l'écriture dans le document plutôt que la lecture, où il
+#: ferait taire un dépassement au lieu de le dire.
+MEMBRES_MAX = 40
+
+
+def _grille_cadre_e(doc):
+    """Le tableau du cadre E, reconnu à ses intitulés de colonnes — ou None."""
+    for t in doc.tables:
+        if not t.rows or len(t.columns) < 3:
+            continue
+        tete = " ".join(c.text.lower() for c in t.rows[0].cells)
+        tete = " ".join(tete.split())
+        if all(m in tete for m in COLONNES_CADRE_E):
+            return t
+    return None
+
+
+def _ecrire_cellule(cellule, texte):
+    """Remplacer le contenu d'une cellule — sans lui ajouter de paragraphe.
+
+    `cell.text = …` de python-docx écrit dans le PREMIER paragraphe et laisse
+    les autres : une cellule qui en porte deux garderait le second. On vide
+    les suivants plutôt que de les supprimer — retirer un paragraphe d'une
+    cellule de tableau Word laisse un document que Word répare au chargement,
+    en le signalant à l'utilisateur.
+    """
+    paras = list(cellule.paragraphs)
+    for pa in paras[1:]:
+        for r in list(pa.runs):
+            r._element.getparent().remove(r._element)
+    premier = paras[0]
+    for r in list(premier.runs):
+        r._element.getparent().remove(r._element)
+    premier.add_run(texte)
+
+
+def remplir_cadre_e(doc, membres):
+    """Une rangée par membre du groupement. Rend le rapport de ce qui a été
+    écrit, ou une raison de n'avoir rien écrit.
+
+    LA COLONNE « N° DU LOT » RESTE VIDE, ET C'EST UNE DÉCISION. La note de
+    répartition des compétences ne dit pas à quel lot chaque membre est
+    rattaché — elle dit ce qu'il fait. Y écrire « 1 » parce qu'il n'y a qu'un
+    lot serait une déduction, dans un formulaire officiel, sur une question
+    que l'acheteur pose exprès.
+
+    LA COLONNE D'IDENTIFICATION NE REÇOIT QUE LA DÉNOMINATION. Le formulaire y
+    demande aussi l'adresse, le courriel, le téléphone et le SIRET de CHAQUE
+    membre — que la note ne porte pas et que ce site ne détient pas pour les
+    cotraitants. Le rapport le dit ; la case reste à compléter à la main. Une
+    case à moitié remplie qui a l'air complète est pire qu'une case vide.
+
+    LES RANGÉES SE CRÉENT AU-DELÀ DE QUATRE, et c'est le seul endroit de ce
+    module où le document gagne quelque chose que le modèle n'avait pas. Le
+    formulaire ouvre quatre rangées ; un groupement en compte cinq, six,
+    parfois dix. Refuser d'en ajouter obligerait à recopier les membres
+    surnuméraires à la main — c'est-à-dire à faire à la main précisément ce
+    qu'on vient d'automatiser, sur la partie la plus longue du cadre.
+    """
+    if not membres:
+        return {"ecrits": 0, "motif": "aucun_membre", "lignes_ajoutees": 0,
+                "a_completer": [], "a_confirmer": []}
+    t = _grille_cadre_e(doc)
+    if t is None:
+        return {"ecrits": 0, "motif": "grille_introuvable",
+                "lignes_ajoutees": 0, "a_completer": [], "a_confirmer": []}
+
+    membres = list(membres)[:MEMBRES_MAX]
+    libres = len(t.rows) - 1          # l'en-tête n'est jamais touché
+    ajoutees = 0
+    while len(t.rows) - 1 < len(membres):
+        t.add_row()
+        ajoutees += 1
+
+    for i, m in enumerate(membres):
+        rang = t.rows[i + 1]
+        _ecrire_cellule(rang.cells[1], str(m.get("nom") or "").strip())
+        _ecrire_cellule(rang.cells[2], str(m.get("prestations") or "").strip())
+    return {
+        "ecrits": len(membres),
+        "motif": "",
+        "lignes_ajoutees": ajoutees,
+        "libres_au_modele": libres,
+        # CE QUI RESTE À LA MAIN, NOMMÉMENT. « Complétez le cadre E » n'aide
+        # personne ; « adresse, courriel, téléphone et SIRET des cinq membres »
+        # dit quoi chercher et où.
+        "a_completer": ["N° du lot par membre",
+                        "adresse, courriel, téléphone et SIRET de chaque "
+                        "membre (%d)" % len(membres)],
+        "a_confirmer": [m["nom"] for m in membres if m.get("a_confirmer")],
+    }
+
+
+def remplir_document(cle, valeurs, bandeau=BANDEAU, membres=None):
     """Le formulaire officiel, rempli de ce qui est déjà connu. Rend
     (octets, rapport).
 
@@ -535,6 +649,32 @@ def remplir_document(cle, valeurs, bandeau=BANDEAU):
                       "sans_ancre": []}
 
     doc = Document(p)
+    # ── LE CADRE E EST REMPLI AVANT LES ANCRES, ET L'ORDRE EST INDIFFÉRENT ──
+    #
+    # CE QUE J'AVAIS ÉCRIT ICI ÉTAIT FAUX. Le commentaire précédent affirmait
+    # que l'ordre COMPTE, « parce qu'ajouter des rangées déplace les
+    # paragraphes qui suivent ». MESURÉ, les deux ordres rendent le MÊME
+    # document : 108 896 octets de word/document.xml identiques au caractère,
+    # 9 valeurs placées, 0 non placée, 0 ignorée dans les deux sens. La raison
+    # est que `blocs` est une liste d'OBJETS paragraphe, pas de positions :
+    # `t.add_row()` ajoute des paragraphes vides à la fin d'une grille et ne
+    # renumérote rien de ce que la liste tient déjà.
+    #
+    # LA MUTATION QUI A ÉTABLI CELA A SURVÉCU, et c'est ainsi qu'on l'a su :
+    # intervertir ces deux lignes ne fait tomber aucune règle, parce qu'il n'y
+    # a rien à faire tomber. Une règle écrite pour « tenir l'ordre » aurait
+    # été verte en ne mesurant rien.
+    #
+    # ON GARDE CET ORDRE, ET VOICI LA SEULE PROPRIÉTÉ QUI COMPTE VRAIMENT :
+    # les deux mécanismes sont INDÉPENDANTS — aucune valeur d'ancre n'atterrit
+    # dans la grille des membres, et la présence de membres ne change rien au
+    # placement des ancres. C'est CELA qu'une règle tient
+    # (`test_les_membres_ne_changent_RIEN_au_placement_des_valeurs`), et ce
+    # qui la ferait tomber, c'est le jour où une ancre ou une zone interdite
+    # tomberait dans le cadre E.
+    cadre_e = (remplir_cadre_e(doc, membres) if cle == "dc1"
+               else {"ecrits": 0, "motif": "sans_objet", "lignes_ajoutees": 0,
+                     "a_completer": [], "a_confirmer": []})
     blocs = paragraphes(doc)
     paras = [pa.text for pa in blocs]
     interdits = _zones_interdites(paras, cle)
@@ -657,6 +797,12 @@ def remplir_document(cle, valeurs, bandeau=BANDEAU):
         "a_completer": a_completer,
         "annexe": list(sans_ancre),
         "bandeau": bool(bandeau),
+        # LE CADRE E SE COMPTE À PART, parce qu'il ne se compte pas en
+        # rubriques : c'est une grille, et « 5 membres écrits, 1 rangée
+        # ajoutée, 3 répartitions à confirmer » ne se dit pas dans la liste
+        # des ancres. Le taire ferait annoncer un DC1 complet à côté d'un
+        # cadre E dont trois lignes portent la réserve de leur auteur.
+        "cadre_e": cadre_e,
     }
 
 
@@ -723,3 +869,20 @@ def valeurs_pour(remplissage, piece):
         return {l["cle"]: l["valeur"] for l in p["rubriques"]
                 if l["statut"] == "rempli" and l["valeur"]}
     return {}
+
+
+def membres_pour(remplissage):
+    """Les membres du groupement portés par le report, ou une liste vide.
+
+    POURQUOI UNE PORTE À CÔTÉ DE `valeurs_pour`. Un membre n'est pas une
+    valeur : il n'a pas de rubrique, pas de statut, pas d'origine, et il
+    s'écrit dans une GRILLE et non dans une case. Le faire passer par
+    `valeurs_pour` aurait supposé de l'aplatir en texte, et une grille aplatie
+    puis redécoupée est exactement le genre de recopie qui perd une ligne sans
+    le dire.
+
+    ELLE EXISTE POUR QUE LES APPELANTS N'AIENT PAS À SAVOIR OÙ C'EST RANGÉ :
+    `remplir_document` est appelée depuis deux routes, et deux façons de
+    retrouver la liste finiraient par diverger.
+    """
+    return list((remplissage or {}).get("membres_groupement") or [])

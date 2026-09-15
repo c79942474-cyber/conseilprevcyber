@@ -587,11 +587,45 @@ CABINET_MOTIFS = {
                                    r"r[ée]gularit[ée][\s._-]*(?:fiscale|sociale)",
                                    r"fiscale?[\s._-]*et[\s._-]*sociale?"],
     "bilans": [r"(?<![a-z])bilans?(?![a-z])", r"liasse[\s._-]*fiscale",
-               r"compte[\s._-]*de[\s._-]*r[ée]sultat"],
+               r"compte[\s._-]*de[\s._-]*r[ée]sultat",
+               # « COMPTES ANNUELS » EST LE NOM LÉGAL DE LA PIÈCE, et c'est
+               # sous ce nom que l'expert-comptable livre le fichier. Sans ce
+               # motif, le classeur le plus courant de tous tombait à côté.
+               r"comptes?[\s._-]*annuels?"],
     "cv": [r"(?<![a-z])cv(?![a-z])", r"curriculum"],
     "pouvoirs": [r"(?<![a-z])pouvoirs?(?![a-z])",
                  r"d[ée]l[ée]gation[\s._-]*de[\s._-]*signature"],
     "memoire_technique": [r"m[ée]moire[\s._-]*technique", r"(?<![a-z])memtech"],
+
+    # ── LES TROIS PIÈCES QU'AUCUN NOM DE FICHIER NE POUVAIT ATTEINDRE ──────
+    # MESURÉ : sur les vingt-trois pièces du catalogue, seize avaient un motif
+    # ici. Quatre des sept restantes sont les formulaires de l'État — DC1,
+    # DC2, DC4, ATTRI1 — et leur absence est VOULUE : ce module les produit, un
+    # exemplaire vierge déposé par l'acheteur est relevé par
+    # `_formulaire_fourni`, et leur donner un motif du côté cabinet ferait
+    # passer notre propre production pour une pièce apportée.
+    #
+    # LES TROIS AUTRES ÉTAIENT UN TROU. Une note de répartition des
+    # compétences, une attestation de capacité technique, un questionnaire
+    # tiers déposés du côté cabinet ne se rattachaient à RIEN : la ligne
+    # affichait « son nom ne le rattache à aucune des pièces à produire », et
+    # l'utilisateur lisait cela d'un fichier parfaitement nommé. Pour la note
+    # de répartition, la conséquence allait plus loin que l'affichage : c'est
+    # elle qui porte les membres du groupement, donc le cadre E du DC1 restait
+    # vide en silence.
+    #
+    # L'ARTICLE EST FACULTATIF DANS LE MOTIF. Un nom de fichier s'écrit
+    # « repartition-competences », pas « repartition des competences » : exiger
+    # « des » aurait rendu le motif vrai sur le papier et inerte sur le disque.
+    "repartition_competences": [
+        r"r[ée]partition[\s._-]*(?:des[\s._-]*)?"
+        r"(?:comp[ée]tences|t[âa]ches|prestations|missions)",
+        r"r[ée]partition[\s._-]*(?:en[\s._-]*)?groupement"],
+    "atd_atp": [r"(?<![a-z])atd[\s._/-]*atp(?![a-z])",
+                r"aptitude[\s._-]*technique",
+                r"capacit[ée]s?[\s._-]*techniques?"],
+    "tiers": [r"questionnaire[\s._-]*(?:fournisseur|tiers)",
+              r"[ée]valuation[\s._-]*des[\s._-]*tiers"],
     "references": [r"r[ée]f[ée]rences?(?![a-z])", r"attestations?[\s._-]*de[\s._-]*"
                    r"bonne[\s._-]*ex[ée]cution"],
     "organigramme": [r"organigramme"],
@@ -616,6 +650,105 @@ def _NOMS_PIECES():
     carte ne porte.
     """
     return {p["cle"]: p["nom"] for p, _d in _catalogue()}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LES MEMBRES DU GROUPEMENT — LUS DANS LA NOTE, JAMAIS DEVINÉS
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# POURQUOI CETTE LECTURE EST DÉTERMINISTE ET NON CONFIÉE AU MODÈLE. Le cadre E
+# du DC1 demande, pour chaque membre : sa dénomination, et les prestations
+# qu'il exécute. La note de répartition des compétences porte EXACTEMENT ces
+# colonnes, dans un tableau. L'extraction docx aplatit un tableau en une ligne
+# par rangée, cellules séparées par « | » — ce qui se lit sans rien inventer.
+#
+# CONFIER CELA À UN MODÈLE SERAIT LE PIRE ENDROIT POUR LE FAIRE : ce qu'on
+# écrit là engage le groupement entier devant l'acheteur, et une répartition
+# des prestations mal recopiée se découvre à l'exécution, quand un cotraitant
+# refuse une tâche que le DC1 lui attribue.
+#
+# LES RÉSERVES DE L'AUTEUR SONT CONSERVÉES, ET C'EST LE POINT DÉLICAT. La note
+# porte « [À confirmer] » devant trois des cinq répartitions. Les effacer en
+# recopiant ferait passer pour arrêté ce que l'auteur a signalé comme ouvert,
+# dans un formulaire officiel. On les transporte donc telles quelles, et on
+# les COMPTE : la page peut alors dire « 3 membres sur 5 portent une réserve à
+# trancher avant signature » au lieu de laisser la découvrir à la relecture.
+_ENTETE_MEMBRES = (("membre",), ("role", "rôle"),
+                   ("competence", "compétence", "prestation"))
+
+#: CE QUI MARQUE UNE RÉPARTITION NON ARRÊTÉE, dans la note elle-même.
+RESERVE_MEMBRE = "[À confirmer]"
+
+
+def _cellules(ligne):
+    """Les cellules d'une rangée aplatie, débarrassées des blancs.
+
+    L'extraction docx joint les cellules par « | ». Une cellule peut contenir
+    des retours à la ligne, que l'extraction rend tels quels : on les réduit à
+    des espaces, sans quoi une prestation de trois lignes deviendrait trois
+    valeurs.
+    """
+    return [" ".join(c.split()) for c in str(ligne or "").split("|")]
+
+
+def _est_entete_membres(cells):
+    """Trois intitulés attendus, dans trois cellules distinctes.
+
+    ON EXIGE LES TROIS. Un tableau à deux colonnes « Membre | Rôle » existe
+    dans d'autres notes — un organigramme, une liste de contacts — et le
+    prendre pour la répartition ferait écrire des noms de personnes dans un
+    cadre qui attend des entreprises.
+    """
+    if len(cells) < 3:
+        return False
+    bas = [_sans_accent(c.lower()) for c in cells]
+    for mots in _ENTETE_MEMBRES:
+        cibles = [_sans_accent(m.lower()) for m in mots]
+        if not any(any(t in b for t in cibles) for b in bas):
+            return False
+    return True
+
+
+def membres_du_groupement(texte):
+    """Les membres lus dans une note de répartition — ou une liste vide.
+
+    FONCTION PURE, et c'est ce qui la rend éprouvable : ce qui décide de ce
+    qu'on écrit dans un formulaire de l'État doit se mesurer sans dossier.
+
+    RIEN N'EST RENDU SI L'EN-TÊTE N'EST PAS TROUVÉ. Deviner qu'un tableau
+    quelconque est la répartition du groupement remplirait le cadre E avec la
+    première grille venue — un planning, une liste de prix.
+    """
+    lignes = str(texte or "").splitlines()
+    depart = None
+    for i, l in enumerate(lignes):
+        if _est_entete_membres(_cellules(l)):
+            depart = i + 1
+            break
+    if depart is None:
+        return []
+
+    out = []
+    for l in lignes[depart:]:
+        cells = _cellules(l)
+        # LA RANGÉE S'ARRÊTE OÙ LE TABLEAU S'ARRÊTE. Une ligne de prose n'a
+        # pas de « | » : c'est ce qui borne la lecture sans avoir à deviner
+        # combien de membres le groupement compte.
+        if len(cells) < 3:
+            break
+        nom = cells[0].strip()
+        if not nom:
+            continue
+        out.append({
+            "nom": nom,
+            "role": cells[1].strip(),
+            "prestations": cells[2].strip(),
+            # LA RÉSERVE EST PORTÉE PAR LA LIGNE, pas déduite plus tard : deux
+            # lecteurs de cette liste en tireraient deux comptes différents.
+            "a_confirmer": RESERVE_MEMBRE.lower() in
+                           (cells[1] + " " + cells[2]).lower(),
+        })
+    return out
 
 
 def piece_du_cabinet(nom, texte=""):
@@ -1833,6 +1966,21 @@ def analyser(documents):
             ligne["nom_piece"] = (_NOMS_PIECES().get(cle) if cle else None)
             ligne["alimente_fiche"] = ({"cle": f["cle"], "nom": f["nom"],
                                         "ou": f["ou"]} if f else None)
+            # ── LA NOTE DE RÉPARTITION SE LIT ICI, ET NULLE PART AILLEURS ──
+            #
+            # POURQUOI DANS CETTE BRANCHE. Une note de répartition des
+            # compétences est un document DU CABINET : c'est nous qui
+            # l'écrivons, entre cotraitants, avant de répondre. Elle ne peut
+            # pas venir du côté acheteur, et la lire là ferait entrer les noms
+            # d'un groupement CONCURRENT dans notre DC1.
+            #
+            # LE TEXTE EST DÉJÀ LÀ. `rag_store.extract_text` aplatit chaque
+            # rangée d'un tableau docx en « cellule | cellule | cellule » :
+            # la grille de la note se lit donc sans modèle, sans appel, et de
+            # façon reproductible — deux lectures du même fichier donnent la
+            # même liste, ce qu'aucune lecture assistée ne garantit.
+            if cle == "repartition_competences":
+                ligne["membres"] = membres_du_groupement(texte)
             if not cle and not f:
                 # NI RATTACHÉ NI LU : ON LE DIT. Le taire ferait croire le
                 # document pris en compte alors qu'il ne sert à rien.
@@ -1931,6 +2079,13 @@ def analyser(documents):
         # visible, plutôt que d'être tue.
         "fournies_cabinet": {c["cle"]: c["fichier"]
                              for c in reversed(cabinet) if c.get("cle")},
+        # LES MEMBRES DU GROUPEMENT, LUS DANS LA NOTE DE RÉPARTITION.
+        # LE PREMIER FICHIER QUI EN PORTE GAGNE, et une note sans grille
+        # reconnaissable ne rend RIEN plutôt qu'une liste approximative :
+        # c'est le cadre E d'un formulaire de l'État qui est au bout, et une
+        # ligne inventée y engage la responsabilité d'entreprises tierces.
+        "membres_groupement": next((c["membres"] for c in cabinet
+                                    if c.get("membres")), []),
         # LES FORMULAIRES VIERGES QUE L'ACHETEUR JOINT, et la pièce de réponse
         # que chacun appelle. C'est la seconde source de la sélection, à côté
         # des citations du règlement : un dossier qui joint le cerfa sans le
@@ -3967,6 +4122,22 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False,
     # déclarations sur l'honneur — jamais pré-cochées, toujours assumées.
     fournies = {str(x) for x in (fournies or [])}
     idx = _index_releves(analyse)
+    # ── LES MEMBRES DU GROUPEMENT VIENNENT DE L'ANALYSE, PAS D'UN ARGUMENT ──
+    #
+    # POURQUOI PAS UN PARAMÈTRE DE PLUS. `remplir()` est appelée depuis six
+    # endroits d'`app.py` ; un septième argument à passer partout, c'est six
+    # occasions d'en oublier un, et un DC1 dont le cadre E se remplit ou non
+    # selon la route qui l'a produit. L'analyse est DÉJÀ transmise à chacun de
+    # ces six appels : la note y est lue une fois, et tout le monde la voit.
+    #
+    # LE DÉPÔT DE LA NOTE EST LA DÉCLARATION, et non la case « groupement » de
+    # la fiche. Subordonner la lecture à cette case ferait qu'un cabinet qui
+    # dépose sa note de répartition — geste explicite, fichier nommé — verrait
+    # son cadre E rester vide sans que rien ne le dise, parce qu'une case
+    # cochée ailleurs lui aurait échappé. Le silence est le pire des deux
+    # risques : une liste écrite est visible et se corrige, une liste non
+    # écrite passe pour une absence de groupement.
+    membres = list((analyse or {}).get("membres_groupement") or [])
     calc = derive(fiche)
     par_champ = {c["cle"]: c for c in CHAMPS_CANDIDAT}
     par_piece = {p["cle"]: p for p in DOSSIER_CANDIDATURE + DOSSIER_OFFRE}
@@ -4262,6 +4433,10 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False,
             "bloquant": base["bloquant"], "piege": base["piege"],
             "rubriques": lignes, "compte": compte, "total": len(lignes),
             "en_groupement": groupe(base) if groupement else None,
+            # LES MEMBRES LUS, SUR LA SEULE PIÈCE QUI A UN CADRE POUR EUX.
+            # Les porter sur les vingt-trois ferait croire que la note nourrit
+            # tout le dossier ; elle ne nourrit que le cadre E du DC1.
+            "membres": membres if cle_piece == "dc1" else None,
             # DEUX NOTIONS, ET LES CONFONDRE ÉTAIT UN MENSONGE. « Complète »
             # veut dire : plus rien ne manque DE CE QUE CE MODULE PEUT
             # APPORTER. « Prête » veut dire : et il ne reste rien à déclarer.
@@ -4343,6 +4518,10 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False,
         "engagements": ENGAGEMENTS,
         "voies": VOIES,
         "note": NOTE_REMPLISSAGE,
+        # CE QUE LE CADRE E DU DC1 RECEVRA, à disposition de ce qui écrit le
+        # document. Rendu à la racine ET sur la pièce : la page lit la pièce
+        # qu'elle affiche, l'export lit la racine sans avoir à la retrouver.
+        "membres_groupement": membres,
         "sans_dossier": not (analyse and analyse.get("pieces")),
     }
 

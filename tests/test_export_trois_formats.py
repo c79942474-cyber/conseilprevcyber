@@ -382,10 +382,14 @@ def test_le_bordereau_NOMME_ce_qui_n_a_pas_pu_etre_produit(marche, monkeypatch):
     import ao_formulaires
     vrai = ao_formulaires.remplir_document
 
-    def casse(modele, valeurs):
+    # LE DOUBLE PREND LA SIGNATURE ENTIÈRE, `membres` COMPRIS. Un double qui
+    # n'accepte que les arguments du jour où il a été écrit se casse au
+    # premier élargissement — et le TypeError qui remonte alors ressemble à
+    # une panne de la route, pas à une règle en retard.
+    def casse(modele, valeurs, **reste):
         if modele == "dc2":
             return b"", {"ok": False, "motif": "modele_absent"}
-        return vrai(modele, valeurs)
+        return vrai(modele, valeurs, **reste)
 
     monkeypatch.setattr(ao_formulaires, "remplir_document", casse)
     z, entete = _archive(marche)
