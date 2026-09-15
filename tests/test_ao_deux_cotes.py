@@ -343,6 +343,81 @@ def test_la_route_rend_un_vrai_fichier_dans_chaque_format(marche, fmt):
     assert len(r.data) > 400, len(r.data)
 
 
+# --------------------------------------------------------------------------
+# 5 bis. LE NOM DU FICHIER — il vient du client, et il part dans un en-tête.
+# --------------------------------------------------------------------------
+def test_le_nom_du_fichier_emporte_est_BORNE(marche):
+    """CE QUE `piece` EST VRAIMENT : une valeur du client.
+
+    LA ROUTE AVAIT SA PROPRE COPIE DE L'ASSAINISSEUR, et la copie ne bornait
+    rien là où l'aide commune borne à soixante signes. Une clé de quatre mille
+    signes rendait un `Content-Disposition` de 4 036 signes — mesuré. La page
+    n'envoie jamais cela : elle envoie la clé de la pièce. Une route ne se
+    protège pas de ce que SON écran envoie, mais de ce qu'on peut lui envoyer.
+    """
+    r = marche.post("/api/datacenter/marche/brouillon", json={
+        "markdown": "## X\n\nUn paragraphe.\n", "format": "docx",
+        "piece": "A" * 4000, "nom": "Brouillon"}, headers=ORIGINE)
+    assert r.status_code == 200, r.get_json()
+    entete = r.headers["Content-Disposition"]
+    assert len(entete) < 120, (
+        "le nom de fichier n'est pas borné : %d signes d'en-tête pour une "
+        "clé envoyée par le client" % len(entete))
+
+
+def test_un_nom_accentue_NE_SE_COUPE_PAS_en_deux(marche):
+    """« Mémoire » DONNAIT « m-moire ». L'accent n'étant pas alphanumérique au
+    sens du test, il devenait un tiret et coupait le mot.
+
+    LES CLÉS DU CATALOGUE N'EN PORTENT PAS — c'est pourquoi rien ne s'est vu :
+    la page envoie `memoire_technique`, pas « Mémoire technique ». Mais un nom
+    de pièce passé ici un jour rendrait un fichier au nom mutilé, et un nom
+    mutilé reste un nom valide : personne ne le signalerait.
+    """
+    r = marche.post("/api/datacenter/marche/brouillon", json={
+        "markdown": "## X\n\nUn paragraphe.\n", "format": "docx",
+        "piece": "Déclaration de sous-traitance — DC4", "nom": "Brouillon"},
+        headers=ORIGINE)
+    assert r.status_code == 200, r.get_json()
+    entete = r.headers["Content-Disposition"]
+    assert "declaration-de-sous-traitance" in entete, entete
+    assert "d-claration" not in entete, (
+        "l'accent a coupé le mot en deux : %s" % entete)
+    # ET LES TIRETS NE S'ACCUMULENT PAS. « traitance — DC4 » donnait
+    # « traitance---dc4 » ici et « traitance-dc4 » dans l'archive : la même
+    # pièce se téléchargeait sous deux noms selon le bouton.
+    assert "--" not in entete, entete
+
+
+def test_le_chemin_ne_traverse_RIEN(marche):
+    """CE QUE L'ASSAINISSEUR PROTÉGEAIT DÉJÀ, et qui doit le rester : la clé
+    sert de nom de fichier sur le poste de qui télécharge."""
+    r = marche.post("/api/datacenter/marche/brouillon", json={
+        "markdown": "## X\n\nUn paragraphe.\n", "format": "docx",
+        "piece": "../../etc/passwd", "nom": "Brouillon"}, headers=ORIGINE)
+    assert r.status_code == 200, r.get_json()
+    entete = r.headers["Content-Disposition"]
+    assert "/" not in entete.split("filename")[1] and ".." not in entete, entete
+
+
+def test_les_DEUX_chemins_de_telechargement_nomment_PAREIL():
+    """LE DÉFAUT QUI A AMENÉ ICI : deux copies du même assainisseur.
+
+    Le brouillon d'un côté, l'archive du dossier de l'autre — et deux noms
+    différents pour la même pièce. On ne compare pas deux sorties : on vérifie
+    qu'il n'y a plus qu'UN assainisseur, ce qui est la seule façon qu'ils ne
+    puissent plus diverger.
+    """
+    src = io.open(os.path.join(ICI, "app.py"), encoding="utf-8").read()
+    assert src.count('c if ("a" <= c <= "z" or "0" <= c <= "9") else "-"') == 1, (
+        "l'assainisseur de nom de fichier est écrit plus d'une fois : les "
+        "copies divergeront, et c'est déjà arrivé")
+    corps = src.split("def api_datacenter_marche_brouillon(", 1)[1] \
+               .split("\n@app.route")[0]
+    assert "_ao_nom_fichier(" in corps, (
+        "la route du brouillon n'assainit plus par l'aide commune")
+
+
 def test_le_document_emporte_DIT_qu_il_est_un_brouillon(marche):
     """Sorti en Word, il ressemble à une pièce finie. C'est la version qu'on
     retrouve trois semaines plus tard, et rien sur la page ne rappelle alors

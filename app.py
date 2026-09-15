@@ -4971,9 +4971,21 @@ def _ao_nom_fichier(brut, defaut="piece"):
     serait une dépendance de plus pour rien. Tout ce qui n'est pas
     alphanumérique devient un tiret — ce qui neutralise au passage un « ../ »
     ou un guillemet qui se retrouverait dans un chemin d'archive.
+
+    LES ACCENTS SE DÉPLIENT AVANT, ET NON APRÈS. Sans cela « Mémoire » donne
+    « m-moire » : l'accent, n'étant pas alphanumérique au sens de ce test,
+    devenait un tiret et coupait le mot en deux. Les clés du catalogue n'en
+    portent pas — ce sont elles que les appelants passent aujourd'hui — mais
+    un nom de pièce passé ici un jour rendrait « d-claration-de-sous-traitance »
+    au lieu de « declaration-de-sous-traitance », sans que rien ne le signale :
+    un nom de fichier mutilé reste un nom de fichier valide.
+
+    LA BORNE À SOIXANTE SIGNES EST CE QUI TIENT L'EN-TÊTE. `piece` vient du
+    client sur `/brouillon` ; sans elle, ce qu'il envoie se retrouve tel quel
+    dans un `Content-Disposition`.
     """
     n = "".join(c if ("a" <= c <= "z" or "0" <= c <= "9") else "-"
-                for c in str(brut or "").lower()).strip("-")
+                for c in ao_dc._sans_accent(str(brut or "").lower())).strip("-")
     while "--" in n:
         n = n.replace("--", "-")
     return n[:60] or defaut
@@ -5066,14 +5078,20 @@ def api_datacenter_marche_brouillon():
                                "de pièce."), 400
     fmt = str(data.get("format") or livrables_export.FORMAT_DEFAUT).lower()
     nom = str(data.get("nom") or "Brouillon")[:120]
-    # LE NOM DE FICHIER EST ASSAINI ICI, ET SANS EXPRESSION RÉGULIÈRE : `re`
-    # n'est pas importé dans ce module, et l'ajouter pour trois caractères
-    # serait une dépendance de plus pour rien. La clé sert de nom de fichier
-    # téléchargé ; tout ce qui n'est pas alphanumérique devient un tiret,
-    # ce qui neutralise au passage un « ../ » ou un guillemet dans l'en-tête.
-    brut = str(data.get("piece") or "piece").lower()
-    cle = "".join(c if ("a" <= c <= "z" or "0" <= c <= "9") else "-"
-                  for c in brut).strip("-") or "piece"
+    # LE NOM DE FICHIER S'ASSAINIT PAR L'AIDE COMMUNE, PLUS ICI.
+    #
+    # CETTE ROUTE EN AVAIT SA PROPRE COPIE, ET LA COPIE ÉTAIT LA FAUSSE.
+    # `_ao_nom_fichier` borne le résultat à soixante signes ; celle-ci ne
+    # bornait rien. Or `piece` vient du client : une clé de quatre mille
+    # signes produisait un en-tête `Content-Disposition` de 4 036 signes,
+    # mesuré. La page n'envoie jamais cela — elle envoie la clé de la pièce —
+    # mais une route publique ne se protège pas de ce que son écran envoie.
+    #
+    # LES DEUX COPIES DIVERGEAIENT AUSSI SUR LES TIRETS : celle-ci laissait
+    # « --- » là où l'aide les réduit, si bien qu'une même pièce se
+    # téléchargeait sous DEUX noms différents selon le bouton — le brouillon
+    # d'un côté, l'archive du dossier de l'autre.
+    cle = _ao_nom_fichier(data.get("piece"))
     # LE DOCUMENT DIT QU'IL EST UN BROUILLON, DANS SON CORPS ET DANS SON
     # CARTOUCHE. Sorti en Word, il ressemble à une pièce finie ; c'est la
     # version qu'on retrouve trois semaines plus tard, et rien sur la page ne
