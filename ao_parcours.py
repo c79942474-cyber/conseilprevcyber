@@ -39,7 +39,7 @@ rien elle le DIT au lieu de se déclarer faite.
 import ao_dc
 import ao_formulaires
 
-VERSION = "2026-09-c"
+VERSION = "2026-09-d"
 
 # Ce qu'on attend d'un dossier de consultation complet : le référentiel le
 # dit, on ne le recopie pas.
@@ -154,6 +154,23 @@ def _m_fiche(e):
 
 
 def _m_attestations(e):
+    """Valides À LA DATE DE REMISE — la question que l'étape pose vraiment.
+
+    CE QUI ÉTAIT MESURÉ ICI, ET QUI N'ÉTAIT PAS LA QUESTION. Cette mesure
+    comparait les échéances à AUJOURD'HUI. Sur un dossier à remettre dans
+    quarante jours, avec une attestation de vigilance valable encore dix, elle
+    rendait « 2 attestation(s) valide(s) sur 2 » et se déclarait FAITE — alors
+    que le dossier serait parti avec une attestation périmée depuis trente
+    jours. L'étape demandait « valides À LA DATE DE REMISE ? » et répondait
+    « valides aujourd'hui ». C'est exactement le défaut que ce dossier
+    poursuit : une mesure verte pour une raison sans rapport avec ce qu'elle
+    prétend.
+
+    QUAND LA DATE DE REMISE EST INCONNUE, ON LE DIT AU LIEU DE FAIRE SEMBLANT.
+    Le verdict reste rendu — il vaut pour aujourd'hui — mais la mesure nomme
+    ce qu'elle n'a pas pu vérifier, et l'étape ne se déclare pas faite sur une
+    question qu'elle n'a pas posée.
+    """
     at = e.get("attestations")
     if not at:
         return {"fait": False, "reste": [],
@@ -162,13 +179,24 @@ def _m_attestations(e):
                           "propres pièces, à la date de remise"}
     absentes = list(at.get("absentes") or [])
     perimees = list(at.get("perimees") or [])
+    avant = list(at.get("expirent_avant_remise") or [])
+    remise = at.get("remise")
     return {
-        "fait": not absentes and not perimees,
-        "reste": absentes + perimees,
-        "mesure": "%d attestation(s) valide(s) sur %d · %d absente(s) · "
-                  "%d périmée(s)"
-                  % (len(at.get("valides") or []), _n(at.get("total")),
-                     len(absentes), len(perimees)),
+        "fait": not absentes and not perimees and not avant and bool(remise),
+        # CE QUI EXPIRE AVANT LA REMISE PASSE EN TÊTE DU RESTE À FAIRE : c'est
+        # la seule des trois catégories qu'on croit réglée.
+        "reste": avant + absentes + perimees,
+        "mesure": ("%d attestation(s) valide(s) sur %d · %d absente(s) · "
+                   "%d périmée(s)%s · %s"
+                   % (len(at.get("valides") or []), _n(at.get("total")),
+                      len(absentes), len(perimees),
+                      (" · %d périmée(s) LE JOUR DE LA REMISE" % len(avant))
+                      if avant else "",
+                      ("vérifié au %s, date limite relevée dans le dossier"
+                       % remise) if remise else
+                      "date limite de remise NON LUE dans le dossier : "
+                      "vérifié au %s seulement, ce qui ne répond pas à la "
+                      "question" % (at.get("jour") or "jour courant"))),
     }
 
 
@@ -318,7 +346,9 @@ ETAPES = [
                     "ne se rédige pas. Elle est donc placée AVANT le "
                     "remplissage, qui est rapide.",
         "geste": "Renseignez les dates de délivrance et de validité sur "
-                 "l'écran du dossier d'entreprise.",
+                 "l'écran du dossier d'entreprise. La date limite de remise "
+                 "est lue dans le règlement de consultation déposé : chaque "
+                 "échéance lui est comparée, pas au jour d'aujourd'hui.",
         "piege": "« Présente » ne veut rien dire : une attestation de "
                  "vigilance de l'an dernier est présente et sans valeur. "
                  "C'est l'échéance comparée au jour de la remise qui décide.",

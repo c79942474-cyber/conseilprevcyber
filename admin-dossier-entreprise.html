@@ -40,6 +40,12 @@
   .de-et.valide{border-color:rgba(39,195,154,.5);color:var(--teal,#27c39a)}
   .de-et.perimee{border-color:rgba(224,122,95,.55);color:var(--terra,#e07a5f)}
   .de-et.absente{border-color:rgba(224,168,0,.45);color:var(--amber,#e0a800)}
+  /* VALIDE, ET DÉJÀ TROP COURTE. L'ambre dit « à relancer », pas « morte » —
+     l'état reste « valide », et la pastille ne prétend pas le contraire. */
+  .de-et.bientot{border-color:rgba(224,168,0,.7);color:var(--amber,#e0a800);
+    background:rgba(224,168,0,.09)}
+  .de-et.expire_avant_remise{border-color:rgba(224,122,95,.55);
+    color:var(--terra,#e07a5f)}
   .de-et.prouvee{border-color:rgba(39,195,154,.5);color:var(--teal,#27c39a)}
   .de-et.incomplete{border-color:rgba(224,168,0,.45);color:var(--amber,#e0a800)}
   .de-org{font-size:12px;color:var(--muted2);margin:5px 0 0}
@@ -183,6 +189,13 @@
         + '<div class="lbl">Périmées</div><div class="val">' + a.perimees.length + '</div></div>'
         + '<div class="de-k ' + (a.absentes.length ? 'ambre' : '') + '">'
         + '<div class="lbl">Absentes</div><div class="val">' + a.absentes.length + '</div></div>'
+        /* CELLES QU'ON CROIT RÉGLÉES. Une attestation valide encore douze
+           jours est comptée dans « valides » — elle l'est — et aucune
+           candidature commencée aujourd'hui n'ira au bout avec elle. Sans ce
+           compte, le seul chiffre vert de l'écran couvrait ce cas-là. */
+        + '<div class="de-k ' + ((a.bientot || []).length ? 'ambre' : '') + '">'
+        + '<div class="lbl">Valides moins de ' + (a.seuil_alerte || 30)
+        + ' jours</div><div class="val">' + (a.bientot || []).length + '</div></div>'
         + '<div class="de-k ' + (ETAT.a_completer ? 'ambre' : 'vert') + '">'
         + '<div class="lbl">À compléter, dossier entier</div><div class="val">'
         + ETAT.a_completer + '</div></div>';
@@ -211,8 +224,16 @@
         var j = x.jours == null ? ''
           : (x.jours >= 0 ? ' — encore ' + x.jours + ' jour' + (x.jours > 1 ? 's' : '')
                           : ' — périmée depuis ' + (-x.jours) + ' jour' + (-x.jours > 1 ? 's' : ''));
+        /* LE LIBELLÉ EST ÉCRIT POUR ÊTRE LU. « expire_avant_remise » est une
+           clé de programme ; sur l'écran d'une personne qui prépare un
+           dossier, elle doit dire ce qu'elle veut dire. */
+        var nom = {valide: 'valide', perimee: 'périmée', absente: 'sans date',
+                   expire_avant_remise: 'périmée le jour de la remise'}[x.etat]
+                  || x.etat;
         return '<div class="de-c"><b>' + E(x.nom) + '</b>'
-          + '<span class="de-et ' + E(x.etat) + '">' + E(x.etat) + E(j) + '</span>'
+          + '<span class="de-et ' + E(x.etat) + (x.alerte ? ' bientot' : '')
+          + '">' + E(nom) + E(j) + '</span>'
+          + (x.alerte ? '<span class="de-et bientot">à relancer maintenant</span>' : '')
           + '<p class="de-org">Délivrée par ' + E(x.organisme)
           + ' · couvre ' + (x.couvre || []).map(E).join(', ') + '</p>'
           + '<div class="de-f">'

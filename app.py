@@ -5630,8 +5630,32 @@ def api_datacenter_marche_parcours():
         except Exception:
             app.logger.exception("parcours — affirmations")
 
+    # ── LA DATE LIMITE DE REMISE DESCEND JUSQU'À LA MESURE ──────────────
+    #
+    # SANS ELLE, L'ÉTAPE POSAIT UNE QUESTION ET EN MESURAIT UNE AUTRE. Elle
+    # demande « Mes attestations sont-elles valides À LA DATE DE REMISE ? » et
+    # comparait les échéances à AUJOURD'HUI, faute d'avoir cette date sous une
+    # forme comparable. Mesuré : sur un dossier à remettre dans quarante jours
+    # avec une attestation de vigilance valable dix, elle annonçait « 2
+    # valide(s) sur 2 » et se déclarait faite.
+    #
+    # ELLE EST LUE DANS L'ANALYSE, PAS DEMANDÉE À LA PAGE. Une date de remise
+    # transmise par le navigateur serait une date SAISIE, donc une date qu'on
+    # peut se tromper en recopiant — et l'écran dirait « vérifié au 25/10 »
+    # avec l'autorité d'un relevé. Ici elle vient du règlement de consultation
+    # déposé, avec sa citation.
+    remise = None
+    try:
+        # UNE SEULE LECTURE, PARTAGÉE. Deux appels rendraient deux objets qui
+        # pourraient diverger le jour où la fonction cesserait d'être pure.
+        etat["remise"] = ao_dc.date_limite(analyse)
+        remise = etat["remise"].get("date")
+    except Exception:
+        app.logger.exception("parcours — date limite de remise")
+
     if ((current_user() or {}).get("role") or "user") == "admin":
-        etat["attestations"] = dossier_entreprise.etat_attestations()
+        etat["attestations"] = dossier_entreprise.etat_attestations(
+            remise=remise)
 
     return jsonify(ok=True, parcours=ao_parcours.parcours(etat),
                    version=ao_parcours.VERSION)

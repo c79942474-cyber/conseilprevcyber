@@ -3983,6 +3983,140 @@ def _index_releves(analyse):
     return par_cle
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  LA DATE LIMITE DE REMISE — LUE, OU DÉCLARÉE ILLISIBLE
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# POURQUOI ELLE MÉRITE SA PROPRE PORTE. Le relevé `date_limite` existait
+# depuis longtemps et rendait une CITATION : « Date et heure limites de remise
+# des offres : 25/10/2026 a 12h00 ». Une citation ne se compare à rien. Or
+# c'est la seule date du dossier dont TOUT dépend — l'étape « attestations »
+# du parcours demande en toutes lettres « Mes attestations sont-elles valides
+# À LA DATE DE REMISE ? » et comparait à AUJOURD'HUI, faute d'avoir cette date
+# sous une forme comparable.
+#
+# MESURÉ : sur un dossier à remettre dans 40 jours, avec une attestation de
+# vigilance valable encore 10 jours, l'étape annonçait « 2 attestation(s)
+# valide(s) sur 2 », se déclarait FAITE, et le dossier serait parti avec une
+# attestation périmée depuis trente jours. L'écran posait une question et en
+# mesurait une autre.
+#
+# LA DATE EST LUE DU JOUR VERS LE MOIS, parce que le dossier est français. Un
+# règlement de consultation écrit « 25/10/2026 », jamais « 10/25/2026 ». Les
+# deux premiers nombres sont donc jour puis mois, sans exception — et une
+# valeur impossible dans cette lecture (32/01, 25/13) est REFUSÉE plutôt que
+# relue à l'envers : retourner une date en devinant l'ordre donnerait une
+# échéance fausse d'un mois avec l'air d'en être sûre.
+
+_MOIS_FR = {
+    "janvier": 1, "fevrier": 2, "mars": 3, "avril": 4, "mai": 5, "juin": 6,
+    "juillet": 7, "aout": 8, "septembre": 9, "octobre": 10, "novembre": 11,
+    "decembre": 12,
+    "janv": 1, "fev": 2, "fevr": 2, "avr": 4, "juil": 7,
+    "sept": 9, "oct": 10, "nov": 11, "dec": 12,
+}
+
+#: LE PIVOT DES ANNÉES À DEUX CHIFFRES. « 26 » est 2026 et non 1926 : un
+#: règlement de consultation ne fixe pas une échéance au siècle dernier. Le
+#: pivot est DÉCLARÉ plutôt qu'implicite — c'est le genre de constante qu'on
+#: cherche en vain le jour où une date part de travers.
+_PIVOT_SIECLE = 80
+
+_JOUR_NUMERIQUE = re.compile(
+    r"(?<!\d)(\d{1,2})\s*[/.\-]\s*(\d{1,2})\s*[/.\-]\s*(\d{2,4})(?!\d)")
+_JOUR_LITTERAL = re.compile(
+    r"(?<!\d)(\d{1,2})(?:\s*(?:er))?\s+([A-Za-zÀ-ÿ]{3,9})\.?\s+(\d{2,4})(?!\d)")
+
+
+def _annee(brut):
+    n = int(brut)
+    if len(str(brut)) <= 2:
+        return 2000 + n if n < _PIVOT_SIECLE else 1900 + n
+    return n
+
+
+def jour_francais(brut):
+    """Une date écrite à la française en `datetime.date`, ou None.
+
+    FONCTION PURE, et c'est ce qui la rend éprouvable : ce qui décide qu'une
+    attestation sera périmée le jour de la remise doit se mesurer sans dossier
+    et sans horloge.
+
+    ELLE REND None PLUTÔT QU'UNE APPROXIMATION. « À la rentrée », « courant
+    octobre », « au plus tard trente jours après notification » sont des dates
+    limites parfaitement valables pour un juriste et illisibles pour un
+    programme. Rendre None fait dire à l'écran « je n'ai pas su la lire » ; en
+    inventer une ferait dire « vous avez jusqu'au… », ce qui est pire.
+    """
+    import datetime                                              # noqa: PLC0415
+    t = " ".join(str(brut or "").split())
+    if not t:
+        return None
+    m = _JOUR_NUMERIQUE.search(t)
+    if m:
+        j, mo, an = int(m.group(1)), int(m.group(2)), _annee(m.group(3))
+    else:
+        m = _JOUR_LITTERAL.search(t)
+        if not m:
+            return None
+        mo = _MOIS_FR.get(_sans_accent(m.group(2).lower()).rstrip("."))
+        if not mo:
+            return None
+        j, an = int(m.group(1)), _annee(m.group(3))
+    try:
+        return datetime.date(an, mo, j)
+    except ValueError:
+        # 32 JANVIER, 31 FÉVRIER, MOIS 13 : refusés. Une date impossible dans
+        # la lecture française l'est aussi dans l'autre sens neuf fois sur
+        # dix, et la dixième ne vaut pas le risque de l'inventer.
+        return None
+
+
+#: CE QUI EST DIT QUAND LA DATE N'A PAS PU ÊTRE LUE. Nommé ici parce que trois
+#: écrans le répéteraient, et que trois copies divergent.
+SANS_DATE_LIMITE = (
+    "La date limite de remise n'a pas été lue dans le dossier déposé. Ce "
+    "n'est pas « il n'y en a pas » : c'est « le relevé ne l'a pas vue ». "
+    "Tant qu'elle n'est pas connue, la validité des attestations ne peut être "
+    "vérifiée qu'à la date d'aujourd'hui — ce qui ne répond pas à la question.")
+
+
+def date_limite(analyse):
+    """La date limite de remise, lue dans le dossier — ou déclarée illisible.
+
+    LA PLUS PROCHE L'EMPORTE, ET C'EST UNE EXCEPTION ASSUMÉE. Partout ailleurs
+    dans ce module, quand deux pièces divergent, c'est celle qu'on ouvre en
+    PREMIER qui fait foi — le règlement de consultation avant le CCTP. Ici
+    non : entre deux dates relevées, retenir la plus tardive ferait travailler
+    sur une échéance qui n'existe peut-être pas, et une candidature remise en
+    retard est irrecevable, sans recours et sans nuance. On retient donc la
+    PLUS PROCHE, et on NOMME l'autre : le lecteur voit qu'il y a divergence et
+    va trancher sur la pièce.
+    """
+    props = _index_releves(analyse).get("date_limite") or []
+    lues = []
+    for p in props:
+        d = jour_francais(p.get("valeur"))
+        if d is None:
+            continue
+        lues.append((d, p))
+    if not lues:
+        return {"date": None, "citation": "", "valeur": "", "fichier": "",
+                "sigle": "", "non_identifie": False, "divergences": [],
+                "propositions": len(props), "pourquoi": SANS_DATE_LIMITE}
+    lues.sort(key=lambda t: t[0])
+    d, p = lues[0]
+    autres = [{"date": x.isoformat(), "valeur": q.get("valeur"),
+               "fichier": q.get("fichier"), "sigle": q.get("sigle")}
+              for x, q in lues[1:] if x != d]
+    return {"date": d.isoformat(), "citation": p.get("citation") or "",
+            "valeur": p.get("valeur") or "", "fichier": p.get("fichier") or "",
+            "sigle": p.get("sigle") or "",
+            "non_identifie": bool(p.get("non_identifie")),
+            "divergences": autres, "propositions": len(props),
+            "pourquoi": ""}
+
+
 def _index_de_recopie(extraits):
     """{clé de relevé: {piece, extrait}} — ce qu'une pièce a lu et que les
     autres peuvent reprendre.

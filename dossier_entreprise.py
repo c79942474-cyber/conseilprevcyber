@@ -607,16 +607,66 @@ def _aujourdhui(aujourdhui=None):
     return d or datetime.date.today()
 
 
-def etat_attestations(aujourdhui=None, table=None):
-    """Chaque attestation : absente, périmée, ou valide — et pour combien de jours.
+#: LES QUATRE ÉTATS D'UNE ATTESTATION, ET POURQUOI IL EN A FALLU UN QUATRIÈME.
+#: « valide » disait : valide AUJOURD'HUI. Or ce n'est pas la question. Une
+#: candidature se remet à une DATE, et c'est à cette date-là que l'acheteur
+#: regarde l'attestation. Une attestation de vigilance qui expire dans dix
+#: jours, pour un dossier à remettre dans quarante, est valide aujourd'hui et
+#: sans valeur le jour qui compte.
+#:
+#: MESURÉ AVANT CORRECTION : sur ce cas exact, l'étape du parcours annonçait
+#: « 2 attestation(s) valide(s) sur 2 », se déclarait FAITE, et le dossier
+#: serait parti avec une attestation périmée depuis trente jours. L'étape
+#: demandait pourtant, en toutes lettres, « Mes attestations sont-elles
+#: valides À LA DATE DE REMISE ? » — elle posait une question et en mesurait
+#: une autre.
+ETATS_ATTESTATION = ("valide", "expire_avant_remise", "perimee", "absente")
+
+#: À COMBIEN DE JOURS UNE ATTESTATION ENCORE VALIDE DOIT DÉJÀ INQUIÉTER.
+#:
+#: POURQUOI UN DRAPEAU ET PAS UN CINQUIÈME ÉTAT. L'état dit un FAIT vérifiable
+#: — valide ou non, à une date. « Bientôt » est un JUGEMENT, qui dépend de ce
+#: qu'on s'apprête à faire. En faire un état ferait sortir l'attestation du
+#: compte des valides, et `couverture()` déclarerait non prouvée une
+#: déclaration qui l'est aujourd'hui. Le drapeau se pose à côté, et ne retire
+#: rien.
+#:
+#: TRENTE JOURS, ET VOICI POURQUOI CE NOMBRE. Une attestation de vigilance
+#: URSSAF se renouvelle en quelques jours, une attestation fiscale peut
+#: demander plusieurs semaines, et une consultation se prépare rarement en
+#: moins d'un mois. En dessous de trente jours, une attestation « valide »
+#: n'ira au bout d'aucune candidature commencée aujourd'hui.
+JOURS_ALERTE = 30
+
+
+def etat_attestations(aujourdhui=None, table=None, remise=None):
+    """Chaque attestation : absente, périmée, valide — ou valide aujourd'hui
+    et PÉRIMÉE LE JOUR DE LA REMISE.
 
     ON MESURE LA VALIDITÉ, ON NE LA CONSTATE PAS. Une attestation « présente »
     ne veut rien dire : une attestation de vigilance URSSAF de l'an dernier est
-    présente et sans valeur. C'est la date d'échéance comparée à aujourd'hui
-    qui décide, et c'est elle qui est rendue.
+    présente et sans valeur. C'est la date d'échéance comparée au jour qui
+    compte qui décide, et c'est elle qui est rendue.
+
+    `remise` EST LA DATE À LAQUELLE LE DOSSIER SERA DÉPOSÉ, lue dans le
+    règlement de consultation par `ao_dc.date_limite()`. Sans elle, la fonction
+    se rabat sur aujourd'hui — l'ancien comportement, que tous les appelants
+    gardent — MAIS elle rend `remise: None`, pour que l'écran puisse dire que
+    la vraie question n'a pas été posée au lieu de laisser croire qu'elle l'a
+    été. Un « tout est valide » qui ne dit pas à quelle date il vaut est le
+    genre de vert qui coûte un marché.
+
+    UNE REMISE PASSÉE EST IGNORÉE, et c'est délibéré : une date limite déjà
+    dépassée signale un dossier archivé ou une lecture fausse, pas une
+    attestation à renouveler. Comparer à elle ferait ressortir tout le dossier
+    en rouge pour une raison sans rapport avec les attestations.
     """
     jour = _aujourdhui(aujourdhui)
-    lignes, valides, perimees, absentes = [], [], [], []
+    fin_remise = _date(remise)
+    if fin_remise is not None and fin_remise < jour:
+        fin_remise = None
+    lignes, valides, perimees, absentes, avant_remise = [], [], [], [], []
+    bientot = []
     for a in (table if table is not None else ATTESTATIONS):
         fin = _date(a.get("valable_jusqu_au"))
         debut = _date(a.get("delivree_le"))
@@ -624,6 +674,9 @@ def etat_attestations(aujourdhui=None, table=None):
             etat, jours = ("absente", None)
         elif fin < jour:
             etat, jours = ("perimee", (fin - jour).days)
+        elif fin_remise is not None and fin < fin_remise:
+            # VALIDE AUJOURD'HUI, PÉRIMÉE LE JOUR OÙ L'ACHETEUR REGARDE.
+            etat, jours = ("expire_avant_remise", (fin - jour).days)
         else:
             etat, jours = ("valide", (fin - jour).days)
         ligne = {"annexe": a.get("annexe"), "cle": a.get("cle"),
@@ -632,13 +685,35 @@ def etat_attestations(aujourdhui=None, table=None):
                  "valable_jusqu_au": fin.isoformat() if fin else None,
                  "couvre": list(a.get("couvre") or ()),
                  "etat": etat, "jours": jours,
+                 # COMBIEN DE JOURS ELLE MANQUE. « Périmée avant la remise » ne
+                 # dit pas s'il s'en faut d'un jour ou de six mois, et les deux
+                 # ne se traitent pas pareil : l'un se renouvelle, l'autre se
+                 # demande tout de suite.
+                 "jours_avant_remise": (None if fin is None or fin_remise is None
+                                        else (fin - fin_remise).days),
+                 # ENCORE VALIDE, ET DÉJÀ TROP COURTE. Le drapeau ne change
+                 # pas l'état : il dit qu'aucune candidature commencée
+                 # aujourd'hui n'ira au bout avec cette pièce-là.
+                 "alerte": bool(etat == "valide" and jours is not None
+                                and jours <= JOURS_ALERTE),
                  "manques": list(a.get("manques") or [])}
         lignes.append(ligne)
-        {"valide": valides, "perimee": perimees,
-         "absente": absentes}[etat].append(a.get("cle"))
+        {"valide": valides, "perimee": perimees, "absente": absentes,
+         "expire_avant_remise": avant_remise}[etat].append(a.get("cle"))
+        if ligne["alerte"]:
+            bientot.append(a.get("cle"))
     return {"lignes": lignes, "total": len(lignes),
             "valides": valides, "perimees": perimees, "absentes": absentes,
-            "jour": jour.isoformat()}
+            "expirent_avant_remise": avant_remise,
+            # VALIDES, MAIS PLUS POUR LONGTEMPS. Compté séparément : elles
+            # restent dans `valides` — elles le sont — et l'écran peut
+            # néanmoins les signaler sans mentir sur leur état.
+            "bientot": bientot, "seuil_alerte": JOURS_ALERTE,
+            "jour": jour.isoformat(),
+            # LA DATE DE REMISE EST RENDUE, MÊME NULLE. C'est elle qui dit à
+            # quelle date le verdict vaut ; sans elle, « 2 valides sur 2 »
+            # n'est pas une réponse, c'est une réponse à une autre question.
+            "remise": fin_remise.isoformat() if fin_remise else None}
 
 
 # Les trois états d'une déclaration au regard de ses preuves. « prouvee » n'est
