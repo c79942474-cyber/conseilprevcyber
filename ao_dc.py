@@ -3828,7 +3828,39 @@ def _index_releves(analyse):
     return par_cle
 
 
-def _poser_extrait(ligne, extrait):
+def _index_de_recopie(extraits):
+    """{clé de relevé: {piece, extrait}} — ce qu'une pièce a lu et que les
+    autres peuvent reprendre.
+
+    PURE, et c'est ce qui la rend éprouvable : ce qui décide de recopier une
+    valeur d'un formulaire de l'État dans un autre doit pouvoir se mesurer
+    sans modèle ni dossier.
+
+    L'APPARIEMENT SE FAIT SUR LA CLÉ DE RELEVÉ, jamais sur le nom de la
+    rubrique. `acheteur` désigne le même fait partout ; mais deux rubriques
+    peuvent partager un nom sans désigner la même chose, et c'est le relevé —
+    « ce point précis du règlement » — qui porte l'identité du fait.
+
+    LA PREMIÈRE LECTURE GAGNE, dans l'ordre de `RUBRIQUES`. Deux pièces
+    peuvent avoir lu le même fait et en avoir tiré deux valeurs ; prendre la
+    dernière ferait dépendre le résultat de l'ordre d'arrivée des appels, qui
+    est parallèle — donc du hasard du réseau. L'ordre de la table est stable
+    et relisible.
+    """
+    par_releve = {}
+    for cle_piece, defs in RUBRIQUES.items():
+        for r in defs:
+            if r.get("source") != "consultation" or not r.get("releve"):
+                continue
+            x = (extraits or {}).get("%s.%s" % (cle_piece, r["cle"]))
+            if not x or not str(x.get("valeur") or "").strip():
+                continue
+            par_releve.setdefault(r["releve"],
+                                  {"piece": cle_piece, "extrait": x})
+    return par_releve
+
+
+def _poser_extrait(ligne, extrait, depuis=None):
     """Poser une valeur LUE dans le dossier par lecture assistée — ou rien.
 
     ELLE ARRIVE DÉJÀ VÉRIFIÉE. `ao_extraction.retenir` a REJETÉ tout ce dont la
@@ -3848,6 +3880,13 @@ def _poser_extrait(ligne, extrait):
     sigle = extrait.get("sigle") or extrait.get("fichier") or "le dossier"
     ligne["origine"] = ("Lu dans %s, à %d %% du document — LECTURE ASSISTÉE"
                         % (sigle, int(extrait.get("part") or 0)))
+    # RECOPIÉ DEPUIS UNE AUTRE PIÈCE : L'ORIGINE LE DIT. Une valeur lue pour
+    # le DC1 et reportée dans l'ATTRI1 n'a pas été lue deux fois ; prétendre
+    # le contraire ferait croire à deux lectures concordantes là où il n'y en
+    # a qu'une.
+    if depuis:
+        ligne["origine"] += " pour le %s, recopié ici" % depuis
+        ligne["recopie_de"] = depuis
     ligne["citation"] = {"texte": extrait.get("citation") or "",
                          "fichier": extrait.get("fichier"),
                          "part": int(extrait.get("part") or 0)}
@@ -3892,6 +3931,32 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False,
     # saisie humaine : une personne qui a corrigé une valeur l'a fait parce que
     # la lecture s'était trompée, et la relancer l'écraserait à chaque tour.
     extraits = extraits or {}
+    # ── UN FAIT DE LA CONSULTATION SE LIT UNE FOIS ET SE RECOPIE ──────────
+    #
+    # CE QUI ÉTAIT MESURÉ. L'identification de l'acheteur est demandée par le
+    # DC1 (cadre A), le DC2, le DC4 (cadre D) et l'ATTRI1 (cadre A) ; l'objet
+    # de la consultation, par le DC1 (cadre B), le DC2 et l'ATTRI1. C'est LE
+    # MÊME FAIT, écrit une fois dans le règlement de l'acheteur.
+    #
+    # LE RELEVÉ PAR MOTIFS LE SAVAIT DÉJÀ : il est indexé par CLÉ DE RELEVÉ,
+    # donc une mention trouvée dans le RC remplit les quatre cadres d'un coup.
+    # LA LECTURE ASSISTÉE, ELLE, NE LE SAVAIT PAS : ses valeurs sont rangées
+    # sous « pièce.rubrique ». Le modèle pouvait donc lire l'acheteur pour le
+    # DC1 et laisser le DC2, le DC4 et l'ATTRI1 vides — trois cadres vides à
+    # côté d'un cadre rempli, avec la même question et la même réponse
+    # disponible. C'est ce que montrait l'écran : « NON RELEVÉ DANS LE
+    # DOSSIER » sous « Identification de l'acheteur », quatre fois.
+    #
+    # CE QUI SE RECOPIE, ET RIEN D'AUTRE. Uniquement les rubriques de source
+    # « consultation », appariées par leur CLÉ DE RELEVÉ — jamais par le nom
+    # de la rubrique, qui peut coïncider entre deux faits différents. Une
+    # saisie se DÉCIDE par pièce et ne se recopie pas ; une donnée de fiche
+    # est déjà commune par construction.
+    #
+    # LA PIÈCE D'ORIGINE EST NOMMÉE dans l'origine de la ligne : une valeur
+    # lue une fois et reportée trois fois n'est pas trois lectures
+    # concordantes, et le relecteur doit pouvoir le voir.
+    recopie = _index_de_recopie(extraits)
     # LE GESTE « FOURNIE HORS OUTIL », ET SON UNIQUE SOURCE. Une pièce que ce
     # module NE PEUT PAS produire — les pouvoirs à obtenir, les références à
     # écrire — reste bloquante tant qu'on ne l'a pas sécurisée ailleurs. Ce
@@ -4048,7 +4113,17 @@ def remplir(fiche=None, analyse=None, saisies=None, groupement=False,
                     # lecture ne l'est pas. Mettre la lecture devant ferait
                     # varier d'un tour à l'autre une valeur que le motif rendait
                     # stable — et personne ne saurait pourquoi.
-                    if _poser_extrait(l, extraits.get("%s.%s" % (cle_piece, r["cle"]))):
+                    propre = extraits.get("%s.%s" % (cle_piece, r["cle"]))
+                    # SA PROPRE LECTURE D'ABORD — elle a été faite sur cette
+                    # pièce-ci, avec ses libellés ; la recopie n'arrive qu'en
+                    # second, quand cette pièce n'a rien obtenu.
+                    ailleurs = None if propre else recopie.get(r.get("releve"))
+                    if _poser_extrait(l, propre):
+                        pass
+                    elif ailleurs and _poser_extrait(
+                            l, ailleurs["extrait"],
+                            depuis=_NOMS_PIECES().get(ailleurs["piece"],
+                                                      ailleurs["piece"])):
                         pass
                     else:
                         l["statut"] = "non_trouve"

@@ -4921,6 +4921,54 @@ def api_datacenter_marche_selection():
     return jsonify(ok=True, selection=sel)
 
 
+# LA RÉSERVE QUI ACCOMPAGNE TOUT BROUILLON, ÉCRITE UNE SEULE FOIS.
+#
+# ELLE PART MAINTENANT PAR DEUX PORTES — le téléchargement d'un brouillon seul
+# et l'archive complète — et une réserve recopiée dans deux fichiers finit
+# toujours par diverger. Celle qu'on oublie de corriger part alors chez
+# l'acheteur sur un document qui n'a été ni relu ni signé.
+_AO_CHAPEAU_BROUILLON = (
+    "BROUILLON — écrit par un modèle de langage à partir du dossier analysé "
+    "et de la fiche du cabinet. Il doit être relu, corrigé et signé par une "
+    "personne habilitée avant tout dépôt. Les passages marqués "
+    "« À COMPLÉTER » sont ceux que le modèle n'a pas inventés.")
+
+# LE STATUT DU CARTOUCHE, dérivé de la même décision.
+_AO_STATUT_BROUILLON = "BROUILLON — ni relu ni signé"
+
+
+def _ao_brouillon_md(texte):
+    """La réserve EN TÊTE DU CORPS, et pas dans une clé que personne ne lit.
+
+    CE QUE LA BATTERIE A TROUVÉ, ET C'ÉTAIT MON DÉFAUT. Les deux points de
+    sortie posaient `"chapeau": …` dans `meta`. Or `livrables_export` ne lit
+    JAMAIS cette clé : ni le cartouche, ni le corps, ni le pied. La réserve
+    était donc écrite, transmise et jetée — les brouillons sortaient sans
+    dire qu'ils n'avaient été ni relus ni signés, et la mutation qui vidait
+    le chapeau ne changeait rien parce qu'il ne changeait déjà rien.
+
+    LE CORPS EST LE SEUL ENDROIT SÛR. Une page de garde se détache d'un
+    tirage agrafé et se saute au défilement ; le premier paragraphe du texte,
+    non. Le cartouche porte en plus le statut, pour qui lit la garde.
+    """
+    return "> **%s**\n\n%s" % (_AO_CHAPEAU_BROUILLON, str(texte or ""))
+
+
+def _ao_nom_fichier(brut, defaut="piece"):
+    """Un nom de fichier sûr, SANS expression régulière.
+
+    `re` n'est pas importé dans ce module, et l'ajouter pour trois caractères
+    serait une dépendance de plus pour rien. Tout ce qui n'est pas
+    alphanumérique devient un tiret — ce qui neutralise au passage un « ../ »
+    ou un guillemet qui se retrouverait dans un chemin d'archive.
+    """
+    n = "".join(c if ("a" <= c <= "z" or "0" <= c <= "9") else "-"
+                for c in str(brut or "").lower()).strip("-")
+    while "--" in n:
+        n = n.replace("--", "-")
+    return n[:60] or defaut
+
+
 def _ao_report(data):
     """LE REPORT PRÉPARÉ — UNE SEULE COMPOSITION POUR /export ET /dossier.zip.
 
@@ -5016,17 +5064,15 @@ def api_datacenter_marche_brouillon():
     brut = str(data.get("piece") or "piece").lower()
     cle = "".join(c if ("a" <= c <= "z" or "0" <= c <= "9") else "-"
                   for c in brut).strip("-") or "piece"
+    # LE DOCUMENT DIT QU'IL EST UN BROUILLON, DANS SON CORPS ET DANS SON
+    # CARTOUCHE. Sorti en Word, il ressemble à une pièce finie ; c'est la
+    # version qu'on retrouve trois semaines plus tard, et rien sur la page ne
+    # rappelle alors qu'elle n'a été ni relue ni signée.
+    md = _ao_brouillon_md(md)
     meta = {
         "titre": nom,
-        # LE DOCUMENT DIT QU'IL EST UN BROUILLON, DANS SON CARTOUCHE. Sorti en
-        # Word, il ressemble à une pièce finie ; c'est la version qu'on
-        # retrouve trois semaines plus tard, et rien sur la page ne rappelle
-        # alors qu'elle n'a été ni relue ni signée.
-        "chapeau": ("BROUILLON — écrit par un modèle de langage à partir du "
-                    "dossier analysé et de la fiche du cabinet. Il doit être "
-                    "relu, corrigé et signé par une personne habilitée avant "
-                    "tout dépôt. Les passages marqués « À COMPLÉTER » sont "
-                    "ceux que le modèle n'a pas inventés."),
+        "label": nom,
+        "statut": _AO_STATUT_BROUILLON,
         "ia": {"redaction": True},
     }
     try:
@@ -5595,6 +5641,10 @@ def api_datacenter_marche_dossier_zip():
         return jsonify(ok=False, error="calcul",
                        message="Le dossier n'a pas pu être établi."), 500
 
+    # LES MODÈLES RÉELLEMENT DÉPOSÉS SUR LE SERVEUR décident de ce que chaque
+    # pièce produit : sans eux, `markdown_piece` rendrait un report là où un
+    # formulaire officiel existe.
+    avec_modele = _ao_modeles_deposes()
     tampon = io.BytesIO()
     pieces, manques = [], []
     with zipfile.ZipFile(tampon, "w", zipfile.ZIP_DEFLATED) as z:
@@ -5636,6 +5686,79 @@ def api_datacenter_marche_dossier_zip():
                                 "version du %s"
                                 % (modele["nom"], len(rapport["places"]),
                                    len(rapport["non_places"]), modele["maj"])))
+        # ── CHAQUE PIÈCE, DANS SON PROPRE FICHIER ────────────────────
+        #
+        # CE QUI MANQUAIT, ET QUI SE VOIT À L'OUVERTURE DE L'ARCHIVE. Elle
+        # ne portait que DEUX choses : le report de toutes les rubriques en
+        # un seul document, et les quatre formulaires de l'État. Les
+        # dix-neuf autres pièces — lettre de candidature, mémoire, DPGF,
+        # demandes aux tiers, attestations à joindre — n'avaient AUCUN
+        # fichier. « Tout le dossier » n'était donc pas tout le dossier :
+        # c'était le report plus quatre imprimés, et il fallait redemander
+        # les dix-neuf autres une par une.
+        #
+        # RANGÉES DANS UN SOUS-DOSSIER, et les quatre formulaires restent à
+        # la racine : ce sont eux qu'on dépose, et les noyer parmi
+        # vingt-trois fichiers ferait chercher. L'ordre du numéro suit
+        # l'ordre des deux dossiers, celui dans lequel on les remet.
+        for i, piece in enumerate(r.get("pieces") or [], 1):
+            nom = "pieces/%02d-%s.%s" % (i, _ao_nom_fichier(piece.get("cle")),
+                                         fmt)
+            try:
+                md_p = ao_dc.markdown_piece(r, piece["cle"], avec_modele)
+                if not md_p:
+                    continue
+                blob, _mt, _ext = livrables_export.composer(
+                    md_p, dict(meta, label=piece.get("nom") or piece["cle"],
+                               perimetre="%d rubrique(s)"
+                                         % len(piece.get("rubriques") or [])),
+                    fmt)
+            except Exception:
+                app.logger.exception("dossier complet — pièce %s",
+                                     piece.get("cle"))
+                manques.append((nom, "la mise en page a échoué"))
+                continue
+            z.writestr(nom, blob)
+            pieces.append((nom, "%s — %s"
+                                % (piece.get("nom") or piece["cle"],
+                                   piece.get("voie_nom") or "pièce du dossier")))
+
+        # ── LES BROUILLONS RÉDIGÉS, S'IL Y EN A ──────────────────────────
+        #
+        # ILS NE SONT NULLE PART AILLEURS. L'atelier écrit onze notes —
+        # mémoire technique, autonomie commerciale, convention de
+        # groupement, cadre de DPGF — et elles vivaient dans la page, à
+        # emporter une par une. Celui qui prenait « tout le dossier » et
+        # fermait l'onglet les perdait toutes.
+        #
+        # ILS ARRIVENT DE LA REQUÊTE, comme le reste : cette route ne
+        # conserve rien et n'a donc aucun brouillon à aller chercher.
+        # Chacun sort avec le cartouche qui dit qu'il est un brouillon non
+        # relu — le même que `/marche/brouillon`, parce qu'un document qui
+        # sort sans cette réserve se retrouve trois semaines plus tard sans
+        # que rien ne rappelle qu'il n'a été ni relu ni signé.
+        for b in (data.get("brouillons") or [])[:40]:
+            if not isinstance(b, dict):
+                continue
+            texte = str(b.get("texte") or "")[:130000]
+            if not texte.strip():
+                continue
+            nom = "brouillons/%s.%s" % (
+                _ao_nom_fichier(b.get("piece"), "brouillon"), fmt)
+            try:
+                blob, _mt, _ext = livrables_export.composer(
+                    _ao_brouillon_md(texte),
+                    dict(meta, label=str(b.get("nom") or "Brouillon")[:120],
+                         statut=_AO_STATUT_BROUILLON,
+                         ia={"redaction": True}), fmt)
+            except Exception:
+                app.logger.exception("dossier complet — brouillon %s",
+                                     b.get("piece"))
+                manques.append((nom, "la mise en page a échoué"))
+                continue
+            z.writestr(nom, blob)
+            pieces.append((nom, "brouillon rédigé — À RELIRE ET SIGNER"))
+
         z.writestr("BORDEREAU.txt",
                    _ao_bordereau_archive(fmt, pieces, manques).encode("utf-8"))
 

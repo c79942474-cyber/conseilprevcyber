@@ -7016,7 +7016,28 @@ function messageDelai(e, defaut) {
      exactement ce qu'on interdit au modèle de faire. Les documents du socle
      sont donc affichés SOUS le brouillon, et son absence est affichée aussi :
      elle explique pourquoi le texte est plus pauvre. */
+  /* LES BROUILLONS ÉCRITS PENDANT LA SESSION, GARDÉS POUR L'ARCHIVE.
+     Ils ne vivaient que dans le HTML de leur bloc : « Tout le dossier » ne
+     pouvait pas les joindre, et fermer l'onglet les perdait tous les onze.
+     Le stock est ICI et pas sur le serveur — cette section ne conserve rien,
+     c'est sa doctrine ; ce qui doit voyager voyage dans la requête. */
+  var AO_BROUILLONS = {};
+
+  function aoBrouillonsListe() {
+    return Object.keys(AO_BROUILLONS).map(function (c) {
+      return AO_BROUILLONS[c];
+    });
+  }
+
   function aoRedigerRendre(z, j) {
+    /* UN SEUL POINT DE CAPTURE, ET C'EST VOULU : les deux chemins — l'atelier
+       qui en écrit onze d'un coup, et la rédaction pièce par pièce — passent
+       tous deux par ici. Capturer chez les deux appelants ferait diverger le
+       stock du jour où un troisième chemin apparaîtrait. */
+    if (j && j.cle && j.markdown) {
+      AO_BROUILLONS[j.cle] = { piece: j.cle, nom: j.nom || j.cle,
+                               texte: j.markdown };
+    }
     var h = "";
     if (j.socle_sources && j.socle_sources.length) {
       h += '<p class="ig-ao-reds"><b>Socle documentaire</b> — ' + fr(j.socle_sources.length)
@@ -7564,6 +7585,59 @@ function messageDelai(e, defaut) {
 
   /* L'UNIQUE APPEL. Débounce à 450 ms : on tape à deux mains, et une requête
      par frappe ferait vingt allers-retours pour une ligne d'adresse. */
+  /* ═══════════════════════════════════════════════════════════════════
+     LE CHAMP NE DOIT PAS ÊTRE DÉTRUIT SOUS LES DOIGTS
+     ═══════════════════════════════════════════════════════════════════
+     LE DÉFAUT, MESURÉ. Chaque frappe dans une case appelle `aoRemplir`, qui
+     interroge le serveur 450 ms après la dernière touche puis REPEINT toute
+     la zone — `z.innerHTML = h`. Le champ dans lequel on écrivait est alors
+     un nœud détruit : le focus part, le curseur repart à zéro, et taper une
+     phrase devient impossible. On croit à un défaut de clavier ; c'est la
+     page qui arrache le champ des mains.
+
+     ET IL Y A PIRE QUE LE FOCUS. La requête est partie avec la valeur
+     d'il y a 450 ms. Si l'on a continué de taper pendant l'aller-retour, la
+     réponse rapporte une valeur PLUS VIEILLE que ce qui est à l'écran : le
+     repeint efface les dernières lettres. C'est ce qui donne l'impression que
+     les caractères « sautent ».
+
+     LA RÉPARATION EST EN DEUX TEMPS, ET IL FAUT LES DEUX. `aoFocusRetenir`
+     note quel champ est actif, où est le curseur, et SA VALEUR VIVANTE.
+     `aoFocusRendre` le retrouve après le repeint, lui remet la valeur vivante
+     — qui l'emporte toujours sur l'écho du serveur, plus vieux qu'elle — puis
+     le focus et le curseur.
+
+     POURQUOI PAS « NE PAS REPEINDRE ». Parce que le repeint porte les
+     compteurs, les états et les citations : les geler pendant la saisie
+     rendrait un écran qui ment sur son propre contenu. On repeint, et on
+     remet la main de l'opérateur là où elle était. */
+  function aoFocusRetenir(z) {
+    var a = document.activeElement;
+    if (!z || !a || !z.contains(a)) return null;
+    var cle = a.getAttribute && (a.getAttribute("data-saisie")
+                                 || a.getAttribute("data-fiche"));
+    if (!cle) return null;
+    var t = {attr: a.hasAttribute("data-saisie") ? "data-saisie" : "data-fiche",
+             cle: cle, valeur: a.value, debut: 0, fin: 0};
+    try { t.debut = a.selectionStart; t.fin = a.selectionEnd; }
+    catch (e) { t.debut = t.fin = (a.value || "").length; }
+    return t;
+  }
+
+  function aoFocusRendre(z, t) {
+    if (!z || !t) return;
+    /* LES GUILLEMETS ET LES CONTRE-OBLIQUES SONT ÉCHAPPÉS. Une clé de
+       rubrique n'en porte pas aujourd'hui ; un sélecteur qui casserait au
+       premier caractère inattendu rendrait le champ irrécupérable, en
+       silence. */
+    var v = String(t.cle).replace(/[\\"]/g, "\\$&");
+    var n = z.querySelector("[" + t.attr + '="' + v + '"]');
+    if (!n) return;
+    if (t.valeur !== undefined && n.value !== t.valeur) n.value = t.valeur;
+    try { n.focus({ preventScroll: true }); } catch (e) { n.focus(); }
+    try { n.setSelectionRange(t.debut, t.fin); } catch (e) { /* type sans curseur */ }
+  }
+
   function aoRemplir(immediat) {
     if (_aoTempo) clearTimeout(_aoTempo);
     /* L'ÉTAT DES MODÈLES EST DEMANDÉ UNE SEULE FOIS, et son échec ne coûte que
@@ -7658,6 +7732,7 @@ function messageDelai(e, defaut) {
       });
       h += "</div></div>";
     });
+    var garde = aoFocusRetenir(z);
     z.innerHTML = h;
     z.querySelectorAll("[data-fiche]").forEach(function (i) {
       i.addEventListener("input", function () {
@@ -7666,6 +7741,7 @@ function messageDelai(e, defaut) {
         aoRemplir();
       });
     });
+    aoFocusRendre(z, garde);
   }
 
 
@@ -7961,9 +8037,15 @@ function messageDelai(e, defaut) {
     demander("/api/datacenter/marche/dossier.zip", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
+      /* LES BROUILLONS PARTENT AVEC. L'archive s'appelle « tout le dossier »
+         et n'en portait rien : ni les vingt-trois pièces une à une, ni les
+         onze notes rédigées — le report global et quatre imprimés, c'est
+         tout. Ce que le serveur ne conserve pas doit voyager dans la
+         requête. */
       body: JSON.stringify({ fiche: AO_FICHE, analyse: AO_ANALYSE,
-                             saisies: AO_SAISIES, format: fmt ,
-                               perimetre: aoPerimetre() }),
+                             saisies: AO_SAISIES, format: fmt,
+                             brouillons: aoBrouillonsListe(),
+                             perimetre: aoPerimetre() }),
     }, DELAI_LONG).then(function (r) {
       if (!r.ok) throw new Error("dossier");
       entete = r.headers.get("X-Dossier");
@@ -8458,6 +8540,64 @@ function messageDelai(e, defaut) {
 
   var AO_DERNIER = null;
 
+  /* ══════════════════════════════════════════════════════════════════════
+     UN APERÇU SUR LA CARTE, LA PIÈCE ENTIÈRE QUAND ON L'OUVRE
+     ══════════════════════════════════════════════════════════════════════
+     LE DÉFAUT. Les vingt-trois cartes déroulaient TOUTES leurs rubriques,
+     dans une grille de trois colonnes. Une pièce de quinze rubriques donnait
+     une colonne de deux mètres de haut et des champs de deux centimètres de
+     large : on remplissait à l'aveugle, et l'on perdait la carte voisine des
+     yeux avant d'avoir fini la première.
+
+     CE QU'ON FAIT. La carte montre un APERÇU — les premières rubriques, celles
+     qui manquent d'abord — et dit combien il en reste. L'ouvrir déploie la
+     pièce SEULE, sur toute la largeur, avec des champs larges : c'est là qu'on
+     remplit à la main.
+
+     LE CLIC DE SÉLECTION N'EST PAS TOUCHÉ. Il porte déjà sur la carte et
+     ignore `input, textarea, select, a, button` ; le bouton d'ouverture en est
+     un, donc il n'a jamais sélectionné et ne sélectionnera pas. Les deux
+     gestes coexistent sans se marcher dessus. */
+  var AO_APERCU = 4;          /* rubriques montrées sur une carte fermée */
+  var AO_OUVERTE = null;      /* la pièce ouverte en grand, ou null */
+
+  function aoOuvrir(cle) {
+    AO_OUVERTE = (AO_OUVERTE === cle) ? null : cle;
+    if (AO_REMPLI) aoRempliRendre(AO_REMPLI);
+    if (AO_OUVERTE) {
+      var n = document.querySelector('[data-doc="' + AO_OUVERTE + '"]');
+      if (n && n.scrollIntoView) n.scrollIntoView({ block: "nearest" });
+    }
+  }
+
+  /* LE TÉLÉCHARGEMENT D'UNE PIÈCE, TOUJOURS OFFERT.
+     Le « ⬇ » n'apparaissait qu'APRÈS une production en lot : pour emporter une
+     seule pièce, il fallait lancer les vingt-trois. On réutilise `aoLotUne`,
+     déjà éprouvée, plutôt que d'écrire un second chemin qui divergerait. */
+  function aoPieceEmporter(cle, bouton) {
+    var libelle = bouton.textContent;
+    bouton.disabled = true;
+    bouton.textContent = "Composition…";
+    aoLotUne(cle).then(function () {
+      var x = AO_PRODUIT[cle] || {};
+      bouton.disabled = false;
+      bouton.textContent = libelle;
+      if (x.etat === "fait" && x.url) {
+        var a = document.createElement("a");
+        a.href = x.url;
+        a.download = x.nom || (cle + "." + AO_LOT_FMT);
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+      /* LA CARTE EST REPEINTE DANS LES DEUX CAS : réussite, elle dit ce qui
+         reste vide dans le document ; échec, elle dit pourquoi. Se taire sur
+         un échec laisserait croire à un téléchargement bloqué par le
+         navigateur. */
+      if (AO_REMPLI) aoRempliRendre(AO_REMPLI);
+    });
+  }
+
   function aoRempliRendre(r) {
     var z = $("#ig-ao-rempli");
     if (!z) return;
@@ -8527,6 +8667,7 @@ function messageDelai(e, defaut) {
         + (p.complet ? " ig-ao-cp-ok" : "")
         + (p.fournie ? " ig-ao-cp-fournie" : "")
         + (AO_CHOISIES[p.cle] ? " ig-ao-cp-sel" : "")
+        + (AO_OUVERTE === p.cle ? " ig-ao-cp-grand" : "")
         + (prod ? " ig-ao-cp-" + prod.etat : "")
         + '" data-doc="' + esc(p.cle)
         /* LA CARTE EST UN INTERRUPTEUR, et elle le dit à qui ne la voit pas.
@@ -8546,6 +8687,16 @@ function messageDelai(e, defaut) {
         + '<span class="ig-ao-vo ig-ao-vo-' + esc(p.voie) + '">'
         + esc(p.voie_nom) + "</span>"
         + aoProduira(p)
+        /* DEUX GESTES, DEUX BOUTONS, ET ILS SONT DANS L'EN-TÊTE — donc
+           toujours visibles, aperçu replié ou pièce déployée. */
+        + '<span class="ig-ao-cpa">'
+        + '<button type="button" class="btn btn-s ig-ao-ouv" data-ao-ouvrir="'
+        + esc(p.cle) + '" aria-expanded="'
+        + (AO_OUVERTE === p.cle ? "true" : "false") + '">'
+        + (AO_OUVERTE === p.cle ? "▾ Replier" : "▸ Ouvrir en grand") + "</button>"
+        + '<button type="button" class="btn btn-s" data-ao-prendre="'
+        + esc(p.cle) + '" title="Composer et télécharger cette pièce seule">'
+        + "⬇</button></span>"
         + "</div>";
       /* UNE PIÈCE SANS OBJET LE DIT, ET DIT POURQUOI. Muette, elle
          ressemblerait à une pièce oubliée — et ses vingt-trois rubriques
@@ -8592,8 +8743,31 @@ function messageDelai(e, defaut) {
           h += "</div>";
         }
       }
+      /* L'APERÇU MONTRE CE QUI DEMANDE ATTENTION D'ABORD, pas les quatre
+         premières rubriques du catalogue. Une carte dont les quatre
+         premières sont remplies afficherait « tout va bien » alors que six
+         trous l'attendent trois écrans plus bas.
+ 
+         « REMPLI » NE VEUT PAS DIRE « RÉGLÉ », et c'est une règle maison qui
+         l'a montré en tombant. Une valeur lue dans un fichier que
+         l'identification n'a pas su nommer, une valeur qu'une autre pièce
+         contredit, une valeur corrigée à la main : toutes portent l'état
+         « rempli » et sont précisément celles qu'il faut relire avant de
+         signer. Les ranger derrière les rubriques vides les aurait fait
+         disparaître de l'aperçu — l'avertissement serait devenu du décor. */
+      var ouverte = (AO_OUVERTE === p.cle);
+      var apercu = p.rubriques;
+      if (!ouverte && p.rubriques.length > AO_APERCU) {
+        var urgent = function (x) {
+          return x.statut !== "rempli" || x.a_confirmer || x.corrige
+            || (x.divergences && x.divergences.length);
+        };
+        apercu = p.rubriques.filter(urgent)
+          .concat(p.rubriques.filter(function (x) { return !urgent(x); }))
+          .slice(0, AO_APERCU);
+      }
       h += '<dl class="ig-ao-rb">';
-      p.rubriques.forEach(function (l) {
+      apercu.forEach(function (l) {
         var cl = AO_ETAT_CLASSE[l.statut] || "att";
         h += '<dt class="' + cl + '">' + esc(l.libelle)
           + '<span class="ig-ao-st ' + cl + '">' + esc(l.statut_nom)
@@ -8666,8 +8840,16 @@ function messageDelai(e, defaut) {
         if (l.aide) h += '<p class="ig-ao-w">' + esc(l.aide) + "</p>";
         h += "</dd>";
       });
-      h += "</dl>"
-        + '<p class="ig-ao-pg"><i>Le piège</i> — ' + esc(p.piege) + "</p>"
+      h += "</dl>";
+      if (apercu.length < p.rubriques.length) {
+        /* CE QUI N'EST PAS MONTRÉ EST COMPTÉ, et le compte est un bouton :
+           un aperçu muet ferait croire à une pièce de quatre rubriques. */
+        h += '<button type="button" class="btn btn-s ig-ao-plus" '
+          + 'data-ao-ouvrir="' + esc(p.cle) + '">＋ '
+          + (p.rubriques.length - apercu.length)
+          + " autre(s) rubrique(s) — ouvrir en grand pour remplir</button>";
+      }
+      h += '<p class="ig-ao-pg"><i>Le piège</i> — ' + esc(p.piege) + "</p>"
         + aoLotEtatCarte(p) + "</div>";
     });
     h += "</div>"
@@ -8693,6 +8875,7 @@ function messageDelai(e, defaut) {
       + "⬇ Tout le dossier (.zip)</button></label>"
       + aoFormulairesBoutons() + "</div>"
       + '<p class="ig-icpe-res">' + esc(r.note) + "</p>";
+    var garde = aoFocusRetenir(z);
     z.innerHTML = h;
     aoBrancherMenu(r);
     aoBrancherLot(r, z);
@@ -8710,6 +8893,18 @@ function messageDelai(e, defaut) {
         aoFormulaireRemplir(b.dataset.aoForm, b);
       });
     });
+    z.querySelectorAll("[data-ao-ouvrir]").forEach(function (b) {
+      b.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        aoOuvrir(b.dataset.aoOuvrir);
+      });
+    });
+    z.querySelectorAll("[data-ao-prendre]").forEach(function (b) {
+      b.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        aoPieceEmporter(b.dataset.aoPrendre, b);
+      });
+    });
     z.querySelectorAll("[data-saisie]").forEach(function (i) {
       i.addEventListener("input", function () {
         AO_SAISIES[i.dataset.saisie] = i.value;
@@ -8717,6 +8912,7 @@ function messageDelai(e, defaut) {
         aoRemplir();
       });
     });
+    aoFocusRendre(z, garde);
   }
 
 

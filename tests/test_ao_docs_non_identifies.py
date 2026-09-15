@@ -440,8 +440,12 @@ def test_l_origine_non_identifiee_se_distingue_a_l_ecran():
         "l'origine d'un fichier non identifié se rend comme toutes les autres")
     assert "FICHIER NON IDENTIFIÉ" in h, h[:400]
 
+    # LE TÉMOIN SE MESURE PIÈCE OUVERTE. Une valeur proprement relevée est
+    # « remplie » et sans réserve : l'aperçu la range derrière ce qui demande
+    # attention, et la carte repliée ne la montre pas. C'est le comportement
+    # voulu — mais un témoin qui ne voit rien ne témoigne de rien.
     identifie = A.analyser([_doc("RC.pdf", RC)])
-    h2 = _carte_rendue(A.remplir(fiche={}, analyse=identifie))
+    h2 = _carte_rendue(A.remplir(fiche={}, analyse=identifie), ouverte="dc1")
     assert "Relevé dans RC" in h2, "le témoin est cassé : le RC ne verse plus"
     assert "ig-ao-og-conf" not in h2, (
         "la classe d'avertissement s'applique aussi aux pièces identifiées : "

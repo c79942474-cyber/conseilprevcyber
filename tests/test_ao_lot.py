@@ -254,6 +254,8 @@ def _banc_lot(corps):
                    "aoLotRafraichirCarte", "aoLotCompter", "aoLotBasculer",
                    "aoLotRemplir", "aoLotUne")
         + "\nvar AO_CHOISIES = {}, AO_PRODUIT = {}, AO_LOT_FMT = 'docx';"
+        + "\nvar AO_OUVERTE = null, AO_APERCU = 4, AO_REMPLI = null;"
+        + "\nfunction aoOuvrir() {}\nfunction aoPieceEmporter() {}"
         + "\nvar AO_DERNIER = null, AO_FICHE = {}, AO_ANALYSE = null;"
         + "\nvar AO_SAISIES = {}, DELAI_MOYEN = 1000;"
         + "\nvar AO_LOT_FRONT = " + str(_front()) + ";"

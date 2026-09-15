@@ -383,7 +383,7 @@ def test_l_export_separe_les_deux_dossiers_et_signale_ce_qui_est_sans_objet():
 # 7. CE QUE LA PAGE AFFICHE VRAIMENT — LA FONCTION EST EXÉCUTÉE, PAS RELUE
 # ══════════════════════════════════════════════════════════════════════════
 
-def _carte_rendue(remplissage):
+def _carte_rendue(remplissage, ouverte=None):
     """Le HTML que `aoRempliRendre` produit RÉELLEMENT, obtenu en l'exécutant.
 
     CHERCHER UNE CHAÎNE DANS LE FICHIER SERAIT VERT POUR UNE OCCURRENCE DANS
@@ -397,14 +397,24 @@ def _carte_rendue(remplissage):
         # appelées PAR `aoRempliRendre` : les omettre ferait tomber le banc
         # sur « aoLotBarre is not defined » — ce qui est arrivé, et c'est
         # exactement son office : il exécute, il ne relit pas.
+        # LE BANC A ENCORE GAGNÉ DEUX FONCTIONS, ET C'EST LUI QUI L'A DIT.
+        # `aoRempliRendre` garde désormais le focus et le curseur du champ en
+        # cours de saisie par-dessus le repeint : sans ces deux-là, le banc
+        # tombe sur « aoFocusRetenir is not defined ». C'est exactement son
+        # office — il exécute, il ne relit pas.
         _js_source("esc", "info", "aoMenuDocs", "aoFormulairesBoutons",
                    "aoProduira", "aoLotBarre", "aoLotEtatCarte",
+                   "aoFocusRetenir", "aoFocusRendre",
                    "aoRempliRendre")
         + "\nvar AO_FORMULAIRES = null;"
         + "\nvar AO_DOC = '';"
         + "\nvar AO_SAISIES = {};"
         + "\nvar AO_CHOISIES = {};"
         + "\nvar AO_PRODUIT = {};"
+        + "\nvar AO_OUVERTE = process.env.OUVERTE || null;"
+        + "\nvar AO_APERCU = 4;"
+        + "\nvar AO_REMPLI = null;"
+        + "\nfunction aoOuvrir() {}\nfunction aoPieceEmporter() {}"
         + "\nvar AO_LOT_FMT = 'docx';"
         + "\nvar AO_DERNIER = null;"
         + "\nvar AO_ETAT_CLASSE = { rempli: 'ok', a_saisir: 'att',"
@@ -424,7 +434,8 @@ def _carte_rendue(remplissage):
         + "\nprocess.stdout.write(zone.innerHTML);\n")
     out = subprocess.run(
         ["node"], input=prog, capture_output=True, text=True, timeout=60,
-        env=dict(os.environ, AO_REMPLI=json.dumps(remplissage)))
+        env=dict(os.environ, AO_REMPLI=json.dumps(remplissage),
+                 OUVERTE=ouverte or ""))
     assert out.returncode == 0, out.stderr[-2000:]
     return html.unescape(out.stdout)
 
@@ -462,7 +473,11 @@ def test_la_carte_d_une_piece_sans_objet_le_dit_sur_la_page():
 def test_la_page_distingue_a_l_ecran_les_deux_natures_d_engagement():
     """Servir le même avertissement sur une déclaration sur l'honneur et sur
     l'engagement d'un acte d'engagement dirait une chose fausse."""
-    h = _carte_rendue(_rempli(saisies=AVEC_SOUS_TRAITANCE))
+    # LES VINGT-TROIS PIÈCES OUVERTES, parce que les textes d'engagement sont
+    # portés par des DÉCLARATIONS — remplies ou non, elles se rangent derrière
+    # ce qui demande attention dans l'aperçu.
+    r = _rempli(saisies=AVEC_SOUS_TRAITANCE)
+    h = "".join(_carte_rendue(r, ouverte=x["cle"]) for x in r["pieces"])
     for nature in A.ENGAGEMENTS.values():
         assert nature["nom"] in h, nature["nom"]
     assert h.count(A.ENGAGEMENTS["contractuel"]["nom"]) == 1, (
