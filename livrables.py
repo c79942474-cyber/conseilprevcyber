@@ -564,6 +564,140 @@ TYPES = [
             "Décisions demandées",
         ],
     },
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  CE QUE LE CATALOGUE NE COUVRAIT PAS — mesuré activité par activité
+    #  contre la fiche d'une mission de management en cybersécurité
+    #  industrielle, le 16 septembre 2026.
+    #
+    #  LE CATALOGUE COUVRAIT DÉJÀ QUATORZE ACTIVITÉS SUR SEIZE, et c'est
+    #  pourquoi ces cinq-là sont nommés : ce sont les trous, pas une refonte.
+    # ══════════════════════════════════════════════════════════════════════
+    {
+        # ZÉRO LIVRABLE SUR SEIZE ACTIVITÉS : c'est le seul trou franc de la
+        # mesure. Et les cinq parties de l'IEC 61508 dormaient en base sans
+        # qu'aucun livrable ne les lise — le manque et la matière étaient
+        # côte à côte.
+        "id": "sr-interface-surete-securite",
+        "mots_cles": "sûreté fonctionnelle safety security SIS SIF SIL IEC 61508 61511 "
+                     "62443 interface arrêt d'urgence cause commune modification "
+                     "instrumentée sécurité industrielle",
+        "groupe": "Conseil — Continuité & crise OT",
+        "label": "Interface sûreté / sécurité (IEC 61508-61511 ↔ IEC 62443)",
+        "desc": "Articulation entre les fonctions instrumentées de sécurité et les mesures "
+                "de cybersécurité : périmètre commun, conflits de règles, causes communes, "
+                "gouvernance conjointe safety/security et impacts sur le SIL.",
+        "sections": [
+            "Périmètre : ce que couvre le SIS, ce que couvre le SCI",
+            "Fonctions instrumentées de sécurité concernées (SIF / SIL)",
+            "Points de recouvrement et zones grises",
+            "Conflits de règles — disponibilité de la fonction de sûreté "
+            "contre durcissement",
+            "Causes communes et scénarios d'attaque affectant le SIL",
+            "Règles d'accès, de modification et de contournement du SIS",
+            "Gouvernance conjointe : instances, arbitrages, qui tranche",
+            "Exigences à porter dans les études de dangers et les analyses "
+            "de risque cyber",
+            "Recommandations et points de vigilance",
+        ],
+    },
+    {
+        # LE SEUL DIAGNOSTIC ORGANISATIONNEL DU CATALOGUE PORTAIT SUR L'IA.
+        # Un radar de maturité note des domaines ; il ne dit ni qui décide,
+        # ni où le processus casse.
+        "id": "diag-organisationnel-ot",
+        "mots_cles": "diagnostic organisationnel fonction OT security effectifs "
+                     "rattachement compétences charge interfaces IT OT engineering "
+                     "opérations décision arbitrage",
+        "groupe": "Conseil — Maturité",
+        "label": "Diagnostic organisationnel de la fonction OT Security",
+        "desc": "Photographie de l'organisation en place : rattachement, effectifs, "
+                "compétences, charge, circuits de décision et points de rupture entre "
+                "IT, OT, engineering, opérations et sûreté. Distinct du radar de "
+                "maturité, qui note des domaines sans dire où l'organisation casse.",
+        "sections": [
+            "Périmètre et méthode (entretiens, documents, observations)",
+            "Rattachement et mandat de la fonction",
+            "Effectifs, compétences et charge réelle",
+            "Circuits de décision et d'arbitrage",
+            "Interfaces IT / OT / engineering / opérations / sûreté",
+            "Points de rupture constatés",
+            "Ce qui tient grâce aux personnes plutôt qu'au dispositif",
+            "Constats et recommandations organisationnelles",
+        ],
+    },
+    {
+        # « REVOIR UN DISPOSITIF EXISTANT » N'EST PAS « ÉVALUER UNE
+        # MATURITÉ ». On arrive après d'autres : il faut dire ce qui tient,
+        # ce qui a été payé et n'a pas servi, et ce qu'on reprend.
+        "id": "revue-dispositif-ot",
+        "mots_cles": "revue dispositif existant due diligence reprise état des lieux "
+                     "outillage contrats prestataires dette investissements réalisés "
+                     "reconduction",
+        "groupe": "Conseil — Maturité",
+        "label": "Revue d'un dispositif OT Security existant",
+        "desc": "Revue critique d'un dispositif déjà en place : ce qui fonctionne, ce qui "
+                "a été acheté sans être utilisé, la dette accumulée et ce qu'il est "
+                "raisonnable de reprendre plutôt que de refaire.",
+        "sections": [
+            "Historique et intentions d'origine",
+            "Dispositif en place : organisation, processus, outillage",
+            "Ce qui fonctionne et qu'il faut préserver",
+            "Ce qui a été investi sans produire d'effet",
+            "Dette technique et organisationnelle",
+            "Contrats et prestataires en cours",
+            "Reprendre ou refaire — arbitrage argumenté",
+            "Conditions de reprise",
+        ],
+    },
+    {
+        # IL EXISTAIT UNE ANALYSE D'ÉCARTS NIS2 ET PAS SON ÉQUIVALENT 62443.
+        # `synthese-62443` rend un ÉTAT de conformité ; l'écart par zone et
+        # par SL est un autre travail, et c'est celui que la mission nomme.
+        "id": "ecarts-62443",
+        "mots_cles": "analyse d'écarts gap analysis IEC 62443 zones conduits SL-T SL-A "
+                     "SL-C exigences fondamentales FR SR RE CSMS ISA 99 remédiation",
+        "groupe": "Conformité & risques",
+        "label": "Analyse d'écarts IEC 62443 — par zone et par niveau de sécurité",
+        "desc": "Écart entre le niveau de sécurité atteint (SL-A) et le niveau cible "
+                "(SL-T), zone par zone et exigence par exigence, avec la charge de "
+                "remédiation associée. Complète la synthèse de conformité, qui rend un "
+                "état et non un écart.",
+        "sections": [
+            "Périmètre : zones, conduits et actifs retenus",
+            "Niveaux cibles SL-T retenus et leur justification",
+            "Méthode d'évaluation du SL-A",
+            "Écarts par exigence fondamentale (FR 1 à FR 7)",
+            "Écarts par zone et par conduit",
+            "Exigences de capacité des composants (SL-C) et limites produit",
+            "Charge de remédiation et dépendances",
+            "Écarts acceptés et mesures compensatoires",
+        ],
+    },
+    {
+        # LE SEUL CANDIDAT DU CATALOGUE ÉTAIT « SENSIBILISATION », qui
+        # n'est pas un atelier de décideurs : on n'anime pas une direction
+        # industrielle avec un support de sensibilisation.
+        "id": "atelier-direction",
+        "mots_cles": "atelier workshop animation direction industrielle RSSI CISO CIO "
+                     "engineering opérations sûreté alignement arbitrage décision "
+                     "compte rendu relevé de décisions",
+        "groupe": "Conseil — Operating Model",
+        "label": "Atelier de direction — conduite, matériel et relevé de décisions",
+        "desc": "Préparation et conduite d'un atelier réunissant direction industrielle, "
+                "RSSI, CIO, engineering, opérations et sûreté : objectif, matériel, "
+                "déroulé minuté, points d'arbitrage et relevé de décisions opposable.",
+        "sections": [
+            "Objectif de l'atelier et décision attendue",
+            "Participants, rôles et ce que chacun vient arbitrer",
+            "Matériel à préparer et à envoyer en amont",
+            "Déroulé minuté",
+            "Points d'arbitrage et options à présenter",
+            "Désaccords prévisibles et manière de les traiter",
+            "Relevé de décisions",
+            "Suites : porteurs, échéances, prochaine instance",
+        ],
+    },
     {
         "id": "pca-pra-ot",
         "mots_cles": "plan continuité reprise activité PCA PRA RTO RPO sauvegarde restauration exercice",
@@ -2084,6 +2218,45 @@ def build_refine_prompts(type_id, inputs, previous, instructions):
 # _hits_priorises fait passer ces thèmes devant, sans écarter le reste.
 # Validée au chargement contre rag_store.THEMES : un thème renommé là-bas
 # ferait échouer l'import ici, au lieu de désactiver la priorité en silence.
+# ── LES THÈMES ORPHELINS, BRANCHÉS APRÈS AVOIR LU CE QU'ILS CONTIENNENT ───
+#
+# MESURÉ LE 16 SEPTEMBRE 2026 : 83 des 116 thèmes déclarés dans `rag_store`
+# n'étaient interrogés par AUCUN groupe. Côté cyber, cela représentait
+# 31 documents et 4 406 fragments indexés — chargés dans la base, et lus par
+# personne. Le fonds n'était pas à connecter : il était connecté, et les
+# groupes ne pointaient pas dessus.
+#
+# TROIS THÈMES SUR CINQ SONT BRANCHÉS, ET LES DEUX AUTRES NE LE SONT PAS.
+# C'est le contenu qui a tranché, pas le nom :
+#
+#   · « ANSSI / Référentiels & qualification » — 13 documents, et ce sont les
+#     bons : le guide ANSSI de formation à la cybersécurité des systèmes
+#     INDUSTRIELS, le plan SECUINDUS, les quatre sections de la méthode PSSI,
+#     les deux sections du tableau de bord SSI, les recommandations
+#     d'architecture pour SI sensibles. De la doctrine, exactement là où la
+#     PSSI OT, le tableau de bord et l'architecture cible en manquaient.
+#
+#   · « Sûreté fonctionnelle (IEC 61508/61511) » — les cinq parties de la
+#     61508. Aucun livrable ne les lisait, et aucun ne traitait l'interface
+#     sûreté/sécurité : le trou et la matière pour le combler étaient côte à
+#     côte.
+#
+#   · « SCADA » — la note ANSSI sur la sécurisation des automates à court
+#     terme. Un seul document, mais c'est le sujet même de la gestion des
+#     changements et de l'architecture OT.
+#
+#   · « NORMES IEC » N'EST PAS BRANCHÉ, ET C'EST LA SURPRISE DE LA MESURE.
+#     Le nom promet des normes IEC, donc la famille de la 62443 ; les dix
+#     documents sont en réalité de l'ATEX et de l'électrotechnique —
+#     IEC 60079 (atmosphères explosives), 60034 (machines tournantes), 60445
+#     (couleurs de câbles), 61892-7 (zones dangereuses offshore). Les brancher
+#     ferait remonter de la sécurité intrinsèque antidéflagrante dans un
+#     livrable de cybersécurité. Même défaut que « Fournisseurs & fiches
+#     techniques » du côté centre de données : le nom promet, seul le contenu
+#     engage.
+#
+#   · « NORMES » N'EST PAS BRANCHÉ NON PLUS : deux documents, dont un modèle
+#     de commentaires ISO qui n'est pas de la doctrine.
 GROUPE_THEMES = {
     "Conformité & risques": [
         "IEC 62443", "NIS2", "DORA", "ISO 27001 / 27002",
@@ -2092,34 +2265,56 @@ GROUPE_THEMES = {
         "ANSSI / Méthodes (EBIOS RM)", "Plan de remédiation"],
     "Cadrage & stratégie": [
         "AMOA SI Industriel", "Gouvernance & CSMS", "Guides ANSSI",
+        "ANSSI / Référentiels & qualification",
         "Cahier des charges & CCTP", "Études de cas"],
+    # LA MÉTHODE PSSI DE L'ANSSI TIENT EN QUATRE SECTIONS, et elles dorment
+    # dans « Référentiels & qualification » : c'est la matière même de la
+    # trame « PSSI OT », qui s'écrivait sans elle.
     "Politiques & organisation": [
         "Gouvernance & CSMS", "Sensibilisation & formation",
+        "ANSSI / Référentiels & qualification",
         "Gestion des prestataires", "Conformité & audit"],
     "Programme IA & SOC": [
         "Supervision & détection", "Réponse à incident",
         "Inventaire & cartographie", "Gestion des correctifs", "AI Act"],
+    # LE TABLEAU DE BORD SSI A UNE MÉTHODE, et elle est dans « Référentiels &
+    # qualification » — deux sections de l'ANSSI sur le choix des indicateurs,
+    # leur collecte et leur restitution aux instances. Ce groupe n'y était pas
+    # branché, et la mesure l'a dit : le livrable « Tableau de bord de
+    # pilotage » remontait ZÉRO document quand les quatre autres en
+    # remontaient six sur six.
     "Conseil — Feuille de route": [
         "Gouvernance & CSMS", "Plan de remédiation", "Conformité & audit",
-        "Analyse de risques"],
+        "Analyse de risques", "ANSSI / Référentiels & qualification"],
     "Conseil — Operating Model": [
         "Gouvernance & CSMS", "Gestion des prestataires",
         "Sensibilisation & formation"],
     "Conseil — Maturité": [
         "Gouvernance & CSMS", "Conformité & audit",
-        "ANSSI / Méthodes (EBIOS RM)", "NIST CSF / SP 800-82", "IEC 62443"],
+        "ANSSI / Méthodes (EBIOS RM)", "NIST CSF / SP 800-82", "IEC 62443",
+        "ANSSI / Référentiels & qualification"],
+    # LA SÛRETÉ ENTRE ICI, ET C'EST LA SEULE PLACE OÙ ELLE A UN SENS. Un plan
+    # de continuité OT qui ignore les fonctions instrumentées de sécurité
+    # raisonne sur la moitié du problème : c'est le SIS qui décide de l'arrêt.
     "Conseil — Continuité & crise OT": [
         "Continuité & résilience (PRA/PCA)", "Réponse à incident",
+        "Sûreté fonctionnelle (IEC 61508/61511)",
         "Durcissement & configuration"],
     "Conseil — Gestion des changements (MOC)": [
         "Gouvernance & CSMS", "Gestion des correctifs",
-        "Automates, SCADA & DCS"],
+        "Automates, SCADA & DCS", "SCADA",
+        "Sûreté fonctionnelle (IEC 61508/61511)"],
     "Conseil — Architecture & détection": [
         "Architecture & segmentation", "Supervision & détection",
         "Durcissement & configuration", "Sécurité réseau & pare-feu",
-        "Inventaire & cartographie"],
+        "Inventaire & cartographie", "SCADA",
+        "ANSSI / Référentiels & qualification"],
+    # LE GUIDE ANSSI DE FORMATION À LA CYBERSÉCURITÉ DES SYSTÈMES INDUSTRIELS
+    # est rangé sous « Référentiels & qualification ». Un programme de
+    # formation OT s'écrivait sans le seul guide français qui le décrit.
     "Conseil — Formation & compétences": [
-        "Sensibilisation & formation", "Gouvernance & CSMS"],
+        "Sensibilisation & formation", "Gouvernance & CSMS",
+        "ANSSI / Référentiels & qualification"],
     "Conseil — Gouvernance IA": [
         "AI Act", "Juridique / IA Act", "RGPD",
         "Juridique / RGPD & données", "Gouvernance & CSMS"],
@@ -2166,10 +2361,29 @@ def _verifier_groupe_themes():
     return fautes
 
 
-_FAUTES_GROUPE_THEMES = _verifier_groupe_themes()
-if _FAUTES_GROUPE_THEMES:
-    raise RuntimeError("livrables — thèmes par groupe incohérents : "
-                       + " ; ".join(_FAUTES_GROUPE_THEMES))
+def armer_la_garde_des_themes():
+    """Refuse de démarrer si un groupe nomme un thème que la base ignore.
+
+    POURQUOI UNE FONCTION PLUTÔT QUE DEUX LIGNES AU NIVEAU DU MODULE. Les deux
+    lignes marchaient, et rien ne pouvait le vérifier : une mutation qui
+    écrivait `_FAUTES_GROUPE_THEMES = []` désarmait la garde sans qu'aucune
+    règle ne tombe, puisque l'état correct EST une liste vide. Un garde-fou
+    qu'on ne peut pas éprouver est un garde-fou dont on ne sait rien.
+
+    ELLE LÈVE, ELLE NE JOURNALISE PAS. Un thème écorché ne ramène rien, en
+    silence : le livrable sort, il est simplement générique, et personne ne
+    voit que le fonds n'a pas été ouvert. Mieux vaut que le service refuse de
+    démarrer — la faute se corrige alors en une minute, au lieu de produire
+    des mois de documents sans socle.
+    """
+    fautes = _verifier_groupe_themes()
+    if fautes:
+        raise RuntimeError("livrables — thèmes par groupe incohérents : "
+                           + " ; ".join(fautes))
+    return fautes
+
+
+_FAUTES_GROUPE_THEMES = armer_la_garde_des_themes()
 
 
 def themes_du_type(type_id):
