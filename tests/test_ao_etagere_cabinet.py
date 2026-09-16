@@ -283,8 +283,21 @@ def test_l_etagere_refuse_au_dela_du_plafond_et_NOMME_ce_qu_il_y_a_dessus():
         DC.ranger(mag, "organigramme.txt", b"Organigramme du cabinet.",
                   "organigramme")
     assert exc.value.code == "etagere_pleine" and exc.value.status == 409
-    assert "references-00" in exc.value.detail
     assert str(DC.MAX_DOCUMENTS) in exc.value.detail
+    # CE QU'IL FAUT VRAIMENT : POUVOIR CHOISIR LEQUEL RETIRER.
+    #
+    # LA PREMIÈRE VERSION CHERCHAIT « references-00 », c'est-à-dire le NOM DE
+    # FICHIER. Les documents se rangent désormais sous un intitulé dérivé, et
+    # cette règle tombait — alors que ce qu'elle mesure était mieux servi
+    # qu'avant. Elle a pourtant servi : elle a attrapé un intitulé qui rendait
+    # les quinze IDENTIQUES, ce qui est aussi inutile que de ne rien nommer.
+    # On mesure donc la propriété elle-même : les noms cités sont DISTINCTS.
+    cites = [x.strip() for x in
+             exc.value.detail.split(" : ", 1)[1].rstrip(".").split(", ")]
+    assert len(cites) >= 5, cites
+    assert len(set(cites)) == len(cites), (
+        "le refus nomme plusieurs fois la même chose : on ne peut toujours "
+        "pas choisir lequel retirer — %s" % cites)
 
 
 def test_le_plafond_est_DECLARE_et_rendu_avec_l_etat():

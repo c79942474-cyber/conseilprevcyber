@@ -582,10 +582,21 @@ PIECES_CANDIDAT = {
 CABINET_MOTIFS = {
     "attestations_assurances": [r"(?<![a-z])rc[\s._-]*(?:pro|professionnelle?)",
                                 r"responsabilit[ée][\s._-]*civile",
-                                r"assurance", r"attestation[\s._-]*axa"],
+                                r"assurance", r"attestation[\s._-]*axa",
+                                # LA DÉCENNALE NE DIT NI « RC » NI
+                                # « ASSURANCE » dans son nom de fichier, et
+                                # c'est pourtant l'attestation que tout marché
+                                # de travaux réclame.
+                                r"d[ée]cennale"],
     "regularite_fiscale_sociale": [r"urssaf", r"vigilance",
                                    r"r[ée]gularit[ée][\s._-]*(?:fiscale|sociale)",
-                                   r"fiscale?[\s._-]*et[\s._-]*sociale?"],
+                                   r"fiscale?[\s._-]*et[\s._-]*sociale?",
+                                   # L'IMPRIMÉ S'APPELLE « 3666 », ET LE
+                                   # FICHIER AUSSI. L'administration le délivre
+                                   # sous ce numéro ; exiger le mot
+                                   # « régularité » refusait l'original.
+                                   r"attestation[\s._-]*fiscale",
+                                   r"(?<!\d)3666(?!\d)"],
     "bilans": [r"(?<![a-z])bilans?(?![a-z])", r"liasse[\s._-]*fiscale",
                r"compte[\s._-]*de[\s._-]*r[ée]sultat",
                # « COMPTES ANNUELS » EST LE NOM LÉGAL DE LA PIÈCE, et c'est
@@ -621,12 +632,28 @@ CABINET_MOTIFS = {
         r"r[ée]partition[\s._-]*(?:des[\s._-]*)?"
         r"(?:comp[ée]tences|t[âa]ches|prestations|missions)",
         r"r[ée]partition[\s._-]*(?:en[\s._-]*)?groupement"],
+    # LES ORGANISMES QUI DÉLIVRENT CES QUALIFICATIONS LES NOMMENT, et c'est
+    # leur sigle qui se retrouve dans le nom du fichier — jamais « aptitude
+    # technique et professionnelle », qui est le vocabulaire du formulaire.
     "atd_atp": [r"(?<![a-z])atd[\s._/-]*atp(?![a-z])",
                 r"aptitude[\s._-]*technique",
-                r"capacit[ée]s?[\s._-]*techniques?"],
+                r"capacit[ée]s?[\s._-]*techniques?",
+                r"(?<![a-z])opqibi(?![a-z])", r"(?<![a-z])qualibat(?![a-z])",
+                r"(?<![a-z])opqtecc(?![a-z])", r"(?<![a-z])qualifelec(?![a-z])",
+                # LE SUFFIXE EST EXIGÉ, ET C'EST UNE MUTATION QUI L'A DIT.
+                # Écrit optionnel, ce motif revenait à « qualification » tout
+                # court : il avalait les sigles ci-dessus, si bien que les
+                # retirer ne changeait rien — ils étaient du code mort, et une
+                # mutation qui supprimait OPQIBI a survécu. Un motif si large
+                # qu'il rend les autres inutiles est un motif trop large.
+                r"qualification[\s._-]*(?:professionnelle|technique)"],
     "tiers": [r"questionnaire[\s._-]*(?:fournisseur|tiers)",
               r"[ée]valuation[\s._-]*des[\s._-]*tiers"],
-    "references": [r"r[ée]f[ée]rences?(?![a-z])", r"attestations?[\s._-]*de[\s._-]*"
+    # « DE » EST OPTIONNEL : le fichier s'appelle aussi bien
+    # « attestation-bonne-execution-mairie.pdf ». Un mot de liaison exigé est
+    # un refus de plus, et c'est le maître d'ouvrage qui a nommé le fichier.
+    "references": [r"r[ée]f[ée]rences?(?![a-z])",
+                   r"attestations?[\s._-]*(?:de[\s._-]*)?"
                    r"bonne[\s._-]*ex[ée]cution"],
     "organigramme": [r"organigramme"],
     "qse": [r"(?<![a-z])qse(?![a-z])", r"iso[\s._-]*(?:9001|14001|45001)",
@@ -836,8 +863,34 @@ def membres_du_groupement(texte):
 #
 # CE RENVOI REND UN RAYON, PAS UNE CLÉ DE PIÈCE. C'est la différence qui évite
 # de faire passer un guide pour une pièce à produire dans l'analyse d'un dépôt.
-DOCUMENTATION_MOTIFS = [
-    # LES RÉFÉRENTIELS D'ABORD, ET L'ORDRE EST DÉLIBÉRÉ. « guide-technique-
+RAYON_MOTIFS = [
+    # ── L'IDENTITÉ LÉGALE D'ABORD, ET C'EST UN RAYON QUI ÉTAIT MORT ───────
+    #
+    # `THEME_CABINET` mappait « kbis » vers « Cabinet / Identité & existence
+    # légale » — et AUCUN motif ne menait à cette clé. Le rayon était déclaré,
+    # affiché sur l'étagère, et rigoureusement inatteignable : les sept noms de
+    # fichiers réalistes de cette famille étaient tous refusés, dont les deux
+    # qui ont été refusés en production le 16 septembre 2026.
+    #
+    # POURQUOI ICI ET NON DANS `CABINET_MOTIFS`. Le Kbis n'est pas l'une des
+    # vingt-trois pièces du catalogue — il nourrit la FICHE du candidat. Le
+    # faire rendre par `piece_du_cabinet` afficherait, à l'analyse d'un dépôt,
+    # une clé sans nom de pièce en face. C'est la même séparation que pour les
+    # guides et les normes : deux questions distinctes, deux tables.
+    #
+    # LES NOMS RÉELS SONT CEUX DE L'ADMINISTRATION QUI DÉLIVRE. Le greffe rend
+    # « extrait_k_bis_extrait_k_ou_extrait_l_bis_datant_de_moins_de_trois_
+    # mois.pdf » ; l'INPI rend « Doc synthèse INPI2026.pdf ». Ni l'un ni
+    # l'autre ne contient le mot « identité ».
+    ("Cabinet / Identité & existence légale", [
+        r"(?<![a-z])k[\s._-]*bis(?![a-z])", r"(?<![a-z])kbis(?![a-z])",
+        r"extrait[\s._-]*k(?![a-z])", r"extrait[\s._-]*l[\s._-]*bis(?![a-z])",
+        r"(?<![a-z])inpi(?![a-z])", r"(?<![a-z])rcs(?![a-z])",
+        r"(?<![a-z])sirene(?![a-z])", r"avis[\s._-]*de[\s._-]*situation",
+        r"immatriculation", r"registre[\s._-]*du[\s._-]*commerce",
+        r"(?<![a-z])d1(?![a-z])", r"r[ée]pertoire[\s._-]*des[\s._-]*m[ée]tiers",
+    ]),
+    # LES RÉFÉRENTIELS ENSUITE, ET L'ORDRE EST DÉLIBÉRÉ. « guide-technique-
     # groupe-froid.pdf » est un document produit, pas un référentiel ; mais
     # « fiche-de-lecture-norme-EN-50600.pdf » est bien un référentiel. Le motif
     # le plus spécifique — celui qui nomme une norme ou un organisme — gagne.
@@ -867,7 +920,7 @@ DOCUMENTATION_MOTIFS = [
 ]
 
 
-def documentation_du_cabinet(nom):
+def rayon_du_cabinet(nom):
     """Le RAYON de documentation d'un fichier, ou None.
 
     LE NOM DÉCIDE, comme pour les pièces, et pour la même raison : c'est à la
@@ -876,7 +929,7 @@ def documentation_du_cabinet(nom):
     parlent du même sujet avec les mêmes mots.
     """
     n = _sans_accent((nom or "").lower())
-    for rayon, motifs in DOCUMENTATION_MOTIFS:
+    for rayon, motifs in RAYON_MOTIFS:
         if any(re.search(m, n) for m in motifs):
             return rayon
     return None

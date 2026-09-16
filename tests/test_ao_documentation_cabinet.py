@@ -96,7 +96,7 @@ def test_tous_les_rayons_de_documentation_EXISTENT_dans_la_famille():
     magasin, l'écran dit « rangé », et aucune recherche ne le retrouve jamais —
     la panne la plus silencieuse de toute la chaîne."""
     famille = set(rag_store.themes_famille(rag_store.FAMILLE_CABINET))
-    for rayon, _motifs in ao_dc.DOCUMENTATION_MOTIFS:
+    for rayon, _motifs in ao_dc.RAYON_MOTIFS:
         assert rayon in famille, (
             "« %s » n'est pas un rayon de la famille du cabinet" % rayon)
     for rayon in R.FONDS_DOCUMENTATION:
