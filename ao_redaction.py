@@ -72,12 +72,135 @@ RELEVES_TRANSMIS = RELEVES_TRANSMIS + ("acheteur",)
 _A_COMPLETER = "[À COMPLÉTER"
 
 # ── LE SOCLE DOCUMENTAIRE ─────────────────────────────────────────────────
-# LE THÈME EST NOMMÉ ICI, UNE FOIS. Le fonds du cabinet compte une trentaine de
-# thèmes ; chercher dans tout ferait remonter des fiches techniques de
-# refroidissement dans une note sur les conventions collectives. Celui-ci porte
-# les dossiers de consultation et les CCTP déjà instruits — c'est le seul dont
-# les extraits aident à rédiger une pièce de candidature.
+#
+# CE THÈME RESTE LE PREMIER, et c'est celui que le journal nomme : il porte les
+# dossiers de consultation et les CCTP déjà instruits.
 THEME_SOCLE = "Data center / Appels d'offres & CCTP"
+
+#: La famille dont le socle tire sa doctrine.
+FAMILLE_SOCLE = "Centres de données"
+
+# ── UN SEUL THÈME SUR VINGT-DEUX ÉTAIT LU ─────────────────────────────────
+#
+# MESURÉ LE 16 SEPTEMBRE 2026 SUR LA BASE DE PRODUCTION. Elle porte 591
+# documents, dont 186 dans la famille « Centres de données ». La rédaction en
+# atteignait TRENTE : les 37 du seul thème lu, moins ceux qui ne sont pas
+# publiables. Les dix documents de conception et d'architecture, les deux de
+# thermique, les seize d'énergie — tous déjà en base, tous déjà publiables —
+# n'étaient lus par rien.
+#
+# ── ET POURQUOI CE N'EST PAS LA FAMILLE ENTIÈRE ───────────────────────────
+#
+# C'EST LE POINT DE CETTE TABLE, ET IL A ÉTÉ TROUVÉ EN REGARDANT LE CONTENU
+# RÉEL, PAS LE NOM DES THÈMES. Élargir à la famille aurait versé dans un
+# brouillon remis à un acheteur :
+#
+#   · « Fournisseurs & fiches techniques » — quinze documents, quinze marqués
+#     publiables, et AUCUN n'est une fiche technique : des teasers de projets
+#     nommés (Meudon, AXA, Bouygues), un suivi de cibles d'acquisition, une
+#     étude de marché, une lettre de motivation.
+#   · « Retours d'exploitation & mesures » — neuf documents, neuf publiables,
+#     et ce sont NEUF BUSINESS PLANS ET DECKS INVESTISSEURS.
+#
+# LE RÉGIME DE PUBLICATION N'AURAIT RIEN ARRÊTÉ : ces vingt-quatre documents
+# sont tous marqués publiables. Le nom d'un thème promet ; seul son contenu
+# engage.
+#
+# LA LISTE EST DONC BLANCHE, ET NON NOIRE. Un thème ajouté demain à la famille
+# n'entre PAS de lui-même dans ce qui part chez un acheteur — il faut l'écrire
+# ici, donc l'avoir regardé. Une liste noire aurait le défaut inverse : elle
+# oublie, et ce qu'elle oublie fuit. `themes_socle()` signale les thèmes
+# qu'aucune des deux listes ne classe, pour qu'un ajout se voie.
+THEMES_SOCLE = (
+    "Data center / Appels d'offres & CCTP",
+    "Data center / Conception & architecture",
+    "Data center / Thermique & refroidissement",
+    "Data center / Refroidissement liquide & immersion",
+    "Data center / Eau & stress hydrique",
+    "Data center / Énergie & électricité",
+    "Data center / Raccordement & production sur site",
+    "Data center / Carbone & analyse de cycle de vie",
+    "Data center / Efficacité & indicateurs (PUE, WUE, CUE, ERE)",
+    "Data center / Normes (EN 50600, ISO/IEC 30134, ASHRAE)",
+    "Data center / Réglementation UE (EED, taxonomie, CSRD)",
+    "Data center / Recherche & état de l'art",
+    "Data center / Réalisation & gouvernance de projet",
+    "Data center / Qualité & non-conformités",
+    "Data center / Mise en service & essais",
+)
+
+#: Les thèmes de la famille ÉCARTÉS du socle, et la raison de chacun.
+#
+# ELLE EXISTE POUR QUE LA RAISON SOIT LISIBLE. Un thème simplement absent de la
+# liste blanche se lit comme un oubli ; nommé ici avec son motif, il se lit
+# comme une décision — et se rediscute sur pièces le jour où le contenu change.
+SOCLE_ECARTES = {
+    "Data center / Fournisseurs & fiches techniques":
+        "Son nom promet des fiches techniques ; il porte en fait des teasers "
+        "de projets nommés, un suivi de cibles d'acquisition et une étude de "
+        "marché. Quinze documents, quinze marqués publiables.",
+    "Data center / Retours d'exploitation & mesures":
+        "Neuf business plans et decks investisseurs, tous marqués publiables. "
+        "Rien n'y décrit une exploitation.",
+    "Data center / Chaleur fatale & réseaux de chaleur":
+        "Porte le CCTP et le règlement d'un client nommé. Ce sont des pièces "
+        "de SON marché, pas de la doctrine.",
+    "Data center / Études de site & implantation":
+        "Porte le CCATP et le bordereau de prix d'un accord-cadre client.",
+    "Data center":
+        "Thème racine, sans contenu propre : ce qui s'y range n'a pas été "
+        "classé, et ce qu'on n'a pas classé ne part pas chez un acheteur.",
+    "Data center / Green Management":
+        "Politique interne du cabinet : objectifs, indicateurs, reporting. "
+        "Rien qui réponde à une exigence d'acheteur.",
+    "Data center / Green Management / Politique & objectifs":
+        "Nos objectifs internes de réduction, et le calendrier que le "
+        "cabinet s'est donné. Un acheteur n'en demande pas le détail.",
+    "Data center / Green Management / Certifications & labels":
+        "Nos propres certifications se joignent en pièces de candidature, "
+        "elles ne se racontent pas dans un mémoire.",
+    "Data center / Green Management / Indicateurs & reporting":
+        "Reporting extra-financier du cabinet : chiffres internes, sans "
+        "rapport avec une exigence d'acheteur.",
+    "Data center / Safety Management":
+        "Analyses de risques internes, dont des HAZOP conduits chez des "
+        "clients.",
+    "Data center / Safety Management / Analyse de risques & HAZOP":
+        "HAZOP conduits sur les installations de clients nommés : ce sont "
+        "leurs risques, pas notre doctrine.",
+    # CES TROIS-LÀ, C'EST `themes_socle` QUI LES A SIGNALÉS — je ne les avais
+    # pas vus en lisant la famille, et ils seraient restés ni lus ni écartés.
+    # C'est très exactement ce à quoi sert la troisième valeur qu'elle rend.
+    "Data center / Safety Management / Incendie & détection":
+        "Consignes de sécurité internes et plans de site.",
+    "Data center / Safety Management / Consignation & travaux":
+        "Procédures de consignation propres à des sites clients.",
+    "Data center / Safety Management / Plans d'urgence & exercices":
+        "Plans d'urgence et comptes rendus d'exercices de sites clients.",
+}
+
+
+def themes_socle():
+    """Les thèmes du socle, confrontés à la famille déclarée dans `rag_store`.
+
+    TROIS CHOSES À LA FOIS, ET IL LES FAUT TOUTES LES TROIS.
+
+      · CE QU'ON LIT : les thèmes de la liste blanche qui existent vraiment.
+        Un thème renommé dans `rag_store` laisserait ici une chaîne morte, qui
+        ne ramène rien EN SILENCE.
+      · CE QU'ON ÉCARTE, avec sa raison.
+      · CE QU'ON NE CLASSE PAS ENCORE — et c'est la part qui compte. Un thème
+        ajouté demain à la famille n'est ni lu ni écarté : il faut qu'il SE
+        VOIE, sans quoi la liste blanche vieillit sans que personne le sache.
+
+    Rend `(lus, inclassés)`.
+    """
+    import rag_store                                              # noqa: PLC0415
+    famille = rag_store.themes_famille(FAMILLE_SOCLE)
+    lus = [t for t in THEMES_SOCLE if t in famille]
+    inclasses = [t for t in famille
+                 if t not in THEMES_SOCLE and t not in SOCLE_ECARTES]
+    return lus, inclasses
 
 # COMBIEN D'EXTRAITS, ET POURQUOI PAS PLUS. Six chunks tiennent dans le budget
 # du brief sans écraser les relevés de la consultation — qui restent la source
@@ -290,7 +413,7 @@ def chercher_dossier(piece, corp):
     return {"bloc": "\n\n".join(bloc), "sources": sources, "absent": ""}
 
 
-def chercher_socle(piece, rag=None):
+def chercher_socle(piece, rag=None, corp=None):
     """LES EXTRAITS DU FONDS, et la seule fonction impure de ce module.
 
     POURQUOI ELLE EST À PART. `contexte` est pure, et c'est ce qui permet à une
@@ -320,8 +443,22 @@ def chercher_socle(piece, rag=None):
         return {"bloc": "", "sources": [], "absent": "magasin_non_joint"}
     try:
         import rag_store
-        hits = rag.search(requete_socle(piece), k=SOCLE_K,
-                          public_only=True, theme=THEME_SOCLE)
+        # QUINZE THÈMES, ET LA REQUÊTE DOIT DONC VISER — c'est la leçon de
+        # l'étagère, un étage plus haut. Tant qu'un seul thème était lu, la
+        # requête bâtie sur le nom de la pièce suffisait : tout ce qu'elle
+        # touchait était déjà un dossier de consultation. Sur quinze thèmes,
+        # elle choisit entre cent quatre-vingts documents qui parlent tous du
+        # même domaine — et le domaine ne distingue plus rien. On ajoute donc
+        # les DÉSIGNATIONS de ce marché-ci, comme pour l'étagère.
+        lus, _inclasses = themes_socle()
+        requete = requete_socle(piece)
+        if corp:
+            requete = " ".join(
+                [str(piece.get("nom") or "")]
+                + designations_du_marche(corp)
+                + [requete[len(str(piece.get("nom") or "")):]])[:600]
+        hits = rag.search(requete, k=SOCLE_K,
+                          public_only=True, theme=lus or THEME_SOCLE)
         bloc, retenus = rag_store.build_context_retenus(
             hits, max_chars=SOCLE_CARACTERES)
     except Exception:
@@ -1059,7 +1196,7 @@ def rediger(cle, remplissage, analyse=None, rag=None, corpus_dossier=None):
     # L'ORDRE : chercher d'abord, composer ensuite. `chercher_socle` est la
     # seule impureté ; `contexte` reste une fonction de ses arguments.
     ctx = contexte(remplissage, analyse, piece,
-                   socle=chercher_socle(piece, rag),
+                   socle=chercher_socle(piece, rag, corpus_dossier),
                    dossier=chercher_dossier(piece, corpus_dossier),
                    # LE CORPUS DESCEND JUSQU'À L'ÉTAGÈRE, ET C'EST CE QUI
                    # REND LA RECHERCHE « EN RAPPORT DIRECT AVEC LE DOSSIER ».

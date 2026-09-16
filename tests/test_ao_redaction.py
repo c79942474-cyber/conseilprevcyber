@@ -552,22 +552,145 @@ def test_le_socle_APPORTE_des_sources_que_le_contexte_sans_base_n_a_pas():
         % (len(avec["socle_documentaire"]), len(sans["socle_documentaire"])))
 
 
-def test_la_recherche_est_BORNEE_au_theme_des_appels_d_offres_et_au_public():
+def test_la_recherche_est_BORNEE_aux_themes_DECLARES_et_au_public():
     """LE FILTRE EST MESURÉ SUR L'APPEL, pas lu dans un commentaire.
 
-    Sans thème, une note sur les conventions collectives ramènerait des fiches
-    de refroidissement liquide. Sans `public_only`, un document marqué interne
-    finirait recopié mot pour mot dans une pièce qui sort du site."""
+    Sans borne de thème, une note sur les conventions collectives ramènerait
+    n'importe quoi. Sans `public_only`, un document marqué interne finirait
+    recopié mot pour mot dans une pièce qui sort du site.
+
+    LE SOCLE LIT MAINTENANT QUINZE THÈMES ET NON UN. Ce que cette règle
+    mesure n'a pas changé de nature — elle a changé d'objet : ce n'est plus
+    « le thème est celui-ci » mais « les thèmes sont EXACTEMENT ceux qui sont
+    déclarés, et aucun de ceux qui sont écartés ».
+    """
     an, r = _dossier()
     p = _piece_a_rediger(r)
     mag = _MagasinFactice()
     ao_redaction.chercher_socle(p, mag)
     assert len(mag.appels) == 1, mag.appels
     a = mag.appels[0]
-    assert a["theme"] == "Data center / Appels d'offres & CCTP", a["theme"]
+    lus, inclasses = ao_redaction.themes_socle()
+    assert set(a["theme"]) == set(lus), a["theme"]
+    # LA PART QUI PROTÈGE. Ces thèmes portent des business plans, des teasers
+    # de projets nommés et des pièces de marchés clients — tous marqués
+    # publiables, donc que `public_only` n'arrêterait PAS.
+    for ecarte in ao_redaction.SOCLE_ECARTES:
+        assert ecarte not in a["theme"], (
+            "« %s » est écarté du socle et la recherche l'interroge quand "
+            "même" % ecarte)
     assert a["public_only"] is True, (
         "la recherche du socle n'est pas bornée aux documents publics")
     assert a["k"] == ao_redaction.SOCLE_K
+    # ET AUCUN THÈME DE LA FAMILLE N'EST LAISSÉ SANS DÉCISION. Un thème ajouté
+    # demain et classé nulle part vieillirait la liste en silence.
+    assert inclasses == [], (
+        "ces thèmes de la famille ne sont ni lus ni écartés : %s" % inclasses)
+
+
+def test_le_redacteur_DESCEND_le_corpus_jusqu_au_socle():
+    """LA LIGNE QUI RELIE, ET QU'AUCUNE AUTRE RÈGLE NE TOUCHE.
+
+    `chercher_socle` peut accepter un corpus et `rediger` ne pas le lui
+    passer : la requête retomberait alors sur le seul nom de la pièce, sur
+    quinze thèmes au lieu d'un — et tout le reste des règles resterait vert,
+    puisqu'elles appellent la recherche directement."""
+    src = io.open(os.path.join(ICI, "ao_redaction.py"), encoding="utf-8").read()
+    corps = src.split("def rediger(", 1)[1].split("\ndef ")[0]
+    m = re.search(r"chercher_socle\((.+?)\)", corps, re.S)
+    assert m, corps[:900]
+    assert "corpus_dossier" in m.group(1), (
+        "le rédacteur n'envoie pas les documents du marché au socle : la "
+        "requête ne distingue plus ce marché-ci — %s" % m.group(1))
+
+
+def test_chaque_theme_du_socle_EXISTE_dans_la_famille():
+    """UNE CHAÎNE MORTE NE RAMÈNE RIEN, EN SILENCE. Un thème renommé dans
+    `rag_store` laisserait ici un nom qui n'interroge plus personne, et le
+    socle perdrait une source entière sans que rien ne le signale."""
+    import rag_store
+    famille = set(rag_store.themes_famille(ao_redaction.FAMILLE_SOCLE))
+    assert famille, "la famille du socle est introuvable dans rag_store"
+    for t in ao_redaction.THEMES_SOCLE:
+        assert t in famille, "« %s » n'existe pas dans la famille" % t
+    for t in ao_redaction.SOCLE_ECARTES:
+        assert t in famille, (
+            "« %s » est écarté d'une famille où il ne figure pas : l'écart "
+            "ne protège de rien" % t)
+
+
+def test_un_theme_AJOUTE_a_la_famille_SE_SIGNALE():
+    """LA PART DE `themes_socle` QUI VIEILLIT LA LISTE SI ELLE NE MARCHE PAS.
+
+    Une liste blanche a un défaut : elle oublie. Un thème ajouté demain à la
+    famille n'est ni lu ni écarté — il faut qu'il SE VOIE, sans quoi la liste
+    se périme en silence et la doctrine rétrécit sans que personne le sache.
+
+    LA RÈGLE QUI PRÉCÈDE NE PEUT PAS MESURER CELA : elle vérifie qu'il n'y a
+    aujourd'hui aucun inclassé, et une mutation qui rendrait `[]` en dur la
+    traverse sans être vue — c'est arrivé. On ajoute donc un thème et l'on
+    exige qu'il ressorte. Cette règle a déjà servi : elle a trouvé trois
+    sous-thèmes « Safety Management » que j'avais laissés sans décision.
+    """
+    import rag_store as RS
+    garde = RS.THEME_FAMILLES
+    try:
+        RS.THEME_FAMILLES = tuple(
+            (f, tuple(ts) + ("Data center / Thème ajouté hier",))
+            if f == ao_redaction.FAMILLE_SOCLE else (f, ts)
+            for f, ts in garde)
+        lus, inclasses = ao_redaction.themes_socle()
+        assert inclasses == ["Data center / Thème ajouté hier"], inclasses
+        assert "Data center / Thème ajouté hier" not in lus, (
+            "un thème que personne n'a classé est lu quand même : la liste "
+            "blanche ne protège plus de rien")
+    finally:
+        RS.THEME_FAMILLES = garde
+
+
+def test_chaque_theme_ECARTE_porte_SA_raison():
+    """UN THÈME SIMPLEMENT ABSENT SE LIT COMME UN OUBLI. Nommé avec son motif,
+    il se lit comme une décision — et se rediscute sur pièces le jour où son
+    contenu change. C'est ce qui sépare une liste blanche tenue d'une liste
+    blanche qui a vieilli."""
+    for t, motif in ao_redaction.SOCLE_ECARTES.items():
+        assert motif and len(motif) > 8, (t, motif)
+
+
+def test_le_socle_et_les_ECARTES_ne_se_recouvrent_PAS():
+    """UN THÈME DANS LES DEUX LISTES SERAIT LU, puisque c'est la liste blanche
+    qui commande l'appel — et son motif d'écart resterait affiché, à mentir."""
+    assert not (set(ao_redaction.THEMES_SOCLE)
+                & set(ao_redaction.SOCLE_ECARTES))
+
+
+def test_le_socle_vise_AUSSI_avec_les_designations_du_marche():
+    """QUINZE THÈMES, DONC UNE REQUÊTE QUI DOIT CHOISIR.
+
+    Tant qu'un seul thème était lu, tout ce que la requête touchait était déjà
+    un dossier de consultation. Sur quinze thèmes elle choisit entre cent
+    quatre-vingts documents du même domaine — et c'est le défaut mesuré sur
+    l'étagère, transposé d'un cran."""
+    import ao_extraction
+    from test_ao_dossier_marche_rediction import DOCUMENTS as D
+    an = ao_dc.analyser(D)
+    r = ao_dc.remplir(fiche={"raison_sociale": "CONSEILPREV"}, analyse=an)
+    p = next(x for x in ao_redaction.pieces_redigeables(r)
+             if x["cle"] == "memoire_technique")
+    corp = ao_extraction.corpus(D, an)
+    mag = _MagasinFactice()
+    ao_redaction.chercher_socle(p, mag, corp)
+    q = mag.appels[0]["query"]
+    for d in ("PUE", "ANSSI", "BIM"):
+        assert d in q, (
+            "la requête du socle ne porte pas « %s » : sur quinze thèmes elle "
+            "ne distingue plus ce marché-ci — %s" % (d, q[:200]))
+    # ET SANS DOSSIER, ELLE RESTE CELLE D'AVANT : la route qui rédige sans les
+    # documents du marché ne doit pas cesser de fonctionner.
+    mag2 = _MagasinFactice()
+    ao_redaction.chercher_socle(p, mag2, None)
+    assert "PUE" not in mag2.appels[0]["query"]
+    assert mag2.appels[0]["query"] == ao_redaction.requete_socle(p)
 
 
 def test_la_requete_part_de_CE_QUE_LA_PIECE_DOIT_CONTENIR():
@@ -911,12 +1034,23 @@ def test_le_socle_TIENT_contre_le_vrai_magasin_et_ne_fuit_pas():
         "frigoristes, un responsable de site, un organigramme fonctionnel et "
         "des moyens matériels affectés. MARQUEUR_INTERNE_XZ42".encode(),
         title="Grille de marge", theme=T, visibility="internal")
+    # LE DOCUMENT HORS THÈME EST DÉSORMAIS CELUI QUI COMPTE VRAIMENT.
+    #
+    # LA PREMIÈRE VERSION EMPLOYAIT UNE FICHE DE REFROIDISSEMENT — or ce thème
+    # fait maintenant partie du socle, et le témoin ne mesurait donc plus
+    # rien. On prend à la place le cas qui a motivé toute la liste blanche :
+    # un BUSINESS PLAN, rangé sous un thème dont le nom promet des retours
+    # d'exploitation, et MARQUÉ PUBLIABLE. `public_only` ne l'arrête pas ;
+    # seule la liste des thèmes l'arrête. C'est la seule barrière qui tienne,
+    # et c'est ici qu'on la mesure.
     mag.ingest_bytes(
-        "froid.txt",
-        "Refroidissement liquide, équipe de maintenance, responsable de site, "
-        "organigramme fonctionnel, moyens matériels affectés, astreinte. "
+        "businessplan.txt",
+        "Business plan. L'équipe de maintenance comprend un responsable de "
+        "site, un organigramme fonctionnel et des moyens matériels affectés. "
+        "Marge cible, levée de fonds, valorisation. "
         "MARQUEUR_HORSTHEME_KK9".encode(),
-        title="Fiche froid", theme="Data center / Thermique & refroidissement",
+        title="Business plan investisseurs",
+        theme="Data center / Retours d'exploitation & mesures",
         visibility="public")
 
     an, r = _dossier()
