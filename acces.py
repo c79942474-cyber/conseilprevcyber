@@ -85,6 +85,7 @@ DIRECT = {
     "/operating-model": "Operating Model & gouvernance",
     "/maturite-ot": "Assessment de maturité",
     "/feuille-de-route": "Feuille de route",
+    "/parcours-mission": "Parcours d'une mission",
     "/continuite-ot": "Continuité & crise OT",
     "/gestion-des-changements": "Gestion des changements (MOC)",
     "/architecture-cible": "Architecture cible OT",
@@ -200,6 +201,9 @@ API_OUVERTES = {
     "/api/62443/checklist/compter": "le décompte de cette même liste",
     "/api/62443/checklist/emporter": "l'export de cette même liste",
     "/api/62443/checklist/parcours": "le parcours guidé de cette même liste",
+    "/api/mission/parcours": "le parcours d'une mission de conseil, page "
+                            "ouverte — aucun élément client n'y transite, "
+                            "les phases acquises montent et redescendent",
     "/api/maturite-ot/referentiel": "le référentiel de l'assessment de maturité",
     "/api/maturite-ot/evaluer": "le calcul de l'assessment de maturité",
     "/api/maturite-ot/emporter": "l'export de l'assessment de maturité",
@@ -469,6 +473,11 @@ def _verifier():
     # Le 2 septembre 2026 : le site s'ouvre, sauf l'ingénierie Data Center.
     decision_ouverture = {
     "/methodologie", "/operating-model", "/maturite-ot",
+    # LE PARCOURS S'OUVRE COMME SES HUIT VOISINES DE LA SECTION CONSEIL, et
+    # pour la même raison : il ne montre que notre méthode. Rien du client n'y
+    # entre — les phases cochées montent dans la requête et redescendent dans
+    # la réponse, sans toucher ni la base ni le disque.
+    "/parcours-mission",
     "/feuille-de-route", "/continuite-ot", "/gestion-des-changements",
     "/architecture-cible", "/formation", "/gouvernance-ia",
     "/relecture-contrat", "/referentiel", "/analyse-de-risque",

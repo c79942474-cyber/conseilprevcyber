@@ -101,6 +101,7 @@
     /* ── Conseil & transformation ──────────────────────────────────────── */
     "/operating-model": '<rect x="9" y="2.5" width="6" height="4.5" rx="1"/><rect x="2.5" y="16" width="6" height="4.5" rx="1"/><rect x="15.5" y="16" width="6" height="4.5" rx="1"/><path d="M12 7v4M5.5 16v-2.5h13V16"/>',
     "/maturite-ot": '<path d="M4 20V15M9.3 20v-8M14.7 20v-11M20 20V6"/>',
+    "/parcours-mission": '<path d="M4 6h5M15 6h5M4 12h16M4 18h5M15 18h5"/><circle cx="12" cy="6" r="2.2"/><circle cx="12" cy="18" r="2.2"/>',
     "/feuille-de-route": '<path d="M3 6.5 9 4l6 2.5 6-2.5v13L15 19.5 9 17l-6 2.5z"/><path d="M9 4v13M15 6.5v13"/>',
     "/continuite-ot": '<path d="M12 2.5 20 6v5.5c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V6z"/><path d="m12.8 8-3 4.6h3l-1 3.4"/>',
     "/gestion-des-changements": '<path d="M3.5 7.5h13"/><path d="m13 4 3.5 3.5L13 11"/><path d="M20.5 16.5h-13"/><path d="m11 13-3.5 3.5L11 20"/>',
@@ -172,6 +173,7 @@
       ["/methodologie", "Méthodologie"], ["/etudes-de-cas", "Études de cas"],
       ["/references", "Références de missions"] ] },
     { t: "Conseil & transformation", l: [
+      ["/parcours-mission", "Parcours d'une mission"],
       ["/operating-model", "Operating Model & gouvernance"],
       ["/maturite-ot", "Assessment de maturité"],
       ["/feuille-de-route", "Feuille de route"],
@@ -251,6 +253,7 @@
     "/references": "Le registre des missions : donneur d'ordre, objet, période",
     "/operating-model": "Modèle opérationnel cible : gouvernance, RACI, fonction OT Security",
     "/maturite-ot": "Assessment de maturité OT cyber (IEC 62443 ML, NIST CSF, C2M2)",
+    "/parcours-mission": "Le cycle de vie d'une mission : huit phases, ce qui s'y décide, et le piège de chacune",
     "/continuite-ot": "PCA / PRA industriels, sauvegarde des configurations d'automates, exercices de crise",
     "/gestion-des-changements": "Management of Change : impact cyber, approbation, fenêtres, retour arrière",
     "/architecture-cible": "Zones et conduits, DMZ industrielle, bastions, diodes de données, durcissement",
@@ -787,6 +790,17 @@
         ["Impact sûreté", "Un changement peut être sans risque cyber et dangereux pour les personnes. Les deux analyses sont distinctes et toutes deux obligatoires."]],
     l: [["Continuité OT", "/continuite-ot"], ["Référentiel 62443", "/referentiel"]] };
 
+  GUIDES["/parcours-mission"] = {
+    t: "Parcours d’une mission",
+    p: "Le cycle de vie d’une mission de conseil en cybersécurité industrielle : huit phases, ce qui se décide à chacune, ce qu’elle exige de la précédente, et le piège qu’elle porte.",
+    s: ["Cochez les phases déjà acquises chez vous : le parcours dit alors ce qui manque.",
+        "Lisez le piège de chaque phase — chacun vient d’une faute qui ne se voit pas à la relecture du livrable.",
+        "Ouvrez les livrables de la phase en cours : ils sont lus au catalogue, jamais recopiés."],
+    k: [["Il n’interdit rien", "Une mission commence rarement au début. Le parcours dit ce qui manque et ce que cela coûte ; la décision reste au consultant."],
+        ["Il n’annonce aucune durée", "Une phase dure le temps d’obtenir les entretiens. Afficher un délai serait une promesse que rien ne tient."],
+        ["Analyse d’écarts", "L’écart entre le niveau atteint et le niveau visé, par domaine et par zone — ce qui chiffre l’effort avant de le séquencer."]],
+    l: [["Assessment de maturité", "/maturite-ot"], ["Operating model", "/operating-model"], ["Feuille de route", "/feuille-de-route"]] };
+
   GUIDES["/maturite-ot"] = {
     t: "Assessment de maturité OT",
     p: "Évaluer l’organisation, les processus et les capacités RÉELLES du dispositif — au-delà de la case réglementaire — et tracer un plan de progression priorisé.",
@@ -1169,6 +1183,7 @@
        tiroir, on oublie l'index, et rien ne le signale. Un contrôle
        (tests/test_audit_lot2.py) confronte désormais les deux listes. */
     ["/operating-model", "Operating Model & gouvernance", "Modèle opérationnel cible : gouvernance, RACI, fonction OT Security.", "Conseil & transformation", "raci organisation cible pilotage"],
+    ["/parcours-mission", "Parcours d'une mission", "Le cycle de vie d'une mission OT cyber : huit phases, ce qui s'y décide et le piège de chacune.", "Conseil & transformation", "mission phases ordre cycle de vie methode demarche etapes deroule"],
     ["/maturite-ot", "Assessment de maturité", "Maturité OT cyber mesurée : IEC 62443 ML, NIST CSF, C2M2.", "Conseil & transformation", "evaluation niveau csf c2m2 diagnostic"],
     ["/feuille-de-route", "Feuille de route", "Trajectoire de transformation : horizons, chantiers, budget.", "Conseil & transformation", "roadmap trajectoire planning budget"],
     ["/continuite-ot", "Continuité & crise OT", "PCA / PRA industriels, sauvegarde des configurations d'automates, exercices de crise.", "Conseil & transformation", "pca pra reprise sinistre exercice"],

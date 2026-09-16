@@ -213,7 +213,17 @@ def etat(faites=None):
     travailler une phase qui n'est pas prête ; on sait alors sur quoi on
     s'avance, et le piège de la phase le dit.
     """
-    faites = {str(x) for x in (faites or []) if str(x) in _index()}
+    # UNE LISTE, ET RIEN D'AUTRE.
+    #
+    # `for x in (faites or [])` acceptait n'importe quel itérable : un
+    # dictionnaire `{"cadrage": 1}` se lisait par ses CLÉS, et « cadrage »
+    # devenait une phase faite. Personne ne l'avait décidé — c'est une
+    # souplesse qui vient de Python, pas du contrat. Une chaîne, elle, se lit
+    # caractère par caractère et ne donnait rien, ce qui masquait le premier
+    # cas. Ma propre règle l'a trouvé.
+    if not isinstance(faites, (list, tuple)):
+        faites = []
+    faites = {str(x) for x in faites if str(x) in _index()}
     lignes = []
     for p in PHASES:
         manque = [c for c in p["prealables"] if c not in faites]

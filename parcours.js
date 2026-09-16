@@ -108,6 +108,7 @@
      que toute URL de parcours a une entrée ici, vide ou non. */
   var AXES_URL = {
     "/diagnostic": ["analyse"],
+    "/parcours-mission": ["gouvernance"],
     "/maturite-ot": ["analyse", "gouvernance"],
     "/analyse-de-risque": ["analyse", "technique"],
     "/programme-securite": ["gouvernance"],
@@ -296,6 +297,16 @@
              "comme devant un exploitant. Ce parcours suit l’ordre d’une mission réelle : constater, " +
              "mesurer, analyser, structurer, planifier, transmettre, prouver.",
       etapes: [
+        /* LE PARCOURS DE MISSION OUVRE CELUI-CI, et ce n’est pas un doublon :
+           le pitch ci-dessus annonce « l’ordre d’une mission réelle », et
+           cette page EST cet ordre — huit phases, ce que chacune exige de la
+           précédente, et le piège qu’elle porte. La lire en premier évite de
+           faire les étapes suivantes dans le désordre, ce qui est la faute
+           que tout ce parcours cherche à éviter. */
+        { url: "/parcours-mission", label: "L’ordre d’une mission",
+          action: "Parcourez les huit phases et cochez celles qui sont déjà acquises chez vous.",
+          gain: "Vous savez par quoi commencer, et ce que chaque phase exige de la précédente.",
+          tip: "Un modèle cible écrit avant le diagnostic organisationnel décrit une organisation qu’on n’a pas regardée : il sera juste sur le papier et inapplicable dans l’atelier." },
         { url: "/diagnostic", label: "Diagnostic express",
           action: "Répondez aux questions de cadrage sur votre installation et vos pratiques actuelles.",
           gain: "Un point de départ chiffré en quelques minutes, avant d’engager quoi que ce soit.",

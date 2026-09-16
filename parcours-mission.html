@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parcours d'une mission OT cyber — CONSEILPREV Cyber</title>
+<meta name="description" content="Le cycle de vie d'une mission de conseil en cybersécurité industrielle : huit phases, ce qui se décide à chacune, ce qu'elle exige de la précédente et le piège qu'elle porte.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CONSEILPREV Cyber">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Parcours d'une mission OT cyber — CONSEILPREV Cyber">
+<meta property="og:description" content="Le cycle de vie d'une mission de conseil en cybersécurité industrielle : huit phases, ce qui se décide à chacune, ce qu'elle exige de la précédente et le piège qu'elle porte.">
+<meta property="og:url" content="https://conseilprevcyber.onrender.com/parcours-mission">
+<meta property="og:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="CONSEILPREV Cyber — cybersécurité industrielle IT / OT / IIoT">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Parcours d'une mission OT cyber — CONSEILPREV Cyber">
+<meta name="twitter:description" content="Le cycle de vie d'une mission de conseil en cybersécurité industrielle : huit phases, ce qui se décide à chacune, ce qu'elle exige de la précédente et le piège qu'elle porte.">
+<meta name="twitter:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<link rel="canonical" href="https://conseilprevcyber.onrender.com/parcours-mission">
+
+<link rel="icon" href="/emblem.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  /* L'ÉCRAN DU PARCOURS. Une phase est une ligne qui se déplie : on lit la
+     suite d'un coup d'œil, on ouvre celle sur laquelle on travaille. */
+  .pm-phases { display: grid; gap: 14px; margin-top: 18px; }
+  .pm-ph { border: 1px solid var(--line, #24304a); border-radius: 12px;
+           padding: 18px 20px; background: var(--card, #0e1526); }
+  .pm-ph.pm-courante { border-color: var(--cyan, #35d0e0); }
+  .pm-tete { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
+  .pm-tete h3 { margin: 0; font-size: 1.05rem; }
+  .pm-rang { font-variant-numeric: tabular-nums; opacity: .55;
+             font-size: .85rem; min-width: 1.6em; }
+  .pm-q { opacity: .75; font-style: italic; margin: 8px 0 0; }
+  .pm-etiq { font-size: .72rem; letter-spacing: .04em; text-transform: uppercase;
+             border: 1px solid currentColor; border-radius: 999px;
+             padding: 2px 9px; white-space: nowrap; }
+  .pm-etiq.pm-faite { color: #6fd08c; }
+  .pm-etiq.pm-prete { color: var(--cyan, #35d0e0); }
+  .pm-etiq.pm-attente { color: #e0b23a; }
+  .pm-corps { margin-top: 14px; display: grid; gap: 12px; }
+  .pm-corps h4 { margin: 0 0 4px; font-size: .78rem; letter-spacing: .05em;
+                 text-transform: uppercase; opacity: .6; }
+  .pm-piege { border-left: 3px solid #e0b23a; padding-left: 12px; }
+  .pm-manque { border-left: 3px solid #e0b23a; padding-left: 12px; }
+  .pm-liv { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 0;
+            padding: 0; list-style: none; }
+  .pm-liv li { border: 1px solid var(--line, #24304a); border-radius: 8px;
+               padding: 5px 10px; font-size: .86rem; }
+  .pm-coche { display: flex; align-items: center; gap: 8px; cursor: pointer;
+              font-size: .86rem; }
+  .pm-mort { color: #e06a6a; }
+  @media (max-width: 640px) { .pm-ph { padding: 14px; } }
+</style>
+
+</head>
+<body>
+  <header>
+  <div class="wrap nav">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu"><span></span><span></span><span></span></button>
+    <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="30" height="30" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+    <nav class="links" aria-label="Navigation principale">
+      <a href="/">Accueil</a>
+      <a href="/services">Services</a>
+      <a href="/referentiel">Référentiel 62443</a>
+      <a href="/audit-conformite">Audit 62443</a>
+      <a href="/demo">Cockpit</a>
+      <a href="/assistant">Assistant IA</a>
+      <a href="/veille">Veille</a>
+      <a href="/about">À propos</a>
+    </nav>
+    <div class="navcta">
+      <a href="/contact" class="cta">Contact</a>
+    </div>
+  </div>
+</header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <span class="eyebrow"><span class="dot"></span>Conseil &amp; transformation · Cycle de vie</span>
+      <h1>Une mission se conduit <span class="grad">dans un ordre</span>.</h1>
+      <p class="lead" style="margin-top:18px">Un modèle opérationnel cible écrit avant le diagnostic
+        organisationnel décrit une organisation qu'on n'a pas regardée. Une feuille de route écrite avant
+        l'analyse d'écarts séquence des actions dont on ignore l'ampleur. Ces deux fautes ne se voient pas
+        à la relecture : le livrable est bien écrit, complet, et faux.</p>
+    </section>
+
+    <section class="section" style="padding-top:24px">
+      <div class="band">
+        <div class="status"><span class="dot"></span>Ce parcours n'interdit rien. Une mission commence
+          rarement au début — on arrive en cours de programme, une partie du travail est faite. Cochez ce
+          qui est acquis : le parcours dit ce qui manque et ce que cela coûte, la décision reste la vôtre.</div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:8px">
+      <h2 class="sec-title">// Où en est la mission</h2>
+      <p class="muted" id="pm-etat">Chargement du parcours…</p>
+      <div id="pm-phases" class="pm-phases"></div>
+    </section>
+
+    <section class="section" style="padding-top:8px">
+      <h2 class="sec-title">// Ce que ce parcours n'est pas</h2>
+      <div class="grid grid-2">
+        <div class="card a2">
+          <div class="ico">⏱️</div>
+          <h3>Il n'annonce aucune durée</h3>
+          <p>Une phase ne dure pas « trois semaines » : elle dure le temps d'obtenir les entretiens.
+            Afficher un délai serait une promesse que rien ne tient — et c'est le genre de chiffre
+            qu'un client retient.</p>
+        </div>
+        <div class="card a3">
+          <div class="ico">🔓</div>
+          <h3>Il ne verrouille aucune étape</h3>
+          <p>Un parcours qui refuserait d'avancer serait abandonné au premier dossier repris en cours
+            de route. Les livrables d'une phase non prête restent accessibles ; on sait simplement
+            sur quoi l'on s'avance.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+<footer>
+  <div class="wrap foot">
+    <div class="foot-cols">
+      <div class="foot-brand">
+        <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="26" height="26" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+        <p>Cybersécurité industrielle IT / OT / IIoT — conformité IEC&nbsp;62443, NIS2, DORA.</p>
+      </div>
+      <nav class="foot-col" aria-label="Expertise">
+        <h4>Expertise</h4>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/methodologie">Méthodologie</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/references">Références</a>
+        <a href="/operating-model">Operating Model</a>
+        <a href="/maturite-ot">Maturité OT</a>
+        <a href="/feuille-de-route">Feuille de route</a>
+        <a href="/continuite-ot">Continuité &amp; crise OT</a>
+        <a href="/gestion-des-changements">Gestion des changements</a>
+        <a href="/architecture-cible">Architecture cible</a>
+        <a href="/formation">Formation</a>
+        <a href="/gouvernance-ia">Governance by Design IA</a>
+      </nav>
+      <nav class="foot-col" aria-label="Norme &amp; conformité">
+        <h4>Norme &amp; conformité</h4>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/audit-conformite">Audit 62443</a>
+        <a href="/diagnostic">Diagnostic express</a>
+        <a href="/nis2">NIS2</a>
+      </nav>
+      <nav class="foot-col" aria-label="Plateforme">
+        <h4>Plateforme</h4>
+        <a href="/demo">Cockpit</a>
+        <a href="/assistant">Assistant IA</a>
+        <a href="/connecter">Connecter une source</a>
+        <a href="/guide-integration">Guide d’intégration</a>
+      </nav>
+      <nav class="foot-col" aria-label="Ressources">
+        <h4>Ressources</h4>
+        <a href="/veille">Veille</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/checklist-62443">Checklist 62443</a>
+        <a href="/glossaire-62443">Glossaire 62443</a>
+      </nav>
+    </div>
+    <div class="foot-bar">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Tous droits réservés</div>
+      <div class="foot-legal">
+        <a href="/about">À propos</a>
+        <a href="/contact">Contact</a>
+        <a href="/connexion">Espace client</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/politique-confidentialite">Confidentialité</a>
+        <a href="/conformite">Conformité IA &amp; RGPD</a>
+        <a href="/admin" rel="nofollow" class="foot-admin">Admin</a>
+      </div>
+    </div>
+  </div>
+</footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+  <script src="/nav.js" defer></script>
+  <script src="/parcours.js" defer></script>
+<script>
+/* L'ÉCRAN NE CONNAÎT AUCUNE PHASE — il les demande.
+   Recopier les huit phases ici les ferait diverger du module au premier
+   remaniement : la page annoncerait un ordre que le parcours ne tient plus,
+   et rien ne le signalerait. C'est le même arbitrage que pour le référentiel
+   de maturité, et une règle le tient. */
+(function () {
+  "use strict";
+  var FAITES = [];
+  var zone = document.getElementById("pm-phases");
+  var etat = document.getElementById("pm-etat");
+  if (!zone || !etat) return;
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;",
+               "'": "&#39;" }[c];
+    });
+  }
+
+  function etiquette(p, courante) {
+    if (p.faite) return '<span class="pm-etiq pm-faite">faite</span>';
+    if (p.cle === courante) return '<span class="pm-etiq pm-prete">en cours</span>';
+    if (p.prete) return '<span class="pm-etiq pm-prete">prête</span>';
+    return '<span class="pm-etiq pm-attente">il manque ' + p.manque.length
+      + ' phase' + (p.manque.length > 1 ? 's' : '') + '</span>';
+  }
+
+  function peindre(parcours) {
+    var h = "";
+    parcours.phases.forEach(function (p, i) {
+      h += '<article class="pm-ph' + (p.cle === parcours.courante
+        ? " pm-courante" : "") + '">'
+        + '<div class="pm-tete"><span class="pm-rang">' + (i + 1) + '</span>'
+        + "<h3>" + esc(p.titre) + "</h3>" + etiquette(p, parcours.courante)
+        + '<label class="pm-coche" style="margin-left:auto">'
+        + '<input type="checkbox" data-phase="' + esc(p.cle) + '"'
+        + (p.faite ? " checked" : "") + "> acquise</label></div>"
+        + '<p class="pm-q">' + esc(p.question) + "</p>"
+        + '<div class="pm-corps">';
+      if (p.manque && p.manque.length) {
+        h += '<div class="pm-manque"><h4>Ce qui manque</h4><p>'
+          + p.manque.map(function (m) { return esc(m.titre); }).join(" · ")
+          + "</p></div>";
+      }
+      h += "<div><h4>Ce qui s'y décide</h4><p>" + esc(p.ce_qui_se_decide)
+        + "</p></div>"
+        + '<div class="pm-piege"><h4>Le piège</h4><p>' + esc(p.piege)
+        + "</p></div>";
+      if (p.livrables && p.livrables.length) {
+        h += "<div><h4>Livrables de la phase</h4><ul class=\"pm-liv\">";
+        p.livrables.forEach(function (l) {
+          /* LE LIBELLÉ VIENT DU SERVEUR, QUI LE LIT AU CATALOGUE. Une chaîne
+             écrite ici afficherait un titre que plus aucune console ne porte
+             le jour où le livrable est renommé. */
+          h += "<li>" + esc(l.label || l.id || l) + "</li>";
+        });
+        h += "</ul></div>";
+      }
+      h += "</div></article>";
+    });
+    zone.innerHTML = h;
+    var faites = parcours.faites.length;
+    etat.textContent = parcours.achevee
+      ? "Les huit phases sont déclarées acquises."
+      : (faites + " phase" + (faites > 1 ? "s" : "") + " acquise"
+         + (faites > 1 ? "s" : "") + " · en cours : "
+         + (parcours.phases.filter(function (x) {
+              return x.cle === parcours.courante; })[0] || {}).titre);
+    if (parcours.promesses_mortes && parcours.promesses_mortes.length) {
+      /* UN LIVRABLE PROMIS QUI N'EXISTE PLUS SE DIT, il ne se cache pas :
+         l'écran afficherait sinon une phase qui annonce un document
+         qu'aucune console ne sait produire. */
+      etat.innerHTML += ' <span class="pm-mort">— '
+        + parcours.promesses_mortes.length
+        + " livrable(s) promis sont introuvables au catalogue.</span>";
+    }
+  }
+
+  function demander() {
+    fetch("/api/mission/parcours", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ faites: FAITES })
+    }).then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j && j.ok) peindre(j.parcours);
+        else etat.textContent = "Le parcours n'a pas pu être chargé.";
+      })
+      .catch(function () {
+        /* UN CATCH QUI DIT CE QUI S'EST PASSÉ. Un catch vide laisserait
+           « Chargement… » à l'écran pour toujours, ce qui se lit comme une
+           page morte plutôt que comme une panne. */
+        etat.textContent = "Le parcours n'a pas pu être chargé "
+          + "(réseau ou session).";
+      });
+  }
+
+  zone.addEventListener("change", function (ev) {
+    var b = ev.target && ev.target.getAttribute
+      ? ev.target.getAttribute("data-phase") : null;
+    if (!b) return;
+    FAITES = ev.target.checked
+      ? FAITES.concat([b])
+      : FAITES.filter(function (x) { return x !== b; });
+    demander();
+  });
+
+  demander();
+})();
+</script>
+
+</body>
+</html>
