@@ -675,6 +675,46 @@ TYPES = [
         ],
     },
     {
+        # NEUF LIVRABLES DE GOUVERNANCE IA, AUCUN SUR L'EMPREINTE ; des
+        # livrables carbone de centre de données, aucun sur l'IA. Le trou
+        # était à l'intersection exacte — c'est-à-dire là où se pose la seule
+        # question qu'un comité pose avant de financer un programme d'IA.
+        #
+        # CE QU'IL APPORTE ET QUE LE RESTE NE DIT PAS. Un programme d'IA fait
+        # grossir l'empreinte informatique pendant qu'il fait maigrir celle du
+        # procédé. Les outils du site ne montraient que la première : le
+        # programme y apparaissait comme une pure dépense carbone, ce qui est
+        # faux et se retourne contre lui au premier arbitrage.
+        #
+        # LA RÉSERVE EST DANS LA TRAME, pas en annexe. Un abattement annoncé
+        # et jamais constaté est la forme la plus courante de
+        # l'écoblanchiment ; la section qui l'exige vient avant celle qui le
+        # chiffre.
+        "id": "ia-bascule-carbone",
+        "mots_cles": "empreinte carbone programme IA abattement emissions evitees "
+                     "bascule retour sur investissement carbone scope 2 scope 3 "
+                     "efficacite energetique sobriete numerique trajectoire",
+        "groupe": "Conseil — Empreinte carbone de l'IA",
+        "label": "Dossier de décision — empreinte carbone d'un programme d'IA",
+        "desc": "Ce que le programme COÛTE en émissions, ce qu'il ÉVITE ailleurs, "
+                "et l'année où le net repasse sous le point de départ — ou le constat "
+                "qu'il n'y repasse pas. Appuyé sur les travaux qui établissent le "
+                "caractère non linéaire de la relation entre usage de l'IA et "
+                "émissions, sans en transposer les coefficients.",
+        "sections": [
+            "Périmètre : quels usages d'IA, quels procédés, quelles frontières",
+            "Empreinte du programme — calcul, entraînement, inférence, matériel",
+            "Ce que le programme doit ÉVITER ailleurs, poste par poste",
+            "Comment chaque abattement sera MESURÉ — et sur quelle référence",
+            "Montée en charge : ce que la première phase coûte avant de rendre",
+            "Trajectoire nette et année de bascule",
+            "La bascule tient-elle ? conditions de retournement",
+            "Ce qui se décide si elle ne tient pas — freiner l'adoption ou "
+            "relancer l'abattement",
+            "Réserves : ce qui est déclaré, ce qui est mesuré",
+        ],
+    },
+    {
         # LE SEUL CANDIDAT DU CATALOGUE ÉTAIT « SENSIBILISATION », qui
         # n'est pas un atelier de décideurs : on n'anime pas une direction
         # industrielle avec un support de sensibilisation.
@@ -2318,6 +2358,27 @@ GROUPE_THEMES = {
     "Conseil — Gouvernance IA": [
         "AI Act", "Juridique / IA Act", "RGPD",
         "Juridique / RGPD & données", "Gouvernance & CSMS"],
+    # ── L'EMPREINTE D'UN PROGRAMME D'IA N'EST PAS UNE QUESTION DE
+    #    GOUVERNANCE DE L'IA ─────────────────────────────────────────────
+    #
+    # POURQUOI UN GROUPE À PART ET NON LE GROUPE « Gouvernance IA ». Les neuf
+    # livrables de ce groupe portent sur le CADRE d'usage — AI Act, RGPD,
+    # RACI, règles d'emploi. Y ajouter les thèmes du carbone les ferait tous
+    # puiser dans des analyses de cycle de vie, qui ne leur servent à rien :
+    # une charte de gouvernance écrite avec des notes de PUE serait moins
+    # bonne, pas meilleure. Le défaut de pointage se corrige dans un sens ; il
+    # se crée aussi bien dans l'autre.
+    #
+    # CE GROUPE N'A PAS DE PAGE, et ce n'est pas un oubli : plusieurs n'en ont
+    # pas — « Conformité & risques », « Cadrage & stratégie », « Programme IA
+    # & SOC ». Le livrable reste offert par la console.
+    "Conseil — Empreinte carbone de l'IA": [
+        "Data center / Carbone & analyse de cycle de vie",
+        "Data center / Efficacité & indicateurs (PUE, WUE, CUE, ERE)",
+        "Data center / Énergie & électricité",
+        "Data center / Réglementation UE (EED, taxonomie, CSRD)",
+        "Data center / Recherche & état de l'art",
+        "AI Act"],
     # La candidature puise dans deux fonds distincts et complémentaires : le
     # droit de la commande publique d'un côté, les pièces de consultation de
     # centre de données de l'autre. Les études de cas ferment la liste parce

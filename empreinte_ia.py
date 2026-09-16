@@ -553,6 +553,182 @@ def trajectoires(base_annuelle, depuis, jusqu_a=2030):
 #  7. LA COUVERTURE, ET L'ÉTAT DU MODULE
 # ═══════════════════════════════════════════════════════════════════════════
 
+# ══════════════════════════════════════════════════════════════════════════
+#  CE QUE L'IA ÉVITE AILLEURS — le troisième axe, et pourquoi il manquait
+# ══════════════════════════════════════════════════════════════════════════
+#
+# `trajectoire` EST MONOTONE PAR CONSTRUCTION. Elle multiplie chaque année par
+# (1 + adoption) × (1 − efficacité) : le facteur est constant, donc la courbe
+# ne peut que croître indéfiniment ou décroître indéfiniment. Elle répond à
+# « combien notre IA va nous coûter » et ne peut pas répondre à la question
+# qu'un dirigeant pose avant de financer un programme : « à partir de quand
+# est-ce que ça paie, et est-ce que ça paie ? »
+#
+# DEUX ÉTUDES DISENT QUE LA COURBE S'INVERSE, et c'est ce qui a motivé cet
+# ajout :
+#
+#   · Yuan, Zhang, Liu & Yang (Scientific Reports, 2026), panel de trente
+#     provinces chinoises sur quinze ans, effets fixes bidirectionnels et
+#     équations structurelles : la relation entre niveau d'usage de l'IA et
+#     intensité carbone des entreprises suit un U INVERSÉ. Au début, le calcul
+#     et le déploiement AUGMENTENT les émissions ; passé un point critique,
+#     l'approfondissement de l'usage les réduit. Les canaux médiateurs
+#     identifiés sont l'efficacité de l'innovation verte, l'efficacité
+#     d'utilisation de l'énergie, l'innovation scientifique et la montée en
+#     gamme de la structure industrielle.
+#
+#   · Wang, Li & Li (Humanities and Social Sciences Communications, 2024),
+#     panel de soixante-sept pays, SYS-GMM et modèles à seuil dynamiques :
+#     l'effet de l'IA sur l'empreinte écologique et les émissions est
+#     NON LINÉAIRE et dépend de conditions mesurables — part du secteur
+#     industriel, ouverture commerciale, niveau de développement de l'IA,
+#     profondeur de la transition énergétique déjà engagée.
+#
+# AUCUN COEFFICIENT DE CES ÉTUDES N'EST REPRIS ICI, ET C'EST UNE DÉCISION.
+#
+# Ce sont des élasticités estimées sur des PANELS DE PAYS ET DE PROVINCES.
+# Les appliquer au programme d'une entreprise serait une faute de catégorie :
+# un coefficient qui décrit la moyenne de soixante-sept pays ne prédit pas ce
+# qu'un déploiement fera dans une usine. Ce que ces travaux apportent, c'est
+# la FORME de la courbe et les CONDITIONS qui la déplacent — pas des nombres
+# transposables. L'abattement est donc DÉCLARÉ par celui qui conduit
+# l'étude, et le module le répète partout où il sort.
+#
+# CE QUE CELA CHANGE POUR UN CLIENT. Son empreinte informatique grossit
+# pendant que son empreinte de procédé diminue. Le module ne montrait que la
+# première : un programme d'IA pour la conduite énergétique y apparaissait
+# comme une pure dépense carbone, ce qui est faux — et se retourne contre le
+# programme au premier comité.
+
+#: Le nombre d'années par défaut pour atteindre le plein régime d'abattement.
+#
+# POURQUOI UNE MONTÉE EN CHARGE ET NON UN EFFET IMMÉDIAT. C'est le cœur du
+# résultat de Yuan et al. : la première phase COÛTE. On entraîne, on déploie,
+# on double les chaînes le temps de la bascule, et l'on n'évite encore rien.
+# Un modèle qui ferait démarrer l'évitement à l'année zéro effacerait
+# exactement le phénomène que ces travaux décrivent.
+#
+# LA VALEUR EST ÉCRITE ICI ET NON LUE DANS `reglages`, parce que ce module
+# N'IMPORTE RIEN : c'est ce qui permet de le servir à l'identique des deux
+# côtés sans traîner de dépendance. Un appelant qui veut une autre montée la
+# passe en argument.
+MONTEE_ABATTEMENT = 3
+
+
+def bascule(base_annuelle, adoption, efficacite, abattement_plein, depuis,
+            montee=None, jusqu_a=2030):
+    """L'empreinte NETTE d'un programme d'IA — ce qu'il coûte moins ce qu'il
+    évite — et l'année où elle repasse sous son point de départ.
+
+    `abattement_plein` EST DÉCLARÉ, DANS LA MÊME UNITÉ QUE LA BASE. C'est ce
+    que le déploiement évite AILLEURS une fois en régime : énergie de procédé,
+    transport, rebut, maintenance non subie. Il ne se déduit d'aucun
+    coefficient publié — voir l'en-tête de cette section.
+
+    ET IL DOIT ÊTRE MESURÉ, PAS ESTIMÉ. Un abattement annoncé et jamais
+    constaté est la forme la plus courante de l'écoblanchiment : la sortie
+    porte donc `a_mesurer`, qui ne s'éteint jamais. Ce module calcule une
+    projection ; il ne certifie rien.
+
+    FONCTION PURE : tout est passé, rien n'est lu. Une règle l'éprouve sans
+    base ni réseau.
+    """
+    socle = trajectoire(base_annuelle, adoption, efficacite, depuis, jusqu_a)
+    if socle["nature"] != "projete":
+        return dict(socle, evite_plein=None, annee_bascule=None, jamais=None)
+    # `_nombre` REND None POUR UN NÉGATIF COMME POUR UNE ABSENCE, et
+    # l'écraser par `or 0.0` confondait les deux — c'est le défaut que ce
+    # module dénonce dans le docstring de `_nombre` lui-même : « zéro se lit
+    # cela ne consomme rien, et l'absence se lit on ne sait pas ». Un
+    # abattement de −10 devenait donc silencieusement 0, et la projection
+    # partait quand même. On distingue les trois cas.
+    if abattement_plein in (None, ""):
+        plein = 0.0
+    else:
+        plein = _nombre(abattement_plein)
+        if plein is None:
+            return {"nature": "indisponible", "points": [],
+                    "motif": "l'abattement n'est pas un nombre positif : un "
+                             "abattement négatif serait une émission de plus, "
+                             "et elle se déclare dans la base"}
+    ans = int(montee or MONTEE_ABATTEMENT)
+    base = float(base_annuelle)
+    points, bascule_an = [], None
+    for i, pt in enumerate(socle["points"]):
+        # LA MONTÉE EST LINÉAIRE, ET C'EST UN CHOIX PRUDENT. Une courbe en S
+        # serait plus fidèle à un déploiement réel ; elle demanderait deux
+        # paramètres de plus, que personne ne sait renseigner, pour une
+        # différence qui se joue dans le bruit de l'abattement déclaré.
+        part = 1.0 if i >= ans else float(i) / float(ans)
+        evite = plein * part
+        net = pt["valeur"] - evite
+        points.append({"annee": pt["annee"], "empreinte": pt["valeur"],
+                       "evite": evite, "net": net})
+        # L'ANNÉE DE BASCULE EST CELLE OÙ LE NET REPASSE SOUS LE POINT DE
+        # DÉPART — pas celle où il cesse de croître. C'est la question que
+        # pose un comité : « quand est-ce qu'on revient à ce qu'on émettait
+        # avant d'avoir commencé ? »
+        # `i > 0` ÉTAIT UN GARDE MORT, et une mutation l'a montré : à la
+        # première année l'évitement vaut zéro, donc le net vaut exactement la
+        # base, et « net < base » est déjà faux. Un garde qu'aucune mutation
+        # ne peut faire tomber est un garde dont on ne sait rien — et qui fait
+        # croire qu'un cas est traité alors qu'il l'était par ailleurs.
+        if bascule_an is None and net < base:
+            bascule_an = pt["annee"]
+    # LA BASCULE PEUT NE PAS TENIR, ET LE DIRE EST TOUT L'INTÉRÊT DU CALCUL.
+    #
+    # DÉFAUT TROUVÉ EN FAISANT TOURNER LA FONCTION. Avec une adoption de 25 %
+    # et une efficacité de 12 %, le net repasse sous la base en 2027, atteint
+    # son creux en 2029 — puis REMONTE au-dessus en 2031 : l'abattement
+    # plafonne quand l'empreinte, elle, compose. Rendre « bascule 2027 » sans
+    # rien d'autre aurait été un chiffre juste et une réponse fausse : le
+    # comité lirait un gain acquis là où il est temporaire.
+    #
+    # C'EST AUSSI CE QUE LES DEUX ÉTUDES LAISSENT DE CÔTÉ. Elles mesurent une
+    # relation sur un horizon donné ; elles ne disent pas ce qui arrive quand
+    # l'usage continue de croître après le point d'inflexion. Ici, le calcul
+    # le montre — et c'est la seule chose qu'un calcul puisse ajouter à une
+    # publication.
+    retour = None
+    if bascule_an is not None:
+        vu = False
+        for pt in points:
+            if pt["annee"] == bascule_an:
+                vu = True
+                continue
+            if vu and pt["net"] >= base:
+                retour = pt["annee"]
+                break
+    fin = points[-1]
+    return {
+        "nature": "projete",
+        "points": points,
+        "base": base,
+        "evite_plein": plein,
+        "montee_ans": ans,
+        "annee_bascule": bascule_an,
+        "retour_au_dessus": retour,
+        "tient": bascule_an is not None and retour is None,
+        # LE CREUX EST LE MEILLEUR MOMENT DU PROGRAMME : c'est là qu'il faut
+        # relancer l'abattement ou freiner l'adoption, et c'est une décision
+        # qui se prend avant, pas le jour où la courbe est déjà remontée.
+        "creux": min(points, key=lambda x: x["net"])["annee"],
+        # « JAMAIS » EST DIT, PAS DÉDUIT D'UN CHAMP VIDE. Une année de bascule
+        # absente peut signifier « au-delà de l'horizon » comme « jamais » ;
+        # les deux se lisent autrement et se décident autrement.
+        "jamais": bascule_an is None,
+        "net_final": fin["net"],
+        "multiple_net": fin["net"] / base if base else None,
+        "adoption": float(adoption),
+        "efficacite": float(efficacite),
+        "a_mesurer": "L'abattement est DÉCLARÉ, non mesuré. Tant qu'il n'est "
+                     "pas constaté sur les consommations réelles, cette "
+                     "trajectoire est une hypothèse de travail et ne peut "
+                     "être publiée comme un résultat.",
+        "motif": None,
+    }
+
+
 def _nombre(v):
     """Un volume déclaré, ou None. Jamais zéro par défaut : zéro se lit
     « cela ne consomme rien », et l'absence se lit « on ne sait pas »."""

@@ -540,3 +540,169 @@ def test_un_parc_vide_ne_rend_pas_un_total_rassurant():
     assert r["couverture"]["systemes"] == 0 and r["couverture"]["part"] == 0.0
     assert r["total_mois"]["wh"] == 0.0
     assert r["lignes"] == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LA BASCULE — ce que l'IA ÉVITE ailleurs, et quand elle commence à payer
+#
+#  CE QUE `trajectoire` NE POUVAIT PAS DIRE. Elle multiplie chaque année par
+#  un facteur CONSTANT : la courbe ne peut que croître indéfiniment ou
+#  décroître indéfiniment. Elle répond à « combien notre IA va nous coûter »
+#  et pas à « à partir de quand est-ce que ça paie ».
+#
+#  DEUX ÉTUDES DISENT QUE LA COURBE S'INVERSE. Yuan et al. (Scientific
+#  Reports, 2026) trouvent un U INVERSÉ sur trente provinces chinoises : le
+#  calcul et le déploiement augmentent d'abord les émissions, puis
+#  l'approfondissement de l'usage les réduit. Wang et al. (Humanities and
+#  Social Sciences Communications, 2024) trouvent des effets de SEUIL sur
+#  soixante-sept pays.
+#
+#  ET AUCUN DE LEURS COEFFICIENTS N'ENTRE ICI. Ce sont des élasticités de
+#  panel ; les appliquer au programme d'une entreprise serait une faute de
+#  catégorie. Une règle ci-dessous le tient, parce que c'est exactement le
+#  genre d'« amélioration » qu'on ajoute six mois plus tard en croyant bien
+#  faire.
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_la_courbe_nette_peut_desormais_S_INVERSER():
+    """LE DÉFAUT QUE CE TOUR CORRIGE, MESURÉ SUR LES DEUX MODÈLES.
+
+    `trajectoire` est monotone : sa dérivée ne change jamais de signe. Avec un
+    abattement, le net descend puis remonte — c'est la forme que les deux
+    études décrivent, et le modèle ne savait pas la produire."""
+    t = E.trajectoire(100.0, adoption=25, efficacite=12, depuis=2026,
+                      jusqu_a=2034)
+    vals = [p["valeur"] for p in t["points"]]
+    sens = {(b > a) for a, b in zip(vals, vals[1:])}
+    assert len(sens) == 1, "trajectoire devrait être monotone : %s" % vals
+
+    b = E.bascule(100.0, 25, 12, abattement_plein=60, depuis=2026,
+                  jusqu_a=2034)
+    nets = [p["net"] for p in b["points"]]
+    sens = {(y > x) for x, y in zip(nets, nets[1:])}
+    assert len(sens) == 2, (
+        "la courbe nette ne change jamais de sens : le modèle ne peut pas "
+        "représenter le retour sur investissement — %s" % nets)
+
+
+def test_RIEN_n_est_evite_la_premiere_annee():
+    """C'EST LE CŒUR DU RÉSULTAT DE YUAN ET AL. La première phase COÛTE : on
+    entraîne, on déploie, on double les chaînes le temps de la bascule, et
+    l'on n'évite encore rien. Un modèle qui ferait démarrer l'évitement à
+    l'année zéro effacerait le phénomène même que ces travaux décrivent."""
+    b = E.bascule(100.0, 25, 12, 60, depuis=2026, jusqu_a=2034)
+    p0 = b["points"][0]
+    assert p0["evite"] == 0.0, p0
+    assert p0["net"] == p0["empreinte"] == 100.0, p0
+    # ET LE PLEIN RÉGIME N'ARRIVE QU'AU TERME DE LA MONTÉE.
+    plein = [p for p in b["points"] if p["evite"] == b["evite_plein"]]
+    assert plein[0]["annee"] == 2026 + b["montee_ans"], plein[0]
+
+
+def test_l_annee_de_bascule_est_celle_du_RETOUR_SOUS_LE_DEPART():
+    """PAS CELLE OÙ LE NET CESSE DE CROÎTRE. C'est la question que pose un
+    comité : « quand est-ce qu'on revient à ce qu'on émettait avant d'avoir
+    commencé ? »"""
+    b = E.bascule(100.0, 25, 12, 60, depuis=2026, jusqu_a=2034)
+    premier = next(p for p in b["points"][1:] if p["net"] < b["base"])
+    assert b["annee_bascule"] == premier["annee"]
+
+
+def test_une_bascule_qui_NE_TIENT_PAS_est_dite():
+    """LE CHIFFRE JUSTE ET LA RÉPONSE FAUSSE.
+
+    Avec une adoption de 25 % et une efficacité de 12 %, le net repasse sous
+    la base en 2027, atteint son creux en 2029 — puis REMONTE au-dessus en
+    2031 : l'abattement plafonne quand l'empreinte compose. Rendre « bascule
+    2027 » sans rien d'autre ferait lire un gain acquis là où il est
+    temporaire, et c'est la lecture qu'un comité en ferait."""
+    b = E.bascule(100.0, 25, 12, 60, depuis=2026, jusqu_a=2034)
+    assert b["annee_bascule"] == 2027
+    assert b["retour_au_dessus"] == 2031, b["retour_au_dessus"]
+    assert b["tient"] is False
+    assert b["creux"] == 2029, b["creux"]
+    # ET UNE BASCULE QUI TIENT EST DITE AUSSI : sans les deux cas, la règle
+    # ne mesurerait qu'une moitié du champ.
+    ok = E.bascule(100.0, 15, 20, 60, depuis=2026, jusqu_a=2034)
+    assert ok["tient"] is True and ok["retour_au_dessus"] is None
+
+
+def test_sans_abattement_le_resultat_est_CELUI_D_AVANT():
+    """AUCUNE RÉGRESSION. Ce module sert des trajectoires depuis des mois ;
+    le troisième axe s'AJOUTE, il ne remplace pas. Un abattement nul doit
+    rendre exactement la courbe que `trajectoire` rendait."""
+    t = E.trajectoire(100.0, 25, 12, 2026, 2034)
+    b = E.bascule(100.0, 25, 12, 0, 2026, jusqu_a=2034)
+    assert [p["valeur"] for p in t["points"]] == [p["net"] for p in b["points"]]
+    assert b["annee_bascule"] is None and b["jamais"] is True
+
+
+def test_une_adoption_sans_limites_ne_bascule_JAMAIS():
+    """ET « JAMAIS » EST DIT, PAS DÉDUIT D'UN CHAMP VIDE. Une année absente
+    peut signifier « au-delà de l'horizon » comme « jamais » ; les deux se
+    lisent autrement et se décident autrement."""
+    b = E.bascule(100.0, 40, 5, 60, depuis=2026, jusqu_a=2034)
+    assert b["annee_bascule"] is None and b["jamais"] is True
+
+
+def test_un_abattement_NEGATIF_est_refusé():
+    """Ce serait une émission de plus, et elle se déclare dans la base. La
+    laisser passer ici la ferait compter à l'envers."""
+    b = E.bascule(100.0, 25, 12, -10, depuis=2026)
+    assert b["nature"] == "indisponible" and b["motif"]
+
+
+def test_la_sortie_RAPPELLE_TOUJOURS_que_l_abattement_est_declare():
+    """UN ABATTEMENT ANNONCÉ ET JAMAIS CONSTATÉ EST LA FORME LA PLUS COURANTE
+    DE L'ÉCOBLANCHIMENT. La réserve voyage avec le résultat, jamais à côté :
+    c'est le résultat qu'on recopie dans une note, pas le paragraphe
+    d'avertissement de la page."""
+    b = E.bascule(100.0, 25, 12, 60, depuis=2026)
+    assert "DÉCLARÉ" in b["a_mesurer"] and "mesuré" in b["a_mesurer"]
+
+
+def test_AUCUN_coefficient_des_etudes_n_entre_dans_le_module():
+    """LA RÈGLE QUI PROTÈGE CONTRE UNE « AMÉLIORATION » BIEN INTENTIONNÉE.
+
+    Ces deux travaux estiment des élasticités sur des panels de PAYS et de
+    PROVINCES. Un coefficient qui décrit la moyenne de soixante-sept pays ne
+    prédit pas ce qu'un déploiement fera dans une usine : l'importer ici
+    donnerait un nombre d'apparence savante et sans valeur pour un client.
+
+    Ce que ces études apportent est la FORME de la courbe et les CONDITIONS
+    qui la déplacent. C'est écrit dans l'en-tête du module ; cette règle
+    vérifie que cela le reste."""
+    bloc = SRC[SRC.index("CE QUE L'IA ÉVITE AILLEURS"):]
+    bloc = bloc[:bloc.index("def _nombre(")]
+    # ON CHERCHE UNE CONSTANTE NOMMÉE PORTANT UN DÉCIMAL, et non n'importe
+    # quel décimal.
+    #
+    # LA PREMIÈRE VERSION REFUSAIT TOUT « 0.0 » ET « 1.0 » du bloc — des
+    # bornes de structure, pas des élasticités. Une règle qui tombe sur la
+    # forme plutôt que sur le sens se désactive au premier agacement, et c'est
+    # la pire fin pour un garde-fou. Un coefficient publié arriverait comme
+    # une constante de module : c'est cela qu'on interdit.
+    import re as _re
+    coefs = _re.findall(r"(?m)^([A-Z_]{3,})\s*=\s*-?\d+\.\d+", bloc)
+    assert not coefs, (
+        "des coefficients sont déclarés dans la section de bascule : les "
+        "études citées sont des panels de pays et de provinces, leurs "
+        "élasticités ne se transposent pas à une entreprise — %s" % coefs)
+    assert "MONTEE_ABATTEMENT = 3" in bloc
+    # ET LA RÉSERVE EST ÉCRITE, pas sous-entendue.
+    for phrase in ("faute de catégorie", "DÉCLARÉ", "panels"):
+        assert phrase.lower() in bloc.lower(), phrase
+
+
+def test_la_bascule_est_PURE():
+    """Tout est passé, rien n'est lu : une règle l'éprouve sans base ni
+    réseau, et deux appels identiques rendent la même chose."""
+    a = E.bascule(100.0, 25, 12, 60, 2026, jusqu_a=2030)
+    b = E.bascule(100.0, 25, 12, 60, 2026, jusqu_a=2030)
+    assert a == b
+    # LA MONTÉE SE PASSE EN ARGUMENT, sans quoi ce module devrait lire un
+    # réglage — et il n'importe rien, c'est ce qui permet de le servir à
+    # l'identique des deux côtés.
+    lent = E.bascule(100.0, 25, 12, 60, 2026, montee=8, jusqu_a=2034)
+    assert lent["montee_ans"] == 8
+    assert lent["points"][3]["evite"] < a["points"][3]["evite"]

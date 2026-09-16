@@ -57,9 +57,10 @@ _ICI = os.path.dirname(os.path.abspath(__file__))
 #: lui-même, empreintes mises à blanc — sans quoi elle se référencerait.
 JUMEAUX = {
     "empreinte_ia.py": {
-        "empreinte": "14711f48fa5d52b8",
+        "empreinte": "5536837a4ea1f6ed",
         "porte": "Les facteurs d'empreinte de l'IA et leurs sources, les trois "
-                 "méthodes, l'ajustement fin déclaré, les trajectoires.",
+                 "méthodes, l'ajustement fin déclaré, les trajectoires — et la "
+                 "BASCULE, qui retranche ce que le programme évite ailleurs.",
     },
     "equipements_it.py": {
         "empreinte": "368054d0a8daa6ba",
@@ -72,7 +73,7 @@ JUMEAUX = {
         "porte": "La maîtrise d'œuvre : missions, taux, répartition des honoraires.",
     },
     "jumeaux.py": {
-        "empreinte": "454073553f904cb0",
+        "empreinte": "635f60c68599543b",
         "porte": "Ce manifeste lui-même — sans quoi la liste des jumeaux pourrait "
                  "diverger sans que rien ne le voie.",
     },

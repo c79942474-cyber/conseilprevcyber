@@ -321,11 +321,20 @@ def test_le_parcours_couvre_les_livrables_de_CONSEIL_OT():
     # passer « regles-ia-generative », qui ne finit pas ainsi. Deviner la
     # nature d'un livrable à son nom de fichier est le genre de règle qui
     # tombe pour une raison sans rapport avec ce qu'elle mesure.
-    HORS_MISSION_OT = "Conseil — Gouvernance IA"
+    # DEUX GROUPES RELÈVENT D'UNE AUTRE MISSION, et c'est une décision :
+    #   · la gouvernance de l'IA — un cadre d'usage n'est pas une étape d'une
+    #     mission OT ;
+    #   · l'empreinte carbone d'un programme d'IA — c'est un dossier de
+    #     décision environnemental, conduit par d'autres interlocuteurs et
+    #     sur un autre calendrier.
+    # Les nommer ici plutôt que de les faire entrer de force dans une phase
+    # évite de prétendre qu'une mission OT les produit.
+    HORS_MISSION_OT = {"Conseil — Gouvernance IA",
+                       "Conseil — Empreinte carbone de l'IA"}
     hors = sorted(t["id"] for t in livrables.TYPES
                   if t["id"] not in sequences
                   and str(t.get("groupe") or "").startswith("Conseil")
-                  and t.get("groupe") != HORS_MISSION_OT)
+                  and t.get("groupe") not in HORS_MISSION_OT)
     assert not hors, (
         "ces livrables de conseil ne sont dans aucune phase : %s" % hors)
 
