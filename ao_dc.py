@@ -818,6 +818,70 @@ def membres_du_groupement(texte):
     return out
 
 
+# ── LA DOCUMENTATION : CE AVEC QUOI ON RÉDIGE, ET QUI N'EST PAS UNE PIÈCE ──
+#
+# DEUX QUESTIONS, ET ELLES NE SE CONFONDENT PAS.
+#
+#   · « Quelle PIÈCE du dossier de réponse ce document fournit-il ? » —
+#     `piece_du_cabinet`, bornée aux vingt-trois pièces du catalogue.
+#   · « À quel RAYON de l'étagère ce document appartient-il ? » — ici.
+#
+# UN GUIDE ANSSI NE FOURNIT AUCUNE PIÈCE, et c'est correct : on ne remet pas un
+# guide à un acheteur dans un dossier de candidature. Il a pourtant toute sa
+# place sur l'étagère, parce qu'un mémoire technique s'écrit AVEC. Les avoir
+# confondus est ce qui faisait refuser sept des neuf types de documents qu'un
+# cabinet conserve — fiches techniques, guides, normes, catalogues,
+# méthodologies, retours d'expérience : aucun n'est une pièce, aucun n'avait
+# donc de rayon.
+#
+# CE RENVOI REND UN RAYON, PAS UNE CLÉ DE PIÈCE. C'est la différence qui évite
+# de faire passer un guide pour une pièce à produire dans l'analyse d'un dépôt.
+DOCUMENTATION_MOTIFS = [
+    # LES RÉFÉRENTIELS D'ABORD, ET L'ORDRE EST DÉLIBÉRÉ. « guide-technique-
+    # groupe-froid.pdf » est un document produit, pas un référentiel ; mais
+    # « fiche-de-lecture-norme-EN-50600.pdf » est bien un référentiel. Le motif
+    # le plus spécifique — celui qui nomme une norme ou un organisme — gagne.
+    ("Cabinet / Normes, guides & référentiels", [
+        r"(?<![a-z])normes?(?![a-z])", r"(?<![a-z])r[ée]f[ée]rentiels?(?![a-z])",
+        r"(?<![a-z])anssi(?![a-z])", r"(?<![a-z])uptime(?![a-z])",
+        r"(?<![a-z])(?:nf|en|iso|iec|cei|nist)[\s._-]*\d",
+        r"(?<![a-z])(?:rgpd|nis2|dora)(?![a-z])",
+        r"(?<![a-z])guides?(?![a-z])", r"(?<![a-z])recommandations?(?![a-z])",
+        r"(?<![a-z])doctrine(?![a-z])",
+    ]),
+    ("Cabinet / Fiches techniques & documentation produit", [
+        r"fiches?[\s._-]*techniques?", r"(?<![a-z])datasheets?(?![a-z])",
+        r"(?<![a-z])catalogues?(?![a-z])", r"(?<![a-z])notices?(?![a-z])",
+        r"(?<![a-z])documentation(?![a-z])",
+        r"(?<![a-z])pv[\s._-]*d[\s._-]*essais?(?![a-z])",
+    ]),
+    # LES NOTES DE MÉTHODE ET LES RETOURS D'EXPÉRIENCE REJOIGNENT LE RAYON QUI
+    # EXISTE DÉJÀ — celui des mémoires et notes méthodologiques. En créer un
+    # troisième aurait dispersé ce qui se cherche ensemble.
+    ("Cabinet / Mémoires techniques & notes méthodologiques", [
+        r"m[ée]thodologies?", r"m[ée]thodes?(?![a-z])",
+        r"retours?[\s._-]*(?:d[\s._-]*)?exp[ée]rience",
+        r"(?<![a-z])retex(?![a-z])",
+        r"notes?[\s._-]*interne", r"(?<![a-z])proc[ée]dures?(?![a-z])",
+    ]),
+]
+
+
+def documentation_du_cabinet(nom):
+    """Le RAYON de documentation d'un fichier, ou None.
+
+    LE NOM DÉCIDE, comme pour les pièces, et pour la même raison : c'est à la
+    question « qu'est-ce que je viens de déposer » qu'on répond, et le nom du
+    fichier y répond mieux que son contenu — une fiche technique et un mémoire
+    parlent du même sujet avec les mêmes mots.
+    """
+    n = _sans_accent((nom or "").lower())
+    for rayon, motifs in DOCUMENTATION_MOTIFS:
+        if any(re.search(m, n) for m in motifs):
+            return rayon
+    return None
+
+
 def piece_du_cabinet(nom, texte=""):
     """La pièce de réponse que CE document du cabinet fournit, ou None.
 

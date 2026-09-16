@@ -352,6 +352,28 @@ THEME_FAMILLES = [
         "Cabinet / Qualifications, certifications & QSE",
         "Cabinet / Mémoires techniques & notes méthodologiques",
         "Cabinet / Pouvoirs, délégations & groupement",
+        # ── LA MATIÈRE AVEC LAQUELLE ON RÉDIGE, ET NON LA PREUVE DE QUI
+        #    NOUS SOMMES ───────────────────────────────────────────────────
+        #
+        # LES DIX RAYONS AU-DESSUS SERVENT TOUS À PROUVER : une identité, une
+        # assurance, des comptes, des références, des moyens. C'est ce qu'un
+        # dossier de CANDIDATURE demande. Un mémoire technique demande autre
+        # chose — de la DOCUMENTATION : la fiche du groupe froid qu'on retient,
+        # le guide dont on applique les mesures, la norme dont on vise la
+        # classe.
+        #
+        # MESURÉ : sur neuf noms de fichiers réalistes que le cabinet
+        # conserverait, SEPT étaient refusés — fiche technique, guide, norme,
+        # catalogue, méthodologie, retour d'expérience. Aucun n'est une pièce
+        # d'un dossier ; aucun n'avait donc de rayon.
+        #
+        # CES DEUX RAYONS SONT LES SEULS DE LA FAMILLE QUI NE SOIENT PAS DE
+        # NOUS, et cela commande la suite : une norme appartient à son
+        # organisme, une fiche produit à son fabricant. On s'y APPUIE, on les
+        # CITE, on ne les recopie pas dans un document remis à un acheteur.
+        # Voir `ao_redaction.FONDS_DOCUMENTATION` et la consigne de rédaction.
+        "Cabinet / Fiches techniques & documentation produit",
+        "Cabinet / Normes, guides & référentiels",
     ]),
     ("Divers", [
         "Veille",
