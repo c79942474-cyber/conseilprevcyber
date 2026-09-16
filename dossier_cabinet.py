@@ -92,7 +92,7 @@ def rayons():
     return rag_store.themes_famille(rag_store.FAMILLE_CABINET)
 
 
-def destination(cle_piece):
+def destination(cle_piece, nom=""):
     """Où ce document se range — ou pourquoi il ne se range pas.
 
     FONCTION PURE, et c'est ce qui la rend éprouvable : ce qui décide du rayon
@@ -106,11 +106,24 @@ def destination(cle_piece):
     """
     import ao_dc                                                  # noqa: PLC0415
     if not cle_piece:
+        # ── LA DOCUMENTATION N'EST PAS UNE PIÈCE, ET SE RANGE QUAND MÊME ──
+        #
+        # Une fiche technique, un guide, une norme ne fournissent AUCUNE des
+        # vingt-trois pièces à produire — on ne remet pas un guide ANSSI à un
+        # acheteur dans un dossier de candidature. Ils sont pourtant la
+        # matière avec laquelle un mémoire technique s'écrit. Les refuser
+        # parce qu'ils ne sont pas des pièces, c'était refuser sept des neuf
+        # types de documents qu'un cabinet conserve.
+        rayon = ao_dc.documentation_du_cabinet(nom)
+        if rayon:
+            return {"rayon": rayon, "refus": "", "dit": ""}
         return {"rayon": "", "refus": "piece_inconnue",
-                "dit": "Ce fichier n'est rattaché à aucune des pièces à "
-                       "produire : son nom ne le dit pas. Renommez-le d'après "
-                       "la pièce qu'il fournit — « organigramme.pdf », "
-                       "« references-2025.docx » — et redéposez-le."}
+                "dit": "Le nom de ce fichier ne dit ni la pièce qu'il fournit, "
+                       "ni la documentation qu'il apporte. Renommez-le d'après "
+                       "l'un ou l'autre — « organigramme.pdf », "
+                       "« references-2025.docx », « fiche-technique-groupe-"
+                       "froid.pdf », « guide-anssi.pdf », « norme-EN-50600.pdf » "
+                       "— et redéposez-le."}
     motif = ao_dc.SANS_ETAGERE.get(cle_piece)
     if motif:
         return {"rayon": "", "refus": "ne_se_conserve_pas", "dit": motif}
@@ -171,6 +184,19 @@ def _nourrit(rayon, visibilite):
         return True
     if rayon in ao_redaction.FONDS_TIERS:
         return visibilite == "public"
+    # LA DOCUMENTATION NOURRIT, QUEL QUE SOIT LE RÉGIME — et l'oublier ici
+    # était une faute en sens INVERSE de celle que cette fonction devait
+    # éviter : l'écran aurait dit qu'une norme rangée n'atteint aucun
+    # brouillon, alors que le rédacteur la lit sans filtre de publication.
+    # Une colonne qui NIE un apport réel se paie deux fois — on range moins,
+    # et on relit moins ce qui sort.
+    #
+    # LE RÉGIME NE COMMANDE PAS CE LOT, parce que le risque qu'il porte n'est
+    # pas la confidentialité d'un client mais le droit d'auteur d'un tiers :
+    # marquer publiable une norme ne donne pas le droit de la recopier. La
+    # barrière est dans la consigne de rédaction, pas dans le rangement.
+    if rayon in ao_redaction.FONDS_DOCUMENTATION:
+        return True
     return False
 
 
@@ -191,7 +217,7 @@ def ranger(rag, nom, octets, cle_piece, visibilite=VISIBILITE_DEFAUT,
         raise EtagereError("magasin_absent", 503,
                            "La base de connaissance n'est pas jointe : "
                            "impossible de conserver un document.")
-    d = destination(cle_piece)
+    d = destination(cle_piece, nom)
     if d["refus"]:
         raise EtagereError(d["refus"], 400, d["dit"])
     if visibilite not in VISIBILITES:

@@ -403,6 +403,36 @@ FONDS_TIERS = (
     "Cabinet / Références & attestations de bonne exécution",
 )
 
+#: LES THÈMES ÉCRITS PAR UN TIERS — lus, jamais reproduits.
+#
+# UN TROISIÈME TIERS, PARCE QUE LE RISQUE EST D'UNE AUTRE NATURE.
+#
+#   · `FONDS_NOUS` : ces documents nous décrivent. Rien à cacher, rien à
+#     quiconque d'autre : on les lit et on les cite.
+#   · `FONDS_TIERS` : ces documents peuvent décrire un CLIENT. Le risque est la
+#     CONFIDENTIALITÉ, et la parade est le régime de publication — on ne lit
+#     que ce qui est marqué publiable.
+#   · `FONDS_DOCUMENTATION` : ces documents sont ÉCRITS PAR un tiers — une
+#     norme appartient à son organisme, une fiche produit à son fabricant. Le
+#     risque n'est pas la confidentialité mais le DROIT D'AUTEUR, et le régime
+#     de publication n'y peut rien : marquer publiable une norme EN 50600 ne
+#     nous donne pas le droit de la recopier.
+#
+# LA PARADE EST DONC AILLEURS — DANS LA CONSIGNE. On lit ces documents sans
+# filtre, parce que c'est notre propre étagère et qu'on a besoin de leur
+# contenu pour raisonner ; et le brief interdit d'en reproduire le texte. Un
+# brouillon RECOPIE ses extraits et part dans le dossier d'un acheteur : c'est
+# au moment d'écrire que la barrière doit tenir, pas au moment de lire.
+#
+# CE QU'ON EN FAIT, ET QUI SUFFIT : on s'appuie dessus et on CITE LA RÉFÉRENCE.
+# « L'architecture proposée vise la classe 3 de l'EN 50600-2-1 » dit tout ce
+# qu'un acheteur attend, n'emprunte rien, et vaut mieux qu'un paragraphe
+# recopié — qui se repère et qui coûte des points.
+FONDS_DOCUMENTATION = (
+    "Cabinet / Fiches techniques & documentation produit",
+    "Cabinet / Normes, guides & référentiels",
+)
+
 # COMBIEN, ET POURQUOI PAS PLUS. Le fonds du cabinet est le socle le plus
 # volumineux des trois — un mémoire passé fait trente pages. Sans borne, il
 # écraserait les relevés de la consultation dans le brief, et le brouillon
@@ -413,7 +443,7 @@ FONDS_CARACTERES = reglages.entier("AO_REDACTION_FONDS_CHARS", 5000, mini=500)
 
 
 def _fonds_themes_connus():
-    """Les deux tiers, confrontés à la famille déclarée dans `rag_store`.
+    """Les TROIS tiers, confrontés à la famille déclarée dans `rag_store`.
 
     CE QUE CETTE FONCTION EMPÊCHE : qu'un thème renommé dans `rag_store` laisse
     ici une chaîne morte. Un thème qui n'existe plus ne ramènerait RIEN, en
@@ -422,10 +452,85 @@ def _fonds_themes_connus():
     import rag_store                                              # noqa: PLC0415
     famille = set(rag_store.themes_famille(rag_store.FAMILLE_CABINET))
     return ([t for t in FONDS_NOUS if t in famille],
-            [t for t in FONDS_TIERS if t in famille])
+            [t for t in FONDS_TIERS if t in famille],
+            [t for t in FONDS_DOCUMENTATION if t in famille])
 
 
-def requete_fonds(piece, analyse=None, rayons=None):
+# LES DÉSIGNATIONS DE CE MARCHÉ-CI — PUE, N+1, BIM, ANSSI, EN 50600.
+#
+# CE QU'ELLES CORRIGENT, MESURÉ LE 16 SEPTEMBRE 2026. Sur une étagère de
+# quinze documents portant TOUS sur le centre de données — ce qui est le cas
+# d'un cabinet spécialisé — la recherche remontait UN des quatre documents qui
+# répondent à ce CCTP, et sept des huit places allaient à du hors-sujet : le
+# désamiantage, la fiscalité locale, le plan de formation. La fiche technique
+# du groupe froid N+1, la norme EN 50600 et la convention BIM, elles, étaient
+# écartées — c'est-à-dire exactement les trois que l'acheteur exige.
+#
+# LA CAUSE. `requete_fonds` interroge avec l'OBJET de la consultation et le nom
+# de nos rayons. L'objet dit le DOMAINE (« un centre de données de 12 MW ») ;
+# il ne dit pas ce que CE marché exige. Sur une étagère où les quinze
+# documents sont du domaine, le domaine ne distingue plus rien.
+#
+# CE QU'ON RECONNAÎT. Une suite de capitales AU MILIEU d'une phrase en bas de
+# casse est une désignation : « le PUE cible », « le référentiel ANSSI ». Une
+# ligne entièrement en capitales est un TITRE — « CAHIER DES CLAUSES
+# TECHNIQUES PARTICULIERES » — et n'en contient aucune. S'y ajoute ce qui mêle
+# lettres et chiffres, que le français n'écrit pas par hasard : N+1, 2N,
+# EN 50600, NF C 15-100, Tier III.
+#
+# POURQUOI DES DÉSIGNATIONS ET PAS DES MOTS. Un terme technique en toutes
+# lettres — « redondance », « commissionnement » — se retrouve dans la moitié
+# des documents d'un cabinet spécialisé et ne trie rien. Une désignation est
+# rare par construction : elle ne figure que là où la chose est vraiment
+# traitée. C'est ce qui la rend utilisable comme clé de recherche.
+_DESIGNATION_MAJ = re.compile(r"\b[A-Z][A-Z0-9]{1,7}\b")
+_DESIGNATION_CHIFFREE = re.compile(
+    r"\b(?:[A-Z]{1,6}[ -]?\d{2,6}(?:-\d+)*|\d?[A-Z]\+\d|\d[A-Z])\b")
+_DESIGNATION_ROMAINE = re.compile(r"\b[A-Z][a-z]+ (?:I{1,3}V?|IV|VI{0,3})\b")
+
+DESIGNATIONS_MAX = reglages.entier("AO_REDACTION_DESIGNATIONS", 18, mini=1,
+                                   maxi=60)
+
+
+def _est_un_titre(para):
+    """Une ligne à plus de 60 % de capitales est un titre, pas une phrase.
+
+    C'EST LA MOITIÉ QUI FAIT MARCHER L'AUTRE. Sans ce tri, « CAHIER DES
+    CLAUSES TECHNIQUES PARTICULIERES » livrerait CAHIER, CLAUSES, TECHNIQUES
+    et PARTICULIERES comme désignations du marché — quatre mots français qui
+    figurent dans tous les dossiers et ne distinguent aucun.
+    """
+    lettres = [c for c in (para or "") if c.isalpha()]
+    if not lettres:
+        return True
+    return sum(1 for c in lettres if c.isupper()) > len(lettres) * 0.6
+
+
+def designations_du_marche(corp, maxi=None):
+    """Les désignations employées par CE dossier, les plus fréquentes d'abord.
+
+    FONCTION PURE : le corpus est passé, jamais cherché. Elle se mesure sans
+    base, sans modèle et sans clé — ce qui est la condition pour que l'apport
+    de l'étagère soit mesurable, et c'est en le mesurant qu'on a vu qu'il
+    était nul.
+    """
+    vus = {}
+    for p in (corp or {}).get("pieces") or []:
+        for para in re.split(r"\n\s*\n", p.get("texte") or ""):
+            t = para.strip()
+            if len(t) < 40 or _est_un_titre(t):
+                continue
+            for m in (_DESIGNATION_MAJ.findall(t)
+                      + _DESIGNATION_CHIFFREE.findall(t)
+                      + _DESIGNATION_ROMAINE.findall(t)):
+                m = m.strip()
+                if len(m) > 1:
+                    vus[m] = vus.get(m, 0) + 1
+    ordre = sorted(vus.items(), key=lambda x: (-x[1], x[0]))
+    return [m for m, _n in ordre[:(maxi or DESIGNATIONS_MAX)]]
+
+
+def requete_fonds(piece, analyse=None, rayons=None, corp=None):
     """CE QU'ON VA CHERCHER SUR L'ÉTAGÈRE — et ce n'est PAS `requete_socle`.
 
     LE DÉFAUT QUE CETTE FONCTION CORRIGE, MESURÉ AVANT DE LIVRER. La première
@@ -450,7 +555,19 @@ def requete_fonds(piece, analyse=None, rayons=None):
     """
     import ao_dc                                                  # noqa: PLC0415
     mots = [str(piece.get("nom") or "")]
-    # ── L'OBJET VIENT EN TÊTE, ET C'EST UNE CORRECTION ───────────────────
+    # ── LES DÉSIGNATIONS DU MARCHÉ PASSENT DEVANT TOUT LE RESTE ──────────
+    #
+    # ELLES SONT LA SEULE PART DE CETTE REQUÊTE QUI DISTINGUE CE MARCHÉ-CI.
+    # Le nom de la pièce est le même d'une consultation à l'autre ; l'objet dit
+    # le domaine ; les noms de rayons disent notre rangement. Placées en
+    # dernier, elles tombaient hors du budget de six cents signes — le défaut
+    # exact qui avait déjà coupé l'objet deux fois.
+    #
+    # SANS CORPUS, ON N'EN A PAS, et la requête reste celle d'avant : la route
+    # qui rédige sans les documents du marché continue de chercher par domaine.
+    # Elle trouve moins bien, et le bilan `socles` du brouillon le dit.
+    mots += designations_du_marche(corp) if corp else []
+    # ── L'OBJET VIENT ENSUITE, ET C'EST UNE CORRECTION ───────────────────
     #
     # Il était ajouté EN DERNIER, après les rayons, leurs graphies sans accents
     # et leurs formes au singulier — et la requête est bornée à 600 caractères.
@@ -527,7 +644,7 @@ def requete_fonds(piece, analyse=None, rayons=None):
     return " ".join(" ".join(mots).split())[:600]
 
 
-def chercher_au_fonds_cabinet(piece, rag=None, analyse=None):
+def chercher_au_fonds_cabinet(piece, rag=None, analyse=None, corp=None):
     """CE QUE NOUS AVONS DÉJÀ ÉCRIT, et qui peut nourrir cette pièce-ci.
 
     DEUX RECHERCHES ET PAS UNE, parce que les deux moitiés de la famille ne se
@@ -542,16 +659,40 @@ def chercher_au_fonds_cabinet(piece, rag=None, analyse=None):
         return {"bloc": "", "sources": [], "absent": "magasin_non_joint"}
     try:
         import rag_store                                          # noqa: PLC0415
-        nous, tiers = _fonds_themes_connus()
-        if not nous and not tiers:
+        nous, tiers, doc = _fonds_themes_connus()
+        if not nous and not tiers and not doc:
             return {"bloc": "", "sources": [], "absent": "famille_inconnue"}
         hits = []
         if nous:
-            hits += rag.search(requete_fonds(piece, analyse, nous),
+            hits += rag.search(requete_fonds(piece, analyse, nous, corp),
                                k=FONDS_K, public_only=False, theme=nous)
         if tiers:
-            hits += rag.search(requete_fonds(piece, analyse, tiers),
+            hits += rag.search(requete_fonds(piece, analyse, tiers, corp),
                                k=FONDS_K, public_only=True, theme=tiers)
+        if doc:
+            # SANS FILTRE DE PUBLICATION, ET C'EST ASSUMÉ. Le risque que porte
+            # ce lot n'est pas la confidentialité d'un client mais le droit
+            # d'auteur d'un tiers, et le régime de publication n'y peut rien :
+            # marquer publiable une norme ne donne pas le droit de la recopier.
+            # La barrière est dans la consigne, au moment d'écrire.
+            hits += rag.search(requete_fonds(piece, analyse, doc, corp),
+                               k=FONDS_K, public_only=False, theme=doc)
+        # LES TROIS LOTS SE REFONDENT PAR PERTINENCE, PAS PAR ORDRE D'APPEL.
+        #
+        # LE DÉFAUT QUE CECI CORRIGE, ET QUE J'AI INTRODUIT EN AJOUTANT LE
+        # TROISIÈME LOT. Les résultats étaient concaténés lot par lot, et le
+        # contexte se construit dans l'ordre jusqu'au budget : les huit
+        # résultats du premier lot passaient donc TOUJOURS devant le premier
+        # résultat du dernier. Sur une étagère de quinze documents, le guide
+        # ANSSI et la norme EN 50600 — les deux que ce CCTP exige — étaient
+        # chassés du budget par des notes de nos propres rayons qui n'ont rien
+        # à voir : les baux, le recrutement, la fiscalité locale.
+        #
+        # AVEC DEUX LOTS, LE DÉFAUT EXISTAIT DÉJÀ et ne se voyait pas : les
+        # deux lots pesaient à peu près pareil. C'est en en ajoutant un
+        # troisième, celui qui porte la documentation, qu'il est devenu
+        # mesurable — et il valait pour les deux autres depuis le début.
+        hits.sort(key=lambda h: -(h.get("score") or 0))
         bloc, retenus = rag_store.build_context_retenus(
             hits, max_chars=FONDS_CARACTERES)
     except Exception:
@@ -670,6 +811,15 @@ def contexte(remplissage, analyse, piece, socle=None, dossier=None, fonds=None):
         "fonds_cabinet": (f or {}).get("bloc") or "",
         "fonds_sources": list((f or {}).get("sources") or []),
         "fonds_absent": (f or {}).get("absent") or "",
+        # CE QUI N'EST PAS DE NOUS, NOMMÉ À PART.
+        #
+        # Le brief doit interdire de RECOPIER une norme ou une fiche produit —
+        # et seulement quand il y en a. Poser l'interdit sur un brouillon qui
+        # n'en porte aucune serait une ligne de plus dans une consigne déjà
+        # longue, c'est-à-dire une ligne de moins qu'on lit sur les autres.
+        "fonds_documentation": [x.get("titre") or ""
+                                for x in ((f or {}).get("sources") or [])
+                                if x.get("theme") in FONDS_DOCUMENTATION],
     }
 
 
@@ -834,6 +984,26 @@ def brief(ctx):
             "",
             "Documents du cabinet : " + ", ".join(t for t in titres if t) + ".",
         ]
+        tiers = [t for t in (ctx.get("fonds_documentation") or []) if t]
+        if tiers:
+            L += [
+                "",
+                "CERTAINS DE CES DOCUMENTS NE SONT PAS DE NOUS — "
+                + ", ".join(tiers) + ". Une norme appartient à l'organisme "
+                "qui l'édite, une fiche technique à son fabricant, un guide à "
+                "son auteur. Ils sont là pour que vous RAISONNIEZ avec, pas "
+                "pour être recopiés.",
+                "",
+                "NE REPRODUISEZ AUCUN PASSAGE DE CES DOCUMENTS-LÀ. Ce "
+                "brouillon part dans le dossier remis à un acheteur : un "
+                "paragraphe de norme recopié y est une contrefaçon, et il se "
+                "repère. CITEZ LA RÉFÉRENCE À LA PLACE — « l'architecture "
+                "proposée vise la classe 3 de l'EN 50600-2-1 », « les mesures "
+                "d'hygiène informatique de l'ANSSI sont appliquées aux "
+                "réseaux de gestion technique ». Une référence exacte dit à "
+                "l'acheteur tout ce qu'il attend, n'emprunte rien, et vaut "
+                "mieux qu'un paragraphe emprunté.",
+            ]
     elif ctx.get("fonds_absent"):
         # LE ZÉRO EST NOMMÉ, COMME LES DEUX AUTRES. Sans cette ligne, le modèle
         # écrirait « nos quatorze ingénieurs » sans avoir lu un seul document
@@ -891,7 +1061,13 @@ def rediger(cle, remplissage, analyse=None, rag=None, corpus_dossier=None):
     ctx = contexte(remplissage, analyse, piece,
                    socle=chercher_socle(piece, rag),
                    dossier=chercher_dossier(piece, corpus_dossier),
-                   fonds=chercher_au_fonds_cabinet(piece, rag, analyse))
+                   # LE CORPUS DESCEND JUSQU'À L'ÉTAGÈRE, ET C'EST CE QUI
+                   # REND LA RECHERCHE « EN RAPPORT DIRECT AVEC LE DOSSIER ».
+                   # Sans lui, l'étagère n'est interrogée que par domaine : sur
+                   # quinze documents tous du domaine, elle rendait un des
+                   # quatre documents qui répondent au CCTP.
+                   fonds=chercher_au_fonds_cabinet(piece, rag, analyse,
+                                                   corpus_dossier))
     consigne = brief(ctx)
     client = anthropic.Anthropic()
     try:

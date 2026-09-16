@@ -218,13 +218,29 @@ def test_les_deux_moitiés_sont_interrogees_sous_DEUX_regles_distinctes():
     """ON REGARDE LES APPELS, PAS SEULEMENT LE RÉSULTAT. Un module qui
     interrogerait toute la famille avec `public_only=False` rendrait le même
     résultat sur un échantillon où rien d'interne n'est pertinent — et
-    laisserait fuir au premier dossier réel."""
+    laisserait fuir au premier dossier réel.
+
+    LA FAMILLE COMPTE MAINTENANT TROIS LOTS ET NON DEUX, et ce qu'on mesure
+    ici n'a pas changé : que le lot qui peut décrire un CLIENT — mémoires
+    passés, références — ne soit lu QUE s'il est publiable. Le troisième lot,
+    la documentation, se lit sans filtre et c'est assumé : le risque qu'il
+    porte est le droit d'auteur d'un tiers, contre quoi un régime de
+    publication ne peut rien. Sa règle propre est dans
+    `test_ao_documentation_cabinet.py`.
+    """
     mag = Magasin()
     R.chercher_au_fonds_cabinet(_piece(), mag)
-    par = {a["public_only"]: a["themes"] for a in mag.appels}
-    assert len(mag.appels) == 2, mag.appels
-    assert set(par[False]) == set(R.FONDS_NOUS)
-    assert set(par[True]) == set(R.FONDS_TIERS)
+    assert len(mag.appels) == 3, mag.appels
+    # UN SEUL APPEL EXIGE « PUBLIABLE », et c'est celui du lot des tiers.
+    publiables = [a["themes"] for a in mag.appels if a["public_only"]]
+    assert len(publiables) == 1, mag.appels
+    assert set(publiables[0]) == set(R.FONDS_TIERS)
+    sans_filtre = set()
+    for a in mag.appels:
+        if not a["public_only"]:
+            sans_filtre |= set(a["themes"])
+    assert sans_filtre == set(R.FONDS_NOUS) | set(R.FONDS_DOCUMENTATION), \
+        sans_filtre
 
 
 def test_les_deux_tiers_sont_DISJOINTS_et_tous_de_la_famille():
@@ -240,9 +256,10 @@ def test_un_theme_renomme_dans_rag_store_se_VOIT():
     """UNE CHAÎNE MORTE NE RAMÈNE RIEN, EN SILENCE. Le brouillon perdrait une
     source entière sans que personne le sache : `_fonds_themes_connus`
     confronte les deux tables, et cette règle mesure qu'elle le fait."""
-    nous, tiers = R._fonds_themes_connus()
+    nous, tiers, doc = R._fonds_themes_connus()
     assert len(nous) == len(R.FONDS_NOUS)
     assert len(tiers) == len(R.FONDS_TIERS)
+    assert len(doc) == len(R.FONDS_DOCUMENTATION)
 
     import rag_store as RS
     garde = RS.THEME_FAMILLES
@@ -250,7 +267,7 @@ def test_un_theme_renomme_dans_rag_store_se_VOIT():
         RS.THEME_FAMILLES = tuple(
             (f, tuple(t for t in ts if t not in R.FONDS_TIERS))
             for f, ts in garde)
-        n2, t2 = R._fonds_themes_connus()
+        n2, t2, _d2 = R._fonds_themes_connus()
         assert t2 == [], "un thème disparu de rag_store est encore interrogé"
         assert n2 == list(R.FONDS_NOUS)
         assert R.chercher_au_fonds_cabinet(
