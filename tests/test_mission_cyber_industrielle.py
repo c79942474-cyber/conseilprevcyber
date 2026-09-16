@@ -45,6 +45,8 @@ import rag_store                                                 # noqa: E402
 
 import pytest                                                    # noqa: E402
 
+from conftest import ORIGINE                                     # noqa: E402
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  1. LE POINTAGE — les thèmes branchés rapportent-ils vraiment ?
@@ -428,6 +430,44 @@ def test_livrables_de_phase_LIT_le_catalogue():
     assert PM.livrables_de_phase("phase-qui-n-existe-pas") == []
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  4. L'ÉCRAN — il DRESSE les phases, il ne les recopie pas.
+# ═══════════════════════════════════════════════════════════════════════════
+def test_la_page_ne_RECOPIE_aucune_phase():
+    """LA RÈGLE QUI GARDE LA PAGE ET LE MODULE ENSEMBLE.
+
+    Recopier les huit phases dans le HTML les ferait diverger au premier
+    remaniement : la page annoncerait un ordre que le parcours ne tient plus,
+    et rien ne le signalerait — un écran qui ment est plus coûteux qu'un écran
+    vide. C'est le même arbitrage que pour le référentiel de maturité, dont la
+    route dit en toutes lettres « de quoi dresser le formulaire sans le
+    recopier dans la page ».
+    """
+    page = io.open(os.path.join(ICI, "parcours-mission.html"),
+                   encoding="utf-8").read()
+    copies = [p["titre"] for p in PM.PHASES if p["titre"] in page]
+    assert not copies, (
+        "ces titres de phase sont écrits en dur dans la page : ils "
+        "divergeront du module — %s" % copies)
+    # ET LES PIÈGES NON PLUS : c'est le texte le plus tentant à recopier,
+    # puisqu'il fait le sel de la page.
+    for ph in PM.PHASES:
+        assert ph["piege"][:40] not in page, ph["cle"]
+    # LA PAGE DEMANDE BIEN LE PARCOURS, sans quoi elle serait simplement vide.
+    assert "/api/mission/parcours" in page
+
+
+def test_la_page_DIT_quand_elle_ne_peut_pas_charger():
+    """UN CATCH VIDE LAISSERAIT « Chargement… » POUR TOUJOURS, ce qui se lit
+    comme une page morte plutôt que comme une panne. C'est une règle de la
+    maison, et elle a déjà servi ailleurs."""
+    page = io.open(os.path.join(ICI, "parcours-mission.html"),
+                   encoding="utf-8").read()
+    i = page.index(".catch(")
+    corps = page[i:i + 400]
+    assert "textContent" in corps and "pas pu être chargé" in corps, corps[:200]
+
+
 def test_un_livrable_sait_DANS_QUELLE_PHASE_il_se_produit():
     assert PM.phase_du_livrable("mat-radar") == "evaluation"
     assert PM.phase_du_livrable("om-operating-model") == "cible"
@@ -435,3 +475,84 @@ def test_un_livrable_sait_DANS_QUELLE_PHASE_il_se_produit():
     # on rend la PREMIÈRE phase, qui est celle où il faut l'ouvrir.
     assert PM.phase_du_livrable("fdr-business-case") == "trajectoire"
     assert PM.phase_du_livrable("inconnu") is None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  5. LES ROUTES — ce qui monte, ce qui redescend, ce qui ne se conserve pas.
+# ═══════════════════════════════════════════════════════════════════════════
+def test_la_route_rend_les_phases_pour_dresser_l_ecran(client_dc):
+    """SANS ELLE, LA PAGE DEVRAIT RECOPIER LES PHASES — et diverger."""
+    r = client_dc.get("/api/mission/parcours")
+    assert r.status_code == 200, r.status_code
+    j = r.get_json()
+    assert j["ok"]
+    assert [p["cle"] for p in j["parcours"]["phases"]] == \
+        [p["cle"] for p in PM.PHASES]
+    assert j["parcours"]["promesses_mortes"] == []
+
+
+def test_la_route_rend_l_etat_pour_les_phases_declarees(client_dc):
+    r = client_dc.post("/api/mission/parcours",
+                       json={"faites": ["cadrage", "etat_des_lieux"]},
+                       headers=ORIGINE)
+    assert r.status_code == 200, r.status_code
+    p = r.get_json()["parcours"]
+    assert p["courante"] == "evaluation"
+    cible = next(x for x in p["phases"] if x["cle"] == "cible")
+    assert not cible["prete"]
+    assert [m["cle"] for m in cible["manque"]] == ["evaluation"]
+
+
+def test_la_route_rend_les_LIBELLES_lus_au_catalogue(client_dc):
+    """DEUX TABLES DES MÊMES INTITULÉS DIVERGENT AU PREMIER RENOMMAGE, et
+    c'est l'écran qui afficherait alors un titre que plus aucune console ne
+    porte. La route lit le catalogue ; elle ne recopie pas."""
+    r = client_dc.post("/api/mission/parcours", json={"faites": []},
+                       headers=ORIGINE)
+    cible = next(x for x in r.get_json()["parcours"]["phases"]
+                 if x["cle"] == "cible")
+    assert cible["livrables"], cible
+    for l in cible["livrables"]:
+        assert isinstance(l, dict) and l.get("label"), l
+        assert l["label"] == livrables.get_type(l["id"])["label"]
+
+
+def test_le_module_ECARTE_tout_ce_qu_il_ne_connait_pas():
+    """LA GARDE EST DANS LE MODULE, ET ELLE EST SEULE.
+
+    La route bornait aussi la charge — quarante entrées, quarante signes par
+    clé. Deux mutations ont montré ces bornes sans effet observable : le
+    module n'accepte QUE les huit clés qu'il connaît, quoi qu'on lui envoie.
+    Deux gardes pour une propriété, c'est une de trop — celle qu'on oublie de
+    tenir donne l'illusion que l'autre est superflue. La route a donc perdu
+    les siennes, et c'est ici qu'on mesure celle qui reste.
+    """
+    for absurde in ("cadrage", {"cadrage": 1}, ["zzz"] * 5000, None, 42,
+                    [{"a": 1}], [None, "", "  "]):
+        assert PM.etat(faites=absurde)["faites"] == [], absurde
+    assert PM.etat(faites=["cadrage", "zzz"])["faites"] == ["cadrage"]
+
+
+def test_la_route_ENCAISSE_une_charge_absurde(client_dc):
+    """ET LA ROUTE LA LAISSE PASSER AU MODULE SANS BRONCHER."""
+    r = client_dc.post("/api/mission/parcours",
+                       json={"faites": ["zzz"] * 5000 + [{"a": 1}]},
+                       headers=ORIGINE)
+    assert r.status_code == 200, r.status_code
+    assert r.get_json()["parcours"]["faites"] == []
+    r2 = client_dc.post("/api/mission/parcours",
+                        json={"faites": "cadrage"}, headers=ORIGINE)
+    assert r2.status_code == 200 and r2.get_json()["parcours"]["faites"] == []
+
+
+def test_la_route_NE_CONSERVE_RIEN():
+    """L'AVANCEMENT D'UNE MISSION CLIENTE NE TOUCHE NI LA BASE NI LE DISQUE :
+    il monte dans la requête et redescend dans la réponse. Même choix que pour
+    le remplissage d'un dossier de marché, et pour la même raison."""
+    src = io.open(os.path.join(ICI, "app.py"), encoding="utf-8").read()
+    corps = src.split("def api_mission_parcours_etat(", 1)[1] \
+               .split("\n@app.route")[0]
+    for interdit in ("rag.", "ingest", "clients_store", "open(", "cursor",
+                     "INSERT", "session["):
+        assert interdit not in corps, (
+            "la route du parcours écrit quelque part : %s" % interdit)

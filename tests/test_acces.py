@@ -74,6 +74,13 @@ def test_les_pages_en_acces_direct_sont_celles_qui_ont_ete_nommees():
         "/formation", "/gestion-correctifs", "/gestion-des-changements", "/glossaire-62443",
         "/gouvernance-ia", "/guide-integration", "/juridique", "/maturite-ot",
         "/methodologie", "/metriques-62443", "/nis2", "/operating-model",
+        # Le parcours d'une mission, ouvert le 16 septembre 2026 : il ne
+        # montre que notre méthode — l'ordre dans lequel une mission se
+        # conduit et le piège de chaque phase. Rien du client n'y entre : les
+        # phases cochées montent dans la requête et redescendent dans la
+        # réponse, sans toucher ni la base ni le disque. Le fermer reviendrait
+        # à cacher la façon dont nous travaillons à qui vient l'évaluer.
+        "/parcours-mission",
         "/programme-securite", # Le registre des missions, ouvert le 8 septembre 2026 : une page
         # qui sert à être montrée à un acheteur ne peut pas demander un
         # compte — la fermer reviendrait à cacher ses références à qui

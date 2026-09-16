@@ -250,6 +250,11 @@ _RATE_EXACT = {
     "/api/playbook/export":    (30, 60),
     "/api/62443/checklist/emporter": (30, 60),
     "/api/maturite-ot/emporter":     (30, 60),
+    # L'ÉTAT DU PARCOURS SE RECALCULE À CHAQUE CASE COCHÉE : la cadence est
+    # donc plus large que celle d'un export, et plus étroite qu'un rendu de
+    # page. Le calcul est pur et ne coûte ni jeton ni base — on borne le
+    # volume, pas la dépense.
+    "/api/mission/parcours":         (120, 60),
 }
 _RATE_EXACT.update({
     # ── DEUX JETONS QUI SE FORÇAIENT EN AVEUGLE ─────────────────────────────
@@ -899,6 +904,7 @@ PAGES = {
     "/services": "services.html",
     "/operating-model": "operating-model.html",
     "/maturite-ot": "maturite-ot.html",
+    "/parcours-mission": "parcours-mission.html",
     "/feuille-de-route": "feuille-de-route.html",
     "/etudes-de-cas": "etudes-de-cas.html",
     "/references": "references.html",
@@ -1154,6 +1160,11 @@ def services():
 @app.route("/operating-model")
 def operating_model():
     return _page(PAGES["/operating-model"])
+
+
+@app.route("/parcours-mission")
+def page_parcours_mission():
+    return _page(PAGES["/parcours-mission"])
 
 
 @app.route("/maturite-ot")
@@ -2378,6 +2389,7 @@ def api_playbook_export():
 import datacenter    # noqa: E402
 import durabilite    # noqa: E402  — le cadre vert, adosse aux trois sous-dossiers de la base
 import checklist_62443  # noqa: E402  — la liste de verification 62443
+import parcours_mission
 import parcours_62443  # noqa: E402  — l'ordre dans lequel prendre ce qui reste
 import maturite_ot   # noqa: E402  — l'auto-evaluation declarative, pas un assessment
 import etat_art      # noqa: E402  — les faits publies, chacun avec son auteur et ce qu'il vaut
@@ -2899,6 +2911,60 @@ def api_maturite_ot_referentiel():
     return _json_fige("maturite-ot-referentiel",
                       lambda: dict(ok=True,
                                    referentiel=maturite_ot.referentiel()))
+
+
+@app.route("/api/mission/parcours")
+def api_mission_parcours_referentiel():
+    """LES HUIT PHASES ET CE QUE CHACUNE EXIGE — de quoi dresser l'écran sans
+    le recopier dans la page.
+
+    POURQUOI CETTE ROUTE PLUTÔT QU'UN GABARIT. Recopier les phases dans le
+    HTML les ferait diverger du module au premier remaniement : la page
+    annoncerait un ordre que le parcours ne tient plus, et rien ne le
+    signalerait. C'est le même arbitrage que pour le référentiel de maturité,
+    et il est écrit là-bas dans les mêmes termes.
+
+    CE QU'ELLE REND EN PLUS : `promesses_mortes`. Une phase peut nommer un
+    livrable retiré du catalogue ; l'écran afficherait alors un bouton qui ne
+    mène nulle part. Le manque voyage avec l'état plutôt qu'à côté.
+    """
+    return _json_fige("mission-parcours-referentiel",
+                      lambda: dict(ok=True, parcours=parcours_mission.etat()))
+
+
+@app.route("/api/mission/parcours", methods=["POST"])
+def api_mission_parcours_etat():
+    """L'ÉTAT DU PARCOURS POUR LES PHASES DÉCLARÉES FAITES.
+
+    ELLE NE CONSERVE RIEN. Les phases faites arrivent dans la requête et
+    repartent dans la réponse : l'avancement d'une mission cliente ne touche
+    ni la base ni le disque. C'est le même choix que pour le remplissage d'un
+    dossier de marché, et pour la même raison — la sobriété en données.
+
+    ELLE NE BLOQUE RIEN NON PLUS. Une mission reprise en cours déclare
+    plusieurs phases acquises ; le parcours dit ce qui manque, il ne
+    l'interdit pas. Voir l'en-tête de `parcours_mission`.
+    """
+    data = request.get_json(silent=True) or {}
+    # LA CHARGE PASSE TELLE QUELLE, ET C'EST UNE SUPPRESSION ASSUMÉE.
+    #
+    # Cette route bornait la liste à quarante entrées et chaque clé à quarante
+    # signes. Deux mutations l'ont montré inutile : `parcours_mission.etat`
+    # n'accepte QUE les huit clés qu'il connaît, quoi qu'on lui envoie — une
+    # chaîne, un dictionnaire, cinq mille entrées. Les deux bornes ne
+    # changeaient donc rien d'observable.
+    #
+    # ET DEUX GARDES POUR UNE SEULE PROPRIÉTÉ, C'EST UNE DE TROP : celle qu'on
+    # oublie de tenir donne l'illusion que l'autre est superflue. Le module
+    # garde, une règle le mesure, et le corps de la requête est déjà borné en
+    # amont par `SMALL_BODY_MAX`.
+    etat = parcours_mission.etat(faites=data.get("faites"))
+    # LES LIVRABLES SONT LUS AU CATALOGUE, PAS RECOPIÉS ICI. Deux tables des
+    # mêmes intitulés divergent au premier renommage, et c'est l'écran qui
+    # afficherait alors un titre que plus aucune console ne porte.
+    for ligne in etat["phases"]:
+        ligne["livrables"] = parcours_mission.livrables_de_phase(ligne["cle"])
+    return jsonify(ok=True, parcours=etat)
 
 
 @app.route("/api/maturite-ot/evaluer", methods=["POST"])
