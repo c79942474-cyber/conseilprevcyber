@@ -114,7 +114,7 @@ def destination(cle_piece, nom=""):
         # matière avec laquelle un mémoire technique s'écrit. Les refuser
         # parce qu'ils ne sont pas des pièces, c'était refuser sept des neuf
         # types de documents qu'un cabinet conserve.
-        rayon = ao_dc.documentation_du_cabinet(nom)
+        rayon = ao_dc.rayon_du_cabinet(nom)
         if rayon:
             return {"rayon": rayon, "refus": "", "dit": ""}
         return {"rayon": "", "refus": "piece_inconnue",
@@ -200,6 +200,71 @@ def _nourrit(rayon, visibilite):
     return False
 
 
+# CE QUE PORTE UN NOM DE FICHIER RÉEL, ET POURQUOI ON NE LE GARDE PAS TEL QUEL.
+#
+# Le greffe délivre « extrait_k_bis_extrait_k_ou_extrait_l_bis_datant_de_moins_
+# de_trois_mois.pdf ». Ce titre-là finit dans la consigne de rédaction, à la
+# ligne « Documents du cabinet : … », et sur l'étagère, où il faut pourtant
+# reconnaître ses quinze documents d'un coup d'œil.
+#
+# ON NE RENOMME PAS LE FICHIER, ON LE TITRE. L'original garde son nom — c'est
+# lui qu'on retrouve au greffe, et le changer ferait perdre la trace. Ce qui
+# change est l'intitulé sous lequel le document se range et s'affiche.
+TITRE_MAX = 90
+
+
+def _nettoyer(nom):
+    """Le nom de fichier rendu lisible : sans extension, sans séparateurs."""
+    base = (nom or "").rsplit(".", 1)[0]
+    mots = [m for m in base.replace("_", " ").replace("-", " ").split() if m]
+    return " ".join(mots)
+
+
+def titre_pour(nom, cle_piece, rayon):
+    """L'intitulé sous lequel ce document se range.
+
+    TROIS SOURCES, DANS CET ORDRE. Le nom de la PIÈCE quand elle est reconnue —
+    c'est ce qu'on cherche sur une étagère. À défaut, le nom du RAYON, qui dit
+    au moins la nature. Et dans les deux cas le fichier nettoyé en second, car
+    c'est lui qui distingue un CV d'un autre CV : sans lui, quinze documents
+    porteraient cinq intitulés.
+
+    FONCTION PURE, donc mesurable sans magasin.
+    """
+    import ao_dc                                                  # noqa: PLC0415
+    base = (ao_dc._NOMS_PIECES().get(cle_piece) if cle_piece else "") \
+        or (rayon or "").split("/", 1)[-1].strip()
+    detail = _nettoyer(nom)
+    if not base:
+        return detail[:TITRE_MAX] or (nom or "")[:TITRE_MAX]
+    # LE DÉTAIL NE SE RÉPÈTE PAS, ET LA COMPARAISON SE FAIT MOT À MOT.
+    #
+    # Comparer les chaînes entières laissait passer « Organigramme fonctionnel
+    # de la mission — organigramme fonctionnel mission » : l'ordre des mots
+    # diffère d'un rien, les chaînes ne s'incluent pas, et le titre se lit
+    # comme un bogue. On regarde donc si le fichier apporte UN MOT que le nom
+    # de la pièce n'a pas — c'est cela, apporter quelque chose.
+    mots_base = set(ao_dc._sans_accent(base.lower()).split())
+    # UN CHIFFRE COMPTE, SI COURT SOIT-IL — ET C'EST LA SUITE QUI L'A DIT.
+    #
+    # Écarter tous les mots de moins de trois lettres jetait « 00 », « v2 »,
+    # « T2 », c'est-à-dire précisément ce qui DISTINGUE deux documents de la
+    # même pièce. Quinze références déposées se sont retrouvées sous quinze
+    # intitulés identiques — et le refus « quinze sur quinze » les nommait
+    # tous pareil, ce qui est aussi inutile que de ne pas les nommer. C'est
+    # exactement ce que la règle du plafond existe pour empêcher.
+    neufs = [m for m in ao_dc._sans_accent(detail.lower()).split()
+             if m not in mots_base
+             and (len(m) > 2 or any(c.isdigit() for c in m))]
+    # « — » SÉPARE DÉJÀ DANS LE NOM DE PLUSIEURS PIÈCES (« Références — six au
+    # minimum »). Le réemployer donnerait deux tirets dans un même titre.
+    if neufs:
+        reste = TITRE_MAX - len(base) - 3
+        if reste > 8:
+            return "%s · %s" % (base, detail[:reste])
+    return base[:TITRE_MAX]
+
+
 def ranger(rag, nom, octets, cle_piece, visibilite=VISIBILITE_DEFAUT,
            titre=""):
     """Poser UN document sur l'étagère. Rend ce que le magasin a enregistré.
@@ -239,7 +304,12 @@ def ranger(rag, nom, octets, cle_piece, visibilite=VISIBILITE_DEFAUT,
                                            etat["documents"][:6]) or "—"))
     import rag_store                                              # noqa: PLC0415
     try:
-        doc = rag.ingest_bytes(nom, octets, title=(titre or "").strip(),
+        # LE TITRE FOURNI L'EMPORTE, sinon on le dérive. La page n'en envoie
+        # pas aujourd'hui ; le jour où elle offrira de le saisir, ce que
+        # l'opérateur écrit doit gagner sur ce que le nom de fichier suggère.
+        doc = rag.ingest_bytes(nom, octets,
+                               title=((titre or "").strip()
+                                      or titre_pour(nom, cle_piece, d["rayon"])),
                                theme=d["rayon"], visibility=visibilite)
     except rag_store.RagError as exc:
         raise EtagereError(exc.code, getattr(exc, "status", 400),
