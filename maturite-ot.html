@@ -212,27 +212,47 @@
 
     <section class="section" style="padding-top:24px">
       <h2 class="sec-title">// Trois regards complémentaires — ne pas les confondre</h2>
+      <!-- ── LES TROIS BLOCS SONT EUX-MÊMES LES LIENS ──────────────────────
+           CE QUI A CHANGÉ, ET POURQUOI. Les deux premières cartes portaient
+           leur lien dans la dernière ligne : la cible du clic mesurait une
+           vingtaine de caractères au bas d'un bloc de deux cents pixels de
+           haut. Tout le reste de la carte — le titre, la description, les
+           étiquettes — avait l'apparence d'une chose qu'on ouvre et ne
+           répondait pas. La troisième n'avait aucun lien du tout.
+
+           Chaque carte est donc un <a>. La flèche d'appel reste écrite, mais
+           en <span class="go"> : un <a> à l'intérieur d'un <a> est interdit
+           par le HTML, le navigateur referme alors l'extérieur en silence, et
+           le bloc redeviendrait mort là où on croit l'avoir rendu cliquable.
+
+           OÙ VA LA TROISIÈME. Elle décrit cette page-ci — s'y renvoyer
+           serait un clic qui ne bouge rien. Elle vise donc l'endroit de la
+           page qu'elle annonce, l'auto-évaluation, qui porte pour cela un
+           `id`. Une règle de `tests/` mesure que les trois destinations
+           existent : une route servie et ouverte au même public pour les deux
+           premières, un `id` présent dans ce fichier pour la troisième. -->
       <div class="grid grid-3">
-        <div class="card a1">
+        <a class="card a1" href="/diagnostic">
           <div class="ico">🩺</div>
           <h3>Diagnostic express</h3>
           <p>Technique et réglementaire, en libre-service : 4 questions, 2 minutes, sans inscription. Une porte d'entrée pour se situer.</p>
           <ul class="taglist"><li>Self-service</li><li>2 min</li></ul>
-          <p class="muted" style="margin-top:10px"><a href="/diagnostic">Lancer le diagnostic →</a></p>
-        </div>
-        <div class="card a2">
+          <span class="go">Lancer le diagnostic →</span>
+        </a>
+        <a class="card a2" href="/audit-conformite">
           <div class="ico">✅</div>
           <h3>Audit de conformité 62443</h3>
           <p>Mesure l'écart à des <strong>exigences normatives</strong> (zones, conduits, SL) et produit un plan de mise en conformité.</p>
           <ul class="taglist"><li>Exigences</li><li>Conformité</li></ul>
-          <p class="muted" style="margin-top:10px"><a href="/audit-conformite">Voir l'audit 62443 →</a></p>
-        </div>
-        <div class="card a3">
+          <span class="go">Voir l'audit 62443 →</span>
+        </a>
+        <a class="card a3" href="#auto-evaluation">
           <div class="ico">📊</div>
           <h3>Assessment de maturité</h3>
           <p>Évalue les <strong>capacités et l'organisation</strong> — pas une simple conformité. Où en êtes-vous vraiment, et comment progresser. <em>L'objet de cette page.</em></p>
           <ul class="taglist"><li>Capacités</li><li>Organisation</li></ul>
-        </div>
+          <span class="go">Aller à l'auto-évaluation →</span>
+        </a>
       </div>
     </section>
 
@@ -255,7 +275,7 @@
          cette page de `/checklist-62443`, qui refuse d'en rendre un : là-bas
          on compterait des cases, ici quelqu'un choisit parmi six descriptions
          concrètes celle qui correspond à ce qu'il peut MONTRER. -->
-    <section class="section" style="padding-top:8px">
+    <section class="section" id="auto-evaluation" style="padding-top:8px">
       <h2 class="sec-title">// Où en êtes-vous — l'auto-évaluation</h2>
 
       <!-- LA RÉSERVE AVANT LES CURSEURS, et non en note de bas de page : elle

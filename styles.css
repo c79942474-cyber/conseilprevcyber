@@ -293,6 +293,21 @@ html::after{
   html::before,html::after,body::before,body::after{display:none}
 }
 a{color:var(--cyan);text-decoration:none}
+
+/* ── LES CIBLES DE FRAGMENT, SOUS UN EN-TÊTE COLLANT ───────────────────────
+   L'en-tête est `position:sticky;top:0` sur 64 px de haut. Sans marge, un
+   lien `#quelquechose` amène le titre visé DERRIÈRE l'en-tête, où il est
+   illisible : le clic paraît avoir raté sa cible. Les 92 px couvrent les
+   64 px de la barre et laissent respirer le titre.
+
+   CETTE DÉCLARATION ÉTAIT ÉCRITE PLUS BAS, dans le bloc « Livrables », et ne
+   nommait que `#livrables`. `/maturite-ot` a ensuite pointé son bloc
+   « Assessment de maturité » vers `#auto-evaluation` ; la marge lui manquait.
+   Les deux cibles sont donc déclarées ensemble et en un seul endroit — deux
+   déclarations auraient dérivé l'une de l'autre au premier ajustement de
+   l'en-tête. Toute nouvelle cible de fragment de la feuille partagée s'ajoute
+   ICI. */
+#livrables,#auto-evaluation{scroll-margin-top:92px}
 .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
 
 /* Header / nav (partagé) */
@@ -707,6 +722,30 @@ h3{font-size:19px;letter-spacing:-.01em;font-weight:700}
 .card.a4 .ico{background:rgba(240,180,41,.12)}
 .card h3{margin-bottom:8px}
 .card p{color:var(--muted);font-size:14.5px}
+
+/* ── UNE CARTE QUI EST ELLE-MÊME LE LIEN ───────────────────────────────────
+   POURQUOI CETTE RÈGLE EST ICI ET PLUS DANS `admin.html`. Le tableau de bord
+   l'a écrite le premier, dans son propre <style> : ses tuiles sont des <a>
+   pour qu'on puisse cliquer le bloc entier et pas seulement le mot « Ouvrir ».
+   `/maturite-ot` en a eu besoin à son tour. Recopier les trois lignes aurait
+   posé deux définitions de la même intention dans deux fichiers — celle qui
+   se corrige d'un côté et pas de l'autre. Elles montent donc dans la feuille
+   partagée, et le tableau de bord ne les porte plus.
+
+   CE QUE CHAQUE LIGNE RÉPARE. `display:block` : un <a> est en ligne par
+   défaut, et la boîte ne s'étend alors pas jusqu'aux bords. `color:inherit` :
+   sans elle, le titre <h3> hérite du cyan de `a{}` au lieu de l'encre — le
+   texte de la carte changerait de couleur du seul fait de devenir cliquable.
+   `text-decoration:none` : même motif pour le soulignement.
+
+   ATTENTION AU LIEN IMBRIQUÉ. Le HTML interdit un <a> dans un <a> : le
+   navigateur referme silencieusement l'extérieur, et le bloc cesse d'être
+   cliquable là où on croyait l'avoir rendu. La flèche d'appel se pose donc
+   en <span class="go">, jamais en <a>. Une règle de `tests/` le mesure. */
+a.card{display:block;color:inherit;text-decoration:none}
+a.card .go{display:inline-block;margin-top:14px;font-family:var(--mono);font-size:12px;
+  letter-spacing:.04em;color:var(--cyan)}
+a.card:hover .go{color:var(--teal)}
 .taglist{list-style:none;margin-top:14px;display:flex;flex-wrap:wrap;gap:6px}
 .taglist li{font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
 .checklist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
@@ -1052,9 +1091,6 @@ footer a:hover{color:var(--cyan)}
    outils/generer_blocs_livrables.py depuis le catalogue livrables.py.
    Chaque livrable porte son propre lien de generation : la liste en prose
    d'avant annoncait des documents qu'aucun lien ne rendait atteignables. */
-/* L'en-tete est collant : sans cette marge, cibler #livrables amene le titre
-   dessous, ou il est illisible. */
-#livrables{scroll-margin-top:92px}
 .liv-promesse{font-size:13.5px;color:var(--muted);line-height:1.65;margin-bottom:18px}
 .liv-promesse strong{color:var(--ink)}
 .liv-list{list-style:none;margin:0;padding:0;display:grid;gap:12px}
