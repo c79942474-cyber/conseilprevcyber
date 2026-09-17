@@ -851,7 +851,82 @@ def chercher_au_fonds_cabinet(piece, rag=None, analyse=None, corp=None):
     }
 
 
-def contexte(remplissage, analyse, piece, socle=None, dossier=None, fonds=None):
+def couverture_des_points(piece, rag=None, analyse=None, corp=None):
+    """CE QUE LE FONDS DOCUMENTE, POINT PAR POINT DU CONTENU DE LA PIÈCE.
+
+    ═══ LE DÉFAUT MESURÉ ═════════════════════════════════════════════════
+    Une pièce déclare son contenu — `contient`, trois à huit points. Les trois
+    socles étaient interrogés par UNE requête chacun, où ces points étaient
+    aplatis ensemble : `requete_socle` les concatène et coupe à six cents
+    signes. Un point placé en fin de liste n'avait donc jamais fait l'objet
+    d'une recherche, et rien ne disait au modèle que le fonds n'en parlait
+    pas. Il l'écrivait quand même — et `a_completer`, qu'il rend depuis
+    toujours, n'était lu par personne.
+
+    ═══ LES TROIS LOTS GARDENT LEURS TROIS RÉGIMES ═══════════════════════
+    C'est le point délicat, et il n'était pas négociable. `chercher_au_fonds_
+    cabinet` n'interroge pas l'étagère d'un bloc : « nos moyens » se lisent
+    sans filtre parce que ce sont les nôtres, « ce qui peut décrire un tiers »
+    ne se lit que publiable parce qu'il y va de la confidentialité d'un
+    client, et « ce qu'un tiers a écrit » se lit sans filtre parce que le
+    risque y est le droit d'auteur, barré ailleurs. Fondre les trois sous un
+    seul `public_only` aurait sacrifié soit nos CV, soit un client.
+
+    La recherche par point REPREND donc ces trois lots avec leurs trois
+    régimes, et se contente d'ajouter les mots du point à la requête — ce qui
+    réutilise tout ce que `requete_fonds` a appris : les désignations du
+    marché, l'objet, les graphies sans accents, les formes au singulier, et
+    le budget de six cents signes.
+    """
+    import orchestration                                          # noqa: PLC0415
+    points = (piece or {}).get("contient") or []
+    plan = orchestration.planifier(points, source="piece:%s"
+                                   % (piece or {}).get("cle", ""))
+    if not plan or rag is None:
+        # PAS DE CONTENU DÉCLARÉ, PAS DE PLAN INVENTÉ. L'appelant retombe sur
+        # le chemin d'avant, qui fonctionne.
+        return None
+    # LES TROIS LOTS VIENNENT DE LÀ OÙ ILS SONT DÉJÀ RÉSOLUS — cette
+    # fonction confronte les rayons déclarés à la famille réelle de
+    # `rag_store`, si bien qu'un thème renommé là-bas ne laisse pas ici une
+    # chaîne morte qui ne ramènerait rien en silence.
+    nous, tiers, doc = _fonds_themes_connus()
+    if not (nous or tiers or doc):
+        return None
+
+    def _chercher(requete, k, public_only):
+        # `public_only` ARRIVE DE L'ORCHESTRATEUR ET N'EST PAS UTILISÉ ICI —
+        # ce n'est pas un oubli. Le régime de ce fonds est PAR LOT, pas par
+        # appel : chaque lot porte le sien, pour la raison écrite plus haut.
+        # L'orchestrateur, lui, ne l'élargit jamais ; c'est ce qu'il garantit,
+        # et c'est tout ce qu'on lui demande.
+        faux = dict(piece, nom="%s %s" % (requete, piece.get("nom") or ""))
+        hits = []
+        for rayons, po in ((nous, False), (tiers, True), (doc, False)):
+            if not rayons:
+                continue
+            try:
+                hits += rag.search(requete_fonds(faux, analyse, rayons, corp),
+                                   k=k, public_only=po, theme=rayons)
+            except Exception:
+                # UN LOT QUI TOMBE N'EMPORTE PAS LES AUTRES — mais il ne doit
+                # pas non plus faire passer le point pour non documenté. On
+                # relaie donc l'échec quand AUCUN lot n'a répondu.
+                continue
+        if not hits and (nous or tiers or doc):
+            # Rien n'est revenu : on ne sait pas distinguer ici « le fonds se
+            # tait » de « les trois lots ont échoué ». On rend la liste vide,
+            # et c'est l'interprétation prudente — l'orchestrateur écrira
+            # « à écrire depuis le projet », jamais « couvert ».
+            return []
+        return hits
+
+    return orchestration.documenter(plan, _chercher, sujet=piece.get("nom") or "",
+                                    public_only=True)
+
+
+def contexte(remplissage, analyse, piece, socle=None, dossier=None, fonds=None,
+             couverture=None):
     """CE QUI PART CHEZ ANTHROPIC, construit ici et nulle part ailleurs.
 
     Fonction PURE : elle n'appelle rien, ne lit aucun environnement, et rend un
@@ -957,6 +1032,24 @@ def contexte(remplissage, analyse, piece, socle=None, dossier=None, fonds=None):
         "fonds_documentation": [x.get("titre") or ""
                                 for x in ((f or {}).get("sources") or [])
                                 if x.get("theme") in FONDS_DOCUMENTATION],
+        # ── LES POINTS DU CONTENU EXIGÉ QUE RIEN N'APPUIE ────────────────
+        #
+        # SEULS LES INTITULÉS, JAMAIS LES EXTRAITS. Cette fonction est PURE et
+        # une règle mesure ce qui en sort : les intitulés viennent du registre
+        # des pièces — ils sont à nous —, alors que verser ici les extraits
+        # retrouvés doublerait ce que `fonds_cabinet` porte déjà, et gonflerait
+        # pour rien ce qui part chez le fournisseur.
+        #
+        # LA DISTINCTION « RIEN TROUVÉ » / « PAS PU CHERCHER » EST CONSERVÉE.
+        # Dire au modèle que le fonds ne documente pas un point, alors que la
+        # recherche a échoué, le ferait écrire « à compléter » sur une matière
+        # que le cabinet possède.
+        "points_sans_appui": [q["point"] for q in
+                              ((couverture or {}).get("points") or [])
+                              if q.get("etat") == "a_ecrire"],
+        "points_indetermines": [q["point"] for q in
+                                ((couverture or {}).get("points") or [])
+                                if q.get("etat") == "inconnu"],
     }
 
 
@@ -1153,6 +1246,35 @@ def brief(ctx):
                   "endroit où la pièce en demande un."
                   % ctx["fonds_absent"]]
 
+    # ── CE QUE LE FONDS NE DIT PAS, NOMMÉ POINT PAR POINT ────────────────
+    #
+    # C'EST LA MOITIÉ UTILE DE LA RECHERCHE PAR POINT. Un modèle qui ignore ce
+    # que le fonds ne couvre pas comble le trou avec ce qu'il croit savoir, et
+    # rend une pièce qui a l'air documentée sans l'être — la défaillance la
+    # plus coûteuse ici, puisqu'elle ne se découvre qu'au moment où l'acheteur
+    # demande la preuve. Un modèle à qui l'on NOMME le trou l'annonce.
+    #
+    # LA MARQUE EXIGÉE EST CELLE QUE `rediger` COMPTE DÉJÀ. `a_completer` était
+    # produit depuis toujours et n'était qu'affiché ; il devient le décompte de
+    # ce que cette consigne-ci a fait écrire.
+    if ctx.get("points_sans_appui"):
+        L += ["", "POINTS DU CONTENU EXIGÉ QUE LE FONDS N'APPUIE PAS. Le fonds "
+                  "a été interrogé sur chacun des points ci-dessous, "
+                  "séparément, et n'a rien rendu :"]
+        L += ["  - %s" % x for x in ctx["points_sans_appui"]]
+        L += ["", "N'inventez pour eux ni référence, ni chiffre, ni citation. "
+                  "Écrivez ce que la consultation permet d'écrire, et posez "
+                  "« %s — … » partout où la pièce demande une preuve que nous "
+                  "n'avons pas jointe." % _A_COMPLETER]
+    if ctx.get("points_indetermines"):
+        # « ON N'A PAS PU CHERCHER » N'EST PAS « IL N'Y A RIEN », et le modèle
+        # ne doit pas les traiter pareil : sur le premier, il ne faut pas
+        # affirmer l'absence non plus.
+        L += ["", "POINTS SUR LESQUELS LE FONDS N'A PAS PU ÊTRE INTERROGÉ "
+                  "(recherche en échec) : %s. N'affirmez ni qu'ils sont "
+                  "documentés, ni qu'ils ne le sont pas."
+                  % ", ".join(ctx["points_indetermines"])]
+
     if ctx["piece"]["bloquante"]:
         L += ["", "CETTE PIÈCE EST BLOQUANTE : son absence rend la "
                   "candidature irrecevable."]
@@ -1195,7 +1317,16 @@ def rediger(cle, remplissage, analyse=None, rag=None, corpus_dossier=None):
     anthropic = _client()
     # L'ORDRE : chercher d'abord, composer ensuite. `chercher_socle` est la
     # seule impureté ; `contexte` reste une fonction de ses arguments.
-    ctx = contexte(remplissage, analyse, piece,
+    # LA COUVERTURE PAR POINT — CALCULÉE AVANT LE CONTEXTE, comme les trois
+    # socles, et pour la même raison : `contexte` doit rester une fonction de
+    # ses arguments. Elle ne coûte AUCUN appel de modèle.
+    try:
+        couv = couverture_des_points(piece, rag, analyse, corpus_dossier)
+    except Exception:
+        # La couverture est un APPUI, jamais une condition : un fonds qui ne
+        # répond pas ne doit pas empêcher d'écrire le brouillon.
+        couv = None
+    ctx = contexte(remplissage, analyse, piece, couverture=couv,
                    socle=chercher_socle(piece, rag, corpus_dossier),
                    dossier=chercher_dossier(piece, corpus_dossier),
                    # LE CORPUS DESCEND JUSQU'À L'ÉTAGÈRE, ET C'EST CE QUI
@@ -1275,6 +1406,20 @@ def rediger(cle, remplissage, analyse=None, rag=None, corpus_dossier=None):
         },
         "fonds_sources": list(ctx.get("fonds_sources") or []),
         "fonds_absent": ctx.get("fonds_absent") or "",
+        # ── LA COUVERTURE, RENDUE AVEC LE BROUILLON ─────────────────────
+        #
+        # « a_completer » disait COMBIEN de trous le modèle avait signalés ;
+        # il ne disait pas LESQUELS, ni si le fonds avait de quoi les combler.
+        # Les deux ensemble se lisent : « quatre marques, dont trois sur des
+        # points que la base ne documente pas » est une phrase actionnable —
+        # on sait quoi ranger sur l'étagère avant de relancer.
+        "couverture": (None if not couv else
+                       {"resume": couv.get("resume"),
+                        "lecture": couv.get("lecture"),
+                        "points": [{"point": q["point"], "etat": q["etat"],
+                                    "documents": [d["titre"] for d in
+                                                  q.get("documents") or []]}
+                                   for q in couv.get("points") or []]}),
         "modele": getattr(reponse, "model", MODELE),
         "tronque": getattr(reponse, "stop_reason", "") == "max_tokens",
         "a_completer": texte.count(_A_COMPLETER),

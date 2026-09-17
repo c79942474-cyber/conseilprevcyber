@@ -69,6 +69,10 @@ import juridique
 import librejustice   # corpus de jurisprudence, branché par MCP — voir le module
 import livrables
 import orchestrateur_livrables
+import orchestration   # noqa: E402  — les patrons agentiques : le plan,
+# la recherche par point, la relecture. À NE PAS confondre avec
+# `orchestrateur_livrables`, qui route un sujet vers ses thèmes : celui-ci
+# route, celui-là conduit les tours.
 import rag_federe   # la base sœur, mêlée à la nôtre — voir le module
 import reglages   # un réglage illisible ne doit pas arrêter le service
 import veille_facettes   # les six axes de la veille — voir le module
@@ -9557,6 +9561,59 @@ def _famille_prioritaire(type_id):
     return livrables.themes_du_type(type_id)
 
 
+def _couverture_par_point(type_id, data, doc_ids, public_only,
+                          phase="", code=""):
+    """CE QUE LA BASE DOCUMENTE, POINT PAR POINT — pour TOUS les documents.
+
+    ═══ LE DÉFAUT QUE CETTE FONCTION CORRIGE, MESURÉ ═════════════════════
+    `couverture_documentaire` interroge la base une fois par point exigé, et
+    `consigne_manques` nomme au modèle ce qu'elle n'a pas trouvé. Les deux
+    marchaient très bien — et ne servaient qu'aux pièces portant une PHASE et
+    un CODE, c'est-à-dire à un seul écran : `ingenierie-dc.js` est le seul
+    appelant qui envoie ces deux champs. Les quatre-vingt-dix types de
+    livrables, eux, recevaient les extraits d'UNE requête générale.
+
+    MESURÉ LE 17 SEPTEMBRE 2026 sur un fonds de douze documents et le type
+    « synthese-62443 », dont les six sections sont déclarées dans la donnée :
+    la requête unique atteignait 4 documents, la recherche par point 8 — et
+    les quatre qu'elle ne voyait pas étaient ceux qui répondaient aux
+    sections « Recommandations priorisées » et « Prochaines étapes ».
+
+    ═══ POURQUOI UN AIGUILLAGE, ET PAS UN REMPLACEMENT ═══════════════════
+    Une pièce de maîtrise d'œuvre a un contenu exigé plus précis que les
+    sections d'un type : quand phase et code sont là, c'est LUI qui commande.
+    Le chemin nouveau sert les autres — il ne prend la place d'aucun.
+
+    Les deux branches rendent la MÊME forme, si bien que
+    `extraits_pour_redaction` et `consigne_manques` s'appliquent à l'une comme
+    à l'autre, sans une ligne de plus.
+    """
+    def _chercher(req, k, po=public_only):
+        # LA VISIBILITÉ VIENT DE L'APPELANT ET N'EST JAMAIS ÉLARGIE ICI. Les
+        # extraits sont reproduits mot pour mot dans un document qui sort du
+        # site : une recherche qui « ouvrirait un peu » pour combler un point
+        # recopierait un document interne dans un livrable remis au client.
+        if doc_ids:
+            return rag.search(req, k=k, public_only=po, doc_ids=doc_ids)
+        return rag.search(req, k=k, public_only=po)
+
+    if phase and code:
+        return ingenierie_dc.couverture_documentaire(
+            phase, code, lambda r, k: _chercher(r, k), data,
+            garder_extraits=True)
+    plan = orchestration.plan_du_livrable(type_id, livrables)
+    if not plan:
+        # UN TYPE SANS SECTIONS DÉCLARÉES RETOMBE SUR LE CHEMIN D'AVANT, qui
+        # fonctionne. Rendre un plan inventé serait pire que ne rien rendre :
+        # on chercherait alors point par point des points qui ne sont pas ceux
+        # du document.
+        return None
+    sujet = " ".join(str(data.get(c) or "") for c in ("secteur", "perimetre")
+                     if not str(data.get(c) or "").strip().startswith("["))
+    return orchestration.documenter(plan, _chercher, sujet=sujet,
+                                    public_only=public_only)
+
+
 def _hits_priorises(query, k, public_only, themes, elargir=None):
     """Les extraits, famille prioritaire d'abord, le reste ensuite.
 
@@ -9691,20 +9748,21 @@ def _trame_sans_modele(type_id, data, extra_query, label, dispo,
     # d'une seule requête générale. Elle remonte avant, et le MÊME objet sert
     # aux deux — la base n'est plus interrogée deux fois par pièce.
     couverture = None
-    if phase and code:
-        def _chercher(req, k):
-            if doc_ids:
-                return _extraits_pour(req, doc_ids, public_only)[:k]
-            return rag.search(req, k=k, public_only=public_only)
-        try:
-            couverture = ingenierie_dc.couverture_documentaire(
-                phase, code, _chercher, data, garder_extraits=True)
-        except Exception:
-            app.logger.exception("couverture documentaire")
-        # Sélection manuelle : la couverture dit ce qui manque, elle ne
-        # réordonne pas ce que vous avez choisi.
-        if couverture and not doc_ids:
-            hits = ingenierie_dc.extraits_pour_redaction(couverture, hits)
+    # LE CHEMIN SANS MODÈLE Y A AUTANT DROIT, ET IL NE COÛTE RIEN. Le
+    # planificateur et le documentaliste n'appellent aucun modèle : cette
+    # trame, qui est remise telle quelle quand aucun modèle n'est disponible,
+    # gagne la recherche par point et la déclaration des manques au prix de
+    # quelques requêtes en base. C'est même ici que cela compte le plus — un
+    # document non rédigé se lit sur ce qu'il a trouvé.
+    try:
+        couverture = _couverture_par_point(type_id, data, doc_ids, public_only,
+                                           phase, code)
+    except Exception:
+        app.logger.exception("couverture documentaire")
+    # Sélection manuelle : la couverture dit ce qui manque, elle ne
+    # réordonne pas ce que vous avez choisi.
+    if couverture and not doc_ids:
+        hits = ingenierie_dc.extraits_pour_redaction(couverture, hits)
 
     if documentaire:
         # Le modèle n'a pas manqué : il est débranché. Le dire avec les mots
@@ -9964,26 +10022,20 @@ def _livrables_run(type_id, data, system, user, extra_query="", label=None,
     couverture = None
     _ph = str(data.get("phase") or "").strip().upper()[:12]
     _pi = str(data.get("piece") or "").strip().upper()[:16]
-    if _ph and _pi:
-        def _chercher_point(req, k):
-            if doc_ids:
-                return rag.search(req, k=k, public_only=public_only,
-                                  doc_ids=doc_ids)
-            return rag.search(req, k=k, public_only=public_only)
-        try:
-            couverture = ingenierie_dc.couverture_documentaire(
-                _ph, _pi, _chercher_point, data, garder_extraits=True)
-        except Exception:
-            # La couverture est un APPUI, jamais une condition : une base qui
-            # ne répond pas ne doit pas empêcher d'écrire.
-            app.logger.exception("couverture avant rédaction")
-            couverture = None
-        # UNE SÉLECTION MANUELLE NE SE FAIT PAS RÉORDONNER. Vous avez dit
-        # quels documents : la couverture reste calculée — elle dira quels
-        # points exigés ces documents-là ne couvrent pas —, mais l'ordre des
-        # extraits reste le vôtre. Même doctrine que pour la fédération.
-        if couverture and not doc_ids:
-            hits = ingenierie_dc.extraits_pour_redaction(couverture, hits)
+    try:
+        couverture = _couverture_par_point(type_id, data, doc_ids, public_only,
+                                           _ph, _pi)
+    except Exception:
+        # La couverture est un APPUI, jamais une condition : une base qui
+        # ne répond pas ne doit pas empêcher d'écrire.
+        app.logger.exception("couverture avant rédaction")
+        couverture = None
+    # UNE SÉLECTION MANUELLE NE SE FAIT PAS RÉORDONNER. Vous avez dit
+    # quels documents : la couverture reste calculée — elle dira quels
+    # points exigés ces documents-là ne couvrent pas —, mais l'ordre des
+    # extraits reste le vôtre. Même doctrine que pour la fédération.
+    if couverture and not doc_ids:
+        hits = ingenierie_dc.extraits_pour_redaction(couverture, hits)
     # LES SOURCES SONT BÂTIES SUR LES EXTRAITS RÉELLEMENT INCLUS. Le budget
     # coupe, la déduplication écarte : construire la liste nominative sur les
     # huit hits COMPLETS faisait ordonner au modèle de « couvrir » et citer des
