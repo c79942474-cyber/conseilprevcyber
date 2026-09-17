@@ -711,6 +711,79 @@
                "sur l'exercice en cours suppose une donnée qu'on ne peut plus aller chercher." }
       ]
     },
+    /* ══ LES DEUX RÔLES D'EXPLOITANT QUE CES QUATRE PAGES SERVENT ═══════
+       CE QUI A DÉCIDÉ DE CES DEUX-LÀ, ET DE L'ABSENCE DES AUTRES. Un relevé
+       des rôles qui décident dans un exploitant de centres de données en
+       compte huit : exploitation de site, direction de l'exploitation,
+       ingénierie et technique de site, direction générale, direction de
+       programme, direction des systèmes d'information, direction commerciale,
+       direction des ressources humaines. Les trois parcours ci-dessus en
+       servaient déjà trois — programme, coût, durabilité — sans le dire.
+
+       DEUX PARCOURS NEUFS, PAS SIX. Ce site porte QUATRE pages de centre de
+       données, et un parcours ne peut viser deux fois la même. Six lectures
+       tirées de quatre pages auraient produit six listes presque identiques,
+       distinguées par leur seul titre — ce que la maison appelle un sommaire
+       dans l'ordre. Les deux qui suivent se distinguent par leur PREMIÈRE
+       page, celle sur laquelle un lecteur choisit : la veille pour celui à qui
+       l'on réclame des chiffres, l'usine IA pour celui dont la charge
+       informatique commande tout le reste. Aucun autre parcours ne commence
+       par l'une ou par l'autre.
+
+       ET CE QUE CE SITE NE SERT PAS, écrit plutôt que laissé vide. La
+       direction commerciale d'un exploitant cherche un état de marché — où
+       sont les capacités, ce que valent les juridictions ; ce site n'en porte
+       aucun, Sentinel oui. L'ingénieur ou le technicien d'exploitation vit
+       dans la GTB et le DCIM : rien ici ne s'adresse à lui. La direction des
+       ressources humaines trouverait `/formation`, qui est de la formation
+       CYBER INDUSTRIELLE — un autre métier, un autre vocabulaire, et l'y
+       envoyer serait un renvoi trompeur. Voir ROLES_EXPLOITANT_DC plus bas. */
+    {
+      id: "dc-exploitation",
+      icone: "🏭",
+      role: "Exploitation d’un centre de données · on vous réclame des chiffres",
+      cas: "Le cas le plus fréquent : une demande extérieure — bailleur, client, autorité, banque — arrive avant que le dispositif de mesure existe",
+      pitch: "Vous n’avez pas de projet neuf : vous avez un site qui tourne, et quelqu’un vous demande " +
+             "ce qu’il consomme. Ce parcours part de la demande, pas de la stratégie : quels chiffres " +
+             "vous seront réclamés, comment on les établit, ce qu’on en fait ensuite.",
+      etapes: [
+        { url: "/veille", label: "Ce qu’on va vous demander, et quand",
+          action: "Repérez les textes qui fixent ce qu’un exploitant déclare — périmètre, indicateurs, échéance — et lesquels bougent cette année.",
+          gain: "La liste des obligations réelles avant de construire un tableau de bord, plutôt qu’après l’avoir construit pour autre chose.",
+          tip: "Surveillez ce qui change le PÉRIMÈTRE plus que ce qui ajoute un indicateur : un seuil qui descend fait entrer des sites entiers, et c’est autrement plus coûteux qu’une colonne de plus." },
+        { url: "/datacenter", label: "Établir les chiffres — énergie, eau, carbone",
+          action: "Renseignez le profil de l’installation telle qu’elle tourne, puis lisez le bilan : électricité, eau du site ET de la source, CO₂e, fabrication amortie.",
+          gain: "Des chiffres qui portent leur méthode, opposables à qui les demande — et non des valeurs reprises d’un tableur dont plus personne ne connaît les hypothèses.",
+          tip: "L’eau du site et l’eau de la source ne sont pas la même grandeur. Un aéroréfrigérant sec affiche zéro sur site et consomme davantage à la source : déclarer la première seule est exact et trompeur." },
+        { url: "/ingenierie-datacenter", label: "Les pièces, phase par phase",
+          action: "Repérez, dans la séquence d’ingénierie, les pièces qui documentent ce que vous venez de mesurer — et celles qui manquent à votre dossier.",
+          gain: "Le passage du chiffre à la pièce : ce qui se produit sur demande, et ce qui se reconstitue péniblement quand on ne l’a pas gardé.",
+          tip: "Une pièce reconstituée après coup se voit : elle ne porte pas la date de la décision qu’elle documente. Gardez-la au moment où elle se fabrique, pas quand on la réclame." }
+      ]
+    },
+    {
+      id: "dc-charge-ia",
+      icone: "🧮",
+      role: "Direction des systèmes d’information · la charge commande le bâtiment",
+      cas: "Inspiré des études d’usine IA : c’est la densité de la charge qui fixe le refroidissement, la puissance et l’emprise — jamais l’inverse",
+      pitch: "Vous décidez ce qui tournera dans la salle, et cette décision commande tout le reste : la densité " +
+             "fixe le refroidissement, le refroidissement fixe l’eau et l’électricité, l’électricité fixe " +
+             "l’emprise et le raccordement. Ce parcours part donc de la charge, et descend vers le bâtiment.",
+      etapes: [
+        { url: "/ingenierie-ia-factory", label: "La charge d’abord — densité, refroidissement, puissance",
+          action: "Partez de ce que vous comptez héberger : type d’accélérateurs, densité par baie, régime de fonctionnement — et lisez ce que cela impose au bâtiment.",
+          gain: "La chaîne de conséquences dans le bon sens : c’est la charge qui contraint l’enveloppe, et une enveloppe dimensionnée avant la charge est dimensionnée pour la charge d’avant.",
+          tip: "Une densité moyenne ne dimensionne rien : ce sont les baies les plus chaudes qui fixent le refroidissement, et elles décident du reste même si elles sont minoritaires." },
+        { url: "/datacenter", label: "Ce que cette charge pèse, une fois installée",
+          action: "Portez le profil obtenu dans le bilan énergie-eau-carbone, et regardez la part qui revient à la charge par rapport à celle du bâtiment.",
+          gain: "La séparation qui décide des leviers : sur un site déjà efficace, le gain n’est plus dans le PUE mais dans ce qu’on fait tourner.",
+          tip: "Un gain de PUE porte sur la fraction NON informatique. Sur un site à 1,2, elle représente un sixième du total : y concentrer l’effort revient à optimiser la petite moitié du problème." },
+        { url: "/ingenierie-datacenter", label: "Ce que cela coûte à construire",
+          action: "Chiffrez les travaux que cette charge impose — lots techniques, honoraires, séquence — avant de vous engager sur une date.",
+          gain: "Le coût de la densité, lot par lot : c’est là qu’on voit ce qu’une baie à haute densité vaut réellement par rapport à trois baies ordinaires.",
+          tip: "Le refroidissement liquide déplace le coût plutôt qu’il ne le supprime : moins d’air à traiter, mais une boucle, une distribution et une maintenance qui n’existaient pas." }
+      ]
+    },
     {
       id: "decouverte",
       icone: "🧭",
@@ -1273,6 +1346,53 @@
      ELLE NE S'AJOUTE PAS À CEUX QUI CONCLUENT DÉJÀ. Un parcours qui finit sur
      /contact ou /vos-projets a sa conclusion ; lui en coller une seconde
      ferait deux fois le même geste, et la deuxième serait de trop. */
+  /* ══ LES HUIT RÔLES D'UN EXPLOITANT, ET CE QUE CE SITE-CI LEUR OFFRE ═══
+     POURQUOI CETTE TABLE. Cinq parcours de centre de données servent
+     maintenant cinq rôles, et trois autres n'en ont pas. Sans cette table, ces
+     trois absences se lisent toutes comme un oubli : on rouvre le sujet dans
+     six mois, on écrit un sixième parcours tiré des quatre mêmes pages, et
+     l'on envoie la direction des ressources humaines sur `/formation`, qui est
+     de la formation cyber industrielle et non de l'exploitation de centre de
+     données. Une absence motivée vaut mieux qu'une absence muette.
+
+     `porte: null` DIT AUSSI OÙ ALLER QUAND CE N'EST PAS ICI. Deux de ces rôles
+     sont servis par l'autre plateforme du cabinet — c'est écrit dans le motif.
+     Le troisième n'est servi nulle part, et c'est le constat, pas un projet.
+
+     Une recette compare cette table au catalogue : une porte qui nomme un
+     parcours disparu, ou un parcours de centre de données qu'aucune ligne ne
+     revendique, fait tomber la règle. */
+  var ROLES_EXPLOITANT_DC = [
+    { role: "Direction de programme / de projet", porte: "dc-projet",
+      motif: "la séquence du projet, de la stratégie à l'usine IA" },
+    { role: "Direction générale · arbitrage d'investissement", porte: "dc-couts",
+      motif: "ce que l'opération coûte, lot par lot, avant l'engagement" },
+    { role: "Direction durabilité · RSE", porte: "dc-durabilite",
+      motif: "compter, arbitrer la matérialité, prouver, suivre" },
+    { role: "Exploitation d'un site en service", porte: "dc-exploitation",
+      motif: "part de la demande extérieure, pas de la stratégie" },
+    { role: "Direction des systèmes d'information et de la technologie",
+      porte: "dc-charge-ia",
+      motif: "part de la charge informatique, qui commande le bâtiment" },
+    { role: "Direction commerciale & développement", porte: null,
+      motif: "PAS ICI : ce rôle cherche un état de marché — où sont les " +
+             "capacités, ce que valent les juridictions, ce qu'une " +
+             "implantation rapporte. Ce site ne porte aucun de ces trois. " +
+             "La plateforme Sentinel les porte, et lui ouvre un parcours." },
+    { role: "Ressources humaines, formation & développement des compétences",
+      porte: null,
+      motif: "PAS ICI : `/formation` existe, mais c'est de la formation CYBER " +
+             "INDUSTRIELLE — sensibilisation exploitation, essentiels 62443, " +
+             "exercices de crise. L'y envoyer pour former des équipes de " +
+             "centre de données serait un renvoi trompeur. Sentinel porte le " +
+             "volet montée en compétence sur les outils d'IA." },
+    { role: "Ingénieur ou technicien d'exploitation de site", porte: null,
+      motif: "PAS ICI, ET NULLE PART : ce rôle vit dans la gestion technique " +
+             "du bâtiment et le DCIM. Aucune des deux plateformes du cabinet " +
+             "ne s'y adresse, et lui composer un chemin à partir de pages " +
+             "d'ingénierie et de bilan carbone serait le promener." }
+  ];
+
   var ETAPE_FINALE = {
     url: "/vos-projets", label: "Soumettre votre projet",
     action: "Décrivez le périmètre que vous venez de parcourir — installations, " +
@@ -1303,7 +1423,8 @@
   if (typeof module !== "undefined" && module.exports) {
     module.exports = {
       AXES_URL: AXES_URL, POIDS: POIDS, AXE_LABEL: AXE_LABEL, AXE_COURT: AXE_COURT,
-      personnaliser: personnaliser, PARCOURS: PARCOURS, SECTEURS: SECTEURS
+      personnaliser: personnaliser, PARCOURS: PARCOURS, SECTEURS: SECTEURS,
+      ROLES_EXPLOITANT_DC: ROLES_EXPLOITANT_DC
     };
   }
   /* Le moteur est aussi offert au navigateur pour un éventuel usage tiers ;
