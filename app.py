@@ -3102,14 +3102,24 @@ def api_securite_ia_evaluer():
     un score, et un score moyen sur cinq maillons dont un est grand ouvert
     dirait que tout va plutôt bien."""
     data = request.get_json(silent=True) or {}
+    vm = str(data.get("valeur_metier") or "")[:200]
+    # DEUX FORMES, ET LA PREMIÈRE RESTE SERVIE. Un parc de systèmes quand
+    # `systemes` est là ; une chaîne seule sinon. Retirer l'ancienne forme
+    # aurait cassé tout appel déjà écrit pour gagner une cohérence que
+    # personne n'aurait vue.
+    if isinstance(data.get("systemes"), list):
+        r = chaine_autonomie.restitution_parc(
+            data["systemes"], valeur_metier=vm, gravite=data.get("gravite"))
+        if not r.get("ok"):
+            return jsonify(r), 400
+        return jsonify(r)
     r = chaine_autonomie.restitution_ebios(
         data.get("autonomie"), data.get("maitrise"),
-        valeur_metier=str(data.get("valeur_metier") or "")[:200],
-        gravite=data.get("gravite"))
+        valeur_metier=vm, gravite=data.get("gravite"))
     if not r.get("ok"):
         return jsonify(r), 400
     r["chaine"] = chaine_autonomie.evaluer(data.get("autonomie"),
-                                      data.get("maitrise"))
+                                           data.get("maitrise"))
     return jsonify(r)
 
 
@@ -3130,19 +3140,33 @@ def api_securite_ia_emporter():
 
     # LA MÊME PORTE QUE L'ÉCRAN : un maillon inconnu est refusé ici comme là,
     # pour que le format de sortie ne devienne pas le chemin de contournement.
-    verif = chaine_autonomie.evaluer(data.get("autonomie"), data.get("maitrise"))
+    vm = str(data.get("valeur_metier") or "")[:200]
+    titre = str(data.get("titre") or "").strip()[:120] or None
+    parc = isinstance(data.get("systemes"), list)
+
+    # LA MÊME PORTE QUE L'ÉCRAN, DANS LES DEUX FORMES : un maillon inconnu est
+    # refusé ici comme là, pour que le format de sortie ne devienne pas le
+    # chemin de contournement.
+    if parc:
+        verif = chaine_autonomie.evaluer_parc(data["systemes"])
+        renseignes = verif.get("cotes") if verif.get("ok") else 0
+    else:
+        verif = chaine_autonomie.evaluer(data.get("autonomie"),
+                                         data.get("maitrise"))
+        renseignes = verif.get("renseignes") if verif.get("ok") else 0
     if not verif.get("ok"):
         return jsonify(verif), 400
-    if not verif.get("renseignes"):
+    if not renseignes:
         return jsonify(ok=False, error="rien_de_constate",
                        message="Aucun maillon n'est renseigné : il n'y a rien "
                                "à emporter."), 400
 
-    md = chaine_autonomie.markdown(
-        data.get("autonomie"), data.get("maitrise"),
-        valeur_metier=str(data.get("valeur_metier") or "")[:200],
-        gravite=data.get("gravite"),
-        titre=str(data.get("titre") or "").strip()[:120] or None)
+    md = (chaine_autonomie.markdown_parc(data["systemes"], vm,
+                                         data.get("gravite"), titre)
+          if parc else
+          chaine_autonomie.markdown(data.get("autonomie"), data.get("maitrise"),
+                                    valeur_metier=vm,
+                                    gravite=data.get("gravite"), titre=titre))
     meta = {"label": "Chaîne d'autonomie — sécurité de l'IA",
             "client": str(data.get("client") or "")[:120],
             # Les degrés sont déclarés par le client, l'écart est un calcul.
@@ -3159,8 +3183,10 @@ def api_securite_ia_emporter():
         return jsonify(ok=False, error="export_echec",
                        message="La mise en page a échoué."), 500
     audit.journaliser("securiteia.export", cible=fmt,
-                      detail="%d maillon(s) renseigné(s) · écart max %s"
-                             % (verif["renseignes"], verif["ecart_max"]))
+                      detail="%s %d · écart max %s"
+                             % ("système(s) coté(s)" if parc
+                                else "maillon(s) renseigné(s)",
+                                renseignes, verif["ecart_max"]))
     return send_file(io.BytesIO(blob),
                      download_name="chaine-autonomie-%s.%s"
                                    % (time.strftime("%Y-%m-%d"), fmt),

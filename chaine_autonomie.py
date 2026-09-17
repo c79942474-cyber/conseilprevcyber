@@ -48,6 +48,18 @@ ouvert produit un incident, et la moyenne des cinq maillons dirait le
 contraire. `evaluer()` rend donc le maximum des écarts, et une règle de
 `tests/` refuse toute implémentation qui moyennerait.
 
+ET LE MÊME PRINCIPE MONTE D'UN ÉTAGE — CE QUI MANQUAIT À LA PREMIÈRE
+VERSION. Elle ne cotait qu'UNE chaîne. Une AI Factory en compte douze : le
+client n'avait d'autre choix que de coter une chaîne « représentative »,
+c'est-à-dire de faire la moyenne de ses systèmes dans sa tête, alors que le
+module lui interdit de moyenner ses maillons. Le défaut ne se voyait pas —
+l'outil rendait un chiffre parfaitement cohérent sur une fiction.
+
+`evaluer_parc()` répare cela : l'exposition d'un parc est celle de son PIRE
+système, comme la chaîne est celle de son pire maillon. Et un système déclaré
+mais non coté n'est pas un système sain — c'est un système qu'on n'a pas
+regardé, exactement comme un maillon vide.
+
 ════════════════════════════════════════════════════════════════════════════
 CE QUE CE MODULE N'EST PAS
 ════════════════════════════════════════════════════════════════════════════
@@ -713,3 +725,253 @@ def sante():
             "sources": len(SOURCES),
             "reutilisables": sum(1 for s in SOURCES if s["reutilisable"]),
             "certifiables": sum(1 for s in SOURCES if s["certifiable"])}
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  LE PARC — PLUSIEURS SYSTÈMES, ET LE PIRE COMMANDE
+# ══════════════════════════════════════════════════════════════════════════
+# CE QUE LA PREMIÈRE VERSION OBLIGEAIT À FAIRE, ET QU'ELLE INTERDISAIT PAR
+# AILLEURS. Une seule chaîne cotée pour une AI Factory qui en compte douze :
+# le client devait choisir un système « représentatif », ou fondre les douze
+# dans une cotation moyenne. Dans les deux cas il produisait exactement ce que
+# la première ligne de ce module refuse — un chiffre lissé sur un parc dont un
+# seul membre décide.
+#
+# LA RÈGLE EST LA MÊME, UN ÉTAGE PLUS HAUT. Un parc vaut son pire système,
+# comme une chaîne vaut son pire maillon. Rien n'est moyenné nulle part.
+#
+# À ÉCART ÉGAL, C'EST LE MAILLON LE PLUS TARDIF QUI DÉPARTAGE — et non l'ordre
+# de déclaration. Deux systèmes à écart 3 ne se valent pas si l'un s'ouvre à la
+# perception et l'autre à l'effet : le second a déjà tout franchi. Le
+# départage reprend donc celui des maillons, plutôt que d'en inventer un
+# second qui dirait autre chose.
+
+def evaluer_parc(systemes=None):
+    """L'exposition d'un parc de systèmes d'IA.
+
+    `systemes` est une liste de dictionnaires portant un `nom`, une
+    `autonomie` et une `maitrise`. Rend chaque système coté, le pire, et les
+    systèmes déclarés que personne n'a regardés."""
+    if not isinstance(systemes, (list, tuple)):
+        return {"ok": False, "erreur": "parc_illisible"}
+    if not systemes:
+        return {"ok": True, "systemes": [], "cotes": 0, "sans_mesure": [],
+                "ecart_max": None, "commande": None,
+                "lecture": "Aucun système n'est déclaré : un parc vide ne dit "
+                           "rien, et ne vaut pas un parc sain."}
+
+    lus, fautes = [], []
+    for i, x in enumerate(systemes):
+        if not isinstance(x, dict):
+            fautes.append("entrée %d : ce n'est pas un système" % i)
+            continue
+        nom = str(x.get("nom") or "").strip()[:120] or "Système %d" % (i + 1)
+        d = evaluer(x.get("autonomie"), x.get("maitrise"))
+        if not d.get("ok"):
+            return dict(d, systeme=nom)
+        lus.append({"nom": nom, "rang": i, "chaine": d})
+    if fautes:
+        return {"ok": False, "erreur": "parc_illisible", "detail": fautes}
+
+    # UN NOM EN DOUBLE REND LE RELEVÉ ININTERPRÉTABLE : deux lignes « Assistant
+    # client » avec deux écarts différents, et plus personne ne sait laquelle
+    # traiter. On refuse plutôt que de suffixer en silence.
+    noms = [l["nom"] for l in lus]
+    doubles = sorted({n for n in noms if noms.count(n) > 1})
+    if doubles:
+        return {"ok": False, "erreur": "noms_en_double", "noms": doubles}
+
+    cotes = [l for l in lus if l["chaine"]["ecart_max"] is not None]
+    sans_mesure = [l["nom"] for l in lus if l["chaine"]["ecart_max"] is None]
+    if not cotes:
+        return {"ok": True, "systemes": lus, "cotes": 0,
+                "sans_mesure": sans_mesure, "ecart_max": None, "commande": None,
+                "lecture": "%d système(s) déclaré(s), aucun coté. Un système "
+                           "déclaré et non regardé n'est pas un système sain."
+                           % len(lus)}
+
+    ecart_max = max(l["chaine"]["ecart_max"] for l in cotes)
+    prioritaires = [l for l in cotes if l["chaine"]["ecart_max"] == ecart_max]
+    # Le rang du maillon qui commande départage, puis l'ordre de déclaration.
+    pire = max(prioritaires,
+               key=lambda l: (_PAR_CLE[l["chaine"]["commande"]]["rang"], -l["rang"]))
+    ouverts = [l["nom"] for l in cotes if l["chaine"]["ouverts"]]
+    return {
+        "ok": True,
+        "systemes": lus,
+        "cotes": len(cotes),
+        "sans_mesure": sans_mesure,
+        "ecart_max": ecart_max,
+        "commande": {"systeme": pire["nom"],
+                     "maillon": pire["chaine"]["commande"]},
+        "ouverts": ouverts,
+        "lecture": _lecture_parc(ecart_max, pire, ouverts, len(cotes),
+                                 sans_mesure),
+    }
+
+
+def _lecture_parc(ecart_max, pire, ouverts, cotes, sans_mesure):
+    """La phrase que le lecteur retient : un système, un maillon, jamais un
+    score de parc."""
+    fin = ""
+    if sans_mesure:
+        fin = (" %d système(s) déclaré(s) n'ont pas été cotés — ils ne comptent "
+               "pour rien, ni en bien ni en mal : %s."
+               % (len(sans_mesure), ", ".join(sans_mesure[:4])))
+    if ecart_max <= 0:
+        return ("Aucun des %d système(s) cotés n'est ouvert. Ce constat ne vaut "
+                "que pour eux.%s" % (cotes, fin))
+    return ("Le parc se joue sur « %s », au maillon « %s » : l'autonomie y "
+            "dépasse la maîtrise de %d degré(s). %d système(s) ouvert(s) sur "
+            "%d cotés. L'exposition du parc est celle de son PIRE système — "
+            "la moyenne des autres n'y change rien.%s"
+            % (pire["nom"], _PAR_CLE[pire["chaine"]["commande"]]["nom"],
+               ecart_max, len(ouverts), cotes, fin))
+
+
+def restitution_parc(systemes=None, valeur_metier=None, gravite=None):
+    """Les scénarios de risque du parc, en grammaire EBIOS.
+
+    CHAQUE SCÉNARIO PORTE SON SYSTÈME, et ce n'est pas un ornement : un bien
+    support critique sans le système auquel il appartient ne se traite pas. La
+    première version rendait « Outils, connecteurs et identifiants » sans dire
+    LESQUELS — celui de l'assistant client ou celui de l'agent de supervision.
+    Le plan de traitement qui en sortait n'était assignable à personne."""
+    d = evaluer_parc(systemes)
+    if not d.get("ok"):
+        return d
+    vm = (valeur_metier or "").strip() or None
+    try:
+        g = int(gravite)
+        g = g if 1 <= g <= 4 else None
+    except (TypeError, ValueError):
+        g = None
+
+    scenarios = []
+    for l in d["systemes"]:
+        r = restitution_ebios(
+            {m["cle"]: x["autonomie"] for m, x in
+             zip(MAILLONS, l["chaine"]["maillons"]) if x["autonomie"] is not None},
+            {m["cle"]: x["maitrise"] for m, x in
+             zip(MAILLONS, l["chaine"]["maillons"]) if x["maitrise"] is not None},
+            valeur_metier=vm, gravite=g)
+        for s in r.get("scenarios", []):
+            scenarios.append(dict(s, systeme=l["nom"]))
+    # LE PIRE D'ABORD, ET LE PIRE DU PIRE EN TÊTE : on trie par écart, puis par
+    # rang de maillon. Un plan de traitement qui commence par le moindre écart
+    # se fait couper au troisième point en comité.
+    scenarios.sort(key=lambda s: (-s["ecart"], -_PAR_CLE[s["maillon"]]["rang"]))
+    return {
+        "ok": True,
+        "valeur_metier": vm,
+        "gravite": g,
+        "manque": ([] if vm else ["valeur_metier"]) + ([] if g else ["gravite"]),
+        "scenarios": scenarios,
+        "sources_de_risque": SOURCES_DE_RISQUE,
+        "socle_de_securite": sorted({r for s in scenarios
+                                     for r in s["socle_applicable"]}),
+        "parc": {k: d[k] for k in ("cotes", "sans_mesure", "ecart_max",
+                                   "commande", "ouverts")},
+        "lecture": d["lecture"],
+        "a_fournir": "La gravité de chaque événement redouté dépend de votre "
+                     "métier et non de votre architecture : elle ne se déduit "
+                     "d'aucune mesure faite ici. Sans elle, ce document porte "
+                     "des vraisemblances sans risques.",
+    }
+
+
+def markdown_parc(systemes=None, valeur_metier=None, gravite=None, titre=None):
+    """Le relevé du parc, en Markdown, pour `livrables_export`."""
+    r = restitution_parc(systemes, valeur_metier, gravite)
+    if not r.get("ok"):
+        return None
+    d = evaluer_parc(systemes)
+    L = []
+    A = L.append
+    A("# %s" % (titre or "Chaîne d'autonomie — relevé d'un parc de systèmes d'IA"))
+    A("")
+    A("> **Ce document n'est pas un audit.** Il structure un constat déclaré : "
+      "personne n'est venu sur site, aucun contournement n'a été éprouvé. Un "
+      "maillon coté haut en maîtrise signifie « nous affirmons tenir cela », "
+      "et il faudra le montrer. Il ne vaut aucune conformité : les "
+      "référentiels cités en fin de document portent chacun sa licence et son "
+      "caractère certifiable, et l'un d'eux ne se certifie pas du tout.")
+    A("")
+    if r["valeur_metier"]:
+        A("**Valeur métier étudiée** — %s" % r["valeur_metier"])
+        A("")
+    A("## La lecture")
+    A("")
+    A(d["lecture"])
+    A("")
+    A("## Le parc, système par système")
+    A("")
+    A("| Système | Maillon qui commande | Écart | Maillons ouverts |")
+    A("|---------|----------------------|-------|------------------|")
+    for l in d["systemes"]:
+        c = l["chaine"]
+        if c["ecart_max"] is None:
+            A("| %s | — | **non coté** | — |" % l["nom"])
+            continue
+        A("| %s | %s | **%s** | %s |"
+          % (l["nom"], _PAR_CLE[c["commande"]]["nom"],
+             ("+%d" % c["ecart_max"]) if c["ecart_max"] > 0 else "0",
+             ", ".join(_PAR_CLE[x]["nom"] for x in c["ouverts"]) or "aucun"))
+    A("")
+    if d["sans_mesure"]:
+        A("> **%d système(s) déclaré(s) n'ont pas été cotés** — %s. Ils ne "
+          "comptent ni en bien ni en mal : un système qu'on n'a pas regardé "
+          "n'est pas un système sain."
+          % (len(d["sans_mesure"]), ", ".join(d["sans_mesure"])))
+        A("")
+    if r["scenarios"]:
+        A("## Les scénarios de risque, du pire au moindre")
+        A("")
+        for s in r["scenarios"]:
+            A("### %s — %s (%s)"
+              % (s["systeme"], _PAR_CLE[s["maillon"]]["nom"], s["vraisemblance"]))
+            A("")
+            A("- **Bien support critique** — %s, sur « %s »"
+              % (s["bien_support_critique"], s["systeme"]))
+            A("- **Événement redouté** — %s" % s["evenement_redoute"])
+            A("- **Besoin de sécurité atteint** — %s" % s["besoin_de_securite"])
+            A("- **Vraisemblance élémentaire** — %s. %s"
+              % (s["vraisemblance"], s["vraisemblance_dit"]))
+            if r["gravite"]:
+                A("- **Gravité déclarée** — %d sur 4" % r["gravite"])
+            A("")
+            A("Actions élémentaires que ce maillon ne rencontre pas :")
+            A("")
+            for a in s["actions_elementaires"]:
+                A("- **%s · %s** — %s" % (a["cle"], a["nom"], a["dit"]))
+            A("")
+            A("Socle applicable :")
+            A("")
+            for x in s["socle_applicable"]:
+                A("- %s" % x)
+            A("")
+    else:
+        A("## Aucun maillon ouvert parmi les systèmes cotés")
+        A("")
+        A("Ce constat ne vaut que pour les systèmes cotés et, en leur sein, "
+          "pour les maillons renseignés. Un maillon laissé vide n'est pas un "
+          "maillon sain : c'est un maillon qu'on n'a pas regardé.")
+        A("")
+    if r["manque"]:
+        A("> **Ce document est incomplet.** %s" % r["a_fournir"])
+        A("")
+    A("## Les sources, et ce qu'on a le droit d'en faire")
+    A("")
+    A("| Source | Licence | Réutilisable | Certifiable |")
+    A("|--------|---------|--------------|-------------|")
+    for s in SOURCES:
+        A("| %s (%s) | %s | %s | %s |"
+          % (s["titre"], s["date"], s["licence"],
+             "oui" if s["reutilisable"] else "citation seule",
+             "oui" if s["certifiable"] else "**non**"))
+    A("")
+    A("*Méthode de la chaîne d'autonomie — CONSEILPREV. Vocabulaire d'analyse "
+      "de risque repris d'EBIOS Risk Manager (ANSSI-PA-048, Licence Ouverte "
+      "Etalab) ; socle de sécurité repris des recommandations ANSSI-PA-102 "
+      "(Licence Ouverte v2.0). Identifiants de menaces : OWASP.*")
+    return "\n".join(L)
