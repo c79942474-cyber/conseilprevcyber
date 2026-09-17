@@ -54,11 +54,25 @@ def test_le_cadre_reglementaire_reste_ecrit_avant_le_bloc_genere():
 
 
 def test_le_bloc_genere_est_toujours_intact():
+    """LE COMPTE VIENT DU CATALOGUE, PAS D'UN NOMBRE RECOPIÉ.
+
+    Cette règle a longtemps exigé « neuf tuiles » — un chiffre relevé le jour
+    où elle a été écrite. Deux défauts en sortent : un livrable ajouté au
+    groupe la faisait tomber sans que rien ne soit cassé, et elle lisait
+    `class="liv-i"` au caractère près, si bien qu'elle est tombée le jour où
+    la tuile est devenue `class="bloc liv-i"` — un changement qui ne lui
+    retirait rien. Elle compare maintenant au groupe, et lit la classe parmi
+    les autres."""
+    import re
+    import livrables
     h = _html()
     assert h.count("<!-- LIVRABLES:DEBUT") == 1
     assert h.count("<!-- LIVRABLES:FIN -->") == 1
     assert "liv-promesse" in h
-    assert h.count('class="liv-i"') == 9
+    tuiles = len(re.findall(r'class="[^"]*\bliv-i\b[^"]*"', h))
+    attendu = len(livrables.livrables_de_page("/gouvernance-ia"))
+    assert tuiles == attendu, (tuiles, attendu)
+    assert attendu >= 9
 
 
 def test_les_balises_restent_equilibrees():

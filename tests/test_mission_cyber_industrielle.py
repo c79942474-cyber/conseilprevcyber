@@ -321,16 +321,28 @@ def test_le_parcours_couvre_les_livrables_de_CONSEIL_OT():
     # passer « regles-ia-generative », qui ne finit pas ainsi. Deviner la
     # nature d'un livrable à son nom de fichier est le genre de règle qui
     # tombe pour une raison sans rapport avec ce qu'elle mesure.
-    # DEUX GROUPES RELÈVENT D'UNE AUTRE MISSION, et c'est une décision :
-    #   · la gouvernance de l'IA — un cadre d'usage n'est pas une étape d'une
-    #     mission OT ;
-    #   · l'empreinte carbone d'un programme d'IA — c'est un dossier de
-    #     décision environnemental, conduit par d'autres interlocuteurs et
-    #     sur un autre calendrier.
-    # Les nommer ici plutôt que de les faire entrer de force dans une phase
-    # évite de prétendre qu'une mission OT les produit.
-    HORS_MISSION_OT = {"Conseil — Gouvernance IA",
-                       "Conseil — Empreinte carbone de l'IA"}
+    # UN GROUPE RELÈVE D'UNE AUTRE MISSION, et c'est une décision : la
+    # gouvernance de l'IA — un cadre d'usage n'est pas une étape d'une mission
+    # OT. Le nommer ici plutôt que de le faire entrer de force dans une phase
+    # évite de prétendre qu'une mission OT le produit.
+    #
+    # L'EMPREINTE CARBONE D'UN PROGRAMME D'IA ÉTAIT NOMMÉE ICI AUSSI, et ne
+    # l'est plus : son groupe a perdu le préfixe « Conseil — », qui promettait
+    # à tort une page du menu. Elle sort donc du balayage par le haut, sans
+    # exclusion. La raison de fond n'a pas bougé — c'est un dossier de décision
+    # environnemental, conduit par d'autres interlocuteurs et sur un autre
+    # calendrier ; elle est écrite là où le groupe est déclaré.
+    #
+    # UNE EXCLUSION QUI N'EXCLUT RIEN EST UN MENSONGE QUI DORT : elle reste
+    # verte le jour où le groupe qu'elle nomme disparaît ou se renomme, et
+    # personne ne s'aperçoit que le balayage ne couvre plus ce qu'il annonce.
+    # On vérifie donc que chaque nom écarté existe VRAIMENT au catalogue.
+    HORS_MISSION_OT = {"Conseil — Gouvernance IA"}
+    groupes = {str(t.get("groupe") or "") for t in livrables.TYPES}
+    fantomes = sorted(HORS_MISSION_OT - groupes)
+    assert not fantomes, (
+        "ces groupes écartés n'existent plus au catalogue : %s" % fantomes)
+
     hors = sorted(t["id"] for t in livrables.TYPES
                   if t["id"] not in sequences
                   and str(t.get("groupe") or "").startswith("Conseil")
