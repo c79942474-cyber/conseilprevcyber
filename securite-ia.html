@@ -54,6 +54,29 @@
   .si-menaces li{font-family:var(--mono);font-size:10.5px;color:var(--muted2);
                  border:1px solid var(--line);border-radius:999px;padding:3px 9px}
   .si-m.si-ouvert .si-menaces li{border-color:var(--terra);color:var(--terra)}
+  .si-parc{border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+           background:rgba(0,0,0,.10);margin-top:14px}
+  .si-ajout{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+  .si-ajout label{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;
+                  text-transform:uppercase;color:var(--muted2);margin-bottom:5px}
+  .si-ajout input{flex:1 1 320px;background:var(--bg2);color:var(--ink);border:1px solid var(--line);
+                  border-radius:8px;padding:8px 10px;font:inherit;font-size:13.5px}
+  .si-ajout button,.si-coller button{font:inherit;font-size:13px;padding:9px 14px;border-radius:9px;
+                  border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+  .si-coller{margin-top:12px}
+  .si-coller summary{cursor:pointer;color:var(--cyan);font-size:13.5px}
+  .si-coller textarea{width:100%;background:var(--bg2);color:var(--ink);border:1px solid var(--line);
+                      border-radius:8px;padding:8px 10px;font:inherit;font-size:13px;margin-bottom:8px}
+  .si-systemes{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:8px}
+  .si-systemes li{display:flex;flex-wrap:wrap;align-items:center;gap:10px;border:1px solid var(--line);
+                  border-radius:10px;padding:9px 12px;background:var(--bg2)}
+  .si-systemes li.si-courant{border-color:var(--cyan)}
+  .si-systemes li.si-pire{border-color:var(--terra)}
+  .si-sys-nom{flex:1 1 220px;font-size:14px}
+  .si-sys-etat{font-family:var(--mono);font-size:11px;color:var(--muted2);white-space:nowrap}
+  .si-sys-etat.si-plus{color:var(--terra)}
+  .si-systemes button{font:inherit;font-size:12px;padding:5px 10px;border-radius:8px;
+                      border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
   .si-bar{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin:18px 0 0;
           border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:rgba(0,0,0,.10)}
   .si-bar .si-lect{color:var(--muted);font-size:14px;flex:1 1 320px;line-height:1.6}
@@ -125,13 +148,45 @@
       </div>
     </section>
 
+    <!-- ── LE PARC AVANT LA CHAÎNE ───────────────────────────────────────
+         CE QUI MANQUAIT À LA PREMIÈRE VERSION. L'écran ne cotait qu'UNE
+         chaîne. Une AI Factory en compte douze : le lecteur devait coter un
+         système « représentatif », c'est-à-dire moyenner ses systèmes de
+         tête, alors que la méthode lui interdit de moyenner ses maillons.
+         Le défaut ne se voyait pas — l'outil rendait un chiffre parfaitement
+         cohérent sur une fiction. -->
+    <section class="section" id="parc" style="padding-top:8px">
+      <h2 class="sec-title">// Les systèmes du parc</h2>
+      <p class="note" style="max-width:76ch">Déclarez ce qui tourne, puis cotez chacun.
+        <strong>L'exposition du parc est celle de son pire système</strong>, comme la chaîne est
+        celle de son pire maillon — rien n'est moyenné nulle part. Un système déclaré et non coté
+        ne compte ni en bien ni en mal&nbsp;: c'est un système qu'on n'a pas regardé.</p>
+      <div class="si-parc">
+        <div class="si-ajout">
+          <label for="si-nom">Ajouter un système</label>
+          <input id="si-nom" type="text" maxlength="120" placeholder="Assistant de réponse client, agent de supervision…">
+          <button type="button" id="si-add">Ajouter</button>
+        </div>
+        <details class="si-coller">
+          <summary>Coller une liste — l'inventaire que vous tenez déjà</summary>
+          <p class="note" style="margin:8px 0">Un nom par ligne. C'est ce qui sort d'un registre
+            de systèmes d'IA&nbsp;: la liste est reprise telle quelle, aucune base n'est
+            interrogée.</p>
+          <textarea id="si-liste" rows="4" placeholder="Assistant de réponse client&#10;Agent de supervision réseau&#10;Copilote de rédaction"></textarea>
+          <button type="button" id="si-coller-ok">Reprendre cette liste</button>
+        </details>
+        <ul class="si-systemes" id="si-systemes"></ul>
+      </div>
+    </section>
+
     <section class="section" id="chaine" style="padding-top:8px">
-      <h2 class="sec-title">// Les cinq maillons</h2>
+      <h2 class="sec-title">// La chaîne du système retenu</h2>
       <div class="si-maillons" id="si-maillons"></div>
 
       <div class="si-bar" role="status" aria-live="polite">
-        <p class="si-lect" id="si-lecture">Renseignez les deux notes d'au moins un maillon&nbsp;: la chaîne ne dit
-          rien tant qu'aucun maillon n'est constaté.</p>
+        <p class="si-lect" id="si-lecture">Déclarez un système, puis renseignez les deux notes d'au
+          moins un de ses maillons&nbsp;: la chaîne ne dit rien tant qu'aucun maillon n'est
+          constaté.</p>
         <div class="si-actions">
           <button type="button" id="si-vider" disabled>Tout remettre à zéro</button>
           <button type="button" id="si-docx" disabled>Emporter en Word</button>
@@ -378,18 +433,40 @@
    dans ce fichier : tout vient de /api/securite-ia/referentiel. Recopier la
    chaîne ici la ferait diverger du moteur au premier remaniement — l'écran
    annoncerait une méthode que le calcul ne tient plus, et rien ne le dirait.
-   Une règle de `tests/` refuse qu'un libellé de maillon apparaisse dans ce
-   gabarit.
+   Une règle de `tests/` refuse qu'un libellé de maillon apparaisse ici.
+
+   ET IL COTE UN PARC, PAS UNE CHAÎNE. La première version n'en cotait qu'une :
+   pour une AI Factory qui compte douze systèmes, le lecteur devait en choisir
+   un « représentatif », c'est-à-dire moyenner de tête ce que la méthode lui
+   interdit de moyenner. Chaque système porte donc sa propre chaîne, et c'est
+   le pire qui commande.
    ══════════════════════════════════════════════════════════════════════════ */
 (function () {
   "use strict";
   var $ = function (s) { return document.querySelector(s); };
-  var REF = null, ETAT = { autonomie: {}, maitrise: {} };
+  var REF = null;
+  var ETAT = { systemes: [], courant: 0 };
+  var PARC = null;
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
     });
+  }
+
+  function courant() { return ETAT.systemes[ETAT.courant] || null; }
+
+  function ajouter(nom) {
+    nom = String(nom || "").trim().slice(0, 120);
+    if (!nom) return false;
+    /* UN NOM EN DOUBLE REND LE RELEVÉ ININTERPRÉTABLE : deux lignes de même
+       intitulé avec deux écarts différents, et plus personne ne sait laquelle
+       traiter. Le moteur les refuse ; l'écran ne les propose pas. */
+    var deja = ETAT.systemes.some(function (x) { return x.nom === nom; });
+    if (deja) return false;
+    ETAT.systemes.push({ nom: nom, autonomie: {}, maitrise: {} });
+    ETAT.courant = ETAT.systemes.length - 1;
+    return true;
   }
 
   function options(echelle, choisi) {
@@ -401,14 +478,51 @@
     return h;
   }
 
+  function dit(echelle, degre) {
+    if (degre === undefined || degre === "") return "";
+    var d = echelle.filter(function (x) { return String(x.degre) === String(degre); })[0];
+    return d ? d.dit : "";
+  }
+
+  function complet(sys, cle) {
+    var a = sys.autonomie[cle], t = sys.maitrise[cle];
+    return a !== undefined && a !== "" && t !== undefined && t !== "";
+  }
+
+  function ecartLocal(sys, cle) {
+    return complet(sys, cle) ? (parseInt(sys.autonomie[cle], 10) - parseInt(sys.maitrise[cle], 10)) : null;
+  }
+
+  function dessinerParc() {
+    var pire = PARC && PARC.parc && PARC.parc.commande ? PARC.parc.commande.systeme : null;
+    var h = "";
+    ETAT.systemes.forEach(function (sys, i) {
+      var n = 0, max = null;
+      REF.maillons.forEach(function (m) {
+        if (complet(sys, m.cle)) { n++; var e = ecartLocal(sys, m.cle); if (max === null || e > max) max = e; }
+      });
+      var etat = n === 0 ? "non coté"
+        : (max > 0 ? "écart +" + max : "aucun écart") + " · " + n + "/" + REF.maillons.length;
+      h += '<li class="' + (i === ETAT.courant ? "si-courant " : "")
+        + (sys.nom === pire ? "si-pire" : "") + '">'
+        + '<span class="si-sys-nom">' + esc(sys.nom) + "</span>"
+        + '<span class="si-sys-etat' + (max > 0 ? " si-plus" : "") + '">' + esc(etat) + "</span>"
+        + '<button type="button" data-coter="' + i + '">Coter</button>'
+        + '<button type="button" data-retirer="' + i + '">Retirer</button>'
+        + "</li>";
+    });
+    if (!h) h = '<li><span class="si-sys-nom">Aucun système déclaré. Un parc vide ne dit rien, '
+      + "et ne vaut pas un parc sain.</span></li>";
+    $("#si-systemes").innerHTML = h;
+  }
+
   function dessiner() {
+    var sys = courant();
+    if (!sys) { $("#si-maillons").innerHTML = ""; dessinerParc(); return; }
     var h = "";
     REF.maillons.forEach(function (m) {
-      var a = ETAT.autonomie[m.cle], t = ETAT.maitrise[m.cle];
-      var complet = a !== undefined && a !== "" && t !== undefined && t !== "";
-      var ec = complet ? (parseInt(a, 10) - parseInt(t, 10)) : null;
-      var cls = "si-m" + (complet && ec > 0 ? " si-ouvert" : "");
-      h += '<div class="' + cls + '" data-m="' + esc(m.cle) + '">'
+      var a = sys.autonomie[m.cle], t = sys.maitrise[m.cle], ec = ecartLocal(sys, m.cle);
+      h += '<div class="si-m' + (ec > 0 ? " si-ouvert" : "") + '" data-m="' + esc(m.cle) + '">'
         + '<div class="si-tete"><span class="si-rang">' + m.rang + "</span>"
         + "<h3>" + esc(m.nom) + "</h3>"
         + (ec === null ? "" : '<span class="si-ecart ' + (ec > 0 ? "si-plus" : "si-zero") + '">écart '
@@ -431,12 +545,7 @@
         + "</div>";
     });
     $("#si-maillons").innerHTML = h;
-  }
-
-  function dit(echelle, degre) {
-    if (degre === undefined || degre === "") return "";
-    var d = echelle.filter(function (x) { return String(x.degre) === String(degre); })[0];
-    return d ? d.dit : "";
+    dessinerParc();
   }
 
   function sources() {
@@ -451,33 +560,37 @@
     $("#si-sources").innerHTML = h + "</tbody>";
   }
 
-  function compte() {
+  function cotes() {
     var n = 0;
-    REF.maillons.forEach(function (m) {
-      if (ETAT.autonomie[m.cle] !== undefined && ETAT.autonomie[m.cle] !== ""
-          && ETAT.maitrise[m.cle] !== undefined && ETAT.maitrise[m.cle] !== "") n++;
+    ETAT.systemes.forEach(function (sys) {
+      var un = REF.maillons.some(function (m) { return complet(sys, m.cle); });
+      if (un) n++;
     });
     return n;
   }
 
   function calculer() {
-    var n = compte();
+    var n = cotes();
     ["si-vider", "si-docx", "si-xlsx", "si-pdf"].forEach(function (id) { $("#" + id).disabled = !n; });
-    if (!n) { $("#si-ebios").innerHTML = ""; return; }
+    if (!n) { $("#si-ebios").innerHTML = ""; PARC = null; dessinerParc(); return; }
     fetch("/api/securite-ia/evaluer", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ autonomie: ETAT.autonomie, maitrise: ETAT.maitrise })
+      body: JSON.stringify({ systemes: ETAT.systemes })
     }).then(function (r) { return r.json(); }).then(function (j) {
       if (!j || !j.ok) return;
+      PARC = j;
       $("#si-lecture").textContent = j.lecture;
-      var cmd = (j.chaine || {}).commande;
+      var cmd = j.parc && j.parc.commande ? j.parc.commande : null;
+      var sys = courant();
       document.querySelectorAll(".si-m").forEach(function (el) {
-        el.classList.toggle("si-commande", el.getAttribute("data-m") === cmd);
+        el.classList.toggle("si-commande", !!cmd && sys && sys.nom === cmd.systeme
+          && el.getAttribute("data-m") === cmd.maillon);
       });
       var h = "";
       (j.scenarios || []).forEach(function (s) {
-        h += '<div class="si-sc"><h4>' + esc(s.evenement_redoute) + "</h4><dl>"
+        h += '<div class="si-sc"><h4>' + esc(s.systeme) + " — " + esc(s.evenement_redoute) + "</h4><dl>"
+          + "<dt>Système</dt><dd>" + esc(s.systeme) + "</dd>"
           + "<dt>Bien support critique</dt><dd>" + esc(s.bien_support_critique) + "</dd>"
           + "<dt>Besoin atteint</dt><dd>" + esc(s.besoin_de_securite) + "</dd>"
           + "<dt>Vraisemblance</dt><dd><b>" + esc(s.vraisemblance) + "</b> — " + esc(s.vraisemblance_dit) + "</dd>"
@@ -486,10 +599,11 @@
           + "<dt>Socle applicable</dt><dd>" + s.socle_applicable.map(esc).join("<br>") + "</dd>"
           + "</dl></div>";
       });
-      if (!h) h = '<p class="note">Aucun maillon renseigné n\'est ouvert. Ce constat ne vaut que pour '
-        + "les maillons renseignés : un maillon laissé vide n'est pas un maillon sain, c'est un maillon "
-        + "qu'on n'a pas regardé.</p>";
+      if (!h) h = '<p class="note">Aucun maillon ouvert parmi les systèmes cotés. Ce constat ne '
+        + "vaut que pour eux et, en leur sein, pour les maillons renseignés : un maillon laissé "
+        + "vide n'est pas un maillon sain, c'est un maillon qu'on n'a pas regardé.</p>";
       $("#si-ebios").innerHTML = h;
+      dessinerParc();
     }).catch(function () {});
   }
 
@@ -497,7 +611,7 @@
     fetch("/api/securite-ia/emporter", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ format: fmt, autonomie: ETAT.autonomie, maitrise: ETAT.maitrise })
+      body: JSON.stringify({ format: fmt, systemes: ETAT.systemes })
     }).then(function (r) { return r.ok ? r.blob() : null; }).then(function (b) {
       if (!b) return;
       var u = URL.createObjectURL(b), a = document.createElement("a");
@@ -509,19 +623,40 @@
 
   document.addEventListener("change", function (e) {
     var s = e.target.closest ? e.target.closest("select[data-axe]") : null;
-    if (!s) return;
-    ETAT[s.getAttribute("data-axe")][s.getAttribute("data-m")] = s.value;
+    if (!s || !courant()) return;
+    courant()[s.getAttribute("data-axe")][s.getAttribute("data-m")] = s.value;
     dessiner(); calculer();
   });
+
   document.addEventListener("click", function (e) {
     var b = e.target.closest ? e.target.closest("button") : null;
     if (!b) return;
-    if (b.id === "si-vider") { ETAT = { autonomie: {}, maitrise: {} }; dessiner(); calculer();
-      $("#si-lecture").textContent = "Renseignez les deux notes d'au moins un maillon : la chaîne ne dit rien "
-        + "tant qu'aucun maillon n'est constaté."; }
+    if (b.id === "si-add") { if (ajouter($("#si-nom").value)) { $("#si-nom").value = ""; dessiner(); calculer(); } }
+    if (b.id === "si-coller-ok") {
+      String($("#si-liste").value || "").split("\n").forEach(function (l) { ajouter(l); });
+      $("#si-liste").value = ""; dessiner(); calculer();
+    }
+    if (b.hasAttribute("data-coter")) { ETAT.courant = parseInt(b.getAttribute("data-coter"), 10); dessiner(); calculer(); }
+    if (b.hasAttribute("data-retirer")) {
+      ETAT.systemes.splice(parseInt(b.getAttribute("data-retirer"), 10), 1);
+      if (ETAT.courant >= ETAT.systemes.length) ETAT.courant = Math.max(0, ETAT.systemes.length - 1);
+      dessiner(); calculer();
+    }
+    if (b.id === "si-vider") {
+      ETAT = { systemes: [], courant: 0 }; PARC = null; dessiner(); calculer();
+      $("#si-lecture").textContent = "Déclarez un système, puis renseignez les deux notes d'au "
+        + "moins un de ses maillons : la chaîne ne dit rien tant qu'aucun maillon n'est constaté.";
+    }
     if (b.id === "si-pdf") emporter("pdf");
     if (b.id === "si-docx") emporter("docx");
     if (b.id === "si-xlsx") emporter("xlsx");
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && e.target && e.target.id === "si-nom") {
+      e.preventDefault();
+      if (ajouter($("#si-nom").value)) { $("#si-nom").value = ""; dessiner(); calculer(); }
+    }
   });
 
   fetch("/api/securite-ia/referentiel", { credentials: "same-origin" })

@@ -370,3 +370,181 @@ def test_la_garde_est_bien_armee_a_l_import():
     corps = src[src.index("def _verifier()"):]
     assert re.search(r"^_verifier\(\)$", corps, re.M), (
         "`_verifier()` n'est plus appelé au niveau du module")
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  7. LE PARC — LE MÊME PRINCIPE, UN ÉTAGE PLUS HAUT
+# ══════════════════════════════════════════════════════════════════════════
+# CE QUE LA PREMIÈRE VERSION OBLIGEAIT À FAIRE, ET QU'ELLE INTERDISAIT PAR
+# AILLEURS. Elle ne cotait qu'UNE chaîne. Une AI Factory en compte douze : le
+# client devait coter un système « représentatif », c'est-à-dire moyenner ses
+# systèmes de tête, alors que le module lui interdit de moyenner ses maillons.
+# Le défaut ne se voyait pas — l'outil rendait un chiffre parfaitement cohérent
+# sur une fiction.
+
+def _parc_ferme(n, premier_ouvert=None):
+    """n systèmes cotés ; le premier ouvert au maillon d'action si demandé."""
+    cible = CA.MAILLONS[3]["cle"]
+    p = []
+    for i in range(n):
+        a = 1 if i else (premier_ouvert if premier_ouvert is not None else 1)
+        p.append({"nom": "Système %d" % (i + 1),
+                  "autonomie": {cible: a}, "maitrise": {cible: 1}})
+    return p
+
+
+def test_l_exposition_du_parc_est_le_PIRE_systeme_et_JAMAIS_la_moyenne():
+    """QUATRE SYSTÈMES FERMÉS, UN GRAND OUVERT.
+
+    Écarts par système : 4, 0, 0, 0, 0. Le maximum vaut 4 ; la moyenne vaut
+    0,8. Un parc qui se présenterait par sa moyenne dirait « presque rien » là
+    où un de ses membres laisse tout passer — et c'est exactement le rapport
+    qu'on porterait en comité pour conclure que la situation est saine.
+
+    C'est la même règle que pour les maillons, et c'est délibéré : un principe
+    qui ne vaudrait qu'à un étage ne serait pas un principe."""
+    parc = _parc_ferme(5, premier_ouvert=5 - 1)
+    d = CA.evaluer_parc(parc)
+    assert d["ok"] and d["cotes"] == 5
+    ecarts = [l["chaine"]["ecart_max"] for l in d["systemes"]]
+    moyenne = sum(ecarts) / float(len(ecarts))
+    assert moyenne < 1, moyenne
+    assert d["ecart_max"] == 3, (
+        "l'écart du parc vaut %s au lieu de 3 : une moyenne des systèmes s'est-"
+        "elle glissée dans le calcul ? (moyenne : %.2f)" % (d["ecart_max"], moyenne))
+    assert d["commande"]["systeme"] == "Système 1"
+
+
+def test_un_systeme_declare_et_NON_COTE_n_est_pas_un_systeme_sain():
+    """LE MÊME PIÈGE QUE LE MAILLON VIDE, UN ÉTAGE PLUS HAUT. Un système qu'on
+    a déclaré et jamais regardé ne doit compter ni en bien ni en mal. Le
+    compter pour fermé ferait baisser l'exposition du parc en y ajoutant des
+    lignes — c'est-à-dire qu'on améliorerait son relevé en déclarant des
+    systèmes sans les coter."""
+    parc = _parc_ferme(2, premier_ouvert=4) + [{"nom": "Jamais regardé"}]
+    d = CA.evaluer_parc(parc)
+    assert d["cotes"] == 2
+    assert d["sans_mesure"] == ["Jamais regardé"]
+    assert d["ecart_max"] == 3
+    assert "Jamais regardé" in d["lecture"]
+
+
+def test_a_ecart_egal_c_est_le_systeme_dont_le_maillon_est_le_plus_TARDIF():
+    """LE DÉPARTAGE REPREND CELUI DES MAILLONS, plutôt que d'en inventer un
+    second. Deux systèmes à écart égal ne se valent pas si l'un s'ouvre à la
+    perception et l'autre à l'effet : le second a déjà tout franchi."""
+    tot, dernier = CA.MAILLONS[0]["cle"], CA.MAILLONS[-1]["cle"]
+    parc = [{"nom": "Tôt", "autonomie": {tot: 3}, "maitrise": {tot: 0}},
+            {"nom": "Tard", "autonomie": {dernier: 3}, "maitrise": {dernier: 0}}]
+    d = CA.evaluer_parc(parc)
+    assert d["ecart_max"] == 3
+    assert d["commande"]["systeme"] == "Tard", d["commande"]
+    assert d["commande"]["maillon"] == dernier
+
+
+def test_deux_systemes_de_MEME_NOM_sont_refuses():
+    """Deux lignes « Assistant client » avec deux écarts différents, et plus
+    personne ne sait laquelle traiter. Suffixer en silence ferait un plan de
+    traitement assignable à personne."""
+    cible = CA.MAILLONS[0]["cle"]
+    parc = [{"nom": "Assistant", "autonomie": {cible: 2}, "maitrise": {cible: 1}},
+            {"nom": "Assistant", "autonomie": {cible: 4}, "maitrise": {cible: 0}}]
+    d = CA.evaluer_parc(parc)
+    assert not d["ok"] and d["erreur"] == "noms_en_double"
+    assert d["noms"] == ["Assistant"]
+
+
+def test_un_parc_vide_ne_vaut_pas_un_parc_sain():
+    d = CA.evaluer_parc([])
+    assert d["ok"] and d["ecart_max"] is None and d["cotes"] == 0
+    assert "ne vaut pas un parc sain" in d["lecture"]
+    assert not CA.evaluer_parc("douze systèmes")["ok"]
+
+
+def test_chaque_scenario_porte_LE_SYSTEME_auquel_il_appartient():
+    """UN BIEN SUPPORT CRITIQUE SANS SON SYSTÈME NE SE TRAITE PAS. La première
+    version rendait « Outils, connecteurs et identifiants » sans dire
+    lesquels — ceux de l'assistant client ou ceux de l'agent de supervision.
+    Le plan de traitement qui en sortait n'était assignable à personne."""
+    cible = CA.MAILLONS[3]["cle"]
+    parc = [{"nom": "Assistant client", "autonomie": {cible: 3}, "maitrise": {cible: 1}},
+            {"nom": "Agent supervision", "autonomie": {cible: 4}, "maitrise": {cible: 0}}]
+    r = CA.restitution_parc(parc, "Conduite du réseau", 3)
+    assert r["ok"] and len(r["scenarios"]) == 2
+    for s in r["scenarios"]:
+        assert s["systeme"] in ("Assistant client", "Agent supervision"), s
+    # ET DU PIRE AU MOINDRE : un plan qui commence par le moindre écart se fait
+    # couper au troisième point en comité.
+    assert [s["ecart"] for s in r["scenarios"]] == [4, 2], r["scenarios"]
+    assert r["scenarios"][0]["systeme"] == "Agent supervision"
+
+
+def test_le_document_du_parc_NOMME_les_systemes_non_cotes():
+    """Les taire ferait un document qui paraît complet et ne l'est pas."""
+    cible = CA.MAILLONS[3]["cle"]
+    parc = [{"nom": "Agent A", "autonomie": {cible: 4}, "maitrise": {cible: 1}},
+            {"nom": "Agent oublié"}]
+    md = CA.markdown_parc(parc, "Réseau", 4)
+    assert md
+    assert "Agent oublié" in md and "non coté" in md
+    assert "n'est pas un système sain" in md
+    i = md.lower().index("n'est pas un audit")
+    chiffres = [m.start() for m in re.finditer(r"\|\s*\d\s*\|", md)]
+    if chiffres:
+        assert i < chiffres[0]
+
+
+def test_la_forme_a_UNE_CHAINE_continue_d_etre_servie(anonyme):
+    """RETIRER L'ANCIENNE FORME AURAIT CASSÉ TOUT APPEL DÉJÀ ÉCRIT pour gagner
+    une cohérence que personne n'aurait vue. Les deux formes coexistent, et la
+    règle le mesure des deux côtés."""
+    cible = CA.MAILLONS[3]["cle"]
+    seule = anonyme.post("/api/securite-ia/evaluer",
+                         json={"autonomie": {cible: 4}, "maitrise": {cible: 1}},
+                         headers=ORIGINE).get_json()
+    assert seule["ok"] and seule.get("chaine"), seule
+    parc = anonyme.post("/api/securite-ia/evaluer",
+                        json={"systemes": [{"nom": "A", "autonomie": {cible: 4},
+                                            "maitrise": {cible: 1}}]},
+                        headers=ORIGINE).get_json()
+    assert parc["ok"] and parc.get("parc"), parc
+    # LE MÊME CONSTAT DES DEUX CÔTÉS : un parc d'un seul système dit la même
+    # chose que la chaîne seule. Si les deux divergeaient, l'une des deux
+    # formes mentirait.
+    assert parc["parc"]["ecart_max"] == seule["chaine"]["ecart_max"]
+
+
+def test_l_export_du_parc_refuse_ce_que_l_ecran_refuse(anonyme):
+    for charge, attendu in (
+            ({"systemes": [{"nom": "x", "autonomie": {"cantine": 1}}]}, "maillons_inconnus"),
+            ({"systemes": [{"nom": "A", "autonomie": {CA.MAILLONS[0]["cle"]: 1},
+                            "maitrise": {CA.MAILLONS[0]["cle"]: 1}},
+                           {"nom": "A"}]}, "noms_en_double")):
+        r = anonyme.post("/api/securite-ia/emporter",
+                         json=dict(charge, format="pdf"), headers=ORIGINE)
+        assert r.status_code == 400, (attendu, r.status_code)
+        assert r.get_json()["erreur"] == attendu
+
+
+def test_un_parc_sans_aucun_systeme_cote_n_est_pas_emporte(anonyme):
+    r = anonyme.post("/api/securite-ia/emporter",
+                     json={"format": "pdf", "systemes": [{"nom": "Déclaré seulement"}]},
+                     headers=ORIGINE)
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "rien_de_constate"
+
+
+def test_l_ecran_cote_un_PARC_et_pas_une_chaine_unique(anonyme):
+    """LE DÉFAUT CORRIGÉ SE VOIT À L'ÉCRAN OU NE SE VOIT NULLE PART. Un moteur
+    qui accepte un parc derrière une page qui n'en déclare qu'un laisserait le
+    lecteur faire exactement ce qu'on voulait lui éviter."""
+    html = anonyme.get("/securite-ia").data.decode("utf-8")
+    for marque in ('id="si-systemes"', 'id="si-nom"', 'id="si-liste"'):
+        assert marque in html, marque
+    # CE QUE LA PAGE ENVOIE : un parc, pas une chaîne. Les deux appels — le
+    # calcul et l'export — doivent porter la liste des systèmes ; l'un des deux
+    # resté sur l'ancienne forme produirait un document qui ne dit pas ce que
+    # l'écran montre.
+    assert html.count("systemes: ETAT.systemes") == 2, (
+        "les deux appels de la page n'envoient pas tous deux le parc")
+    assert "pire système" in html
