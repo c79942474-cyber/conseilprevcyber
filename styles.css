@@ -741,8 +741,23 @@ h3{font-size:19px;letter-spacing:-.01em;font-weight:700}
    ATTENTION AU LIEN IMBRIQUÉ. Le HTML interdit un <a> dans un <a> : le
    navigateur referme silencieusement l'extérieur, et le bloc cesse d'être
    cliquable là où on croyait l'avoir rendu. La flèche d'appel se pose donc
-   en <span class="go">, jamais en <a>. Une règle de `tests/` le mesure. */
-a.card{display:block;color:inherit;text-decoration:none}
+   en <span class="go">, jamais en <a>. Une règle de `tests/` le mesure.
+
+   POURQUOI UNE CLASSE MARQUEUR, ET PLUS LE SÉLECTEUR `a.card`. La règle ne
+   visait que les cartes. Les tuiles de livrables, les modules de formation
+   sont devenus des liens à leur tour, chacun avec sa propre classe :
+   énumérer `a.card, a.liv-i, a.mod, …` aurait fait une liste que le prochain
+   bloc converti oublierait d'allonger — et le titre serait passé au cyan
+   sans que rien ne le dise. `bloc` déclare l'intention une fois, dans le
+   balisage : « ce bloc EST le lien ». Une règle de `tests/` refuse une ancre
+   encadrée qui ne la porte pas.
+
+   LE `display` RESTE À CHAQUE CLASSE. `a.bloc` ne le fixe pas : la tuile de
+   `/formation` est une grille à deux colonnes, et un `display:block` venu
+   d'ici, plus spécifique que son `.mod`, l'aurait mise à plat. Les blocs qui
+   n'en déclarent pas un le reçoivent de leur propre classe. */
+a.bloc{color:inherit;text-decoration:none}
+a.card{display:block}
 a.card .go{display:inline-block;margin-top:14px;font-family:var(--mono);font-size:12px;
   letter-spacing:.04em;color:var(--cyan)}
 a.card:hover .go{color:var(--teal)}
@@ -1094,14 +1109,18 @@ footer a:hover{color:var(--cyan)}
 .liv-promesse{font-size:13.5px;color:var(--muted);line-height:1.65;margin-bottom:18px}
 .liv-promesse strong{color:var(--ink)}
 .liv-list{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+/* `display:block` : la tuile est maintenant l'ancre, et un <a> est en ligne
+   par défaut — sans cela la boîte ne va pas jusqu'aux bords du <li>. */
 .liv-i{border:1px solid var(--line);border-radius:12px;padding:14px 17px;background:rgba(0,0,0,.10);
-  transition:border-color .15s}
+  transition:border-color .15s;display:block}
 .liv-i:hover{border-color:var(--cyan)}
 .liv-t{font-size:14.5px;font-weight:600;color:var(--ink);line-height:1.4}
 .liv-d{font-size:13px;color:var(--muted);line-height:1.6;margin-top:5px}
 .liv-g{display:inline-block;margin-top:9px;font-family:var(--mono);font-size:11px;letter-spacing:.04em;
   color:var(--cyan);border-bottom:1px solid transparent;transition:border-color .15s}
-.liv-g:hover{border-bottom-color:var(--cyan)}
+/* L'APPEL SE SOULIGNE QUAND ON SURVOLE LA TUILE, et non quand on survole
+   ces trois mots : c'est la tuile entière qui est le lien désormais. */
+a.liv-i:hover .liv-g{border-bottom-color:var(--cyan)}
 @media(max-width:640px){.liv-i{padding:12px 14px}.liv-t{font-size:13.5px}}
 
 /* ══════════════════════════════════════════════════════════════════════════

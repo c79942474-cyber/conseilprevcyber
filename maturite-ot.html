@@ -232,21 +232,21 @@
            existent : une route servie et ouverte au même public pour les deux
            premières, un `id` présent dans ce fichier pour la troisième. -->
       <div class="grid grid-3">
-        <a class="card a1" href="/diagnostic">
+        <a class="bloc card a1" href="/diagnostic">
           <div class="ico">🩺</div>
           <h3>Diagnostic express</h3>
           <p>Technique et réglementaire, en libre-service : 4 questions, 2 minutes, sans inscription. Une porte d'entrée pour se situer.</p>
           <ul class="taglist"><li>Self-service</li><li>2 min</li></ul>
           <span class="go">Lancer le diagnostic →</span>
         </a>
-        <a class="card a2" href="/audit-conformite">
+        <a class="bloc card a2" href="/audit-conformite">
           <div class="ico">✅</div>
           <h3>Audit de conformité 62443</h3>
           <p>Mesure l'écart à des <strong>exigences normatives</strong> (zones, conduits, SL) et produit un plan de mise en conformité.</p>
           <ul class="taglist"><li>Exigences</li><li>Conformité</li></ul>
           <span class="go">Voir l'audit 62443 →</span>
         </a>
-        <a class="card a3" href="#auto-evaluation">
+        <a class="bloc card a3" href="#auto-evaluation">
           <div class="ico">📊</div>
           <h3>Assessment de maturité</h3>
           <p>Évalue les <strong>capacités et l'organisation</strong> — pas une simple conformité. Où en êtes-vous vraiment, et comment progresser. <em>L'objet de cette page.</em></p>
@@ -342,17 +342,23 @@
 
       <!-- LIVRABLES:DEBUT
            CE BLOC N'EST PLUS GÉNÉRÉ par outils/generer_blocs_livrables.py, et
-           c'est délibéré : le générateur produit cinq renvois identiques vers
-           l'espace administrateur, ce qui laissait la section inerte pour le
-           lecteur. Trois de ces cinq livrables se calculent depuis les
-           réponses ci-dessus et sont donc SERVIS ICI ; les deux autres ne se
-           calculent pas et disent pourquoi. Leurs intitulés viennent de
+           c'est délibéré : le générateur produit autant de renvois identiques
+           vers l'espace administrateur qu'il y a de livrables, ce qui laissait
+           la section inerte pour le lecteur. Trois d'entre eux se calculent
+           depuis les réponses ci-dessus et sont donc SERVIS ICI ; les autres
+           ne se calculent pas et disent pourquoi. Leurs intitulés viennent de
            `livrables.py` par la route, jamais recopiés — une seconde liste
-           afficherait un titre périmé le jour où l'autre changerait. -->
+           afficherait un titre périmé le jour où l'autre changerait.
+
+           L'EXCEPTION EST DÉCLARÉE DANS LE GÉNÉRATEUR, et non subie : elle y
+           est nommée avec son motif, et le générateur vérifie que la page
+           expose bien TOUT son groupe. Tant qu'elle ne l'était pas, deux
+           livrables catalogués pour cette page — le diagnostic organisationnel
+           et la revue de dispositif — n'apparaissaient nulle part. -->
     <section class="section" id="livrables" style="padding-top:8px">
       <div class="prose" style="max-width:none">
         <h2>📦 Livrables — Assessment de maturité</h2>
-        <p class="liv-promesse">Trois des cinq livrables ci-dessous se composent <strong>depuis vos propres réponses</strong>, ici et maintenant, et s'emportent en Word ou PDF. Les deux autres <strong>ne se calculent pas</strong>&nbsp;: ils demandent respectivement des données de secteur et la signature d'un consultant. Ils disent lesquelles.</p>
+        <p class="liv-promesse">Trois des livrables ci-dessous se composent <strong>depuis vos propres réponses</strong>, ici et maintenant, et s'emportent en Word ou PDF. Les autres <strong>ne se calculent pas</strong>&nbsp;: ils demandent des données de secteur, un constat sur place ou la signature d'un consultant. Chacun dit lequel.</p>
       </div>
 
       <div id="mo-livrables"></div>

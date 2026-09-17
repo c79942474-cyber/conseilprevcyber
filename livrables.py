@@ -694,7 +694,7 @@ TYPES = [
         "mots_cles": "empreinte carbone programme IA abattement emissions evitees "
                      "bascule retour sur investissement carbone scope 2 scope 3 "
                      "efficacite energetique sobriete numerique trajectoire",
-        "groupe": "Conseil — Empreinte carbone de l'IA",
+        "groupe": "Empreinte carbone de l'IA",
         "label": "Dossier de décision — empreinte carbone d'un programme d'IA",
         "desc": "Ce que le programme COÛTE en émissions, ce qu'il ÉVITE ailleurs, "
                 "et l'année où le net repasse sous le point de départ — ou le constat "
@@ -2372,7 +2372,17 @@ GROUPE_THEMES = {
     # CE GROUPE N'A PAS DE PAGE, et ce n'est pas un oubli : plusieurs n'en ont
     # pas — « Conformité & risques », « Cadrage & stratégie », « Programme IA
     # & SOC ». Le livrable reste offert par la console.
-    "Conseil — Empreinte carbone de l'IA": [
+    #
+    # ET C'EST POURQUOI SON NOM NE PORTE PAS « Conseil — ». Ce préfixe n'est
+    # pas décoratif : `sante_pages()` le lit comme la promesse qu'une page du
+    # menu Conseil expose le groupe, et refuse le catalogue quand aucune ne le
+    # fait. Le groupe s'est d'abord appelé « Conseil — Empreinte carbone de
+    # l'IA » ; le générateur de blocs s'arrêtait dessus avant même de regarder
+    # les pages, et sept pages sont restées sans être régénérées — deux
+    # livrables catalogués (`atelier-direction`, `sr-interface-surete-securite`)
+    # n'étaient atteignables depuis aucune page. Un préfixe pris pour une
+    # convention d'affichage était en fait un contrat.
+    "Empreinte carbone de l'IA": [
         "Data center / Carbone & analyse de cycle de vie",
         "Data center / Efficacité & indicateurs (PUE, WUE, CUE, ERE)",
         "Data center / Énergie & électricité",

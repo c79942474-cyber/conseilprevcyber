@@ -32,6 +32,13 @@
   .mod p{font-size:13px;color:var(--muted);line-height:1.6;margin:0}
   .mod .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted2);text-align:right;white-space:nowrap}
   .mod .pub{display:block;color:var(--cyan);margin-bottom:4px}
+  /* L'APPEL DE LA TUILE. Il était un <a> dans le pied : la tuile entière est
+     désormais le lien, et un <a> dans un <a> serait refermé en silence par le
+     navigateur. Le <span> garde la couleur qui disait « on peut cliquer ».
+     `.mod` reste une grille à deux colonnes — `a.bloc` ne fixe pas de
+     `display`, précisément pour ne pas la mettre à plat. */
+  .mod .voir{color:var(--cyan);transition:color .15s}
+  a.mod:hover .voir{color:var(--teal)}
   @media(max-width:640px){.mod{grid-template-columns:1fr}.mod .meta{text-align:left}}
 </style>
 </head>
@@ -79,16 +86,16 @@
           <p>Zones et conduits, niveaux de sécurité, les sept exigences fondamentales, la répartition des rôles entre exploitant, fournisseur et intégrateur. De quoi lire un dossier d'architecture et challenger un intégrateur.</p></div>
           <div class="meta"><span class="pub">Automaticiens · ingénierie · achats</span>1 à 2 jours</div>
         </div>
-        <div class="mod">
+        <a class="bloc mod" href="/continuite-ot">
           <div><h3>Exercice de crise sur table</h3>
           <p>Un scénario réaliste joué en salle — rançongiciel atteignant la supervision, perte de la console d'ingénierie — avec direction, exploitation, HSE, juridique et communication. Chaque exercice produit un compte rendu et des actions correctives datées.</p></div>
-          <div class="meta"><span class="pub">Direction &amp; cellule de crise</span>½ à 1 journée<br><a href="/continuite-ot">voir continuité OT</a></div>
-        </div>
-        <div class="mod">
+          <div class="meta"><span class="pub">Direction &amp; cellule de crise</span>½ à 1 journée<br><span class="voir">voir continuité OT →</span></div>
+        </a>
+        <a class="bloc mod" href="/gestion-des-changements">
           <div><h3>Atelier MOC — analyser l'impact d'un changement</h3>
           <p>Les équipes s'entraînent sur des changements réels du site&nbsp;: remplir la grille d'impact cyber et sûreté, décider qui approuve, écrire le retour arrière. On repart avec la procédure calibrée sur vos cas.</p></div>
-          <div class="meta"><span class="pub">Exploitation · cyber · HSE</span>1 journée<br><a href="/gestion-des-changements">voir MOC</a></div>
-        </div>
+          <div class="meta"><span class="pub">Exploitation · cyber · HSE</span>1 journée<br><span class="voir">voir MOC →</span></div>
+        </a>
         <div class="mod">
           <div><h3>Mentorat &amp; transfert de compétences</h3>
           <p>Accompagnement dans la durée de vos référents cyber industriel et de nos consultants juniors&nbsp;: revue de livrables, binômage sur missions réelles, montée en autonomie mesurée. L'objectif est que vous n'ayez plus besoin de nous sur ces sujets.</p></div>
@@ -116,21 +123,21 @@
         <h2>📦 Livrables — Formation &amp; compétences</h2>
         <p class="liv-promesse">Chaque livrable ci-dessous est <strong>rédigeable par l'IA</strong> (Mistral&nbsp;/&nbsp;Claude) <strong>à partir de la base de connaissance</strong> du cabinet, et <strong>exportable en Word ou PDF</strong>. Ce que l'IA produit est un <strong>brouillon structuré</strong>&nbsp;: il est relu, corrigé et validé par un consultant avant d'être remis.</p>
         <ul class="liv-list">
-          <li class="liv-i">
+          <li><a class="bloc liv-i" href="/admin/livrables?type=plan-montee-competence" rel="nofollow">
             <div class="liv-t">Plan de montée en compétence — exploitation &amp; maintenance</div>
             <div class="liv-d">Cartographie des compétences, parcours par population (opérateurs, maintenance, automaticiens, direction), calendrier et évaluation — exigence CSMS IEC 62443-2-1.</div>
-            <a class="liv-g" href="/admin/livrables?type=plan-montee-competence" rel="nofollow">Générer dans l'espace administrateur →</a>
-          </li>
-          <li class="liv-i">
+            <span class="liv-g">Générer dans l'espace administrateur →</span>
+          </a></li>
+          <li><a class="bloc liv-i" href="/admin/livrables?type=form-programme-profils" rel="nofollow">
             <div class="liv-t">Programme de formation par profil &amp; supports pédagogiques</div>
             <div class="liv-d">Le contenu réellement enseigné, décliné par profil (opérateurs, maintenance, automaticiens, IT, direction) : objectifs pédagogiques, durée, déroulé, cas pratiques issus du site, supports et pré-requis.</div>
-            <a class="liv-g" href="/admin/livrables?type=form-programme-profils" rel="nofollow">Générer dans l'espace administrateur →</a>
-          </li>
-          <li class="liv-i">
+            <span class="liv-g">Générer dans l'espace administrateur →</span>
+          </a></li>
+          <li><a class="bloc liv-i" href="/admin/livrables?type=form-evaluation-habilitations" rel="nofollow">
             <div class="liv-t">Dispositif d'évaluation des acquis &amp; suivi des habilitations</div>
             <div class="liv-d">Ce qui transforme une formation en compétence démontrable : évaluation avant/après, critères de réussite, matrice des habilitations par poste, périodicité de recyclage et pilotage des écarts.</div>
-            <a class="liv-g" href="/admin/livrables?type=form-evaluation-habilitations" rel="nofollow">Générer dans l'espace administrateur →</a>
-          </li>
+            <span class="liv-g">Générer dans l'espace administrateur →</span>
+          </a></li>
         </ul>
         <p class="muted" style="font-size:12.5px;margin-top:14px">L'accès à la génération est réservé à l'administrateur du cabinet. <a href="/services">Voir l'ensemble des prestations →</a></p>
       </div>

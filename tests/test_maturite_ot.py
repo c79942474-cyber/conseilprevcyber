@@ -715,11 +715,22 @@ def test_le_referentiel_sert_l_echelle_et_les_domaines(client):
 
 
 def test_evaluer_rend_le_plan_et_les_livrables(client):
+    """LA PAGE SERT TOUT SON GROUPE, ET LE CATALOGUE EN EST LE JUGE.
+
+    Cette règle exigeait « cinq livrables » — un nombre relevé un jour donné.
+    Elle est restée verte pendant que deux livrables catalogués pour cette
+    page, `diag-organisationnel-ot` et `revue-dispositif-ot`, n'étaient servis
+    nulle part : le compte attendu avait été recopié en même temps que le
+    défaut. On compare donc les IDENTIFIANTS au groupe, pas leur nombre à une
+    constante."""
+    import livrables
     r = client.post("/api/maturite-ot/evaluer", json={"niveaux": BAS}, headers=H)
     assert r.status_code == 200
     d = r.get_json()
     assert d["ok"] and d["n_etapes"] > 0
-    assert len(d["livrables"]) == 5
+    servis = {l["id"] for l in d["livrables"]}
+    catalogues = {t["id"] for t in livrables.livrables_de_page("/maturite-ot")}
+    assert servis == catalogues, (sorted(catalogues - servis), sorted(servis - catalogues))
     assert d["ce_que_ce_n_est_pas"]
 
 

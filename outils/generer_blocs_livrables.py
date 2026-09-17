@@ -33,6 +33,42 @@ import livrables  # noqa: E402
 DEBUT = "<!-- LIVRABLES:DEBUT (genere par outils/generer_blocs_livrables.py) -->"
 FIN = "<!-- LIVRABLES:FIN -->"
 
+# ── LES PAGES QUI TIENNENT LEUR BLOC À LA MAIN ─────────────────────────────
+# UNE EXCEPTION SE DÉCLARE, AVEC SON MOTIF. Sans cette table, le générateur
+# voyait `/maturite-ot` comme un bloc MANQUANT et, en écriture, en aurait
+# inséré un SECOND sous celui que la page tient déjà. En vérification, il
+# rendait un écart perpétuel — et un contrôle qui crie toujours ne se lit
+# plus : sept pages sont restées non régénérées derrière ce bruit, et deux
+# livrables catalogués n'étaient atteignables depuis aucune page.
+#
+# CE N'EST PAS UN PASSE-DROIT. La page dispensée doit exposer TOUT son
+# groupe — c'est ce que le bloc généré garantissait, et l'exception doit
+# garantir autant. `verifier_page_a_la_main` le demande à la page elle-même,
+# par son module, et rend l'écart s'il y en a un.
+A_LA_MAIN = {
+    "/maturite-ot":
+        "La page sert ses livrables DEPUIS LES RÉPONSES du visiteur : trois "
+        "se calculent sur place, les autres disent pourquoi ils ne se "
+        "calculent pas. Un bloc généré poserait à la place autant de renvois "
+        "identiques vers l'espace administrateur.",
+}
+
+
+def verifier_page_a_la_main(url):
+    """La page dispensée expose-t-elle encore tout son groupe ?
+
+    Rend la liste des livrables catalogués pour cette page que la page ne
+    sert pas. Le module de la page est la source : on lui DEMANDE ce qu'il
+    sert, au lieu de chercher des identifiants dans son HTML — un gabarit qui
+    rend sa liste en JavaScript ne dirait rien à une lecture de texte."""
+    if url == "/maturite-ot":
+        import maturite_ot
+        servis = {l["id"] for l in maturite_ot.livrables()["livrables"]}
+    else:
+        return ["page dispensée sans contrôle écrit : %s" % url]
+    attendus = {t["id"] for t in livrables.livrables_de_page(url)}
+    return sorted(attendus - servis)
+
 # La phrase que le client lit. Elle affirme trois choses — rédaction par l'IA,
 # ancrage sur la base de connaissance, export Word/PDF — et le balayage de
 # tests/test_blocs_livrables.py vérifie que les trois sont vraies pour CHAQUE
@@ -56,13 +92,29 @@ def bloc_html(page):
     items = livrables.livrables_de_page(page["url"])
     lignes = []
     for t in items:
+        # ── LA TUILE EST ELLE-MÊME LE LIEN ─────────────────────────────
+        # Elle ne l'était pas : l'appel « Générer… » tenait la dernière
+        # ligne, et les deux tiers supérieurs de la tuile — l'intitulé, la
+        # description — ne répondaient pas, alors que `.liv-i:hover` les
+        # éclaire déjà comme si l'on pouvait cliquer. La tuile promettait
+        # sans tenir.
+        #
+        # L'APPEL RESTE ÉCRIT, EN <span> ET NON EN <a>. Un lien dans un lien
+        # est interdit par le HTML : le navigateur referme silencieusement
+        # l'extérieur, et la tuile redeviendrait morte partout sauf sur ces
+        # quelques mots. La classe `bloc` porte la règle partagée.
+        #
+        # LE <li> RESTE, ET NE PORTE PLUS RIEN. C'est lui l'élément de la
+        # grille ; l'ancre le remplit. Retirer la liste ferait perdre au
+        # lecteur d'écran le décompte des livrables.
         lignes.append(
-            '          <li class="liv-i">\n'
+            '          <li><a class="bloc liv-i" href="/admin/livrables?type='
+            + t["id"] + '" rel="nofollow">\n'
             '            <div class="liv-t">' + echapper(t["label"]) + '</div>\n'
             '            <div class="liv-d">' + echapper(t["desc"]) + '</div>\n'
-            '            <a class="liv-g" href="/admin/livrables?type=' + t["id"] + '" rel="nofollow">'
-            'Générer dans l\'espace administrateur →</a>\n'
-            '          </li>'
+            '            <span class="liv-g">'
+            'Générer dans l\'espace administrateur →</span>\n'
+            '          </a></li>'
         )
     return (
         DEBUT + "\n"
@@ -94,6 +146,10 @@ def traiter(page, verifier):
     chemin = os.path.join(RACINE, page["url"].lstrip("/") + ".html")
     if not os.path.isfile(chemin):
         return "ABSENTE", chemin
+    if page["url"] in A_LA_MAIN:
+        oublies = verifier_page_a_la_main(page["url"])
+        return ("À LA MAIN" if not oublies
+                else "TROU À LA MAIN : %s" % ", ".join(oublies)), chemin
     html = io.open(chemin, encoding="utf-8").read()
     attendu = bloc_html(page)
 
@@ -130,7 +186,8 @@ def main():
         etat, chemin = traiter(page, verifier)
         n = len(livrables.livrables_de_page(page["url"]))
         print("  %-12s %-30s %d livrable(s)" % (etat, page["url"], n))
-        if etat in ("ÉCART", "MANQUANT", "ABSENTE", "PAS D'ANCRE"):
+        if etat in ("ÉCART", "MANQUANT", "ABSENTE", "PAS D'ANCRE") \
+                or etat.startswith("TROU À LA MAIN"):
             ecarts += 1
 
     print("\n%d page(s) · %d livrable(s) conseil · %s"

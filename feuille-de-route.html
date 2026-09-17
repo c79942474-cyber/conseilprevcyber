@@ -85,12 +85,31 @@
 
     <section class="section" style="padding-top:8px">
       <h2 class="sec-title">// Les streams-types de la trajectoire</h2>
+      <!-- ── CHAQUE STREAM MÈNE AU MODULE QUI LE PORTE ───────────────────
+           UN SEUL DES SIX LE FAISAIT — « Gouvernance & organisation », qui
+           renvoyait à l'operating model par un lien de fin de ligne. Les
+           quatre suivants décrivaient un chantier dont le site tient la page,
+           et ne menaient nulle part : le lecteur devait retrouver l'adresse
+           dans le menu.
+
+           LE RAPPROCHEMENT NE REPOSE PAS SUR UNE IMPRESSION. Chaque couple
+           partage des mots que les deux côtés écrivent noir sur blanc :
+           « durcissement » ici et dans l'architecture cible ; « gestion des
+           correctifs » ici et dans le titre même de la page 2-3 ;
+           « exigences » et « prestataires » ici et dans la page 2-4 ;
+           sauvegardes et reprise ici, PCA/PRA et sauvegarde des
+           configurations là-bas.
+
+           LE SIXIÈME RESTE UNE CARTE MUETTE, et c'est voulu : il nomme DEUX
+           trajectoires — NIS2 et la 62443 — et garde ses deux liens dans la
+           phrase. Un bloc ne peut pas être un lien quand il en annonce deux ;
+           en choisir un cacherait l'autre. -->
       <div class="grid grid-3">
-        <div class="card a1"><div class="ico">🏛️</div><h3>Gouvernance &amp; organisation</h3><p>Mandat, rôles, comitologie, montée en compétence. <a href="/operating-model">Operating model →</a></p></div>
-        <div class="card a2"><div class="ico">🧱</div><h3>Socle technique</h3><p>Segmentation, durcissement, détection et supervision OT.</p></div>
-        <div class="card a3"><div class="ico">🗂️</div><h3>Actifs &amp; vulnérabilités</h3><p>Inventaire, cartographie, gestion des correctifs et des vulnérabilités.</p></div>
-        <div class="card a4"><div class="ico">🤝</div><h3>Tiers &amp; prestataires</h3><p>Exigences, encadrement de la télémaintenance, contrôle des accès.</p></div>
-        <div class="card a1"><div class="ico">🛡️</div><h3>Continuité &amp; résilience</h3><p>Sauvegardes, reprise, articulation avec la sûreté de fonctionnement.</p></div>
+        <a class="bloc card a1" href="/operating-model"><div class="ico">🏛️</div><h3>Gouvernance &amp; organisation</h3><p>Mandat, rôles, comitologie, montée en compétence.</p><span class="go">Operating model →</span></a>
+        <a class="bloc card a2" href="/architecture-cible"><div class="ico">🧱</div><h3>Socle technique</h3><p>Segmentation, durcissement, détection et supervision OT.</p><span class="go">Architecture cible OT →</span></a>
+        <a class="bloc card a3" href="/gestion-correctifs"><div class="ico">🗂️</div><h3>Actifs &amp; vulnérabilités</h3><p>Inventaire, cartographie, gestion des correctifs et des vulnérabilités.</p><span class="go">Gestion des correctifs →</span></a>
+        <a class="bloc card a4" href="/exigences-prestataires"><div class="ico">🤝</div><h3>Tiers &amp; prestataires</h3><p>Exigences, encadrement de la télémaintenance, contrôle des accès.</p><span class="go">Exigences prestataires →</span></a>
+        <a class="bloc card a1" href="/continuite-ot"><div class="ico">🛡️</div><h3>Continuité &amp; résilience</h3><p>Sauvegardes, reprise, articulation avec la sûreté de fonctionnement.</p><span class="go">Continuité &amp; crise OT →</span></a>
         <div class="card a2"><div class="ico">📋</div><h3>Trajectoire de conformité</h3><p>Alignement <a href="/nis2">NIS2</a> et <a href="/referentiel">IEC&nbsp;62443</a>, jalonné dans le temps.</p></div>
       </div>
     </section>
@@ -142,31 +161,31 @@
         <h2>📦 Livrables — Feuille de route</h2>
         <p class="liv-promesse">Chaque livrable ci-dessous est <strong>rédigeable par l'IA</strong> (Mistral&nbsp;/&nbsp;Claude) <strong>à partir de la base de connaissance</strong> du cabinet, et <strong>exportable en Word ou PDF</strong>. Ce que l'IA produit est un <strong>brouillon structuré</strong>&nbsp;: il est relu, corrigé et validé par un consultant avant d'être remis.</p>
         <ul class="liv-list">
-          <li class="liv-i">
+          <li><a class="bloc liv-i" href="/admin/livrables?type=fdr-pluriannuelle" rel="nofollow">
             <div class="liv-t">Feuille de route pluriannuelle jalonnée (horizons &amp; streams)</div>
             <div class="liv-d">Trajectoire de transformation OT cyber par horizons (0–6 / 6–18 / 18–36 mois) et par streams : jalons, dépendances, charge, budget et indicateurs d'avancement.</div>
-            <a class="liv-g" href="/admin/livrables?type=fdr-pluriannuelle" rel="nofollow">Générer dans l'espace administrateur →</a>
-          </li>
-          <li class="liv-i">
+            <span class="liv-g">Générer dans l'espace administrateur →</span>
+          </a></li>
+          <li><a class="bloc liv-i" href="/admin/livrables?type=fdr-business-case" rel="nofollow">
             <div class="liv-t">Business case / dossier de décision</div>
             <div class="liv-d">Dossier de décision pour l'instance dirigeante : options, analyse coûts/bénéfices, risques d'inaction, trajectoire d'investissement et recommandation.</div>
-            <a class="liv-g" href="/admin/livrables?type=fdr-business-case" rel="nofollow">Générer dans l'espace administrateur →</a>
-          </li>
-          <li class="liv-i">
+            <span class="liv-g">Générer dans l'espace administrateur →</span>
+          </a></li>
+          <li><a class="bloc liv-i" href="/admin/livrables?type=fdr-plan-charge-budget" rel="nofollow">
             <div class="liv-t">Plan de charge &amp; budget pluriannuel</div>
             <div class="liv-d">Décomposition des charges (internes/externes) et du budget (CAPEX/OPEX) par stream et par horizon, plan de financement et scénarios.</div>
-            <a class="liv-g" href="/admin/livrables?type=fdr-plan-charge-budget" rel="nofollow">Générer dans l'espace administrateur →</a>
-          </li>
-          <li class="liv-i">
+            <span class="liv-g">Générer dans l'espace administrateur →</span>
+          </a></li>
+          <li><a class="bloc liv-i" href="/admin/livrables?type=fdr-trajectoire-conformite" rel="nofollow">
             <div class="liv-t">Trajectoire de conformité NIS2 / IEC 62443</div>
             <div class="liv-d">Trajectoire de mise en conformité jalonnée : assujettissement, écarts prioritaires, jalons par horizon, mesures, preuves et indicateurs de conformité.</div>
-            <a class="liv-g" href="/admin/livrables?type=fdr-trajectoire-conformite" rel="nofollow">Générer dans l'espace administrateur →</a>
-          </li>
-          <li class="liv-i">
+            <span class="liv-g">Générer dans l'espace administrateur →</span>
+          </a></li>
+          <li><a class="bloc liv-i" href="/admin/livrables?type=fdr-tableau-bord" rel="nofollow">
             <div class="liv-t">Tableau de bord de pilotage (jalons, avancement, risques)</div>
             <div class="liv-d">Dispositif de pilotage de la trajectoire : indicateurs d'avancement, suivi des risques et du budget, points d'arbitrage et trame de reporting.</div>
-            <a class="liv-g" href="/admin/livrables?type=fdr-tableau-bord" rel="nofollow">Générer dans l'espace administrateur →</a>
-          </li>
+            <span class="liv-g">Générer dans l'espace administrateur →</span>
+          </a></li>
         </ul>
         <p class="muted" style="font-size:12.5px;margin-top:14px">L'accès à la génération est réservé à l'administrateur du cabinet. <a href="/services">Voir l'ensemble des prestations →</a></p>
       </div>

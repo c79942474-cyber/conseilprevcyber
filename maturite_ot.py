@@ -622,10 +622,19 @@ def plan(niveaux=None, cibles=None):
 
 
 # ══════════════════════════════════════════════════════════════════════════
-#  LES CINQ LIVRABLES DE LA PAGE — ce qui se calcule, et ce qui ne se calcule
+#  LES LIVRABLES DE LA PAGE — ce qui se calcule, et ce qui ne se calcule
 #  pas. Un bloc qui promet un document sans dire d'où il sortirait est un
 #  bloc décoratif ; celui qui ne peut pas être calculé le dit et nomme ce
 #  qu'il faudrait.
+#
+#  CETTE LISTE DOIT COUVRIR LE GROUPE ENTIER, et `_livrables_page()` le
+#  vérifie dans LES DEUX SENS. Elle ne le vérifiait que dans un : un livrable
+#  nommé ici et absent du catalogue levait une erreur, mais un livrable ajouté
+#  au groupe « Conseil — Maturité » et non décrit ici disparaissait de la page
+#  en silence. C'est arrivé à deux d'entre eux — `diag-organisationnel-ot` et
+#  `revue-dispositif-ot` — catalogués, rattachés à cette page, et atteignables
+#  depuis aucune. Le trou ne se voyait pas : la page affichait cinq blocs
+#  corrects.
 # ══════════════════════════════════════════════════════════════════════════
 LIVRABLES = {
     "mat-radar": {
@@ -663,15 +672,41 @@ LIVRABLES = {
                              "cette auto-évaluation et de ce qu'un "
                              "assessment aura constaté sur place.",
     },
+    # ── LES DEUX QUI REGARDENT L'ORGANISATION, ET NON LES SIX CURSEURS ──
+    # L'auto-évaluation cote des CAPACITÉS déclarées. Ces deux livrables-ci
+    # décrivent ce qui est EN PLACE — qui rend compte à qui, ce qui a été
+    # acheté sans être utilisé. Aucun curseur ne le dit, et six curseurs
+    # remplis n'en donneraient pas la première ligne.
+    "diag-organisationnel-ot": {
+        "calculable": False,
+        "dit": "Un diagnostic d'organisation se constate : rattachement "
+               "réel, effectifs réels, charge réelle, et les points où la "
+               "décision se perd entre IT, OT, engineering et sûreté. Une "
+               "auto-évaluation dit le degré qu'on pense tenir, jamais qui "
+               "décide quand la ligne s'arrête.",
+        "ce_qu_il_faudrait": "Des entretiens avec les fonctions concernées, "
+                             "l'organigramme réel et la charge constatée — "
+                             "quelques jours sur place.",
+    },
+    "revue-dispositif-ot": {
+        "calculable": False,
+        "dit": "Une revue critique porte sur ce qui EXISTE : l'outil acheté "
+               "et jamais déployé, la règle écrite et jamais appliquée, la "
+               "dette qu'il vaut mieux reprendre que refaire. Rien de cela "
+               "n'apparaît dans un degré déclaré.",
+        "ce_qu_il_faudrait": "L'inventaire du dispositif en place, ses "
+                             "configurations, et un consultant pour "
+                             "distinguer ce qui tient de ce qui est affiché.",
+    },
 }
 
 
 def livrables(niveaux=None, cibles=None):
     """CE QUE CETTE PAGE PEUT SERVIR AUJOURD'HUI, ET CE QU'ELLE NE PEUT PAS.
 
-    Les cinq blocs de `/maturite-ot` renvoyaient tous vers l'espace
-    administrateur : pour un visiteur, la section entière était inerte. Trois
-    se calculent depuis ses propres réponses ; deux non, et ils le disent."""
+    Les blocs de `/maturite-ot` renvoyaient tous vers l'espace administrateur :
+    pour un visiteur, la section entière était inerte. Trois se calculent
+    depuis ses propres réponses ; les autres non, et ils le disent."""
     ev = evaluer(niveaux, cibles)
     ok = ev.get("ok") and ev.get("repondus", 0) > 0
     out = []
@@ -689,9 +724,14 @@ def livrables(niveaux=None, cibles=None):
 
 
 def _livrables_page():
-    """Les cinq livrables de la page, LUS DANS `livrables.py` — jamais
-    recopiés. Leur intitulé vit là-bas ; une seconde liste ici afficherait un
-    titre périmé le jour où l'autre changerait."""
+    """Les livrables de la page, LUS DANS `livrables.py` — jamais recopiés.
+
+    Leur intitulé vit là-bas ; une seconde liste ici afficherait un titre
+    périmé le jour où l'autre changerait. Et l'accord se vérifie DANS LES DEUX
+    SENS : un nom écrit ici et absent du catalogue lève une erreur, un
+    livrable du groupe de la page et non décrit ici aussi. Le second sens
+    manquait, et deux livrables catalogués ont ainsi disparu de la page sans
+    que rien ne le dise."""
     import livrables as LV
     connus = set(LIVRABLES)
     out = [l for l in LV.TYPES if l["id"] in connus]
@@ -699,6 +739,13 @@ def _livrables_page():
     if manquants:
         raise ValueError("livrable déclaré ici et absent de livrables.py : %s"
                          % sorted(manquants))
+    du_groupe = {l["id"] for l in LV.livrables_de_page("/maturite-ot")}
+    oublies = du_groupe - connus
+    if oublies:
+        raise ValueError(
+            "livrable du groupe de /maturite-ot que cette page n'expose pas : "
+            "%s — le décrire dans LIVRABLES, ou le sortir du groupe"
+            % sorted(oublies))
     return out
 
 
