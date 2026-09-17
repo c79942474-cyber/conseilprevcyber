@@ -130,6 +130,7 @@
     "/architecture-cible": ["technique", "tiers"],
     "/formation": ["gouvernance"],
     "/gouvernance-ia": ["gouvernance", "juridique"],
+    "/securite-ia": ["analyse", "exigences", "gouvernance"],
     "/demo": ["technique", "continuite"],
     "/veille": ["preuve"],
     "/audit-conformite": ["preuve", "juridique"],
@@ -334,6 +335,16 @@
                 "qui n’est pas comprise finit toujours par être contournée.",
           tip: "Formez les équipes d’exploitation AVANT la mise en service, pas après : une consigne " +
                "découverte le jour du démarrage est une consigne qui sera contournée le lendemain." },
+        /* LA SÉCURITÉ DE L'IA ENTRE DANS LE PARCOURS DU RSSI, et à cette
+           place précise : après le programme et la feuille de route, avant
+           les métriques. Un RSSI qui découvre les agents de son organisation
+           AVANT d'avoir un programme n'a nulle part où ranger ce qu'il
+           trouve ; après les métriques, il aurait choisi ses indicateurs
+           sans savoir ce qu'il y a à mesurer. */
+        { url: "/securite-ia", label: "Sécurité de l'IA — la chaîne d'autonomie",
+          action: "Cotez les cinq maillons de vos systèmes d'IA : ce qui part sans validation, et ce qui l'en empêche.",
+          gain: "Les maillons ouverts se constatent au lieu de s'imaginer — y compris ceux qu'aucun scénario n'avait prévus.",
+          tip: "Commencez par le maillon « action » : c'est là que se trouvent les agents branchés un vendredi pour gagner du temps, et que personne n'a déclarés." },
         { url: "/metriques-62443", label: "Métriques · 1-3",
           action: "Choisissez le petit nombre d’indicateurs que vous saurez tenir dans la durée.",
           gain: "De quoi démontrer une progression, et non une intention renouvelée chaque année.",

@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sécurité de l'IA — la chaîne d'autonomie — CONSEILPREV Cyber</title>
+<meta name="description" content="Analyser la sécurité d'une AI Factory par ce qu'elle peut faire seule : cinq maillons, deux notes qui se constatent, et le pire écart qui commande la chaîne. Restitution en grammaire EBIOS RM.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CONSEILPREV Cyber">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Sécurité de l'IA — la chaîne d'autonomie — CONSEILPREV Cyber">
+<meta property="og:description" content="Analyser la sécurité d'une AI Factory par ce qu'elle peut faire seule : cinq maillons, deux notes qui se constatent, et le pire écart qui commande la chaîne. Restitution en grammaire EBIOS RM.">
+<meta property="og:url" content="https://conseilprevcyber.onrender.com/securite-ia">
+<meta property="og:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="CONSEILPREV Cyber — cybersécurité industrielle IT / OT / IIoT">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Sécurité de l'IA — la chaîne d'autonomie — CONSEILPREV Cyber">
+<meta name="twitter:description" content="Analyser la sécurité d'une AI Factory par ce qu'elle peut faire seule : cinq maillons, deux notes qui se constatent, et le pire écart qui commande la chaîne. Restitution en grammaire EBIOS RM.">
+<meta name="twitter:image" content="https://conseilprevcyber.onrender.com/og-cover.png">
+<link rel="canonical" href="https://conseilprevcyber.onrender.com/securite-ia">
+
+<link rel="icon" href="/emblem.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  /* ── L'ÉCRAN DE LA CHAÎNE ────────────────────────────────────────────────
+     Cinq maillons, deux curseurs chacun. L'écart se voit AVANT d'être lu :
+     une barre qui déborde vers la droite dit qu'à ce maillon le système peut
+     plus que ce qui le retient. C'est la seule chose que l'écran doit rendre
+     évidente. */
+  .si-maillons{display:grid;gap:14px;margin-top:18px}
+  .si-m{border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+        background:linear-gradient(180deg,var(--panel),var(--bg2));transition:border-color .18s}
+  .si-m.si-ouvert{border-color:var(--terra)}
+  .si-m.si-commande{border-color:var(--terra);box-shadow:0 0 0 1px rgba(217,96,58,.45)}
+  .si-tete{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+  .si-rang{font-family:var(--mono);font-size:12px;color:var(--muted2);min-width:1.6em}
+  .si-tete h3{margin:0;font-size:1.02rem}
+  .si-q{color:var(--muted);font-style:italic;margin:6px 0 0;font-size:14px}
+  .si-constat{color:var(--muted);font-size:13.5px;margin:8px 0 0}
+  .si-curseurs{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+  @media(max-width:700px){.si-curseurs{grid-template-columns:1fr}}
+  .si-c label{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;
+              text-transform:uppercase;color:var(--muted2);margin-bottom:5px}
+  .si-c select{width:100%;background:var(--bg2);color:var(--ink);border:1px solid var(--line);
+               border-radius:8px;padding:8px 10px;font:inherit;font-size:13.5px}
+  .si-dit{color:var(--muted2);font-size:12.5px;margin:5px 0 0;min-height:2.2em}
+  .si-ecart{font-family:var(--mono);font-size:12px;border:1px solid var(--line);
+            border-radius:999px;padding:2px 10px;white-space:nowrap}
+  .si-ecart.si-plus{border-color:var(--terra);color:var(--terra)}
+  .si-ecart.si-zero{border-color:var(--teal);color:var(--teal)}
+  .si-menaces{margin:12px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+  .si-menaces li{font-family:var(--mono);font-size:10.5px;color:var(--muted2);
+                 border:1px solid var(--line);border-radius:999px;padding:3px 9px}
+  .si-m.si-ouvert .si-menaces li{border-color:var(--terra);color:var(--terra)}
+  .si-bar{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin:18px 0 0;
+          border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:rgba(0,0,0,.10)}
+  .si-bar .si-lect{color:var(--muted);font-size:14px;flex:1 1 320px;line-height:1.6}
+  .si-actions{display:flex;gap:10px;flex-wrap:wrap}
+  .si-actions button{font:inherit;font-size:13px;padding:9px 14px;border-radius:9px;
+                     border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+  .si-actions button:disabled{opacity:.45;cursor:not-allowed}
+  .si-ebios{margin-top:18px}
+  .si-sc{border:1px solid var(--line);border-left:2px solid var(--terra);border-radius:10px;
+         padding:14px 16px;margin-bottom:12px;background:rgba(0,0,0,.10)}
+  .si-sc h4{margin:0 0 8px;font-size:15px}
+  .si-sc dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:0;font-size:13.5px}
+  .si-sc dt{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;
+            color:var(--muted2);padding-top:3px}
+  .si-sc dd{margin:0;color:var(--muted)}
+  .si-sources{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px}
+  .si-sources th{text-align:left;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;
+                 text-transform:uppercase;color:var(--muted2);border-bottom:1px solid var(--line);padding:8px 10px}
+  .si-sources td{border-bottom:1px solid var(--line);padding:9px 10px;vertical-align:top;color:var(--muted)}
+  .si-sources td b{color:var(--ink)}
+  .si-non{color:var(--terra);font-weight:600}
+</style>
+</head>
+</head>
+<body>
+  <header>
+  <div class="wrap nav">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu"><span></span><span></span><span></span></button>
+    <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="30" height="30" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+    <nav class="links" aria-label="Navigation principale">
+      <a href="/">Accueil</a>
+      <a href="/services">Services</a>
+      <a href="/referentiel">Référentiel 62443</a>
+      <a href="/audit-conformite">Audit 62443</a>
+      <a href="/demo">Cockpit</a>
+      <a href="/assistant">Assistant IA</a>
+      <a href="/veille">Veille</a>
+      <a href="/about">À propos</a>
+    </nav>
+    <div class="navcta">
+      <a href="/contact" class="cta">Contact</a>
+    </div>
+  </div>
+</header>
+
+  
+  <main class="wrap">
+    <section class="section page-head">
+      <span class="eyebrow"><span class="dot"></span>Conseil &amp; transformation · Sécurité de l'IA</span>
+      <h1>La chaîne <span class="grad">d'autonomie</span>.</h1>
+      <p class="lead" style="margin-top:18px">Une analyse de risque classique part de ce qu'on redoute — ce qui
+        suppose de l'avoir imaginé. Un agent produit des chemins nouveaux à chaque exécution&nbsp;: la liste des
+        scénarios vieillit plus vite qu'on ne l'écrit. Cette méthode part de l'autre bout, de ce que le système
+        <strong>peut faire</strong>, qui se constate.</p>
+      <p class="note" style="max-width:76ch;margin-top:12px">Toute action d'un système d'IA franchit cinq maillons.
+        Chacun reçoit deux notes&nbsp;: l'<strong>autonomie</strong> — ce qui part sans validation — et la
+        <strong>maîtrise</strong> — ce qui l'en empêche ou le rattrape. L'écart entre les deux est un maillon
+        ouvert, qu'on l'ait imaginé ou non. <strong>Le pire écart commande la chaîne, jamais la moyenne.</strong></p>
+    </section>
+
+    <!-- LA RÉSERVE AVANT LES CURSEURS, et non en note de bas de page : elle
+         doit être lue avant le premier degré, pas après la conclusion. -->
+    <section class="section" style="padding-top:8px">
+      <div class="band">
+        <div class="status"><span class="dot"></span>Ceci n'est pas un audit. Personne n'est venu sur site, aucun
+          contournement n'a été éprouvé — un maillon coté haut en maîtrise signifie «&nbsp;nous affirmons tenir
+          cela&nbsp;». Vos réponses ne sont pas conservées&nbsp;: elles montent pour être calculées, et rien n'en
+          est enregistré.</div>
+      </div>
+    </section>
+
+    <section class="section" id="chaine" style="padding-top:8px">
+      <h2 class="sec-title">// Les cinq maillons</h2>
+      <div class="si-maillons" id="si-maillons"></div>
+
+      <div class="si-bar" role="status" aria-live="polite">
+        <p class="si-lect" id="si-lecture">Renseignez les deux notes d'au moins un maillon&nbsp;: la chaîne ne dit
+          rien tant qu'aucun maillon n'est constaté.</p>
+        <div class="si-actions">
+          <button type="button" id="si-vider" disabled>Tout remettre à zéro</button>
+          <button type="button" id="si-docx" disabled>Emporter en Word</button>
+          <button type="button" id="si-xlsx" disabled>Emporter en classeur</button>
+          <button type="button" id="si-pdf" disabled>Emporter en PDF</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="ebios" style="padding-top:8px">
+      <h2 class="sec-title">// La même chose, en grammaire EBIOS</h2>
+      <p class="note" style="max-width:76ch">Le constat est fait une fois&nbsp;; il se relit deux fois. La chaîne
+        mesure bien et ne se défend pas — aucun régulateur ne la connaît. EBIOS&nbsp;RM se défend et mesure mal un
+        système non déterministe. On conduit donc <strong>une</strong> analyse, restituée dans le vocabulaire que
+        lit un auditeur NIS2 sans qu'on ait à le lui expliquer.</p>
+      <div class="si-ebios" id="si-ebios"></div>
+    </section>
+
+    <!-- LIVRABLES:DEBUT (genere par outils/generer_blocs_livrables.py) -->
+    <section class="section" id="livrables" style="padding-top:8px">
+      <div class="prose" style="max-width:none">
+        <h2>📦 Livrables — Sécurité de l'IA</h2>
+        <p class="liv-promesse">Chaque livrable ci-dessous est <strong>rédigeable par l'IA</strong> (Mistral&nbsp;/&nbsp;Claude) <strong>à partir de la base de connaissance</strong> du cabinet, et <strong>exportable en Word ou PDF</strong>. Ce que l'IA produit est un <strong>brouillon structuré</strong>&nbsp;: il est relu, corrigé et validé par un consultant avant d'être remis.</p>
+        <ul class="liv-list">
+          <li><a class="bloc liv-i" href="/admin/livrables?type=sia-chaine-autonomie" rel="nofollow">
+            <div class="liv-t">Relevé de chaîne d'autonomie d'une AI Factory</div>
+            <div class="liv-d">L'état constaté des cinq maillons — perception, raisonnement, décision, action, effet — avec pour chacun l'autonomie et la maîtrise, l'écart qui les sépare et les menaces que ce maillon ne rencontre pas. Le pire écart commande la chaîne : ni la moyenne des maillons ni le nombre de mesures en place ne changent cette lecture.</div>
+            <span class="liv-g">Générer dans l'espace administrateur →</span>
+          </a></li>
+          <li><a class="bloc liv-i" href="/admin/livrables?type=sia-architecture-confinement" rel="nofollow">
+            <div class="liv-t">Architecture de confinement des systèmes d'IA</div>
+            <div class="liv-d">L'architecture cible qui referme les maillons ouverts : passerelle unique d'accès aux outils, courtage d'identifiants de très courte durée, seuils d'escalade écrits, journalisation exploitable et moyens d'arrêt éprouvés. Chiffrée, séquencée, et rattachée aux recommandations publiques qui la fondent.</div>
+            <span class="liv-g">Générer dans l'espace administrateur →</span>
+          </a></li>
+          <li><a class="bloc liv-i" href="/admin/livrables?type=sia-audit-socle-anssi" rel="nofollow">
+            <div class="liv-t">Audit d'écart au socle de sécurité de l'IA</div>
+            <div class="liv-d">L'écart mesuré aux trente-cinq recommandations publiques de sécurité d'un système d'IA générative, complété de la couverture des dix risques agentiques. Chaque écart porte la pièce qui le constate ou l'absence de pièce qui le signale.</div>
+            <span class="liv-g">Générer dans l'espace administrateur →</span>
+          </a></li>
+          <li><a class="bloc liv-i" href="/admin/livrables?type=sia-formation-maillons" rel="nofollow">
+            <div class="liv-t">Programme de formation — sécurité des systèmes d'IA</div>
+            <div class="liv-d">Trois publics, trois contenus distincts : ce que la direction engage en autorisant un agent, les cinq maillons pour les architectes, et pour l'exploitation la seule chose qui compte au quotidien — reconnaître un système d'IA qui sort de son périmètre. Pratique, outil en main, sans volet stratégique.</div>
+            <span class="liv-g">Générer dans l'espace administrateur →</span>
+          </a></li>
+        </ul>
+        <p class="muted" style="font-size:12.5px;margin-top:14px">L'accès à la génération est réservé à l'administrateur du cabinet. <a href="/services">Voir l'ensemble des prestations →</a></p>
+      </div>
+    </section>
+    <!-- LIVRABLES:FIN -->
+
+      <div class="divider"></div>
+
+    <section class="section" style="padding-top:8px">
+      <h2 class="sec-title">// Les sources, et ce qu'on a le droit d'en faire</h2>
+      <p class="note" style="max-width:76ch">Elles ne se valent pas juridiquement, et la différence est
+        exploitable&nbsp;: deux d'entre elles sont sous Licence Ouverte et s'adaptent librement, y compris à des fins
+        commerciales, à la seule condition d'en mentionner la paternité. Les autres se citent. <strong>Aucune ne se
+        certifie sur cette base</strong>, et l'une d'elles ne se certifie pas du tout.</p>
+      <table class="si-sources" id="si-sources"></table>
+    </section>
+  </main>
+
+
+<footer>
+  <div class="wrap foot">
+    <div class="foot-cols">
+      <div class="foot-brand">
+        <div class="brand"><a href="/" class="brand-link"><img src="/emblem.svg" class="brand-mark" width="26" height="26" alt="">CONSEILPREV</a><span class="tag">Cyber</span></div>
+        <p>Cybersécurité industrielle IT / OT / IIoT — conformité IEC&nbsp;62443, NIS2, DORA.</p>
+      </div>
+      <nav class="foot-col" aria-label="Expertise">
+        <h4>Expertise</h4>
+        <a href="/services">Services</a>
+        <a href="/secteurs">Secteurs</a>
+        <a href="/methodologie">Méthodologie</a>
+        <a href="/etudes-de-cas">Études de cas</a>
+        <a href="/references">Références</a>
+        <a href="/operating-model">Operating Model</a>
+        <a href="/maturite-ot">Maturité OT</a>
+        <a href="/feuille-de-route">Feuille de route</a>
+        <a href="/continuite-ot">Continuité &amp; crise OT</a>
+        <a href="/gestion-des-changements">Gestion des changements</a>
+        <a href="/architecture-cible">Architecture cible</a>
+        <a href="/formation">Formation</a>
+        <a href="/gouvernance-ia">Governance by Design IA</a>
+      </nav>
+      <nav class="foot-col" aria-label="Norme &amp; conformité">
+        <h4>Norme &amp; conformité</h4>
+        <a href="/referentiel">Référentiel 62443</a>
+        <a href="/audit-conformite">Audit 62443</a>
+        <a href="/diagnostic">Diagnostic express</a>
+        <a href="/nis2">NIS2</a>
+      </nav>
+      <nav class="foot-col" aria-label="Plateforme">
+        <h4>Plateforme</h4>
+        <a href="/demo">Cockpit</a>
+        <a href="/assistant">Assistant IA</a>
+        <a href="/connecter">Connecter une source</a>
+        <a href="/guide-integration">Guide d’intégration</a>
+      </nav>
+      <nav class="foot-col" aria-label="Ressources">
+        <h4>Ressources</h4>
+        <a href="/veille">Veille</a>
+        <a href="/ressources">Ressources</a>
+        <a href="/faq">FAQ</a>
+        <a href="/checklist-62443">Checklist 62443</a>
+        <a href="/glossaire-62443">Glossaire 62443</a>
+      </nav>
+    </div>
+    <div class="foot-bar">
+      <div>© <span id="y"></span> CONSEILPREV Cyber — Tous droits réservés</div>
+      <div class="foot-legal">
+        <a href="/about">À propos</a>
+        <a href="/contact">Contact</a>
+        <a href="/connexion">Espace client</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/politique-confidentialite">Confidentialité</a>
+        <a href="/conformite">Conformité IA &amp; RGPD</a>
+        <a href="/admin" rel="nofollow" class="foot-admin">Admin</a>
+      </div>
+    </div>
+  </div>
+</footer>
+  <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+  <script src="/nav.js" defer></script>
+  <script src="/parcours.js" defer></script>
+<script>
+/* L'ÉCRAN NE CONNAÎT AUCUNE PHASE — il les demande.
+   Recopier les huit phases ici les ferait diverger du module au premier
+   remaniement : la page annoncerait un ordre que le parcours ne tient plus,
+   et rien ne le signalerait. C'est le même arbitrage que pour le référentiel
+   de maturité, et une règle le tient. */
+(function () {
+  "use strict";
+  var FAITES = [];
+  var zone = document.getElementById("pm-phases");
+  var etat = document.getElementById("pm-etat");
+  if (!zone || !etat) return;
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;",
+               "'": "&#39;" }[c];
+    });
+  }
+
+  function etiquette(p, courante) {
+    if (p.faite) return '<span class="pm-etiq pm-faite">faite</span>';
+    if (p.cle === courante) return '<span class="pm-etiq pm-prete">en cours</span>';
+    if (p.prete) return '<span class="pm-etiq pm-prete">prête</span>';
+    return '<span class="pm-etiq pm-attente">il manque ' + p.manque.length
+      + ' phase' + (p.manque.length > 1 ? 's' : '') + '</span>';
+  }
+
+  function peindre(parcours) {
+    var h = "";
+    parcours.phases.forEach(function (p, i) {
+      h += '<article class="pm-ph' + (p.cle === parcours.courante
+        ? " pm-courante" : "") + '">'
+        + '<div class="pm-tete"><span class="pm-rang">' + (i + 1) + '</span>'
+        + "<h3>" + esc(p.titre) + "</h3>" + etiquette(p, parcours.courante)
+        + '<label class="pm-coche" style="margin-left:auto">'
+        + '<input type="checkbox" data-phase="' + esc(p.cle) + '"'
+        + (p.faite ? " checked" : "") + "> acquise</label></div>"
+        + '<p class="pm-q">' + esc(p.question) + "</p>"
+        + '<div class="pm-corps">';
+      if (p.manque && p.manque.length) {
+        h += '<div class="pm-manque"><h4>Ce qui manque</h4><p>'
+          + p.manque.map(function (m) { return esc(m.titre); }).join(" · ")
+          + "</p></div>";
+      }
+      h += "<div><h4>Ce qui s'y décide</h4><p>" + esc(p.ce_qui_se_decide)
+        + "</p></div>"
+        + '<div class="pm-piege"><h4>Le piège</h4><p>' + esc(p.piege)
+        + "</p></div>";
+      if (p.livrables && p.livrables.length) {
+        h += "<div><h4>Livrables de la phase</h4><ul class=\"pm-liv\">";
+        p.livrables.forEach(function (l) {
+          /* LE LIBELLÉ VIENT DU SERVEUR, QUI LE LIT AU CATALOGUE. Une chaîne
+             écrite ici afficherait un titre que plus aucune console ne porte
+             le jour où le livrable est renommé. */
+          h += "<li>" + esc(l.label || l.id || l) + "</li>";
+        });
+        h += "</ul></div>";
+      }
+      h += "</div></article>";
+    });
+    zone.innerHTML = h;
+    var faites = parcours.faites.length;
+    etat.textContent = parcours.achevee
+      ? "Les huit phases sont déclarées acquises."
+      : (faites + " phase" + (faites > 1 ? "s" : "") + " acquise"
+         + (faites > 1 ? "s" : "") + " · en cours : "
+         + (parcours.phases.filter(function (x) {
+              return x.cle === parcours.courante; })[0] || {}).titre);
+    if (parcours.promesses_mortes && parcours.promesses_mortes.length) {
+      /* UN LIVRABLE PROMIS QUI N'EXISTE PLUS SE DIT, il ne se cache pas :
+         l'écran afficherait sinon une phase qui annonce un document
+         qu'aucune console ne sait produire. */
+      etat.innerHTML += ' <span class="pm-mort">— '
+        + parcours.promesses_mortes.length
+        + " livrable(s) promis sont introuvables au catalogue.</span>";
+    }
+  }
+
+  function demander() {
+    fetch("/api/mission/parcours", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ faites: FAITES })
+    }).then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j && j.ok) peindre(j.parcours);
+        else etat.textContent = "Le parcours n'a pas pu être chargé.";
+      })
+      .catch(function () {
+        /* UN CATCH QUI DIT CE QUI S'EST PASSÉ. Un catch vide laisserait
+           « Chargement… » à l'écran pour toujours, ce qui se lit comme une
+           page morte plutôt que comme une panne. */
+        etat.textContent = "Le parcours n'a pas pu être chargé "
+          + "(réseau ou session).";
+      });
+  }
+
+  zone.addEventListener("change", function (ev) {
+    var b = ev.target && ev.target.getAttribute
+      ? ev.target.getAttribute("data-phase") : null;
+    if (!b) return;
+    FAITES = ev.target.checked
+      ? FAITES.concat([b])
+      : FAITES.filter(function (x) { return x !== b; });
+    demander();
+  });
+
+  demander();
+})();
+</script>
+
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   L'ÉCRAN NE CONNAÎT AUCUN MAILLON.
+   Il n'y a pas un libellé de maillon, pas un degré, pas une menace écrits
+   dans ce fichier : tout vient de /api/securite-ia/referentiel. Recopier la
+   chaîne ici la ferait diverger du moteur au premier remaniement — l'écran
+   annoncerait une méthode que le calcul ne tient plus, et rien ne le dirait.
+   Une règle de `tests/` refuse qu'un libellé de maillon apparaisse dans ce
+   gabarit.
+   ══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  "use strict";
+  var $ = function (s) { return document.querySelector(s); };
+  var REF = null, ETAT = { autonomie: {}, maitrise: {} };
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
+  function options(echelle, choisi) {
+    var h = '<option value="">—</option>';
+    echelle.forEach(function (d) {
+      h += '<option value="' + d.degre + '"' + (String(choisi) === String(d.degre) ? " selected" : "")
+        + ">" + d.degre + " · " + esc(d.nom) + "</option>";
+    });
+    return h;
+  }
+
+  function dessiner() {
+    var h = "";
+    REF.maillons.forEach(function (m) {
+      var a = ETAT.autonomie[m.cle], t = ETAT.maitrise[m.cle];
+      var complet = a !== undefined && a !== "" && t !== undefined && t !== "";
+      var ec = complet ? (parseInt(a, 10) - parseInt(t, 10)) : null;
+      var cls = "si-m" + (complet && ec > 0 ? " si-ouvert" : "");
+      h += '<div class="' + cls + '" data-m="' + esc(m.cle) + '">'
+        + '<div class="si-tete"><span class="si-rang">' + m.rang + "</span>"
+        + "<h3>" + esc(m.nom) + "</h3>"
+        + (ec === null ? "" : '<span class="si-ecart ' + (ec > 0 ? "si-plus" : "si-zero") + '">écart '
+            + (ec > 0 ? "+" : "") + ec + "</span>")
+        + "</div>"
+        + '<p class="si-q">' + esc(m.question) + "</p>"
+        + '<p class="si-constat"><b>Ce qui se constate —</b> ' + esc(m.constat) + "</p>"
+        + '<div class="si-curseurs">'
+        + '<div class="si-c"><label for="si-a-' + esc(m.cle) + '">Autonomie constatée</label>'
+        + '<select id="si-a-' + esc(m.cle) + '" data-axe="autonomie" data-m="' + esc(m.cle) + '">'
+        + options(REF.autonomie, a) + "</select>"
+        + '<p class="si-dit">' + esc(dit(REF.autonomie, a)) + "</p></div>"
+        + '<div class="si-c"><label for="si-t-' + esc(m.cle) + '">Maîtrise constatée</label>'
+        + '<select id="si-t-' + esc(m.cle) + '" data-axe="maitrise" data-m="' + esc(m.cle) + '">'
+        + options(REF.maitrise, t) + "</select>"
+        + '<p class="si-dit">' + esc(dit(REF.maitrise, t)) + "</p></div>"
+        + "</div>"
+        + '<ul class="si-menaces">' + m.menaces.map(function (x) {
+            return "<li>" + esc(x.cle) + " · " + esc(x.nom) + "</li>"; }).join("") + "</ul>"
+        + "</div>";
+    });
+    $("#si-maillons").innerHTML = h;
+  }
+
+  function dit(echelle, degre) {
+    if (degre === undefined || degre === "") return "";
+    var d = echelle.filter(function (x) { return String(x.degre) === String(degre); })[0];
+    return d ? d.dit : "";
+  }
+
+  function sources() {
+    var h = "<thead><tr><th>Source</th><th>Licence</th><th>Réutilisable</th><th>Certifiable</th></tr></thead><tbody>";
+    REF.sources.forEach(function (s) {
+      h += "<tr><td><b>" + esc(s.titre) + "</b><br>" + esc(s.apporte)
+        + '<br><span style="opacity:.7">Réserve — ' + esc(s.reserve) + "</span></td>"
+        + "<td>" + esc(s.licence) + "</td>"
+        + "<td>" + (s.reutilisable ? "oui" : "citation seule") + "</td>"
+        + '<td>' + (s.certifiable ? "oui" : '<span class="si-non">non</span>') + "</td></tr>";
+    });
+    $("#si-sources").innerHTML = h + "</tbody>";
+  }
+
+  function compte() {
+    var n = 0;
+    REF.maillons.forEach(function (m) {
+      if (ETAT.autonomie[m.cle] !== undefined && ETAT.autonomie[m.cle] !== ""
+          && ETAT.maitrise[m.cle] !== undefined && ETAT.maitrise[m.cle] !== "") n++;
+    });
+    return n;
+  }
+
+  function calculer() {
+    var n = compte();
+    ["si-vider", "si-docx", "si-xlsx", "si-pdf"].forEach(function (id) { $("#" + id).disabled = !n; });
+    if (!n) { $("#si-ebios").innerHTML = ""; return; }
+    fetch("/api/securite-ia/evaluer", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ autonomie: ETAT.autonomie, maitrise: ETAT.maitrise })
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      if (!j || !j.ok) return;
+      $("#si-lecture").textContent = j.lecture;
+      var cmd = (j.chaine || {}).commande;
+      document.querySelectorAll(".si-m").forEach(function (el) {
+        el.classList.toggle("si-commande", el.getAttribute("data-m") === cmd);
+      });
+      var h = "";
+      (j.scenarios || []).forEach(function (s) {
+        h += '<div class="si-sc"><h4>' + esc(s.evenement_redoute) + "</h4><dl>"
+          + "<dt>Bien support critique</dt><dd>" + esc(s.bien_support_critique) + "</dd>"
+          + "<dt>Besoin atteint</dt><dd>" + esc(s.besoin_de_securite) + "</dd>"
+          + "<dt>Vraisemblance</dt><dd><b>" + esc(s.vraisemblance) + "</b> — " + esc(s.vraisemblance_dit) + "</dd>"
+          + "<dt>Actions élémentaires</dt><dd>" + s.actions_elementaires.map(function (a) {
+              return esc(a.cle) + " · " + esc(a.nom); }).join(" · ") + "</dd>"
+          + "<dt>Socle applicable</dt><dd>" + s.socle_applicable.map(esc).join("<br>") + "</dd>"
+          + "</dl></div>";
+      });
+      if (!h) h = '<p class="note">Aucun maillon renseigné n\'est ouvert. Ce constat ne vaut que pour '
+        + "les maillons renseignés : un maillon laissé vide n'est pas un maillon sain, c'est un maillon "
+        + "qu'on n'a pas regardé.</p>";
+      $("#si-ebios").innerHTML = h;
+    }).catch(function () {});
+  }
+
+  function emporter(fmt) {
+    fetch("/api/securite-ia/emporter", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ format: fmt, autonomie: ETAT.autonomie, maitrise: ETAT.maitrise })
+    }).then(function (r) { return r.ok ? r.blob() : null; }).then(function (b) {
+      if (!b) return;
+      var u = URL.createObjectURL(b), a = document.createElement("a");
+      a.href = u; a.download = "chaine-autonomie." + fmt;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(u); }, 4000);
+    }).catch(function () {});
+  }
+
+  document.addEventListener("change", function (e) {
+    var s = e.target.closest ? e.target.closest("select[data-axe]") : null;
+    if (!s) return;
+    ETAT[s.getAttribute("data-axe")][s.getAttribute("data-m")] = s.value;
+    dessiner(); calculer();
+  });
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest ? e.target.closest("button") : null;
+    if (!b) return;
+    if (b.id === "si-vider") { ETAT = { autonomie: {}, maitrise: {} }; dessiner(); calculer();
+      $("#si-lecture").textContent = "Renseignez les deux notes d'au moins un maillon : la chaîne ne dit rien "
+        + "tant qu'aucun maillon n'est constaté."; }
+    if (b.id === "si-pdf") emporter("pdf");
+    if (b.id === "si-docx") emporter("docx");
+    if (b.id === "si-xlsx") emporter("xlsx");
+  });
+
+  fetch("/api/securite-ia/referentiel", { credentials: "same-origin" })
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      if (!j || !j.ok) return;
+      REF = j.referentiel; dessiner(); sources();
+    }).catch(function () {});
+})();
+</script>
+</body>
+</html>
