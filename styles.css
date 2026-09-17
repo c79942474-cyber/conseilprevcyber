@@ -307,7 +307,7 @@ a{color:var(--cyan);text-decoration:none}
    déclarations auraient dérivé l'une de l'autre au premier ajustement de
    l'en-tête. Toute nouvelle cible de fragment de la feuille partagée s'ajoute
    ICI. */
-#livrables,#auto-evaluation{scroll-margin-top:92px}
+#livrables,#auto-evaluation,#domaines,#amoa,#demarche{scroll-margin-top:92px}
 .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
 
 /* Header / nav (partagé) */
@@ -758,9 +758,22 @@ h3{font-size:19px;letter-spacing:-.01em;font-weight:700}
    n'en déclarent pas un le reçoivent de leur propre classe. */
 a.bloc{color:inherit;text-decoration:none}
 a.card{display:block}
-a.card .go{display:inline-block;margin-top:14px;font-family:var(--mono);font-size:12px;
-  letter-spacing:.04em;color:var(--cyan)}
-a.card:hover .go{color:var(--teal)}
+/* LE CORPS D'UNE CARTE QUI PORTE PLUSIEURS PORTES. Une seule carte du site
+   est dans ce cas — l'ingénierie de centres de données, qui ouvre trois
+   modules distincts. L'envelopper d'un seul lien avalerait les trois ; son
+   CORPS est donc le lien, et les boutons restent à côté de lui.
+   LE `display` EST DÉCLARÉ ICI, comme pour toute classe de tuile-lien : sans
+   lui, le <a> resterait en ligne et ne couvrirait que le texte, c'est-à-dire
+   pas la carte. */
+a.corps-lien{display:block}
+/* L'APPEL D'UNE TUILE-LIEN. Le sélecteur nommait `a.card` seul ; la carte à
+   corps-lien porte son appel dans un <a> qui n'est PAS la carte, et il
+   ressortait donc en texte courant au milieu d'une carte dont tous les
+   voisins affichent une flèche en capitales monospace. Mesuré à l'écran :
+   l'appel était là, et ne se lisait pas comme un appel. */
+a.card .go,a.corps-lien .go{display:inline-block;margin-top:14px;
+  font-family:var(--mono);font-size:12px;letter-spacing:.04em;color:var(--cyan)}
+a.card:hover .go,a.corps-lien:hover .go{color:var(--teal)}
 .taglist{list-style:none;margin-top:14px;display:flex;flex-wrap:wrap;gap:6px}
 .taglist li{font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
 .checklist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}

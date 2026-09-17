@@ -364,6 +364,32 @@ def _routes_connues():
     return {r.rule for r in appli.app.url_map.iter_rules() if "GET" in (r.methods or ())}
 
 
+def _chemin_vise(href):
+    """LE CHEMIN SEUL — sans la requête NI l'ancre.
+
+    ═══ CE QUE CE HELPER RÉPARE, ET COMMENT ON L'A SU ════════════════════
+    Six endroits de ce fichier coupaient sur « ? » et PAS sur « # ». Tant
+    qu'aucun bloc ne visait une ancre d'une AUTRE page, cela ne se voyait
+    pas : une ancre de la même page commence par « # » et n'atteint jamais
+    ces branches. Le jour où l'accueil a visé `/services#domaines`, trois
+    règles ont lu un chemin nommé « /services#domaines » — aucune route de ce
+    nom, donc régime « client » par défaut, donc trois échecs pour une raison
+    entièrement fausse.
+
+    LE DANGER ÉTAIT DE L'AUTRE CÔTÉ, et c'est ce qui justifie de corriger ici
+    plutôt que d'assouplir les règles : muselées, elles auraient cessé de
+    reconnaître le chemin de TOUT lien ancré, et un bloc menant derrière une
+    porte fermée serait passé sans un mot.
+    """
+    return (href or "").split("?")[0].split("#")[0]
+
+
+def _ancre_visee(href):
+    """L'ancre d'un lien, ou None. `/services#domaines` → « domaines »."""
+    reste = (href or "").split("?")[0]
+    return (reste.split("#", 1)[1] or None) if "#" in reste else None
+
+
 def test_chaque_destination_de_bloc_existe_vraiment(anonyme, admin):
     """Une ancre visée est présente dans la page servie ; un chemin visé est
     une route que l'application sert. Pas de clic qui n'amène nulle part."""
@@ -379,9 +405,24 @@ def test_chaque_destination_de_bloc_existe_vraiment(anonyme, admin):
                     perdus.append("%s · %s → ancre %s absente de la page"
                                   % (chemin, c["titre"], cible))
             elif cible.startswith("/"):
-                if cible.split("?")[0] not in routes:
+                route = _chemin_vise(cible)
+                if route not in routes:
                     perdus.append("%s · %s → %s : aucune route"
                                   % (chemin, c["titre"], cible))
+                    continue
+                # ═══ L'ANCRE DISTANTE, VÉRIFIÉE SUR LA PAGE VISÉE ════════
+                # Cette moitié-là n'existait pas, faute de cas à traiter. Une
+                # route qui répond ne prouve rien sur l'ancre : viser
+                # `/services#domaines` après que `id="domaines"` a été
+                # renommé dépose le visiteur en haut d'une page longue —
+                # exactement là où l'ancre servait à ne pas le déposer — et
+                # ni le navigateur ni le journal ne le signalent.
+                ancre = _ancre_visee(cible)
+                if ancre and ('id="%s"' % ancre) not in _servir_chemin(
+                        route, anonyme, admin):
+                    perdus.append("%s · %s → %s : la page répond, l'ancre "
+                                  "« %s » n'y est pas"
+                                  % (chemin, c["titre"], cible, ancre))
     assert not perdus, perdus
 
 
@@ -396,7 +437,7 @@ def test_un_bloc_ne_renvoie_jamais_a_la_page_qui_le_porte(anonyme, admin):
         for c in _cartes(html):
             if c["balise"] != "a" or not c["href"]:
                 continue
-            if c["href"].split("?")[0].rstrip("/") == chemin.rstrip("/"):
+            if _chemin_vise(c["href"]).rstrip("/") == chemin.rstrip("/"):
                 boucles.append("%s · %s → %s" % (chemin, c["titre"], c["href"]))
     assert not boucles, boucles
 
@@ -412,11 +453,11 @@ def test_un_bloc_ne_mene_pas_derriere_une_porte_plus_fermee_que_la_sienne(anonym
             cible = c["href"]
             if not cible or c["balise"] != "a" or not cible.startswith("/"):
                 continue
-            arrivee = FERMETURE[acces.statut(cible.split("?")[0])]
+            arrivee = FERMETURE[acces.statut(_chemin_vise(cible))]
             if arrivee > depart:
                 murs.append("%s (%s) · %s → %s (%s)"
                             % (chemin, acces.statut(chemin), c["titre"],
-                               cible, acces.statut(cible.split("?")[0])))
+                               cible, acces.statut(_chemin_vise(cible))))
     assert not murs, murs
 
 
@@ -616,7 +657,7 @@ def test_une_citation_au_milieu_d_une_phrase_reste_une_citation(anonyme, admin):
             if t["balise"] == "a":
                 fautes.append("%s · %s : la phrase a été avalée par le lien"
                               % (chemin, t["titre"][:44]))
-            elif cible.startswith("/") and cible.split("?")[0] not in routes:
+            elif cible.startswith("/") and _chemin_vise(cible) not in routes:
                 fautes.append("%s · %s → %s : aucune route"
                               % (chemin, t["titre"][:44], cible))
     assert not fautes, fautes
@@ -676,7 +717,7 @@ def test_une_tuile_lien_ne_mene_derriere_une_porte_plus_fermee_qu_en_le_disant(a
             cible = t["href"]
             if t["balise"] != "a" or not cible or not cible.startswith("/"):
                 continue
-            regime = acces.statut(cible.split("?")[0])
+            regime = acces.statut(_chemin_vise(cible))
             if FERMETURE[regime] <= depart:
                 continue
             annonces += 1
@@ -719,3 +760,161 @@ def test_les_blocs_de_livrables_sont_CEUX_du_catalogue():
             ecarts.append("%s : %s" % (page["url"], etat))
     assert not ecarts, ecarts
     assert sante["livrables_conseil"] >= 41, sante
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LES QUINZE BLOCS DE LA PAGE D'ACCUEIL
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# POURQUOI CETTE SECTION EXISTE, ALORS QUE HUIT RÈGLES BALAYENT DÉJÀ TOUT LE
+# SITE. Elles ne contrôlent que les blocs QUI SONT DES LIENS : destination
+# vivante, appel visible, porte pas plus fermée, pas de lien enfermé. Un bloc
+# MUET, lui, ne leur apparaît pas — il n'a ni href à vérifier ni appel à
+# montrer. C'est exactement l'état d'où l'on partait : onze des quinze blocs
+# de l'accueil n'étaient cliquables nulle part, et aucune règle du dépôt ne
+# s'en plaignait.
+#
+# LA POPULATION EST DONC FIXÉE PAR UN NOMBRE. Compter quinze n'est pas un
+# caprice : sans lui, supprimer un bloc rendrait cette section verte pour la
+# mauvaise raison — celle qui manque ne peut plus être muette.
+
+ACCUEIL_BLOCS = 15
+
+#: LA CARTE QUI N'EST PAS UN LIEN D'UN SEUL TENANT, et ce qu'elle porte.
+#
+# TROIS PORTES DISTINCTES, déclarées ici pour que la règle échoue si l'une
+# disparaît. Les avaler dans un lien enveloppant réduirait trois destinations
+# à une — et le visiteur venu pour la décarbonation atterrirait sur la
+# maîtrise d'œuvre.
+ACCUEIL_TROIS_PORTES = ("/datacenter", "/strategie-durable-datacenter",
+                        "/ingenierie-datacenter")
+
+
+#: LA CLASSE DU CORPS-LIEN — la seule échappatoire admise, nommée une fois.
+CORPS_LIEN = 'class="bloc corps-lien"'
+
+
+def _accueil(anonyme):
+    r = anonyme.get("/")
+    assert r.status_code == 200
+    return r.data.decode("utf-8")
+
+
+def test_les_quinze_blocs_de_l_accueil_sont_TOUS_cliquables(anonyme):
+    """LA RÈGLE QUI PORTE CETTE SECTION.
+
+    Un bloc est cliquable s'il EST un lien, ou — pour l'unique carte à
+    plusieurs portes — s'il en contient un qui couvre son corps. Tout le
+    reste est muet, et un bloc muet sur une page d'accueil est une promesse
+    que rien ne tient.
+    """
+    html = _accueil(anonyme)
+    cartes = _cartes(html)
+    assert len(cartes) == ACCUEIL_BLOCS, (
+        "l'accueil porte %d blocs et non %d : la règle ne balaye plus la "
+        "population qu'elle prétend" % (len(cartes), ACCUEIL_BLOCS))
+    # ═══ LA MUETTE SE MESURE SUR LA CLASSE NOMMÉE, ET PAS SUR « bloc » ═══
+    # Première version : « le corps contient class="bloc" ». Une mutation qui
+    # rendait une carte muette SURVIVAIT — le corps de la carte suivante
+    # entrait dans le sien et apportait le marqueur. On nomme donc la seule
+    # échappatoire admise, `corps-lien`, ce qui a un second effet voulu : une
+    # deuxième carte qui s'en servirait sans être déclarée ci-dessus serait
+    # vue, au lieu de profiter d'un trou.
+    muets = [c["titre"] for c in cartes
+             if c["balise"] != "a" and CORPS_LIEN not in c["corps"]]
+    assert not muets, "blocs de l'accueil que rien n'ouvre : %s" % muets
+    exceptions = [c["titre"] for c in cartes if c["balise"] != "a"]
+    assert len(exceptions) == 1, (
+        "l'accueil compte %d carte(s) à corps-lien au lieu d'une seule : %s — "
+        "l'exception cesse d'en être une" % (len(exceptions), exceptions))
+
+
+def test_la_carte_aux_trois_portes_les_garde_TOUTES_LES_TROIS(anonyme):
+    """L'EXCEPTION, ET CE QUI L'EMPÊCHE DE DEVENIR UNE PERTE.
+
+    Rendre cette carte cliquable d'un seul tenant aurait été plus simple, et
+    aurait coûté deux destinations. La règle mesure donc les deux moitiés du
+    compromis : son corps ouvre le métier, ET les trois boutons sont intacts.
+    """
+    html = _accueil(anonyme)
+    carte = next((c for c in _cartes(html)
+                  if "Ingénierie de centres de données" in c["titre"]), None)
+    assert carte is not None, "la carte d'ingénierie a disparu de l'accueil"
+    for porte in ACCUEIL_TROIS_PORTES:
+        assert ('href="%s"' % porte) in carte["corps"], \
+            "la porte « %s » a été avalée par le lien de bloc" % porte
+    assert CORPS_LIEN in carte["corps"], \
+        "le corps de la carte n'est plus un lien : elle redevient muette " \
+        "hors de ses trois boutons"
+    # ═══ ET SA CLASSE DÉCLARE SON `display` ═══════════════════════════
+    # Sans lui, le <a> reste EN LIGNE : il ne couvre que le texte, pas la
+    # carte — visuellement rien ne change, et la moitié de la surface qu'on
+    # croit cliquable ne l'est pas. La règle générale qui impose cela aux
+    # tuiles-liens ne voit pas cette classe : elle balaye les cartes qui SONT
+    # des liens, et celle-ci ne l'est pas.
+    feuille = _feuille_servie(anonyme)
+    assert re.search(r"a\.corps-lien\s*\{[^}]*display\s*:\s*block", feuille), \
+        "a.corps-lien ne déclare pas display:block — le lien reste en ligne " \
+        "et ne couvre pas la carte"
+
+
+def test_les_ancres_visees_par_l_accueil_existent_sur_LEUR_page(anonyme, admin):
+    """L'ACCUEIL EST LE PREMIER À VISER UNE ANCRE SUR UNE AUTRE PAGE.
+
+    Cette règle NOMME les trois ancres plutôt que de les compter : une ancre
+    renommée sur la page de destination laisse le lien fonctionner — la route
+    répond — et dépose le visiteur en haut d'une page longue, c'est-à-dire
+    précisément là où l'ancre servait à ne pas le déposer.
+    """
+    html = _accueil(anonyme)
+    vises = {c["href"] for c in _cartes(html)
+             if c["balise"] == "a" and c["href"] and "#" in (c["href"] or "")}
+    assert vises, "l'accueil ne vise plus aucune ancre : la règle est vide"
+    for cible in sorted(vises):
+        route, ancre = _chemin_vise(cible), _ancre_visee(cible)
+        page = _servir_chemin(route, anonyme, admin)
+        assert ('id="%s"' % ancre) in page, \
+            "« %s » : la page répond, l'ancre « %s » n'y est pas" % (cible, ancre)
+        # ═══ ET ELLE PASSE SOUS L'EN-TÊTE COLLANT ══════════════════════
+        # L'en-tête du site est fixe. Une ancre sans `scroll-margin-top`
+        # amène le titre visé SOUS cette barre : le visiteur atterrit sur un
+        # paragraphe orphelin et ne voit pas le titre qu'il a demandé. La
+        # règle générale qui impose cela ne couvre que les ancres de la MÊME
+        # page — celles-ci sont les premières à être distantes.
+        feuille = _feuille_servie(anonyme)
+        assert re.search(r"(^|[,{}\s])#%s\b[^{]*\{[^}]*scroll-margin-top"
+                         % re.escape(ancre), feuille, re.M), \
+            "l'ancre « %s » ne déclare pas de scroll-margin-top : elle " \
+            "atterrit sous l'en-tête collant" % ancre
+
+
+def test_aucun_bloc_de_l_accueil_ne_vise_une_page_fermee_sans_le_dire(anonyme):
+    """L'ACCUEIL EST OUVERT À TOUS, et c'est ce qui rend la faute possible.
+
+    Quatorze de ses quinze blocs mènent à des pages ouvertes ; le quinzième
+    mène à l'ingénierie, qui demande un compte. Un clic qui tombe sur un
+    formulaire de connexion sans l'avoir annoncé se lit comme une erreur du
+    site, et le visiteur croit s'être trompé de bouton.
+    """
+    html = _accueil(anonyme)
+    fautes, annonces = [], 0
+    for c in _cartes(html):
+        for m in re.finditer(r'href="(/[^"]*)"', c["corps"]):
+            cible = m.group(1)
+            if acces.statut(_chemin_vise(cible)) == "direct":
+                continue
+            annonces += 1
+            # ═══ L'ANNONCE SE MESURE PAR LIEN, ET PAS SUR LE BLOC ══════
+            # Première version : « le corps du bloc contient accès client ».
+            # Une mutation qui retirait la mention du LIEN DE CORPS
+            # survivait — les trois boutons de la même carte la portaient
+            # encore, et le bloc entier « disait » donc le régime pendant
+            # qu'un de ses quatre liens ne le disait plus. On lit maintenant
+            # ce qui suit CHAQUE lien, jusqu'à sa balise fermante.
+            suite = c["corps"][m.end():]
+            fin = suite.find("</a>")
+            if "accès client" not in (suite[:fin] if fin >= 0 else suite[:300]):
+                fautes.append("%s → %s" % (c["titre"][:40], cible))
+    assert annonces, ("aucun lien de l'accueil ne mène derrière une porte : "
+                      "la règle ne mesure plus rien")
+    assert not fautes, "liens menant derrière une porte sans l'annoncer : %s" % fautes

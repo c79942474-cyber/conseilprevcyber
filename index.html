@@ -208,7 +208,18 @@
              reviendrait à le laisser derrière quatre cartes de cybersécurité,
              c'est-à-dire à ne pas corriger le déséquilibre que le titre vient
              d'annoncer corrigé. -->
+        <!-- LA SEULE CARTE QUI N'EST PAS UN LIEN D'UN SEUL TENANT, ET
+             POURQUOI. Les quatorze autres mènent à UNE page ; celle-ci porte
+             TROIS portes distinctes — durabilité, stratégie DD, ingénierie de
+             projet — annoncées en toutes lettres dans ses étiquettes.
+             L'envelopper d'un seul lien les avalerait : trois destinations
+             deviendraient une, et le visiteur qui vient pour la décarbonation
+             atterrirait sur la maîtrise d'œuvre.
+             SON CORPS EST DONC LE LIEN, et les trois boutons restent à côté :
+             cliquer la carte ouvre le métier, cliquer un bouton ouvre le
+             module. Les deux gestes marchent, aucun n'en annule un autre. -->
         <div class="card a1">
+          <a class="bloc corps-lien" href="/ingenierie-datacenter">
           <div class="ico">🏗️</div>
           <h3>Ingénierie de centres de données</h3>
           <p>Maîtrise d'œuvre de l'esquisse à la réception&nbsp;: phases, registre des pièces,
@@ -216,6 +227,8 @@
             page que la trajectoire de décarbonation, et la stratégie de développement durable
             ouvre l'étude. Chaque grandeur porte sa source et ce qui reste à produire.</p>
           <ul class="taglist"><li>Maîtrise d'œuvre</li><li>PUE, WUE, carbone</li><li>Décarbonation</li><li>Stratégie DD</li></ul>
+          <span class="go">Ouvrir l'ingénierie de projet <span class="ac">accès client</span> →</span>
+          </a>
           <!-- LES TROIS MODULES, ET TOUS ANNONCÉS. La stratégie de
                développement durable est le PREMIER livrable d'une étude : la
                nommer dans les étiquettes sans y conduire laisserait le visiteur
@@ -228,72 +241,84 @@
             <a href="/strategie-durable-datacenter" class="btn btn-s">Stratégie DD <span class="ac">accès client</span></a>
             <a href="/ingenierie-datacenter" class="btn btn-s">Ingénierie de projet <span class="ac">accès client</span></a></p>
         </div>
-        <div class="card a2">
+        <!-- VERS /services#domaines, ET PAS VERS UNE PAGE DÉDIÉE : il n'en
+             existe pas. C'est la page des services qui développe ce métier,
+             sous le même intitulé. L'ancre évite d'atterrir en haut d'une
+             page longue pour y rechercher ce qu'on vient de désigner. -->
+        <a class="bloc card a2" href="/services#domaines">
           <div class="ico">🛰️</div>
           <h3>État des lieux &amp; discovery réseau</h3>
           <p>Découverte passive des réseaux, inventaire des actifs IT/OT/IIoT et cartographie des flux industriels — sans perturber la production.</p>
           <ul class="taglist"><li>Discovery</li><li>Inventaire d'actifs</li><li>Cartographie des flux</li></ul>
-        </div>
-        <div class="card a3">
+          <span class="go">Voir le domaine →</span>
+        </a>
+        <a class="bloc card a3" href="/architecture-cible">
           <div class="ico">🧱</div>
           <h3>Architecture &amp; segmentation</h3>
           <p>Zones &amp; conduits IEC&nbsp;62443, matrices de flux, NAC et firewalls NextGen pour cloisonner IT, OT et terrain.</p>
           <ul class="taglist"><li>IEC 62443</li><li>Segmentation</li><li>NAC · NGFW</li></ul>
-        </div>
-        <div class="card a4">
+          <span class="go">Ouvrir l'architecture cible →</span>
+        </a>
+        <a class="bloc card a4" href="/analyse-de-risque">
           <div class="ico">⚠️</div>
           <h3>Analyse de risques &amp; remédiation</h3>
           <p>Identification des risques prioritaires, mesures d'atténuation et plan de remédiation réaliste, adapté aux contraintes terrain.</p>
           <ul class="taglist"><li>Analyse de risques</li><li>Priorisation</li><li>Remédiation</li></ul>
-        </div>
-        <div class="card a1">
+          <span class="go">Ouvrir l'analyse de risque →</span>
+        </a>
+        <!-- VERS /technologies-securite : c'est la page qui traite IDS/IPS,
+             EDR et durcissement — « la boîte à outils technologique de la
+             sécurité OT », exactement ce que cette carte énumère. -->
+        <a class="bloc card a1" href="/technologies-securite">
           <div class="ico">📡</div>
           <h3>Supervision &amp; détection</h3>
           <p>Supervision temps réel des environnements OT, détection d'anomalies (IDS/IPS), sécurité endpoint (EDR) et maintien en condition de sécurité.</p>
           <ul class="taglist"><li>IDS / IPS OT</li><li>EDR</li><li>MCO</li></ul>
-        </div>
-        <div class="card a2" style="grid-column:1/-1">
+          <span class="go">Voir les technologies →</span>
+        </a>
+        <a class="bloc card a2" style="grid-column:1/-1" href="/services#amoa">
           <div class="ico">🧭</div>
           <h3>AMOA SI Industriel <span style="font-family:var(--mono);font-size:11px;font-weight:400;color:var(--muted2);letter-spacing:.08em;text-transform:uppercase;vertical-align:middle;margin-left:8px">Transversal</span></h3>
           <p>Assistance à maîtrise d'ouvrage pour vos projets de système d'information industriel&nbsp;: nous représentons vos intérêts face aux intégrateurs et éditeurs, de l'expression de besoin jusqu'à la recette — alignement IEC&nbsp;62443 et respect des contraintes de production.</p>
           <ul class="taglist"><li>Expression de besoin</li><li>CCTP</li><li>Consultation intégrateurs</li><li>Comité de pilotage</li><li>Recette</li><li>Indépendance éditeur</li></ul>
-        </div>
+          <span class="go">Voir le pilotage projet →</span>
+        </a>
       </div>
     </section>
 
     <section class="section">
       <h2 class="sec-title" style="text-align:center">// Conseil &amp; transformation OT cyber</h2>
       <div class="grid grid-3">
-        <div class="card a1">
+        <a class="bloc card a1" href="/operating-model">
           <div class="ico">🏛️</div>
           <h3>Operating Model &amp; gouvernance</h3>
           <p>Gouvernance cible, rôles &amp; RACI, processus, interfaces IT/OT et structuration de la fonction OT Security.</p>
-          <p class="muted" style="margin-top:12px"><a href="/operating-model">En savoir plus →</a></p>
-        </div>
-        <div class="card a2">
+          <span class="go">En savoir plus →</span>
+        </a>
+        <a class="bloc card a2" href="/maturite-ot">
           <div class="ico">🩺</div>
           <h3>Assessment de maturité</h3>
           <p>Diagnostic organisationnel, échelle de maturité (IEC&nbsp;62443 ML, NIST&nbsp;CSF, C2M2) et plan de montée en maturité.</p>
-          <p class="muted" style="margin-top:12px"><a href="/maturite-ot">En savoir plus →</a></p>
-        </div>
-        <div class="card a3">
+          <span class="go">En savoir plus →</span>
+        </a>
+        <a class="bloc card a3" href="/feuille-de-route">
           <div class="ico">🗺️</div>
           <h3>Feuille de route</h3>
           <p>Trajectoire de transformation pluriannuelle arbitrée : horizons, streams, jalons et budget.</p>
-          <p class="muted" style="margin-top:12px"><a href="/feuille-de-route">En savoir plus →</a></p>
-        </div>
+          <span class="go">En savoir plus →</span>
+        </a>
       </div>
     </section>
 
     <section class="section">
       <h2 class="sec-title" style="text-align:center">// Notre approche, du terrain à la supervision</h2>
       <div class="grid grid-3">
-        <div class="card a1"><div class="ico">①</div><h3>État des lieux</h3><p>Discovery réseau, inventaire des actifs et cartographie des flux IT/OT existants.</p></div>
-        <div class="card a2"><div class="ico">②</div><h3>Cadrage</h3><p>Périmètre fonctionnel et technique de l'initiative cyber&nbsp;: besoins de supervision, d'inventaire et de sécurisation.</p></div>
-        <div class="card a3"><div class="ico">③</div><h3>Architecture cible</h3><p>Recommandations adaptées aux contraintes OT/IIoT&nbsp;: segmentation, flux, standards d'assets.</p></div>
-        <div class="card a4"><div class="ico">④</div><h3>Remédiation</h3><p>Risques prioritaires, premières mesures et priorisation des chantiers à lancer.</p></div>
-        <div class="card a1"><div class="ico">⑤</div><h3>Supervision &amp; MCO</h3><p>Détection, matrices de flux, validation des demandes et montée en compétence des équipes.</p></div>
-        <div class="card a2"><div class="ico">⑥</div><h3>Documentation</h3><p>Constats, recommandations, choix d'architecture et standards de sécurité tenus à jour.</p></div>
+        <a class="bloc card a1" href="/methodologie#demarche"><div class="ico">①</div><h3>État des lieux</h3><p>Discovery réseau, inventaire des actifs et cartographie des flux IT/OT existants.</p><span class="go">Voir la démarche →</span></a>
+        <a class="bloc card a2" href="/methodologie#demarche"><div class="ico">②</div><h3>Cadrage</h3><p>Périmètre fonctionnel et technique de l'initiative cyber&nbsp;: besoins de supervision, d'inventaire et de sécurisation.</p><span class="go">Voir la démarche →</span></a>
+        <a class="bloc card a3" href="/architecture-cible"><div class="ico">③</div><h3>Architecture cible</h3><p>Recommandations adaptées aux contraintes OT/IIoT&nbsp;: segmentation, flux, standards d'assets.</p><span class="go">Ouvrir la page →</span></a>
+        <a class="bloc card a4" href="/analyse-de-risque"><div class="ico">④</div><h3>Remédiation</h3><p>Risques prioritaires, premières mesures et priorisation des chantiers à lancer.</p><span class="go">Ouvrir la page →</span></a>
+        <a class="bloc card a1" href="/technologies-securite"><div class="ico">⑤</div><h3>Supervision &amp; MCO</h3><p>Détection, matrices de flux, validation des demandes et montée en compétence des équipes.</p><span class="go">Voir les technologies →</span></a>
+        <a class="bloc card a2" href="/methodologie#demarche"><div class="ico">⑥</div><h3>Documentation</h3><p>Constats, recommandations, choix d'architecture et standards de sécurité tenus à jour.</p><span class="go">Voir la démarche →</span></a>
       </div>
     </section>
 
