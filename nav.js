@@ -108,6 +108,7 @@
     "/architecture-cible": '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.7"/><circle cx="12" cy="12" r="1.3"/>',
     "/formation": '<path d="M12 4 2.5 8.5 12 13l9.5-4.5z"/><path d="M6.5 10.8V16c0 1.6 2.5 3 5.5 3s5.5-1.4 5.5-3v-5.2"/>',
     "/gouvernance-ia": '<rect x="7.5" y="7.5" width="9" height="9" rx="2"/><path d="M10.5 4v3.5M13.5 4v3.5M10.5 16.5V20M13.5 16.5V20M4 10.5h3.5M4 13.5h3.5M16.5 10.5H20M16.5 13.5H20"/>',
+    "/securite-ia": '<rect x="2.5" y="9.5" width="8" height="5" rx="2.5"/><rect x="13.5" y="9.5" width="8" height="5" rx="2.5"/><path d="M10.5 12h3"/>',
     "/relecture-contrat": '<path d="M5 3.5h9l4 4V15"/><path d="M14 3.5V7h4"/><path d="M5 3.5V21h6"/><circle cx="16.5" cy="17.5" r="3.2"/><path d="m19 20 2.2 2.2"/>',
     /* ── Ingénierie de Projet — Data Center ────────────────────────────── */
     "/strategie-durable-datacenter": '<path d="M20 4c0 9-5.5 13-11 13a5.5 5.5 0 0 1 0-11c4 0 6-2 11-2z"/><path d="M4 21c1.5-5 5-8.5 9.5-10.5"/>',
@@ -182,6 +183,7 @@
       ["/architecture-cible", "Architecture cible OT"],
       ["/formation", "Formation & compétences"],
       ["/gouvernance-ia", "Governance by Design IA"],
+      ["/securite-ia", "Sécurité de l'IA — chaîne d'autonomie"],
       ["/relecture-contrat", "Relecture de contrats assistée"] ] },
     // ── UNE SECTION À ELLES SEULES ────────────────────────────────────────
     // Les trois pages de centres de données étaient en queue de « Conseil &
@@ -259,6 +261,7 @@
     "/architecture-cible": "Zones et conduits, DMZ industrielle, bastions, diodes de données, durcissement",
     "/formation": "Sensibilisation exploitation et maintenance, essentiels 62443, exercices de crise, mentorat",
     "/gouvernance-ia": "Gouvernance IA côté client : maturité, RACI, compliance by design, pilotage",
+    "/securite-ia": "Sécurité de l'IA : cinq maillons d'autonomie, l'écart qui commande, restitution EBIOS",
     "/feuille-de-route": "Trajectoire de transformation : horizons, streams, budget",
     "/referentiel": "Vue d'ensemble de la norme IEC 62443",
     "/analyse-de-risque": "Analyse de risque des systèmes industriels (partie 3-2)",
@@ -810,6 +813,17 @@
     k: [["Maturité n’est pas conformité", "On peut être conforme et incapable de tenir dans la durée ; on peut être mûr et en écart réglementaire. Une mesure ne remplace jamais l’autre."]],
     l: [["Feuille de route", "/feuille-de-route"], ["Operating model", "/operating-model"]] };
 
+  GUIDES["/securite-ia"] = {
+    t: "Sécurité de l’IA — la chaîne d’autonomie",
+    p: "Mesurer ce qu’un système d’IA peut atteindre sans validation, et ce qui l’en empêche. Cinq maillons, deux notes qui se CONSTATENT, et le pire écart qui commande la chaîne.",
+    s: ["Renseignez les deux notes du maillon « action » d’abord : c’est là que se trouvent les agents que personne n’a déclarés.",
+        "Cotez ce que vous pouvez MONTRER — une liste tenue, un journal, un seuil écrit. Un degré qu’on ne peut pas prouver est un degré qu’on retirera devant l’auditeur.",
+        "Lisez la restitution EBIOS : c’est la même mesure, dans le vocabulaire qu’un contrôle NIS2 sait lire."],
+    k: [["Le pire écart, jamais la moyenne", "Une chaîne vaut son maillon le plus faible. Un raisonnement remarquablement encadré derrière une action grande ouverte produit un incident — et la moyenne des cinq dirait que tout va plutôt bien."],
+        ["Ceci n’est pas un audit", "Personne n’est venu sur site et aucun contournement n’a été éprouvé. Un maillon coté haut en maîtrise signifie « nous affirmons tenir cela » : il faudra le montrer."],
+        ["Aucune conformité ne s’en déduit", "Les huit sources portent chacune sa licence et son caractère certifiable. L’une d’elles, ISO/IEC 27090, ne se certifie pas du tout — « conforme ISO 27090 » ne veut rien dire."]],
+    l: [["Gouvernance de l’IA", "/gouvernance-ia"], ["Analyse de risque 62443", "/analyse-de-risque"]] };
+
   GUIDES["/feuille-de-route"] = {
     t: "Feuille de route",
     p: "Traduire les constats en un plan pluriannuel séquencé, chiffré et défendable, priorisé par le risque et la valeur.",
@@ -1191,6 +1205,7 @@
     ["/architecture-cible", "Architecture cible OT", "Zones et conduits, DMZ industrielle, bastions, diodes de données, durcissement.", "Conseil & transformation", "dmz bastion diode segmentation durcissement"],
     ["/formation", "Formation & compétences", "Sensibilisation exploitation et maintenance, essentiels 62443, exercices de crise.", "Conseil & transformation", "sensibilisation competences apprentissage"],
     ["/gouvernance-ia", "Governance by Design IA", "Gouvernance de l'IA côté client : maturité, RACI, conformité par conception, pilotage.", "Conseil & transformation", "ia intelligence artificielle ai act gouvernance"],
+    ["/securite-ia", "Sécurité de l'IA — chaîne d'autonomie", "Ce qu'un système d'IA peut atteindre sans validation, et ce qui l'en empêche : cinq maillons, l'écart qui commande, restitution EBIOS.", "Conseil & transformation", "securite ia llm agent agentique ebios anssi owasp atlas injection prompt empoisonnement mcp autonomie maillon nis2 ai factory"],
     ["/relecture-contrat", "Relecture de contrats assistée", "Relecture assistée : playbook, écarts, validations, version par version.", "Conseil & transformation", "contrat clausier juridique relecture"],
     ["/strategie-durable-datacenter", "Stratégie DD — centres de données", "Quatre perspectives : raison d'être, parties prenantes, matérialité, trajectoire.", "Ingénierie de Projet — Data Center", "strategie durable rse materialite"],
     ["/datacenter", "Data Center — durabilité et décarbonation", "Énergie, eau et carbone calculés ensemble : PUE, WUE, carbone incorporé.", "Ingénierie de Projet — Data Center", "pue wue carbone energie eau decarbonation"],

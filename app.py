@@ -255,6 +255,13 @@ _RATE_EXACT = {
     # page. Le calcul est pur et ne coûte ni jeton ni base — on borne le
     # volume, pas la dépense.
     "/api/mission/parcours":         (120, 60),
+    # LA CHAÎNE D'AUTONOMIE : deux routes, deux dépenses différentes. Le
+    # calcul est pur — dix soustractions — et se rejoue à chaque curseur
+    # déplacé ; l'export tient un fil plusieurs secondes le temps de la mise
+    # en page. Un plafond commun aux deux étranglerait le premier ou
+    # laisserait filer le second.
+    "/api/securite-ia/evaluer":      (120, 60),
+    "/api/securite-ia/emporter":     (30, 60),
 }
 _RATE_EXACT.update({
     # ── DEUX JETONS QUI SE FORÇAIENT EN AVEUGLE ─────────────────────────────
@@ -904,6 +911,7 @@ PAGES = {
     "/services": "services.html",
     "/operating-model": "operating-model.html",
     "/maturite-ot": "maturite-ot.html",
+    "/securite-ia": "securite-ia.html",
     "/parcours-mission": "parcours-mission.html",
     "/feuille-de-route": "feuille-de-route.html",
     "/etudes-de-cas": "etudes-de-cas.html",
@@ -1160,6 +1168,11 @@ def services():
 @app.route("/operating-model")
 def operating_model():
     return _page(PAGES["/operating-model"])
+
+
+@app.route("/securite-ia")
+def securite_ia_page():
+    return _page(PAGES["/securite-ia"])
 
 
 @app.route("/parcours-mission")
@@ -2392,6 +2405,8 @@ import checklist_62443  # noqa: E402  — la liste de verification 62443
 import parcours_mission
 import parcours_62443  # noqa: E402  — l'ordre dans lequel prendre ce qui reste
 import maturite_ot   # noqa: E402  — l'auto-evaluation declarative, pas un assessment
+import chaine_autonomie   # noqa: E402  — la methode d'analyse, a ne pas
+                          # confondre avec garde_ia, qui est la defense du cabinet
 import etat_art      # noqa: E402  — les faits publies, chacun avec son auteur et ce qu'il vaut
 import profil_dc     # noqa: E402  — analyse le moteur ci-dessus, ne le double pas
 import ingenierie_dc  # noqa: E402  — situe ses résultats dans la séquence projet
@@ -3044,6 +3059,110 @@ def api_maturite_ot_emporter():
                              % (verif["repondus"], verif["sur"]))
     return send_file(io.BytesIO(blob),
                      download_name="auto-evaluation-maturite-ot-%s.%s"
+                                   % (time.strftime("%Y-%m-%d"), fmt),
+                     as_attachment=True, mimetype=mimetype)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  SÉCURITÉ DE L'IA — LA CHAÎNE D'AUTONOMIE
+# ══════════════════════════════════════════════════════════════════════════
+# POURQUOI CES TROIS ROUTES RESSEMBLENT À CELLES DE LA MATURITÉ OT. Même
+# forme, même réserve, même refus du contournement par l'export : c'est le
+# même arbitrage, et deux formes différentes pour le même contrat obligeraient
+# à relire deux fois la même décision.
+#
+# CE QU'ELLES NE FONT PAS. Elles ne rendent aucun audit. Le module structure
+# un CONSTAT DÉCLARÉ — ce que le système peut atteindre, ce qui l'en empêche —
+# et la réserve voyage DANS la réponse, jamais à côté.
+
+@app.route("/api/securite-ia/referentiel")
+def api_securite_ia_referentiel():
+    """Les cinq maillons, les deux échelles, les menaces rattachées à leur
+    maillon et les sources avec leur licence.
+
+    LA PAGE NE RECOPIE RIEN. Un maillon écrit en dur dans le gabarit
+    divergerait du module au premier remaniement : l'écran annoncerait une
+    chaîne que le moteur ne tient plus, et rien ne le signalerait. Une règle
+    de `tests/` refuse qu'un libellé de maillon apparaisse dans le HTML."""
+    return _json_fige("securite-ia-referentiel",
+                      lambda: dict(ok=True,
+                                   referentiel=chaine_autonomie.referentiel()))
+
+
+@app.route("/api/securite-ia/evaluer", methods=["POST"])
+def api_securite_ia_evaluer():
+    """L'écart par maillon, le pire qui commande, et la restitution EBIOS.
+
+    UN MAILLON NON RENSEIGNÉ N'EST PAS UN MAILLON SAIN. La réponse le rend
+    `null` plutôt que zéro : le compter pour zéro ferait remonter une alerte
+    maximale sur un maillon que personne n'a seulement regardé, et le lecteur
+    cesserait de croire l'écran au deuxième essai.
+
+    LA MOYENNE N'EST JAMAIS RENDUE, et c'est délibéré. Elle serait lue comme
+    un score, et un score moyen sur cinq maillons dont un est grand ouvert
+    dirait que tout va plutôt bien."""
+    data = request.get_json(silent=True) or {}
+    r = chaine_autonomie.restitution_ebios(
+        data.get("autonomie"), data.get("maitrise"),
+        valeur_metier=str(data.get("valeur_metier") or "")[:200],
+        gravite=data.get("gravite"))
+    if not r.get("ok"):
+        return jsonify(r), 400
+    r["chaine"] = chaine_autonomie.evaluer(data.get("autonomie"),
+                                      data.get("maitrise"))
+    return jsonify(r)
+
+
+@app.route("/api/securite-ia/emporter", methods=["POST"])
+def api_securite_ia_emporter():
+    """Le relevé de chaîne, en PDF ou en Word.
+
+    LE DOCUMENT CIRCULE SANS SA PAGE, et il ressemble à un audit sans en être
+    un. `chaine_autonomie.markdown` place donc la réserve avant le premier chiffre :
+    un lecteur qui ne verra jamais cet écran doit savoir, avant de lire un
+    degré, que personne n'est venu le vérifier."""
+    data = request.get_json(silent=True) or {}
+    fmt = str(data.get("format") or "pdf").strip().lower()
+    if fmt not in livrables_export.FORMATS:
+        return jsonify(ok=False, error="format_inconnu",
+                       message="Formats servis : %s."
+                               % ", ".join(livrables_export.FORMATS)), 400
+
+    # LA MÊME PORTE QUE L'ÉCRAN : un maillon inconnu est refusé ici comme là,
+    # pour que le format de sortie ne devienne pas le chemin de contournement.
+    verif = chaine_autonomie.evaluer(data.get("autonomie"), data.get("maitrise"))
+    if not verif.get("ok"):
+        return jsonify(verif), 400
+    if not verif.get("renseignes"):
+        return jsonify(ok=False, error="rien_de_constate",
+                       message="Aucun maillon n'est renseigné : il n'y a rien "
+                               "à emporter."), 400
+
+    md = chaine_autonomie.markdown(
+        data.get("autonomie"), data.get("maitrise"),
+        valeur_metier=str(data.get("valeur_metier") or "")[:200],
+        gravite=data.get("gravite"),
+        titre=str(data.get("titre") or "").strip()[:120] or None)
+    meta = {"label": "Chaîne d'autonomie — sécurité de l'IA",
+            "client": str(data.get("client") or "")[:120],
+            # Les degrés sont déclarés par le client, l'écart est un calcul.
+            "ia": False,
+            "referentiel": "Chaîne d'autonomie CONSEILPREV · vocabulaire "
+                           "EBIOS RM (ANSSI-PA-048) · socle ANSSI-PA-102",
+            "perimetre": str(data.get("perimetre") or "").strip()[:300]
+                         or "AI Factory",
+            "date": time.strftime("%d/%m/%Y")}
+    try:
+        blob, mimetype, ext = livrables_export.composer(md, meta, fmt)
+    except Exception:
+        app.logger.exception("export securite IA")
+        return jsonify(ok=False, error="export_echec",
+                       message="La mise en page a échoué."), 500
+    audit.journaliser("securiteia.export", cible=fmt,
+                      detail="%d maillon(s) renseigné(s) · écart max %s"
+                             % (verif["renseignes"], verif["ecart_max"]))
+    return send_file(io.BytesIO(blob),
+                     download_name="chaine-autonomie-%s.%s"
                                    % (time.strftime("%Y-%m-%d"), fmt),
                      as_attachment=True, mimetype=mimetype)
 

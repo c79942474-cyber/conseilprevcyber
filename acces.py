@@ -84,6 +84,7 @@ DIRECT = {
     # Conseil & transformation
     "/operating-model": "Operating Model & gouvernance",
     "/maturite-ot": "Assessment de maturité",
+    "/securite-ia": "Sécurité de l'IA",
     "/feuille-de-route": "Feuille de route",
     "/parcours-mission": "Parcours d'une mission",
     "/continuite-ot": "Continuité & crise OT",
@@ -207,6 +208,14 @@ API_OUVERTES = {
     "/api/maturite-ot/referentiel": "le référentiel de l'assessment de maturité",
     "/api/maturite-ot/evaluer": "le calcul de l'assessment de maturité",
     "/api/maturite-ot/emporter": "l'export de l'assessment de maturité",
+    # ── LA CHAÎNE D'AUTONOMIE S'OUVRE, ET POUR LE MÊME MOTIF QUE SES VOISINES
+    # Rien du client n'entre nulle part : les deux degrés par maillon montent
+    # dans la requête et redescendent dans la réponse, sans toucher ni la base
+    # ni le disque. Ce qui est servi, c'est notre méthode — et une méthode
+    # qu'on ne peut pas essayer ne se vend pas.
+    "/api/securite-ia/referentiel": "les cinq maillons de la chaîne d'autonomie",
+    "/api/securite-ia/evaluer": "l'écart par maillon et la restitution EBIOS",
+    "/api/securite-ia/emporter": "l'export du relevé de chaîne d'autonomie",
     "/api/state": "l'état du cockpit — données SIMULÉES en mode démonstration",
     "/api/assets": "les actifs du cockpit — mêmes données simulées",
     "/api/trends": "les tendances, nourries du même modèle",
@@ -478,6 +487,10 @@ def _verifier():
     # entre — les phases cochées montent dans la requête et redescendent dans
     # la réponse, sans toucher ni la base ni le disque.
     "/parcours-mission",
+    # LE MODULE DE SÉCURITÉ DE L'IA S'OUVRE COMME LE PARCOURS, et pour la même
+    # raison : il ne montre que notre méthode. Les degrés déclarés ne sont ni
+    # enregistrés ni recoupés — la page est un instrument, pas un formulaire.
+    "/securite-ia",
     "/feuille-de-route", "/continuite-ot", "/gestion-des-changements",
     "/architecture-cible", "/formation", "/gouvernance-ia",
     "/relecture-contrat", "/referentiel", "/analyse-de-risque",

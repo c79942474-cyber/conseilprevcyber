@@ -601,6 +601,107 @@ TYPES = [
             "Recommandations et points de vigilance",
         ],
     },
+    # ══════════════════════════════════════════════════════════════════
+    #  SÉCURITÉ DE L'IA — les livrables de la chaîne d'autonomie
+    # ══════════════════════════════════════════════════════════════════
+    # POURQUOI CE GROUPE N'EST PAS DANS « Gouvernance IA ». Les neuf livrables
+    # de là-bas portent sur le CADRE d'usage — AI Act, RGPD, RACI, règles
+    # d'emploi. Ceux-ci portent sur ce qu'un attaquant peut faire. Les mêler
+    # ferait puiser les uns dans les thèmes des autres : une charte de
+    # gouvernance écrite avec des notes de MITRE ATLAS serait moins bonne, et
+    # un relevé de chaîne écrit avec l'article 50 du règlement serait creux.
+    {
+        "id": "sia-chaine-autonomie",
+        "mots_cles": "chaine autonomie maillons perception raisonnement decision "
+                     "action effet ecart maitrise agent IA factory MCP outils "
+                     "identifiants ebios bien support evenement redoute",
+        "groupe": "Conseil — Sécurité de l'IA",
+        "label": "Relevé de chaîne d'autonomie d'une AI Factory",
+        "desc": "L'état constaté des cinq maillons — perception, raisonnement, "
+                "décision, action, effet — avec pour chacun l'autonomie et la "
+                "maîtrise, l'écart qui les sépare et les menaces que ce maillon "
+                "ne rencontre pas. Le pire écart commande la chaîne : ni la "
+                "moyenne des maillons ni le nombre de mesures en place ne "
+                "changent cette lecture.",
+        "sections": [
+            "Périmètre : les systèmes d'IA retenus et ceux écartés",
+            "Méthode : ce qui se constate, et ce qui reste déclaré",
+            "Maillon 1 — perception : sources d'entrée maîtrisées et non maîtrisées",
+            "Maillon 2 — raisonnement : modèle, prompt système, mémoire, base de connaissance",
+            "Maillon 3 — décision : seuils d'escalade écrits et reprise humaine",
+            "Maillon 4 — action : inventaire des outils atteignables et des identifiants",
+            "Maillon 5 — effet : irréversibilité, mode dégradé, moyens d'arrêt",
+            "Le maillon qui commande, et ce qu'il coûte",
+            "Ce qui n'a pas été regardé",
+        ],
+    },
+    {
+        "id": "sia-architecture-confinement",
+        "mots_cles": "confinement passerelle MCP courtage identifiants courte duree "
+                     "cloisonnement journalisation kill switch mode degrade seuils "
+                     "escalade architecture cible securite IA",
+        "groupe": "Conseil — Sécurité de l'IA",
+        "label": "Architecture de confinement des systèmes d'IA",
+        "desc": "L'architecture cible qui referme les maillons ouverts : passerelle "
+                "unique d'accès aux outils, courtage d'identifiants de très courte "
+                "durée, seuils d'escalade écrits, journalisation exploitable et "
+                "moyens d'arrêt éprouvés. Chiffrée, séquencée, et rattachée aux "
+                "recommandations publiques qui la fondent.",
+        "sections": [
+            "Ce que l'architecture actuelle laisse passer",
+            "Le point de passage unique vers les outils",
+            "Le courtage d'identifiants : durée de vie et révocation",
+            "Cloisonnement des environnements et des données",
+            "Seuils d'escalade et reprise humaine",
+            "Journalisation : ce qui doit rester une trace exploitable",
+            "Arrêt et mode dégradé sans système d'IA",
+            "Séquencement et chiffrage",
+        ],
+    },
+    {
+        "id": "sia-audit-socle-anssi",
+        "mots_cles": "audit ecart recommandations ANSSI PA-102 IA generative socle "
+                     "securite OWASP agentique ASI MITRE ATLAS revue passerelle "
+                     "identifiants conformite NIS2",
+        "groupe": "Conseil — Sécurité de l'IA",
+        "label": "Audit d'écart au socle de sécurité de l'IA",
+        "desc": "L'écart mesuré aux trente-cinq recommandations publiques de "
+                "sécurité d'un système d'IA générative, complété de la couverture "
+                "des dix risques agentiques. Chaque écart porte la pièce qui le "
+                "constate ou l'absence de pièce qui le signale.",
+        "sections": [
+            "Périmètre audité et pièces examinées",
+            "Écart au socle, recommandation par recommandation",
+            "Couverture des risques propres aux agents",
+            "Revue du point de passage et du courtage d'identifiants",
+            "Systèmes d'IA non déclarés découverts pendant l'audit",
+            "Écarts majeurs, mineurs et observations",
+            "Ce que l'audit n'a pas pu vérifier",
+            "Plan de remise à niveau priorisé",
+        ],
+    },
+    {
+        "id": "sia-formation-maillons",
+        "mots_cles": "formation securite IA trois publics direction architectes "
+                     "exploitation reconnaitre agent hors perimetre exercice "
+                     "injection prompt empoisonnement memoire outil",
+        "groupe": "Conseil — Sécurité de l'IA",
+        "label": "Programme de formation — sécurité des systèmes d'IA",
+        "desc": "Trois publics, trois contenus distincts : ce que la direction "
+                "engage en autorisant un agent, les cinq maillons pour les "
+                "architectes, et pour l'exploitation la seule chose qui compte au "
+                "quotidien — reconnaître un système d'IA qui sort de son "
+                "périmètre. Pratique, outil en main, sans volet stratégique.",
+        "sections": [
+            "Les trois publics et ce que chacun doit savoir faire",
+            "Direction : ce qu'on engage en autorisant une action autonome",
+            "Architectes : les cinq maillons et la barrière de chacun",
+            "Exploitation : reconnaître un système qui sort de son périmètre",
+            "Exercice sur table : un maillon ouvert, une conséquence",
+            "Évaluation des acquis",
+            "Ce que ce programme ne couvre pas",
+        ],
+    },
     {
         # LE SEUL DIAGNOSTIC ORGANISATIONNEL DU CATALOGUE PORTAIT SUR L'IA.
         # Un radar de maturité note des domaines ; il ne dit ni qui décide,
@@ -1736,6 +1837,8 @@ PAGES_CONSEIL = [
      "groupe": "Conseil — Gestion des changements (MOC)"},
     {"url": "/architecture-cible", "titre": "Architecture cible OT",
      "groupe": "Conseil — Architecture & détection"},
+    {"url": "/securite-ia", "titre": "Sécurité de l'IA",
+     "groupe": "Conseil — Sécurité de l'IA"},
     {"url": "/formation", "titre": "Formation & compétences",
      "groupe": "Conseil — Formation & compétences"},
     {"url": "/gouvernance-ia", "titre": "Governance by Design IA",
@@ -2355,6 +2458,20 @@ GROUPE_THEMES = {
     "Conseil — Formation & compétences": [
         "Sensibilisation & formation", "Gouvernance & CSMS",
         "ANSSI / Référentiels & qualification"],
+    # ── CE GROUPE LIT LA SÉCURITÉ, PAS LA CONFORMITÉ ────────────────────
+    # Les thèmes d'AI Act et de RGPD sont volontairement ABSENTS : ils portent
+    # le cadre d'usage, et un relevé de chaîne d'autonomie écrit avec eux
+    # parlerait de transparence là où on attend un inventaire d'outils
+    # atteignables. Le défaut de pointage se corrige dans un sens ; il se crée
+    # aussi bien dans l'autre.
+    "Conseil — Sécurité de l'IA": [
+        "Architecture & segmentation",
+        "Gestion des correctifs",
+        "Gouvernance & CSMS",
+        "ANSSI / Référentiels & qualification",
+        "Supervision & détection",
+        "Réponse à incident",
+    ],
     "Conseil — Gouvernance IA": [
         "AI Act", "Juridique / IA Act", "RGPD",
         "Juridique / RGPD & données", "Gouvernance & CSMS"],

@@ -86,7 +86,7 @@ def test_les_pages_en_acces_direct_sont_celles_qui_ont_ete_nommees():
         # compte — la fermer reviendrait à cacher ses références à qui
         # vient les lire.
         "/references", "/referentiel", "/relecture-contrat", "/ressources",
-        "/secteurs", "/services", "/technologies-securite", "/tendances",
+        "/secteurs", "/securite-ia", "/services", "/technologies-securite", "/tendances",
         "/veille", "/vos-projets",
     ]
 
