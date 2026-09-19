@@ -266,6 +266,11 @@ _RATE_EXACT = {
     # laisserait filer le second.
     "/api/securite-ia/evaluer":      (120, 60),
     "/api/securite-ia/emporter":     (30, 60),
+    # LA CONTRE-EXPERTISE : un dossier entier arrive dans le corps, et le
+    # calcul trie un graphe de prérequis. Plus cher qu'une soustraction de
+    # curseurs, sans commune mesure avec une mise en page.
+    "/api/ai-factory/contre-expertise": (60, 60),
+    "/api/ai-factory/alerte":           (90, 60),
 }
 _RATE_EXACT.update({
     # ── DEUX JETONS QUI SE FORÇAIENT EN AVEUGLE ─────────────────────────────
@@ -2415,6 +2420,9 @@ import etat_art      # noqa: E402  — les faits publies, chacun avec son auteur
 import profil_dc     # noqa: E402  — analyse le moteur ci-dessus, ne le double pas
 import ingenierie_dc  # noqa: E402  — situe ses résultats dans la séquence projet
 import ia_factory     # noqa: E402  — l'étude de faisabilité d'une usine IA, sans prix inventé
+import contre_expertise_ia  # noqa: E402  — CONTESTE le programme d'une usine
+                            # déjà lancée ; ia_factory l'étudie avant, et
+                            # chaine_autonomie cote un système, pas un programme
 import technique_dc  # noqa: E402  — le vocabulaire du métier, servi aux infobulles
 import densite_dc   # noqa: E402  — la densité par baie contre le bâtiment
 import financement_dc  # noqa: E402  — qui porte l'enveloppe, et à quel prix
@@ -3195,6 +3203,72 @@ def api_securite_ia_emporter():
                      download_name="chaine-autonomie-%s.%s"
                                    % (time.strftime("%Y-%m-%d"), fmt),
                      as_attachment=True, mimetype=mimetype)
+
+
+@app.route("/api/ai-factory/referentiel")
+def api_ai_factory_referentiel():
+    """Les phases, les équipes, les 19 contrôles, les risques, les cas
+    d'usage, les patterns, les questions d'architecture, les deux sens de la
+    relation IA/cyber, et le cadre bancaire.
+
+    LA PAGE NE RECOPIE AUCUN LIBELLÉ. Un contrôle écrit en dur dans le
+    gabarit divergerait du module au premier délai révisé : l'écran
+    annoncerait une feuille de route que le moteur ne calcule plus. Une règle
+    de `tests/` refuse qu'un nom de contrôle apparaisse dans le HTML.
+
+    ET LE DÉLAI EST SERVI AVEC CE QU'IL SUPPOSE. Un délai nu se lit comme un
+    engagement ; c'est un ordre de grandeur adossé à une hypothèse, et
+    l'hypothèse est la seule chose qu'une équipe puisse contester utilement."""
+    return _json_fige("ai-factory-referentiel",
+                      lambda: dict(ok=True,
+                                   referentiel=contre_expertise_ia.referentiel()))
+
+
+@app.route("/api/ai-factory/contre-expertise", methods=["POST"])
+def api_ai_factory_contre_expertise():
+    """La dette d'antériorité, la feuille de route, et les ambitions en écart.
+
+    CE QUE CETTE ROUTE NE REND JAMAIS : un pourcentage de couverture. C'est
+    précisément le chiffre qui laisse passer la dette — il monte pendant que
+    des cas d'usage partent sans contrôle, parce qu'il compte les contrôles et
+    non les cas découverts. Elle rend un COMPTE de cas et des JOURS.
+
+    SANS INVENTAIRE, LA DETTE N'EST PAS NULLE, ELLE EST INCALCULABLE, et la
+    réponse le dit en tête plutôt que de servir un zéro rassurant sur un
+    périmètre que personne n'a établi.
+
+    LA DATE EST INJECTÉE, JAMAIS PRISE DE L'HORLOGE DU SERVEUR pour un appel
+    de démonstration : deux lectures du même dossier à deux jours d'écart
+    rendraient deux anciennetés différentes, et la règle qui les mesure ne
+    tiendrait pas."""
+    data = request.get_json(silent=True) or {}
+    r = contre_expertise_ia.contre_expertise(data.get("dossier"),
+                                             aujourdhui=data.get("date"))
+    if not r.get("ok"):
+        return jsonify(r), 400
+    return jsonify(r)
+
+
+@app.route("/api/ai-factory/alerte", methods=["POST"])
+def api_ai_factory_alerte():
+    """Une ambition contre le temps que ses contrôles demandent.
+
+    « Alerter et challenger le management lorsque les ambitions business ne
+    sont pas compatibles avec les exigences de sécurité » est la part du
+    métier qui ressemble le plus à une opinion contre une autre. Elle cesse
+    d'y ressembler dès qu'on pose deux dates et qu'on les soustrait.
+
+    LA ROUTE NE RECOMMANDE RIEN. Elle rend l'écart et les trois issues —
+    réduire, décaler, accepter par écrit. Choisir n'appartient pas à la
+    sécurité : un module qui trancherait produirait exactement le réflexe
+    qu'on cherche à éviter, celui de contourner plutôt que de décider."""
+    data = request.get_json(silent=True) or {}
+    r = contre_expertise_ia.alerte(data.get("ambition"),
+                                   data.get("controles"),
+                                   aujourdhui=data.get("date"))
+    if not r.get("ok"):
+        return jsonify(r), 400
+    return jsonify(r)
 
 
 @app.route("/api/datacenter/etat-art")

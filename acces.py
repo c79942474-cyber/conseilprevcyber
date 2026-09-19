@@ -216,6 +216,22 @@ API_OUVERTES = {
     "/api/securite-ia/referentiel": "les cinq maillons de la chaîne d'autonomie",
     "/api/securite-ia/evaluer": "l'écart par maillon et la restitution EBIOS",
     "/api/securite-ia/emporter": "l'export du relevé de chaîne d'autonomie",
+    # ── LA CONTRE-EXPERTISE S'OUVRE AUSSI, ET IL FAUT DIRE CE QUI DIFFÈRE
+    # La chaîne d'autonomie fait monter deux curseurs par maillon. Ici, le
+    # corps de la requête nomme des cas d'usage EN SERVICE et les contrôles
+    # qui leur manquent — c'est-à-dire la posture d'une maison, pas deux
+    # entiers. Rien n'est pour autant conservé : le calcul est pur, il ne
+    # touche ni la base ni le disque, et aucun journal ne recopie un corps de
+    # requête. Ce qui reste exposé est le TRANSIT, et il est en TLS comme le
+    # reste. Une page de démonstration qui ne prendrait qu'un dossier fictif
+    # ne démontrerait rien — et un prospect qui ne peut pas essayer sur ses
+    # propres cas d'usage n'achète pas.
+    "/api/ai-factory/referentiel": "les contrôles, cas d'usage et patterns de "
+                                   "la contre-expertise d'usine IA",
+    "/api/ai-factory/contre-expertise": "la dette d'antériorité, la feuille "
+                                        "de route et les ambitions en écart",
+    "/api/ai-factory/alerte": "l'écart en jours entre une ambition et ses "
+                              "contrôles",
     "/api/state": "l'état du cockpit — données SIMULÉES en mode démonstration",
     "/api/assets": "les actifs du cockpit — mêmes données simulées",
     "/api/trends": "les tendances, nourries du même modèle",

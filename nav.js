@@ -261,7 +261,7 @@
     "/architecture-cible": "Zones et conduits, DMZ industrielle, bastions, diodes de données, durcissement",
     "/formation": "Sensibilisation exploitation et maintenance, essentiels 62443, exercices de crise, mentorat",
     "/gouvernance-ia": "Gouvernance IA côté client : maturité, RACI, compliance by design, pilotage",
-    "/securite-ia": "Sécurité de l'IA : cinq maillons d'autonomie, l'écart qui commande, restitution EBIOS",
+    "/securite-ia": "Sécurité de l'IA : cinq maillons d'autonomie, l'écart qui commande, restitution EBIOS, et la contre-expertise d'une usine IA en déploiement",
     "/feuille-de-route": "Trajectoire de transformation : horizons, streams, budget",
     "/referentiel": "Vue d'ensemble de la norme IEC 62443",
     "/analyse-de-risque": "Analyse de risque des systèmes industriels (partie 3-2)",
@@ -818,10 +818,12 @@
     p: "Mesurer ce qu’un système d’IA peut atteindre sans validation, et ce qui l’en empêche. Cinq maillons, deux notes qui se CONSTATENT, et le pire écart qui commande la chaîne.",
     s: ["Renseignez les deux notes du maillon « action » d’abord : c’est là que se trouvent les agents que personne n’a déclarés.",
         "Cotez ce que vous pouvez MONTRER — une liste tenue, un journal, un seuil écrit. Un degré qu’on ne peut pas prouver est un degré qu’on retirera devant l’auditeur.",
-        "Lisez la restitution EBIOS : c’est la même mesure, dans le vocabulaire qu’un contrôle NIS2 sait lire."],
+        "Lisez la restitution EBIOS : c’est la même mesure, dans le vocabulaire qu’un contrôle NIS2 sait lire.",
+        "Plus bas, la contre-expertise pose l’autre question : non pas ce qu’un système peut atteindre, mais ce qui est DÉJÀ parti en service sans son contrôle, et depuis combien de jours."],
     k: [["Le pire écart, jamais la moyenne", "Une chaîne vaut son maillon le plus faible. Un raisonnement remarquablement encadré derrière une action grande ouverte produit un incident — et la moyenne des cinq dirait que tout va plutôt bien."],
         ["Ceci n’est pas un audit", "Personne n’est venu sur site et aucun contournement n’a été éprouvé. Un maillon coté haut en maîtrise signifie « nous affirmons tenir cela » : il faudra le montrer."],
-        ["Aucune conformité ne s’en déduit", "Les huit sources portent chacune sa licence et son caractère certifiable. L’une d’elles, ISO/IEC 27090, ne se certifie pas du tout — « conforme ISO 27090 » ne veut rien dire."]],
+        ["Aucune conformité ne s’en déduit", "Les huit sources portent chacune sa licence et son caractère certifiable. L’une d’elles, ISO/IEC 27090, ne se certifie pas du tout — « conforme ISO 27090 » ne veut rien dire."],
+        ["Jamais de taux de couverture", "La contre-expertise rend un compte de cas et des jours, pas un pourcentage. « 78 % des contrôles en place » est exactement le chiffre qui laisse passer la dette : il monte pendant que des cas d’usage partent sans contrôle, puisqu’il compte les contrôles et non les cas découverts."]],
     l: [["Gouvernance de l’IA", "/gouvernance-ia"], ["Analyse de risque 62443", "/analyse-de-risque"]] };
 
   GUIDES["/feuille-de-route"] = {
@@ -1205,7 +1207,7 @@
     ["/architecture-cible", "Architecture cible OT", "Zones et conduits, DMZ industrielle, bastions, diodes de données, durcissement.", "Conseil & transformation", "dmz bastion diode segmentation durcissement"],
     ["/formation", "Formation & compétences", "Sensibilisation exploitation et maintenance, essentiels 62443, exercices de crise.", "Conseil & transformation", "sensibilisation competences apprentissage"],
     ["/gouvernance-ia", "Governance by Design IA", "Gouvernance de l'IA côté client : maturité, RACI, conformité par conception, pilotage.", "Conseil & transformation", "ia intelligence artificielle ai act gouvernance"],
-    ["/securite-ia", "Sécurité de l'IA — chaîne d'autonomie", "Ce qu'un système d'IA peut atteindre sans validation, et ce qui l'en empêche : cinq maillons, l'écart qui commande, restitution EBIOS.", "Conseil & transformation", "securite ia llm agent agentique ebios anssi owasp atlas injection prompt empoisonnement mcp autonomie maillon nis2 ai factory"],
+    ["/securite-ia", "Sécurité de l'IA — chaîne d'autonomie et contre-expertise", "Ce qu'un système d'IA peut atteindre sans validation, et ce qui l'en empêche : cinq maillons, l'écart qui commande, restitution EBIOS. Puis ce qui est déjà parti en service sans son contrôle, et de combien de jours l'ambition dépasse le temps que les contrôles demandent.", "Conseil & transformation", "securite ia llm agent agentique ebios anssi owasp atlas injection prompt empoisonnement mcp autonomie maillon nis2 ai factory contre-expertise dette anteriorite vibe coding guardrail filtrage iam mlops llmops shadow ai dora feuille de route devsecops red team deepfake"],
     ["/relecture-contrat", "Relecture de contrats assistée", "Relecture assistée : playbook, écarts, validations, version par version.", "Conseil & transformation", "contrat clausier juridique relecture"],
     ["/strategie-durable-datacenter", "Stratégie DD — centres de données", "Quatre perspectives : raison d'être, parties prenantes, matérialité, trajectoire.", "Ingénierie de Projet — Data Center", "strategie durable rse materialite"],
     ["/datacenter", "Data Center — durabilité et décarbonation", "Énergie, eau et carbone calculés ensemble : PUE, WUE, carbone incorporé.", "Ingénierie de Projet — Data Center", "pue wue carbone energie eau decarbonation"],
