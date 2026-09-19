@@ -92,6 +92,52 @@
   .si-sc dt{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;
             color:var(--muted2);padding-top:3px}
   .si-sc dd{margin:0;color:var(--muted)}
+  /* ── LE BANDEAU DE CHIFFRES ──────────────────────────────────────────
+     UNE RANGÉE DE TUILES, PAS UN GRAPHIQUE. Six nombres sans axe commun —
+     des pourcentages d'enquête, un décompte de registre, une prévision —
+     n'ont pas d'échelle partagée : les mettre en barres inventerait une
+     comparaison que les données ne portent pas, et le décompte du registre
+     écraserait les cinq autres. La forme juste pour une poignée de nombres
+     de tête est la tuile.
+     CHIFFRES PROPORTIONNELS, ET NON TABULAIRES : `tabular-nums` donne à
+     chaque chiffre la largeur d'un zéro, ce qui fait flotter un pourcentage
+     à deux chiffres à cette taille. Le tabulaire est pour les colonnes qui
+     s'alignent verticalement. */
+  .ch-bandeau{margin-top:22px}
+  .ch-tete{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px}
+  .ch-tete h2{margin:0;font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+              text-transform:uppercase;color:var(--muted2)}
+  .ch-maj{font-family:var(--mono);font-size:10.5px;color:var(--muted2)}
+  .ch-grille{display:grid;gap:10px;margin-top:12px;
+             grid-template-columns:repeat(auto-fit,minmax(330px,1fr))}
+  /* SIX TUILES SE RANGENT EN TROIS PAR DEUX, et non en quatre puis deux :
+     une rangée orpheline de deux fait chercher ce qui la distingue des
+     quatre du dessus, alors que rien ne l'en distingue. */
+  .ch-t{border:1px solid var(--line);border-radius:12px;padding:14px 16px;
+        background:linear-gradient(180deg,var(--panel),var(--bg2));
+        display:flex;flex-direction:column;gap:6px}
+  .ch-v{font-size:30px;line-height:1.05;font-weight:600;color:var(--terra)}
+  .ch-d{font-size:12.5px;line-height:1.5;color:var(--muted);flex:1 1 auto}
+  .ch-pied{display:flex;flex-wrap:wrap;align-items:center;gap:6px;
+           margin-top:2px;padding-top:8px;border-top:1px solid var(--line);
+           font-family:var(--mono);font-size:10px;color:var(--muted2)}
+  /* UN POINT MÉDIAN ENTRE LES MENTIONS. Sans lui, « il y a 15 mois » et
+     « Gartner » se lisaient comme une seule phrase, et la source paraissait
+     dater la durée. Il est décoratif, donc invisible aux aides vocales. */
+  .ch-pied>span+span::before{content:"·";margin-right:6px;color:var(--line)}
+  .ch-pied a{color:var(--cyan);text-decoration:none}
+  .ch-pied a:hover{text-decoration:underline}
+  /* L'ÉTAT N'EST PAS PORTÉ PAR LA COULEUR SEULE (WCAG 1.4.1) : chaque
+     pastille porte son mot. Le vert et l'ambre ne font que le redire. */
+  .ch-etat{border:1px solid var(--line);border-radius:999px;padding:1px 7px}
+  .ch-etat.ch-frais{color:var(--teal);border-color:var(--teal)}
+  .ch-etat.ch-a_revoir{color:var(--amber,#F0B429);border-color:var(--amber,#F0B429)}
+  .ch-etat.ch-perime{color:var(--terra);border-color:var(--terra)}
+  .ch-t.ch-attente{border-style:dashed}
+  .ch-t.ch-attente .ch-v{color:var(--muted2);font-size:20px}
+  .ch-reserve{margin-top:12px;font-size:12px;line-height:1.6;color:var(--muted2);
+              max-width:88ch}
+  @media (max-width:520px){ .ch-v{font-size:26px} }
   /* ── LA CONTRE-EXPERTISE ───────────────────────────────────────────────
      Un jeu de classes distinct de `si-`, et volontairement : la chaîne cote
      UN SYSTÈME, la contre-expertise conteste UN PROGRAMME. Partager les
@@ -238,6 +284,27 @@
         Chacun reçoit deux notes&nbsp;: l'<strong>autonomie</strong> — ce qui part sans validation — et la
         <strong>maîtrise</strong> — ce qui l'en empêche ou le rattrape. L'écart entre les deux est un maillon
         ouvert, qu'on l'ait imaginé ou non. <strong>Le pire écart commande la chaîne, jamais la moyenne.</strong></p>
+    </section>
+
+    <!-- ── LE BANDEAU DE CHIFFRES, EN TÊTE ────────────────────────────────
+         POURQUOI ICI ET PAS PLUS BAS. Ces six nombres ne commentent pas la
+         méthode : ils disent pourquoi la page existe. Placés après
+         l'instrument, ils auraient servi de conclusion à qui serait allé
+         jusqu'au bout — c'est-à-dire à personne, puisque c'est précisément
+         ce qu'ils doivent donner envie de faire.
+         AUCUNE VALEUR N'EST ÉCRITE ICI — pas même en commentaire, pour que
+         la règle qui l'interdit n'ait aucune exception à ménager. Un
+         pourcentage posé dans ce fichier survivrait à l'enquête qui l'a
+         produit, sans que rien ne le signale :
+         c'est le défaut propre aux bandeaux de chiffres, et il ne se voit
+         jamais. Tout vient de /api/securite-ia/chiffres, avec la date. -->
+    <section class="section ch-bandeau" id="chiffres" style="padding-top:8px">
+      <div class="ch-tete">
+        <h2 id="ch-titre">IA Security en chiffres</h2>
+        <span class="ch-maj" id="ch-maj"></span>
+      </div>
+      <div class="ch-grille" id="ch-grille"></div>
+      <p class="ch-reserve" id="ch-reserve"></p>
     </section>
 
     <!-- LA RÉSERVE AVANT LES CURSEURS, et non en note de bas de page : elle
@@ -1149,6 +1216,81 @@
       if (!d || !d.ok) return;
       REF = d.referentiel;
       peindreCas(); peindreControles(); peindreReference();
+    }).catch(function () {});
+})();
+</script>
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   LE BANDEAU NE CONNAÎT AUCUN CHIFFRE.
+   Pas une valeur, pas une source, pas une date n'est écrite dans ce fichier :
+   tout vient de /api/securite-ia/chiffres. C'est la règle de toute la page,
+   et elle vaut ici plus qu'ailleurs — un pourcentage recopié dans un gabarit
+   reste lisible et convaincant des années après l'enquête qui l'a produit,
+   et rien dans sa typographie ne dit qu'il a vieilli. Une règle de `tests/`
+   refuse qu'une des valeurs apparaisse dans ce HTML.
+
+   ET L'ÂGE S'AFFICHE À CÔTÉ DE LA VALEUR. Un chiffre sans date se cite ; un
+   chiffre daté se vérifie. La différence décide de ce qui arrive quand un
+   directeur demande d'où il sort.
+   ══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  "use strict";
+  var grille = document.getElementById("ch-grille");
+  if (!grille) return;
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;",
+               "'": "&#39;" }[c];
+    });
+  }
+
+  function pied(c) {
+    var p = ['<span class="ch-etat ch-' + esc(c.fraicheur.etat) + '">'
+             + esc(c.fraicheur.dit) + "</span>"];
+    /* « il y a aujourd'hui » ne se dit pas : le module rend déjà une
+       formulation complète pour le jour même, et « il y a » ne se préfixe
+       qu'à une durée. */
+    if (c.age_dit) {
+      p.push("<span>" + (c.fraicheur.age_jours === 0
+                         ? esc(c.age_dit)
+                         : "il y a " + esc(c.age_dit)) + "</span>");
+    }
+    p.push(c.lien
+      ? '<span><a href="' + esc(c.lien) + '" target="_blank" rel="noopener">'
+        + esc(c.source) + "</a></span>"
+      : "<span>" + esc(c.source) + "</span>");
+    /* LA RÉSERVE DE SOURCE EST PORTÉE PAR LA TUILE, pas reléguée en bas de
+       page. Reléguée, elle s'applique à un chiffre qu'on ne regarde plus. */
+    if (c.a_confirmer) {
+      p.push('<span class="ch-etat ch-a_revoir" title="' + esc(c.a_confirmer)
+             + '">source à confirmer</span>');
+    }
+    return '<div class="ch-pied">' + p.join("") + "</div>";
+  }
+
+  function tuile(c) {
+    /* UN CHIFFRE ABSENT SE DIT. Le décompte du registre n'existe qu'une fois
+       compté ; afficher « 0 » l'aurait inventé, et la tuile aurait menti
+       dans le sens rassurant. */
+    if (!c.servi) {
+      return '<div class="ch-t ch-attente"><div class="ch-v">—</div>'
+        + '<div class="ch-d">' + esc(c.dit) + "</div>"
+        + '<div class="ch-pied"><span>comptage en cours</span><span>'
+        + esc(c.source) + "</span></div></div>";
+    }
+    return '<div class="ch-t"><div class="ch-v">' + esc(c.affiche) + "</div>"
+      + '<div class="ch-d">' + esc(c.dit) + "</div>" + pied(c) + "</div>";
+  }
+
+  fetch("/api/securite-ia/chiffres", { credentials: "same-origin" })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || !d.ok) return;
+      document.getElementById("ch-titre").textContent = d.titre;
+      document.getElementById("ch-maj").textContent = "au " + d.aujourdhui;
+      grille.innerHTML = d.chiffres.map(tuile).join("");
+      document.getElementById("ch-reserve").textContent = d.reserve;
     }).catch(function () {});
 })();
 </script>

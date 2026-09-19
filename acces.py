@@ -232,6 +232,12 @@ API_OUVERTES = {
                                         "de route et les ambitions en écart",
     "/api/ai-factory/alerte": "l'écart en jours entre une ambition et ses "
                               "contrôles",
+    # LE BANDEAU DE CHIFFRES S'OUVRE COMME LA PAGE QU'IL COIFFE. Rien n'y
+    # monte : la requête ne porte qu'une date facultative, et la réponse est
+    # la même pour tout le monde. Le fermer n'aurait protégé que des chiffres
+    # publiés par d'autres.
+    "/api/securite-ia/chiffres": "les six chiffres du bandeau, avec l'âge et "
+                                 "la source de chacun",
     "/api/state": "l'état du cockpit — données SIMULÉES en mode démonstration",
     "/api/assets": "les actifs du cockpit — mêmes données simulées",
     "/api/trends": "les tendances, nourries du même modèle",
