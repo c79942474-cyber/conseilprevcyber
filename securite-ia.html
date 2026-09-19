@@ -92,7 +92,82 @@
   .si-sc dt{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;
             color:var(--muted2);padding-top:3px}
   .si-sc dd{margin:0;color:var(--muted)}
-  .si-sources{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px}
+  /* ── LA CONTRE-EXPERTISE ───────────────────────────────────────────────
+     Un jeu de classes distinct de `si-`, et volontairement : la chaîne cote
+     UN SYSTÈME, la contre-expertise conteste UN PROGRAMME. Partager les
+     classes aurait fait glisser les deux écrans l'un vers l'autre au premier
+     ajustement de style, et le lecteur aurait cessé de voir qu'il change
+     d'instrument. */
+  .cx-grille{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin-top:14px}
+  .cx-cas{border:1px solid var(--line);border-radius:11px;padding:12px 14px;background:var(--bg2)}
+  .cx-cas.cx-pris{border-color:var(--cyan)}
+  .cx-cas h4{margin:0;font-size:14px}
+  .cx-cas p{margin:6px 0 0;font-size:12.5px;color:var(--muted2);line-height:1.5}
+  .cx-cas label{display:flex;align-items:center;gap:7px;margin-top:10px;font-size:12.5px;
+                color:var(--muted);cursor:pointer}
+  .cx-cas input[type=date]{background:var(--bg2);color:var(--ink);border:1px solid var(--line);
+                border-radius:7px;padding:5px 8px;font:inherit;font-size:12px;margin-top:8px;width:100%}
+  .cx-ctrl{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:7px;
+           grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+  .cx-ctrl li{display:flex;align-items:flex-start;gap:8px;border:1px solid var(--line);
+              border-radius:9px;padding:8px 10px;background:var(--bg2);font-size:12.5px}
+  .cx-ctrl li.cx-en-place{border-color:var(--teal)}
+  .cx-ctrl .cx-delai{font-family:var(--mono);font-size:10.5px;color:var(--muted2);margin-left:auto;
+                     white-space:nowrap;padding-left:8px}
+  .cx-bar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:18px}
+  .cx-bar button{font:inherit;font-size:13px;padding:9px 16px;border-radius:9px;
+                 border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+  .cx-bar button.cx-fort{border-color:var(--terra);color:var(--terra)}
+  .cx-tete{border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-top:16px;
+           background:linear-gradient(180deg,var(--panel),var(--bg2))}
+  .cx-tete.cx-rouge{border-color:var(--terra)}
+  .cx-tete.cx-vert{border-color:var(--teal)}
+  .cx-chiffre{font-family:var(--mono);font-size:26px;line-height:1.1;color:var(--terra)}
+  .cx-tete.cx-vert .cx-chiffre{color:var(--teal)}
+  .cx-sous{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+           color:var(--muted2);margin-top:4px}
+  .cx-tete p{margin:10px 0 0;font-size:13.5px;color:var(--muted);line-height:1.6;max-width:76ch}
+  .cx-lignes{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:8px}
+  .cx-lignes li{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;border:1px solid var(--line);
+                border-radius:10px;padding:9px 12px;background:var(--bg2);font-size:13px}
+  .cx-lignes li.cx-dette{border-color:var(--terra)}
+  .cx-jours{font-family:var(--mono);font-size:12px;color:var(--terra);white-space:nowrap}
+  .cx-manque{font-size:12px;color:var(--muted2);flex:1 1 100%}
+  .cx-lot{border:1px solid var(--line);border-radius:11px;padding:12px 14px;margin-top:10px;
+          background:var(--bg2)}
+  .cx-lot-tete{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;
+               font-family:var(--mono);font-size:11.5px;color:var(--muted2)}
+  .cx-lot-tete b{color:var(--ink);font-family:var(--sans,inherit);font-size:13px;font-weight:600}
+  .cx-lot ul{list-style:none;margin:9px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+  .cx-lot li{font-family:var(--mono);font-size:10.5px;color:var(--muted2);
+             border:1px solid var(--line);border-radius:999px;padding:3px 9px}
+  .cx-lot li.cx-commande{border-color:var(--terra);color:var(--terra)}
+  .cx-q{border:1px solid var(--line);border-radius:11px;padding:13px 15px;background:var(--bg2)}
+  .cx-q h4{margin:0;font-size:13.5px;line-height:1.45}
+  .cx-q dl{margin:9px 0 0;font-size:12.5px;line-height:1.55}
+  .cx-q dt{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+           color:var(--muted2);margin-top:8px}
+  .cx-q dd{margin:3px 0 0;color:var(--muted)}
+  .cx-q dd.cx-mauvaise{color:var(--terra)}
+  .cx-dir{border:1px solid var(--line);border-radius:11px;padding:13px 15px;background:var(--bg2)}
+  .cx-dir.cx-tiers{border-color:var(--terra)}
+  .cx-dir h4{margin:0;font-size:14px}
+  .cx-dir p{margin:7px 0 0;font-size:12.5px;color:var(--muted);line-height:1.55}
+  .cx-dir .cx-depend{margin-top:9px;font-size:12px;color:var(--muted2);
+                     border-top:1px solid var(--line);padding-top:8px}
+  .cx-dir.cx-tiers .cx-depend{color:var(--terra)}
+  .cx-champ{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-top:14px}
+  .cx-champ label{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;
+                  text-transform:uppercase;color:var(--muted2);margin-bottom:5px}
+  .cx-champ input,.cx-champ select{background:var(--bg2);color:var(--ink);border:1px solid var(--line);
+                  border-radius:8px;padding:8px 10px;font:inherit;font-size:13.5px}
+  .cx-champ input[type=text]{flex:1 1 300px}
+  .cx-issues{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:8px}
+  .cx-issues li{border:1px solid var(--line);border-radius:10px;padding:9px 12px;background:var(--bg2);
+                font-size:12.5px;line-height:1.55}
+  .cx-issues b{display:block;margin-bottom:3px;font-size:13px}
+  .si-scroll{overflow-x:auto;margin-top:12px;-webkit-overflow-scrolling:touch}
+  .si-sources{width:100%;min-width:430px;border-collapse:collapse;font-size:13px}
   .si-sources th{text-align:left;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;
                  text-transform:uppercase;color:var(--muted2);border-bottom:1px solid var(--line);padding:8px 10px}
   .si-sources td{border-bottom:1px solid var(--line);padding:9px 10px;vertical-align:top;color:var(--muted)}
@@ -205,6 +280,99 @@
       <div class="si-ebios" id="si-ebios"></div>
     </section>
 
+      <div class="divider"></div>
+
+    <!-- ── LA CONTRE-EXPERTISE ─────────────────────────────────────────────
+         POURQUOI CE SECOND INSTRUMENT SUR LA MÊME PAGE, ET POURQUOI IL EST
+         SÉPARÉ. La chaîne d'autonomie cote UN SYSTÈME : elle dit ce qu'il
+         peut atteindre et ce qui l'en empêche. Elle ne dit rien du PROGRAMME
+         qui le déploie — de ce qui est déjà parti en production sans son
+         contrôle, ni du temps que les contrôles manquants demandent. C'est
+         la question qu'on pose à une usine en cours de déploiement, et elle
+         ne se répond pas avec des curseurs. -->
+    <section class="section" id="usine" style="padding-top:8px">
+      <h2 class="sec-title">// Contre-expertise d'une usine en cours de déploiement</h2>
+      <p class="note" style="max-width:76ch">Un déploiement d'IA ne se conteste pas sur des principes&nbsp;: il se
+        conteste sur une <strong>soustraction</strong>. Déclarez ce qui tourne déjà et ce qui est en place, et
+        l'écran rend le nombre de cas d'usage en service dont un contrôle requis n'existe pas, et depuis combien de
+        jours. <strong>Aucun pourcentage de couverture n'est rendu</strong>&nbsp;— c'est exactement le chiffre qui
+        laisse passer la dette, puisqu'il monte pendant que des cas d'usage partent sans contrôle.</p>
+
+      <h3 class="cx-sous" style="margin-top:22px">Ce qui tourne déjà</h3>
+      <div class="cx-grille" id="cx-cas"></div>
+
+      <h3 class="cx-sous" style="margin-top:24px">Ce qui est en place</h3>
+      <ul class="cx-ctrl" id="cx-controles"></ul>
+
+      <div class="cx-bar">
+        <button type="button" id="cx-lancer" class="cx-fort">Soustraire</button>
+        <button type="button" id="cx-vider">Tout remettre à zéro</button>
+      </div>
+
+      <div id="cx-sortie" hidden>
+        <div class="cx-tete" id="cx-tete"></div>
+        <ul class="cx-lignes" id="cx-lignes"></ul>
+        <h3 class="cx-sous" style="margin-top:24px">La feuille de route, telle que les prérequis l'imposent</h3>
+        <p class="note" style="max-width:76ch;margin-top:6px">L'ordre ci-dessous n'est pas une préférence&nbsp;:
+          c'est ce que les prérequis autorisent. Un lot ne s'ouvre que lorsque ce dont il dépend est fini, et sa
+          durée est celle de son contrôle le plus long — pas la somme.</p>
+        <div id="cx-lots"></div>
+      </div>
+    </section>
+
+      <div class="divider"></div>
+
+    <section class="section" id="ambition" style="padding-top:8px">
+      <h2 class="sec-title">// L'ambition contre le temps que les contrôles demandent</h2>
+      <p class="note" style="max-width:76ch">«&nbsp;Alerter et challenger le management&nbsp;» est la part du métier
+        qui se transmet le plus mal&nbsp;: en réunion, elle ressemble à une opinion contre une autre. Elle cesse d'y
+        ressembler dès qu'on pose deux dates. <strong>L'écran ne recommande rien</strong>&nbsp;— il rend l'écart et
+        les trois issues. Choisir entre réduire, décaler et accepter n'appartient pas à la sécurité.</p>
+      <div class="cx-champ">
+        <div style="flex:1 1 300px">
+          <label for="cx-intitule">L'ambition, telle qu'elle est annoncée</label>
+          <input id="cx-intitule" type="text" maxlength="160" style="width:100%"
+                 placeholder="Des agents autonomes au service des clients">
+        </div>
+        <div>
+          <label for="cx-date">Pour quelle date</label>
+          <input id="cx-date" type="date">
+        </div>
+        <div>
+          <label for="cx-type">Quel type de cas d'usage</label>
+          <select id="cx-type"></select>
+        </div>
+        <button type="button" id="cx-alerter" class="cx-fort"
+                style="font:inherit;font-size:13px;padding:9px 16px;border-radius:9px;background:var(--panel);cursor:pointer">Soustraire les deux dates</button>
+      </div>
+      <div id="cx-alerte" hidden>
+        <div class="cx-tete" id="cx-alerte-tete"></div>
+        <ul class="cx-issues" id="cx-alerte-issues"></ul>
+      </div>
+    </section>
+
+      <div class="divider"></div>
+
+    <section class="section" id="architecture" style="padding-top:8px">
+      <h2 class="sec-title">// Les questions qui font tomber une architecture</h2>
+      <p class="note" style="max-width:76ch">Challenger une architecture d'IA ne consiste pas à demander si elle est
+        sécurisée&nbsp;— on répondra oui. Chacune des questions ci-dessous a une <strong>mauvaise réponse
+        reconnaissable</strong>, et une pièce qui permet de vérifier la bonne. C'est la différence entre une revue
+        et une conversation.</p>
+      <div class="cx-grille" id="cx-archi" style="margin-top:16px"></div>
+    </section>
+
+      <div class="divider"></div>
+
+    <section class="section" id="deux-sens" style="padding-top:8px">
+      <h2 class="sec-title">// Sécuriser l'IA, augmenter la cyber — et la direction dont personne ne parle</h2>
+      <p class="note" style="max-width:76ch">Les deux premiers sens sont ceux qu'on trouve dans toutes les fiches de
+        poste. Le troisième ne porte pas sur vos systèmes, et c'est précisément pour cela qu'il tombe entre les
+        chaises&nbsp;: une menace armée par l'IA ne se traite pas en durcissant une usine qu'elle n'attaque pas.</p>
+      <div class="cx-grille" id="cx-directions" style="margin-top:16px"></div>
+      <div id="cx-armees"></div>
+    </section>
+
     <!-- LIVRABLES:DEBUT (genere par outils/generer_blocs_livrables.py) -->
     <section class="section" id="livrables" style="padding-top:8px">
       <div class="prose" style="max-width:none">
@@ -245,7 +413,15 @@
         exploitable&nbsp;: deux d'entre elles sont sous Licence Ouverte et s'adaptent librement, y compris à des fins
         commerciales, à la seule condition d'en mentionner la paternité. Les autres se citent. <strong>Aucune ne se
         certifie sur cette base</strong>, et l'une d'elles ne se certifie pas du tout.</p>
-      <table class="si-sources" id="si-sources"></table>
+      <!-- LE TABLEAU EST PLUS LARGE QUE L'ÉCRAN D'UN TÉLÉPHONE, et il le
+           restera : quatre colonnes de licences ne se replient pas en une.
+           Mesuré à 454 px de large dans une fenêtre de 390 px, il faisait
+           défiler LA PAGE ENTIÈRE de côté — en-tête et titres compris. C'est
+           donc lui qui défile, dans son propre conteneur, et la page ne bouge
+           plus. -->
+      <div class="si-scroll">
+        <table class="si-sources" id="si-sources"></table>
+      </div>
     </section>
   </main>
 
@@ -664,6 +840,281 @@
     .then(function (j) {
       if (!j || !j.ok) return;
       REF = j.referentiel; dessiner(); sources();
+    }).catch(function () {});
+})();
+</script>
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   L'ÉCRAN DE CONTRE-EXPERTISE NE CONNAÎT AUCUN CONTRÔLE.
+   Pas un nom de contrôle, pas un délai, pas une question d'architecture n'est
+   écrit dans ce fichier : tout vient de /api/ai-factory/referentiel. Recopier
+   un délai ici le ferait diverger du moteur à la première révision — l'écran
+   annoncerait une feuille de route que le calcul ne tient plus, et rien ne le
+   signalerait. Une règle de `tests/` refuse qu'un nom de contrôle apparaisse
+   dans ce HTML.
+
+   ET LA SOUSTRACTION EST FAITE PAR LE SERVEUR, PAS ICI. Refaire le calcul en
+   JavaScript aurait donné deux arithmétiques à tenir d'accord : celle de
+   l'écran et celle du document emporté. Elles auraient divergé, et c'est
+   l'écran qu'on aurait cru.
+   ══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  "use strict";
+  var $ = function (s) { return document.querySelector(s); };
+  var REF = null;
+  var CAS = {};       /* cle -> {retenu:bool, depuis:"AAAA-MM-JJ"} */
+  var CTRL = {};      /* cle -> "AAAA-MM-JJ" ou "" */
+
+  if (!$("#cx-cas")) return;
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;",
+               "'": "&#39;" }[c];
+    });
+  }
+
+  /* LA DATE DU JOUR EST CELLE DU NAVIGATEUR, ET ELLE EST ENVOYÉE.
+     Laisser le serveur prendre son horloge ferait dépendre l'ancienneté d'un
+     fuseau : un lecteur à Nouméa et un lecteur à Paris liraient deux dettes
+     différentes sur le même dossier. */
+  function aujourdhui() {
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0")
+           + "-" + String(d.getDate()).padStart(2, "0");
+  }
+
+  function peindreCas() {
+    $("#cx-cas").innerHTML = REF.cas_usage.map(function (c) {
+      var e = CAS[c.cle] || {};
+      return '<div class="cx-cas' + (e.retenu ? " cx-pris" : "") + '">'
+        + "<h4>" + esc(c.nom) + "</h4>"
+        + "<p>" + esc(c.quoi_vraiment) + "</p>"
+        + '<label><input type="checkbox" data-cas="' + esc(c.cle) + '"'
+        + (e.retenu ? " checked" : "") + "> En service chez nous</label>"
+        + '<input type="date" data-cas-date="' + esc(c.cle) + '" value="'
+        + esc(e.depuis || "") + '" aria-label="En service depuis quand"'
+        + (e.retenu ? "" : " disabled") + ">"
+        + "</div>";
+    }).join("");
+  }
+
+  function peindreControles() {
+    $("#cx-controles").innerHTML = REF.controles.map(function (c) {
+      var en = !!CTRL[c.cle];
+      return "<li" + (en ? ' class="cx-en-place"' : "") + ">"
+        + '<input type="checkbox" data-ctrl="' + esc(c.cle) + '"'
+        + (en ? " checked" : "") + ' id="ctrl-' + esc(c.cle) + '">'
+        + '<label for="ctrl-' + esc(c.cle) + '" style="cursor:pointer">'
+        + esc(c.nom) + "</label>"
+        + '<span class="cx-delai" title="' + esc(c.suppose) + '">'
+        + c.delai_jours + " j</span></li>";
+    }).join("");
+  }
+
+  function dossier() {
+    var cas = [];
+    REF.cas_usage.forEach(function (c) {
+      var e = CAS[c.cle];
+      if (!e || !e.retenu) return;
+      cas.push({ nom: c.nom, type: c.cle, en_service: true,
+                 depuis: e.depuis || null });
+    });
+    var ctrl = {};
+    Object.keys(CTRL).forEach(function (k) {
+      if (CTRL[k]) ctrl[k] = CTRL[k] === true ? { en_place: true } : CTRL[k];
+    });
+    return { nom: "Usine déclarée", cas_usage: cas, controles: ctrl };
+  }
+
+  function poster(url, corps) {
+    return fetch(url, { method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(corps) }).then(function (r) { return r.json(); });
+  }
+
+  function peindreSortie(r) {
+    var d = r.dette;
+    var vert = (r.tete === "tenu");
+    var t = $("#cx-tete");
+    t.className = "cx-tete " + (vert ? "cx-vert" : "cx-rouge");
+    /* CE QUI EST MIS EN GROS EST CE QUI SE DISCUTE AVEC UN DIRECTEUR :
+       un compte de cas et des jours. Un pourcentage tiendrait sur la même
+       ligne et serait faux de la même façon que celui qu'on dénonce. */
+    var gros = d.calculable
+      ? (d.jours_cumules + " j")
+      : "incalculable";
+    var sous = d.calculable
+      ? (d.cas_en_dette + " cas d'usage en service sans un contrôle requis")
+      : "l'inventaire n'est pas tenu — le périmètre est inconnu";
+    t.innerHTML = '<div class="cx-chiffre">' + esc(gros) + "</div>"
+      + '<div class="cx-sous">' + esc(sous) + "</div>"
+      + "<p>" + esc(r.dit) + "</p>";
+
+    $("#cx-lignes").innerHTML = d.lignes.map(function (l) {
+      var mq = (l.manquants || []).map(function (m) { return m.nom; });
+      return "<li" + (l.en_dette ? ' class="cx-dette"' : "") + ">"
+        + "<span style=\"flex:1 1 220px\">" + esc(l.nom) + "</span>"
+        + '<span class="cx-jours">'
+        + (l.anciennete_jours == null ? "pas en service"
+           : l.anciennete_jours + " j en service") + "</span>"
+        + (mq.length
+           ? '<span class="cx-manque">il manque : ' + esc(mq.join(" · ")) + "</span>"
+           : '<span class="cx-manque">rien ne manque</span>')
+        + "</li>";
+    }).join("");
+
+    $("#cx-lots").innerHTML = r.feuille_de_route.lots.map(function (lot) {
+      return '<div class="cx-lot"><div class="cx-lot-tete">'
+        + "<b>Lot " + (lot.rang + 1) + "</b>"
+        + "<span>" + esc(lot.debut) + " → " + esc(lot.fin)
+        + " · " + lot.duree_jours + " j</span>"
+        + "<span>commandé par : " + esc(lot.commande) + "</span>"
+        + "</div><ul>" + lot.controles.map(function (c) {
+            return "<li" + (c.nom === lot.commande ? ' class="cx-commande"' : "")
+                   + ">" + esc(c.nom) + "</li>";
+          }).join("") + "</ul></div>";
+    }).join("");
+    $("#cx-sortie").hidden = false;
+  }
+
+  function peindreAlerte(r) {
+    var t = $("#cx-alerte-tete");
+    t.className = "cx-tete " + (r.compatible ? "cx-vert" : "cx-rouge");
+    t.innerHTML = '<div class="cx-chiffre">'
+      + (r.compatible ? "dans les temps" : "+" + r.ecart_jours + " j")
+      + "</div>"
+      + '<div class="cx-sous">'
+      + (r.compatible ? "aucun contrôle requis n'arrive après la date"
+         : "après la date annoncée") + "</div>"
+      + "<p>" + esc(r.dit) + "</p>";
+    /* LE MOTEUR NE REND LES TROIS ISSUES QUE S'IL Y A UN ÉCART, et l'écran
+       ne les invente pas quand la liste est vide : proposer « réduire le
+       périmètre » à une ambition qui tient dans les temps ferait passer la
+       sécurité pour ce qu'on l'accuse d'être. */
+    $("#cx-alerte-issues").innerHTML = r.issues.map(function (i) {
+      return "<li><b>" + esc(i.nom) + "</b>" + esc(i.ce_que_ca_coute)
+        + ' <span style="color:var(--muted2)">— ' + esc(i.qui_decide)
+        + "</span></li>";
+    }).join("");
+    $("#cx-alerte").hidden = false;
+  }
+
+  function peindreReference() {
+    $("#cx-archi").innerHTML = REF.architecture.map(function (q) {
+      return '<div class="cx-q"><h4>' + esc(q.question) + "</h4><dl>"
+        + '<dt>La mauvaise réponse</dt><dd class="cx-mauvaise">'
+        + esc(q.mauvaise_reponse) + "</dd>"
+        + "<dt>Ce qui le prouve</dt><dd>" + esc(q.ce_qui_le_prouve) + "</dd>"
+        + "</dl></div>";
+    }).join("");
+
+    $("#cx-directions").innerHTML = REF.directions.map(function (d, i) {
+      var tiers = (i === REF.directions.length - 1);
+      return '<div class="cx-dir' + (tiers ? " cx-tiers" : "") + '">'
+        + "<h4>" + esc(d.nom) + "</h4><p>" + esc(d.quoi) + "</p>"
+        + '<div class="cx-depend">Le périmètre dépend de : '
+        + esc(d.le_perimetre_depend_de) + "</div></div>";
+    }).join("");
+
+    $("#cx-armees").innerHTML =
+      '<h3 class="cx-sous" style="margin-top:24px">Ce que la troisième direction recouvre</h3>'
+      + '<ul class="cx-issues" style="margin-top:10px">'
+      + REF.menaces_armees.map(function (m) {
+          return "<li><b>" + esc(m.nom) + "</b>" + esc(m.quoi)
+            + '<div style="margin-top:6px;color:var(--muted2)">'
+            + esc(m.ce_qui_ne_marche_pas) + "</div></li>";
+        }).join("") + "</ul>";
+
+    $("#cx-type").innerHTML = REF.cas_usage.map(function (c) {
+      return '<option value="' + esc(c.cle) + '">' + esc(c.nom) + "</option>";
+    }).join("");
+  }
+
+  /* ── LES ÉCOUTEURS, POSÉS UNE FOIS SUR LE CONTENEUR ─────────────────────
+     Et non sur chaque case : le conteneur est repeint à chaque clic, et des
+     écouteurs posés sur les cases auraient disparu avec elles. */
+  $("#cx-cas").addEventListener("change", function (ev) {
+    var t = ev.target;
+    if (t.dataset.cas) {
+      CAS[t.dataset.cas] = CAS[t.dataset.cas] || {};
+      CAS[t.dataset.cas].retenu = t.checked;
+      peindreCas();
+    } else if (t.dataset.casDate) {
+      CAS[t.dataset.casDate] = CAS[t.dataset.casDate] || {};
+      CAS[t.dataset.casDate].depuis = t.value;
+    }
+  });
+  $("#cx-controles").addEventListener("change", function (ev) {
+    var t = ev.target;
+    if (!t.dataset.ctrl) return;
+    /* UNE CASE COCHÉE SANS DATE VAUT « EN PLACE DEPUIS TOUJOURS ». Exiger
+       une date pour chaque contrôle ferait abandonner le formulaire avant la
+       fin, et c'est la dette qu'on cherche à faire voir, pas la précision. */
+    CTRL[t.dataset.ctrl] = t.checked ? true : "";
+    peindreControles();
+  });
+
+  $("#cx-lancer").addEventListener("click", function () {
+    poster("/api/ai-factory/contre-expertise",
+           { date: aujourdhui(), dossier: dossier() })
+      .then(function (r) {
+        if (!r.ok) {
+          $("#cx-tete").className = "cx-tete";
+          $("#cx-tete").innerHTML = '<div class="cx-sous">'
+            + esc(r.motif || "refus") + "</div><p>"
+            + esc(r.message || "Le dossier n'a pas pu être lu.") + "</p>";
+          $("#cx-lignes").innerHTML = "";
+          $("#cx-lots").innerHTML = "";
+          $("#cx-sortie").hidden = false;
+          return;
+        }
+        peindreSortie(r);
+      }).catch(function () {});
+  });
+
+  $("#cx-vider").addEventListener("click", function () {
+    CAS = {}; CTRL = {};
+    $("#cx-sortie").hidden = true;
+    $("#cx-alerte").hidden = true;
+    peindreCas(); peindreControles();
+  });
+
+  $("#cx-alerter").addEventListener("click", function () {
+    var ctrl = {};
+    Object.keys(CTRL).forEach(function (k) {
+      if (CTRL[k]) ctrl[k] = { en_place: true };
+    });
+    poster("/api/ai-factory/alerte", {
+      date: aujourdhui(),
+      ambition: { intitule: $("#cx-intitule").value,
+                  date_cible: $("#cx-date").value,
+                  cas_usage: [$("#cx-type").value] },
+      controles: ctrl
+    }).then(function (r) {
+      if (!r.ok) {
+        var t = $("#cx-alerte-tete");
+        t.className = "cx-tete";
+        t.innerHTML = '<div class="cx-sous">' + esc(r.motif) + "</div><p>"
+          + esc(r.motif === "intitule_manquant"
+                ? "Nommez l'ambition telle qu'elle est annoncée en comité."
+                : r.motif === "date_cible_manquante"
+                ? "Une ambition sans date ne se conteste pas : c'est une intention."
+                : "La demande n'a pas pu être lue.") + "</p>";
+        $("#cx-alerte-issues").innerHTML = "";
+        $("#cx-alerte").hidden = false;
+        return;
+      }
+      peindreAlerte(r);
+    }).catch(function () {});
+  });
+
+  fetch("/api/ai-factory/referentiel", { credentials: "same-origin" })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || !d.ok) return;
+      REF = d.referentiel;
+      peindreCas(); peindreControles(); peindreReference();
     }).catch(function () {});
 })();
 </script>

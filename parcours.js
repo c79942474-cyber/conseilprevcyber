@@ -795,6 +795,78 @@
           tip: "Le refroidissement liquide déplace le coût plutôt qu’il ne le supprime : moins d’air à traiter, mais une boucle, une distribution et une maintenance qui n’existaient pas." }
       ]
     },
+    /* ── LE RÔLE QUI MANQUAIT : CELUI QUI CONTESTE UNE USINE IA ─────────────
+       IL NE DOUBLE NI LE RSSI NI LA CONFORMITÉ, et la différence tient en une
+       phrase : ceux-là construisent un dispositif, celui-ci conteste un
+       programme qui est DÉJÀ PARTI. C'est un métier d'arrivée en cours de
+       route — l'usine tourne, des cas d'usage sont en service, et la question
+       n'est pas « que faudrait-il mettre en place » mais « qu'est-ce qui est
+       parti sans son contrôle, et depuis combien de jours ».
+
+       L'ORDRE DES ÉTAPES EST CELUI D'UNE RÉUNION QUI SE PASSE BIEN : le fait
+       d'abord — la dette, qui ne se discute pas —, l'ordre imposé ensuite,
+       et l'ambition en écart seulement après. Commencer par l'alerte met la
+       salle en défense avant le premier chiffre, et on ne la récupère pas. */
+    {
+      id: "securite-ia",
+      icone: "🧪",
+      role: "Sécurité IA · contre-expertise d’une AI Factory en déploiement",
+      cas: "Écrit pour le poste qui arrive quand l’usine tourne déjà : évaluer et challenger " +
+           "une AI Factory en cours de déploiement, en secteur bancaire",
+      pitch: "Vous héritez d’une usine IA lancée sans vous. Des cas d’usage sont en service, " +
+             "d’autres sont promis pour une date, et on vous demande un avis de sécurité. " +
+             "Ce parcours part du seul terrain où la discussion n’est pas une opinion contre " +
+             "une autre : ce qui est parti sans son contrôle, et de combien de jours l’ambition " +
+             "dépasse le temps que les contrôles demandent.",
+      etapes: [
+        { url: "/securite-ia", label: "La dette d’antériorité, puis la chaîne",
+          action: "Deux instruments sur la même page, dans cet ordre. D’abord la " +
+                  "contre-expertise : déclarez les cas d’usage en service et les contrôles " +
+                  "réellement en place, et soustrayez. Ensuite la chaîne d’autonomie : " +
+                  "cotez chaque système du parc sur les cinq maillons.",
+          gain: "Un compte de cas et un nombre de jours — les deux seuls chiffres qui se " +
+                "discutent avec un directeur — puis le maillon ouvert qui commande, sans " +
+                "avoir eu à imaginer le scénario d’attaque.",
+          tip: "Ne demandez pas de taux de couverture : il monte pendant que des cas d’usage partent sans contrôle, puisqu’il compte les contrôles et non les cas découverts. Et cotez chaque système séparément — coter un système « représentatif » revient à moyenner de tête ce que la méthode vous interdit de moyenner." },
+        { url: "/gouvernance-ia", label: "La gouvernance, avec le Data Office",
+          action: "Situez qui décide de quoi : inventaire des cas d’usage, politique d’usage " +
+                  "des outils génératifs, encadrement du Shadow AI.",
+          gain: "Les trois contrôles de gouvernance sans lesquels les contrôles techniques " +
+                "portent sur un périmètre inconnu.",
+          tip: "Publiez l’outil autorisé AVANT l’interdiction : une politique sans alternative qui fasse le travail crée le Shadow AI qu’elle prétend traiter." },
+        { url: "/nis2", label: "Le cadre applicable, entité par entité",
+          action: "Déterminez lequel de DORA, NIS 2 et du règlement IA s’applique à chaque " +
+                  "entité et à chaque cas d’usage.",
+          gain: "Le texte opposable, avant d’écrire une exigence au nom d’un texte qui ne " +
+                "s’applique pas.",
+          tip: "DORA prime sur NIS 2 pour les entités financières. Un cas d’usage de scoring de crédit relève en plus de l’annexe III du règlement IA — ce n’est pas le même régime, ni la même équipe." },
+        { url: "/developpement-securise", label: "La chaîne de production",
+          action: "Branchez les contrôles sur la chaîne : relecture du code produit par l’IA, " +
+                  "scan des dépendances, secrets, signature et provenance des modèles.",
+          gain: "Des contrôles qui bloquent la fusion, et non des consignes.",
+          tip: "Une consigne sans blocage technique tient trois semaines. Le « vibe coding » n’est pas du code écrit par une IA : c’est du code accepté sans relecture, et c’est l’acceptation qu’on encadre." },
+        { url: "/technologies-securite", label: "Les familles de solutions",
+          action: "Confrontez filtrage IA, IAM des agents, MLOps/LLMOps, validation de modèles, " +
+                  "serveurs d’outils et API à ce que chacune ne fait PAS.",
+          gain: "De quoi refuser une solution présentée comme couvrant un risque qu’elle " +
+                "ne couvre pas.",
+          tip: "La description d’un outil raccordé entre dans l’invite du modèle : un serveur d’outils est une surface d’injection, pas seulement une surface d’exécution." },
+        { url: "/formation", label: "Les ateliers, et les deux publics",
+          action: "Séparez ce qui est dit aux métiers de ce qui est dit aux équipes cyber.",
+          gain: "Deux contenus qui portent, au lieu d’un seul qui ne parle à personne.",
+          tip: "Une sensibilisation employée à la place d’un garde-fou transfère la charge sur l’utilisateur — et c’est lui qui portera la faute le jour de l’incident." },
+        { url: "/feuille-de-route", label: "La trajectoire, et ce qu’elle coûte",
+          action: "Séquencez les contrôles manquants avec leurs prérequis, puis chiffrez.",
+          gain: "Un ordre qui n’est pas une préférence : c’est ce que les prérequis autorisent.",
+          tip: "Un lot ne dure pas la somme de ses contrôles mais la durée du plus long — et c’est celui-là qu’il faut nommer en comité, pas la moyenne." },
+        { url: "/veille", label: "Les menaces armées par l’IA",
+          action: "Suivez ce qui ne dépend d’aucun de vos systèmes : hypertrucages, ingénierie " +
+                  "sociale assistée, fraude générative.",
+          gain: "La direction qui tombe entre les chaises — elle n’attaque pas votre usine, " +
+                "donc durcir l’usine n’y change rien.",
+          tip: "Ce n’est pas un sujet d’usine IA : c’est un sujet de processus métier. Le rappel de vérification d’un virement se traite au métier, pas au modèle." }
+      ]
+    },
     {
       id: "decouverte",
       icone: "🧭",
@@ -1199,6 +1271,11 @@
                               "clauses nommées, pas un équivalent de bonne foi.",
         "/gouvernance-ia": "L’IA qui augmente votre SOC est elle-même un système à gouverner : " +
                            "elle décide de ce qui est remonté, donc de ce qui ne l’est pas.",
+        "/securite-ia": "Le SOC augmenté et l’usine IA sont deux sujets, pas un : l’un emploie " +
+                        "l’IA dans la défense, l’autre la déploie pour les métiers. Le premier " +
+                        "échappe presque toujours à l’inventaire des cas d’usage, parce qu’il " +
+                        "est porté par la cyber elle-même — et un inventaire qui oublie l’IA " +
+                        "de la cyber n’est pas un inventaire.",
         "/demo": "Le SOC augmenté par l’IA répond ici à un enjeu de volume : la remédiation à " +
                  "l’échelle prime sur la détection unitaire.",
         "/diagnostic": "Le sujet n’est pas la sophistication mais l’échelle : mesurez votre capacité de remédiation, pas seulement votre exposition.",
@@ -1216,6 +1293,19 @@
           action: "Déterminez, entité par entité, lequel des deux régimes s’applique.",
           gain: "La clarté sur le texte applicable, première condition d’un dispositif défendable.",
           tip: "DORA prime pour les entités financières ; les filiales non financières du groupe peuvent relever de NIS 2." },
+        /* LA SÉCURITÉ DE L'IA ENTRE ICI, ENTRE LE CADRE ET LES PRESTATAIRES,
+           et cette place dit quelque chose. Un fournisseur de modèle est un
+           prestataire TIC comme un autre au sens de DORA — mais il change de
+           version sans préavis derrière la même adresse, ce qu'aucune
+           stratégie de sortie ne prévoit. Lire la dette d'antériorité AVANT
+           de remplir le registre évite d'y inscrire un service en croyant y
+           inscrire une version. */
+        { url: "/securite-ia", label: "L’usine IA, et ce qui est déjà parti sans contrôle",
+          action: "Déclarez les cas d’usage d’IA en service dans le groupe et les contrôles " +
+                  "réellement en place, puis soustrayez.",
+          gain: "Le nombre de cas d’usage en service sans contrôle requis, et depuis combien " +
+                "de jours — avant que le régulateur ne pose la même question.",
+          tip: "Le scoring de crédit relève de l’annexe III du règlement IA en plus de DORA : ce n’est ni le même régime, ni la même équipe, ni le même calendrier." },
         { url: "/exigences-prestataires", label: "Exigences prestataires · 2-4",
           action: "Structurez le registre des prestataires TIC et les stratégies de sortie.",
           gain: "Deux exigences DORA explicitement contrôlées, souvent les plus mal tenues.",
