@@ -285,6 +285,255 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
+     LE CONSEILLER — quel itinéraire, pour qui, et POURQUOI PAS L'AUTRE
+
+     LE PROBLÈME QU'IL RÉSOUT. La modale ouvre sur treize rôles. Un visiteur
+     qui sait qu'il est RSSI trouve en deux secondes ; un directeur de projet
+     de centre de données voit CINQ entrées « centre de données » dont les
+     pages se recouvrent largement, et rien à l'écran ne lui dit laquelle est
+     la sienne avant qu'il l'ait ouverte. Choisir suppose de connaître notre
+     découpage — c'est-à-dire exactement ce qu'un premier visiteur ignore.
+
+     POURQUOI UN MOTEUR ET PAS UN APPEL À UN MODÈLE DE LANGAGE. Une
+     recommandation qu'on ne peut pas rejouer ne se défend pas en réunion :
+     « pourquoi ce parcours ? — le modèle l'a dit » n'est pas une réponse.
+     Ici, trois réponses entrent, un classement sort, et les deux mêmes
+     réponses donnent toujours le même classement. Le conseil porte ses
+     raisons, et surtout CE QU'IL ÉCARTE et sur quel motif — c'est la moitié
+     qu'on ne montre jamais, et c'est celle qui permet de contredire.
+
+     CE QU'IL NE FAIT PAS. Il ne conseille pas de SECTEUR : le secteur est un
+     fait que le visiteur connaît, pas une question à lui poser. Et il ne
+     tranche pas quand il n'a pas de quoi : deux itinéraires à un point d'écart
+     sont présentés tous les deux, ce qui est une réponse plus utile qu'un
+     gagnant tiré au sort.
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  /* Les trois questions. Chacune porte sur la SITUATION du visiteur, jamais
+     sur notre vocabulaire : « ce que vous devez sécuriser », pas « quel rôle
+     du référentiel ». La dernière valeur de chaque liste est neutre — elle
+     ne désigne rien, et le conseiller le dit au lieu de faire semblant. */
+  var QUESTIONS = [
+    { cle: "objet", titre: "Ce que vous devez sécuriser ou construire",
+      choix: [
+        { v: "industriel",  l: "Une installation industrielle, un site, un réseau OT" },
+        { v: "datacenter",  l: "Un centre de données — en projet ou en exploitation" },
+        { v: "ia",          l: "Un système d’intelligence artificielle" },
+        { v: "organisation", l: "L’organisation elle-même, pas un actif en particulier" },
+        { v: "",            l: "Je ne sais pas encore", neutre: true }
+      ] },
+    { cle: "declencheur", titre: "Ce qui vous amène aujourd’hui",
+      choix: [
+        { v: "texte",   l: "Un texte réglementaire qui nous vise" },
+        { v: "projet",  l: "Un projet à cadrer, à concevoir ou à lancer" },
+        { v: "chiffre", l: "On nous réclame des chiffres ou des preuves" },
+        { v: "marche",  l: "Un marché, un contrat, un prestataire à qualifier" },
+        { v: "",        l: "Rien de précis — je regarde", neutre: true }
+      ] },
+    { cle: "levier", titre: "Ce dont vous répondez",
+      choix: [
+        { v: "technique",  l: "La technique et l’architecture" },
+        { v: "budget",     l: "L’argent et les délais" },
+        { v: "conformite", l: "La conformité et le juridique" },
+        { v: "direction",  l: "La décision — j’ai un comité à convaincre" },
+        { v: "",           l: "Je ne décide pas encore", neutre: true }
+      ] }
+  ];
+
+  /* Ce que chaque réponse veut dire, en clair, pour ÉCRIRE le motif d'un
+     écart. Sans ce dictionnaire le conseiller ne pourrait dire que « score
+     inférieur », qui n'explique rien à personne. */
+  var EN_CLAIR = {
+    objet: { industriel: "une installation industrielle", datacenter: "un centre de données",
+             ia: "un système d’IA", organisation: "l’organisation elle-même" },
+    declencheur: { texte: "un texte réglementaire", projet: "un projet à lancer",
+                   chiffre: "une demande de chiffres", marche: "un marché à passer" },
+    levier: { technique: "la technique", budget: "l’argent et les délais",
+              conformite: "la conformité", direction: "la décision en comité" }
+  };
+
+  /* Le poids de chaque question, et l'ordre compte. L'OBJET est la contrainte
+     dure : envoyer un exploitant de centre de données sur l'analyse de risque
+     d'un réseau OT est faux, pas seulement mal réglé. Le DÉCLENCHEUR décide de
+     l'ordre de lecture. Le LEVIER n'est qu'un départage : deux itinéraires qui
+     servent le même objet et le même déclencheur se distinguent par ce dont on
+     répond, et ce n'est pas une raison de changer d'itinéraire à soi seul. */
+  var POIDS_Q = { objet: 3, declencheur: 2, levier: 1 };
+
+  /* L'ÉCART EN DEÇÀ DUQUEL LE CONSEILLER REFUSE DE TRANCHER — et sa première
+     valeur était fausse. Elle valait DEUX, au motif qu'un itinéraire que seul
+     le levier sépare du suivant ne mérite pas d'être préféré. Mesuré sur onze
+     situations réelles, ce seuil rendait « je ne tranche pas » HUIT FOIS : un
+     conseiller qui s'abstient trois fois sur quatre ne conseille rien, il
+     déplace la question. Et il s'abstenait à tort — l'économiste de la
+     construction et le DSI qui décide la charge d'une salle recevaient la
+     même réponse, alors que le levier les sépare exactement.
+
+     Le vrai remède n'était pas le seuil mais les profils : chacun déclarait
+     DEUX leviers, donc en matchait un sur deux. Un levier par itinéraire, et
+     le seuil redevient ce qu'il doit être : on ne s'abstient que sur une
+     ÉGALITÉ STRICTE, où il n'y a réellement rien à préférer. */
+  var MARGE_MINIMALE = 1;
+
+  /* Au-delà de ce nombre d'ex æquo, le problème n'est plus de départager :
+     c'est qu'on n'a pas assez demandé. Le conseiller le dit alors, et nomme la
+     question restée sans réponse, au lieu d'afficher une liste qui ressemble à
+     un choix mais n'en est pas un. */
+  var EX_AEQUO_MAX = 3;
+
+  function libelleReponse(cle, v) {
+    return (EN_CLAIR[cle] && EN_CLAIR[cle][v]) || v;
+  }
+
+  /* Le cœur. Pur : aucune lecture du DOM, aucun effet. Rend TOUJOURS un objet,
+     y compris quand rien ne matche — le recours est alors nommé comme tel. */
+  function conseiller(rep, parcours) {
+    var liste = parcours || PARCOURS;
+    rep = rep || {};
+    var posees = [];
+    for (var q = 0; q < QUESTIONS.length; q++) {
+      var c = QUESTIONS[q].cle;
+      if (rep[c]) posees.push(c);
+    }
+
+    var notes = liste.map(function (p) {
+      var prof = p.profil || {};
+      var score = 0, pour = [], contre = [];
+      for (var k = 0; k < posees.length; k++) {
+        var cle = posees[k], attendu = prof[cle] || [];
+        if (attendu.indexOf(rep[cle]) >= 0) {
+          score += POIDS_Q[cle];
+          pour.push({ cle: cle, valeur: rep[cle], dit: libelleReponse(cle, rep[cle]) });
+        } else if (attendu.length) {
+          contre.push({ cle: cle, valeur: rep[cle],
+                        dit: libelleReponse(cle, rep[cle]),
+                        au_lieu_de: attendu.map(function (a) { return libelleReponse(cle, a); }) });
+        }
+      }
+      return { id: p.id, role: p.role, icone: p.icone, entree: prof.entree || "",
+               score: score, pour: pour, contre: contre,
+               urls: p.etapes.map(function (e) { return e.url; }),
+               recours: !prof.objet };
+    });
+
+    /* Le recours ne concourt pas : il est le filet, pas un candidat. Le
+       classer avec les autres le ferait gagner dès qu'on ne répond à rien,
+       ce qui est vrai, mais il le ferait aussi perdre de justesse dès qu'on
+       répond à une seule chose — et le filet doit être franc. */
+    var recours = null, candidats = [];
+    notes.forEach(function (n) { if (n.recours) recours = n; else candidats.push(n); });
+    candidats.sort(function (a, b) {
+      return b.score - a.score || a.id.localeCompare(b.id);
+    });
+
+    var meilleur = candidats[0] || null;
+    var suivant = candidats[1] || null;
+
+    /* AUCUNE RÉPONSE N'A RIEN DÉSIGNÉ. On le dit, et on donne le recours. */
+    if (!posees.length || !meilleur || meilleur.score === 0) {
+      return { verdict: "recours", posees: posees, retenus: recours ? [recours] : [],
+               ecartes: [], marge: 0, classement: candidats,
+               motif: !posees.length
+                 ? "Aucune réponse donnée : rien à départager."
+                 : "Aucun itinéraire ne répond à ce que vous avez décrit." };
+    }
+
+    var marge = suivant ? meilleur.score - suivant.score : meilleur.score;
+
+    /* DEUX EX ÆQUO, OU PRESQUE. On ne tranche pas — et on dit sur quoi ils se
+       séparent, pour que le visiteur tranche sur un fait et non sur un titre. */
+    if (suivant && marge < MARGE_MINIMALE) {
+      var exaequo = candidats.filter(function (c) {
+        return meilleur.score - c.score < MARGE_MINIMALE;
+      });
+      /* TROP D'EX ÆQUO N'EST PAS UNE ÉGALITÉ, C'EST UNE QUESTION SANS RÉPONSE.
+         Répondre au seul objet laisse cinq itinéraires au même score : les
+         afficher tous les cinq ressemble à un choix et n'en est pas un. On
+         nomme alors la question qui manque — c'est elle qui trancherait. */
+      if (exaequo.length > EX_AEQUO_MAX) {
+        var restent = [];
+        for (var z = 0; z < QUESTIONS.length; z++) {
+          if (posees.indexOf(QUESTIONS[z].cle) < 0) restent.push(QUESTIONS[z]);
+        }
+        return { verdict: "trop_large", posees: posees,
+                 retenus: exaequo.slice(0, EX_AEQUO_MAX),
+                 manquantes: restent.map(function (q) { return q.cle; }),
+                 ecartes: [], marge: marge, classement: candidats,
+                 motif: exaequo.length + " itinéraires à égalité" +
+                        (restent.length
+                          ? " : il manque votre réponse à « " +
+                            restent.map(function (q) { return q.titre.toLowerCase(); }).join(" » et « ") + " »."
+                          : " — et rien ici ne les sépare.") };
+      }
+      return { verdict: "partage", posees: posees, retenus: exaequo,
+               ecartes: ecarter(candidats, exaequo, rep), marge: marge,
+               classement: candidats,
+               motif: exaequo.length + " itinéraires à égalité stricte : le choix vous revient, " +
+                      "et ce qui les sépare est écrit sous chacun." };
+    }
+
+    /* LE SECOND N'EST PAS UN ÉCARTÉ. Il était pourtant dans les deux listes :
+       présenté en « voyez celui-ci plutôt », puis rejeté trois lignes plus bas
+       avec son motif. Le lecteur y lisait deux avis contraires sur le même
+       itinéraire — et c'est le genre de contradiction qui fait douter de tout
+       le reste. On le montre une fois, à la place où il sert. */
+    return { verdict: "retenu", posees: posees, retenus: [meilleur],
+             second: suivant ? enPlus(suivant, meilleur) : null,
+             ecartes: ecarter(candidats, suivant ? [meilleur, suivant] : [meilleur], rep),
+             marge: marge,
+             classement: candidats,
+             motif: "Un itinéraire devance le suivant de " + marge + " point" +
+                    (marge > 1 ? "s" : "") + "." };
+  }
+
+  /* CE QUE LE SECOND AURAIT DONNÉ EN PLUS. Non pas « il a moins de points »,
+     mais les pages qu'il montre et que le retenu ne montre pas : c'est la
+     seule information qui permette de contester le classement. */
+  function enPlus(second, retenu) {
+    var vues = {};
+    retenu.urls.forEach(function (u) { vues[u] = 1; });
+    var sup = second.urls.filter(function (u) { return !vues[u]; });
+    /* AUCUNE PAGE DE PLUS N'EST UN FAIT, PAS UN VIDE. Plusieurs itinéraires de
+       ce site visitent les mêmes pages en posant d'autres questions : le second
+       peut n'ajouter aucune adresse et changer entièrement la lecture. Afficher
+       « rien » laisserait croire qu'il n'apporte rien ; c'est faux, et c'est la
+       chose qu'il faut dire à l'endroit exact où le lecteur hésite. */
+    return { id: second.id, role: second.role, icone: second.icone,
+             score: second.score, entree: second.entree,
+             urls_en_plus: sup,
+             apport: sup.length
+               ? "il ajoute " + sup.length + " page" + (sup.length > 1 ? "s" : "") + " à l’itinéraire"
+               : "il ne montre aucune page de plus : il pose d’autres questions sur les mêmes pages" };
+  }
+
+  /* LES ÉCARTÉS, AVEC LEUR MOTIF — et le motif est la PREMIÈRE question sur
+     laquelle ils tombent, par ordre de poids : c'est celle qui décide. */
+  function ecarter(candidats, gardes, rep) {
+    var gardeIds = {};
+    gardes.forEach(function (g) { gardeIds[g.id] = 1; });
+    return candidats.filter(function (c) { return !gardeIds[c.id]; })
+      .map(function (c) {
+        var ordre = ["objet", "declencheur", "levier"], motif = null;
+        for (var i = 0; i < ordre.length && !motif; i++) {
+          for (var j = 0; j < c.contre.length; j++) {
+            if (c.contre[j].cle !== ordre[i]) continue;
+            var x = c.contre[j];
+            /* « il part de une demande de chiffres » : l'élision manquait, et
+               aucune valeur en clair ne peut la porter — « l'organisation »
+               ne s'élide pas comme « une installation ». On change donc de
+               verbe plutôt que de bricoler l'article : « viser » prend son
+               complément direct, quel que soit le déterminant. */
+            motif = "il vise " + x.au_lieu_de.join(" ou ") +
+                    " ; vous avez répondu " + x.dit;
+          }
+        }
+        return { id: c.id, role: c.role, icone: c.icone, score: c.score,
+                 entree: c.entree,
+                 motif: motif || "il répond à moins de ce que vous avez décrit" };
+      });
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
      LES PARCOURS
      Chaque étape porte trois choses, et les trois comptent :
        action — ce qu'on fait sur la page (sinon on la survole) ;
@@ -294,6 +543,9 @@
   var PARCOURS = [
     {
       id: "rssi",
+      profil: { objet: ["industriel"], declencheur: ["texte", "projet"],
+                levier: ["technique"],
+                entree: "un programme de sécurité industrielle à construire de bout en bout, et à tenir devant un auditeur" },
       icone: "🛡️",
       role: "RSSI · Responsable cybersécurité industrielle",
       cas: "Inspiré de la mission GRDF — Projet Biométhane (PSSI industrielle, EBIOS, analyse d’écarts)",
@@ -356,6 +608,9 @@
     },
     {
       id: "ot",
+      profil: { objet: ["industriel"], declencheur: ["projet", "chiffre"],
+                levier: ["technique"],
+                entree: "une installation déjà en exploitation, dont il faut tenir les correctifs, les changements et la continuité" },
       icone: "⚙️",
       role: "Responsable OT · exploitation industrielle",
       cas: "Inspiré des missions FPSO Karish & Tanin et sous-station électrique offshore (IEC 62443, PLC / HMI / SCADA / DCS)",
@@ -418,6 +673,9 @@
     },
     {
       id: "projet",
+      profil: { objet: ["industriel"], declencheur: ["projet", "marche"],
+                levier: ["technique"],
+                entree: "une installation à concevoir ou à intégrer, avec des pièces techniques à produire" },
       icone: "🏗️",
       role: "Chef de projet · ingénierie, EPC, intégrateur",
       cas: "Inspiré des missions ATOS — Société du Grand Paris et ALSTOM — Projet REM Montréal (réseau multi-services, vidéosurveillance, SIEM)",
@@ -467,6 +725,9 @@
     },
     {
       id: "achats",
+      profil: { objet: ["industriel"], declencheur: ["marche"],
+                levier: ["conformite"],
+                entree: "un prestataire à qualifier et un contrat à écrire sur un sujet dont on n’est pas expert" },
       icone: "📄",
       role: "Achats · contractualisation, appels d’offres",
       cas: "Inspiré de la mission Management OT — sous-station offshore (prestataire de services IACS, cascade fournisseurs)",
@@ -504,6 +765,9 @@
     },
     {
       id: "direction",
+      profil: { objet: ["industriel", "organisation"], declencheur: ["texte", "projet"],
+                levier: ["direction"],
+                entree: "une décision à porter en comité, avec un budget à défendre et une échéance à tenir" },
       icone: "📊",
       role: "Direction générale · COMEX",
       cas: "Ancré sur l’art. 20 de NIS 2 : l’organe de direction approuve les mesures et en répond personnellement",
@@ -547,6 +811,9 @@
     },
     {
       id: "conformite",
+      profil: { objet: ["organisation", "ia"], declencheur: ["texte"],
+                levier: ["conformite"],
+                entree: "un cadre réglementaire à tenir, et un dossier qu’un contrôleur ouvrira" },
       icone: "⚖️",
       role: "DPO · conformité, juridique, données",
       cas: "Inspiré de la mission Cybersécurité & Sûreté · IA Risk Management du SI (PIA / AIPD / RGPD, mapping des exigences)",
@@ -584,6 +851,9 @@
     },
     {
       id: "dc-projet",
+      profil: { objet: ["datacenter"], declencheur: ["projet"],
+                levier: ["direction"],
+                entree: "un centre de données à programmer, du document d’ouverture d’étude aux phases d’ingénierie" },
       icone: "🏗️",
       role: "Direction de projet · centre de données",
       cas: "Le fil d'un projet de centre de données, du document d'ouverture d'étude à la séquence d'ingénierie",
@@ -641,6 +911,9 @@
          honoraires — et le prendre à l'envers fait asseoir des honoraires sur
          une assiette qu'on n'a pas. */
       id: "dc-couts",
+      profil: { objet: ["datacenter"], declencheur: ["projet", "marche"],
+                levier: ["budget"],
+                entree: "un coût d’opération à produire et à défendre poste par poste, sans ratio au kilowatt" },
       icone: "📐",
       role: "Économie de la construction · le coût d’un centre de données",
       cas: "Du profil de l’installation au coût d’opération : les travaux d’abord, les honoraires qu’ils portent ensuite",
@@ -684,6 +957,9 @@
     },
     {
       id: "dc-durabilite",
+      profil: { objet: ["datacenter"], declencheur: ["texte", "chiffre"],
+                levier: ["conformite"],
+                entree: "une déclaration à publier qu’un tiers vérifiera, et une trajectoire à démontrer" },
       icone: "🌍",
       role: "Direction durabilité · RSE d'un exploitant de centres de données",
       cas: "Produire une déclaration opposable, et une trajectoire qui la suive",
@@ -754,6 +1030,9 @@
        envoyer serait un renvoi trompeur. Voir ROLES_EXPLOITANT_DC plus bas. */
     {
       id: "dc-exploitation",
+      profil: { objet: ["datacenter"], declencheur: ["chiffre"],
+                levier: ["technique"],
+                entree: "un site qui tourne déjà, et une demande extérieure de chiffres arrivée avant le dispositif de mesure" },
       icone: "🏭",
       role: "Exploitation d’un centre de données · on vous réclame des chiffres",
       cas: "Le cas le plus fréquent : une demande extérieure — bailleur, client, autorité, banque — arrive avant que le dispositif de mesure existe",
@@ -777,6 +1056,9 @@
     },
     {
       id: "dc-charge-ia",
+      profil: { objet: ["datacenter", "ia"], declencheur: ["projet"],
+                levier: ["technique"],
+                entree: "une charge de calcul décidée, dont le bâtiment doit suivre la densité" },
       icone: "🧮",
       role: "Direction des systèmes d’information · la charge commande le bâtiment",
       cas: "Inspiré des études d’usine IA : c’est la densité de la charge qui fixe le refroidissement, la puissance et l’emprise — jamais l’inverse",
@@ -812,6 +1094,9 @@
        salle en défense avant le premier chiffre, et on ne la récupère pas. */
     {
       id: "securite-ia",
+      profil: { objet: ["ia"], declencheur: ["texte", "projet"],
+                levier: ["conformite"],
+                entree: "des systèmes d’IA déjà en production, dont personne ne tient la chaîne d’autonomie" },
       icone: "🧪",
       role: "Sécurité IA · contre-expertise d’une AI Factory en déploiement",
       cas: "Écrit pour le poste qui arrive quand l’usine tourne déjà : évaluer et challenger " +
@@ -872,6 +1157,15 @@
     },
     {
       id: "decouverte",
+      /* PAS D'`objet` DANS LE PROFIL, ET C'EST CE QUI LE DÉFINIT. Le conseiller
+         reconnaît le recours à cette absence : celui qu'on propose quand aucune
+         réponse ne désigne rien. Lui donner un objet le ferait concourir, et un
+         filet qui concourt gagne au mauvais moment — ou perd de justesse quand
+         on aurait eu besoin de lui. Il garde en revanche son `entree`, parce
+         qu'un recours proposé sans dire ce qu'il est n'est qu'un lot de
+         consolation. */
+      profil: { entree: "aucune réponse ne désigne d’itinéraire — celui-ci fait le tour " +
+                        "de ce que le site sait faire, et le diagnostic express est au bout" },
       icone: "🧭",
       role: "Première visite · comprendre l’essentiel",
       cas: "Parcours d’entrée — aucune connaissance préalable de l’IEC 62443 requise",
@@ -1608,17 +1902,102 @@
          "un état des lieux honnête raccourcit le cadrage de plusieurs semaines, " +
          "un état des lieux flatteur le rallonge d'autant."
   };
+
+  /* ── CE QUE VOUS EMPORTEZ ───────────────────────────────────────────────
+     CETTE ÉTAPE ÉTAIT LA MÊME VINGT-DEUX FOIS. Elle est ajoutée à tous les
+     itinéraires par `conclure` ci-dessous, et elle disait à tout le monde la
+     même chose : « décrivez le périmètre que vous venez de parcourir ». Un
+     visiteur qui a passé dix étapes sur l'analyse de risque et un autre qui
+     vient de chiffrer un centre de données lisaient, en dernier, la phrase
+     identique. C'est la seule étape où le site demande quelque chose au
+     lecteur, et c'était la seule qui ne savait pas ce qu'il venait de faire.
+
+     L'ACTE, LUI, EST BIEN LE MÊME : on remplit le même formulaire. Ce n'est
+     donc pas `action` qu'il fallait réécrire vingt-deux fois — une reformulation
+     n'aurait rien rendu de plus vrai. Ce qui manquait, c'est CE QU'ON EMPORTE :
+     les pièces que CET itinéraire a produites, et qu'on pose sur la table au
+     premier rendez-vous. Chacune est nommée ici, à côté des autres, parce que
+     c'est côte à côte qu'on voit si deux itinéraires produisent la même chose
+     — et si c'était le cas, ce sont les itinéraires qu'il faudrait revoir,
+     pas leur conclusion.
+
+     La règle qui garde ce bloc est dans la recette, pas ici : un garde-fou
+     qui lèverait dans le navigateur tuerait le bandeau sur TOUTES les pages
+     pour une faute d'inventaire. Le site dégrade, la recette refuse. */
+  var EMPORTER = {
+    /* — les rôles — */
+    rssi: "un diagnostic chiffré, un score de maturité OT, un découpage en zones " +
+          "avec ses niveaux cibles et une feuille de route jalonnée",
+    ot: "un découpage en zones, les exigences système retenues, votre position sur " +
+        "les vingt-sept points de la checklist et un plan de continuité OT",
+    projet: "une architecture cible, les exigences système et composants à verser au " +
+            "CCTP, et la grille de qualification 2-4 de vos prestataires",
+    direction: "votre qualification NIS 2, un diagnostic chiffré, un operating model " +
+               "et une feuille de route dont chaque euro porte une échéance",
+    conformite: "votre qualification NIS 2, le dossier de conformité, la grille " +
+                "Governance by Design de vos systèmes d'IA et les écarts relevés à l'audit",
+    "dc-projet": "un document d'ouverture d'étude, le bilan énergie-eau-carbone du " +
+                 "programme et la séquence d'ingénierie phase par phase",
+    "dc-couts": "un coût d'opération complet — les travaux poste par poste, puis les " +
+                "honoraires qu'ils portent — et ce qui n'est PAS chiffré, compté comme tel",
+    "dc-durabilite": "un bilan opposable, la matérialité arbitrée enjeu par enjeu et le " +
+                     "registre des pièces à remettre, phase par phase",
+    "dc-exploitation": "les chiffres — énergie, eau, carbone — de l'installation telle " +
+                       "qu'elle tourne, la méthode qui les porte, et les pièces, phase par " +
+                       "phase, qui manquent à votre dossier",
+    "dc-charge-ia": "le profil de la charge — densité, refroidissement, puissance —, ce " +
+                    "qu'elle pèse une fois installée et ce qu'elle coûte à construire",
+    "securite-ia": "l'inventaire de votre dette d'antériorité, la cotation de la chaîne " +
+                   "d'autonomie, le cadre applicable entité par entité, et la trajectoire " +
+                   "avec ce qu'elle coûte",
+    decouverte: "une lecture des secteurs et des études de cas, le vocabulaire du " +
+                "référentiel 62443 et un diagnostic express déjà passé",
+    /* — les secteurs — */
+    energie: "votre qualification NIS 2, un découpage en zones qui traite les postes " +
+             "distants à part, et une feuille de route adossée aux arrêts réseau",
+    eau: "l'état réel de votre inventaire, un diagnostic express déjà passé, un score de " +
+         "maturité et une feuille de route priorisée par criticité pour le service public",
+    manufacturing: "un découpage en zones compatible avec les lignes, et les exigences " +
+                   "système et composants à opposer à vos intégrateurs",
+    agro: "un découpage en zones de vos procédés continus, les technologies de sécurité " +
+          "retenues en compensation et un calendrier de correctifs adossé aux arrêts",
+    chimie: "un découpage en zones qui isole les systèmes instrumentés de sécurité, les " +
+            "exigences système retenues et un programme qui ne réinvalide pas vos qualifications",
+    transport: "les exigences prestataires opposables à vos sous-traitants, un découpage " +
+               "en zones de vos flux M2M et ce que la supervision apporte sur un parc mobile",
+    banque: "vos cas d'usage qualifiés un par un, l'articulation de DORA et de NIS 2, les " +
+            "clauses à obtenir du fournisseur de modèle et deux calendriers tenus ensemble",
+    finance: "l'articulation de NIS 2 et de DORA, l'inventaire de ce qui est déjà parti " +
+             "sans contrôle, et les exigences prestataires de vos fournisseurs TIC",
+    nucleaire: "la partie du référentiel qui vous concerne, un découpage en zones " +
+               "compatible avec la sûreté classée et un programme de sécurité adossé à votre organisation",
+    aero: "les exigences prestataires pour la cascade de vos donneurs d'ordre, un " +
+          "programme de sécurité et les exigences de développement sécurisé à imposer"
+  };
+
   var CONCLUSIONS = ["/vos-projets", "/contact"];
-  function conclure(etapes) {
+  /* `emporter` n'est pas facultatif : un itinéraire dont on ne sait pas dire
+     ce qu'il produit n'a pas de conclusion à offrir. Absent, on retombe sur la
+     phrase commune plutôt que d'afficher un trou — et la recette, elle, refuse
+     l'absence. Le site dégrade proprement ; la faute, on la voit en recette. */
+  function conclure(etapes, id) {
     var derniere = etapes[etapes.length - 1];
     if (derniere && CONCLUSIONS.indexOf(derniere.url) >= 0) return etapes;
-    return etapes.concat([ETAPE_FINALE]);
+    var emporte = EMPORTER[id];
+    var fin = {
+      url: ETAPE_FINALE.url, label: ETAPE_FINALE.label,
+      action: ETAPE_FINALE.action, tip: ETAPE_FINALE.tip,
+      gain: emporte
+        ? "Vous arrivez avec " + emporte + ". " + ETAPE_FINALE.gain
+        : ETAPE_FINALE.gain
+    };
+    return etapes.concat([fin]);
   }
   for (var iP = 0; iP < PARCOURS.length; iP++) {
-    PARCOURS[iP].etapes = conclure(PARCOURS[iP].etapes);
+    PARCOURS[iP].etapes = conclure(PARCOURS[iP].etapes, PARCOURS[iP].id);
   }
   for (var iS = 0; iS < SECTEURS.length; iS++) {
-    SECTEURS[iS].etapes = conclure(SECTEURS[iS].etapes);
+    SECTEURS[iS].etapes = conclure(SECTEURS[iS].etapes, SECTEURS[iS].id);
   }
 
   /* Le moteur et ses données sont désormais définis. Sous Node (recette), on
@@ -1629,7 +2008,9 @@
     module.exports = {
       AXES_URL: AXES_URL, POIDS: POIDS, AXE_LABEL: AXE_LABEL, AXE_COURT: AXE_COURT,
       personnaliser: personnaliser, PARCOURS: PARCOURS, SECTEURS: SECTEURS,
-      ROLES_EXPLOITANT_DC: ROLES_EXPLOITANT_DC
+      ROLES_EXPLOITANT_DC: ROLES_EXPLOITANT_DC, EMPORTER: EMPORTER,
+      QUESTIONS: QUESTIONS, EN_CLAIR: EN_CLAIR, POIDS_Q: POIDS_Q,
+      MARGE_MINIMALE: MARGE_MINIMALE, conseiller: conseiller
     };
   }
   /* Le moteur est aussi offert au navigateur pour un éventuel usage tiers ;
@@ -1723,7 +2104,46 @@
     "padding:24px 16px;background:rgba(20,8,4,.72);overflow-y:auto}",
     ".pc-modal.on{display:flex}",
     ".pc-card{width:100%;max-width:780px;background:var(--panel);border:1px solid var(--line);",
-    "border-radius:14px;padding:22px 24px;margin:auto;min-width:0}",
+    "border-radius:14px;padding:22px 24px;margin:auto;min-width:0;",
+    "transition:max-width .22s ease}",
+    /* ── LE MODE LECTURE ──────────────────────────────────────────────────
+       LA MODALE FAIT DEUX MÉTIERS, ET ELLE LES FAISAIT À LA MÊME TAILLE.
+       Tant qu'on CHOISIT, elle porte deux listes déroulantes et doit rester
+       compacte : une boîte de dialogue large pour deux menus paraît vide.
+       Dès qu'un parcours est choisi, elle porte de six à onze étapes, chacune
+       avec son action, son gain et son piège — et 780 px les empilait en
+       colonnes étroites qu'on lit mal, dans une modale qu'il faut faire
+       défiler longuement.
+
+       CE QUI S'AGRANDIT N'EST DONC PAS « LA MODALE » : c'est la LECTURE.
+       Le choix reste compact, la fiche s'ouvre en grand. Et la transition
+       porte sur `max-width` seule — animer la hauteur ferait sauter le
+       contenu pendant qu'on commence à le lire. */
+    ".pc-card.pc-lecture{max-width:1060px;padding:26px 30px}",
+    ".pc-lecture .pc-title{font-size:22px}",
+    ".pc-lecture .pc-intro{font-size:14px;line-height:1.7}",
+    ".pc-lecture .pc-fiche-ic{font-size:30px}",
+    ".pc-lecture .pc-fiche-role{font-size:18.5px}",
+    ".pc-lecture .pc-fiche-pitch{font-size:14.5px;line-height:1.7;max-width:86ch}",
+    ".pc-lecture .pc-cas{font-size:13px;line-height:1.65}",
+    ".pc-lecture .pc-etape{padding:17px 20px;border-radius:12px}",
+    ".pc-lecture .pc-e-label{font-size:15.5px}",
+    ".pc-lecture .pc-num{width:28px;height:28px;font-size:12.5px}",
+    ".pc-lecture .pc-e-d{font-size:14px;line-height:1.7}",
+    ".pc-lecture .pc-e-tip{font-size:13.5px;line-height:1.65;padding-left:13px}",
+    ".pc-lecture .pc-go{font-size:13px;padding:8px 14px}",
+    ".pc-lecture .pc-prio-t{font-size:15px}",
+    ".pc-lecture .pc-prio-syn,.pc-lecture .pc-prio-l li,.pc-lecture .pc-prio-det{",
+    "font-size:13.5px;line-height:1.7}",
+    ".pc-lecture .pc-compte{font-size:13px}",
+    /* SOUS 1100 px L'ÉCRAN NE DONNE PAS CES 1060 px : la règle ci-dessus ne
+       fait alors rien de mal, mais les tailles de texte, elles, s'appliquent
+       quand même et serrent le texte. On les rend donc à leur valeur de
+       choix tant que la place manque. */
+    "@media(max-width:1100px){.pc-card.pc-lecture{padding:22px 24px}",
+    ".pc-lecture .pc-e-d{font-size:13px}.pc-lecture .pc-e-label{font-size:14px}",
+    ".pc-lecture .pc-fiche-pitch{font-size:13px}}",
+    "@media(prefers-reduced-motion:reduce){.pc-card{transition:none}}",
     ".pc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:6px}",
     ".pc-eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2)}",
     ".pc-title{font-size:19px;font-weight:700;color:var(--ink);margin-top:3px}",
@@ -1758,6 +2178,59 @@
     "border:1px solid var(--teal);border-radius:20px;padding:4px 10px;white-space:nowrap;",
     "overflow:hidden;text-overflow:ellipsis;max-width:200px}",
     /* Fiche du parcours */
+    /* ── LA PORTE DE CEUX QUI NE CONNAISSENT PAS NOTRE DÉCOUPAGE ──────────
+       Repliée par défaut : celui qui sait qu'il est RSSI ne doit pas la
+       traverser pour arriver à sa liste. Elle s'ouvre en un clic, et le
+       verdict qu'elle rend REMPLIT la liste déroulante au lieu de la
+       remplacer — on ne retire jamais au visiteur la main sur son choix. */
+    ".pc-conseil{margin-top:14px;border:1px solid var(--line);border-radius:12px;overflow:hidden}",
+    ".pc-conseil>summary{cursor:pointer;list-style:none;padding:11px 14px;font-size:13px;",
+    "font-weight:600;color:var(--ink);background:rgba(255,255,255,.02);display:flex;",
+    "align-items:center;gap:9px}",
+    ".pc-conseil>summary::-webkit-details-marker{display:none}",
+    ".pc-conseil>summary::after{content:'▸';margin-left:auto;color:var(--muted2);font-size:12px;",
+    "transition:transform .18s ease}",
+    ".pc-conseil[open]>summary::after{transform:rotate(90deg)}",
+    ".pc-conseil>summary:hover{background:rgba(255,255,255,.05)}",
+    ".pc-conseil>summary:focus-visible{outline:2px solid var(--teal);outline-offset:-2px}",
+    ".pc-cq{padding:14px;display:grid;gap:14px}",
+    ".pc-cq fieldset{border:0;margin:0;padding:0;min-width:0}",
+    ".pc-cq legend{font-family:var(--mono);font-size:10px;letter-spacing:.09em;",
+    "text-transform:uppercase;color:var(--muted2);padding:0;margin-bottom:7px}",
+    ".pc-cq-opts{display:grid;gap:5px}",
+    ".pc-cq-opt{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--muted);",
+    "line-height:1.5;cursor:pointer;padding:5px 7px;border-radius:7px}",
+    ".pc-cq-opt:hover{background:rgba(255,255,255,.04);color:var(--ink)}",
+    ".pc-cq-opt input{margin:2px 0 0;flex-shrink:0;accent-color:var(--teal)}",
+    ".pc-cq-opt input:focus-visible{outline:2px solid var(--teal);outline-offset:2px}",
+    ".pc-cq-opt:has(input:checked){background:rgba(45,212,191,.10);color:var(--ink)}",
+    /* ── LE VERDICT ────────────────────────────────────────────────────── */
+    ".pc-verdict{border-top:1px solid var(--line);padding:14px;background:rgba(255,255,255,.015)}",
+    ".pc-v-motif{font-size:12.5px;color:var(--muted);line-height:1.6;margin-bottom:10px}",
+    ".pc-v-motif b{color:var(--ink)}",
+    ".pc-v-card{border:1px solid var(--teal);border-left:3px solid var(--teal);border-radius:0 10px 10px 0;",
+    "padding:11px 13px;margin-bottom:8px}",
+    ".pc-v-card.pc-v-second{border-color:var(--line);border-left-color:var(--muted2)}",
+    ".pc-v-role{font-size:13.5px;font-weight:700;color:var(--ink);display:flex;gap:8px;align-items:baseline}",
+    ".pc-v-pts{font-family:var(--mono);font-size:10px;color:var(--muted2);margin-left:auto;flex-shrink:0}",
+    ".pc-v-entree{font-size:12.3px;color:var(--muted);line-height:1.6;margin-top:4px}",
+    ".pc-v-apport{font-size:12px;color:var(--muted2);line-height:1.55;margin-top:5px;font-style:italic}",
+    ".pc-v-go{margin-top:9px;font:inherit;font-size:12px;font-weight:600;color:var(--bg);",
+    "background:var(--teal);border:0;border-radius:7px;padding:7px 13px;cursor:pointer}",
+    ".pc-v-go:hover{filter:brightness(1.1)}",
+    ".pc-v-go:focus-visible{outline:2px solid var(--ink);outline-offset:2px}",
+    /* LES ÉCARTÉS SONT REPLIÉS, MAIS ILS SONT LÀ. Un conseil dont on ne peut
+       pas voir ce qu'il a refusé ne se conteste pas — et un conseil qu'on ne
+       peut pas contester ne vaut rien en réunion. */
+    ".pc-v-ec{margin-top:6px;border-top:1px dashed var(--line);padding-top:8px}",
+    ".pc-v-ec>summary{cursor:pointer;list-style:none;font-size:11.5px;color:var(--muted2);",
+    "font-family:var(--mono);letter-spacing:.04em}",
+    ".pc-v-ec>summary::-webkit-details-marker{display:none}",
+    ".pc-v-ec>summary:hover{color:var(--ink)}",
+    ".pc-v-ec>summary:focus-visible{outline:2px solid var(--teal);outline-offset:2px}",
+    ".pc-v-ec ul{margin:8px 0 0;padding-left:17px}",
+    ".pc-v-ec li{font-size:11.8px;color:var(--muted);line-height:1.6;margin-bottom:5px}",
+    ".pc-v-ec li b{color:var(--muted2);font-weight:600}",
     ".pc-fiche{margin-top:18px}",
     ".pc-fiche-head{display:flex;gap:12px;align-items:flex-start;margin-bottom:8px}",
     ".pc-fiche-ic{font-size:24px;line-height:1;flex-shrink:0}",
@@ -1938,13 +2411,18 @@
       + '<select class="pc-select" id="pc-select">' + optsRole + '</select></label>'
       + '<label class="pc-lab">Votre secteur industriel'
       + '<select class="pc-select" id="pc-select-sec">' + optsSect + '</select></label>'
-      + '</div><div id="pc-fiche"></div></div>';
+      + '</div>'
+      + '<details class="pc-conseil"><summary>🧭 Je ne sais pas quel rôle choisir — trois questions</summary>'
+      + '<div class="pc-cq">' + questionsHTML() + '</div>'
+      + '<div class="pc-verdict" id="pc-verdict"></div></details>'
+      + '<div id="pc-fiche"></div></div>';
     m.querySelector(".pc-x").addEventListener("click", fermer);
     var sel = m.querySelector("#pc-select");
     var selSec = m.querySelector("#pc-select-sec");
     function maj() { fiche(sel.value, selSec.value); }
     sel.addEventListener("change", maj);
     selSec.addEventListener("change", maj);
+    brancherConseil(m, sel, maj);
     m.classList.add("on");
     var g = lire();
     if (idPre || (g && g.sec)) {
@@ -2046,11 +2524,96 @@
       + "</div>";
   }
 
+  /* ═══════════════════════════════════════════════════════════════════════
+     LE RENDU DU CONSEILLER
+     Le moteur au-dessus est pur ; ici on ne fait que l'afficher. La règle
+     tenue partout : ce qui est RETENU et ce qui est ÉCARTÉ arrivent par le
+     même chemin, et l'écarté porte son motif. Un conseil qui ne montrerait
+     que son gagnant serait un oracle ; celui-ci se conteste.
+     ═══════════════════════════════════════════════════════════════════════ */
+  function questionsHTML() {
+    return QUESTIONS.map(function (q) {
+      var opts = q.choix.map(function (c, i) {
+        var id = "pc-q-" + q.cle + "-" + i;
+        return '<label class="pc-cq-opt" for="' + id + '">'
+          + '<input type="radio" id="' + id + '" name="pc-q-' + esc(q.cle) + '" value="'
+          + esc(c.v) + '"' + (c.neutre ? " checked" : "") + ">"
+          + "<span>" + esc(c.l) + "</span></label>";
+      }).join("");
+      return '<fieldset><legend>' + esc(q.titre) + "</legend>"
+        + '<div class="pc-cq-opts">' + opts + "</div></fieldset>";
+    }).join("");
+  }
+
+  function carteVerdict(x, second) {
+    return '<div class="pc-v-card' + (second ? " pc-v-second" : "") + '">'
+      + '<div class="pc-v-role">' + esc(x.icone || "") + "<span>" + esc(x.role || x.id) + "</span>"
+      + '<span class="pc-v-pts">' + x.score + " / 6</span></div>"
+      + (x.entree ? '<div class="pc-v-entree">' + esc(x.entree) + "</div>" : "")
+      + (second && x.apport ? '<div class="pc-v-apport">' + esc(x.apport) + "</div>" : "")
+      + '<button class="pc-v-go" type="button" data-pc-aller="' + esc(x.id) + '">'
+      + (second ? "Voir celui-ci plutôt" : "Suivre ce parcours") + "</button></div>";
+  }
+
+  function verdictHTML(r) {
+    var h = '<div class="pc-v-motif">' + esc(r.motif) + "</div>";
+    h += r.retenus.map(function (x) { return carteVerdict(x, false); }).join("");
+    if (r.second) h += carteVerdict(r.second, true);
+    if (r.ecartes && r.ecartes.length) {
+      h += '<details class="pc-v-ec"><summary>Ce qui a été écarté, et sur quel motif ('
+        + r.ecartes.length + ")</summary><ul>"
+        + r.ecartes.map(function (e) {
+            return "<li><b>" + esc(e.role || e.id) + "</b> — " + esc(e.motif) + "</li>";
+          }).join("")
+        + "</ul></details>";
+    }
+    return h;
+  }
+
+  /* Brancher la porte sur la modale. Le verdict se recalcule à CHAQUE réponse :
+     le visiteur voit le classement bouger pendant qu'il répond, ce qui lui
+     apprend quelle question compte — et c'est gratuit, le moteur étant pur. */
+  function brancherConseil(m, sel, maj) {
+    var d = m.querySelector(".pc-conseil");
+    if (!d) return;
+    var zone = d.querySelector("#pc-verdict");
+    function calculer() {
+      var rep = {};
+      QUESTIONS.forEach(function (q) {
+        var c = d.querySelector('input[name="pc-q-' + q.cle + '"]:checked');
+        if (c && c.value) rep[q.cle] = c.value;
+      });
+      var r = conseiller(rep);
+      zone.innerHTML = verdictHTML(r);
+      zone.querySelectorAll("[data-pc-aller]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          /* LE VERDICT REMPLIT LE MENU, IL NE SE SUBSTITUE PAS À LUI. Le
+             visiteur garde la main : il voit son rôle sélectionné, et peut en
+             changer aussitôt. Un conseil qui déciderait à sa place serait plus
+             court à écrire et plus difficile à démentir. */
+          sel.value = b.getAttribute("data-pc-aller");
+          maj();
+          var f = document.getElementById("pc-fiche");
+          if (f && f.scrollIntoView) f.scrollIntoView({ block: "nearest" });
+        });
+      });
+    }
+    d.addEventListener("change", calculer);
+    calculer();
+  }
+
   function fiche(id, idSec) {
     var h = document.getElementById("pc-fiche");
     if (!h) return;
     var p = id ? trouver(id) : null;
     var sec = idSec ? trouverSecteur(idSec) : null;
+    /* LA TAILLE SUIT CE QU'IL Y A À LIRE, et rien d'autre. Tant qu'aucun
+       parcours n'est choisi, la carte reste celle du choix ; dès qu'une
+       fiche s'affiche, elle passe en lecture. Piloter la classe depuis les
+       écouteurs des deux menus aurait donné deux endroits à tenir d'accord,
+       et c'est ici qu'on sait s'il y a une fiche. */
+    var carte = h.closest ? h.closest(".pc-card") : null;
+    if (carte) { carte.classList.toggle("pc-lecture", !!(p || sec)); }
     if (!p && !sec) { h.innerHTML = ""; return; }
     var ici = chemin();
 
