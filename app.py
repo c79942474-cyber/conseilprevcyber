@@ -271,6 +271,10 @@ _RATE_EXACT = {
     # curseurs, sans commune mesure avec une mise en page.
     "/api/ai-factory/contre-expertise": (60, 60),
     "/api/ai-factory/alerte":           (90, 60),
+    # LE BANDEAU EST SERVI À CHAQUE OUVERTURE DE LA PAGE, et il ne coûte
+    # qu'une lecture de table — le comptage du registre, lui, se fait dans un
+    # fil de fond et jamais dans la requête.
+    "/api/securite-ia/chiffres":        (240, 60),
 }
 _RATE_EXACT.update({
     # ── DEUX JETONS QUI SE FORÇAIENT EN AVEUGLE ─────────────────────────────
@@ -906,6 +910,60 @@ def _start_maintenance():
 
 
 _start_maintenance()
+
+
+# ── LE SEUL CHIFFRE DU BANDEAU QUI SE RECOMPTE ─────────────────────────────
+#
+# CE QUI EST AUTOMATISABLE, ET CE QUI NE L'EST PAS. Cinq des six chiffres du
+# bandeau « IA Security en chiffres » sont des chiffres de rapport : aucune
+# interface ne les sert, ils ne changent plus, et les « rafraîchir » n'a pas de
+# sens — on les remplace quand l'édition suivante paraît. Le sixième, le nombre
+# de serveurs au registre public MCP, se compte pour de bon.
+#
+# POURQUOI DANS UN FIL, ET JAMAIS DANS LA REQUÊTE. Le comptage pagine un
+# registre par pages de cent : plusieurs minutes et quelques centaines
+# d'appels. Le faire à l'ouverture de la page aurait fait attendre le lecteur
+# pour un nombre qui ne bouge pas d'une heure à l'autre — et l'aurait fait
+# attendre en vain le jour où le registre est lent.
+#
+# LE PREMIER COMPTAGE EST DIFFÉRÉ. Au démarrage, tout est à faire en même
+# temps ; ajouter trois cents appels sortants à ce moment-là retarde la
+# première réponse servie. La page sait afficher un chiffre absent — elle le
+# dit, plutôt que d'inventer un zéro.
+_MCP_INTERVALLE_H = reglages.reel("MCP_REFRESH_HOURS", 24.0, mini=0.0,
+                                  maxi=24.0 * 30)
+_MCP_DEPART_S = reglages.reel("MCP_REFRESH_DELAY_S", 180.0, mini=0.0,
+                              maxi=3600.0)
+
+
+def _start_compte_mcp():
+    if _MCP_INTERVALLE_H <= 0:
+        app.logger.info("registre MCP : rafraîchissement désactivé")
+        return
+
+    def loop():
+        time.sleep(max(0.0, _MCP_DEPART_S))
+        while True:
+            try:
+                r = chiffres_securite_ia.rafraichir_mcp()
+                if r.get("ok"):
+                    app.logger.info("registre MCP : %d serveurs actifs "
+                                    "(%d pages)", r["valeur"], r["pages"])
+                else:
+                    # ON N'ÉCRASE PAS LE COMPTE PRÉCÉDENT : il reste affiché
+                    # avec SA date, donc il vieillit visiblement. Le remplacer
+                    # par un trou aurait fait disparaître le chiffre de la
+                    # page sans que personne sache pourquoi.
+                    app.logger.warning("registre MCP : comptage non abouti "
+                                       "(%s)", r.get("motif"))
+            except Exception:
+                app.logger.exception("registre MCP : échec du comptage")
+            time.sleep(max(0.1, _MCP_INTERVALLE_H) * 3600)
+
+    threading.Thread(target=loop, daemon=True).start()
+
+
+_start_compte_mcp()
 
 # --- Authentification (comptes : inscription + validation admin + connexion) ---
 # Système de comptes (voir auth.py) : sessions, mots de passe hachés, emails Brevo.
@@ -2421,6 +2479,8 @@ import profil_dc     # noqa: E402  — analyse le moteur ci-dessus, ne le double
 import ingenierie_dc  # noqa: E402  — situe ses résultats dans la séquence projet
 import ia_factory     # noqa: E402  — l'étude de faisabilité d'une usine IA, sans prix inventé
 import contre_expertise_ia  # noqa: E402  — CONTESTE le programme d'une usine
+import chiffres_securite_ia  # noqa: E402  — les six chiffres du bandeau,
+                             # chacun avec sa source, sa date et sa péremption
                             # déjà lancée ; ia_factory l'étudie avant, et
                             # chaine_autonomie cote un système, pas un programme
 import technique_dc  # noqa: E402  — le vocabulaire du métier, servi aux infobulles
@@ -3203,6 +3263,32 @@ def api_securite_ia_emporter():
                      download_name="chaine-autonomie-%s.%s"
                                    % (time.strftime("%Y-%m-%d"), fmt),
                      as_attachment=True, mimetype=mimetype)
+
+
+@app.route("/api/securite-ia/chiffres")
+def api_securite_ia_chiffres():
+    """Le bandeau « IA Security en chiffres », avec l'âge de chaque chiffre.
+
+    CE QUE CETTE ROUTE REND QU'UN BANDEAU ORDINAIRE NE REND PAS : la DATE de
+    chaque chiffre et son état de fraîcheur. Un pourcentage reste parfaitement
+    lisible trois ans après l'enquête qui l'a produit, et rien dans sa
+    typographie ne dit qu'il a vieilli. L'âge est donc servi avec la valeur,
+    et la page l'affiche.
+
+    ELLE N'EST PAS MÉMOÏSÉE PAR `_json_fige`, et c'est délibéré : le décompte
+    du registre MCP change sous elle quand le fil de fond le rafraîchit, et
+    une réponse figée au démarrage aurait servi pour toujours le compte du
+    premier jour — en affichant la date du premier jour, ce qui est au moins
+    honnête, mais sans jamais bouger.
+
+    ET LA DATE VIENT DU CLIENT quand il en propose une, pour que deux lecteurs
+    sous deux fuseaux lisent le même âge sur le même chiffre."""
+    quand = request.args.get("date") if request.args.get("date") else None
+    r = chiffres_securite_ia.bandeau(aujourdhui=quand)
+    rep = jsonify(r)
+    # UN BANDEAU QUI VIEILLIT NE SE MET PAS EN CACHE POUR LONGTEMPS.
+    rep.headers["Cache-Control"] = "private, max-age=900, must-revalidate"
+    return rep
 
 
 @app.route("/api/ai-factory/referentiel")
