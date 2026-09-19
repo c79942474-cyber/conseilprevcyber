@@ -100,7 +100,8 @@ SECTEURS = [
     ("Agroalimentaire", _r(r"agroaliment|food|agri|agroindustr")),
     ("Chimie & pharma", _r(r"chimie|chemical|pharma|seveso|biotech")),
     ("Transport & logistique", _r(r"transport|ferroviaire|railway|maritime|port\b|aéroport|airport|logistique|logistics")),
-    ("Assurance & services financiers", _r(r"banque|bank|assurance|insurance|financ|\beba\b|\besma\b|\bdora\b")),
+    ("Banque de détail et de financement", _r(r"banque|bank|\beba\b|\bssm\b|\bmsu\b|crédit|credit institution|scoring|prudentiel|bâle|basel|\bacpr\b|\bbce\b|\becb\b|\bdora\b")),
+    ("Assurance & services financiers", _r(r"assurance|insurance|\beiopa\b|\besma\b|financ|\bdora\b")),
     ("Nucléaire", _r(r"nucléaire|nuclear|\biaea\b|\basn\b|réacteur|reactor")),
     ("Aerospace & défense", _r(r"aéronautique|aerospace|défense|defence|defense|spatial|\bsatellite\b")),
 ]

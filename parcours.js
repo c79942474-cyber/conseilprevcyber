@@ -188,6 +188,9 @@
     transport:     { gouvernance:1, analyse:2, technique:2, exigences:1, tiers:3, juridique:2, continuite:2, preuve:1 },
     /* DORA + registre des prestataires TIC */
     finance:       { gouvernance:2, analyse:1, technique:1, exigences:1, tiers:3, juridique:3, continuite:2, preuve:2 },
+    /* trois textes à articuler + le dossier technique d'un système à haut
+       risque, qui ne se reconstitue pas après coup */
+    banque:        { gouvernance:2, analyse:1, technique:1, exigences:2, tiers:2, juridique:3, continuite:2, preuve:3 },
     /* sûreté classée + qualification rigoureuse des accès */
     nucleaire:     { gouvernance:2, analyse:2, technique:2, exigences:3, tiers:1, juridique:2, continuite:3, preuve:2 },
     /* cascade des donneurs d'ordre + souveraineté / secret défense */
@@ -1249,6 +1252,107 @@
           action: "Priorisez la reprise en main des accès distants.",
           gain: "Le chantier au meilleur rapport effet/effort dans ce secteur.",
           tip: "Commencez par les prestataires les plus nombreux, pas les plus critiques : le volume fait le risque ici." }
+      ]
+    },
+    /* ── LA BANQUE SE SÉPARE DE L'ASSURANCE, ET CE N'EST PAS UN DÉTAIL ─────
+       LE SITE NE CONNAISSAIT QU'UN SEUL SEAU — « Assurance & services
+       financiers » — alors que son propre moteur d'usine IA distingue déjà
+       banque et assurance, et que le règlement sur l'IA les sépare lui aussi :
+       l'évaluation de solvabilité et la notation de crédit des personnes
+       physiques relèvent de l'annexe III, point 5 b, et c'est un cas d'usage
+       BANCAIRE. Un directeur de banque qui lisait « assurance » en tête de son
+       parcours en concluait, raisonnablement, que la page ne parlait pas de
+       lui.
+
+       CE QUE CE SECTEUR APPORTE QUE L'AUTRE N'A PAS : la banque possède déjà
+       la fonction qui manque partout ailleurs — une validation indépendante
+       des modèles, tenue depuis le risque de crédit, capable de REFUSER une
+       mise en service. Presque aucune ne l'a étendue aux modèles de langage.
+       C'est le seul secteur où la réponse au « qui peut dire non » existe
+       avant qu'on pose la question, et où il suffit d'élargir un mandat
+       plutôt que de créer une fonction. */
+    {
+      id: "banque", icone: "🏛️", nom: "Banque de détail et de financement",
+      enjeu: "Faire tenir ensemble trois textes sur une même usine IA — et étendre aux modèles " +
+             "de langage la validation indépendante qui existe déjà pour le risque de crédit.",
+      textes: "DORA (résilience opérationnelle numérique, applicable depuis janvier 2025), " +
+              "le règlement (UE) 2024/1689 sur l’IA — dont l’annexe III, point 5 b, pour " +
+              "l’évaluation de solvabilité et la notation de crédit des personnes physiques — " +
+              "et NIS 2, qui s’efface là où DORA couvre la matière.",
+      piege: "Le modèle de scoring construit par l’équipe data, jamais qualifié au titre de " +
+             "l’annexe III parce que le sujet est arrivé par la conformité et non par la chaîne " +
+             "de production. Il tourne, il décide, et il n’a pas de dossier technique.",
+      notes: {
+        "/gouvernance-ia": "Qualifiez d’abord, gouvernez ensuite : l’évaluation de solvabilité " +
+                           "et la notation de crédit des personnes physiques relèvent de " +
+                           "l’annexe III, point 5 b. La détection de fraude financière en est " +
+                           "exclue — mais l’exclusion porte sur la FINALITÉ, et elle se vérifie " +
+                           "cas par cas, pas par famille d’outils.",
+        "/securite-ia": "Votre validation indépendante des modèles existe déjà, pour le risque " +
+                        "de crédit. La question n’est pas de la créer : c’est de savoir si son " +
+                        "mandat couvre un modèle de langage que le fournisseur met à jour sans " +
+                        "préavis derrière la même adresse.",
+        "/nis2": "DORA écarte les dispositions correspondantes de NIS 2 au titre de l’article 4, " +
+                 "supervision comprise. La réserve vaut d’être lue : un groupe bancaire porte " +
+                 "souvent les deux régimes selon l’entité, parce que DORA ne couvre pas toutes " +
+                 "les filiales.",
+        "/juridique": "Deux jeux de clauses, pas un : celles que DORA impose aux prestataires " +
+                      "TIC, et celles qu’il faut à un fournisseur de modèle — notamment le " +
+                      "préavis de changement de version, qu’aucun contrat de service standard " +
+                      "ne prévoit.",
+        "/audit-conformite": "Le dossier technique d’un système à haut risque et les journaux " +
+                             "associés ne se reconstituent pas après coup : ce qui n’a pas été " +
+                             "conservé pendant l’exploitation ne s’invente pas au contrôle.",
+        "/feuille-de-route": "Deux calendriers distincts courent en parallèle — celui de DORA, " +
+                             "déjà applicable, et celui du régime haut risque. Les fondre en un " +
+                             "seul plan fait glisser le plus proche.",
+        "/exigences-prestataires": "Un fournisseur de modèle est un prestataire TIC comme un " +
+                                   "autre — sauf qu’il change de version sans préavis derrière " +
+                                   "la même adresse, ce qu’aucune stratégie de sortie ne prévoit.",
+        "/referentiel": "La 62443 ne vous concerne guère, sauf pour vos infrastructures " +
+                        "techniques : votre cadre est DORA et le règlement sur l’IA."
+      },
+      etapes: [
+        { url: "/secteurs", label: "Secteurs · Banque",
+          action: "Repérez ce qui sépare votre cadre de celui de l’assurance : ce n’est pas le " +
+                  "même point de l’annexe III, ni le même cas d’usage.",
+          gain: "Le cadre : ici la qualification du cas d’usage commande le régime, et le " +
+                "régime commande le dossier à tenir.",
+          tip: "Assurance et banque ont longtemps partagé une seule page sur ce site. Elles ne partagent ni le point de l’annexe III qui les vise, ni le calendrier qui en découle." },
+        { url: "/gouvernance-ia", label: "Qualifier chaque cas d’usage",
+          action: "Passez vos cas d’usage un par un : scoring, octroi, fraude, LCB-FT, " +
+                  "assistant conseiller — et dites lequel relève du haut risque.",
+          gain: "La liste de ceux qui portent un dossier technique à tenir, et de ceux qui n’en " +
+                "portent pas. Les deux réponses sont utiles ; l’absence de réponse ne l’est pas.",
+          tip: "La détection de fraude financière est exclue de l’annexe III, mais l’exclusion porte sur la finalité. Un même moteur servant au scoring et à la fraude ne se qualifie pas en bloc." },
+        { url: "/securite-ia", label: "La dette d’antériorité, et la chaîne",
+          action: "Déclarez les cas d’usage en service et les contrôles réellement en place, " +
+                  "puis soustrayez. Cotez ensuite chaque système sur les cinq maillons.",
+          gain: "Un compte de cas et un nombre de jours, avant que le superviseur ne pose la " +
+                "même question — et le maillon ouvert qui commande.",
+          tip: "Inscrivez la validation indépendante des modèles parmi les contrôles en place seulement si son mandat couvre l’IA générative. Sinon elle compte pour le risque de crédit, pas pour l’usine." },
+        { url: "/nis2", label: "DORA, NIS 2, et l’article 4",
+          action: "Déterminez, entité par entité, lequel des deux régimes s’applique.",
+          gain: "Le texte opposable, avant d’écrire une exigence au nom d’un texte qui ne " +
+                "s’applique pas à cette entité-là.",
+          tip: "L’article 4 n’efface NIS 2 que pour les matières couvertes, et que pour les entités couvertes. Les filiales non financières du groupe peuvent rester sous NIS 2." },
+        { url: "/juridique", label: "Les clauses du fournisseur de modèle",
+          action: "Passez vos contrats au clausier : clauses DORA obligatoires, puis ce qui " +
+                  "manque en propre à un contrat de modèle.",
+          gain: "Le préavis de changement de version, obtenu avant la mise à jour qui invalide " +
+                "l’évaluation — pas après.",
+          tip: "Réservé aux comptes connectés. Le contrat est analysé en mémoire, jamais conservé." },
+        { url: "/audit-conformite", label: "Le dossier, et les journaux",
+          action: "Vérifiez ce qui est conservé pour chaque système à haut risque, et pendant " +
+                  "combien de temps.",
+          gain: "L’écart entre ce qu’on croit tracer et ce qu’on pourrait produire.",
+          tip: "Tranchez la durée de conservation avec le délégué à la protection des données AVANT d’ouvrir le robinet : un journal d’invites contient des données personnelles en volume." },
+        { url: "/feuille-de-route", label: "Deux calendriers, un plan",
+          action: "Séquencez séparément ce que DORA exige déjà et ce que le régime haut risque " +
+                  "exigera, puis arbitrez.",
+          gain: "Une trajectoire où l’échéance la plus proche ne disparaît pas derrière la plus " +
+                "lointaine.",
+          tip: "Traitez d’abord les entités portant les fonctions critiques : c’est par elles que le superviseur commencera." }
       ]
     },
     {
