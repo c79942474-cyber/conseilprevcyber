@@ -30,6 +30,7 @@ CE QUI EST ÉPROUVÉ :
      premier délai révisé, et c'est l'écran qu'on croira ;
   9. le parcours guidé existe pour le rôle ET pour le secteur nommés.
 """
+import io
 import json
 import os
 import re
@@ -522,3 +523,152 @@ def test_le_role_securite_IA_n_est_PAS_un_doublon_d_un_autre_parcours():
     for autre, urls in par_id.items():
         assert not mien.issubset(urls), (
             "le parcours sécurité IA est entièrement contenu dans « %s »" % autre)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  9. LA LISTE DÉROULANTE DES QUESTIONS D'ARCHITECTURE
+# ══════════════════════════════════════════════════════════════════════════
+#
+# CE QUE CES RÈGLES PEUVENT ÉPROUVER, ET CE QU'ELLES NE PEUVENT PAS. Elles
+# lisent un fichier : elles savent dire que le gabarit émet un `<details>` et
+# que la réponse est écrite APRÈS le `</summary>` — c'est-à-dire hors de la
+# partie toujours visible. Elles ne peuvent pas dire si le navigateur la masque
+# pour autant : c'est une propriété du rendu. Ce contrôle-là est dans
+# `recette_accordeon_architecture.js`, qui ouvre un vrai navigateur — et la
+# dernière règle ci-dessous vérifie que ce fichier existe encore, parce qu'une
+# recette supprimée ne fait échouer personne.
+
+def _bloc_archi():
+    """Le fragment de gabarit qui construit un volet."""
+    page = _lire("securite-ia.html")
+    d = page.index('$("#cx-archi").innerHTML')
+    return page[d:page.index('}).join("");', d)]
+
+
+def test_chaque_question_devient_un_volet_DEPLIABLE():
+    """UNE LISTE DE CARTES OUVERTES N'EST PAS UNE LISTE DÉROULANTE.
+
+    C'est la forme d'avant : sept cartes qui occupaient trois écrans et se
+    lisaient comme de la documentation.
+    """
+    bloc = _bloc_archi()
+    assert "<details" in bloc, (
+        "les questions ne sont plus rendues en volets dépliables")
+    assert "<summary>" in bloc, "un volet sans intitulé cliquable ne s'ouvre pas"
+
+
+def test_la_REPONSE_est_ecrite_hors_de_la_partie_toujours_visible():
+    """LE POINT QUI DÉCIDE DE TOUT.
+
+    Un `<summary>` est la seule partie d'un `<details>` que le navigateur
+    montre quand il est replié. Glisser la mauvaise réponse à l'intérieur ne
+    ferait planter personne : la page garderait ses bordures, ses chevrons et
+    son air de liste déroulante — et afficherait tout, tout le temps. C'est
+    exactement le défaut que la demande voulait corriger, avec l'apparence de
+    l'avoir corrigé.
+    """
+    bloc = _bloc_archi()
+    fin = bloc.index("</summary>")
+    for champ in ("mauvaise_reponse", "ce_qui_le_prouve"):
+        pos = bloc.index(champ)
+        assert pos > fin, (
+            "« %s » est écrit DANS le résumé : il resterait visible volet "
+            "fermé, et la liste ne déplierait rien" % champ)
+
+
+def test_l_intitule_de_la_question_est_DANS_le_resume():
+    """LA RÉCIPROQUE, SANS QUOI LA RÈGLE D'AU-DESSUS SE SATISFAIT D'UN VIDE.
+
+    Un résumé qui ne porterait pas la question laisserait sept lignes muettes :
+    la liste ne se parcourrait plus, et il faudrait tout ouvrir pour savoir ce
+    qu'on cherche — soit l'inverse d'une liste déroulante.
+    """
+    bloc = _bloc_archi()
+    fin = bloc.index("</summary>")
+    assert bloc.index("q.question") < fin, (
+        "l'intitulé de la question n'est pas dans le résumé : la liste ne se "
+        "parcourt plus sans tout ouvrir")
+
+
+def test_aucun_volet_n_est_OUVERT_au_chargement():
+    """SINON LA PREMIÈRE QUESTION PASSE POUR LA SEULE QUI COMPTE."""
+    bloc = _bloc_archi()
+    # ON REGARDE TOUT CE QUI SE FABRIQUE ENTRE LA BALISE ET SON RÉSUMÉ, et
+    # non une chaîne littérale : `' open'` collé par une ternaire produit
+    # exactement le même attribut sans jamais écrire « open> » dans le
+    # fichier. Une règle qui cherche la forme écrite se contourne sans le
+    # vouloir, au premier remaniement du gabarit.
+    debut = bloc.index("<details")
+    entete = bloc[debut:bloc.index("<summary>", debut)]
+    assert "open" not in entete, (
+        "un volet est déplié d'office : %s" % entete.strip())
+
+
+def test_l_etat_ouvert_se_distingue_AUTREMENT_que_par_le_texte_apparu():
+    """QUI PARCOURT LA COLONNE DES YEUX NE LIT PAS.
+
+    Sans repère d'état, retrouver le volet qu'on avait ouvert demande de
+    relire — et on en rouvre un autre.
+    """
+    page = _lire("securite-ia.html")
+    # CHAQUE REPÈRE EST NOMMÉ. Compter « au moins deux règles [open] » ne
+    # mesurait rien : retirer celle de la bordure — le seul repère qui se
+    # voie sans lire, sur toute la hauteur du volet — laissait les deux
+    # autres et le compte passait.
+    manquants = [nom for nom, sel in (
+        ("la bordure du volet", "details.cx-q[open]{"),
+        ("le numéro de la question", "details.cx-q[open] .cx-qn"),
+        ("le chevron", "details.cx-q[open] .cx-chev"),
+    ) if sel not in page]
+    assert not manquants, (
+        "l'état ouvert ne se distingue plus par : %s" % ", ".join(manquants))
+
+
+def test_l_intitule_s_annonce_CLIQUABLE():
+    page = _lire("securite-ia.html")
+    assert "details.cx-q>summary" in page.replace(" > ", ">")
+    assert "cursor:pointer" in page[page.index("details.cx-q>summary"):
+                                    page.index("details.cx-q>summary") + 260]
+
+
+def test_le_conteneur_n_est_PAS_une_grille():
+    """UN ACCORDÉON EN TROIS COLONNES SAUTE À CHAQUE OUVERTURE.
+
+    Les volets d'une même rangée s'alignent sur le plus haut : ouvrir le
+    premier déplace les deux autres, et le lecteur perd la ligne qu'il visait.
+    """
+    page = _lire("securite-ia.html")
+    assert '<div class="cx-archi" id="cx-archi">' in page, (
+        "le conteneur des questions n'est pas la colonne attendue")
+    assert 'class="cx-grille" id="cx-archi"' not in page
+
+
+def test_la_recette_navigateur_EXISTE_et_suit_la_convention():
+    """CE QUE CE FICHIER NE PEUT PAS ÉPROUVER EST ÉPROUVÉ AILLEURS.
+
+    Le masquage réel d'un volet replié est une propriété du rendu :
+    `offsetHeight` et `getClientRects()` mentent dessus, parce que Chromium
+    rend le contenu d'un `<details>` fermé sous `content-visibility`. Seul un
+    vrai navigateur tranche. Une recette supprimée ne fait échouer personne —
+    d'où cette règle.
+    """
+    chemin = os.path.join(ICI, "recette_accordeon_architecture.js")
+    assert os.path.exists(chemin), (
+        "la recette navigateur de la liste déroulante a disparu")
+    src = io.open(chemin, encoding="utf-8").read()
+    # L'APPEL, PAS LE MOT. `checkVisibilityCSS` — le nom d'une option passée
+    # à tout autre chose — contient « checkVisibility » : une règle qui
+    # cherchait le mot restait verte sur une recette qui mesurait de nouveau
+    # avec `offsetHeight`, c'est-à-dire sur l'instrument qui ment ici.
+    assert re.search(r"\.checkVisibility\s*\(", src), (
+        "la recette ne se sert plus de l'instrument qui tient compte de "
+        "content-visibility : elle mesurerait un volet replié comme ouvert")
+    # ET ON LIT LE CODE, PAS LES COMMENTAIRES. L'en-tête de la recette
+    # explique précisément pourquoi `offsetHeight` ment ici : une règle qui
+    # ne fait pas la différence interdirait d'écrire l'explication.
+    code = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    assert "offsetHeight" not in code, (
+        "la recette mesure avec offsetHeight, qui rend sa pleine hauteur "
+        "pour le contenu d'un <details> replié sous content-visibility")
+    assert "/opt/node22/lib/node_modules/playwright" in src, (
+        "la recette charge playwright autrement que ses dix-huit voisines")

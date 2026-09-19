@@ -142,13 +142,41 @@
   .cx-lot li{font-family:var(--mono);font-size:10.5px;color:var(--muted2);
              border:1px solid var(--line);border-radius:999px;padding:3px 9px}
   .cx-lot li.cx-commande{border-color:var(--terra);color:var(--terra)}
-  .cx-q{border:1px solid var(--line);border-radius:11px;padding:13px 15px;background:var(--bg2)}
-  .cx-q h4{margin:0;font-size:13.5px;line-height:1.45}
-  .cx-q dl{margin:9px 0 0;font-size:12.5px;line-height:1.55}
+  /* ── LES QUESTIONS D'ARCHITECTURE, EN VOLETS ─────────────────────────
+     POURQUOI DÉPLIABLE, ET POURQUOI PAS UN MENU. Une liste de sept cartes
+     ouvertes occupait trois écrans et se lisait comme de la documentation.
+     Un menu déroulant à choix unique aurait fait l'inverse et masqué six
+     questions sur sept — or la LISTE est l'objet : on la parcourt avant une
+     revue pour savoir ce qu'on va demander. Les intitulés restent donc tous
+     lisibles au repos, et seul ce qui se lit une question à la fois — la
+     mauvaise réponse, puis la pièce — attend le clic.
+     Même motif que l'accordéon des questions fréquentes du site : un
+     deuxième motif d'accordéon aurait appris deux gestes pour une chose. */
+  .cx-archi{display:flex;flex-direction:column;gap:10px;margin-top:16px;max-width:860px}
+  details.cx-q{border:1px solid var(--line);border-radius:11px;overflow:hidden;
+               background:linear-gradient(180deg,var(--panel),var(--bg2));
+               transition:border-color .18s}
+  details.cx-q[open]{border-color:var(--terra)}
+  details.cx-q>summary{list-style:none;cursor:pointer;padding:13px 15px;display:flex;
+               align-items:flex-start;gap:12px;font-size:13.5px;line-height:1.45;color:var(--ink)}
+  details.cx-q>summary::-webkit-details-marker{display:none}
+  details.cx-q>summary:focus-visible{outline:2px solid var(--cyan);outline-offset:-2px}
+  .cx-qn{font-family:var(--mono);font-size:11px;color:var(--muted2);border:1px solid var(--line);
+         border-radius:6px;padding:1px 7px;flex-shrink:0;margin-top:1px}
+  details.cx-q[open] .cx-qn{color:var(--terra);border-color:var(--terra)}
+  .cx-qt{flex:1 1 auto}
+  .cx-chev{margin-left:auto;color:var(--muted2);flex-shrink:0;transition:transform .18s}
+  details.cx-q[open] .cx-chev{transform:rotate(90deg);color:var(--terra)}
+  .cx-q dl{margin:0;padding:0 15px 14px 54px;font-size:12.5px;line-height:1.55}
   .cx-q dt{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
-           color:var(--muted2);margin-top:8px}
+           color:var(--muted2);margin-top:10px}
+  .cx-q dt:first-child{margin-top:0}
   .cx-q dd{margin:3px 0 0;color:var(--muted)}
   .cx-q dd.cx-mauvaise{color:var(--terra)}
+  @media (max-width:520px){ .cx-q dl{padding-left:15px} }
+  @media (prefers-reduced-motion:reduce){
+    details.cx-q,.cx-chev{transition:none}
+  }
   .cx-dir{border:1px solid var(--line);border-radius:11px;padding:13px 15px;background:var(--bg2)}
   .cx-dir.cx-tiers{border-color:var(--terra)}
   .cx-dir h4{margin:0;font-size:14px}
@@ -358,8 +386,8 @@
       <p class="note" style="max-width:76ch">Challenger une architecture d'IA ne consiste pas à demander si elle est
         sécurisée&nbsp;— on répondra oui. Chacune des questions ci-dessous a une <strong>mauvaise réponse
         reconnaissable</strong>, et une pièce qui permet de vérifier la bonne. C'est la différence entre une revue
-        et une conversation.</p>
-      <div class="cx-grille" id="cx-archi" style="margin-top:16px"></div>
+        et une conversation. <span class="muted">Dépliez une question pour voir les deux.</span></p>
+      <div class="cx-archi" id="cx-archi"></div>
     </section>
 
       <div class="divider"></div>
@@ -1001,12 +1029,18 @@
   }
 
   function peindreReference() {
-    $("#cx-archi").innerHTML = REF.architecture.map(function (q) {
-      return '<div class="cx-q"><h4>' + esc(q.question) + "</h4><dl>"
+    /* LE NUMÉRO N'EST PAS UN ORNEMENT : ces questions se posent dans cet
+       ordre en revue, et celui qui en saute une le voit. */
+    $("#cx-archi").innerHTML = REF.architecture.map(function (q, i) {
+      return '<details class="cx-q"><summary>'
+        + '<span class="cx-qn">Q' + (i + 1) + "</span>"
+        + '<span class="cx-qt">' + esc(q.question) + "</span>"
+        + '<span class="cx-chev" aria-hidden="true">›</span>'
+        + "</summary><dl>"
         + '<dt>La mauvaise réponse</dt><dd class="cx-mauvaise">'
         + esc(q.mauvaise_reponse) + "</dd>"
         + "<dt>Ce qui le prouve</dt><dd>" + esc(q.ce_qui_le_prouve) + "</dd>"
-        + "</dl></div>";
+        + "</dl></details>";
     }).join("");
 
     $("#cx-directions").innerHTML = REF.directions.map(function (d, i) {
