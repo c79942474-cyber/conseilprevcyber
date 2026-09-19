@@ -153,7 +153,8 @@
             <label class="opt"><input type="radio" name="secteur" value="agro"><span><b>🌾 Agroalimentaire</b><span>Process, chaîne du froid, traçabilité.</span></span></label>
             <label class="opt"><input type="radio" name="secteur" value="chimie"><span><b>⚗️ Chimie &amp; pharma</b><span>Procédés continus, sûreté, GxP.</span></span></label>
             <label class="opt"><input type="radio" name="secteur" value="transport"><span><b>🚆 Transport &amp; logistique</b><span>Automatismes, tri, télémaintenance.</span></span></label>
-            <label class="opt"><input type="radio" name="secteur" value="finance"><span><b>🏦 Assurance &amp; banque</b><span>SI critiques, résilience opérationnelle.</span></span></label>
+            <label class="opt"><input type="radio" name="secteur" value="banque"><span><b>🏛️ Banque</b><span>Notation de crédit, DORA, validation de modèles.</span></span></label>
+            <label class="opt"><input type="radio" name="secteur" value="finance"><span><b>🏦 Assurance &amp; services financiers</b><span>SI critiques, résilience opérationnelle.</span></span></label>
             <!-- LE CENTRE DE DONNÉES EST UN SECTEUR, pas une variante d'un autre.
                  NIS2 le range en annexe I — infrastructure numérique, le régime
                  le plus exigeant —, et la directive efficacité énergétique lui
@@ -355,7 +356,8 @@
   (function(){
     var LBL={
       secteur:{energie:"Énergie & utilities",eau:"Eau & assainissement",manufacturing:"Manufacturing",agro:"Agroalimentaire",
-               chimie:"Chimie & pharma",transport:"Transport & logistique",finance:"Assurance & banque",
+               chimie:"Chimie & pharma",transport:"Transport & logistique",
+               banque:"Banque",finance:"Assurance & services financiers",
                datacenter:"Centre de données",autre:"Autre secteur"},
       taille:{petite:"moins de 50 personnes",moyenne:"50–249 personnes",grande:"250 personnes et plus"},
       situation:{debut:"aucune démarche structurée",partiel:"inventaire partiel",encours:"démarche engagée",mature:"programme établi"},
@@ -366,7 +368,10 @@
     // Secteurs « hautement critiques » (annexe I, simplifié). Le centre de
     // données y figure au titre de l'infrastructure numérique — c'est une
     // qualification, pas une préférence commerciale.
-    var ANNEXE1={energie:1,eau:1,transport:1,finance:1,datacenter:1};
+    // LA BANQUE Y FIGURE EN PROPRE. L'annexe I de NIS 2 nomme le secteur
+    // bancaire ; l'assurance relève de DORA sans figurer sous le même
+    // intitulé. Le seau unique « finance » masquait la différence.
+    var ANNEXE1={energie:1,eau:1,transport:1,banque:1,finance:1,datacenter:1};
     var READS={
       conformite:[["/nis2","NIS2","Êtes-vous concerné, obligations, notification 24 h/72 h"],["/audit-conformite","Audit","L'étude de conformité IEC 62443 guidée"],["/referentiel","62443","La carte du référentiel, partie par partie"]],
       visibilite:[["/demo","Démo","Le cockpit de supervision temps réel"],["/technologies-securite","3-1","Les technologies de détection adaptées à l'OT"],["/metriques-62443","1-3","Mesurer : écart SL, tendances, tableaux de bord"]],
@@ -532,6 +537,14 @@
 
     function esc(s){return (''+s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
     function cadre(sect,taille){
+      /* LA BANQUE PORTE UN TEXTE DE PLUS QUE L'ASSURANCE, et il ne vient
+         pas de la cybersécurité : l'évaluation de solvabilité et la notation
+         de crédit des personnes physiques relèvent de l'annexe III du
+         règlement sur l'IA. Un directeur qui lisait « DORA + NIS2 » repartait
+         en croyant son cadre complet. */
+      if(sect==='banque')
+        return {b:["DORA","Règlement sur l'IA — annexe III","NIS2 — selon l'entité"],
+                t:"Banque : DORA s'applique depuis janvier 2025 et écarte les dispositions correspondantes de NIS2 au titre de son article 4 — mais seulement pour les entités et les matières qu'il couvre. S'y ajoute le règlement sur l'IA : l'évaluation de solvabilité et la notation de crédit des personnes physiques relèvent de l'annexe III, point 5 b, donc du régime des systèmes à haut risque. La détection de fraude financière en est exclue, mais l'exclusion porte sur la finalité et se vérifie cas par cas."};
       if(sect==='finance')
         return {b:["DORA","NIS2 — selon activité","IEC 62443 (sites techniques)"],
                 t:"Secteur financier : le règlement DORA (résilience opérationnelle numérique) s'applique en priorité — tests, gestion des incidents TIC, tiers critiques. Certaines activités relèvent aussi de NIS2. Vérifiez votre périmètre exact avec votre conformité."};
