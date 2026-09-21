@@ -55,6 +55,28 @@
         <a class="stat" href="/admin/rgpd" style="--sc:linear-gradient(90deg,var(--green),var(--cyan))"><div class="lbl">Conformité mesurée</div><div class="val" id="sRgpd">—</div></a>
       </div>
 
+    <!-- ═══ LA VEILLE DES CHIFFRES ═══════════════════════════════════════
+         CINQ DES SIX CHIFFRES du bandeau /securite-ia sont publiés sans
+         adresse ouvrable. L'agent va chercher le document ; le serveur
+         ROUVRE la page et vérifie que la phrase citée s'y trouve ; et rien
+         n'entre au bandeau sans le nom de qui l'a retenu. -->
+    <section style="padding:12px 0 24px" id="vc-section">
+      <div class="subhead">// Références des chiffres publiés</div>
+      <p class="lead" style="font-size:14px;margin:0 0 14px">
+        L'agent cherche le <strong>document</strong> derrière chaque chiffre du bandeau
+        <a href="/securite-ia">IA Security en chiffres</a>. Il ne modifie aucune valeur :
+        un chiffre d'enquête ne se rafraîchit pas, il se remplace. La page citée est
+        <strong>rouverte par le serveur</strong> et la phrase doit s'y retrouver mot pour mot.
+        <span id="vc-agent" style="opacity:.75"></span>
+      </p>
+      <label style="display:block;margin-bottom:12px;font-size:13px">
+        Votre nom et votre rôle
+        <input type="text" id="vc-decideur" placeholder="ex. C. Cerf — associé"
+               style="width:100%;max-width:360px;padding:8px 10px;margin-top:4px">
+      </label>
+      <div id="vc-liste">Chargement…</div>
+    </section>
+
       <div class="subhead">// Gestion du contenu &amp; de l'IA</div>
       <div class="grid grid-3">
         <a class="bloc card a1" href="/admin/base-connaissance">
@@ -390,7 +412,124 @@
       });
     }
   })();
+
+  /* LA VEILLE DES CHIFFRES — DEUX BOUTONS, DEUX ROUTES.
+     « Chercher » appelle une route qui n'écrit rien. « Retenir » appelle
+     celle qui pose la référence au bandeau, et qui refuse sans un nom.
+     Un refus s'affiche comme le reste : le cacher donnerait l'illusion
+     d'un bandeau entièrement sourcé. */
+  (function () {
+    var REF = null;
+    function esc(t) {
+      return String(t == null ? '' : t).replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function boite() { return document.getElementById('vc-liste'); }
+
+    function charger() {
+      fetch('/api/veille-chiffres/referentiel', { credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+        .then(function (d) { REF = d; peindre(); })
+        .catch(function () {
+          var b = boite(); if (b) b.textContent = 'Référentiel indisponible.';
+        });
+    }
+
+    function peindre() {
+      var b = boite(); if (!b || !REF) return;
+      var a = document.getElementById('vc-agent');
+      if (a && REF.agent) {
+        a.innerHTML = REF.agent.agent_disponible
+          ? 'Agent : ' + esc(REF.agent.modele) + ', outils <b>'
+            + esc(REF.agent.outils_autorises.join(' + ')) + '</b> et rien d’autre, '
+            + esc(REF.agent.tours_max) + ' tours au plus.'
+          : '<b>Agent indisponible</b> — l’exécutable Claude Code n’est pas installé. '
+            + 'Aucun repli : ' + esc(REF.agent.repli_texte);
+      }
+      if (!REF.a_tracer.length) {
+        b.innerHTML = '<p>Tous les chiffres servis portent une référence ouvrable.</p>';
+        return;
+      }
+      b.innerHTML = REF.a_tracer.map(function (c) {
+        var p = (REF.propositions || {})[c.cle];
+        var h = '<div class="card" style="padding:14px 16px;margin-bottom:12px">'
+          + '<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">'
+          + '<b>' + esc(c.affiche) + '</b>'
+          + '<span style="opacity:.7;font-size:12px">' + esc(c.besoin.nom) + '</span></div>'
+          + '<div style="font-size:13px;margin-top:4px">' + esc(c.dit) + '</div>'
+          + '<div style="font-size:12px;opacity:.75;margin-top:4px">' + esc(c.besoin.pourquoi) + '</div>';
+        if (p && p.trouve) {
+          h += '<div style="margin-top:12px;font-size:13px">'
+            + '<a href="' + esc(p.lien) + '" target="_blank" rel="noopener">' + esc(p.titre) + '</a>'
+            + ' — ' + esc(p.editeur) + ', ' + esc(p.publie_le) + '</div>'
+            + '<blockquote style="font-size:12.5px;margin:8px 0 0;padding-left:12px;'
+            + 'border-left:2px solid currentColor;opacity:.85">« ' + esc(p.citation) + ' »</blockquote>'
+            + (p.echantillon ? '<div style="font-size:12px;opacity:.7;margin-top:4px">Échantillon : '
+                               + esc(p.echantillon) + '</div>' : '')
+            + '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">'
+            + '<button type="button" data-vc-retenir="' + esc(c.cle) + '">✓ Retenir cette référence</button>'
+            + '<button type="button" data-vc-ecarter="' + esc(c.cle) + '">✕ Écarter</button></div>';
+        } else if (p) {
+          h += '<div style="margin-top:12px;font-size:13px"><b>Aucune référence retenue</b> — '
+            + esc(p.motif_texte || p.motif) + '</div>'
+            + (p.cherche ? '<div style="font-size:12px;opacity:.7;margin-top:4px">Cherché : '
+                           + esc(p.cherche) + '</div>' : '')
+            + '<div style="margin-top:10px"><button type="button" data-vc-chercher="'
+            + esc(c.cle) + '">Chercher à nouveau</button></div>';
+        } else {
+          h += '<div style="margin-top:12px"><button type="button" data-vc-chercher="'
+            + esc(c.cle) + '">🔎 Chercher la référence</button></div>';
+        }
+        return h + '</div>';
+      }).join('');
+    }
+
+    function chercher(cle, bouton) {
+      if (bouton) { bouton.disabled = true; bouton.textContent = '⏳ L’agent cherche…'; }
+      fetch('/api/veille-chiffres/chercher', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cle: cle })
+      }).then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d.ok) { alert(d.motif_texte || d.error || 'Recherche impossible.'); }
+          charger();
+        })
+        .catch(function () { alert('L’agent n’a pas répondu.'); charger(); });
+    }
+
+    function decider(cle, decision) {
+      var qui = (document.getElementById('vc-decideur') || {}).value || '';
+      fetch('/api/veille-chiffres/decider', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cle: cle, decision: decision, decideur: qui })
+      }).then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d.ok) { alert(d.motif_texte || 'Décision refusée.'); return; }
+          if (d.conserve === false) {
+            alert('Référence posée, mais NON CONSERVÉE : elle disparaîtra au '
+                  + 'prochain redémarrage. Vérifiez la base.');
+          }
+          charger();
+        })
+        .catch(function () { alert('La décision n’a pas pu être enregistrée.'); });
+    }
+
+    document.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t || t.tagName !== 'BUTTON') return;
+      if (t.dataset.vcChercher) { chercher(t.dataset.vcChercher, t); }
+      else if (t.dataset.vcRetenir) { decider(t.dataset.vcRetenir, 'valider'); }
+      else if (t.dataset.vcEcarter) { decider(t.dataset.vcEcarter, 'ecarter'); }
+    });
+
+    if (document.getElementById('vc-liste')) { charger(); }
+  })();
   </script>
+
+  
+
   <script src="/nav.js" defer></script>
   <script src="/parcours.js" defer></script>
 </body>

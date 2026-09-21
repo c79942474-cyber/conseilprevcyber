@@ -285,6 +285,26 @@ _crit_lock = threading.Lock()
 _crit_buffer = []
 
 
+def memoire(cle, defaut=None):
+    """Lit l'état persistant partagé (PostgreSQL si DATABASE_URL, mémoire sinon).
+
+    OUVERT AUX AUTRES MODULES PARCE QU'IL EXISTAIT DÉJÀ. `veille_chiffres`
+    doit conserver les références validées entre deux redémarrages ; bâtir
+    un second magasin à côté de celui-ci aurait dédoublé le repli
+    PostgreSQL/mémoire, ses erreurs et sa recette, pour la même fonction.
+    """
+    return _state.get(cle, defaut) if _state else defaut
+
+
+def memoriser(cle, valeur):
+    """Écrit dans l'état persistant partagé. Sans état, ne fait rien — et le
+    dit, plutôt que de laisser croire que c'est conservé."""
+    if not _state:
+        return False
+    _state.set(cle, valeur)
+    return True
+
+
 def notify_admin(subject, html_body):
     """Email à l'administrateur via Brevo (best-effort). Renvoie True si envoyé."""
     api_key = os.environ.get("BREVO_API_KEY")

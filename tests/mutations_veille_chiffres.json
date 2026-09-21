@@ -1,0 +1,259 @@
+{
+ "cibles": [
+  "tests/test_veille_chiffres.py"
+ ],
+ "mutations": [
+  {
+   "nom": "la liste à tracer relit la table écrite au lieu du chiffre servi",
+   "fichier": "veille_chiffres.py",
+   "avant": "    dus = []\n    for c in socle.chiffres(aujourdhui):\n        b = besoin(c, aujourdhui)",
+   "apres": "    dus = []\n    for c in socle.CHIFFRES:\n        b = besoin(c, aujourdhui)",
+   "regle": "test_un_chiffre_dont_la_reference_VIENT_D_ETRE_POSEE_sort_de_la_liste"
+  },
+  {
+   "nom": "la vérification relit le chiffre passé par l'appelant",
+   "fichier": "veille_chiffres.py",
+   "avant": "    c = vue(demande_[\"cle\"], aujourdhui) or demande_\n",
+   "apres": "    c = demande_\n",
+   "regle": "test_re_verifier_un_chiffre_DEJA_source_est_refuse"
+  },
+  {
+   "nom": "un chiffre qui se recompte est confié à l'agent",
+   "fichier": "veille_chiffres.py",
+   "avant": "    if c.get(\"recomptable\"):\n        return dict(BESOINS[\"se_recompte\"], cle=\"se_recompte\")",
+   "apres": "    if False:\n        return dict(BESOINS[\"se_recompte\"], cle=\"se_recompte\")",
+   "regle": "test_un_chiffre_qui_se_RECOMPTE_n_est_jamais_confie_a_l_agent"
+  },
+  {
+   "nom": "la citation n'est plus cherchée dans la page",
+   "fichier": "veille_chiffres.py",
+   "avant": "    if _normaliser(citation) not in _normaliser(page):",
+   "apres": "    if False:",
+   "regle": "test_une_citation_PARAPHRASEE_fait_tomber_la_reference"
+  },
+  {
+   "nom": "la page n'est plus rouverte : on croit l'agent sur parole",
+   "fichier": "veille_chiffres.py",
+   "avant": "    try:\n        page = ouvrir(lien)\n    except Exception as e:\n        return _refus(\"lien_injoignable\", detail=str(e)[:160])",
+   "apres": "    page = citation",
+   "regle": "test_la_page_citee_est_ROUVERTE_et_non_crue_sur_parole"
+  },
+  {
+   "nom": "la citation n'a plus besoin de contenir le nombre",
+   "fichier": "veille_chiffres.py",
+   "avant": "    if not _contient_le_nombre(citation, c.get(\"valeur\")):",
+   "apres": "    if False:",
+   "regle": "test_une_citation_SANS_le_nombre_est_refusee"
+  },
+  {
+   "nom": "le nombre se confond avec une année",
+   "fichier": "veille_chiffres.py",
+   "avant": "        motif = r\"(?<![0-9.,])\" + re.escape(forme) + r\"(?![0-9])\"",
+   "apres": "        motif = re.escape(forme)",
+   "regle": "test_le_nombre_ne_se_confond_pas_avec_une_ANNEE"
+  },
+  {
+   "nom": "la virgule décimale française n'est plus acceptée",
+   "fichier": "veille_chiffres.py",
+   "avant": "        formes.add(t)\n        formes.add(t.replace(\".\", \",\"))",
+   "apres": "        formes.add(t)",
+   "regle": "test_une_decimale_s_ecrit_a_la_francaise_ou_a_l_anglaise"
+  },
+  {
+   "nom": "les accents font tomber une citation juste",
+   "fichier": "veille_chiffres.py",
+   "avant": "    t = _sans_accent(_texte(t)).lower()",
+   "apres": "    t = _texte(t)",
+   "regle": "test_les_accents_et_la_casse_ne_font_PAS_tomber_une_vraie_citation"
+  },
+  {
+   "nom": "une adresse relative passe pour une source",
+   "fichier": "veille_chiffres.py",
+   "avant": "    if u.scheme not in (\"http\", \"https\") or not u.netloc:",
+   "apres": "    if False:",
+   "regle": "test_une_adresse_qui_n_en_est_pas_une_est_refusee"
+  },
+  {
+   "nom": "un document publié avant la mesure passe",
+   "fichier": "veille_chiffres.py",
+   "avant": "    if mesure and publie < mesure:",
+   "apres": "    if False:",
+   "regle": "test_un_document_publie_AVANT_la_mesure_qu_il_rapporte_est_refuse"
+  },
+  {
+   "nom": "une date illisible ne bloque plus",
+   "fichier": "veille_chiffres.py",
+   "avant": "    if publie is None:\n        return _refus(\"date_illisible\", detail=_texte(o.get(\"publie_le\"))[:40])",
+   "apres": "    if False:\n        return _refus(\"date_illisible\", detail=_texte(o.get(\"publie_le\"))[:40])",
+   "regle": "test_une_date_illisible_est_refusee"
+  },
+  {
+   "nom": "une citation d'un mot suffit",
+   "fichier": "veille_chiffres.py",
+   "avant": "    if len(citation) < CITATION_MIN:",
+   "apres": "    if False:",
+   "regle": "test_une_citation_trop_courte_est_refusee"
+  },
+  {
+   "nom": "les champs obligatoires ne sont plus contrôlés",
+   "fichier": "veille_chiffres.py",
+   "avant": "    manquants = [ch[\"cle\"] for ch in CHAMPS\n                 if ch[\"obligatoire\"] and not _texte(o.get(ch[\"cle\"]))]",
+   "apres": "    manquants = []",
+   "regle": "test_un_champ_manquant_nomme_ce_qui_manque"
+  },
+  {
+   "nom": "la bredouille se confond avec une réponse incomplète",
+   "fichier": "veille_chiffres.py",
+   "avant": "        return _refus(\"aucune_source_publique\", bredouille=True,",
+   "apres": "        return _refus(\"reference_incomplete\", bredouille=True,",
+   "regle": "test_la_BREDOUILLE_a_son_propre_motif_et_n_est_pas_un_echec"
+  },
+  {
+   "nom": "la validation n'exige plus de personne nommée",
+   "fichier": "veille_chiffres.py",
+   "avant": "    if not qui:\n        return {\"ok\": False, \"motif\": \"decideur_absent\",",
+   "apres": "    if False:\n        return {\"ok\": False, \"motif\": \"decideur_absent\",",
+   "regle": "test_valider_SANS_nom_ne_pose_RIEN"
+  },
+  {
+   "nom": "écarter pose tout de même la référence",
+   "fichier": "veille_chiffres.py",
+   "avant": "    if not DECISIONS[decision][\"pose\"]:",
+   "apres": "    if False:",
+   "regle": "test_ecarter_ne_pose_RIEN"
+  },
+  {
+   "nom": "une proposition se décide deux fois",
+   "fichier": "veille_chiffres.py",
+   "avant": "    if p.get(\"statut\") != \"en_attente\":",
+   "apres": "    if False:",
+   "regle": "test_une_proposition_DEJA_decidee_ne_se_decide_pas_deux_fois"
+  },
+  {
+   "nom": "un refus se valide comme une référence",
+   "fichier": "veille_chiffres.py",
+   "avant": "    if p.get(\"a_completer\") or not p.get(\"lien\"):",
+   "apres": "    if False:",
+   "regle": "test_valider_un_REFUS_est_refuse"
+  },
+  {
+   "nom": "la réserve reste affichée à côté du lien qui la lève",
+   "fichier": "chiffres_securite_ia.py",
+   "avant": "            d[\"a_confirmer\"] = None\n",
+   "apres": "",
+   "regle": "test_la_reference_posee_LEVE_la_reserve_du_bandeau"
+  },
+  {
+   "nom": "le nom du valideur n'est plus conservé",
+   "fichier": "chiffres_securite_ia.py",
+   "avant": "            valide_par=str(par or \"\").strip(),",
+   "apres": "            valide_par=\"\",",
+   "regle": "test_le_NOM_du_valideur_voyage_avec_la_reference"
+  },
+  {
+   "nom": "le rechargement ne repose rien",
+   "fichier": "chiffres_securite_ia.py",
+   "avant": "        if isinstance(champs, dict) and poser_source(\n                cle, champs, champs.get(\"valide_par\"), champs.get(\"valide_le\")):",
+   "apres": "        if False:",
+   "regle": "test_le_RECHARGEMENT_restitue_ce_qu_une_personne_avait_valide"
+  },
+  {
+   "nom": "une clé inconnue se pose au bandeau",
+   "fichier": "chiffres_securite_ia.py",
+   "avant": "    if cle not in CHIFFRES_PAR_CLE:\n        return None",
+   "apres": "    if False:\n        return None",
+   "regle": "test_une_cle_inconnue_ne_se_pose_pas"
+  },
+  {
+   "nom": "le SDK reçoit Read et Bash",
+   "fichier": "veille_chiffres_agent.py",
+   "avant": "        allowed_tools=list(OUTILS_AUTORISES),",
+   "apres": "        allowed_tools=[\"Read\", \"Bash\", \"WebSearch\", \"WebFetch\"],",
+   "regle": "test_les_options_REELLEMENT_passees_au_SDK_portent_les_deux_outils"
+  },
+  {
+   "nom": "l'agent hérite des consignes du dépôt",
+   "fichier": "veille_chiffres_agent.py",
+   "avant": "        setting_sources=[],",
+   "apres": "        setting_sources=[\"project\"],",
+   "regle": "test_les_options_REELLEMENT_passees_au_SDK_portent_les_deux_outils"
+  },
+  {
+   "nom": "le chemin du CLI n'est plus donné au SDK",
+   "fichier": "veille_chiffres_agent.py",
+   "avant": "    reglages[\"cli_path\"] = chemin_cli()\n",
+   "apres": "",
+   "regle": "test_le_chemin_du_CLI_est_DONNE_au_SDK"
+  },
+  {
+   "nom": "un repli est annoncé là où il n'y en a pas",
+   "fichier": "veille_chiffres_agent.py",
+   "avant": "        \"repli\": None,\n        \"repli_texte\": \"Aucun. Un modèle sans accès au web ne retrouve pas \"\n                       \"un document : il en invente un plausible.\",",
+   "apres": "        \"repli\": \"api\",\n        \"repli_texte\": \"Repli par l'API Messages.\",",
+   "regle": "test_il_n_y_a_AUCUN_repli_quand_l_agent_manque"
+  },
+  {
+   "nom": "la dépendance au dépôt voisin revient",
+   "fichier": "veille_chiffres_agent.py",
+   "avant": "    import shutil\n    declare = (os.environ.get(\"VEILLE_CLI_CHEMIN\") or \"\").strip()",
+   "apres": "    import shutil\n    import qualification_moteur  # noqa: F401\n    declare = (os.environ.get(\"VEILLE_CLI_CHEMIN\") or \"\").strip()",
+   "regle": "test_le_module_ne_depend_PAS_d_un_fichier_de_l_AUTRE_depot"
+  },
+  {
+   "nom": "les scripts de la page passent pour du texte lisible",
+   "fichier": "veille_chiffres_agent.py",
+   "avant": "    t = _BALISES_MUETTES.sub(\" \", brut)\n    t = _BALISE.sub(\" \", t)",
+   "apres": "    t = _BALISE.sub(\" \", brut)",
+   "regle": "test_la_relecture_de_page_retire_scripts_et_balises"
+  },
+  {
+   "nom": "le build tombe quand le CLI ne s'installe pas",
+   "fichier": "build.sh",
+   "avant": "echo \"     avec le même modèle. L'écran l'affiche ; rien d'autre n'est touché.\"\nexit 0\n",
+   "apres": "echo \"     avec le même modèle. L'écran l'affiche ; rien d'autre n'est touché.\"\nexit 1\n",
+   "regle": "test_le_paquet_est_declare_et_le_build_installe_le_CLI"
+  },
+  {
+   "nom": "la politique cesse d'exiger l'administrateur pour la recherche",
+   "fichier": "acces.py",
+   "avant": "    \"/api/veille-chiffres/chercher\": _MOTIF_CHIFFRES,\n",
+   "apres": "",
+   "regle": "test_la_POLITIQUE_d_acces_exige_aussi_le_niveau_administrateur"
+  },
+  {
+   "nom": "la route qui cherche annonce que le bandeau a bougé",
+   "fichier": "app.py",
+   "avant": "    return jsonify({\"ok\": True, \"proposition\": p, \"bandeau_modifie\": False})",
+   "apres": "    return jsonify({\"ok\": True, \"proposition\": p, \"bandeau_modifie\": True})",
+   "regle": "test_la_route_qui_CHERCHE_ne_pose_aucune_reference"
+  },
+  {
+   "nom": "le bandeau public ne recharge plus les références validées",
+   "fichier": "app.py",
+   "avant": "    _veille_charger_sources()\n    r = chiffres_securite_ia.bandeau(aujourdhui=quand)",
+   "apres": "    r = chiffres_securite_ia.bandeau(aujourdhui=quand)",
+   "regle": "test_le_bandeau_PUBLIC_declenche_le_rechargement"
+  },
+  {
+   "nom": "l'écran perd sa commande de validation",
+   "fichier": "admin.html",
+   "avant": "+ '<button type=\"button\" data-vc-retenir=\"' + esc(c.cle) + '\">✓ Retenir cette référence</button>'",
+   "apres": "+ ''",
+   "regle": "test_l_ecran_d_administration_porte_les_deux_commandes"
+  },
+  {
+   "nom": "la recherche perd son plafond de cadence",
+   "fichier": "app.py",
+   "avant": "    \"/api/veille-chiffres/chercher\": (6, 60),\n",
+   "apres": "",
+   "regle": "test_les_deux_ecritures_portent_un_PLAFOND_de_cadence"
+  },
+  {
+   "nom": "chercher coûte moins cher que décider",
+   "fichier": "app.py",
+   "avant": "    \"/api/veille-chiffres/chercher\": (6, 60),",
+   "apres": "    \"/api/veille-chiffres/chercher\": (300, 60),",
+   "regle": "test_les_deux_ecritures_portent_un_PLAFOND_de_cadence"
+  }
+ ]
+}

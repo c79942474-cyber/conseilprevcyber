@@ -270,6 +270,66 @@ def poser_mcp(valeur, le):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+#  LES SOURCES ÉTABLIES APRÈS COUP — SUPERPOSÉES, JAMAIS ÉCRITES ICI
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# CINQ DES SIX CHIFFRES SONT PUBLIÉS SANS ADRESSE OUVRABLE, et le bandeau le
+# dit déjà dans sa réserve. Quand une référence est enfin établie — par
+# `veille_chiffres`, puis validée par une personne —, elle se pose ICI et se
+# superpose au chiffre, exactement comme le décompte MCP se superpose au sien.
+#
+# POURQUOI PAS UNE RÉÉCRITURE DU SOURCE. Un programme qui modifie le fichier
+# où sont écrits les chiffres d'une page publique est précisément ce qu'on
+# refuse ailleurs. La superposition laisse le source lisible et vrai : il dit
+# ce que le cabinet savait au moment où il l'a écrit, et le magasin dit ce
+# qu'on a appris depuis, avec le nom de qui l'a validé.
+
+_SOURCES = {}
+
+
+def poser_source(cle, champs, par, le=None):
+    """Pose la référence établie d'un chiffre, avec le nom qui la porte."""
+    if cle not in CHIFFRES_PAR_CLE:
+        return None
+    with _VERROU:
+        _SOURCES[cle] = dict(
+            {k: champs.get(k) for k in
+             ("lien", "editeur", "titre", "publie_le", "citation",
+              "echantillon")},
+            valide_par=str(par or "").strip(),
+            valide_le=(_jour(le) or datetime.date.today()).isoformat())
+        return dict(_SOURCES[cle])
+
+
+def sources_confirmees():
+    with _VERROU:
+        return {k: dict(v) for k, v in _SOURCES.items()}
+
+
+def oublier_source(cle):
+    with _VERROU:
+        return _SOURCES.pop(cle, None) is not None
+
+
+def charger_sources(magasin):
+    """Recharge les références validées — au démarrage, depuis la base.
+
+    SANS CELA, UN REDÉMARRAGE FERAIT SILENCIEUSEMENT REVENIR LA RÉSERVE
+    « source à confirmer » sur une page où quelqu'un l'avait levée. Un
+    retour en arrière que personne n'a décidé et que rien n'annonce est
+    pire que l'absence de la fonction.
+    """
+    if not isinstance(magasin, dict):
+        return 0
+    poses = 0
+    for cle, champs in magasin.items():
+        if isinstance(champs, dict) and poser_source(
+                cle, champs, champs.get("valide_par"), champs.get("valide_le")):
+            poses += 1
+    return poses
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 #  LA FRAÎCHEUR
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -340,6 +400,19 @@ def chiffres(aujourdhui=None):
             d["affiche"] = (_milliers(e["valeur"])
                             if e.get("valeur") is not None else None)
             d["motif_absence"] = e.get("motif")
+        # LA RÉFÉRENCE ÉTABLIE APRÈS COUP LÈVE LA RÉSERVE — c'est tout
+        # l'objet de l'opération. La garder afficherait « référence à
+        # établir » à côté du lien qui l'établit.
+        src = _SOURCES.get(c["cle"])
+        if src:
+            d["lien"] = src.get("lien") or d.get("lien")
+            d["source"] = src.get("editeur") or d.get("source")
+            d["titre_source"] = src.get("titre")
+            d["citation"] = src.get("citation")
+            d["echantillon"] = src.get("echantillon")
+            d["source_validee_par"] = src.get("valide_par")
+            d["source_validee_le"] = src.get("valide_le")
+            d["a_confirmer"] = None
         f = fraicheur(d, jour)
         d["fraicheur"] = f
         d["age_dit"] = _mois(f["age_jours"])

@@ -191,6 +191,14 @@ _ip_rate = _IPRateLimiter()
 # généreux en famille pour ne pas gêner l'usage admin légitime.
 _RATE_EXACT = {
     "/api/auth/login":            (12, 300),
+    # CHERCHER COÛTE UN AGENT — plusieurs tours de modèle et autant de
+    # lectures du web. Six par minute est déjà généreux pour un geste
+    # humain qui vise cinq chiffres en tout, et le plafond borne surtout
+    # la dépense, pas l'abus : la route est déjà réservée à l'administrateur.
+    "/api/veille-chiffres/chercher": (6, 60),
+    # DÉCIDER N'APPELLE AUCUN MODÈLE, mais écrit ce qu'une page publique
+    # affirme de ses sources. Le plafond est celui d'une main.
+    "/api/veille-chiffres/decider": (30, 60),
     "/api/auth/register":         (6, 3600),
     "/api/auth/forgot":           (6, 3600),
     "/api/auth/reset":            (12, 3600),
@@ -2481,6 +2489,10 @@ import ia_factory     # noqa: E402  — l'étude de faisabilité d'une usine IA,
 import contre_expertise_ia  # noqa: E402  — CONTESTE le programme d'une usine
 import chiffres_securite_ia  # noqa: E402  — les six chiffres du bandeau,
                              # chacun avec sa source, sa date et sa péremption
+import veille_chiffres        # noqa: E402  — retrouve la RÉFÉRENCE d'un
+                             # chiffre, et vérifie en rouvrant la page
+import veille_chiffres_agent  # noqa: E402  — l'agent, WebSearch et WebFetch,
+                             # et rien d'autre
                             # déjà lancée ; ia_factory l'étudie avant, et
                             # chaine_autonomie cote un système, pas un programme
 import technique_dc  # noqa: E402  — le vocabulaire du métier, servi aux infobulles
@@ -3284,11 +3296,172 @@ def api_securite_ia_chiffres():
     ET LA DATE VIENT DU CLIENT quand il en propose une, pour que deux lecteurs
     sous deux fuseaux lisent le même âge sur le même chiffre."""
     quand = request.args.get("date") if request.args.get("date") else None
+    # LA PAGE PUBLIQUE EST CELLE QUI COMPTE. Si le rechargement n'attendait
+    # qu'une visite d'administrateur, un visiteur lirait « source à
+    # confirmer » sur un chiffre dont la référence est établie depuis des
+    # semaines.
+    _veille_charger_sources()
     r = chiffres_securite_ia.bandeau(aujourdhui=quand)
     rep = jsonify(r)
     # UN BANDEAU QUI VIEILLIT NE SE MET PAS EN CACHE POUR LONGTEMPS.
     rep.headers["Cache-Control"] = "private, max-age=900, must-revalidate"
     return rep
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# LA VEILLE DES CHIFFRES — L'AGENT CHERCHE LA RÉFÉRENCE, UNE PERSONNE
+# LA RETIENT
+#
+# CINQ DES SIX CHIFFRES DU BANDEAU sont publiés sans adresse ouvrable, et la
+# réserve du bandeau le dit déjà. Ces routes permettent de combler cela :
+# l'agent va chercher le document, ce module VÉRIFIE en rouvrant la page
+# lui-même, et seule une décision nommée pose la référence.
+#
+# DERRIÈRE `admin_required`, ET C'EST DÉLIBÉRÉ. Poser une référence change ce
+# qu'une page publique affirme de ses sources. Ce n'est pas une action de
+# visiteur, ni même de client.
+# ══════════════════════════════════════════════════════════════════════════
+
+_VEILLE_PROPOSITIONS = {}
+_VEILLE_CLE_MAGASIN = "chiffres_sources_validees"
+
+
+_VEILLE_RECHARGE = {"fait": False}
+_VEILLE_VERROU = threading.Lock()
+
+
+def _veille_charger_sources(forcer=False):
+    """Recharge ce qu'une personne avait validé. UNE FOIS, À LA PREMIÈRE
+    DEMANDE.
+
+    PREMIÈRE ÉCRITURE, ET POURQUOI ELLE NE MARCHAIT PAS. L'appel était placé
+    dans `_init_automation`, qui tourne dans un thread lancé au milieu du
+    chargement du module — donc AVANT que cette fonction, définie plus bas,
+    n'existe. Le `try` l'attrapait et journalisait ; le rechargement, lui,
+    n'avait jamais lieu, et un redémarrage ramenait en silence la mention
+    « source à confirmer » sur une page où quelqu'un l'avait levée. C'est
+    exactement le retour en arrière que cette fonction existe pour empêcher.
+
+    Paresseux plutôt qu'au démarrage : à la première requête, le magasin
+    persistant existe forcément, quel que soit l'ordre d'initialisation.
+    """
+    with _VEILLE_VERROU:
+        if _VEILLE_RECHARGE["fait"] and not forcer:
+            return 0
+        try:
+            brut = automation.memoire(_VEILLE_CLE_MAGASIN, "{}")
+            n = chiffres_securite_ia.charger_sources(json.loads(brut or "{}"))
+            _VEILLE_RECHARGE["fait"] = True
+            if n:
+                app.logger.info("VEILLE_CHIFFRES — %d référence(s) rechargée(s)", n)
+            return n
+        except Exception as e:                        # noqa: BLE001
+            # ON NE MARQUE PAS « FAIT » : un magasin momentanément
+            # injoignable doit pouvoir être relu à la requête suivante.
+            app.logger.warning("VEILLE_CHIFFRES — rechargement impossible : %s", e)
+            return 0
+
+
+@app.route("/api/veille-chiffres/referentiel")
+@admin_required
+def api_veille_chiffres_referentiel():
+    """Ce qui attend une référence, et ce que l'agent a le droit de faire."""
+    _veille_charger_sources()
+    quand = request.args.get("date") or None
+    r = veille_chiffres.referentiel(aujourdhui=quand)
+    r["agent"] = veille_chiffres_agent.etat()
+    r["propositions"] = {k: dict(v) for k, v in _VEILLE_PROPOSITIONS.items()}
+    r["sources_validees"] = chiffres_securite_ia.sources_confirmees()
+    return jsonify(r)
+
+
+@app.route("/api/veille-chiffres/chercher", methods=["POST"])
+@admin_required
+def api_veille_chiffres_chercher():
+    """Lance l'agent sur UN chiffre. N'écrit rien nulle part.
+
+    UN SEUL CHIFFRE PAR APPEL, et ce n'est pas une limitation technique :
+    une recherche web tient plusieurs tours, et enchaîner cinq recherches
+    dans une requête HTTP dépasserait le délai du serveur avant de rendre
+    quoi que ce soit.
+    """
+    _veille_charger_sources()
+    d = request.get_json(force=True, silent=True) or {}
+    cle = str(d.get("cle") or "").strip()
+    quand = d.get("date") or None
+    chiffre = veille_chiffres.vue(cle, quand)
+    if chiffre is None:
+        return jsonify({"ok": False, "motif": "chiffre_inconnu",
+                        "motif_texte": veille_chiffres.MOTIFS["chiffre_inconnu"]}), 404
+
+    besoin = veille_chiffres.besoin(chiffre, quand)
+    if not besoin["urgent"]:
+        return jsonify({"ok": False, "motif": "rien_a_chercher",
+                        "motif_texte": veille_chiffres.MOTIFS["rien_a_chercher"],
+                        "besoin": besoin}), 400
+
+    ok, brut = veille_chiffres_agent.chercher(
+        veille_chiffres.demande(chiffre, quand),
+        veille_chiffres.PROMPT_SYSTEME)
+    if not ok:
+        return jsonify({"ok": False, "motif": "agent_indisponible",
+                        "motif_texte": "L'agent n'a pas pu chercher : %s. "
+                                       "Aucune référence n'est inventée pour "
+                                       "autant." % brut,
+                        "agent": veille_chiffres_agent.etat()}), 503
+
+    p = veille_chiffres.verifier(
+        chiffre, brut, veille_chiffres_agent.ouvrir_page, quand)
+    p["cle"] = cle
+    p["besoin"] = besoin["cle"]
+    _VEILLE_PROPOSITIONS[cle] = p
+    app.logger.info("VEILLE_CHIFFRES — %s : trouve=%s motif=%s",
+                    cle, p.get("trouve"), p.get("motif"))
+    # RIEN N'A BOUGÉ, ET L'ÉCRAN LE DIT.
+    return jsonify({"ok": True, "proposition": p, "bandeau_modifie": False})
+
+
+@app.route("/api/veille-chiffres/decider", methods=["POST"])
+@admin_required
+def api_veille_chiffres_decider():
+    """LA SEULE PORTE VERS LE BANDEAU — et elle exige un nom."""
+    _veille_charger_sources()
+    d = request.get_json(force=True, silent=True) or {}
+    cle = str(d.get("cle") or "").strip()
+    qui = str(d.get("decideur") or "").strip()[:200]
+    if not qui:
+        u = current_user() or {}
+        qui = str(u.get("email") or u.get("nom") or "").strip()
+    p = _VEILLE_PROPOSITIONS.get(cle)
+    chiffre = veille_chiffres.vue(cle, d.get("date") or None)
+    if not p or chiffre is None:
+        return jsonify({"ok": False, "motif": "proposition_introuvable",
+                        "motif_texte": "Aucune proposition en attente pour "
+                                       "ce chiffre."}), 404
+
+    r = veille_chiffres.appliquer(chiffre, p, str(d.get("decision") or ""),
+                                  qui, motif=d.get("motif"))
+    if not r.get("ok"):
+        return jsonify(r), 400
+
+    p["statut"] = r["statut"]
+    p["decide_par"] = qui
+    if r.get("pose"):
+        try:
+            automation.memoriser(
+                _VEILLE_CLE_MAGASIN,
+                json.dumps(chiffres_securite_ia.sources_confirmees(),
+                           ensure_ascii=False))
+        except Exception as e:                        # noqa: BLE001
+            # LA RÉFÉRENCE EST POSÉE EN MÉMOIRE MAIS PAS CONSERVÉE : on le
+            # DIT, plutôt que de laisser un redémarrage l'effacer en silence.
+            app.logger.error("VEILLE_CHIFFRES — non conservé : %s", e)
+            r["conserve"] = False
+    app.logger.info("VEILLE_CHIFFRES_DECIDEE %s statut=%s par=%s",
+                    cle, r["statut"], qui[:60])
+    r.setdefault("conserve", True)
+    r["bandeau_modifie"] = bool(r.get("pose"))
+    return jsonify(r)
 
 
 @app.route("/api/ai-factory/referentiel")

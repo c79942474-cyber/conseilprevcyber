@@ -3,7 +3,20 @@ services:
     name: conseilprevcyber
     region: frankfurt
     env: python
-    buildCommand: pip install -r requirements.txt
+    # LA COMMANDE DE CONSTRUCTION APPELLE `build.sh`. Le script fait d'abord
+    # exactement ce que faisait la ligne précédente — `pip install -r
+    # requirements.txt`, avec le même effet en cas d'échec — puis installe
+    # l'exécutable Claude Code dans le dossier du projet, parce que
+    # `claude_agent_sdk` le lance en sous-processus au lieu d'appeler une API.
+    #
+    # ⚠ VÉRIFIER QUE LE SERVICE PORTE BIEN CETTE COMMANDE. Si ce blueprint
+    # n'est pas rattaché au dépôt, c'est le champ « Build Command » du
+    # tableau de bord qui fait foi, et cette ligne ne le change pas.
+    #
+    # LE SCRIPT NE FAIT JAMAIS ÉCHOUER LE BUILD POUR LE CLI : sans exécutable,
+    # la veille des chiffres dit qu'elle ne peut pas chercher, et le reste du
+    # site se déploie comme avant.
+    buildCommand: bash build.sh
     # Le réglage vit dans gunicorn.conf.py, pas sur cette ligne : la capacité
     # se règle alors par variables d'environnement (WEB_WORKERS, WEB_THREADS…),
     # sans toucher au code ni redéployer une ligne de commande. Worker à

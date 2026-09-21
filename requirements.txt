@@ -9,6 +9,10 @@ redis==5.2.1
 # Assistant IA conversationnel (Claude). Activé si ANTHROPIC_API_KEY est défini ;
 # Mistral est appelé via son API HTTPS (aucune dépendance dédiée).
 anthropic==0.75.0
+# Le SDK pilote l'executable Claude Code en sous-processus. `build.sh`
+# l'installe ; la ou il manque, veille_chiffres_agent dit qu'il ne peut
+# pas chercher, plutot que d'inventer une reference.
+claude-agent-sdk>=0.2.157
 # Base de connaissance RAG : extraction de texte des documents chargés (PDF, DOCX).
 # La recherche vectorielle utilise pgvector (extension PostgreSQL) + embeddings
 # Mistral ; repli plein-texte natif PostgreSQL si pgvector est indisponible.

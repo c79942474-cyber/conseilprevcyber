@@ -328,7 +328,19 @@ _MOTIF_MARCHE = ("réponse à consultation — outil interne : le cabinet "
                  "instruit le dossier de l'acheteur, le client en reçoit le "
                  "résultat.")
 
+_MOTIF_CHIFFRES = (
+    "La veille des chiffres : poser une référence change ce qu'une PAGE "
+    "PUBLIQUE affirme de ses sources, et lancer l'agent dépense un appel de "
+    "modèle. Le décorateur `@admin_required` le dit déjà sur la route ; sans "
+    "cette déclaration, la politique n'aurait exigé que le niveau « client » "
+    "— elle aurait donc accepté, sans rien signaler, qu'on descende la "
+    "protection d'un cran."
+)
+
 API_ADMIN = {
+    "/api/veille-chiffres/referentiel": _MOTIF_CHIFFRES,
+    "/api/veille-chiffres/chercher": _MOTIF_CHIFFRES,
+    "/api/veille-chiffres/decider": _MOTIF_CHIFFRES,
     # ELLE REND EN OUTRE L'IDENTITÉ DU CABINET LUI-MÊME, depuis que la
     # fiche part avec l'analyse au lieu d'une route à part : dénomination,
     # SIRET, chiffres d'affaires des trois derniers exercices, signataire.

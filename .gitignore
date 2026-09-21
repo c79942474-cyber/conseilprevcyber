@@ -12,3 +12,7 @@ users_db.json
 # de chaque génération : ni l'un ni l'autre n'a sa place dans un dépôt.
 corpus_datacenter.json
 journal_agent_datacenter.jsonl
+
+# Le CLI Claude Code, pose par build.sh dans l image de deploiement.
+# Binaire tiers volumineux : il se reconstruit a chaque build, il ne se versionne pas.
+.cli-claude/
