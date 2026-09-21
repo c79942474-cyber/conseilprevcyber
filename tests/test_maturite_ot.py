@@ -1001,3 +1001,162 @@ def test_la_page_ne_recopie_pas_l_echelle():
     assert not presents, (
         "la page recopie la description de %d degré(s) : %s"
         % (len(presents), presents[:1]))
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  LA SÉQUENCE, ET L'EXCEPTION DE FAISABILITÉ TECHNIQUE
+# ══════════════════════════════════════════════════════════════════════════
+#
+#  CE QUI A DÉCLENCHÉ CES RÈGLES. Un guide de méthode — livre blanc de Verve
+#  Industrial commentant le NIST CSF v1.1 — a été confronté à ce module.
+#  Il n'apportait rien sur les six domaines, les six degrés ni le refus de se
+#  dire assessment : recopier sa méthode aurait donné deux vocabulaires pour
+#  la même chose. Il a apporté DEUX manques réels, et ce sont eux qu'on garde.
+
+def test_le_plan_ordonne_par_PREREQUIS_avant_le_poids():
+    """LE DÉFAUT MESURÉ AVANT D'Y TOUCHER. Les étapes étaient triées par
+    poids seul : le plan pouvait prescrire « Mesuré » sur la détection
+    pendant que l'architecture était à « Rien ». On ne détecte pas sur un
+    réseau dont on ne tient ni l'inventaire ni le découpage — la première
+    ligne d'un tel plan est impossible.
+
+    LE CAS EST CHOISI PARCE QU'IL DISCRIMINE, ET C'EST UNE MUTATION QUI L'A
+    IMPOSÉ. Une première version partait de niveaux quelconques et vérifiait
+    que les rangs sortaient croissants. Elle passait aussi quand on remettait
+    le tri par poids seul : `gouvernance` est le domaine le plus lourd, il
+    arrivait en tête dans les deux cas, et le reste suivait par coïncidence.
+    La règle ne mesurait pas ce qu'elle annonçait.
+
+    ON PART DONC D'UN CAS OÙ LE POIDS INVERSE L'ORDRE, relevé en parcourant
+    les combinaisons : tout à zéro, cibles à cinq. `acces` y pèse 6,67 et
+    son prérequis `architecture` 5,0 — un tri par poids les inverse, un tri
+    par prérequis ne le peut pas. Le garde-fou en fin de règle vérifie que
+    l'inversion existe encore : le jour où la pondération changera, cette
+    règle doit se taire au lieu de passer pour rien."""
+    niveaux = {d["cle"]: 0 for d in M.DOMAINES}
+    cibles = {k: 5 for k in niveaux}
+    p = M.plan(niveaux, cibles)
+    assert p["ok"], p
+
+    poids = {e["domaine"]: e["poids"] for e in p["etapes"]}
+    assert poids["acces"] > poids["architecture"], (
+        "le couple ne discrimine plus : « acces » ne pèse plus davantage que "
+        "son prérequis « architecture », donc un tri par poids ne les "
+        "inverserait plus et cette règle ne mesurerait rien. Poids relevés : "
+        "%s" % poids)
+
+    rangs = [e["rang"] for e in p["etapes"]]
+    assert rangs == sorted(rangs), (
+        "le plan remonte un domaine avant son prérequis : %s" % rangs)
+    ordre = [e["domaine"] for e in p["etapes"]]
+    assert ordre.index("architecture") < ordre.index("acces"), (
+        "« acces » passe avant « architecture », dont il dépend — c'est "
+        "exactement ce que donne un tri par poids seul : %s" % ordre)
+    tetes = {e["domaine"] for e in p["etapes"] if e["rang"] == 0}
+    assert tetes == {"gouvernance"}, (
+        "seul un domaine sans prérequis ouvre le plan : %s" % sorted(tetes))
+
+
+def test_une_etape_dont_l_amont_MANQUE_le_dit_au_lieu_de_disparaitre():
+    """ON NE RETIRE PAS L'ÉTAPE BLOQUÉE. Une étape cachée est une étape
+    oubliée : elle reparaîtrait au budget suivant sans que personne ne sache
+    pourquoi elle n'avait pas été faite. Elle reste, et porte le motif."""
+    niveaux = {"gouvernance": 0, "architecture": 0, "acces": 0,
+               "protection": 0, "detection": 0, "fournisseurs": 0}
+    p = M.plan(niveaux, {k: 2 for k in niveaux})
+    bloquees = [e for e in p["etapes"] if e["bloquee_par"]]
+    assert bloquees, "aucune étape bloquée alors que tout est à zéro"
+    assert p["bloquees"] == len(bloquees)
+    for e in bloquees:
+        for b in e["bloquee_par"]:
+            assert b["amont_nom"] and b["seuil_nom"], b
+            assert str(b.get("pourquoi") or "").strip(), (
+                "%s est bloquée sans motif écrit" % e["domaine"])
+
+
+def test_une_exception_SANS_compensation_est_refusee():
+    """CE N'EST PAS UNE EXCEPTION, C'EST UN ABANDON. Un automate qui ne peut
+    pas porter la mesure demandée laisse un risque : le nommer « exception »
+    sans dire ce qui le tient à la place ferait passer l'abandon pour une
+    décision d'ingénierie."""
+    niveaux = {d["cle"]: 1 for d in M.DOMAINES}
+    r = M.plan(niveaux, {k: 3 for k in niveaux}, {"protection": {}})
+    assert r.get("ok") is False and r["motif"] == "exception_sans_compensation", r
+    r2 = M.plan(niveaux, {k: 3 for k in niveaux},
+                {"protection": {"compensation": "   "}})
+    assert r2.get("ok") is False, "une compensation vide passe encore"
+
+
+def test_l_exception_REMPLACE_la_montee_en_degres():
+    """ELLE NE S'Y AJOUTE PAS. Laisser les deux ferait figurer au plan une
+    action que le parc ne peut pas porter, juste à côté de celle qui la
+    remplace — et c'est la première qu'on mettrait au budget."""
+    niveaux = {d["cle"]: 1 for d in M.DOMAINES}
+    cibles = {k: 4 for k in niveaux}
+    sans = M.plan(niveaux, cibles)
+    avec = M.plan(niveaux, cibles,
+                  {"protection": {"compensation": "liste blanche applicative "
+                                                  "sur les IHM hors support, "
+                                                  "revue trimestrielle"}})
+    n_sans = [e for e in sans["etapes"] if e["domaine"] == "protection"]
+    n_avec = [e for e in avec["etapes"] if e["domaine"] == "protection"]
+    assert len(n_sans) == 3, n_sans
+    assert len(n_avec) == 1, (
+        "l'exception s'ajoute au lieu de remplacer : %d étapes" % len(n_avec))
+    assert n_avec[0]["exception"] is True
+    assert "liste blanche" in n_avec[0]["compensation"]
+    assert avec["exceptions"] == ["protection"]
+    # LES AUTRES DOMAINES NE BOUGENT PAS : une exception est locale.
+    autres = lambda p: [e for e in p["etapes"] if e["domaine"] != "protection"]
+    assert len(autres(sans)) == len(autres(avec))
+
+
+def test_la_SOURCE_de_methode_dit_son_statut_de_tiers():
+    """CE GUIDE N'EST PAS UN DOCUMENT DU NIST, et la distinction n'est pas
+    une coquetterie : le CSF qu'il commente est une œuvre du gouvernement
+    des États-Unis, librement citable ; le livre blanc est le travail
+    éditorial d'un tiers, protégé. Le module le cite et ne le recopie pas.
+
+    LE GARDE-FOU : la source doit voyager avec le plan, et non rester dans
+    un commentaire. Servie à part, elle resterait sur la page pendant que le
+    plan, lui, partirait en réunion."""
+    src = M.SOURCE_METHODE
+    assert "Verve" in src["editeur"], src["editeur"]
+    assert "NIST" not in src["editeur"], (
+        "l'éditeur ne doit pas se confondre avec le NIST : %s" % src["editeur"])
+    assert "NIST" in src["commente"]
+    assert "tiers" in src["droits"] and "recopi" in src["droits"], src["droits"]
+    niveaux = {d["cle"]: 1 for d in M.DOMAINES}
+    p = M.plan(niveaux, {k: 2 for k in niveaux})
+    assert p["source_methode"]["editeur"] == src["editeur"], (
+        "la source ne voyage pas avec le plan")
+    assert M.referentiel()["source_methode"]["titre"] == src["titre"]
+
+
+def test_le_graphe_des_prerequis_COUVRE_les_six_domaines():
+    """LE GARDE-FOU DES QUATRE RÈGLES PRÉCÉDENTES. Un domaine absent de la
+    table n'aurait aucun prérequis : il remonterait en tête du plan sans
+    qu'on l'ait décidé, et les règles d'ordre passeraient sur un graphe
+    troué sans rien dire."""
+    cles = {d["cle"] for d in M.DOMAINES}
+    assert set(M.PREREQUIS) == cles, sorted(cles ^ set(M.PREREQUIS))
+    # LE RÉFÉRENTIEL DOIT SERVIR LES MÊMES PRÉREQUIS QUE CEUX QUI ORDONNENT
+    # LE PLAN, et pas seulement les mêmes clés. Une mutation l'a montré : on
+    # pouvait vider les dépendances servies à l'écran sans que rien ne tombe.
+    # Le plan, lui, continuait d'ordonner par elles — le lecteur voyait donc
+    # un ordre qu'aucune dépendance affichée ne justifiait.
+    ref = M.referentiel()["prerequis"]
+    assert set(ref) == cles
+    for c in cles:
+        vus = [(x["domaine"], x["seuil"]) for x in ref[c]]
+        attendus = [(x["domaine"], x["seuil"]) for x in M.PREREQUIS[c]]
+        assert vus == attendus, (
+            "le référentiel sert %s pour « %s », la table dit %s"
+            % (vus, c, attendus))
+        for x in ref[c]:
+            assert x.get("amont_nom") and x.get("seuil_nom"), (
+                "un prérequis servi sans nom lisible : %s" % x)
+    sans_amont = [c for c, v in M.PREREQUIS.items() if not v]
+    assert sans_amont == ["gouvernance"], (
+        "un seul domaine ouvre le plan, et c'est celui qui nomme les "
+        "propriétaires : %s" % sorted(sans_amont))

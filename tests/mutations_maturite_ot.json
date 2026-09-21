@@ -1,0 +1,63 @@
+{
+ "cibles": [
+  "tests/test_maturite_ot.py"
+ ],
+ "mutations": [
+  {
+   "nom": "le plan retrouve son tri par poids seul",
+   "fichier": "maturite_ot.py",
+   "avant": "etapes.sort(key=lambda e: (e[\"rang\"], -(e[\"poids\"] or 0), e[\"vers\"]))",
+   "apres": "etapes.sort(key=lambda e: (-(e[\"poids\"] or 0), e[\"vers\"]))",
+   "regle": "test_le_plan_ordonne_par_PREREQUIS_avant_le_poids"
+  },
+  {
+   "nom": "l'étape bloquée disparaît au lieu de le dire",
+   "fichier": "maturite_ot.py",
+   "avant": "        exc = exceptions.get(l[\"cle\"])",
+   "apres": "        if bloquants: continue\n        exc = exceptions.get(l[\"cle\"])",
+   "regle": "test_une_etape_dont_l_amont_MANQUE_le_dit_au_lieu_de_disparaitre"
+  },
+  {
+   "nom": "une exception vide est acceptée",
+   "fichier": "maturite_ot.py",
+   "avant": "        if not str((v or {}).get(\"compensation\") or \"\").strip())",
+   "apres": "        if False)",
+   "regle": "test_une_exception_SANS_compensation_est_refusee"
+  },
+  {
+   "nom": "l'exception s'AJOUTE à la montée au lieu de la remplacer",
+   "fichier": "maturite_ot.py",
+   "avant": "                                             \"tiendrait la mesure d'origine.\"))\n            continue",
+   "apres": "                                             \"tiendrait la mesure d'origine.\"))",
+   "regle": "test_l_exception_REMPLACE_la_montee_en_degres"
+  },
+  {
+   "nom": "la source de méthode se dit du NIST",
+   "fichier": "maturite_ot.py",
+   "avant": "\"editeur\": \"Verve Industrial — livre blanc commercial\",",
+   "apres": "\"editeur\": \"NIST — guide officiel\",",
+   "regle": "test_la_SOURCE_de_methode_dit_son_statut_de_tiers"
+  },
+  {
+   "nom": "la source ne voyage plus avec le plan",
+   "fichier": "maturite_ot.py",
+   "avant": "                source_methode=dict(SOURCE_METHODE))",
+   "apres": "                )",
+   "regle": "test_la_SOURCE_de_methode_dit_son_statut_de_tiers"
+  },
+  {
+   "nom": "le référentiel cesse de servir les prérequis",
+   "fichier": "maturite_ot.py",
+   "avant": "        \"prerequis\": {c: [dict(p, amont_nom=_nom_section(p[\"domaine\"]),\n                               seuil_nom=ECHELLE[p[\"seuil\"]][\"nom\"])\n                          for p in (PREREQUIS.get(c) or [])]\n                      for c in [d[\"cle\"] for d in DOMAINES]},",
+   "apres": "        \"prerequis\": {c: []\n                      for c in [d[\"cle\"] for d in DOMAINES]},",
+   "regle": "test_le_graphe_des_prerequis_COUVRE_les_six_domaines"
+  },
+  {
+   "nom": "un second domaine ouvre le plan sans prérequis",
+   "fichier": "maturite_ot.py",
+   "avant": "    \"detection\": [\n        {\"domaine\": \"architecture\", \"seuil\": 3,\n         \"pourquoi\": \"détecter suppose de savoir à quoi ressemble le normal, \"\n                     \"et le normal se lit sur un inventaire et un découpage, \"\n                     \"pas sur une sonde posée dans un réseau indifférencié\"},\n    ],",
+   "apres": "    \"detection\": [],",
+   "regle": "test_le_graphe_des_prerequis_COUVRE_les_six_domaines"
+  }
+ ]
+}

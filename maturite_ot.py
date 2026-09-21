@@ -40,6 +40,114 @@ POINT ON LE TIENT. Même terrain, deux questions.
 
 import checklist_62443 as CK
 
+# ══════════════════════════════════════════════════════════════════════════
+#  CE QUE LE GUIDE DE MÉTHODE A APPORTÉ, ET CE QU'IL N'A PAS APPORTÉ
+# ══════════════════════════════════════════════════════════════════════════
+#
+# LA SOURCE, ET SON STATUT. « OT Cybersecurity Maturity — a 5 step guide to
+# using the NIST CSF » n'est PAS un document du NIST : c'est un livre blanc
+# commercial de Verve Industrial, qui commente le NIST CSF v1.1. La
+# distinction n'est pas juridique par coquetterie — le CSF est une œuvre du
+# gouvernement des États-Unis, librement citable ; le livre blanc est le
+# travail éditorial d'un tiers, protégé. Il est donc CITÉ pour ce qu'il
+# établit, jamais recopié, et sa méthode en cinq étapes n'est pas reprise
+# comme si elle était la nôtre ou celle du NIST.
+#
+# CE QU'ON A COMPARÉ. Ce module tenait déjà : six domaines décrits par ce
+# qu'on peut MONTRER, six degrés déclarés et non calculés, un refus explicite
+# de se dire assessment, un hors-portée nommé, et un voisinage approximatif
+# avec la 62443-2-4. Le guide n'apporte rien sur ces points, et les recopier
+# aurait donné deux vocabulaires pour la même chose.
+#
+# CE QU'IL A APPORTÉ, ET QUI MANQUAIT VRAIMENT — DEUX CHOSES.
+#
+#   1. LA SÉQUENCE. « Certain initiatives are pre-requisites of others. For
+#      instance, having a complete and detailed hardware and software [...]
+#      inventory is a requirement to harden configurations and many other CSF
+#      categories. » Le plan de ce module ordonnait ses étapes par POIDS. Il
+#      pouvait donc prescrire « Mesuré » sur la détection pendant que
+#      l'architecture était à « Rien » — une feuille de route dont la
+#      première ligne est impossible. Mesuré avant d'y toucher.
+#
+#   2. L'EXCEPTION DE FAISABILITÉ TECHNIQUE. « rules for technical
+#      feasibility exceptions where devices such as PLCs or older HMIs may
+#      not be able to meet control standards and will require some form of
+#      compensating controls. » Le module n'avait aucun moyen de dire « ce
+#      parc ne peut pas » : la seule façon de l'exprimer était de déclarer un
+#      degré bas, qui se lit comme de la négligence et non comme une
+#      contrainte physique — et le plan prescrivait alors une action
+#      irréalisable.
+#
+# CE QU'ON N'A PAS REPRIS, ET POURQUOI. La vague à quatre-vingt-dix jours et
+# le découpage central/site sont des choix d'organisation : ce module n'a
+# aucune donnée sur le nombre de sites ni sur les budgets, et les inventer
+# aurait produit un calendrier d'apparence précise et sans fondement.
+
+#: LA SOURCE DE MÉTHODE, DÉCLARÉE AVEC SON STATUT. Elle voyage avec le
+#: référentiel : un apport dont on ne dit pas d'où il vient finit par passer
+#: pour une invention maison.
+SOURCE_METHODE = {
+    "titre": "OT Cybersecurity Maturity — a 5 step guide to using the "
+             "NIST CSF",
+    "editeur": "Verve Industrial — livre blanc commercial",
+    "commente": "NIST Cybersecurity Framework v1.1",
+    "droits": "Document d'un tiers, protégé. Il est cité pour ce qu'il "
+              "établit et n'est pas recopié : sa méthode en cinq étapes "
+              "reste la sienne. Le CSF qu'il commente est, lui, une œuvre "
+              "du gouvernement des États-Unis, librement citable.",
+    "retenu": ("la séquence des initiatives et l'exception de faisabilité "
+               "technique — deux exigences de méthode que ce module n'avait "
+               "pas"),
+}
+
+# ══════════════════════════════════════════════════════════════════════════
+#  LES PRÉREQUIS ENTRE DOMAINES
+# ══════════════════════════════════════════════════════════════════════════
+#
+# UN PRÉREQUIS N'EST PAS UNE PRÉFÉRENCE D'ORDRE. Il dit qu'une étape ne peut
+# PAS aboutir tant qu'une autre n'est pas tenue — pas qu'elle serait moins
+# urgente. Chacun porte son motif écrit : un graphe de dépendances sans
+# raisons est un ordre arbitraire qu'on finit par contourner.
+#
+# LE SEUIL EST UN DEGRÉ DE L'ÉCHELLE, et il est choisi bas exprès. Exiger
+# « Mesuré » sur l'architecture avant de toucher à la détection bloquerait
+# tout le monde ; exiger « Appliqué » dit ce qui compte : le découpage EXISTE
+# et on peut le montrer.
+
+PREREQUIS = {
+    "gouvernance": [],
+    "architecture": [
+        {"domaine": "gouvernance", "seuil": 2,
+         "pourquoi": "on ne redécoupe pas un réseau de conduite sans mandat "
+                     "écrit : l'arbitrage production/sécurité se tranche au "
+                     "niveau où il engage, pas dans l'armoire"},
+    ],
+    "acces": [
+        {"domaine": "architecture", "seuil": 3,
+         "pourquoi": "un contrôle d'accès posé sur un réseau plat garde une "
+                     "frontière qui n'existe pas"},
+    ],
+    "protection": [
+        {"domaine": "architecture", "seuil": 3,
+         "pourquoi": "le guide le dit de l'inventaire matériel et logiciel : "
+                     "il est prérequis au durcissement. On ne durcit pas une "
+                     "configuration dont on ne tient pas la liste"},
+    ],
+    "detection": [
+        {"domaine": "architecture", "seuil": 3,
+         "pourquoi": "détecter suppose de savoir à quoi ressemble le normal, "
+                     "et le normal se lit sur un inventaire et un découpage, "
+                     "pas sur une sonde posée dans un réseau indifférencié"},
+    ],
+    "fournisseurs": [
+        {"domaine": "gouvernance", "seuil": 2,
+         "pourquoi": "une exigence contractuelle sans politique derrière "
+                     "elle n'est pas opposable : le fournisseur la renvoie "
+                     "à l'appel d'offres suivant"},
+    ],
+}
+
+
 VERSION = "2026-08-a"
 
 #: CE QUE CE MODULE N'EST PAS. Voyage avec chaque résultat et ouvre chaque
@@ -370,7 +478,46 @@ HORS_PORTEE = [
 ]
 
 
+def _verifier_prerequis():
+    """LE GRAPHE DES PRÉREQUIS, RECOMPTÉ À CHAQUE CHARGEMENT.
+
+    TROIS CHOSES PEUVENT LE CASSER EN SILENCE. Un domaine oublié de la table
+    n'aurait aucun prérequis et remonterait en tête du plan sans qu'on
+    l'ait voulu. Un prérequis qui nomme un domaine inexistant ne bloquerait
+    jamais rien. Et un CYCLE — A avant B, B avant A — ferait un plan dont
+    aucune étape n'est jamais ordonnançable, et `_rang_prerequis` tournerait
+    en rond si sa coupure de sécurité venait à sauter.
+    """
+    cles = [d["cle"] for d in DOMAINES]
+    manquants = sorted(set(cles) - set(PREREQUIS))
+    assert not manquants, (
+        "domaines sans entrée dans PREREQUIS : %s — ils remonteraient en "
+        "tête du plan sans prérequis déclaré" % manquants)
+    inconnus = sorted(set(PREREQUIS) - set(cles))
+    assert not inconnus, "PREREQUIS vise des domaines inexistants : %s" % inconnus
+    for c, amonts in PREREQUIS.items():
+        for a in amonts:
+            assert a["domaine"] in cles, (c, a["domaine"])
+            assert a["domaine"] != c, "%s se précède lui-même" % c
+            assert 0 <= a["seuil"] < len(ECHELLE), (c, a["seuil"])
+            assert str(a.get("pourquoi") or "").strip(), (
+                "le prérequis %s → %s n'a pas de motif écrit : un graphe de "
+                "dépendances sans raisons est un ordre arbitraire" % (a["domaine"], c))
+    # PAS DE CYCLE : on déplie chaque domaine jusqu'au bout.
+    def descendre(c, vus):
+        assert c not in vus, "cycle dans PREREQUIS : %s" % (sorted(vus | {c}))
+        for a in PREREQUIS.get(c) or []:
+            descendre(a["domaine"], vus | {c})
+    for c in cles:
+        descendre(c, frozenset())
+    # LA SOURCE DE MÉTHODE DIT SON STATUT, sans quoi l'apport d'un tiers
+    # finirait par passer pour une invention maison.
+    for champ in ("titre", "editeur", "droits", "retenu"):
+        assert str(SOURCE_METHODE.get(champ) or "").strip(), champ
+
+
 def _verifier():
+    _verifier_prerequis()
     """LES DOMAINES DOIVENT RESTER CEUX DE LA CHECKLIST, et chaque jugement
     doit se défendre.
 
@@ -483,6 +630,11 @@ def referentiel():
             for d in DOMAINES
         ],
         "ordre": ORDRE,
+        "prerequis": {c: [dict(p, amont_nom=_nom_section(p["domaine"]),
+                               seuil_nom=ECHELLE[p["seuil"]]["nom"])
+                          for p in (PREREQUIS.get(c) or [])]
+                      for c in [d["cle"] for d in DOMAINES]},
+        "source_methode": dict(SOURCE_METHODE),
     }
 
 
@@ -596,29 +748,114 @@ def _lecture(avec, a_combler, manquants):
                               p["gravite"], p["effort"]))
 
 
-def plan(niveaux=None, cibles=None):
-    """LE CHEMIN, DEGRÉ PAR DEGRÉ.
+def _rang_prerequis(cle, _vus=None):
+    """La profondeur d'un domaine dans le graphe des prérequis.
+
+    ELLE SERT À ORDONNER, ET RIEN D'AUTRE. Un domaine sans prérequis est au
+    rang 0 ; un domaine qui en a un est au rang du plus profond, plus un.
+    `_vus` coupe les cycles : une table de dépendances qui boucle donnerait
+    une récursion infinie au premier appel, et la garde en bas de fichier
+    refuse déjà les cycles — celle-ci est la ceinture de la bretelle.
+    """
+    _vus = _vus or set()
+    if cle in _vus:
+        return 0
+    _vus = _vus | {cle}
+    amonts = PREREQUIS.get(cle) or []
+    if not amonts:
+        return 0
+    return 1 + max(_rang_prerequis(p["domaine"], _vus) for p in amonts)
+
+
+def _bloquants(cle, niveaux):
+    """Les prérequis de ce domaine qui ne sont PAS tenus, avec leur motif."""
+    out = []
+    for p in PREREQUIS.get(cle) or []:
+        atteint = niveaux.get(p["domaine"])
+        if atteint is None or atteint < p["seuil"]:
+            out.append(dict(p, atteint=atteint,
+                            seuil_nom=ECHELLE[p["seuil"]]["nom"],
+                            amont_nom=_nom_section(p["domaine"])))
+    return out
+
+
+def plan(niveaux=None, cibles=None, exceptions=None):
+    """LE CHEMIN, DEGRÉ PAR DEGRÉ — ET DANS UN ORDRE QUI TIENT.
 
     Une étape n'est pas « passer de 1 à 4 » : c'est passer de 1 à 2, puis de
     2 à 3. Chaque degré a sa description, et c'est elle qui dit ce qu'il faut
     produire — sauter les intermédiaires ferait une feuille de route dont
     aucune ligne ne se termine.
+
+    CE QUI A CHANGÉ, ET CE QUE ÇA CORRIGE. Les étapes étaient ordonnées par
+    POIDS seul. Le plan pouvait donc prescrire « Mesuré » sur la détection
+    pendant que l'architecture était à « Rien » — or on ne détecte pas sur un
+    réseau dont on ne tient ni l'inventaire ni le découpage. Elles sont
+    maintenant ordonnées par PROFONDEUR DE PRÉREQUIS d'abord, poids ensuite,
+    et celles dont l'amont n'est pas tenu portent `bloquee_par` avec le motif
+    écrit. On ne les retire pas : une étape cachée est une étape oubliée.
+
+    L'EXCEPTION DE FAISABILITÉ TECHNIQUE. Un automate ou une IHM ancienne ne
+    peut parfois pas porter la mesure demandée. Le déclarer remplace la
+    montée en degrés par UNE étape : écrire et tenir la mesure compensatoire.
+    Une exception SANS compensation écrite est refusée — ce n'est pas une
+    exception, c'est un abandon, et le nommer autrement le ferait passer.
     """
     ev = evaluer(niveaux, cibles)
     if not ev.get("ok"):
         return ev
+    exceptions = exceptions if isinstance(exceptions, dict) else {}
+    inconnues = [k for k in exceptions if k not in {d["cle"] for d in DOMAINES}]
+    if inconnues:
+        return {"ok": False, "motif": "domaines_inconnus",
+                "detail": sorted(inconnues)}
+    sans_compensation = sorted(
+        k for k, v in exceptions.items()
+        if not str((v or {}).get("compensation") or "").strip())
+    if sans_compensation:
+        return {"ok": False, "motif": "exception_sans_compensation",
+                "detail": sans_compensation,
+                "dit": "Une exception de faisabilité technique sans mesure "
+                       "compensatoire écrite n'est pas une exception : c'est "
+                       "un abandon. Nommez ce qui tient le risque à la place."}
+
+    niv = {l["cle"]: l["niveau"] for l in ev["domaines"]
+           if l.get("niveau") is not None}
     etapes = []
     for l in ev["a_combler"]:
+        bloquants = _bloquants(l["cle"], niv)
+        commun = {"domaine": l["cle"], "nom": l["nom"], "objet": l["objet"],
+                  "poids": l["poids"], "section_checklist": l["cle"],
+                  "rang": _rang_prerequis(l["cle"]),
+                  "bloquee_par": bloquants}
+        exc = exceptions.get(l["cle"])
+        if exc:
+            # LA MONTÉE EN DEGRÉS EST REMPLACÉE, PAS COMPLÉTÉE. Laisser les
+            # deux ferait figurer au plan une action que le parc ne peut pas
+            # porter, à côté de celle qui la remplace.
+            etapes.append(dict(commun,
+                               de=l["niveau"], vers=l["niveau"],
+                               vers_nom="Mesure compensatoire",
+                               exception=True,
+                               compensation=str(exc.get("compensation")).strip(),
+                               ce_qu_il_faut="Le parc ne peut pas porter la "
+                                             "mesure demandée. Écrire la "
+                                             "mesure compensatoire, la faire "
+                                             "valider, et la tenir comme on "
+                                             "tiendrait la mesure d'origine."))
+            continue
         for degre in range(l["niveau"] + 1, l["cible"] + 1):
-            etapes.append({
-                "domaine": l["cle"], "nom": l["nom"], "objet": l["objet"],
-                "de": degre - 1, "vers": degre,
-                "vers_nom": ECHELLE[degre]["nom"],
-                "ce_qu_il_faut": ECHELLE[degre]["dit"],
-                "poids": l["poids"],
-                "section_checklist": l["cle"],
-            })
-    return dict(ev, etapes=etapes, n_etapes=len(etapes))
+            etapes.append(dict(commun,
+                               de=degre - 1, vers=degre,
+                               vers_nom=ECHELLE[degre]["nom"],
+                               exception=False,
+                               ce_qu_il_faut=ECHELLE[degre]["dit"]))
+    # L'AMONT D'ABORD, LE POIDS ENSUITE. Trier par poids seul était le défaut.
+    etapes.sort(key=lambda e: (e["rang"], -(e["poids"] or 0), e["vers"]))
+    return dict(ev, etapes=etapes, n_etapes=len(etapes),
+                bloquees=sum(1 for e in etapes if e["bloquee_par"]),
+                exceptions=sorted(exceptions),
+                source_methode=dict(SOURCE_METHODE))
 
 
 # ══════════════════════════════════════════════════════════════════════════
