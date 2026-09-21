@@ -68,9 +68,16 @@ CARTES = _cartes()
 # ═══════════════════════════════════════════════════════════════════════════
 
 # Le registre, tel que le document de références l'énonce : l'intitulé, la
-# période, et deux termes qui ne peuvent pas s'être perdus en route.
+# période, et les termes qui ne peuvent pas s'être perdus en route.
+#
+# UN AJOUT SE DÉCLARE ICI, SINON IL N'EST GARDÉ PAR RIEN. Le périmètre IA de
+# DT MASTER-CARBON — agents métier et SaaS climat — a été ajouté au verso de
+# la fiche. Sans l'inscrire au registre, une réécriture de la fiche pouvait
+# l'emporter sans qu'aucune règle ne bouge : la carte serait restée
+# plausible, et l'information demandée aurait disparu.
 REGISTRE = {
-    "e4":  ("DT MASTER-CARBON", "2023 — 2026", ["Net Zéro", "cofondateur"]),
+    "e4":  ("DT MASTER-CARBON", "2023 — 2026",
+            ["Net Zéro", "cofondateur", "Agents IA métier", "biodiversité"]),
     "e1":  ("EDF / TALAN Consulting", "2022 — 2024", ["DSI EDF", "risques IA"]),
     "e2":  ("RENAULT GROUP", "2021 — 2022", ["WP.29", "CSMS"]),
     "e3":  ("ALSTOM / AIRBUS Cyberdéfense", "2021", ["SIEM", "Réseau express métropolitain"]),
