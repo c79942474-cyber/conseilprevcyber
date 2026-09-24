@@ -12103,14 +12103,17 @@ def api_paiement_checkout():
 def api_stripe_webhook():
     """La notification de paiement — le SEUL chemin qui ouvre un accès.
 
-    ON REND TOUJOURS 200, y compris quand on n'a rien fait. Stripe réémet une
-    notification tant qu'elle n'est pas acquittée : rendre 500 sur une adresse
-    inconnue déclencherait trois jours de réessais pour un cas qui ne
-    s'arrangera pas tout seul. Ce qui ne peut pas être traité est TRACÉ — un
-    paiement ne doit pas disparaître en silence.
+    ON REND 200 QUAND ON N'A RIEN À FAIRE. Stripe réémet une notification
+    tant qu'elle n'est pas acquittée : rendre 500 sur une adresse inconnue
+    déclencherait trois jours de réessais pour un cas qui ne s'arrangera pas
+    tout seul. Ce qui ne peut pas être traité est TRACÉ — un paiement ne doit
+    pas disparaître en silence. La vente d'un AUTRE site du compte est
+    acquittée sans trace : elle n'est pas à nous.
 
-    Les seuls refus sont 400 : charge non signée, ou signature invalide. Là,
-    dire non est la réponse juste.
+    400 : charge non signée, ou signature invalide. Là, dire non est la
+    réponse juste. 500 : un échec qui PEUT s'arranger (magasin injoignable,
+    ligne de caisse illisible) — c'est précisément ce que la réémission de
+    Stripe sait rattraper.
     """
     # UN PLAFOND, MÊME ICI — et il a fallu que la règle de surface d'attaque me
     # le rappelle. Ce point est ouvert et non authentifié par session : sans
@@ -12132,20 +12135,34 @@ def api_stripe_webhook():
                                  request.headers.get("Stripe-Signature", ""))
     if ev is None:
         return jsonify(ok=False, error="signature_invalide"), 400
-    email = paiement.compte_a_ouvrir(ev)
+    try:
+        # Une caisse de conseilprev (le compte Stripe est partagé) rend None
+        # ici, comme tout ce qui n'est pas un paiement abouti de CE site.
+        email = paiement.compte_a_ouvrir(ev)
+    except Exception as exc:
+        app.logger.error("paiement : origine de la caisse illisible (%s) — "
+                         "500, Stripe réémettra", type(exc).__name__)
+        return jsonify(ok=False, error="reessayer"), 500
     if not email:
         # Stripe émet des dizaines de sortes d'événements ; n'en retenir qu'une
         # est ce qui empêche une session simplement CRÉÉE d'ouvrir un accès.
         return jsonify(ok=True, traite=False)
+    # UN ÉCHEC D'OUVERTURE N'EST PAS ACQUITTÉ. Il l'était : le magasin de
+    # comptes levait, la route rendait 200 `traite: false`, et Stripe tenait
+    # le paiement pour livré — payé, fermé, et plus rien ne le rattrapait. Un
+    # 500 le fait réémettre (trois jours durant) ; l'ouverture est idempotente,
+    # et le « refus » définitif (adresse inconnue, déjà ouverte, non confirmée)
+    # reste un False acquitté, pas une exception.
     try:
         import auth as _auth
         # LES DÉTAILS VIENNENT DE L'ÉVÉNEMENT QU'ON VIENT DE VÉRIFIER, jamais
         # d'un second appel : la signature n'a été contrôlée que sur celui-ci.
         ouvert = _auth.ouvrir_par_paiement(email, _base_url(),
                                            commande=paiement.details_commande(ev))
-    except Exception:
-        app.logger.exception("ouverture par paiement")
-        ouvert = False
+    except Exception as exc:
+        app.logger.error("paiement : ouverture d'accès en échec (%s) — 500, "
+                         "Stripe réémettra", type(exc).__name__)
+        return jsonify(ok=False, error="reessayer"), 500
     return jsonify(ok=True, traite=bool(ouvert))
 
 

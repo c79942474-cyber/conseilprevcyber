@@ -13,8 +13,6 @@ LES DEUX RÈGLES QUI TIENNENT TOUT :
     formulaire de paiement. Sinon une faute de frappe encaisse un paiement qui
     n'ouvre rien, et personne ne sait pourquoi.
 """
-import hashlib
-import hmac
 import json
 import os
 import sys
@@ -28,6 +26,7 @@ sys.path.insert(0, ICI)
 import auth                                                        # noqa: E402
 import paiement                                                    # noqa: E402
 from conftest import ORIGINE                                        # noqa: E402
+from faux_services import signer_stripe                            # noqa: E402
 
 ACHETEUR = "acheteur.paiement@example.test"
 AUTRE = "quelqu-un-dautre@example.test"
@@ -35,11 +34,15 @@ AUTRE = "quelqu-un-dautre@example.test"
 
 def _evenement(reference, paye=True, sorte="checkout.session.completed",
                email_saisi=AUTRE):
+    """Une session de CE site : elle porte la marque que pose la caisse — le
+    compte Stripe est partagé, et une session sans elle n'est pas crue sur
+    sa seule référence (voir test_connexions_paiement.py, section 5)."""
     return {"type": sorte,
             "data": {"object": {
                 "payment_status": "paid" if paye else "unpaid",
                 "client_reference_id": reference,
-                "customer_details": {"email": email_saisi}}}}
+                "customer_details": {"email": email_saisi},
+                "metadata": {"site": paiement.SITE}}}}
 
 
 @pytest.fixture
@@ -72,15 +75,15 @@ SECRET = "essai"     # la valeur que pose la fixture `configure`
 def _signer(evenement, decalage_s=0, secret=SECRET):
     """Une charge RÉELLEMENT signée, au schéma de Stripe.
 
-    `t=<horodatage>,v1=<HMAC-SHA256 de "t.charge">`. Écrit ici parce que le
-    seul moyen d'éprouver une vérification de signature est de signer : la
-    remplacer par une lambda qui rend un événement tout fait laisse le point le
-    plus sensible du chemin sans aucune règle.
+    `t=<horodatage>,v1=<HMAC-SHA256 de "t.charge">`. Signé pour de bon parce
+    que le seul moyen d'éprouver une vérification de signature est de signer :
+    la remplacer par une lambda qui rend un événement tout fait laisse le point
+    le plus sensible du chemin sans aucune règle. Le calcul lui-même vit dans
+    `faux_services.signer_stripe`, partagé avec les règles de connexion — deux
+    exemplaires du même HMAC finiraient par ne plus signer la même chose.
     """
     charge = json.dumps(evenement).encode()
-    t = int(time.time()) + decalage_s
-    sig = hmac.new(secret.encode(), b"%d.%s" % (t, charge), hashlib.sha256).hexdigest()
-    return charge, "t=%d,v1=%s" % (t, sig)
+    return charge, signer_stripe(charge, secret, t=int(time.time()) + decalage_s)
 
 
 @pytest.fixture

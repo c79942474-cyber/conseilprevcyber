@@ -1,0 +1,295 @@
+{
+ "_pourquoi": "Chaque mutation FABRIQUE un défaut réel dans la connexion Stripe/Brevo et doit faire TOMBER la règle nommée de tests/test_connexions_paiement.py. Une mutation qui survit dit que la règle ne mesure pas ce qu'elle prétend ; une mutation qui fait tomber une AUTRE règle dit que la règle nommée vise à côté.",
+ "cibles": [
+  "tests/test_connexions_paiement.py"
+ ],
+ "mutations": [
+  {
+   "nom": "le tarif relit le prix par .get() — l'AttributeError avalée d'avant",
+   "fichier": "paiement.py",
+   "avant": "        centimes = _champ(prix, \"unit_amount\")\n",
+   "apres": "        centimes = prix.get(\"unit_amount\")\n",
+   "regle": "test_le_tarif_est_lu_chez_stripe_avec_la_vraie_bibliotheque"
+  },
+  {
+   "nom": "un prix sans montant s'affiche à zéro",
+   "fichier": "paiement.py",
+   "avant": "        centimes = _champ(prix, \"unit_amount\")\n",
+   "apres": "        centimes = _champ(prix, \"unit_amount\") or 0\n",
+   "regle": "test_un_prix_sans_montant_n_affiche_rien"
+  },
+  {
+   "nom": "la devise est écrite en dur",
+   "fichier": "paiement.py",
+   "avant": "        devise = _champ(prix, \"currency\") or \"\"\n",
+   "apres": "        devise = \"usd\"\n",
+   "regle": "test_le_tarif_est_lu_chez_stripe_avec_la_vraie_bibliotheque"
+  },
+  {
+   "nom": "un prix récurrent n'est plus vu",
+   "fichier": "paiement.py",
+   "avant": "                  \"recurrent\": bool(_champ(prix, \"recurring\"))}",
+   "apres": "                  \"recurrent\": False}",
+   "regle": "test_un_prix_recurrent_est_signale_par_la_console"
+  },
+  {
+   "nom": "tout prix est dit récurrent",
+   "fichier": "paiement.py",
+   "avant": "                  \"recurrent\": bool(_champ(prix, \"recurring\"))}",
+   "apres": "                  \"recurrent\": True}",
+   "regle": "test_un_prix_unique_n_est_pas_signale_comme_recurrent"
+  },
+  {
+   "nom": "le cache du tarif n'expire jamais",
+   "fichier": "paiement.py",
+   "avant": "        if _TARIF[\"valeur\"] and maintenant - _TARIF[\"lu_a\"] < TARIF_TTL_S:",
+   "apres": "        if _TARIF[\"valeur\"]:",
+   "regle": "test_le_tarif_est_garde_dix_minutes_puis_relu"
+  },
+  {
+   "nom": "le tarif est relu chez Stripe à chaque affichage",
+   "fichier": "paiement.py",
+   "avant": "        if _TARIF[\"valeur\"] and maintenant - _TARIF[\"lu_a\"] < TARIF_TTL_S:",
+   "apres": "        if False:",
+   "regle": "test_le_tarif_est_garde_dix_minutes_puis_relu"
+  },
+  {
+   "nom": "la console ne signale plus le prix récurrent",
+   "fichier": "app.py",
+   "avant": "        if t and t.get(\"recurrent\"):",
+   "apres": "        if False:",
+   "regle": "test_un_prix_recurrent_est_signale_par_la_console"
+  },
+  {
+   "nom": "la caisse s'ouvre en abonnement",
+   "fichier": "paiement.py",
+   "avant": "            mode=\"payment\",\n            line_items=",
+   "apres": "            mode=\"subscription\",\n            line_items=",
+   "regle": "test_la_caisse_recoit_le_contrat_attendu"
+  },
+  {
+   "nom": "la caisse ne lie plus le compte : la notification n'aura rien à ouvrir",
+   "fichier": "paiement.py",
+   "avant": "            client_reference_id=email,\n",
+   "apres": "            client_reference_id=None,\n",
+   "regle": "test_la_caisse_recoit_le_contrat_attendu"
+  },
+  {
+   "nom": "le retour après paiement dit « annulé »",
+   "fichier": "paiement.py",
+   "avant": "            success_url=\"%s/connexion?paye=1\" % base,",
+   "apres": "            success_url=\"%s/connexion?paye=0\" % base,",
+   "regle": "test_la_caisse_recoit_le_contrat_attendu"
+  },
+  {
+   "nom": "une caisse en panne devient une erreur interne",
+   "fichier": "paiement.py",
+   "avant": "        return s.url\n    except Exception as exc:\n        _log.warning(\"paiement : caisse non ouverte (%s)\", type(exc).__name__)\n        return None",
+   "apres": "        return s.url\n    except Exception as exc:\n        raise",
+   "regle": "test_une_panne_de_stripe_ferme_la_caisse_sans_500"
+  },
+  {
+   "nom": "un paiement non encaissé ouvre quand même",
+   "fichier": "paiement.py",
+   "avant": "    if obj.get(\"payment_status\") != \"paid\":\n        return None\n    if not de_ce_site(obj):",
+   "apres": "    if not de_ce_site(obj):",
+   "regle": "test_un_paiement_non_encaisse_n_ouvre_rien"
+  },
+  {
+   "nom": "l'adresse tapée au paiement est ouverte à la place du compte lié",
+   "fichier": "paiement.py",
+   "avant": "    return (obj.get(\"client_reference_id\") or \"\").strip().lower() or None",
+   "apres": "    return ((obj.get(\"customer_details\") or {}).get(\"email\") or \"\").strip().lower() or None",
+   "regle": "test_une_notification_signee_du_vrai_secret_ouvre_le_compte_et_confirme_la_commande"
+  },
+  {
+   "nom": "la signature n'est plus vérifiée : la charge est crue sur parole",
+   "fichier": "paiement.py",
+   "avant": "        return st.Webhook.construct_event(charge, signature,\n                                          _valeur(CLE_WEBHOOK))",
+   "apres": "        import json as _json\n        return _json.loads(charge)",
+   "regle": "test_une_signature_invalide_est_refusee_et_n_ouvre_rien[autre_secret]"
+  },
+  {
+   "nom": "une signature invalide est acquittée 200",
+   "fichier": "app.py",
+   "avant": "        return jsonify(ok=False, error=\"signature_invalide\"), 400",
+   "apres": "        return jsonify(ok=False, error=\"signature_invalide\"), 200",
+   "regle": "test_une_signature_invalide_est_refusee_et_n_ouvre_rien[absente]"
+  },
+  {
+   "nom": "le montant signé n'atteint plus la confirmation de commande",
+   "fichier": "app.py",
+   "avant": "                                           commande=paiement.details_commande(ev))",
+   "apres": "                                           commande={})",
+   "regle": "test_une_notification_signee_du_vrai_secret_ouvre_le_compte_et_confirme_la_commande"
+  },
+  {
+   "nom": "le corps du courriel Brevo change de champ",
+   "fichier": "auth.py",
+   "avant": "              \"subject\": subject, \"htmlContent\": html}",
+   "apres": "              \"subject\": subject, \"textContent\": html}",
+   "regle": "test_l_envoi_brevo_porte_le_contrat_attendu"
+  },
+  {
+   "nom": "un 201 de Brevo est pris pour un refus",
+   "fichier": "auth.py",
+   "avant": "        if r.status_code in (200, 201):\n            return True",
+   "apres": "        if r.status_code == 200:\n            return True",
+   "regle": "test_l_envoi_brevo_porte_le_contrat_attendu"
+  },
+  {
+   "nom": "le refus de Brevo redevient muet",
+   "fichier": "auth.py",
+   "avant": "        journal.warning(\"Brevo a refusé l'envoi : HTTP %s, code %s, essai %d/%d \"",
+   "apres": "        journal.debug(\"Brevo a refusé l'envoi : HTTP %s, code %s, essai %d/%d \"",
+   "regle": "test_un_refus_definitif_est_journalise_sans_adresse_et_sans_reessai[400-invalid_parameter]"
+  },
+  {
+   "nom": "le code d'erreur de Brevo n'est plus lu",
+   "fichier": "auth.py",
+   "avant": "        return str((reponse.json() or {}).get(\"code\") or \"-\")",
+   "apres": "        return \"-\"",
+   "regle": "test_un_refus_definitif_est_journalise_sans_adresse_et_sans_reessai[402-not_enough_credits]"
+  },
+  {
+   "nom": "le journal du refus nomme le destinataire en clair",
+   "fichier": "auth.py",
+   "avant": "                        BREVO_REESSAIS + 1, _sans_adresse(subject),\n                        _domaine(to_email))",
+   "apres": "                        BREVO_REESSAIS + 1, _sans_adresse(subject),\n                        to_email)",
+   "regle": "test_un_refus_definitif_est_journalise_sans_adresse_et_sans_reessai[401-unauthorized]"
+  },
+  {
+   "nom": "le sujet du courriel est journalisé sans masque",
+   "fichier": "auth.py",
+   "avant": "    return _MOTIF_ADRESSE.sub(\"<adresse>\", str(texte or \"\"))",
+   "apres": "    return str(texte or \"\")",
+   "regle": "test_un_refus_definitif_est_journalise_sans_adresse_et_sans_reessai[400-invalid_parameter]"
+  },
+  {
+   "nom": "un 4xx définitif est rejoué comme une panne",
+   "fichier": "auth.py",
+   "avant": "    return statut == 429 or 500 <= statut <= 599",
+   "apres": "    return statut >= 400",
+   "regle": "test_un_refus_definitif_est_journalise_sans_adresse_et_sans_reessai[400-invalid_parameter]"
+  },
+  {
+   "nom": "un 429 n'est plus rejoué",
+   "fichier": "auth.py",
+   "avant": "    return statut == 429 or 500 <= statut <= 599",
+   "apres": "    return 500 <= statut <= 599",
+   "regle": "test_un_refus_passager_est_rejoue_deux_fois_au_plus[429]"
+  },
+  {
+   "nom": "aucun réessai : le premier refus est le dernier",
+   "fichier": "auth.py",
+   "avant": "        if not _reessayable(r.status_code):\n            return False",
+   "apres": "        return False",
+   "regle": "test_un_refus_passager_est_rejoue_deux_fois_au_plus[503]"
+  },
+  {
+   "nom": "on réessaie sans fin raisonnable",
+   "fichier": "auth.py",
+   "avant": "BREVO_REESSAIS = 2\n",
+   "apres": "BREVO_REESSAIS = 6\n",
+   "regle": "test_un_refus_passager_est_rejoue_deux_fois_au_plus[500]"
+  },
+  {
+   "nom": "un délai dépassé n'est plus rejoué",
+   "fichier": "auth.py",
+   "avant": "                            _sans_adresse(subject), _domaine(to_email))\n            continue",
+   "apres": "                            _sans_adresse(subject), _domaine(to_email))\n            return False",
+   "regle": "test_un_delai_depasse_est_rejoue_puis_journalise"
+  },
+  {
+   "nom": "l'envoi ne rend pas la main sur le premier succès",
+   "fichier": "auth.py",
+   "avant": "        if r.status_code in (200, 201):\n            return True",
+   "apres": "        if r.status_code in (200, 201) and essai == 1:\n            return True",
+   "regle": "test_un_envoi_qui_aboutit_au_second_essai_rend_vrai"
+  },
+  {
+   "nom": "sans clé, on tente quand même l'envoi",
+   "fichier": "auth.py",
+   "avant": "                        _sans_adresse(subject))\n        return False",
+   "apres": "                        _sans_adresse(subject))\n        key = \"vide\"",
+   "regle": "test_sans_cle_rien_ne_part_et_le_journal_le_dit"
+  },
+  {
+   "nom": "la caisse ne porte plus la marque du site",
+   "fichier": "paiement.py",
+   "avant": "            metadata={\"site\": SITE},\n",
+   "apres": "",
+   "regle": "test_la_caisse_recoit_le_contrat_attendu"
+  },
+  {
+   "nom": "la marque est celle de l'autre site du compte",
+   "fichier": "paiement.py",
+   "avant": "SITE = \"conseilprevcyber\"\n",
+   "apres": "SITE = \"conseilprev\"\n",
+   "regle": "test_la_caisse_recoit_le_contrat_attendu"
+  },
+  {
+   "nom": "la notification ne regarde plus de quel site vient la caisse",
+   "fichier": "paiement.py",
+   "avant": "    if not de_ce_site(obj):\n        return None\n",
+   "apres": "",
+   "regle": "test_une_vente_de_conseilprev_est_acquittee_sans_effet_ni_trace[reference_egale_a_un_compte_ici]"
+  },
+  {
+   "nom": "la marque d'un autre site ne suffit plus à écarter sa vente",
+   "fichier": "paiement.py",
+   "avant": "    if meta:\n        _log.info(",
+   "apres": "    if False:\n        _log.info(",
+   "regle": "test_une_vente_de_conseilprev_est_acquittee_sans_effet_ni_trace[sentinel_pro]"
+  },
+  {
+   "nom": "une caisse sans marque est crue quel que soit son prix",
+   "fichier": "paiement.py",
+   "avant": "    return bool(prix) and all(p == _valeur(CLE_PRIX) for p in prix)",
+   "apres": "    return True",
+   "regle": "test_une_caisse_sans_marque_a_un_autre_prix_est_ignoree"
+  },
+  {
+   "nom": "une caisse ouverte avant la marque n'ouvre plus rien",
+   "fichier": "paiement.py",
+   "avant": "    return bool(prix) and all(p == _valeur(CLE_PRIX) for p in prix)",
+   "apres": "    return False",
+   "regle": "test_une_caisse_ouverte_avant_la_marque_est_reconnue_a_son_prix"
+  },
+  {
+   "nom": "une ligne de caisse illisible vaut « pas à nous » : le paiement est acquitté et perdu",
+   "fichier": "paiement.py",
+   "avant": "    lignes = st.checkout.Session.list_line_items(sid, limit=10)\n",
+   "apres": "    try:\n        lignes = st.checkout.Session.list_line_items(sid, limit=10)\n    except Exception:\n        return False\n",
+   "regle": "test_une_caisse_sans_marque_illisible_repond_500_pour_etre_rejouee"
+  },
+  {
+   "nom": "une origine illisible est acquittée 200",
+   "fichier": "app.py",
+   "avant": "        return jsonify(ok=False, error=\"reessayer\"), 500\n    if not email:",
+   "apres": "        return jsonify(ok=True, traite=False)\n    if not email:",
+   "regle": "test_une_caisse_sans_marque_illisible_repond_500_pour_etre_rejouee"
+  },
+  {
+   "nom": "un échec d'ouverture est acquitté 200 — l'ancien comportement",
+   "fichier": "app.py",
+   "avant": "        return jsonify(ok=False, error=\"reessayer\"), 500\n    return jsonify(ok=True, traite=bool(ouvert))",
+   "apres": "        ouvert = False\n    return jsonify(ok=True, traite=bool(ouvert))",
+   "regle": "test_un_echec_d_ouverture_repond_500_puis_la_reemission_ouvre"
+  },
+  {
+   "nom": "l'échec d'ouverture n'est plus journalisé",
+   "fichier": "app.py",
+   "avant": "        app.logger.error(\"paiement : ouverture d'accès en échec (%s) — 500, \"",
+   "apres": "        app.logger.debug(\"paiement : ouverture d'accès en échec (%s) — 500, \"",
+   "regle": "test_un_echec_d_ouverture_repond_500_puis_la_reemission_ouvre"
+  },
+  {
+   "nom": "le journal de l'échec nomme l'acheteur",
+   "fichier": "app.py",
+   "avant": "        app.logger.error(\"paiement : ouverture d'accès en échec (%s) — 500, \"\n                         \"Stripe réémettra\", type(exc).__name__)",
+   "apres": "        app.logger.error(\"paiement : ouverture d'accès en échec (%s) pour %s — 500, \"\n                         \"Stripe réémettra\", type(exc).__name__, email)",
+   "regle": "test_un_echec_d_ouverture_repond_500_puis_la_reemission_ouvre"
+  }
+ ]
+}

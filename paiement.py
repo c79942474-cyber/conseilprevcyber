@@ -70,6 +70,17 @@ CLE = "STRIPE_SECRET_KEY"
 CLE_WEBHOOK = "STRIPE_WEBHOOK_SECRET"
 CLE_PRIX = "STRIPE_PRICE_ACCES"
 
+# ── LE COMPTE STRIPE EST PARTAGÉ : CHAQUE CAISSE PORTE LA MARQUE DU SITE ──
+# Le point de réception de ce site reçoit TOUS les paiements du compte —
+# formations et abonnements Sentinel de conseilprev compris. Mesuré sur le
+# code d'avant, qui ne regardait que `client_reference_id` : chaque vente de
+# conseilprev laissait ici une trace d'audit « compte.paiement.inconnu » (la
+# référence « 42 » ou « FIA-2026-0042 » n'est pas un compte), et une session
+# de l'autre site dont la référence était une adresse connue ici OUVRAIT un
+# accès payé ailleurs. La caisse pose donc `metadata.site`, et la
+# notification l'exige.
+SITE = "conseilprevcyber"
+
 
 def _valeur(nom):
     return (os.environ.get(nom) or "").strip()
@@ -130,6 +141,22 @@ def _formater(centimes, devise):
     return ("%.2f" % (centimes / 100.0)).replace(".", ",") + symbole
 
 
+def _champ(objet, nom):
+    """Un champ d'un objet rendu par la bibliothèque — ou d'un dict.
+
+    UN OBJET STRIPE N'EST PLUS UN DICT. Depuis la version 8 de la bibliothèque
+    (15.x en production), `StripeObject` ne dérive plus de `dict` et n'a pas de
+    `.get()` : `prix.get("unit_amount")` levait AttributeError. Mesuré avec la
+    vraie bibliothèque contre un faux serveur : Stripe répondait 200, l'erreur
+    était avalée par le `except` de `tarif()`, et le tarif valait TOUJOURS
+    None — la page n'affichait aucun prix, et le contrôle « prix récurrent »
+    de la console ne pouvait plus rien voir. Le kit simulé de la recette rend
+    des dict : l'indexation vaut pour les deux, et un champ absent vaut None
+    plutôt que de lever.
+    """
+    return objet[nom] if nom in objet else None
+
+
 def tarif():
     """Le tarif RÉEL de l'article vendu, lu chez Stripe. None si illisible.
 
@@ -151,15 +178,15 @@ def tarif():
         return None
     try:
         prix = st.Price.retrieve(_valeur(CLE_PRIX))
-        centimes = prix.get("unit_amount")
-        devise = prix.get("currency") or ""
+        centimes = _champ(prix, "unit_amount")
+        devise = _champ(prix, "currency") or ""
         if centimes is None:
             # Un prix « à la carte » (unit_amount absent) n'a pas de montant à
             # afficher : on préfère ne rien dire plutôt qu'annoncer zéro.
             return None
         valeur = {"montant": int(centimes), "devise": devise,
                   "affichage": _formater(int(centimes), devise),
-                  "recurrent": bool(prix.get("recurring"))}
+                  "recurrent": bool(_champ(prix, "recurring"))}
     except Exception as exc:
         _log.warning("paiement : tarif non lu (%s)", type(exc).__name__)
         return None
@@ -188,6 +215,7 @@ def session_paiement(email, base):
             # le client peut la changer, et c'est son droit : la facture n'est
             # pas forcément à la même adresse que le compte.
             customer_email=email,
+            metadata={"site": SITE},
             success_url="%s/connexion?paye=1" % base,
             cancel_url="%s/connexion?paye=0" % base,
         )
@@ -231,7 +259,42 @@ def compte_a_ouvrir(evenement):
     obj = ((evenement.get("data") or {}).get("object") or {})
     if obj.get("payment_status") != "paid":
         return None
+    if not de_ce_site(obj):
+        return None
     return (obj.get("client_reference_id") or "").strip().lower() or None
+
+
+def de_ce_site(session):
+    """Cette caisse a-t-elle été ouverte par CE site ? Lève si on ne peut pas
+    le savoir.
+
+    TROIS CAS, dans l'ordre :
+      · `metadata.site` vaut SITE : oui, sans autre appel ;
+      · des métadonnées, mais pas notre marque — celles de conseilprev
+        (`type`, `plan`, `site: conseilprev`…) : non, sans autre appel ;
+      · AUCUNE métadonnée : une caisse ouverte avant que la marque existe (une
+        caisse vit 24 heures), ou un lien de paiement créé à la main. On lit
+        alors sa ligne chez Stripe : c'est notre vente si son prix est
+        STRIPE_PRICE_ACCES, et seulement alors.
+
+    LEVER PLUTÔT QUE RÉPONDRE NON quand la ligne est illisible : répondre non
+    ferait acquitter, et Stripe ne réémettrait jamais un paiement qui était
+    peut-être le nôtre. L'appelant répond 500, Stripe réémet.
+    """
+    meta = session.get("metadata") or {}
+    if meta.get("site") == SITE:
+        return True
+    if meta:
+        _log.info("paiement : caisse d'un autre site du compte, ignorée (%s)",
+                  ",".join(sorted(meta)))
+        return False
+    sid = session.get("id")
+    st = _stripe()
+    if not sid or st is None:
+        raise RuntimeError("caisse sans marque : ligne illisible")
+    lignes = st.checkout.Session.list_line_items(sid, limit=10)
+    prix = [_champ(_champ(l, "price") or {}, "id") for l in lignes["data"]]
+    return bool(prix) and all(p == _valeur(CLE_PRIX) for p in prix)
 
 
 def details_commande(evenement):

@@ -38,11 +38,15 @@ def _src(nom):
     return io.open(os.path.join(ICI, nom), encoding="utf-8").read()
 
 
-class _FauxPrix(dict):
-    pass
-
-
 def _faux_stripe(monkeypatch, prix=None, leve=False, compteur=None):
+    """`Price.retrieve` rend un VRAI objet de la bibliothèque.
+
+    IL RENDAIT UN DICT, et c'est ce qui cachait le défaut : `tarif()` lisait
+    `prix.get(...)`, ce qu'un objet de la bibliothèque 15.x n'a pas —
+    AttributeError avalée, tarif None en production, et ces règles vertes.
+    `construct_from` fabrique l'objet que Stripe rendrait, sans réseau."""
+    import stripe
+
     class _Price:
         @staticmethod
         def retrieve(_id):
@@ -50,7 +54,8 @@ def _faux_stripe(monkeypatch, prix=None, leve=False, compteur=None):
                 compteur.append(_id)
             if leve:
                 raise RuntimeError("stripe injoignable")
-            return prix
+            return stripe.Price.construct_from(
+                dict({"id": _id, "object": "price"}, **prix), "sk_test_essai")
     monkeypatch.setattr(paiement, "_stripe", lambda: type("S", (), {"Price": _Price}))
     monkeypatch.setattr(paiement, "_TARIF", {"valeur": None, "lu_a": 0.0})
 
