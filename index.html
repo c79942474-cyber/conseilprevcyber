@@ -138,6 +138,22 @@
            étiquettes et une carte du bloc « domaines » nomment donc l'offre
            d'ingénierie et y conduisent : sans cela, le titre écrirait un chèque
            que la page ne couvre pas, ce qui coûte plus cher que le silence. -->
+      <!-- LE BANDEAU « OFFSHORE SUBSTATIONS — OT SECURITY », AU FORMAT LINKEDIN
+           (1584 × 396). Il met en avant la cybersécurité industrielle (OT,
+           IEC 62443) des sous-stations en mer, et le bandeau ENTIER mène au
+           profil LinkedIn. La page ne livre que l'affiche : la vidéo est
+           insérée après le chargement par /bandeau-ot.js (aucune balise
+           vidéo dans le HTML — voir tests/test_fond_hero.py). Source de la
+           vidéo : outils/bandeau_offshore_ot/. -->
+      <figure class="bandeau-ot" id="bandeau-ot" data-video="bandeau-offshore-ot.mp4">
+        <a class="bandeau-ot-lien" href="https://www.linkedin.com/in/cerfchristophe" target="_blank" rel="noopener" aria-describedby="bandeau-ot-desc">
+          <img class="bandeau-ot-media" src="/media/bandeau-offshore-ot.jpg" width="1584" height="396" alt="" decoding="async" fetchpriority="high">
+          <span class="bandeau-ot-in" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" focusable="false"><rect width="24" height="24" rx="5" fill="#fff"/><path fill="#0A66C2" d="M6.5 9.5h2.6V18H6.5zM7.8 5.6a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zM10.7 9.5h2.5v1.2c.4-.7 1.3-1.4 2.6-1.4 2.7 0 3.2 1.8 3.2 4.1V18h-2.6v-4c0-1-.1-2.2-1.4-2.2-1.4 0-1.6 1.1-1.6 2.1V18h-2.7z"/></svg><span class="bandeau-ot-in-t">LinkedIn ↗</span></span>
+          <span class="sr-only">Offshore substations, cybersécurité OT : voir le profil LinkedIn de Christophe Cerf (nouvel onglet)</span>
+        </a>
+        <button type="button" class="bandeau-ot-btn" data-etat="lecture" aria-label="Mettre l’animation en pause" hidden><svg class="i-pause" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="2" y="1" width="3.6" height="12" rx="1" fill="currentColor"/><rect x="8.4" y="1" width="3.6" height="12" rx="1" fill="currentColor"/></svg><svg class="i-lire" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.5v11l9.5-5.5z" fill="currentColor"/></svg></button>
+        <figcaption class="sr-only" id="bandeau-ot-desc">Animation en anglais « Offshore Substations — OT Security » : cybersécurité OT des systèmes de contrôle des sous-stations en mer (niveaux de sécurité et de maturité IEC 62443, analyse et traitement du risque de la conception à l'exploitation) ; références dont Gode Wind 3 (Ørsted), gestion de la sécurité OT de la sous-station comme prestataire IACS ; Christophe Cerf, CEO, Lead Offshore Substation Consultant.</figcaption>
+      </figure>
       <span class="eyebrow"><span class="dot"></span>Ingénierie de projets · Cybersécurité industrielle — IT / OT / IIoT</span>
       <!-- LA COUPE PORTE LE SENS. Placée après « installations », elle laissait
            trois lignes déséquilibrées et mettait en couleur un fragment qui ne
@@ -401,6 +417,7 @@
   <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
   <script src="/nav.js" defer></script>
   <script src="/fond-hero.js" defer></script>
+  <script src="/bandeau-ot.js" defer></script>
   <script src="/parcours.js" defer></script>
 </body>
 </html>

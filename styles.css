@@ -1483,6 +1483,33 @@ body[data-fond="couchant"]{
    fond semblait donc correct tant que la vidéo ne démarrait pas. */
 .fond-hero > *:not(.fond-hero-video){position:relative; z-index:0}
 
+/* LE BANDEAU « OFFSHORE SUBSTATIONS — OT SECURITY », EN TÊTE DU HÉROS.
+   Format LinkedIn 4:1. L'affiche réserve sa place (attributs width/height +
+   aspect-ratio) : la vidéo, insérée après coup, se pose PAR-DESSUS sans
+   rien décaler, et n'apparaît qu'une fois lancée. */
+.bandeau-ot{position:relative;margin:0 auto 30px;width:100%;max-width:1000px;border-radius:16px;overflow:hidden;
+  box-shadow:0 18px 44px rgba(20,6,2,.42),0 0 0 1px rgba(255,255,255,.14)}
+.bandeau-ot-lien{display:block;position:relative;color:inherit}
+.bandeau-ot-lien:focus-visible{outline:3px solid var(--cyan);outline-offset:-3px}
+.bandeau-ot-media,.bandeau-ot-video{display:block;width:100%;height:auto;aspect-ratio:4/1;object-fit:cover}
+.bandeau-ot-video{position:absolute;inset:0;height:100%}
+.bandeau-ot-in{position:absolute;left:12px;bottom:10px;display:inline-flex;align-items:center;gap:6px;padding:5px 11px 5px 6px;
+  border-radius:99px;background:#0A66C2;color:#fff;font:700 12px/1 var(--sans);box-shadow:0 4px 12px rgba(10,102,194,.35)}
+.bandeau-ot-in svg{flex:none}
+.bandeau-ot-lien:hover .bandeau-ot-in{background:#004182}
+.bandeau-ot-btn{position:absolute;right:10px;bottom:10px;width:34px;height:34px;padding:0;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.5);
+  background:rgba(22,17,46,.62);color:#fff;cursor:pointer}
+.bandeau-ot-btn[hidden]{display:none}
+.bandeau-ot-btn:focus-visible{outline:3px solid var(--cyan);outline-offset:2px}
+.bandeau-ot-btn[data-etat="lecture"] .i-lire,.bandeau-ot-btn[data-etat="pause"] .i-pause{display:none}
+@media (max-width:640px){
+  .bandeau-ot{border-radius:10px;margin-bottom:22px}
+  .bandeau-ot-in{left:5px;bottom:5px;padding:3px}
+  .bandeau-ot-in-t{display:none}
+  .bandeau-ot-btn{right:5px;bottom:5px;width:26px;height:26px}
+}
+
 @media (max-width:900px){
   /* Sur mobile, un bandeau haut repousse le titre sous la ligne de
      flottaison : il rétrécit. La vidéo, elle, n'y est de toute façon pas

@@ -1,0 +1,106 @@
+{
+ "cibles": [
+  "tests/test_bandeau_ot.py",
+  "tests/test_fond_hero.py"
+ ],
+ "mutations": [
+  {
+   "nom": "la vidéo insérée n'est plus muette",
+   "fichier": "bandeau-ot.js",
+   "avant": "    v.muted = true;                 // AVANT `autoplay` : sans cela, iOS refuse\n    v.defaultMuted = true;\n    v.setAttribute(\"muted\", \"\");\n",
+   "apres": "",
+   "regle": "test_la_video_inseree_est_muette_en_boucle_et_en_ligne"
+  },
+  {
+   "nom": "le lien mène à une page d'entreprise",
+   "fichier": "index.html",
+   "avant": "<a class=\"bandeau-ot-lien\" href=\"https://www.linkedin.com/in/cerfchristophe\"",
+   "apres": "<a class=\"bandeau-ot-lien\" href=\"https://www.linkedin.com/company/conseilprev\"",
+   "regle": "test_le_bandeau_ENTIER_mene_au_profil_LinkedIn_dans_un_nouvel_onglet"
+  },
+  {
+   "nom": "le lien perd noopener",
+   "fichier": "index.html",
+   "avant": "target=\"_blank\" rel=\"noopener\" aria-describedby=\"bandeau-ot-desc\"",
+   "apres": "target=\"_blank\" aria-describedby=\"bandeau-ot-desc\"",
+   "regle": "test_le_bandeau_ENTIER_mene_au_profil_LinkedIn_dans_un_nouvel_onglet"
+  },
+  {
+   "nom": "la pause entre dans le lien",
+   "fichier": "index.html",
+   "avant": "<span class=\"sr-only\">Offshore substations, cybersécurité OT : voir le profil LinkedIn de Christophe Cerf (nouvel onglet)</span>\n        </a>\n        <button type=\"button\" class=\"bandeau-ot-btn\" data-etat=\"lecture\" aria-label=\"Mettre l’animation en pause\" hidden>",
+   "apres": "<span class=\"sr-only\">Offshore substations, cybersécurité OT : voir le profil LinkedIn de Christophe Cerf (nouvel onglet)</span>\n        <button type=\"button\" class=\"bandeau-ot-btn\" data-etat=\"lecture\" aria-label=\"Mettre l’animation en pause\" hidden>",
+   "regle": "test_le_bandeau_ENTIER_mene_au_profil_LinkedIn_dans_un_nouvel_onglet"
+  },
+  {
+   "nom": "le nom du lien ne dit plus où il mène",
+   "fichier": "index.html",
+   "avant": "voir le profil LinkedIn de Christophe Cerf (nouvel onglet)</span>",
+   "apres": "en savoir plus</span>",
+   "regle": "test_le_lien_se_NOMME_pour_qui_ne_voit_pas_l_image"
+  },
+  {
+   "nom": "l'affiche ne réserve plus sa hauteur",
+   "fichier": "index.html",
+   "avant": "width=\"1584\" height=\"396\" alt=\"\"",
+   "apres": "width=\"1584\" alt=\"\"",
+   "regle": "test_l_affiche_RESERVE_sa_place"
+  },
+  {
+   "nom": "le cadre passe en 16/9",
+   "fichier": "styles.css",
+   "avant": ".bandeau-ot-media,.bandeau-ot-video{display:block;width:100%;height:auto;aspect-ratio:4/1;",
+   "apres": ".bandeau-ot-media,.bandeau-ot-video{display:block;width:100%;height:auto;aspect-ratio:16/9;",
+   "regle": "test_l_affiche_RESERVE_sa_place"
+  },
+  {
+   "nom": "le titre passe au-dessus du bandeau",
+   "fichier": "index.html",
+   "avant": "      <!-- LE BANDEAU « OFFSHORE SUBSTATIONS — OT SECURITY », AU FORMAT LINKEDIN",
+   "apres": "      <h1>Concevoir et sécuriser vos installations industrielles</h1>\n      <!-- LE BANDEAU « OFFSHORE SUBSTATIONS — OT SECURITY », AU FORMAT LINKEDIN",
+   "regle": "test_le_bandeau_est_AU_DESSUS_du_titre_dans_le_heros"
+  },
+  {
+   "nom": "le script n'est plus chargé",
+   "fichier": "index.html",
+   "avant": "  <script src=\"/bandeau-ot.js\" defer></script>\n",
+   "apres": "",
+   "regle": "test_les_fichiers_du_bandeau_sont_SERVIS"
+  },
+  {
+   "nom": "le mouvement réduit est ignoré",
+   "fichier": "bandeau-ot.js",
+   "avant": "      if (window.matchMedia(\"(prefers-reduced-motion: reduce)\").matches)\n        return \"mouvement réduit\";\n",
+   "apres": "",
+   "regle": "test_il_cede_au_MOUVEMENT_REDUIT_et_a_la_PAUSE_demandee"
+  },
+  {
+   "nom": "revenir à l'écran relance une animation arrêtée",
+   "fichier": "bandeau-ot.js",
+   "avant": "        if (!v || !voulue) return;",
+   "apres": "        if (!v) return;",
+   "regle": "test_il_cede_au_MOUVEMENT_REDUIT_et_a_la_PAUSE_demandee"
+  },
+  {
+   "nom": "la vidéo est lancée dès l'analyse du document",
+   "fichier": "bandeau-ot.js",
+   "avant": "  else window.addEventListener(\"load\", demarrer, { once: true });",
+   "apres": "  else demarrer();",
+   "regle": "test_la_video_n_arrive_qu_APRES_la_page"
+  },
+  {
+   "nom": "la première scène ne parle plus d'OT",
+   "fichier": "outils/bandeau_offshore_ot/bandeau.html",
+   "avant": "<div class=\"ot v el\" data-in=\"0.9\">OT cybersecurity · IEC 62443</div>",
+   "apres": "<div class=\"ot v el\" data-in=\"0.9\">Design · Integration</div>",
+   "regle": "test_la_source_met_la_CYBERSECURITE_OT_en_tete"
+  },
+  {
+   "nom": "la chronologie change sans que la vidéo soit refaite",
+   "fichier": "outils/bandeau_offshore_ot/bandeau.html",
+   "avant": "var DUREES = [4.6, 5.2, 5.4, 4.2, 4.8, 5.0];",
+   "apres": "var DUREES = [4.6, 5.2, 5.4, 4.2, 4.8, 5.4];",
+   "regle": "test_la_video_publiee_est_CELLE_de_la_source"
+  }
+ ]
+}

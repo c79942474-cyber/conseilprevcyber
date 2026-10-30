@@ -7860,6 +7860,14 @@ def fond_hero_js():
                        mimetype="text/javascript; charset=utf-8")
 
 
+@app.route("/bandeau-ot.js")
+def bandeau_ot_js():
+    """Bandeau « Offshore substations — OT security » de l'accueil : affiche,
+    puis vidéo insérée après le chargement (voir le fichier)."""
+    return _serve_fast("bandeau-ot.js", _CC_ASSET,
+                       mimetype="text/javascript; charset=utf-8")
+
+
 @app.route("/parcours.js")
 def parcours_js():
     """Parcours guidés par rôle — données et interface, partagés par toutes les pages."""

@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bandeau Offshore Substations — OT Security (source de la vidéo)</title>
+<!--
+  LA SOURCE DU BANDEAU DE L'ACCUEIL (media/bandeau-offshore-ot.mp4).
+
+  CE QUE C'EST. L'animation « Offshore Substation Expert — UK » recomposée au
+  format d'un bandeau LinkedIn (1584 × 396, 4:1). L'original est en portrait
+  (4:5) : un recadrage horizontal aurait coupé les textes. Les textes sont
+  ceux de l'original, en anglais comme lui ; l'ordre et l'accent changent :
+  la cybersécurité industrielle (OT, IEC 62443) des sous-stations en mer
+  passe en tête, et la cinquième question de l'instruction — la seule qui
+  porte sur l'OT — est celle qui ressort. La scène « Risk, quantified »
+  n'est pas reprise.
+
+  LA PHOTO (topside.jpg) est extraite de l'original, sans sa légende, que la
+  page repose en texte.
+
+  COMMENT LA VIDÉO EN SORT. Aucune animation CSS : `poser(t)` calcule l'état
+  de chaque élément à l'instant t, de façon déterministe. engendrer.js
+  l'appelle pour chaque image (30 par seconde), en prend une capture, et
+  ffmpeg assemble le MP4.
+-->
+<style>
+@font-face{font-family:"Inter D";src:local("Inter Display ExtraBold"),local("InterDisplay-ExtraBold");font-weight:800}
+@font-face{font-family:"Inter D";src:local("Inter Display Black"),local("InterDisplay-Black");font-weight:900}
+:root{
+  --encre:#16112E; --violet:#6D3BEF; --violet2:#8B5CF6; --violet-p:#5B21D6;
+  --lav:#F3EEFD; --lav2:#E6DCFA; --carte:rgba(255,255,255,.86); --trait:rgba(109,59,239,.18);
+  --grad:linear-gradient(100deg,#5B2BE0 0%,#7C4DF2 55%,#9B74F7 100%);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1584px;height:396px;overflow:hidden}
+body{font-family:"Inter",sans-serif;color:var(--encre);background:var(--lav);position:relative;-webkit-font-smoothing:antialiased}
+.fond{position:absolute;inset:0;background:
+  radial-gradient(520px 300px at 92% 8%,rgba(167,139,250,.30),transparent 70%),
+  radial-gradient(480px 260px at 4% 110%,rgba(196,170,250,.42),transparent 70%),
+  radial-gradient(600px 300px at 60% 120%,rgba(221,206,251,.55),transparent 70%),
+  linear-gradient(180deg,#F7F3FE 0%,#EDE5FB 100%)}
+.points{position:absolute;right:40px;top:40px;width:420px;height:230px;
+  background-image:radial-gradient(rgba(124,77,242,.28) 1.4px,transparent 1.6px);background-size:14px 14px;
+  -webkit-mask:radial-gradient(closest-side,#000 30%,transparent 100%);mask:radial-gradient(closest-side,#000 30%,transparent 100%)}
+.vague{position:absolute;left:-40px;right:-40px;bottom:-30px;height:90px;border-top:2px solid rgba(255,255,255,.75);border-radius:50% 50% 0 0/100% 100% 0 0;transform:rotate(-1.2deg)}
+.vague.v2{bottom:-44px;border-top-color:rgba(255,255,255,.45);transform:rotate(.8deg)}
+/* EN-TÊTE */
+.piste{position:absolute;left:56px;right:56px;top:18px;display:flex;gap:8px}
+.piste i{flex:1;height:4px;border-radius:3px;background:rgba(109,59,239,.16);overflow:hidden;position:relative}
+.piste i b{position:absolute;inset:0;width:0;background:var(--grad)}
+.logo{position:absolute;left:56px;top:38px;display:flex;align-items:center;gap:12px;font:800 20px/1 "Inter";letter-spacing:.32em}
+.logo span{width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#C4B5FD,#7C3AED 70%);box-shadow:0 4px 10px rgba(124,58,237,.35)}
+.pastille{position:absolute;right:56px;top:34px;padding:7px 16px;border:1.5px solid rgba(109,59,239,.35);border-radius:99px;font:800 12.5px/1 "Inter";letter-spacing:.16em;color:var(--violet);background:rgba(255,255,255,.55)}
+.devise{position:absolute;left:0;right:0;bottom:12px;text-align:center;font:italic 400 15px/1 "Inter";letter-spacing:.16em;color:#3B3360}
+/* SCÈNES */
+.scene{position:absolute;left:56px;right:56px;top:76px;bottom:40px;display:flex;align-items:center;gap:48px}
+.el{opacity:0}
+.lab{display:flex;align-items:center;gap:14px;font:400 17px/1 "Inter";letter-spacing:.32em;color:#3B3360;margin-bottom:12px}
+.lab::after{content:"";width:90px;height:1px;background:rgba(59,51,96,.35)}
+.titre{font:900 66px/0.98 "Inter D","Inter";letter-spacing:-.02em;text-transform:uppercase}
+.titre.m{font-size:50px}
+.v{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.col-g{flex:0 0 auto}
+.col-d{flex:1 1 auto;display:flex;flex-direction:column;gap:12px;min-width:0}
+.rang{display:flex;gap:12px}
+.carte{background:var(--carte);border-radius:18px;box-shadow:0 10px 30px rgba(91,33,214,.10),0 0 0 1px rgba(255,255,255,.7) inset;padding:16px 18px}
+.stat{flex:1;text-align:center;padding:14px 12px}
+.stat .n{font:900 46px/1 "Inter D","Inter";letter-spacing:-.02em}
+.stat .t{margin-top:6px;font:600 15px/1.25 "Inter";color:#2A2350}
+.note{display:flex;gap:12px;align-items:center;font:400 16px/1.35 "Inter";color:#2A2350;padding:12px 18px}
+.note b{font-weight:800}
+.bouclier{flex:0 0 auto;width:22px;height:22px;border-radius:50%;background:rgba(109,59,239,.14);display:flex;align-items:center;justify-content:center}
+.source{font:400 13px/1 "Inter";color:#6B6290;text-align:center}
+/* scène 1 — la photo */
+.photo{flex:0 0 540px;height:262px;border-radius:20px;overflow:hidden;position:relative;box-shadow:0 18px 40px rgba(46,16,120,.28)}
+.photo img{width:100%;height:100%;object-fit:cover;object-position:50% 60%;display:block}
+.photo .leg{position:absolute;left:18px;bottom:14px;font:800 12.5px/1 "Inter";letter-spacing:.2em;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.55)}
+.ot{font:900 46px/1 "Inter D","Inter";letter-spacing:-.01em;text-transform:uppercase;margin-top:8px}
+.sous{margin-top:10px;font:800 21px/1 "Inter";letter-spacing:.04em;color:var(--violet);text-transform:uppercase}
+.fin-l{margin-top:10px;font:400 16px/1.2 "Inter";color:#4A4270}
+/* cartes à étiquette (scène 2) */
+.tag{display:inline-block;padding:5px 10px;border-radius:7px;background:var(--grad);color:#fff;font:800 12px/1 "Inter";letter-spacing:.16em}
+.bloc{flex:1;padding:16px 18px}
+.bloc .c{margin-top:10px;font:900 25px/1.05 "Inter D","Inter";letter-spacing:-.01em}
+.bloc .d{margin-top:8px;font:400 15px/1.3 "Inter";color:#4A4270}
+/* références (scène 3) */
+.vedette{display:flex;gap:16px;align-items:center;padding:14px 20px;box-shadow:0 0 0 2px rgba(109,59,239,.55) inset,0 14px 34px rgba(91,33,214,.18)}
+.sigle{flex:0 0 auto;align-self:flex-start;display:inline-flex;align-items:center;justify-content:center;min-width:46px;height:30px;padding:0 9px;border-radius:8px;background:var(--grad);color:#fff;font:900 14px/1 "Inter";letter-spacing:.06em}
+.sigle.g{min-width:58px;height:40px;font-size:18px}
+.vedette .c{font:900 28px/1 "Inter D","Inter"}
+.vedette .d{margin-top:5px;font:700 15.5px/1.25 "Inter";color:var(--violet)}
+.ref{flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:7px}
+.ref .c{font:800 17px/1.1 "Inter"}
+.ref .d{font:600 12.5px/1.25 "Inter";color:var(--violet)}
+.ligne{font:800 16px/1 "Inter";color:#2A2350}
+/* le pont (scène 4) */
+.chip.fort{background:var(--grad);color:#fff;box-shadow:0 12px 26px rgba(91,43,224,.35)}
+.chip.fort::before{background:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.35)}
+/* les cinq questions (scène 5) */
+.q4{display:flex;gap:10px}
+.qp{flex:1;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.6);font:700 15px/1.15 "Inter";color:#4A4270}
+.num{flex:0 0 auto;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(109,59,239,.16);color:var(--violet);font:900 15px/1 "Inter"}
+.q5{display:flex;gap:18px;align-items:center;padding:18px 22px;box-shadow:0 0 0 2px rgba(109,59,239,.55) inset,0 16px 36px rgba(91,33,214,.20)}
+.q5 .num{width:56px;height:56px;font-size:28px;background:var(--grad);color:#fff}
+.q5 .c{font:900 32px/1 "Inter D","Inter"}
+.q5 .d{margin-top:7px;font:400 16.5px/1.3 "Inter";color:#2A2350}
+/* fin */
+.fin .titre{font-size:62px}
+.cerf{display:flex;align-items:center;gap:18px;padding:14px 22px}
+.cerf .n{font:900 54px/1 "Inter D","Inter";letter-spacing:-.03em}
+.cerf .p{font:800 26px/1.05 "Inter"}
+.cerf .q{font:700 15px/1.2 "Inter";color:var(--violet);margin-top:4px}
+.cta{align-self:flex-start;display:flex;align-items:center;gap:12px;padding:15px 30px;border-radius:99px;background:var(--grad);color:#fff;font:800 25px/1 "Inter";box-shadow:0 12px 26px rgba(91,43,224,.35)}
+.coord{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap}
+.coord .m{font:700 17px/1 "Inter"}
+.coord .d{font:900 38px/1 "Inter D","Inter";letter-spacing:-.01em}
+/* puces (scène 4) */
+.puces{display:flex;flex-wrap:wrap;gap:12px 12px}
+.chip{display:flex;align-items:center;gap:10px;padding:12px 20px;border-radius:99px;background:var(--carte);box-shadow:0 8px 22px rgba(91,33,214,.10);font:800 22px/1 "Inter"}
+.chip::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--violet2);box-shadow:0 0 0 3px rgba(139,92,246,.18)}
+</style>
+</head>
+<body>
+<div class="fond"></div><div class="points"></div><div class="vague"></div><div class="vague v2"></div>
+<div class="piste" id="piste"></div>
+<div class="logo"><span></span>CONSEILPREV</div>
+<div class="pastille">OFFSHORE SUBSTATIONS · OT SECURITY</div>
+<div class="devise">Engineering evidence you can rely on.</div>
+
+<!-- 1. OFFSHORE SUBSTATIONS — OT CYBERSECURITY -->
+<section class="scene" data-scene="0" style="gap:56px">
+  <div class="photo el" data-in="0.05"><img src="topside.jpg" alt=""><span class="leg">OFFSHORE SUBSTATION TOPSIDE INSTALLATION</span></div>
+  <div class="col-g">
+    <div class="lab el" data-in="0.3">offshore wind · industrial cybersecurity</div>
+    <div class="titre el" data-in="0.45" style="font-size:60px">Offshore<br>substations</div>
+    <div class="ot v el" data-in="0.9">OT cybersecurity · IEC 62443</div>
+    <div class="sous el" data-in="1.3">Design · Integration · Compliance</div>
+    <div class="fin-l el" data-in="1.6">Independent engineering advice for UK offshore wind disputes</div>
+  </div>
+</section>
+
+<!-- 2. LA CYBERSÉCURITÉ INDUSTRIELLE DES SYSTÈMES DE CONTRÔLE -->
+<section class="scene" data-scene="1" style="gap:48px">
+  <div class="col-g">
+    <div class="lab el" data-in="0.05">industrial cybersecurity</div>
+    <div class="titre el" data-in="0.2" style="font-size:54px">Secure the<br><span class="v">substation<br>control systems</span></div>
+  </div>
+  <div class="col-d"><div class="rang">
+    <div class="carte bloc el" data-in="0.6"><span class="tag">IEC 62443</span><div class="c">Security &amp; maturity levels</div><div class="d">OT security of substation control systems, measured against IEC 62443.</div></div>
+    <div class="carte bloc el" data-in="0.9"><span class="tag">RISK</span><div class="c">Assessment &amp; mitigation</div><div class="d">Risk assessed and mitigated from design to operation.</div></div>
+    <div class="carte bloc el" data-in="1.2"><span class="tag">IACS</span><div class="c">Service provider</div><div class="d">OT security management of the offshore substation · IEC 62443 · ISO 27000.</div></div>
+  </div></div>
+</section>
+
+<!-- 3. LES RÉFÉRENCES — L'OT EN TÊTE -->
+<section class="scene" data-scene="2" style="gap:44px">
+  <div class="col-g">
+    <div class="lab el" data-in="0.05">track record</div>
+    <div class="titre el" data-in="0.2" style="font-size:54px">Built from<br>the <span class="v">topside</span><br>up</div>
+  </div>
+  <div class="col-d">
+    <div class="carte vedette el" data-in="0.55"><span class="sigle g">OT</span><div><div class="c">Gode Wind 3 · Ørsted</div><div class="d">OT security management of the OSS as IACS service provider · IEC 62443 · ISO 27000</div></div></div>
+    <div class="rang">
+      <div class="carte ref el" data-in="1.0"><span class="sigle">OWF</span><div class="c">Deutsche Bucht</div><div class="d">Head of Engineering · basic &amp; detailed substation design</div></div>
+      <div class="carte ref el" data-in="1.15"><span class="sigle">EPC</span><div class="c">Merkur</div><div class="d">Third-party consultant · offshore substation</div></div>
+      <div class="carte ref el" data-in="1.3"><span class="sigle">EPC</span><div class="c">Veja Mate</div><div class="d">Third-party consultant · offshore substation</div></div>
+      <div class="carte ref el" data-in="1.45"><span class="sigle">HV</span><div class="c">Modular Offshore Grid · Belgium</div><div class="d">HV grid linking four offshore wind farms to Zeebrugge</div></div>
+    </div>
+    <div class="ligne el" data-in="1.8">+ EPC engineering on EU and APAC substations · Taiwan · Malaysia</div>
+  </div>
+</section>
+
+<!-- 4. TOUT LE PONT — LES SYSTÈMES DE CONTRÔLE EN AVANT -->
+<section class="scene" data-scene="3" style="gap:56px">
+  <div class="col-g">
+    <div class="lab el" data-in="0.05">design scope</div>
+    <div class="titre el" data-in="0.2" style="font-size:58px">Every system<br><span class="v">on the deck</span></div>
+  </div>
+  <div class="col-d"><div class="puces">
+    <div class="chip fort el" data-in="0.5">Electrical &amp; control systems</div>
+    <div class="chip el" data-in="0.7">FEED &amp; EPCI</div>
+    <div class="chip el" data-in="0.85">General topsides layout</div>
+    <div class="chip el" data-in="1.0">Auxiliary equipment</div>
+    <div class="chip el" data-in="1.15">Accommodation &amp; helideck</div>
+    <div class="chip el" data-in="1.3">Installation engineering</div>
+  </div></div>
+</section>
+
+<!-- 5. LES CINQ QUESTIONS — LA CINQUIÈME, L'OT, RESSORT -->
+<section class="scene" data-scene="4" style="gap:48px">
+  <div class="col-g">
+    <div class="lab el" data-in="0.05">the instruction</div>
+    <div class="titre el" data-in="0.2" style="font-size:58px">Your five<br><span class="v">questions</span></div>
+  </div>
+  <div class="col-d">
+    <div class="q4">
+      <div class="qp el" data-in="0.5"><span class="num">1</span>Platform function</div>
+      <div class="qp el" data-in="0.62"><span class="num">2</span>Integration &amp; cables</div>
+      <div class="qp el" data-in="0.74"><span class="num">3</span>Design compliance</div>
+      <div class="qp el" data-in="0.86"><span class="num">4</span>Interfaces &amp; responsibilities</div>
+    </div>
+    <div class="carte q5 el" data-in="1.2"><span class="num">5</span><div><div class="c">Industrial <span class="v">cybersecurity</span></div><div class="d">OT security of substation control systems: IEC 62443 security and maturity levels, risk assessment and mitigation from design to operation.</div></div></div>
+  </div>
+</section>
+
+<!-- 6. L'EXPERT — LE CONTACT -->
+<section class="scene fin" data-scene="5" style="gap:52px">
+  <div class="col-g">
+    <div class="lab el" data-in="0.05">your expert</div>
+    <div class="titre v el" data-in="0.2">CONSEILPREV</div>
+    <div class="fin-l el" data-in="0.45" style="font-weight:700">Offshore wind · Oil &amp; gas · LNG · Nuclear · Industry</div>
+  </div>
+  <div class="col-d">
+    <div class="rang" style="align-items:center;gap:30px">
+      <div class="carte cerf el" data-in="0.6"><div class="n v" data-compte="33" data-suffixe="+">33+</div><div><div class="p">Christophe CERF</div><div class="q">CEO · Lead Offshore Substation Consultant</div></div></div>
+      <div class="coord el" data-in="1.5"><span class="d v">i-aes.eu · i-aes.com</span></div>
+    </div>
+    <div class="rang" style="align-items:center;gap:22px">
+      <div class="cta el" data-in="1.0">Let's discuss the instruction <span>→</span></div>
+      <div class="coord el" data-in="1.3"><span class="m">christophe.cerf@i-aes.com · +33 6 60 69 21 45</span></div>
+    </div>
+  </div>
+</section>
+
+<script>
+/* LA CHRONOLOGIE. Six scènes ; la plus longue est celle des références,
+   la plus chargée en texte. */
+var DUREES = [4.6, 5.2, 5.4, 4.2, 4.8, 5.0];
+var TOTAL = DUREES.reduce(function (a, b) { return a + b; }, 0);
+var ENTREE = 0.45, SORTIE = 0.35;
+var scenes = [].slice.call(document.querySelectorAll('.scene'));
+var piste = document.getElementById('piste');
+DUREES.forEach(function () { var i = document.createElement('i'); i.appendChild(document.createElement('b')); piste.appendChild(i); });
+var barres = [].slice.call(piste.querySelectorAll('b'));
+var debuts = []; DUREES.reduce(function (a, d) { debuts.push(a); return a + d; }, 0);
+function lisse(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
+function poser(t) {
+  t = ((t % TOTAL) + TOTAL) % TOTAL;
+  scenes.forEach(function (s, k) {
+    var r = t - debuts[k], d = DUREES[k];
+    var dedans = r >= 0 && r < d;
+    s.style.visibility = dedans ? 'visible' : 'hidden';
+    var sortie = dedans ? lisse((d - r) / SORTIE) : 0;
+    s.querySelectorAll('.el').forEach(function (e) {
+      var a = lisse((r - parseFloat(e.dataset.in)) / ENTREE);
+      e.style.opacity = String(Math.min(a, sortie));
+      e.style.transform = 'translateY(' + ((1 - a) * 16 - (1 - sortie) * 8).toFixed(2) + 'px)';
+    });
+    /* LES COMPTEURS montent depuis l'apparition de l'élément qui les porte —
+       eux-mêmes ou leur carte. */
+    s.querySelectorAll('[data-compte]').forEach(function (e) {
+      var porteur = e.classList.contains('el') ? e : e.closest('.el');
+      var fin = parseFloat(e.dataset.compte), p = lisse((r - parseFloat(porteur.dataset.in)) / 1.1);
+      var v = Math.round(fin * p);
+      e.textContent = (v < 0 ? '−' + Math.abs(v) : String(v)) + (e.dataset.suffixe || '');
+    });
+  });
+  barres.forEach(function (b, k) {
+    var r = (t - debuts[k]) / DUREES[k];
+    b.style.width = (Math.max(0, Math.min(1, r)) * 100).toFixed(2) + '%';
+  });
+}
+window.poser = poser; window.TOTAL = TOTAL;
+poser(2.6);
+</script>
+</body>
+</html>
