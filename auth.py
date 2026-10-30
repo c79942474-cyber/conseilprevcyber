@@ -641,21 +641,89 @@ store = _make_store()
 
 
 # ---------------------------------------------------------------------- emails --
+# ── L'ENVOI BREVO : UN JOURNAL, UN RÉESSAI BORNÉ, UNE SESSION ─────────────
+# CE QUI ÉTAIT MESURÉ. Un refus de Brevo — 400 paramètre invalide, 401 clé
+# révoquée, 402 crédits du jour épuisés — rendait False sans AUCUNE trace. La
+# page annonçait un courriel parti, personne ne le recevait, et le journal du
+# serveur ne disait rien : la panne la plus dangereuse de ce dispositif est
+# celle qui se tait, et tout l'accès au site passe par trois courriels.
+#
+# LE RÉESSAI NE VAUT QUE POUR CE QUI PEUT S'ARRANGER SEUL : 429 (cadence),
+# 5xx, délai dépassé, connexion refusée. Un autre 4xx est une faute du message
+# ou du compte, et le rejouer n'y changerait rien — il ferait au contraire
+# trois fois la même erreur dans le journal. Deux réessais, pas plus, et RIEN
+# EN AMONT NE REJOUE UN ENVOI MANQUÉ : chaque appel part d'un fil détaché, et
+# la notification Stripe n'avertit qu'une fois par paiement (`ouvrir_par_
+# paiement` est idempotente). Sans ce réessai, un 503 passager de Brevo
+# perdait le courriel pour de bon.
+#
+# UNE SESSION DE MODULE : les envois partagent le même réservoir de
+# connexions au lieu d'en rouvrir une, TLS compris, à chaque courriel.
+BREVO_DELAI_S = 12
+BREVO_REESSAIS = 2
+BREVO_PAUSES_S = (0.5, 1.0)
+_HTTP_BREVO = requests.Session()
+
+_MOTIF_ADRESSE = re.compile(r"[^\s@<>\"']+@[^\s@<>\"']+")
+
+
+def _sans_adresse(texte):
+    """Le texte, adresses masquées — un sujet peut en porter une (« Accès
+    ouvert par paiement — x@y »), et le journal ne doit pas les répéter."""
+    return _MOTIF_ADRESSE.sub("<adresse>", str(texte or ""))
+
+
+def _domaine(adresse):
+    """« @example.test » : de quoi voir QUEL fournisseur refuse, sans nommer
+    qui devait recevoir."""
+    a = str(adresse or "")
+    return "@" + a.rsplit("@", 1)[1] if "@" in a else "<sans domaine>"
+
+
+def _code_brevo(reponse):
+    """Le code d'erreur que Brevo met dans son JSON (`invalid_parameter`,
+    `not_enough_credits`…) — jamais son message, qui peut citer l'adresse."""
+    try:
+        return str((reponse.json() or {}).get("code") or "-")
+    except ValueError:
+        return "-"
+
+
+def _reessayable(statut):
+    return statut == 429 or 500 <= statut <= 599
+
+
 def send_email(to_email, to_name, subject, html):
     key = os.environ.get("BREVO_API_KEY")
+    journal = logging.getLogger("auth")
     if not key:
-        import logging
-        logging.getLogger("auth").warning("BREVO_API_KEY absente — email non envoyé : %s", subject)
+        journal.warning("BREVO_API_KEY absente — email non envoyé : %s",
+                        _sans_adresse(subject))
         return False
-    try:
-        r = requests.post(BREVO_API_URL, timeout=12,
-                          headers={"api-key": key, "accept": "application/json",
-                                   "content-type": "application/json"},
-                          json={"sender": SENDER, "to": [{"email": to_email, "name": to_name or to_email}],
-                                "subject": subject, "htmlContent": html})
-        return r.status_code in (200, 201)
-    except requests.RequestException:
-        return False
+    entetes = {"api-key": key, "accept": "application/json",
+               "content-type": "application/json"}
+    charge = {"sender": SENDER, "to": [{"email": to_email, "name": to_name or to_email}],
+              "subject": subject, "htmlContent": html}
+    for essai in range(1, BREVO_REESSAIS + 2):
+        if essai > 1:
+            time.sleep(BREVO_PAUSES_S[min(essai - 2, len(BREVO_PAUSES_S) - 1)])
+        try:
+            r = _HTTP_BREVO.post(BREVO_API_URL, timeout=BREVO_DELAI_S,
+                                 headers=entetes, json=charge)
+        except requests.RequestException as exc:
+            journal.warning("Brevo injoignable (%s), essai %d/%d — « %s » pour %s",
+                            type(exc).__name__, essai, BREVO_REESSAIS + 1,
+                            _sans_adresse(subject), _domaine(to_email))
+            continue
+        if r.status_code in (200, 201):
+            return True
+        journal.warning("Brevo a refusé l'envoi : HTTP %s, code %s, essai %d/%d "
+                        "— « %s » pour %s", r.status_code, _code_brevo(r), essai,
+                        BREVO_REESSAIS + 1, _sans_adresse(subject),
+                        _domaine(to_email))
+        if not _reessayable(r.status_code):
+            return False
+    return False
 
 
 def _shell(title, body):

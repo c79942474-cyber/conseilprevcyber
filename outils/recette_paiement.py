@@ -92,7 +92,14 @@ class _CaisseSimulee:
         class _Price:
             @staticmethod
             def retrieve(_id):
-                return {"unit_amount": 49000, "currency": "eur"}
+                # UN VRAI OBJET DE LA BIBLIOTHÈQUE, PAS UN DICT. Ce kit rendait
+                # un dict, et `tarif()` lisait `.get()` — ce qu'un objet de la
+                # bibliothèque 15.x n'a pas : la recette simulée passait, le
+                # site réel n'affichait aucun prix.
+                import stripe
+                return stripe.Price.construct_from(
+                    {"id": _id, "object": "price", "unit_amount": 49000,
+                     "currency": "eur", "recurring": None}, "sk_test_recette")
 
         self.checkout = type("C", (), {"Session": _Session})()
         self.Price = _Price
@@ -107,12 +114,18 @@ def _signer(evenement, secret, decalage_s=0):
     return charge, "t=%d,v1=%s" % (t, sig)
 
 
-def _evenement(reference, montant=49000):
+def _evenement(reference, montant=49000, metadata=None):
+    """La notification d'une caisse de CE site — elle porte la marque que la
+    caisse pose (`metadata.site`) : le compte Stripe est partagé avec
+    conseilprev, et une session sans elle n'est pas crue sur sa référence."""
+    import paiement
+    meta = {"site": paiement.SITE} if metadata is None else metadata
     return {"id": "evt_recette", "type": "checkout.session.completed",
             "data": {"object": {"id": "cs_recette", "payment_status": "paid",
                                 "amount_total": montant, "currency": "eur",
                                 "client_reference_id": reference,
-                                "customer_details": {"email": "autre@example.test"}}}}
+                                "customer_details": {"email": "autre@example.test"},
+                                "metadata": meta}}}
 
 
 def _fin(code):
@@ -263,6 +276,10 @@ def _parcours(client, paiement, auth, courriels, simulee, reel):
                  "le compte lié est celui de NOTRE serveur",
                  "et non l'adresse tapée au paiement")
         verifier(bool(kw.get("line_items")), "un article est passé", str(kw.get("line_items")))
+        verifier(kw.get("metadata") == {"site": paiement.SITE},
+                 "la caisse porte la marque du site",
+                 "sans elle, la notification ne la reconnaîtrait pas : %s"
+                 % kw.get("metadata"))
         ok("retour", str(kw.get("success_url")))
 
     etape("La notification, réellement signée")
@@ -297,6 +314,22 @@ def _parcours(client, paiement, auth, courriels, simulee, reel):
              "un 500 déclencherait trois jours de réessais")
     verifier(len(courriels) == avant, "aucun second courriel",
              "l'ouverture n'agit que si l'accès était fermé")
+
+    etape("Une vente de conseilprev, reçue ici, n'ouvre rien")
+    # LE COMPTE STRIPE EST PARTAGÉ : ce point de réception reçoit aussi les
+    # formations et les abonnements Sentinel. Même référence que l'acheteur,
+    # à dessein — c'est le cas où l'ancien code ouvrait.
+    auth.store.update(ACHETEUR, approved=False)
+    avant = len(courriels)
+    autre, sig_autre = _signer(_evenement(
+        ACHETEUR, metadata={"type": "formation-ia", "commande": "FIA-2026-0042"}),
+        secret)
+    r = client.post("/api/stripe/webhook", data=autre,
+                    headers={"Stripe-Signature": sig_autre})
+    verifier(r.status_code == 200 and r.get_json()["traite"] is False,
+             "acquittée 200 sans rien traiter", "reçu %s" % r.status_code)
+    verifier(not auth.store.get(ACHETEUR)["approved"] and len(courriels) == avant,
+             "aucun accès ouvert, aucun courriel")
 
     etape("Une signature fausse, puis périmée, n'ouvrent rien")
     auth.store.update(ACHETEUR, approved=False)
