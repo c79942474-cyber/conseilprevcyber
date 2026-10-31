@@ -1,0 +1,98 @@
+{
+ "cibles": [
+  "tests/test_accompagnement_securite_ia.py"
+ ],
+ "mutations": [
+  {
+   "nom": "le calcul n'envoie plus la gravité",
+   "fichier": "securite-ia.html",
+   "avant": "      body: JSON.stringify({ systemes: ETAT.systemes, valeur_metier: cad.valeur_metier || \"\",\n                             gravite: cad.gravite || null, statut_nis2: cad.statut_nis2 || \"\" })",
+   "apres": "      body: JSON.stringify({ systemes: ETAT.systemes, valeur_metier: cad.valeur_metier || \"\",\n                             statut_nis2: cad.statut_nis2 || \"\" })",
+   "regle": "test_la_page_ENVOIE_le_cadrage_au_calcul_et_a_l_export"
+  },
+  {
+   "nom": "la décision d'ensemble devient une proportion",
+   "fichier": "accompagnement_securite_ia.py",
+   "avant": "    elif compte[\"inacceptable\"]:",
+   "apres": "    elif compte[\"inacceptable\"] * 2 > len(lignes):",
+   "regle": "test_le_PIRE_maillon_commande_la_decision_jamais_la_proportion"
+  },
+  {
+   "nom": "le pire n'est plus en tête",
+   "fichier": "accompagnement_securite_ia.py",
+   "avant": "    lignes.sort(key=lambda l: (-l[\"_rang\"], -l[\"ecart\"]))",
+   "apres": "    lignes.sort(key=lambda l: (l[\"_rang\"], l[\"ecart\"]))",
+   "regle": "test_le_PIRE_maillon_commande_la_decision_jamais_la_proportion"
+  },
+  {
+   "nom": "une gravité absente vaut gravité 1",
+   "fichier": "accompagnement_securite_ia.py",
+   "avant": "        g = g if g in GRILLE else None\n    except (TypeError, ValueError):\n        g = None\n    lignes = []",
+   "apres": "        g = g if g in GRILLE else None\n    except (TypeError, ValueError):\n        g = 1\n    lignes = []",
+   "regle": "test_sans_gravite_AUCUN_niveau_n_est_invente"
+  },
+  {
+   "nom": "la grille devient indulgente en gravité critique",
+   "fichier": "accompagnement_securite_ia.py",
+   "avant": "    4: (\"T\", \"I\", \"I\", \"I\"),",
+   "apres": "    4: (\"T\", \"T\", \"I\", \"I\"),",
+   "regle": "test_une_gravite_CRITIQUE_ne_tolere_pas_deux_degres_d_ecart"
+  },
+  {
+   "nom": "les leviers inversent leurs degrés",
+   "fichier": "accompagnement_securite_ia.py",
+   "avant": "    m_cible = _degre(chaine_autonomie.MAITRISE, autonomie)",
+   "apres": "    m_cible = _degre(chaine_autonomie.MAITRISE, maitrise)",
+   "regle": "test_les_deux_LEVIERS_nomment_les_bons_degres"
+  },
+  {
+   "nom": "la réserve de validation disparaît",
+   "fichier": "accompagnement_securite_ia.py",
+   "avant": "\"proposition doit être validée par la direction avant de \"",
+   "apres": "\"proposition s'applique telle quelle avant de \"",
+   "regle": "test_la_decision_dit_qu_elle_doit_etre_VALIDEE_et_ce_que_NIS2_change"
+  },
+  {
+   "nom": "la route sert les phases sans leurs sources",
+   "fichier": "accompagnement_securite_ia.py",
+   "avant": "        \"phases\": [dict(p, a_preparer=list(p[\"a_preparer\"]),\n                        sources=[_source(c) for c in p[\"sources\"]])",
+   "apres": "        \"phases\": [dict(p, a_preparer=list(p[\"a_preparer\"]),\n                        sources=[])",
+   "regle": "test_la_route_sert_TOUT_ce_que_la_page_dresse"
+  },
+  {
+   "nom": "la barre avance sur un système déclaré sans cotation",
+   "fichier": "securite-ia-accompagnement.js",
+   "avant": "      marquer(\"chaine\", d.cotes > 0);",
+   "apres": "      marquer(\"chaine\", d.declares > 0);",
+   "regle": "test_la_barre_n_avance_que_sur_CONSTAT"
+  },
+  {
+   "nom": "la lecture du risque se dit faite sans gravité",
+   "fichier": "securite-ia-accompagnement.js",
+   "avant": "      marquer(\"ebios\", !!(j && j.decision && j.decision.ok && j.decision.gravite));",
+   "apres": "      marquer(\"ebios\", !!(j && j.decision && j.decision.ok));",
+   "regle": "test_la_barre_n_avance_que_sur_CONSTAT"
+  },
+  {
+   "nom": "une définition est recopiée dans la page",
+   "fichier": "securite-ia.html",
+   "avant": "      <p class=\"sia-aide\"><span class=\"sia-requis\">*</span>",
+   "apres": "      <p class=\"sia-aide\">Ce que le système fait à ce maillon sans qu'un humain l'ait validé.</p>\n      <p class=\"sia-aide\"><span class=\"sia-requis\">*</span>",
+   "regle": "test_la_page_ne_RECOPIE_aucun_texte_d_accompagnement"
+  },
+  {
+   "nom": "une info-bulle appelle un terme absent du glossaire",
+   "fichier": "securite-ia.html",
+   "avant": "data-terme=\"statut_nis2\"",
+   "apres": "data-terme=\"statut_dora\"",
+   "regle": "test_chaque_terme_a_sa_source_et_chaque_bulle_de_la_page_son_terme"
+  },
+  {
+   "nom": "l'évaluation ne rend plus la décision",
+   "fichier": "app.py",
+   "avant": "        r[\"decision\"] = accompagnement_securite_ia.aide_a_la_decision(",
+   "apres": "        r[\"_decision\"] = accompagnement_securite_ia.aide_a_la_decision(",
+   "regle": "test_l_evaluation_rend_l_aide_a_la_decision_avec_la_GRAVITE"
+  }
+ ]
+}
