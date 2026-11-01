@@ -283,6 +283,8 @@ _RATE_EXACT = {
     # qu'une lecture de table — le comptage du registre, lui, se fait dans un
     # fil de fond et jamais dans la requête.
     "/api/securite-ia/chiffres":        (240, 60),
+    # L'ACCOMPAGNEMENT : servi une fois par ouverture, figé en cache.
+    "/api/securite-ia/accompagnement":  (240, 60),
 }
 _RATE_EXACT.update({
     # ── DEUX JETONS QUI SE FORÇAIENT EN AVEUGLE ─────────────────────────────
@@ -2487,6 +2489,8 @@ import profil_dc     # noqa: E402  — analyse le moteur ci-dessus, ne le double
 import ingenierie_dc  # noqa: E402  — situe ses résultats dans la séquence projet
 import ia_factory     # noqa: E402  — l'étude de faisabilité d'une usine IA, sans prix inventé
 import contre_expertise_ia  # noqa: E402  — CONTESTE le programme d'une usine
+import accompagnement_securite_ia  # noqa: E402  — phases, info-bulles,
+#   cadrage et aide à la décision de la page /securite-ia
 import chiffres_securite_ia  # noqa: E402  — les six chiffres du bandeau,
                              # chacun avec sa source, sa date et sa péremption
 import veille_chiffres        # noqa: E402  — retrouve la RÉFÉRENCE d'un
@@ -3196,6 +3200,11 @@ def api_securite_ia_evaluer():
             data["systemes"], valeur_metier=vm, gravite=data.get("gravite"))
         if not r.get("ok"):
             return jsonify(r), 400
+        # L'AIDE À LA DÉCISION VOYAGE AVEC LE CONSTAT : la grille croise
+        # l'écart de chaque maillon ouvert avec la gravité du cadrage.
+        r["decision"] = accompagnement_securite_ia.aide_a_la_decision(
+            data["systemes"], gravite=data.get("gravite"),
+            statut_nis2=data.get("statut_nis2"))
         return jsonify(r)
     r = chaine_autonomie.restitution_ebios(
         data.get("autonomie"), data.get("maitrise"),
@@ -3205,6 +3214,19 @@ def api_securite_ia_evaluer():
     r["chaine"] = chaine_autonomie.evaluer(data.get("autonomie"),
                                            data.get("maitrise"))
     return jsonify(r)
+
+
+@app.route("/api/securite-ia/accompagnement")
+def api_securite_ia_accompagnement():
+    """Les phases de la page avec leurs sources, le glossaire des
+    info-bulles, les listes du cadrage et la grille d'acceptation.
+
+    LA PAGE NE RECOPIE RIEN de tout cela, pour la même raison que la chaîne :
+    un texte d'accompagnement écrit dans le gabarit divergerait du module au
+    premier remaniement."""
+    return _json_fige("securite-ia-accompagnement",
+                      lambda: dict(ok=True,
+                                   accompagnement=accompagnement_securite_ia.referentiel()))
 
 
 @app.route("/api/securite-ia/emporter", methods=["POST"])
@@ -7857,6 +7879,14 @@ def nav_js():
 def fond_hero_js():
     """Bascule affiche → vidéo du fond de bandeau (voir le fichier)."""
     return _serve_fast("fond-hero.js", _CC_ASSET,
+                       mimetype="text/javascript; charset=utf-8")
+
+
+@app.route("/securite-ia-accompagnement.js")
+def securite_ia_accompagnement_js():
+    """Cadrage, barre de progression, encadrés, info-bulles et aide à la
+    décision de /securite-ia (voir le fichier)."""
+    return _serve_fast("securite-ia-accompagnement.js", _CC_ASSET,
                        mimetype="text/javascript; charset=utf-8")
 
 

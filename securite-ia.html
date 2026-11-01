@@ -247,6 +247,70 @@
   .si-sources td{border-bottom:1px solid var(--line);padding:9px 10px;vertical-align:top;color:var(--muted)}
   .si-sources td b{color:var(--ink)}
   .si-non{color:var(--terra);font-weight:600}
+
+  /* ── L'ACCOMPAGNEMENT : barre de progression, cadrage, encadrés, décision ──
+     Tout le texte vient de /api/securite-ia/accompagnement ; le gabarit ne
+     porte que les champs et leurs étiquettes. */
+  .sia-prog{position:sticky;top:64px;z-index:15;margin:0 0 6px;padding:10px 14px;border:1px solid var(--line);
+            border-radius:12px;background:color-mix(in srgb,var(--bg) 88%,#000);backdrop-filter:blur(8px)}
+  .sia-prog-h{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .sia-prog-t{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2)}
+  .sia-prog-barre{flex:1 1 160px;height:8px;border-radius:5px;background:var(--bg2);overflow:hidden;border:1px solid var(--line)}
+  .sia-prog-barre i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--teal),var(--cyan));transition:width .5s ease}
+  .sia-prog-n{font-family:var(--mono);font-size:12px;color:var(--ink);font-variant-numeric:tabular-nums}
+  .sia-etapes{list-style:none;margin:9px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+  .sia-etapes a{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 5px;border-radius:99px;border:1px solid var(--line);
+                font-size:12px;color:var(--muted);text-decoration:none;background:var(--bg2)}
+  .sia-etapes a b{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;
+                  font:700 10px/1 var(--mono);background:var(--panel);color:var(--muted2)}
+  .sia-etapes a.fait{color:var(--ink);border-color:var(--green)}
+  .sia-etapes a.fait b{background:var(--green);color:#04121A}
+  .sia-etapes a.courant{color:var(--ink);border-color:var(--cyan)}
+  .sia-etapes a.courant b{background:var(--cyan);color:#04121A}
+  .sia-etapes a:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  /* UNE SEULE LIGNE : seule l'étape en cours dit son titre ; les autres
+     gardent leur numéro, et leur titre au survol. */
+  .sia-etapes a:not(.courant) .sia-et-t{display:none}
+  .sia-etapes a:not(.courant){padding-right:5px}
+  @media(max-width:720px){.sia-prog{top:58px}}
+  main .section[id]{scroll-margin-top:150px}
+  .sia-acc{margin:12px 0 4px;border:1px solid var(--line);border-left:3px solid var(--teal);border-radius:10px;background:var(--bg2)}
+  .sia-acc>summary{cursor:pointer;padding:10px 14px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal)}
+  .sia-acc>summary:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  .sia-acc-c{padding:0 14px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px 18px}
+  .sia-acc-c h4{margin:0 0 4px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2)}
+  .sia-acc-c p,.sia-acc-c li{margin:0;font-size:13px;line-height:1.55;color:var(--muted)}
+  .sia-acc-c ul{margin:0;padding-left:17px}
+  .sia-acc-dec{grid-column:1/-1;border:1px solid var(--line);border-radius:9px;padding:9px 12px;background:var(--panel)}
+  .sia-acc-dec p{color:var(--ink)}
+  .sia-acc-piege p{color:var(--terra)}
+  .sia-src{grid-column:1/-1;border-top:1px solid var(--line);padding-top:10px}
+  .sia-src li{margin-bottom:5px}
+  .sia-src a{color:var(--cyan)}
+  .sia-src .sia-lic{font-family:var(--mono);font-size:10.5px;color:var(--muted2)}
+  .sia-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:14px}
+  .sia-form label{display:flex;align-items:center;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;
+                  text-transform:uppercase;color:var(--muted2);margin-bottom:5px}
+  .sia-form input,.sia-form select{width:100%;box-sizing:border-box;background:var(--bg2);color:var(--ink);border:1px solid var(--line);
+                  border-radius:8px;padding:9px 10px;font:inherit;font-size:13.5px}
+  .sia-form input:focus-visible,.sia-form select:focus-visible{outline:2px solid var(--cyan);outline-offset:1px}
+  .sia-aide{margin:6px 0 0;font-size:12.5px;line-height:1.5;color:var(--muted)}
+  .sia-requis{color:var(--terra)}
+  .sia-decision{margin-top:14px}
+  .sia-dec-tete{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:linear-gradient(180deg,var(--panel),var(--bg2))}
+  .sia-dec-tete h3{margin:0 0 6px;font-size:1rem}
+  .sia-dec-tete p{margin:6px 0 0;font-size:13.5px;line-height:1.55}
+  .sia-dec-comptes{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .sia-pastille{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:99px;font:600 11.5px/1.2 var(--mono);border:1px solid var(--line)}
+  .sia-pastille.inacceptable{color:#FFD9CF;background:rgba(217,96,58,.28);border-color:var(--terra)}
+  .sia-pastille.tolerable{color:#FFE8B5;background:rgba(240,180,41,.18);border-color:var(--amber)}
+  .sia-pastille.acceptable{color:#C9F7E2;background:rgba(52,211,153,.16);border-color:var(--green)}
+  .sia-pastille.inconnu{color:var(--muted);background:var(--bg2)}
+  .sia-dec-l{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:10px}
+  .sia-dec-l>li{border:1px solid var(--line);border-radius:10px;padding:11px 14px;background:var(--bg2);font-size:13px;line-height:1.55}
+  .sia-dec-l>li h4{margin:0 0 6px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13.5px}
+  .sia-dec-l ul{margin:6px 0 0;padding-left:18px;color:var(--muted)}
+  .sia-dec-val{margin-top:10px;font-size:12px;color:var(--muted2)}
 </style>
 </head>
 </head>
@@ -286,6 +350,20 @@
         ouvert, qu'on l'ait imaginé ou non. <strong>Le pire écart commande la chaîne, jamais la moyenne.</strong></p>
     </section>
 
+    <!-- ── LA BARRE DE PROGRESSION ─────────────────────────────────────────
+         Les étapes et leur titre viennent de /api/securite-ia/accompagnement.
+         Une étape passe à « faite » quand la page CONSTATE ce qui la clôt
+         (un système déclaré, un maillon coté, un calcul rendu…) — jamais sur
+         une case qu'on coche pour faire avancer la jauge. -->
+    <nav class="sia-prog" id="sia-prog" aria-label="Avancement de la démarche">
+      <div class="sia-prog-h">
+        <span class="sia-prog-t">Votre avancement</span>
+        <div class="sia-prog-barre" role="progressbar" id="sia-prog-barre" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Avancement de la démarche"><i id="sia-prog-jauge"></i></div>
+        <span class="sia-prog-n" id="sia-prog-n"></span>
+      </div>
+      <ol class="sia-etapes" id="sia-etapes"></ol>
+    </nav>
+
     <!-- ── LE BANDEAU DE CHIFFRES, EN TÊTE ────────────────────────────────
          POURQUOI ICI ET PAS PLUS BAS. Ces six nombres ne commentent pas la
          méthode : ils disent pourquoi la page existe. Placés après
@@ -316,6 +394,40 @@
           cela&nbsp;». Vos réponses ne sont pas conservées&nbsp;: elles montent pour être calculées, et rien n'en
           est enregistré.</div>
       </div>
+    </section>
+
+
+    <!-- ── LE CADRAGE ──────────────────────────────────────────────────────
+         CE QUI MANQUAIT : la route d'évaluation savait recevoir la valeur
+         métier et la gravité, la page ne les demandait jamais — la
+         restitution rendait des « vraisemblances sans risques ». -->
+    <section class="section" id="cadrage" style="padding-top:8px">
+      <h2 class="sec-title">// Le cadrage</h2>
+      <div class="sia-form" id="sia-form">
+        <div>
+          <label for="sia-secteur">Secteur d'activité</label>
+          <select id="sia-secteur"><option value="">—</option></select>
+        </div>
+        <div>
+          <label for="sia-nis2">Statut NIS 2 <button type="button" class="tipi" data-terme="statut_nis2" aria-label="Définition">i</button></label>
+          <select id="sia-nis2"><option value="">—</option></select>
+        </div>
+        <div>
+          <label for="sia-valeur">Valeur métier protégée <span class="sia-requis" aria-hidden="true">*</span> <button type="button" class="tipi" data-terme="valeur_metier" aria-label="Définition">i</button></label>
+          <input id="sia-valeur" type="text" maxlength="200" list="sia-valeurs" placeholder="Continuité de la production" aria-required="true">
+          <datalist id="sia-valeurs"></datalist>
+        </div>
+        <div>
+          <label for="sia-gravite">Gravité de sa perte <span class="sia-requis" aria-hidden="true">*</span> <button type="button" class="tipi" data-terme="gravite" aria-label="Définition">i</button></label>
+          <select id="sia-gravite" aria-required="true" aria-describedby="sia-gravite-dit"><option value="">—</option></select>
+          <p class="sia-aide" id="sia-gravite-dit"></p>
+        </div>
+        <div>
+          <label for="sia-perimetre">Périmètre analysé</label>
+          <input id="sia-perimetre" type="text" maxlength="300" placeholder="AI Factory, site de production, direction…">
+        </div>
+      </div>
+      <p class="sia-aide"><span class="sia-requis">*</span> Requis pour que la restitution rende un niveau de risque et une décision proposée.</p>
     </section>
 
     <!-- ── LE PARC AVANT LA CHAÎNE ───────────────────────────────────────
@@ -372,6 +484,7 @@
         mesure bien et ne se défend pas — aucun régulateur ne la connaît. EBIOS&nbsp;RM se défend et mesure mal un
         système non déterministe. On conduit donc <strong>une</strong> analyse, restituée dans le vocabulaire que
         lit un auditeur NIS2 sans qu'on ait à le lui expliquer.</p>
+      <div class="sia-decision" id="sia-decision" aria-live="polite"></div>
       <div class="si-ebios" id="si-ebios"></div>
     </section>
 
@@ -584,6 +697,7 @@
   <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
   <script src="/nav.js" defer></script>
   <script src="/parcours.js" defer></script>
+  <script src="/securite-ia-accompagnement.js" defer></script>
 <script>
 /* L'ÉCRAN NE CONNAÎT AUCUNE PHASE — il les demande.
    Recopier les huit phases ici les ferait diverger du module au premier
@@ -727,6 +841,18 @@
 
   function courant() { return ETAT.systemes[ETAT.courant] || null; }
 
+  /* LE CADRAGE VIENT DE /securite-ia-accompagnement.js : valeur métier,
+     gravité, statut NIS 2. Sans lui, la restitution reste sans risques. */
+  function cadrage() {
+    return (window.SIA && window.SIA.cadrage) ? window.SIA.cadrage() : {};
+  }
+  function annoncer(nom, detail) {
+    try { document.dispatchEvent(new CustomEvent(nom, { detail: detail })); } catch (e) {}
+  }
+  function bulle(terme) {
+    return ' <button type="button" class="tipi" data-terme="' + terme + '" aria-label="Définition">i</button>';
+  }
+
   function ajouter(nom) {
     nom = String(nom || "").trim().slice(0, 120);
     if (!nom) return false;
@@ -802,11 +928,11 @@
         + '<p class="si-q">' + esc(m.question) + "</p>"
         + '<p class="si-constat"><b>Ce qui se constate —</b> ' + esc(m.constat) + "</p>"
         + '<div class="si-curseurs">'
-        + '<div class="si-c"><label for="si-a-' + esc(m.cle) + '">Autonomie constatée</label>'
+        + '<div class="si-c"><label for="si-a-' + esc(m.cle) + '">Autonomie constatée' + bulle("autonomie") + '</label>'
         + '<select id="si-a-' + esc(m.cle) + '" data-axe="autonomie" data-m="' + esc(m.cle) + '">'
         + options(REF.autonomie, a) + "</select>"
         + '<p class="si-dit">' + esc(dit(REF.autonomie, a)) + "</p></div>"
-        + '<div class="si-c"><label for="si-t-' + esc(m.cle) + '">Maîtrise constatée</label>'
+        + '<div class="si-c"><label for="si-t-' + esc(m.cle) + '">Maîtrise constatée' + bulle("maitrise") + '</label>'
         + '<select id="si-t-' + esc(m.cle) + '" data-axe="maitrise" data-m="' + esc(m.cle) + '">'
         + options(REF.maitrise, t) + "</select>"
         + '<p class="si-dit">' + esc(dit(REF.maitrise, t)) + "</p></div>"
@@ -842,15 +968,19 @@
 
   function calculer() {
     var n = cotes();
+    annoncer("sia:parc", { declares: ETAT.systemes.length, cotes: n });
     ["si-vider", "si-docx", "si-xlsx", "si-pdf"].forEach(function (id) { $("#" + id).disabled = !n; });
-    if (!n) { $("#si-ebios").innerHTML = ""; PARC = null; dessinerParc(); return; }
+    if (!n) { $("#si-ebios").innerHTML = ""; PARC = null; dessinerParc(); annoncer("sia:evalue", null); return; }
+    var cad = cadrage();
     fetch("/api/securite-ia/evaluer", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ systemes: ETAT.systemes })
+      body: JSON.stringify({ systemes: ETAT.systemes, valeur_metier: cad.valeur_metier || "",
+                             gravite: cad.gravite || null, statut_nis2: cad.statut_nis2 || "" })
     }).then(function (r) { return r.json(); }).then(function (j) {
       if (!j || !j.ok) return;
       PARC = j;
+      annoncer("sia:evalue", j);
       $("#si-lecture").textContent = j.lecture;
       var cmd = j.parc && j.parc.commande ? j.parc.commande : null;
       var sys = courant();
@@ -862,12 +992,12 @@
       (j.scenarios || []).forEach(function (s) {
         h += '<div class="si-sc"><h4>' + esc(s.systeme) + " — " + esc(s.evenement_redoute) + "</h4><dl>"
           + "<dt>Système</dt><dd>" + esc(s.systeme) + "</dd>"
-          + "<dt>Bien support critique</dt><dd>" + esc(s.bien_support_critique) + "</dd>"
+          + "<dt>Bien support critique" + bulle("bien_support") + "</dt><dd>" + esc(s.bien_support_critique) + "</dd>"
           + "<dt>Besoin atteint</dt><dd>" + esc(s.besoin_de_securite) + "</dd>"
-          + "<dt>Vraisemblance</dt><dd><b>" + esc(s.vraisemblance) + "</b> — " + esc(s.vraisemblance_dit) + "</dd>"
+          + "<dt>Vraisemblance" + bulle("vraisemblance") + "</dt><dd><b>" + esc(s.vraisemblance) + "</b> — " + esc(s.vraisemblance_dit) + "</dd>"
           + "<dt>Actions élémentaires</dt><dd>" + s.actions_elementaires.map(function (a) {
               return esc(a.cle) + " · " + esc(a.nom); }).join(" · ") + "</dd>"
-          + "<dt>Socle applicable</dt><dd>" + s.socle_applicable.map(esc).join("<br>") + "</dd>"
+          + "<dt>Socle applicable" + bulle("socle") + "</dt><dd>" + s.socle_applicable.map(esc).join("<br>") + "</dd>"
           + "</dl></div>";
       });
       if (!h) h = '<p class="note">Aucun maillon ouvert parmi les systèmes cotés. Ce constat ne '
@@ -882,7 +1012,11 @@
     fetch("/api/securite-ia/emporter", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ format: fmt, systemes: ETAT.systemes })
+      body: JSON.stringify(function () {
+        var cad = cadrage();
+        return { format: fmt, systemes: ETAT.systemes, valeur_metier: cad.valeur_metier || "",
+                 gravite: cad.gravite || null, perimetre: cad.perimetre || "" };
+      }())
     }).then(function (r) { return r.ok ? r.blob() : null; }).then(function (b) {
       if (!b) return;
       var u = URL.createObjectURL(b), a = document.createElement("a");
@@ -922,6 +1056,10 @@
     if (b.id === "si-docx") emporter("docx");
     if (b.id === "si-xlsx") emporter("xlsx");
   });
+
+  /* UN CADRAGE MODIFIÉ RECALCULE : la gravité change le niveau de chaque
+     maillon ouvert, et la décision avec. */
+  document.addEventListener("sia:cadrage", function () { if (REF) calculer(); });
 
   document.addEventListener("keydown", function (e) {
     if (e.key === "Enter" && e.target && e.target.id === "si-nom") {

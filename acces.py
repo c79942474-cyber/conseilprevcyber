@@ -216,6 +216,10 @@ API_OUVERTES = {
     "/api/securite-ia/referentiel": "les cinq maillons de la chaîne d'autonomie",
     "/api/securite-ia/evaluer": "l'écart par maillon et la restitution EBIOS",
     "/api/securite-ia/emporter": "l'export du relevé de chaîne d'autonomie",
+    # L'ACCOMPAGNEMENT DE LA PAGE s'ouvre avec elle : ce sont nos textes
+    # (phases, définitions, grille), aucune donnée du client n'y transite.
+    "/api/securite-ia/accompagnement": "les phases, les définitions et la "
+                                       "grille d'acceptation de la page",
     # ── LA CONTRE-EXPERTISE S'OUVRE AUSSI, ET IL FAUT DIRE CE QUI DIFFÈRE
     # La chaîne d'autonomie fait monter deux curseurs par maillon. Ici, le
     # corps de la requête nomme des cas d'usage EN SERVICE et les contrôles
